@@ -193,8 +193,10 @@ class IssueTracker:
                 base_severity=issue.severity,
                 age_in_runs=1,
                 age_in_tiers=1,
+                first_seen_run_id=self.run_id,
                 last_seen_run_id=self.run_id,
                 last_seen_at=datetime.utcnow(),
+                seen_in_tiers=[],
             )
 
         self.save_project_backlog(backlog)

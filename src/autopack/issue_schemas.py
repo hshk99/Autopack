@@ -69,8 +69,10 @@ class ProjectBacklogEntry(BaseModel):
     base_severity: str
     age_in_runs: int = Field(default=0, description="Number of runs this issue has persisted")
     age_in_tiers: int = Field(default=0, description="Number of tiers this issue has affected")
+    first_seen_run_id: Optional[str] = Field(None, description="First run where this issue appeared")
     last_seen_run_id: str
     last_seen_at: datetime
+    seen_in_tiers: List[str] = Field(default_factory=list, description="List of tier_ids where issue occurred")
     status: str = Field(default="open", description="open, needs_cleanup, resolved")
 
 

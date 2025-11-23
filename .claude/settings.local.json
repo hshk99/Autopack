@@ -11,7 +11,9 @@
       "Bash(python:*)",
       "Bash(docker-compose logs:*)",
       "Bash(docker-compose restart:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)"
     ],
     "deny": [],
     "ask": []

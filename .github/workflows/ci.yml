@@ -1,0 +1,98 @@
+name: Autopack CI
+
+on:
+  push:
+    branches: [ main, 'autonomous/**' ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: |
+          pip install -r requirements-dev.txt
+      - name: Lint with ruff
+        run: |
+          ruff check src/ tests/
+      - name: Check formatting with black
+        run: |
+          black --check src/ tests/
+
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: autopack
+          POSTGRES_PASSWORD: autopack
+          POSTGRES_DB: autopack
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: |
+          pip install -r requirements-dev.txt
+      - name: Run tests
+        env:
+          DATABASE_URL: postgresql://autopack:autopack@localhost:5432/autopack
+        run: |
+          pytest tests/ -v --cov=src/autopack --cov-report=xml
+      - name: Upload coverage
+        uses: codecov/codecov-action@v3
+        with:
+          file: ./coverage.xml
+
+  preflight-normal:
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/heads/autonomous/')
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: |
+          pip install -r requirements-dev.txt
+      - name: Run preflight gate (normal profile)
+        env:
+          CI_PROFILE: normal
+        run: |
+          bash scripts/preflight_gate.sh
+
+  preflight-strict:
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/heads/autonomous/') && contains(github.event.head_commit.message, '[strict]')
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: |
+          pip install -r requirements-dev.txt
+      - name: Run preflight gate (strict profile)
+        env:
+          CI_PROFILE: strict
+        run: |
+          bash scripts/preflight_gate.sh

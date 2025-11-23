@@ -1,0 +1,113 @@
+{
+  "project_id": "TestProject",
+  "issues_by_key": {
+    "test_failure__missing_assert": {
+      "category": "test_failure",
+      "base_severity": "minor",
+      "age_in_runs": 2,
+      "age_in_tiers": 2,
+      "last_seen_run_id": "test-run-001",
+      "last_seen_at": "2025-11-23T11:16:17.067335",
+      "status": "needs_cleanup"
+    },
+    "duplicate_issue": {
+      "category": "test_failure",
+      "base_severity": "minor",
+      "age_in_runs": 4,
+      "age_in_tiers": 4,
+      "last_seen_run_id": "test-run-001",
+      "last_seen_at": "2025-11-23T11:16:17.340896",
+      "status": "needs_cleanup"
+    },
+    "cross_phase_issue": {
+      "category": "test_failure",
+      "base_severity": "minor",
+      "age_in_runs": 4,
+      "age_in_tiers": 4,
+      "last_seen_run_id": "test-run-001",
+      "last_seen_at": "2025-11-23T11:16:17.421494",
+      "status": "needs_cleanup"
+    },
+    "multi_tier_issue": {
+      "category": "test_failure",
+      "base_severity": "minor",
+      "age_in_runs": 4,
+      "age_in_tiers": 4,
+      "last_seen_run_id": "test-run-001",
+      "last_seen_at": "2025-11-23T11:16:17.489007",
+      "status": "needs_cleanup"
+    },
+    "aging_issue": {
+      "category": "test_failure",
+      "base_severity": "minor",
+      "age_in_runs": 3,
+      "age_in_tiers": 3,
+      "last_seen_run_id": "test-run-001",
+      "last_seen_at": "2025-11-23T11:16:17.522010",
+      "status": "needs_cleanup"
+    },
+    "old_minor_issue": {
+      "category": "test_failure",
+      "base_severity": "minor",
+      "age_in_runs": 6,
+      "age_in_tiers": 6,
+      "last_seen_run_id": "test-run-003",
+      "last_seen_at": "2025-11-23T11:16:17.619529",
+      "status": "needs_cleanup"
+    },
+    "major_issue": {
+      "category": "schema_contract_change",
+      "base_severity": "major",
+      "age_in_runs": 2,
+      "age_in_tiers": 2,
+      "last_seen_run_id": "test-run-001",
+      "last_seen_at": "2025-11-23T11:16:17.662049",
+      "status": "open"
+    },
+    "issue_with_evidence": {
+      "category": "test_failure",
+      "base_severity": "minor",
+      "age_in_runs": 2,
+      "age_in_tiers": 2,
+      "last_seen_run_id": "test-run-001",
+      "last_seen_at": "2025-11-23T11:16:17.713049",
+      "status": "needs_cleanup"
+    },
+    "issue_0": {
+      "category": "test_failure",
+      "base_severity": "minor",
+      "age_in_runs": 2,
+      "age_in_tiers": 2,
+      "last_seen_run_id": "test-run-001",
+      "last_seen_at": "2025-11-23T11:16:17.752575",
+      "status": "needs_cleanup"
+    },
+    "issue_1": {
+      "category": "test_failure",
+      "base_severity": "minor",
+      "age_in_runs": 2,
+      "age_in_tiers": 2,
+      "last_seen_run_id": "test-run-001",
+      "last_seen_at": "2025-11-23T11:16:17.781573",
+      "status": "needs_cleanup"
+    },
+    "issue_2": {
+      "category": "test_failure",
+      "base_severity": "minor",
+      "age_in_runs": 2,
+      "age_in_tiers": 2,
+      "last_seen_run_id": "test-run-001",
+      "last_seen_at": "2025-11-23T11:16:17.810575",
+      "status": "needs_cleanup"
+    },
+    "persistent_issue": {
+      "category": "test_failure",
+      "base_severity": "minor",
+      "age_in_runs": 2,
+      "age_in_tiers": 2,
+      "last_seen_run_id": "test-run-001",
+      "last_seen_at": "2025-11-23T11:16:17.867959",
+      "status": "needs_cleanup"
+    }
+  }
+}

@@ -1,0 +1,22 @@
+"""Configuration for Autopack Supervisor"""
+
+from pydantic_settings import BaseSettings
+
+
+class Settings(BaseSettings):
+    """Application settings"""
+
+    database_url: str = "postgresql://autopack:autopack@localhost:5432/autopack"
+    autonomous_runs_dir: str = ".autonomous_runs"
+
+    # Run defaults (per §9.1 of v7 playbook)
+    run_token_cap: int = 5_000_000
+    run_max_phases: int = 25
+    run_max_duration_minutes: int = 120
+
+    class Config:
+        env_file = ".env"
+        env_file_encoding = "utf-8"
+
+
+settings = Settings()

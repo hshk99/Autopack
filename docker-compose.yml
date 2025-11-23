@@ -28,9 +28,13 @@ services:
       - "8000:8000"
     environment:
       DATABASE_URL: postgresql://autopack:autopack@db:5432/autopack
+      REPO_PATH: /workspace
     volumes:
       - .:/app
       - ./.autonomous_runs:/app/.autonomous_runs
+      # Per v7 architect recommendation: mount repository with .git for governed apply path
+      - .:/workspace  # Mount current directory as workspace
+      - ./.git:/workspace/.git  # Ensure .git is accessible
     depends_on:
       db:
         condition: service_healthy

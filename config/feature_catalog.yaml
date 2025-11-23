@@ -1,0 +1,303 @@
+# Feature Catalog Configuration
+# Per v7 architect recommendation: Curated features from known repositories
+#
+# This avoids arbitrary GitHub scraping and maintains zero-intervention compliance
+# Only pre-whitelisted, license-compatible repos are included
+
+features:
+  # Authentication & Authorization
+  auth_basic:
+    description: "Basic username/password authentication with JWT"
+    category: authentication
+    complexity: medium
+
+    repos:
+      - id: fastapi_users
+        repo_url: https://github.com/fastapi-users/fastapi-users
+        path: fastapi_users/
+        license: MIT
+        quality_score: 0.95
+        stars: 4500
+        last_updated: "2024-01"
+        compatible_stacks:
+          - web_fastapi_pg
+          - fullstack_rag
+          - ecommerce_platform
+
+      - id: autopack_auth_module
+        repo_url: https://github.com/hshk99/Autopack
+        path: examples/auth/  # Future: if we add auth example
+        license: MIT
+        quality_score: 0.8
+        stars: 0
+        notes: "Internal reference implementation"
+        compatible_stacks:
+          - web_fastapi_pg
+
+  auth_oauth:
+    description: "OAuth2 authentication (Google, GitHub, etc.)"
+    category: authentication
+    complexity: high
+
+    repos:
+      - id: authlib
+        repo_url: https://github.com/lepture/authlib
+        path: authlib/
+        license: BSD
+        quality_score: 0.92
+        stars: 4000
+        compatible_stacks:
+          - web_fastapi_pg
+          - fullstack_rag
+
+  # Autonomous Build Orchestration
+  autonomous_orchestrator:
+    description: "Autonomous build orchestration system"
+    category: orchestration
+    complexity: high
+
+    repos:
+      - id: autopack_core
+        repo_url: https://github.com/hshk99/Autopack
+        path: src/autopack/
+        license: MIT
+        quality_score: 1.0
+        stars: 0
+        notes: "Reference implementation of v7 playbook"
+        compatible_stacks:
+          - web_fastapi_pg
+        features_included:
+          - run/tier/phase state machines
+          - three-level issue tracking
+          - strategy engine
+          - governed apply path
+          - CI integration
+          - metrics and observability
+
+  # Database & ORM
+  sqlalchemy_patterns:
+    description: "SQLAlchemy ORM patterns and best practices"
+    category: database
+    complexity: medium
+
+    repos:
+      - id: autopack_models
+        repo_url: https://github.com/hshk99/Autopack
+        path: src/autopack/models.py
+        license: MIT
+        quality_score: 0.9
+        notes: "State machine patterns with SQLAlchemy"
+        compatible_stacks:
+          - web_fastapi_pg
+          - fullstack_rag
+
+  # Issue Tracking
+  issue_tracking_system:
+    description: "Multi-level issue tracking with aging"
+    category: observability
+    complexity: medium
+
+    repos:
+      - id: autopack_issue_tracker
+        repo_url: https://github.com/hshk99/Autopack
+        path: src/autopack/issue_tracker.py
+        license: MIT
+        quality_score: 0.95
+        notes: "Three-level issue tracking (phase/run/project)"
+        compatible_stacks:
+          - web_fastapi_pg
+        features_included:
+          - de-duplication by issue_key
+          - aging computation
+          - severity escalation
+          - backlog management
+
+  # API Patterns
+  rest_api_crud:
+    description: "RESTful API with CRUD operations"
+    category: api
+    complexity: low
+
+    repos:
+      - id: fastapi_template
+        repo_url: https://github.com/tiangolo/full-stack-fastapi-template
+        path: backend/app/
+        license: MIT
+        quality_score: 0.9
+        stars: 20000
+        compatible_stacks:
+          - web_fastapi_pg
+          - minimal_api
+
+  # Rate Limiting
+  rate_limiting:
+    description: "API rate limiting and throttling"
+    category: security
+    complexity: medium
+
+    repos:
+      - id: slowapi
+        repo_url: https://github.com/laurents/slowapi
+        path: slowapi/
+        license: MIT
+        quality_score: 0.85
+        stars: 800
+        compatible_stacks:
+          - web_fastapi_pg
+          - fullstack_rag
+
+  # File Upload/Storage
+  file_storage:
+    description: "File upload and storage with S3"
+    category: storage
+    complexity: medium
+
+    repos:
+      - id: fastapi_file_upload
+        repo_url: https://github.com/fastapi-users/fastapi-users
+        path: examples/file_upload/
+        license: MIT
+        quality_score: 0.8
+        compatible_stacks:
+          - web_fastapi_pg
+          - ecommerce_platform
+
+  # Containerization
+  docker_setup:
+    description: "Docker and docker-compose configuration"
+    category: infrastructure
+    complexity: low
+
+    repos:
+      - id: autopack_docker
+        repo_url: https://github.com/hshk99/Autopack
+        path: .
+        files:
+          - Dockerfile
+          - docker-compose.yml
+        license: MIT
+        quality_score: 0.9
+        notes: "Production-ready Docker setup with git support"
+        compatible_stacks:
+          - web_fastapi_pg
+
+  # Testing Infrastructure
+  testing_framework:
+    description: "pytest testing infrastructure"
+    category: testing
+    complexity: medium
+
+    repos:
+      - id: autopack_tests
+        repo_url: https://github.com/hshk99/Autopack
+        path: tests/
+        license: MIT
+        quality_score: 0.85
+        notes: "Model tests, integration tests, fixtures"
+        compatible_stacks:
+          - web_fastapi_pg
+
+  # CI/CD
+  github_actions_ci:
+    description: "GitHub Actions CI/CD workflows"
+    category: ci_cd
+    complexity: medium
+
+    repos:
+      - id: autopack_ci
+        repo_url: https://github.com/hshk99/Autopack
+        path: .github/workflows/
+        license: MIT
+        quality_score: 0.9
+        notes: "Normal and strict CI profiles, preflight gate"
+        compatible_stacks:
+          - web_fastapi_pg
+        features_included:
+          - multi-profile CI
+          - preflight gate with retry
+          - promotion workflows
+
+  # RAG / Vector Search
+  vector_search:
+    description: "Vector database integration (Qdrant)"
+    category: ai
+    complexity: high
+
+    repos:
+      - id: qdrant_client
+        repo_url: https://github.com/qdrant/qdrant-client
+        path: qdrant_client/
+        license: Apache-2.0
+        quality_score: 0.9
+        stars: 1000
+        compatible_stacks:
+          - fullstack_rag
+
+  # Payment Processing
+  stripe_integration:
+    description: "Stripe payment integration"
+    category: payment
+    complexity: high
+
+    repos:
+      - id: stripe_python
+        repo_url: https://github.com/stripe/stripe-python
+        path: stripe/
+        license: MIT
+        quality_score: 0.95
+        stars: 1500
+        compatible_stacks:
+          - ecommerce_platform
+
+# Feature combinations (common patterns)
+feature_combinations:
+  basic_api:
+    features:
+      - rest_api_crud
+      - auth_basic
+      - docker_setup
+      - testing_framework
+    description: "Basic authenticated API"
+    estimated_budget_reduction: 0.4  # 40% reduction vs greenfield
+
+  autonomous_build_system:
+    features:
+      - autonomous_orchestrator
+      - issue_tracking_system
+      - sqlalchemy_patterns
+      - github_actions_ci
+      - docker_setup
+    description: "Complete autonomous build orchestration"
+    estimated_budget_reduction: 0.6  # 60% reduction (reusing Autopack)
+
+  ecommerce_base:
+    features:
+      - rest_api_crud
+      - auth_oauth
+      - stripe_integration
+      - file_storage
+      - docker_setup
+    description: "E-commerce foundation"
+    estimated_budget_reduction: 0.5  # 50% reduction
+
+# License compatibility rules
+license_compatibility:
+  allowed_licenses:
+    - MIT
+    - BSD
+    - Apache-2.0
+    - ISC
+
+  # For safety_critical profiles, require explicit approval
+  restricted_licenses:
+    - GPL  # Copyleft concerns
+    - AGPL  # Network copyleft
+    - Custom  # Unknown terms
+
+# Quality thresholds
+quality_thresholds:
+  minimum_quality_score: 0.7  # Below this, treat as greenfield
+  minimum_stars: 100  # For public repos
+  maximum_age_months: 24  # Last updated within 2 years
+  require_tests: true  # Must have test coverage
+  require_docs: true  # Must have documentation

@@ -1,0 +1,169 @@
+# Stack Profiles Configuration
+# Per v7 architect recommendation: Curated stacks for different project types
+#
+# Each profile defines:
+# - Compatible project types
+# - Technology stack (backend, frontend, db, etc.)
+# - Preferred repositories for feature reuse
+# - Budget modifiers for this stack
+
+profiles:
+  # FastAPI + Postgres (autonomous orchestrator pattern)
+  web_fastapi_pg:
+    description: "FastAPI backend with Postgres database"
+    project_types:
+      - api_service
+      - autonomous_orchestrator
+      - microservice
+
+    stack:
+      backend: fastapi
+      db: postgres
+      orm: sqlalchemy
+      validation: pydantic
+      frontend: none
+      containerization: docker
+
+    preferred_repos:
+      - id: autopack_core
+        description: "Autopack orchestrator (this project)"
+        use_for:
+          - autonomous build orchestration
+          - state machine patterns
+          - three-level issue tracking
+
+      - id: fastapi_users
+        description: "FastAPI authentication"
+        use_for:
+          - user authentication
+          - JWT tokens
+          - role-based access
+
+    budget_modifier: 1.0  # Standard budgets
+
+    default_ci_profile: normal
+
+  # Full-stack RAG application
+  fullstack_rag:
+    description: "Full-stack RAG app with vector DB"
+    project_types:
+      - rag_app
+      - chatbot
+      - ai_assistant
+
+    stack:
+      backend: fastapi
+      db: postgres
+      vector_db: qdrant
+      frontend: nextjs
+      orm: sqlalchemy
+      validation: pydantic
+
+    preferred_repos:
+      - id: rag_template
+        description: "RAG application template"
+        use_for:
+          - retrieval augmented generation
+          - vector search
+          - LLM integration
+
+    budget_modifier: 1.2  # Slightly higher for AI features
+
+    default_ci_profile: strict
+
+  # E-commerce platform
+  ecommerce_platform:
+    description: "E-commerce with payments and inventory"
+    project_types:
+      - ecommerce
+      - marketplace
+      - saas_platform
+
+    stack:
+      backend: fastapi
+      db: postgres
+      frontend: nextjs
+      payment: stripe
+      orm: sqlalchemy
+
+    preferred_repos:
+      - id: ecommerce_core
+        description: "Core e-commerce features"
+        use_for:
+          - product catalog
+          - shopping cart
+          - order management
+
+      - id: payment_integration
+        description: "Payment gateway integration"
+        use_for:
+          - stripe integration
+          - payment processing
+          - refunds
+
+    budget_modifier: 1.3  # Higher for complex business logic
+
+    default_ci_profile: strict
+
+  # Data pipeline / ETL
+  data_pipeline:
+    description: "Data processing and ETL pipelines"
+    project_types:
+      - etl
+      - data_pipeline
+      - analytics
+
+    stack:
+      backend: python
+      db: postgres
+      task_queue: celery
+      cache: redis
+      workflow: airflow
+
+    preferred_repos:
+      - id: pipeline_framework
+        description: "Data pipeline framework"
+        use_for:
+          - data extraction
+          - data transformation
+          - data loading
+
+    budget_modifier: 1.1
+
+    default_ci_profile: normal
+
+  # Minimal API (lightweight services)
+  minimal_api:
+    description: "Lightweight API service"
+    project_types:
+      - webhook_handler
+      - simple_api
+      - integration_service
+
+    stack:
+      backend: fastapi
+      db: sqlite  # or postgres for production
+      validation: pydantic
+      containerization: docker
+
+    preferred_repos:
+      - id: minimal_fastapi
+        description: "Minimal FastAPI template"
+        use_for:
+          - basic CRUD
+          - simple endpoints
+
+    budget_modifier: 0.8  # Lower budgets for simple services
+
+    default_ci_profile: normal
+
+# Project type to profile mapping
+# If project_type matches multiple profiles, choose by priority
+project_type_mapping:
+  api_service: web_fastapi_pg
+  autonomous_orchestrator: web_fastapi_pg
+  rag_app: fullstack_rag
+  chatbot: fullstack_rag
+  ecommerce: ecommerce_platform
+  etl: data_pipeline
+  webhook_handler: minimal_api

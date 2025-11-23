@@ -87,6 +87,31 @@ class StrategyEngine:
             auditor_profile="security_review",
             default_severity="major",
         ),
+        # Per v7 architect recommendation: external feature reuse category
+        "external_feature_reuse": CategoryDefaults(
+            complexity="high",
+            ci_profile="strict",
+            max_builder_attempts=2,
+            max_auditor_attempts=2,
+            incident_token_cap=1_000_000,
+            tier_max_minor_issues_multiplier=1.0,
+            tier_max_major_issues_tolerated=0,
+            auto_apply=False,  # Require review for external code
+            auditor_profile="external_code_review",
+            default_severity="major",  # External code treated as high-risk
+        ),
+        "external_code_intake": CategoryDefaults(
+            complexity="high",
+            ci_profile="strict",
+            max_builder_attempts=2,
+            max_auditor_attempts=3,
+            incident_token_cap=1_200_000,
+            tier_max_minor_issues_multiplier=0.5,
+            tier_max_major_issues_tolerated=0,
+            auto_apply=False,
+            auditor_profile="license_and_security_review",
+            default_severity="major",
+        ),
     }
 
     # Normal category defaults

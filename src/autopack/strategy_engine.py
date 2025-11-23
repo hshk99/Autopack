@@ -215,6 +215,9 @@ class StrategyEngine:
             ),
         )
 
+        # Compute max_minor_issues_total (phases * 3 per §9.1)
+        max_minor_issues_total = len(phases) * 3 if phases else 0
+
         # Start strategy
         strategy = ProjectImplementationStrategy(
             run_id=run_id,
@@ -224,6 +227,7 @@ class StrategyEngine:
             run_token_cap=ruleset.run_token_cap,
             run_max_phases=ruleset.run_max_phases,
             run_max_duration_minutes=ruleset.run_max_duration_minutes,
+            run_max_minor_issues_total=max_minor_issues_total,
             minor_issue_aging_runs_threshold=profile_config.minor_issue_aging_runs_threshold,
             minor_issue_aging_tiers_threshold=profile_config.minor_issue_aging_tiers_threshold,
         )

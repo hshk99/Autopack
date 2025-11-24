@@ -29,6 +29,7 @@ services:
     environment:
       DATABASE_URL: postgresql://autopack:autopack@db:5432/autopack
       REPO_PATH: /workspace
+      OPENAI_API_KEY: ${OPENAI_API_KEY}  # Load from .env file
     volumes:
       - .:/app
       - ./.autonomous_runs:/app/.autonomous_runs

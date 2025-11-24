@@ -50,9 +50,24 @@ class Supervisor:
     def __init__(
         self,
         api_url: str = "http://localhost:8000",
-        openai_api_key: Optional[str] = None
+        openai_api_key: Optional[str] = None,
+        target_repo_path: Optional[str] = None
     ):
+        """
+        Initialize Supervisor for autonomous builds.
+
+        Args:
+            api_url: Autopack API URL
+            openai_api_key: OpenAI API key (defaults to env var)
+            target_repo_path: Path to target project repository
+                             If None, uses current directory
+                             Example: "c:\\Projects\\my-app"
+        """
         self.api_url = api_url.rstrip("/")
+
+        # Target repository path for multi-project isolation
+        self.target_repo_path = target_repo_path or os.getcwd()
+        print(f"[Supervisor] Target repository: {self.target_repo_path}")
 
         # Load configurations
         self.models_config = self._load_models_config()

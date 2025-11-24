@@ -13,7 +13,11 @@
       "Bash(docker-compose restart:*)",
       "Bash(git add:*)",
       "Bash(git commit:*)",
-      "Bash(git push:*)"
+      "Bash(git push:*)",
+      "Bash(if [ -f .env ])",
+      "Bash(then echo \"✅ .env file exists\")",
+      "Bash(else echo \"❌ .env file not found\")",
+      "Bash(fi)"
     ],
     "deny": [],
     "ask": []

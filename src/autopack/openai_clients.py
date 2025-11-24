@@ -35,7 +35,9 @@ class OpenAIBuilderClient:
         phase_spec: Dict,
         file_context: Optional[Dict] = None,
         max_tokens: Optional[int] = None,
-        model: str = "gpt-4o"
+        model: str = "gpt-4o",
+        project_rules: Optional[List] = None,
+        run_hints: Optional[List] = None
     ) -> BuilderResult:
         """Execute a phase and generate code patch
 
@@ -49,6 +51,8 @@ class OpenAIBuilderClient:
             file_context: Current repo files (optional, for context)
             max_tokens: Token budget limit for this call
             model: OpenAI model to use
+            project_rules: Persistent project learned rules (Stage 0B)
+            run_hints: Within-run hints from earlier phases (Stage 0A)
 
         Returns:
             BuilderResult with patch_content and metadata
@@ -58,7 +62,9 @@ class OpenAIBuilderClient:
             system_prompt = self._build_system_prompt()
 
             # Build user prompt with phase details
-            user_prompt = self._build_user_prompt(phase_spec, file_context)
+            user_prompt = self._build_user_prompt(
+                phase_spec, file_context, project_rules, run_hints
+            )
 
             # Call OpenAI API with JSON schema response
             response = self.client.chat.completions.create(
@@ -127,10 +133,28 @@ Guidelines:
     def _build_user_prompt(
         self,
         phase_spec: Dict,
-        file_context: Optional[Dict]
+        file_context: Optional[Dict],
+        project_rules: Optional[List] = None,
+        run_hints: Optional[List] = None
     ) -> str:
         """Build user prompt with phase details"""
         prompt_parts = []
+
+        # Stage 0A + 0B: Inject learned rules and hints
+        if project_rules or run_hints:
+            from .learned_rules import format_rules_for_prompt, format_hints_for_prompt
+
+            if project_rules:
+                rules_section = format_rules_for_prompt(project_rules)
+                if rules_section:
+                    prompt_parts.append(rules_section)
+                    prompt_parts.append("\n")
+
+            if run_hints:
+                hints_section = format_hints_for_prompt(run_hints)
+                if hints_section:
+                    prompt_parts.append(hints_section)
+                    prompt_parts.append("\n")
 
         # Add phase details
         prompt_parts.append(f"## Phase Specification\n")
@@ -181,7 +205,9 @@ class OpenAIAuditorClient:
         patch_content: str,
         phase_spec: Dict,
         max_tokens: Optional[int] = None,
-        model: str = "gpt-4o"
+        model: str = "gpt-4o",
+        project_rules: Optional[List] = None,
+        run_hints: Optional[List] = None
     ) -> AuditorResult:
         """Review a patch and find issues
 
@@ -190,6 +216,8 @@ class OpenAIAuditorClient:
             phase_spec: Phase specification for context
             max_tokens: Token budget limit for this call
             model: OpenAI model to use
+            project_rules: Persistent project learned rules (Stage 0B)
+            run_hints: Within-run hints from earlier phases (Stage 0A)
 
         Returns:
             AuditorResult with issues_found and metadata
@@ -199,7 +227,9 @@ class OpenAIAuditorClient:
             system_prompt = self._build_system_prompt()
 
             # Build user prompt with patch and context
-            user_prompt = self._build_user_prompt(patch_content, phase_spec)
+            user_prompt = self._build_user_prompt(
+                patch_content, phase_spec, project_rules, run_hints
+            )
 
             # Call OpenAI API with JSON schema response
             response = self.client.chat.completions.create(
@@ -291,10 +321,28 @@ Be thorough but fair. Approve patches that work correctly even if they have mino
     def _build_user_prompt(
         self,
         patch_content: str,
-        phase_spec: Dict
+        phase_spec: Dict,
+        project_rules: Optional[List] = None,
+        run_hints: Optional[List] = None
     ) -> str:
         """Build user prompt with patch and context"""
         prompt_parts = []
+
+        # Stage 0A + 0B: Inject learned rules and hints
+        if project_rules or run_hints:
+            from .learned_rules import format_rules_for_prompt, format_hints_for_prompt
+
+            if project_rules:
+                rules_section = format_rules_for_prompt(project_rules)
+                if rules_section:
+                    prompt_parts.append(rules_section)
+                    prompt_parts.append("\n")
+
+            if run_hints:
+                hints_section = format_hints_for_prompt(run_hints)
+                if hints_section:
+                    prompt_parts.append(hints_section)
+                    prompt_parts.append("\n")
 
         # Add phase context
         prompt_parts.append(f"## Phase Context\n")

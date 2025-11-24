@@ -42,6 +42,14 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from src.autopack.openai_clients import OpenAIBuilderClient, OpenAIAuditorClient
 from src.autopack.llm_client import ModelSelector
+from src.autopack.learned_rules import (
+    load_project_learned_rules,
+    get_relevant_rules_for_phase,
+    load_run_rule_hints,
+    get_relevant_hints_for_phase,
+    record_run_rule_hint,
+    promote_hints_to_rules,
+)
 
 
 class Supervisor:
@@ -51,7 +59,8 @@ class Supervisor:
         self,
         api_url: str = "http://localhost:8000",
         openai_api_key: Optional[str] = None,
-        target_repo_path: Optional[str] = None
+        target_repo_path: Optional[str] = None,
+        project_id: str = "Autopack"
     ):
         """
         Initialize Supervisor for autonomous builds.
@@ -62,12 +71,18 @@ class Supervisor:
             target_repo_path: Path to target project repository
                              If None, uses current directory
                              Example: "c:\\Projects\\my-app"
+            project_id: Project identifier for learned rules isolation
+                       Used to store/load project-specific learned rules
         """
         self.api_url = api_url.rstrip("/")
 
         # Target repository path for multi-project isolation
         self.target_repo_path = target_repo_path or os.getcwd()
         print(f"[Supervisor] Target repository: {self.target_repo_path}")
+
+        # Project ID for learned rules
+        self.project_id = project_id
+        print(f"[Supervisor] Project ID: {self.project_id}")
 
         # Load configurations
         self.models_config = self._load_models_config()
@@ -79,6 +94,10 @@ class Supervisor:
 
         # Initialize model selector
         self.model_selector = ModelSelector(self.models_config)
+
+        # Learned rules storage (Stage 0A + 0B)
+        self.project_rules = []  # Persistent cross-run rules (Stage 0B)
+        self.run_rules_snapshot = []  # Rules loaded at run start (frozen during run)
 
         # Track HIGH_RISK categories from strategy engine
         self.high_risk_categories = {
@@ -175,6 +194,25 @@ class Supervisor:
         print(f"[Supervisor]    Auditor: {model_selection.auditor_model}")
         print(f"[Supervisor]    Rationale: {model_selection.rationale}")
 
+        # Stage 0A + 0B: Get relevant rules and hints for this phase
+        print(f"\n[Supervisor] 📚 Loading learned rules for phase...")
+
+        # Stage 0B: Get persistent project rules (from snapshot)
+        relevant_project_rules = get_relevant_rules_for_phase(
+            self.run_rules_snapshot, phase, max_rules=10
+        )
+
+        # Stage 0A: Get run-local hints from earlier phases
+        relevant_run_hints = get_relevant_hints_for_phase(
+            run_id, phase, max_hints=5
+        )
+
+        if relevant_project_rules or relevant_run_hints:
+            print(f"[Supervisor]    Project rules: {len(relevant_project_rules)}")
+            print(f"[Supervisor]    Run hints: {len(relevant_run_hints)}")
+        else:
+            print(f"[Supervisor]    No relevant rules or hints found")
+
         # Step 2: Builder executes
         print(f"\n[Supervisor] → Dispatching to Builder (OpenAI {model_selection.builder_model})...")
 
@@ -191,7 +229,9 @@ class Supervisor:
             phase_spec=phase_spec,
             file_context=None,  # TODO: Add repo file context
             max_tokens=phase.get("incident_token_cap", 500000),
-            model=model_selection.builder_model
+            model=model_selection.builder_model,
+            project_rules=relevant_project_rules,  # Stage 0B
+            run_hints=relevant_run_hints  # Stage 0A
         )
 
         if not builder_result.success:
@@ -225,7 +265,9 @@ class Supervisor:
             patch_content=builder_result.patch_content,
             phase_spec=phase_spec,
             max_tokens=phase.get("incident_token_cap", 500000) // 2,  # Auditor gets half the budget
-            model=model_selection.auditor_model
+            model=model_selection.auditor_model,
+            project_rules=relevant_project_rules,  # Stage 0B
+            run_hints=relevant_run_hints  # Stage 0A
         )
 
         if not auditor_result.approved:
@@ -255,6 +297,26 @@ class Supervisor:
         if auditor_result.approved:
             print(f"\n[Supervisor] ✅ Phase {phase_id} APPROVED")
             print(f"[Supervisor]    Total tokens: {total_tokens:,}")
+
+            # Stage 0A: Record hint if issues were resolved in this phase
+            # TODO: Track issues_before and issues_after from CI/test results
+            # For now, we use auditor issues as proxy
+            issues_before = []  # Would come from CI before this phase
+            issues_after = auditor_result.issues_found
+
+            try:
+                hint = record_run_rule_hint(
+                    run_id=run_id,
+                    phase=phase,
+                    issues_before=issues_before,
+                    issues_after=issues_after,
+                    context={"file_paths": []}  # TODO: Extract from patch
+                )
+                if hint:
+                    print(f"[Supervisor] 📝 Recorded run hint: {hint.hint_text[:60]}...")
+            except Exception as e:
+                print(f"[Supervisor] Warning: Could not record hint: {e}")
+
             return {
                 "status": "approved",
                 "phase_id": phase_id,
@@ -342,6 +404,12 @@ class Supervisor:
         print(f"🤖 AUTONOMOUS BUILD: {run_id}")
         print(f"{'='*60}\n")
 
+        # Stage 0B: Load persistent project rules (before run starts)
+        print(f"[Supervisor] 📚 Loading project learned rules...")
+        self.project_rules = load_project_learned_rules(self.project_id)
+        self.run_rules_snapshot = self.project_rules.copy()  # Freeze for this run
+        print(f"[Supervisor] Loaded {len(self.project_rules)} persistent rules for project '{self.project_id}'")
+
         # Create run
         run = self.create_run(
             run_id=run_id,
@@ -373,6 +441,15 @@ class Supervisor:
             print(f"[Supervisor] Warning: Could not get run summary: {e}")
             summary = {}
 
+        # Stage 0B: Promote run hints to persistent rules (after run completes)
+        print(f"\n[Supervisor] 🎓 Promoting run hints to persistent rules...")
+        promoted_count = promote_hints_to_rules(run_id, self.project_id)
+        if promoted_count > 0:
+            print(f"[Supervisor] ✅ Promoted {promoted_count} new rules to project '{self.project_id}'")
+            print(f"[Supervisor] These rules will be available for future runs")
+        else:
+            print(f"[Supervisor] No new rules promoted (no recurring patterns found)")
+
         print(f"\n{'='*60}")
         print(f"✅ AUTONOMOUS BUILD COMPLETE: {run_id}")
         print(f"{'='*60}\n")
@@ -386,6 +463,7 @@ class Supervisor:
             "phase_results": results,
             "total_tokens": total_tokens,
             "summary": summary,
+            "rules_promoted": promoted_count,
         }
 
     def get_run_summary(self, run_id: str) -> Dict:

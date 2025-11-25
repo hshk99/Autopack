@@ -51,6 +51,15 @@ from src.autopack.learned_rules import (
     promote_hints_to_rules,
 )
 
+# Import agent launcher for event-driven agents
+try:
+    sys.path.insert(0, str(Path(__file__).parent.parent / "scripts"))
+    from launch_claude_agents import launch_agents
+    AGENTS_AVAILABLE = True
+except ImportError:
+    AGENTS_AVAILABLE = False
+    print("[Supervisor] Warning: Claude agent launcher not available")
+
 
 class Supervisor:
     """Autonomous build supervisor with real LLM integration"""
@@ -60,7 +69,8 @@ class Supervisor:
         api_url: str = "http://localhost:8000",
         openai_api_key: Optional[str] = None,
         target_repo_path: Optional[str] = None,
-        project_id: str = "Autopack"
+        project_id: str = "Autopack",
+        enable_aux_agents: bool = True
     ):
         """
         Initialize Supervisor for autonomous builds.
@@ -73,6 +83,7 @@ class Supervisor:
                              Example: "c:\\Projects\\my-app"
             project_id: Project identifier for learned rules isolation
                        Used to store/load project-specific learned rules
+            enable_aux_agents: Enable auxiliary Claude agents (planner, marketing, etc.)
         """
         self.api_url = api_url.rstrip("/")
 
@@ -83,6 +94,13 @@ class Supervisor:
         # Project ID for learned rules
         self.project_id = project_id
         print(f"[Supervisor] Project ID: {self.project_id}")
+
+        # Auxiliary agents configuration
+        self.enable_aux_agents = enable_aux_agents and AGENTS_AVAILABLE
+        if self.enable_aux_agents:
+            print(f"[Supervisor] Auxiliary agents: ENABLED")
+        else:
+            print(f"[Supervisor] Auxiliary agents: DISABLED")
 
         # Load configurations
         self.models_config = self._load_models_config()
@@ -457,6 +475,28 @@ class Supervisor:
         print(f"Tokens used: {total_tokens:,}")
         print(f"Approved: {sum(1 for r in results if r['status'] == 'approved')}")
         print(f"Needs revision: {sum(1 for r in results if r['status'] == 'needs_revision')}")
+
+        # Event trigger: Launch auxiliary Claude agents after run completion
+        if self.enable_aux_agents:
+            print(f"\n[Supervisor] 🤖 Launching auxiliary Claude agents...")
+            try:
+                agent_results = launch_agents(
+                    event="run_complete",
+                    run_id=run_id,
+                    project_id=self.project_id,
+                    context={
+                        "phase_results": results,
+                        "total_tokens": total_tokens,
+                        "rules_promoted": promoted_count,
+                        "summary": summary,
+                    }
+                )
+                print(f"[Supervisor] ✅ Launched {len(agent_results)} agent(s)")
+                for agent_result in agent_results:
+                    print(f"[Supervisor]    - {agent_result['agent_role']}: {agent_result['status']}")
+            except Exception as e:
+                print(f"[Supervisor] ⚠️  Warning: Agent launch failed: {e}")
+                print(f"[Supervisor]    Build completed successfully despite agent failure")
 
         return {
             "run_id": run_id,

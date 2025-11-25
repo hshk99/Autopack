@@ -1,0 +1,168 @@
+# Project Type Templates for Agent Launcher
+# Per GPT recommendation: Central templates with local override support
+
+version: "1.0"
+
+project_types:
+  # Full-stack consumer web application
+  consumer_webapp:
+    description: "Consumer-facing web app with marketing needs"
+    stack_profile: fullstack_rag
+    default_agents:
+      - planner
+      - ux_feature_scout
+      - marketing_pack
+      - postmortem
+    aux_agent_budget: 1_000_000  # tokens
+    agent_allocation:
+      planner: 200_000
+      ux_feature_scout: 150_000
+      marketing_pack: 200_000
+      postmortem: 100_000
+      # Reserve: 350K for custom agents
+
+  # Internal tool or API service
+  internal_tool:
+    description: "Internal API or tooling, minimal marketing"
+    stack_profile: web_fastapi_pg
+    default_agents:
+      - planner
+      - ux_feature_scout
+      - postmortem
+    aux_agent_budget: 600_000  # tokens
+    agent_allocation:
+      planner: 200_000
+      ux_feature_scout: 150_000
+      postmortem: 100_000
+      # Reserve: 150K
+
+  # Autopack-like orchestration system
+  autopack_like:
+    description: "Complex orchestration system with documentation needs"
+    stack_profile: web_fastapi_pg
+    default_agents:
+      - planner
+      - brainstormer
+      - marketing_pack
+      - postmortem
+    aux_agent_budget: 1_200_000  # tokens
+    agent_allocation:
+      planner: 250_000
+      brainstormer: 200_000
+      marketing_pack: 250_000
+      postmortem: 150_000
+      # Reserve: 350K
+
+  # Simple library or module
+  library:
+    description: "Reusable library or npm package"
+    stack_profile: web_fastapi_pg
+    default_agents:
+      - planner
+      - postmortem
+    aux_agent_budget: 400_000  # tokens
+    agent_allocation:
+      planner: 200_000
+      postmortem: 100_000
+      # Reserve: 100K
+
+# Agent role definitions (referenced by default_agents)
+agent_roles:
+  planner:
+    description: "Phase-0 comprehensive plan generation"
+    prompt_template: "prompts/claude/planner_prompt.md"
+    outputs:
+      - "docs/comprehensive_plan.generated.md"
+    model: "claude-sonnet-3-5"  # Complex reasoning: needs Sonnet
+    max_tokens: 150_000  # Reduced from 200K (25% reduction)
+
+  brainstormer:
+    description: "Feature ideation and UX pattern suggestions"
+    prompt_template: "prompts/claude/brainstormer_prompt.md"
+    outputs:
+      - "docs/feature_brainstorm.md"
+      - "docs/ux_patterns.md"
+    model: "claude-sonnet-3-5"  # Creative reasoning: needs Sonnet
+    max_tokens: 110_000  # Reduced from 150K (27% reduction)
+
+  ux_feature_scout:
+    description: "Common UX features (dark mode, a11y, etc.)"
+    prompt_template: "prompts/claude/ux_feature_scout_prompt.md"
+    outputs:
+      - "docs/ux_features_roadmap.md"
+    model: "claude-sonnet-3-5"  # UX judgment/design sense: needs Sonnet (per GPT)
+    max_tokens: 110_000  # Reduced from 150K (27% reduction)
+
+  marketing_pack:
+    description: "Landing page, email sequences, release notes"
+    prompt_template: "prompts/claude/marketing_prompt.md"
+    outputs:
+      - "marketing/landing_page.md"
+      - "marketing/email_sequence.md"
+      - "marketing/release_notes.md"
+    model: "claude-sonnet-3-5"  # Marketing copy: needs Sonnet
+    max_tokens: 150_000  # Reduced from 200K (25% reduction)
+
+  postmortem:
+    description: "Post-run lessons learned and retrospective"
+    prompt_template: "prompts/claude/postmortem_prompt.md"
+    outputs:
+      - "docs/run_{run_id}_lessons.md"
+      - "docs/run_{run_id}_metrics.md"
+    model: "claude-sonnet-3-5"  # Retrospective analysis: needs Sonnet
+    max_tokens: 75_000  # Reduced from 100K (25% reduction)
+
+  # New agents from GPT's Additional Features1 recommendations (Phase 2)
+
+  risk_budget_calibrator:
+    description: "Pre-run risk assessment and budget recommendations"
+    prompt_template: "prompts/claude/risk_budget_calibrator_prompt.md"
+    outputs:
+      - "docs/run_budget_recommendation_{run_id}.md"
+    model: "claude-sonnet-3-5"  # Risk analysis needs Sonnet
+    max_tokens: 60_000  # Reduced from 80K (25% reduction)
+    trigger_events: ["run_start"]
+
+  rule_promotion_agent:
+    description: "Post-run analysis of hint patterns for rule promotion"
+    prompt_template: "prompts/claude/rule_promotion_agent_prompt.md"
+    outputs:
+      - "docs/rule_promotion_candidates_{project_id}.md"
+    model: "claude-sonnet-3-5"  # Pattern analysis needs Sonnet
+    max_tokens: 75_000  # Reduced from 100K (25% reduction)
+    trigger_events: ["run_complete"]
+
+  cost_tuning_agent:
+    description: "Post-run budget and model selection optimization"
+    prompt_template: "prompts/claude/cost_tuning_agent_prompt.md"
+    outputs:
+      - "docs/cost_tuning_report_{project_id}.md"
+    model: "claude-haiku-3-5"  # Mechanical task: metric analysis + config suggestions
+    max_tokens: 60_000  # Reduced from 80K (GPT recommendation: tighten budgets)
+    trigger_events: ["run_complete"]
+
+  ci_flakiness_agent:
+    description: "Post-run CI test flakiness analysis"
+    prompt_template: "prompts/claude/ci_flakiness_agent_prompt.md"
+    outputs:
+      - "docs/ci_flakiness_report_{project_id}.md"
+    model: "claude-haiku-3-5"  # Mechanical task: log parsing + pattern detection
+    max_tokens: 60_000  # Reduced from 80K (GPT recommendation: tighten budgets)
+    trigger_events: ["run_complete"]
+
+  # Integration discovery agent (Phase-0 / on-demand)
+  # Per GPT Additional Features2: Targeted integration discovery for planning
+
+  integration_discovery_agent:
+    description: "Pre-run integration and service discovery for external features"
+    prompt_template: "prompts/claude/integration_discovery_agent_prompt.md"
+    outputs:
+      - "docs/integration_candidates_{project_id}.md"
+    model: "claude-sonnet-3-5"  # Ecosystem assessment needs Sonnet (per GPT)
+    max_tokens: 90_000  # Reduced from 120K (25% reduction)
+    trigger_events: ["project_init", "plan_update"]
+    # Optional: Can use MCP tools if available (API directory, GitHub, package registries)
+    # Note: Produces recommendations only, does not modify strategy or code
+
+# Default budget if not specified by project type
+default_aux_agent_budget: 800_000

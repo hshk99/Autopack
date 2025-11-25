@@ -4,9 +4,10 @@ from datetime import datetime
 from typing import List, Optional
 
 from fastapi import Depends, FastAPI, HTTPException
+from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
 
-from . import models, schemas
+from . import dashboard_schemas, models, schemas
 from .builder_schemas import AuditorRequest, AuditorResult, BuilderResult
 from .database import get_db, init_db
 from .file_layout import RunFileLayout
@@ -786,3 +787,296 @@ def get_run_summary(run_id: str, db: Session = Depends(get_db)):
 def health_check():
     """Health check endpoint"""
     return {"status": "healthy"}
+
+
+# ===================================================================
+# DASHBOARD API ENDPOINTS (Phase 1 - Run Progress + Usage Tracking)
+# ===================================================================
+
+
+@app.get("/dashboard/runs/{run_id}/status")
+def get_dashboard_run_status(run_id: str, db: Session = Depends(get_db)):
+    """
+    Get run status for dashboard display.
+
+    Returns high-level status including:
+    - Progress (percent_complete)
+    - Current tier/phase indices and names
+    - Budget utilization
+    - Issue counts
+    """
+    from .dashboard_schemas import DashboardRunStatus
+    from .run_progress import calculate_run_progress
+    from .usage_service import UsageService
+
+    # Get run from database
+    run = db.query(models.Run).filter(models.Run.id == run_id).first()
+    if not run:
+        raise HTTPException(status_code=404, detail=f"Run {run_id} not found")
+
+    # Calculate progress
+    progress = calculate_run_progress(db, run_id)
+
+    # Calculate token utilization
+    token_utilization = run.tokens_used / run.token_cap if run.token_cap > 0 else 0.0
+
+    return DashboardRunStatus(
+        run_id=run.id,
+        state=run.state.value,
+        current_tier_name=progress.current_tier_name,
+        current_phase_name=progress.current_phase_name,
+        current_tier_index=progress.current_tier_index,
+        current_phase_index=progress.current_phase_index,
+        total_tiers=progress.total_tiers,
+        total_phases=progress.total_phases,
+        completed_tiers=progress.completed_tiers,
+        completed_phases=progress.completed_phases,
+        percent_complete=progress.percent_complete,
+        tiers_percent_complete=progress.tiers_percent_complete,
+        tokens_used=run.tokens_used,
+        token_cap=run.token_cap,
+        token_utilization=token_utilization,
+        minor_issues_count=run.minor_issues_count,
+        major_issues_count=run.major_issues_count,
+    )
+
+
+@app.get("/dashboard/usage")
+def get_dashboard_usage(
+    period: str = "week",  # day, week, month
+    db: Session = Depends(get_db),
+):
+    """
+    Get token usage aggregated by provider and model.
+
+    Args:
+        period: Time window for usage (day/week/month)
+
+    Returns:
+        Usage summary with provider and model breakdowns
+    """
+    import yaml
+    from pathlib import Path
+
+    from .dashboard_schemas import ModelUsage, ProviderUsage, UsageResponse
+    from .usage_service import UsageService
+
+    # Load provider caps from config
+    config_path = Path("config/models.yaml")
+    with open(config_path) as f:
+        config = yaml.safe_load(f)
+
+    provider_quotas = config.get("provider_quotas", {})
+
+    # Get usage data
+    usage_service = UsageService(db)
+    provider_usage = usage_service.get_provider_usage_summary(period)
+    model_usage = usage_service.get_model_usage_summary(period)
+
+    # Build provider usage list with cap calculations
+    providers = []
+    for provider, usage in provider_usage.items():
+        # Get cap for this provider
+        quota_config = provider_quotas.get(provider, {})
+
+        if period == "day":
+            cap_tokens = quota_config.get("daily_token_cap", 0)
+        elif period == "week":
+            cap_tokens = quota_config.get("weekly_token_cap", 0)
+        else:  # month
+            cap_tokens = quota_config.get("weekly_token_cap", 0) * 4  # Estimate
+
+        # Calculate percentage
+        percent_of_cap = (
+            (usage["total_tokens"] / cap_tokens * 100) if cap_tokens > 0 else 0.0
+        )
+
+        providers.append(
+            ProviderUsage(
+                provider=provider,
+                period=period,
+                prompt_tokens=usage["prompt_tokens"],
+                completion_tokens=usage["completion_tokens"],
+                total_tokens=usage["total_tokens"],
+                cap_tokens=cap_tokens,
+                percent_of_cap=round(percent_of_cap, 2),
+            )
+        )
+
+    # Build model usage list
+    models = [
+        ModelUsage(
+            provider=m["provider"],
+            model=m["model"],
+            prompt_tokens=m["prompt_tokens"],
+            completion_tokens=m["completion_tokens"],
+            total_tokens=m["total_tokens"],
+        )
+        for m in model_usage
+    ]
+
+    return UsageResponse(providers=providers, models=models)
+
+
+@app.post("/dashboard/human-notes")
+def add_human_note(request: dashboard_schemas.HumanNoteRequest):
+    """
+    Add a human note for Autopack to read.
+
+    Writes to .autopack/human_notes.md with timestamp.
+    """
+    from datetime import datetime
+    from pathlib import Path
+
+    notes_dir = Path(".autopack")
+    notes_dir.mkdir(exist_ok=True)
+
+    notes_file = notes_dir / "human_notes.md"
+
+    timestamp = datetime.utcnow().isoformat()
+    run_context = f" (Run: {request.run_id})" if request.run_id else ""
+
+    note_entry = f"\n## {timestamp}{run_context}\n\n{request.note}\n\n---\n"
+
+    # Append to file
+    with open(notes_file, "a") as f:
+        f.write(note_entry)
+
+    return {
+        "message": "Note added successfully",
+        "timestamp": timestamp,
+        "notes_file": str(notes_file),
+    }
+
+
+# ===================================================================
+# DASHBOARD API ENDPOINTS (Phase 2 - Model Router + Controls)
+# ===================================================================
+
+
+@app.get("/dashboard/models")
+def get_model_mappings(db: Session = Depends(get_db)):
+    """
+    Get current model mappings for all roles, categories, and complexity levels.
+
+    Returns:
+        Dict with current model assignments
+    """
+    from .dashboard_schemas import ModelMapping
+    from .model_router import ModelRouter
+
+    router = ModelRouter(db)
+    mappings = router.get_current_mappings()
+
+    # Convert to list of ModelMapping objects for response
+    result = []
+    for role, role_mappings in mappings.items():
+        for key, model in role_mappings.items():
+            category, complexity = key.split(":")
+            result.append(
+                ModelMapping(
+                    role=role,
+                    category=category,
+                    complexity=complexity,
+                    model=model,
+                    scope="global",  # Default scope
+                )
+            )
+
+    return result
+
+
+@app.post("/dashboard/models/override")
+def override_model_mapping(
+    request: "dashboard_schemas.ModelOverrideRequest",
+    db: Session = Depends(get_db),
+):
+    """
+    Override model mapping for a specific role/category/complexity.
+
+    Scope determines if change is global (affects new runs) or
+    run-specific (affects only future phases in that run).
+
+    Args:
+        request: Model override request with role, category, complexity, model, scope
+
+    Returns:
+        Success message with details
+    """
+    import yaml
+    from pathlib import Path
+
+    from .dashboard_schemas import ModelOverrideRequest
+
+    if request.scope == "run" and not request.run_id:
+        raise HTTPException(status_code=400, detail="run_id required for scope=run")
+
+    if request.scope == "global":
+        # Update models.yaml config file
+        config_path = Path("config/models.yaml")
+        with open(config_path) as f:
+            config = yaml.safe_load(f)
+
+        # Update category_models or complexity_models
+        if request.category != "general":
+            # Category-specific override
+            if "category_models" not in config:
+                config["category_models"] = {}
+            if request.category not in config["category_models"]:
+                config["category_models"][request.category] = {}
+
+            override_key = f"{request.role}_model_override"
+            config["category_models"][request.category][override_key] = request.model
+        else:
+            # Complexity-based default
+            if "complexity_models" not in config:
+                config["complexity_models"] = {}
+            if request.complexity not in config["complexity_models"]:
+                config["complexity_models"][request.complexity] = {}
+
+            config["complexity_models"][request.complexity][request.role] = request.model
+
+        # Write back to file
+        with open(config_path, "w") as f:
+            yaml.dump(config, f, default_flow_style=False, sort_keys=False)
+
+        return {
+            "message": "Global model mapping updated",
+            "role": request.role,
+            "category": request.category,
+            "complexity": request.complexity,
+            "model": request.model,
+            "scope": "global",
+            "note": "Will affect new runs only. Existing runs unchanged.",
+        }
+
+    else:  # scope == "run"
+        # Update run context model_overrides
+        run = db.query(models.Run).filter(models.Run.id == request.run_id).first()
+        if not run:
+            raise HTTPException(status_code=404, detail=f"Run {request.run_id} not found")
+
+        # For now, we don't have a run context field in the database
+        # This would need to be added to the Run model to fully support per-run overrides
+        # For MVP, we'll just return a message indicating the feature needs DB schema update
+
+        return {
+            "message": "Per-run model overrides require database schema update",
+            "role": request.role,
+            "category": request.category,
+            "complexity": request.complexity,
+            "model": request.model,
+            "scope": "run",
+            "note": "Feature coming soon - requires run_context JSON field in Run model",
+            "todo": "Add run_context JSONB column to runs table",
+        }
+
+
+# Mount dashboard frontend (static files)
+# This serves the built React app from the dist/ folder
+import os
+from pathlib import Path
+
+dashboard_path = Path(__file__).parent / "dashboard" / "frontend" / "dist"
+if dashboard_path.exists():
+    app.mount("/dashboard", StaticFiles(directory=str(dashboard_path), html=True), name="dashboard")

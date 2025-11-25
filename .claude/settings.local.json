@@ -17,7 +17,17 @@
       "Bash(if [ -f .env ])",
       "Bash(then echo \"✅ .env file exists\")",
       "Bash(else echo \"❌ .env file not found\")",
-      "Bash(fi)"
+      "Bash(fi)",
+      "Bash(git mv:*)",
+      "Bash(git rm:*)",
+      "Bash(git log:*)",
+      "Bash(timeout 10 bash:*)",
+      "Bash(npm install:*)",
+      "Bash(npm run build:*)",
+      "Bash(if [ -f ref1.md ])",
+      "Bash(then git mv ref1.md archive/ref1_dashboard_discussion.md)",
+      "Bash(else echo \"ref1.md not found in root\")",
+      "Bash(bash:*)"
     ],
     "deny": [],
     "ask": []

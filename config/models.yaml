@@ -1,107 +1,60 @@
-# LLM Model Selection Configuration
-# Per v7 GPT architect recommendation
-
-# Default models for high-risk categories
-defaults:
-  high_risk_builder: "gpt-4-turbo-2024-04-09"  # Best quality for HIGH_RISK
-  high_risk_auditor: "gpt-4-turbo-2024-04-09"
-
-# Complexity-based model selection
-# Low complexity: cheap/fast models
-# Medium complexity: balanced models
-# High complexity: best quality models
 complexity_models:
   low:
-    builder: "gpt-4o-mini"  # Fast and cheap for simple tasks
-    auditor: "gpt-4o-mini"
+    builder: gpt-4o-mini
+    auditor: gpt-4o-mini
   medium:
-    builder: "gpt-4o"  # Balanced performance
-    auditor: "gpt-4o"
+    builder: gpt-4o
+    auditor: gpt-4o
   high:
-    builder: "gpt-4-turbo-2024-04-09"  # Best quality
-    auditor: "gpt-4-turbo-2024-04-09"
-
-# Category-specific overrides (optional)
-# Override models for specific task categories
+    builder: gpt-4-turbo-2024-04-09
+    auditor: gpt-4-turbo-2024-04-09
 category_models:
-  # External code reuse always uses best models
   external_feature_reuse:
-    builder_model_override: "gpt-4-turbo-2024-04-09"
-    auditor_model_override: "gpt-4-turbo-2024-04-09"
-
-  # Security changes always use best models
+    description: Using external libraries/APIs
+    builder_model_override: gpt-4-turbo-2024-04-09
+    auditor_model_override: gpt-4-turbo-2024-04-09
   security_auth_change:
-    builder_model_override: "gpt-4-turbo-2024-04-09"
-    auditor_model_override: "gpt-4-turbo-2024-04-09"
-
-  # Schema changes use strong models
+    description: Security or auth code changes
+    builder_model_override: gpt-4-turbo-2024-04-09
+    auditor_model_override: gpt-4-turbo-2024-04-09
   schema_contract_change:
-    builder_model_override: "gpt-4-turbo-2024-04-09"
-    auditor_model_override: "gpt-4-turbo-2024-04-09"
-
-  # Documentation can use lighter models
+    description: Database or API schema changes
+    builder_model_override: gpt-4-turbo-2024-04-09
+    auditor_model_override: gpt-4-turbo-2024-04-09
   docs:
-    builder_model_override: "gpt-4o-mini"
-    auditor_model_override: "gpt-4o-mini"
-
-  # Tests can use medium models
+    description: Documentation generation
+    builder_model_override: gpt-4o-mini
+    auditor_model_override: gpt-4o-mini
   tests:
-    builder_model_override: "gpt-4o"
-    auditor_model_override: "gpt-4o"
-
-# Future model options (commented out for now)
-# Uncomment when these models become available via API
-#
-# codex_models:
-#   builder: "gpt-5.1-codex-max"  # For long-running coding agents
-#   auditor: "gpt-5.1-codex"      # For code review
-#
-# claude_models:
-#   builder: "claude-3-opus-20240229"
-#   auditor: "claude-3-opus-20240229"
-#
-# cursor_models:
-#   # If using Cursor Cloud Agents API
-#   builder: "cursor-cloud-agent"
-#   auditor: "gpt-4-turbo-2024-04-09"  # Cursor doesn't provide auditor
-
-# Model capabilities and limits
-model_capabilities:
-  "gpt-4o-mini":
-    max_context: 128000
-    max_output: 16384
-    supports_json_schema: true
-    cost_per_1k_input: 0.00015
-    cost_per_1k_output: 0.0006
-
-  "gpt-4o":
-    max_context: 128000
-    max_output: 16384
-    supports_json_schema: true
-    cost_per_1k_input: 0.0025
-    cost_per_1k_output: 0.01
-
-  "gpt-4-turbo-2024-04-09":
-    max_context: 128000
-    max_output: 4096
-    supports_json_schema: true
-    cost_per_1k_input: 0.01
-    cost_per_1k_output: 0.03
-
-# Fallback strategy if primary model unavailable
-fallback_strategy:
+    description: Test code generation
+    builder_model_override: gpt-4o-mini
+    auditor_model_override: gpt-4o
+provider_quotas:
+  openai:
+    weekly_token_cap: 50000000
+    soft_limit_ratio: 0.8
+  anthropic:
+    weekly_token_cap: 10000000
+    soft_limit_ratio: 0.8
+quota_routing:
   enabled: true
-  fallback_order:
-    - "gpt-4o"
-    - "gpt-4o-mini"
-
-# Budget warnings
-# Alert when a single phase uses more than this percentage of its token budget
-budget_warning_threshold: 0.8
-
-# Notes:
-# - HIGH_RISK categories (external_feature_reuse, security_auth_change, etc.)
-#   always get best models regardless of complexity
-# - Complexity-based selection applies to normal categories only
-# - Model costs are tracked separately from token budgets
-# - Future: Add support for GPT-5.1-Codex family when API is GA
+  never_fallback_categories:
+  - external_feature_reuse
+  - security_auth_change
+  - schema_contract_change
+fallback_strategy:
+  by_category:
+    general:
+      fallbacks:
+      - gpt-4o-mini
+    tests:
+      fallbacks:
+      - gpt-4o-mini
+    docs:
+      fallbacks:
+      - gpt-4o-mini
+  default_fallbacks:
+  - gpt-4o-mini
+defaults:
+  high_risk_builder: gpt-4o
+  high_risk_auditor: gpt-4o

@@ -30,10 +30,14 @@ docker-compose up -d
 # 2. Verify health
 curl http://localhost:8000/health
 
-# 3. View API docs
+# 3. View dashboard (NEW!)
+# Open in browser: http://localhost:8000/dashboard
+# Or in Cursor: Ctrl+Shift+P → "Simple Browser: Show" → enter URL
+
+# 4. View API docs
 # Open: http://localhost:8000/docs
 
-# 4. Run your first build
+# 5. Run your first build
 python integrations/supervisor.py --project-id MyProject
 ```
 
@@ -119,24 +123,41 @@ Provide planning, optimization, and maintenance automation around autonomous bui
 
 ---
 
+### 📊 Real-Time Dashboard (NEW!)
+
+Monitor your autonomous builds in real-time with comprehensive visibility.
+
+**Access**: `http://localhost:8000/dashboard` or Cursor Simple Browser
+
+**Features**:
+- **Run Progress**: Real-time progress bar, tier/phase tracking, token usage
+- **Usage Panel**: Provider usage with color-coded warnings (80%/90% thresholds)
+- **Model Mapping**: View and adjust model assignments per category/complexity
+- **Intervention Helpers**: Copy context to clipboard, submit human notes
+
+**Auto-polling**: Updates every 5 seconds without manual refresh
+
+**Documentation**: [DASHBOARD_COMPLETE.md](DASHBOARD_COMPLETE.md) | [Integration Guide](docs/DASHBOARD_WIRING_GUIDE.md)
+
+---
+
 ### 🔍 Dual Auditor + 🎛️ Dynamic Model Selection + 🌐 Multi-Provider Routing
 
 **Dual Auditor**: Two LLMs validate high-risk changes with issue-based conflict resolution.
 
-**Model Selection**: Automatic optimization based on complexity:
-- Low → gpt-4o-mini ($0.15/M)
-- Medium → gpt-4o ($2.50/M)
-- High → gpt-4-turbo ($10.00/M)
+**Quota-Aware Model Selection**: Intelligent model routing based on task complexity and quota state:
+- Low complexity → gpt-4o-mini ($0.15/M)
+- Medium complexity → gpt-4o ($2.50/M)
+- High complexity / Critical categories → gpt-4-turbo ($10.00/M)
+- **Automatic Fallback**: Downgrades safely when approaching quota limits
+- **Fail-Fast**: Security/schema changes never downgrade quality
 
-**Quota-Aware Multi-Provider Routing**:
-- **Claude Max/Code**: Opus 4.5 + Sonnet 4.5 with separate quota pools
-- **GLM Fallback**: Automatic fallback to GLM-4.5 when primary providers near quota limits
-- **Fail-Fast**: High-risk categories never downgrade silently - blocks run if quota exhausted
-- **Smart Degradation**: Safe tasks (aux agents, summaries) gracefully fallback to cheaper models
+**Multi-Provider Routing**:
+- **Primary**: OpenAI (GPT-4o family)
+- **Secondary**: Anthropic Claude (Opus 4.5, Sonnet 3.5)
+- **Tertiary**: GLM-4.5 (quota exhaustion fallback)
 
-**Recent Optimizations**:
-- 39% aux agent cost reduction (Haiku for mechanical tasks)
-- Quota-aware routing prevents hard stops from weekly limit exhaustion
+**Configuration**: See [config/models.yaml](config/models.yaml)
 
 **Documentation**: [docs/QUOTA_AWARE_ROUTING.md](docs/QUOTA_AWARE_ROUTING.md)
 
@@ -145,15 +166,26 @@ Provide planning, optimization, and maintenance automation around autonomous bui
 ## Architecture
 
 ```
+User (Browser/Cursor)
+      ↓
+┌─────────────────────────────────────────────────────┐
+│          Dashboard UI (React)                        │
+│  Run Progress | Usage | Model Mapping | Helpers     │
+└────────────────────┬────────────────────────────────┘
+                     ↓ HTTP polling (5s)
 ┌─────────────────────────────────────────────────────┐
 │            Autopack v7 Core System                   │
 │  ┌──────────┐  ┌──────────┐  ┌──────────────┐     │
 │  │Supervisor│←→│Strategy  │←→│Learned Rules │     │
 │  │(Loop)    │  │Engine    │  │(Intelligence)│     │
 │  └────┬─────┘  └──────────┘  └──────────────┘     │
-│       ├──→ Builder (OpenAI GPT-4o/mini)             │
-│       ├──→ Auditor (OpenAI GPT-4-turbo)             │
-│       └──→ Dual Auditor (OpenAI + Claude)           │
+│       │                                              │
+│       ├──→ LlmService (Model Router + Usage Track)  │
+│       │    ├──→ Builder (quota-aware selection)     │
+│       │    ├──→ Auditor (quota-aware selection)     │
+│       │    └──→ Dual Auditor (OpenAI + Claude)      │
+│       │                                              │
+│       └──→ Dashboard API (5 endpoints)               │
 └─────────────────────────────────────────────────────┘
                     ↓ Event Triggers
       ┌─────────────────────────────────────┐
@@ -162,6 +194,13 @@ Provide planning, optimization, and maintenance automation around autonomous bui
       │   • Planning & Marketing (5)         │
       │   • Optimization & Maintenance (4)   │
       │   • Discovery (1)                    │
+      └─────────────────────────────────────┘
+                    ↓ Storage
+      ┌─────────────────────────────────────┐
+      │   PostgreSQL Database                │
+      │   • Runs, Tiers, Phases              │
+      │   • LLM Usage Events (tracking)      │
+      │   • Learned Rules & Hints            │
       └─────────────────────────────────────┘
 ```
 
@@ -172,7 +211,8 @@ Provide planning, optimization, and maintenance automation around autonomous bui
 | Component | Technology |
 |-----------|-----------|
 | **Language** | Python 3.11+ |
-| **Backend** | FastAPI (19 REST endpoints) |
+| **Backend** | FastAPI (22 REST endpoints) |
+| **Frontend** | React + Vite (dashboard UI) |
 | **Database** | PostgreSQL 15-alpine |
 | **Core LLMs** | OpenAI (GPT-4o, GPT-4o-mini, GPT-4-turbo) |
 | **Aux LLMs** | Claude (Opus-4.5, Sonnet-3.5, Haiku-3.5) |
@@ -182,12 +222,13 @@ Provide planning, optimization, and maintenance automation around autonomous bui
 
 ---
 
-## API Endpoints (19 Total)
+## API Endpoints (24 Total)
 
 **Core (3)**: Run creation, phase updates, run details
 **Issues (3)**: Issue recording, run index, project backlog
 **Builder/Auditor (4)**: Submit results, request reviews
 **Metrics (5)**: Run metrics, budget analysis, summaries
+**Dashboard (5)**: Run status, usage tracking, model mapping, human notes, model overrides
 **Utility (4)**: Health check, API docs
 
 **Full documentation**: http://localhost:8000/docs

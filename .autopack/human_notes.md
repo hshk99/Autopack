@@ -16,3 +16,9 @@ This is a test note from integration test
 Automated probe test note
 
 ---
+
+## 2025-11-25T13:33:55.093361 (Run: test_run_123)
+
+This is a test note from integration test
+
+---

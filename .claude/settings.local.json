@@ -1,35 +1,7 @@
 {
   "permissions": {
     "allow": [
-      "Bash(pip install:*)",
-      "Bash(pytest:*)",
-      "Bash(docker-compose up:*)",
-      "Bash(docker-compose ps:*)",
-      "Bash(chmod:*)",
-      "Bash(bash scripts/autonomous_probe_complete.sh:*)",
-      "Bash(curl:*)",
-      "Bash(python:*)",
-      "Bash(docker-compose logs:*)",
-      "Bash(docker-compose restart:*)",
-      "Bash(git add:*)",
-      "Bash(git commit:*)",
-      "Bash(git push:*)",
-      "Bash(if [ -f .env ])",
-      "Bash(then echo \"✅ .env file exists\")",
-      "Bash(else echo \"❌ .env file not found\")",
-      "Bash(fi)",
-      "Bash(git mv:*)",
-      "Bash(git rm:*)",
-      "Bash(git log:*)",
-      "Bash(timeout 10 bash:*)",
-      "Bash(npm install:*)",
-      "Bash(npm run build:*)",
-      "Bash(if [ -f ref1.md ])",
-      "Bash(then git mv ref1.md archive/ref1_dashboard_discussion.md)",
-      "Bash(else echo \"ref1.md not found in root\")",
-      "Bash(bash:*)",
-      "Bash(timeout 30 bash -c 'while ! [ -d /tmp/moai-adk/.git ]; do sleep 1; done; echo \"\"Clone complete\"\"')",
-      "Bash(cat:*)"
+      "Bash(find:*)"
     ],
     "deny": [],
     "ask": []

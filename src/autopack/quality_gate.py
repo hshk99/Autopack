@@ -9,11 +9,14 @@ Philosophy:
 - Everything else: Attach quality labels (ok|needs_review), don't block
 - No global 85% coverage enforcement (too rigid)
 - Reuse existing Auditor + CI instead of building parallel system
+- Integrates risk scorer for proactive risk assessment
 """
 
 from pathlib import Path
 from typing import Dict, List, Optional
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+
+from .risk_scorer import RiskScorer
 
 
 @dataclass
@@ -33,6 +36,9 @@ class QualityReport:
     # Details
     issues: List[str]
     warnings: List[str]
+
+    # Risk assessment (from risk scorer)
+    risk_assessment: Optional[Dict] = None
 
     def is_blocked(self) -> bool:
         """Check if phase should be blocked"""
@@ -78,6 +84,9 @@ class QualityGate:
         # Get strictness level from config (lenient|normal|strict)
         self.strictness = self.config.get("quality", {}).get("test_strictness", "normal")
 
+        # Initialize risk scorer
+        self.risk_scorer = RiskScorer(repo_root=repo_root)
+
     def assess_phase(
         self,
         phase_id: str,
@@ -85,6 +94,8 @@ class QualityGate:
         auditor_result: Optional[Dict] = None,
         ci_result: Optional[Dict] = None,
         coverage_delta: Optional[float] = None,
+        patch_content: Optional[str] = None,
+        files_changed: Optional[List[str]] = None,
     ) -> QualityReport:
         """
         Assess quality for a phase.
@@ -95,6 +106,8 @@ class QualityGate:
             auditor_result: Auditor review result (issues, approval)
             ci_result: CI test result (passed, failed, skipped)
             coverage_delta: Coverage change (+5%, -2%, etc.)
+            patch_content: Optional patch/diff content for risk scoring
+            files_changed: Optional list of changed files for risk scoring
 
         Returns:
             QualityReport with quality level and details
@@ -104,6 +117,24 @@ class QualityGate:
 
         issues = []
         warnings = []
+
+        # Run risk assessment if patch info available
+        risk_result = None
+        if files_changed is not None:
+            # Extract LOC from patch if available
+            loc_added, loc_removed = self._extract_loc_from_patch(patch_content)
+
+            risk_result = self.risk_scorer.score_change(
+                files_changed=files_changed,
+                loc_added=loc_added,
+                loc_removed=loc_removed,
+                patch_content=patch_content,
+            )
+
+            # Add risk warnings for high/critical risk
+            if risk_result["risk_level"] in ["high", "critical"]:
+                for reason in risk_result["reasons"]:
+                    warnings.append(f"Risk: {reason}")
 
         # Check CI status
         ci_passed = True
@@ -158,7 +189,31 @@ class QualityGate:
             quality_level=quality_level,
             issues=issues,
             warnings=warnings,
+            risk_assessment=risk_result,
         )
+
+    def _extract_loc_from_patch(self, patch_content: Optional[str]) -> tuple[int, int]:
+        """Extract lines added/removed from patch content.
+
+        Args:
+            patch_content: Git diff/patch content
+
+        Returns:
+            Tuple of (lines_added, lines_removed)
+        """
+        if not patch_content:
+            return 0, 0
+
+        lines_added = 0
+        lines_removed = 0
+
+        for line in patch_content.split("\n"):
+            if line.startswith("+") and not line.startswith("+++"):
+                lines_added += 1
+            elif line.startswith("-") and not line.startswith("---"):
+                lines_removed += 1
+
+        return lines_added, lines_removed
 
     def _determine_quality_level(
         self,
@@ -211,6 +266,18 @@ class QualityGate:
         lines.append(f"Category: {report.category}")
         lines.append(f"Quality Level: {report.quality_level.upper()}")
 
+        # Add risk assessment if available
+        if report.risk_assessment:
+            risk_level = report.risk_assessment["risk_level"]
+            risk_score = report.risk_assessment["risk_score"]
+            risk_emoji = {
+                "low": "✅",
+                "medium": "⚠️",
+                "high": "🔴",
+                "critical": "🚨",
+            }.get(risk_level, "❓")
+            lines.append(f"Risk Level: {risk_emoji} {risk_level.upper()} (score: {risk_score}/100)")
+
         if report.issues:
             lines.append("\nIssues (blocking):")
             for issue in report.issues:
@@ -245,6 +312,14 @@ def integrate_with_auditor(auditor_result: Dict, quality_report: QualityReport) 
         "issues": quality_report.issues,
         "warnings": quality_report.warnings,
     }
+
+    # Add risk assessment if available
+    if quality_report.risk_assessment:
+        auditor_result["risk_assessment"] = {
+            "risk_score": quality_report.risk_assessment["risk_score"],
+            "risk_level": quality_report.risk_assessment["risk_level"],
+            "risk_reasons": quality_report.risk_assessment["reasons"],
+        }
 
     # If quality gate blocks, override auditor approval
     if quality_report.is_blocked():

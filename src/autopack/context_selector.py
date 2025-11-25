@@ -2,11 +2,18 @@
 
 Following GPT's recommendation: Simple heuristics-based context selection
 to reduce token usage by 40-60% while maintaining phase success rates.
+
+Phase 1 Enhancement: Added ranking heuristics from chatbot_project
+- Relevance scoring (keyword/path matching)
+- Recency scoring (git history, mtime)
+- Type priority scoring (tests > core > misc)
 """
 
 from pathlib import Path
-from typing import Dict, List, Optional, Set
+from typing import Dict, List, Optional, Set, Tuple
 import re
+import subprocess
+from datetime import datetime
 
 
 class ContextSelector:
@@ -41,16 +48,18 @@ class ContextSelector:
         self,
         phase_spec: Dict,
         changed_files: Optional[List[str]] = None,
+        token_budget: Optional[int] = None,
     ) -> Dict[str, str]:
         """
-        Get minimal context for a phase using simple heuristics.
+        Get minimal context for a phase using simple heuristics + ranking.
 
         Args:
             phase_spec: Phase specification with task_category, complexity, description
             changed_files: Recently changed files (from git diff or previous phases)
+            token_budget: Optional token limit for context
 
         Returns:
-            Dict mapping file paths to their contents
+            Dict mapping file paths to their contents (ranked and limited)
         """
         context = {}
         task_category = phase_spec.get("task_category", "general")
@@ -73,6 +82,10 @@ class ContextSelector:
         # 5. For high complexity, add architecture docs
         if complexity == "high":
             context.update(self._get_architecture_docs())
+
+        # 6. Rank files and apply token budget (Phase 1 enhancement)
+        if token_budget:
+            context = self._rank_and_limit_context(context, phase_spec, token_budget)
 
         return context
 
@@ -204,3 +217,176 @@ class ContextSelector:
         file_count = len(context)
 
         print(f"[Context] Phase {phase_id}: {file_count} files, ~{token_estimate:,} tokens")
+
+    # ===== Phase 1 Enhancement: Ranking Heuristics from chatbot_project =====
+
+    def _rank_and_limit_context(
+        self,
+        context: Dict[str, str],
+        phase_spec: Dict,
+        token_budget: int,
+    ) -> Dict[str, str]:
+        """Rank files by relevance and limit by token budget.
+
+        Args:
+            context: File path → content mapping
+            phase_spec: Phase specification for relevance scoring
+            token_budget: Maximum tokens to include
+
+        Returns:
+            Ranked and limited context dict
+        """
+        # Score all files
+        scored_files = []
+        for file_path, content in context.items():
+            score = self._score_file(file_path, content, phase_spec)
+            scored_files.append((score, file_path, content))
+
+        # Sort by score (descending)
+        scored_files.sort(reverse=True, key=lambda x: x[0])
+
+        # Build limited context respecting token budget
+        limited_context = {}
+        tokens_used = 0
+
+        for score, file_path, content in scored_files:
+            file_tokens = len(content) // 4  # Rough estimate
+            if tokens_used + file_tokens <= token_budget:
+                limited_context[file_path] = content
+                tokens_used += file_tokens
+            else:
+                # Budget exhausted
+                break
+
+        return limited_context
+
+    def _score_file(self, file_path: str, content: str, phase_spec: Dict) -> float:
+        """Score file relevance using heuristics.
+
+        Args:
+            file_path: Relative file path
+            content: File content
+            phase_spec: Phase specification
+
+        Returns:
+            Relevance score (higher = more relevant)
+        """
+        score = 0.0
+
+        # 1. Relevance score (keyword/path matching)
+        score += self._relevance_score(file_path, phase_spec)
+
+        # 2. Recency score (git history, mtime)
+        score += self._recency_score(file_path)
+
+        # 3. Type priority score (tests > core > misc)
+        score += self._type_priority_score(file_path)
+
+        return score
+
+    def _relevance_score(self, file_path: str, phase_spec: Dict) -> float:
+        """Score file relevance to phase description/category.
+
+        Returns score in range [0, 40]
+        """
+        score = 0.0
+        description = phase_spec.get("description", "").lower()
+        task_category = phase_spec.get("task_category", "general")
+
+        # Keyword matching in description
+        keywords = re.findall(r'\b\w+\b', description)
+        for keyword in keywords:
+            if keyword in file_path.lower():
+                score += 5.0
+                break  # Cap per-keyword bonus
+
+        # Category-specific path matching
+        category_paths = {
+            "database": ["database", "models", "migrations"],
+            "api": ["routes", "main", "schemas"],
+            "tests": ["tests", "test_"],
+            "security_auth_change": ["auth", "security", "permissions"],
+            "schema_contract_change": ["models", "schemas", "api"],
+        }
+
+        for path_fragment in category_paths.get(task_category, []):
+            if path_fragment in file_path.lower():
+                score += 10.0
+                break
+
+        return min(score, 40.0)
+
+    def _recency_score(self, file_path: str) -> float:
+        """Score file recency (recent changes = higher priority).
+
+        Returns score in range [0, 30]
+        """
+        score = 0.0
+        full_path = self.root / file_path
+
+        try:
+            # Try git log for recency (commits in last 30 days)
+            result = subprocess.run(
+                ["git", "log", "-1", "--since=30.days.ago", "--format=%ci", str(full_path)],
+                cwd=self.root,
+                capture_output=True,
+                text=True,
+                timeout=2,
+            )
+
+            if result.stdout.strip():
+                # File changed in last 30 days
+                score += 30.0
+            else:
+                # Fallback: Check mtime
+                mtime = full_path.stat().st_mtime
+                age_days = (datetime.now().timestamp() - mtime) / 86400
+
+                if age_days < 7:
+                    score += 25.0
+                elif age_days < 30:
+                    score += 15.0
+                elif age_days < 90:
+                    score += 5.0
+
+        except Exception:
+            # Git/filesystem error, use mtime only
+            try:
+                mtime = full_path.stat().st_mtime
+                age_days = (datetime.now().timestamp() - mtime) / 86400
+                if age_days < 30:
+                    score += 10.0
+            except Exception:
+                pass
+
+        return min(score, 30.0)
+
+    def _type_priority_score(self, file_path: str) -> float:
+        """Score file type priority (tests > core > docs > misc).
+
+        Returns score in range [0, 30]
+        """
+        path_lower = file_path.lower()
+
+        # High priority: Core implementation files
+        if any(x in path_lower for x in ["src/autopack", "main.py", "models.py", "database.py"]):
+            return 30.0
+
+        # Medium-high priority: Test files
+        if "test" in path_lower or path_lower.startswith("tests/"):
+            return 25.0
+
+        # Medium priority: API/routes
+        if any(x in path_lower for x in ["routes", "schemas", "api"]):
+            return 20.0
+
+        # Low-medium priority: Config files
+        if any(x in path_lower for x in ["config", ".yaml", ".json"]):
+            return 15.0
+
+        # Low priority: Documentation
+        if path_lower.endswith(".md") or "docs/" in path_lower:
+            return 10.0
+
+        # Very low priority: Misc files
+        return 5.0

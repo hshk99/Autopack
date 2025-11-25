@@ -306,7 +306,7 @@ class DocUpdater:
     def update_changelog(self, changes: List[StructuralChange], dry_run: bool = False) -> bool:
         """
         Update CHANGELOG.md with detected structural changes.
-        Creates a new entry with today's date if major changes detected.
+        Updates or replaces today's entry (no duplicate entries per day).
         """
         if not changes:
             return False
@@ -341,24 +341,52 @@ class DocUpdater:
         entry_text = "".join(entry_lines)
 
         if dry_run:
-            print(f"[DRY RUN] Would add to CHANGELOG.md:")
+            print(f"[DRY RUN] Would update CHANGELOG.md:")
             print(entry_text)
             return True
 
         # Create or update changelog
         if changelog.exists():
             content = changelog.read_text(encoding='utf-8')
-            # Insert after "# Changelog" header
-            if "# Changelog" in content:
-                parts = content.split("# Changelog", 1)
-                new_content = parts[0] + "# Changelog" + entry_text + parts[1]
+
+            # Check if today's entry already exists
+            today_marker = f"## [{today}] - Structural Updates"
+            if today_marker in content:
+                # Replace existing entry for today
+                lines = content.splitlines(keepends=True)
+                new_lines = []
+                skip_until_next_section = False
+
+                for i, line in enumerate(lines):
+                    if today_marker in line:
+                        # Found today's entry, skip until next ## section
+                        skip_until_next_section = True
+                        new_lines.append(entry_text.lstrip('\n'))  # Add new entry
+                        continue
+
+                    if skip_until_next_section:
+                        # Stop skipping when we hit next date or end
+                        if line.startswith("## [") and today_marker not in line:
+                            skip_until_next_section = False
+                            new_lines.append(line)
+                        # Skip lines that are part of today's old entry
+                        continue
+
+                    new_lines.append(line)
+
+                new_content = "".join(new_lines)
             else:
-                new_content = "# Changelog\n" + entry_text + "\n" + content
+                # Add new entry for today at the top
+                if "# Changelog" in content:
+                    parts = content.split("# Changelog", 1)
+                    new_content = parts[0] + "# Changelog" + entry_text + parts[1]
+                else:
+                    new_content = "# Changelog\n" + entry_text + "\n" + content
         else:
             new_content = "# Changelog\n" + entry_text
 
         changelog.write_text(new_content, encoding='utf-8')
-        print(f"[OK] Updated CHANGELOG.md with {len(changes)} structural changes")
+        print(f"[OK] Updated CHANGELOG.md with {len(changes)} structural changes (merged into today's entry)")
         return True
 
     def generate_feature_summary(self) -> Dict[str, any]:

@@ -1,11 +1,16 @@
 """FastAPI application for Autopack Supervisor (Chunks A, B, C, D implementation)"""
 
+import os
 from datetime import datetime
 from typing import List, Optional
 
-from fastapi import Depends, FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException, Security
+from fastapi.security import APIKeyHeader
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
 
 from . import dashboard_schemas, models, schemas
 from .builder_schemas import AuditorRequest, AuditorResult, BuilderResult
@@ -15,11 +20,40 @@ from .governed_apply import GovernedApplyPath
 from .issue_tracker import IssueTracker
 from .strategy_engine import StrategyEngine
 
+# Security: API Key authentication
+API_KEY_HEADER = APIKeyHeader(name="X-API-Key", auto_error=False)
+
+async def verify_api_key(api_key: str = Security(API_KEY_HEADER)):
+    """Verify API key for protected endpoints"""
+    expected_key = os.getenv("AUTOPACK_API_KEY")
+
+    # Skip auth in testing mode
+    if os.getenv("TESTING") == "1":
+        return "test-key"
+
+    # Skip auth if no key configured (for initial setup)
+    if not expected_key:
+        return None
+
+    if not api_key or api_key != expected_key:
+        raise HTTPException(
+            status_code=403,
+            detail="Invalid or missing API key. Set X-API-Key header."
+        )
+    return api_key
+
+# Rate limiting
+limiter = Limiter(key_func=get_remote_address)
+
 app = FastAPI(
     title="Autopack Supervisor",
     description="Supervisor/orchestrator implementing the v7 autonomous build playbook",
     version="0.1.0",
 )
+
+# Add rate limiting to app
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 
 @app.on_event("startup")
@@ -42,7 +76,8 @@ def read_root():
     }
 
 
-@app.post("/runs/start", response_model=schemas.RunResponse, status_code=201)
+@app.post("/runs/start", response_model=schemas.RunResponse, status_code=201, dependencies=[Depends(verify_api_key)])
+@limiter.limit("10/minute")  # Max 10 runs per minute per IP
 def start_run(request: schemas.RunStartRequest, db: Session = Depends(get_db)):
     """
     Start a new autonomous build run with tiers and phases.

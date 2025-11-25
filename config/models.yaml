@@ -6,28 +6,29 @@ complexity_models:
     builder: gpt-4o
     auditor: gpt-4o
   high:
-    builder: gpt-4-turbo-2024-04-09
-    auditor: gpt-4-turbo-2024-04-09
+    builder: gpt-5  # Upgraded from gpt-4-turbo-2024-04-09 (Nov 2025)
+    auditor: claude-opus-4-5  # 80.9% SWE-bench, best code auditor
 category_models:
   external_feature_reuse:
     description: Using external libraries/APIs
-    builder_model_override: gpt-4-turbo-2024-04-09
-    auditor_model_override: gpt-4-turbo-2024-04-09
+    builder_model_override: gpt-5
+    auditor_model_override: claude-opus-4-5
   security_auth_change:
     description: Security or auth code changes
-    builder_model_override: gpt-4-turbo-2024-04-09
-    auditor_model_override: gpt-4-turbo-2024-04-09
+    builder_model_override: gpt-5
+    auditor_model_override: claude-opus-4-5
+    secondary_auditor: gpt-5  # Dual auditing for critical security
   schema_contract_change:
     description: Database or API schema changes
-    builder_model_override: gpt-4-turbo-2024-04-09
-    auditor_model_override: gpt-4-turbo-2024-04-09
+    builder_model_override: gpt-5
+    auditor_model_override: claude-opus-4-5
   docs:
     description: Documentation generation
     builder_model_override: gpt-4o-mini
     auditor_model_override: gpt-4o-mini
   tests:
     description: Test code generation
-    builder_model_override: gpt-4o-mini
+    builder_model_override: claude-sonnet-4-5  # 77.2% SWE-bench, excellent for tests
     auditor_model_override: gpt-4o
 provider_quotas:
   openai:

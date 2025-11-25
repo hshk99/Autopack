@@ -55,6 +55,8 @@ class PhaseStatusUpdate(BaseModel):
     tokens_used: Optional[int] = Field(None)
     minor_issues_count: Optional[int] = Field(None)
     major_issues_count: Optional[int] = Field(None)
+    quality_level: Optional[str] = Field(None, description="Quality level: ok, needs_review, blocked")
+    quality_blocked: Optional[bool] = Field(None, description="Whether phase is blocked by quality gate")
 
 
 class PhaseResponse(BaseModel):

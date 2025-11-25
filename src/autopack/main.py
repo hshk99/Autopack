@@ -226,6 +226,12 @@ def update_phase_status(
     if update.major_issues_count is not None:
         phase.major_issues_count = update.major_issues_count
 
+    # Phase 2: Quality gate fields
+    if update.quality_level is not None:
+        phase.quality_level = update.quality_level
+    if update.quality_blocked is not None:
+        phase.quality_blocked = update.quality_blocked
+
     phase.updated_at = datetime.utcnow()
 
     # Update phase summary file
@@ -820,6 +826,33 @@ def get_dashboard_run_status(run_id: str, db: Session = Depends(get_db)):
     # Calculate token utilization
     token_utilization = run.tokens_used / run.token_cap if run.token_cap > 0 else 0.0
 
+    # Get current phase quality info (Phase 2: Quality gate)
+    quality_level = None
+    quality_blocked = False
+    quality_warnings = []
+
+    if progress.current_phase_index is not None:
+        current_phase = (
+            db.query(models.Phase)
+            .filter(
+                models.Phase.run_id == run_id,
+                models.Phase.phase_index == progress.current_phase_index,
+            )
+            .first()
+        )
+        if current_phase:
+            quality_level = current_phase.quality_level
+            quality_blocked = current_phase.quality_blocked
+            # If blocked or needs review, add warnings
+            if quality_blocked:
+                quality_warnings.append(
+                    f"Phase {current_phase.phase_id} is blocked by quality gate"
+                )
+            elif quality_level == "needs_review":
+                quality_warnings.append(
+                    f"Phase {current_phase.phase_id} needs human review"
+                )
+
     return DashboardRunStatus(
         run_id=run.id,
         state=run.state.value,
@@ -838,6 +871,9 @@ def get_dashboard_run_status(run_id: str, db: Session = Depends(get_db)):
         token_utilization=token_utilization,
         minor_issues_count=run.minor_issues_count,
         major_issues_count=run.major_issues_count,
+        quality_level=quality_level,
+        quality_blocked=quality_blocked,
+        quality_warnings=quality_warnings,
     )
 
 

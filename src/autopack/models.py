@@ -170,6 +170,10 @@ class Phase(Base):
     major_issues_count = Column(Integer, nullable=False, default=0)
     issue_state = Column(String, nullable=False, default="no_issues")  # no_issues, has_minor_issues, has_major_issues
 
+    # Quality gate (Phase 2)
+    quality_level = Column(String, nullable=True)  # "ok" | "needs_review" | "blocked"
+    quality_blocked = Column(Boolean, nullable=False, default=False)
+
     # Timestamps
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
     updated_at = Column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)

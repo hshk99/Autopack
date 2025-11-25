@@ -30,6 +30,11 @@ class DashboardRunStatus(BaseModel):
     minor_issues_count: int
     major_issues_count: int
 
+    # Quality gate (Phase 2)
+    quality_level: Optional[str] = None  # "ok" | "needs_review" | "blocked"
+    quality_blocked: bool = False
+    quality_warnings: list[str] = []
+
 
 class ProviderUsage(BaseModel):
     """Token usage for a provider"""

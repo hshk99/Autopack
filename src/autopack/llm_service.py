@@ -4,16 +4,20 @@ This service wraps the OpenAI clients and provides:
 - Automatic model selection via ModelRouter
 - Usage tracking via UsageRecorder
 - Centralized error handling and logging
+- Quality gate enforcement for high-risk categories
 """
 
 from datetime import datetime
+from pathlib import Path
 from typing import Dict, List, Optional
 
 from sqlalchemy.orm import Session
 
+from .config_loader import get_config
 from .llm_client import AuditorResult, BuilderResult
 from .model_router import ModelRouter
 from .openai_clients import OpenAIAuditorClient, OpenAIBuilderClient
+from .quality_gate import QualityGate, integrate_with_auditor
 from .usage_recorder import LlmUsageEvent
 
 
@@ -27,18 +31,31 @@ class LlmService:
     3. Records usage in database via LlmUsageEvent
     """
 
-    def __init__(self, db: Session, config_path: str = "config/models.yaml"):
+    def __init__(
+        self,
+        db: Session,
+        config_path: str = "config/models.yaml",
+        repo_root: Optional[Path] = None,
+    ):
         """
         Initialize LLM service.
 
         Args:
             db: Database session for usage recording
             config_path: Path to models.yaml config
+            repo_root: Repository root for quality gate (defaults to current dir)
         """
         self.db = db
         self.model_router = ModelRouter(db, config_path)
         self.builder_client = OpenAIBuilderClient()
         self.auditor_client = OpenAIAuditorClient()
+
+        # Initialize quality gate with project config
+        self.repo_root = repo_root or Path.cwd()
+        config = get_config(self.repo_root / ".autopack" / "config.yaml")
+        self.quality_gate = QualityGate(
+            repo_root=self.repo_root, config=config._config
+        )
 
     def execute_builder_phase(
         self,
@@ -122,9 +139,12 @@ class LlmService:
         run_id: Optional[str] = None,
         phase_id: Optional[str] = None,
         run_context: Optional[Dict] = None,
+        ci_result: Optional[Dict] = None,
+        coverage_delta: Optional[float] = None,
     ) -> AuditorResult:
         """
-        Execute auditor review with automatic model selection and usage tracking.
+        Execute auditor review with automatic model selection, usage tracking,
+        and quality gate enforcement.
 
         Args:
             patch_content: Git diff/patch to review
@@ -135,9 +155,11 @@ class LlmService:
             run_id: Run identifier for usage tracking
             phase_id: Phase identifier for usage tracking
             run_context: Run context with potential model_overrides
+            ci_result: CI test result (passed, failed, skipped) for quality gate
+            coverage_delta: Coverage change (+5%, -2%, etc.) for quality gate
 
         Returns:
-            AuditorResult with review and issues
+            AuditorResult with review, issues, and quality gate assessment
         """
         # Select model using ModelRouter
         task_category = phase_spec.get("task_category", "general")
@@ -181,6 +203,25 @@ class LlmService:
                 run_id=run_id,
                 phase_id=phase_id,
             )
+
+        # Run quality gate assessment (Phase 2: Thin quality gate)
+        if phase_id:
+            quality_report = self.quality_gate.assess_phase(
+                phase_id=phase_id,
+                phase_spec=phase_spec,
+                auditor_result=result.metadata if hasattr(result, "metadata") else {},
+                ci_result=ci_result,
+                coverage_delta=coverage_delta,
+            )
+
+            # Log quality assessment
+            print(self.quality_gate.format_report(quality_report))
+
+            # Integrate quality gate results with auditor result
+            if hasattr(result, "metadata"):
+                result.metadata = integrate_with_auditor(
+                    result.metadata, quality_report
+                )
 
         return result
 

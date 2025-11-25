@@ -27,7 +27,9 @@
       "Bash(if [ -f ref1.md ])",
       "Bash(then git mv ref1.md archive/ref1_dashboard_discussion.md)",
       "Bash(else echo \"ref1.md not found in root\")",
-      "Bash(bash:*)"
+      "Bash(bash:*)",
+      "Bash(timeout 30 bash -c 'while ! [ -d /tmp/moai-adk/.git ]; do sleep 1; done; echo \"\"Clone complete\"\"')",
+      "Bash(cat:*)"
     ],
     "deny": [],
     "ask": []

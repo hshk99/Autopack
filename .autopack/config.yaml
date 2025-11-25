@@ -1,0 +1,21 @@
+# Autopack Project Configuration
+# Minimal config following GPT's recommendation - only what the system actually uses
+
+project:
+  name: "Autopack"
+  type: "backend"  # backend|frontend|fullstack|library|cli
+
+quality:
+  test_strictness: "normal"  # lenient|normal|strict
+  # lenient: No hard coverage requirements, Auditor can be more flexible
+  # normal: Prefer tests, warn on coverage drops, standard Auditor rigor
+  # strict: Require tests-first, block on coverage regression, strict Auditor
+
+documentation:
+  mode: "minimal"  # skip|minimal|full
+  # skip: No auto-documentation updates
+  # minimal: Update README stats, CHANGELOG for major changes only (current behavior)
+  # full: Full documentation generation for all phases
+
+# Note: Global defaults can be added to ~/.autopack/config.yaml later if needed
+# For now, all config is per-project

@@ -47,7 +47,8 @@ class ModelRouter:
         task_category: Optional[str],
         complexity: str,
         run_context: Optional[Dict] = None,
-    ) -> str:
+        phase_id: Optional[str] = None,
+    ) -> tuple[str, Optional[Dict]]:
         """
         Select appropriate model based on task and quota state.
 
@@ -56,18 +57,21 @@ class ModelRouter:
             task_category: Task category (e.g., security_auth_change)
             complexity: Complexity level (low/medium/high)
             run_context: Optional run context with model_overrides
+            phase_id: Optional phase ID for budget tracking
 
         Returns:
-            Model name (e.g., "gpt-4o", "claude-3-5-sonnet")
+            Tuple of (model_name, budget_warning)
+            budget_warning is None or dict with {"level": "info|warning|critical", "message": str}
         """
         run_context = run_context or {}
+        budget_warning = None
 
         # 1. Check per-run overrides first
         if "model_overrides" in run_context:
             overrides = run_context["model_overrides"].get(role, {})
             key = f"{task_category}:{complexity}"
             if key in overrides:
-                return overrides[key]
+                return overrides[key], budget_warning
 
         # 2. Get baseline model from config
         baseline_model = self._get_baseline_model(role, task_category, complexity)
@@ -75,17 +79,25 @@ class ModelRouter:
         # 3. Check quota state and apply fallback if needed
         if self.quota_routing.get("enabled", False):
             if self._is_provider_over_soft_limit(baseline_model):
+                provider = self._model_to_provider(baseline_model)
+
                 if self._is_fail_fast_category(task_category):
-                    # For critical categories, fail or warn (don't downgrade)
-                    # For now, return baseline and let caller handle
-                    return baseline_model
+                    # For critical categories, warn but don't downgrade
+                    budget_warning = {
+                        "level": "warning",
+                        "message": f"Provider {provider} over soft limit, but category {task_category} requires baseline model"
+                    }
                 else:
                     # Try fallback
                     fallback = self._get_fallback_model(task_category, complexity)
                     if fallback:
-                        return fallback
+                        budget_warning = {
+                            "level": "info",
+                            "message": f"Provider {provider} over soft limit, using fallback model {fallback}"
+                        }
+                        return fallback, budget_warning
 
-        return baseline_model
+        return baseline_model, budget_warning
 
     def _get_baseline_model(
         self, role: str, task_category: Optional[str], complexity: str

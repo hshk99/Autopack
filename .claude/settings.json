@@ -1,0 +1,53 @@
+{
+  "companyAnnouncements": [
+    "Autopack v7: Autonomous codebase building with LLM agents",
+    "Features: Quota-aware routing, Dashboard, Dual Auditor, Learned Rules"
+  ],
+  "permissions": {
+    "defaultMode": "default",
+    "allow": [
+      "Task",
+      "AskUserQuestion",
+      "Skill",
+      "Read",
+      "Write",
+      "Edit",
+      "MultiEdit",
+      "Glob",
+      "Grep",
+      "TodoWrite",
+      "Bash(git status)",
+      "Bash(git log:*)",
+      "Bash(git diff:*)",
+      "Bash(git branch:*)",
+      "Bash(pytest:*)",
+      "Bash(python:*)",
+      "Bash(docker-compose ps:*)",
+      "Bash(docker-compose logs:*)",
+      "Bash(curl:*)",
+      "Bash(ls:*)",
+      "Bash(cat:*)",
+      "Bash(chmod +x:*)"
+    ],
+    "deny": [
+      "Read(./secrets/**)",
+      "Read(**/.env*)",
+      "Read(**/credentials.*)",
+      "Read(**/*_key)",
+      "Read(**/*_secret)",
+      "Bash(rm -rf /:*)",
+      "Bash(sudo:*)",
+      "Bash(chmod 777:*)",
+      "Bash(git push --force:*)",
+      "Bash(git push -f:*)",
+      "Bash(format:*)",
+      "Bash(mkfs:*)",
+      "Bash(dd:*)",
+      "Bash(reboot:*)",
+      "Bash(shutdown:*)",
+      "Bash(halt:*)",
+      "Bash(poweroff:*)"
+    ]
+  },
+  "includeCoAuthoredBy": true
+}

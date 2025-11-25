@@ -71,12 +71,17 @@ class LlmService:
         task_category = phase_spec.get("task_category", "general")
         complexity = phase_spec.get("complexity", "medium")
 
-        model = self.model_router.select_model(
+        model, budget_warning = self.model_router.select_model(
             role="builder",
             task_category=task_category,
             complexity=complexity,
             run_context=run_context,
+            phase_id=phase_id,
         )
+
+        # Log budget warning if present (alerts, not hard stops)
+        if budget_warning:
+            print(f"[{budget_warning['level'].upper()}] {budget_warning['message']}")
 
         # Execute builder with selected model
         result = self.builder_client.execute_phase(
@@ -138,12 +143,17 @@ class LlmService:
         task_category = phase_spec.get("task_category", "general")
         complexity = phase_spec.get("complexity", "medium")
 
-        model = self.model_router.select_model(
+        model, budget_warning = self.model_router.select_model(
             role="auditor",
             task_category=task_category,
             complexity=complexity,
             run_context=run_context,
+            phase_id=phase_id,
         )
+
+        # Log budget warning if present (alerts, not hard stops)
+        if budget_warning:
+            print(f"[{budget_warning['level'].upper()}] {budget_warning['message']}")
 
         # Execute auditor with selected model
         result = self.auditor_client.review_patch(

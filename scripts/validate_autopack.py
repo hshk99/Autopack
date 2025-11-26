@@ -30,13 +30,13 @@ def test_api_health() -> bool:
     try:
         response = requests.get(f"{API_URL}/health")
         if response.status_code == 200:
-            print("✅ Autopack API is healthy")
+            print("[OK] Autopack API is healthy")
             return True
         else:
-            print(f"❌ API health check failed: {response.status_code}")
+            print(f"[ERROR] API health check failed: {response.status_code}")
             return False
     except requests.exceptions.ConnectionError:
-        print("❌ Cannot connect to Autopack API. Is docker-compose running?")
+        print("[ERROR] Cannot connect to Autopack API. Is docker-compose running?")
         return False
 
 
@@ -62,15 +62,15 @@ def create_test_run() -> str:
         ]
     }
 
-    print(f"\n📝 Creating test run: {run_id}")
+    print(f"\n[NOTE] Creating test run: {run_id}")
     response = requests.post(f"{API_URL}/runs", json=payload)
 
     if response.status_code != 201:
-        print(f"❌ Failed to create run: {response.status_code}")
+        print(f"[ERROR] Failed to create run: {response.status_code}")
         print(response.text)
         sys.exit(1)
 
-    print("✅ Test run created")
+    print("[OK] Test run created")
     return run_id
 
 
@@ -80,7 +80,7 @@ def call_builder_directly(run_id: str, phase_id: str) -> Dict:
 
     This proves that AUTOPACK is generating code, not Claude Code.
     """
-    print(f"\n🤖 Calling Autopack Builder for {phase_id}...")
+    print(f"\n[BUILDER] Calling Autopack Builder for {phase_id}...")
     print("=" * 60)
 
     phase_spec = {
@@ -109,13 +109,13 @@ def call_builder_directly(run_id: str, phase_id: str) -> Dict:
     )
 
     if response.status_code != 200:
-        print(f"❌ Builder call failed: {response.status_code}")
+        print(f"[ERROR] Builder call failed: {response.status_code}")
         print(response.text)
         sys.exit(1)
 
     result = response.json()
 
-    print("\n📊 AUTOPACK BUILDER RESULT (not Claude Code!):")
+    print("\n[RESULT] AUTOPACK BUILDER RESULT (not Claude Code!):")
     print("=" * 60)
     print(f"Model used: {result.get('model_used', 'unknown')}")
     print(f"Tokens: {result.get('total_tokens', 0)}")
@@ -143,7 +143,7 @@ def validate_autopack_independence():
 
     # Step 1: Check API health
     if not test_api_health():
-        print("\n⚠️  Start Autopack first: docker-compose up -d")
+        print("\n[WARNING]  Start Autopack first: docker-compose up -d")
         sys.exit(1)
 
     # Step 2: Create test run
@@ -153,18 +153,18 @@ def validate_autopack_independence():
     builder_result = call_builder_directly(run_id, "phase-1-hello")
 
     # Step 4: Validate result
-    print("\n✅ VALIDATION COMPLETE")
+    print("\n[OK] VALIDATION COMPLETE")
     print("=" * 60)
     print("\nProof that Autopack is working:")
-    print("1. ✅ Builder API responded (not Claude Code generating)")
-    print(f"2. ✅ Used model: {builder_result.get('model_used', 'unknown')}")
-    print(f"3. ✅ Generated {builder_result.get('total_tokens', 0)} tokens")
-    print("4. ✅ Patch content was returned from Autopack\n")
+    print("1. [OK] Builder API responded (not Claude Code generating)")
+    print(f"2. [OK] Used model: {builder_result.get('model_used', 'unknown')}")
+    print(f"3. [OK] Generated {builder_result.get('total_tokens', 0)} tokens")
+    print("4. [OK] Patch content was returned from Autopack\n")
 
-    print("🎯 CONCLUSION: Autopack is working independently!")
+    print("[CONCLUSION] CONCLUSION: Autopack is working independently!")
     print("   Claude Code is orchestrating, but Autopack is doing the work.\n")
 
-    print("💡 Next: Check docker-compose logs to see Autopack internals:")
+    print("[TIP] Next: Check docker-compose logs to see Autopack internals:")
     print("   docker-compose logs autopack-api | tail -50\n")
 
 

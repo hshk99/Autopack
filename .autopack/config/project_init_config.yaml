@@ -59,6 +59,10 @@ project_init:
         - "{domain} automatic {key_feature} open source"
         - "github {keywords} AI {technology}"
         - "{use_case} software tools comparison"
+        - "{project_type} market size revenue 2025"
+        - "{domain} customer pain points problems"
+        - "why users switch from {competitor} to alternatives"
+        - "{project_type} pricing strategy tiers"
       max_results_per_query: 10
 
     # GitHub repository search
@@ -80,6 +84,79 @@ project_init:
         - limitations
         - cost
         - relevant_features
+        - customer_segments
+        - revenue_model
+        - user_count_estimate
+        - churn_reasons  # Why users leave/complain
+
+    # Critical analysis requirements
+    critical_analysis:
+      required_sections:
+        - market_size_analysis:
+            description: "Total addressable market (TAM), serviceable market (SAM), realistic capture"
+            questions:
+              - "How many potential users globally?"
+              - "What's the market size in revenue?"
+              - "What % can we realistically capture?"
+              - "Which segments are largest?"
+
+        - customer_segments:
+            description: "ALL potential customer segments, not just niche"
+            questions:
+              - "Who are ALL potential users (not just power users)?"
+              - "What's the size of each segment?"
+              - "Which segments are underserved?"
+              - "Which segments are most profitable?"
+
+        - switching_cost_analysis:
+            description: "Why would existing users switch to our product?"
+            questions:
+              - "What pain points do current solutions have?"
+              - "What would make a Sparkle user switch?"
+              - "What would make a ChronoVault user switch?"
+              - "What's the switching cost (time, money, learning curve)?"
+              - "How much BETTER must we be to justify switching?"
+
+        - competitive_moat:
+            description: "What competitive advantages are defensible?"
+            questions:
+              - "What can we do that competitors CAN'T replicate?"
+              - "What would prevent competitors from copying us?"
+              - "Do we have network effects, data advantages, tech barriers?"
+              - "If successful, how long until competitors catch up?"
+
+        - pricing_strategy:
+            description: "Multi-tier pricing to maximize market capture"
+            questions:
+              - "What's the pricing for competitors?"
+              - "What would free tier look like (to capture mass market)?"
+              - "What would premium tiers offer (to monetize power users)?"
+              - "What's the willingness-to-pay for each segment?"
+
+        - true_differentiation:
+            description: "NOT 'a little better' - what's 10x better?"
+            questions:
+              - "What can we do 10x better than incumbents?"
+              - "What's our unfair advantage?"
+              - "Why can't competitors do this?"
+              - "Is this differentiation sustainable?"
+
+        - profitability_analysis:
+            description: "Can this make money?"
+            questions:
+              - "What's customer acquisition cost (CAC)?"
+              - "What's lifetime value (LTV)?"
+              - "What's LTV/CAC ratio?"
+              - "What's time to profitability?"
+              - "What's realistic revenue in year 1, 3, 5?"
+
+        - technical_feasibility:
+            description: "Can we actually build this with current tech?"
+            questions:
+              - "What are current tech limitations?"
+              - "What would require breakthroughs?"
+              - "What's the risk of tech not working as expected?"
+              - "What's the development cost vs potential revenue?"
 
   gpt_clarification:
     # What to tell GPT about Autopack
@@ -113,51 +190,236 @@ project_init:
 
 # Template for market research compilation
 market_research_template: |
-  # Reference: Market Research - {project_name}
+  # Market Research & Business Analysis - {project_name}
 
   **Compiled by**: Claude (Autopack)
   **Date**: {date}
-  **Purpose**: Market research for GPT strategic analysis
+  **Purpose**: Rigorous market analysis for business viability assessment
 
   ---
 
-  ## Executive Summary
+  ## Part 1: Market Size & Opportunity Analysis
 
-  {summary}
+  ### Total Addressable Market (TAM)
+  {tam_analysis}
+
+  ### Serviceable Addressable Market (SAM)
+  {sam_analysis}
+
+  ### Serviceable Obtainable Market (SOM)
+  {som_analysis}
+
+  ### Market Size by Segment
+  {segment_sizes}
+
+  **Critical Question**: Is this market large enough to justify building?
 
   ---
 
-  ## Existing Solutions
+  ## Part 2: Customer Segment Analysis (ALL Segments)
+
+  ### Segment 1: {segment_1_name}
+  - **Size**: {segment_1_size} users / ${segment_1_revenue} market
+  - **Pain Points**: {segment_1_pains}
+  - **Willingness to Pay**: {segment_1_wtp}
+  - **Acquisition Cost**: {segment_1_cac}
+
+  ### Segment 2: {segment_2_name}
+  [Repeat for all segments]
+
+  ### Segment Priority Matrix
+  | Segment | Size | WTP | CAC | LTV | LTV/CAC | Priority |
+  |---------|------|-----|-----|-----|---------|----------|
+  | ... | ... | ... | ... | ... | ... | ... |
+
+  **Critical Question**: Which segments should we target FIRST for profitability?
+
+  ---
+
+  ## Part 3: Competitive Landscape
+
+  ### Existing Solutions Analysis
 
   {solutions_detailed}
 
-  ---
-
-  ## Summary Matrix
+  ### Competitive Comparison Matrix
 
   {matrix_table}
 
-  ---
+  ### Competitor Revenue & User Base
+  | Competitor | Users | Revenue | Pricing | Market Share |
+  |------------|-------|---------|---------|--------------|
+  | ... | ... | ... | ... | ... |
 
-  ## Market Gaps Identified
-
-  {gaps_analysis}
-
-  ---
-
-  ## Consolidation Opportunity
-
-  {consolidation_potential}
+  **Critical Question**: How are competitors making money? Can we compete?
 
   ---
 
-  ## Competitive Advantage (If We Build This)
+  ## Part 4: Switching Cost Analysis
 
-  {competitive_advantages}
+  ### Why Would Users Switch FROM Competitors TO Us?
+
+  #### From Sparkle (Mac users):
+  - **Their Strengths**: {sparkle_strengths}
+  - **Their Weaknesses**: {sparkle_weaknesses}
+  - **Pain Points**: {sparkle_user_complaints}
+  - **Switching Barrier**: {sparkle_switching_cost}
+  - **What We Must Offer**: {what_beats_sparkle}
+  - **Is It Enough?**: {sparkle_switch_likelihood}
+
+  #### From ChronoVault (Legal professionals):
+  - **Their Strengths**: {chronovault_strengths}
+  - **Their Weaknesses**: {chronovault_weaknesses}
+  - **Pain Points**: {chronovault_user_complaints}
+  - **Switching Barrier**: {chronovault_switching_cost}
+  - **What We Must Offer**: {what_beats_chronovault}
+  - **Is It Enough?**: {chronovault_switch_likelihood}
+
+  [Repeat for all major competitors]
+
+  ### Switching Cost Tiers
+  - **Low Barrier** (<$100, <1 hour): {low_barrier_segments}
+  - **Medium Barrier** ($100-$1000, 1-10 hours): {medium_barrier_segments}
+  - **High Barrier** (>$1000, >10 hours): {high_barrier_segments}
+
+  **Critical Question**: Are switching costs too high to acquire customers?
 
   ---
 
-  **End of Market Research**
+  ## Part 5: True Differentiation Analysis
+
+  ### What We Do 10x Better (Not 10% Better)
+
+  {ten_x_better_analysis}
+
+  ### Unfair Advantages
+  1. {advantage_1}
+  2. {advantage_2}
+  3. {advantage_3}
+
+  ### Competitive Moat
+  - **Technology Barrier**: {tech_barrier}
+  - **Data Advantage**: {data_advantage}
+  - **Network Effects**: {network_effects}
+  - **Brand/Trust**: {brand_advantage}
+
+  ### Time to Competitive Parity
+  - If we launch, how long until competitors replicate? {time_to_parity}
+
+  **Critical Question**: Do we have a DEFENSIBLE advantage or just a temporary edge?
+
+  ---
+
+  ## Part 6: Pricing Strategy & Revenue Model
+
+  ### Competitor Pricing Analysis
+  {competitor_pricing_table}
+
+  ### Proposed Multi-Tier Strategy
+
+  #### Free Tier (Mass Market Capture)
+  - **Features**: {free_features}
+  - **Limitations**: {free_limitations}
+  - **Purpose**: {free_purpose}
+  - **Target Users**: {free_target_users}
+
+  #### Premium Tier(s)
+  - **Tier 1** (${tier1_price}/month): {tier1_features}
+  - **Tier 2** (${tier2_price}/month): {tier2_features}
+  - **Enterprise** (Custom): {enterprise_features}
+
+  ### Revenue Projections
+  | Year | Users | Conversion Rate | ARPU | Revenue |
+  |------|-------|-----------------|------|---------|
+  | 1 | {y1_users} | {y1_conversion} | {y1_arpu} | {y1_revenue} |
+  | 3 | {y3_users} | {y3_conversion} | {y3_arpu} | {y3_revenue} |
+  | 5 | {y5_users} | {y5_conversion} | {y5_arpu} | {y5_revenue} |
+
+  **Critical Question**: Can this generate enough revenue to sustain the business?
+
+  ---
+
+  ## Part 7: Profitability Analysis
+
+  ### Unit Economics
+  - **Customer Acquisition Cost (CAC)**: {cac}
+  - **Lifetime Value (LTV)**: {ltv}
+  - **LTV/CAC Ratio**: {ltv_cac_ratio} (Target: >3.0)
+  - **Payback Period**: {payback_period} months (Target: <12)
+
+  ### Cost Structure
+  - **Development Cost**: {dev_cost}
+  - **Infrastructure Cost**: {infra_cost}
+  - **Marketing Cost**: {marketing_cost}
+  - **Support Cost**: {support_cost}
+
+  ### Break-Even Analysis
+  - **Break-even users**: {breakeven_users}
+  - **Time to break-even**: {breakeven_time}
+  - **Path to profitability**: {profitability_path}
+
+  **Critical Question**: Is this financially viable?
+
+  ---
+
+  ## Part 8: Technical Feasibility & Risk
+
+  ### Technology Limitations
+  {tech_limitations}
+
+  ### Development Risks
+  | Risk | Likelihood | Impact | Mitigation |
+  |------|-----------|--------|------------|
+  | {risk_1} | {r1_likelihood} | {r1_impact} | {r1_mitigation} |
+  | ... | ... | ... | ... |
+
+  ### Cost vs Revenue Feasibility
+  - **Estimated Development Cost**: {est_dev_cost}
+  - **Year 1 Revenue**: {y1_revenue}
+  - **ROI**: {roi}
+
+  **Critical Question**: Do we have the resources and is the risk acceptable?
+
+  ---
+
+  ## Part 9: GO/NO-GO Recommendation
+
+  ### Market Opportunity Score: {market_score}/10
+  - TAM size: {tam_score}/10
+  - Growth rate: {growth_score}/10
+  - Accessibility: {access_score}/10
+
+  ### Competitive Position Score: {competitive_score}/10
+  - Differentiation: {diff_score}/10
+  - Defensibility: {defense_score}/10
+  - Switching likelihood: {switch_score}/10
+
+  ### Financial Viability Score: {financial_score}/10
+  - Unit economics: {unit_econ_score}/10
+  - Time to profitability: {ttp_score}/10
+  - Revenue potential: {revenue_score}/10
+
+  ### Technical Feasibility Score: {technical_score}/10
+  - Current tech readiness: {tech_ready_score}/10
+  - Development risk: {dev_risk_score}/10
+  - Cost feasibility: {cost_feas_score}/10
+
+  ### Overall Score: {overall_score}/10
+
+  ### Recommendation:
+  {go_no_go_recommendation}
+
+  ### If GO: Strategic Imperatives
+  1. {imperative_1}
+  2. {imperative_2}
+  3. {imperative_3}
+
+  ### If NO-GO: Why?
+  {no_go_reasons}
+
+  ---
+
+  **End of Market Research & Business Analysis**
 
 # Template for user requirements compilation
 user_requirements_template: |
@@ -279,49 +541,164 @@ gpt_prompt_template: |
 analysis_requests:
   desktop_app:
     request: |
-      Based on the market research and user requirements, please provide:
+      Based on the market research and business analysis, provide RIGOROUS strategic guidance:
 
-      1. **Market Positioning**:
-         - What makes this project uniquely valuable?
-         - Which market gaps does it address?
-         - Competitive advantages over existing solutions
+      ## PART 1: GO/NO-GO DECISION (MOST CRITICAL)
 
-      2. **Technology Stack Recommendation**:
-         - Desktop framework (Electron/Tauri/Qt/other)
-         - AI/ML components (local vs cloud, specific models)
-         - Database/storage approach
-         - Additional libraries needed
-         - Justification for each choice
+      1. **Is This Worth Building?**
+         - Given TAM/SAM/SOM analysis, is market large enough?
+         - Given competitor analysis, can we realistically compete?
+         - Given unit economics (CAC/LTV), can this be profitable?
+         - **Provide a score (1-10) and clear GO/NO-GO recommendation**
 
-      3. **Architecture Design**:
-         - High-level component structure
-         - Data flow between components
-         - Key modules and their responsibilities
+      2. **If NO-GO**:
+         - What are the dealbreakers?
+         - What would need to change to make it viable?
+         - Should we pivot to a different opportunity?
 
-      4. **Critical Decisions**:
-         - 3-5 major design decisions with trade-offs
-         - Your recommendations for each
+      3. **If GO**:
+         - What are the 3-5 strategic imperatives we MUST get right?
+         - What's the biggest risk to success?
 
-      5. **Risk Analysis**:
-         - Top 5-7 risks
-         - Mitigation strategies for each
+      ---
 
-      6. **Success Criteria**:
-         - Measurable metrics for v1.0 success
-         - Acceptance criteria (go/no-go for release)
+      ## PART 2: MARKET STRATEGY (IF GO)
 
-      7. **Build Plan Validation**:
-         - Is ~50 phases realistic for this scope?
-         - Suggested tier structure (5-6 tiers)
+      4. **Customer Segmentation & Prioritization**:
+         - Which segment should we target FIRST? (not all at once)
+         - Why? (size vs WTP vs CAC vs competitive intensity)
+         - What's the sequencing? (Segment 1 → Segment 2 → Segment 3)
+         - How to avoid over-narrowing while maintaining focus?
+
+      5. **Competitive Positioning**:
+         - What's our 10x advantage? (NOT 10% better)
+         - Why would Sparkle users switch? (be brutally honest)
+         - Why would ChronoVault users switch? (be brutally honest)
+         - What prevents competitors from copying us in 6 months?
+
+      6. **Pricing Strategy**:
+         - Free tier: What features? Purpose? (mass market capture)
+         - Premium tiers: What's the value ladder?
+         - Enterprise: When to pursue?
+         - What's realistic conversion rate at each tier?
+
+      ---
+
+      ## PART 3: PRODUCT STRATEGY (IF GO)
+
+      7. **Feature Prioritization**:
+         - What's the MINIMUM viable product for Segment 1?
+         - What features are table stakes vs differentiators?
+         - What can we defer to Phase 2/3 without losing market?
+         - How to avoid feature creep?
+
+      8. **Technology Stack** (Profit-Aware):
+         - Desktop framework: Electron vs Tauri (cost implications?)
+         - OCR: Tesseract vs GPT-4 Vision (cost at scale?)
+         - LLM: Local vs Cloud (CAC impact?)
+         - What tech choices affect unit economics?
+         - Recommendation with COST-BENEFIT analysis
+
+      9. **Build Complexity**:
+         - Is 50 phases realistic given this analysis?
+         - Should we scope down based on market findings?
+         - What's Phase 1 (MVP for Segment 1)?
+         - What's Phase 2 (expand to Segment 2)?
+
+      ---
+
+      ## PART 4: FINANCIAL VIABILITY (CRITICAL)
+
+      10. **Revenue Model Validation**:
+          - Are our pricing assumptions realistic?
+          - What's Year 1/3/5 revenue projection?
+          - What's the path to $1M ARR? $10M ARR?
+          - Is this fundable if we needed capital?
+
+      11. **Cost Structure Analysis**:
+          - Development cost: Realistic for 50-phase build?
+          - Infrastructure cost: Cloud costs at scale?
+          - Marketing cost: CAC for each segment?
+          - What's the burn rate vs runway?
+
+      12. **Unit Economics Deep Dive**:
+          - LTV/CAC ratio: Is >3.0 achievable?
+          - Payback period: Can we achieve <12 months?
+          - Churn rate assumptions: Realistic?
+          - What levers improve unit economics most?
+
+      ---
+
+      ## PART 5: RISK & MITIGATION
+
+      13. **Market Risks**:
+          - What if TAM is smaller than estimated?
+          - What if competitors lower prices?
+          - What if we can't achieve target CAC?
+
+      14. **Technical Risks**:
+          - What if local LLM performance insufficient?
+          - What if OCR accuracy disappoints?
+          - What if cross-platform challenges?
+
+      15. **Execution Risks**:
+          - What if 50 phases takes 2x longer?
+          - What if initial customers churn?
+          - What if we can't raise funding (if needed)?
+
+      ---
+
+      ## PART 6: DECISION FRAMEWORKS
+
+      16. **When to Pivot**:
+          - What metrics indicate we should pivot?
+          - At what point do we kill the project?
+          - What's the sunk cost we're willing to accept?
+
+      17. **Success Metrics** (Business-Focused):
+          - Month 3: {what_validates_market}
+          - Month 6: {what_validates_product}
+          - Month 12: {what_validates_business}
+          - Year 3: {what_validates_scale}
+
+      ---
+
+      ## DELIVERABLES EXPECTED:
+
+      **Critical**:
+      1. GO/NO-GO decision with score (1-10) and justification
+      2. If GO: Top 3 strategic imperatives
+      3. If GO: Segment prioritization (which first, why)
+      4. If GO: 10x differentiation statement
+      5. If GO: Multi-tier pricing recommendation
+      6. If GO: MVP scope for Phase 1
+      7. If NO-GO: What are the dealbreakers
+
+      **Important**:
+      8. Revenue projections (Y1/Y3/Y5) with assumptions
+      9. Unit economics validation (LTV/CAC achievable?)
+      10. Technology stack with cost-benefit analysis
+      11. Risk matrix (top 10 risks with likelihood × impact)
+      12. Build plan validation (50 phases realistic? Should we scope down?)
+
+      **Supporting**:
+      13. Architecture design (if GO)
+      14. Success metrics by timeframe
+      15. Pivot triggers
 
     outputs: |
-      - Market positioning statement
-      - Technology stack (specific choices with versions)
-      - Architecture diagram (text description)
-      - Critical decision matrix
-      - Risk mitigation plan
-      - Success metrics
-      - Build plan validation
+      - GO/NO-GO decision (scored, justified)
+      - Strategic imperatives (if GO)
+      - Segment prioritization strategy
+      - Competitive positioning (10x advantage)
+      - Multi-tier pricing model
+      - MVP scope definition
+      - Revenue projections with assumptions
+      - Unit economics analysis
+      - Technology stack (cost-aware)
+      - Risk matrix with mitigations
+      - Build plan (scoped appropriately)
+      - Pivot triggers
 
   web_app:
     request: |

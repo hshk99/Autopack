@@ -1,0 +1,388 @@
+# Autopack Project Initialization Configuration
+
+# When user says: "I want to build [PROJECT]..."
+# Autopack will automatically:
+# 1. Create build branch
+# 2. Conduct market research
+# 3. Compile findings into reference files
+# 4. Generate focused GPT prompt
+# 5. Prepare for GPT strategic consultation
+
+project_init:
+  workflow:
+    enabled: true
+    auto_trigger: true  # Trigger on user saying "build", "create", "develop"
+
+  outputs:
+    directory: ".autonomous_runs/{project_slug}-v1/"
+
+    # Standard reference files to generate
+    reference_files:
+      - name: "REF_MARKET_RESEARCH.md"
+        description: "Compiled market research on similar solutions"
+        includes:
+          - existing_solutions  # Web search + GitHub search
+          - pros_cons_analysis
+          - market_gaps
+          - competitive_landscape
+          - summary_matrix
+
+      - name: "REF_USER_REQUIREMENTS.md"
+        description: "User's specific requirements and context"
+        includes:
+          - user_stated_requirements
+          - use_cases
+          - target_users
+          - constraints
+          - prior_work_lessons  # If user references existing project
+
+    # GPT consultation prompt
+    gpt_prompt:
+      name: "GPT_STRATEGIC_PROMPT.md"
+      description: "Focused prompt for GPT analysis"
+      format: "single_focused"  # Not sequential (user will decide)
+      attach:
+        - "REF_MARKET_RESEARCH.md"
+        - "REF_USER_REQUIREMENTS.md"
+
+    # Optional: Sequential prompts (if user prefers)
+    gpt_sequential_prompts:
+      enabled: false  # User can request this
+      name: "PROMPT_SEQUENCE_FOR_GPT.md"
+
+  research:
+    # Web searches to conduct automatically
+    web_search:
+      enabled: true
+      queries:
+        - "{project_type} desktop application AI-powered 2025"
+        - "{domain} automatic {key_feature} open source"
+        - "github {keywords} AI {technology}"
+        - "{use_case} software tools comparison"
+      max_results_per_query: 10
+
+    # GitHub repository search
+    github_search:
+      enabled: true
+      queries:
+        - "{project_type} {key_features}"
+        - "AI {domain} {technology}"
+      max_repos: 5
+
+    # Compile into matrix
+    solution_matrix:
+      columns:
+        - name
+        - type
+        - platform
+        - pros
+        - cons
+        - limitations
+        - cost
+        - relevant_features
+
+  gpt_clarification:
+    # What to tell GPT about Autopack
+    context_message: |
+      **Autopack Context for GPT:**
+
+      I'm using Autopack, an autonomous build system that will:
+      - Execute the implementation autonomously (50 phases)
+      - Handle all coding, testing, and integration
+      - Track progress and manage the build
+
+      **Your Role (GPT):**
+      Focus purely on strategic guidance and analysis:
+      - Market analysis and competitive positioning
+      - Technology stack recommendations
+      - Architecture design decisions
+      - Research on best practices/benchmarks
+      - Risk analysis and mitigation strategies
+      - Success criteria definition
+
+      **You DON'T Need to Worry About:**
+      - Implementation details (Autopack handles this)
+      - Code examples (not needed at this stage)
+      - Step-by-step tutorials (Autopack will figure it out)
+      - Project management (Autopack tracks phases)
+
+      **What I Need from You:**
+      {specific_request}
+
+    include_in_prompt: true
+
+# Template for market research compilation
+market_research_template: |
+  # Reference: Market Research - {project_name}
+
+  **Compiled by**: Claude (Autopack)
+  **Date**: {date}
+  **Purpose**: Market research for GPT strategic analysis
+
+  ---
+
+  ## Executive Summary
+
+  {summary}
+
+  ---
+
+  ## Existing Solutions
+
+  {solutions_detailed}
+
+  ---
+
+  ## Summary Matrix
+
+  {matrix_table}
+
+  ---
+
+  ## Market Gaps Identified
+
+  {gaps_analysis}
+
+  ---
+
+  ## Consolidation Opportunity
+
+  {consolidation_potential}
+
+  ---
+
+  ## Competitive Advantage (If We Build This)
+
+  {competitive_advantages}
+
+  ---
+
+  **End of Market Research**
+
+# Template for user requirements compilation
+user_requirements_template: |
+  # Reference: User Requirements - {project_name}
+
+  **Compiled by**: Claude (Autopack)
+  **Date**: {date}
+  **Purpose**: User needs and context for GPT analysis
+
+  ---
+
+  ## Core Requirements
+
+  {core_requirements}
+
+  ---
+
+  ## Use Cases
+
+  {use_cases}
+
+  ---
+
+  ## Target Users
+
+  {target_users}
+
+  ---
+
+  ## Constraints
+
+  {constraints}
+
+  ---
+
+  ## Prior Work & Lessons Learned
+
+  {lessons_if_applicable}
+
+  ---
+
+  ## Must-Have Features (Phase 1)
+
+  {must_have}
+
+  ---
+
+  ## Should-Have Features
+
+  {should_have}
+
+  ---
+
+  ## Nice-to-Have Features (Defer)
+
+  {nice_to_have}
+
+  ---
+
+  **End of User Requirements**
+
+# Template for GPT strategic prompt
+gpt_prompt_template: |
+  # GPT Strategic Analysis Request - {project_name}
+
+  **Date**: {date}
+  **Project**: {project_description}
+
+  ---
+
+  ## Context: Autopack Autonomous Build System
+
+  I'm using **Autopack**, an autonomous build system that will handle all implementation.
+
+  **What Autopack Does**:
+  - Executes 50 phases autonomously (coding, testing, integration)
+  - Uses AI (GPT-4o, Claude Opus/Sonnet) for builder and auditor
+  - Tracks progress, manages dependencies
+  - Handles git operations, CI/CD
+
+  **Your Role**:
+  Focus purely on **strategic guidance and analysis**. Don't worry about implementation—Autopack handles that.
+
+  ---
+
+  ## Attached References
+
+  1. **REF_MARKET_RESEARCH.md**: My compiled research on {solution_count} existing solutions
+  2. **REF_USER_REQUIREMENTS.md**: User's specific needs and constraints
+
+  Please review both before responding.
+
+  ---
+
+  ## What I Need from You
+
+  {specific_analysis_request}
+
+  ---
+
+  ## Deliverables Expected
+
+  {expected_outputs}
+
+  ---
+
+  ## Notes
+
+  - Be specific (e.g., "Use Tauri 2.0" not "consider Tauri")
+  - Provide justifications for recommendations
+  - Cite benchmarks/data when available
+  - Focus on strategic decisions, not implementation details
+
+  ---
+
+  **Ready for your analysis!**
+
+# Specific analysis request templates by project type
+analysis_requests:
+  desktop_app:
+    request: |
+      Based on the market research and user requirements, please provide:
+
+      1. **Market Positioning**:
+         - What makes this project uniquely valuable?
+         - Which market gaps does it address?
+         - Competitive advantages over existing solutions
+
+      2. **Technology Stack Recommendation**:
+         - Desktop framework (Electron/Tauri/Qt/other)
+         - AI/ML components (local vs cloud, specific models)
+         - Database/storage approach
+         - Additional libraries needed
+         - Justification for each choice
+
+      3. **Architecture Design**:
+         - High-level component structure
+         - Data flow between components
+         - Key modules and their responsibilities
+
+      4. **Critical Decisions**:
+         - 3-5 major design decisions with trade-offs
+         - Your recommendations for each
+
+      5. **Risk Analysis**:
+         - Top 5-7 risks
+         - Mitigation strategies for each
+
+      6. **Success Criteria**:
+         - Measurable metrics for v1.0 success
+         - Acceptance criteria (go/no-go for release)
+
+      7. **Build Plan Validation**:
+         - Is ~50 phases realistic for this scope?
+         - Suggested tier structure (5-6 tiers)
+
+    outputs: |
+      - Market positioning statement
+      - Technology stack (specific choices with versions)
+      - Architecture diagram (text description)
+      - Critical decision matrix
+      - Risk mitigation plan
+      - Success metrics
+      - Build plan validation
+
+  web_app:
+    request: |
+      [Similar structure, adapted for web apps]
+    outputs: |
+      [Similar outputs]
+
+  cli_tool:
+    request: |
+      [Similar structure, adapted for CLI tools]
+    outputs: |
+      [Similar outputs]
+
+# User communication template
+user_notification: |
+  ## ✅ Project Initialization Complete!
+
+  **Branch Created**: `build/{project_slug}-v1`
+
+  ### 📁 Files Generated
+
+  1. **REF_MARKET_RESEARCH.md** ({solution_count} solutions researched)
+     - Existing solutions analyzed
+     - Market gaps identified
+     - Competitive advantages outlined
+
+  2. **REF_USER_REQUIREMENTS.md**
+     - Your requirements compiled
+     - Use cases documented
+     - Must-have/should-have features listed
+
+  3. **GPT_STRATEGIC_PROMPT.md**
+     - Focused prompt for GPT
+     - Explains Autopack's role (implementation)
+     - Requests strategic guidance only
+
+  ### 🚀 Next Steps
+
+  1. **Review** the reference files (optional but recommended)
+  2. **Send to GPT**:
+     - Copy `GPT_STRATEGIC_PROMPT.md`
+     - Attach `REF_MARKET_RESEARCH.md`
+     - Attach `REF_USER_REQUIREMENTS.md`
+  3. **GPT will provide**:
+     - Technology stack recommendations
+     - Architecture design
+     - Risk analysis
+     - Success criteria
+     - Build plan validation
+  4. **After GPT responds**:
+     - I'll create `BUILD_PLAN_{PROJECT}.md`
+     - Start Autopack autonomous build
+
+  **Estimated Time**:
+  - GPT analysis: 30-60 minutes
+  - Build execution: 3-6 weeks (50 phases)
+
+  ---
+
+  **Ready to send to GPT!**
+
+# Version
+version: "1.0"
+created: "2025-11-26"

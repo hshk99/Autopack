@@ -20,6 +20,13 @@ from .openai_clients import OpenAIAuditorClient, OpenAIBuilderClient
 from .quality_gate import QualityGate, integrate_with_auditor
 from .usage_recorder import LlmUsageEvent
 
+# Import Anthropic clients with graceful fallback
+try:
+    from .anthropic_clients import AnthropicAuditorClient, AnthropicBuilderClient
+    ANTHROPIC_AVAILABLE = True
+except ImportError:
+    ANTHROPIC_AVAILABLE = False
+
 
 class LlmService:
     """
@@ -27,7 +34,7 @@ class LlmService:
 
     This service:
     1. Uses ModelRouter to select appropriate models based on task/quota
-    2. Delegates to OpenAI clients for actual LLM calls
+    2. Delegates to OpenAI or Anthropic clients based on model selection
     3. Records usage in database via LlmUsageEvent
     """
 
@@ -47,8 +54,18 @@ class LlmService:
         """
         self.db = db
         self.model_router = ModelRouter(db, config_path)
-        self.builder_client = OpenAIBuilderClient()
-        self.auditor_client = OpenAIAuditorClient()
+
+        # Initialize OpenAI clients (always available)
+        self.openai_builder = OpenAIBuilderClient()
+        self.openai_auditor = OpenAIAuditorClient()
+
+        # Initialize Anthropic clients if available
+        if ANTHROPIC_AVAILABLE:
+            self.anthropic_builder = AnthropicBuilderClient()
+            self.anthropic_auditor = AnthropicAuditorClient()
+        else:
+            self.anthropic_builder = None
+            self.anthropic_auditor = None
 
         # Initialize quality gate with project config
         self.repo_root = repo_root or Path.cwd()
@@ -56,6 +73,24 @@ class LlmService:
         self.quality_gate = QualityGate(
             repo_root=self.repo_root, config=config._config
         )
+
+    def _get_builder_client(self, model: str):
+        """Select appropriate builder client based on model name"""
+        if "claude" in model.lower():
+            if self.anthropic_builder is None:
+                print(f"Warning: Claude model {model} selected but Anthropic not available. Falling back to OpenAI.")
+                return self.openai_builder
+            return self.anthropic_builder
+        return self.openai_builder
+
+    def _get_auditor_client(self, model: str):
+        """Select appropriate auditor client based on model name"""
+        if "claude" in model.lower():
+            if self.anthropic_auditor is None:
+                print(f"Warning: Claude model {model} selected but Anthropic not available. Falling back to OpenAI.")
+                return self.openai_auditor
+            return self.anthropic_auditor
+        return self.openai_auditor
 
     def execute_builder_phase(
         self,
@@ -100,8 +135,11 @@ class LlmService:
         if budget_warning:
             print(f"[{budget_warning['level'].upper()}] {budget_warning['message']}")
 
+        # Select appropriate client based on model
+        builder_client = self._get_builder_client(model)
+
         # Execute builder with selected model
-        result = self.builder_client.execute_phase(
+        result = builder_client.execute_phase(
             phase_spec=phase_spec,
             file_context=file_context,
             max_tokens=max_tokens,
@@ -177,8 +215,11 @@ class LlmService:
         if budget_warning:
             print(f"[{budget_warning['level'].upper()}] {budget_warning['message']}")
 
+        # Select appropriate client based on model
+        auditor_client = self._get_auditor_client(model)
+
         # Execute auditor with selected model
-        result = self.auditor_client.review_patch(
+        result = auditor_client.review_patch(
             patch_content=patch_content,
             phase_spec=phase_spec,
             max_tokens=max_tokens,

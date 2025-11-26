@@ -382,6 +382,15 @@ python scripts/analyze_learned_rules.py --project-id MyWebApp --output-json rule
 - [x] GLM-4.5 fallback configuration (placeholder)
 - [x] Documentation complete
 
+**Phase 1b - MoAI Patterns Thin Adoption** (NEW! 2025-11-26):
+- [x] Context ranking heuristics (JIT loading, 30-50% token savings target)
+- [x] Risk scorer (LOC delta, critical paths, test coverage, hygiene)
+- [x] Thin quality gate (alerts only, no hard blocks)
+- [x] Time watchdog (simple wall-clock guardrail)
+- [x] Budget warning system (alert before exhaustion)
+- [x] Category-split routing (8 fine-grained categories)
+- [x] GPT model validation (Nov 2025 releases verified)
+
 ### 🚧 In Progress
 
 - [ ] Quota tracking implementation (usage tracker in LLM client)
@@ -417,6 +426,8 @@ See [LICENSE](LICENSE) file for details.
 
 **Status**: ✅ Production Ready (v7 + Learned Rules + 10 Auxiliary Agents)
 
-**Last Updated**: 2025-11-25
+**Last Updated**: 2025-11-26
 
-**Total Implementation**: ~22,000 lines of code, 10,000+ lines documentation
+**Total Implementation**: ~22,000+ lines of code, 11,000+ lines documentation
+
+**Latest**: Phase 1b complete - MoAI patterns thin adoption (context ranking, risk scoring, thin quality gates)

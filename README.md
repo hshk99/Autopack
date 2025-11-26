@@ -45,6 +45,20 @@ python integrations/supervisor.py --project-id MyProject
 
 ## Core Capabilities
 
+### 🚀 Automated Project Initialization (NEW!)
+
+**Say "I want to build [PROJECT]" and Autopack automatically:**
+1. Conducts extensive market research (20-30+ solutions analyzed)
+2. Compiles findings into reference files (pros/cons/limitations/benchmarks)
+3. Generates focused GPT strategic prompt (25-30 questions)
+4. Sets up project structure
+
+**Result**: Comprehensive planning in 15-30 minutes vs 3-4 hours manual research.
+
+**See**: [`.autopack/docs/PROJECT_INIT_AUTOMATION.md`](.autopack/docs/PROJECT_INIT_AUTOMATION.md)
+
+---
+
 ### 🤖 Zero-Intervention Autonomous Builds
 
 Executes complete software builds from start to finish without human intervention.

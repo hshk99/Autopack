@@ -3,7 +3,8 @@
     "allow": [
       "Bash(find:*)",
       "Bash(git merge:*)",
-      "Bash(=0.1.9)"
+      "Bash(=0.1.9)",
+      "Bash(docker-compose build:*)"
     ],
     "deny": [],
     "ask": []

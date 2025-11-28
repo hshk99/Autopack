@@ -1,16 +1,15 @@
 """
-from app.core.middleware import error_handler_middleware
-from app.core.logging import setup_logging
-
-# Setup logging
-logger = setup_logging()
-
 FileOrganizer Backend - FastAPI Application
 """
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
-from app.routers import health, documents, packs, classification, export, classification, documents, packs, documents, packs
+from app.core.middleware import error_handler_middleware
+from app.core.logging import setup_logging
+from app.routers import health, documents, packs, classification, export
+
+# Setup logging
+logger = setup_logging()
 
 app = FastAPI(
     title="FileOrganizer API",
@@ -35,20 +34,6 @@ app.middleware("http")(error_handler_middleware)
 app.include_router(health.router, prefix="/api/v1", tags=["health"])
 app.include_router(documents.router, prefix="/api/v1", tags=["documents"])
 app.include_router(packs.router, prefix="/api/v1", tags=["packs"])
-app.include_router(classification.router, prefix="/api/v1", tags=["classification"])
-app.include_router(export.router, prefix="/api/v1", tags=["export"])
-app.include_router(classification.router, prefix="/api/v1", tags=["classification"])
-app.include_router(export.router, prefix="/api/v1", tags=["export"])
-app.include_router(documents.router, prefix="/api/v1", tags=["documents"])
-app.include_router(packs.router, prefix="/api/v1", tags=["packs"])
-app.include_router(classification.router, prefix="/api/v1", tags=["classification"])
-app.include_router(export.router, prefix="/api/v1", tags=["export"])
-app.include_router(classification.router, prefix="/api/v1", tags=["classification"])
-app.include_router(export.router, prefix="/api/v1", tags=["export"])
-app.include_router(documents.router, prefix="/api/v1", tags=["documents"])
-app.include_router(packs.router, prefix="/api/v1", tags=["packs"])
-app.include_router(classification.router, prefix="/api/v1", tags=["classification"])
-app.include_router(export.router, prefix="/api/v1", tags=["export"])
 app.include_router(classification.router, prefix="/api/v1", tags=["classification"])
 app.include_router(export.router, prefix="/api/v1", tags=["export"])
 

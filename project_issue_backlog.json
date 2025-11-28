@@ -143,6 +143,17 @@
       "last_seen_at": "2025-11-23T11:37:06.204538",
       "seen_in_tiers": [],
       "status": "open"
+    },
+    "unknown": {
+      "category": "auditor_error",
+      "base_severity": "major",
+      "age_in_runs": 9,
+      "age_in_tiers": 9,
+      "first_seen_run_id": "fileorg-phase2-beta",
+      "last_seen_run_id": "fileorg-phase2-beta",
+      "last_seen_at": "2025-11-28T12:56:17.840383",
+      "seen_in_tiers": [],
+      "status": "open"
     }
   }
 }

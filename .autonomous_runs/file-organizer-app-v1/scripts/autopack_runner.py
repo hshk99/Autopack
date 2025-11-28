@@ -141,6 +141,8 @@ class AutopackRunner:
         """
         Parse tasks from markdown file in Autopack format.
 
+        Automatically converts narrative format to Autopack format if needed.
+
         Expected format:
         ### Task N: Task Name
         **Phase ID**: `task-id`
@@ -156,12 +158,52 @@ class AutopackRunner:
         with open(self.tasks_file_path, 'r', encoding='utf-8') as f:
             content = f.read()
 
+        # AUTO-CONVERT: Check if file needs conversion to Autopack format
+        import re
+
+        # Try to import converter (should be in .autonomous_runs root)
+        try:
+            converter_path = Path(__file__).parent.parent.parent / "task_format_converter.py"
+            if converter_path.exists():
+                import importlib.util
+                spec = importlib.util.spec_from_file_location("task_format_converter", converter_path)
+                converter_module = importlib.util.module_from_spec(spec)
+                spec.loader.exec_module(converter_module)
+
+                converter = converter_module.TaskFormatConverter()
+
+                # Check if already in Autopack format
+                if not converter.is_autopack_format(content):
+                    print(f"[INFO] Task file is not in Autopack format - converting automatically...")
+
+                    # Convert content
+                    try:
+                        converted_content = converter.convert_to_autopack_format(content, self.tasks_file_path)
+
+                        # Save converted version with timestamp
+                        timestamp = datetime.now().strftime('%Y%m%d-%H%M%S')
+                        converted_path = self.tasks_file_path.with_stem(f"{self.tasks_file_path.stem}_autopack_{timestamp}")
+
+                        with open(converted_path, 'w', encoding='utf-8') as f:
+                            f.write(converted_content)
+
+                        print(f"[INFO] Auto-converted file saved: {converted_path}")
+                        print(f"[INFO] Using converted content for this run")
+
+                        # Use converted content
+                        content = converted_content
+
+                    except Exception as conv_error:
+                        print(f"[WARNING] Auto-conversion failed: {conv_error}")
+                        print(f"[WARNING] Attempting to parse original format...")
+                        # Continue with original content
+        except Exception as e:
+            print(f"[WARNING] Could not load task converter: {e}")
+            print(f"[WARNING] Assuming file is already in Autopack format...")
+
         phases = []
         tiers_dict = {}  # tier_id -> tier data
         phase_index = 0
-
-        # Simple regex-based parser (can be enhanced with proper markdown parser)
-        import re
 
         # Find all task sections
         task_pattern = r'###\s+Task\s+\d+:\s+(.+?)\n\*\*Phase ID\*\*:\s+`(.+?)`\n\*\*Category\*\*:\s+(\w+)\n\*\*Complexity\*\*:\s+(\w+)\n\*\*Description\*\*:\s+(.+?)(?=\n\n|\*\*|###|$)'

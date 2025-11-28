@@ -4,10 +4,10 @@ import os
 from datetime import datetime
 from typing import List, Optional
 
-from fastapi import Depends, FastAPI, HTTPException, Security
+from fastapi import Depends, FastAPI, HTTPException, Request, Security
 from fastapi.security import APIKeyHeader
 from fastapi.staticfiles import StaticFiles
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
@@ -55,6 +55,27 @@ app = FastAPI(
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
+# Global exception handler for debugging
+import logging
+from fastapi.responses import JSONResponse
+from fastapi import status
+
+logger = logging.getLogger(__name__)
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    logger.error(f"Unhandled exception: {exc}", exc_info=True)
+    import traceback
+    tb = traceback.format_exc()
+    return JSONResponse(
+        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        content={
+            "detail": str(exc),
+            "type": type(exc).__name__,
+            "traceback": tb if os.getenv("DEBUG") == "1" else None
+        },
+    )
+
 
 @app.on_event("startup")
 def startup_event():
@@ -78,7 +99,7 @@ def read_root():
 
 @app.post("/runs/start", response_model=schemas.RunResponse, status_code=201, dependencies=[Depends(verify_api_key)])
 @limiter.limit("10/minute")  # Max 10 runs per minute per IP
-def start_run(request: schemas.RunStartRequest, db: Session = Depends(get_db)):
+def start_run(request_data: schemas.RunStartRequest, request: Request, db: Session = Depends(get_db)):
     """
     Start a new autonomous build run with tiers and phases.
 
@@ -89,33 +110,33 @@ def start_run(request: schemas.RunStartRequest, db: Session = Depends(get_db)):
     4. Initialize file layout under .autonomous_runs/{run_id}/
     """
     # Check if run already exists
-    existing_run = db.query(models.Run).filter(models.Run.id == request.run.run_id).first()
+    existing_run = db.query(models.Run).filter(models.Run.id == request_data.run.run_id).first()
     if existing_run:
-        raise HTTPException(status_code=400, detail=f"Run {request.run.run_id} already exists")
+        raise HTTPException(status_code=400, detail=f"Run {request_data.run.run_id} already exists")
 
     # Create run
     run = models.Run(
-        id=request.run.run_id,
+        id=request_data.run.run_id,
         state=models.RunState.RUN_CREATED,
-        safety_profile=request.run.safety_profile,
-        run_scope=request.run.run_scope,
-        token_cap=request.run.token_cap or 5_000_000,
-        max_phases=request.run.max_phases or 25,
-        max_duration_minutes=request.run.max_duration_minutes or 120,
+        safety_profile=request_data.run.safety_profile,
+        run_scope=request_data.run.run_scope,
+        token_cap=request_data.run.token_cap or 5_000_000,
+        max_phases=request_data.run.max_phases or 25,
+        max_duration_minutes=request_data.run.max_duration_minutes or 120,
         max_minor_issues_total=None,  # Will be computed based on phase count
         started_at=datetime.utcnow(),
     )
 
     # Compute max_minor_issues_total (phases_in_run * 3 per §9.1)
-    if request.phases:
-        run.max_minor_issues_total = len(request.phases) * 3
+    if request_data.phases:
+        run.max_minor_issues_total = len(request_data.phases) * 3
 
     db.add(run)
     db.flush()
 
     # Create tiers
     tier_map = {}  # tier_id -> Tier model
-    for tier_create in request.tiers:
+    for tier_create in request_data.tiers:
         tier = models.Tier(
             tier_id=tier_create.tier_id,
             run_id=run.id,
@@ -129,7 +150,7 @@ def start_run(request: schemas.RunStartRequest, db: Session = Depends(get_db)):
         tier_map[tier_create.tier_id] = tier
 
     # Create phases
-    for phase_create in request.phases:
+    for phase_create in request_data.phases:
         if phase_create.tier_id not in tier_map:
             raise HTTPException(
                 status_code=400,
@@ -178,8 +199,8 @@ def start_run(request: schemas.RunStartRequest, db: Session = Depends(get_db)):
         safety_profile=run.safety_profile,
         run_scope=run.run_scope,
         created_at=run.created_at.isoformat(),
-        tier_count=len(request.tiers),
-        phase_count=len(request.phases),
+        tier_count=len(request_data.tiers),
+        phase_count=len(request_data.phases),
     )
 
     # Write tier summaries
@@ -204,7 +225,18 @@ def start_run(request: schemas.RunStartRequest, db: Session = Depends(get_db)):
             complexity=phase.complexity,
         )
 
-    return run
+    # Eagerly load relationships to avoid DetachedInstanceError during response serialization
+    run_with_relationships = (
+        db.query(models.Run)
+        .filter(models.Run.id == run.id)
+        .options(
+            joinedload(models.Run.tiers).joinedload(models.Tier.phases),
+            joinedload(models.Run.phases)
+        )
+        .first()
+    )
+
+    return run_with_relationships
 
 
 @app.get("/runs/{run_id}", response_model=schemas.RunResponse)

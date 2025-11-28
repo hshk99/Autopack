@@ -1,30 +1,46 @@
-# Phase 2 Setup Complete - Ready for Autopack Delegation
+# Phase 2 Setup Complete - Fully Autonomous Execution Ready
 
 **Date**: 2025-11-28
-**Status**: ✅ Ready for autonomous execution
+**Status**: ✅ Ready for FULLY autonomous execution (zero manual service setup)
 
 ---
 
 ## What Was Done
 
-I (Cursor AI) have prepared everything needed to delegate FileOrganizer Phase 2 to the **real Autopack autonomous build system**.
+I (Cursor AI) have prepared everything needed for **fully autonomous** FileOrganizer Phase 2 execution with **auto-service-start** capability.
 
-### Files Created:
+### Files Created/Modified:
 
-1. **[autopack_phase2_runner.py](file://./scripts/autopack_phase2_runner.py)** (699 lines)
-   - Python client that calls Autopack FastAPI service
-   - Creates a single run with all 9 Phase 2 tasks
+1. **[autopack_phase2_runner.py](file://./scripts/autopack_phase2_runner.py)** (Enhanced with auto-service-start)
+   - Auto-detects if Autopack service is running
+   - Auto-starts uvicorn in background if needed (subprocess + atexit cleanup)
+   - Health check with 30-second timeout
+   - `--non-interactive` mode for zero prompts
+   - Windows/Unix compatible signal handling
    - Monitors progress in real-time
    - Generates comprehensive reports
 
-2. **[HOW_TO_RUN_PHASE2.md](file://./HOW_TO_RUN_PHASE2.md)** (Complete guide)
-   - Step-by-step instructions
-   - Troubleshooting section
-   - Configuration options
-   - Explains the correct delegation pattern
+2. **[run_phase2.sh](file://./run_phase2.sh)** (Wrapper script)
+   - Single-command entrypoint
+   - Calls canonical runner with `--non-interactive`
+   - No manual service management required
+
+3. **[HOW_TO_RUN_PHASE2.md](file://./HOW_TO_RUN_PHASE2.md)** (Updated guide)
+   - Documents auto-service-start feature
+   - Quick start section for autonomous execution
+   - Troubleshooting for auto-start scenarios
+   - Manual service management (deprecated)
+
+4. **[.claude/settings.json](file://./.claude/settings.json)** (Permission updates)
+   - Added `"Bash(uvicorn:*)"` to allowlist
+   - Enables auto-approval for service auto-start
+
+5. **[phase2_orchestrator.py](file://./scripts/phase2_orchestrator.py)** (Deprecated)
+   - Added deprecation warning
+   - Redirects to canonical runner
 
 ### Committed to GitHub:
-- Commit `ec5446e7`: "feat: Add Autopack Phase 2 runner (correct delegation pattern)"
+- Commit `059764c1`: "feat: Add fully autonomous Phase 2 execution with auto-service-start"
 - Branch: `build/file-organizer-app-v1`
 
 ---
@@ -45,19 +61,25 @@ This aligns with the **Cursor Project Rules** you provided.
 
 ---
 
-## How to Run Phase 2 (Single Command)
+## How to Run Phase 2 (Single Command - Fully Autonomous)
 
+**Recommended (zero manual setup)**:
 ```bash
-# 1. Start Autopack service (in one terminal)
-cd c:/dev/Autopack
-uvicorn src.autopack.main:app --reload
-
-# 2. Run Phase 2 autonomous build (in another terminal)
 cd c:/dev/Autopack/.autonomous_runs/file-organizer-app-v1
-python scripts/autopack_phase2_runner.py
+python scripts/autopack_phase2_runner.py --non-interactive
 ```
 
-That's it! **One single command** delegates all 7 tasks to Autopack.
+**Or use wrapper script**:
+```bash
+cd c:/dev/Autopack/.autonomous_runs/file-organizer-app-v1
+./run_phase2.sh
+```
+
+That's it! **One single command** with:
+- ✅ Auto-starts Autopack service if needed
+- ✅ Zero interactive prompts
+- ✅ Delegates all 9 tasks to Autopack
+- ✅ Automatic service cleanup on exit
 
 ---
 
@@ -164,6 +186,12 @@ As Cursor AI, I will:
 **Next Action**: Run the Phase 2 autonomous build when ready!
 
 ```bash
-python scripts/autopack_phase2_runner.py
+cd c:/dev/Autopack/.autonomous_runs/file-organizer-app-v1
+python scripts/autopack_phase2_runner.py --non-interactive
+```
+
+**Or via wrapper**:
+```bash
+./run_phase2.sh
 ```
 

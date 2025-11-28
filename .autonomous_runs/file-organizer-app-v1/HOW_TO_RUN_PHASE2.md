@@ -1,48 +1,60 @@
 # How to Run FileOrganizer Phase 2 with Autopack
 
-This guide shows how to delegate all Phase 2 tasks to the **real Autopack system** for autonomous execution.
+This guide shows how to delegate all Phase 2 tasks to the **real Autopack system** for fully autonomous execution with **zero manual setup required**.
+
+---
+
+## Quick Start (Fully Autonomous - Recommended)
+
+**Single command for complete autonomous execution**:
+
+```bash
+cd c:/dev/Autopack/.autonomous_runs/file-organizer-app-v1
+python scripts/autopack_phase2_runner.py --non-interactive
+```
+
+**Or use the wrapper script**:
+```bash
+cd c:/dev/Autopack/.autonomous_runs/file-organizer-app-v1
+./run_phase2.sh
+```
+
+**What this does**:
+- Automatically detects if Autopack service is running
+- Auto-starts uvicorn if service not found
+- Waits for service health check (30s timeout)
+- Creates Autopack run with all 9 Phase 2 tasks
+- Monitors progress in real-time
+- Generates comprehensive reports
+- Shuts down service gracefully on exit
+- **Zero interactive prompts - truly hands-off execution**
 
 ---
 
 ## Prerequisites
 
-1. **Autopack FastAPI service** must be running
-2. **FileOrganizer Phase 1** must be complete (v1.0 Alpha)
-3. **Python 3.11+** with requests library
+1. **FileOrganizer Phase 1** must be complete (v1.0 Alpha)
+2. **Python 3.11+** with requests library
+3. **.claude/settings.json** must allow uvicorn (already configured)
+
+**No need to manually start Autopack service** - the runner handles it automatically!
 
 ---
 
-## Step 1: Start Autopack Service
+## Step 1: Run Phase 2 Build (Auto-Service-Start)
 
-Autopack is a FastAPI-based service. Start it first:
-
-```bash
-# Navigate to Autopack root
-cd c:/dev/Autopack
-
-# Start Autopack API server
-uvicorn src.autopack.main:app --reload --host 0.0.0.0 --port 8000
-```
-
-The service will be available at `http://localhost:8000`
-
-**Verify it's running:**
-```bash
-curl http://localhost:8000/health
-# Should return: {"status":"healthy"}
-```
-
----
-
-## Step 2: Run Phase 2 Autonomous Build
-
-Now run the single command that delegates all 7 tasks to Autopack:
+The canonical command with full automation:
 
 ```bash
 # Navigate to FileOrganizer project
 cd c:/dev/Autopack/.autonomous_runs/file-organizer-app-v1
 
-# Run Phase 2 autonomous build
+# Run Phase 2 autonomous build (auto-starts service, zero prompts)
+python scripts/autopack_phase2_runner.py --non-interactive
+```
+
+**Interactive mode** (asks for confirmation before starting):
+```bash
 python scripts/autopack_phase2_runner.py
 ```
 
@@ -63,10 +75,18 @@ python scripts/autopack_phase2_runner.py
 FILEORGANIZER PHASE 2 - AUTOPACK AUTONOMOUS BUILD
 ================================================================================
 
-[Step 1/4] Checking Autopack service...
+[NON-INTERACTIVE MODE] Proceeding with full Phase 2 autonomous build...
+[NON-INTERACTIVE MODE] Will auto-start Autopack service if needed...
+
+[Step 1/5] Checking Autopack service...
+[INFO] Autopack service not running at http://localhost:8000
+[INFO] Auto-starting Autopack service...
+[INFO] Starting Autopack service at c:/dev/Autopack...
+[INFO] Waiting for Autopack service to be ready...
+[OK] Autopack service started successfully
 [OK] Autopack service healthy at http://localhost:8000
 
-[Step 2/4] Creating Autopack run...
+[Step 2/5] Creating Autopack run...
 ================================================================================
 CREATING AUTOPACK RUN: fileorganizer-phase2-20251128-123456
 ================================================================================
@@ -95,7 +115,7 @@ Press Ctrl+C to stop monitoring (run will continue)
 
 ---
 
-## Step 3: Review Results
+## Step 2: Review Results (Manual Service Management - Optional)
 
 When complete, the script generates `PHASE2_AUTOPACK_REPORT_<timestamp>.md` with:
 
@@ -191,14 +211,49 @@ curl http://localhost:8000/dashboard/runs/fileorganizer-phase2-YYYYMMDD-HHMMSS/s
 
 ---
 
-## Troubleshooting
+## Manual Service Management (Advanced - Not Recommended)
 
-### Error: "Autopack service not available"
-**Solution**: Start the Autopack FastAPI service first:
+If you prefer to manually manage the Autopack service instead of using auto-start:
+
+**Step 1: Start Autopack service**:
 ```bash
 cd c:/dev/Autopack
-uvicorn src.autopack.main:app --reload
+uvicorn src.autopack.main:app --reload --host 0.0.0.0 --port 8000
 ```
+
+**Step 2: Run Phase 2** (without --non-interactive):
+```bash
+cd .autonomous_runs/file-organizer-app-v1
+python scripts/autopack_phase2_runner.py
+```
+
+This is NOT recommended because:
+- Requires two terminal windows
+- No automatic service cleanup
+- More manual steps prone to errors
+
+**Recommended approach**: Use `--non-interactive` flag which handles everything automatically.
+
+---
+
+## Troubleshooting
+
+### Error: "Autopack service not available after 30s"
+**Possible causes**:
+1. Port 8000 is already in use
+2. Python environment issues
+3. Missing dependencies
+
+**Solution**: Check port availability:
+```bash
+# Windows
+netstat -ano | findstr :8000
+
+# Unix/Linux
+lsof -i :8000
+```
+
+If port is in use, kill the process or change the port in the runner script
 
 ### Error: "Failed to create run: 400 - Run already exists"
 **Solution**: The run ID already exists. Either:
@@ -244,11 +299,22 @@ Or disable auth in Autopack by unsetting `AUTOPACK_API_KEY` in the Autopack serv
 
 ## Summary
 
-**Single command to run all Phase 2 tasks:**
+**Recommended single command for fully autonomous execution:**
 
 ```bash
-python scripts/autopack_phase2_runner.py
+cd c:/dev/Autopack/.autonomous_runs/file-organizer-app-v1
+python scripts/autopack_phase2_runner.py --non-interactive
 ```
 
-This delegates to the **real Autopack autonomous build system** via its FastAPI interface, following the v7 playbook architecture.
+**Or use the wrapper script:**
+```bash
+./run_phase2.sh
+```
+
+This command:
+- Auto-detects and starts Autopack service if needed
+- Delegates all 9 Phase 2 tasks to the real Autopack autonomous build system
+- Requires zero human interaction (truly hands-off)
+- Follows the v7 playbook architecture with correct API delegation pattern
+- Generates comprehensive reports automatically
 

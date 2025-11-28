@@ -271,20 +271,28 @@ class AutonomousExecutor:
 
         Args:
             phase_id: Phase ID
-            result: Builder result
+            result: Builder result from llm_client.BuilderResult dataclass
         """
         url = f"{self.api_url}/runs/{self.run_id}/phases/{phase_id}/builder_result"
         headers = {"Content-Type": "application/json"}
         if self.api_key:
             headers["Authorization"] = f"Bearer {self.api_key}"
 
+        # Map llm_client.BuilderResult to builder_schemas.BuilderResult
         payload = {
-            "success": result.success,
+            "phase_id": phase_id,
+            "run_id": self.run_id,
             "patch_content": result.patch_content,
-            "builder_messages": result.builder_messages,
+            "files_changed": [],  # TODO: Parse from patch_content
+            "lines_added": 0,  # TODO: Calculate from patch
+            "lines_removed": 0,  # TODO: Calculate from patch
+            "builder_attempts": 1,
             "tokens_used": result.tokens_used,
-            "model_used": result.model_used,
-            "error": result.error,
+            "duration_minutes": 0.0,  # TODO: Track actual duration
+            "probe_results": [],  # TODO: Integrate with governed_apply probe system
+            "suggested_issues": [],  # TODO: Parse from builder_messages
+            "status": "success" if result.success else "failed",
+            "notes": "\n".join(result.builder_messages) if result.builder_messages else (result.error or ""),
         }
 
         try:
@@ -299,20 +307,36 @@ class AutonomousExecutor:
 
         Args:
             phase_id: Phase ID
-            result: Auditor result
+            result: Auditor result from llm_client.AuditorResult dataclass
         """
         url = f"{self.api_url}/runs/{self.run_id}/phases/{phase_id}/auditor_result"
         headers = {"Content-Type": "application/json"}
         if self.api_key:
             headers["Authorization"] = f"Bearer {self.api_key}"
 
+        # Map llm_client.AuditorResult to builder_schemas.AuditorResult
+        # Convert issues_found from List[Dict] to List[BuilderSuggestedIssue]
+        formatted_issues = []
+        for issue in result.issues_found:
+            formatted_issues.append({
+                "issue_key": issue.get("issue_key", "unknown"),
+                "severity": issue.get("severity", "medium"),
+                "source": issue.get("source", "auditor"),
+                "category": issue.get("category", "general"),
+                "evidence_refs": issue.get("evidence_refs", []),
+                "description": issue.get("description", ""),
+            })
+
         payload = {
-            "approved": result.approved,
-            "issues_found": result.issues_found,
-            "auditor_messages": result.auditor_messages,
+            "phase_id": phase_id,
+            "run_id": self.run_id,
+            "review_notes": "\n".join(result.auditor_messages) if result.auditor_messages else (result.error or ""),
+            "issues_found": formatted_issues,
+            "suggested_patches": [],  # TODO: Parse from auditor_messages if available
+            "auditor_attempts": 1,
             "tokens_used": result.tokens_used,
-            "model_used": result.model_used,
-            "error": result.error,
+            "recommendation": "approve" if result.approved else "revise",
+            "confidence": "medium",  # TODO: Parse confidence if available
         }
 
         try:
@@ -325,23 +349,16 @@ class AutonomousExecutor:
     def _update_phase_status(self, phase_id: str, status: str):
         """Update phase status via API
 
+        NOTE: Phase status is automatically updated by the API when builder/auditor
+        results are posted. This method is kept for backward compatibility but
+        does nothing since the /status endpoint doesn't exist.
+
         Args:
             phase_id: Phase ID
             status: New status (COMPLETE, FAILED, BLOCKED)
         """
-        url = f"{self.api_url}/runs/{self.run_id}/phases/{phase_id}/status"
-        headers = {"Content-Type": "application/json"}
-        if self.api_key:
-            headers["Authorization"] = f"Bearer {self.api_key}"
-
-        payload = {"status": status}
-
-        try:
-            response = requests.post(url, headers=headers, json=payload, timeout=10)
-            response.raise_for_status()
-            logger.debug(f"Updated phase {phase_id} status to {status}")
-        except requests.exceptions.RequestException as e:
-            logger.warning(f"Failed to update phase status: {e}")
+        # Phase status updates handled by builder/auditor result endpoints
+        logger.debug(f"Phase {phase_id} status will be updated to {status} via builder/auditor results")
 
     def run_autonomous_loop(
         self,

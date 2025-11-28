@@ -1,0 +1,31 @@
+# FileOrganizer Backend Dependencies
+# Python 3.11+
+
+# Web Framework
+fastapi==0.109.0
+uvicorn[standard]==0.27.0
+python-multipart==0.0.6
+
+# Database
+sqlalchemy==2.0.25
+alembic==1.13.1
+
+# OCR & Document Processing
+pytesseract==0.3.10
+PyMuPDF==1.23.21  # fitz for PDF processing
+Pillow==10.2.0
+python-docx==1.1.0
+openpyxl==3.1.2
+
+# LLM & Embeddings
+litellm==1.25.1
+openai==1.10.0
+tiktoken==0.5.2
+
+# Export Engines
+reportlab==4.0.9
+
+# Utilities
+pydantic==2.5.3
+python-dotenv==1.0.1
+pyyaml==6.0.1

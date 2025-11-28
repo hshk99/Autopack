@@ -1,0 +1,45 @@
+name: Tax Pack (Generic)
+description: Generic tax document organization for personal/business tax filing
+
+categories:
+  - name: Income
+    description: Income documents (W2, 1099, salary statements)
+    examples:
+      - "W-2 form showing wages and tax withheld"
+      - "1099-MISC for freelance income"
+      - "Salary statement from employer"
+
+  - name: Deductions
+    description: Tax-deductible expenses
+    examples:
+      - "Mortgage interest statement"
+      - "Charitable donation receipt"
+      - "Medical expense receipts"
+
+  - name: Business Expenses
+    description: Business-related expenses (self-employed)
+    examples:
+      - "Office supply receipts"
+      - "Travel expense receipts"
+      - "Equipment purchase invoices"
+
+  - name: Investment Income
+    description: Investment and capital gains documents
+    examples:
+      - "Brokerage account statement"
+      - "Dividend income report"
+      - "Capital gains/loss statement"
+
+  - name: Bank Statements
+    description: Bank account statements
+    examples:
+      - "Monthly checking account statement"
+      - "Savings account statement"
+      - "Credit card statement"
+
+  - name: Other
+    description: Miscellaneous tax-related documents
+    examples:
+      - "Property tax bill"
+      - "Student loan interest statement"
+      - "Retirement account contribution"

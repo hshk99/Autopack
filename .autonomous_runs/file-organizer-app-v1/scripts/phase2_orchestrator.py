@@ -406,16 +406,29 @@ class Phase2Orchestrator:
 
 
 if __name__ == "__main__":
+    import argparse
+
+    parser = argparse.ArgumentParser(description="FileOrganizer Phase 2 Build Orchestrator")
+    parser.add_argument(
+        '--non-interactive',
+        action='store_true',
+        help='Run in non-interactive mode (no user prompts)'
+    )
+    args = parser.parse_args()
+
     print("FileOrganizer Phase 2 Build Orchestrator")
     print("Testing Autopack autonomous build capabilities")
     print()
 
-    # Confirmation prompt
-    response = input("Proceed with Phase 2 autonomous build? (yes/no): ")
+    # Confirmation prompt (only in interactive mode)
+    if not args.non_interactive:
+        response = input("Proceed with Phase 2 autonomous build? (yes/no): ")
 
-    if response.lower() not in ['yes', 'y']:
-        print("Build cancelled.")
-        sys.exit(0)
+        if response.lower() not in ['yes', 'y']:
+            print("Build cancelled.")
+            sys.exit(0)
+    else:
+        print("[NON-INTERACTIVE MODE] Proceeding with full Phase 2 autonomous build...")
 
     orchestrator = Phase2Orchestrator()
     orchestrator.run_phase2()

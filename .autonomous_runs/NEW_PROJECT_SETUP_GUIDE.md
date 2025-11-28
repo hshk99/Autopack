@@ -2,17 +2,44 @@
 
 This guide explains how to setup a new project so the magic phrase pattern works automatically.
 
-**TL;DR**: You do NOT need to manually revise scripts for each new project. Just run the setup script!
+**TL;DR**: Just use the magic phrase - slug is auto-generated, no manual work needed!
 
 ---
 
-## Quick Start (Automated Setup)
+## Quick Start (Easiest - Recommended)
 
-### Step 1: Run Setup Script
+### Magic Phrase:
+```
+SET UP NEW AUTOPACK PROJECT: <Project Name>
+```
+
+**That's ALL you need!** The slug is auto-generated from your project name.
+
+**Examples**:
+- `SET UP NEW AUTOPACK PROJECT: Shopping Cart` → Creates `shopping-cart-v1`
+- `SET UP NEW AUTOPACK PROJECT: Todo App` → Creates `todo-app-v1`
+- `SET UP NEW AUTOPACK PROJECT: Blog CMS` → Creates `blog-cms-v1`
+
+Then the run magic phrase works immediately:
+```
+RUN AUTOPACK END-TO-END for <Project Name> now.
+```
+
+---
+
+## Alternative: Manual Setup
+
+### Step 1: Run Setup Script (Slug Auto-Generated)
 
 ```bash
 cd c:/dev/Autopack/.autonomous_runs
-python setup_new_project.py --name "MyApp" --slug "my-app-v1"
+python setup_new_project.py --name "MyApp"
+# Slug automatically generated as "my-app-v1"!
+```
+
+**Optional custom slug**:
+```bash
+python setup_new_project.py --name "MyApp" --slug "custom-slug-v1"
 ```
 
 **That's it!** The magic phrase now works:
@@ -133,25 +160,29 @@ python scripts/autopack_runner.py --non-interactive
 
 ## Cursor Prompt for New Projects
 
-When starting a new project, give Cursor this prompt:
+When starting a new project, give Cursor this **simple magic phrase**:
 
+```
+SET UP NEW AUTOPACK PROJECT: MyApp
+```
+
+That's it! **No slug needed** - it's auto-generated!
+
+Cursor will:
+1. Auto-generate slug from project name
+2. Run the setup script
+3. Create all necessary files
+4. Tell you what slug was created
+5. Confirm the run magic phrase is ready
+
+**Alternative (manual)**: If you prefer to see the command:
 ```
 Setup a new Autopack autonomous project:
 
 Project Name: MyApp
-Project Slug: my-app-v1
 
-Run the setup script:
-python .autonomous_runs/setup_new_project.py --name "MyApp" --slug "my-app-v1"
-
-Then help me define tasks in WHATS_LEFT_TO_BUILD.md for this project.
+Run: python .autonomous_runs/setup_new_project.py --name "MyApp"
 ```
-
-Cursor will:
-1. Run the setup script
-2. Create all necessary files
-3. Help you define project tasks
-4. Confirm magic phrase is ready
 
 ---
 
@@ -159,30 +190,48 @@ Cursor will:
 
 ### Example 1: E-commerce Platform
 
-```bash
-python setup_new_project.py --name "ShopApp" --slug "shop-app-v1"
+**Magic Phrase**:
+```
+SET UP NEW AUTOPACK PROJECT: ShopApp
 ```
 
-Magic phrase:
+**Result**: Auto-generates `shop-app-v1`
+
+**Run Magic Phrase**:
 ```
 RUN AUTOPACK END-TO-END for ShopApp now.
 ```
 
+---
+
 ### Example 2: API Gateway
 
-```bash
-python setup_new_project.py --name "APIGateway" --slug "api-gateway-v1"
+**Magic Phrase**:
+```
+SET UP NEW AUTOPACK PROJECT: API Gateway
 ```
 
-Magic phrase:
+**Result**: Auto-generates `api-gateway-v1`
+
+**Run Magic Phrase**:
 ```
-RUN AUTOPACK END-TO-END for APIGateway now.
+RUN AUTOPACK END-TO-END for API Gateway now.
 ```
+
+---
 
 ### Example 3: ChatBot
 
-```bash
-python setup_new_project.py --name "ChatBot" --slug "chatbot-v1"
+**Magic Phrase**:
+```
+SET UP NEW AUTOPACK PROJECT: ChatBot
+```
+
+**Result**: Auto-generates `chatbot-v1`
+
+**Run Magic Phrase**:
+```
+RUN AUTOPACK END-TO-END for ChatBot now.
 ```
 
 Magic phrase:

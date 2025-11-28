@@ -53,16 +53,39 @@ python scripts/autopack_phase2_runner.py --non-interactive
 
 ## For Future Projects (Generic Pattern)
 
-### Quick Setup (Automated)
+### Quick Setup (Automated - Recommended)
 
-**Recommended**: Use the setup script to create a new project:
-
-```bash
-cd c:/dev/Autopack/.autonomous_runs
-python setup_new_project.py --name "MyApp" --slug "my-app-v1"
+**NEW Magic Phrase**:
+```
+SET UP NEW AUTOPACK PROJECT: <Project Name>
 ```
 
-This automatically creates all necessary files. See [NEW_PROJECT_SETUP_GUIDE.md](../NEW_PROJECT_SETUP_GUIDE.md) for details.
+**What It Does**:
+- **Auto-generates slug** from project name (no manual slug needed!)
+- Creates complete project structure
+- Copies generic autopack_runner.py
+- Sets up magic phrase for running
+
+**Examples**:
+```
+SET UP NEW AUTOPACK PROJECT: Shopping Cart
+→ Auto-generates slug: shopping-cart-v1
+
+SET UP NEW AUTOPACK PROJECT: Todo App
+→ Auto-generates slug: todo-app-v1
+
+SET UP NEW AUTOPACK PROJECT: My API Gateway
+→ Auto-generates slug: my-api-gateway-v1
+```
+
+**Manual Setup** (if you prefer):
+```bash
+cd c:/dev/Autopack/.autonomous_runs
+python setup_new_project.py --name "MyApp"
+# Slug auto-generated! Or use: --slug "custom-slug-v1" for custom slug
+```
+
+See [QUICK_REFERENCE.md](../QUICK_REFERENCE.md) for complete examples and [NEW_PROJECT_SETUP_GUIDE.md](../NEW_PROJECT_SETUP_GUIDE.md) for details.
 
 ### Directory Structure (Created by Setup Script):
 ```

@@ -6,7 +6,10 @@ Creates a new autonomous project directory with all necessary files
 for the magic phrase pattern to work.
 
 Usage:
-    python .autonomous_runs/setup_new_project.py --name "MyApp" --slug "my-app-v1"
+    python .autonomous_runs/setup_new_project.py --name "MyApp"
+
+    # Slug is auto-generated from project name (e.g., "MyApp" → "my-app-v1")
+    # For custom slug: python .autonomous_runs/setup_new_project.py --name "MyApp" --slug "custom-slug-v1"
 
 This script creates:
 - .autonomous_runs/<project-slug>/
@@ -20,9 +23,56 @@ After running this script, the magic phrase will work:
 """
 
 import argparse
+import re
 import shutil
 from pathlib import Path
 from datetime import datetime
+
+
+def generate_slug_from_name(name: str, runs_root: Path) -> str:
+    """
+    Generate a filesystem-safe slug from a human project name.
+
+    Rules:
+    - Convert to lowercase
+    - Replace non-alphanumeric characters with '-'
+    - Collapse repeated '-' into single '-'
+    - Trim leading/trailing '-'
+    - Append '-v1'
+    - If that directory already exists under runs_root, increment to -v2, -v3, etc.
+
+    Examples:
+        "File Organizer" → "file-organizer-v1"
+        "Shopping Cart" → "shopping-cart-v1"
+        "My API Gateway" → "my-api-gateway-v1"
+        "Todo App" → "todo-app-v1" (or "todo-app-v2" if v1 exists)
+
+    Args:
+        name: Human-friendly project name (can include spaces, capitals, etc.)
+        runs_root: Path to .autonomous_runs directory
+
+    Returns:
+        Filesystem-safe slug with version suffix
+    """
+    # Normalize: lowercase and replace non-alphanumeric with hyphens
+    base = name.strip().lower()
+    base = re.sub(r"[^a-z0-9]+", "-", base)
+
+    # Collapse repeated hyphens and trim
+    base = re.sub(r"-+", "-", base).strip("-")
+
+    # Fallback if result is empty
+    if not base:
+        base = "autopack-project"
+
+    # Auto-increment version if directory exists
+    # runs_root is typically Path(".autonomous_runs")
+    version = 1
+    while True:
+        slug = f"{base}-v{version}"
+        if not (runs_root / slug).exists():
+            return slug
+        version += 1
 
 
 def create_project_structure(project_name: str, project_slug: str, base_dir: Path):
@@ -279,6 +329,7 @@ echo ""
     print(f"✅ Project setup complete!")
     print(f"{'=' * 80}")
     print(f"\nProject: {project_name}")
+    print(f"Slug: {project_slug}")
     print(f"Location: {project_dir}")
     print(f"\nNext steps:")
     print(f"1. Edit {project_dir}/WHATS_LEFT_TO_BUILD.md to define your tasks")
@@ -295,9 +346,22 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  python setup_new_project.py --name "MyApp" --slug "my-app-v1"
-  python setup_new_project.py --name "API Gateway" --slug "api-gateway-v1"
-  python setup_new_project.py --name "ChatBot" --slug "chatbot-v1"
+  # Basic usage (slug auto-generated from name):
+  python setup_new_project.py --name "MyApp"
+  python setup_new_project.py --name "File Organizer"
+  python setup_new_project.py --name "Shopping Cart"
+
+  # Custom slug (advanced):
+  python setup_new_project.py --name "MyApp" --slug "custom-app-v1"
+
+Slug Generation:
+  By default, the slug is auto-generated from the project name:
+  - "MyApp" → "my-app-v1"
+  - "File Organizer" → "file-organizer-v1"
+  - "Shopping Cart" → "shopping-cart-v1"
+
+  If the directory already exists, version is auto-incremented:
+  - "MyApp" → "my-app-v2" (if v1 exists)
 
 After setup, the magic phrase will work:
   "RUN AUTOPACK END-TO-END for <ProjectName> now."
@@ -308,14 +372,21 @@ After setup, the magic phrase will work:
         '--name',
         type=str,
         required=True,
-        help='Project name (e.g., "MyApp", "API Gateway")'
+        help='Project name (e.g., "MyApp", "File Organizer", "Shopping Cart")'
     )
 
     parser.add_argument(
         '--slug',
         type=str,
-        required=True,
-        help='Project slug for directory name (e.g., "my-app-v1", "api-gateway-v1")'
+        required=False,  # SLUG IS NOW OPTIONAL!
+        default=None,
+        help='Project slug for directory name (optional, auto-generated from name if not provided)'
+    )
+
+    parser.add_argument(
+        '--dry-run',
+        action='store_true',
+        help='Test slug generation without creating files'
     )
 
     args = parser.parse_args()
@@ -323,8 +394,30 @@ After setup, the magic phrase will work:
     # Get base directory (.autonomous_runs)
     base_dir = Path(__file__).parent
 
+    # Ensure .autonomous_runs directory exists
+    base_dir.mkdir(exist_ok=True)
+
+    # Determine slug: use provided slug, or auto-generate from name
+    if args.slug:
+        # User provided custom slug - use it as-is (with basic normalization)
+        slug = args.slug.strip().lower()
+        print(f"[INFO] Using custom slug: {slug}")
+    else:
+        # Auto-generate slug from project name
+        slug = generate_slug_from_name(args.name, base_dir)
+        print(f"[INFO] Auto-generated slug from '{args.name}': {slug}")
+
+    # Dry-run mode: just show what would be generated
+    if args.dry_run:
+        print(f"\n[DRY RUN] Would create project:")
+        print(f"  Name: {args.name}")
+        print(f"  Slug: {slug}")
+        print(f"  Path: {base_dir / slug}")
+        print(f"\n[DRY RUN] No files created.")
+        return
+
     # Create project structure
-    create_project_structure(args.name, args.slug, base_dir)
+    create_project_structure(args.name, slug, base_dir)
 
 
 if __name__ == "__main__":

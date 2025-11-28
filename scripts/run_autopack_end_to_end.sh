@@ -28,24 +28,35 @@ fi
 echo "✓ API is healthy"
 echo
 
-# Step 2: Create run using autopack_runner.py
-echo "[2/3] Creating Autopack run from $TASKS_FILE..."
-cd "/c/dev/Autopack/$PROJECT_DIR"
+# Step 2: Check for existing run or create new one
+echo "[2/3] Checking for existing run..."
 
-# Set API URL via environment variable (autopack_runner uses AUTOPACK_API_URL env var)
-export AUTOPACK_API_URL="$API_URL"
+# Check if fileorg-phase2-beta run already exists
+EXISTING_RUN=$(curl -s "$API_URL/runs/fileorg-phase2-beta" 2>/dev/null)
+EXISTING_STATE=$(echo "$EXISTING_RUN" | python -c "import sys, json; data = json.load(sys.stdin); print(data.get('state', 'NOT_FOUND'))" 2>/dev/null)
 
-RUN_ID=$(python scripts/autopack_runner.py \
-    --non-interactive \
-    --tasks-file "$TASKS_FILE" \
-    2>&1 | grep -oP 'Run ID: \K[^\s]+' | tail -1)
+if [ "$EXISTING_STATE" = "RUN_CREATED" ] || [ "$EXISTING_STATE" = "EXECUTING" ]; then
+    echo "✓ Found existing run: fileorg-phase2-beta (state: $EXISTING_STATE)"
+    RUN_ID="fileorg-phase2-beta"
+else
+    echo "No existing run found, creating new run from $TASKS_FILE..."
+    cd "/c/dev/Autopack/$PROJECT_DIR"
 
-if [ -z "$RUN_ID" ]; then
-    echo "ERROR: Failed to create run"
-    exit 1
+    # Set API URL via environment variable (autopack_runner uses AUTOPACK_API_URL env var)
+    export AUTOPACK_API_URL="$API_URL"
+
+    RUN_ID=$(python scripts/autopack_runner.py \
+        --non-interactive \
+        --tasks-file "$TASKS_FILE" \
+        2>&1 | grep -oP 'Run ID: \K[^\s]+' | tail -1)
+
+    if [ -z "$RUN_ID" ]; then
+        echo "ERROR: Failed to create run"
+        exit 1
+    fi
+
+    echo "✓ Run created: $RUN_ID"
 fi
-
-echo "✓ Run created: $RUN_ID"
 echo
 
 # Step 3: Execute run using autonomous_executor

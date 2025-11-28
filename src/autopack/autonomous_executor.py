@@ -36,6 +36,7 @@ from autopack.anthropic_clients import AnthropicBuilderClient, AnthropicAuditorC
 from autopack.dual_auditor import DualAuditor
 from autopack.quality_gate import QualityGate
 from autopack.llm_client import BuilderResult, AuditorResult
+from autopack.error_recovery import ErrorRecoverySystem, get_error_recovery, safe_execute
 
 
 # Configure logging
@@ -90,6 +91,23 @@ class AutonomousExecutor:
                 "At least one LLM API key required: OPENAI_API_KEY or ANTHROPIC_API_KEY"
             )
 
+        # Initialize error recovery system
+        self.error_recovery = ErrorRecoverySystem()
+
+        # Apply encoding fix immediately to prevent Unicode crashes
+        # Create a dummy error context for encoding fix
+        from autopack.error_recovery import ErrorContext, ErrorCategory, ErrorSeverity
+        dummy_ctx = ErrorContext(
+            error=Exception("Pre-emptive encoding fix"),
+            error_type="UnicodeEncodeError",
+            error_message="Pre-emptive encoding fix",
+            traceback_str="",
+            category=ErrorCategory.ENCODING,
+            severity=ErrorSeverity.RECOVERABLE
+        )
+        logger.info("Applying pre-emptive encoding fix...")
+        self.error_recovery._fix_encoding_error(dummy_ctx)
+
         # Initialize clients (will be set in _init_infrastructure)
         self.builder = None
         self.auditor = None
@@ -100,59 +118,70 @@ class AutonomousExecutor:
         logger.info(f"Workspace: {workspace}")
 
     def _init_infrastructure(self):
-        """Initialize Builder, Auditor, and Quality Gate clients"""
-        logger.info("Initializing infrastructure...")
+        """Initialize Builder, Auditor, and Quality Gate clients with error recovery"""
+        def _do_init():
+            logger.info("Initializing infrastructure...")
 
-        # Initialize Builder (prefer OpenAI if available)
-        if self.openai_key:
-            self.builder = OpenAIBuilderClient(api_key=self.openai_key)
-            logger.info("Builder: OpenAI (GPT-4o)")
-        elif self.anthropic_key:
-            self.builder = AnthropicBuilderClient(api_key=self.anthropic_key)
-            logger.info("Builder: Anthropic (Claude)")
-        else:
-            raise ValueError("No builder client available")
+            # Initialize Builder (prefer OpenAI if available)
+            if self.openai_key:
+                self.builder = OpenAIBuilderClient(api_key=self.openai_key)
+                logger.info("Builder: OpenAI (GPT-4o)")
+            elif self.anthropic_key:
+                self.builder = AnthropicBuilderClient(api_key=self.anthropic_key)
+                logger.info("Builder: Anthropic (Claude)")
+            else:
+                raise ValueError("No builder client available")
 
-        # Initialize Auditor (dual or single)
-        if self.use_dual_auditor and self.openai_key and self.anthropic_key:
-            primary_auditor = OpenAIAuditorClient(api_key=self.openai_key)
-            secondary_auditor = AnthropicAuditorClient(api_key=self.anthropic_key)
-            self.auditor = DualAuditor(
-                primary_auditor=primary_auditor,
-                secondary_auditor=secondary_auditor
-            )
-            logger.info("Auditor: Dual (OpenAI + Anthropic)")
-        elif self.openai_key:
-            self.auditor = OpenAIAuditorClient(api_key=self.openai_key)
-            logger.info("Auditor: OpenAI (GPT-4o)")
-        elif self.anthropic_key:
-            self.auditor = AnthropicAuditorClient(api_key=self.anthropic_key)
-            logger.info("Auditor: Anthropic (Claude)")
-        else:
-            raise ValueError("No auditor client available")
+            # Initialize Auditor (dual or single)
+            if self.use_dual_auditor and self.openai_key and self.anthropic_key:
+                primary_auditor = OpenAIAuditorClient(api_key=self.openai_key)
+                secondary_auditor = AnthropicAuditorClient(api_key=self.anthropic_key)
+                self.auditor = DualAuditor(
+                    primary_auditor=primary_auditor,
+                    secondary_auditor=secondary_auditor
+                )
+                logger.info("Auditor: Dual (OpenAI + Anthropic)")
+            elif self.openai_key:
+                self.auditor = OpenAIAuditorClient(api_key=self.openai_key)
+                logger.info("Auditor: OpenAI (GPT-4o)")
+            elif self.anthropic_key:
+                self.auditor = AnthropicAuditorClient(api_key=self.anthropic_key)
+                logger.info("Auditor: Anthropic (Claude)")
+            else:
+                raise ValueError("No auditor client available")
 
-        # Initialize Quality Gate
-        self.quality_gate = QualityGate(repo_root=self.workspace)
-        logger.info("Quality Gate: Initialized")
+            # Initialize Quality Gate
+            self.quality_gate = QualityGate(repo_root=self.workspace)
+            logger.info("Quality Gate: Initialized")
+
+        # Wrap initialization with error recovery
+        self.error_recovery.execute_with_retry(
+            func=_do_init,
+            operation_name="Infrastructure initialization",
+            max_retries=3
+        )
 
     def get_run_status(self) -> Dict:
-        """Fetch run status from Autopack API
+        """Fetch run status from Autopack API with error recovery
 
         Returns:
             Run data with phases and status
         """
-        url = f"{self.api_url}/runs/{self.run_id}"
-        headers = {}
-        if self.api_key:
-            headers["Authorization"] = f"Bearer {self.api_key}"
+        def _fetch_status():
+            url = f"{self.api_url}/runs/{self.run_id}"
+            headers = {}
+            if self.api_key:
+                headers["Authorization"] = f"Bearer {self.api_key}"
 
-        try:
             response = requests.get(url, headers=headers, timeout=10)
             response.raise_for_status()
             return response.json()
-        except requests.exceptions.RequestException as e:
-            logger.error(f"Failed to fetch run status: {e}")
-            raise
+
+        return self.error_recovery.execute_with_retry(
+            func=_fetch_status,
+            operation_name="Fetch run status from API",
+            max_retries=3
+        )
 
     def get_next_queued_phase(self, run_data: Dict) -> Optional[Dict]:
         """Find next QUEUED phase in tier/index order
@@ -181,7 +210,7 @@ class AutonomousExecutor:
         return None
 
     def execute_phase(self, phase: Dict) -> Tuple[bool, str]:
-        """Execute Builder -> Auditor -> QualityGate pipeline for a phase
+        """Execute Builder -> Auditor -> QualityGate pipeline for a phase with error recovery
 
         Args:
             phase: Phase data from API
@@ -192,6 +221,25 @@ class AutonomousExecutor:
         """
         phase_id = phase.get("phase_id")
         logger.info(f"Executing phase: {phase_id}")
+
+        # Wrap phase execution with error recovery
+        def _execute_phase_inner():
+            return self._execute_phase_with_recovery(phase)
+
+        try:
+            return self.error_recovery.execute_with_retry(
+                func=_execute_phase_inner,
+                operation_name=f"Phase execution: {phase_id}",
+                max_retries=2  # Retry twice for transient errors
+            )
+        except Exception as e:
+            logger.error(f"[{phase_id}] Phase execution failed permanently: {e}")
+            self._update_phase_status(phase_id, "FAILED")
+            return False, "FAILED"
+
+    def _execute_phase_with_recovery(self, phase: Dict) -> Tuple[bool, str]:
+        """Inner phase execution with error handling"""
+        phase_id = phase.get("phase_id")
 
         try:
             # Step 1: Execute with Builder

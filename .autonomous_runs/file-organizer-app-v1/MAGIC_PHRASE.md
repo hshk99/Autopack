@@ -8,7 +8,7 @@ This document defines the "magic phrase" pattern for triggering fully autonomous
 
 ## Recommended (Generic - Works for Any Project/Phase)
 
-### Magic Phrase:
+### Magic Phrase (Default):
 ```
 RUN AUTOPACK END-TO-END for <ProjectName> now.
 ```
@@ -31,6 +31,63 @@ python scripts/autopack_runner.py --non-interactive
 - Executes all tasks from WHATS_LEFT_TO_BUILD.md (regardless of phase)
 - Generates comprehensive reports
 - Shuts down service gracefully on completion
+
+---
+
+## NEW: Run with Custom Task File
+
+### Magic Phrase (Custom Tasks):
+```
+RUN AUTOPACK END-TO-END for <ProjectName> using <TaskFile.md> now.
+```
+
+### What Cursor Should Execute:
+```bash
+cd c:/dev/Autopack/.autonomous_runs/<project-slug>
+python scripts/autopack_runner.py --non-interactive --tasks-file "<TaskFile.md>"
+```
+
+### Examples:
+```
+RUN AUTOPACK END-TO-END for FileOrganizer using REVISED_PLAN_V2.md now.
+→ Executes: python scripts/autopack_runner.py --non-interactive --tasks-file "REVISED_PLAN_V2.md"
+
+RUN AUTOPACK END-TO-END for ShoppingCart using SPRINT_3_TASKS.md now.
+→ Executes: python scripts/autopack_runner.py --non-interactive --tasks-file "SPRINT_3_TASKS.md"
+
+RUN AUTOPACK END-TO-END for TodoApp using HOTFIX_PLAN.md now.
+→ Executes: python scripts/autopack_runner.py --non-interactive --tasks-file "HOTFIX_PLAN.md"
+```
+
+### Use Cases for Custom Task Files:
+1. **Revised Plans**: When your plan changes, save it as `REVISED_PLAN_V2.md`
+2. **Sprint-Specific**: Organize tasks by sprint: `SPRINT_1_TASKS.md`, `SPRINT_2_TASKS.md`
+3. **Hotfixes**: Urgent fixes in `HOTFIX_PLAN.md`
+4. **Feature Branches**: Feature-specific tasks in `FEATURE_AUTH_TASKS.md`
+5. **Experimental**: Test new approaches in `EXPERIMENTAL_PLAN.md`
+
+### Task File Format:
+All task files must follow Autopack format:
+```markdown
+### Task 1: Task Name
+**Phase ID**: `unique-task-id`
+**Category**: backend|frontend|database|api|testing|docs|deployment
+**Complexity**: low|medium|high
+**Description**: What needs to be built
+
+**Acceptance Criteria**:
+- [ ] Criterion 1
+- [ ] Criterion 2
+
+**Dependencies**: None (or `other-task-id`)
+```
+
+### Benefits of Custom Task Files:
+- ✅ Keep multiple plans without overwriting
+- ✅ Easily switch between different execution strategies
+- ✅ Version control your plans (git diff shows changes)
+- ✅ Run hotfixes without disturbing main plan
+- ✅ Test experimental approaches safely
 
 ---
 

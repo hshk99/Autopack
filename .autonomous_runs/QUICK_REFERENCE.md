@@ -65,29 +65,7 @@ Result:
 
 ## RUNNING EXISTING PROJECTS
 
-### For FileOrganizer (Current Project)
-
-**Magic Phrase**:
-```
-RUN AUTOPACK END-TO-END for FileOrganizer now.
-```
-
-**Or use legacy phrase**:
-```
-RUN AUTOPACK PHASE 2 END-TO-END for FileOrganizer now.
-```
-
-**Both execute**:
-```bash
-cd c:/dev/Autopack/.autonomous_runs/file-organizer-app-v1
-python scripts/autopack_phase2_runner.py --non-interactive
-```
-
----
-
-### For NEW Projects
-
-After setup, use this pattern:
+### Default (Uses WHATS_LEFT_TO_BUILD.md)
 
 **Magic Phrase**:
 ```
@@ -95,9 +73,52 @@ RUN AUTOPACK END-TO-END for <ProjectName> now.
 ```
 
 **Examples**:
+- `RUN AUTOPACK END-TO-END for FileOrganizer now.`
 - `RUN AUTOPACK END-TO-END for Shopping Cart now.`
 - `RUN AUTOPACK END-TO-END for Todo App now.`
-- `RUN AUTOPACK END-TO-END for My API Gateway now.`
+
+**What it does**:
+- Runs all tasks from `WHATS_LEFT_TO_BUILD.md`
+- Auto-starts Autopack service
+- Generates comprehensive reports
+
+---
+
+### NEW: Run with Custom Task File
+
+**Magic Phrase**:
+```
+RUN AUTOPACK END-TO-END for <ProjectName> using <TaskFile.md> now.
+```
+
+**Examples**:
+```
+RUN AUTOPACK END-TO-END for FileOrganizer using REVISED_PLAN_V2.md now.
+RUN AUTOPACK END-TO-END for ShoppingCart using SPRINT_3_TASKS.md now.
+RUN AUTOPACK END-TO-END for TodoApp using HOTFIX_PLAN.md now.
+```
+
+**Use Cases**:
+- **Revised Plans**: When plans change → `REVISED_PLAN_V2.md`
+- **Sprint-Specific**: Organize by sprint → `SPRINT_1_TASKS.md`
+- **Hotfixes**: Urgent fixes → `HOTFIX_PLAN.md`
+- **Feature Work**: Feature-specific → `FEATURE_AUTH_TASKS.md`
+- **Experiments**: Test approaches → `EXPERIMENTAL_PLAN.md`
+
+---
+
+### For FileOrganizer (Backward Compatibility)
+
+**Legacy Magic Phrase** (still works):
+```
+RUN AUTOPACK PHASE 2 END-TO-END for FileOrganizer now.
+```
+
+**Executes**:
+```bash
+cd c:/dev/Autopack/.autonomous_runs/file-organizer-app-v1
+python scripts/autopack_phase2_runner.py --non-interactive
+```
 
 ---
 

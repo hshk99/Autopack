@@ -2,18 +2,27 @@
 """
 Generic Autopack Runner
 
-Universal script to delegate tasks from WHATS_LEFT_TO_BUILD.md to Autopack.
+Universal script to delegate tasks from a markdown file to Autopack.
 Works for any project and any phase (Phase 1, Phase 2, etc.).
 
 Usage:
-    python scripts/autopack_runner.py [--non-interactive]
+    python scripts/autopack_runner.py [--non-interactive] [--tasks-file FILENAME]
+
+Examples:
+    # Use default WHATS_LEFT_TO_BUILD.md
+    python scripts/autopack_runner.py --non-interactive
+
+    # Use custom task file
+    python scripts/autopack_runner.py --non-interactive --tasks-file "REVISED_PLAN_V2.md"
+    python scripts/autopack_runner.py --non-interactive --tasks-file "SPRINT_3_TASKS.md"
 
 This script:
 1. Auto-detects project name from directory structure
-2. Starts the Autopack FastAPI service (if not running)
-3. Creates a new run with all tasks from WHATS_LEFT_TO_BUILD.md
-4. Polls for completion
-5. Generates final report
+2. Reads tasks from specified markdown file (default: WHATS_LEFT_TO_BUILD.md)
+3. Starts the Autopack FastAPI service (if not running)
+4. Creates a new run with all tasks from the markdown file
+5. Polls for completion
+6. Generates final report
 
 Based on Autopack v7 playbook API (src/autopack/main.py)
 """
@@ -39,9 +48,9 @@ _autopack_process = None
 
 
 class AutopackRunner:
-    """Generic runner for any Autopack project - reads from WHATS_LEFT_TO_BUILD.md"""
+    """Generic runner for any Autopack project - reads from a markdown file"""
 
-    def __init__(self, project_name: str = None):
+    def __init__(self, project_name: str = None, tasks_file: str = "WHATS_LEFT_TO_BUILD.md"):
         self.api_base = AUTOPACK_API_BASE
         self.headers = {}
         if AUTOPACK_API_KEY:
@@ -54,6 +63,18 @@ class AutopackRunner:
             project_name = project_dir
 
         self.project_name = project_name
+        self.tasks_file = tasks_file
+
+        # Resolve tasks file path (relative to project root)
+        project_root = Path(__file__).parent.parent
+        self.tasks_file_path = project_root / tasks_file
+
+        # Validate tasks file exists
+        if not self.tasks_file_path.exists():
+            raise FileNotFoundError(
+                f"Tasks file not found: {self.tasks_file_path}\n"
+                f"Make sure '{tasks_file}' exists in the project directory."
+            )
 
         # Generate unique run ID (generic, not phase-specific)
         self.run_id = f"{project_name}-{datetime.now().strftime('%Y%m%d-%H%M%S')}"
@@ -116,123 +137,105 @@ class AutopackRunner:
             print(f"[ERROR] Failed to start Autopack service: {e}")
             return False
 
-    def create_run(self) -> Dict:
-        """Create Autopack run with all Phase 2 tasks"""
-        # Define phases from WHATS_LEFT_TO_BUILD.md
-        phases = [
-            {
-                "phase_id": "phase2-task1",
-                "phase_index": 0,
-                "tier_id": "tier1-high-priority",
-                "name": "Test Suite Fixes",
-                "description": "Fix httpx/starlette version conflicts, ensure all tests pass",
-                "task_category": "testing",
-                "complexity": "low",
-                "builder_mode": "prototype",  # From Phase 1 success
-            },
-            {
-                "phase_id": "phase2-task2",
-                "phase_index": 1,
-                "tier_id": "tier1-high-priority",
-                "name": "Frontend Build System",
-                "description": "npm install/build, Electron packaging, commit package-lock.json",
-                "task_category": "frontend",
-                "complexity": "low",
-                "builder_mode": "prototype",
-            },
-            {
-                "phase_id": "phase2-task3",
-                "phase_index": 2,
-                "tier_id": "tier2-medium-priority",
-                "name": "Docker Deployment",
-                "description": "Dockerfile, docker-compose.yml, deploy scripts, .dockerignore",
-                "task_category": "deployment",
-                "complexity": "medium",
-                "builder_mode": "prototype",
-            },
-            {
-                "phase_id": "phase2-task4",
-                "phase_index": 3,
-                "tier_id": "tier3-low-priority",
-                "name": "Advanced Search & Filtering",
-                "description": "SQLite FTS5, multi-field search, date range filtering",
-                "task_category": "backend",
-                "complexity": "medium",
-                "builder_mode": "prototype",
-            },
-            {
-                "phase_id": "phase2-task5",
-                "phase_index": 4,
-                "tier_id": "tier3-low-priority",
-                "name": "Batch Upload & Processing",
-                "description": "Multi-file upload, job queue, progress tracking",
-                "task_category": "backend",
-                "complexity": "medium",
-                "builder_mode": "prototype",
-            },
-            {
-                "phase_id": "phase2-task6",
-                "phase_index": 5,
-                "tier_id": "tier2-medium-priority",
-                "name": "Country Pack - UK (EXPERIMENTAL)",
-                "description": "UK tax & immigration YAML templates (mark EXPERIMENTAL)",
-                "task_category": "domain",
-                "complexity": "medium",
-                "builder_mode": "prototype",
-            },
-            {
-                "phase_id": "phase2-task7",
-                "phase_index": 6,
-                "tier_id": "tier2-medium-priority",
-                "name": "Country Pack - Canada (EXPERIMENTAL)",
-                "description": "Canada tax & immigration YAML templates (mark EXPERIMENTAL)",
-                "task_category": "domain",
-                "complexity": "medium",
-                "builder_mode": "prototype",
-            },
-            {
-                "phase_id": "phase2-task8",
-                "phase_index": 7,
-                "tier_id": "tier2-medium-priority",
-                "name": "Country Pack - Australia (EXPERIMENTAL)",
-                "description": "Australia tax & immigration YAML templates (mark EXPERIMENTAL)",
-                "task_category": "domain",
-                "complexity": "medium",
-                "builder_mode": "prototype",
-            },
-            {
-                "phase_id": "phase2-task9",
-                "phase_index": 8,
-                "tier_id": "tier3-low-priority",
-                "name": "Authentication & Multi-User (NEEDS REVIEW)",
-                "description": "User model, JWT auth, protected routes (requires security review)",
-                "task_category": "security",
-                "complexity": "high",
-                "builder_mode": "prototype",
-            },
-        ]
+    def parse_tasks_from_markdown(self) -> tuple[list, list]:
+        """
+        Parse tasks from markdown file in Autopack format.
 
-        # Define tiers
-        tiers = [
-            {
-                "tier_id": "tier1-high-priority",
-                "tier_index": 0,
-                "name": "High Priority (Beta Blockers)",
-                "description": "Test suite and frontend build - must complete",
-            },
-            {
-                "tier_id": "tier2-medium-priority",
-                "tier_index": 1,
-                "name": "Medium Priority (Core Value)",
-                "description": "Docker, country packs - high value features",
-            },
-            {
-                "tier_id": "tier3-low-priority",
-                "tier_index": 2,
-                "name": "Low Priority (Enhancements)",
-                "description": "Search, batch upload, auth - nice to have",
-            },
-        ]
+        Expected format:
+        ### Task N: Task Name
+        **Phase ID**: `task-id`
+        **Category**: category
+        **Complexity**: low|medium|high
+        **Description**: Description text
+
+        Returns:
+            tuple of (phases, tiers)
+        """
+        print(f"[INFO] Reading tasks from: {self.tasks_file_path}")
+
+        with open(self.tasks_file_path, 'r', encoding='utf-8') as f:
+            content = f.read()
+
+        phases = []
+        tiers_dict = {}  # tier_id -> tier data
+        phase_index = 0
+
+        # Simple regex-based parser (can be enhanced with proper markdown parser)
+        import re
+
+        # Find all task sections
+        task_pattern = r'###\s+Task\s+\d+:\s+(.+?)\n\*\*Phase ID\*\*:\s+`(.+?)`\n\*\*Category\*\*:\s+(\w+)\n\*\*Complexity\*\*:\s+(\w+)\n\*\*Description\*\*:\s+(.+?)(?=\n\n|\*\*|###|$)'
+
+        matches = re.finditer(task_pattern, content, re.DOTALL | re.MULTILINE)
+
+        for match in matches:
+            task_name = match.group(1).strip()
+            phase_id = match.group(2).strip()
+            category = match.group(3).strip()
+            complexity = match.group(4).strip()
+            description = match.group(5).strip()
+
+            # Determine tier based on complexity (simple heuristic)
+            if complexity == "low":
+                tier_id = "tier1-high-priority"
+                tier_name = "High Priority"
+                tier_index = 0
+            elif complexity == "medium":
+                tier_id = "tier2-medium-priority"
+                tier_name = "Medium Priority"
+                tier_index = 1
+            else:  # high
+                tier_id = "tier3-low-priority"
+                tier_name = "Low Priority (Complex)"
+                tier_index = 2
+
+            # Add tier to dict if not exists
+            if tier_id not in tiers_dict:
+                tiers_dict[tier_id] = {
+                    "tier_id": tier_id,
+                    "tier_index": tier_index,
+                    "name": tier_name,
+                    "description": f"{tier_name} tasks",
+                }
+
+            # Create phase
+            phase = {
+                "phase_id": phase_id,
+                "phase_index": phase_index,
+                "tier_id": tier_id,
+                "name": task_name,
+                "description": description,
+                "task_category": category,
+                "complexity": complexity,
+                "builder_mode": "prototype",  # Default
+            }
+
+            phases.append(phase)
+            phase_index += 1
+
+        # Convert tiers dict to sorted list
+        tiers = sorted(tiers_dict.values(), key=lambda t: t['tier_index'])
+
+        print(f"[INFO] Parsed {len(phases)} tasks from {self.tasks_file}")
+        print(f"[INFO] Organized into {len(tiers)} tiers")
+
+        if not phases:
+            raise ValueError(
+                f"No tasks found in {self.tasks_file}!\n"
+                f"Make sure the file follows Autopack task format:\n"
+                f"  ### Task N: Task Name\n"
+                f"  **Phase ID**: `task-id`\n"
+                f"  **Category**: category\n"
+                f"  **Complexity**: low|medium|high\n"
+                f"  **Description**: Description text"
+            )
+
+        return phases, tiers
+
+    def create_run(self) -> Dict:
+        """Create Autopack run with all tasks from markdown file"""
+        # Parse tasks from markdown file
+        phases, tiers = self.parse_tasks_from_markdown()
 
         # Create run request payload
         payload = {
@@ -500,7 +503,19 @@ class AutopackRunner:
 if __name__ == "__main__":
     import argparse
 
-    parser = argparse.ArgumentParser(description="Generic Autopack Autonomous Build Runner")
+    parser = argparse.ArgumentParser(
+        description="Generic Autopack Autonomous Build Runner",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  # Use default WHATS_LEFT_TO_BUILD.md
+  python scripts/autopack_runner.py --non-interactive
+
+  # Use custom tasks file
+  python scripts/autopack_runner.py --non-interactive --tasks-file "REVISED_PLAN_V2.md"
+  python scripts/autopack_runner.py --non-interactive --tasks-file "SPRINT_3_TASKS.md"
+        """
+    )
     parser.add_argument(
         '--non-interactive',
         action='store_true',
@@ -511,24 +526,42 @@ if __name__ == "__main__":
         type=str,
         help='Project name (auto-detected from directory if not provided)'
     )
+    parser.add_argument(
+        '--tasks-file',
+        type=str,
+        default='WHATS_LEFT_TO_BUILD.md',
+        help='Markdown file containing tasks (default: WHATS_LEFT_TO_BUILD.md)'
+    )
     args = parser.parse_args()
 
     # Create runner (auto-detects project if not specified)
-    runner = AutopackRunner(project_name=args.project_name)
+    try:
+        runner = AutopackRunner(
+            project_name=args.project_name,
+            tasks_file=args.tasks_file
+        )
+    except FileNotFoundError as e:
+        print(f"[ERROR] {e}")
+        sys.exit(1)
+    except ValueError as e:
+        print(f"[ERROR] {e}")
+        sys.exit(1)
 
     print(f"{runner.project_name} - Autopack Autonomous Build Runner")
     print(f"Autopack API: {AUTOPACK_API_BASE}")
+    print(f"Tasks File: {runner.tasks_file}")
     print()
 
     # Confirmation (only in interactive mode)
     if not args.non_interactive:
-        response = input(f"Start autonomous build for {runner.project_name}? (yes/no): ")
+        response = input(f"Start autonomous build for {runner.project_name} using {runner.tasks_file}? (yes/no): ")
 
         if response.lower() not in ["yes", "y"]:
             print("Build cancelled.")
             sys.exit(0)
     else:
         print(f"[NON-INTERACTIVE MODE] Proceeding with full autonomous build for {runner.project_name}...")
+        print(f"[NON-INTERACTIVE MODE] Using tasks from: {runner.tasks_file}")
         print("[NON-INTERACTIVE MODE] Will auto-start Autopack service if needed...")
         print()
 

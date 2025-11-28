@@ -37,7 +37,16 @@
       "Bash(echo:*)",
       "Bash(mkdir:*)",
       "Bash(chmod +x:*)",
-      "Bash(cd:*)"
+      "Bash(cd:*)",
+      "Bash(venv/Scripts/pip.exe:*)",
+      "Bash(venv/Scripts/pytest.exe:*)",
+      "Bash(which:*)",
+      "Bash(where:*)",
+      "Bash(grep:*)",
+      "Bash(head:*)",
+      "Bash(tail:*)",
+      "Bash(cp:*)",
+      "Bash(if [ -f:*)"
     ],
     "deny": [
       "Read(./secrets/**)",

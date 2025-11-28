@@ -1,12 +1,42 @@
-# Magic Phrase Pattern for Cursor AI - Autopack Phase 2
+# Magic Phrase Pattern for Cursor AI - Autopack Autonomous Builds
 
-This document defines the "magic phrase" pattern for triggering fully autonomous Autopack Phase 2 execution via Cursor AI.
+This document defines the "magic phrase" pattern for triggering fully autonomous Autopack execution via Cursor AI.
+
+**IMPORTANT**: The magic phrase is now **project-agnostic** and works for any phase (Phase 1, Phase 2, Phase 3, etc.)
 
 ---
 
-## For FileOrganizer
+## Recommended (Generic - Works for Any Project/Phase)
 
 ### Magic Phrase:
+```
+RUN AUTOPACK END-TO-END for <ProjectName> now.
+```
+
+### What Cursor Should Execute:
+```bash
+cd c:/dev/Autopack/.autonomous_runs/<project-slug>
+python scripts/autopack_runner.py --non-interactive
+```
+
+### Examples:
+- `RUN AUTOPACK END-TO-END for FileOrganizer now.` → Runs tasks from WHATS_LEFT_TO_BUILD.md
+- `RUN AUTOPACK END-TO-END for MyNewApp now.` → Runs tasks for MyNewApp (any phase)
+- `RUN AUTOPACK END-TO-END for APIGateway now.` → Runs tasks for APIGateway project
+
+### Expected Behavior:
+- Zero interactive prompts
+- Auto-starts Autopack service if not running
+- Auto-detects project name from directory structure
+- Executes all tasks from WHATS_LEFT_TO_BUILD.md (regardless of phase)
+- Generates comprehensive reports
+- Shuts down service gracefully on completion
+
+---
+
+## For FileOrganizer (Backward Compatibility)
+
+### Legacy Magic Phrase (Still Works):
 ```
 RUN AUTOPACK PHASE 2 END-TO-END for FileOrganizer now.
 ```
@@ -17,36 +47,30 @@ cd c:/dev/Autopack/.autonomous_runs/file-organizer-app-v1
 python scripts/autopack_phase2_runner.py --non-interactive
 ```
 
-### Expected Behavior:
-- Zero interactive prompts
-- Auto-starts Autopack service if not running
-- Executes all 9 Phase 2 tasks autonomously
-- Generates comprehensive reports
-- Shuts down service gracefully on completion
+**Note**: This uses the phase2-specific runner for backward compatibility with existing documentation. New projects should use the generic `autopack_runner.py` instead.
 
 ---
 
-## For Future Projects
-
-### Generic Magic Phrase Pattern:
-```
-RUN AUTOPACK PHASE 2 END-TO-END for <ProjectName> now.
-```
+## For Future Projects (Generic Pattern)
 
 ### Directory Structure Required:
 ```
 c:/dev/Autopack/.autonomous_runs/<project-slug>/
-├── WHATS_LEFT_TO_BUILD.md          # Phase 2 task definitions
+├── WHATS_LEFT_TO_BUILD.md          # Task definitions (any phase)
 ├── scripts/
-│   └── autopack_phase2_runner.py   # Canonical runner (same structure as FileOrganizer)
-└── run_phase2.sh                    # Wrapper script (optional)
+│   └── autopack_runner.py          # Generic runner (copy from FileOrganizer)
+└── run.sh                           # Wrapper script (optional)
 ```
 
 ### Generic Command Template:
 ```bash
 cd c:/dev/Autopack/.autonomous_runs/<project-slug>
-python scripts/autopack_phase2_runner.py --non-interactive
+python scripts/autopack_runner.py --non-interactive
 ```
+
+**Key Difference**:
+- ❌ Old: `autopack_phase2_runner.py` (hardcoded to Phase 2, FileOrganizer-specific)
+- ✅ New: `autopack_runner.py` (works for any project, any phase)
 
 ---
 

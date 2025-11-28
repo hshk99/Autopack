@@ -1,23 +1,21 @@
 #!/usr/bin/env python3
 """
-Autopack Phase 2 Runner for FileOrganizer
+Generic Autopack Runner
 
-NOTE: For new projects, consider using the generic autopack_runner.py instead.
-This file is kept for backward compatibility with existing FileOrganizer documentation.
-
-Single-command script to delegate all Phase 2 tasks to Autopack.
-Creates a run with 7 phases and waits for completion.
+Universal script to delegate tasks from WHATS_LEFT_TO_BUILD.md to Autopack.
+Works for any project and any phase (Phase 1, Phase 2, etc.).
 
 Usage:
-    python scripts/autopack_phase2_runner.py [--non-interactive]
+    python scripts/autopack_runner.py [--non-interactive]
 
 This script:
-1. Starts the Autopack FastAPI service (if not running)
-2. Creates a new run with all 7 Phase 2 tasks from WHATS_LEFT_TO_BUILD.md
-3. Polls for completion
-4. Generates final report
+1. Auto-detects project name from directory structure
+2. Starts the Autopack FastAPI service (if not running)
+3. Creates a new run with all tasks from WHATS_LEFT_TO_BUILD.md
+4. Polls for completion
+5. Generates final report
 
-Based on Autopack v7 playbook API (src/autopack/main:app)
+Based on Autopack v7 playbook API (src/autopack/main.py)
 """
 
 import os
@@ -40,17 +38,25 @@ AUTOPACK_API_KEY = os.getenv("AUTOPACK_API_KEY", "")
 _autopack_process = None
 
 
-class AutopackPhase2Runner:
-    """Runs FileOrganizer Phase 2 tasks through Autopack API"""
+class AutopackRunner:
+    """Generic runner for any Autopack project - reads from WHATS_LEFT_TO_BUILD.md"""
 
-    def __init__(self):
+    def __init__(self, project_name: str = None):
         self.api_base = AUTOPACK_API_BASE
         self.headers = {}
         if AUTOPACK_API_KEY:
             self.headers["X-API-Key"] = AUTOPACK_API_KEY
 
-        # Generate unique run ID
-        self.run_id = f"fileorganizer-phase2-{datetime.now().strftime('%Y%m%d-%H%M%S')}"
+        # Auto-detect project name from directory if not provided
+        if not project_name:
+            # Get project directory name from path (.autonomous_runs/<project-slug>/)
+            project_dir = Path(__file__).parent.parent.name
+            project_name = project_dir
+
+        self.project_name = project_name
+
+        # Generate unique run ID (generic, not phase-specific)
+        self.run_id = f"{project_name}-{datetime.now().strftime('%Y%m%d-%H%M%S')}"
 
     def check_autopack_health(self) -> bool:
         """Check if Autopack service is running"""
@@ -414,8 +420,8 @@ class AutopackPhase2Runner:
         report.append(f"\nPhases Completed: {completed}/{total} ({success_rate:.1f}%)")
 
         if summary["state"] == "DONE_SUCCESS":
-            report.append("\n[SUCCESS] All Phase 2 tasks completed!")
-            report.append("FileOrganizer v1.0 Beta is ready")
+            report.append(f"\n[SUCCESS] All tasks completed for {self.project_name}!")
+            report.append(f"Project build finished successfully")
         elif summary["state"] == "DONE_FAILED_BUDGET_EXHAUSTED":
             report.append("\n[BUDGET EXHAUSTED] Token cap exceeded")
             report.append(f"Review remaining phases and increase budget")
@@ -432,7 +438,7 @@ class AutopackPhase2Runner:
     def save_report(self, report: str):
         """Save report to file"""
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        report_path = Path(f"PHASE2_AUTOPACK_REPORT_{timestamp}.md")
+        report_path = Path(f"AUTOPACK_BUILD_REPORT_{timestamp}.md")
 
         with open(report_path, "w") as f:
             f.write(report)
@@ -441,9 +447,9 @@ class AutopackPhase2Runner:
         return report_path
 
     def run(self):
-        """Execute Phase 2 autonomous build"""
+        """Execute autonomous build for this project"""
         print("\n" + "=" * 80)
-        print("FILEORGANIZER PHASE 2 - AUTOPACK AUTONOMOUS BUILD")
+        print(f"{self.project_name.upper()} - AUTOPACK AUTONOMOUS BUILD")
         print("=" * 80)
 
         # 1. Check Autopack service health (auto-start if needed)
@@ -488,35 +494,42 @@ class AutopackPhase2Runner:
             print(f"\n[ERROR] Failed to generate report: {e}")
             sys.exit(1)
 
-        print("\n[DONE] Phase 2 autonomous build complete!")
+        print(f"\n[DONE] {self.project_name} autonomous build complete!")
 
 
 if __name__ == "__main__":
     import argparse
 
-    parser = argparse.ArgumentParser(description="FileOrganizer Phase 2 - Autopack Autonomous Build Runner")
+    parser = argparse.ArgumentParser(description="Generic Autopack Autonomous Build Runner")
     parser.add_argument(
         '--non-interactive',
         action='store_true',
         help='Run in non-interactive mode (no user prompts, auto-start service)'
     )
+    parser.add_argument(
+        '--project-name',
+        type=str,
+        help='Project name (auto-detected from directory if not provided)'
+    )
     args = parser.parse_args()
 
-    print("FileOrganizer Phase 2 - Autopack Autonomous Build Runner")
+    # Create runner (auto-detects project if not specified)
+    runner = AutopackRunner(project_name=args.project_name)
+
+    print(f"{runner.project_name} - Autopack Autonomous Build Runner")
     print(f"Autopack API: {AUTOPACK_API_BASE}")
     print()
 
     # Confirmation (only in interactive mode)
     if not args.non_interactive:
-        response = input("Start Phase 2 autonomous build? (yes/no): ")
+        response = input(f"Start autonomous build for {runner.project_name}? (yes/no): ")
 
         if response.lower() not in ["yes", "y"]:
             print("Build cancelled.")
             sys.exit(0)
     else:
-        print("[NON-INTERACTIVE MODE] Proceeding with full Phase 2 autonomous build...")
+        print(f"[NON-INTERACTIVE MODE] Proceeding with full autonomous build for {runner.project_name}...")
         print("[NON-INTERACTIVE MODE] Will auto-start Autopack service if needed...")
         print()
 
-    runner = AutopackPhase2Runner()
     runner.run()

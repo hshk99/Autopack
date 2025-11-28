@@ -32,10 +32,12 @@ echo
 echo "[2/3] Creating Autopack run from $TASKS_FILE..."
 cd "/c/dev/Autopack/$PROJECT_DIR"
 
+# Set API URL via environment variable (autopack_runner uses AUTOPACK_API_URL env var)
+export AUTOPACK_API_URL="$API_URL"
+
 RUN_ID=$(python scripts/autopack_runner.py \
     --non-interactive \
     --tasks-file "$TASKS_FILE" \
-    --api-url "$API_URL" \
     2>&1 | grep -oP 'Run ID: \K[^\s]+' | tail -1)
 
 if [ -z "$RUN_ID" ]; then
@@ -59,6 +61,7 @@ fi
 
 # Execute with autonomous executor
 export PYTHONPATH=src
+export AUTOPACK_API_URL="$API_URL"
 python -m autopack.autonomous_executor \
     --run-id "$RUN_ID" \
     --api-url "$API_URL"

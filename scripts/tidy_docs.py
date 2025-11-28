@@ -7,8 +7,13 @@ Automatically organizes documentation files according to the project's structure
 - docs/: Implementation guides
 - archive/: Historical reference documents
 
+Also handles FileOrganizer project in .autonomous_runs/:
+- Keeps essential planning docs at root
+- Archives reference materials and prompts
+- Organizes research in docs/research/
+
 Usage:
-    python scripts/tidy_docs.py [--dry-run] [--verbose]
+    python scripts/tidy_docs.py [--dry-run] [--verbose] [--project PROJECT]
 """
 
 import os
@@ -19,7 +24,7 @@ from typing import Dict, List, Set
 from datetime import datetime
 
 # Configuration: Define where each type of file should go
-DOCUMENTATION_RULES = {
+AUTOPACK_RULES = {
     "root_essential": {
         "description": "Essential documentation that must stay at root",
         "files": [
@@ -93,10 +98,83 @@ DOCUMENTATION_RULES = {
     },
 }
 
+FILEORGANIZER_RULES = {
+    "root_essential": {
+        "description": "Essential planning docs at FileOrganizer root",
+        "files": [
+            "README.md",
+            "MASTER_BUILD_PLAN_FILEORGANIZER.md",
+            "IMPLEMENTATION_KICKOFF_FILEORGANIZER.md",
+            "CURSOR_REVISION_CHECKLIST.md",
+        ],
+        "patterns": [],
+    },
+
+    "docs_research": {
+        "description": "Research documents in docs/research/",
+        "location": "docs/research/",
+        "patterns": [
+            "*research*.md",
+            "*implementation_plan*.md",
+            "*_detailed_spec.md",
+        ],
+        "keywords": [
+            "research",
+            "implementation_plan",
+            "detailed_spec",
+        ],
+    },
+
+    "archive_reference": {
+        "description": "Reference materials and historical prompts",
+        "location": "archive/",
+        "patterns": [
+            "REF_*.md",
+            "ref*.md",
+            "*PROMPT*.md",
+            "*MARKET_RESEARCH*.md",
+            "*GPT_*.md",
+            "*cursor_*.md",
+            "fileorganizer_product_intent*.md",
+            "*STRATEGIC_REVIEW*.md",
+        ],
+        "keywords": [
+            "ref_",
+            "ref1",
+            "ref2",
+            "prompt",
+            "market_research",
+            "gpt_",
+            "cursor_",
+            "strategic_review",
+            "strategic_analysis",
+        ],
+    },
+
+    "delete_obsolete": {
+        "description": "Obsolete/duplicate files to delete",
+        "patterns": [
+            "*.bak",
+            "*_backup.md",
+            "*_old.md",
+            "*_temp.md",
+            "* - Copy.md",
+            "README - Copy.md",
+        ],
+        "keywords": [
+            " - copy",
+            "backup",
+            "old",
+            "temp",
+        ],
+    },
+}
+
 
 class DocumentationOrganizer:
-    def __init__(self, project_root: Path, dry_run: bool = False, verbose: bool = False):
+    def __init__(self, project_root: Path, rules_config: Dict, dry_run: bool = False, verbose: bool = False):
         self.project_root = project_root
+        self.rules = rules_config
         self.dry_run = dry_run
         self.verbose = verbose
         self.actions = []
@@ -132,36 +210,59 @@ class DocumentationOrganizer:
         filename = filepath.name
 
         # Check if it's an essential root file
-        if filename in DOCUMENTATION_RULES["root_essential"]["files"]:
+        if filename in self.rules["root_essential"]["files"]:
             return ("root_essential", f"Essential root file: {filename}")
 
         # Check if it should be deleted
-        rules = DOCUMENTATION_RULES["delete_obsolete"]
+        rules = self.rules["delete_obsolete"]
         if self.matches_pattern(filename, rules.get("patterns", [])) or \
            self.contains_keyword(filename, rules.get("keywords", [])):
             return ("delete_obsolete", f"Obsolete file pattern/keyword matched")
 
-        # Check for docs/ guides
-        rules = DOCUMENTATION_RULES["docs_guides"]
-        if self.matches_pattern(filename, rules.get("patterns", [])) or \
-           self.contains_keyword(filename, rules.get("keywords", [])):
-            return ("docs_guides", f"Implementation guide pattern/keyword matched")
+        # Check for docs/ or docs/research/ based on available rules
+        if "docs_guides" in self.rules:
+            rules = self.rules["docs_guides"]
+            if self.matches_pattern(filename, rules.get("patterns", [])) or \
+               self.contains_keyword(filename, rules.get("keywords", [])):
+                return ("docs_guides", f"Implementation guide pattern/keyword matched")
+
+        if "docs_research" in self.rules:
+            rules = self.rules["docs_research"]
+            if self.matches_pattern(filename, rules.get("patterns", [])) or \
+               self.contains_keyword(filename, rules.get("keywords", [])):
+                return ("docs_research", f"Research document pattern/keyword matched")
 
         # Check for archive/ historical docs
-        rules = DOCUMENTATION_RULES["archive_historical"]
-        if self.matches_pattern(filename, rules.get("patterns", [])) or \
-           self.contains_keyword(filename, rules.get("keywords", [])):
-            return ("archive_historical", f"Historical document pattern/keyword matched")
+        if "archive_historical" in self.rules:
+            rules = self.rules["archive_historical"]
+            if self.matches_pattern(filename, rules.get("patterns", [])) or \
+               self.contains_keyword(filename, rules.get("keywords", [])):
+                return ("archive_historical", f"Historical document pattern/keyword matched")
+
+        if "archive_reference" in self.rules:
+            rules = self.rules["archive_reference"]
+            if self.matches_pattern(filename, rules.get("patterns", [])) or \
+               self.contains_keyword(filename, rules.get("keywords", [])):
+                return ("archive_reference", f"Reference material pattern/keyword matched")
 
         # Default: if unsure, move to archive
-        return ("archive_historical", "Default: move to archive for review")
+        return ("archive_reference" if "archive_reference" in self.rules else "archive_historical",
+                "Default: move to archive for review")
 
     def find_all_markdown_files(self) -> List[Path]:
         """Find all markdown files in the project (excluding node_modules, .git, etc.)"""
+        # For FileOrganizer projects, don't exclude .autonomous_runs
+        # For Autopack root, exclude it
+        is_fileorganizer = "file-organizer" in str(self.project_root).lower()
+
         exclude_dirs = {
             ".git", "node_modules", ".pytest_cache", "__pycache__",
-            ".autonomous_runs", ".claude", "prompts", "integrations", "tests"
+            ".claude", "prompts", "integrations", "tests"
         }
+
+        if not is_fileorganizer:
+            exclude_dirs.add(".autonomous_runs")
+
         markdown_files = []
 
         for root, dirs, files in os.walk(self.project_root):
@@ -192,6 +293,7 @@ class DocumentationOrganizer:
         actions = {
             "keep_root": [],
             "move_to_docs": [],
+            "move_to_docs_research": [],
             "move_to_archive": [],
             "delete": [],
             "no_action": [],
@@ -220,7 +322,16 @@ class DocumentationOrganizer:
                     actions["move_to_docs"].append((filepath, reason))
                     self.log(f"MOVE to docs/: {relative_path} - {reason}", "ACTION")
 
-            elif category == "archive_historical":
+            elif category == "docs_research":
+                docs_research_dir = self.project_root / "docs" / "research"
+                if filepath.parent == docs_research_dir:
+                    actions["no_action"].append((filepath, "Already in docs/research/"))
+                    self.log(f"SKIP: {relative_path} - Already in docs/research/", "SKIP")
+                else:
+                    actions["move_to_docs_research"].append((filepath, reason))
+                    self.log(f"MOVE to docs/research/: {relative_path} - {reason}", "ACTION")
+
+            elif category == "archive_historical" or category == "archive_reference":
                 archive_dir = self.project_root / "archive"
                 if filepath.parent == archive_dir:
                     actions["no_action"].append((filepath, "Already in archive/"))
@@ -249,6 +360,7 @@ class DocumentationOrganizer:
 
         # Ensure target directories exist
         (self.project_root / "docs").mkdir(exist_ok=True)
+        (self.project_root / "docs" / "research").mkdir(parents=True, exist_ok=True)
         (self.project_root / "archive").mkdir(exist_ok=True)
 
         # Move to root
@@ -264,6 +376,13 @@ class DocumentationOrganizer:
             if filepath != target:
                 shutil.move(str(filepath), str(target))
                 self.log(f"Moved {filepath.name} to docs/", "ACTION")
+
+        # Move to docs/research/
+        for filepath, reason in actions["move_to_docs_research"]:
+            target = self.project_root / "docs" / "research" / filepath.name
+            if filepath != target:
+                shutil.move(str(filepath), str(target))
+                self.log(f"Moved {filepath.name} to docs/research/", "ACTION")
 
         # Move to archive/
         for filepath, reason in actions["move_to_archive"]:
@@ -306,6 +425,7 @@ class DocumentationOrganizer:
                 "total_files": sum(len(v) for v in actions.values()),
                 "kept_at_root": len(actions["keep_root"]),
                 "moved_to_docs": len(actions["move_to_docs"]),
+                "moved_to_docs_research": len(actions.get("move_to_docs_research", [])),
                 "moved_to_archive": len(actions["move_to_archive"]),
                 "deleted": len(actions["delete"]),
                 "no_action": len(actions["no_action"]),
@@ -323,7 +443,7 @@ def main():
     import argparse
 
     parser = argparse.ArgumentParser(
-        description="Organize Autopack documentation files automatically"
+        description="Organize documentation files automatically for Autopack or FileOrganizer projects"
     )
     parser.add_argument(
         "--dry-run",
@@ -341,15 +461,35 @@ def main():
         type=str,
         help="Save JSON report to file"
     )
+    parser.add_argument(
+        "--project",
+        type=str,
+        choices=["autopack", "fileorganizer"],
+        help="Specify project type (defaults to autopack if run from root, or detects from path)"
+    )
 
     args = parser.parse_args()
 
     # Determine project root (script is in scripts/ subdirectory)
-    project_root = Path(__file__).parent.parent
+    script_dir = Path(__file__).parent.parent
+
+    # Determine if we're working with FileOrganizer or Autopack
+    if args.project == "fileorganizer":
+        project_root = script_dir / ".autonomous_runs" / "file-organizer-app-v1"
+        rules_config = FILEORGANIZER_RULES
+        project_name = "FileOrganizer"
+    else:
+        # Default to Autopack root
+        project_root = script_dir
+        rules_config = AUTOPACK_RULES
+        project_name = "Autopack"
+
+    print(f"\nOrganizing {project_name} documentation in: {project_root}\n")
 
     # Run organizer
     organizer = DocumentationOrganizer(
         project_root=project_root,
+        rules_config=rules_config,
         dry_run=args.dry_run,
         verbose=args.verbose
     )
@@ -358,7 +498,7 @@ def main():
 
     # Print summary
     print("\n" + "="*60)
-    print("ORGANIZATION SUMMARY")
+    print(f"{project_name.upper()} ORGANIZATION SUMMARY")
     print("="*60)
     for key, value in report["summary"].items():
         print(f"{key.replace('_', ' ').title()}: {value}")

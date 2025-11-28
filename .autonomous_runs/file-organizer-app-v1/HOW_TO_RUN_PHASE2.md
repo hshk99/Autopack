@@ -6,24 +6,43 @@ This guide shows how to delegate all Phase 2 tasks to the **real Autopack system
 
 ## Quick Start (Fully Autonomous - Recommended)
 
+### Default (Uses WHATS_LEFT_TO_BUILD.md)
+
 **Single command for complete autonomous execution**:
 
+```bash
+cd c:/dev/Autopack/.autonomous_runs/file-organizer-app-v1
+python scripts/autopack_runner.py --non-interactive
+```
+
+**Or use the legacy Phase 2 runner** (for backward compatibility):
 ```bash
 cd c:/dev/Autopack/.autonomous_runs/file-organizer-app-v1
 python scripts/autopack_phase2_runner.py --non-interactive
 ```
 
-**Or use the wrapper script**:
+### NEW: Run with Custom Task File
+
+**Run with a specific task file**:
+
 ```bash
 cd c:/dev/Autopack/.autonomous_runs/file-organizer-app-v1
-./run_phase2.sh
+python scripts/autopack_runner.py --non-interactive --tasks-file "REVISED_PLAN_V2.md"
 ```
+
+**Use cases for custom task files**:
+- **Revised Plans**: When your plan changes → `REVISED_PLAN_V2.md`
+- **Sprint-Specific**: Organize by sprint → `SPRINT_1_TASKS.md`, `SPRINT_2_TASKS.md`
+- **Hotfixes**: Urgent fixes → `HOTFIX_PLAN.md`
+- **Feature Work**: Feature-specific → `FEATURE_AUTH_TASKS.md`
+- **Experiments**: Test approaches → `EXPERIMENTAL_PLAN.md`
 
 **What this does**:
 - Automatically detects if Autopack service is running
 - Auto-starts uvicorn if service not found
 - Waits for service health check (30s timeout)
-- Creates Autopack run with all 9 Phase 2 tasks
+- Reads tasks from specified markdown file (or WHATS_LEFT_TO_BUILD.md by default)
+- Creates Autopack run with all tasks from the file
 - Monitors progress in real-time
 - Generates comprehensive reports
 - Shuts down service gracefully on exit
@@ -159,6 +178,60 @@ Phases Completed: 9/9 (100.0%)
 
 [SUCCESS] All Phase 2 tasks completed!
 FileOrganizer v1.0 Beta is ready
+```
+
+---
+
+## Custom Task File Format
+
+All task files (WHATS_LEFT_TO_BUILD.md, REVISED_PLAN_V2.md, SPRINT_1_TASKS.md, etc.) must follow Autopack format:
+
+```markdown
+### Task 1: Task Name
+**Phase ID**: `unique-task-id`
+**Category**: backend|frontend|database|api|testing|docs|deployment
+**Complexity**: low|medium|high
+**Description**: What needs to be built
+
+**Acceptance Criteria**:
+- [ ] Criterion 1
+- [ ] Criterion 2
+
+**Dependencies**: None (or `other-task-id`)
+
+### Task 2: Another Task
+**Phase ID**: `another-task-id`
+**Category**: frontend
+**Complexity**: medium
+**Description**: Another description
+
+**Acceptance Criteria**:
+- [ ] Criterion 1
+
+**Dependencies**: `unique-task-id`
+```
+
+### Benefits of Custom Task Files:
+- Keep multiple plans without overwriting
+- Easily switch between different execution strategies
+- Version control your plans (git diff shows changes)
+- Run hotfixes without disturbing main plan
+- Test experimental approaches safely
+
+### Example Usage:
+
+```bash
+# Run the main plan
+python scripts/autopack_runner.py --non-interactive
+
+# Run a revised plan
+python scripts/autopack_runner.py --non-interactive --tasks-file "REVISED_PLAN_V2.md"
+
+# Run sprint-specific tasks
+python scripts/autopack_runner.py --non-interactive --tasks-file "SPRINT_3_TASKS.md"
+
+# Run hotfix tasks
+python scripts/autopack_runner.py --non-interactive --tasks-file "HOTFIX_PLAN.md"
 ```
 
 ---

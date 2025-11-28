@@ -410,13 +410,13 @@ const TriageBoard: React.FC = () => {
                       onClick={() => approveDocument(doc.id)}
                       className="text-green-600 hover:text-green-700 font-medium"
                     >
-                      ✓ Approve
+                      [x] Approve
                     </button>
                     <button
                       onClick={() => setEditingDocId(doc.id)}
                       className="text-blue-600 hover:text-blue-700 font-medium"
                     >
-                      ✎ Edit
+                      Edit
                     </button>
                   </td>
                 </tr>
@@ -618,7 +618,7 @@ def main():
 
     try:
         result = subprocess.run(
-            f""{pytest_exe}" tests/ -v",
+            f'"{pytest_exe}" tests/ -v',
             cwd=backend_dir,
             shell=True,
             capture_output=True,

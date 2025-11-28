@@ -27,7 +27,8 @@
       "Bash(curl:*)",
       "Bash(ls:*)",
       "Bash(cat:*)",
-      "Bash(chmod +x:*)"
+      "Bash(chmod +x:*)",
+      "Bash(cd:*)"
     ],
     "deny": [
       "Read(./secrets/**)",

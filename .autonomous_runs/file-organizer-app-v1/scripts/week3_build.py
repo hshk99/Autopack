@@ -593,10 +593,10 @@ const TriageBoard: React.FC = () => {
                   </td>
                   <td className="px-6 py-4 text-sm">
                     <button className="text-blue-600 hover:text-blue-700 mr-4">
-                      ✓ Approve
+                      [x] Approve
                     </button>
                     <button className="text-gray-600 hover:text-gray-700">
-                      ✎ Edit
+                      Edit
                     </button>
                   </td>
                 </tr>
@@ -766,7 +766,7 @@ def main():
 
     try:
         result = subprocess.run(
-            f""{pytest_exe}" tests/ -v",
+            f'"{pytest_exe}" tests/ -v',
             cwd=backend_dir,
             shell=True,
             capture_output=True,

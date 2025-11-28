@@ -486,7 +486,7 @@ const ErrorDisplay: React.FC<ErrorDisplayProps> = ({ message, onDismiss }) => {
             onClick={onDismiss}
             className="ml-3 text-red-600 hover:text-red-800"
           >
-            ✕
+            X
           </button>
         )}
       </div>
@@ -523,7 +523,7 @@ import Settings from './pages/Settings';"""
             onClick={() => navigate('/settings')}
             className="text-gray-600 hover:text-gray-800 font-medium"
           >
-            ⚙️ Settings
+            Settings
           </button>
         </div>
 
@@ -636,7 +636,7 @@ def main():
 
     try:
         result = subprocess.run(
-            f""{pytest_exe}" tests/ -v",
+            f'"{pytest_exe}" tests/ -v',
             cwd=backend_dir,
             shell=True,
             capture_output=True,
@@ -667,12 +667,12 @@ def main():
     print("  [OK] Frontend: LocalStorage settings persistence")
     print("  [OK] Tests: Error handling scenarios")
     print("\nSettings Features:")
-    print("  • OpenAI API Key configuration")
-    print("  • Tesseract path configuration")
-    print("  • Max file size setting")
-    print("  • Auto-classify toggle")
-    print("  • Confidence threshold slider")
-    print("  • Reset to defaults")
+    print("  - OpenAI API Key configuration")
+    print("  - Tesseract path configuration")
+    print("  - Max file size setting")
+    print("  - Auto-classify toggle")
+    print("  - Confidence threshold slider")
+    print("  - Reset to defaults")
     print("\nNext: Week 8 - Performance Optimization + UI Polish")
 
 

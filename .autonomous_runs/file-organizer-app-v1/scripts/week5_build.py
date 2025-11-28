@@ -145,7 +145,7 @@ class PDFExportService:
             table_data = [['File Name', 'Confidence', 'Status']]
             for doc in cat_data['documents']:
                 confidence = f"{doc.classification_confidence:.0f}%" if doc.classification_confidence else 'N/A'
-                status = '✓ Approved' if doc.classification_confidence == 100 else 'Pending'
+                status = '[x] Approved' if doc.classification_confidence == 100 else 'Pending'
                 table_data.append([doc.filename, confidence, status])
 
             doc_table = Table(table_data, colWidths=[3.5*inch, 1*inch, 1.5*inch])
@@ -885,7 +885,7 @@ def main():
 
     try:
         result = subprocess.run(
-            f""{pytest_exe}" tests/ -v",
+            f'"{pytest_exe}" tests/ -v',
             cwd=backend_dir,
             shell=True,
             capture_output=True,
@@ -916,9 +916,9 @@ def main():
     print("  [OK] Frontend: File download functionality")
     print("  [OK] Tests: Export functionality tests")
     print("\nExport Features:")
-    print("  • PDF: Professional report with categorized sections")
-    print("  • Excel: Multi-sheet workbook (Summary + Categories)")
-    print("  • CSV: Simple flat file for data import")
+    print("  - PDF: Professional report with categorized sections")
+    print("  - Excel: Multi-sheet workbook (Summary + Categories)")
+    print("  - CSV: Simple flat file for data import")
     print("\nNext: Week 6 - Generic Pack Templates + End-to-End Testing")
 
 

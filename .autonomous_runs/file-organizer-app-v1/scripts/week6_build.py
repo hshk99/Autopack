@@ -620,7 +620,7 @@ def main():
 
     try:
         result = subprocess.run(
-            f""{pytest_exe}" tests/ -v",
+            f'"{pytest_exe}" tests/ -v',
             cwd=backend_dir,
             shell=True,
             capture_output=True,
@@ -652,9 +652,9 @@ def main():
     print("  [OK] Tests: All packs loadable verification")
     print("  [OK] Documentation: Comprehensive user guide")
     print("\nTotal Pack Templates: 3")
-    print("  • Tax Pack (Generic)")
-    print("  • Immigration Pack (Generic)")
-    print("  • Legal Pack (Generic)")
+    print("  - Tax Pack (Generic)")
+    print("  - Immigration Pack (Generic)")
+    print("  - Legal Pack (Generic)")
     print("\nNext: Week 7 - Settings + Error Handling + Configuration")
 
 

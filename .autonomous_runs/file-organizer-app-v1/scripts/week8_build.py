@@ -519,7 +519,7 @@ def main():
 
     try:
         result = subprocess.run(
-            f""{pytest_exe}" tests/ -v",
+            f'"{pytest_exe}" tests/ -v',
             cwd=backend_dir,
             shell=True,
             capture_output=True,
@@ -550,10 +550,10 @@ def main():
     print("  [OK] Frontend: CSS animations (fade-in, slide-in, hover-lift)")
     print("  [OK] Tests: Performance benchmarking tests")
     print("\nPerformance Improvements:")
-    print("  • Database queries optimized with indexes")
-    print("  • Pack listing cached (10 min TTL)")
-    print("  • Batch classification parallelized (3 workers)")
-    print("  • UI animations smoothed")
+    print("  - Database queries optimized with indexes")
+    print("  - Pack listing cached (10 min TTL)")
+    print("  - Batch classification parallelized (3 workers)")
+    print("  - UI animations smoothed")
     print("\nNext: Week 9 - Alpha Testing + Bug Fixes + Release Build")
 
 

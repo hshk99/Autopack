@@ -269,9 +269,14 @@ class ErrorRecoverySystem:
             Last exception if all retries fail
         """
         func_kwargs = func_kwargs or {}
+        # Default: retry on all categories if error severity is TRANSIENT or RECOVERABLE
         retry_on_categories = retry_on_categories or [
-            ErrorCategory.TRANSIENT,
-            ErrorCategory.RECOVERABLE
+            ErrorCategory.ENCODING,
+            ErrorCategory.NETWORK,
+            ErrorCategory.FILE_IO,
+            ErrorCategory.VALIDATION,
+            ErrorCategory.LOGIC,
+            ErrorCategory.UNKNOWN
         ]
 
         last_error_ctx = None

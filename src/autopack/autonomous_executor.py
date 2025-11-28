@@ -163,18 +163,20 @@ class AutonomousExecutor:
         Returns:
             Phase dict if found, None otherwise
         """
-        phases = run_data.get("phases", [])
+        tiers = run_data.get("tiers", [])
 
-        # Sort by tier_index, then phase_index
-        sorted_phases = sorted(
-            phases,
-            key=lambda p: (p.get("tier_index", 0), p.get("phase_index", 0))
-        )
+        # Sort tiers by tier_index
+        sorted_tiers = sorted(tiers, key=lambda t: t.get("tier_index", 0))
 
-        # Find first QUEUED phase
-        for phase in sorted_phases:
-            if phase.get("status") == "QUEUED":
-                return phase
+        # Find first QUEUED phase across all tiers
+        for tier in sorted_tiers:
+            phases = tier.get("phases", [])
+            # Sort phases within tier
+            sorted_phases = sorted(phases, key=lambda p: p.get("phase_index", 0))
+
+            for phase in sorted_phases:
+                if phase.get("state") == "QUEUED":  # Note: API uses "state" not "status"
+                    return phase
 
         return None
 

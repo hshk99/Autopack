@@ -1,0 +1,67 @@
+name: Legal Pack (Generic)
+description: Generic legal document organization for case files and legal matters
+
+categories:
+  - name: Contracts & Agreements
+    description: Legal contracts, agreements, MOUs
+    examples:
+      - "Employment contract"
+      - "Service agreement"
+      - "Non-disclosure agreement"
+      - "Partnership agreement"
+
+  - name: Court Documents
+    description: Summons, filings, court orders
+    examples:
+      - "Court summons"
+      - "Legal filing"
+      - "Court order"
+      - "Judgment document"
+
+  - name: Correspondence
+    description: Legal letters, notices, communications
+    examples:
+      - "Lawyer's letter"
+      - "Legal notice"
+      - "Demand letter"
+      - "Response to notice"
+
+  - name: Evidence
+    description: Documentary evidence, exhibits
+    examples:
+      - "Exhibit document"
+      - "Photographic evidence"
+      - "Email correspondence"
+      - "Financial records as evidence"
+
+  - name: Identity & Verification
+    description: ID proofs, affidavits, declarations
+    examples:
+      - "Affidavit"
+      - "Statutory declaration"
+      - "Notarized ID copy"
+      - "Witness statement"
+
+  - name: Property Documents
+    description: Deeds, titles, property-related documents
+    examples:
+      - "Property deed"
+      - "Title document"
+      - "Lease agreement"
+      - "Property tax receipt"
+
+  - name: Financial Records
+    description: Bank statements, financial documents
+    examples:
+      - "Bank statement"
+      - "Transaction records"
+      - "Financial disclosure"
+      - "Asset statement"
+
+  - name: Other
+    description: Miscellaneous legal documents
+    examples:
+      - "Power of attorney"
+      - "Will or testament"
+      - "Trust document"
+      - "Legal opinion"

@@ -6,6 +6,7 @@ from pathlib import Path
 from sqlalchemy.orm import Session
 from app.models.scenario_pack import ScenarioPack
 from app.models.category import Category
+from app.services.cache_service import cache
 
 
 class ScenarioPackService:
@@ -56,6 +57,16 @@ class ScenarioPackService:
         return pack
 
     def list_packs(self) -> list[ScenarioPack]:
+        """List all available scenario packs (with caching)"""
+        cached = cache.get('all_packs')
+        if cached:
+            return cached
+
+        packs = self.db.query(ScenarioPack).all()
+        cache.set('all_packs', packs, ttl_seconds=600)  # Cache for 10 minutes
+        return packs
+
+    def _list_packs_uncached(self) -> list[ScenarioPack]:
         """List all available scenario packs"""
         return self.db.query(ScenarioPack).all()
 

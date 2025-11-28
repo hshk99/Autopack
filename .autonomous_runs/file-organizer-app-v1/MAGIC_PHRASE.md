@@ -53,13 +53,25 @@ python scripts/autopack_phase2_runner.py --non-interactive
 
 ## For Future Projects (Generic Pattern)
 
-### Directory Structure Required:
+### Quick Setup (Automated)
+
+**Recommended**: Use the setup script to create a new project:
+
+```bash
+cd c:/dev/Autopack/.autonomous_runs
+python setup_new_project.py --name "MyApp" --slug "my-app-v1"
+```
+
+This automatically creates all necessary files. See [NEW_PROJECT_SETUP_GUIDE.md](../NEW_PROJECT_SETUP_GUIDE.md) for details.
+
+### Directory Structure (Created by Setup Script):
 ```
 c:/dev/Autopack/.autonomous_runs/<project-slug>/
 ├── WHATS_LEFT_TO_BUILD.md          # Task definitions (any phase)
 ├── scripts/
-│   └── autopack_runner.py          # Generic runner (copy from FileOrganizer)
-└── run.sh                           # Wrapper script (optional)
+│   └── autopack_runner.py          # Generic runner (auto-copied)
+├── PROJECT_README.md               # Auto-generated docs
+└── run.sh                          # Wrapper script (optional)
 ```
 
 ### Generic Command Template:
@@ -71,6 +83,8 @@ python scripts/autopack_runner.py --non-interactive
 **Key Difference**:
 - ❌ Old: `autopack_phase2_runner.py` (hardcoded to Phase 2, FileOrganizer-specific)
 - ✅ New: `autopack_runner.py` (works for any project, any phase)
+
+**No manual script revision needed** - the setup script handles everything!
 
 ---
 

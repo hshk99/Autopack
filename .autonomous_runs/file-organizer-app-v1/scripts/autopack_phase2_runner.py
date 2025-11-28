@@ -1,0 +1,445 @@
+#!/usr/bin/env python3
+"""
+Autopack Phase 2 Runner for FileOrganizer
+
+Single-command script to delegate all Phase 2 tasks to Autopack.
+Creates a run with 7 phases and waits for completion.
+
+Usage:
+    python scripts/autopack_phase2_runner.py
+
+This script:
+1. Starts the Autopack FastAPI service (if not running)
+2. Creates a new run with all 7 Phase 2 tasks from WHATS_LEFT_TO_BUILD.md
+3. Polls for completion
+4. Generates final report
+
+Based on Autopack v7 playbook API (src/autopack/main.py)
+"""
+
+import os
+import sys
+import time
+import requests
+import json
+from pathlib import Path
+from datetime import datetime
+from typing import Dict, List, Optional
+
+# Autopack API configuration
+AUTOPACK_API_BASE = os.getenv("AUTOPACK_API_URL", "http://localhost:8000")
+AUTOPACK_API_KEY = os.getenv("AUTOPACK_API_KEY", "")
+
+
+class AutopackPhase2Runner:
+    """Runs FileOrganizer Phase 2 tasks through Autopack API"""
+
+    def __init__(self):
+        self.api_base = AUTOPACK_API_BASE
+        self.headers = {}
+        if AUTOPACK_API_KEY:
+            self.headers["X-API-Key"] = AUTOPACK_API_KEY
+
+        # Generate unique run ID
+        self.run_id = f"fileorganizer-phase2-{datetime.now().strftime('%Y%m%d-%H%M%S')}"
+
+    def check_autopack_health(self) -> bool:
+        """Check if Autopack service is running"""
+        try:
+            response = requests.get(f"{self.api_base}/health", timeout=5)
+            return response.status_code == 200
+        except requests.exceptions.RequestException:
+            return False
+
+    def create_run(self) -> Dict:
+        """Create Autopack run with all Phase 2 tasks"""
+        # Define phases from WHATS_LEFT_TO_BUILD.md
+        phases = [
+            {
+                "phase_id": "phase2-task1",
+                "phase_index": 0,
+                "tier_id": "tier1-high-priority",
+                "name": "Test Suite Fixes",
+                "description": "Fix httpx/starlette version conflicts, ensure all tests pass",
+                "task_category": "testing",
+                "complexity": "low",
+                "builder_mode": "prototype",  # From Phase 1 success
+            },
+            {
+                "phase_id": "phase2-task2",
+                "phase_index": 1,
+                "tier_id": "tier1-high-priority",
+                "name": "Frontend Build System",
+                "description": "npm install/build, Electron packaging, commit package-lock.json",
+                "task_category": "frontend",
+                "complexity": "low",
+                "builder_mode": "prototype",
+            },
+            {
+                "phase_id": "phase2-task3",
+                "phase_index": 2,
+                "tier_id": "tier2-medium-priority",
+                "name": "Docker Deployment",
+                "description": "Dockerfile, docker-compose.yml, deploy scripts, .dockerignore",
+                "task_category": "deployment",
+                "complexity": "medium",
+                "builder_mode": "prototype",
+            },
+            {
+                "phase_id": "phase2-task4",
+                "phase_index": 3,
+                "tier_id": "tier3-low-priority",
+                "name": "Advanced Search & Filtering",
+                "description": "SQLite FTS5, multi-field search, date range filtering",
+                "task_category": "backend",
+                "complexity": "medium",
+                "builder_mode": "prototype",
+            },
+            {
+                "phase_id": "phase2-task5",
+                "phase_index": 4,
+                "tier_id": "tier3-low-priority",
+                "name": "Batch Upload & Processing",
+                "description": "Multi-file upload, job queue, progress tracking",
+                "task_category": "backend",
+                "complexity": "medium",
+                "builder_mode": "prototype",
+            },
+            {
+                "phase_id": "phase2-task6",
+                "phase_index": 5,
+                "tier_id": "tier2-medium-priority",
+                "name": "Country Pack - UK (EXPERIMENTAL)",
+                "description": "UK tax & immigration YAML templates (mark EXPERIMENTAL)",
+                "task_category": "domain",
+                "complexity": "medium",
+                "builder_mode": "prototype",
+            },
+            {
+                "phase_id": "phase2-task7",
+                "phase_index": 6,
+                "tier_id": "tier2-medium-priority",
+                "name": "Country Pack - Canada (EXPERIMENTAL)",
+                "description": "Canada tax & immigration YAML templates (mark EXPERIMENTAL)",
+                "task_category": "domain",
+                "complexity": "medium",
+                "builder_mode": "prototype",
+            },
+            {
+                "phase_id": "phase2-task8",
+                "phase_index": 7,
+                "tier_id": "tier2-medium-priority",
+                "name": "Country Pack - Australia (EXPERIMENTAL)",
+                "description": "Australia tax & immigration YAML templates (mark EXPERIMENTAL)",
+                "task_category": "domain",
+                "complexity": "medium",
+                "builder_mode": "prototype",
+            },
+            {
+                "phase_id": "phase2-task9",
+                "phase_index": 8,
+                "tier_id": "tier3-low-priority",
+                "name": "Authentication & Multi-User (NEEDS REVIEW)",
+                "description": "User model, JWT auth, protected routes (requires security review)",
+                "task_category": "security",
+                "complexity": "high",
+                "builder_mode": "prototype",
+            },
+        ]
+
+        # Define tiers
+        tiers = [
+            {
+                "tier_id": "tier1-high-priority",
+                "tier_index": 0,
+                "name": "High Priority (Beta Blockers)",
+                "description": "Test suite and frontend build - must complete",
+            },
+            {
+                "tier_id": "tier2-medium-priority",
+                "tier_index": 1,
+                "name": "Medium Priority (Core Value)",
+                "description": "Docker, country packs - high value features",
+            },
+            {
+                "tier_id": "tier3-low-priority",
+                "tier_index": 2,
+                "name": "Low Priority (Enhancements)",
+                "description": "Search, batch upload, auth - nice to have",
+            },
+        ]
+
+        # Create run request payload
+        payload = {
+            "run": {
+                "run_id": self.run_id,
+                "safety_profile": "standard",
+                "run_scope": "feature_backlog",
+                "token_cap": 150000,  # 150K tokens (from 128K estimate + buffer)
+                "max_phases": 9,
+                "max_duration_minutes": 300,  # 5 hours max
+            },
+            "tiers": tiers,
+            "phases": phases,
+        }
+
+        print(f"\n{'='*80}")
+        print(f"CREATING AUTOPACK RUN: {self.run_id}")
+        print(f"{'='*80}\n")
+        print(f"Phases: {len(phases)}")
+        print(f"Tiers: {len(tiers)}")
+        print(f"Token Cap: 150,000")
+        print(f"Max Duration: 5 hours\n")
+
+        response = requests.post(
+            f"{self.api_base}/runs/start",
+            json=payload,
+            headers=self.headers,
+        )
+
+        if response.status_code != 201:
+            raise Exception(f"Failed to create run: {response.status_code} - {response.text}")
+
+        run_data = response.json()
+        print(f"[OK] Run created: {run_data['id']}")
+        print(f"State: {run_data['state']}\n")
+
+        return run_data
+
+    def poll_run_status(self, run_id: str, poll_interval: int = 30) -> Dict:
+        """Poll run status until completion"""
+        print(f"{'='*80}")
+        print(f"MONITORING RUN PROGRESS")
+        print(f"{'='*80}\n")
+        print(f"Polling every {poll_interval} seconds...")
+        print(f"Press Ctrl+C to stop monitoring (run will continue)\n")
+
+        start_time = time.time()
+
+        try:
+            while True:
+                response = requests.get(
+                    f"{self.api_base}/runs/{run_id}",
+                    headers=self.headers,
+                )
+
+                if response.status_code != 200:
+                    print(f"[ERROR] Failed to get run status: {response.status_code}")
+                    time.sleep(poll_interval)
+                    continue
+
+                run_data = response.json()
+                state = run_data["state"]
+
+                # Get dashboard status for progress
+                try:
+                    dashboard_response = requests.get(
+                        f"{self.api_base}/dashboard/runs/{run_id}/status",
+                        headers=self.headers,
+                    )
+                    if dashboard_response.status_code == 200:
+                        dashboard_data = dashboard_response.json()
+                        percent = dashboard_data.get("percent_complete", 0)
+                        current_phase = dashboard_data.get("current_phase_name", "N/A")
+                        tokens_used = dashboard_data.get("tokens_used", 0)
+                        token_cap = dashboard_data.get("token_cap", 150000)
+
+                        elapsed = int(time.time() - start_time)
+                        print(
+                            f"[{elapsed}s] Progress: {percent:.1f}% | "
+                            f"Phase: {current_phase} | "
+                            f"Tokens: {tokens_used}/{token_cap}"
+                        )
+                except Exception as e:
+                    print(f"[WARNING] Could not fetch dashboard status: {e}")
+
+                # Check if run is complete
+                if state.startswith("DONE_"):
+                    print(f"\n{'='*80}")
+                    print(f"RUN COMPLETE: {state}")
+                    print(f"{'='*80}\n")
+                    return run_data
+
+                time.sleep(poll_interval)
+
+        except KeyboardInterrupt:
+            print(f"\n[INFO] Monitoring stopped. Run {run_id} continues in background.")
+            print(f"Check status: GET {self.api_base}/runs/{run_id}")
+            return None
+
+    def generate_report(self, run_id: str) -> str:
+        """Generate comprehensive Phase 2 completion report"""
+        # Get run summary
+        response = requests.get(
+            f"{self.api_base}/reports/run_summary/{run_id}",
+            headers=self.headers,
+        )
+
+        if response.status_code != 200:
+            raise Exception(f"Failed to get run summary: {response.status_code}")
+
+        summary = response.json()
+
+        # Build report
+        report = []
+        report.append("=" * 80)
+        report.append("FILEORGANIZER PHASE 2 - AUTOPACK AUTONOMOUS BUILD REPORT")
+        report.append("=" * 80)
+        report.append(f"\nRun ID: {run_id}")
+        report.append(f"Run State: {summary['state']}")
+        report.append(f"Safety Profile: {summary['safety_profile']}")
+        report.append(f"Started: {summary.get('started_at', 'N/A')}")
+        report.append(f"Completed: {summary.get('completed_at', 'N/A')}")
+
+        report.append("\n" + "=" * 80)
+        report.append("BUDGET UTILIZATION")
+        report.append("=" * 80)
+        budgets = summary["budgets"]
+        report.append(f"Tokens Used: {budgets['tokens_used']:,} / {budgets['token_cap']:,}")
+        report.append(f"Token Utilization: {budgets['token_utilization']:.1%}")
+        report.append(f"Phases Executed: {budgets['phase_count']} / {budgets['max_phases']}")
+
+        report.append("\n" + "=" * 80)
+        report.append("ISSUE TRACKING")
+        report.append("=" * 80)
+        issues = summary["issues"]
+        report.append(f"Minor Issues: {issues['minor_count']}")
+        report.append(f"Major Issues: {issues['major_count']}")
+        report.append(f"Distinct Issues: {issues['distinct_issues']}")
+
+        report.append("\n" + "=" * 80)
+        report.append("TIER RESULTS")
+        report.append("=" * 80)
+        for tier in summary["tiers"]:
+            report.append(
+                f"\nTier {tier['tier_id']}: {tier['name']} "
+                f"[{tier['state']}]"
+            )
+            report.append(f"  Phases: {tier['phase_count']}")
+            report.append(f"  Tokens: {tier['tokens_used']:,}")
+            report.append(f"  Issues: {tier['minor_issues']} minor, {tier['major_issues']} major")
+
+        report.append("\n" + "=" * 80)
+        report.append("PHASE RESULTS")
+        report.append("=" * 80)
+        for phase in summary["phases"]:
+            status_icon = {
+                "COMPLETE": "✅",
+                "FAILED": "❌",
+                "GATE": "⚠️",
+                "QUEUED": "⏳",
+                "EXECUTING": "🔄",
+            }.get(phase["state"], "❓")
+
+            report.append(
+                f"\n{status_icon} Phase {phase['phase_index']}: {phase['name']} "
+                f"[{phase['state']}]"
+            )
+            report.append(f"  Category: {phase['task_category']} | Complexity: {phase['complexity']}")
+            report.append(
+                f"  Builder Attempts: {phase['builder_attempts']} | "
+                f"Auditor Attempts: {phase['auditor_attempts']}"
+            )
+            report.append(f"  Tokens: {phase['tokens_used']:,}")
+            report.append(f"  Issues: {phase['minor_issues']} minor, {phase['major_issues']} major")
+
+        report.append("\n" + "=" * 80)
+        report.append("OVERALL ASSESSMENT")
+        report.append("=" * 80)
+
+        # Calculate success rate
+        completed = len([p for p in summary["phases"] if p["state"] == "COMPLETE"])
+        total = len(summary["phases"])
+        success_rate = (completed / total * 100) if total > 0 else 0
+
+        report.append(f"\nPhases Completed: {completed}/{total} ({success_rate:.1f}%)")
+
+        if summary["state"] == "DONE_SUCCESS":
+            report.append("\n[SUCCESS] All Phase 2 tasks completed!")
+            report.append("FileOrganizer v1.0 Beta is ready")
+        elif summary["state"] == "DONE_FAILED_BUDGET_EXHAUSTED":
+            report.append("\n[BUDGET EXHAUSTED] Token cap exceeded")
+            report.append(f"Review remaining phases and increase budget")
+        elif summary["state"].startswith("DONE_FAILED"):
+            report.append(f"\n[FAILED] Run failed: {summary['state']}")
+            report.append("Review phase logs and issue backlog")
+        else:
+            report.append(f"\n[PARTIAL SUCCESS] {completed}/{total} phases completed")
+
+        report.append("\n" + "=" * 80)
+
+        return "\n".join(report)
+
+    def save_report(self, report: str):
+        """Save report to file"""
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        report_path = Path(f"PHASE2_AUTOPACK_REPORT_{timestamp}.md")
+
+        with open(report_path, "w") as f:
+            f.write(report)
+
+        print(f"\nReport saved: {report_path}")
+        return report_path
+
+    def run(self):
+        """Execute Phase 2 autonomous build"""
+        print("\n" + "=" * 80)
+        print("FILEORGANIZER PHASE 2 - AUTOPACK AUTONOMOUS BUILD")
+        print("=" * 80)
+
+        # 1. Check Autopack service health
+        print("\n[Step 1/4] Checking Autopack service...")
+        if not self.check_autopack_health():
+            print(f"\n[ERROR] Autopack service not available at {self.api_base}")
+            print("\nTo start Autopack:")
+            print("  cd c:/dev/Autopack")
+            print("  uvicorn src.autopack.main:app --reload")
+            print("\nOr set AUTOPACK_API_URL environment variable to point to running instance")
+            sys.exit(1)
+
+        print(f"[OK] Autopack service healthy at {self.api_base}")
+
+        # 2. Create run
+        print("\n[Step 2/4] Creating Autopack run...")
+        try:
+            run_data = self.create_run()
+        except Exception as e:
+            print(f"\n[ERROR] Failed to create run: {e}")
+            sys.exit(1)
+
+        # 3. Monitor progress
+        print("\n[Step 3/4] Monitoring run progress...")
+        final_run = self.poll_run_status(self.run_id)
+
+        if not final_run:
+            print("\n[INFO] Monitoring stopped. Run continues in background.")
+            print(f"Check status: GET {self.api_base}/runs/{self.run_id}")
+            return
+
+        # 4. Generate report
+        print("\n[Step 4/4] Generating report...")
+        try:
+            report = self.generate_report(self.run_id)
+            print("\n" + report)
+            self.save_report(report)
+        except Exception as e:
+            print(f"\n[ERROR] Failed to generate report: {e}")
+            sys.exit(1)
+
+        print("\n[DONE] Phase 2 autonomous build complete!")
+
+
+if __name__ == "__main__":
+    print("FileOrganizer Phase 2 - Autopack Autonomous Build Runner")
+    print(f"Autopack API: {AUTOPACK_API_BASE}")
+    print()
+
+    # Confirmation
+    response = input("Start Phase 2 autonomous build? (yes/no): ")
+
+    if response.lower() not in ["yes", "y"]:
+        print("Build cancelled.")
+        sys.exit(0)
+
+    runner = AutopackPhase2Runner()
+    runner.run()

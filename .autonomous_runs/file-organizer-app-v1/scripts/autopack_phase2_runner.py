@@ -22,6 +22,9 @@ import sys
 import time
 import requests
 import json
+import subprocess
+import signal
+import atexit
 from pathlib import Path
 from datetime import datetime
 from typing import Dict, List, Optional
@@ -29,6 +32,9 @@ from typing import Dict, List, Optional
 # Autopack API configuration
 AUTOPACK_API_BASE = os.getenv("AUTOPACK_API_URL", "http://localhost:8000")
 AUTOPACK_API_KEY = os.getenv("AUTOPACK_API_KEY", "")
+
+# Global reference to Autopack service process
+_autopack_process = None
 
 
 class AutopackPhase2Runner:
@@ -49,6 +55,56 @@ class AutopackPhase2Runner:
             response = requests.get(f"{self.api_base}/health", timeout=5)
             return response.status_code == 200
         except requests.exceptions.RequestException:
+            return False
+
+    def start_autopack_service(self) -> bool:
+        """Start Autopack FastAPI service in background"""
+        global _autopack_process
+
+        # Find the Autopack root directory
+        autopack_root = Path(__file__).parent.parent.parent.parent
+
+        print(f"[INFO] Starting Autopack service at {autopack_root}...")
+
+        try:
+            # Start uvicorn in background
+            _autopack_process = subprocess.Popen(
+                [sys.executable, "-m", "uvicorn", "src.autopack.main:app", "--host", "0.0.0.0", "--port", "8000"],
+                cwd=str(autopack_root),
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                creationflags=subprocess.CREATE_NEW_PROCESS_GROUP if sys.platform == "win32" else 0
+            )
+
+            # Register cleanup on exit
+            def cleanup():
+                global _autopack_process
+                if _autopack_process and _autopack_process.poll() is None:
+                    print("\n[INFO] Shutting down Autopack service...")
+                    if sys.platform == "win32":
+                        _autopack_process.send_signal(signal.CTRL_BREAK_EVENT)
+                    else:
+                        _autopack_process.terminate()
+                    try:
+                        _autopack_process.wait(timeout=5)
+                    except subprocess.TimeoutExpired:
+                        _autopack_process.kill()
+
+            atexit.register(cleanup)
+
+            # Wait for service to be ready (up to 30 seconds)
+            print("[INFO] Waiting for Autopack service to be ready...")
+            for i in range(30):
+                time.sleep(1)
+                if self.check_autopack_health():
+                    print(f"[OK] Autopack service started successfully")
+                    return True
+
+            print("[ERROR] Autopack service did not become healthy within 30 seconds")
+            return False
+
+        except Exception as e:
+            print(f"[ERROR] Failed to start Autopack service: {e}")
             return False
 
     def create_run(self) -> Dict:
@@ -387,15 +443,18 @@ class AutopackPhase2Runner:
         print("FILEORGANIZER PHASE 2 - AUTOPACK AUTONOMOUS BUILD")
         print("=" * 80)
 
-        # 1. Check Autopack service health
-        print("\n[Step 1/4] Checking Autopack service...")
+        # 1. Check Autopack service health (auto-start if needed)
+        print("\n[Step 1/5] Checking Autopack service...")
         if not self.check_autopack_health():
-            print(f"\n[ERROR] Autopack service not available at {self.api_base}")
-            print("\nTo start Autopack:")
-            print("  cd c:/dev/Autopack")
-            print("  uvicorn src.autopack.main:app --reload")
-            print("\nOr set AUTOPACK_API_URL environment variable to point to running instance")
-            sys.exit(1)
+            print(f"[INFO] Autopack service not running at {self.api_base}")
+            print("[INFO] Auto-starting Autopack service...")
+
+            if not self.start_autopack_service():
+                print(f"\n[ERROR] Failed to auto-start Autopack service")
+                print("\nManual start option:")
+                print("  cd c:/dev/Autopack")
+                print("  uvicorn src.autopack.main:app --reload")
+                sys.exit(1)
 
         print(f"[OK] Autopack service healthy at {self.api_base}")
 
@@ -430,16 +489,31 @@ class AutopackPhase2Runner:
 
 
 if __name__ == "__main__":
+    import argparse
+
+    parser = argparse.ArgumentParser(description="FileOrganizer Phase 2 - Autopack Autonomous Build Runner")
+    parser.add_argument(
+        '--non-interactive',
+        action='store_true',
+        help='Run in non-interactive mode (no user prompts, auto-start service)'
+    )
+    args = parser.parse_args()
+
     print("FileOrganizer Phase 2 - Autopack Autonomous Build Runner")
     print(f"Autopack API: {AUTOPACK_API_BASE}")
     print()
 
-    # Confirmation
-    response = input("Start Phase 2 autonomous build? (yes/no): ")
+    # Confirmation (only in interactive mode)
+    if not args.non_interactive:
+        response = input("Start Phase 2 autonomous build? (yes/no): ")
 
-    if response.lower() not in ["yes", "y"]:
-        print("Build cancelled.")
-        sys.exit(0)
+        if response.lower() not in ["yes", "y"]:
+            print("Build cancelled.")
+            sys.exit(0)
+    else:
+        print("[NON-INTERACTIVE MODE] Proceeding with full Phase 2 autonomous build...")
+        print("[NON-INTERACTIVE MODE] Will auto-start Autopack service if needed...")
+        print()
 
     runner = AutopackPhase2Runner()
     runner.run()

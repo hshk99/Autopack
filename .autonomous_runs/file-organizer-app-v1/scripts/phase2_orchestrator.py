@@ -2,6 +2,22 @@
 """
 FileOrganizer Phase 2 Build Orchestrator - Autopack Test Run
 Executes items from WHATS_LEFT_TO_BUILD.md with detailed reporting
+
+⚠️ DEPRECATED: This script is no longer the canonical Phase 2 entrypoint.
+
+Use autopack_phase2_runner.py instead, which:
+- Calls the Autopack FastAPI service (correct architecture)
+- Auto-starts the service if needed
+- Supports --non-interactive mode
+- Doesn't require pre-written task scripts
+
+This orchestrator was designed to run per-task Python scripts
+(phase2_task1_test_fixes.py, etc.) which don't exist and shouldn't
+be manually created. The correct approach is to delegate to Autopack
+via its API, not via local task scripts.
+
+For Phase 2 execution, use:
+  python scripts/autopack_phase2_runner.py --non-interactive
 """
 
 import os

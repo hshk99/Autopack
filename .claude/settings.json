@@ -28,6 +28,7 @@
       "Bash(pip install:*)",
       "Bash(npm install:*)",
       "Bash(npm run:*)",
+      "Bash(uvicorn:*)",
       "Bash(docker-compose:*)",
       "Bash(docker:*)",
       "Bash(curl:*)",

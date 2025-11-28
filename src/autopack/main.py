@@ -466,11 +466,15 @@ def submit_builder_result(
         strategy_engine = StrategyEngine(project_id="Autopack")
         # For now, always apply (full strategy integration in next step)
         apply_path = GovernedApplyPath(run_id=run_id)
-        success, commit_sha = apply_path.apply_patch(
-            patch_content=builder_result.patch_content,
-            phase_id=phase_id,
-            commit_message=f"[Builder] {phase_id}: {builder_result.notes}",
-        )
+        try:
+            success, commit_sha = apply_path.apply_patch(
+                patch_content=builder_result.patch_content,
+                phase_id=phase_id,
+                commit_message=f"[Builder] {phase_id}: {builder_result.notes}",
+            )
+        except Exception as e:
+            logger.error(f"Patch application failed: {e}", exc_info=True)
+            raise HTTPException(status_code=500, detail=f"Failed to apply patch: {str(e)}")
 
         if not success:
             raise HTTPException(status_code=500, detail="Failed to apply patch")
@@ -483,7 +487,12 @@ def submit_builder_result(
     else:
         phase.state = models.PhaseState.FAILED
 
-    db.commit()
+    try:
+        db.commit()
+    except Exception as e:
+        logger.error(f"Database commit failed: {e}", exc_info=True)
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Database error during commit: {str(e)}")
 
     return {
         "message": f"Builder result processed for phase {phase_id}",

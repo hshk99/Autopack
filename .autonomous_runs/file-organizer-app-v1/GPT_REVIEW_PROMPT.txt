@@ -1,0 +1,46 @@
+# GPT-4o Review Prompt for Autopack Run Analysis
+
+## Review the attached AUTOPACK_RUN_ANALYSIS_FOR_GPT_REVIEW.md and answer these 7 questions:
+
+1. **Did all phases complete successfully?** (1/9 phases COMPLETE, 0 tokens used - what does this mean?)
+
+2. **Token usage efficiency?** (Expected ~135k tokens, Actual 0 tokens - can efficiency be evaluated?)
+
+3. **Is Autopack behaving as expected?** (Expected: Build→Review→Gate→Apply. Actual: Crashed before any work)
+
+4. **Areas of concern?** Rank by severity:
+   - Incomplete end-to-end testing (pipeline untested)
+   - Zero tokens despite completion claims
+   - Phase state management (stuck in EXECUTING)
+   - No CI/CD integration
+
+5. **Settings improvements for token efficiency?**
+   - Should context engineering be implemented (selective file loading)?
+   - Token budget warnings needed?
+   - Per-phase token limits?
+   - Model selection based on complexity?
+
+6. **CI flow and main branch merge strategy?**
+   - When should CI tests run? (per phase? per tier? end of run?)
+   - When should auto-merge occur? (never? per phase? end of run?)
+   - What conditions for auto-merge? (tests pass? zero issues? human approval?)
+   - Branch management strategy?
+
+7. **Troubleshooting efficiency improvements?**
+   - Error detection/recovery mechanisms?
+   - Debugging tools needed?
+   - Observability/monitoring?
+
+## Deliverable Format:
+1. Executive Summary (key findings, critical issues, readiness assessment)
+2. Detailed answers to all 7 questions
+3. Prioritized Action Plan (Immediate/Short-term/Medium-term/Long-term)
+4. Token efficiency recommendations with estimated savings
+5. CI/CD integration blueprint (flow diagram + merge strategy)
+6. Risk assessment  
+7. Success criteria for next run
+
+## Reference:
+- Analysis file: AUTOPACK_RUN_ANALYSIS_FOR_GPT_REVIEW.md (same directory)
+- Run: fileorg-phase2-beta
+- Status: INCOMPLETE (0/8 phases autonomously executed, 0 tokens used, Unicode error halted execution)

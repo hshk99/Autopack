@@ -20,6 +20,7 @@ except ImportError:
     Anthropic = None
 
 from .llm_client import BuilderResult, AuditorResult
+from .journal_reader import get_prevention_prompt_injection
 
 
 class AnthropicBuilderClient:
@@ -179,7 +180,7 @@ class AnthropicBuilderClient:
 
     def _build_system_prompt(self) -> str:
         """Build system prompt for Claude Builder"""
-        return """You are an expert software engineer working on an autonomous build system.
+        base_prompt = """You are an expert software engineer working on an autonomous build system.
 
 Your task is to generate code changes (patches) based on phase specifications.
 
@@ -203,6 +204,17 @@ Requirements:
 - Follow best practices (type hints, docstrings, tests)
 - Apply learned rules from project history
 - Output ONLY the raw git diff format patch (no JSON, no markdown fences, no explanations)"""
+
+        # Inject prevention rules from debug journal
+        try:
+            prevention_rules = get_prevention_prompt_injection()
+            if prevention_rules:
+                base_prompt += "\n\n" + prevention_rules
+        except Exception:
+            # Gracefully continue if prevention rules can't be loaded
+            pass
+
+        return base_prompt
 
     def _build_user_prompt(
         self,
@@ -371,7 +383,7 @@ class AnthropicAuditorClient:
 
     def _build_system_prompt(self) -> str:
         """Build system prompt for Claude Auditor"""
-        return """You are an expert code reviewer for an autonomous build system.
+        base_prompt = """You are an expert code reviewer for an autonomous build system.
 
 Your task is to review code patches for:
 - Security vulnerabilities (OWASP Top 10)
@@ -398,6 +410,17 @@ Output Format (JSON):
 Approval Criteria:
 - REJECT if any critical or major issues
 - APPROVE if only minor issues or no issues"""
+
+        # Inject prevention rules from debug journal
+        try:
+            prevention_rules = get_prevention_prompt_injection()
+            if prevention_rules:
+                base_prompt += "\n\n" + prevention_rules
+        except Exception:
+            # Gracefully continue if prevention rules can't be loaded
+            pass
+
+        return base_prompt
 
     def _build_user_prompt(
         self,

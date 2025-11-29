@@ -140,6 +140,65 @@ class AutonomousExecutor:
         logger.info(f"API URL: {api_url}")
         logger.info(f"Workspace: {workspace}")
 
+        # Phase 1.4-1.5: Run proactive startup checks (from DEBUG_JOURNAL.md)
+        self._run_startup_checks()
+
+    def _run_startup_checks(self):
+        """
+        Phase 1.4-1.5: Run proactive startup checks from DEBUG_JOURNAL.md
+
+        This implements the prevention system from ref5.md by applying
+        learned fixes BEFORE errors occur (proactive vs reactive).
+        """
+        from autopack.journal_reader import get_startup_checks
+
+        logger.info("Running proactive startup checks from DEBUG_JOURNAL.md...")
+
+        try:
+            checks = get_startup_checks()
+
+            for check_config in checks:
+                check_name = check_config.get("name")
+                check_fn = check_config.get("check")
+                fix_fn = check_config.get("fix")
+                priority = check_config.get("priority", "MEDIUM")
+                reason = check_config.get("reason", "")
+
+                # Skip placeholder checks (implemented elsewhere)
+                if check_fn == "implemented_in_executor":
+                    continue
+
+                logger.info(f"[{priority}] Checking: {check_name}")
+                logger.info(f"  Reason: {reason}")
+
+                try:
+                    # Run the check
+                    if callable(check_fn):
+                        passed = check_fn()
+                    else:
+                        # Skip non-callable checks
+                        continue
+
+                    if not passed:
+                        logger.warning(f"  Check FAILED - applying proactive fix...")
+                        if callable(fix_fn):
+                            fix_fn()
+                            logger.info(f"  Fix applied successfully")
+                        else:
+                            logger.warning(f"  No fix function available")
+                    else:
+                        logger.info(f"  Check PASSED")
+
+                except Exception as e:
+                    logger.warning(f"  Startup check failed with error: {e}")
+                    # Continue with other checks even if one fails
+
+        except Exception as e:
+            # Gracefully continue if startup checks system fails
+            logger.warning(f"Startup checks system unavailable: {e}")
+
+        logger.info("Startup checks complete")
+
     def _init_infrastructure(self):
         """Initialize LlmService, Builder, Auditor, and Quality Gate with error recovery"""
         def _do_init():
@@ -220,6 +279,77 @@ class AutonomousExecutor:
             operation_name="Fetch run status from API",
             max_retries=3
         )
+
+    def _detect_and_reset_stale_phases(self, run_data: Dict):
+        """
+        Phase 1.6-1.7: Detect and auto-reset stale EXECUTING phases
+
+        Identifies phases stuck in EXECUTING state for >10 minutes
+        and automatically resets them to QUEUED for retry.
+
+        This prevents the system from getting permanently stuck on
+        failed infrastructure issues (network timeouts, API errors, etc.)
+        """
+        from datetime import datetime, timedelta
+        import requests
+
+        tiers = run_data.get("tiers", [])
+        stale_threshold = timedelta(minutes=10)
+        now = datetime.now()
+
+        for tier in tiers:
+            phases = tier.get("phases", [])
+
+            for phase in phases:
+                if phase.get("state") != "EXECUTING":
+                    continue
+
+                phase_id = phase.get("phase_id")
+
+                # Check if phase has a last_updated timestamp
+                last_updated_str = phase.get("updated_at") or phase.get("last_updated")
+
+                if not last_updated_str:
+                    logger.warning(f"[{phase_id}] EXECUTING phase has no timestamp - cannot detect staleness")
+                    continue
+
+                try:
+                    # Parse timestamp (assuming ISO format)
+                    last_updated = datetime.fromisoformat(last_updated_str.replace('Z', '+00:00'))
+
+                    # Make timezone-naive for comparison (assuming UTC)
+                    if last_updated.tzinfo:
+                        last_updated = last_updated.replace(tzinfo=None)
+
+                    time_stale = now - last_updated
+
+                    if time_stale > stale_threshold:
+                        logger.warning(f"[{phase_id}] STALE PHASE DETECTED")
+                        logger.warning(f"  State: EXECUTING")
+                        logger.warning(f"  Last Updated: {last_updated_str}")
+                        logger.warning(f"  Time Stale: {time_stale.total_seconds():.0f} seconds")
+                        logger.warning(f"  Auto-resetting to QUEUED...")
+
+                        # Phase 1.7: Auto-reset EXECUTING → QUEUED
+                        try:
+                            self._update_phase_status(phase_id, "QUEUED")
+                            logger.info(f"[{phase_id}] Successfully reset to QUEUED")
+
+                            # Log to DEBUG_JOURNAL.md for tracking
+                            from autopack.debug_journal import log_fix
+                            log_fix(
+                                error_signature=f"Stale Phase Auto-Reset: {phase_id}",
+                                fix_description=f"Automatically reset phase from EXECUTING to QUEUED after {time_stale.total_seconds():.0f}s of inactivity",
+                                files_changed=["autonomous_executor.py"],
+                                test_run_id=self.run_id,
+                                result="success"
+                            )
+
+                        except Exception as e:
+                            logger.error(f"[{phase_id}] Failed to reset stale phase: {e}")
+
+                except Exception as e:
+                    logger.warning(f"[{phase_id}] Failed to parse timestamp '{last_updated_str}': {e}")
 
     def get_next_queued_phase(self, run_data: Dict) -> Optional[Dict]:
         """Find next QUEUED phase in tier/index order
@@ -606,6 +736,13 @@ class AutonomousExecutor:
                 logger.info(f"Waiting {poll_interval}s before retry...")
                 time.sleep(poll_interval)
                 continue
+
+            # Phase 1.6-1.7: Detect and reset stale EXECUTING phases
+            try:
+                self._detect_and_reset_stale_phases(run_data)
+            except Exception as e:
+                logger.warning(f"Stale phase detection failed: {e}")
+                # Continue even if stale detection fails
 
             # Get next queued phase
             next_phase = self.get_next_queued_phase(run_data)

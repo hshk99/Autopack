@@ -25,6 +25,8 @@ from typing import Optional, Callable, Any, Dict, List
 from enum import Enum
 from dataclasses import dataclass
 
+from .debug_journal import log_error, log_fix
+
 
 logger = logging.getLogger(__name__)
 
@@ -130,6 +132,22 @@ class ErrorRecoverySystem:
         )
 
         self.error_history.append(ctx)
+
+        # Log to debug journal if severity is not TRANSIENT
+        if severity != ErrorSeverity.TRANSIENT:
+            try:
+                log_error(
+                    error_signature=f"{category.value}: {error_type}",
+                    symptom=error_message,
+                    run_id=context_data.get("run_id") if context_data else None,
+                    phase_id=context_data.get("phase_id") if context_data else None,
+                    suspected_cause=f"Classified as {severity.value} {category.value} error",
+                    priority="HIGH" if severity == ErrorSeverity.FATAL else "MEDIUM"
+                )
+            except Exception as journal_error:
+                # Don't fail error recovery if journal logging fails
+                logger.warning(f"Failed to log error to debug journal: {journal_error}")
+
         return ctx
 
     def _determine_category_severity(
@@ -180,15 +198,32 @@ class ErrorRecoverySystem:
         """
         logger.info(f"[Recovery] Attempting self-healing for {error_ctx.category.value} error")
 
+        success = False
         if error_ctx.category == ErrorCategory.ENCODING:
-            return self._fix_encoding_error(error_ctx)
+            success = self._fix_encoding_error(error_ctx)
         elif error_ctx.category == ErrorCategory.NETWORK:
-            return self._fix_network_error(error_ctx)
+            success = self._fix_network_error(error_ctx)
         elif error_ctx.category == ErrorCategory.FILE_IO:
-            return self._fix_file_io_error(error_ctx)
+            success = self._fix_file_io_error(error_ctx)
         else:
             logger.warning(f"[Recovery] No automatic fix available for {error_ctx.category.value}")
             return False
+
+        # Log successful self-healing to debug journal
+        if success:
+            try:
+                log_fix(
+                    error_signature=f"{error_ctx.category.value}: {error_ctx.error_type}",
+                    fix_description=f"Automatic self-healing applied for {error_ctx.category.value} error",
+                    files_changed=[],  # Self-healing typically doesn't change files
+                    test_run_id=error_ctx.context_data.get("run_id") if error_ctx.context_data else None,
+                    result="success"
+                )
+            except Exception as journal_error:
+                # Don't fail recovery if journal logging fails
+                logger.warning(f"Failed to log fix to debug journal: {journal_error}")
+
+        return success
 
     def _fix_encoding_error(self, error_ctx: ErrorContext) -> bool:
         """Fix Unicode encoding errors"""

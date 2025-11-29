@@ -16,9 +16,18 @@ from sqlalchemy.orm import Session
 from .config_loader import get_config
 from .llm_client import AuditorResult, BuilderResult
 from .model_router import ModelRouter
-from .openai_clients import OpenAIAuditorClient, OpenAIBuilderClient
 from .quality_gate import QualityGate, integrate_with_auditor
 from .usage_recorder import LlmUsageEvent
+
+# Import OpenAI clients with graceful fallback
+try:
+    from .openai_clients import OpenAIAuditorClient, OpenAIBuilderClient
+    OPENAI_AVAILABLE = True
+except (ImportError, Exception) as e:
+    # Catch both ImportError and OpenAIError (API key missing during init)
+    OPENAI_AVAILABLE = False
+    OpenAIAuditorClient = None
+    OpenAIBuilderClient = None
 
 # Import Anthropic clients with graceful fallback
 try:
@@ -55,9 +64,13 @@ class LlmService:
         self.db = db
         self.model_router = ModelRouter(db, config_path)
 
-        # Initialize OpenAI clients (always available)
-        self.openai_builder = OpenAIBuilderClient()
-        self.openai_auditor = OpenAIAuditorClient()
+        # Initialize OpenAI clients if available
+        if OPENAI_AVAILABLE:
+            self.openai_builder = OpenAIBuilderClient()
+            self.openai_auditor = OpenAIAuditorClient()
+        else:
+            self.openai_builder = None
+            self.openai_auditor = None
 
         # Initialize Anthropic clients if available
         if ANTHROPIC_AVAILABLE:
@@ -78,19 +91,39 @@ class LlmService:
         """Select appropriate builder client based on model name"""
         if "claude" in model.lower():
             if self.anthropic_builder is None:
-                print(f"Warning: Claude model {model} selected but Anthropic not available. Falling back to OpenAI.")
-                return self.openai_builder
+                if self.openai_builder is not None:
+                    print(f"Warning: Claude model {model} selected but Anthropic not available. Falling back to OpenAI.")
+                    return self.openai_builder
+                else:
+                    raise RuntimeError(f"Claude model {model} selected but neither Anthropic nor OpenAI clients are available")
             return self.anthropic_builder
-        return self.openai_builder
+        else:
+            if self.openai_builder is None:
+                if self.anthropic_builder is not None:
+                    print(f"Warning: OpenAI model {model} selected but OpenAI not available. Falling back to Anthropic.")
+                    return self.anthropic_builder
+                else:
+                    raise RuntimeError(f"OpenAI model {model} selected but neither OpenAI nor Anthropic clients are available")
+            return self.openai_builder
 
     def _get_auditor_client(self, model: str):
         """Select appropriate auditor client based on model name"""
         if "claude" in model.lower():
             if self.anthropic_auditor is None:
-                print(f"Warning: Claude model {model} selected but Anthropic not available. Falling back to OpenAI.")
-                return self.openai_auditor
+                if self.openai_auditor is not None:
+                    print(f"Warning: Claude model {model} selected but Anthropic not available. Falling back to OpenAI.")
+                    return self.openai_auditor
+                else:
+                    raise RuntimeError(f"Claude model {model} selected but neither Anthropic nor OpenAI clients are available")
             return self.anthropic_auditor
-        return self.openai_auditor
+        else:
+            if self.openai_auditor is None:
+                if self.anthropic_auditor is not None:
+                    print(f"Warning: OpenAI model {model} selected but OpenAI not available. Falling back to Anthropic.")
+                    return self.anthropic_auditor
+                else:
+                    raise RuntimeError(f"OpenAI model {model} selected but neither OpenAI nor Anthropic clients are available")
+            return self.openai_auditor
 
     def execute_builder_phase(
         self,

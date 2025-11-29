@@ -30,6 +30,8 @@ from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
 import requests
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
 
 from autopack.openai_clients import OpenAIBuilderClient, OpenAIAuditorClient
 from autopack.anthropic_clients import AnthropicBuilderClient, AnthropicAuditorClient
@@ -37,6 +39,8 @@ from autopack.dual_auditor import DualAuditor
 from autopack.quality_gate import QualityGate
 from autopack.llm_client import BuilderResult, AuditorResult
 from autopack.error_recovery import ErrorRecoverySystem, get_error_recovery, safe_execute
+from autopack.llm_service import LlmService
+from autopack.debug_journal import log_error, log_fix, mark_resolved
 
 
 # Configure logging
@@ -108,7 +112,26 @@ class AutonomousExecutor:
         logger.info("Applying pre-emptive encoding fix...")
         self.error_recovery._fix_encoding_error(dummy_ctx)
 
-        # Initialize clients (will be set in _init_infrastructure)
+        # Initialize database for usage tracking
+        db_url = os.getenv("AUTOPACK_DB_URL", "sqlite:///autopack.db")
+        engine = create_engine(db_url)
+        Session = sessionmaker(bind=engine)
+        self.db_session = Session()
+
+        # Initialize database tables (creates llm_usage_events table)
+        # Import Base and models to register them with metadata
+        from autopack.database import Base
+        from autopack import models  # noqa: F401
+        from autopack.usage_recorder import LlmUsageEvent  # noqa: F401
+
+        # Create all tables using the same engine as the session
+        Base.metadata.create_all(bind=engine)
+        logger.info("Database tables initialized")
+
+        # Initialize LlmService (replaces direct client instantiation)
+        self.llm_service = None  # Will be set in _init_infrastructure
+
+        # Initialize clients (will be set in _init_infrastructure for backward compatibility)
         self.builder = None
         self.auditor = None
         self.quality_gate = None
@@ -118,19 +141,32 @@ class AutonomousExecutor:
         logger.info(f"Workspace: {workspace}")
 
     def _init_infrastructure(self):
-        """Initialize Builder, Auditor, and Quality Gate clients with error recovery"""
+        """Initialize LlmService, Builder, Auditor, and Quality Gate with error recovery"""
         def _do_init():
             logger.info("Initializing infrastructure...")
 
-            # Initialize Builder (prefer OpenAI if available)
-            if self.openai_key:
-                self.builder = OpenAIBuilderClient(api_key=self.openai_key)
-                logger.info("Builder: OpenAI (GPT-4o)")
-            elif self.anthropic_key:
+            # Initialize LlmService (handles model routing, usage tracking, quality gate)
+            self.llm_service = LlmService(
+                db=self.db_session,
+                config_path="config/models.yaml",
+                repo_root=self.workspace
+            )
+            logger.info("LlmService: Initialized with ModelRouter and UsageRecorder")
+
+            # DEPRECATED: Direct client instantiation for backward compatibility
+            # TODO: Remove these once all code uses LlmService.execute_builder_phase/execute_auditor_review
+            # NOTE: These are only needed for legacy code paths. LlmService handles all model routing.
+            # Initialize Builder (prefer Anthropic Claude if available, fallback to OpenAI)
+            if self.anthropic_key:
                 self.builder = AnthropicBuilderClient(api_key=self.anthropic_key)
-                logger.info("Builder: Anthropic (Claude)")
+                logger.info("[DEPRECATED] Builder: Anthropic (Claude Sonnet 4.5) - Use LlmService instead")
+            elif self.openai_key:
+                self.builder = OpenAIBuilderClient(api_key=self.openai_key)
+                logger.info("[DEPRECATED] Builder: OpenAI (GPT-4o) - Use LlmService instead")
             else:
-                raise ValueError("No builder client available")
+                # No API keys available - this will fail but with a clear message
+                logger.warning("[DEPRECATED] No API keys available for Builder backward compatibility layer")
+                self.builder = None
 
             # Initialize Auditor (dual or single)
             if self.use_dual_auditor and self.openai_key and self.anthropic_key:
@@ -140,15 +176,17 @@ class AutonomousExecutor:
                     primary_auditor=primary_auditor,
                     secondary_auditor=secondary_auditor
                 )
-                logger.info("Auditor: Dual (OpenAI + Anthropic)")
-            elif self.openai_key:
-                self.auditor = OpenAIAuditorClient(api_key=self.openai_key)
-                logger.info("Auditor: OpenAI (GPT-4o)")
+                logger.info("[DEPRECATED] Auditor: Dual (OpenAI + Anthropic) - Use LlmService instead")
             elif self.anthropic_key:
                 self.auditor = AnthropicAuditorClient(api_key=self.anthropic_key)
-                logger.info("Auditor: Anthropic (Claude)")
+                logger.info("[DEPRECATED] Auditor: Anthropic (Claude) - Use LlmService instead")
+            elif self.openai_key:
+                self.auditor = OpenAIAuditorClient(api_key=self.openai_key)
+                logger.info("[DEPRECATED] Auditor: OpenAI (GPT-4o) - Use LlmService instead")
             else:
-                raise ValueError("No auditor client available")
+                # No API keys available - this will fail but with a clear message
+                logger.warning("[DEPRECATED] No API keys available for Auditor backward compatibility layer")
+                self.auditor = None
 
             # Initialize Quality Gate
             self.quality_gate = QualityGate(repo_root=self.workspace)
@@ -234,6 +272,17 @@ class AutonomousExecutor:
             )
         except Exception as e:
             logger.error(f"[{phase_id}] Phase execution failed permanently: {e}")
+
+            # Log to debug journal for persistent tracking
+            log_error(
+                error_signature=f"Phase {phase_id} execution failure",
+                symptom=f"{type(e).__name__}: {str(e)}",
+                run_id=self.run_id,
+                phase_id=phase_id,
+                suspected_cause="Unhandled exception in phase execution pipeline",
+                priority="HIGH"
+            )
+
             self._update_phase_status(phase_id, "FAILED")
             return False, "FAILED"
 
@@ -242,11 +291,23 @@ class AutonomousExecutor:
         phase_id = phase.get("phase_id")
 
         try:
-            # Step 1: Execute with Builder
-            logger.info(f"[{phase_id}] Step 1/4: Generating code with Builder...")
-            builder_result = self.builder.execute_phase(
+            # Step 1: Execute with Builder using LlmService
+            logger.info(f"[{phase_id}] Step 1/4: Generating code with Builder (via LlmService)...")
+
+            # Load repository context for Builder
+            file_context = self._load_repository_context(phase)
+            logger.info(f"[{phase_id}] Loaded {len(file_context.get('existing_files', {}))} files for context")
+
+            # Use LlmService for complexity-based model selection and usage tracking
+            builder_result = self.llm_service.execute_builder_phase(
                 phase_spec=phase,
-                file_context=None,  # TODO: Use ContextSelector for JIT file loading
+                file_context=file_context,
+                max_tokens=None,  # Let ModelRouter decide based on phase config
+                project_rules=[],  # TODO: Load from .autopack/learned_rules.yaml
+                run_hints=[],  # TODO: Collect within-run hints
+                run_id=self.run_id,
+                phase_id=phase_id,
+                run_context={},  # TODO: Pass model_overrides if specified in run config
             )
 
             if not builder_result.success:
@@ -260,11 +321,21 @@ class AutonomousExecutor:
             # Post builder result to API
             self._post_builder_result(phase_id, builder_result)
 
-            # Step 2: Review with Auditor
-            logger.info(f"[{phase_id}] Step 2/4: Reviewing patch with Auditor...")
-            auditor_result = self.auditor.review_patch(
+            # Step 2: Review with Auditor using LlmService
+            logger.info(f"[{phase_id}] Step 2/4: Reviewing patch with Auditor (via LlmService)...")
+
+            # Use LlmService for complexity-based model selection, usage tracking, and quality gate
+            auditor_result = self.llm_service.execute_auditor_review(
                 patch_content=builder_result.patch_content,
                 phase_spec=phase,
+                max_tokens=None,  # Let ModelRouter decide
+                project_rules=[],  # TODO: Load from .autopack/learned_rules.yaml
+                run_hints=[],  # TODO: Collect within-run hints
+                run_id=self.run_id,
+                phase_id=phase_id,
+                run_context={},  # TODO: Pass model_overrides if specified
+                ci_result={},  # TODO: Run pytest/mypy and get actual CI result
+                coverage_delta=0.0,  # TODO: Calculate actual coverage delta
             )
 
             logger.info(f"[{phase_id}] Auditor completed: approved={auditor_result.approved}, "
@@ -300,8 +371,20 @@ class AutonomousExecutor:
 
             # Step 4: Apply patch (if not blocked)
             logger.info(f"[{phase_id}] Step 4/4: Applying patch...")
-            # TODO: Integrate with governed_apply for safe patching
-            logger.info(f"[{phase_id}] Patch applied successfully (TODO: actual patching)")
+
+            # Import and use GovernedApplyPath for actual patch application
+            from pathlib import Path
+            from autopack.governed_apply import GovernedApplyPath
+
+            governed_apply = GovernedApplyPath(workspace=Path(self.workspace))
+            patch_success, error_msg = governed_apply.apply_patch(builder_result.patch_content)
+
+            if not patch_success:
+                logger.error(f"[{phase_id}] Failed to apply patch to filesystem: {error_msg}")
+                self._update_phase_status(phase_id, "FAILED")
+                return False, "PATCH_FAILED"
+
+            logger.info(f"[{phase_id}] Patch applied successfully to filesystem")
 
             # Update phase status to COMPLETE
             self._update_phase_status(phase_id, "COMPLETE")
@@ -313,6 +396,77 @@ class AutonomousExecutor:
             logger.error(f"[{phase_id}] Execution failed: {e}")
             self._update_phase_status(phase_id, "FAILED")
             return False, "FAILED"
+
+    def _load_repository_context(self, phase: Dict) -> Dict:
+        """Load repository files for Claude Builder context
+
+        Simple heuristic-based file loading:
+        - Load key configuration files (package.json, setup.py, etc.)
+        - Load Python files from src/backend directories
+        - Load recently changed files
+        - Limit total file count to avoid context bloat
+
+        Args:
+            phase: Phase specification
+
+        Returns:
+            Dict with 'files' key containing list of {path, content} dicts
+        """
+        workspace = Path(self.workspace)
+        files_to_load = []
+        max_files = 30  # Limit context size
+
+        # Priority 1: Key config files (always include if they exist)
+        priority_files = [
+            "package.json",
+            "setup.py",
+            "requirements.txt",
+            "pyproject.toml",
+            "README.md",
+            ".gitignore"
+        ]
+
+        for filename in priority_files:
+            filepath = workspace / filename
+            if filepath.exists() and filepath.is_file():
+                try:
+                    content = filepath.read_text(encoding='utf-8', errors='ignore')
+                    files_to_load.append({
+                        "path": str(filepath.relative_to(workspace)),
+                        "content": content[:10000]  # Limit file size
+                    })
+                except Exception as e:
+                    logger.warning(f"Failed to read {filepath}: {e}")
+
+        # Priority 2: Source files from common directories
+        source_dirs = ["src", "backend", "app", "lib"]
+        for source_dir in source_dirs:
+            dir_path = workspace / source_dir
+            if not dir_path.exists():
+                continue
+
+            # Load Python files
+            for py_file in dir_path.rglob("*.py"):
+                if len(files_to_load) >= max_files:
+                    break
+                if py_file.is_file() and "__pycache__" not in str(py_file):
+                    try:
+                        content = py_file.read_text(encoding='utf-8', errors='ignore')
+                        files_to_load.append({
+                            "path": str(py_file.relative_to(workspace)),
+                            "content": content[:10000]
+                        })
+                    except Exception as e:
+                        logger.warning(f"Failed to read {py_file}: {e}")
+
+        logger.debug(f"Loaded {len(files_to_load)} repository files for context")
+
+        # Transform to OpenAI Builder format: {"existing_files": {path: content}}
+        existing_files = {}
+        for file_dict in files_to_load:
+            existing_files[file_dict["path"]] = file_dict["content"]
+
+        return {"existing_files": existing_files}
 
     def _post_builder_result(self, phase_id: str, result: BuilderResult):
         """POST builder result to Autopack API
@@ -327,13 +481,20 @@ class AutonomousExecutor:
             headers["Authorization"] = f"Bearer {self.api_key}"
 
         # Map llm_client.BuilderResult to builder_schemas.BuilderResult
+        # Parse patch statistics using GovernedApplyPath
+        from pathlib import Path
+        from autopack.governed_apply import GovernedApplyPath
+
+        governed_apply = GovernedApplyPath(workspace=Path(self.workspace))
+        files_changed, lines_added, lines_removed = governed_apply.parse_patch_stats(result.patch_content or "")
+
         payload = {
             "phase_id": phase_id,
             "run_id": self.run_id,
             "patch_content": result.patch_content,
-            "files_changed": [],  # TODO: Parse from patch_content
-            "lines_added": 0,  # TODO: Calculate from patch
-            "lines_removed": 0,  # TODO: Calculate from patch
+            "files_changed": files_changed,
+            "lines_added": lines_added,
+            "lines_removed": lines_removed,
             "builder_attempts": 1,
             "tokens_used": result.tokens_used,
             "duration_minutes": 0.0,  # TODO: Track actual duration

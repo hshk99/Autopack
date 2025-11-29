@@ -106,6 +106,7 @@ FILEORGANIZER_RULES = {
             "MASTER_BUILD_PLAN_FILEORGANIZER.md",
             "IMPLEMENTATION_KICKOFF_FILEORGANIZER.md",
             "CURSOR_REVISION_CHECKLIST.md",
+            "WHATS_LEFT_TO_BUILD.md",
         ],
         "patterns": [],
     },
@@ -257,7 +258,7 @@ class DocumentationOrganizer:
 
         exclude_dirs = {
             ".git", "node_modules", ".pytest_cache", "__pycache__",
-            ".claude", "prompts", "integrations", "tests"
+            ".claude", "prompts", "integrations", "tests", "venv", "fileorganizer"
         }
 
         if not is_fileorganizer:

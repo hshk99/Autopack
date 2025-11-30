@@ -67,6 +67,43 @@ def mark_resolved(
         project_slug=project_slug
     )
 
+
+def log_escalation(
+    error_category: str,
+    error_count: int,
+    threshold: int,
+    reason: str,
+    run_id: Optional[str] = None,
+    phase_id: Optional[str] = None,
+    project_slug: str = "file-organizer-app-v1"
+):
+    """
+    Log an escalation event when error threshold is exceeded.
+
+    This indicates the self-troubleshoot system has determined manual
+    intervention is needed.
+    """
+    consolidator = get_consolidator(project_slug)
+    escalation_signature = f"ESCALATION: {error_category} ({error_count}/{threshold})"
+
+    # Log as a high-priority error that requires human attention
+    consolidator.log_error_event(
+        error_signature=escalation_signature,
+        symptom=f"Self-troubleshoot escalation: {reason}",
+        run_id=run_id,
+        phase_id=phase_id,
+        suspected_cause=f"Error '{error_category}' occurred {error_count} times (threshold: {threshold})",
+        priority="CRITICAL"
+    )
+
+    # Also log to standard logger for immediate visibility
+    import logging
+    logger = logging.getLogger(__name__)
+    logger.critical(
+        f"[ESCALATION] {error_category} - {reason} "
+        f"(occurred {error_count} times, threshold: {threshold})"
+    )
+
 class DebugJournal:
     """Legacy DebugJournal class - wrapper around ArchiveConsolidator"""
     

@@ -21,11 +21,11 @@ import logging
 import time
 import traceback
 import sys
-from typing import Optional, Callable, Any, Dict, List
+from typing import Optional, Callable, Any, Dict, List, Set
 from enum import Enum
 from dataclasses import dataclass
 
-from .debug_journal import log_error, log_fix
+from .debug_journal import log_error, log_fix, log_escalation
 
 
 logger = logging.getLogger(__name__)
@@ -96,12 +96,114 @@ class ErrorRecoverySystem:
 
         # Attempt self-healing
         fixed = recovery.attempt_self_healing(error_ctx)
+
+    Self-Troubleshoot Enhancement:
+        - Tracks error counts by category within a run
+        - Escalates to human when threshold exceeded (default: 3 same errors)
+        - Logs escalations to debug journal for visibility
     """
+
+    # Escalation thresholds - if same error type occurs this many times, escalate
+    ESCALATION_THRESHOLD = 3
+    ESCALATION_THRESHOLD_FATAL = 1  # Fatal errors escalate immediately
 
     def __init__(self):
         """Initialize error recovery system"""
         self.error_history: List[ErrorContext] = []
         self.encoding_fixed = False  # Track if encoding was already fixed
+        self._error_counts_by_category: Dict[str, int] = {}  # category -> count
+        self._error_counts_by_signature: Dict[str, int] = {}  # signature -> count
+        self._escalated_errors: set = set()  # Track which errors have been escalated
+        self._escalation_callback: Optional[Callable[[str, str], None]] = None
+
+    def set_escalation_callback(self, callback: Callable[[str, str], None]):
+        """
+        Set a callback to be invoked when errors are escalated.
+
+        Args:
+            callback: Function(error_category, reason) called on escalation
+        """
+        self._escalation_callback = callback
+
+    def _check_and_escalate(
+        self,
+        error_ctx: ErrorContext,
+        context_data: Dict = None
+    ) -> bool:
+        """
+        Check if error should be escalated based on threshold.
+
+        Returns True if error was escalated (meaning we should stop retrying).
+        """
+        error_signature = f"{error_ctx.category.value}:{error_ctx.error_type}"
+        category_key = error_ctx.category.value
+
+        # Increment counters
+        self._error_counts_by_signature[error_signature] = \
+            self._error_counts_by_signature.get(error_signature, 0) + 1
+        self._error_counts_by_category[category_key] = \
+            self._error_counts_by_category.get(category_key, 0) + 1
+
+        count = self._error_counts_by_signature[error_signature]
+
+        # Determine threshold based on severity
+        threshold = (
+            self.ESCALATION_THRESHOLD_FATAL
+            if error_ctx.severity == ErrorSeverity.FATAL
+            else self.ESCALATION_THRESHOLD
+        )
+
+        # Check if we should escalate
+        if count >= threshold and error_signature not in self._escalated_errors:
+            self._escalated_errors.add(error_signature)
+
+            reason = (
+                f"Error '{error_ctx.error_type}' in category '{category_key}' "
+                f"occurred {count} times - manual intervention required"
+            )
+
+            logger.critical(f"[Escalation] {reason}")
+
+            # Log to debug journal
+            try:
+                log_escalation(
+                    error_category=category_key,
+                    error_count=count,
+                    threshold=threshold,
+                    reason=reason,
+                    run_id=context_data.get("run_id") if context_data else None,
+                    phase_id=context_data.get("phase_id") if context_data else None
+                )
+            except Exception as e:
+                logger.warning(f"Failed to log escalation: {e}")
+
+            # Call escalation callback if set
+            if self._escalation_callback:
+                try:
+                    self._escalation_callback(category_key, reason)
+                except Exception as e:
+                    logger.warning(f"Escalation callback failed: {e}")
+
+            return True
+
+        return False
+
+    def get_escalation_status(self) -> Dict[str, Any]:
+        """Get current escalation status for monitoring."""
+        return {
+            "error_counts_by_category": dict(self._error_counts_by_category),
+            "error_counts_by_signature": dict(self._error_counts_by_signature),
+            "escalated_errors": list(self._escalated_errors),
+            "threshold": self.ESCALATION_THRESHOLD,
+            "fatal_threshold": self.ESCALATION_THRESHOLD_FATAL
+        }
+
+    def reset_counts(self):
+        """Reset error counts (typically between runs)."""
+        self._error_counts_by_category.clear()
+        self._error_counts_by_signature.clear()
+        self._escalated_errors.clear()
+        logger.info("[Recovery] Error counts reset")
 
     def classify_error(self, error: Exception, context_data: Dict = None) -> ErrorContext:
         """
@@ -147,6 +249,9 @@ class ErrorRecoverySystem:
             except Exception as journal_error:
                 # Don't fail error recovery if journal logging fails
                 logger.warning(f"Failed to log error to debug journal: {journal_error}")
+
+        # [Self-Troubleshoot] Check escalation threshold
+        self._check_and_escalate(ctx, context_data)
 
         return ctx
 

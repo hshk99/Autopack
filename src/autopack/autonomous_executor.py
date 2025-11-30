@@ -913,6 +913,36 @@ class AutonomousExecutor:
             tests_run = tests_passed + tests_failed + tests_error
             passed = result.returncode == 0
 
+            # [Self-Troubleshoot] Detect suspicious 0/0/0 as potential collection error
+            # If pytest runs but reports 0 tests, something is likely wrong
+            no_tests_detected = (tests_run == 0 and tests_passed == 0 and
+                                tests_failed == 0 and tests_error == 0)
+
+            if no_tests_detected and result.returncode != 0:
+                # Pytest failed but we couldn't parse any test counts
+                # This usually indicates a collection error or import failure
+                logger.warning(f"[{phase_id}] CI detected possible collection error - "
+                             f"pytest failed (code {result.returncode}) but no test counts found")
+                # Mark as failed even if return code was 0, and add specific error
+                passed = False
+                error_msg = "Possible test collection error - no tests were detected"
+
+                # Try to extract actual error from output
+                if "ImportError" in output or "ModuleNotFoundError" in output:
+                    error_msg = "Import error during test collection"
+                elif "SyntaxError" in output:
+                    error_msg = "Syntax error during test collection"
+                elif "no tests ran" in output.lower():
+                    error_msg = "No tests ran - check test discovery configuration"
+
+            elif no_tests_detected and passed:
+                # Pytest "passed" but found no tests - this is suspicious
+                logger.warning(f"[{phase_id}] CI suspicious result - pytest passed but 0 tests detected")
+                # Don't fail, but flag it in the result
+                error_msg = "Warning: pytest reported success but no tests were executed"
+            else:
+                error_msg = None if passed else f"pytest exited with code {result.returncode}"
+
             ci_result = {
                 "passed": passed,
                 "tests_run": tests_run,
@@ -921,8 +951,9 @@ class AutonomousExecutor:
                 "tests_error": tests_error,
                 "duration_seconds": round(duration, 2),
                 "output": output,
-                "error": None if passed else f"pytest exited with code {result.returncode}",
-                "skipped": False
+                "error": error_msg,
+                "skipped": False,
+                "suspicious_zero_tests": no_tests_detected  # New flag for visibility
             }
 
             if passed:

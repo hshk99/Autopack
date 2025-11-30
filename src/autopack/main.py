@@ -301,16 +301,20 @@ def update_phase_status(
 
     phase.updated_at = datetime.utcnow()
 
-    # Update phase summary file
-    file_layout = RunFileLayout(run_id)
-    file_layout.write_phase_summary(
-        phase_index=phase.phase_index,
-        phase_id=phase.phase_id,
-        phase_name=phase.name,
-        state=phase.state.value,
-        task_category=phase.task_category,
-        complexity=phase.complexity,
-    )
+    # Update phase summary file (optional - don't fail if file doesn't exist)
+    try:
+        file_layout = RunFileLayout(run_id)
+        file_layout.write_phase_summary(
+            phase_index=phase.phase_index,
+            phase_id=phase.phase_id,
+            phase_name=phase.name,
+            state=phase.state.value,
+            task_category=phase.task_category,
+            complexity=phase.complexity,
+        )
+    except FileNotFoundError:
+        # Phase summary file doesn't exist yet - this is OK for escalation/force-fail scenarios
+        pass
 
     db.commit()
     db.refresh(phase)

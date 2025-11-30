@@ -1019,32 +1019,53 @@ class AutonomousExecutor:
         except requests.exceptions.RequestException as e:
             logger.warning(f"Failed to update phase {phase_id} status: {e}")
 
-    def _force_mark_phase_failed(self, phase_id: str):
+    def _force_mark_phase_failed(self, phase_id: str) -> bool:
         """
         [Self-Troubleshoot] Force mark a phase as FAILED directly in database.
 
         This bypasses the API when it's returning errors, ensuring we can
         progress past stuck phases.
-        """
-        try:
-            # Try API first
-            self._update_phase_status(phase_id, "FAILED")
-        except Exception:
-            pass  # API might fail, that's why we're here
 
-        # Also update directly in database as fallback
+        Returns:
+            bool: True if successfully updated, False otherwise
+        """
+        # Try direct database update first (more reliable than API)
         try:
             from autopack.models import Phase, PhaseState
+
+            # Expire all cached objects to get fresh data
+            self.db_session.expire_all()
+
             phase = self.db_session.query(Phase).filter(
                 Phase.phase_id == phase_id,
                 Phase.run_id == self.run_id
             ).first()
+
             if phase:
                 phase.state = PhaseState.FAILED
                 self.db_session.commit()
+                # Force flush to ensure write is complete
+                self.db_session.flush()
                 logger.info(f"[Self-Troubleshoot] Force-marked phase {phase_id} as FAILED in database")
+                return True
+            else:
+                logger.warning(f"[Self-Troubleshoot] Phase {phase_id} not found in database")
         except Exception as e:
-            logger.warning(f"Failed to force-mark phase in database: {e}")
+            logger.error(f"[Self-Troubleshoot] Failed to force-mark phase in database: {e}")
+            self.db_session.rollback()
+
+        # Try API as fallback (with retries)
+        for attempt in range(3):
+            try:
+                self._update_phase_status(phase_id, "FAILED")
+                logger.info(f"[Self-Troubleshoot] Force-marked phase {phase_id} as FAILED via API (attempt {attempt + 1})")
+                return True
+            except Exception as e:
+                logger.warning(f"[Self-Troubleshoot] API update attempt {attempt + 1} failed: {e}")
+                time.sleep(1)
+
+        logger.error(f"[Self-Troubleshoot] All attempts to mark phase {phase_id} as FAILED have failed")
+        return False
 
     def run_autonomous_loop(
         self,
@@ -1105,9 +1126,23 @@ class AutonomousExecutor:
 
             # [Self-Troubleshoot] Check if phase was escalated/skipped
             if phase_id in self._skipped_phases:
-                logger.warning(f"[Escalation] Skipping phase {phase_id} - previously escalated due to repeated failures")
+                # Track skip attempts to prevent infinite loops
+                skip_attempts_key = f"_skip_attempts_{phase_id}"
+                skip_attempts = getattr(self, skip_attempts_key, 0) + 1
+                setattr(self, skip_attempts_key, skip_attempts)
+
+                if skip_attempts > 10:
+                    logger.error(f"[FATAL] Phase {phase_id} stuck after 10 skip attempts. Aborting run.")
+                    break
+
+                logger.warning(f"[Escalation] Skipping phase {phase_id} - previously escalated (attempt {skip_attempts})")
                 # Force update phase status to FAILED in database directly
-                self._force_mark_phase_failed(phase_id)
+                if self._force_mark_phase_failed(phase_id):
+                    # Success - wait for database sync
+                    time.sleep(2)
+                else:
+                    logger.error(f"[Escalation] Could not mark {phase_id} as FAILED, waiting 5s before retry")
+                    time.sleep(5)
                 phases_failed += 1
                 continue
 

@@ -7,6 +7,7 @@ This service wraps the OpenAI clients and provides:
 - Quality gate enforcement for high-risk categories
 """
 
+import os
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional
@@ -72,11 +73,19 @@ class LlmService:
             self.openai_builder = None
             self.openai_auditor = None
 
-        # Initialize Anthropic clients if available
-        if ANTHROPIC_AVAILABLE:
-            self.anthropic_builder = AnthropicBuilderClient()
-            self.anthropic_auditor = AnthropicAuditorClient()
+        # Initialize Anthropic clients if available and key is present
+        anthropic_key = os.getenv("ANTHROPIC_API_KEY")
+        if ANTHROPIC_AVAILABLE and anthropic_key:
+            try:
+                self.anthropic_builder = AnthropicBuilderClient()
+                self.anthropic_auditor = AnthropicAuditorClient()
+            except Exception as e:
+                print(f"Warning: Failed to initialize Anthropic clients: {e}")
+                self.anthropic_builder = None
+                self.anthropic_auditor = None
         else:
+            if ANTHROPIC_AVAILABLE and not anthropic_key:
+                print("Warning: Anthropic package available but ANTHROPIC_API_KEY not set. Skipping Anthropic initialization.")
             self.anthropic_builder = None
             self.anthropic_auditor = None
 
@@ -87,43 +96,31 @@ class LlmService:
             repo_root=self.repo_root, config=config._config
         )
 
-    def _get_builder_client(self, model: str):
-        """Select appropriate builder client based on model name"""
-        if "claude" in model.lower():
-            if self.anthropic_builder is None:
-                if self.openai_builder is not None:
-                    print(f"Warning: Claude model {model} selected but Anthropic not available. Falling back to OpenAI.")
-                    return self.openai_builder
-                else:
-                    raise RuntimeError(f"Claude model {model} selected but neither Anthropic nor OpenAI clients are available")
-            return self.anthropic_builder
+    def _resolve_client_and_model(self, role: str, requested_model: str):
+        """Resolve client and fallback model if needed"""
+        if role == "builder":
+            openai_client = self.openai_builder
+            anthropic_client = self.anthropic_builder
         else:
-            if self.openai_builder is None:
-                if self.anthropic_builder is not None:
-                    print(f"Warning: OpenAI model {model} selected but OpenAI not available. Falling back to Anthropic.")
-                    return self.anthropic_builder
-                else:
-                    raise RuntimeError(f"OpenAI model {model} selected but neither OpenAI nor Anthropic clients are available")
-            return self.openai_builder
+            openai_client = self.openai_auditor
+            anthropic_client = self.anthropic_auditor
 
-    def _get_auditor_client(self, model: str):
-        """Select appropriate auditor client based on model name"""
-        if "claude" in model.lower():
-            if self.anthropic_auditor is None:
-                if self.openai_auditor is not None:
-                    print(f"Warning: Claude model {model} selected but Anthropic not available. Falling back to OpenAI.")
-                    return self.openai_auditor
+        if "claude" in requested_model.lower():
+            if anthropic_client is None:
+                if openai_client is not None:
+                    print(f"Warning: Claude model {requested_model} selected but Anthropic not available. Falling back to OpenAI (gpt-4o).")
+                    return openai_client, "gpt-4o"
                 else:
-                    raise RuntimeError(f"Claude model {model} selected but neither Anthropic nor OpenAI clients are available")
-            return self.anthropic_auditor
+                    raise RuntimeError(f"Claude model {requested_model} selected but neither Anthropic nor OpenAI clients are available")
+            return anthropic_client, requested_model
         else:
-            if self.openai_auditor is None:
-                if self.anthropic_auditor is not None:
-                    print(f"Warning: OpenAI model {model} selected but OpenAI not available. Falling back to Anthropic.")
-                    return self.anthropic_auditor
+            if openai_client is None:
+                if anthropic_client is not None:
+                    print(f"Warning: OpenAI model {requested_model} selected but OpenAI not available. Falling back to Anthropic (claude-sonnet-4-5).")
+                    return anthropic_client, "claude-sonnet-4-5"
                 else:
-                    raise RuntimeError(f"OpenAI model {model} selected but neither OpenAI nor Anthropic clients are available")
-            return self.openai_auditor
+                    raise RuntimeError(f"OpenAI model {requested_model} selected but neither OpenAI nor Anthropic clients are available")
+            return openai_client, requested_model
 
     def execute_builder_phase(
         self,
@@ -168,15 +165,15 @@ class LlmService:
         if budget_warning:
             print(f"[{budget_warning['level'].upper()}] {budget_warning['message']}")
 
-        # Select appropriate client based on model
-        builder_client = self._get_builder_client(model)
+        # Resolve client and model (handling fallbacks)
+        builder_client, resolved_model = self._resolve_client_and_model("builder", model)
 
         # Execute builder with selected model
         result = builder_client.execute_phase(
             phase_spec=phase_spec,
             file_context=file_context,
             max_tokens=max_tokens,
-            model=model,
+            model=resolved_model,
             project_rules=project_rules,
             run_hints=run_hints,
         )
@@ -189,8 +186,8 @@ class LlmService:
             completion_tokens = result.tokens_used - prompt_tokens
 
             self._record_usage(
-                provider=self._model_to_provider(model),
-                model=model,
+                provider=self._model_to_provider(resolved_model),
+                model=resolved_model,
                 role="builder",
                 prompt_tokens=prompt_tokens,
                 completion_tokens=completion_tokens,
@@ -248,15 +245,15 @@ class LlmService:
         if budget_warning:
             print(f"[{budget_warning['level'].upper()}] {budget_warning['message']}")
 
-        # Select appropriate client based on model
-        auditor_client = self._get_auditor_client(model)
+        # Resolve client and model (handling fallbacks)
+        auditor_client, resolved_model = self._resolve_client_and_model("auditor", model)
 
         # Execute auditor with selected model
         result = auditor_client.review_patch(
             patch_content=patch_content,
             phase_spec=phase_spec,
             max_tokens=max_tokens,
-            model=model,
+            model=resolved_model,
             project_rules=project_rules,
             run_hints=run_hints,
         )
@@ -269,8 +266,8 @@ class LlmService:
             completion_tokens = result.tokens_used - prompt_tokens
 
             self._record_usage(
-                provider=self._model_to_provider(model),
-                model=model,
+                provider=self._model_to_provider(resolved_model),
+                model=resolved_model,
                 role="auditor",
                 prompt_tokens=prompt_tokens,
                 completion_tokens=completion_tokens,

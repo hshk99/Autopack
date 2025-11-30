@@ -310,7 +310,8 @@ class AutonomousExecutor:
                 last_updated_str = phase.get("updated_at") or phase.get("last_updated")
 
                 if not last_updated_str:
-                    logger.warning(f"[{phase_id}] EXECUTING phase has no timestamp - cannot detect staleness")
+                    logger.warning(f"[{phase_id}] EXECUTING phase has no timestamp - assuming stale and resetting")
+                    self._update_phase_status(phase_id, "QUEUED")
                     continue
 
                 try:
@@ -636,6 +637,15 @@ class AutonomousExecutor:
 
         try:
             response = requests.post(url, headers=headers, json=payload, timeout=10)
+
+            # Phase 2.3: Handle 422 validation errors separately
+            if response.status_code == 422:
+                error_detail = response.json().get("detail", "Patch validation failed")
+                logger.error(f"[{phase_id}] Patch validation failed (422): {error_detail}")
+                logger.info(f"[{phase_id}] Phase 2.3: Validation errors indicate malformed patch - LLM should regenerate")
+                # TODO: Implement automatic retry with LLM correction
+                raise requests.exceptions.HTTPError(f"Patch validation failed: {error_detail}", response=response)
+
             response.raise_for_status()
             logger.debug(f"Posted builder result for phase {phase_id}")
         except requests.exceptions.RequestException as e:
@@ -688,16 +698,24 @@ class AutonomousExecutor:
     def _update_phase_status(self, phase_id: str, status: str):
         """Update phase status via API
 
-        NOTE: Phase status is automatically updated by the API when builder/auditor
-        results are posted. This method is kept for backward compatibility but
-        does nothing since the /status endpoint doesn't exist.
+        Uses the /runs/{run_id}/phases/{phase_id}/update_status endpoint.
 
         Args:
             phase_id: Phase ID
-            status: New status (COMPLETE, FAILED, BLOCKED)
+            status: New status (QUEUED, EXECUTING, COMPLETE, FAILED, BLOCKED)
         """
-        # Phase status updates handled by builder/auditor result endpoints
-        logger.debug(f"Phase {phase_id} status will be updated to {status} via builder/auditor results")
+        try:
+            url = f"{self.api_url}/runs/{self.run_id}/phases/{phase_id}/update_status"
+            response = requests.post(
+                url,
+                json={"state": status},
+                headers={"Content-Type": "application/json"},
+                timeout=30
+            )
+            response.raise_for_status()
+            logger.info(f"Updated phase {phase_id} status to {status}")
+        except requests.exceptions.RequestException as e:
+            logger.warning(f"Failed to update phase {phase_id} status: {e}")
 
     def run_autonomous_loop(
         self,

@@ -35,6 +35,16 @@ FileOrganizer is a desktop application that uses OCR and AI classification to au
 - Built with Electron
 - Works on Windows, macOS, Linux
 
+## Documentation
+
+Detailed autonomous run history and documentation can be found in the `archive/` directory:
+
+- **[Archive Index](archive/ARCHIVE_INDEX.md)**: Index of all documentation.
+- **[Build History](archive/CONSOLIDATED_BUILD.md)**: Timeline of autonomous build execution.
+- **[Debug Journal](archive/CONSOLIDATED_DEBUG.md)**: Record of errors and fixes.
+- **[Strategic Analysis](archive/CONSOLIDATED_STRATEGY.md)**: Product and market strategy.
+- **[Research](archive/CONSOLIDATED_RESEARCH.md)**: Research briefs and implementation plans.
+
 ## Quick Start
 
 ### Prerequisites

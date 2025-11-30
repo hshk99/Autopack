@@ -115,6 +115,13 @@ class LearnedRule:
 
 ## Integration Points
 
+### 0. Source of Truth (Debug History)
+The learned rules system is fed by the **Consolidated Debug History**:
+- `archive/CONSOLIDATED_DEBUG.md` (Framework issues)
+- `.autonomous_runs/{project_id}/archive/CONSOLIDATED_DEBUG.md` (Project issues)
+
+Resolved issues in these files are automatically analyzed to extract prevention rules.
+
 ### 1. Supervisor Initialization
 
 ```python

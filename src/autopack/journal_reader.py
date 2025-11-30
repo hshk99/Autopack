@@ -33,11 +33,16 @@ def get_prevention_rules(project_slug: str = "file-organizer-app-v1") -> List[st
         for rule in rules:
             print(f"PREVENTION RULE: {rule}")
     """
-    journal_path = Path.cwd() / ".autonomous_runs" / project_slug / "DEBUG_JOURNAL.md"
+    journal_path = Path.cwd() / ".autonomous_runs" / project_slug / "archive" / "CONSOLIDATED_DEBUG.md"
 
     if not journal_path.exists():
-        logger.warning(f"DEBUG_JOURNAL.md not found at {journal_path}")
-        return []
+        # Fallback to old path if new one doesn't exist
+        old_path = Path.cwd() / ".autonomous_runs" / project_slug / "DEBUG_JOURNAL.md"
+        if old_path.exists():
+            journal_path = old_path
+        else:
+            logger.warning(f"CONSOLIDATED_DEBUG.md not found at {journal_path}")
+            return []
 
     try:
         journal_content = journal_path.read_text(encoding='utf-8')

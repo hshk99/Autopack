@@ -1,12 +1,12 @@
 complexity_models:
   low:
-    builder: gpt-4o-mini
+    builder: claude-sonnet-4-5
     auditor: gpt-4o-mini
   medium:
-    builder: gpt-4o
+    builder: claude-sonnet-4-5
     auditor: gpt-4o
   high:
-    builder: gpt-4o
+    builder: claude-sonnet-4-5
     auditor: gpt-4o
     escalation_builder: gpt-5
     escalation_auditor: claude-opus-4-5

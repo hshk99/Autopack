@@ -462,22 +462,36 @@ def submit_builder_result(
     # Apply patch if provided and auto_apply is enabled
     commit_sha = None
     if builder_result.patch_content:
+        # Phase 2.1-2.2: Validate patch before application
+        from .patch_validator import validate_patch, format_validation_errors
+
+        is_valid, validation_errors = validate_patch(builder_result.patch_content)
+        if not is_valid:
+            error_detail = format_validation_errors(validation_errors)
+            logger.warning(f"Patch validation failed for phase {phase_id}: {error_detail}")
+            raise HTTPException(
+                status_code=422,  # Unprocessable Entity - validation failure
+                detail=error_detail
+            )
+
         # Get strategy to check auto_apply
         strategy_engine = StrategyEngine(project_id="Autopack")
         # For now, always apply (full strategy integration in next step)
-        apply_path = GovernedApplyPath(run_id=run_id)
+        # Use workspace from environment or default to current directory
+        import os
+        from pathlib import Path
+        workspace = Path(os.getenv("REPO_PATH", "."))
+        apply_path = GovernedApplyPath(workspace=workspace)
         try:
-            success, commit_sha = apply_path.apply_patch(
-                patch_content=builder_result.patch_content,
-                phase_id=phase_id,
-                commit_message=f"[Builder] {phase_id}: {builder_result.notes}",
+            success, error_msg = apply_path.apply_patch(
+                patch_content=builder_result.patch_content
             )
         except Exception as e:
             logger.error(f"Patch application failed: {e}", exc_info=True)
             raise HTTPException(status_code=500, detail=f"Failed to apply patch: {str(e)}")
 
         if not success:
-            raise HTTPException(status_code=500, detail="Failed to apply patch")
+            raise HTTPException(status_code=500, detail=f"Failed to apply patch: {error_msg}")
 
     # Update phase state based on result
     if builder_result.status == "success":
@@ -586,16 +600,17 @@ def submit_auditor_result(
     # Apply suggested patches
     commit_shas = []
     if auditor_result.suggested_patches:
-        apply_path = GovernedApplyPath(run_id=run_id)
+        import os
+        from pathlib import Path
+        workspace = Path(os.getenv("REPO_PATH", "."))
+        apply_path = GovernedApplyPath(workspace=workspace)
 
         for patch in auditor_result.suggested_patches:
-            success, commit_sha = apply_path.apply_patch(
-                patch_content=patch.patch_content,
-                phase_id=phase_id,
-                commit_message=f"[Auditor] {phase_id}: {patch.description}",
+            success, error_msg = apply_path.apply_patch(
+                patch_content=patch.patch_content
             )
             if success:
-                commit_shas.append(commit_sha)
+                commit_shas.append(f"patch-applied")  # Simplified - no git integration yet
 
     # Update phase state based on recommendation
     if auditor_result.recommendation == "approve":

@@ -77,9 +77,10 @@ class AnthropicBuilderClient:
             )
 
             # Call Anthropic API
+            # Use 16384 tokens to avoid truncation of large patches
             response = self.client.messages.create(
                 model=model,
-                max_tokens=max_tokens or 8192,
+                max_tokens=max_tokens or 16384,
                 system=system_prompt,
                 messages=[{"role": "user", "content": user_prompt}],
                 temperature=0.2

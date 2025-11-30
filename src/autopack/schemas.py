@@ -65,6 +65,7 @@ class PhaseResponse(BaseModel):
     id: int
     phase_id: str
     name: str
+    description: Optional[str]
     state: str
     task_category: Optional[str]
     complexity: Optional[str]

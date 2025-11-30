@@ -121,8 +121,17 @@ class DualAuditor:
         """
         use_dual = force_dual or self.should_use_dual_audit(phase_spec)
 
+        # Debug logging
+        print(f"[DualAuditor] review_patch called with:")
+        print(f"[DualAuditor]   phase_spec: {phase_spec.get('phase_id', 'unknown')}")
+        print(f"[DualAuditor]   max_tokens: {max_tokens}")
+        print(f"[DualAuditor]   model: {model}")
+        print(f"[DualAuditor]   use_dual: {use_dual}")
+        print(f"[DualAuditor]   patch_content length: {len(patch_content)}")
+
         if not use_dual:
             # Single audit (standard path)
+            print(f"[DualAuditor] Using single audit (primary only)")
             return self.primary.review_patch(
                 patch_content=patch_content,
                 phase_spec=phase_spec,

@@ -42,6 +42,9 @@ htmlcov/
 # Autonomous runs
 .autonomous_runs/
 
+# Documentation Archives
+archive/
+
 # Environment
 .env
 .env.local

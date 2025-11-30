@@ -130,7 +130,7 @@ class ArchiveConsolidator:
 
         self._append_to_section(
             self.debug_errors_file,
-            "Current Open Issues",
+            "Open Issues",
             entry
         )
         logger.info(f"[ARCHIVE_CONSOLIDATOR] Logged new error: {error_signature}")

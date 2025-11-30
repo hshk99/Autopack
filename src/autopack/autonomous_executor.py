@@ -349,6 +349,16 @@ class AutonomousExecutor:
                         except Exception as e:
                             logger.error(f"[{phase_id}] Failed to reset stale phase: {e}")
 
+                            # Log stale phase reset failure
+                            log_error(
+                                error_signature="Stale phase reset failure",
+                                symptom=f"Phase {phase_id}: {type(e).__name__}: {str(e)}",
+                                run_id=self.run_id,
+                                phase_id=phase_id,
+                                suspected_cause="Failed to call API to reset stuck phase",
+                                priority="HIGH"
+                            )
+
                 except Exception as e:
                     logger.warning(f"[{phase_id}] Failed to parse timestamp '{last_updated_str}': {e}")
 
@@ -525,6 +535,17 @@ class AutonomousExecutor:
 
         except Exception as e:
             logger.error(f"[{phase_id}] Execution failed: {e}")
+
+            # Log ALL exceptions to debug journal for tracking
+            log_error(
+                error_signature=f"Phase {phase_id} inner execution failure",
+                symptom=f"{type(e).__name__}: {str(e)}",
+                run_id=self.run_id,
+                phase_id=phase_id,
+                suspected_cause="Unhandled exception in _execute_phase_with_recovery",
+                priority="HIGH"
+            )
+
             self._update_phase_status(phase_id, "FAILED")
             return False, "FAILED"
 
@@ -643,6 +664,17 @@ class AutonomousExecutor:
                 error_detail = response.json().get("detail", "Patch validation failed")
                 logger.error(f"[{phase_id}] Patch validation failed (422): {error_detail}")
                 logger.info(f"[{phase_id}] Phase 2.3: Validation errors indicate malformed patch - LLM should regenerate")
+
+                # Log validation failures to debug journal
+                log_error(
+                    error_signature=f"Patch validation failure (422)",
+                    symptom=f"Phase {phase_id}: {error_detail}",
+                    run_id=self.run_id,
+                    phase_id=phase_id,
+                    suspected_cause="LLM generated malformed patch - needs regeneration",
+                    priority="MEDIUM"
+                )
+
                 # TODO: Implement automatic retry with LLM correction
                 raise requests.exceptions.HTTPError(f"Patch validation failed: {error_detail}", response=response)
 
@@ -650,6 +682,16 @@ class AutonomousExecutor:
             logger.debug(f"Posted builder result for phase {phase_id}")
         except requests.exceptions.RequestException as e:
             logger.warning(f"Failed to post builder result: {e}")
+
+            # Log API failures to debug journal
+            log_error(
+                error_signature="API failure: POST builder_result",
+                symptom=f"Phase {phase_id}: {type(e).__name__}: {str(e)}",
+                run_id=self.run_id,
+                phase_id=phase_id,
+                suspected_cause="API communication failure or server error",
+                priority="MEDIUM"
+            )
 
     def _post_auditor_result(self, phase_id: str, result: AuditorResult):
         """POST auditor result to Autopack API
@@ -694,6 +736,16 @@ class AutonomousExecutor:
             logger.debug(f"Posted auditor result for phase {phase_id}")
         except requests.exceptions.RequestException as e:
             logger.warning(f"Failed to post auditor result: {e}")
+
+            # Log API failures to debug journal
+            log_error(
+                error_signature="API failure: POST auditor_result",
+                symptom=f"Phase {phase_id}: {type(e).__name__}: {str(e)}",
+                run_id=self.run_id,
+                phase_id=phase_id,
+                suspected_cause="API communication failure or server error",
+                priority="MEDIUM"
+            )
 
     def _update_phase_status(self, phase_id: str, status: str):
         """Update phase status via API

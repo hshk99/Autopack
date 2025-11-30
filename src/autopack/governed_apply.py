@@ -482,7 +482,8 @@ class GovernedApplyPath:
         Apply patch by directly writing files - fallback when git apply fails.
 
         This extracts new file content from patches and writes them directly.
-        Only works for new files (creates them) and full file replacements.
+        ONLY works for new files (where --- /dev/null) - partial patches for
+        existing files cannot be safely applied this way.
 
         Args:
             patch_content: Patch content
@@ -503,60 +504,63 @@ class GovernedApplyPath:
                 if len(parts) >= 4:
                     file_path = parts[3][2:]  # Remove 'b/' prefix
 
-                    # Check if this is a new file or we should overwrite
+                    # Check if this is a new file (has '--- /dev/null')
                     is_new_file = False
+                    hunk_start = -1
                     j = i + 1
                     while j < len(lines) and not lines[j].startswith('diff --git'):
-                        if lines[j].startswith('new file mode'):
+                        if lines[j].startswith('new file mode') or lines[j] == '--- /dev/null':
                             is_new_file = True
                         if lines[j].startswith('@@'):
-                            # Found the hunk - extract content
-                            content_lines = []
-
-                            # Handle malformed hunk headers where content is on same line
-                            # e.g., "@@ -1,6 +1,7 @@ from fastapi import FastAPI"
-                            hunk_line = lines[j]
-                            hunk_header_end = hunk_line.rfind('@@')
-                            if hunk_header_end > 2:  # Has closing @@
-                                after_header = hunk_line[hunk_header_end + 2:].strip()
-                                if after_header and not after_header.startswith('-'):
-                                    # This is content after the hunk header
-                                    content_lines.append(' ' + after_header)  # Add as context line
-
-                            k = j + 1
-                            while k < len(lines) and not lines[k].startswith('diff --git'):
-                                line_k = lines[k]
-                                # Check for new hunk header (but handle malformed ones)
-                                if line_k.startswith('@@'):
-                                    # Check if there's content after the hunk header
-                                    hunk_end = line_k.rfind('@@')
-                                    if hunk_end > 2:
-                                        after_hunk = line_k[hunk_end + 2:].strip()
-                                        if after_hunk and not after_hunk.startswith('-'):
-                                            content_lines.append(' ' + after_hunk)
-                                    k += 1
-                                    continue
-                                if line_k.startswith('+') and not line_k.startswith('+++'):
-                                    content_lines.append(line_k[1:])  # Remove + prefix
-                                elif line_k.startswith(' '):
-                                    content_lines.append(line_k[1:])  # Context line
-                                k += 1
-
-                            if content_lines:
-                                # Write the file
-                                full_path = self.workspace / file_path
-                                try:
-                                    full_path.parent.mkdir(parents=True, exist_ok=True)
-                                    with open(full_path, 'w', encoding='utf-8') as f:
-                                        f.write('\n'.join(content_lines))
-                                        if content_lines and not content_lines[-1] == '':
-                                            f.write('\n')  # Ensure trailing newline
-                                    files_written.append(file_path)
-                                    logger.info(f"Directly wrote file: {file_path}")
-                                except Exception as e:
-                                    logger.error(f"Failed to write {file_path}: {e}")
+                            hunk_start = j
                             break
                         j += 1
+
+                    # Only process new files - for existing files, we can't safely
+                    # apply partial patches without the original file content
+                    if is_new_file and hunk_start >= 0:
+                        content_lines = []
+
+                        # Handle malformed hunk header where content is on same line
+                        hunk_line = lines[hunk_start]
+                        hunk_header_end = hunk_line.rfind('@@')
+                        if hunk_header_end > 2:
+                            after_header = hunk_line[hunk_header_end + 2:].lstrip()
+                            if after_header:
+                                content_lines.append(after_header)
+
+                        k = hunk_start + 1
+                        while k < len(lines) and not lines[k].startswith('diff --git'):
+                            line_k = lines[k]
+                            # Skip additional hunk headers
+                            if line_k.startswith('@@'):
+                                # Handle inline content after @@
+                                hunk_end = line_k.rfind('@@')
+                                if hunk_end > 2:
+                                    after_hunk = line_k[hunk_end + 2:].lstrip()
+                                    if after_hunk:
+                                        content_lines.append(after_hunk)
+                                k += 1
+                                continue
+                            # Extract added lines (for new files, everything after + is content)
+                            if line_k.startswith('+') and not line_k.startswith('+++'):
+                                content_lines.append(line_k[1:])
+                            k += 1
+
+                        if content_lines:
+                            full_path = self.workspace / file_path
+                            try:
+                                full_path.parent.mkdir(parents=True, exist_ok=True)
+                                with open(full_path, 'w', encoding='utf-8') as f:
+                                    f.write('\n'.join(content_lines))
+                                    if not content_lines[-1] == '':
+                                        f.write('\n')
+                                files_written.append(file_path)
+                                logger.info(f"Directly wrote file: {file_path}")
+                            except Exception as e:
+                                logger.error(f"Failed to write {file_path}: {e}")
+                    elif not is_new_file:
+                        logger.warning(f"Skipping {file_path} - cannot apply partial patch to existing file via direct write")
 
             i += 1
 

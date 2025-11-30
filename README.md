@@ -6,7 +6,43 @@ Autopack is a framework for orchestrating autonomous AI agents (Builder and Audi
 
 ---
 
-## 📚 Documentation
+## Recent Updates (v0.2.0)
+
+### Model Escalation System
+Automatically escalates to more powerful models when phases fail repeatedly:
+- **Intra-tier escalation**: Within complexity level (e.g., gpt-4o-mini -> gpt-4o)
+- **Cross-tier escalation**: Bump complexity level after N failures (low -> medium -> high)
+- **Configurable thresholds**: `config/models.yaml` defines `complexity_escalation` settings
+
+### Mid-Run Re-Planning with Message Similarity
+Detects "approach flaws" vs transient failures using error message similarity:
+- `_normalize_error_message()` - Strips variable content (paths, UUIDs, timestamps, line numbers)
+- `_calculate_message_similarity()` - Uses `difflib.SequenceMatcher` with 0.8 threshold
+- `_detect_approach_flaw()` - Triggers re-planning after consecutive same-type failures with similar messages
+
+**Configuration** (`config/models.yaml`):
+```yaml
+replan:
+  trigger_threshold: 2
+  message_similarity_enabled: true
+  similarity_threshold: 0.8
+  fatal_error_types: [wrong_tech_stack, schema_mismatch, api_contract_wrong]
+```
+
+### LLM Multi-Provider Routing
+- Routes to OpenAI or Anthropic based on model name
+- Automatic fallback if primary provider unavailable
+- Per-category routing policies (BEST_FIRST, PROGRESSIVE, CHEAP_FIRST)
+
+### Hardening: Syntax + Unicode + Incident Fatigue
+- Pre-emptive encoding fix at startup
+- `PYTHONUTF8=1` environment variable for all subprocesses
+- UTF-8 encoding on all file reads
+- SyntaxError detection in CI checks
+
+---
+
+## Documentation
 
 Detailed documentation is available in the `archive/` directory:
 
@@ -14,7 +50,7 @@ Detailed documentation is available in the `archive/` directory:
 - **[Autonomous Executor](archive/CONSOLIDATED_REFERENCE.md#autonomous-executor-readme)**: Guide to the orchestration system.
 - **[Learned Rules](LEARNED_RULES_README.md)**: System for preventing recurring errors.
 
-## 🏗️ Project Structure
+## Project Structure
 
 ```
 C:/dev/Autopack/
@@ -22,24 +58,36 @@ C:/dev/Autopack/
 │   ├── file-organizer-app-v1/# Example Project: File Organizer
 │   └── ...
 ├── archive/                  # Framework documentation archive
+├── config/
+│   └── models.yaml           # Model configuration, escalation, routing policies
+├── logs/
+│   └── archived_runs/        # Archived log files from previous runs
 ├── src/
 │   └── autopack/             # Core framework code
 │       ├── autonomous_executor.py  # Main orchestration loop
+│       ├── llm_service.py          # Multi-provider LLM abstraction
+│       ├── model_router.py         # Model selection with quota awareness
+│       ├── model_selection.py      # Escalation chains and routing policies
+│       ├── error_recovery.py       # Error categorization and recovery
 │       ├── archive_consolidator.py # Documentation management
 │       ├── debug_journal.py        # Self-healing system wrapper
 │       └── ...
 ├── scripts/                  # Utility scripts
+│   └── consolidate_docs.py   # Documentation consolidation
 └── tests/                    # Framework tests
 ```
 
-## 🚀 Key Features
+## Key Features
 
 - **Autonomous Orchestration**: Wires Builder and Auditor agents to execute phases automatically.
-- **Self-Healing**: Automatically logs errors, fixes, and extracts prevention rules (`archive_consolidator.py`).
+- **Model Escalation**: Automatically escalates to more powerful models after failures.
+- **Mid-Run Re-Planning**: Detects approach flaws and revises phase strategy.
+- **Self-Healing**: Automatically logs errors, fixes, and extracts prevention rules.
 - **Quality Gates**: Enforces risk-based checks before code application.
-- **Project Separation**: strictly separates runtime data and docs for different projects (e.g., `file-organizer-app-v1`).
+- **Multi-Provider LLM**: Routes to OpenAI or Anthropic with automatic fallback.
+- **Project Separation**: Strictly separates runtime data and docs for different projects.
 
-## 🛠️ Usage
+## Usage
 
 ### Running an Autonomous Build
 
@@ -63,5 +111,51 @@ This will:
 
 ---
 
-**Version**: 0.1.9
+## Configuration
+
+### Model Escalation (`config/models.yaml`)
+
+```yaml
+complexity_escalation:
+  enabled: true
+  thresholds:
+    low_to_medium: 2    # Escalate after 2 failures at low complexity
+    medium_to_high: 2   # Escalate after 2 failures at medium complexity
+  max_attempts_per_phase: 5
+  failure_types:
+    - auditor_reject
+    - ci_fail
+    - patch_apply_error
+
+escalation_chains:
+  builder:
+    - gpt-4o-mini      # Tier 0 (low)
+    - gpt-4o           # Tier 1 (medium)
+    - claude-sonnet-4-5 # Tier 2 (high)
+    - gpt-5            # Tier 3 (premium)
+  auditor:
+    - gpt-4o-mini
+    - gpt-4o
+    - claude-sonnet-4-5
+    - claude-opus-4-5
+```
+
+### Re-Planning (`config/models.yaml`)
+
+```yaml
+replan:
+  trigger_threshold: 2          # Consecutive same-type failures before re-plan
+  message_similarity_enabled: true
+  similarity_threshold: 0.8     # How similar messages must be (0.0-1.0)
+  min_message_length: 30        # Skip similarity check for short messages
+  max_replans_per_phase: 1      # Prevent infinite re-planning loops
+  fatal_error_types:            # Immediate re-plan triggers
+    - wrong_tech_stack
+    - schema_mismatch
+    - api_contract_wrong
+```
+
+---
+
+**Version**: 0.2.0
 **License**: MIT

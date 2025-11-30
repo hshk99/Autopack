@@ -1,13 +1,13 @@
 complexity_models:
   low:
-    builder: claude-sonnet-4-5
+    builder: gpt-4o-mini
     auditor: gpt-4o-mini
   medium:
-    builder: claude-sonnet-4-5
+    builder: gpt-4o
     auditor: gpt-4o
   high:
     builder: claude-sonnet-4-5
-    auditor: gpt-4o
+    auditor: claude-sonnet-4-5
     escalation_builder: gpt-5
     escalation_auditor: claude-opus-4-5
 llm_routing_policies:
@@ -129,3 +129,59 @@ fallback_strategy:
 defaults:
   high_risk_builder: gpt-4o
   high_risk_auditor: gpt-4o
+model_aliases:
+  glm: glm-4.5-20250101
+  sonnet: claude-sonnet-4-5
+  opus: claude-opus-4-5
+  gemini-flash: gemini-2.5-flash
+  gemini-lite: gemini-2.5-flash-lite
+escalation_chains:
+  builder:
+    low:
+      models:
+      - gpt-4o-mini
+      - gpt-4o
+      - claude-sonnet-4-5
+    medium:
+      models:
+      - gpt-4o
+      - claude-sonnet-4-5
+      - gpt-5
+    high:
+      models:
+      - claude-sonnet-4-5
+      - gpt-5
+  auditor:
+    low:
+      models:
+      - gpt-4o-mini
+      - gpt-4o
+    medium:
+      models:
+      - gpt-4o
+      - gpt-4o
+      - claude-sonnet-4-5
+    high:
+      models:
+      - claude-sonnet-4-5
+      - claude-opus-4-5
+complexity_escalation:
+  enabled: true
+  thresholds:
+    low_to_medium: 2
+    medium_to_high: 2
+  max_attempts_per_phase: 5
+  failure_types:
+  - auditor_reject
+  - ci_fail
+  - patch_apply_error
+replan:
+  trigger_threshold: 2
+  message_similarity_enabled: true
+  similarity_threshold: 0.8
+  min_message_length: 30
+  max_replans_per_phase: 1
+  fatal_error_types:
+  - wrong_tech_stack
+  - schema_mismatch
+  - api_contract_wrong

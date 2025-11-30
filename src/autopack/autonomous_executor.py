@@ -34,15 +34,20 @@ import requests
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from autopack.openai_clients import OpenAIBuilderClient, OpenAIAuditorClient
-from autopack.anthropic_clients import AnthropicBuilderClient, AnthropicAuditorClient
-from autopack.dual_auditor import DualAuditor
 from autopack.quality_gate import QualityGate
 from autopack.llm_client import BuilderResult, AuditorResult
 from autopack.error_recovery import ErrorRecoverySystem, get_error_recovery, safe_execute
 from autopack.llm_service import LlmService
 from autopack.debug_journal import log_error, log_fix, mark_resolved
 from autopack.archive_consolidator import log_build_event, log_feature
+from autopack.learned_rules import (
+    load_project_learned_rules,
+    get_relevant_rules_for_phase,
+    get_relevant_hints_for_phase,
+    promote_hints_to_rules,
+    save_run_hint,
+)
+from autopack.journal_reader import get_recent_prevention_rules
 
 
 # Configure logging
@@ -133,9 +138,7 @@ class AutonomousExecutor:
         # Initialize LlmService (replaces direct client instantiation)
         self.llm_service = None  # Will be set in _init_infrastructure
 
-        # Initialize clients (will be set in _init_infrastructure for backward compatibility)
-        self.builder = None
-        self.auditor = None
+        # Initialize quality gate (will be set in _init_infrastructure)
         self.quality_gate = None
 
         logger.info(f"Initialized autonomous executor for run: {run_id}")
@@ -147,8 +150,17 @@ class AutonomousExecutor:
         self._skipped_phases: set = set()  # Phases skipped due to escalation
         self.MAX_PHASE_FAILURES = 3  # Escalate after this many consecutive failures
 
+        # [Mid-Run Re-Planning] Track failure patterns to detect approach flaws
+        self._phase_error_history: Dict[str, List[Dict]] = {}  # phase_id -> list of error records
+        self._phase_revised_specs: Dict[str, Dict] = {}  # phase_id -> revised phase spec
+        self.REPLAN_TRIGGER_THRESHOLD = 2  # Trigger re-planning after this many same-type failures
+        self.MAX_REPLANS_PER_PHASE = 1  # Maximum re-planning attempts per phase
+
         # Phase 1.4-1.5: Run proactive startup checks (from DEBUG_JOURNAL.md)
         self._run_startup_checks()
+
+        # Learning Pipeline: Load project learned rules (Stage 0B)
+        self._load_project_learning_context()
 
     def _run_startup_checks(self):
         """
@@ -206,8 +218,141 @@ class AutonomousExecutor:
 
         logger.info("Startup checks complete")
 
+    def _load_project_learning_context(self):
+        """
+        Learning Pipeline: Load project learned rules.
+
+        This implements Stage 0B from LEARNED_RULES_README.md:
+        - Loads persistent project rules from project_learned_rules.json
+        - Rules are promoted from hints recorded during troubleshooting
+        - These will be passed to Builder/Auditor for context-aware generation
+        """
+        project_id = self._get_project_slug()
+        logger.info(f"Loading learning context for project: {project_id}")
+
+        # Stage 0B: Load persistent project rules (promoted from hints)
+        try:
+            self.project_rules = load_project_learned_rules(project_id)
+            if self.project_rules:
+                logger.info(f"  Loaded {len(self.project_rules)} persistent project rules")
+                for rule in self.project_rules[:3]:  # Show first 3
+                    logger.info(f"    - {rule.constraint[:50]}...")
+            else:
+                logger.info("  No persistent project rules found (will learn from this run)")
+        except Exception as e:
+            logger.warning(f"  Failed to load project rules: {e}")
+            self.project_rules = []
+
+        logger.info("Learning context loaded successfully")
+
+    def _get_learning_context_for_phase(self, phase: Dict) -> Dict:
+        """
+        Get relevant learning context for a specific phase.
+
+        Filters project rules and run hints relevant to this phase's
+        task category for injection into Builder/Auditor prompts.
+
+        Args:
+            phase: Phase specification dict
+
+        Returns:
+            Dict with 'project_rules' and 'run_hints' keys
+        """
+        # Get relevant project rules (Stage 0B - cross-run persistent rules)
+        relevant_rules = get_relevant_rules_for_phase(
+            self.project_rules if hasattr(self, 'project_rules') else [],
+            phase  # Correct signature: pass phase dict
+        )
+
+        # Get run-local hints from earlier phases (Stage 0A - within-run hints)
+        relevant_hints = get_relevant_hints_for_phase(
+            self.run_id,
+            phase,
+            max_hints=5
+        )
+
+        if relevant_rules:
+            logger.debug(f"  Found {len(relevant_rules)} relevant project rules for phase")
+        if relevant_hints:
+            logger.debug(f"  Found {len(relevant_hints)} hints from earlier phases")
+
+        return {
+            "project_rules": relevant_rules,
+            "run_hints": relevant_hints,
+        }
+
+    def _mark_rules_updated(self, project_id: str, promoted_count: int):
+        """
+        Mark that project rules have been updated.
+
+        This creates/updates a marker file that future planning agents can detect
+        to know when rules have changed since the last plan was generated.
+
+        The marker file contains:
+        - Last update timestamp
+        - Run ID that triggered the update
+        - Number of new rules promoted
+        - Total rule count
+
+        Future planning can check this against plan generation time to determine
+        if re-planning is needed based on newly learned rules.
+        """
+        try:
+            from datetime import datetime
+
+            marker_path = Path(".autonomous_runs") / project_id / "rules_updated.json"
+            marker_path.parent.mkdir(parents=True, exist_ok=True)
+
+            # Load existing marker or create new
+            existing = {}
+            if marker_path.exists():
+                try:
+                    with open(marker_path, 'r') as f:
+                        existing = json.load(f)
+                except (json.JSONDecodeError, IOError):
+                    pass
+
+            # Load current rules for total count
+            rules = load_project_learned_rules(project_id)
+
+            # Update marker
+            marker = {
+                "last_updated": datetime.utcnow().isoformat(),
+                "last_run_id": self.run_id,
+                "promoted_this_run": promoted_count,
+                "total_rules": len(rules),
+                "update_history": existing.get("update_history", [])[-9:] + [
+                    {
+                        "run_id": self.run_id,
+                        "promoted": promoted_count,
+                        "timestamp": datetime.utcnow().isoformat()
+                    }
+                ]
+            }
+
+            with open(marker_path, 'w') as f:
+                json.dump(marker, f, indent=2)
+
+            logger.info(f"Learning Pipeline: Marked rules updated (total: {len(rules)} rules)")
+
+            # Log to console for visibility - future plans should incorporate these rules
+            logger.info(
+                f"[PLANNING NOTICE] {promoted_count} new rules promoted. "
+                f"Future planning should incorporate {len(rules)} total project rules."
+            )
+
+        except Exception as e:
+            logger.warning(f"Failed to mark rules updated: {e}")
+
     def _init_infrastructure(self):
-        """Initialize LlmService, Builder, Auditor, and Quality Gate with error recovery"""
+        """Initialize LlmService and Quality Gate with error recovery.
+
+        All LLM calls now go through LlmService which handles:
+        - Model routing via ModelRouter
+        - Multi-provider support (OpenAI, Anthropic)
+        - Usage tracking and recording
+        - Escalation logic
+        """
         def _do_init():
             logger.info("Initializing infrastructure...")
 
@@ -218,41 +363,6 @@ class AutonomousExecutor:
                 repo_root=self.workspace
             )
             logger.info("LlmService: Initialized with ModelRouter and UsageRecorder")
-
-            # DEPRECATED: Direct client instantiation for backward compatibility
-            # TODO: Remove these once all code uses LlmService.execute_builder_phase/execute_auditor_review
-            # NOTE: These are only needed for legacy code paths. LlmService handles all model routing.
-            # Initialize Builder (prefer Anthropic Claude if available, fallback to OpenAI)
-            if self.anthropic_key:
-                self.builder = AnthropicBuilderClient(api_key=self.anthropic_key)
-                logger.info("[DEPRECATED] Builder: Anthropic (Claude Sonnet 4.5) - Use LlmService instead")
-            elif self.openai_key:
-                self.builder = OpenAIBuilderClient(api_key=self.openai_key)
-                logger.info("[DEPRECATED] Builder: OpenAI (GPT-4o) - Use LlmService instead")
-            else:
-                # No API keys available - this will fail but with a clear message
-                logger.warning("[DEPRECATED] No API keys available for Builder backward compatibility layer")
-                self.builder = None
-
-            # Initialize Auditor (dual or single)
-            if self.use_dual_auditor and self.openai_key and self.anthropic_key:
-                primary_auditor = OpenAIAuditorClient(api_key=self.openai_key)
-                secondary_auditor = AnthropicAuditorClient(api_key=self.anthropic_key)
-                self.auditor = DualAuditor(
-                    primary_auditor=primary_auditor,
-                    secondary_auditor=secondary_auditor
-                )
-                logger.info("[DEPRECATED] Auditor: Dual (OpenAI + Anthropic) - Use LlmService instead")
-            elif self.anthropic_key:
-                self.auditor = AnthropicAuditorClient(api_key=self.anthropic_key)
-                logger.info("[DEPRECATED] Auditor: Anthropic (Claude) - Use LlmService instead")
-            elif self.openai_key:
-                self.auditor = OpenAIAuditorClient(api_key=self.openai_key)
-                logger.info("[DEPRECATED] Auditor: OpenAI (GPT-4o) - Use LlmService instead")
-            else:
-                # No API keys available - this will fail but with a clear message
-                logger.warning("[DEPRECATED] No API keys available for Auditor backward compatibility layer")
-                self.auditor = None
 
             # Initialize Quality Gate
             self.quality_gate = QualityGate(repo_root=self.workspace)
@@ -396,7 +506,13 @@ class AutonomousExecutor:
         return None
 
     def execute_phase(self, phase: Dict) -> Tuple[bool, str]:
-        """Execute Builder -> Auditor -> QualityGate pipeline for a phase with error recovery
+        """Execute Builder -> Auditor -> QualityGate pipeline for a phase with model escalation
+
+        This method implements a retry loop with model escalation:
+        - Attempts 0-1: Use cheapest model in escalation chain
+        - Attempts 2-3: Use middle model in escalation chain
+        - Attempts 4+: Use strongest model in escalation chain
+        - After max_attempts failures: Mark phase as FAILED and skip
 
         Args:
             phase: Phase data from API
@@ -408,34 +524,564 @@ class AutonomousExecutor:
         phase_id = phase.get("phase_id")
         logger.info(f"Executing phase: {phase_id}")
 
-        # Wrap phase execution with error recovery
-        def _execute_phase_inner():
-            return self._execute_phase_with_recovery(phase)
+        # Get max attempts from LlmService (reads from config)
+        max_attempts = self.llm_service.get_max_attempts() if self.llm_service else 5
+
+        # Track attempt index for this phase
+        attempt_key = f"_attempt_index_{phase_id}"
+        attempt_index = getattr(self, attempt_key, 0)
+
+        # Retry loop with model escalation
+        while attempt_index < max_attempts:
+            logger.info(f"[{phase_id}] Attempt {attempt_index + 1}/{max_attempts} (model escalation enabled)")
+
+            # Store current attempt for inner method
+            setattr(self, attempt_key, attempt_index)
+
+            # Wrap phase execution with error recovery
+            def _execute_phase_inner():
+                return self._execute_phase_with_recovery(phase, attempt_index=attempt_index)
+
+            try:
+                success, status = self.error_recovery.execute_with_retry(
+                    func=_execute_phase_inner,
+                    operation_name=f"Phase execution: {phase_id}",
+                    max_retries=1  # Only 1 retry for transient errors within an attempt
+                )
+
+                if success:
+                    # Record success for escalation tracking
+                    if self.llm_service:
+                        self.llm_service.record_attempt_outcome(
+                            phase_id=phase_id,
+                            model="unknown",  # Model info is in LlmService
+                            outcome="success"
+                        )
+
+                    # Learning Pipeline: Record hint if succeeded after retries
+                    # This means we learned something worth sharing with future phases
+                    if attempt_index > 0:
+                        self._record_learning_hint(
+                            phase=phase,
+                            hint_type="success_after_retry",
+                            details=f"Succeeded on attempt {attempt_index + 1} after {attempt_index} failed attempts"
+                        )
+
+                    return success, status
+
+                # Record failure and determine if we should retry
+                failure_outcome = self._status_to_outcome(status)
+                if self.llm_service:
+                    self.llm_service.record_attempt_outcome(
+                        phase_id=phase_id,
+                        model="unknown",
+                        outcome=failure_outcome,
+                        details=f"Attempt {attempt_index + 1} failed with status {status}"
+                    )
+
+                # Learning Pipeline: Record hint about what went wrong
+                # These hints help future phases avoid same mistakes
+                self._record_learning_hint(
+                    phase=phase,
+                    hint_type=failure_outcome,
+                    details=f"Failed with {status} on attempt {attempt_index + 1}"
+                )
+
+                # Mid-Run Re-Planning: Record error for approach flaw detection
+                self._record_phase_error(
+                    phase=phase,
+                    error_type=failure_outcome,
+                    error_details=f"Status: {status}",
+                    attempt_index=attempt_index
+                )
+
+                # Check if we should trigger re-planning before next retry
+                should_replan, flaw_type = self._should_trigger_replan(phase)
+                if should_replan:
+                    logger.info(f"[{phase_id}] Triggering mid-run re-planning due to {flaw_type}")
+
+                    # Get error history for context
+                    error_history = self._phase_error_history.get(phase_id, [])
+
+                    # Invoke re-planner
+                    revised_phase = self._revise_phase_approach(phase, flaw_type, error_history)
+
+                    if revised_phase:
+                        # Switch to revised approach and reset attempts
+                        phase = revised_phase
+                        attempt_index = 0
+                        setattr(self, attempt_key, 0)
+                        logger.info(f"[{phase_id}] Re-planning successful. Restarting with revised approach.")
+                        continue
+                    else:
+                        logger.warning(f"[{phase_id}] Re-planning failed, continuing with original approach")
+
+                # Increment attempt and continue loop
+                attempt_index += 1
+                setattr(self, attempt_key, attempt_index)
+
+                if attempt_index < max_attempts:
+                    logger.warning(f"[{phase_id}] Attempt {attempt_index} failed, escalating model for retry...")
+                continue
+
+            except Exception as e:
+                logger.error(f"[{phase_id}] Attempt {attempt_index + 1} raised exception: {e}")
+                # Record infrastructure error
+                if self.llm_service:
+                    self.llm_service.record_attempt_outcome(
+                        phase_id=phase_id,
+                        model="unknown",
+                        outcome="infra_error",
+                        details=str(e)
+                    )
+
+                # Mid-Run Re-Planning: Record error for approach flaw detection
+                self._record_phase_error(
+                    phase=phase,
+                    error_type="infra_error",
+                    error_details=str(e),
+                    attempt_index=attempt_index
+                )
+
+                # Check if we should trigger re-planning before next retry
+                should_replan, flaw_type = self._should_trigger_replan(phase)
+                if should_replan:
+                    logger.info(f"[{phase_id}] Triggering mid-run re-planning due to {flaw_type}")
+                    error_history = self._phase_error_history.get(phase_id, [])
+                    revised_phase = self._revise_phase_approach(phase, flaw_type, error_history)
+                    if revised_phase:
+                        phase = revised_phase
+                        attempt_index = 0
+                        setattr(self, attempt_key, 0)
+                        logger.info(f"[{phase_id}] Re-planning successful. Restarting with revised approach.")
+                        continue
+
+                attempt_index += 1
+                setattr(self, attempt_key, attempt_index)
+                if attempt_index >= max_attempts:
+                    break
+                continue
+
+        # All attempts exhausted - mark phase as FAILED
+        logger.error(f"[{phase_id}] All {max_attempts} attempts exhausted. Marking phase as FAILED.")
+
+        # Log to debug journal for persistent tracking
+        log_error(
+            error_signature=f"Phase {phase_id} max attempts exhausted",
+            symptom=f"Phase failed after {max_attempts} attempts with model escalation",
+            run_id=self.run_id,
+            phase_id=phase_id,
+            suspected_cause="Task complexity exceeds model capabilities or task is impossible",
+            priority="HIGH"
+        )
+
+        self._update_phase_status(phase_id, "FAILED")
+        return False, "FAILED"
+
+    def _status_to_outcome(self, status: str) -> str:
+        """Map phase status to outcome for escalation tracking."""
+        outcome_map = {
+            "FAILED": "auditor_reject",
+            "PATCH_FAILED": "patch_apply_error",
+            "BLOCKED": "auditor_reject",
+            "CI_FAILED": "ci_fail",
+        }
+        return outcome_map.get(status, "auditor_reject")
+
+    def _record_learning_hint(self, phase: Dict, hint_type: str, details: str):
+        """
+        Learning Pipeline: Record a hint for this run.
+
+        Hints are lessons learned during troubleshooting that can help:
+        1. Later phases in the same run (Stage 0A)
+        2. Future runs after promotion (Stage 0B)
+
+        Args:
+            phase: Phase specification dict
+            hint_type: Type of hint (e.g., auditor_reject, ci_fail, success_after_retry)
+            details: Human-readable details about what was learned
+        """
+        try:
+            phase_id = phase.get("phase_id", "unknown")
+            task_category = phase.get("task_category", "general")
+            phase_name = phase.get("name", phase_id)
+
+            # Generate descriptive hint text based on type
+            hint_templates = {
+                "auditor_reject": f"Phase '{phase_name}' was rejected by auditor - ensure code quality and completeness",
+                "ci_fail": f"Phase '{phase_name}' failed CI tests - verify tests pass before submitting",
+                "patch_apply_error": f"Phase '{phase_name}' generated invalid patch - ensure proper diff format",
+                "infra_error": f"Phase '{phase_name}' hit infrastructure error - check API connectivity",
+                "success_after_retry": f"Phase '{phase_name}' succeeded after retries - model escalation was needed",
+            }
+
+            hint_text = hint_templates.get(hint_type, f"Phase '{phase_name}': {hint_type}")
+            hint_text = f"{hint_text}. Details: {details}"
+
+            # Save the hint
+            save_run_hint(
+                run_id=self.run_id,
+                phase=phase,
+                hint_text=hint_text,
+                source_issue_keys=[f"{hint_type}_{phase_id}"]
+            )
+
+            logger.debug(f"[Learning] Recorded hint for {phase_id}: {hint_type}")
+
+        except Exception as e:
+            # Don't let hint recording break phase execution
+            logger.warning(f"Failed to record learning hint: {e}")
+
+    # =========================================================================
+    # Mid-Run Re-Planning System
+    # =========================================================================
+
+    def _record_phase_error(self, phase: Dict, error_type: str, error_details: str, attempt_index: int):
+        """
+        Record an error for approach flaw detection.
+
+        Tracks error patterns to distinguish 'approach flaw' from 'transient failure'.
+        An approach flaw is detected when the same error type occurs repeatedly,
+        indicating the underlying implementation approach is wrong.
+
+        Args:
+            phase: Phase specification
+            error_type: Category of error (e.g., 'auditor_reject', 'ci_fail', 'patch_error')
+            error_details: Detailed error message
+            attempt_index: Current attempt number
+        """
+        phase_id = phase.get("phase_id")
+
+        if phase_id not in self._phase_error_history:
+            self._phase_error_history[phase_id] = []
+
+        error_record = {
+            "attempt": attempt_index,
+            "error_type": error_type,
+            "error_details": error_details,
+            "timestamp": time.time(),
+        }
+
+        self._phase_error_history[phase_id].append(error_record)
+        logger.debug(f"[Re-Plan] Recorded error for {phase_id}: {error_type}")
+
+    def _normalize_error_message(self, message: str) -> str:
+        """
+        Normalize error message for similarity comparison.
+
+        Strips:
+        - Absolute/relative paths
+        - Line numbers
+        - Run IDs / UUIDs
+        - Timestamps
+        - Stack trace lines
+        - Collapses whitespace
+        """
+        import re
+
+        if not message:
+            return ""
+
+        normalized = message.lower()
+
+        # Strip file paths (Unix and Windows)
+        normalized = re.sub(r'[/\\][\w\-./\\]+\.(py|js|ts|json|yaml|yml|md)', '[PATH]', normalized)
+        normalized = re.sub(r'[a-z]:\\[\w\-\\]+', '[PATH]', normalized, flags=re.IGNORECASE)
+
+        # Strip line numbers (e.g., "line 42", ":42:", "L42")
+        normalized = re.sub(r'\bline\s*\d+\b', 'line [N]', normalized)
+        normalized = re.sub(r':\d+:', ':[N]:', normalized)
+        normalized = re.sub(r'\bL\d+\b', 'L[N]', normalized)
+
+        # Strip UUIDs
+        normalized = re.sub(r'[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}', '[UUID]', normalized)
+
+        # Strip run IDs (common patterns)
+        normalized = re.sub(r'\b[a-z]+-\d{8}(-\d+)?\b', '[RUN_ID]', normalized)
+
+        # Strip timestamps (ISO format and common patterns)
+        normalized = re.sub(r'\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}', '[TIMESTAMP]', normalized)
+        normalized = re.sub(r'\d{2}:\d{2}:\d{2}', '[TIME]', normalized)
+
+        # Strip stack trace lines
+        normalized = re.sub(r'file "[^"]+", line \[n\]', 'file [PATH], line [N]', normalized)
+        normalized = re.sub(r'traceback \(most recent call last\):', '[TRACEBACK]', normalized)
+
+        # Collapse whitespace
+        normalized = re.sub(r'\s+', ' ', normalized).strip()
+
+        return normalized
+
+    def _calculate_message_similarity(self, msg1: str, msg2: str) -> float:
+        """
+        Calculate similarity between two error messages using difflib.
+
+        Returns:
+            Float between 0.0 and 1.0 (1.0 = identical)
+        """
+        from difflib import SequenceMatcher
+
+        if not msg1 or not msg2:
+            return 0.0
+
+        norm1 = self._normalize_error_message(msg1)
+        norm2 = self._normalize_error_message(msg2)
+
+        return SequenceMatcher(None, norm1, norm2).ratio()
+
+    def _detect_approach_flaw(self, phase: Dict) -> Optional[str]:
+        """
+        Analyze error history to detect fundamental approach flaws.
+
+        Enhanced with message similarity checking per GPT recommendation:
+        - Checks consecutive same-type failures (not just total count)
+        - Verifies message similarity >= threshold
+        - Supports fatal error types that trigger immediately
+
+        Returns:
+            Error type if approach flaw detected, None otherwise
+        """
+        phase_id = phase.get("phase_id")
+        errors = self._phase_error_history.get(phase_id, [])
+
+        # Load replan config from models.yaml
+        import yaml
+        try:
+            with open("config/models.yaml") as f:
+                config = yaml.safe_load(f)
+            replan_config = config.get("replan", {})
+        except Exception:
+            replan_config = {}
+
+        trigger_threshold = replan_config.get("trigger_threshold", self.REPLAN_TRIGGER_THRESHOLD)
+        similarity_enabled = replan_config.get("message_similarity_enabled", True)
+        similarity_threshold = replan_config.get("similarity_threshold", 0.8)
+        min_message_length = replan_config.get("min_message_length", 30)
+        fatal_error_types = replan_config.get("fatal_error_types", [])
+
+        if len(errors) == 0:
+            return None
+
+        # Check for fatal error types (immediate trigger on first occurrence)
+        latest_error = errors[-1]
+        if latest_error["error_type"] in fatal_error_types:
+            logger.info(f"[Re-Plan] Fatal error type detected for {phase_id}: {latest_error['error_type']}")
+            return latest_error["error_type"]
+
+        if len(errors) < trigger_threshold:
+            return None
+
+        # Check consecutive same-type failures with message similarity
+        # Look at the last N errors (where N = trigger_threshold)
+        recent_errors = errors[-trigger_threshold:]
+
+        # Group by error type
+        error_types = [e["error_type"] for e in recent_errors]
+        if len(set(error_types)) != 1:
+            # Different error types in recent errors - not a repeated pattern
+            return None
+
+        error_type = error_types[0]
+
+        # If similarity checking is disabled, trigger on same type alone
+        if not similarity_enabled:
+            logger.info(f"[Re-Plan] Approach flaw detected for {phase_id}: {error_type} occurred {trigger_threshold} times consecutively")
+            return error_type
+
+        # Check message similarity between consecutive errors
+        messages = [e.get("error_details", "") for e in recent_errors]
+
+        # Skip if messages are too short
+        if all(len(m) < min_message_length for m in messages):
+            logger.debug(f"[Re-Plan] Messages too short for similarity check ({phase_id})")
+            # Fall back to type-only check
+            logger.info(f"[Re-Plan] Approach flaw detected for {phase_id}: {error_type} occurred {trigger_threshold} times (short messages)")
+            return error_type
+
+        # Check pairwise similarity between consecutive errors
+        all_similar = True
+        for i in range(len(messages) - 1):
+            similarity = self._calculate_message_similarity(messages[i], messages[i + 1])
+            logger.debug(f"[Re-Plan] Message similarity [{i}]->[{i+1}]: {similarity:.2f}")
+            if similarity < similarity_threshold:
+                all_similar = False
+                break
+
+        if all_similar:
+            logger.info(
+                f"[Re-Plan] Approach flaw detected for {phase_id}: {error_type} occurred {trigger_threshold} times "
+                f"with similar messages (similarity >= {similarity_threshold})"
+            )
+            return error_type
+
+        logger.debug(f"[Re-Plan] No approach flaw for {phase_id}: messages not similar enough")
+        return None
+
+    def _get_replan_count(self, phase_id: str) -> int:
+        """Get how many times a phase has been re-planned."""
+        return self._phase_revised_specs.get(f"_replan_count_{phase_id}", 0)
+
+    def _should_trigger_replan(self, phase: Dict) -> Tuple[bool, Optional[str]]:
+        """
+        Determine if re-planning should be triggered for a phase.
+
+        Returns:
+            Tuple of (should_replan: bool, detected_flaw_type: str or None)
+        """
+        phase_id = phase.get("phase_id")
+
+        # Check if we've exceeded max replans
+        replan_count = self._get_replan_count(phase_id)
+        if replan_count >= self.MAX_REPLANS_PER_PHASE:
+            logger.info(f"[Re-Plan] Max replans ({self.MAX_REPLANS_PER_PHASE}) reached for {phase_id}")
+            return False, None
+
+        # Detect approach flaw
+        flaw_type = self._detect_approach_flaw(phase)
+        if flaw_type:
+            return True, flaw_type
+
+        return False, None
+
+    def _revise_phase_approach(self, phase: Dict, flaw_type: str, error_history: List[Dict]) -> Optional[Dict]:
+        """
+        Invoke LLM to revise the phase approach based on failure context.
+
+        This is the core of mid-run re-planning: we ask the LLM to analyze
+        what went wrong and provide a revised implementation approach.
+
+        Args:
+            phase: Original phase specification
+            flaw_type: Detected flaw type
+            error_history: History of errors for this phase
+
+        Returns:
+            Revised phase specification dict, or None if revision failed
+        """
+        phase_id = phase.get("phase_id")
+        phase_name = phase.get("name", phase_id)
+        original_description = phase.get("description", "")
+
+        logger.info(f"[Re-Plan] Revising approach for {phase_id} due to {flaw_type}")
+
+        # Build context from error history
+        error_summary = "\n".join([
+            f"- Attempt {e['attempt'] + 1}: {e['error_type']} - {e['error_details'][:200]}"
+            for e in error_history[-5:]  # Last 5 errors
+        ])
+
+        # Get any run hints that might help
+        learning_context = self._get_learning_context_for_phase(phase)
+        hints_summary = "\n".join([
+            f"- {hint}" for hint in learning_context.get("run_hints", [])[:3]
+        ])
+
+        replan_prompt = f"""You are a senior software architect. A phase in our automated build system has failed repeatedly with the same error pattern. Your task is to analyze the failures and provide a revised implementation approach.
+
+## Original Phase Specification
+**Phase**: {phase_name}
+**Description**: {original_description}
+**Category**: {phase.get('task_category', 'general')}
+**Complexity**: {phase.get('complexity', 'medium')}
+
+## Error Pattern Detected
+**Flaw Type**: {flaw_type}
+**Recent Errors**:
+{error_summary}
+
+## Learning Hints from Earlier Phases
+{hints_summary if hints_summary else "(No hints available)"}
+
+## Your Task
+Analyze why the original approach kept failing and provide a REVISED description that:
+1. Addresses the root cause of the repeated failures
+2. Uses a different implementation strategy if needed
+3. Includes specific guidance to avoid the detected error pattern
+4. Keeps the same overall goal but changes HOW to achieve it
+
+## Output Format
+Provide ONLY the revised description text. Do not include JSON, markdown headers, or explanations.
+Just the new description that should replace the original.
+"""
 
         try:
-            return self.error_recovery.execute_with_retry(
-                func=_execute_phase_inner,
-                operation_name=f"Phase execution: {phase_id}",
-                max_retries=2  # Retry twice for transient errors
+            # Use LlmService to invoke planner (use strongest model for replanning)
+            if not self.llm_service:
+                logger.error("[Re-Plan] LlmService not initialized")
+                return None
+
+            # Get the anthropic client directly for re-planning
+            import os
+
+            api_key = os.environ.get("ANTHROPIC_API_KEY")
+            if not api_key:
+                logger.error("[Re-Plan] ANTHROPIC_API_KEY not set for re-planning")
+                return None
+
+            # Use Claude for re-planning (strongest model)
+            import anthropic
+            client = anthropic.Anthropic(api_key=api_key)
+
+            response = client.messages.create(
+                model="claude-sonnet-4-20250514",  # Use strong model for re-planning
+                max_tokens=2000,
+                messages=[
+                    {"role": "user", "content": replan_prompt}
+                ]
             )
+
+            revised_description = response.content[0].text.strip()
+
+            if not revised_description or len(revised_description) < 20:
+                logger.error("[Re-Plan] LLM returned empty or too-short revision")
+                return None
+
+            # Create revised phase spec
+            revised_phase = phase.copy()
+            revised_phase["description"] = revised_description
+            revised_phase["_original_description"] = original_description
+            revised_phase["_revision_reason"] = f"Approach flaw: {flaw_type}"
+            revised_phase["_revision_timestamp"] = time.time()
+
+            logger.info(f"[Re-Plan] Successfully revised phase {phase_id}")
+            logger.info(f"[Re-Plan] Original: {original_description[:100]}...")
+            logger.info(f"[Re-Plan] Revised: {revised_description[:100]}...")
+
+            # Store and track
+            self._phase_revised_specs[phase_id] = revised_phase
+            self._phase_revised_specs[f"_replan_count_{phase_id}"] = self._get_replan_count(phase_id) + 1
+
+            # Clear error history for fresh start with new approach
+            self._phase_error_history[phase_id] = []
+
+            # Record this re-planning event
+            log_build_event(
+                event_type="PHASE_REPLANNED",
+                description=f"Phase {phase_id} replanned due to {flaw_type}. Original: '{original_description[:50]}...' -> Revised approach applied.",
+                deliverables=[f"Run: {self.run_id}", f"Phase: {phase_id}", f"Flaw: {flaw_type}"],
+                project_slug=self._get_project_slug()
+            )
+
+            return revised_phase
+
         except Exception as e:
-            logger.error(f"[{phase_id}] Phase execution failed permanently: {e}")
+            logger.error(f"[Re-Plan] Failed to revise phase: {e}")
+            return None
 
-            # Log to debug journal for persistent tracking
-            log_error(
-                error_signature=f"Phase {phase_id} execution failure",
-                symptom=f"{type(e).__name__}: {str(e)}",
-                run_id=self.run_id,
-                phase_id=phase_id,
-                suspected_cause="Unhandled exception in phase execution pipeline",
-                priority="HIGH"
-            )
+    def _get_phase_spec_for_execution(self, phase: Dict) -> Dict:
+        """
+        Get the phase specification to use for execution.
 
-            self._update_phase_status(phase_id, "FAILED")
-            return False, "FAILED"
+        Returns the revised spec if one exists, otherwise the original.
+        """
+        phase_id = phase.get("phase_id")
+        if phase_id in self._phase_revised_specs:
+            logger.info(f"[Re-Plan] Using revised spec for {phase_id}")
+            return self._phase_revised_specs[phase_id]
+        return phase
 
-    def _execute_phase_with_recovery(self, phase: Dict) -> Tuple[bool, str]:
-        """Inner phase execution with error handling"""
+    def _execute_phase_with_recovery(self, phase: Dict, attempt_index: int = 0) -> Tuple[bool, str]:
+        """Inner phase execution with error handling and model escalation support"""
         phase_id = phase.get("phase_id")
 
         try:
@@ -446,16 +1092,25 @@ class AutonomousExecutor:
             file_context = self._load_repository_context(phase)
             logger.info(f"[{phase_id}] Loaded {len(file_context.get('existing_files', {}))} files for context")
 
-            # Use LlmService for complexity-based model selection and usage tracking
+            # Load learning context (Stage 0A hints + Stage 0B rules)
+            learning_context = self._get_learning_context_for_phase(phase)
+            project_rules = learning_context.get("project_rules", [])
+            run_hints = learning_context.get("run_hints", [])
+
+            if project_rules or run_hints:
+                logger.info(f"[{phase_id}] Learning context: {len(project_rules)} rules, {len(run_hints)} hints")
+
+            # Use LlmService for complexity-based model selection with escalation
             builder_result = self.llm_service.execute_builder_phase(
                 phase_spec=phase,
                 file_context=file_context,
                 max_tokens=None,  # Let ModelRouter decide based on phase config
-                project_rules=[],  # TODO: Load from .autopack/learned_rules.yaml
-                run_hints=[],  # TODO: Collect within-run hints
+                project_rules=project_rules,  # Stage 0B: Persistent project rules
+                run_hints=run_hints,  # Stage 0A: Within-run hints from earlier phases
                 run_id=self.run_id,
                 phase_id=phase_id,
                 run_context={},  # TODO: Pass model_overrides if specified in run config
+                attempt_index=attempt_index,  # Pass attempt for model escalation
             )
 
             if not builder_result.success:
@@ -493,18 +1148,20 @@ class AutonomousExecutor:
             # Step 4: Review with Auditor using LlmService (with real CI results)
             logger.info(f"[{phase_id}] Step 4/5: Reviewing patch with Auditor (via LlmService)...")
 
-            # Use LlmService for complexity-based model selection, usage tracking, and quality gate
+            # Use LlmService for complexity-based model selection with escalation, usage tracking, and quality gate
+            # Note: project_rules and run_hints were already loaded for Builder above
             auditor_result = self.llm_service.execute_auditor_review(
                 patch_content=builder_result.patch_content,
                 phase_spec=phase,
                 max_tokens=None,  # Let ModelRouter decide
-                project_rules=[],  # TODO: Load from .autopack/learned_rules.yaml
-                run_hints=[],  # TODO: Collect within-run hints
+                project_rules=project_rules,  # Stage 0B: Persistent project rules
+                run_hints=run_hints,  # Stage 0A: Within-run hints from earlier phases
                 run_id=self.run_id,
                 phase_id=phase_id,
                 run_context={},  # TODO: Pass model_overrides if specified
                 ci_result=ci_result,  # Now passing real CI results!
                 coverage_delta=0.0,  # TODO: Calculate actual coverage delta
+                attempt_index=attempt_index,  # Pass attempt for model escalation
             )
 
             logger.info(f"[{phase_id}] Auditor completed: approved={auditor_result.approved}, "
@@ -1203,6 +1860,19 @@ class AutonomousExecutor:
             )
         except Exception as e:
             logger.warning(f"Failed to log run completion: {e}")
+
+        # Learning Pipeline: Promote hints to persistent rules (Stage 0B)
+        try:
+            project_id = self._get_project_slug()
+            promoted_count = promote_hints_to_rules(self.run_id, project_id)
+            if promoted_count > 0:
+                logger.info(f"Learning Pipeline: Promoted {promoted_count} hints to persistent project rules")
+                # Mark that rules have changed for future planning updates
+                self._mark_rules_updated(project_id, promoted_count)
+            else:
+                logger.info("Learning Pipeline: No hints qualified for promotion (need 2+ occurrences)")
+        except Exception as e:
+            logger.warning(f"Failed to promote hints to rules: {e}")
 
 
 def main():

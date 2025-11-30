@@ -132,6 +132,7 @@ class LlmService:
         run_id: Optional[str] = None,
         phase_id: Optional[str] = None,
         run_context: Optional[Dict] = None,
+        attempt_index: int = 0,
     ) -> BuilderResult:
         """
         Execute builder phase with automatic model selection and usage tracking.
@@ -145,25 +146,39 @@ class LlmService:
             run_id: Run identifier for usage tracking
             phase_id: Phase identifier for usage tracking
             run_context: Run context with potential model_overrides
+            attempt_index: 0-based attempt number for escalation (default 0)
 
         Returns:
             BuilderResult with patch and metadata
         """
-        # Select model using ModelRouter
+        # Select model using ModelRouter with escalation support
         task_category = phase_spec.get("task_category", "general")
         complexity = phase_spec.get("complexity", "medium")
 
-        model, budget_warning = self.model_router.select_model(
+        # Use escalation-aware model selection
+        model, effective_complexity, escalation_info = self.model_router.select_model_with_escalation(
             role="builder",
             task_category=task_category,
             complexity=complexity,
+            phase_id=phase_id or "unknown",
+            attempt_index=attempt_index,
             run_context=run_context,
-            phase_id=phase_id,
         )
 
-        # Log budget warning if present (alerts, not hard stops)
-        if budget_warning:
-            print(f"[{budget_warning['level'].upper()}] {budget_warning['message']}")
+        # Log model selection (always, for observability per GPT recommendation)
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.info(
+            f"[MODEL-SELECT] Builder: model={model}, complexity={complexity}->{effective_complexity}, "
+            f"attempt={attempt_index}, category={task_category}"
+        )
+        if escalation_info.get("complexity_escalation_reason"):
+            logger.info(f"[ESCALATION] Builder complexity escalated: {escalation_info['complexity_escalation_reason']}")
+        if escalation_info.get("model_escalation_reason"):
+            logger.info(f"[MODEL] Builder using {model} due to: {escalation_info['model_escalation_reason']}")
+        if escalation_info.get("budget_warning"):
+            budget_warning = escalation_info["budget_warning"]
+            logger.warning(f"[{budget_warning['level'].upper()}] {budget_warning['message']}")
 
         # Resolve client and model (handling fallbacks)
         builder_client, resolved_model = self._resolve_client_and_model("builder", model)
@@ -209,6 +224,7 @@ class LlmService:
         run_context: Optional[Dict] = None,
         ci_result: Optional[Dict] = None,
         coverage_delta: Optional[float] = None,
+        attempt_index: int = 0,
     ) -> AuditorResult:
         """
         Execute auditor review with automatic model selection, usage tracking,
@@ -225,25 +241,39 @@ class LlmService:
             run_context: Run context with potential model_overrides
             ci_result: CI test result (passed, failed, skipped) for quality gate
             coverage_delta: Coverage change (+5%, -2%, etc.) for quality gate
+            attempt_index: 0-based attempt number for escalation (default 0)
 
         Returns:
             AuditorResult with review, issues, and quality gate assessment
         """
-        # Select model using ModelRouter
+        # Select model using ModelRouter with escalation support
         task_category = phase_spec.get("task_category", "general")
         complexity = phase_spec.get("complexity", "medium")
 
-        model, budget_warning = self.model_router.select_model(
+        # Use escalation-aware model selection
+        model, effective_complexity, escalation_info = self.model_router.select_model_with_escalation(
             role="auditor",
             task_category=task_category,
             complexity=complexity,
+            phase_id=phase_id or "unknown",
+            attempt_index=attempt_index,
             run_context=run_context,
-            phase_id=phase_id,
         )
 
-        # Log budget warning if present (alerts, not hard stops)
-        if budget_warning:
-            print(f"[{budget_warning['level'].upper()}] {budget_warning['message']}")
+        # Log model selection (always, for observability per GPT recommendation)
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.info(
+            f"[MODEL-SELECT] Auditor: model={model}, complexity={complexity}->{effective_complexity}, "
+            f"attempt={attempt_index}, category={task_category}"
+        )
+        if escalation_info.get("complexity_escalation_reason"):
+            logger.info(f"[ESCALATION] Auditor complexity escalated: {escalation_info['complexity_escalation_reason']}")
+        if escalation_info.get("model_escalation_reason"):
+            logger.info(f"[MODEL] Auditor using {model} due to: {escalation_info['model_escalation_reason']}")
+        if escalation_info.get("budget_warning"):
+            budget_warning = escalation_info["budget_warning"]
+            logger.warning(f"[{budget_warning['level'].upper()}] {budget_warning['message']}")
 
         # Resolve client and model (handling fallbacks)
         auditor_client, resolved_model = self._resolve_client_and_model("auditor", model)
@@ -356,3 +386,33 @@ class LlmService:
             return "zhipu_glm"
         else:
             return "openai"  # Safe default
+
+    def record_attempt_outcome(
+        self,
+        phase_id: str,
+        model: str,
+        outcome: str,
+        details: Optional[str] = None
+    ):
+        """
+        Record the outcome of an attempt for escalation tracking.
+
+        This should be called after each Builder/Auditor attempt to
+        track success/failure for model escalation decisions.
+
+        Args:
+            phase_id: Phase identifier
+            model: Model used for this attempt
+            outcome: One of: success, auditor_reject, ci_fail, patch_apply_error, infra_error
+            details: Optional details about the outcome
+        """
+        self.model_router.record_attempt_outcome(
+            phase_id=phase_id,
+            model=model,
+            outcome=outcome,
+            details=details
+        )
+
+    def get_max_attempts(self) -> int:
+        """Get maximum attempts per phase from config."""
+        return self.model_router.get_max_attempts()

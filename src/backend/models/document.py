@@ -20,7 +20,7 @@ class Document(Base):
         pack_name: Name of the pack this document belongs to
         confidence_score: Confidence score of extraction (0.0 to 1.0)
         extracted_text: Full extracted text content
-        metadata: Additional metadata as JSON
+        document_metadata: Additional metadata as JSON
         created_at: Timestamp when document was created
         updated_at: Timestamp when document was last updated
     """
@@ -33,7 +33,7 @@ class Document(Base):
     pack_name = Column(String(200), index=True)
     confidence_score = Column(Float, index=True)
     extracted_text = Column(Text)
-    metadata = Column(JSON)
+    document_metadata = Column("metadata", JSON)  # "metadata" is reserved in SQLAlchemy
     created_at = Column(
         DateTime(timezone=True),
         server_default=func.now(),

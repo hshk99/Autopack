@@ -877,16 +877,31 @@ class AutonomousExecutor:
             tests_passed = 0
             tests_failed = 0
             tests_error = 0
+            import re
 
             # Look for summary line like "5 passed, 2 failed, 1 error in 1.23s"
+            # Also handle "X tests collected, Y errors" for collection errors
             for line in output.split("\n"):
                 line_lower = line.lower()
-                if "passed" in line_lower or "failed" in line_lower or "error" in line_lower:
-                    import re
-                    # Extract numbers
+
+                # Check for collection errors first (e.g., "4 errors during collection")
+                collection_error_match = re.search(r"(\d+)\s+errors?\s+during\s+collection", line_lower)
+                if collection_error_match:
+                    tests_error = int(collection_error_match.group(1))
+                    continue
+
+                # Check for "X tests collected" to get baseline
+                collected_match = re.search(r"(\d+)\s+tests?\s+collected", line_lower)
+                if collected_match:
+                    tests_run = int(collected_match.group(1))
+                    continue
+
+                # Standard summary line parsing
+                if "passed" in line_lower or "failed" in line_lower or ("error" in line_lower and "during collection" not in line_lower):
+                    # Extract numbers from summary line
                     passed_match = re.search(r"(\d+)\s+passed", line_lower)
                     failed_match = re.search(r"(\d+)\s+failed", line_lower)
-                    error_match = re.search(r"(\d+)\s+error", line_lower)
+                    error_match = re.search(r"(\d+)\s+errors?(?!\s+during)", line_lower)
 
                     if passed_match:
                         tests_passed = int(passed_match.group(1))

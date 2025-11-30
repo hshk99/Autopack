@@ -22,8 +22,8 @@ settings = get_settings()
 # Initialize Celery app
 celery_app = Celery(
     "autopack",
-    broker=settings.CELERY_BROKER_URL,
-    backend=settings.CELERY_RESULT_BACKEND,
+    broker=settings.celery_broker_url or "redis://localhost:6379/0",
+    backend=settings.redis_url or "redis://localhost:6379/0",
 )
 
 # Configure Celery

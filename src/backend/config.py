@@ -1,37 +1,54 @@
 """
-Application configuration.
+Application configuration management.
 
-This module provides configuration management using Pydantic settings.
+Handles environment-specific settings and provides different configurations
+for development, testing, and production environments.
 """
+import os
+from typing import Optional
 
-from functools import lru_cache
-
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
-    """Application settings."""
+    """
+    Application settings with environment variable support.
+    
+    Attributes:
+        testing: Whether the application is running in test mode
+        database_url: Database connection string
+        redis_url: Redis connection string (optional)
+        celery_broker_url: Celery broker URL (optional)
+        debug: Enable debug mode
+    """
+    
+    testing: bool = False
+    database_url: str = "postgresql://user:password@localhost/autopack"
+    redis_url: Optional[str] = None
+    celery_broker_url: Optional[str] = None
+    debug: bool = False
+    
+    class Config:
+        env_file = ".env"
+        case_sensitive = False
+        extra = "ignore"  # Allow extra fields from .env without validation errors
 
-    model_config = SettingsConfigDict(
-        env_file=".env",
-        env_file_encoding="utf-8",
-        case_sensitive=True,
-        extra="ignore",
-    )
 
-    # API Settings
-    API_V1_PREFIX: str = "/api/v1"
-    PROJECT_NAME: str = "Autopack"
-
-    # Celery Settings
-    CELERY_BROKER_URL: str = "redis://localhost:6379/0"
-    CELERY_RESULT_BACKEND: str = "redis://localhost:6379/0"
-
-    # Database Settings
-    DATABASE_URL: str = "postgresql://user:password@localhost/autopack"
-
-
-@lru_cache()
 def get_settings() -> Settings:
-    """Get cached settings instance."""
+    """
+    Get application settings based on environment.
+    
+    Returns:
+        Settings: Configured settings instance
+    """
+    # Check if we're in testing mode
+    if os.getenv("TESTING") == "1":
+        return Settings(
+            testing=True,
+            database_url="sqlite:///:memory:",
+            redis_url=None,
+            celery_broker_url=None,
+            debug=True,
+        )
+    
     return Settings()

@@ -1,4 +1,15 @@
-celery>=5.3.4
-redis>=5.0.1
-python-magic>=0.4.27
-pillow>=10.1.0
+# Core FastAPI dependencies
+fastapi>=0.104.0
+uvicorn[standard]>=0.24.0
+pydantic>=2.5.0
+pydantic-settings>=2.1.0
+python-multipart>=0.0.6
+
+# Database
+sqlalchemy>=2.0.23
+psycopg2-binary>=2.9.9
+alembic>=1.13.0
+
+# Task queue and file validation
+python-magic>=0.4.27; sys_platform != 'win32'
+python-magic-bin>=0.4.14; sys_platform == 'win32'

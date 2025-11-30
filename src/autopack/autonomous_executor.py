@@ -41,6 +41,7 @@ from autopack.llm_client import BuilderResult, AuditorResult
 from autopack.error_recovery import ErrorRecoverySystem, get_error_recovery, safe_execute
 from autopack.llm_service import LlmService
 from autopack.debug_journal import log_error, log_fix, mark_resolved
+from autopack.archive_consolidator import log_build_event, log_feature_completion
 
 
 # Configure logging
@@ -531,6 +532,20 @@ class AutonomousExecutor:
             self._update_phase_status(phase_id, "COMPLETE")
             logger.info(f"[{phase_id}] Phase completed successfully")
 
+            # Log build event to CONSOLIDATED_BUILD.md
+            try:
+                phase_name = phase.get("name", phase_id)
+                builder_tokens = getattr(builder_result, 'tokens_used', 0)
+                log_build_event(
+                    event_type="PHASE_COMPLETE",
+                    description=f"Phase {phase_id} ({phase_name}) completed. Builder: {builder_tokens} tokens. Auditor: {'approved' if auditor_result.approved else 'rejected'} ({len(auditor_result.issues_found)} issues). Quality: {quality_report.quality_level}",
+                    deliverables=[f"Run: {self.run_id}", f"Phase: {phase_id}"],
+                    token_usage={"builder": builder_tokens},
+                    project_slug=self._get_project_slug()
+                )
+            except Exception as e:
+                logger.warning(f"[{phase_id}] Failed to log build event: {e}")
+
             return True, "COMPLETE"
 
         except Exception as e:
@@ -747,6 +762,19 @@ class AutonomousExecutor:
                 priority="MEDIUM"
             )
 
+    def _get_project_slug(self) -> str:
+        """Extract project slug from run_id or workspace
+
+        Returns:
+            Project slug for archive_consolidator (e.g., 'file-organizer-app-v1')
+        """
+        # Try to extract from run_id (format: projectname-phase2-xxx or fileorg-xxx)
+        if "fileorg" in self.run_id.lower() or "file-organizer" in self.run_id.lower():
+            return "file-organizer-app-v1"
+
+        # Default to Autopack framework
+        return "autopack"
+
     def _update_phase_status(self, phase_id: str, status: str):
         """Update phase status via API
 
@@ -789,6 +817,8 @@ class AutonomousExecutor:
         self._init_infrastructure()
 
         iteration = 0
+        phases_executed = 0
+        phases_failed = 0
         while True:
             # Check iteration limit
             if max_iterations and iteration >= max_iterations:
@@ -829,8 +859,10 @@ class AutonomousExecutor:
 
             if success:
                 logger.info(f"Phase {phase_id} completed successfully")
+                phases_executed += 1
             else:
                 logger.warning(f"Phase {phase_id} finished with status: {status}")
+                phases_failed += 1
 
             # Wait before next iteration
             if max_iterations is None or iteration < max_iterations:
@@ -838,6 +870,17 @@ class AutonomousExecutor:
                 time.sleep(poll_interval)
 
         logger.info("Autonomous execution loop finished")
+
+        # Log run completion summary to CONSOLIDATED_BUILD.md
+        try:
+            log_build_event(
+                event_type="RUN_COMPLETE",
+                description=f"Run {self.run_id} completed. Phases: {phases_executed} successful, {phases_failed} failed. Total iterations: {iteration}",
+                deliverables=[f"Run ID: {self.run_id}", f"Successful: {phases_executed}", f"Failed: {phases_failed}"],
+                project_slug=self._get_project_slug()
+            )
+        except Exception as e:
+            logger.warning(f"Failed to log run completion: {e}")
 
 
 def main():

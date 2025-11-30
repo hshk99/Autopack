@@ -26,8 +26,9 @@ import time
 import json
 import argparse
 import logging
+import subprocess
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, Any
 
 import requests
 from sqlalchemy import create_engine
@@ -41,6 +42,7 @@ from autopack.llm_client import BuilderResult, AuditorResult
 from autopack.error_recovery import ErrorRecoverySystem, get_error_recovery, safe_execute
 from autopack.llm_service import LlmService
 from autopack.debug_journal import log_error, log_fix, mark_resolved
+from autopack.archive_consolidator import log_build_event, log_feature
 
 
 # Configure logging
@@ -462,56 +464,8 @@ class AutonomousExecutor:
             # Post builder result to API
             self._post_builder_result(phase_id, builder_result)
 
-            # Step 2: Review with Auditor using LlmService
-            logger.info(f"[{phase_id}] Step 2/4: Reviewing patch with Auditor (via LlmService)...")
-
-            # Use LlmService for complexity-based model selection, usage tracking, and quality gate
-            auditor_result = self.llm_service.execute_auditor_review(
-                patch_content=builder_result.patch_content,
-                phase_spec=phase,
-                max_tokens=None,  # Let ModelRouter decide
-                project_rules=[],  # TODO: Load from .autopack/learned_rules.yaml
-                run_hints=[],  # TODO: Collect within-run hints
-                run_id=self.run_id,
-                phase_id=phase_id,
-                run_context={},  # TODO: Pass model_overrides if specified
-                ci_result={},  # TODO: Run pytest/mypy and get actual CI result
-                coverage_delta=0.0,  # TODO: Calculate actual coverage delta
-            )
-
-            logger.info(f"[{phase_id}] Auditor completed: approved={auditor_result.approved}, "
-                       f"issues={len(auditor_result.issues_found)}")
-
-            # Post auditor result to API
-            self._post_auditor_result(phase_id, auditor_result)
-
-            # Step 3: Apply Quality Gate
-            logger.info(f"[{phase_id}] Step 3/4: Applying Quality Gate...")
-            quality_report = self.quality_gate.assess_phase(
-                phase_id=phase_id,
-                phase_spec=phase,
-                auditor_result={
-                    "approved": auditor_result.approved,
-                    "issues_found": auditor_result.issues_found,
-                },
-                ci_result={},  # TODO: Run pytest/mypy and get actual CI result
-                coverage_delta=0.0,  # TODO: Calculate actual coverage delta
-                patch_content=builder_result.patch_content,
-                files_changed=None,  # TODO: Extract from builder result
-            )
-
-            logger.info(f"[{phase_id}] Quality Gate: {quality_report.quality_level}")
-
-            # Check if blocked
-            if quality_report.is_blocked():
-                logger.warning(f"[{phase_id}] Phase BLOCKED by quality gate")
-                for issue in quality_report.issues:
-                    logger.warning(f"  - {issue}")
-                self._update_phase_status(phase_id, "BLOCKED")
-                return False, "BLOCKED"
-
-            # Step 4: Apply patch (if not blocked)
-            logger.info(f"[{phase_id}] Step 4/4: Applying patch...")
+            # Step 2: Apply patch first (so we can run CI on it)
+            logger.info(f"[{phase_id}] Step 2/5: Applying patch...")
 
             # Import and use GovernedApplyPath for actual patch application
             from pathlib import Path
@@ -527,9 +481,77 @@ class AutonomousExecutor:
 
             logger.info(f"[{phase_id}] Patch applied successfully to filesystem")
 
+            # Step 3: Run CI checks on the applied code
+            logger.info(f"[{phase_id}] Step 3/5: Running CI checks...")
+            ci_result = self._run_ci_checks(phase_id, phase)
+
+            # Step 4: Review with Auditor using LlmService (with real CI results)
+            logger.info(f"[{phase_id}] Step 4/5: Reviewing patch with Auditor (via LlmService)...")
+
+            # Use LlmService for complexity-based model selection, usage tracking, and quality gate
+            auditor_result = self.llm_service.execute_auditor_review(
+                patch_content=builder_result.patch_content,
+                phase_spec=phase,
+                max_tokens=None,  # Let ModelRouter decide
+                project_rules=[],  # TODO: Load from .autopack/learned_rules.yaml
+                run_hints=[],  # TODO: Collect within-run hints
+                run_id=self.run_id,
+                phase_id=phase_id,
+                run_context={},  # TODO: Pass model_overrides if specified
+                ci_result=ci_result,  # Now passing real CI results!
+                coverage_delta=0.0,  # TODO: Calculate actual coverage delta
+            )
+
+            logger.info(f"[{phase_id}] Auditor completed: approved={auditor_result.approved}, "
+                       f"issues={len(auditor_result.issues_found)}")
+
+            # Post auditor result to API
+            self._post_auditor_result(phase_id, auditor_result)
+
+            # Step 5: Apply Quality Gate (with real CI results)
+            logger.info(f"[{phase_id}] Step 5/5: Applying Quality Gate...")
+            quality_report = self.quality_gate.assess_phase(
+                phase_id=phase_id,
+                phase_spec=phase,
+                auditor_result={
+                    "approved": auditor_result.approved,
+                    "issues_found": auditor_result.issues_found,
+                },
+                ci_result=ci_result,  # Now passing real CI results!
+                coverage_delta=0.0,  # TODO: Calculate actual coverage delta
+                patch_content=builder_result.patch_content,
+                files_changed=None,  # TODO: Extract from builder result
+            )
+
+            logger.info(f"[{phase_id}] Quality Gate: {quality_report.quality_level}")
+
+            # Check if blocked (due to CI failure or other issues)
+            if quality_report.is_blocked():
+                logger.warning(f"[{phase_id}] Phase BLOCKED by quality gate")
+                for issue in quality_report.issues:
+                    logger.warning(f"  - {issue}")
+                # Note: Patch is already applied - in future we could rollback here
+                # For now, mark as blocked but leave changes (human review needed)
+                self._update_phase_status(phase_id, "BLOCKED")
+                return False, "BLOCKED"
+
             # Update phase status to COMPLETE
             self._update_phase_status(phase_id, "COMPLETE")
             logger.info(f"[{phase_id}] Phase completed successfully")
+
+            # Log build event to CONSOLIDATED_BUILD.md
+            try:
+                phase_name = phase.get("name", phase_id)
+                builder_tokens = getattr(builder_result, 'tokens_used', 0)
+                log_build_event(
+                    event_type="PHASE_COMPLETE",
+                    description=f"Phase {phase_id} ({phase_name}) completed. Builder: {builder_tokens} tokens. Auditor: {'approved' if auditor_result.approved else 'rejected'} ({len(auditor_result.issues_found)} issues). Quality: {quality_report.quality_level}",
+                    deliverables=[f"Run: {self.run_id}", f"Phase: {phase_id}"],
+                    token_usage={"builder": builder_tokens},
+                    project_slug=self._get_project_slug()
+                )
+            except Exception as e:
+                logger.warning(f"[{phase_id}] Failed to log build event: {e}")
 
             return True, "COMPLETE"
 
@@ -747,6 +769,183 @@ class AutonomousExecutor:
                 priority="MEDIUM"
             )
 
+    def _get_project_slug(self) -> str:
+        """Extract project slug from run_id or workspace
+
+        Returns:
+            Project slug for archive_consolidator (e.g., 'file-organizer-app-v1')
+        """
+        # Try to extract from run_id (format: projectname-phase2-xxx or fileorg-xxx)
+        if "fileorg" in self.run_id.lower() or "file-organizer" in self.run_id.lower():
+            return "file-organizer-app-v1"
+
+        # Default to Autopack framework
+        return "autopack"
+
+    def _run_ci_checks(self, phase_id: str, phase: Dict) -> Dict[str, Any]:
+        """Run CI checks (pytest) after patch application
+
+        Executes pytest on the workspace and returns structured results.
+
+        Args:
+            phase_id: Phase ID for logging
+            phase: Phase specification
+
+        Returns:
+            Dict with CI results:
+            {
+                "passed": bool,
+                "tests_run": int,
+                "tests_passed": int,
+                "tests_failed": int,
+                "tests_error": int,
+                "duration_seconds": float,
+                "output": str (truncated),
+                "error": str (if any)
+            }
+        """
+        logger.info(f"[{phase_id}] Running CI checks (pytest)...")
+
+        # Determine test directory based on project
+        project_slug = self._get_project_slug()
+        if project_slug == "file-organizer-app-v1":
+            # FileOrganizer has tests in src/backend/tests/
+            test_paths = ["src/backend/tests/", "tests/backend/"]
+        else:
+            # Autopack framework tests
+            test_paths = ["tests/"]
+
+        # Find first existing test path
+        test_dir = None
+        for path in test_paths:
+            full_path = Path(self.workspace) / path
+            if full_path.exists():
+                test_dir = path
+                break
+
+        if not test_dir:
+            logger.warning(f"[{phase_id}] No test directory found, skipping CI checks")
+            return {
+                "passed": True,
+                "tests_run": 0,
+                "tests_passed": 0,
+                "tests_failed": 0,
+                "tests_error": 0,
+                "duration_seconds": 0.0,
+                "output": "No test directory found",
+                "error": None,
+                "skipped": True
+            }
+
+        # Build pytest command
+        # Use JSON output for easier parsing
+        cmd = [
+            sys.executable, "-m", "pytest",
+            test_dir,
+            "-v",
+            "--tb=line",
+            "-q",
+            "--no-header",
+            f"--timeout=60",  # Per-test timeout
+        ]
+
+        # Set environment for subprocess
+        env = os.environ.copy()
+        env["PYTHONPATH"] = str(Path(self.workspace) / "src")
+        env["TESTING"] = "1"
+        env["PYTHONUTF8"] = "1"
+
+        start_time = time.time()
+        try:
+            result = subprocess.run(
+                cmd,
+                cwd=str(self.workspace),
+                capture_output=True,
+                text=True,
+                timeout=300,  # 5 minute total timeout
+                env=env
+            )
+            duration = time.time() - start_time
+
+            output = result.stdout + result.stderr
+            # Truncate output to prevent memory issues
+            if len(output) > 10000:
+                output = output[:5000] + "\n\n... (truncated) ...\n\n" + output[-5000:]
+
+            # Parse pytest output to extract counts
+            tests_run = 0
+            tests_passed = 0
+            tests_failed = 0
+            tests_error = 0
+
+            # Look for summary line like "5 passed, 2 failed, 1 error in 1.23s"
+            for line in output.split("\n"):
+                line_lower = line.lower()
+                if "passed" in line_lower or "failed" in line_lower or "error" in line_lower:
+                    import re
+                    # Extract numbers
+                    passed_match = re.search(r"(\d+)\s+passed", line_lower)
+                    failed_match = re.search(r"(\d+)\s+failed", line_lower)
+                    error_match = re.search(r"(\d+)\s+error", line_lower)
+
+                    if passed_match:
+                        tests_passed = int(passed_match.group(1))
+                    if failed_match:
+                        tests_failed = int(failed_match.group(1))
+                    if error_match:
+                        tests_error = int(error_match.group(1))
+
+            tests_run = tests_passed + tests_failed + tests_error
+            passed = result.returncode == 0
+
+            ci_result = {
+                "passed": passed,
+                "tests_run": tests_run,
+                "tests_passed": tests_passed,
+                "tests_failed": tests_failed,
+                "tests_error": tests_error,
+                "duration_seconds": round(duration, 2),
+                "output": output,
+                "error": None if passed else f"pytest exited with code {result.returncode}",
+                "skipped": False
+            }
+
+            if passed:
+                logger.info(f"[{phase_id}] CI checks PASSED: {tests_passed}/{tests_run} tests passed in {duration:.1f}s")
+            else:
+                logger.warning(f"[{phase_id}] CI checks FAILED: {tests_passed}/{tests_run} passed, {tests_failed} failed, {tests_error} errors")
+
+            return ci_result
+
+        except subprocess.TimeoutExpired:
+            duration = time.time() - start_time
+            logger.error(f"[{phase_id}] CI checks TIMEOUT after {duration:.1f}s")
+            return {
+                "passed": False,
+                "tests_run": 0,
+                "tests_passed": 0,
+                "tests_failed": 0,
+                "tests_error": 0,
+                "duration_seconds": round(duration, 2),
+                "output": "",
+                "error": "pytest timed out after 300 seconds",
+                "skipped": False
+            }
+        except Exception as e:
+            duration = time.time() - start_time
+            logger.error(f"[{phase_id}] CI checks ERROR: {e}")
+            return {
+                "passed": False,
+                "tests_run": 0,
+                "tests_passed": 0,
+                "tests_failed": 0,
+                "tests_error": 0,
+                "duration_seconds": round(duration, 2),
+                "output": "",
+                "error": str(e),
+                "skipped": False
+            }
+
     def _update_phase_status(self, phase_id: str, status: str):
         """Update phase status via API
 
@@ -789,6 +988,8 @@ class AutonomousExecutor:
         self._init_infrastructure()
 
         iteration = 0
+        phases_executed = 0
+        phases_failed = 0
         while True:
             # Check iteration limit
             if max_iterations and iteration >= max_iterations:
@@ -829,8 +1030,10 @@ class AutonomousExecutor:
 
             if success:
                 logger.info(f"Phase {phase_id} completed successfully")
+                phases_executed += 1
             else:
                 logger.warning(f"Phase {phase_id} finished with status: {status}")
+                phases_failed += 1
 
             # Wait before next iteration
             if max_iterations is None or iteration < max_iterations:
@@ -838,6 +1041,17 @@ class AutonomousExecutor:
                 time.sleep(poll_interval)
 
         logger.info("Autonomous execution loop finished")
+
+        # Log run completion summary to CONSOLIDATED_BUILD.md
+        try:
+            log_build_event(
+                event_type="RUN_COMPLETE",
+                description=f"Run {self.run_id} completed. Phases: {phases_executed} successful, {phases_failed} failed. Total iterations: {iteration}",
+                deliverables=[f"Run ID: {self.run_id}", f"Successful: {phases_executed}", f"Failed: {phases_failed}"],
+                project_slug=self._get_project_slug()
+            )
+        except Exception as e:
+            logger.warning(f"Failed to log run completion: {e}")
 
 
 def main():

@@ -1,6 +1,5 @@
 """Unit tests for file layout utilities"""
 
-import os
 from pathlib import Path
 
 import pytest
@@ -11,8 +10,7 @@ from src.autopack.file_layout import RunFileLayout
 @pytest.fixture
 def file_layout(tmp_path):
     """Create a RunFileLayout instance with temp directory"""
-    os.environ["AUTONOMOUS_RUNS_DIR"] = str(tmp_path)
-    layout = RunFileLayout("test-run-001")
+    layout = RunFileLayout("test-run-001", base_dir=tmp_path)
     return layout
 
 

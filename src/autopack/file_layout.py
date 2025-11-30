@@ -16,9 +16,12 @@ from .config import settings
 class RunFileLayout:
     """Manages file layout for a single autonomous run"""
 
-    def __init__(self, run_id: str):
+    def __init__(self, run_id: str, base_dir: Optional[Path] = None):
         self.run_id = run_id
-        self.base_dir = Path(settings.autonomous_runs_dir) / run_id
+        if base_dir is not None:
+            self.base_dir = base_dir / run_id
+        else:
+            self.base_dir = Path(settings.autonomous_runs_dir) / run_id
 
     def ensure_directories(self) -> None:
         """Create all required directories for the run"""

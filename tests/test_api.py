@@ -114,9 +114,8 @@ def test_file_layout_created(client, sample_run_request, tmp_path):
     # Create run
     client.post("/runs/start", json=sample_run_request)
 
-    # Check files exist
-    runs_dir = Path(os.environ.get("AUTONOMOUS_RUNS_DIR", ".autonomous_runs"))
-    run_dir = runs_dir / "test-run-001"
+    # Check files exist - use tmp_path which is set in conftest
+    run_dir = tmp_path / ".autonomous_runs" / "test-run-001"
 
     assert (run_dir / "run_summary.md").exists()
     assert (run_dir / "tiers" / "tier_00_Foundation.md").exists()

@@ -1,44 +1,96 @@
 version: '3.8'
 
 services:
-  db:
-    image: postgres:15-alpine
-    container_name: autopack-db
+  # PostgreSQL Database
+  postgres:
+    image: postgres:16-alpine
+    container_name: autopack-postgres
     environment:
-      POSTGRES_USER: autopack
-      POSTGRES_PASSWORD: autopack
-      POSTGRES_DB: autopack
-    ports:
-      - "5432:5432"
+      POSTGRES_DB: ${POSTGRES_DB:-autopack}
+      POSTGRES_USER: ${POSTGRES_USER:-autopack}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-autopack_dev_password}
+      PGDATA: /var/lib/postgresql/data/pgdata
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U autopack"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-autopack}"]
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - autopack-network
+    restart: unless-stopped
 
-  api:
+  # Backend FastAPI Service
+  backend:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: autopack-api
-    command: uvicorn src.autopack.main:app --host 0.0.0.0 --port 8000 --reload
-    ports:
-      - "8000:8000"
+      target: base
+    container_name: autopack-backend
     environment:
-      DATABASE_URL: postgresql://autopack:autopack@db:5432/autopack
-      REPO_PATH: /workspace
-      OPENAI_API_KEY: ${OPENAI_API_KEY}  # Load from .env file
+      # Database
+      DATABASE_URL: postgresql://${POSTGRES_USER:-autopack}:${POSTGRES_PASSWORD:-autopack_dev_password}@postgres:5432/${POSTGRES_DB:-autopack}
+      
+      # API Keys
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+      
+      # Application
+      ENVIRONMENT: ${ENVIRONMENT:-development}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      
+      # Security
+      SECRET_KEY: ${SECRET_KEY:-dev-secret-key-change-in-production}
+      
+      # Rate Limiting
+      RATE_LIMIT_ENABLED: ${RATE_LIMIT_ENABLED:-true}
     volumes:
-      - .:/app
-      - ./.autonomous_runs:/app/.autonomous_runs
-      # Per v7 architect recommendation: mount repository with .git for governed apply path
-      - .:/workspace  # Mount current directory as workspace
-      - ./.git:/workspace/.git  # Ensure .git is accessible
+      - ./src:/app/src:ro
+      - ./archive:/app/archive:ro
+      - autonomous_runs:/app/.autonomous_runs
+      - logs:/app/logs
+    ports:
+      - "${BACKEND_PORT:-8000}:8000"
     depends_on:
-      db:
+      postgres:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - autopack-network
+    restart: unless-stopped
+
+  # Frontend Static Server (nginx)
+  frontend:
+    image: nginx:alpine
+    container_name: autopack-frontend
+    volumes:
+      - ./src/frontend:/usr/share/nginx/html:ro
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    ports:
+      - "${FRONTEND_PORT:-3000}:80"
+    depends_on:
+      - backend
+    networks:
+      - autopack-network
+    restart: unless-stopped
+
+networks:
+  autopack-network:
+    driver: bridge
 
 volumes:
   postgres_data:
+    driver: local
+  autonomous_runs:
+    driver: local
+  logs:
+    driver: local

@@ -48,7 +48,7 @@ def db_session(db_engine):
 
 
 @pytest.fixture(scope="function")
-def client(db_engine, db_session, tmp_path):
+def client(db_engine, db_session, tmp_path, monkeypatch):
     """Create a test client with dependency overrides"""
     # Create a sessionmaker bound to the same engine
     TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=db_engine)
@@ -64,8 +64,15 @@ def client(db_engine, db_session, tmp_path):
     # Set testing environment variable to skip DB init
     os.environ["TESTING"] = "1"
 
-    # Override autonomous_runs_dir
-    os.environ["AUTONOMOUS_RUNS_DIR"] = str(tmp_path / ".autonomous_runs")
+    # Override autonomous_runs_dir at the settings object level
+    # This ensures all code using settings.autonomous_runs_dir uses the temp path
+    from src.autopack.config import settings
+    test_runs_dir = str(tmp_path / ".autonomous_runs")
+    monkeypatch.setattr(settings, "autonomous_runs_dir", test_runs_dir)
+    os.environ["AUTONOMOUS_RUNS_DIR"] = test_runs_dir
+
+    # Disable rate limiting in tests
+    app.state.limiter.enabled = False
 
     app.dependency_overrides[get_db] = override_get_db
     with TestClient(app) as test_client:

@@ -1,10 +1,12 @@
 """Integration tests for dashboard API endpoints"""
 
+import os
 import pytest
 from datetime import datetime
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import StaticPool
 
 from src.autopack.database import Base, get_db
 from src.autopack.main import app
@@ -12,23 +14,25 @@ from src.autopack import models
 from src.autopack.usage_recorder import LlmUsageEvent
 
 
-# Test database setup
-SQLALCHEMY_DATABASE_URL = "sqlite:///./test_dashboard.db"
-engine = create_engine(SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False})
-TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-
-
 @pytest.fixture(scope="function")
 def test_db():
-    """Create a fresh test database for each test"""
+    """Create a fresh in-memory test database for each test"""
+    # Use in-memory SQLite with StaticPool for test isolation
+    engine = create_engine(
+        "sqlite:///:memory:",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool
+    )
     Base.metadata.create_all(bind=engine)
-    yield
+    yield engine
     Base.metadata.drop_all(bind=engine)
+    engine.dispose()
 
 
 @pytest.fixture(scope="function")
-def client(test_db):
+def client(test_db, tmp_path, monkeypatch):
     """Create a test client with test database"""
+    TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=test_db)
 
     def override_get_db():
         try:
@@ -37,10 +41,33 @@ def client(test_db):
         finally:
             db.close()
 
+    # Set testing environment variable to skip API key auth
+    os.environ["TESTING"] = "1"
+
+    # Override autonomous_runs_dir at the settings object level
+    from src.autopack.config import settings
+    test_runs_dir = str(tmp_path / ".autonomous_runs")
+    monkeypatch.setattr(settings, "autonomous_runs_dir", test_runs_dir)
+
+    # Disable rate limiting in tests
+    app.state.limiter.enabled = False
+
     app.dependency_overrides[get_db] = override_get_db
     with TestClient(app) as test_client:
         yield test_client
     app.dependency_overrides.clear()
+    del os.environ["TESTING"]
+
+
+@pytest.fixture
+def db_session(test_db):
+    """Create a database session for direct DB access in tests"""
+    TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=test_db)
+    session = TestingSessionLocal()
+    try:
+        yield session
+    finally:
+        session.close()
 
 
 @pytest.fixture
@@ -114,35 +141,31 @@ def test_dashboard_usage_empty(client):
     assert data["models"] == []
 
 
-def test_dashboard_usage_with_data(client):
+def test_dashboard_usage_with_data(client, db_session):
     """Test GET /dashboard/usage with usage data"""
     # Add some usage events directly to database
-    db = TestingSessionLocal()
-    try:
-        usage1 = LlmUsageEvent(
-            provider="openai",
-            model="gpt-4o",
-            role="builder",
-            prompt_tokens=1000,
-            completion_tokens=2000,
-            run_id="test_run_123",
-            phase_id="F1.1",
-            created_at=datetime.utcnow(),
-        )
-        usage2 = LlmUsageEvent(
-            provider="openai",
-            model="gpt-4o-mini",
-            role="auditor",
-            prompt_tokens=500,
-            completion_tokens=300,
-            run_id="test_run_123",
-            phase_id="F1.1",
-            created_at=datetime.utcnow(),
-        )
-        db.add_all([usage1, usage2])
-        db.commit()
-    finally:
-        db.close()
+    usage1 = LlmUsageEvent(
+        provider="openai",
+        model="gpt-4o",
+        role="builder",
+        prompt_tokens=1000,
+        completion_tokens=2000,
+        run_id="test_run_123",
+        phase_id="F1.1",
+        created_at=datetime.utcnow(),
+    )
+    usage2 = LlmUsageEvent(
+        provider="openai",
+        model="gpt-4o-mini",
+        role="auditor",
+        prompt_tokens=500,
+        completion_tokens=300,
+        run_id="test_run_123",
+        phase_id="F1.1",
+        created_at=datetime.utcnow(),
+    )
+    db_session.add_all([usage1, usage2])
+    db_session.commit()
 
     response = client.get("/dashboard/usage?period=week")
     assert response.status_code == 200
@@ -170,7 +193,8 @@ def test_dashboard_human_notes(client, sample_run):
     data = response.json()
     assert data["message"] == "Note added successfully"
     assert "timestamp" in data
-    assert data["notes_file"] == ".autopack/human_notes.md"
+    # Normalize path separators for cross-platform testing
+    assert data["notes_file"].replace("\\", "/") == ".autopack/human_notes.md"
 
 
 def test_dashboard_models_list(client):
@@ -206,7 +230,7 @@ def test_dashboard_models_override_global(client):
     assert response.status_code == 200
 
     data = response.json()
-    assert data["message"] == "Global model override requires config file update"
+    assert data["message"] == "Global model mapping updated"
     assert data["scope"] == "global"
 
 

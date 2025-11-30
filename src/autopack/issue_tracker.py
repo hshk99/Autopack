@@ -25,10 +25,15 @@ from .issue_schemas import (
 class IssueTracker:
     """Manages issue tracking at phase, run, and project levels"""
 
-    def __init__(self, run_id: str, project_id: str = "Autopack"):
+    def __init__(self, run_id: str, project_id: str = "Autopack", base_dir: Optional[Path] = None):
         self.run_id = run_id
         self.project_id = project_id
-        self.base_dir = Path(settings.autonomous_runs_dir) / run_id / "issues"
+        if base_dir is not None:
+            self._runs_dir = base_dir
+            self.base_dir = base_dir / run_id / "issues"
+        else:
+            self._runs_dir = Path(settings.autonomous_runs_dir)
+            self.base_dir = self._runs_dir / run_id / "issues"
         self.base_dir.mkdir(parents=True, exist_ok=True)
 
     def get_phase_issue_path(self, phase_index: int, phase_id: str) -> Path:
@@ -42,7 +47,7 @@ class IssueTracker:
 
     def get_project_backlog_path(self) -> Path:
         """Get path to project issue backlog (at repo root level)"""
-        return Path(settings.autonomous_runs_dir).parent / "project_issue_backlog.json"
+        return self._runs_dir.parent / "project_issue_backlog.json"
 
     # Phase-level operations
 

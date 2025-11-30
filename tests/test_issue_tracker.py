@@ -1,7 +1,6 @@
 """Unit tests for issue tracking system (Chunk B)"""
 
 import json
-import os
 from pathlib import Path
 
 import pytest
@@ -12,8 +11,7 @@ from src.autopack.issue_tracker import IssueTracker
 @pytest.fixture
 def issue_tracker(tmp_path):
     """Create an IssueTracker instance with temp directory"""
-    os.environ["AUTONOMOUS_RUNS_DIR"] = str(tmp_path)
-    tracker = IssueTracker(run_id="test-run-001", project_id="TestProject")
+    tracker = IssueTracker(run_id="test-run-001", project_id="TestProject", base_dir=tmp_path)
     return tracker
 
 
@@ -143,7 +141,7 @@ def test_run_issue_index_multiple_tiers(issue_tracker):
     assert "T2" in entry.seen_in_tiers
 
 
-def test_project_backlog_aging(issue_tracker):
+def test_project_backlog_aging(issue_tracker, tmp_path):
     """Test project backlog tracks aging across runs"""
     # Record issue
     _, _, backlog1 = issue_tracker.record_issue(
@@ -163,8 +161,8 @@ def test_project_backlog_aging(issue_tracker):
     assert entry.age_in_tiers == 1
     assert entry.status == "open"
 
-    # Simulate another run with same issue
-    tracker2 = IssueTracker(run_id="test-run-002", project_id="TestProject")
+    # Simulate another run with same issue (use same tmp_path for isolation)
+    tracker2 = IssueTracker(run_id="test-run-002", project_id="TestProject", base_dir=tmp_path)
     _, _, backlog2 = tracker2.record_issue(
         phase_index=0,
         phase_id="F1.1",
@@ -181,13 +179,13 @@ def test_project_backlog_aging(issue_tracker):
     assert entry2.age_in_tiers == 2
 
 
-def test_aging_triggers_needs_cleanup(issue_tracker):
+def test_aging_triggers_needs_cleanup(tmp_path):
     """Test that aged issues get marked as needs_cleanup"""
     issue_key = "old_minor_issue"
 
     # Simulate 3 runs with same minor issue (threshold is 3)
     for run_num in range(1, 4):
-        tracker = IssueTracker(run_id=f"test-run-{run_num:03d}", project_id="TestProject")
+        tracker = IssueTracker(run_id=f"test-run-{run_num:03d}", project_id="TestProject", base_dir=tmp_path)
         _, _, backlog = tracker.record_issue(
             phase_index=0,
             phase_id="F1.1",

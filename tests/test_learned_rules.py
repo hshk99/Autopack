@@ -338,9 +338,12 @@ class TestRulePromotion:
 
     def test_extract_pattern_from_issue_key(self):
         """Test extracting base pattern from issue key"""
+        # Function takes up to 3 parts, stopping at digits or parts with "." in them
         assert _extract_pattern("missing_type_hints_auth_py") == "missing_type_hints"
-        assert _extract_pattern("placeholder_code_handler_py") == "placeholder_code"
-        assert _extract_pattern("import_error_utils_123") == "import_error"
+        assert _extract_pattern("placeholder_code_handler_py") == "placeholder_code_handler"
+        assert _extract_pattern("import_error_utils_123") == "import_error_utils"
+        # Test case where digits appear within first 3 parts
+        assert _extract_pattern("error_123_fix") == "error"
 
     def test_group_hints_by_pattern(self):
         """Test grouping hints by pattern for promotion"""

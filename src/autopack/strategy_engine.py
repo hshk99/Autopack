@@ -267,7 +267,7 @@ class StrategyEngine:
             for phase in phases:
                 phase_id = phase.get("phase_id")
                 task_category = phase.get("task_category")
-                complexity = phase.get("complexity", "medium")
+                complexity = phase.get("complexity") or "medium"  # Handle None values
                 builder_mode = phase.get("builder_mode")
 
                 # Get category defaults

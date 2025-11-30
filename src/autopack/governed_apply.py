@@ -512,11 +512,34 @@ class GovernedApplyPath:
                         if lines[j].startswith('@@'):
                             # Found the hunk - extract content
                             content_lines = []
+
+                            # Handle malformed hunk headers where content is on same line
+                            # e.g., "@@ -1,6 +1,7 @@ from fastapi import FastAPI"
+                            hunk_line = lines[j]
+                            hunk_header_end = hunk_line.rfind('@@')
+                            if hunk_header_end > 2:  # Has closing @@
+                                after_header = hunk_line[hunk_header_end + 2:].strip()
+                                if after_header and not after_header.startswith('-'):
+                                    # This is content after the hunk header
+                                    content_lines.append(' ' + after_header)  # Add as context line
+
                             k = j + 1
-                            while k < len(lines) and not lines[k].startswith('@@') and not lines[k].startswith('diff --git'):
-                                hunk_line = lines[k]
-                                if hunk_line.startswith('+') and not hunk_line.startswith('+++'):
-                                    content_lines.append(hunk_line[1:])  # Remove + prefix
+                            while k < len(lines) and not lines[k].startswith('diff --git'):
+                                line_k = lines[k]
+                                # Check for new hunk header (but handle malformed ones)
+                                if line_k.startswith('@@'):
+                                    # Check if there's content after the hunk header
+                                    hunk_end = line_k.rfind('@@')
+                                    if hunk_end > 2:
+                                        after_hunk = line_k[hunk_end + 2:].strip()
+                                        if after_hunk and not after_hunk.startswith('-'):
+                                            content_lines.append(' ' + after_hunk)
+                                    k += 1
+                                    continue
+                                if line_k.startswith('+') and not line_k.startswith('+++'):
+                                    content_lines.append(line_k[1:])  # Remove + prefix
+                                elif line_k.startswith(' '):
+                                    content_lines.append(line_k[1:])  # Context line
                                 k += 1
 
                             if content_lines:

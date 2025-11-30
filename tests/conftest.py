@@ -12,35 +12,54 @@ from sqlalchemy.orm import sessionmaker
 from src.autopack import models
 from src.autopack.database import Base, get_db
 from src.autopack.main import app
+from src.autopack.usage_recorder import LlmUsageEvent  # noqa: F401 - ensure model registered
 
 
 @pytest.fixture(scope="function")
-def db_session():
-    """Create a fresh database for each test"""
+def db_engine():
+    """Create a fresh database engine for each test"""
     # Use in-memory SQLite for tests
-    engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})
-    TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+    # Using StaticPool ensures all connections share the same in-memory database
+    from sqlalchemy.pool import StaticPool
+    engine = create_engine(
+        "sqlite:///:memory:",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool
+    )
 
     # Create tables
     Base.metadata.create_all(bind=engine)
 
+    yield engine
+
+    Base.metadata.drop_all(bind=engine)
+    engine.dispose()
+
+
+@pytest.fixture(scope="function")
+def db_session(db_engine):
+    """Create a database session for each test"""
+    TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=db_engine)
     session = TestingSessionLocal()
     try:
         yield session
     finally:
         session.close()
-        Base.metadata.drop_all(bind=engine)
 
 
 @pytest.fixture(scope="function")
-def client(db_session, tmp_path):
+def client(db_engine, db_session, tmp_path):
     """Create a test client with dependency overrides"""
+    # Create a sessionmaker bound to the same engine
+    TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=db_engine)
 
     def override_get_db():
+        """Override that creates new sessions from the same engine"""
+        session = TestingSessionLocal()
         try:
-            yield db_session
+            yield session
         finally:
-            pass
+            session.close()
 
     # Set testing environment variable to skip DB init
     os.environ["TESTING"] = "1"

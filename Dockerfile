@@ -1,52 +1,42 @@
-# Multi-stage build for Autopack Framework
-FROM python:3.11-slim as base
+# Multi-stage build for Python backend
+FROM python:3.11-slim as backend-builder
 
-# Set environment variables
-ENV PYTHONUNBUFFERED=1 \
-    PYTHONDONTWRITEBYTECODE=1 \
-    PIP_NO_CACHE_DIR=1 \
-    PIP_DISABLE_PIP_VERSION_CHECK=1
+WORKDIR /app
 
 # Install system dependencies
-RUN apt-get update && apt-get install -y --no-install-recommends \
+RUN apt-get update && apt-get install -y \
     gcc \
     postgresql-client \
     && rm -rf /var/lib/apt/lists/*
 
-# Create app user
-RUN useradd -m -u 1000 autopack && \
-    mkdir -p /app && \
-    chown -R autopack:autopack /app
+# Copy requirements and install Python dependencies
+COPY requirements.txt .
+RUN pip install --no-cache-dir --user -r requirements.txt
+
+# Final backend stage
+FROM python:3.11-slim as backend
 
 WORKDIR /app
 
-# Copy requirements first for better caching
-COPY --chown=autopack:autopack requirements.txt .
+# Install runtime dependencies
+RUN apt-get update && apt-get install -y \
+    postgresql-client \
+    && rm -rf /var/lib/apt/lists/*
 
-# Install Python dependencies
-RUN pip install --no-cache-dir -r requirements.txt
+# Copy Python packages from builder
+COPY --from=backend-builder /root/.local /root/.local
+ENV PATH=/root/.local/bin:$PATH
 
 # Copy application code
-COPY --chown=autopack:autopack . .
+COPY src/ ./src/
+COPY alembic.ini .
+COPY alembic/ ./alembic/
 
-# Switch to non-root user
+# Create non-root user
+RUN useradd -m -u 1000 autopack && chown -R autopack:autopack /app
 USER autopack
 
-# Create necessary directories
-RUN mkdir -p /app/.autonomous_runs /app/logs
-
-# Expose port
 EXPOSE 8000
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-    CMD python -c "import requests; requests.get('http://localhost:8000/health')" || exit 1
-
-# Default command - run with uvicorn
+# Run uvicorn server
 CMD ["uvicorn", "src.backend.main:app", "--host", "0.0.0.0", "--port", "8000"]
-
-# Development stage with additional tools
-FROM base as development
-USER root
-RUN pip install --no-cache-dir pytest pytest-asyncio pytest-cov black ruff mypy
-USER autopack

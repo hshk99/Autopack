@@ -49,6 +49,22 @@ archive/
 .env
 .env.local
 
+# Frontend
+node_modules/
+dist/
+*.local
+
+# Frontend
+node_modules/
+dist/
+*.local
+
+# Build artifacts
+dist/frontend/
+.vite/
+# Build artifacts
+dist/frontend/
+.vite/
 # OS
 .DS_Store
 Thumbs.db

@@ -142,6 +142,11 @@ class AutonomousExecutor:
         logger.info(f"API URL: {api_url}")
         logger.info(f"Workspace: {workspace}")
 
+        # [Self-Troubleshoot] Phase failure tracking for escalation
+        self._phase_failure_counts: Dict[str, int] = {}  # phase_id -> consecutive failure count
+        self._skipped_phases: set = set()  # Phases skipped due to escalation
+        self.MAX_PHASE_FAILURES = 3  # Escalate after this many consecutive failures
+
         # Phase 1.4-1.5: Run proactive startup checks (from DEBUG_JOURNAL.md)
         self._run_startup_checks()
 
@@ -1014,6 +1019,33 @@ class AutonomousExecutor:
         except requests.exceptions.RequestException as e:
             logger.warning(f"Failed to update phase {phase_id} status: {e}")
 
+    def _force_mark_phase_failed(self, phase_id: str):
+        """
+        [Self-Troubleshoot] Force mark a phase as FAILED directly in database.
+
+        This bypasses the API when it's returning errors, ensuring we can
+        progress past stuck phases.
+        """
+        try:
+            # Try API first
+            self._update_phase_status(phase_id, "FAILED")
+        except Exception:
+            pass  # API might fail, that's why we're here
+
+        # Also update directly in database as fallback
+        try:
+            from autopack.models import Phase, PhaseState
+            phase = self.db_session.query(Phase).filter(
+                Phase.phase_id == phase_id,
+                Phase.run_id == self.run_id
+            ).first()
+            if phase:
+                phase.state = PhaseState.FAILED
+                self.db_session.commit()
+                logger.info(f"[Self-Troubleshoot] Force-marked phase {phase_id} as FAILED in database")
+        except Exception as e:
+            logger.warning(f"Failed to force-mark phase in database: {e}")
+
     def run_autonomous_loop(
         self,
         poll_interval: int = 10,
@@ -1071,15 +1103,53 @@ class AutonomousExecutor:
             phase_id = next_phase.get("phase_id")
             logger.info(f"Next phase: {phase_id}")
 
+            # [Self-Troubleshoot] Check if phase was escalated/skipped
+            if phase_id in self._skipped_phases:
+                logger.warning(f"[Escalation] Skipping phase {phase_id} - previously escalated due to repeated failures")
+                # Force update phase status to FAILED in database directly
+                self._force_mark_phase_failed(phase_id)
+                phases_failed += 1
+                continue
+
             # Execute phase
             success, status = self.execute_phase(next_phase)
 
             if success:
                 logger.info(f"Phase {phase_id} completed successfully")
                 phases_executed += 1
+                # Reset failure count on success
+                self._phase_failure_counts[phase_id] = 0
             else:
                 logger.warning(f"Phase {phase_id} finished with status: {status}")
                 phases_failed += 1
+
+                # [Self-Troubleshoot] Track consecutive failures and escalate
+                self._phase_failure_counts[phase_id] = self._phase_failure_counts.get(phase_id, 0) + 1
+                failure_count = self._phase_failure_counts[phase_id]
+
+                if failure_count >= self.MAX_PHASE_FAILURES:
+                    logger.critical(
+                        f"[ESCALATION] Phase {phase_id} failed {failure_count} times consecutively. "
+                        f"Skipping phase and continuing to next. Manual intervention required."
+                    )
+                    self._skipped_phases.add(phase_id)
+
+                    # Log escalation to debug journal
+                    from autopack.debug_journal import log_escalation
+                    try:
+                        log_escalation(
+                            error_category="PHASE_FAILURE",
+                            error_count=failure_count,
+                            threshold=self.MAX_PHASE_FAILURES,
+                            reason=f"Phase '{phase_id}' failed {failure_count} consecutive times with status '{status}'",
+                            run_id=self.run_id,
+                            phase_id=phase_id
+                        )
+                    except Exception as e:
+                        logger.warning(f"Failed to log escalation: {e}")
+
+                    # Force mark phase as failed
+                    self._force_mark_phase_failed(phase_id)
 
             # Wait before next iteration
             if max_iterations is None or iteration < max_iterations:

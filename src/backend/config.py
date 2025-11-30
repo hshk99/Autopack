@@ -37,7 +37,7 @@ class Settings(BaseSettings):
 def get_settings() -> Settings:
     """
     Get application settings based on environment.
-    
+
     Returns:
         Settings: Configured settings instance
     """
@@ -50,5 +50,9 @@ def get_settings() -> Settings:
             celery_broker_url=None,
             debug=True,
         )
-    
+
     return Settings()
+
+
+# Global settings instance for imports
+settings = get_settings()

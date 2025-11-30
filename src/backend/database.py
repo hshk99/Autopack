@@ -10,13 +10,15 @@ from typing import Generator
 from .config import settings
 
 
-# Create database engine
-engine = create_engine(
-    settings.DATABASE_URL,
-    pool_pre_ping=True,
-    pool_size=10,
-    max_overflow=20
-)
+# Create database engine - use connection args appropriate for database type
+_is_sqlite = settings.database_url.startswith("sqlite")
+_engine_kwargs = {"pool_pre_ping": True}
+if not _is_sqlite:
+    _engine_kwargs.update({"pool_size": 10, "max_overflow": 20})
+else:
+    _engine_kwargs.update({"connect_args": {"check_same_thread": False}})
+
+engine = create_engine(settings.database_url, **_engine_kwargs)
 
 # Create session factory
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)

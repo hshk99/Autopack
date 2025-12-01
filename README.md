@@ -11,7 +11,7 @@ Autopack is a framework for orchestrating autonomous AI agents (Builder and Audi
 ### Autopack Doctor (NEW)
 LLM-based diagnostic system for intelligent failure recovery:
 - **Failure Diagnosis**: Analyzes phase failures and recommends recovery actions
-- **Model Routing**: Uses cheap model (glm-4.5-20250101) for routine failures, strong model (claude-sonnet-4-5) for complex ones
+- **Model Routing**: Uses cheap model (glm-4.6) for routine failures, strong model (claude-sonnet-4-5) for complex ones
 - **Actions**: `retry_with_fix` (with hint), `replan`, `skip_phase`, `mark_fatal`, `rollback_run`
 - **Budgets**: Per-phase limit (2 calls) and run-level limit (10 calls) to prevent loops
 - **Confidence Escalation**: Upgrades to strong model if confidence < 0.7
@@ -19,7 +19,7 @@ LLM-based diagnostic system for intelligent failure recovery:
 **Configuration** (`config/models.yaml`):
 ```yaml
 doctor_models:
-  cheap: glm-4.5-20250101
+  cheap: glm-4.6
   strong: claude-sonnet-4-5
   min_confidence_for_cheap: 0.7
   health_budget_near_limit_ratio: 0.8
@@ -28,7 +28,7 @@ doctor_models:
 
 ### Model Escalation System
 Automatically escalates to more powerful models when phases fail repeatedly:
-- **Intra-tier escalation**: Within complexity level (e.g., glm-4.5 -> claude-sonnet-4-5)
+- **Intra-tier escalation**: Within complexity level (e.g., glm-4.6 -> claude-sonnet-4-5)
 - **Cross-tier escalation**: Bump complexity level after N failures (low -> medium -> high)
 - **Configurable thresholds**: `config/models.yaml` defines `complexity_escalation` settings
 
@@ -54,21 +54,20 @@ Prevents infinite retry loops by tracking failures across the run:
 - `MAX_TOTAL_FAILURES_PER_RUN`: 25 (hard cap on total failures)
 
 ### LLM Multi-Provider Routing
-- Routes to Gemini, GLM (Zhipu), Anthropic, or OpenAI based on model name
+- Routes to GLM (Zhipu), Anthropic, or OpenAI based on model name
 - **Provider tier strategy**:
-  - Low complexity: GLM (`glm-4.5-20250101`) - cheapest
-  - Medium complexity: Gemini (`gemini-2.5-pro`) - balanced cost/quality
+  - Low complexity: GLM (`glm-4.6`) - cheapest
+  - Medium complexity: Anthropic (`claude-sonnet-4-5`) - excellent cost/quality balance
   - High complexity: Anthropic (`claude-sonnet-4-5`) - premium quality
-- Automatic fallback chain: Gemini -> GLM -> Anthropic -> OpenAI
+- Automatic fallback chain: GLM -> Anthropic -> OpenAI
 - Per-category routing policies (BEST_FIRST, PROGRESSIVE, CHEAP_FIRST)
 
 **Environment Variables**:
 ```bash
 # Required for each provider you want to use
 GLM_API_KEY=your-zhipu-api-key        # Zhipu AI (GLM) - low complexity
-GOOGLE_API_KEY=your-google-api-key     # Google Gemini - medium complexity
-ANTHROPIC_API_KEY=your-anthropic-key   # Anthropic - high complexity
-OPENAI_API_KEY=your-openai-key         # OpenAI - fallback/escalation
+ANTHROPIC_API_KEY=your-anthropic-key   # Anthropic - medium/high complexity
+OPENAI_API_KEY=your-openai-key         # OpenAI - optional fallback
 ```
 
 ### Hardening: Syntax + Unicode + Incident Fatigue

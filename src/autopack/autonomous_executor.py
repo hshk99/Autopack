@@ -39,6 +39,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from autopack.quality_gate import QualityGate
+from autopack.config import settings
 from autopack.llm_client import BuilderResult, AuditorResult
 from autopack.error_recovery import (
     ErrorRecoverySystem, get_error_recovery, safe_execute,
@@ -56,9 +57,12 @@ from autopack.learned_rules import (
     save_run_hint,
 )
 from autopack.journal_reader import get_recent_prevention_rules
+from autopack.health_checks import run_health_checks, HealthCheckResult
 
 
 # Configure logging
+from dotenv import load_dotenv
+
 logging.basicConfig(
     level=logging.INFO,
     format='[%(asctime)s] %(levelname)s: %(message)s',
@@ -145,6 +149,9 @@ class AutonomousExecutor:
                       'autopack_upgrade', or 'self_repair'. Maintenance types allow
                       modification of src/autopack/ and config/ paths.
         """
+        # Load environment variables from .env for CLI runs
+        load_dotenv()
+
         self.run_id = run_id
         self.api_url = api_url.rstrip('/')
         self.api_key = api_key
@@ -180,8 +187,8 @@ class AutonomousExecutor:
         logger.info("Applying pre-emptive encoding fix...")
         self.error_recovery._fix_encoding_error(dummy_ctx)
 
-        # Initialize database for usage tracking
-        db_url = os.getenv("AUTOPACK_DB_URL", "sqlite:///autopack.db")
+        # Initialize database for usage tracking (share DB config with API server)
+        db_url = settings.database_url
         engine = create_engine(db_url)
         Session = sessionmaker(bind=engine)
         self.db_session = Session()
@@ -237,9 +244,11 @@ class AutonomousExecutor:
         # Run-level Doctor budgets
         self._run_doctor_calls: int = 0  # Total Doctor calls this run
         self._run_doctor_strong_calls: int = 0  # Strong-model Doctor calls this run
+        self._run_doctor_infra_calls: int = 0  # Doctor calls for infra_error failures
         self.MAX_DOCTOR_CALLS_PER_PHASE = 2  # Per GPT_RESPONSE8 recommendation
         self.MAX_DOCTOR_CALLS_PER_RUN = 10  # Prevent runaway Doctor invocations
         self.MAX_DOCTOR_STRONG_CALLS_PER_RUN = 5  # Limit expensive strong-model calls
+        self.MAX_DOCTOR_INFRA_CALLS_PER_RUN = 5  # Separate cap for infra-related diagnoses
         # Builder hint from Doctor (to pass to next Builder attempt)
         self._builder_hint_by_phase: Dict[str, str] = {}
 
@@ -250,6 +259,15 @@ class AutonomousExecutor:
 
         # Phase 1.4-1.5: Run proactive startup checks (from DEBUG_JOURNAL.md)
         self._run_startup_checks()
+
+        # T0 Health Checks: quick environment validation before executing phases
+        t0_results = run_health_checks("t0")
+        for result in t0_results:
+            status = "PASSED" if result.passed else "FAILED"
+            logger.info(
+                f"[HealthCheck:T0] {result.check_name}: {status} "
+                f"({result.duration_ms}ms) - {result.message}"
+            )
 
         # Learning Pipeline: Load project learned rules (Stage 0B)
         self._load_project_learning_context()
@@ -642,13 +660,8 @@ class AutonomousExecutor:
                 )
 
                 if success:
-                    # Record success for escalation tracking
-                    if self.llm_service:
-                        self.llm_service.record_attempt_outcome(
-                            phase_id=phase_id,
-                            model="unknown",  # Model info is in LlmService
-                            outcome="success"
-                        )
+                    # Success: no need to record attempt outcome here; LlmService
+                    # already tracked model usage and selection metadata.
 
                     # Learning Pipeline: Record hint if succeeded after retries
                     # This means we learned something worth sharing with future phases
@@ -663,14 +676,6 @@ class AutonomousExecutor:
 
                 # Record failure and determine if we should retry
                 failure_outcome = self._status_to_outcome(status)
-                if self.llm_service:
-                    self.llm_service.record_attempt_outcome(
-                        phase_id=phase_id,
-                        model="unknown",
-                        outcome=failure_outcome,
-                        details=f"Attempt {attempt_index + 1} failed with status {status}"
-                    )
-
                 # Update health budget tracking
                 self._run_total_failures += 1
                 if status == "PATCH_FAILED":
@@ -752,14 +757,6 @@ class AutonomousExecutor:
 
             except Exception as e:
                 logger.error(f"[{phase_id}] Attempt {attempt_index + 1} raised exception: {e}")
-                # Record infrastructure error
-                if self.llm_service:
-                    self.llm_service.record_attempt_outcome(
-                        phase_id=phase_id,
-                        model="unknown",
-                        outcome="infra_error",
-                        details=str(e)
-                    )
 
                 # Update health budget tracking
                 self._run_total_failures += 1
@@ -1285,20 +1282,38 @@ Just the new description that should replace the original.
         Returns:
             True if Doctor should be invoked
         """
-        # Check minimum builder attempts
-        if builder_attempts < DOCTOR_MIN_BUILDER_ATTEMPTS:
-            logger.debug(f"[Doctor] Not invoking: builder_attempts={builder_attempts} < {DOCTOR_MIN_BUILDER_ATTEMPTS}")
+        is_infra = error_category == "infra_error"
+
+        # Check minimum builder attempts (only for non-infra failures)
+        if not is_infra and builder_attempts < DOCTOR_MIN_BUILDER_ATTEMPTS:
+            logger.debug(
+                f"[Doctor] Not invoking: builder_attempts={builder_attempts} < {DOCTOR_MIN_BUILDER_ATTEMPTS}"
+            )
             return False
 
         # Check per-phase Doctor call limit
         phase_doctor_calls = self._doctor_calls_by_phase.get(phase_id, 0)
         if phase_doctor_calls >= self.MAX_DOCTOR_CALLS_PER_PHASE:
-            logger.info(f"[Doctor] Not invoking: per-phase limit reached ({phase_doctor_calls}/{self.MAX_DOCTOR_CALLS_PER_PHASE})")
+            logger.info(
+                f"[Doctor] Not invoking: per-phase limit reached "
+                f"({phase_doctor_calls}/{self.MAX_DOCTOR_CALLS_PER_PHASE})"
+            )
             return False
 
-        # Check run-level Doctor call limit
+        # Check run-level Doctor call limit (overall)
         if self._run_doctor_calls >= self.MAX_DOCTOR_CALLS_PER_RUN:
-            logger.info(f"[Doctor] Not invoking: run-level limit reached ({self._run_doctor_calls}/{self.MAX_DOCTOR_CALLS_PER_RUN})")
+            logger.info(
+                f"[Doctor] Not invoking: run-level limit reached "
+                f"({self._run_doctor_calls}/{self.MAX_DOCTOR_CALLS_PER_RUN})"
+            )
+            return False
+
+        # Additional cap for infra-related diagnostics
+        if is_infra and self._run_doctor_infra_calls >= self.MAX_DOCTOR_INFRA_CALLS_PER_RUN:
+            logger.info(
+                f"[Doctor] Not invoking: run-level infra limit reached "
+                f"({self._run_doctor_infra_calls}/{self.MAX_DOCTOR_INFRA_CALLS_PER_RUN})"
+            )
             return False
 
         # Check health budget - invoke Doctor if near limit
@@ -1403,6 +1418,8 @@ Just the new description that should replace the original.
             # Update tracking
             self._doctor_calls_by_phase[phase_id] = self._doctor_calls_by_phase.get(phase_id, 0) + 1
             self._run_doctor_calls += 1
+            if error_category == "infra_error":
+                self._run_doctor_infra_calls += 1
             self._last_doctor_response_by_phase[phase_id] = response
             self._doctor_context_by_phase[phase_id] = ctx_summary
 
@@ -1445,6 +1462,19 @@ Just the new description that should replace the original.
         """
         phase_id = phase.get("phase_id")
         action = response.action
+
+        # Apply any provider-level recommendations from Doctor before
+        # interpreting the high-level action.
+        disable_providers = getattr(response, "disable_providers", None)
+        if disable_providers and self.llm_service:
+            for provider in disable_providers:
+                try:
+                    self.llm_service.model_router.disable_provider(
+                        provider,
+                        reason=f"Doctor recommendation for phase {phase_id}",
+                    )
+                except Exception as e:
+                    logger.warning(f"[Doctor] Failed to disable provider {provider}: {e}")
 
         if action == "retry_with_fix":
             # Doctor has a hint for the next Builder attempt

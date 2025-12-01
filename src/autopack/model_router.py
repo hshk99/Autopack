@@ -3,6 +3,7 @@
 from typing import Dict, Literal, Optional
 
 import yaml
+import logging
 from pathlib import Path
 from sqlalchemy.orm import Session
 
@@ -13,6 +14,8 @@ from .model_selection import (
     get_model_selector,
     HIGH_RISK_CATEGORIES,
 )
+
+logger = logging.getLogger(__name__)
 
 
 class ModelRouter:
@@ -50,6 +53,10 @@ class ModelRouter:
         # Initialize model selector for escalation support
         self.model_selector = get_model_selector(config_path)
         self._phase_histories: Dict[str, PhaseHistory] = {}
+
+        # Providers that have been marked unhealthy for this process/run
+        # (e.g., due to repeated infra_error failures during health checks)
+        self.disabled_providers: set[str] = set()
 
     def select_model(
         self,
@@ -106,6 +113,17 @@ class ModelRouter:
                             "message": f"Provider {provider} over soft limit, using fallback model {fallback}"
                         }
                         return fallback, budget_warning
+
+        # 4. If provider has been explicitly disabled, try to fall back
+        if self._is_provider_disabled(baseline_model):
+            provider = self._model_to_provider(baseline_model)
+            fallback = self._get_fallback_model(task_category, complexity)
+            if fallback:
+                logger.warning(
+                    f"[ModelRouter] Provider {provider} disabled, using fallback model {fallback} "
+                    f"for role={role}, category={task_category}, complexity={complexity}"
+                )
+                return fallback, budget_warning
 
         return baseline_model, budget_warning
 
@@ -177,7 +195,20 @@ class ModelRouter:
                         escalation_info["original_model"] = model
                         model = fallback
 
-        # 5. Log selection for analysis
+            # 5. If provider has been explicitly disabled, try to fall back
+            if self._is_provider_disabled(model):
+                provider = self._model_to_provider(model)
+                fallback = self._get_fallback_model(task_category, effective_complexity)
+                if fallback:
+                    logger.warning(
+                        f"[ModelRouter] Provider {provider} disabled, using fallback model {fallback} "
+                        f"for role={role}, category={task_category}, complexity={effective_complexity}"
+                    )
+                    escalation_info["provider_disabled"] = True
+                    escalation_info["original_model"] = model
+                    model = fallback
+
+        # 6. Log selection for analysis
         self.model_selector.log_model_selection(
             phase_id=phase_id,
             role=role,
@@ -219,6 +250,28 @@ class ModelRouter:
     def get_max_attempts(self) -> int:
         """Get maximum attempts per phase from config."""
         return self.model_selector.get_max_attempts()
+
+    # ---------------------------------------------------------------------
+    # Provider health / disabling
+    # ---------------------------------------------------------------------
+
+    def disable_provider(self, provider: str, reason: Optional[str] = None) -> None:
+        """
+        Mark a provider as disabled for the lifetime of this router instance.
+
+        Args:
+            provider: Provider name, e.g. 'zhipu_glm', 'google_gemini', 'openai', 'anthropic'.
+            reason: Optional human-readable reason for logging.
+        """
+        if provider not in self.disabled_providers:
+            self.disabled_providers.add(provider)
+            msg = reason or "no reason provided"
+            logger.warning(f"[ModelRouter] Disabling provider {provider}: {msg}")
+
+    def _is_provider_disabled(self, model: str) -> bool:
+        """Check if the provider for a model has been disabled."""
+        provider = self._model_to_provider(model)
+        return provider in self.disabled_providers
 
     def _get_baseline_model(
         self, role: str, task_category: Optional[str], complexity: str

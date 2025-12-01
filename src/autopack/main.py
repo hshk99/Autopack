@@ -4,6 +4,8 @@ import os
 from datetime import datetime
 from typing import List, Optional
 
+from dotenv import load_dotenv
+
 from fastapi import Depends, FastAPI, HTTPException, Request, Security
 from fastapi.security import APIKeyHeader
 from fastapi.staticfiles import StaticFiles
@@ -44,6 +46,8 @@ async def verify_api_key(api_key: str = Security(API_KEY_HEADER)):
 
 # Rate limiting
 limiter = Limiter(key_func=get_remote_address)
+
+load_dotenv()  # Load environment variables from .env on startup
 
 app = FastAPI(
     title="Autopack Supervisor",

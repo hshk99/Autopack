@@ -135,6 +135,12 @@ class DoctorResponse:
     Phase 3 Addition (GPT_RESPONSE9):
     For action="execute_fix", provides fix_commands, fix_type, and verify_command
     to enable direct infrastructure fixes (git, file, python commands).
+
+    Self-healing extensions:
+    - error_type: echo of the dominant failure type (infra_error, patch_apply_error, etc.)
+    - disable_providers: list of provider IDs (openai, anthropic, google_gemini, zhipu_glm)
+      that Doctor recommends disabling for this run.
+    - maintenance_phase: optional suggested maintenance phase ID to schedule.
     """
     action: DoctorAction
     confidence: float  # 0.0 - 1.0
@@ -145,6 +151,10 @@ class DoctorResponse:
     fix_commands: Optional[List[str]] = None  # Shell commands to execute (for execute_fix)
     fix_type: Optional[str] = None  # "git", "file", or "python" (for execute_fix)
     verify_command: Optional[str] = None  # Command to verify fix worked (for execute_fix)
+    # Self-healing metadata
+    error_type: Optional[str] = None
+    disable_providers: Optional[List[str]] = None
+    maintenance_phase: Optional[str] = None
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for logging/API"""
@@ -154,6 +164,9 @@ class DoctorResponse:
             "rationale": self.rationale,
             "builder_hint": self.builder_hint,
             "suggested_patch": self.suggested_patch[:500] if self.suggested_patch else None,
+            "error_type": self.error_type,
+            "disable_providers": self.disable_providers,
+            "maintenance_phase": self.maintenance_phase,
         }
         # Include execute_fix fields only when action is execute_fix
         if self.action == "execute_fix":
@@ -175,6 +188,10 @@ class DoctorResponse:
             fix_commands=data.get("fix_commands"),
             fix_type=data.get("fix_type"),
             verify_command=data.get("verify_command"),
+            # Self-healing metadata
+            error_type=data.get("error_type"),
+            disable_providers=data.get("disable_providers"),
+            maintenance_phase=data.get("maintenance_phase"),
         )
 
 

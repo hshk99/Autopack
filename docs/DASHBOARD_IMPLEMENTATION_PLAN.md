@@ -300,9 +300,9 @@ This gives the dashboard enough info to show "Tier 2 / Phase 4 (43% complete)" a
    - `launch_claude_agents.py` (aux agents, once added)
 
    After each API call:
-   - Extract token usage from the provider response (OpenAI/Anthropic/Gemini/GLM)
+   - Extract token usage from the provider response (OpenAI/Anthropic/GLM)
    - Call `record_usage(...)` with:
-     - `provider` = `"openai" | "anthropic" | "google_gemini" | "glm"`
+     - `provider` = `"openai" | "anthropic" | "glm"`
      - `model` = the exact model name
      - `role` = `"builder"`, `"auditor"`, or `"agent:{agent_name}"`
      - `run_id` and `phase_id` if available (None for global aux runs)
@@ -443,8 +443,6 @@ This gives the dashboard enough info to show "Tier 2 / Phase 4 (43% complete)" a
                return "openai"
            elif model.startswith("claude-") or model.startswith("opus-"):
                return "anthropic"
-           elif model.startswith("gemini-"):
-               return "google_gemini"
            elif model.startswith("glm-"):
                return "glm"
            else:
@@ -648,10 +646,9 @@ You can implement this as a small React app served by FastAPI, or any simple SPA
 
 **Separate tab: "Usage"**
 - Summary cards:
-  - `OpenAI: 32% of weekly cap`
-  - `Anthropic: 18%`
-  - `Gemini: 7%`
-  - `GLM: 3%`
+  - `OpenAI: 5% of weekly cap`
+  - `Anthropic: 85%`
+  - `GLM: 10%`
 - Table of models with tokens over the selected period
 - Time period selector (day/week/month)
 

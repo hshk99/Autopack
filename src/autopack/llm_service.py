@@ -7,6 +7,7 @@ This service wraps the OpenAI clients and provides:
 - Quality gate enforcement for high-risk categories
 """
 
+import json
 import os
 from datetime import datetime
 from pathlib import Path
@@ -32,11 +33,11 @@ from .error_recovery import (
 try:
     from .openai_clients import OpenAIAuditorClient, OpenAIBuilderClient
     OPENAI_AVAILABLE = True
-except (ImportError, Exception) as e:
+except (ImportError, Exception):
     # Catch both ImportError and OpenAIError (API key missing during init)
     OPENAI_AVAILABLE = False
-    OpenAIAuditorClient = None
-    OpenAIBuilderClient = None
+    OpenAIAuditorClient = None  # type: ignore[assignment]
+    OpenAIBuilderClient = None  # type: ignore[assignment]
 
 # Import Anthropic clients with graceful fallback
 try:
@@ -51,8 +52,8 @@ try:
     GLM_AVAILABLE = True
 except ImportError:
     GLM_AVAILABLE = False
-    GLMBuilderClient = None
-    GLMAuditorClient = None
+    GLMBuilderClient = None  # type: ignore[assignment]
+    GLMAuditorClient = None  # type: ignore[assignment]
 
 # Import Gemini clients with graceful fallback
 try:
@@ -60,8 +61,8 @@ try:
     GEMINI_AVAILABLE = True
 except ImportError:
     GEMINI_AVAILABLE = False
-    GeminiBuilderClient = None
-    GeminiAuditorClient = None
+    GeminiBuilderClient = None  # type: ignore[assignment]
+    GeminiAuditorClient = None  # type: ignore[assignment]
 
 
 class LlmService:
@@ -101,9 +102,12 @@ class LlmService:
                 print(f"Warning: Failed to initialize GLM clients: {e}")
                 self.glm_builder = None
                 self.glm_auditor = None
+                self.model_router.disable_provider("zhipu_glm", reason=str(e))
         else:
             if GLM_AVAILABLE and not glm_key:
-                print("Warning: GLM package available but GLM_API_KEY not set. Skipping GLM initialization.")
+                msg = "GLM package available but GLM_API_KEY not set. Skipping GLM initialization."
+                print(f"Warning: {msg}")
+                self.model_router.disable_provider("zhipu_glm", reason=msg)
             self.glm_builder = None
             self.glm_auditor = None
 
@@ -119,7 +123,8 @@ class LlmService:
                 self.openai_auditor = None
         else:
             if OPENAI_AVAILABLE and not openai_key:
-                print("Warning: OpenAI package available but OPENAI_API_KEY not set. Skipping OpenAI initialization.")
+                msg = "OpenAI package available but OPENAI_API_KEY not set. Skipping OpenAI initialization."
+                print(f"Warning: {msg}")
             self.openai_builder = None
             self.openai_auditor = None
 
@@ -133,9 +138,12 @@ class LlmService:
                 print(f"Warning: Failed to initialize Anthropic clients: {e}")
                 self.anthropic_builder = None
                 self.anthropic_auditor = None
+                self.model_router.disable_provider("anthropic", reason=str(e))
         else:
             if ANTHROPIC_AVAILABLE and not anthropic_key:
-                print("Warning: Anthropic package available but ANTHROPIC_API_KEY not set. Skipping Anthropic initialization.")
+                msg = "Anthropic package available but ANTHROPIC_API_KEY not set. Skipping Anthropic initialization."
+                print(f"Warning: {msg}")
+                self.model_router.disable_provider("anthropic", reason=msg)
             self.anthropic_builder = None
             self.anthropic_auditor = None
 
@@ -149,9 +157,13 @@ class LlmService:
                 print(f"Warning: Failed to initialize Gemini clients: {e}")
                 self.gemini_builder = None
                 self.gemini_auditor = None
+                # Mark Gemini provider as disabled for this process
+                self.model_router.disable_provider("google_gemini", reason=str(e))
         else:
             if GEMINI_AVAILABLE and not google_key:
-                print("Warning: Gemini package available but GOOGLE_API_KEY not set. Skipping Gemini initialization.")
+                msg = "Gemini package available but GOOGLE_API_KEY not set. Skipping Gemini initialization."
+                print(f"Warning: {msg}")
+                self.model_router.disable_provider("google_gemini", reason=msg)
             self.gemini_builder = None
             self.gemini_auditor = None
 
@@ -317,6 +329,29 @@ class LlmService:
             run_hints=run_hints,
         )
 
+        # Classify outcome for escalation tracking / provider health
+        if phase_id:
+            if result.success:
+                self.record_attempt_outcome(
+                    phase_id=phase_id,
+                    model=resolved_model,
+                    outcome="success",
+                    details=None,
+                )
+            else:
+                error_text = (result.error or "").lower()
+                if "connection error" in error_text or "timeout" in error_text:
+                    outcome = "infra_error"
+                else:
+                    # Default builder failure classification
+                    outcome = "auditor_reject"
+                self.record_attempt_outcome(
+                    phase_id=phase_id,
+                    model=resolved_model,
+                    outcome=outcome,
+                    details=result.error,
+                )
+
         # Record usage in database
         if result.success and result.tokens_used > 0:
             # For now, use rough 40/60 split (prompt/completion typical for builder)
@@ -411,6 +446,23 @@ class LlmService:
             project_rules=project_rules,
             run_hints=run_hints,
         )
+
+        # Classify outcome for escalation tracking
+        if phase_id:
+            if result.approved:
+                self.record_attempt_outcome(
+                    phase_id=phase_id,
+                    model=resolved_model,
+                    outcome="success",
+                    details=None,
+                )
+            else:
+                self.record_attempt_outcome(
+                    phase_id=phase_id,
+                    model=resolved_model,
+                    outcome="auditor_reject",
+                    details="Auditor did not approve patch",
+                )
 
         # Record usage in database
         if result.tokens_used > 0:
@@ -534,8 +586,18 @@ class LlmService:
             phase_id=phase_id,
             model=model,
             outcome=outcome,
-            details=details
+            details=details,
         )
+
+        # If we see infra_error outcomes for a provider, allow callers to
+        # disable that provider for the remainder of the run.
+        if outcome == "infra_error" and model and model != "unknown":
+            provider = self._model_to_provider(model)
+            # Conservatively disable only non-OpenAI providers, since OpenAI
+            # acts as the global fallback in most configs.
+            if provider in {"zhipu_glm", "google_gemini", "anthropic"}:
+                reason = f"infra_error for model {model} in phase {phase_id} ({details})"
+                self.model_router.disable_provider(provider, reason=reason)
 
     def get_max_attempts(self) -> int:
         """Get maximum attempts per phase from config."""
@@ -567,7 +629,10 @@ JSON response format:
   "suggested_patch": "<optional: small fix if obvious, in git diff format>",
   "fix_commands": ["<optional: list of shell commands for execute_fix action>"],
   "fix_type": "<optional: git|file|python - required if using execute_fix>",
-  "verify_command": "<optional: command to verify the fix worked>"
+  "verify_command": "<optional: command to verify the fix worked>",
+  "error_type": "<optional: dominant failure type, e.g. infra_error|patch_apply_error|auditor_reject|isolation_blocked>",
+  "disable_providers": ["<optional: providers to disable for this run, e.g. zhipu_glm, google_gemini, anthropic>"],
+  "maintenance_phase": "<optional: suggested maintenance phase id to schedule, e.g. phase3-provider-maintenance>"
 }
 
 IMPORTANT:

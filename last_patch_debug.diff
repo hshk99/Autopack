@@ -1,0 +1,432 @@
+diff --git a/src/autopack/learned_rules.py b/src/autopack/learned_rules.py
+index 0000000..1111111 100644
+--- a/src/autopack/learned_rules.py
++++ b/src/autopack/learned_rules.py
+@@ -1,11 +1,15 @@
+ """Learned Rules System for Autopack
+ 
+ Tracks patterns discovered during troubleshooting and promotes them
+-to permanent rules based on recurrence and validation.
++to permanent rules based on recurrence, validation, and human approval.
++
++Promotion Pipeline:
++1. NEW: Fix discovered during troubleshooting
++2. APPLIED: Fix was attempted in a run
++3. CANDIDATE_RULE: Pattern seen >= min_runs_for_candidate times within window_days
++4. RULE: Confirmed via recurrence, no regressions, human approved
+ """
+ 
+-import json
+-import os
+ from dataclasses import dataclass, field, asdict
+ from datetime import datetime, timedelta
+ from enum import Enum
+@@ -1,5 +1,6 @@ from pathlib import Path
+ from typing import Dict, List, Optional, Tuple
+ import json
+ import logging
++import yaml
+ 
+ logger = logging.getLogger(__name__)
+ 
+@@ -1,6 +1,18 @@ class RuleSeverity(str, Enum):
+     CRITICAL = "critical"
+ 
+ 
++class DiscoveryStage(str, Enum):
++    """Stages in the rule promotion pipeline"""
++    NEW = "new"  # Fix discovered during troubleshooting
++    APPLIED = "applied"  # Fix was attempted in a run
++    CANDIDATE_RULE = "candidate_rule"  # Pattern seen >= threshold times
++    RULE = "rule"  # Confirmed and human-approved permanent rule
++
++    def __str__(self) -> str:
++        """String representation for serialization"""
++        return self.value
++
++
+ @dataclass
+ class LearnedRule:
+     """A learned rule that can be applied to future builds"""
+@@ -1,6 +1,7 @@ class LearnedRule:
+     fix_description: str
+     created_at: str
+     last_applied_at: Optional[str] = None
++    stage: DiscoveryStage = DiscoveryStage.NEW
+     application_count: int = 0
+     success_count: int = 0
+     failure_count: int = 0
+@@ -1,6 +1,7 @@ class LearnedRule:
+     tags: List[str] = field(default_factory=list)
+     metadata: Dict[str, any] = field(default_factory=dict)
+ 
++    # Application history for promotion tracking
+     application_history: List[Dict[str, any]] = field(default_factory=list)
+ 
+     def to_dict(self) -> Dict:
+@@ -1,6 +1,7 @@ class LearnedRule:
+         data = asdict(self)
+         data['category'] = str(self.category)
+         data['severity'] = str(self.severity)
++        data['stage'] = str(self.stage)
+         return data
+ 
+     @classmethod
+@@ -1,10 +1,34 @@ class LearnedRule:
+         data['category'] = RuleCategory(data['category'])
+         data['severity'] = RuleSeverity(data['severity'])
+         data['tags'] = data.get('tags', [])
++        data['stage'] = DiscoveryStage(data.get('stage', 'new'))
+         data['metadata'] = data.get('metadata', {})
+         data['application_history'] = data.get('application_history', [])
+         return cls(**data)
+ 
++    def record_application(
++        self,
++        run_id: str,
++        phase_id: str,
++        success: bool,
++        notes: Optional[str] = None
++    ) -> None:
++        """Record an application of this rule"""
++        self.application_count += 1
++        if success:
++            self.success_count += 1
++        else:
++            self.failure_count += 1
++        self.last_applied_at = datetime.utcnow().isoformat()
++        
++        self.application_history.append({
++            'run_id': run_id,
++            'phase_id': phase_id,
++            'timestamp': self.last_applied_at,
++            'success': success,
++            'notes': notes
++        })
++
+ 
+ class LearnedRulesManager:
+     """Manages learned rules storage and retrieval"""
+@@ -1,6 +1,7 @@ class LearnedRulesManager:
+     def __init__(self, storage_path: str = "data/learned_rules.json"):
+         self.storage_path = Path(storage_path)
+         self.rules: Dict[str, LearnedRule] = {}
++        self.config = self._load_config()
+         self._load_rules()
+ 
+     def _load_rules(self) -> None:
+@@ -1,6 +1,28 @@ class LearnedRulesManager:
+         except Exception as e:
+             logger.error(f"Failed to load learned rules: {e}")
+ 
++    def _load_config(self) -> Dict:
++        """Load promotion configuration from models.yaml"""
++        config_path = Path("config/models.yaml")
++        default_config = {
++            'min_runs_for_candidate': 3,
++            'window_days': 30,
++            'min_severity_for_candidate': 'medium',
++            'require_human_approval': True
++        }
++        
++        try:
++            if config_path.exists():
++                with open(config_path, 'r') as f:
++                    data = yaml.safe_load(f)
++                    return data.get('discovery_promotion', default_config)
++            else:
++                logger.warning(f"Config file not found: {config_path}, using defaults")
++                return default_config
++        except Exception as e:
++            logger.error(f"Failed to load config from {config_path}: {e}, using defaults")
++            return default_config
++
+     def _save_rules(self) -> None:
+         """Persist rules to disk"""
+         try:
+@@ -1,7 +1,7 @@ class LearnedRulesManager:
+         except Exception as e:
+             logger.error(f"Failed to save learned rules: {e}")
+ 
+-    def add_rule(self, rule: LearnedRule) -> None:
++    def add_rule(self, rule: LearnedRule) -> str:
+         """Add a new learned rule"""
+         self.rules[rule.rule_id] = rule
+         self._save_rules()
+@@ -1,5 +1,6 @@ class LearnedRulesManager:
+             f"Added learned rule {rule.rule_id}: {rule.pattern_description}"
+         )
++        return rule.rule_id
+ 
+     def get_rule(self, rule_id: str) -> Optional[LearnedRule]:
+         """Retrieve a specific rule"""
+@@ -1,11 +1,11 @@ class LearnedRulesManager:
+     def get_rules_by_category(
+         self, category: RuleCategory
+     ) -> List[LearnedRule]:
+-        """Get all rules for a specific category"""
++        """Get all RULE-stage rules for a specific category"""
+         return [
+             rule
+             for rule in self.rules.values()
+-            if rule.category == category
++            if rule.category == category and rule.stage == DiscoveryStage.RULE
+         ]
+ 
+     def get_applicable_rules(
+@@ -1,7 +1,7 @@ class LearnedRulesManager:
+         category: RuleCategory,
+         error_message: Optional[str] = None,
+     ) -> List[LearnedRule]:
+-        """Get rules applicable to a specific situation"""
++        """Get RULE-stage rules applicable to a specific situation"""
+         applicable = self.get_rules_by_category(category)
+ 
+         if error_message:
+@@ -2,47 +2,33 @@ class LearnedRulesManager:
+ 
+         return applicable
+ 
+-    def record_application(
+-        self,
+-        rule_id: str,
+-        run_id: str,
+-        phase_id: str,
+-        success: bool,
+-        notes: Optional[str] = None,
+-    ) -> None:
+-        """Record an application of a rule"""
+-        rule = self.get_rule(rule_id)
+-        if not rule:
+-            logger.warning(f"Cannot record application for unknown rule: {rule_id}")
+-            return
+-
+-        rule.application_count += 1
+-        if success:
+-            rule.success_count += 1
+-        else:
+-            rule.failure_count += 1
+-        rule.last_applied_at = datetime.utcnow().isoformat()
+-
+-        rule.application_history.append(
+-            {
+-                "run_id": run_id,
+-                "phase_id": phase_id,
+-                "timestamp": rule.last_applied_at,
+-                "success": success,
+-                "notes": notes,
+-            }
+-        )
++    def record_application(self, rule_id: str, run_id: str, phase_id: str, 
++                          success: bool, notes: Optional[str] = None) -> None:
++        """Record an application of a rule"""
++        rule = self.get_rule(rule_id)
++        if not rule:
++            logger.warning(f"Cannot record application for unknown rule: {rule_id}")
++            return
++        
++        # Promote from NEW to APPLIED on first application
++        if rule.stage == DiscoveryStage.NEW:
++            rule.stage = DiscoveryStage.APPLIED
++            logger.info(f"Rule {rule_id} promoted to APPLIED stage")
++        
++        rule.record_application(run_id, phase_id, success, notes)
+ 
+         self._save_rules()
+-        logger.info(
+-            f"Recorded application of rule {rule_id}: "
+-            f"success={success}, total={rule.application_count}"
+-        )
++        logger.info(f"Recorded application of rule {rule_id}: success={success}, total={rule.application_count}")
+ 
+     def get_statistics(self) -> Dict:
+         """Get statistics about learned rules"""
++        stage_counts = {stage: 0 for stage in DiscoveryStage}
++        for rule in self.rules.values():
++            stage_counts[rule.stage] += 1
++        
+         return {
+             "total_rules": len(self.rules),
++            "by_stage": {str(stage): count for stage, count in stage_counts.items()},
+             "by_category": {
+                 str(cat): len(self.get_rules_by_category(cat))
+                 for cat in RuleCategory
+@@ -1,3 +1,153 @@ class LearnedRulesManager:
+                 for rule in self.rules.values()
+             ),
+         }
++
++    def count_rule_applications(self, rule_id: str, days: int) -> int:
++        """Count how many times a rule was applied within the last N days"""
++        rule = self.get_rule(rule_id)
++        if not rule:
++            return 0
++        
++        cutoff = datetime.utcnow() - timedelta(days=days)
++        count = 0
++        
++        for app in rule.application_history:
++            try:
++                app_time = datetime.fromisoformat(app['timestamp'])
++                if app_time >= cutoff:
++                    count += 1
++            except (ValueError, KeyError) as e:
++                logger.warning(f"Invalid application history entry: {e}")
++                continue
++        
++        return count
++
++    def check_rule_regressions(self, rule_id: str) -> bool:
++        """Check if a rule has caused regressions
++        
++        Returns:
++            True if regressions detected, False otherwise
++        """
++        rule = self.get_rule(rule_id)
++        if not rule:
++            return False
++        
++        # No applications yet - no regressions
++        if rule.application_count == 0:
++            return False
++        
++        # Check success rate - if < 70%, consider it a regression
++        success_rate = rule.success_count / rule.application_count
++        if success_rate < 0.7:
++            logger.warning(
++                f"Rule {rule_id} has low success rate: {success_rate:.2%}"
++            )
++            return True
++        
++        # Check recent applications (last 5) for consistent failures
++        recent_apps = rule.application_history[-5:]
++        if len(recent_apps) >= 3:
++            recent_failures = sum(1 for app in recent_apps if not app.get('success', False))
++            if recent_failures >= 3:
++                logger.warning(
++                    f"Rule {rule_id} has {recent_failures} failures in last {len(recent_apps)} applications"
++                )
++                return True
++        
++        return False
++
++    def is_promotion_eligible(self, rule: LearnedRule) -> Tuple[bool, str]:
++        """Check if a rule is eligible for promotion to next stage
++        
++        Returns:
++            Tuple of (eligible: bool, reason: str)
++        """
++        if rule.stage == DiscoveryStage.RULE:
++            return False, "Already at RULE stage"
++        
++        # NEW -> APPLIED: Automatic on first application (handled in record_application)
++        if rule.stage == DiscoveryStage.NEW:
++            return False, "Must be applied at least once"
++        
++        # APPLIED -> CANDIDATE_RULE: Check recurrence threshold
++        if rule.stage == DiscoveryStage.APPLIED:
++            min_runs = self.config.get('min_runs_for_candidate', 3)
++            window_days = self.config.get('window_days', 30)
++            min_severity = RuleSeverity(self.config.get('min_severity_for_candidate', 'medium'))
++            
++            # Check severity requirement
++            severity_order = {
++                RuleSeverity.LOW: 0,
++                RuleSeverity.MEDIUM: 1,
++                RuleSeverity.HIGH: 2,
++                RuleSeverity.CRITICAL: 3
++            }
++            if severity_order.get(rule.severity, 0) < severity_order.get(min_severity, 1):
++                return False, f"Severity {rule.severity} below minimum {min_severity}"
++            
++            # Check application count within window
++            recent_count = self.count_rule_applications(rule.rule_id, window_days)
++            if recent_count < min_runs:
++                return False, f"Only {recent_count} applications in last {window_days} days (need {min_runs})"
++            
++            # Check for regressions
++            if self.check_rule_regressions(rule.rule_id):
++                return False, "Rule has caused regressions"
++            
++            return True, f"Eligible: {recent_count} successful applications in {window_days} days"
++        
++        # CANDIDATE_RULE -> RULE: Requires human approval
++        if rule.stage == DiscoveryStage.CANDIDATE_RULE:
++            require_approval = self.config.get('require_human_approval', True)
++            if require_approval:
++                return False, "Requires human approval for promotion to RULE"
++            
++            # If human approval not required, check for continued success
++            if self.check_rule_regressions(rule.rule_id):
++                return False, "Rule has caused regressions"
++            
++            return True, "Eligible for automatic promotion (human approval disabled)"
++        
++        return False, f"Unknown stage: {rule.stage}"
++
++    def promote_rule(self, rule_id: str) -> bool:
++        """Promote a rule to the next stage in the pipeline
++        
++        Returns:
++            True if promotion successful, False otherwise
++        """
++        rule = self.get_rule(rule_id)
++        if not rule:
++            logger.error(f"Cannot promote unknown rule: {rule_id}")
++            return False
++        
++        eligible, reason = self.is_promotion_eligible(rule)
++        if not eligible:
++            logger.info(f"Rule {rule_id} not eligible for promotion: {reason}")
++            return False
++        
++        # Perform promotion
++        old_stage = rule.stage
++        if rule.stage == DiscoveryStage.APPLIED:
++            rule.stage = DiscoveryStage.CANDIDATE_RULE
++        elif rule.stage == DiscoveryStage.CANDIDATE_RULE:
++            rule.stage = DiscoveryStage.RULE
++        
++        self._save_rules()
++        logger.info(f"Promoted rule {rule_id} from {old_stage} to {rule.stage}: {reason}")
++        return True
++
++    def get_candidates_for_promotion(self) -> List[LearnedRule]:
++        """Get all rules that are ready for promotion review
++        
++        Returns:
++            List of rules eligible for promotion
++        """
++        candidates = []
++        for rule in self.rules.values():
++            eligible, reason = self.is_promotion_eligible(rule)
++            if eligible:
++                candidates.append(rule)
++                logger.info(f"Promotion candidate: {rule.rule_id} ({rule.stage}): {reason}")
++        
++        return candidates
+diff --git a/config/models.yaml b/config/models.yaml
+index 0000000..1111111 100644
+--- a/config/models.yaml
++++ b/config/models.yaml
+@@ -1,3 +1,11 @@
++# Discovery Promotion Configuration
++discovery_promotion:
++  min_runs_for_candidate: 3  # Minimum applications within window to become candidate
++  window_days: 30  # Time window for counting applications
++  min_severity_for_candidate: medium  # Minimum severity to auto-promote to candidate
++  require_human_approval: true  # Require human approval for CANDIDATE -> RULE promotion
++
++# LLM Model Configuration by Complexity Tier
+ complexity_models:
+   low:
+     # Default cheap tier: GLM-4.6 (Zhipu AI)
+@@ -14,4 +14,7 @@ complexity_models:
+     escalation_builder: gpt-5
+     escalation_auditor: claude-opus-4-5
++
++# LLM Routing Policies
+ llm_routing_policies:
+-  security_a
++  security_audit: high
++  progressive_strategy: medium

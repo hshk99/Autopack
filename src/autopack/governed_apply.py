@@ -43,7 +43,13 @@ class GovernedApplyPath:
 
     # Paths that are always allowed (can override protection if needed)
     ALLOWED_PATHS = [
-        # Add project-specific allowed paths here via config
+        # Core maintenance paths that Autopack may update in self-repair runs
+        "src/autopack/learned_rules.py",
+        "src/autopack/llm_service.py",
+        "src/autopack/openai_clients.py",
+        "src/autopack/gemini_clients.py",
+        "src/autopack/glm_clients.py",
+        "config/models.yaml",
     ]
 
     # Run types that support internal mode

@@ -31,14 +31,12 @@ Edit `.env`:
 ```bash
 # Required: At least one provider (GLM recommended for low-cost)
 GLM_API_KEY=your-zhipu-api-key           # Zhipu AI (low complexity)
-GOOGLE_API_KEY=your-google-api-key       # Google Gemini (medium complexity)
-ANTHROPIC_API_KEY=your-anthropic-key     # Anthropic (high complexity)
-OPENAI_API_KEY=your-openai-key           # OpenAI (escalation/fallback)
+ANTHROPIC_API_KEY=your-anthropic-key     # Anthropic Claude (medium/high complexity)
+OPENAI_API_KEY=your-openai-key           # OpenAI (optional fallback)
 ```
 
 **Get keys**:
 - GLM: https://open.bigmodel.cn/
-- Gemini: https://ai.google.dev/
 - Anthropic: https://console.anthropic.com/
 - OpenAI: https://platform.openai.com/api-keys
 
@@ -135,9 +133,8 @@ supervisor = Supervisor(
 **LLM Provider Keys** (at least one required):
 ```bash
 GLM_API_KEY=your-zhipu-key               # Zhipu AI GLM (low complexity)
-GOOGLE_API_KEY=your-google-key           # Google Gemini (medium complexity)
-ANTHROPIC_API_KEY=your-anthropic-key     # Anthropic Claude (high complexity)
-OPENAI_API_KEY=sk-...                    # OpenAI (escalation/fallback)
+ANTHROPIC_API_KEY=your-anthropic-key     # Anthropic Claude (medium/high complexity)
+OPENAI_API_KEY=sk-...                    # OpenAI (optional fallback)
 ```
 
 **Optional**:
@@ -218,19 +215,19 @@ Open browser: http://localhost:8000/docs
 
 | Complexity | Model | Est. Tokens | Est. Cost |
 |-----------|-------|-------------|-----------|
-| Low | glm-4.6-20250101 | 1.5M | $1.05 |
-| Medium | gemini-2.5-pro | 2.5M | $15.63 |
+| Low | glm-4.6 | 1.5M | $1.05 |
+| Medium | claude-sonnet-4-5 | 2.5M | $11.25 |
 | High | claude-sonnet-4-5 | 1.0M | $18.00 |
-| **Total (Mixed)** | **Varies** | **5M** | **~$35** |
+| **Total (Mixed)** | **Varies** | **5M** | **~$30** |
 
-**With Optimizations**: ~$20 per run (43% reduction)
+**With Optimizations**: ~$18 per run (40% reduction)
 
 ### Cost per Phase (Current Stack)
 
 | Complexity | Model | Builder + Auditor Cost |
 |-----------|-------|------------------------|
-| Low | GLM-4 Plus | ~$0.0035/phase |
-| Medium | Gemini 2.5 Pro | ~$0.03/phase |
+| Low | GLM-4.6 | ~$0.0035/phase |
+| Medium | Claude Sonnet 4.5 | ~$0.084/phase |
 | High | Claude Sonnet 4.5 | ~$0.16/phase |
 
 ### Monitor Usage

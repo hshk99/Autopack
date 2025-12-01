@@ -1,0 +1,107 @@
+[2025-11-29 15:55:55] INFO: Applying pre-emptive encoding fix...
+[2025-11-29 15:55:55] INFO: [Recovery] Fixing Unicode encoding error...
+[2025-11-29 15:55:55] INFO: [Recovery] SUCCESS: Encoding fixed (UTF-8 enabled)
+[2025-11-29 15:55:55] INFO: Initialized autonomous executor for run: fileorg-phase2-with-descriptions
+[2025-11-29 15:55:55] INFO: API URL: http://localhost:8000
+[2025-11-29 15:55:55] INFO: Workspace: .autonomous_runs\file-organizer-app-v1
+[2025-11-29 15:55:55] INFO: Starting autonomous execution loop...
+[2025-11-29 15:55:55] INFO: Poll interval: 10s
+[2025-11-29 15:55:55] INFO: Max iterations: 5
+[2025-11-29 15:55:55] INFO: Initializing infrastructure...
+[2025-11-29 15:55:56] INFO: Builder: OpenAI (GPT-4o)
+[2025-11-29 15:55:58] INFO: Auditor: Dual (OpenAI + Anthropic)
+[2025-11-29 15:55:58] INFO: Quality Gate: Initialized
+[2025-11-29 15:55:58] INFO: Iteration 1: Fetching run status...
+[2025-11-29 15:55:58] INFO: Next phase: fileorg-p2-batch-upload
+[2025-11-29 15:55:58] INFO: Executing phase: fileorg-p2-batch-upload
+[2025-11-29 15:55:58] INFO: [fileorg-p2-batch-upload] Step 1/4: Generating code with Builder...
+[2025-11-29 15:55:58] INFO: [fileorg-p2-batch-upload] Loaded 2 files for context
+[2025-11-29 15:56:08] INFO: HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-11-29 15:56:08] INFO: [fileorg-p2-batch-upload] Builder succeeded (2780 tokens)
+[2025-11-29 15:56:08] WARNING: Failed to post builder result: 500 Server Error: Internal Server Error for url: http://localhost:8000/runs/fileorg-phase2-with-descriptions/phases/fileorg-p2-batch-upload/builder_result
+[2025-11-29 15:56:08] INFO: [fileorg-p2-batch-upload] Step 2/4: Reviewing patch with Auditor...
+[2025-11-29 15:56:08] INFO: HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 400 Bad Request"
+[2025-11-29 15:56:08] INFO: [fileorg-p2-batch-upload] Auditor completed: approved=False, issues=1
+[2025-11-29 15:56:08] INFO: [fileorg-p2-batch-upload] Step 3/4: Applying Quality Gate...
+[2025-11-29 15:56:08] INFO: [fileorg-p2-batch-upload] Quality Gate: needs_review
+[2025-11-29 15:56:08] INFO: [fileorg-p2-batch-upload] Step 4/4: Applying patch...
+[2025-11-29 15:56:08] INFO: Writing patch to .autonomous_runs\file-organizer-app-v1\temp_patch.diff
+[2025-11-29 15:56:08] INFO: Checking if patch can be applied (dry run)...
+[2025-11-29 15:56:08] ERROR: Patch check failed: error: corrupt patch at line 42
+[2025-11-29 15:56:08] ERROR: Patch content:
+diff --git a/backend/app/routers/upload.py b/backend/app/routers/upload.py
+new file mode 100644
+index 0000000..f4c3b2e
+--- /dev/null
++++ b/backend/app/routers/upload.py
+@@ -0,0 +1,78 @@
++from fastapi import APIRouter, UploadFile, File, HTTPException
++from fastapi.responses import JSONResponse
++from typing import List
++import uuid
++import os
++from backend.app.services.task_queue import queue_file_processing
++
++router = APIRouter()
++
++UPLOAD_DIRECTORY = "uploads/"
++
++if not os.path.exists(UPLOAD_D...
+[2025-11-29 15:56:08] ERROR: [fileorg-p2-batch-upload] Failed to apply patch to filesystem: error: corrupt patch at line 42
+[2025-11-29 15:56:08] WARNING: Phase fileorg-p2-batch-upload finished with status: PATCH_FAILED
+[2025-11-29 15:56:08] INFO: Waiting 10s before next phase...
+[2025-11-29 15:56:18] INFO: Iteration 2: Fetching run status...
+[2025-11-29 15:56:18] INFO: Next phase: fileorg-p2-auth
+[2025-11-29 15:56:18] INFO: Executing phase: fileorg-p2-auth
+[2025-11-29 15:56:18] INFO: [fileorg-p2-auth] Step 1/4: Generating code with Builder...
+[2025-11-29 15:56:18] INFO: [fileorg-p2-auth] Loaded 2 files for context
+[2025-11-29 15:56:49] INFO: HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-11-29 15:56:49] INFO: [fileorg-p2-auth] Builder succeeded (5085 tokens)
+[2025-11-29 15:56:49] WARNING: Failed to post builder result: 500 Server Error: Internal Server Error for url: http://localhost:8000/runs/fileorg-phase2-with-descriptions/phases/fileorg-p2-auth/builder_result
+[2025-11-29 15:56:49] INFO: [fileorg-p2-auth] Step 2/4: Reviewing patch with Auditor...
+[2025-11-29 15:56:50] INFO: HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 400 Bad Request"
+[2025-11-29 15:56:50] INFO: [fileorg-p2-auth] Auditor completed: approved=False, issues=1
+[2025-11-29 15:56:50] INFO: [fileorg-p2-auth] Step 3/4: Applying Quality Gate...
+[2025-11-29 15:56:50] INFO: [fileorg-p2-auth] Quality Gate: needs_review
+[2025-11-29 15:56:50] INFO: [fileorg-p2-auth] Step 4/4: Applying patch...
+[2025-11-29 15:56:50] INFO: Writing patch to .autonomous_runs\file-organizer-app-v1\temp_patch.diff
+[2025-11-29 15:56:50] INFO: Checking if patch can be applied (dry run)...
+[2025-11-29 15:56:50] ERROR: Patch check failed: error: corrupt patch at line 77
+[2025-11-29 15:56:50] ERROR: Patch content:
+diff --git a/backend/app/core/auth.py b/backend/app/core/auth.py
+new file mode 100644
+index 0000000..f1e2d3c
+--- /dev/null
++++ b/backend/app/core/auth.py
+@@ -0,0 +1,78 @@
++import jwt
++from datetime import datetime, timedelta
++from passlib.context import CryptContext
++from fastapi import HTTPException, Depends
++from fastapi.security import OAuth2PasswordBearer
++from sqlalchemy.orm import Session
++from .config import settings
++from ..models import User
++from ..database import get_db
++
++pwd_context...
+[2025-11-29 15:56:50] ERROR: [fileorg-p2-auth] Failed to apply patch to filesystem: error: corrupt patch at line 77
+[2025-11-29 15:56:50] WARNING: Phase fileorg-p2-auth finished with status: PATCH_FAILED
+[2025-11-29 15:56:50] INFO: Waiting 10s before next phase...
+[2025-11-29 15:57:00] INFO: Iteration 3: Fetching run status...
+[2025-11-29 15:57:00] INFO: No more QUEUED phases, execution complete
+[2025-11-29 15:57:00] INFO: Autonomous execution loop finished
+[DualAuditor] review_patch called with:
+[DualAuditor]   phase_spec: fileorg-p2-batch-upload
+[DualAuditor]   max_tokens: None
+[DualAuditor]   model: None
+[DualAuditor]   use_dual: False
+[DualAuditor]   patch_content length: 3730
+[DualAuditor] Using single audit (primary only)
+[DualAuditor] review_patch called with:
+[DualAuditor]   phase_spec: fileorg-p2-auth
+[DualAuditor]   max_tokens: None
+[DualAuditor]   model: None
+[DualAuditor]   use_dual: False
+[DualAuditor]   patch_content length: 12711
+[DualAuditor] Using single audit (primary only)

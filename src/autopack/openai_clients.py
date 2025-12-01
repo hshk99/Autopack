@@ -70,15 +70,22 @@ class OpenAIBuilderClient:
             )
 
             # Call OpenAI API - NO JSON mode (raw diff output like Anthropic)
-            response = self.client.chat.completions.create(
-                model=model,
-                messages=[
+            # GPT-5 models use max_completion_tokens instead of max_tokens
+            params = {
+                "model": model,
+                "messages": [
                     {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_prompt}
+                    {"role": "user", "content": user_prompt},
                 ],
-                max_tokens=max_tokens or 16384,  # Increased from 4096 to prevent patch truncation
-                temperature=0.2  # Lower temperature for more consistent code
-            )
+                "temperature": 0.2,
+            }
+            token_budget = max_tokens or 16384
+            if model.startswith("gpt-5"):
+                params["max_completion_tokens"] = token_budget
+            else:
+                params["max_tokens"] = token_budget  # Backwards-compatible for earlier models
+
+            response = self.client.chat.completions.create(**params)
 
             # Extract content
             content = response.choices[0].message.content
@@ -300,16 +307,22 @@ class OpenAIAuditorClient:
             )
 
             # Call OpenAI API with JSON schema response
-            response = self.client.chat.completions.create(
-                model=model,
-                messages=[
+            params = {
+                "model": model,
+                "messages": [
                     {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_prompt}
+                    {"role": "user", "content": user_prompt},
                 ],
-                max_tokens=max_tokens or 4096,  # Increased from 2048 to handle large patches
-                response_format={"type": "json_object"},
-                temperature=0.1  # Very low temperature for consistent reviews
-            )
+                "response_format": {"type": "json_object"},
+                "temperature": 0.1,
+            }
+            token_budget = max_tokens or 4096
+            if model.startswith("gpt-5"):
+                params["max_completion_tokens"] = token_budget
+            else:
+                params["max_tokens"] = token_budget
+
+            response = self.client.chat.completions.create(**params)
 
             # Parse response
             result_json = json.loads(response.choices[0].message.content)

@@ -4,12 +4,11 @@
 **Date**: 2025-11-25 (Updated: 2025-12-01)
 **Based On**: GPT's quota management strategy + Claude Max/Code limit updates
 
-> **Note (2025-12-01)**: Model stack has been updated. The examples below show the original
-> OpenAI-centric model selection. Current production stack is:
-> - **Low complexity**: GLM-4.6 (glm-4.6-20250101) - Zhipu AI
-> - **Medium complexity**: Gemini 2.5 Pro (gemini-2.5-pro) - Google
+> **Note (2025-12-01)**: Model stack has been updated for optimal cost/performance. Current production stack is:
+> - **Low complexity**: GLM-4.6 (glm-4.6) - Zhipu AI
+> - **Medium complexity**: Claude Sonnet 4.5 (claude-sonnet-4-5) - Anthropic
 > - **High complexity**: Claude Sonnet 4.5 (claude-sonnet-4-5) - Anthropic
-> - **Escalation**: GPT-5 / Claude Opus 4.5
+> - **Escalation**: Claude Opus 4.5
 >
 > See `config/models.yaml` and `config/pricing.yaml` for current configuration.
 
@@ -64,10 +63,6 @@ provider_quotas:
     soft_limit_ratio: 0.8
     notes: "Opus 4.5 + Sonnet 4.5 have separate pools"
 
-  google_gemini:
-    daily_token_cap: 3_000_000      # Placeholder: adjust per your plan
-    soft_limit_ratio: 0.75
-
   zhipu_glm:
     daily_token_cap: 10_000_000     # Pay-as-you-go
     soft_limit_ratio: 0.9
@@ -84,16 +79,13 @@ provider_quotas:
 | Model | Provider | Cost (per 1M) | When to Use |
 |-------|----------|---------------|-------------|
 | claude-opus-4-5 | Anthropic | $15/$75 | Repeatedly failing phases, extreme high-risk |
-| gpt-4-turbo | OpenAI | $10/$30 | High-risk categories (security, schema, external) |
-| claude-3-5-sonnet | Anthropic | $3/$15 | Complex reasoning, planning, marketing |
-| gpt-4o | OpenAI | $2.50/$10 | Medium complexity coding |
+| claude-sonnet-4-5 | Anthropic | $3/$15 | All medium/high complexity, complex reasoning, planning |
 
-### Tier 2: Efficient Models (Default for Safe Tasks)
+### Tier 2: Efficient Models (Default for Low Complexity)
 
 | Model | Provider | Cost (per 1M) | When to Use |
 |-------|----------|---------------|-------------|
-| claude-3-5-haiku | Anthropic | $0.80/$4 | Mechanical tasks, aux agents |
-| gpt-4o-mini | OpenAI | $0.15/$0.60 | Low complexity, summaries |
+| glm-4.6 | Zhipu AI | $0.70/$0.70 | Low complexity, simple tasks, docs |
 
 ### Tier 3: Fallback Models (When Quota Near Limit)
 

@@ -42,12 +42,8 @@ anthropic:
 # OpenAI pricing (as of 2025) - FALLBACK PROVIDER
 # Source: https://openai.com/api/pricing/
 # Environment: OPENAI_API_KEY
-# Note: gpt-4o and gpt-4o-mini replaced by GLM as primary cheap model
+# Note: OpenAI models are no longer primary; Claude Sonnet 4.5 is preferred for all tiers
 openai:
-  "gpt-5":
-    input_per_1k: 0.01      # $10.00 per 1M tokens (estimated)
-    output_per_1k: 0.03     # $30.00 per 1M tokens (estimated)
-
   "gpt-4.5":
     input_per_1k: 0.075     # $75.00 per 1M tokens
     output_per_1k: 0.15     # $150.00 per 1M tokens
@@ -69,14 +65,11 @@ openai:
     input_per_1k: 0.0005
     output_per_1k: 0.0015
 
-# Google Gemini pricing - MEDIUM COMPLEXITY PROVIDER
+# Google Gemini pricing - OPTIONAL/DEPRECATED
 # Source: https://ai.google.dev/pricing
 # Environment: GOOGLE_API_KEY
+# Note: Gemini models replaced by Claude Sonnet 4.5 for better performance
 google:
-  "gemini-2.5-pro":
-    input_per_1k: 0.00125   # $1.25 per 1M tokens
-    output_per_1k: 0.005    # $5.00 per 1M tokens
-
   "gemini-2.5-flash":
     input_per_1k: 0.00035   # $0.35 per 1M tokens
     output_per_1k: 0.00105  # $1.05 per 1M tokens
@@ -134,15 +127,15 @@ reporting:
 
 # Example cost calculations for reference (current model stack):
 #
-# Low complexity phase (glm-4-plus / glm-4.6-20250101):
+# Low complexity phase (glm-4.6):
 #   - Builder: 2000 input + 1000 output = $0.0021 (3*0.0007)
 #   - Auditor: 1500 input + 500 output = $0.0014 (2*0.0007)
 #   - Total: ~$0.0035 per phase
 #
-# Medium complexity phase (gemini-2.5-pro):
-#   - Builder: 5000 input + 3000 output = $0.0213 (5*0.00125 + 3*0.005)
-#   - Auditor: 3000 input + 1000 output = $0.0088 (3*0.00125 + 1*0.005)
-#   - Total: ~$0.03 per phase
+# Medium complexity phase (claude-sonnet-4-5):
+#   - Builder: 5000 input + 3000 output = $0.060 (5*0.003 + 3*0.015)
+#   - Auditor: 3000 input + 1000 output = $0.024 (3*0.003 + 1*0.015)
+#   - Total: ~$0.084 per phase
 #
 # High complexity phase (claude-sonnet-4-5):
 #   - Builder: 10000 input + 5000 output = $0.105 (10*0.003 + 5*0.015)
@@ -151,10 +144,10 @@ reporting:
 #
 # Estimated run cost (25 phases, mixed complexity):
 #   - 5 low + 15 medium + 5 high
-#   - ~$0.018 + $0.45 + $0.80 = ~$1.27 per run
+#   - ~$0.018 + $1.26 + $0.80 = ~$2.08 per run
 #
 # Model stack summary:
-#   - Low: GLM-4 Plus (Zhipu AI) - cheapest, good for simple tasks
-#   - Medium: Gemini 2.5 Pro (Google) - balanced cost/quality
+#   - Low: GLM-4.6 (Zhipu AI) - cheapest, good for simple tasks
+#   - Medium: Claude Sonnet 4.5 (Anthropic) - excellent cost/quality balance
 #   - High: Claude Sonnet 4.5 (Anthropic) - premium quality
-#   - Escalation: GPT-5 (OpenAI), Claude Opus 4.5 - for critical/failing phases
+#   - Escalation: Claude Opus 4.5 - for critical/failing phases

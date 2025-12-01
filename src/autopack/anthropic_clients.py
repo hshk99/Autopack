@@ -240,12 +240,24 @@ Requirements:
         if project_rules:
             prompt_parts.append("\n# Learned Rules (must follow):")
             for rule in project_rules[:10]:  # Top 10 rules
-                prompt_parts.append(f"- {rule.get('rule_text', '')}")
+                # Support both dict-based rules and LearnedRule dataclasses
+                if isinstance(rule, dict):
+                    text = rule.get("rule_text") or rule.get("constraint") or ""
+                else:
+                    text = getattr(rule, "constraint", str(rule))
+                if text:
+                    prompt_parts.append(f"- {text}")
 
         if run_hints:
             prompt_parts.append("\n# Hints from earlier phases:")
             for hint in run_hints[:5]:  # Recent hints
-                prompt_parts.append(f"- {hint.get('hint_text', '')}")
+                # Support both dict-based hints and RunRuleHint dataclasses
+                if isinstance(hint, dict):
+                    text = hint.get("hint_text", "")
+                else:
+                    text = getattr(hint, "hint_text", str(hint))
+                if text:
+                    prompt_parts.append(f"- {text}")
 
         if file_context:
             prompt_parts.append("\n# Repository Context:")

@@ -47,10 +47,10 @@ export default function ModelMapping({ runId }) {
                   }}
                 >
                   <option value={mapping.model}>{mapping.model}</option>
-                  <option value="gpt-4o">gpt-4o</option>
-                  <option value="gpt-4o-mini">gpt-4o-mini</option>
-                  <option value="claude-3-5-sonnet-20241022">claude-3-5-sonnet</option>
                   <option value="glm-4.5-20250101">glm-4.5</option>
+                  <option value="claude-sonnet-4-5">claude-sonnet-4-5</option>
+                  <option value="claude-opus-4-5">claude-opus-4-5</option>
+                  <option value="gpt-5">gpt-5</option>
                 </select>
               </td>
             </tr>

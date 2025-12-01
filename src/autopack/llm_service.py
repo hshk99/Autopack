@@ -116,8 +116,8 @@ class LlmService:
         if "claude" in requested_model.lower():
             if anthropic_client is None:
                 if openai_client is not None:
-                    print(f"Warning: Claude model {requested_model} selected but Anthropic not available. Falling back to OpenAI (gpt-4o).")
-                    return openai_client, "gpt-4o"
+                    print(f"Warning: Claude model {requested_model} selected but Anthropic not available. Falling back to GLM (glm-4.5-20250101).")
+                    return openai_client, "glm-4.5-20250101"
                 else:
                     raise RuntimeError(f"Claude model {requested_model} selected but neither Anthropic nor OpenAI clients are available")
             return anthropic_client, requested_model

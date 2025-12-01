@@ -1,10 +1,10 @@
 complexity_models:
   low:
-    builder: gpt-4o-mini
-    auditor: gpt-4o-mini
+    builder: glm-4.5-20250101
+    auditor: glm-4.5-20250101
   medium:
-    builder: gpt-4o
-    auditor: gpt-4o
+    builder: glm-4.5-20250101
+    auditor: glm-4.5-20250101
   high:
     builder: claude-sonnet-4-5
     auditor: claude-sonnet-4-5
@@ -34,7 +34,7 @@ llm_routing_policies:
     description: Drop columns/tables, change constraints, destructive migrations
   external_feature_reuse_internal:
     strategy: progressive
-    builder_primary: gpt-4o
+    builder_primary: glm-4.5-20250101
     auditor_primary: claude-sonnet-4-5
     escalate_to:
       builder: gpt-5
@@ -43,7 +43,7 @@ llm_routing_policies:
     description: Reuse from internal templates, vetted repos, internal modules
   schema_contract_change_additive:
     strategy: progressive
-    builder_primary: gpt-4o
+    builder_primary: glm-4.5-20250101
     auditor_primary: claude-sonnet-4-5
     escalate_to:
       builder: gpt-5
@@ -52,7 +52,7 @@ llm_routing_policies:
     description: Add nullable columns, indexes, views (backwards-compatible)
   core_backend_high:
     strategy: progressive
-    builder_primary: gpt-4o
+    builder_primary: glm-4.5-20250101
     auditor_primary: claude-sonnet-4-5
     escalate_to:
       builder: gpt-5
@@ -61,16 +61,16 @@ llm_routing_policies:
     description: Large refactors, complex features (non-security, non-schema)
   docs:
     strategy: cheap_first
-    builder_primary: gpt-4o-mini
-    auditor_primary: gpt-4o-mini
+    builder_primary: glm-4.5-20250101
+    auditor_primary: glm-4.5-20250101
     escalate_to:
-      builder: gpt-4o
+      builder: glm-4.5-20250101
       after_attempts: 3
     description: Documentation generation, README updates
   tests:
     strategy: cheap_first
     builder_primary: claude-sonnet-4-5
-    auditor_primary: gpt-4o
+    auditor_primary: glm-4.5-20250101
     escalate_to:
       builder: gpt-5
       after_attempts: 2
@@ -90,7 +90,7 @@ category_models:
     builder_model_override: gpt-5
     auditor_model_override: claude-opus-4-5
   tests:
-    builder_model_override: gpt-4o-mini
+    builder_model_override: glm-4.5-20250101
 provider_quotas:
   openai:
     weekly_token_cap: 50000000
@@ -117,18 +117,18 @@ fallback_strategy:
   by_category:
     general:
       fallbacks:
-      - gpt-4o-mini
+      - glm-4.5-20250101
     tests:
       fallbacks:
-      - gpt-4o-mini
+      - glm-4.5-20250101
     docs:
       fallbacks:
-      - gpt-4o-mini
+      - glm-4.5-20250101
   default_fallbacks:
-  - gpt-4o-mini
+  - glm-4.5-20250101
 defaults:
-  high_risk_builder: gpt-4o
-  high_risk_auditor: gpt-4o
+  high_risk_builder: glm-4.5-20250101
+  high_risk_auditor: glm-4.5-20250101
 model_aliases:
   glm: glm-4.5-20250101
   sonnet: claude-sonnet-4-5
@@ -139,12 +139,12 @@ escalation_chains:
   builder:
     low:
       models:
-      - gpt-4o-mini
-      - gpt-4o
+      - glm-4.5-20250101
+      - glm-4.5-20250101
       - claude-sonnet-4-5
     medium:
       models:
-      - gpt-4o
+      - glm-4.5-20250101
       - claude-sonnet-4-5
       - gpt-5
     high:
@@ -154,12 +154,12 @@ escalation_chains:
   auditor:
     low:
       models:
-      - gpt-4o-mini
-      - gpt-4o
+      - glm-4.5-20250101
+      - glm-4.5-20250101
     medium:
       models:
-      - gpt-4o
-      - gpt-4o
+      - glm-4.5-20250101
+      - glm-4.5-20250101
       - claude-sonnet-4-5
     high:
       models:
@@ -187,7 +187,7 @@ replan:
   - schema_mismatch
   - api_contract_wrong
 doctor_models:
-  cheap: gpt-4o-mini
+  cheap: glm-4.5-20250101
   strong: claude-sonnet-4-5
   min_confidence_for_cheap: 0.7
   health_budget_near_limit_ratio: 0.8

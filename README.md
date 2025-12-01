@@ -11,7 +11,7 @@ Autopack is a framework for orchestrating autonomous AI agents (Builder and Audi
 ### Autopack Doctor (NEW)
 LLM-based diagnostic system for intelligent failure recovery:
 - **Failure Diagnosis**: Analyzes phase failures and recommends recovery actions
-- **Model Routing**: Uses cheap model (gpt-4o-mini) for routine failures, strong model (claude-sonnet-4-5) for complex ones
+- **Model Routing**: Uses cheap model (glm-4.5-20250101) for routine failures, strong model (claude-sonnet-4-5) for complex ones
 - **Actions**: `retry_with_fix` (with hint), `replan`, `skip_phase`, `mark_fatal`, `rollback_run`
 - **Budgets**: Per-phase limit (2 calls) and run-level limit (10 calls) to prevent loops
 - **Confidence Escalation**: Upgrades to strong model if confidence < 0.7
@@ -19,7 +19,7 @@ LLM-based diagnostic system for intelligent failure recovery:
 **Configuration** (`config/models.yaml`):
 ```yaml
 doctor_models:
-  cheap: gpt-4o-mini
+  cheap: glm-4.5-20250101
   strong: claude-sonnet-4-5
   min_confidence_for_cheap: 0.7
   health_budget_near_limit_ratio: 0.8
@@ -28,7 +28,7 @@ doctor_models:
 
 ### Model Escalation System
 Automatically escalates to more powerful models when phases fail repeatedly:
-- **Intra-tier escalation**: Within complexity level (e.g., gpt-4o-mini -> gpt-4o)
+- **Intra-tier escalation**: Within complexity level (e.g., glm-4.5 -> claude-sonnet-4-5)
 - **Cross-tier escalation**: Bump complexity level after N failures (low -> medium -> high)
 - **Configurable thresholds**: `config/models.yaml` defines `complexity_escalation` settings
 
@@ -63,6 +63,31 @@ Prevents infinite retry loops by tracking failures across the run:
 - `PYTHONUTF8=1` environment variable for all subprocesses
 - UTF-8 encoding on all file reads
 - SyntaxError detection in CI checks
+
+---
+
+## Phase 3 Preview: Direct Fix Execution
+
+### Doctor `execute_fix` Action (Coming Soon)
+Enables Doctor to execute infrastructure-level fixes directly without going through Builder:
+- **Problem Solved**: Merge conflicts, missing files, Docker issues currently require manual intervention
+- **Solution**: Doctor emits shell commands (`git checkout`, `docker restart`, etc.) executed directly
+- **Safety**: Strict whitelist, workspace-only paths, opt-in via config, no sudo/admin
+
+**Planned Configuration** (`config/models.yaml`):
+```yaml
+doctor:
+  allow_execute_fix_global: false   # Opt-in required
+  max_execute_fix_per_phase: 1      # One attempt per phase
+  allowed_fix_types: ["git", "file"] # Typed categories
+```
+
+**Supported Fix Types** (v1):
+- `git`: `checkout`, `reset`, `stash`, `clean`, `merge --abort`
+- `file`: `rm`, `mkdir`, `cp`, `mv` (workspace only)
+- `python`: `pip install`, `pytest` (planned)
+
+See [IMPLEMENTATION_PLAN.md](archive/IMPLEMENTATION_PLAN.md) for full design details.
 
 ---
 
@@ -155,13 +180,13 @@ complexity_escalation:
 
 escalation_chains:
   builder:
-    - gpt-4o-mini      # Tier 0 (low)
-    - gpt-4o           # Tier 1 (medium)
+    - glm-4.5-20250101  # Tier 0 (low)
+    - glm-4.5-20250101  # Tier 1 (medium)
     - claude-sonnet-4-5 # Tier 2 (high)
     - gpt-5            # Tier 3 (premium)
   auditor:
-    - gpt-4o-mini
-    - gpt-4o
+    - glm-4.5-20250101
+    - glm-4.5-20250101
     - claude-sonnet-4-5
     - claude-opus-4-5
 ```

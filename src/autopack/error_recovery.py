@@ -84,7 +84,14 @@ class ErrorContext:
 # 2. Recommends actions: retry_with_fix, replan, rollback_run, skip_phase, mark_fatal
 # 3. All code changes still flow through Builder -> Auditor -> QualityGate -> governed_apply
 
-DoctorAction = Literal["retry_with_fix", "replan", "rollback_run", "skip_phase", "mark_fatal"]
+DoctorAction = Literal[
+    "retry_with_fix",
+    "replan",
+    "rollback_run",
+    "skip_phase",
+    "mark_fatal",
+    "execute_fix"  # Phase 3: Direct infrastructure fix (git, file, python commands)
+]
 
 
 @dataclass
@@ -124,22 +131,36 @@ class DoctorResponse:
 
     Per GPT_RESPONSE6 Section Q9: Doctor returns action, confidence, rationale,
     and optionally a builder hint or suggested patch.
+
+    Phase 3 Addition (GPT_RESPONSE9):
+    For action="execute_fix", provides fix_commands, fix_type, and verify_command
+    to enable direct infrastructure fixes (git, file, python commands).
     """
     action: DoctorAction
     confidence: float  # 0.0 - 1.0
     rationale: str  # Human-readable explanation
     builder_hint: Optional[str] = None  # Short instruction for next Builder attempt
     suggested_patch: Optional[str] = None  # Optional small fix (still goes through full pipeline)
+    # Phase 3: execute_fix action fields
+    fix_commands: Optional[List[str]] = None  # Shell commands to execute (for execute_fix)
+    fix_type: Optional[str] = None  # "git", "file", or "python" (for execute_fix)
+    verify_command: Optional[str] = None  # Command to verify fix worked (for execute_fix)
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for logging/API"""
-        return {
+        result = {
             "action": self.action,
             "confidence": self.confidence,
             "rationale": self.rationale,
             "builder_hint": self.builder_hint,
             "suggested_patch": self.suggested_patch[:500] if self.suggested_patch else None,
         }
+        # Include execute_fix fields only when action is execute_fix
+        if self.action == "execute_fix":
+            result["fix_commands"] = self.fix_commands
+            result["fix_type"] = self.fix_type
+            result["verify_command"] = self.verify_command
+        return result
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "DoctorResponse":
@@ -150,6 +171,10 @@ class DoctorResponse:
             rationale=data.get("rationale", "No rationale provided"),
             builder_hint=data.get("builder_hint"),
             suggested_patch=data.get("suggested_patch"),
+            # Phase 3: execute_fix fields
+            fix_commands=data.get("fix_commands"),
+            fix_type=data.get("fix_type"),
+            verify_command=data.get("verify_command"),
         )
 
 

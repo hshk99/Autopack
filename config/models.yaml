@@ -207,6 +207,16 @@ doctor_models:
   - network
   - file_io
   - validation
+  # Phase 3: execute_fix configuration (GPT_RESPONSE9)
+  # Allows Doctor to execute infrastructure-level fixes directly
+  allow_execute_fix_global: false  # SECURITY: Disabled by default (user opt-in)
+  max_execute_fix_per_phase: 1     # Limit attempts to prevent loops
+  allowed_fix_types:               # Command categories Doctor can suggest
+  - git                            # git checkout, reset, stash, merge --abort
+  - file                           # rm -f, mkdir -p, mv, cp
+  # - python                       # pip install (uncomment if needed)
+  # - docker                       # docker restart (future)
+  # - shell                        # generic shell (future, high risk)
 discovery_promotion:
   enabled: false
   min_runs_for_candidate: 3

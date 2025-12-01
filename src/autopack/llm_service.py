@@ -545,7 +545,7 @@ class LlmService:
     # DOCTOR INVOCATION (per GPT_RESPONSE8 Section 3.2)
     # =========================================================================
 
-    # Doctor system prompt (per GPT_RESPONSE8 recommendations)
+    # Doctor system prompt (per GPT_RESPONSE8 + Phase 3 execute_fix)
     DOCTOR_SYSTEM_PROMPT = """You are the Autopack Doctor, an expert at diagnosing build failures.
 
 Your role is to analyze phase failures and recommend the best action to recover. You receive:
@@ -557,11 +557,14 @@ Your role is to analyze phase failures and recommend the best action to recover.
 
 Based on this context, you MUST return a JSON response with exactly these fields:
 {
-  "action": "<one of: retry_with_fix, replan, rollback_run, skip_phase, mark_fatal>",
+  "action": "<one of: retry_with_fix, replan, rollback_run, skip_phase, mark_fatal, execute_fix>",
   "confidence": <float 0.0-1.0>,
   "rationale": "<brief explanation of your diagnosis>",
   "builder_hint": "<optional: specific instruction for the next Builder attempt>",
-  "suggested_patch": "<optional: small fix if obvious, in git diff format>"
+  "suggested_patch": "<optional: small fix if obvious, in git diff format>",
+  "fix_commands": ["<optional: list of shell commands for execute_fix action>"],
+  "fix_type": "<optional: git|file|python - required if using execute_fix>",
+  "verify_command": "<optional: command to verify the fix worked>"
 }
 
 Action Guide:
@@ -570,6 +573,39 @@ Action Guide:
 - "rollback_run": The run has accumulated too many failures or the codebase is in a broken state. Revert all changes.
 - "skip_phase": The phase is optional and blocking progress. Mark as skipped and continue.
 - "mark_fatal": The issue is unrecoverable. Human intervention required.
+- "execute_fix": INFRASTRUCTURE ISSUES ONLY. Use for git conflicts, missing files, dependency issues.
+
+execute_fix Guidelines (ONLY for infrastructure issues, NOT code logic):
+- Use "execute_fix" ONLY when the failure is caused by infrastructure, not code logic
+- Good candidates: merge conflicts, missing directories, pip install failures, git state issues
+- BAD candidates: logic bugs, wrong function calls, incorrect imports (use retry_with_fix instead)
+- fix_type must be one of: "git", "file", "python"
+- Allowed commands by type:
+  * git: checkout, reset --hard HEAD, stash, stash pop, clean -fd, merge --abort, rebase --abort
+  * file: rm -f, mkdir -p, mv, cp
+  * python: pip install, pip uninstall -y, python -m pip install
+- NEVER use shell metacharacters (;, &&, ||, |, >, <, etc.)
+- ALWAYS provide a verify_command to confirm the fix worked
+
+Example execute_fix for merge conflict:
+{
+  "action": "execute_fix",
+  "confidence": 0.9,
+  "rationale": "Git merge conflict detected in auth/login.py. The file has uncommitted changes conflicting with the patch.",
+  "fix_commands": ["git checkout -- auth/login.py"],
+  "fix_type": "git",
+  "verify_command": "git status --porcelain auth/login.py"
+}
+
+Example execute_fix for missing directory:
+{
+  "action": "execute_fix",
+  "confidence": 0.85,
+  "rationale": "Target directory tests/integration/ does not exist.",
+  "fix_commands": ["mkdir -p tests/integration"],
+  "fix_type": "file",
+  "verify_command": "ls -la tests/integration/"
+}
 
 Guidelines:
 1. High confidence (>0.8): Only when the issue and fix are clear
@@ -594,7 +630,8 @@ Example response for repeated failures:
   "suggested_patch": null
 }
 
-IMPORTANT: Never apply patches directly. All code changes go through: Builder -> Auditor -> QualityGate -> governed_apply."""
+IMPORTANT: Never apply patches directly. All code changes go through: Builder -> Auditor -> QualityGate -> governed_apply.
+IMPORTANT: execute_fix is for INFRASTRUCTURE fixes only. Code logic issues should use retry_with_fix or replan."""
 
     def execute_doctor(
         self,

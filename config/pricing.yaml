@@ -2,13 +2,18 @@
 # Updated: 2025-12-01
 # Prices in USD per 1,000 tokens
 
-# GLM (Zhipu AI) pricing - PRIMARY PROVIDER
-# Source: https://llm-stats.com/models/glm-4.5
+# GLM (Zhipu AI) pricing - LOW COMPLEXITY PROVIDER
+# Source: https://open.bigmodel.cn/pricing (GLM-4 Plus)
 # Environment: GLM_API_KEY, GLM_API_BASE (optional, defaults to https://open.bigmodel.cn/api/paas/v4)
 zhipu:
+  "glm-4-plus":
+    input_per_1k: 0.0007    # $0.70 per 1M tokens (50 RMB/1M tokens)
+    output_per_1k: 0.0007   # $0.70 per 1M tokens (50 RMB/1M tokens)
+
+  # Legacy model ID (alias kept for backwards compatibility)
   "glm-4.5-20250101":
-    input_per_1k: 0.0004    # $0.40 per 1M tokens
-    output_per_1k: 0.0016   # $1.60 per 1M tokens
+    input_per_1k: 0.0007    # $0.70 per 1M tokens
+    output_per_1k: 0.0007   # $0.70 per 1M tokens
 
 # Anthropic Claude pricing (as of 2025)
 # Source: https://www.anthropic.com/pricing
@@ -127,23 +132,29 @@ reporting:
     - cost_per_successful_phase
     - cost_per_failed_phase
 
-# Example cost calculations for reference:
+# Example cost calculations for reference (current model stack):
 #
-# Low complexity phase (gpt-4o-mini):
-#   - Builder: 2000 input + 1000 output = $0.0009
-#   - Auditor: 1500 input + 500 output = $0.0006
-#   - Total: ~$0.0015 per phase
+# Low complexity phase (glm-4-plus / glm-4.5-20250101):
+#   - Builder: 2000 input + 1000 output = $0.0021 (3*0.0007)
+#   - Auditor: 1500 input + 500 output = $0.0014 (2*0.0007)
+#   - Total: ~$0.0035 per phase
 #
 # Medium complexity phase (gemini-2.5-pro):
-#   - Builder: 5000 input + 3000 output = $0.0213
-#   - Auditor: 3000 input + 1000 output = $0.0088
+#   - Builder: 5000 input + 3000 output = $0.0213 (5*0.00125 + 3*0.005)
+#   - Auditor: 3000 input + 1000 output = $0.0088 (3*0.00125 + 1*0.005)
 #   - Total: ~$0.03 per phase
 #
-# High complexity phase (gpt-4-turbo):
-#   - Builder: 10000 input + 5000 output = $0.25
-#   - Auditor: 8000 input + 2000 output = $0.14
-#   - Total: ~$0.39 per phase
+# High complexity phase (claude-sonnet-4-5):
+#   - Builder: 10000 input + 5000 output = $0.105 (10*0.003 + 5*0.015)
+#   - Auditor: 8000 input + 2000 output = $0.054 (8*0.003 + 2*0.015)
+#   - Total: ~$0.16 per phase
 #
 # Estimated run cost (25 phases, mixed complexity):
 #   - 5 low + 15 medium + 5 high
-#   - ~$0.0075 + $0.90 + $1.95 = ~$2.86 per run
+#   - ~$0.018 + $0.45 + $0.80 = ~$1.27 per run
+#
+# Model stack summary:
+#   - Low: GLM-4 Plus (Zhipu AI) - cheapest, good for simple tasks
+#   - Medium: Gemini 2.5 Pro (Google) - balanced cost/quality
+#   - High: Claude Sonnet 4.5 (Anthropic) - premium quality
+#   - Escalation: GPT-5 (OpenAI), Claude Opus 4.5 - for critical/failing phases

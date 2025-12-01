@@ -9,7 +9,7 @@
 - Python 3.11+
 - Docker + docker-compose
 - Git
-- OpenAI API key
+- API keys for LLM providers (see Multi-Provider Setup below)
 
 ---
 
@@ -25,14 +25,22 @@ cd Autopack
 cp .env.example .env
 ```
 
-### 2. Add Your OpenAI API Key
+### 2. Add Your API Keys
 
 Edit `.env`:
-```
-OPENAI_API_KEY=sk-your-actual-key-here
+```bash
+# Required: At least one provider (GLM recommended for low-cost)
+GLM_API_KEY=your-zhipu-api-key           # Zhipu AI (low complexity)
+GOOGLE_API_KEY=your-google-api-key       # Google Gemini (medium complexity)
+ANTHROPIC_API_KEY=your-anthropic-key     # Anthropic (high complexity)
+OPENAI_API_KEY=your-openai-key           # OpenAI (escalation/fallback)
 ```
 
-**Get a key**: https://platform.openai.com/api-keys
+**Get keys**:
+- GLM: https://open.bigmodel.cn/
+- Gemini: https://ai.google.dev/
+- Anthropic: https://console.anthropic.com/
+- OpenAI: https://platform.openai.com/api-keys
 
 ### 3. Start Services
 
@@ -124,13 +132,16 @@ supervisor = Supervisor(
 
 ## Environment Variables
 
-**Required**:
-```
-OPENAI_API_KEY=sk-...                    # OpenAI API key
+**LLM Provider Keys** (at least one required):
+```bash
+GLM_API_KEY=your-zhipu-key               # Zhipu AI GLM (low complexity)
+GOOGLE_API_KEY=your-google-key           # Google Gemini (medium complexity)
+ANTHROPIC_API_KEY=your-anthropic-key     # Anthropic Claude (high complexity)
+OPENAI_API_KEY=sk-...                    # OpenAI (escalation/fallback)
 ```
 
 **Optional**:
-```
+```bash
 DATABASE_URL=postgresql://...            # Default: postgres/postgres@localhost
 TARGET_REPO_PATH=c:\Projects\my-app      # Default: current directory
 ```
@@ -191,9 +202,9 @@ python integrations/supervisor.py --project-id TestProject
 **Expected Output**:
 ```
 [Supervisor] Creating run: auto-build-...
-[Supervisor] ✅ Run created
-[Supervisor] 🧠 Model Selection: gpt-4o-mini
-[Supervisor] → Dispatching to Builder...
+[Supervisor] Run created
+[Supervisor] Model Selection: glm-4.5-20250101 (low complexity)
+[Supervisor] Dispatching to Builder...
 ```
 
 ### View API Documentation
@@ -203,16 +214,24 @@ Open browser: http://localhost:8000/docs
 
 ## Cost Management
 
-### Typical Costs (Per Run)
+### Typical Costs (Per Run) - Current Model Stack
 
 | Complexity | Model | Est. Tokens | Est. Cost |
 |-----------|-------|-------------|-----------|
-| Low | gpt-4o-mini | 1.5M | $0.45 |
-| Medium | gpt-4o | 2.5M | $15.63 |
-| High | gpt-4-turbo | 1.0M | $20.00 |
-| **Total (Mixed)** | **Varies** | **5M** | **~$36** |
+| Low | glm-4.5-20250101 | 1.5M | $1.05 |
+| Medium | gemini-2.5-pro | 2.5M | $15.63 |
+| High | claude-sonnet-4-5 | 1.0M | $18.00 |
+| **Total (Mixed)** | **Varies** | **5M** | **~$35** |
 
-**With Optimizations**: ~$21 per run (41% reduction)
+**With Optimizations**: ~$20 per run (43% reduction)
+
+### Cost per Phase (Current Stack)
+
+| Complexity | Model | Builder + Auditor Cost |
+|-----------|-------|------------------------|
+| Low | GLM-4 Plus | ~$0.0035/phase |
+| Medium | Gemini 2.5 Pro | ~$0.03/phase |
+| High | Claude Sonnet 4.5 | ~$0.16/phase |
 
 ### Monitor Usage
 - Console output shows token usage per phase

@@ -1,8 +1,17 @@
 # Quota-Aware Multi-Provider Routing
 
 **Status**: ✅ Configuration Complete | ⏭️ Implementation Pending
-**Date**: 2025-11-25
+**Date**: 2025-11-25 (Updated: 2025-12-01)
 **Based On**: GPT's quota management strategy + Claude Max/Code limit updates
+
+> **Note (2025-12-01)**: Model stack has been updated. The examples below show the original
+> OpenAI-centric model selection. Current production stack is:
+> - **Low complexity**: GLM-4 Plus (glm-4.5-20250101) - Zhipu AI
+> - **Medium complexity**: Gemini 2.5 Pro (gemini-2.5-pro) - Google
+> - **High complexity**: Claude Sonnet 4.5 (claude-sonnet-4-5) - Anthropic
+> - **Escalation**: GPT-5 / Claude Opus 4.5
+>
+> See `config/models.yaml` and `config/pricing.yaml` for current configuration.
 
 ---
 

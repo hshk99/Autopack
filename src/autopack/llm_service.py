@@ -19,6 +19,14 @@ from .llm_client import AuditorResult, BuilderResult
 from .model_router import ModelRouter
 from .quality_gate import QualityGate, integrate_with_auditor
 from .usage_recorder import LlmUsageEvent
+from .error_recovery import (
+    DoctorRequest,
+    DoctorResponse,
+    DoctorContextSummary,
+    choose_doctor_model,
+    should_escalate_doctor_model,
+    DOCTOR_MIN_BUILDER_ATTEMPTS,
+)
 
 # Import OpenAI clients with graceful fallback
 try:
@@ -416,3 +424,276 @@ class LlmService:
     def get_max_attempts(self) -> int:
         """Get maximum attempts per phase from config."""
         return self.model_router.get_max_attempts()
+
+    # =========================================================================
+    # DOCTOR INVOCATION (per GPT_RESPONSE8 Section 3.2)
+    # =========================================================================
+
+    # Doctor system prompt (per GPT_RESPONSE8 recommendations)
+    DOCTOR_SYSTEM_PROMPT = """You are the Autopack Doctor, an expert at diagnosing build failures.
+
+Your role is to analyze phase failures and recommend the best action to recover. You receive:
+- Phase context (phase_id, error_category, builder_attempts)
+- Health budget status (how many failures the run has left)
+- Recent patch content (if any)
+- Patch validation errors (if any)
+- Log excerpts
+
+Based on this context, you MUST return a JSON response with exactly these fields:
+{
+  "action": "<one of: retry_with_fix, replan, rollback_run, skip_phase, mark_fatal>",
+  "confidence": <float 0.0-1.0>,
+  "rationale": "<brief explanation of your diagnosis>",
+  "builder_hint": "<optional: specific instruction for the next Builder attempt>",
+  "suggested_patch": "<optional: small fix if obvious, in git diff format>"
+}
+
+Action Guide:
+- "retry_with_fix": The issue is local and you have a specific hint for Builder. Best for mechanical errors.
+- "replan": The phase approach is flawed. Need architectural reconsideration. Builder's strategy is wrong.
+- "rollback_run": The run has accumulated too many failures or the codebase is in a broken state. Revert all changes.
+- "skip_phase": The phase is optional and blocking progress. Mark as skipped and continue.
+- "mark_fatal": The issue is unrecoverable. Human intervention required.
+
+Guidelines:
+1. High confidence (>0.8): Only when the issue and fix are clear
+2. Medium confidence (0.5-0.8): Reasonable diagnosis but uncertain fix
+3. Low confidence (<0.5): Uncertain diagnosis, may need escalation to stronger model
+
+Example response for a simple patch error:
+{
+  "action": "retry_with_fix",
+  "confidence": 0.85,
+  "rationale": "Patch context mismatch on line 42. The target file was modified by a previous phase.",
+  "builder_hint": "Re-read the current version of auth/login.py before generating the patch. The function signature changed.",
+  "suggested_patch": null
+}
+
+Example response for repeated failures:
+{
+  "action": "replan",
+  "confidence": 0.7,
+  "rationale": "3 consecutive failures with different error types suggests the phase specification is ambiguous or incomplete.",
+  "builder_hint": null,
+  "suggested_patch": null
+}
+
+IMPORTANT: Never apply patches directly. All code changes go through: Builder -> Auditor -> QualityGate -> governed_apply."""
+
+    def execute_doctor(
+        self,
+        request: DoctorRequest,
+        ctx_summary: Optional[DoctorContextSummary] = None,
+        run_id: Optional[str] = None,
+        phase_id: Optional[str] = None,
+        allow_escalation: bool = True,
+    ) -> DoctorResponse:
+        """
+        Invoke the Autopack Doctor to diagnose a phase failure.
+
+        Per GPT_RESPONSE8 Section 3.2: Doctor wrapper in llm_service.py that:
+        1. Resolves client/model via choose_doctor_model()
+        2. Builds system + user messages using Doctor prompt template
+        3. Parses JSON into DoctorResponse.from_dict()
+        4. Records usage via _record_usage(role="doctor", ...)
+        5. Optionally escalates to strong model if confidence is low
+
+        Args:
+            request: Doctor diagnostic request with failure context
+            ctx_summary: Optional summary of phase-level error context
+            run_id: Run identifier for usage tracking
+            phase_id: Phase identifier for logging
+            allow_escalation: Whether to escalate to strong model if needed
+
+        Returns:
+            DoctorResponse with action, confidence, rationale, and optional hints
+        """
+        import json
+        import logging
+        logger = logging.getLogger(__name__)
+
+        # 1. Choose Doctor model based on failure complexity
+        model = choose_doctor_model(request, ctx_summary)
+        logger.info(
+            f"[Doctor] Invoking Doctor for phase={phase_id or request.phase_id}, "
+            f"model={model}, builder_attempts={request.builder_attempts}, "
+            f"error_category={request.error_category}"
+        )
+
+        # 2. Build messages
+        user_message = self._build_doctor_user_message(request)
+
+        # 3. Invoke LLM
+        response = self._call_doctor_llm(model, user_message, run_id, phase_id)
+
+        # 4. Check for escalation (per GPT_RESPONSE7 recommendations)
+        if allow_escalation and should_escalate_doctor_model(
+            response, model, request.builder_attempts
+        ):
+            logger.info(
+                f"[Doctor] Escalating from {model} to strong model due to low confidence"
+            )
+            from .error_recovery import DOCTOR_STRONG_MODEL
+            strong_response = self._call_doctor_llm(
+                DOCTOR_STRONG_MODEL, user_message, run_id, phase_id
+            )
+            # Prefer strong response if its confidence is higher
+            if strong_response.confidence >= response.confidence:
+                response = strong_response
+
+        # 5. Log structured Doctor decision (per GPT_RESPONSE8 Section 5.1)
+        health_ratio = request.health_budget.get("total_failures", 0) / max(
+            request.health_budget.get("total_cap", 25), 1
+        )
+        logger.info(
+            f"[Doctor] Decision: phase_id={phase_id or request.phase_id}, "
+            f"builder_attempts={request.builder_attempts}, health_ratio={health_ratio:.2f}, "
+            f"error_category={request.error_category}, model_chosen={model}, "
+            f"is_complex={choose_doctor_model(request, ctx_summary) != 'gpt-4o-mini'}, "
+            f"doctor_action={response.action}, confidence={response.confidence:.2f}, "
+            f"escalated={model != choose_doctor_model(request, ctx_summary)}"
+        )
+
+        return response
+
+    def _build_doctor_user_message(self, request: DoctorRequest) -> str:
+        """Build user message for Doctor LLM call."""
+        message_parts = [
+            f"## Phase Failure Diagnosis Request",
+            f"",
+            f"**Phase ID**: {request.phase_id}",
+            f"**Error Category**: {request.error_category}",
+            f"**Builder Attempts**: {request.builder_attempts}",
+            f"**Run ID**: {request.run_id or 'unknown'}",
+            f"",
+            f"### Health Budget",
+            f"- HTTP 500 errors: {request.health_budget.get('http_500', 0)}",
+            f"- Patch failures: {request.health_budget.get('patch_failures', 0)}",
+            f"- Total failures: {request.health_budget.get('total_failures', 0)}",
+            f"- Total cap: {request.health_budget.get('total_cap', 25)}",
+        ]
+
+        if request.patch_errors:
+            message_parts.append("")
+            message_parts.append("### Patch Validation Errors")
+            for i, err in enumerate(request.patch_errors[:5], 1):
+                message_parts.append(f"{i}. {err.get('error_type', 'unknown')}: {err.get('message', 'No message')}")
+
+        if request.last_patch:
+            message_parts.append("")
+            message_parts.append("### Last Patch (truncated)")
+            message_parts.append("```diff")
+            message_parts.append(request.last_patch[:1500])
+            message_parts.append("```")
+
+        if request.logs_excerpt:
+            message_parts.append("")
+            message_parts.append("### Relevant Logs")
+            message_parts.append("```")
+            message_parts.append(request.logs_excerpt[:800])
+            message_parts.append("```")
+
+        message_parts.append("")
+        message_parts.append("Please diagnose this failure and recommend an action.")
+
+        return "\n".join(message_parts)
+
+    def _call_doctor_llm(
+        self,
+        model: str,
+        user_message: str,
+        run_id: Optional[str],
+        phase_id: Optional[str],
+    ) -> DoctorResponse:
+        """
+        Call LLM for Doctor diagnosis and parse response.
+
+        Args:
+            model: Model to use (cheap or strong)
+            user_message: Formatted user message
+            run_id: Run identifier for usage tracking
+            phase_id: Phase identifier for logging
+
+        Returns:
+            DoctorResponse parsed from LLM output
+        """
+        import json
+        import logging
+        logger = logging.getLogger(__name__)
+
+        # Resolve client
+        client, resolved_model = self._resolve_client_and_model("builder", model)
+
+        # Build messages
+        messages = [
+            {"role": "system", "content": self.DOCTOR_SYSTEM_PROMPT},
+            {"role": "user", "content": user_message},
+        ]
+
+        try:
+            # Use the client's underlying API call
+            if hasattr(client, 'client') and hasattr(client.client, 'chat'):
+                # OpenAI client
+                completion = client.client.chat.completions.create(
+                    model=resolved_model,
+                    messages=messages,
+                    temperature=0.3,  # Lower temperature for more consistent diagnosis
+                    max_tokens=1000,
+                    response_format={"type": "json_object"},
+                )
+                content = completion.choices[0].message.content
+                tokens_used = completion.usage.total_tokens if completion.usage else 0
+            elif hasattr(client, 'client') and hasattr(client.client, 'messages'):
+                # Anthropic client
+                completion = client.client.messages.create(
+                    model=resolved_model,
+                    max_tokens=1000,
+                    system=self.DOCTOR_SYSTEM_PROMPT,
+                    messages=[{"role": "user", "content": user_message}],
+                )
+                content = completion.content[0].text
+                tokens_used = completion.usage.input_tokens + completion.usage.output_tokens if completion.usage else 0
+            else:
+                raise RuntimeError(f"Unknown client type for model {resolved_model}")
+
+            # Parse JSON response
+            try:
+                data = json.loads(content)
+                response = DoctorResponse.from_dict(data)
+            except (json.JSONDecodeError, KeyError) as e:
+                logger.warning(f"[Doctor] Failed to parse JSON response: {e}")
+                # Return conservative default
+                response = DoctorResponse(
+                    action="replan",
+                    confidence=0.3,
+                    rationale=f"Failed to parse Doctor response: {str(e)[:100]}",
+                    builder_hint=None,
+                    suggested_patch=None,
+                )
+
+            # Record usage
+            if tokens_used > 0:
+                prompt_tokens = int(tokens_used * 0.7)  # Doctor reads more than writes
+                completion_tokens = tokens_used - prompt_tokens
+                self._record_usage(
+                    provider=self._model_to_provider(resolved_model),
+                    model=resolved_model,
+                    role="doctor",
+                    prompt_tokens=prompt_tokens,
+                    completion_tokens=completion_tokens,
+                    run_id=run_id,
+                    phase_id=phase_id,
+                )
+
+            return response
+
+        except Exception as e:
+            logger.error(f"[Doctor] LLM call failed: {e}")
+            # Return conservative default on failure
+            return DoctorResponse(
+                action="replan",
+                confidence=0.2,
+                rationale=f"Doctor LLM call failed: {str(e)[:100]}",
+                builder_hint=None,
+                suggested_patch=None,
+            )

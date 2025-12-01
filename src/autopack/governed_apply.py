@@ -29,19 +29,136 @@ class GovernedApplyPath:
     - Automatic cleanup of temporary files
     - Detailed error reporting
     - File verification
+    - Workspace isolation (protected paths)
     """
 
-    def __init__(self, workspace: Path):
+    # Protected paths that Builder should never modify
+    # These are Autopack's own source/config directories
+    PROTECTED_PATHS = [
+        "src/autopack/",      # Autopack core modules
+        "config/",            # Configuration files
+        ".autonomous_runs/",  # Run state and logs
+        ".git/",              # Git internals
+    ]
+
+    # Paths that are always allowed (can override protection if needed)
+    ALLOWED_PATHS = [
+        # Add project-specific allowed paths here via config
+    ]
+
+    # Run types that support internal mode
+    MAINTENANCE_RUN_TYPES = ["autopack_maintenance", "autopack_upgrade", "self_repair"]
+
+    def __init__(
+        self,
+        workspace: Path,
+        allowed_paths: List[str] = None,
+        protected_paths: List[str] = None,
+        autopack_internal_mode: bool = False,
+        run_type: str = "project_build"
+    ):
         """
         Initialize GovernedApplyPath.
 
         Args:
             workspace: Path to the workspace root directory
+            allowed_paths: Additional paths to allow (overrides protection)
+            protected_paths: Additional paths to protect (extends defaults)
+            autopack_internal_mode: If True, allows writes to src/autopack/ (requires maintenance run_type)
+            run_type: Type of run - "project_build" (default) or "autopack_maintenance"
+
+        Raises:
+            ValueError: If autopack_internal_mode=True but run_type is not a maintenance type
+
+        Note on workspace isolation (per GPT_RESPONSE6 recommendations):
+        - Normal project runs (project_build): PROTECTED_PATHS enforced as-is
+        - Maintenance runs (autopack_maintenance): autopack_internal_mode unlocks src/autopack/
+          but still protects .autonomous_runs/, .git/ unless explicitly overridden
         """
         if isinstance(workspace, str):
             workspace = Path(workspace)
         self.workspace = workspace
         self._file_backups: Dict[str, Tuple[str, str]] = {}  # path -> (hash, content)
+        self.run_type = run_type
+        self.autopack_internal_mode = autopack_internal_mode
+
+        # [Q7 Implementation] Validate autopack_internal_mode is only used with maintenance runs
+        if autopack_internal_mode and run_type not in self.MAINTENANCE_RUN_TYPES:
+            raise ValueError(
+                f"autopack_internal_mode=True only allowed for maintenance runs "
+                f"(run_type must be one of {self.MAINTENANCE_RUN_TYPES}, got '{run_type}')"
+            )
+
+        # Merge default protected paths with any additional ones
+        self.protected_paths = list(self.PROTECTED_PATHS)
+        if protected_paths:
+            self.protected_paths.extend(protected_paths)
+
+        # [Q7 Implementation] In internal mode, unlock src/autopack/ but keep critical paths protected
+        if autopack_internal_mode:
+            logger.info("[Isolation] autopack_internal_mode enabled - unlocking src/autopack/ for maintenance")
+            # Remove src/autopack/ from protection, keep others
+            self.protected_paths = [p for p in self.protected_paths if p != "src/autopack/"]
+
+        # Merge default allowed paths with any additional ones
+        self.allowed_paths = list(self.ALLOWED_PATHS)
+        if allowed_paths:
+            self.allowed_paths.extend(allowed_paths)
+
+    # =========================================================================
+    # WORKSPACE ISOLATION METHODS
+    # =========================================================================
+
+    def _is_path_protected(self, file_path: str) -> bool:
+        """
+        Check if a file path is protected from modification.
+
+        Args:
+            file_path: Relative file path to check
+
+        Returns:
+            True if path is protected, False otherwise
+        """
+        # Normalize path separators
+        normalized_path = file_path.replace('\\', '/')
+
+        # Check if path is explicitly allowed (overrides protection)
+        for allowed in self.allowed_paths:
+            if normalized_path.startswith(allowed.replace('\\', '/')):
+                return False
+
+        # Check if path matches any protected prefix
+        for protected in self.protected_paths:
+            if normalized_path.startswith(protected.replace('\\', '/')):
+                return True
+
+        return False
+
+    def _validate_patch_paths(self, files: List[str]) -> Tuple[bool, List[str]]:
+        """
+        Validate that patch does not touch protected directories.
+
+        This is a critical workspace isolation check that prevents Builder
+        from corrupting Autopack's own source code.
+
+        Args:
+            files: List of file paths from the patch
+
+        Returns:
+            Tuple of (is_valid, list of violations)
+        """
+        violations = []
+
+        for file_path in files:
+            if self._is_path_protected(file_path):
+                violations.append(f"Protected path: {file_path}")
+                logger.warning(f"[Isolation] BLOCKED: Patch attempts to modify protected path: {file_path}")
+
+        if violations:
+            logger.error(f"[Isolation] Patch rejected - {len(violations)} protected path violations")
+            return False, violations
+
+        return True, []
 
     # =========================================================================
     # FILE VALIDATION AND INTEGRITY METHODS (Self-Troubleshoot Enhancement)
@@ -127,6 +244,31 @@ class GovernedApplyPath:
         except Exception as e:
             return False, str(e)
 
+    def _check_merge_conflict_markers(self, file_path: Path) -> Tuple[bool, Optional[str]]:
+        """
+        Check if a file contains git merge conflict markers.
+
+        These markers can be left behind by 3-way merge (-3) fallback when patches
+        don't apply cleanly. They cause syntax errors and must be detected early.
+
+        Args:
+            file_path: Path to file to check
+
+        Returns:
+            Tuple of (has_conflicts, error_message)
+        """
+        conflict_markers = ['<<<<<<<', '=======', '>>>>>>>']
+        try:
+            with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
+                for line_num, line in enumerate(f, 1):
+                    for marker in conflict_markers:
+                        if marker in line:
+                            return True, f"Line {line_num}: merge conflict marker '{marker}' found"
+            return False, None
+        except Exception as e:
+            logger.warning(f"Failed to check merge conflicts in {file_path}: {e}")
+            return False, None
+
     def _validate_applied_files(self, files_modified: List[str]) -> Tuple[bool, List[str]]:
         """
         Verify files are syntactically valid after patch application.
@@ -148,6 +290,13 @@ class GovernedApplyPath:
             if not full_path.exists():
                 logger.warning(f"[Validation] File does not exist after patch: {rel_path}")
                 continue
+
+            # Check for merge conflict markers (critical - prevents API crashes)
+            has_conflicts, conflict_error = self._check_merge_conflict_markers(full_path)
+            if has_conflicts:
+                logger.error(f"[Validation] MERGE CONFLICTS: {rel_path} - {conflict_error}")
+                corrupted_files.append(rel_path)
+                continue  # Skip other validations - file is definitely corrupted
 
             # Validate Python files
             if full_path.suffix == '.py':
@@ -552,6 +701,14 @@ class GovernedApplyPath:
 
             # [Self-Troubleshoot] Backup files before modification
             files_to_modify = self._extract_files_from_patch(patch_content)
+
+            # [Workspace Isolation] Check for protected path violations BEFORE applying
+            is_valid, violations = self._validate_patch_paths(files_to_modify)
+            if not is_valid:
+                error_msg = f"Patch rejected - protected path violations: {', '.join(violations)}"
+                logger.error(f"[Isolation] {error_msg}")
+                return False, error_msg
+
             backups = self._backup_files(files_to_modify)
             logger.debug(f"[Integrity] Backed up {len(backups)} existing files before patch")
 

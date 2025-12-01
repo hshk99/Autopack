@@ -1,4 +1,4 @@
-"""Model router for quota-aware model selection"""
+"""Model router for quota-aware model selection with escalation support."""
 
 from typing import Dict, Literal, Optional
 
@@ -7,6 +7,12 @@ from pathlib import Path
 from sqlalchemy.orm import Session
 
 from .usage_service import UsageService
+from .model_selection import (
+    ModelSelector,
+    PhaseHistory,
+    get_model_selector,
+    HIGH_RISK_CATEGORIES,
+)
 
 
 class ModelRouter:
@@ -40,6 +46,10 @@ class ModelRouter:
         self.provider_quotas = self.config.get("provider_quotas", {})
         self.fallback_strategy = self.config.get("fallback_strategy", {})
         self.quota_routing = self.config.get("quota_routing", {})
+
+        # Initialize model selector for escalation support
+        self.model_selector = get_model_selector(config_path)
+        self._phase_histories: Dict[str, PhaseHistory] = {}
 
     def select_model(
         self,
@@ -98,6 +108,117 @@ class ModelRouter:
                         return fallback, budget_warning
 
         return baseline_model, budget_warning
+
+    def select_model_with_escalation(
+        self,
+        role: Literal["builder", "auditor"] | str,
+        task_category: Optional[str],
+        complexity: str,
+        phase_id: str,
+        attempt_index: int = 0,
+        run_context: Optional[Dict] = None,
+    ) -> tuple[str, str, Optional[Dict]]:
+        """
+        Select model with escalation support based on attempt history.
+
+        This method extends select_model with:
+        - Intra-tier escalation (cheap -> mid -> expensive based on attempt_index)
+        - Cross-tier escalation (Low -> Medium -> High based on failures)
+
+        Args:
+            role: Role requesting model (builder/auditor)
+            task_category: Task category (e.g., security_auth_change)
+            complexity: Complexity level (low/medium/high)
+            phase_id: Phase identifier for history tracking
+            attempt_index: 0-based index of current attempt
+            run_context: Optional run context with model_overrides
+
+        Returns:
+            Tuple of (model_name, effective_complexity, escalation_info)
+        """
+        run_context = run_context or {}
+
+        # 1. Check per-run overrides first (these bypass escalation)
+        if "model_overrides" in run_context:
+            overrides = run_context["model_overrides"].get(role, {})
+            key = f"{task_category}:{complexity}"
+            if key in overrides:
+                return overrides[key], complexity, {"override": True}
+
+        # 2. Get or create phase history
+        phase_history = self.model_selector.get_or_create_phase_history(
+            phase_id, complexity
+        )
+
+        # 3. Use model selector for escalation-aware selection
+        model, effective_complexity, escalation_info = self.model_selector.select_model_for_attempt(
+            role=role,
+            complexity=complexity,
+            phase_id=phase_id,
+            task_category=task_category,
+            attempt_index=attempt_index,
+            phase_history=phase_history,
+        )
+
+        # 4. Check quota state and apply fallback if needed (only for non-high-risk)
+        budget_warning = None
+        if task_category not in HIGH_RISK_CATEGORIES:
+            if self.quota_routing.get("enabled", False):
+                if self._is_provider_over_soft_limit(model):
+                    provider = self._model_to_provider(model)
+                    # Try fallback
+                    fallback = self._get_fallback_model(task_category, effective_complexity)
+                    if fallback:
+                        budget_warning = {
+                            "level": "info",
+                            "message": f"Provider {provider} over soft limit, using fallback model {fallback}"
+                        }
+                        escalation_info["quota_fallback"] = True
+                        escalation_info["original_model"] = model
+                        model = fallback
+
+        # 5. Log selection for analysis
+        self.model_selector.log_model_selection(
+            phase_id=phase_id,
+            role=role,
+            model=model,
+            complexity=complexity,
+            effective_complexity=effective_complexity,
+            attempt_index=attempt_index,
+            escalation_info=escalation_info,
+        )
+
+        if budget_warning:
+            escalation_info["budget_warning"] = budget_warning
+
+        return model, effective_complexity, escalation_info
+
+    def record_attempt_outcome(
+        self,
+        phase_id: str,
+        model: str,
+        outcome: str,
+        details: Optional[str] = None
+    ):
+        """
+        Record the outcome of an attempt for escalation tracking.
+
+        Args:
+            phase_id: Phase identifier
+            model: Model used for this attempt
+            outcome: success, auditor_reject, ci_fail, patch_apply_error, infra_error
+            details: Optional details about the outcome
+        """
+        if phase_id in self.model_selector._phase_histories:
+            self.model_selector._phase_histories[phase_id].add_attempt(
+                model=model,
+                outcome=outcome,
+                details=details
+            )
+
+    def get_max_attempts(self) -> int:
+        """Get maximum attempts per phase from config."""
+        return self.model_selector.get_max_attempts()
 
     def _get_baseline_model(
         self, role: str, task_category: Optional[str], complexity: str

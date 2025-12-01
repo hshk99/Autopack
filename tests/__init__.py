@@ -1,1 +1,1 @@
-# Tests for Autopack Supervisor
+"""Test package for Autopack."""

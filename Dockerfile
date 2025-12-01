@@ -1,42 +1,48 @@
-# Multi-stage build for Python backend
-FROM python:3.11-slim as backend-builder
-
-WORKDIR /app
-
-# Install system dependencies
-RUN apt-get update && apt-get install -y \
-    gcc \
-    postgresql-client \
-    && rm -rf /var/lib/apt/lists/*
-
-# Copy requirements and install Python dependencies
-COPY requirements.txt .
-RUN pip install --no-cache-dir --user -r requirements.txt
-
-# Final backend stage
+# Use an official Python runtime as a parent image
 FROM python:3.11-slim as backend
 
+# Set the working directory in the container
 WORKDIR /app
 
-# Install runtime dependencies
-RUN apt-get update && apt-get install -y \
-    postgresql-client \
-    && rm -rf /var/lib/apt/lists/*
+# Copy the current directory contents into the container at /app
+COPY ./src /app/src
+COPY ./requirements.txt /app
 
-# Copy Python packages from builder
-COPY --from=backend-builder /root/.local /root/.local
-ENV PATH=/root/.local/bin:$PATH
+# Install any needed packages specified in requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy application code
-COPY src/ ./src/
-COPY alembic.ini .
-COPY alembic/ ./alembic/
-
-# Create non-root user
-RUN useradd -m -u 1000 autopack && chown -R autopack:autopack /app
-USER autopack
-
+# Make port 8000 available to the world outside this container
 EXPOSE 8000
 
 # Run uvicorn server
-CMD ["uvicorn", "src.backend.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "src.autopack.main:app", "--host", "0.0.0.0", "--port", "8000"]
+
+# Stage for frontend
+FROM node:18 as frontend
+
+# Set the working directory in the container
+WORKDIR /app
+
+# Copy the package.json and package-lock.json
+COPY ./package.json /app
+
+# Install frontend dependencies
+RUN npm install
+
+# Copy the rest of the application code
+COPY ./ /app
+
+# Build the frontend
+RUN npm run build
+
+# Stage for production
+FROM nginx:alpine
+
+# Copy built frontend from the previous stage
+COPY --from=frontend /app/dist /usr/share/nginx/html
+
+# Expose port 80
+EXPOSE 80
+
+# Start nginx
+CMD ["nginx", "-g", "daemon off;"]

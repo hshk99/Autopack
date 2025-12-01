@@ -181,7 +181,30 @@ replan:
   similarity_threshold: 0.8
   min_message_length: 30
   max_replans_per_phase: 1
+  max_replans_per_run: 5
   fatal_error_types:
   - wrong_tech_stack
   - schema_mismatch
   - api_contract_wrong
+doctor_models:
+  cheap: gpt-4o-mini
+  strong: claude-sonnet-4-5
+  min_confidence_for_cheap: 0.7
+  health_budget_near_limit_ratio: 0.8
+  max_builder_attempts_before_complex: 4
+  high_risk_categories:
+  - import
+  - logic
+  low_risk_categories:
+  - encoding
+  - network
+  - file_io
+  - validation
+discovery_promotion:
+  enabled: false
+  min_runs_for_candidate: 3
+  window_days: 30
+  min_severity_for_candidate: medium
+  min_runs_for_rule: 5
+  min_projects_for_rule: 2
+  require_human_approval: true

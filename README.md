@@ -6,7 +6,25 @@ Autopack is a framework for orchestrating autonomous AI agents (Builder and Audi
 
 ---
 
-## Recent Updates (v0.2.0)
+## Recent Updates (v0.3.0 - Phase 2 Complete)
+
+### Autopack Doctor (NEW)
+LLM-based diagnostic system for intelligent failure recovery:
+- **Failure Diagnosis**: Analyzes phase failures and recommends recovery actions
+- **Model Routing**: Uses cheap model (gpt-4o-mini) for routine failures, strong model (claude-sonnet-4-5) for complex ones
+- **Actions**: `retry_with_fix` (with hint), `replan`, `skip_phase`, `mark_fatal`, `rollback_run`
+- **Budgets**: Per-phase limit (2 calls) and run-level limit (10 calls) to prevent loops
+- **Confidence Escalation**: Upgrades to strong model if confidence < 0.7
+
+**Configuration** (`config/models.yaml`):
+```yaml
+doctor_models:
+  cheap: gpt-4o-mini
+  strong: claude-sonnet-4-5
+  min_confidence_for_cheap: 0.7
+  health_budget_near_limit_ratio: 0.8
+  high_risk_categories: [import, logic]
+```
 
 ### Model Escalation System
 Automatically escalates to more powerful models when phases fail repeatedly:
@@ -29,6 +47,12 @@ replan:
   fatal_error_types: [wrong_tech_stack, schema_mismatch, api_contract_wrong]
 ```
 
+### Run-Level Health Budget
+Prevents infinite retry loops by tracking failures across the run:
+- `MAX_HTTP_500_PER_RUN`: 10 (stop after too many server errors)
+- `MAX_PATCH_FAILURES_PER_RUN`: 15 (stop after too many patch failures)
+- `MAX_TOTAL_FAILURES_PER_RUN`: 25 (hard cap on total failures)
+
 ### LLM Multi-Provider Routing
 - Routes to OpenAI or Anthropic based on model name
 - Automatic fallback if primary provider unavailable
@@ -47,8 +71,10 @@ replan:
 Detailed documentation is available in the `archive/` directory:
 
 - **[Archive Index](archive/ARCHIVE_INDEX.md)**: Master index of all documentation.
+- **[Implementation Plan](archive/IMPLEMENTATION_PLAN.md)**: Current roadmap and Phase 3+ planning.
 - **[Autonomous Executor](archive/CONSOLIDATED_REFERENCE.md#autonomous-executor-readme)**: Guide to the orchestration system.
 - **[Learned Rules](LEARNED_RULES_README.md)**: System for preventing recurring errors.
+- **[GPT/Claude Dialog](archive/)**: GPT_RESPONSE4-8.md and CLAUDE_RESPONSE*_TO_GPT.md for design decisions.
 
 ## Project Structure
 
@@ -157,5 +183,6 @@ replan:
 
 ---
 
-**Version**: 0.2.0
+**Version**: 0.3.0 (Phase 2 Complete)
 **License**: MIT
+**Last Updated**: 2025-12-01

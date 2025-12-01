@@ -24,6 +24,40 @@ class PatchValidationError:
         }
 
 
+def check_for_conflict_markers(patch_content: str) -> Tuple[bool, List[PatchValidationError]]:
+    """Check if patch content contains merge conflict markers.
+
+    These markers indicate the patch was generated from unresolved conflicts
+    or contains code that will cause syntax errors if applied.
+
+    Args:
+        patch_content: Raw patch content to check
+
+    Returns:
+        Tuple of (has_conflicts, list of conflict errors)
+    """
+    conflict_markers = ['<<<<<<<', '=======', '>>>>>>>']
+    errors = []
+
+    lines = patch_content.split('\n')
+    for line_num, line in enumerate(lines, 1):
+        # Skip diff metadata lines
+        if line.startswith(('diff --git', '---', '+++', '@@', 'index ')):
+            continue
+
+        for marker in conflict_markers:
+            if marker in line:
+                # Check if it's in a line that would be applied (starts with +)
+                if line.startswith('+') or not line.startswith(('-', ' ')):
+                    errors.append(PatchValidationError(
+                        "conflict_marker_in_patch",
+                        f"Merge conflict marker '{marker}' found in patch content",
+                        line_num
+                    ))
+
+    return len(errors) > 0, errors
+
+
 def validate_patch(patch_content: str) -> Tuple[bool, List[PatchValidationError]]:
     """Validate git diff format patch
 
@@ -33,6 +67,7 @@ def validate_patch(patch_content: str) -> Tuple[bool, List[PatchValidationError]
     3. Hunk header format
     4. Line prefix consistency (+/-/ )
     5. No truncation markers (literal ...)
+    6. No merge conflict markers (pre-apply detection)
 
     Args:
         patch_content: Raw patch content to validate
@@ -48,6 +83,11 @@ def validate_patch(patch_content: str) -> Tuple[bool, List[PatchValidationError]
             "Patch content is empty"
         ))
         return False, errors
+
+    # Check for conflict markers in patch content (pre-apply detection)
+    has_conflicts, conflict_errors = check_for_conflict_markers(patch_content)
+    if has_conflicts:
+        errors.extend(conflict_errors)
 
     lines = patch_content.split('\n')
 

@@ -1,0 +1,53 @@
+{
+  "workflows": {
+    "RUN AUTOPACK END-TO-END": {
+      "description": "Execute full autonomous Autopack build from task file",
+      "trigger_phrases": [
+        "RUN AUTOPACK END-TO-END for {project} using {taskfile}",
+        "RUN AUTOPACK END-TO-END",
+        "execute autopack autonomous run",
+        "start autopack build"
+      ],
+      "steps": [
+        {
+          "step": 1,
+          "action": "check_api_health",
+          "command": "curl -s http://localhost:8000/health",
+          "expected": "{\"status\":\"healthy\"}"
+        },
+        {
+          "step": 2,
+          "action": "check_existing_run",
+          "command": "curl -s http://localhost:8000/runs/{run_id}",
+          "if_exists": "resume_run",
+          "if_not_exists": "create_run"
+        },
+        {
+          "step": 3,
+          "action": "create_run_if_needed",
+          "script": "python .autonomous_runs/create_run_from_taskfile.py",
+          "args": ["--taskfile", "{taskfile}", "--run-id", "{run_id}"]
+        },
+        {
+          "step": 4,
+          "action": "execute_autonomous_run",
+          "command": "cd c:/dev/Autopack && export PYTHONUTF8=1 && export PYTHONPATH=src && python src/autopack/autonomous_executor.py --run-id {run_id}",
+          "background": true,
+          "monitor": true
+        }
+      ],
+      "defaults": {
+        "project": "file-organizer-app",
+        "taskfile": "WHATS_LEFT_TO_BUILD.md",
+        "run_id": "fileorg-phase2-beta",
+        "api_url": "http://localhost:8000"
+      },
+      "environment": {
+        "PYTHONUTF8": "1",
+        "PYTHONPATH": "src",
+        "OPENAI_API_KEY": "$OPENAI_API_KEY",
+        "ANTHROPIC_API_KEY": "$ANTHROPIC_API_KEY"
+      }
+    }
+  }
+}

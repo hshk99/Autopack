@@ -1,3 +1,3 @@
-"""Autopack: Supervisor/orchestrator for v7 autonomous build playbook"""
+"""Autopack Framework Initialization
 
-__version__ = "0.1.0"
+This package contains the core modules for the Autopack framework."""

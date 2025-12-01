@@ -246,6 +246,24 @@ def get_startup_checks(project_slug: str = "file-organizer-app-v1") -> List[Dict
     return checks
 
 
+def get_recent_prevention_rules(project_slug: str = "file-organizer-app-v1", limit: int = 20) -> List[str]:
+    """
+    Get recent prevention rules from CONSOLIDATED_DEBUG.md.
+
+    This is a wrapper around get_prevention_rules that limits the number of rules
+    returned to avoid overwhelming the LLM context.
+
+    Args:
+        project_slug: Project identifier
+        limit: Maximum number of rules to return
+
+    Returns:
+        List of prevention rule strings (limited)
+    """
+    all_rules = get_prevention_rules(project_slug)
+    return all_rules[:limit]
+
+
 # Convenience function for direct use in prompts
 def get_prevention_prompt_injection(project_slug: str = "file-organizer-app-v1") -> str:
     """

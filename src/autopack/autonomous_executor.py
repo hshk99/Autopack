@@ -36,7 +36,11 @@ from sqlalchemy.orm import sessionmaker
 
 from autopack.quality_gate import QualityGate
 from autopack.llm_client import BuilderResult, AuditorResult
-from autopack.error_recovery import ErrorRecoverySystem, get_error_recovery, safe_execute
+from autopack.error_recovery import (
+    ErrorRecoverySystem, get_error_recovery, safe_execute,
+    DoctorRequest, DoctorResponse, DoctorContextSummary,
+    DOCTOR_MIN_BUILDER_ATTEMPTS, DOCTOR_HEALTH_BUDGET_NEAR_LIMIT_RATIO,
+)
 from autopack.llm_service import LlmService
 from autopack.debug_journal import log_error, log_fix, mark_resolved
 from autopack.archive_consolidator import log_build_event, log_feature
@@ -153,8 +157,34 @@ class AutonomousExecutor:
         # [Mid-Run Re-Planning] Track failure patterns to detect approach flaws
         self._phase_error_history: Dict[str, List[Dict]] = {}  # phase_id -> list of error records
         self._phase_revised_specs: Dict[str, Dict] = {}  # phase_id -> revised phase spec
+        self._run_replan_count: int = 0  # Global replan count for this run
         self.REPLAN_TRIGGER_THRESHOLD = 2  # Trigger re-planning after this many same-type failures
         self.MAX_REPLANS_PER_PHASE = 1  # Maximum re-planning attempts per phase
+        self.MAX_REPLANS_PER_RUN = 5  # Maximum re-planning attempts per run (prevents pathological projects)
+
+        # [Run-Level Health Budget] Prevent infinite retry loops (GPT_RESPONSE5 recommendation)
+        self._run_http_500_count: int = 0  # Count of HTTP 500 errors in this run
+        self._run_patch_failure_count: int = 0  # Count of patch failures in this run
+        self._run_total_failures: int = 0  # Total recoverable failures in this run
+        self.MAX_HTTP_500_PER_RUN = 10  # Stop run after this many 500 errors
+        self.MAX_PATCH_FAILURES_PER_RUN = 15  # Stop run after this many patch failures
+        self.MAX_TOTAL_FAILURES_PER_RUN = 25  # Stop run after this many total failures
+
+        # [Doctor Integration] Per GPT_RESPONSE8 Section 4 recommendations
+        # Per-phase Doctor context tracking
+        self._doctor_context_by_phase: Dict[str, DoctorContextSummary] = {}
+        self._doctor_calls_by_phase: Dict[str, int] = {}  # phase_id -> doctor call count
+        self._last_doctor_response_by_phase: Dict[str, DoctorResponse] = {}
+        self._last_error_category_by_phase: Dict[str, str] = {}  # Track error categories for is_complex_failure
+        self._distinct_error_cats_by_phase: Dict[str, set] = {}  # Track distinct error categories per phase
+        # Run-level Doctor budgets
+        self._run_doctor_calls: int = 0  # Total Doctor calls this run
+        self._run_doctor_strong_calls: int = 0  # Strong-model Doctor calls this run
+        self.MAX_DOCTOR_CALLS_PER_PHASE = 2  # Per GPT_RESPONSE8 recommendation
+        self.MAX_DOCTOR_CALLS_PER_RUN = 10  # Prevent runaway Doctor invocations
+        self.MAX_DOCTOR_STRONG_CALLS_PER_RUN = 5  # Limit expensive strong-model calls
+        # Builder hint from Doctor (to pass to next Builder attempt)
+        self._builder_hint_by_phase: Dict[str, str] = {}
 
         # Phase 1.4-1.5: Run proactive startup checks (from DEBUG_JOURNAL.md)
         self._run_startup_checks()
@@ -579,6 +609,11 @@ class AutonomousExecutor:
                         details=f"Attempt {attempt_index + 1} failed with status {status}"
                     )
 
+                # Update health budget tracking
+                self._run_total_failures += 1
+                if status == "PATCH_FAILED":
+                    self._run_patch_failure_count += 1
+
                 # Learning Pipeline: Record hint about what went wrong
                 # These hints help future phases avoid same mistakes
                 self._record_learning_hint(
@@ -594,6 +629,34 @@ class AutonomousExecutor:
                     error_details=f"Status: {status}",
                     attempt_index=attempt_index
                 )
+
+                # [Doctor Integration] Invoke Doctor for diagnosis after sufficient failures
+                doctor_response = self._invoke_doctor(
+                    phase=phase,
+                    error_category=failure_outcome,
+                    builder_attempts=attempt_index + 1,
+                    last_patch=None,  # TODO: pass last patch from builder_result
+                    patch_errors=[],  # TODO: pass patch errors if available
+                    logs_excerpt=f"Status: {status}, Attempt: {attempt_index + 1}",
+                )
+
+                if doctor_response:
+                    # Handle Doctor's recommended action
+                    action_taken, should_continue = self._handle_doctor_action(
+                        phase=phase,
+                        response=doctor_response,
+                        attempt_index=attempt_index,
+                    )
+
+                    if not should_continue:
+                        # Doctor recommended skipping, fatal, or rollback
+                        return False, status
+
+                    if action_taken == "replan":
+                        # Doctor recommended replanning - it's already been handled
+                        attempt_index = 0
+                        setattr(self, attempt_key, 0)
+                        continue
 
                 # Check if we should trigger re-planning before next retry
                 should_replan, flaw_type = self._should_trigger_replan(phase)
@@ -611,7 +674,8 @@ class AutonomousExecutor:
                         phase = revised_phase
                         attempt_index = 0
                         setattr(self, attempt_key, 0)
-                        logger.info(f"[{phase_id}] Re-planning successful. Restarting with revised approach.")
+                        self._run_replan_count += 1  # Increment global replan counter
+                        logger.info(f"[{phase_id}] Re-planning successful (run total: {self._run_replan_count}/{self.MAX_REPLANS_PER_RUN}). Restarting with revised approach.")
                         continue
                     else:
                         logger.warning(f"[{phase_id}] Re-planning failed, continuing with original approach")
@@ -635,6 +699,12 @@ class AutonomousExecutor:
                         details=str(e)
                     )
 
+                # Update health budget tracking
+                self._run_total_failures += 1
+                error_str = str(e).lower()
+                if "500" in error_str or "internal server error" in error_str:
+                    self._run_http_500_count += 1
+
                 # Mid-Run Re-Planning: Record error for approach flaw detection
                 self._record_phase_error(
                     phase=phase,
@@ -642,6 +712,29 @@ class AutonomousExecutor:
                     error_details=str(e),
                     attempt_index=attempt_index
                 )
+
+                # [Doctor Integration] Invoke Doctor for diagnosis on exceptions
+                doctor_response = self._invoke_doctor(
+                    phase=phase,
+                    error_category="infra_error",
+                    builder_attempts=attempt_index + 1,
+                    logs_excerpt=f"Exception: {type(e).__name__}: {str(e)[:500]}",
+                )
+
+                if doctor_response:
+                    action_taken, should_continue = self._handle_doctor_action(
+                        phase=phase,
+                        response=doctor_response,
+                        attempt_index=attempt_index,
+                    )
+
+                    if not should_continue:
+                        return False, "FAILED"
+
+                    if action_taken == "replan":
+                        attempt_index = 0
+                        setattr(self, attempt_key, 0)
+                        continue
 
                 # Check if we should trigger re-planning before next retry
                 should_replan, flaw_type = self._should_trigger_replan(phase)
@@ -653,7 +746,8 @@ class AutonomousExecutor:
                         phase = revised_phase
                         attempt_index = 0
                         setattr(self, attempt_key, 0)
-                        logger.info(f"[{phase_id}] Re-planning successful. Restarting with revised approach.")
+                        self._run_replan_count += 1  # Increment global replan counter
+                        logger.info(f"[{phase_id}] Re-planning successful (run total: {self._run_replan_count}/{self.MAX_REPLANS_PER_RUN}). Restarting with revised approach.")
                         continue
 
                 attempt_index += 1
@@ -865,7 +959,11 @@ class AutonomousExecutor:
         # Check for fatal error types (immediate trigger on first occurrence)
         latest_error = errors[-1]
         if latest_error["error_type"] in fatal_error_types:
-            logger.info(f"[Re-Plan] Fatal error type detected for {phase_id}: {latest_error['error_type']}")
+            # Structured REPLAN-TRIGGER logging per GPT recommendation
+            logger.info(
+                f"[REPLAN-TRIGGER] reason=fatal_error type={latest_error['error_type']} "
+                f"phase={phase_id} attempt={len(errors)}"
+            )
             return latest_error["error_type"]
 
         if len(errors) < trigger_threshold:
@@ -885,7 +983,10 @@ class AutonomousExecutor:
 
         # If similarity checking is disabled, trigger on same type alone
         if not similarity_enabled:
-            logger.info(f"[Re-Plan] Approach flaw detected for {phase_id}: {error_type} occurred {trigger_threshold} times consecutively")
+            logger.info(
+                f"[REPLAN-TRIGGER] reason=repeated_error type={error_type} "
+                f"phase={phase_id} attempt={len(errors)} count={trigger_threshold}"
+            )
             return error_type
 
         # Check message similarity between consecutive errors
@@ -895,7 +996,10 @@ class AutonomousExecutor:
         if all(len(m) < min_message_length for m in messages):
             logger.debug(f"[Re-Plan] Messages too short for similarity check ({phase_id})")
             # Fall back to type-only check
-            logger.info(f"[Re-Plan] Approach flaw detected for {phase_id}: {error_type} occurred {trigger_threshold} times (short messages)")
+            logger.info(
+                f"[REPLAN-TRIGGER] reason=repeated_error_short_msg type={error_type} "
+                f"phase={phase_id} attempt={len(errors)} count={trigger_threshold}"
+            )
             return error_type
 
         # Check pairwise similarity between consecutive errors
@@ -909,8 +1013,8 @@ class AutonomousExecutor:
 
         if all_similar:
             logger.info(
-                f"[Re-Plan] Approach flaw detected for {phase_id}: {error_type} occurred {trigger_threshold} times "
-                f"with similar messages (similarity >= {similarity_threshold})"
+                f"[REPLAN-TRIGGER] reason=similar_errors type={error_type} "
+                f"phase={phase_id} attempt={len(errors)} count={trigger_threshold} similarity_threshold={similarity_threshold}"
             )
             return error_type
 
@@ -930,7 +1034,12 @@ class AutonomousExecutor:
         """
         phase_id = phase.get("phase_id")
 
-        # Check if we've exceeded max replans
+        # Check global run-level replan limit (prevents pathological projects)
+        if self._run_replan_count >= self.MAX_REPLANS_PER_RUN:
+            logger.info(f"[Re-Plan] Global max replans ({self.MAX_REPLANS_PER_RUN}) reached for this run - no more replans allowed")
+            return False, None
+
+        # Check if we've exceeded max replans for this specific phase
         replan_count = self._get_replan_count(phase_id)
         if replan_count >= self.MAX_REPLANS_PER_PHASE:
             logger.info(f"[Re-Plan] Max replans ({self.MAX_REPLANS_PER_PHASE}) reached for {phase_id}")
@@ -1079,6 +1188,283 @@ Just the new description that should replace the original.
             logger.info(f"[Re-Plan] Using revised spec for {phase_id}")
             return self._phase_revised_specs[phase_id]
         return phase
+
+    # =========================================================================
+    # DOCTOR INTEGRATION (GPT_RESPONSE8 Implementation)
+    # =========================================================================
+
+    def _get_health_budget(self) -> Dict[str, int]:
+        """
+        Get current health budget as a single source of truth.
+
+        Per GPT_RESPONSE8 Section 2.2: Single health budget source.
+        """
+        return {
+            "http_500": self._run_http_500_count,
+            "patch_failures": self._run_patch_failure_count,
+            "total_failures": self._run_total_failures,
+            "total_cap": self.MAX_TOTAL_FAILURES_PER_RUN,
+        }
+
+    def _should_invoke_doctor(self, phase_id: str, builder_attempts: int, error_category: str) -> bool:
+        """
+        Determine if Doctor should be invoked for this failure.
+
+        Per GPT_RESPONSE8 Section 4 (Guardrails):
+        - Only invoke after DOCTOR_MIN_BUILDER_ATTEMPTS failures
+        - Respect per-phase and run-level Doctor call limits
+        - Invoke when health budget is near limit
+
+        Args:
+            phase_id: Phase identifier
+            builder_attempts: Number of builder attempts so far
+            error_category: Category of the current error
+
+        Returns:
+            True if Doctor should be invoked
+        """
+        # Check minimum builder attempts
+        if builder_attempts < DOCTOR_MIN_BUILDER_ATTEMPTS:
+            logger.debug(f"[Doctor] Not invoking: builder_attempts={builder_attempts} < {DOCTOR_MIN_BUILDER_ATTEMPTS}")
+            return False
+
+        # Check per-phase Doctor call limit
+        phase_doctor_calls = self._doctor_calls_by_phase.get(phase_id, 0)
+        if phase_doctor_calls >= self.MAX_DOCTOR_CALLS_PER_PHASE:
+            logger.info(f"[Doctor] Not invoking: per-phase limit reached ({phase_doctor_calls}/{self.MAX_DOCTOR_CALLS_PER_PHASE})")
+            return False
+
+        # Check run-level Doctor call limit
+        if self._run_doctor_calls >= self.MAX_DOCTOR_CALLS_PER_RUN:
+            logger.info(f"[Doctor] Not invoking: run-level limit reached ({self._run_doctor_calls}/{self.MAX_DOCTOR_CALLS_PER_RUN})")
+            return False
+
+        # Check health budget - invoke Doctor if near limit
+        health_ratio = self._run_total_failures / max(self.MAX_TOTAL_FAILURES_PER_RUN, 1)
+        if health_ratio >= DOCTOR_HEALTH_BUDGET_NEAR_LIMIT_RATIO:
+            logger.info(f"[Doctor] Health budget near limit ({health_ratio:.2f}), invoking Doctor")
+            return True
+
+        # Default: invoke Doctor for diagnosis
+        return True
+
+    def _build_doctor_context(self, phase_id: str, error_category: str) -> DoctorContextSummary:
+        """
+        Build Doctor context summary for model routing decisions.
+
+        Per GPT_RESPONSE8 Section 2.1: Per-phase Doctor context tracking.
+
+        Args:
+            phase_id: Phase identifier
+            error_category: Current error category
+
+        Returns:
+            DoctorContextSummary for model selection
+        """
+        # Track distinct error categories for this phase
+        if phase_id not in self._distinct_error_cats_by_phase:
+            self._distinct_error_cats_by_phase[phase_id] = set()
+        self._distinct_error_cats_by_phase[phase_id].add(error_category)
+
+        # Get prior Doctor response if any
+        prior_response = self._last_doctor_response_by_phase.get(phase_id)
+        prior_action = prior_response.action if prior_response else None
+        prior_confidence = prior_response.confidence if prior_response else None
+
+        return DoctorContextSummary(
+            distinct_error_categories_for_phase=len(self._distinct_error_cats_by_phase[phase_id]),
+            prior_doctor_action=prior_action,
+            prior_doctor_confidence=prior_confidence,
+        )
+
+    def _invoke_doctor(
+        self,
+        phase: Dict,
+        error_category: str,
+        builder_attempts: int,
+        last_patch: Optional[str] = None,
+        patch_errors: Optional[List[Dict]] = None,
+        logs_excerpt: str = "",
+    ) -> Optional[DoctorResponse]:
+        """
+        Invoke the Autopack Doctor to diagnose a phase failure.
+
+        Per GPT_RESPONSE8 Section 3: Doctor invocation flow.
+
+        Args:
+            phase: Phase specification
+            error_category: Category of the current error
+            builder_attempts: Number of builder attempts so far
+            last_patch: Last patch content (if any)
+            patch_errors: Patch validation errors (if any)
+            logs_excerpt: Relevant log excerpt
+
+        Returns:
+            DoctorResponse if Doctor was invoked, None otherwise
+        """
+        phase_id = phase.get("phase_id")
+
+        # Check if we should invoke Doctor
+        if not self._should_invoke_doctor(phase_id, builder_attempts, error_category):
+            return None
+
+        # Check LlmService availability
+        if not self.llm_service:
+            logger.warning("[Doctor] LlmService not available, skipping Doctor invocation")
+            return None
+
+        # Build request
+        request = DoctorRequest(
+            phase_id=phase_id,
+            error_category=error_category,
+            builder_attempts=builder_attempts,
+            health_budget=self._get_health_budget(),
+            last_patch=last_patch,
+            patch_errors=patch_errors or [],
+            logs_excerpt=logs_excerpt,
+            run_id=self.run_id,
+        )
+
+        # Build context summary
+        ctx_summary = self._build_doctor_context(phase_id, error_category)
+
+        try:
+            # Invoke Doctor via LlmService
+            response = self.llm_service.execute_doctor(
+                request=request,
+                ctx_summary=ctx_summary,
+                run_id=self.run_id,
+                phase_id=phase_id,
+                allow_escalation=True,
+            )
+
+            # Update tracking
+            self._doctor_calls_by_phase[phase_id] = self._doctor_calls_by_phase.get(phase_id, 0) + 1
+            self._run_doctor_calls += 1
+            self._last_doctor_response_by_phase[phase_id] = response
+            self._doctor_context_by_phase[phase_id] = ctx_summary
+
+            # Store builder hint if provided
+            if response.builder_hint:
+                self._builder_hint_by_phase[phase_id] = response.builder_hint
+
+            logger.info(
+                f"[Doctor] Diagnosis complete: action={response.action}, "
+                f"confidence={response.confidence:.2f}, phase_calls={self._doctor_calls_by_phase[phase_id]}, "
+                f"run_calls={self._run_doctor_calls}"
+            )
+
+            return response
+
+        except Exception as e:
+            logger.error(f"[Doctor] Invocation failed: {e}")
+            return None
+
+    def _handle_doctor_action(
+        self,
+        phase: Dict,
+        response: DoctorResponse,
+        attempt_index: int,
+    ) -> Tuple[Optional[str], bool]:
+        """
+        Handle Doctor's recommended action.
+
+        Per GPT_RESPONSE8 Section 3.3: Action handling in executor.
+
+        Args:
+            phase: Phase specification
+            response: Doctor's response
+            attempt_index: Current attempt index
+
+        Returns:
+            Tuple of (action_taken: str or None, should_continue_retry: bool)
+            - action_taken: What was done ("retry_with_hint", "replan", "skip", "fatal", "rollback")
+            - should_continue_retry: Whether to continue the retry loop
+        """
+        phase_id = phase.get("phase_id")
+        action = response.action
+
+        if action == "retry_with_fix":
+            # Doctor has a hint for the next Builder attempt
+            hint = response.builder_hint or "Review previous errors and try a different approach"
+            self._builder_hint_by_phase[phase_id] = hint
+            logger.info(f"[Doctor] Action: retry_with_fix - hint stored for next attempt")
+            return "retry_with_hint", True  # Continue retry loop with hint
+
+        elif action == "replan":
+            # Trigger mid-run re-planning
+            logger.info(f"[Doctor] Action: replan - triggering approach revision")
+            # Get error history for context
+            error_history = self._phase_error_history.get(phase_id, [])
+            revised_phase = self._revise_phase_approach(
+                phase,
+                f"doctor_replan:{response.rationale[:50]}",
+                error_history
+            )
+            if revised_phase:
+                self._run_replan_count += 1
+                logger.info(f"[Doctor] Replan successful, phase revised")
+                return "replan", True  # Continue with revised approach
+            else:
+                logger.warning(f"[Doctor] Replan failed, continuing with original approach")
+                return "replan_failed", True
+
+        elif action == "skip_phase":
+            # Skip this phase and continue to next
+            logger.info(f"[Doctor] Action: skip_phase - marking phase as FAILED and continuing")
+            self._skipped_phases.add(phase_id)
+            self._update_phase_status(phase_id, "FAILED")
+            return "skip", False  # Exit retry loop
+
+        elif action == "mark_fatal":
+            # Unrecoverable error - human intervention required
+            logger.critical(
+                f"[Doctor] Action: mark_fatal - phase {phase_id} requires human intervention. "
+                f"Rationale: {response.rationale}"
+            )
+            # Log to debug journal
+            log_error(
+                error_signature=f"Doctor FATAL: {phase_id}",
+                symptom=response.rationale,
+                run_id=self.run_id,
+                phase_id=phase_id,
+                suspected_cause="Doctor diagnosed unrecoverable failure",
+                priority="CRITICAL"
+            )
+            self._update_phase_status(phase_id, "FAILED")
+            return "fatal", False  # Exit retry loop
+
+        elif action == "rollback_run":
+            # Rollback all changes and abort run
+            logger.critical(
+                f"[Doctor] Action: rollback_run - aborting run {self.run_id}. "
+                f"Rationale: {response.rationale}"
+            )
+            # Log to debug journal
+            log_error(
+                error_signature=f"Doctor ROLLBACK: {self.run_id}",
+                symptom=response.rationale,
+                run_id=self.run_id,
+                phase_id=phase_id,
+                suspected_cause="Doctor recommended run rollback due to accumulated failures",
+                priority="CRITICAL"
+            )
+            # TODO: Implement branch-based rollback (git reset to pre-run state)
+            # For now, mark phase as failed and let run terminate
+            self._update_phase_status(phase_id, "FAILED")
+            return "rollback", False  # Exit retry loop
+
+        else:
+            logger.warning(f"[Doctor] Unknown action: {action}, treating as retry_with_fix")
+            return "unknown", True
+
+    def _get_builder_hint_for_phase(self, phase_id: str) -> Optional[str]:
+        """Get any Doctor-provided hint for the next Builder attempt."""
+        hint = self._builder_hint_by_phase.get(phase_id)
+        if hint:
+            # Clear after use to avoid reusing stale hints
+            del self._builder_hint_by_phase[phase_id]
+        return hint
 
     def _execute_phase_with_recovery(self, phase: Dict, attempt_index: int = 0) -> Tuple[bool, str]:
         """Inner phase execution with error handling and model escalation support"""

@@ -1,97 +1,37 @@
 version: '3.8'
 
 services:
-  # PostgreSQL Database
-  postgres:
-    image: postgres:16-alpine
-    container_name: autopack-postgres
-    environment:
-      POSTGRES_USER: ${POSTGRES_USER:-autopack}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-autopack_dev_password}
-      POSTGRES_DB: ${POSTGRES_DB:-autopack}
-      PGDATA: /var/lib/postgresql/data/pgdata
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-      - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/init.sql:ro
-    ports:
-      - "${POSTGRES_PORT:-5432}:5432"
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-autopack}"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    networks:
-      - autopack-network
-    restart: unless-stopped
-
-  # FastAPI Backend
   backend:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: autopack-backend
-    environment:
-      # Database
-      DATABASE_URL: postgresql://${POSTGRES_USER:-autopack}:${POSTGRES_PASSWORD:-autopack_dev_password}@postgres:5432/${POSTGRES_DB:-autopack}
-      
-      # API Keys
-      OPENAI_API_KEY: ${OPENAI_API_KEY}
-      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
-      
-      # Application
-      ENVIRONMENT: ${ENVIRONMENT:-development}
-      LOG_LEVEL: ${LOG_LEVEL:-info}
-      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000,http://localhost:5173}
-      
-      # Rate Limiting
-      RATE_LIMIT_ENABLED: ${RATE_LIMIT_ENABLED:-true}
-      RATE_LIMIT_PER_MINUTE: ${RATE_LIMIT_PER_MINUTE:-60}
-    volumes:
-      - ./src:/app/src:ro
-      - ./.autonomous_runs:/app/.autonomous_runs
-      - ./logs:/app/logs
+      target: backend
     ports:
-      - "${BACKEND_PORT:-8000}:8000"
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql://autopack:autopack@db:5432/autopack
     depends_on:
-      postgres:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
-    networks:
-      - autopack-network
-    restart: unless-stopped
+      - db
 
-  # Frontend (React + Nginx)
   frontend:
     build:
       context: .
-      dockerfile: Dockerfile.frontend
-    container_name: autopack-frontend
-    environment:
-      VITE_API_URL: ${VITE_API_URL:-http://localhost:8000}
+      dockerfile: Dockerfile
+      target: frontend
     ports:
-      - "${FRONTEND_PORT:-3000}:80"
-    depends_on:
-      - backend
-    healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:80/"]
-      interval: 30s
-      timeout: 3s
-      retries: 3
-      start_period: 5s
-    networks:
-      - autopack-network
-    restart: unless-stopped
+      - "80:80"
+
+  db:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: autopack
+      POSTGRES_PASSWORD: autopack
+      POSTGRES_DB: autopack
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
 
 volumes:
-  postgres_data:
+  db_data:
     driver: local
-
-networks:
-  autopack-network:
-    driver: bridge
-    name: autopack-network

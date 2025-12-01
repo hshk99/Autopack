@@ -21,9 +21,9 @@ import logging
 import time
 import traceback
 import sys
-from typing import Optional, Callable, Any, Dict, List, Set
+from typing import Optional, Callable, Any, Dict, List, Set, Literal
 from enum import Enum
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from .debug_journal import log_error, log_fix, log_escalation
 
@@ -74,6 +74,252 @@ class ErrorContext:
             "max_retries": self.max_retries,
             "context_data": self.context_data or {}
         }
+
+
+# =============================================================================
+# AUTOPACK DOCTOR DATA STRUCTURES (Q9 - GPT_RESPONSE6 Implementation)
+# =============================================================================
+# The Doctor runs as a pre-filter in the error recovery pipeline:
+# 1. Diagnoses failure patterns from recent patches and errors
+# 2. Recommends actions: retry_with_fix, replan, rollback_run, skip_phase, mark_fatal
+# 3. All code changes still flow through Builder -> Auditor -> QualityGate -> governed_apply
+
+DoctorAction = Literal["retry_with_fix", "replan", "rollback_run", "skip_phase", "mark_fatal"]
+
+
+@dataclass
+class DoctorRequest:
+    """
+    Input context for the Autopack Doctor diagnostic.
+
+    Collects relevant information about a phase failure for LLM diagnosis.
+    Per GPT_RESPONSE6 Section Q9: strict schema for Doctor invocation.
+    """
+    phase_id: str
+    error_category: str  # From ErrorCategory enum value
+    builder_attempts: int
+    health_budget: Dict[str, int]  # {"http_500": N, "patch_failures": M, "total_failures": T}
+    last_patch: Optional[str] = None  # Git diff content
+    patch_errors: List[Dict[str, Any]] = field(default_factory=list)  # From PatchValidationError.to_dict()
+    logs_excerpt: str = ""  # Relevant log lines
+    run_id: Optional[str] = None
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for LLM API call"""
+        return {
+            "phase_id": self.phase_id,
+            "error_category": self.error_category,
+            "builder_attempts": self.builder_attempts,
+            "health_budget": self.health_budget,
+            "last_patch": self.last_patch[:2000] if self.last_patch else None,  # Truncate large patches
+            "patch_errors": self.patch_errors,
+            "logs_excerpt": self.logs_excerpt[:1000] if self.logs_excerpt else "",
+        }
+
+
+@dataclass
+class DoctorResponse:
+    """
+    Output from the Autopack Doctor diagnostic.
+
+    Per GPT_RESPONSE6 Section Q9: Doctor returns action, confidence, rationale,
+    and optionally a builder hint or suggested patch.
+    """
+    action: DoctorAction
+    confidence: float  # 0.0 - 1.0
+    rationale: str  # Human-readable explanation
+    builder_hint: Optional[str] = None  # Short instruction for next Builder attempt
+    suggested_patch: Optional[str] = None  # Optional small fix (still goes through full pipeline)
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for logging/API"""
+        return {
+            "action": self.action,
+            "confidence": self.confidence,
+            "rationale": self.rationale,
+            "builder_hint": self.builder_hint,
+            "suggested_patch": self.suggested_patch[:500] if self.suggested_patch else None,
+        }
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "DoctorResponse":
+        """Create DoctorResponse from dictionary (e.g., LLM JSON output)"""
+        return cls(
+            action=data.get("action", "replan"),
+            confidence=float(data.get("confidence", 0.5)),
+            rationale=data.get("rationale", "No rationale provided"),
+            builder_hint=data.get("builder_hint"),
+            suggested_patch=data.get("suggested_patch"),
+        )
+
+
+# Doctor invocation thresholds (per GPT_RESPONSE6 constraints)
+DOCTOR_MIN_BUILDER_ATTEMPTS = 2  # Only invoke Doctor after N failures
+DOCTOR_HEALTH_BUDGET_NEAR_LIMIT_RATIO = 0.8  # Invoke Doctor when health budget is 80% exhausted
+
+# Doctor model routing thresholds (per GPT_RESPONSE7 recommendations)
+DOCTOR_MAX_BUILDER_ATTEMPTS_BEFORE_COMPLEX = 4  # >= this means complex failure
+DOCTOR_MIN_CONFIDENCE_FOR_CHEAP = 0.7  # Escalate to strong if confidence below this
+DOCTOR_CHEAP_MODEL = "gpt-4o-mini"
+DOCTOR_STRONG_MODEL = "claude-sonnet-4-5"
+
+# High-risk error categories that warrant strong Doctor model
+DOCTOR_HIGH_RISK_CATEGORIES = {"import", "logic"}
+
+# Low-risk error categories suitable for cheap Doctor model
+DOCTOR_LOW_RISK_CATEGORIES = {"encoding", "network", "file_io", "validation"}
+
+
+@dataclass
+class DoctorContextSummary:
+    """
+    Summary of error context for Doctor model routing decisions.
+
+    This provides phase-level context beyond what's in DoctorRequest.
+    Per GPT_RESPONSE7: used to determine "routine" vs "complex" failures.
+    """
+    distinct_error_categories_for_phase: int = 1  # Number of different error types seen
+    prior_doctor_action: Optional[str] = None  # Last Doctor action for this phase (if any)
+    prior_doctor_confidence: Optional[float] = None  # Last Doctor confidence
+
+
+def is_complex_failure(
+    req: DoctorRequest,
+    ctx_summary: Optional[DoctorContextSummary] = None
+) -> bool:
+    """
+    Determine if a failure is "complex" (requires strong Doctor model).
+
+    Per GPT_RESPONSE7 Section 1 & 2:
+    - Routine (cheap): local, single-category, low attempts, healthy budget
+    - Complex (strong): multi-category, structural patch issues, many attempts, near budget
+
+    Args:
+        req: Doctor request with failure context
+        ctx_summary: Optional summary of phase-level error context
+
+    Returns:
+        True if failure is complex (use strong model), False for routine (cheap model)
+    """
+    ctx = ctx_summary or DoctorContextSummary()
+
+    # 1) Multi-category or repeated structural issues
+    multiple_error_types = ctx.distinct_error_categories_for_phase >= 2
+    structural_patch_issue = len(req.patch_errors) >= 2
+
+    # 2) Phase difficulty - many builder attempts
+    many_attempts = req.builder_attempts >= DOCTOR_MAX_BUILDER_ATTEMPTS_BEFORE_COMPLEX
+
+    # 3) Health budget pressure
+    total_failures = req.health_budget.get("total_failures", 0)
+    total_cap = req.health_budget.get("total_cap", 25)  # Default from autonomous_executor
+    health_ratio = total_failures / max(total_cap, 1)
+    near_budget = health_ratio >= DOCTOR_HEALTH_BUDGET_NEAR_LIMIT_RATIO
+
+    # 4) High-risk error categories
+    high_risk_category = req.error_category.lower() in DOCTOR_HIGH_RISK_CATEGORIES
+
+    # 5) Prior Doctor already escalated and problem persists
+    prior_escalated = ctx.prior_doctor_action in {"replan", "rollback_run", "mark_fatal"}
+
+    # Any of these is enough to call it complex
+    is_complex = any([
+        multiple_error_types,
+        structural_patch_issue,
+        many_attempts,
+        near_budget,
+        high_risk_category,
+        prior_escalated
+    ])
+
+    logger.debug(
+        f"[Doctor] is_complex_failure check: "
+        f"multi_types={multiple_error_types}, structural={structural_patch_issue}, "
+        f"many_attempts={many_attempts}, near_budget={near_budget}, "
+        f"high_risk={high_risk_category}, prior_escalated={prior_escalated} "
+        f"-> complex={is_complex}"
+    )
+
+    return is_complex
+
+
+def choose_doctor_model(
+    req: DoctorRequest,
+    ctx_summary: Optional[DoctorContextSummary] = None
+) -> str:
+    """
+    Choose the appropriate Doctor model based on failure complexity.
+
+    Per GPT_RESPONSE7 Section 3:
+    1. Health-budget override (C): if near limit, always use strong
+    2. Routine vs complex classification: determines cheap vs strong
+    3. Category as soft hint only for borderline cases
+
+    Args:
+        req: Doctor request with failure context
+        ctx_summary: Optional summary of phase-level error context
+
+    Returns:
+        Model identifier string (e.g., "gpt-4o-mini" or "claude-sonnet-4-5")
+    """
+    # Compute health ratio
+    total_failures = req.health_budget.get("total_failures", 0)
+    total_cap = req.health_budget.get("total_cap", 25)
+    health_ratio = total_failures / max(total_cap, 1)
+
+    # 1) Health-budget override (C) - always use strong when near limit
+    if health_ratio >= DOCTOR_HEALTH_BUDGET_NEAR_LIMIT_RATIO:
+        logger.info(
+            f"[Doctor] Health budget override: ratio={health_ratio:.2f} >= {DOCTOR_HEALTH_BUDGET_NEAR_LIMIT_RATIO} "
+            f"-> using strong model"
+        )
+        return DOCTOR_STRONG_MODEL
+
+    # 2) Routine vs complex classification
+    complex_failure = is_complex_failure(req, ctx_summary)
+
+    if complex_failure:
+        logger.info(f"[Doctor] Complex failure detected -> using strong model")
+        return DOCTOR_STRONG_MODEL
+    else:
+        logger.info(f"[Doctor] Routine failure detected -> using cheap model")
+        return DOCTOR_CHEAP_MODEL
+
+
+def should_escalate_doctor_model(
+    response: DoctorResponse,
+    primary_model: str,
+    builder_attempts: int
+) -> bool:
+    """
+    Determine if we should escalate from cheap to strong Doctor model.
+
+    Per GPT_RESPONSE7 Section 2 (Confidence-based escalation):
+    - Only consider escalation when we started with cheap model
+    - Escalate if confidence < 0.7 and builder_attempts >= 2
+
+    Args:
+        response: Response from initial Doctor call
+        primary_model: Model used for initial call
+        builder_attempts: Number of builder attempts so far
+
+    Returns:
+        True if should escalate to strong model
+    """
+    if primary_model != DOCTOR_CHEAP_MODEL:
+        return False  # Already using strong model
+
+    if response.confidence >= DOCTOR_MIN_CONFIDENCE_FOR_CHEAP:
+        return False  # Confidence is sufficient
+
+    if builder_attempts < DOCTOR_MIN_BUILDER_ATTEMPTS:
+        return False  # Too early to escalate
+
+    logger.info(
+        f"[Doctor] Escalation triggered: confidence={response.confidence:.2f} < {DOCTOR_MIN_CONFIDENCE_FOR_CHEAP}, "
+        f"builder_attempts={builder_attempts} -> escalating to strong model"
+    )
+    return True
 
 
 class ErrorRecoverySystem:

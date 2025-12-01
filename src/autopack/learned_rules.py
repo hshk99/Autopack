@@ -531,3 +531,134 @@ def format_rules_for_prompt(rules: List[LearnedRule]) -> str:
         output += f"{i}. **{rule.rule_id}**: {rule.constraint}\n"
 
     return output
+
+
+# ============================================================================
+# Debug History Integration (CONSOLIDATED_DEBUG.md -> project_learned_rules.json)
+# ============================================================================
+
+def sync_rules_from_debug_history(project_id: str) -> int:
+    """
+    Extract prevention rules from CONSOLIDATED_DEBUG.md and sync to project_learned_rules.json.
+
+    This bridges the gap between the debug journal system (manual debugging documentation)
+    and the learned rules system (automated rule injection into prompts).
+
+    Called at: Run start, to ensure any manually documented fixes are available as rules.
+
+    Args:
+        project_id: Project ID (e.g., "file-organizer-app-v1" or "Autopack")
+
+    Returns:
+        Number of new rules synced from debug history
+    """
+    from autopack.journal_reader import get_prevention_rules
+
+    # Get prevention rules from CONSOLIDATED_DEBUG.md
+    prevention_rules = get_prevention_rules(project_id)
+    if not prevention_rules:
+        return 0
+
+    # Load existing learned rules
+    existing_rules = load_project_learned_rules(project_id)
+    rules_dict = {r.rule_id: r for r in existing_rules}
+
+    synced_count = 0
+
+    for i, rule_text in enumerate(prevention_rules):
+        # Generate rule ID from rule text
+        rule_id = _generate_rule_id_from_text(rule_text, i)
+
+        if rule_id in rules_dict:
+            # Rule already exists, update last_seen
+            rules_dict[rule_id].last_seen = datetime.utcnow().isoformat()
+        else:
+            # Create new rule from prevention rule
+            new_rule = LearnedRule(
+                rule_id=rule_id,
+                task_category="debug_journal",  # Special category for debug-sourced rules
+                scope_pattern=None,  # Global
+                constraint=rule_text,
+                source_hint_ids=[f"debug_journal:{project_id}"],
+                promotion_count=10,  # High confidence since manually documented
+                first_seen=datetime.utcnow().isoformat(),
+                last_seen=datetime.utcnow().isoformat(),
+                status="active"
+            )
+            rules_dict[rule_id] = new_rule
+            synced_count += 1
+
+    # Save updated rules
+    if synced_count > 0 or existing_rules:
+        _save_project_learned_rules(project_id, list(rules_dict.values()))
+
+    return synced_count
+
+
+def _generate_rule_id_from_text(rule_text: str, index: int) -> str:
+    """Generate a stable rule ID from rule text"""
+    import hashlib
+    # Create hash from rule text for stability
+    text_hash = hashlib.md5(rule_text.encode()).hexdigest()[:8]
+
+    # Try to extract meaningful prefix from rule text
+    rule_lower = rule_text.lower()
+    if "never" in rule_lower:
+        prefix = "never"
+    elif "always" in rule_lower:
+        prefix = "always"
+    elif "import" in rule_lower:
+        prefix = "import"
+    elif "test" in rule_lower:
+        prefix = "test"
+    elif "file" in rule_lower or "path" in rule_lower:
+        prefix = "file"
+    elif "api" in rule_lower or "key" in rule_lower:
+        prefix = "api"
+    elif "unicode" in rule_lower or "encoding" in rule_lower:
+        prefix = "encoding"
+    elif "sqlite" in rule_lower or "database" in rule_lower:
+        prefix = "database"
+    else:
+        prefix = "rule"
+
+    return f"debug_journal.{prefix}_{text_hash}"
+
+
+def save_run_hint(
+    run_id: str,
+    phase: Dict,
+    hint_text: str,
+    scope_paths: Optional[List[str]] = None,
+    source_issue_keys: Optional[List[str]] = None
+) -> RunRuleHint:
+    """
+    Save a run hint directly (convenience function for autonomous_executor).
+
+    Unlike record_run_rule_hint which requires issues_before/after,
+    this function allows direct hint creation.
+
+    Args:
+        run_id: Run ID
+        phase: Phase dict
+        hint_text: Human-readable lesson learned
+        scope_paths: Files affected (optional)
+        source_issue_keys: Issue keys (optional)
+
+    Returns:
+        Created RunRuleHint
+    """
+    hint = RunRuleHint(
+        run_id=run_id,
+        phase_index=phase.get("phase_index", 0),
+        phase_id=phase.get("phase_id", "unknown"),
+        tier_id=phase.get("tier_id"),
+        task_category=phase.get("task_category"),
+        scope_paths=scope_paths or [],
+        source_issue_keys=source_issue_keys or [],
+        hint_text=hint_text,
+        created_at=datetime.utcnow().isoformat()
+    )
+
+    _save_run_rule_hint(run_id, hint)
+    return hint

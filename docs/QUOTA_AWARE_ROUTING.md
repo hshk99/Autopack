@@ -6,7 +6,7 @@
 
 > **Note (2025-12-01)**: Model stack has been updated. The examples below show the original
 > OpenAI-centric model selection. Current production stack is:
-> - **Low complexity**: GLM-4 Plus (glm-4.5-20250101) - Zhipu AI
+> - **Low complexity**: GLM-4.6 (glm-4.6-20250101) - Zhipu AI
 > - **Medium complexity**: Gemini 2.5 Pro (gemini-2.5-pro) - Google
 > - **High complexity**: Claude Sonnet 4.5 (claude-sonnet-4-5) - Anthropic
 > - **Escalation**: GPT-5 / Claude Opus 4.5
@@ -99,7 +99,7 @@ provider_quotas:
 
 | Model | Provider | Cost (per 1M) | When to Use |
 |-------|----------|---------------|-------------|
-| glm-4.5 | Zhipu | $0.35/$1.50 | Medium tasks when Claude/GPT at 80% quota |
+| glm-4.6 | Zhipu | $0.35/$1.50 | Medium tasks when Claude/GPT at 80% quota |
 
 ---
 
@@ -179,11 +179,11 @@ schema_contract_change:
 medium_complexity_general:
   primary: gpt-4o  # or claude-3-5-sonnet
   fallbacks:
-    - glm-4.5-20250101  # If OpenAI/Claude near cap
+    - glm-4.6-20250101  # If OpenAI/Claude near cap
     - gpt-4o-mini       # Last resort
 ```
 
-**Rationale**: GLM-4.5 has strong coding + reasoning, suitable for non-critical refactors.
+**Rationale**: GLM-4.6 has strong coding + reasoning, suitable for non-critical refactors.
 
 ---
 
@@ -194,7 +194,7 @@ auxiliary_agents:
   primary: claude-3-5-sonnet-20241022  # Complex reasoning
   fallbacks:
     - claude-3-5-haiku-20241022   # Mechanical tasks
-    - glm-4.5-20250101             # If Claude near cap
+    - glm-4.6-20250101             # If Claude near cap
     - gpt-4o-mini                  # Last resort
 ```
 
@@ -202,7 +202,7 @@ auxiliary_agents:
 
 ---
 
-## GLM-4.5 Usage Guidelines
+## GLM-4.6 Usage Guidelines
 
 ### When GLM is Safe
 
@@ -375,8 +375,8 @@ Phase: security_auth_change
 Phase: medium_complexity feature
 → Primary: gpt-4o (OpenAI at 90% ⚠️)
 → Fallback 1: claude-3-5-sonnet (Anthropic at 85% ⚠️)
-→ Fallback 2: glm-4.5 (Zhipu at 40% ✅)
-→ Use: glm-4.5
+→ Fallback 2: glm-4.6 (Zhipu at 40% ✅)
+→ Use: glm-4.6
 → Result: Success (quality slightly lower, but task completes)
 ```
 
@@ -387,7 +387,7 @@ Phase: medium_complexity feature
 ### Before First Run
 
 - [ ] Update `provider_quotas` in `config/models.yaml` with actual subscription limits
-- [ ] Verify model IDs match your API access (Opus 4.5, GLM-4.5 placeholders)
+- [ ] Verify model IDs match your API access (Opus 4.5, GLM-4.6 placeholders)
 - [ ] Set `quota_routing.enabled: false` (implementation pending)
 
 ### Phase 1 Implementation (TODO)

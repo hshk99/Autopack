@@ -380,7 +380,7 @@ This gives the dashboard enough info to show "Tier 2 / Phase 4 (43% complete)" a
            run_context: dict
        ) -> str:
            """
-           Returns a model name like "gpt-4o", "claude-3-5-sonnet", "glm-4.5", etc.
+           Returns a model name like "gpt-4o", "claude-3-5-sonnet", "glm-4.6", etc.
 
            Applies:
              - baseline mapping from models.yaml

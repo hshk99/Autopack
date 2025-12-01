@@ -1,10 +1,10 @@
 complexity_models:
   low:
-    builder: glm-4.5-20250101
-    auditor: glm-4.5-20250101
+    builder: gpt-4o-mini
+    auditor: gpt-4o-mini
   medium:
-    builder: gemini-2.5-pro
-    auditor: gemini-2.5-pro
+    builder: gpt-4o
+    auditor: gpt-4o
   high:
     builder: claude-sonnet-4-5
     auditor: claude-sonnet-4-5
@@ -34,7 +34,7 @@ llm_routing_policies:
     description: Drop columns/tables, change constraints, destructive migrations
   external_feature_reuse_internal:
     strategy: progressive
-    builder_primary: glm-4.5-20250101
+    builder_primary: gpt-4o
     auditor_primary: claude-sonnet-4-5
     escalate_to:
       builder: gpt-5
@@ -43,7 +43,7 @@ llm_routing_policies:
     description: Reuse from internal templates, vetted repos, internal modules
   schema_contract_change_additive:
     strategy: progressive
-    builder_primary: glm-4.5-20250101
+    builder_primary: gpt-4o
     auditor_primary: claude-sonnet-4-5
     escalate_to:
       builder: gpt-5
@@ -52,7 +52,7 @@ llm_routing_policies:
     description: Add nullable columns, indexes, views (backwards-compatible)
   core_backend_high:
     strategy: progressive
-    builder_primary: glm-4.5-20250101
+    builder_primary: gpt-4o
     auditor_primary: claude-sonnet-4-5
     escalate_to:
       builder: gpt-5
@@ -61,16 +61,16 @@ llm_routing_policies:
     description: Large refactors, complex features (non-security, non-schema)
   docs:
     strategy: cheap_first
-    builder_primary: glm-4.5-20250101
-    auditor_primary: glm-4.5-20250101
+    builder_primary: gpt-4o-mini
+    auditor_primary: gpt-4o-mini
     escalate_to:
-      builder: glm-4.5-20250101
+      builder: gpt-4o
       after_attempts: 3
     description: Documentation generation, README updates
   tests:
     strategy: cheap_first
     builder_primary: claude-sonnet-4-5
-    auditor_primary: glm-4.5-20250101
+    auditor_primary: gpt-4o
     escalate_to:
       builder: gpt-5
       after_attempts: 2
@@ -90,16 +90,13 @@ category_models:
     builder_model_override: gpt-5
     auditor_model_override: claude-opus-4-5
   tests:
-    builder_model_override: glm-4.5-20250101
+    builder_model_override: gpt-4o-mini
 provider_quotas:
   openai:
     weekly_token_cap: 50000000
     soft_limit_ratio: 0.8
   anthropic:
     weekly_token_cap: 10000000
-    soft_limit_ratio: 0.8
-  google:
-    weekly_token_cap: 30000000
     soft_limit_ratio: 0.8
 quota_enforcement:
   best_first_block_on_exhaustion: true
@@ -120,39 +117,34 @@ fallback_strategy:
   by_category:
     general:
       fallbacks:
-      - gemini-2.5-pro
-      - gpt-4o
+      - gpt-4o-mini
     tests:
       fallbacks:
-      - gemini-2.5-pro
-      - gpt-4o
+      - gpt-4o-mini
     docs:
       fallbacks:
-      - gemini-2.5-pro
-      - gpt-4o
+      - gpt-4o-mini
   default_fallbacks:
-  - gemini-2.5-pro
-  - gpt-4o
+  - gpt-4o-mini
 defaults:
-  high_risk_builder: glm-4.5-20250101
-  high_risk_auditor: glm-4.5-20250101
+  high_risk_builder: gpt-4o
+  high_risk_auditor: gpt-4o
 model_aliases:
-  glm: glm-4.5-20250101
+  glm: glm-4.6-20250101
   sonnet: claude-sonnet-4-5
   opus: claude-opus-4-5
-  gemini: gemini-2.5-pro
   gemini-flash: gemini-2.5-flash
   gemini-lite: gemini-2.5-flash-lite
 escalation_chains:
   builder:
     low:
       models:
-      - glm-4.5-20250101
-      - gemini-2.5-pro
+      - gpt-4o-mini
+      - gpt-4o
       - claude-sonnet-4-5
     medium:
       models:
-      - gemini-2.5-pro
+      - gpt-4o
       - claude-sonnet-4-5
       - gpt-5
     high:
@@ -162,11 +154,12 @@ escalation_chains:
   auditor:
     low:
       models:
-      - glm-4.5-20250101
-      - gemini-2.5-pro
+      - gpt-4o-mini
+      - gpt-4o
     medium:
       models:
-      - gemini-2.5-pro
+      - gpt-4o
+      - gpt-4o
       - claude-sonnet-4-5
     high:
       models:
@@ -194,7 +187,7 @@ replan:
   - schema_mismatch
   - api_contract_wrong
 doctor_models:
-  cheap: glm-4.5-20250101
+  cheap: gpt-4o-mini
   strong: claude-sonnet-4-5
   min_confidence_for_cheap: 0.7
   health_budget_near_limit_ratio: 0.8
@@ -207,16 +200,6 @@ doctor_models:
   - network
   - file_io
   - validation
-  # Phase 3: execute_fix configuration (GPT_RESPONSE9)
-  # Allows Doctor to execute infrastructure-level fixes directly
-  allow_execute_fix_global: false  # SECURITY: Disabled by default (user opt-in)
-  max_execute_fix_per_phase: 1     # Limit attempts to prevent loops
-  allowed_fix_types:               # Command categories Doctor can suggest
-  - git                            # git checkout, reset, stash, merge --abort
-  - file                           # rm -f, mkdir -p, mv, cp
-  # - python                       # pip install (uncomment if needed)
-  # - docker                       # docker restart (future)
-  # - shell                        # generic shell (future, high risk)
 discovery_promotion:
   enabled: false
   min_runs_for_candidate: 3

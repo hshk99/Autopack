@@ -129,6 +129,7 @@ class AutonomousExecutor:
         anthropic_key: Optional[str] = None,
         workspace: Path = Path("."),
         use_dual_auditor: bool = True,
+        run_type: str = "project_build",
     ):
         """Initialize autonomous executor
 
@@ -140,12 +141,16 @@ class AutonomousExecutor:
             anthropic_key: Anthropic API key (optional)
             workspace: Workspace root directory
             use_dual_auditor: Use dual auditor mode (requires both API keys)
+            run_type: Run type - 'project_build' (default), 'autopack_maintenance',
+                      'autopack_upgrade', or 'self_repair'. Maintenance types allow
+                      modification of src/autopack/ and config/ paths.
         """
         self.run_id = run_id
         self.api_url = api_url.rstrip('/')
         self.api_key = api_key
         self.workspace = workspace
         self.use_dual_auditor = use_dual_auditor
+        self.run_type = run_type
 
         # Store API keys (GLM is primary, Anthropic for Claude, OpenAI as fallback)
         self.glm_key = os.getenv("GLM_API_KEY")
@@ -1829,7 +1834,13 @@ Just the new description that should replace the original.
             from pathlib import Path
             from autopack.governed_apply import GovernedApplyPath
 
-            governed_apply = GovernedApplyPath(workspace=Path(self.workspace))
+            # Enable internal mode for maintenance run types
+            is_maintenance_run = self.run_type in ["autopack_maintenance", "autopack_upgrade", "self_repair"]
+            governed_apply = GovernedApplyPath(
+                workspace=Path(self.workspace),
+                run_type=self.run_type,
+                autopack_internal_mode=is_maintenance_run,
+            )
             patch_success, error_msg = governed_apply.apply_patch(builder_result.patch_content)
 
             if not patch_success:
@@ -1934,23 +1945,106 @@ Just the new description that should replace the original.
     def _load_repository_context(self, phase: Dict) -> Dict:
         """Load repository files for Claude Builder context
 
-        Simple heuristic-based file loading:
-        - Load key configuration files (package.json, setup.py, etc.)
-        - Load Python files from src/backend directories
-        - Load recently changed files
+        Smart context loading with freshness guarantees:
+        - Priority 0: Recently modified files (git status) - ALWAYS FRESH
+        - Priority 1: Files mentioned in phase description
+        - Priority 2: Key configuration files (package.json, setup.py, etc.)
+        - Priority 3: Source files from src/backend directories
         - Limit total file count to avoid context bloat
 
         Args:
             phase: Phase specification
 
         Returns:
-            Dict with 'files' key containing list of {path, content} dicts
+            Dict with 'existing_files' key containing {path: content} dict
         """
-        workspace = Path(self.workspace)
-        files_to_load = []
-        max_files = 30  # Limit context size
+        import subprocess
+        import re
 
-        # Priority 1: Key config files (always include if they exist)
+        workspace = Path(self.workspace)
+        loaded_paths = set()  # Track loaded paths to avoid duplicates
+        existing_files = {}  # Final output format
+        max_files = 40  # Increased limit to accommodate recently modified files
+
+        def _load_file(filepath: Path) -> bool:
+            """Load a single file if not already loaded. Returns True if loaded."""
+            if len(existing_files) >= max_files:
+                return False
+            rel_path = str(filepath.relative_to(workspace))
+            if rel_path in loaded_paths:
+                return False
+            if not filepath.exists() or not filepath.is_file():
+                return False
+            if "__pycache__" in rel_path or ".pyc" in rel_path:
+                return False
+            try:
+                content = filepath.read_text(encoding='utf-8', errors='ignore')
+                existing_files[rel_path] = content[:15000]  # Increased limit for important files
+                loaded_paths.add(rel_path)
+                return True
+            except Exception as e:
+                logger.warning(f"Failed to read {filepath}: {e}")
+                return False
+
+        # Priority 0: Recently modified files from git status (ALWAYS FRESH)
+        # This ensures Builder sees the latest state after earlier phases applied patches
+        recently_modified = []
+        try:
+            result = subprocess.run(
+                ["git", "status", "--porcelain"],
+                cwd=str(workspace),
+                capture_output=True,
+                text=True,
+                timeout=10
+            )
+            if result.returncode == 0:
+                for line in result.stdout.strip().split('\n'):
+                    if line and len(line) > 3:
+                        # Parse git status format: "XY filename" or "XY old -> new"
+                        file_part = line[3:].strip()
+                        if ' -> ' in file_part:
+                            file_part = file_part.split(' -> ')[1]
+                        if file_part:
+                            recently_modified.append(file_part)
+        except Exception as e:
+            logger.debug(f"Could not get git status for fresh context: {e}")
+
+        # Load recently modified files first (highest priority for freshness)
+        modified_count = 0
+        for rel_path in recently_modified[:15]:  # Limit to 15 recently modified files
+            filepath = workspace / rel_path
+            if _load_file(filepath):
+                modified_count += 1
+
+        if modified_count > 0:
+            logger.info(f"[Context] Loaded {modified_count} recently modified files for fresh context")
+
+        # Priority 1: Files mentioned in phase description
+        # Extract file paths from description using regex
+        phase_description = phase.get("description", "")
+        phase_criteria = " ".join(phase.get("acceptance_criteria", []))
+        combined_text = f"{phase_description} {phase_criteria}"
+
+        # Match patterns like: src/autopack/file.py, config/models.yaml, etc.
+        file_patterns = re.findall(r'[a-zA-Z_][a-zA-Z0-9_/\\.-]*\.(py|yaml|json|ts|js|md)', combined_text)
+        mentioned_count = 0
+        for pattern in file_patterns[:10]:  # Limit to 10 mentioned files
+            # Try exact match first
+            filepath = workspace / pattern
+            if _load_file(filepath):
+                mentioned_count += 1
+                continue
+            # Try finding in src/ or config/ directories
+            for prefix in ["src/autopack/", "config/", "src/", ""]:
+                filepath = workspace / prefix / pattern
+                if _load_file(filepath):
+                    mentioned_count += 1
+                    break
+
+        if mentioned_count > 0:
+            logger.info(f"[Context] Loaded {mentioned_count} files mentioned in phase description")
+
+        # Priority 2: Key config files (always include if they exist)
         priority_files = [
             "package.json",
             "setup.py",
@@ -1961,18 +2055,9 @@ Just the new description that should replace the original.
         ]
 
         for filename in priority_files:
-            filepath = workspace / filename
-            if filepath.exists() and filepath.is_file():
-                try:
-                    content = filepath.read_text(encoding='utf-8', errors='ignore')
-                    files_to_load.append({
-                        "path": str(filepath.relative_to(workspace)),
-                        "content": content[:10000]  # Limit file size
-                    })
-                except Exception as e:
-                    logger.warning(f"Failed to read {filepath}: {e}")
+            _load_file(workspace / filename)
 
-        # Priority 2: Source files from common directories
+        # Priority 3: Source files from common directories
         source_dirs = ["src", "backend", "app", "lib"]
         for source_dir in source_dirs:
             dir_path = workspace / source_dir
@@ -1981,24 +2066,12 @@ Just the new description that should replace the original.
 
             # Load Python files
             for py_file in dir_path.rglob("*.py"):
-                if len(files_to_load) >= max_files:
+                if len(existing_files) >= max_files:
                     break
-                if py_file.is_file() and "__pycache__" not in str(py_file):
-                    try:
-                        content = py_file.read_text(encoding='utf-8', errors='ignore')
-                        files_to_load.append({
-                            "path": str(py_file.relative_to(workspace)),
-                            "content": content[:10000]
-                        })
-                    except Exception as e:
-                        logger.warning(f"Failed to read {py_file}: {e}")
+                _load_file(py_file)
 
-        logger.debug(f"Loaded {len(files_to_load)} repository files for context")
-
-        # Transform to OpenAI Builder format: {"existing_files": {path: content}}
-        existing_files = {}
-        for file_dict in files_to_load:
-            existing_files[file_dict["path"]] = file_dict["content"]
+        logger.info(f"[Context] Total: {len(existing_files)} files loaded for Builder context "
+                   f"(modified={modified_count}, mentioned={mentioned_count})")
 
         return {"existing_files": existing_files}
 
@@ -2019,7 +2092,13 @@ Just the new description that should replace the original.
         from pathlib import Path
         from autopack.governed_apply import GovernedApplyPath
 
-        governed_apply = GovernedApplyPath(workspace=Path(self.workspace))
+        # Enable internal mode for maintenance run types (for consistency)
+        is_maintenance_run = self.run_type in ["autopack_maintenance", "autopack_upgrade", "self_repair"]
+        governed_apply = GovernedApplyPath(
+            workspace=Path(self.workspace),
+            run_type=self.run_type,
+            autopack_internal_mode=is_maintenance_run,
+        )
         files_changed, lines_added, lines_removed = governed_apply.parse_patch_stats(result.patch_content or "")
 
         payload = {
@@ -2668,6 +2747,13 @@ Environment Variables:
     )
 
     parser.add_argument(
+        "--run-type",
+        choices=["project_build", "autopack_maintenance", "autopack_upgrade", "self_repair"],
+        default="project_build",
+        help="Run type: project_build (default), autopack_maintenance (allows src/autopack/ modification)"
+    )
+
+    parser.add_argument(
         "--verbose",
         action="store_true",
         help="Enable verbose logging"
@@ -2689,6 +2775,7 @@ Environment Variables:
             anthropic_key=args.anthropic_key,
             workspace=args.workspace,
             use_dual_auditor=not args.no_dual_auditor,
+            run_type=args.run_type,
         )
     except ValueError as e:
         logger.error(f"Failed to initialize executor: {e}")

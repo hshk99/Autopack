@@ -10,8 +10,8 @@ zhipu:
     input_per_1k: 0.0007    # $0.70 per 1M tokens (50 RMB/1M tokens)
     output_per_1k: 0.0007   # $0.70 per 1M tokens (50 RMB/1M tokens)
 
-  # Legacy model ID (alias kept for backwards compatibility)
-  "glm-4.5-20250101":
+  # GLM-4.6 model ID
+  "glm-4.6-20250101":
     input_per_1k: 0.0007    # $0.70 per 1M tokens
     output_per_1k: 0.0007   # $0.70 per 1M tokens
 
@@ -134,7 +134,7 @@ reporting:
 
 # Example cost calculations for reference (current model stack):
 #
-# Low complexity phase (glm-4-plus / glm-4.5-20250101):
+# Low complexity phase (glm-4-plus / glm-4.6-20250101):
 #   - Builder: 2000 input + 1000 output = $0.0021 (3*0.0007)
 #   - Auditor: 1500 input + 500 output = $0.0014 (2*0.0007)
 #   - Total: ~$0.0035 per phase

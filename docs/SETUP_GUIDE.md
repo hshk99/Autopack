@@ -203,7 +203,7 @@ python integrations/supervisor.py --project-id TestProject
 ```
 [Supervisor] Creating run: auto-build-...
 [Supervisor] Run created
-[Supervisor] Model Selection: glm-4.5-20250101 (low complexity)
+[Supervisor] Model Selection: glm-4.6-20250101 (low complexity)
 [Supervisor] Dispatching to Builder...
 ```
 
@@ -218,7 +218,7 @@ Open browser: http://localhost:8000/docs
 
 | Complexity | Model | Est. Tokens | Est. Cost |
 |-----------|-------|-------------|-----------|
-| Low | glm-4.5-20250101 | 1.5M | $1.05 |
+| Low | glm-4.6-20250101 | 1.5M | $1.05 |
 | Medium | gemini-2.5-pro | 2.5M | $15.63 |
 | High | claude-sonnet-4-5 | 1.0M | $18.00 |
 | **Total (Mixed)** | **Varies** | **5M** | **~$35** |

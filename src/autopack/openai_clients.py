@@ -38,7 +38,7 @@ class OpenAIBuilderClient:
         phase_spec: Dict,
         file_context: Optional[Dict] = None,
         max_tokens: Optional[int] = None,
-        model: str = "glm-4.5-20250101",
+        model: str = "glm-4.6-20250101",
         project_rules: Optional[List] = None,
         run_hints: Optional[List] = None
     ) -> BuilderResult:
@@ -273,7 +273,7 @@ class OpenAIAuditorClient:
         patch_content: str,
         phase_spec: Dict,
         max_tokens: Optional[int] = None,
-        model: str = "glm-4.5-20250101",
+        model: str = "glm-4.6-20250101",
         project_rules: Optional[List] = None,
         run_hints: Optional[List] = None
     ) -> AuditorResult:

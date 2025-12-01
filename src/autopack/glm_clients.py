@@ -70,7 +70,7 @@ class GLMBuilderClient:
         phase_spec: Dict,
         file_context: Optional[Dict] = None,
         max_tokens: Optional[int] = None,
-        model: str = "glm-4.5-20250101",
+        model: str = "glm-4.6-20250101",
         project_rules: Optional[List] = None,
         run_hints: Optional[List] = None
     ) -> BuilderResult:
@@ -194,13 +194,32 @@ CRITICAL REQUIREMENTS:
 
 GIT DIFF FORMAT RULES:
 - Each file change MUST start with: diff --git a/PATH b/PATH
-- Followed by: index HASH..HASH
+- Followed by: index HASH..HASH (use 0000000 placeholders if unknown)
 - Then: --- a/PATH and +++ b/PATH
-- Then: @@ -LINE,COUNT +LINE,COUNT @@ CONTEXT
+- Then ONE hunk header per contiguous change: @@ -START,COUNT +START,COUNT @@
+- CRITICAL: Each @@ hunk header MUST be UNIQUE - never repeat the same line numbers
+- CRITICAL: The COUNT in @@ -START,COUNT must EXACTLY match the number of context/removed lines
+- CRITICAL: The COUNT in @@ +START,COUNT must EXACTLY match the number of context/added lines
 - Then the actual changes with +/- prefixes
 - Use COMPLETE file paths from repository root
 - Do NOT use relative or partial paths
 - Do NOT abbreviate variable names, function names, or ANY code
+
+HUNK HEADER EXAMPLE:
+For modifying lines 10-15 of a file (removing 2 lines, adding 3):
+@@ -10,6 +10,7 @@
+ context line (unchanged)
+-removed line 1
+-removed line 2
++added line 1
++added line 2
++added line 3
+ context line (unchanged)
+
+COMMON ERRORS TO AVOID:
+- Do NOT generate multiple @@ headers with the same -START value
+- Do NOT mismatch the line counts in hunk headers
+- Do NOT include duplicate hunks for the same code region
 
 Guidelines:
 - Write idiomatic code for the language/framework
@@ -291,7 +310,7 @@ class GLMAuditorClient:
         patch_content: str,
         phase_spec: Dict,
         max_tokens: Optional[int] = None,
-        model: str = "glm-4.5-20250101",
+        model: str = "glm-4.6-20250101",
         project_rules: Optional[List] = None,
         run_hints: Optional[List] = None
     ) -> AuditorResult:

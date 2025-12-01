@@ -419,9 +419,9 @@ class ModelSelector:
                 f"[ModelSelector] No escalation chain for {role}/{complexity}, using default"
             )
             if role == "builder":
-                return "glm-4.5-20250101"
+                return "glm-4.6-20250101"
             else:
-                return "glm-4.5-20250101"
+                return "glm-4.6-20250101"
 
         # Map intra-tier attempt to chain index
         # Each model in chain gets one attempt before moving to next

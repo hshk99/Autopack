@@ -307,7 +307,8 @@ class AnthropicAuditorClient:
         file_context: Optional[Dict] = None,
         max_tokens: Optional[int] = None,
         model: str = "claude-sonnet-4-5",
-        project_rules: Optional[List] = None
+        project_rules: Optional[List] = None,
+        run_hints: Optional[List] = None
     ) -> AuditorResult:
         """Review patch using Claude
 
@@ -318,6 +319,7 @@ class AnthropicAuditorClient:
             max_tokens: Token budget
             model: Claude model
             project_rules: Learned rules
+            run_hints: Within-run hints from earlier phases
 
         Returns:
             AuditorResult with issues found
@@ -328,7 +330,7 @@ class AnthropicAuditorClient:
 
             # Build user prompt
             user_prompt = self._build_user_prompt(
-                patch_content, phase_spec, file_context, project_rules
+                patch_content, phase_spec, file_context, project_rules, run_hints
             )
 
             # Call Anthropic API
@@ -428,7 +430,8 @@ Approval Criteria:
         patch_content: str,
         phase_spec: Dict,
         file_context: Optional[Dict],
-        project_rules: Optional[List]
+        project_rules: Optional[List],
+        run_hints: Optional[List] = None
     ) -> str:
         """Build user prompt with patch to review"""
         prompt_parts = [
@@ -443,6 +446,11 @@ Approval Criteria:
             prompt_parts.append("\n# Project Rules (check compliance):")
             for rule in project_rules[:10]:
                 prompt_parts.append(f"- {rule.get('rule_text', '')}")
+
+        if run_hints:
+            prompt_parts.append("\n# Recent Run Hints:")
+            for hint in run_hints[:5]:
+                prompt_parts.append(f"- {hint}")
 
         prompt_parts.append("\nProvide your review as a JSON response.")
 

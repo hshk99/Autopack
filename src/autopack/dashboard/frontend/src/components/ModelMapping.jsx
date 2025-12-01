@@ -47,7 +47,7 @@ export default function ModelMapping({ runId }) {
                   }}
                 >
                   <option value={mapping.model}>{mapping.model}</option>
-                  <option value="glm-4.5-20250101">glm-4.5 (low)</option>
+                  <option value="glm-4.6-20250101">glm-4.6 (low)</option>
                   <option value="gemini-2.5-pro">gemini-2.5-pro (medium)</option>
                   <option value="claude-sonnet-4-5">claude-sonnet-4-5 (high)</option>
                   <option value="claude-opus-4-5">claude-opus-4-5 (escalation)</option>

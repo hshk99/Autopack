@@ -185,7 +185,7 @@ DOCTOR_HEALTH_BUDGET_NEAR_LIMIT_RATIO = 0.8  # Invoke Doctor when health budget 
 # Doctor model routing thresholds (per GPT_RESPONSE7 recommendations)
 DOCTOR_MAX_BUILDER_ATTEMPTS_BEFORE_COMPLEX = 4  # >= this means complex failure
 DOCTOR_MIN_CONFIDENCE_FOR_CHEAP = 0.7  # Escalate to strong if confidence below this
-DOCTOR_CHEAP_MODEL = "glm-4.5-20250101"
+DOCTOR_CHEAP_MODEL = "glm-4.6-20250101"
 DOCTOR_STRONG_MODEL = "claude-sonnet-4-5"
 
 # High-risk error categories that warrant strong Doctor model

@@ -195,8 +195,8 @@ class LlmService:
                 print(f"Warning: Gemini model {requested_model} selected but GOOGLE_API_KEY not set. Falling back to OpenAI (gpt-4o).")
                 return openai_client, "gpt-4o"
             if glm_client is not None:
-                print(f"Warning: Gemini model {requested_model} selected but GOOGLE_API_KEY not set. Falling back to GLM (glm-4.5-20250101).")
-                return glm_client, "glm-4.5-20250101"
+                print(f"Warning: Gemini model {requested_model} selected but GOOGLE_API_KEY not set. Falling back to GLM (glm-4.6-20250101).")
+                return glm_client, "glm-4.6-20250101"
             raise RuntimeError(f"Gemini model {requested_model} selected but no LLM clients are available. Set GOOGLE_API_KEY, ANTHROPIC_API_KEY, OPENAI_API_KEY, or GLM_API_KEY.")
 
         # Route GLM models to GLM client
@@ -224,8 +224,8 @@ class LlmService:
                 print(f"Warning: Claude model {requested_model} selected but Anthropic not available. Falling back to Gemini (gemini-2.5-pro).")
                 return gemini_client, "gemini-2.5-pro"
             if glm_client is not None:
-                print(f"Warning: Claude model {requested_model} selected but Anthropic not available. Falling back to GLM (glm-4.5-20250101).")
-                return glm_client, "glm-4.5-20250101"
+                print(f"Warning: Claude model {requested_model} selected but Anthropic not available. Falling back to GLM (glm-4.6-20250101).")
+                return glm_client, "glm-4.6-20250101"
             if openai_client is not None:
                 print(f"Warning: Claude model {requested_model} selected but Anthropic not available. Falling back to OpenAI (gpt-4o).")
                 return openai_client, "gpt-4o"
@@ -239,8 +239,8 @@ class LlmService:
             print(f"Warning: OpenAI model {requested_model} selected but OpenAI not available. Falling back to Gemini (gemini-2.5-pro).")
             return gemini_client, "gemini-2.5-pro"
         if glm_client is not None:
-            print(f"Warning: OpenAI model {requested_model} selected but OpenAI not available. Falling back to GLM (glm-4.5-20250101).")
-            return glm_client, "glm-4.5-20250101"
+            print(f"Warning: OpenAI model {requested_model} selected but OpenAI not available. Falling back to GLM (glm-4.6-20250101).")
+            return glm_client, "glm-4.6-20250101"
         if anthropic_client is not None:
             print(f"Warning: OpenAI model {requested_model} selected but OpenAI not available. Falling back to Anthropic (claude-sonnet-4-5).")
             return anthropic_client, "claude-sonnet-4-5"
@@ -555,7 +555,10 @@ Your role is to analyze phase failures and recommend the best action to recover.
 - Patch validation errors (if any)
 - Log excerpts
 
-Based on this context, you MUST return a JSON response with exactly these fields:
+CRITICAL: You MUST respond with ONLY a JSON object. No explanatory text, no markdown, no code blocks.
+Start your response with { and end with }. Nothing else.
+
+JSON response format:
 {
   "action": "<one of: retry_with_fix, replan, rollback_run, skip_phase, mark_fatal, execute_fix>",
   "confidence": <float 0.0-1.0>,
@@ -566,6 +569,12 @@ Based on this context, you MUST return a JSON response with exactly these fields
   "fix_type": "<optional: git|file|python - required if using execute_fix>",
   "verify_command": "<optional: command to verify the fix worked>"
 }
+
+IMPORTANT:
+- Output ONLY the JSON object, no other text
+- Do NOT wrap JSON in markdown code blocks (no ```)
+- Do NOT add explanatory text before or after the JSON
+- Start directly with { and end with }
 
 Action Guide:
 - "retry_with_fix": The issue is local and you have a specific hint for Builder. Best for mechanical errors.
@@ -809,20 +818,8 @@ IMPORTANT: execute_fix is for INFRASTRUCTURE fixes only. Code logic issues shoul
             else:
                 raise RuntimeError(f"Unknown client type for model {resolved_model}")
 
-            # Parse JSON response
-            try:
-                data = json.loads(content)
-                response = DoctorResponse.from_dict(data)
-            except (json.JSONDecodeError, KeyError) as e:
-                logger.warning(f"[Doctor] Failed to parse JSON response: {e}")
-                # Return conservative default
-                response = DoctorResponse(
-                    action="replan",
-                    confidence=0.3,
-                    rationale=f"Failed to parse Doctor response: {str(e)[:100]}",
-                    builder_hint=None,
-                    suggested_patch=None,
-                )
+            # Parse JSON response with robust extraction
+            response = self._parse_doctor_json(content, logger)
 
             # Record usage
             if tokens_used > 0:
@@ -850,3 +847,75 @@ IMPORTANT: execute_fix is for INFRASTRUCTURE fixes only. Code logic issues shoul
                 builder_hint=None,
                 suggested_patch=None,
             )
+
+    def _parse_doctor_json(self, content: str, logger) -> DoctorResponse:
+        """
+        Parse Doctor JSON response with robust extraction.
+
+        Handles cases where the LLM returns JSON embedded in text (common with Claude),
+        or returns malformed JSON.
+
+        Args:
+            content: Raw LLM response content
+            logger: Logger for debug output
+
+        Returns:
+            DoctorResponse parsed from the content
+        """
+        import re
+
+        # Strategy 1: Try direct JSON parse
+        try:
+            data = json.loads(content)
+            return DoctorResponse.from_dict(data)
+        except json.JSONDecodeError:
+            pass
+
+        # Strategy 2: Try to extract JSON from markdown code block
+        json_block_match = re.search(r'```(?:json)?\s*(\{[\s\S]*?\})\s*```', content)
+        if json_block_match:
+            try:
+                data = json.loads(json_block_match.group(1))
+                logger.debug("[Doctor] Extracted JSON from code block")
+                return DoctorResponse.from_dict(data)
+            except json.JSONDecodeError:
+                pass
+
+        # Strategy 3: Try to find JSON object in text (greedy match for outermost braces)
+        json_match = re.search(r'\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}', content)
+        if json_match:
+            try:
+                data = json.loads(json_match.group(0))
+                logger.debug("[Doctor] Extracted JSON from text")
+                return DoctorResponse.from_dict(data)
+            except json.JSONDecodeError:
+                pass
+
+        # Strategy 4: Try to extract key fields using regex patterns
+        action_match = re.search(r'"action"\s*:\s*"([^"]+)"', content)
+        confidence_match = re.search(r'"confidence"\s*:\s*([\d.]+)', content)
+        rationale_match = re.search(r'"rationale"\s*:\s*"([^"]*)"', content)
+
+        if action_match:
+            action = action_match.group(1)
+            confidence = float(confidence_match.group(1)) if confidence_match else 0.5
+            rationale = rationale_match.group(1) if rationale_match else "Extracted from partial JSON"
+
+            logger.debug(f"[Doctor] Extracted fields via regex: action={action}, confidence={confidence}")
+            return DoctorResponse(
+                action=action,
+                confidence=confidence,
+                rationale=rationale,
+                builder_hint=None,
+                suggested_patch=None,
+            )
+
+        # Strategy 5: Return conservative default with higher confidence than total failure
+        logger.warning(f"[Doctor] Failed to parse JSON, returning default. Content preview: {content[:200]}")
+        return DoctorResponse(
+            action="replan",
+            confidence=0.4,  # Higher than the 0.3 for parse failures, indicating we at least got a response
+            rationale=f"Could not parse Doctor response. First 100 chars: {content[:100]}",
+            builder_hint=None,
+            suggested_patch=None,
+        )

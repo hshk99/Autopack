@@ -58,6 +58,55 @@ def check_for_conflict_markers(patch_content: str) -> Tuple[bool, List[PatchVali
     return len(errors) > 0, errors
 
 
+def check_for_duplicate_hunks(patch_content: str) -> Tuple[bool, List[PatchValidationError]]:
+    """Check if patch content contains duplicate/conflicting hunk headers.
+
+    Detects the common LLM error of generating multiple @@ -N,M headers
+    with the same starting line number for the same file.
+
+    Args:
+        patch_content: Raw patch content to check
+
+    Returns:
+        Tuple of (has_duplicates, list of duplicate errors)
+    """
+    errors = []
+    lines = patch_content.split('\n')
+
+    current_file = None
+    hunk_starts_by_file = {}  # {file_path: {start_line: [line_numbers]}}
+
+    for i, line in enumerate(lines, 1):
+        # Track current file
+        if line.startswith('diff --git '):
+            match = re.match(r'diff --git a/(.+) b/(.+)', line)
+            if match:
+                current_file = match.group(1)
+                if current_file not in hunk_starts_by_file:
+                    hunk_starts_by_file[current_file] = {}
+
+        # Track hunk headers
+        elif line.startswith('@@') and current_file:
+            match = re.match(r'^@@ -(\d+)', line)
+            if match:
+                start_line = int(match.group(1))
+                if start_line not in hunk_starts_by_file[current_file]:
+                    hunk_starts_by_file[current_file][start_line] = []
+                hunk_starts_by_file[current_file][start_line].append(i)
+
+    # Check for duplicates
+    for file_path, hunk_starts in hunk_starts_by_file.items():
+        for start_line, line_numbers in hunk_starts.items():
+            if len(line_numbers) > 1:
+                errors.append(PatchValidationError(
+                    "duplicate_hunk_header",
+                    f"Duplicate hunk header @@ -{start_line} in {file_path} at lines {line_numbers}",
+                    line_numbers[0]
+                ))
+
+    return len(errors) > 0, errors
+
+
 def validate_patch(patch_content: str) -> Tuple[bool, List[PatchValidationError]]:
     """Validate git diff format patch
 
@@ -68,6 +117,7 @@ def validate_patch(patch_content: str) -> Tuple[bool, List[PatchValidationError]
     4. Line prefix consistency (+/-/ )
     5. No truncation markers (literal ...)
     6. No merge conflict markers (pre-apply detection)
+    7. No duplicate hunk headers for the same line range
 
     Args:
         patch_content: Raw patch content to validate
@@ -88,6 +138,11 @@ def validate_patch(patch_content: str) -> Tuple[bool, List[PatchValidationError]
     has_conflicts, conflict_errors = check_for_conflict_markers(patch_content)
     if has_conflicts:
         errors.extend(conflict_errors)
+
+    # Check for duplicate hunk headers (common LLM error)
+    has_duplicates, duplicate_errors = check_for_duplicate_hunks(patch_content)
+    if has_duplicates:
+        errors.extend(duplicate_errors)
 
     lines = patch_content.split('\n')
 

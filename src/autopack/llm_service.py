@@ -45,6 +45,24 @@ try:
 except ImportError:
     ANTHROPIC_AVAILABLE = False
 
+# Import GLM clients with graceful fallback
+try:
+    from .glm_clients import GLMBuilderClient, GLMAuditorClient
+    GLM_AVAILABLE = True
+except ImportError:
+    GLM_AVAILABLE = False
+    GLMBuilderClient = None
+    GLMAuditorClient = None
+
+# Import Gemini clients with graceful fallback
+try:
+    from .gemini_clients import GeminiBuilderClient, GeminiAuditorClient
+    GEMINI_AVAILABLE = True
+except ImportError:
+    GEMINI_AVAILABLE = False
+    GeminiBuilderClient = None
+    GeminiAuditorClient = None
+
 
 class LlmService:
     """
@@ -73,11 +91,35 @@ class LlmService:
         self.db = db
         self.model_router = ModelRouter(db, config_path)
 
-        # Initialize OpenAI clients if available
-        if OPENAI_AVAILABLE:
-            self.openai_builder = OpenAIBuilderClient()
-            self.openai_auditor = OpenAIAuditorClient()
+        # Initialize GLM clients if available and key is present (check first - primary provider)
+        glm_key = os.getenv("GLM_API_KEY")
+        if GLM_AVAILABLE and glm_key:
+            try:
+                self.glm_builder = GLMBuilderClient()
+                self.glm_auditor = GLMAuditorClient()
+            except Exception as e:
+                print(f"Warning: Failed to initialize GLM clients: {e}")
+                self.glm_builder = None
+                self.glm_auditor = None
         else:
+            if GLM_AVAILABLE and not glm_key:
+                print("Warning: GLM package available but GLM_API_KEY not set. Skipping GLM initialization.")
+            self.glm_builder = None
+            self.glm_auditor = None
+
+        # Initialize OpenAI clients if available (fallback for non-GLM OpenAI models)
+        openai_key = os.getenv("OPENAI_API_KEY")
+        if OPENAI_AVAILABLE and openai_key:
+            try:
+                self.openai_builder = OpenAIBuilderClient()
+                self.openai_auditor = OpenAIAuditorClient()
+            except Exception as e:
+                print(f"Warning: Failed to initialize OpenAI clients: {e}")
+                self.openai_builder = None
+                self.openai_auditor = None
+        else:
+            if OPENAI_AVAILABLE and not openai_key:
+                print("Warning: OpenAI package available but OPENAI_API_KEY not set. Skipping OpenAI initialization.")
             self.openai_builder = None
             self.openai_auditor = None
 
@@ -97,6 +139,22 @@ class LlmService:
             self.anthropic_builder = None
             self.anthropic_auditor = None
 
+        # Initialize Gemini clients if available and key is present
+        google_key = os.getenv("GOOGLE_API_KEY")
+        if GEMINI_AVAILABLE and google_key:
+            try:
+                self.gemini_builder = GeminiBuilderClient()
+                self.gemini_auditor = GeminiAuditorClient()
+            except Exception as e:
+                print(f"Warning: Failed to initialize Gemini clients: {e}")
+                self.gemini_builder = None
+                self.gemini_auditor = None
+        else:
+            if GEMINI_AVAILABLE and not google_key:
+                print("Warning: Gemini package available but GOOGLE_API_KEY not set. Skipping Gemini initialization.")
+            self.gemini_builder = None
+            self.gemini_auditor = None
+
         # Initialize quality gate with project config
         self.repo_root = repo_root or Path.cwd()
         config = get_config(self.repo_root / ".autopack" / "config.yaml")
@@ -105,30 +163,88 @@ class LlmService:
         )
 
     def _resolve_client_and_model(self, role: str, requested_model: str):
-        """Resolve client and fallback model if needed"""
+        """Resolve client and fallback model if needed.
+
+        Routing priority:
+        1. Gemini models (gemini-*) -> Gemini client (uses GOOGLE_API_KEY)
+        2. GLM models (glm-*) -> GLM client (uses GLM_API_KEY)
+        3. Claude models (claude-*) -> Anthropic client
+        4. OpenAI models (gpt-*, o1-*) -> OpenAI client
+        5. Fallback chain: Gemini -> GLM -> Anthropic -> OpenAI
+        """
         if role == "builder":
+            glm_client = self.glm_builder
             openai_client = self.openai_builder
             anthropic_client = self.anthropic_builder
+            gemini_client = self.gemini_builder
         else:
+            glm_client = self.glm_auditor
             openai_client = self.openai_auditor
             anthropic_client = self.anthropic_auditor
+            gemini_client = self.gemini_auditor
 
+        # Route Gemini models to Gemini client
+        if requested_model.lower().startswith("gemini-"):
+            if gemini_client is not None:
+                return gemini_client, requested_model
+            # Gemini not available, try fallbacks
+            if anthropic_client is not None:
+                print(f"Warning: Gemini model {requested_model} selected but GOOGLE_API_KEY not set. Falling back to Anthropic (claude-sonnet-4-5).")
+                return anthropic_client, "claude-sonnet-4-5"
+            if openai_client is not None:
+                print(f"Warning: Gemini model {requested_model} selected but GOOGLE_API_KEY not set. Falling back to OpenAI (gpt-4o).")
+                return openai_client, "gpt-4o"
+            if glm_client is not None:
+                print(f"Warning: Gemini model {requested_model} selected but GOOGLE_API_KEY not set. Falling back to GLM (glm-4.5-20250101).")
+                return glm_client, "glm-4.5-20250101"
+            raise RuntimeError(f"Gemini model {requested_model} selected but no LLM clients are available. Set GOOGLE_API_KEY, ANTHROPIC_API_KEY, OPENAI_API_KEY, or GLM_API_KEY.")
+
+        # Route GLM models to GLM client
+        if requested_model.lower().startswith("glm-"):
+            if glm_client is not None:
+                return glm_client, requested_model
+            # GLM not available, try fallbacks
+            if gemini_client is not None:
+                print(f"Warning: GLM model {requested_model} selected but GLM_API_KEY not set. Falling back to Gemini (gemini-2.5-pro).")
+                return gemini_client, "gemini-2.5-pro"
+            if anthropic_client is not None:
+                print(f"Warning: GLM model {requested_model} selected but GLM_API_KEY not set. Falling back to Anthropic (claude-sonnet-4-5).")
+                return anthropic_client, "claude-sonnet-4-5"
+            if openai_client is not None:
+                print(f"Warning: GLM model {requested_model} selected but GLM_API_KEY not set. Falling back to OpenAI (gpt-4o).")
+                return openai_client, "gpt-4o"
+            raise RuntimeError(f"GLM model {requested_model} selected but no LLM clients are available. Set GLM_API_KEY, GOOGLE_API_KEY, ANTHROPIC_API_KEY, or OPENAI_API_KEY.")
+
+        # Route Claude models to Anthropic client
         if "claude" in requested_model.lower():
-            if anthropic_client is None:
-                if openai_client is not None:
-                    print(f"Warning: Claude model {requested_model} selected but Anthropic not available. Falling back to GLM (glm-4.5-20250101).")
-                    return openai_client, "glm-4.5-20250101"
-                else:
-                    raise RuntimeError(f"Claude model {requested_model} selected but neither Anthropic nor OpenAI clients are available")
-            return anthropic_client, requested_model
-        else:
-            if openai_client is None:
-                if anthropic_client is not None:
-                    print(f"Warning: OpenAI model {requested_model} selected but OpenAI not available. Falling back to Anthropic (claude-sonnet-4-5).")
-                    return anthropic_client, "claude-sonnet-4-5"
-                else:
-                    raise RuntimeError(f"OpenAI model {requested_model} selected but neither OpenAI nor Anthropic clients are available")
+            if anthropic_client is not None:
+                return anthropic_client, requested_model
+            # Anthropic not available, try fallbacks
+            if gemini_client is not None:
+                print(f"Warning: Claude model {requested_model} selected but Anthropic not available. Falling back to Gemini (gemini-2.5-pro).")
+                return gemini_client, "gemini-2.5-pro"
+            if glm_client is not None:
+                print(f"Warning: Claude model {requested_model} selected but Anthropic not available. Falling back to GLM (glm-4.5-20250101).")
+                return glm_client, "glm-4.5-20250101"
+            if openai_client is not None:
+                print(f"Warning: Claude model {requested_model} selected but Anthropic not available. Falling back to OpenAI (gpt-4o).")
+                return openai_client, "gpt-4o"
+            raise RuntimeError(f"Claude model {requested_model} selected but no LLM clients are available")
+
+        # Route OpenAI models (gpt-*, o1-*, etc.) to OpenAI client
+        if openai_client is not None:
             return openai_client, requested_model
+        # OpenAI not available, try fallbacks
+        if gemini_client is not None:
+            print(f"Warning: OpenAI model {requested_model} selected but OpenAI not available. Falling back to Gemini (gemini-2.5-pro).")
+            return gemini_client, "gemini-2.5-pro"
+        if glm_client is not None:
+            print(f"Warning: OpenAI model {requested_model} selected but OpenAI not available. Falling back to GLM (glm-4.5-20250101).")
+            return glm_client, "glm-4.5-20250101"
+        if anthropic_client is not None:
+            print(f"Warning: OpenAI model {requested_model} selected but OpenAI not available. Falling back to Anthropic (claude-sonnet-4-5).")
+            return anthropic_client, "claude-sonnet-4-5"
+        raise RuntimeError(f"OpenAI model {requested_model} selected but no LLM clients are available")
 
     def execute_builder_phase(
         self,
@@ -384,14 +500,14 @@ class LlmService:
         Returns:
             Provider name
         """
-        if model.startswith("gpt-") or model.startswith("o1-"):
+        if model.startswith("gemini-"):
+            return "google"
+        elif model.startswith("gpt-") or model.startswith("o1-"):
             return "openai"
         elif model.startswith("claude-") or model.startswith("opus-"):
             return "anthropic"
-        elif model.startswith("gemini-"):
-            return "google_gemini"
         elif model.startswith("glm-"):
-            return "zhipu_glm"
+            return "zhipu"
         else:
             return "openai"  # Safe default
 

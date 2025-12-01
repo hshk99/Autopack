@@ -3,8 +3,8 @@ complexity_models:
     builder: glm-4.5-20250101
     auditor: glm-4.5-20250101
   medium:
-    builder: glm-4.5-20250101
-    auditor: glm-4.5-20250101
+    builder: gemini-2.5-pro
+    auditor: gemini-2.5-pro
   high:
     builder: claude-sonnet-4-5
     auditor: claude-sonnet-4-5
@@ -98,6 +98,9 @@ provider_quotas:
   anthropic:
     weekly_token_cap: 10000000
     soft_limit_ratio: 0.8
+  google:
+    weekly_token_cap: 30000000
+    soft_limit_ratio: 0.8
 quota_enforcement:
   best_first_block_on_exhaustion: true
   progressive_block_on_exhaustion: true
@@ -117,15 +120,19 @@ fallback_strategy:
   by_category:
     general:
       fallbacks:
-      - glm-4.5-20250101
+      - gemini-2.5-pro
+      - gpt-4o
     tests:
       fallbacks:
-      - glm-4.5-20250101
+      - gemini-2.5-pro
+      - gpt-4o
     docs:
       fallbacks:
-      - glm-4.5-20250101
+      - gemini-2.5-pro
+      - gpt-4o
   default_fallbacks:
-  - glm-4.5-20250101
+  - gemini-2.5-pro
+  - gpt-4o
 defaults:
   high_risk_builder: glm-4.5-20250101
   high_risk_auditor: glm-4.5-20250101
@@ -133,6 +140,7 @@ model_aliases:
   glm: glm-4.5-20250101
   sonnet: claude-sonnet-4-5
   opus: claude-opus-4-5
+  gemini: gemini-2.5-pro
   gemini-flash: gemini-2.5-flash
   gemini-lite: gemini-2.5-flash-lite
 escalation_chains:
@@ -140,11 +148,11 @@ escalation_chains:
     low:
       models:
       - glm-4.5-20250101
-      - glm-4.5-20250101
+      - gemini-2.5-pro
       - claude-sonnet-4-5
     medium:
       models:
-      - glm-4.5-20250101
+      - gemini-2.5-pro
       - claude-sonnet-4-5
       - gpt-5
     high:
@@ -155,11 +163,10 @@ escalation_chains:
     low:
       models:
       - glm-4.5-20250101
-      - glm-4.5-20250101
+      - gemini-2.5-pro
     medium:
       models:
-      - glm-4.5-20250101
-      - glm-4.5-20250101
+      - gemini-2.5-pro
       - claude-sonnet-4-5
     high:
       models:

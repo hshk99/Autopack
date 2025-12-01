@@ -54,9 +54,22 @@ Prevents infinite retry loops by tracking failures across the run:
 - `MAX_TOTAL_FAILURES_PER_RUN`: 25 (hard cap on total failures)
 
 ### LLM Multi-Provider Routing
-- Routes to OpenAI or Anthropic based on model name
-- Automatic fallback if primary provider unavailable
+- Routes to Gemini, GLM (Zhipu), Anthropic, or OpenAI based on model name
+- **Provider tier strategy**:
+  - Low complexity: GLM (`glm-4.5-20250101`) - cheapest
+  - Medium complexity: Gemini (`gemini-2.5-pro`) - balanced cost/quality
+  - High complexity: Anthropic (`claude-sonnet-4-5`) - premium quality
+- Automatic fallback chain: Gemini -> GLM -> Anthropic -> OpenAI
 - Per-category routing policies (BEST_FIRST, PROGRESSIVE, CHEAP_FIRST)
+
+**Environment Variables**:
+```bash
+# Required for each provider you want to use
+GLM_API_KEY=your-zhipu-api-key        # Zhipu AI (GLM) - low complexity
+GOOGLE_API_KEY=your-google-api-key     # Google Gemini - medium complexity
+ANTHROPIC_API_KEY=your-anthropic-key   # Anthropic - high complexity
+OPENAI_API_KEY=your-openai-key         # OpenAI - fallback/escalation
+```
 
 ### Hardening: Syntax + Unicode + Incident Fatigue
 - Pre-emptive encoding fix at startup
@@ -135,7 +148,7 @@ C:/dev/Autopack/
 - **Mid-Run Re-Planning**: Detects approach flaws and revises phase strategy.
 - **Self-Healing**: Automatically logs errors, fixes, and extracts prevention rules.
 - **Quality Gates**: Enforces risk-based checks before code application.
-- **Multi-Provider LLM**: Routes to OpenAI or Anthropic with automatic fallback.
+- **Multi-Provider LLM**: Routes to Gemini, GLM, Anthropic, or OpenAI with automatic fallback.
 - **Project Separation**: Strictly separates runtime data and docs for different projects.
 
 ## Usage
@@ -180,15 +193,19 @@ complexity_escalation:
 
 escalation_chains:
   builder:
-    - glm-4.5-20250101  # Tier 0 (low)
-    - glm-4.5-20250101  # Tier 1 (medium)
-    - claude-sonnet-4-5 # Tier 2 (high)
-    - gpt-5            # Tier 3 (premium)
+    low:
+      models: [glm-4.5-20250101, gemini-2.5-pro, claude-sonnet-4-5]
+    medium:
+      models: [gemini-2.5-pro, claude-sonnet-4-5, gpt-5]
+    high:
+      models: [claude-sonnet-4-5, gpt-5]
   auditor:
-    - glm-4.5-20250101
-    - glm-4.5-20250101
-    - claude-sonnet-4-5
-    - claude-opus-4-5
+    low:
+      models: [glm-4.5-20250101, gemini-2.5-pro]
+    medium:
+      models: [gemini-2.5-pro, claude-sonnet-4-5]
+    high:
+      models: [claude-sonnet-4-5, claude-opus-4-5]
 ```
 
 ### Re-Planning (`config/models.yaml`)

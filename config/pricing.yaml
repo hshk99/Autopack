@@ -1,37 +1,18 @@
 # LLM Pricing Configuration
-# Updated: 2025-11-30
+# Updated: 2025-12-01
 # Prices in USD per 1,000 tokens
 
-# OpenAI pricing (as of 2025)
-# Source: https://openai.com/api/pricing/
-openai:
-  "gpt-4o-mini":
-    input_per_1k: 0.00015   # $0.150 per 1M tokens
-    output_per_1k: 0.0006   # $0.600 per 1M tokens
-
-  "gpt-4o":
-    input_per_1k: 0.0025    # $2.50 per 1M tokens
-    output_per_1k: 0.01     # $10.00 per 1M tokens
-
-  "gpt-4.5":
-    input_per_1k: 0.075     # $75.00 per 1M tokens
-    output_per_1k: 0.15     # $150.00 per 1M tokens
-
-  "gpt-5":
-    input_per_1k: 0.01      # $10.00 per 1M tokens (estimated)
-    output_per_1k: 0.03     # $30.00 per 1M tokens (estimated)
-
-  "gpt-4-turbo-2024-04-09":
-    input_per_1k: 0.01      # $10.00 per 1M tokens
-    output_per_1k: 0.03     # $30.00 per 1M tokens
-
-  # Legacy models (for reference)
-  "gpt-3.5-turbo":
-    input_per_1k: 0.0005
-    output_per_1k: 0.0015
+# GLM (Zhipu AI) pricing - PRIMARY PROVIDER
+# Source: https://llm-stats.com/models/glm-4.5
+# Environment: GLM_API_KEY, GLM_API_BASE (optional, defaults to https://open.bigmodel.cn/api/paas/v4)
+zhipu:
+  "glm-4.5-20250101":
+    input_per_1k: 0.0004    # $0.40 per 1M tokens
+    output_per_1k: 0.0016   # $1.60 per 1M tokens
 
 # Anthropic Claude pricing (as of 2025)
 # Source: https://www.anthropic.com/pricing
+# Environment: ANTHROPIC_API_KEY
 anthropic:
   "claude-opus-4-5":
     input_per_1k: 0.015     # $15.00 per 1M tokens
@@ -53,23 +34,51 @@ anthropic:
     input_per_1k: 0.00025   # $0.25 per 1M tokens
     output_per_1k: 0.00125  # $1.25 per 1M tokens
 
-# GLM (Zhipu AI) pricing
-# Source: https://llm-stats.com/models/glm-4.5
-zhipu:
-  "glm-4.5-20250101":
-    input_per_1k: 0.0004    # $0.40 per 1M tokens
-    output_per_1k: 0.0016   # $1.60 per 1M tokens
+# OpenAI pricing (as of 2025) - FALLBACK PROVIDER
+# Source: https://openai.com/api/pricing/
+# Environment: OPENAI_API_KEY
+# Note: gpt-4o and gpt-4o-mini replaced by GLM as primary cheap model
+openai:
+  "gpt-5":
+    input_per_1k: 0.01      # $10.00 per 1M tokens (estimated)
+    output_per_1k: 0.03     # $30.00 per 1M tokens (estimated)
 
-# Google Gemini pricing
+  "gpt-4.5":
+    input_per_1k: 0.075     # $75.00 per 1M tokens
+    output_per_1k: 0.15     # $150.00 per 1M tokens
+
+  "gpt-4-turbo-2024-04-09":
+    input_per_1k: 0.01      # $10.00 per 1M tokens
+    output_per_1k: 0.03     # $30.00 per 1M tokens
+
+  # Legacy models (kept for reference, not actively used)
+  "gpt-4o":
+    input_per_1k: 0.0025    # $2.50 per 1M tokens
+    output_per_1k: 0.01     # $10.00 per 1M tokens
+
+  "gpt-4o-mini":
+    input_per_1k: 0.00015   # $0.150 per 1M tokens
+    output_per_1k: 0.0006   # $0.600 per 1M tokens
+
+  "gpt-3.5-turbo":
+    input_per_1k: 0.0005
+    output_per_1k: 0.0015
+
+# Google Gemini pricing - MEDIUM COMPLEXITY PROVIDER
 # Source: https://ai.google.dev/pricing
+# Environment: GOOGLE_API_KEY
 google:
+  "gemini-2.5-pro":
+    input_per_1k: 0.00125   # $1.25 per 1M tokens
+    output_per_1k: 0.005    # $5.00 per 1M tokens
+
   "gemini-2.5-flash":
-    input_per_1k: 0.00035   # $0.35 per 1M tokens (estimated)
-    output_per_1k: 0.00105  # $1.05 per 1M tokens (estimated)
+    input_per_1k: 0.00035   # $0.35 per 1M tokens
+    output_per_1k: 0.00105  # $1.05 per 1M tokens
 
   "gemini-2.5-flash-lite":
-    input_per_1k: 0.000075  # $0.075 per 1M tokens (estimated)
-    output_per_1k: 0.0003   # $0.30 per 1M tokens (estimated)
+    input_per_1k: 0.000075  # $0.075 per 1M tokens
+    output_per_1k: 0.0003   # $0.30 per 1M tokens
 
 # Cost calculation helpers
 cost_calculation:
@@ -125,10 +134,10 @@ reporting:
 #   - Auditor: 1500 input + 500 output = $0.0006
 #   - Total: ~$0.0015 per phase
 #
-# Medium complexity phase (gpt-4o):
-#   - Builder: 5000 input + 3000 output = $0.0425
-#   - Auditor: 3000 input + 1000 output = $0.0175
-#   - Total: ~$0.06 per phase
+# Medium complexity phase (gemini-2.5-pro):
+#   - Builder: 5000 input + 3000 output = $0.0213
+#   - Auditor: 3000 input + 1000 output = $0.0088
+#   - Total: ~$0.03 per phase
 #
 # High complexity phase (gpt-4-turbo):
 #   - Builder: 10000 input + 5000 output = $0.25

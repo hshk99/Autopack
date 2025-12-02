@@ -50,8 +50,8 @@ from autopack.llm_service import LlmService
 from autopack.debug_journal import log_error, log_fix, mark_resolved
 from autopack.archive_consolidator import log_build_event, log_feature
 from autopack.learned_rules import (
-    load_project_learned_rules,
-    get_relevant_rules_for_phase,
+    load_project_rules,
+    get_active_rules_for_phase,
     get_relevant_hints_for_phase,
     promote_hints_to_rules,
     save_run_hint,
@@ -355,7 +355,7 @@ class AutonomousExecutor:
 
         # Stage 0B: Load persistent project rules (promoted from hints)
         try:
-            self.project_rules = load_project_learned_rules(project_id)
+            self.project_rules = load_project_rules(project_id)
             if self.project_rules:
                 logger.info(f"  Loaded {len(self.project_rules)} persistent project rules")
                 for rule in self.project_rules[:3]:  # Show first 3
@@ -382,7 +382,7 @@ class AutonomousExecutor:
             Dict with 'project_rules' and 'run_hints' keys
         """
         # Get relevant project rules (Stage 0B - cross-run persistent rules)
-        relevant_rules = get_relevant_rules_for_phase(
+        relevant_rules = get_active_rules_for_phase(
             self.project_rules if hasattr(self, 'project_rules') else [],
             phase  # Correct signature: pass phase dict
         )
@@ -436,7 +436,7 @@ class AutonomousExecutor:
                     pass
 
             # Load current rules for total count
-            rules = load_project_learned_rules(project_id)
+            rules = load_project_rules(project_id)
 
             # Update marker
             marker = {

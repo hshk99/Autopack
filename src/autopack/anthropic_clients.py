@@ -173,9 +173,12 @@ class AnthropicBuilderClient:
             )
 
             # Per GPT_RESPONSE23 Q2: Add sanity checks for max_tokens
-            if max_tokens is None or max_tokens <= 0:
+            # Note: None is expected when ModelRouter decides - use default without warning
+            if max_tokens is None:
+                max_tokens = 4096
+            elif max_tokens <= 0:
                 logger.warning(
-                    "[TOKEN_EST] max_tokens missing or invalid (%s); falling back to default 4096",
+                    "[TOKEN_EST] max_tokens invalid (%s); falling back to default 4096",
                     max_tokens
                 )
                 max_tokens = 4096

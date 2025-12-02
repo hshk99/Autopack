@@ -23,7 +23,7 @@ from src.autopack.learned_rules import (
     load_run_rule_hints,
     get_relevant_hints_for_phase,
     promote_hints_to_rules,
-    load_project_learned_rules,
+    load_project_rules as load_project_learned_rules,  # Renamed function
     get_relevant_rules_for_phase,
     format_hints_for_prompt,
     format_rules_for_prompt,

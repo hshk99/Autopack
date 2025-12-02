@@ -8,9 +8,10 @@ from src.autopack.git_rollback import (
     create_rollback_point,
     rollback_to_point,
     cleanup_rollback_point,
-    _run_git_command,
-    _get_current_branch,
-    _has_uncommitted_changes,
+    GitRollback,  # Use class instead of private functions
+    # _run_git_command,  # Now private method of GitRollback class
+    # _get_current_branch,  # Now private method of GitRollback class
+    # _has_uncommitted_changes,  # Now private method of GitRollback class
 )
 
 

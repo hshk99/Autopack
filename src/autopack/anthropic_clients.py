@@ -96,11 +96,11 @@ class AnthropicBuilderClient:
                 use_structured_edit=use_structured_edit
             )
 
-            # Build user prompt (includes full file content for full-file mode)
+            # Build user prompt (includes full file content for full-file mode or line numbers for structured edit)
             user_prompt = self._build_user_prompt(
                 phase_spec, file_context, project_rules, run_hints,
                 use_full_file_mode=use_full_file_mode,
-                config=config  # NEW: Pass config for read-only markers
+                config=config  # NEW: Pass config for read-only markers and structured edit detection
             )
 
             # Call Anthropic API with streaming for long operations
@@ -1133,8 +1133,50 @@ Requirements:
         if file_context:
             # Extract existing_files dict (autonomous_executor returns {"existing_files": {path: content}})
             files = file_context.get("existing_files", file_context)
+            
+            # Check if we need structured edit mode (files >1000 lines)
+            use_structured_edit_mode = False
+            if config:
+                for file_path, content in files.items():
+                    if isinstance(content, str):
+                        line_count = content.count('\n') + 1
+                        if line_count > config.max_lines_hard_limit:
+                            use_structured_edit_mode = True
+                            break
 
-            if use_full_file_mode:
+            if use_structured_edit_mode:
+                # NEW: Structured edit mode - show files with line numbers (per IMPLEMENTATION_PLAN3.md Phase 5)
+                prompt_parts.append("\n# Files in Context (for structured edits):")
+                prompt_parts.append("Use line numbers to specify where to make changes.")
+                prompt_parts.append("Line numbers are 1-indexed (first line is line 1).\n")
+                
+                for file_path, content in files.items():
+                    if not isinstance(content, str):
+                        continue
+                    
+                    line_count = content.count('\n') + 1
+                    prompt_parts.append(f"\n## {file_path} ({line_count} lines)")
+                    
+                    # Show file with line numbers
+                    lines = content.split('\n')
+                    
+                    # For very large files, show first 100, middle section, last 100
+                    if line_count > 300:
+                        # First 100 lines
+                        for i, line in enumerate(lines[:100], 1):
+                            prompt_parts.append(f"{i:4d} | {line}")
+                        
+                        prompt_parts.append(f"\n... [{line_count - 200} lines omitted] ...\n")
+                        
+                        # Last 100 lines
+                        for i, line in enumerate(lines[-100:], line_count - 99):
+                            prompt_parts.append(f"{i:4d} | {line}")
+                    else:
+                        # Show all lines with numbers
+                        for i, line in enumerate(lines, 1):
+                            prompt_parts.append(f"{i:4d} | {line}")
+            
+            elif use_full_file_mode:
                 # NEW: Separate files into modifiable vs read-only (per IMPLEMENTATION_PLAN2.md Phase 3.2)
                 modifiable_files = []
                 readonly_files = []

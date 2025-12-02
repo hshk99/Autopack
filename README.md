@@ -76,6 +76,20 @@ OPENAI_API_KEY=your-openai-key         # OpenAI - optional fallback
 - UTF-8 encoding on all file reads
 - SyntaxError detection in CI checks
 
+### Stage 2: Structured Edits for Large Files (NEW)
+Enables safe modification of files of any size using targeted edit operations:
+- **Automatic Mode Selection**: Files >1000 lines automatically use structured edit mode
+- **Operation Types**: INSERT, REPLACE, DELETE, APPEND, PREPEND
+- **Safety Features**: Validation, context matching, rollback on failure
+- **No Truncation Risk**: Only generates changed lines, not entire file content
+
+**3-Bucket Policy**:
+- **Bucket A (≤500 lines)**: Full-file mode - LLM outputs complete file content
+- **Bucket B (501-1000 lines)**: Diff mode - LLM generates git diff patches  
+- **Bucket C (>1000 lines)**: Structured edit mode - LLM outputs targeted operations
+
+For details, see [Stage 2 Documentation](docs/stage2_structured_edits.md) and [Phase Spec Schema](docs/phase_spec_schema.md).
+
 ---
 
 ## Phase 3 Preview: Direct Fix Execution
@@ -105,7 +119,14 @@ See [IMPLEMENTATION_PLAN.md](archive/IMPLEMENTATION_PLAN.md) for full design det
 
 ## Documentation
 
-Detailed documentation is available in the `archive/` directory:
+### Core Documentation
+- **[Phase Spec Schema](docs/phase_spec_schema.md)**: Phase specification format, safety flags, and file size limits
+- **[Stage 2: Structured Edits](docs/stage2_structured_edits.md)**: Guide to structured edit mode for large files
+- **[IMPLEMENTATION_PLAN2.md](IMPLEMENTATION_PLAN2.md)**: File truncation bug fix and safety improvements
+- **[IMPLEMENTATION_PLAN3.md](IMPLEMENTATION_PLAN3.md)**: Structured edits implementation plan
+
+### Archive Documentation
+Detailed historical documentation is available in the `archive/` directory:
 
 - **[Archive Index](archive/ARCHIVE_INDEX.md)**: Master index of all documentation.
 - **[Implementation Plan](archive/IMPLEMENTATION_PLAN.md)**: Current roadmap and Phase 3+ planning.

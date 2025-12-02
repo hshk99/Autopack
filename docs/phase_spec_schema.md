@@ -74,6 +74,48 @@ Autopack uses a 3-bucket policy for file modifications:
 
 Files >1000 lines are automatically routed to structured edit mode to prevent truncation.
 
+## Output Modes
+
+Autopack supports three output modes for code generation:
+
+### 1. Full-File Mode (≤500 lines)
+
+**When**: Files are ≤500 lines  
+**How**: LLM outputs complete file content in JSON  
+**Pros**: Simple, reliable for small files  
+**Cons**: Cannot handle large files
+
+### 2. Diff Mode (501-1000 lines)
+
+**When**: Files are 501-1000 lines  
+**How**: LLM outputs git-compatible unified diff  
+**Pros**: Can handle medium files  
+**Cons**: LLMs sometimes generate incorrect diffs
+
+### 3. Structured Edit Mode (>1000 lines) - Stage 2
+
+**When**: Files are >1000 lines  
+**How**: LLM outputs targeted edit operations (insert, replace, delete)  
+**Pros**: Can handle files of any size, no truncation risk  
+**Cons**: More complex, requires precise line numbers
+
+**Example structured edit**:
+```json
+{
+  "summary": "Add telemetry to autonomous_executor.py",
+  "operations": [
+    {
+      "type": "insert",
+      "file_path": "src/autopack/autonomous_executor.py",
+      "line": 500,
+      "content": "    self.telemetry.record_event(event)\n"
+    }
+  ]
+}
+```
+
+For more details, see [Stage 2: Structured Edits Guide](stage2_structured_edits.md).
+
 ## Best Practices
 
 1. **Use safety flags sparingly**: Only enable `allow_mass_deletion` or `allow_mass_addition` when you explicitly need large-scale changes

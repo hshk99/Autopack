@@ -2181,9 +2181,12 @@ Just the new description that should replace the original.
         combined_text = f"{phase_description} {phase_criteria}"
 
         # Match patterns like: src/autopack/file.py, config/models.yaml, etc.
-        file_patterns = re.findall(r'[a-zA-Z_][a-zA-Z0-9_/\\.-]*\.(py|yaml|json|ts|js|md)', combined_text)
+        # Use non-capturing group (?:...) to get full match, not just extension
+        file_patterns = re.findall(r'[a-zA-Z_][a-zA-Z0-9_/\\.-]*\.(?:py|yaml|json|ts|js|md)', combined_text)
         mentioned_count = 0
         for pattern in file_patterns[:10]:  # Limit to 10 mentioned files
+            if not isinstance(pattern, str):
+                continue  # Skip if pattern is not a string
             # Try exact match first
             filepath = workspace / pattern
             if _load_file(filepath):

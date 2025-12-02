@@ -1220,15 +1220,15 @@ Requirements:
                         last_part = '\n'.join(lines[-50:])
                         prompt_parts.append(f"```\n{first_part}\n\n... [{line_count - 250} lines omitted] ...\n\n{last_part}\n```")
             else:
-                # Legacy mode: show truncated content
+                # Legacy diff mode: show truncated content
                 prompt_parts.append("\n# Repository Context:")
-            for file_path, content in list(files.items())[:5]:
-                prompt_parts.append(f"\n## {file_path}")
-                # Show first 500 chars without literal "..." to avoid teaching model bad habits
-                if isinstance(content, str):
-                    prompt_parts.append(f"```\n{content[:500]}\n```")
-                else:
-                    prompt_parts.append(f"```\n{str(content)[:500]}\n```")
+                for file_path, content in list(files.items())[:5]:
+                    prompt_parts.append(f"\n## {file_path}")
+                    # Show first 500 chars without literal "..." to avoid teaching model bad habits
+                    if isinstance(content, str):
+                        prompt_parts.append(f"```\n{content[:500]}\n```")
+                    else:
+                        prompt_parts.append(f"```\n{str(content)[:500]}\n```")
 
         return "\n".join(prompt_parts)
 

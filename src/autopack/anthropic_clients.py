@@ -133,6 +133,8 @@ class AnthropicBuilderClient:
         """
         try:
             # Check if we need structured edit mode before building prompt
+            # Structured edit should ONLY be used if files being MODIFIED exceed the limit
+            # NOT if any file in context exceeds the limit
             use_structured_edit = False
             if file_context and config:
                 files = file_context.get("existing_files", {})
@@ -140,24 +142,40 @@ class AnthropicBuilderClient:
                 if not isinstance(files, dict):
                     logger.warning(f"[Builder] file_context.get('existing_files') returned non-dict: {type(files)}, using empty dict")
                     files = {}
-                for file_path, content in files.items():
-                    # Safety check: ensure file_path is a string
-                    if not isinstance(file_path, str):
-                        logger.warning(f"[Builder] Skipping non-string file_path: {file_path} (type: {type(file_path)})")
-                        continue
-                    if isinstance(content, str):
-                        line_count = content.count('\n') + 1
-                        if line_count > config.max_lines_hard_limit:
-                            scope_paths = phase_spec.get("scope", {}).get("paths", [])
-                            # Safety check: ensure scope_paths is a list of strings
-                            if not isinstance(scope_paths, list):
-                                logger.warning(f"[Builder] scope_paths is not a list: {type(scope_paths)}, using empty list")
-                                scope_paths = []
-                            # Filter out non-string items
-                            scope_paths = [sp for sp in scope_paths if isinstance(sp, str)]
-                            if not scope_paths or any(file_path.startswith(sp) for sp in scope_paths):
-                                use_structured_edit = True
-                                break
+
+                # Get explicit scope paths from phase_spec
+                scope_paths = phase_spec.get("scope", {}).get("paths", [])
+                # Safety check: ensure scope_paths is a list of strings
+                if not isinstance(scope_paths, list):
+                    logger.warning(f"[Builder] scope_paths is not a list: {type(scope_paths)}, using empty list")
+                    scope_paths = []
+                # Filter out non-string items
+                scope_paths = [sp for sp in scope_paths if isinstance(sp, str)]
+
+                # If no explicit scope, try to infer from file context
+                # Only check files that will actually be modified
+                if not scope_paths:
+                    # If no scope defined, assume all files ≤ max_lines_for_full_file are modifiable
+                    # and files > max_lines_for_full_file are read-only context
+                    # Structured edit mode should NOT be triggered unless explicitly scoped
+                    logger.debug("[Builder] No scope_paths defined; assuming small files are modifiable, large files are read-only")
+                    use_structured_edit = False
+                else:
+                    # Check only files in scope
+                    for file_path, content in files.items():
+                        # Safety check: ensure file_path is a string
+                        if not isinstance(file_path, str):
+                            logger.warning(f"[Builder] Skipping non-string file_path: {file_path} (type: {type(file_path)})")
+                            continue
+
+                        # Only check if file is in scope
+                        if any(file_path.startswith(sp) for sp in scope_paths):
+                            if isinstance(content, str):
+                                line_count = content.count('\n') + 1
+                                if line_count > config.max_lines_hard_limit:
+                                    logger.info(f"[Builder] File {file_path} ({line_count} lines) exceeds hard limit; enabling structured edit mode")
+                                    use_structured_edit = True
+                                    break
             
             # Build system prompt (with mode selection per GPT_RESPONSE10)
             system_prompt = self._build_system_prompt(
@@ -1305,16 +1323,27 @@ Requirements:
             if not isinstance(files, dict):
                 logger.warning(f"[Builder] file_context.get('existing_files') returned non-dict type: {type(files)}, using empty dict")
                 files = {}
-            
-            # Check if we need structured edit mode (files >1000 lines)
+
+            # Check if we need structured edit mode (files >1000 lines IN SCOPE)
+            # NOTE: This should match the logic in execute_phase() above
             use_structured_edit_mode = False
             if config:
-                for file_path, content in files.items():
-                    if isinstance(content, str):
-                        line_count = content.count('\n') + 1
-                        if line_count > config.max_lines_hard_limit:
-                            use_structured_edit_mode = True
-                            break
+                # Get explicit scope paths from phase_spec
+                scope_paths = phase_spec.get("scope", {}).get("paths", [])
+                if not isinstance(scope_paths, list):
+                    scope_paths = []
+                scope_paths = [sp for sp in scope_paths if isinstance(sp, str)]
+
+                # Only check files in scope (or skip if no scope defined)
+                if scope_paths:
+                    for file_path, content in files.items():
+                        if isinstance(content, str) and isinstance(file_path, str):
+                            # Only check if file is in scope
+                            if any(file_path.startswith(sp) for sp in scope_paths):
+                                line_count = content.count('\n') + 1
+                                if line_count > config.max_lines_hard_limit:
+                                    use_structured_edit_mode = True
+                                    break
 
             if use_structured_edit_mode:
                 # NEW: Structured edit mode - show files with line numbers (per IMPLEMENTATION_PLAN3.md Phase 5)

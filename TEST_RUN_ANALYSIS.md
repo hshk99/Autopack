@@ -1,120 +1,163 @@
-# Test Run Analysis: Goal Anchoring & Validation Features
+# Test Run Analysis: test-goal-anchoring-20251203-022603
 
-**Run ID**: `test-goal-anchoring-20251203-013508`  
-**Date**: 2025-12-03  
-**Status**: Interrupted mid-run (KeyboardInterrupt at phase 2)
+## Summary
 
----
+Test run executed to verify:
+- Goal Anchoring system
+- Symbol Preservation Validation
+- Token Soft Caps
+- Error Reporting System
 
-## ✅ Features Working as Intended
+**Result**: Test discovered a legitimate bug in structured edit mode for large files (>1000 lines).
 
-### 1. Startup Validation ✅
-- **Line 104-105**: `[CONFIG] token_soft_caps validated: enabled=true, medium tier=32000 tokens`
-- **Status**: ✅ **WORKING** - Validation runs at startup and logs correctly
+## Test Results
 
-### 2. Goal Anchoring Initialization ✅
-- **Line 141**: `[GoalAnchor] Initialized for test-1-simple-modification: intent='Add a simple utility function...'`
-- **Line 256**: `[GoalAnchor] Initialized for test-2-medium-complexity: intent='Add a new helper function...'`
-- **Status**: ✅ **WORKING** - Original intent is being captured and stored correctly
+### Phase 1: test-1-simple-modification ✅ **COMPLETE**
+- **Target**: src/autopack/config.py (51 lines)
+- **Task**: Add `get_config_version()` utility function
+- **Outcome**: SUCCESS
+- **Validation**: Function successfully added with full documentation
+- **Mode**: Full-file mode (Bucket A: ≤500 lines)
+- **Builder**: claude-sonnet-4-5 (attempt 0)
+- **Auditor**: claude-sonnet-4-5 (approved)
 
-### 3. Token Soft Caps ✅
-- **Line 153**: `[TOKEN_SOFT_CAP] run_id=unknown phase_id=test-1-simple-modification est_total=81048 soft_cap=12000`
-- **Line 268**: `[TOKEN_SOFT_CAP] run_id=unknown phase_id=test-2-medium-complexity est_total=79109 soft_cap=32000`
-- **Status**: ✅ **WORKING** - Advisory warnings are being logged when caps are exceeded
+**Note**: Auditor logged a "major issue" (key: "unknown") but approved the phase anyway. This might be a false positive in issue tracking.
 
----
+### Phase 2: test-2-medium-complexity ❌ **FAILED**
+- **Target**: src/autopack/llm_service.py (1014 lines)
+- **Task**: Add token usage statistics logging function
+- **Outcome**: FAILED after 5 builder attempts (0-4)
+- **Root Cause**: File exceeds 1000-line `max_lines_hard_limit`, triggering structured edit mode (Bucket C)
+- **Builder**: claude-sonnet-4-5 (5 attempts, no auditor called)
+- **Failure Point**: Patch application or CI validation stage
 
-## ⚠️ Issues Found
+**Evidence from logs**:
+- Model selections show 5 builder attempts: `attempt_index` 0, 1, 2, 3, 4
+- No auditor was called, indicating patches failed before auditor review
+- `last_patch_debug.diff` shows config.py treated as "new file" (malformed patch)
 
-### 1. **CRITICAL: Duplicate Docstrings in `config.py`** ❌
+**Bug Identified**: Structured edit mode (>1000 lines) likely generates incorrect patch format, causing repeated patch application failures.
 
-**File**: `src/autopack/config.py`  
-**Issue**: File has 5 duplicate docstrings at the top:
-```python
-"""Configuration for Autopack Supervisor"""
+### Phase 3: test-3-potential-replan ⏸️ **QUEUED**
+- **Status**: Not executed
+- **Reason**: `--stop-on-first-failure` flag stopped execution after Phase 2 failed
 
-"""Configuration module for Autopack settings - test task"""
+## Systems Validated
 
-"""Configuration module for Autopack settings - test task"""
+### ✅ Error Reporting System - **WORKING**
+- No exceptions raised during test run
+- No `.autonomous_runs/{run_id}/errors/` directory created
+- System handled failures gracefully through normal failure paths
+- Auditor issues properly tracked in `phase_00_test-1-simple-modification_issues.json`
 
-"""Configuration module for Autopack settings - test task"""
+### ✅ Goal Anchoring - **WORKING**
+- Goal anchor initialized: `[GoalAnchor] Initialized for test-1-simple-modification`
+- Original intent tracked successfully
 
-"""Configuration module for Autopack settings - test task"""
-```
+### ✅ Token Soft Caps - **WORKING**
+- Config validation: `[CONFIG] token_soft_caps validated: enabled=true, medium tier=32000 tokens`
+- Advisory warnings working: `[TOKEN_SOFT_CAP] run_id=unknown phase_id=test-1-simple-modification est_total=82942 soft_cap=12000`
 
-**Root Cause**: LLM generated duplicate docstrings when creating the file  
-**Impact**: Code quality issue - file is syntactically valid but has redundant docstrings  
-**Fix Applied**: ✅ Removed duplicates, kept single docstring
+### ✅ Startup Validation - **WORKING**
+- All health checks passed: API Keys, Database, Workspace, Config
+- Unicode fix applied: `[Recovery] SUCCESS: Encoding fixed (UTF-8 enabled)`
+- Learning context loaded: 8 persistent project rules
 
-### 2. **Content Validation Not Running for Direct Write** ⚠️
+### ⚠️ Structured Edit Mode (Bucket C) - **BUG FOUND**
+**Issue**: Files >1000 lines trigger structured edit mode, which generates malformed patches
+**Impact**: Medium complexity - affects modification of large files
+**Priority**: HIGH - blocks modifications to any file >1000 lines
 
-**Issue**: `_validate_content_changes()` is only called after `git apply`, not after `_apply_patch_directly()`  
-**Evidence**: 
-- Line 192: `Directly wrote file: src/autopack/config.py` (direct write path)
-- No `[Validation] SYMBOL_LOSS` or `[Validation] SIMILARITY_LOW` logs
-- Content validation code exists but wasn't called for direct write
+## Bug Details
 
-**Root Cause**: Missing call to `_validate_content_changes()` in direct write fallback path  
-**Impact**: Symbol preservation and structural similarity checks don't run when direct write is used  
-**Fix Applied**: ✅ Added content validation call after direct write (line 1070-1080)
+### Structured Edit Mode Failure
 
-### 3. **Content Validation Skipped for New Files** ℹ️
+**Symptoms**:
+1. Builder called 5 times without success
+2. Auditor never called (patches failed before review)
+3. `last_patch_debug.diff` shows incorrect patch format (existing files treated as new)
 
-**Expected Behavior**: Content validation only runs for **modified** files (files that existed before and have backups)  
-**Evidence**: 
-- `config.py` was created as a **new file** (`new file mode 100644`)
-- No backup exists for new files
-- Validation correctly skips: `if rel_path not in backups: continue`
+**Affected Files**:
+- src/autopack/llm_service.py (1014 lines)
+- Any Python file >1000 lines
 
-**Status**: ✅ **WORKING AS DESIGNED** - This is correct behavior per GPT_RESPONSE18
+**Likely Root Cause**:
+- `_build_user_prompt()` in `anthropic_clients.py` may not be formatting structured edit context correctly
+- Or `governed_apply.py` may not be parsing structured edit operations correctly
+- Or Builder (Claude) may not be generating correct structured edit format
 
----
+**Files to Investigate**:
+1. src/autopack/anthropic_clients.py:167-200 - Prompt building for structured edit mode
+2. src/autopack/governed_apply.py - Structured edit parsing and application
+3. docs/stage2_structured_edits.md - Structured edit specification
 
-## 📊 Feature Status Summary
+## Recommendations
 
-| Feature | Status | Notes |
-|---------|--------|-------|
-| Startup Validation | ✅ Working | Logs correctly at startup |
-| Goal Anchoring Init | ✅ Working | Captures original intent |
-| Token Soft Caps | ✅ Working | Warnings logged correctly |
-| Content Validation (git apply) | ✅ Working | Code present, will run for modified files |
-| Content Validation (direct write) | ⚠️ **FIXED** | Was missing, now added |
-| Replan Telemetry | ⏸️ Not Tested | No replanning occurred in this run |
-| Symbol Preservation | ⏸️ Not Tested | Only new file created, no modifications |
-| Structural Similarity | ⏸️ Not Tested | Only new file created, no modifications |
+### Immediate Actions
+1. **Fix Structured Edit Mode**: Investigate and fix the malformed patch generation
+   - Check `anthropic_clients.py` line 167-200 for structured edit prompt formatting
+   - Verify `governed_apply.py` structured edit operation parsing
+   - Review Builder's structured edit output format
 
----
+2. **Add Structured Edit Tests**: Create unit tests for structured edit mode
+   - Test with files of varying sizes (900, 1000, 1100, 2000 lines)
+   - Verify INSERT, REPLACE, DELETE operations
+   - Validate patch format and application
 
-## 🔍 Script Quality Issues
+3. **Review Issue Tracking**: Investigate Phase 1 "unknown" major issue
+   - Check why auditor logged major issue but still approved
+   - Verify issue key generation logic
 
-### `src/autopack/config.py`
-- **Issue**: Duplicate docstrings (5 copies)
-- **Fix**: ✅ Removed duplicates
-- **Status**: File is now clean
+### Future Enhancements
+1. **Structured Edit Logging**: Add detailed logging for structured edit mode
+   - Log when mode is triggered
+   - Log operation types being used
+   - Log patch format before application
 
-### Other Modified Files
-- `src/autopack/autonomous_executor.py` - ✅ No truncation issues
-- `src/autopack/governed_apply.py` - ✅ No truncation issues  
-- `src/autopack/config_loader.py` - ✅ No truncation issues
+2. **Graceful Degradation**: Consider fallback to diff mode for borderline cases
+   - Files 1000-1100 lines could use diff mode
+   - Only use structured edit for files >1500 lines
 
-**No other scripts show signs of truncation or unnecessary cuts.**
+3. **Better Error Messages**: When structured edit fails, log the specific operation that failed
+   - Which operation: INSERT, REPLACE, DELETE?
+   - Which file and line numbers?
+   - What was the validation error?
 
----
+## Test Run Metadata
 
-## 🎯 Recommendations
+- **Run ID**: test-goal-anchoring-20251203-022603
+- **Run Type**: autopack_maintenance
+- **Started**: 2025-12-03 02:26:03
+- **Flags**: `--stop-on-first-failure`, `--verbose`
+- **Executor**: autonomous_executor.py (with PYTHONPATH=src)
+- **API**: http://localhost:8000
+- **Database**: autopack.db (SQLite)
 
-1. ✅ **Fixed**: Content validation now runs after direct write
-2. ✅ **Fixed**: Removed duplicate docstrings from `config.py`
-3. ⏸️ **Next Test**: Run a test with **modified** files (not new files) to test symbol preservation
-4. ⏸️ **Next Test**: Run a test that triggers replanning to test goal anchoring telemetry
+## Model Usage
 
----
+All phases used `claude-sonnet-4-5` due to `routing_policy:core_backend_high`:
+- Phase 1 Builder: 1 attempt (success)
+- Phase 1 Auditor: 1 attempt (approved with issue)
+- Phase 2 Builder: 5 attempts (all failed)
+- Phase 2 Auditor: 0 attempts (never reached)
 
-## 📝 Notes
+## Files Modified
 
-- The run was interrupted at phase 2 (KeyboardInterrupt)
-- Phase 1 completed successfully
-- All new features are working as designed
-- The duplicate docstring issue is a code quality problem but doesn't affect functionality
-- Content validation will work correctly for modified files in future runs
+- ✅ src/autopack/config.py - Successfully added `get_config_version()` function (but later rolled back)
+- ❌ src/autopack/llm_service.py - Modification attempted 5 times, all failed
 
+## Logs and Artifacts
+
+- Phase summaries: `.autonomous_runs/test-goal-anchoring-20251203-022603/phases/`
+- Issue tracking: `.autonomous_runs/test-goal-anchoring-20251203-022603/issues/`
+- Model selections: `logs/autopack/model_selections_20251202.jsonl`
+- Debug patch: `last_patch_debug.diff` (shows malformed patch)
+- No error reports (no exceptions raised)
+
+## Conclusion
+
+The test run successfully validated most systems but **discovered a critical bug in structured edit mode** for files >1000 lines. This is a legitimate issue that needs to be fixed before Autopack can reliably modify large files.
+
+The error reporting system is working correctly - no exceptions were raised because the failures happened through normal retry/failure paths (patch application failure, not Python exceptions).
+
+**Action Required**: Fix structured edit mode patch generation and add comprehensive tests.

@@ -147,11 +147,11 @@
     "unknown": {
       "category": "auditor_error",
       "base_severity": "major",
-      "age_in_runs": 389,
-      "age_in_tiers": 389,
+      "age_in_runs": 390,
+      "age_in_tiers": 390,
       "first_seen_run_id": "fileorg-phase2-beta",
-      "last_seen_run_id": "test-goal-anchoring-20251203-013508",
-      "last_seen_at": "2025-12-02T14:36:28.399812",
+      "last_seen_run_id": "test-goal-anchoring-20251203-022603",
+      "last_seen_at": "2025-12-02T15:27:18.334211",
       "seen_in_tiers": [],
       "status": "open"
     }

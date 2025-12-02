@@ -3,24 +3,8 @@ new file mode 100644
 index 0000000..1111111
 --- /dev/null
 +++ b/src/autopack/config.py
-@@ -0,0 +1,58 @@
-+"""Configuration for Autopack Supervisor"""
-
-+
-
-+"""Configuration module for Autopack settings - test task"""
-
-+
-
-+"""Configuration module for Autopack settings - test task"""
-
-+
-
-+"""Configuration module for Autopack settings - test task"""
-
-+
-
-+"""Configuration module for Autopack settings - test task"""
+@@ -0,0 +1,50 @@
++"""Configuration module for Autopack settings"""
 
 +
 

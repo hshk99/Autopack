@@ -13,7 +13,9 @@
       "Bash(else PYTHONPATH=src python -m pytest tests/ -v --tb=line --ignore=tests/backend)",
       "Bash(PYTHONPATH=src C:/Python/Scripts/pytest.exe:*)",
       "Bash(git fetch:*)",
-      "Bash(PYTHONPATH=src python:*)"
+      "Bash(PYTHONPATH=src python:*)",
+      "Bash(if [ -d \".autonomous_runs/test-goal-anchoring-20251203-022603/errors\" ])",
+      "Bash(sqlite3:*)"
     ],
     "deny": [],
     "ask": []

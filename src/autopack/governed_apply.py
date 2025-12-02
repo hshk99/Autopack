@@ -484,7 +484,10 @@ class GovernedApplyPath:
                     with open(config_path) as f:
                         models_config = yaml.safe_load(f)
                         validation_config = models_config.get("validation", {})
-            except Exception:
+                else:
+                    validation_config = {}
+            except Exception as e:
+                logger.debug(f"[Validation] Could not load validation config: {e}")
                 validation_config = {}
         
         # Get thresholds from config

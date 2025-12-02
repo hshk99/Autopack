@@ -425,7 +425,7 @@ def submit_builder_result(
             tracker.record_issue(
                 phase_index=phase.phase_index,
                 phase_id=phase_id,
-                tier_id=tier.tier_id,
+                tier_id=tier.tier_id if tier else "unknown",
                 issue_key=issue.issue_key,
                 severity=issue.severity,
                 source=issue.source,

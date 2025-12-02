@@ -20,6 +20,11 @@ from typing import List, Tuple, Optional, Dict
 logger = logging.getLogger(__name__)
 
 
+class PatchApplyError(Exception):
+    """Raised when patch application fails"""
+    pass
+
+
 class GovernedApplyPath:
     """
     Safely applies patches to the filesystem using git apply.
@@ -257,13 +262,18 @@ class GovernedApplyPath:
         These markers can be left behind by 3-way merge (-3) fallback when patches
         don't apply cleanly. They cause syntax errors and must be detected early.
 
+        Note: We only check for '<<<<<<<' and '>>>>>>>' as these are unique to
+        merge conflicts. '=======' alone is commonly used as a section divider
+        in code comments (e.g., # =========) and would cause false positives.
+
         Args:
             file_path: Path to file to check
 
         Returns:
             Tuple of (has_conflicts, error_message)
         """
-        conflict_markers = ['<<<<<<<', '=======', '>>>>>>>']
+        # Only check for unique conflict markers, not '=======' which is used in comments
+        conflict_markers = ['<<<<<<<', '>>>>>>>']
         try:
             with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
                 for line_num, line in enumerate(f, 1):
@@ -600,6 +610,68 @@ class GovernedApplyPath:
 
         return patch_content
 
+    def _validate_patch_quality(self, patch_content: str) -> List[str]:
+        """
+        Validate patch quality to detect LLM truncation/abbreviation issues.
+
+        Returns:
+            List of validation error messages (empty if valid)
+        """
+        import re
+
+        errors = []
+        lines = patch_content.split('\n')
+
+        # Check for ellipsis/truncation markers (CRITICAL: LLMs use these when hitting token limits)
+        # Be careful NOT to flag legitimate code like logger.info("...") or f-strings
+        truncation_patterns = [
+            r'^\+\s*\.\.\.\s*$',              # Line that is ONLY "..."
+            r'^\+\s*#\s*\.\.\.\s*$',          # Comment line that is only "# ..."
+            r'^\+.*\.\.\.\s*more\s+code',     # "... more code" pattern
+            r'^\+.*\.\.\.\s*rest\s+of',       # "... rest of" pattern
+            r'^\+.*\.\.\.\s*continues',       # "... continues" pattern
+            r'^\+.*\.\.\.\s*etc',             # "... etc" pattern
+            r'^\+.*code\s+omitted\s*\.\.\.',  # "code omitted..." pattern
+        ]
+
+        for i, line in enumerate(lines, 1):
+            # Skip comment lines, docstrings, and strings (... is ok there)
+            stripped = line.strip()
+            if stripped.startswith(('#', '"""', "'''")):
+                continue
+            # Skip lines with ... inside strings (legitimate code)
+            if '("' in line or "('" in line or 'f"' in line or "f'" in line:
+                continue
+
+            for pattern in truncation_patterns:
+                if re.search(pattern, line, re.IGNORECASE):
+                    errors.append(f"Line {i} contains truncation/ellipsis '...': {line[:80]}")
+                    break
+
+        # Check for malformed hunk headers (common LLM error)
+        hunk_header_pattern = re.compile(r'^@@\s+-(\d+),(\d+)\s+\+(\d+),(\d+)\s+@@')
+        for i, line in enumerate(lines, 1):
+            if line.startswith('@@'):
+                match = hunk_header_pattern.match(line)
+                if not match:
+                    errors.append(f"Line {i} has malformed hunk header: {line[:80]}")
+                else:
+                    # Validate line counts make sense
+                    old_start, old_count, new_start, new_count = map(int, match.groups())
+                    if old_count == 0 and new_count == 0:
+                        errors.append(f"Line {i} has zero-length hunk (invalid): {line[:80]}")
+
+        # Check for incomplete diff structure
+        if 'diff --git' in patch_content:
+            has_index = 'index ' in patch_content
+            has_minus = '---' in patch_content
+            has_plus = '+++' in patch_content
+
+            if not (has_index and has_minus and has_plus):
+                errors.append("Incomplete diff structure (missing index/---/+++ lines)")
+
+        return errors
+
     def _sanitize_patch(self, patch_content: str) -> str:
         """
         Sanitize a patch to fix common formatting issues from LLM output.
@@ -717,6 +789,15 @@ class GovernedApplyPath:
 
             backups = self._backup_files(files_to_modify)
             logger.debug(f"[Integrity] Backed up {len(backups)} existing files before patch")
+
+            # Validate patch for common LLM truncation issues
+            validation_errors = self._validate_patch_quality(patch_content)
+            if validation_errors:
+                error_details = "\n".join(f"  - {err}" for err in validation_errors)
+                error_msg = f"Patch validation failed - LLM generated incomplete/truncated patch:\n{error_details}"
+                logger.error(error_msg)
+                logger.error(f"Patch content:\n{patch_content[:500]}...")
+                raise PatchApplyError(error_msg)
 
             # Write patch to a temporary file
             patch_file = self.workspace / "temp_patch.diff"

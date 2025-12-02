@@ -296,9 +296,12 @@ def create_run():
         })
 
     # Create run payload
+    # NOTE: run_type="autopack_maintenance" allows patches to modify src/autopack/
+    # This is required for Phase 3 tasks that modify Autopack's own codebase
     payload = {
         "run": {
             "run_id": RUN_ID,
+            "run_type": "autopack_maintenance",  # Unlock src/autopack/ for modification
             "safety_profile": "standard",
             "run_scope": "multi_tier",
             "token_cap": 300000,
@@ -344,10 +347,12 @@ if __name__ == "__main__":
         result = create_run()
         print()
         print("[OK] Ready to execute autonomous run:")
-        print(f"  PYTHONPATH=src python src/autopack/autonomous_executor.py --run-id {RUN_ID}")
+        print(f"  PYTHONPATH=src python src/autopack/autonomous_executor.py --run-id {RUN_ID} --run-type autopack_maintenance")
+        print()
+        print("[INFO] NOTE: --run-type autopack_maintenance is required to modify src/autopack/")
         print()
         print("[INFO] This run will test recent improvements:")
-        print("  - GLM-4.5 + Gemini 2.5 Pro model routing")
+        print("  - GLM-4.6 model routing")
         print("  - Model escalation on phase failure")
         print("  - Mid-run re-planning detection")
         print("  - Self-healing recovery")

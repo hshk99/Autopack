@@ -104,7 +104,7 @@ class GeminiBuilderClient:
                 model_name=model,
                 system_instruction=system_prompt,
                 generation_config=genai.GenerationConfig(
-                    max_output_tokens=max_tokens or 16384,
+                    max_output_tokens=max_tokens or 8192,  # Gemini 2.5 Pro max output
                     temperature=0.2
                 )
             )
@@ -127,8 +127,16 @@ class GeminiBuilderClient:
             patch_content = self._extract_diff_from_text(content)
 
             if not patch_content:
-                logger.warning("No git diff markers found in response, using raw content")
-                patch_content = content
+                error_msg = "LLM output invalid format - no git diff markers found. Output must start with 'diff --git'"
+                logger.error(f"{error_msg}\nFirst 500 chars: {content[:500]}")
+                return BuilderResult(
+                    success=False,
+                    patch_content="",
+                    builder_messages=[error_msg],
+                    tokens_used=tokens_used,
+                    model_used=model,
+                    error=error_msg
+                )
 
             logger.debug(f"Gemini Builder completed: {tokens_used} tokens, patch length: {len(patch_content)}")
 
@@ -153,6 +161,8 @@ class GeminiBuilderClient:
 
     def _extract_diff_from_text(self, text: str) -> str:
         """Extract git diff content from text that may contain explanations."""
+        import re
+
         lines = text.split('\n')
         diff_lines = []
         in_diff = False
@@ -162,7 +172,19 @@ class GeminiBuilderClient:
                 in_diff = True
                 diff_lines.append(line)
             elif in_diff:
-                if (line.startswith(('index ', '---', '+++', '@@', '+', '-', ' ')) or
+                # Clean up malformed hunk headers (remove trailing context)
+                if line.startswith('@@'):
+                    # Extract the valid hunk header part only
+                    match = re.match(r'^(@@\s+-\d+,\d+\s+\+\d+,\d+\s+@@)', line)
+                    if match:
+                        # Use only the valid hunk header, discard anything after
+                        clean_line = match.group(1)
+                        diff_lines.append(clean_line)
+                    else:
+                        # Malformed hunk header, skip it
+                        logger.warning(f"Skipping malformed hunk header: {line[:80]}")
+                        continue
+                elif (line.startswith(('index ', '---', '+++', '+', '-', ' ')) or
                     line.startswith('new file mode') or
                     line.startswith('deleted file mode') or
                     line.startswith('similarity index') or
@@ -322,7 +344,7 @@ class GeminiAuditorClient:
                 model_name=model,
                 system_instruction=system_prompt,
                 generation_config=genai.GenerationConfig(
-                    max_output_tokens=max_tokens or 4096,
+                    max_output_tokens=max_tokens or 8192,  # Higher limit for complex reviews
                     temperature=0.1,
                     response_mime_type="application/json"
                 )

@@ -38,7 +38,7 @@ class OpenAIBuilderClient:
         phase_spec: Dict,
         file_context: Optional[Dict] = None,
         max_tokens: Optional[int] = None,
-        model: str = "glm-4.6-20250101",
+        model: str = "glm-4.6",
         project_rules: Optional[List] = None,
         run_hints: Optional[List] = None
     ) -> BuilderResult:
@@ -79,6 +79,8 @@ class OpenAIBuilderClient:
                 ],
                 "temperature": 0.2,
             }
+            # Use maximum output tokens for each model family
+            # gpt-4o: 16,384 max output, gpt-4-turbo: 4,096 max output
             token_budget = max_tokens or 16384
             if model.startswith("gpt-5"):
                 params["max_completion_tokens"] = token_budget
@@ -97,9 +99,16 @@ class OpenAIBuilderClient:
             patch_content = self._extract_diff_from_text(content)
 
             if not patch_content:
-                # Fallback: use entire content if no diff markers found
-                logger.warning("No git diff markers found in response, using raw content")
-                patch_content = content
+                error_msg = "LLM output invalid format - no git diff markers found. Output must start with 'diff --git'"
+                logger.error(f"{error_msg}\nFirst 500 chars: {content[:500]}")
+                return BuilderResult(
+                    success=False,
+                    patch_content="",
+                    builder_messages=[error_msg],
+                    tokens_used=tokens_used,
+                    model_used=model,
+                    error=error_msg
+                )
 
             # Log successful completion
             logger.debug(f"Builder completed: {tokens_used} tokens, patch length: {len(patch_content)}")
@@ -134,9 +143,14 @@ class OpenAIBuilderClient:
         Returns:
             Extracted diff content or empty string
         """
+        import re
+
         lines = text.split('\n')
         diff_lines = []
         in_diff = False
+
+        # Regex to match valid hunk headers: @@ -start,count +start,count @@
+        hunk_header_pattern = re.compile(r'^@@\s+-\d+,\d+\s+\+\d+,\d+\s+@@\s*$')
 
         for line in lines:
             # Start of diff
@@ -145,8 +159,21 @@ class OpenAIBuilderClient:
                 diff_lines.append(line)
             # Continuation of diff
             elif in_diff:
+                # Clean up malformed hunk headers (remove trailing context)
+                if line.startswith('@@'):
+                    # Extract the valid hunk header part only
+                    # Match pattern: @@ -start,count +start,count @@
+                    match = re.match(r'^(@@\s+-\d+,\d+\s+\+\d+,\d+\s+@@)', line)
+                    if match:
+                        # Use only the valid hunk header, discard anything after
+                        clean_line = match.group(1)
+                        diff_lines.append(clean_line)
+                    else:
+                        # Malformed hunk header, skip it
+                        logger.warning(f"Skipping malformed hunk header: {line[:80]}")
+                        continue
                 # Check if still in diff (various diff markers)
-                if (line.startswith(('index ', '---', '+++', '@@', '+', '-', ' ')) or
+                elif (line.startswith(('index ', '---', '+++', '+', '-', ' ')) or
                     line.startswith('new file mode') or
                     line.startswith('deleted file mode') or
                     line.startswith('similarity index') or
@@ -280,7 +307,7 @@ class OpenAIAuditorClient:
         patch_content: str,
         phase_spec: Dict,
         max_tokens: Optional[int] = None,
-        model: str = "glm-4.6-20250101",
+        model: str = "glm-4.6",
         project_rules: Optional[List] = None,
         run_hints: Optional[List] = None
     ) -> AuditorResult:
@@ -316,7 +343,8 @@ class OpenAIAuditorClient:
                 "response_format": {"type": "json_object"},
                 "temperature": 0.1,
             }
-            token_budget = max_tokens or 4096
+            # Higher token limit for complex reviews (actual usage ~500 tokens)
+            token_budget = max_tokens or 8192
             if model.startswith("gpt-5"):
                 params["max_completion_tokens"] = token_budget
             else:

@@ -1,8 +1,8 @@
 complexity_models:
   low:
-    # Default cheap tier: GLM-4.6 (Zhipu AI)
-    builder: glm-4.6
-    auditor: glm-4.6
+    # Default low tier: Claude Sonnet 4.5 (Anthropic) - replaced GLM due to 50% failure rate
+    builder: claude-sonnet-4-5
+    auditor: claude-sonnet-4-5
   medium:
     # Default medium tier: Claude Sonnet 4.5 (Anthropic)
     builder: claude-sonnet-4-5
@@ -66,21 +66,21 @@ llm_routing_policies:
       after_attempts: 2
     description: Large refactors, complex features (non-security, non-schema)
   docs:
-    strategy: cheap_first
-    # Docs: cheap tier uses GLM-4.6, escalate to Sonnet for harder docs
-    builder_primary: glm-4.6
-    auditor_primary: glm-4.6
+    strategy: progressive
+    # Docs: Claude Sonnet 4.5 for reliable documentation generation
+    builder_primary: claude-sonnet-4-5
+    auditor_primary: claude-sonnet-4-5
     escalate_to:
-      builder: claude-sonnet-4-5
+      builder: claude-opus-4-5
       after_attempts: 3
     description: Documentation generation, README updates
   tests:
-    strategy: cheap_first
-    # Tests: start on GLM-4.6, escalate to Sonnet for tricky test generation
-    builder_primary: glm-4.6
+    strategy: progressive
+    # Tests: Claude Sonnet 4.5 for reliable test generation
+    builder_primary: claude-sonnet-4-5
     auditor_primary: claude-sonnet-4-5
     escalate_to:
-      builder: claude-sonnet-4-5
+      builder: claude-opus-4-5
       after_attempts: 2
     description: Test code generation, test refactoring
 category_models:
@@ -98,8 +98,8 @@ category_models:
     builder_model_override: claude-sonnet-4-5
     auditor_model_override: claude-opus-4-5
   tests:
-    # Override tests to use GLM-4.6 as the default cheap builder model
-    builder_model_override: glm-4.6
+    # Tests now use Claude Sonnet 4.5 for reliable generation
+    builder_model_override: claude-sonnet-4-5
 provider_quotas:
   openai:
     weekly_token_cap: 50000000
@@ -126,16 +126,16 @@ fallback_strategy:
   by_category:
     general:
       fallbacks:
-      - glm-4.6
+      - claude-sonnet-4-5
     tests:
       fallbacks:
-      - glm-4.6
+      - claude-sonnet-4-5
     docs:
       fallbacks:
-      - glm-4.6
-  # Global default fallback should also be GLM-4.6
+      - claude-sonnet-4-5
+  # Global default fallback uses Claude Sonnet 4.5
   default_fallbacks:
-  - glm-4.6-20250101
+  - claude-sonnet-4-5
 defaults:
   high_risk_builder: gpt-4o
   high_risk_auditor: gpt-4o
@@ -149,9 +149,9 @@ escalation_chains:
   builder:
     low:
       models:
-      # Low tier: GLM-4.6 first, then Sonnet as strongest low-tier
-      - glm-4.6
+      # Low tier: Claude Sonnet 4.5 first, then Opus as escalation
       - claude-sonnet-4-5
+      - claude-opus-4-5
     medium:
       models:
       # Medium tier: Claude Sonnet 4.5, then Opus as final escalation
@@ -164,9 +164,9 @@ escalation_chains:
   auditor:
     low:
       models:
-      # Low tier auditor: GLM-4.6 first, then Sonnet for tougher reviews
-      - glm-4.6
+      # Low tier auditor: Claude Sonnet 4.5 first, then Opus for tougher reviews
       - claude-sonnet-4-5
+      - claude-opus-4-5
     medium:
       models:
       # Medium tier auditor: Sonnet, then Opus
@@ -198,20 +198,24 @@ replan:
   - schema_mismatch
   - api_contract_wrong
 doctor_models:
-  # Doctor cheap model should also use GLM-4.6
-  cheap: glm-4.6
-  strong: claude-sonnet-4-5
+  # Doctor now uses Claude Sonnet 4.5 for both cheap and strong analysis
+  cheap: claude-sonnet-4-5
+  strong: claude-opus-4-5
   min_confidence_for_cheap: 0.7
   health_budget_near_limit_ratio: 0.8
   max_builder_attempts_before_complex: 4
+  # Per GPT_RESPONSE10: patch_apply_error added to high-risk due to real failure patterns
   high_risk_categories:
   - import
   - logic
+  - patch_apply_error
   low_risk_categories:
   - encoding
   - network
   - file_io
   - validation
+  # Per GPT_RESPONSE10: limit escalations per phase to prevent bouncing
+  max_escalations_per_phase: 1
 discovery_promotion:
   enabled: false
   min_runs_for_candidate: 3
@@ -220,3 +224,34 @@ discovery_promotion:
   min_runs_for_rule: 5
   min_projects_for_rule: 2
   require_human_approval: true
+
+# Per GPT_RESPONSE10/11: Full-file replacement mode (Option A/C hybrid)
+# LLM outputs complete file content, executor generates diff locally
+# This eliminates malformed git diff issues from LLM hunk arithmetic errors
+builder_output_mode:
+  # Enable full-file replacement mode (recommended)
+  use_full_file_mode: true
+  # Keep legacy git-diff mode as fallback (per GPT_RESPONSE11 Q3)
+  legacy_diff_fallback_enabled: true
+  # File size threshold for full-file mode (lines)
+  # Files larger than this use region-based edits (Stage 2)
+  max_lines_for_full_file: 500
+  # Hard limit: files above this are rejected in full-file mode (per GPT_RESPONSE11 Q2)
+  max_lines_hard_limit: 1000
+  # Churn limit: reject patches that change more than this % of file
+  # for small fixes (prevents accidental large rewrites)
+  max_churn_percent_for_small_fix: 30
+  
+  # NEW: Global safety thresholds (per GPT_RESPONSE14 Q3)
+  # Reject >60% shrinkage without explicit opt-in
+  max_shrinkage_percent: 60
+  # Reject >3x growth without explicit opt-in
+  max_growth_multiplier: 3.0
+  
+  # Symbol validation: reject patches that remove required top-level symbols
+  # for small fixes (per GPT_RESPONSE11 Q5)
+  symbol_validation:
+    enabled: true
+    strict_for_small_fixes: true
+    # Symbols to always preserve (in addition to auto-detected)
+    always_preserve: []

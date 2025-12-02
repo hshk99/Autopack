@@ -36,7 +36,9 @@ def check_for_conflict_markers(patch_content: str) -> Tuple[bool, List[PatchVali
     Returns:
         Tuple of (has_conflicts, list of conflict errors)
     """
-    conflict_markers = ['<<<<<<<', '=======', '>>>>>>>']
+    # Only check for unique conflict markers, not '=======' which is commonly
+    # used as a section divider in code comments (e.g., # =========)
+    conflict_markers = ['<<<<<<<', '>>>>>>>']
     errors = []
 
     lines = patch_content.split('\n')

@@ -15,7 +15,6 @@ from typing import Dict, List, Optional
 
 from sqlalchemy.orm import Session
 
-from .config_loader import get_config
 from .llm_client import AuditorResult, BuilderResult
 from .model_router import ModelRouter
 from .quality_gate import QualityGate, integrate_with_auditor
@@ -169,9 +168,9 @@ class LlmService:
 
         # Initialize quality gate with project config
         self.repo_root = repo_root or Path.cwd()
-        config = get_config(self.repo_root / ".autopack" / "config.yaml")
+        # Use default config for quality gate (config_loader was removed)
         self.quality_gate = QualityGate(
-            repo_root=self.repo_root, config=config._config
+            repo_root=self.repo_root, config={}
         )
 
     def _resolve_client_and_model(self, role: str, requested_model: str):
@@ -207,8 +206,8 @@ class LlmService:
                 print(f"Warning: Gemini model {requested_model} selected but GOOGLE_API_KEY not set. Falling back to OpenAI (gpt-4o).")
                 return openai_client, "gpt-4o"
             if glm_client is not None:
-                print(f"Warning: Gemini model {requested_model} selected but GOOGLE_API_KEY not set. Falling back to GLM (glm-4.6-20250101).")
-                return glm_client, "glm-4.6-20250101"
+                print(f"Warning: Gemini model {requested_model} selected but GOOGLE_API_KEY not set. Falling back to GLM (glm-4.6).")
+                return glm_client, "glm-4.6"
             raise RuntimeError(f"Gemini model {requested_model} selected but no LLM clients are available. Set GOOGLE_API_KEY, ANTHROPIC_API_KEY, OPENAI_API_KEY, or GLM_API_KEY.")
 
         # Route GLM models to GLM client
@@ -236,8 +235,8 @@ class LlmService:
                 print(f"Warning: Claude model {requested_model} selected but Anthropic not available. Falling back to Gemini (gemini-2.5-pro).")
                 return gemini_client, "gemini-2.5-pro"
             if glm_client is not None:
-                print(f"Warning: Claude model {requested_model} selected but Anthropic not available. Falling back to GLM (glm-4.6-20250101).")
-                return glm_client, "glm-4.6-20250101"
+                print(f"Warning: Claude model {requested_model} selected but Anthropic not available. Falling back to GLM (glm-4.6).")
+                return glm_client, "glm-4.6"
             if openai_client is not None:
                 print(f"Warning: Claude model {requested_model} selected but Anthropic not available. Falling back to OpenAI (gpt-4o).")
                 return openai_client, "gpt-4o"
@@ -251,8 +250,8 @@ class LlmService:
             print(f"Warning: OpenAI model {requested_model} selected but OpenAI not available. Falling back to Gemini (gemini-2.5-pro).")
             return gemini_client, "gemini-2.5-pro"
         if glm_client is not None:
-            print(f"Warning: OpenAI model {requested_model} selected but OpenAI not available. Falling back to GLM (glm-4.6-20250101).")
-            return glm_client, "glm-4.6-20250101"
+            print(f"Warning: OpenAI model {requested_model} selected but OpenAI not available. Falling back to GLM (glm-4.6).")
+            return glm_client, "glm-4.6"
         if anthropic_client is not None:
             print(f"Warning: OpenAI model {requested_model} selected but OpenAI not available. Falling back to Anthropic (claude-sonnet-4-5).")
             return anthropic_client, "claude-sonnet-4-5"
@@ -737,48 +736,50 @@ IMPORTANT: execute_fix is for INFRASTRUCTURE fixes only. Code logic issues shoul
         """
         import json
         import logging
+        from .error_recovery import get_doctor_config
         logger = logging.getLogger(__name__)
+        config = get_doctor_config()
 
         # 1. Choose Doctor model based on failure complexity
-        model = choose_doctor_model(request, ctx_summary)
-        logger.info(
-            f"[Doctor] Invoking Doctor for phase={phase_id or request.phase_id}, "
-            f"model={model}, builder_attempts={request.builder_attempts}, "
-            f"error_category={request.error_category}"
-        )
+        # Per GPT_RESPONSE10: choose_doctor_model now returns (model, is_complex) tuple
+        model, is_complex = choose_doctor_model(request, ctx_summary)
+        
+        # Per GPT_RESPONSE10: Track error category in context
+        if ctx_summary:
+            ctx_summary.record_error_category(request.error_category)
 
         # 2. Build messages
         user_message = self._build_doctor_user_message(request)
 
         # 3. Invoke LLM
         response = self._call_doctor_llm(model, user_message, run_id, phase_id)
+        escalated = False
 
-        # 4. Check for escalation (per GPT_RESPONSE7 recommendations)
+        # 4. Check for escalation (per GPT_RESPONSE7 + GPT_RESPONSE10 guardrails)
         if allow_escalation and should_escalate_doctor_model(
-            response, model, request.builder_attempts
+            response, model, request.builder_attempts, ctx_summary
         ):
-            logger.info(
-                f"[Doctor] Escalating from {model} to strong model due to low confidence"
-            )
-            from .error_recovery import DOCTOR_STRONG_MODEL
             strong_response = self._call_doctor_llm(
-                DOCTOR_STRONG_MODEL, user_message, run_id, phase_id
+                config.strong_model, user_message, run_id, phase_id
             )
             # Prefer strong response if its confidence is higher
             if strong_response.confidence >= response.confidence:
                 response = strong_response
+                escalated = True
+                model = config.strong_model
 
-        # 5. Log structured Doctor decision (per GPT_RESPONSE8 Section 5.1)
+        # Per GPT_RESPONSE10: Update context with Doctor response
+        if ctx_summary:
+            ctx_summary.record_doctor_response(response, escalated=escalated)
+
+        # 5. Log structured Doctor decision (per GPT_RESPONSE10: single unified log)
         health_ratio = request.health_budget.get("total_failures", 0) / max(
             request.health_budget.get("total_cap", 25), 1
         )
         logger.info(
-            f"[Doctor] Decision: phase_id={phase_id or request.phase_id}, "
-            f"builder_attempts={request.builder_attempts}, health_ratio={health_ratio:.2f}, "
-            f"error_category={request.error_category}, model_chosen={model}, "
-            f"is_complex={choose_doctor_model(request, ctx_summary) != 'gpt-4o-mini'}, "
-            f"doctor_action={response.action}, confidence={response.confidence:.2f}, "
-            f"escalated={model != choose_doctor_model(request, ctx_summary)}"
+            f"[Doctor] Diagnosis complete: action={response.action}, confidence={response.confidence:.2f}, "
+            f"phase={phase_id or request.phase_id}, model={model}, is_complex={is_complex}, "
+            f"escalated={escalated}, health_ratio={health_ratio:.2f}"
         )
 
         return response

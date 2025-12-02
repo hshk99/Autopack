@@ -9,10 +9,25 @@ Per GPT architect + user consensus on learned rules design.
 import json
 import os
 from dataclasses import dataclass, asdict
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
-from typing import List, Optional, Dict, Set
+from typing import List, Optional, Dict, Set, Tuple
 from collections import defaultdict
+from enum import Enum
+
+
+class DiscoveryStage(Enum):
+    """Promotion stages for learned rules
+    
+    NEW: Fix discovered during troubleshooting
+    APPLIED: Fix was attempted in a run
+    CANDIDATE_RULE: Same pattern seen in >= 3 runs within 30 days
+    RULE: Confirmed via recurrence, no regressions, human approved
+    """
+    NEW = "new"
+    APPLIED = "applied"
+    CANDIDATE_RULE = "candidate_rule"
+    RULE = "rule"
 
 
 @dataclass
@@ -56,12 +71,16 @@ class LearnedRule:
     first_seen: str  # ISO format datetime
     last_seen: str  # ISO format datetime
     status: str  # "active" | "deprecated"
+    stage: str  # DiscoveryStage value ("new", "applied", "candidate_rule", "rule")
 
     def to_dict(self) -> Dict:
         return asdict(self)
 
     @classmethod
     def from_dict(cls, data: Dict) -> 'LearnedRule':
+        # Handle legacy rules without stage field
+        if 'stage' not in data:
+            data['stage'] = DiscoveryStage.RULE.value
         return cls(**data)
 
 
@@ -199,8 +218,8 @@ def get_relevant_hints_for_phase(
 def promote_hints_to_rules(run_id: str, project_id: str) -> int:
     """Promote frequent hints to persistent project rules
 
-    Called when: Run completes
-    Logic: If hint pattern appears 2+ times in this run, promote
+    Called at: End of run
+    Looks for: Hints that match existing rules or appear frequently
 
     Args:
         run_id: Run ID
@@ -213,101 +232,332 @@ def promote_hints_to_rules(run_id: str, project_id: str) -> int:
     if not hints:
         return 0
 
-    # Group hints by pattern (issue_key + task_category)
-    patterns = _group_hints_by_pattern(hints)
-
-    # Load existing rules
-    existing_rules = load_project_learned_rules(project_id)
-    rules_dict = {r.rule_id: r for r in existing_rules}
+    rules = load_project_rules(project_id)
+    rules_by_category = defaultdict(list)
+    for rule in rules:
+        rules_by_category[rule.task_category].append(rule)
 
     promoted_count = 0
 
-    # Promote patterns that appear 2+ times
-    for pattern_key, hint_group in patterns.items():
-        if len(hint_group) < 2:
-            continue  # Need 2+ occurrences to promote
+    for hint in hints:
+        # Check if hint matches existing rule
+        matching_rule = _find_matching_rule(hint, rules_by_category.get(hint.task_category, []))
 
-        rule_id = _generate_rule_id(hint_group[0])
-
-        if rule_id in rules_dict:
-            # Update existing rule
-            rule = rules_dict[rule_id]
-            rule.promotion_count += 1
-            rule.last_seen = datetime.utcnow().isoformat()
-            rule.source_hint_ids.extend([f"{h.run_id}:{h.phase_id}" for h in hint_group])
+        if matching_rule:
+            # Increment promotion count
+            matching_rule.promotion_count += 1
+            matching_rule.last_seen = datetime.utcnow().isoformat()
+            matching_rule.source_hint_ids.append(f"{run_id}:{hint.phase_id}")
+            promoted_count += 1
         else:
-            # Create new rule
-            rule = _create_rule_from_hints(rule_id, hint_group, project_id)
-            rules_dict[rule_id] = rule
+            # Create new rule with NEW stage
+            new_rule = LearnedRule(
+                rule_id=_generate_rule_id(hint),
+                task_category=hint.task_category or "general",
+                scope_pattern=_infer_scope_pattern(hint.scope_paths),
+                constraint=hint.hint_text,
+                source_hint_ids=[f"{run_id}:{hint.phase_id}"],
+                promotion_count=1,
+                first_seen=hint.created_at,
+                last_seen=datetime.utcnow().isoformat(),
+                status="active",
+                stage=DiscoveryStage.NEW.value
+            )
+            rules.append(new_rule)
             promoted_count += 1
 
     # Save updated rules
-    _save_project_learned_rules(project_id, list(rules_dict.values()))
+    _save_project_rules(project_id, rules)
 
     return promoted_count
 
 
-def load_project_learned_rules(project_id: str) -> List[LearnedRule]:
-    """Load persistent project rules
+def load_project_rules(project_id: str) -> List[LearnedRule]:
+    """Load all project rules
 
     Args:
         project_id: Project ID
 
     Returns:
-        List of LearnedRule objects (active only)
+        List of LearnedRule objects
     """
     rules_file = _get_project_rules_file(project_id)
     if not rules_file.exists():
         return []
 
     try:
-        with open(rules_file, 'r') as f:
+        with open(rules_file, 'r', encoding='utf-8') as f:
             data = json.load(f)
-        rules = [LearnedRule.from_dict(r) for r in data.get("rules", [])]
-        # Return only active rules
-        return [r for r in rules if r.status == "active"]
+        return [LearnedRule.from_dict(r) for r in data.get("rules", [])]
     except (json.JSONDecodeError, KeyError, TypeError):
         return []
 
 
-def get_relevant_rules_for_phase(
-    project_rules: List[LearnedRule],
+def get_active_rules_for_phase(
+    project_id: str,
     phase: Dict,
     max_rules: int = 10
 ) -> List[LearnedRule]:
-    """Get rules relevant to this phase
+    """Get active rules relevant to this phase
 
     Filters by:
+    - status == "active"
+    - stage == "rule" (only fully promoted rules)
     - task_category match
-    - scope_pattern match (if specified)
+    - scope_pattern match
 
     Args:
-        project_rules: All project rules
+        project_id: Project ID
         phase: Phase dict
         max_rules: Maximum number of rules to return
 
     Returns:
         List of relevant rules (most promoted first)
     """
-    if not project_rules:
+    all_rules = load_project_rules(project_id)
+    if not all_rules:
         return []
 
     task_category = phase.get("task_category")
 
     # Filter relevant rules
     relevant = []
-    for rule in project_rules:
-        # Match task_category
-        if task_category and rule.task_category != task_category:
+    for rule in all_rules:
+        # Only active rules at RULE stage
+        if rule.status != "active" or rule.stage != DiscoveryStage.RULE.value:
             continue
+
+        # Match task_category if both have it
+        if task_category and rule.task_category:
+            if rule.task_category != task_category:
+                continue
 
         # TODO: Could add scope_pattern matching here
 
         relevant.append(rule)
 
-    # Return most promoted first (highest confidence), limited
+    # Return most promoted first, limited
     relevant.sort(key=lambda r: r.promotion_count, reverse=True)
     return relevant[:max_rules]
+
+
+# ============================================================================
+# Promotion Pipeline Functions
+# ============================================================================
+
+def promote_rule(rule_id: str, project_id: str) -> bool:
+    """Move rule to next stage in promotion pipeline
+    
+    Stages: NEW → APPLIED → CANDIDATE_RULE → RULE
+    
+    Args:
+        rule_id: Rule identifier
+        project_id: Project identifier
+        
+    Returns:
+        True if promoted, False if already at final stage or not found
+    """
+    rules = load_project_rules(project_id)
+    rule = next((r for r in rules if r.rule_id == rule_id), None)
+    
+    if not rule:
+        return False
+    
+    # Define stage progression
+    stage_order = [
+        DiscoveryStage.NEW,
+        DiscoveryStage.APPLIED,
+        DiscoveryStage.CANDIDATE_RULE,
+        DiscoveryStage.RULE
+    ]
+    
+    current_stage = DiscoveryStage(rule.stage)
+    current_index = stage_order.index(current_stage)
+    
+    # Already at final stage
+    if current_index >= len(stage_order) - 1:
+        return False
+    
+    # Promote to next stage
+    next_stage = stage_order[current_index + 1]
+    rule.stage = next_stage.value
+    rule.last_seen = datetime.utcnow().isoformat()
+    
+    # Save updated rules
+    _save_project_rules(project_id, rules)
+    
+    return True
+
+
+def get_candidates_for_promotion(project_id: str) -> List[LearnedRule]:
+    """Get rules ready for human review and promotion
+    
+    Returns rules at CANDIDATE_RULE stage that meet promotion criteria.
+    
+    Args:
+        project_id: Project identifier
+        
+    Returns:
+        List of rules ready for promotion to RULE stage
+    """
+    rules = load_project_rules(project_id)
+    candidates = []
+    
+    for rule in rules:
+        if rule.stage != DiscoveryStage.CANDIDATE_RULE.value:
+            continue
+            
+        eligible, reason = is_promotion_eligible(rule, project_id)
+        if eligible:
+            candidates.append(rule)
+    
+    # Sort by promotion_count (most frequent first)
+    candidates.sort(key=lambda r: r.promotion_count, reverse=True)
+    return candidates
+
+
+def count_rule_applications(rule_id: str, project_id: str, days: int = 30) -> int:
+    """Count how many times a rule pattern was applied in recent runs
+    
+    Args:
+        rule_id: Rule identifier
+        project_id: Project identifier
+        days: Time window in days
+        
+    Returns:
+        Number of applications within time window
+    """
+    rules = load_project_rules(project_id)
+    rule = next((r for r in rules if r.rule_id == rule_id), None)
+    
+    if not rule:
+        return 0
+    
+    # Parse last_seen timestamp
+    try:
+        last_seen = datetime.fromisoformat(rule.last_seen)
+        cutoff = datetime.utcnow() - timedelta(days=days)
+        
+        # Count source hints within window
+        # This is a simplified implementation - in production, you'd track
+        # individual application timestamps
+        if last_seen >= cutoff:
+            return rule.promotion_count
+        else:
+            return 0
+    except (ValueError, AttributeError):
+        return 0
+
+
+def check_rule_regressions(rule_id: str, project_id: str) -> bool:
+    """Check if rule has caused any regressions
+    
+    Args:
+        rule_id: Rule identifier
+        project_id: Project identifier
+        
+    Returns:
+        True if regressions detected, False otherwise
+    """
+    # Simplified implementation - in production, you'd track:
+    # - Phases that failed after applying this rule
+    # - CI failures correlated with rule application
+    # - Manual regression reports
+    
+    # For now, assume no regressions (optimistic)
+    # Real implementation would query run history and failure logs
+    return False
+
+
+def is_promotion_eligible(rule: LearnedRule, project_id: str) -> Tuple[bool, str]:
+    """Check if rule meets criteria for promotion to next stage
+    
+    Args:
+        rule: LearnedRule to check
+        project_id: Project identifier
+        
+    Returns:
+        Tuple of (eligible: bool, reason: str)
+    """
+    # Load config
+    config = _load_promotion_config()
+    
+    current_stage = DiscoveryStage(rule.stage)
+    
+    # NEW → APPLIED: Just needs to be attempted once
+    if current_stage == DiscoveryStage.NEW:
+        if rule.promotion_count >= 1:
+            return True, "Rule has been applied at least once"
+        return False, "Rule has not been applied yet"
+    
+    # APPLIED → CANDIDATE_RULE: Needs min_runs_for_candidate within window
+    elif current_stage == DiscoveryStage.APPLIED:
+        min_runs = config.get("min_runs_for_candidate", 3)
+        window_days = config.get("window_days", 30)
+        
+        applications = count_rule_applications(rule.rule_id, project_id, window_days)
+        
+        if applications >= min_runs:
+            return True, f"Rule applied {applications} times in {window_days} days"
+        return False, f"Rule only applied {applications} times (need {min_runs})"
+    
+    # CANDIDATE_RULE → RULE: Needs no regressions + human approval
+    elif current_stage == DiscoveryStage.CANDIDATE_RULE:
+        has_regressions = check_rule_regressions(rule.rule_id, project_id)
+        
+        if has_regressions:
+            return False, "Rule has caused regressions"
+        
+        require_approval = config.get("require_human_approval", True)
+        if require_approval:
+            return False, "Awaiting human approval (use promote_rule() after review)"
+        
+        return True, "No regressions detected, ready for promotion"
+    
+    # Already at RULE stage
+    else:
+        return False, "Rule already at final stage"
+
+
+def _load_promotion_config() -> Dict:
+    """Load promotion configuration from models.yaml
+    
+    Returns:
+        Dict with promotion settings
+    """
+    try:
+        import yaml
+        config_path = Path("config/models.yaml")
+        
+        if not config_path.exists():
+            # Return defaults if config not found
+            return {
+                "enabled": False,
+                "min_runs_for_candidate": 3,
+                "window_days": 30,
+                "min_severity_for_candidate": "medium",
+                "require_human_approval": True
+            }
+        
+        with open(config_path, 'r') as f:
+            config = yaml.safe_load(f)
+        
+        return config.get("discovery_promotion", {
+            "enabled": False,
+            "min_runs_for_candidate": 3,
+            "window_days": 30,
+            "min_severity_for_candidate": "medium",
+            "require_human_approval": True
+        })
+    except Exception:
+        # Return defaults on any error
+        return {
+            "enabled": False,
+            "min_runs_for_candidate": 3,
+            "window_days": 30,
+            "min_severity_for_candidate": "medium",
+            "require_human_approval": True
+        }
 
 
 # ============================================================================
@@ -315,304 +565,160 @@ def get_relevant_rules_for_phase(
 # ============================================================================
 
 def _detect_resolved_issues(issues_before: List, issues_after: List) -> List:
-    """Detect which issues were resolved"""
-    if not issues_before:
-        return []
-
-    # Simple heuristic: issues in before but not in after
-    before_keys = {issue.get("issue_key") for issue in issues_before if issue.get("issue_key")}
-    after_keys = {issue.get("issue_key") for issue in issues_after if issue.get("issue_key")}
+    """Detect issues that were resolved"""
+    before_keys = {issue.get("issue_key") for issue in issues_before}
+    after_keys = {issue.get("issue_key") for issue in issues_after}
     resolved_keys = before_keys - after_keys
-
     return [issue for issue in issues_before if issue.get("issue_key") in resolved_keys]
 
 
 def _extract_scope_paths(phase: Dict, context: Optional[Dict]) -> List[str]:
-    """Extract file/module paths from phase or context"""
+    """Extract file paths from phase or context"""
     paths = []
 
-    # Try context first
-    if context and "file_paths" in context:
-        paths.extend(context["file_paths"])
+    # From context
+    if context:
+        if "files" in context:
+            paths.extend(context["files"])
+        if "scope_paths" in context:
+            paths.extend(context["scope_paths"])
 
-    # Try phase description parsing (future enhancement)
-    # For now, return what we have
+    # From phase
+    if "files_to_modify" in phase:
+        paths.extend(phase["files_to_modify"])
 
-    return list(set(paths))[:5]  # Unique, max 5
+    return list(set(paths))  # Deduplicate
 
 
 def _generate_hint_text(resolved: List, scope_paths: List[str], phase: Dict) -> str:
-    """Generate hint text from resolved issues
+    """Generate human-readable hint text"""
+    issue_types = [issue.get("issue_type", "unknown") for issue in resolved]
+    unique_types = list(set(issue_types))
 
-    Template-based for now (no LLM)
-    """
-    if not resolved:
-        return "Issue resolved in this phase"
+    if len(unique_types) == 1:
+        hint = f"When working on {phase.get('task_category', 'tasks')}, "
+        hint += f"watch out for {unique_types[0]} issues in {', '.join(scope_paths[:3])}"
+    else:
+        hint = f"When working on {phase.get('task_category', 'tasks')}, "
+        hint += f"watch out for {', '.join(unique_types[:3])} issues"
 
-    issue = resolved[0]  # Use first issue for template
-    issue_key = issue.get("issue_key", "unknown_issue")
-
-    # Pattern detection
-    templates = {
-        "missing_type_hints": "Resolved {issue_key} in {files} - ensure all functions have type annotations",
-        "placeholder": "Resolved {issue_key} - removed placeholder code in {files}",
-        "missing_tests": "Resolved {issue_key} - added tests for {files}",
-        "import_error": "Resolved {issue_key} - fixed imports in {files}",
-        "syntax_error": "Resolved {issue_key} - fixed syntax in {files}",
-    }
-
-    # Detect pattern
-    pattern = None
-    for key in templates.keys():
-        if key in issue_key.lower():
-            pattern = key
-            break
-
-    template = templates.get(pattern, "Resolved {issue_key} in {files}")
-
-    files_str = ", ".join(scope_paths[:3]) if scope_paths else "affected files"
-
-    return template.format(issue_key=issue_key, files=files_str)
+    return hint
 
 
-def _group_hints_by_pattern(hints: List[RunRuleHint]) -> Dict[str, List[RunRuleHint]]:
-    """Group hints by pattern for promotion detection"""
-    patterns = defaultdict(list)
+def _find_matching_rule(hint: RunRuleHint, rules: List[LearnedRule]) -> Optional[LearnedRule]:
+    """Find rule that matches hint pattern"""
+    # Simple text similarity for now
+    # In production, use more sophisticated matching (embeddings, etc.)
+    hint_lower = hint.hint_text.lower()
 
-    for hint in hints:
-        # Pattern key: first issue_key + task_category
-        issue_key = hint.source_issue_keys[0] if hint.source_issue_keys else "unknown"
-        # Extract pattern from issue_key (e.g., "missing_type_hints" from "missing_type_hints_auth_py")
-        pattern_key = _extract_pattern(issue_key)
-        key = f"{pattern_key}:{hint.task_category or 'any'}"
-        patterns[key].append(hint)
+    for rule in rules:
+        rule_lower = rule.constraint.lower()
+        # Check for significant word overlap
+        hint_words = set(hint_lower.split())
+        rule_words = set(rule_lower.split())
+        overlap = len(hint_words & rule_words)
+        if overlap >= 3:  # At least 3 words in common
+            return rule
 
-    return dict(patterns)
+    return None
 
 
-def _extract_pattern(issue_key: str) -> str:
-    """Extract base pattern from issue key"""
-    # Simple heuristic: take first 2-3 words before underscore + digits/file
-    parts = issue_key.split("_")
-    # Take up to 3 parts, stop at file extensions or numbers
-    pattern_parts = []
-    for part in parts[:3]:
-        if part.isdigit() or "." in part:
-            break
-        pattern_parts.append(part)
-    return "_".join(pattern_parts) if pattern_parts else issue_key
+def _infer_scope_pattern(scope_paths: List[str]) -> Optional[str]:
+    """Infer scope pattern from paths"""
+    if not scope_paths:
+        return None
+
+    # Check for common extensions
+    extensions = [Path(p).suffix for p in scope_paths]
+    unique_extensions = list(set(extensions))
+
+    if len(unique_extensions) == 1 and unique_extensions[0]:
+        return f"*{unique_extensions[0]}"
+
+    # Check for common directory
+    dirs = [str(Path(p).parent) for p in scope_paths]
+    unique_dirs = list(set(dirs))
+
+    if len(unique_dirs) == 1 and unique_dirs[0] != ".":
+        return f"{unique_dirs[0]}/*"
+
+    return None
 
 
 def _generate_rule_id(hint: RunRuleHint) -> str:
-    """Generate rule ID from hint"""
-    issue_key = hint.source_issue_keys[0] if hint.source_issue_keys else "unknown"
-    pattern = _extract_pattern(issue_key)
+    """Generate unique rule ID from hint"""
+    import hashlib
+
+    # Use hint text + category for ID
+    text = f"{hint.task_category}:{hint.hint_text}"
+    text_hash = hashlib.md5(text.encode()).hexdigest()[:8]
+
     category = hint.task_category or "general"
-    return f"{category}.{pattern}"
+    return f"{category}.rule_{text_hash}"
 
-
-def _create_rule_from_hints(rule_id: str, hints: List[RunRuleHint], project_id: str) -> LearnedRule:
-    """Create new rule from hint group"""
-    first_hint = hints[0]
-
-    # Generate constraint from hint text (generalize it)
-    constraint = _generalize_constraint(first_hint.hint_text)
-
-    return LearnedRule(
-        rule_id=rule_id,
-        task_category=first_hint.task_category or "general",
-        scope_pattern=None,  # Global for now
-        constraint=constraint,
-        source_hint_ids=[f"{h.run_id}:{h.phase_id}" for h in hints],
-        promotion_count=1,
-        first_seen=datetime.utcnow().isoformat(),
-        last_seen=datetime.utcnow().isoformat(),
-        status="active"
-    )
-
-
-def _generalize_constraint(hint_text: str) -> str:
-    """Generalize hint text to constraint
-
-    Remove specific file names, make it more general
-    """
-    # Simple generalization: remove "in file_name.py" parts
-    constraint = hint_text
-    # Replace specific files with "affected files"
-    import re
-    constraint = re.sub(r' in [a-zA-Z0-9_./]+\.(py|js|ts|tsx|jsx)', ' in affected files', constraint)
-    constraint = re.sub(r' - [a-zA-Z0-9_./]+\.(py|js|ts|tsx|jsx)', '', constraint)
-    return constraint
-
-
-# ============================================================================
-# File I/O
-# ============================================================================
 
 def _get_run_hints_file(run_id: str) -> Path:
     """Get path to run hints file"""
-    base_dir = Path(".autonomous_runs") / "runs" / run_id
-    base_dir.mkdir(parents=True, exist_ok=True)
-    return base_dir / "run_rule_hints.json"
+    return Path(".autonomous_runs") / run_id / "run_rule_hints.json"
 
 
 def _get_project_rules_file(project_id: str) -> Path:
     """Get path to project rules file"""
-    base_dir = Path(".autonomous_runs") / project_id
-    base_dir.mkdir(parents=True, exist_ok=True)
-    return base_dir / "project_learned_rules.json"
+    return Path(".autonomous_runs") / project_id / "project_learned_rules.json"
 
 
 def _save_run_rule_hint(run_id: str, hint: RunRuleHint):
-    """Save hint to run hints file (append)"""
+    """Save hint to run hints file"""
     hints_file = _get_run_hints_file(run_id)
+    hints_file.parent.mkdir(parents=True, exist_ok=True)
 
-    # Load existing
-    existing_hints = []
-    if hints_file.exists():
-        try:
-            with open(hints_file, 'r') as f:
-                data = json.load(f)
-            existing_hints = data.get("hints", [])
-        except (json.JSONDecodeError, KeyError):
-            pass
-
-    # Append new hint
-    existing_hints.append(hint.to_dict())
+    # Load existing hints
+    hints = load_run_rule_hints(run_id)
+    hints.append(hint)
 
     # Save
-    with open(hints_file, 'w') as f:
-        json.dump({
-            "run_id": run_id,
-            "hints": existing_hints
-        }, f, indent=2)
+    with open(hints_file, 'w', encoding='utf-8') as f:
+        json.dump(
+            {"hints": [h.to_dict() for h in hints]},
+            f,
+            indent=2
+        )
 
 
-def _save_project_learned_rules(project_id: str, rules: List[LearnedRule]):
-    """Save project rules file (overwrite)"""
+def _save_project_rules(project_id: str, rules: List[LearnedRule]):
+    """Save rules to project rules file"""
     rules_file = _get_project_rules_file(project_id)
+    rules_file.parent.mkdir(parents=True, exist_ok=True)
 
-    with open(rules_file, 'w') as f:
-        json.dump({
-            "project_id": project_id,
-            "version": "1.0",
-            "last_updated": datetime.utcnow().isoformat(),
-            "rule_count": len(rules),
-            "rules": [r.to_dict() for r in rules]
-        }, f, indent=2)
-
-
-# ============================================================================
-# Formatting for Prompts
-# ============================================================================
-
-def format_hints_for_prompt(hints: List[RunRuleHint]) -> str:
-    """Format hints for Builder/Auditor prompt injection"""
-    if not hints:
-        return ""
-
-    output = "## Lessons from Earlier Phases (this run only)\n\n"
-    output += "Do not repeat these mistakes:\n"
-    for i, hint in enumerate(hints, 1):
-        output += f"{i}. {hint.hint_text}\n"
-
-    return output
-
-
-def format_rules_for_prompt(rules: List[LearnedRule]) -> str:
-    """Format rules for Builder/Auditor prompt injection"""
-    if not rules:
-        return ""
-
-    output = "## Project Learned Rules (from past runs)\n\n"
-    output += "IMPORTANT: Follow these rules learned from past experience:\n\n"
-
-    for i, rule in enumerate(rules, 1):
-        output += f"{i}. **{rule.rule_id}**: {rule.constraint}\n"
-
-    return output
+    with open(rules_file, 'w', encoding='utf-8') as f:
+        json.dump(
+            {"rules": [r.to_dict() for r in rules]},
+            f,
+            indent=2
+        )
 
 
 # ============================================================================
-# Debug History Integration (CONSOLIDATED_DEBUG.md -> project_learned_rules.json)
+# Debug Journal Integration
 # ============================================================================
 
-def sync_rules_from_debug_history(project_id: str) -> int:
+def _generate_debug_rule_id(rule_text: str) -> str:
+    """Generate rule ID for debug journal rules
+    
+    Uses semantic prefixes based on rule content.
     """
-    Extract prevention rules from CONSOLIDATED_DEBUG.md and sync to project_learned_rules.json.
-
-    This bridges the gap between the debug journal system (manual debugging documentation)
-    and the learned rules system (automated rule injection into prompts).
-
-    Called at: Run start, to ensure any manually documented fixes are available as rules.
-
-    Args:
-        project_id: Project ID (e.g., "file-organizer-app-v1" or "Autopack")
-
-    Returns:
-        Number of new rules synced from debug history
-    """
-    from autopack.journal_reader import get_prevention_rules
-
-    # Get prevention rules from CONSOLIDATED_DEBUG.md
-    prevention_rules = get_prevention_rules(project_id)
-    if not prevention_rules:
-        return 0
-
-    # Load existing learned rules
-    existing_rules = load_project_learned_rules(project_id)
-    rules_dict = {r.rule_id: r for r in existing_rules}
-
-    synced_count = 0
-
-    for i, rule_text in enumerate(prevention_rules):
-        # Generate rule ID from rule text
-        rule_id = _generate_rule_id_from_text(rule_text, i)
-
-        if rule_id in rules_dict:
-            # Rule already exists, update last_seen
-            rules_dict[rule_id].last_seen = datetime.utcnow().isoformat()
-        else:
-            # Create new rule from prevention rule
-            new_rule = LearnedRule(
-                rule_id=rule_id,
-                task_category="debug_journal",  # Special category for debug-sourced rules
-                scope_pattern=None,  # Global
-                constraint=rule_text,
-                source_hint_ids=[f"debug_journal:{project_id}"],
-                promotion_count=10,  # High confidence since manually documented
-                first_seen=datetime.utcnow().isoformat(),
-                last_seen=datetime.utcnow().isoformat(),
-                status="active"
-            )
-            rules_dict[rule_id] = new_rule
-            synced_count += 1
-
-    # Save updated rules
-    if synced_count > 0 or existing_rules:
-        _save_project_learned_rules(project_id, list(rules_dict.values()))
-
-    return synced_count
-
-
-def _generate_rule_id_from_text(rule_text: str, index: int) -> str:
-    """Generate a stable rule ID from rule text"""
     import hashlib
-    # Create hash from rule text for stability
-    text_hash = hashlib.md5(rule_text.encode()).hexdigest()[:8]
-
-    # Try to extract meaningful prefix from rule text
+    
     rule_lower = rule_text.lower()
-    if "never" in rule_lower:
-        prefix = "never"
-    elif "always" in rule_lower:
-        prefix = "always"
-    elif "import" in rule_lower:
+    text_hash = hashlib.md5(rule_text.encode()).hexdigest()[:8]
+    
+    # Semantic prefix detection
+    if "import" in rule_lower or "module" in rule_lower:
         prefix = "import"
+    elif "type" in rule_lower or "hint" in rule_lower:
+        prefix = "typing"
     elif "test" in rule_lower:
-        prefix = "test"
-    elif "file" in rule_lower or "path" in rule_lower:
-        prefix = "file"
+        prefix = "testing"
     elif "api" in rule_lower or "key" in rule_lower:
         prefix = "api"
     elif "unicode" in rule_lower or "encoding" in rule_lower:
@@ -621,7 +727,7 @@ def _generate_rule_id_from_text(rule_text: str, index: int) -> str:
         prefix = "database"
     else:
         prefix = "rule"
-
+    
     return f"debug_journal.{prefix}_{text_hash}"
 
 

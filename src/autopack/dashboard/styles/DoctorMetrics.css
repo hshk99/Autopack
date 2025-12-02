@@ -1,0 +1,102 @@
+.doctor-metrics {
+  padding: 20px;
+  background: #ffffff;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.doctor-metrics h2 {
+  margin: 0 0 20px 0;
+  font-size: 24px;
+  color: #333;
+}
+
+.doctor-metrics.loading,
+.doctor-metrics.error {
+  padding: 40px;
+  text-align: center;
+  color: #666;
+}
+
+.doctor-metrics.error {
+  color: #d32f2f;
+}
+
+.metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.metric-card {
+  padding: 16px;
+  background: #f5f5f5;
+  border-radius: 6px;
+  border-left: 4px solid #1976d2;
+}
+
+.metric-card h3 {
+  margin: 0 0 12px 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: #666;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.metric-value {
+  font-size: 32px;
+  font-weight: 700;
+  color: #1976d2;
+  line-height: 1;
+}
+
+.metric-subtitle {
+  margin-top: 8px;
+  font-size: 14px;
+  color: #666;
+}
+
+.metric-breakdown {
+  font-size: 16px;
+  color: #333;
+}
+
+.metric-breakdown div {
+  margin: 4px 0;
+}
+
+.action-distribution {
+  margin-top: 24px;
+}
+
+.action-distribution h3 {
+  margin: 0 0 16px 0;
+  font-size: 18px;
+  color: #333;
+}
+
+.action-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.action-item {
+  display: flex;
+  justify-content: space-between;
+  padding: 12px;
+  background: #f5f5f5;
+  border-radius: 4px;
+}
+
+.action-name {
+  font-weight: 500;
+  color: #333;
+}
+
+.action-count {
+  font-weight: 700;
+  color: #1976d2;
+}

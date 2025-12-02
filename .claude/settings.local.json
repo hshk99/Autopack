@@ -12,7 +12,8 @@
       "Bash(then PYTHONPATH=src venv/Scripts/pytest.exe tests/ -v --tb=line --ignore=tests/backend)",
       "Bash(else PYTHONPATH=src python -m pytest tests/ -v --tb=line --ignore=tests/backend)",
       "Bash(PYTHONPATH=src C:/Python/Scripts/pytest.exe:*)",
-      "Bash(git fetch:*)"
+      "Bash(git fetch:*)",
+      "Bash(PYTHONPATH=src python:*)"
     ],
     "deny": [],
     "ask": []

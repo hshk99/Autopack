@@ -209,6 +209,19 @@ class AutonomousExecutor:
         # Initialize quality gate (will be set in _init_infrastructure)
         self.quality_gate = None
 
+        # NEW: Load BuilderOutputConfig once (per IMPLEMENTATION_PLAN2.md Phase 2.1)
+        from autopack.builder_config import BuilderOutputConfig
+        config_path = Path(__file__).parent.parent.parent / "config" / "models.yaml"
+        self.builder_output_config = BuilderOutputConfig.from_yaml(config_path)
+        logger.info(
+            f"Loaded BuilderOutputConfig: max_lines_for_full_file={self.builder_output_config.max_lines_for_full_file}, "
+            f"max_lines_hard_limit={self.builder_output_config.max_lines_hard_limit}"
+        )
+        
+        # NEW: Initialize FileSizeTelemetry (per IMPLEMENTATION_PLAN2.md Phase 2.1)
+        from autopack.file_size_telemetry import FileSizeTelemetry
+        self.file_size_telemetry = FileSizeTelemetry(Path(self.workspace))
+
         logger.info(f"Initialized autonomous executor for run: {run_id}")
         logger.info(f"API URL: {api_url}")
         logger.info(f"Workspace: {workspace}")
@@ -1825,6 +1838,85 @@ Just the new description that should replace the original.
             file_context = self._load_repository_context(phase)
             logger.info(f"[{phase_id}] Loaded {len(file_context.get('existing_files', {}))} files for context")
 
+            # ============================================================================
+            # NEW: Pre-flight file size validation (per IMPLEMENTATION_PLAN2.md Phase 2.1)
+            # This is the PRIMARY fix for the truncation bug - prevents LLM from seeing
+            # files >1000 lines in full-file mode
+            # ============================================================================
+            use_full_file_mode = True  # Default mode
+            
+            if file_context:
+                config = self.builder_output_config
+                files = file_context.get("existing_files", {})
+                
+                # Check for files that are too large for full-file mode
+                too_large = []      # Bucket C: >1000 lines - read-only context
+                needs_diff_mode = []  # Bucket B: 500-1000 lines - needs diff mode
+                
+                for file_path, content in files.items():
+                    if not isinstance(content, str):
+                        continue
+                    line_count = content.count('\n') + 1
+                    
+                    # Bucket C: >1000 lines - mark as read-only context
+                    if line_count > config.max_lines_hard_limit:
+                        too_large.append((file_path, line_count))
+                    # Bucket B: 500-1000 lines - needs diff mode
+                    elif line_count > config.max_lines_for_full_file:
+                        needs_diff_mode.append((file_path, line_count))
+                
+                # For files >1000 lines (Bucket C): Mark as read-only context
+                # These files can be READ but NOT modified
+                if too_large:
+                    logger.warning(
+                        f"[{phase_id}] Large files in context (read-only): "
+                        f"{', '.join(p for p, _ in too_large)}"
+                    )
+                    # Record telemetry for each large file
+                    for file_path, line_count in too_large:
+                        self.file_size_telemetry.record_preflight_reject(
+                            run_id=self.run_id,
+                            phase_id=phase_id,
+                            file_path=file_path,
+                            line_count=line_count,
+                            limit=config.max_lines_hard_limit,
+                            bucket="C"
+                        )
+                    # Don't fail - these files can be read-only context
+                    # Parser will enforce that LLM doesn't try to modify them
+                
+                # For 500-1000 line files (Bucket B), switch to diff mode if enabled
+                if needs_diff_mode:
+                    if config.legacy_diff_fallback_enabled:
+                        logger.warning(
+                            f"[{phase_id}] Switching to diff mode for medium files: "
+                            f"{', '.join(p for p, _ in needs_diff_mode)}"
+                        )
+                        
+                        # Record telemetry
+                        self.file_size_telemetry.record_bucket_switch(
+                            run_id=self.run_id,
+                            phase_id=phase_id,
+                            files=needs_diff_mode
+                        )
+                        
+                        use_full_file_mode = False  # Switch to diff mode for this phase
+                    else:
+                        # If diff mode disabled, treat as read-only (same as Bucket C)
+                        logger.warning(
+                            f"[{phase_id}] Medium files marked as read-only (diff mode disabled): "
+                            f"{', '.join(p for p, _ in needs_diff_mode)}"
+                        )
+                        for file_path, line_count in needs_diff_mode:
+                            self.file_size_telemetry.record_preflight_reject(
+                                run_id=self.run_id,
+                                phase_id=phase_id,
+                                file_path=file_path,
+                                line_count=line_count,
+                                limit=config.max_lines_for_full_file,
+                                bucket="B"
+                            )
+
             # Load learning context (Stage 0A hints + Stage 0B rules)
             learning_context = self._get_learning_context_for_phase(phase)
             project_rules = learning_context.get("project_rules", [])
@@ -1844,6 +1936,8 @@ Just the new description that should replace the original.
                 phase_id=phase_id,
                 run_context={},  # TODO: Pass model_overrides if specified in run config
                 attempt_index=attempt_index,  # Pass attempt for model escalation
+                use_full_file_mode=use_full_file_mode,  # NEW: Pass mode from pre-flight check
+                config=self.builder_output_config,  # NEW: Pass config for consistency
             )
 
             if not builder_result.success:
@@ -2403,6 +2497,22 @@ Just the new description that should replace the original.
                     error_msg = "Syntax error during test collection"
                 elif "no tests ran" in output.lower():
                     error_msg = "No tests ran - check test discovery configuration"
+                
+                # GPT_RESPONSE12 Q2: Write full CI output to log file for diagnosis
+                ci_log_dir = Path(self.workspace) / ".autonomous_runs" / self.run_id / "ci"
+                ci_log_dir.mkdir(parents=True, exist_ok=True)
+                ci_log_path = ci_log_dir / f"pytest_{phase_id}.log"
+                try:
+                    full_output = result.stdout + "\n\n--- STDERR ---\n\n" + result.stderr
+                    ci_log_path.write_text(full_output, encoding='utf-8')
+                    logger.info(f"[{phase_id}] CI output written to: {ci_log_path}")
+                except Exception as log_err:
+                    logger.warning(f"[{phase_id}] Failed to write CI log: {log_err}")
+                
+                # Log last 20 lines at WARNING for quick diagnosis
+                all_lines = (result.stdout + result.stderr).strip().split('\n')
+                last_lines = all_lines[-20:] if len(all_lines) > 20 else all_lines
+                logger.warning(f"[{phase_id}] CI failure - last 20 lines:\n" + '\n'.join(last_lines))
 
             elif no_tests_detected and passed:
                 # Pytest "passed" but found no tests - this is suspicious

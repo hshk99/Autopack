@@ -10,7 +10,12 @@ zhipu:
     input_per_1k: 0.0007    # $0.70 per 1M tokens (50 RMB/1M tokens)
     output_per_1k: 0.0007   # $0.70 per 1M tokens (50 RMB/1M tokens)
 
-  # GLM-4.6 model ID
+  # GLM-4.6 model ID (primary)
+  "glm-4.6":
+    input_per_1k: 0.0007    # $0.70 per 1M tokens
+    output_per_1k: 0.0007   # $0.70 per 1M tokens
+
+  # GLM-4.6 model ID (dated version alias)
   "glm-4.6-20250101":
     input_per_1k: 0.0007    # $0.70 per 1M tokens
     output_per_1k: 0.0007   # $0.70 per 1M tokens

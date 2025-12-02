@@ -1,0 +1,1649 @@
+[2025-12-02 02:23:40] INFO: Applying pre-emptive encoding fix...
+[2025-12-02 02:23:40] INFO: [Recovery] Fixing Unicode encoding error...
+[2025-12-02 02:23:40] INFO: [Recovery] SUCCESS: Encoding fixed (UTF-8 enabled)
+[2025-12-02 02:23:40] INFO: Database tables initialized
+[2025-12-02 02:23:40] INFO: Initialized autonomous executor for run: phase3-delegated-20251202-022323
+[2025-12-02 02:23:40] INFO: API URL: http://localhost:8000
+[2025-12-02 02:23:40] INFO: Workspace: .
+[2025-12-02 02:23:40] INFO: Running proactive startup checks from DEBUG_JOURNAL.md...
+[2025-12-02 02:23:40] INFO: [HIGH] Checking: Windows Unicode Fix (PYTHONUTF8)
+[2025-12-02 02:23:40] INFO:   Reason: Prevents UnicodeEncodeError with emoji characters in logs (Issue #3)
+[2025-12-02 02:23:40] INFO:   Check PASSED
+[2025-12-02 02:23:40] INFO: Startup checks complete
+[2025-12-02 02:23:45] INFO: HTTP Request: POST https://open.bigmodel.cn/api/paas/v4/chat/completions "HTTP/1.1 400 Bad Request"
+[2025-12-02 02:23:47] INFO: HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-12-02 02:23:48] INFO: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+[2025-12-02 02:23:50] INFO: [HealthCheck:T0] t0_api_keys: PASSED (0ms) - LLM keys present: GLM=True, OpenAI=True, Anthropic=True, Gemini=True
+[2025-12-02 02:23:50] INFO: [HealthCheck:T0] t0_database: PASSED (0ms) - DB URL configured: 'postgresql://autopack:autopack@localhost:5432/autopack'
+[2025-12-02 02:23:50] INFO: [HealthCheck:T0] t0_workspace: FAILED (0ms) - Workspace path does not exist: C:\Program Files\Git\workspace
+[2025-12-02 02:23:50] INFO: [HealthCheck:T0] t0_config_files: PASSED (0ms) - Core config files present (config/models.yaml, config/pricing.yaml).
+[2025-12-02 02:23:50] INFO: [HealthCheck:T0] t0_provider_connectivity: FAILED (9380ms) - GLM connectivity error: Error code: 400 - {'error': {'code': '1211', 'message': '模型不存在，请检查模型代码。'}}
+[2025-12-02 02:23:50] INFO: Loading learning context for project: autopack
+[2025-12-02 02:23:50] INFO:   Loaded 8 persistent project rules
+[2025-12-02 02:23:50] INFO:     - Phase 'Config Loading from models.yaml' generated ...
+[2025-12-02 02:23:50] INFO:     - Phase 'Doctor Unit Tests' was rejected by auditor ...
+[2025-12-02 02:23:50] INFO:     - Phase 'Branch-Based Rollback' was rejected by audi...
+[2025-12-02 02:23:50] INFO: Learning context loaded successfully
+[2025-12-02 02:23:50] INFO: Starting autonomous execution loop...
+[2025-12-02 02:23:50] INFO: Poll interval: 10s
+[2025-12-02 02:23:50] INFO: Initializing infrastructure...
+[2025-12-02 02:23:55] INFO: LlmService: Initialized with ModelRouter and UsageRecorder
+[2025-12-02 02:23:55] INFO: Quality Gate: Initialized
+[2025-12-02 02:23:55] INFO: Iteration 1: Fetching run status...
+[2025-12-02 02:23:55] INFO: Next phase: phase3-config-loading
+[2025-12-02 02:23:55] INFO: Executing phase: phase3-config-loading
+[2025-12-02 02:23:55] INFO: [phase3-config-loading] Attempt 1/5 (model escalation enabled)
+[2025-12-02 02:23:55] INFO: [phase3-config-loading] Step 1/4: Generating code with Builder (via LlmService)...
+[2025-12-02 02:23:55] INFO: [Context] Loaded 4 recently modified files for fresh context
+[2025-12-02 02:23:55] INFO: [Context] Total: 10 files loaded for Builder context (modified=4, mentioned=0)
+[2025-12-02 02:23:55] INFO: [phase3-config-loading] Loaded 10 files for context
+[2025-12-02 02:23:55] INFO: [phase3-config-loading] Learning context: 6 rules, 0 hints
+[2025-12-02 02:23:55] INFO: [ModelSelector] Selected glm-4.6 for builder (complexity=low, attempt=0, intra_tier=0)
+[2025-12-02 02:23:56] INFO: [MODEL-SELECT] Builder: model=glm-4.6, complexity=low->low, attempt=0, category=backend
+[2025-12-02 02:24:18] INFO: HTTP Request: POST https://open.bigmodel.cn/api/paas/v4/chat/completions "HTTP/1.1 200 OK"
+[2025-12-02 02:24:18] INFO: [phase3-config-loading] Builder succeeded (21220 tokens)
+[2025-12-02 02:24:18] INFO: [Isolation] autopack_internal_mode enabled - unlocking src/autopack/ for maintenance
+[2025-12-02 02:24:18] WARNING: Failed to post builder result: 500 Server Error: Internal Server Error for url: http://localhost:8000/runs/phase3-delegated-20251202-022323/phases/phase3-config-loading/builder_result
+[2025-12-02 02:24:18] INFO: [ARCHIVE_CONSOLIDATOR] Logged new error: API failure: POST builder_result
+[2025-12-02 02:24:18] INFO: [phase3-config-loading] Step 2/5: Applying patch...
+[2025-12-02 02:24:18] INFO: [Isolation] autopack_internal_mode enabled - unlocking src/autopack/ for maintenance
+[2025-12-02 02:24:19] INFO: Writing patch to temp_patch.diff
+[2025-12-02 02:24:19] INFO: Checking if patch can be applied (dry run)...
+[2025-12-02 02:24:19] WARNING: Strict patch check failed: error: corrupt patch at line 160
+[2025-12-02 02:24:19] INFO: Retrying with lenient mode (--ignore-whitespace -C1)...
+[2025-12-02 02:24:19] WARNING: Lenient mode also failed: error: corrupt patch at line 160
+[2025-12-02 02:24:19] INFO: Retrying with 3-way merge mode (-3)...
+[2025-12-02 02:24:19] WARNING: All git apply modes failed, attempting direct file write fallback...
+[2025-12-02 02:24:19] INFO: Directly wrote file: src/autopack/error_recovery.py
+[2025-12-02 02:24:19] INFO: Direct file write succeeded - 1 files written
+[2025-12-02 02:24:19] INFO:   - src/autopack/error_recovery.py
+[2025-12-02 02:24:19] ERROR: [Validation] CORRUPTED: src/autopack/error_recovery.py - Line 107: unterminated triple-quoted string literal (detected at line 148)
+[2025-12-02 02:24:19] ERROR: [Validation] 1 files corrupted after patch application
+[2025-12-02 02:24:19] ERROR: [Integrity] Direct write corrupted 1 files - restoring
+[2025-12-02 02:24:19] INFO: [Integrity] Removed corrupted new file: src/autopack/error_recovery.py
+[2025-12-02 02:24:19] ERROR: [phase3-config-loading] Failed to apply patch to filesystem: Direct file write corrupted 1 files (restored 1)
+[2025-12-02 02:24:19] INFO: Updated phase phase3-config-loading status to FAILED
+[2025-12-02 02:24:19] WARNING: [phase3-config-loading] Attempt 1 failed, escalating model for retry...
+[2025-12-02 02:24:19] INFO: [phase3-config-loading] Attempt 2/5 (model escalation enabled)
+[2025-12-02 02:24:19] INFO: [phase3-config-loading] Step 1/4: Generating code with Builder (via LlmService)...
+[2025-12-02 02:24:19] INFO: [Context] Loaded 4 recently modified files for fresh context
+[2025-12-02 02:24:19] INFO: [Context] Total: 10 files loaded for Builder context (modified=4, mentioned=0)
+[2025-12-02 02:24:19] INFO: [phase3-config-loading] Loaded 10 files for context
+[2025-12-02 02:24:19] INFO: [phase3-config-loading] Learning context: 6 rules, 0 hints
+[2025-12-02 02:24:19] INFO: [ModelSelector] Selected claude-sonnet-4-5 for builder (complexity=low, attempt=1, intra_tier=1)
+[2025-12-02 02:24:19] INFO: [MODEL-SELECT] Builder: model=claude-sonnet-4-5, complexity=low->low, attempt=1, category=backend
+[2025-12-02 02:24:19] INFO: [DEBUG] file_context type: <class 'dict'>
+[2025-12-02 02:24:19] INFO: [DEBUG] file_context keys: ['existing_files']
+[2025-12-02 02:24:19] INFO: [DEBUG] files type: <class 'dict'>
+[2025-12-02 02:24:19] INFO: [DEBUG] files keys (first 3): ['config\\models.yaml', 'config\\pricing.yaml', 'last_patch_debug.diff']
+[2025-12-02 02:24:19] INFO: [DEBUG] Processing file: config\models.yaml
+[2025-12-02 02:24:19] INFO: [DEBUG]   content type: <class 'str'>
+[2025-12-02 02:24:19] INFO: [DEBUG]   content preview: complexity_models:
+  low:
+    # Default cheap tier: GLM-4.6 (Zhipu AI)
+    builder: glm-4.6
+    audi
+[2025-12-02 02:24:19] INFO: [DEBUG] Processing file: config\pricing.yaml
+[2025-12-02 02:24:19] INFO: [DEBUG]   content type: <class 'str'>
+[2025-12-02 02:24:19] INFO: [DEBUG]   content preview: # LLM Pricing Configuration
+# Updated: 2025-12-01
+# Prices in USD per 1,000 tokens
+
+# GLM (Zhipu AI)
+[2025-12-02 02:24:19] INFO: [DEBUG] Processing file: last_patch_debug.diff
+[2025-12-02 02:24:19] INFO: [DEBUG]   content type: <class 'str'>
+[2025-12-02 02:24:19] INFO: [DEBUG]   content preview: diff --git a/src/autopack/error_recovery.py b/src/autopack/error_recovery.py
+new file mode 100644
+in
+[2025-12-02 02:24:19] INFO: [DEBUG] Processing file: logs\autopack\model_selections_20251201.jsonl
+[2025-12-02 02:24:19] INFO: [DEBUG]   content type: <class 'str'>
+[2025-12-02 02:24:19] INFO: [DEBUG]   content preview: {"timestamp": "2025-12-01T09:36:28.082445", "phase_id": "phase3-config-loading", "role": "builder", 
+[2025-12-02 02:24:19] INFO: [DEBUG] Processing file: package.json
+[2025-12-02 02:24:19] INFO: [DEBUG]   content type: <class 'str'>
+[2025-12-02 02:24:19] INFO: [DEBUG]   content preview: {
+  "name": "autopack-frontend",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scr
+[2025-12-02 02:24:22] INFO: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+[2025-12-02 02:24:44] INFO: [phase3-config-loading] Builder succeeded (4170 tokens)
+[2025-12-02 02:24:44] INFO: [Isolation] autopack_internal_mode enabled - unlocking src/autopack/ for maintenance
+[2025-12-02 02:24:44] WARNING: Failed to post builder result: 500 Server Error: Internal Server Error for url: http://localhost:8000/runs/phase3-delegated-20251202-022323/phases/phase3-config-loading/builder_result
+[2025-12-02 02:24:44] INFO: [ARCHIVE_CONSOLIDATOR] Logged new error: API failure: POST builder_result
+[2025-12-02 02:24:44] INFO: [phase3-config-loading] Step 2/5: Applying patch...
+[2025-12-02 02:24:44] INFO: [Isolation] autopack_internal_mode enabled - unlocking src/autopack/ for maintenance
+[2025-12-02 02:24:44] INFO: Writing patch to temp_patch.diff
+[2025-12-02 02:24:44] INFO: Checking if patch can be applied (dry run)...
+[2025-12-02 02:24:44] INFO: Applying patch to filesystem...
+[2025-12-02 02:24:44] INFO: Patch applied successfully - 1 files modified
+[2025-12-02 02:24:44] INFO:   - src/autopack/error_recovery.py
+[2025-12-02 02:24:44] INFO: [Validation] All 1 modified files validated successfully
+[2025-12-02 02:24:44] INFO: [phase3-config-loading] Patch applied successfully to filesystem
+[2025-12-02 02:24:44] INFO: [phase3-config-loading] Step 3/5: Running CI checks...
+[2025-12-02 02:24:44] INFO: [phase3-config-loading] Running CI checks (pytest)...
+[2025-12-02 02:24:48] WARNING: [phase3-config-loading] CI detected possible collection error - pytest failed (code 4) but no test counts found
+[2025-12-02 02:24:48] WARNING: [phase3-config-loading] CI checks FAILED: 0/0 passed, 0 failed, 0 errors
+[2025-12-02 02:24:48] INFO: [phase3-config-loading] Step 4/5: Reviewing patch with Auditor (via LlmService)...
+[2025-12-02 02:24:48] INFO: [ModelSelector] Selected claude-sonnet-4-5 for auditor (complexity=low, attempt=1, intra_tier=1)
+[2025-12-02 02:24:48] INFO: [MODEL-SELECT] Auditor: model=claude-sonnet-4-5, complexity=low->low, attempt=1, category=backend
+[2025-12-02 02:24:48] INFO: [phase3-config-loading] Auditor completed: approved=False, issues=1
+[2025-12-02 02:24:48] INFO: [phase3-config-loading] Step 5/5: Applying Quality Gate...
+[2025-12-02 02:24:48] INFO: [phase3-config-loading] Quality Gate: needs_review
+[2025-12-02 02:24:48] INFO: Updated phase phase3-config-loading status to COMPLETE
+[2025-12-02 02:24:48] INFO: [phase3-config-loading] Phase completed successfully
+[2025-12-02 02:24:48] WARNING: File not found: C:\dev\Autopack\.autonomous_runs\autopack\archive\CONSOLIDATED_BUILD.md
+[2025-12-02 02:24:48] INFO: [ARCHIVE_CONSOLIDATOR] Logged build event: PHASE_COMPLETE
+[2025-12-02 02:24:48] INFO: Phase phase3-config-loading completed successfully
+[2025-12-02 02:24:48] INFO: Waiting 10s before next phase...
+[2025-12-02 02:24:58] INFO: Iteration 2: Fetching run status...
+[2025-12-02 02:24:58] INFO: Next phase: phase3-doctor-tests
+[2025-12-02 02:24:58] INFO: Executing phase: phase3-doctor-tests
+[2025-12-02 02:24:58] INFO: [phase3-doctor-tests] Attempt 1/5 (model escalation enabled)
+[2025-12-02 02:24:58] INFO: [phase3-doctor-tests] Step 1/4: Generating code with Builder (via LlmService)...
+[2025-12-02 02:24:58] INFO: [Context] Loaded 4 recently modified files for fresh context
+[2025-12-02 02:24:58] INFO: [Context] Total: 10 files loaded for Builder context (modified=4, mentioned=0)
+[2025-12-02 02:24:58] INFO: [phase3-doctor-tests] Loaded 10 files for context
+[2025-12-02 02:24:58] INFO: [phase3-doctor-tests] Learning context: 2 rules, 0 hints
+[2025-12-02 02:24:58] INFO: [MODEL-SELECT] Builder: model=glm-4.6, complexity=low->low, attempt=0, category=tests
+[2025-12-02 02:24:58] INFO: [MODEL] Builder using glm-4.6 due to: routing_policy:tests
+[2025-12-02 02:26:48] INFO: HTTP Request: POST https://open.bigmodel.cn/api/paas/v4/chat/completions "HTTP/1.1 200 OK"
+[2025-12-02 02:26:48] INFO: [phase3-doctor-tests] Builder succeeded (20492 tokens)
+[2025-12-02 02:26:48] INFO: [Isolation] autopack_internal_mode enabled - unlocking src/autopack/ for maintenance
+[2025-12-02 02:26:48] INFO: [phase3-doctor-tests] Step 2/5: Applying patch...
+[2025-12-02 02:26:48] INFO: [Isolation] autopack_internal_mode enabled - unlocking src/autopack/ for maintenance
+[2025-12-02 02:26:48] INFO: Removing existing file for new file patch: tests/test_doctor_routing.py
+[2025-12-02 02:26:48] INFO: Writing patch to temp_patch.diff
+[2025-12-02 02:26:48] INFO: Checking if patch can be applied (dry run)...
+[2025-12-02 02:26:48] WARNING: Strict patch check failed: error: corrupt patch at line 157
+[2025-12-02 02:26:48] INFO: Retrying with lenient mode (--ignore-whitespace -C1)...
+[2025-12-02 02:26:48] WARNING: Lenient mode also failed: error: corrupt patch at line 157
+[2025-12-02 02:26:48] INFO: Retrying with 3-way merge mode (-3)...
+[2025-12-02 02:26:48] WARNING: All git apply modes failed, attempting direct file write fallback...
+[2025-12-02 02:26:48] INFO: Directly wrote file: tests/test_doctor_routing.py
+[2025-12-02 02:26:48] INFO: Direct file write succeeded - 1 files written
+[2025-12-02 02:26:48] INFO:   - tests/test_doctor_routing.py
+[2025-12-02 02:26:48] INFO: [Validation] All 1 modified files validated successfully
+[2025-12-02 02:26:48] INFO: [phase3-doctor-tests] Patch applied successfully to filesystem
+[2025-12-02 02:26:48] INFO: [phase3-doctor-tests] Step 3/5: Running CI checks...
+[2025-12-02 02:26:48] INFO: [phase3-doctor-tests] Running CI checks (pytest)...
+[2025-12-02 02:26:52] WARNING: [phase3-doctor-tests] CI detected possible collection error - pytest failed (code 4) but no test counts found
+[2025-12-02 02:26:52] WARNING: [phase3-doctor-tests] CI checks FAILED: 0/0 passed, 0 failed, 0 errors
+[2025-12-02 02:26:52] INFO: [phase3-doctor-tests] Step 4/5: Reviewing patch with Auditor (via LlmService)...
+[2025-12-02 02:26:52] INFO: [MODEL-SELECT] Auditor: model=claude-sonnet-4-5, complexity=low->low, attempt=0, category=tests
+[2025-12-02 02:26:52] INFO: [MODEL] Auditor using claude-sonnet-4-5 due to: routing_policy:tests
+[2025-12-02 02:26:52] INFO: [phase3-doctor-tests] Auditor completed: approved=False, issues=1
+[2025-12-02 02:26:52] INFO: [phase3-doctor-tests] Step 5/5: Applying Quality Gate...
+[2025-12-02 02:26:52] INFO: [phase3-doctor-tests] Quality Gate: needs_review
+[2025-12-02 02:26:52] INFO: Updated phase phase3-doctor-tests status to COMPLETE
+[2025-12-02 02:26:52] INFO: [phase3-doctor-tests] Phase completed successfully
+[2025-12-02 02:26:52] WARNING: File not found: C:\dev\Autopack\.autonomous_runs\autopack\archive\CONSOLIDATED_BUILD.md
+[2025-12-02 02:26:52] INFO: [ARCHIVE_CONSOLIDATOR] Logged build event: PHASE_COMPLETE
+[2025-12-02 02:26:52] INFO: Phase phase3-doctor-tests completed successfully
+[2025-12-02 02:26:52] INFO: Waiting 10s before next phase...
+[2025-12-02 02:27:02] INFO: Iteration 3: Fetching run status...
+[2025-12-02 02:27:02] INFO: Next phase: phase3-branch-rollback
+[2025-12-02 02:27:02] INFO: Executing phase: phase3-branch-rollback
+[2025-12-02 02:27:02] INFO: [phase3-branch-rollback] Attempt 1/5 (model escalation enabled)
+[2025-12-02 02:27:02] INFO: [phase3-branch-rollback] Step 1/4: Generating code with Builder (via LlmService)...
+[2025-12-02 02:27:02] INFO: [Context] Loaded 4 recently modified files for fresh context
+[2025-12-02 02:27:02] INFO: [Context] Total: 10 files loaded for Builder context (modified=4, mentioned=0)
+[2025-12-02 02:27:02] INFO: [phase3-branch-rollback] Loaded 10 files for context
+[2025-12-02 02:27:02] INFO: [phase3-branch-rollback] Learning context: 6 rules, 0 hints
+[2025-12-02 02:27:02] INFO: [ModelSelector] Selected claude-sonnet-4-5 for builder (complexity=medium, attempt=0, intra_tier=0)
+[2025-12-02 02:27:02] INFO: [MODEL-SELECT] Builder: model=claude-sonnet-4-5, complexity=medium->medium, attempt=0, category=backend
+[2025-12-02 02:27:02] INFO: [DEBUG] file_context type: <class 'dict'>
+[2025-12-02 02:27:02] INFO: [DEBUG] file_context keys: ['existing_files']
+[2025-12-02 02:27:02] INFO: [DEBUG] files type: <class 'dict'>
+[2025-12-02 02:27:02] INFO: [DEBUG] files keys (first 3): ['config\\models.yaml', 'config\\pricing.yaml', 'last_patch_debug.diff']
+[2025-12-02 02:27:02] INFO: [DEBUG] Processing file: config\models.yaml
+[2025-12-02 02:27:02] INFO: [DEBUG]   content type: <class 'str'>
+[2025-12-02 02:27:02] INFO: [DEBUG]   content preview: complexity_models:
+  low:
+    # Default cheap tier: GLM-4.6 (Zhipu AI)
+    builder: glm-4.6
+    audi
+[2025-12-02 02:27:02] INFO: [DEBUG] Processing file: config\pricing.yaml
+[2025-12-02 02:27:02] INFO: [DEBUG]   content type: <class 'str'>
+[2025-12-02 02:27:02] INFO: [DEBUG]   content preview: # LLM Pricing Configuration
+# Updated: 2025-12-01
+# Prices in USD per 1,000 tokens
+
+# GLM (Zhipu AI)
+[2025-12-02 02:27:02] INFO: [DEBUG] Processing file: last_patch_debug.diff
+[2025-12-02 02:27:02] INFO: [DEBUG]   content type: <class 'str'>
+[2025-12-02 02:27:02] INFO: [DEBUG]   content preview: diff --git a/tests/test_doctor_routing.py b/tests/test_doctor_routing.py
+new file mode 100644
+index 
+[2025-12-02 02:27:02] INFO: [DEBUG] Processing file: logs\autopack\model_selections_20251201.jsonl
+[2025-12-02 02:27:02] INFO: [DEBUG]   content type: <class 'str'>
+[2025-12-02 02:27:02] INFO: [DEBUG]   content preview: {"timestamp": "2025-12-01T09:36:28.082445", "phase_id": "phase3-config-loading", "role": "builder", 
+[2025-12-02 02:27:02] INFO: [DEBUG] Processing file: package.json
+[2025-12-02 02:27:02] INFO: [DEBUG]   content type: <class 'str'>
+[2025-12-02 02:27:02] INFO: [DEBUG]   content preview: {
+  "name": "autopack-frontend",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scr
+[2025-12-02 02:27:04] INFO: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+[2025-12-02 02:27:40] INFO: [phase3-branch-rollback] Builder succeeded (5080 tokens)
+[2025-12-02 02:27:40] INFO: [Isolation] autopack_internal_mode enabled - unlocking src/autopack/ for maintenance
+[2025-12-02 02:27:40] WARNING: Failed to post builder result: 500 Server Error: Internal Server Error for url: http://localhost:8000/runs/phase3-delegated-20251202-022323/phases/phase3-branch-rollback/builder_result
+[2025-12-02 02:27:40] INFO: [ARCHIVE_CONSOLIDATOR] Logged new error: API failure: POST builder_result
+[2025-12-02 02:27:40] INFO: [phase3-branch-rollback] Step 2/5: Applying patch...
+[2025-12-02 02:27:40] INFO: [Isolation] autopack_internal_mode enabled - unlocking src/autopack/ for maintenance
+[2025-12-02 02:27:40] INFO: Writing patch to temp_patch.diff
+[2025-12-02 02:27:40] INFO: Checking if patch can be applied (dry run)...
+[2025-12-02 02:27:40] WARNING: Strict patch check failed: error: patch fragment without header at line 211: @@ -1,5 +1,6 @@?
+[2025-12-02 02:27:40] INFO: Retrying with lenient mode (--ignore-whitespace -C1)...
+[2025-12-02 02:27:40] WARNING: Lenient mode also failed: error: patch fragment without header at line 211: @@ -1,5 +1,6 @@?
+[2025-12-02 02:27:40] INFO: Retrying with 3-way merge mode (-3)...
+[2025-12-02 02:27:40] WARNING: All git apply modes failed, attempting direct file write fallback...
+[2025-12-02 02:27:40] INFO: Directly wrote file: src/autopack/git_rollback.py
+[2025-12-02 02:27:40] WARNING: Skipping src/autopack/autonomous_executor.py - cannot apply partial patch to existing file via direct write
+[2025-12-02 02:27:40] INFO: Direct file write succeeded - 1 files written
+[2025-12-02 02:27:40] INFO:   - src/autopack/git_rollback.py
+[2025-12-02 02:27:40] INFO: [Validation] All 1 modified files validated successfully
+[2025-12-02 02:27:40] INFO: [phase3-branch-rollback] Patch applied successfully to filesystem
+[2025-12-02 02:27:40] INFO: [phase3-branch-rollback] Step 3/5: Running CI checks...
+[2025-12-02 02:27:40] INFO: [phase3-branch-rollback] Running CI checks (pytest)...
+[2025-12-02 02:27:43] WARNING: [phase3-branch-rollback] CI detected possible collection error - pytest failed (code 4) but no test counts found
+[2025-12-02 02:27:43] WARNING: [phase3-branch-rollback] CI checks FAILED: 0/0 passed, 0 failed, 0 errors
+[2025-12-02 02:27:43] INFO: [phase3-branch-rollback] Step 4/5: Reviewing patch with Auditor (via LlmService)...
+[2025-12-02 02:27:43] INFO: [ModelSelector] Selected claude-sonnet-4-5 for auditor (complexity=medium, attempt=0, intra_tier=0)
+[2025-12-02 02:27:43] INFO: [MODEL-SELECT] Auditor: model=claude-sonnet-4-5, complexity=medium->medium, attempt=0, category=backend
+[2025-12-02 02:27:43] INFO: [phase3-branch-rollback] Auditor completed: approved=False, issues=1
+[2025-12-02 02:27:43] INFO: [phase3-branch-rollback] Step 5/5: Applying Quality Gate...
+[2025-12-02 02:27:43] INFO: [phase3-branch-rollback] Quality Gate: needs_review
+[2025-12-02 02:27:43] INFO: Updated phase phase3-branch-rollback status to COMPLETE
+[2025-12-02 02:27:43] INFO: [phase3-branch-rollback] Phase completed successfully
+[2025-12-02 02:27:43] WARNING: File not found: C:\dev\Autopack\.autonomous_runs\autopack\archive\CONSOLIDATED_BUILD.md
+[2025-12-02 02:27:43] INFO: [ARCHIVE_CONSOLIDATOR] Logged build event: PHASE_COMPLETE
+[2025-12-02 02:27:43] INFO: Phase phase3-branch-rollback completed successfully
+[2025-12-02 02:27:43] INFO: Waiting 10s before next phase...
+[2025-12-02 02:27:53] INFO: Iteration 4: Fetching run status...
+[2025-12-02 02:27:53] INFO: Next phase: phase3-t0t1-checks
+[2025-12-02 02:27:53] INFO: Executing phase: phase3-t0t1-checks
+[2025-12-02 02:27:53] INFO: [phase3-t0t1-checks] Attempt 1/5 (model escalation enabled)
+[2025-12-02 02:27:53] INFO: [phase3-t0t1-checks] Step 1/4: Generating code with Builder (via LlmService)...
+[2025-12-02 02:27:53] INFO: [Context] Loaded 4 recently modified files for fresh context
+[2025-12-02 02:27:53] INFO: [Context] Total: 10 files loaded for Builder context (modified=4, mentioned=0)
+[2025-12-02 02:27:53] INFO: [phase3-t0t1-checks] Loaded 10 files for context
+[2025-12-02 02:27:53] INFO: [phase3-t0t1-checks] Learning context: 6 rules, 2 hints
+[2025-12-02 02:27:53] INFO: [ModelSelector] Selected claude-sonnet-4-5 for builder (complexity=medium, attempt=0, intra_tier=0)
+[2025-12-02 02:27:53] INFO: [MODEL-SELECT] Builder: model=claude-sonnet-4-5, complexity=medium->medium, attempt=0, category=backend
+[2025-12-02 02:27:53] INFO: [DEBUG] file_context type: <class 'dict'>
+[2025-12-02 02:27:53] INFO: [DEBUG] file_context keys: ['existing_files']
+[2025-12-02 02:27:53] INFO: [DEBUG] files type: <class 'dict'>
+[2025-12-02 02:27:53] INFO: [DEBUG] files keys (first 3): ['config\\models.yaml', 'config\\pricing.yaml', 'last_patch_debug.diff']
+[2025-12-02 02:27:53] INFO: [DEBUG] Processing file: config\models.yaml
+[2025-12-02 02:27:53] INFO: [DEBUG]   content type: <class 'str'>
+[2025-12-02 02:27:53] INFO: [DEBUG]   content preview: complexity_models:
+  low:
+    # Default cheap tier: GLM-4.6 (Zhipu AI)
+    builder: glm-4.6
+    audi
+[2025-12-02 02:27:53] INFO: [DEBUG] Processing file: config\pricing.yaml
+[2025-12-02 02:27:53] INFO: [DEBUG]   content type: <class 'str'>
+[2025-12-02 02:27:53] INFO: [DEBUG]   content preview: # LLM Pricing Configuration
+# Updated: 2025-12-01
+# Prices in USD per 1,000 tokens
+
+# GLM (Zhipu AI)
+[2025-12-02 02:27:53] INFO: [DEBUG] Processing file: last_patch_debug.diff
+[2025-12-02 02:27:53] INFO: [DEBUG]   content type: <class 'str'>
+[2025-12-02 02:27:53] INFO: [DEBUG]   content preview: diff --git a/src/autopack/git_rollback.py b/src/autopack/git_rollback.py
+new file mode 100644
+index 
+[2025-12-02 02:27:53] INFO: [DEBUG] Processing file: logs\autopack\model_selections_20251201.jsonl
+[2025-12-02 02:27:53] INFO: [DEBUG]   content type: <class 'str'>
+[2025-12-02 02:27:53] INFO: [DEBUG]   content preview: {"timestamp": "2025-12-01T09:36:28.082445", "phase_id": "phase3-config-loading", "role": "builder", 
+[2025-12-02 02:27:53] INFO: [DEBUG] Processing file: package.json
+[2025-12-02 02:27:53] INFO: [DEBUG]   content type: <class 'str'>
+[2025-12-02 02:27:53] INFO: [DEBUG]   content preview: {
+  "name": "autopack-frontend",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scr
+[2025-12-02 02:27:55] INFO: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+[2025-12-02 02:28:46] INFO: [phase3-t0t1-checks] Builder succeeded (6656 tokens)
+[2025-12-02 02:28:46] INFO: [Isolation] autopack_internal_mode enabled - unlocking src/autopack/ for maintenance
+[2025-12-02 02:28:46] WARNING: Failed to post builder result: 500 Server Error: Internal Server Error for url: http://localhost:8000/runs/phase3-delegated-20251202-022323/phases/phase3-t0t1-checks/builder_result
+[2025-12-02 02:28:46] INFO: [ARCHIVE_CONSOLIDATOR] Logged new error: API failure: POST builder_result
+[2025-12-02 02:28:46] INFO: [phase3-t0t1-checks] Step 2/5: Applying patch...
+[2025-12-02 02:28:46] INFO: [Isolation] autopack_internal_mode enabled - unlocking src/autopack/ for maintenance
+[2025-12-02 02:28:46] ERROR: Patch validation failed - LLM generated incomplete/truncated patch:
+  - Line 341 contains truncation/ellipsis '...': +    logger.info(f"Running {tier.upper()} health checks...")
+[2025-12-02 02:28:46] ERROR: Patch content:
+diff --git a/src/autopack/health_checks.py b/src/autopack/health_checks.py
+new file mode 100644
+index 0000000..0000000
+--- /dev/null
++++ b/src/autopack/health_checks.py
+@@ -0,0 +1,369 @@
++"""Health checks for autonomous build system.
++
++Provides T0 (quick) and T1 (comprehensive) health checks to validate
++system readiness before starting build runs.
++"""
++
++import logging
++import os
++import subprocess
++import time
++from dataclasses import dataclass
++from pathlib import Path
++from typing import L...
+[2025-12-02 02:28:46] ERROR: Exception during patch application: Patch validation failed - LLM generated incomplete/truncated patch:
+  - Line 341 contains truncation/ellipsis '...': +    logger.info(f"Running {tier.upper()} health checks...")
+[2025-12-02 02:28:46] ERROR: [phase3-t0t1-checks] Failed to apply patch to filesystem: Patch validation failed - LLM generated incomplete/truncated patch:
+  - Line 341 contains truncation/ellipsis '...': +    logger.info(f"Running {tier.upper()} health checks...")
+[2025-12-02 02:28:46] INFO: Updated phase phase3-t0t1-checks status to FAILED
+[2025-12-02 02:28:46] WARNING: [phase3-t0t1-checks] Attempt 1 failed, escalating model for retry...
+[2025-12-02 02:28:46] INFO: [phase3-t0t1-checks] Attempt 2/5 (model escalation enabled)
+[2025-12-02 02:28:46] INFO: [phase3-t0t1-checks] Step 1/4: Generating code with Builder (via LlmService)...
+[2025-12-02 02:28:46] INFO: [Context] Loaded 4 recently modified files for fresh context
+[2025-12-02 02:28:46] INFO: [Context] Total: 10 files loaded for Builder context (modified=4, mentioned=0)
+[2025-12-02 02:28:46] INFO: [phase3-t0t1-checks] Loaded 10 files for context
+[2025-12-02 02:28:46] INFO: [phase3-t0t1-checks] Learning context: 6 rules, 2 hints
+[2025-12-02 02:28:46] INFO: [ModelSelector] Selected claude-opus-4-5 for builder (complexity=medium, attempt=1, intra_tier=1)
+[2025-12-02 02:28:46] INFO: [MODEL-SELECT] Builder: model=claude-opus-4-5, complexity=medium->medium, attempt=1, category=backend
+[2025-12-02 02:28:46] INFO: [DEBUG] file_context type: <class 'dict'>
+[2025-12-02 02:28:46] INFO: [DEBUG] file_context keys: ['existing_files']
+[2025-12-02 02:28:46] INFO: [DEBUG] files type: <class 'dict'>
+[2025-12-02 02:28:46] INFO: [DEBUG] files keys (first 3): ['config\\models.yaml', 'config\\pricing.yaml', 'last_patch_debug.diff']
+[2025-12-02 02:28:46] INFO: [DEBUG] Processing file: config\models.yaml
+[2025-12-02 02:28:46] INFO: [DEBUG]   content type: <class 'str'>
+[2025-12-02 02:28:46] INFO: [DEBUG]   content preview: complexity_models:
+  low:
+    # Default cheap tier: GLM-4.6 (Zhipu AI)
+    builder: glm-4.6
+    audi
+[2025-12-02 02:28:46] INFO: [DEBUG] Processing file: config\pricing.yaml
+[2025-12-02 02:28:46] INFO: [DEBUG]   content type: <class 'str'>
+[2025-12-02 02:28:46] INFO: [DEBUG]   content preview: # LLM Pricing Configuration
+# Updated: 2025-12-01
+# Prices in USD per 1,000 tokens
+
+# GLM (Zhipu AI)
+[2025-12-02 02:28:46] INFO: [DEBUG] Processing file: last_patch_debug.diff
+[2025-12-02 02:28:46] INFO: [DEBUG]   content type: <class 'str'>
+[2025-12-02 02:28:46] INFO: [DEBUG]   content preview: diff --git a/src/autopack/git_rollback.py b/src/autopack/git_rollback.py
+new file mode 100644
+index 
+[2025-12-02 02:28:46] INFO: [DEBUG] Processing file: logs\autopack\model_selections_20251201.jsonl
+[2025-12-02 02:28:46] INFO: [DEBUG]   content type: <class 'str'>
+[2025-12-02 02:28:46] INFO: [DEBUG]   content preview: {"timestamp": "2025-12-01T09:36:28.082445", "phase_id": "phase3-config-loading", "role": "builder", 
+[2025-12-02 02:28:46] INFO: [DEBUG] Processing file: package.json
+[2025-12-02 02:28:46] INFO: [DEBUG]   content type: <class 'str'>
+[2025-12-02 02:28:46] INFO: [DEBUG]   content preview: {
+  "name": "autopack-frontend",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scr
+[2025-12-02 02:28:48] INFO: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+[2025-12-02 02:29:40] INFO: [phase3-t0t1-checks] Builder succeeded (7314 tokens)
+[2025-12-02 02:29:40] INFO: [Isolation] autopack_internal_mode enabled - unlocking src/autopack/ for maintenance
+[2025-12-02 02:29:40] ERROR: [phase3-t0t1-checks] Patch validation failed (422): Patch validation failed:
+  - [conflict_marker_in_patch] (line 67): Merge conflict marker '=======' found in patch content
+  - [conflict_marker_in_patch] (line 69): Merge conflict marker '=======' found in patch content
+  - [conflict_marker_in_patch] (line 198): Merge conflict marker '=======' found in patch content
+  - [conflict_marker_in_patch] (line 200): Merge conflict marker '=======' found in patch content
+[2025-12-02 02:29:40] INFO: [phase3-t0t1-checks] Phase 2.3: Validation errors indicate malformed patch - LLM should regenerate
+[2025-12-02 02:29:40] INFO: [ARCHIVE_CONSOLIDATOR] Logged new error: Patch validation failure (422)
+[2025-12-02 02:29:40] WARNING: Failed to post builder result: Patch validation failed: Patch validation failed:
+  - [conflict_marker_in_patch] (line 67): Merge conflict marker '=======' found in patch content
+  - [conflict_marker_in_patch] (line 69): Merge conflict marker '=======' found in patch content
+  - [conflict_marker_in_patch] (line 198): Merge conflict marker '=======' found in patch content
+  - [conflict_marker_in_patch] (line 200): Merge conflict marker '=======' found in patch content
+[2025-12-02 02:29:40] INFO: [ARCHIVE_CONSOLIDATOR] Logged new error: API failure: POST builder_result
+[2025-12-02 02:29:40] INFO: [phase3-t0t1-checks] Step 2/5: Applying patch...
+[2025-12-02 02:29:40] INFO: [Isolation] autopack_internal_mode enabled - unlocking src/autopack/ for maintenance
+[2025-12-02 02:29:40] ERROR: Patch validation failed - LLM generated incomplete/truncated patch:
+  - Line 373 contains truncation/ellipsis '...': +    logger.info("Running T0 health checks...")
+  - Line 382 contains truncation/ellipsis '...': +        logger.info("Running T1 health checks...")
+  - Line 460 contains truncation/ellipsis '...': +        logger.info(f"Running {self.health_check_tier.upper()} health checks at
+[2025-12-02 02:29:40] ERROR: Patch content:
+diff --git a/src/autopack/health_checks.py b/src/autopack/health_checks.py
+new file mode 100644
+index 0000000..0000000
+--- /dev/null
++++ b/src/autopack/health_checks.py
+@@ -0,0 +1,393 @@
++"""Comprehensive pre-run validation health checks.
++
++Provides T0 (quick, always run) and T1 (longer, configurable) health checks
++to validate system readiness before autonomous build runs.
++"""
++
++import logging
++import os
++import subprocess
++import time
++from dataclasses import dataclass
++from pathlib import ...
+[2025-12-02 02:29:40] ERROR: Exception during patch application: Patch validation failed - LLM generated incomplete/truncated patch:
+  - Line 373 contains truncation/ellipsis '...': +    logger.info("Running T0 health checks...")
+  - Line 382 contains truncation/ellipsis '...': +        logger.info("Running T1 health checks...")
+  - Line 460 contains truncation/ellipsis '...': +        logger.info(f"Running {self.health_check_tier.upper()} health checks at
+[2025-12-02 02:29:40] ERROR: [phase3-t0t1-checks] Failed to apply patch to filesystem: Patch validation failed - LLM generated incomplete/truncated patch:
+  - Line 373 contains truncation/ellipsis '...': +    logger.info("Running T0 health checks...")
+  - Line 382 contains truncation/ellipsis '...': +        logger.info("Running T1 health checks...")
+  - Line 460 contains truncation/ellipsis '...': +        logger.info(f"Running {self.health_check_tier.upper()} health checks at
+[2025-12-02 02:29:40] INFO: Updated phase phase3-t0t1-checks status to FAILED
+[2025-12-02 02:29:40] INFO: [Doctor] Routine failure detected -> using cheap model
+[2025-12-02 02:29:40] INFO: [Doctor] Invoking Doctor for phase=phase3-t0t1-checks, model=glm-4.6, builder_attempts=2, error_category=patch_apply_error
+[2025-12-02 02:29:43] INFO: HTTP Request: POST https://open.bigmodel.cn/api/paas/v4/chat/completions "HTTP/1.1 200 OK"
+[2025-12-02 02:29:43] INFO: [Doctor] Routine failure detected -> using cheap model
+[2025-12-02 02:29:43] INFO: [Doctor] Routine failure detected -> using cheap model
+[2025-12-02 02:29:43] INFO: [Doctor] Decision: phase_id=phase3-t0t1-checks, builder_attempts=2, health_ratio=0.12, error_category=patch_apply_error, model_chosen=glm-4.6, is_complex=True, doctor_action=replan, confidence=0.75, escalated=False
+[2025-12-02 02:29:43] INFO: [Doctor] Diagnosis complete: action=replan, confidence=0.75, phase_calls=1, run_calls=1
+[2025-12-02 02:29:43] INFO: [Doctor] Action: replan - triggering approach revision
+[2025-12-02 02:29:43] INFO: [Re-Plan] Revising approach for phase3-t0t1-checks due to doctor_replan:Multiple patch application failures (2 attempts) w
+[2025-12-02 02:30:08] INFO: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+[2025-12-02 02:30:08] INFO: [Re-Plan] Successfully revised phase phase3-t0t1-checks
+[2025-12-02 02:30:08] INFO: [Re-Plan] Original: Implement comprehensive pre-run validation.
+
+Tasks:
+1. Create src/autopack/health_checks.py with:
+
+T...
+[2025-12-02 02:30:08] INFO: [Re-Plan] Revised: **Phase**: T0/T1 Advanced Health Checks
+**Description**: Implement comprehensive pre-run validation ...
+[2025-12-02 02:30:08] WARNING: File not found: C:\dev\Autopack\.autonomous_runs\autopack\archive\CONSOLIDATED_BUILD.md
+[2025-12-02 02:30:08] INFO: [ARCHIVE_CONSOLIDATOR] Logged build event: PHASE_REPLANNED
+[2025-12-02 02:30:08] INFO: [Doctor] Replan successful, phase revised
+[2025-12-02 02:30:08] INFO: [phase3-t0t1-checks] Attempt 1/5 (model escalation enabled)
+[2025-12-02 02:30:08] INFO: [phase3-t0t1-checks] Step 1/4: Generating code with Builder (via LlmService)...
+[2025-12-02 02:30:08] INFO: [Context] Loaded 4 recently modified files for fresh context
+[2025-12-02 02:30:08] INFO: [Context] Total: 10 files loaded for Builder context (modified=4, mentioned=0)
+[2025-12-02 02:30:08] INFO: [phase3-t0t1-checks] Loaded 10 files for context
+[2025-12-02 02:30:08] INFO: [phase3-t0t1-checks] Learning context: 6 rules, 2 hints
+[2025-12-02 02:30:08] INFO: [ModelSelector] Selected claude-sonnet-4-5 for builder (complexity=medium, attempt=0, intra_tier=0)
+[2025-12-02 02:30:08] INFO: [MODEL-SELECT] Builder: model=claude-sonnet-4-5, complexity=medium->medium, attempt=0, category=backend
+[2025-12-02 02:30:08] INFO: [DEBUG] file_context type: <class 'dict'>
+[2025-12-02 02:30:08] INFO: [DEBUG] file_context keys: ['existing_files']
+[2025-12-02 02:30:08] INFO: [DEBUG] files type: <class 'dict'>
+[2025-12-02 02:30:08] INFO: [DEBUG] files keys (first 3): ['config\\models.yaml', 'config\\pricing.yaml', 'last_patch_debug.diff']
+[2025-12-02 02:30:08] INFO: [DEBUG] Processing file: config\models.yaml
+[2025-12-02 02:30:08] INFO: [DEBUG]   content type: <class 'str'>
+[2025-12-02 02:30:08] INFO: [DEBUG]   content preview: complexity_models:
+  low:
+    # Default cheap tier: GLM-4.6 (Zhipu AI)
+    builder: glm-4.6
+    audi
+[2025-12-02 02:30:08] INFO: [DEBUG] Processing file: config\pricing.yaml
+[2025-12-02 02:30:08] INFO: [DEBUG]   content type: <class 'str'>
+[2025-12-02 02:30:08] INFO: [DEBUG]   content preview: # LLM Pricing Configuration
+# Updated: 2025-12-01
+# Prices in USD per 1,000 tokens
+
+# GLM (Zhipu AI)
+[2025-12-02 02:30:08] INFO: [DEBUG] Processing file: last_patch_debug.diff
+[2025-12-02 02:30:08] INFO: [DEBUG]   content type: <class 'str'>
+[2025-12-02 02:30:08] INFO: [DEBUG]   content preview: diff --git a/src/autopack/git_rollback.py b/src/autopack/git_rollback.py
+new file mode 100644
+index 
+[2025-12-02 02:30:08] INFO: [DEBUG] Processing file: logs\autopack\model_selections_20251201.jsonl
+[2025-12-02 02:30:08] INFO: [DEBUG]   content type: <class 'str'>
+[2025-12-02 02:30:08] INFO: [DEBUG]   content preview: {"timestamp": "2025-12-01T09:36:28.082445", "phase_id": "phase3-config-loading", "role": "builder", 
+[2025-12-02 02:30:08] INFO: [DEBUG] Processing file: package.json
+[2025-12-02 02:30:08] INFO: [DEBUG]   content type: <class 'str'>
+[2025-12-02 02:30:08] INFO: [DEBUG]   content preview: {
+  "name": "autopack-frontend",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scr
+[2025-12-02 02:30:10] INFO: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+[2025-12-02 02:30:56] INFO: [phase3-t0t1-checks] Builder succeeded (6471 tokens)
+[2025-12-02 02:30:56] INFO: [Isolation] autopack_internal_mode enabled - unlocking src/autopack/ for maintenance
+[2025-12-02 02:30:56] WARNING: Failed to post builder result: 500 Server Error: Internal Server Error for url: http://localhost:8000/runs/phase3-delegated-20251202-022323/phases/phase3-t0t1-checks/builder_result
+[2025-12-02 02:30:56] INFO: [ARCHIVE_CONSOLIDATOR] Logged new error: API failure: POST builder_result
+[2025-12-02 02:30:56] INFO: [phase3-t0t1-checks] Step 2/5: Applying patch...
+[2025-12-02 02:30:56] INFO: [Isolation] autopack_internal_mode enabled - unlocking src/autopack/ for maintenance
+[2025-12-02 02:30:56] ERROR: Patch validation failed - LLM generated incomplete/truncated patch:
+  - Line 431 contains truncation/ellipsis '...': +        logger.info(f"Running {self.health_check_tier.upper()} health checks...
+[2025-12-02 02:30:56] ERROR: Patch content:
+diff --git a/src/autopack/health_checks.py b/src/autopack/health_checks.py
+new file mode 100644
+index 0000000..0000000
+--- /dev/null
++++ b/src/autopack/health_checks.py
+@@ -0,0 +1,374 @@
++"""Health checks for autonomous build system.
++
++Provides T0 (quick) and T1 (comprehensive) health checks to validate
++system readiness before starting a build run.
++"""
++
++import logging
++import os
++import subprocess
++import time
++from dataclasses import dataclass
++from pathlib import Path
++from typing import ...
+[2025-12-02 02:30:56] ERROR: Exception during patch application: Patch validation failed - LLM generated incomplete/truncated patch:
+  - Line 431 contains truncation/ellipsis '...': +        logger.info(f"Running {self.health_check_tier.upper()} health checks...
+[2025-12-02 02:30:56] ERROR: [phase3-t0t1-checks] Failed to apply patch to filesystem: Patch validation failed - LLM generated incomplete/truncated patch:
+  - Line 431 contains truncation/ellipsis '...': +        logger.info(f"Running {self.health_check_tier.upper()} health checks...
+[2025-12-02 02:30:56] INFO: Updated phase phase3-t0t1-checks status to FAILED
+[2025-12-02 02:30:56] INFO: [Re-Plan] Max replans (1) reached for phase3-t0t1-checks
+[2025-12-02 02:30:56] WARNING: [phase3-t0t1-checks] Attempt 1 failed, escalating model for retry...
+[2025-12-02 02:30:56] INFO: [phase3-t0t1-checks] Attempt 2/5 (model escalation enabled)
+[2025-12-02 02:30:56] INFO: [phase3-t0t1-checks] Step 1/4: Generating code with Builder (via LlmService)...
+[2025-12-02 02:30:57] INFO: [Context] Loaded 4 recently modified files for fresh context
+[2025-12-02 02:30:57] INFO: [Context] Total: 10 files loaded for Builder context (modified=4, mentioned=0)
+[2025-12-02 02:30:57] INFO: [phase3-t0t1-checks] Loaded 10 files for context
+[2025-12-02 02:30:57] INFO: [phase3-t0t1-checks] Learning context: 6 rules, 2 hints
+[2025-12-02 02:30:57] INFO: [ModelSelector] Selected claude-opus-4-5 for builder (complexity=medium, attempt=1, intra_tier=1)
+[2025-12-02 02:30:57] INFO: [MODEL-SELECT] Builder: model=claude-opus-4-5, complexity=medium->medium, attempt=1, category=backend
+[2025-12-02 02:30:57] INFO: [DEBUG] file_context type: <class 'dict'>
+[2025-12-02 02:30:57] INFO: [DEBUG] file_context keys: ['existing_files']
+[2025-12-02 02:30:57] INFO: [DEBUG] files type: <class 'dict'>
+[2025-12-02 02:30:57] INFO: [DEBUG] files keys (first 3): ['config\\models.yaml', 'config\\pricing.yaml', 'last_patch_debug.diff']
+[2025-12-02 02:30:57] INFO: [DEBUG] Processing file: config\models.yaml
+[2025-12-02 02:30:57] INFO: [DEBUG]   content type: <class 'str'>
+[2025-12-02 02:30:57] INFO: [DEBUG]   content preview: complexity_models:
+  low:
+    # Default cheap tier: GLM-4.6 (Zhipu AI)
+    builder: glm-4.6
+    audi
+[2025-12-02 02:30:57] INFO: [DEBUG] Processing file: config\pricing.yaml
+[2025-12-02 02:30:57] INFO: [DEBUG]   content type: <class 'str'>
+[2025-12-02 02:30:57] INFO: [DEBUG]   content preview: # LLM Pricing Configuration
+# Updated: 2025-12-01
+# Prices in USD per 1,000 tokens
+
+# GLM (Zhipu AI)
+[2025-12-02 02:30:57] INFO: [DEBUG] Processing file: last_patch_debug.diff
+[2025-12-02 02:30:57] INFO: [DEBUG]   content type: <class 'str'>
+[2025-12-02 02:30:57] INFO: [DEBUG]   content preview: diff --git a/src/autopack/git_rollback.py b/src/autopack/git_rollback.py
+new file mode 100644
+index 
+[2025-12-02 02:30:57] INFO: [DEBUG] Processing file: logs\autopack\model_selections_20251201.jsonl
+[2025-12-02 02:30:57] INFO: [DEBUG]   content type: <class 'str'>
+[2025-12-02 02:30:57] INFO: [DEBUG]   content preview: {"timestamp": "2025-12-01T09:36:28.082445", "phase_id": "phase3-config-loading", "role": "builder", 
+[2025-12-02 02:30:57] INFO: [DEBUG] Processing file: package.json
+[2025-12-02 02:30:57] INFO: [DEBUG]   content type: <class 'str'>
+[2025-12-02 02:30:57] INFO: [DEBUG]   content preview: {
+  "name": "autopack-frontend",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scr
+[2025-12-02 02:31:01] INFO: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+[2025-12-02 02:31:51] INFO: [phase3-t0t1-checks] Builder succeeded (7294 tokens)
+[2025-12-02 02:31:51] INFO: [Isolation] autopack_internal_mode enabled - unlocking src/autopack/ for maintenance
+[2025-12-02 02:31:51] ERROR: [phase3-t0t1-checks] Patch validation failed (422): Patch validation failed:
+  - [conflict_marker_in_patch] (line 69): Merge conflict marker '=======' found in patch content
+  - [conflict_marker_in_patch] (line 71): Merge conflict marker '=======' found in patch content
+  - [conflict_marker_in_patch] (line 197): Merge conflict marker '=======' found in patch content
+  - [conflict_marker_in_patch] (line 199): Merge conflict marker '=======' found in patch content
+  - [conflict_marker_in_patch] (line 362): Merge conflict marker '=======' found in patch content
+  - [conflict_marker_in_patch] (line 364): Merge conflict marker '=======' found in patch content
+[2025-12-02 02:31:51] INFO: [phase3-t0t1-checks] Phase 2.3: Validation errors indicate malformed patch - LLM should regenerate
+[2025-12-02 02:31:51] INFO: [ARCHIVE_CONSOLIDATOR] Logged new error: Patch validation failure (422)
+[2025-12-02 02:31:51] WARNING: Failed to post builder result: Patch validation failed: Patch validation failed:
+  - [conflict_marker_in_patch] (line 69): Merge conflict marker '=======' found in patch content
+  - [conflict_marker_in_patch] (line 71): Merge conflict marker '=======' found in patch content
+  - [conflict_marker_in_patch] (line 197): Merge conflict marker '=======' found in patch content
+  - [conflict_marker_in_patch] (line 199): Merge conflict marker '=======' found in patch content
+  - [conflict_marker_in_patch] (line 362): Merge conflict marker '=======' found in patch content
+  - [conflict_marker_in_patch] (line 364): Merge conflict marker '=======' found in patch content
+[2025-12-02 02:31:51] INFO: [ARCHIVE_CONSOLIDATOR] Logged new error: API failure: POST builder_result
+[2025-12-02 02:31:51] INFO: [phase3-t0t1-checks] Step 2/5: Applying patch...
+[2025-12-02 02:31:51] INFO: [Isolation] autopack_internal_mode enabled - unlocking src/autopack/ for maintenance
+[2025-12-02 02:31:51] INFO: Writing patch to temp_patch.diff
+[2025-12-02 02:31:51] INFO: Checking if patch can be applied (dry run)...
+[2025-12-02 02:31:51] WARNING: Strict patch check failed: error: patch fragment without header at line 433: @@ -1,6 +1,9 @@?
+[2025-12-02 02:31:51] INFO: Retrying with lenient mode (--ignore-whitespace -C1)...
+[2025-12-02 02:31:52] WARNING: Lenient mode also failed: error: patch fragment without header at line 433: @@ -1,6 +1,9 @@?
+[2025-12-02 02:31:52] INFO: Retrying with 3-way merge mode (-3)...
+[2025-12-02 02:31:52] WARNING: All git apply modes failed, attempting direct file write fallback...
+[2025-12-02 02:31:52] INFO: Directly wrote file: src/autopack/health_checks.py
+[2025-12-02 02:31:52] WARNING: Skipping src/autopack/autonomous_executor.py - cannot apply partial patch to existing file via direct write
+[2025-12-02 02:31:52] INFO: Direct file write succeeded - 1 files written
+[2025-12-02 02:31:52] INFO:   - src/autopack/health_checks.py
+[2025-12-02 02:31:52] ERROR: [Validation] MERGE CONFLICTS: src/autopack/health_checks.py - Line 63: merge conflict marker '=======' found
+[2025-12-02 02:31:52] ERROR: [Validation] 1 files corrupted after patch application
+[2025-12-02 02:31:52] ERROR: [Integrity] Direct write corrupted 1 files - restoring
+[2025-12-02 02:31:52] INFO: [Integrity] Removed corrupted new file: src/autopack/health_checks.py
+[2025-12-02 02:31:52] ERROR: [phase3-t0t1-checks] Failed to apply patch to filesystem: Direct file write corrupted 1 files (restored 1)
+[2025-12-02 02:31:52] INFO: Updated phase phase3-t0t1-checks status to FAILED
+[2025-12-02 02:31:52] INFO: [Doctor] Complex failure detected -> using strong model
+[2025-12-02 02:31:52] INFO: [Doctor] Invoking Doctor for phase=phase3-t0t1-checks, model=claude-sonnet-4-5, builder_attempts=2, error_category=patch_apply_error
+[2025-12-02 02:31:57] INFO: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+[2025-12-02 02:31:57] INFO: [Doctor] Complex failure detected -> using strong model
+[2025-12-02 02:31:57] INFO: [Doctor] Complex failure detected -> using strong model
+[2025-12-02 02:31:57] INFO: [Doctor] Decision: phase_id=phase3-t0t1-checks, builder_attempts=2, health_ratio=0.20, error_category=patch_apply_error, model_chosen=claude-sonnet-4-5, is_complex=True, doctor_action=execute_fix, confidence=0.92, escalated=False
+[2025-12-02 02:31:57] INFO: [Doctor] Diagnosis complete: action=execute_fix, confidence=0.92, phase_calls=2, run_calls=2
+[2025-12-02 02:31:57] WARNING: [Doctor] execute_fix requested but disabled. Enable via models.yaml: doctor.allow_execute_fix_global: true
+[2025-12-02 02:31:57] INFO: [ARCHIVE_CONSOLIDATOR] Logged new error: execute_fix disabled: phase3-t0t1-checks
+[2025-12-02 02:31:57] INFO: [Re-Plan] Max replans (1) reached for phase3-t0t1-checks
+[2025-12-02 02:31:57] WARNING: [phase3-t0t1-checks] Attempt 2 failed, escalating model for retry...
+[2025-12-02 02:31:57] INFO: [phase3-t0t1-checks] Attempt 3/5 (model escalation enabled)
+[2025-12-02 02:31:57] INFO: [phase3-t0t1-checks] Step 1/4: Generating code with Builder (via LlmService)...
+[2025-12-02 02:31:57] INFO: [Context] Loaded 4 recently modified files for fresh context
+[2025-12-02 02:31:57] INFO: [Context] Total: 10 files loaded for Builder context (modified=4, mentioned=0)
+[2025-12-02 02:31:57] INFO: [phase3-t0t1-checks] Loaded 10 files for context
+[2025-12-02 02:31:57] INFO: [phase3-t0t1-checks] Learning context: 6 rules, 2 hints
+[2025-12-02 02:31:57] INFO: [ModelSelector] Complexity escalated: medium -> high for phase phase3-t0t1-checks
+[2025-12-02 02:31:57] INFO: [ModelSelector] Selected claude-sonnet-4-5 for builder (complexity=high, attempt=2, intra_tier=0)
+[2025-12-02 02:31:57] INFO: [MODEL-SELECT] Builder: model=claude-sonnet-4-5, complexity=medium->high, attempt=2, category=backend
+[2025-12-02 02:31:57] INFO: [ESCALATION] Builder complexity escalated: medium_to_high after 2 attempts
+[2025-12-02 02:31:57] INFO: [DEBUG] file_context type: <class 'dict'>
+[2025-12-02 02:31:57] INFO: [DEBUG] file_context keys: ['existing_files']
+[2025-12-02 02:31:57] INFO: [DEBUG] files type: <class 'dict'>
+[2025-12-02 02:31:57] INFO: [DEBUG] files keys (first 3): ['config\\models.yaml', 'config\\pricing.yaml', 'last_patch_debug.diff']
+[2025-12-02 02:31:57] INFO: [DEBUG] Processing file: config\models.yaml
+[2025-12-02 02:31:57] INFO: [DEBUG]   content type: <class 'str'>
+[2025-12-02 02:31:57] INFO: [DEBUG]   content preview: complexity_models:
+  low:
+    # Default cheap tier: GLM-4.6 (Zhipu AI)
+    builder: glm-4.6
+    audi
+[2025-12-02 02:31:57] INFO: [DEBUG] Processing file: config\pricing.yaml
+[2025-12-02 02:31:57] INFO: [DEBUG]   content type: <class 'str'>
+[2025-12-02 02:31:57] INFO: [DEBUG]   content preview: # LLM Pricing Configuration
+# Updated: 2025-12-01
+# Prices in USD per 1,000 tokens
+
+# GLM (Zhipu AI)
+[2025-12-02 02:31:57] INFO: [DEBUG] Processing file: last_patch_debug.diff
+[2025-12-02 02:31:57] INFO: [DEBUG]   content type: <class 'str'>
+[2025-12-02 02:31:57] INFO: [DEBUG]   content preview: diff --git a/src/autopack/health_checks.py b/src/autopack/health_checks.py
+new file mode 100644
+inde
+[2025-12-02 02:31:57] INFO: [DEBUG] Processing file: logs\autopack\model_selections_20251201.jsonl
+[2025-12-02 02:31:57] INFO: [DEBUG]   content type: <class 'str'>
+[2025-12-02 02:31:57] INFO: [DEBUG]   content preview: {"timestamp": "2025-12-01T09:36:28.082445", "phase_id": "phase3-config-loading", "role": "builder", 
+[2025-12-02 02:31:57] INFO: [DEBUG] Processing file: package.json
+[2025-12-02 02:31:57] INFO: [DEBUG]   content type: <class 'str'>
+[2025-12-02 02:31:57] INFO: [DEBUG]   content preview: {
+  "name": "autopack-frontend",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scr
+[2025-12-02 02:31:59] INFO: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+[2025-12-02 02:32:59] INFO: [phase3-t0t1-checks] Builder succeeded (7549 tokens)
+[2025-12-02 02:32:59] INFO: [Isolation] autopack_internal_mode enabled - unlocking src/autopack/ for maintenance
+[2025-12-02 02:32:59] WARNING: Failed to post builder result: 500 Server Error: Internal Server Error for url: http://localhost:8000/runs/phase3-delegated-20251202-022323/phases/phase3-t0t1-checks/builder_result
+[2025-12-02 02:32:59] INFO: [ARCHIVE_CONSOLIDATOR] Logged new error: API failure: POST builder_result
+[2025-12-02 02:32:59] INFO: [phase3-t0t1-checks] Step 2/5: Applying patch...
+[2025-12-02 02:32:59] INFO: [Isolation] autopack_internal_mode enabled - unlocking src/autopack/ for maintenance
+[2025-12-02 02:32:59] ERROR: Patch validation failed - LLM generated incomplete/truncated patch:
+  - Line 377 contains truncation/ellipsis '...': +            ["git", "rev-list", "--left-right", "--count", f"{branch}...origin/
+  - Line 498 contains truncation/ellipsis '...': +            logger.info("Running pre-execution health checks...")
+  - Line 524 contains truncation/ellipsis '...': +        logger.info("Starting autonomous execution...")
+[2025-12-02 02:32:59] ERROR: Patch content:
+diff --git a/src/autopack/health_checks.py b/src/autopack/health_checks.py
+new file mode 100644
+index 0000000..0000000
+--- /dev/null
++++ b/src/autopack/health_checks.py
+@@ -0,0 +1,442 @@
++"""Comprehensive pre-run validation health checks.
++
++Provides T0 (quick, always run) and T1 (longer, configurable) health checks
++to validate the system state before starting autonomous build runs.
++"""
++
++import logging
++import os
++import subprocess
++import time
++from dataclasses import dataclass
++from pathli...
+[2025-12-02 02:32:59] ERROR: Exception during patch application: Patch validation failed - LLM generated incomplete/truncated patch:
+  - Line 377 contains truncation/ellipsis '...': +            ["git", "rev-list", "--left-right", "--count", f"{branch}...origin/
+  - Line 498 contains truncation/ellipsis '...': +            logger.info("Running pre-execution health checks...")
+  - Line 524 contains truncation/ellipsis '...': +        logger.info("Starting autonomous execution...")
+[2025-12-02 02:32:59] ERROR: [phase3-t0t1-checks] Failed to apply patch to filesystem: Patch validation failed - LLM generated incomplete/truncated patch:
+  - Line 377 contains truncation/ellipsis '...': +            ["git", "rev-list", "--left-right", "--count", f"{branch}...origin/
+  - Line 498 contains truncation/ellipsis '...': +            logger.info("Running pre-execution health checks...")
+  - Line 524 contains truncation/ellipsis '...': +        logger.info("Starting autonomous execution...")
+[2025-12-02 02:32:59] INFO: Updated phase phase3-t0t1-checks status to FAILED
+[2025-12-02 02:32:59] INFO: [Doctor] Not invoking: per-phase limit reached (2/2)
+[2025-12-02 02:32:59] INFO: [Re-Plan] Max replans (1) reached for phase3-t0t1-checks
+[2025-12-02 02:32:59] WARNING: [phase3-t0t1-checks] Attempt 3 failed, escalating model for retry...
+[2025-12-02 02:32:59] INFO: [phase3-t0t1-checks] Attempt 4/5 (model escalation enabled)
+[2025-12-02 02:32:59] INFO: [phase3-t0t1-checks] Step 1/4: Generating code with Builder (via LlmService)...
+[2025-12-02 02:32:59] INFO: [Context] Loaded 4 recently modified files for fresh context
+[2025-12-02 02:32:59] INFO: [Context] Total: 10 files loaded for Builder context (modified=4, mentioned=0)
+[2025-12-02 02:32:59] INFO: [phase3-t0t1-checks] Loaded 10 files for context
+[2025-12-02 02:32:59] INFO: [phase3-t0t1-checks] Learning context: 6 rules, 2 hints
+[2025-12-02 02:32:59] INFO: [ModelSelector] Complexity escalated: medium -> high for phase phase3-t0t1-checks
+[2025-12-02 02:32:59] INFO: [ModelSelector] Selected claude-opus-4-5 for builder (complexity=high, attempt=3, intra_tier=1)
+[2025-12-02 02:32:59] INFO: [MODEL-SELECT] Builder: model=claude-opus-4-5, complexity=medium->high, attempt=3, category=backend
+[2025-12-02 02:32:59] INFO: [ESCALATION] Builder complexity escalated: medium_to_high after 2 attempts
+[2025-12-02 02:32:59] INFO: [DEBUG] file_context type: <class 'dict'>
+[2025-12-02 02:32:59] INFO: [DEBUG] file_context keys: ['existing_files']
+[2025-12-02 02:32:59] INFO: [DEBUG] files type: <class 'dict'>
+[2025-12-02 02:32:59] INFO: [DEBUG] files keys (first 3): ['config\\models.yaml', 'config\\pricing.yaml', 'last_patch_debug.diff']
+[2025-12-02 02:32:59] INFO: [DEBUG] Processing file: config\models.yaml
+[2025-12-02 02:32:59] INFO: [DEBUG]   content type: <class 'str'>
+[2025-12-02 02:32:59] INFO: [DEBUG]   content preview: complexity_models:
+  low:
+    # Default cheap tier: GLM-4.6 (Zhipu AI)
+    builder: glm-4.6
+    audi
+[2025-12-02 02:32:59] INFO: [DEBUG] Processing file: config\pricing.yaml
+[2025-12-02 02:32:59] INFO: [DEBUG]   content type: <class 'str'>
+[2025-12-02 02:32:59] INFO: [DEBUG]   content preview: # LLM Pricing Configuration
+# Updated: 2025-12-01
+# Prices in USD per 1,000 tokens
+
+# GLM (Zhipu AI)
+[2025-12-02 02:32:59] INFO: [DEBUG] Processing file: last_patch_debug.diff
+[2025-12-02 02:32:59] INFO: [DEBUG]   content type: <class 'str'>
+[2025-12-02 02:32:59] INFO: [DEBUG]   content preview: diff --git a/src/autopack/health_checks.py b/src/autopack/health_checks.py
+new file mode 100644
+inde
+[2025-12-02 02:32:59] INFO: [DEBUG] Processing file: logs\autopack\model_selections_20251201.jsonl
+[2025-12-02 02:32:59] INFO: [DEBUG]   content type: <class 'str'>
+[2025-12-02 02:32:59] INFO: [DEBUG]   content preview: {"timestamp": "2025-12-01T09:36:28.082445", "phase_id": "phase3-config-loading", "role": "builder", 
+[2025-12-02 02:32:59] INFO: [DEBUG] Processing file: package.json
+[2025-12-02 02:32:59] INFO: [DEBUG]   content type: <class 'str'>
+[2025-12-02 02:32:59] INFO: [DEBUG]   content preview: {
+  "name": "autopack-frontend",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scr
+[2025-12-02 02:33:01] INFO: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+[2025-12-02 02:33:52] INFO: [phase3-t0t1-checks] Builder succeeded (7328 tokens)
+[2025-12-02 02:33:52] INFO: [Isolation] autopack_internal_mode enabled - unlocking src/autopack/ for maintenance
+[2025-12-02 02:33:52] ERROR: [phase3-t0t1-checks] Patch validation failed (422): Patch validation failed:
+  - [conflict_marker_in_patch] (line 68): Merge conflict marker '=======' found in patch content
+  - [conflict_marker_in_patch] (line 70): Merge conflict marker '=======' found in patch content
+  - [conflict_marker_in_patch] (line 195): Merge conflict marker '=======' found in patch content
+  - [conflict_marker_in_patch] (line 197): Merge conflict marker '=======' found in patch content
+  - [conflict_marker_in_patch] (line 347): Merge conflict marker '=======' found in patch content
+  - [conflict_marker_in_patch] (line 349): Merge conflict marker '=======' found in patch content
+[2025-12-02 02:33:52] INFO: [phase3-t0t1-checks] Phase 2.3: Validation errors indicate malformed patch - LLM should regenerate
+[2025-12-02 02:33:52] INFO: [ARCHIVE_CONSOLIDATOR] Logged new error: Patch validation failure (422)
+[2025-12-02 02:33:52] WARNING: Failed to post builder result: Patch validation failed: Patch validation failed:
+  - [conflict_marker_in_patch] (line 68): Merge conflict marker '=======' found in patch content
+  - [conflict_marker_in_patch] (line 70): Merge conflict marker '=======' found in patch content
+  - [conflict_marker_in_patch] (line 195): Merge conflict marker '=======' found in patch content
+  - [conflict_marker_in_patch] (line 197): Merge conflict marker '=======' found in patch content
+  - [conflict_marker_in_patch] (line 347): Merge conflict marker '=======' found in patch content
+  - [conflict_marker_in_patch] (line 349): Merge conflict marker '=======' found in patch content
+[2025-12-02 02:33:52] INFO: [ARCHIVE_CONSOLIDATOR] Logged new error: API failure: POST builder_result
+[2025-12-02 02:33:52] INFO: [phase3-t0t1-checks] Step 2/5: Applying patch...
+[2025-12-02 02:33:52] INFO: [Isolation] autopack_internal_mode enabled - unlocking src/autopack/ for maintenance
+[2025-12-02 02:33:52] ERROR: Patch validation failed - LLM generated incomplete/truncated patch:
+  - Line 480 contains truncation/ellipsis '...': +        logger.info(f"Running {self.health_check_tier.upper()} health checks...
+[2025-12-02 02:33:52] ERROR: Patch content:
+diff --git a/src/autopack/health_checks.py b/src/autopack/health_checks.py
+new file mode 100644
+index 0000000..a1b2c3d
+--- /dev/null
++++ b/src/autopack/health_checks.py
+@@ -0,0 +1,415 @@
++"""Comprehensive pre-run validation health checks.
++
++Provides T0 (quick, always run) and T1 (longer, configurable) health checks
++to validate the system state before starting autonomous build runs.
++"""
++
++import logging
++import os
++import subprocess
++import time
++from dataclasses import dataclass, field
++from...
+[2025-12-02 02:33:52] ERROR: Exception during patch application: Patch validation failed - LLM generated incomplete/truncated patch:
+  - Line 480 contains truncation/ellipsis '...': +        logger.info(f"Running {self.health_check_tier.upper()} health checks...
+[2025-12-02 02:33:52] ERROR: [phase3-t0t1-checks] Failed to apply patch to filesystem: Patch validation failed - LLM generated incomplete/truncated patch:
+  - Line 480 contains truncation/ellipsis '...': +        logger.info(f"Running {self.health_check_tier.upper()} health checks...
+[2025-12-02 02:33:52] INFO: Updated phase phase3-t0t1-checks status to FAILED
+[2025-12-02 02:33:52] INFO: [Doctor] Not invoking: per-phase limit reached (2/2)
+[2025-12-02 02:33:52] INFO: [Re-Plan] Max replans (1) reached for phase3-t0t1-checks
+[2025-12-02 02:33:52] WARNING: [phase3-t0t1-checks] Attempt 4 failed, escalating model for retry...
+[2025-12-02 02:33:52] INFO: [phase3-t0t1-checks] Attempt 5/5 (model escalation enabled)
+[2025-12-02 02:33:52] INFO: [phase3-t0t1-checks] Step 1/4: Generating code with Builder (via LlmService)...
+[2025-12-02 02:33:52] INFO: [Context] Loaded 4 recently modified files for fresh context
+[2025-12-02 02:33:52] INFO: [Context] Total: 10 files loaded for Builder context (modified=4, mentioned=0)
+[2025-12-02 02:33:52] INFO: [phase3-t0t1-checks] Loaded 10 files for context
+[2025-12-02 02:33:52] INFO: [phase3-t0t1-checks] Learning context: 6 rules, 2 hints
+[2025-12-02 02:33:52] INFO: [ModelSelector] Complexity escalated: medium -> high for phase phase3-t0t1-checks
+[2025-12-02 02:33:52] INFO: [ModelSelector] Selected claude-opus-4-5 for builder (complexity=high, attempt=4, intra_tier=2)
+[2025-12-02 02:33:52] INFO: [MODEL-SELECT] Builder: model=claude-opus-4-5, complexity=medium->high, attempt=4, category=backend
+[2025-12-02 02:33:52] INFO: [ESCALATION] Builder complexity escalated: medium_to_high after 2 attempts
+[2025-12-02 02:33:52] INFO: [DEBUG] file_context type: <class 'dict'>
+[2025-12-02 02:33:52] INFO: [DEBUG] file_context keys: ['existing_files']
+[2025-12-02 02:33:52] INFO: [DEBUG] files type: <class 'dict'>
+[2025-12-02 02:33:52] INFO: [DEBUG] files keys (first 3): ['config\\models.yaml', 'config\\pricing.yaml', 'last_patch_debug.diff']
+[2025-12-02 02:33:52] INFO: [DEBUG] Processing file: config\models.yaml
+[2025-12-02 02:33:52] INFO: [DEBUG]   content type: <class 'str'>
+[2025-12-02 02:33:52] INFO: [DEBUG]   content preview: complexity_models:
+  low:
+    # Default cheap tier: GLM-4.6 (Zhipu AI)
+    builder: glm-4.6
+    audi
+[2025-12-02 02:33:52] INFO: [DEBUG] Processing file: config\pricing.yaml
+[2025-12-02 02:33:52] INFO: [DEBUG]   content type: <class 'str'>
+[2025-12-02 02:33:52] INFO: [DEBUG]   content preview: # LLM Pricing Configuration
+# Updated: 2025-12-01
+# Prices in USD per 1,000 tokens
+
+# GLM (Zhipu AI)
+[2025-12-02 02:33:52] INFO: [DEBUG] Processing file: last_patch_debug.diff
+[2025-12-02 02:33:52] INFO: [DEBUG]   content type: <class 'str'>
+[2025-12-02 02:33:52] INFO: [DEBUG]   content preview: diff --git a/src/autopack/health_checks.py b/src/autopack/health_checks.py
+new file mode 100644
+inde
+[2025-12-02 02:33:52] INFO: [DEBUG] Processing file: logs\autopack\model_selections_20251201.jsonl
+[2025-12-02 02:33:52] INFO: [DEBUG]   content type: <class 'str'>
+[2025-12-02 02:33:52] INFO: [DEBUG]   content preview: {"timestamp": "2025-12-01T09:36:28.082445", "phase_id": "phase3-config-loading", "role": "builder", 
+[2025-12-02 02:33:52] INFO: [DEBUG] Processing file: package.json
+[2025-12-02 02:33:52] INFO: [DEBUG]   content type: <class 'str'>
+[2025-12-02 02:33:52] INFO: [DEBUG]   content preview: {
+  "name": "autopack-frontend",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scr
+[2025-12-02 02:33:53] INFO: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+[2025-12-02 02:34:56] INFO: [phase3-t0t1-checks] Builder succeeded (6822 tokens)
+[2025-12-02 02:34:56] INFO: [Isolation] autopack_internal_mode enabled - unlocking src/autopack/ for maintenance
+[2025-12-02 02:34:56] ERROR: [phase3-t0t1-checks] Patch validation failed (422): Patch validation failed:
+  - [conflict_marker_in_patch] (line 68): Merge conflict marker '=======' found in patch content
+  - [conflict_marker_in_patch] (line 70): Merge conflict marker '=======' found in patch content
+  - [conflict_marker_in_patch] (line 185): Merge conflict marker '=======' found in patch content
+  - [conflict_marker_in_patch] (line 187): Merge conflict marker '=======' found in patch content
+  - [conflict_marker_in_patch] (line 344): Merge conflict marker '=======' found in patch content
+  - [conflict_marker_in_patch] (line 346): Merge conflict marker '=======' found in patch content
+[2025-12-02 02:34:56] INFO: [phase3-t0t1-checks] Phase 2.3: Validation errors indicate malformed patch - LLM should regenerate
+[2025-12-02 02:34:56] INFO: [ARCHIVE_CONSOLIDATOR] Logged new error: Patch validation failure (422)
+[2025-12-02 02:34:56] WARNING: Failed to post builder result: Patch validation failed: Patch validation failed:
+  - [conflict_marker_in_patch] (line 68): Merge conflict marker '=======' found in patch content
+  - [conflict_marker_in_patch] (line 70): Merge conflict marker '=======' found in patch content
+  - [conflict_marker_in_patch] (line 185): Merge conflict marker '=======' found in patch content
+  - [conflict_marker_in_patch] (line 187): Merge conflict marker '=======' found in patch content
+  - [conflict_marker_in_patch] (line 344): Merge conflict marker '=======' found in patch content
+  - [conflict_marker_in_patch] (line 346): Merge conflict marker '=======' found in patch content
+[2025-12-02 02:34:56] INFO: [ARCHIVE_CONSOLIDATOR] Logged new error: API failure: POST builder_result
+[2025-12-02 02:34:56] INFO: [phase3-t0t1-checks] Step 2/5: Applying patch...
+[2025-12-02 02:34:56] INFO: [Isolation] autopack_internal_mode enabled - unlocking src/autopack/ for maintenance
+[2025-12-02 02:34:56] ERROR: Patch validation failed - LLM generated incomplete/truncated patch:
+  - Line 450 contains truncation/ellipsis '...': +        logger.info(f"Running {self.health_check_tier.upper()} health checks...
+[2025-12-02 02:34:56] ERROR: Patch content:
+diff --git a/src/autopack/health_checks.py b/src/autopack/health_checks.py
+new file mode 100644
+index 0000000..a1b2c3d
+--- /dev/null
++++ b/src/autopack/health_checks.py
+@@ -0,0 +1,388 @@
++"""Comprehensive pre-run validation health checks.
++
++Provides T0 (quick, always run) and T1 (longer, configurable) health checks
++to validate the system state before starting autonomous build runs.
++"""
++
++import logging
++import os
++import subprocess
++import time
++from dataclasses import dataclass, field
++from...
+[2025-12-02 02:34:56] ERROR: Exception during patch application: Patch validation failed - LLM generated incomplete/truncated patch:
+  - Line 450 contains truncation/ellipsis '...': +        logger.info(f"Running {self.health_check_tier.upper()} health checks...
+[2025-12-02 02:34:56] ERROR: [phase3-t0t1-checks] Failed to apply patch to filesystem: Patch validation failed - LLM generated incomplete/truncated patch:
+  - Line 450 contains truncation/ellipsis '...': +        logger.info(f"Running {self.health_check_tier.upper()} health checks...
+[2025-12-02 02:34:57] INFO: Updated phase phase3-t0t1-checks status to FAILED
+[2025-12-02 02:34:57] INFO: [Doctor] Not invoking: per-phase limit reached (2/2)
+[2025-12-02 02:34:57] INFO: [Re-Plan] Max replans (1) reached for phase3-t0t1-checks
+[2025-12-02 02:34:57] ERROR: [phase3-t0t1-checks] All 5 attempts exhausted. Marking phase as FAILED.
+[2025-12-02 02:34:57] INFO: [ARCHIVE_CONSOLIDATOR] Logged new error: Phase phase3-t0t1-checks max attempts exhausted
+[2025-12-02 02:34:57] INFO: Updated phase phase3-t0t1-checks status to FAILED
+[2025-12-02 02:34:57] WARNING: Phase phase3-t0t1-checks finished with status: FAILED
+[2025-12-02 02:34:57] INFO: Waiting 10s before next phase...
+[2025-12-02 02:35:07] INFO: Iteration 5: Fetching run status...
+[2025-12-02 02:35:07] INFO: Next phase: phase3-dashboard-metrics
+[2025-12-02 02:35:07] INFO: Executing phase: phase3-dashboard-metrics
+[2025-12-02 02:35:07] INFO: [phase3-dashboard-metrics] Attempt 1/5 (model escalation enabled)
+[2025-12-02 02:35:07] INFO: [phase3-dashboard-metrics] Step 1/4: Generating code with Builder (via LlmService)...
+[2025-12-02 02:35:07] INFO: [Context] Loaded 4 recently modified files for fresh context
+[2025-12-02 02:35:07] INFO: [Context] Total: 10 files loaded for Builder context (modified=4, mentioned=0)
+[2025-12-02 02:35:07] INFO: [phase3-dashboard-metrics] Loaded 10 files for context
+[2025-12-02 02:35:07] INFO: [phase3-dashboard-metrics] Learning context: 6 rules, 0 hints
+[2025-12-02 02:35:07] INFO: [ModelSelector] Selected claude-sonnet-4-5 for builder (complexity=medium, attempt=0, intra_tier=0)
+[2025-12-02 02:35:07] INFO: [MODEL-SELECT] Builder: model=claude-sonnet-4-5, complexity=medium->medium, attempt=0, category=backend
+[2025-12-02 02:35:07] INFO: [DEBUG] file_context type: <class 'dict'>
+[2025-12-02 02:35:07] INFO: [DEBUG] file_context keys: ['existing_files']
+[2025-12-02 02:35:07] INFO: [DEBUG] files type: <class 'dict'>
+[2025-12-02 02:35:07] INFO: [DEBUG] files keys (first 3): ['config\\models.yaml', 'config\\pricing.yaml', 'last_patch_debug.diff']
+[2025-12-02 02:35:07] INFO: [DEBUG] Processing file: config\models.yaml
+[2025-12-02 02:35:07] INFO: [DEBUG]   content type: <class 'str'>
+[2025-12-02 02:35:07] INFO: [DEBUG]   content preview: complexity_models:
+  low:
+    # Default cheap tier: GLM-4.6 (Zhipu AI)
+    builder: glm-4.6
+    audi
+[2025-12-02 02:35:07] INFO: [DEBUG] Processing file: config\pricing.yaml
+[2025-12-02 02:35:07] INFO: [DEBUG]   content type: <class 'str'>
+[2025-12-02 02:35:07] INFO: [DEBUG]   content preview: # LLM Pricing Configuration
+# Updated: 2025-12-01
+# Prices in USD per 1,000 tokens
+
+# GLM (Zhipu AI)
+[2025-12-02 02:35:07] INFO: [DEBUG] Processing file: last_patch_debug.diff
+[2025-12-02 02:35:07] INFO: [DEBUG]   content type: <class 'str'>
+[2025-12-02 02:35:07] INFO: [DEBUG]   content preview: diff --git a/src/autopack/health_checks.py b/src/autopack/health_checks.py
+new file mode 100644
+inde
+[2025-12-02 02:35:07] INFO: [DEBUG] Processing file: logs\autopack\model_selections_20251201.jsonl
+[2025-12-02 02:35:07] INFO: [DEBUG]   content type: <class 'str'>
+[2025-12-02 02:35:07] INFO: [DEBUG]   content preview: {"timestamp": "2025-12-01T09:36:28.082445", "phase_id": "phase3-config-loading", "role": "builder", 
+[2025-12-02 02:35:07] INFO: [DEBUG] Processing file: package.json
+[2025-12-02 02:35:07] INFO: [DEBUG]   content type: <class 'str'>
+[2025-12-02 02:35:07] INFO: [DEBUG]   content preview: {
+  "name": "autopack-frontend",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scr
+[2025-12-02 02:35:09] INFO: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+[2025-12-02 02:35:34] INFO: [phase3-dashboard-metrics] Builder succeeded (4122 tokens)
+[2025-12-02 02:35:34] INFO: [Isolation] autopack_internal_mode enabled - unlocking src/autopack/ for maintenance
+[2025-12-02 02:35:34] WARNING: Failed to post builder result: 500 Server Error: Internal Server Error for url: http://localhost:8000/runs/phase3-delegated-20251202-022323/phases/phase3-dashboard-metrics/builder_result
+[2025-12-02 02:35:34] INFO: [ARCHIVE_CONSOLIDATOR] Logged new error: API failure: POST builder_result
+[2025-12-02 02:35:34] INFO: [phase3-dashboard-metrics] Step 2/5: Applying patch...
+[2025-12-02 02:35:34] INFO: [Isolation] autopack_internal_mode enabled - unlocking src/autopack/ for maintenance
+[2025-12-02 02:35:34] INFO: Writing patch to temp_patch.diff
+[2025-12-02 02:35:34] INFO: Checking if patch can be applied (dry run)...
+[2025-12-02 02:35:34] WARNING: Strict patch check failed: error: patch fragment without header at line 45: @@ -1,6 +1,9 @@?
+[2025-12-02 02:35:34] INFO: Retrying with lenient mode (--ignore-whitespace -C1)...
+[2025-12-02 02:35:34] WARNING: Lenient mode also failed: error: patch fragment without header at line 45: @@ -1,6 +1,9 @@?
+[2025-12-02 02:35:34] INFO: Retrying with 3-way merge mode (-3)...
+[2025-12-02 02:35:34] WARNING: All git apply modes failed, attempting direct file write fallback...
+[2025-12-02 02:35:34] WARNING: Skipping src/autopack/usage_recorder.py - cannot apply partial patch to existing file via direct write
+[2025-12-02 02:35:34] WARNING: Skipping src/autopack/main.py - cannot apply partial patch to existing file via direct write
+[2025-12-02 02:35:34] ERROR: Direct file write also failed: error: patch fragment without header at line 45: @@ -1,6 +1,9 @@?
+[2025-12-02 02:35:34] ERROR: Patch content:
+diff --git a/src/autopack/usage_recorder.py b/src/autopack/usage_recorder.py
+index 0000000..1111111 100644
+--- a/src/autopack/usage_recorder.py
++++ b/src/autopack/usage_recorder.py
+@@ -1,6 +1,7 @@
+ """Usage tracking and cost calculation for LLM calls."""
+ 
+ import json
++from collections import defaultdict
+ from dataclasses import dataclass, field
+ from datetime import datetime
+ from pathlib import Path
+@@ -1,6 +1,9 @@
+     output_tokens: int
+     cost_usd: float
+     timestamp: str
++    doctor_m...
+[2025-12-02 02:35:34] ERROR: [phase3-dashboard-metrics] Failed to apply patch to filesystem: error: patch fragment without header at line 45: @@ -1,6 +1,9 @@?
+[2025-12-02 02:35:34] INFO: Updated phase phase3-dashboard-metrics status to FAILED
+[2025-12-02 02:35:34] WARNING: [phase3-dashboard-metrics] Attempt 1 failed, escalating model for retry...
+[2025-12-02 02:35:34] INFO: [phase3-dashboard-metrics] Attempt 2/5 (model escalation enabled)
+[2025-12-02 02:35:34] INFO: [phase3-dashboard-metrics] Step 1/4: Generating code with Builder (via LlmService)...
+[2025-12-02 02:35:34] INFO: [Context] Loaded 4 recently modified files for fresh context
+[2025-12-02 02:35:34] INFO: [Context] Total: 10 files loaded for Builder context (modified=4, mentioned=0)
+[2025-12-02 02:35:34] INFO: [phase3-dashboard-metrics] Loaded 10 files for context
+[2025-12-02 02:35:34] INFO: [phase3-dashboard-metrics] Learning context: 6 rules, 0 hints
+[2025-12-02 02:35:34] INFO: [ModelSelector] Selected claude-opus-4-5 for builder (complexity=medium, attempt=1, intra_tier=1)
+[2025-12-02 02:35:34] INFO: [MODEL-SELECT] Builder: model=claude-opus-4-5, complexity=medium->medium, attempt=1, category=backend
+[2025-12-02 02:35:34] INFO: [DEBUG] file_context type: <class 'dict'>
+[2025-12-02 02:35:34] INFO: [DEBUG] file_context keys: ['existing_files']
+[2025-12-02 02:35:34] INFO: [DEBUG] files type: <class 'dict'>
+[2025-12-02 02:35:34] INFO: [DEBUG] files keys (first 3): ['config\\models.yaml', 'config\\pricing.yaml', 'last_patch_debug.diff']
+[2025-12-02 02:35:34] INFO: [DEBUG] Processing file: config\models.yaml
+[2025-12-02 02:35:34] INFO: [DEBUG]   content type: <class 'str'>
+[2025-12-02 02:35:34] INFO: [DEBUG]   content preview: complexity_models:
+  low:
+    # Default cheap tier: GLM-4.6 (Zhipu AI)
+    builder: glm-4.6
+    audi
+[2025-12-02 02:35:34] INFO: [DEBUG] Processing file: config\pricing.yaml
+[2025-12-02 02:35:34] INFO: [DEBUG]   content type: <class 'str'>
+[2025-12-02 02:35:34] INFO: [DEBUG]   content preview: # LLM Pricing Configuration
+# Updated: 2025-12-01
+# Prices in USD per 1,000 tokens
+
+# GLM (Zhipu AI)
+[2025-12-02 02:35:34] INFO: [DEBUG] Processing file: last_patch_debug.diff
+[2025-12-02 02:35:34] INFO: [DEBUG]   content type: <class 'str'>
+[2025-12-02 02:35:34] INFO: [DEBUG]   content preview: diff --git a/src/autopack/usage_recorder.py b/src/autopack/usage_recorder.py
+index 0000000..1111111 
+[2025-12-02 02:35:34] INFO: [DEBUG] Processing file: logs\autopack\model_selections_20251201.jsonl
+[2025-12-02 02:35:34] INFO: [DEBUG]   content type: <class 'str'>
+[2025-12-02 02:35:34] INFO: [DEBUG]   content preview: {"timestamp": "2025-12-01T09:36:28.082445", "phase_id": "phase3-config-loading", "role": "builder", 
+[2025-12-02 02:35:34] INFO: [DEBUG] Processing file: package.json
+[2025-12-02 02:35:34] INFO: [DEBUG]   content type: <class 'str'>
+[2025-12-02 02:35:34] INFO: [DEBUG]   content preview: {
+  "name": "autopack-frontend",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scr
+[2025-12-02 02:35:37] INFO: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+[2025-12-02 02:36:10] INFO: [phase3-dashboard-metrics] Builder succeeded (5679 tokens)
+[2025-12-02 02:36:10] INFO: [Isolation] autopack_internal_mode enabled - unlocking src/autopack/ for maintenance
+[2025-12-02 02:36:10] WARNING: Failed to post builder result: 500 Server Error: Internal Server Error for url: http://localhost:8000/runs/phase3-delegated-20251202-022323/phases/phase3-dashboard-metrics/builder_result
+[2025-12-02 02:36:10] INFO: [ARCHIVE_CONSOLIDATOR] Logged new error: API failure: POST builder_result
+[2025-12-02 02:36:10] INFO: [phase3-dashboard-metrics] Step 2/5: Applying patch...
+[2025-12-02 02:36:10] INFO: [Isolation] autopack_internal_mode enabled - unlocking src/autopack/ for maintenance
+[2025-12-02 02:36:10] ERROR: Patch validation failed - LLM generated incomplete/truncated patch:
+  - Line 263 contains truncation/ellipsis '...': +    return <div className="doctor-metrics loading">Loading Doctor metrics...</d
+[2025-12-02 02:36:10] ERROR: Patch content:
+diff --git a/src/autopack/usage_recorder.py b/src/autopack/usage_recorder.py
+index 0000000..1111111 100644
+--- a/src/autopack/usage_recorder.py
++++ b/src/autopack/usage_recorder.py
+@@ -1,6 +1,7 @@
+ """Usage tracking and cost calculation for LLM calls."""
+ 
+ import json
++from collections import defaultdict
+ from dataclasses import dataclass, field
+ from datetime import datetime
+ from pathlib import Path
+@@ -1,6 +1,9 @@
+     output_tokens: int
+     cost_usd: float
+     timestamp: str
++    doctor_m...
+[2025-12-02 02:36:10] ERROR: Exception during patch application: Patch validation failed - LLM generated incomplete/truncated patch:
+  - Line 263 contains truncation/ellipsis '...': +    return <div className="doctor-metrics loading">Loading Doctor metrics...</d
+[2025-12-02 02:36:10] ERROR: [phase3-dashboard-metrics] Failed to apply patch to filesystem: Patch validation failed - LLM generated incomplete/truncated patch:
+  - Line 263 contains truncation/ellipsis '...': +    return <div className="doctor-metrics loading">Loading Doctor metrics...</d
+[2025-12-02 02:36:10] INFO: Updated phase phase3-dashboard-metrics status to FAILED
+[2025-12-02 02:36:10] INFO: [Doctor] Routine failure detected -> using cheap model
+[2025-12-02 02:36:10] INFO: [Doctor] Invoking Doctor for phase=phase3-dashboard-metrics, model=glm-4.6, builder_attempts=2, error_category=patch_apply_error
+[2025-12-02 02:36:14] INFO: HTTP Request: POST https://open.bigmodel.cn/api/paas/v4/chat/completions "HTTP/1.1 200 OK"
+[2025-12-02 02:36:14] INFO: [Doctor] Routine failure detected -> using cheap model
+[2025-12-02 02:36:14] INFO: [Doctor] Routine failure detected -> using cheap model
+[2025-12-02 02:36:14] INFO: [Doctor] Decision: phase_id=phase3-dashboard-metrics, builder_attempts=2, health_ratio=0.40, error_category=patch_apply_error, model_chosen=glm-4.6, is_complex=True, doctor_action=replan, confidence=0.70, escalated=False
+[2025-12-02 02:36:14] INFO: [Doctor] Diagnosis complete: action=replan, confidence=0.70, phase_calls=1, run_calls=3
+[2025-12-02 02:36:14] INFO: [Doctor] Action: replan - triggering approach revision
+[2025-12-02 02:36:14] INFO: [Re-Plan] Revising approach for phase3-dashboard-metrics due to doctor_replan:2 consecutive patch failures in phase3-dashboard-m
+[2025-12-02 02:36:25] INFO: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+[2025-12-02 02:36:25] INFO: [Re-Plan] Successfully revised phase phase3-dashboard-metrics
+[2025-12-02 02:36:25] INFO: [Re-Plan] Original: Add Doctor usage tracking to dashboard.
+
+Tasks:
+1. Extend usage_recorder.py to track Doctor calls:
+ ...
+[2025-12-02 02:36:25] INFO: [Re-Plan] Revised: **Phase**: Dashboard Metrics Aggregation
+**Description**: Add Doctor usage tracking to dashboard usi...
+[2025-12-02 02:36:25] WARNING: File not found: C:\dev\Autopack\.autonomous_runs\autopack\archive\CONSOLIDATED_BUILD.md
+[2025-12-02 02:36:25] INFO: [ARCHIVE_CONSOLIDATOR] Logged build event: PHASE_REPLANNED
+[2025-12-02 02:36:25] INFO: [Doctor] Replan successful, phase revised
+[2025-12-02 02:36:25] INFO: [phase3-dashboard-metrics] Attempt 1/5 (model escalation enabled)
+[2025-12-02 02:36:25] INFO: [phase3-dashboard-metrics] Step 1/4: Generating code with Builder (via LlmService)...
+[2025-12-02 02:36:25] INFO: [Context] Loaded 4 recently modified files for fresh context
+[2025-12-02 02:36:25] INFO: [Context] Total: 10 files loaded for Builder context (modified=4, mentioned=0)
+[2025-12-02 02:36:25] INFO: [phase3-dashboard-metrics] Loaded 10 files for context
+[2025-12-02 02:36:25] INFO: [phase3-dashboard-metrics] Learning context: 6 rules, 0 hints
+[2025-12-02 02:36:25] INFO: [ModelSelector] Selected claude-sonnet-4-5 for builder (complexity=medium, attempt=0, intra_tier=0)
+[2025-12-02 02:36:25] INFO: [MODEL-SELECT] Builder: model=claude-sonnet-4-5, complexity=medium->medium, attempt=0, category=backend
+[2025-12-02 02:36:25] INFO: [DEBUG] file_context type: <class 'dict'>
+[2025-12-02 02:36:25] INFO: [DEBUG] file_context keys: ['existing_files']
+[2025-12-02 02:36:25] INFO: [DEBUG] files type: <class 'dict'>
+[2025-12-02 02:36:25] INFO: [DEBUG] files keys (first 3): ['config\\models.yaml', 'config\\pricing.yaml', 'last_patch_debug.diff']
+[2025-12-02 02:36:25] INFO: [DEBUG] Processing file: config\models.yaml
+[2025-12-02 02:36:25] INFO: [DEBUG]   content type: <class 'str'>
+[2025-12-02 02:36:25] INFO: [DEBUG]   content preview: complexity_models:
+  low:
+    # Default cheap tier: GLM-4.6 (Zhipu AI)
+    builder: glm-4.6
+    audi
+[2025-12-02 02:36:25] INFO: [DEBUG] Processing file: config\pricing.yaml
+[2025-12-02 02:36:25] INFO: [DEBUG]   content type: <class 'str'>
+[2025-12-02 02:36:25] INFO: [DEBUG]   content preview: # LLM Pricing Configuration
+# Updated: 2025-12-01
+# Prices in USD per 1,000 tokens
+
+# GLM (Zhipu AI)
+[2025-12-02 02:36:25] INFO: [DEBUG] Processing file: last_patch_debug.diff
+[2025-12-02 02:36:25] INFO: [DEBUG]   content type: <class 'str'>
+[2025-12-02 02:36:25] INFO: [DEBUG]   content preview: diff --git a/src/autopack/usage_recorder.py b/src/autopack/usage_recorder.py
+index 0000000..1111111 
+[2025-12-02 02:36:25] INFO: [DEBUG] Processing file: logs\autopack\model_selections_20251201.jsonl
+[2025-12-02 02:36:25] INFO: [DEBUG]   content type: <class 'str'>
+[2025-12-02 02:36:25] INFO: [DEBUG]   content preview: {"timestamp": "2025-12-01T09:36:28.082445", "phase_id": "phase3-config-loading", "role": "builder", 
+[2025-12-02 02:36:25] INFO: [DEBUG] Processing file: package.json
+[2025-12-02 02:36:25] INFO: [DEBUG]   content type: <class 'str'>
+[2025-12-02 02:36:25] INFO: [DEBUG]   content preview: {
+  "name": "autopack-frontend",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scr
+[2025-12-02 02:36:29] INFO: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+[2025-12-02 02:37:19] INFO: [phase3-dashboard-metrics] Builder succeeded (6786 tokens)
+[2025-12-02 02:37:19] INFO: [Isolation] autopack_internal_mode enabled - unlocking src/autopack/ for maintenance
+[2025-12-02 02:37:19] WARNING: Failed to post builder result: 500 Server Error: Internal Server Error for url: http://localhost:8000/runs/phase3-delegated-20251202-022323/phases/phase3-dashboard-metrics/builder_result
+[2025-12-02 02:37:19] INFO: [ARCHIVE_CONSOLIDATOR] Logged new error: API failure: POST builder_result
+[2025-12-02 02:37:19] INFO: [phase3-dashboard-metrics] Step 2/5: Applying patch...
+[2025-12-02 02:37:19] INFO: [Isolation] autopack_internal_mode enabled - unlocking src/autopack/ for maintenance
+[2025-12-02 02:37:19] ERROR: Patch validation failed - LLM generated incomplete/truncated patch:
+  - Line 249 contains truncation/ellipsis '...': +    console.print("[bold blue]Starting AutoPack Dashboard...[/bold blue]")
+[2025-12-02 02:37:19] ERROR: Patch content:
+diff --git a/src/autopack/usage_recorder.py b/src/autopack/usage_recorder.py
+index 0000000..1111111 100644
+--- a/src/autopack/usage_recorder.py
++++ b/src/autopack/usage_recorder.py
+@@ -1,6 +1,7 @@
+ """Usage tracking and cost calculation for LLM calls."""
+ 
+ import json
++from collections import defaultdict
+ from dataclasses import dataclass, field
+ from datetime import datetime
+ from pathlib import Path
+@@ -1,6 +1,9 @@
+     output_tokens: int
+     cost_usd: float
+     timestamp: str
++    doctor_m...
+[2025-12-02 02:37:19] ERROR: Exception during patch application: Patch validation failed - LLM generated incomplete/truncated patch:
+  - Line 249 contains truncation/ellipsis '...': +    console.print("[bold blue]Starting AutoPack Dashboard...[/bold blue]")
+[2025-12-02 02:37:19] ERROR: [phase3-dashboard-metrics] Failed to apply patch to filesystem: Patch validation failed - LLM generated incomplete/truncated patch:
+  - Line 249 contains truncation/ellipsis '...': +    console.print("[bold blue]Starting AutoPack Dashboard...[/bold blue]")
+[2025-12-02 02:37:19] INFO: Updated phase phase3-dashboard-metrics status to FAILED
+[2025-12-02 02:37:19] INFO: [Re-Plan] Max replans (1) reached for phase3-dashboard-metrics
+[2025-12-02 02:37:19] WARNING: [phase3-dashboard-metrics] Attempt 1 failed, escalating model for retry...
+[2025-12-02 02:37:19] INFO: [phase3-dashboard-metrics] Attempt 2/5 (model escalation enabled)
+[2025-12-02 02:37:19] INFO: [phase3-dashboard-metrics] Step 1/4: Generating code with Builder (via LlmService)...
+[2025-12-02 02:37:19] INFO: [Context] Loaded 4 recently modified files for fresh context
+[2025-12-02 02:37:19] INFO: [Context] Total: 10 files loaded for Builder context (modified=4, mentioned=0)
+[2025-12-02 02:37:19] INFO: [phase3-dashboard-metrics] Loaded 10 files for context
+[2025-12-02 02:37:19] INFO: [phase3-dashboard-metrics] Learning context: 6 rules, 0 hints
+[2025-12-02 02:37:19] INFO: [ModelSelector] Selected claude-opus-4-5 for builder (complexity=medium, attempt=1, intra_tier=1)
+[2025-12-02 02:37:19] INFO: [MODEL-SELECT] Builder: model=claude-opus-4-5, complexity=medium->medium, attempt=1, category=backend
+[2025-12-02 02:37:19] INFO: [DEBUG] file_context type: <class 'dict'>
+[2025-12-02 02:37:19] INFO: [DEBUG] file_context keys: ['existing_files']
+[2025-12-02 02:37:19] INFO: [DEBUG] files type: <class 'dict'>
+[2025-12-02 02:37:19] INFO: [DEBUG] files keys (first 3): ['config\\models.yaml', 'config\\pricing.yaml', 'last_patch_debug.diff']
+[2025-12-02 02:37:19] INFO: [DEBUG] Processing file: config\models.yaml
+[2025-12-02 02:37:19] INFO: [DEBUG]   content type: <class 'str'>
+[2025-12-02 02:37:19] INFO: [DEBUG]   content preview: complexity_models:
+  low:
+    # Default cheap tier: GLM-4.6 (Zhipu AI)
+    builder: glm-4.6
+    audi
+[2025-12-02 02:37:19] INFO: [DEBUG] Processing file: config\pricing.yaml
+[2025-12-02 02:37:19] INFO: [DEBUG]   content type: <class 'str'>
+[2025-12-02 02:37:19] INFO: [DEBUG]   content preview: # LLM Pricing Configuration
+# Updated: 2025-12-01
+# Prices in USD per 1,000 tokens
+
+# GLM (Zhipu AI)
+[2025-12-02 02:37:19] INFO: [DEBUG] Processing file: last_patch_debug.diff
+[2025-12-02 02:37:19] INFO: [DEBUG]   content type: <class 'str'>
+[2025-12-02 02:37:19] INFO: [DEBUG]   content preview: diff --git a/src/autopack/usage_recorder.py b/src/autopack/usage_recorder.py
+index 0000000..1111111 
+[2025-12-02 02:37:19] INFO: [DEBUG] Processing file: logs\autopack\model_selections_20251201.jsonl
+[2025-12-02 02:37:19] INFO: [DEBUG]   content type: <class 'str'>
+[2025-12-02 02:37:19] INFO: [DEBUG]   content preview: {"timestamp": "2025-12-01T09:36:28.082445", "phase_id": "phase3-config-loading", "role": "builder", 
+[2025-12-02 02:37:19] INFO: [DEBUG] Processing file: package.json
+[2025-12-02 02:37:19] INFO: [DEBUG]   content type: <class 'str'>
+[2025-12-02 02:37:19] INFO: [DEBUG]   content preview: {
+  "name": "autopack-frontend",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scr
+[2025-12-02 02:37:21] INFO: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+[2025-12-02 02:37:59] INFO: [phase3-dashboard-metrics] Builder succeeded (6056 tokens)
+[2025-12-02 02:37:59] INFO: [Isolation] autopack_internal_mode enabled - unlocking src/autopack/ for maintenance
+[2025-12-02 02:37:59] WARNING: Failed to post builder result: 500 Server Error: Internal Server Error for url: http://localhost:8000/runs/phase3-delegated-20251202-022323/phases/phase3-dashboard-metrics/builder_result
+[2025-12-02 02:37:59] INFO: [ARCHIVE_CONSOLIDATOR] Logged new error: API failure: POST builder_result
+[2025-12-02 02:37:59] INFO: [phase3-dashboard-metrics] Step 2/5: Applying patch...
+[2025-12-02 02:37:59] INFO: [Isolation] autopack_internal_mode enabled - unlocking src/autopack/ for maintenance
+[2025-12-02 02:37:59] ERROR: Patch validation failed - LLM generated incomplete/truncated patch:
+  - Line 286 contains truncation/ellipsis '...': +    return <div className="doctor-metrics loading">Loading Doctor metrics...</d
+[2025-12-02 02:37:59] ERROR: Patch content:
+diff --git a/src/autopack/usage_recorder.py b/src/autopack/usage_recorder.py
+index 0000000..1111111 100644
+--- a/src/autopack/usage_recorder.py
++++ b/src/autopack/usage_recorder.py
+@@ -1,6 +1,7 @@
+ """Usage tracking and cost calculation for LLM calls."""
+ 
+ import json
++from collections import defaultdict
+ from dataclasses import dataclass, field
+ from datetime import datetime
+ from pathlib import Path
+@@ -1,6 +1,9 @@
+     output_tokens: int
+     cost_usd: float
+     timestamp: str
++    doctor_m...
+[2025-12-02 02:37:59] ERROR: Exception during patch application: Patch validation failed - LLM generated incomplete/truncated patch:
+  - Line 286 contains truncation/ellipsis '...': +    return <div className="doctor-metrics loading">Loading Doctor metrics...</d
+[2025-12-02 02:37:59] ERROR: [phase3-dashboard-metrics] Failed to apply patch to filesystem: Patch validation failed - LLM generated incomplete/truncated patch:
+  - Line 286 contains truncation/ellipsis '...': +    return <div className="doctor-metrics loading">Loading Doctor metrics...</d
+[2025-12-02 02:37:59] INFO: Updated phase phase3-dashboard-metrics status to FAILED
+[2025-12-02 02:37:59] INFO: [Doctor] Complex failure detected -> using strong model
+[2025-12-02 02:37:59] INFO: [Doctor] Invoking Doctor for phase=phase3-dashboard-metrics, model=claude-sonnet-4-5, builder_attempts=2, error_category=patch_apply_error
+[2025-12-02 02:38:05] INFO: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+[2025-12-02 02:38:05] INFO: [Doctor] Complex failure detected -> using strong model
+[2025-12-02 02:38:05] INFO: [Doctor] Complex failure detected -> using strong model
+[2025-12-02 02:38:05] INFO: [Doctor] Decision: phase_id=phase3-dashboard-metrics, builder_attempts=2, health_ratio=0.48, error_category=patch_apply_error, model_chosen=claude-sonnet-4-5, is_complex=True, doctor_action=rollback_run, confidence=0.95, escalated=False
+[2025-12-02 02:38:05] INFO: [Doctor] Diagnosis complete: action=rollback_run, confidence=0.95, phase_calls=2, run_calls=4
+[2025-12-02 02:38:05] CRITICAL: [Doctor] Action: rollback_run - aborting run phase3-delegated-20251202-022323. Rationale: 12 patch failures across the run indicates systemic issues with the codebase state or patch generation strategy. With nearly half the failure budget consumed (12/25), continuing risks depleting the budget without progress. The repeated patch_apply_error pattern suggests either accumulated state corruption or fundamental misalignment between Builder's understanding and actual codebase structure.
+[2025-12-02 02:38:05] INFO: [ARCHIVE_CONSOLIDATOR] Logged new error: Doctor ROLLBACK: phase3-delegated-20251202-022323
+[2025-12-02 02:38:05] INFO: Updated phase phase3-dashboard-metrics status to FAILED
+[2025-12-02 02:38:05] WARNING: Phase phase3-dashboard-metrics finished with status: PATCH_FAILED
+[2025-12-02 02:38:05] INFO: Waiting 10s before next phase...
+[2025-12-02 02:38:15] INFO: Iteration 6: Fetching run status...
+[2025-12-02 02:38:15] INFO: Next phase: phase3-discovery-promotion
+[2025-12-02 02:38:15] INFO: Executing phase: phase3-discovery-promotion
+[2025-12-02 02:38:15] INFO: [phase3-discovery-promotion] Attempt 1/5 (model escalation enabled)
+[2025-12-02 02:38:15] INFO: [phase3-discovery-promotion] Step 1/4: Generating code with Builder (via LlmService)...
+[2025-12-02 02:38:15] INFO: [Context] Loaded 4 recently modified files for fresh context
+[2025-12-02 02:38:15] INFO: [Context] Total: 10 files loaded for Builder context (modified=4, mentioned=0)
+[2025-12-02 02:38:15] INFO: [phase3-discovery-promotion] Loaded 10 files for context
+[2025-12-02 02:38:15] INFO: [phase3-discovery-promotion] Learning context: 6 rules, 5 hints
+[2025-12-02 02:38:15] INFO: [ModelSelector] Selected claude-sonnet-4-5 for builder (complexity=medium, attempt=0, intra_tier=0)
+[2025-12-02 02:38:15] INFO: [MODEL-SELECT] Builder: model=claude-sonnet-4-5, complexity=medium->medium, attempt=0, category=backend
+[2025-12-02 02:38:15] INFO: [DEBUG] file_context type: <class 'dict'>
+[2025-12-02 02:38:15] INFO: [DEBUG] file_context keys: ['existing_files']
+[2025-12-02 02:38:15] INFO: [DEBUG] files type: <class 'dict'>
+[2025-12-02 02:38:15] INFO: [DEBUG] files keys (first 3): ['config\\models.yaml', 'config\\pricing.yaml', 'last_patch_debug.diff']
+[2025-12-02 02:38:15] INFO: [DEBUG] Processing file: config\models.yaml
+[2025-12-02 02:38:15] INFO: [DEBUG]   content type: <class 'str'>
+[2025-12-02 02:38:15] INFO: [DEBUG]   content preview: complexity_models:
+  low:
+    # Default cheap tier: GLM-4.6 (Zhipu AI)
+    builder: glm-4.6
+    audi
+[2025-12-02 02:38:15] INFO: [DEBUG] Processing file: config\pricing.yaml
+[2025-12-02 02:38:15] INFO: [DEBUG]   content type: <class 'str'>
+[2025-12-02 02:38:15] INFO: [DEBUG]   content preview: # LLM Pricing Configuration
+# Updated: 2025-12-01
+# Prices in USD per 1,000 tokens
+
+# GLM (Zhipu AI)
+[2025-12-02 02:38:15] INFO: [DEBUG] Processing file: last_patch_debug.diff
+[2025-12-02 02:38:15] INFO: [DEBUG]   content type: <class 'str'>
+[2025-12-02 02:38:15] INFO: [DEBUG]   content preview: diff --git a/src/autopack/usage_recorder.py b/src/autopack/usage_recorder.py
+index 0000000..1111111 
+[2025-12-02 02:38:15] INFO: [DEBUG] Processing file: logs\autopack\model_selections_20251201.jsonl
+[2025-12-02 02:38:15] INFO: [DEBUG]   content type: <class 'str'>
+[2025-12-02 02:38:15] INFO: [DEBUG]   content preview: {"timestamp": "2025-12-01T09:36:28.082445", "phase_id": "phase3-config-loading", "role": "builder", 
+[2025-12-02 02:38:15] INFO: [DEBUG] Processing file: package.json
+[2025-12-02 02:38:15] INFO: [DEBUG]   content type: <class 'str'>
+[2025-12-02 02:38:15] INFO: [DEBUG]   content preview: {
+  "name": "autopack-frontend",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scr
+[2025-12-02 02:38:18] INFO: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+[2025-12-02 02:38:54] INFO: [phase3-discovery-promotion] Builder succeeded (5600 tokens)
+[2025-12-02 02:38:54] INFO: [Isolation] autopack_internal_mode enabled - unlocking src/autopack/ for maintenance
+[2025-12-02 02:38:54] WARNING: Failed to post builder result: 500 Server Error: Internal Server Error for url: http://localhost:8000/runs/phase3-delegated-20251202-022323/phases/phase3-discovery-promotion/builder_result
+[2025-12-02 02:38:54] INFO: [ARCHIVE_CONSOLIDATOR] Logged new error: API failure: POST builder_result
+[2025-12-02 02:38:54] INFO: [phase3-discovery-promotion] Step 2/5: Applying patch...
+[2025-12-02 02:38:54] INFO: [Isolation] autopack_internal_mode enabled - unlocking src/autopack/ for maintenance
+[2025-12-02 02:38:54] INFO: Writing patch to temp_patch.diff
+[2025-12-02 02:38:54] INFO: Checking if patch can be applied (dry run)...
+[2025-12-02 02:38:54] WARNING: Strict patch check failed: error: patch fragment without header at line 71: @@ -1,5 +1,6 @@?
+[2025-12-02 02:38:54] INFO: Retrying with lenient mode (--ignore-whitespace -C1)...
+[2025-12-02 02:38:55] WARNING: Lenient mode also failed: error: patch fragment without header at line 71: @@ -1,5 +1,6 @@?
+[2025-12-02 02:38:55] INFO: Retrying with 3-way merge mode (-3)...
+[2025-12-02 02:38:55] WARNING: All git apply modes failed, attempting direct file write fallback...
+[2025-12-02 02:38:55] WARNING: Skipping src/autopack/learned_rules.py - cannot apply partial patch to existing file via direct write
+[2025-12-02 02:38:55] WARNING: Skipping config/models.yaml - cannot apply partial patch to existing file via direct write
+[2025-12-02 02:38:55] ERROR: Direct file write also failed: error: patch fragment without header at line 71: @@ -1,5 +1,6 @@?
+[2025-12-02 02:38:55] ERROR: Patch content:
+diff --git a/src/autopack/learned_rules.py b/src/autopack/learned_rules.py
+index 0000000..1111111 100644
+--- a/src/autopack/learned_rules.py
++++ b/src/autopack/learned_rules.py
+@@ -1,11 +1,14 @@
+ """Learned rules management for autonomous build system."""
+ 
+ import json
++from collections import defaultdict
+ from dataclasses import dataclass, field
+-from datetime import datetime
++from datetime import datetime, timedelta
++from enum import Enum
+ from pathlib import Path
+-from typing import Dict, Li...
+[2025-12-02 02:38:55] ERROR: [phase3-discovery-promotion] Failed to apply patch to filesystem: error: patch fragment without header at line 71: @@ -1,5 +1,6 @@?
+[2025-12-02 02:38:55] INFO: Updated phase phase3-discovery-promotion status to FAILED
+[2025-12-02 02:38:55] WARNING: [phase3-discovery-promotion] Attempt 1 failed, escalating model for retry...
+[2025-12-02 02:38:55] INFO: [phase3-discovery-promotion] Attempt 2/5 (model escalation enabled)
+[2025-12-02 02:38:55] INFO: [phase3-discovery-promotion] Step 1/4: Generating code with Builder (via LlmService)...
+[2025-12-02 02:38:55] INFO: [Context] Loaded 4 recently modified files for fresh context
+[2025-12-02 02:38:55] INFO: [Context] Total: 10 files loaded for Builder context (modified=4, mentioned=0)
+[2025-12-02 02:38:55] INFO: [phase3-discovery-promotion] Loaded 10 files for context
+[2025-12-02 02:38:55] INFO: [phase3-discovery-promotion] Learning context: 6 rules, 5 hints
+[2025-12-02 02:38:55] INFO: [ModelSelector] Selected claude-opus-4-5 for builder (complexity=medium, attempt=1, intra_tier=1)
+[2025-12-02 02:38:55] INFO: [MODEL-SELECT] Builder: model=claude-opus-4-5, complexity=medium->medium, attempt=1, category=backend
+[2025-12-02 02:38:55] INFO: [DEBUG] file_context type: <class 'dict'>
+[2025-12-02 02:38:55] INFO: [DEBUG] file_context keys: ['existing_files']
+[2025-12-02 02:38:55] INFO: [DEBUG] files type: <class 'dict'>
+[2025-12-02 02:38:55] INFO: [DEBUG] files keys (first 3): ['config\\models.yaml', 'config\\pricing.yaml', 'last_patch_debug.diff']
+[2025-12-02 02:38:55] INFO: [DEBUG] Processing file: config\models.yaml
+[2025-12-02 02:38:55] INFO: [DEBUG]   content type: <class 'str'>
+[2025-12-02 02:38:55] INFO: [DEBUG]   content preview: complexity_models:
+  low:
+    # Default cheap tier: GLM-4.6 (Zhipu AI)
+    builder: glm-4.6
+    audi
+[2025-12-02 02:38:55] INFO: [DEBUG] Processing file: config\pricing.yaml
+[2025-12-02 02:38:55] INFO: [DEBUG]   content type: <class 'str'>
+[2025-12-02 02:38:55] INFO: [DEBUG]   content preview: # LLM Pricing Configuration
+# Updated: 2025-12-01
+# Prices in USD per 1,000 tokens
+
+# GLM (Zhipu AI)
+[2025-12-02 02:38:55] INFO: [DEBUG] Processing file: last_patch_debug.diff
+[2025-12-02 02:38:55] INFO: [DEBUG]   content type: <class 'str'>
+[2025-12-02 02:38:55] INFO: [DEBUG]   content preview: diff --git a/src/autopack/learned_rules.py b/src/autopack/learned_rules.py
+index 0000000..1111111 10
+[2025-12-02 02:38:55] INFO: [DEBUG] Processing file: logs\autopack\model_selections_20251201.jsonl
+[2025-12-02 02:38:55] INFO: [DEBUG]   content type: <class 'str'>
+[2025-12-02 02:38:55] INFO: [DEBUG]   content preview: {"timestamp": "2025-12-01T09:36:28.082445", "phase_id": "phase3-config-loading", "role": "builder", 
+[2025-12-02 02:38:55] INFO: [DEBUG] Processing file: package.json
+[2025-12-02 02:38:55] INFO: [DEBUG]   content type: <class 'str'>
+[2025-12-02 02:38:55] INFO: [DEBUG]   content preview: {
+  "name": "autopack-frontend",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scr
+[2025-12-02 02:38:57] INFO: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+[2025-12-02 02:39:28] INFO: [phase3-discovery-promotion] Builder succeeded (5209 tokens)
+[2025-12-02 02:39:28] INFO: [Isolation] autopack_internal_mode enabled - unlocking src/autopack/ for maintenance
+[2025-12-02 02:39:28] WARNING: Failed to post builder result: 500 Server Error: Internal Server Error for url: http://localhost:8000/runs/phase3-delegated-20251202-022323/phases/phase3-discovery-promotion/builder_result
+[2025-12-02 02:39:28] INFO: [ARCHIVE_CONSOLIDATOR] Logged new error: API failure: POST builder_result
+[2025-12-02 02:39:28] INFO: [phase3-discovery-promotion] Step 2/5: Applying patch...
+[2025-12-02 02:39:28] INFO: [Isolation] autopack_internal_mode enabled - unlocking src/autopack/ for maintenance
+[2025-12-02 02:39:28] INFO: Writing patch to temp_patch.diff
+[2025-12-02 02:39:28] INFO: Checking if patch can be applied (dry run)...
+[2025-12-02 02:39:28] WARNING: Strict patch check failed: error: patch failed: src/autopack/learned_rules.py:1
+error: src/autopack/learned_rules.py: patch does not apply
+error: patch failed: config/models.yaml:14
+error: config/models.yaml: patch does not apply
+[2025-12-02 02:39:28] INFO: Retrying with lenient mode (--ignore-whitespace -C1)...
+[2025-12-02 02:39:28] WARNING: Lenient mode also failed: error: patch failed: src/autopack/learned_rules.py:1
+error: src/autopack/learned_rules.py: patch does not apply
+error: patch failed: config/models.yaml:14
+error: config/models.yaml: patch does not apply
+[2025-12-02 02:39:28] INFO: Retrying with 3-way merge mode (-3)...
+[2025-12-02 02:39:28] WARNING: All git apply modes failed, attempting direct file write fallback...
+[2025-12-02 02:39:28] WARNING: Skipping src/autopack/learned_rules.py - cannot apply partial patch to existing file via direct write
+[2025-12-02 02:39:28] WARNING: Skipping config/models.yaml - cannot apply partial patch to existing file via direct write
+[2025-12-02 02:39:28] ERROR: Direct file write also failed: error: repository lacks the necessary blob to perform 3-way merge.
+Falling back to direct application...
+error: patch failed: src/autopack/learned_rules.py:1
+error: src/autopack/learned_rules.py: patch does not apply
+error: config/models.yaml: does not match index
+[2025-12-02 02:39:28] ERROR: Patch content:
+diff --git a/src/autopack/learned_rules.py b/src/autopack/learned_rules.py
+index 0000000..1111111 100644
+--- a/src/autopack/learned_rules.py
++++ b/src/autopack/learned_rules.py
+@@ -1,11 +1,14 @@
+ """Learned rules management for autonomous build system."""
+ 
+ import json
++from collections import defaultdict
+ from dataclasses import dataclass, field
+-from datetime import datetime
++from datetime import datetime, timedelta
++from enum import Enum
+ from pathlib import Path
+-from typing import Dict, Li...
+[2025-12-02 02:39:28] ERROR: [phase3-discovery-promotion] Failed to apply patch to filesystem: error: patch failed: src/autopack/learned_rules.py:1
+error: src/autopack/learned_rules.py: patch does not apply
+error: patch failed: config/models.yaml:14
+error: config/models.yaml: patch does not apply
+[2025-12-02 02:39:28] INFO: Updated phase phase3-discovery-promotion status to FAILED
+[2025-12-02 02:39:28] INFO: [Doctor] Routine failure detected -> using cheap model
+[2025-12-02 02:39:28] INFO: [Doctor] Invoking Doctor for phase=phase3-discovery-promotion, model=glm-4.6, builder_attempts=2, error_category=patch_apply_error
+[2025-12-02 02:39:32] INFO: HTTP Request: POST https://open.bigmodel.cn/api/paas/v4/chat/completions "HTTP/1.1 200 OK"
+[2025-12-02 02:39:32] INFO: [Doctor] Routine failure detected -> using cheap model
+[2025-12-02 02:39:32] INFO: [Doctor] Routine failure detected -> using cheap model
+[2025-12-02 02:39:32] INFO: [Doctor] Decision: phase_id=phase3-discovery-promotion, builder_attempts=2, health_ratio=0.56, error_category=patch_apply_error, model_chosen=glm-4.6, is_complex=True, doctor_action=replan, confidence=0.75, escalated=False
+[2025-12-02 02:39:32] INFO: [Doctor] Diagnosis complete: action=replan, confidence=0.75, phase_calls=1, run_calls=5
+[2025-12-02 02:39:32] INFO: [Doctor] Action: replan - triggering approach revision
+[2025-12-02 02:39:32] INFO: [Re-Plan] Revising approach for phase3-discovery-promotion due to doctor_replan:Multiple patch apply failures (14 total) suggest t
+[2025-12-02 02:39:45] INFO: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+[2025-12-02 02:39:45] INFO: [Re-Plan] Successfully revised phase phase3-discovery-promotion
+[2025-12-02 02:39:45] INFO: [Re-Plan] Original: Implement learned rules promotion from discovery to permanent rule.
+
+The promotion pipeline stages:
+...
+[2025-12-02 02:39:45] INFO: [Re-Plan] Revised: **Phase**: Discovery Promotion Pipeline
+**Description**: Implement learned rules promotion from disc...
+[2025-12-02 02:39:45] WARNING: File not found: C:\dev\Autopack\.autonomous_runs\autopack\archive\CONSOLIDATED_BUILD.md
+[2025-12-02 02:39:45] INFO: [ARCHIVE_CONSOLIDATOR] Logged build event: PHASE_REPLANNED
+[2025-12-02 02:39:45] INFO: [Doctor] Replan successful, phase revised
+[2025-12-02 02:39:45] INFO: [phase3-discovery-promotion] Attempt 1/5 (model escalation enabled)
+[2025-12-02 02:39:45] INFO: [phase3-discovery-promotion] Step 1/4: Generating code with Builder (via LlmService)...
+[2025-12-02 02:39:45] INFO: [Context] Loaded 4 recently modified files for fresh context
+[2025-12-02 02:39:45] INFO: [Context] Total: 10 files loaded for Builder context (modified=4, mentioned=0)
+[2025-12-02 02:39:45] INFO: [phase3-discovery-promotion] Loaded 10 files for context
+[2025-12-02 02:39:45] INFO: [phase3-discovery-promotion] Learning context: 6 rules, 5 hints
+[2025-12-02 02:39:45] INFO: [ModelSelector] Selected claude-sonnet-4-5 for builder (complexity=medium, attempt=0, intra_tier=0)
+[2025-12-02 02:39:45] INFO: [MODEL-SELECT] Builder: model=claude-sonnet-4-5, complexity=medium->medium, attempt=0, category=backend
+[2025-12-02 02:39:45] INFO: [DEBUG] file_context type: <class 'dict'>
+[2025-12-02 02:39:45] INFO: [DEBUG] file_context keys: ['existing_files']
+[2025-12-02 02:39:45] INFO: [DEBUG] files type: <class 'dict'>
+[2025-12-02 02:39:45] INFO: [DEBUG] files keys (first 3): ['config\\models.yaml', 'config\\pricing.yaml', 'last_patch_debug.diff']
+[2025-12-02 02:39:45] INFO: [DEBUG] Processing file: config\models.yaml
+[2025-12-02 02:39:45] INFO: [DEBUG]   content type: <class 'str'>
+[2025-12-02 02:39:45] INFO: [DEBUG]   content preview: complexity_models:
+  low:
+    # Default cheap tier: GLM-4.6 (Zhipu AI)
+    builder: glm-4.6
+    audi
+[2025-12-02 02:39:45] INFO: [DEBUG] Processing file: config\pricing.yaml
+[2025-12-02 02:39:45] INFO: [DEBUG]   content type: <class 'str'>
+[2025-12-02 02:39:45] INFO: [DEBUG]   content preview: # LLM Pricing Configuration
+# Updated: 2025-12-01
+# Prices in USD per 1,000 tokens
+
+# GLM (Zhipu AI)
+[2025-12-02 02:39:45] INFO: [DEBUG] Processing file: last_patch_debug.diff
+[2025-12-02 02:39:45] INFO: [DEBUG]   content type: <class 'str'>
+[2025-12-02 02:39:45] INFO: [DEBUG]   content preview: diff --git a/src/autopack/learned_rules.py b/src/autopack/learned_rules.py
+index 0000000..1111111 10
+[2025-12-02 02:39:45] INFO: [DEBUG] Processing file: logs\autopack\model_selections_20251201.jsonl
+[2025-12-02 02:39:45] INFO: [DEBUG]   content type: <class 'str'>
+[2025-12-02 02:39:45] INFO: [DEBUG]   content preview: {"timestamp": "2025-12-01T09:36:28.082445", "phase_id": "phase3-config-loading", "role": "builder", 
+[2025-12-02 02:39:45] INFO: [DEBUG] Processing file: package.json
+[2025-12-02 02:39:45] INFO: [DEBUG]   content type: <class 'str'>
+[2025-12-02 02:39:45] INFO: [DEBUG]   content preview: {
+  "name": "autopack-frontend",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scr
+[2025-12-02 02:39:47] INFO: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+[2025-12-02 02:40:31] INFO: [phase3-discovery-promotion] Builder succeeded (6171 tokens)
+[2025-12-02 02:40:31] INFO: [Isolation] autopack_internal_mode enabled - unlocking src/autopack/ for maintenance
+[2025-12-02 02:40:31] WARNING: Failed to post builder result: 500 Server Error: Internal Server Error for url: http://localhost:8000/runs/phase3-delegated-20251202-022323/phases/phase3-discovery-promotion/builder_result
+[2025-12-02 02:40:31] INFO: [ARCHIVE_CONSOLIDATOR] Logged new error: API failure: POST builder_result
+[2025-12-02 02:40:31] INFO: [phase3-discovery-promotion] Step 2/5: Applying patch...
+[2025-12-02 02:40:31] INFO: [Isolation] autopack_internal_mode enabled - unlocking src/autopack/ for maintenance
+[2025-12-02 02:40:31] INFO: Writing patch to temp_patch.diff
+[2025-12-02 02:40:31] INFO: Checking if patch can be applied (dry run)...
+[2025-12-02 02:40:31] WARNING: Strict patch check failed: error: patch failed: src/autopack/learned_rules.py:1
+error: src/autopack/learned_rules.py: patch does not apply
+error: patch failed: config/models.yaml:9
+error: config/models.yaml: patch does not apply
+[2025-12-02 02:40:31] INFO: Retrying with lenient mode (--ignore-whitespace -C1)...
+[2025-12-02 02:40:31] WARNING: Lenient mode also failed: error: patch failed: src/autopack/learned_rules.py:1
+error: src/autopack/learned_rules.py: patch does not apply
+Context reduced to (1/1) to apply fragment at 25
+[2025-12-02 02:40:31] INFO: Retrying with 3-way merge mode (-3)...
+[2025-12-02 02:40:31] WARNING: All git apply modes failed, attempting direct file write fallback...
+[2025-12-02 02:40:31] WARNING: Skipping src/autopack/learned_rules.py - cannot apply partial patch to existing file via direct write
+[2025-12-02 02:40:31] WARNING: Skipping config/models.yaml - cannot apply partial patch to existing file via direct write
+[2025-12-02 02:40:31] ERROR: Direct file write also failed: error: repository lacks the necessary blob to perform 3-way merge.
+Falling back to direct application...
+error: patch failed: src/autopack/learned_rules.py:1
+error: src/autopack/learned_rules.py: patch does not apply
+error: config/models.yaml: does not match index
+[2025-12-02 02:40:31] ERROR: Patch content:
+diff --git a/src/autopack/learned_rules.py b/src/autopack/learned_rules.py
+index 0000000..1111111 100644
+--- a/src/autopack/learned_rules.py
++++ b/src/autopack/learned_rules.py
+@@ -1,11 +1,14 @@
+ """Learned rules management for autonomous build system."""
+ 
+ import json
++from collections import defaultdict
+ from dataclasses import dataclass, field
+-from datetime import datetime
++from datetime import datetime, timedelta
++from enum import Enum
+ from pathlib import Path
+-from typing import Dict, Li...
+[2025-12-02 02:40:31] ERROR: [phase3-discovery-promotion] Failed to apply patch to filesystem: error: patch failed: src/autopack/learned_rules.py:1
+error: src/autopack/learned_rules.py: patch does not apply
+error: patch failed: config/models.yaml:9
+error: config/models.yaml: patch does not apply
+[2025-12-02 02:40:32] INFO: Updated phase phase3-discovery-promotion status to FAILED
+[2025-12-02 02:40:32] INFO: [Re-Plan] Max replans (1) reached for phase3-discovery-promotion
+[2025-12-02 02:40:32] WARNING: [phase3-discovery-promotion] Attempt 1 failed, escalating model for retry...
+[2025-12-02 02:40:32] INFO: [phase3-discovery-promotion] Attempt 2/5 (model escalation enabled)
+[2025-12-02 02:40:32] INFO: [phase3-discovery-promotion] Step 1/4: Generating code with Builder (via LlmService)...
+[2025-12-02 02:40:32] INFO: [Context] Loaded 4 recently modified files for fresh context
+[2025-12-02 02:40:32] INFO: [Context] Total: 10 files loaded for Builder context (modified=4, mentioned=0)
+[2025-12-02 02:40:32] INFO: [phase3-discovery-promotion] Loaded 10 files for context
+[2025-12-02 02:40:32] INFO: [phase3-discovery-promotion] Learning context: 6 rules, 5 hints
+[2025-12-02 02:40:32] INFO: [ModelSelector] Selected claude-opus-4-5 for builder (complexity=medium, attempt=1, intra_tier=1)
+[2025-12-02 02:40:32] INFO: [MODEL-SELECT] Builder: model=claude-opus-4-5, complexity=medium->medium, attempt=1, category=backend
+[2025-12-02 02:40:32] INFO: [DEBUG] file_context type: <class 'dict'>
+[2025-12-02 02:40:32] INFO: [DEBUG] file_context keys: ['existing_files']
+[2025-12-02 02:40:32] INFO: [DEBUG] files type: <class 'dict'>
+[2025-12-02 02:40:32] INFO: [DEBUG] files keys (first 3): ['config\\models.yaml', 'config\\pricing.yaml', 'last_patch_debug.diff']
+[2025-12-02 02:40:32] INFO: [DEBUG] Processing file: config\models.yaml
+[2025-12-02 02:40:32] INFO: [DEBUG]   content type: <class 'str'>
+[2025-12-02 02:40:32] INFO: [DEBUG]   content preview: complexity_models:
+  low:
+    # Default cheap tier: GLM-4.6 (Zhipu AI)
+    builder: glm-4.6
+    audi
+[2025-12-02 02:40:32] INFO: [DEBUG] Processing file: config\pricing.yaml
+[2025-12-02 02:40:32] INFO: [DEBUG]   content type: <class 'str'>
+[2025-12-02 02:40:32] INFO: [DEBUG]   content preview: # LLM Pricing Configuration
+# Updated: 2025-12-01
+# Prices in USD per 1,000 tokens
+
+# GLM (Zhipu AI)
+[2025-12-02 02:40:32] INFO: [DEBUG] Processing file: last_patch_debug.diff
+[2025-12-02 02:40:32] INFO: [DEBUG]   content type: <class 'str'>
+[2025-12-02 02:40:32] INFO: [DEBUG]   content preview: diff --git a/src/autopack/learned_rules.py b/src/autopack/learned_rules.py
+index 0000000..1111111 10
+[2025-12-02 02:40:32] INFO: [DEBUG] Processing file: logs\autopack\model_selections_20251201.jsonl
+[2025-12-02 02:40:32] INFO: [DEBUG]   content type: <class 'str'>
+[2025-12-02 02:40:32] INFO: [DEBUG]   content preview: {"timestamp": "2025-12-01T09:36:28.082445", "phase_id": "phase3-config-loading", "role": "builder", 
+[2025-12-02 02:40:32] INFO: [DEBUG] Processing file: package.json
+[2025-12-02 02:40:32] INFO: [DEBUG]   content type: <class 'str'>
+[2025-12-02 02:40:32] INFO: [DEBUG]   content preview: {
+  "name": "autopack-frontend",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scr
+[2025-12-02 02:40:33] INFO: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+[2025-12-02 02:41:16] INFO: [phase3-discovery-promotion] Builder succeeded (5149 tokens)
+[2025-12-02 02:41:16] INFO: [Isolation] autopack_internal_mode enabled - unlocking src/autopack/ for maintenance
+[2025-12-02 02:41:16] WARNING: Failed to post builder result: 500 Server Error: Internal Server Error for url: http://localhost:8000/runs/phase3-delegated-20251202-022323/phases/phase3-discovery-promotion/builder_result
+[2025-12-02 02:41:16] INFO: [ARCHIVE_CONSOLIDATOR] Logged new error: API failure: POST builder_result
+[2025-12-02 02:41:16] INFO: [phase3-discovery-promotion] Step 2/5: Applying patch...
+[2025-12-02 02:41:16] INFO: [Isolation] autopack_internal_mode enabled - unlocking src/autopack/ for maintenance
+[2025-12-02 02:41:16] INFO: Writing patch to temp_patch.diff
+[2025-12-02 02:41:16] INFO: Checking if patch can be applied (dry run)...
+[2025-12-02 02:41:16] WARNING: Strict patch check failed: error: patch failed: src/autopack/learned_rules.py:1
+error: src/autopack/learned_rules.py: patch does not apply
+error: patch failed: config/models.yaml:1
+error: config/models.yaml: patch does not apply
+[2025-12-02 02:41:16] INFO: Retrying with lenient mode (--ignore-whitespace -C1)...
+[2025-12-02 02:41:16] WARNING: Lenient mode also failed: error: patch failed: src/autopack/learned_rules.py:1
+error: src/autopack/learned_rules.py: patch does not apply
+error: patch failed: config/models.yaml:1
+error: config/models.yaml: patch does not apply
+[2025-12-02 02:41:16] INFO: Retrying with 3-way merge mode (-3)...
+[2025-12-02 02:41:16] WARNING: All git apply modes failed, attempting direct file write fallback...
+[2025-12-02 02:41:16] WARNING: Skipping src/autopack/learned_rules.py - cannot apply partial patch to existing file via direct write
+[2025-12-02 02:41:16] WARNING: Skipping config/models.yaml - cannot apply partial patch to existing file via direct write
+[2025-12-02 02:41:16] ERROR: Direct file write also failed: error: repository lacks the necessary blob to perform 3-way merge.
+Falling back to direct application...
+error: patch failed: src/autopack/learned_rules.py:1
+error: src/autopack/learned_rules.py: patch does not apply
+error: config/models.yaml: does not match index
+[2025-12-02 02:41:16] ERROR: Patch content:
+diff --git a/src/autopack/learned_rules.py b/src/autopack/learned_rules.py
+index 0000000..1111111 100644
+--- a/src/autopack/learned_rules.py
++++ b/src/autopack/learned_rules.py
+@@ -1,11 +1,14 @@
+ """Learned rules management for autonomous build system."""
+ 
+ import json
++from collections import defaultdict
+ from dataclasses import dataclass, field
+-from datetime import datetime
++from datetime import datetime, timedelta
++from enum import Enum
+ from pathlib import Path
+-from typing import Dict, Li...
+[2025-12-02 02:41:16] ERROR: [phase3-discovery-promotion] Failed to apply patch to filesystem: error: patch failed: src/autopack/learned_rules.py:1
+error: src/autopack/learned_rules.py: patch does not apply
+error: patch failed: config/models.yaml:1
+error: config/models.yaml: patch does not apply
+[2025-12-02 02:41:16] INFO: Updated phase phase3-discovery-promotion status to FAILED
+[2025-12-02 02:41:16] INFO: [Doctor] Complex failure detected -> using strong model
+[2025-12-02 02:41:16] INFO: [Doctor] Invoking Doctor for phase=phase3-discovery-promotion, model=claude-sonnet-4-5, builder_attempts=2, error_category=patch_apply_error
+[2025-12-02 02:41:24] INFO: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+[2025-12-02 02:41:24] INFO: [Doctor] Complex failure detected -> using strong model
+[2025-12-02 02:41:24] INFO: [Doctor] Complex failure detected -> using strong model
+[2025-12-02 02:41:24] INFO: [Doctor] Decision: phase_id=phase3-discovery-promotion, builder_attempts=2, health_ratio=0.64, error_category=patch_apply_error, model_chosen=claude-sonnet-4-5, is_complex=True, doctor_action=rollback_run, confidence=0.95, escalated=False
+[2025-12-02 02:41:24] INFO: [Doctor] Diagnosis complete: action=rollback_run, confidence=0.95, phase_calls=2, run_calls=6
+[2025-12-02 02:41:24] CRITICAL: [Doctor] Action: rollback_run - aborting run phase3-delegated-20251202-022323. Rationale: 16 patch failures out of 25 total budget (64% consumed) with only 2 builder attempts indicates systematic issues. The high patch failure rate suggests either: (1) accumulated codebase damage from previous failed patches, (2) git repository in corrupted state, or (3) fundamental architectural misalignment between phases. With budget 64% depleted and minimal builder attempts, continuing risks exhausting remaining budget without resolution. A clean slate via rollback is the safest path forward.
+[2025-12-02 02:41:24] INFO: [ARCHIVE_CONSOLIDATOR] Logged new error: Doctor ROLLBACK: phase3-delegated-20251202-022323
+[2025-12-02 02:41:24] INFO: Updated phase phase3-discovery-promotion status to FAILED
+[2025-12-02 02:41:24] WARNING: Phase phase3-discovery-promotion finished with status: PATCH_FAILED
+[2025-12-02 02:41:24] INFO: Waiting 10s before next phase...
+[2025-12-02 02:41:34] INFO: Iteration 7: Fetching run status...
+[2025-12-02 02:41:34] INFO: No more QUEUED phases, execution complete
+[2025-12-02 02:41:34] INFO: Autonomous execution loop finished
+[2025-12-02 02:41:34] WARNING: File not found: C:\dev\Autopack\.autonomous_runs\autopack\archive\CONSOLIDATED_BUILD.md
+[2025-12-02 02:41:34] INFO: [ARCHIVE_CONSOLIDATOR] Logged build event: RUN_COMPLETE
+[2025-12-02 02:41:34] INFO: Learning Pipeline: No hints qualified for promotion (need 2+ occurrences)
+[Quality Gate] Phase phase3-config-loading
+Category: backend
+Quality Level: NEEDS_REVIEW
+
+Issues (blocking):
+  ✗ CI tests failed: Unknown error
+[Quality Gate] Phase phase3-doctor-tests
+Category: tests
+Quality Level: NEEDS_REVIEW
+
+Issues (blocking):
+  ✗ CI tests failed: Unknown error
+[Quality Gate] Phase phase3-branch-rollback
+Category: backend
+Quality Level: NEEDS_REVIEW
+
+Issues (blocking):
+  ✗ CI tests failed: Unknown error

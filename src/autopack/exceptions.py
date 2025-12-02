@@ -1,10 +1,34 @@
 """Custom exceptions for the Autopack framework."""
 
+from typing import Optional, Dict, Any
+
 
 class AutopackError(Exception):
-    """Base exception for all Autopack errors."""
+    """Base exception for all Autopack errors with rich context support."""
 
-    pass
+    def __init__(
+        self,
+        message: str,
+        run_id: Optional[str] = None,
+        phase_id: Optional[str] = None,
+        component: Optional[str] = None,
+        context: Optional[Dict[str, Any]] = None,
+    ):
+        """
+        Initialize Autopack error with context.
+
+        Args:
+            message: Error message
+            run_id: Run ID where error occurred
+            phase_id: Phase ID where error occurred
+            component: Component name (e.g., 'builder', 'auditor', 'api')
+            context: Additional context data
+        """
+        super().__init__(message)
+        self.run_id = run_id
+        self.phase_id = phase_id
+        self.component = component
+        self.context = context or {}
 
 
 class BuilderError(AutopackError):

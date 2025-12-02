@@ -6,9 +6,38 @@ Autopack is a framework for orchestrating autonomous AI agents (Builder and Audi
 
 ---
 
-## Recent Updates (v0.3.0 - Phase 2 Complete)
+## Recent Updates (v0.4.0 - Enhanced Error Reporting)
 
-### Autopack Doctor (NEW)
+### Comprehensive Error Reporting System (NEW)
+Detailed error context capture and reporting for easier debugging:
+- **Automatic Error Capture**: All exceptions automatically captured with full context
+- **Rich Context**: Stack traces, phase/run info, request data, environment details
+- **Error Reports**: Saved to `.autonomous_runs/{run_id}/errors/` as JSON + human-readable text
+- **API Endpoints**:
+  - `GET /runs/{run_id}/errors` - Get all error reports for a run
+  - `GET /runs/{run_id}/errors/summary` - Get error summary
+- **Stack Frame Analysis**: Captures local variables and function context at each stack level
+- **Component Tracking**: Identifies where errors occurred (api, executor, builder, etc.)
+
+**Error Report Location**:
+```
+.autonomous_runs/
+  {run_id}/
+    errors/
+      20251203_013555_api_AttributeError.json  # Detailed JSON
+      20251203_013555_api_AttributeError.txt   # Human-readable summary
+```
+
+**Usage**:
+```bash
+# View error summary for a run
+curl http://localhost:8000/runs/my-run-id/errors/summary
+
+# Get all error reports
+curl http://localhost:8000/runs/my-run-id/errors
+```
+
+### Autopack Doctor
 LLM-based diagnostic system for intelligent failure recovery:
 - **Failure Diagnosis**: Analyzes phase failures and recommends recovery actions
 - **Model Routing**: Uses cheap model (glm-4.6) for routine failures, strong model (claude-sonnet-4-5) for complex ones

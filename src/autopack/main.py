@@ -77,12 +77,49 @@ async def global_exception_handler(request: Request, exc: Exception):
     logger.error(f"Unhandled exception: {exc}", exc_info=True)
     import traceback
     tb = traceback.format_exc()
+
+    # Use error reporter to capture detailed context
+    from .error_reporter import report_error
+
+    # Extract run_id and phase_id from request path if available
+    path_parts = request.url.path.split('/')
+    run_id = None
+    phase_id = None
+
+    try:
+        if 'runs' in path_parts:
+            run_idx = path_parts.index('runs')
+            if len(path_parts) > run_idx + 1:
+                run_id = path_parts[run_idx + 1]
+        if 'phases' in path_parts:
+            phase_idx = path_parts.index('phases')
+            if len(path_parts) > phase_idx + 1:
+                phase_id = path_parts[phase_idx + 1]
+    except (ValueError, IndexError):
+        pass
+
+    # Report error with full context
+    report_error(
+        error=exc,
+        run_id=run_id,
+        phase_id=phase_id,
+        component="api",
+        operation=f"{request.method} {request.url.path}",
+        context_data={
+            "method": request.method,
+            "url": str(request.url),
+            "headers": dict(request.headers),
+            "query_params": dict(request.query_params),
+        }
+    )
+
     return JSONResponse(
         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
         content={
             "detail": str(exc),
             "type": type(exc).__name__,
-            "traceback": tb if os.getenv("DEBUG") == "1" else None
+            "traceback": tb if os.getenv("DEBUG") == "1" else None,
+            "error_report": f"Error report saved to .autonomous_runs/{run_id or 'errors'}/errors/" if run_id else "Error report saved"
         },
     )
 
@@ -393,6 +430,24 @@ def get_project_backlog():
     tracker = IssueTracker(run_id="dummy")
     backlog = tracker.load_project_backlog()
     return backlog.model_dump()
+
+
+@app.get("/runs/{run_id}/errors")
+def get_run_errors(run_id: str):
+    """Get all error reports for a run."""
+    from .error_reporter import get_error_reporter
+    reporter = get_error_reporter()
+    errors = reporter.get_run_errors(run_id)
+    return {"run_id": run_id, "error_count": len(errors), "errors": errors}
+
+
+@app.get("/runs/{run_id}/errors/summary")
+def get_run_error_summary(run_id: str):
+    """Get error summary for a run."""
+    from .error_reporter import get_error_reporter
+    reporter = get_error_reporter()
+    summary = reporter.generate_run_error_summary(run_id)
+    return {"run_id": run_id, "summary": summary}
 
 
 @app.post("/runs/{run_id}/phases/{phase_id}/builder_result")

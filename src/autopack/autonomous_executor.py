@@ -805,6 +805,23 @@ class AutonomousExecutor:
             except Exception as e:
                 logger.error(f"[{phase_id}] Attempt {attempt_index + 1} raised exception: {e}")
 
+                # Report detailed error context for debugging
+                from .error_reporter import report_error
+                report_error(
+                    error=e,
+                    run_id=self.run_id,
+                    phase_id=phase_id,
+                    component="executor",
+                    operation="execute_phase",
+                    context_data={
+                        "attempt_index": attempt_index,
+                        "max_attempts": max_attempts,
+                        "phase_description": phase.get("description", "")[:200],
+                        "phase_complexity": phase.get("complexity"),
+                        "phase_task_category": phase.get("task_category"),
+                    }
+                )
+
                 # Update health budget tracking
                 self._run_total_failures += 1
                 error_str = str(e).lower()

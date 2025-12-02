@@ -2675,13 +2675,15 @@ Just the new description that should replace the original.
     def run_autonomous_loop(
         self,
         poll_interval: int = 10,
-        max_iterations: Optional[int] = None
+        max_iterations: Optional[int] = None,
+        stop_on_first_failure: bool = False
     ):
         """Main autonomous execution loop
 
         Args:
             poll_interval: Seconds to wait between polling for next phase
             max_iterations: Maximum number of phases to execute (None = unlimited)
+            stop_on_first_failure: If True, stop immediately when any phase fails
         """
         logger.info("Starting autonomous execution loop...")
         logger.info(f"Poll interval: {poll_interval}s")
@@ -2694,7 +2696,18 @@ Just the new description that should replace the original.
         iteration = 0
         phases_executed = 0
         phases_failed = 0
+        stop_signal_file = Path(".autonomous_runs/.stop_executor")
+        
         while True:
+            # Check for stop signal (from monitor script)
+            if stop_signal_file.exists():
+                signal_content = stop_signal_file.read_text().strip()
+                if signal_content.startswith(f"stop:{self.run_id}"):
+                    logger.critical(f"[STOP_SIGNAL] Stop signal detected: {signal_content}")
+                    logger.info("Stopping execution as requested by monitor")
+                    stop_signal_file.unlink()  # Remove signal file
+                    break
+            
             # Check iteration limit
             if max_iterations and iteration >= max_iterations:
                 logger.info(f"Reached max iterations ({max_iterations}), stopping")
@@ -2762,6 +2775,15 @@ Just the new description that should replace the original.
             else:
                 logger.warning(f"Phase {phase_id} finished with status: {status}")
                 phases_failed += 1
+                
+                # NEW: Stop on first failure if requested (saves token usage)
+                if stop_on_first_failure:
+                    logger.critical(
+                        f"[STOP_ON_FAILURE] Phase {phase_id} failed with status: {status}. "
+                        f"Stopping execution to save token usage."
+                    )
+                    logger.info(f"Total phases executed: {phases_executed}, failed: {phases_failed}")
+                    break
 
                 # [Self-Troubleshoot] Track consecutive failures and escalate
                 self._phase_failure_counts[phase_id] = self._phase_failure_counts.get(phase_id, 0) + 1
@@ -2930,6 +2952,12 @@ Environment Variables:
         help="Enable verbose logging"
     )
 
+    parser.add_argument(
+        "--stop-on-first-failure",
+        action="store_true",
+        help="Stop execution immediately when any phase fails (saves token usage)"
+    )
+
     args = parser.parse_args()
 
     # Configure logging level
@@ -2956,7 +2984,8 @@ Environment Variables:
     try:
         executor.run_autonomous_loop(
             poll_interval=args.poll_interval,
-            max_iterations=args.max_iterations
+            max_iterations=args.max_iterations,
+            stop_on_first_failure=args.stop_on_first_failure
         )
     except KeyboardInterrupt:
         logger.info("Interrupted by user, shutting down...")

@@ -11,8 +11,11 @@ Architecture:
 - Extensible for future Cursor/Claude implementations
 """
 
-from typing import Dict, List, Optional, Protocol
+from typing import Dict, List, Optional, Protocol, TYPE_CHECKING
 from dataclasses import dataclass
+
+if TYPE_CHECKING:
+    from src.autopack.structured_edits import EditPlan
 
 
 @dataclass
@@ -24,6 +27,7 @@ class BuilderResult:
     tokens_used: int
     model_used: str
     error: Optional[str] = None
+    edit_plan: Optional['EditPlan'] = None  # NEW: For structured edits (Stage 2) - per IMPLEMENTATION_PLAN3.md
 
 
 @dataclass

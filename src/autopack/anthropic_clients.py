@@ -77,8 +77,24 @@ class AnthropicBuilderClient:
             BuilderResult with patch and metadata
         """
         try:
+            # Check if we need structured edit mode before building prompt
+            use_structured_edit = False
+            if file_context and config:
+                files = file_context.get("existing_files", {})
+                for file_path, content in files.items():
+                    if isinstance(content, str):
+                        line_count = content.count('\n') + 1
+                        if line_count > config.max_lines_hard_limit:
+                            scope_paths = phase_spec.get("scope", {}).get("paths", [])
+                            if not scope_paths or any(file_path.startswith(sp) for sp in scope_paths):
+                                use_structured_edit = True
+                                break
+            
             # Build system prompt (with mode selection per GPT_RESPONSE10)
-            system_prompt = self._build_system_prompt(use_full_file_mode=use_full_file_mode)
+            system_prompt = self._build_system_prompt(
+                use_full_file_mode=use_full_file_mode,
+                use_structured_edit=use_structured_edit
+            )
 
             # Build user prompt (includes full file content for full-file mode)
             user_prompt = self._build_user_prompt(
@@ -105,8 +121,13 @@ class AnthropicBuilderClient:
                 # Get final message for token usage
                 response = stream.get_final_message()
 
-            # Parse output based on mode
-            if use_full_file_mode:
+            # Parse output based on mode (use_structured_edit was already determined above)
+            if use_structured_edit:
+                # NEW: Structured edit mode for large files (Stage 2)
+                return self._parse_structured_edit_output(
+                    content, file_context, response, model, phase_spec, config=config
+                )
+            elif use_full_file_mode:
                 # New full-file replacement mode (GPT_RESPONSE10/11)
                 return self._parse_full_file_output(
                     content, file_context, response, model, phase_spec, config=config
@@ -737,14 +758,235 @@ class AnthropicBuilderClient:
             model_used=model
         )
 
-    def _build_system_prompt(self, use_full_file_mode: bool = True) -> str:
+    def _parse_structured_edit_output(
+        self,
+        content: str,
+        file_context: Optional[Dict],
+        response,
+        model: str,
+        phase_spec: Dict,
+        config = None
+    ) -> 'BuilderResult':
+        """Parse LLM's structured edit JSON output (Stage 2)
+        
+        Per IMPLEMENTATION_PLAN3.md Phase 2.2
+        """
+        import json
+        from src.autopack.structured_edits import EditPlan, EditOperation, EditOperationType
+        from src.autopack.builder_config import BuilderOutputConfig
+        
+        if config is None:
+            config = BuilderOutputConfig()
+        
+        try:
+            # Parse JSON
+            result_json = None
+            try:
+                result_json = json.loads(content.strip())
+            except json.JSONDecodeError:
+                # Try extracting from markdown code fence
+                if "```json" in content:
+                    json_start = content.find("```json") + 7
+                    json_end = content.find("```", json_start)
+                    if json_end > json_start:
+                        json_str = content[json_start:json_end].strip()
+                        result_json = json.loads(json_str)
+            
+            if not result_json:
+                error_msg = "LLM output invalid format - expected JSON with 'operations' array"
+                logger.error(f"{error_msg}\nFirst 500 chars: {content[:500]}")
+                return BuilderResult(
+                    success=False,
+                    patch_content="",
+                    builder_messages=[error_msg],
+                    tokens_used=response.usage.input_tokens + response.usage.output_tokens,
+                    model_used=model,
+                    error=error_msg
+                )
+            
+            # Extract summary and operations
+            summary = result_json.get("summary", "Structured edits")
+            operations_json = result_json.get("operations", [])
+            
+            if not operations_json:
+                error_msg = "LLM returned empty operations array"
+                return BuilderResult(
+                    success=False,
+                    patch_content="",
+                    builder_messages=[error_msg],
+                    tokens_used=response.usage.input_tokens + response.usage.output_tokens,
+                    model_used=model,
+                    error=error_msg
+                )
+            
+            # Parse operations
+            operations = []
+            for i, op_json in enumerate(operations_json):
+                try:
+                    op = EditOperation(
+                        type=EditOperationType(op_json.get("type")),
+                        file_path=op_json.get("file_path"),
+                        line=op_json.get("line"),
+                        content=op_json.get("content"),
+                        start_line=op_json.get("start_line"),
+                        end_line=op_json.get("end_line"),
+                        context_before=op_json.get("context_before"),
+                        context_after=op_json.get("context_after")
+                    )
+                    
+                    # Validate operation
+                    is_valid, error = op.validate()
+                    if not is_valid:
+                        error_msg = f"Operation {i} invalid: {error}"
+                        logger.error(f"[Builder] {error_msg}")
+                        return BuilderResult(
+                            success=False,
+                            patch_content="",
+                            builder_messages=[error_msg],
+                            tokens_used=response.usage.input_tokens + response.usage.output_tokens,
+                            model_used=model,
+                            error=error_msg
+                        )
+                    
+                    operations.append(op)
+                
+                except Exception as e:
+                    error_msg = f"Failed to parse operation {i}: {str(e)}"
+                    logger.error(f"[Builder] {error_msg}")
+                    return BuilderResult(
+                        success=False,
+                        patch_content="",
+                        builder_messages=[error_msg],
+                        tokens_used=response.usage.input_tokens + response.usage.output_tokens,
+                        model_used=model,
+                        error=error_msg
+                    )
+            
+            # Create edit plan
+            edit_plan = EditPlan(summary=summary, operations=operations)
+            
+            # Validate plan
+            is_valid, error = edit_plan.validate()
+            if not is_valid:
+                error_msg = f"Invalid edit plan: {error}"
+                logger.error(f"[Builder] {error_msg}")
+                return BuilderResult(
+                    success=False,
+                    patch_content="",
+                    builder_messages=[error_msg],
+                    tokens_used=response.usage.input_tokens + response.usage.output_tokens,
+                    model_used=model,
+                    error=error_msg
+                )
+            
+            # Store edit plan in BuilderResult
+            logger.info(f"[Builder] Generated structured edit plan with {len(operations)} operations")
+            
+            return BuilderResult(
+                success=True,
+                patch_content="",  # No patch content for structured edits
+                builder_messages=[f"Generated {len(operations)} edit operations"],
+                tokens_used=response.usage.input_tokens + response.usage.output_tokens,
+                model_used=model,
+                edit_plan=edit_plan  # NEW: Store edit plan
+            )
+        
+        except Exception as e:
+            logger.error(f"[Builder] Error parsing structured edit output: {e}")
+            return BuilderResult(
+                success=False,
+                patch_content="",
+                builder_messages=[str(e)],
+                tokens_used=response.usage.input_tokens + response.usage.output_tokens,
+                model_used=model,
+                error=str(e)
+            )
+
+    def _build_system_prompt(self, use_full_file_mode: bool = True, use_structured_edit: bool = False) -> str:
         """Build system prompt for Claude Builder
         
         Args:
             use_full_file_mode: If True, use new full-file replacement format (GPT_RESPONSE10).
                                If False, use legacy git diff format (deprecated).
+            use_structured_edit: If True, use structured edit mode for large files (Stage 2).
         """
-        if use_full_file_mode:
+        if use_structured_edit:
+            # NEW: Structured edit mode for large files (Stage 2) - per IMPLEMENTATION_PLAN3.md Phase 2.1
+            base_prompt = """You are a code modification assistant. Generate targeted edit operations for large files.
+
+Your task is to output a structured JSON edit plan with specific operations.
+
+Output format:
+{
+  "summary": "Brief description of changes",
+  "operations": [
+    {
+      "type": "insert",
+      "file_path": "src/example.py",
+      "line": 100,
+      "content": "new code here\\n"
+    },
+    {
+      "type": "replace",
+      "file_path": "src/example.py",
+      "start_line": 50,
+      "end_line": 55,
+      "content": "updated code here\\n"
+    },
+    {
+      "type": "delete",
+      "file_path": "src/example.py",
+      "start_line": 200,
+      "end_line": 210
+    }
+  ]
+}
+
+Operation Types:
+1. "insert" - Insert new lines at a specific position
+   Required: type, file_path, line, content
+   
+2. "replace" - Replace a range of lines
+   Required: type, file_path, start_line, end_line, content
+   Optional: context_before, context_after (for validation)
+   
+3. "delete" - Delete a range of lines
+   Required: type, file_path, start_line, end_line
+   
+4. "append" - Append lines to end of file
+   Required: type, file_path, content
+   
+5. "prepend" - Prepend lines to start of file
+   Required: type, file_path, content
+
+CRITICAL RULES:
+- Line numbers are 1-indexed (first line is line 1)
+- Ranges are inclusive (start_line to end_line, both included)
+- Content should include newlines (\\n) where appropriate
+- Do NOT output full file contents
+- Do NOT use ellipses (...) or placeholders
+- Make targeted, minimal changes
+- Include context_before and context_after for validation when replacing critical sections
+
+Example - Add a new function:
+{
+  "summary": "Add telemetry recording function",
+  "operations": [
+    {
+      "type": "insert",
+      "file_path": "src/autopack/autonomous_executor.py",
+      "line": 500,
+      "content": "    def record_telemetry(self, event):\\n        self.telemetry.record_event(event)\\n"
+    }
+  ]
+}
+
+Do NOT:
+- Output complete file contents
+- Use placeholders or ellipses
+- Make unnecessary changes
+- Modify lines outside the specified ranges"""
+        elif use_full_file_mode:
             # Per GPT_RESPONSE10: Full-file replacement mode (Option A)
             # LLM outputs complete file content, executor generates diff locally
             base_prompt = """You are an expert software engineer working on an autonomous build system.

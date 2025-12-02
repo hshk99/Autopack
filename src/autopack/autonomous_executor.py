@@ -1954,25 +1954,56 @@ Just the new description that should replace the original.
             # Step 2: Apply patch first (so we can run CI on it)
             logger.info(f"[{phase_id}] Step 2/5: Applying patch...")
 
-            # Import and use GovernedApplyPath for actual patch application
-            from pathlib import Path
-            from autopack.governed_apply import GovernedApplyPath
+            # NEW: Check if this is a structured edit (Stage 2) or regular patch
+            if builder_result.edit_plan:
+                # Structured edit mode (Stage 2) - per IMPLEMENTATION_PLAN3.md Phase 4
+                from pathlib import Path
+                from autopack.structured_edits import StructuredEditApplicator
+                
+                logger.info(f"[{phase_id}] Applying structured edit plan with {len(builder_result.edit_plan.operations)} operations")
+                
+                # Get file contents from context
+                file_contents = {}
+                if file_context:
+                    file_contents = file_context.get("existing_files", {})
+                
+                # Apply structured edits
+                applicator = StructuredEditApplicator(workspace=Path(self.workspace))
+                edit_result = applicator.apply_edit_plan(
+                    plan=builder_result.edit_plan,
+                    file_contents=file_contents,
+                    dry_run=False
+                )
+                
+                if not edit_result.success:
+                    error_msg = edit_result.error_message or f"{edit_result.operations_failed} operations failed"
+                    logger.error(f"[{phase_id}] Failed to apply structured edits: {error_msg}")
+                    self._update_phase_status(phase_id, "FAILED")
+                    return False, "STRUCTURED_EDIT_FAILED"
+                
+                logger.info(f"[{phase_id}] Structured edits applied successfully ({edit_result.operations_applied} operations)")
+                patch_success = True
+                error_msg = None
+            else:
+                # Regular patch mode (full-file or diff)
+                from pathlib import Path
+                from autopack.governed_apply import GovernedApplyPath
 
-            # Enable internal mode for maintenance run types
-            is_maintenance_run = self.run_type in ["autopack_maintenance", "autopack_upgrade", "self_repair"]
-            governed_apply = GovernedApplyPath(
-                workspace=Path(self.workspace),
-                run_type=self.run_type,
-                autopack_internal_mode=is_maintenance_run,
-            )
-            patch_success, error_msg = governed_apply.apply_patch(builder_result.patch_content)
+                # Enable internal mode for maintenance run types
+                is_maintenance_run = self.run_type in ["autopack_maintenance", "autopack_upgrade", "self_repair"]
+                governed_apply = GovernedApplyPath(
+                    workspace=Path(self.workspace),
+                    run_type=self.run_type,
+                    autopack_internal_mode=is_maintenance_run,
+                )
+                patch_success, error_msg = governed_apply.apply_patch(builder_result.patch_content)
 
-            if not patch_success:
-                logger.error(f"[{phase_id}] Failed to apply patch to filesystem: {error_msg}")
-                self._update_phase_status(phase_id, "FAILED")
-                return False, "PATCH_FAILED"
+                if not patch_success:
+                    logger.error(f"[{phase_id}] Failed to apply patch to filesystem: {error_msg}")
+                    self._update_phase_status(phase_id, "FAILED")
+                    return False, "PATCH_FAILED"
 
-            logger.info(f"[{phase_id}] Patch applied successfully to filesystem")
+                logger.info(f"[{phase_id}] Patch applied successfully to filesystem")
 
             # Step 3: Run CI checks on the applied code
             logger.info(f"[{phase_id}] Step 3/5: Running CI checks...")

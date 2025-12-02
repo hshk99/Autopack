@@ -9,7 +9,8 @@ cd C:\dev\Autopack
 python -m uvicorn src.autopack.main:app --reload --port 8000
 ```
 
-### 2. Create a New Run
+### 1. Create a New Run
+**Note:** The executor will automatically start the API server if it's not running!
 ```bash
 # In another terminal
 cd C:\dev\Autopack

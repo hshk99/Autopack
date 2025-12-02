@@ -2672,6 +2672,96 @@ Just the new description that should replace the original.
         logger.error(f"[Self-Troubleshoot] All attempts to mark phase {phase_id} as FAILED have failed")
         return False
 
+    def _ensure_api_server_running(self) -> bool:
+        """Check if API server is running, start it if not
+        
+        Returns:
+            True if API is running (or was started), False if failed to start
+        """
+        import socket
+        from urllib.parse import urlparse
+        
+        # Parse API URL
+        parsed = urlparse(self.api_url)
+        host = parsed.hostname or "localhost"
+        port = parsed.port or 8000
+        
+        # Check if server is already running
+        try:
+            response = requests.get(f"{self.api_url}/health", timeout=2)
+            if response.status_code == 200:
+                logger.info("API server is already running")
+                return True
+        except Exception:
+            pass  # Server not responding, continue to start it
+        
+        # Try to connect to port to see if something is listening
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        try:
+            result = sock.connect_ex((host, port))
+            sock.close()
+            if result == 0:
+                # Port is open but /health failed - might be different service
+                logger.warning(f"Port {port} is open but API health check failed. Assuming API is running.")
+                return True
+        except Exception:
+            pass
+        
+        # Server not running - try to start it
+        logger.info(f"API server not detected at {self.api_url}, attempting to start it...")
+        
+        try:
+            # Start API server in background
+            import sys
+            api_cmd = [
+                sys.executable, "-m", "uvicorn",
+                "src.autopack.main:app",
+                "--host", host,
+                "--port", str(port)
+            ]
+            
+            # Start process in background (detached on Windows)
+            if sys.platform == "win32":
+                # Windows: use CREATE_NEW_PROCESS_GROUP and DETACHED_PROCESS
+                import subprocess
+                process = subprocess.Popen(
+                    api_cmd,
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                    creationflags=subprocess.CREATE_NEW_PROCESS_GROUP | subprocess.DETACHED_PROCESS
+                )
+            else:
+                # Unix: use nohup-like behavior
+                process = subprocess.Popen(
+                    api_cmd,
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                    start_new_session=True
+                )
+            
+            # Wait a bit for server to start
+            logger.info(f"Waiting for API server to start on {host}:{port}...")
+            for i in range(10):  # Wait up to 10 seconds
+                time.sleep(1)
+                try:
+                    response = requests.get(f"{self.api_url}/health", timeout=1)
+                    if response.status_code == 200:
+                        logger.info("✅ API server started successfully")
+                        return True
+                except Exception:
+                    pass
+                if i < 9:
+                    logger.info(f"  Still waiting... ({i+1}/10)")
+            
+            logger.error("API server failed to start within 10 seconds")
+            return False
+            
+        except Exception as e:
+            logger.error(f"Failed to start API server: {e}")
+            logger.info("Please start the API server manually:")
+            logger.info(f"  python -m uvicorn src.autopack.main:app --host {host} --port {port}")
+            return False
+
     def run_autonomous_loop(
         self,
         poll_interval: int = 10,
@@ -2689,6 +2779,11 @@ Just the new description that should replace the original.
         logger.info(f"Poll interval: {poll_interval}s")
         if max_iterations:
             logger.info(f"Max iterations: {max_iterations}")
+
+        # Ensure API server is running (auto-start if needed)
+        if not self._ensure_api_server_running():
+            logger.error("Cannot proceed without API server. Exiting.")
+            return
 
         # Initialize infrastructure
         self._init_infrastructure()

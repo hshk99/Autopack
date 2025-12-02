@@ -8,16 +8,118 @@ Enhanced with self-troubleshoot capabilities:
 - Post-application file validation (syntax check)
 - File integrity checks before/after fallback operations
 - Automatic restoration on corruption detection
+
+Per GPT_RESPONSE18: Added symbol preservation and structural similarity validation.
 """
 
 import subprocess
 import logging
 import re
 import hashlib
+import ast
+from difflib import SequenceMatcher
 from pathlib import Path
-from typing import List, Tuple, Optional, Dict
+from typing import List, Tuple, Optional, Dict, Set
 
 logger = logging.getLogger(__name__)
+
+
+# =============================================================================
+# VALIDATION FUNCTIONS (per GPT_RESPONSE18 Q5/Q6)
+# =============================================================================
+
+def extract_python_symbols(source: str) -> Set[str]:
+    """
+    Extract top-level symbols from Python source using AST.
+    
+    Per GPT_RESPONSE18 Q5: Extract function and class definitions,
+    plus uppercase module-level constants.
+    
+    Args:
+        source: Python source code
+        
+    Returns:
+        Set of symbol names (functions, classes, CONSTANTS)
+    """
+    try:
+        tree = ast.parse(source)
+        names: Set[str] = set()
+        for node in tree.body:
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+                names.add(node.name)
+            elif isinstance(node, ast.Assign):
+                for target in node.targets:
+                    if isinstance(target, ast.Name) and target.id.isupper():
+                        names.add(target.id)
+        return names
+    except SyntaxError:
+        return set()
+
+
+def check_symbol_preservation(
+    old_content: str,
+    new_content: str,
+    max_lost_ratio: float
+) -> Tuple[bool, str]:
+    """
+    Check if too many symbols were lost in the patch.
+    
+    Per GPT_RESPONSE18 Q5: Reject if >30% of symbols are lost (configurable).
+    
+    Args:
+        old_content: Original file content
+        new_content: New file content after patch
+        max_lost_ratio: Maximum ratio of symbols that can be lost (e.g., 0.3)
+        
+    Returns:
+        Tuple of (is_valid, error_message)
+    """
+    old_symbols = extract_python_symbols(old_content)
+    new_symbols = extract_python_symbols(new_content)
+    lost = old_symbols - new_symbols
+    
+    if old_symbols:
+        lost_ratio = len(lost) / len(old_symbols)
+        if lost_ratio > max_lost_ratio:
+            lost_names = ", ".join(sorted(lost)[:10])
+            if len(lost) > 10:
+                lost_names += f"... (+{len(lost) - 10} more)"
+            return False, (
+                f"symbol_preservation_violation: Lost {len(lost)}/{len(old_symbols)} symbols "
+                f"({lost_ratio:.1%} > {max_lost_ratio:.0%} threshold). "
+                f"Lost: [{lost_names}]"
+            )
+    
+    return True, ""
+
+
+def check_structural_similarity(
+    old_content: str,
+    new_content: str,
+    min_ratio: float
+) -> Tuple[bool, str]:
+    """
+    Check if file was drastically rewritten unexpectedly.
+    
+    Per GPT_RESPONSE18 Q6: Reject if structural similarity is <60% (configurable)
+    for files >=300 lines.
+    
+    Args:
+        old_content: Original file content
+        new_content: New file content after patch
+        min_ratio: Minimum similarity ratio required (e.g., 0.6)
+        
+    Returns:
+        Tuple of (is_valid, error_message)
+    """
+    ratio = SequenceMatcher(None, old_content, new_content).ratio()
+    if ratio < min_ratio:
+        return False, (
+            f"structural_similarity_violation: Similarity {ratio:.2f} below threshold {min_ratio}. "
+            f"File appears to have been drastically rewritten."
+        )
+    
+    return True, ""
 
 
 class PatchApplyError(Exception):
@@ -350,6 +452,101 @@ class GovernedApplyPath:
             return False, corrupted_files
 
         logger.info(f"[Validation] All {len(files_modified)} modified files validated successfully")
+        return True, []
+
+    def _validate_content_changes(
+        self,
+        files_modified: List[str],
+        backups: Dict[str, Tuple[str, str]],
+        validation_config: Optional[Dict] = None
+    ) -> Tuple[bool, List[str]]:
+        """
+        Validate content changes using symbol preservation and structural similarity.
+        
+        Per GPT_RESPONSE18 Q5/Q6: Post-apply validation that checks:
+        - Python files: symbol preservation (≤30% loss allowed)
+        - Large files (≥300 lines): structural similarity (≥60% required)
+        
+        Args:
+            files_modified: List of relative file paths that were modified
+            backups: Dict mapping file path to (hash, content) tuple
+            validation_config: Optional config dict with thresholds
+            
+        Returns:
+            Tuple of (all_valid, list of files with issues)
+        """
+        # Load validation config from models.yaml or use defaults
+        if validation_config is None:
+            try:
+                import yaml
+                config_path = Path(__file__).parent.parent.parent / "config" / "models.yaml"
+                if config_path.exists():
+                    with open(config_path) as f:
+                        models_config = yaml.safe_load(f)
+                        validation_config = models_config.get("validation", {})
+            except Exception:
+                validation_config = {}
+        
+        # Get thresholds from config
+        symbol_config = validation_config.get("symbol_preservation", {})
+        symbol_enabled = symbol_config.get("enabled", True)
+        max_lost_ratio = symbol_config.get("max_lost_ratio", 0.3)
+        
+        similarity_config = validation_config.get("structural_similarity", {})
+        similarity_enabled = similarity_config.get("enabled", True)
+        min_ratio = similarity_config.get("min_ratio", 0.6)
+        min_lines_for_check = similarity_config.get("min_lines_for_check", 300)
+        
+        problem_files = []
+        
+        for rel_path in files_modified:
+            full_path = self.workspace / rel_path
+            
+            # Skip if file doesn't exist (was deleted) or no backup
+            if not full_path.exists() or rel_path not in backups:
+                continue
+            
+            # Get old content from backup
+            _, old_content = backups[rel_path]
+            
+            # Read new content
+            try:
+                with open(full_path, 'r', encoding='utf-8') as f:
+                    new_content = f.read()
+            except Exception as e:
+                logger.warning(f"[Validation] Failed to read {rel_path}: {e}")
+                continue
+            
+            old_line_count = old_content.count('\n') + 1
+            
+            # Check 1: Symbol preservation for Python files
+            if symbol_enabled and full_path.suffix == '.py':
+                is_valid, error = check_symbol_preservation(
+                    old_content, new_content, max_lost_ratio
+                )
+                if not is_valid:
+                    logger.warning(f"[Validation] SYMBOL_LOSS: {rel_path} - {error}")
+                    problem_files.append(rel_path)
+                    continue  # Skip further checks for this file
+            
+            # Check 2: Structural similarity for large files
+            if similarity_enabled and old_line_count >= min_lines_for_check:
+                is_valid, error = check_structural_similarity(
+                    old_content, new_content, min_ratio
+                )
+                if not is_valid:
+                    logger.warning(f"[Validation] SIMILARITY_LOW: {rel_path} - {error}")
+                    problem_files.append(rel_path)
+                    continue
+        
+        if problem_files:
+            logger.warning(
+                f"[Validation] {len(problem_files)} files have content validation issues: "
+                f"{', '.join(problem_files[:5])}"
+                + (f" (+{len(problem_files) - 5} more)" if len(problem_files) > 5 else "")
+            )
+            return False, problem_files
+        
         return True, []
 
     def _restore_corrupted_files(
@@ -879,6 +1076,15 @@ class GovernedApplyPath:
                                     patch_file.unlink()
                                 return False, f"Direct file write corrupted {len(corrupted)} files (restored {restored})"
 
+                            # [GPT_RESPONSE18] Validate content changes (symbol preservation, structural similarity)
+                            # Note: For new files, backups will be empty, so validation will skip them (expected)
+                            content_valid, problem_files = self._validate_content_changes(files_written, backups)
+                            if not content_valid:
+                                logger.warning(
+                                    f"[Validation] Content validation issues in {len(problem_files)} files. "
+                                    "Patch applied but may have unintended changes."
+                                )
+
                             if patch_file.exists():
                                 patch_file.unlink()
                             return True, None
@@ -934,6 +1140,17 @@ class GovernedApplyPath:
                 logger.error(f"[Integrity] Git apply corrupted {len(corrupted)} files - restoring")
                 restored, failed = self._restore_corrupted_files(corrupted, backups)
                 return False, f"Patch corrupted {len(corrupted)} files (restored {restored}, failed {failed})"
+
+            # [GPT_RESPONSE18] Validate content changes (symbol preservation, structural similarity)
+            content_valid, problem_files = self._validate_content_changes(files_changed, backups)
+            if not content_valid:
+                logger.warning(
+                    f"[Validation] Content validation issues in {len(problem_files)} files. "
+                    "Patch applied but may have unintended changes."
+                )
+                # Note: We don't fail the patch here, just log warnings.
+                # The caller can check logs for DATA_INTEGRITY warnings.
+                # Per GPT_RESPONSE18: These are advisory checks in Phase 1.
 
             return True, None
 

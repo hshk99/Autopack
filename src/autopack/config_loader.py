@@ -1,16 +1,49 @@
-"""Configuration loader for Doctor system.
+"""Configuration loader for Doctor system and validation utilities.
 
 Loads Doctor configuration from config/models.yaml with fallback to sensible defaults.
+
+Per GPT_RESPONSE26: Adds startup validation for token_soft_caps.
 """
 
 import logging
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
+from typing import Any, Dict
 
 import yaml
 
 logger = logging.getLogger(__name__)
+
+
+# =============================================================================
+# STARTUP VALIDATION (per GPT_RESPONSE26)
+# =============================================================================
+
+def validate_token_soft_caps(config: Dict) -> None:
+    """
+    Validate token soft caps configuration at startup.
+    
+    Per GPT_RESPONSE26 (GPT2 recommendation): Log error if token_soft_caps.enabled=true
+    but 'medium' tier is missing, since 'medium' is used as the fallback for unknown
+    complexity values.
+    
+    Args:
+        config: Loaded models.yaml config dict
+    """
+    token_caps = config.get("token_soft_caps", {})
+    if token_caps.get("enabled", False):
+        per_phase_caps = token_caps.get("per_phase_soft_caps", {})
+        if "medium" not in per_phase_caps:
+            logger.error(
+                "[CONFIG] token_soft_caps.enabled=true but 'medium' tier is missing from "
+                "per_phase_soft_caps. Soft cap fallback will not work correctly. "
+                "Add 'medium: <value>' to config/models.yaml token_soft_caps.per_phase_soft_caps"
+            )
+        else:
+            logger.debug(
+                "[CONFIG] token_soft_caps validated: enabled=true, medium tier=%d tokens",
+                per_phase_caps["medium"]
+            )
 
 
 @dataclass
@@ -52,6 +85,8 @@ def load_doctor_config() -> DoctorConfig:
     - File is malformed
     - Required keys are missing
     
+    Also performs startup validation per GPT_RESPONSE26.
+    
     Returns:
         DoctorConfig instance with loaded or default values
     """
@@ -66,6 +101,10 @@ def load_doctor_config() -> DoctorConfig:
     try:
         with open(config_path, "r", encoding="utf-8") as f:
             data = yaml.safe_load(f)
+        
+        # Run startup validations (per GPT_RESPONSE26)
+        if data:
+            validate_token_soft_caps(data)
         
         if not data or "doctor_models" not in data:
             logger.warning(

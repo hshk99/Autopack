@@ -1,12 +1,4 @@
-"""Configuration for Autopack Supervisor"""
-
-"""Configuration module for Autopack settings - test task"""
-
-"""Configuration module for Autopack settings - test task"""
-
-"""Configuration module for Autopack settings - test task"""
-
-"""Configuration module for Autopack settings - test task"""
+"""Configuration module for Autopack settings"""
 
 from pydantic_settings import BaseSettings
 
@@ -34,3 +26,25 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
+
+
+# Configuration version constant
+CONFIG_VERSION = "1.0.0"
+
+
+def get_config_version() -> str:
+    """Return the current configuration version.
+    
+    This utility function provides a simple way to query the configuration
+    version for testing and validation purposes.
+    
+    Returns:
+        str: The current configuration version (e.g., "1.0.0")
+    
+    Example:
+        >>> from autopack.config import get_config_version
+        >>> version = get_config_version()
+        >>> print(f"Config version: {version}")
+        Config version: 1.0.0
+    """
+    return CONFIG_VERSION

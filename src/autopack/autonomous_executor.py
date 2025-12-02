@@ -31,6 +31,7 @@ import logging
 import subprocess
 import shlex
 import re
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple, Any
 
@@ -239,6 +240,13 @@ class AutonomousExecutor:
         self.MAX_REPLANS_PER_PHASE = 1  # Maximum re-planning attempts per phase
         self.MAX_REPLANS_PER_RUN = 5  # Maximum re-planning attempts per run (prevents pathological projects)
 
+        # [Goal Anchoring] Per GPT_RESPONSE27: Prevent context drift during re-planning
+        # PhaseGoal-lite implementation - lightweight anchor + telemetry (Phase 1)
+        self._phase_original_intent: Dict[str, str] = {}  # phase_id -> one-line intent extracted from description
+        self._phase_original_description: Dict[str, str] = {}  # phase_id -> original description before any replanning
+        self._phase_replan_history: Dict[str, List[Dict]] = {}  # phase_id -> list of {attempt, description, reason, alignment}
+        self._run_replan_telemetry: List[Dict] = []  # All replans in this run for telemetry
+
         # [Run-Level Health Budget] Prevent infinite retry loops (GPT_RESPONSE5 recommendation)
         self._run_http_500_count: int = 0  # Count of HTTP 500 errors in this run
         self._run_patch_failure_count: int = 0  # Count of patch failures in this run
@@ -272,6 +280,9 @@ class AutonomousExecutor:
 
         # Phase 1.4-1.5: Run proactive startup checks (from DEBUG_JOURNAL.md)
         self._run_startup_checks()
+
+        # [GPT_RESPONSE26] Startup validation for token_soft_caps
+        self._validate_config_at_startup()
 
         # T0 Health Checks: quick environment validation before executing phases
         t0_results = run_health_checks("t0")
@@ -340,6 +351,23 @@ class AutonomousExecutor:
             logger.warning(f"Startup checks system unavailable: {e}")
 
         logger.info("Startup checks complete")
+
+    def _validate_config_at_startup(self):
+        """
+        Run startup validations from config_loader.
+        
+        Per GPT_RESPONSE26: Validate token_soft_caps configuration at startup.
+        """
+        try:
+            import yaml
+            config_path = Path(__file__).parent.parent.parent / "config" / "models.yaml"
+            if config_path.exists():
+                with open(config_path) as f:
+                    config = yaml.safe_load(f)
+                    from autopack.config_loader import validate_token_soft_caps
+                    validate_token_soft_caps(config)
+        except Exception as e:
+            logger.debug(f"[Config] Startup validation skipped: {e}")
 
     def _load_project_learning_context(self):
         """
@@ -442,7 +470,7 @@ class AutonomousExecutor:
 
             # Update marker
             marker = {
-                "last_updated": datetime.utcnow().isoformat(),
+                "last_updated": datetime.now(timezone.utc).isoformat(),
                 "last_run_id": self.run_id,
                 "promoted_this_run": promoted_count,
                 "total_rules": len(rules),
@@ -450,7 +478,7 @@ class AutonomousExecutor:
                     {
                         "run_id": self.run_id,
                         "promoted": promoted_count,
-                        "timestamp": datetime.utcnow().isoformat()
+                        "timestamp": datetime.now(timezone.utc).isoformat()
                     }
                 ]
             }
@@ -648,6 +676,10 @@ class AutonomousExecutor:
         """
         phase_id = phase.get("phase_id")
         logger.info(f"Executing phase: {phase_id}")
+
+        # [Goal Anchoring] Initialize goal anchor for this phase on first execution
+        # Per GPT_RESPONSE27: Store original intent before any re-planning occurs
+        self._initialize_phase_goal_anchor(phase)
 
         # Get max attempts from LlmService (reads from config)
         max_attempts = self.llm_service.get_max_attempts() if self.llm_service else 5
@@ -1099,6 +1131,207 @@ class AutonomousExecutor:
         """Get how many times a phase has been re-planned."""
         return self._phase_revised_specs.get(f"_replan_count_{phase_id}", 0)
 
+    # =========================================================================
+    # GOAL ANCHORING METHODS (per GPT_RESPONSE27)
+    # =========================================================================
+
+    def _extract_one_line_intent(self, description: str) -> str:
+        """
+        Extract a concise one-line intent from a phase description.
+        
+        Per GPT_RESPONSE27: The original_intent should be a short, clear statement
+        of WHAT the phase achieves (not HOW it achieves it).
+        
+        Args:
+            description: Full phase description
+            
+        Returns:
+            One-line intent statement (first sentence, capped at 200 chars)
+        """
+        if not description:
+            return ""
+        
+        # Get first sentence (ends with . ! or ?)
+        first_sentence_match = re.match(r'^[^.!?]*[.!?]', description.strip())
+        if first_sentence_match:
+            intent = first_sentence_match.group(0).strip()
+        else:
+            # No sentence ending found, use first 200 chars
+            intent = description.strip()[:200]
+            if len(description.strip()) > 200:
+                intent += "..."
+        
+        # Cap at 200 chars
+        if len(intent) > 200:
+            intent = intent[:197] + "..."
+        
+        return intent
+
+    def _initialize_phase_goal_anchor(self, phase: Dict) -> None:
+        """
+        Initialize goal anchoring for a phase on first execution.
+        
+        Per GPT_RESPONSE27 Phase 1 Implementation: Store original intent and description
+        before any re-planning occurs.
+        
+        Args:
+            phase: Phase specification dict
+        """
+        phase_id = phase.get("phase_id")
+        if not phase_id:
+            return
+        
+        # Only initialize once (on first execution)
+        if phase_id not in self._phase_original_intent:
+            description = phase.get("description", "")
+            self._phase_original_intent[phase_id] = self._extract_one_line_intent(description)
+            self._phase_original_description[phase_id] = description
+            self._phase_replan_history[phase_id] = []
+            
+            logger.debug(
+                f"[GoalAnchor] Initialized for {phase_id}: intent='{self._phase_original_intent[phase_id][:50]}...'"
+            )
+
+    def _detect_scope_narrowing(self, original: str, revised: str) -> bool:
+        """
+        Detect obvious scope narrowing using heuristics.
+        
+        Per GPT_RESPONSE27: Fast pre-filter to detect when revision reduces scope.
+        
+        Args:
+            original: Original phase description
+            revised: Revised phase description
+            
+        Returns:
+            True if scope narrowing is detected
+        """
+        if not original or not revised:
+            return False
+        
+        # Heuristic 1: Significant length shrinkage (>50%)
+        if len(revised) < len(original) * 0.5:
+            logger.debug("[GoalAnchor] Scope narrowing detected: length shrinkage")
+            return True
+        
+        # Heuristic 2: Scope-reducing keywords
+        scope_reducing_keywords = [
+            "only", "just", "skip", "ignore", "defer", "later",
+            "simplified", "minimal", "basic", "stub", "placeholder",
+            "without", "except", "excluding", "partial"
+        ]
+        
+        original_lower = original.lower()
+        revised_lower = revised.lower()
+        
+        for keyword in scope_reducing_keywords:
+            # Check if keyword was added in revision
+            if keyword in revised_lower and keyword not in original_lower:
+                logger.debug(f"[GoalAnchor] Scope narrowing detected: added keyword '{keyword}'")
+                return True
+        
+        return False
+
+    def _classify_replan_alignment(
+        self,
+        original_intent: str,
+        revised_description: str
+    ) -> Dict[str, Any]:
+        """
+        Classify alignment of revised description vs original intent.
+        
+        Per GPT_RESPONSE27: Use LLM to semantically compare original intent with
+        revised approach to detect goal drift.
+        
+        Args:
+            original_intent: One-line intent from original description
+            revised_description: New description after re-planning
+            
+        Returns:
+            Dict with {"alignment": "same_scope|narrower|broader|different_domain", "notes": "..."}
+        """
+        # First, apply fast heuristic pre-filter
+        if self._detect_scope_narrowing(original_intent, revised_description):
+            return {
+                "alignment": "narrower",
+                "notes": "Heuristic detection: revision appears to reduce scope"
+            }
+        
+        # For Phase 1, we use simple heuristics + logging (no LLM call)
+        # Per GPT_RESPONSE27: Full semantic classification is Phase 2
+        
+        # Simple keyword-based classification
+        revised_lower = revised_description.lower()
+        
+        # Check for scope expansion
+        expansion_keywords = ["also", "additionally", "expand", "enhance", "add more", "including"]
+        has_expansion = any(kw in revised_lower for kw in expansion_keywords)
+        
+        # Check for domain change (different technology/approach)
+        if has_expansion:
+            return {
+                "alignment": "broader",
+                "notes": "Revision appears to expand scope"
+            }
+        
+        # Default: assume same scope (conservative for Phase 1)
+        return {
+            "alignment": "same_scope",
+            "notes": "No obvious scope change detected (Phase 1 heuristic)"
+        }
+
+    def _record_replan_telemetry(
+        self,
+        phase_id: str,
+        attempt: int,
+        original_description: str,
+        revised_description: str,
+        reason: str,
+        alignment: Dict[str, Any],
+        success: bool
+    ) -> None:
+        """
+        Record re-planning telemetry for monitoring and analysis.
+        
+        Per GPT_RESPONSE27: Track replan_count, alignment, and outcomes.
+        
+        Args:
+            phase_id: Phase identifier
+            attempt: Re-plan attempt number
+            original_description: Description before revision
+            revised_description: Description after revision
+            reason: Why re-planning was triggered
+            alignment: Alignment classification result
+            success: Whether the re-planning resulted in eventual phase success
+        """
+        telemetry_record = {
+            "run_id": self.run_id,
+            "phase_id": phase_id,
+            "attempt": attempt,
+            "timestamp": time.time(),
+            "reason": reason,
+            "alignment": alignment.get("alignment", "unknown"),
+            "alignment_notes": alignment.get("notes", ""),
+            "original_description_preview": original_description[:100],
+            "revised_description_preview": revised_description[:100],
+            "success": success,
+        }
+        
+        # Add to phase-level history
+        if phase_id not in self._phase_replan_history:
+            self._phase_replan_history[phase_id] = []
+        self._phase_replan_history[phase_id].append(telemetry_record)
+        
+        # Add to run-level telemetry
+        self._run_replan_telemetry.append(telemetry_record)
+        
+        # Log for observability
+        logger.info(
+            f"[GoalAnchor] REPLAN_TELEMETRY: run_id={self.run_id} phase_id={phase_id} "
+            f"attempt={attempt} alignment={alignment.get('alignment')} "
+            f"replan_count_phase={len(self._phase_replan_history.get(phase_id, []))} "
+            f"replan_count_run={len(self._run_replan_telemetry)}"
+        )
+
     def _should_trigger_replan(self, phase: Dict) -> Tuple[bool, Optional[str]]:
         """
         Determine if re-planning should be triggered for a phase.
@@ -1132,6 +1365,12 @@ class AutonomousExecutor:
 
         This is the core of mid-run re-planning: we ask the LLM to analyze
         what went wrong and provide a revised implementation approach.
+        
+        Per GPT_RESPONSE27: Now includes Goal Anchoring to prevent context drift:
+        - Stores and references original_intent
+        - Includes hard constraint in prompt
+        - Classifies alignment of revision
+        - Records telemetry for monitoring
 
         Args:
             phase: Original phase specification
@@ -1143,9 +1382,18 @@ class AutonomousExecutor:
         """
         phase_id = phase.get("phase_id")
         phase_name = phase.get("name", phase_id)
-        original_description = phase.get("description", "")
+        current_description = phase.get("description", "")
+        
+        # [Goal Anchoring] Initialize if this is the first replan for this phase
+        self._initialize_phase_goal_anchor(phase)
+        
+        # Get the true original intent (before any replanning)
+        original_intent = self._phase_original_intent.get(phase_id, "")
+        original_description = self._phase_original_description.get(phase_id, current_description)
+        replan_attempt = len(self._phase_replan_history.get(phase_id, [])) + 1
 
-        logger.info(f"[Re-Plan] Revising approach for {phase_id} due to {flaw_type}")
+        logger.info(f"[Re-Plan] Revising approach for {phase_id} due to {flaw_type} (attempt {replan_attempt})")
+        logger.info(f"[GoalAnchor] Original intent: {original_intent[:100]}...")
 
         # Build context from error history
         error_summary = "\n".join([
@@ -1159,11 +1407,12 @@ class AutonomousExecutor:
             f"- {hint}" for hint in learning_context.get("run_hints", [])[:3]
         ])
 
+        # [Goal Anchoring] Per GPT_RESPONSE27: Include original_intent with HARD CONSTRAINT
         replan_prompt = f"""You are a senior software architect. A phase in our automated build system has failed repeatedly with the same error pattern. Your task is to analyze the failures and provide a revised implementation approach.
 
 ## Original Phase Specification
 **Phase**: {phase_name}
-**Description**: {original_description}
+**Description**: {current_description}
 **Category**: {phase.get('task_category', 'general')}
 **Complexity**: {phase.get('complexity', 'medium')}
 
@@ -1175,16 +1424,23 @@ class AutonomousExecutor:
 ## Learning Hints from Earlier Phases
 {hints_summary if hints_summary else "(No hints available)"}
 
+## CRITICAL CONSTRAINT - GOAL ANCHORING
+The revised approach MUST still achieve this core goal:
+**Original Intent**: {original_intent}
+
+Do NOT reduce scope, skip functionality, or change what the phase achieves.
+Only change HOW it achieves the goal, not WHAT it achieves.
+
 ## Your Task
-Analyze why the original approach kept failing and provide a REVISED description that:
-1. Addresses the root cause of the repeated failures
-2. Uses a different implementation strategy if needed
-3. Includes specific guidance to avoid the detected error pattern
-4. Keeps the same overall goal but changes HOW to achieve it
+Analyze why the current approach kept failing and provide a REVISED description that:
+1. MAINTAINS the original intent and scope (CRITICAL - no scope reduction)
+2. Addresses the root cause of the repeated failures
+3. Uses a different implementation strategy if needed
+4. Includes specific guidance to avoid the detected error pattern
 
 ## Output Format
 Provide ONLY the revised description text. Do not include JSON, markdown headers, or explanations.
-Just the new description that should replace the original.
+Just the new description that should replace the current one while preserving the original goal.
 """
 
         try:
@@ -1217,14 +1473,42 @@ Just the new description that should replace the original.
 
             if not revised_description or len(revised_description) < 20:
                 logger.error("[Re-Plan] LLM returned empty or too-short revision")
+                # Record failed replan telemetry
+                self._record_replan_telemetry(
+                    phase_id=phase_id,
+                    attempt=replan_attempt,
+                    original_description=original_description,
+                    revised_description="",
+                    reason=flaw_type,
+                    alignment={"alignment": "failed", "notes": "LLM returned empty revision"},
+                    success=False
+                )
                 return None
+
+            # [Goal Anchoring] Classify alignment of revision vs original intent
+            alignment = self._classify_replan_alignment(original_intent, revised_description)
+            
+            # Log alignment classification
+            logger.info(
+                f"[GoalAnchor] Alignment classification: {alignment.get('alignment')} - {alignment.get('notes')}"
+            )
+            
+            # [Goal Anchoring] Warn if scope appears narrowed (but don't block in Phase 1)
+            if alignment.get("alignment") == "narrower":
+                logger.warning(
+                    f"[GoalAnchor] WARNING: Revision appears to narrow scope for {phase_id}. "
+                    f"Original intent: '{original_intent[:50]}...' "
+                    f"This may indicate goal drift."
+                )
 
             # Create revised phase spec
             revised_phase = phase.copy()
             revised_phase["description"] = revised_description
             revised_phase["_original_description"] = original_description
+            revised_phase["_original_intent"] = original_intent  # [Goal Anchoring]
             revised_phase["_revision_reason"] = f"Approach flaw: {flaw_type}"
             revised_phase["_revision_timestamp"] = time.time()
+            revised_phase["_revision_alignment"] = alignment  # [Goal Anchoring]
 
             logger.info(f"[Re-Plan] Successfully revised phase {phase_id}")
             logger.info(f"[Re-Plan] Original: {original_description[:100]}...")
@@ -1237,11 +1521,22 @@ Just the new description that should replace the original.
             # Clear error history for fresh start with new approach
             self._phase_error_history[phase_id] = []
 
+            # [Goal Anchoring] Record telemetry (success will be updated later if phase succeeds)
+            self._record_replan_telemetry(
+                phase_id=phase_id,
+                attempt=replan_attempt,
+                original_description=original_description,
+                revised_description=revised_description,
+                reason=flaw_type,
+                alignment=alignment,
+                success=False  # Will be updated if phase eventually succeeds
+            )
+
             # Record this re-planning event
             log_build_event(
                 event_type="PHASE_REPLANNED",
-                description=f"Phase {phase_id} replanned due to {flaw_type}. Original: '{original_description[:50]}...' -> Revised approach applied.",
-                deliverables=[f"Run: {self.run_id}", f"Phase: {phase_id}", f"Flaw: {flaw_type}"],
+                description=f"Phase {phase_id} replanned due to {flaw_type}. Alignment: {alignment.get('alignment')}. Original: '{original_description[:50]}...' -> Revised approach applied.",
+                deliverables=[f"Run: {self.run_id}", f"Phase: {phase_id}", f"Flaw: {flaw_type}", f"Alignment: {alignment.get('alignment')}"],
                 project_slug=self._get_project_slug()
             )
 
@@ -1249,6 +1544,16 @@ Just the new description that should replace the original.
 
         except Exception as e:
             logger.error(f"[Re-Plan] Failed to revise phase: {e}")
+            # Record failed replan telemetry
+            self._record_replan_telemetry(
+                phase_id=phase_id,
+                attempt=replan_attempt,
+                original_description=original_description,
+                revised_description="",
+                reason=flaw_type,
+                alignment={"alignment": "error", "notes": str(e)},
+                success=False
+            )
             return None
 
     def _get_phase_spec_for_execution(self, phase: Dict) -> Dict:
@@ -2057,6 +2362,18 @@ Just the new description that should replace the original.
             # Update phase status to COMPLETE
             self._update_phase_status(phase_id, "COMPLETE")
             logger.info(f"[{phase_id}] Phase completed successfully")
+
+            # [Goal Anchoring] Update replan telemetry to mark successful if this phase was replanned
+            if phase_id in self._phase_replan_history and self._phase_replan_history[phase_id]:
+                # Mark the most recent replan as successful
+                for replan_record in reversed(self._phase_replan_history[phase_id]):
+                    if not replan_record.get("success", False):
+                        replan_record["success"] = True
+                        logger.debug(
+                            f"[GoalAnchor] Marked replan attempt {replan_record.get('attempt')} "
+                            f"as successful for {phase_id}"
+                        )
+                        break  # Only update the most recent one
 
             # Log build event to CONSOLIDATED_BUILD.md
             try:

@@ -268,6 +268,8 @@ class LlmService:
         phase_id: Optional[str] = None,
         run_context: Optional[Dict] = None,
         attempt_index: int = 0,
+        use_full_file_mode: bool = True,  # NEW: Pass mode from pre-flight check
+        config = None,  # NEW: Pass BuilderOutputConfig for consistency
     ) -> BuilderResult:
         """
         Execute builder phase with automatic model selection and usage tracking.
@@ -282,6 +284,8 @@ class LlmService:
             phase_id: Phase identifier for usage tracking
             run_context: Run context with potential model_overrides
             attempt_index: 0-based attempt number for escalation (default 0)
+            use_full_file_mode: Use full-file mode (True) or diff mode (False)
+            config: BuilderOutputConfig instance
 
         Returns:
             BuilderResult with patch and metadata
@@ -326,6 +330,8 @@ class LlmService:
             model=resolved_model,
             project_rules=project_rules,
             run_hints=run_hints,
+            use_full_file_mode=use_full_file_mode,  # NEW: Pass mode from pre-flight
+            config=config,  # NEW: Pass BuilderOutputConfig
         )
 
         # Classify outcome for escalation tracking / provider health

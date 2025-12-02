@@ -57,7 +57,8 @@ class AnthropicBuilderClient:
         model: str = "claude-sonnet-4-5",
         project_rules: Optional[List] = None,
         run_hints: Optional[List] = None,
-        use_full_file_mode: bool = True
+        use_full_file_mode: bool = True,
+        config = None  # NEW: BuilderOutputConfig for consistency
     ) -> BuilderResult:
         """Execute a phase using Claude
 
@@ -70,6 +71,7 @@ class AnthropicBuilderClient:
             run_hints: Within-run hints
             use_full_file_mode: If True, use new full-file replacement format (GPT_RESPONSE10).
                                If False, use legacy git diff format (deprecated).
+            config: BuilderOutputConfig instance (per IMPLEMENTATION_PLAN2.md)
 
         Returns:
             BuilderResult with patch and metadata
@@ -81,7 +83,8 @@ class AnthropicBuilderClient:
             # Build user prompt (includes full file content for full-file mode)
             user_prompt = self._build_user_prompt(
                 phase_spec, file_context, project_rules, run_hints,
-                use_full_file_mode=use_full_file_mode
+                use_full_file_mode=use_full_file_mode,
+                config=config  # NEW: Pass config for read-only markers
             )
 
             # Call Anthropic API with streaming for long operations
@@ -106,7 +109,7 @@ class AnthropicBuilderClient:
             if use_full_file_mode:
                 # New full-file replacement mode (GPT_RESPONSE10/11)
                 return self._parse_full_file_output(
-                    content, file_context, response, model, phase_spec
+                    content, file_context, response, model, phase_spec, config=config
                 )
             else:
                 # Legacy git diff mode (deprecated)
@@ -185,12 +188,14 @@ class AnthropicBuilderClient:
         file_context: Optional[Dict],
         response,
         model: str,
-        phase_spec: Optional[Dict] = None
+        phase_spec: Optional[Dict] = None,
+        config = None  # NEW: BuilderOutputConfig for thresholds
     ) -> 'BuilderResult':
         """Parse full-file replacement output and generate git diff locally.
         
         Per GPT_RESPONSE10: LLM outputs complete file content, we generate diff.
         Per GPT_RESPONSE11: Added guards for large files, churn, and symbol validation.
+        Per IMPLEMENTATION_PLAN2.md Phase 4: Added read-only enforcement and shrinkage/growth detection.
         
         Args:
             content: Raw LLM output (should be JSON)
@@ -198,29 +203,17 @@ class AnthropicBuilderClient:
             response: API response object for token usage
             model: Model identifier
             phase_spec: Phase specification for churn classification
+            config: BuilderOutputConfig for thresholds (per IMPLEMENTATION_PLAN2.md)
             
         Returns:
             BuilderResult with generated patch
         """
+        # Load config if not provided
+        if config is None:
+            from autopack.builder_config import BuilderOutputConfig
+            config = BuilderOutputConfig()
         import difflib
         import re
-        import yaml
-        
-        # Load configuration from models.yaml (per GPT_RESPONSE12)
-        try:
-            config_path = Path(__file__).parent.parent.parent / "config" / "models.yaml"
-            if config_path.exists():
-                with open(config_path, 'r') as f:
-                    config = yaml.safe_load(f)
-                builder_config = config.get("builder_output_mode", {})
-                MAX_LINES_HARD_LIMIT = builder_config.get("max_lines_hard_limit", 1000)
-                MAX_CHURN_PERCENT = builder_config.get("max_churn_percent_for_small_fix", 30)
-            else:
-                MAX_LINES_HARD_LIMIT = 1000
-                MAX_CHURN_PERCENT = 30
-        except Exception:
-            MAX_LINES_HARD_LIMIT = 1000
-            MAX_CHURN_PERCENT = 30
         
         try:
             # Try to parse JSON directly
@@ -301,11 +294,24 @@ class AnthropicBuilderClient:
                 # Get original content
                 old_content = existing_files.get(file_path, "")
                 old_line_count = old_content.count('\n') + 1 if old_content else 0
+                new_line_count = new_content.count('\n') + 1 if new_content else 0
                 
-                # Q2: Hard limit check for very large files
-                if mode == "modify" and old_line_count > MAX_LINES_HARD_LIMIT:
-                    error_msg = f"large_file_not_supported_yet: {file_path} has {old_line_count} lines (limit: {MAX_LINES_HARD_LIMIT})"
+                # ============================================================================
+                # NEW: Read-only file enforcement (per IMPLEMENTATION_PLAN2.md Phase 4.1)
+                # This is the PARSER-LEVEL enforcement - LLM violated the contract
+                # ============================================================================
+                if mode == "modify" and old_line_count > config.max_lines_for_full_file:
+                    error_msg = (
+                        f"readonly_violation: {file_path} has {old_line_count} lines "
+                        f"(limit: {config.max_lines_for_full_file}). This file was marked as READ-ONLY CONTEXT. "
+                        f"The LLM should not have attempted to modify it."
+                    )
                     logger.error(f"[Builder] {error_msg}")
+                    
+                    # Record telemetry (if available in context)
+                    # Note: We don't have run_id/phase_id here, so we log for manual review
+                    logger.warning(f"[TELEMETRY] readonly_violation: file={file_path}, lines={old_line_count}, model={model}")
+                    
                     return BuilderResult(
                         success=False,
                         patch_content="",
@@ -315,11 +321,71 @@ class AnthropicBuilderClient:
                         error=error_msg
                     )
                 
+                # ============================================================================
+                # NEW: Shrinkage detection (per IMPLEMENTATION_PLAN2.md Phase 4.2)
+                # Reject >60% shrinkage unless phase allows mass deletion
+                # ============================================================================
+                if mode == "modify" and old_content and new_content:
+                    shrinkage_percent = ((old_line_count - new_line_count) / old_line_count) * 100
+                    
+                    if shrinkage_percent > config.max_shrinkage_percent:
+                        # Check if phase allows mass deletion
+                        allow_mass_deletion = phase_spec.get("allow_mass_deletion", False) if phase_spec else False
+                        
+                        if not allow_mass_deletion:
+                            error_msg = (
+                                f"suspicious_shrinkage: {file_path} shrank by {shrinkage_percent:.1f}% "
+                                f"({old_line_count} → {new_line_count} lines). "
+                                f"Limit: {config.max_shrinkage_percent}%. "
+                                f"This may indicate truncation. Set allow_mass_deletion=true to override."
+                            )
+                            logger.error(f"[Builder] {error_msg}")
+                            logger.warning(f"[TELEMETRY] suspicious_shrinkage: file={file_path}, old={old_line_count}, new={new_line_count}, shrinkage={shrinkage_percent:.1f}%")
+                            
+                            return BuilderResult(
+                                success=False,
+                                patch_content="",
+                                builder_messages=[error_msg],
+                                tokens_used=response.usage.input_tokens + response.usage.output_tokens,
+                                model_used=model,
+                                error=error_msg
+                            )
+                
+                # ============================================================================
+                # NEW: Growth detection (per IMPLEMENTATION_PLAN2.md Phase 4.2)
+                # Reject >3x growth unless phase allows mass addition
+                # ============================================================================
+                if mode == "modify" and old_content and new_content and old_line_count > 0:
+                    growth_multiplier = new_line_count / old_line_count
+                    
+                    if growth_multiplier > config.max_growth_multiplier:
+                        # Check if phase allows mass addition
+                        allow_mass_addition = phase_spec.get("allow_mass_addition", False) if phase_spec else False
+                        
+                        if not allow_mass_addition:
+                            error_msg = (
+                                f"suspicious_growth: {file_path} grew by {growth_multiplier:.1f}x "
+                                f"({old_line_count} → {new_line_count} lines). "
+                                f"Limit: {config.max_growth_multiplier}x. "
+                                f"This may indicate duplication. Set allow_mass_addition=true to override."
+                            )
+                            logger.error(f"[Builder] {error_msg}")
+                            logger.warning(f"[TELEMETRY] suspicious_growth: file={file_path}, old={old_line_count}, new={new_line_count}, growth={growth_multiplier:.1f}x")
+                            
+                            return BuilderResult(
+                                success=False,
+                                patch_content="",
+                                builder_messages=[error_msg],
+                                tokens_used=response.usage.input_tokens + response.usage.output_tokens,
+                                model_used=model,
+                                error=error_msg
+                            )
+                
                 # Q4: Churn detection for small fixes
                 if mode == "modify" and change_type == "small_fix" and old_content:
                     churn_percent = self._calculate_churn_percent(old_content, new_content)
-                    if churn_percent > MAX_CHURN_PERCENT:
-                        error_msg = f"churn_limit_exceeded: {churn_percent:.1f}% (small_fix limit {MAX_CHURN_PERCENT}%) on {file_path}"
+                    if churn_percent > config.max_churn_percent_for_small_fix:
+                        error_msg = f"churn_limit_exceeded: {churn_percent:.1f}% (small_fix limit {config.max_churn_percent_for_small_fix}%) on {file_path}"
                         logger.error(f"[Builder] {error_msg}")
                         return BuilderResult(
                             success=False,
@@ -714,10 +780,24 @@ IMPORTANT:
 - Do NOT include line numbers, @@ markers, or +/- prefixes
 - Do NOT truncate or abbreviate - output the FULL file"""
         else:
-            # Legacy git diff format (deprecated per GPT_RESPONSE10)
-        base_prompt = """You are an expert software engineer working on an autonomous build system.
+            # Diff mode for medium files (501-1000 lines) - per IMPLEMENTATION_PLAN2.md Phase 3.1
+            base_prompt = """You are a code modification assistant. Generate ONLY a git-compatible unified diff patch.
 
-Your task is to generate code changes (patches) based on phase specifications.
+Output format:
+- Start with `diff --git a/path/to/file.py b/path/to/file.py`
+- Include `index`, `---`, and `+++` headers
+- Use `@@ -OLD_START,OLD_COUNT +NEW_START,NEW_COUNT @@` hunk headers
+- Use `-` for removed lines, `+` for added lines, and a leading space for context lines
+- Include at least 3 lines of context around each change
+- Use COMPLETE repository-relative paths (e.g., `src/autopack/error_recovery.py`)
+
+Do NOT:
+- Output JSON
+- Output full file contents outside hunks
+- Wrap the diff in markdown fences (```)
+- Add explanations before or after the diff
+- Modify files that are not shown in the context
+- Include any text that is not part of the unified diff format
 
 CRITICAL REQUIREMENTS:
 1. Output ONLY a raw git diff format patch
@@ -757,7 +837,8 @@ Requirements:
         file_context: Optional[Dict],
         project_rules: Optional[List],
         run_hints: Optional[List],
-        use_full_file_mode: bool = True
+        use_full_file_mode: bool = True,
+        config = None  # NEW: BuilderOutputConfig for thresholds
     ) -> str:
         """Build user prompt with phase details
         
@@ -767,7 +848,12 @@ Requirements:
             project_rules: Persistent learned rules
             run_hints: Within-run hints
             use_full_file_mode: If True, include FULL file content for accurate editing
+            config: BuilderOutputConfig instance (per IMPLEMENTATION_PLAN2.md)
         """
+        # Load config if not provided
+        if config is None:
+            from autopack.builder_config import BuilderOutputConfig
+            config = BuilderOutputConfig()
         prompt_parts = [
             "# Phase Specification",
             f"Description: {phase_spec.get('description', '')}",
@@ -807,34 +893,48 @@ Requirements:
             files = file_context.get("existing_files", file_context)
 
             if use_full_file_mode:
-                # Per GPT_RESPONSE10: Include FULL file content for accurate full-file replacement
-                # This is critical - the model needs the complete file to generate complete output
-                prompt_parts.append("\n# Files to Modify (COMPLETE CONTENT):")
-                prompt_parts.append("You must output the COMPLETE new content for each file you modify.")
-                prompt_parts.append("Preserve all code that should not change.\n")
+                # NEW: Separate files into modifiable vs read-only (per IMPLEMENTATION_PLAN2.md Phase 3.2)
+                modifiable_files = []
+                readonly_files = []
                 
-                # File size threshold for full-file mode (per GPT recommendations: 400-700 lines)
-                MAX_LINES_FOR_FULL_FILE = 500
-                
-                for file_path, content in list(files.items()):
-                    if isinstance(content, str):
-                        line_count = content.count('\n') + 1
-                        if line_count <= MAX_LINES_FOR_FULL_FILE:
-                            # Include full content for small/medium files
-                            prompt_parts.append(f"\n## {file_path} ({line_count} lines)")
-                            prompt_parts.append(f"```\n{content}\n```")
-                        else:
-                            # For large files, include first/last portions with note
-                            prompt_parts.append(f"\n## {file_path} ({line_count} lines - LARGE FILE)")
-                            prompt_parts.append("NOTE: This file is large. Only modify specific sections needed.")
-                            # Show first 200 lines and last 50 lines
-                            lines = content.split('\n')
-                            first_part = '\n'.join(lines[:200])
-                            last_part = '\n'.join(lines[-50:])
-                            prompt_parts.append(f"```\n{first_part}\n\n... [{line_count - 250} lines omitted] ...\n\n{last_part}\n```")
+                for file_path, content in files.items():
+                    if not isinstance(content, str):
+                        continue
+                    line_count = content.count('\n') + 1
+                    
+                    if line_count <= config.max_lines_for_full_file:
+                        modifiable_files.append((file_path, content, line_count))
                     else:
-                        prompt_parts.append(f"\n## {file_path}")
-                        prompt_parts.append(f"```\n{str(content)}\n```")
+                        readonly_files.append((file_path, content, line_count))
+                
+                # Add explicit contract (per GPT_RESPONSE14 Q1)
+                if modifiable_files or readonly_files:
+                    prompt_parts.append("\n# File Modification Rules")
+                    prompt_parts.append("You are only allowed to modify files that are fully shown below.")
+                    prompt_parts.append("Any file marked as READ-ONLY CONTEXT must NOT appear in the `files` list in your JSON output.")
+                    prompt_parts.append("For each file you modify, return the COMPLETE new file content in `new_content`.")
+                    prompt_parts.append("Do NOT use ellipses (...) or omit any code that should remain.")
+                
+                # Show modifiable files with full content (Bucket A: ≤500 lines)
+                if modifiable_files:
+                    prompt_parts.append("\n# Files You May Modify (COMPLETE CONTENT):")
+                    for file_path, content, line_count in modifiable_files:
+                        prompt_parts.append(f"\n## {file_path} ({line_count} lines)")
+                        prompt_parts.append(f"```\n{content}\n```")
+                
+                # Show read-only files with truncated content (Bucket B+C: >500 lines)
+                if readonly_files:
+                    prompt_parts.append("\n# Read-Only Context Files (DO NOT MODIFY):")
+                    for file_path, content, line_count in readonly_files:
+                        prompt_parts.append(f"\n## {file_path} (READ-ONLY CONTEXT — DO NOT MODIFY)")
+                        prompt_parts.append(f"This file has {line_count} lines (too large for full-file replacement).")
+                        prompt_parts.append("You may read this snippet as context, but you must NOT include it in your JSON output.")
+                        
+                        # Show first 200 + last 50 lines for context
+                        lines = content.split('\n')
+                        first_part = '\n'.join(lines[:200])
+                        last_part = '\n'.join(lines[-50:])
+                        prompt_parts.append(f"```\n{first_part}\n\n... [{line_count - 250} lines omitted] ...\n\n{last_part}\n```")
             else:
                 # Legacy mode: show truncated content
                 prompt_parts.append("\n# Repository Context:")

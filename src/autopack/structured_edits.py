@@ -248,6 +248,10 @@ class StructuredEditApplicator:
         if not dry_run and modified_contents:
             for file_path, content in modified_contents.items():
                 try:
+                    # Safety check: ensure file_path is a string, not a list
+                    if not isinstance(file_path, str):
+                        logger.error(f"[StructuredEdit] Invalid file_path type: {type(file_path)}, skipping")
+                        continue
                     full_path = self.workspace / file_path
                     full_path.parent.mkdir(parents=True, exist_ok=True)
                     full_path.write_text(content, encoding='utf-8')

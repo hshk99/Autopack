@@ -1,6 +1,6 @@
 """Pydantic schemas for dashboard API endpoints"""
 
-from typing import Literal, Optional
+from typing import Dict, Literal, Optional
 
 from pydantic import BaseModel
 
@@ -91,3 +91,16 @@ class HumanNoteRequest(BaseModel):
 
     note: str
     run_id: Optional[str] = None
+
+
+class DoctorStatsResponse(BaseModel):
+    """Doctor usage statistics for a run"""
+    
+    run_id: str
+    doctor_calls_total: int
+    doctor_cheap_calls: int
+    doctor_strong_calls: int
+    doctor_escalations: int
+    doctor_actions: Dict[str, int]  # action_type -> count
+    cheap_vs_strong_ratio: float  # 0.0-1.0 (cheap calls / total calls)
+    escalation_frequency: float  # 0.0-1.0 (escalations / total calls)

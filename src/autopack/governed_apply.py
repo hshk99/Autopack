@@ -749,12 +749,15 @@ class GovernedApplyPath:
 
         return '\n'.join(sanitized)
 
-    def apply_patch(self, patch_content: str) -> Tuple[bool, Optional[str]]:
+    def apply_patch(self, patch_content: str, *, full_file_mode: bool = False) -> Tuple[bool, Optional[str]]:
         """
         Apply a patch to the filesystem.
 
         Args:
             patch_content: The patch content to apply (git diff format)
+            full_file_mode: If True, allows direct write fallback for complete file contents.
+                           If False (diff mode), skips direct write fallback and fails fast.
+                           Per GPT_RESPONSE15: direct write only works for full-file mode.
 
         Returns:
             Tuple of (success: bool, error_message: Optional[str])
@@ -851,8 +854,16 @@ class GovernedApplyPath:
                         use_three_way = True
                         logger.info("3-way merge mode check passed")
                     else:
-                        # All git apply modes failed - try direct file write as last resort
-                        logger.warning("All git apply modes failed, attempting direct file write fallback...")
+                        # All git apply modes failed
+                        # Per GPT_RESPONSE15: Only use direct write fallback for full-file mode
+                        if not full_file_mode:
+                            logger.error("All git apply modes failed for diff-mode patch. Direct write fallback skipped (only works for full-file mode).")
+                            if patch_file.exists():
+                                patch_file.unlink()
+                            return False, "diff_mode_patch_failed: All git apply modes failed and direct write is not available for diff patches"
+                        
+                        # Try direct file write as last resort (only for full-file mode)
+                        logger.warning("All git apply modes failed, attempting direct file write fallback (full-file mode only)...")
                         success, files_written = self._apply_patch_directly(patch_content)
                         if success:
                             logger.info(f"Direct file write succeeded - {len(files_written)} files written")

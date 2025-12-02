@@ -228,15 +228,16 @@ discovery_promotion:
 # Per GPT_RESPONSE10/11: Full-file replacement mode (Option A/C hybrid)
 # LLM outputs complete file content, executor generates diff locally
 # This eliminates malformed git diff issues from LLM hunk arithmetic errors
+# Per GPT_RESPONSE15: Extended full-file mode to 1000 lines, disabled diff mode
 builder_output_mode:
   # Enable full-file replacement mode (recommended)
   use_full_file_mode: true
-  # Keep legacy git-diff mode as fallback (per GPT_RESPONSE11 Q3)
-  legacy_diff_fallback_enabled: true
+  # Legacy diff mode disabled per GPT_RESPONSE15 - diff mode fundamentally broken
+  legacy_diff_fallback_enabled: false
   # File size threshold for full-file mode (lines)
-  # Files larger than this use region-based edits (Stage 2)
-  max_lines_for_full_file: 500
-  # Hard limit: files above this are rejected in full-file mode (per GPT_RESPONSE11 Q2)
+  # Extended from 500 to 1000 per GPT_RESPONSE15 recommendation
+  max_lines_for_full_file: 1000
+  # Hard limit: files above this are rejected (same as max_lines_for_full_file = 2-bucket policy)
   max_lines_hard_limit: 1000
   # Churn limit: reject patches that change more than this % of file
   # for small fixes (prevents accidental large rewrites)
@@ -255,3 +256,30 @@ builder_output_mode:
     strict_for_small_fixes: true
     # Symbols to always preserve (in addition to auto-detected)
     always_preserve: []
+
+# Token soft caps per GPT_RESPONSE18 Q4 (Phase 1: telemetry + advisory warnings only)
+token_soft_caps:
+  enabled: true
+  per_phase_soft_caps:
+    low: 12000
+    medium: 32000
+    high: 80000
+    maintenance: 100000
+  # TODO Phase 2 (per GPT_RESPONSE24 Q1): Add task_category → complexity mapping if telemetry shows need
+  # task_category_to_complexity:
+  #   backend_core: high
+  #   backend_maintenance: maintenance
+  #   frontend_ui: medium
+  #   docs_cleanup: low
+
+# Validation settings per GPT_RESPONSE18 Q5/Q6
+validation:
+  # Symbol preservation: detect catastrophic symbol loss in large files
+  symbol_preservation:
+    enabled: true
+    max_lost_ratio: 0.3  # >30% loss triggers suspicion (per GPT_RESPONSE18 Q5)
+  # Structural similarity: detect major rewrites when not expected
+  structural_similarity:
+    enabled: true
+    min_ratio: 0.6  # <60% similarity triggers suspicion (per GPT_RESPONSE18 Q6)
+    min_lines_for_check: 300  # Only check files >=300 lines (per GPT_RESPONSE18 Q6)

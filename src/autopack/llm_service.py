@@ -8,12 +8,33 @@ This service wraps the OpenAI clients and provides:
 """
 
 import json
+import logging
 import os
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional
 
 from sqlalchemy.orm import Session
+
+logger = logging.getLogger(__name__)
+
+
+def estimate_tokens(text: str, *, chars_per_token: float = 4.0) -> int:
+    """
+    Rough token estimation for soft cap warnings.
+    
+    Per GPT_RESPONSE20 C2 and GPT_RESPONSE21 Q2: Single factor 4.0 for all models in Phase 1.
+    ±20-30% error is acceptable for advisory soft caps.
+    Actual usage from provider is authoritative for cost tracking.
+    
+    Args:
+        text: Text to estimate tokens for
+        chars_per_token: Average characters per token (default 4.0 for all models)
+    
+    Returns:
+        Estimated token count (minimum 1)
+    """
+    return max(1, int(len(text) / chars_per_token))
 
 from .llm_client import AuditorResult, BuilderResult
 from .model_router import ModelRouter
@@ -742,9 +763,9 @@ IMPORTANT: execute_fix is for INFRASTRUCTURE fixes only. Code logic issues shoul
         """
         import json
         import logging
-        from .error_recovery import get_doctor_config
+        from .config_loader import load_doctor_config
         logger = logging.getLogger(__name__)
-        config = get_doctor_config()
+        config = load_doctor_config()
 
         # 1. Choose Doctor model based on failure complexity
         # Per GPT_RESPONSE10: choose_doctor_model now returns (model, is_complex) tuple

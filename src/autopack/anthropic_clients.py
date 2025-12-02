@@ -12,6 +12,7 @@ ModelRouter selects Claude models based on category/quota.
 import os
 import json
 import logging
+import yaml
 from pathlib import Path
 from typing import Dict, List, Optional
 
@@ -23,8 +24,62 @@ except ImportError:
 
 from .llm_client import BuilderResult, AuditorResult
 from .journal_reader import get_prevention_prompt_injection
+from .llm_service import estimate_tokens
 
 logger = logging.getLogger(__name__)
+
+
+# Per GPT_RESPONSE24 C1: Normalize complexity to handle variations
+ALLOWED_COMPLEXITIES = {"low", "medium", "high", "maintenance"}
+
+
+def normalize_complexity(value: str | None) -> str:
+    """
+    Normalize complexity value to canonical form.
+    
+    Per GPT_RESPONSE24 C1: Handle case variations, common suffixes, and aliases.
+    Per GPT_RESPONSE25 C1: Log DATA_INTEGRITY for unknown values and fallback to "medium".
+    
+    Args:
+        value: Raw complexity value from phase_spec
+    
+    Returns:
+        Normalized complexity value (always one of ALLOWED_COMPLEXITIES)
+    """
+    if value is None:
+        return "medium"  # Default
+    
+    v = value.strip().lower()
+    
+    # Strip common suffixes (per GPT1 and GPT2)
+    for suffix in ("_complexity", "-complexity", "_level", "-level", "_mode", "-mode", "_task", "_tier"):
+        if v.endswith(suffix):
+            v = v[:-len(suffix)]
+    
+    # Map common aliases (per GPT1 and GPT2)
+    alias_map = {
+        "low": "low",
+        "medium": "medium",
+        "med": "medium",
+        "high": "high",
+        "maint": "maintenance",
+        "maintain": "maintenance",
+        "maintenance": "maintenance",
+        "maintenance_mode": "maintenance",
+    }
+    
+    normalized = alias_map.get(v, v)
+    
+    # Per GPT_RESPONSE25 C1: Guard for unknown values - log and fallback to "medium"
+    if normalized not in ALLOWED_COMPLEXITIES:
+        logger.warning(
+            "[DATA_INTEGRITY] Unknown complexity value %r (normalized to %r); "
+            "falling back to 'medium'. Consider adding to alias_map if valid.",
+            value, normalized,
+        )
+        return "medium"
+    
+    return normalized
 
 
 class AnthropicBuilderClient:
@@ -81,11 +136,25 @@ class AnthropicBuilderClient:
             use_structured_edit = False
             if file_context and config:
                 files = file_context.get("existing_files", {})
+                # Safety check: ensure files is a dict
+                if not isinstance(files, dict):
+                    logger.warning(f"[Builder] file_context.get('existing_files') returned non-dict: {type(files)}, using empty dict")
+                    files = {}
                 for file_path, content in files.items():
+                    # Safety check: ensure file_path is a string
+                    if not isinstance(file_path, str):
+                        logger.warning(f"[Builder] Skipping non-string file_path: {file_path} (type: {type(file_path)})")
+                        continue
                     if isinstance(content, str):
                         line_count = content.count('\n') + 1
                         if line_count > config.max_lines_hard_limit:
                             scope_paths = phase_spec.get("scope", {}).get("paths", [])
+                            # Safety check: ensure scope_paths is a list of strings
+                            if not isinstance(scope_paths, list):
+                                logger.warning(f"[Builder] scope_paths is not a list: {type(scope_paths)}, using empty list")
+                                scope_paths = []
+                            # Filter out non-string items
+                            scope_paths = [sp for sp in scope_paths if isinstance(sp, str)]
                             if not scope_paths or any(file_path.startswith(sp) for sp in scope_paths):
                                 use_structured_edit = True
                                 break
@@ -102,6 +171,89 @@ class AnthropicBuilderClient:
                 use_full_file_mode=use_full_file_mode,
                 config=config  # NEW: Pass config for read-only markers and structured edit detection
             )
+
+            # Per GPT_RESPONSE23 Q2: Add sanity checks for max_tokens
+            if max_tokens is None or max_tokens <= 0:
+                logger.warning(
+                    "[TOKEN_EST] max_tokens missing or invalid (%s); falling back to default 4096",
+                    max_tokens
+                )
+                max_tokens = 4096
+            
+            # Per GPT_RESPONSE21 Q2: Estimate tokens on final prompt text (as sent to provider)
+            # Build full prompt text for estimation (system + user)
+            full_prompt_text = system_prompt + "\n" + user_prompt
+            estimated_prompt_tokens = estimate_tokens(full_prompt_text)
+            call_max_tokens = max_tokens or 64000  # Keep existing default as final fallback
+            estimated_completion_tokens = int(call_max_tokens * 0.7)  # Conservative estimate (70% of max)
+            estimated_total_tokens = estimated_prompt_tokens + estimated_completion_tokens
+            
+            # Per GPT_RESPONSE22 Q1: Breakdown at DEBUG, INFO/WARNING for cap events
+            phase_id = phase_spec.get("phase_id") or "unknown"
+            run_id = phase_spec.get("run_id") or "unknown"
+            
+            # Always log breakdown at DEBUG for telemetry
+            if logger.isEnabledFor(logging.DEBUG):
+                logger.debug(
+                    "[TOKEN_EST] run_id=%s phase_id=%s total=%d prompt=%d completion=%d max_tokens=%d",
+                    run_id, phase_id, estimated_total_tokens, estimated_prompt_tokens,
+                    estimated_completion_tokens, call_max_tokens,
+                )
+            
+            # Per GPT_RESPONSE24 C1: Normalize complexity to handle variations
+            # Per GPT_RESPONSE24 Q2 (GPT2): Use "medium" as fallback, no default tier in Phase 1
+            # Per GPT_RESPONSE22 C1: Check soft cap with buffer bands (no safety margin on estimate)
+            raw_complexity = phase_spec.get("complexity")
+            complexity = normalize_complexity(raw_complexity)
+            soft_cap = None
+            try:
+                # Load token_soft_caps from config
+                config_path = Path(__file__).parent.parent.parent / "config" / "models.yaml"
+                if config_path.exists():
+                    with open(config_path) as f:
+                        models_config = yaml.safe_load(f)
+                        token_caps_config = models_config.get("token_soft_caps", {})
+                        if token_caps_config.get("enabled", False):
+                            per_phase_caps = token_caps_config.get("per_phase_soft_caps", {})
+                            soft_cap = per_phase_caps.get(complexity)
+                            
+                            # Per GPT_RESPONSE24 Q2 (GPT2): Fallback to "medium" if complexity not found
+                            if soft_cap is None:
+                                if "medium" in per_phase_caps:
+                                    logger.debug(
+                                        "[TOKEN_SOFT_CAP] Unknown complexity %r (normalized %r) for run_id=%s phase_id=%s; "
+                                        "falling back to 'medium' tier (%s tokens)",
+                                        raw_complexity, complexity, run_id, phase_id, per_phase_caps["medium"],
+                                    )
+                                    soft_cap = per_phase_caps["medium"]
+                                else:
+                                    # Config is inconsistent; skip soft cap advisory
+                                    logger.warning(
+                                        "[TOKEN_SOFT_CAP] No soft cap for %r and no 'medium' tier in config; "
+                                        "skipping soft cap check for this phase",
+                                        raw_complexity,
+                                    )
+                                    soft_cap = None
+            except Exception:
+                # If config loading fails, skip soft cap check (non-fatal)
+                pass
+            
+            # Log INFO/WARNING when soft cap is exceeded or approached
+            if soft_cap:
+                if estimated_total_tokens >= soft_cap:
+                    # Clearly over soft cap
+                    logger.warning(
+                        "[TOKEN_SOFT_CAP] run_id=%s phase_id=%s est_total=%d soft_cap=%d "
+                        "(prompt=%d completion=%d complexity=%s)",
+                        run_id, phase_id, estimated_total_tokens, soft_cap,
+                        estimated_prompt_tokens, estimated_completion_tokens, complexity,
+                    )
+                elif estimated_total_tokens >= int(soft_cap * 0.9):  # ≥90% of cap
+                    # Approaching soft cap
+                    logger.info(
+                        "[TOKEN_SOFT_CAP] run_id=%s phase_id=%s est_total=%d soft_cap=%d (approaching, complexity=%s)",
+                        run_id, phase_id, estimated_total_tokens, soft_cap, complexity,
+                    )
 
             # Call Anthropic API with streaming for long operations
             # Use Claude's max output capacity (64K) to avoid truncation of large patches
@@ -139,14 +291,23 @@ class AnthropicBuilderClient:
             )
 
         except Exception as e:
+            # Log full traceback for debugging
+            import traceback
+            error_traceback = traceback.format_exc()
+            error_msg = str(e)
+            
+            # Check if this is the Path/list error we're tracking
+            if "unsupported operand type(s) for /" in error_msg and "list" in error_msg:
+                logger.error(f"[Builder] Path/list TypeError detected:\n{error_msg}\nTraceback:\n{error_traceback}")
+            
             # Return error result
             return BuilderResult(
                 success=False,
                 patch_content="",
-                builder_messages=[f"Builder error: {str(e)}"],
+                builder_messages=[f"Builder error: {error_msg}"],
                 tokens_used=0,
                 model_used=model,
-                error=str(e)
+                error=error_msg
             )
 
     def _extract_diff_from_text(self, text: str) -> str:
@@ -303,6 +464,9 @@ class AnthropicBuilderClient:
             existing_files = {}
             if file_context:
                 existing_files = file_context.get("existing_files", file_context)
+                # Safety check: ensure existing_files is a dict
+                if not isinstance(existing_files, dict):
+                    existing_files = {}
             
             for file_entry in files:
                 file_path = file_entry.get("path", "")
@@ -1133,6 +1297,11 @@ Requirements:
         if file_context:
             # Extract existing_files dict (autonomous_executor returns {"existing_files": {path: content}})
             files = file_context.get("existing_files", file_context)
+            
+            # Safety check: ensure files is a dict, not a list or other type
+            if not isinstance(files, dict):
+                logger.warning(f"[Builder] file_context.get('existing_files') returned non-dict type: {type(files)}, using empty dict")
+                files = {}
             
             # Check if we need structured edit mode (files >1000 lines)
             use_structured_edit_mode = False

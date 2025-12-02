@@ -382,9 +382,11 @@ class AutonomousExecutor:
             Dict with 'project_rules' and 'run_hints' keys
         """
         # Get relevant project rules (Stage 0B - cross-run persistent rules)
+        # Get project_id first (it's a string, not a list)
+        project_id = self._get_project_slug()
         relevant_rules = get_active_rules_for_phase(
-            self.project_rules if hasattr(self, 'project_rules') else [],
-            phase  # Correct signature: pass phase dict
+            project_id,  # Pass project_id string, not self.project_rules list
+            phase
         )
 
         # Get run-local hints from earlier phases (Stage 0A - within-run hints)
@@ -508,7 +510,7 @@ class AutonomousExecutor:
             url = f"{self.api_url}/runs/{self.run_id}"
             headers = {}
             if self.api_key:
-                headers["Authorization"] = f"Bearer {self.api_key}"
+                headers["X-API-Key"] = self.api_key
 
             response = requests.get(url, headers=headers, timeout=10)
             response.raise_for_status()
@@ -1835,8 +1837,18 @@ Just the new description that should replace the original.
             logger.info(f"[{phase_id}] Step 1/4: Generating code with Builder (via LlmService)...")
 
             # Load repository context for Builder
-            file_context = self._load_repository_context(phase)
-            logger.info(f"[{phase_id}] Loaded {len(file_context.get('existing_files', {}))} files for context")
+            try:
+                file_context = self._load_repository_context(phase)
+                logger.info(f"[{phase_id}] Loaded {len(file_context.get('existing_files', {}))} files for context")
+            except TypeError as e:
+                if "unsupported operand type(s) for /" in str(e) and "list" in str(e):
+                    logger.error(f"[{phase_id}] Path/list error in context loading: {e}")
+                    import traceback
+                    logger.error(f"Traceback: {traceback.format_exc()}")
+                    # Return empty context to allow execution to continue
+                    file_context = {"existing_files": {}}
+                else:
+                    raise
 
             # ============================================================================
             # NEW: Pre-flight file size validation (per IMPLEMENTATION_PLAN2.md Phase 2.1)
@@ -1849,27 +1861,26 @@ Just the new description that should replace the original.
                 config = self.builder_output_config
                 files = file_context.get("existing_files", {})
                 
-                # Check for files that are too large for full-file mode
-                too_large = []      # Bucket C: >1000 lines - read-only context
-                needs_diff_mode = []  # Bucket B: 500-1000 lines - needs diff mode
+                # Per GPT_RESPONSE15: Simplified 2-bucket policy
+                # Bucket A: ≤1000 lines → full-file mode
+                # Bucket B: >1000 lines → fail fast (read-only context)
+                too_large = []  # Files >1000 lines - read-only context
                 
                 for file_path, content in files.items():
                     if not isinstance(content, str):
                         continue
                     line_count = content.count('\n') + 1
                     
-                    # Bucket C: >1000 lines - mark as read-only context
+                    # Bucket B: >1000 lines - mark as read-only context
                     if line_count > config.max_lines_hard_limit:
                         too_large.append((file_path, line_count))
-                    # Bucket B: 500-1000 lines - needs diff mode
-                    elif line_count > config.max_lines_for_full_file:
-                        needs_diff_mode.append((file_path, line_count))
                 
-                # For files >1000 lines (Bucket C): Mark as read-only context
+                # For files >1000 lines: Mark as read-only context
                 # These files can be READ but NOT modified
+                # Per GPT_RESPONSE15: Fail fast with clear error until structured edit mode is implemented
                 if too_large:
                     logger.warning(
-                        f"[{phase_id}] Large files in context (read-only): "
+                        f"[{phase_id}] Large files in context (read-only, >{config.max_lines_hard_limit} lines): "
                         f"{', '.join(p for p, _ in too_large)}"
                     )
                     # Record telemetry for each large file
@@ -1880,42 +1891,20 @@ Just the new description that should replace the original.
                             file_path=file_path,
                             line_count=line_count,
                             limit=config.max_lines_hard_limit,
-                            bucket="C"
+                            bucket="B"  # Now just "too large" bucket
                         )
                     # Don't fail - these files can be read-only context
                     # Parser will enforce that LLM doesn't try to modify them
                 
-                # For 500-1000 line files (Bucket B), switch to diff mode if enabled
-                if needs_diff_mode:
-                    if config.legacy_diff_fallback_enabled:
-                        logger.warning(
-                            f"[{phase_id}] Switching to diff mode for medium files: "
-                            f"{', '.join(p for p, _ in needs_diff_mode)}"
-                        )
-                        
-                        # Record telemetry
-                        self.file_size_telemetry.record_bucket_switch(
-                            run_id=self.run_id,
-                            phase_id=phase_id,
-                            files=needs_diff_mode
-                        )
-                        
-                        use_full_file_mode = False  # Switch to diff mode for this phase
-                    else:
-                        # If diff mode disabled, treat as read-only (same as Bucket C)
-                        logger.warning(
-                            f"[{phase_id}] Medium files marked as read-only (diff mode disabled): "
-                            f"{', '.join(p for p, _ in needs_diff_mode)}"
-                        )
-                        for file_path, line_count in needs_diff_mode:
-                            self.file_size_telemetry.record_preflight_reject(
-                                run_id=self.run_id,
-                                phase_id=phase_id,
-                                file_path=file_path,
-                                line_count=line_count,
-                                limit=config.max_lines_for_full_file,
-                                bucket="B"
-                            )
+                # Per GPT_RESPONSE15: Diff mode is disabled, so all files ≤1000 use full-file mode
+                # No need to check for needs_diff_mode or switch modes
+                # Defensive check: If diff mode is somehow enabled, log loudly
+                if config.legacy_diff_fallback_enabled:
+                    logger.error(
+                        f"[{phase_id}] WARNING: legacy_diff_fallback_enabled is True but should be False! "
+                        f"Diff mode is fundamentally broken per GPT_RESPONSE15. "
+                        f"All files ≤{config.max_lines_for_full_file} lines will use full-file mode."
+                    )
 
             # Load learning context (Stage 0A hints + Stage 0B rules)
             learning_context = self._get_learning_context_for_phase(phase)
@@ -1996,7 +1985,11 @@ Just the new description that should replace the original.
                     run_type=self.run_type,
                     autopack_internal_mode=is_maintenance_run,
                 )
-                patch_success, error_msg = governed_apply.apply_patch(builder_result.patch_content)
+                # Per GPT_RESPONSE15: Pass full_file_mode=True since we're using full-file mode for all files ≤1000 lines
+                patch_success, error_msg = governed_apply.apply_patch(
+                    builder_result.patch_content,
+                    full_file_mode=True
+                )
 
                 if not patch_success:
                     logger.error(f"[{phase_id}] Failed to apply patch to filesystem: {error_msg}")
@@ -2082,12 +2075,20 @@ Just the new description that should replace the original.
             return True, "COMPLETE"
 
         except Exception as e:
-            logger.error(f"[{phase_id}] Execution failed: {e}")
+            import traceback
+            error_traceback = traceback.format_exc()
+            error_msg = str(e)
+            
+            # Check if this is the Path/list error we're tracking
+            if "unsupported operand type(s) for /" in error_msg and "list" in error_msg:
+                logger.error(f"[{phase_id}] Path/list TypeError detected:\n{error_msg}\nFull traceback:\n{error_traceback}")
+            else:
+                logger.error(f"[{phase_id}] Execution failed: {error_msg}\nTraceback:\n{error_traceback}")
 
             # Log ALL exceptions to debug journal for tracking
             log_error(
                 error_signature=f"Phase {phase_id} inner execution failure",
-                symptom=f"{type(e).__name__}: {str(e)}",
+                symptom=f"{type(e).__name__}: {error_msg}",
                 run_id=self.run_id,
                 phase_id=phase_id,
                 suspected_cause="Unhandled exception in _execute_phase_with_recovery",
@@ -2167,9 +2168,19 @@ Just the new description that should replace the original.
         # Load recently modified files first (highest priority for freshness)
         modified_count = 0
         for rel_path in recently_modified[:15]:  # Limit to 15 recently modified files
-            filepath = workspace / rel_path
-            if _load_file(filepath):
-                modified_count += 1
+            # Defensive check: ensure rel_path is a string
+            if not isinstance(rel_path, str):
+                logger.warning(f"[Context] Skipping non-string rel_path: {rel_path} (type: {type(rel_path)})")
+                continue
+            if not rel_path or not rel_path.strip():
+                continue
+            try:
+                filepath = workspace / rel_path
+                if _load_file(filepath):
+                    modified_count += 1
+            except (TypeError, ValueError) as e:
+                logger.warning(f"[Context] Error processing rel_path '{rel_path}': {e}")
+                continue
 
         if modified_count > 0:
             logger.info(f"[Context] Loaded {modified_count} recently modified files for fresh context")
@@ -2185,19 +2196,31 @@ Just the new description that should replace the original.
         file_patterns = re.findall(r'[a-zA-Z_][a-zA-Z0-9_/\\.-]*\.(?:py|yaml|json|ts|js|md)', combined_text)
         mentioned_count = 0
         for pattern in file_patterns[:10]:  # Limit to 10 mentioned files
+            # Defensive check: ensure pattern is a string
             if not isinstance(pattern, str):
-                continue  # Skip if pattern is not a string
-            # Try exact match first
-            filepath = workspace / pattern
-            if _load_file(filepath):
-                mentioned_count += 1
+                logger.warning(f"[Context] Skipping non-string pattern: {pattern} (type: {type(pattern)})")
                 continue
-            # Try finding in src/ or config/ directories
-            for prefix in ["src/autopack/", "config/", "src/", ""]:
-                filepath = workspace / prefix / pattern
+            # Additional safety: ensure pattern is not empty and doesn't contain path separators that would break
+            if not pattern or not pattern.strip():
+                continue
+            try:
+                # Try exact match first
+                filepath = workspace / pattern
                 if _load_file(filepath):
                     mentioned_count += 1
-                    break
+                    continue
+                # Try finding in src/ or config/ directories
+                for prefix in ["src/autopack/", "config/", "src/", ""]:
+                    # Ensure prefix is a string (defensive)
+                    if not isinstance(prefix, str):
+                        continue
+                    filepath = workspace / prefix / pattern
+                    if _load_file(filepath):
+                        mentioned_count += 1
+                        break
+            except (TypeError, ValueError) as e:
+                logger.warning(f"[Context] Error processing pattern '{pattern}': {e}")
+                continue
 
         if mentioned_count > 0:
             logger.info(f"[Context] Loaded {mentioned_count} files mentioned in phase description")
@@ -2243,7 +2266,7 @@ Just the new description that should replace the original.
         url = f"{self.api_url}/runs/{self.run_id}/phases/{phase_id}/builder_result"
         headers = {"Content-Type": "application/json"}
         if self.api_key:
-            headers["Authorization"] = f"Bearer {self.api_key}"
+            headers["X-API-Key"] = self.api_key
 
         # Map llm_client.BuilderResult to builder_schemas.BuilderResult
         # Parse patch statistics using GovernedApplyPath
@@ -2322,7 +2345,7 @@ Just the new description that should replace the original.
         url = f"{self.api_url}/runs/{self.run_id}/phases/{phase_id}/auditor_result"
         headers = {"Content-Type": "application/json"}
         if self.api_key:
-            headers["Authorization"] = f"Bearer {self.api_key}"
+            headers["X-API-Key"] = self.api_key
 
         # Map llm_client.AuditorResult to builder_schemas.AuditorResult
         # Convert issues_found from List[Dict] to List[BuilderSuggestedIssue]
@@ -2616,10 +2639,13 @@ Just the new description that should replace the original.
         """
         try:
             url = f"{self.api_url}/runs/{self.run_id}/phases/{phase_id}/update_status"
+            headers = {"Content-Type": "application/json"}
+            if self.api_key:
+                headers["X-API-Key"] = self.api_key
             response = requests.post(
                 url,
                 json={"state": status},
-                headers={"Content-Type": "application/json"},
+                headers=headers,
                 timeout=30
             )
             response.raise_for_status()

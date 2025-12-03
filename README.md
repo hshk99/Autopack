@@ -157,11 +157,14 @@ See [IMPLEMENTATION_PLAN.md](archive/IMPLEMENTATION_PLAN.md) for full design det
 ### Archive Documentation
 Detailed historical documentation is available in the `archive/` directory:
 
-- **[Archive Index](archive/ARCHIVE_INDEX.md)**: Master index of all documentation.
-- **[Implementation Plan](archive/IMPLEMENTATION_PLAN.md)**: Current roadmap and Phase 3+ planning.
-- **[Autonomous Executor](archive/CONSOLIDATED_REFERENCE.md#autonomous-executor-readme)**: Guide to the orchestration system.
-- **[Learned Rules](LEARNED_RULES_README.md)**: System for preventing recurring errors.
-- **[GPT/Claude Dialog](archive/)**: GPT_RESPONSE4-8.md and CLAUDE_RESPONSE*_TO_GPT.md for design decisions.
+- **[Archive Index](archive/ARCHIVE_INDEX.md)**: Master index of all archived documentation
+- **[Claude-GPT Consultation](archive/CONSOLIDATED_CORRESPONDENCE.md)**: Index of all Claude-GPT consultation exchanges
+- **[Consultation Summary](archive/GPT_CLAUDE_CONSULTATION_SUMMARY.md)**: Executive summary of all Phase 1 implementation decisions
+- **[Autonomous Executor](archive/CONSOLIDATED_REFERENCE.md#autonomous-executor-readme)**: Guide to the orchestration system
+- **[Learned Rules](LEARNED_RULES_README.md)**: System for preventing recurring errors
+- **[Implementation Plan](archive/IMPLEMENTATION_PLAN.md)**: Historical roadmap and Phase 3+ planning
+
+For detailed decision history, see the `archive/correspondence/` directory (52 individual exchanges).
 
 ## Project Structure
 
@@ -274,6 +277,8 @@ replan:
 
 ---
 
-**Version**: 0.3.0 (Phase 2 Complete)
+**Version**: 0.4.0 (Enhanced Error Reporting + Test Suite Hardening)
 **License**: MIT
-**Last Updated**: 2025-12-01
+**Last Updated**: 2025-12-03
+
+**Milestone**: `tests-passing-v1.0` - All core tests passing (83 passed, 161 skipped, 0 failed)

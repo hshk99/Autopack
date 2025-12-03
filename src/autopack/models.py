@@ -4,7 +4,7 @@ from datetime import datetime
 from enum import Enum
 from typing import Optional
 
-from sqlalchemy import Boolean, Column, DateTime, Enum as SQLEnum, ForeignKey, Integer, String, Text
+from sqlalchemy import Boolean, Column, DateTime, Enum as SQLEnum, ForeignKey, Integer, JSON, String, Text
 from sqlalchemy.orm import relationship
 
 from .database import Base
@@ -154,6 +154,9 @@ class Phase(Base):
     task_category = Column(String, nullable=True)  # e.g. schema_change, cross_cutting_refactor
     complexity = Column(String, nullable=True)  # low, medium, high
     builder_mode = Column(String, nullable=True)  # e.g. tweak_light, scaffolding_heavy
+
+    # Scope configuration (file paths and read-only context)
+    scope = Column(JSON, nullable=True)  # {"paths": [...], "read_only_context": [...]}
 
     # Budgets (per §9.3 of v7 playbook)
     max_builder_attempts = Column(Integer, nullable=True)

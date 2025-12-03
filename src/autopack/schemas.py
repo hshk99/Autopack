@@ -1,7 +1,7 @@
 """Pydantic schemas for API requests and responses"""
 
 from datetime import datetime
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, Field
 
@@ -37,6 +37,7 @@ class PhaseCreate(BaseModel):
     task_category: Optional[str] = Field(None, description="Task category (e.g. schema_change)")
     complexity: Optional[str] = Field(None, description="Complexity: low, medium, or high")
     builder_mode: Optional[str] = Field(None, description="Builder mode (e.g. tweak_light)")
+    scope: Optional[Dict[str, Any]] = Field(None, description="Scope configuration: paths and read_only_context")
 
 
 class RunStartRequest(BaseModel):
@@ -71,6 +72,7 @@ class PhaseResponse(BaseModel):
     complexity: Optional[str]
     builder_mode: Optional[str]
     phase_index: int
+    scope: Optional[Dict[str, Any]] = None
 
     class Config:
         from_attributes = True

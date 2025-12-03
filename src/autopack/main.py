@@ -206,6 +206,7 @@ def start_run(request_data: schemas.RunStartRequest, request: Request, db: Sessi
             task_category=phase_create.task_category,
             complexity=phase_create.complexity,
             builder_mode=phase_create.builder_mode,
+            scope=phase_create.scope,
             state=models.PhaseState.QUEUED,
         )
         db.add(phase)

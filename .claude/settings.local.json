@@ -15,7 +15,8 @@
       "Bash(git fetch:*)",
       "Bash(PYTHONPATH=src python:*)",
       "Bash(if [ -d \".autonomous_runs/test-goal-anchoring-20251203-022603/errors\" ])",
-      "Bash(sqlite3:*)"
+      "Bash(sqlite3:*)",
+      "Bash(git tag:*)"
     ],
     "deny": [],
     "ask": []

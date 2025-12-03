@@ -60,6 +60,36 @@
 | [ref1.md](ref1.md) | Early reference document | Historical |
 | [ref2.md](ref2.md) | Early reference document | Historical |
 
+### 3. Bug Fixes and Test Reports (Dec 2025)
+
+| Document | Purpose | Status |
+|----------|---------|--------|
+| [API_KEY_FIX.md](API_KEY_FIX.md) | API key authentication fix | Completed |
+| [BUG_FIX_REPORT.md](BUG_FIX_REPORT.md) | Comprehensive bug fix report | Historical |
+| [BUG_FIXES_APPLIED.md](BUG_FIXES_APPLIED.md) | Summary of fixes applied | Historical |
+| [FINAL_BUG_FIX.md](FINAL_BUG_FIX.md) | Final bug fix session | Historical |
+| [ERROR_ANALYSIS.md](ERROR_ANALYSIS.md) | Error analysis and patterns | Historical |
+| [ENHANCED_ERROR_LOGGING.md](ENHANCED_ERROR_LOGGING.md) | Error logging improvements | Completed |
+| [ISSUES_FOUND.md](ISSUES_FOUND.md) | Issues discovered during testing | Historical |
+
+### 4. Test Run Reports and Analysis
+
+| Document | Purpose | Status |
+|----------|---------|--------|
+| [TEST_RESULTS.md](TEST_RESULTS.md) | Comprehensive test results (Dec 3) | Current |
+| [TEST_RUN_ANALYSIS.md](TEST_RUN_ANALYSIS.md) | Test run analysis (goal anchoring) | Current |
+| [TEST_RUN_REPORT.md](TEST_RUN_REPORT.md) | Test run execution report | Historical |
+| [API_AUTH_TEST_RESULTS.md](API_AUTH_TEST_RESULTS.md) | API authentication test results | Historical |
+| [RUN_ANALYSIS.md](RUN_ANALYSIS.md) | General run analysis | Historical |
+| [RUN_ANALYSIS_fileorg-backend-tests-fix-20251130.md](RUN_ANALYSIS_fileorg-backend-tests-fix-20251130.md) | FileOrg backend tests fix | Historical |
+
+### 5. Implementation Reviews and Session Summaries
+
+| Document | Purpose | Status |
+|----------|---------|--------|
+| [IMPLEMENTATION_REVIEW.md](IMPLEMENTATION_REVIEW.md) | Implementation review summary | Historical |
+| [RESUME_SESSION_SUMMARY.md](RESUME_SESSION_SUMMARY.md) | Session continuation summary | Historical |
+
 ---
 
 ## Directory Structure
@@ -69,12 +99,33 @@ archive/
 ├── ARCHIVE_INDEX.md (this file)
 ├── CONSOLIDATED_*.md (7 consolidated documents)
 ├── GPT_CLAUDE_CONSULTATION_SUMMARY.md
+├── CONSOLIDATED_CORRESPONDENCE.md
 ├── DOC_CONSOLIDATION_GUIDE.md
+│
 ├── correspondence/ (52 individual Claude-GPT exchanges)
-│   ├── GPT_RESPONSE*.md
-│   ├── CLAUDE_RESPONSE*.md
-│   └── CLAUDE_REPORT*.md
-└── [Other historical documents]
+│   ├── GPT_RESPONSE4-27.md
+│   ├── CLAUDE_RESPONSE4-27_TO_GPT.md
+│   ├── CLAUDE_REPORT_FOR_GPT_*.md
+│   └── IMPLEMENTATION_SUMMARY_GPT15.md
+│
+├── superseded/ (old files moved by consolidation script)
+│
+├── Planning & Strategy
+│   ├── AUTOPACK_SELF_HEALING_PLAN.md
+│   ├── IMPLEMENTATION_PLAN.md
+│   ├── ref1.md
+│   └── ref2.md
+│
+├── Bug Fixes & Error Analysis (15 files)
+│   ├── API_KEY_FIX.md
+│   ├── BUG_FIX_REPORT.md
+│   ├── ERROR_ANALYSIS.md
+│   └── ...
+│
+└── Test Reports & Run Analysis (6 files)
+    ├── TEST_RESULTS.md (current)
+    ├── TEST_RUN_ANALYSIS.md (current)
+    └── ...
 ```
 
 ---

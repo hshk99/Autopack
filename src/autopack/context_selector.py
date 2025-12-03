@@ -61,6 +61,16 @@ class ContextSelector:
         Returns:
             Dict mapping file paths to their contents (ranked and limited)
         """
+        # NEW: Check for scope configuration (GPT recommendation)
+        scope_config = phase_spec.get("scope") or {}
+        scope_paths = scope_config.get("paths", [])
+        readonly_context = scope_config.get("read_only_context", [])
+
+        # If scope is defined, use scoped context loading
+        if scope_paths:
+            return self._build_scoped_context(scope_paths, readonly_context, token_budget, phase_spec)
+
+        # Fallback: Original heuristic-based loading for backward compatibility
         context = {}
         task_category = phase_spec.get("task_category", "general")
         complexity = phase_spec.get("complexity", "medium")
@@ -390,3 +400,98 @@ class ContextSelector:
 
         # Very low priority: Misc files
         return 5.0
+
+    # ===== Phase 2: Scope-Aware Context Loading (GPT recommendation) =====
+
+    def _normalize_scope_paths(self, paths: List[str]) -> List[Path]:
+        """Normalize scope paths to absolute Path objects.
+
+        Args:
+            paths: List of relative path strings
+
+        Returns:
+            List of absolute Path objects
+        """
+        normalized = []
+        for path_str in paths:
+            # Handle both Unix and Windows paths
+            path_str = path_str.replace('\\', '/')
+            path = self.root / path_str
+            normalized.append(path)
+        return normalized
+
+    def _build_scoped_context(
+        self,
+        scope_paths: List[str],
+        readonly_context: List[str],
+        token_budget: Optional[int],
+        phase_spec: Dict
+    ) -> Dict[str, str]:
+        """Build context using explicit scope configuration.
+
+        This enforces scope isolation by only loading files specified in scope.paths
+        (modifiable) and scope.read_only_context (reference only).
+
+        Args:
+            scope_paths: List of file paths that can be modified
+            readonly_context: List of directories/files for read-only reference
+            token_budget: Optional token limit for context
+            phase_spec: Phase specification for ranking
+
+        Returns:
+            Dict mapping file paths to contents
+        """
+        context = {}
+
+        # 1. Load modifiable files from scope.paths
+        normalized_scope = self._normalize_scope_paths(scope_paths)
+        for path in normalized_scope:
+            if path.exists() and path.is_file():
+                try:
+                    content = path.read_text(encoding='utf-8')
+                    relative_path = str(path.relative_to(self.root))
+                    context[relative_path] = content
+                except Exception as e:
+                    # Log but continue - missing scope files should be caught by validation
+                    print(f"[Context] Warning: Could not read scope file {path}: {e}")
+            elif path.exists() and path.is_dir():
+                # If scope path is a directory, load all files recursively
+                try:
+                    for file_path in path.rglob("*"):
+                        if file_path.is_file():
+                            content = file_path.read_text(encoding='utf-8')
+                            relative_path = str(file_path.relative_to(self.root))
+                            context[relative_path] = content
+                except Exception as e:
+                    print(f"[Context] Warning: Could not read directory {path}: {e}")
+
+        # 2. Load read-only context (for reference, not modification)
+        if readonly_context:
+            normalized_readonly = self._normalize_scope_paths(readonly_context)
+            for path in normalized_readonly:
+                if path.exists() and path.is_file():
+                    try:
+                        content = path.read_text(encoding='utf-8')
+                        relative_path = str(path.relative_to(self.root))
+                        # Don't overwrite modifiable files
+                        if relative_path not in context:
+                            context[relative_path] = content
+                    except Exception:
+                        pass
+                elif path.exists() and path.is_dir():
+                    # Load directory contents as read-only context
+                    try:
+                        for file_path in path.rglob("*"):
+                            if file_path.is_file():
+                                content = file_path.read_text(encoding='utf-8')
+                                relative_path = str(file_path.relative_to(self.root))
+                                if relative_path not in context:
+                                    context[relative_path] = content
+                    except Exception:
+                        pass
+
+        # 3. Apply token budget using ranking heuristics
+        if token_budget and context:
+            context = self._rank_and_limit_context(context, phase_spec, token_budget)
+
+        return context

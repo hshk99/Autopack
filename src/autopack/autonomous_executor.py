@@ -2435,15 +2435,14 @@ Just the new description that should replace the current one while preserving th
     def _load_repository_context(self, phase: Dict) -> Dict:
         """Load repository files for Claude Builder context
 
-        Smart context loading with freshness guarantees:
-        - Priority 0: Recently modified files (git status) - ALWAYS FRESH
-        - Priority 1: Files mentioned in phase description
-        - Priority 2: Key configuration files (package.json, setup.py, etc.)
-        - Priority 3: Source files from src/backend directories
-        - Limit total file count to avoid context bloat
+        Smart context loading with two modes:
+        1. Scope-aware: If phase has scope configuration, use ContextSelector
+           to load only specified files (for external projects)
+        2. Heuristic-based: Legacy mode with freshness guarantees
+           (for autopack_maintenance without scope)
 
         Args:
-            phase: Phase specification
+            phase: Phase specification (may include scope config)
 
         Returns:
             Dict with 'existing_files' key containing {path: content} dict
@@ -2451,6 +2450,13 @@ Just the new description that should replace the current one while preserving th
         import subprocess
         import re
 
+        # NEW: Check for scope configuration (GPT recommendation)
+        scope_config = phase.get("scope")
+        if scope_config and scope_config.get("paths"):
+            # Use ContextSelector for scope-aware loading
+            return self._load_scoped_context(phase, scope_config)
+
+        # Fallback: Original heuristic-based loading for backward compatibility
         workspace = Path(self.workspace)
         loaded_paths = set()  # Track loaded paths to avoid duplicates
         existing_files = {}  # Final output format
@@ -2589,6 +2595,94 @@ Just the new description that should replace the current one while preserving th
                    f"(modified={modified_count}, mentioned={mentioned_count})")
 
         return {"existing_files": existing_files}
+
+    def _determine_workspace_root(self, scope_config: Dict) -> Path:
+        """Determine workspace root based on scope configuration.
+
+        For external projects (project_build), derive workspace from first scope path.
+        For autopack_maintenance, use Autopack root.
+
+        Args:
+            scope_config: Scope configuration dict
+
+        Returns:
+            Workspace root Path
+        """
+        # For autopack_maintenance, always use self.workspace (Autopack root)
+        if self.run_type in ["autopack_maintenance", "autopack_upgrade", "self_repair"]:
+            return Path(self.workspace)
+
+        # For project_build, derive workspace from first scope path
+        scope_paths = scope_config.get("paths", [])
+        if scope_paths:
+            # Assuming scope paths are like: ".autonomous_runs/file-organizer-app-v1/backend/requirements.txt"
+            # Extract project root: ".autonomous_runs/file-organizer-app-v1/"
+            first_path = scope_paths[0]
+            parts = Path(first_path).parts
+
+            # Look for .autonomous_runs prefix
+            if len(parts) >= 2 and parts[0] == ".autonomous_runs":
+                project_root = Path(self.workspace) / parts[0] / parts[1]
+                logger.info(f"[Scope] Workspace root determined: {project_root}")
+                return project_root
+
+        # Fallback to default workspace
+        logger.warning(f"[Scope] Could not determine workspace from scope paths, using default: {self.workspace}")
+        return Path(self.workspace)
+
+    def _load_scoped_context(self, phase: Dict, scope_config: Dict) -> Dict:
+        """Load context using scope configuration (GPT recommendation).
+
+        Args:
+            phase: Phase specification
+            scope_config: Scope configuration with paths and read_only_context
+
+        Returns:
+            Dict with 'existing_files' key containing {path: content} dict
+        """
+        from autopack.context_selector import ContextSelector
+
+        # Determine workspace root for scope resolution
+        workspace_root = self._determine_workspace_root(scope_config)
+
+        # Initialize ContextSelector with workspace root
+        selector = ContextSelector(repo_root=workspace_root)
+
+        # Use ContextSelector to load scoped files
+        context = selector.get_context_for_phase(
+            phase_spec=phase,
+            changed_files=None,  # Scope takes precedence over changed_files
+            token_budget=None,  # Let selector use default ranking
+        )
+
+        # Validate scope paths were loaded
+        scope_paths = scope_config.get("paths", [])
+        loaded_paths = set(context.keys())
+
+        # Convert scope paths to relative paths for comparison
+        normalized_scope = []
+        for path_str in scope_paths:
+            path_str = path_str.replace('\\', '/')
+            # If path starts with workspace prefix, make it relative
+            if path_str.startswith(str(workspace_root)):
+                path_str = str(Path(path_str).relative_to(workspace_root))
+            # Remove workspace prefix if present (e.g., .autonomous_runs/project/...)
+            if workspace_root != Path(self.workspace):
+                rel_to_autopack = str(workspace_root.relative_to(self.workspace))
+                if path_str.startswith(rel_to_autopack):
+                    path_str = str(Path(path_str).relative_to(rel_to_autopack))
+            normalized_scope.append(path_str)
+
+        # Log scope validation
+        missing_files = [p for p in normalized_scope if p not in loaded_paths]
+        if missing_files:
+            logger.warning(f"[Scope] Missing scope files: {missing_files}")
+
+        logger.info(f"[Scope] Loaded {len(context)} files from scope configuration")
+        logger.info(f"[Scope] Scope paths: {normalized_scope}")
+        logger.info(f"[Scope] Loaded paths: {list(loaded_paths)[:10]}...")  # First 10 for brevity
+
+        return {"existing_files": context}
 
     def _post_builder_result(self, phase_id: str, result: BuilderResult):
         """POST builder result to Autopack API

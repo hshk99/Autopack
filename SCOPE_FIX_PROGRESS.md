@@ -30,17 +30,17 @@
 
 ---
 
-## 🔄 Phase 2: Context Loading (IN PROGRESS)
+## ✅ Phase 2 Complete: Context Loading
 
-### Step 2.1: Update context_selector.py (NEXT)
+### Step 2.1: Update context_selector.py ✅
 **File**: [src/autopack/context_selector.py](src/autopack/context_selector.py)
 
-**Required Changes**:
-1. Add `_normalize_scope_paths()` helper method
-2. Add `_build_scoped_context()` for scope-aware loading
-3. Modify `get_context_for_phase()` to check for scope and use scoped loading
+**Completed Changes**:
+1. ✅ Added `_normalize_scope_paths()` helper method (lines 406-421)
+2. ✅ Added `_build_scoped_context()` for scope-aware loading (lines 423-497)
+3. ✅ Modified `get_context_for_phase()` to check for scope and use scoped loading (lines 64-71)
 
-**GPT's Pseudocode**:
+**Implementation Details**:
 ```python
 def get_context_for_phase(...):
     scope_config = phase_spec.get("scope") or {}
@@ -54,18 +54,25 @@ def get_context_for_phase(...):
     return self._existing_logic()
 ```
 
-### Step 2.2: Update autonomous_executor.py (PENDING)
+### Step 2.2: Update autonomous_executor.py ✅
 **File**: [src/autopack/autonomous_executor.py](src/autopack/autonomous_executor.py)
 
-**Required Changes**:
-1. Add `_determine_workspace_root()` - Option B (project directory for project_build)
-2. Add `_load_scoped_files()` for scope enforcement
-3. Modify `_load_repository_context()` to use scoped loading
-4. Add scope validation before Builder
+**Completed Changes**:
+1. ✅ Added `_determine_workspace_root()` method (lines 2599-2631)
+   - Option B implemented: project directory for project_build
+   - Autopack root for autopack_maintenance
+2. ✅ Added `_load_scoped_context()` method (lines 2633-2685)
+   - Uses ContextSelector for scope enforcement
+   - Validates scope paths were loaded
+   - Logs scope configuration for debugging
+3. ✅ Modified `_load_repository_context()` to check for scope (lines 2453-2457)
+   - Calls `_load_scoped_context()` if scope.paths defined
+   - Falls back to heuristic loading for backward compatibility
 
-**GPT's Workspace Strategy**:
-- For `run_type == "project_build"`: workspace = `.autonomous_runs/file-organizer-app-v1/`
-- For `autopack_maintenance`: workspace = Autopack root
+**Implementation Details**:
+- Workspace root extracted from first scope path (e.g., `.autonomous_runs/file-organizer-app-v1/`)
+- ContextSelector initialized with determined workspace root
+- Scope paths validated after loading (warns about missing files)
 
 ---
 

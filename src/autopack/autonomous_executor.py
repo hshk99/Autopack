@@ -2162,6 +2162,12 @@ Just the new description that should replace the current one while preserving th
             try:
                 file_context = self._load_repository_context(phase)
                 logger.info(f"[{phase_id}] Loaded {len(file_context.get('existing_files', {}))} files for context")
+
+                # NEW: Validate scope configuration if present (GPT recommendation - Option C)
+                scope_config = phase.get("scope")
+                if scope_config and scope_config.get("paths"):
+                    self._validate_scope_context(phase, file_context, scope_config)
+
             except TypeError as e:
                 if "unsupported operand type(s) for /" in str(e) and "list" in str(e):
                     logger.error(f"[{phase_id}] Path/list error in context loading: {e}")
@@ -2302,10 +2308,16 @@ Just the new description that should replace the current one while preserving th
 
                 # Enable internal mode for maintenance run types
                 is_maintenance_run = self.run_type in ["autopack_maintenance", "autopack_upgrade", "self_repair"]
+
+                # NEW: Extract scope_paths for Option C Layer 2 validation
+                scope_config = phase.get("scope")
+                scope_paths = scope_config.get("paths", []) if scope_config else []
+
                 governed_apply = GovernedApplyPath(
                     workspace=Path(self.workspace),
                     run_type=self.run_type,
                     autopack_internal_mode=is_maintenance_run,
+                    scope_paths=scope_paths,  # NEW: Pass scope for validation
                 )
                 # Per GPT_RESPONSE15: Pass full_file_mode=True since we're using full-file mode for all files ≤1000 lines
                 patch_success, error_msg = governed_apply.apply_patch(
@@ -2683,6 +2695,68 @@ Just the new description that should replace the current one while preserving th
         logger.info(f"[Scope] Loaded paths: {list(loaded_paths)[:10]}...")  # First 10 for brevity
 
         return {"existing_files": context}
+
+    def _validate_scope_context(self, phase: Dict, file_context: Dict, scope_config: Dict):
+        """Validate that loaded context matches scope configuration (Option C - Layer 1).
+
+        This is the first validation layer (pre-Builder).
+        Second layer is in GovernedApplyPath (patch application).
+
+        Args:
+            phase: Phase specification
+            file_context: Loaded file context from _load_repository_context
+            scope_config: Scope configuration dict
+
+        Raises:
+            RuntimeError: If validation fails
+        """
+        phase_id = phase.get("phase_id")
+        scope_paths = scope_config.get("paths", [])
+        loaded_files = set(file_context.get("existing_files", {}).keys())
+
+        # Normalize scope paths for comparison
+        workspace_root = self._determine_workspace_root(scope_config)
+        normalized_scope = []
+        for path_str in scope_paths:
+            path_str = path_str.replace('\\', '/')
+            # Make relative to workspace root
+            if workspace_root != Path(self.workspace):
+                rel_to_autopack = str(workspace_root.relative_to(self.workspace))
+                if path_str.startswith(rel_to_autopack):
+                    path_str = str(Path(path_str).relative_to(rel_to_autopack))
+            normalized_scope.append(path_str)
+
+        # Check for files outside scope (indicating scope loading bug)
+        scope_set = set(normalized_scope)
+        outside_scope = loaded_files - scope_set
+
+        if outside_scope:
+            # Filter out read-only context files (allowed)
+            readonly_context = scope_config.get("read_only_context", [])
+            normalized_readonly = []
+            for path_str in readonly_context:
+                path_str = path_str.replace('\\', '/')
+                if workspace_root != Path(self.workspace):
+                    rel_to_autopack = str(workspace_root.relative_to(self.workspace))
+                    if path_str.startswith(rel_to_autopack):
+                        path_str = str(Path(path_str).relative_to(rel_to_autopack))
+                normalized_readonly.append(path_str)
+
+            # Files in read_only_context are allowed
+            readonly_set = set(normalized_readonly)
+            truly_outside = outside_scope - readonly_set
+
+            if truly_outside:
+                error_msg = (
+                    f"[Scope] VALIDATION FAILED: {len(truly_outside)} files loaded outside scope:\n"
+                    f"  Scope paths: {normalized_scope}\n"
+                    f"  Read-only context: {normalized_readonly}\n"
+                    f"  Files outside scope: {list(truly_outside)[:10]}"
+                )
+                logger.error(error_msg)
+                raise RuntimeError(f"Scope validation failed: loaded files outside scope.paths")
+
+        logger.info(f"[Scope] Validation passed: {len(loaded_files)} files match scope configuration")
 
     def _post_builder_result(self, phase_id: str, result: BuilderResult):
         """POST builder result to Autopack API

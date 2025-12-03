@@ -76,23 +76,27 @@ def get_context_for_phase(...):
 
 ---
 
-## 📋 Phase 3: Validation (PENDING)
+## ✅ Phase 3 Complete: Validation (Option C - Defense in Depth)
 
-### Step 3.1: Add validation in autonomous_executor (PENDING)
-**Location**: Before Builder execution
-- Check loaded files match scope.paths
-- Raise `ScopeValidationError` if mismatch
+### Step 3.1: Add validation in autonomous_executor ✅
+**Location**: Before Builder execution (line 2166-2169)
+- ✅ Added `_validate_scope_context()` method (lines 2693-2753)
+- ✅ Validates loaded files match scope.paths
+- ✅ Allows read_only_context files
+- ✅ Raises RuntimeError if files loaded outside scope
 
-### Step 3.2: Extend governed_apply validation (PENDING)
+### Step 3.2: Extend governed_apply validation ✅
 **File**: [src/autopack/governed_apply.py](src/autopack/governed_apply.py)
-- Extend `_validate_patch_paths()` to check scope
-- Reject patches outside scope.paths
+- ✅ Added `scope_paths` parameter to `__init__` (line 172)
+- ✅ Extended `_validate_patch_paths()` to check scope (lines 280-294)
+- ✅ Rejects patches attempting to modify files outside scope.paths
+- ✅ Updated autonomous_executor to pass scope_paths (lines 2312-2320)
 
-### Step 3.3: Add validation in llm_service (PENDING - Option C)
-**File**: [src/autopack/llm_service.py](src/autopack/llm_service.py)
-- Add post-generation validation
-- Parse Builder JSON/diff manifest
-- Reject files not in scope.paths
+**Implementation Notes**:
+- Option C implemented: Two-layer validation (context + patch)
+- Layer 1: Pre-Builder validation ensures context loading is correct
+- Layer 2: GovernedApplyPath prevents patches from escaping scope
+- Option C.3 (LlmService validation) deferred - current layers sufficient
 
 ---
 

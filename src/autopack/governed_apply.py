@@ -168,7 +168,8 @@ class GovernedApplyPath:
         allowed_paths: List[str] = None,
         protected_paths: List[str] = None,
         autopack_internal_mode: bool = False,
-        run_type: str = "project_build"
+        run_type: str = "project_build",
+        scope_paths: List[str] = None,
     ):
         """
         Initialize GovernedApplyPath.
@@ -179,6 +180,7 @@ class GovernedApplyPath:
             protected_paths: Additional paths to protect (extends defaults)
             autopack_internal_mode: If True, allows writes to src/autopack/ (requires maintenance run_type)
             run_type: Type of run - "project_build" (default) or "autopack_maintenance"
+            scope_paths: Optional list of allowed file paths (scope enforcement - Option C Layer 2)
 
         Raises:
             ValueError: If autopack_internal_mode=True but run_type is not a maintenance type
@@ -187,6 +189,10 @@ class GovernedApplyPath:
         - Normal project runs (project_build): PROTECTED_PATHS enforced as-is
         - Maintenance runs (autopack_maintenance): autopack_internal_mode unlocks src/autopack/
           but still protects .autonomous_runs/, .git/ unless explicitly overridden
+
+        Note on scope enforcement (per GPT_RESPONSE - Option C Layer 2):
+        - If scope_paths is provided, ONLY those paths can be modified
+        - This is the second validation layer (after context loading)
         """
         if isinstance(workspace, str):
             workspace = Path(workspace)
@@ -194,6 +200,7 @@ class GovernedApplyPath:
         self._file_backups: Dict[str, Tuple[str, str]] = {}  # path -> (hash, content)
         self.run_type = run_type
         self.autopack_internal_mode = autopack_internal_mode
+        self.scope_paths = scope_paths or []  # NEW: Store scope paths for validation
 
         # [Q7 Implementation] Validate autopack_internal_mode is only used with maintenance runs
         if autopack_internal_mode and run_type not in self.MAINTENANCE_RUN_TYPES:
@@ -249,10 +256,12 @@ class GovernedApplyPath:
 
     def _validate_patch_paths(self, files: List[str]) -> Tuple[bool, List[str]]:
         """
-        Validate that patch does not touch protected directories.
+        Validate that patch does not touch protected directories or violate scope.
 
         This is a critical workspace isolation check that prevents Builder
         from corrupting Autopack's own source code.
+
+        NEW (Option C - Layer 2): Also enforces scope configuration if present.
 
         Args:
             files: List of file paths from the patch
@@ -262,13 +271,30 @@ class GovernedApplyPath:
         """
         violations = []
 
+        # Check 1: Protected paths (existing)
         for file_path in files:
             if self._is_path_protected(file_path):
                 violations.append(f"Protected path: {file_path}")
                 logger.warning(f"[Isolation] BLOCKED: Patch attempts to modify protected path: {file_path}")
 
+        # Check 2: Scope enforcement (NEW - Option C Layer 2)
+        if self.scope_paths:
+            # Normalize scope paths for comparison
+            normalized_scope = set()
+            for path in self.scope_paths:
+                normalized_scope.add(path.replace('\\', '/'))
+
+            for file_path in files:
+                normalized_file = file_path.replace('\\', '/')
+                if normalized_file not in normalized_scope:
+                    violations.append(f"Outside scope: {file_path}")
+                    logger.warning(f"[Scope] BLOCKED: Patch attempts to modify file outside scope: {file_path}")
+
+            if len(violations) > len([v for v in violations if v.startswith("Protected")]):
+                logger.error(f"[Scope] Patch rejected - {len([v for v in violations if v.startswith('Outside')])} files outside scope")
+
         if violations:
-            logger.error(f"[Isolation] Patch rejected - {len(violations)} protected path violations")
+            logger.error(f"[Isolation] Patch rejected - {len(violations)} violations (protected paths + scope)")
             return False, violations
 
         return True, []

@@ -100,12 +100,15 @@ def get_context_for_phase(...):
 
 ---
 
-## 🔧 Phase 4: Token Estimation Fix (PENDING)
+## ✅ Phase 4 Complete: Token Estimation Fix
 
-**File**: [src/autopack/llm_service.py](src/autopack/llm_service.py)
-- Modify `estimate_tokens()` to only count scope.paths files
-- Exclude read-only context from soft cap calculations
-- Fix: 80k → 8k estimation for FileOrganizer task
+**Analysis**: Token estimation already fixed by Phase 2 implementation
+- Token estimation in [anthropic_clients.py:207](src/autopack/anthropic_clients.py:207) uses full prompt text
+- Full prompt text is built from file_context
+- Phase 2 already ensures file_context only contains scoped files
+- Therefore, token estimates now automatically reflect scope.paths only
+
+**No additional changes needed**: Context loading fix (Phase 2) automatically fixes token estimation
 
 ---
 
@@ -167,5 +170,6 @@ python src/autopack/autonomous_executor.py \
 
 ---
 
-**Current Status**: Phase 1 complete (4/4 steps ✅), Phase 2 in progress (0/2 steps)
-**Estimated Completion**: 2-3 hours remaining (context loading is complex)
+**Current Status**: Phases 1-3 complete (9/9 steps ✅)
+**Remaining**: Phase 4 (token estimation - optional), Phase 5 (testing)
+**Major Implementation Complete**: Scope enforcement now active

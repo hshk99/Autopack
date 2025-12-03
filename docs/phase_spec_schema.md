@@ -7,6 +7,64 @@
 - `complexity`: One of: `low`, `medium`, `high`
 - `task_category`: One of: `feature`, `refactor`, `bugfix`, `tests`, `docs`, etc.
 - `acceptance_criteria`: List of criteria for phase completion
+- `scope`: (Optional) Scope configuration for workspace isolation (see below)
+
+## Scope Configuration (Workspace Isolation)
+
+**Type**: `object`
+**Default**: `null` (no scope restriction)
+**Purpose**: Restricts Builder to only modify specified files, preventing accidental changes to unrelated code
+
+**When to use**:
+- External project builds (project_build run type)
+- Working on specific files in a large codebase
+- Ensuring Builder doesn't modify framework or infrastructure code
+
+**Structure**:
+```json
+{
+  "scope": {
+    "paths": [
+      "path/to/file1.py",
+      "path/to/file2.py"
+    ],
+    "read_only_context": [
+      "path/to/reference/directory",
+      "path/to/config.yaml"
+    ]
+  }
+}
+```
+
+**Fields**:
+- `paths`: List of files/directories that Builder can modify (required if scope is used)
+- `read_only_context`: List of files/directories for reference only (optional)
+
+**Example**:
+```yaml
+phases:
+  - id: fix-requirements
+    description: "Add missing test dependencies"
+    complexity: low
+    task_category: bugfix
+    scope:
+      paths:
+        - backend/requirements.txt
+        - backend/pytest.ini
+      read_only_context:
+        - backend/tests/
+        - backend/README.md
+```
+
+**Enforcement**:
+- **Layer 1**: Context loading only loads scoped files
+- **Layer 2**: Patch validation rejects modifications outside scope
+- Files in `read_only_context` are visible to Builder but cannot be modified
+
+**Notes**:
+- Scope is optional for `autopack_maintenance` runs (defaults to Autopack root)
+- Scope should be used for `project_build` runs to isolate external projects
+- Paths are relative to the workspace root
 
 ## Safety Flags (NEW in v2)
 

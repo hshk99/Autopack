@@ -25,6 +25,81 @@ Result: the Docker phase can now receive the correct context, create new scoped 
 
 ---
 
+## COUNTRY_PACK_EXECUTION_PLAN
+
+**Date**: 2025-12-04  
+**Status**: 🚧 Planning complete, implementation queued
+
+Goal: unlock Task 4–6 in `WHATS_LEFT_TO_BUILD.md` by preparing scoped Autopack runs for the UK, Canada, and Australia pack templates. Each phase reuses the proven pattern from `fileorg-p2-test-fixes` and `fileorg-p2-docker`: tight scopes, explicit CI targets, and pre-declared acceptance tests.
+
+### Shared Run Shape
+
+| Item | Value |
+| --- | --- |
+| Script | `scripts/create_fileorg_country_runs.py` (new) |
+| Run Type | `project_build` (default) |
+| Tiers | `country-packs` (one per country) |
+| Builder Mode | `full_file` (LLM emits entire YAML/MD files) |
+| Stop-on-failure | `true` (keeps history minimal) |
+| CI Command | `python -m pytest tests/test_packs.py -k <country>` |
+| Auditor Focus | `backend`, `documentation` |
+
+The script will emit three individual runs so we can parallelize if needed:
+
+1. `fileorg-country-uk-<timestamp>`
+2. `fileorg-country-canada-<timestamp>`
+3. `fileorg-country-australia-<timestamp>`
+
+### Phase Specs
+
+#### `fileorg-p2-country-uk`
+
+| Field | Details |
+| --- | --- |
+| Scope.paths | - `.autonomous_runs/file-organizer-app-v1/fileorganizer/backend/packs/tax_uk.yaml`<br>- `.autonomous_runs/file-organizer-app-v1/fileorganizer/backend/packs/immigration_uk.yaml`<br>- `.autonomous_runs/file-organizer-app-v1/archive/CONSOLIDATED_REFERENCE.md` (user-guide excerpt) |
+| Read-only context | - Existing `tax_generic.yaml`, `immigration_generic.yaml`<br>- `/docs/research` briefs for UK regulations |
+| Read-only extensions | YAML, MD only |
+| Acceptance | 1) YAML validates via `PackLoader`, 2) pytest `tests/test_packs.py -k uk`, 3) User guide documents new pack names |
+| Builder Guidance | Provide category tables (name/description/examples) plus visa-specific keywords; highlight HMRC vs Home Office requirements |
+| Post-Run Checklist | Load packs via `load_pack.py --country uk`, capture sample output in `archive/CONSOLIDATED_DEBUG.md` |
+
+#### `fileorg-p2-country-canada`
+
+| Field | Details |
+| --- | --- |
+| Scope.paths | - `packs/tax_canada.yaml`<br>- `packs/immigration_canada.yaml`<br>- `archive/CONSOLIDATED_REFERENCE.md` (same section as UK, different anchors) |
+| Read-only | - `tax_generic.yaml`, `immigration_generic.yaml`<br>- Research notes under `docs/research/superseded/*canada*.md` |
+| Acceptance | 1) YAML passes loader, 2) `pytest tests/test_packs.py -k canada`, 3) Guide includes CRA + IRCC summaries |
+| Extra Guidance | Include bilingual labels (EN/FR) where applicable and CRA document codes (T4, NOA). |
+
+#### `fileorg-p2-country-australia`
+
+| Field | Details |
+| --- | --- |
+| Scope.paths | - `packs/tax_australia.yaml`<br>- `packs/immigration_australia.yaml`<br>- `archive/CONSOLIDATED_REFERENCE.md` |
+| Read-only | - Generic packs<br>- Research briefs referencing ATO and Department of Home Affairs requirements |
+| Acceptance | 1) Loader passes, 2) `pytest tests/test_packs.py -k australia`, 3) Docs mention TFN/ABN plus visa subclasses |
+| Extra Guidance | Capture residency tests and bridging-visa evidence categories. |
+
+### Verification Matrix
+
+| Step | Command | Expected Output |
+| --- | --- | --- |
+| Pack Loader Smoke | `python load_pack.py --pack tax_<country>.yaml` | “Loaded N categories (country=<country>)” |
+| Targeted Pytest | `python -m pytest tests/test_packs.py -k <country>` | All `<country>` tests PASS |
+| Docs Lint (optional) | `python scripts/lint_md.py archive/CONSOLIDATED_REFERENCE.md` | No broken anchors |
+
+### Follow-up Tasks
+
+1. **Script authoring**: implement `scripts/create_fileorg_country_runs.py` that mirrors the Docker/front-end run generators, parameterized by country metadata table.
+2. **Dataset refresh**: add source links (HMRC, CRA, ATO, IRCC, DHA) to `archive/CONSOLIDATED_REFERENCE.md` before running Autopack so the LLM has structured facts.
+3. **Rule updates**: add learned-rule hints per country (e.g., “always include bilingual labels for Canada packs”).
+4. **CI integration**: extend `quality_gate.py` to treat pack loader failures as blocking.
+
+Once the script lands, trigger each run sequentially (UK → Canada → Australia) so we can reuse context from earlier packs and adjust prompts if needed.
+
+---
+
 ## ARCH_BUILDER_AUDITOR_DISCOVERY
 
 **Source**: [ARCH_BUILDER_AUDITOR_DISCOVERY.md](C:\dev\Autopack\archive\superseded\ARCH_BUILDER_AUDITOR_DISCOVERY.md)

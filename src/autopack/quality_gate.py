@@ -139,9 +139,19 @@ class QualityGate:
         # Check CI status
         ci_passed = True
         if ci_result:
-            ci_passed = ci_result.get("status") == "passed"
-            if not ci_passed:
-                issues.append(f"CI tests failed: {ci_result.get('message', 'Unknown error')}")
+            status = ci_result.get("status")
+            if status is None:
+                status = "passed" if ci_result.get("passed", True) else "failed"
+
+            message = ci_result.get("message") or ci_result.get("error") or "Unknown error"
+
+            if status == "skipped":
+                ci_passed = True
+                warnings.append(f"CI skipped: {message}")
+            else:
+                ci_passed = status == "passed"
+                if not ci_passed:
+                    issues.append(f"CI tests failed: {message}")
 
         # Check Auditor issues
         has_major_issues = False

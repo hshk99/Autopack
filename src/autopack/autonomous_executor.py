@@ -24,6 +24,7 @@ Environment Variables:
 
 import os
 import sys
+import shlex
 import time
 import json
 import argparse
@@ -3075,206 +3076,110 @@ Just the new description that should replace the current one while preserving th
         return "autopack"
 
     def _run_ci_checks(self, phase_id: str, phase: Dict) -> Dict[str, Any]:
-        """Run CI checks (pytest) after patch application
+        """Run CI checks based on the phase's CI specification (default: pytest)."""
+        ci_spec = phase.get("ci") or {}
 
-        Executes pytest on the workspace and returns structured results.
-
-        Args:
-            phase_id: Phase ID for logging
-            phase: Phase specification
-
-        Returns:
-            Dict with CI results:
-            {
-                "passed": bool,
-                "tests_run": int,
-                "tests_passed": int,
-                "tests_failed": int,
-                "tests_error": int,
-                "duration_seconds": float,
-                "output": str (truncated),
-                "error": str (if any)
-            }
-        """
-        logger.info(f"[{phase_id}] Running CI checks (pytest)...")
-
-        # Determine test directory based on project
-        project_slug = self._get_project_slug()
-        if project_slug == "file-organizer-app-v1":
-            # FileOrganizer has tests in src/backend/tests/
-            test_paths = ["src/backend/tests/", "tests/backend/"]
-        else:
-            # Autopack framework tests
-            test_paths = ["tests/"]
-
-        # Find first existing test path
-        test_dir = None
-        for path in test_paths:
-            full_path = Path(self.workspace) / path
-            if full_path.exists():
-                test_dir = path
-                break
-
-        if not test_dir:
-            logger.warning(f"[{phase_id}] No test directory found, skipping CI checks")
+        if ci_spec.get("skip"):
+            reason = ci_spec.get("reason", "CI skipped per phase configuration")
+            logger.info(f"[{phase_id}] CI skipped: {reason}")
             return {
+                "status": "skipped",
+                "message": reason,
                 "passed": True,
                 "tests_run": 0,
                 "tests_passed": 0,
                 "tests_failed": 0,
                 "tests_error": 0,
                 "duration_seconds": 0.0,
-                "output": "No test directory found",
+                "output": "",
                 "error": None,
-                "skipped": True
+                "skipped": True,
+                "suspicious_zero_tests": False,
             }
 
-        # Build pytest command
-        # Use JSON output for easier parsing
-        cmd = [
-            sys.executable, "-m", "pytest",
-            test_dir,
+        ci_type = ci_spec.get("type")
+        if ci_spec.get("command") and not ci_type:
+            ci_type = "custom"
+        if not ci_type:
+            ci_type = "pytest"
+
+        if ci_type == "custom":
+            return self._run_custom_ci(phase_id, ci_spec)
+        else:
+            return self._run_pytest_ci(phase_id, ci_spec)
+
+    def _run_pytest_ci(self, phase_id: str, ci_spec: Dict[str, Any]) -> Dict[str, Any]:
+        logger.info(f"[{phase_id}] Running CI checks (pytest)...")
+
+        workdir = Path(self.workspace) / ci_spec.get("workdir", ".")
+        if not workdir.exists():
+            logger.warning(f"[{phase_id}] CI workdir {workdir} missing, defaulting to workspace root")
+            workdir = Path(self.workspace)
+
+        pytest_paths = ci_spec.get("paths")
+        if not pytest_paths:
+            project_slug = self._get_project_slug()
+            if project_slug == "file-organizer-app-v1":
+                candidate_paths = ["src/backend/tests/", "tests/backend/"]
+            else:
+                candidate_paths = ["tests/"]
+
+            for path in candidate_paths:
+                if (workdir / path).exists():
+                    pytest_paths = [path]
+                    break
+
+        if not pytest_paths:
+            logger.warning(f"[{phase_id}] No pytest paths found, skipping CI checks")
+            return {
+                "status": "skipped",
+                "message": "No pytest paths found",
+                "passed": True,
+                "tests_run": 0,
+                "tests_passed": 0,
+                "tests_failed": 0,
+                "tests_error": 0,
+                "duration_seconds": 0.0,
+                "output": "",
+                "error": None,
+                "skipped": True,
+                "suspicious_zero_tests": False,
+            }
+
+        per_test_timeout = ci_spec.get("per_test_timeout", 60)
+        default_args = [
             "-v",
             "--tb=line",
             "-q",
             "--no-header",
-            f"--timeout=60",  # Per-test timeout
+            f"--timeout={per_test_timeout}",
         ]
+        pytest_args = ci_spec.get("args", [])
+        cmd = [sys.executable, "-m", "pytest", *pytest_paths, *default_args, *pytest_args]
 
-        # Set environment for subprocess
         env = os.environ.copy()
-        env["PYTHONPATH"] = str(Path(self.workspace) / "src")
+        env.setdefault("PYTHONPATH", str(workdir / "src"))
         env["TESTING"] = "1"
         env["PYTHONUTF8"] = "1"
+        env.update(ci_spec.get("env", {}))
 
+        timeout_seconds = ci_spec.get("timeout_seconds") or ci_spec.get("timeout") or 300
         start_time = time.time()
         try:
             result = subprocess.run(
                 cmd,
-                cwd=str(self.workspace),
+                cwd=str(workdir),
                 capture_output=True,
                 text=True,
-                timeout=300,  # 5 minute total timeout
-                env=env
+                timeout=timeout_seconds,
+                env=env,
             )
-            duration = time.time() - start_time
-
-            output = result.stdout + result.stderr
-            # Truncate output to prevent memory issues
-            if len(output) > 10000:
-                output = output[:5000] + "\n\n... (truncated) ...\n\n" + output[-5000:]
-
-            # Parse pytest output to extract counts
-            tests_run = 0
-            tests_passed = 0
-            tests_failed = 0
-            tests_error = 0
-            import re
-
-            # Look for summary line like "5 passed, 2 failed, 1 error in 1.23s"
-            # Also handle "X tests collected, Y errors" for collection errors
-            for line in output.split("\n"):
-                line_lower = line.lower()
-
-                # Check for collection errors first (e.g., "4 errors during collection")
-                collection_error_match = re.search(r"(\d+)\s+errors?\s+during\s+collection", line_lower)
-                if collection_error_match:
-                    tests_error = int(collection_error_match.group(1))
-                    continue
-
-                # Check for "X tests collected" to get baseline
-                collected_match = re.search(r"(\d+)\s+tests?\s+collected", line_lower)
-                if collected_match:
-                    tests_run = int(collected_match.group(1))
-                    continue
-
-                # Standard summary line parsing
-                if "passed" in line_lower or "failed" in line_lower or ("error" in line_lower and "during collection" not in line_lower):
-                    # Extract numbers from summary line
-                    passed_match = re.search(r"(\d+)\s+passed", line_lower)
-                    failed_match = re.search(r"(\d+)\s+failed", line_lower)
-                    error_match = re.search(r"(\d+)\s+errors?(?!\s+during)", line_lower)
-
-                    if passed_match:
-                        tests_passed = int(passed_match.group(1))
-                    if failed_match:
-                        tests_failed = int(failed_match.group(1))
-                    if error_match:
-                        tests_error = int(error_match.group(1))
-
-            tests_run = tests_passed + tests_failed + tests_error
-            passed = result.returncode == 0
-
-            # [Self-Troubleshoot] Detect suspicious 0/0/0 as potential collection error
-            # If pytest runs but reports 0 tests, something is likely wrong
-            no_tests_detected = (tests_run == 0 and tests_passed == 0 and
-                                tests_failed == 0 and tests_error == 0)
-
-            if no_tests_detected and result.returncode != 0:
-                # Pytest failed but we couldn't parse any test counts
-                # This usually indicates a collection error or import failure
-                logger.warning(f"[{phase_id}] CI detected possible collection error - "
-                             f"pytest failed (code {result.returncode}) but no test counts found")
-                # Mark as failed even if return code was 0, and add specific error
-                passed = False
-                error_msg = "Possible test collection error - no tests were detected"
-
-                # Try to extract actual error from output
-                if "ImportError" in output or "ModuleNotFoundError" in output:
-                    error_msg = "Import error during test collection"
-                elif "SyntaxError" in output:
-                    error_msg = "Syntax error during test collection"
-                elif "no tests ran" in output.lower():
-                    error_msg = "No tests ran - check test discovery configuration"
-                
-                # GPT_RESPONSE12 Q2: Write full CI output to log file for diagnosis
-                ci_log_dir = Path(self.workspace) / ".autonomous_runs" / self.run_id / "ci"
-                ci_log_dir.mkdir(parents=True, exist_ok=True)
-                ci_log_path = ci_log_dir / f"pytest_{phase_id}.log"
-                try:
-                    full_output = result.stdout + "\n\n--- STDERR ---\n\n" + result.stderr
-                    ci_log_path.write_text(full_output, encoding='utf-8')
-                    logger.info(f"[{phase_id}] CI output written to: {ci_log_path}")
-                except Exception as log_err:
-                    logger.warning(f"[{phase_id}] Failed to write CI log: {log_err}")
-                
-                # Log last 20 lines at WARNING for quick diagnosis
-                all_lines = (result.stdout + result.stderr).strip().split('\n')
-                last_lines = all_lines[-20:] if len(all_lines) > 20 else all_lines
-                logger.warning(f"[{phase_id}] CI failure - last 20 lines:\n" + '\n'.join(last_lines))
-
-            elif no_tests_detected and passed:
-                # Pytest "passed" but found no tests - this is suspicious
-                logger.warning(f"[{phase_id}] CI suspicious result - pytest passed but 0 tests detected")
-                # Don't fail, but flag it in the result
-                error_msg = "Warning: pytest reported success but no tests were executed"
-            else:
-                error_msg = None if passed else f"pytest exited with code {result.returncode}"
-
-            ci_result = {
-                "passed": passed,
-                "tests_run": tests_run,
-                "tests_passed": tests_passed,
-                "tests_failed": tests_failed,
-                "tests_error": tests_error,
-                "duration_seconds": round(duration, 2),
-                "output": output,
-                "error": error_msg,
-                "skipped": False,
-                "suspicious_zero_tests": no_tests_detected  # New flag for visibility
-            }
-
-            if passed:
-                logger.info(f"[{phase_id}] CI checks PASSED: {tests_passed}/{tests_run} tests passed in {duration:.1f}s")
-            else:
-                logger.warning(f"[{phase_id}] CI checks FAILED: {tests_passed}/{tests_run} passed, {tests_failed} failed, {tests_error} errors")
-
-            return ci_result
-
         except subprocess.TimeoutExpired:
             duration = time.time() - start_time
-            logger.error(f"[{phase_id}] CI checks TIMEOUT after {duration:.1f}s")
+            logger.error(f"[{phase_id}] Pytest timeout after {duration:.1f}s")
             return {
+                "status": "failed",
+                "message": f"pytest timed out after {timeout_seconds}s",
                 "passed": False,
                 "tests_run": 0,
                 "tests_passed": 0,
@@ -3282,13 +3187,114 @@ Just the new description that should replace the current one while preserving th
                 "tests_error": 0,
                 "duration_seconds": round(duration, 2),
                 "output": "",
-                "error": "pytest timed out after 300 seconds",
-                "skipped": False
+                "error": f"pytest timed out after {timeout_seconds}s",
+                "skipped": False,
+                "suspicious_zero_tests": False,
             }
-        except Exception as e:
+
+        duration = time.time() - start_time
+        output = self._trim_ci_output(result.stdout + result.stderr)
+        tests_passed, tests_failed, tests_error = self._parse_pytest_counts(output)
+        tests_run = tests_passed + tests_failed + tests_error
+        passed = result.returncode == 0
+        no_tests_detected = tests_run == 0
+
+        error_msg = None
+        if no_tests_detected and not passed:
+            error_msg = "Possible collection error - no tests detected"
+        elif no_tests_detected and passed:
+            error_msg = "Warning: pytest reported success but no tests executed"
+
+        if not passed or ci_spec.get("log_on_success"):
+            full_output = result.stdout + "\n\n--- STDERR ---\n\n" + result.stderr
+            log_name = ci_spec.get("log_name", f"pytest_{phase_id}.log")
+            self._persist_ci_log(log_name, full_output, phase_id)
+
+        if not passed and not error_msg:
+            error_msg = f"pytest exited with code {result.returncode}"
+
+        message = (
+            ci_spec.get("success_message")
+            if passed
+            else ci_spec.get("failure_message")
+        )
+        if not message:
+            if passed:
+                message = f"Pytest passed ({tests_passed}/{max(tests_run,1)} tests)"
+            else:
+                message = error_msg or "Pytest failed"
+
+        if passed:
+            logger.info(f"[{phase_id}] CI checks PASSED: {tests_passed}/{max(tests_run,1)} tests passed in {duration:.1f}s")
+        else:
+            logger.warning(f"[{phase_id}] CI checks FAILED: return code {result.returncode}")
+
+        return {
+            "status": "passed" if passed else "failed",
+            "message": message,
+            "passed": passed,
+            "tests_run": tests_run,
+            "tests_passed": tests_passed,
+            "tests_failed": tests_failed,
+            "tests_error": tests_error,
+            "duration_seconds": round(duration, 2),
+            "output": output,
+            "error": error_msg,
+            "skipped": False,
+            "suspicious_zero_tests": no_tests_detected,
+        }
+
+    def _run_custom_ci(self, phase_id: str, ci_spec: Dict[str, Any]) -> Dict[str, Any]:
+        command = ci_spec.get("command")
+        if not command:
+            logger.warning(f"[{phase_id}] CI spec missing 'command'; skipping")
+            return {
+                "status": "skipped",
+                "message": "CI command not configured",
+                "passed": True,
+                "tests_run": 0,
+                "tests_passed": 0,
+                "tests_failed": 0,
+                "tests_error": 0,
+                "duration_seconds": 0.0,
+                "output": "",
+                "error": None,
+                "skipped": True,
+                "suspicious_zero_tests": False,
+            }
+
+        workdir = Path(self.workspace) / ci_spec.get("workdir", ".")
+        if not workdir.exists():
+            logger.warning(f"[{phase_id}] CI workdir {workdir} missing, defaulting to workspace root")
+            workdir = Path(self.workspace)
+
+        timeout_seconds = ci_spec.get("timeout_seconds") or ci_spec.get("timeout") or 600
+        env = os.environ.copy()
+        env.update(ci_spec.get("env", {}))
+
+        shell = ci_spec.get("shell", isinstance(command, str))
+        cmd = command
+        if isinstance(command, str) and not shell:
+            cmd = shlex.split(command)
+
+        logger.info(f"[{phase_id}] Running custom CI command: {command}")
+        start_time = time.time()
+        try:
+            result = subprocess.run(
+                cmd,
+                cwd=str(workdir),
+                capture_output=True,
+                text=True,
+                timeout=timeout_seconds,
+                env=env,
+                shell=shell,
+            )
+        except subprocess.TimeoutExpired:
             duration = time.time() - start_time
-            logger.error(f"[{phase_id}] CI checks ERROR: {e}")
+            logger.error(f"[{phase_id}] CI command timeout after {duration:.1f}s")
             return {
+                "status": "failed",
+                "message": f"CI command timed out after {timeout_seconds}s",
                 "passed": False,
                 "tests_run": 0,
                 "tests_passed": 0,
@@ -3296,9 +3302,87 @@ Just the new description that should replace the current one while preserving th
                 "tests_error": 0,
                 "duration_seconds": round(duration, 2),
                 "output": "",
-                "error": str(e),
-                "skipped": False
+                "error": f"Command timed out after {timeout_seconds}s",
+                "skipped": False,
+                "suspicious_zero_tests": False,
             }
+
+        duration = time.time() - start_time
+        output = self._trim_ci_output(result.stdout + result.stderr)
+        passed = result.returncode == 0
+
+        if not passed or ci_spec.get("log_on_success"):
+            full_output = result.stdout + "\n\n--- STDERR ---\n\n" + result.stderr
+            log_name = ci_spec.get("log_name", f"ci_{phase_id}.log")
+            self._persist_ci_log(log_name, full_output, phase_id)
+
+        message = (
+            ci_spec.get("success_message")
+            if passed
+            else ci_spec.get("failure_message")
+        )
+        if not message:
+            message = "CI command succeeded" if passed else f"CI command failed (exit {result.returncode})"
+
+        if passed:
+            logger.info(f"[{phase_id}] Custom CI command passed in {duration:.1f}s")
+        else:
+            logger.warning(f"[{phase_id}] Custom CI command failed (exit {result.returncode})")
+
+        return {
+            "status": "passed" if passed else "failed",
+            "message": message,
+            "passed": passed,
+            "tests_run": 0,
+            "tests_passed": 0,
+            "tests_failed": 0,
+            "tests_error": 0,
+            "duration_seconds": round(duration, 2),
+            "output": output,
+            "error": None if passed else f"Exit code {result.returncode}",
+            "skipped": False,
+            "suspicious_zero_tests": False,
+        }
+
+    def _trim_ci_output(self, output: str, limit: int = 10000) -> str:
+        if len(output) <= limit:
+            return output
+        return output[: limit // 2] + "\n\n... (truncated) ...\n\n" + output[-limit // 2 :]
+
+    def _persist_ci_log(self, log_name: str, content: str, phase_id: str) -> None:
+        ci_log_dir = Path(self.workspace) / ".autonomous_runs" / self.run_id / "ci"
+        ci_log_dir.mkdir(parents=True, exist_ok=True)
+        log_path = ci_log_dir / log_name
+        try:
+            log_path.write_text(content, encoding="utf-8")
+            logger.info(f"[{phase_id}] CI output written to: {log_path}")
+        except Exception as log_err:
+            logger.warning(f"[{phase_id}] Failed to write CI log ({log_name}): {log_err}")
+
+    def _parse_pytest_counts(self, output: str) -> tuple[int, int, int]:
+        import re
+
+        tests_passed = tests_failed = tests_error = 0
+        for line in output.split("\n"):
+            line_lower = line.lower()
+            collection_error = re.search(r"(\d+)\s+errors?\s+during\s+collection", line_lower)
+            if collection_error:
+                tests_error = int(collection_error.group(1))
+                continue
+
+            passed_match = re.search(r"(\d+)\s+passed", line_lower)
+            if passed_match:
+                tests_passed = int(passed_match.group(1))
+
+            failed_match = re.search(r"(\d+)\s+failed", line_lower)
+            if failed_match:
+                tests_failed = int(failed_match.group(1))
+
+            error_match = re.search(r"(\d+)\s+errors?(?!\s+during)", line_lower)
+            if error_match:
+                tests_error = int(error_match.group(1))
+
+        return tests_passed, tests_failed, tests_error
 
     def _update_phase_status(self, phase_id: str, status: str):
         """Update phase status via API

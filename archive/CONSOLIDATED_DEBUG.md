@@ -17,6 +17,7 @@ Single source of truth for all errors, fixes, prevention rules, and troubleshoot
 - Fixed frontend phase prompt blowups: `_load_scoped_context` now ignores `.venv`, `node_modules`, `dist`, `build`, and `__pycache__` directories and whitelists web extensions (`.ts/.tsx/.js/.vue/.css`). This prevents 200k-token prompts when read-only context includes backend virtualenvs.
 - Resolved `ModuleNotFoundError: No module named 'src'` during Builder runs by switching structured-edit imports from `src.autopack.*` to `autopack.*` (affects `anthropic_clients.py`, `llm_client.py`).
 - Docker deployment CI repro (fileorg-docker-build-20251204-194513): backend pytest suite passes locally (`python -m pytest -vv`, log in `.autonomous_runs/fileorg-docker-build-20251204-194513/ci/backend_pytest.log`). Quality gate “Unknown error” stems from CI harness, not failing tests; next step is wiring Docker-specific checks or marking pytest as the CI signal.
+- Implemented per-phase CI specs (`phase["ci"]`) so Quality Gate receives explicit status/message pairs. Docker + country-pack runs now execute `python -m pytest` inside `.autonomous_runs/file-organizer-app-v1/fileorganizer/backend`, log to `ci/backend_pytest.log`, and expose human-readable failure reasons instead of “Unknown error”.
 
 ---
 

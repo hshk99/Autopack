@@ -91,7 +91,7 @@ The script will emit three individual runs so we can parallelize if needed:
 
 ### Follow-up Tasks
 
-1. **Script authoring**: implement `scripts/create_fileorg_country_runs.py` that mirrors the Docker/front-end run generators, parameterized by country metadata table.
+1. **Script authoring**: implement `scripts/create_fileorg_country_runs.py` that mirrors the Docker/front-end run generators, parameterized by country metadata table. ✅ (Added 2025-12-04; `--country uk` bootstraps the first run.)
 2. **Dataset refresh**: add source links (HMRC, CRA, ATO, IRCC, DHA) to `archive/CONSOLIDATED_REFERENCE.md` before running Autopack so the LLM has structured facts.
 3. **Rule updates**: add learned-rule hints per country (e.g., “always include bilingual labels for Canada packs”).
 4. **CI integration**: extend `quality_gate.py` to treat pack loader failures as blocking.

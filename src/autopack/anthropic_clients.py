@@ -14,7 +14,7 @@ import json
 import logging
 import yaml
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Any
 
 try:
     from anthropic import Anthropic
@@ -415,30 +415,120 @@ class AnthropicBuilderClient:
         if config is None:
             from autopack.builder_config import BuilderOutputConfig
             config = BuilderOutputConfig()
-        import difflib
+        import subprocess
+        import tempfile
+        import tempfile
+        import subprocess
+        import tempfile
         import re
-        
-        try:
-            # Try to parse JSON directly
-            result_json = None
+
+        def _escape_newlines_in_json_strings(raw: str) -> str:
+            """
+            Make JSON more robust by escaping bare newlines inside string literals.
+
+            Some models emit multi-line strings with literal newlines inside quotes,
+            which is invalid JSON and causes 'Unterminated string' errors.
+            This helper walks the text and replaces '\n' with '\\n' only while
+            inside a JSON string, preserving semantics but making the JSON valid.
+            """
+            out: list[str] = []
+            in_string = False
+            escape = False
+
+            for ch in raw:
+                if not in_string:
+                    if ch == '"':
+                        in_string = True
+                    out.append(ch)
+                    continue
+
+                # We are inside a string
+                if escape:
+                    out.append(ch)
+                    escape = False
+                    continue
+
+                if ch == "\\":
+                    out.append(ch)
+                    escape = True
+                elif ch == '"':
+                    out.append(ch)
+                    in_string = False
+                elif ch == "\n":
+                    out.append("\\n")
+                else:
+                    out.append(ch)
+
+            return "".join(out)
+
+        def _attempt_json_parse(candidate: Optional[str]) -> Optional[Dict[str, Any]]:
+            if not candidate:
+                return None
             try:
-                result_json = json.loads(content.strip())
+                return json.loads(candidate.strip())
             except json.JSONDecodeError:
-                # Try extracting from markdown code fence
-                if "```json" in content:
-                    json_start = content.find("```json") + 7
-                    json_end = content.find("```", json_start)
-                    if json_end > json_start:
-                        json_str = content[json_start:json_end].strip()
-                        result_json = json.loads(json_str)
-                elif "```" in content:
-                    # Try plain code fence
-                    json_start = content.find("```") + 3
-                    json_end = content.find("```", json_start)
-                    if json_end > json_start:
-                        json_str = content[json_start:json_end].strip()
-                        result_json = json.loads(json_str)
-            
+                repaired = _escape_newlines_in_json_strings(candidate.strip())
+                try:
+                    return json.loads(repaired)
+                except json.JSONDecodeError:
+                    return None
+
+        def _extract_code_fence(raw_text: str, fence: str) -> Optional[str]:
+            start = raw_text.find(fence)
+            if start == -1:
+                return None
+            start += len(fence)
+            end = raw_text.find("```", start)
+            if end == -1:
+                return None
+            return raw_text[start:end].strip()
+
+        def _extract_first_json_object(raw_text: str) -> Optional[str]:
+            start = raw_text.find("{")
+            if start == -1:
+                return None
+            depth = 0
+            in_string = False
+            escape = False
+            for idx in range(start, len(raw_text)):
+                ch = raw_text[idx]
+                if in_string:
+                    if escape:
+                        escape = False
+                    elif ch == "\\":
+                        escape = True
+                    elif ch == '"':
+                        in_string = False
+                    continue
+                if ch == '"':
+                    in_string = True
+                    continue
+                if ch == "{":
+                    depth += 1
+                elif ch == "}":
+                    depth -= 1
+                    if depth == 0:
+                        return raw_text[start:idx + 1]
+            return None
+
+        try:
+            # Try to parse JSON directly, with newline repair fallback
+            result_json: Optional[Dict[str, Any]] = None
+            raw = content.strip()
+            result_json = _attempt_json_parse(raw)
+
+            if not result_json and "```json" in content:
+                fenced = _extract_code_fence(content, "```json")
+                result_json = _attempt_json_parse(fenced)
+
+            if not result_json and "```" in content:
+                fenced = _extract_code_fence(content, "```")
+                result_json = _attempt_json_parse(fenced)
+
+            if not result_json:
+                extracted = _extract_first_json_object(raw)
+                result_json = _attempt_json_parse(extracted)
+
             if not result_json:
                 # Fallback: try legacy diff extraction (per GPT_RESPONSE11 Q3)
                 logger.warning("[Builder] WARNING: Falling back to legacy git-diff mode (JSON full-file parse failed)")
@@ -684,85 +774,88 @@ class AnthropicBuilderClient:
         Returns:
             Unified diff string in git format
         """
-        import difflib
+        import subprocess
+        import tempfile
         
         # Determine file mode: new, deleted, or modified
-        is_new_file = not old_content and new_content
-        is_deleted_file = old_content and not new_content
-        
-        # Split into lines, preserving line endings
-        old_lines = old_content.splitlines(keepends=True) if old_content else []
-        new_lines = new_content.splitlines(keepends=True) if new_content else []
-        
-        # Ensure files end with newline for clean diffs
-        if old_lines and not old_lines[-1].endswith('\n'):
-            old_lines[-1] += '\n'
-        if new_lines and not new_lines[-1].endswith('\n'):
-            new_lines[-1] += '\n'
+        is_new_file = not old_content and bool(new_content)
+        is_deleted_file = bool(old_content) and not new_content
         
         # Construct git-format diff header (per GPT_RESPONSE12 Q3)
         # Order matters: diff --git, new/deleted file mode, index, ---, +++
         git_header = [f"diff --git a/{file_path} b/{file_path}"]
         
         if is_new_file:
-            # New file format: mode before index, /dev/null for old path
             git_header.extend([
                 "new file mode 100644",
                 "index 0000000..1111111",
                 "--- /dev/null",
                 f"+++ b/{file_path}",
             ])
-            # Generate diff from empty to new content
-            diff_lines = list(difflib.unified_diff(
-                [],
-                new_lines,
-                fromfile="/dev/null",
-                tofile=f"b/{file_path}",
-                lineterm=""
-            ))
         elif is_deleted_file:
-            # Deleted file format: mode before index, /dev/null for new path
             git_header.extend([
                 "deleted file mode 100644",
                 "index 1111111..0000000",
                 f"--- a/{file_path}",
                 "+++ /dev/null",
             ])
-            # Generate diff from old content to empty
-            diff_lines = list(difflib.unified_diff(
-                old_lines,
-                [],
-                fromfile=f"a/{file_path}",
-                tofile="/dev/null",
-                lineterm=""
-            ))
         else:
-            # Modified file format: standard a/b paths
             git_header.extend([
                 "index 1111111..2222222 100644",
                 f"--- a/{file_path}",
                 f"+++ b/{file_path}",
             ])
-            # Generate diff between old and new
-            diff_lines = list(difflib.unified_diff(
-                old_lines,
-                new_lines,
-                fromfile=f"a/{file_path}",
-                tofile=f"b/{file_path}",
-                lineterm=""
-            ))
-        
-        if not diff_lines and not is_new_file and not is_deleted_file:
-            return ""  # No changes for modified file
-        
-        # Skip the first two lines of unified_diff output (---/+++ lines)
-        # since we already have them in git_header
-        if len(diff_lines) >= 2 and diff_lines[0].startswith('---') and diff_lines[1].startswith('+++'):
-            diff_lines = diff_lines[2:]
-        
-        # Combine header with diff content
-        full_diff = git_header + diff_lines
-        
+
+        # Generate reliable diff body via git --no-index to avoid malformed hunks
+        with tempfile.TemporaryDirectory() as tmpdir:
+            temp_dir = Path(tmpdir)
+            old_file = temp_dir / "old_file"
+            new_file = temp_dir / "new_file"
+
+            old_file.write_text(old_content, encoding="utf-8")
+            new_file.write_text(new_content, encoding="utf-8")
+
+            diff_cmd = [
+                "git",
+                "--no-pager",
+                "diff",
+                "--no-index",
+                "--text",
+                "--unified=3",
+                "--",
+                str(old_file),
+                str(new_file),
+            ]
+
+            proc = subprocess.run(
+                diff_cmd,
+                capture_output=True,
+                text=True,
+            )
+
+            if proc.returncode not in (0, 1):
+                logger.error(f"[BuilderDiff] git diff failed: {proc.stderr.strip()}")
+                raise RuntimeError("git diff --no-index failed while generating builder patch")
+
+            diff_output = proc.stdout.strip()
+            if not diff_output:
+                return ""
+
+        diff_lines = diff_output.splitlines()
+
+        # Drop git's own metadata lines (diff --git, index, ---/+++)
+        body_lines = []
+        started = False
+        for line in diff_lines:
+            if line.startswith('@@') or started:
+                started = True
+                body_lines.append(line)
+
+        if not body_lines:
+            return ""
+
+        full_diff = git_header + body_lines
+
         return "\n".join(full_diff)
 
     def _classify_change_type(self, phase_spec: Optional[Dict]) -> str:
@@ -957,8 +1050,8 @@ class AnthropicBuilderClient:
         Per IMPLEMENTATION_PLAN3.md Phase 2.2
         """
         import json
-        from src.autopack.structured_edits import EditPlan, EditOperation, EditOperationType
-        from src.autopack.builder_config import BuilderOutputConfig
+        from autopack.structured_edits import EditPlan, EditOperation, EditOperationType
+        from autopack.builder_config import BuilderOutputConfig
         
         if config is None:
             config = BuilderOutputConfig()
@@ -1293,6 +1386,30 @@ Requirements:
             for criteria in phase_spec["acceptance_criteria"]:
                 prompt_parts.append(f"- {criteria}")
 
+        # Inject scope constraints if provided
+        scope_config = phase_spec.get("scope") or {}
+        scope_paths = scope_config.get("paths") or []
+        readonly_entries = scope_config.get("read_only_context") or []
+
+        if scope_paths:
+            prompt_parts.append("\n## File Modification Constraints")
+            prompt_parts.append("CRITICAL: You may ONLY modify these files:\n")
+            for allowed in scope_paths:
+                prompt_parts.append(f"- {allowed}")
+            prompt_parts.append(
+                "\nIf you touch any other file your patch will be rejected immediately."
+            )
+
+            if readonly_entries:
+                prompt_parts.append("\nRead-only context (reference only, do NOT modify):")
+                for entry in readonly_entries:
+                    prompt_parts.append(f"- {entry}")
+
+            prompt_parts.append(
+                "\nDo not add new files or edit files outside this list. "
+                "All other paths are strictly forbidden."
+            )
+
         if project_rules:
             prompt_parts.append("\n# Learned Rules (must follow):")
             for rule in project_rules[:10]:  # Top 10 rules
@@ -1318,7 +1435,9 @@ Requirements:
         if file_context:
             # Extract existing_files dict (autonomous_executor returns {"existing_files": {path: content}})
             files = file_context.get("existing_files", file_context)
-            
+            scope_metadata = file_context.get("scope_metadata", {})
+            missing_scope_files = file_context.get("missing_scope_files", [])
+
             # Safety check: ensure files is a dict, not a list or other type
             if not isinstance(files, dict):
                 logger.warning(f"[Builder] file_context.get('existing_files') returned non-dict type: {type(files)}, using empty dict")
@@ -1344,6 +1463,12 @@ Requirements:
                                 if line_count > config.max_lines_hard_limit:
                                     use_structured_edit_mode = True
                                     break
+
+            if missing_scope_files:
+                prompt_parts.append("\n# Missing Scoped Files")
+                prompt_parts.append("The following scoped files are within scope but do not exist yet. You may create them:")
+                for missing_path in missing_scope_files:
+                    prompt_parts.append(f"- {missing_path}")
 
             if use_structured_edit_mode:
                 # NEW: Structured edit mode - show files with line numbers (per IMPLEMENTATION_PLAN3.md Phase 5)
@@ -1378,19 +1503,27 @@ Requirements:
                             prompt_parts.append(f"{i:4d} | {line}")
             
             elif use_full_file_mode:
-                # NEW: Separate files into modifiable vs read-only (per IMPLEMENTATION_PLAN2.md Phase 3.2)
-                modifiable_files = []
-                readonly_files = []
-                
+                # NEW: Separate files into modifiable vs read-only using scope metadata
+                modifiable_files: List[Tuple[str, str, int, Dict[str, Any]]] = []
+                readonly_files: List[Tuple[str, str, int, Dict[str, Any]]] = []
+                fallback_readonly: List[Tuple[str, str, int]] = []
+
                 for file_path, content in files.items():
                     if not isinstance(content, str):
                         continue
+                    meta = scope_metadata.get(file_path)
                     line_count = content.count('\n') + 1
-                    
-                    if line_count <= config.max_lines_for_full_file:
-                        modifiable_files.append((file_path, content, line_count))
+
+                    if meta:
+                        category = meta.get("category")
+                        if category == "modifiable":
+                            modifiable_files.append((file_path, content, line_count, meta))
+                        elif category == "read_only":
+                            readonly_files.append((file_path, content, line_count, meta))
+                        else:
+                            fallback_readonly.append((file_path, content, line_count))
                     else:
-                        readonly_files.append((file_path, content, line_count))
+                        fallback_readonly.append((file_path, content, line_count))
                 
                 # Add explicit contract (per GPT_RESPONSE14 Q1)
                 if modifiable_files or readonly_files:
@@ -1403,14 +1536,18 @@ Requirements:
                 # Show modifiable files with full content (Bucket A: ≤500 lines)
                 if modifiable_files:
                     prompt_parts.append("\n# Files You May Modify (COMPLETE CONTENT):")
-                    for file_path, content, line_count in modifiable_files:
-                        prompt_parts.append(f"\n## {file_path} ({line_count} lines)")
+                    for file_path, content, line_count, meta in modifiable_files:
+                        missing_note = " — file does not exist yet, create it." if meta.get("missing") else ""
+                        prompt_parts.append(f"\n## {file_path} ({line_count} lines){missing_note}")
+                        if meta.get("missing"):
+                            prompt_parts.append("This file is currently missing. Provide the complete new content below.")
                         prompt_parts.append(f"```\n{content}\n```")
                 
                 # Show read-only files with truncated content (Bucket B+C: >500 lines)
-                if readonly_files:
+                readonly_combined = readonly_files + [(path, content, line_count, {}) for path, content, line_count in fallback_readonly]
+                if readonly_combined:
                     prompt_parts.append("\n# Read-Only Context Files (DO NOT MODIFY):")
-                    for file_path, content, line_count in readonly_files:
+                    for file_path, content, line_count, meta in readonly_combined:
                         prompt_parts.append(f"\n## {file_path} (READ-ONLY CONTEXT — DO NOT MODIFY)")
                         prompt_parts.append(f"This file has {line_count} lines (too large for full-file replacement).")
                         prompt_parts.append("You may read this snippet as context, but you must NOT include it in your JSON output.")

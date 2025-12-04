@@ -1,6 +1,6 @@
 # Consolidated Build Reference
 
-**Last Updated**: 2025-11-30
+**Last Updated**: 2025-12-04
 **Auto-generated** by scripts/consolidate_docs.py
 
 ## Contents
@@ -8,6 +8,20 @@
 - [ARCH_BUILDER_AUDITOR_DISCOVERY](#arch-builder-auditor-discovery)
 - [AUTO_DOCUMENTATION](#auto-documentation)
 - [BUILD_PLAN_TASK_TRACKER](#build-plan-task-tracker)
+- [RECENT_SCOPE_FIX](#recent-scope-fix)
+
+---
+
+## RECENT_SCOPE_FIX
+
+**Date**: 2025-12-04  
+**Status**: ✅ Implemented in `src/autopack/autonomous_executor.py` and `src/autopack/anthropic_clients.py`
+
+- Builder prompts now strictly reflect `scope.paths` vs `read_only_context`. Missing scoped files are surfaced as “create this file” tasks, and read-only context no longer appears under “Files You May Modify.”
+- `_load_scoped_context` returns metadata for every scoped path (including placeholders for files that do not yet exist) so the LLM can generate Docker assets or other new files without guessing.
+- `_parse_full_file_output` now accepts the streamed JSON payloads the Builder actually returns (handles markdown fences, leading chatter, and newline repairs), eliminating the “expected JSON with ‘files’ array” false negatives seen during the Docker phase.
+
+Result: the Docker phase can now receive the correct context, create new scoped files, and pass JSON validation without manual intervention.
 
 ---
 

@@ -675,6 +675,8 @@ class AutonomousExecutor:
             status can be: "COMPLETE", "FAILED", "BLOCKED"
         """
         phase_id = phase.get("phase_id")
+        scope_config = phase.get("scope") or {}
+        allowed_scope_paths = self._derive_allowed_paths_from_scope(scope_config)
         logger.info(f"Executing phase: {phase_id}")
 
         # [Goal Anchoring] Initialize goal anchor for this phase on first execution
@@ -697,7 +699,11 @@ class AutonomousExecutor:
 
             # Wrap phase execution with error recovery
             def _execute_phase_inner():
-                return self._execute_phase_with_recovery(phase, attempt_index=attempt_index)
+                return self._execute_phase_with_recovery(
+                    phase,
+                    attempt_index=attempt_index,
+                    allowed_paths=allowed_scope_paths,
+                )
 
             try:
                 success, status = self.error_recovery.execute_with_retry(
@@ -2150,7 +2156,12 @@ Just the new description that should replace the current one while preserving th
             self._update_phase_status(phase_id, "FAILED")
             return "execute_fix_failed", False
 
-    def _execute_phase_with_recovery(self, phase: Dict, attempt_index: int = 0) -> Tuple[bool, str]:
+    def _execute_phase_with_recovery(
+        self,
+        phase: Dict,
+        attempt_index: int = 0,
+        allowed_paths: Optional[List[str]] = None
+    ) -> Tuple[bool, str]:
         """Inner phase execution with error handling and model escalation support"""
         phase_id = phase.get("phase_id")
 
@@ -2259,14 +2270,14 @@ Just the new description that should replace the current one while preserving th
 
             if not builder_result.success:
                 logger.error(f"[{phase_id}] Builder failed: {builder_result.error}")
-                self._post_builder_result(phase_id, builder_result)
+                self._post_builder_result(phase_id, builder_result, allowed_paths)
                 self._update_phase_status(phase_id, "FAILED")
                 return False, "FAILED"
 
             logger.info(f"[{phase_id}] Builder succeeded ({builder_result.tokens_used} tokens)")
 
             # Post builder result to API
-            self._post_builder_result(phase_id, builder_result)
+            self._post_builder_result(phase_id, builder_result, allowed_paths)
 
             # Step 2: Apply patch first (so we can run CI on it)
             logger.info(f"[{phase_id}] Step 2/5: Applying patch...")
@@ -2318,6 +2329,7 @@ Just the new description that should replace the current one while preserving th
                     run_type=self.run_type,
                     autopack_internal_mode=is_maintenance_run,
                     scope_paths=scope_paths,  # NEW: Pass scope for validation
+                    allowed_paths=allowed_paths or None,
                 )
                 # Per GPT_RESPONSE15: Pass full_file_mode=True since we're using full-file mode for all files ≤1000 lines
                 patch_success, error_msg = governed_apply.apply_patch(
@@ -2642,6 +2654,85 @@ Just the new description that should replace the current one while preserving th
         logger.warning(f"[Scope] Could not determine workspace from scope paths, using default: {self.workspace}")
         return Path(self.workspace)
 
+    def _resolve_scope_target(
+        self,
+        scope_path: str,
+        workspace_root: Path,
+        *,
+        must_exist: bool = False
+    ) -> Optional[Tuple[Path, str]]:
+        """
+        Resolve a scope path to an absolute file/dir and builder-relative path.
+
+        Args:
+            scope_path: Path from scope configuration (can be relative or prefixed with .autonomous_runs)
+            workspace_root: Project workspace root (from _determine_workspace_root)
+            must_exist: If True, only return when the path exists on disk
+
+        Returns:
+            Tuple of (absolute_path, builder_relative_path) or None if outside workspace.
+        """
+        base_workspace = Path(self.workspace).resolve()
+        workspace_root = workspace_root.resolve()
+        path_obj = Path(scope_path.strip())
+
+        candidates = []
+        if path_obj.is_absolute():
+            candidates.append(path_obj)
+        else:
+            candidates.append(base_workspace / path_obj)
+            candidates.append(workspace_root / path_obj)
+
+        seen = set()
+        for candidate in candidates:
+            resolved = candidate.resolve()
+            key = str(resolved)
+            if key in seen:
+                continue
+            seen.add(key)
+
+            # Ensure target is under workspace root
+            try:
+                resolved.relative_to(workspace_root)
+            except ValueError:
+                continue
+
+            if must_exist and not resolved.exists():
+                continue
+
+            try:
+                rel_to_base = resolved.relative_to(base_workspace)
+            except ValueError:
+                continue
+
+            rel_key = str(rel_to_base).replace("\\", "/")
+            return resolved, rel_key
+
+        return None
+
+    def _derive_allowed_paths_from_scope(
+        self,
+        scope_config: Optional[Dict],
+        workspace_root: Optional[Path] = None
+    ) -> List[str]:
+        """Derive allowed path prefixes for GovernedApply from scope configuration."""
+        if not scope_config or not scope_config.get("paths"):
+            return []
+
+        workspace_root = workspace_root or self._determine_workspace_root(scope_config)
+        base_workspace = Path(self.workspace).resolve()
+
+        try:
+            rel_prefix = workspace_root.resolve().relative_to(base_workspace)
+        except ValueError:
+            return []
+
+        rel_str = str(rel_prefix).replace("\\", "/")
+        if not rel_str.endswith("/"):
+            rel_str += "/"
+
+        return [rel_str]
+
     def _load_scoped_context(self, phase: Dict, scope_config: Dict) -> Dict:
         """Load context using scope configuration (GPT recommendation).
 
@@ -2652,49 +2743,107 @@ Just the new description that should replace the current one while preserving th
         Returns:
             Dict with 'existing_files' key containing {path: content} dict
         """
-        from autopack.context_selector import ContextSelector
+        workspace_root = self._determine_workspace_root(scope_config).resolve()
+        base_workspace = Path(self.workspace).resolve()
+        existing_files: Dict[str, str] = {}
+        scope_metadata: Dict[str, Dict[str, Any]] = {}
+        missing_files: List[str] = []
 
-        # Determine workspace root for scope resolution
-        workspace_root = self._determine_workspace_root(scope_config)
+        def _normalize_rel_path(path_str: str) -> str:
+            if not path_str:
+                return path_str
+            normalized = path_str.replace("\\", "/")
+            while normalized.startswith("./"):
+                normalized = normalized[2:]
+            return normalized
 
-        # Initialize ContextSelector with workspace root
-        selector = ContextSelector(repo_root=workspace_root)
+        def _add_file(abs_path: Path, rel_key: str) -> None:
+            try:
+                content = abs_path.read_text(encoding="utf-8", errors="ignore")
+                existing_files[rel_key] = content
+            except Exception as exc:
+                logger.warning(f"[Scope] Failed to read {abs_path}: {exc}")
 
-        # Use ContextSelector to load scoped files
-        context = selector.get_context_for_phase(
-            phase_spec=phase,
-            changed_files=None,  # Scope takes precedence over changed_files
-            token_budget=None,  # Let selector use default ranking
-        )
+        # Load modifiable scope paths
+        for scoped_path in scope_config.get("paths", []):
+            resolved = self._resolve_scope_target(scoped_path, workspace_root, must_exist=False)
+            if not resolved:
+                missing_files.append(scoped_path)
+                rel_key = _normalize_rel_path(scoped_path)
+                scope_metadata[rel_key] = {"category": "modifiable", "missing": True}
+                existing_files.setdefault(rel_key, "")
+                continue
+            abs_path, rel_key = resolved
+            rel_key = _normalize_rel_path(rel_key)
+            scope_metadata[rel_key] = {"category": "modifiable", "missing": not abs_path.exists()}
+            if not abs_path.exists():
+                missing_files.append(scoped_path)
+                existing_files.setdefault(rel_key, "")
+                continue
+            if abs_path.is_file():
+                _add_file(abs_path, rel_key)
+            else:
+                logger.warning(f"[Scope] Path is not a file: {abs_path}")
 
-        # Validate scope paths were loaded
-        scope_paths = scope_config.get("paths", [])
-        loaded_paths = set(context.keys())
+        # Load read-only context (limited set of extensions)
+        allowed_exts = {
+            ".py", ".pyi", ".txt", ".md", ".json", ".yaml", ".yml",
+            ".ini", ".cfg", ".conf", ".env", ".csv",
+            ".ts", ".tsx", ".js", ".jsx", ".vue", ".css", ".scss"
+        }
+        denylist_dirs = {".venv", "venv", "node_modules", "dist", "build", "__pycache__"}
+        max_readonly_files = 200
+        readonly_count = 0
 
-        # Convert scope paths to relative paths for comparison
-        normalized_scope = []
-        for path_str in scope_paths:
-            path_str = path_str.replace('\\', '/')
-            # If path starts with workspace prefix, make it relative
-            if path_str.startswith(str(workspace_root)):
-                path_str = str(Path(path_str).relative_to(workspace_root))
-            # Remove workspace prefix if present (e.g., .autonomous_runs/project/...)
-            if workspace_root != Path(self.workspace):
-                rel_to_autopack = str(workspace_root.relative_to(self.workspace))
-                if path_str.startswith(rel_to_autopack):
-                    path_str = str(Path(path_str).relative_to(rel_to_autopack))
-            normalized_scope.append(path_str)
+        for readonly_entry in scope_config.get("read_only_context", []):
+            resolved = self._resolve_scope_target(readonly_entry, workspace_root, must_exist=False)
+            if not resolved:
+                continue
+            abs_path, rel_key = resolved
+            rel_key = _normalize_rel_path(rel_key)
 
-        # Log scope validation
-        missing_files = [p for p in normalized_scope if p not in loaded_paths]
+            if abs_path.is_file():
+                if rel_key not in existing_files:
+                    _add_file(abs_path, rel_key)
+                scope_metadata.setdefault(rel_key, {"category": "read_only", "missing": False})
+                continue
+
+            if not abs_path.is_dir():
+                continue
+
+            for file_path in abs_path.rglob("*"):
+                if readonly_count >= max_readonly_files:
+                    logger.warning("[Scope] Read-only context limit reached (200 files).")
+                    break
+                if not file_path.is_file():
+                    continue
+                if any(part in denylist_dirs for part in file_path.parts):
+                    continue
+                if file_path.suffix and file_path.suffix.lower() not in allowed_exts:
+                    continue
+                try:
+                    rel_builder = str(file_path.resolve().relative_to(base_workspace)).replace("\\", "/")
+                except ValueError:
+                    continue
+                if rel_builder in existing_files:
+                    continue
+                _add_file(file_path, rel_builder)
+                scope_metadata.setdefault(rel_builder, {"category": "read_only", "missing": False})
+                readonly_count += 1
+
         if missing_files:
             logger.warning(f"[Scope] Missing scope files: {missing_files}")
 
-        logger.info(f"[Scope] Loaded {len(context)} files from scope configuration")
-        logger.info(f"[Scope] Scope paths: {normalized_scope}")
-        logger.info(f"[Scope] Loaded paths: {list(loaded_paths)[:10]}...")  # First 10 for brevity
+        logger.info(f"[Scope] Loaded {len(existing_files)} files from scope configuration")
+        logger.info(f"[Scope] Scope paths: {scope_config.get('paths', [])}")
+        preview_paths = list(existing_files.keys())[:10]
+        logger.info(f"[Scope] Loaded paths: {preview_paths}...")
 
-        return {"existing_files": context}
+        return {
+            "existing_files": existing_files,
+            "scope_metadata": scope_metadata,
+            "missing_scope_files": missing_files,
+        }
 
     def _validate_scope_context(self, phase: Dict, file_context: Dict, scope_config: Dict):
         """Validate that loaded context matches scope configuration (Option C - Layer 1).
@@ -2714,43 +2863,57 @@ Just the new description that should replace the current one while preserving th
         scope_paths = scope_config.get("paths", [])
         loaded_files = set(file_context.get("existing_files", {}).keys())
 
-        # Normalize scope paths for comparison
         workspace_root = self._determine_workspace_root(scope_config)
         normalized_scope = []
         for path_str in scope_paths:
-            path_str = path_str.replace('\\', '/')
-            # Make relative to workspace root
-            if workspace_root != Path(self.workspace):
-                rel_to_autopack = str(workspace_root.relative_to(self.workspace))
-                if path_str.startswith(rel_to_autopack):
-                    path_str = str(Path(path_str).relative_to(rel_to_autopack))
-            normalized_scope.append(path_str)
+            resolved = self._resolve_scope_target(path_str, workspace_root, must_exist=False)
+            if resolved:
+                _, rel_key = resolved
+                normalized_scope.append(rel_key)
+            else:
+                normalized_scope.append(path_str.replace("\\", "/"))
 
         # Check for files outside scope (indicating scope loading bug)
         scope_set = set(normalized_scope)
         outside_scope = loaded_files - scope_set
 
         if outside_scope:
-            # Filter out read-only context files (allowed)
             readonly_context = scope_config.get("read_only_context", [])
-            normalized_readonly = []
-            for path_str in readonly_context:
-                path_str = path_str.replace('\\', '/')
-                if workspace_root != Path(self.workspace):
-                    rel_to_autopack = str(workspace_root.relative_to(self.workspace))
-                    if path_str.startswith(rel_to_autopack):
-                        path_str = str(Path(path_str).relative_to(rel_to_autopack))
-                normalized_readonly.append(path_str)
+            readonly_exact: Set[str] = set()
+            readonly_prefixes: List[str] = []
 
-            # Files in read_only_context are allowed
-            readonly_set = set(normalized_readonly)
-            truly_outside = outside_scope - readonly_set
+            for path_str in readonly_context:
+                resolved = self._resolve_scope_target(path_str, workspace_root, must_exist=False)
+                if resolved:
+                    _, rel_key = resolved
+                    if rel_key.endswith("/"):
+                        readonly_prefixes.append(rel_key)
+                    elif Path(rel_key).suffix:
+                        readonly_exact.add(rel_key)
+                    else:
+                        readonly_prefixes.append(rel_key + "/")
+                else:
+                    normalized = path_str.replace("\\", "/")
+                    if normalized.endswith("/"):
+                        readonly_prefixes.append(normalized)
+                    else:
+                        readonly_exact.add(normalized)
+
+            def _is_readonly_allowed(file_path: str) -> bool:
+                if file_path in readonly_exact:
+                    return True
+                for prefix in readonly_prefixes:
+                    if file_path.startswith(prefix):
+                        return True
+                return False
+
+            truly_outside = {path for path in outside_scope if not _is_readonly_allowed(path)}
 
             if truly_outside:
                 error_msg = (
                     f"[Scope] VALIDATION FAILED: {len(truly_outside)} files loaded outside scope:\n"
                     f"  Scope paths: {normalized_scope}\n"
-                    f"  Read-only context: {normalized_readonly}\n"
+                    f"  Read-only context prefixes: {readonly_prefixes or readonly_exact}\n"
                     f"  Files outside scope: {list(truly_outside)[:10]}"
                 )
                 logger.error(error_msg)
@@ -2758,7 +2921,12 @@ Just the new description that should replace the current one while preserving th
 
         logger.info(f"[Scope] Validation passed: {len(loaded_files)} files match scope configuration")
 
-    def _post_builder_result(self, phase_id: str, result: BuilderResult):
+    def _post_builder_result(
+        self,
+        phase_id: str,
+        result: BuilderResult,
+        allowed_paths: Optional[List[str]] = None
+    ):
         """POST builder result to Autopack API
 
         Args:
@@ -2787,6 +2955,7 @@ Just the new description that should replace the current one while preserving th
         payload = {
             "phase_id": phase_id,
             "run_id": self.run_id,
+            "run_type": self.run_type,
             "patch_content": result.patch_content,
             "files_changed": files_changed,
             "lines_added": lines_added,
@@ -2798,6 +2967,7 @@ Just the new description that should replace the current one while preserving th
             "suggested_issues": [],  # TODO: Parse from builder_messages
             "status": "success" if result.success else "failed",
             "notes": "\n".join(result.builder_messages) if result.builder_messages else (result.error or ""),
+            "allowed_paths": allowed_paths or [],
         }
 
         try:

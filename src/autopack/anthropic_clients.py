@@ -473,6 +473,167 @@ class AnthropicBuilderClient:
                 except json.JSONDecodeError:
                     return None
 
+        def _decode_placeholder_string(raw_segment: str) -> str:
+            """Decode a pseudo-JSON string segment without trusting malformed escapes."""
+            result_chars: list[str] = []
+            idx = 0
+            length = len(raw_segment)
+
+            while idx < length:
+                ch = raw_segment[idx]
+                if ch == "\\" and idx + 1 < length:
+                    nxt = raw_segment[idx + 1]
+                    if nxt == "n":
+                        result_chars.append("\n")
+                        idx += 2
+                        continue
+                    if nxt == "r":
+                        result_chars.append("\r")
+                        idx += 2
+                        continue
+                    if nxt == "t":
+                        result_chars.append("\t")
+                        idx += 2
+                        continue
+                    if nxt in ('"', "\\", "/"):
+                        result_chars.append(nxt)
+                        idx += 2
+                        continue
+                    if nxt == "u" and idx + 5 < length:
+                        hex_value = raw_segment[idx + 2:idx + 6]
+                        try:
+                            result_chars.append(chr(int(hex_value, 16)))
+                            idx += 6
+                            continue
+                        except ValueError:
+                            # Fall back to literal output
+                            result_chars.append("\\")
+                            idx += 1
+                            continue
+                    # Unknown escape - keep the backslash and reprocess next char normally
+                    result_chars.append("\\")
+                    idx += 1
+                    continue
+
+                result_chars.append(ch)
+                idx += 1
+
+            return "".join(result_chars)
+
+        def _sanitize_full_file_output(raw_text: Optional[str]) -> tuple[str, Dict[str, str]]:
+            """
+            Replace problematic new_content blobs with safe placeholders so json.loads succeeds.
+            Returns sanitized text plus a mapping of placeholder -> raw segment.
+            """
+            if not raw_text or '"new_content":"' not in raw_text:
+                return raw_text or "", {}
+
+            placeholders: Dict[str, str] = {}
+            output_chars: list[str] = []
+            idx = 0
+            placeholder_idx = 0
+            target = raw_text
+
+            sentinel = '"new_content":"'
+
+            while idx < len(target):
+                if target.startswith(sentinel, idx):
+                    output_chars.append(sentinel)
+                    idx += len(sentinel)
+                    segment_chars: list[str] = []
+
+                    while idx < len(target):
+                        ch = target[idx]
+
+                        # Preserve escaped sequences verbatim
+                        if ch == "\\" and idx + 1 < len(target):
+                            segment_chars.append(target[idx:idx + 2])
+                            idx += 2
+                            continue
+
+                        if ch == '"':
+                            probe = idx + 1
+                            while probe < len(target) and target[probe] in " \t\r\n":
+                                probe += 1
+                            if probe < len(target) and target[probe] == "}":
+                                probe2 = probe + 1
+                                while probe2 < len(target) and target[probe2] in " \t\r\n":
+                                    probe2 += 1
+                                if probe2 >= len(target) or target[probe2] in ",]}":
+                                    break
+
+                        segment_chars.append(ch)
+                        idx += 1
+
+                    content_raw = "".join(segment_chars)
+                    placeholder = f"__FULLFILE_CONTENT_{placeholder_idx}__"
+                    placeholder_idx += 1
+                    placeholders[placeholder] = content_raw
+                    output_chars.append(placeholder)
+                    output_chars.append('"')
+
+                    if idx < len(target) and target[idx] == '"':
+                        idx += 1
+                    continue
+
+                    output_chars.append(target[idx])
+                    idx += 1
+
+                else:
+                    output_chars.append(target[idx])
+                    idx += 1
+
+            return "".join(output_chars), placeholders
+
+        def _balance_json_brackets(raw_text: str) -> str:
+            """
+            Ensure any unterminated braces/brackets are closed in LIFO order.
+            Helps when the LLM truncates output before emitting final ]}.
+            """
+            stack: list[str] = []
+            in_string = False
+            escape = False
+
+            for ch in raw_text:
+                if in_string:
+                    if escape:
+                        escape = False
+                    elif ch == "\\":
+                        escape = True
+                    elif ch == '"':
+                        in_string = False
+                    continue
+
+                if ch == '"':
+                    in_string = True
+                elif ch == "{":
+                    stack.append("}")
+                elif ch == "[":
+                    stack.append("]")
+                elif ch in ("}", "]"):
+                    if stack and stack[-1] == ch:
+                        stack.pop()
+
+            if not stack:
+                return raw_text
+
+            # Append missing closers in reverse order (LIFO)
+            closing = "".join(reversed(stack))
+            return raw_text + closing
+
+        def _restore_placeholder_content(payload: Dict[str, Any], placeholder_map: Dict[str, str]) -> None:
+            files = payload.get("files")
+            if not isinstance(files, list):
+                return
+
+            for file_entry in files:
+                if not isinstance(file_entry, dict):
+                    continue
+                content = file_entry.get("new_content")
+                if isinstance(content, str) and content in placeholder_map:
+                    raw_segment = placeholder_map[content]
+                    file_entry["new_content"] = _decode_placeholder_string(raw_segment)
+
         def _extract_code_fence(raw_text: str, fence: str) -> Optional[str]:
             start = raw_text.find(fence)
             if start == -1:
@@ -514,24 +675,39 @@ class AnthropicBuilderClient:
         try:
             # Try to parse JSON directly, with newline repair fallback
             result_json: Optional[Dict[str, Any]] = None
+            placeholder_map: Dict[str, str] = {}
             raw = content.strip()
-            result_json = _attempt_json_parse(raw)
 
-            if not result_json and "```json" in content:
+            candidates: list[str] = [raw]
+            if "```json" in content:
                 fenced = _extract_code_fence(content, "```json")
-                result_json = _attempt_json_parse(fenced)
+                if fenced:
+                    candidates.append(fenced)
+            if "```" in content:
+                fenced_generic = _extract_code_fence(content, "```")
+                if fenced_generic:
+                    candidates.append(fenced_generic)
+            extracted = _extract_first_json_object(raw)
+            if extracted:
+                candidates.append(extracted)
 
-            if not result_json and "```" in content:
-                fenced = _extract_code_fence(content, "```")
-                result_json = _attempt_json_parse(fenced)
-
-            if not result_json:
-                extracted = _extract_first_json_object(raw)
-                result_json = _attempt_json_parse(extracted)
+            for candidate in candidates:
+                sanitized_candidate, placeholders = _sanitize_full_file_output(candidate)
+                balanced_candidate = _balance_json_brackets(sanitized_candidate)
+                result_json = _attempt_json_parse(balanced_candidate)
+                if result_json:
+                    placeholder_map = placeholders
+                    break
 
             if not result_json:
                 # Fallback: try legacy diff extraction (per GPT_RESPONSE11 Q3)
                 logger.warning("[Builder] WARNING: Falling back to legacy git-diff mode (JSON full-file parse failed)")
+                debug_path = Path("builder_fullfile_failure_latest.json")
+                try:
+                    debug_path.write_text(content, encoding="utf-8")
+                    logger.warning(f"[Builder] Wrote failing full-file output to {debug_path}")
+                except Exception as write_exc:
+                    logger.error(f"[Builder] Failed to write debug output: {write_exc}")
                 patch_content = self._extract_diff_from_text(content)
                 if patch_content:
                     return BuilderResult(
@@ -554,6 +730,8 @@ class AnthropicBuilderClient:
                     )
             
             summary = result_json.get("summary", "Generated by Claude")
+            if placeholder_map:
+                _restore_placeholder_content(result_json, placeholder_map)
             files = result_json.get("files", [])
             
             if not files:

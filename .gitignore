@@ -68,3 +68,6 @@ dist/frontend/
 # OS
 .DS_Store
 Thumbs.db
+
+# Debug captures
+builder_fullfile_failure_latest.json

@@ -1,6 +1,6 @@
 # Consolidated Reference Reference
 
-**Last Updated**: 2025-11-30
+**Last Updated**: 2025-12-04
 **Auto-generated** by scripts/consolidate_docs.py
 
 ## Contents
@@ -8,6 +8,7 @@
 - [AUTONOMOUS_EXECUTOR_README](#autonomous-executor-readme)
 - [CHATBOT_INTEGRATION_COMPLETE_REFERENCE](#chatbot-integration-complete-reference)
 - [DOC_ORGANIZATION_README](#doc-organization-readme)
+- [COUNTRY_PACKS_UK](#country-packs-uk)
 
 ---
 
@@ -2441,4 +2442,22 @@ Potential improvements:
 
 
 ---
+
+## COUNTRY_PACKS_UK
+
+**Source**: `.autonomous_runs/file-organizer-app-v1/fileorganizer/backend/packs/tax_uk.yaml` and `.autonomous_runs/file-organizer-app-v1/fileorganizer/backend/packs/immigration_uk.yaml`
+
+### Tax Pack (UK - Self Assessment)
+
+- Mirrors HMRC SA103 categories (trading income, allowable expenses, VAT, prior returns) with explicit thresholds for VAT (£85k), Self Assessment (£1k), and Making Tax Digital (£50k).
+- Provides structured placeholders for proof (payslips, bank statements, VAT returns) and repeats the **NOT TAX ADVICE** disclaimer in every stage.
+- Designed to be loaded via `load_pack.py --country uk` so that FileOrganizer users can triage receipts before filing.
+
+### Immigration Pack (UK - Home Office)
+
+- Covers identity, travel history, financial maintenance, accommodation, relationship proof, sponsor evidence, medical/character checks, English language, and correspondence.
+- Ships with quick checklists for Appendix FM maintenance evidence and sponsor declarations, plus pointers to TB/ACRO requirements.
+- Flagged as **EXPERIMENTAL** with high volatility—verify against current UKVI guidance and seek licensed advice before relying on it.
+
+These YAML packs are intended for organisation only; they do **not** determine eligibility. Always cross-check with the latest HMRC/UKVI sources and professional advisers prior to submission.
 

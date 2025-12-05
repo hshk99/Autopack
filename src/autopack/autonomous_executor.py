@@ -60,6 +60,7 @@ from autopack.learned_rules import (
 )
 from autopack.journal_reader import get_recent_prevention_rules
 from autopack.health_checks import run_health_checks, HealthCheckResult
+from autopack.file_layout import RunFileLayout
 
 
 # Configure logging
@@ -257,12 +258,12 @@ class AutonomousExecutor:
         self.MAX_TOTAL_FAILURES_PER_RUN = 25  # Stop run after this many total failures
 
         # [Doctor Integration] Per GPT_RESPONSE8 Section 4 recommendations
-        # Per-phase Doctor context tracking
+        # Per-(run, phase) Doctor context tracking (keyed by f"{run_id}:{phase_id}")
         self._doctor_context_by_phase: Dict[str, DoctorContextSummary] = {}
-        self._doctor_calls_by_phase: Dict[str, int] = {}  # phase_id -> doctor call count
+        self._doctor_calls_by_phase: Dict[str, int] = {}  # (run_id:phase_id) -> doctor call count
         self._last_doctor_response_by_phase: Dict[str, DoctorResponse] = {}
         self._last_error_category_by_phase: Dict[str, str] = {}  # Track error categories for is_complex_failure
-        self._distinct_error_cats_by_phase: Dict[str, set] = {}  # Track distinct error categories per phase
+        self._distinct_error_cats_by_phase: Dict[str, set] = {}  # Track distinct error categories per (run, phase)
         # Run-level Doctor budgets
         self._run_doctor_calls: int = 0  # Total Doctor calls this run
         self._run_doctor_strong_calls: int = 0  # Strong-model Doctor calls this run
@@ -1635,8 +1636,9 @@ Just the new description that should replace the current one while preserving th
             )
             return False
 
-        # Check per-phase Doctor call limit
-        phase_doctor_calls = self._doctor_calls_by_phase.get(phase_id, 0)
+        # Check per-(run, phase) Doctor call limit
+        phase_key = f"{self.run_id}:{phase_id}"
+        phase_doctor_calls = self._doctor_calls_by_phase.get(phase_key, 0)
         if phase_doctor_calls >= self.MAX_DOCTOR_CALLS_PER_PHASE:
             logger.info(
                 f"[Doctor] Not invoking: per-phase limit reached "
@@ -1682,18 +1684,19 @@ Just the new description that should replace the current one while preserving th
         Returns:
             DoctorContextSummary for model selection
         """
-        # Track distinct error categories for this phase
-        if phase_id not in self._distinct_error_cats_by_phase:
-            self._distinct_error_cats_by_phase[phase_id] = set()
-        self._distinct_error_cats_by_phase[phase_id].add(error_category)
+        # Track distinct error categories for this (run, phase)
+        phase_key = f"{self.run_id}:{phase_id}"
+        if phase_key not in self._distinct_error_cats_by_phase:
+            self._distinct_error_cats_by_phase[phase_key] = set()
+        self._distinct_error_cats_by_phase[phase_key].add(error_category)
 
         # Get prior Doctor response if any
-        prior_response = self._last_doctor_response_by_phase.get(phase_id)
+        prior_response = self._last_doctor_response_by_phase.get(phase_key)
         prior_action = prior_response.action if prior_response else None
         prior_confidence = prior_response.confidence if prior_response else None
 
         return DoctorContextSummary(
-            distinct_error_categories_for_phase=len(self._distinct_error_cats_by_phase[phase_id]),
+            distinct_error_categories_for_phase=len(self._distinct_error_cats_by_phase[phase_key]),
             prior_doctor_action=prior_action,
             prior_doctor_confidence=prior_confidence,
         )
@@ -1724,6 +1727,7 @@ Just the new description that should replace the current one while preserving th
             DoctorResponse if Doctor was invoked, None otherwise
         """
         phase_id = phase.get("phase_id")
+        phase_key = f"{self.run_id}:{phase_id}"
 
         # Check if we should invoke Doctor
         if not self._should_invoke_doctor(phase_id, builder_attempts, error_category):
@@ -1759,13 +1763,13 @@ Just the new description that should replace the current one while preserving th
                 allow_escalation=True,
             )
 
-            # Update tracking
-            self._doctor_calls_by_phase[phase_id] = self._doctor_calls_by_phase.get(phase_id, 0) + 1
+            # Update tracking (per run+phase key)
+            self._doctor_calls_by_phase[phase_key] = self._doctor_calls_by_phase.get(phase_key, 0) + 1
             self._run_doctor_calls += 1
             if error_category == "infra_error":
                 self._run_doctor_infra_calls += 1
-            self._last_doctor_response_by_phase[phase_id] = response
-            self._doctor_context_by_phase[phase_id] = ctx_summary
+            self._last_doctor_response_by_phase[phase_key] = response
+            self._doctor_context_by_phase[phase_key] = ctx_summary
 
             # Store builder hint if provided
             if response.builder_hint:
@@ -1773,7 +1777,7 @@ Just the new description that should replace the current one while preserving th
 
             logger.info(
                 f"[Doctor] Diagnosis complete: action={response.action}, "
-                f"confidence={response.confidence:.2f}, phase_calls={self._doctor_calls_by_phase[phase_id]}, "
+                f"confidence={response.confidence:.2f}, phase_calls={self._doctor_calls_by_phase[phase_key]}, "
                 f"run_calls={self._run_doctor_calls}"
             )
 
@@ -2271,6 +2275,80 @@ Just the new description that should replace the current one while preserving th
 
             if not builder_result.success:
                 logger.error(f"[{phase_id}] Builder failed: {builder_result.error}")
+
+                # Record guardrail-type failures explicitly for learning / Doctor
+                error_text = (builder_result.error or "").lower()
+                if "churn_limit_exceeded" in error_text:
+                    error_category = "builder_churn_limit_exceeded"
+                else:
+                    error_category = "auditor_reject"
+
+                # Learning + replan telemetry for early builder failures
+                self._record_learning_hint(
+                    phase=phase,
+                    hint_type=error_category,
+                    details=builder_result.error or "Builder failed without error message",
+                )
+                self._record_phase_error(
+                    phase=phase,
+                    error_type=error_category,
+                    error_details=builder_result.error or "Builder failed without error message",
+                    attempt_index=attempt_index,
+                )
+
+                # Optionally invoke Doctor for diagnosable builder failures
+                doctor_response = self._invoke_doctor(
+                    phase=phase,
+                    error_category=error_category,
+                    builder_attempts=attempt_index + 1,
+                    last_patch=None,
+                    patch_errors=[],
+                    logs_excerpt=builder_result.error or "",
+                )
+                if doctor_response:
+                    action_taken, should_continue = self._handle_doctor_action(
+                        phase=phase,
+                        response=doctor_response,
+                        attempt_index=attempt_index,
+                    )
+                    if not should_continue:
+                        self._post_builder_result(phase_id, builder_result, allowed_paths)
+                        self._update_phase_status(phase_id, "FAILED")
+                        return False, "FAILED"
+
+                # Record a structured issue for builder guardrail failures so they appear under issues/
+                try:
+                    from autopack.issue_tracker import IssueTracker
+
+                    tracker = IssueTracker(run_id=self.run_id)
+                    issue_key = (
+                        "builder_churn_limit_exceeded"
+                        if error_category == "builder_churn_limit_exceeded"
+                        else "builder_failure"
+                    )
+                    category = (
+                        "builder_guardrail"
+                        if error_category == "builder_churn_limit_exceeded"
+                        else "builder_failure"
+                    )
+                    tier_id = phase.get("tier_id", "unknown")
+
+                    tracker.record_issue(
+                        phase_index=phase.get("phase_index", 0),
+                        phase_id=phase_id,
+                        tier_id=tier_id,
+                        issue_key=issue_key,
+                        severity="major",
+                        source="builder",
+                        category=category,
+                        task_category=phase.get("task_category"),
+                        complexity=phase.get("complexity"),
+                        evidence_refs=[builder_result.error] if builder_result.error else None,
+                    )
+                except Exception as e:
+                    logger.warning(f"[IssueTracker] Failed to record builder guardrail issue: {e}")
+
+                # Post failure to API and mark phase as failed
                 self._post_builder_result(phase_id, builder_result, allowed_paths)
                 self._update_phase_status(phase_id, "FAILED")
                 return False, "FAILED"
@@ -3710,6 +3788,37 @@ Just the new description that should replace the current one while preserving th
             )
         except Exception as e:
             logger.warning(f"Failed to log run completion: {e}")
+
+        # Best-effort fallback: ensure run_summary.md reflects terminal state even if API-side hook fails
+        try:
+            from autopack import models
+
+            run = self.db_session.query(models.Run).filter(models.Run.id == self.run_id).first()
+            if run:
+                # If DB never updated run.state, derive a conservative terminal state from phase outcomes
+                if run.state not in (
+                    models.RunState.DONE_SUCCESS,
+                    models.RunState.DONE_FAILED_REQUIRES_HUMAN_REVIEW,
+                ):
+                    if phases_failed > 0:
+                        run.state = models.RunState.DONE_FAILED_REQUIRES_HUMAN_REVIEW
+                    else:
+                        run.state = models.RunState.DONE_SUCCESS
+
+                layout = RunFileLayout(self.run_id)
+                layout.write_run_summary(
+                    run_id=run.id,
+                    state=run.state.value,
+                    safety_profile=run.safety_profile,
+                    run_scope=run.run_scope,
+                    created_at=run.created_at.isoformat(),
+                    tier_count=len(run.tiers),
+                    phase_count=len(run.phases),
+                )
+                # Persist any state correction we made above
+                self.db_session.commit()
+        except Exception as e:
+            logger.warning(f"Failed to write run_summary from executor: {e}")
 
         # Learning Pipeline: Promote hints to persistent rules (Stage 0B)
         try:

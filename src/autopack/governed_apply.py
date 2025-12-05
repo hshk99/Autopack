@@ -21,6 +21,8 @@ from difflib import SequenceMatcher
 from pathlib import Path
 from typing import List, Tuple, Optional, Dict, Set
 
+from .repair_helpers import YamlRepairHelper, save_repair_debug
+
 logger = logging.getLogger(__name__)
 
 
@@ -223,7 +225,16 @@ class GovernedApplyPath:
         # Merge default allowed paths with any additional ones
         self.allowed_paths = list(self.ALLOWED_PATHS)
         if allowed_paths:
-            self.allowed_paths.extend(allowed_paths)
+            for path in allowed_paths:
+                normalized = path.replace("\\", "/")
+                if not normalized:
+                    continue
+                target = normalized
+                if not target.endswith("/"):
+                    suffix = Path(target).suffix
+                    if not suffix:  # Treat as directory prefix
+                        target += "/"
+                self.allowed_paths.append(target)
 
     # =========================================================================
     # WORKSPACE ISOLATION METHODS
@@ -896,7 +907,411 @@ class GovernedApplyPath:
             if not (has_index and has_minus and has_plus):
                 errors.append("Incomplete diff structure (missing index/---/+++ lines)")
 
+        # Check for truncated file content (common LLM issue - output cut off mid-file)
+        # This detects files that end abruptly with unclosed strings or incomplete YAML
+        truncation_errors = self._detect_truncated_content(patch_content)
+        errors.extend(truncation_errors)
+
         return errors
+
+    def _validate_pack_schema_in_patch(self, patch_content: str) -> List[str]:
+        """
+        If the patch touches pack YAML files, validate them against the pack schema.
+        """
+        errors: List[str] = []
+        import re
+
+        # Find files in patch
+        file_paths = []
+        for line in patch_content.splitlines():
+            if line.startswith("diff --git"):
+                parts = line.split()
+                if len(parts) >= 4:
+                    file_path = parts[3][2:]  # strip leading b/
+                    file_paths.append(file_path)
+
+        pack_paths = [
+            p for p in file_paths
+            if p.endswith((".yaml", ".yml"))
+            and "backend/packs/" in p
+        ]
+
+        if not pack_paths:
+            return errors
+
+        # Extract new content for each pack and validate
+        for path in pack_paths:
+            new_content = self._extract_new_content_from_patch(patch_content, path)
+            if not new_content:
+                continue
+            errors.extend(self._validate_pack_schema(path, new_content))
+
+        return errors
+
+    def _validate_pack_schema(self, file_path: str, content: str) -> List[str]:
+        """
+        Validate a country pack YAML against a minimal schema:
+        - Required top-level keys: name, description, version, country, domain, categories, checklists, official_sources
+        - categories: non-empty list, no duplicate names, each with name/description/examples
+        - checklists: non-empty list, each with name/required_documents
+        - official_sources: non-empty list
+        """
+        import yaml
+
+        required_keys = ["name", "description", "version", "country", "domain", "categories", "checklists", "official_sources"]
+        errors: List[str] = []
+
+        try:
+            data = yaml.safe_load(content)
+        except Exception as e:
+            errors.append(f"Pack schema: YAML parse failed for {file_path}: {e}")
+            return errors
+
+        if not isinstance(data, dict):
+            errors.append(f"Pack schema: Expected mapping at top level for {file_path}")
+            return errors
+
+        for key in required_keys:
+            if key not in data or data.get(key) in ("", None):
+                errors.append(f"Pack schema: Missing required key '{key}' in {file_path}")
+
+        categories = data.get("categories", [])
+        if not isinstance(categories, list) or not categories:
+            errors.append(f"Pack schema: 'categories' must be a non-empty list in {file_path}")
+        else:
+            seen = set()
+            for cat in categories:
+                if not isinstance(cat, dict):
+                    errors.append(f"Pack schema: category entry is not a mapping in {file_path}")
+                    continue
+                name = cat.get("name")
+                if not name or not isinstance(name, str):
+                    errors.append(f"Pack schema: category missing 'name' in {file_path}")
+                elif name in seen:
+                    errors.append(f"Pack schema: duplicate category name '{name}' in {file_path}")
+                else:
+                    seen.add(name)
+                if not cat.get("description"):
+                    errors.append(f"Pack schema: category '{name or '?'}' missing description in {file_path}")
+                examples = cat.get("examples", [])
+                if not isinstance(examples, list) or not examples:
+                    errors.append(f"Pack schema: category '{name or '?'}' missing examples list in {file_path}")
+
+        checklists = data.get("checklists", [])
+        if not isinstance(checklists, list) or not checklists:
+            errors.append(f"Pack schema: 'checklists' must be a non-empty list in {file_path}")
+        else:
+            for cl in checklists:
+                if not isinstance(cl, dict):
+                    errors.append(f"Pack schema: checklist entry is not a mapping in {file_path}")
+                    continue
+                if not cl.get("name"):
+                    errors.append(f"Pack schema: checklist missing 'name' in {file_path}")
+                reqs = cl.get("required_documents", [])
+                if not isinstance(reqs, list) or not reqs:
+                    errors.append(f"Pack schema: checklist '{cl.get('name','?')}' missing required_documents list in {file_path}")
+
+        sources = data.get("official_sources", [])
+        if not isinstance(sources, list) or not sources:
+            errors.append(f"Pack schema: 'official_sources' must be a non-empty list in {file_path}")
+
+        return errors
+
+    def _detect_truncated_content(self, patch_content: str) -> List[str]:
+        """
+        Detect truncated file content in patches - catches LLM output that was cut off.
+
+        Common patterns:
+        - File ends with unclosed quote (started " or ' but never closed)
+        - YAML file ends mid-list without proper structure
+        - File ends with "No newline at end of file" after incomplete content
+
+        Returns:
+            List of truncation error messages
+        """
+        errors = []
+        lines = patch_content.split('\n')
+
+        # Track files being patched and their new content
+        current_file = None
+        new_file_lines = []
+        in_new_file = False
+
+        for i, line in enumerate(lines):
+            if line.startswith('diff --git'):
+                # Check previous file for truncation before moving to next
+                if current_file and new_file_lines:
+                    file_errors = self._check_file_truncation(current_file, new_file_lines)
+                    errors.extend(file_errors)
+
+                # Extract new file path
+                match = re.search(r'diff --git a/.+ b/(.+)', line)
+                if match:
+                    current_file = match.group(1)
+                new_file_lines = []
+                in_new_file = False
+
+            elif line.startswith('--- /dev/null'):
+                in_new_file = True
+
+            elif line.startswith('+') and not line.startswith('+++'):
+                # Collect added lines for new files
+                new_file_lines.append(line[1:])  # Remove + prefix
+
+            elif line.startswith('\\ No newline at end of file'):
+                # This marker after minimal content is suspicious
+                if len(new_file_lines) < 5:
+                    errors.append(f"File '{current_file}' appears truncated (only {len(new_file_lines)} lines before 'No newline')")
+
+        # Check last file
+        if current_file and new_file_lines:
+            file_errors = self._check_file_truncation(current_file, new_file_lines)
+            errors.extend(file_errors)
+
+        return errors
+
+    def _check_file_truncation(self, file_path: str, content_lines: List[str]) -> List[str]:
+        """Check a single file's content for truncation indicators."""
+        errors = []
+        content = '\n'.join(content_lines)
+
+        # Check for unclosed quotes at end of file
+        last_lines = content_lines[-3:] if len(content_lines) >= 3 else content_lines
+        last_content = '\n'.join(last_lines)
+
+        # Pattern: line ending with unclosed quote (started " but not closed)
+        unclosed_quote_pattern = re.compile(r'^\s*-?\s*"[^"]*$', re.MULTILINE)
+        if content_lines:
+            last_line = content_lines[-1].rstrip()
+            # Check if last line has unclosed double quote
+            if last_line.count('"') % 2 == 1:
+                errors.append(f"File '{file_path}' ends with unclosed quote: '{last_line[-50:]}'")
+            # Check if last line has unclosed single quote (but not apostrophes)
+            if "'" in last_line and last_line.count("'") % 2 == 1:
+                # Filter out common apostrophe usage
+                if not re.search(r"\w'\w", last_line):  # e.g., "don't", "it's"
+                    errors.append(f"File '{file_path}' may end with unclosed quote: '{last_line[-50:]}'")
+
+        # For YAML files, check for incomplete structure
+        if file_path.endswith(('.yaml', '.yml')):
+            yaml_errors = self._check_yaml_truncation(file_path, content_lines)
+            errors.extend(yaml_errors)
+
+        return errors
+
+    def _check_yaml_truncation(self, file_path: str, content_lines: List[str]) -> List[str]:
+        """Check YAML content for truncation indicators."""
+        errors = []
+
+        if not content_lines:
+            return errors
+
+        # Check if file ends abruptly mid-list item
+        last_line = content_lines[-1].rstrip()
+        if last_line.strip().startswith('-') and last_line.strip() == '-':
+            errors.append(f"YAML file '{file_path}' ends with empty list marker")
+
+        # Check for incomplete list item (just "- " with nothing after)
+        if re.match(r'^\s*-\s*$', last_line):
+            errors.append(f"YAML file '{file_path}' ends with incomplete list item")
+
+        # Check for unclosed multi-line string indicator
+        for i, line in enumerate(content_lines[-5:], len(content_lines) - 4):
+            if line.rstrip().endswith('|') or line.rstrip().endswith('>'):
+                # Multi-line string started but file ends soon after
+                remaining = len(content_lines) - i - 1
+                if remaining < 2:
+                    errors.append(f"YAML file '{file_path}' ends shortly after multi-line string indicator")
+
+        # Try to parse as YAML to catch structural issues
+        try:
+            import yaml
+            content = '\n'.join(content_lines)
+            yaml.safe_load(content)
+        except yaml.YAMLError as e:
+            # Only report if it looks like truncation (not just any YAML error)
+            error_str = str(e).lower()
+            if 'end of stream' in error_str or 'expected' in error_str:
+                errors.append(f"YAML file '{file_path}' has incomplete structure: {str(e)[:100]}")
+
+        return errors
+
+    def _attempt_yaml_repair_in_patch(
+        self,
+        patch_content: str,
+        validation_errors: List[str]
+    ) -> Tuple[Optional[str], str]:
+        """
+        Attempt to repair YAML content within a patch.
+
+        Extracts YAML files from the patch, attempts repair using YamlRepairHelper,
+        and reconstructs the patch with repaired content.
+
+        Args:
+            patch_content: The full patch content
+            validation_errors: List of validation errors (used to identify which files need repair)
+
+        Returns:
+            Tuple of (repaired_patch, repair_method) or (None, "failed")
+        """
+        yaml_repair = YamlRepairHelper()
+
+        # Extract YAML file paths from validation errors
+        yaml_files_to_repair = set()
+        for error in validation_errors:
+            # Extract file path from error message like "YAML file 'path/to/file.yaml' ..."
+            match = re.search(r"YAML file '([^']+)'", error)
+            if match:
+                yaml_files_to_repair.add(match.group(1))
+
+        if not yaml_files_to_repair:
+            return None, "no_yaml_files_identified"
+
+        logger.info(f"[YamlRepair] Attempting repair of {len(yaml_files_to_repair)} YAML files: {yaml_files_to_repair}")
+
+        # Parse the patch to extract file contents
+        repaired_files = {}
+        for file_path in yaml_files_to_repair:
+            new_content = self._extract_new_content_from_patch(patch_content, file_path)
+            if not new_content:
+                logger.warning(f"[YamlRepair] Could not extract content for {file_path}")
+                continue
+
+            # Get old content if file exists
+            full_path = self.workspace / file_path
+            old_content = ""
+            if full_path.exists():
+                try:
+                    old_content = full_path.read_text(encoding='utf-8')
+                except Exception as e:
+                    logger.warning(f"[YamlRepair] Could not read existing {file_path}: {e}")
+
+            # Attempt repair
+            error_msg = f"YAML validation failed for {file_path}"
+            repaired, method = yaml_repair.attempt_repair(old_content, new_content, error_msg, file_path)
+
+            if repaired:
+                repaired_files[file_path] = (new_content, repaired, method)
+                # Save debug info
+                save_repair_debug(
+                    file_path=file_path,
+                    original=old_content,
+                    attempted=new_content,
+                    repaired=repaired,
+                    error=error_msg,
+                    method=method
+                )
+            else:
+                logger.warning(f"[YamlRepair] Could not repair {file_path}")
+                save_repair_debug(
+                    file_path=file_path,
+                    original=old_content,
+                    attempted=new_content,
+                    repaired=None,
+                    error=error_msg,
+                    method=method
+                )
+
+        if not repaired_files:
+            return None, "all_repairs_failed"
+
+        # Reconstruct the patch with repaired content
+        new_patch = patch_content
+        for file_path, (old_new, repaired_content, method) in repaired_files.items():
+            new_patch = self._replace_file_content_in_patch(new_patch, file_path, old_new, repaired_content)
+
+        repair_methods = "+".join(m for _, _, m in repaired_files.values())
+        return new_patch, f"yaml_repair:{repair_methods}"
+
+    def _extract_new_content_from_patch(self, patch_content: str, file_path: str) -> Optional[str]:
+        """Extract the new file content for a specific file from a patch."""
+        lines = patch_content.split('\n')
+        content_lines = []
+        in_target_file = False
+        in_hunk = False
+
+        for i, line in enumerate(lines):
+            if line.startswith('diff --git'):
+                # Check if this is our target file
+                if f'b/{file_path}' in line or line.endswith(f' b/{file_path}'):
+                    in_target_file = True
+                    in_hunk = False
+                    content_lines = []
+                else:
+                    # If we were in target file, we're done
+                    if in_target_file and content_lines:
+                        break
+                    in_target_file = False
+                continue
+
+            if not in_target_file:
+                continue
+
+            if line.startswith('@@'):
+                in_hunk = True
+                continue
+
+            if in_hunk:
+                # Collect added lines (strip the '+' prefix)
+                if line.startswith('+') and not line.startswith('+++'):
+                    content_lines.append(line[1:])
+                # For context lines in new file mode, also include them
+                elif line.startswith(' '):
+                    content_lines.append(line[1:])
+
+        if content_lines:
+            return '\n'.join(content_lines)
+        return None
+
+    def _replace_file_content_in_patch(
+        self,
+        patch_content: str,
+        file_path: str,
+        old_content: str,
+        new_content: str
+    ) -> str:
+        """Replace the content of a specific file in a patch with repaired content."""
+        lines = patch_content.split('\n')
+        result = []
+        in_target_file = False
+        skip_until_next_diff = False
+
+        i = 0
+        while i < len(lines):
+            line = lines[i]
+
+            if line.startswith('diff --git'):
+                # Check if this is our target file
+                if f'b/{file_path}' in line or line.endswith(f' b/{file_path}'):
+                    in_target_file = True
+                    skip_until_next_diff = False
+                    result.append(line)
+                    i += 1
+                    # Collect metadata lines until hunk
+                    while i < len(lines) and not lines[i].startswith('@@') and not lines[i].startswith('diff --git'):
+                        result.append(lines[i])
+                        i += 1
+                    # Now write the repaired content as a new hunk
+                    if i < len(lines) and lines[i].startswith('@@'):
+                        # Create proper hunk header for the repaired content
+                        new_lines = new_content.split('\n')
+                        result.append(f'@@ -0,0 +1,{len(new_lines)} @@')
+                        for content_line in new_lines:
+                            result.append(f'+{content_line}')
+                        # Skip the old hunk content
+                        i += 1
+                        while i < len(lines) and not lines[i].startswith('diff --git'):
+                            i += 1
+                    continue
+                else:
+                    in_target_file = False
+                    skip_until_next_diff = False
+
+            if not skip_until_next_diff:
+                result.append(line)
+            i += 1
+
+        return '\n'.join(result)
 
     def _sanitize_patch(self, patch_content: str) -> str:
         """
@@ -956,8 +1371,15 @@ class GovernedApplyPath:
             # Inside a hunk - content lines should start with +, -, or space
             if in_hunk:
                 # Already properly formatted
-                if line.startswith(('+', '-', ' ')) or line == '':
+                if line.startswith(('+', '-', ' ')):
                     sanitized.append(line)
+                elif line == '':
+                    # Blank lines inside hunks must carry a context prefix
+                    sanitized.append(' ')
+                    logger.debug("[PatchSanitize] Added context prefix to blank line inside hunk")
+                elif line.isspace():
+                    sanitized.append(' ')
+                    logger.debug("[PatchSanitize] Normalized whitespace-only line inside hunk")
                 # No newline at end of file marker
                 elif line.startswith('\\ No newline'):
                     sanitized.append(line)
@@ -1022,11 +1444,28 @@ class GovernedApplyPath:
             # Validate patch for common LLM truncation issues
             validation_errors = self._validate_patch_quality(patch_content)
             if validation_errors:
-                error_details = "\n".join(f"  - {err}" for err in validation_errors)
-                error_msg = f"Patch validation failed - LLM generated incomplete/truncated patch:\n{error_details}"
-                logger.error(error_msg)
-                logger.error(f"Patch content:\n{patch_content[:500]}...")
-                raise PatchApplyError(error_msg)
+                # Check if any errors are YAML-related - attempt repair
+                yaml_errors = [e for e in validation_errors if 'YAML' in e or 'yaml' in e]
+                if yaml_errors and full_file_mode:
+                    logger.info(f"[YamlRepair] Detected {len(yaml_errors)} YAML validation errors, attempting repair...")
+                    repaired_patch, repair_method = self._attempt_yaml_repair_in_patch(patch_content, validation_errors)
+                    if repaired_patch:
+                        logger.info(f"[YamlRepair] Repair succeeded via {repair_method}")
+                        patch_content = repaired_patch
+                        # Re-validate after repair
+                        validation_errors = self._validate_patch_quality(patch_content)
+                    # Pack schema validation for country packs (after structural validation passes)
+                    if not validation_errors:
+                        validation_errors.extend(self._validate_pack_schema_in_patch(patch_content))
+                        if not validation_errors:
+                            logger.info("[YamlRepair] Repaired patch passed validation")
+
+                if validation_errors:
+                    error_details = "\n".join(f"  - {err}" for err in validation_errors)
+                    error_msg = f"Patch validation failed - LLM generated incomplete/truncated patch:\n{error_details}"
+                    logger.error(error_msg)
+                    logger.error(f"Patch content:\n{patch_content[:500]}...")
+                    raise PatchApplyError(error_msg)
 
             # Write patch to a temporary file
             patch_file = self.workspace / "temp_patch.diff"

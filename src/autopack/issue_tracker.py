@@ -7,9 +7,12 @@ Per §5 of v7 playbook:
 """
 
 import json
+import logging
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional
+
+from pydantic import ValidationError
 
 from .config import settings
 from .issue_schemas import (
@@ -20,6 +23,9 @@ from .issue_schemas import (
     RunIssueIndex,
     RunIssueIndexEntry,
 )
+
+
+logger = logging.getLogger(__name__)
 
 
 class IssueTracker:
@@ -55,13 +61,28 @@ class IssueTracker:
         """Load phase issue file or create new one"""
         path = self.get_phase_issue_path(phase_index, phase_id)
         if path.exists():
-            return PhaseIssueFile.model_validate_json(path.read_text())
+            raw = path.read_text().strip()
+            if not raw:
+                logger.warning(
+                    "[IssueTracker] Empty issue file detected (%s); recreating defaults",
+                    path,
+                )
+                return PhaseIssueFile(phase_id=phase_id, tier_id="unknown")
+            try:
+                return PhaseIssueFile.model_validate_json(raw)
+            except ValidationError:
+                logger.exception(
+                    "[IssueTracker] Corrupt issue file (%s); recreating defaults",
+                    path,
+                )
+                return PhaseIssueFile(phase_id=phase_id, tier_id="unknown")
         return PhaseIssueFile(phase_id=phase_id, tier_id="unknown")
 
     def save_phase_issues(self, phase_index: int, issue_file: PhaseIssueFile) -> None:
         """Save phase issue file"""
         path = self.get_phase_issue_path(phase_index, issue_file.phase_id)
-        path.write_text(issue_file.model_dump_json(indent=2))
+        # Always write as UTF-8 so evidence strings with Unicode (e.g. arrows) do not fail on Windows code pages.
+        path.write_text(issue_file.model_dump_json(indent=2), encoding="utf-8")
 
     def add_phase_issue(
         self,
@@ -113,7 +134,7 @@ class IssueTracker:
     def save_run_issue_index(self, index: RunIssueIndex) -> None:
         """Save run issue index"""
         path = self.get_run_issue_index_path()
-        path.write_text(index.model_dump_json(indent=2))
+        path.write_text(index.model_dump_json(indent=2), encoding="utf-8")
 
     def update_run_issue_index(
         self, issue: Issue, phase_index: int, phase_id: str, tier_id: str
@@ -158,7 +179,7 @@ class IssueTracker:
     def save_project_backlog(self, backlog: ProjectIssueBacklog) -> None:
         """Save project issue backlog"""
         path = self.get_project_backlog_path()
-        path.write_text(backlog.model_dump_json(indent=2))
+        path.write_text(backlog.model_dump_json(indent=2), encoding="utf-8")
 
     def update_project_backlog(
         self, issue: Issue, tier_id: str, aging_config: Optional[Dict] = None

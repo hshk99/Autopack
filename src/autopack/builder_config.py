@@ -34,6 +34,9 @@ class BuilderOutputConfig:
     max_churn_percent_for_small_fix: int = 30
     max_shrinkage_percent: int = 60  # Global: reject >60% shrinkage
     max_growth_multiplier: float = 3.0  # Global: reject >3x growth
+    # Optional: disable small-fix churn and/or growth guard for certain file types (e.g. YAML packs)
+    disable_small_fix_churn_for_yaml: bool = True
+    disable_growth_guard_for_yaml: bool = True
     
     # Symbol validation
     symbol_validation_enabled: bool = True
@@ -66,6 +69,8 @@ class BuilderOutputConfig:
                 max_churn_percent_for_small_fix=builder_config.get("max_churn_percent_for_small_fix", 30),
                 max_shrinkage_percent=builder_config.get("max_shrinkage_percent", 60),
                 max_growth_multiplier=builder_config.get("max_growth_multiplier", 3.0),
+                disable_small_fix_churn_for_yaml=builder_config.get("disable_small_fix_churn_for_yaml", True),
+                disable_growth_guard_for_yaml=builder_config.get("disable_growth_guard_for_yaml", True),
                 symbol_validation_enabled=builder_config.get("symbol_validation", {}).get("enabled", True),
                 strict_for_small_fixes=builder_config.get("symbol_validation", {}).get("strict_for_small_fixes", True),
                 always_preserve=builder_config.get("symbol_validation", {}).get("always_preserve", []),

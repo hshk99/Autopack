@@ -17,7 +17,69 @@ Single source of truth for all errors, fixes, prevention rules, and troubleshoot
 - Fixed frontend phase prompt blowups: `_load_scoped_context` now ignores `.venv`, `node_modules`, `dist`, `build`, and `__pycache__` directories and whitelists web extensions (`.ts/.tsx/.js/.vue/.css`). This prevents 200k-token prompts when read-only context includes backend virtualenvs.
 - Resolved `ModuleNotFoundError: No module named 'src'` during Builder runs by switching structured-edit imports from `src.autopack.*` to `autopack.*` (affects `anthropic_clients.py`, `llm_client.py`).
 - Docker deployment CI repro (fileorg-docker-build-20251204-194513): backend pytest suite passes locally (`python -m pytest -vv`, log in `.autonomous_runs/fileorg-docker-build-20251204-194513/ci/backend_pytest.log`). Quality gate “Unknown error” stems from CI harness, not failing tests; next step is wiring Docker-specific checks or marking pytest as the CI signal.
+- UK country-pack reruns on 2025-12-05 (e.g. `fileorg-country-uk-20251205-140835`, `fileorg-country-uk-20251205-144540`) now clear the JSON/diff/Unicode issues but consistently hit the **growth guard** on `immigration_uk.yaml` (`suspicious_growth` at ~3.4–3.8x lines). This is expected given the file is being expanded from a short template into a full pack; long-term fix is schema-based generation / repair, short-term fix is to respect an explicit `allow_mass_addition` safety flag on pack phases.
+- IssueTracker was updated to tolerate **empty or corrupt phase issue files** by recreating defaults, but Windows console encoding (`cp1252`) can still raise `UnicodeEncodeError` when evidence or error messages contain arrows (`→`) or other non-ASCII glyphs. Builder guardrail issues for UK runs currently log a warning and may fail to persist; we need to normalize log text or force UTF‑8 writes for issue JSON to make these durable.
+- Fresh UK runs created after the API restart no longer suffer `/builder_result` 500s, but `run_summary.md` for recent country runs still shows `RUN_CREATED` even when the only phase is `FAILED`. This indicates the summary rewrite hook is not being triggered reliably at the end of short, single-phase runs and needs follow-up so `DONE_*` states are reflected on disk.
 - Implemented per-phase CI specs (`phase["ci"]`) so Quality Gate receives explicit status/message pairs. Docker + country-pack runs now execute `python -m pytest` inside `.autonomous_runs/file-organizer-app-v1/fileorganizer/backend`, log to `ci/backend_pytest.log`, and expose human-readable failure reasons instead of “Unknown error”.
+- UK immigration pack YAML (`.autonomous_runs/.../packs/immigration_uk.yaml`) arrived with duplicated payload plus `*** End Patch***` artifacts, causing `yaml.scanner.ScannerError` at line 261. Rebuilt the file from the vetted template and re-validated all six country packs via `yaml.safe_load` to unblock the UK run.
+- Fresh UK run `fileorg-country-uk-20251204-225723` failed immediately with `churn_limit_exceeded: 35.1% (small_fix limit 30%)` on `packs/tax_uk.yaml`. Subsequent run `fileorg-country-uk-20251204-231207` hit the same guard (`92.4%` churn on `immigration_uk.yaml`), confirming pack phases were being mis-classified as `small_fix` and blocked by the 30% churn cap. `scripts/create_fileorg_country_runs.py` now sets `complexity: "high"` for all country-pack phases so `_classify_change_type()` treats them as large refactors (small-fix churn guard disabled) and adds a non-persisted `change_size: "large_refactor"` hint for future schema extensions.
+- Later UK runs (`fileorg-country-uk-20251205-000537`, `fileorg-country-uk-20251205-001903`) confirm the small-fix churn guard is no longer the blocker: failures now surface as (1) `suspicious_shrinkage` on `immigration_uk.yaml` when the LLM emits a 4‑line stub and (2) `PATCH_FAILED` when the generated YAML starting at `version: "1.1.0"` is structurally incomplete. `governed_apply`’s YAML validator correctly rejects these patches before they touch disk, and the main remaining limitation here is model output quality, not the control-plane.
+
+---
+
+## Open Issues (Country Pack / Doctor / Telemetry)
+
+- **OI-UK-001 – Doctor budgets tracked by phase_id across runs**
+  - **Symptom**: New UK runs log `Doctor not invoking: per-phase limit reached (2/2)` and `Max replans (1) reached for fileorg-p2-country-uk` even after YAML/truncation bugs are fixed.
+  - **Root Cause**: Doctor/replan limits are keyed only by `phase_id` (`fileorg-p2-country-uk`), so historical failures from older runs exhaust the budget for all future runs that reuse the same phase id.
+  - **Planned Fix**: Move Doctor/replan accounting to `(run_id, phase_id)` (or reset counters per run) in `autonomous_executor.py` so new runs start with fresh budgets while still logging long-term patterns separately.
+
+- **OI-UK-002 – Error type mislabeling for churn-limit failures**
+  - **Symptom**: Churn-limit errors (`churn_limit_exceeded: ...`) are surfaced in learning/replan telemetry as `auditor_reject`, even though the Auditor was never invoked.
+  - **Root Cause**: Outcome mapping in `autonomous_executor._map_phase_status_to_outcome()` and downstream learning code uses a coarse default of `auditor_reject` for most Builder failures.
+  - **Planned Fix**: Introduce a distinct outcome/error_type such as `builder_churn_limit_exceeded` and plumb it through `llm_service`, `model_selection`, and the learning pipeline so we can distinguish “Auditor rejected patch” from “Builder guardrail blocked patch generation”.
+
+- **OI-UK-003 – Run summaries not reflecting final FAILED state for short runs**
+  - **Symptom**: `run_summary.md` for `fileorg-country-uk-20251204-225723` / `...231207` / `...232618` shows `State: RUN_CREATED` with empty Issues, despite the runs failing (or being interrupted) in the logs.
+  - **Root Cause**: The archive consolidator only writes `run_summary.md` at run creation and never updates it when the run completes or fails.
+  - **Planned Fix**: Update `_log_run_summary()` in `autonomous_executor.py` (or the consolidator) to re-write `run_summary.md` at the end of a run with the final `RunState`, per-phase outcomes, and a short failure synopsis.
+
+- **OI-UK-004 – No structured issues for Builder guardrail failures**
+  - **Symptom**: `issues/` directories for the recent UK runs are empty; there are no `*_issues.json` entries describing churn-limit failures or Doctor budget exhaustion.
+  - **Root Cause**: `IssueTracker` is only invoked from API endpoints and Auditor results; Builder-only guardrail failures (e.g., churn, truncation, suspicious_growth) never create structured phase issues.
+  - **Planned Fix**: When `AnthropicBuilderClient` returns a failed `BuilderResult` with a guardrail error (e.g., `churn_limit_exceeded`, `suspicious_growth`, `suspicious_shrinkage`), have the executor record a `builder_guardrail_failure` issue via `IssueTracker` so future analysis can query these failures without scraping logs. Ensure IssueTracker writes use UTF‑8-safe output so Unicode in evidence strings cannot corrupt the issue files.
+
+### Additional Open Issues (2025-12-05 – UK Country Packs)
+
+- **OI-UK-005 – Growth guard blocks legitimate pack expansion**
+  - **Symptom**: UK pack runs where the Builder attempts to fully flesh out `immigration_uk.yaml` fail with `suspicious_growth` (e.g. 132 → 474/492 lines, 3.4–3.8x, limit 3.0x) before Auditor/CI can run.
+  - **Root Cause**: Global growth guard treats >3x line growth as suspicious duplication for all files, but country-pack YAMLs legitimately need to grow by several hundred lines from an initial stub. Earlier runs did not carry an override flag; later runs set `allow_mass_addition`, but the end-to-end plumbing and schema for safe large additions are not yet complete.
+  - **Current Status**: `scripts/create_fileorg_country_runs.py` now sets `allow_mass_addition: true` for all country-pack phases, and growth events are logged via `file_size_telemetry`. Longer-term fix is schema-driven YAML generation + repair so we can validate/merge large expansions instead of relying on a fixed growth multiplier.
+
+- **OI-UK-006 – IssueTracker encoding / builder_guardrail evidence persistence**
+  - **Symptom**: During UK runs (e.g. `fileorg-country-uk-20251205-144540`), the executor logs `[IssueTracker] Failed to record builder guardrail issue: 'charmap' codec can't encode character '\\u2192'...` when attempting to save a `builder_guardrail` issue for `suspicious_growth`.
+  - **Root Cause**: Issue files are written through Windows’ default code page, and evidence strings include characters like `→` from guardrail messages, causing `UnicodeEncodeError` on write. Previously, empty issue files also caused Pydantic `json_invalid` errors on load.
+  - **Current Status**: `IssueTracker.load_phase_issues` now defends against empty/corrupt JSON by recreating defaults, but the write path still needs to normalize or force UTF‑8 so Unicode evidence is always serializable. Until then, some builder guardrail events will only be visible in logs, not in `*_issues.json`.
+
+- **OI-UK-007 – Run summaries not updated for country-pack runs**
+  - **Symptom**: `run_summary.md` for the latest UK runs (including those created after the API restart) continues to show `State: RUN_CREATED` with empty issues, even though the single phase is `FAILED` and max attempts were exhausted.
+  - **Root Cause**: The logic that rewrites `run_summary.md` at the end of a run is either not being called for short, single-phase runs or is writing to the wrong path. As a result, the file remains in its creation-time state and does not reflect terminal outcomes for country-pack runs.
+  - **Planned Fix**: Audit the `update_phase_status` / run-summary rewrite path in `main.py` and ensure it triggers whenever all phases reach a terminal state (including single-phase runs). Consider adding a simple `/version` or `/health` endpoint exposing the running SHA so the executor can verify the API binary before starting runs.
+
+### New Workstream: Pack Content Quality (Grounded + Validated)
+
+- **Goal**: Move pack authoring toward “as autonomous as practical” by combining enforcement (schema), repair, and grounding:
+  1. **Pack schema validator** in `governed_apply` after YAML parse (required keys, min categories/checklists, no duplicates/empties). Reject or repair before disk.
+  2. **Prompt contract for country packs**: inject a PACK SCHEMA CONTRACT into Builder prompts (UK/CA/AU), forbid header-only/stub outputs, require full keys, and instruct “leave unchanged if unsure” rather than emitting partial YAML.
+  3. **Grounded generation**: feed 3–5 curated research snippets (per country/domain) into the prompt; require citations in reasoning to reduce hallucination/stubs.
+  4. **Repair loop**: keep `JsonRepairHelper`/`YamlRepairHelper`; add a pack-aware repair path that can fill missing required sections from schema defaults or the prior validated version. Only accept if it passes the schema validator.
+  5. **Optional risk reducer**: split tax vs immigration pack generations to shrink output size and truncation risk.
+
+- **Rationale**: This layers enforcement + repair + grounding, reducing human intervention for country packs while keeping safety gates intact.
+
+**Update (Implemented)**:
+- Added **pack schema validation** in `governed_apply.py` for pack YAMLs (required keys, minimum category/checklist structure, no duplicates/empties). It runs after YAML validation/repair and will reject patches that don’t meet the schema.
+- Added **PACK SCHEMA CONTRACT** to Builder prompts for country-pack phases in `anthropic_clients.py`, instructing the model to produce full, schema-compliant YAML (or leave unchanged if unsure) and to ground on provided research context.
 
 ---
 

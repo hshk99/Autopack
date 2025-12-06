@@ -962,7 +962,12 @@ class GovernedApplyPath:
         errors: List[str] = []
 
         try:
-            data = yaml.safe_load(content)
+            content_to_load = content
+            stripped = content.lstrip()
+            # Allow leading comments without explicit document start by prepending '---'
+            if stripped.startswith("#") and not stripped.startswith("---"):
+                content_to_load = "---\n" + content
+            data = yaml.safe_load(content_to_load)
         except Exception as e:
             errors.append(f"Pack schema: YAML parse failed for {file_path}: {e}")
             return errors
@@ -1127,6 +1132,10 @@ class GovernedApplyPath:
         try:
             import yaml
             content = '\n'.join(content_lines)
+            # Lenient handling: if YAML starts with comments and no document marker, prepend '---'
+            stripped = content.lstrip()
+            if stripped.startswith("#") and not stripped.startswith("---"):
+                content = "---\n" + content
             yaml.safe_load(content)
         except yaml.YAMLError as e:
             # Only report if it looks like truncation (not just any YAML error)

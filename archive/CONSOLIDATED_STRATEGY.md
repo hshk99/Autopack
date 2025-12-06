@@ -1,6 +1,6 @@
 # Consolidated Strategy Reference
 
-**Last Updated**: 2025-11-30
+**Last Updated**: 2025-12-04
 **Auto-generated** by scripts/consolidate_docs.py
 
 ## Contents
@@ -9,6 +9,7 @@
 - [CRITICAL_BUSINESS_ANALYSIS_UPDATE](#critical-business-analysis-update)
 - [GPT_STRATEGIC_ANALYSIS_UNIVERSAL](#gpt-strategic-analysis-universal)
 - [MARKET_RESEARCH_RIGOROUS_UNIVERSAL](#market-research-rigorous-universal)
+- [MODEL_OPTIMIZATION_ANALYSIS&AUTOMATION](#model-optimization-analysis&automation)
 - [PROJECT_INIT_AUTOMATION](#project-init-automation)
 
 ---
@@ -2316,6 +2317,640 @@ List all sources with links:
 - ❌ Ignoring capital requirements (underestimates risk)
 
 **This template is your truth-serum. Use it to prevent building unprofitable products.**
+
+
+---
+
+## MODEL_OPTIMIZATION_ANALYSIS&AUTOMATION
+
+**Source**: [MODEL_OPTIMIZATION_ANALYSIS&AUTOMATION.md](C:\dev\Autopack\archive\superseded\MODEL_OPTIMIZATION_ANALYSIS&AUTOMATION.md)
+**Last Modified**: 2025-11-30
+
+Below is the full markdown document you asked for.
+Save it as e.g. `MODEL_ESCALATION_AND_DYNAMIC_OPTIMIZATION_PLAN.md` and feed it to Cursor.
+
+---
+
+# Model Escalation & Dynamic Optimization Plan for Autopack
+
+Date: 2025-11-30
+Author: GPT-5.1 Pro (for Harry)
+
+---
+
+## 0. Purpose and Context
+
+This document answers two related questions:
+
+1. **GLM‑4.5 as escalation_builder for low complexity**
+   How and where to use GLM‑4.5 in the model stack, especially as an escalation model for low‑complexity builder tasks, with cost–quality trade‑offs.
+
+2. **Automatic escalation + dynamic cost‑effectiveness system**
+   How to design and implement:
+
+   * Auto‑escalation from **cheap → expensive models** *within a tier*.
+   * Auto‑escalation from **low → medium → high complexity tiers** when a task repeatedly fails.
+   * A **re‑evaluation system** that periodically reassesses which models are most cost‑effective, using actual Autopack run data + external benchmarks.
+
+This is written so that **Cursor/Autopack** can implement it directly inside the `c:/dev/Autopack` repo.
+
+You already have:
+
+* `config/models.yaml` with complexity models, catas, aliases (including `glm: "glm-4.5-20250101"`). yaml` with cost per 1K tokens per model/provider. 
+* `MODEL_OPTIMIZATION_ANALYSIS.md` and `MODEL_STACK_RECOMMENDATIONS_V2.md` that define themapping for builder/auditor roles.
+
+This plan **extends** that setup with explicit escalation logic and a reusable optimization script.
+
+---
+
+## 1. GLM‑4.5 as Low‑Complexity Escalation Builder
+
+### 1.1 Current picture
+
+From your optimization analysis:
+
+* Low‑complexity builder has been using **frontier‑level models** (Claude Sonnet 4.5) for small coich is clearly **over‑provisioned**.
+* A real backend test‑fix run showed that using Sonnet 4.5 for low‑complexity tasks cost ≈$0.095–0.115, while a cheapee the same work for ≈$0.008 (≈90–93% savings). 
+
+External data on GLM‑4.5:
+
+* GLM‑4.5 is a 355B‑parameter model optimized for **reasoning, coding, and agentic tasks**, with performance com([Hugging Face][1])hmarks.
+* Hosted pricing is typically around **$0.40–0.50 / 1M input tokens** and **$1.60–2.00 / 1M output tokens**, much cheaper than G([LLM Stats][2])than Claude Sonnet / GPT‑5.
+
+### 1.2 Recommendation: GLM‑4.5 as B‑L escalation_builder
+
+Given the above, GLM‑4.5 is a **strong candidate** for:
+
+* **Secondary / escalation builder for Low complexity (B‑L)**
+
+  * **Primary B‑L builder**: ultra‑cheap, high‑throughput model (e.g. Gemini 2.x Flash or GPT‑4o‑mini / GPT‑4.1‑mini) for trivial edits.
+  * **Escalation B‑L builder**: GLM‑4.5, when the cheap model fails a couple of times (auditor rejections, CI failures).
+  * Only if GLM‑4.5 also struggles should you escalate to Sonnet 4.5 or GPT‑5.
+
+Position within the stack (respecting your constraints): **: Gemini 2.5 Flash or GPT‑4o‑mini (cheapest “good enough” coder).
+
+* **B‑L *.
+* **B‑M primary**: GPT‑4.5 (you explicitly accept this cost for medium complexity).
+* **B‑H primary**: Claude Sonnet 4.5, with GPT‑5 reserved as last‑resort fallback only after repeated failur([LLM Stats][2])**: huge reduction vs Sonnet/GPT‑5 while still significantly stronger than 4o‑mini / small Gemini models.
+* **Middle gear**: you go **$0.15/M → ~$0.4–0.5/M → $3–9/M**, not directly from cheap mini to frontier.
+* Your o0%+ potential cost savings when swapping Sonnet 4.5 to GLM‑4.5 or similar for low‑complexity tasks.
+
+Risk/mitigation:
+
+* GLM providers differ in stability and latency; occasional Chinese‑localized responses are possible. Mitigate by:
+
+  * Keeping **auditor models** on OpenAI/Anthropic.
+  * Using GLM in **B‑L escalation only**, not for high‑risk categories.
+
+---
+
+## 2. Auto‑Escalation Strategy (Models and Complexity Tiers)
+
+You want:
+
+* **Within a tier**: start with the cheapest plausible model, then automatically escalate to stronger/more expensive models after N failures.
+* **Across tiers**: automatically escalate a phase from Low → Medium → High if repeated failures suggest the original complexity label was wrong.
+
+### 2.1 Concepts
+
+Two escalation dimensions:
+
+1. **Intra‑tier model escalation**
+
+   * Given `(role, tier)`, you define an ordered list of models `[cheap, mid, strong]`.
+   * Attempts 0–1 use `cheap`, attempts 2–3 use `mid` (e.g. GLM‑4.5), attempts ≥4 use `strong`.
+
+2. **Cross‑tier complexity escalation**
+
+   * Each phase has a starting complexity ld failures occur (auditor rejects, CI fails, patch application errors), bump complexity:
+
+     * L → M after N failures.
+     * M → H after another N failures.
+   * Once escalated, **never downgrade** for that phase.
+
+Constraints:
+
+* **High‑risk categories** (security, auth, schema, external feature reuse) should start at higher tiers and never be silently downgraded. Your `category_models` and high‑risk overrides already capture this principle.
+* To avoid token blow‑ups, enforce `max_attempts_per_phase` and budgets (you already track pricing and budgets). 
+
+### 2.2 Proposed config extension (models.yaml)
+
+Add new sections to `config/models.yaml`:
+
+```yaml
+# New: per-tier escalation chains (cheapest -> strongest)
+escalation_chains:
+  builder:
+    low:
+      models: ["gemini-2.5-flash", "glm-4.5-20250101", "claude-sonnet-4-5"]
+    medium:
+      models: ["gpt-4.5", "claude-sonnet-4-5", "gpt-5"]
+    high:
+      models: ["claude-sonnet-4-5", "gpt-5"]
+
+  auditor:
+    low:
+      models: ["gpt-4o-mini", "gemini-2.5-flash-lite"]
+    medium:
+      models: ["gemini-2.5-flash", "glm-4.5-20250101", "gpt-4.1"]
+    high:
+      models: ["claude-sonnet-4-5", "gpt-5"]
+
+# New: cross-tier escalation thresholds
+complexity_escalation:
+  enabled: true
+  thresholds:
+    low_to_medium: 2   # 2 failed attempts in Low -> escalate to Medium
+    medium_to_high: 2  # 2 failed attempts in Medium -> escalate to High
+  max_attempts_per_phase: 5  # hard cap
+```
+
+Notes:
+
+* In each `models:` list, **first** is cheapest, **last** is strongest/most expensive.
+* For B‑L, GLM‑4.5 is explicitly in the **middle** of the chain.
+* Use your existing `model_aliases` for `glm-4.5-20250101`, `claude-sonnet`, etc. 
+
+### 2.3 Runtime algorithm (pseudo‑code)
+
+Implement a central selector (e.g. in `src/autopack/llm_client.py` or a new `model_selection.py`):
+
+```python
+def select_model_for_attempt(role, complexity, phase_id, task_category, attempt_index, phase_history):
+    """
+    role: 'builder' or 'auditor'
+    complexity: 'low' | 'medium' | 'high'
+    phase_history: recent outcomes (auditor verdicts, CI results, patch failures)
+    attempt_index: 0-based index of current attempt for this phase
+    """
+
+    # 1) High-risk categories use category overrides and do NOT downgrade
+    if task_category in HIGH_RISK_CATEGORIES:
+        return category_override_model(role, task_category)
+
+    # 2) Optionally escalate complexity based on repeated failure
+    eff_complexity = maybe_escalate_complexity(complexity, phase_history)
+
+    # 3) Intra-tier escalation chain
+    chain = config.escalation_chains[role][eff_complexity].models
+
+    # 4) Map attempt_index to index in chain
+    if attempt_index <= 1:
+        idx = 0                      # cheap model
+    elif attempt_index <= 3 and len(chain) > 1:
+        idx = 1                      # mid-tier (e.g. GLM-4.5)
+    else:
+        idx = len(chain) - 1         # strongest model
+
+    return chain[idx]
+```
+
+`maybe_escalate_complexity`:
+
+```python
+def maybe_escalate_complexity(current_complexity, phase_history):
+    if not config.complexity_escalation.enabled:
+        return current_complexity
+
+    failures = phase_history.count_recent_failures()
+
+    if current_complexity == "low" and failures >= cfg.low_to_medium:
+        return "medium"
+    if current_complexity == "medium" and failures >= cfg.medium_to_high:
+        return "high"
+    return current_complexity
+```
+
+Failure criteria (for counting):
+
+* Auditor **hard rejects** with severity ≥ “medium”.
+* CI/test failures clearly attributable to patch quality, not infra.
+* Patch application failures (e.g. corrupt diff/patch errors).
+
+This gives you:
+
+* Cheap model first; GLM‑4.5 as **escalation** for B‑L; Sonnet/GPT‑5 only when really needed.
+* Automatic cross‑tier escalation when a “Low” incident is clearly behaving like a Medium/High one.
+
+---
+
+## 3. Observability: Measuring Effectiveness
+
+You asked explicitly to “observe its behaviour and examine the effectiveness of this system based on total token usage.” That requires proper logging and metrics.
+
+### 3.1 What to log per phase
+
+For every phase in every run, record:
+
+* `run_id`, `phase_id`, `timestamp`.
+* `initial_complexity` (L/M/H) and `final_complexity`.
+* For each attempt:
+
+  * `attempt_index`.
+  * `role` (`builder` or `auditor`).
+  * `task_category`.
+    `tokens_prompt`, `tokens_completion`.
+  * `cost_usd` (derived from `pricing.yaml`). 
+  * `outcome` (e.g., `success`, `auditor_reject`, `ci_fail`, `infra_error`).
+* Overall:
+
+  * `total_attempts`.
+  * `final_status` (e.g., `success`, `failed_budget`, `failed_max_attempts`).
+
+Store this in a machine‑readable format, e.g.:
+
+* `logs/autopack/llm_calls_YYYYMMDD.jsonl`
+
+### 3.2 KPIs to evaluate the system
+
+For each role and complexity tier:
+
+* **Cost per successful phase**:
+  `cost_per_success[role][tier] = total_cost / successful_phases`.
+
+* **Success rate**:
+  `success_rate[role][tier] = successful_phases / total_phases`.
+
+* **Average attempts per successful phase**:
+  `avg_attempts[role][tier]`.
+
+* **Escalation frequency**:
+
+  * L→M, M→H rates.
+  * How often B‑L escalates from cheap → GLM → Sonnet.
+
+You can then compare:
+
+* Before vs after introducing GLM‑4.5 as escalation builder.
+* Different thresholds (e.g. low_to_medium = 1 vs 2) by changing config and re‑running a batch.
+
+---
+
+## 4. Dynamic Model Cost‑Effectiveness System
+
+You also want a **scripted system** that periodically re‑evaluates cost‑effectiveness and model choices without you typing a longe idea is to build a “self‑optimizer” script that:
+
+* Uses **real logs** (tokens, costs, success/failure) as data.
+* Wraps that into a structured prompt similar to `MODEL_OPTIMIZATION_ANALYSIS.md`. tier LLM** (GPT‑5 or Opus 4.5) exactly for this analysis.
+* Writes aml` changes for human review.
+
+### 4.1 High‑level design
+
+Create a script:
+
+* `scripts/model_stack_self_optimizer.py`
+
+Responsibilitiet state:**
+
+* Read:
+
+  * `config/models.yaml`. 
+  * `config/pricing.yaml`. 
+* Parse recent run logs:
+
+  * JSONL logs from `logs/autopack/*`.
+  * Optionally, `RUN_ANALYSIS_*.md` and `backend_fix_run.log` for extra context.
+
+2. **Aggregate stats:**
+
+   For each `(role, tier, model)`:
+
+   * Total tokens (in/out).
+   * Total cost.
+   * Count of successful phases and failed phases.
+   * Average attempts per phase.
+
+3. **Build optimization prompt:**
+
+   * Re‑use `MODEL_OPTIMIZATION_ANALYSIS.md` as a base template, but insert:
+
+     * Current mapping of models for B‑L/B‑M/B‑H and A‑L/A‑M/A‑H. 
+     * Real aggregated stats (cost, success rate, attempts).
+     * Known provider pricing and quotas.
+
+4. **Call latest frontier LLM:**
+
+   * This is a low‑frequency operation; it can use GPT‑5/Opus even if they’re too expensive for normal Autopack phases.
+   * Allow `--optimizer-model` flag so you can pick the LLM at run time.
+
+5. **Parse and save outputs:**
+
+   * Write a dated report: `MODEL_STACK_RECOMMENDATIONS_YYYYMMDD.md`.
+   * Write proposed config: `config/models.proposed.YYYYMMDD.yaml`.
+   * Do **not** auto‑apply changes.
+
+6. **Human review:**
+
+   * You, or a future “Config Approver” agent, diff `models.yaml` vs `models.proposed.*.yaml` and apply changes via git.
+
+### 4.2 Example pseudo‑code
+
+```python
+def collect_run_stats(log_dir):
+    # Read all JSONL logs under log_dir and aggregate into a stats structure
+    ...
+
+def main():
+    models_cfg = load_yaml("config/models.yaml")
+    pricing_cfg = load_yaml("config/pricing.yaml")
+    run_stats  = collect_run_stats("logs/autopack")
+
+    context = {
+        "models_yaml": models_cfg,
+        "pricing_yaml": pricing_cfg,
+        "run_stats": run_stats,
+        "previous_reports": load_previous_reports("MODEL_STACK_RECOMMENDATIONS_*.md"),
+    }
+
+    prompt = render_prompt_from_template("MODEL_OPTIMIZATION_ANALYSIS.md", context)
+
+    optimizer_model = os.getenv("OPTIMIZER_MODEL", "gpt-5")
+    response = call_frontier_llm(model=optimizer_model, prompt=prompt)
+
+    recommendations_md, proposed_models_yaml = parse_optimizer_response(response)
+
+    today = datetime.date.today().strftime("%Y%m%d")
+    write_file(f"MODEL_STACK_RECOMMENDATIONS_{today}.md", recommendations_md)
+    write_file(f"config/models.proposed.{today}.yaml", proposed_models_yaml)
+
+    print("Wrote optimization report and proposed model config. Please review and apply manually.")
+```
+
+This script is run occasionally, e.g.:
+
+```bash
+python scripts/model_stack_self_optimizer.py --optimizer-model gpt-5
+```
+
+or via Cursor with a prompt.
+
+---
+
+## 5. Testing the Escalation + Optimization System
+
+### 5.1 Unit tests (no real LLM calls)
+
+Add tests like `tests/test_model_escalation.py`:
+
+* **Model selection**:
+
+  * Given a specific `escalation_chains` config, assert that:
+
+    * Attempts 0–1 → cheap model.
+    * Attempts 2–3 → GLM‑4.5 for B‑L.
+    * Attempts ≥4 → Sonnet/GPT‑5.
+
+* **Complexity escalation**:
+
+  * Given a fake `phase_history` with N failures, assert that:
+
+    * Low escalates to Medium after `low_to_medium` failures.
+    * Medium escalates to High after `medium_to_high` failures.
+    * No downgrade once escalated.
+
+* **High‑risk handling**:
+
+  * When `task_category` is one of the high‑risk categories, ensure `select_model_for_attempt` returns the configured high‑risk override and ignores escalation.
+
+Use mocked configs so tests don’t depend on the real YAML files.
+
+### 5.2 Integration tests with fake LLM client
+
+Add a **FakeLLMClient** in `src/autopack/llm_client.py` (or tests) that:
+
+* Returns deterministic responses by model name.
+* Can be configured to “fail” (auditor reject / CI fail) for the first few attempts.
+
+Integration test `tests/test_escalation_flow.py`:
+
+1. Simulate a B‑L phase with:
+
+   * Attempt 0: cheap model → forced failure.
+   * Attempt 1: cheap model → forced failure.
+   * Attempt 2: should switch to GLM‑4.5.
+   * Further failures → eventual use of Sonnet/GPT‑5 and/or complexity escalation.
+
+2. Assert:
+
+   * The sequence of models is: `[cheap, cheap, GLM‑4.5, Sonnet or GPT‑5]`.
+   * Complexity label changes from L → M when thresholds are hit.
+   * `max_attempts_per_phase` is enforced.
+
+### 5.3 End‑to‑end smoke test
+
+Create a toy repository and run a short Autopack run:
+
+* Intentionally label some non‑trivial tasks as Low complexity.
+* Verify via logs:
+
+  * That B‑L starts with cheap model, escalates to GLM‑4.5, and only then to Sonnet/GPT‑5.
+  * That some phases escalate from Low → Medium or Medium → High.
+  * That total **cost per successful phase** is lower than a baseline run where everything uses Sonnet/GPT‑5.
+
+---
+
+## 6. Cursor Prompt – Implement Escalation + Dynamic Optimization
+
+You can give this prompt to Cursor inside `c:/dev/Autopack` to implement the whole system.
+
+````markdown
+You are working in the repository at `c:/dev/Autopack`.
+
+Your task is to implement **model escalation and dynamic model optimization** as described in `MODEL_ESCALATION_AND_DYNAMIC_OPTIMIZATION_PLAN.md` (attached in this chat).
+
+---
+
+## 1. Understand the Current State
+
+1. Open and read these files:
+
+   - `config/models.yaml`
+   - `config/pricing.yaml`
+   - `MODEL_OPTIMIZATION_ANALYSIS.md`
+   - `MODEL_STACK_RECOMMENDATIONS_V2.md`
+   - `src/autopack/llm_client.py`
+   - Any existing assessment docs such as `LLM_MODEL_SELECTION_ASSESSMENT.md`
+   - Recent run analysis files and logs (e.g. `RUN_ANALYSIS_*.md`, `backend_fix_run.log`, `logs/autopack/*`)
+
+2. For your own reference (in comments / scratch), summarize:
+
+   - How `complexity_models`, `category_models`, `fallback_strategy`, and `provider_quotas` work today.
+   - Where runtime model selection actually happens (which functions call which models).
+
+Do NOT change behavior yet; just understand.
+
+---
+
+## 2. Implement Intra-Tier Escalation Chains (cheap -> strong)
+
+Goal: Within each complexity tier, start with a cheap model and escalate to stronger models after repeated failures.
+
+1. Extend `config/models.yaml` with a new `escalation_chains` section:
+
+   ```yaml
+   escalation_chains:
+     builder:
+       low:
+         models: ["gemini-2.5-flash", "glm-4.5-20250101", "claude-sonnet-4-5"]
+       medium:
+         models: ["gpt-4.5", "claude-sonnet-4-5", "gpt-5"]
+       high:
+         models: ["claude-sonnet-4-5", "gpt-5"]
+
+     auditor:
+       low:
+         models: ["gpt-4o-mini", "gemini-2.5-flash-lite"]
+       medium:
+         models: ["gemini-2.5-flash", "glm-4.5-20250101", "gpt-4.1"]
+       high:
+         models: ["claude-sonnet-4-5", "gpt-5"]
+````
+
+* Use existing model aliases where possible.
+* Ensure the order is **cheapest first, strongest last**.
+* Confirm `glm-4.5-20250101` is exposed via `model_aliases` (it already is; keep it consistent).
+
+2. In `src/autopack/llm_client.py` (or a new module `src/autopack/model_selection.py`), implement:
+
+   ```python
+   def select_model_for_attempt(role, complexity, task_category, phase_history, attempt_index) -> str:
+       ...
+   ```
+
+   Behavior:
+
+   * If `task_category` is high-risk (e.g. `external_feature_reuse`, `security_auth_change`, `schema_contract_change`, etc.), **bypass escalation chains** and use the existing high-risk override logic.
+   * Otherwise:
+
+     * Optionally escalate complexity (see section 3).
+     * Look up `escalation_chains[role][effective_complexity].models`.
+     * Map `attempt_index`:
+
+       * Attempts 0–1 -> index 0 (cheap model).
+       * Attempts 2–3 -> index 1 (middle model, e.g. GLM-4.5 for B-L).
+       * Attempts >= 4 -> last index (strongest model).
+   * Return the chosen model name.
+
+3. Wire `select_model_for_attempt` into the builder and auditor flows so that model selection no longer uses hard-coded `complexity_models` lookups only, but goes through this function.
+
+---
+
+## 3. Implement Cross-Tier Complexity Escalation
+
+1. Extend `config/models.yaml` with:
+
+   ```yaml
+   complexity_escalation:
+     enabled: true
+     thresholds:
+       low_to_medium: 2
+       medium_to_high: 2
+     max_attempts_per_phase: 5
+   ```
+
+2. Implement:
+
+   ```python
+   def maybe_escalate_complexity(current_complexity, phase_history) -> str:
+       # Use the number of recent failures (auditor rejects, CI fails, patch failures)
+       # to decide whether to escalate low->medium or medium->high.
+   ```
+
+3. Integrate `maybe_escalate_complexity` inside `select_model_for_attempt` so the effective complexity can increase based on failures, but **never decreases** once escalated.
+
+4. Ensure high-risk categories start at high complexity (or their category-specific settings) and NEVER downgrade.
+
+---
+
+## 4. Logging and Metrics
+
+1. Add structured logging for each LLM call (builder and auditor):
+
+   * Model name.
+   * Role.
+   * Complexity at time of call.
+   * Attempt index.
+   * Task category.
+   * Tokens in/out.
+   * Derived cost using `config/pricing.yaml`.
+   * Outcome: `success`, `auditor_reject`, `ci_fail`, `infra_error`, etc.
+
+2. Store logs in machine-readable format under `logs/autopack/`, e.g.:
+
+   * `logs/autopack/llm_calls_YYYYMMDD.jsonl`.
+
+3. Reuse any existing helpers for logging if present; extend them rather than duplicating.
+
+---
+
+## 5. Implement model_stack_self_optimizer.py
+
+1. Create `scripts/model_stack_self_optimizer.py`.
+
+2. Responsibilities:
+
+   * Load:
+
+     * `config/models.yaml`
+     * `config/pricing.yaml`
+     * Recent LLM call logs from `logs/autopack/*`
+   * Aggregate stats per `(role, complexity, model)`:
+
+     * Total tokens and total cost.
+     * Successful vs failed phases.
+     * Average attempts per phase.
+   * Render a prompt based on `MODEL_OPTIMIZATION_ANALYSIS.md` including:
+
+     * Current model assignments for B-L/B-M/B-H and A-L/A-M/A-H.
+     * Real run statistics and cost per success.
+   * Call a **frontier LLM** (e.g. GPT-5 or Claude Opus 4.5) to get optimized model stack recommendations.
+   * Save:
+
+     * `MODEL_STACK_RECOMMENDATIONS_YYYYMMDD.md` (human-readable report).
+     * `config/models.proposed.YYYYMMDD.yaml` (YAML proposal).
+
+3. This script must **NOT** auto-edit `config/models.yaml`. It only writes reports and proposals for human review.
+
+4. Add a short README section (either in `MODEL_STACK_RECOMMENDATIONS_V2.md` or a new `MODEL_STACK_SELF_OPTIMIZER_README.md`) explaining how to run the optimizer and apply changes.
+
+---
+
+## 6. Tests
+
+1. Add unit tests:
+
+   * For `maybe_escalate_complexity` (using fake histories).
+   * For `select_model_for_attempt` (ensuring we see cheap -> GLM-4.5 -> Sonnet/GPT-5 sequences as attempts increase).
+
+2. Add an integration test using a fake LLM client that simulates repeated failures and verifies:
+
+   * Model escalation sequence is correct.
+   * Complexity escalates from low to medium/high when thresholds are exceeded.
+   * `max_attempts_per_phase` is respected.
+
+3. Run the existing test suite and ensure everything passes.
+
+---
+
+## 7. Safety and Backwards Compatibility
+
+* Do not break existing handling for high-risk categories or quota-aware fallbacks.
+* Respect the current default mapping from `MODEL_STACK_RECOMMENDATIONS_V2.md` unless a change is explicitly part of this plan.
+* Make new behaviors feature-flagged via config (`complexity_escalation.enabled`, etc.) so they can be disabled if needed.
+
+```
+
+---
+
+## 7. Summary
+
+- **GLM‑4.5** is well-suited as an **escalation builder for Low‑complexity tasks (B‑L)**: it fills the gap between ultra‑cheap minis and frontier models, with strong coding performance at a fraction of Sonnet/GPT‑5 cost.  
+- Auto‑escalation should be **cheap → GLM‑4.5 → Sonnet/GPT‑5** within tiers and **Low → Medium → High** across tiers, triggered by measured failures (auditor rejects, CI fails, patch errors) and bounded by attempt caps.  
+- A dedicated `model_stack_self_optimizer.py` script should periodically re‑evaluate model choices using real Autopack logs plus external pricing/benchmark data, producing reports and proposed config changes for human review.
+```
+
+[1]: https://huggingface.co/zai-org/GLM-4.5?utm_source=chatgpt.com "zai-org/GLM-4.5"
+[2]: https://llm-stats.com/models/glm-4.5?utm_source=chatgpt.com "GLM-4.5: Pricing, Context Window, Benchmarks, and More"
 
 
 ---

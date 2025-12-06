@@ -140,7 +140,6 @@ defaults:
   high_risk_builder: gpt-4o
   high_risk_auditor: gpt-4o
 model_aliases:
-  glm: glm-4.6
   sonnet: claude-sonnet-4-5
   opus: claude-opus-4-5
   gemini-flash: gemini-2.5-flash

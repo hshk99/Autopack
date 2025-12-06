@@ -60,17 +60,19 @@ Acceptance Criteria:
 
 This is a real codebase test - validate that Autopack can fix dependency issues in an existing project.""",
         "task_category": "core_backend_high",
-        "complexity": "low",
+        "complexity": "medium",
         "builder_mode": None,
         "scope": {
+            # NOTE: FileOrganizer backend lives under the nested "fileorganizer" directory.
+            # Paths must match the actual project layout under .autonomous_runs/.
             "paths": [
-                ".autonomous_runs/file-organizer-app-v1/backend/requirements.txt",
-                ".autonomous_runs/file-organizer-app-v1/backend/pytest.ini"
+                ".autonomous_runs/file-organizer-app-v1/fileorganizer/backend/requirements.txt",
+                ".autonomous_runs/file-organizer-app-v1/fileorganizer/backend/pytest.ini",
             ],
             "read_only_context": [
-                ".autonomous_runs/file-organizer-app-v1/backend/tests/",
-                ".autonomous_runs/file-organizer-app-v1/backend/app/"
-            ]
+                ".autonomous_runs/file-organizer-app-v1/fileorganizer/backend/tests/",
+                ".autonomous_runs/file-organizer-app-v1/fileorganizer/backend/app/",
+            ],
         }
     }
 ]

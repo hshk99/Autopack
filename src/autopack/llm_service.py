@@ -366,7 +366,10 @@ class LlmService:
                 )
             else:
                 error_text = (result.error or "").lower()
-                if "connection error" in error_text or "timeout" in error_text:
+                if "churn_limit_exceeded" in error_text:
+                    # Builder guardrail: churn limit exceeded (not an auditor rejection).
+                    outcome = "builder_churn_limit_exceeded"
+                elif "connection error" in error_text or "timeout" in error_text:
                     outcome = "infra_error"
                 else:
                     # Default builder failure classification
@@ -768,7 +771,7 @@ IMPORTANT: execute_fix is for INFRASTRUCTURE fixes only. Code logic issues shoul
         config = load_doctor_config()
 
         # 1. Choose Doctor model based on failure complexity
-        # Per GPT_RESPONSE10: choose_doctor_model now returns (model, is_complex) tuple
+        # Per GPT_RESPONSE10: choose_doctor_model returns (model, is_complex) tuple
         model, is_complex = choose_doctor_model(request, ctx_summary)
         
         # Per GPT_RESPONSE10: Track error category in context

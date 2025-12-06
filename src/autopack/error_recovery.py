@@ -21,7 +21,7 @@ import logging
 import time
 import traceback
 import sys
-from typing import Optional, Callable, Any, Dict, List, Set, Literal
+from typing import Optional, Callable, Any, Dict, List, Set, Literal, Tuple
 from enum import Enum
 from dataclasses import dataclass, field
 
@@ -216,13 +216,34 @@ DOCTOR_LOW_RISK_CATEGORIES = {"encoding", "network", "file_io", "validation"}
 class DoctorContextSummary:
     """
     Summary of error context for Doctor model routing decisions.
-
+    
     This provides phase-level context beyond what's in DoctorRequest.
     Per GPT_RESPONSE7: used to determine "routine" vs "complex" failures.
     """
     distinct_error_categories_for_phase: int = 1  # Number of different error types seen
     prior_doctor_action: Optional[str] = None  # Last Doctor action for this phase (if any)
     prior_doctor_confidence: Optional[float] = None  # Last Doctor confidence
+    _error_categories: Set[str] = field(default_factory=set, repr=False)
+
+    def record_error_category(self, category: Optional[str]) -> None:
+        """Track distinct error categories observed for the phase."""
+        if not category:
+            return
+        normalized = category.strip().lower()
+        if not normalized:
+            return
+        self._error_categories.add(normalized)
+        self.distinct_error_categories_for_phase = max(
+            self.distinct_error_categories_for_phase,
+            len(self._error_categories),
+        )
+
+    def record_doctor_response(self, response: "DoctorResponse", *, escalated: bool = False) -> None:
+        """Store the last Doctor action/confidence for routing heuristics."""
+        if not response:
+            return
+        self.prior_doctor_action = response.action
+        self.prior_doctor_confidence = response.confidence
 
 
 def is_complex_failure(
@@ -288,7 +309,7 @@ def is_complex_failure(
 def choose_doctor_model(
     req: DoctorRequest,
     ctx_summary: Optional[DoctorContextSummary] = None
-) -> str:
+) -> Tuple[str, bool]:
     """
     Choose the appropriate Doctor model based on failure complexity.
 
@@ -302,7 +323,8 @@ def choose_doctor_model(
         ctx_summary: Optional summary of phase-level error context
 
     Returns:
-        Model identifier string (e.g., "gpt-4o-mini" or "claude-sonnet-4-5")
+        Tuple of (model identifier, is_complex_flag), where is_complex_flag indicates
+        whether the failure was classified as complex for telemetry/routing.
     """
     # Compute health ratio
     total_failures = req.health_budget.get("total_failures", 0)
@@ -310,28 +332,30 @@ def choose_doctor_model(
     health_ratio = total_failures / max(total_cap, 1)
 
     # 1) Health-budget override (C) - always use strong when near limit
-    if health_ratio >= DOCTOR_HEALTH_BUDGET_NEAR_LIMIT_RATIO:
+    near_budget = health_ratio >= DOCTOR_HEALTH_BUDGET_NEAR_LIMIT_RATIO
+    if near_budget:
         logger.info(
             f"[Doctor] Health budget override: ratio={health_ratio:.2f} >= {DOCTOR_HEALTH_BUDGET_NEAR_LIMIT_RATIO} "
             f"-> using strong model"
         )
-        return DOCTOR_STRONG_MODEL
+        return DOCTOR_STRONG_MODEL, True
 
     # 2) Routine vs complex classification
     complex_failure = is_complex_failure(req, ctx_summary)
 
     if complex_failure:
         logger.info(f"[Doctor] Complex failure detected -> using strong model")
-        return DOCTOR_STRONG_MODEL
+        return DOCTOR_STRONG_MODEL, True
     else:
         logger.info(f"[Doctor] Routine failure detected -> using cheap model")
-        return DOCTOR_CHEAP_MODEL
+        return DOCTOR_CHEAP_MODEL, False
 
 
 def should_escalate_doctor_model(
     response: DoctorResponse,
     primary_model: str,
-    builder_attempts: int
+    builder_attempts: int,
+    ctx_summary: Optional[DoctorContextSummary] = None
 ) -> bool:
     """
     Determine if we should escalate from cheap to strong Doctor model.
@@ -344,6 +368,7 @@ def should_escalate_doctor_model(
         response: Response from initial Doctor call
         primary_model: Model used for initial call
         builder_attempts: Number of builder attempts so far
+        ctx_summary: Optional DoctorContextSummary (currently unused, reserved for future routing tweaks)
 
     Returns:
         True if should escalate to strong model

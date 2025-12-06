@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from app.db.session import get_db
 from app.services.document_service import DocumentService
 from app.models.document import Document
+from app.models.category import Category
 from pydantic import BaseModel
 
 router = APIRouter()
@@ -19,6 +20,8 @@ class DocumentResponse(BaseModel):
     status: str
     extracted_text: str | None
     ocr_confidence: float | None
+    classification_confidence: float | None
+    assigned_category_id: int | None
 
     class Config:
         from_attributes = True
@@ -57,6 +60,33 @@ async def process_document(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.get("/documents/search", response_model=list[DocumentResponse])
+async def search_documents(
+    filename: str | None = None,
+    category_id: int | None = None,
+    min_confidence: float | None = None,
+    max_confidence: float | None = None,
+    db: Session = Depends(get_db)
+):
+    """Search and filter documents"""
+    query = db.query(Document)
+
+    if filename:
+        query = query.filter(Document.filename.contains(filename))
+
+    if category_id:
+        query = query.filter(Document.assigned_category_id == category_id)
+
+    if min_confidence is not None:
+        query = query.filter(Document.classification_confidence >= min_confidence)
+
+    if max_confidence is not None:
+        query = query.filter(Document.classification_confidence <= max_confidence)
+
+    documents = query.all()
+    return documents
+
+
 @router.get("/documents/{document_id}", response_model=DocumentResponse)
 async def get_document(
     document_id: int,
@@ -77,18 +107,11 @@ async def list_documents(db: Session = Depends(get_db)):
     return service.list_documents()
 
 
-"""
-Document update endpoints (append to existing documents.py)
-"""
-
-from pydantic import BaseModel as PydanticBaseModel
-
-
-class UpdateCategoryRequest(PydanticBaseModel):
+class UpdateCategoryRequest(BaseModel):
     category_id: int
 
 
-class ApprovalRequest(PydanticBaseModel):
+class ApprovalRequest(BaseModel):
     approved: bool
 
 
@@ -147,28 +170,3 @@ async def approve_document(
     }
 
 
-@router.get("/documents/search")
-async def search_documents(
-    filename: str = None,
-    category_id: int = None,
-    min_confidence: float = None,
-    max_confidence: float = None,
-    db: Session = Depends(get_db)
-):
-    """Search and filter documents"""
-    query = db.query(Document)
-
-    if filename:
-        query = query.filter(Document.filename.contains(filename))
-
-    if category_id:
-        query = query.filter(Document.assigned_category_id == category_id)
-
-    if min_confidence is not None:
-        query = query.filter(Document.classification_confidence >= min_confidence)
-
-    if max_confidence is not None:
-        query = query.filter(Document.classification_confidence <= max_confidence)
-
-    documents = query.all()
-    return documents

@@ -11,6 +11,7 @@ from dotenv import load_dotenv
 from fastapi import Depends, FastAPI, HTTPException, Request, Security
 from fastapi.security import APIKeyHeader
 from fastapi.staticfiles import StaticFiles
+from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session, joinedload
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
@@ -149,7 +150,12 @@ def read_root():
 def start_run(request_data: schemas.RunStartRequest, request: Request, db: Session = Depends(get_db)):
     """Start a new autonomous build run with tiers and phases."""
     # Check if run already exists
-    existing_run = db.query(models.Run).filter(models.Run.id == request_data.run.run_id).first()
+    try:
+        existing_run = db.query(models.Run).filter(models.Run.id == request_data.run.run_id).first()
+    except OperationalError as e:
+        logger.error(f"[API] DB OperationalError during run start: {e}")
+        db.rollback()
+        raise HTTPException(status_code=503, detail="Database unavailable, please retry") from e
     if existing_run:
         raise HTTPException(status_code=400, detail=f"Run {request_data.run.run_id} already exists")
 
@@ -342,7 +348,39 @@ def update_phase_status(
             complexity=phase.complexity,
         )
     except FileNotFoundError:
-        pass
+        file_layout = None
+
+    # If all phases for this run are now terminal, update run state + run_summary.md
+    run = db.query(models.Run).filter(models.Run.id == run_id).first()
+    if run:
+        all_phases = db.query(models.Phase).filter(models.Phase.run_id == run_id).all()
+        if all_phases and all(
+            p.state in (models.PhaseState.COMPLETE, models.PhaseState.FAILED, models.PhaseState.SKIPPED)
+            for p in all_phases
+        ):
+            # Choose a conservative terminal run state: failed if any phase failed, otherwise success.
+            if any(p.state == models.PhaseState.FAILED for p in all_phases):
+                run.state = models.RunState.DONE_FAILED_REQUIRES_HUMAN_REVIEW
+            else:
+                run.state = models.RunState.DONE_SUCCESS
+
+            run.updated_at = datetime.utcnow()
+
+            # Rewrite run_summary.md with final state
+            try:
+                layout = file_layout or RunFileLayout(run_id)
+                layout.write_run_summary(
+                    run_id=run.id,
+                    state=run.state.value,
+                    safety_profile=run.safety_profile,
+                    run_scope=run.run_scope,
+                    created_at=run.created_at.isoformat(),
+                    tier_count=len(run.tiers),
+                    phase_count=len(all_phases),
+                )
+            except FileNotFoundError:
+                # If the layout wasn't initialized on disk, skip quietly.
+                pass
 
     db.commit()
     db.refresh(phase)
@@ -459,6 +497,9 @@ def submit_builder_result(
     db: Session = Depends(get_db),
 ):
     """Submit Builder result for a phase."""
+    # Safety: some older deployments may lack the Run.run_id synonym; ensure it exists to avoid AttributeError
+    if not hasattr(models.Run, "run_id"):
+        models.Run.run_id = models.Run.id  # type: ignore[attr-defined]
     phase = (
         db.query(models.Phase)
         .filter(models.Phase.run_id == run_id, models.Phase.phase_id == phase_id)
@@ -496,7 +537,8 @@ def submit_builder_result(
         
         # Get workspace and run_type per GPT_RESPONSE18 Q2/C1 (hybrid approach)
         workspace = Path(settings.repo_path)
-        run = db.query(models.Run).filter(models.Run.run_id == run_id).first()
+        run = db.query(models.Run).filter(models.Run.id == run_id).first()
+        payload_run_type = getattr(builder_result, "run_type", None)
         
         if not run:
             # Data integrity warning, but safe default behavior per GPT_RESPONSE19 Q1/C1
@@ -535,10 +577,12 @@ def submit_builder_result(
                     f"for run_id={run_id}, phase_id={phase_id}"
                 )
             
-            run_type = "project_build"
+            run_type = payload_run_type or "project_build"
         else:
-            run_type = run.run_type or "project_build"
-            if run.run_type is None:
+            run_type_from_db = getattr(run, "run_type", None)
+            run_type = payload_run_type or run_type_from_db
+
+            if not run_type:
                 logger.error(
                     f"[API] Run {run_id} has no run_type; defaulting run_type='project_build'"
                 )
@@ -561,7 +605,7 @@ def submit_builder_result(
                         complexity=getattr(phase, 'complexity', None),
                         evidence_refs=[
                             "main.py: submit_builder_result",
-                            f"Run {run_id} has run_type=None when applying patch for phase {phase_id}",
+                                f"Run {run_id} missing run_type in DB and payload when applying patch for phase {phase_id}",
                         ],
                     )
                 except Exception:
@@ -570,48 +614,61 @@ def submit_builder_result(
                         "[IssueTracker] Failed to record DATA_INTEGRITY issue for missing run_type "
                         f"on run_id={run_id}, phase_id={phase_id}"
                     )
-        
-        apply_path = GovernedApplyPath(
-            workspace=workspace,
-            run_type=run_type,
-            autopack_internal_mode=run_type in GovernedApplyPath.MAINTENANCE_RUN_TYPES,
-        )
-        
-        # Patch application with exception handling per GPT_RESPONSE16 Q2
-        try:
-            patch_success, error_msg = apply_path.apply_patch(
-                builder_result.patch_content or "",
-                full_file_mode=True,  # Per GPT_RESPONSE15: all patches are full-file mode now
+            
+            run_type = run_type or "project_build"
+
+        apply_on_server = run_type in GovernedApplyPath.MAINTENANCE_RUN_TYPES
+
+        if not apply_on_server:
+            logger.info(
+                f"[API] Skipping server-side patch apply for run_type={run_type}; "
+                "executor already applied patch locally."
+            )
+            if builder_result.status == "success":
+                phase.state = models.PhaseState.GATE
+        else:
+            apply_path = GovernedApplyPath(
+                workspace=workspace,
+                run_type=run_type,
+                autopack_internal_mode=run_type in GovernedApplyPath.MAINTENANCE_RUN_TYPES,
+                allowed_paths=builder_result.allowed_paths or None,
             )
             
-            if not patch_success:
-                logger.error(f"[API] [{run_id}/{phase_id}] Patch application failed: {error_msg}")
+            # Patch application with exception handling per GPT_RESPONSE16 Q2
+            try:
+                patch_success, error_msg = apply_path.apply_patch(
+                    builder_result.patch_content or "",
+                    full_file_mode=True,  # Per GPT_RESPONSE15: all patches are full-file mode now
+                )
+                
+                if not patch_success:
+                    logger.error(f"[API] [{run_id}/{phase_id}] Patch application failed: {error_msg}")
+                    phase.state = models.PhaseState.FAILED
+                    raise HTTPException(
+                        status_code=422,  # Per GPT_RESPONSE16: validation errors should be 422
+                        detail=f"Failed to apply patch: {error_msg or 'unknown error'}"
+                    )
+                else:
+                    phase.state = models.PhaseState.GATE
+                    
+            except PatchApplyError as e:
+                # Per GPT_RESPONSE17 C2: Don't log full traceback for expected PatchApplyError
+                logger.warning(
+                    f"[API] [{run_id}/{phase_id}] Patch application failed: {e}"
+                    # No exc_info=True - expected validation errors don't need full traceback
+                )
                 phase.state = models.PhaseState.FAILED
                 raise HTTPException(
-                    status_code=422,  # Per GPT_RESPONSE16: validation errors should be 422
-                    detail=f"Failed to apply patch: {error_msg or 'unknown error'}"
+                    status_code=422,
+                    detail=f"Patch application failed: {str(e)}"
                 )
-            else:
-                phase.state = models.PhaseState.BUILDER_COMPLETE
-                
-        except PatchApplyError as e:
-            # Per GPT_RESPONSE17 C2: Don't log full traceback for expected PatchApplyError
-            logger.warning(
-                f"[API] [{run_id}/{phase_id}] Patch application failed: {e}"
-                # No exc_info=True - expected validation errors don't need full traceback
-            )
-            phase.state = models.PhaseState.FAILED
-            raise HTTPException(
-                status_code=422,
-                detail=f"Patch application failed: {str(e)}"
-            )
-        except Exception as e:
-            logger.error(f"[API] [{run_id}/{phase_id}] Unexpected error applying patch: {e}", exc_info=True)
-            phase.state = models.PhaseState.FAILED
-            raise HTTPException(
-                status_code=500,
-                detail="Unexpected error applying patch"
-            )
+            except Exception as e:
+                logger.error(f"[API] [{run_id}/{phase_id}] Unexpected error applying patch: {e}", exc_info=True)
+                phase.state = models.PhaseState.FAILED
+                raise HTTPException(
+                    status_code=500,
+                    detail="Unexpected error applying patch"
+                )
 
     # DB commit with exception handling per GPT_RESPONSE16 Q2
     try:
@@ -654,6 +711,41 @@ def get_doctor_stats_endpoint(run_id: str, db: Session = Depends(get_db)):
         )
     
     return dashboard_schemas.DoctorStatsResponse(**stats)
+
+
+@app.post("/runs/{run_id}/phases/{phase_id}/auditor_result")
+def submit_auditor_result(
+    run_id: str,
+    phase_id: str,
+    auditor_result: AuditorResult,
+    db: Session = Depends(get_db),
+):
+    """Submit Auditor result metadata for a phase."""
+    phase = (
+        db.query(models.Phase)
+        .filter(models.Phase.run_id == run_id, models.Phase.phase_id == phase_id)
+        .first()
+    )
+
+    if not phase:
+        raise HTTPException(status_code=404, detail=f"Phase {phase_id} not found")
+
+    phase.auditor_attempts = auditor_result.auditor_attempts
+    phase.tokens_used = max(phase.tokens_used or 0, auditor_result.tokens_used or 0)
+
+    logger.info(
+        f"[API] auditor_result: run_id={run_id}, phase_id={phase_id}, "
+        f"recommendation={auditor_result.recommendation}, issues={len(auditor_result.issues_found)}"
+    )
+
+    try:
+        db.commit()
+    except Exception as e:
+        logger.error(f"[API] [{run_id}/{phase_id}] Failed to store auditor result: {e}", exc_info=True)
+        db.rollback()
+        raise HTTPException(status_code=500, detail="Database error during auditor_result commit")
+
+    return {"message": "Auditor result submitted"}
 
 
 @app.get("/health")

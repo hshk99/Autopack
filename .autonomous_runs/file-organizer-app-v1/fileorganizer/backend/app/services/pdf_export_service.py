@@ -42,7 +42,7 @@ class PDFExportService:
         """
         Export documents as organized PDF
         """
-        doc = SimpleDocTemplate(
+        pdf_doc = SimpleDocTemplate(
             str(output_path),
             pagesize=letter,
             rightMargin=72,
@@ -88,9 +88,9 @@ class PDFExportService:
                 'documents': []
             }
 
-        for doc in documents:
-            if doc.assigned_category_id and doc.assigned_category_id in category_docs:
-                category_docs[doc.assigned_category_id]['documents'].append(doc)
+        for document in documents:
+            if document.assigned_category_id and document.assigned_category_id in category_docs:
+                category_docs[document.assigned_category_id]['documents'].append(document)
 
         # Generate sections for each category
         for cat_id, cat_data in category_docs.items():
@@ -105,10 +105,10 @@ class PDFExportService:
 
             # Documents table
             table_data = [['File Name', 'Confidence', 'Status']]
-            for doc in cat_data['documents']:
-                confidence = f"{doc.classification_confidence:.0f}%" if doc.classification_confidence else 'N/A'
-                status = '[x] Approved' if doc.classification_confidence == 100 else 'Pending'
-                table_data.append([doc.filename, confidence, status])
+            for document in cat_data['documents']:
+                confidence = f"{document.classification_confidence:.0f}%" if document.classification_confidence else 'N/A'
+                status = '[x] Approved' if document.classification_confidence == 100 else 'Pending'
+                table_data.append([document.filename, confidence, status])
 
             doc_table = Table(table_data, colWidths=[3.5*inch, 1*inch, 1.5*inch])
             doc_table.setStyle(TableStyle([
@@ -125,5 +125,5 @@ class PDFExportService:
             story.append(Spacer(1, 0.3*inch))
 
         # Build PDF
-        doc.build(story)
+        pdf_doc.build(story)
         return output_path

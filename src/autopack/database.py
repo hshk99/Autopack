@@ -6,7 +6,13 @@ from sqlalchemy.orm import sessionmaker
 
 from .config import settings
 
-engine = create_engine(settings.database_url)
+# Enable pool_pre_ping so dropped/closed connections are detected and re-established.
+# pool_recycle guards against server-side timeouts on long-lived processes.
+engine = create_engine(
+    settings.database_url,
+    pool_pre_ping=True,
+    pool_recycle=1800,
+)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 

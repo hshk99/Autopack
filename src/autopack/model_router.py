@@ -237,7 +237,7 @@ class ModelRouter:
         Args:
             phase_id: Phase identifier
             model: Model used for this attempt
-            outcome: success, auditor_reject, ci_fail, patch_apply_error, infra_error
+            outcome: success, auditor_reject, ci_fail, patch_apply_error, infra_error, builder_churn_limit_exceeded
             details: Optional details about the outcome
         """
         if phase_id in self.model_selector._phase_histories:

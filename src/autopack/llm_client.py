@@ -15,7 +15,7 @@ from typing import Dict, List, Optional, Protocol, TYPE_CHECKING
 from dataclasses import dataclass
 
 if TYPE_CHECKING:
-    from src.autopack.structured_edits import EditPlan
+    from autopack.structured_edits import EditPlan
 
 
 @dataclass

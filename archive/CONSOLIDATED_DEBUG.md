@@ -1,6 +1,6 @@
 # Consolidated Debug and Error Reference
 
-**Last Updated**: 2025-12-04
+**Last Updated**: 2025-12-06
 **Auto-generated** by scripts/consolidate_docs.py
 
 ## Purpose
@@ -24,6 +24,17 @@ Single source of truth for all errors, fixes, prevention rules, and troubleshoot
 - UK immigration pack YAML (`.autonomous_runs/.../packs/immigration_uk.yaml`) arrived with duplicated payload plus `*** End Patch***` artifacts, causing `yaml.scanner.ScannerError` at line 261. Rebuilt the file from the vetted template and re-validated all six country packs via `yaml.safe_load` to unblock the UK run.
 - Fresh UK run `fileorg-country-uk-20251204-225723` failed immediately with `churn_limit_exceeded: 35.1% (small_fix limit 30%)` on `packs/tax_uk.yaml`. Subsequent run `fileorg-country-uk-20251204-231207` hit the same guard (`92.4%` churn on `immigration_uk.yaml`), confirming pack phases were being mis-classified as `small_fix` and blocked by the 30% churn cap. `scripts/create_fileorg_country_runs.py` now sets `complexity: "high"` for all country-pack phases so `_classify_change_type()` treats them as large refactors (small-fix churn guard disabled) and adds a non-persisted `change_size: "large_refactor"` hint for future schema extensions.
 - Later UK runs (`fileorg-country-uk-20251205-000537`, `fileorg-country-uk-20251205-001903`) confirm the small-fix churn guard is no longer the blocker: failures now surface as (1) `suspicious_shrinkage` on `immigration_uk.yaml` when the LLM emits a 4‑line stub and (2) `PATCH_FAILED` when the generated YAML starting at `version: "1.1.0"` is structurally incomplete. `governed_apply`’s YAML validator correctly rejects these patches before they touch disk, and the main remaining limitation here is model output quality, not the control-plane.
+
+
+## Manual Notes (2025-12-06)
+
+- Added DB connection hardening (`pool_pre_ping`, `pool_recycle`) to avoid OperationalError during `/runs/start`; API now returns 503 on DB unavailability instead of 500.
+- Pack YAML handling: prepends `---` when leading comments are present so PyYAML won’t reject valid packs (`governed_apply.py` truncation/schema checks).
+- Pack preflight guard (parser-level) now rejects incomplete pack full-file outputs (missing required keys or `---`) before diff generation in `anthropic_clients.py`.
+- Removed GLM model aliases/pricing to prevent Doctor/model selection from choosing nonexistent `glm-4.6-20250101`; Doctor now stays on Claude Sonnet/Opus.
+- **Preflight validation bug discovered and fixed**: UK country pack runs `fileorg-country-uk-20251206-013406` (attempts 1 & 2) both failed with `pack_fullfile_missing_document_start` error because preflight validation in `anthropic_clients.py` required YAML files to start with `---` document marker. However, the YAML standard allows comments (`#`) before `---`, and the `---` marker itself is optional. Both Sonnet and Opus correctly generated YAML starting with `# Tax Pack - United Kingdom...` comments. Fixed by removing the strict `---` requirement from `_validate_pack_fullfile()` (lines 804-841) while keeping validation for required top-level keys (`name:`, `description:`, `version:`, `country:`, `domain:`) and required sections (`categories:`, `official_sources:`).
+- **max_tokens increase working correctly**: Logs confirm `[TOKEN_EST] Using increased max_tokens=16384` for pack files, preventing truncation of large YAML outputs (previous limit was 4096).
+- **GLM model references**: User had previously replaced all `glm-4.6-20251205` references with `sonnet-4-5`; grep confirms no GLM references remain in the codebase.
 
 ---
 

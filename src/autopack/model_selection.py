@@ -38,7 +38,14 @@ class PhaseHistory:
     def add_attempt(
         self,
         model: str,
-        outcome: Literal["success", "auditor_reject", "ci_fail", "patch_apply_error", "infra_error"],
+        outcome: Literal[
+            "success",
+            "auditor_reject",
+            "ci_fail",
+            "patch_apply_error",
+            "infra_error",
+            "builder_churn_limit_exceeded",
+        ],
         details: Optional[str] = None
     ):
         """Record an attempt outcome."""

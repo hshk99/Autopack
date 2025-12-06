@@ -2,24 +2,6 @@
 # Updated: 2025-12-01
 # Prices in USD per 1,000 tokens
 
-# GLM (Zhipu AI) pricing - LOW COMPLEXITY PROVIDER
-# Source: https://open.bigmodel.cn/pricing (GLM-4 Plus)
-# Environment: GLM_API_KEY, GLM_API_BASE (optional, defaults to https://open.bigmodel.cn/api/paas/v4)
-zhipu:
-  "glm-4-plus":
-    input_per_1k: 0.0007    # $0.70 per 1M tokens (50 RMB/1M tokens)
-    output_per_1k: 0.0007   # $0.70 per 1M tokens (50 RMB/1M tokens)
-
-  # GLM-4.6 model ID (primary)
-  "glm-4.6":
-    input_per_1k: 0.0007    # $0.70 per 1M tokens
-    output_per_1k: 0.0007   # $0.70 per 1M tokens
-
-  # GLM-4.6 model ID (dated version alias)
-  "glm-4.6-20250101":
-    input_per_1k: 0.0007    # $0.70 per 1M tokens
-    output_per_1k: 0.0007   # $0.70 per 1M tokens
-
 # Anthropic Claude pricing (as of 2025)
 # Source: https://www.anthropic.com/pricing
 # Environment: ANTHROPIC_API_KEY

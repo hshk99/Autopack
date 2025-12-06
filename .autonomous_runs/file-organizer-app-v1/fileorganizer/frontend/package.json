@@ -3,13 +3,18 @@
   "version": "1.0.0",
   "description": "FileOrganizer Desktop Application",
   "main": "electron/main.js",
+  "author": "FileOrganizer Team",
+  "license": "MIT",
   "scripts": {
     "start": "concurrently \"npm run start:react\" \"npm run start:electron\"",
     "start:react": "vite",
     "start:electron": "wait-on http://localhost:3000 && electron .",
-    "build": "tsc && vite build",
-    "build:electron": "electron-builder",
-    "test": "vitest"
+    "build": "tsc -p tsconfig.node.json && vite build",
+    "build:electron": "npm run build && electron-builder",
+    "pack": "electron-builder --dir",
+    "dist": "electron-builder",
+    "test": "vitest",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "react": "^18.2.0",
@@ -19,6 +24,7 @@
     "axios": "^1.6.5"
   },
   "devDependencies": {
+    "@types/node": "^20.10.6",
     "@types/react": "^18.2.47",
     "@types/react-dom": "^18.2.18",
     "@vitejs/plugin-react": "^4.2.1",
@@ -32,5 +38,46 @@
     "vite": "^5.0.11",
     "vitest": "^1.1.3",
     "wait-on": "^7.2.0"
+  },
+  "build": {
+    "appId": "com.fileorganizer.app",
+    "productName": "FileOrganizer",
+    "directories": {
+      "output": "release",
+      "buildResources": "build"
+    },
+    "files": [
+      "dist/**/*",
+      "electron/**/*",
+      "package.json"
+    ],
+    "mac": {
+      "category": "public.app-category.productivity",
+      "target": [
+        "dmg",
+        "zip"
+      ],
+      "hardenedRuntime": true,
+      "gatekeeperAssess": false,
+      "entitlements": "build/entitlements.mac.plist",
+      "entitlementsInherit": "build/entitlements.mac.plist"
+    },
+    "win": {
+      "target": [
+        "nsis",
+        "portable"
+      ]
+    },
+    "linux": {
+      "target": [
+        "AppImage",
+        "deb"
+      ],
+      "category": "Office"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    }
   }
 }

@@ -1,6 +1,6 @@
 # Consolidated Research Reference
 
-**Last Updated**: 2025-11-30
+**Last Updated**: 2025-12-04
 **Auto-generated** by scripts/consolidate_docs.py
 
 ## Contents
@@ -9,6 +9,7 @@
 - [GPT_REVIEW_PROMPT](#gpt-review-prompt)
 - [GPT_REVIEW_PROMPT_CHATBOT_INTEGRATION](#gpt-review-prompt-chatbot-integration)
 - [ref3_gpt_dual_review_chatbot_integration](#ref3-gpt-dual-review-chatbot-integration)
+- [REPORT_FOR_GPT_REVIEW](#report-for-gpt-review)
 
 ---
 
@@ -1232,6 +1233,616 @@ Functionally, though, you no longer *need* this meta‑prompt to decide “merge
   * `GPT_REVIEW_PROMPT_CHATBOT_INTEGRATION.md` is now optional; its strategic question is effectively answered (extract‑only).
 
 If you want, the next concrete step is to translate “Phase 1 quick wins” from the reference doc into a short Autopack ticket list (module names + tests); I can outline that directly against Autopack’s current modules.
+
+
+---
+
+## REPORT_FOR_GPT_REVIEW
+
+**Source**: [REPORT_FOR_GPT_REVIEW.md](C:\dev\Autopack\archive\superseded\REPORT_FOR_GPT_REVIEW.md)
+**Last Modified**: 2025-12-01
+
+# Autopack Learning Pipeline & Mid-Run Re-Planning System - Review Request
+
+**Date**: 2025-12-01
+**Prepared by**: Claude (Opus 4.5)
+**Purpose**: Request for GPT second opinion on architecture decisions
+
+---
+
+## Executive Summary
+
+Autopack is an autonomous code generation system that executes multi-phase development runs. This report documents the current learning pipeline, the newly implemented mid-run re-planning system, and seeks a second opinion on proposed enhancements for discovery-based plan adjustments.
+
+---
+
+## Table of Contents
+
+1. [Current System Architecture](#1-current-system-architecture)
+2. [Model Escalation System](#2-model-escalation-system)
+3. [Learning Pipeline (Stages 0A & 0B)](#3-learning-pipeline-stages-0a--0b)
+4. [Mid-Run Re-Planning System (Newly Implemented)](#4-mid-run-re-planning-system-newly-implemented)
+5. [Proposed Enhancement: Discovery-Based Updates](#5-proposed-enhancement-discovery-based-updates)
+6. [Concerns & Open Questions](#6-concerns--open-questions)
+7. [My Opinions & Recommendations](#7-my-opinions--recommendations)
+8. [Key Files for Review](#8-key-files-for-review)
+9. [GPT Prompt for Analysis](#9-gpt-prompt-for-analysis)
+
+---
+
+## 1. Current System Architecture
+
+### Overview
+
+Autopack executes development runs composed of:
+- **Runs**: Top-level execution unit with multiple tiers
+- **Tiers**: Groups of related phases (e.g., T1-HighPriority, T2-Infrastructure)
+- **Phases**: Individual tasks with Builder -> Auditor -> QualityGate pipeline
+
+### Execution Flow
+
+```
+autonomous_executor.py
+    |
+    +-> For each QUEUED phase:
+        |
+        +-> LlmService.execute_builder_phase()
+        |       +-> ModelRouter.select_model_with_escalation()
+        |       +-> OpenAI/Anthropic Builder generates patch
+        |
+        +-> GovernedApplyPath.apply_patch()
+        |       +-> Apply git diff to workspace
+        |
+        +-> _run_ci_checks()
+        |       +-> Run pytest, collect results
+        |
+        +-> LlmService.execute_auditor_review()
+        |       +-> Review patch with CI context
+        |
+        +-> QualityGate.assess_phase()
+                +-> Enforce risk-based quality rules
+```
+
+---
+
+## 2. Model Escalation System
+
+### Config Structure Clarification
+
+There are TWO config sections in `models.yaml` that serve different purposes:
+
+1. **`complexity_models`** (legacy): Used by `llm_client.py` for simple model selection without escalation
+2. **`escalation_chains`** (active): Used by `ModelSelector` for escalation-aware selection
+
+The autonomous executor uses `LlmService` -> `ModelRouter` -> `ModelSelector` which reads from `escalation_chains`.
+
+### Verified Behavior (from JSONL logs)
+
+The escalation follows a **two-dimensional** strategy:
+
+1. **Intra-tier escalation**: Cycle through models within same complexity tier
+2. **Cross-tier escalation**: Bump complexity after exhausting current tier
+
+### Escalation Chain (from `config/models.yaml`)
+
+```yaml
+# Active escalation config used by autonomous executor
+escalation_chains:
+  builder:
+    low:
+      models: [gpt-4o-mini, gpt-4o, claude-sonnet-4-5]
+    medium:
+      models: [gpt-4o, claude-sonnet-4-5, gpt-5]
+    high:
+      models: [claude-sonnet-4-5, gpt-5]
+  auditor:
+    low:
+      models: [gpt-4o-mini, gpt-4o]
+    medium:
+      models: [gpt-4o, gpt-4o, claude-sonnet-4-5]
+    high:
+      models: [claude-sonnet-4-5, claude-opus-4-5]
+
+# Legacy config (now aligned with escalation_chains[0] for consistency)
+complexity_models:
+  low:
+    builder: gpt-4o-mini   # matches escalation_chains.builder.low.models[0]
+    auditor: gpt-4o-mini
+  medium:
+    builder: gpt-4o
+    auditor: gpt-4o
+  high:
+    builder: claude-sonnet-4-5
+    auditor: claude-sonnet-4-5
+```
+
+### Example Escalation Path (LOW complexity task)
+
+| Attempt | Tier | Model | Notes |
+|---------|------|-------|-------|
+| 0 | low | gpt-4o-mini | Start cheap |
+| 1 | low | gpt-4o | Intra-tier escalation |
+| 2 | medium | gpt-4o | Cross-tier to medium |
+| 3 | medium | claude-sonnet-4-5 | Continue in medium |
+| 4 | high | claude-sonnet-4-5 | Cross-tier to high |
+
+### Evidence from Logs
+
+```json
+{"phase_id": "low-tricky-task", "attempt_index": 0, "model": "gpt-4o-mini", "effective_complexity": "low"}
+{"phase_id": "low-tricky-task", "attempt_index": 1, "model": "gpt-4o", "effective_complexity": "low"}
+{"phase_id": "low-tricky-task", "attempt_index": 2, "model": "claude-sonnet-4-5", "effective_complexity": "medium",
+ "complexity_escalation_reason": "low_to_medium after 2 failures"}
+```
+
+---
+
+## 3. Learning Pipeline (Stages 0A & 0B)
+
+### Stage 0A: Within-Run Hints
+
+**Purpose**: Share lessons learned between phases in the same run.
+
+**Storage**: `.autonomous_runs/runs/{run_id}/run_rule_hints.json`
+
+**Flow**:
+```
+Phase N fails -> Record hint with error context
+Phase N+1 starts -> Load hints from earlier phases
+Builder/Auditor prompts include relevant hints
+```
+
+**Example Hint**:
+```json
+{
+  "run_id": "fileorg-phase2-2025-11-30",
+  "phase_id": "auth-phase",
+  "hint_text": "Phase 'auth-phase' was rejected by auditor - ensure code quality and completeness"
+}
+```
+
+### Stage 0B: Cross-Run Persistent Rules
+
+**Purpose**: Promote frequently-occurring hints to permanent project rules.
+
+**Storage**: `.autonomous_runs/{project_id}/project_learned_rules.json`
+
+**Promotion Logic**:
+- Hint pattern appears 2+ times in a run -> Promote to rule
+- Rules are injected into all future Builder/Auditor prompts
+
+**Example Rule**:
+```json
+{
+  "rule_id": "debug_journal.never_abc123",
+  "constraint": "NEVER assume file_context is a plain dict - use .get('existing_files', file_context)",
+  "promotion_count": 10,
+  "status": "active"
+}
+```
+
+### Current Limitation
+
+**Rules are only promoted AFTER run completion**. This means:
+- A run can fail repeatedly with the same fundamental approach flaw
+- The system retries up to 5 times with different models but SAME approach
+- Only after the run ends are lessons captured for future runs
+
+---
+
+## 4. Mid-Run Re-Planning System (Newly Implemented)
+
+### Problem Addressed
+
+If a phase fails repeatedly with the same error pattern, it indicates an **approach flaw** (wrong implementation strategy) rather than a **transient failure** (needs stronger model).
+
+### Implementation
+
+Added to `autonomous_executor.py`:
+
+```python
+# Tracking structures in __init__
+self._phase_error_history: Dict[str, List[Dict]] = {}
+self._phase_revised_specs: Dict[str, Dict] = {}
+self.REPLAN_TRIGGER_THRESHOLD = 2  # Trigger after 2 same-type failures
+self.MAX_REPLANS_PER_PHASE = 1  # Max 1 replan per phase
+
+# Key methods
+def _record_phase_error(phase, error_type, error_details, attempt_index):
+    """Track error history for pattern detection."""
+
+def _detect_approach_flaw(phase) -> Optional[str]:
+    """Detect if same error type occurs repeatedly."""
+
+def _should_trigger_replan(phase) -> Tuple[bool, str]:
+    """Decide if re-planning needed."""
+
+def _revise_phase_approach(phase, flaw_type, error_history) -> Dict:
+    """Use Claude to revise the phase description with new approach."""
+```
+
+### Re-Planning Flow
+
+```
+Attempt 1: FAIL (auditor_reject)
+Attempt 2: FAIL (auditor_reject)  <- Same error type 2x
+           |
+           +-> Trigger re-planning
+           +-> LLM analyzes errors, generates revised phase description
+           +-> Reset attempt counter
+           +-> Continue with new approach
+```
+
+### Re-Planning Prompt (sent to Claude Sonnet)
+
+```
+You are a senior software architect. A phase has failed repeatedly...
+
+## Original Phase Specification
+**Phase**: {phase_name}
+**Description**: {original_description}
+
+## Error Pattern Detected
+**Flaw Type**: {flaw_type}
+**Recent Errors**:
+{error_summary}
+
+## Your Task
+Analyze why the original approach kept failing and provide a REVISED description that:
+1. Addresses the root cause of the repeated failures
+2. Uses a different implementation strategy if needed
+3. Includes specific guidance to avoid the detected error pattern
+```
+
+---
+
+## 5. Proposed Enhancement: Discovery-Based Updates
+
+### User's Insight
+
+> "The plan change shouldn't just be based on the number of failures. It could be something discovered during the run that requires changes to plan - not necessarily during the debugging phase."
+
+### Proposed Architecture
+
+Builder should report **structured discoveries** during normal execution:
+
+```python
+{
+    "discoveries": [
+        {
+            "type": "dependency",
+            "affects": ["phase-5", "phase-7"],
+            "note": "Phase 7 must run before Phase 5 - auth depends on user model"
+        },
+        {
+            "type": "scope_expansion",
+            "affects": ["phase-3"],
+            "note": "Need to also update legacy API endpoints"
+        },
+        {
+            "type": "architectural",
+            "affects": ["phase-4", "phase-5", "phase-6"],
+            "note": "Should use event-driven pattern instead of direct calls"
+        }
+    ]
+}
+```
+
+### When to Apply Discoveries
+
+**Option A**: Apply at tier boundaries
+- After completing all phases in a tier, check for accumulated discoveries
+- Revise affected phases in subsequent tiers before starting them
+
+**Option B**: Apply at phase completion
+- After each phase completes, check if discoveries affect upcoming phases
+- Immediate revision of affected phase descriptions
+
+**Option C**: Accumulate and apply at end
+- Collect all discoveries during run
+- Apply as rules for next run (current behavior)
+
+### Benefits vs Costs
+
+| Approach | Pro | Con |
+|----------|-----|-----|
+| Per-phase apply | Most responsive | Potential thrashing, LLM cost |
+| Tier boundary | Balanced | Some wasted work if discovery early in tier |
+| End of run | No overhead during run | Full run may use wrong approach |
+
+---
+
+## 6. Concerns & Open Questions
+
+### Concern 1: Discovery Granularity
+
+How specific should discoveries be? Options:
+- **High-level**: "Need to change approach for auth phases"
+- **Specific**: "Phase auth-middleware must add JWT validation before Phase auth-routes"
+
+Trade-off: Specific is more actionable but harder for LLM to generate reliably.
+
+### Concern 2: Discovery Reliability
+
+Can we trust Builder to accurately report discoveries? Considerations:
+- Builder is focused on completing its own phase
+- Discoveries about OTHER phases require holistic understanding
+- May need separate "Discovery Agent" or architect role
+
+### Concern 3: Circular Dependencies
+
+What if discoveries create conflicting requirements?
+- Phase A discovers: "B must run before C"
+- Phase B discovers: "C must run before B"
+
+Need conflict detection and resolution mechanism.
+
+### Concern 4: Scope Creep
+
+Discoveries could infinitely expand scope:
+- "I discovered we also need to implement X"
+- Could lead to never-ending runs
+
+Need guardrails on what constitutes valid discovery.
+
+### Concern 5: Integration with Existing Systems
+
+Currently we have:
+- Debug Journal (CONSOLIDATED_DEBUG.md) - Manual issue tracking
+- Learned Rules (project_learned_rules.json) - Cross-run persistence
+- Run Hints (run_rule_hints.json) - Within-run sharing
+
+How do discoveries fit? New storage? Or extend existing?
+
+---
+
+## 7. My Opinions & Recommendations
+
+### Opinion 1: Tier-Boundary Application is Best
+
+I recommend applying discoveries at **tier boundaries** because:
+- Natural checkpoint between groups of related work
+- Avoids constant plan churn mid-tier
+- Allows batching multiple discoveries before revision
+- Aligns with how humans review progress
+
+### Opinion 2: Builder Should Only Report, Not Revise
+
+Keep separation of concerns:
+- **Builder**: Report what it learned while implementing
+- **Planner/Architect**: Decide how to act on discoveries
+
+This prevents Builder from scope-creeping its own task.
+
+### Opinion 3: Lightweight Discovery Format
+
+Start simple:
+```python
+{
+    "discovery_type": "dependency|scope|blocker|optimization",
+    "affects_phases": ["phase-id-1", "phase-id-2"],
+    "summary": "Brief human-readable description",
+    "confidence": "high|medium|low"
+}
+```
+
+No LLM call needed to process - just structured metadata.
+
+### Opinion 4: Separate Discovery Tracking from Rules
+
+Discoveries are ephemeral (this run only). Rules are permanent.
+Don't conflate them - different storage, different lifecycle.
+
+### Opinion 5: Start Conservative
+
+Begin with:
+1. Builder reports discoveries in structured format (no LLM cost)
+2. At tier boundary, display discoveries to user (no auto-action)
+3. User can approve revision or continue as-is
+
+Graduate to auto-revision once we validate discovery quality.
+
+---
+
+## 8. Key Files for Review
+
+### Core Orchestration
+- `src/autopack/autonomous_executor.py` (1916 lines)
+  - Lines 158-162: Re-planning tracking structures
+  - Lines 541-712: Phase execution with escalation
+  - Lines 768-978: Mid-run re-planning methods
+
+### Model Selection
+- `src/autopack/model_selection.py` (518 lines)
+  - `_calculate_escalation()`: Tier/model selection logic
+  - `select_model_for_attempt()`: Main selection entry point
+
+### Learning Pipeline
+- `src/autopack/learned_rules.py` (665 lines)
+  - Stage 0A: `save_run_hint()`, `get_relevant_hints_for_phase()`
+  - Stage 0B: `promote_hints_to_rules()`, `load_project_learned_rules()`
+
+### Service Layer
+- `src/autopack/llm_service.py` (407 lines)
+  - `execute_builder_phase()`: Builder with escalation
+  - `execute_auditor_review()`: Auditor with quality gate
+
+### Configuration
+- `config/models.yaml` (178 lines)
+  - `escalation_chains`: Model progression per complexity
+  - `complexity_escalation`: Tier bump thresholds
+
+### Evidence
+- `logs/autopack/model_selections_20251130.jsonl`
+  - Actual escalation behavior captured
+
+---
+
+## 9. GPT Prompt for Analysis
+
+```
+You are an expert software architect reviewing the Autopack autonomous code generation system.
+Please analyze the following and provide your recommendations:
+
+## Context
+Autopack is an autonomous executor that runs multi-phase development tasks. Each phase goes
+through Builder -> Patch Apply -> CI -> Auditor -> Quality Gate. The system has:
+
+1. **Model Escalation**: When phases fail, it tries stronger models (gpt-4o-mini -> gpt-4o -> claude-sonnet)
+2. **Learning Pipeline**: Records hints during runs, promotes frequently-occurring hints to persistent rules
+3. **Mid-Run Re-Planning** (newly added): Detects approach flaws and revises phase descriptions
+
+## Questions for Analysis
+
+### Q1: Mid-Run Re-Planning Trigger
+Current implementation triggers re-planning when the **same error type** occurs 2+ times
+(e.g., two "auditor_reject" errors in a row).
+
+Is this the right trigger? Should we also consider:
+- Error MESSAGE similarity (not just type)?
+- Consecutive vs total failures?
+- Error type COMBINATIONS (e.g., patch_error followed by auditor_reject)?
+
+### Q2: Discovery Reporting Architecture
+The user wants Builder to report discoveries (dependencies, scope changes, architectural insights)
+during execution. Three options are proposed:
+
+A. Apply discoveries immediately after each phase
+B. Apply at tier boundaries (groups of phases)
+C. Accumulate and apply at run end (current behavior for rules)
+
+Which approach best balances responsiveness vs stability? What are the risks of each?
+
+### Q3: Discovery vs Rule Separation
+Should discoveries be:
+- Ephemeral (single run, never persisted)?
+- Promotable to rules (like hints)?
+- A new third-tier concept?
+
+What's the cleanest data model?
+
+### Q4: Builder Scope Concern
+If Builder reports discoveries about OTHER phases, it requires understanding the whole plan.
+Should this be:
+- Part of Builder's job (give it full plan context)?
+- A separate "Architect Agent" that reviews Builder output?
+- Extracted from Builder's natural language output rather than explicit reporting?
+
+### Q5: Guardrails
+How do we prevent:
+- Discovery scope creep ("I discovered we need to rewrite everything")?
+- Circular dependency discoveries?
+- Conflicting discoveries from different phases?
+
+## Deliverables Requested
+1. Critique of current mid-run re-planning implementation
+2. Recommended approach for discovery-based updates
+3. Suggested data model/schema for discoveries
+4. Risk assessment and mitigation strategies
+5. Implementation priority (what to build first)
+
+Please be direct and critical. Identify potential failure modes I may have missed.
+```
+
+---
+
+## Appendix: Code Excerpts
+
+### A. Re-Planning Detection (autonomous_executor.py:801-826)
+
+```python
+def _detect_approach_flaw(self, phase: Dict) -> Optional[str]:
+    """
+    Analyze error history to detect fundamental approach flaws.
+
+    Returns error type if approach flaw detected, None otherwise.
+    """
+    phase_id = phase.get("phase_id")
+    errors = self._phase_error_history.get(phase_id, [])
+
+    if len(errors) < self.REPLAN_TRIGGER_THRESHOLD:
+        return None
+
+    # Count error types
+    error_type_counts: Dict[str, int] = {}
+    for error in errors:
+        etype = error["error_type"]
+        error_type_counts[etype] = error_type_counts.get(etype, 0) + 1
+
+    # Check if any error type exceeds threshold
+    for etype, count in error_type_counts.items():
+        if count >= self.REPLAN_TRIGGER_THRESHOLD:
+            logger.info(f"[Re-Plan] Approach flaw detected: {etype} occurred {count} times")
+            return etype
+
+    return None
+```
+
+### B. Escalation Calculation (model_selection.py:255-339)
+
+```python
+def _calculate_escalation(self, role, complexity, attempt_index, escalation_info):
+    """
+    Calculate effective complexity and intra-tier attempt index.
+
+    Low tier: 2 attempts, Medium tier: 3 attempts, High tier: unlimited
+    """
+    def get_tier_size(tier):
+        chain = self.escalation_chains.get(role, {}).get(tier, {}).get("models", [])
+        if tier == "low": return min(len(chain), 2)
+        elif tier == "medium": return min(len(chain), 3)
+        else: return len(chain)
+
+    low_size = get_tier_size("low")
+    medium_size = get_tier_size("medium")
+
+    if complexity == "low":
+        if attempt_index < low_size:
+            return "low", attempt_index
+        elif attempt_index < low_size + medium_size:
+            escalation_info["complexity_escalation_reason"] = "low_to_medium"
+            return "medium", attempt_index - low_size
+        else:
+            escalation_info["complexity_escalation_reason"] = "low_to_high"
+            return "high", attempt_index - low_size - medium_size
+    # ... similar for medium/high
+```
+
+### C. Learning Rule Promotion (learned_rules.py:199-247)
+
+```python
+def promote_hints_to_rules(run_id: str, project_id: str) -> int:
+    """
+    Promote frequent hints to persistent project rules.
+
+    Called when: Run completes
+    Logic: If hint pattern appears 2+ times in this run, promote
+    """
+    hints = load_run_rule_hints(run_id)
+    patterns = _group_hints_by_pattern(hints)
+    existing_rules = load_project_learned_rules(project_id)
+
+    promoted_count = 0
+    for pattern_key, hint_group in patterns.items():
+        if len(hint_group) < 2:
+            continue  # Need 2+ occurrences to promote
+
+        rule_id = _generate_rule_id(hint_group[0])
+        if rule_id in rules_dict:
+            rules_dict[rule_id].promotion_count += 1
+        else:
+            rules_dict[rule_id] = _create_rule_from_hints(rule_id, hint_group, project_id)
+            promoted_count += 1
+
+    _save_project_learned_rules(project_id, list(rules_dict.values()))
+    return promoted_count
+```
+
+---
+
+**End of Report**
+
+*This report was generated by Claude (Opus 4.5) for GPT review. All code excerpts are from the actual Autopack codebase.*
 
 
 ---

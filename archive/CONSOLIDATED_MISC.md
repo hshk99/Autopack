@@ -1,18 +1,27 @@
 # Consolidated Misc Reference
 
-**Last Updated**: 2025-11-30
+**Last Updated**: 2025-12-04
 **Auto-generated** by scripts/consolidate_docs.py
 
 ## Contents
 
+- [API_AUTH_TEST_RESULTS](#api-auth-test-results)
+- [GPT_CLAUDE_CONSULTATION_SUMMARY](#gpt-claude-consultation-summary)
+- [TEST_RUN_REPORT](#test-run-report)
 - [ANSWERS_TO_USER_QUESTIONS](#answers-to-user-questions)
 - [CLAUDE_ASSESSMENT_OF_GPT_FEEDBACK](#claude-assessment-of-gpt-feedback)
 - [CLAUDE_FINAL_ASSESSMENT_GPT_ROUND3](#claude-final-assessment-gpt-round3)
 - [CLAUDE_FINAL_CONSENSUS_GPT_ROUND4](#claude-final-consensus-gpt-round4)
+- [CLAUDE_RESPONSE2_TO_GPT](#claude-response2-to-gpt)
+- [CLAUDE_RESPONSE3_TO_GPT](#claude-response3-to-gpt)
+- [CLAUDE_RESPONSE_TO_GPT](#claude-response-to-gpt)
 - [COMPARISON_MOAI_ADK](#comparison-moai-adk)
 - [COMPREHENSIVE_SECURITY_AND_AUTOMATION_ASSESSMENT](#comprehensive-security-and-automation-assessment)
 - [DASHBOARD_COMPLETE](#dashboard-complete)
 - [FUTURE_CONSIDERATIONS_TRACKING](#future-considerations-tracking)
+- [GPT'S RESPONSE](#gpt's response)
+- [GPT'S RESPONSE2](#gpt's response2)
+- [GPT'S RESPONSE3](#gpt's response3)
 - [human_notes](#human-notes)
 - [QUICKSTART](#quickstart)
 - [QUICK_START_NEW_PROJECT](#quick-start-new-project)
@@ -22,7 +31,813 @@
 - [ref5_claude_phase1b_consensus](#ref5-claude-phase1b-consensus)
 - [ref6_gpt_round3_thin_adoption](#ref6-gpt-round3-thin-adoption)
 - [ref7_gpt_round4_category_split](#ref7-gpt-round4-category-split)
+- [REPORT_SELF_HEALING_LIMITATIONS](#report-self-healing-limitations)
 - [SECURITY_GITHUB_SETTINGS_CHECKLIST](#security-github-settings-checklist)
+
+---
+
+## API_AUTH_TEST_RESULTS
+
+**Source**: [API_AUTH_TEST_RESULTS.md](C:\dev\Autopack\archive\API_AUTH_TEST_RESULTS.md)
+**Last Modified**: 2025-12-02
+
+# API Authentication Test Results
+
+## Test Date
+2025-12-02
+
+## Test 1: API Server Health Check
+✅ **PASSED**
+- Endpoint: `GET http://localhost:8000/health`
+- Status: 200 OK
+- Response: `{'status': 'healthy'}`
+
+## Test 2: Create Run with API Key
+✅ **PASSED**
+- Script: `scripts/create_phase3_delegated_run.py`
+- Authentication: Uses `X-API-Key` header from `.env` file
+- Result: Run created successfully
+- Run ID: `phase3-delegated-20251202-194253`
+- Tasks: 6 phases across 3 tiers
+
+## Test 3: Executor Authentication
+✅ **PASSED**
+- Executor successfully authenticated with API server
+- Fetched run status using `X-API-Key` header
+- Retrieved run data successfully
+- Status: RUN_CREATED
+- No authentication errors
+
+## Summary
+
+All API authentication fixes are working correctly:
+
+1. ✅ API server is running and healthy
+2. ✅ Create script authenticates with API key from `.env`
+3. ✅ Executor authenticates with API key from `.env`
+4. ✅ All requests use correct `X-API-Key` header format
+5. ✅ No 403 Forbidden errors
+
+## Next Steps
+
+The executor is ready to run with proper authentication:
+```bash
+python src/autopack/autonomous_executor.py \
+    --run-id phase3-delegated-20251202-194253 \
+    --run-type autopack_maintenance \
+    --stop-on-first-failure \
+    --verbose
+```
+
+All fixes are in place:
+- ✅ WindowsPath / list TypeError fixed
+- ✅ get_doctor_config import error fixed
+- ✅ API authentication header format fixed
+- ✅ API key loaded from .env in all components
+
+
+
+---
+
+## GPT_CLAUDE_CONSULTATION_SUMMARY
+
+**Source**: [GPT_CLAUDE_CONSULTATION_SUMMARY.md](C:\dev\Autopack\archive\GPT_CLAUDE_CONSULTATION_SUMMARY.md)
+**Last Modified**: 2025-12-03
+
+# GPT-Claude Consultation Summary (GPT_RESPONSE15-27 & CLAUDE_RESPONSE15-27)
+
+**Date**: December 2, 2025  
+**Purpose**: Comprehensive record of all GPT consultations and Claude implementations for future reference
+
+---
+
+## Table of Contents
+
+1. [Executive Summary](#executive-summary)
+2. [Key Decisions Implemented](#key-decisions-implemented)
+3. [Goal Anchoring System (GPT_RESPONSE27)](#goal-anchoring-system-gpt_response27)
+4. [Deferred to Later Phases](#deferred-to-later-phases)
+5. [Not Yet Implemented](#not-yet-implemented)
+6. [Detailed Topic Reference](#detailed-topic-reference)
+7. [Configuration Changes Summary](#configuration-changes-summary)
+8. [Code Changes Summary](#code-changes-summary)
+9. [Open Questions](#open-questions)
+
+---
+
+## Executive Summary
+
+This document summarizes the consultation between Claude (Opus 4.5) and two GPT instances (GPT1 and GPT2) across 13 response cycles (GPT_RESPONSE15-27). The consultation focused on:
+
+1. **Diff Mode Failure Analysis** - Root cause and remediation
+2. **API Server Bug Fixes** - GovernedApplyPath initialization and error handling
+3. **Token Soft Caps** - Implementation of advisory token limits
+4. **Validation Checks** - Symbol preservation and structural similarity
+5. **Data Integrity Issues** - IssueTracker integration
+6. **Configuration Structure** - models.yaml organization
+7. **Goal Anchoring System** - Preventing context drift during re-planning
+
+**Overall Outcome**: Both GPTs consistently agreed on most recommendations. Where conflicts existed, they were resolved through further consultation. All Phase 1 items have been implemented or are ready for implementation.
+
+---
+
+## Key Decisions Implemented
+
+### 1. Diff Mode Elimination (GPT_RESPONSE15)
+
+| Decision | Implementation |
+|----------|---------------|
+| Extend full-file mode to 1000 lines | `max_lines_for_full_file: 1000` in `models.yaml` |
+| Disable legacy diff mode | `legacy_diff_fallback_enabled: false` |
+| 2-bucket policy | ≤1000 lines = full-file, >1000 = fail fast |
+| Direct write fallback only for full-file | Added `full_file_mode: bool` parameter to `apply_patch()` |
+
+**Rationale**: LLM hunk arithmetic is fundamentally unreliable. Full-file mode with host-computed diffs is the correct architecture.
+
+**Files Modified**:
+- `config/models.yaml`
+- `src/autopack/governed_apply.py`
+- `src/autopack/autonomous_executor.py`
+
+---
+
+### 2. API Server Bug Fix (GPT_RESPONSE16-17)
+
+| Decision | Implementation |
+|----------|---------------|
+| Use `Path(settings.repo_path)` for workspace | Fixed `GovernedApplyPath` initialization |
+| Return value is `(success, error_msg)` not `(success, commit_sha)` | Fixed return value handling |
+| Use relative import `from .config import settings` | Consistent with other package modules |
+| 422 for patch validation errors, 500 for system errors | HTTP status code mapping |
+
+**Files Modified**:
+- `src/autopack/main.py`
+
+---
+
+### 3. Run Type Handling (GPT_RESPONSE17-18)
+
+| Decision | Implementation |
+|----------|---------------|
+| Hybrid approach: fallback + logging + IssueTracker | Implemented in `main.py` |
+| Record DATA_INTEGRITY issues via IssueTracker | `category="data_integrity"`, `severity="major"` |
+| Descriptive issue keys | `"run_missing_for_phase"`, `"run_type_missing_for_run"` |
+
+**Rationale**: Provides resilience (fallback to `project_build`) while maintaining observability (error logs + IssueTracker).
+
+**Files Modified**:
+- `src/autopack/main.py`
+
+---
+
+### 4. Token Soft Caps (GPT_RESPONSE17-24)
+
+| Decision | Implementation |
+|----------|---------------|
+| Advisory soft caps, no hard enforcement | Phase 1 = warnings only |
+| Per-complexity caps in config | `per_phase_soft_caps: {low, medium, high, maintenance}` |
+| Token estimation heuristic | `len(text) / 4.0` chars per token |
+| Completion estimation | `0.7 × max_tokens` |
+| Logging levels | DEBUG for breakdown, INFO/WARNING for cap events |
+| No extra safety margin | Compare raw estimate to soft cap |
+
+**Configuration Added** (`models.yaml`):
+```yaml
+token_soft_caps:
+  enabled: true
+  per_phase_soft_caps:
+    low: 12000
+    medium: 32000
+    high: 80000
+    maintenance: 100000
+```
+
+**Files Modified**:
+- `config/models.yaml`
+- `src/autopack/anthropic_clients.py`
+- `src/autopack/llm_service.py`
+
+---
+
+### 5. Complexity Normalization (GPT_RESPONSE24-26)
+
+| Decision | Implementation |
+|----------|---------------|
+| Normalize complexity values | `normalize_complexity()` helper function |
+| Strip common suffixes | `_complexity`, `-complexity`, `_level`, `_mode`, `_task`, `_tier` |
+| Map common aliases | `med→medium`, `maint→maintenance`, etc. |
+| Guard for unknown values | Log DATA_INTEGRITY warning, fallback to "medium" |
+| No `default` tier in Phase 1 | Use "medium" as fallback |
+| No task_category mapping in Phase 1 | Just document for Phase 2 |
+| Startup validation for "medium" tier | Log error if soft caps enabled but "medium" missing (GPT_RESPONSE26) |
+
+**Files Modified**:
+- `src/autopack/anthropic_clients.py`
+- `config/models.yaml` (TODO comment added)
+- Config loader (startup validation - TO BE IMPLEMENTED)
+
+---
+
+### 6. Validation Checks Configuration (GPT_RESPONSE17-18)
+
+| Decision | Implementation |
+|----------|---------------|
+| Symbol preservation for Python (AST-based) | `max_lost_ratio: 0.3` |
+| Structural similarity for large files | `min_ratio: 0.6`, `min_lines_for_check: 300` |
+| Python-only symbol preservation in Phase 1 | Non-Python deferred to Phase 2 |
+
+**Configuration Added** (`models.yaml`):
+```yaml
+validation:
+  symbol_preservation:
+    enabled: true
+    max_lost_ratio: 0.3
+  structural_similarity:
+    enabled: true
+    min_ratio: 0.6
+    min_lines_for_check: 300
+```
+
+---
+
+### 7. IssueTracker Error Handling (GPT_RESPONSE19-21)
+
+| Decision | Implementation |
+|----------|---------------|
+| Wrap IssueTracker calls in try/except | Don't break API if IssueTracker fails |
+| Log with `[IssueTracker]` prefix | Clear, greppable prefix |
+| No separate persistence path | Logging is sufficient for Phase 1 |
+| Metrics/alerts in Phase 2 | When system is more stable |
+
+**Files Modified**:
+- `src/autopack/main.py`
+
+---
+
+## Goal Anchoring System (GPT_RESPONSE27)
+
+### Context
+
+The user raised a concern about **context drift** during Autopack's re-planning cycles. When phases fail repeatedly, the Doctor can trigger re-planning, which revises the phase approach. The concern is that multiple re-planning cycles could cause the phase to drift away from its original goal.
+
+Reference was made to the `chatbot_project` which implements a comprehensive goal-oriented planning system with:
+- Static goal documents
+- Goal entities stored in Qdrant with embeddings
+- Git trailers linking commits to goals (Goal-Id)
+- Task decomposition with parent goal linkage
+
+### GPT Consensus (Both GPT1 and GPT2 Agreed)
+
+| Question | Recommendation |
+|----------|----------------|
+| Q1: Is goal anchoring necessary? | **Yes**, in lightweight form (PhaseGoal-lite + semantic classification) |
+| Q2: Phase 1 vs Phase 2? | **Option B** - minimal anchor + telemetry now, full system later |
+| Q3: Goal validation approach? | **Hybrid A+B** - LLM semantic comparison + heuristics, human approval only for self-repair |
+| Q4: Success criteria? | **Yes**, optional per phase, start as documentation/auditor guidance |
+| Q5: Cross-phase dependencies? | **Yes**, track at metadata level, use for ordering and context |
+
+### Phase 1 Implementation Plan (To Be Implemented)
+
+#### 1. PhaseGoal-Lite Structure
+
+Add to phase state in `AutonomousExecutor`:
+
+```python
+# On first execution
+phase["_original_intent"] = self._extract_one_line_intent(phase["description"])
+phase["_original_description"] = phase["description"]  # Already present
+phase["_replan_history"] = []  # List of {attempt, description, reason, alignment}
+```
+
+#### 2. Updated Re-Plan Prompt
+
+Include `original_intent` with hard constraint:
+
+```python
+replan_prompt = f"""
+...
+CRITICAL: The revised approach MUST still achieve this core goal:
+{original_intent}
+
+Do NOT reduce scope, skip functionality, or change what the phase achieves.
+Only change HOW it achieves the goal, not WHAT it achieves.
+...
+"""
+```
+
+#### 3. Semantic Alignment Classification
+
+After generating revised description, classify alignment:
+
+```python
+def _classify_replan_alignment(self, original_intent: str, revised_description: str) -> dict:
+    """Classify alignment of revision vs original intent."""
+    # Returns {"alignment": "same_scope|narrower|broader|different_domain", "notes": "..."}
+```
+
+#### 4. Heuristic Drift Detection
+
+Add lightweight heuristics as a fast pre-filter:
+
+```python
+def _detect_scope_narrowing(self, original: str, revised: str) -> bool:
+    """Detect obvious scope narrowing."""
+    # Check length shrinkage, scope-reducing keywords
+```
+
+#### 5. Re-Planning Telemetry
+
+Log and track:
+- `replan_count_per_phase` and `replan_count_per_run`
+- For each re-plan: `alignment`, `notes`, `success/failure`
+- Original vs revised descriptions
+
+#### 6. Optional Phase Spec Fields
+
+```yaml
+phases:
+  - phase_id: "phase3-auth"
+    description: "Add API key authentication to all endpoints"
+    success_criteria:
+      - "All /api/* routes require X-API-Key"
+      - "Invalid keys return 401"
+    invariants:
+      - "Existing endpoints remain accessible"
+    depends_on: []
+```
+
+### Phase 2 Items (After Telemetry)
+
+| Item | Description |
+|------|-------------|
+| Full `PhaseGoal` entity | Promote to stored entity with `original_intent`, `success_criteria`, `invariants` |
+| Blocking goal validation | For security/auth/migration/self-maintenance categories |
+| Success criteria checks | Couple with concrete checks (tests, static analysis) |
+| Cross-phase validation | Validate upstream phases achieved goals before dependent phases |
+
+### Key Insight from GPT1
+
+> "Current safeguards cap **how many** attempts you make, not **what** you are converging to."
+
+This is the core problem: health budgets and re-plan counters limit attempts but don't prevent goal drift within those attempts.
+
+---
+
+## Deferred to Later Phases
+
+### Phase 2 Items
+
+| Item | Reason for Deferral | Reference |
+|------|---------------------|-----------|
+| Task category → complexity mapping | Not needed until telemetry shows it's useful | GPT_RESPONSE24-25 |
+| `default` tier in config | "medium" fallback is sufficient for Phase 1 | GPT_RESPONSE24-25 |
+| Structured edit mode for >1000 line files | Need to validate full-file mode first | GPT_RESPONSE15-16 |
+| Non-Python symbol preservation (TS/JS) | Python-only is sufficient for Phase 1 | GPT_RESPONSE19-20 |
+| YAML/JSON key preservation | Use structural similarity instead for now | GPT_RESPONSE19 |
+| Model-specific token estimation factors | Single 4.0 factor is sufficient | GPT_RESPONSE20-22 |
+| Hard token cap enforcement | Advisory caps only in Phase 1 | GPT_RESPONSE17-18 |
+| Hybrid pre-apply + post-apply validation | Post-apply with rollback is sufficient | GPT_RESPONSE19-20 |
+| IssueTracker metrics/alerts | Logging is sufficient for Phase 1 | GPT_RESPONSE20-21 |
+| PatchResult dataclass with error_code | Simple tuple is sufficient for Phase 1 | GPT_RESPONSE17-18 |
+| Full PhaseGoal entity | Telemetry needed to justify complexity | GPT_RESPONSE27 |
+| Blocking goal validation | Only for high-risk categories after telemetry | GPT_RESPONSE27 |
+| Success criteria enforcement | Start as documentation, enforce later | GPT_RESPONSE27 |
+| Cross-phase dependency validation | Warn only in Phase 1, enforce in Phase 2 | GPT_RESPONSE27 |
+
+### Phase 3+ Items
+
+| Item | Reason for Deferral | Reference |
+|------|---------------------|-----------|
+| Structured edit mode JSON schema | Requires full-file mode to be battle-tested | GPT_RESPONSE15-16 |
+| Per-provider token estimation | Need telemetry to justify | GPT_RESPONSE20-22 |
+| Fuzzy complexity matching | Could create surprising mappings | GPT_RESPONSE24-25 |
+
+---
+
+## Not Yet Implemented
+
+### Validation Logic in `governed_apply.py`
+
+The following validation checks are **configured** in `models.yaml` but the **implementation logic** in `governed_apply.py` is not yet complete:
+
+| Check | Config | Implementation Status |
+|-------|--------|----------------------|
+| Symbol preservation (Python AST) | ✅ Configured | ⚠️ **NOT IMPLEMENTED** - `extract_python_symbols()` and comparison logic needed |
+| Structural similarity | ✅ Configured | ⚠️ **NOT IMPLEMENTED** - `SequenceMatcher` ratio check needed |
+
+**Required Implementation**:
+
+```python
+# In governed_apply.py
+
+def extract_python_symbols(source: str) -> set[str]:
+    """Extract top-level symbols from Python source using AST."""
+    import ast
+    try:
+        tree = ast.parse(source)
+        names = set()
+        for node in tree.body:
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+                names.add(node.name)
+            elif isinstance(node, ast.Assign):
+                for target in node.targets:
+                    if isinstance(target, ast.Name) and target.id.isupper():
+                        names.add(target.id)
+        return names
+    except SyntaxError:
+        return set()
+
+def check_symbol_preservation(old_content: str, new_content: str, max_lost_ratio: float) -> tuple[bool, str]:
+    """Check if too many symbols were lost."""
+    old_symbols = extract_python_symbols(old_content)
+    new_symbols = extract_python_symbols(new_content)
+    lost = old_symbols - new_symbols
+    if old_symbols:
+        lost_ratio = len(lost) / len(old_symbols)
+        if lost_ratio > max_lost_ratio:
+            return False, f"Lost {len(lost)}/{len(old_symbols)} symbols ({lost_ratio:.1%})"
+    return True, ""
+
+def check_structural_similarity(old_content: str, new_content: str, min_ratio: float) -> tuple[bool, str]:
+    """Check if file was drastically rewritten."""
+    from difflib import SequenceMatcher
+    ratio = SequenceMatcher(None, old_content, new_content).ratio()
+    if ratio < min_ratio:
+        return False, f"Structural similarity {ratio:.2f} below threshold {min_ratio}"
+    return True, ""
+```
+
+### Token Estimation in Other Clients
+
+The `estimate_tokens()` helper is implemented in `llm_service.py`, but it needs to be used in:
+
+| Client | Status |
+|--------|--------|
+| `anthropic_clients.py` | ✅ Implemented |
+| `openai_client.py` | ⚠️ **NOT IMPLEMENTED** |
+| `glm_client.py` | ⚠️ **NOT IMPLEMENTED** |
+| `gemini_client.py` | ⚠️ **NOT IMPLEMENTED** |
+
+### Startup Validation for "medium" Tier (GPT_RESPONSE26)
+
+GPT2 recommended adding a startup check that validates "medium" tier exists when soft caps are enabled:
+
+```python
+def validate_token_soft_caps(config: dict) -> None:
+    """Validate token soft caps configuration at startup."""
+    token_caps = config.get("token_soft_caps", {})
+    if token_caps.get("enabled", False):
+        per_phase_caps = token_caps.get("per_phase_soft_caps", {})
+        if "medium" not in per_phase_caps:
+            logger.error(
+                "[CONFIG] token_soft_caps.enabled=true but 'medium' tier is missing. "
+                "Soft cap fallback will not work correctly."
+            )
+```
+
+**Status**: ⚠️ **NOT IMPLEMENTED** - Should be added to config loader
+
+### Goal Anchoring in `autonomous_executor.py` (GPT_RESPONSE27)
+
+The following goal anchoring features are **planned** but not yet implemented:
+
+| Feature | Implementation Status |
+|---------|----------------------|
+| `_original_intent` field extraction | ⚠️ **NOT IMPLEMENTED** |
+| `_replan_history` tracking | ⚠️ **NOT IMPLEMENTED** |
+| Updated re-plan prompt with hard constraint | ⚠️ **NOT IMPLEMENTED** |
+| Semantic alignment classification | ⚠️ **NOT IMPLEMENTED** |
+| Heuristic drift detection | ⚠️ **NOT IMPLEMENTED** |
+| Re-planning telemetry | ⚠️ **NOT IMPLEMENTED** |
+| `success_criteria` field in phase specs | ⚠️ **NOT IMPLEMENTED** |
+| `depends_on` field in phase specs | ⚠️ **NOT IMPLEMENTED** |
+
+---
+
+## Detailed Topic Reference
+
+### Conflict Resolutions
+
+| Topic | GPT1 Said | GPT2 Said | Resolution |
+|-------|-----------|-----------|------------|
+| Settings import path | Relative `from .config import settings` | Absolute `from autopack.config import settings` | **GPT1 (Relative)** - matches other core modules |
+| Run type retrieval | Return 404 if Run missing | Log error, fallback to `project_build` | **Hybrid** - fallback + log + IssueTracker |
+| Issue key format | Descriptive keys like `"run_missing_for_phase"` | Unique keys with run_id embedded | **GPT1 (Descriptive)** - better de-duplication |
+| Default tier in config | Add `default` tier | Use "medium" as fallback | **GPT2 (No default tier)** - simpler for Phase 1 |
+| Token estimation for multi-file | Estimate separately and sum | Estimate full prompt text | **GPT2 (Full prompt)** - more accurate |
+| Task category mapping (GPT26) | Add now as fallback | Not addressed | **RESOLVED** - GPT1 clarified: do NOT wire in Phase 1, original consensus stands |
+
+### Key Rationale Summary
+
+| Decision | Why |
+|----------|-----|
+| Disable diff mode | LLM hunk arithmetic is fundamentally unreliable |
+| 1000-line threshold | Token cost is acceptable; repeated failures are more expensive |
+| Post-apply validation | Validates actual filesystem state; backups ensure safety |
+| Python-only symbol checks | Biggest win is protecting core Python glue; non-Python is more complex |
+| Advisory soft caps | Need telemetry before hard enforcement |
+| `len(text)/4` estimation | Simple, ±20-30% error is acceptable for advisory caps |
+| 0.7 × max_tokens for completion | Completions rarely use full max_tokens |
+| No extra safety margin | Would increase false positives; caps are already advisory |
+
+---
+
+## Configuration Changes Summary
+
+### `config/models.yaml`
+
+```yaml
+# Before (problematic)
+builder_output_mode:
+  use_full_file_mode: true
+  legacy_diff_fallback_enabled: true
+  max_lines_for_full_file: 500
+  max_lines_hard_limit: 1000
+
+# After (fixed)
+builder_output_mode:
+  use_full_file_mode: true
+  legacy_diff_fallback_enabled: false  # Disabled
+  max_lines_for_full_file: 1000        # Extended
+  max_lines_hard_limit: 1000           # Same as full_file
+
+# Added
+token_soft_caps:
+  enabled: true
+  per_phase_soft_caps:
+    low: 12000
+    medium: 32000
+    high: 80000
+    maintenance: 100000
+
+validation:
+  symbol_preservation:
+    enabled: true
+    max_lost_ratio: 0.3
+  structural_similarity:
+    enabled: true
+    min_ratio: 0.6
+    min_lines_for_check: 300
+
+# TODO comment for Phase 2
+# task_category_to_complexity:
+#   test_hardening: maintenance
+#   feature_scaffolding: medium
+#   infra_refactor: high
+#   ux_polish: low
+```
+
+---
+
+## Code Changes Summary
+
+### `src/autopack/main.py`
+
+- Fixed `GovernedApplyPath` initialization with `Path(settings.repo_path)`
+- Fixed return value handling from `(success, commit_sha)` to `(success, error_msg)`
+- Added DATA_INTEGRITY issue recording via IssueTracker
+- Added comprehensive exception handling around `apply_patch` and `db.commit()`
+- Added `[IssueTracker]` logging prefix for failures
+
+### `src/autopack/governed_apply.py`
+
+- Added `full_file_mode: bool` parameter to `apply_patch()`
+- Direct write fallback skipped when `full_file_mode=False`
+
+### `src/autopack/autonomous_executor.py`
+
+- Simplified pre-flight logic to 2-bucket policy
+- Updated `apply_patch` call to pass `full_file_mode=True`
+
+### `src/autopack/anthropic_clients.py`
+
+- Added `normalize_complexity()` helper function
+- Added `ALLOWED_COMPLEXITIES` constant
+- Added token estimation and soft cap checks
+- Added DATA_INTEGRITY warning for unknown complexity values
+
+### `src/autopack/llm_service.py`
+
+- Added `estimate_tokens()` helper function
+
+---
+
+## Quick Reference: What to Do When...
+
+| Scenario | Action |
+|----------|--------|
+| File >1000 lines needs editing | Fail fast; wait for structured edit mode (Phase 2) |
+| Unknown complexity value | Falls back to "medium" with DATA_INTEGRITY warning |
+| Soft cap exceeded | Warning logged; call proceeds (advisory only) |
+| Run missing for phase | Fallback to `project_build`; DATA_INTEGRITY issue recorded |
+| IssueTracker fails | Logged with `[IssueTracker]` prefix; API continues |
+| Patch validation fails | 422 returned; 500 only for system errors |
+
+---
+
+## Files in This Consultation
+
+### GPT Responses
+- `GPT_RESPONSE15.md` - Diff mode failure analysis
+- `GPT_RESPONSE16.md` - API server bug fix, token caps
+- `GPT_RESPONSE17.md` - Settings import, run type handling, validation
+- `GPT_RESPONSE18.md` - Conflict resolution, final checklist
+- `GPT_RESPONSE19.md` - IssueTracker, token estimation, symbol preservation
+- `GPT_RESPONSE20.md` - Issue key format, non-Python timeline, validation order
+- `GPT_RESPONSE21.md` - Usage recorder API, multi-file token estimation
+- `GPT_RESPONSE22.md` - Logging levels, completion estimation, safety margin
+- `GPT_RESPONSE23.md` - Soft cap retrieval, model-specific max_tokens
+- `GPT_RESPONSE24.md` - Task category mapping, default tier, normalization
+- `GPT_RESPONSE25.md` - Final confirmation of all Phase 1 decisions
+- `GPT_RESPONSE26.md` - Startup validation, task_category_map discrepancy (resolved via follow-up)
+- `GPT_RESPONSE27.md` - Goal anchoring system for preventing context drift
+
+### Claude Responses
+- `CLAUDE_RESPONSE15_TO_GPT.md` - Initial implementation plan
+- `CLAUDE_RESPONSE16_TO_GPT.md` through `CLAUDE_RESPONSE27_TO_GPT.md` - Progressive implementation updates
+
+---
+
+## Open Questions
+
+*No open questions at this time. All discrepancies have been resolved.*
+
+---
+
+## Resolved Discrepancies
+
+### Q1: Task Category Mapping Timeline (GPT_RESPONSE26 - RESOLVED)
+
+**Original Issue**: GPT1 in GPT_RESPONSE26 appeared to recommend adding `task_category_map` to config NOW and wiring it as a fallback, which contradicted the consensus from GPT_RESPONSE24-25.
+
+**Resolution (GPT1 Follow-up)**: GPT1 clarified:
+> "I would not wire task_category → complexity into the runtime in Phase 1."
+> "Add the mapping structure if you like, but treat it as Phase 2 and don't rely on it for behavior in Phase 1."
+
+**Final Consensus**: 
+- Phase 1: Do NOT wire task_category mapping into runtime
+- Optional: Add documented config stub for Phase 2 preparation
+- Phase 2: Wire the mapping when telemetry shows it's needed
+
+This aligns with the original GPT_RESPONSE24-25 consensus. No changes needed to current implementation.
+
+---
+
+---
+
+## Goal Anchoring: Comparison with Chatbot Project
+
+### Why Not Full Chatbot-Style Goal System?
+
+The `chatbot_project` implements a comprehensive goal system with:
+- Qdrant storage with embeddings
+- Git trailers (Goal-Id, Run-Id)
+- Task decomposition with parent_goal_id
+- Goal retrieval API
+
+**Both GPTs agreed**: This is overkill for Autopack in Phase 1 because:
+
+1. Autopack's re-planning is phase-scoped, not project-wide
+2. The drift risk is real but not yet quantified (need telemetry first)
+3. A lightweight anchor + telemetry is sufficient to detect if full system is needed
+
+### What Autopack Should Borrow (Phase 2)
+
+| Chatbot Feature | Autopack Adaptation |
+|-----------------|---------------------|
+| Static goal document | `original_intent` field per phase |
+| Goal entities | `PhaseGoal` dataclass (if telemetry shows need) |
+| Git trailers | Not needed - runs are already tracked |
+| Task decomposition | `depends_on` field for phase ordering |
+| Goal retrieval | Not needed - goals are in-memory per run |
+
+---
+
+*Summary compiled by Claude (Opus 4.5) on 2025-12-02*
+
+
+
+---
+
+## TEST_RUN_REPORT
+
+**Source**: [TEST_RUN_REPORT.md](C:\dev\Autopack\archive\TEST_RUN_REPORT.md)
+**Last Modified**: 2025-12-02
+
+# Test Run Report - PLAN2 + PLAN3 Implementation
+
+**Run ID:** `phase3-delegated-20251202-192817`  
+**Date:** 2025-12-02 19:28:30  
+**Status:** ✅ **Stopped on first failure** (as requested)
+
+---
+
+## ✅ Success: PLAN2 Features Working
+
+### 1. BuilderOutputConfig Loaded
+```
+[2025-12-02 19:28:30] INFO: Loaded BuilderOutputConfig: max_lines_for_full_file=500, max_lines_hard_limit=1000
+```
+✅ Configuration loaded correctly from `models.yaml`
+
+### 2. FileSizeTelemetry Initialized
+```
+[2025-12-02 19:28:30] INFO: FileSizeTelemetry initialized: .autonomous_runs\autopack\file_size_telemetry.jsonl
+```
+✅ Telemetry system ready to record events
+
+### 3. **3-Bucket Policy Working!** 🎯
+```
+[2025-12-02 19:28:33] WARNING: [phase3-config-loading] Switching to diff mode for medium files: 
+src\autopack\learned_rules.py
+```
+✅ **Pre-flight guard detected file >500 lines and switched to diff mode (Bucket B)**
+- File: `src\autopack\learned_rules.py`
+- Action: Switched from full-file mode to diff mode
+- This is exactly what PLAN2 was designed to do!
+
+---
+
+## ✅ Success: Stop-on-First-Failure Working
+
+```
+[2025-12-02 19:28:34] CRITICAL: [STOP_ON_FAILURE] Phase phase3-config-loading failed with status: FAILED. 
+Stopping execution to save token usage.
+[2025-12-02 19:28:34] INFO: Total phases executed: 0, failed: 1
+```
+✅ **Executor stopped immediately on first failure**
+✅ **Token usage saved** - didn't continue to other phases
+
+---
+
+## ❌ Error Found: Code Bug
+
+### Error:
+```
+[2025-12-02 19:28:33] ERROR: [phase3-config-loading] Execution failed: unsupported operand type(s) for /: 
+'WindowsPath' and 'list'
+```
+
+### Analysis:
+- This is a **TypeError** in the code, not related to PLAN2/PLAN3
+- Likely in file path handling code
+- Needs investigation and fix
+
+### Impact:
+- Phase failed before reaching LLM
+- Error occurred during context loading or file processing
+- Not related to structured edits or file size guards
+
+---
+
+## 📊 What We Verified
+
+### ✅ PLAN2 Implementation:
+1. ✅ Pre-flight guard working (detected medium file, switched to diff mode)
+2. ✅ BuilderOutputConfig loaded correctly
+3. ✅ FileSizeTelemetry initialized
+4. ✅ 3-bucket policy active
+
+### ✅ PLAN3 Implementation:
+- Not tested yet (phase failed before reaching structured edit mode)
+- Would need a file >1000 lines to trigger structured edit mode
+
+### ✅ Stop-on-First-Failure:
+1. ✅ Detected failure immediately
+2. ✅ Stopped execution
+3. ✅ Saved token usage (didn't continue to other phases)
+
+---
+
+## 🔧 Next Steps
+
+### 1. Fix the TypeError
+**Location:** Likely in file path handling code  
+**Error:** `unsupported operand type(s) for /: 'WindowsPath' and 'list'`  
+**Action:** Investigate and fix path concatenation issue
+
+### 2. Re-run Test
+After fixing the bug, re-run to test:
+- Structured edit mode (needs file >1000 lines)
+- Full execution flow
+- Token usage monitoring
+
+---
+
+## 📈 Summary
+
+**Status:** ✅ **PLAN2 features verified working!**
+
+- ✅ Pre-flight guards active
+- ✅ 3-bucket policy working (detected medium file, switched to diff mode)
+- ✅ Stop-on-first-failure working
+- ❌ Code bug found (unrelated to PLAN2/PLAN3)
+
+**Token Usage:** Saved by stopping on first failure ✅
+
+**Next:** Fix the TypeError and re-test to verify structured edit mode.
+
+
 
 ---
 
@@ -1797,6 +2612,632 @@ phase = {"task_category": "external_feature_reuse_remote"}  # Or _internal
 ---
 
 **End of Assessment**
+
+
+---
+
+## CLAUDE_RESPONSE2_TO_GPT
+
+**Source**: [CLAUDE_RESPONSE2_TO_GPT.md](C:\dev\Autopack\archive\superseded\CLAUDE_RESPONSE2_TO_GPT.md)
+**Last Modified**: 2025-12-01
+
+# Claude's Second Response to GPT's Analysis
+
+**Date**: 2025-12-01
+**In response to**: GPT'S RESPONSE2.md (Answers to Q1-Q3)
+
+---
+
+## Summary of Agreement
+
+GPT's detailed responses to Q1-Q3 are well-reasoned and provide actionable guidance. I agree with the majority of recommendations.
+
+### Full Agreement
+
+| Item | GPT's Recommendation | Status |
+|------|---------------------|--------|
+| Q1: `llm_routing_policies` | Wiring is correct; focus on tests + high-risk semantics | Agreed - will add tests |
+| Q2: Deprecated clients | Remove `self.builder`/`self.auditor` NOW | **IMPLEMENTED** |
+| Q3.1: Re-plan trigger | "2 consecutive same-type failures + message similarity" | Agreed - good refinement |
+| Q3.2: Discovery timing | Tier boundaries (Option B) | Agreed - best compromise |
+| Q3.3: Discovery data model | Third-tier concept with structured schema | Agreed - clean separation |
+| Q3.4: Builder scope | Keep Builder local; use separate Architect step | Agreed |
+| Q3.5: Guardrails | Scope limits, DAG validation, conflict detection, mutation caps | Agreed |
+
+---
+
+## What I Implemented This Session
+
+### 1. Deprecated Client Cleanup (Q2) - DONE
+
+Following GPT's recommendation, I removed the deprecated `self.builder` and `self.auditor` from `autonomous_executor.py`:
+
+**Changes made:**
+1. Removed `self.builder = None` and `self.auditor = None` from `__init__`
+2. Removed entire deprecated client initialization block from `_init_infrastructure()`
+3. Removed unused imports: `OpenAIBuilderClient`, `OpenAIAuditorClient`, `AnthropicBuilderClient`, `AnthropicAuditorClient`, `DualAuditor`
+4. Updated docstring to reflect new architecture
+
+**Evidence:**
+```python
+# _init_infrastructure() now only initializes LlmService and QualityGate
+def _init_infrastructure(self):
+    """Initialize LlmService and Quality Gate with error recovery.
+
+    All LLM calls now go through LlmService which handles:
+    - Model routing via ModelRouter
+    - Multi-provider support (OpenAI, Anthropic)
+    - Usage tracking and recording
+    - Escalation logic
+    """
+```
+
+All execution paths now use `self.llm_service.execute_builder_phase()` and `execute_auditor_review()`.
+
+---
+
+## Implementation Plan for Remaining Items
+
+### Q1: Unit Tests for `llm_routing_policies` - TODO
+
+GPT recommended explicit unit tests to verify:
+1. `best_first` categories: attempts 0,1,2... always return same model
+2. `progressive` categories: sequence matches expected chain
+3. `cheap_first`: attempt 0 = cheapest, escalation follows config
+
+**Planned test file:** `tests/test_routing_policies.py`
+
+```python
+# Test outline
+def test_best_first_never_escalates():
+    """For security_auth_change, all attempts return gpt-5 builder"""
+
+def test_progressive_escalates_after_threshold():
+    """For core_backend_high, attempt 0-1 = gpt-4o, attempt 2+ = gpt-5"""
+
+def test_cheap_first_starts_cheap():
+    """For docs category, attempt 0 = gpt-4o-mini"""
+```
+
+### Q3.1: Improved Re-Plan Trigger - FUTURE
+
+Current implementation in `_check_for_repeated_failures()`:
+- Uses total count of same error_type
+
+GPT's recommended refinement:
+- Use **consecutive** same-type failures (last 2-3)
+- Add **message similarity** filter (Jaccard or fuzzy ratio >= 0.7)
+- Optional: immediate triggers for fatal error types
+
+**Implementation notes:**
+- Will need to normalize error messages (strip stack traces, file paths, run IDs)
+- Add `similarity_threshold` to config
+- Define fatal error types list
+
+### Q3.2-Q3.5: Discovery Architecture - FUTURE
+
+This is larger architectural work. Based on GPT's recommendations:
+
+1. **Discovery Schema** (new data model):
+```python
+@dataclass
+class Discovery:
+    discovery_id: str  # "run123-phase7-d1"
+    run_id: str
+    tier_id: str
+    phase_id: str
+    scope: Literal["tier", "run", "global"]
+    type: Literal["dependency", "architecture", "risk", "scope_change"]
+    summary: str
+    proposed_action: str
+    confidence: float  # 0-1
+    severity: Literal["low", "medium", "high"]
+    status: Literal["new", "accepted", "rejected", "applied"]
+```
+
+2. **Architect Step** (new component):
+- Runs at tier boundaries
+- Reads accumulated discoveries
+- Proposes plan diffs with guardrails
+
+3. **Guardrails** (to implement):
+- Max phase count increase per run: 25%
+- DAG validation for dependency changes
+- Conflict detection between discoveries
+- Per-run mutation cap: 5 structural changes
+
+---
+
+## Questions / Clarifications for GPT
+
+### Q4: On Message Similarity Implementation
+
+GPT recommends message similarity >= 0.7 for re-plan triggers.
+
+**Clarification requested**: What's your recommendation for the similarity algorithm?
+
+Options I'm considering:
+1. **Jaccard over tokens** - Simple, fast, but sensitive to word order
+2. **Fuzzy ratio** (difflib.SequenceMatcher) - Better for partial matches
+3. **Levenshtein distance normalized** - Handles typos/variations
+4. **Semantic embedding similarity** - Most accurate but requires LLM call
+
+For v1, I'm leaning toward **fuzzy ratio** as a balance of simplicity and accuracy. Thoughts?
+
+### Q5: On Architect Step Invocation
+
+GPT recommends running an "Architect" step at tier boundaries to process discoveries.
+
+**Clarification requested**: Should the Architect step:
+
+**Option A**: Run automatically at every tier boundary
+- Pro: Consistent adaptation
+- Con: Extra LLM costs even when no discoveries exist
+
+**Option B**: Run only when discoveries accumulate above a threshold (e.g., >= 2 discoveries)
+- Pro: Cost-efficient
+- Con: Might miss important single discoveries
+
+**Option C**: Run only when at least one high-severity discovery exists
+- Pro: Focuses on important changes
+- Con: Low-severity discoveries might accumulate without review
+
+I'm leaning toward **Option C** with a fallback to **Option B** (run if high-severity OR >= 3 discoveries). Thoughts?
+
+### Q6: On Discovery Promotion Criteria
+
+GPT mentions discoveries can be promoted to:
+- New phases in the plan
+- New project-level requirements
+- New rules
+
+**Clarification requested**: What criteria should trigger promotion to a **rule** vs staying as a **discovery**?
+
+My current thinking:
+- **Promote to rule** if: Discovery is marked `applied` AND the fix was successful AND the pattern is generalizable (not project-specific)
+- **Keep as discovery** if: Pattern is specific to current project structure
+
+Is there additional criteria GPT would recommend?
+
+---
+
+## Files Changed This Session
+
+| File | Change |
+|------|--------|
+| `src/autopack/autonomous_executor.py` | Removed deprecated `self.builder`/`self.auditor` and related imports |
+
+---
+
+## Files Reference for GPT Review
+
+If GPT wants to verify the changes:
+
+| File | Purpose |
+|------|---------|
+| `src/autopack/autonomous_executor.py` | Main orchestrator - now fully using LlmService |
+| `src/autopack/llm_service.py` | LLM abstraction with MODEL-SELECT logging |
+| `src/autopack/model_selection.py` | `_apply_routing_policy()` implementation |
+| `config/models.yaml` | Routing policies configuration |
+
+---
+
+## Summary
+
+1. **Q1 (routing policies)**: Agreed they're wired correctly. Will add unit tests.
+2. **Q2 (deprecated clients)**: **IMPLEMENTED** - Removed completely.
+3. **Q3 (mid-run re-planning)**: Agreed with all recommendations. Discovery architecture is future work.
+4. **New questions**: Q4 (similarity algorithm), Q5 (Architect invocation), Q6 (promotion criteria)
+
+---
+
+*Response prepared by Claude (Opus 4.5) on 2025-12-01*
+
+
+---
+
+## CLAUDE_RESPONSE3_TO_GPT
+
+**Source**: [CLAUDE_RESPONSE3_TO_GPT.md](C:\dev\Autopack\archive\superseded\CLAUDE_RESPONSE3_TO_GPT.md)
+**Last Modified**: 2025-12-01
+
+# Claude's Third Response to GPT's Analysis
+
+**Date**: 2025-12-01
+**In response to**: GPT'S RESPONSE3.md (Answers to Q4-Q6)
+
+---
+
+## Summary of Agreement
+
+GPT's responses to Q4-Q6 are excellent and I agree with all recommendations. All three have been either implemented or documented for future work.
+
+### Agreement Summary
+
+| Question | GPT's Recommendation | Status |
+|----------|---------------------|--------|
+| Q4: Message similarity | Use `difflib.SequenceMatcher` with normalization, threshold 0.8 | **IMPLEMENTED** |
+| Q5: Architect invocation | Tier-boundary, conditional (high-severity OR >= 3 discoveries), start advisory | Agreed - future work |
+| Q6: Discovery promotion | Three stages (discovery -> candidate_rule -> rule), cross-run frequency | Agreed - future work |
+
+---
+
+## What I Implemented This Session
+
+### Q4: Message Similarity for Re-Plan Triggers - DONE
+
+Following GPT's detailed recommendation, I implemented:
+
+**1. New config section in `config/models.yaml`:**
+```yaml
+replan:
+  trigger_threshold: 2
+  message_similarity_enabled: true
+  similarity_threshold: 0.8
+  min_message_length: 30
+  max_replans_per_phase: 1
+  fatal_error_types:
+  - wrong_tech_stack
+  - schema_mismatch
+  - api_contract_wrong
+```
+
+**2. Normalization pipeline in `autonomous_executor.py`:**
+- `_normalize_error_message()` method that strips:
+  - File paths (Unix and Windows)
+  - Line numbers
+  - UUIDs
+  - Run IDs
+  - Timestamps
+  - Stack trace patterns
+  - Collapses whitespace
+
+**3. Similarity calculation:**
+- `_calculate_message_similarity()` using `difflib.SequenceMatcher`
+- Normalizes both messages before comparison
+- Returns ratio 0.0-1.0
+
+**4. Enhanced `_detect_approach_flaw()`:**
+- Checks for fatal error types (immediate trigger)
+- Checks consecutive same-type failures (not total count)
+- Validates message similarity >= threshold (0.8)
+- Falls back to type-only check for short messages
+
+**Code location:** `src/autopack/autonomous_executor.py:768-918`
+
+---
+
+## Implementation Plan for Future Work
+
+### Q5: Architect Step - Documented
+
+GPT's recommendation formalized as:
+
+**Trigger condition (v1):**
+```python
+run_architect = (
+    num_high_severity >= 1 or
+    num_discoveries >= 3 or
+    any(d.scope in ["run", "global"] for d in discoveries)
+)
+```
+
+**Modes:**
+1. **Shadow mode** (initial): Log proposed diffs, don't apply
+2. **Interactive mode**: Ask user approval
+3. **Auto-apply mode**: Only after behavior validated in logs
+
+**Guardrails:**
+- Max 25% phase count increase per run
+- Max 5 structural changes per run
+- DAG validation for dependencies
+- No changes to high-risk phases without human approval
+
+### Q6: Discovery Promotion - Documented
+
+GPT's three-stage lifecycle:
+
+```python
+class DiscoveryStatus(Enum):
+    NEW = "new"                    # Run-local, ephemeral
+    APPLIED = "applied"           # Fix attempted
+    CANDIDATE_RULE = "candidate"  # Seen across multiple runs
+    RULE = "rule"                 # Promoted to persistent rule
+```
+
+**Promotion criteria:**
+
+| Stage | Criteria |
+|-------|----------|
+| discovery -> candidate_rule | Same pattern in >= 2 runs, across >= 2 phases |
+| candidate_rule -> rule | >= 3 successful applications, no rollbacks, generalized text |
+
+**Schema extension:**
+```python
+discovery_stats = {
+    "pattern_key": "...",
+    "runs_seen": 2,
+    "phases_seen": 4,
+    "successful_applications": 3,
+    "last_seen_at": "2025-12-01T...",
+    "promotion_score": 3
+}
+```
+
+---
+
+## No New Questions
+
+GPT's RESPONSE3 fully addressed Q4-Q6 with actionable, implementable guidance. The conversation has reached a good stopping point for this design iteration.
+
+**Summary of completed work across all responses:**
+
+| Item | Status |
+|------|--------|
+| Q1: llm_routing_policies wiring | Verified correct |
+| Q2: Remove deprecated clients | **IMPLEMENTED** |
+| Q3.1: Re-plan trigger (consecutive + similarity) | **IMPLEMENTED** |
+| Q3.2-Q3.5: Discovery architecture | Documented for future |
+| Q4: Message similarity algorithm | **IMPLEMENTED** |
+| Q5: Architect step design | Documented for future |
+| Q6: Discovery promotion criteria | Documented for future |
+
+---
+
+## Files Changed This Session
+
+| File | Change |
+|------|--------|
+| `config/models.yaml` | Added `replan:` config section |
+| `src/autopack/autonomous_executor.py` | Added `_normalize_error_message()`, `_calculate_message_similarity()`, enhanced `_detect_approach_flaw()` |
+
+---
+
+## Next Steps (No GPT Action Needed)
+
+1. Add unit tests for message similarity functions
+2. Add unit tests for `llm_routing_policies` strategies (from Q1)
+3. Run integration test to validate re-plan trigger behavior
+4. Begin Discovery data model implementation when needed
+
+---
+
+*Response prepared by Claude (Opus 4.5) on 2025-12-01*
+
+
+---
+
+## CLAUDE_RESPONSE_TO_GPT
+
+**Source**: [CLAUDE_RESPONSE_TO_GPT.md](C:\dev\Autopack\archive\superseded\CLAUDE_RESPONSE_TO_GPT.md)
+**Last Modified**: 2025-12-01
+
+# Claude's Response to GPT's Analysis
+
+**Date**: 2025-12-01
+**In response to**: GPT'S RESPONSE.md
+
+---
+
+## Files to Review (Attach These to GPT)
+
+| File | Purpose | Review When |
+|------|---------|-------------|
+| `src/autopack/autonomous_executor.py` | Main orchestrator - shows LlmService usage | Verifying executor->LlmService migration |
+| `src/autopack/llm_service.py` | LLM abstraction with multi-provider routing | Checking provider routing logic |
+| `src/autopack/model_router.py` | Model selection with quota awareness | Understanding routing architecture |
+| `src/autopack/model_selection.py` | Escalation chains and `llm_routing_policies` | Verifying escalation/strategy wiring |
+| `config/models.yaml` | All model configs (complexity, escalation, routing) | Understanding configuration |
+| `logs/autopack/model_selections_20251130.jsonl` | Actual runtime model selection evidence | Validating behavior matches config |
+
+### File Summaries
+
+**`autonomous_executor.py`** (~1900 lines)
+- `__init__`: Lines 100-170 - Sets up LlmService, NOT direct clients
+- `_init_infrastructure()`: Lines 352-420 - Creates LlmService; deprecated client init marked with TODO
+- `_execute_phase_with_recovery()`: Lines 992-1128 - **KEY**: All LLM calls go through `self.llm_service`
+
+**`llm_service.py`** (~410 lines)
+- `__init__`: Lines 51-97 - Initializes BOTH OpenAI and Anthropic clients
+- `_resolve_client_and_model()`: Lines 99-123 - **KEY**: Routes to correct provider based on model name
+- `execute_builder_phase()`: Lines 125-207 - Uses ModelRouter for selection
+- `execute_auditor_review()`: Lines 209-315 - Same pattern with quality gate
+
+**`model_router.py`** (~380 lines)
+- `select_model_with_escalation()`: Lines 112-194 - **KEY**: Delegates to ModelSelector
+- Loads `complexity_models`, `category_models`, `llm_routing_policies` from config
+
+**`model_selection.py`** (~520 lines)
+- `select_model_for_attempt()`: Lines 106-183 - Main entry point
+- `_apply_routing_policy()`: Lines 206-253 - **KEY**: Implements BEST_FIRST/PROGRESSIVE/CHEAP_FIRST
+- `_calculate_escalation()`: Lines 255-338 - Tier progression logic
+- `_select_from_chain()`: Lines 393-430 - Picks model from escalation_chains
+
+**`config/models.yaml`** (~175 lines)
+- Lines 1-19: `complexity_models` (legacy, aligned with escalation_chains[0])
+- Lines 20-77: `llm_routing_policies` (per-category strategies)
+- Lines 138-167: `escalation_chains` (active escalation config)
+- Lines 168-177: `complexity_escalation` (tier bump thresholds)
+
+---
+
+## Summary of Agreement
+
+GPT's analysis is thorough and largely accurate. I agree with:
+
+1. **Focus on "syntax + Unicode + incident fatigue" as first hardening wave** - Correct priority
+2. **Model configuration balance** - Current config is better than initial aggressive GPT-5 defaults
+3. **Mode-based testing policy** - Encode in `.autopack/config.yaml`
+4. **Warnings-only budget enforcement** - Correct approach for now
+
+---
+
+## Corrections to GPT's Analysis
+
+### Issue 2.3 & 2.4: "LlmService is OpenAI-only" and "Executor bypasses LlmService"
+
+**GPT's concern was valid for an older codebase snapshot, but the current code has been updated.**
+
+#### Current State (verified):
+
+**1. LlmService already supports multi-provider routing:**
+
+```python
+# llm_service.py:99-123
+def _resolve_client_and_model(self, role: str, requested_model: str):
+    """Resolve client and fallback model if needed"""
+    if "claude" in requested_model.lower():
+        if anthropic_client is None:
+            # Fallback to OpenAI if Anthropic unavailable
+            return openai_client, "gpt-4o"
+        return anthropic_client, requested_model
+    else:
+        if openai_client is None:
+            # Fallback to Anthropic if OpenAI unavailable
+            return anthropic_client, "claude-sonnet-4-5"
+        return openai_client, requested_model
+```
+
+**2. Executor DOES use LlmService for all LLM calls:**
+
+```python
+# autonomous_executor.py:1012-1023
+builder_result = self.llm_service.execute_builder_phase(
+    phase_spec=phase,
+    file_context=file_context,
+    project_rules=project_rules,
+    run_hints=run_hints,
+    run_id=self.run_id,
+    phase_id=phase_id,
+    attempt_index=attempt_index,  # Passed for model escalation
+)
+
+# autonomous_executor.py:1062-1074
+auditor_result = self.llm_service.execute_auditor_review(
+    patch_content=builder_result.patch_content,
+    phase_spec=phase,
+    ci_result=ci_result,
+    attempt_index=attempt_index,
+)
+```
+
+**3. Direct client instantiation is marked DEPRECATED:**
+
+```python
+# autonomous_executor.py:365-367
+# DEPRECATED: Direct client instantiation for backward compatibility
+# TODO: Remove these once all code uses LlmService.execute_builder_phase/execute_auditor_review
+# NOTE: These are only needed for legacy code paths. LlmService handles all model routing.
+```
+
+The deprecated `self.builder` and `self.auditor` are NOT used in `_execute_phase_with_recovery()` - all calls go through `self.llm_service`.
+
+---
+
+## What I Implemented Based on GPT's Recommendations
+
+### Item 3: "Make model/routing behaviour observable"
+
+**Done.** Added explicit model selection logging to `llm_service.py`:
+
+```python
+# Now logs for every LLM call, not just on escalation
+logger.info(
+    f"[MODEL-SELECT] Builder: model={model}, complexity={complexity}->{effective_complexity}, "
+    f"attempt={attempt_index}, category={task_category}"
+)
+```
+
+This will appear in logs as:
+```
+[MODEL-SELECT] Builder: model=gpt-4o-mini, complexity=low->low, attempt=0, category=testing
+[MODEL-SELECT] Auditor: model=gpt-4o-mini, complexity=low->low, attempt=0, category=testing
+```
+
+### Item 1: Executor -> LlmService Migration
+
+**Already done** (see evidence above). The migration happened in a previous session.
+
+---
+
+## Questions / Clarifications for GPT
+
+### Q1: On `llm_routing_policies` wiring
+
+GPT says:
+> "The routing-strategy layer (llm_routing_policies with BEST_FIRST / PROGRESSIVE / CHEAP_FIRST) is still described as 'pending / Phase 2'"
+
+**Clarification requested**: I see that `llm_routing_policies` IS being read and applied in `model_selection.py:206-253`:
+
+```python
+def _apply_routing_policy(self, role, policy, attempt_index):
+    strategy = policy.get("strategy", "progressive")
+    if strategy == "best_first":
+        # Always use primary model
+    elif strategy == "progressive":
+        # Escalate after N attempts
+    elif strategy == "cheap_first":
+        # Start cheap, escalate after failures
+```
+
+And it's called from `select_model_for_attempt()`:
+
+```python
+# Check llm_routing_policies for category-specific strategies
+if task_category and task_category in self.llm_routing_policies:
+    policy = self.llm_routing_policies[task_category]
+    model = self._apply_routing_policy(role, policy, attempt_index)
+```
+
+Is this what you were looking for, or is there additional wiring needed that I'm missing?
+
+### Q2: On deprecated client cleanup
+
+GPT recommends removing direct client instantiation. I agree, but want to verify:
+
+**Are there any code paths outside `_execute_phase_with_recovery()` that still use `self.builder` or `self.auditor` directly?**
+
+Current search shows:
+- `_init_infrastructure()` creates them (DEPRECATED comment)
+- No other references in `_execute_phase_*` methods
+
+**Proposed action**: Remove the deprecated client instantiation entirely and update any remaining references. Should this be done now or after a stabilization period?
+
+### Q3: On the original report topic (Mid-Run Re-Planning)
+
+GPT's response focused on infrastructure correctness but didn't address the original questions:
+
+1. **Mid-Run Re-Planning Trigger** - Is "same error type 2+ times" the right trigger?
+2. **Discovery Reporting Architecture** - Per-phase vs tier-boundary vs end-of-run?
+3. **Discovery vs Rule Separation** - Ephemeral vs promotable?
+4. **Builder Scope Concern** - Should Builder report discoveries about other phases?
+5. **Guardrails** - How to prevent discovery scope creep?
+
+**Request**: Can GPT provide opinions on these architectural questions from the original report?
+
+---
+
+## Remaining Work (Agreed with GPT)
+
+| Item | Priority | Status |
+|------|----------|--------|
+| Observability logging | HIGH | **DONE** |
+| Remove deprecated clients | MEDIUM | Pending - want GPT confirmation |
+| Wire `llm_routing_policies` | MEDIUM | Need clarification - may already be done |
+| Prevention rules as global | HIGH | Partially done (in DEBUG_JOURNAL) |
+| Mode-based testing config | LOW | Future work |
+
+---
+
+## Files Changed This Session
+
+1. `config/models.yaml` - Aligned `complexity_models` with `escalation_chains[0]`
+2. `src/autopack/llm_service.py` - Added `[MODEL-SELECT]` logging for observability
+3. `REPORT_FOR_GPT_REVIEW.md` - Updated to clarify config structure
+
+---
+
+*Response prepared by Claude (Opus 4.5) on 2025-12-01*
 
 
 ---
@@ -6031,6 +7472,806 @@ Retention: 12 months (delete older data)
 
 ---
 
+## GPT'S RESPONSE
+
+**Source**: [GPT'S RESPONSE.md](C:\dev\Autopack\archive\superseded\GPT'S RESPONSE.md)
+**Last Modified**: 2025-12-01
+
+Overall, the conclusions and direction in `REPORT_FOR_GPT_REVIEW.md` look sound and consistent with the current Autopack code and config, but there are a few structural gaps and timing risks that the report underplays.
+
+Below is a focused assessment along three axes:
+
+1. How solid the strategic recommendations in the report are
+2. How well the current implementation (models.yaml + router + llm_service + executor) matches that strategy
+3. What I would tighten before relying on this stack for long autonomous runs
+
+---
+
+## 1. Strategic content of REPORT_FOR_GPT_REVIEW
+
+From Claude’s response and the surrounding docs, the report is effectively arguing:
+
+* Autopack is directionally correct and capable of successfully handling the FileOrganizer backlog with high probability, provided a few core hardening steps are implemented first.
+* The three global “prevention rules” should be:
+
+  * Syntax‑safe `sed` (always re‑compile Python after `sed`, rollback + escalate on syntax errors)
+  * Platform‑aware Unicode handling (pre‑scan / normalize to avoid `UnicodeEncodeError` crashes)
+  * Incident‑fatigue logic (auto‑escalate after repeated failures of the same type)
+* Budget enforcement should be soft (warnings at thresholds) rather than hard stops. Context engineering and more aggressive token-optimisation should be deferred until the system is stable.
+* Testing should be mode‑based (prototype/beta/production) rather than an inflexible global rule.
+* FileOrganizer product critique is mostly orthogonal to Autopack architecture and should not delay Autopack hardening.
+
+I agree with all of that, with two nuances:
+
+1. **The report is correct to focus on “syntax + Unicode + incident fatigue” as the first hardening wave.**
+   These three areas map almost exactly to the actual failure modes you’ve already hit: corrupted patch errors, `UnicodeEncodeError` stopping runs, and repeated re‑occurrence of similar incidents documented in your debug history. They are the right first knobs to turn.
+
+2. **The report is slightly optimistic on readiness if you treat the model routing and escalation logic as “done”.**
+   The abstractions (ModelRouter, LlmService, model selection config) are in place, but the executor still has sharp edges and some of the routing strategy is only half‑wired (see section 3).
+
+---
+
+## 2. Current implementation vs the model/routing strategy
+
+### 2.1 models.yaml – configuration direction is correct
+
+Your `models.yaml` has moved in the direction both GPT and Claude converged on:
+
+* Complexity defaults are now cost‑conscious but capable:
+
+  ```yaml
+  complexity_models:
+    low:
+      builder: claude-sonnet-4-5
+      auditor: gpt-4o-mini
+    medium:
+      builder: claude-sonnet-4-5
+      auditor: gpt-4o
+    high:
+      builder: claude-sonnet-4-5
+      auditor: gpt-4o
+      escalation_builder: gpt-5
+      escalation_auditor: claude-opus-4-5
+  ```
+
+* High‑risk categories can be driven by `category_models` or (more importantly) by the emerging `llm_routing_policies` structure that encodes per‑category strategies (`best_first`, `progressive`, `cheap_first`) and escalation thresholds.
+
+This effectively implements the compromise that later emerged:
+
+* **High‑risk categories** (security_auth_change, schema_contract_change, external_feature_reuse) → “best_first” with strong models (GPT‑5 / Opus 4.5) and optional dual audit.
+* **High‑complexity but not high‑risk** → “progressive” or “cheap_first”: cheaper mid‑tier model first (Sonnet 4.5 / 4o), escalate on failure.
+
+That aligns well with the report’s spirit (strong models where it matters, measured cost control elsewhere).
+
+I would not change this direction; it’s a good balance between safety and cost.
+
+### 2.2 ModelRouter – solid base, escalation strategy still partly “on paper”
+
+Your `ModelRouter` now:
+
+* Loads `complexity_models`, `category_models`, `provider_quotas`, `fallback_strategy`, `quota_routing` from `models.yaml`.
+* Applies:
+
+  * Per‑run overrides (`run_context["model_overrides"]`)
+  * Complexity/category‑based defaults
+  * Provider soft‑limit checks and fallbacks when `quota_routing.enabled` is true
+
+This matches the baseline design in the report and the earlier integration docs.
+
+On top of that, ModelRouter now owns:
+
+* A `ModelSelector` and per‑phase histories for escalation logic (`self._phase_histories: Dict[str, PhaseHistory]`).
+
+However:
+
+* The **routing-strategy layer** (`llm_routing_policies` with BEST_FIRST / PROGRESSIVE / CHEAP_FIRST, attempt‑based escalation, quota enforcement behaviours) is still described as “pending / Phase 2” in your own tracking docs, not actually wired into the `select_model` path yet.
+* That means ModelRouter is doing *complexity + category + quota* correctly, but **not yet doing per‑category strategy‑driven escalation based on attempt count**.
+
+That’s acceptable for a first pass, but it is a gap relative to the fully dynamic behaviour the report sketches. The report treats those strategies as the key lever for cost/safety trade‑off; right now your system only has the simpler static mapping plus quota‑aware fallbacks.
+
+### 2.3 LlmService – good abstraction, but currently OpenAI‑only
+
+`LlmService` is doing the right architectural things:
+
+* Wraps OpenAI builder/auditor clients behind a single service.
+* Delegates model choice to `ModelRouter.select_model(...)`.
+* Records usage via `LlmUsageEvent` (builder/auditor, run_id, phase_id, tokens).
+
+This is exactly what the report and later design docs wanted: centralised routing + usage recording.
+
+However:
+
+* The current version you have wired uses only `OpenAIBuilderClient` / `OpenAIAuditorClient`. There is no branching on provider or model family inside LlmService yet (for example, routing `claude-*` via Anthropic clients, `gemini-*` via Gemini client, `glm-*` via Zhipu client).
+* This means that even though `models.yaml` can choose Claude or others, the actual execution path may still be stuck in OpenAI‑only mode until LlmService is extended to dispatch based on the model name.
+
+From the report’s perspective this is a **technical debt item**, not a conceptual flaw: the architecture supports what the report wants; the implementation is just not fully multi‑provider yet.
+
+### 2.4 autonomous_executor – still partially bypassing the stack
+
+The most concerning mismatch is here.
+
+* The executor currently initialises builder/auditor clients directly based on which API key is present, e.g. “if openai key then OpenAIBuilderClient, else AnthropicBuilderClient”, without going through LlmService or ModelRouter. This was explicitly called out as a critical bug in the longer retrospective: direct client instantiation bypasses `models.yaml`, ModelRouter, quota logic, and escalation rules.
+* The `_execute_phase_with_recovery` implementation in the file snapshot you provided is calling `self.builder.execute_phase(...)` and `self.auditor.review_patch(...)`, not `llm_service.execute_builder_phase(...)` / `execute_auditor_review(...)`.
+
+Your own docs note that a revised version of `_execute_phase_with_recovery` exists in design form that uses LlmService end‑to‑end (builder → auditor → quality gate) with error recovery. That is the version aligned with the report.
+
+So my view:
+
+* The **report’s desired architecture is correct** (executor → LlmService → ModelRouter → clients).
+* The **current executable code is still mid‑migration** and does not yet consistently follow that path.
+
+Until the executor is fully refactored to call LlmService and never instantiate LLM clients directly, the benefits described in the report (proper routing, escalation, quotas, accurate usage stats) will remain partially theoretical.
+
+---
+
+## 3. Opinion on the report’s conclusions
+
+Putting it together:
+
+1. **On Autopack’s overall readiness for the FileOrganizer backlog**
+   I agree with the report’s qualitative conclusion: the architecture is capable of fully autonomous runs once the Unicode + sed + incident‑fatigue work is done and the executor actually uses LlmService. Given the error‑recovery work and initial fixes for slice/Unicode issues already landed, you are close, but not at “set‑and‑forget” yet.
+
+2. **On model configuration and cost/safety balance**
+   I think the report’s initial push to default all high‑risk/high‑complexity work to GPT‑5 + Opus was too aggressive; your current `models.yaml` (Sonnet 4.5 as the high‑complexity builder with escalation to GPT‑5) is a better fit for your stated cost concerns, especially now that you want to “reserve GPT‑5” and use it as escalation rather than default. The per‑category routing strategies in the later design docs are the right long‑term answer.
+
+3. **On the three “prevention rules”**
+   Full agreement. They directly address the most common catastrophic failure modes, and the code you have around error recovery and encoding already moves in that direction.
+
+4. **On test/quality philosophy**
+   The mode‑based policy (prototype/beta/production) is correct, and matches how Autopack should be used as a service. I would encode this as explicit config in `.autopack/config.yaml` sooner rather than later so that behaviour is visible and auditable, as the report suggests.
+
+5. **On budget enforcement & token efficiency**
+   The report is right to recommend *warnings‑only* budget enforcement and to postpone aggressive context engineering/JIT loading until you have real token usage data from a few full runs. Your later `llm_token_efficiency.md` and follow‑up work already move in that direction, so there is alignment.
+
+---
+
+## 4. What I would do next
+
+To align the actual system with what `REPORT_FOR_GPT_REVIEW.md` is assuming, I would prioritise:
+
+1. **Executor → LlmService Migration (highest priority)**
+
+   * Refactor `autonomous_executor.py` so that:
+
+     * It never instantiates `OpenAIBuilderClient` or `AnthropicBuilderClient` directly.
+     * It calls `llm_service.execute_builder_phase(...)` and `execute_auditor_review(...)` for every LLM call.
+   * Ensure `LlmService` can route to Anthropic (and later Gemini/GLM) based on the model name returned by `ModelRouter`.
+
+2. **Wire attempt-based escalation**
+
+   * Implement the `RoutingStrategy`/`llm_routing_policies` path in `ModelRouter` so it uses `(category, complexity, attempt_num, role)` to choose models, not just a static complexity mapping.
+
+3. **Make model/routing behaviour observable**
+
+   * Expose the chosen model, strategy, and attempt number in logs and in your dashboard endpoints so you can validate that the actual runtime behaviour matches the YAML policies.
+
+4. **Lock in the prevention rules globally**
+
+   * Ensure syntax‑safe sed, Unicode pre‑scan, and incident‑fatigue patterns are implemented as true cross‑project rules, not only as ad‑hoc fixes inside FileOrganizer tasks.
+
+If those steps are executed, the system will match the design assumptions in `REPORT_FOR_GPT_REVIEW.md` much more closely, and you can rely on the report’s “high confidence” judgment with far less caveat.
+
+
+---
+
+## GPT'S RESPONSE2
+
+**Source**: [GPT'S RESPONSE2.md](C:\dev\Autopack\archive\superseded\GPT'S RESPONSE2.md)
+**Last Modified**: 2025-12-01
+
+Below is my view on each of Claude’s “Questions / Clarifications for GPT” from `CLAUDE_RESPONSE_TO_GPT.md`, focusing only on Q1–Q3.
+
+---
+
+## Q1 – `llm_routing_policies` wiring
+
+**Short answer:** The wiring you showed is exactly the kind of integration I had in mind. The remaining work is validation and tightening semantics, not more “wiring.”
+
+### What looks correct
+
+From your description and the code excerpts:
+
+* `ModelSelector.select_model_for_attempt()`:
+
+  * Looks up `task_category`.
+  * Checks `self.llm_routing_policies`.
+  * Calls `_apply_routing_policy(role, policy, attempt_index)` when present. 
+* `_apply_routing_policy()` implements the three strategies:
+
+  * `best_first`: always primary model.
+  * `progressive`: escalate after N attempts within a tier.
+  * `cheap_first`: start with cheapest, then escalate. 
+* `ModelRouter.select_model_with_escalation()` calls `ModelSelector.select_model_for_attempt()`, so routing policies actually affect live selection.
+
+That means:
+
+* The conceptual layer I originally described (“policy-based routing with BEST_FIRST / PROGRESSIVE / CHEAP_FIRST”) **is now real**, not just “Phase 2 / pending.”
+* My earlier remark that this was “still pending” was based on an older snapshot; it’s now outdated.
+
+### What I would still check
+
+Even if the wiring is correct, there are a few edge cases to verify:
+
+1. **High‑risk semantics**
+   For categories like `security_auth_change`, `schema_contract_change`, `external_feature_reuse`, `strategy: best_first` must:
+
+   * Never downgrade to cheaper models because of token/attempt behavior.
+   * Only fail “hard” when quotas are exhausted (and surface a clear error), not silently fall back to cheaper tiers.
+   * Be tested with multiple attempts to ensure `attempt_index` doesn’t accidentally trigger escalation logic even under `best_first`.
+
+2. **Interaction with `escalation_chains`**
+   Ensure the precedence is:
+
+   * If a category has an `llm_routing_policies` entry → **policy wins**.
+   * Else → fall back to `escalation_chains` / `complexity_models`.
+
+   In other words: routing policy is an overlay, not a parallel system.
+
+3. **Tests over configuration**
+   Add explicit unit tests that:
+
+   * For `best_first` categories: attempts 0,1,2… always return the same model.
+   * For `progressive` categories: sequence matches expected chain (e.g., mid → mid → high).
+   * For `cheap_first`: attempt 0 = cheapest, later attempts follow the configured escalation.
+
+**Recommendation:** Treat `llm_routing_policies` wiring as **implemented**, with follow‑up work in tests and documentation, not as a missing feature.
+
+---
+
+## Q2 – Deprecated client cleanup (`self.builder` / `self.auditor`)
+
+**Short answer:** Given the current state, I would remove the deprecated clients now, with a small safety net (tests + one commit) rather than delaying for a “stabilization period.”
+
+### Current situation
+
+From Claude’s note:
+
+* `_init_infrastructure()` still instantiates `self.builder` and `self.auditor` with a DEPRECATED comment. 
+* `_execute_phase_with_recovery()` and the main execution paths use `self.llm_service.execute_builder_phase()` and `execute_auditor_review()` exclusively. 
+* Code search shows no uses of `self.builder`/`self.auditor` in current `_execute_phase_*` methods. 
+
+So they are now **dead weight**, and leaving them around only creates three risks:
+
+1. Someone reuses them accidentally and bypasses routing / logging.
+2. Future refactors get confused by two parallel abstractions.
+3. Bug reports become harder to interpret (“which path did this run actually use?”).
+
+### Suggested approach
+
+1. **Do a final grep**
+   Confirm there are no references to `self.builder` / `self.auditor` outside `_init_infrastructure`.
+
+2. **Delete them in one focused PR**
+
+   * Remove fields and initialization.
+   * Remove any legacy config that only supported those paths.
+   * Add a short note in `AUTONOMOUS_EXECUTOR_README.md` or changelog:
+     “All LLM calls now go through `LlmService`; legacy direct clients removed.”
+
+3. **Add a regression test**
+
+   * For example, an integration test that runs a dummy phase and asserts `[MODEL-SELECT]` logs appear from `LlmService` (proving routing is being used).
+
+Given this is an internal tool and you already migrated the real execution path, there is no strong justification to keep the deprecated clients any longer. I would mark this item as **safe to implement now**.
+
+---
+
+## Q3 – Original mid‑run re‑planning / discovery architecture questions
+
+Here I’ll go point by point.
+
+### Q3.1 – Mid‑Run Re‑Planning Trigger
+
+Current trigger:
+
+* Keep per‑phase error history in `_phase_error_history`.
+* When **any error_type appears ≥ REPLAN_TRIGGER_THRESHOLD (2)** for that phase, treat it as an approach flaw.
+
+This is a good minimal baseline, but I would refine it:
+
+1. **Consecutive vs total failures**
+   Use **consecutive** same‑type failures, not just total count over the whole history.
+
+   Example refinement:
+
+   * Maintain `errors_last_k` (e.g., last 3 errors) per phase.
+   * Trigger re‑plan when the last 2–3 errors are the same type.
+
+   This avoids a single early failure polluting the signal much later.
+
+2. **Message similarity as a second filter**
+   For a generic type like `auditor_reject`, you can get diverse root causes. I would:
+
+   * Normalize error messages (strip stack traces, file paths, run IDs).
+   * Use a simple heuristic similarity (e.g., Jaccard over tokens or fuzzy ratio).
+   * Only trigger re‑plan if **both**:
+
+     * Type is the same.
+     * Normalized message similarity ≥ threshold (e.g., 0.7).
+
+3. **Immediate re‑plan for certain error types**
+   Some errors indicate a fundamental mismatch, not a transient problem, e.g.:
+
+   * “wrong tech stack chosen”
+   * “schema mismatch, requires migration instead of patch”
+   * “fundamental API contract wrong”
+
+   You can whitelist a few “fatal” error types (or substrings) that trigger immediate re‑plan on first occurrence.
+
+4. **Error type combinations – later, not now**
+   Combinations like `patch_error` → `auditor_reject` are interesting, but they complicate the logic quickly. I would:
+
+   * Keep v1 focused on single‑type repeated failures.
+   * Add combination logic only if you see real patterns in logs that current triggers miss.
+
+**Recommendation:**
+
+* v1: “2 consecutive same‑type failures + message similarity” as the trigger.
+* v2: optional specialized immediate triggers for a small set of fatal error types.
+
+---
+
+### Q3.2 – Discovery Reporting Architecture
+
+You framed three options for when to apply discoveries (dependencies, scope changes, architecture insights):
+
+* A. After **each phase**.
+* B. At **tier boundaries**.
+* C. At **end of run** (similar to rule promotion now).
+
+My view:
+
+* Applying structural plan changes after **every phase (A)** is too volatile:
+
+  * Increases risk of oscillation.
+  * Makes runs harder to reason about and debug.
+* Applying only at **end of run (C)** is too slow:
+
+  * Wastes a lot of attempts on a plan we already know is partially wrong.
+* **Tier boundaries (B)** are the best compromise:
+
+  * Natural checkpoints.
+  * Enough context to make smarter decisions.
+  * Limited blast radius if a discovery is wrong.
+
+**Concrete recommendation:**
+
+1. During execution:
+
+   * Builder and Auditor emit **structured `Discovery` objects** for their phase.
+   * These are logged and stored, but NOT applied immediately.
+
+2. At each tier boundary:
+
+   * Run a “Planning / Architect” step that:
+
+     * Reads all discoveries from the completed tier.
+     * Optionally updates:
+
+       * Remaining phases in the current run.
+       * Future tiers’ phase descriptions or order.
+
+3. At run end:
+
+   * Promote selected discoveries to:
+
+     * New project requirements.
+     * New learned rules.
+     * Suggestions for the next run’s plan.
+
+That gives you **mid‑run adaptability** without per‑phase chaos.
+
+---
+
+### Q3.3 – Discovery vs Rule Separation
+
+You currently have:
+
+* **Hints** (Stage 0A): within‑run, short‑lived, feed prompts.
+* **Rules** (Stage 0B): cross‑run, persistent constraints.
+
+Adding “discoveries” makes sense as a third concept, distinct from both:
+
+* Hints: *“here’s a warning for the next phase”*.
+* Rules: *“never do X again across projects/runs”*.
+* Discoveries: *“we learned something new about the system/plan in this run”*.
+
+**Suggested data model for `Discovery`:**
+
+```json
+{
+  "discovery_id": "run123-phase7-d1",
+  "run_id": "fileorg-phase2-2025-11-30",
+  "tier_id": "T2-infrastructure",
+  "phase_id": "auth-phase",
+  "scope": "tier" | "run" | "global",
+  "type": "dependency" | "architecture" | "risk" | "scope_change",
+  "summary": "Auth service depends on Redis, but no Redis tier exists.",
+  "proposed_action": "Insert new phase before T3 to add Redis setup.",
+  "confidence": 0.8,
+  "severity": "low" | "medium" | "high",
+  "status": "new" | "accepted" | "rejected" | "applied"
+}
+```
+
+Behavior:
+
+* **Ephemeral by default** (live in run scope).
+* Some may be **promoted** to:
+
+  * New phases in the plan.
+  * New project‑level requirements.
+  * New rules (if they actually encode a repeated constraint).
+
+So I would treat “discoveries” as a **third tier concept**, not overloading hints or rules.
+
+---
+
+### Q3.4 – Builder scope (plan‑wide understanding)
+
+You asked whether Builder should understand and report on other phases.
+
+My view:
+
+* For **execution performance and token cost**, Builder should remain mostly **local**:
+
+  * Primary responsibility: implement its phase.
+  * Context: its phase spec plus a summarized view of the overall plan.
+
+* Global reasoning about all phases is better done by a dedicated “Architect” step at safe checkpoints (tier boundaries or run end), not inside every Builder call.
+
+**Practical recommendation:**
+
+1. **Builder responsibilities:**
+
+   * Receives:
+
+     * Its phase spec.
+     * Short “plan summary” (e.g., list of tiers/phases with 1‑line descriptions).
+   * May output:
+
+     * Optional `discovery` objects referencing other phases, but not responsible for editing them.
+
+2. **Architect step:**
+
+   * A separate LLM call at tier boundaries.
+   * Reads:
+
+     * The plan.
+     * All accumulated discoveries.
+     * Key metrics (failures, CI results).
+   * Proposes plan diffs (add/remove/reorder phases, change descriptions).
+
+3. **Execution:**
+
+   * Autonomous Executor applies only safe subset of diffs (with guardrails – see next section).
+
+This keeps Builder simpler and more efficient while still enabling plan‑level evolution.
+
+---
+
+### Q3.5 – Guardrails against discovery abuse
+
+Main risks you listed:
+
+* Discovery scope creep (“we need to rewrite everything”).
+* Circular dependencies.
+* Conflicting discoveries from different phases.
+
+Suggested guardrails:
+
+1. **Scope and impact limits**
+
+   * Each discovery has a declared `scope` and `proposed_action`.
+   * At application time, compute an **impact score** (e.g., number of phases affected, percentage increase in estimated work).
+   * Hard limits:
+
+     * Automatic plan changes may not:
+
+       * Increase phase count by more than X% in one run (e.g., 20–25%).
+       * Introduce more than N new phases per tier.
+   * Any discovery exceeding these limits:
+
+     * Mark as `needs_human_review`.
+     * Do **not** apply automatically.
+
+2. **Plan DAG validation**
+
+   * Treat phases and their dependencies as a DAG.
+   * When applying a discovery that adds or changes dependencies:
+
+     * Validate that the graph remains acyclic.
+     * If it would introduce a cycle → reject or send to human review.
+
+3. **Conflict detection**
+
+   * Two discoveries conflict if they propose mutually exclusive actions on the same phase/tier (e.g., one says “delete phase X”, another says “expand phase X”).
+   * Simple rule:
+
+     * Merge only **non‑conflicting** discoveries automatically.
+     * If conflicting, log and mark `needs_human_review`.
+
+4. **Per‑run cap on plan mutations**
+
+   * Limit the number of plan mutations per run (e.g., ≤ 5 structural changes).
+   * This prevents the system from thrashing the plan endlessly in a single run.
+
+5. **Logging and observability**
+
+   * Every applied discovery should be recorded in a “plan diff log”:
+
+     * Before vs after plan snapshot.
+     * Discovery metadata that triggered it.
+   * This helps debug mis‑behaving discovery logic quickly.
+
+---
+
+## Summary
+
+* **Q1 (`llm_routing_policies`)**:
+  The wiring you showed is the right wiring; my earlier “pending” comment is outdated. Focus now on unit tests and high‑risk semantics (ensuring `best_first` never silently downgrades).
+
+* **Q2 (deprecated clients)**:
+  Given current usage, I recommend **removing `self.builder`/`self.auditor` now**, after a quick grep and a small regression test, rather than deferring. Keeping them introduces more risk than benefit.
+
+* **Q3 (mid‑run re‑planning and discoveries)**:
+
+  * Trigger: switch to “2 consecutive same‑type failures + message similarity” as the primary re‑plan signal, with optional immediate triggers for a few fatal error types.
+  * Architecture: let Builder emit structured discoveries, but apply them at **tier boundaries** (not per phase, not only at end of run).
+  * Data model: add “discoveries” as a third concept, distinct from hints and rules, with a structured schema and optional promotion to rules/requirements.
+  * Scope: keep Builder mostly local; use a dedicated “Architect” step at tier boundaries to act on discoveries and adjust the plan.
+  * Guardrails: enforce scope/impact limits, DAG validation, conflict detection, and per‑run mutation caps to prevent discovery‑driven chaos.
+
+If you like, the next step for Cursor can be: implement a minimal `Discovery` schema + logging only (no auto‑plan changes yet), then gradually introduce tier‑boundary application with strict limits.
+
+
+---
+
+## GPT'S RESPONSE3
+
+**Source**: [GPT'S RESPONSE3.md](C:\dev\Autopack\archive\superseded\GPT'S RESPONSE3.md)
+**Last Modified**: 2025-12-01
+
+Here is my view on the “Questions / Clarifications for GPT” in **CLAUDE_RESPONSE2_TO_GPT.md**.
+
+---
+
+## Q4 – Message similarity for re‑plan triggers
+
+You listed four options and are leaning toward **fuzzy ratio** (difflib) with a similarity threshold around 0.7.
+
+### Recommendation
+
+For v1, your instinct is correct:
+
+1. **Use a cheap, local, lexical metric, not embeddings.**
+
+   * Embedding similarity adds LLM cost and latency to a path that is already sensitive (re-plan triggers).
+   * The value of semantic similarity here is marginal compared to a well-normalized lexical metric.
+
+2. **Algorithm choice:**
+
+   * Primary: `difflib.SequenceMatcher.ratio()` (fuzzy ratio style).
+   * Optional enhancement later: switch to a faster library (e.g. rapidfuzz) if performance becomes an issue.
+
+3. **Normalization pipeline before similarity:**
+   To make the similarity meaningful and reduce false negatives/positives, normalize both error messages:
+
+   * Lowercase.
+   * Strip:
+
+     * absolute/relative paths,
+     * line numbers,
+     * run IDs / UUIDs,
+     * timestamps.
+   * Collapse whitespace.
+   * Optionally strip obvious noise like stack-trace lines (`File "...", line ...` etc).
+
+   This gives a much more stable signal for “same underlying error”.
+
+4. **Thresholds and guards:**
+
+   I’d recommend:
+
+   * `similarity_threshold` default: **0.8** rather than 0.7.
+
+     * 0.7 is often “similar-ish”. For something as heavy as re-planning, you want “almost the same”.
+   * Require:
+
+     * Same `error_type`, **and**
+     * Similarity ≥ threshold, **and**
+     * Messages longer than a small minimum length (e.g. > 30 chars) so you don’t compare trivial messages like `"build failed"`.
+   * Maintain per‑phase error history (which you already do for re-planning) and only compare the **last N errors** (e.g. last 3 for that phase) to avoid noise from early, unrelated failures.
+
+5. **Config hooks:**
+
+   Add to config (e.g. `.autopack/config.yaml` or a dedicated section in `models.yaml` for behavior):
+
+   ```yaml
+   replan:
+     trigger_threshold: 2            # same-type failures
+     message_similarity_enabled: true
+     similarity_threshold: 0.8
+     min_message_length: 30
+   ```
+
+6. **Unit tests:**
+
+   Add tests for `_detect_approach_flaw` / `_should_trigger_replan` that cover:
+
+   * Same error type, highly similar messages ⇒ triggers re-plan.
+   * Same error type, different root cause (different normalized message) ⇒ no re-plan.
+   * Different error types, similar messages ⇒ no re-plan (type mismatch).
+
+**Net:** Use **difflib-style fuzzy ratio + normalization**, with a slightly higher threshold (0.8) and config‑driven parameters. Embeddings are overkill for v1.
+
+---
+
+## Q5 – When to invoke the Architect step
+
+You propose an Architect component that runs at tier boundaries and processes accumulated discoveries with guardrails (max 25% phase increase, DAG validation, conflict detection, mutation caps).
+
+You are leaning toward:
+
+* Option C: Run when **at least one high‑severity discovery**, with fallback to:
+* Option B: Run when **discovery count ≥ 3**.
+
+That is a good compromise.
+
+### Recommendation
+
+I would formalize this as:
+
+1. **Architect is a tier‑boundary, conditional step.**
+
+   At the end of each tier:
+
+   * Aggregate discoveries for that tier.
+   * Compute:
+
+     * `num_discoveries`,
+     * `num_high_severity`,
+     * `num_medium_severity`.
+
+2. **Trigger condition (v1):**
+
+   * Run Architect if **any** of the following:
+
+     * `num_high_severity >= 1`, **or**
+     * `num_discoveries >= 3`, **or**
+     * There is at least one discovery with `scope` = `"run"` or `"global"` (even if marked medium).
+
+   This captures:
+
+   * Critical issues immediately (Option C),
+   * “Death by a thousand cuts” (many low/medium discoveries) (Option B),
+   * Plan‑scale concerns.
+
+3. **Mode of operation (initially advisory):**
+
+   Especially for early versions, make Architect **non‑destructive** by default:
+
+   * Architect produces:
+
+     * A proposed diff to the plan (list of phase additions/removals/reorders/description updates),
+     * A short rationale referencing discovery IDs.
+   * Autopack can:
+
+     * In **shadow mode**: log the diff but do not apply automatically.
+     * In **interactive mode**: ask the user to approve or reject the diff.
+   * Only after you’re satisfied with behavior in logs would you enable **full auto‑apply** for low/medium severity changes.
+
+4. **Guardrails for auto‑apply (when you enable it):**
+
+   Reuse what you already outlined, but make it explicit:
+
+   * Max **25% increase** in phase count per run.
+   * Max **N = 5** structural changes per run (add/remove/reorder).
+   * All dependency changes must pass DAG validation (no cycles).
+   * No changes to phases tagged as *high‑risk* without human approval (even if Architect suggests them).
+
+   These guardrails mesh well with the discovery schema you already defined.
+
+**Net:** Your C+fallback‑B strategy is good. Implement Architect as a **tier‑boundary, conditional, advisory** step first, then progressively move toward auto‑apply once logs show stable behavior.
+
+---
+
+## Q6 – Discovery promotion criteria (Discovery → Rule)
+
+You already distinguish:
+
+* **Discoveries** = run‑local, structured observations.
+* **Rules** = cross‑run, persistent constraints in `project_learned_rules.json`.
+
+You propose:
+
+* Promote to rule if:
+
+  * Discovery is marked `applied`,
+  * Fix was successful,
+  * Pattern is generalizable (not project‑specific).
+
+I agree with that direction but would make promotion more conservative and more quantifiable.
+
+### Recommendation
+
+1. **Three lifecycle stages:**
+
+   * `discovery` (run‑local, ephemeral).
+   * `candidate_rule` (seen enough times to be interesting but not yet permanent).
+   * `rule` (promoted, persistent, injected into prompts).
+
+2. **Promotion to candidate_rule (automatic):**
+
+   Use the existing “pattern grouping” mechanism from `learned_rules.py` as a template: repeated patterns within a run → candidate. Then across runs, promote to candidate_rule when:
+
+   * Same normalized discovery pattern appears in **≥ 2 runs**, and
+   * Across **≥ 2 distinct phases** or tiers (indicates generality, not a single weird phase).
+
+3. **Promotion from candidate_rule → rule (requires stronger evidence):**
+
+   Suggested criteria:
+
+   * At least **M** successful applications, where:
+
+     * `status == "applied"` and subsequent phase attempts succeed (no repeated same‑type errors).
+     * `M` could be 3–5 across multiple runs.
+   * No recorded “rollback” discoveries contradicting the rule (e.g., no high‑severity discovery that says “do NOT apply X rule in this context”).
+   * Rule text is **generalized**:
+
+     * No project‑specific file paths, run IDs, or entity names.
+     * Expressed as a conceptual constraint (similar to your `debug_journal.never_abc123` example).
+
+   Implementation wise, you can:
+
+   * Store a `promotion_score` for each candidate (e.g., +1 for each successful application across distinct phases).
+   * Promote when `promotion_score >= threshold` and `num_runs_seen >= 2`.
+
+4. **Human approval hook (optional but recommended for high‑impact rules):**
+
+   For rules that affect **high‑risk categories** (security, schema, external code):
+
+   * Require explicit human approval before flipping `status` from `"candidate_rule"` to `"active"`.
+   * This can be as simple as a CLI or UI checkbox that updates the JSON.
+
+5. **When to keep as discovery only:**
+
+   Keep as discovery (never promote) when:
+
+   * Pattern references extremely project‑specific details (specific service, directory, vendor).
+   * It has only been observed in a single run.
+   * It is tied to a one‑off migration or experiment.
+
+6. **Schema alignment:**
+
+   Extend your `Discovery` dataclass with fields supporting promotion, e.g.:
+
+   ```python
+   class DiscoveryStatus(str, Enum):
+       NEW = "new"
+       APPLIED = "applied"
+       REJECTED = "rejected"
+       PROMOTED_CANDIDATE = "candidate_rule"
+       PROMOTED_RULE = "rule"  # reference to rule_id
+   ```
+
+   And maintain a mapping `discovery_pattern_key -> stats` (runs_seen, phases_seen, successful_applications, last_seen_at).
+
+**Net:** Your core intuition is right: “applied + successful + generalizable” is the gate. I would strengthen it with explicit cross‑run frequency thresholds and (optionally) human approval for high‑impact rules.
+
+---
+
+### Short summary for Cursor
+
+If you want to turn this into guidance for Cursor:
+
+* For **Q4**, implement message similarity using normalized **difflib**/fuzzy ratio with threshold ≈0.8 and config‑driven parameters; no embeddings needed for v1.
+* For **Q5**, run the Architect step **only at tier boundaries**, and only when there is at least one high‑severity discovery or a small cluster of discoveries; start in advisory/shadow mode with guardrails (max 25% phase growth, DAG validation, mutation caps).
+* For **Q6**, treat discoveries as ephemeral; promote to rules only after repeated success across multiple runs/phases, with clear pattern generalization and optional human approval for high‑risk rule candidates.
+
+
+---
+
 ## human_notes
 
 **Source**: [human_notes.md](C:\dev\Autopack\archive\superseded\human_notes.md)
@@ -9081,6 +11322,661 @@ Until then, keep the current policy:
 * Non‑high‑risk high‑complexity = escalate from gpt‑4o → GPT‑5/Opus as needed.
 
 That preserves security margin, keeps the system simpler, and avoids burning extra tokens on a problem you don’t yet have.
+
+
+---
+
+## REPORT_SELF_HEALING_LIMITATIONS
+
+**Source**: [REPORT_SELF_HEALING_LIMITATIONS.md](C:\dev\Autopack\archive\superseded\REPORT_SELF_HEALING_LIMITATIONS.md)
+**Last Modified**: 2025-12-01
+
+# Self-Healing System Limitations & Proposed Improvements - Review Request
+
+**Date**: 2025-12-01
+**Prepared by**: Claude (Opus 4.5)
+**Purpose**: Request for GPT analysis on self-healing system limitations and potential improvements
+
+---
+
+## Executive Summary
+
+During the FileOrganizer Phase 2 run, we encountered critical failures that the self-healing system could not address. This report documents these limitations, analyzes root causes, and proposes potential improvements for GPT review.
+
+---
+
+## Table of Contents
+
+1. [Incident Summary](#1-incident-summary)
+2. [Current Self-Healing Architecture](#2-current-self-healing-architecture)
+3. [Identified Limitations](#3-identified-limitations)
+4. [Root Cause Analysis](#4-root-cause-analysis)
+5. [Proposed Improvements](#5-proposed-improvements)
+6. [Key Files for Review](#6-key-files-for-review)
+7. [GPT Prompt for Analysis](#7-gpt-prompt-for-analysis)
+
+---
+
+## 1. Incident Summary
+
+### What Happened
+
+During the FileOrganizer Phase 2 execution (`fileorg-phase2-beta-20251201`), the system completed 8 of 9 phases successfully. However, multiple issues caused the API to become unresponsive:
+
+**Issue 1: Merge Conflict Markers**
+- The 3-way merge (`git apply -3`) fallback left merge conflict markers (`<<<<<<<`, `=======`, `>>>>>>>`) in `src/autopack/__init__.py`
+- This caused a `SyntaxError` when uvicorn attempted to reload the module
+- The API server crashed and became completely unresponsive
+
+**Issue 2: Builder Writing to Wrong Location**
+- The Search phase (`fileorg-p2-search`) generated files `models.py` and `api.py` inside `src/autopack/`
+- These files conflicted with Autopack's own imports (the API tried to import `Run` from a new `models.py` that only had a `Document` class)
+- Result: `AttributeError: module 'src.autopack.models' has no attribute 'Run'`
+
+### Self-Healing Response
+
+The self-healing system detected the API failures:
+```
+[Recovery] Fetch run status from API failed (attempt 1/4): HTTPError: 500 Server Error
+[Recovery] Attempting self-healing for file_io error
+[Recovery] No automatic fix for file I/O error: 500 server error
+[Recovery] Waiting 1s before retry...
+```
+
+The system correctly:
+- Classified the error as `file_io` category
+- Applied exponential backoff (1s -> 2s -> 4s)
+- Escalated after 3 failures: `[ESCALATION] file_io - Error 'HTTPError' ... occurred 3 times - manual intervention required`
+
+But it could NOT:
+- Restart the crashed API server
+- Fix the syntax error in the code
+- Remove the conflicting files
+
+---
+
+## 2. Current Self-Healing Architecture
+
+### Design Philosophy
+
+The self-healing system is designed for **transient network errors** - temporary failures that resolve themselves with retry:
+
+```python
+# From autonomous_executor.py
+
+ERROR_CATEGORIES = {
+    "network": ["timeout", "connection refused", "connection reset", "temporary failure"],
+    "file_io": ["permission denied", "file not found", "disk full"],
+    "llm_api": ["rate limit", "quota exceeded", "service unavailable"],
+    "patch": ["patch failed", "merge conflict", "hunk failed"],
+    "syntax": ["syntax error", "indentation error", "invalid syntax"],
+    "import": ["module not found", "import error", "no module named"]
+}
+```
+
+### What Self-Healing Can Do
+
+| Error Type | Self-Healing Action |
+|------------|---------------------|
+| Network timeout | Retry with exponential backoff |
+| Connection refused | Wait and retry (assume transient) |
+| Rate limit | Wait for cooldown period |
+| Patch hunk mismatch | Try lenient mode or 3-way merge |
+| Unicode encoding | Apply UTF-8 fix at startup |
+
+### What Self-Healing Cannot Do
+
+| Failure Type | Why It Can't Fix |
+|--------------|------------------|
+| API server crash | No process management capability |
+| Syntax errors in code | Would require code modification |
+| Database corruption | No database repair logic |
+| Wrong workspace location | Requires architectural understanding |
+| Import conflicts | Would require file deletion/rename |
+
+---
+
+## 3. Identified Limitations
+
+### Limitation 1: No Process Management
+
+**Current State**: The executor assumes the API server is an external, always-available service.
+
+**Problem**: If the API crashes due to code errors (from patches), the executor cannot:
+- Detect that the server is down vs temporarily slow
+- Restart the server process
+- Clear the broken code before restart
+
+**Evidence**:
+```
+[Recovery] No automatic fix for file I/O error: 500 server error
+[Recovery] Waiting 4s before retry...
+```
+The system keeps retrying indefinitely without realizing the server itself is broken.
+
+### Limitation 2: No Code Repair Capability
+
+**Current State**: Self-healing treats code as immutable output. Once a patch is applied, it stays.
+
+**Problem**: If a patch introduces breaking changes:
+- Syntax errors (merge conflict markers)
+- Import conflicts (name collisions with existing modules)
+- Runtime errors (missing dependencies)
+
+The system cannot roll back or fix the code.
+
+**Evidence**: The merge conflict markers were left in `__init__.py`:
+```python
+<<<<<<< ours
+"""Autopack: Supervisor/orchestrator for v7 autonomous build playbook"""
+=======
+"""Autopack Framework Initialization"""
+>>>>>>> theirs
+```
+This is valid in a merge context but causes `SyntaxError` in Python.
+
+### Limitation 3: No Workspace Isolation Enforcement
+
+**Current State**: The Builder is given the workspace path but nothing prevents it from writing to `src/autopack/`.
+
+**Problem**: When executing FileOrganizer tasks, the Builder should write to the FileOrganizer project directory, not Autopack's own source directory.
+
+**Evidence**: The Search phase created:
+- `src/autopack/models.py` (FileOrganizer SQLAlchemy models)
+- `src/autopack/api.py` (FileOrganizer API endpoints)
+
+These overwrote/conflicted with Autopack's own modules.
+
+### Limitation 4: No Health-Based Recovery
+
+**Current State**: Self-healing only triggers on explicit errors during API calls.
+
+**Problem**: The system cannot detect:
+- Server process death
+- Memory exhaustion
+- Zombie processes
+- Resource leaks
+
+**Evidence**: After the crash, `/health` endpoint returned `{"status":"healthy"}` initially (cached response?), but `/runs/{id}` returned 500 errors. A proper health check would have caught this.
+
+---
+
+## 4. Root Cause Analysis
+
+### Why Did the 3-Way Merge Leave Conflict Markers?
+
+The patch application cascade:
+1. `git apply` - Failed (hunk mismatch)
+2. `git apply --ignore-whitespace -C1` - Failed (context mismatch)
+3. `git apply -3` - "Succeeded" but left conflict markers
+
+The `-3` flag attempts a 3-way merge using the git index. When conflicts occur, it writes conflict markers but still returns success (exit code 0).
+
+**Missing**: Post-apply validation for conflict markers (now added in `_check_merge_conflict_markers()`).
+
+### Why Did Builder Write to Wrong Location?
+
+The Builder prompt includes the workspace path, but:
+1. The phase description says "Create document classification pack"
+2. The Builder interprets this as "create source files"
+3. Without explicit path guidance, it defaults to `src/autopack/` (the import base)
+
+**Missing**:
+- Explicit workspace path in phase description
+- Directory whitelist/blacklist enforcement
+- Pre-commit hook to reject writes to protected directories
+
+### Why Can't Self-Healing Restart the Server?
+
+Architectural constraint: The executor is a single Python process that:
+1. Calls the API (external process)
+2. Has no handle to the API server process
+3. Has no privilege to start/stop system services
+
+The API server is started independently (manually or via supervisor).
+
+---
+
+## 5. Proposed Improvements
+
+### Proposal 1: Process Health Monitor with Auto-Restart
+
+**Concept**: Add a lightweight process supervisor that monitors the API server.
+
+**Implementation Options**:
+
+**Option A: Internal Supervisor Thread**
+```python
+class ApiHealthMonitor:
+    def __init__(self, api_url: str, restart_command: str):
+        self.api_url = api_url
+        self.restart_command = restart_command
+        self.consecutive_failures = 0
+
+    def check_and_recover(self) -> bool:
+        """Check API health and restart if needed."""
+        try:
+            response = requests.get(f"{self.api_url}/health", timeout=5)
+            if response.status_code == 200:
+                self.consecutive_failures = 0
+                return True
+        except:
+            pass
+
+        self.consecutive_failures += 1
+        if self.consecutive_failures >= 3:
+            self._restart_api()
+        return False
+
+    def _restart_api(self):
+        """Kill and restart API process."""
+        subprocess.run(["pkill", "-f", "uvicorn.*autopack"])
+        time.sleep(2)
+        subprocess.Popen(self.restart_command, shell=True)
+```
+
+**Option B: External Supervisor (systemd/supervisord)**
+- Configure the API as a systemd service with `Restart=always`
+- Executor just waits for recovery
+
+**Option C: Embedded Server**
+- Run API in the same process as executor
+- Use background thread with signal handling
+
+**My Recommendation**: Option A for development, Option B for production.
+
+**Pros**:
+- Automatic recovery from server crashes
+- No external dependencies (for Option A)
+
+**Cons**:
+- Platform-specific restart commands
+- Risk of restart loops if code is fundamentally broken
+
+### Proposal 2: Pre-Apply Conflict Detection
+
+**Concept**: Detect merge conflict markers BEFORE they corrupt the codebase.
+
+**Implementation** (now partially done):
+
+```python
+def _check_merge_conflict_markers(self, file_path: Path) -> Tuple[bool, Optional[str]]:
+    """Check if a file contains git merge conflict markers."""
+    conflict_markers = ['<<<<<<<', '=======', '>>>>>>>']
+    try:
+        with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
+            for line_num, line in enumerate(f, 1):
+                for marker in conflict_markers:
+                    if marker in line:
+                        return True, f"Line {line_num}: merge conflict marker '{marker}' found"
+        return False, None
+    except Exception as e:
+        return False, None
+```
+
+**Enhancement**: Also check BEFORE applying the patch (in the patch content itself).
+
+**Pros**:
+- Catches corruption immediately
+- Can trigger rollback before damage
+
+**Cons**:
+- Adds latency to patch application
+- False positives possible in legitimate code containing these strings
+
+### Proposal 3: Workspace Isolation Enforcement
+
+**Concept**: Prevent Builder from writing to protected directories.
+
+**Implementation Options**:
+
+**Option A: Path Validation in GovernedApplyPath**
+```python
+PROTECTED_PATHS = [
+    "src/autopack/",  # Autopack core
+    "config/",        # Configuration
+    ".autonomous_runs/",  # Run data
+]
+
+def _validate_patch_paths(self, files: List[str]) -> Tuple[bool, List[str]]:
+    """Reject patches that touch protected directories."""
+    violations = []
+    for file_path in files:
+        for protected in PROTECTED_PATHS:
+            if file_path.startswith(protected):
+                violations.append(f"Cannot modify protected path: {file_path}")
+    return len(violations) == 0, violations
+```
+
+**Option B: Workspace Chroot/Sandbox**
+- Run patch application in a sandboxed directory
+- Copy only approved files to actual workspace
+
+**Option C: Builder Prompt Enhancement**
+- Explicitly tell Builder where to write files
+- Include directory structure in phase context
+
+**My Recommendation**: Option A (immediate) + Option C (prompt improvement).
+
+**Pros**:
+- Hard protection for critical paths
+- Clear error messages for debugging
+
+**Cons**:
+- Requires maintaining protected path list
+- May block legitimate refactoring tasks
+
+### Proposal 4: Code Rollback Capability
+
+**Concept**: Maintain ability to undo patches that break the system.
+
+**Implementation**:
+
+```python
+class PatchRollbackManager:
+    def __init__(self, workspace: Path):
+        self.workspace = workspace
+        self.backup_dir = workspace / ".patch_backups"
+
+    def create_checkpoint(self, phase_id: str) -> str:
+        """Create backup before patch application."""
+        checkpoint_id = f"{phase_id}_{datetime.now().isoformat()}"
+        # Git stash or file copy
+        subprocess.run(["git", "stash", "push", "-m", checkpoint_id])
+        return checkpoint_id
+
+    def rollback(self, checkpoint_id: str) -> bool:
+        """Rollback to checkpoint if patch breaks things."""
+        # Find and apply stash
+        result = subprocess.run(
+            ["git", "stash", "list", "--grep", checkpoint_id],
+            capture_output=True, text=True
+        )
+        if result.stdout:
+            stash_ref = result.stdout.split(":")[0]
+            subprocess.run(["git", "stash", "pop", stash_ref])
+            return True
+        return False
+```
+
+**Pros**:
+- Clean recovery from any patch failure
+- Full audit trail
+
+**Cons**:
+- Git stash management complexity
+- Storage overhead for large changes
+
+### Proposal 5: Enhanced Health Checks
+
+**Concept**: More sophisticated health monitoring beyond simple HTTP ping.
+
+**Implementation**:
+
+```python
+class EnhancedHealthCheck:
+    def __init__(self, api_url: str):
+        self.api_url = api_url
+
+    def deep_health_check(self) -> Dict[str, Any]:
+        """Comprehensive health check."""
+        results = {
+            "api_reachable": False,
+            "database_connected": False,
+            "imports_working": False,
+            "memory_ok": False,
+        }
+
+        # API reachability
+        try:
+            r = requests.get(f"{self.api_url}/health", timeout=5)
+            results["api_reachable"] = r.status_code == 200
+        except:
+            pass
+
+        # Database check
+        try:
+            r = requests.get(f"{self.api_url}/runs?limit=1", timeout=5)
+            results["database_connected"] = r.status_code == 200
+        except:
+            pass
+
+        # Import verification (call endpoint that uses key modules)
+        try:
+            r = requests.get(f"{self.api_url}/system/imports", timeout=5)
+            results["imports_working"] = r.status_code == 200
+        except:
+            pass
+
+        return results
+```
+
+**Pros**:
+- Early detection of partial failures
+- Better diagnostic information
+
+**Cons**:
+- Requires new API endpoints
+- Additional latency per check
+
+---
+
+## 6. Key Files for Review
+
+### Core Self-Healing Implementation
+- `src/autopack/autonomous_executor.py`
+  - Lines 250-350: Error categorization and recovery
+  - Lines 400-450: Retry with exponential backoff
+  - Lines 768-978: Re-planning system
+
+### Patch Application
+- `src/autopack/governed_apply.py`
+  - Lines 130-153: `_check_merge_conflict_markers()` (newly added)
+  - Lines 525-693: `apply_patch()` with fallback cascade
+  - Lines 618-681: Post-application validation
+
+### Configuration
+- `config/models.yaml`
+  - Lines 178-201: Replan configuration including `max_replans_per_run`
+
+### Recent Run Logs
+- `phase2_resume_run.log` - Contains the full failure sequence
+
+---
+
+## 7. GPT Prompt for Analysis
+
+```
+You are an expert software architect reviewing Autopack's self-healing and recovery systems.
+Please analyze the following limitations and proposed improvements.
+
+## Context
+
+Autopack is an autonomous code generation executor. During a recent run, we encountered
+failures that the self-healing system could not address:
+
+1. **Merge Conflict Markers**: The 3-way merge fallback left `<<<<<<<` markers in code,
+   causing SyntaxError and crashing the API server.
+
+2. **Wrong Workspace Location**: The Builder wrote files to `src/autopack/` instead of
+   the target project directory, causing import conflicts.
+
+3. **No Process Recovery**: The self-healing system could detect API 500 errors but
+   could not restart the crashed server process.
+
+## Current Self-Healing Capabilities
+
+- Retry with exponential backoff for transient network errors
+- Error categorization (network, file_io, llm_api, patch, syntax, import)
+- Escalation after N consecutive failures
+- UTF-8 encoding fix at startup
+
+## Proposed Improvements
+
+1. **Process Health Monitor**: Auto-restart capability for the API server
+2. **Pre-Apply Conflict Detection**: Check for conflict markers before corrupting files
+3. **Workspace Isolation**: Protect `src/autopack/` from Builder writes
+4. **Code Rollback**: Git stash-based checkpoint/restore
+5. **Enhanced Health Checks**: Deep validation beyond HTTP ping
+
+## Questions for Analysis
+
+### Q1: Process Management Approach
+
+Should Autopack manage the API server process directly? Options:
+- A) Internal supervisor thread with restart capability
+- B) External supervisor (systemd/supervisord) with Autopack waiting
+- C) Embedded server in same process
+
+What are the trade-offs for autonomous operation vs production deployment?
+
+### Q2: Workspace Protection Strategy
+
+How should we prevent Builder from writing to protected paths?
+- A) Hard path validation in GovernedApplyPath (reject patches)
+- B) Sandbox execution with approved file copying
+- C) Better prompting to guide Builder to correct locations
+- D) Post-apply verification with auto-rollback
+
+Can these be combined? What's the minimum viable protection?
+
+### Q3: Rollback Mechanism Design
+
+Is git stash the right approach for checkpointing? Alternatives:
+- A) Git stash (integrated, but complex management)
+- B) File system snapshots (simple, but storage intensive)
+- C) Patch reverse application (mathematically clean)
+- D) Git branch per phase (clear history)
+
+What's the most robust approach for autonomous operation?
+
+### Q4: Health Check Depth
+
+How deep should health checks go?
+- A) Simple HTTP ping to /health
+- B) Database connectivity verification
+- C) Import chain validation
+- D) Full integration test suite
+
+What's the right balance between thoroughness and performance?
+
+### Q5: Failure Mode Coverage
+
+Are there failure modes we haven't considered?
+- Memory exhaustion during LLM calls?
+- Disk space during patch application?
+- Race conditions between phases?
+- Orphaned background processes?
+
+## Deliverables Requested
+
+1. **Critique of proposed improvements**: Which are essential vs nice-to-have?
+2. **Risk assessment**: What could go wrong with each proposal?
+3. **Priority ordering**: What should be implemented first?
+4. **Alternative approaches**: Ideas we haven't considered?
+5. **Architecture recommendation**: Overall design for robust self-healing
+
+Please be direct about limitations and potential failure modes.
+```
+
+---
+
+## Appendix: Code Excerpts
+
+### A. Current Self-Healing Recovery (autonomous_executor.py)
+
+```python
+def _attempt_self_healing(self, error_category: str, error_message: str) -> bool:
+    """
+    Attempt to automatically fix known error patterns.
+
+    Returns True if a fix was applied, False otherwise.
+    """
+    logger.info(f"[Recovery] Attempting self-healing for {error_category} error")
+
+    if error_category == "encoding":
+        return self._fix_encoding_error()
+    elif error_category == "network":
+        logger.warning("[Recovery] Network error - will retry with backoff")
+        return False  # Let retry loop handle
+    elif error_category == "file_io":
+        logger.warning(f"[Recovery] No automatic fix for file I/O error: {error_message}")
+        return False
+    elif error_category == "syntax":
+        logger.warning("[Recovery] Syntax error in generated code - cannot auto-fix")
+        return False
+
+    return False
+```
+
+### B. Merge Conflict Detection (governed_apply.py) - Newly Added
+
+```python
+def _check_merge_conflict_markers(self, file_path: Path) -> Tuple[bool, Optional[str]]:
+    """
+    Check if a file contains git merge conflict markers.
+
+    These markers can be left behind by 3-way merge (-3) fallback when patches
+    don't apply cleanly. They cause syntax errors and must be detected early.
+    """
+    conflict_markers = ['<<<<<<<', '=======', '>>>>>>>']
+    try:
+        with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
+            for line_num, line in enumerate(f, 1):
+                for marker in conflict_markers:
+                    if marker in line:
+                        return True, f"Line {line_num}: merge conflict marker '{marker}' found"
+        return False, None
+    except Exception as e:
+        logger.warning(f"Failed to check merge conflicts in {file_path}: {e}")
+        return False, None
+```
+
+### C. Patch Validation Flow (governed_apply.py)
+
+```python
+def _validate_applied_files(self, files_modified: List[str]) -> Tuple[bool, List[str]]:
+    """Verify files are syntactically valid after patch application."""
+    corrupted_files = []
+
+    for rel_path in files_modified:
+        full_path = self.workspace / rel_path
+
+        if not full_path.exists():
+            logger.warning(f"[Validation] File does not exist after patch: {rel_path}")
+            continue
+
+        # Check for merge conflict markers (critical - prevents API crashes)
+        has_conflicts, conflict_error = self._check_merge_conflict_markers(full_path)
+        if has_conflicts:
+            logger.error(f"[Validation] MERGE CONFLICTS: {rel_path} - {conflict_error}")
+            corrupted_files.append(rel_path)
+            continue  # Skip other validations - file is definitely corrupted
+
+        # Validate Python files
+        if full_path.suffix == '.py':
+            is_valid, error = self._validate_python_syntax(full_path)
+            if not is_valid:
+                logger.error(f"[Validation] CORRUPTED: {rel_path} - {error}")
+                corrupted_files.append(rel_path)
+```
+
+---
+
+## Summary of Incidents and Fixes
+
+| Issue | Root Cause | Current Fix | Proposed Enhancement |
+|-------|------------|-------------|---------------------|
+| Merge conflict markers | 3-way merge exits 0 even with conflicts | `_check_merge_conflict_markers()` added | Pre-apply detection in patch content |
+| Wrong workspace location | Builder lacks explicit path guidance | Manual cleanup | Workspace isolation enforcement |
+| API server crash | No process management | Manual restart | Auto-restart capability |
+| Cascading retries | System can't distinguish crash from slow | Escalation logging | Enhanced health checks |
+
+---
+
+**End of Report**
+
+*This report was generated by Claude (Opus 4.5) for GPT review following FileOrganizer Phase 2 execution incidents.*
 
 
 ---

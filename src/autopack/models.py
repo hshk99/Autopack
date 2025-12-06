@@ -5,7 +5,7 @@ from enum import Enum
 from typing import Optional
 
 from sqlalchemy import Boolean, Column, DateTime, Enum as SQLEnum, ForeignKey, Integer, JSON, String, Text
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship, synonym
 
 from .database import Base
 
@@ -55,6 +55,9 @@ class Run(Base):
     __tablename__ = "runs"
 
     id = Column(String, primary_key=True, index=True)
+    # Backwards compatibility: some legacy API code still references Run.run_id.
+    # Provide a synonym so both "id" and "run_id" point to the same column.
+    run_id = synonym("id")
     state = Column(SQLEnum(RunState), nullable=False, default=RunState.RUN_CREATED)
 
     # Metadata

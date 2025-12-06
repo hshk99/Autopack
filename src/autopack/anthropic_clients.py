@@ -160,6 +160,9 @@ class AnthropicBuilderClient:
             max_tokens = max(max_tokens, 16384)
             # Deployment/frontends often touch multiple files; treat as large refactor
             phase_spec.setdefault("change_size", "large_refactor")
+        if task_category == "backend" and len(scope_paths) >= 3:
+            # Backend multi-file phases (e.g., API + services + tests) need larger budget
+            max_tokens = max(max_tokens, 12000)
 
         # Adaptive mode selection: avoid full-file JSON for multi-file scopes (reduces truncation/invalid JSON)
         use_full_file_mode_flag = use_full_file_mode

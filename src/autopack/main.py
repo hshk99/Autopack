@@ -666,9 +666,10 @@ def submit_builder_result(
             except Exception as e:
                 logger.error(f"[API] [{run_id}/{phase_id}] Unexpected error applying patch: {e}", exc_info=True)
                 phase.state = models.PhaseState.FAILED
+                # Convert unexpected patch/apply errors to 422 so executor does not keep 5xx retrying
                 raise HTTPException(
-                    status_code=500,
-                    detail="Unexpected error applying patch"
+                    status_code=422,
+                    detail=f"Patch application failed unexpectedly: {e}"
                 )
 
     # DB commit with exception handling per GPT_RESPONSE16 Q2

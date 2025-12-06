@@ -290,14 +290,20 @@ class GovernedApplyPath:
 
         # Check 2: Scope enforcement (NEW - Option C Layer 2)
         if self.scope_paths:
-            # Normalize scope paths for comparison
+            # Normalize scope paths for comparison, supporting directory prefixes
             normalized_scope = set()
+            scope_prefixes: List[str] = []
             for path in self.scope_paths:
-                normalized_scope.add(path.replace('\\', '/'))
+                norm = path.replace('\\', '/')
+                normalized_scope.add(norm.rstrip('/'))
+                if norm.endswith('/'):
+                    scope_prefixes.append(norm)
 
             for file_path in files:
                 normalized_file = file_path.replace('\\', '/')
-                if normalized_file not in normalized_scope:
+                in_exact = normalized_file in normalized_scope
+                in_prefix = any(normalized_file.startswith(prefix) for prefix in scope_prefixes)
+                if not in_exact and not in_prefix:
                     violations.append(f"Outside scope: {file_path}")
                     logger.warning(f"[Scope] BLOCKED: Patch attempts to modify file outside scope: {file_path}")
 

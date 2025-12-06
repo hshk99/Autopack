@@ -78,6 +78,7 @@ Single source of truth for all errors, fixes, prevention rules, and troubleshoot
 - **Universal guard policy tweaks**: Builder now auto-classifies manifest/lockfile, pack, frontend, and deployment phases as large refactors (skips small-fix churn), auto-enables `allow_mass_addition` for pack scopes, and raises max_tokens for lockfiles/frontends/deployment to reduce truncation and avoid per-project churn relaxations.
 - **Adaptive scope stubs**: Executor auto-creates empty lockfile stubs (package-lock.json/yarn.lock) when missing in scope to cut churn and token blowups.
 - **Adaptive builder mode + API resilience**: Builder now disables full-file mode for multi-file scopes (frontend/deployment/packs) to reduce truncation/JSON failures, and executor retries POST /builder_result on 5xx with backoff.
+- **Scope directories honored**: Scope enforcement now treats entries ending in `/` as directory prefixes, preventing false "outside scope" rejections for files under a scoped folder.
 
 ---
 

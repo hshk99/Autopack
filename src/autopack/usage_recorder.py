@@ -1,7 +1,7 @@
 """LLM usage tracking for token consumption monitoring"""
 
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, Optional
 
 from sqlalchemy import Column, DateTime, Integer, String, Text, Boolean, JSON
@@ -23,7 +23,7 @@ class LlmUsageEvent(Base):
     role = Column(String, nullable=False)  # builder, auditor, agent:planner, doctor, etc.
     prompt_tokens = Column(Integer, nullable=False)
     completion_tokens = Column(Integer, nullable=False)
-    created_at = Column(DateTime, nullable=False, default=datetime.utcnow, index=True)
+    created_at = Column(DateTime, nullable=False, default=lambda: datetime.now(timezone.utc), index=True)
     
     # Doctor-specific fields
     is_doctor_call = Column(Boolean, nullable=False, default=False, index=True)
@@ -49,8 +49,13 @@ class DoctorUsageStats(Base):
     doctor_actions = Column(JSON, nullable=False, default=dict)
     
     # Timestamps
-    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
-    updated_at = Column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
+    updated_at = Column(
+        DateTime,
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+    )
 
 
 @dataclass
@@ -90,7 +95,7 @@ def record_usage(db: Session, event: UsageEventData) -> LlmUsageEvent:
         role=event.role,
         prompt_tokens=event.prompt_tokens,
         completion_tokens=event.completion_tokens,
-        created_at=datetime.utcnow(),
+        created_at=datetime.now(timezone.utc),
         is_doctor_call=event.is_doctor_call,
         doctor_model=event.doctor_model,
         doctor_action=event.doctor_action,
@@ -158,7 +163,7 @@ def update_doctor_stats(db: Session, event: UsageEventData) -> None:
             stats.doctor_actions = {}
         stats.doctor_actions[event.doctor_action] = stats.doctor_actions.get(event.doctor_action, 0) + 1
     
-    stats.updated_at = datetime.utcnow()
+    stats.updated_at = datetime.now(timezone.utc)
     db.commit()
 
 

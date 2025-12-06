@@ -8,7 +8,7 @@ Per §5 of v7 playbook:
 
 import json
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Optional
 
@@ -199,7 +199,8 @@ class IssueTracker:
             entry = backlog.issues_by_key[issue.issue_key]
             entry.age_in_runs += 1
             entry.last_seen_run_id = self.run_id
-            entry.last_seen_at = datetime.utcnow()
+            entry.last_seen_at = datetime.now(timezone.utc)
+            entry.last_seen_at = datetime.now(timezone.utc)
 
             # Check if this is a new tier
             # (simplified: would need to track tiers per run in full implementation)
@@ -221,7 +222,7 @@ class IssueTracker:
                 age_in_tiers=1,
                 first_seen_run_id=self.run_id,
                 last_seen_run_id=self.run_id,
-                last_seen_at=datetime.utcnow(),
+                last_seen_at=datetime.now(timezone.utc),
                 seen_in_tiers=[],
             )
 

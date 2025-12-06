@@ -537,7 +537,7 @@ class LlmService:
                 completion_tokens=completion_tokens,
                 run_id=run_id,
                 phase_id=phase_id,
-                created_at=datetime.utcnow(),
+                created_at=datetime.now(timezone.utc),
             )
             self.db.add(usage_event)
             self.db.commit()

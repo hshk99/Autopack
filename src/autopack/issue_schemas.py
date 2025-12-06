@@ -9,10 +9,11 @@ Per §5 of v7 playbook:
 from datetime import datetime
 from typing import List, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 
 
 class Issue(BaseModel):
+    model_config = ConfigDict(arbitrary_types_allowed=True)
     """Individual issue entry"""
 
     issue_key: str = Field(..., description="Stable identifier for the issue")
@@ -30,6 +31,7 @@ class Issue(BaseModel):
 
 
 class PhaseIssueFile(BaseModel):
+    model_config = ConfigDict(arbitrary_types_allowed=True)
     """Phase-level issue file schema (§5.1 of v7 playbook)"""
 
     phase_id: str
@@ -43,6 +45,7 @@ class PhaseIssueFile(BaseModel):
 
 
 class RunIssueIndexEntry(BaseModel):
+    model_config = ConfigDict(arbitrary_types_allowed=True)
     """Entry in run-level issue index"""
 
     category: str
@@ -56,6 +59,7 @@ class RunIssueIndexEntry(BaseModel):
 
 
 class RunIssueIndex(BaseModel):
+    model_config = ConfigDict(arbitrary_types_allowed=True)
     """Run-level issue index (§5.2 of v7 playbook)"""
 
     run_id: str
@@ -63,6 +67,7 @@ class RunIssueIndex(BaseModel):
 
 
 class ProjectBacklogEntry(BaseModel):
+    model_config = ConfigDict(arbitrary_types_allowed=True)
     """Entry in project-level issue backlog"""
 
     category: str
@@ -77,6 +82,7 @@ class ProjectBacklogEntry(BaseModel):
 
 
 class ProjectIssueBacklog(BaseModel):
+    model_config = ConfigDict(arbitrary_types_allowed=True)
     """Project-level issue backlog (§5.3 of v7 playbook)"""
 
     project_id: str

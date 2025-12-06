@@ -9,7 +9,7 @@ This module implements the dynamic model selection strategy:
 import json
 import logging
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Literal, Optional
 
@@ -54,7 +54,7 @@ class PhaseHistory:
             "model": model,
             "outcome": outcome,
             "details": details,
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "complexity": self.current_complexity,
         })
 
@@ -467,11 +467,11 @@ class ModelSelector:
         log_path = Path(log_dir)
         log_path.mkdir(parents=True, exist_ok=True)
 
-        today = datetime.utcnow().strftime("%Y%m%d")
+        today = datetime.now(timezone.utc).strftime("%Y%m%d")
         log_file = log_path / f"model_selections_{today}.jsonl"
 
         entry = {
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "phase_id": phase_id,
             "role": role,
             "model": model,

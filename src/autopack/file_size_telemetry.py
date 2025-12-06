@@ -8,7 +8,7 @@ Per IMPLEMENTATION_PLAN2.md Phase 1.3
 
 import json
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, Any
 import logging
 
@@ -35,7 +35,7 @@ class FileSizeTelemetry:
         Args:
             event: Event dict with at minimum: run_id, phase_id, event_type
         """
-        event["timestamp"] = datetime.utcnow().isoformat() + "Z"
+        event["timestamp"] = datetime.now(timezone.utc).isoformat()
         
         try:
             with open(self.telemetry_path, 'a', encoding='utf-8') as f:

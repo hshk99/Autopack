@@ -9,7 +9,7 @@ Per GPT architect + user consensus on learned rules design.
 import json
 import os
 from dataclasses import dataclass, asdict
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import List, Optional, Dict, Set, Tuple
 from collections import defaultdict
@@ -133,7 +133,7 @@ def record_run_rule_hint(
         scope_paths=scope_paths[:5],  # Limit to 5 paths
         source_issue_keys=[issue.get("issue_key", "") for issue in resolved],
         hint_text=hint_text,
-        created_at=datetime.utcnow().isoformat()
+        created_at=datetime.now(timezone.utc).isoformat()
     )
 
     # Save to file
@@ -246,7 +246,7 @@ def promote_hints_to_rules(run_id: str, project_id: str) -> int:
         if matching_rule:
             # Increment promotion count
             matching_rule.promotion_count += 1
-            matching_rule.last_seen = datetime.utcnow().isoformat()
+            matching_rule.last_seen = datetime.now(timezone.utc).isoformat()
             matching_rule.source_hint_ids.append(f"{run_id}:{hint.phase_id}")
             promoted_count += 1
         else:
@@ -259,7 +259,7 @@ def promote_hints_to_rules(run_id: str, project_id: str) -> int:
                 source_hint_ids=[f"{run_id}:{hint.phase_id}"],
                 promotion_count=1,
                 first_seen=hint.created_at,
-                last_seen=datetime.utcnow().isoformat(),
+                last_seen=datetime.now(timezone.utc).isoformat(),
                 status="active",
                 stage=DiscoveryStage.NEW.value
             )
@@ -381,7 +381,7 @@ def promote_rule(rule_id: str, project_id: str) -> bool:
     # Promote to next stage
     next_stage = stage_order[current_index + 1]
     rule.stage = next_stage.value
-    rule.last_seen = datetime.utcnow().isoformat()
+    rule.last_seen = datetime.now(timezone.utc).isoformat()
     
     # Save updated rules
     _save_project_rules(project_id, rules)
@@ -436,7 +436,7 @@ def count_rule_applications(rule_id: str, project_id: str, days: int = 30) -> in
     # Parse last_seen timestamp
     try:
         last_seen = datetime.fromisoformat(rule.last_seen)
-        cutoff = datetime.utcnow() - timedelta(days=days)
+        cutoff = datetime.now(timezone.utc) - timedelta(days=days)
         
         # Count source hints within window
         # This is a simplified implementation - in production, you'd track
@@ -763,7 +763,7 @@ def save_run_hint(
         scope_paths=scope_paths or [],
         source_issue_keys=source_issue_keys or [],
         hint_text=hint_text,
-        created_at=datetime.utcnow().isoformat()
+        created_at=datetime.now(timezone.utc).isoformat()
     )
 
     _save_run_rule_hint(run_id, hint)

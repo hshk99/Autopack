@@ -2,13 +2,14 @@
 
 import logging
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import List, Optional
 
 from dotenv import load_dotenv
 
 from fastapi import Depends, FastAPI, HTTPException, Request, Security
+from contextlib import asynccontextmanager
 from fastapi.security import APIKeyHeader
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.exc import OperationalError
@@ -56,10 +57,20 @@ limiter = Limiter(key_func=get_remote_address)
 
 load_dotenv()  # Load environment variables from .env on startup
 
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Skip DB init during testing (tests use their own DB setup)
+    if os.getenv("TESTING") != "1":
+        init_db()
+    yield
+
+
 app = FastAPI(
     title="Autopack Supervisor",
     description="Supervisor/orchestrator implementing the v7 autonomous build playbook",
     version="0.1.0",
+    lifespan=lifespan,
 )
 
 # Add rate limiting to app
@@ -125,16 +136,6 @@ async def global_exception_handler(request: Request, exc: Exception):
     )
 
 
-@app.on_event("startup")
-def startup_event():
-    """Initialize database on startup (skipped during testing)"""
-    import os
-
-    # Skip DB init during testing (tests use their own DB setup)
-    if os.getenv("TESTING") != "1":
-        init_db()
-
-
 @app.get("/")
 def read_root():
     """Root endpoint"""
@@ -169,7 +170,7 @@ def start_run(request_data: schemas.RunStartRequest, request: Request, db: Sessi
         max_phases=request_data.run.max_phases or 25,
         max_duration_minutes=request_data.run.max_duration_minutes or 120,
         max_minor_issues_total=None,
-        started_at=datetime.utcnow(),
+        started_at=datetime.now(timezone.utc),
     )
 
     # Compute max_minor_issues_total
@@ -334,7 +335,7 @@ def update_phase_status(
     if update.quality_blocked is not None:
         phase.quality_blocked = update.quality_blocked
 
-    phase.updated_at = datetime.utcnow()
+    phase.updated_at = datetime.now(timezone.utc)
 
     # Update phase summary file
     try:
@@ -364,7 +365,7 @@ def update_phase_status(
             else:
                 run.state = models.RunState.DONE_SUCCESS
 
-            run.updated_at = datetime.utcnow()
+            run.updated_at = datetime.now(timezone.utc)
 
             # Rewrite run_summary.md with final state
             try:

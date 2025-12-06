@@ -1,6 +1,6 @@
 """Service for querying and aggregating LLM usage data"""
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Dict, List, Literal
 
 from sqlalchemy import func
@@ -17,7 +17,7 @@ class UsageService:
 
     def _get_time_window_start(self, period: Literal["day", "week", "month"]) -> datetime:
         """Calculate start datetime for the given period"""
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
 
         if period == "day":
             return now - timedelta(days=1)

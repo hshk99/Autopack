@@ -969,8 +969,8 @@ class GovernedApplyPath:
         try:
             content_to_load = content
             stripped = content.lstrip()
-            # Allow leading comments without explicit document start by prepending '---'
-            if stripped.startswith("#") and not stripped.startswith("---"):
+            # Always provide a document start for validation to avoid PyYAML expecting one.
+            if not stripped.startswith("---"):
                 content_to_load = "---\n" + content
             data = yaml.safe_load(content_to_load)
         except Exception as e:

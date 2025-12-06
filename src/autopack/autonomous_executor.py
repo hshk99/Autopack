@@ -3907,19 +3907,20 @@ Just the new description that should replace the current one while preserving th
                 return
 
             # Derive a conservative terminal state if DB state is missing or stale
-            if run.state not in (
+            terminal_run_states = {
                 models.RunState.DONE_SUCCESS,
                 models.RunState.DONE_FAILED_REQUIRES_HUMAN_REVIEW,
-            ):
+                models.RunState.DONE_FAILED_BUDGET_EXHAUSTED,
+                models.RunState.DONE_FAILED_POLICY_VIOLATION,
+                models.RunState.DONE_FAILED_ENVIRONMENT,
+            }
+            if run.state not in terminal_run_states:
                 # If caller provided explicit failure count, trust it
                 if phases_failed is not None and phases_failed > 0:
                     run.state = models.RunState.DONE_FAILED_REQUIRES_HUMAN_REVIEW
                 else:
-                    # Fall back to DB snapshot: if any phase is non-success, mark failed
-                    failed_phases = [
-                        p for p in run.phases
-                        if p.state != models.PhaseState.DONE_SUCCESS
-                    ]
+                    # Fall back to DB snapshot: if any phase is non-COMPLETE, mark failed
+                    failed_phases = [p for p in run.phases if p.state != models.PhaseState.COMPLETE]
                     if failed_phases:
                         run.state = models.RunState.DONE_FAILED_REQUIRES_HUMAN_REVIEW
                     else:

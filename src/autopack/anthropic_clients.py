@@ -135,6 +135,31 @@ class AnthropicBuilderClient:
         # Defensive: ensure phase_spec is always a dict
         if phase_spec is None:
             phase_spec = {}
+        scope_cfg = phase_spec.get("scope") or {}
+        scope_paths = scope_cfg.get("paths", []) if isinstance(scope_cfg, dict) else []
+        scope_paths = [p for p in scope_paths if isinstance(p, str)]
+
+        # Heuristic: lockfile / manifest phases need larger outputs and should be treated as large refactors
+        lockfile_phase = any("package-lock" in p or "yarn.lock" in p for p in scope_paths)
+        manifest_phase = any("package.json" in p for p in scope_paths)
+        pack_phase = any("/packs/" in p or p.endswith((".yaml", ".yml")) for p in scope_paths)
+
+        # Apply safe defaults based on scope
+        if pack_phase:
+            phase_spec.setdefault("allow_mass_addition", True)
+        if lockfile_phase or manifest_phase:
+            phase_spec.setdefault("change_size", "large_refactor")
+
+        # Increase token budget when emitting larger artifacts (lockfiles, docker configs, packs)
+        task_category = phase_spec.get("task_category", "")
+        if max_tokens is None:
+            max_tokens = 4096
+        if lockfile_phase or manifest_phase:
+            max_tokens = max(max_tokens, 12000)
+        if task_category in ("deployment", "frontend"):
+            max_tokens = max(max_tokens, 8000)
+            # Deployment/frontends often touch multiple files; treat as large refactor
+            phase_spec.setdefault("change_size", "large_refactor")
         try:
             # Check if we need structured edit mode before building prompt
             # Structured edit should ONLY be used if files being MODIFIED exceed the limit
@@ -977,7 +1002,9 @@ class AnthropicBuilderClient:
                 # Q4: Churn detection for small fixes
                 if mode == "modify" and change_type == "small_fix" and old_content:
                     # Optional: skip small-fix churn guard for YAML packs where high churn is expected
-                    if getattr(config, "disable_small_fix_churn_for_yaml", False) and file_path.endswith((".yaml", ".yml")):
+                    if file_path.endswith(("package-lock.json", "yarn.lock", "package.json")):
+                        logger.info(f"[Builder] Skipping small-fix churn guard for manifest/lockfile {file_path}")
+                    elif getattr(config, "disable_small_fix_churn_for_yaml", False) and file_path.endswith((".yaml", ".yml")):
                         logger.info(f"[Builder] Skipping small-fix churn guard for YAML file {file_path}")
                     else:
                         churn_percent = self._calculate_churn_percent(old_content, new_content)
@@ -1182,6 +1209,17 @@ class AnthropicBuilderClient:
         
         complexity = phase_spec.get("complexity", "medium")
         num_criteria = len(phase_spec.get("acceptance_criteria", []) or [])
+        scope_cfg = phase_spec.get("scope") or {}
+        scope_paths = scope_cfg.get("paths", []) if isinstance(scope_cfg, dict) else []
+        scope_paths = [p for p in scope_paths if isinstance(p, str)]
+
+        # Scope-driven overrides
+        if any("package-lock" in p or "yarn.lock" in p for p in scope_paths):
+            return "large_refactor"
+        if any("package.json" in p for p in scope_paths):
+            return "large_refactor"
+        if any("/packs/" in p or p.endswith((".yaml", ".yml")) for p in scope_paths):
+            return "large_refactor"
         
         # Explicit override
         if phase_spec.get("change_size") == "large_refactor":

@@ -38,6 +38,32 @@ Single source of truth for all errors, fixes, prevention rules, and troubleshoot
 
 ---
 
+## Manual Notes (2025-12-07)
+
+- Historical UK failure (Dec 4): Builder spent ~46k tokens (Opus) on full-file YAML, then `/builder_result` 500'd (pre `Run.run_id` fix) and patch validation rejected the YAML (`expected '<document start>'` / truncated). Max attempts exhausted; STOP_ON_FAILURE halted spend.
+- Latest UK run (`fileorg-country-uk-20251206-000714`): clean — all 200s on `builder_result`/`update_status`, no YAML preflight errors, no GLM routing.
+- GLM fully disabled in `llm_service.py`; legacy glm-* selections now raise RuntimeError with guidance to use Claude Sonnet/Opus.
+- Doc hook warnings cleared via `scripts/update_docs.py`.
+- Universal hardening implemented:
+  - Output contracts: empty/blank patches rejected before posting/applying; pack preflight intact.
+  - Failure classification/backoff: infra-like builder errors (connection/timeout/HTTP 500/server error) now backoff/retry instead of burning non-infra budgets.
+  - Provider health gating: per-run provider infra counters; provider disabled in-router after repeated infra errors.
+  - Guardrail issues: churn/growth/shrink/truncation/pack errors recorded via IssueTracker with UTF-8 writes.
+  - Universal acceptance criteria injected into Builder prompts: require complete outputs, required keys/sections, scope adherence; “leave unchanged if unsure.”
+  - Run summary rewrite: best-effort write `run_summary.md` on terminal phase status and at loop end (covers single-phase runs).
+
+### Universal hardening plan (project-agnostic)
+- Output contracts & preflight: strict schema/format validation for YAML/JSON/patch; require completeness; reject truncation; prepend `---` only when missing and safe.
+- Staged apply + dry-run: parse/lint/validate locally before posting `builder_result`.
+- Failure classification & targeted retry: infra → backoff/retry; content/validation → no repeated attempts without new hint.
+- Goal/criteria prompting: inject acceptance criteria per attempt; allow “refuse if unsure” instead of emitting partials.
+- Context minimization: smaller, focused contexts to cut token waste; avoid repeated full-file generations on failure loops.
+- Provider/model health gating: disable unhealthy provider per run after infra errors; keep attempt/token caps per phase.
+- Structured guardrail issues: record churn/growth/shrink/truncation as IssueTracker entries with UTF-8-safe writes.
+- Run summary rewrite: always emit terminal state/phase outcomes at end of run (single-phase runs included).
+
+---
+
 ## Open Issues (Country Pack / Doctor / Telemetry)
 
 - **OI-UK-001 – Doctor budgets tracked by phase_id across runs**

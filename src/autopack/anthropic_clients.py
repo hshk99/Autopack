@@ -1716,6 +1716,13 @@ Requirements:
             prompt_parts.append("\nAcceptance Criteria:")
             for criteria in phase_spec["acceptance_criteria"]:
                 prompt_parts.append(f"- {criteria}")
+        else:
+            # Universal output contract (goal/criteria prompting; refuse partials)
+            prompt_parts.append("\nAcceptance Criteria (universal):")
+            prompt_parts.append("- Emit COMPLETE, well-formed output for every file you touch; no stubs or truncated content.")
+            prompt_parts.append("- For YAML/JSON/TOML, include required top-level keys/sections; do not omit document starts when applicable.")
+            prompt_parts.append("- Do not emit patches that reference files outside the allowed scope.")
+            prompt_parts.append("- If unsure or lacking context, leave the file unchanged rather than emitting partial output.")
 
         # Inject scope constraints if provided
         if scope_paths:

@@ -256,6 +256,8 @@ class AutonomousExecutor:
         self.MAX_HTTP_500_PER_RUN = 10  # Stop run after this many 500 errors
         self.MAX_PATCH_FAILURES_PER_RUN = 15  # Stop run after this many patch failures
         self.MAX_TOTAL_FAILURES_PER_RUN = 25  # Stop run after this many total failures
+        # Provider infra-error tracking (per-run)
+        self._provider_infra_errors: Dict[str, int] = {}
 
         # [Doctor Integration] Per GPT_RESPONSE8 Section 4 recommendations
         # Per-(run, phase) Doctor context tracking (keyed by f"{run_id}:{phase_id}")
@@ -2273,6 +2275,41 @@ Just the new description that should replace the current one while preserving th
                 config=self.builder_output_config,  # NEW: Pass config for consistency
             )
 
+            # Output contract: reject empty/blank patch content before posting/applying
+            if builder_result.success and (not builder_result.patch_content or not builder_result.patch_content.strip()):
+                builder_result = BuilderResult(
+                    success=False,
+                    patch_content="",
+                    builder_messages=["empty_patch: builder produced no changes"],
+                    tokens_used=builder_result.tokens_used,
+                    model_used=getattr(builder_result, "model_used", None),
+                    error="empty_patch: builder produced no changes",
+                )
+
+            # Retryable infra errors: backoff and retry without burning through non-infra budgets
+            infra_markers = ["connection error", "timeout", "timed out", "api failure", "server error", "http 500"]
+            error_text_lower = (builder_result.error or "").lower() if builder_result.error else ""
+            is_infra_error = any(m in error_text_lower for m in infra_markers)
+
+            if not builder_result.success and is_infra_error:
+                backoff = min(5 * (attempt_index + 1), 20)
+                logger.warning(f"[{phase_id}] Infra error detected (retryable): {builder_result.error}. Backing off {backoff}s before retry.")
+
+                # Provider health gating: disable provider after repeated infra errors
+                model_used = getattr(builder_result, "model_used", "") or ""
+                provider = self._model_to_provider(model_used)
+                if provider:
+                    self._provider_infra_errors[provider] = self._provider_infra_errors.get(provider, 0) + 1
+                    if self._provider_infra_errors[provider] >= 2:
+                        try:
+                            self.llm_service.model_router.disable_provider(provider, reason="infra_error")
+                            logger.warning(f"[{phase_id}] Disabled provider {provider} for this run after repeated infra errors.")
+                        except Exception as e:
+                            logger.warning(f"[{phase_id}] Failed to disable provider {provider}: {e}")
+
+                time.sleep(backoff)
+                return False, "INFRA_RETRY"
+
             if not builder_result.success:
                 logger.error(f"[{phase_id}] Builder failed: {builder_result.error}")
 
@@ -2280,6 +2317,8 @@ Just the new description that should replace the current one while preserving th
                 error_text = (builder_result.error or "").lower()
                 if "churn_limit_exceeded" in error_text:
                     error_category = "builder_churn_limit_exceeded"
+                elif any(g in error_text for g in ["suspicious_growth", "suspicious_shrinkage", "truncation", "pack_fullfile"]):
+                    error_category = "builder_guardrail"
                 else:
                     error_category = "auditor_reject"
 
@@ -2321,17 +2360,16 @@ Just the new description that should replace the current one while preserving th
                     from autopack.issue_tracker import IssueTracker
 
                     tracker = IssueTracker(run_id=self.run_id)
-                    issue_key = (
-                        "builder_churn_limit_exceeded"
-                        if error_category == "builder_churn_limit_exceeded"
-                        else "builder_failure"
-                    )
-                    category = (
-                        "builder_guardrail"
-                        if error_category == "builder_churn_limit_exceeded"
-                        else "builder_failure"
-                    )
                     tier_id = phase.get("tier_id", "unknown")
+                    if error_category == "builder_churn_limit_exceeded":
+                        issue_key = "builder_churn_limit_exceeded"
+                        category = "builder_guardrail"
+                    elif error_category == "builder_guardrail":
+                        issue_key = "builder_guardrail_failure"
+                        category = "builder_guardrail"
+                    else:
+                        issue_key = "builder_failure"
+                        category = "builder_failure"
 
                     tracker.record_issue(
                         phase_index=phase.get("phase_index", 0),
@@ -3074,6 +3112,16 @@ Just the new description that should replace the current one while preserving th
             response.raise_for_status()
             logger.debug(f"Posted builder result for phase {phase_id}")
         except requests.exceptions.RequestException as e:
+            status_code = getattr(getattr(e, "response", None), "status_code", None)
+            if status_code and status_code >= 500:
+                self._run_http_500_count += 1
+                logger.warning(
+                    f"[{phase_id}] HTTP 500 count this run: {self._run_http_500_count}/{self.MAX_HTTP_500_PER_RUN}"
+                )
+            if status_code and status_code >= 500 and self._run_http_500_count >= self.MAX_HTTP_500_PER_RUN:
+                logger.error(
+                    f"[{phase_id}] HTTP 500 budget exceeded for run {self.run_id}; consider aborting run."
+                )
             logger.warning(f"Failed to post builder result: {e}")
 
             # Log API failures to debug journal
@@ -3484,6 +3532,9 @@ Just the new description that should replace the current one while preserving th
             )
             response.raise_for_status()
             logger.info(f"Updated phase {phase_id} status to {status}")
+            # Best-effort run_summary rewrite when a phase reaches a terminal state
+            if status in ("COMPLETE", "FAILED", "BLOCKED"):
+                self._best_effort_write_run_summary()
         except requests.exceptions.RequestException as e:
             logger.warning(f"Failed to update phase {phase_id} status: {e}")
 
@@ -3790,35 +3841,7 @@ Just the new description that should replace the current one while preserving th
             logger.warning(f"Failed to log run completion: {e}")
 
         # Best-effort fallback: ensure run_summary.md reflects terminal state even if API-side hook fails
-        try:
-            from autopack import models
-
-            run = self.db_session.query(models.Run).filter(models.Run.id == self.run_id).first()
-            if run:
-                # If DB never updated run.state, derive a conservative terminal state from phase outcomes
-                if run.state not in (
-                    models.RunState.DONE_SUCCESS,
-                    models.RunState.DONE_FAILED_REQUIRES_HUMAN_REVIEW,
-                ):
-                    if phases_failed > 0:
-                        run.state = models.RunState.DONE_FAILED_REQUIRES_HUMAN_REVIEW
-                    else:
-                        run.state = models.RunState.DONE_SUCCESS
-
-                layout = RunFileLayout(self.run_id)
-                layout.write_run_summary(
-                    run_id=run.id,
-                    state=run.state.value,
-                    safety_profile=run.safety_profile,
-                    run_scope=run.run_scope,
-                    created_at=run.created_at.isoformat(),
-                    tier_count=len(run.tiers),
-                    phase_count=len(run.phases),
-                )
-                # Persist any state correction we made above
-                self.db_session.commit()
-        except Exception as e:
-            logger.warning(f"Failed to write run_summary from executor: {e}")
+        self._best_effort_write_run_summary(phases_failed=phases_failed)
 
         # Learning Pipeline: Promote hints to persistent rules (Stage 0B)
         try:
@@ -3832,6 +3855,58 @@ Just the new description that should replace the current one while preserving th
                 logger.info("Learning Pipeline: No hints qualified for promotion (need 2+ occurrences)")
         except Exception as e:
             logger.warning(f"Failed to promote hints to rules: {e}")
+
+    def _best_effort_write_run_summary(self, phases_failed: Optional[int] = None):
+        """
+        Write run_summary.md even if API hooks fail (covers short single-phase runs).
+        """
+        try:
+            from autopack import models
+
+            run = self.db_session.query(models.Run).filter(models.Run.id == self.run_id).first()
+            if not run:
+                return
+
+            # Derive a conservative terminal state if DB state is missing
+            if run.state not in (
+                models.RunState.DONE_SUCCESS,
+                models.RunState.DONE_FAILED_REQUIRES_HUMAN_REVIEW,
+            ):
+                if phases_failed is not None and phases_failed > 0:
+                    run.state = models.RunState.DONE_FAILED_REQUIRES_HUMAN_REVIEW
+                else:
+                    run.state = models.RunState.DONE_SUCCESS
+
+            layout = RunFileLayout(self.run_id)
+            layout.write_run_summary(
+                run_id=run.id,
+                state=run.state.value,
+                safety_profile=run.safety_profile,
+                run_scope=run.run_scope,
+                created_at=run.created_at.isoformat(),
+                tier_count=len(run.tiers),
+                phase_count=len(run.phases),
+            )
+            self.db_session.commit()
+        except Exception as e:
+            logger.warning(f"Failed to write run_summary from executor: {e}")
+
+    def _model_to_provider(self, model: str) -> Optional[str]:
+        """
+        Lightweight model→provider mapping for infra health gating.
+        """
+        if not model:
+            return None
+        m = model.lower()
+        if m.startswith("claude") or "opus" in m:
+            return "anthropic"
+        if m.startswith("gpt") or m.startswith("o1"):
+            return "openai"
+        if m.startswith("gemini"):
+            return "google_gemini"
+        if m.startswith("glm"):
+            return "zhipu_glm"
+        return None
 
 
 def main():

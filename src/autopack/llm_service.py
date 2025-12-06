@@ -66,14 +66,17 @@ try:
 except ImportError:
     ANTHROPIC_AVAILABLE = False
 
-# Import GLM clients with graceful fallback
-try:
-    from .glm_clients import GLMBuilderClient, GLMAuditorClient
-    GLM_AVAILABLE = True
-except ImportError:
-    GLM_AVAILABLE = False
-    GLMBuilderClient = None  # type: ignore[assignment]
-    GLMAuditorClient = None  # type: ignore[assignment]
+"""
+NOTE: GLM support is currently disabled.
+
+The GLM client imports and routing were kept for historical reference but
+the active configuration no longer selects glm-* models. We keep the
+stubs here to avoid breaking older logs/configs, but they are never used
+in current routing (Doctor and core flows stay on Claude Sonnet/Opus).
+"""
+GLM_AVAILABLE = False
+GLMBuilderClient = None  # type: ignore[assignment]
+GLMAuditorClient = None  # type: ignore[assignment]
 
 # Import Gemini clients with graceful fallback
 try:
@@ -112,24 +115,9 @@ class LlmService:
         self.db = db
         self.model_router = ModelRouter(db, config_path)
 
-        # Initialize GLM clients if available and key is present (check first - primary provider)
-        glm_key = os.getenv("GLM_API_KEY")
-        if GLM_AVAILABLE and glm_key:
-            try:
-                self.glm_builder = GLMBuilderClient()
-                self.glm_auditor = GLMAuditorClient()
-            except Exception as e:
-                print(f"Warning: Failed to initialize GLM clients: {e}")
-                self.glm_builder = None
-                self.glm_auditor = None
-                self.model_router.disable_provider("zhipu_glm", reason=str(e))
-        else:
-            if GLM_AVAILABLE and not glm_key:
-                msg = "GLM package available but GLM_API_KEY not set. Skipping GLM initialization."
-                print(f"Warning: {msg}")
-                self.model_router.disable_provider("zhipu_glm", reason=msg)
-            self.glm_builder = None
-            self.glm_auditor = None
+        # GLM support disabled: keep explicit None clients to avoid accidental use
+        self.glm_builder = None
+        self.glm_auditor = None
 
         # Initialize OpenAI clients if available (fallback for non-GLM OpenAI models)
         openai_key = os.getenv("OPENAI_API_KEY")
@@ -197,12 +185,14 @@ class LlmService:
     def _resolve_client_and_model(self, role: str, requested_model: str):
         """Resolve client and fallback model if needed.
 
-        Routing priority:
+        Routing priority (current stack):
         1. Gemini models (gemini-*) -> Gemini client (uses GOOGLE_API_KEY)
-        2. GLM models (glm-*) -> GLM client (uses GLM_API_KEY)
-        3. Claude models (claude-*) -> Anthropic client
-        4. OpenAI models (gpt-*, o1-*) -> OpenAI client
-        5. Fallback chain: Gemini -> GLM -> Anthropic -> OpenAI
+        2. Claude models (claude-*) -> Anthropic client
+        3. OpenAI models (gpt-*, o1-*) -> OpenAI client
+        4. Fallback chain: Gemini -> Anthropic -> OpenAI
+
+        GLM models (glm-*) are treated as legacy; current configs never
+        select them, and GLM clients are disabled.
         """
         if role == "builder":
             glm_client = self.glm_builder
@@ -231,21 +221,12 @@ class LlmService:
                 return glm_client, "glm-4.6"
             raise RuntimeError(f"Gemini model {requested_model} selected but no LLM clients are available. Set GOOGLE_API_KEY, ANTHROPIC_API_KEY, OPENAI_API_KEY, or GLM_API_KEY.")
 
-        # Route GLM models to GLM client
+        # Legacy GLM models: treated as misconfiguration
         if requested_model.lower().startswith("glm-"):
-            if glm_client is not None:
-                return glm_client, requested_model
-            # GLM not available, try fallbacks
-            if gemini_client is not None:
-                print(f"Warning: GLM model {requested_model} selected but GLM_API_KEY not set. Falling back to Gemini (gemini-2.5-pro).")
-                return gemini_client, "gemini-2.5-pro"
-            if anthropic_client is not None:
-                print(f"Warning: GLM model {requested_model} selected but GLM_API_KEY not set. Falling back to Anthropic (claude-sonnet-4-5).")
-                return anthropic_client, "claude-sonnet-4-5"
-            if openai_client is not None:
-                print(f"Warning: GLM model {requested_model} selected but GLM_API_KEY not set. Falling back to OpenAI (gpt-4o).")
-                return openai_client, "gpt-4o"
-            raise RuntimeError(f"GLM model {requested_model} selected but no LLM clients are available. Set GLM_API_KEY, GOOGLE_API_KEY, ANTHROPIC_API_KEY, or OPENAI_API_KEY.")
+            raise RuntimeError(
+                f"GLM model {requested_model} selected but GLM support is disabled in current routing. "
+                f"Update config/models.yaml to use claude-sonnet-4-5/claude-opus-4-5 instead."
+            )
 
         # Route Claude models to Anthropic client
         if "claude" in requested_model.lower():
@@ -255,9 +236,6 @@ class LlmService:
             if gemini_client is not None:
                 print(f"Warning: Claude model {requested_model} selected but Anthropic not available. Falling back to Gemini (gemini-2.5-pro).")
                 return gemini_client, "gemini-2.5-pro"
-            if glm_client is not None:
-                print(f"Warning: Claude model {requested_model} selected but Anthropic not available. Falling back to GLM (glm-4.6).")
-                return glm_client, "glm-4.6"
             if openai_client is not None:
                 print(f"Warning: Claude model {requested_model} selected but Anthropic not available. Falling back to OpenAI (gpt-4o).")
                 return openai_client, "gpt-4o"
@@ -270,9 +248,6 @@ class LlmService:
         if gemini_client is not None:
             print(f"Warning: OpenAI model {requested_model} selected but OpenAI not available. Falling back to Gemini (gemini-2.5-pro).")
             return gemini_client, "gemini-2.5-pro"
-        if glm_client is not None:
-            print(f"Warning: OpenAI model {requested_model} selected but OpenAI not available. Falling back to GLM (glm-4.6).")
-            return glm_client, "glm-4.6"
         if anthropic_client is not None:
             print(f"Warning: OpenAI model {requested_model} selected but OpenAI not available. Falling back to Anthropic (claude-sonnet-4-5).")
             return anthropic_client, "claude-sonnet-4-5"
@@ -587,8 +562,6 @@ class LlmService:
             return "openai"
         elif model.startswith("claude-") or model.startswith("opus-"):
             return "anthropic"
-        elif model.startswith("glm-"):
-            return "zhipu"
         else:
             return "openai"  # Safe default
 

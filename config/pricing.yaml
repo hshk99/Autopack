@@ -114,10 +114,10 @@ reporting:
 
 # Example cost calculations for reference (current model stack):
 #
-# Low complexity phase (glm-4.6):
-#   - Builder: 2000 input + 1000 output = $0.0021 (3*0.0007)
-#   - Auditor: 1500 input + 500 output = $0.0014 (2*0.0007)
-#   - Total: ~$0.0035 per phase
+# Low complexity phase (claude-sonnet-4-5):
+#   - Builder: 2000 input + 1000 output = $0.024 (2*0.003 + 1*0.015)
+#   - Auditor: 1500 input + 500 output = $0.0135 (1.5*0.003 + 0.5*0.015)
+#   - Total: ~$0.0375 per phase
 #
 # Medium complexity phase (claude-sonnet-4-5):
 #   - Builder: 5000 input + 3000 output = $0.060 (5*0.003 + 3*0.015)
@@ -131,10 +131,10 @@ reporting:
 #
 # Estimated run cost (25 phases, mixed complexity):
 #   - 5 low + 15 medium + 5 high
-#   - ~$0.018 + $1.26 + $0.80 = ~$2.08 per run
+#   - ~$0.19 + $1.26 + $0.80 = ~$2.25 per run
 #
-# Model stack summary:
-#   - Low: GLM-4.6 (Zhipu AI) - cheapest, good for simple tasks
+# Model stack summary (current routing):
+#   - Low: Claude Sonnet 4.5 (Anthropic) - default for low-complexity phases
 #   - Medium: Claude Sonnet 4.5 (Anthropic) - excellent cost/quality balance
 #   - High: Claude Sonnet 4.5 (Anthropic) - premium quality
 #   - Escalation: Claude Opus 4.5 - for critical/failing phases

@@ -1,6 +1,6 @@
 complexity_models:
   low:
-    # Default low tier: Claude Sonnet 4.5 (Anthropic) - replaced GLM due to 50% failure rate
+    # Default low tier: Claude Sonnet 4.5 (Anthropic) for all low-complexity phases
     builder: claude-sonnet-4-5
     auditor: claude-sonnet-4-5
   medium:

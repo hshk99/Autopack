@@ -800,7 +800,46 @@ class AnthropicBuilderClient:
                 # Safety check: ensure existing_files is a dict
                 if not isinstance(existing_files, dict):
                     existing_files = {}
-            
+
+            def _validate_pack_fullfile(file_path: str, content: str) -> Optional[str]:
+                """
+                Lightweight preflight for pack YAMLs in full-file mode.
+                Reject obviously incomplete/truncated outputs before diff generation so the Builder can retry.
+                """
+                if not (file_path.endswith((".yaml", ".yml")) and "backend/packs/" in file_path):
+                    return None
+
+                stripped = content.lstrip()
+                if not stripped:
+                    return f"pack_fullfile_empty: {file_path} returned empty content"
+
+                # YAML allows comments (#) before document marker (---) or keys
+                # The --- document marker is optional in YAML, so we don't enforce it
+                lines = stripped.split("\n")
+
+                # Check that required top-level keys appear in the first ~50 lines
+                # This catches patches that only include partial content
+                first_lines = "\n".join(lines[:50])
+                required_top_level = ["name:", "description:", "version:", "country:", "domain:"]
+                missing_top = [k for k in required_top_level if k not in first_lines]
+                if missing_top:
+                    return (
+                        f"pack_fullfile_incomplete_header: {file_path} is missing top-level keys in header: {', '.join(missing_top)}. "
+                        f"First 200 chars: {stripped[:200]}... "
+                        "You must emit the COMPLETE YAML file with ALL top-level keys, not a patch."
+                    )
+
+                # Check that required sections appear somewhere in the file
+                required_sections = ["categories:", "official_sources:"]
+                missing_sections = [s for s in required_sections if s not in content]
+                if missing_sections:
+                    return (
+                        f"pack_fullfile_missing_sections: {file_path} missing required sections: {', '.join(missing_sections)}. "
+                        "You must emit the COMPLETE YAML file with all required sections."
+                    )
+
+                return None
+
             for file_entry in files:
                 file_path = file_entry.get("path", "")
                 mode = file_entry.get("mode", "modify")
@@ -813,6 +852,20 @@ class AnthropicBuilderClient:
                 old_content = existing_files.get(file_path, "")
                 old_line_count = old_content.count('\n') + 1 if old_content else 0
                 new_line_count = new_content.count('\n') + 1 if new_content else 0
+
+                # Pack YAML preflight validation (per ref2.md - pack quality improvements)
+                pack_validation_error = _validate_pack_fullfile(file_path, new_content)
+                if pack_validation_error:
+                    logger.error(f"[Builder] {pack_validation_error}")
+                    return BuilderResult(
+                        success=False,
+                        patch_content="",
+                        builder_messages=[pack_validation_error],
+                        tokens_used=response.usage.input_tokens + response.usage.output_tokens,
+                        model_used=model,
+                        error=pack_validation_error
+                    )
+
                 
                 # ============================================================================
                 # NEW: Read-only file enforcement (per IMPLEMENTATION_PLAN2.md Phase 4.1)

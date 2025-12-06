@@ -6,7 +6,12 @@ Autopack is a framework for orchestrating autonomous AI agents (Builder and Audi
 
 ---
 
-## Recent Updates (v0.4.0 - Enhanced Error Reporting)
+## Recent Updates (v0.4.1 - Patch Apply Hardening)
+
+### Patch Apply Hardening (2025-12-06)
+- `GovernedApplyPath` now refuses the direct-write fallback whenever a patch touches existing files; fallback is limited to clean new-file-only patches and must write all expected files.
+- Patch validation still runs first (dry-run git apply, lenient/3-way) and preserves backups; scope + protected-path enforcement remains unchanged.
+- SQLite dev DB (`autopack.db`) now includes the `phases.scope` column to match the production schema (run_id already present).
 
 ### Comprehensive Error Reporting System (NEW)
 Detailed error context capture and reporting for easier debugging:
@@ -280,8 +285,8 @@ replan:
 
 ---
 
-**Version**: 0.4.0 (Enhanced Error Reporting + Test Suite Hardening)
+**Version**: 0.4.1 (Patch Apply Hardening + Error Reporting)
 **License**: MIT
-**Last Updated**: 2025-12-03
+**Last Updated**: 2025-12-06
 
 **Milestone**: `tests-passing-v1.0` - All core tests passing (83 passed, 161 skipped, 0 failed)

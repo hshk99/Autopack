@@ -40,6 +40,8 @@ Single source of truth for all errors, fixes, prevention rules, and troubleshoot
 
 ## Manual Notes (2025-12-07)
 
+- `GovernedApplyPath` direct-write fallback is now gated to **new-file-only** patches; if a patch touches existing files and git apply fails (strict/lenient/3-way), we fail fast instead of partially applying via direct writes.
+- Dev SQLite (`autopack.db`) now includes `phases.scope` to match prod schema (`run_scope` already present on `runs`), preventing scope persistence mismatches during local runs.
 - Historical UK failure (Dec 4): Builder spent ~46k tokens (Opus) on full-file YAML, then `/builder_result` 500'd (pre `Run.run_id` fix) and patch validation rejected the YAML (`expected '<document start>'` / truncated). Max attempts exhausted; STOP_ON_FAILURE halted spend.
 - Latest UK run (`fileorg-country-uk-20251206-000714`): clean — all 200s on `builder_result`/`update_status`, no YAML preflight errors, no GLM routing.
 - GLM fully disabled in `llm_service.py`; legacy glm-* selections now raise RuntimeError with guidance to use Claude Sonnet/Opus.

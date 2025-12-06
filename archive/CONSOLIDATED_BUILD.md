@@ -1,6 +1,6 @@
 # Consolidated Build Reference
 
-**Last Updated**: 2025-12-04
+**Last Updated**: 2025-12-06
 **Auto-generated** by scripts/consolidate_docs.py
 
 ## Contents
@@ -8,7 +8,19 @@
 - [ARCH_BUILDER_AUDITOR_DISCOVERY](#arch-builder-auditor-discovery)
 - [AUTO_DOCUMENTATION](#auto-documentation)
 - [BUILD_PLAN_TASK_TRACKER](#build-plan-task-tracker)
+- [PATCH_APPLY_HARDENING](#patch-apply-hardening)
 - [RECENT_SCOPE_FIX](#recent-scope-fix)
+
+---
+
+## PATCH_APPLY_HARDENING
+
+**Date**: 2025-12-06  
+**Status**: ✅ Implemented in `src/autopack/governed_apply.py`
+
+- Direct-write fallback is now restricted to new-file-only patches after git-apply failures; patches touching existing files must succeed via git apply or fail fast.
+- Fallback success requires writing all expected new files; partial writes are treated as failures with restoration from backups.
+- Goal: prevent “half-applied” diffs when line-number repair fails on mixed new+existing file patches.
 
 ---
 

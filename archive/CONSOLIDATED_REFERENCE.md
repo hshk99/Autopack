@@ -1,6 +1,6 @@
 # Consolidated Reference Reference
 
-**Last Updated**: 2025-12-04
+**Last Updated**: 2025-12-06
 **Auto-generated** by scripts/consolidate_docs.py
 
 ## Contents
@@ -9,6 +9,17 @@
 - [CHATBOT_INTEGRATION_COMPLETE_REFERENCE](#chatbot-integration-complete-reference)
 - [DOC_ORGANIZATION_README](#doc-organization-readme)
 - [COUNTRY_PACKS_UK](#country-packs-uk)
+- [RECENT_APPLY_HARDENING](#recent-apply-hardening)
+
+---
+
+## RECENT_APPLY_HARDENING
+
+**Date**: 2025-12-06  
+**Status**: ✅ Implemented
+
+- `GovernedApplyPath` direct-write fallback is limited to new-file-only patches; mixed patches must pass git apply (strict/lenient/3-way) or fail without touching disk.
+- This prevents partial writes when hunk repair cannot align existing file content.
 
 ---
 

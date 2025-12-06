@@ -818,6 +818,37 @@ class GovernedApplyPath:
 
         return '\n'.join(result)
 
+    def _classify_patch_files(self, patch_content: str) -> Tuple[Set[str], Set[str]]:
+        """
+        Identify which files in a patch are new vs. existing.
+
+        Returns:
+            Tuple of (new_files, existing_files) as relative paths
+        """
+        new_files: Set[str] = set()
+        existing_files: Set[str] = set()
+        current_file = None
+
+        lines = patch_content.split('\n')
+        for i, line in enumerate(lines):
+            if line.startswith('diff --git'):
+                parts = line.split()
+                if len(parts) >= 4:
+                    current_file = parts[3][2:]  # b/path -> path
+                continue
+
+            if current_file is None:
+                continue
+
+            if line.startswith('new file mode') or line.startswith('--- /dev/null'):
+                new_files.add(current_file)
+            elif line.startswith('deleted file mode') or line.startswith('+++ /dev/null'):
+                existing_files.add(current_file)
+            elif line.startswith('--- a/') and '/dev/null' not in line:
+                existing_files.add(current_file)
+
+        return new_files, existing_files
+
     def _remove_existing_files_for_new_patches(self, patch_content: str) -> str:
         """
         Remove existing files that patches try to create as 'new file'.
@@ -1546,11 +1577,26 @@ class GovernedApplyPath:
                             if patch_file.exists():
                                 patch_file.unlink()
                             return False, "diff_mode_patch_failed: All git apply modes failed and direct write is not available for diff patches"
-                        
+
+                        new_files, existing_files = self._classify_patch_files(patch_content)
+                        if existing_files:
+                            logger.error(
+                                "[Integrity] Patch modifies existing files. Skipping direct-write fallback to avoid partial apply."
+                            )
+                            if patch_file.exists():
+                                patch_file.unlink()
+                            return False, "git_apply_failed_existing_files_no_fallback"
+
+                        if not new_files:
+                            logger.error("[Integrity] Git apply failed and no new files detected for direct-write fallback.")
+                            if patch_file.exists():
+                                patch_file.unlink()
+                            return False, "git_apply_failed_no_new_files_for_fallback"
+
                         # Try direct file write as last resort (only for full-file mode)
-                        logger.warning("All git apply modes failed, attempting direct file write fallback (full-file mode only)...")
+                        logger.warning("All git apply modes failed, attempting direct file write fallback (new-file patch only)...")
                         success, files_written = self._apply_patch_directly(patch_content)
-                        if success:
+                        if success and len(files_written) == len(new_files):
                             logger.info(f"Direct file write succeeded - {len(files_written)} files written")
                             for f in files_written:
                                 logger.info(f"  - {f}")
@@ -1577,7 +1623,10 @@ class GovernedApplyPath:
                                 patch_file.unlink()
                             return True, None
                         else:
-                            logger.error(f"Direct file write also failed: {three_way_check.stderr.strip()}")
+                            logger.error(
+                                f"Direct file write failed or incomplete "
+                                f"(expected {len(new_files)}, wrote {len(files_written)})"
+                            )
                             logger.error(f"Patch content:\n{patch_content[:500]}...")
                             if patch_file.exists():
                                 patch_file.unlink()

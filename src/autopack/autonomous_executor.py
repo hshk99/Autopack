@@ -299,6 +299,9 @@ class AutonomousExecutor:
 
         # Learning Pipeline: Load project learned rules (Stage 0B)
         self._load_project_learning_context()
+        # Track rules marker for mid-run refresh
+        self._rules_marker_path = None
+        self._rules_marker_mtime = None
 
     def _run_startup_checks(self):
         """
@@ -383,6 +386,7 @@ class AutonomousExecutor:
         - These will be passed to Builder/Auditor for context-aware generation
         """
         project_id = self._get_project_slug()
+        self.project_id = project_id
         logger.info(f"Loading learning context for project: {project_id}")
 
         # Stage 0B: Load persistent project rules (promoted from hints)
@@ -398,7 +402,36 @@ class AutonomousExecutor:
             logger.warning(f"  Failed to load project rules: {e}")
             self.project_rules = []
 
+        # Track marker path/mtime for mid-run refresh
+        try:
+            marker_path = Path(".autonomous_runs") / project_id / "rules_updated.json"
+            self._rules_marker_path = marker_path
+            if marker_path.exists():
+                self._rules_marker_mtime = marker_path.stat().st_mtime
+        except Exception:
+            self._rules_marker_path = None
+            self._rules_marker_mtime = None
+
         logger.info("Learning context loaded successfully")
+
+    def _refresh_project_rules_if_updated(self):
+        """
+        Check rules_updated.json mtime and reload project rules mid-run if advanced.
+        """
+        if not self.project_id or not self._rules_marker_path:
+            return
+        try:
+            if not self._rules_marker_path.exists():
+                return
+            mtime = self._rules_marker_path.stat().st_mtime
+            if self._rules_marker_mtime is None or mtime > self._rules_marker_mtime:
+                self._rules_marker_mtime = mtime
+                self.project_rules = load_project_rules(self.project_id)
+                logger.info(
+                    f"[Learning] Reloaded project rules (now {len(self.project_rules)} rules) after marker update."
+                )
+        except Exception as e:
+            logger.warning(f"[Learning] Failed to refresh project rules mid-run: {e}")
 
     def _get_learning_context_for_phase(self, phase: Dict) -> Dict:
         """
@@ -697,6 +730,9 @@ class AutonomousExecutor:
         # Retry loop with model escalation
         while attempt_index < max_attempts:
             logger.info(f"[{phase_id}] Attempt {attempt_index + 1}/{max_attempts} (model escalation enabled)")
+
+            # Reload project rules mid-run if rules_updated.json advanced
+            self._refresh_project_rules_if_updated()
 
             # Store current attempt for inner method
             setattr(self, attempt_key, attempt_index)

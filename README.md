@@ -44,6 +44,7 @@ LLM-based diagnostic system for intelligent failure recovery:
 - **Actions**: `retry_with_fix` (with hint), `replan`, `skip_phase`, `mark_fatal`, `rollback_run`
 - **Budgets**: Per-phase limit (2 calls) and run-level limit (10 calls) to prevent loops
 - **Confidence Escalation**: Upgrades to strong model if confidence < 0.7
+- **Rule Refresh**: Project learned rules auto-reload mid-run when updated, so replans use the latest hints/rules without restarting.
 
 **Configuration** (`config/models.yaml`):
 ```yaml

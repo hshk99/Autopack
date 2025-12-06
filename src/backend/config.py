@@ -7,10 +7,12 @@ for development, testing, and production environments.
 import os
 from typing import Optional
 
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
+    model_config = SettingsConfigDict(env_file=".env", case_sensitive=False, extra="ignore")
+
     """
     Application settings with environment variable support.
     
@@ -28,12 +30,6 @@ class Settings(BaseSettings):
     celery_broker_url: Optional[str] = None
     debug: bool = False
     
-    class Config:
-        env_file = ".env"
-        case_sensitive = False
-        extra = "ignore"  # Allow extra fields from .env without validation errors
-
-
 def get_settings() -> Settings:
     """
     Get application settings based on environment.

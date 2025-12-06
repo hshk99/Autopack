@@ -3,7 +3,7 @@
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 
 
 class RunCreate(BaseModel):
@@ -74,8 +74,7 @@ class PhaseResponse(BaseModel):
     phase_index: int
     scope: Optional[Dict[str, Any]] = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class TierResponse(BaseModel):
@@ -91,8 +90,7 @@ class TierResponse(BaseModel):
     major_issues_count: int
     phases: List[PhaseResponse] = Field(default_factory=list)
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class RunResponse(BaseModel):
@@ -114,5 +112,4 @@ class RunResponse(BaseModel):
     failure_reason: Optional[str]
     tiers: List[TierResponse] = Field(default_factory=list)
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)

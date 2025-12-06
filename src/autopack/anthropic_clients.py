@@ -132,6 +132,9 @@ class AnthropicBuilderClient:
         Returns:
             BuilderResult with patch and metadata
         """
+        # Defensive: ensure phase_spec is always a dict
+        if phase_spec is None:
+            phase_spec = {}
         try:
             # Check if we need structured edit mode before building prompt
             # Structured edit should ONLY be used if files being MODIFIED exceed the limit
@@ -144,8 +147,9 @@ class AnthropicBuilderClient:
                     logger.warning(f"[Builder] file_context.get('existing_files') returned non-dict: {type(files)}, using empty dict")
                     files = {}
 
-                # Get explicit scope paths from phase_spec
-                scope_paths = phase_spec.get("scope", {}).get("paths", [])
+                # Get explicit scope paths from phase_spec (guard None/empty)
+                scope_config = phase_spec.get("scope") or {}
+                scope_paths = scope_config.get("paths", []) if isinstance(scope_config, dict) else []
                 # Safety check: ensure scope_paths is a list of strings
                 if not isinstance(scope_paths, list):
                     logger.warning(f"[Builder] scope_paths is not a list: {type(scope_paths)}, using empty list")
@@ -334,10 +338,11 @@ class AnthropicBuilderClient:
             )
 
         except Exception as e:
-            # Log full traceback for debugging
+            # Log full traceback for debugging (critical to diagnose silent failures)
             import traceback
             error_traceback = traceback.format_exc()
             error_msg = str(e)
+            logger.error("[Builder] Unhandled exception during execute_phase: %s\nTraceback:\n%s", error_msg, error_traceback)
             
             # Check if this is the Path/list error we're tracking
             if "unsupported operand type(s) for /" in error_msg and "list" in error_msg:
@@ -1794,7 +1799,8 @@ Requirements:
             use_structured_edit_mode = False
             if config:
                 # Get explicit scope paths from phase_spec
-                scope_paths = phase_spec.get("scope", {}).get("paths", [])
+                scope_config = phase_spec.get("scope") or {}
+                scope_paths = scope_config.get("paths", []) if isinstance(scope_config, dict) else []
                 if not isinstance(scope_paths, list):
                     scope_paths = []
                 scope_paths = [sp for sp in scope_paths if isinstance(sp, str)]

@@ -155,6 +155,7 @@ See [IMPLEMENTATION_PLAN.md](archive/IMPLEMENTATION_PLAN.md) for full design det
 - **[Stage 2: Structured Edits](docs/stage2_structured_edits.md)**: Guide to structured edit mode for large files
 - **[IMPLEMENTATION_PLAN2.md](IMPLEMENTATION_PLAN2.md)**: File truncation bug fix and safety improvements
 - **[IMPLEMENTATION_PLAN3.md](IMPLEMENTATION_PLAN3.md)**: Structured edits implementation plan
+- **Planner Prompt (Autopack-ready)**: `prompts/claude/planner_prompt.md` now enforces non-empty descriptions, explicit scope (modifiable paths + read-only context), acceptance criteria, and token/attempt caps for every phase.
 
 ### Archive Documentation
 Detailed historical documentation is available in the `archive/` directory:

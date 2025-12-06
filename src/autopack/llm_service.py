@@ -10,7 +10,7 @@ This service wraps the OpenAI clients and provides:
 import json
 import logging
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Optional
 

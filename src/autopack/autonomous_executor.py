@@ -1465,7 +1465,7 @@ class AutonomousExecutor:
         ])
 
         # Get any run hints that might help
-        learning_context = self._get_learning_context_for_phase(phase)
+        learning_context = self._get_learning_context_for_phase(phase) or {}
         hints_summary = "\n".join([
             f"- {hint}" for hint in learning_context.get("run_hints", [])[:3]
         ])
@@ -1532,7 +1532,10 @@ Just the new description that should replace the current one while preserving th
                 ]
             )
 
-            revised_description = response.content[0].text.strip()
+            # Defensive: ensure response has text content
+            content_blocks = getattr(response, "content", None) or []
+            first_block = content_blocks[0] if content_blocks else None
+            revised_description = (getattr(first_block, "text", "") or "").strip()
 
             if not revised_description or len(revised_description) < 20:
                 logger.error("[Re-Plan] LLM returned empty or too-short revision")
@@ -3903,15 +3906,24 @@ Just the new description that should replace the current one while preserving th
             if not run:
                 return
 
-            # Derive a conservative terminal state if DB state is missing
+            # Derive a conservative terminal state if DB state is missing or stale
             if run.state not in (
                 models.RunState.DONE_SUCCESS,
                 models.RunState.DONE_FAILED_REQUIRES_HUMAN_REVIEW,
             ):
+                # If caller provided explicit failure count, trust it
                 if phases_failed is not None and phases_failed > 0:
                     run.state = models.RunState.DONE_FAILED_REQUIRES_HUMAN_REVIEW
                 else:
-                    run.state = models.RunState.DONE_SUCCESS
+                    # Fall back to DB snapshot: if any phase is non-success, mark failed
+                    failed_phases = [
+                        p for p in run.phases
+                        if p.state != models.PhaseState.DONE_SUCCESS
+                    ]
+                    if failed_phases:
+                        run.state = models.RunState.DONE_FAILED_REQUIRES_HUMAN_REVIEW
+                    else:
+                        run.state = models.RunState.DONE_SUCCESS
 
             layout = RunFileLayout(self.run_id)
             layout.write_run_summary(

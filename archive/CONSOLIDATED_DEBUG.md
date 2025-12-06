@@ -74,6 +74,7 @@ Single source of truth for all errors, fixes, prevention rules, and troubleshoot
 - **YAML validation hardening**: Fixed `governed_apply.py:481-490` to handle YAML files with leading comments by prepending `---` document marker when needed, preventing PyYAML parse errors on valid YAML content
 - **Doctor model configuration cleanup**: Updated `error_recovery.py:205-206` to use Claude models exclusively - `DOCTOR_CHEAP_MODEL = claude-sonnet-4-5` and `DOCTOR_STRONG_MODEL = claude-opus-4-5`, eliminating GLM 400 errors
 - **Foundation for continuation strategy**: With stop_reason tracking in place, system can now detect truncated outputs and will be ready for Phase 4 continuation implementation (future work: `attempt_continuation()` method in YamlRepairHelper)
+- **Planner tightening**: `prompts/claude/planner_prompt.md` now requires Autopack-ready phases (non-empty descriptions, explicit scope paths plus read-only context, acceptance criteria, and token/attempt caps) so implementation plans are directly runnable without manual scope filling.
 
 ---
 

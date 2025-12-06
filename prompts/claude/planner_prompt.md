@@ -65,23 +65,32 @@ Tier guidelines:
 - **Tier 4**: Polish (optimization, advanced UX)
 - **Tier 5**: Deployment (CI/CD, monitoring, docs)
 
-### 3. Phase Breakdown
-For each tier, define **5-10 phases** with:
+### 3. Phase Breakdown (Autopack-ready)
+For each tier, define **5-10 phases**. Every phase must be immediately usable by Autopack (no empty descriptions, no missing scope). Use this exact structure:
 
-**Phase format**:
 ```
 ### Phase {Tier}.{N}: {Phase Name}
+**Phase ID**: P{Tier}.{N}
 **Task Category**: {category from allowed list}
 **Complexity**: Low/Medium/High
 **Builder Mode**: compose/transform/extend
-**Description**: {what to build}
+**Description**: {specific, non-empty, 2-4 sentences of what to implement}
 **Acceptance Criteria**:
 - {criterion 1}
 - {criterion 2}
 - {criterion 3}
-**Files Affected**: {estimated file paths}
+- {tests/validation explicitly listed}
+**Scope**:
+- Modifiable Paths: {explicit file/directory paths to edit}
+- Read-Only Context: {explicit reference files/dirs for grounding}
 **Incident Token Cap**: {tokens, 200K-800K based on complexity}
+**Max Builder Attempts**: {default 3 unless riskier}
 ```
+
+Autopack scope rules:
+- ALWAYS include `Scope` with concrete paths (no placeholders). If uncertain, bound to the smallest safe directories/files.
+- For country packs: include the exact YAML files (e.g., `backend/packs/tax_uk.yaml`) in Modifiable Paths and research briefs in Read-Only Context.
+- Avoid empty descriptions; every phase must specify what to deliver.
 
 **Allowed Task Categories**:
 - feature_scaffolding

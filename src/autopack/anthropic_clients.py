@@ -157,7 +157,7 @@ class AnthropicBuilderClient:
         if lockfile_phase or manifest_phase:
             max_tokens = max(max_tokens, 12000)
         if task_category in ("deployment", "frontend"):
-            max_tokens = max(max_tokens, 8000)
+            max_tokens = max(max_tokens, 16384)
             # Deployment/frontends often touch multiple files; treat as large refactor
             phase_spec.setdefault("change_size", "large_refactor")
         try:

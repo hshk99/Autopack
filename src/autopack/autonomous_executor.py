@@ -2989,6 +2989,18 @@ Just the new description that should replace the current one while preserving th
 
         if missing_files:
             logger.warning(f"[Scope] Missing scope files: {missing_files}")
+            # Auto-create empty stubs for common manifest/lockfiles to reduce churn and truncation
+            for missing in list(missing_files):
+                if missing.endswith(("package-lock.json", "yarn.lock")):
+                    missing_path = (workspace_root / missing).resolve()
+                    missing_path.parent.mkdir(parents=True, exist_ok=True)
+                    missing_path.write_text("{}", encoding="utf-8")
+                    logger.info(f"[Scope] Created stub for missing file: {missing}")
+                    _add_file(missing_path, missing.replace("\\", "/"))
+                    scope_metadata.setdefault(missing.replace("\\", "/"), {"category": "modifiable", "missing": False})
+                    existing_files_keys = set(existing_files.keys())
+                    if missing in missing_files:
+                        missing_files.remove(missing)
 
         logger.info(f"[Scope] Loaded {len(existing_files)} files from scope configuration")
         logger.info(f"[Scope] Scope paths: {scope_config.get('paths', [])}")

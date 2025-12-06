@@ -66,6 +66,16 @@ Single source of truth for all errors, fixes, prevention rules, and troubleshoot
 
 ---
 
+## Manual Notes (2025-12-08)
+
+- **Truncation detection infrastructure implemented**: Added `stop_reason` and `was_truncated` fields to `BuilderResult` dataclass (llm_client.py:31-32) to track when model outputs are truncated due to hitting max_tokens limit
+- **Stop reason tracking from Anthropic API**: Modified `execute_phase()` in `anthropic_clients.py` to capture and log `stop_reason` from Anthropic responses (lines 311-316), enabling detection of max_tokens truncation vs natural completion
+- **YAML validation hardening**: Fixed `governed_apply.py:481-490` to handle YAML files with leading comments by prepending `---` document marker when needed, preventing PyYAML parse errors on valid YAML content
+- **Doctor model configuration cleanup**: Updated `error_recovery.py:205-206` to use Claude models exclusively - `DOCTOR_CHEAP_MODEL = claude-sonnet-4-5` and `DOCTOR_STRONG_MODEL = claude-opus-4-5`, eliminating GLM 400 errors
+- **Foundation for continuation strategy**: With stop_reason tracking in place, system can now detect truncated outputs and will be ready for Phase 4 continuation implementation (future work: `attempt_continuation()` method in YamlRepairHelper)
+
+---
+
 ## Open Issues (Country Pack / Doctor / Telemetry)
 
 - **OI-UK-001 – Doctor budgets tracked by phase_id across runs**

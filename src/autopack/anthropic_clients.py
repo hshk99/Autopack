@@ -308,21 +308,29 @@ class AnthropicBuilderClient:
                 # Get final message for token usage
                 response = stream.get_final_message()
 
+            # Track truncation (stop_reason from Anthropic API)
+            stop_reason = getattr(response, 'stop_reason', None)
+            was_truncated = (stop_reason == 'max_tokens')
+            if was_truncated:
+                logger.warning(f"[Builder] Output was truncated (stop_reason=max_tokens)")
+
             # Parse output based on mode (use_structured_edit was already determined above)
             if use_structured_edit:
                 # NEW: Structured edit mode for large files (Stage 2)
                 return self._parse_structured_edit_output(
-                    content, file_context, response, model, phase_spec, config=config
+                    content, file_context, response, model, phase_spec, config=config,
+                    stop_reason=stop_reason, was_truncated=was_truncated
                 )
             elif use_full_file_mode:
                 # New full-file replacement mode (GPT_RESPONSE10/11)
                 return self._parse_full_file_output(
-                    content, file_context, response, model, phase_spec, config=config
+                    content, file_context, response, model, phase_spec, config=config,
+                    stop_reason=stop_reason, was_truncated=was_truncated
                 )
             else:
                 # Legacy git diff mode (deprecated)
                 return self._parse_legacy_diff_output(
-                    content, response, model
+                    content, response, model, stop_reason=stop_reason, was_truncated=was_truncated
             )
 
         except Exception as e:
@@ -406,7 +414,9 @@ class AnthropicBuilderClient:
         response,
         model: str,
         phase_spec: Optional[Dict] = None,
-        config = None  # NEW: BuilderOutputConfig for thresholds
+        config = None,  # NEW: BuilderOutputConfig for thresholds
+        stop_reason: Optional[str] = None,  # NEW: Anthropic stop_reason
+        was_truncated: bool = False  # NEW: Truncation flag
     ) -> 'BuilderResult':
         """Parse full-file replacement output and generate git diff locally.
         
@@ -1020,13 +1030,15 @@ class AnthropicBuilderClient:
             
             patch_content = "\n".join(diff_parts)
             logger.info(f"[Builder] Generated {len(diff_parts)} file diffs locally from full-file content")
-            
+
             return BuilderResult(
                 success=True,
                 patch_content=patch_content,
                 builder_messages=[summary],
                 tokens_used=response.usage.input_tokens + response.usage.output_tokens,
-                model_used=model
+                model_used=model,
+                stop_reason=stop_reason,
+                was_truncated=was_truncated
             )
             
         except Exception as e:

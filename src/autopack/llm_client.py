@@ -28,6 +28,8 @@ class BuilderResult:
     model_used: str
     error: Optional[str] = None
     edit_plan: Optional['EditPlan'] = None  # NEW: For structured edits (Stage 2) - per IMPLEMENTATION_PLAN3.md
+    stop_reason: Optional[str] = None  # Anthropic API stop_reason: 'end_turn', 'max_tokens', 'stop_sequence'
+    was_truncated: bool = False  # True if stop_reason == 'max_tokens'
 
 
 @dataclass

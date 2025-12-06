@@ -478,7 +478,12 @@ class GovernedApplyPath:
                 try:
                     import yaml
                     with open(full_path, 'r', encoding='utf-8') as f:
-                        yaml.safe_load(f)
+                        content = f.read()
+                    # Allow leading comments without explicit document start by prepending '---'
+                    stripped = content.lstrip()
+                    if stripped.startswith("#") and not stripped.startswith("---"):
+                        content = "---\n" + content
+                    yaml.safe_load(content)
                     logger.debug(f"[Validation] OK: {rel_path}")
                 except yaml.YAMLError as e:
                     logger.error(f"[Validation] CORRUPTED: {rel_path} - Invalid YAML: {e}")

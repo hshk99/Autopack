@@ -160,6 +160,18 @@ class AnthropicBuilderClient:
             max_tokens = max(max_tokens, 16384)
             # Deployment/frontends often touch multiple files; treat as large refactor
             phase_spec.setdefault("change_size", "large_refactor")
+
+        # Adaptive mode selection: avoid full-file JSON for multi-file scopes (reduces truncation/invalid JSON)
+        use_full_file_mode_flag = use_full_file_mode
+        multi_file_scope = len(scope_paths) >= 3
+        if task_category in ("deployment", "frontend"):
+            multi_file_scope = True
+        if multi_file_scope and use_full_file_mode_flag:
+            logger.info(
+                "[Builder] Disabling full-file mode due to multi-file scope (paths=%d, category=%s)",
+                len(scope_paths), task_category
+            )
+            use_full_file_mode_flag = False
         try:
             # Check if we need structured edit mode before building prompt
             # Structured edit should ONLY be used if files being MODIFIED exceed the limit
@@ -209,14 +221,14 @@ class AnthropicBuilderClient:
             
             # Build system prompt (with mode selection per GPT_RESPONSE10)
             system_prompt = self._build_system_prompt(
-                use_full_file_mode=use_full_file_mode,
+                use_full_file_mode=use_full_file_mode_flag,
                 use_structured_edit=use_structured_edit
             )
 
             # Build user prompt (includes full file content for full-file mode or line numbers for structured edit)
             user_prompt = self._build_user_prompt(
                 phase_spec, file_context, project_rules, run_hints,
-                use_full_file_mode=use_full_file_mode,
+                use_full_file_mode=use_full_file_mode_flag,
                 config=config  # NEW: Pass config for read-only markers and structured edit detection
             )
 

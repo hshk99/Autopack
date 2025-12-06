@@ -3139,29 +3139,52 @@ Just the new description that should replace the current one while preserving th
         }
 
         try:
-            response = requests.post(url, headers=headers, json=payload, timeout=10)
+            last_exc = None
+            for attempt in range(3):
+                try:
+                    response = requests.post(url, headers=headers, json=payload, timeout=10)
 
-            # Phase 2.3: Handle 422 validation errors separately
-            if response.status_code == 422:
-                error_detail = response.json().get("detail", "Patch validation failed")
-                logger.error(f"[{phase_id}] Patch validation failed (422): {error_detail}")
-                logger.info(f"[{phase_id}] Phase 2.3: Validation errors indicate malformed patch - LLM should regenerate")
+                    # Phase 2.3: Handle 422 validation errors separately
+                    if response.status_code == 422:
+                        error_detail = response.json().get("detail", "Patch validation failed")
+                        logger.error(f"[{phase_id}] Patch validation failed (422): {error_detail}")
+                        logger.info(f"[{phase_id}] Phase 2.3: Validation errors indicate malformed patch - LLM should regenerate")
 
-                # Log validation failures to debug journal
-                log_error(
-                    error_signature=f"Patch validation failure (422)",
-                    symptom=f"Phase {phase_id}: {error_detail}",
-                    run_id=self.run_id,
-                    phase_id=phase_id,
-                    suspected_cause="LLM generated malformed patch - needs regeneration",
-                    priority="MEDIUM"
-                )
+                        # Log validation failures to debug journal
+                        log_error(
+                            error_signature=f"Patch validation failure (422)",
+                            symptom=f"Phase {phase_id}: {error_detail}",
+                            run_id=self.run_id,
+                            phase_id=phase_id,
+                            suspected_cause="LLM generated malformed patch - needs regeneration",
+                            priority="MEDIUM"
+                        )
 
-                # TODO: Implement automatic retry with LLM correction
-                raise requests.exceptions.HTTPError(f"Patch validation failed: {error_detail}", response=response)
+                        # TODO: Implement automatic retry with LLM correction
+                        response.raise_for_status()
 
-            response.raise_for_status()
-            logger.debug(f"Posted builder result for phase {phase_id}")
+                    response.raise_for_status()
+                    logger.debug(f"Posted builder result for phase {phase_id}")
+                    break
+                except requests.exceptions.RequestException as e_inner:
+                    last_exc = e_inner
+                    status_code = getattr(getattr(e_inner, "response", None), "status_code", None)
+                    if status_code and status_code >= 500:
+                        self._run_http_500_count += 1
+                        logger.warning(
+                            f"[{phase_id}] HTTP 500 count this run: {self._run_http_500_count}/{self.MAX_HTTP_500_PER_RUN}"
+                        )
+                        if attempt < 2:
+                            backoff = 1 * (2 ** attempt)
+                            logger.info(f"[{phase_id}] Retrying builder_result POST after {backoff}s (attempt {attempt+2}/3)")
+                            time.sleep(backoff)
+                            continue
+                        if self._run_http_500_count >= self.MAX_HTTP_500_PER_RUN:
+                            logger.error(
+                                f"[{phase_id}] HTTP 500 budget exceeded for run {self.run_id}; consider aborting run."
+                            )
+                    # Non-retryable or retries exhausted
+                    raise
         except requests.exceptions.RequestException as e:
             status_code = getattr(getattr(e, "response", None), "status_code", None)
             if status_code and status_code >= 500:

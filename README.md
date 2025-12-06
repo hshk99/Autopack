@@ -40,7 +40,7 @@ curl http://localhost:8000/runs/my-run-id/errors
 ### Autopack Doctor
 LLM-based diagnostic system for intelligent failure recovery:
 - **Failure Diagnosis**: Analyzes phase failures and recommends recovery actions
-- **Model Routing**: Uses cheap model (glm-4.6) for routine failures, strong model (claude-sonnet-4-5) for complex ones
+- **Model Routing**: Uses Claude Sonnet 4.5 for routine failures and Claude Opus 4.5 for complex ones
 - **Actions**: `retry_with_fix` (with hint), `replan`, `skip_phase`, `mark_fatal`, `rollback_run`
 - **Budgets**: Per-phase limit (2 calls) and run-level limit (10 calls) to prevent loops
 - **Confidence Escalation**: Upgrades to strong model if confidence < 0.7
@@ -48,8 +48,8 @@ LLM-based diagnostic system for intelligent failure recovery:
 **Configuration** (`config/models.yaml`):
 ```yaml
 doctor_models:
-  cheap: glm-4.6
-  strong: claude-sonnet-4-5
+  cheap: claude-sonnet-4-5
+  strong: claude-opus-4-5
   min_confidence_for_cheap: 0.7
   health_budget_near_limit_ratio: 0.8
   high_risk_categories: [import, logic]
@@ -83,21 +83,22 @@ Prevents infinite retry loops by tracking failures across the run:
 - `MAX_TOTAL_FAILURES_PER_RUN`: 25 (hard cap on total failures)
 
 ### LLM Multi-Provider Routing
-- Routes to GLM (Zhipu), Anthropic, or OpenAI based on model name
+- Routes primarily to Anthropic (Claude Sonnet/Opus). GLM is disabled; OpenAI is fallback.
 - **Provider tier strategy**:
-  - Low complexity: GLM (`glm-4.6`) - cheapest
-  - Medium complexity: Anthropic (`claude-sonnet-4-5`) - excellent cost/quality balance
-  - High complexity: Anthropic (`claude-sonnet-4-5`) - premium quality
-- Automatic fallback chain: GLM -> Anthropic -> OpenAI
+  - Low/Medium/High: Claude Sonnet 4.5 (primary), escalate to Claude Opus 4.5 when needed
+- Automatic fallback chain: Anthropic -> OpenAI
 - Per-category routing policies (BEST_FIRST, PROGRESSIVE, CHEAP_FIRST)
 
 **Environment Variables**:
 ```bash
 # Required for each provider you want to use
-GLM_API_KEY=your-zhipu-api-key        # Zhipu AI (GLM) - low complexity
-ANTHROPIC_API_KEY=your-anthropic-key   # Anthropic - medium/high complexity
+ANTHROPIC_API_KEY=your-anthropic-key   # Anthropic - primary
 OPENAI_API_KEY=your-openai-key         # OpenAI - optional fallback
 ```
+
+### Dashboard (status & usage)
+- Provides run status, usage, and models list; see `tests/test_dashboard_integration.py` for expected endpoints/fields.
+- Architecture note: `LlmService` is the central routing layer; ensure diagrams reflect `LlmService` in the control plane.
 
 ### Hardening: Syntax + Unicode + Incident Fatigue
 - Pre-emptive encoding fix at startup

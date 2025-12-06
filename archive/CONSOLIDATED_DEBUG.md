@@ -51,6 +51,7 @@ Single source of truth for all errors, fixes, prevention rules, and troubleshoot
   - Guardrail issues: churn/growth/shrink/truncation/pack errors recorded via IssueTracker with UTF-8 writes.
   - Universal acceptance criteria injected into Builder prompts: require complete outputs, required keys/sections, scope adherence; “leave unchanged if unsure.”
   - Run summary rewrite: best-effort write `run_summary.md` on terminal phase status and at loop end (covers single-phase runs).
+  - pytest-asyncio deprecation: set `asyncio_default_fixture_loop_scope = function` in `pytest.ini` to match future default and remove warning.
 
 ### Universal hardening plan (project-agnostic)
 - Output contracts & preflight: strict schema/format validation for YAML/JSON/patch; require completeness; reject truncation; prepend `---` only when missing and safe.

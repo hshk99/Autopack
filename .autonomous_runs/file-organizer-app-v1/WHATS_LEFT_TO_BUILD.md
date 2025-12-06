@@ -25,6 +25,7 @@ This file contains tasks in Autopack format for autonomous execution.
 
 **Estimated Tokens**: 8,000
 **Confidence**: 95%
+**Status**: Dependency pins updated (FastAPI 0.104.x, Starlette 0.27.x, HTTPX 0.25.x<0.26). Current pytest run: 83 passed, 161 skipped (feature-dependent tests still pending implementation).
 
 ---
 

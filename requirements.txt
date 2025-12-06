@@ -1,5 +1,6 @@
 # Core FastAPI dependencies
-fastapi>=0.104.0
+fastapi>=0.104.0,<0.105.0
+starlette>=0.27.0,<0.28.0  # pin to FastAPI-compatible range to avoid routing regressions
 uvicorn[standard]>=0.24.0
 pydantic>=2.5.0
 pydantic-settings>=2.1.0
@@ -13,12 +14,7 @@ alembic>=1.13.0
 # Testing
 pytest>=7.4.3
 pytest-asyncio>=0.21.1
-httpx>=0.25.0
-
-# Testing
-pytest>=7.4.3
-pytest-asyncio>=0.21.1
-httpx>=0.25.0
+httpx>=0.25.2,<0.26.0  # pin to avoid breaking changes in 0.26+
 
 # Task queue and file validation
 python-magic>=0.4.27; sys_platform != 'win32'

@@ -164,14 +164,14 @@ class AnthropicBuilderClient:
             # Backend multi-file phases (e.g., API + services + tests) need larger budget
             max_tokens = max(max_tokens, 12000)
 
-        # Adaptive mode selection: avoid full-file JSON for multi-file scopes (reduces truncation/invalid JSON)
+        # Adaptive mode selection: keep full-file mode for small scopes; avoid only for large multi-file scopes
         use_full_file_mode_flag = use_full_file_mode
         multi_file_scope = len(scope_paths) >= 3
         if task_category in ("deployment", "frontend"):
             multi_file_scope = True
-        if multi_file_scope and use_full_file_mode_flag:
+        if multi_file_scope and use_full_file_mode_flag and len(scope_paths) > 6:
             logger.info(
-                "[Builder] Disabling full-file mode due to multi-file scope (paths=%d, category=%s)",
+                "[Builder] Disabling full-file mode due to large multi-file scope (paths=%d, category=%s)",
                 len(scope_paths), task_category
             )
             use_full_file_mode_flag = False
@@ -365,7 +365,7 @@ class AnthropicBuilderClient:
                     content, file_context, response, model, phase_spec, config=config,
                     stop_reason=stop_reason, was_truncated=was_truncated
                 )
-            elif use_full_file_mode:
+            elif use_full_file_mode_flag:
                 # New full-file replacement mode (GPT_RESPONSE10/11)
                 return self._parse_full_file_output(
                     content, file_context, response, model, phase_spec, config=config,
@@ -1821,6 +1821,13 @@ Requirements:
             prompt_parts.append("- For YAML/JSON/TOML, include required top-level keys/sections; do not omit document starts when applicable.")
             prompt_parts.append("- Do not emit patches that reference files outside the allowed scope.")
             prompt_parts.append("- If unsure or lacking context, leave the file unchanged rather than emitting partial output.")
+
+        # Explicit format contract (applies to all modes)
+        prompt_parts.append("\n# Output Format (strict)")
+        prompt_parts.append("- Output JSON ONLY with a top-level `files` array.")
+        prompt_parts.append("- Each entry MUST include: path, mode (replace|create|modify), new_content.")
+        prompt_parts.append("- Do NOT output git diff, markdown fences, or prose.")
+        prompt_parts.append("- No code fences, no surrounding text. Return only JSON.")
 
         # Inject scope constraints if provided
         if scope_paths:

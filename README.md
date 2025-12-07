@@ -100,7 +100,19 @@ Prevents infinite retry loops by tracking failures across the run:
 # Required for each provider you want to use
 ANTHROPIC_API_KEY=your-anthropic-key   # Anthropic - primary
 OPENAI_API_KEY=your-openai-key         # OpenAI - optional fallback
+
+# Backend auth (JWT, RS256)
+JWT_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----...dev or prod key...-----END PRIVATE KEY-----"
+JWT_PUBLIC_KEY="-----BEGIN PUBLIC KEY-----...dev or prod key...-----END PUBLIC KEY-----"
+# Optional overrides
+JWT_ISSUER=autopack-backend
+JWT_AUDIENCE=autopack-clients
 ```
+
+### Auth tokens & JWKS
+- Tokens are RS256 JWTs with `iss`/`aud` enforced.
+- JWKS endpoint: `/api/auth/.well-known/jwks.json` (share with verifiers).
+- Key load status: `/api/auth/key-status` (reports env vs generated keys).
 
 ### Dashboard (status & usage)
 - Provides run status, usage, and models list; see `tests/test_dashboard_integration.py` for expected endpoints/fields.

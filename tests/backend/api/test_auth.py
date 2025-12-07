@@ -1,12 +1,13 @@
 """
 Tests for authentication API endpoints.
 """
-from datetime import datetime
+from datetime import datetime, timezone
 
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import StaticPool
 
 from src.backend.api.auth import get_password_hash, router
 from src.backend.models.user import Base, User, get_db
@@ -20,7 +21,11 @@ TEST_DATABASE_URL = "sqlite:///:memory:"
 @pytest.fixture
 def test_db():
     """Create a test database session."""
-    engine = create_engine(TEST_DATABASE_URL, connect_args={"check_same_thread": False})
+    engine = create_engine(
+        TEST_DATABASE_URL,
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
     TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
     Base.metadata.create_all(bind=engine)
     
@@ -63,7 +68,7 @@ def test_user(test_db):
         email="existing@example.com",
         hashed_password=get_password_hash("password123"),
         is_active=True,
-        created_at=datetime.utcnow()
+        created_at=datetime.now(timezone.utc)
     )
     test_db.add(user)
     test_db.commit()

@@ -20,3 +20,6 @@ httpx>=0.25.2,<0.26.0  # pin to avoid breaking changes in 0.26+
 # Task queue and file validation
 python-magic>=0.4.27; sys_platform != 'win32'
 python-magic-bin>=0.4.14; sys_platform == 'win32'
+
+# JWT
+python-jose[cryptography]>=3.3.0

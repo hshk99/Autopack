@@ -3,11 +3,8 @@ User database model.
 """
 from datetime import datetime, timezone
 from sqlalchemy import Column, Integer, String, Boolean, DateTime
-from sqlalchemy.orm import declarative_base
 
-
-Base = declarative_base()
-
+from ..database import Base
 
 class User(Base):
     """
@@ -47,4 +44,8 @@ class User(Base):
     def to_dict(self) -> dict:
         """Convert user to dictionary (excluding password)."""
         return {k: v for k, v in self.__dict__.items() if not k.startswith('_') and k != 'hashed_password'}
+
+
+# Re-export get_db for backward compatibility with existing tests
+from ..database import get_db  # noqa: E402,F401
 

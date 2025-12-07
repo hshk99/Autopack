@@ -21,11 +21,26 @@ class Settings(BaseSettings):
     )
     
     # JWT Authentication
-    secret_key: str = Field(
-        default="your-secret-key-change-in-production",
-        description="Secret key for JWT token generation"
+    jwt_private_key: str = Field(
+        default="",
+        description="PEM-encoded private key for JWT signing (RS256)",
     )
-    algorithm: str = "HS256"
+    jwt_public_key: str = Field(
+        default="",
+        description="PEM-encoded public key for JWT verification",
+    )
+    jwt_algorithm: str = Field(
+        default="RS256",
+        description="JWT signing algorithm",
+    )
+    jwt_issuer: str = Field(
+        default="autopack-backend",
+        description="JWT issuer (iss claim)",
+    )
+    jwt_audience: str = Field(
+        default="autopack-clients",
+        description="JWT audience (aud claim)",
+    )
     access_token_expire_minutes: int = 30
     
     # CORS

@@ -13,6 +13,7 @@ import os
 import json
 import logging
 import yaml
+import copy
 from pathlib import Path
 from typing import Dict, List, Optional, Any
 
@@ -163,6 +164,22 @@ class AnthropicBuilderClient:
         if task_category == "backend" and len(scope_paths) >= 3:
             # Backend multi-file phases (e.g., API + services + tests) need larger budget
             max_tokens = max(max_tokens, 12000)
+
+        # Adaptive: if small scope and all files are small, treat as large_refactor and allow mass addition
+        if file_context:
+            files = file_context.get("existing_files", {})
+            if isinstance(files, dict):
+                scoped_files = []
+                for fp, fc in files.items():
+                    if not isinstance(fp, str):
+                        continue
+                    if any(fp.startswith(sp) for sp in scope_paths):
+                        if isinstance(fc, str):
+                            scoped_files.append(fc)
+                max_lines = max((c.count("\n") + 1 for c in scoped_files), default=0)
+                if len(scope_paths) <= 6 and max_lines <= 500:
+                    phase_spec.setdefault("change_size", "large_refactor")
+                    phase_spec.setdefault("allow_mass_addition", True)
 
         # Adaptive mode selection: keep full-file mode for small scopes; avoid only for large multi-file scopes
         use_full_file_mode_flag = use_full_file_mode

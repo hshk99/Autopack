@@ -82,6 +82,7 @@ Single source of truth for all errors, fixes, prevention rules, and troubleshoot
 - **Adaptive builder mode + API resilience**: Builder now disables full-file mode for multi-file scopes (frontend/deployment/packs) to reduce truncation/JSON failures, and executor retries POST /builder_result on 5xx with backoff.
 - **Scope directories honored**: Scope enforcement now treats entries ending in `/` as directory prefixes, preventing false "outside scope" rejections for files under a scoped folder.
 - **Legacy diff fallback disabled**: Anthropic builder no longer falls back to parsing git diffs when JSON full-file parsing fails. Diff-looking outputs are rejected up front, JSON repair is attempted, and failures are surfaced with a regenerate instruction instead of producing malformed patches. Added schema validation for `files` entries (`path`, `mode`, `new_content`) to fail fast on incomplete outputs.
+- **Adaptive churn + doctor usage schema**: For small scopes (≤6 paths, files ≤500 lines) Builder auto-flags as large_refactor/allow_mass_addition and can relax small-fix churn once; added sqlite migration `scripts/migrate_add_usage_doctor_columns.py` to add `is_doctor_call`, `doctor_model`, `doctor_action` to `llm_usage_events`, silencing usage recorder warnings.
 
 ---
 

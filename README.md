@@ -135,6 +135,7 @@ Enables safe modification of files of any size using targeted edit operations:
 - **Operation Types**: INSERT, REPLACE, DELETE, APPEND, PREPEND
 - **Safety Features**: Validation, context matching, rollback on failure
 - **No Truncation Risk**: Only generates changed lines, not entire file content
+- **Format Contract**: Builder outputs must be JSON with a `files` array; legacy git-diff fallback is disabled for malformed outputs.
 
 **3-Bucket Policy**:
 - **Bucket A (≤500 lines)**: Full-file mode - LLM outputs complete file content

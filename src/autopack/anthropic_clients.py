@@ -748,6 +748,23 @@ class AnthropicBuilderClient:
             raw = content.strip()
 
             candidates: list[str] = [raw]
+
+            # Format guard: if the raw output looks like a git diff, bail out early
+            # and request regeneration instead of trying to parse/apply malformed diffs.
+            if "diff --git" in raw and "{" not in raw:  # heuristic: no JSON object present
+                error_msg = (
+                    "Detected git diff output; expected JSON with 'files' array. "
+                    "Regenerate a JSON full-file response (no diff, no markdown fences)."
+                )
+                logger.error(error_msg)
+                return BuilderResult(
+                    success=False,
+                    patch_content="",
+                    builder_messages=[error_msg],
+                    tokens_used=response.usage.input_tokens + response.usage.output_tokens,
+                    model_used=model,
+                    error="full_file_parse_failed_diff_detected"
+                )
             if "```json" in content:
                 fenced = _extract_code_fence(content, "```json")
                 if fenced:
@@ -836,6 +853,24 @@ class AnthropicBuilderClient:
                     model_used=model,
                     error=error_msg
                 )
+            
+            # Schema validation for file entries
+            required_keys = {"path", "mode", "new_content"}
+            for entry in files:
+                if not isinstance(entry, dict) or not required_keys.issubset(entry.keys()):
+                    error_msg = (
+                        "LLM output invalid format - each file entry must include "
+                        "`path`, `mode`, and `new_content`. Regenerate JSON."
+                    )
+                    logger.error(f"{error_msg}\nFirst 500 chars: {content[:500]}")
+                    return BuilderResult(
+                        success=False,
+                        patch_content="",
+                        builder_messages=[error_msg],
+                        tokens_used=response.usage.input_tokens + response.usage.output_tokens,
+                        model_used=model,
+                        error="full_file_schema_invalid"
+                    )
             
             # Determine change type for churn validation (per GPT_RESPONSE11 Q4)
             change_type = self._classify_change_type(phase_spec)

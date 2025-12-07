@@ -769,64 +769,57 @@ class AnthropicBuilderClient:
                     break
 
             if not result_json:
-                # Fallback: try legacy diff extraction (per GPT_RESPONSE11 Q3)
-                logger.warning("[Builder] WARNING: Falling back to legacy git-diff mode (JSON full-file parse failed)")
+                # Do NOT fall back to legacy git-diff; request regeneration instead
+                logger.warning("[Builder] WARNING: Full-file JSON parse failed; requesting regeneration (no legacy diff fallback)")
                 debug_path = Path("builder_fullfile_failure_latest.json")
                 try:
                     debug_path.write_text(content, encoding="utf-8")
                     logger.warning(f"[Builder] Wrote failing full-file output to {debug_path}")
                 except Exception as write_exc:
                     logger.error(f"[Builder] Failed to write debug output: {write_exc}")
-                patch_content = self._extract_diff_from_text(content)
-                if patch_content:
-                    return BuilderResult(
-                        success=True,
-                        patch_content=patch_content,
-                        builder_messages=["Fallback to legacy diff extraction"],
-                        tokens_used=response.usage.input_tokens + response.usage.output_tokens,
-                        model_used=model
-                    )
-                else:
-                    # NEW: Attempt JSON repair before giving up (per ref2.md recommendations)
-                    logger.info("[Builder] Attempting JSON repair on malformed output...")
-                    json_repair = JsonRepairHelper()
-                    initial_error = "Failed to parse JSON with 'files' array"
-                    repaired_json, repair_method = json_repair.attempt_repair(content, initial_error)
+                # Attempt JSON repair before giving up (per ref2.md recommendations)
+                logger.info("[Builder] Attempting JSON repair on malformed output...")
+                json_repair = JsonRepairHelper()
+                initial_error = "Failed to parse JSON with 'files' array"
+                repaired_json, repair_method = json_repair.attempt_repair(content, initial_error)
 
-                    if repaired_json is not None:
-                        logger.info(f"[Builder] JSON repair succeeded via {repair_method}")
-                        # Save debug info for telemetry
-                        save_repair_debug(
-                            file_path="builder_output.json",
-                            original="",
-                            attempted=content,
-                            repaired=json.dumps(repaired_json),
-                            error=initial_error,
-                            method=repair_method
-                        )
-                        # Use the repaired JSON
-                        result_json = repaired_json
-                        placeholder_map = {}  # Placeholders already processed in raw content
-                    else:
-                        # Save failed repair attempt for debugging
-                        save_repair_debug(
-                            file_path="builder_output.json",
-                            original="",
-                            attempted=content,
-                            repaired=None,
-                            error=initial_error,
-                            method=repair_method
-                        )
-                        error_msg = "LLM output invalid format - expected JSON with 'files' array (repair also failed)"
-                        logger.error(f"{error_msg}\nFirst 500 chars: {content[:500]}")
-                        return BuilderResult(
-                            success=False,
-                            patch_content="",
-                            builder_messages=[error_msg, f"Repair attempt: {repair_method}"],
-                            tokens_used=response.usage.input_tokens + response.usage.output_tokens,
-                            model_used=model,
-                            error=error_msg
-                        )
+                if repaired_json is not None:
+                    logger.info(f"[Builder] JSON repair succeeded via {repair_method}")
+                    # Save debug info for telemetry
+                    save_repair_debug(
+                        file_path="builder_output.json",
+                        original="",
+                        attempted=content,
+                        repaired=json.dumps(repaired_json),
+                        error=initial_error,
+                        method=repair_method
+                    )
+                    # Use the repaired JSON
+                    result_json = repaired_json
+                    placeholder_map = {}  # Placeholders already processed in raw content
+                else:
+                    # Save failed repair attempt for debugging
+                    save_repair_debug(
+                        file_path="builder_output.json",
+                        original="",
+                        attempted=content,
+                        repaired=None,
+                        error=initial_error,
+                        method=repair_method
+                    )
+                    error_msg = "LLM output invalid format - expected JSON with 'files' array (repair also failed)"
+                    logger.error(f"{error_msg}\nFirst 500 chars: {content[:500]}")
+                    return BuilderResult(
+                        success=False,
+                        patch_content="",
+                        builder_messages=[
+                            error_msg,
+                            "Regenerate a valid JSON full-file response; diff fallback is disabled."
+                        ],
+                        tokens_used=response.usage.input_tokens + response.usage.output_tokens,
+                        model_used=model,
+                        error="full_file_parse_failed"
+                    )
             
             summary = result_json.get("summary", "Generated by Claude")
             if placeholder_map:

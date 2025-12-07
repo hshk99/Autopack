@@ -284,8 +284,6 @@ class AutonomousExecutor:
 
         # [Phase 3: execute_fix] Track execute_fix attempts per phase
         self._execute_fix_by_phase: Dict[str, int] = {}  # phase_id -> execute_fix count
-        # Configuration for execute_fix (user opt-in via models.yaml)
-        self._allow_execute_fix: bool = False  # Disabled by default, load from config
 
         # Phase 1.4-1.5: Run proactive startup checks (from DEBUG_JOURNAL.md)
         self._run_startup_checks()

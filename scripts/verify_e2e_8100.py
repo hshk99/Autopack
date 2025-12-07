@@ -68,6 +68,8 @@ def build_run_payload(run_id: str, phases: List[Dict[str, Any]]) -> Dict[str, An
                 "description": phase["description"],
                 "task_category": phase.get("task_category"),
                 "complexity": phase.get("complexity"),
+                "change_size": phase.get("change_size"),
+                "allow_mass_addition": phase.get("allow_mass_addition"),
                 "scope": phase.get("scope"),
             }
         )

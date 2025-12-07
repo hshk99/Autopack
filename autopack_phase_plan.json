@@ -34,6 +34,9 @@
         "paths": [
           "tests/backend/",
           "tests/backend/conftest.py",
+          "tests/__init__.py",
+          "tests/conftest.py",
+          "tests/",
           "src/backend/"
         ],
         "read_only_context": [

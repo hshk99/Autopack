@@ -1,0 +1,85 @@
+{
+  "phases": [
+    {
+      "id": "docs-dashboard-refresh",
+      "description": "Update README and docs with the new Dashboard section and architecture diagrams that include LlmService in the control plane.",
+      "task_category": "docs",
+      "complexity": "low",
+      "acceptance_criteria": [
+        "README.md documents Dashboard routes/views and mentions LlmService as the routing layer.",
+        "Architecture diagrams in docs/ include LlmService in the control plane.",
+        "No broken links or missing anchors introduced in README.md or docs/."
+      ],
+      "scope": {
+        "paths": [
+          "README.md",
+          "docs/"
+        ],
+        "read_only_context": [
+          "docs/phase_spec_schema.md"
+        ]
+      }
+    },
+    {
+      "id": "backend-test-imports",
+      "description": "Resolve ModuleNotFoundError for backend package in tests/backend by ensuring PYTHONPATH or package init files are configured.",
+      "task_category": "bugfix",
+      "complexity": "medium",
+      "acceptance_criteria": [
+        "pytest collection in tests/backend/ succeeds without ModuleNotFoundError for backend.",
+        "Approach is explicit (e.g., __init__.py or sys.path/pytest ini) and documented in tests/backend/conftest.py.",
+        "No new import side effects or duplicated path entries."
+      ],
+      "scope": {
+        "paths": [
+          "tests/backend/",
+          "tests/backend/conftest.py",
+          "src/backend/"
+        ],
+        "read_only_context": [
+          "README.md"
+        ]
+      }
+    },
+    {
+      "id": "unskip-critical-tests",
+      "description": "Review skipped tests (71 total) and unskip/fix test_autonomous_executor.py and test_git_rollback.py now that hardening is complete.",
+      "task_category": "tests",
+      "complexity": "medium",
+      "acceptance_criteria": [
+        "Previously skipped cases in test_autonomous_executor.py and test_git_rollback.py are active and pass or are updated with valid expectations.",
+        "Remaining skips, if any, carry a justified reason in-line.",
+        "Test run `PYTHONPATH=src python -m pytest tests/` executes without new skips for these suites."
+      ],
+      "scope": {
+        "paths": [
+          "tests/"
+        ],
+        "read_only_context": [
+          "src/autopack/"
+        ]
+      }
+    },
+    {
+      "id": "e2e-smoke-8100",
+      "description": "Create a smoke script that hits the Autopack API on port 8100 to create a run and mark a phase COMPLETE for stability verification.",
+      "task_category": "tests",
+      "complexity": "low",
+      "acceptance_criteria": [
+        "Script scripts/verify_e2e_8100.py exists and defaults to http://127.0.0.1:8100.",
+        "Script posts a run to /runs/start using the plan data and updates a phase to COMPLETE, logging responses.",
+        "Graceful handling for missing API key or connection failures (clear error message and non-zero exit)."
+      ],
+      "scope": {
+        "paths": [
+          "scripts/verify_e2e_8100.py",
+          "autopack_phase_plan.json"
+        ],
+        "read_only_context": [
+          "src/autopack/main.py"
+        ]
+      }
+    }
+  ]
+}
+

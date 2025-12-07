@@ -25,6 +25,7 @@
       "description": "Resolve ModuleNotFoundError for backend package in tests/backend by ensuring PYTHONPATH or package init files are configured.",
       "task_category": "bugfix",
       "complexity": "medium",
+      "change_size": "large_refactor",
       "acceptance_criteria": [
         "pytest collection in tests/backend/ succeeds without ModuleNotFoundError for backend.",
         "Approach is explicit (e.g., __init__.py or sys.path/pytest ini) and documented in tests/backend/conftest.py.",

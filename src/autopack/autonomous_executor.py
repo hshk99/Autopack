@@ -37,6 +37,7 @@ from pathlib import Path
 from typing import Dict, List, Optional, Tuple, Any
 
 import requests
+import yaml
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
@@ -220,6 +221,10 @@ class AutonomousExecutor:
             f"Loaded BuilderOutputConfig: max_lines_for_full_file={self.builder_output_config.max_lines_for_full_file}, "
             f"max_lines_hard_limit={self.builder_output_config.max_lines_hard_limit}"
         )
+
+        # Load Doctor execute_fix opt-in from models.yaml (user-controlled)
+        self._allow_execute_fix = self._load_execute_fix_flag(config_path)
+        logger.info(f"Doctor execute_fix enabled: {self._allow_execute_fix}")
         
         # NEW: Initialize FileSizeTelemetry (per IMPLEMENTATION_PLAN2.md Phase 2.1)
         from autopack.file_size_telemetry import FileSizeTelemetry
@@ -358,6 +363,22 @@ class AutonomousExecutor:
             logger.warning(f"Startup checks system unavailable: {e}")
 
         logger.info("Startup checks complete")
+
+    def _load_execute_fix_flag(self, config_path: Path) -> bool:
+        """
+        Read doctor.allow_execute_fix_global from models.yaml to decide whether
+        Doctor is permitted to run execute_fix during a run.
+
+        Defaults to False on missing/invalid config to stay safe.
+        """
+        try:
+            with open(config_path, "r", encoding="utf-8") as f:
+                config = yaml.safe_load(f) or {}
+            doctor_cfg = config.get("doctor", {}) or {}
+            return bool(doctor_cfg.get("allow_execute_fix_global", False))
+        except Exception as e:  # pragma: no cover - defensive guard
+            logger.warning(f"Failed to load execute_fix flag from {config_path}: {e}")
+            return False
 
     def _validate_config_at_startup(self):
         """

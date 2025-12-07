@@ -215,6 +215,9 @@ doctor_models:
   - validation
   # Per GPT_RESPONSE10: limit escalations per phase to prevent bouncing
   max_escalations_per_phase: 1
+doctor:
+  allow_execute_fix_global: true  # Enable Doctor execute_fix with whitelist & caps
+  max_execute_fix_per_phase: 1
 discovery_promotion:
   enabled: false
   min_runs_for_candidate: 3

@@ -153,10 +153,10 @@ Enables Doctor to execute infrastructure-level fixes directly without going thro
 - **Solution**: Doctor emits shell commands (`git checkout`, `docker restart`, etc.) executed directly
 - **Safety**: Strict whitelist, workspace-only paths, opt-in via config, no sudo/admin
 
-**Planned Configuration** (`config/models.yaml`):
+**Configuration** (`config/models.yaml`):
 ```yaml
 doctor:
-  allow_execute_fix_global: false   # Opt-in required
+  allow_execute_fix_global: true    # Enabled (whitelisted commands only)
   max_execute_fix_per_phase: 1      # One attempt per phase
   allowed_fix_types: ["git", "file"] # Typed categories
 ```

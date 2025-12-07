@@ -358,24 +358,84 @@ class AnthropicBuilderClient:
             if was_truncated:
                 logger.warning(f"[Builder] Output was truncated (stop_reason=max_tokens)")
 
-            # Parse output based on mode (use_structured_edit was already determined above)
-            if use_structured_edit:
-                # NEW: Structured edit mode for large files (Stage 2)
-                return self._parse_structured_edit_output(
-                    content, file_context, response, model, phase_spec, config=config,
-                    stop_reason=stop_reason, was_truncated=was_truncated
-                )
-            elif use_full_file_mode_flag:
-                # New full-file replacement mode (GPT_RESPONSE10/11)
-                return self._parse_full_file_output(
-                    content, file_context, response, model, phase_spec, config=config,
-                    stop_reason=stop_reason, was_truncated=was_truncated
-                )
-            else:
-                # Legacy git diff mode (deprecated)
-                return self._parse_legacy_diff_output(
-                    content, response, model, stop_reason=stop_reason, was_truncated=was_truncated
-            )
+            format_error_codes = {
+                "full_file_parse_failed_diff_detected",
+                "full_file_schema_invalid",
+                "full_file_parse_failed",
+            }
+
+            def _parse_once(text: str):
+                if use_structured_edit:
+                    return self._parse_structured_edit_output(
+                        text, file_context, response, model, phase_spec, config=config,
+                        stop_reason=stop_reason, was_truncated=was_truncated
+                    )
+                elif use_full_file_mode_flag:
+                    return self._parse_full_file_output(
+                        text, file_context, response, model, phase_spec, config=config,
+                        stop_reason=stop_reason, was_truncated=was_truncated
+                    )
+                else:
+                    return self._parse_legacy_diff_output(
+                        text, response, model, stop_reason=stop_reason, was_truncated=was_truncated
+                    )
+
+            result = _parse_once(content)
+
+            # Adaptive churn relaxation: if only churn_limit_exceeded and small scope, retry once with relaxed threshold
+            if (
+                result is not None
+                and not result.success
+                and isinstance(result.error, str)
+                and "churn_limit_exceeded" in result.error
+                and file_context
+            ):
+                files = file_context.get("existing_files", {})
+                scope_cfg = phase_spec.get("scope") or {}
+                scope_paths = scope_cfg.get("paths", []) if isinstance(scope_cfg, dict) else []
+                scope_paths = [p for p in scope_paths if isinstance(p, str)]
+                # Small-scope heuristic: only when ≤6 scoped paths and all files ≤ hard limit
+                small_scope = len(scope_paths) <= 6
+                if small_scope and isinstance(files, dict):
+                    all_small = True
+                    for fp, fc in files.items():
+                        if isinstance(fp, str) and any(fp.startswith(sp) for sp in scope_paths):
+                            if isinstance(fc, str):
+                                line_count = fc.count("\n") + 1
+                                if line_count > config.max_lines_hard_limit:
+                                    all_small = False
+                                    break
+                    if all_small:
+                        # Relax churn threshold for this parse retry
+                        relaxed_config = copy.deepcopy(config)
+                        relaxed_config.max_churn_percent_for_small_fix = max(
+                            config.max_churn_percent_for_small_fix, 60
+                        )
+                        logger.warning(
+                            "[Builder] Relaxing small-fix churn guard to %s%% for this phase/run (single retry)",
+                            relaxed_config.max_churn_percent_for_small_fix,
+                        )
+                        # Add prompt nudge for minimal change
+                        correction_content = content + (
+                            "\n\n# CHURN CORRECTION\n"
+                            "Minimize changes; only add the necessary import/path fix. Keep churn under 60%."
+                        )
+                        try:
+                            return self._parse_full_file_output(
+                                correction_content,
+                                file_context,
+                                response,
+                                model,
+                                phase_spec,
+                                config=relaxed_config,
+                                stop_reason=stop_reason,
+                                was_truncated=was_truncated,
+                            )
+                        except Exception:
+                            # Fall through to original result if retry parse fails
+                            pass
+
+            return result
 
         except Exception as e:
             # Log full traceback for debugging (critical to diagnose silent failures)

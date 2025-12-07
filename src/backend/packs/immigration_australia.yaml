@@ -1,0 +1,104 @@
+---
+name: Australia Immigration Pack
+description: Immigration document classification and requirements for Australian visa applications, citizenship, and residency processes.
+version: "1.0.0"
+country: Australia
+domain: immigration
+
+categories:
+  - name: Skilled Migration Visas
+    description: Visas for skilled workers migrating to Australia through points-based or employer-sponsored pathways.
+    examples:
+      - Skilled Independent Visa (subclass 189)
+      - Skilled Nominated Visa (subclass 190)
+      - Skilled Work Regional Visa (subclass 491)
+      - Employer Nomination Scheme Visa (subclass 186)
+      - Temporary Skill Shortage Visa (subclass 482)
+
+  - name: Family Visas
+    description: Visas for family members of Australian citizens or permanent residents.
+    examples:
+      - Partner Visa (subclass 820/801)
+      - Prospective Marriage Visa (subclass 300)
+      - Parent Visa (subclass 103)
+      - Contributory Parent Visa (subclass 143)
+      - Child Visa (subclass 101)
+
+  - name: Student Visas
+    description: Visas for international students studying in Australia.
+    examples:
+      - Student Visa (subclass 500)
+      - Student Guardian Visa (subclass 590)
+      - Training Visa (subclass 407)
+
+  - name: Visitor Visas
+    description: Temporary visas for tourists, business visitors, and short-term stays.
+    examples:
+      - Visitor Visa (subclass 600)
+      - Electronic Travel Authority (subclass 601)
+      - eVisitor (subclass 651)
+      - Working Holiday Visa (subclass 417)
+      - Work and Holiday Visa (subclass 462)
+
+  - name: Citizenship Documents
+    description: Documents for Australian citizenship applications and evidence.
+    examples:
+      - Citizenship Application Form
+      - Citizenship Certificate
+      - Evidence of Residence
+      - Character Certificates
+      - Citizenship Test Results
+
+checklists:
+  - name: Skilled Independent Visa (189) Checklist
+    required_documents:
+      - Valid passport
+      - Skills assessment from relevant authority
+      - English language test results (IELTS/PTE/TOEFL)
+      - Points test calculation evidence
+      - Employment references and payslips
+      - Educational qualifications and transcripts
+      - Police clearance certificates
+      - Health examination results
+      - Expression of Interest (EOI) invitation
+
+  - name: Partner Visa (820/801) Checklist
+    required_documents:
+      - Valid passport
+      - Relationship evidence (photos, joint accounts, correspondence)
+      - Statutory declarations from witnesses
+      - Form 80 Personal Particulars
+      - Form 40SP Sponsorship for Partner
+      - Police clearance certificates
+      - Health examination results
+      - Evidence of genuine and continuing relationship
+      - Financial evidence of shared responsibilities
+
+  - name: Student Visa (500) Checklist
+    required_documents:
+      - Valid passport
+      - Confirmation of Enrolment (CoE)
+      - Genuine Temporary Entrant (GTE) statement
+      - English language proficiency evidence
+      - Financial capacity evidence
+      - Overseas Student Health Cover (OSHC)
+      - Academic transcripts
+      - Police clearance certificates (if required)
+
+  - name: Citizenship Application Checklist
+    required_documents:
+      - Current passport or travel document
+      - Evidence of permanent residency
+      - Residence calculator showing 4 years in Australia
+      - Identity documents (birth certificate, driver licence)
+      - Character evidence (police checks)
+      - Two passport-sized photographs
+      - Form 1300t Application for Australian Citizenship
+
+official_sources:
+  - https://immi.homeaffairs.gov.au/
+  - https://immi.homeaffairs.gov.au/visas/getting-a-visa/visa-finder
+  - https://immi.homeaffairs.gov.au/citizenship
+  - https://www.homeaffairs.gov.au/
+  - https://www.legislation.gov.au/Series/C2004A00525
+  - https://www.legislation.gov.au/Series/C2007A00052

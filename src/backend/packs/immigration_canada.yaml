@@ -1,0 +1,109 @@
+---
+name: Canada Immigration Documents Pack
+description: Document classification and validation pack for Canadian immigration-related documents including visas, permits, and citizenship applications.
+version: "1.0.0"
+country: CA
+domain: immigration
+
+categories:
+  - name: Identity Documents
+    description: Primary identity documents for immigration purposes
+    examples:
+      - Canadian Passport
+      - Permanent Resident Card (PR Card)
+      - Canadian Citizenship Certificate
+      - Certificate of Indian Status
+      - Secure Certificate of Indian Status (SCIS)
+
+  - name: Visa Documents
+    description: Temporary and permanent visa documents issued by IRCC
+    examples:
+      - Temporary Resident Visa (TRV)
+      - Study Permit
+      - Work Permit
+      - Open Work Permit
+      - Post-Graduation Work Permit (PGWP)
+      - Super Visa
+
+  - name: Immigration Application Forms
+    description: Official IRCC application forms for various immigration programs
+    examples:
+      - IMM 5257 Application for Visitor Visa
+      - IMM 1294 Application for Study Permit
+      - IMM 1295 Application for Work Permit
+      - IMM 5406 Additional Family Information
+      - IMM 5645 Family Information Form
+      - IMM 0008 Generic Application Form for Canada
+
+  - name: Supporting Documents
+    description: Documents required to support immigration applications
+    examples:
+      - Letter of Acceptance from DLI
+      - Employment Letter
+      - Proof of Funds (Bank Statements)
+      - Police Clearance Certificate
+      - Medical Examination Results (IMM 1017B)
+      - Biometrics Instruction Letter
+
+  - name: Permanent Residence Documents
+    description: Documents related to permanent residence applications and status
+    examples:
+      - Confirmation of Permanent Residence (COPR)
+      - Record of Landing (IMM 1000)
+      - Express Entry Profile
+      - Provincial Nominee Certificate
+      - Labour Market Impact Assessment (LMIA)
+
+  - name: Citizenship Documents
+    description: Documents related to Canadian citizenship applications
+    examples:
+      - Citizenship Application (CIT 0002)
+      - Citizenship Test Results
+      - Citizenship Ceremony Notice
+      - Proof of Canadian Citizenship
+      - Renunciation of Citizenship
+
+checklists:
+  - name: Study Permit Application
+    required_documents:
+      - Valid Passport
+      - Letter of Acceptance from DLI
+      - Proof of Financial Support
+      - IMM 1294 Application Form
+      - Passport Photos
+      - Police Clearance Certificate
+      - Medical Examination Results
+
+  - name: Work Permit Application
+    required_documents:
+      - Valid Passport
+      - Job Offer Letter
+      - Labour Market Impact Assessment (LMIA) or exemption proof
+      - IMM 1295 Application Form
+      - Proof of Qualifications
+      - Police Clearance Certificate
+
+  - name: Permanent Residence Express Entry
+    required_documents:
+      - Valid Passport
+      - Language Test Results (IELTS/CELPIP/TEF)
+      - Educational Credential Assessment (ECA)
+      - Proof of Work Experience
+      - Police Clearance Certificates
+      - Medical Examination Results
+      - Proof of Funds
+
+  - name: Citizenship Application
+    required_documents:
+      - Permanent Resident Card
+      - CIT 0002 Application Form
+      - Passport Photos
+      - Proof of Language Proficiency
+      - Tax Returns (5 years)
+      - Physical Presence Calculator
+
+official_sources:
+  - https://www.canada.ca/en/immigration-refugees-citizenship.html
+  - https://www.canada.ca/en/immigration-refugees-citizenship/services/application/application-forms-guides.html
+  - https://www.canada.ca/en/immigration-refugees-citizenship/services/immigrate-canada/express-entry.html
+  - https://www.canada.ca/en/immigration-refugees-citizenship/services/canadian-citizenship.html

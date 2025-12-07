@@ -1,0 +1,89 @@
+---
+name: Canada Tax Documents Pack
+description: Document classification and validation pack for Canadian tax-related documents including CRA forms, tax returns, and financial statements.
+version: "1.0.0"
+country: CA
+domain: tax
+
+categories:
+  - name: CRA Tax Forms
+    description: Official Canada Revenue Agency tax forms including T-slips and returns
+    examples:
+      - T4 Statement of Remuneration Paid
+      - T4A Statement of Pension, Retirement, Annuity, and Other Income
+      - T5 Statement of Investment Income
+      - T1 General Income Tax and Benefit Return
+      - T2 Corporation Income Tax Return
+      - T3 Trust Income Tax and Information Return
+
+  - name: Tax Receipts
+    description: Official receipts for tax-deductible expenses and contributions
+    examples:
+      - RRSP Contribution Receipt
+      - Charitable Donation Receipt
+      - Medical Expense Receipt
+      - Tuition Fee Receipt (T2202)
+      - Political Contribution Receipt
+
+  - name: Notice of Assessment
+    description: CRA notices confirming tax return processing and amounts owing or refunds
+    examples:
+      - Notice of Assessment (NOA)
+      - Notice of Reassessment
+      - Statement of Account
+      - Instalment Reminder
+
+  - name: Business Tax Documents
+    description: Tax documents for businesses and self-employed individuals
+    examples:
+      - GST/HST Return
+      - Payroll Remittance Form (PD7A)
+      - T2125 Statement of Business Activities
+      - Business Number Registration
+      - Corporate Tax Instalment
+
+  - name: Property Tax Documents
+    description: Municipal and provincial property tax statements and receipts
+    examples:
+      - Property Tax Bill
+      - Property Tax Receipt
+      - Property Assessment Notice
+      - Land Transfer Tax Receipt
+
+  - name: Investment Tax Documents
+    description: Tax documents related to investments and capital gains
+    examples:
+      - T5008 Statement of Securities Transactions
+      - Capital Gains Schedule 3
+      - Foreign Income Verification Statement (T1135)
+      - TFSA Contribution Statement
+
+checklists:
+  - name: Personal Tax Filing
+    required_documents:
+      - T4 Statement of Remuneration Paid
+      - T1 General Income Tax Return
+      - Notice of Assessment (previous year)
+      - RRSP Contribution Receipt
+      - Charitable Donation Receipts
+
+  - name: Business Tax Filing
+    required_documents:
+      - T2125 Statement of Business Activities
+      - GST/HST Return
+      - Business expense receipts
+      - Business Number confirmation
+      - Bank statements for business account
+
+  - name: Investment Income Reporting
+    required_documents:
+      - T5 Statement of Investment Income
+      - T5008 Statement of Securities Transactions
+      - TFSA Contribution Statement
+      - Foreign Income Verification Statement (T1135) if applicable
+
+official_sources:
+  - https://www.canada.ca/en/revenue-agency.html
+  - https://www.canada.ca/en/revenue-agency/services/forms-publications.html
+  - https://www.canada.ca/en/revenue-agency/services/tax/individuals/topics/about-your-tax-return.html
+  - https://www.canada.ca/en/revenue-agency/services/tax/businesses.html

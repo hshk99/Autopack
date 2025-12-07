@@ -1,0 +1,102 @@
+---
+name: UK Tax Documents Pack
+description: Document classification and validation pack for UK tax-related documents including HMRC forms, self-assessment returns, and tax correspondence.
+version: "1.0.0"
+country: GB
+domain: tax
+
+categories:
+  - name: Self Assessment
+    description: Documents related to self-assessment tax returns filed with HMRC
+    examples:
+      - SA100 Main Tax Return
+      - SA102 Employment pages
+      - SA103 Self-employment pages
+      - SA104 Partnership pages
+      - SA105 Property income pages
+      - SA106 Foreign income pages
+
+  - name: PAYE Documents
+    description: Pay As You Earn documents from employers and HMRC
+    examples:
+      - P60 End of Year Certificate
+      - P45 Leaving Certificate
+      - P11D Benefits and Expenses
+      - Payslips
+      - Coding Notice
+
+  - name: Tax Calculations
+    description: HMRC tax calculation and assessment documents
+    examples:
+      - Notice of Assessment
+      - Tax Calculation Summary
+      - Statement of Account
+      - Tax Refund Notification
+
+  - name: National Insurance
+    description: National Insurance contribution records and statements
+    examples:
+      - NI Contribution Statement
+      - NI Number Confirmation Letter
+      - Class 2 NI Statement
+      - Class 4 NI Calculation
+
+  - name: VAT Documents
+    description: Value Added Tax registration and return documents
+    examples:
+      - VAT Registration Certificate
+      - VAT Return (VAT100)
+      - VAT Assessment
+      - EC Sales List
+
+  - name: Corporation Tax
+    description: Company tax documents for limited companies
+    examples:
+      - CT600 Corporation Tax Return
+      - Company Tax Calculation
+      - CT Payment Reminder
+      - Annual Accounts
+
+checklists:
+  - name: Self Assessment Filing
+    required_documents:
+      - SA100 Main Tax Return or online submission confirmation
+      - P60 for each employment
+      - Bank statements showing interest received
+      - Dividend vouchers if applicable
+      - Property income records if applicable
+      - Foreign income documentation if applicable
+      - Gift Aid records for charitable donations
+      - Pension contribution statements
+
+  - name: PAYE Employment Records
+    required_documents:
+      - P60 End of Year Certificate
+      - P45 if employment ended
+      - P11D if benefits received
+      - Payslips for the tax year
+      - HMRC Coding Notice
+
+  - name: VAT Registration
+    required_documents:
+      - VAT Registration Certificate
+      - Business bank statements
+      - Sales invoices sample
+      - Purchase invoices sample
+      - VAT Return submissions
+
+  - name: Company Tax Compliance
+    required_documents:
+      - CT600 Corporation Tax Return
+      - Annual Accounts filed with Companies House
+      - Corporation Tax payment receipts
+      - Director loan account records
+      - Dividend vouchers issued
+
+official_sources:
+  - https://www.gov.uk/government/organisations/hm-revenue-customs
+  - https://www.gov.uk/self-assessment-tax-returns
+  - https://www.gov.uk/paye-for-employers
+  - https://www.gov.uk/vat-registration
+  - https://www.gov.uk/corporation-tax
+  - https://www.gov.uk/national-insurance

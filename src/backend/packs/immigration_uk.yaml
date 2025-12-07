@@ -1,0 +1,120 @@
+---
+name: UK Immigration Documents Pack
+description: Document classification and validation pack for UK immigration and visa-related documents including Home Office correspondence, visa applications, and settlement documents.
+version: "1.0.0"
+country: GB
+domain: immigration
+
+categories:
+  - name: Visa Applications
+    description: Documents related to UK visa applications and supporting evidence
+    examples:
+      - Visa Application Form
+      - Biometric Residence Permit (BRP)
+      - Visa Decision Letter
+      - Certificate of Sponsorship (CoS)
+      - Confirmation of Acceptance for Studies (CAS)
+
+  - name: Settlement Documents
+    description: Documents for indefinite leave to remain and settlement applications
+    examples:
+      - ILR Application Form
+      - Life in the UK Test Certificate
+      - English Language Test Certificate
+      - Settlement Decision Letter
+      - Naturalisation Certificate
+
+  - name: Right to Work
+    description: Documents proving right to work in the United Kingdom
+    examples:
+      - Share Code from Home Office
+      - Biometric Residence Permit
+      - Passport with valid visa
+      - Certificate of Registration
+      - Positive Verification Notice
+
+  - name: Travel Documents
+    description: Travel and identity documents for immigration purposes
+    examples:
+      - Valid Passport
+      - Travel Document
+      - Emergency Travel Document
+      - EU Settlement Scheme Status
+      - Frontier Worker Permit
+
+  - name: Sponsorship Documents
+    description: Documents related to visa sponsorship by employers or educational institutions
+    examples:
+      - Certificate of Sponsorship
+      - Sponsor Licence
+      - Confirmation of Acceptance for Studies
+      - Maintenance Evidence
+      - Sponsor Assignment Certificate
+
+  - name: Home Office Correspondence
+    description: Official correspondence from UK Visas and Immigration
+    examples:
+      - Decision Letter
+      - Request for Additional Documents
+      - Acknowledgement of Application
+      - Refusal Notice
+      - Appeal Rights Letter
+
+checklists:
+  - name: Skilled Worker Visa Application
+    required_documents:
+      - Valid passport with at least 6 months validity
+      - Certificate of Sponsorship reference number
+      - Proof of English language ability
+      - Bank statements showing required funds
+      - Tuberculosis test results if from listed country
+      - Criminal record certificate if required
+      - Previous visa documents if applicable
+
+  - name: Student Visa Application
+    required_documents:
+      - Valid passport
+      - Confirmation of Acceptance for Studies (CAS)
+      - Proof of English language proficiency
+      - Financial evidence showing maintenance funds
+      - Academic qualifications and transcripts
+      - ATAS certificate if required for course
+      - Tuberculosis test results if applicable
+
+  - name: Indefinite Leave to Remain
+    required_documents:
+      - Valid passport or travel document
+      - Biometric Residence Permit
+      - Life in the UK Test pass certificate
+      - English language qualification
+      - Proof of continuous residence
+      - Employment history evidence
+      - P60s and payslips for qualifying period
+      - Bank statements
+
+  - name: British Citizenship Application
+    required_documents:
+      - Valid passport
+      - Biometric Residence Permit showing ILR
+      - Life in the UK Test certificate
+      - English language evidence
+      - Proof of residence for qualifying period
+      - Character references
+      - Previous nationality documents
+
+  - name: Right to Work Check
+    required_documents:
+      - Valid passport or BRP
+      - Share code from Home Office online service
+      - Visa showing work permission
+      - Certificate of Application if pending
+      - Positive Verification Notice from employer checking service
+
+official_sources:
+  - https://www.gov.uk/government/organisations/uk-visas-and-immigration
+  - https://www.gov.uk/browse/visas-immigration
+  - https://www.gov.uk/skilled-worker-visa
+  - https://www.gov.uk/student-visa
+  - https://www.gov.uk/indefinite-leave-to-remain
+  - https://www.gov.uk/apply-citizenship-indefinite-leave-to-remain
+  - https://www.gov.uk/prove-right-to-work

@@ -976,6 +976,8 @@ class AutonomousExecutor:
                 "patch_apply_error": f"Phase '{phase_name}' generated invalid patch - ensure proper diff format",
                 "infra_error": f"Phase '{phase_name}' hit infrastructure error - check API connectivity",
                 "success_after_retry": f"Phase '{phase_name}' succeeded after retries - model escalation was needed",
+                "builder_churn_limit_exceeded": f"Phase '{phase_name}' exceeded churn limit - reduce change scope or increase complexity",
+                "builder_guardrail": f"Phase '{phase_name}' blocked by builder guardrail (growth/shrinkage/truncation) - check output size",
             }
 
             hint_text = hint_templates.get(hint_type, f"Phase '{phase_name}': {hint_type}")
@@ -3930,12 +3932,13 @@ Just the new description that should replace the current one while preserving th
         except Exception as e:
             logger.warning(f"Failed to promote hints to rules: {e}")
 
-    def _best_effort_write_run_summary(self, phases_failed: Optional[int] = None):
+    def _best_effort_write_run_summary(self, phases_failed: Optional[int] = None, failure_reason: Optional[str] = None):
         """
         Write run_summary.md even if API hooks fail (covers short single-phase runs).
         """
         try:
             from autopack import models
+            from datetime import datetime, timezone
 
             run = self.db_session.query(models.Run).filter(models.Run.id == self.run_id).first()
             if not run:
@@ -3961,6 +3964,11 @@ Just the new description that should replace the current one while preserving th
                     else:
                         run.state = models.RunState.DONE_SUCCESS
 
+            # Calculate phase stats
+            all_phases = list(run.phases)
+            phases_complete = sum(1 for p in all_phases if p.state == models.PhaseState.COMPLETE)
+            actual_phases_failed = sum(1 for p in all_phases if p.state == models.PhaseState.FAILED)
+
             layout = RunFileLayout(self.run_id)
             layout.write_run_summary(
                 run_id=run.id,
@@ -3969,7 +3977,12 @@ Just the new description that should replace the current one while preserving th
                 run_scope=run.run_scope,
                 created_at=run.created_at.isoformat(),
                 tier_count=len(run.tiers),
-                phase_count=len(run.phases),
+                phase_count=len(all_phases),
+                tokens_used=run.tokens_used,
+                phases_complete=phases_complete,
+                phases_failed=phases_failed if phases_failed is not None else actual_phases_failed,
+                failure_reason=failure_reason or getattr(run, 'failure_reason', None),
+                completed_at=datetime.now(timezone.utc).isoformat(),
             )
             self.db_session.commit()
         except Exception as e:

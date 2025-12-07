@@ -53,25 +53,58 @@ class RunFileLayout:
         created_at: str,
         tier_count: int = 0,
         phase_count: int = 0,
+        tokens_used: int = 0,
+        phases_complete: int = 0,
+        phases_failed: int = 0,
+        failure_reason: str = None,
+        completed_at: str = None,
     ) -> None:
         """Write or update run_summary.md"""
+        # Build status section
+        status_lines = [
+            f"- **State:** {state}",
+            f"- **Safety Profile:** {safety_profile}",
+            f"- **Run Scope:** {run_scope}",
+            f"- **Created:** {created_at}",
+        ]
+        if completed_at:
+            status_lines.append(f"- **Completed:** {completed_at}")
+
+        # Build progress section
+        progress_lines = [
+            f"- **Tiers:** {tier_count}",
+            f"- **Phases:** {phase_count}",
+            f"- **Phases Complete:** {phases_complete}",
+            f"- **Phases Failed:** {phases_failed}",
+        ]
+
+        # Build budgets section
+        budgets_section = f"- **Tokens Used:** {tokens_used:,}" if tokens_used > 0 else "(To be populated as run progresses)"
+
+        # Build issues section
+        issues_section = ""
+        if failure_reason:
+            issues_section = f"**Failure Reason:** {failure_reason}"
+        elif state.startswith("DONE_FAILED"):
+            issues_section = "(Run failed - see phase logs for details)"
+        elif state == "DONE_SUCCESS":
+            issues_section = "No issues - run completed successfully."
+        else:
+            issues_section = "(To be populated as run progresses)"
+
         content = f"""# Run Summary: {run_id}
 
 ## Status
-- **State:** {state}
-- **Safety Profile:** {safety_profile}
-- **Run Scope:** {run_scope}
-- **Created:** {created_at}
+{chr(10).join(status_lines)}
 
 ## Progress
-- **Tiers:** {tier_count}
-- **Phases:** {phase_count}
+{chr(10).join(progress_lines)}
 
 ## Budgets
-(To be populated as run progresses)
+{budgets_section}
 
 ## Issues
-(To be populated as run progresses)
+{issues_section}
 """
         path = self.get_run_summary_path()
         path.write_text(content, encoding="utf-8")

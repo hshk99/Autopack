@@ -45,6 +45,7 @@ class PhaseHistory:
             "patch_apply_error",
             "infra_error",
             "builder_churn_limit_exceeded",
+            "builder_guardrail",
         ],
         details: Optional[str] = None
     ):
@@ -60,7 +61,13 @@ class PhaseHistory:
 
     def count_recent_failures(self) -> int:
         """Count failures that should trigger escalation."""
-        failure_types = {"auditor_reject", "ci_fail", "patch_apply_error"}
+        failure_types = {
+            "auditor_reject",
+            "ci_fail",
+            "patch_apply_error",
+            "builder_churn_limit_exceeded",
+            "builder_guardrail",
+        }
         return sum(1 for a in self.attempts if a["outcome"] in failure_types)
 
     @property

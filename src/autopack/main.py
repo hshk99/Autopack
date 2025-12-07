@@ -370,6 +370,8 @@ def update_phase_status(
             # Rewrite run_summary.md with final state
             try:
                 layout = file_layout or RunFileLayout(run_id)
+                phases_complete = sum(1 for p in all_phases if p.state == models.PhaseState.COMPLETE)
+                phases_failed = sum(1 for p in all_phases if p.state == models.PhaseState.FAILED)
                 layout.write_run_summary(
                     run_id=run.id,
                     state=run.state.value,
@@ -378,6 +380,11 @@ def update_phase_status(
                     created_at=run.created_at.isoformat(),
                     tier_count=len(run.tiers),
                     phase_count=len(all_phases),
+                    tokens_used=run.tokens_used,
+                    phases_complete=phases_complete,
+                    phases_failed=phases_failed,
+                    failure_reason=run.failure_reason,
+                    completed_at=datetime.now(timezone.utc).isoformat(),
                 )
             except FileNotFoundError:
                 # If the layout wasn't initialized on disk, skip quietly.

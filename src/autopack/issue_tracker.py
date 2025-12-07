@@ -61,7 +61,7 @@ class IssueTracker:
         """Load phase issue file or create new one"""
         path = self.get_phase_issue_path(phase_index, phase_id)
         if path.exists():
-            raw = path.read_text().strip()
+            raw = path.read_text(encoding="utf-8").strip()
             if not raw:
                 logger.warning(
                     "[IssueTracker] Empty issue file detected (%s); recreating defaults",
@@ -128,7 +128,7 @@ class IssueTracker:
         """Load run issue index or create new one"""
         path = self.get_run_issue_index_path()
         if path.exists():
-            return RunIssueIndex.model_validate_json(path.read_text())
+            return RunIssueIndex.model_validate_json(path.read_text(encoding="utf-8"))
         return RunIssueIndex(run_id=self.run_id)
 
     def save_run_issue_index(self, index: RunIssueIndex) -> None:
@@ -173,7 +173,7 @@ class IssueTracker:
         """Load project issue backlog or create new one"""
         path = self.get_project_backlog_path()
         if path.exists():
-            return ProjectIssueBacklog.model_validate_json(path.read_text())
+            return ProjectIssueBacklog.model_validate_json(path.read_text(encoding="utf-8"))
         return ProjectIssueBacklog(project_id=self.project_id)
 
     def save_project_backlog(self, backlog: ProjectIssueBacklog) -> None:

@@ -160,7 +160,7 @@ def main() -> int:
 
     try:
         status_resp = post_json(
-            f"{args.api_url}/runs/{args.run_id}/phases/{first_phase_id}/update_status",
+            f"{args.api_url}/runs/{args.run_id}/phases/{first_phase_id}/status",
             status_payload,
             api_key,
         )
@@ -178,4 +178,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     sys.exit(main())
-

@@ -1,189 +1,132 @@
-"""Unit tests for git rollback functionality."""
+"""Unit tests for the GitRollback helper."""
+
+from __future__ import annotations
+
+from types import SimpleNamespace
+from pathlib import Path
+from typing import List
 
 import pytest
 
-# Skip all tests in this file - git_rollback API refactored to use GitRollback class
-pytestmark = pytest.mark.skip(reason="Git rollback API refactored - tests need updating")
-
-import subprocess
-from unittest.mock import Mock, patch, call
-
-from src.autopack.git_rollback import (
-    create_rollback_point,
-    rollback_to_point,
-    cleanup_rollback_point,
-    GitRollback,  # Use class instead of private functions
-    # _run_git_command,  # Now private method of GitRollback class
-    # _get_current_branch,  # Now private method of GitRollback class
-    # _has_uncommitted_changes,  # Now private method of GitRollback class
-)
+from src.autopack.git_rollback import GitRollback
 
 
-class TestGitCommand:
-    """Tests for _run_git_command helper."""
-    
-    @patch("subprocess.run")
-    def test_successful_command(self, mock_run):
-        """Test successful git command execution."""
-        mock_run.return_value = Mock(
-            stdout="output\n",
-            stderr="",
-            returncode=0
-        )
-        
-        success, output = _run_git_command(["status"])
-        
-        assert success is True
-        assert output == "output"
-        mock_run.assert_called_once()
-    
-    @patch("subprocess.run")
-    def test_failed_command(self, mock_run):
-        """Test failed git command execution."""
-        mock_run.side_effect = subprocess.CalledProcessError(
-            1, ["git", "status"], stderr="error message"
-        )
-        
-        success, output = _run_git_command(["status"], check=False)
-        
-        assert success is False
-        assert "error message" in output
+@pytest.fixture
+def repo(tmp_path: Path) -> Path:
+    """Create a disposable git repo folder with a .git marker."""
+    repo_path = tmp_path / "repo"
+    repo_path.mkdir()
+    (repo_path / ".git").mkdir()
+    return repo_path
 
 
-class TestGetCurrentBranch:
-    """Tests for _get_current_branch helper."""
-    
-    @patch("src.autopack.git_rollback._run_git_command")
-    def test_on_branch(self, mock_git):
-        """Test getting current branch name."""
-        mock_git.return_value = (True, "main")
-        
-        branch = _get_current_branch()
-        
-        assert branch == "main"
-        mock_git.assert_called_once_with(
-            ["rev-parse", "--abbrev-ref", "HEAD"],
-            check=False
-        )
-    
-    @patch("src.autopack.git_rollback._run_git_command")
-    def test_detached_head(self, mock_git):
-        """Test when in detached HEAD state."""
-        mock_git.return_value = (True, "HEAD")
-        
-        branch = _get_current_branch()
-        
-        assert branch is None
+@pytest.fixture
+def rollback(repo: Path) -> GitRollback:
+    """Instantiate GitRollback against the temp repo."""
+    return GitRollback(repo_path=repo)
 
 
-class TestHasUncommittedChanges:
-    """Tests for _has_uncommitted_changes helper."""
-    
-    @patch("src.autopack.git_rollback._run_git_command")
-    def test_clean_working_directory(self, mock_git):
-        """Test clean working directory."""
-        mock_git.return_value = (True, "")
-        
-        has_changes = _has_uncommitted_changes()
-        
-        assert has_changes is False
-    
-    @patch("src.autopack.git_rollback._run_git_command")
-    def test_uncommitted_changes(self, mock_git):
-        """Test with uncommitted changes."""
-        mock_git.return_value = (True, " M file.py\n")
-        
-        has_changes = _has_uncommitted_changes()
-        
-        assert has_changes is True
+def _fake_result(stdout: str = "", returncode: int = 0) -> SimpleNamespace:
+    """Return a minimal CompletedProcess-like stub."""
+    return SimpleNamespace(stdout=stdout, returncode=returncode)
 
 
-class TestCreateRollbackPoint:
-    """Tests for create_rollback_point function."""
-    
-    @patch("src.autopack.git_rollback._has_uncommitted_changes")
-    @patch("src.autopack.git_rollback._run_git_command")
-    def test_create_clean_state(self, mock_git, mock_has_changes):
-        """Test creating rollback point with clean working directory."""
-        mock_has_changes.return_value = False
-        mock_git.side_effect = [
-            (False, ""),  # branch doesn't exist
-            (True, ""),   # branch created
-        ]
-        
-        branch = create_rollback_point("test-run-123")
-        
-        assert branch == "autopack/pre-run-test-run-123"
-        assert mock_git.call_count == 2
-    
-    @patch("src.autopack.git_rollback._has_uncommitted_changes")
-    @patch("src.autopack.git_rollback._run_git_command")
-    def test_create_with_uncommitted_changes(self, mock_git, mock_has_changes):
-        """Test creating rollback point with uncommitted changes."""
-        mock_has_changes.return_value = True
-        mock_git.side_effect = [
-            (True, ""),   # stash successful
-            (False, ""),  # branch doesn't exist
-            (True, ""),   # branch created
-        ]
-        
-        branch = create_rollback_point("test-run-123")
-        
-        assert branch == "autopack/pre-run-test-run-123"
-        # Should call stash, verify branch, create branch
-        assert mock_git.call_count == 3
-    
-    @patch("src.autopack.git_rollback._has_uncommitted_changes")
-    @patch("src.autopack.git_rollback._run_git_command")
-    def test_create_branch_exists(self, mock_git, mock_has_changes):
-        """Test creating rollback point when branch already exists."""
-        mock_has_changes.return_value = False
-        mock_git.side_effect = [
-            (True, ""),   # branch exists
-            (True, ""),   # delete successful
-            (True, ""),   # branch created
-        ]
-        
-        branch = create_rollback_point("test-run-123")
-        
-        assert branch == "autopack/pre-run-test-run-123"
-        assert mock_git.call_count == 3
+def test_create_rollback_point_creates_branch(monkeypatch: pytest.MonkeyPatch, rollback: GitRollback):
+    calls: List[list[str]] = []
+
+    def fake_run(args: list[str], check: bool = True, capture_output: bool = True):
+        calls.append(args)
+        return _fake_result()
+
+    monkeypatch.setattr(rollback, "_run_git_command", fake_run)
+    monkeypatch.setattr(rollback, "_has_uncommitted_changes", lambda: False)
+    monkeypatch.setattr(rollback, "_branch_exists", lambda name: False)
+
+    branch = rollback.create_rollback_point("run-123")
+
+    assert branch == "autopack/pre-run-run-123"
+    assert ["branch", branch] in calls
 
 
-class TestRollbackToPoint:
-    """Tests for rollback_to_point function."""
-    
-    @patch("src.autopack.git_rollback._run_git_command")
-    def test_successful_rollback(self, mock_git):
-        """Test successful rollback."""
-        mock_git.side_effect = [
-            (True, "abc123"),  # branch exists
-            (True, ""),        # reset successful
-        ]
-        
-        result = rollback_to_point("test-run-123")
-        
-        assert result is True
-        assert mock_git.call_count == 2
-    
-    @patch("src.autopack.git_rollback._run_git_command")
-    def test_rollback_branch_not_found(self, mock_git):
-        """Test rollback when branch doesn't exist."""
-        mock_git.return_value = (False, "branch not found")
-        
-        result = rollback_to_point("test-run-123")
-        
-        assert result is False
+def test_create_rollback_point_overwrites_existing(monkeypatch: pytest.MonkeyPatch, rollback: GitRollback):
+    calls: List[list[str]] = []
+
+    def fake_run(args: list[str], check: bool = True, capture_output: bool = True):
+        calls.append(args)
+        return _fake_result()
+
+    monkeypatch.setattr(rollback, "_run_git_command", fake_run)
+    monkeypatch.setattr(rollback, "_has_uncommitted_changes", lambda: False)
+    monkeypatch.setattr(rollback, "_branch_exists", lambda name: True)
+
+    branch = rollback.create_rollback_point("run-123")
+
+    assert branch == "autopack/pre-run-run-123"
+    assert ["branch", "-D", branch] in calls
+    assert ["branch", branch] in calls
 
 
-class TestCleanupRollbackPoint:
-    """Tests for cleanup_rollback_point function."""
-    
-    @patch("src.autopack.git_rollback._run_git_command")
-    def test_successful_cleanup(self, mock_git):
-        """Test successful cleanup."""
-        mock_git.return_value = (True, "")
-        
-        result = cleanup_rollback_point("test-run-123")
-        
-        assert result is True
+def test_create_rollback_point_stashes_changes(monkeypatch: pytest.MonkeyPatch, rollback: GitRollback):
+    calls: List[list[str]] = []
+    stash_called = {"called": False}
+
+    def fake_run(args: list[str], check: bool = True, capture_output: bool = True):
+        calls.append(args)
+        return _fake_result()
+
+    def fake_stash() -> bool:
+        stash_called["called"] = True
+        return True
+
+    monkeypatch.setattr(rollback, "_run_git_command", fake_run)
+    monkeypatch.setattr(rollback, "_has_uncommitted_changes", lambda: True)
+    monkeypatch.setattr(rollback, "_branch_exists", lambda name: False)
+    monkeypatch.setattr(rollback, "_stash_changes", fake_stash)
+
+    branch = rollback.create_rollback_point("run-456")
+
+    assert branch == "autopack/pre-run-run-456"
+    assert stash_called["called"] is True
+    assert ["branch", branch] in calls
+
+
+def test_rollback_to_point_success(monkeypatch: pytest.MonkeyPatch, rollback: GitRollback):
+    calls: List[list[str]] = []
+
+    def fake_run(args: list[str], check: bool = True, capture_output: bool = True):
+        calls.append(args)
+        return _fake_result()
+
+    monkeypatch.setattr(rollback, "_run_git_command", fake_run)
+    monkeypatch.setattr(rollback, "_branch_exists", lambda name: True)
+
+    assert rollback.rollback_to_point("run-123") is True
+    branch_name = "autopack/pre-run-run-123"
+    assert ["reset", "--hard", branch_name] in calls
+
+
+def test_rollback_to_point_missing_branch(monkeypatch: pytest.MonkeyPatch, rollback: GitRollback):
+    monkeypatch.setattr(rollback, "_branch_exists", lambda name: False)
+
+    assert rollback.rollback_to_point("run-123") is False
+
+
+def test_cleanup_rollback_point_success(monkeypatch: pytest.MonkeyPatch, rollback: GitRollback):
+    calls: List[list[str]] = []
+
+    def fake_run(args: list[str], check: bool = True, capture_output: bool = True):
+        calls.append(args)
+        return _fake_result()
+
+    monkeypatch.setattr(rollback, "_run_git_command", fake_run)
+    monkeypatch.setattr(rollback, "_branch_exists", lambda name: True)
+
+    assert rollback.cleanup_rollback_point("run-123") is True
+    branch_name = "autopack/pre-run-run-123"
+    assert ["branch", "-D", branch_name] in calls
+
+
+def test_cleanup_rollback_point_noop_when_missing(monkeypatch: pytest.MonkeyPatch, rollback: GitRollback):
+    monkeypatch.setattr(rollback, "_branch_exists", lambda name: False)
+
+    assert rollback.cleanup_rollback_point("run-123") is True

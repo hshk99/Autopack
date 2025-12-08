@@ -57,10 +57,12 @@
       ],
       "scope": {
         "paths": [
-          "tests/"
+          "tests/test_autonomous_executor.py",
+          "tests/test_git_rollback.py"
         ],
         "read_only_context": [
-          "src/autopack/"
+          "src/autopack/autonomous_executor.py",
+          "src/autopack/git_rollback.py"
         ]
       }
     },
@@ -86,4 +88,3 @@
     }
   ]
 }
-

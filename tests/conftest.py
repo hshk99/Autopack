@@ -1,10 +1,22 @@
 """Pytest configuration and fixtures for Autopack tests"""
 
 import os
+import sys
 import tempfile
 from pathlib import Path
 
 import pytest
+
+# Ensure src directory is in Python path before any imports
+project_root = Path(__file__).resolve().parent.parent
+src_path = project_root / "src"
+backend_path = src_path / "backend"
+
+for path in (project_root, src_path, backend_path):
+    path_str = str(path)
+    if path_str not in sys.path:
+        sys.path.insert(0, path_str)
+
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker

@@ -1,48 +1,13 @@
-diff --git a/.autonomous_runs/file-organizer-app-v1/fileorganizer/docker-compose.yml b/.autonomous_runs/file-organizer-app-v1/fileorganizer/docker-compose.yml
+diff --git a/scripts/verify_e2e_8100.py b/scripts/verify_e2e_8100.py
 index 1111111..2222222 100644
---- a/.autonomous_runs/file-organizer-app-v1/fileorganizer/docker-compose.yml
-+++ b/.autonomous_runs/file-organizer-app-v1/fileorganizer/docker-compose.yml
-@@ -57,7 +57,7 @@ services:
-       - uploads_data:/app/uploads
-       - exports_data:/app/exports
-       - logs_data:/app/logs
--    command: ["python", "-c", "print('Worker ready - implement async task processing here'); import time; time.sleep(infinity)"]
-+    command: ["python", "-c", "print('Worker ready - implement async task processing here'); import time; time.sleep(float('inf'))"]
-     profiles:
-       - worker
-     networks:
-diff --git a/.autonomous_runs/file-organizer-app-v1/fileorganizer/deploy.sh b/.autonomous_runs/file-organizer-app-v1/fileorganizer/deploy.sh
-index 1111111..2222222 100644
---- a/.autonomous_runs/file-organizer-app-v1/fileorganizer/deploy.sh
-+++ b/.autonomous_runs/file-organizer-app-v1/fileorganizer/deploy.sh
-@@ -27,19 +27,19 @@ print_header() {
- }
+--- a/scripts/verify_e2e_8100.py
++++ b/scripts/verify_e2e_8100.py
+@@ -4,7 +4,7 @@ def main() -> int:
  
- print_success() {
--    echo -e "${GREEN}Ã¢Å“â€œ $1${NC}"
-+    echo -e "${GREEN}âœ“ $1${NC}"
- }
- 
- print_warning() {
--    echo -e "${YELLOW}Ã¢Å¡Â  $1${NC}"
-+    echo -e "${YELLOW}âš  $1${NC}"
- }
- 
- print_error() {
--    echo -e "${RED}Ã¢Å“â€” $1${NC}"
-+    echo -e "${RED}âœ— $1${NC}"
- }
- 
- print_info() {
--    echo -e "${BLUE}Ã¢â€žÂ¹ $1${NC}"
-+    echo -e "${BLUE}â„¹ $1${NC}"
- }
- 
- # Check prerequisites
-@@ -187,4 +187,4 @@ clean() {
-     print_warning "This will remove all containers, volumes, and images for FileOrganizer."
-     read -p "Are you sure? (y/N) " -n 1 -r
-     echo
--    if [
-+    if [[ $REPLY =~ ^[Y
-\ No newline at end of file
+     try:
+         status_resp = post_json(
+-            f"{args.api_url}/runs/{args.run_id}/phases/{first_phase_id}/update_status",
++            f"{args.api_url}/runs/{args.run_id}/phases/{first_phase_id}/status",
+             status_payload,
+             api_key,
+         )

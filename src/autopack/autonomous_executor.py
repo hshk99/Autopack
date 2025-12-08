@@ -96,6 +96,8 @@ ALLOWED_FIX_COMMANDS = {
         r"^git\s+clean\s+-fd$",          # git clean -fd
         r"^git\s+merge\s+--abort$",      # git merge --abort
         r"^git\s+rebase\s+--abort$",     # git rebase --abort
+        r"^git\s+status\s+--porcelain$", # git status --porcelain (safe status)
+        r"^git\s+diff\s+--name-only$",   # git diff --name-only (safe diff)
     ],
     "file": [
         r"^rm\s+-f\s+",                  # rm -f <file> (single file)

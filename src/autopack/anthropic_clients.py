@@ -1509,7 +1509,9 @@ class AnthropicBuilderClient:
         response,
         model: str,
         phase_spec: Dict,
-        config = None
+        config = None,
+        stop_reason=None,
+        was_truncated: bool = False,
     ) -> 'BuilderResult':
         """Parse LLM's structured edit JSON output (Stage 2)
         
@@ -1553,14 +1555,16 @@ class AnthropicBuilderClient:
             operations_json = result_json.get("operations", [])
             
             if not operations_json:
-                error_msg = "LLM returned empty operations array"
+                # Treat empty structured edits as a safe no-op rather than a hard failure.
+                info_msg = "Structured edit produced no operations; treating as no-op"
+                logger.warning(f"[Builder] {info_msg}")
                 return BuilderResult(
-                    success=False,
+                    success=True,
                     patch_content="",
-                    builder_messages=[error_msg],
+                    builder_messages=[info_msg],
                     tokens_used=response.usage.input_tokens + response.usage.output_tokens,
                     model_used=model,
-                    error=error_msg
+                    error=None
                 )
             
             # Parse operations

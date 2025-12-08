@@ -158,11 +158,11 @@
     "builder_failure": {
       "category": "builder_failure",
       "base_severity": "major",
-      "age_in_runs": 44,
-      "age_in_tiers": 44,
+      "age_in_runs": 75,
+      "age_in_tiers": 75,
       "first_seen_run_id": "fileorg-country-uk-20251205-001903",
-      "last_seen_run_id": "fileorg-p2-20251208",
-      "last_seen_at": "2025-12-08T02:32:07.525587Z",
+      "last_seen_run_id": "fileorg-p2-20251208b",
+      "last_seen_at": "2025-12-08T03:47:30.845447Z",
       "seen_in_tiers": [],
       "status": "open"
     }

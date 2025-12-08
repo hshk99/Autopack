@@ -406,6 +406,11 @@ class YamlRepairHelper:
             repairs_applied.append("remove_incomplete_line")
         text = '\n'.join(lines)
 
+        # Rule 3b: Ensure document start marker if parser complains about document start or block mapping at top
+        if ("document start" in error_message.lower() or "block mapping" in error_message.lower()) and not text.lstrip().startswith("---"):
+            text = "---\n" + text.lstrip()
+            repairs_applied.append("add_document_start")
+
         # Rule 4: Ensure proper ending
         if not text.endswith('\n'):
             text = text + '\n'

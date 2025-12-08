@@ -47,6 +47,7 @@ Single source of truth for all errors, fixes, prevention rules, and troubleshoot
   - Plan update: `fileorg-p2-batch-upload` builder_mode set to `structured_edit` to avoid full-file JSON truncation/parse failures (run `fileorg-p2-20251208n` showed repeated `full_file_parse_failed` on full-file JSON).
   - Executor hardened: if a phase is large or marked structured_edit, force structured edits; on builder failures with truncation/JSON parse errors, auto-fallback to structured_edit within the executor before burning retries.
   - Workspace prep: created `fileorganizer/backend/models/` and `fileorganizer/backend/migrations/` in run workspace to satisfy auth scope.
+  - CI logging: search and batch-upload phases now log CI output on success to capture diagnostics for needs_review follow-up.
   - Run `fileorg-p2-20251208n` latest outcomes:
     - test-fixes, frontend-build, docker, country-uk/canada/australia: COMPLETE (needs_review).
     - search: initial full-file JSON truncation; after replan/escalation, diffs applied, CI passed (needs_review).

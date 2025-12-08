@@ -159,6 +159,9 @@
       "complexity": "medium",
       "change_size": "large_refactor",
       "builder_mode": "structured_edit",
+      "ci": {
+        "log_on_success": true
+      },
       "acceptance_criteria": [
         "Backend FTS5 index on documents with multi-field search.",
         "API exposes advanced search with date/confidence filters and export.",
@@ -184,6 +187,9 @@
       "complexity": "medium",
       "change_size": "large_refactor",
       "builder_mode": "structured_edit",
+      "ci": {
+        "log_on_success": true
+      },
       "acceptance_criteria": [
         "Backend batch upload endpoint with job queue and progress tracking.",
         "Batch classification endpoint returns per-file status.",

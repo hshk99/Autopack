@@ -1106,8 +1106,8 @@ class GovernedApplyPath:
                 new_file_lines.append(line[1:])  # Remove + prefix
 
             elif line.startswith('\\ No newline at end of file'):
-                # This marker after minimal content is suspicious
-                if len(new_file_lines) < 5:
+                # This marker after minimal content is suspicious. For JSON/package files we tolerate short bodies.
+                if len(new_file_lines) < 5 and not (current_file or "").endswith("package.json"):
                     errors.append(f"File '{current_file}' appears truncated (only {len(new_file_lines)} lines before 'No newline')")
 
         # Check last file

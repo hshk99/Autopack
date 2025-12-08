@@ -52,6 +52,19 @@ Single source of truth for all errors, fixes, prevention rules, and troubleshoot
     - `fileorg-p2-qa-hardening` (resolve auditor needs_review, add tests, rerun CI/E2E for search/batch/auth)
     - `fileorg-p2-deploy-verify` (docker/deploy smoke + verify auth/search/batch endpoints)
     - `fileorg-p2-docs-final` (README/docs updates for auth/search/batch/deploy, diagrams)
+    - `fileorg-p2-auth-hardening` (RBAC, reset/verification hooks, protected routes, auth E2E)
+    - `fileorg-p2-search-quality` (relevance/pagination/facets + E2E, perf tuning)
+    - `fileorg-p2-batch-observability` (status/cancel/retry, logging/metrics, E2E)
+    - `fileorg-p2-file-safety` (type/size enforcement, MIME sniffing, virus-scan hook)
+    - `fileorg-p2-storage-config` (local/S3 abstraction, presigned URLs, docs)
+    - `fileorg-p2-export-sharing` (filtered/batch export, expiring share links, audit)
+    - `fileorg-p2-ui-ux-polish` (a11y/loading/error/responsive polish for key flows)
+    - `fileorg-p2-logging-metrics` (structured logs/metrics for auth/search/batch, diagnostics)
+    - `fileorg-p2-backup-migrations` (migration ordering/rollback, seeds, backup/restore doc)
+    - `fileorg-p2-e2e-smoke` (auth/upload/search/batch/export/logout E2E suite)
+    - `fileorg-p2-security-basics` (rate limiting, CORS/headers, secret audit)
+    - `fileorg-p2-perf-tuning` (latency targets, indexes/caching, load-test script)
+    - `fileorg-p2-planning-fortify` (reusable planning harness to surface standard hardening phases)
   - Run `fileorg-p2-20251208n` latest outcomes:
     - test-fixes, frontend-build, docker, country-uk/canada/australia: COMPLETE (needs_review).
     - search: initial full-file JSON truncation; after replan/escalation, diffs applied, CI passed (needs_review).

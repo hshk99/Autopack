@@ -302,6 +302,299 @@
           "docs/"
         ]
       }
+    },
+    {
+      "id": "fileorg-p2-auth-hardening",
+      "description": "Harden authentication: RBAC, password reset/verification hooks, protected routes, logout/session handling, and auth E2E coverage.",
+      "task_category": "backend",
+      "complexity": "high",
+      "builder_mode": "structured_edit",
+      "acceptance_criteria": [
+        "RBAC (admin/user) enforced on sensitive routes; logout/session handled.",
+        "Password reset and email verification hooks present (stubbed if external service not configured).",
+        "Frontend login/register/reset flows covered by tests; protected routes enforced.",
+        "Auth E2E tests pass for login/register/reset/protected pages."
+      ],
+      "scope": {
+        "paths": [
+          "fileorganizer/backend/app/",
+          "fileorganizer/backend/models/",
+          "fileorganizer/backend/tests/",
+          "fileorganizer/backend/migrations/",
+          "fileorganizer/frontend/src/"
+        ],
+        "read_only_context": [
+          "fileorganizer/backend/db/",
+          "fileorganizer/backend/services/"
+        ]
+      }
+    },
+    {
+      "id": "fileorg-p2-search-quality",
+      "description": "Improve search relevance and UX: tuning, pagination, facets, and E2E coverage for advanced search.",
+      "task_category": "backend",
+      "complexity": "medium",
+      "builder_mode": "structured_edit",
+      "ci": {
+        "log_on_success": true
+      },
+      "acceptance_criteria": [
+        "Search supports pagination, facets/filters, and relevance tuning (recency/category boosts).",
+        "Exports and empty-state UX verified; E2E search tests with seeded fixtures pass.",
+        "Indexes/caching added for acceptable latency."
+      ],
+      "scope": {
+        "paths": [
+          "fileorganizer/backend/app/",
+          "fileorganizer/backend/tests/",
+          "fileorganizer/frontend/src/"
+        ],
+        "read_only_context": [
+          "fileorganizer/backend/db/",
+          "fileorganizer/backend/models/"
+        ]
+      }
+    },
+    {
+      "id": "fileorg-p2-batch-observability",
+      "description": "Add batch job observability: status endpoints, per-file errors, cancel/retry, structured logging/metrics, and E2E coverage.",
+      "task_category": "backend",
+      "complexity": "medium",
+      "builder_mode": "structured_edit",
+      "ci": {
+        "log_on_success": true
+      },
+      "acceptance_criteria": [
+        "Batch status endpoints expose progress/errors; cancel/retry supported.",
+        "Structured logging/metrics for batches added.",
+        "E2E tests cover success/failure/cancel paths."
+      ],
+      "scope": {
+        "paths": [
+          "fileorganizer/backend/app/",
+          "fileorganizer/backend/tests/",
+          "fileorganizer/frontend/src/"
+        ],
+        "read_only_context": [
+          "fileorganizer/backend/db/",
+          "fileorganizer/backend/services/"
+        ]
+      }
+    },
+    {
+      "id": "fileorg-p2-file-safety",
+      "description": "Implement file safety: type/size enforcement, MIME sniffing, virus-scan stub, safe temp storage, and tests for blocked uploads.",
+      "task_category": "backend",
+      "complexity": "medium",
+      "builder_mode": "structured_edit",
+      "acceptance_criteria": [
+        "Uploads enforce file type/size; MIME sniffing guards added.",
+        "Virus-scan hook/stub integrated; unsafe files blocked with clear errors.",
+        "Tests cover blocked uploads and quarantine paths."
+      ],
+      "scope": {
+        "paths": [
+          "fileorganizer/backend/app/",
+          "fileorganizer/backend/tests/"
+        ],
+        "read_only_context": [
+          "fileorganizer/backend/uploads/",
+          "fileorganizer/backend/services/"
+        ]
+      }
+    },
+    {
+      "id": "fileorg-p2-storage-config",
+      "description": "Abstract storage (local/S3), add presigned URL support, and document configuration/migration steps.",
+      "task_category": "backend",
+      "complexity": "medium",
+      "builder_mode": "structured_edit",
+      "acceptance_criteria": [
+        "Storage layer supports local and S3 via config; presigned URLs available for uploads/downloads.",
+        "Migration/compatibility tests for local→S3 paths added.",
+        "Ops docs updated for storage configuration."
+      ],
+      "scope": {
+        "paths": [
+          "fileorganizer/backend/app/",
+          "fileorganizer/backend/tests/",
+          "fileorganizer/backend/config/"
+        ],
+        "read_only_context": [
+          "fileorganizer/backend/services/"
+        ]
+      }
+    },
+    {
+      "id": "fileorg-p2-export-sharing",
+      "description": "Enhance exports/sharing: filtered/batch exports, expiring share links, and audit trail for shares.",
+      "task_category": "backend",
+      "complexity": "medium",
+      "builder_mode": "structured_edit",
+      "acceptance_criteria": [
+        "Filtered and batch exports supported; share links have expiry and audit trail.",
+        "API/UI paths tested; audit records captured.",
+        "Docs updated for sharing/exports behavior."
+      ],
+      "scope": {
+        "paths": [
+          "fileorganizer/backend/app/",
+          "fileorganizer/backend/tests/",
+          "fileorganizer/frontend/src/"
+        ],
+        "read_only_context": [
+          "fileorganizer/backend/db/"
+        ]
+      }
+    },
+    {
+      "id": "fileorg-p2-ui-ux-polish",
+      "description": "Polish UI/UX: accessibility, keyboard nav, loading/error states, responsive layouts, and toasts/validation for search/batch/auth flows.",
+      "task_category": "frontend",
+      "complexity": "low",
+      "builder_mode": "structured_edit",
+      "acceptance_criteria": [
+        "Key flows (auth/search/batch) have loading/error states and toasts/inline validation.",
+        "Responsive layouts verified; basic a11y/keyboard navigation in place.",
+        "Frontend tests cover the updated UI states."
+      ],
+      "scope": {
+        "paths": [
+          "fileorganizer/frontend/src/"
+        ],
+        "read_only_context": [
+          "fileorganizer/frontend/package.json"
+        ]
+      }
+    },
+    {
+      "id": "fileorg-p2-logging-metrics",
+      "description": "Add structured logging and basic metrics (latency/counts/errors) for auth/search/batch; expose diagnostics in health endpoints.",
+      "task_category": "backend",
+      "complexity": "low",
+      "builder_mode": "structured_edit",
+      "acceptance_criteria": [
+        "Structured logs include request/phase IDs for auth/search/batch.",
+        "Basic metrics recorded and surfaced via health/diagnostic endpoints.",
+        "Tests confirm logging/metrics emit for key endpoints."
+      ],
+      "scope": {
+        "paths": [
+          "fileorganizer/backend/app/",
+          "fileorganizer/backend/tests/"
+        ],
+        "read_only_context": [
+          "fileorganizer/backend/services/"
+        ]
+      }
+    },
+    {
+      "id": "fileorg-p2-backup-migrations",
+      "description": "Validate migration ordering/rollback, add seed data for smoke envs, and document backup/restore procedure.",
+      "task_category": "backend",
+      "complexity": "medium",
+      "builder_mode": "structured_edit",
+      "acceptance_criteria": [
+        "Migrations apply/rollback cleanly in sequence; ordering documented.",
+        "Seed data (packs/users) available for smoke; tests cover migration safety.",
+        "Backup/restore steps documented and smoke-tested."
+      ],
+      "scope": {
+        "paths": [
+          "fileorganizer/backend/migrations/",
+          "fileorganizer/backend/models/",
+          "fileorganizer/backend/tests/"
+        ],
+        "read_only_context": [
+          "fileorganizer/backend/db/"
+        ]
+      }
+    },
+    {
+      "id": "fileorg-p2-e2e-smoke",
+      "description": "Add an automated E2E smoke suite covering auth, upload/search, batch status, export, and logout.",
+      "task_category": "tests",
+      "complexity": "medium",
+      "builder_mode": "structured_edit",
+      "ci": {
+        "log_on_success": true
+      },
+      "acceptance_criteria": [
+        "E2E tests (API/UI) cover auth, upload/search, batch status, export, logout.",
+        "Suite runs in CI with seeded data and passes.",
+        "Failures produce saved artifacts/logs for debugging."
+      ],
+      "scope": {
+        "paths": [
+          "tests/",
+          "scripts/"
+        ],
+        "read_only_context": [
+          "fileorganizer/backend/",
+          "fileorganizer/frontend/"
+        ]
+      }
+    },
+    {
+      "id": "fileorg-p2-security-basics",
+      "description": "Add security hardening: rate limiting on auth/upload/search, CORS/headers tightening, and secret/config audit.",
+      "task_category": "backend",
+      "complexity": "medium",
+      "builder_mode": "structured_edit",
+      "acceptance_criteria": [
+        "Rate limiting applied to auth/upload/search endpoints with tests.",
+        "CORS/security headers tightened; tests cover allowed/blocked origins.",
+        "Secret/config audit documented with remediation steps."
+      ],
+      "scope": {
+        "paths": [
+          "fileorganizer/backend/app/",
+          "fileorganizer/backend/tests/"
+        ],
+        "read_only_context": [
+          "fileorganizer/backend/config/"
+        ]
+      }
+    },
+    {
+      "id": "fileorg-p2-perf-tuning",
+      "description": "Profile and tune performance for search and batch endpoints; add load-test script and thresholds.",
+      "task_category": "backend",
+      "complexity": "medium",
+      "builder_mode": "structured_edit",
+      "acceptance_criteria": [
+        "Search and batch endpoints meet defined latency targets under load.",
+        "Indexes/caching added where needed; load-test script documents thresholds.",
+        "Performance regressions covered by tests or CI checks."
+      ],
+      "scope": {
+        "paths": [
+          "fileorganizer/backend/app/",
+          "fileorganizer/backend/tests/",
+          "scripts/"
+        ],
+        "read_only_context": [
+          "fileorganizer/backend/db/"
+        ]
+      }
+    },
+    {
+      "id": "fileorg-p2-planning-fortify",
+      "description": "Fortify planning: reusable multi-agent planning harness (research/analysis/question-collection) to propose standard hardening phases for new projects.",
+      "task_category": "docs",
+      "complexity": "medium",
+      "builder_mode": "structured_edit",
+      "acceptance_criteria": [
+        "Planning harness documented and scripted to surface reusable hardening phases (auth/search/batch/security/QA/deploy).",
+        "Trigger instructions provided for new project plans (from scratch or mid-run).",
+        "Outputs compiled for second-review with clear inclusion criteria."
+      ],
+      "scope": {
+        "paths": [
+          "docs/",
+          "scripts/"
+        ]
+      }
     }
   ]
 }

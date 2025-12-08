@@ -233,6 +233,75 @@
           "fileorganizer/backend/services/"
         ]
       }
+    },
+    {
+      "id": "fileorg-p2-qa-hardening",
+      "description": "Resolve auditor needs_review findings across completed phases, rerun full CI, and add targeted tests for new search/batch/auth features.",
+      "task_category": "tests",
+      "complexity": "medium",
+      "builder_mode": "structured_edit",
+      "ci": {
+        "log_on_success": true
+      },
+      "acceptance_criteria": [
+        "Auditor issues from prior phases addressed or justified in-line.",
+        "Full backend/frontend test suite passes (including new search/batch/auth tests).",
+        "At least one end-to-end smoke covering search and batch upload passes."
+      ],
+      "scope": {
+        "paths": [
+          "fileorganizer/backend/app/",
+          "fileorganizer/backend/tests/",
+          "fileorganizer/frontend/src/"
+        ],
+        "read_only_context": [
+          "fileorganizer/backend/db/",
+          "fileorganizer/backend/models/",
+          "fileorganizer/backend/services/"
+        ]
+      }
+    },
+    {
+      "id": "fileorg-p2-deploy-verify",
+      "description": "Finalize deployment assets and validate end-to-end run: docker-compose up, deploy.sh, and a smoke script to verify API/auth/search/batch are reachable.",
+      "task_category": "deployment",
+      "complexity": "medium",
+      "builder_mode": "structured_edit",
+      "acceptance_criteria": [
+        "docker-compose.yml and deploy.sh start backend+frontend+db successfully.",
+        "Smoke script hits auth/login, search endpoint, and batch upload endpoint with healthy responses.",
+        ".dockerignore excludes transient artifacts (venv/node_modules/dist)."
+      ],
+      "scope": {
+        "paths": [
+          "fileorganizer/docker-compose.yml",
+          "fileorganizer/deploy.sh",
+          "fileorganizer/backend/Dockerfile",
+          "fileorganizer/frontend/package.json",
+          "scripts/verify_e2e_8100.py"
+        ],
+        "read_only_context": [
+          "fileorganizer/backend/",
+          "fileorganizer/frontend/"
+        ]
+      }
+    },
+    {
+      "id": "fileorg-p2-docs-final",
+      "description": "Update README and docs to reflect completed auth/search/batch features, deployment steps, and smoke instructions.",
+      "task_category": "docs",
+      "complexity": "low",
+      "acceptance_criteria": [
+        "README documents auth flows, advanced search, batch upload, and deployment steps.",
+        "Any architecture diagrams include LlmService/control plane and new endpoints.",
+        "No broken links or missing anchors in docs/."
+      ],
+      "scope": {
+        "paths": [
+          "README.md",
+          "docs/"
+        ]
+      }
     }
   ]
 }

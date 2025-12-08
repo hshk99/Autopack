@@ -48,6 +48,10 @@ Single source of truth for all errors, fixes, prevention rules, and troubleshoot
   - Executor hardened: if a phase is large or marked structured_edit, force structured edits; on builder failures with truncation/JSON parse errors, auto-fallback to structured_edit within the executor before burning retries.
   - Workspace prep: created `fileorganizer/backend/models/` and `fileorganizer/backend/migrations/` in run workspace to satisfy auth scope.
   - CI logging: search and batch-upload phases now log CI output on success to capture diagnostics for needs_review follow-up.
+  - New phases added to plan for remaining work:
+    - `fileorg-p2-qa-hardening` (resolve auditor needs_review, add tests, rerun CI/E2E for search/batch/auth)
+    - `fileorg-p2-deploy-verify` (docker/deploy smoke + verify auth/search/batch endpoints)
+    - `fileorg-p2-docs-final` (README/docs updates for auth/search/batch/deploy, diagrams)
   - Run `fileorg-p2-20251208n` latest outcomes:
     - test-fixes, frontend-build, docker, country-uk/canada/australia: COMPLETE (needs_review).
     - search: initial full-file JSON truncation; after replan/escalation, diffs applied, CI passed (needs_review).

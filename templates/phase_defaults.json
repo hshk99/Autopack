@@ -1,0 +1,8 @@
+{
+  "builder_mode_default": "structured_edit",
+  "scope_size_structured_threshold": 30,
+  "ci": {
+    "log_on_success": true
+  }
+}
+

@@ -2265,6 +2265,9 @@ Just the new description that should replace the current one while preserving th
             # files >1000 lines in full-file mode
             # ============================================================================
             use_full_file_mode = True  # Default mode
+            # Override to structured edits if phase explicitly requests it
+            if phase.get("builder_mode") == "structured_edit":
+                use_full_file_mode = False
             
             if file_context:
                 config = self.builder_output_config
@@ -2305,13 +2308,14 @@ Just the new description that should replace the current one while preserving th
                     # Don't fail - these files can be read-only context
                     # Parser will enforce that LLM doesn't try to modify them
                 
-                # Per GPT_RESPONSE15: Diff mode is disabled, so all files ≤1000 use full-file mode
-                # No need to check for needs_diff_mode or switch modes
+                # For large scoped contexts, prefer structured edits to avoid truncation
+                if len(files) >= 30:
+                    use_full_file_mode = False
+
                 # Defensive check: If diff mode is somehow enabled, log loudly
-                if config.legacy_diff_fallback_enabled:
+                if config.legacy_diff_fallback_enabled and use_full_file_mode:
                     logger.error(
                         f"[{phase_id}] WARNING: legacy_diff_fallback_enabled is True but should be False! "
-                        f"Diff mode is fundamentally broken per GPT_RESPONSE15. "
                         f"All files ≤{config.max_lines_for_full_file} lines will use full-file mode."
                     )
 
@@ -2337,6 +2341,38 @@ Just the new description that should replace the current one while preserving th
                 use_full_file_mode=use_full_file_mode,  # NEW: Pass mode from pre-flight check
                 config=self.builder_output_config,  # NEW: Pass config for consistency
             )
+
+            # Auto-fallback: if full-file output failed due to truncation/parse, retry with structured edits
+            retry_parse_markers = [
+                "full_file_parse_failed",
+                "expected json with 'files' array",
+                "full-file json parse failed",
+                "output was truncated",
+                "stop_reason=max_tokens",
+            ]
+            error_text_lower = (builder_result.error or "").lower() if builder_result.error else ""
+            should_retry_structured = (
+                not builder_result.success
+                and use_full_file_mode
+                and any(m in error_text_lower for m in retry_parse_markers)
+            )
+            if should_retry_structured:
+                logger.warning(f"[{phase_id}] Falling back to structured_edit after full-file parse/truncation failure")
+                phase_structured = dict(phase)
+                phase_structured["builder_mode"] = "structured_edit"
+                builder_result = self.llm_service.execute_builder_phase(
+                    phase_spec=phase_structured,
+                    file_context=file_context,
+                    max_tokens=None,
+                    project_rules=project_rules,
+                    run_hints=run_hints,
+                    run_id=self.run_id,
+                    phase_id=phase_id,
+                    run_context={},
+                    attempt_index=attempt_index,
+                    use_full_file_mode=False,
+                    config=self.builder_output_config,
+                )
 
             # Output contract: reject empty/blank patch content before posting/applying.
             # Allow explicit structured-edit no-op (builder already warned) to pass through.

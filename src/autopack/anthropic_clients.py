@@ -1440,7 +1440,9 @@ class AnthropicBuilderClient:
         self,
         content: str,
         response,
-        model: str
+        model: str,
+        stop_reason=None,
+        was_truncated: bool = False,
     ) -> 'BuilderResult':
         """Parse legacy git diff output from LLM.
         

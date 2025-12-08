@@ -36,7 +36,7 @@ def log_error(
 def log_fix(
     error_signature: str,
     fix_description: str,
-    files_changed: List[str],
+    files_changed: Optional[List[str]] = None,
     test_run_id: Optional[str] = None,
     result: str = "success",
     project_slug: str = "file-organizer-app-v1",
@@ -48,7 +48,7 @@ def log_fix(
     _log_fix(
         error_signature=error_signature,
         fix_description=fix_description,
-        files_changed=files_changed,
+        files_changed=files_changed or [],
         test_run_id=test_run_id,
         result=result,
         project_slug=project_slug,

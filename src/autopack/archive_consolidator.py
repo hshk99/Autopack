@@ -680,9 +680,9 @@ def log_fix(
     consolidator.log_fix_applied(
         error_signature=error_signature,
         fix_description=fix_description,
-        files_changed=files_changed,
+        files_changed=files_changed or [],
         test_run_id=test_run_id,
-        result=result
+        result=result,
     )
 
 

@@ -3080,18 +3080,31 @@ Just the new description that should replace the current one while preserving th
         loaded_files = set(file_context.get("existing_files", {}).keys())
 
         workspace_root = self._determine_workspace_root(scope_config)
-        normalized_scope = []
+        normalized_scope: List[str] = []
+        scope_dir_prefixes: List[str] = []
         for path_str in scope_paths:
             resolved = self._resolve_scope_target(path_str, workspace_root, must_exist=False)
             if resolved:
-                _, rel_key = resolved
+                abs_path, rel_key = resolved
                 normalized_scope.append(rel_key)
+                # If scope entry is a directory, treat all children as in-scope
+                if abs_path.exists() and abs_path.is_dir():
+                    prefix = rel_key if rel_key.endswith("/") else f"{rel_key}/"
+                    scope_dir_prefixes.append(prefix)
             else:
-                normalized_scope.append(path_str.replace("\\", "/"))
+                norm = path_str.replace("\\", "/")
+                normalized_scope.append(norm)
+                if norm.endswith("/"):
+                    scope_dir_prefixes.append(norm)
 
         # Check for files outside scope (indicating scope loading bug)
         scope_set = set(normalized_scope)
-        outside_scope = loaded_files - scope_set
+        def _is_in_scope(file_path: str) -> bool:
+            if file_path in scope_set:
+                return True
+            return any(file_path.startswith(prefix) for prefix in scope_dir_prefixes)
+
+        outside_scope = {f for f in loaded_files if not _is_in_scope(f)}
 
         if outside_scope:
             readonly_context = scope_config.get("read_only_context", [])

@@ -71,3 +71,9 @@ Thumbs.db
 
 # Debug captures
 builder_fullfile_failure_latest.json
+
+# Local databases / logs
+autopack.db
+logs/archived_runs/*.log
+logs/archived_runs/*.err
+logs/autopack/*.jsonl

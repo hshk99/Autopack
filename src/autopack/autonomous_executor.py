@@ -98,6 +98,7 @@ ALLOWED_FIX_COMMANDS = {
         r"^git\s+rebase\s+--abort$",     # git rebase --abort
         r"^git\s+status\s+--porcelain$", # git status --porcelain (safe status)
         r"^git\s+diff\s+--name-only$",   # git diff --name-only (safe diff)
+        r"^git\s+diff\s+--cached$",      # git diff --cached (Doctor log/validate)
     ],
     "file": [
         r"^rm\s+-f\s+",                  # rm -f <file> (single file)
@@ -2965,6 +2966,26 @@ Just the new description that should replace the current one while preserving th
                 continue
             if abs_path.is_file():
                 _add_file(abs_path, rel_key)
+            elif abs_path.is_dir():
+                # Load a bounded set of files from the directory to avoid empty context
+                allowed_exts_mod = {
+                    ".py", ".pyi", ".txt", ".md", ".json", ".yaml", ".yml",
+                    ".ini", ".cfg", ".conf", ".env", ".csv",
+                    ".ts", ".tsx", ".js", ".jsx", ".vue", ".css", ".scss"
+                }
+                dir_limit = 200
+                loaded_dir = 0
+                for file_path in abs_path.rglob("*"):
+                    if loaded_dir >= dir_limit:
+                        logger.warning("[Scope] Modifiable dir limit reached (200 files).")
+                        break
+                    if not file_path.is_file():
+                        continue
+                    if file_path.suffix.lower() not in allowed_exts_mod:
+                        continue
+                    rel_sub = _normalize_rel_path(str(file_path.relative_to(base_workspace)).replace("\\", "/"))
+                    _add_file(file_path, rel_sub)
+                    loaded_dir += 1
             else:
                 logger.warning(f"[Scope] Path is not a file: {abs_path}")
 
@@ -3347,7 +3368,11 @@ Just the new description that should replace the current one while preserving th
         if not pytest_paths:
             project_slug = self._get_project_slug()
             if project_slug == "file-organizer-app-v1":
-                candidate_paths = ["src/backend/tests/", "tests/backend/"]
+                candidate_paths = [
+                    "fileorganizer/backend/tests/",
+                    "src/backend/tests/",
+                    "tests/backend/",
+                ]
             else:
                 candidate_paths = ["tests/"]
 

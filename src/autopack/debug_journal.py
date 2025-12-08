@@ -39,7 +39,9 @@ def log_fix(
     files_changed: List[str],
     test_run_id: Optional[str] = None,
     result: str = "success",
-    project_slug: str = "file-organizer-app-v1"
+    project_slug: str = "file-organizer-app-v1",
+    run_id: Optional[str] = None,
+    phase_id: Optional[str] = None,
 ):
     """Log a fix to CONSOLIDATED_DEBUG.md (via archive_consolidator)"""
     _log_fix(
@@ -48,7 +50,9 @@ def log_fix(
         files_changed=files_changed,
         test_run_id=test_run_id,
         result=result,
-        project_slug=project_slug
+        project_slug=project_slug,
+        run_id=run_id,
+        phase_id=phase_id,
     )
 
 def mark_resolved(

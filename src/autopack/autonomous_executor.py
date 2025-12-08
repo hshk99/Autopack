@@ -2337,16 +2337,20 @@ Just the new description that should replace the current one while preserving th
                 config=self.builder_output_config,  # NEW: Pass config for consistency
             )
 
-            # Output contract: reject empty/blank patch content before posting/applying
+            # Output contract: reject empty/blank patch content before posting/applying.
+            # Allow explicit structured-edit no-op (builder already warned) to pass through.
             if builder_result.success and (not builder_result.patch_content or not builder_result.patch_content.strip()):
-                builder_result = BuilderResult(
-                    success=False,
-                    patch_content="",
-                    builder_messages=["empty_patch: builder produced no changes"],
-                    tokens_used=builder_result.tokens_used,
-                    model_used=getattr(builder_result, "model_used", None),
-                    error="empty_patch: builder produced no changes",
-                )
+                messages = builder_result.builder_messages or []
+                no_op_structured = any("Structured edit produced no operations" in m for m in messages)
+                if not no_op_structured:
+                    builder_result = BuilderResult(
+                        success=False,
+                        patch_content="",
+                        builder_messages=["empty_patch: builder produced no changes"],
+                        tokens_used=builder_result.tokens_used,
+                        model_used=getattr(builder_result, "model_used", None),
+                        error="empty_patch: builder produced no changes",
+                    )
 
             # Retryable infra errors: backoff and retry without burning through non-infra budgets
             infra_markers = ["connection error", "timeout", "timed out", "api failure", "server error", "http 500"]

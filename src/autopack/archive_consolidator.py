@@ -670,7 +670,9 @@ def log_fix(
     files_changed: List[str],
     test_run_id: Optional[str] = None,
     result: str = "success",
-    project_slug: str = "file-organizer-app-v1"
+    project_slug: str = "file-organizer-app-v1",
+    run_id: Optional[str] = None,
+    phase_id: Optional[str] = None,
 ):
     """Log a fix that was applied"""
     consolidator = get_consolidator(project_slug)

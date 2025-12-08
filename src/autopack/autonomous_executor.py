@@ -3102,7 +3102,10 @@ Just the new description that should replace the current one while preserving th
         def _is_in_scope(file_path: str) -> bool:
             if file_path in scope_set:
                 return True
-            return any(file_path.startswith(prefix) for prefix in scope_dir_prefixes)
+            # Allow directory scope entries as prefixes
+            if any(file_path.startswith(prefix) for prefix in scope_dir_prefixes):
+                return True
+            return False
 
         outside_scope = {f for f in loaded_files if not _is_in_scope(f)}
 

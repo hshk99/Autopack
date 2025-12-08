@@ -44,6 +44,12 @@ Single source of truth for all errors, fixes, prevention rules, and troubleshoot
   - Packs directory in run workspace now seeded: copied `fileorganizer/backend/packs/*.yaml` into `.autonomous_runs/file-organizer-app-v1/packs/` to satisfy pack-count tests.
   - Plan update: `fileorg-p2-frontend-build` builder_mode set to `structured_edit` to avoid git-diff format errors on frontend phases.
   - Plan update: `fileorg-p2-search` builder_mode set to `structured_edit` to avoid full-file JSON truncation/parse failures (run `fileorg-p2-20251208n` showed `full_file_parse_failed` after max_tokens on full-file output).
+  - Plan update: `fileorg-p2-batch-upload` builder_mode set to `structured_edit` to avoid full-file JSON truncation/parse failures (run `fileorg-p2-20251208n` showed repeated `full_file_parse_failed` on full-file JSON).
+  - Run `fileorg-p2-20251208n` latest outcomes:
+    - test-fixes, frontend-build, docker, country-uk/canada/australia: COMPLETE (needs_review).
+    - search: initial full-file JSON truncation; after replan/escalation, diffs applied, CI passed (needs_review).
+    - batch-upload: two builder attempts hit full-file JSON truncation/parse failure; after replan/escalation, diffs applied, CI passed (needs_review).
+    - auth: scope warnings for missing `fileorganizer/backend/models/` and `fileorganizer/backend/migrations/` (now created in workspace); builder had just started when run was stopped.
   - API server restarted on 127.0.0.1:8100 (SQLite `autopack.db`, `AUTOPACK_API_KEY=test-key`) after run `fileorg-p2-20251208j` capture.
 
 ## New Open Issues (2025-12-08)

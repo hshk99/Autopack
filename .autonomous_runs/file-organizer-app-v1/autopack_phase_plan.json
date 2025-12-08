@@ -183,6 +183,7 @@
       "task_category": "backend",
       "complexity": "medium",
       "change_size": "large_refactor",
+      "builder_mode": "structured_edit",
       "acceptance_criteria": [
         "Backend batch upload endpoint with job queue and progress tracking.",
         "Batch classification endpoint returns per-file status.",

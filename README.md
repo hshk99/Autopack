@@ -13,6 +13,7 @@ Autopack is a framework for orchestrating autonomous AI agents (Builder and Audi
 - Phases can opt into structured_edit via `builder_mode` in the phase spec; large scopes (many files) default to structured_edit to avoid token-cap truncation.
 - CI logs can be captured on success per phase (`ci.log_on_success: true`) to aid “needs_review” follow-up.
 - Workspace prep: ensure scoped directories exist in the run workspace (e.g., `models/`, `migrations/`) to avoid missing-path scope warnings.
+- Reusable hardening templates: see `templates/hardening_phases.json` and `templates/phase_defaults.json` plus `scripts/plan_hardening.py` to assemble project plans; kickoff multi-agent planning with `planning/kickoff_prompt.md`.
 
 ### Patch Apply Hardening (2025-12-06)
 - `GovernedApplyPath` now refuses the direct-write fallback whenever a patch touches existing files; fallback is limited to clean new-file-only patches and must write all expected files.

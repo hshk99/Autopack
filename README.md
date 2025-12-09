@@ -21,9 +21,11 @@ Vector memory for context retrieval and goal-drift detection:
 - **Database Architecture**:
   - **Transactional DB**: **PostgreSQL** (default) - Stores phases, runs, decision logs, plan changes, etc.
   - **Vector DB**: **Qdrant** (default) - Production vector search with HNSW indexing, UUID-based point IDs
-  - **Fallbacks**: SQLite for transactional (dev/offline via explicit override); FAISS for vectors (dev/offline)
+  - **Fallbacks**: SQLite for transactional (dev/offline via explicit `DATABASE_URL` override); FAISS for vectors (dev/offline)
+  - Run PostgreSQL locally: `docker-compose up -d db` (listens on port 5432)
   - Run Qdrant locally: `docker run -p 6333:6333 qdrant/qdrant`
-  - **Status**: ✅ Integration verified with decision logs, phase summaries, and smoke tests passing
+  - Migration: Use `scripts/migrate_sqlite_to_postgres.py` to transfer data from SQLite to PostgreSQL
+  - **Status**: ✅ PostgreSQL and Qdrant integration verified with decision logs, phase summaries, and smoke tests passing
 
 - **Vector Memory** (`src/autopack/memory/`):
   - `embeddings.py` - OpenAI + local fallback embeddings

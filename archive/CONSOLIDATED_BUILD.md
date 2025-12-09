@@ -38,12 +38,18 @@ Vector memory for context retrieval and goal-drift detection:
 - `task_outcomes`: Task execution results
 - `error_patterns`: Error patterns for learning
 
-### Qdrant Integration (2025-12-09)
-- **UUID Conversion**: Deterministic MD5-based UUID conversion for Qdrant point IDs (required by Qdrant)
-- **Original ID Preservation**: String IDs stored in `payload["_original_id"]` for backward compatibility
-- **Verified Operations**: Decision log storage, phase summary storage, document retrieval, collection management
-- **Status**: 3+ documents stored, smoke tests passing, ready for production use
-- **Setup**: `docker run -p 6333:6333 qdrant/qdrant`
+### Database Architecture (2025-12-09)
+- **Transactional DB**: **PostgreSQL (default)** via `docker-compose up -d db` (port 5432)
+  - Stores: phases, runs, tiers, decision_log, plan_changes, planning_artifacts, llm_usage_events
+  - Default connection: `postgresql://autopack:autopack@localhost:5432/autopack`
+  - Migration tool: `scripts/migrate_sqlite_to_postgres.py` (transfers data from SQLite)
+  - Verified: 20 DecisionLog entries migrated and operational
+- **Vector DB**: **Qdrant (default)** via `docker run -p 6333:6333 qdrant/qdrant`
+  - Collections: code_docs, decision_logs, run_summaries, task_outcomes, error_patterns
+  - UUID Conversion: Deterministic MD5-based for Qdrant point IDs
+  - Original ID Preservation: String IDs in `payload["_original_id"]`
+  - Verified: run_summaries operational, decision_logs pending collection creation
+- **Fallbacks**: SQLite (transactional via `DATABASE_URL="sqlite:///autopack.db"`), FAISS (vectors)
 
 ### Executor Integration
 - Memory retrieval before builder call (top-k snippets injected into prompts)

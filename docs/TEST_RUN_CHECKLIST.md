@@ -223,10 +223,20 @@ git log --oneline | grep tidy
    docker run -p 6333:6333 qdrant/qdrant
    ```
 
-2. **Verify database** (use SQLite for testing):
+2. **Verify PostgreSQL database is running**:
    ```bash
-   export DATABASE_URL="sqlite:///autopack.db"
+   docker ps | grep postgres
+   # If not running:
+   docker-compose up -d db
+
+   # Wait 5 seconds for initialization, then verify connection:
+   PYTHONPATH=src python -c "from autopack.database import SessionLocal; s = SessionLocal(); print(f'Connected to: {s.bind.url}'); s.close()"
+
+   # Default DATABASE_URL (should already be set in environment):
+   # postgresql://autopack:autopack@localhost:5432/autopack
    ```
+
+   **Note**: PostgreSQL is the primary database. SQLite (`DATABASE_URL="sqlite:///autopack.db"`) can be used as override for quick testing but is not recommended for production.
 
 3. **Check config/memory.yaml**:
    ```yaml
@@ -253,8 +263,8 @@ git log --oneline | grep tidy
 #### Option A: Full Maintenance Run (Task 7)
 
 ```bash
-# Run backlog maintenance on Task 7 with all features
-PYTHONPATH=src DATABASE_URL="sqlite:///autopack.db" python scripts/run_backlog_maintenance.py \
+# Run backlog maintenance on Task 7 with all features (uses PostgreSQL by default)
+PYTHONPATH=src python scripts/run_backlog_maintenance.py \
   --backlog .autonomous_runs/file-organizer-app-v1/WHATS_LEFT_TO_BUILD.md \
   --allowed-path .autonomous_runs/file-organizer-app-v1/ \
   --allowed-path docs/ \
@@ -274,8 +284,8 @@ PYTHONPATH=src DATABASE_URL="sqlite:///autopack.db" python scripts/run_backlog_m
 #### Option B: Markdown Plan Auto-Run (All Tasks)
 
 ```bash
-# Convert and execute all Phase 2 tasks from markdown
-PYTHONPATH=src DATABASE_URL="sqlite:///autopack.db" python scripts/autorun_markdown_plan.py \
+# Convert and execute all Phase 2 tasks from markdown (uses PostgreSQL by default)
+PYTHONPATH=src python scripts/autorun_markdown_plan.py \
   --markdown .autonomous_runs/file-organizer-app-v1/WHATS_LEFT_TO_BUILD.md \
   --project-id file-organizer-app-v1 \
   --allowed-path .autonomous_runs/file-organizer-app-v1/ \
@@ -300,8 +310,8 @@ python scripts/plan_from_markdown.py \
 # 2. Review plan
 cat .autonomous_runs/file-organizer-app-v1/plan_phase2.json | jq '.phases[] | {phase_id, complexity, category}'
 
-# 3. Run single phase (Task 1: test-fixes)
-PYTHONPATH=src DATABASE_URL="sqlite:///autopack.db" python src/autopack/autonomous_executor.py \
+# 3. Run single phase (Task 1: test-fixes) - uses PostgreSQL by default
+PYTHONPATH=src python src/autopack/autonomous_executor.py \
   --run-id fileorg-p2-test-run \
   --api-url http://localhost:8000 \
   --plan .autonomous_runs/file-organizer-app-v1/plan_phase2.json
@@ -325,12 +335,13 @@ cat .autonomous_runs/fileorg-p2-test-run/executor.log
    "
    ```
 
-2. **Decision Logs**:
+2. **Decision Logs** (PostgreSQL):
    ```bash
-   PYTHONPATH=src DATABASE_URL="sqlite:///autopack.db" python -c "
+   PYTHONPATH=src python -c "
    from autopack.database import SessionLocal
    from autopack.models import DecisionLog
    session = SessionLocal()
+   print(f'Connected to: {session.bind.url}')
    decisions = session.query(DecisionLog).filter_by(project_id='file-organizer-app-v1').all()
    print(f'Decision log entries: {len(decisions)}')
    for d in decisions[:5]:

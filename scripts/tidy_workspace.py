@@ -157,20 +157,23 @@ def compute_sha256(path: Path) -> str:
 
 
 _embedding_model = None
+_embedding_model_name = None
 
 
 def embed_text(text: str) -> list[float]:
     """
     Embedding with optional sentence-transformers; falls back to deterministic hash.
-    Set EMBEDDING_MODEL (e.g., sentence-transformers/all-MiniLM-L6-v2) to use HF model.
+    Set EMBEDDING_MODEL (e.g., BAAI/bge-m3 or sentence-transformers/all-MiniLM-L6-v2) to use HF model.
     """
     global _embedding_model
-    model_name = os.getenv("EMBEDDING_MODEL")
+    global _embedding_model_name
+    model_name = os.getenv("EMBEDDING_MODEL") or "BAAI/bge-m3"
     if model_name:
         try:
             from sentence_transformers import SentenceTransformer  # type: ignore
-            if _embedding_model is None:
+            if _embedding_model is None or _embedding_model_name != model_name:
                 _embedding_model = SentenceTransformer(model_name)
+                _embedding_model_name = model_name
             emb = _embedding_model.encode([text[:2000]], normalize_embeddings=True)
             return emb[0].tolist()
         except Exception:
@@ -183,6 +186,31 @@ def embed_text(text: str) -> list[float]:
         val = int.from_bytes(chunk, byteorder="big", signed=False)
         vec.append((val % 1000000) / 1000000.0)
     return vec
+
+
+def _insert_into_markdown(target_path: Path, block: str, heading_hint: str | None) -> None:
+    """
+    Section-aware insert: place block under a matching heading if present; else append.
+    """
+    heading = None
+    if target_path.exists():
+        lines = target_path.read_text(encoding="utf-8").splitlines()
+    else:
+        lines = []
+    if heading_hint:
+        lowered = heading_hint.lower()
+        for i, line in enumerate(lines):
+            if line.strip().startswith("#") and lowered in line.lower():
+                heading = i
+                break
+    if heading is None:
+        # append with a heading
+        lines.append(f"\n## Merged: {heading_hint or target_path.stem}")
+        lines.append(block)
+    else:
+        insert_at = heading + 1
+        lines.insert(insert_at, block)
+    target_path.write_text("\n".join(lines), encoding="utf-8")
 
 
 def apply_truth_merges(suggestions: list[dict], repo_root: Path, run_id: str, logger: TidyLogger):
@@ -198,11 +226,11 @@ def apply_truth_merges(suggestions: list[dict], repo_root: Path, run_id: str, lo
             continue
         target_path = (repo_root / target).resolve() if not Path(target).is_absolute() else Path(target)
         target_path.parent.mkdir(parents=True, exist_ok=True)
-        marker = f"\n\n<!-- merged-from:{path} run:{run_id} reason:{reason} -->\n"
+        heading_hint = path.stem
+        marker = f"<!-- merged-from:{path} run:{run_id} reason:{reason} -->\n"
         block = marker + content + "\n<!-- end-merged-from -->\n"
         try:
-            with target_path.open("a", encoding="utf-8") as f:
-                f.write(block)
+            _insert_into_markdown(target_path, block, heading_hint)
             logger.log(run_id, "merge", str(path), str(target_path), f"truth merge: {reason}")
         except Exception:
             logger.log(run_id, "merge_failed", str(path), str(target_path), f"truth merge failed: {reason}")

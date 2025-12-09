@@ -138,6 +138,7 @@ This file contains tasks in Autopack format for autonomous execution.
 - [ ] Propose-first output (patch + test results); apply guarded behind approval/checkpoint
 - [ ] Checkpoint/rollback in place (branch+commit per item or revert on failure)
 - [ ] DecisionLog entries and dashboard diagnostics card reflect latest maintenance run
+- [ ] Use compact JSON summaries for diagnostics/auditor/test outcomes to keep token usage efficient (store full logs/patches as artifacts and reference paths, not inline)
 
 **Dependencies**: None (opt-in)
 **Estimated Tokens**: 8,000

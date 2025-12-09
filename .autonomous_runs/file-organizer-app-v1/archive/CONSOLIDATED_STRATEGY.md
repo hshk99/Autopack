@@ -17,6 +17,7 @@
 - Validation & Goal: Harden YAML/compose pre-apply validation; add optional goal-drift check before apply using a short goal anchor per run.
 - Intent router: Add natural-language entrypoint (`scripts/intent_router.py`) that maps intents (ingest planning artifacts, maintenance, show plan changes/decision log, planning context queries) to safe actions without manual commands.
 - Backlog Maintenance (proposal): Add an opt-in maintenance run mode that ingests a curated backlog (e.g., `consolidated_debug.md`), converts entries into scoped phases with `allowed_paths`, capped probes/tests, and propose-first patches. Apply only via governed_apply with checkpoints (branch/commit per item, auto-revert on failed apply/tests); diagnostics artifacts stored under `.autonomous_runs/<run_id>/diagnostics`; DecisionLog + dashboard “Latest Diagnostics” card surface the latest run.
+- Tooling (2025-12-09): `scripts/backlog_maintenance.py` generates a plan from a backlog markdown; `scripts/run_backlog_plan.py` runs diagnostics-only over that plan (propose-first, no apply) and stores summaries in `.autonomous_runs/<run_id>/diagnostics`.
 
 ---
 

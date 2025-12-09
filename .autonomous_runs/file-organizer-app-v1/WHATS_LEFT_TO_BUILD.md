@@ -126,6 +126,25 @@ This file contains tasks in Autopack format for autonomous execution.
 
 ---
 
+### Task 7: Backlog Maintenance (Proposal)
+**Phase ID**: `fileorg-backlog-maintenance`
+**Category**: maintenance
+**Complexity**: medium
+**Description**: Run an opt-in maintenance mode that parses a curated backlog (e.g., `consolidated_debug.md`), converts items into scoped phases with `allowed_paths`, runs diagnostics/probes, and produces propose-first patches plus targeted tests. Applies only under governed_apply with checkpoints and budget caps.
+
+**Acceptance Criteria**:
+- [ ] Backlog parser produces per-item phases with `allowed_paths` and budgets
+- [ ] Diagnostics artifacts stored under `.autonomous_runs/<run_id>/diagnostics` per item
+- [ ] Propose-first output (patch + test results); apply guarded behind approval/checkpoint
+- [ ] Checkpoint/rollback in place (branch+commit per item or revert on failure)
+- [ ] DecisionLog entries and dashboard diagnostics card reflect latest maintenance run
+
+**Dependencies**: None (opt-in)
+**Estimated Tokens**: 8,000
+**Confidence**: 70%
+
+---
+
 ### Task 7: Advanced Search & Filtering
 **Phase ID**: `fileorg-p2-search`
 **Category**: backend

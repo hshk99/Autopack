@@ -67,6 +67,14 @@ Natural-language entrypoint that maps user intents to safe Autopack actions (no 
 - Config: `config/diagnostics.yaml` controls budgets, allowed hosts, baseline logs, and sandbox copy paths for risky probes (sandboxed commands run inside `.autonomous_runs/<run_id>/diagnostics/sandbox`).
 - Dashboard: `/api/diagnostics/latest` and the dashboard “Latest Diagnostics” card show the most recent diagnostic summary (failure, ledger, probes) read-only.
 
+### Backlog Maintenance (proposal)
+- Mode: opt-in “maintenance/backlog” run that ingests a curated backlog file (e.g., `consolidated_debug.md`) and turns items into scoped phases with `allowed_paths`, budgets, and targeted probes/tests.
+- Safety: propose-first by default (generate patch + diagnostics + tests); apply only after validation/approval. Use governed_apply, diagnostics runner, and allowlisted commands only.
+- Checkpoints: branch per maintenance run; checkpoint commit (or stash) before apply; auto-revert on failed apply/tests; prefer PR generation for higher risk.
+- Budgets: one item at a time; caps on probes/commands/time per item; execute_fix remains opt-in/disabled by default.
+- Observability: artifacts under `.autonomous_runs/<run_id>/diagnostics`; DecisionLog + dashboard diagnostics card surface the latest run; patches and test output kept with each item.
+- Tooling: `scripts/backlog_maintenance.py --backlog consolidated_debug.md --allowed-path src/` emits a maintenance plan JSON (propose-first). Plan entries use diagnostics + governed_apply when fed into a maintenance run.
+
 ## Owner Intent (Troubleshooting Autonomy)
 - Autopack should approach Cursor “tier 4” troubleshooting depth: when failures happen, it should autonomously run governed probes/commands (from a vetted allowlist), gather evidence (logs, test output, patch traces), iterate hypotheses, and log decisions—without requiring the user to type raw commands.
 - Natural-language control is preferred: the intent router (and future dashboard hooks) should trigger safe actions like planning ingest, memory maintenance, diagnostics, and context queries.

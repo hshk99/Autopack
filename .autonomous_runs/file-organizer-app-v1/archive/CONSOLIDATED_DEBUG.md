@@ -59879,6 +59879,3805 @@ Classified as recoverable file_io error
 ---
 
 
+### Builder output invalid format: fileorg-p2-test-fixes
+**Status**: OPEN  
+**Priority**: HIGH  
+**First Observed**: 2025-12-09  
+**Run ID**: fileorg-p2-20251208q  
+**Phase ID**: fileorg-p2-test-fixes  
+
+**Symptom**:  
+- Attempt 1: Builder returned structured_edit-style JSON (full file content) instead of git diff; executor error `LLM output invalid format - no git diff markers found`. Truncation warning (`stop_reason=max_tokens`).  
+- Attempt 2: Same invalid format and truncation; Doctor suggested retry_with_fix.  
+
+**Suspected Root Cause**:  
+- Phase is in diff mode (builder_mode unset) but model emits structured_edit/full-file JSON under token pressure, triggering format validation failure.  
+- Token soft-cap not hit, but truncation indicates output budget too low for full diff of requirements/pytest/test files.  
+
+**Why previous attempts didn’t stick**:  
+- No structured_edit override for this phase; executor insists on git diff, so structured_edit JSON always rejected.  
+
+**Fix Plan**:  
+1) Force builder_mode=structured_edit for `fileorg-p2-test-fixes` (plan override) to accept structured_edit JSON.  
+2) Optionally trim context (reduce loaded files) to lower token usage.  
+3) Rerun with a fresh run-id (next after fileorg-p2-20251208q) and stop at first failure if output still malformed; capture raw builder JSON.  
+
+**Next Steps**:  
+- Apply structured_edit override for this phase, rerun, halt on first failure.  
+
+---
+
+
+### file_io: HTTPError
+**Status**: OPEN
+**Priority**: MEDIUM
+**First Observed**: 2025-12-09
+**Run ID**: N/A
+**Phase ID**: N/A
+
+**Symptom**:
+```
+404 Client Error: Not Found for url: http://127.0.0.1:8100/runs/fileorg-p2-20251208o
+```
+
+**Suspected Root Cause**:
+Classified as recoverable file_io error
+
+**Actions Taken**:
+- None yet - just discovered
+
+**Next Steps**:
+1. Investigate root cause
+2. Implement fix
+3. Test on a FRESH run (not reusing old run)
+
+---
+
+
+### file_io: HTTPError
+**Status**: OPEN
+**Priority**: MEDIUM
+**First Observed**: 2025-12-09
+**Run ID**: N/A
+**Phase ID**: N/A
+
+**Symptom**:
+```
+404 Client Error: Not Found for url: http://127.0.0.1:8100/runs/fileorg-p2-20251208o
+```
+
+**Suspected Root Cause**:
+Classified as recoverable file_io error
+
+**Actions Taken**:
+- None yet - just discovered
+
+**Next Steps**:
+1. Investigate root cause
+2. Implement fix
+3. Test on a FRESH run (not reusing old run)
+
+---
+
+
+### file_io: HTTPError
+**Status**: OPEN
+**Priority**: MEDIUM
+**First Observed**: 2025-12-09
+**Run ID**: N/A
+**Phase ID**: N/A
+
+**Symptom**:
+```
+404 Client Error: Not Found for url: http://127.0.0.1:8100/runs/fileorg-p2-20251208o
+```
+
+**Suspected Root Cause**:
+Classified as recoverable file_io error
+
+**Actions Taken**:
+- None yet - just discovered
+
+**Next Steps**:
+1. Investigate root cause
+2. Implement fix
+3. Test on a FRESH run (not reusing old run)
+
+---
+
+
+### file_io: HTTPError
+**Status**: OPEN
+**Priority**: MEDIUM
+**First Observed**: 2025-12-09
+**Run ID**: N/A
+**Phase ID**: N/A
+
+**Symptom**:
+```
+404 Client Error: Not Found for url: http://127.0.0.1:8100/runs/fileorg-p2-20251208o
+```
+
+**Suspected Root Cause**:
+Classified as recoverable file_io error
+
+**Actions Taken**:
+- None yet - just discovered
+
+**Next Steps**:
+1. Investigate root cause
+2. Implement fix
+3. Test on a FRESH run (not reusing old run)
+
+---
+
+
+### file_io: HTTPError
+**Status**: OPEN
+**Priority**: MEDIUM
+**First Observed**: 2025-12-09
+**Run ID**: N/A
+**Phase ID**: N/A
+
+**Symptom**:
+```
+404 Client Error: Not Found for url: http://127.0.0.1:8100/runs/fileorg-p2-20251208o
+```
+
+**Suspected Root Cause**:
+Classified as recoverable file_io error
+
+**Actions Taken**:
+- None yet - just discovered
+
+**Next Steps**:
+1. Investigate root cause
+2. Implement fix
+3. Test on a FRESH run (not reusing old run)
+
+---
+
+
+### file_io: HTTPError
+**Status**: OPEN
+**Priority**: MEDIUM
+**First Observed**: 2025-12-09
+**Run ID**: N/A
+**Phase ID**: N/A
+
+**Symptom**:
+```
+404 Client Error: Not Found for url: http://127.0.0.1:8100/runs/fileorg-p2-20251208o
+```
+
+**Suspected Root Cause**:
+Classified as recoverable file_io error
+
+**Actions Taken**:
+- None yet - just discovered
+
+**Next Steps**:
+1. Investigate root cause
+2. Implement fix
+3. Test on a FRESH run (not reusing old run)
+
+---
+
+
+### file_io: HTTPError
+**Status**: OPEN
+**Priority**: MEDIUM
+**First Observed**: 2025-12-09
+**Run ID**: N/A
+**Phase ID**: N/A
+
+**Symptom**:
+```
+404 Client Error: Not Found for url: http://127.0.0.1:8100/runs/fileorg-p2-20251208o
+```
+
+**Suspected Root Cause**:
+Classified as recoverable file_io error
+
+**Actions Taken**:
+- None yet - just discovered
+
+**Next Steps**:
+1. Investigate root cause
+2. Implement fix
+3. Test on a FRESH run (not reusing old run)
+
+---
+
+
+### file_io: HTTPError
+**Status**: OPEN
+**Priority**: MEDIUM
+**First Observed**: 2025-12-09
+**Run ID**: N/A
+**Phase ID**: N/A
+
+**Symptom**:
+```
+404 Client Error: Not Found for url: http://127.0.0.1:8100/runs/fileorg-p2-20251208o
+```
+
+**Suspected Root Cause**:
+Classified as recoverable file_io error
+
+**Actions Taken**:
+- None yet - just discovered
+
+**Next Steps**:
+1. Investigate root cause
+2. Implement fix
+3. Test on a FRESH run (not reusing old run)
+
+---
+
+
+### file_io: HTTPError
+**Status**: OPEN
+**Priority**: MEDIUM
+**First Observed**: 2025-12-09
+**Run ID**: N/A
+**Phase ID**: N/A
+
+**Symptom**:
+```
+404 Client Error: Not Found for url: http://127.0.0.1:8100/runs/fileorg-p2-20251208o
+```
+
+**Suspected Root Cause**:
+Classified as recoverable file_io error
+
+**Actions Taken**:
+- None yet - just discovered
+
+**Next Steps**:
+1. Investigate root cause
+2. Implement fix
+3. Test on a FRESH run (not reusing old run)
+
+---
+
+
+### file_io: HTTPError
+**Status**: OPEN
+**Priority**: MEDIUM
+**First Observed**: 2025-12-09
+**Run ID**: N/A
+**Phase ID**: N/A
+
+**Symptom**:
+```
+404 Client Error: Not Found for url: http://127.0.0.1:8100/runs/fileorg-p2-20251208o
+```
+
+**Suspected Root Cause**:
+Classified as recoverable file_io error
+
+**Actions Taken**:
+- None yet - just discovered
+
+**Next Steps**:
+1. Investigate root cause
+2. Implement fix
+3. Test on a FRESH run (not reusing old run)
+
+---
+
+
+### file_io: HTTPError
+**Status**: OPEN
+**Priority**: MEDIUM
+**First Observed**: 2025-12-09
+**Run ID**: N/A
+**Phase ID**: N/A
+
+**Symptom**:
+```
+404 Client Error: Not Found for url: http://127.0.0.1:8100/runs/fileorg-p2-20251208o
+```
+
+**Suspected Root Cause**:
+Classified as recoverable file_io error
+
+**Actions Taken**:
+- None yet - just discovered
+
+**Next Steps**:
+1. Investigate root cause
+2. Implement fix
+3. Test on a FRESH run (not reusing old run)
+
+---
+
+
+### file_io: HTTPError
+**Status**: OPEN
+**Priority**: MEDIUM
+**First Observed**: 2025-12-09
+**Run ID**: N/A
+**Phase ID**: N/A
+
+**Symptom**:
+```
+404 Client Error: Not Found for url: http://127.0.0.1:8100/runs/fileorg-p2-20251208o
+```
+
+**Suspected Root Cause**:
+Classified as recoverable file_io error
+
+**Actions Taken**:
+- None yet - just discovered
+
+**Next Steps**:
+1. Investigate root cause
+2. Implement fix
+3. Test on a FRESH run (not reusing old run)
+
+---
+
+
+### file_io: HTTPError
+**Status**: OPEN
+**Priority**: MEDIUM
+**First Observed**: 2025-12-09
+**Run ID**: N/A
+**Phase ID**: N/A
+
+**Symptom**:
+```
+404 Client Error: Not Found for url: http://127.0.0.1:8100/runs/fileorg-p2-20251208o
+```
+
+**Suspected Root Cause**:
+Classified as recoverable file_io error
+
+**Actions Taken**:
+- None yet - just discovered
+
+**Next Steps**:
+1. Investigate root cause
+2. Implement fix
+3. Test on a FRESH run (not reusing old run)
+
+---
+
+
+### file_io: HTTPError
+**Status**: OPEN
+**Priority**: MEDIUM
+**First Observed**: 2025-12-09
+**Run ID**: N/A
+**Phase ID**: N/A
+
+**Symptom**:
+```
+404 Client Error: Not Found for url: http://127.0.0.1:8100/runs/fileorg-p2-20251208o
+```
+
+**Suspected Root Cause**:
+Classified as recoverable file_io error
+
+**Actions Taken**:
+- None yet - just discovered
+
+**Next Steps**:
+1. Investigate root cause
+2. Implement fix
+3. Test on a FRESH run (not reusing old run)
+
+---
+
+
+### file_io: HTTPError
+**Status**: OPEN
+**Priority**: MEDIUM
+**First Observed**: 2025-12-09
+**Run ID**: N/A
+**Phase ID**: N/A
+
+**Symptom**:
+```
+404 Client Error: Not Found for url: http://127.0.0.1:8100/runs/fileorg-p2-20251208o
+```
+
+**Suspected Root Cause**:
+Classified as recoverable file_io error
+
+**Actions Taken**:
+- None yet - just discovered
+
+**Next Steps**:
+1. Investigate root cause
+2. Implement fix
+3. Test on a FRESH run (not reusing old run)
+
+---
+
+
+### file_io: HTTPError
+**Status**: OPEN
+**Priority**: MEDIUM
+**First Observed**: 2025-12-09
+**Run ID**: N/A
+**Phase ID**: N/A
+
+**Symptom**:
+```
+404 Client Error: Not Found for url: http://127.0.0.1:8100/runs/fileorg-p2-20251208o
+```
+
+**Suspected Root Cause**:
+Classified as recoverable file_io error
+
+**Actions Taken**:
+- None yet - just discovered
+
+**Next Steps**:
+1. Investigate root cause
+2. Implement fix
+3. Test on a FRESH run (not reusing old run)
+
+---
+
+
+### file_io: HTTPError
+**Status**: OPEN
+**Priority**: MEDIUM
+**First Observed**: 2025-12-09
+**Run ID**: N/A
+**Phase ID**: N/A
+
+**Symptom**:
+```
+404 Client Error: Not Found for url: http://127.0.0.1:8100/runs/fileorg-p2-20251208o
+```
+
+**Suspected Root Cause**:
+Classified as recoverable file_io error
+
+**Actions Taken**:
+- None yet - just discovered
+
+**Next Steps**:
+1. Investigate root cause
+2. Implement fix
+3. Test on a FRESH run (not reusing old run)
+
+---
+
+
+### file_io: HTTPError
+**Status**: OPEN
+**Priority**: MEDIUM
+**First Observed**: 2025-12-09
+**Run ID**: N/A
+**Phase ID**: N/A
+
+**Symptom**:
+```
+404 Client Error: Not Found for url: http://127.0.0.1:8100/runs/fileorg-p2-20251208o
+```
+
+**Suspected Root Cause**:
+Classified as recoverable file_io error
+
+**Actions Taken**:
+- None yet - just discovered
+
+**Next Steps**:
+1. Investigate root cause
+2. Implement fix
+3. Test on a FRESH run (not reusing old run)
+
+---
+
+
+### file_io: HTTPError
+**Status**: OPEN
+**Priority**: MEDIUM
+**First Observed**: 2025-12-09
+**Run ID**: N/A
+**Phase ID**: N/A
+
+**Symptom**:
+```
+404 Client Error: Not Found for url: http://127.0.0.1:8100/runs/fileorg-p2-20251208o
+```
+
+**Suspected Root Cause**:
+Classified as recoverable file_io error
+
+**Actions Taken**:
+- None yet - just discovered
+
+**Next Steps**:
+1. Investigate root cause
+2. Implement fix
+3. Test on a FRESH run (not reusing old run)
+
+---
+
+
+### file_io: HTTPError
+**Status**: OPEN
+**Priority**: MEDIUM
+**First Observed**: 2025-12-09
+**Run ID**: N/A
+**Phase ID**: N/A
+
+**Symptom**:
+```
+404 Client Error: Not Found for url: http://127.0.0.1:8100/runs/fileorg-p2-20251208o
+```
+
+**Suspected Root Cause**:
+Classified as recoverable file_io error
+
+**Actions Taken**:
+- None yet - just discovered
+
+**Next Steps**:
+1. Investigate root cause
+2. Implement fix
+3. Test on a FRESH run (not reusing old run)
+
+---
+
+
+### file_io: HTTPError
+**Status**: OPEN
+**Priority**: MEDIUM
+**First Observed**: 2025-12-09
+**Run ID**: N/A
+**Phase ID**: N/A
+
+**Symptom**:
+```
+404 Client Error: Not Found for url: http://127.0.0.1:8100/runs/fileorg-p2-20251208o
+```
+
+**Suspected Root Cause**:
+Classified as recoverable file_io error
+
+**Actions Taken**:
+- None yet - just discovered
+
+**Next Steps**:
+1. Investigate root cause
+2. Implement fix
+3. Test on a FRESH run (not reusing old run)
+
+---
+
+
+### file_io: HTTPError
+**Status**: OPEN
+**Priority**: MEDIUM
+**First Observed**: 2025-12-09
+**Run ID**: N/A
+**Phase ID**: N/A
+
+**Symptom**:
+```
+404 Client Error: Not Found for url: http://127.0.0.1:8100/runs/fileorg-p2-20251208o
+```
+
+**Suspected Root Cause**:
+Classified as recoverable file_io error
+
+**Actions Taken**:
+- None yet - just discovered
+
+**Next Steps**:
+1. Investigate root cause
+2. Implement fix
+3. Test on a FRESH run (not reusing old run)
+
+---
+
+
+### file_io: HTTPError
+**Status**: OPEN
+**Priority**: MEDIUM
+**First Observed**: 2025-12-09
+**Run ID**: N/A
+**Phase ID**: N/A
+
+**Symptom**:
+```
+404 Client Error: Not Found for url: http://127.0.0.1:8100/runs/fileorg-p2-20251208o
+```
+
+**Suspected Root Cause**:
+Classified as recoverable file_io error
+
+**Actions Taken**:
+- None yet - just discovered
+
+**Next Steps**:
+1. Investigate root cause
+2. Implement fix
+3. Test on a FRESH run (not reusing old run)
+
+---
+
+
+### file_io: HTTPError
+**Status**: OPEN
+**Priority**: MEDIUM
+**First Observed**: 2025-12-09
+**Run ID**: N/A
+**Phase ID**: N/A
+
+**Symptom**:
+```
+404 Client Error: Not Found for url: http://127.0.0.1:8100/runs/fileorg-p2-20251208o
+```
+
+**Suspected Root Cause**:
+Classified as recoverable file_io error
+
+**Actions Taken**:
+- None yet - just discovered
+
+**Next Steps**:
+1. Investigate root cause
+2. Implement fix
+3. Test on a FRESH run (not reusing old run)
+
+---
+
+
+### file_io: HTTPError
+**Status**: OPEN
+**Priority**: MEDIUM
+**First Observed**: 2025-12-09
+**Run ID**: N/A
+**Phase ID**: N/A
+
+**Symptom**:
+```
+404 Client Error: Not Found for url: http://127.0.0.1:8100/runs/fileorg-p2-20251208o
+```
+
+**Suspected Root Cause**:
+Classified as recoverable file_io error
+
+**Actions Taken**:
+- None yet - just discovered
+
+**Next Steps**:
+1. Investigate root cause
+2. Implement fix
+3. Test on a FRESH run (not reusing old run)
+
+---
+
+
+### file_io: HTTPError
+**Status**: OPEN
+**Priority**: MEDIUM
+**First Observed**: 2025-12-09
+**Run ID**: N/A
+**Phase ID**: N/A
+
+**Symptom**:
+```
+404 Client Error: Not Found for url: http://127.0.0.1:8100/runs/fileorg-p2-20251208o
+```
+
+**Suspected Root Cause**:
+Classified as recoverable file_io error
+
+**Actions Taken**:
+- None yet - just discovered
+
+**Next Steps**:
+1. Investigate root cause
+2. Implement fix
+3. Test on a FRESH run (not reusing old run)
+
+---
+
+
+### file_io: HTTPError
+**Status**: OPEN
+**Priority**: MEDIUM
+**First Observed**: 2025-12-09
+**Run ID**: N/A
+**Phase ID**: N/A
+
+**Symptom**:
+```
+404 Client Error: Not Found for url: http://127.0.0.1:8100/runs/fileorg-p2-20251208o
+```
+
+**Suspected Root Cause**:
+Classified as recoverable file_io error
+
+**Actions Taken**:
+- None yet - just discovered
+
+**Next Steps**:
+1. Investigate root cause
+2. Implement fix
+3. Test on a FRESH run (not reusing old run)
+
+---
+
+
+### file_io: HTTPError
+**Status**: OPEN
+**Priority**: MEDIUM
+**First Observed**: 2025-12-09
+**Run ID**: N/A
+**Phase ID**: N/A
+
+**Symptom**:
+```
+404 Client Error: Not Found for url: http://127.0.0.1:8100/runs/fileorg-p2-20251208o
+```
+
+**Suspected Root Cause**:
+Classified as recoverable file_io error
+
+**Actions Taken**:
+- None yet - just discovered
+
+**Next Steps**:
+1. Investigate root cause
+2. Implement fix
+3. Test on a FRESH run (not reusing old run)
+
+---
+
+
+### file_io: HTTPError
+**Status**: OPEN
+**Priority**: MEDIUM
+**First Observed**: 2025-12-09
+**Run ID**: N/A
+**Phase ID**: N/A
+
+**Symptom**:
+```
+404 Client Error: Not Found for url: http://127.0.0.1:8100/runs/fileorg-p2-20251208o
+```
+
+**Suspected Root Cause**:
+Classified as recoverable file_io error
+
+**Actions Taken**:
+- None yet - just discovered
+
+**Next Steps**:
+1. Investigate root cause
+2. Implement fix
+3. Test on a FRESH run (not reusing old run)
+
+---
+
+
+### file_io: HTTPError
+**Status**: OPEN
+**Priority**: MEDIUM
+**First Observed**: 2025-12-09
+**Run ID**: N/A
+**Phase ID**: N/A
+
+**Symptom**:
+```
+404 Client Error: Not Found for url: http://127.0.0.1:8100/runs/fileorg-p2-20251208o
+```
+
+**Suspected Root Cause**:
+Classified as recoverable file_io error
+
+**Actions Taken**:
+- None yet - just discovered
+
+**Next Steps**:
+1. Investigate root cause
+2. Implement fix
+3. Test on a FRESH run (not reusing old run)
+
+---
+
+
+### file_io: HTTPError
+**Status**: OPEN
+**Priority**: MEDIUM
+**First Observed**: 2025-12-09
+**Run ID**: N/A
+**Phase ID**: N/A
+
+**Symptom**:
+```
+404 Client Error: Not Found for url: http://127.0.0.1:8100/runs/fileorg-p2-20251208o
+```
+
+**Suspected Root Cause**:
+Classified as recoverable file_io error
+
+**Actions Taken**:
+- None yet - just discovered
+
+**Next Steps**:
+1. Investigate root cause
+2. Implement fix
+3. Test on a FRESH run (not reusing old run)
+
+---
+
+
+### file_io: HTTPError
+**Status**: OPEN
+**Priority**: MEDIUM
+**First Observed**: 2025-12-09
+**Run ID**: N/A
+**Phase ID**: N/A
+
+**Symptom**:
+```
+404 Client Error: Not Found for url: http://127.0.0.1:8100/runs/fileorg-p2-20251208o
+```
+
+**Suspected Root Cause**:
+Classified as recoverable file_io error
+
+**Actions Taken**:
+- None yet - just discovered
+
+**Next Steps**:
+1. Investigate root cause
+2. Implement fix
+3. Test on a FRESH run (not reusing old run)
+
+---
+
+
+### file_io: HTTPError
+**Status**: OPEN
+**Priority**: MEDIUM
+**First Observed**: 2025-12-09
+**Run ID**: N/A
+**Phase ID**: N/A
+
+**Symptom**:
+```
+404 Client Error: Not Found for url: http://127.0.0.1:8100/runs/fileorg-p2-20251208o
+```
+
+**Suspected Root Cause**:
+Classified as recoverable file_io error
+
+**Actions Taken**:
+- None yet - just discovered
+
+**Next Steps**:
+1. Investigate root cause
+2. Implement fix
+3. Test on a FRESH run (not reusing old run)
+
+---
+
+
+### file_io: HTTPError
+**Status**: OPEN
+**Priority**: MEDIUM
+**First Observed**: 2025-12-09
+**Run ID**: N/A
+**Phase ID**: N/A
+
+**Symptom**:
+```
+404 Client Error: Not Found for url: http://127.0.0.1:8100/runs/fileorg-p2-20251208o
+```
+
+**Suspected Root Cause**:
+Classified as recoverable file_io error
+
+**Actions Taken**:
+- None yet - just discovered
+
+**Next Steps**:
+1. Investigate root cause
+2. Implement fix
+3. Test on a FRESH run (not reusing old run)
+
+---
+
+
+### file_io: HTTPError
+**Status**: OPEN
+**Priority**: MEDIUM
+**First Observed**: 2025-12-09
+**Run ID**: N/A
+**Phase ID**: N/A
+
+**Symptom**:
+```
+404 Client Error: Not Found for url: http://127.0.0.1:8100/runs/fileorg-p2-20251208o
+```
+
+**Suspected Root Cause**:
+Classified as recoverable file_io error
+
+**Actions Taken**:
+- None yet - just discovered
+
+**Next Steps**:
+1. Investigate root cause
+2. Implement fix
+3. Test on a FRESH run (not reusing old run)
+
+---
+
+
+### file_io: HTTPError
+**Status**: OPEN
+**Priority**: MEDIUM
+**First Observed**: 2025-12-09
+**Run ID**: N/A
+**Phase ID**: N/A
+
+**Symptom**:
+```
+404 Client Error: Not Found for url: http://127.0.0.1:8100/runs/fileorg-p2-20251208o
+```
+
+**Suspected Root Cause**:
+Classified as recoverable file_io error
+
+**Actions Taken**:
+- None yet - just discovered
+
+**Next Steps**:
+1. Investigate root cause
+2. Implement fix
+3. Test on a FRESH run (not reusing old run)
+
+---
+
+
+### file_io: HTTPError
+**Status**: OPEN
+**Priority**: MEDIUM
+**First Observed**: 2025-12-09
+**Run ID**: N/A
+**Phase ID**: N/A
+
+**Symptom**:
+```
+404 Client Error: Not Found for url: http://127.0.0.1:8100/runs/fileorg-p2-20251208o
+```
+
+**Suspected Root Cause**:
+Classified as recoverable file_io error
+
+**Actions Taken**:
+- None yet - just discovered
+
+**Next Steps**:
+1. Investigate root cause
+2. Implement fix
+3. Test on a FRESH run (not reusing old run)
+
+---
+
+
+### file_io: HTTPError
+**Status**: OPEN
+**Priority**: MEDIUM
+**First Observed**: 2025-12-09
+**Run ID**: N/A
+**Phase ID**: N/A
+
+**Symptom**:
+```
+404 Client Error: Not Found for url: http://127.0.0.1:8100/runs/fileorg-p2-20251208o
+```
+
+**Suspected Root Cause**:
+Classified as recoverable file_io error
+
+**Actions Taken**:
+- None yet - just discovered
+
+**Next Steps**:
+1. Investigate root cause
+2. Implement fix
+3. Test on a FRESH run (not reusing old run)
+
+---
+
+
+### file_io: HTTPError
+**Status**: OPEN
+**Priority**: MEDIUM
+**First Observed**: 2025-12-09
+**Run ID**: N/A
+**Phase ID**: N/A
+
+**Symptom**:
+```
+404 Client Error: Not Found for url: http://127.0.0.1:8100/runs/fileorg-p2-20251208o
+```
+
+**Suspected Root Cause**:
+Classified as recoverable file_io error
+
+**Actions Taken**:
+- None yet - just discovered
+
+**Next Steps**:
+1. Investigate root cause
+2. Implement fix
+3. Test on a FRESH run (not reusing old run)
+
+---
+
+
+### file_io: HTTPError
+**Status**: OPEN
+**Priority**: MEDIUM
+**First Observed**: 2025-12-09
+**Run ID**: N/A
+**Phase ID**: N/A
+
+**Symptom**:
+```
+404 Client Error: Not Found for url: http://127.0.0.1:8100/runs/fileorg-p2-20251208o
+```
+
+**Suspected Root Cause**:
+Classified as recoverable file_io error
+
+**Actions Taken**:
+- None yet - just discovered
+
+**Next Steps**:
+1. Investigate root cause
+2. Implement fix
+3. Test on a FRESH run (not reusing old run)
+
+---
+
+
+### file_io: HTTPError
+**Status**: OPEN
+**Priority**: MEDIUM
+**First Observed**: 2025-12-09
+**Run ID**: N/A
+**Phase ID**: N/A
+
+**Symptom**:
+```
+404 Client Error: Not Found for url: http://127.0.0.1:8100/runs/fileorg-p2-20251208o
+```
+
+**Suspected Root Cause**:
+Classified as recoverable file_io error
+
+**Actions Taken**:
+- None yet - just discovered
+
+**Next Steps**:
+1. Investigate root cause
+2. Implement fix
+3. Test on a FRESH run (not reusing old run)
+
+---
+
+
+### file_io: HTTPError
+**Status**: OPEN
+**Priority**: MEDIUM
+**First Observed**: 2025-12-09
+**Run ID**: N/A
+**Phase ID**: N/A
+
+**Symptom**:
+```
+404 Client Error: Not Found for url: http://127.0.0.1:8100/runs/fileorg-p2-20251208o
+```
+
+**Suspected Root Cause**:
+Classified as recoverable file_io error
+
+**Actions Taken**:
+- None yet - just discovered
+
+**Next Steps**:
+1. Investigate root cause
+2. Implement fix
+3. Test on a FRESH run (not reusing old run)
+
+---
+
+
+### file_io: HTTPError
+**Status**: OPEN
+**Priority**: MEDIUM
+**First Observed**: 2025-12-09
+**Run ID**: N/A
+**Phase ID**: N/A
+
+**Symptom**:
+```
+404 Client Error: Not Found for url: http://127.0.0.1:8100/runs/fileorg-p2-20251208o
+```
+
+**Suspected Root Cause**:
+Classified as recoverable file_io error
+
+**Actions Taken**:
+- None yet - just discovered
+
+**Next Steps**:
+1. Investigate root cause
+2. Implement fix
+3. Test on a FRESH run (not reusing old run)
+
+---
+
+
+### file_io: HTTPError
+**Status**: OPEN
+**Priority**: MEDIUM
+**First Observed**: 2025-12-09
+**Run ID**: N/A
+**Phase ID**: N/A
+
+**Symptom**:
+```
+404 Client Error: Not Found for url: http://127.0.0.1:8100/runs/fileorg-p2-20251208o
+```
+
+**Suspected Root Cause**:
+Classified as recoverable file_io error
+
+**Actions Taken**:
+- None yet - just discovered
+
+**Next Steps**:
+1. Investigate root cause
+2. Implement fix
+3. Test on a FRESH run (not reusing old run)
+
+---
+
+
+### file_io: HTTPError
+**Status**: OPEN
+**Priority**: MEDIUM
+**First Observed**: 2025-12-09
+**Run ID**: N/A
+**Phase ID**: N/A
+
+**Symptom**:
+```
+404 Client Error: Not Found for url: http://127.0.0.1:8100/runs/fileorg-p2-20251208o
+```
+
+**Suspected Root Cause**:
+Classified as recoverable file_io error
+
+**Actions Taken**:
+- None yet - just discovered
+
+**Next Steps**:
+1. Investigate root cause
+2. Implement fix
+3. Test on a FRESH run (not reusing old run)
+
+---
+
+
+### file_io: HTTPError
+**Status**: OPEN
+**Priority**: MEDIUM
+**First Observed**: 2025-12-09
+**Run ID**: N/A
+**Phase ID**: N/A
+
+**Symptom**:
+```
+404 Client Error: Not Found for url: http://127.0.0.1:8100/runs/fileorg-p2-20251208o
+```
+
+**Suspected Root Cause**:
+Classified as recoverable file_io error
+
+**Actions Taken**:
+- None yet - just discovered
+
+**Next Steps**:
+1. Investigate root cause
+2. Implement fix
+3. Test on a FRESH run (not reusing old run)
+
+---
+
+
+### file_io: HTTPError
+**Status**: OPEN
+**Priority**: MEDIUM
+**First Observed**: 2025-12-09
+**Run ID**: N/A
+**Phase ID**: N/A
+
+**Symptom**:
+```
+404 Client Error: Not Found for url: http://127.0.0.1:8100/runs/fileorg-p2-20251208o
+```
+
+**Suspected Root Cause**:
+Classified as recoverable file_io error
+
+**Actions Taken**:
+- None yet - just discovered
+
+**Next Steps**:
+1. Investigate root cause
+2. Implement fix
+3. Test on a FRESH run (not reusing old run)
+
+---
+
+
+### file_io: HTTPError
+**Status**: OPEN
+**Priority**: MEDIUM
+**First Observed**: 2025-12-09
+**Run ID**: N/A
+**Phase ID**: N/A
+
+**Symptom**:
+```
+404 Client Error: Not Found for url: http://127.0.0.1:8100/runs/fileorg-p2-20251208o
+```
+
+**Suspected Root Cause**:
+Classified as recoverable file_io error
+
+**Actions Taken**:
+- None yet - just discovered
+
+**Next Steps**:
+1. Investigate root cause
+2. Implement fix
+3. Test on a FRESH run (not reusing old run)
+
+---
+
+
+### file_io: HTTPError
+**Status**: OPEN
+**Priority**: MEDIUM
+**First Observed**: 2025-12-09
+**Run ID**: N/A
+**Phase ID**: N/A
+
+**Symptom**:
+```
+404 Client Error: Not Found for url: http://127.0.0.1:8100/runs/fileorg-p2-20251208o
+```
+
+**Suspected Root Cause**:
+Classified as recoverable file_io error
+
+**Actions Taken**:
+- None yet - just discovered
+
+**Next Steps**:
+1. Investigate root cause
+2. Implement fix
+3. Test on a FRESH run (not reusing old run)
+
+---
+
+
+### file_io: HTTPError
+**Status**: OPEN
+**Priority**: MEDIUM
+**First Observed**: 2025-12-09
+**Run ID**: N/A
+**Phase ID**: N/A
+
+**Symptom**:
+```
+404 Client Error: Not Found for url: http://127.0.0.1:8100/runs/fileorg-p2-20251208o
+```
+
+**Suspected Root Cause**:
+Classified as recoverable file_io error
+
+**Actions Taken**:
+- None yet - just discovered
+
+**Next Steps**:
+1. Investigate root cause
+2. Implement fix
+3. Test on a FRESH run (not reusing old run)
+
+---
+
+
+### file_io: HTTPError
+**Status**: OPEN
+**Priority**: MEDIUM
+**First Observed**: 2025-12-09
+**Run ID**: N/A
+**Phase ID**: N/A
+
+**Symptom**:
+```
+404 Client Error: Not Found for url: http://127.0.0.1:8100/runs/fileorg-p2-20251208o
+```
+
+**Suspected Root Cause**:
+Classified as recoverable file_io error
+
+**Actions Taken**:
+- None yet - just discovered
+
+**Next Steps**:
+1. Investigate root cause
+2. Implement fix
+3. Test on a FRESH run (not reusing old run)
+
+---
+
+
+### file_io: HTTPError
+**Status**: OPEN
+**Priority**: MEDIUM
+**First Observed**: 2025-12-09
+**Run ID**: N/A
+**Phase ID**: N/A
+
+**Symptom**:
+```
+404 Client Error: Not Found for url: http://127.0.0.1:8100/runs/fileorg-p2-20251208o
+```
+
+**Suspected Root Cause**:
+Classified as recoverable file_io error
+
+**Actions Taken**:
+- None yet - just discovered
+
+**Next Steps**:
+1. Investigate root cause
+2. Implement fix
+3. Test on a FRESH run (not reusing old run)
+
+---
+
+
+### file_io: HTTPError
+**Status**: OPEN
+**Priority**: MEDIUM
+**First Observed**: 2025-12-09
+**Run ID**: N/A
+**Phase ID**: N/A
+
+**Symptom**:
+```
+404 Client Error: Not Found for url: http://127.0.0.1:8100/runs/fileorg-p2-20251208o
+```
+
+**Suspected Root Cause**:
+Classified as recoverable file_io error
+
+**Actions Taken**:
+- None yet - just discovered
+
+**Next Steps**:
+1. Investigate root cause
+2. Implement fix
+3. Test on a FRESH run (not reusing old run)
+
+---
+
+
+### file_io: HTTPError
+**Status**: OPEN
+**Priority**: MEDIUM
+**First Observed**: 2025-12-09
+**Run ID**: N/A
+**Phase ID**: N/A
+
+**Symptom**:
+```
+404 Client Error: Not Found for url: http://127.0.0.1:8100/runs/fileorg-p2-20251208o
+```
+
+**Suspected Root Cause**:
+Classified as recoverable file_io error
+
+**Actions Taken**:
+- None yet - just discovered
+
+**Next Steps**:
+1. Investigate root cause
+2. Implement fix
+3. Test on a FRESH run (not reusing old run)
+
+---
+
+
+### file_io: HTTPError
+**Status**: OPEN
+**Priority**: MEDIUM
+**First Observed**: 2025-12-09
+**Run ID**: N/A
+**Phase ID**: N/A
+
+**Symptom**:
+```
+404 Client Error: Not Found for url: http://127.0.0.1:8100/runs/fileorg-p2-20251208o
+```
+
+**Suspected Root Cause**:
+Classified as recoverable file_io error
+
+**Actions Taken**:
+- None yet - just discovered
+
+**Next Steps**:
+1. Investigate root cause
+2. Implement fix
+3. Test on a FRESH run (not reusing old run)
+
+---
+
+
+### file_io: HTTPError
+**Status**: OPEN
+**Priority**: MEDIUM
+**First Observed**: 2025-12-09
+**Run ID**: N/A
+**Phase ID**: N/A
+
+**Symptom**:
+```
+404 Client Error: Not Found for url: http://127.0.0.1:8100/runs/fileorg-p2-20251208o
+```
+
+**Suspected Root Cause**:
+Classified as recoverable file_io error
+
+**Actions Taken**:
+- None yet - just discovered
+
+**Next Steps**:
+1. Investigate root cause
+2. Implement fix
+3. Test on a FRESH run (not reusing old run)
+
+---
+
+
+### file_io: HTTPError
+**Status**: OPEN
+**Priority**: MEDIUM
+**First Observed**: 2025-12-09
+**Run ID**: N/A
+**Phase ID**: N/A
+
+**Symptom**:
+```
+404 Client Error: Not Found for url: http://127.0.0.1:8100/runs/fileorg-p2-20251208o
+```
+
+**Suspected Root Cause**:
+Classified as recoverable file_io error
+
+**Actions Taken**:
+- None yet - just discovered
+
+**Next Steps**:
+1. Investigate root cause
+2. Implement fix
+3. Test on a FRESH run (not reusing old run)
+
+---
+
+
+### file_io: HTTPError
+**Status**: OPEN
+**Priority**: MEDIUM
+**First Observed**: 2025-12-09
+**Run ID**: N/A
+**Phase ID**: N/A
+
+**Symptom**:
+```
+404 Client Error: Not Found for url: http://127.0.0.1:8100/runs/fileorg-p2-20251208o
+```
+
+**Suspected Root Cause**:
+Classified as recoverable file_io error
+
+**Actions Taken**:
+- None yet - just discovered
+
+**Next Steps**:
+1. Investigate root cause
+2. Implement fix
+3. Test on a FRESH run (not reusing old run)
+
+---
+
+
+### file_io: HTTPError
+**Status**: OPEN
+**Priority**: MEDIUM
+**First Observed**: 2025-12-09
+**Run ID**: N/A
+**Phase ID**: N/A
+
+**Symptom**:
+```
+404 Client Error: Not Found for url: http://127.0.0.1:8100/runs/fileorg-p2-20251208o
+```
+
+**Suspected Root Cause**:
+Classified as recoverable file_io error
+
+**Actions Taken**:
+- None yet - just discovered
+
+**Next Steps**:
+1. Investigate root cause
+2. Implement fix
+3. Test on a FRESH run (not reusing old run)
+
+---
+
+
+### file_io: HTTPError
+**Status**: OPEN
+**Priority**: MEDIUM
+**First Observed**: 2025-12-09
+**Run ID**: N/A
+**Phase ID**: N/A
+
+**Symptom**:
+```
+404 Client Error: Not Found for url: http://127.0.0.1:8100/runs/fileorg-p2-20251208o
+```
+
+**Suspected Root Cause**:
+Classified as recoverable file_io error
+
+**Actions Taken**:
+- None yet - just discovered
+
+**Next Steps**:
+1. Investigate root cause
+2. Implement fix
+3. Test on a FRESH run (not reusing old run)
+
+---
+
+
+### file_io: HTTPError
+**Status**: OPEN
+**Priority**: MEDIUM
+**First Observed**: 2025-12-09
+**Run ID**: N/A
+**Phase ID**: N/A
+
+**Symptom**:
+```
+404 Client Error: Not Found for url: http://127.0.0.1:8100/runs/fileorg-p2-20251208o
+```
+
+**Suspected Root Cause**:
+Classified as recoverable file_io error
+
+**Actions Taken**:
+- None yet - just discovered
+
+**Next Steps**:
+1. Investigate root cause
+2. Implement fix
+3. Test on a FRESH run (not reusing old run)
+
+---
+
+
+### file_io: HTTPError
+**Status**: OPEN
+**Priority**: MEDIUM
+**First Observed**: 2025-12-09
+**Run ID**: N/A
+**Phase ID**: N/A
+
+**Symptom**:
+```
+404 Client Error: Not Found for url: http://127.0.0.1:8100/runs/fileorg-p2-20251208o
+```
+
+**Suspected Root Cause**:
+Classified as recoverable file_io error
+
+**Actions Taken**:
+- None yet - just discovered
+
+**Next Steps**:
+1. Investigate root cause
+2. Implement fix
+3. Test on a FRESH run (not reusing old run)
+
+---
+
+
+### file_io: HTTPError
+**Status**: OPEN
+**Priority**: MEDIUM
+**First Observed**: 2025-12-09
+**Run ID**: N/A
+**Phase ID**: N/A
+
+**Symptom**:
+```
+404 Client Error: Not Found for url: http://127.0.0.1:8100/runs/fileorg-p2-20251208o
+```
+
+**Suspected Root Cause**:
+Classified as recoverable file_io error
+
+**Actions Taken**:
+- None yet - just discovered
+
+**Next Steps**:
+1. Investigate root cause
+2. Implement fix
+3. Test on a FRESH run (not reusing old run)
+
+---
+
+
+### file_io: HTTPError
+**Status**: OPEN
+**Priority**: MEDIUM
+**First Observed**: 2025-12-09
+**Run ID**: N/A
+**Phase ID**: N/A
+
+**Symptom**:
+```
+404 Client Error: Not Found for url: http://127.0.0.1:8100/runs/fileorg-p2-20251208o
+```
+
+**Suspected Root Cause**:
+Classified as recoverable file_io error
+
+**Actions Taken**:
+- None yet - just discovered
+
+**Next Steps**:
+1. Investigate root cause
+2. Implement fix
+3. Test on a FRESH run (not reusing old run)
+
+---
+
+
+### file_io: HTTPError
+**Status**: OPEN
+**Priority**: MEDIUM
+**First Observed**: 2025-12-09
+**Run ID**: N/A
+**Phase ID**: N/A
+
+**Symptom**:
+```
+404 Client Error: Not Found for url: http://127.0.0.1:8100/runs/fileorg-p2-20251208o
+```
+
+**Suspected Root Cause**:
+Classified as recoverable file_io error
+
+**Actions Taken**:
+- None yet - just discovered
+
+**Next Steps**:
+1. Investigate root cause
+2. Implement fix
+3. Test on a FRESH run (not reusing old run)
+
+---
+
+
+### file_io: HTTPError
+**Status**: OPEN
+**Priority**: MEDIUM
+**First Observed**: 2025-12-09
+**Run ID**: N/A
+**Phase ID**: N/A
+
+**Symptom**:
+```
+404 Client Error: Not Found for url: http://127.0.0.1:8100/runs/fileorg-p2-20251208o
+```
+
+**Suspected Root Cause**:
+Classified as recoverable file_io error
+
+**Actions Taken**:
+- None yet - just discovered
+
+**Next Steps**:
+1. Investigate root cause
+2. Implement fix
+3. Test on a FRESH run (not reusing old run)
+
+---
+
+
+### file_io: HTTPError
+**Status**: OPEN
+**Priority**: MEDIUM
+**First Observed**: 2025-12-09
+**Run ID**: N/A
+**Phase ID**: N/A
+
+**Symptom**:
+```
+404 Client Error: Not Found for url: http://127.0.0.1:8100/runs/fileorg-p2-20251208o
+```
+
+**Suspected Root Cause**:
+Classified as recoverable file_io error
+
+**Actions Taken**:
+- None yet - just discovered
+
+**Next Steps**:
+1. Investigate root cause
+2. Implement fix
+3. Test on a FRESH run (not reusing old run)
+
+---
+
+
+### file_io: HTTPError
+**Status**: OPEN
+**Priority**: MEDIUM
+**First Observed**: 2025-12-09
+**Run ID**: N/A
+**Phase ID**: N/A
+
+**Symptom**:
+```
+404 Client Error: Not Found for url: http://127.0.0.1:8100/runs/fileorg-p2-20251208o
+```
+
+**Suspected Root Cause**:
+Classified as recoverable file_io error
+
+**Actions Taken**:
+- None yet - just discovered
+
+**Next Steps**:
+1. Investigate root cause
+2. Implement fix
+3. Test on a FRESH run (not reusing old run)
+
+---
+
+
+### file_io: HTTPError
+**Status**: OPEN
+**Priority**: MEDIUM
+**First Observed**: 2025-12-09
+**Run ID**: N/A
+**Phase ID**: N/A
+
+**Symptom**:
+```
+404 Client Error: Not Found for url: http://127.0.0.1:8100/runs/fileorg-p2-20251208o
+```
+
+**Suspected Root Cause**:
+Classified as recoverable file_io error
+
+**Actions Taken**:
+- None yet - just discovered
+
+**Next Steps**:
+1. Investigate root cause
+2. Implement fix
+3. Test on a FRESH run (not reusing old run)
+
+---
+
+
+### file_io: HTTPError
+**Status**: OPEN
+**Priority**: MEDIUM
+**First Observed**: 2025-12-09
+**Run ID**: N/A
+**Phase ID**: N/A
+
+**Symptom**:
+```
+404 Client Error: Not Found for url: http://127.0.0.1:8100/runs/fileorg-p2-20251208o
+```
+
+**Suspected Root Cause**:
+Classified as recoverable file_io error
+
+**Actions Taken**:
+- None yet - just discovered
+
+**Next Steps**:
+1. Investigate root cause
+2. Implement fix
+3. Test on a FRESH run (not reusing old run)
+
+---
+
+
+### file_io: HTTPError
+**Status**: OPEN
+**Priority**: MEDIUM
+**First Observed**: 2025-12-09
+**Run ID**: N/A
+**Phase ID**: N/A
+
+**Symptom**:
+```
+404 Client Error: Not Found for url: http://127.0.0.1:8100/runs/fileorg-p2-20251208o
+```
+
+**Suspected Root Cause**:
+Classified as recoverable file_io error
+
+**Actions Taken**:
+- None yet - just discovered
+
+**Next Steps**:
+1. Investigate root cause
+2. Implement fix
+3. Test on a FRESH run (not reusing old run)
+
+---
+
+
+### file_io: HTTPError
+**Status**: OPEN
+**Priority**: MEDIUM
+**First Observed**: 2025-12-09
+**Run ID**: N/A
+**Phase ID**: N/A
+
+**Symptom**:
+```
+404 Client Error: Not Found for url: http://127.0.0.1:8100/runs/fileorg-p2-20251208o
+```
+
+**Suspected Root Cause**:
+Classified as recoverable file_io error
+
+**Actions Taken**:
+- None yet - just discovered
+
+**Next Steps**:
+1. Investigate root cause
+2. Implement fix
+3. Test on a FRESH run (not reusing old run)
+
+---
+
+
+### file_io: HTTPError
+**Status**: OPEN
+**Priority**: MEDIUM
+**First Observed**: 2025-12-09
+**Run ID**: N/A
+**Phase ID**: N/A
+
+**Symptom**:
+```
+404 Client Error: Not Found for url: http://127.0.0.1:8100/runs/fileorg-p2-20251208o
+```
+
+**Suspected Root Cause**:
+Classified as recoverable file_io error
+
+**Actions Taken**:
+- None yet - just discovered
+
+**Next Steps**:
+1. Investigate root cause
+2. Implement fix
+3. Test on a FRESH run (not reusing old run)
+
+---
+
+
+### file_io: HTTPError
+**Status**: OPEN
+**Priority**: MEDIUM
+**First Observed**: 2025-12-09
+**Run ID**: N/A
+**Phase ID**: N/A
+
+**Symptom**:
+```
+404 Client Error: Not Found for url: http://127.0.0.1:8100/runs/fileorg-p2-20251208o
+```
+
+**Suspected Root Cause**:
+Classified as recoverable file_io error
+
+**Actions Taken**:
+- None yet - just discovered
+
+**Next Steps**:
+1. Investigate root cause
+2. Implement fix
+3. Test on a FRESH run (not reusing old run)
+
+---
+
+
+### file_io: HTTPError
+**Status**: OPEN
+**Priority**: MEDIUM
+**First Observed**: 2025-12-09
+**Run ID**: N/A
+**Phase ID**: N/A
+
+**Symptom**:
+```
+404 Client Error: Not Found for url: http://127.0.0.1:8100/runs/fileorg-p2-20251208o
+```
+
+**Suspected Root Cause**:
+Classified as recoverable file_io error
+
+**Actions Taken**:
+- None yet - just discovered
+
+**Next Steps**:
+1. Investigate root cause
+2. Implement fix
+3. Test on a FRESH run (not reusing old run)
+
+---
+
+
+### file_io: HTTPError
+**Status**: OPEN
+**Priority**: MEDIUM
+**First Observed**: 2025-12-09
+**Run ID**: N/A
+**Phase ID**: N/A
+
+**Symptom**:
+```
+404 Client Error: Not Found for url: http://127.0.0.1:8100/runs/fileorg-p2-20251208o
+```
+
+**Suspected Root Cause**:
+Classified as recoverable file_io error
+
+**Actions Taken**:
+- None yet - just discovered
+
+**Next Steps**:
+1. Investigate root cause
+2. Implement fix
+3. Test on a FRESH run (not reusing old run)
+
+---
+
+
+### file_io: HTTPError
+**Status**: OPEN
+**Priority**: MEDIUM
+**First Observed**: 2025-12-09
+**Run ID**: N/A
+**Phase ID**: N/A
+
+**Symptom**:
+```
+404 Client Error: Not Found for url: http://127.0.0.1:8100/runs/fileorg-p2-20251208o
+```
+
+**Suspected Root Cause**:
+Classified as recoverable file_io error
+
+**Actions Taken**:
+- None yet - just discovered
+
+**Next Steps**:
+1. Investigate root cause
+2. Implement fix
+3. Test on a FRESH run (not reusing old run)
+
+---
+
+
+### file_io: HTTPError
+**Status**: OPEN
+**Priority**: MEDIUM
+**First Observed**: 2025-12-09
+**Run ID**: N/A
+**Phase ID**: N/A
+
+**Symptom**:
+```
+404 Client Error: Not Found for url: http://127.0.0.1:8100/runs/fileorg-p2-20251208o
+```
+
+**Suspected Root Cause**:
+Classified as recoverable file_io error
+
+**Actions Taken**:
+- None yet - just discovered
+
+**Next Steps**:
+1. Investigate root cause
+2. Implement fix
+3. Test on a FRESH run (not reusing old run)
+
+---
+
+
+### file_io: HTTPError
+**Status**: OPEN
+**Priority**: MEDIUM
+**First Observed**: 2025-12-09
+**Run ID**: N/A
+**Phase ID**: N/A
+
+**Symptom**:
+```
+404 Client Error: Not Found for url: http://127.0.0.1:8100/runs/fileorg-p2-20251208o
+```
+
+**Suspected Root Cause**:
+Classified as recoverable file_io error
+
+**Actions Taken**:
+- None yet - just discovered
+
+**Next Steps**:
+1. Investigate root cause
+2. Implement fix
+3. Test on a FRESH run (not reusing old run)
+
+---
+
+
+### file_io: HTTPError
+**Status**: OPEN
+**Priority**: MEDIUM
+**First Observed**: 2025-12-09
+**Run ID**: N/A
+**Phase ID**: N/A
+
+**Symptom**:
+```
+404 Client Error: Not Found for url: http://127.0.0.1:8100/runs/fileorg-p2-20251208o
+```
+
+**Suspected Root Cause**:
+Classified as recoverable file_io error
+
+**Actions Taken**:
+- None yet - just discovered
+
+**Next Steps**:
+1. Investigate root cause
+2. Implement fix
+3. Test on a FRESH run (not reusing old run)
+
+---
+
+
+### file_io: HTTPError
+**Status**: OPEN
+**Priority**: MEDIUM
+**First Observed**: 2025-12-09
+**Run ID**: N/A
+**Phase ID**: N/A
+
+**Symptom**:
+```
+404 Client Error: Not Found for url: http://127.0.0.1:8100/runs/fileorg-p2-20251208o
+```
+
+**Suspected Root Cause**:
+Classified as recoverable file_io error
+
+**Actions Taken**:
+- None yet - just discovered
+
+**Next Steps**:
+1. Investigate root cause
+2. Implement fix
+3. Test on a FRESH run (not reusing old run)
+
+---
+
+
+### file_io: HTTPError
+**Status**: OPEN
+**Priority**: MEDIUM
+**First Observed**: 2025-12-09
+**Run ID**: N/A
+**Phase ID**: N/A
+
+**Symptom**:
+```
+404 Client Error: Not Found for url: http://127.0.0.1:8100/runs/fileorg-p2-20251208o
+```
+
+**Suspected Root Cause**:
+Classified as recoverable file_io error
+
+**Actions Taken**:
+- None yet - just discovered
+
+**Next Steps**:
+1. Investigate root cause
+2. Implement fix
+3. Test on a FRESH run (not reusing old run)
+
+---
+
+
+### file_io: HTTPError
+**Status**: OPEN
+**Priority**: MEDIUM
+**First Observed**: 2025-12-09
+**Run ID**: N/A
+**Phase ID**: N/A
+
+**Symptom**:
+```
+404 Client Error: Not Found for url: http://127.0.0.1:8100/runs/fileorg-p2-20251208o
+```
+
+**Suspected Root Cause**:
+Classified as recoverable file_io error
+
+**Actions Taken**:
+- None yet - just discovered
+
+**Next Steps**:
+1. Investigate root cause
+2. Implement fix
+3. Test on a FRESH run (not reusing old run)
+
+---
+
+
+### file_io: HTTPError
+**Status**: OPEN
+**Priority**: MEDIUM
+**First Observed**: 2025-12-09
+**Run ID**: N/A
+**Phase ID**: N/A
+
+**Symptom**:
+```
+404 Client Error: Not Found for url: http://127.0.0.1:8100/runs/fileorg-p2-20251208o
+```
+
+**Suspected Root Cause**:
+Classified as recoverable file_io error
+
+**Actions Taken**:
+- None yet - just discovered
+
+**Next Steps**:
+1. Investigate root cause
+2. Implement fix
+3. Test on a FRESH run (not reusing old run)
+
+---
+
+
+### file_io: HTTPError
+**Status**: OPEN
+**Priority**: MEDIUM
+**First Observed**: 2025-12-09
+**Run ID**: N/A
+**Phase ID**: N/A
+
+**Symptom**:
+```
+404 Client Error: Not Found for url: http://127.0.0.1:8100/runs/fileorg-p2-20251208o
+```
+
+**Suspected Root Cause**:
+Classified as recoverable file_io error
+
+**Actions Taken**:
+- None yet - just discovered
+
+**Next Steps**:
+1. Investigate root cause
+2. Implement fix
+3. Test on a FRESH run (not reusing old run)
+
+---
+
+
+### file_io: HTTPError
+**Status**: OPEN
+**Priority**: MEDIUM
+**First Observed**: 2025-12-09
+**Run ID**: N/A
+**Phase ID**: N/A
+
+**Symptom**:
+```
+404 Client Error: Not Found for url: http://127.0.0.1:8100/runs/fileorg-p2-20251208o
+```
+
+**Suspected Root Cause**:
+Classified as recoverable file_io error
+
+**Actions Taken**:
+- None yet - just discovered
+
+**Next Steps**:
+1. Investigate root cause
+2. Implement fix
+3. Test on a FRESH run (not reusing old run)
+
+---
+
+
+### file_io: HTTPError
+**Status**: OPEN
+**Priority**: MEDIUM
+**First Observed**: 2025-12-09
+**Run ID**: N/A
+**Phase ID**: N/A
+
+**Symptom**:
+```
+404 Client Error: Not Found for url: http://127.0.0.1:8100/runs/fileorg-p2-20251208o
+```
+
+**Suspected Root Cause**:
+Classified as recoverable file_io error
+
+**Actions Taken**:
+- None yet - just discovered
+
+**Next Steps**:
+1. Investigate root cause
+2. Implement fix
+3. Test on a FRESH run (not reusing old run)
+
+---
+
+
+### file_io: HTTPError
+**Status**: OPEN
+**Priority**: MEDIUM
+**First Observed**: 2025-12-09
+**Run ID**: N/A
+**Phase ID**: N/A
+
+**Symptom**:
+```
+404 Client Error: Not Found for url: http://127.0.0.1:8100/runs/fileorg-p2-20251208o
+```
+
+**Suspected Root Cause**:
+Classified as recoverable file_io error
+
+**Actions Taken**:
+- None yet - just discovered
+
+**Next Steps**:
+1. Investigate root cause
+2. Implement fix
+3. Test on a FRESH run (not reusing old run)
+
+---
+
+
+### file_io: HTTPError
+**Status**: OPEN
+**Priority**: MEDIUM
+**First Observed**: 2025-12-09
+**Run ID**: N/A
+**Phase ID**: N/A
+
+**Symptom**:
+```
+404 Client Error: Not Found for url: http://127.0.0.1:8100/runs/fileorg-p2-20251208o
+```
+
+**Suspected Root Cause**:
+Classified as recoverable file_io error
+
+**Actions Taken**:
+- None yet - just discovered
+
+**Next Steps**:
+1. Investigate root cause
+2. Implement fix
+3. Test on a FRESH run (not reusing old run)
+
+---
+
+
+### file_io: HTTPError
+**Status**: OPEN
+**Priority**: MEDIUM
+**First Observed**: 2025-12-09
+**Run ID**: N/A
+**Phase ID**: N/A
+
+**Symptom**:
+```
+404 Client Error: Not Found for url: http://127.0.0.1:8100/runs/fileorg-p2-20251208o
+```
+
+**Suspected Root Cause**:
+Classified as recoverable file_io error
+
+**Actions Taken**:
+- None yet - just discovered
+
+**Next Steps**:
+1. Investigate root cause
+2. Implement fix
+3. Test on a FRESH run (not reusing old run)
+
+---
+
+
+### file_io: HTTPError
+**Status**: OPEN
+**Priority**: MEDIUM
+**First Observed**: 2025-12-09
+**Run ID**: N/A
+**Phase ID**: N/A
+
+**Symptom**:
+```
+404 Client Error: Not Found for url: http://127.0.0.1:8100/runs/fileorg-p2-20251208o
+```
+
+**Suspected Root Cause**:
+Classified as recoverable file_io error
+
+**Actions Taken**:
+- None yet - just discovered
+
+**Next Steps**:
+1. Investigate root cause
+2. Implement fix
+3. Test on a FRESH run (not reusing old run)
+
+---
+
+
+### file_io: HTTPError
+**Status**: OPEN
+**Priority**: MEDIUM
+**First Observed**: 2025-12-09
+**Run ID**: N/A
+**Phase ID**: N/A
+
+**Symptom**:
+```
+404 Client Error: Not Found for url: http://127.0.0.1:8100/runs/fileorg-p2-20251208o
+```
+
+**Suspected Root Cause**:
+Classified as recoverable file_io error
+
+**Actions Taken**:
+- None yet - just discovered
+
+**Next Steps**:
+1. Investigate root cause
+2. Implement fix
+3. Test on a FRESH run (not reusing old run)
+
+---
+
+
+### file_io: HTTPError
+**Status**: OPEN
+**Priority**: MEDIUM
+**First Observed**: 2025-12-09
+**Run ID**: N/A
+**Phase ID**: N/A
+
+**Symptom**:
+```
+404 Client Error: Not Found for url: http://127.0.0.1:8100/runs/fileorg-p2-20251208o
+```
+
+**Suspected Root Cause**:
+Classified as recoverable file_io error
+
+**Actions Taken**:
+- None yet - just discovered
+
+**Next Steps**:
+1. Investigate root cause
+2. Implement fix
+3. Test on a FRESH run (not reusing old run)
+
+---
+
+
+### file_io: HTTPError
+**Status**: OPEN
+**Priority**: MEDIUM
+**First Observed**: 2025-12-09
+**Run ID**: N/A
+**Phase ID**: N/A
+
+**Symptom**:
+```
+404 Client Error: Not Found for url: http://127.0.0.1:8100/runs/fileorg-p2-20251208o
+```
+
+**Suspected Root Cause**:
+Classified as recoverable file_io error
+
+**Actions Taken**:
+- None yet - just discovered
+
+**Next Steps**:
+1. Investigate root cause
+2. Implement fix
+3. Test on a FRESH run (not reusing old run)
+
+---
+
+
+### file_io: HTTPError
+**Status**: OPEN
+**Priority**: MEDIUM
+**First Observed**: 2025-12-09
+**Run ID**: N/A
+**Phase ID**: N/A
+
+**Symptom**:
+```
+404 Client Error: Not Found for url: http://127.0.0.1:8100/runs/fileorg-p2-20251208o
+```
+
+**Suspected Root Cause**:
+Classified as recoverable file_io error
+
+**Actions Taken**:
+- None yet - just discovered
+
+**Next Steps**:
+1. Investigate root cause
+2. Implement fix
+3. Test on a FRESH run (not reusing old run)
+
+---
+
+
+### file_io: HTTPError
+**Status**: OPEN
+**Priority**: MEDIUM
+**First Observed**: 2025-12-09
+**Run ID**: N/A
+**Phase ID**: N/A
+
+**Symptom**:
+```
+404 Client Error: Not Found for url: http://127.0.0.1:8100/runs/fileorg-p2-20251208o
+```
+
+**Suspected Root Cause**:
+Classified as recoverable file_io error
+
+**Actions Taken**:
+- None yet - just discovered
+
+**Next Steps**:
+1. Investigate root cause
+2. Implement fix
+3. Test on a FRESH run (not reusing old run)
+
+---
+
+
+### file_io: HTTPError
+**Status**: OPEN
+**Priority**: MEDIUM
+**First Observed**: 2025-12-09
+**Run ID**: N/A
+**Phase ID**: N/A
+
+**Symptom**:
+```
+404 Client Error: Not Found for url: http://127.0.0.1:8100/runs/fileorg-p2-20251208o
+```
+
+**Suspected Root Cause**:
+Classified as recoverable file_io error
+
+**Actions Taken**:
+- None yet - just discovered
+
+**Next Steps**:
+1. Investigate root cause
+2. Implement fix
+3. Test on a FRESH run (not reusing old run)
+
+---
+
+
+### file_io: HTTPError
+**Status**: OPEN
+**Priority**: MEDIUM
+**First Observed**: 2025-12-09
+**Run ID**: N/A
+**Phase ID**: N/A
+
+**Symptom**:
+```
+404 Client Error: Not Found for url: http://127.0.0.1:8100/runs/fileorg-p2-20251208o
+```
+
+**Suspected Root Cause**:
+Classified as recoverable file_io error
+
+**Actions Taken**:
+- None yet - just discovered
+
+**Next Steps**:
+1. Investigate root cause
+2. Implement fix
+3. Test on a FRESH run (not reusing old run)
+
+---
+
+
+### file_io: HTTPError
+**Status**: OPEN
+**Priority**: MEDIUM
+**First Observed**: 2025-12-09
+**Run ID**: N/A
+**Phase ID**: N/A
+
+**Symptom**:
+```
+404 Client Error: Not Found for url: http://127.0.0.1:8100/runs/fileorg-p2-20251208o
+```
+
+**Suspected Root Cause**:
+Classified as recoverable file_io error
+
+**Actions Taken**:
+- None yet - just discovered
+
+**Next Steps**:
+1. Investigate root cause
+2. Implement fix
+3. Test on a FRESH run (not reusing old run)
+
+---
+
+
+### file_io: HTTPError
+**Status**: OPEN
+**Priority**: MEDIUM
+**First Observed**: 2025-12-09
+**Run ID**: N/A
+**Phase ID**: N/A
+
+**Symptom**:
+```
+404 Client Error: Not Found for url: http://127.0.0.1:8100/runs/fileorg-p2-20251208o
+```
+
+**Suspected Root Cause**:
+Classified as recoverable file_io error
+
+**Actions Taken**:
+- None yet - just discovered
+
+**Next Steps**:
+1. Investigate root cause
+2. Implement fix
+3. Test on a FRESH run (not reusing old run)
+
+---
+
+
+### file_io: HTTPError
+**Status**: OPEN
+**Priority**: MEDIUM
+**First Observed**: 2025-12-09
+**Run ID**: N/A
+**Phase ID**: N/A
+
+**Symptom**:
+```
+404 Client Error: Not Found for url: http://127.0.0.1:8100/runs/fileorg-p2-20251208o
+```
+
+**Suspected Root Cause**:
+Classified as recoverable file_io error
+
+**Actions Taken**:
+- None yet - just discovered
+
+**Next Steps**:
+1. Investigate root cause
+2. Implement fix
+3. Test on a FRESH run (not reusing old run)
+
+---
+
+
+### file_io: HTTPError
+**Status**: OPEN
+**Priority**: MEDIUM
+**First Observed**: 2025-12-09
+**Run ID**: N/A
+**Phase ID**: N/A
+
+**Symptom**:
+```
+404 Client Error: Not Found for url: http://127.0.0.1:8100/runs/fileorg-p2-20251208o
+```
+
+**Suspected Root Cause**:
+Classified as recoverable file_io error
+
+**Actions Taken**:
+- None yet - just discovered
+
+**Next Steps**:
+1. Investigate root cause
+2. Implement fix
+3. Test on a FRESH run (not reusing old run)
+
+---
+
+
+### file_io: HTTPError
+**Status**: OPEN
+**Priority**: MEDIUM
+**First Observed**: 2025-12-09
+**Run ID**: N/A
+**Phase ID**: N/A
+
+**Symptom**:
+```
+404 Client Error: Not Found for url: http://127.0.0.1:8100/runs/fileorg-p2-20251208o
+```
+
+**Suspected Root Cause**:
+Classified as recoverable file_io error
+
+**Actions Taken**:
+- None yet - just discovered
+
+**Next Steps**:
+1. Investigate root cause
+2. Implement fix
+3. Test on a FRESH run (not reusing old run)
+
+---
+
+
+### file_io: HTTPError
+**Status**: OPEN
+**Priority**: MEDIUM
+**First Observed**: 2025-12-09
+**Run ID**: N/A
+**Phase ID**: N/A
+
+**Symptom**:
+```
+404 Client Error: Not Found for url: http://127.0.0.1:8100/runs/fileorg-p2-20251208o
+```
+
+**Suspected Root Cause**:
+Classified as recoverable file_io error
+
+**Actions Taken**:
+- None yet - just discovered
+
+**Next Steps**:
+1. Investigate root cause
+2. Implement fix
+3. Test on a FRESH run (not reusing old run)
+
+---
+
+
+### file_io: HTTPError
+**Status**: OPEN
+**Priority**: MEDIUM
+**First Observed**: 2025-12-09
+**Run ID**: N/A
+**Phase ID**: N/A
+
+**Symptom**:
+```
+404 Client Error: Not Found for url: http://127.0.0.1:8100/runs/fileorg-p2-20251208o
+```
+
+**Suspected Root Cause**:
+Classified as recoverable file_io error
+
+**Actions Taken**:
+- None yet - just discovered
+
+**Next Steps**:
+1. Investigate root cause
+2. Implement fix
+3. Test on a FRESH run (not reusing old run)
+
+---
+
+
+### file_io: HTTPError
+**Status**: OPEN
+**Priority**: MEDIUM
+**First Observed**: 2025-12-09
+**Run ID**: N/A
+**Phase ID**: N/A
+
+**Symptom**:
+```
+404 Client Error: Not Found for url: http://127.0.0.1:8100/runs/fileorg-p2-20251208o
+```
+
+**Suspected Root Cause**:
+Classified as recoverable file_io error
+
+**Actions Taken**:
+- None yet - just discovered
+
+**Next Steps**:
+1. Investigate root cause
+2. Implement fix
+3. Test on a FRESH run (not reusing old run)
+
+---
+
+
+### file_io: HTTPError
+**Status**: OPEN
+**Priority**: MEDIUM
+**First Observed**: 2025-12-09
+**Run ID**: N/A
+**Phase ID**: N/A
+
+**Symptom**:
+```
+404 Client Error: Not Found for url: http://127.0.0.1:8100/runs/fileorg-p2-20251208o
+```
+
+**Suspected Root Cause**:
+Classified as recoverable file_io error
+
+**Actions Taken**:
+- None yet - just discovered
+
+**Next Steps**:
+1. Investigate root cause
+2. Implement fix
+3. Test on a FRESH run (not reusing old run)
+
+---
+
+
+### file_io: HTTPError
+**Status**: OPEN
+**Priority**: MEDIUM
+**First Observed**: 2025-12-09
+**Run ID**: N/A
+**Phase ID**: N/A
+
+**Symptom**:
+```
+404 Client Error: Not Found for url: http://127.0.0.1:8100/runs/fileorg-p2-20251208o
+```
+
+**Suspected Root Cause**:
+Classified as recoverable file_io error
+
+**Actions Taken**:
+- None yet - just discovered
+
+**Next Steps**:
+1. Investigate root cause
+2. Implement fix
+3. Test on a FRESH run (not reusing old run)
+
+---
+
+
+### file_io: HTTPError
+**Status**: OPEN
+**Priority**: MEDIUM
+**First Observed**: 2025-12-09
+**Run ID**: N/A
+**Phase ID**: N/A
+
+**Symptom**:
+```
+404 Client Error: Not Found for url: http://127.0.0.1:8100/runs/fileorg-p2-20251208o
+```
+
+**Suspected Root Cause**:
+Classified as recoverable file_io error
+
+**Actions Taken**:
+- None yet - just discovered
+
+**Next Steps**:
+1. Investigate root cause
+2. Implement fix
+3. Test on a FRESH run (not reusing old run)
+
+---
+
+
+### file_io: HTTPError
+**Status**: OPEN
+**Priority**: MEDIUM
+**First Observed**: 2025-12-09
+**Run ID**: N/A
+**Phase ID**: N/A
+
+**Symptom**:
+```
+404 Client Error: Not Found for url: http://127.0.0.1:8100/runs/fileorg-p2-20251208o
+```
+
+**Suspected Root Cause**:
+Classified as recoverable file_io error
+
+**Actions Taken**:
+- None yet - just discovered
+
+**Next Steps**:
+1. Investigate root cause
+2. Implement fix
+3. Test on a FRESH run (not reusing old run)
+
+---
+
+
+### file_io: HTTPError
+**Status**: OPEN
+**Priority**: MEDIUM
+**First Observed**: 2025-12-09
+**Run ID**: N/A
+**Phase ID**: N/A
+
+**Symptom**:
+```
+404 Client Error: Not Found for url: http://127.0.0.1:8100/runs/fileorg-p2-20251208o
+```
+
+**Suspected Root Cause**:
+Classified as recoverable file_io error
+
+**Actions Taken**:
+- None yet - just discovered
+
+**Next Steps**:
+1. Investigate root cause
+2. Implement fix
+3. Test on a FRESH run (not reusing old run)
+
+---
+
+
+### file_io: HTTPError
+**Status**: OPEN
+**Priority**: MEDIUM
+**First Observed**: 2025-12-09
+**Run ID**: N/A
+**Phase ID**: N/A
+
+**Symptom**:
+```
+404 Client Error: Not Found for url: http://127.0.0.1:8100/runs/fileorg-p2-20251208o
+```
+
+**Suspected Root Cause**:
+Classified as recoverable file_io error
+
+**Actions Taken**:
+- None yet - just discovered
+
+**Next Steps**:
+1. Investigate root cause
+2. Implement fix
+3. Test on a FRESH run (not reusing old run)
+
+---
+
+
+### file_io: HTTPError
+**Status**: OPEN
+**Priority**: MEDIUM
+**First Observed**: 2025-12-09
+**Run ID**: N/A
+**Phase ID**: N/A
+
+**Symptom**:
+```
+404 Client Error: Not Found for url: http://127.0.0.1:8100/runs/fileorg-p2-20251208o
+```
+
+**Suspected Root Cause**:
+Classified as recoverable file_io error
+
+**Actions Taken**:
+- None yet - just discovered
+
+**Next Steps**:
+1. Investigate root cause
+2. Implement fix
+3. Test on a FRESH run (not reusing old run)
+
+---
+
+
+### file_io: HTTPError
+**Status**: OPEN
+**Priority**: MEDIUM
+**First Observed**: 2025-12-09
+**Run ID**: N/A
+**Phase ID**: N/A
+
+**Symptom**:
+```
+404 Client Error: Not Found for url: http://127.0.0.1:8100/runs/fileorg-p2-20251208o
+```
+
+**Suspected Root Cause**:
+Classified as recoverable file_io error
+
+**Actions Taken**:
+- None yet - just discovered
+
+**Next Steps**:
+1. Investigate root cause
+2. Implement fix
+3. Test on a FRESH run (not reusing old run)
+
+---
+
+
+### file_io: HTTPError
+**Status**: OPEN
+**Priority**: MEDIUM
+**First Observed**: 2025-12-09
+**Run ID**: N/A
+**Phase ID**: N/A
+
+**Symptom**:
+```
+404 Client Error: Not Found for url: http://127.0.0.1:8100/runs/fileorg-p2-20251208o
+```
+
+**Suspected Root Cause**:
+Classified as recoverable file_io error
+
+**Actions Taken**:
+- None yet - just discovered
+
+**Next Steps**:
+1. Investigate root cause
+2. Implement fix
+3. Test on a FRESH run (not reusing old run)
+
+---
+
+
+### file_io: HTTPError
+**Status**: OPEN
+**Priority**: MEDIUM
+**First Observed**: 2025-12-09
+**Run ID**: N/A
+**Phase ID**: N/A
+
+**Symptom**:
+```
+404 Client Error: Not Found for url: http://127.0.0.1:8100/runs/fileorg-p2-20251208o
+```
+
+**Suspected Root Cause**:
+Classified as recoverable file_io error
+
+**Actions Taken**:
+- None yet - just discovered
+
+**Next Steps**:
+1. Investigate root cause
+2. Implement fix
+3. Test on a FRESH run (not reusing old run)
+
+---
+
+
+### file_io: HTTPError
+**Status**: OPEN
+**Priority**: MEDIUM
+**First Observed**: 2025-12-09
+**Run ID**: N/A
+**Phase ID**: N/A
+
+**Symptom**:
+```
+404 Client Error: Not Found for url: http://127.0.0.1:8100/runs/fileorg-p2-20251208o
+```
+
+**Suspected Root Cause**:
+Classified as recoverable file_io error
+
+**Actions Taken**:
+- None yet - just discovered
+
+**Next Steps**:
+1. Investigate root cause
+2. Implement fix
+3. Test on a FRESH run (not reusing old run)
+
+---
+
+
+### file_io: HTTPError
+**Status**: OPEN
+**Priority**: MEDIUM
+**First Observed**: 2025-12-09
+**Run ID**: N/A
+**Phase ID**: N/A
+
+**Symptom**:
+```
+404 Client Error: Not Found for url: http://127.0.0.1:8100/runs/fileorg-p2-20251208o
+```
+
+**Suspected Root Cause**:
+Classified as recoverable file_io error
+
+**Actions Taken**:
+- None yet - just discovered
+
+**Next Steps**:
+1. Investigate root cause
+2. Implement fix
+3. Test on a FRESH run (not reusing old run)
+
+---
+
+
+### file_io: HTTPError
+**Status**: OPEN
+**Priority**: MEDIUM
+**First Observed**: 2025-12-09
+**Run ID**: N/A
+**Phase ID**: N/A
+
+**Symptom**:
+```
+404 Client Error: Not Found for url: http://127.0.0.1:8100/runs/fileorg-p2-20251208o
+```
+
+**Suspected Root Cause**:
+Classified as recoverable file_io error
+
+**Actions Taken**:
+- None yet - just discovered
+
+**Next Steps**:
+1. Investigate root cause
+2. Implement fix
+3. Test on a FRESH run (not reusing old run)
+
+---
+
+
+### file_io: HTTPError
+**Status**: OPEN
+**Priority**: MEDIUM
+**First Observed**: 2025-12-09
+**Run ID**: N/A
+**Phase ID**: N/A
+
+**Symptom**:
+```
+404 Client Error: Not Found for url: http://127.0.0.1:8100/runs/fileorg-p2-20251208o
+```
+
+**Suspected Root Cause**:
+Classified as recoverable file_io error
+
+**Actions Taken**:
+- None yet - just discovered
+
+**Next Steps**:
+1. Investigate root cause
+2. Implement fix
+3. Test on a FRESH run (not reusing old run)
+
+---
+
+
+### file_io: HTTPError
+**Status**: OPEN
+**Priority**: MEDIUM
+**First Observed**: 2025-12-09
+**Run ID**: N/A
+**Phase ID**: N/A
+
+**Symptom**:
+```
+404 Client Error: Not Found for url: http://127.0.0.1:8100/runs/fileorg-p2-20251208o
+```
+
+**Suspected Root Cause**:
+Classified as recoverable file_io error
+
+**Actions Taken**:
+- None yet - just discovered
+
+**Next Steps**:
+1. Investigate root cause
+2. Implement fix
+3. Test on a FRESH run (not reusing old run)
+
+---
+
+
+### file_io: HTTPError
+**Status**: OPEN
+**Priority**: MEDIUM
+**First Observed**: 2025-12-09
+**Run ID**: N/A
+**Phase ID**: N/A
+
+**Symptom**:
+```
+404 Client Error: Not Found for url: http://127.0.0.1:8100/runs/fileorg-p2-20251208o
+```
+
+**Suspected Root Cause**:
+Classified as recoverable file_io error
+
+**Actions Taken**:
+- None yet - just discovered
+
+**Next Steps**:
+1. Investigate root cause
+2. Implement fix
+3. Test on a FRESH run (not reusing old run)
+
+---
+
+
+### file_io: HTTPError
+**Status**: OPEN
+**Priority**: MEDIUM
+**First Observed**: 2025-12-09
+**Run ID**: N/A
+**Phase ID**: N/A
+
+**Symptom**:
+```
+404 Client Error: Not Found for url: http://127.0.0.1:8100/runs/fileorg-p2-20251208o
+```
+
+**Suspected Root Cause**:
+Classified as recoverable file_io error
+
+**Actions Taken**:
+- None yet - just discovered
+
+**Next Steps**:
+1. Investigate root cause
+2. Implement fix
+3. Test on a FRESH run (not reusing old run)
+
+---
+
+
+### file_io: HTTPError
+**Status**: OPEN
+**Priority**: MEDIUM
+**First Observed**: 2025-12-09
+**Run ID**: N/A
+**Phase ID**: N/A
+
+**Symptom**:
+```
+404 Client Error: Not Found for url: http://127.0.0.1:8100/runs/fileorg-p2-20251208o
+```
+
+**Suspected Root Cause**:
+Classified as recoverable file_io error
+
+**Actions Taken**:
+- None yet - just discovered
+
+**Next Steps**:
+1. Investigate root cause
+2. Implement fix
+3. Test on a FRESH run (not reusing old run)
+
+---
+
+
+### file_io: HTTPError
+**Status**: OPEN
+**Priority**: MEDIUM
+**First Observed**: 2025-12-09
+**Run ID**: N/A
+**Phase ID**: N/A
+
+**Symptom**:
+```
+404 Client Error: Not Found for url: http://127.0.0.1:8100/runs/fileorg-p2-20251208o
+```
+
+**Suspected Root Cause**:
+Classified as recoverable file_io error
+
+**Actions Taken**:
+- None yet - just discovered
+
+**Next Steps**:
+1. Investigate root cause
+2. Implement fix
+3. Test on a FRESH run (not reusing old run)
+
+---
+
+
+### file_io: HTTPError
+**Status**: OPEN
+**Priority**: MEDIUM
+**First Observed**: 2025-12-09
+**Run ID**: N/A
+**Phase ID**: N/A
+
+**Symptom**:
+```
+404 Client Error: Not Found for url: http://127.0.0.1:8100/runs/fileorg-p2-20251208o
+```
+
+**Suspected Root Cause**:
+Classified as recoverable file_io error
+
+**Actions Taken**:
+- None yet - just discovered
+
+**Next Steps**:
+1. Investigate root cause
+2. Implement fix
+3. Test on a FRESH run (not reusing old run)
+
+---
+
+
+### file_io: HTTPError
+**Status**: OPEN
+**Priority**: MEDIUM
+**First Observed**: 2025-12-09
+**Run ID**: N/A
+**Phase ID**: N/A
+
+**Symptom**:
+```
+404 Client Error: Not Found for url: http://127.0.0.1:8100/runs/fileorg-p2-20251208o
+```
+
+**Suspected Root Cause**:
+Classified as recoverable file_io error
+
+**Actions Taken**:
+- None yet - just discovered
+
+**Next Steps**:
+1. Investigate root cause
+2. Implement fix
+3. Test on a FRESH run (not reusing old run)
+
+---
+
+
+### file_io: HTTPError
+**Status**: OPEN
+**Priority**: MEDIUM
+**First Observed**: 2025-12-09
+**Run ID**: N/A
+**Phase ID**: N/A
+
+**Symptom**:
+```
+404 Client Error: Not Found for url: http://127.0.0.1:8100/runs/fileorg-p2-20251208o
+```
+
+**Suspected Root Cause**:
+Classified as recoverable file_io error
+
+**Actions Taken**:
+- None yet - just discovered
+
+**Next Steps**:
+1. Investigate root cause
+2. Implement fix
+3. Test on a FRESH run (not reusing old run)
+
+---
+
+
+### file_io: HTTPError
+**Status**: OPEN
+**Priority**: MEDIUM
+**First Observed**: 2025-12-09
+**Run ID**: N/A
+**Phase ID**: N/A
+
+**Symptom**:
+```
+404 Client Error: Not Found for url: http://127.0.0.1:8100/runs/fileorg-p2-20251208o
+```
+
+**Suspected Root Cause**:
+Classified as recoverable file_io error
+
+**Actions Taken**:
+- None yet - just discovered
+
+**Next Steps**:
+1. Investigate root cause
+2. Implement fix
+3. Test on a FRESH run (not reusing old run)
+
+---
+
+
+### file_io: HTTPError
+**Status**: OPEN
+**Priority**: MEDIUM
+**First Observed**: 2025-12-09
+**Run ID**: N/A
+**Phase ID**: N/A
+
+**Symptom**:
+```
+404 Client Error: Not Found for url: http://127.0.0.1:8100/runs/fileorg-p2-20251208o
+```
+
+**Suspected Root Cause**:
+Classified as recoverable file_io error
+
+**Actions Taken**:
+- None yet - just discovered
+
+**Next Steps**:
+1. Investigate root cause
+2. Implement fix
+3. Test on a FRESH run (not reusing old run)
+
+---
+
+
+### file_io: HTTPError
+**Status**: OPEN
+**Priority**: MEDIUM
+**First Observed**: 2025-12-09
+**Run ID**: N/A
+**Phase ID**: N/A
+
+**Symptom**:
+```
+404 Client Error: Not Found for url: http://127.0.0.1:8100/runs/fileorg-p2-20251208o
+```
+
+**Suspected Root Cause**:
+Classified as recoverable file_io error
+
+**Actions Taken**:
+- None yet - just discovered
+
+**Next Steps**:
+1. Investigate root cause
+2. Implement fix
+3. Test on a FRESH run (not reusing old run)
+
+---
+
+
+### file_io: HTTPError
+**Status**: OPEN
+**Priority**: MEDIUM
+**First Observed**: 2025-12-09
+**Run ID**: N/A
+**Phase ID**: N/A
+
+**Symptom**:
+```
+404 Client Error: Not Found for url: http://127.0.0.1:8100/runs/fileorg-p2-20251208o
+```
+
+**Suspected Root Cause**:
+Classified as recoverable file_io error
+
+**Actions Taken**:
+- None yet - just discovered
+
+**Next Steps**:
+1. Investigate root cause
+2. Implement fix
+3. Test on a FRESH run (not reusing old run)
+
+---
+
+
+### file_io: HTTPError
+**Status**: OPEN
+**Priority**: MEDIUM
+**First Observed**: 2025-12-09
+**Run ID**: N/A
+**Phase ID**: N/A
+
+**Symptom**:
+```
+404 Client Error: Not Found for url: http://127.0.0.1:8100/runs/fileorg-p2-20251208o
+```
+
+**Suspected Root Cause**:
+Classified as recoverable file_io error
+
+**Actions Taken**:
+- None yet - just discovered
+
+**Next Steps**:
+1. Investigate root cause
+2. Implement fix
+3. Test on a FRESH run (not reusing old run)
+
+---
+
+
+### file_io: HTTPError
+**Status**: OPEN
+**Priority**: MEDIUM
+**First Observed**: 2025-12-09
+**Run ID**: N/A
+**Phase ID**: N/A
+
+**Symptom**:
+```
+404 Client Error: Not Found for url: http://127.0.0.1:8100/runs/fileorg-p2-20251208o
+```
+
+**Suspected Root Cause**:
+Classified as recoverable file_io error
+
+**Actions Taken**:
+- None yet - just discovered
+
+**Next Steps**:
+1. Investigate root cause
+2. Implement fix
+3. Test on a FRESH run (not reusing old run)
+
+---
+
+
+### file_io: HTTPError
+**Status**: OPEN
+**Priority**: MEDIUM
+**First Observed**: 2025-12-09
+**Run ID**: N/A
+**Phase ID**: N/A
+
+**Symptom**:
+```
+404 Client Error: Not Found for url: http://127.0.0.1:8100/runs/fileorg-p2-20251208o
+```
+
+**Suspected Root Cause**:
+Classified as recoverable file_io error
+
+**Actions Taken**:
+- None yet - just discovered
+
+**Next Steps**:
+1. Investigate root cause
+2. Implement fix
+3. Test on a FRESH run (not reusing old run)
+
+---
+
+
+### file_io: HTTPError
+**Status**: OPEN
+**Priority**: MEDIUM
+**First Observed**: 2025-12-09
+**Run ID**: N/A
+**Phase ID**: N/A
+
+**Symptom**:
+```
+404 Client Error: Not Found for url: http://127.0.0.1:8100/runs/fileorg-p2-20251208o
+```
+
+**Suspected Root Cause**:
+Classified as recoverable file_io error
+
+**Actions Taken**:
+- None yet - just discovered
+
+**Next Steps**:
+1. Investigate root cause
+2. Implement fix
+3. Test on a FRESH run (not reusing old run)
+
+---
+
+
+### file_io: HTTPError
+**Status**: OPEN
+**Priority**: MEDIUM
+**First Observed**: 2025-12-09
+**Run ID**: N/A
+**Phase ID**: N/A
+
+**Symptom**:
+```
+404 Client Error: Not Found for url: http://127.0.0.1:8100/runs/fileorg-p2-20251208o
+```
+
+**Suspected Root Cause**:
+Classified as recoverable file_io error
+
+**Actions Taken**:
+- None yet - just discovered
+
+**Next Steps**:
+1. Investigate root cause
+2. Implement fix
+3. Test on a FRESH run (not reusing old run)
+
+---
+
+
+### file_io: HTTPError
+**Status**: OPEN
+**Priority**: MEDIUM
+**First Observed**: 2025-12-09
+**Run ID**: N/A
+**Phase ID**: N/A
+
+**Symptom**:
+```
+404 Client Error: Not Found for url: http://127.0.0.1:8100/runs/fileorg-p2-20251208o
+```
+
+**Suspected Root Cause**:
+Classified as recoverable file_io error
+
+**Actions Taken**:
+- None yet - just discovered
+
+**Next Steps**:
+1. Investigate root cause
+2. Implement fix
+3. Test on a FRESH run (not reusing old run)
+
+---
+
+
+### file_io: HTTPError
+**Status**: OPEN
+**Priority**: MEDIUM
+**First Observed**: 2025-12-09
+**Run ID**: N/A
+**Phase ID**: N/A
+
+**Symptom**:
+```
+404 Client Error: Not Found for url: http://127.0.0.1:8100/runs/fileorg-p2-20251208o
+```
+
+**Suspected Root Cause**:
+Classified as recoverable file_io error
+
+**Actions Taken**:
+- None yet - just discovered
+
+**Next Steps**:
+1. Investigate root cause
+2. Implement fix
+3. Test on a FRESH run (not reusing old run)
+
+---
+
+
+### file_io: HTTPError
+**Status**: OPEN
+**Priority**: MEDIUM
+**First Observed**: 2025-12-09
+**Run ID**: N/A
+**Phase ID**: N/A
+
+**Symptom**:
+```
+404 Client Error: Not Found for url: http://127.0.0.1:8100/runs/fileorg-p2-20251208o
+```
+
+**Suspected Root Cause**:
+Classified as recoverable file_io error
+
+**Actions Taken**:
+- None yet - just discovered
+
+**Next Steps**:
+1. Investigate root cause
+2. Implement fix
+3. Test on a FRESH run (not reusing old run)
+
+---
+
+
+### file_io: HTTPError
+**Status**: OPEN
+**Priority**: MEDIUM
+**First Observed**: 2025-12-09
+**Run ID**: N/A
+**Phase ID**: N/A
+
+**Symptom**:
+```
+404 Client Error: Not Found for url: http://127.0.0.1:8100/runs/fileorg-p2-20251208o
+```
+
+**Suspected Root Cause**:
+Classified as recoverable file_io error
+
+**Actions Taken**:
+- None yet - just discovered
+
+**Next Steps**:
+1. Investigate root cause
+2. Implement fix
+3. Test on a FRESH run (not reusing old run)
+
+---
+
+
+### file_io: HTTPError
+**Status**: OPEN
+**Priority**: MEDIUM
+**First Observed**: 2025-12-09
+**Run ID**: N/A
+**Phase ID**: N/A
+
+**Symptom**:
+```
+404 Client Error: Not Found for url: http://127.0.0.1:8100/runs/fileorg-p2-20251208o
+```
+
+**Suspected Root Cause**:
+Classified as recoverable file_io error
+
+**Actions Taken**:
+- None yet - just discovered
+
+**Next Steps**:
+1. Investigate root cause
+2. Implement fix
+3. Test on a FRESH run (not reusing old run)
+
+---
+
+
+### file_io: HTTPError
+**Status**: OPEN
+**Priority**: MEDIUM
+**First Observed**: 2025-12-09
+**Run ID**: N/A
+**Phase ID**: N/A
+
+**Symptom**:
+```
+404 Client Error: Not Found for url: http://127.0.0.1:8100/runs/fileorg-p2-20251208o
+```
+
+**Suspected Root Cause**:
+Classified as recoverable file_io error
+
+**Actions Taken**:
+- None yet - just discovered
+
+**Next Steps**:
+1. Investigate root cause
+2. Implement fix
+3. Test on a FRESH run (not reusing old run)
+
+---
+
+
+### file_io: HTTPError
+**Status**: OPEN
+**Priority**: MEDIUM
+**First Observed**: 2025-12-09
+**Run ID**: N/A
+**Phase ID**: N/A
+
+**Symptom**:
+```
+404 Client Error: Not Found for url: http://127.0.0.1:8100/runs/fileorg-p2-20251208o
+```
+
+**Suspected Root Cause**:
+Classified as recoverable file_io error
+
+**Actions Taken**:
+- None yet - just discovered
+
+**Next Steps**:
+1. Investigate root cause
+2. Implement fix
+3. Test on a FRESH run (not reusing old run)
+
+---
+
+
+### file_io: HTTPError
+**Status**: OPEN
+**Priority**: MEDIUM
+**First Observed**: 2025-12-09
+**Run ID**: N/A
+**Phase ID**: N/A
+
+**Symptom**:
+```
+404 Client Error: Not Found for url: http://127.0.0.1:8100/runs/fileorg-p2-20251208o
+```
+
+**Suspected Root Cause**:
+Classified as recoverable file_io error
+
+**Actions Taken**:
+- None yet - just discovered
+
+**Next Steps**:
+1. Investigate root cause
+2. Implement fix
+3. Test on a FRESH run (not reusing old run)
+
+---
+
+
 ### file_io: HTTPError
 **Status**: OPEN
 **Priority**: MEDIUM

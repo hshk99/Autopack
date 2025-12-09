@@ -5,6 +5,7 @@
       "description": "Stabilize the backend test suite by resolving dependency pin conflicts (fastapi/starlette/httpx), updating pytest.ini as needed, and ensuring all backend tests execute cleanly.",
       "task_category": "tests",
       "complexity": "low",
+      "builder_mode": "structured_edit",
       "acceptance_criteria": [
         "All backend tests pass without dependency errors.",
         "requirements.txt pinned to compatible versions for fastapi/starlette/httpx/pytest.",

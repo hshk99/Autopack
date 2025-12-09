@@ -400,7 +400,12 @@ class GovernedCommandRunner:
         body.append("\n# STDERR\n")
         body.append(result.stderr or "")
         path.write_text("\n".join(body), encoding="utf-8", errors="ignore")
-        return str(path)
+        # Return relative path from workspace for portability
+        try:
+            return str(path.relative_to(self.workspace))
+        except ValueError:
+            # If path is not relative to workspace, return as-is
+            return str(path)
 
     def _append_log(self, result: CommandResult) -> None:
         record = {

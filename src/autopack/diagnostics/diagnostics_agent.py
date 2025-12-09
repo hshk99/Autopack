@@ -163,8 +163,11 @@ class DiagnosticsAgent:
             ("du -sh .", "baseline_disk_usage"),
             ("df -h .", "baseline_df"),
         ]
+        # Only tail log files that actually exist
         for log_path in self._baseline_logs:
-            commands.append((f"tail -n 200 {log_path}", f"baseline_tail_{Path(log_path).stem}"))
+            full_path = self.workspace / log_path
+            if full_path.exists():
+                commands.append((f"tail -n 200 {log_path}", f"baseline_tail_{Path(log_path).stem}"))
         results: List[CommandResult] = []
         for cmd, label in commands:
             results.append(self.runner.run(cmd, label=label, sandbox=False))

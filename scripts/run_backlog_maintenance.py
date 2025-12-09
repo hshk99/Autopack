@@ -103,6 +103,7 @@ def main():
             failure_class="maintenance",
             context={"phase_id": item.id, "description": item.title, "backlog_summary": item.summary},
             phase_id=item.id,
+            mode="maintenance",
         )
         patch_path = None
         if args.patch_dir:

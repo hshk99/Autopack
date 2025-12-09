@@ -404,6 +404,7 @@ class AutonomousExecutor:
                 failure_class="maintenance",
                 context={"phase_id": phase_id, "description": desc, "backlog_summary": phase.get("metadata", {}).get("backlog_summary")},
                 phase_id=phase_id,
+                mode="maintenance",
             )
 
             patch_path = None

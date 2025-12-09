@@ -91,6 +91,7 @@ class DiagnosticsAgent:
         failure_class: str,
         context: Optional[Dict] = None,
         phase_id: Optional[str] = None,
+        mode: Optional[str] = None,
     ) -> DiagnosticOutcome:
         if not self._lock.acquire(blocking=False):
             # Only one concurrent diagnostics run
@@ -137,6 +138,7 @@ class DiagnosticsAgent:
                 phase_id=phase_id,
                 ledger_summary=ledger_summary,
                 probe_results=probe_results,
+                mode=mode,
             )
 
             return DiagnosticOutcome(
@@ -197,10 +199,12 @@ class DiagnosticsAgent:
         phase_id: Optional[str],
         ledger_summary: str,
         probe_results: List[ProbeRunResult],
+        mode: Optional[str] = None,
     ) -> None:
         summary = {
             "failure_class": failure_class,
             "phase_id": phase_id,
+            "mode": mode,
             "ledger": ledger_summary,
             "probes": [
                 {

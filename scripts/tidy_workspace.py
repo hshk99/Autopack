@@ -372,7 +372,6 @@ def semantic_analysis(
             print(f"[SEMANTIC] {path}: {result.get('decision')} ({rationale_display[:120]})")
         results.append(result)
 
-    save_semantic_cache(cache_path, cache)
     return results
 
 

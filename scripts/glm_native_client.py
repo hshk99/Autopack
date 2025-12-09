@@ -25,6 +25,11 @@ from typing import List, Dict, Any
 import jwt
 import requests
 
+try:
+    from dotenv import load_dotenv
+except ImportError:  # pragma: no cover
+    load_dotenv = None
+
 
 class NativeGLMClient:
     def __init__(
@@ -33,6 +38,8 @@ class NativeGLMClient:
         model: str = "glm-4.6",
         timeout: int = 30,
     ):
+        if load_dotenv:
+            load_dotenv()
         self.api_key = api_key or os.getenv("GLM_API_KEY")
         if not self.api_key or "." not in self.api_key:
             raise ValueError("GLM_API_KEY is required and must be in the form '<api_id>.<api_secret>'")

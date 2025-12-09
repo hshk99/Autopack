@@ -670,6 +670,7 @@ def main():
 
         if superseded_mode and root.as_posix().endswith("archive/superseded/archive"):
             actions: List[Action] = []
+            research_keywords = ["research", "brief", "market", "strategy", "strategic_review", "immigration_visa", "tax", "fileorganizer_final"]
             for dirpath, dirnames, filenames in os.walk(root):
                 dirnames[:] = [d for d in dirnames if d not in {".git", "node_modules", ".pytest_cache", "__pycache__", ".venv", "venv"}]
                 for fname in filenames:
@@ -679,7 +680,11 @@ def main():
                     if is_protected(src):
                         continue
                     rel = src.relative_to(root)
-                    dest = superseded_target / rel
+                    target_base = superseded_target
+                    lower_name = fname.lower()
+                    if any(k in lower_name for k in research_keywords):
+                        target_base = superseded_target / "research"
+                    dest = target_base / rel
                     actions.append(Action("move", src, dest, "superseded->project archive"))
             execute_actions(actions, dry_run=dry_run, checkpoint_dir=args.checkpoint_dir if not dry_run else None, logger=logger, run_id=run_id)
         else:

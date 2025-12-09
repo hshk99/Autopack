@@ -59,6 +59,7 @@
       "description": "Add Docker deployment assets covering backend and frontend: Dockerfile, docker-compose.yml, .dockerignore, deploy.sh, and smoke-test the stack locally.",
       "task_category": "deployment",
       "complexity": "medium",
+      "builder_mode": "structured_edit",
       "change_size": "large_refactor",
       "acceptance_criteria": [
         "Backend Dockerfile builds successfully (Python 3.11, dependencies installed).",

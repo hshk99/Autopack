@@ -359,7 +359,7 @@ python src/autopack/autonomous_executor.py --run-id my-new-run
   ```
 - Scopes are configured in `tidy_scope.yaml` (defaults: `.autonomous_runs/file-organizer-app-v1`, `.autonomous_runs`, `archive`). Set `purge: true` there to allow deletes.
 - Semantic store: tries Postgres (`DATABASE_URL`), then Qdrant (`QDRANT_URL`/`QDRANT_HOST` + `QDRANT_API_KEY`), else JSON cache. Embeddings: set `EMBEDDING_MODEL` (default `BAAI/bge-m3`; fallback hash). Requires `sentence-transformers` installed for HF models.
-- Truth-merge suggestions can be generated and applied with markers; semantic deletes downgrade to archive moves unless `--semantic-delete` is set.
+- Truth-merge: allocator suggestions can be generated; optional apply is section-aware (inserts under matching headings) with provenance markers. Semantic deletes downgrade to archive moves unless `--semantic-delete` is set.
 
 ### Consolidating Documentation
 

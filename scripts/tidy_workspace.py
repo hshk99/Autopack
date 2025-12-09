@@ -651,10 +651,14 @@ def main():
 
         logger = TidyLogger(REPO_ROOT, dsn=selected_dsn, project_id=project_id)
 
-        # Markdown tidy
-        rules = detect_project_rules(root)
-        organizer = DocumentationOrganizer(project_root=root, rules_config=rules, dry_run=dry_run, verbose=args.verbose)
-        organizer.organize()
+        # Markdown tidy (skip if already in superseded area)
+        if "superseded" in root.parts:
+            if args.verbose:
+                print(f"[INFO] Skipping markdown organizer for superseded root: {root}")
+        else:
+            rules = detect_project_rules(root)
+            organizer = DocumentationOrganizer(project_root=root, rules_config=rules, dry_run=dry_run, verbose=args.verbose)
+            organizer.organize()
 
         semantic_results = []
         merge_suggestions_out = args.truth_merge_report

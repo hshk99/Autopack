@@ -518,7 +518,12 @@ def main():
             )
             print(f"[INFO] Semantic results ({len(semantic_results)} files):")
             for r in semantic_results:
-                print(f" - {r.get('path')}: {r.get('decision')} ({r.get('rationale')[:160]})")
+                rationale_display = (r.get("rationale") or "")
+                try:
+                    rationale_display = rationale_display.encode("ascii", "replace").decode("ascii")
+                except Exception:
+                    pass
+                print(f" - {r.get('path')}: {r.get('decision')} ({rationale_display[:160]})")
 
         # Non-MD tidy
         actions = plan_non_md_actions(

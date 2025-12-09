@@ -1,15 +1,76 @@
 # Consolidated Reference Reference
 
-**Last Updated**: 2025-12-06
+**Last Updated**: 2025-12-09
 **Auto-generated** by scripts/consolidate_docs.py
 
 ## Contents
 
+- [QDRANT_INTEGRATION_VERIFIED](#qdrant-integration-verified)
 - [AUTONOMOUS_EXECUTOR_README](#autonomous-executor-readme)
 - [CHATBOT_INTEGRATION_COMPLETE_REFERENCE](#chatbot-integration-complete-reference)
 - [DOC_ORGANIZATION_README](#doc-organization-readme)
 - [COUNTRY_PACKS_UK](#country-packs-uk)
 - [RECENT_APPLY_HARDENING](#recent-apply-hardening)
+
+---
+
+## QDRANT_INTEGRATION_VERIFIED
+
+**Date**: 2025-12-09
+**Status**: ✅ VERIFIED AND OPERATIONAL
+
+### Summary
+
+Successfully completed end-to-end Qdrant integration for Autopack's vector memory system. All core operations tested and verified working with proper UUID conversion for Qdrant point IDs.
+
+### Key Implementation Details
+
+**UUID Conversion Pattern** (from `src/autopack/memory/qdrant_store.py:46-49`):
+```python
+def _str_to_uuid(self, string_id: str) -> str:
+    """Convert string ID to deterministic UUID using MD5 hash."""
+    hash_bytes = hashlib.md5(string_id.encode()).digest()
+    return str(uuid.UUID(bytes=hash_bytes))
+```
+
+**Rationale**: Qdrant requires point IDs to be UUID or unsigned integer. Pattern learned from `c:\dev\chatbot_project\backend\qdrant_utils.py` ensures:
+- Deterministic UUIDs (same input → same UUID)
+- Valid Qdrant point IDs
+- Backward compatibility (original ID stored in `payload["_original_id"]`)
+
+### Verification Results
+
+- **Decision Log Storage**: ✅ Working with UUID conversion
+- **Phase Summary Storage**: ✅ Working
+- **Document Counts**: ✅ 3+ documents stored across collections
+- **Qdrant Container**: ✅ Running on port 6333
+- **Smoke Tests**: ✅ 5/5 passing
+
+### Collections
+- `code_docs`: Code documentation and file contents
+- `decision_logs`: Auditor and builder decisions
+- `run_summaries`: Phase summaries and run outcomes
+- `task_outcomes`: Task execution results
+- `error_patterns`: Error patterns for learning
+
+### Configuration
+```yaml
+use_qdrant: true
+qdrant:
+  host: localhost
+  port: 6333
+  api_key: ""
+  prefer_grpc: false
+  timeout: 60
+```
+
+### Setup
+```bash
+docker run -p 6333:6333 qdrant/qdrant
+DATABASE_URL="sqlite:///autopack.db" PYTHONPATH=src python -m autopack.main
+```
+
+See `docs/QDRANT_INTEGRATION_VERIFIED.md` and `docs/QDRANT_SETUP_COMPLETE.md` for full details.
 
 ---
 

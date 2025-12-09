@@ -17,14 +17,16 @@
 ## MEMORY_CONTEXT_SYSTEM
 
 **Date**: 2025-12-09
-**Status**: ✅ Implemented in `src/autopack/memory/`, `src/autopack/validators/`
+**Status**: ✅ Implemented & Verified in `src/autopack/memory/`, `src/autopack/validators/`
+**Qdrant Integration**: ✅ Verified 2025-12-09 (see `docs/QDRANT_INTEGRATION_VERIFIED.md`)
 
 Vector memory for context retrieval and goal-drift detection:
 
 ### New Modules
 - `src/autopack/memory/embeddings.py` - OpenAI + local fallback embeddings
-- `src/autopack/memory/faiss_store.py` - FAISS backend (Qdrant-ready adapter shape)
-- `src/autopack/memory/memory_service.py` - High-level insert/search for 4 collections
+- `src/autopack/memory/qdrant_store.py` - **Qdrant backend (default)** - Production vector store with deterministic UUID conversion (MD5-based)
+- `src/autopack/memory/faiss_store.py` - FAISS backend (dev/offline fallback)
+- `src/autopack/memory/memory_service.py` - High-level insert/search with backend selection (Qdrant/FAISS)
 - `src/autopack/memory/maintenance.py` - TTL pruning (30 days default)
 - `src/autopack/memory/goal_drift.py` - Goal drift detection using embedding similarity
 - `src/autopack/validators/yaml_validator.py` - YAML/docker-compose pre-apply validation
@@ -32,8 +34,16 @@ Vector memory for context retrieval and goal-drift detection:
 ### Collections
 - `code_docs`: Workspace file embeddings
 - `run_summaries`: Per-phase summaries (changes, CI result)
-- `errors_ci`: Failing test/error snippets
-- `doctor_hints`: Doctor hints/actions/outcomes
+- `decision_logs`: Auditor and builder decisions
+- `task_outcomes`: Task execution results
+- `error_patterns`: Error patterns for learning
+
+### Qdrant Integration (2025-12-09)
+- **UUID Conversion**: Deterministic MD5-based UUID conversion for Qdrant point IDs (required by Qdrant)
+- **Original ID Preservation**: String IDs stored in `payload["_original_id"]` for backward compatibility
+- **Verified Operations**: Decision log storage, phase summary storage, document retrieval, collection management
+- **Status**: 3+ documents stored, smoke tests passing, ready for production use
+- **Setup**: `docker run -p 6333:6333 qdrant/qdrant`
 
 ### Executor Integration
 - Memory retrieval before builder call (top-k snippets injected into prompts)

@@ -16,6 +16,7 @@ Collections (per plan):
 - planning: planning artifacts and plan changes
 """
 
+import hashlib
 import logging
 import uuid
 from datetime import datetime, timezone
@@ -88,6 +89,23 @@ class QdrantStore:
         self._default_dim = 1536  # OpenAI text-embedding-ada-002 dimension
         logger.info(f"[Qdrant] Connected to {host}:{port}")
 
+    def _str_to_uuid(self, string_id: str) -> str:
+        """
+        Convert a string ID to a deterministic UUID.
+
+        Qdrant requires IDs to be either UUID or unsigned integer.
+        We hash the string ID to create a deterministic UUID.
+
+        Args:
+            string_id: String identifier
+
+        Returns:
+            UUID string
+        """
+        # Create deterministic UUID from string hash
+        hash_bytes = hashlib.md5(string_id.encode()).digest()
+        return str(uuid.UUID(bytes=hash_bytes))
+
     def ensure_collection(self, name: str, size: int = 1536) -> None:
         """
         Ensure a collection exists (create if not).
@@ -140,12 +158,17 @@ class QdrantStore:
             qdrant_points = []
             for point in points:
                 point_id = str(point.get("id") or uuid.uuid4().hex)
+                # Convert string ID to UUID for Qdrant
+                qdrant_id = self._str_to_uuid(point_id)
+
                 vector = point.get("vector", [])
                 payload = point.get("payload", {})
+                # Store original ID in payload for retrieval
+                payload["_original_id"] = point_id
 
                 qdrant_points.append(
                     PointStruct(
-                        id=point_id,
+                        id=qdrant_id,
                         vector=vector,
                         payload=payload,
                     )
@@ -215,8 +238,11 @@ class QdrantStore:
                 if status in ("tombstoned", "superseded", "archived"):
                     continue
 
+                # Return original ID from payload
+                original_id = payload.pop("_original_id", str(hit.id))
+
                 results.append({
-                    "id": str(hit.id),
+                    "id": original_id,
                     "score": float(hit.score),
                     "payload": payload,
                 })
@@ -269,9 +295,13 @@ class QdrantStore:
             # Convert to common format
             results = []
             for record in records:
+                payload = record.payload or {}
+                # Return original ID from payload
+                original_id = payload.pop("_original_id", str(record.id))
+
                 results.append({
-                    "id": str(record.id),
-                    "payload": record.payload or {},
+                    "id": original_id,
+                    "payload": payload,
                 })
 
             return results
@@ -286,18 +316,24 @@ class QdrantStore:
 
         Args:
             collection: Collection name
-            point_id: Point ID
+            point_id: Point ID (original string ID)
 
         Returns:
             Payload dict or None
         """
         try:
+            # Convert string ID to UUID
+            qdrant_id = self._str_to_uuid(point_id)
+
             points = self.client.retrieve(
                 collection_name=collection,
-                ids=[point_id],
+                ids=[qdrant_id],
             )
-            if points:
-                return points[0].payload
+            if points and points[0].payload:
+                payload = dict(points[0].payload)
+                # Remove internal _original_id field
+                payload.pop("_original_id", None)
+                return payload
             return None
         except Exception as e:
             logger.error(f"[Qdrant] Get payload failed for '{point_id}': {e}")
@@ -314,17 +350,23 @@ class QdrantStore:
 
         Args:
             collection: Collection name
-            point_id: Point ID
+            point_id: Point ID (original string ID)
             payload: New payload
 
         Returns:
             True if successful, False otherwise
         """
         try:
+            # Convert string ID to UUID
+            qdrant_id = self._str_to_uuid(point_id)
+
+            # Preserve original ID in payload
+            payload["_original_id"] = point_id
+
             self.client.set_payload(
                 collection_name=collection,
                 payload=payload,
-                points=[point_id],
+                points=[qdrant_id],
             )
             return True
         except Exception as e:
@@ -337,7 +379,7 @@ class QdrantStore:
 
         Args:
             collection: Collection name
-            ids: List of point IDs to delete
+            ids: List of point IDs to delete (original string IDs)
 
         Returns:
             Number of points deleted
@@ -346,9 +388,12 @@ class QdrantStore:
             return 0
 
         try:
+            # Convert string IDs to UUIDs
+            qdrant_ids = [self._str_to_uuid(point_id) for point_id in ids]
+
             self.client.delete(
                 collection_name=collection,
-                points_selector=ids,
+                points_selector=qdrant_ids,
             )
             logger.debug(f"[Qdrant] Deleted {len(ids)} points from '{collection}'")
             return len(ids)

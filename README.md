@@ -15,20 +15,21 @@ Autopack is a framework for orchestrating autonomous AI agents (Builder and Audi
 - Workspace prep: ensure scoped directories exist in the run workspace (e.g., `models/`, `migrations/`) to avoid missing-path scope warnings.
 - Reusable hardening templates: see `templates/hardening_phases.json` and `templates/phase_defaults.json` plus `scripts/plan_hardening.py` to assemble project plans; kickoff multi-agent planning with `planning/kickoff_prompt.md`.
 
-### Memory & Context System (IMPLEMENTED 2025-12-09)
+### Memory & Context System (IMPLEMENTED & VERIFIED 2025-12-09)
 Vector memory for context retrieval and goal-drift detection:
 
 - **Database Architecture**:
   - **Transactional DB**: **PostgreSQL** (default) - Stores phases, runs, decision logs, plan changes, etc.
-  - **Vector DB**: **Qdrant** (default) - Production vector search with HNSW indexing
+  - **Vector DB**: **Qdrant** (default) - Production vector search with HNSW indexing, UUID-based point IDs
   - **Fallbacks**: SQLite for transactional (dev/offline via explicit override); FAISS for vectors (dev/offline)
   - Run Qdrant locally: `docker run -p 6333:6333 qdrant/qdrant`
+  - **Status**: ✅ Integration verified with decision logs, phase summaries, and smoke tests passing
 
 - **Vector Memory** (`src/autopack/memory/`):
   - `embeddings.py` - OpenAI + local fallback embeddings
-  - `qdrant_store.py` - **Qdrant backend (default)** - Production vector store with payload filtering
+  - `qdrant_store.py` - **Qdrant backend (default)** - Production vector store with deterministic UUID conversion (MD5-based)
   - `faiss_store.py` - FAISS backend (dev/offline fallback)
-  - `memory_service.py` - Collections: code_docs, run_summaries, errors_ci, doctor_hints, planning
+  - `memory_service.py` - Collections: code_docs, run_summaries, decision_logs, task_outcomes, error_patterns
   - `maintenance.py` - TTL pruning (30 days default)
   - `goal_drift.py` - Detects semantic drift from run goals
 

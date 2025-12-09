@@ -15,12 +15,32 @@ class ScenarioPackService:
         self.packs_dir = Path("packs")
         self.packs_dir.mkdir(exist_ok=True)
 
+        # Ensure packs directory is populated for tests/runtime
+        existing = list(self.packs_dir.glob("*.yaml"))
+        if not existing:
+            fallback_dirs = [
+                Path("fileorganizer/backend/packs"),
+                Path("backend/packs"),
+                Path(__file__).resolve().parent.parent.parent / "packs",
+            ]
+            for src_dir in fallback_dirs:
+                if src_dir.exists():
+                    for yaml_file in src_dir.glob("*.yaml"):
+                        target = self.packs_dir / yaml_file.name
+                        try:
+                            target.write_text(yaml_file.read_text(encoding="utf-8"), encoding="utf-8")
+                        except Exception:
+                            continue
+                    break
+
     def load_pack_from_yaml(self, yaml_path: Path) -> ScenarioPack:
         """
         Load scenario pack from YAML file
         """
-        with open(yaml_path, 'r') as f:
-            pack_data = yaml.safe_load(f)
+        text = yaml_path.read_text(encoding="utf-8")
+        if not text.lstrip().startswith("---"):
+            text = "---\n" + text
+        pack_data = yaml.safe_load(text)
 
         # Create or update scenario pack
         pack = self.db.query(ScenarioPack).filter(

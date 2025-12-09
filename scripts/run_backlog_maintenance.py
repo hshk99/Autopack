@@ -16,6 +16,7 @@ from autopack.backlog_maintenance import (
     backlog_items_to_phases,
     parse_backlog_markdown,
     write_plan,
+    create_git_checkpoint,
 )
 from autopack.diagnostics.diagnostics_agent import DiagnosticsAgent
 from autopack.memory import MemoryService
@@ -30,6 +31,7 @@ def main():
     parser.add_argument("--max-commands", type=int, default=20, help="Per-item command budget")
     parser.add_argument("--max-seconds", type=int, default=600, help="Per-item time budget (seconds)")
     parser.add_argument("--workspace", type=Path, default=Path("."), help="Workspace root")
+    parser.add_argument("--checkpoint", action="store_true", help="Create a git checkpoint before running diagnostics")
     args = parser.parse_args()
 
     run_id = args.run_id or f"backlog-maintenance-{int(time.time())}"
@@ -62,6 +64,14 @@ def main():
         max_seconds=args.max_seconds,
     )
 
+    checkpoint_hash = None
+    if args.checkpoint:
+        ok, checkpoint_hash = create_git_checkpoint(workspace, message=f"[Autopack] Backlog checkpoint {run_id}")
+        if ok:
+            print(f"[Checkpoint] Created at {checkpoint_hash}")
+        else:
+            print(f"[Checkpoint] Failed: {checkpoint_hash}")
+
     summaries = []
     for item in items:
         print(f"[Diagnostics] {item.id}: {item.title}")
@@ -70,12 +80,25 @@ def main():
             context={"phase_id": item.id, "description": item.title, "backlog_summary": item.summary},
             phase_id=item.id,
         )
+        if memory and memory.enabled:
+            try:
+                memory.write_decision_log(
+                    trigger="backlog_maintenance",
+                    choice=f"diagnostics:{item.id}",
+                    rationale=outcome.ledger_summary,
+                    project_id=run_id,
+                    run_id=run_id,
+                    phase_id=item.id,
+                )
+            except Exception:
+                pass
         summaries.append(
             {
                 "phase_id": item.id,
                 "ledger": outcome.ledger_summary,
                 "artifacts": outcome.artifacts,
                 "budget_exhausted": outcome.budget_exhausted,
+                "checkpoint": checkpoint_hash if args.checkpoint else None,
             }
         )
 

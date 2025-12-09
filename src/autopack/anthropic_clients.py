@@ -115,7 +115,8 @@ class AnthropicBuilderClient:
         project_rules: Optional[List] = None,
         run_hints: Optional[List] = None,
         use_full_file_mode: bool = True,
-        config = None  # NEW: BuilderOutputConfig for consistency
+        config = None,  # NEW: BuilderOutputConfig for consistency
+        retrieved_context: Optional[str] = None,  # NEW: Vector memory context
     ) -> BuilderResult:
         """Execute a phase using Claude
 
@@ -129,6 +130,7 @@ class AnthropicBuilderClient:
             use_full_file_mode: If True, use new full-file replacement format (GPT_RESPONSE10).
                                If False, use legacy git diff format (deprecated).
             config: BuilderOutputConfig instance (per IMPLEMENTATION_PLAN2.md)
+            retrieved_context: Retrieved context from vector memory (formatted string)
 
         Returns:
             BuilderResult with patch and metadata
@@ -253,7 +255,8 @@ class AnthropicBuilderClient:
             user_prompt = self._build_user_prompt(
                 phase_spec, file_context, project_rules, run_hints,
                 use_full_file_mode=use_full_file_mode_flag,
-                config=config  # NEW: Pass config for read-only markers and structured edit detection
+                config=config,  # NEW: Pass config for read-only markers and structured edit detection
+                retrieved_context=retrieved_context,  # NEW: Vector memory context
             )
 
             # Per GPT_RESPONSE23 Q2: Add sanity checks for max_tokens
@@ -1834,10 +1837,11 @@ Requirements:
         project_rules: Optional[List],
         run_hints: Optional[List],
         use_full_file_mode: bool = True,
-        config = None  # NEW: BuilderOutputConfig for thresholds
+        config = None,  # NEW: BuilderOutputConfig for thresholds
+        retrieved_context: Optional[str] = None,  # NEW: Vector memory context
     ) -> str:
         """Build user prompt with phase details
-        
+
         Args:
             phase_spec: Phase specification
             file_context: Repository file context
@@ -1845,6 +1849,7 @@ Requirements:
             run_hints: Within-run hints
             use_full_file_mode: If True, include FULL file content for accurate editing
             config: BuilderOutputConfig instance (per IMPLEMENTATION_PLAN2.md)
+            retrieved_context: Retrieved context from vector memory (formatted string)
         """
         # Load config if not provided
         if config is None:
@@ -1957,6 +1962,11 @@ Requirements:
                     text = getattr(hint, "hint_text", str(hint))
                 if text:
                     prompt_parts.append(f"- {text}")
+
+        # NEW: Include retrieved context from vector memory (per IMPLEMENTATION_PLAN_MEMORY_AND_CONTEXT.md)
+        if retrieved_context:
+            prompt_parts.append("\n# Retrieved Context (from previous runs/phases):")
+            prompt_parts.append(retrieved_context)
 
         if file_context:
             # Extract existing_files dict (autonomous_executor returns {"existing_files": {path: content}})

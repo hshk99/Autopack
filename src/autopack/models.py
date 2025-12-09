@@ -92,6 +92,9 @@ class Run(Base):
     debt_status = Column(String, nullable=True)  # e.g. "clean", "has_minor_issues", "excess_minor_issues"
     failure_reason = Column(Text, nullable=True)
 
+    # Goal anchor for drift detection (per IMPLEMENTATION_PLAN_MEMORY_AND_CONTEXT.md)
+    goal_anchor = Column(Text, nullable=True)  # Short text describing the run's goal
+
     # Relationships
     tiers = relationship("Tier", back_populates="run", cascade="all, delete-orphan")
     phases = relationship("Phase", back_populates="run", cascade="all, delete-orphan")

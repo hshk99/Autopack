@@ -1,0 +1,41 @@
+# Autopack Memory Configuration
+# See docs/IMPLEMENTATION_PLAN_MEMORY_AND_CONTEXT.md for details
+
+# Master switch for vector memory
+enable_memory: true
+
+# Backend selection: faiss (default) or qdrant (future)
+backend: faiss
+
+# FAISS index storage path (relative to workspace root)
+faiss_index_path: ".autonomous_runs/file-organizer-app-v1/.faiss"
+
+# Number of top results to retrieve for prompts
+top_k_retrieval: 5
+
+# Maximum characters to embed (OpenAI limit ~8191 tokens)
+max_embed_chars: 30000
+
+# TTL for memory entries in days (prune older entries)
+ttl_days: 30
+
+# Collections configuration
+collections:
+  code_docs:
+    description: "Workspace file embeddings"
+    ttl_days: 90  # Keep code docs longer
+  run_summaries:
+    description: "Per-phase summaries"
+    ttl_days: 30
+  errors_ci:
+    description: "CI/test failure snippets"
+    ttl_days: 14  # Errors can be pruned faster
+  doctor_hints:
+    description: "Doctor hints and outcomes"
+    ttl_days: 30
+
+# Goal-drift detection (advisory mode)
+goal_drift:
+  enabled: true
+  mode: advisory  # advisory (log only) or blocking (fail on drift)
+  threshold: 0.7  # Similarity threshold below which drift is flagged

@@ -266,6 +266,7 @@ class LlmService:
         attempt_index: int = 0,
         use_full_file_mode: bool = True,  # NEW: Pass mode from pre-flight check
         config = None,  # NEW: Pass BuilderOutputConfig for consistency
+        retrieved_context: Optional[str] = None,  # NEW: Vector memory context
     ) -> BuilderResult:
         """
         Execute builder phase with automatic model selection and usage tracking.
@@ -282,6 +283,7 @@ class LlmService:
             attempt_index: 0-based attempt number for escalation (default 0)
             use_full_file_mode: Use full-file mode (True) or diff mode (False)
             config: BuilderOutputConfig instance
+            retrieved_context: Retrieved context from vector memory (formatted string)
 
         Returns:
             BuilderResult with patch and metadata
@@ -328,6 +330,7 @@ class LlmService:
             run_hints=run_hints,
             use_full_file_mode=use_full_file_mode,  # NEW: Pass mode from pre-flight
             config=config,  # NEW: Pass BuilderOutputConfig
+            retrieved_context=retrieved_context,  # NEW: Vector memory context
         )
 
         # Classify outcome for escalation tracking / provider health

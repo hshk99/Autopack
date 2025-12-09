@@ -15,12 +15,37 @@ Autopack is a framework for orchestrating autonomous AI agents (Builder and Audi
 - Workspace prep: ensure scoped directories exist in the run workspace (e.g., `models/`, `migrations/`) to avoid missing-path scope warnings.
 - Reusable hardening templates: see `templates/hardening_phases.json` and `templates/phase_defaults.json` plus `scripts/plan_hardening.py` to assemble project plans; kickoff multi-agent planning with `planning/kickoff_prompt.md`.
 
-### Memory & Context Plan (2025-12-09)
-- Keep SQLite for run/phase state; add vector memory (FAISS now, Qdrant-ready) for unstructured recall (code/docs, run summaries, errors/CI snippets, doctor hints). See `docs/IMPLEMENTATION_PLAN_MEMORY_AND_CONTEXT.md`.
-- Reuse components from `C:\dev\chatbot_project\backend` where possible (embedding_utils, qdrant_utils with FAISS adapter, memory_lookup, memory_maintenance, optional short_term_memory) to avoid rewriting.
-- On-demand context: scope stays an allowlist, but executor should load only target files per builder call; retrieve top-k snippets from vector memory instead of preloading whole dirs; prompts = target files + retrieved snippets + goal anchor.
-- Post-phase: write compact summaries/errors/doctor hints into vector memory; retrieve them later for similar tasks.
-- Validation: harden YAML/compose pre-apply; optional goal-drift check before apply using a short goal anchor per run.
+### Memory & Context System (IMPLEMENTED 2025-12-09)
+Vector memory for context retrieval and goal-drift detection:
+
+- **Vector Memory** (`src/autopack/memory/`):
+  - `embeddings.py` - OpenAI + local fallback embeddings
+  - `faiss_store.py` - FAISS backend (Qdrant-ready adapter)
+  - `memory_service.py` - Collections: code_docs, run_summaries, errors_ci, doctor_hints
+  - `maintenance.py` - TTL pruning (30 days default)
+  - `goal_drift.py` - Detects semantic drift from run goals
+
+- **YAML Validation** (`src/autopack/validators/yaml_validator.py`):
+  - Pre-apply syntax validation for YAML/docker-compose files
+  - Truncation marker detection
+  - Docker Compose schema validation
+
+- **Executor Integration**:
+  - Retrieved context injected into builder prompts
+  - Post-phase hooks write summaries/errors to vector memory
+  - Goal drift check before apply (advisory mode by default)
+
+- **Configuration** (`config/memory.yaml`):
+  ```yaml
+  enable_memory: true
+  top_k_retrieval: 5
+  goal_drift:
+    enabled: true
+    mode: advisory  # or 'blocking'
+    threshold: 0.7
+  ```
+
+See `docs/IMPLEMENTATION_PLAN_MEMORY_AND_CONTEXT.md` for full details.
 
 ### Patch Apply Hardening (2025-12-06)
 - `GovernedApplyPath` now refuses the direct-write fallback whenever a patch touches existing files; fallback is limited to clean new-file-only patches and must write all expected files.
@@ -227,6 +252,14 @@ C:/dev/Autopack/
 │       ├── error_recovery.py       # Error categorization and recovery
 │       ├── archive_consolidator.py # Documentation management
 │       ├── debug_journal.py        # Self-healing system wrapper
+│       ├── memory/                 # Vector memory for context retrieval
+│       │   ├── embeddings.py       # Text embeddings (OpenAI + local)
+│       │   ├── faiss_store.py      # FAISS backend
+│       │   ├── memory_service.py   # High-level insert/search
+│       │   ├── maintenance.py      # TTL pruning
+│       │   └── goal_drift.py       # Goal drift detection
+│       ├── validators/             # Pre-apply validation
+│       │   └── yaml_validator.py   # YAML/compose validation
 │       └── ...
 ├── scripts/                  # Utility scripts
 │   └── consolidate_docs.py   # Documentation consolidation
@@ -317,8 +350,8 @@ replan:
 
 ---
 
-**Version**: 0.4.1 (Patch Apply Hardening + Error Reporting)
+**Version**: 0.5.0 (Memory & Context System)
 **License**: MIT
-**Last Updated**: 2025-12-06
+**Last Updated**: 2025-12-09
 
-**Milestone**: `tests-passing-v1.0` - All core tests passing (83 passed, 161 skipped, 0 failed)
+**Milestone**: `tests-passing-v1.0` - All core tests passing (89 passed, 30 skipped, 0 failed)

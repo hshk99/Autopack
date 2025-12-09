@@ -1,15 +1,58 @@
 # Consolidated Build Reference
 
-**Last Updated**: 2025-12-06
+**Last Updated**: 2025-12-09
 **Auto-generated** by scripts/consolidate_docs.py
 
 ## Contents
 
+- [MEMORY_CONTEXT_SYSTEM](#memory-context-system)
 - [ARCH_BUILDER_AUDITOR_DISCOVERY](#arch-builder-auditor-discovery)
 - [AUTO_DOCUMENTATION](#auto-documentation)
 - [BUILD_PLAN_TASK_TRACKER](#build-plan-task-tracker)
 - [PATCH_APPLY_HARDENING](#patch-apply-hardening)
 - [RECENT_SCOPE_FIX](#recent-scope-fix)
+
+---
+
+## MEMORY_CONTEXT_SYSTEM
+
+**Date**: 2025-12-09
+**Status**: ✅ Implemented in `src/autopack/memory/`, `src/autopack/validators/`
+
+Vector memory for context retrieval and goal-drift detection:
+
+### New Modules
+- `src/autopack/memory/embeddings.py` - OpenAI + local fallback embeddings
+- `src/autopack/memory/faiss_store.py` - FAISS backend (Qdrant-ready adapter shape)
+- `src/autopack/memory/memory_service.py` - High-level insert/search for 4 collections
+- `src/autopack/memory/maintenance.py` - TTL pruning (30 days default)
+- `src/autopack/memory/goal_drift.py` - Goal drift detection using embedding similarity
+- `src/autopack/validators/yaml_validator.py` - YAML/docker-compose pre-apply validation
+
+### Collections
+- `code_docs`: Workspace file embeddings
+- `run_summaries`: Per-phase summaries (changes, CI result)
+- `errors_ci`: Failing test/error snippets
+- `doctor_hints`: Doctor hints/actions/outcomes
+
+### Executor Integration
+- Memory retrieval before builder call (top-k snippets injected into prompts)
+- Post-phase hooks write summaries/errors to vector memory
+- YAML validation pre-apply (blocks truncated/malformed YAML)
+- Goal drift check pre-apply (advisory mode by default)
+
+### Configuration (`config/memory.yaml`)
+```yaml
+enable_memory: true
+top_k_retrieval: 5
+ttl_days: 30
+goal_drift:
+  enabled: true
+  mode: advisory
+  threshold: 0.7
+```
+
+See `docs/IMPLEMENTATION_PLAN_MEMORY_AND_CONTEXT.md` for full design details.
 
 ---
 

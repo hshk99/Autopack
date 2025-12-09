@@ -1,5 +1,35 @@
 # Autopack Memory, Context, and Goal-Alignment Plan
 
+**Status: IMPLEMENTED (2025-12-09)**
+
+## Implementation Summary
+
+The following components were implemented:
+
+1. **Memory Module** (`src/autopack/memory/`):
+   - `embeddings.py` - OpenAI + local fallback embeddings
+   - `faiss_store.py` - FAISS backend with Qdrant-ready adapter shape
+   - `memory_service.py` - High-level insert/search for collections
+   - `maintenance.py` - TTL prune + optional compression
+   - `goal_drift.py` - Goal drift detection for pre-apply gating
+
+2. **Validators** (`src/autopack/validators/`):
+   - `yaml_validator.py` - YAML/docker-compose pre-apply validation
+
+3. **Config**:
+   - `config/memory.yaml` - Memory configuration (enable, top_k, TTL, goal_drift)
+
+4. **Executor Integration**:
+   - Memory retrieval before builder call
+   - Post-phase hooks for writing summaries/errors to memory
+   - Goal drift check before apply (advisory mode)
+   - YAML validation pre-apply
+
+5. **Model Updates**:
+   - `goal_anchor` column added to Run model
+
+---
+
 ## Goals
 - Cut token waste by replacing bulk scope preloads with on-demand context and retrieval.
 - Add persistent, searchable memory (vector index) alongside SQLite for unstructured recall (code/docs, run summaries, errors, doctor hints).
@@ -39,6 +69,8 @@
   - Add a YAML/compose validator utility (e.g., `src/autopack/validators/yaml_validator.py`) used pre-apply.
 - Goal alignment:
   - Store a short goal anchor per run (in SQLite); before apply, run a small LLM check comparing current change intent vs anchor; block or replan on drift.
+- Decision log (optional):
+  - Persist a concise decision/rationale per phase/run (choices, rejected alternatives, risk/gate outcome) to SQLite and vector memory for better replan recall.
 
 ## Data & Payload Schemas
 - Vector payload keys: `run_id`, `phase_id`, `project_id`, `task_type`, `timestamp`, `path` (for code/docs), `type` (summary/error/hint/code).
@@ -79,6 +111,7 @@
 - Embedding latency: use local deterministic embeddings if OpenAI is unavailable; cache embeddings per file hash.
 - Schema drift (future Qdrant): keep an adapter interface; validate dimensions on startup.
 - Goal-drift false positives: start as advisory logging; make gating configurable.
+- Optional UI complexity: taskboard/risk UI can be deferred; if added, keep it read-only and fed by SQLite + vector summaries to avoid coupling with executor.
 
 ## Milestones (incremental)
 1) Add memory service (FAISS), embeddings helper, config; no executor change yet.
@@ -86,6 +119,7 @@
 3) Post-phase hooks writing summaries/errors/hints to vector memory.
 4) YAML/compose pre-apply validator; optional goal-drift check (advisory).
 5) Optional chat/CLI to query memory (read-only) for navigation.
+6) Optional decision log and lightweight UI (taskboard/risk) fed by SQLite + vector summaries (read-only).
 
 ## Minimal Code Touch List (expected)
 - Add: `src/autopack/memory/{embeddings.py,faiss_store.py,memory_service.py,maintenance.py}`
@@ -94,5 +128,10 @@
 - Add: `src/autopack/validators/yaml_validator.py`
 - Add config: `config/memory.yaml`
 - Docs: this plan file
+
+## Notes for implementation
+- Treat this document as the single source of truth; avoid duplicating instructions elsewhere. Revisit it during implementation to ensure scope alignment.
+- Reuse from `C:\dev\chatbot_project\backend` where listed; only adapt what is needed and keep adapters thin (FAISS now, Qdrant-ready).
+- Keep executor changes minimal and additive: on-demand file loading, retrieval in prompts, post-phase memory writes, and validation hardening.
 
 

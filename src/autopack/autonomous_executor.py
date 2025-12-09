@@ -63,6 +63,10 @@ from autopack.journal_reader import get_recent_prevention_rules
 from autopack.health_checks import run_health_checks, HealthCheckResult
 from autopack.file_layout import RunFileLayout
 
+# Memory and validation imports
+from autopack.memory import MemoryService, should_block_on_drift, extract_goal_from_description
+from autopack.validators import validate_yaml_syntax, validate_docker_compose, ValidationResult
+
 
 # Configure logging
 from dotenv import load_dotenv
@@ -232,6 +236,14 @@ class AutonomousExecutor:
         # NEW: Initialize FileSizeTelemetry (per IMPLEMENTATION_PLAN2.md Phase 2.1)
         from autopack.file_size_telemetry import FileSizeTelemetry
         self.file_size_telemetry = FileSizeTelemetry(Path(self.workspace))
+
+        # NEW: Initialize MemoryService for vector retrieval (per IMPLEMENTATION_PLAN_MEMORY_AND_CONTEXT.md)
+        try:
+            self.memory_service = MemoryService()
+            logger.info(f"MemoryService initialized (enabled={self.memory_service.enabled})")
+        except Exception as e:
+            logger.warning(f"MemoryService initialization failed, running without memory: {e}")
+            self.memory_service = None
 
         logger.info(f"Initialized autonomous executor for run: {run_id}")
         logger.info(f"API URL: {api_url}")
@@ -2327,6 +2339,30 @@ Just the new description that should replace the current one while preserving th
             if project_rules or run_hints:
                 logger.info(f"[{phase_id}] Learning context: {len(project_rules)} rules, {len(run_hints)} hints")
 
+            # NEW: Retrieve supplemental context from vector memory (per IMPLEMENTATION_PLAN_MEMORY_AND_CONTEXT.md)
+            retrieved_context = ""
+            if self.memory_service and self.memory_service.enabled:
+                try:
+                    # Build query from phase description for retrieval
+                    phase_description = phase.get("description", "")
+                    query = f"{phase_description[:500]}"
+                    project_id = self._get_project_slug() or self.run_id
+
+                    retrieved = self.memory_service.retrieve_context(
+                        query=query,
+                        project_id=project_id,
+                        run_id=self.run_id,
+                        include_code=True,
+                        include_summaries=True,
+                        include_errors=True,
+                        include_hints=True,
+                    )
+                    retrieved_context = self.memory_service.format_retrieved_context(retrieved, max_chars=4000)
+                    if retrieved_context:
+                        logger.info(f"[{phase_id}] Retrieved {len(retrieved_context)} chars of context from memory")
+                except Exception as e:
+                    logger.warning(f"[{phase_id}] Memory retrieval failed: {e}")
+
             # Use LlmService for complexity-based model selection with escalation
             builder_result = self.llm_service.execute_builder_phase(
                 phase_spec=phase,
@@ -2340,6 +2376,7 @@ Just the new description that should replace the current one while preserving th
                 attempt_index=attempt_index,  # Pass attempt for model escalation
                 use_full_file_mode=use_full_file_mode,  # NEW: Pass mode from pre-flight check
                 config=self.builder_output_config,  # NEW: Pass config for consistency
+                retrieved_context=retrieved_context,  # NEW: Vector memory context
             )
 
             # Auto-fallback: if full-file output failed due to truncation/parse, retry with structured edits
@@ -2372,6 +2409,7 @@ Just the new description that should replace the current one while preserving th
                     attempt_index=attempt_index,
                     use_full_file_mode=False,
                     config=self.builder_output_config,
+                    retrieved_context=retrieved_context,  # NEW: Vector memory context
                 )
 
             # Output contract: reject empty/blank patch content before posting/applying.
@@ -2537,6 +2575,53 @@ Just the new description that should replace the current one while preserving th
                 from pathlib import Path
                 from autopack.governed_apply import GovernedApplyPath
 
+                # NEW: Pre-apply YAML/compose validation (per IMPLEMENTATION_PLAN_MEMORY_AND_CONTEXT.md)
+                # Check if patch contains YAML/compose files and validate them before apply
+                patch_content = builder_result.patch_content or ""
+                yaml_validation_failed = False
+                if ".yaml" in patch_content.lower() or ".yml" in patch_content.lower() or "compose" in patch_content.lower():
+                    try:
+                        # Extract YAML content from patch (look for full-file JSON or diff hunks)
+                        import json as json_mod
+                        try:
+                            parsed = json_mod.loads(patch_content)
+                            if isinstance(parsed, dict) and "files" in parsed:
+                                for file_entry in parsed.get("files", []):
+                                    file_path = file_entry.get("path", "")
+                                    if file_path.endswith((".yaml", ".yml")):
+                                        content = file_entry.get("content", "")
+                                        if "compose" in file_path.lower() or "docker" in file_path.lower():
+                                            result = validate_docker_compose(content, file_path)
+                                        else:
+                                            result = validate_yaml_syntax(content, file_path)
+                                        if not result.valid:
+                                            logger.error(f"[{phase_id}] YAML validation failed for {file_path}: {result.errors}")
+                                            yaml_validation_failed = True
+                                        elif result.warnings:
+                                            logger.warning(f"[{phase_id}] YAML warnings for {file_path}: {result.warnings}")
+                        except json_mod.JSONDecodeError:
+                            pass  # Not JSON format, skip validation
+                    except Exception as yaml_e:
+                        logger.warning(f"[{phase_id}] YAML validation check failed: {yaml_e}")
+
+                if yaml_validation_failed:
+                    logger.error(f"[{phase_id}] Blocking apply due to YAML validation errors")
+                    self._update_phase_status(phase_id, "FAILED")
+                    return False, "YAML_VALIDATION_FAILED"
+
+                # NEW: Goal drift check (per IMPLEMENTATION_PLAN_MEMORY_AND_CONTEXT.md)
+                # Check if change drifts from run's goal anchor
+                goal_anchor = getattr(self, '_run_goal_anchor', None)
+                if goal_anchor:
+                    change_intent = phase.get("description", "")[:200]
+                    should_block, drift_message = should_block_on_drift(goal_anchor, change_intent)
+                    if should_block:
+                        logger.error(f"[{phase_id}] {drift_message}")
+                        self._update_phase_status(phase_id, "FAILED")
+                        return False, "GOAL_DRIFT_BLOCKED"
+                    elif "ADVISORY" in drift_message:
+                        logger.warning(f"[{phase_id}] {drift_message}")
+
                 # Enable internal mode for maintenance run types
                 is_maintenance_run = self.run_type in ["autopack_maintenance", "autopack_upgrade", "self_repair"]
 
@@ -2650,6 +2735,28 @@ Just the new description that should replace the current one while preserving th
             except Exception as e:
                 logger.warning(f"[{phase_id}] Failed to log build event: {e}")
 
+            # NEW: Post-phase hook - write phase summary to vector memory
+            if self.memory_service and self.memory_service.enabled:
+                try:
+                    project_id = self._get_project_slug() or self.run_id
+                    phase_name = phase.get("name", phase_id)
+                    summary = f"{phase_name}: {phase.get('description', '')[:200]}"
+                    changes = []  # TODO: Extract changed files from builder_result
+                    ci_result = "pass" if ci_success else "fail"
+
+                    self.memory_service.write_phase_summary(
+                        run_id=self.run_id,
+                        phase_id=phase_id,
+                        project_id=project_id,
+                        summary=summary,
+                        changes=changes,
+                        ci_result=ci_result,
+                        task_type=phase.get("category"),
+                    )
+                    logger.debug(f"[{phase_id}] Wrote phase summary to memory")
+                except Exception as e:
+                    logger.warning(f"[{phase_id}] Failed to write phase summary to memory: {e}")
+
             return True, "COMPLETE"
 
         except Exception as e:
@@ -2672,6 +2779,21 @@ Just the new description that should replace the current one while preserving th
                 suspected_cause="Unhandled exception in _execute_phase_with_recovery",
                 priority="HIGH"
             )
+
+            # NEW: Post-phase hook - write error to vector memory
+            if self.memory_service and self.memory_service.enabled:
+                try:
+                    project_id = self._get_project_slug() or self.run_id
+                    self.memory_service.write_error(
+                        run_id=self.run_id,
+                        phase_id=phase_id,
+                        project_id=project_id,
+                        error_text=f"{type(e).__name__}: {error_msg}\n{error_traceback[:2000]}",
+                        error_type=type(e).__name__,
+                    )
+                    logger.debug(f"[{phase_id}] Wrote error to memory")
+                except Exception as mem_e:
+                    logger.warning(f"[{phase_id}] Failed to write error to memory: {mem_e}")
 
             self._update_phase_status(phase_id, "FAILED")
             return False, "FAILED"
@@ -3911,6 +4033,25 @@ Just the new description that should replace the current one while preserving th
                 logger.info(f"Waiting {poll_interval}s before retry...")
                 time.sleep(poll_interval)
                 continue
+
+            # NEW: Initialize goal anchor on first iteration (for drift detection)
+            if iteration == 1 and not hasattr(self, '_run_goal_anchor'):
+                # Try to get goal_anchor from run data, or extract from first phase
+                goal_anchor = run_data.get("goal_anchor")
+                if not goal_anchor:
+                    # Fall back to extracting from run description or first phase description
+                    run_description = run_data.get("description", "")
+                    if run_description:
+                        goal_anchor = extract_goal_from_description(run_description)
+                    else:
+                        # Try first phase
+                        phases = run_data.get("phases", [])
+                        if phases:
+                            first_phase_desc = phases[0].get("description", "")
+                            goal_anchor = extract_goal_from_description(first_phase_desc)
+                if goal_anchor:
+                    self._run_goal_anchor = goal_anchor
+                    logger.info(f"[GoalAnchor] Initialized: {goal_anchor[:100]}...")
 
             # Phase 1.6-1.7: Detect and reset stale EXECUTING phases
             try:

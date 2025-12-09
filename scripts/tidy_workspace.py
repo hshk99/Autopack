@@ -30,9 +30,9 @@ import hashlib
 import json
 
 try:
-    import openai
+    from openai import OpenAI
 except ImportError:  # pragma: no cover
-    openai = None
+    OpenAI = None
 
 # Ensure sibling imports work when invoked from repo root
 SCRIPT_DIR = Path(__file__).resolve().parent
@@ -278,6 +278,7 @@ def summarize_and_classify(
     content: str,
     truth_snippets: str,
     model: str,
+    client,
 ) -> Dict[str, str]:
     """
     Attempt to classify file via LLM (keep/archive/delete) with rationale.
@@ -291,13 +292,13 @@ Truth context (for freshness/uniqueness):
 File content (truncated):
 {content[:MAX_CONTENT_CHARS]}
 """
-    if openai is None:
+    if client is None:
         return {
             "decision": "archive",
-            "rationale": "LLM unavailable; defaulting to archive suggestion for safety.",
+            "rationale": "LLM client unavailable; defaulting to archive suggestion for safety.",
         }
     try:
-        resp = openai.ChatCompletion.create(
+        resp = client.chat.completions.create(
             model=model,
             messages=[
                 {"role": "system", "content": "You are a concise documentation cleaner."},
@@ -306,7 +307,7 @@ File content (truncated):
             temperature=0,
             max_tokens=200,
         )
-        text = resp["choices"][0]["message"]["content"]
+        text = resp.choices[0].message.content
         # lightweight parse
         decision = "archive"
         rationale = text.strip()
@@ -331,6 +332,7 @@ def semantic_analysis(
     verbose: bool,
 ) -> list[dict]:
     """Run semantic classification over markdown-like files; no filesystem mutations."""
+    client = get_openai_client()
     cache = load_semantic_cache(cache_path)
     results = []
 
@@ -368,7 +370,7 @@ def semantic_analysis(
         if cache_entry and cache_entry.get("sha") == sha and cache_entry.get("model") == model:
             result = cache_entry
         else:
-            result = summarize_and_classify(path, content, truth_snippets, model)
+            result = summarize_and_classify(path, content, truth_snippets, model, client)
             result.update({
                 "sha": sha,
                 "model": model,
@@ -381,6 +383,20 @@ def semantic_analysis(
 
     save_semantic_cache(cache_path, cache)
     return results
+
+
+def get_openai_client():
+    """Instantiate OpenAI-compatible client (used for glm-4.6)."""
+    if OpenAI is None:
+        return None
+    api_key = os.getenv("OPENAI_API_KEY") or os.getenv("GLM_API_KEY")
+    base_url = os.getenv("OPENAI_BASE_URL") or os.getenv("GLM_API_BASE")
+    if not api_key:
+        return None
+    try:
+        return OpenAI(api_key=api_key, base_url=base_url) if base_url else OpenAI(api_key=api_key)
+    except Exception:
+        return None
 
 
 # ---------------------------------------------------------------------------

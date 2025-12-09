@@ -356,6 +356,7 @@ class AutonomousExecutor:
         max_files: int = 10,
         max_lines: int = 500,
         checkpoint: bool = True,
+        test_commands: Optional[List[str]] = None,
     ) -> None:
         """
         Run a backlog maintenance plan with diagnostics + optional apply.
@@ -407,6 +408,15 @@ class AutonomousExecutor:
                 mode="maintenance",
             )
 
+            test_results = []
+            if test_commands:
+                try:
+                    from autopack.maintenance_runner import run_tests
+
+                    test_results = run_tests(test_commands, workspace=Path(self.workspace))
+                except Exception as e:
+                    logger.warning(f"[Backlog][Tests] Failed to run tests for {phase_id}: {e}")
+
             patch_path = None
             if patch_dir:
                 candidate = Path(patch_dir) / f"{phase_id}.patch"
@@ -421,7 +431,7 @@ class AutonomousExecutor:
                 allowed_paths=default_allowed,
                 protected_paths=protected_paths,
                 diff=diff_stats,
-                tests=[],  # targeted tests not yet wired
+                tests=[TestResult(name=t.name, status=t.status) for t in test_results],
                 failure_class="maintenance",
                 item_context=phase.get("metadata", {}).get("backlog_summary", "") or desc or "",
                 diagnostics_summary=outcome.ledger_summary,
@@ -475,6 +485,7 @@ class AutonomousExecutor:
                     "apply_result": apply_result,
                     "patch_path": str(patch_path) if patch_path else None,
                     "checkpoint": checkpoint_hash,
+                    "tests": [t.__dict__ for t in test_results],
                 }
             )
 

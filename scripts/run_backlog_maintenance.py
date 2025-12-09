@@ -23,6 +23,7 @@ from autopack.diagnostics.diagnostics_agent import DiagnosticsAgent
 from autopack.maintenance_auditor import AuditorInput, AuditorDecision, DiffStats, TestResult, evaluate as audit_evaluate
 from autopack.memory import MemoryService
 from autopack.governed_apply import GovernedApplyPath
+from autopack.maintenance_runner import run_tests
 
 
 def main():
@@ -40,6 +41,7 @@ def main():
     parser.add_argument("--default-allowed-path", action="append", default=[], help="Additional default allowed path prefixes")
     parser.add_argument("--max-files", type=int, default=10, help="Max files allowed in a patch for auto-approval")
     parser.add_argument("--max-lines", type=int, default=500, help="Max lines added+deleted for auto-approval")
+    parser.add_argument("--test-cmd", action="append", default=[], help="Targeted test command(s) to run per item")
     args = parser.parse_args()
 
     run_id = args.run_id or f"backlog-maintenance-{int(time.time())}"
@@ -116,11 +118,15 @@ def main():
             raw = patch_path.read_text(encoding="utf-8", errors="ignore")
             diff_stats = parse_patch_stats(raw)
 
+        test_results = []
+        if args.test_cmd:
+            test_results = run_tests(args.test_cmd, workspace=workspace)
+
         auditor_input = AuditorInput(
             allowed_paths=default_allowed,
             protected_paths=protected_paths,
             diff=diff_stats,
-            tests=[],  # targeted tests not provided here
+            tests=[TestResult(name=t.name, status=t.status) for t in test_results],
             failure_class="maintenance",
             item_context=item.summary.lower() if item.summary else "",
             diagnostics_summary=outcome.ledger_summary,
@@ -179,6 +185,7 @@ def main():
                 "auditor_reasons": decision.reasons,
                 "apply_result": apply_result,
                 "patch_path": str(patch_path) if patch_path else None,
+                "tests": [t.__dict__ for t in test_results],
             }
         )
 

@@ -21,6 +21,7 @@
 - End-to-end helper: `scripts/run_backlog_maintenance.py` parses backlog → plan → diagnostics (propose-first, no apply) in one step; use allowed_path to constrain scope; `--checkpoint` creates a git checkpoint for rollback.
 - Maintenance auditor: proposals are auto-approved only if within allowed_paths, avoid protected paths, are small (files/lines), have targeted tests passing, and align with diagnostics context; otherwise require human review or are rejected (protected path touches).
 - Optional apply: `scripts/run_backlog_maintenance.py --apply --patch-dir <dir> --checkpoint` will apply per-item patches (named `<item_id>.patch`) only when the auditor approves and a checkpoint is present; otherwise it remains propose-first.
+- Targeted tests: runner and executor can run `--test-cmd` commands per item; auditor will require_human if tests are missing or failing.
 
 ---
 

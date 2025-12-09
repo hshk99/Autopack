@@ -238,6 +238,10 @@ class AnthropicBuilderClient:
                                     logger.info(f"[Builder] File {file_path} ({line_count} lines) exceeds hard limit; enabling structured edit mode")
                                     use_structured_edit = True
                                     break
+
+            # Explicit override: honor builder_mode=structured_edit from phase spec
+            if phase_spec.get("builder_mode") == "structured_edit":
+                use_structured_edit = True
             
             # Build system prompt (with mode selection per GPT_RESPONSE10)
             system_prompt = self._build_system_prompt(

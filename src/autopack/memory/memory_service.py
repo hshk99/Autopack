@@ -24,6 +24,7 @@ import yaml
 
 from .embeddings import sync_embed_text, async_embed_text, EMBEDDING_SIZE, MAX_EMBEDDING_CHARS
 from .faiss_store import FaissStore
+from .qdrant_store import QdrantStore, QDRANT_AVAILABLE
 
 logger = logging.getLogger(__name__)
 
@@ -66,6 +67,7 @@ class MemoryService:
         self,
         index_dir: Optional[str] = None,
         enabled: bool = True,
+        use_qdrant: Optional[bool] = None,
     ):
         """
         Initialize memory service.
@@ -73,6 +75,7 @@ class MemoryService:
         Args:
             index_dir: Directory for FAISS indices (default from config or .faiss)
             enabled: Whether memory is enabled
+            use_qdrant: Use Qdrant instead of FAISS (default from config)
         """
         config = _load_memory_config()
         self.enabled = config.get("enable_memory", enabled)
@@ -80,13 +83,43 @@ class MemoryService:
         self.max_embed_chars = config.get("max_embed_chars", MAX_EMBEDDING_CHARS)
         self.planning_collection = config.get("planning_collection", COLLECTION_PLANNING)
 
-        if index_dir is None:
-            index_dir = config.get(
-                "faiss_index_path",
-                ".autonomous_runs/file-organizer-app-v1/.faiss"
-            )
+        # Determine which backend to use
+        if use_qdrant is None:
+            use_qdrant = config.get("use_qdrant", False)
 
-        self.store = FaissStore(index_dir=index_dir)
+        # Initialize appropriate store
+        if use_qdrant and QDRANT_AVAILABLE:
+            qdrant_config = config.get("qdrant", {})
+            self.store = QdrantStore(
+                host=qdrant_config.get("host", "localhost"),
+                port=qdrant_config.get("port", 6333),
+                api_key=qdrant_config.get("api_key") or None,
+                prefer_grpc=qdrant_config.get("prefer_grpc", False),
+                timeout=qdrant_config.get("timeout", 60),
+            )
+            self.backend = "qdrant"
+            logger.info("[MemoryService] Using Qdrant backend")
+        elif use_qdrant and not QDRANT_AVAILABLE:
+            logger.warning(
+                "[MemoryService] Qdrant requested but not available; falling back to FAISS"
+            )
+            if index_dir is None:
+                index_dir = config.get(
+                    "faiss_index_path",
+                    ".autonomous_runs/file-organizer-app-v1/.faiss"
+                )
+            self.store = FaissStore(index_dir=index_dir)
+            self.backend = "faiss"
+        else:
+            # Use FAISS
+            if index_dir is None:
+                index_dir = config.get(
+                    "faiss_index_path",
+                    ".autonomous_runs/file-organizer-app-v1/.faiss"
+                )
+            self.store = FaissStore(index_dir=index_dir)
+            self.backend = "faiss"
+            logger.info("[MemoryService] Using FAISS backend")
 
         # Ensure all collections exist
         collections = list(ALL_COLLECTIONS)
@@ -96,7 +129,9 @@ class MemoryService:
         for collection in collections:
             self.store.ensure_collection(collection, EMBEDDING_SIZE)
 
-        logger.info(f"[MemoryService] Initialized (enabled={self.enabled}, top_k={self.top_k})")
+        logger.info(
+            f"[MemoryService] Initialized (backend={self.backend}, enabled={self.enabled}, top_k={self.top_k})"
+        )
 
     # -------------------------------------------------------------------------
     # Code Docs (workspace files)

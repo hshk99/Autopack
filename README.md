@@ -18,10 +18,17 @@ Autopack is a framework for orchestrating autonomous AI agents (Builder and Audi
 ### Memory & Context System (IMPLEMENTED 2025-12-09)
 Vector memory for context retrieval and goal-drift detection:
 
+- **Database Architecture**:
+  - **Transactional DB**: **PostgreSQL** (default) - Stores phases, runs, decision logs, plan changes, etc.
+  - **Vector DB**: **Qdrant** (default) - Production vector search with HNSW indexing
+  - **Fallbacks**: SQLite for transactional (dev/offline via explicit override); FAISS for vectors (dev/offline)
+  - Run Qdrant locally: `docker run -p 6333:6333 qdrant/qdrant`
+
 - **Vector Memory** (`src/autopack/memory/`):
   - `embeddings.py` - OpenAI + local fallback embeddings
-  - `faiss_store.py` - FAISS backend (Qdrant-ready adapter)
-  - `memory_service.py` - Collections: code_docs, run_summaries, errors_ci, doctor_hints
+  - `qdrant_store.py` - **Qdrant backend (default)** - Production vector store with payload filtering
+  - `faiss_store.py` - FAISS backend (dev/offline fallback)
+  - `memory_service.py` - Collections: code_docs, run_summaries, errors_ci, doctor_hints, planning
   - `maintenance.py` - TTL pruning (30 days default)
   - `goal_drift.py` - Detects semantic drift from run goals
 
@@ -38,6 +45,11 @@ Vector memory for context retrieval and goal-drift detection:
 - **Configuration** (`config/memory.yaml`):
   ```yaml
   enable_memory: true
+  use_qdrant: true  # Default to Qdrant (set false for FAISS fallback)
+  qdrant:
+    host: localhost
+    port: 6333
+    api_key: ""  # Optional for Qdrant Cloud
   top_k_retrieval: 5
   goal_drift:
     enabled: true

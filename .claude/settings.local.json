@@ -22,7 +22,9 @@
       "Bash(dir /s \"c:\\dev\\Autopack\\.autonomous_runs\")",
       "Bash(find:*)",
       "Bash(PYTHONUTF8=1 PYTHONPATH=src python:*)",
-      "Bash(PYTHONPATH=src DATABASE_URL=\"sqlite:///autopack.db\" python -c:*)"
+      "Bash(PYTHONPATH=src DATABASE_URL=\"sqlite:///autopack.db\" python -c:*)",
+      "Bash(PYTHONPATH=src pytest:*)",
+      "Bash(git apply:*)"
     ],
     "deny": [],
     "ask": []

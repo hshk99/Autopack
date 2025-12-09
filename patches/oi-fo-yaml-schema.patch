@@ -1,0 +1,20 @@
+diff --git a/docs/MAINTENANCE_NOTES.md b/docs/MAINTENANCE_NOTES.md
+index 2345678..3456789 100644
+--- a/docs/MAINTENANCE_NOTES.md
++++ b/docs/MAINTENANCE_NOTES.md
+@@ -24,3 +24,15 @@
+
+ **Status**: RESOLVED (code fix already applied)
+ **Test**: Verify frontend build accepts no-op structured edits without failure
++
++## OI-FO-YAML-SCHEMA
++
++**Issue**: YAML schema warnings across packs.
++
++**Fix Applied**:
++- YAML validation (src/autopack/validators/yaml_validator.py) now includes:
++  - Pre-apply syntax validation
++  - Truncation marker detection
++  - Docker Compose schema validation
++
++**Status**: RESOLVED (validation infrastructure in place)

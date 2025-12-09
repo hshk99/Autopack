@@ -9,6 +9,7 @@
 
 from .embeddings import sync_embed_text, async_embed_text, EMBEDDING_SIZE, MAX_EMBEDDING_CHARS
 from .faiss_store import FaissStore
+from .qdrant_store import QdrantStore, QDRANT_AVAILABLE
 from .memory_service import MemoryService
 from .goal_drift import check_goal_drift, should_block_on_drift, extract_goal_from_description
 
@@ -18,6 +19,8 @@ __all__ = [
     "EMBEDDING_SIZE",
     "MAX_EMBEDDING_CHARS",
     "FaissStore",
+    "QdrantStore",
+    "QDRANT_AVAILABLE",
     "MemoryService",
     "check_goal_drift",
     "should_block_on_drift",

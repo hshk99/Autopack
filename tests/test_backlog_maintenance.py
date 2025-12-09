@@ -3,6 +3,8 @@ from pathlib import Path
 from autopack.backlog_maintenance import (
     parse_backlog_markdown,
     backlog_items_to_phases,
+    create_git_checkpoint,
+    revert_to_checkpoint,
 )
 
 
@@ -36,4 +38,25 @@ def test_backlog_items_to_phases_has_scope_and_budgets(tmp_path: Path):
     assert "src/" in phase["scope"]["paths"]
     assert phase["budgets"]["max_commands"] == 5
     assert phase["budgets"]["max_seconds"] == 100
+
+
+def test_checkpoint_and_revert(tmp_path: Path):
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    (repo / "file.txt").write_text("v1")
+    # init git
+    import subprocess
+
+    subprocess.run(["git", "init"], cwd=repo, check=True, capture_output=True)
+    subprocess.run(["git", "add", "file.txt"], cwd=repo, check=True, capture_output=True)
+    subprocess.run(["git", "commit", "-m", "init"], cwd=repo, check=True, capture_output=True)
+
+    (repo / "file.txt").write_text("v2")
+    ok, commit_hash_or_err = create_git_checkpoint(repo, "[test] checkpoint")
+    assert ok
+    checkpoint_hash = commit_hash_or_err
+    (repo / "file.txt").write_text("v3")
+    ok, err = revert_to_checkpoint(repo, checkpoint_hash)
+    assert ok, err
+    assert (repo / "file.txt").read_text() == "v2"
 

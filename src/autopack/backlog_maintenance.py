@@ -11,9 +11,10 @@ from __future__ import annotations
 import hashlib
 import json
 import re
+import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 
 
 @dataclass
@@ -124,4 +125,51 @@ def write_plan(plan: Dict[str, List[Dict]], out_path: Path) -> Path:
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text(json.dumps(plan, indent=2), encoding="utf-8")
     return out_path
+
+
+# --------------------------------------------------------------------------- #
+# Checkpoint helpers (optional, used by maintenance runs)
+# --------------------------------------------------------------------------- #
+
+
+def create_git_checkpoint(repo_path: Path, message: str = "[Autopack] Backlog checkpoint") -> Tuple[bool, Optional[str]]:
+    """
+    Create a lightweight git checkpoint (add + commit) to allow rollback.
+
+    Returns (success, commit_hash_or_error)
+    """
+    repo_path = repo_path.resolve()
+    try:
+        subprocess.run(["git", "add", "-A"], cwd=repo_path, check=True, capture_output=True, text=True, timeout=30)
+        commit = subprocess.run(
+            ["git", "commit", "-m", message],
+            cwd=repo_path,
+            check=True,
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+        # Extract last commit hash
+        show = subprocess.run(["git", "rev-parse", "HEAD"], cwd=repo_path, check=True, capture_output=True, text=True)
+        return True, show.stdout.strip()
+    except subprocess.CalledProcessError as e:
+        return False, e.stderr.strip() if e.stderr else str(e)
+    except Exception as e:  # pragma: no cover
+        return False, str(e)
+
+
+def revert_to_checkpoint(repo_path: Path, commit_hash: str) -> Tuple[bool, Optional[str]]:
+    """
+    Revert working tree to a given commit (hard reset).
+
+    Returns (success, error_message_or_None)
+    """
+    repo_path = repo_path.resolve()
+    try:
+        subprocess.run(["git", "reset", "--hard", commit_hash], cwd=repo_path, check=True, capture_output=True, text=True, timeout=30)
+        return True, None
+    except subprocess.CalledProcessError as e:
+        return False, e.stderr.strip() if e.stderr else str(e)
+    except Exception as e:  # pragma: no cover
+        return False, str(e)
 

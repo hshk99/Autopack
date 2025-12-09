@@ -1,0 +1,138 @@
+#!/usr/bin/env python3
+"""
+Semantic storage backends for tidy_workspace.
+
+Supports:
+- JSON file (fallback, no deps)
+- Postgres via psycopg2 (optional, uses DATABASE_URL)
+
+Each record: {path, sha, model, decision, rationale, updated_at}
+"""
+
+from __future__ import annotations
+
+import json
+import os
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Optional, Dict, Any
+
+
+class SemanticStore:
+    def get(self, path: str, sha: str, model: str) -> Optional[Dict[str, Any]]:
+        raise NotImplementedError
+
+    def set(self, record: Dict[str, Any]) -> None:
+        raise NotImplementedError
+
+
+class JsonSemanticStore(SemanticStore):
+    def __init__(self, cache_path: Path):
+        self.cache_path = cache_path
+        self._data = self._load()
+
+    def _load(self) -> Dict[str, Any]:
+        if self.cache_path.exists():
+            try:
+                return json.loads(self.cache_path.read_text(encoding="utf-8"))
+            except Exception:
+                return {}
+        return {}
+
+    def _save(self):
+        self.cache_path.parent.mkdir(parents=True, exist_ok=True)
+        self.cache_path.write_text(json.dumps(self._data, indent=2), encoding="utf-8")
+
+    def get(self, path: str, sha: str, model: str) -> Optional[Dict[str, Any]]:
+        rec = self._data.get(path)
+        if rec and rec.get("sha") == sha and rec.get("model") == model:
+            return rec
+        return None
+
+    def set(self, record: Dict[str, Any]) -> None:
+        self._data[record["path"]] = record
+        self._save()
+
+
+class PostgresSemanticStore(SemanticStore):
+    def __init__(self, dsn: str):
+        import psycopg2  # type: ignore
+
+        self.dsn = dsn
+        self.pg = psycopg2
+        self._ensure_table()
+
+    def _ensure_table(self):
+        conn = self.pg.connect(self.dsn)
+        cur = conn.cursor()
+        cur.execute(
+            """
+            create table if not exists tidy_semantic_cache (
+                path text primary key,
+                sha text not null,
+                model text not null,
+                decision text not null,
+                rationale text,
+                updated_at timestamptz not null default now()
+            );
+            """
+        )
+        conn.commit()
+        cur.close()
+        conn.close()
+
+    def get(self, path: str, sha: str, model: str) -> Optional[Dict[str, Any]]:
+        conn = self.pg.connect(self.dsn)
+        cur = conn.cursor()
+        cur.execute(
+            "select path, sha, model, decision, rationale, updated_at from tidy_semantic_cache where path=%s",
+            (path,),
+        )
+        row = cur.fetchone()
+        cur.close()
+        conn.close()
+        if row and row[1] == sha and row[2] == model:
+            return {
+                "path": row[0],
+                "sha": row[1],
+                "model": row[2],
+                "decision": row[3],
+                "rationale": row[4],
+                "updated_at": row[5].isoformat() if hasattr(row[5], "isoformat") else str(row[5]),
+            }
+        return None
+
+    def set(self, record: Dict[str, Any]) -> None:
+        conn = self.pg.connect(self.dsn)
+        cur = conn.cursor()
+        cur.execute(
+            """
+            insert into tidy_semantic_cache (path, sha, model, decision, rationale, updated_at)
+            values (%s, %s, %s, %s, %s, %s)
+            on conflict (path) do update
+            set sha=excluded.sha, model=excluded.model, decision=excluded.decision,
+                rationale=excluded.rationale, updated_at=excluded.updated_at
+            """,
+            (
+                record["path"],
+                record["sha"],
+                record["model"],
+                record.get("decision"),
+                record.get("rationale"),
+                datetime.now(timezone.utc),
+            ),
+        )
+        conn.commit()
+        cur.close()
+        conn.close()
+
+
+def get_store(cache_path: Path) -> SemanticStore:
+    dsn = os.getenv("DATABASE_URL")
+    if dsn and dsn.startswith("postgres"):
+        try:
+            return PostgresSemanticStore(dsn=dsn)
+        except Exception as exc:
+            print(f"[WARN] Postgres store unavailable ({exc}); falling back to JSON cache.")
+    return JsonSemanticStore(cache_path)
+

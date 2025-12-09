@@ -35,6 +35,7 @@ except ImportError:  # pragma: no cover
     load_dotenv = None
 
 from glm_native_client import NativeGLMClient
+from semantic_store import get_store
 
 # Ensure sibling imports work when invoked from repo root
 SCRIPT_DIR = Path(__file__).resolve().parent
@@ -261,20 +262,6 @@ def plan_non_md_actions(root: Path, age_days: int, prune: bool, purge: bool, ver
 # ---------------------------------------------------------------------------
 # Semantic analysis (optional)
 # ---------------------------------------------------------------------------
-def load_semantic_cache(cache_path: Path) -> Dict[str, Any]:
-    if cache_path.exists():
-        try:
-            return json.loads(cache_path.read_text(encoding="utf-8"))
-        except Exception:
-            return {}
-    return {}
-
-
-def save_semantic_cache(cache_path: Path, cache: Dict[str, Any]):
-    ensure_dir(cache_path.parent)
-    cache_path.write_text(json.dumps(cache, indent=2), encoding="utf-8")
-
-
 def summarize_and_classify(
     path: Path,
     content: str,
@@ -332,7 +319,7 @@ def semantic_analysis(
 ) -> list[dict]:
     """Run semantic classification over markdown-like files; no filesystem mutations."""
     client = get_glm_client(model)
-    cache = load_semantic_cache(cache_path)
+    store = get_store(cache_path)
     results = []
 
     truth_chunks = []
@@ -365,8 +352,8 @@ def semantic_analysis(
         except Exception:
             continue
         sha = compute_sha256(path)
-        cache_entry = cache.get(str(path))
-        if cache_entry and cache_entry.get("sha") == sha and cache_entry.get("model") == model:
+        cache_entry = store.get(str(path), sha, model)
+        if cache_entry:
             result = cache_entry
         else:
             result = summarize_and_classify(path, content, truth_snippets, model, client)
@@ -375,7 +362,7 @@ def semantic_analysis(
                 "model": model,
                 "path": str(path),
             })
-            cache[str(path)] = result
+            store.set(result)
         if verbose:
             rationale_display = (result.get("rationale") or "")
             try:
@@ -482,6 +469,7 @@ def main():
     parser.add_argument("--semantic-cache", type=Path, default=DEFAULT_SEMANTIC_CACHE, help="Cache file for semantic results")
     parser.add_argument("--semantic-max-files", type=int, default=50, help="Max files to classify per run")
     parser.add_argument("--semantic-truth", action="append", type=Path, help="Additional truth/reference files")
+    parser.add_argument("--apply-semantic", action="store_true", help="Apply semantic decisions (archive/delete) instead of report-only")
     args = parser.parse_args()
 
     dry_run = not args.execute or args.dry_run
@@ -497,8 +485,12 @@ def main():
             REPO_ROOT / ".autonomous_runs" / "file-organizer-app-v1" / "archive" / "CONSOLIDATED_STRATEGY.md",
         ]
 
-    if args.execute and args.git_commit_before and not dry_run:
-        run_git_commit(args.git_commit_before, REPO_ROOT)
+    # Default git commit messages if executing and none provided
+    git_before = args.git_commit_before or ("tidy auto checkpoint (pre)" if args.execute and not dry_run else None)
+    git_after = args.git_commit_after or ("tidy auto checkpoint (post)" if args.execute and not dry_run else None)
+
+    if args.execute and git_before and not dry_run:
+        run_git_commit(git_before, REPO_ROOT)
 
     for root in roots:
         root = root.resolve()
@@ -539,6 +531,19 @@ def main():
             verbose=args.verbose,
         )
 
+        # Apply semantic decisions if requested
+        if args.semantic and args.apply_semantic and not dry_run:
+            for r in semantic_results:
+                decision = (r.get("decision") or "").lower()
+                p = Path(r.get("path"))
+                if decision == "delete":
+                    actions.append(Action("delete", p, None, "semantic delete"))
+                elif decision == "archive":
+                    archive_dir = root / "archive" / "superseded"
+                    rel = p.relative_to(root)
+                    dest = archive_dir / rel
+                    actions.append(Action("move", p, dest, "semantic archive"))
+
         # Execute moves/deletes with checkpoint
         execute_actions(actions, dry_run=dry_run, checkpoint_dir=args.checkpoint_dir if not dry_run else None)
 
@@ -551,8 +556,8 @@ def main():
         else:
             os.system(f"{sys.executable} {SCRIPT_DIR / 'consolidate_docs.py'}")
 
-    if args.execute and args.git_commit_after and not dry_run:
-        run_git_commit(args.git_commit_after, REPO_ROOT)
+    if args.execute and git_after and not dry_run:
+        run_git_commit(git_after, REPO_ROOT)
 
     print("\n[SUCCESS] Tidy complete (dry_run=%s)" % dry_run)
 

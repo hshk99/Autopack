@@ -76,6 +76,7 @@ Natural-language entrypoint that maps user intents to safe Autopack actions (no 
 - Tooling: `scripts/backlog_maintenance.py --backlog consolidated_debug.md --allowed-path src/` emits a maintenance plan JSON (propose-first). Plan entries use diagnostics + governed_apply when fed into a maintenance run.
 - Diagnostics-only pass: `scripts/run_backlog_plan.py --plan .autonomous_runs/backlog_plan.json` runs diagnostics over a plan (propose-first, no apply) and writes summaries under `.autonomous_runs/<run_id>/diagnostics/backlog_diagnostics_summary.json`.
 - End-to-end helper: `scripts/run_backlog_maintenance.py --backlog consolidated_debug.md --allowed-path src/ --checkpoint` parses backlog → plan → diagnostics (propose-first, no apply) in one step; optional `--checkpoint` creates a git checkpoint for rollback.
+- Maintenance auditor: proposals must satisfy scope/diff/test safety to be auto-approved; otherwise they require human review or are rejected if protected paths are touched.
 
 ## Owner Intent (Troubleshooting Autonomy)
 - Autopack should approach Cursor “tier 4” troubleshooting depth: when failures happen, it should autonomously run governed probes/commands (from a vetted allowlist), gather evidence (logs, test output, patch traces), iterate hypotheses, and log decisions—without requiring the user to type raw commands.

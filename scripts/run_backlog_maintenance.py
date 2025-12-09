@@ -19,6 +19,7 @@ from autopack.backlog_maintenance import (
     create_git_checkpoint,
 )
 from autopack.diagnostics.diagnostics_agent import DiagnosticsAgent
+from autopack.maintenance_auditor import AuditorInput, AuditorDecision, DiffStats, TestResult, evaluate as audit_evaluate
 from autopack.memory import MemoryService
 
 
@@ -80,6 +81,20 @@ def main():
             context={"phase_id": item.id, "description": item.title, "backlog_summary": item.summary},
             phase_id=item.id,
         )
+        # Placeholder diff/test info (propose-first; no apply) -> requires human by default
+        auditor_input = AuditorInput(
+            allowed_paths=args.allowed_path or [],
+            protected_paths=["config/", ".autonomous_runs/", ".git/", "src/autopack/"],
+            diff=DiffStats(files_changed=[], lines_added=0, lines_deleted=0),
+            tests=[],
+            failure_class="maintenance",
+            item_context=item.summary.lower() if item.summary else "",
+            diagnostics_summary=outcome.ledger_summary,
+        )
+        decision: AuditorDecision = audit_evaluate(auditor_input)
+        verdict = decision.verdict
+        print(f"[Auditor] {item.id}: verdict={verdict} reasons={decision.reasons}")
+
         if memory and memory.enabled:
             try:
                 memory.write_decision_log(
@@ -89,6 +104,7 @@ def main():
                     project_id=run_id,
                     run_id=run_id,
                     phase_id=item.id,
+                    alternatives="approve,require_human,reject",
                 )
             except Exception:
                 pass
@@ -99,6 +115,8 @@ def main():
                 "artifacts": outcome.artifacts,
                 "budget_exhausted": outcome.budget_exhausted,
                 "checkpoint": checkpoint_hash if args.checkpoint else None,
+                "auditor_verdict": verdict,
+                "auditor_reasons": decision.reasons,
             }
         )
 

@@ -470,6 +470,7 @@ def main():
     parser.add_argument("--semantic-max-files", type=int, default=50, help="Max files to classify per run")
     parser.add_argument("--semantic-truth", action="append", type=Path, help="Additional truth/reference files")
     parser.add_argument("--apply-semantic", action="store_true", help="Apply semantic decisions (archive/delete) instead of report-only")
+    parser.add_argument("--semantic-delete", action="store_true", help="Allow semantic delete; otherwise deletes are converted to archive moves")
     args = parser.parse_args()
 
     dry_run = not args.execute or args.dry_run
@@ -537,7 +538,14 @@ def main():
                 decision = (r.get("decision") or "").lower()
                 p = Path(r.get("path"))
                 if decision == "delete":
-                    actions.append(Action("delete", p, None, "semantic delete"))
+                    if args.semantic_delete:
+                        actions.append(Action("delete", p, None, "semantic delete"))
+                    else:
+                        # downgrade delete to archive move for safety
+                        archive_dir = root / "archive" / "superseded"
+                        rel = p.relative_to(root)
+                        dest = archive_dir / rel
+                        actions.append(Action("move", p, dest, "semantic delete->archive"))
                 elif decision == "archive":
                     archive_dir = root / "archive" / "superseded"
                     rel = p.relative_to(root)

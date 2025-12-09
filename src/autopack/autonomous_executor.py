@@ -357,6 +357,7 @@ class AutonomousExecutor:
         max_lines: int = 500,
         checkpoint: bool = True,
         test_commands: Optional[List[str]] = None,
+        auto_apply_low_risk: bool = False,
     ) -> None:
         """
         Run a backlog maintenance plan with diagnostics + optional apply.
@@ -451,24 +452,48 @@ class AutonomousExecutor:
 
             apply_result = None
             if apply and patch_path and decision.verdict == "approve" and checkpoint_hash:
-                gap = GovernedApplyPath(
-                    workspace=Path(self.workspace),
-                    allowed_paths=default_allowed,
-                    protected_paths=protected_paths,
-                    run_type="project_build",
-                )
-                success, err = gap.apply_patch(patch_path.read_text(encoding="utf-8", errors="ignore"))
-                apply_result = {"success": success, "error": err}
-                if success:
-                    logger.info(f"[Backlog][Apply] Success for {phase_id}")
+                # If auto_apply_low_risk, enforce stricter bounds
+                if auto_apply_low_risk:
+                    if len(diff_stats.files_changed) > max_files or (diff_stats.lines_added + diff_stats.lines_deleted) > max_lines:
+                        logger.info(f"[Backlog][Apply] Skipping apply (auto-apply low risk) due to size: files={len(diff_stats.files_changed)}, lines={diff_stats.lines_added + diff_stats.lines_deleted}")
+                        apply_result = {"success": False, "error": "auto_apply_low_risk_size_guard"}
+                    elif any(t.status != "passed" for t in test_results):
+                        logger.info(f"[Backlog][Apply] Skipping apply (auto-apply low risk) due to tests not all passing")
+                        apply_result = {"success": False, "error": "auto_apply_low_risk_tests_guard"}
+                    else:
+                        gap = GovernedApplyPath(
+                            workspace=Path(self.workspace),
+                            allowed_paths=default_allowed,
+                            protected_paths=protected_paths,
+                            run_type="project_build",
+                        )
+                        success, err = gap.apply_patch(patch_path.read_text(encoding="utf-8", errors="ignore"))
+                        apply_result = {"success": success, "error": err}
+                        if success:
+                            logger.info(f"[Backlog][Apply] Success for {phase_id}")
+                        else:
+                            logger.warning(f"[Backlog][Apply] Failed for {phase_id}: {err}")
+                            if checkpoint_hash:
+                                logger.info(f"[Backlog][Apply] Reverting to checkpoint due to failure")
+                                from autopack.backlog_maintenance import revert_to_checkpoint
+                                revert_to_checkpoint(Path(self.workspace), checkpoint_hash)
                 else:
-                    logger.warning(f"[Backlog][Apply] Failed for {phase_id}: {err}")
-                    # Optional: revert on failure
-                    if checkpoint_hash:
-                        logger.info(f"[Backlog][Apply] Reverting to checkpoint due to failure")
-                        from autopack.backlog_maintenance import revert_to_checkpoint
-
-                        revert_to_checkpoint(Path(self.workspace), checkpoint_hash)
+                    gap = GovernedApplyPath(
+                        workspace=Path(self.workspace),
+                        allowed_paths=default_allowed,
+                        protected_paths=protected_paths,
+                        run_type="project_build",
+                    )
+                    success, err = gap.apply_patch(patch_path.read_text(encoding="utf-8", errors="ignore"))
+                    apply_result = {"success": success, "error": err}
+                    if success:
+                        logger.info(f"[Backlog][Apply] Success for {phase_id}")
+                    else:
+                        logger.warning(f"[Backlog][Apply] Failed for {phase_id}: {err}")
+                        if checkpoint_hash:
+                            logger.info(f"[Backlog][Apply] Reverting to checkpoint due to failure")
+                            from autopack.backlog_maintenance import revert_to_checkpoint
+                            revert_to_checkpoint(Path(self.workspace), checkpoint_hash)
             elif apply and patch_path is None:
                 logger.info(f"[Backlog][Apply] No patch for {phase_id}, skipping apply")
             elif apply and decision.verdict != "approve":
@@ -4699,6 +4724,16 @@ Environment Variables:
         help="Attempt to apply maintenance patches if auditor approves (requires checkpoint)",
     )
     parser.add_argument(
+        "--maintenance-auto-apply-low-risk",
+        action="store_true",
+        help="Auto-apply only auditor-approved, low-risk patches (in-scope, small diff, tests passing) with checkpoint",
+    )
+    parser.add_argument(
+        "--maintenance-auto-apply-low-risk",
+        action="store_true",
+        help="Auto-apply only auditor-approved, low-risk patches (in-scope, small diff, tests passing) with checkpoint",
+    )
+    parser.add_argument(
         "--maintenance-checkpoint",
         action="store_true",
         help="Create a git checkpoint before maintenance apply (required for apply path)",
@@ -4807,9 +4842,10 @@ Environment Variables:
         executor.run_backlog_maintenance(
             plan_path=args.maintenance_plan,
             patch_dir=args.maintenance_patch_dir,
-            apply=args.maintenance_apply,
+            apply=args.maintenance_apply or args.maintenance_auto_apply_low_risk,
             allowed_paths=None,
-            checkpoint=args.maintenance_checkpoint or args.maintenance_apply,
+            checkpoint=True if (args.maintenance_apply or args.maintenance_auto_apply_low_risk) else args.maintenance_checkpoint,
+            auto_apply_low_risk=args.maintenance_auto_apply_low_risk,
         )
         return
 

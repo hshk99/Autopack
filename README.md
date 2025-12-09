@@ -79,6 +79,8 @@ Natural-language entrypoint that maps user intents to safe Autopack actions (no 
 - Maintenance auditor: proposals must satisfy scope/diff/test safety to be auto-approved; otherwise they require human review or are rejected if protected paths are touched.
 - Optional apply: `scripts/run_backlog_maintenance.py --apply --patch-dir patches/ --checkpoint` can apply per-item patches (named `<item_id>.patch`) only if the auditor approves and a checkpoint is created; otherwise it stays propose-first. Use `--default-allowed-path` and `--allowed-path` to constrain scope.
 - Targeted tests: both runner and executor can run `--test-cmd` commands per item; auditor sees the results and will require_human if tests are missing or failing.
+- Low-risk auto-apply (recommended safeguards): for maintenance runs, keep checkpoints on by default and only auto-apply auditor-approved patches that are in-scope, small (files/lines), and have passing targeted tests; anything else remains propose-first for human review.
+- Executor CLI flags: `--maintenance-plan`, `--maintenance-patch-dir`, `--maintenance-apply`, `--maintenance-checkpoint`, `--maintenance-auto-apply-low-risk` control maintenance mode; low-risk auto-apply enforces extra size/test guards and still requires a checkpoint.
 
 ## Owner Intent (Troubleshooting Autonomy)
 - Autopack should approach Cursor “tier 4” troubleshooting depth: when failures happen, it should autonomously run governed probes/commands (from a vetted allowlist), gather evidence (logs, test output, patch traces), iterate hypotheses, and log decisions—without requiring the user to type raw commands.

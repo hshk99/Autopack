@@ -4844,7 +4844,8 @@ Environment Variables:
             patch_dir=args.maintenance_patch_dir,
             apply=args.maintenance_apply or args.maintenance_auto_apply_low_risk,
             allowed_paths=None,
-            checkpoint=True if (args.maintenance_apply or args.maintenance_auto_apply_low_risk) else args.maintenance_checkpoint,
+            # Default to checkpointing for maintenance runs even without apply (safe guard)
+            checkpoint=True,
             auto_apply_low_risk=args.maintenance_auto_apply_low_risk,
         )
         return

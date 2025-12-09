@@ -24,8 +24,15 @@ import zipfile
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Iterable, List, Tuple
+from typing import Iterable, List, Tuple, Dict, Any
 import subprocess
+import hashlib
+import json
+
+try:
+    import openai
+except ImportError:  # pragma: no cover
+    openai = None
 
 # Ensure sibling imports work when invoked from repo root
 SCRIPT_DIR = Path(__file__).resolve().parent
@@ -78,6 +85,10 @@ EXPORT_EXTS = {".csv", ".xlsx", ".xls", ".pdf"}
 PATCH_EXTS = {".patch", ".diff"}
 
 DEFAULT_CHECKPOINT_DIR = REPO_ROOT / ".autonomous_runs" / "checkpoints"
+DEFAULT_SEMANTIC_CACHE = REPO_ROOT / ".autonomous_runs" / "tidy_semantic_cache.json"
+
+# Cap content sent to LLM to avoid large payloads
+MAX_CONTENT_CHARS = 6000
 
 
 # ---------------------------------------------------------------------------
@@ -131,6 +142,14 @@ def checkpoint_files(checkpoint_dir: Path, files: Iterable[Path]) -> Path:
                     arcname = f.name
                 zf.write(f, arcname)
     return archive
+
+
+def compute_sha256(path: Path) -> str:
+    h = hashlib.sha256()
+    with open(path, "rb") as f:
+        for chunk in iter(lambda: f.read(8192), b""):
+            h.update(chunk)
+    return h.hexdigest()
 
 
 def detect_project_rules(root: Path):
@@ -238,6 +257,133 @@ def plan_non_md_actions(root: Path, age_days: int, prune: bool, purge: bool, ver
 
 
 # ---------------------------------------------------------------------------
+# Semantic analysis (optional)
+# ---------------------------------------------------------------------------
+def load_semantic_cache(cache_path: Path) -> Dict[str, Any]:
+    if cache_path.exists():
+        try:
+            return json.loads(cache_path.read_text(encoding="utf-8"))
+        except Exception:
+            return {}
+    return {}
+
+
+def save_semantic_cache(cache_path: Path, cache: Dict[str, Any]):
+    ensure_dir(cache_path.parent)
+    cache_path.write_text(json.dumps(cache, indent=2), encoding="utf-8")
+
+
+def summarize_and_classify(
+    path: Path,
+    content: str,
+    truth_snippets: str,
+    model: str,
+) -> Dict[str, str]:
+    """
+    Attempt to classify file via LLM (keep/archive/delete) with rationale.
+    Falls back to heuristic if LLM unavailable.
+    """
+    prompt = f"""You are a documentation cleaner. Decide for this file if it should be kept as-is, archived (move to superseded/archive), or deleted as redundant noise. Output JSON with keys: decision (keep|archive|delete), rationale.
+
+Truth context (for freshness/uniqueness):
+{truth_snippets[:2000]}
+
+File content (truncated):
+{content[:MAX_CONTENT_CHARS]}
+"""
+    if openai is None:
+        return {
+            "decision": "archive",
+            "rationale": "LLM unavailable; defaulting to archive suggestion for safety.",
+        }
+    try:
+        resp = openai.ChatCompletion.create(
+            model=model,
+            messages=[
+                {"role": "system", "content": "You are a concise documentation cleaner."},
+                {"role": "user", "content": prompt},
+            ],
+            temperature=0,
+            max_tokens=200,
+        )
+        text = resp["choices"][0]["message"]["content"]
+        # lightweight parse
+        decision = "archive"
+        rationale = text.strip()
+        for token in ["keep", "archive", "delete"]:
+            if token in text.lower():
+                decision = token
+                break
+        return {"decision": decision, "rationale": rationale}
+    except Exception as exc:
+        return {
+            "decision": "archive",
+            "rationale": f"LLM call failed: {exc}; suggest archive.",
+        }
+
+
+def semantic_analysis(
+    root: Path,
+    cache_path: Path,
+    model: str,
+    max_files: int,
+    truth_files: list[Path],
+    verbose: bool,
+) -> list[dict]:
+    """Run semantic classification over markdown-like files; no filesystem mutations."""
+    cache = load_semantic_cache(cache_path)
+    results = []
+
+    truth_chunks = []
+    for tf in truth_files:
+        if tf.exists() and tf.is_file():
+            try:
+                truth_chunks.append(tf.read_text(encoding="utf-8")[:2000])
+            except Exception:
+                continue
+    truth_snippets = "\n---\n".join(truth_chunks)[:4000]
+
+    candidates = []
+    for dirpath, dirnames, filenames in os.walk(root):
+        dirnames[:] = [d for d in dirnames if d not in {".git", "node_modules", ".pytest_cache", "__pycache__", ".venv", "venv"}]
+        for fname in filenames:
+            p = Path(dirpath) / fname
+            if p.suffix.lower() not in {".md", ".txt"}:
+                continue
+            if is_protected(p):
+                continue
+            candidates.append(p)
+            if len(candidates) >= max_files:
+                break
+        if len(candidates) >= max_files:
+            break
+
+    for path in candidates:
+        try:
+            content = path.read_text(encoding="utf-8")
+        except Exception:
+            continue
+        sha = compute_sha256(path)
+        cache_entry = cache.get(str(path))
+        if cache_entry and cache_entry.get("sha") == sha and cache_entry.get("model") == model:
+            result = cache_entry
+        else:
+            result = summarize_and_classify(path, content, truth_snippets, model)
+            result.update({
+                "sha": sha,
+                "model": model,
+                "path": str(path),
+            })
+            cache[str(path)] = result
+        if verbose:
+            print(f"[SEMANTIC] {path}: {result.get('decision')} ({result.get('rationale')[:120]})")
+        results.append(result)
+
+    save_semantic_cache(cache_path, cache)
+    return results
+
+
+# ---------------------------------------------------------------------------
 # Execution
 # ---------------------------------------------------------------------------
 def execute_actions(actions: List[Action], dry_run: bool, checkpoint_dir: Path | None) -> Tuple[int, int]:
@@ -314,10 +460,25 @@ def main():
     parser.add_argument("--verbose", action="store_true", help="Verbose logging")
     parser.add_argument("--git-commit-before", type=str, help="Commit message for checkpoint commit before actions")
     parser.add_argument("--git-commit-after", type=str, help="Commit message for checkpoint commit after actions")
+    parser.add_argument("--semantic", action="store_true", help="Enable semantic classification (no file mutations)")
+    parser.add_argument("--semantic-model", type=str, default="glm-4.6", help="LLM model name for semantic mode")
+    parser.add_argument("--semantic-cache", type=Path, default=DEFAULT_SEMANTIC_CACHE, help="Cache file for semantic results")
+    parser.add_argument("--semantic-max-files", type=int, default=50, help="Max files to classify per run")
+    parser.add_argument("--semantic-truth", action="append", type=Path, help="Additional truth/reference files")
     args = parser.parse_args()
 
     dry_run = not args.execute or args.dry_run
     roots = args.root or [REPO_ROOT]
+    truth_files = args.semantic_truth or []
+    if not truth_files:
+        # Default truth anchors
+        truth_files = [
+            REPO_ROOT / "README.md",
+            REPO_ROOT / ".autonomous_runs" / "file-organizer-app-v1" / "WHATS_LEFT_TO_BUILD.md",
+            REPO_ROOT / ".autonomous_runs" / "file-organizer-app-v1" / "WHATS_LEFT_TO_BUILD_MAINTENANCE.md",
+            REPO_ROOT / ".autonomous_runs" / "file-organizer-app-v1" / "archive" / "CONSOLIDATED_BUILD.md",
+            REPO_ROOT / ".autonomous_runs" / "file-organizer-app-v1" / "archive" / "CONSOLIDATED_STRATEGY.md",
+        ]
 
     if args.execute and args.git_commit_before and not dry_run:
         run_git_commit(args.git_commit_before, REPO_ROOT)
@@ -331,6 +492,21 @@ def main():
         rules = detect_project_rules(root)
         organizer = DocumentationOrganizer(project_root=root, rules_config=rules, dry_run=dry_run, verbose=args.verbose)
         organizer.organize()
+
+        if args.semantic:
+            if args.verbose:
+                print(f"[INFO] Running semantic analysis (max {args.semantic_max_files} files) with model {args.semantic_model}")
+            semantic_results = semantic_analysis(
+                root=root,
+                cache_path=args.semantic_cache,
+                model=args.semantic_model,
+                max_files=args.semantic_max_files,
+                truth_files=truth_files,
+                verbose=args.verbose,
+            )
+            print(f"[INFO] Semantic results ({len(semantic_results)} files):")
+            for r in semantic_results:
+                print(f" - {r.get('path')}: {r.get('decision')} ({r.get('rationale')[:160]})")
 
         # Non-MD tidy
         actions = plan_non_md_actions(

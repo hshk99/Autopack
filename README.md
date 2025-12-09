@@ -387,7 +387,7 @@ python src/autopack/autonomous_executor.py --run-id my-new-run
   python scripts/run_tidy_all.py
   ```
 - Scopes/config: `tidy_scope.yaml` sets roots (defaults: `.autonomous_runs/file-organizer-app-v1`, `.autonomous_runs`, `archive`), optional `purge: true`, optional `db_overrides` per root (Postgres DSN). Wrapper runs per root with the matching DSN.
-- Superseded handling: if a root path contains `superseded`, markdown organizer is skipped so superseded files stay put.
+- Superseded handling: if a root path contains `superseded`, markdown organizer is skipped and files are routed into the project archive superseded path (`.autonomous_runs/file-organizer-app-v1/archive/superseded/archive`); research/strategy/market briefs are bucketed under `.../research/`.
 - Semantic store: Postgres (`DATABASE_URL`), then Qdrant (`QDRANT_URL`/`QDRANT_HOST` + `QDRANT_API_KEY`), else JSON cache. Embeddings: set `EMBEDDING_MODEL` (default `BAAI/bge-m3`; hash fallback). Requires `sentence-transformers` for HF models.
 - Truth-merge: allocator suggestions can be generated; optional apply is section-aware (inserts under matching headings) with provenance markers. Semantic deletes downgrade to archive moves unless `--semantic-delete` is set.
 - Logging: moves/deletes/merges recorded with project_id and SHAs into Postgres (`tidy_activity`) if available; fallback JSONL at `.autonomous_runs/tidy_activity.log`.

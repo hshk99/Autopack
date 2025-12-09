@@ -1,0 +1,22 @@
+---
+# Governed diagnostics configuration
+# Defaults are conservative; override per deployment if needed.
+max_probes: 8
+max_seconds: 300
+max_commands: 30
+allowed_hosts:
+  - localhost
+  - 127.0.0.1
+
+# Paths to copy into the sandbox when probes request sandbox=True.
+# These are relative to workspace and must stay in-repo.
+sandbox_paths:
+  # - src
+  # - tests
+
+# Baseline logs to tail for every diagnostics run (relative to workspace)
+baseline_logs:
+  - logs/autopack/autonomous_executor.log
+  - logs/autopack/builder.log
+  - logs/autopack/auditor.log
+

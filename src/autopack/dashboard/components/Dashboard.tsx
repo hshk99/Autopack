@@ -1,5 +1,6 @@
 import React from 'react';
 import { DoctorMetrics } from './DoctorMetrics';
+import { DiagnosticsSummary } from './DiagnosticsSummary';
 
 export const Dashboard: React.FC = () => {
   return (
@@ -15,6 +16,9 @@ export const Dashboard: React.FC = () => {
       <main className="dashboard-content">
         <section className="metrics-section">
           <DoctorMetrics />
+        </section>
+        <section className="metrics-section">
+          <DiagnosticsSummary />
         </section>
       </main>
     </div>

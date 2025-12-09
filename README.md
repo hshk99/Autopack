@@ -59,6 +59,14 @@ Natural-language entrypoint that maps user intents to safe Autopack actions (no 
   python scripts/intent_router.py --query "planning context for kickoff" --project-id file-organizer-app-v1
   ```
 
+### Diagnostics (governed troubleshooting)
+- Governed diagnostics agent runs allowlisted probes with budgets/timeouts and saves artifacts to `.autonomous_runs/<run_id>/diagnostics`.
+- Evidence-first: collects git status/diff, executor logs, env/dependency info, and probe outputs before any mutations; summaries land in DecisionLog + vector memory.
+- Intent router supports `diagnose patch failure` and `diagnose ci failure` for manual, read-only runs (uses the same governed palette).
+- Executor triggers diagnostics automatically on patch/CI/infra failures to capture signals and hypotheses for Doctor/maintainers.
+- Config: `config/diagnostics.yaml` controls budgets, allowed hosts, baseline logs, and sandbox copy paths for risky probes (sandboxed commands run inside `.autonomous_runs/<run_id>/diagnostics/sandbox`).
+- Dashboard: `/api/diagnostics/latest` and the dashboard “Latest Diagnostics” card show the most recent diagnostic summary (failure, ledger, probes) read-only.
+
 ## Owner Intent (Troubleshooting Autonomy)
 - Autopack should approach Cursor “tier 4” troubleshooting depth: when failures happen, it should autonomously run governed probes/commands (from a vetted allowlist), gather evidence (logs, test output, patch traces), iterate hypotheses, and log decisions—without requiring the user to type raw commands.
 - Natural-language control is preferred: the intent router (and future dashboard hooks) should trigger safe actions like planning ingest, memory maintenance, diagnostics, and context queries.

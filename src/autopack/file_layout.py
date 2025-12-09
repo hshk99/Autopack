@@ -44,6 +44,16 @@ class RunFileLayout:
         safe_id = phase_id.replace(" ", "_").replace("/", "_")
         return self.base_dir / "phases" / f"phase_{phase_index:02d}_{safe_id}.md"
 
+    def get_diagnostics_dir(self) -> Path:
+        """Directory for diagnostic artifacts."""
+        return self.base_dir / "diagnostics"
+
+    def ensure_diagnostics_dirs(self) -> None:
+        """Create diagnostics directories (commands, sandbox)."""
+        diag = self.get_diagnostics_dir()
+        (diag / "commands").mkdir(parents=True, exist_ok=True)
+        (diag / "sandbox").mkdir(parents=True, exist_ok=True)
+
     def write_run_summary(
         self,
         run_id: str,

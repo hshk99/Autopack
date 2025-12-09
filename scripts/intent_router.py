@@ -22,6 +22,7 @@ from autopack.config import settings
 from autopack.database import Base
 from autopack.memory import MemoryService
 from autopack.memory.maintenance import run_maintenance, _load_memory_config
+from autopack.diagnostics import DiagnosticsAgent
 from scripts import ingest_planning_artifacts
 
 
@@ -138,6 +139,38 @@ def action_memory_query(project_id: str, args: argparse.Namespace) -> ActionResu
     return (formatted or "(no context)", True)
 
 
+def _run_manual_diagnostics(failure_class: str, project_id: str, args: argparse.Namespace) -> ActionResult:
+    """Fire a governed diagnostics run from the CLI intent router."""
+    workspace = Path(args.repo_root or Path.cwd())
+    run_id = args.run_id or f"{project_id}-manual"
+    diagnostics_dir = workspace / settings.autonomous_runs_dir / run_id / "diagnostics"
+    diagnostics_dir.mkdir(parents=True, exist_ok=True)
+
+    agent = DiagnosticsAgent(
+        run_id=run_id,
+        workspace=workspace,
+        memory_service=MemoryService(),
+        decision_logger=None,  # CLI usage is read-only; DB decision log is executor-owned
+        diagnostics_dir=diagnostics_dir,
+        max_probes=5,
+        max_seconds=180,
+    )
+    context: Dict = {}
+    if args.target:
+        context["test_target"] = args.target
+
+    outcome = agent.run_diagnostics(failure_class=failure_class, context=context)
+    return (outcome.ledger_summary, True)
+
+
+def action_diagnose_patch(project_id: str, args: argparse.Namespace) -> ActionResult:
+    return _run_manual_diagnostics("patch_apply_error", project_id, args)
+
+
+def action_diagnose_ci(project_id: str, args: argparse.Namespace) -> ActionResult:
+    return _run_manual_diagnostics("ci_fail", project_id, args)
+
+
 INTENTS: List[Intent] = [
     Intent(
         name="ingest_planning",
@@ -169,6 +202,18 @@ INTENTS: List[Intent] = [
         action=action_memory_query,
         description="Query planning context from memory",
     ),
+    Intent(
+        name="diagnose_patch_failure",
+        keywords=["diagnose patch", "patch failure", "apply failed", "patch failed"],
+        action=action_diagnose_patch,
+        description="Run governed diagnostics for patch/apply failures",
+    ),
+    Intent(
+        name="diagnose_ci_failure",
+        keywords=["diagnose ci", "ci failed", "tests failed", "why did ci fail"],
+        action=action_diagnose_ci,
+        description="Run governed diagnostics for CI/test failures",
+    ),
 ]
 
 
@@ -177,6 +222,8 @@ def main():
     parser.add_argument("--project-id", default="autopack", help="Project scope")
     parser.add_argument("--query", required=True, help="User intent in natural language")
     parser.add_argument("--repo-root", default=None, type=Path, help="Repo root (for ingest)")
+    parser.add_argument("--run-id", default=None, help="Run identifier for diagnostics")
+    parser.add_argument("--target", default=None, help="Target selector for diagnostics (e.g., pytest -k pattern)")
     parser.add_argument("--author", default="autopack-agent", help="Author for ingest logging")
     parser.add_argument("--reason", default="intent_router", help="Reason for ingest/version bump")
     parser.add_argument("--extra", nargs="*", default=[], help="Additional paths for ingest")

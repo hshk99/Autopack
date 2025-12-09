@@ -65,6 +65,7 @@ from autopack.file_layout import RunFileLayout
 
 # Memory and validation imports
 from autopack import models
+from autopack.diagnostics import DiagnosticsAgent
 from autopack.memory import MemoryService, should_block_on_drift, extract_goal_from_description
 from autopack.validators import validate_yaml_syntax, validate_docker_compose, ValidationResult
 
@@ -245,6 +246,29 @@ class AutonomousExecutor:
         except Exception as e:
             logger.warning(f"MemoryService initialization failed, running without memory: {e}")
             self.memory_service = None
+
+        # Run file layout + diagnostics directories
+        self.run_layout = RunFileLayout(self.run_id)
+        try:
+            self.run_layout.ensure_directories()
+            self.run_layout.ensure_diagnostics_dirs()
+        except Exception as e:
+            logger.warning(f"[Diagnostics] Failed to prime run directories: {e}")
+
+        # Governed diagnostics agent (evidence-first troubleshooting)
+        try:
+            self.diagnostics_agent = DiagnosticsAgent(
+                run_id=self.run_id,
+                workspace=Path(self.workspace),
+                memory_service=self.memory_service,
+                decision_logger=self._record_decision_entry,
+                diagnostics_dir=self.run_layout.get_diagnostics_dir(),
+                max_probes=8,
+                max_seconds=300,
+            )
+        except Exception as e:
+            logger.warning(f"[Diagnostics] Initialization failed; diagnostics disabled: {e}")
+            self.diagnostics_agent = None
 
         logger.info(f"Initialized autonomous executor for run: {run_id}")
         logger.info(f"API URL: {api_url}")
@@ -825,6 +849,17 @@ class AutonomousExecutor:
                     attempt_index=attempt_index
                 )
 
+                # Run governed diagnostics to gather evidence before mutations
+                self._run_diagnostics_for_failure(
+                    failure_class=failure_outcome,
+                    phase=phase,
+                    context={
+                        "status": status,
+                        "attempt_index": attempt_index,
+                        "logs_excerpt": f"Status: {status}, Attempt: {attempt_index + 1}",
+                    },
+                )
+
                 # [Doctor Integration] Invoke Doctor for diagnosis after sufficient failures
                 doctor_response = self._invoke_doctor(
                     phase=phase,
@@ -915,6 +950,16 @@ class AutonomousExecutor:
                     error_type="infra_error",
                     error_details=str(e),
                     attempt_index=attempt_index
+                )
+
+                # Diagnostics: gather evidence for infra errors before any mutations
+                self._run_diagnostics_for_failure(
+                    failure_class="infra_error",
+                    phase=phase,
+                    context={
+                        "exception": str(e)[:300],
+                        "attempt_index": attempt_index,
+                    },
                 )
 
                 # [Doctor Integration] Invoke Doctor for diagnosis on exceptions
@@ -1779,6 +1824,32 @@ Just the new description that should replace the current one while preserving th
             logger.info(f"[Re-Plan] Using revised spec for {phase_id}")
             return self._phase_revised_specs[phase_id]
         return phase
+
+    # =========================================================================
+    # DIAGNOSTICS AGENT (governed probes + evidence capture)
+    # =========================================================================
+
+    def _run_diagnostics_for_failure(
+        self,
+        failure_class: str,
+        phase: Dict,
+        context: Optional[Dict] = None,
+    ):
+        """Invoke governed diagnostics with safety/budget controls."""
+        if not getattr(self, "diagnostics_agent", None):
+            return None
+        ctx = dict(context or {})
+        ctx.setdefault("phase_id", phase.get("phase_id"))
+        ctx.setdefault("phase_name", phase.get("name"))
+        try:
+            return self.diagnostics_agent.run_diagnostics(
+                failure_class=failure_class,
+                context=ctx,
+                phase_id=phase.get("phase_id"),
+            )
+        except Exception as e:
+            logger.warning(f"[Diagnostics] Failed to run diagnostics for {failure_class}: {e}")
+            return None
 
     # =========================================================================
     # DOCTOR INTEGRATION (GPT_RESPONSE8 Implementation)

@@ -9,6 +9,7 @@ Steps:
 """
 
 import argparse
+import hashlib
 import json
 import time
 from pathlib import Path
@@ -143,6 +144,20 @@ def main():
         else:
             print(f"[Checkpoint] Failed: {checkpoint_hash}")
 
+    # Run workspace tests once before processing items (efficiency optimization)
+    workspace_test_results = []
+    test_output_cache = {}  # hash -> full test output
+    if args.test_cmd:
+        print(f"[Tests] Running workspace tests once: {args.test_cmd}")
+        workspace_test_results = run_tests(args.test_cmd, workspace=workspace)
+        # Cache test outputs by hash
+        for test in workspace_test_results:
+            test_dict = test.__dict__
+            test_json = json.dumps(test_dict, sort_keys=True)
+            test_hash = hashlib.sha256(test_json.encode()).hexdigest()[:12]
+            test_output_cache[test_hash] = test_dict
+        print(f"[Tests] Cached {len(test_output_cache)} unique test outputs")
+
     summaries = []
     for item in items:
         print(f"[Diagnostics] {item.id}: {item.title}")
@@ -165,9 +180,8 @@ def main():
             diff_stats = parse_patch_stats(raw)
             print(f"[Patch] Parsed {item.id}: {len(diff_stats.files_changed)} files, +{diff_stats.lines_added}/-{diff_stats.lines_deleted} lines")
 
-        test_results = []
-        if args.test_cmd:
-            test_results = run_tests(args.test_cmd, workspace=workspace)
+        # Use workspace test results (run once, not per-item)
+        test_results = workspace_test_results
 
         auditor_input = AuditorInput(
             allowed_paths=default_allowed,
@@ -248,6 +262,14 @@ def main():
                 except Exception as e:
                     print(f"[PlanChange] Failed to log for {item.id}: {e}")
 
+        # Store test result hashes instead of full outputs (deduplication)
+        test_hashes = []
+        for test in test_results:
+            test_dict = test.__dict__
+            test_json = json.dumps(test_dict, sort_keys=True)
+            test_hash = hashlib.sha256(test_json.encode()).hexdigest()[:12]
+            test_hashes.append(test_hash)
+
         summaries.append(
             {
                 "phase_id": item.id,
@@ -259,12 +281,19 @@ def main():
                 "auditor_reasons": decision.reasons,
                 "apply_result": apply_result,
                 "patch_path": str(patch_path) if patch_path else None,
-                "tests": [t.__dict__ for t in test_results],
+                "test_hashes": test_hashes,  # Reference to cache instead of full output
             }
         )
 
     diag_dir = Path(".autonomous_runs") / run_id / "diagnostics"
     diag_dir.mkdir(parents=True, exist_ok=True)
+
+    # Write test output cache separately (deduplication)
+    if test_output_cache:
+        cache_path = diag_dir / "test_output_cache.json"
+        cache_path.write_text(json.dumps(test_output_cache, indent=2), encoding="utf-8")
+        print(f"[Tests] Test output cache -> {cache_path} ({len(test_output_cache)} unique outputs)")
+
     summary_path = diag_dir / "backlog_diagnostics_summary.json"
     summary_path.write_text(json.dumps(summaries, indent=2), encoding="utf-8")
     print(f"[OK] Diagnostics summaries -> {summary_path}")

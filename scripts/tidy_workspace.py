@@ -2,9 +2,16 @@
 """
 Workspace Tidy Orchestrator
 
+Category: MANUAL ONLY
+Triggers: Intent Router, Explicit Call
+Excludes: Automatic Maintenance, Error Reports, Test Runs
+
 Safely organizes documentation and run artifacts without touching protected
 files (plans, DBs, learned rules, active truth sources). Designed to run in
 dry-run by default and to create a checkpoint archive before any move/delete.
+
+This tool should NOT be included in automatic maintenance runs.
+Workspace cleanup should be a deliberate user action.
 
 Functions:
 - Markdown organization via tidy_docs.DocumentationOrganizer (optional)
@@ -43,12 +50,12 @@ REPO_ROOT = SCRIPT_DIR.parent
 sys.path.append(str(SCRIPT_DIR))
 
 try:
-from tidy_docs import (
-    DocumentationOrganizer,
-    AUTOPACK_RULES,
-    FILEORGANIZER_RULES,
-)
-from tidy_logger import TidyLogger
+    from tidy_docs import (
+        DocumentationOrganizer,
+        AUTOPACK_RULES,
+        FILEORGANIZER_RULES,
+    )
+    from tidy_logger import TidyLogger
 except Exception as exc:  # pragma: no cover - defensive import
     print(f"[ERROR] Failed to import tidy_docs: {exc}", file=sys.stderr)
     raise

@@ -2,8 +2,14 @@
 """
 Pre-Publication Checklist for Autopack-Built Projects
 
+Category: MANUAL ONLY
+Triggers: Intent Router, Explicit Call
+Excludes: Automatic Maintenance, Error Reports, Test Runs
+
 Run this script before publishing any project built with Autopack to ensure
 all necessary artifacts, documentation, and metadata are ready for public release.
+
+This tool should NOT be included in automatic maintenance runs.
 
 Usage:
     python scripts/pre_publish_checklist.py --project-path /path/to/project

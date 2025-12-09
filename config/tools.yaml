@@ -1,0 +1,54 @@
+# Tool Categorization Configuration
+# Defines which tools are manual-only vs automatic
+
+tools:
+  pre_publish_checklist:
+    script: scripts/pre_publish_checklist.py
+    category: manual
+    triggers:
+      - intent_router
+    description: "Pre-publication readiness checks"
+    exclude_from:
+      - automatic_maintenance
+      - error_reports
+      - test_runs
+
+  tidy_workspace:
+    script: scripts/tidy_workspace.py
+    category: manual
+    triggers:
+      - intent_router
+      - explicit_call
+    description: "Archive and consolidate completed runs"
+    exclude_from:
+      - automatic_maintenance
+      - error_reports
+      - test_runs
+
+  backlog_maintenance:
+    script: scripts/run_backlog_maintenance.py
+    category: automatic
+    triggers:
+      - scheduled
+      - intent_router
+      - explicit_call
+    description: "Process backlog items with diagnostics"
+    exclude_from: []
+
+  plan_from_markdown:
+    script: scripts/plan_from_markdown.py
+    category: automatic
+    triggers:
+      - intent_router
+      - explicit_call
+    description: "Convert markdown tasks to JSON phases"
+    exclude_from: []
+
+  autorun_markdown_plan:
+    script: scripts/autorun_markdown_plan.py
+    category: automatic
+    triggers:
+      - intent_router
+      - explicit_call
+    description: "Auto-convert and execute markdown plans"
+    exclude_from: []

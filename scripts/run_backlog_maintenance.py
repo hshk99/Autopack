@@ -27,6 +27,37 @@ from autopack.governed_apply import GovernedApplyPath
 from autopack.maintenance_runner import run_tests
 
 
+def is_major_change(item, patch_path, auditor_decision):
+    """
+    Detect if this backlog item represents a major architectural change.
+
+    Returns:
+        (is_major: bool, rationale: str)
+    """
+    major_keywords = [
+        "database", "migration", "postgresql", "qdrant", "vector", "memory",
+        "architecture", "framework", "integration", "api", "authentication",
+        "refactor", "redesign", "restructure"
+    ]
+
+    # Check item context for major keywords
+    item_context = (item.summary or "").lower()
+    if any(kw in item_context for kw in major_keywords):
+        return True, f"Architectural change detected in context: {item.summary[:100]}"
+
+    # Check if patch is large (>200 lines = significant change)
+    if patch_path and patch_path.exists():
+        lines = len(patch_path.read_text(encoding="utf-8", errors="ignore").splitlines())
+        if lines > 200:
+            return True, f"Large patch ({lines} lines) indicates major change"
+
+    # Check if auditor flagged as major
+    if any("major" in str(r).lower() for r in auditor_decision.reasons):
+        return True, "Auditor flagged as major change"
+
+    return False, ""
+
+
 def main():
     parser = argparse.ArgumentParser(description="Run propose-first backlog maintenance diagnostics.")
     parser.add_argument("--backlog", type=Path, required=True, help="Path to backlog markdown (e.g., consolidated_debug.md)")
@@ -43,6 +74,8 @@ def main():
     parser.add_argument("--max-files", type=int, default=10, help="Max files allowed in a patch for auto-approval")
     parser.add_argument("--max-lines", type=int, default=500, help="Max lines added+deleted for auto-approval")
     parser.add_argument("--test-cmd", action="append", default=[], help="Targeted test command(s) to run per item")
+    parser.add_argument("--log-major-changes", action="store_true", help="Log major changes to PlanChange table for context awareness")
+    parser.add_argument("--project-id", type=str, default="file-organizer-app-v1", help="Project ID for PlanChange logging")
     args = parser.parse_args()
 
     run_id = args.run_id or f"backlog-maintenance-{int(time.time())}"
@@ -60,9 +93,20 @@ def main():
     write_plan(plan, plan_path)
     print(f"[Plan] wrote {plan_path} with {len(items)} items")
 
+    # Initialize MemoryService with proper configuration to ensure collections are created
     try:
-        memory = MemoryService()
-    except Exception:
+        import yaml
+        config_path = Path("config/memory.yaml")
+        config = {}
+        if config_path.exists():
+            with open(config_path) as f:
+                config = yaml.safe_load(f) or {}
+
+        use_qdrant = config.get("use_qdrant", False)
+        memory = MemoryService(enabled=True, use_qdrant=use_qdrant)
+        print(f"[Memory] Initialized with backend={memory.backend}")
+    except Exception as e:
+        print(f"[Memory] Failed to initialize: {e}")
         memory = None
 
     agent = DiagnosticsAgent(
@@ -114,10 +158,12 @@ def main():
             if candidate.exists():
                 patch_path = candidate
 
-        diff_stats = DiffStats(files_changed=[], lines_added=0, lines_deleted=0)
+        # Parse patch stats if available, otherwise None (not empty DiffStats)
+        diff_stats = None
         if patch_path:
             raw = patch_path.read_text(encoding="utf-8", errors="ignore")
             diff_stats = parse_patch_stats(raw)
+            print(f"[Patch] Parsed {item.id}: {len(diff_stats.files_changed)} files, +{diff_stats.lines_added}/-{diff_stats.lines_deleted} lines")
 
         test_results = []
         if args.test_cmd:
@@ -149,8 +195,8 @@ def main():
                     phase_id=item.id,
                     alternatives="approve,require_human,reject",
                 )
-            except Exception:
-                pass
+            except Exception as e:
+                print(f"[Memory] Failed to write decision log for {item.id}: {e}")
 
         apply_result = None
         if args.apply and patch_path and verdict == "approve":
@@ -174,6 +220,33 @@ def main():
             print(f"[Apply] No patch found for {item.id}, skipping apply")
         elif args.apply and verdict != "approve":
             print(f"[Apply] Skipped {item.id}: auditor verdict {verdict}")
+
+        # Detect and log major changes to database
+        if args.log_major_changes and verdict == "approve":
+            is_major, major_rationale = is_major_change(item, patch_path, decision)
+            if is_major:
+                try:
+                    from autopack.models import PlanChange
+                    from autopack.database import SessionLocal
+                    from datetime import datetime, timezone
+
+                    session = SessionLocal()
+                    plan_change = PlanChange(
+                        run_id=run_id,
+                        phase_id=item.id,
+                        project_id=args.project_id,
+                        timestamp=datetime.now(timezone.utc),
+                        author="backlog_maintenance",
+                        summary=f"Backlog item: {item.title}",
+                        rationale=major_rationale,
+                        status="active",
+                    )
+                    session.add(plan_change)
+                    session.commit()
+                    print(f"[PlanChange] Logged major change for {item.id}")
+                    session.close()
+                except Exception as e:
+                    print(f"[PlanChange] Failed to log for {item.id}: {e}")
 
         summaries.append(
             {

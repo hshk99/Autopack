@@ -275,9 +275,14 @@ def age_filter(path: Path, age_days: int) -> bool:
 # ---------------------------------------------------------------------------
 def plan_non_md_actions(root: Path, age_days: int, prune: bool, purge: bool, verbose: bool) -> List[Action]:
     actions: List[Action] = []
-    archive_dir = root / "archive"
-    exports_dir = root / "exports"
-    patches_dir = root / "patches"
+    # If targeting superseded root under global archive, route into project archive superseded
+    if "superseded" in root.parts and root.as_posix().endswith("archive/superseded/archive"):
+        project_root_path = REPO_ROOT / ".autonomous_runs" / "file-organizer-app-v1"
+        archive_dir = project_root_path / "archive" / "superseded" / "archive"
+    else:
+        archive_dir = root / "archive"
+    exports_dir = (root / "exports") if "superseded" not in root.parts else archive_dir
+    patches_dir = (root / "patches") if "superseded" not in root.parts else archive_dir
     ensure_dir(archive_dir)
     ensure_dir(exports_dir)
     ensure_dir(patches_dir)
@@ -644,17 +649,39 @@ def main():
 
     for root in roots:
         root = root.resolve()
-        project_id = root.name if root.name else "autopack"
+        project_id = "autopack"
+        if "file-organizer-app-v1" in root.as_posix():
+            project_id = "file-organizer-app-v1"
+        elif "archive" in root.parts and "superseded" in root.parts:
+            # default project for archived superseded docs
+            project_id = "file-organizer-app-v1"
+        elif root.name:
+            project_id = root.name
         if args.verbose:
             print(f"[INFO] Processing root: {root} (dry_run={dry_run})")
         selected_dsn = db_override
 
         logger = TidyLogger(REPO_ROOT, dsn=selected_dsn, project_id=project_id)
 
-        # Markdown tidy (skip if already in superseded area)
-        if "superseded" in root.parts:
-            if args.verbose:
-                print(f"[INFO] Skipping markdown organizer for superseded root: {root}")
+        # Markdown tidy; if superseded root, route files into project archive superseded
+        superseded_mode = "superseded" in root.parts
+        project_root_path = REPO_ROOT / ".autonomous_runs" / "file-organizer-app-v1"
+        superseded_target = project_root_path / "archive" / "superseded" / "archive"
+
+        if superseded_mode and root.as_posix().endswith("archive/superseded/archive"):
+            actions: List[Action] = []
+            for dirpath, dirnames, filenames in os.walk(root):
+                dirnames[:] = [d for d in dirnames if d not in {".git", "node_modules", ".pytest_cache", "__pycache__", ".venv", "venv"}]
+                for fname in filenames:
+                    src = Path(dirpath) / fname
+                    if src.suffix.lower() not in {".md", ".txt"}:
+                        continue
+                    if is_protected(src):
+                        continue
+                    rel = src.relative_to(root)
+                    dest = superseded_target / rel
+                    actions.append(Action("move", src, dest, "superseded->project archive"))
+            execute_actions(actions, dry_run=dry_run, checkpoint_dir=args.checkpoint_dir if not dry_run else None, logger=logger, run_id=run_id)
         else:
             rules = detect_project_rules(root)
             organizer = DocumentationOrganizer(project_root=root, rules_config=rules, dry_run=dry_run, verbose=args.verbose)

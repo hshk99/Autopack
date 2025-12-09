@@ -25,6 +25,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Iterable, List, Tuple
+import subprocess
 
 # Ensure sibling imports work when invoked from repo root
 SCRIPT_DIR = Path(__file__).resolve().parent
@@ -274,6 +275,29 @@ def execute_actions(actions: List[Action], dry_run: bool, checkpoint_dir: Path |
     return moves, deletes
 
 
+def run_git_commit(message: str, repo_root: Path):
+    """Create a git checkpoint commit if there are staged/unstaged changes."""
+    try:
+        status = subprocess.run(
+            ["git", "status", "--porcelain"],
+            cwd=repo_root,
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        if not status.stdout.strip():
+            print("[GIT] No changes to commit; skipping checkpoint commit")
+            return
+
+        subprocess.run(["git", "add", "-A"], cwd=repo_root, check=True)
+        subprocess.run(["git", "commit", "-m", message], cwd=repo_root, check=True)
+        print(f"[GIT] Created checkpoint commit: {message}")
+    except FileNotFoundError:
+        print("[WARN] git not found; skipping git checkpoint")
+    except subprocess.CalledProcessError as exc:
+        print(f"[WARN] git command failed ({exc}); checkpoint commit skipped")
+
+
 # ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
@@ -288,10 +312,15 @@ def main():
     parser.add_argument("--purge", action="store_true", help="Delete aged artifacts (only with --prune)")
     parser.add_argument("--checkpoint-dir", type=Path, default=DEFAULT_CHECKPOINT_DIR, help="Checkpoint archive dir")
     parser.add_argument("--verbose", action="store_true", help="Verbose logging")
+    parser.add_argument("--git-commit-before", type=str, help="Commit message for checkpoint commit before actions")
+    parser.add_argument("--git-commit-after", type=str, help="Commit message for checkpoint commit after actions")
     args = parser.parse_args()
 
     dry_run = not args.execute or args.dry_run
     roots = args.root or [REPO_ROOT]
+
+    if args.execute and args.git_commit_before and not dry_run:
+        run_git_commit(args.git_commit_before, REPO_ROOT)
 
     for root in roots:
         root = root.resolve()
@@ -323,6 +352,9 @@ def main():
             print("[DRY-RUN] Skipping consolidate_docs execution")
         else:
             os.system(f"{sys.executable} {SCRIPT_DIR / 'consolidate_docs.py'}")
+
+    if args.execute and args.git_commit_after and not dry_run:
+        run_git_commit(args.git_commit_after, REPO_ROOT)
 
     print("\n[SUCCESS] Tidy complete (dry_run=%s)" % dry_run)
 

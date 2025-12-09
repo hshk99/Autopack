@@ -230,8 +230,11 @@ def apply_truth_merges(suggestions: list[dict], repo_root: Path, run_id: str, lo
         marker = f"<!-- merged-from:{path} run:{run_id} reason:{reason} -->\n"
         block = marker + content + "\n<!-- end-merged-from -->\n"
         try:
+            src_sha = compute_sha256(path) if path.is_file() else None
+            dest_sha_before = compute_sha256(target_path) if target_path.exists() and target_path.is_file() else None
             _insert_into_markdown(target_path, block, heading_hint)
-            logger.log(run_id, "merge", str(path), str(target_path), f"truth merge: {reason}")
+            dest_sha_after = compute_sha256(target_path) if target_path.is_file() else None
+            logger.log(run_id, "merge", str(path), str(target_path), f"truth merge: {reason}", src_sha=src_sha, dest_sha=dest_sha_after)
         except Exception:
             logger.log(run_id, "merge_failed", str(path), str(target_path), f"truth merge failed: {reason}")
 
@@ -428,10 +431,12 @@ def semantic_analysis(
     truth_files: list[Path],
     verbose: bool,
     truth_merge_report: Path | None = None,
+    project_id: str | None = None,
+    dsn_override: str | None = None,
 ) -> list[dict]:
     """Run semantic classification over markdown-like files; no filesystem mutations."""
     client = get_glm_client(model)
-    store = get_store(cache_path)
+    store = get_store(cache_path, dsn_override, project_id)
     results = []
 
     truth_chunks = []
@@ -465,7 +470,7 @@ def semantic_analysis(
         except Exception:
             continue
         sha = compute_sha256(path)
-        cache_entry = store.get(str(path), sha, model)
+        cache_entry = store.get(str(path), sha, model, project_id=project_id)
         if cache_entry:
             result = cache_entry
         else:
@@ -474,6 +479,7 @@ def semantic_analysis(
                 "sha": sha,
                 "model": model,
                 "path": str(path),
+                "project_id": project_id,
                 "vector": embed_text(content[:MAX_CONTENT_CHARS]),
             })
             store.set(result, vector=result.get("vector"))
@@ -529,19 +535,22 @@ def execute_actions(actions: List[Action], dry_run: bool, checkpoint_dir: Path |
             if dry_run:
                 print(f"[DRY-RUN][MOVE] {action.src} -> {action.dest} ({action.reason})")
                 continue
+            src_sha = compute_sha256(action.src) if action.src.is_file() else None
             ensure_dir(action.dest.parent)
             shutil.move(str(action.src), str(action.dest))
+            dest_sha = compute_sha256(action.dest) if action.dest.is_file() else None
             print(f"[MOVE] {action.src} -> {action.dest} ({action.reason})")
-            logger.log(run_id, "move", str(action.src), str(action.dest), action.reason)
+            logger.log(run_id, "move", str(action.src), str(action.dest), action.reason, src_sha=src_sha, dest_sha=dest_sha)
         elif action.kind == "delete":
             deletes += 1
             if dry_run:
                 print(f"[DRY-RUN][DELETE] {action.src} ({action.reason})")
                 continue
             try:
+                src_sha = compute_sha256(action.src) if action.src.is_file() else None
                 action.src.unlink(missing_ok=True)
                 print(f"[DELETE] {action.src} ({action.reason})")
-                logger.log(run_id, "delete", str(action.src), None, action.reason)
+                logger.log(run_id, "delete", str(action.src), None, action.reason, src_sha=src_sha)
             except Exception as exc:
                 print(f"[WARN] Failed to delete {action.src}: {exc}")
         else:
@@ -599,11 +608,13 @@ def main():
     parser.add_argument("--truth-merge-report", type=Path, help="Path to write truth-merge suggestions (no apply)")
     parser.add_argument("--apply-truth-merge", action="store_true", help="Apply allocator suggestions into target files (append content)")
     parser.add_argument("--run-id", type=str, help="Run identifier for logging/checkpoints")
+    parser.add_argument("--database-url", type=str, help="Override DATABASE_URL for this run")
     args = parser.parse_args()
 
     dry_run = not args.execute or args.dry_run
     roots = args.root or [REPO_ROOT]
     run_id = args.run_id or datetime.now().strftime("tidy-%Y%m%d-%H%M%S")
+    db_override = args.database_url
     truth_files = args.semantic_truth or []
     if not truth_files:
         # Default truth anchors
@@ -626,8 +637,12 @@ def main():
 
     for root in roots:
         root = root.resolve()
+        project_id = root.name if root.name else "autopack"
         if args.verbose:
             print(f"[INFO] Processing root: {root} (dry_run={dry_run})")
+        selected_dsn = db_override
+
+        logger = TidyLogger(REPO_ROOT, dsn=selected_dsn, project_id=project_id)
 
         # Markdown tidy
         rules = detect_project_rules(root)
@@ -647,6 +662,8 @@ def main():
                 truth_files=truth_files,
                 verbose=args.verbose,
                 truth_merge_report=merge_suggestions_out,
+                project_id=project_id,
+                dsn_override=selected_dsn,
             )
             print(f"[INFO] Semantic results ({len(semantic_results)} files):")
             for r in semantic_results:

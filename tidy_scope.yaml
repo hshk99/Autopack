@@ -3,4 +3,6 @@ roots:
   - .autonomous_runs
   - archive
 # purge: true  # uncomment to enable purge deletes
+# db_overrides:
+#   .autonomous_runs: postgresql://autopack:autopack@localhost:5432/autopack
 

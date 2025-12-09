@@ -18,39 +18,36 @@ def load_scope(repo_root: Path):
     if scope_file.exists():
         data = yaml.safe_load(scope_file.read_text(encoding="utf-8")) or {}
         roots = data.get("roots") or []
-        return roots
-    return [".autonomous_runs/file-organizer-app-v1", ".autonomous_runs", "archive"]
+        db_overrides = data.get("db_overrides") or {}
+        purge = data.get("purge", False)
+        return roots, db_overrides, purge
+    return [".autonomous_runs/file-organizer-app-v1", ".autonomous_runs", "archive"], {}, False
 
 
 def main():
     repo_root = Path(__file__).resolve().parent.parent
-    roots = load_scope(repo_root)
-    cmd = [
-        sys.executable,
-        str(repo_root / "scripts" / "tidy_workspace.py"),
-    ]
+    roots, db_overrides, purge = load_scope(repo_root)
     for r in roots:
-        cmd.extend(["--root", r])
-    cmd.extend([
-        "--semantic",
-        "--semantic-model", "glm-4.6",
-        "--semantic-max-files", "200",
-        "--apply-semantic",
-        "--execute",
-        "--prune",
-        "--age-days", "30",
-        "--verbose",
-    ])
-    # Scope config can optionally include purge: true
-    # If you want purge, add to tidy_scope.yaml: purge: true
-    scope_file = repo_root / "tidy_scope.yaml"
-    if scope_file.exists():
-        data = yaml.safe_load(scope_file.read_text(encoding="utf-8")) or {}
-        if data.get("purge"):
+        cmd = [
+            sys.executable,
+            str(repo_root / "scripts" / "tidy_workspace.py"),
+            "--root", r,
+            "--semantic",
+            "--semantic-model", "glm-4.6",
+            "--semantic-max-files", "200",
+            "--apply-semantic",
+            "--execute",
+            "--prune",
+            "--age-days", "30",
+            "--verbose",
+        ]
+        dsn = db_overrides.get(r)
+        if dsn:
+            cmd.extend(["--database-url", dsn])
+        if purge:
             cmd.append("--purge")
-
-    print("[INFO] Running tidy with scope:", roots)
-    subprocess.check_call(cmd, cwd=repo_root)
+        print(f"[INFO] Running tidy for root: {r}")
+        subprocess.check_call(cmd, cwd=repo_root)
 
 
 if __name__ == "__main__":

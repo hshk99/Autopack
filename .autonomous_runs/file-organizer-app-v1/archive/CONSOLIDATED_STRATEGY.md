@@ -22,6 +22,7 @@
 - Maintenance auditor: proposals are auto-approved only if within allowed_paths, avoid protected paths, are small (files/lines), have targeted tests passing, and align with diagnostics context; otherwise require human review or are rejected (protected path touches).
 - Optional apply: `scripts/run_backlog_maintenance.py --apply --patch-dir <dir> --checkpoint` will apply per-item patches (named `<item_id>.patch`) only when the auditor approves and a checkpoint is present; otherwise it remains propose-first.
 - Targeted tests: runner and executor can run `--test-cmd` commands per item; auditor will require_human if tests are missing or failing.
+- Plan conversion: `scripts/plan_from_markdown.py --in docs/PLAN.md --out .autonomous_runs/<proj>/plan_generated.json` converts markdown tasks into phase specs matching `docs/phase_spec_schema.md` (tags: [complexity:], [category:], [paths:], [read_only:]).
 
 ---
 

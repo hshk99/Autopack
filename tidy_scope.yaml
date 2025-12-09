@@ -1,0 +1,5 @@
+roots:
+  - .autonomous_runs/file-organizer-app-v1
+  - .autonomous_runs
+  - archive
+

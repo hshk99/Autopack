@@ -309,6 +309,36 @@ File content (truncated):
         }
 
 
+def suggest_truth_merge(path: Path, content: str, truth_files: list[Path], client, model: str) -> str:
+    """
+    Ask LLM to suggest where this content should live (which truth file or new file).
+    """
+    truth_names = [str(p) for p in truth_files if p.exists()]
+    prompt = f"""You are an allocator for documentation. Decide the best target file (from the list) for this content, or propose a new file name under archive/superseded if it is outdated.
+
+Target files to choose from:
+{json.dumps(truth_names, indent=2)}
+
+File path: {path}
+Content (truncated):
+{content[:MAX_CONTENT_CHARS]}
+
+Respond with JSON: {{ "target": "<existing or new file path>", "reason": "<short reason>" }}"""
+    if client is None:
+        return json.dumps({"target": "archive/superseded/allocator_suggestion.md", "reason": "LLM unavailable"}, ensure_ascii=False)
+    try:
+        text = client.chat(
+            messages=[
+                {"role": "system", "content": "You are a concise allocator for documentation storage."},
+                {"role": "user", "content": prompt},
+            ],
+            temperature=0,
+        )
+        return text.strip()
+    except Exception as exc:
+        return json.dumps({"target": "archive/superseded/allocator_error.md", "reason": str(exc)}, ensure_ascii=False)
+
+
 def semantic_analysis(
     root: Path,
     cache_path: Path,
@@ -316,6 +346,7 @@ def semantic_analysis(
     max_files: int,
     truth_files: list[Path],
     verbose: bool,
+    truth_merge_report: Path | None = None,
 ) -> list[dict]:
     """Run semantic classification over markdown-like files; no filesystem mutations."""
     client = get_glm_client(model)
@@ -346,6 +377,7 @@ def semantic_analysis(
         if len(candidates) >= max_files:
             break
 
+    merge_suggestions = []
     for path in candidates:
         try:
             content = path.read_text(encoding="utf-8")
@@ -371,6 +403,19 @@ def semantic_analysis(
                 pass
             print(f"[SEMANTIC] {path}: {result.get('decision')} ({rationale_display[:120]})")
         results.append(result)
+
+        if truth_merge_report:
+            suggestion = suggest_truth_merge(path, content, truth_files, client, model)
+            merge_suggestions.append({"path": str(path), "suggestion": suggestion})
+
+    if truth_merge_report and merge_suggestions:
+        out = []
+        for item in merge_suggestions:
+            out.append(f"- {item['path']}\n  suggestion: {item['suggestion']}")
+        ensure_dir(truth_merge_report.parent)
+        truth_merge_report.write_text("\n".join(out), encoding="utf-8")
+        if verbose:
+            print(f"[INFO] Wrote truth-merge suggestions to {truth_merge_report}")
 
     return results
 
@@ -470,6 +515,7 @@ def main():
     parser.add_argument("--semantic-truth", action="append", type=Path, help="Additional truth/reference files")
     parser.add_argument("--apply-semantic", action="store_true", help="Apply semantic decisions (archive/delete) instead of report-only")
     parser.add_argument("--semantic-delete", action="store_true", help="Allow semantic delete; otherwise deletes are converted to archive moves")
+    parser.add_argument("--truth-merge-report", type=Path, help="Path to write truth-merge suggestions (no apply)")
     args = parser.parse_args()
 
     dry_run = not args.execute or args.dry_run

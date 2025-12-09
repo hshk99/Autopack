@@ -5,6 +5,7 @@ Semantic storage backends for tidy_workspace.
 Supports:
 - JSON file (fallback, no deps)
 - Postgres via psycopg2 (optional, uses DATABASE_URL)
+- Qdrant via qdrant-client (optional, uses QDRANT_URL/QDRANT_HOST)
 
 Each record: {path, sha, model, decision, rationale, updated_at}
 """
@@ -133,6 +134,68 @@ def get_store(cache_path: Path) -> SemanticStore:
         try:
             return PostgresSemanticStore(dsn=dsn)
         except Exception as exc:
-            print(f"[WARN] Postgres store unavailable ({exc}); falling back to JSON cache.")
+            print(f"[WARN] Postgres store unavailable ({exc}); trying Qdrant/JSON.")
+    # Qdrant
+    try:
+        from qdrant_client import QdrantClient  # type: ignore
+    except ImportError:
+        QdrantClient = None
+    if QdrantClient:
+        qdrant_url = os.getenv("QDRANT_URL") or os.getenv("QDRANT_HOST")
+        qdrant_api_key = os.getenv("QDRANT_API_KEY")
+        if qdrant_url:
+            try:
+                class QdrantSemanticStore(SemanticStore):
+                    def __init__(self, url: str, api_key: Optional[str]):
+                        self.client = QdrantClient(url=url, api_key=api_key)
+                        self.collection = "tidy_semantic_cache"
+                        self._ensure_collection()
+
+                    def _ensure_collection(self):
+                        from qdrant_client.http.models import Distance, VectorParams  # type: ignore
+                        try:
+                            self.client.get_collection(self.collection)
+                        except Exception:
+                            self.client.recreate_collection(
+                                collection_name=self.collection,
+                                vectors_config=VectorParams(size=8, distance=Distance.COSINE),
+                            )
+
+                    def _id(self, path: str, model: str) -> str:
+                        return f"{path}::{model}"
+
+                    def get(self, path: str, sha: str, model: str) -> Optional[Dict[str, Any]]:
+                        from qdrant_client.http import models as rest  # type: ignore
+                        try:
+                            res = self.client.retrieve(
+                                collection_name=self.collection,
+                                ids=[self._id(path, model)],
+                                with_payload=True,
+                            )
+                            if not res:
+                                return None
+                            payload = res[0].payload or {}
+                            if payload.get("sha") == sha:
+                                return payload
+                        except Exception:
+                            return None
+                        return None
+
+                    def set(self, record: Dict[str, Any]) -> None:
+                        from qdrant_client.http import models as rest  # type: ignore
+                        payload = record.copy()
+                        self.client.upsert(
+                            collection_name=self.collection,
+                            points=[
+                                rest.PointStruct(
+                                    id=self._id(record["path"], record["model"]),
+                                    vector=[0.0] * 8,  # placeholder vector; we're keying by id/payload
+                                    payload=payload,
+                                )
+                            ],
+                        )
+                return QdrantSemanticStore(qdrant_url, qdrant_api_key)
+            except Exception as exc:
+                print(f"[WARN] Qdrant store unavailable ({exc}); falling back to JSON cache.")
     return JsonSemanticStore(cache_path)
 

@@ -352,6 +352,15 @@ C:/dev/Autopack/
 python src/autopack/autonomous_executor.py --run-id my-new-run
 ```
 
+### Tidy & Archive Maintenance
+- One-shot tidy (semantic classify/apply, prune, checkpoints, git commits):
+  ```bash
+  python scripts/run_tidy_all.py
+  ```
+- Scopes are configured in `tidy_scope.yaml` (defaults: `.autonomous_runs/file-organizer-app-v1`, `.autonomous_runs`, `archive`). Set `purge: true` there to allow deletes.
+- Semantic store: tries Postgres (`DATABASE_URL`), then Qdrant (`QDRANT_URL`/`QDRANT_HOST` + `QDRANT_API_KEY`), else JSON cache. Embeddings: set `EMBEDDING_MODEL` (e.g., `sentence-transformers/all-MiniLM-L6-v2`) for real embeddings; otherwise hash fallback.
+- Truth-merge suggestions can be generated and applied with markers; semantic deletes downgrade to archive moves unless `--semantic-delete` is set.
+
 ### Consolidating Documentation
 
 To tidy up and consolidate documentation across projects:

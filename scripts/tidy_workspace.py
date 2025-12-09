@@ -156,12 +156,26 @@ def compute_sha256(path: Path) -> str:
     return h.hexdigest()
 
 
+_embedding_model = None
+
+
 def embed_text(text: str) -> list[float]:
     """
-    Simple embedding stub: deterministic hash to 8-d floats.
-    If OPENAI_API_KEY (or OPENAI_BASE_URL) is available and you prefer a real embedding,
-    extend this to call an embedding API. For now, keep offline and token-free.
+    Embedding with optional sentence-transformers; falls back to deterministic hash.
+    Set EMBEDDING_MODEL (e.g., sentence-transformers/all-MiniLM-L6-v2) to use HF model.
     """
+    global _embedding_model
+    model_name = os.getenv("EMBEDDING_MODEL")
+    if model_name:
+        try:
+            from sentence_transformers import SentenceTransformer  # type: ignore
+            if _embedding_model is None:
+                _embedding_model = SentenceTransformer(model_name)
+            emb = _embedding_model.encode([text[:2000]], normalize_embeddings=True)
+            return emb[0].tolist()
+        except Exception:
+            pass
+    # hash fallback
     h = hashlib.sha256(text.encode("utf-8")).digest()
     vec = []
     for i in range(8):

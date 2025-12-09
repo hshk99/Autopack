@@ -5,6 +5,7 @@
 - Consolidate and archive outdated artifacts while preserving truth sources.
 - Capture a reversible checkpoint before any destructive/move operations.
 - Keep token/API usage at zero (local file ops only).
+  - NEW: allow optional embeddings via HF sentence-transformers (EMBEDDING_MODEL env); fallback hash embeddings; persist vectors to Postgres/Qdrant.
 
 ## Scope (initial targets)
 - Roots: `.autonomous_runs/file-organizer-app-v1`, `.autonomous_runs/` (other runs), `archive/`, `archive/correspondence/`, `docs/` research, and project archives.
@@ -37,6 +38,7 @@
 - Reuse components:
   - Import `DocumentationOrganizer` from `scripts/tidy_docs.py` for MD moves.
   - Optionally call `scripts/consolidate_docs.py` as a subprocess when `--consolidate-md` is set.
+  - Persistent stores: JSON cache; Postgres (tidy_semantic_cache table); Qdrant (payload + vector embeddings). Embeddings via HF model if EMBEDDING_MODEL is set, else hash fallback.
 
 ## Directory Conventions
 - `archive/superseded/` for outdated files (any type) that should be retained but hidden.
@@ -48,6 +50,7 @@
 - No content-diff freshness detection between overlapping notes.
 - No automated DB migration/cleanup.
 - No modification of code/tests/configs.
+  - Truth merges are append-only blocks with provenance markers; no auto-diff/section replace yet.
 
 ## Acceptance Criteria
 - Dry-run shows a manifest; no files changed in dry-run mode.
@@ -55,4 +58,5 @@
 - Truth-source files and DBs remain untouched (validated by an exclusion filter).
 - Logs/diagnostics/patches are relocated to archive folders; Markdown is organized per existing rules; superseded content is moved, not deleted, unless `--purge` is set.
 - No external API/LLM calls; exits non-zero on errors.
+  - Persistent semantic cache stored in Postgres or Qdrant when available; embeddings captured when EMBEDDING_MODEL is provided.
 

@@ -43,11 +43,12 @@ REPO_ROOT = SCRIPT_DIR.parent
 sys.path.append(str(SCRIPT_DIR))
 
 try:
-    from tidy_docs import (
-        DocumentationOrganizer,
-        AUTOPACK_RULES,
-        FILEORGANIZER_RULES,
-    )
+from tidy_docs import (
+    DocumentationOrganizer,
+    AUTOPACK_RULES,
+    FILEORGANIZER_RULES,
+)
+from tidy_logger import TidyLogger
 except Exception as exc:  # pragma: no cover - defensive import
     print(f"[ERROR] Failed to import tidy_docs: {exc}", file=sys.stderr)
     raise
@@ -153,6 +154,44 @@ def compute_sha256(path: Path) -> str:
         for chunk in iter(lambda: f.read(8192), b""):
             h.update(chunk)
     return h.hexdigest()
+
+
+def embed_text(text: str) -> list[float]:
+    """
+    Simple embedding stub: deterministic hash to 8-d floats.
+    If OPENAI_API_KEY (or OPENAI_BASE_URL) is available and you prefer a real embedding,
+    extend this to call an embedding API. For now, keep offline and token-free.
+    """
+    h = hashlib.sha256(text.encode("utf-8")).digest()
+    vec = []
+    for i in range(8):
+        chunk = h[i * 4:(i + 1) * 4]
+        val = int.from_bytes(chunk, byteorder="big", signed=False)
+        vec.append((val % 1000000) / 1000000.0)
+    return vec
+
+
+def apply_truth_merges(suggestions: list[dict], repo_root: Path, run_id: str, logger: TidyLogger):
+    for item in suggestions:
+        path = Path(item.get("path", ""))
+        target = item.get("target")
+        reason = item.get("reason", "")
+        if not target:
+            continue
+        try:
+            content = path.read_text(encoding="utf-8")
+        except Exception:
+            continue
+        target_path = (repo_root / target).resolve() if not Path(target).is_absolute() else Path(target)
+        target_path.parent.mkdir(parents=True, exist_ok=True)
+        marker = f"\n\n<!-- merged-from:{path} run:{run_id} reason:{reason} -->\n"
+        block = marker + content + "\n<!-- end-merged-from -->\n"
+        try:
+            with target_path.open("a", encoding="utf-8") as f:
+                f.write(block)
+            logger.log(run_id, "merge", str(path), str(target_path), f"truth merge: {reason}")
+        except Exception:
+            logger.log(run_id, "merge_failed", str(path), str(target_path), f"truth merge failed: {reason}")
 
 
 def detect_project_rules(root: Path):
@@ -393,8 +432,9 @@ def semantic_analysis(
                 "sha": sha,
                 "model": model,
                 "path": str(path),
+                "vector": embed_text(content[:MAX_CONTENT_CHARS]),
             })
-            store.set(result)
+            store.set(result, vector=result.get("vector"))
         if verbose:
             rationale_display = (result.get("rationale") or "")
             try:
@@ -409,11 +449,8 @@ def semantic_analysis(
             merge_suggestions.append({"path": str(path), "suggestion": suggestion})
 
     if truth_merge_report and merge_suggestions:
-        out = []
-        for item in merge_suggestions:
-            out.append(f"- {item['path']}\n  suggestion: {item['suggestion']}")
         ensure_dir(truth_merge_report.parent)
-        truth_merge_report.write_text("\n".join(out), encoding="utf-8")
+        truth_merge_report.write_text(json.dumps(merge_suggestions, indent=2, ensure_ascii=False), encoding="utf-8")
         if verbose:
             print(f"[INFO] Wrote truth-merge suggestions to {truth_merge_report}")
 
@@ -434,7 +471,7 @@ def get_glm_client(model: str):
 # ---------------------------------------------------------------------------
 # Execution
 # ---------------------------------------------------------------------------
-def execute_actions(actions: List[Action], dry_run: bool, checkpoint_dir: Path | None) -> Tuple[int, int]:
+def execute_actions(actions: List[Action], dry_run: bool, checkpoint_dir: Path | None, logger: TidyLogger, run_id: str) -> Tuple[int, int]:
     if not actions:
         return 0, 0
 
@@ -453,6 +490,7 @@ def execute_actions(actions: List[Action], dry_run: bool, checkpoint_dir: Path |
             ensure_dir(action.dest.parent)
             shutil.move(str(action.src), str(action.dest))
             print(f"[MOVE] {action.src} -> {action.dest} ({action.reason})")
+            logger.log(run_id, "move", str(action.src), str(action.dest), action.reason)
         elif action.kind == "delete":
             deletes += 1
             if dry_run:
@@ -461,6 +499,7 @@ def execute_actions(actions: List[Action], dry_run: bool, checkpoint_dir: Path |
             try:
                 action.src.unlink(missing_ok=True)
                 print(f"[DELETE] {action.src} ({action.reason})")
+                logger.log(run_id, "delete", str(action.src), None, action.reason)
             except Exception as exc:
                 print(f"[WARN] Failed to delete {action.src}: {exc}")
         else:
@@ -503,7 +542,7 @@ def main():
     parser.add_argument("--consolidate-md", action="store_true", help="Run consolidate_docs after MD tidy")
     parser.add_argument("--age-days", type=int, default=30, help="Age threshold for pruning (days)")
     parser.add_argument("--prune", action="store_true", help="Prune aged artifacts (move to superseded)")
-    parser.add_argument("--purge", action="store_true", help="Delete aged artifacts (only with --prune)")
+    parser.add_argument("--purge", action="store_true", help="Delete aged artifacts (only with --prune; defaults to false)")
     parser.add_argument("--checkpoint-dir", type=Path, default=DEFAULT_CHECKPOINT_DIR, help="Checkpoint archive dir")
     parser.add_argument("--verbose", action="store_true", help="Verbose logging")
     parser.add_argument("--git-commit-before", type=str, help="Commit message for checkpoint commit before actions")
@@ -516,10 +555,13 @@ def main():
     parser.add_argument("--apply-semantic", action="store_true", help="Apply semantic decisions (archive/delete) instead of report-only")
     parser.add_argument("--semantic-delete", action="store_true", help="Allow semantic delete; otherwise deletes are converted to archive moves")
     parser.add_argument("--truth-merge-report", type=Path, help="Path to write truth-merge suggestions (no apply)")
+    parser.add_argument("--apply-truth-merge", action="store_true", help="Apply allocator suggestions into target files (append content)")
+    parser.add_argument("--run-id", type=str, help="Run identifier for logging/checkpoints")
     args = parser.parse_args()
 
     dry_run = not args.execute or args.dry_run
     roots = args.root or [REPO_ROOT]
+    run_id = args.run_id or datetime.now().strftime("tidy-%Y%m%d-%H%M%S")
     truth_files = args.semantic_truth or []
     if not truth_files:
         # Default truth anchors
@@ -538,6 +580,8 @@ def main():
     if args.execute and git_before and not dry_run:
         run_git_commit(git_before, REPO_ROOT)
 
+    logger = TidyLogger(REPO_ROOT)
+
     for root in roots:
         root = root.resolve()
         if args.verbose:
@@ -548,6 +592,8 @@ def main():
         organizer = DocumentationOrganizer(project_root=root, rules_config=rules, dry_run=dry_run, verbose=args.verbose)
         organizer.organize()
 
+        semantic_results = []
+        merge_suggestions_out = args.truth_merge_report
         if args.semantic:
             if args.verbose:
                 print(f"[INFO] Running semantic analysis (max {args.semantic_max_files} files) with model {args.semantic_model}")
@@ -558,6 +604,7 @@ def main():
                 max_files=args.semantic_max_files,
                 truth_files=truth_files,
                 verbose=args.verbose,
+                truth_merge_report=merge_suggestions_out,
             )
             print(f"[INFO] Semantic results ({len(semantic_results)} files):")
             for r in semantic_results:
@@ -597,8 +644,29 @@ def main():
                     dest = archive_dir / rel
                     actions.append(Action("move", p, dest, "semantic archive"))
 
+        # Apply truth merge suggestions (append content) if requested
+        if args.semantic and args.apply_truth_merge and args.truth_merge_report and not dry_run:
+            if args.truth_merge_report.exists():
+                try:
+                    suggestions = json.loads(args.truth_merge_report.read_text(encoding="utf-8"))
+                    # suggestions is a list of {path, suggestion(json str)}
+                    parsed = []
+                    for s in suggestions:
+                        try:
+                            sug = json.loads(s.get("suggestion", "{}"))
+                            parsed.append({
+                                "path": s.get("path"),
+                                "target": sug.get("target"),
+                                "reason": sug.get("reason", sug.get("target_reason", "")),
+                            })
+                        except Exception:
+                            continue
+                    apply_truth_merges(parsed, REPO_ROOT, run_id, logger)
+                except Exception:
+                    print("[WARN] Failed to apply truth merges; continuing")
+
         # Execute moves/deletes with checkpoint
-        execute_actions(actions, dry_run=dry_run, checkpoint_dir=args.checkpoint_dir if not dry_run else None)
+        execute_actions(actions, dry_run=dry_run, checkpoint_dir=args.checkpoint_dir if not dry_run else None, logger=logger, run_id=run_id)
 
     # Optional consolidation
     if args.consolidate_md:

@@ -41,6 +41,14 @@ def main():
         "--age-days", "30",
         "--verbose",
     ])
+    # Scope config can optionally include purge: true
+    # If you want purge, add to tidy_scope.yaml: purge: true
+    scope_file = repo_root / "tidy_scope.yaml"
+    if scope_file.exists():
+        data = yaml.safe_load(scope_file.read_text(encoding="utf-8")) or {}
+        if data.get("purge"):
+            cmd.append("--purge")
+
     print("[INFO] Running tidy with scope:", roots)
     subprocess.check_call(cmd, cwd=repo_root)
 

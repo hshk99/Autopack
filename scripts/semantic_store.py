@@ -23,7 +23,7 @@ class SemanticStore:
     def get(self, path: str, sha: str, model: str) -> Optional[Dict[str, Any]]:
         raise NotImplementedError
 
-    def set(self, record: Dict[str, Any]) -> None:
+    def set(self, record: Dict[str, Any], vector: Optional[list[float]] = None) -> None:
         raise NotImplementedError
 
 
@@ -50,7 +50,7 @@ class JsonSemanticStore(SemanticStore):
             return rec
         return None
 
-    def set(self, record: Dict[str, Any]) -> None:
+    def set(self, record: Dict[str, Any], vector: Optional[list[float]] = None) -> None:
         self._data[record["path"]] = record
         self._save()
 
@@ -103,7 +103,7 @@ class PostgresSemanticStore(SemanticStore):
             }
         return None
 
-    def set(self, record: Dict[str, Any]) -> None:
+    def set(self, record: Dict[str, Any], vector: Optional[list[float]] = None) -> None:
         conn = self.pg.connect(self.dsn)
         cur = conn.cursor()
         cur.execute(
@@ -181,15 +181,16 @@ def get_store(cache_path: Path) -> SemanticStore:
                             return None
                         return None
 
-                    def set(self, record: Dict[str, Any]) -> None:
+                    def set(self, record: Dict[str, Any], vector: Optional[list[float]] = None) -> None:
                         from qdrant_client.http import models as rest  # type: ignore
                         payload = record.copy()
+                        vec = vector or [0.0] * 8
                         self.client.upsert(
                             collection_name=self.collection,
                             points=[
                                 rest.PointStruct(
                                     id=self._id(record["path"], record["model"]),
-                                    vector=[0.0] * 8,  # placeholder vector; we're keying by id/payload
+                                    vector=vec,
                                     payload=payload,
                                 )
                             ],

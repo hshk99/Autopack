@@ -7,9 +7,13 @@ Maps user intents to safe, predefined actions without typing raw commands:
 - Run memory maintenance (TTL prune + tombstones)
 - Show plan changes / decision log
 - Query planning context (memory retrieval)
+- Check publication readiness (pre-publish checklist)
 """
 
 import argparse
+import json
+import subprocess
+import sys
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable, Dict, List, Optional, Tuple
@@ -23,7 +27,15 @@ from autopack.database import Base
 from autopack.memory import MemoryService
 from autopack.memory.maintenance import run_maintenance, _load_memory_config
 from autopack.diagnostics import DiagnosticsAgent
-from scripts import ingest_planning_artifacts
+
+# Import ingest script dynamically to avoid circular import issues
+def _get_ingest_module():
+    import importlib.util
+    script_path = Path(__file__).parent / "ingest_planning_artifacts.py"
+    spec = importlib.util.spec_from_file_location("ingest_planning_artifacts", script_path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
 
 
 # ---------------------------------------------------------------------------
@@ -56,7 +68,8 @@ def _match_intent(text: str, intents: List[Intent]) -> Optional[Intent]:
 
 def action_ingest(project_id: str, args: argparse.Namespace) -> ActionResult:
     repo_root = Path(args.repo_root or Path(__file__).resolve().parent.parent)
-    ingest_planning_artifacts.run_ingest(
+    ingest_module = _get_ingest_module()
+    ingest_module.run_ingest(
         project_id=project_id,
         repo_root=repo_root,
         author=args.author,
@@ -171,6 +184,68 @@ def action_diagnose_ci(project_id: str, args: argparse.Namespace) -> ActionResul
     return _run_manual_diagnostics("ci_fail", project_id, args)
 
 
+def action_check_publication_readiness(project_id: str, args: argparse.Namespace) -> ActionResult:
+    """
+    Run pre-publication checklist on a project.
+
+    Verifies project has all necessary artifacts for public release:
+    - README, LICENSE, CHANGELOG
+    - Package metadata and dependencies
+    - Documentation and tests
+    - No secrets or PII
+    - Proper versioning and git tags
+    """
+    # Determine project path
+    if args.project_path:
+        project_path = Path(args.project_path)
+    else:
+        # Default to .autonomous_runs/<project_id>
+        workspace = Path(args.repo_root or Path.cwd())
+        project_path = workspace / settings.autonomous_runs_dir / project_id
+
+    if not project_path.exists():
+        return (f"Project path does not exist: {project_path}", False)
+
+    # Run pre_publish_checklist.py
+    script_path = Path(__file__).parent / "pre_publish_checklist.py"
+    cmd = [sys.executable, str(script_path), "--project-path", str(project_path)]
+
+    if args.strict:
+        cmd.append("--strict")
+
+    if args.output:
+        cmd.extend(["--output", str(args.output)])
+
+    try:
+        result = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            check=False,
+            encoding="utf-8",
+        )
+
+        # Format output
+        output = result.stdout
+        if result.returncode == 0:
+            status = "✓ READY FOR PUBLICATION"
+            success = True
+        else:
+            status = "✗ NOT READY FOR PUBLICATION"
+            success = False
+
+        message = f"{status}\n\n{output}"
+
+        # If JSON output requested, also print location
+        if args.output:
+            message += f"\n\nJSON results saved to: {args.output}"
+
+        return (message, success)
+
+    except Exception as e:
+        return (f"Error running pre-publication checklist: {e}", False)
+
+
 INTENTS: List[Intent] = [
     Intent(
         name="ingest_planning",
@@ -214,6 +289,22 @@ INTENTS: List[Intent] = [
         action=action_diagnose_ci,
         description="Run governed diagnostics for CI/test failures",
     ),
+    Intent(
+        name="check_publication_readiness",
+        keywords=[
+            "check publication",
+            "ready to publish",
+            "ready for release",
+            "publication checklist",
+            "release checklist",
+            "can i publish",
+            "verify publication",
+            "pre-publish",
+            "prepublish",
+        ],
+        action=action_check_publication_readiness,
+        description="Check if project is ready for public release (npm, PyPI, Docker Hub, GitHub)",
+    ),
 ]
 
 
@@ -230,6 +321,9 @@ def main():
     parser.add_argument("--ttl-days", type=int, default=None, help="Override TTL days for maintenance")
     parser.add_argument("--keep-versions", type=int, default=None, help="Override planning keep_versions for maintenance")
     parser.add_argument("--limit", type=int, default=5, help="Max rows to show for plan changes/decisions")
+    parser.add_argument("--project-path", default=None, type=Path, help="Explicit project path for publication check (overrides project-id)")
+    parser.add_argument("--strict", action="store_true", help="Strict mode for publication check (warnings = errors)")
+    parser.add_argument("--output", default=None, type=Path, help="JSON output file for publication check results")
     args = parser.parse_args()
 
     intent = _match_intent(args.query, INTENTS)

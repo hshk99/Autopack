@@ -32,3 +32,15 @@ def test_phases_to_plan_structure(tmp_path: Path):
     assert plan["phases"][0]["id"]
     assert plan["phases"][0]["description"]
 
+
+def test_merge_plans_allows_update(tmp_path: Path):
+    from autopack.plan_utils import merge_plans
+
+    base = {"phases": [{"id": "a", "description": "old"}]}
+    new = {"phases": [{"id": "a", "description": "new"}]}
+    merged = merge_plans(base, new, allow_update=True)
+    assert merged["phases"][0]["description"] == "new"
+
+    merged_no_update = merge_plans(base, new, allow_update=False)
+    assert merged_no_update["phases"][0]["description"] == "old"
+

@@ -16,6 +16,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
+from autopack.maintenance_auditor import DiffStats
+
 
 @dataclass
 class BacklogItem:
@@ -172,4 +174,22 @@ def revert_to_checkpoint(repo_path: Path, commit_hash: str) -> Tuple[bool, Optio
         return False, e.stderr.strip() if e.stderr else str(e)
     except Exception as e:  # pragma: no cover
         return False, str(e)
+
+
+def parse_patch_stats(patch_content: str) -> DiffStats:
+    """
+    Compute basic diff stats from a unified diff patch.
+    """
+    files = set()
+    added = deleted = 0
+    for line in patch_content.splitlines():
+        if line.startswith("+++ b/"):
+            files.add(line[6:])
+        elif line.startswith("--- a/"):
+            files.add(line[6:])
+        elif line.startswith("+") and not line.startswith("+++"):
+            added += 1
+        elif line.startswith("-") and not line.startswith("---"):
+            deleted += 1
+    return DiffStats(files_changed=sorted(files), lines_added=added, lines_deleted=deleted)
 

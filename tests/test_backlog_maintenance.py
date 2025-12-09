@@ -5,6 +5,7 @@ from autopack.backlog_maintenance import (
     backlog_items_to_phases,
     create_git_checkpoint,
     revert_to_checkpoint,
+    parse_patch_stats,
 )
 
 
@@ -59,4 +60,19 @@ def test_checkpoint_and_revert(tmp_path: Path):
     ok, err = revert_to_checkpoint(repo, checkpoint_hash)
     assert ok, err
     assert (repo / "file.txt").read_text() == "v2"
+
+
+def test_parse_patch_stats_counts_files_and_lines():
+    patch = """diff --git a/src/foo.py b/src/foo.py
+--- a/src/foo.py
++++ b/src/foo.py
+@@
+-old
++new
++new2
+"""
+    stats = parse_patch_stats(patch)
+    assert stats.files_changed == ["src/foo.py"]
+    assert stats.lines_added == 2
+    assert stats.lines_deleted == 1
 

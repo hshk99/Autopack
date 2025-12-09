@@ -17,6 +17,7 @@ from autopack.backlog_maintenance import (
     parse_backlog_markdown,
     write_plan,
     create_git_checkpoint,
+    parse_patch_stats,
 )
 from autopack.diagnostics.diagnostics_agent import DiagnosticsAgent
 from autopack.maintenance_auditor import AuditorInput, AuditorDecision, DiffStats, TestResult, evaluate as audit_evaluate
@@ -112,18 +113,7 @@ def main():
         diff_stats = DiffStats(files_changed=[], lines_added=0, lines_deleted=0)
         if patch_path:
             raw = patch_path.read_text(encoding="utf-8", errors="ignore")
-            files = set()
-            added = deleted = 0
-            for line in raw.splitlines():
-                if line.startswith("+++ b/"):
-                    files.add(line[6:])
-                elif line.startswith("--- a/"):
-                    files.add(line[6:])
-                elif line.startswith("+") and not line.startswith("+++"):
-                    added += 1
-                elif line.startswith("-") and not line.startswith("---"):
-                    deleted += 1
-            diff_stats = DiffStats(files_changed=sorted(files), lines_added=added, lines_deleted=deleted)
+            diff_stats = parse_patch_stats(raw)
 
         auditor_input = AuditorInput(
             allowed_paths=default_allowed,

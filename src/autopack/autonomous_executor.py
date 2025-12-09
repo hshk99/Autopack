@@ -62,6 +62,8 @@ from autopack.learned_rules import (
 from autopack.journal_reader import get_recent_prevention_rules
 from autopack.health_checks import run_health_checks, HealthCheckResult
 from autopack.file_layout import RunFileLayout
+from autopack.maintenance_auditor import AuditorInput, DiffStats, TestResult, evaluate as audit_evaluate
+from autopack.backlog_maintenance import parse_patch_stats, create_git_checkpoint
 
 # Memory and validation imports
 from autopack import models
@@ -171,6 +173,7 @@ class AutonomousExecutor:
         self.workspace = workspace
         self.use_dual_auditor = use_dual_auditor
         self.run_type = run_type
+        self._backlog_mode = self.run_type == "backlog_maintenance"
 
         # Store API keys (GLM is primary, Anthropic for Claude, OpenAI as fallback)
         self.glm_key = os.getenv("GLM_API_KEY")
@@ -339,6 +342,149 @@ class AutonomousExecutor:
                 f"[HealthCheck:T0] {result.check_name}: {status} "
                 f"({result.duration_ms}ms) - {result.message}"
             )
+
+    # =========================================================================
+    # BACKLOG MAINTENANCE (propose-first apply with auditor gating)
+    # =========================================================================
+
+    def run_backlog_maintenance(
+        self,
+        plan_path: Path,
+        patch_dir: Optional[Path] = None,
+        apply: bool = False,
+        allowed_paths: Optional[List[str]] = None,
+        max_files: int = 10,
+        max_lines: int = 500,
+        checkpoint: bool = True,
+    ) -> None:
+        """
+        Run a backlog maintenance plan with diagnostics + optional apply.
+        - Diagnostics always run.
+        - Apply happens only if:
+            * auditor verdict == approve
+            * checkpoint creation succeeded
+            * patch is present
+        """
+        try:
+            import json as _json
+            plan = _json.loads(Path(plan_path).read_text(encoding="utf-8"))
+        except Exception as e:
+            logger.error(f"[Backlog] Failed to load plan {plan_path}: {e}")
+            return
+
+        phases = plan.get("phases", [])
+        default_allowed = allowed_paths or [
+            "src/backend/",
+            "src/frontend/",
+            "Dockerfile",
+            "docker-compose",
+            "README",
+            "docs/",
+            "scripts/",
+            "src/",
+        ]
+        protected_paths = ["config/", ".autonomous_runs/", ".git/"]
+
+        diag_dir = Path(".autonomous_runs") / self.run_id / "diagnostics"
+        diag_dir.mkdir(parents=True, exist_ok=True)
+        checkpoint_hash = None
+        if apply and checkpoint:
+            ok, checkpoint_hash = create_git_checkpoint(Path(self.workspace), message=f"[Autopack] Backlog checkpoint {self.run_id}")
+            if ok:
+                logger.info(f"[Backlog] Checkpoint created: {checkpoint_hash}")
+            else:
+                logger.warning(f"[Backlog] Checkpoint failed: {checkpoint_hash}")
+
+        summaries = []
+        for phase in phases:
+            phase_id = phase.get("id")
+            desc = phase.get("description")
+            logger.info(f"[Backlog] Diagnostics for {phase_id}: {desc}")
+            outcome = self.diagnostics_agent.run_diagnostics(
+                failure_class="maintenance",
+                context={"phase_id": phase_id, "description": desc, "backlog_summary": phase.get("metadata", {}).get("backlog_summary")},
+                phase_id=phase_id,
+            )
+
+            patch_path = None
+            if patch_dir:
+                candidate = Path(patch_dir) / f"{phase_id}.patch"
+                if candidate.exists():
+                    patch_path = candidate
+
+            diff_stats = DiffStats(files_changed=[], lines_added=0, lines_deleted=0)
+            if patch_path:
+                diff_stats = parse_patch_stats(patch_path.read_text(encoding="utf-8", errors="ignore"))
+
+            auditor_input = AuditorInput(
+                allowed_paths=default_allowed,
+                protected_paths=protected_paths,
+                diff=diff_stats,
+                tests=[],  # targeted tests not yet wired
+                failure_class="maintenance",
+                item_context=phase.get("metadata", {}).get("backlog_summary", "") or desc or "",
+                diagnostics_summary=outcome.ledger_summary,
+                max_files=max_files,
+                max_lines=max_lines,
+            )
+            decision = audit_evaluate(auditor_input)
+            logger.info(f"[Backlog][Auditor] {phase_id}: verdict={decision.verdict} reasons={decision.reasons}")
+
+            self._record_decision_entry(
+                trigger="backlog_maintenance",
+                choice=f"audit:{decision.verdict}",
+                rationale="; ".join(decision.reasons)[:500],
+                phase_id=phase_id,
+                alternatives="approve,require_human,reject",
+            )
+
+            apply_result = None
+            if apply and patch_path and decision.verdict == "approve" and checkpoint_hash:
+                gap = GovernedApplyPath(
+                    workspace=Path(self.workspace),
+                    allowed_paths=default_allowed,
+                    protected_paths=protected_paths,
+                    run_type="project_build",
+                )
+                success, err = gap.apply_patch(patch_path.read_text(encoding="utf-8", errors="ignore"))
+                apply_result = {"success": success, "error": err}
+                if success:
+                    logger.info(f"[Backlog][Apply] Success for {phase_id}")
+                else:
+                    logger.warning(f"[Backlog][Apply] Failed for {phase_id}: {err}")
+                    # Optional: revert on failure
+                    if checkpoint_hash:
+                        logger.info(f"[Backlog][Apply] Reverting to checkpoint due to failure")
+                        from autopack.backlog_maintenance import revert_to_checkpoint
+
+                        revert_to_checkpoint(Path(self.workspace), checkpoint_hash)
+            elif apply and patch_path is None:
+                logger.info(f"[Backlog][Apply] No patch for {phase_id}, skipping apply")
+            elif apply and decision.verdict != "approve":
+                logger.info(f"[Backlog][Apply] Skipped {phase_id}: auditor verdict {decision.verdict}")
+            elif apply and not checkpoint_hash:
+                logger.info(f"[Backlog][Apply] Skipped {phase_id}: no checkpoint")
+
+            summaries.append(
+                {
+                    "phase_id": phase_id,
+                    "ledger": outcome.ledger_summary,
+                    "auditor_verdict": decision.verdict,
+                    "auditor_reasons": decision.reasons,
+                    "apply_result": apply_result,
+                    "patch_path": str(patch_path) if patch_path else None,
+                    "checkpoint": checkpoint_hash,
+                }
+            )
+
+        try:
+            import json as _json
+
+            summary_path = diag_dir / "backlog_executor_summary.json"
+            summary_path.write_text(_json.dumps(summaries, indent=2), encoding="utf-8")
+            logger.info(f"[Backlog] Summary written to {summary_path}")
+        except Exception as e:
+            logger.warning(f"[Backlog] Failed to write summary: {e}")
 
         # Learning Pipeline: Load project learned rules (Stage 0B)
         self._load_project_learning_context()
@@ -4501,6 +4647,12 @@ Examples:
   # Disable dual auditor
   python autonomous_executor.py --run-id my-run --no-dual-auditor
 
+  # Backlog maintenance (diagnostics/apply gated)
+  python autonomous_executor.py --run-id backlog-maint ^
+    --maintenance-plan .autonomous_runs/backlog_plan.json ^
+    --maintenance-patch-dir patches ^
+    --maintenance-apply --maintenance-checkpoint
+
 Environment Variables:
   GLM_API_KEY          GLM (Zhipu AI) API key (primary provider)
   GLM_API_BASE         GLM API base URL (optional)
@@ -4516,6 +4668,28 @@ Environment Variables:
         "--run-id",
         required=True,
         help="Autopack run ID to execute"
+    )
+    parser.add_argument(
+        "--maintenance-plan",
+        type=Path,
+        default=None,
+        help="Optional backlog maintenance plan JSON (propose-first diagnostics, optional apply)",
+    )
+    parser.add_argument(
+        "--maintenance-patch-dir",
+        type=Path,
+        default=None,
+        help="Directory containing patches named <item_id>.patch for maintenance apply",
+    )
+    parser.add_argument(
+        "--maintenance-apply",
+        action="store_true",
+        help="Attempt to apply maintenance patches if auditor approves (requires checkpoint)",
+    )
+    parser.add_argument(
+        "--maintenance-checkpoint",
+        action="store_true",
+        help="Create a git checkpoint before maintenance apply (required for apply path)",
     )
 
     # Optional arguments
@@ -4616,6 +4790,16 @@ Environment Variables:
     except ValueError as e:
         logger.error(f"Failed to initialize executor: {e}")
         sys.exit(1)
+
+    if args.maintenance_plan:
+        executor.run_backlog_maintenance(
+            plan_path=args.maintenance_plan,
+            patch_dir=args.maintenance_patch_dir,
+            apply=args.maintenance_apply,
+            allowed_paths=None,
+            checkpoint=args.maintenance_checkpoint or args.maintenance_apply,
+        )
+        return
 
     # Run autonomous loop
     try:

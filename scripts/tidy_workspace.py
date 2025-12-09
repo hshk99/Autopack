@@ -671,6 +671,28 @@ def main():
         if superseded_mode and root.as_posix().endswith("archive/superseded/archive"):
             actions: List[Action] = []
             research_keywords = ["research", "brief", "market", "strategy", "strategic_review", "immigration_visa", "tax", "fileorganizer_final"]
+            delegation_keywords = ["delegation", "gpt", "openai", "codex"]
+            phase_keywords = ["phase_", "p1", "p2", "p3", "p4", "p5", "p6", "p7", "p8", "p9"]
+            tier_keywords = ["tier_00", "tier_01", "tier_02", "tier_03", "tier_04", "tier_05"]
+            prompt_keywords = ["prompt"]
+            debug_keywords = ["debug", "error", "journal", "diagnostic"]
+
+            def bucket_for(name: str) -> Path:
+                ln = name.lower()
+                if any(k in ln for k in research_keywords):
+                    return superseded_target / "research"
+                if any(k in ln for k in delegation_keywords):
+                    return superseded_target / "delegations"
+                if any(ln.startswith(k) for k in tier_keywords):
+                    return superseded_target / "tiers"
+                if ln.startswith("phase_") or any(k in ln for k in phase_keywords):
+                    return superseded_target / "phases"
+                if any(k in ln for k in prompt_keywords):
+                    return superseded_target / "prompts"
+                if any(k in ln for k in debug_keywords):
+                    return superseded_target / "diagnostics"
+                return superseded_target
+
             for dirpath, dirnames, filenames in os.walk(root):
                 dirnames[:] = [d for d in dirnames if d not in {".git", "node_modules", ".pytest_cache", "__pycache__", ".venv", "venv"}]
                 for fname in filenames:
@@ -680,10 +702,7 @@ def main():
                     if is_protected(src):
                         continue
                     rel = src.relative_to(root)
-                    target_base = superseded_target
-                    lower_name = fname.lower()
-                    if any(k in lower_name for k in research_keywords):
-                        target_base = superseded_target / "research"
+                    target_base = bucket_for(fname)
                     dest = target_base / rel
                     actions.append(Action("move", src, dest, "superseded->project archive"))
             execute_actions(actions, dry_run=dry_run, checkpoint_dir=args.checkpoint_dir if not dry_run else None, logger=logger, run_id=run_id)

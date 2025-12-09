@@ -377,7 +377,12 @@ def semantic_analysis(
             })
             cache[str(path)] = result
         if verbose:
-            print(f"[SEMANTIC] {path}: {result.get('decision')} ({result.get('rationale')[:120]})")
+            rationale_display = (result.get("rationale") or "")
+            try:
+                rationale_display = rationale_display.encode("ascii", "replace").decode("ascii")
+            except Exception:
+                pass
+            print(f"[SEMANTIC] {path}: {result.get('decision')} ({rationale_display[:120]})")
         results.append(result)
 
     save_semantic_cache(cache_path, cache)

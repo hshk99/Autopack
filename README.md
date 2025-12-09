@@ -15,6 +15,13 @@ Autopack is a framework for orchestrating autonomous AI agents (Builder and Audi
 - Workspace prep: ensure scoped directories exist in the run workspace (e.g., `models/`, `migrations/`) to avoid missing-path scope warnings.
 - Reusable hardening templates: see `templates/hardening_phases.json` and `templates/phase_defaults.json` plus `scripts/plan_hardening.py` to assemble project plans; kickoff multi-agent planning with `planning/kickoff_prompt.md`.
 
+### Memory & Context Plan (2025-12-09)
+- Keep SQLite for run/phase state; add vector memory (FAISS now, Qdrant-ready) for unstructured recall (code/docs, run summaries, errors/CI snippets, doctor hints). See `docs/IMPLEMENTATION_PLAN_MEMORY_AND_CONTEXT.md`.
+- Reuse components from `C:\dev\chatbot_project\backend` where possible (embedding_utils, qdrant_utils with FAISS adapter, memory_lookup, memory_maintenance, optional short_term_memory) to avoid rewriting.
+- On-demand context: scope stays an allowlist, but executor should load only target files per builder call; retrieve top-k snippets from vector memory instead of preloading whole dirs; prompts = target files + retrieved snippets + goal anchor.
+- Post-phase: write compact summaries/errors/doctor hints into vector memory; retrieve them later for similar tasks.
+- Validation: harden YAML/compose pre-apply; optional goal-drift check before apply using a short goal anchor per run.
+
 ### Patch Apply Hardening (2025-12-06)
 - `GovernedApplyPath` now refuses the direct-write fallback whenever a patch touches existing files; fallback is limited to clean new-file-only patches and must write all expected files.
 - Patch validation still runs first (dry-run git apply, lenient/3-way) and preserves backups; scope + protected-path enforcement remains unchanged.

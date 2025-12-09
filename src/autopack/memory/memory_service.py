@@ -32,12 +32,14 @@ COLLECTION_CODE_DOCS = "code_docs"
 COLLECTION_RUN_SUMMARIES = "run_summaries"
 COLLECTION_ERRORS_CI = "errors_ci"
 COLLECTION_DOCTOR_HINTS = "doctor_hints"
+COLLECTION_PLANNING = "planning"
 
 ALL_COLLECTIONS = [
     COLLECTION_CODE_DOCS,
     COLLECTION_RUN_SUMMARIES,
     COLLECTION_ERRORS_CI,
     COLLECTION_DOCTOR_HINTS,
+    COLLECTION_PLANNING,
 ]
 
 
@@ -76,6 +78,7 @@ class MemoryService:
         self.enabled = config.get("enable_memory", enabled)
         self.top_k = config.get("top_k_retrieval", 5)
         self.max_embed_chars = config.get("max_embed_chars", MAX_EMBEDDING_CHARS)
+        self.planning_collection = config.get("planning_collection", COLLECTION_PLANNING)
 
         if index_dir is None:
             index_dir = config.get(
@@ -86,7 +89,11 @@ class MemoryService:
         self.store = FaissStore(index_dir=index_dir)
 
         # Ensure all collections exist
-        for collection in ALL_COLLECTIONS:
+        collections = list(ALL_COLLECTIONS)
+        if self.planning_collection not in collections:
+            collections.append(self.planning_collection)
+
+        for collection in collections:
             self.store.ensure_collection(collection, EMBEDDING_SIZE)
 
         logger.info(f"[MemoryService] Initialized (enabled={self.enabled}, top_k={self.top_k})")
@@ -394,6 +401,209 @@ class MemoryService:
         )
 
     # -------------------------------------------------------------------------
+    # Planning artifacts / plan changes / decision log
+    # -------------------------------------------------------------------------
+
+    def write_planning_artifact(
+        self,
+        path: str,
+        content: str,
+        project_id: str,
+        version: int,
+        author: Optional[str] = None,
+        reason: Optional[str] = None,
+        summary: Optional[str] = None,
+        status: str = "active",
+        replaced_by: Optional[int] = None,
+        timestamp: Optional[str] = None,
+    ) -> str:
+        """Embed a planning artifact (templates/prompts/compiled plans)."""
+        if not self.enabled:
+            return ""
+
+        content_truncated = content[:self.max_embed_chars]
+        summary_text = (summary or content_truncated[:600]).strip()
+        timestamp = timestamp or datetime.now(timezone.utc).isoformat()
+
+        vector = sync_embed_text(
+            f"Planning artifact {path} v{version}\nSummary: {summary_text}\n\n{content_truncated[:1500]}"
+        )
+        point_id = f"planning_artifact:{project_id}:{path}:{version}"
+        payload = {
+            "type": "planning_artifact",
+            "path": path,
+            "version": version,
+            "project_id": project_id,
+            "timestamp": timestamp,
+            "author": author,
+            "reason": reason,
+            "status": status,
+            "replaced_by": replaced_by,
+            "summary": summary_text,
+            "content_preview": content_truncated[:800],
+        }
+
+        self.store.upsert(
+            self.planning_collection,
+            [{"id": point_id, "vector": vector, "payload": payload}],
+        )
+        logger.info(f"[MemoryService] Stored planning artifact {path} v{version}")
+        return point_id
+
+    def write_plan_change(
+        self,
+        summary: str,
+        rationale: str,
+        project_id: str,
+        run_id: Optional[str] = None,
+        phase_id: Optional[str] = None,
+        replaces_version: Optional[int] = None,
+        author: Optional[str] = None,
+        status: str = "active",
+        replaced_by: Optional[int] = None,
+        timestamp: Optional[str] = None,
+    ) -> str:
+        """Embed a plan change (diff/summary) entry."""
+        if not self.enabled:
+            return ""
+
+        timestamp = timestamp or datetime.now(timezone.utc).isoformat()
+        text = f"Plan change summary: {summary}\nRationale: {rationale}"
+        vector = sync_embed_text(text)
+        point_id = f"plan_change:{project_id}:{run_id or 'na'}:{phase_id or 'na'}:{hashlib.sha256(text.encode()).hexdigest()[:8]}"
+        payload = {
+            "type": "plan_change",
+            "summary": summary,
+            "rationale": rationale,
+            "project_id": project_id,
+            "run_id": run_id,
+            "phase_id": phase_id,
+            "replaces_version": replaces_version,
+            "status": status,
+            "replaced_by": replaced_by,
+            "timestamp": timestamp,
+        }
+
+        self.store.upsert(
+            self.planning_collection,
+            [{"id": point_id, "vector": vector, "payload": payload}],
+        )
+        logger.info("[MemoryService] Stored plan change")
+        return point_id
+
+    def write_decision_log(
+        self,
+        trigger: str,
+        choice: str,
+        rationale: str,
+        project_id: str,
+        run_id: Optional[str] = None,
+        phase_id: Optional[str] = None,
+        alternatives: Optional[str] = None,
+        timestamp: Optional[str] = None,
+    ) -> str:
+        """Embed a decision log summary for recall."""
+        if not self.enabled:
+            return ""
+
+        timestamp = timestamp or datetime.now(timezone.utc).isoformat()
+        text = (
+            f"Decision for {phase_id or 'phase'}: {choice}\n"
+            f"Trigger: {trigger}\n"
+            f"Alternatives: {alternatives or 'n/a'}\n"
+            f"Rationale: {rationale}"
+        )
+        vector = sync_embed_text(text)
+        point_id = f"decision:{project_id}:{run_id or 'na'}:{phase_id or 'na'}:{hashlib.sha256(text.encode()).hexdigest()[:8]}"
+        payload = {
+            "type": "decision_log",
+            "trigger": trigger,
+            "choice": choice,
+            "alternatives": alternatives,
+            "rationale": rationale,
+            "project_id": project_id,
+            "run_id": run_id,
+            "phase_id": phase_id,
+            "timestamp": timestamp,
+        }
+
+        self.store.upsert(
+            self.planning_collection,
+            [{"id": point_id, "vector": vector, "payload": payload}],
+        )
+        logger.info("[MemoryService] Stored decision log")
+        return point_id
+
+    def search_planning(
+        self,
+        query: str,
+        project_id: str,
+        limit: Optional[int] = None,
+        types: Optional[List[str]] = None,
+    ) -> List[Dict[str, Any]]:
+        """Search planning collection (artifacts, plan changes, decisions)."""
+        if not self.enabled:
+            return []
+
+        limit = limit or self.top_k
+        query_vector = sync_embed_text(query)
+        results = self.store.search(
+            self.planning_collection,
+            query_vector,
+            filter={"project_id": project_id},
+            limit=limit,
+        )
+        if types:
+            results = [r for r in results if r.get("payload", {}).get("type") in types]
+        return results
+
+    def latest_plan_change(self, project_id: str) -> List[Dict[str, Any]]:
+        """Return latest plan changes (sorted newest first)."""
+        docs = self.store.scroll(
+            self.planning_collection,
+            filter={"project_id": project_id},
+            limit=500,
+        )
+        plan_changes = []
+        for d in docs:
+            payload = d.get("payload", {})
+            if payload.get("type") != "plan_change":
+                continue
+            status = payload.get("status")
+            if status in ("tombstoned", "superseded", "archived"):
+                continue
+            plan_changes.append(d)
+        plan_changes.sort(
+            key=lambda d: d.get("payload", {}).get("timestamp", ""),
+            reverse=True,
+        )
+        return plan_changes
+
+    def tombstone_entry(
+        self,
+        collection: str,
+        point_id: str,
+        reason: Optional[str] = None,
+        replaced_by: Optional[str] = None,
+    ) -> bool:
+        """Mark an entry as tombstoned without deleting its vector."""
+        try:
+            payload = self.store.get_payload(collection, point_id)
+            if payload is None:
+                return False
+            payload.update(
+                {
+                    "status": "tombstoned",
+                    "tombstone_reason": reason,
+                    "replaced_by": replaced_by or payload.get("replaced_by"),
+                }
+            )
+            return self.store.update_payload(collection, point_id, payload)
+        except Exception as exc:
+            logger.warning(f"[MemoryService] Failed to tombstone {point_id}: {exc}")
+            return False
+
+    # -------------------------------------------------------------------------
     # Combined Retrieval (for prompts)
     # -------------------------------------------------------------------------
 
@@ -407,6 +617,9 @@ class MemoryService:
         include_summaries: bool = True,
         include_errors: bool = True,
         include_hints: bool = True,
+        include_planning: bool = False,
+        include_plan_changes: bool = False,
+        include_decisions: bool = False,
     ) -> Dict[str, List[Dict[str, Any]]]:
         """
         Retrieve combined context from all collections.
@@ -417,14 +630,26 @@ class MemoryService:
             run_id: Optional run to scope summaries
             task_type: Optional task type filter
             include_*: Flags to include/exclude collections
+            include_planning: Include planning artifacts
+            include_plan_changes: Include most recent plan changes (recency-biased)
+            include_decisions: Include decision logs
 
         Returns:
-            Dict with keys: "code", "summaries", "errors", "hints"
+            Dict with keys: "code", "summaries", "errors", "hints", "planning", "plan_changes", "decisions"
         """
         if not self.enabled:
-            return {"code": [], "summaries": [], "errors": [], "hints": []}
+            return {
+                "code": [],
+                "summaries": [],
+                "errors": [],
+                "hints": [],
+                "planning": [],
+                "plan_changes": [],
+                "decisions": [],
+            }
 
         results = {}
+        limit = self.top_k
 
         if include_code:
             results["code"] = self.search_code(query, project_id)
@@ -437,6 +662,26 @@ class MemoryService:
 
         if include_hints:
             results["hints"] = self.search_doctor_hints(query, project_id)
+
+        if include_planning:
+            results["planning"] = self.search_planning(
+                query,
+                project_id,
+                limit=limit,
+                types=["planning_artifact"],
+            )
+
+        if include_plan_changes:
+            # Bias to latest plan changes first
+            results["plan_changes"] = self.latest_plan_change(project_id)[:limit]
+
+        if include_decisions:
+            results["decisions"] = self.search_planning(
+                query,
+                project_id,
+                limit=limit,
+                types=["decision_log"],
+            )
 
         return results
 
@@ -517,5 +762,52 @@ class MemoryService:
                 char_count += len(entry)
             if len(hint_section) > 1:
                 sections.append("\n".join(hint_section))
+
+        # Planning artifacts (summaries only)
+        if retrieved.get("planning"):
+            planning_section = ["## Planning Artifacts"]
+            for item in retrieved["planning"][:2]:
+                payload = item.get("payload", {})
+                path = payload.get("path", "unknown")
+                version = payload.get("version", "n/a")
+                summary = payload.get("summary", "")[:300]
+                entry = f"- {path} (v{version}): {summary}"
+                if char_count + len(entry) > max_chars:
+                    break
+                planning_section.append(entry)
+                char_count += len(entry)
+            if len(planning_section) > 1:
+                sections.append("\n".join(planning_section))
+
+        # Plan changes (recency-biased)
+        if retrieved.get("plan_changes"):
+            plan_change_section = ["## Recent Plan Changes"]
+            for item in retrieved["plan_changes"][:2]:
+                payload = item.get("payload", {})
+                summary = payload.get("summary", "")[:250]
+                rationale = payload.get("rationale", "")[:200]
+                entry = f"- {summary} (Why: {rationale})"
+                if char_count + len(entry) > max_chars:
+                    break
+                plan_change_section.append(entry)
+                char_count += len(entry)
+            if len(plan_change_section) > 1:
+                sections.append("\n".join(plan_change_section))
+
+        # Decision log
+        if retrieved.get("decisions"):
+            decision_section = ["## Decisions"]
+            for item in retrieved["decisions"][:2]:
+                payload = item.get("payload", {})
+                trigger = payload.get("trigger", "trigger unknown")
+                choice = payload.get("choice", "")
+                rationale = payload.get("rationale", "")[:200]
+                entry = f"- Trigger: {trigger}; Choice: {choice}; Rationale: {rationale}"
+                if char_count + len(entry) > max_chars:
+                    break
+                decision_section.append(entry)
+                char_count += len(entry)
+            if len(decision_section) > 1:
+                sections.append("\n".join(decision_section))
 
         return "\n\n".join(sections) if sections else ""

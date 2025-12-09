@@ -64,6 +64,7 @@ from autopack.health_checks import run_health_checks, HealthCheckResult
 from autopack.file_layout import RunFileLayout
 
 # Memory and validation imports
+from autopack import models
 from autopack.memory import MemoryService, should_block_on_drift, extract_goal_from_description
 from autopack.validators import validate_yaml_syntax, validate_docker_compose, ValidationResult
 
@@ -1431,6 +1432,97 @@ class AutonomousExecutor:
             f"replan_count_run={len(self._run_replan_telemetry)}"
         )
 
+    def _record_plan_change_entry(
+        self,
+        summary: str,
+        rationale: str,
+        phase_id: Optional[str],
+        replaces_version: Optional[int] = None,
+    ) -> None:
+        """Persist plan change to DB and vector memory."""
+        project_id = self._get_project_slug() or self.run_id
+        timestamp = datetime.now(timezone.utc)
+        vector_id = ""
+
+        if self.memory_service:
+            try:
+                vector_id = self.memory_service.write_plan_change(
+                    summary=summary,
+                    rationale=rationale,
+                    project_id=project_id,
+                    run_id=self.run_id,
+                    phase_id=phase_id,
+                    replaces_version=replaces_version,
+                    timestamp=timestamp.isoformat(),
+                )
+            except Exception as e:
+                logger.warning(f"[PlanChange] Failed to write to memory: {e}")
+
+        try:
+            plan_change = models.PlanChange(
+                run_id=self.run_id,
+                phase_id=phase_id,
+                project_id=project_id,
+                timestamp=timestamp,
+                author="autonomous_executor",
+                summary=summary,
+                rationale=rationale,
+                replaces_version=replaces_version,
+                status="active",
+                vector_id=vector_id or None,
+            )
+            self.db_session.add(plan_change)
+            self.db_session.commit()
+        except Exception as e:
+            logger.warning(f"[PlanChange] DB write failed: {e}")
+            self.db_session.rollback()
+
+    def _record_decision_entry(
+        self,
+        trigger: str,
+        choice: str,
+        rationale: str,
+        phase_id: Optional[str],
+        alternatives: Optional[str] = None,
+    ) -> None:
+        """Persist decision log with memory embedding."""
+        project_id = self._get_project_slug() or self.run_id
+        timestamp = datetime.now(timezone.utc)
+        vector_id = ""
+
+        if self.memory_service:
+            try:
+                vector_id = self.memory_service.write_decision_log(
+                    trigger=trigger,
+                    choice=choice,
+                    rationale=rationale,
+                    project_id=project_id,
+                    run_id=self.run_id,
+                    phase_id=phase_id,
+                    alternatives=alternatives,
+                    timestamp=timestamp.isoformat(),
+                )
+            except Exception as e:
+                logger.warning(f"[DecisionLog] Failed to write to memory: {e}")
+
+        try:
+            decision = models.DecisionLog(
+                run_id=self.run_id,
+                phase_id=phase_id,
+                project_id=project_id,
+                timestamp=timestamp,
+                trigger=trigger,
+                alternatives=alternatives,
+                choice=choice,
+                rationale=rationale,
+                vector_id=vector_id or None,
+            )
+            self.db_session.add(decision)
+            self.db_session.commit()
+        except Exception as e:
+            logger.warning(f"[DecisionLog] DB write failed: {e}")
+            self.db_session.rollback()
+
     def _should_trigger_replan(self, phase: Dict) -> Tuple[bool, Optional[str]]:
         """
         Determine if re-planning should be triggered for a phase.
@@ -1641,6 +1733,24 @@ Just the new description that should replace the current one while preserving th
                 deliverables=[f"Run: {self.run_id}", f"Phase: {phase_id}", f"Flaw: {flaw_type}", f"Alignment: {alignment.get('alignment')}"],
                 project_slug=self._get_project_slug()
             )
+
+            # Record plan change + decision log for memory/DB
+            try:
+                self._record_plan_change_entry(
+                    summary=f"{phase_id} replanned (attempt {replan_attempt})",
+                    rationale=f"flaw={flaw_type}; alignment={alignment.get('alignment')}",
+                    phase_id=phase_id,
+                    replaces_version=replan_attempt - 1 if replan_attempt > 1 else None,
+                )
+                self._record_decision_entry(
+                    trigger=f"replan:{flaw_type}",
+                    choice="replan",
+                    rationale=f"Replanned to address {flaw_type}",
+                    phase_id=phase_id,
+                    alternatives="retry_with_fix,replan,skip,rollback",
+                )
+            except Exception as log_exc:
+                logger.warning(f"[Re-Plan] Telemetry write failed: {log_exc}")
 
             return revised_phase
 
@@ -1906,6 +2016,13 @@ Just the new description that should replace the current one while preserving th
             hint = response.builder_hint or "Review previous errors and try a different approach"
             self._builder_hint_by_phase[phase_id] = hint
             logger.info(f"[Doctor] Action: retry_with_fix - hint stored for next attempt")
+            self._record_decision_entry(
+                trigger="doctor",
+                choice="retry_with_fix",
+                rationale=response.rationale,
+                phase_id=phase_id,
+                alternatives="retry_with_fix,replan,skip,rollback",
+            )
             return "retry_with_hint", True  # Continue retry loop with hint
 
         elif action == "replan":
@@ -1924,6 +2041,13 @@ Just the new description that should replace the current one while preserving th
                 return "replan", True  # Continue with revised approach
             else:
                 logger.warning(f"[Doctor] Replan failed, continuing with original approach")
+                self._record_decision_entry(
+                    trigger="doctor",
+                    choice="replan_failed",
+                    rationale=response.rationale,
+                    phase_id=phase_id,
+                    alternatives="retry_with_fix,replan,skip,rollback",
+                )
                 return "replan_failed", True
 
         elif action == "skip_phase":
@@ -1931,6 +2055,13 @@ Just the new description that should replace the current one while preserving th
             logger.info(f"[Doctor] Action: skip_phase - marking phase as FAILED and continuing")
             self._skipped_phases.add(phase_id)
             self._update_phase_status(phase_id, "FAILED")
+            self._record_decision_entry(
+                trigger="doctor",
+                choice="skip_phase",
+                rationale=response.rationale,
+                phase_id=phase_id,
+                alternatives="retry_with_fix,replan,skip,rollback",
+            )
             return "skip", False  # Exit retry loop
 
         elif action == "mark_fatal":
@@ -1949,6 +2080,13 @@ Just the new description that should replace the current one while preserving th
                 priority="CRITICAL"
             )
             self._update_phase_status(phase_id, "FAILED")
+            self._record_decision_entry(
+                trigger="doctor",
+                choice="mark_fatal",
+                rationale=response.rationale,
+                phase_id=phase_id,
+                alternatives="retry_with_fix,replan,skip,rollback",
+            )
             return "fatal", False  # Exit retry loop
 
         elif action == "rollback_run":
@@ -1969,14 +2107,35 @@ Just the new description that should replace the current one while preserving th
             # TODO: Implement branch-based rollback (git reset to pre-run state)
             # For now, mark phase as failed and let run terminate
             self._update_phase_status(phase_id, "FAILED")
+            self._record_decision_entry(
+                trigger="doctor",
+                choice="rollback_run",
+                rationale=response.rationale,
+                phase_id=phase_id,
+                alternatives="retry_with_fix,replan,skip,rollback",
+            )
             return "rollback", False  # Exit retry loop
 
         elif action == "execute_fix":
             # Phase 3: Direct infrastructure fix (GPT_RESPONSE9)
+            self._record_decision_entry(
+                trigger="doctor",
+                choice="execute_fix",
+                rationale=response.rationale,
+                phase_id=phase_id,
+                alternatives="retry_with_fix,replan,skip,rollback,execute_fix",
+            )
             return self._handle_execute_fix(phase, response)
 
         else:
             logger.warning(f"[Doctor] Unknown action: {action}, treating as retry_with_fix")
+            self._record_decision_entry(
+                trigger="doctor",
+                choice="unknown_action",
+                rationale=response.rationale,
+                phase_id=phase_id,
+                alternatives="retry_with_fix,replan,skip,rollback",
+            )
             return "unknown", True
 
     def _get_builder_hint_for_phase(self, phase_id: str) -> Optional[str]:
@@ -2356,6 +2515,9 @@ Just the new description that should replace the current one while preserving th
                         include_summaries=True,
                         include_errors=True,
                         include_hints=True,
+                        include_planning=True,
+                        include_plan_changes=True,
+                        include_decisions=True,
                     )
                     retrieved_context = self.memory_service.format_retrieved_context(retrieved, max_chars=4000)
                     if retrieved_context:

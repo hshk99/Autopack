@@ -19,6 +19,10 @@ max_embed_chars: 30000
 # TTL for memory entries in days (prune older entries)
 ttl_days: 30
 
+# Planning artifacts/plan changes collection
+planning_collection: "planning"
+planning_keep_versions: 3
+
 # Collections configuration
 collections:
   code_docs:

@@ -47,6 +47,18 @@ Vector memory for context retrieval and goal-drift detection:
 
 See `docs/IMPLEMENTATION_PLAN_MEMORY_AND_CONTEXT.md` for full details.
 
+### Intent Router (2025-12-09)
+Natural-language entrypoint that maps user intents to safe Autopack actions (no raw commands):
+- Script: `scripts/intent_router.py`
+- Supports: refresh planning artifacts (ingest + embeddings), memory maintenance (TTL + tombstones), show plan changes/decision log, query planning context.
+- Usage examples:
+  ```bash
+  python scripts/intent_router.py --query "refresh planning artifacts" --project-id file-organizer-app-v1
+  python scripts/intent_router.py --query "run memory maintenance" --project-id file-organizer-app-v1 --ttl-days 30
+  python scripts/intent_router.py --query "show plan changes" --project-id file-organizer-app-v1
+  python scripts/intent_router.py --query "planning context for kickoff" --project-id file-organizer-app-v1
+  ```
+
 ### Patch Apply Hardening (2025-12-06)
 - `GovernedApplyPath` now refuses the direct-write fallback whenever a patch touches existing files; fallback is limited to clean new-file-only patches and must write all expected files.
 - Patch validation still runs first (dry-run git apply, lenient/3-way) and preserves backups; scope + protected-path enforcement remains unchanged.

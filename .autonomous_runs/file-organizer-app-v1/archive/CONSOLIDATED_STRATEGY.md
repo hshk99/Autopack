@@ -15,6 +15,7 @@
 - Memory & Context: Keep SQLite for run/phase state; add vector memory (FAISS now, Qdrant-ready) with collections for code/docs, run summaries, errors/CI snippets, doctor hints (payload keys: run_id, phase_id, project_id, task_type, timestamp, path, type). Post-phase: store summaries/errors/hints; retrieve top-k snippets instead of bulk scope preload; reuse `embedding_utils`, `qdrant_utils`, `memory_lookup`, `memory_maintenance`, `short_term_memory` from `C:\dev\chatbot_project` with thin adapters.
 - On-demand context: Scope remains an allowlist, but executor should load only target files per builder call; no bulk `existing_files`; prompt is target files + retrieved snippets + goal anchor.
 - Validation & Goal: Harden YAML/compose pre-apply validation; add optional goal-drift check before apply using a short goal anchor per run.
+- Intent router: Add natural-language entrypoint (`scripts/intent_router.py`) that maps intents (ingest planning artifacts, maintenance, show plan changes/decision log, planning context queries) to safe actions without manual commands.
 
 ---
 

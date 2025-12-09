@@ -4,7 +4,18 @@ from datetime import datetime, timezone
 from enum import Enum
 from typing import Optional
 
-from sqlalchemy import Boolean, Column, DateTime, Enum as SQLEnum, ForeignKey, Integer, JSON, String, Text
+from sqlalchemy import (
+    Boolean,
+    Column,
+    DateTime,
+    Enum as SQLEnum,
+    ForeignKey,
+    Integer,
+    JSON,
+    String,
+    Text,
+    UniqueConstraint,
+)
 from sqlalchemy.orm import relationship, synonym
 
 from .database import Base
@@ -207,3 +218,78 @@ class Phase(Base):
     # Relationships
     run = relationship("Run", back_populates="phases")
     tier = relationship("Tier", back_populates="phases")
+
+
+# ---------------------------------------------------------------------------
+# Planning + decision logging (Phase 2 memory/context)
+# ---------------------------------------------------------------------------
+
+
+class PlanningArtifact(Base):
+    """Versioned planning artifacts (templates, prompts, compiled analyses)."""
+
+    __tablename__ = "planning_artifacts"
+
+    id = Column(Integer, primary_key=True, index=True)
+    path = Column(String, nullable=False, index=True)
+    version = Column(Integer, nullable=False, default=1)
+    project_id = Column(String, nullable=True, index=True)
+    timestamp = Column(
+        DateTime,
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc),
+    )
+    hash = Column(String, nullable=False)
+    author = Column(String, nullable=True)
+    reason = Column(Text, nullable=True)
+    status = Column(String, nullable=False, default="active")  # active|superseded|archived
+    replaced_by = Column(Integer, nullable=True)
+    vector_id = Column(String, nullable=True)
+
+    __table_args__ = (
+        UniqueConstraint("path", "version", name="uq_planning_artifacts_path_version"),
+    )
+
+
+class PlanChange(Base):
+    """Tracked plan/template revisions with rationale."""
+
+    __tablename__ = "plan_changes"
+
+    id = Column(Integer, primary_key=True, index=True)
+    run_id = Column(String, nullable=True, index=True)
+    phase_id = Column(String, nullable=True, index=True)
+    project_id = Column(String, nullable=True, index=True)
+    timestamp = Column(
+        DateTime,
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc),
+    )
+    author = Column(String, nullable=True)
+    summary = Column(Text, nullable=False)
+    rationale = Column(Text, nullable=True)
+    replaces_version = Column(Integer, nullable=True)
+    status = Column(String, nullable=False, default="active")  # active|superseded|archived
+    replaced_by = Column(Integer, nullable=True)
+    vector_id = Column(String, nullable=True)
+
+
+class DecisionLog(Base):
+    """Decision log entries for doctor/replan triggers."""
+
+    __tablename__ = "decision_log"
+
+    id = Column(Integer, primary_key=True, index=True)
+    run_id = Column(String, nullable=True, index=True)
+    phase_id = Column(String, nullable=True, index=True)
+    project_id = Column(String, nullable=True, index=True)
+    timestamp = Column(
+        DateTime,
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc),
+    )
+    trigger = Column(String, nullable=True)
+    alternatives = Column(Text, nullable=True)
+    choice = Column(Text, nullable=False)
+    rationale = Column(Text, nullable=True)
+    vector_id = Column(String, nullable=True)

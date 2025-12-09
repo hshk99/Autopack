@@ -18,6 +18,8 @@ from .memory_service import (
     COLLECTION_RUN_SUMMARIES,
     COLLECTION_ERRORS_CI,
     COLLECTION_DOCTOR_HINTS,
+    COLLECTION_PLANNING,
+    _load_memory_config,
 )
 
 logger = logging.getLogger(__name__)
@@ -92,6 +94,51 @@ def prune_old_entries(
     return total_pruned
 
 
+def tombstone_superseded_planning(
+    store: FaissStore,
+    project_id: str,
+    keep_versions: int = 3,
+    collection: str = COLLECTION_PLANNING,
+) -> int:
+    """
+    Mark older planning artifacts as tombstoned while keeping latest N versions.
+    """
+    docs = store.scroll(
+        collection,
+        filter={"project_id": project_id},
+        limit=5000,
+    )
+
+    by_path = {}
+    for doc in docs:
+        payload = doc.get("payload", {})
+        if payload.get("type") != "planning_artifact":
+            continue
+        path = payload.get("path")
+        if not path:
+            continue
+        by_path.setdefault(path, []).append(doc)
+
+    tombstoned = 0
+    for path, entries in by_path.items():
+        entries.sort(key=lambda d: d.get("payload", {}).get("timestamp", ""), reverse=True)
+        for idx, doc in enumerate(entries):
+            if idx < keep_versions:
+                continue
+            point_id = doc["id"]
+            payload = doc.get("payload", {})
+            payload["status"] = "tombstoned"
+            payload["tombstone_reason"] = f"Replaced by newer version for {path}"
+            store.update_payload(collection, point_id, payload)
+            tombstoned += 1
+
+    if tombstoned:
+        logger.info(
+            f"[Maintenance] Tombstoned {tombstoned} planning artifacts for project={project_id} (keep_versions={keep_versions})"
+        )
+    return tombstoned
+
+
 async def compress_entry_content(
     content: str,
     llm_service: Optional[any] = None,
@@ -144,6 +191,7 @@ def run_maintenance(
     store: FaissStore,
     project_id: str,
     ttl_days: int = DEFAULT_TTL_DAYS,
+    planning_keep_versions: int = 3,
 ) -> dict:
     """
     Run full maintenance cycle: prune old entries.
@@ -160,15 +208,61 @@ def run_maintenance(
 
     stats = {
         "pruned": 0,
+        "planning_tombstoned": 0,
         "compressed": 0,
         "errors": [],
     }
 
     try:
-        stats["pruned"] = prune_old_entries(store, project_id, ttl_days)
+        stats["pruned"] = prune_old_entries(
+            store,
+            project_id,
+            ttl_days,
+            collections=[COLLECTION_RUN_SUMMARIES, COLLECTION_ERRORS_CI, COLLECTION_DOCTOR_HINTS, COLLECTION_PLANNING],
+        )
     except Exception as e:
         stats["errors"].append(f"Prune failed: {e}")
         logger.error(f"[Maintenance] Prune failed: {e}")
 
+    try:
+        stats["planning_tombstoned"] = tombstone_superseded_planning(
+            store, project_id, keep_versions=planning_keep_versions
+        )
+    except Exception as e:
+        stats["errors"].append(f"Tombstone failed: {e}")
+        logger.error(f"[Maintenance] Tombstone failed: {e}")
+
     logger.info(f"[Maintenance] Completed: {stats}")
     return stats
+
+
+def main():
+    """CLI entry point: python -m autopack.memory.maintenance --project-id autopack"""
+    import argparse
+    from .memory_service import MemoryService
+
+    cfg = _load_memory_config()
+    default_ttl = cfg.get("ttl_days", DEFAULT_TTL_DAYS)
+    keep_versions = cfg.get("planning_keep_versions", cfg.get("keep_versions", 3))
+
+    parser = argparse.ArgumentParser(description="Run vector memory maintenance (TTL prune + tombstones)")
+    parser.add_argument("--project-id", default="autopack", help="Project ID to prune")
+    parser.add_argument("--ttl-days", type=int, default=default_ttl, help="TTL in days for pruning")
+    parser.add_argument("--keep-versions", type=int, default=keep_versions, help="Planning artifact versions to retain")
+    args = parser.parse_args()
+
+    try:
+        service = MemoryService()
+        stats = run_maintenance(
+            service.store,
+            args.project_id,
+            ttl_days=args.ttl_days,
+            planning_keep_versions=args.keep_versions,
+        )
+        print(stats)
+    except Exception as exc:
+        logger.error(f"[Maintenance] Failed: {exc}")
+
+
+if __name__ == "__main__":
+    main()

@@ -236,6 +236,10 @@ class FaissStore:
                         continue
                     payload = col["payloads"].get(point_id, {})
 
+                    status = payload.get("status")
+                    if status in ("tombstoned", "superseded", "archived"):
+                        continue
+
                     # Apply filter
                     if filter and not self._matches_filter(payload, filter):
                         continue
@@ -277,6 +281,10 @@ class FaissStore:
             point_id = item["id"]
             vector = item["vector"]
             payload = col["payloads"].get(point_id, {})
+
+            status = payload.get("status")
+            if status in ("tombstoned", "superseded", "archived"):
+                continue
 
             if filter and not self._matches_filter(payload, filter):
                 continue
@@ -325,6 +333,24 @@ class FaissStore:
                     break
 
             return results
+
+    def get_payload(self, collection: str, point_id: str) -> Optional[Dict[str, Any]]:
+        """Return payload for a point ID, or None if missing."""
+        self.ensure_collection(collection)
+        with self._lock:
+            col = self._collections[collection]
+            return col["payloads"].get(point_id)
+
+    def update_payload(self, collection: str, point_id: str, payload: Dict[str, Any]) -> bool:
+        """Update payload for an existing point ID."""
+        self.ensure_collection(collection)
+        with self._lock:
+            col = self._collections[collection]
+            if point_id not in col["payloads"]:
+                return False
+            col["payloads"][point_id] = payload
+            self._save_collection(collection)
+            return True
 
     def delete(self, collection: str, ids: List[str]) -> int:
         """

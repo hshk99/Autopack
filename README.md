@@ -82,6 +82,12 @@ Natural-language entrypoint that maps user intents to safe Autopack actions (no 
 - Low-risk auto-apply (recommended safeguards): for maintenance runs, keep checkpoints on by default and only auto-apply auditor-approved patches that are in-scope, small (files/lines), and have passing targeted tests; anything else remains propose-first for human review.
 - Executor CLI flags: `--maintenance-plan`, `--maintenance-patch-dir`, `--maintenance-apply`, `--maintenance-checkpoint`, `--maintenance-auto-apply-low-risk` control maintenance mode; low-risk auto-apply enforces extra size/test guards and still requires a checkpoint.
 
+## Repository Structure (Autopack + Projects)
+- Autopack core lives at the repo root and includes executor, diagnostics, dashboard, and tooling.
+- Project artifacts live under `.autonomous_runs/<project>/` (plans, diagnostics, consolidated logs); e.g., `file-organizer-app-v1` is the first project built with Autopack.
+- Additional projects stay under `.autonomous_runs/<project>/` within this repo (not separate repos).
+- Use branches per project/maintenance effort when applying automated fixes to keep histories clean; checkpoints are recommended for maintenance/apply flows.
+
 ## Owner Intent (Troubleshooting Autonomy)
 - Autopack should approach Cursor “tier 4” troubleshooting depth: when failures happen, it should autonomously run governed probes/commands (from a vetted allowlist), gather evidence (logs, test output, patch traces), iterate hypotheses, and log decisions—without requiring the user to type raw commands.
 - Natural-language control is preferred: the intent router (and future dashboard hooks) should trigger safe actions like planning ingest, memory maintenance, diagnostics, and context queries.

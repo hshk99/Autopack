@@ -1,320 +1,206 @@
-# Autopack Autonomous Runs
+# FileOrganizer v1.0.0 Alpha
 
-This directory contains autonomous project builds managed by Autopack v7 using the magic phrase pattern with Cursor AI.
+**Intelligent Document Organization powered by AI**
 
----
+FileOrganizer is a desktop application that uses OCR and AI classification to automatically organize your documents into structured packs for tax filing, immigration applications, legal cases, and more.
+
+## Features
+
+[OK] **3 Generic Pack Templates**
+- Tax Pack (income, deductions, expenses, etc.)
+- Immigration Pack (identity docs, financial evidence, employment, etc.)
+- Legal Pack (contracts, court documents, correspondence, etc.)
+
+[OK] **AI-Powered Classification**
+- Automatic document classification using GPT-4
+- Confidence scoring (0-100%)
+- Manual override and approval
+
+[OK] **OCR Text Extraction**
+- Tesseract OCR for scanned documents
+- Native PDF text extraction
+- Multi-page support
+
+[OK] **Triage Board**
+- Review and edit classifications
+- Search and filter documents
+- Approve documents for export
+
+[OK] **Multiple Export Formats**
+- PDF reports with categorized sections
+- Excel workbooks with multiple sheets
+- CSV for data import
+
+[OK] **Cross-Platform Desktop App**
+- Built with Electron
+- Works on Windows, macOS, Linux
+
+## Documentation
+
+Detailed autonomous run history and documentation can be found in the `archive/` directory:
+
+- **[Archive Index](archive/ARCHIVE_INDEX.md)**: Index of all documentation.
+- **[Build History](archive/CONSOLIDATED_BUILD.md)**: Timeline of autonomous build execution.
+- **[Debug Journal](archive/CONSOLIDATED_DEBUG.md)**: Record of errors and fixes.
+- **[Strategic Analysis](archive/CONSOLIDATED_STRATEGY.md)**: Product and market strategy.
+- **[Research](archive/CONSOLIDATED_RESEARCH.md)**: Research briefs and implementation plans.
 
 ## Quick Start
 
-### Setup New Project
+### Prerequisites
 
-**Magic Phrase:**
-```
-SET UP NEW AUTOPACK PROJECT: <Project Name>
+- **Python 3.11+**
+- **Node.js 18+**
+- **Tesseract OCR** (for scanned documents)
+  - Windows: Download from https://github.com/UB-Mannheim/tesseract/wiki
+  - macOS: `brew install tesseract`
+  - Linux: `apt-get install tesseract-ocr`
+- **OpenAI API Key** (for AI classification)
+
+### Installation
+
+1. **Clone the repository:**
+   ```bash
+   git clone <repository-url>
+   cd fileorganizer
+   ```
+
+2. **Install backend dependencies:**
+   ```bash
+   cd backend
+   python -m venv venv
+   source venv/bin/activate  # On Windows: venv\Scripts\activate
+   pip install -r requirements.txt
+   ```
+
+3. **Configure environment:**
+   ```bash
+   cp .env.template .env
+   # Edit .env and add your OPENAI_API_KEY
+   ```
+
+4. **Load pack templates:**
+   ```bash
+   python load_all_packs.py
+   ```
+
+5. **Install frontend dependencies:**
+   ```bash
+   cd ../frontend
+   npm install
+   ```
+
+6. **Run the application:**
+   ```bash
+   npm start
+   ```
+
+The app will start:
+- Backend API: http://127.0.0.1:8000
+- Frontend: Electron desktop app
+
+## Usage
+
+1. **Select a Pack** - Choose Tax, Immigration, or Legal
+2. **Upload Documents** - Drag and drop PDFs, images
+3. **Review Classifications** - Check AI suggestions in Triage Board
+4. **Edit & Approve** - Adjust categories, approve documents
+5. **Export** - Download as PDF, Excel, or CSV
+
+See [docs/USER_GUIDE.md](docs/USER_GUIDE.md) for detailed instructions.
+
+## Development
+
+### Run Backend Only
+```bash
+cd backend
+source venv/bin/activate
+python main.py
 ```
 
-**Example:**
-```
-SET UP NEW AUTOPACK PROJECT: Shopping Cart
-```
-
-This automatically:
-- Generates a slug (e.g., `shopping-cart-v1`)
-- Creates project structure
-- Copies generic runner script
-- Sets up task template
-- Makes the project ready to run
-
-### Run Existing Project
-
-**Default (Uses WHATS_LEFT_TO_BUILD.md):**
-```
-RUN AUTOPACK END-TO-END for <ProjectName> now.
+### Run Frontend Only
+```bash
+cd frontend
+npm run start:react
 ```
 
-**NEW: Run with Custom Task File:**
-```
-RUN AUTOPACK END-TO-END for <ProjectName> using <TaskFile.md> now.
+### Run Tests
+```bash
+cd backend
+pytest tests/ -v
 ```
 
-**Examples:**
+## Architecture
+
 ```
-RUN AUTOPACK END-TO-END for FileOrganizer now.
-RUN AUTOPACK END-TO-END for FileOrganizer using REVISED_PLAN_V2.md now.
-RUN AUTOPACK END-TO-END for ShoppingCart using SPRINT_3_TASKS.md now.
+fileorganizer/
+ backend/          # Python FastAPI backend
+    app/
+       models/       # SQLAlchemy models
+       routers/      # API endpoints
+       services/     # Business logic
+       core/         # Config, logging, errors
+    packs/            # YAML pack templates
+    tests/            # Pytest test suite
+
+ frontend/         # Electron + React frontend
+     electron/         # Electron main process
+     src/
+        pages/        # React pages
+        components/   # React components
+     public/           # Static assets
 ```
+
+## Technology Stack
+
+**Backend:**
+- Python 3.11+ / FastAPI
+- SQLAlchemy + SQLite
+- Tesseract OCR + PyMuPDF
+- OpenAI GPT-4 (litellm)
+- ReportLab (PDF) / openpyxl (Excel)
+
+**Frontend:**
+- Electron 28+
+- React 18 + TypeScript
+- Tailwind CSS
+- Zustand (state management)
+- Vite (build tool)
+
+## Configuration
+
+See `.env.template` for all configuration options.
+
+Key settings:
+- `OPENAI_API_KEY` - Required for AI classification
+- `TESSERACT_CMD` - Path to Tesseract (auto-detected if not set)
+- `MAX_FILE_SIZE_MB` - Maximum upload size (default: 50 MB)
+
+## Limitations (v1.0 Alpha)
+
+- [WARNING] **Generic packs only** - No country-specific templates yet
+- [WARNING] **English only** - OCR optimized for English documents
+- [WARNING] **Single user** - No multi-user support
+- [WARNING] **Local only** - No cloud sync
+
+Future versions will address these limitations.
+
+## Contributing
+
+Contributions welcome! Please open an issue first to discuss major changes.
+
+## License
+
+MIT License - See LICENSE file for details
+
+## Support
+
+- **Issues:** https://github.com/<your-org>/fileorganizer/issues
+- **Documentation:** docs/USER_GUIDE.md
+- **Email:** support@example.com
 
 ---
 
-## Custom Task File Support (NEW)
-
-The generic `autopack_runner.py` now supports running Autopack with **any markdown task file**, not just WHATS_LEFT_TO_BUILD.md.
-
-### Why Use Custom Task Files?
-
-1. **Revised Plans**: When your plan changes, save it as `REVISED_PLAN_V2.md` and run it without overwriting the original
-2. **Sprint Organization**: Organize tasks by sprint: `SPRINT_1_TASKS.md`, `SPRINT_2_TASKS.md`
-3. **Hotfixes**: Create `HOTFIX_PLAN.md` for urgent fixes
-4. **Feature Branches**: Feature-specific tasks in `FEATURE_AUTH_TASKS.md`
-5. **Experimental Work**: Test new approaches in `EXPERIMENTAL_PLAN.md`
-
-### Magic Phrase Syntax
-
-**Pattern:**
-```
-RUN AUTOPACK END-TO-END for <ProjectName> using <TaskFile.md> now.
-```
-
-**What Cursor Executes:**
-```bash
-cd c:/dev/Autopack/.autonomous_runs/<project-slug>
-python scripts/autopack_runner.py --non-interactive --tasks-file "<TaskFile.md>"
-```
-
-### Task File Format
-
-All task files must follow Autopack format:
-
-```markdown
-### Task 1: Task Name
-**Phase ID**: `unique-task-id`
-**Category**: backend|frontend|database|api|testing|docs|deployment
-**Complexity**: low|medium|high
-**Description**: What needs to be built
-
-**Acceptance Criteria**:
-- [ ] Criterion 1
-- [ ] Criterion 2
-
-**Dependencies**: None (or `other-task-id`)
-
-### Task 2: Another Task
-**Phase ID**: `another-task-id`
-**Category**: frontend
-**Complexity**: medium
-**Description**: Another description
-
-**Acceptance Criteria**:
-- [ ] Criterion 1
-
-**Dependencies**: `unique-task-id`
-```
-
-### Benefits
-
-- **Version Control**: Keep multiple plans in git, track changes with `git diff`
-- **Safety**: Run experimental plans without disturbing main plan
-- **Flexibility**: Switch between different execution strategies easily
-- **Organization**: Separate concerns (hotfixes, sprints, features)
-- **Rollback**: Easily return to previous plans if needed
-
----
-
-## Project Structure
-
-Each project follows this structure:
-
-```
-.autonomous_runs/<project-slug>/
-├── scripts/
-│   ├── autopack_runner.py          # Generic runner (works for any project)
-│   └── autopack_phase2_runner.py   # Legacy (FileOrganizer-specific)
-├── WHATS_LEFT_TO_BUILD.md          # Default task file
-├── REVISED_PLAN_V2.md              # Optional: Revised plan
-├── SPRINT_1_TASKS.md               # Optional: Sprint tasks
-├── HOTFIX_PLAN.md                  # Optional: Hotfix tasks
-├── PROJECT_README.md               # Project documentation
-└── run.sh                          # Wrapper script (optional)
-```
-
----
-
-## Command-Line Usage
-
-### Default Execution
-```bash
-cd .autonomous_runs/<project-slug>
-python scripts/autopack_runner.py --non-interactive
-```
-
-### Custom Task File
-```bash
-cd .autonomous_runs/<project-slug>
-python scripts/autopack_runner.py --non-interactive --tasks-file "REVISED_PLAN_V2.md"
-```
-
-### Interactive Mode (asks for confirmation)
-```bash
-cd .autonomous_runs/<project-slug>
-python scripts/autopack_runner.py
-```
-
----
-
-## Examples
-
-### Example 1: Revised Plan
-
-Your initial plan had 10 tasks, but after review, you revised it to 8 tasks with different priorities.
-
-**Create revised plan:**
-```bash
-# Edit .autonomous_runs/my-project-v1/REVISED_PLAN_V2.md with new tasks
-```
-
-**Run revised plan:**
-```
-RUN AUTOPACK END-TO-END for MyProject using REVISED_PLAN_V2.md now.
-```
-
-### Example 2: Sprint-Based Development
-
-You're doing agile development with 2-week sprints.
-
-**Create sprint files:**
-```bash
-# .autonomous_runs/shopping-cart-v1/SPRINT_1_TASKS.md
-# .autonomous_runs/shopping-cart-v1/SPRINT_2_TASKS.md
-# .autonomous_runs/shopping-cart-v1/SPRINT_3_TASKS.md
-```
-
-**Run sprint 1:**
-```
-RUN AUTOPACK END-TO-END for ShoppingCart using SPRINT_1_TASKS.md now.
-```
-
-**Run sprint 2:**
-```
-RUN AUTOPACK END-TO-END for ShoppingCart using SPRINT_2_TASKS.md now.
-```
-
-### Example 3: Hotfix
-
-Production bug requires urgent fix without disturbing main development plan.
-
-**Create hotfix plan:**
-```bash
-# Edit .autonomous_runs/api-gateway-v1/HOTFIX_PLAN.md with urgent fixes
-```
-
-**Run hotfix:**
-```
-RUN AUTOPACK END-TO-END for APIGateway using HOTFIX_PLAN.md now.
-```
-
-### Example 4: Experimental Feature
-
-You want to test a new approach without committing to the main plan.
-
-**Create experimental plan:**
-```bash
-# Edit .autonomous_runs/chatbot-v1/EXPERIMENTAL_PLAN.md
-```
-
-**Run experiment:**
-```
-RUN AUTOPACK END-TO-END for ChatBot using EXPERIMENTAL_PLAN.md now.
-```
-
----
-
-## Environment Variables
-
-```bash
-# Autopack API URL (default: http://localhost:8000)
-export AUTOPACK_API_URL=http://localhost:8000
-
-# Autopack API Key (if authentication enabled)
-export AUTOPACK_API_KEY=your-api-key-here
-```
-
----
-
-## Existing Projects
-
-### FileOrganizer (file-organizer-app-v1)
-
-FileOrganizer is the reference implementation demonstrating the magic phrase pattern.
-
-**Run FileOrganizer:**
-```
-RUN AUTOPACK END-TO-END for FileOrganizer now.
-```
-
-**Run with custom plan:**
-```
-RUN AUTOPACK END-TO-END for FileOrganizer using REVISED_PLAN_V2.md now.
-```
-
-**Legacy (backward compatibility):**
-```
-RUN AUTOPACK PHASE 2 END-TO-END for FileOrganizer now.
-```
-
----
-
-## Key Files
-
-- [QUICK_REFERENCE.md](QUICK_REFERENCE.md) - Quick reference for magic phrases
-- [NEW_PROJECT_SETUP_GUIDE.md](NEW_PROJECT_SETUP_GUIDE.md) - Detailed setup guide
-- [file-organizer-app-v1/MAGIC_PHRASE.md](file-organizer-app-v1/MAGIC_PHRASE.md) - Magic phrase documentation
-- [file-organizer-app-v1/HOW_TO_RUN_PHASE2.md](file-organizer-app-v1/HOW_TO_RUN_PHASE2.md) - FileOrganizer-specific guide
-
----
-
-## Troubleshooting
-
-### Error: "No tasks found in <TaskFile.md>"
-
-**Cause:** The task file is empty or doesn't follow Autopack format.
-
-**Solution:** Ensure the file has tasks in the correct format:
-```markdown
-### Task 1: Task Name
-**Phase ID**: `task-id`
-**Category**: backend
-**Complexity**: low
-**Description**: Description
-
-**Acceptance Criteria**:
-- [ ] Criterion 1
-
-**Dependencies**: None
-```
-
-### Error: "Tasks file not found: <TaskFile.md>"
-
-**Cause:** The specified file doesn't exist in the project directory.
-
-**Solution:** Create the file or check the filename spelling.
-
-### Error: "Autopack service not available"
-
-**Cause:** Autopack service is not running and auto-start failed.
-
-**Solution:** Check port 8000 availability or manually start the service:
-```bash
-cd c:/dev/Autopack
-uvicorn src.autopack.main:app --reload --host 0.0.0.0 --port 8000
-```
-
----
-
-## Summary
-
-**For New Projects:**
-```
-SET UP NEW AUTOPACK PROJECT: MyApp
-```
-
-**For Running (Default):**
-```
-RUN AUTOPACK END-TO-END for MyApp now.
-```
-
-**For Running (Custom Task File):**
-```
-RUN AUTOPACK END-TO-END for MyApp using CUSTOM_TASKS.md now.
-```
-
-Fully autonomous execution with zero manual setup required!
+**Built with Autopack** - 100% Autonomous AI Code Generation
+**Version:** 1.0.0-alpha
+**Released:** 2025-11-28

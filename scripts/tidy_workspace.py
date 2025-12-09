@@ -34,6 +34,11 @@ try:
 except ImportError:  # pragma: no cover
     OpenAI = None
 
+try:
+    from dotenv import load_dotenv
+except ImportError:  # pragma: no cover
+    load_dotenv = None
+
 # Ensure sibling imports work when invoked from repo root
 SCRIPT_DIR = Path(__file__).resolve().parent
 REPO_ROOT = SCRIPT_DIR.parent
@@ -387,6 +392,8 @@ def semantic_analysis(
 
 def get_openai_client():
     """Instantiate OpenAI-compatible client (used for glm-4.6)."""
+    if load_dotenv:
+        load_dotenv()
     if OpenAI is None:
         return None
     api_key = os.getenv("OPENAI_API_KEY") or os.getenv("GLM_API_KEY")

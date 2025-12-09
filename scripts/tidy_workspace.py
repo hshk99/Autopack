@@ -30,14 +30,11 @@ import hashlib
 import json
 
 try:
-    from openai import OpenAI
-except ImportError:  # pragma: no cover
-    OpenAI = None
-
-try:
     from dotenv import load_dotenv
 except ImportError:  # pragma: no cover
     load_dotenv = None
+
+from glm_native_client import NativeGLMClient
 
 # Ensure sibling imports work when invoked from repo root
 SCRIPT_DIR = Path(__file__).resolve().parent
@@ -303,16 +300,13 @@ File content (truncated):
             "rationale": "LLM client unavailable; defaulting to archive suggestion for safety.",
         }
     try:
-        resp = client.chat.completions.create(
-            model=model,
+        text = client.chat(
             messages=[
                 {"role": "system", "content": "You are a concise documentation cleaner."},
                 {"role": "user", "content": prompt},
             ],
             temperature=0,
-            max_tokens=200,
         )
-        text = resp.choices[0].message.content
         # lightweight parse
         decision = "archive"
         rationale = text.strip()
@@ -337,7 +331,7 @@ def semantic_analysis(
     verbose: bool,
 ) -> list[dict]:
     """Run semantic classification over markdown-like files; no filesystem mutations."""
-    client = get_openai_client()
+    client = get_glm_client(model)
     cache = load_semantic_cache(cache_path)
     results = []
 
@@ -390,19 +384,14 @@ def semantic_analysis(
     return results
 
 
-def get_openai_client():
-    """Instantiate OpenAI-compatible client (used for glm-4.6)."""
+def get_glm_client(model: str):
+    """Instantiate native GLM client using GLM_API_KEY/GLM_API_BASE."""
     if load_dotenv:
         load_dotenv()
-    if OpenAI is None:
-        return None
-    api_key = os.getenv("OPENAI_API_KEY") or os.getenv("GLM_API_KEY")
-    base_url = os.getenv("OPENAI_BASE_URL") or os.getenv("GLM_API_BASE")
-    if not api_key:
-        return None
     try:
-        return OpenAI(api_key=api_key, base_url=base_url) if base_url else OpenAI(api_key=api_key)
-    except Exception:
+        return NativeGLMClient(model=model)
+    except Exception as exc:
+        print(f"[WARN] GLM client unavailable: {exc}")
         return None
 
 

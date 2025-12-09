@@ -59,24 +59,29 @@ def evaluate(input: AuditorInput) -> AuditorDecision:
 
     if not input.diagnostics_summary:
         reasons.append("no diagnostics summary")
-    if not input.diff.files_changed:
+
+    # Handle None diff (no patch provided)
+    if input.diff is None:
         reasons.append("no diff provided")
+    else:
+        if not input.diff.files_changed:
+            reasons.append("no diff provided")
 
-    # Protected path check
-    for f in input.diff.files_changed:
-        if _path_within(f, input.protected_paths):
-            reasons.append(f"protected path touched: {f}")
+        # Protected path check
+        for f in input.diff.files_changed:
+            if _path_within(f, input.protected_paths):
+                reasons.append(f"protected path touched: {f}")
 
-    # Allowed path check
-    for f in input.diff.files_changed:
-        if input.allowed_paths and not _path_within(f, input.allowed_paths):
-            reasons.append(f"out of scope: {f}")
+        # Allowed path check
+        for f in input.diff.files_changed:
+            if input.allowed_paths and not _path_within(f, input.allowed_paths):
+                reasons.append(f"out of scope: {f}")
 
-    # Size checks
-    if len(input.diff.files_changed) > input.max_files:
-        reasons.append(f"too many files: {len(input.diff.files_changed)}>{input.max_files}")
-    if (input.diff.lines_added + input.diff.lines_deleted) > input.max_lines:
-        reasons.append(f"too many lines: {input.diff.lines_added + input.diff.lines_deleted}>{input.max_lines}")
+        # Size checks
+        if len(input.diff.files_changed) > input.max_files:
+            reasons.append(f"too many files: {len(input.diff.files_changed)}>{input.max_files}")
+        if (input.diff.lines_added + input.diff.lines_deleted) > input.max_lines:
+            reasons.append(f"too many lines: {input.diff.lines_added + input.diff.lines_deleted}>{input.max_lines}")
 
     # Tests
     if not input.tests:

@@ -704,10 +704,13 @@ def main():
             return superseded_root / Path(*parts)
 
         # Special handling for generic archive root: bucket directly under archive/superseded with flattening
+        normalize_dest_fn = lambda p: p
+
         if root == REPO_ROOT / "archive":
             actions: List[Action] = []
             superseded_mode = True
             superseded_target = REPO_ROOT / "archive" / "superseded"
+            normalize_dest_fn = lambda p: normalize_dest_generic(p, superseded_target, root)
             research_keywords = ["research", "brief", "market", "strategy", "strategic_review", "immigration_visa", "tax", "fileorganizer_final"]
             delegation_keywords = ["delegation", "gpt", "openai", "codex"]
             phase_keywords = ["phase_", "p1", "p2", "p3", "p4", "p5", "p6", "p7", "p8", "p9"]
@@ -822,6 +825,7 @@ def main():
                 parts = collapse_runs(parts)
                 parts = collapse_duplicate_buckets(parts)
                 return superseded_target / Path(*parts)
+            normalize_dest_fn = normalize_dest
 
             for dirpath, dirnames, filenames in os.walk(root):
                 dirnames[:] = [d for d in dirnames if d not in {".git", "node_modules", ".pytest_cache", "__pycache__", ".venv", "venv"}]

@@ -677,7 +677,7 @@ def main():
             prompt_keywords = ["prompt"]
             debug_keywords = ["debug", "error", "journal", "diagnostic"]
             ref_keywords = ["ref_", "ref"]
-            report_keywords = ["consolidated", "build", "report", "readme", "setup", "tracking", "plan", "manual"]
+            report_keywords = ["consolidated", "build", "report", "readme", "setup", "tracking", "plan", "manual", "how_to", "spec", "summary", "checklist", "task"]
             bucket_names = {"research", "delegations", "phases", "tiers", "prompts", "diagnostics", "runs", "refs", "reports"}
 
             def bucket_for(name: str) -> str:
@@ -759,7 +759,7 @@ def main():
                     if rel_parts and rel_parts[0] in bucket_names:
                         existing_bucket = rel_parts.pop(0)
                     rel_parts = collapse_duplicate_buckets(rel_parts)
-                    bucket = bucket_hint or existing_bucket or bucket_for(fname)
+                    bucket = bucket_hint or existing_bucket or bucket_for(fname) or "reports"
                     target_base = superseded_target / bucket if bucket else superseded_target
                     dest = normalize_dest(target_base / Path(*rel_parts))
                     actions.append(Action("move", src, dest, "superseded->project archive"))

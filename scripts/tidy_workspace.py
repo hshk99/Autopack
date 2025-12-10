@@ -690,15 +690,13 @@ def main():
             return out
 
         def normalize_dest_generic(path: Path, superseded_root: Path, root_base: Path) -> Path:
-            # Normalize any destination to live under superseded_root, stripping duplicate archive/superseded,
+            # Normalize any destination to live under superseded_root, stripping any archive/superseded segments,
             # runs/<*> pairs, and duplicate bucket segments.
             try:
                 rel = path.relative_to(root_base)
             except Exception:
                 rel = Path(path.name)
-            parts = list(rel.parts)
-            while parts and parts[0] in {"archive", "superseded"}:
-                parts.pop(0)
+            parts = [p for p in rel.parts if p not in {"archive", "superseded"}]
             parts = collapse_runs_any(parts)
             parts = collapse_duplicate_buckets(parts)
             return superseded_root / Path(*parts)
@@ -826,6 +824,9 @@ def main():
                 parts = collapse_duplicate_buckets(parts)
                 return superseded_target / Path(*parts)
             normalize_dest_fn = normalize_dest
+        elif superseded_mode and normalize_dest_fn == (lambda p: p):
+            # Generic superseded root: ensure we still normalize
+            normalize_dest_fn = lambda p: normalize_dest_generic(p, superseded_target, root)
 
             for dirpath, dirnames, filenames in os.walk(root):
                 dirnames[:] = [d for d in dirnames if d not in {".git", "node_modules", ".pytest_cache", "__pycache__", ".venv", "venv"}]

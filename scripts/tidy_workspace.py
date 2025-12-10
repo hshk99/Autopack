@@ -922,7 +922,7 @@ def main():
         if superseded_mode:
             normed: List[Action] = []
             for a in actions:
-                dest = normalize_dest(a.dest) if a.dest else None
+                dest = normalize_dest_fn(a.dest) if a.dest else None
                 normed.append(Action(a.kind, a.src, dest, a.reason))
             actions = normed
 

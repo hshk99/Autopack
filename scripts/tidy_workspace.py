@@ -667,6 +667,41 @@ def main():
         superseded_mode = "superseded" in root.parts
         project_root_path = REPO_ROOT / ".autonomous_runs" / "file-organizer-app-v1"
         superseded_target = project_root_path / "archive" / "superseded"
+        bucket_names = {"research", "delegations", "phases", "tiers", "prompts", "diagnostics", "runs", "refs", "reports"}
+
+        def collapse_duplicate_buckets(parts: List[str]) -> List[str]:
+            collapsed: List[str] = []
+            for p in parts:
+                if collapsed and p == collapsed[-1] and p in bucket_names:
+                    continue
+                collapsed.append(p)
+            return collapsed
+
+        def collapse_runs_any(parts: List[str]) -> List[str]:
+            out: List[str] = []
+            i = 0
+            while i < len(parts):
+                if i + 1 < len(parts) and parts[i] == "runs":
+                    # drop runs/<anything>
+                    i += 2
+                    continue
+                out.append(parts[i])
+                i += 1
+            return out
+
+        def normalize_dest_generic(path: Path, superseded_root: Path, root_base: Path) -> Path:
+            # Normalize any destination to live under superseded_root, stripping duplicate archive/superseded,
+            # runs/<*> pairs, and duplicate bucket segments.
+            try:
+                rel = path.relative_to(root_base)
+            except Exception:
+                rel = Path(path.name)
+            parts = list(rel.parts)
+            while parts and parts[0] in {"archive", "superseded"}:
+                parts.pop(0)
+            parts = collapse_runs_any(parts)
+            parts = collapse_duplicate_buckets(parts)
+            return superseded_root / Path(*parts)
 
         # Special handling for generic archive root: bucket directly under archive/superseded with flattening
         if root == REPO_ROOT / "archive":
@@ -681,7 +716,6 @@ def main():
             debug_keywords = ["debug", "error", "journal", "diagnostic"]
             ref_keywords = ["ref_", "ref"]
             report_keywords = ["consolidated", "build", "report", "readme", "setup", "tracking", "plan", "manual", "how_to", "spec", "summary", "checklist", "task"]
-            bucket_names = {"research", "delegations", "phases", "tiers", "prompts", "diagnostics", "runs", "refs", "reports"}
 
             def bucket_for(name: str) -> str:
                 ln = name.lower()
@@ -703,38 +737,6 @@ def main():
                     return "reports"
                 return ""
 
-            def collapse_duplicate_buckets(parts: List[str]) -> List[str]:
-                collapsed: List[str] = []
-                for p in parts:
-                    if collapsed and p == collapsed[-1] and p in bucket_names:
-                        continue
-                    collapsed.append(p)
-                return collapsed
-
-            def collapse_runs(parts: List[str]) -> List[str]:
-                out: List[str] = []
-                i = 0
-                while i < len(parts):
-                    if i + 1 < len(parts) and parts[i] == "runs":
-                        # drop runs/<any>
-                        i += 2
-                        continue
-                    out.append(parts[i])
-                    i += 1
-                return out
-
-            def normalize_dest(path: Path) -> Path:
-                try:
-                    rel = path.relative_to(superseded_target)
-                except ValueError:
-                    return path
-                parts = list(rel.parts)
-                while parts and parts[0] in {"archive", "superseded"}:
-                    parts.pop(0)
-                parts = collapse_runs(parts)
-                parts = collapse_duplicate_buckets(parts)
-                return superseded_target / Path(*parts)
-
             for dirpath, dirnames, filenames in os.walk(root):
                 dirnames[:] = [d for d in dirnames if d not in {".git", "node_modules", ".pytest_cache", "__pycache__", ".venv", "venv"}]
                 for fname in filenames:
@@ -747,7 +749,7 @@ def main():
                     rel_parts = list(rel.parts)
                     while rel_parts and rel_parts[0] in {"archive", "superseded"}:
                         rel_parts.pop(0)
-                    rel_parts = collapse_runs(rel_parts)
+                    rel_parts = collapse_runs_any(rel_parts)
                     bucket_hint = ""
                     if rel_parts and rel_parts[0] == "diagnostics":
                         bucket_hint = "diagnostics"
@@ -761,7 +763,7 @@ def main():
                     rel_parts = collapse_duplicate_buckets(rel_parts)
                     bucket = bucket_hint or existing_bucket or bucket_for(fname) or "reports"
                     target_base = superseded_target / bucket if bucket else superseded_target
-                    dest = normalize_dest(target_base / Path(*rel_parts))
+                    dest = normalize_dest_generic(target_base / Path(*rel_parts), superseded_target, root)
                     actions.append(Action("move", src, dest, "archive->superseded"))
             execute_actions(actions, dry_run=dry_run, checkpoint_dir=args.checkpoint_dir if not dry_run else None, logger=logger, run_id=run_id)
 
@@ -797,14 +799,6 @@ def main():
                     return "reports"
                 return ""
 
-            def collapse_duplicate_buckets(parts: List[str]) -> List[str]:
-                collapsed: List[str] = []
-                for p in parts:
-                    if collapsed and p == collapsed[-1] and p in bucket_names:
-                        continue
-                    collapsed.append(p)
-                return collapsed
-
             def collapse_runs(parts: List[str]) -> List[str]:
                 # Drop all runs/<project_id> pairs; diagnostics live under diagnostics bucket instead.
                 out: List[str] = []
@@ -821,7 +815,7 @@ def main():
                 try:
                     rel = path.relative_to(superseded_target)
                 except ValueError:
-                    return path
+                    return normalize_dest_generic(path, superseded_target, root)
                 parts = list(rel.parts)
                 while parts and parts[0] in {"archive", "superseded"}:
                     parts.pop(0)

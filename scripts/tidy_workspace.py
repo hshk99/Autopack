@@ -676,22 +676,31 @@ def main():
             tier_keywords = ["tier_00", "tier_01", "tier_02", "tier_03", "tier_04", "tier_05"]
             prompt_keywords = ["prompt"]
             debug_keywords = ["debug", "error", "journal", "diagnostic"]
+            bucket_names = {"research", "delegations", "phases", "tiers", "prompts", "diagnostics", "runs"}
 
-            def bucket_for(name: str) -> Path:
+            def bucket_for(name: str) -> str:
                 ln = name.lower()
                 if any(k in ln for k in research_keywords):
-                    return superseded_target / "research"
+                    return "research"
                 if any(k in ln for k in delegation_keywords):
-                    return superseded_target / "delegations"
+                    return "delegations"
                 if any(ln.startswith(k) for k in tier_keywords):
-                    return superseded_target / "tiers"
+                    return "tiers"
                 if ln.startswith("phase_") or any(k in ln for k in phase_keywords):
-                    return superseded_target / "phases"
+                    return "phases"
                 if any(k in ln for k in prompt_keywords):
-                    return superseded_target / "prompts"
+                    return "prompts"
                 if any(k in ln for k in debug_keywords):
-                    return superseded_target / "diagnostics"
-                return superseded_target
+                    return "diagnostics"
+                return ""
+
+            def collapse_duplicate_buckets(parts: List[str]) -> List[str]:
+                collapsed: List[str] = []
+                for p in parts:
+                    if collapsed and p == collapsed[-1] and p in bucket_names:
+                        continue
+                    collapsed.append(p)
+                return collapsed
 
             for dirpath, dirnames, filenames in os.walk(root):
                 dirnames[:] = [d for d in dirnames if d not in {".git", "node_modules", ".pytest_cache", "__pycache__", ".venv", "venv"}]
@@ -702,8 +711,15 @@ def main():
                     if is_protected(src):
                         continue
                     rel = src.relative_to(root)
-                    target_base = bucket_for(fname)
-                    dest = target_base / rel
+                    rel_parts = list(rel.parts)
+                    # Preserve existing bucket if present, but drop duplicate nesting
+                    existing_bucket = ""
+                    if rel_parts and rel_parts[0] in bucket_names:
+                        existing_bucket = rel_parts.pop(0)
+                    rel_parts = collapse_duplicate_buckets(rel_parts)
+                    bucket = existing_bucket or bucket_for(fname)
+                    target_base = superseded_target / bucket if bucket else superseded_target
+                    dest = target_base / Path(*rel_parts)
                     actions.append(Action("move", src, dest, "superseded->project archive"))
             execute_actions(actions, dry_run=dry_run, checkpoint_dir=args.checkpoint_dir if not dry_run else None, logger=logger, run_id=run_id)
         else:

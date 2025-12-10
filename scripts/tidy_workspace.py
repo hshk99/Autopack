@@ -720,6 +720,18 @@ def main():
                     i += 1
                 return out
 
+            def normalize_dest(path: Path) -> Path:
+                try:
+                    rel = path.relative_to(superseded_target)
+                except ValueError:
+                    return path
+                parts = list(rel.parts)
+                while parts and parts[0] in {"archive", "superseded"}:
+                    parts.pop(0)
+                parts = collapse_runs(parts)
+                parts = collapse_duplicate_buckets(parts)
+                return superseded_target / Path(*parts)
+
             for dirpath, dirnames, filenames in os.walk(root):
                 dirnames[:] = [d for d in dirnames if d not in {".git", "node_modules", ".pytest_cache", "__pycache__", ".venv", "venv"}]
                 for fname in filenames:
@@ -741,7 +753,7 @@ def main():
                     rel_parts = collapse_duplicate_buckets(rel_parts)
                     bucket = existing_bucket or bucket_for(fname)
                     target_base = superseded_target / bucket if bucket else superseded_target
-                    dest = target_base / Path(*rel_parts)
+                    dest = normalize_dest(target_base / Path(*rel_parts))
                     actions.append(Action("move", src, dest, "superseded->project archive"))
             execute_actions(actions, dry_run=dry_run, checkpoint_dir=args.checkpoint_dir if not dry_run else None, logger=logger, run_id=run_id)
         else:
@@ -802,6 +814,14 @@ def main():
                     rel = p.relative_to(root)
                     dest = archive_dir / rel
                     actions.append(Action("move", p, dest, "semantic archive"))
+
+        # Normalize superseded destinations (dedup archive/superseded and runs/<project>)
+        if superseded_mode:
+            normed: List[Action] = []
+            for a in actions:
+                dest = normalize_dest(a.dest) if a.dest else None
+                normed.append(Action(a.kind, a.src, dest, a.reason))
+            actions = normed
 
         # Apply truth merge suggestions (append content) if requested
         if args.semantic and args.apply_truth_merge and args.truth_merge_report and not dry_run:

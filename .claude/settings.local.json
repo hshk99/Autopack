@@ -42,7 +42,8 @@
       "Bash(PYTHONPATH=src DATABASE_URL=\"postgresql://autopack:autopack@localhost:5432/autopack\" QDRANT_HOST=\"http://localhost:6333\" python:*)",
       "Bash(bash:*)",
       "Bash(PYTHONPATH=../src DATABASE_URL=\"postgresql://autopack:autopack@localhost:5432/autopack\" QDRANT_HOST=\"http://localhost:6333\":*)",
-      "Bash(PYTHONUTF8=1 PYTHONPATH=src DATABASE_URL=\"postgresql://autopack:autopack@localhost:5432/autopack\" python -m pytest:*)"
+      "Bash(PYTHONUTF8=1 PYTHONPATH=src DATABASE_URL=\"postgresql://autopack:autopack@localhost:5432/autopack\" python -m pytest:*)",
+      "Bash(PYTHONUTF8=1 PYTHONPATH=src DATABASE_URL=\"postgresql://autopack:autopack@localhost:5432/autopack\" QDRANT_HOST=\"http://localhost:6333\" python -m pytest:*)"
     ],
     "deny": [],
     "ask": []

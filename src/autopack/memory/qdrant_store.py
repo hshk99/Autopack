@@ -221,13 +221,13 @@ class QdrantStore:
                 if must_conditions:
                     qdrant_filter = Filter(must=must_conditions)
 
-            # Search
-            search_result = self.client.search(
+            # Search using query_points API (search is deprecated)
+            search_result = self.client.query_points(
                 collection_name=collection,
-                query_vector=query_vector,
+                query=query_vector,
                 query_filter=qdrant_filter,
                 limit=limit,
-            )
+            ).points
 
             # Convert to common format
             results = []

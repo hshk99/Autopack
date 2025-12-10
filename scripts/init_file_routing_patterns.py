@@ -346,11 +346,11 @@ def verify_collection(client: QdrantClient, collection_name: str):
 
         for query in test_queries:
             query_vector = model.encode(query, normalize_embeddings=True).tolist()
-            results = client.search(
+            results = client.query_points(
                 collection_name=collection_name,
-                query_vector=query_vector,
+                query=query_vector,
                 limit=2
-            )
+            ).points
 
             print(f"\n  Query: '{query}'")
             for result in results:

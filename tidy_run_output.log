@@ -1599,3 +1599,7 @@ Running documentation update hook...
 [GIT] Created checkpoint commit: tidy auto checkpoint (post)
 
 [SUCCESS] Tidy complete (dry_run=False)
+warning: in the working copy of 'tidy_run_output.log', LF will be replaced by CRLF the next time Git touches it
+Running documentation update hook...
+[main 651a10f6] tidy auto checkpoint (pre)
+ 1 file changed, 67 insertions(+)

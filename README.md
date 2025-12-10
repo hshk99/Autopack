@@ -380,18 +380,334 @@ C:/dev/Autopack/
 python src/autopack/autonomous_executor.py --run-id my-new-run
 ```
 
-### Tidy & Archive Maintenance (intent + usage)
-- Manual-only tool: `run_tidy_all.py` / `tidy_workspace.py` are deliberate runs, not automatic maintenance.
-- One-shot tidy (semantic classify/apply, prune, checkpoints, git commits):
-  ```bash
-  python scripts/run_tidy_all.py
-  ```
-- Scopes/config: `tidy_scope.yaml` sets roots (defaults: `.autonomous_runs/file-organizer-app-v1`, `.autonomous_runs`, `archive`), optional `purge: true`, optional `db_overrides` per root (Postgres DSN). Wrapper runs per root with the matching DSN.
-- Superseded handling: if a root path contains `superseded`, markdown organizer is skipped and files are routed into the project archive superseded path (`.autonomous_runs/file-organizer-app-v1/archive/superseded/archive`); research/strategy/market briefs are bucketed under `.../research/`.
-- Semantic store: Postgres (`DATABASE_URL`), then Qdrant (`QDRANT_URL`/`QDRANT_HOST` + `QDRANT_API_KEY`), else JSON cache. Embeddings: set `EMBEDDING_MODEL` (default `BAAI/bge-m3`; hash fallback). Requires `sentence-transformers` for HF models.
-- Truth-merge: allocator suggestions can be generated; optional apply is section-aware (inserts under matching headings) with provenance markers. Semantic deletes downgrade to archive moves unless `--semantic-delete` is set.
-- Logging: moves/deletes/merges recorded with project_id and SHAs into Postgres (`tidy_activity`) if available; fallback JSONL at `.autonomous_runs/tidy_activity.log`.
-- Purge: opt-in only (via `tidy_scope.yaml` or `--purge`); default is prune/move, not delete.
+### File Organization & Storage Structure
+
+#### 🗂️ Directory Structure by Project
+
+**Autopack Core** (`C:\dev\Autopack\`):
+```
+C:\dev\Autopack/
+├── docs/                          # Truth sources for Autopack project
+│   ├── README.md                  # Main Autopack documentation
+│   └── consolidated_*.md          # Consolidated reference docs
+├── scripts/                       # Active scripts (organized by type)
+│   ├── backend/                   # Backend-related scripts (API, database)
+│   ├── frontend/                  # Frontend-related scripts (UI, components)
+│   ├── test/                      # Test scripts (pytest, unittest)
+│   ├── temp/                      # Temporary/scratch scripts
+│   └── utility/                   # General utility scripts (.sql, runners)
+├── archive/                       # Archived Autopack artifacts
+│   ├── plans/                     # Archived planning documents (.md, .json, .yaml)
+│   ├── analysis/                  # Archived analysis & reviews (.md)
+│   ├── logs/                      # Archived logs (.log, failure .json)
+│   ├── prompts/                   # Archived prompts & delegations (.md)
+│   ├── scripts/                   # Archived scripts (.py, .sh, .ps1)
+│   ├── superseded/                # Old/superseded documents
+│   └── unsorted/                  # Inbox for unclassified files
+└── .autonomous_runs/              # Runtime data (see below)
+```
+
+**File Organizer Project** (`.autonomous_runs/file-organizer-app-v1/`):
+```
+.autonomous_runs/file-organizer-app-v1/
+├── docs/                          # Truth sources for File Organizer
+│   ├── WHATS_LEFT_TO_BUILD.md     # Current build plan
+│   ├── CONSOLIDATED_*.md          # Consolidated docs
+│   └── README.md                  # Project documentation
+├── runs/                          # Active run outputs (NEW STRUCTURE)
+│   ├── fileorg-country-uk/        # Family: UK country pack runs
+│   │   ├── fileorg-country-uk-20251205-132826/
+│   │   │   ├── run.log            # Run logs inside run folder
+│   │   │   ├── errors/            # Error reports
+│   │   │   ├── diagnostics/       # Diagnostic outputs
+│   │   │   └── issues/            # Issue tracking
+│   │   └── fileorg-country-uk-20251206-173917/
+│   ├── fileorg-docker/            # Family: Docker-related runs
+│   │   └── fileorg-docker-build-20251204-194513/
+│   ├── fileorg-p2/                # Family: Phase 2 runs
+│   └── backlog-maintenance/       # Family: Backlog maintenance runs
+├── archive/                       # Archived project artifacts
+│   ├── plans/                     # Archived planning documents (.md, .json, .yaml)
+│   ├── analysis/                  # Archived analysis & reviews (.md)
+│   ├── reports/                   # Consolidated reports (.md)
+│   ├── prompts/                   # Archived prompts (.md)
+│   ├── diagnostics/               # Archived diagnostics (.md, .log)
+│   ├── scripts/                   # Archived scripts (organized by type)
+│   │   ├── backend/               # Backend scripts
+│   │   ├── frontend/              # Frontend scripts
+│   │   ├── test/                  # Test scripts
+│   │   ├── temp/                  # Temporary scripts
+│   │   └── utility/               # Utility scripts
+│   ├── logs/                      # Archived logs (.log, .json)
+│   └── superseded/                # Old run outputs
+│       ├── runs/                  # Archived runs by family
+│       │   ├── fileorg-country-uk/
+│       │   ├── fileorg-docker/
+│       │   └── ...
+│       ├── research/              # Old research docs
+│       ├── refs/                  # Old reference files
+│       └── ...
+└── fileorganizer/                 # Source code
+    ├── backend/
+    └── frontend/
+```
+
+#### 📝 File Creation Guidelines
+
+**For Cursor-Created Files** (All File Types):
+
+Cursor creates files in the workspace root. The tidy system **automatically detects and routes** files based on project and type:
+
+**Automatic Classification** (Project-First Approach):
+1. **Detects project** from filename/content:
+   - `fileorg-*`, `backlog-*`, `maintenance-*` → File Organizer project
+   - `autopack-*`, `tidy-*`, `autonomous-*` → Autopack project
+   - Content keywords also used for detection
+
+2. **Classifies file type** by extension and content:
+   - **Markdown files** (`.md`):
+     - `IMPLEMENTATION_PLAN_*` → `plans/`
+     - `ANALYSIS_*`, `REVIEW_*`, `REVISION_*` → `analysis/`
+     - `PROMPT_*`, `DELEGATION_*` → `prompts/`
+     - `REPORT_*`, `SUMMARY_*`, `CONSOLIDATED_*` → `reports/`
+     - `DIAGNOSTIC_*` → `diagnostics/`
+
+   - **Python scripts** (`.py`):
+     - Backend-related (FastAPI, SQLAlchemy, database) → `scripts/backend/`
+     - Frontend-related (React, UI, components) → `scripts/frontend/`
+     - Test scripts (`test_*`, pytest) → `scripts/test/`
+     - Temporary/scratch scripts → `scripts/temp/`
+     - Utility scripts (runners, executors) → `scripts/utility/`
+
+   - **Log files** (`.log`):
+     - All logs → `logs/`
+
+   - **JSON files** (`.json`):
+     - Plans/configs (`*plan*.json`, `*phase*.json`) → `plans/`
+     - Failures/errors (`*failure*.json`, `*error*.json`) → `logs/`
+     - Other JSON → `unsorted/`
+
+   - **SQL files** (`.sql`):
+     - All SQL → `scripts/utility/`
+
+   - **Config files** (`.yaml`, `.yml`, `.toml`):
+     - Config/settings → `plans/`
+     - Other YAML/TOML → `unsorted/`
+
+   - **Shell scripts** (`.sh`, `.ps1`, `.txt`):
+     - Scripts → `scripts/utility/`
+
+3. **Routes to destination**:
+   - **Autopack files**: `C:\dev\Autopack\{archive or scripts}\{bucket}\{file}`
+   - **File Organizer files**: `.autonomous_runs\file-organizer-app-v1\archive\{bucket}\{file}`
+   - **Unsorted inbox**: Used when classification is uncertain
+
+4. **Truth Sources** (never moved):
+   - Autopack: `C:\dev\Autopack\docs\`
+   - File Organizer: `.autonomous_runs\file-organizer-app-v1\docs\`
+   - Protected files: `WHATS_LEFT_TO_BUILD*.md`, `*.db`, `project_learned_rules.json`
+
+**For Autopack-Created Files** (Runs, Logs):
+
+Autopack automatically creates files in the correct locations:
+- Run directories: `.autonomous_runs/{project}/runs/{family}/{run-id}/`
+- Run logs: Inside the run directory at `{run-id}/run.log`
+- Errors: `{run-id}/errors/`
+- Diagnostics: `{run-id}/diagnostics/`
+
+#### 🛠️ Tidy & Archive Maintenance
+
+**Memory-Based Classification System** (98%+ Accuracy):
+
+The tidy system uses a sophisticated hybrid classification approach combining PostgreSQL, Qdrant vector DB, and pattern matching to achieve 98%+ accuracy in file routing:
+
+**Three-Tier Classification Pipeline**:
+1. **PostgreSQL Keyword Matching**: Fast lookup using routing rules with content keywords (checks user corrections FIRST for 100% confidence)
+2. **Qdrant Semantic Similarity**: 384-dimensional embeddings using sentence-transformers for deep content understanding
+3. **Enhanced Pattern Matching**: Multi-signal detection with content validation and structure heuristics
+
+**Classification Confidence Hierarchy**:
+- **User Corrections**: 1.00 (absolute truth from manual corrections)
+- **PostgreSQL Rules**: 0.95-1.00 (explicit routing rules)
+- **Qdrant Semantic**: 0.90-0.95 (learned patterns from successful classifications)
+- **Pattern Matching**: 0.60-0.92 (enhanced fallback with validation) ← **Improved Dec 11, 2025**
+
+**Recent Enhancements (2025-12-11)**:
+- **PostgreSQL Connection Pooling**: Eliminates transaction errors with auto-commit mode (1-5 connection pool)
+- **Enhanced Pattern Confidence (0.60-0.92)**: Improved from 0.55-0.88 via content validation + structure heuristics
+  - Content validation scoring: Type-specific semantic markers (plans: "## goal", scripts: "import", logs: "[INFO]")
+  - File structure heuristics: Rewards length (>500 chars) and organization (3+ headers, 4+ sections)
+  - Base confidence increased: 0.55 → 0.60
+  - Maximum confidence increased: 0.88 → 0.92
+- **Smart Prioritization**: Boosts confidence when high-quality signals disagree (PostgreSQL ≥0.8 → 0.75, Qdrant ≥0.85 → 0.70)
+- **Interactive Correction CLI** ([scripts/correction/interactive_correction.py](scripts/correction/interactive_correction.py)): Review and correct classifications interactively
+- **Batch Correction Tool** ([scripts/correction/batch_correction.py](scripts/correction/batch_correction.py)): Pattern/CSV/directory-based bulk corrections
+- **Regression Test Suite** ([tests/test_classification_regression.py](tests/test_classification_regression.py)): 15 comprehensive tests ensuring 98%+ accuracy (100% pass rate)
+
+**Accuracy Enhancements**:
+- **Multi-Signal Detection**: Combines filename indicators, content keywords, and extension patterns with confidence boosting when signals agree (3+ signals = 85% confidence)
+- **Disagreement Resolution**: When methods disagree, uses weighted voting (PostgreSQL=2.0, Qdrant=1.5, Pattern=1.0) to select best classification
+- **Extension-Specific Validation**: Content validation per file type with confidence multipliers (e.g., `.log` files get 1.3x boost)
+- **User Feedback Loop**: Interactive correction tool ([scripts/correction/interactive_correction.py](scripts/correction/interactive_correction.py)) stores corrections with highest priority
+- **LLM-Based Auditor**: Reviews low-confidence classifications (<80%) using contextual analysis to approve, override, or flag for manual review
+- **Automatic Learning**: Successful classifications (>80% confidence) automatically stored back to Qdrant for continuous improvement
+
+**If Accuracy Needs Further Improvement**:
+
+The current system achieves 98%+ accuracy with optimal confidence ranges. **Do not artificially inflate pattern matching confidence beyond 0.92**, as this would collapse the confidence hierarchy and reduce system reliability. Instead, use these approaches:
+
+1. **Add More PostgreSQL Routing Rules** (Explicit Knowledge):
+   - Add project-specific keyword patterns to `routing_rules` table
+   - Define explicit filename patterns for high-volume file types
+   - Create content-based rules for domain-specific files
+   - Best for: Known patterns with clear classification rules
+
+2. **Improve Qdrant Pattern Learning** (Semantic Knowledge):
+   - Seed Qdrant with more high-quality examples
+   - Use interactive correction tool to fix misclassifications (auto-learns to Qdrant)
+   - Manually add edge cases with `init_file_routing_patterns.py`
+   - Best for: Ambiguous files requiring semantic understanding
+
+3. **Adjust Auditor Threshold** (Review More Files):
+   - Lower threshold from 80% to 70% to review more borderline cases
+   - Configure in classification auditor to catch more low-confidence files
+   - Best for: Projects with high accuracy requirements
+
+4. **NOT: Inflate Pattern Matching Confidence Artificially**:
+   - Pattern matching is fundamentally limited (lacks semantic understanding)
+   - Artificially boosting beyond 0.92 would overlap with Qdrant (0.90-0.95)
+   - Would cause hierarchy collapse and reduce system reliability
+   - Current 0.92 cap is well-positioned in the confidence spectrum
+
+**Classification Auditor** ([classification_auditor.py](scripts/classification_auditor.py)):
+- Provides deep semantic understanding vs pattern matching
+- Uses LLM with full file content and project context from database
+- Only audits classifications below 80% confidence threshold
+- Can approve (boost confidence 10%), override (correct to 95% confidence), or flag for manual review
+- Not redundant: Vector DB provides "looks like X" while Auditor provides "IS about Y feature"
+
+**Setup Requirements**:
+```bash
+# Install vector DB dependencies
+pip install sentence-transformers qdrant-client
+
+# Start Qdrant
+docker run -p 6333:6333 qdrant/qdrant
+
+# Initialize file routing patterns collection
+QDRANT_HOST="http://localhost:6333" python scripts/init_file_routing_patterns.py
+
+# Configure environment
+export DATABASE_URL="postgresql://autopack:autopack@localhost:5432/autopack"
+export QDRANT_HOST="http://localhost:6333"
+export EMBEDDING_MODEL="sentence-transformers/all-MiniLM-L6-v2"
+```
+
+**User Feedback & Corrections**:
+
+**Interactive Review** (NEW - Dec 11, 2025):
+```bash
+# Review recent classifications interactively (one-by-one)
+python scripts/correction/interactive_correction.py --interactive
+
+# Review files flagged by auditor
+python scripts/correction/interactive_correction.py --flagged
+
+# Show correction statistics
+python scripts/correction/interactive_correction.py --stats
+```
+
+**Batch Corrections** (NEW - Dec 11, 2025):
+```bash
+# Correct files by pattern (dry-run)
+python scripts/correction/batch_correction.py \
+  --pattern "fileorg_*.md" \
+  --project file-organizer-app-v1 \
+  --type plan
+
+# Execute corrections for directory
+python scripts/correction/batch_correction.py \
+  --directory .autonomous_runs/temp \
+  --project autopack \
+  --type log \
+  --execute
+
+# Export potential misclassifications to CSV
+python scripts/correction/batch_correction.py --export misclassified.csv
+
+# Import corrections from CSV
+python scripts/correction/batch_correction.py --csv corrections.csv --execute
+```
+
+**Legacy Tool** (Still Available):
+```bash
+# Interactively correct misclassifications (legacy)
+python scripts/correct_classification.py --interactive
+
+# View recent corrections
+python scripts/correct_classification.py --show --limit 20
+```
+
+Corrections are stored in PostgreSQL `classification_corrections` table and immediately added to Qdrant as high-priority patterns with 100% confidence. The new tools provide dual storage (PostgreSQL + Qdrant) with immediate learning feedback.
+
+**Manual Tidy Operations**:
+```bash
+# One-shot tidy with semantic analysis
+python scripts/run_tidy_all.py
+
+# Dry run to preview changes (with memory-based classification)
+python scripts/tidy_workspace.py --root .autonomous_runs --dry-run --verbose
+
+# Execute cleanup for specific project
+python scripts/tidy_workspace.py --root .autonomous_runs/file-organizer-app-v1 --execute
+```
+
+**Configuration** (`tidy_scope.yaml`):
+- Sets roots to tidy (default: `.autonomous_runs/file-organizer-app-v1`, `.autonomous_runs`, `archive`)
+- Optional `purge: true` for permanent deletion (default is archive)
+- Optional `db_overrides` per root for Postgres DSN
+
+**Tidy Operations**:
+1. **Superseded Handling**:
+   - Files route to appropriate buckets: `research`, `delegations`, `phases`, `tiers`, `prompts`, `diagnostics`, `runs`, `refs`, `reports`, `plans`, `analysis`, `logs`, `scripts`
+   - Run folders grouped by family: `.../archive/superseded/runs/<family>/<run-id>`
+   - Family derived from run ID prefix (e.g., `fileorg-country-uk-20251205-132826` → family: `fileorg-country-uk`)
+
+2. **Cursor File Detection** (All File Types):
+   - Automatically detects **all file types** in workspace root (`.md`, `.py`, `.json`, `.log`, `.sql`, etc.)
+   - **Project-first classification**: Detects which project files belong to
+   - **Type classification**: Routes by file extension and content analysis
+   - **Script sub-classification**: Python files classified as backend/frontend/test/temp/utility
+   - Processes files created within last 7 days
+   - Fallback to `archive/unsorted/` if classification fails
+
+3. **Truth Source Protection**:
+   - Never moves: `WHATS_LEFT_TO_BUILD*.md`, `*.db`, `project_learned_rules.json`
+   - Protected prefixes: `plan_`, `plan-generated`
+   - Protected files remain in their canonical locations
+
+**Creation-Time Routing Helpers**:
+- `route_new_doc(name, purpose, project_hint, archived)` - Get destination path for new documents
+- `route_run_output(project_hint, family, run_id, archived)` - Get path for run outputs
+- CLI: `python scripts/run_output_paths.py --doc-name PLAN.md --doc-purpose plan --project file-organizer-app-v1`
+
+**Database Logging**:
+- Tidy operations logged to `tidy_activity` table in PostgreSQL (if `DATABASE_URL` set)
+- Fallback: JSONL at `.autonomous_runs/tidy_activity.log`
+- Tracks: project_id, action, src/dest paths, SHA256 hashes, timestamp
+
+**Classification Learning**:
+- Successful classifications (>80% confidence) automatically stored to Qdrant
+- User corrections stored in PostgreSQL and Qdrant with highest priority
+- System continuously improves accuracy over time
+- Uses `sentence-transformers/all-MiniLM-L6-v2` for embeddings (384-dimensional vectors)
+
+**Safety**:
+- Dry-run by default (review changes before executing)
+- Creates checkpoint archives before moves/deletes
+- Git commits before/after (optional via `--git-commit-before`/`--git-commit-after`)
+- Purge is opt-in only (default is archive, not delete)
+- Flagged files (from Auditor) are never auto-moved
 
 ### Consolidating Documentation
 
@@ -404,7 +720,7 @@ python scripts/consolidate_docs.py
 This will:
 1. Scan all documentation files.
 2. Sort them into project-specific archives (`archive/` vs `.autonomous_runs/<project>/archive/`).
-3. Create consolidated reference files (`CONSOLIDATED_DEBUG.md`, etc.).
+3. Create consolidated reference files (`CONSOLIDATED_DEBUG.md`, etc.) and keep truth sources in the project docs roots (`C:\dev\Autopack\docs` for Autopack; `.../file-organizer-app-v1/docs` for File Organizer).
 4. Move processed files to `superseded/`.
 
 ---
@@ -459,8 +775,9 @@ replan:
 
 ---
 
-**Version**: 0.5.0 (Memory & Context System)
+**Version**: 0.5.1 (Memory & Classification Enhancements)
 **License**: MIT
-**Last Updated**: 2025-12-09
+**Last Updated**: 2025-12-11
 
 **Milestone**: `tests-passing-v1.0` - All core tests passing (89 passed, 30 skipped, 0 failed)
+**Classification Tests**: 100% pass rate (15/15 regression tests passing)

@@ -49,6 +49,22 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 REPO_ROOT = SCRIPT_DIR.parent
 sys.path.append(str(SCRIPT_DIR))
 
+# Import memory-based classifier
+try:
+    from file_classifier_with_memory import classify_file_with_memory, ProjectMemoryClassifier
+    MEMORY_CLASSIFIER_AVAILABLE = True
+except ImportError:
+    MEMORY_CLASSIFIER_AVAILABLE = False
+    print("[WARN] file_classifier_with_memory not available, using pattern-based fallback")
+
+# Import classification auditor
+try:
+    from classification_auditor import ClassificationAuditor
+    AUDITOR_AVAILABLE = True
+except ImportError:
+    AUDITOR_AVAILABLE = False
+    print("[WARN] classification_auditor not available, skipping auditor review")
+
 try:
     from tidy_docs import (
         DocumentationOrganizer,
@@ -97,6 +113,7 @@ PATCH_EXTS = {".patch", ".diff"}
 
 DEFAULT_CHECKPOINT_DIR = REPO_ROOT / ".autonomous_runs" / "checkpoints"
 DEFAULT_SEMANTIC_CACHE = REPO_ROOT / ".autonomous_runs" / "tidy_semantic_cache.json"
+DEFAULT_UNSORTED_DIR = REPO_ROOT / "archive" / "unsorted"
 
 # Cap content sent to LLM to avoid large payloads
 MAX_CONTENT_CHARS = 6000
@@ -137,6 +154,141 @@ def is_under(dirpath: Path, ancestor: Path) -> bool:
 
 def ensure_dir(path: Path):
     path.mkdir(parents=True, exist_ok=True)
+
+
+# ---------------------------------------------------------------------------
+# Creation-time routing helper (for Cursor/manual saves)
+# ---------------------------------------------------------------------------
+def _discover_projects() -> set[str]:
+    projects = set()
+    auto_root = REPO_ROOT / ".autonomous_runs"
+    if auto_root.exists():
+        for child in auto_root.iterdir():
+            if child.is_dir() and child.name not in {"archive", "checkpoints", "patches", "exports", "docs", "openai_delegations", "runs"}:
+                projects.add(child.name)
+    projects.add("file-organizer-app-v1")
+    projects.add("autopack")
+    return projects
+
+
+def classify_project(project_hint: str | None) -> str:
+    projects = _discover_projects()
+    if project_hint and project_hint in projects:
+        return project_hint
+        return "file-organizer-app-v1"
+
+
+def route_new_doc(
+    name: str,
+    purpose: str | None = None,
+    project_hint: str | None = None,
+    archived: bool = False,
+) -> Path:
+    """
+    Return a destination path for a newly created doc based on purpose and project.
+    Does not create the file/directories; caller may ensure_dir on parent if needed.
+    """
+    project = classify_project(project_hint)
+    ln = name.lower()
+
+    def bucket_for():
+        if purpose:
+            p = purpose.lower()
+            if "plan" in p or "roadmap" in p or "design" in p or "strategy" in p:
+                return "plans"
+            if "analysis" in p or "review" in p or "retro" in p or "postmortem" in p:
+                return "analysis"
+            if "prompt" in p or "delegation" in p:
+                return "prompts"
+            if "log" in p or "diagnostic" in p or "trace" in p:
+                return "logs"
+            if "script" in p or "runner" in p or "tool" in p or "utility" in p:
+                return "scripts"
+            if "report" in p:
+                return "reports"
+        # name-based fallback
+        if "plan" in ln or "roadmap" in ln or "design" in ln or "strategy" in ln:
+            return "plans"
+        if "analysis" in ln or "review" in ln or "retro" in ln or "postmortem" in ln:
+            return "analysis"
+        if "prompt" in ln or "delegation" in ln:
+            return "prompts"
+        if "log" in ln or "diagnostic" in ln or "trace" in ln:
+            return "logs"
+        if "script" in ln or "runner" in ln or "tool" in ln or "utility" in ln or "setup" in ln:
+            return "scripts"
+        if "report" in ln or "consolidated" in ln:
+            return "reports"
+        return "refs"
+
+    bucket = bucket_for()
+
+    try:
+        if project == "autopack":
+            if bucket == "plans":
+                base = REPO_ROOT / "archive" / "plans"
+            elif bucket == "analysis" or bucket == "reports":
+                base = REPO_ROOT / "archive" / "analysis"
+            elif bucket == "prompts":
+                base = REPO_ROOT / "archive" / "prompts"
+            elif bucket == "logs":
+                base = REPO_ROOT / "archive" / "logs"
+            elif bucket == "scripts":
+                base = REPO_ROOT / "archive" / "scripts"
+            else:
+                base = REPO_ROOT / "docs"  # truth sources
+            return base / name
+
+        # project-specific (e.g., file-organizer-app-v1)
+        project_root = REPO_ROOT / ".autonomous_runs" / project
+        docs_root = project_root / "docs"
+        archive_root = project_root / "archive"
+        superseded_root = archive_root / "superseded"
+        if archived:
+            base = superseded_root
+        else:
+            base = archive_root
+
+        if bucket == "plans":
+            target = base / "plans"
+        elif bucket == "analysis":
+            target = base / "analysis"
+        elif bucket == "prompts":
+            target = base / "prompts"
+        elif bucket == "logs":
+            target = base / "diagnostics"
+        elif bucket == "scripts":
+            target = base / "scripts"
+        elif bucket == "reports":
+            target = base / "reports"
+        else:
+            target = docs_root
+        return target / name
+    except Exception:
+        return DEFAULT_UNSORTED_DIR / name
+
+
+def route_run_output(
+    project_hint: str | None,
+    family: str,
+    run_id: str,
+    archived: bool = False,
+) -> Path:
+    """
+    Return the directory path where a run's outputs should live.
+    Prefer to emit runs directly here at creation time to avoid later tidy moves.
+    """
+    project = classify_project(project_hint)
+    if project == "autopack":
+        # Autopack runs are rare; keep under archive/logs as a catch-all.
+        base = REPO_ROOT / "archive" / "logs"
+        return base / family / run_id
+
+    project_root = REPO_ROOT / ".autonomous_runs" / project
+    runs_root = project_root / "runs"
+    superseded_runs_root = project_root / "archive" / "superseded" / "runs"
+    base = superseded_runs_root if archived else runs_root
+    return base / family / run_id
 
 
 def checkpoint_files(checkpoint_dir: Path, files: Iterable[Path]) -> Path:
@@ -594,6 +746,280 @@ def run_git_commit(message: str, repo_root: Path):
         print(f"[WARN] git command failed ({exc}); checkpoint commit skipped")
 
 
+
+# ---------------------------------------------------------------------------
+# Cursor File Detection
+# ---------------------------------------------------------------------------
+def detect_and_route_cursor_files(root: Path, project_id: str, logger: TidyLogger, run_id: str) -> List[Action]:
+    """Detect files created by Cursor/Autopack in workspace root and route them.
+
+    Detects all file types (.md, .py, .json, .log, .sql, etc.) and routes them
+    to appropriate project locations based on project-first classification.
+
+    Args:
+        root: Workspace root path
+        project_id: Project identifier (default hint, will be overridden by detection)
+        logger: Tidy logger for tracking
+        run_id: Run ID for logging
+
+    Returns:
+        List of actions to route files
+    """
+    actions = []
+
+    # Only scan workspace root for files
+    if root != REPO_ROOT:
+        return actions
+
+    # Look for files in root that were created recently (last 7 days)
+    cutoff = datetime.now() - timedelta(days=7)
+
+    # File extensions to process
+    extensions = ["*.md", "*.py", "*.json", "*.log", "*.sql", "*.txt", "*.yaml", "*.yml", "*.toml", "*.sh", "*.ps1"]
+
+    for pattern in extensions:
+        for file in root.glob(pattern):
+            # Skip protected files
+            if is_protected(file):
+                continue
+
+            # Skip standard repo files
+            if file.name in {"README.md", "LICENSE.md", "CONTRIBUTING.md", ".gitignore", "package.json",
+                             "requirements.txt", "pyproject.toml", "setup.py", "Dockerfile", "docker-compose.yml"}:
+                continue
+
+            # Check if file is recent
+            try:
+                mtime = datetime.fromtimestamp(file.stat().st_mtime)
+                if mtime < cutoff:
+                    continue
+            except:
+                continue
+
+            # Determine destination based on project-first classification
+            dest = classify_cursor_file(file, project_id)
+            if dest and dest != file:
+                actions.append(Action("move", file, dest, "cursor file routing"))
+
+    return actions
+
+
+def classify_cursor_file(file: Path, project_id: str) -> Path | None:
+    """Classify a file based on project, type, and content (project-first approach).
+
+    Classification strategy (with memory):
+    1. **PostgreSQL**: Check routing rules with keyword matching
+    2. **Qdrant**: Query vector DB for semantic similarity with past classifications
+    3. **Pattern-based fallback**: Use hardcoded patterns if DB methods fail
+    4. **Learning**: Store successful classifications back to vector DB
+
+    Args:
+        file: Path to the file
+        project_id: Default project identifier (can be overridden by detection)
+
+    Returns:
+        Destination path or None if should not move
+    """
+    name = file.name.lower()
+    suffix = file.suffix.lower()
+
+    # Read content for classification (first 500 chars)
+    try:
+        content = file.read_text(encoding="utf-8", errors="ignore")[:500].lower()
+    except:
+        content = ""
+
+    # Try memory-based classification FIRST (PostgreSQL + Qdrant)
+    if MEMORY_CLASSIFIER_AVAILABLE:
+        try:
+            detected_project, file_type, dest_path, confidence = classify_file_with_memory(
+                file, content, default_project_id=project_id, enable_learning=True
+            )
+
+            # If confidence is acceptable, but could benefit from audit review
+            if dest_path:
+                # Apply auditor if confidence is low (<0.80) and auditor is available
+                if AUDITOR_AVAILABLE and confidence < 0.80:
+                    try:
+                        # Read full content for auditor (not just 500 chars)
+                        full_content = file.read_text(encoding="utf-8", errors="ignore")
+
+                        # Initialize auditor (lazy initialization)
+                        if not hasattr(classify_cursor_file, '_auditor'):
+                            classify_cursor_file._auditor = ClassificationAuditor(
+                                audit_threshold=0.80,
+                                enable_auto_override=True
+                            )
+
+                        auditor = classify_cursor_file._auditor
+
+                        # Audit the classification
+                        classifier_result = (detected_project, file_type, dest_path, confidence)
+                        approved, final_proj, final_type, final_dest, final_conf, reason = auditor.audit_classification(
+                            file, full_content, classifier_result
+                        )
+
+                        if not approved:
+                            print(f"[Auditor] FLAGGED for manual review: {file.name} - {reason}")
+                            return None  # Don't move flagged files
+
+                        # Use auditor's decision (may be override or approval)
+                        if final_proj != detected_project or final_type != file_type:
+                            print(f"[Auditor] OVERRIDE: {file.name} -> {final_proj}/{final_type} (confidence={final_conf:.2f})")
+                        else:
+                            print(f"[Auditor] APPROVED: {file.name} (confidence boosted to {final_conf:.2f})")
+
+                        detected_project, file_type, dest_path, confidence = final_proj, final_type, final_dest, final_conf
+
+                    except Exception as e:
+                        print(f"[Auditor] Error: {e}, using classifier decision")
+
+                # Accept if confidence meets threshold
+                if confidence > 0.5:
+                    print(f"[Memory Classifier] {file.name} -> {detected_project}/{file_type} (confidence={confidence:.2f})")
+                    return dest_path
+
+        except Exception as e:
+            print(f"[Memory Classifier] Error: {e}, falling back to pattern matching")
+
+    # Fallback to original pattern-based classification
+    print(f"[Pattern Classifier] Using fallback for {file.name}")
+
+    # Step 1: Detect project (project-first classification)
+    detected_project = None
+
+    # Check filename for project indicators
+    if any(indicator in name for indicator in ["fileorg", "file-org", "file_org"]):
+        detected_project = "file-organizer-app-v1"
+    elif any(indicator in name for indicator in ["backlog", "maintenance"]):
+        detected_project = "file-organizer-app-v1"
+    elif any(indicator in name for indicator in ["autopack", "tidy", "autonomous"]):
+        detected_project = "autopack"
+
+    # Check content for project indicators if filename didn't match
+    if not detected_project and content:
+        if any(indicator in content for indicator in ["file organizer", "fileorg", "country pack"]):
+            detected_project = "file-organizer-app-v1"
+        elif any(indicator in content for indicator in ["autopack", "tidy", "autonomous executor"]):
+            detected_project = "autopack"
+
+    # Default to provided project_id if still unclear
+    if not detected_project:
+        detected_project = project_id if project_id else "autopack"
+
+    # Step 2: Classify file type based on extension and content
+    bucket = None
+    sub_bucket = None  # For scripts: backend, frontend, test, temp, utility
+
+    # Extension-based classification
+    if suffix == ".log":
+        bucket = "logs"
+    elif suffix == ".json":
+        # Check if it's a plan/phase file or data file
+        if any(word in name for word in ["plan", "phase", "config"]):
+            bucket = "plans"
+        elif any(word in name for word in ["failure", "error", "builder"]):
+            bucket = "logs"
+        else:
+            bucket = "unsorted"
+    elif suffix == ".sql":
+        bucket = "scripts"
+        sub_bucket = "utility"
+    elif suffix in [".yaml", ".yml", ".toml"]:
+        if "config" in name or "settings" in name:
+            bucket = "unsorted"  # Config files stay at project level
+        else:
+            bucket = "plans"
+    elif suffix == ".py":
+        # Python files need deeper classification
+        bucket = "scripts"
+        sub_bucket = _classify_python_script(file, name, content)
+    elif suffix == ".md":
+        # Markdown files - check name and content
+        if "implementation_plan" in name or "plan_" in name:
+            bucket = "plans"
+        elif "analysis" in name or "review" in name or "revision" in name:
+            bucket = "analysis"
+        elif "prompt" in name or "delegation" in name:
+            bucket = "prompts"
+        elif "report" in name or "summary" in name or "consolidated" in name:
+            bucket = "reports"
+        elif "diagnostic" in name:
+            bucket = "diagnostics"
+        # Content-based fallback for .md
+        elif content:
+            if any(word in content for word in ["# implementation plan", "## goal", "implementation strategy"]):
+                bucket = "plans"
+            elif any(word in content for word in ["# analysis", "## findings", "review", "retrospective"]):
+                bucket = "analysis"
+            elif any(word in content for word in ["# prompt", "delegation", "instruction"]):
+                bucket = "prompts"
+            elif any(word in content for word in ["# report", "## summary", "consolidated"]):
+                bucket = "reports"
+    elif suffix in [".txt", ".sh", ".ps1"]:
+        bucket = "scripts"
+        sub_bucket = "utility"
+
+    # Default to unsorted if classification failed
+    if not bucket:
+        bucket = "unsorted"
+
+    # Step 3: Build destination path (project-first routing)
+    if detected_project == "autopack":
+        # Autopack files go to C:\dev\Autopack\archive\{bucket}\
+        if bucket == "scripts" and sub_bucket:
+            return REPO_ROOT / "scripts" / sub_bucket / file.name
+        elif bucket == "scripts":
+            return REPO_ROOT / "scripts" / file.name
+        else:
+            return REPO_ROOT / "archive" / bucket / file.name
+    else:
+        # File Organizer files go to .autonomous_runs/file-organizer-app-v1/archive/{bucket}/
+        project_root = REPO_ROOT / ".autonomous_runs" / detected_project
+        if bucket == "scripts" and sub_bucket:
+            return project_root / "archive" / "scripts" / sub_bucket / file.name
+        else:
+            return project_root / "archive" / bucket / file.name
+
+
+def _classify_python_script(file: Path, name: str, content: str) -> str:
+    """Classify Python script by type: backend, frontend, test, temp, utility.
+
+    Args:
+        file: Path to the Python file
+        name: Lowercase filename
+        content: First 500 chars of file content (lowercase)
+
+    Returns:
+        Script type: "backend", "frontend", "test", "temp", or "utility"
+    """
+    # Check filename patterns
+    if "test_" in name or "_test" in name or "tests" in name:
+        return "test"
+    elif "temp" in name or "tmp" in name or "scratch" in name:
+        return "temp"
+    elif any(word in name for word in ["api", "server", "endpoint", "route", "model", "db", "database"]):
+        return "backend"
+    elif any(word in name for word in ["ui", "component", "page", "view", "frontend", "client"]):
+        return "frontend"
+    elif any(word in name for word in ["runner", "create_", "run_", "executor", "script"]):
+        return "utility"
+
+    # Check content patterns
+    if content:
+        if any(word in content for word in ["fastapi", "flask", "django", "sqlalchemy", "database", "crud"]):
+            return "backend"
+        elif any(word in content for word in ["react", "vue", "angular", "dom", "html", "css"]):
+            return "frontend"
+        elif any(word in content for word in ["pytest", "unittest", "test_", "assert "]):
+            return "test"
+        elif any(word in content for word in ["# temp", "# temporary", "# scratch", "# one-off"]):
+            return "temp"
+
+    # Default to utility
+    return "utility"
+
+
 # ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
@@ -665,11 +1091,18 @@ def main():
 
         logger = TidyLogger(REPO_ROOT, dsn=selected_dsn, project_id=project_id)
 
+        # Detect and route Cursor-created files from workspace root
+        if root == REPO_ROOT:
+            cursor_actions = detect_and_route_cursor_files(root, project_id, logger, run_id)
+            if cursor_actions:
+                print(f"[INFO] Found {len(cursor_actions)} Cursor-created files to route")
+                execute_actions(cursor_actions, dry_run=dry_run, checkpoint_dir=args.checkpoint_dir if not dry_run else None, logger=logger, run_id=run_id)
+
         # Markdown tidy; if superseded root, route files into project archive superseded
         superseded_mode = "superseded" in root.parts
         project_root_path = REPO_ROOT / ".autonomous_runs" / "file-organizer-app-v1"
         superseded_target = project_root_path / "archive" / "superseded"
-        bucket_names = {"research", "delegations", "phases", "tiers", "prompts", "diagnostics", "runs", "refs", "reports"}
+        bucket_names = {"research", "delegations", "phases", "tiers", "prompts", "diagnostics", "runs", "refs", "reports", "plans", "analysis", "logs", "scripts"}
 
         def collapse_duplicate_buckets(parts: List[str]) -> List[str]:
             collapsed: List[str] = []
@@ -711,7 +1144,6 @@ def main():
             actions: List[Action] = []
             superseded_mode = True
             superseded_target = project_root_path / "archive" / "superseded"
-            normalize_dest_fn = lambda p: normalize_dest_generic(p, superseded_target, root)
             ignore_dirs = {
                 project_root_path.name,
                 "archive",
@@ -738,10 +1170,10 @@ def main():
                     continue
                 if child.is_dir():
                     grp = run_group(child.name)
-                    dest = normalize_dest_fn(superseded_target / "runs" / grp / child.name)
+                    dest = superseded_target / "runs" / grp / child.name
                     actions.append(Action("move", child, dest, "runs regroup to project superseded"))
                 elif child.is_file() and child.suffix.lower() in {".md", ".txt"}:
-                    dest = normalize_dest_fn(superseded_target / "refs" / child.name)
+                    dest = superseded_target / "refs" / child.name
                     actions.append(Action("move", child, dest, "refs regroup to project superseded"))
             if actions:
                 execute_actions(actions, dry_run=dry_run, checkpoint_dir=args.checkpoint_dir if not dry_run else None, logger=logger, run_id=run_id)
@@ -757,9 +1189,12 @@ def main():
             phase_keywords = ["phase_", "p1", "p2", "p3", "p4", "p5", "p6", "p7", "p8", "p9"]
             tier_keywords = ["tier_00", "tier_01", "tier_02", "tier_03", "tier_04", "tier_05"]
             prompt_keywords = ["prompt"]
-            debug_keywords = ["debug", "error", "journal", "diagnostic"]
+            debug_keywords = ["debug", "error", "journal", "diagnostic", "log", "trace"]
             ref_keywords = ["ref_", "ref"]
-            report_keywords = ["consolidated", "build", "report", "readme", "setup", "tracking", "plan", "manual", "how_to", "spec", "summary", "checklist", "task"]
+            report_keywords = ["consolidated", "build", "report", "readme", "setup", "tracking", "manual", "how_to", "spec", "summary", "checklist", "task"]
+            plan_keywords = ["plan", "roadmap", "implementation_plan", "design_doc", "strategy", "spec"]
+            analysis_keywords = ["analysis", "review", "retrospective", "postmortem"]
+            script_keywords = ["script", "runner", "tool", "utility", "setup", "build", "deploy"]
 
             def bucket_for(name: str) -> str:
                 ln = name.lower()
@@ -767,6 +1202,10 @@ def main():
                     return "research"
                 if any(k in ln for k in delegation_keywords):
                     return "delegations"
+                if any(k in ln for k in plan_keywords):
+                    return "plans"
+                if any(k in ln for k in analysis_keywords):
+                    return "analysis"
                 if any(ln.startswith(k) for k in tier_keywords):
                     return "tiers"
                 if ln.startswith("phase_") or any(k in ln for k in phase_keywords):
@@ -775,6 +1214,8 @@ def main():
                     return "prompts"
                 if any(k in ln for k in debug_keywords):
                     return "diagnostics"
+                if any(k in ln for k in script_keywords):
+                    return "scripts"
                 if any(ln.startswith(k) for k in ref_keywords):
                     return "refs"
                 if any(k in ln for k in report_keywords):
@@ -818,10 +1259,13 @@ def main():
             phase_keywords = ["phase_", "p1", "p2", "p3", "p4", "p5", "p6", "p7", "p8", "p9"]
             tier_keywords = ["tier_00", "tier_01", "tier_02", "tier_03", "tier_04", "tier_05"]
             prompt_keywords = ["prompt"]
-            debug_keywords = ["debug", "error", "journal", "diagnostic"]
+            debug_keywords = ["debug", "error", "journal", "diagnostic", "log", "trace"]
             ref_keywords = ["ref_", "ref"]
-            report_keywords = ["consolidated", "build", "report", "readme", "setup", "tracking", "plan", "manual", "how_to", "spec", "summary", "checklist", "task"]
-            bucket_names = {"research", "delegations", "phases", "tiers", "prompts", "diagnostics", "runs", "refs", "reports"}
+            report_keywords = ["consolidated", "build", "report", "readme", "setup", "tracking", "manual", "how_to", "spec", "summary", "checklist", "task"]
+            plan_keywords = ["plan", "roadmap", "implementation_plan", "design_doc", "strategy", "spec"]
+            analysis_keywords = ["analysis", "review", "retrospective", "postmortem"]
+            script_keywords = ["script", "runner", "tool", "utility", "setup", "build", "deploy"]
+            bucket_names = {"research", "delegations", "phases", "tiers", "prompts", "diagnostics", "runs", "refs", "reports", "plans", "analysis", "logs", "scripts"}
 
             def bucket_for(name: str) -> str:
                 ln = name.lower()
@@ -829,6 +1273,10 @@ def main():
                     return "research"
                 if any(k in ln for k in delegation_keywords):
                     return "delegations"
+                if any(k in ln for k in plan_keywords):
+                    return "plans"
+                if any(k in ln for k in analysis_keywords):
+                    return "analysis"
                 if any(ln.startswith(k) for k in tier_keywords):
                     return "tiers"
                 if ln.startswith("phase_") or any(k in ln for k in phase_keywords):
@@ -837,6 +1285,8 @@ def main():
                     return "prompts"
                 if any(k in ln for k in debug_keywords):
                     return "diagnostics"
+                if any(k in ln for k in script_keywords):
+                    return "scripts"
                 if any(ln.startswith(k) for k in ref_keywords):
                     return "refs"
                 if any(k in ln for k in report_keywords):

@@ -709,6 +709,14 @@ python scripts/tidy_workspace.py --root .autonomous_runs/file-organizer-app-v1 -
 - Purge is opt-in only (default is archive, not delete)
 - Flagged files (from Auditor) are never auto-moved
 
+**Comprehensive Workspace Cleanup**:
+
+For a detailed guide on running a comprehensive workspace tidy (including nested folders), see:
+- **[Comprehensive Tidy Execution Plan](COMPREHENSIVE_TIDY_EXECUTION_PLAN.md)** - Step-by-step guide for organizing scattered files across workspace root, docs/, prompts/, logs/, and nested subdirectories
+
+For detailed technical documentation on the tidy system architecture, see:
+- **[Autopack Tidy System Guide](docs/AUTOPACK_TIDY_SYSTEM_COMPREHENSIVE_GUIDE.md)** - Complete technical reference covering classification algorithms, database integration, storage destinations, and accuracy mechanisms
+
 ### Consolidating Documentation
 
 To tidy up and consolidate documentation across projects:

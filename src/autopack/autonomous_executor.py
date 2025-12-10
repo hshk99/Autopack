@@ -251,7 +251,10 @@ class AutonomousExecutor:
             self.memory_service = None
 
         # Run file layout + diagnostics directories
-        self.run_layout = RunFileLayout(self.run_id)
+        # Project ID is auto-detected from run_id prefix by RunFileLayout
+        self.project_id = self._detect_project_id(self.run_id)
+        self.run_layout = RunFileLayout(self.run_id, project_id=self.project_id)
+        logger.info(f"[FileLayout] Project: {self.project_id}, Family: {self.run_layout.family}, Base: {self.run_layout.base_dir}")
         try:
             self.run_layout.ensure_directories()
             self.run_layout.ensure_diagnostics_dirs()
@@ -585,6 +588,24 @@ class AutonomousExecutor:
 
         logger.info("Startup checks complete")
 
+    def _detect_project_id(self, run_id: str) -> str:
+        """Detect project ID from run_id prefix
+        
+        Args:
+            run_id: Run identifier (e.g., 'fileorg-country-uk-20251205-132826')
+        
+        Returns:
+            Project identifier (e.g., 'file-organizer-app-v1', 'autopack')
+        """
+        if run_id.startswith("fileorg-"):
+            return "file-organizer-app-v1"
+        elif run_id.startswith("backlog-"):
+            return "file-organizer-app-v1"
+        elif run_id.startswith("maintenance-"):
+            return "file-organizer-app-v1"
+        else:
+            return "autopack"
+    
     def _load_execute_fix_flag(self, config_path: Path) -> bool:
         """
         Read doctor.allow_execute_fix_global from models.yaml to decide whether
@@ -4628,7 +4649,7 @@ Just the new description that should replace the current one while preserving th
             phases_complete = sum(1 for p in all_phases if p.state == models.PhaseState.COMPLETE)
             actual_phases_failed = sum(1 for p in all_phases if p.state == models.PhaseState.FAILED)
 
-            layout = RunFileLayout(self.run_id)
+            layout = RunFileLayout(self.run_id, project_id=self.project_id)
             layout.write_run_summary(
                 run_id=run.id,
                 state=run.state.value,

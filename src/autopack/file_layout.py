@@ -16,12 +16,17 @@ from .config import settings
 class RunFileLayout:
     """Manages file layout for a single autonomous run"""
 
-    def __init__(self, run_id: str, base_dir: Optional[Path] = None):
+    def __init__(self, run_id: str, project_id: Optional[str] = None, base_dir: Optional[Path] = None):
         self.run_id = run_id
+        self.project_id = project_id or self._detect_project(run_id)
+        self.family = self._extract_family(run_id)
+
         if base_dir is not None:
-            self.base_dir = base_dir / run_id
+            self.base_dir = base_dir / self.project_id / "runs" / self.family / run_id
         else:
-            self.base_dir = Path(settings.autonomous_runs_dir) / run_id
+            # New structure: .autonomous_runs/{project}/runs/{family}/{run_id}/
+            base = Path(settings.autonomous_runs_dir)
+            self.base_dir = base / self.project_id / "runs" / self.family / run_id
 
     def ensure_directories(self) -> None:
         """Create all required directories for the run"""
@@ -176,3 +181,40 @@ class RunFileLayout:
 """
         path = self.get_phase_summary_path(phase_index, phase_id)
         path.write_text(content, encoding="utf-8")
+
+    def _detect_project(self, run_id: str) -> str:
+        """Detect project from run_id prefix
+
+        Args:
+            run_id: Run identifier (e.g., 'fileorg-country-uk-20251205-132826')
+
+        Returns:
+            Project identifier (e.g., 'file-organizer-app-v1', 'autopack')
+        """
+        if run_id.startswith("fileorg-"):
+            return "file-organizer-app-v1"
+        elif run_id.startswith("backlog-"):
+            return "file-organizer-app-v1"
+        elif run_id.startswith("maintenance-"):
+            return "file-organizer-app-v1"
+        else:
+            return "autopack"
+
+    def _extract_family(self, run_id: str) -> str:
+        """Extract family name from run_id (prefix before timestamp)
+
+        Family groups related runs together (e.g., all 'fileorg-country-uk' runs).
+
+        Args:
+            run_id: Run identifier (e.g., 'fileorg-country-uk-20251205-132826')
+
+        Returns:
+            Family name (e.g., 'fileorg-country-uk') or full run_id if no pattern match
+        """
+        import re
+        # Match pattern: prefix-YYYYMMDD-HHMMSS or prefix-10+digit-timestamp
+        match = re.match(r"(.+?)-(?:\d{8}-\d{6}|\d{10,})", run_id)
+        if match:
+            return match.group(1)
+        # Fallback to full run_id as family
+        return run_id

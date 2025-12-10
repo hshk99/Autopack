@@ -712,6 +712,9 @@ def main():
                         continue
                     rel = src.relative_to(root)
                     rel_parts = list(rel.parts)
+                    # Drop redundant archive/superseded prefixes left from prior runs
+                    while rel_parts and rel_parts[0] in {"archive", "superseded"}:
+                        rel_parts.pop(0)
                     # Preserve existing bucket if present, but drop duplicate nesting
                     existing_bucket = ""
                     if rel_parts and rel_parts[0] in bucket_names:

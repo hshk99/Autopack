@@ -1603,3 +1603,15 @@ warning: in the working copy of 'tidy_run_output.log', LF will be replaced by CR
 Running documentation update hook...
 [main 651a10f6] tidy auto checkpoint (pre)
  1 file changed, 67 insertions(+)
+warning: in the working copy of 'tidy_run_output.log', LF will be replaced by CRLF the next time Git touches it
+Running documentation update hook...
+[main 3b678527] tidy auto checkpoint (post)
+ 1 file changed, 4 insertions(+)
+[GIT] Created checkpoint commit: tidy auto checkpoint (pre)
+[INFO] Processing root: C:\dev\Autopack\.autonomous_runs (dry_run=False)
+[CHECKPOINT] Saved 1 files to C:\dev\Autopack\.autonomous_runs\checkpoints\tidy_checkpoint_20251211-070503.zip
+[VALIDATION ERROR] Skipping move C:\dev\Autopack\.autonomous_runs\Autopack -> C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\superseded\runs\Autopack\Autopack
+[VALIDATION ERROR] Reason: Duplicate nesting detected: .../Autopack/Autopack/... (probable path construction bug)
+[GIT] Created checkpoint commit: tidy auto checkpoint (post)
+
+[SUCCESS] Tidy complete (dry_run=False)

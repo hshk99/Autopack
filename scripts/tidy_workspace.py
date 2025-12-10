@@ -278,7 +278,7 @@ def plan_non_md_actions(root: Path, age_days: int, prune: bool, purge: bool, ver
     # If targeting superseded root under global archive, route into project archive superseded
     if "superseded" in root.parts and root.as_posix().endswith("archive/superseded/archive"):
         project_root_path = REPO_ROOT / ".autonomous_runs" / "file-organizer-app-v1"
-        archive_dir = project_root_path / "archive" / "superseded" / "archive"
+        archive_dir = project_root_path / "archive" / "superseded"
     else:
         archive_dir = root / "archive"
     exports_dir = (root / "exports") if "superseded" not in root.parts else archive_dir
@@ -666,7 +666,7 @@ def main():
         # Markdown tidy; if superseded root, route files into project archive superseded
         superseded_mode = "superseded" in root.parts
         project_root_path = REPO_ROOT / ".autonomous_runs" / "file-organizer-app-v1"
-        superseded_target = project_root_path / "archive" / "superseded" / "archive"
+        superseded_target = project_root_path / "archive" / "superseded"
 
         if superseded_mode and root.as_posix().endswith("archive/superseded/archive"):
             actions: List[Action] = []

@@ -702,6 +702,23 @@ def main():
                     collapsed.append(p)
                 return collapsed
 
+            def collapse_runs(parts: List[str]) -> List[str]:
+                out: List[str] = []
+                i = 0
+                while i < len(parts):
+                    if (
+                        i + 3 < len(parts)
+                        and parts[i] == "runs"
+                        and parts[i + 1] == project_id
+                        and parts[i + 2] == "runs"
+                        and parts[i + 3] == project_id
+                    ):
+                        i += 2  # skip the extra "runs/<project_id>"
+                        continue
+                    out.append(parts[i])
+                    i += 1
+                return out
+
             for dirpath, dirnames, filenames in os.walk(root):
                 dirnames[:] = [d for d in dirnames if d not in {".git", "node_modules", ".pytest_cache", "__pycache__", ".venv", "venv"}]
                 for fname in filenames:
@@ -715,6 +732,7 @@ def main():
                     # Drop redundant archive/superseded prefixes left from prior runs
                     while rel_parts and rel_parts[0] in {"archive", "superseded"}:
                         rel_parts.pop(0)
+                    rel_parts = collapse_runs(rel_parts)
                     # Preserve existing bucket if present, but drop duplicate nesting
                     existing_bucket = ""
                     if rel_parts and rel_parts[0] in bucket_names:

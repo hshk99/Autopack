@@ -703,17 +703,11 @@ def main():
                 return collapsed
 
             def collapse_runs(parts: List[str]) -> List[str]:
-                # Keep only one consecutive runs/<project_id> pair; drop repeats.
+                # Drop all runs/<project_id> pairs; diagnostics live under diagnostics bucket instead.
                 out: List[str] = []
                 i = 0
-                saw_runs_pair = False
                 while i < len(parts):
                     if i + 1 < len(parts) and parts[i] == "runs" and parts[i + 1] == project_id:
-                        if saw_runs_pair:
-                            i += 2
-                            continue
-                        saw_runs_pair = True
-                        out.extend([parts[i], parts[i + 1]])
                         i += 2
                         continue
                     out.append(parts[i])
@@ -746,12 +740,20 @@ def main():
                     while rel_parts and rel_parts[0] in {"archive", "superseded"}:
                         rel_parts.pop(0)
                     rel_parts = collapse_runs(rel_parts)
+                    # If diagnostics folder present, force diagnostics bucket
+                    bucket_hint = ""
+                    if rel_parts and rel_parts[0] == "diagnostics":
+                        bucket_hint = "diagnostics"
+                        rel_parts.pop(0)
+                    elif "diagnostics" in rel_parts:
+                        bucket_hint = "diagnostics"
+                        rel_parts = [p for p in rel_parts if p != "diagnostics"]
                     # Preserve existing bucket if present, but drop duplicate nesting
                     existing_bucket = ""
                     if rel_parts and rel_parts[0] in bucket_names:
                         existing_bucket = rel_parts.pop(0)
                     rel_parts = collapse_duplicate_buckets(rel_parts)
-                    bucket = existing_bucket or bucket_for(fname)
+                    bucket = bucket_hint or existing_bucket or bucket_for(fname)
                     target_base = superseded_target / bucket if bucket else superseded_target
                     dest = normalize_dest(target_base / Path(*rel_parts))
                     actions.append(Action("move", src, dest, "superseded->project archive"))

@@ -1,0 +1,1534 @@
+Running documentation update hook...
+[main 503fc062] tidy auto checkpoint (pre)
+ 1 file changed, 0 insertions(+), 0 deletions(-)
+ create mode 100644 tidy_run_output.log
+[GIT] Created checkpoint commit: tidy auto checkpoint (pre)
+[INFO] Processing root: C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1 (dry_run=False)
+[INFO] Starting documentation organization...
+[INFO] Project root: C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1
+[INFO] Dry run: False
+[INFO] Found 182 markdown files
+[SKIP] SKIP: README.md - Already at root
+[SKIP] SKIP: archive\ARCHIVE_INDEX.md - Already in archive/
+[SKIP] SKIP: archive\CONSOLIDATED_BUILD.md - Already in archive/
+[SKIP] SKIP: archive\CONSOLIDATED_BUILD_HISTORY.md - Already in archive/
+[SKIP] SKIP: archive\CONSOLIDATED_DEBUG.md - Already in archive/
+[SKIP] SKIP: archive\CONSOLIDATED_MISC.md - Already in archive/
+[SKIP] SKIP: archive\CONSOLIDATED_REFERENCE.md - Already in archive/
+[MOVE] MOVE to docs/research/: archive\CONSOLIDATED_RESEARCH.md - Research document pattern/keyword matched
+[SKIP] SKIP: archive\CONSOLIDATED_STRATEGY.md - Already in archive/
+[SKIP] SKIP: archive\DEBUG_JOURNAL.md - Already in archive/
+[MOVE] MOVE to root: archive\WHATS_LEFT_TO_BUILD.md - Essential root file: WHATS_LEFT_TO_BUILD.md
+[SKIP] SKIP: archive\WHATS_LEFT_TO_BUILD_MAINTENANCE.md - Already in archive/
+[DELETE] DELETE: archive\analysiss\CONFIDENCE_THRESHOLD_FIX_20251211.md - Obsolete file pattern/keyword matched
+[MOVE] MOVE to archive/: archive\reports\ACCURACY_IMPROVEMENTS_98PERCENT.md - Default: move to archive for review
+[MOVE] MOVE to archive/: archive\reports\IMPLEMENTATION_COMPLETE_SUMMARY.md - Default: move to archive for review
+[MOVE] MOVE to archive/: archive\reports\PATTERN_CONFIDENCE_ENHANCEMENT_20251211.md - Default: move to archive for review
+[MOVE] MOVE to archive/: archive\superseded\delegations\AUTOPACK_RUN_ANALYSIS_FOR_GPT_REVIEW.md - Reference material pattern/keyword matched
+[MOVE] MOVE to archive/: archive\superseded\delegations\CLAUDE_RESPONSE_TO_GPT_REVIEW.md - Reference material pattern/keyword matched
+[MOVE] MOVE to archive/: archive\superseded\delegations\CODEX_DELEGATION_REQUEST_20251128_103044.md - Default: move to archive for review
+[MOVE] MOVE to archive/: archive\superseded\delegations\CODEX_DELEGATION_REQUEST_20251128_104813.md - Default: move to archive for review
+[MOVE] MOVE to archive/: archive\superseded\delegations\CODEX_DELEGATION_RESULT_20251128_103044.md - Default: move to archive for review
+[MOVE] MOVE to archive/: archive\superseded\delegations\CODEX_DELEGATION_RESULT_20251128_104813.md - Default: move to archive for review
+[MOVE] MOVE to archive/: archive\superseded\delegations\DELEGATION_TO_GPT4O.md - Default: move to archive for review
+[MOVE] MOVE to archive/: archive\superseded\delegations\GPT_REVIEW_PROMPT.md - Reference material pattern/keyword matched
+[MOVE] MOVE to archive/: archive\superseded\delegations\GPT_STRATEGIC_ANALYSIS_PROMPT_V2.md - Reference material pattern/keyword matched
+[MOVE] MOVE to archive/: archive\superseded\delegations\OPENAI_DELEGATION_REQUEST_20251128_133758.md - Default: move to archive for review
+[MOVE] MOVE to archive/: archive\superseded\delegations\OPENAI_DELEGATION_REQUEST_20251128_153852.md - Default: move to archive for review
+[MOVE] MOVE to archive/: archive\superseded\delegations\OPENAI_DELEGATION_REQUEST_20251128_154038.md - Default: move to archive for review
+[MOVE] MOVE to archive/: archive\superseded\delegations\OPENAI_DELEGATION_REQUEST_20251129_032041.md - Default: move to archive for review
+[MOVE] MOVE to archive/: archive\superseded\delegations\OPENAI_DELEGATION_REQUEST_20251129_040839.md - Default: move to archive for review
+[MOVE] MOVE to archive/: archive\superseded\delegations\OPENAI_DELEGATION_REQUEST_20251129_044732.md - Default: move to archive for review
+[MOVE] MOVE to archive/: archive\superseded\delegations\OPENAI_DELEGATION_RESULT_20251128_133813.md - Default: move to archive for review
+[MOVE] MOVE to archive/: archive\superseded\delegations\OPENAI_DELEGATION_RESULT_20251128_153911.md - Default: move to archive for review
+[MOVE] MOVE to archive/: archive\superseded\delegations\OPENAI_DELEGATION_RESULT_20251128_154108.md - Default: move to archive for review
+[MOVE] MOVE to archive/: archive\superseded\delegations\OPENAI_DELEGATION_RESULT_20251129_032056.md - Default: move to archive for review
+[MOVE] MOVE to archive/: archive\superseded\delegations\OPENAI_DELEGATION_RESULT_20251129_044745.md - Default: move to archive for review
+[MOVE] MOVE to archive/: archive\superseded\delegations\PROMPT_SEQUENCE_FOR_GPT.md - Reference material pattern/keyword matched
+[MOVE] MOVE to archive/: archive\superseded\file-organizer-app-v1\refs\AUTO_CONVERSION_GUIDE.md - Default: move to archive for review
+[MOVE] MOVE to archive/: archive\superseded\file-organizer-app-v1\refs\NEW_PROJECT_SETUP_GUIDE.md - Default: move to archive for review
+[MOVE] MOVE to archive/: archive\superseded\file-organizer-app-v1\refs\OPENAI_DELEGATION_GUIDE.md - Default: move to archive for review
+[MOVE] MOVE to archive/: archive\superseded\file-organizer-app-v1\refs\QUICK_REFERENCE.md - Default: move to archive for review
+[MOVE] MOVE to root: archive\superseded\file-organizer-app-v1\refs\README.md - Essential root file: README.md
+[MOVE] MOVE to archive/: archive\superseded\phases\phase_00_backend-config-fix.md - Default: move to archive for review
+[MOVE] MOVE to archive/: archive\superseded\phases\phase_00_backend-test-isolation.md - Default: move to archive for review
+[MOVE] MOVE to archive/: archive\superseded\phases\phase_00_docs-dashboard-refresh.md - Default: move to archive for review
+[MOVE] MOVE to archive/: archive\superseded\phases\phase_00_F1.1.md - Default: move to archive for review
+[MOVE] MOVE to archive/: archive\superseded\phases\phase_00_fileorg-p2-country-uk.md - Default: move to archive for review
+[MOVE] MOVE to archive/: archive\superseded\phases\phase_00_fileorg-p2-docker.md - Default: move to archive for review
+[MOVE] MOVE to archive/: archive\superseded\phases\phase_00_fileorg-p2-frontend-build.md - Default: move to archive for review
+[MOVE] MOVE to archive/: archive\superseded\phases\phase_00_fileorg-p2-search.md - Default: move to archive for review
+[MOVE] MOVE to archive/: archive\superseded\phases\phase_00_fileorg-p2-test-fixes.md - Default: move to archive for review
+[MOVE] MOVE to archive/: archive\superseded\phases\phase_00_fix-password-hashing.md - Default: move to archive for review
+[MOVE] MOVE to archive/: archive\superseded\phases\phase_00_fix-postcode-validator.md - Default: move to archive for review
+[MOVE] MOVE to archive/: archive\superseded\phases\phase_00_high-direct-strong.md - Default: move to archive for review
+[MOVE] MOVE to archive/: archive\superseded\phases\phase_00_implement-search-endpoint.md - Default: move to archive for review
+[MOVE] MOVE to archive/: archive\superseded\phases\phase_00_low-easy-task.md - Default: move to archive for review
+[MOVE] MOVE to archive/: archive\superseded\phases\phase_00_medium-task.md - Default: move to archive for review
+[MOVE] MOVE to archive/: archive\superseded\phases\phase_00_phase-0.md - Default: move to archive for review
+[MOVE] MOVE to archive/: archive\superseded\phases\phase_00_phase3-branch-rollback.md - Default: move to archive for review
+[MOVE] MOVE to archive/: archive\superseded\phases\phase_00_phase3-config-loading.md - Default: move to archive for review
+[MOVE] MOVE to archive/: archive\superseded\phases\phase_00_phase3-dashboard-metrics.md - Default: move to archive for review
+[MOVE] MOVE to archive/: archive\superseded\phases\phase_00_test-1-simple-modification.md - Default: move to archive for review
+[MOVE] MOVE to archive/: archive\superseded\phases\phase_00_test-phase1.md - Default: move to archive for review
+[MOVE] MOVE to archive/: archive\superseded\phases\phase_01_backend-requirements-fix.md - Default: move to archive for review
+[MOVE] MOVE to archive/: archive\superseded\phases\phase_01_backend-test-imports.md - Default: move to archive for review
+[MOVE] MOVE to archive/: archive\superseded\phases\phase_01_F2.1.md - Default: move to archive for review
+[MOVE] MOVE to archive/: archive\superseded\phases\phase_01_fileorg-p2-batch-upload.md - Default: move to archive for review
+[MOVE] MOVE to archive/: archive\superseded\phases\phase_01_fileorg-p2-country-canada.md - Default: move to archive for review
+[MOVE] MOVE to archive/: archive\superseded\phases\phase_01_fileorg-p2-frontend-build.md - Default: move to archive for review
+[MOVE] MOVE to archive/: archive\superseded\phases\phase_01_fix-ato-classifier.md - Default: move to archive for review
+[MOVE] MOVE to archive/: archive\superseded\phases\phase_01_fix-file-validator-import.md - Default: move to archive for review
+[MOVE] MOVE to archive/: archive\superseded\phases\phase_01_implement-batch-endpoint.md - Default: move to archive for review
+[MOVE] MOVE to archive/: archive\superseded\phases\phase_01_impossible-task.md - Default: move to archive for review
+[MOVE] MOVE to archive/: archive\superseded\phases\phase_01_low-needs-escalation.md - Default: move to archive for review
+[MOVE] MOVE to archive/: archive\superseded\phases\phase_01_low-tricky-task.md - Default: move to archive for review
+[MOVE] MOVE to archive/: archive\superseded\phases\phase_01_P1.md - Default: move to archive for review
+[MOVE] MOVE to archive/: archive\superseded\phases\phase_01_P2.2.md - Default: move to archive for review
+[MOVE] MOVE to archive/: archive\superseded\phases\phase_01_phase3-discovery-promotion.md - Default: move to archive for review
+[MOVE] MOVE to archive/: archive\superseded\phases\phase_01_phase3-doctor-tests.md - Default: move to archive for review
+[MOVE] MOVE to archive/: archive\superseded\phases\phase_01_phase3-t0t1-checks.md - Default: move to archive for review
+[MOVE] MOVE to archive/: archive\superseded\phases\phase_01_test-2-medium-complexity.md - Default: move to archive for review
+[MOVE] MOVE to archive/: archive\superseded\phases\phase_02_F1.3.md - Default: move to archive for review
+[MOVE] MOVE to archive/: archive\superseded\phases\phase_02_fileorg-p2-auth.md - Default: move to archive for review
+[MOVE] MOVE to archive/: archive\superseded\phases\phase_02_fileorg-p2-country-australia.md - Default: move to archive for review
+[MOVE] MOVE to archive/: archive\superseded\phases\phase_02_fileorg-p2-docker.md - Default: move to archive for review
+[MOVE] MOVE to archive/: archive\superseded\phases\phase_02_fix-health-check-tests.md - Default: move to archive for review
+[MOVE] MOVE to archive/: archive\superseded\phases\phase_02_implement-auth-endpoints.md - Default: move to archive for review
+[MOVE] MOVE to archive/: archive\superseded\phases\phase_02_P2.3.md - Default: move to archive for review
+[MOVE] MOVE to archive/: archive\superseded\phases\phase_02_P2.md - Default: move to archive for review
+[MOVE] MOVE to archive/: archive\superseded\phases\phase_02_test-3-potential-replan.md - Default: move to archive for review
+[MOVE] MOVE to archive/: archive\superseded\phases\phase_02_unskip-critical-tests.md - Default: move to archive for review
+[MOVE] MOVE to archive/: archive\superseded\phases\phase_03_e2e-smoke-8100.md - Default: move to archive for review
+[MOVE] MOVE to archive/: archive\superseded\phases\phase_03_fileorg-p2-country-uk.md - Default: move to archive for review
+[MOVE] MOVE to archive/: archive\superseded\phases\phase_03_P2.4.md - Default: move to archive for review
+[MOVE] MOVE to archive/: archive\superseded\phases\phase_03_P3.md - Default: move to archive for review
+[MOVE] MOVE to archive/: archive\superseded\phases\phase_04_P4.md - Default: move to archive for review
+[MOVE] MOVE to archive/: archive\superseded\phases\phase_05_fileorg-p2-country-australia.md - Default: move to archive for review
+[MOVE] MOVE to archive/: archive\superseded\phases\phase_05_P2.6.md - Default: move to archive for review
+[MOVE] MOVE to archive/: archive\superseded\phases\phase_05_P5.md - Default: move to archive for review
+[MOVE] MOVE to archive/: archive\superseded\phases\phase_06_fileorg-p2-search.md - Default: move to archive for review
+[MOVE] MOVE to archive/: archive\superseded\phases\phase_06_P2.7.md - Default: move to archive for review
+[MOVE] MOVE to archive/: archive\superseded\phases\phase_06_P6.md - Default: move to archive for review
+[MOVE] MOVE to archive/: archive\superseded\phases\phase_07_P2.8.md - Default: move to archive for review
+[MOVE] MOVE to archive/: archive\superseded\phases\phase_07_P7.md - Default: move to archive for review
+[MOVE] MOVE to archive/: archive\superseded\phases\phase_08_fileorg-p2-auth.md - Default: move to archive for review
+[MOVE] MOVE to archive/: archive\superseded\phases\phase_08_P2.9.md - Default: move to archive for review
+[MOVE] MOVE to archive/: archive\superseded\phases\phase_09_fileorg-p2-qa-hardening.md - Default: move to archive for review
+[MOVE] MOVE to archive/: archive\superseded\phases\phase_11_fileorg-p2-docs-final.md - Default: move to archive for review
+[MOVE] MOVE to archive/: archive\superseded\phases\phase_12_fileorg-p2-auth-hardening.md - Default: move to archive for review
+[MOVE] MOVE to archive/: archive\superseded\phases\phase_13_fileorg-p2-search-quality.md - Default: move to archive for review
+[MOVE] MOVE to archive/: archive\superseded\phases\phase_14_fileorg-p2-batch-observability.md - Default: move to archive for review
+[MOVE] MOVE to archive/: archive\superseded\phases\phase_15_fileorg-p2-file-safety.md - Default: move to archive for review
+[MOVE] MOVE to archive/: archive\superseded\phases\phase_16_fileorg-p2-storage-config.md - Default: move to archive for review
+[MOVE] MOVE to archive/: archive\superseded\phases\phase_17_fileorg-p2-export-sharing.md - Default: move to archive for review
+[MOVE] MOVE to archive/: archive\superseded\phases\phase_18_fileorg-p2-ui-ux-polish.md - Default: move to archive for review
+[MOVE] MOVE to archive/: archive\superseded\phases\phase_19_fileorg-p2-logging-metrics.md - Default: move to archive for review
+[MOVE] MOVE to archive/: archive\superseded\phases\phase_21_fileorg-p2-e2e-smoke.md - Default: move to archive for review
+[MOVE] MOVE to archive/: archive\superseded\phases\phase_22_fileorg-p2-security-basics.md - Default: move to archive for review
+[MOVE] MOVE to archive/: archive\superseded\phases\phase_23_fileorg-p2-perf-tuning.md - Default: move to archive for review
+[MOVE] MOVE to archive/: archive\superseded\phases\phase_24_fileorg-p2-planning-fortify.md - Default: move to archive for review
+[MOVE] MOVE to archive/: archive\superseded\refs\ref1.md - Reference material pattern/keyword matched
+[MOVE] MOVE to archive/: archive\superseded\refs\ref10.md - Reference material pattern/keyword matched
+[MOVE] MOVE to archive/: archive\superseded\refs\ref11.md - Reference material pattern/keyword matched
+[MOVE] MOVE to archive/: archive\superseded\refs\ref2.md - Reference material pattern/keyword matched
+[MOVE] MOVE to archive/: archive\superseded\refs\ref3.md - Reference material pattern/keyword matched
+[MOVE] MOVE to archive/: archive\superseded\refs\ref4.md - Reference material pattern/keyword matched
+[MOVE] MOVE to archive/: archive\superseded\refs\ref5.md - Reference material pattern/keyword matched
+[MOVE] MOVE to archive/: archive\superseded\refs\ref6.md - Reference material pattern/keyword matched
+[MOVE] MOVE to archive/: archive\superseded\refs\ref7.md - Reference material pattern/keyword matched
+[MOVE] MOVE to archive/: archive\superseded\refs\REF_01_EXISTING_SOLUTIONS_COMPILED.md - Reference material pattern/keyword matched
+[MOVE] MOVE to archive/: archive\superseded\refs\REF_02_USER_REQUIREMENTS_AND_LESSONS.md - Reference material pattern/keyword matched
+[MOVE] MOVE to archive/: archive\superseded\reports\AUTOPACK_PHASE2_TASK1_SPEC.md - Default: move to archive for review
+[MOVE] MOVE to archive/: archive\superseded\reports\CONSOLIDATED_BUILD.md - Default: move to archive for review
+[MOVE] MOVE to archive/: archive\superseded\reports\CONSOLIDATED_BUILD_HISTORY.md - Default: move to archive for review
+[MOVE] MOVE to archive/: archive\superseded\reports\CONSOLIDATED_MISC.md - Default: move to archive for review
+[MOVE] MOVE to archive/: archive\superseded\reports\CONSOLIDATED_REFERENCE.md - Default: move to archive for review
+[MOVE] MOVE to archive/: archive\superseded\reports\CONSOLIDATED_STRATEGIC_ANALYSIS.md - Reference material pattern/keyword matched
+[MOVE] MOVE to root: archive\superseded\reports\CURSOR_REVISION_CHECKLIST.md - Essential root file: CURSOR_REVISION_CHECKLIST.md
+[MOVE] MOVE to archive/: archive\superseded\reports\FINAL_BUILD_REPORT.md - Default: move to archive for review
+[MOVE] MOVE to archive/: archive\superseded\reports\HOW_TO_RUN_PHASE2.md - Default: move to archive for review
+[MOVE] MOVE to archive/: archive\superseded\reports\MANUAL_TRACKING.md - Default: move to archive for review
+[MOVE] MOVE to root: archive\superseded\reports\MASTER_BUILD_PLAN_FILEORGANIZER.md - Essential root file: MASTER_BUILD_PLAN_FILEORGANIZER.md
+[MOVE] MOVE to archive/: archive\superseded\reports\PHASE2_BUILD_REPORT_20251128_182220.md - Default: move to archive for review
+[MOVE] MOVE to archive/: archive\superseded\reports\PHASE2_README.md - Default: move to archive for review
+[MOVE] MOVE to archive/: archive\superseded\reports\PHASE2_SETUP_SUMMARY.md - Default: move to archive for review
+[MOVE] MOVE to docs/research/: archive\superseded\research\CONSOLIDATED_RESEARCH.md - Research document pattern/keyword matched
+[MOVE] MOVE to archive/: archive\superseded\research\CONSOLIDATED_STRATEGY.md - Default: move to archive for review
+[MOVE] MOVE to docs/research/: archive\superseded\research\cursor_research_brief_immigration_visa_evidence_packs_v2.md - Research document pattern/keyword matched
+[MOVE] MOVE to docs/research/: archive\superseded\research\cursor_research_brief_tax_immigration_legal_packs.md - Research document pattern/keyword matched
+[MOVE] MOVE to archive/: archive\superseded\research\fileorganizer_final_strategic_review.md - Reference material pattern/keyword matched
+[MOVE] MOVE to docs/research/: archive\superseded\research\GPT_RESEARCH_REQUEST.md - Research document pattern/keyword matched
+[MOVE] MOVE to docs/research/: archive\superseded\research\immigration_visa_evidence_packs_detailed_spec.md - Research document pattern/keyword matched
+[MOVE] MOVE to docs/research/: archive\superseded\research\MARKET_RESEARCH_EXTENDED_2025.md - Research document pattern/keyword matched
+[MOVE] MOVE to docs/research/: archive\superseded\research\MARKET_RESEARCH_RIGOROUS_V2.md - Research document pattern/keyword matched
+[MOVE] MOVE to archive/: archive\superseded\tiers\tier_00_Config.md - Default: move to archive for review
+[MOVE] MOVE to archive/: archive\superseded\tiers\tier_00_Demo_Tier.md - Default: move to archive for review
+[MOVE] MOVE to archive/: archive\superseded\tiers\tier_00_Docker_Deployment.md - Default: move to archive for review
+[MOVE] MOVE to archive/: archive\superseded\tiers\tier_00_fileorg-p2.md - Default: move to archive for review
+[MOVE] MOVE to archive/: archive\superseded\tiers\tier_00_FileOrganizer_Test_Suite_Fix.md - Default: move to archive for review
+[MOVE] MOVE to archive/: archive\superseded\tiers\tier_00_Frontend_Build_System.md - Default: move to archive for review
+[MOVE] MOVE to archive/: archive\superseded\tiers\tier_00_HighPriority.md - Default: move to archive for review
+[MOVE] MOVE to archive/: archive\superseded\tiers\tier_00_High_Priority.md - Default: move to archive for review
+[MOVE] MOVE to archive/: archive\superseded\tiers\tier_00_Infra.md - Default: move to archive for review
+[MOVE] MOVE to archive/: archive\superseded\tiers\tier_00_Phase_2_Beta.md - Default: move to archive for review
+[MOVE] MOVE to archive/: archive\superseded\tiers\tier_00_Probe_Test_Tier.md - Default: move to archive for review
+[MOVE] MOVE to archive/: archive\superseded\tiers\tier_00_Smoke_Test_Tier.md - Default: move to archive for review
+[MOVE] MOVE to archive/: archive\superseded\tiers\tier_00_Stability.md - Default: move to archive for review
+[MOVE] MOVE to archive/: archive\superseded\tiers\tier_00_Test.md - Default: move to archive for review
+[MOVE] MOVE to archive/: archive\superseded\tiers\tier_00_Test_Tier.md - Default: move to archive for review
+[MOVE] MOVE to archive/: archive\superseded\tiers\tier_00_Tier_1.md - Default: move to archive for review
+[MOVE] MOVE to archive/: archive\superseded\tiers\tier_00_Validation.md - Default: move to archive for review
+[MOVE] MOVE to archive/: archive\superseded\tiers\tier_01_Backend_Test_Fixes.md - Default: move to archive for review
+[MOVE] MOVE to archive/: archive\superseded\tiers\tier_01_Infrastructure.md - Default: move to archive for review
+[MOVE] MOVE to archive/: archive\superseded\tiers\tier_01_Infrastructure_&_Deployment.md - Default: move to archive for review
+[MOVE] MOVE to archive/: archive\superseded\tiers\tier_01_Medium_Priority.md - Default: move to archive for review
+[MOVE] MOVE to archive/: archive\superseded\tiers\tier_01_Tests.md - Default: move to archive for review
+[MOVE] MOVE to archive/: archive\superseded\tiers\tier_02_API.md - Default: move to archive for review
+[MOVE] MOVE to archive/: archive\superseded\tiers\tier_02_CountryPacks.md - Default: move to archive for review
+[MOVE] MOVE to archive/: archive\superseded\tiers\tier_02_Low_Priority_(Complex).md - Default: move to archive for review
+[MOVE] MOVE to archive/: archive\superseded\tiers\tier_02_Observability.md - Default: move to archive for review
+[MOVE] MOVE to archive/: archive\superseded\tiers\tier_03_Advanced_Features.md - Default: move to archive for review
+[MOVE] MOVE to root: archive\unsorted\README.md - Essential root file: README.md
+[INFO] 
+Executing actions...
+[MOVE] Moved WHATS_LEFT_TO_BUILD.md to root
+[MOVE] Moved README.md to root
+[MOVE] Moved CURSOR_REVISION_CHECKLIST.md to root
+[MOVE] Moved MASTER_BUILD_PLAN_FILEORGANIZER.md to root
+[MOVE] Moved README.md to root
+[MOVE] Moved CONSOLIDATED_RESEARCH.md to docs/research/
+[MOVE] Moved CONSOLIDATED_RESEARCH.md to docs/research/
+[MOVE] Moved cursor_research_brief_immigration_visa_evidence_packs_v2.md to docs/research/
+[MOVE] Moved cursor_research_brief_tax_immigration_legal_packs.md to docs/research/
+[MOVE] Moved GPT_RESEARCH_REQUEST.md to docs/research/
+[MOVE] Moved immigration_visa_evidence_packs_detailed_spec.md to docs/research/
+[MOVE] Moved MARKET_RESEARCH_EXTENDED_2025.md to docs/research/
+[MOVE] Moved MARKET_RESEARCH_RIGOROUS_V2.md to docs/research/
+[MOVE] Moved ACCURACY_IMPROVEMENTS_98PERCENT.md to archive/
+[MOVE] Moved IMPLEMENTATION_COMPLETE_SUMMARY.md to archive/
+[MOVE] Moved PATTERN_CONFIDENCE_ENHANCEMENT_20251211.md to archive/
+[MOVE] Moved AUTOPACK_RUN_ANALYSIS_FOR_GPT_REVIEW.md to archive/
+[MOVE] Moved CLAUDE_RESPONSE_TO_GPT_REVIEW.md to archive/
+[MOVE] Moved CODEX_DELEGATION_REQUEST_20251128_103044.md to archive/
+[MOVE] Moved CODEX_DELEGATION_REQUEST_20251128_104813.md to archive/
+[MOVE] Moved CODEX_DELEGATION_RESULT_20251128_103044.md to archive/
+[MOVE] Moved CODEX_DELEGATION_RESULT_20251128_104813.md to archive/
+[MOVE] Moved DELEGATION_TO_GPT4O.md to archive/
+[MOVE] Moved GPT_REVIEW_PROMPT.md to archive/
+[MOVE] Moved GPT_STRATEGIC_ANALYSIS_PROMPT_V2.md to archive/
+[MOVE] Moved OPENAI_DELEGATION_REQUEST_20251128_133758.md to archive/
+[MOVE] Moved OPENAI_DELEGATION_REQUEST_20251128_153852.md to archive/
+[MOVE] Moved OPENAI_DELEGATION_REQUEST_20251128_154038.md to archive/
+[MOVE] Moved OPENAI_DELEGATION_REQUEST_20251129_032041.md to archive/
+[MOVE] Moved OPENAI_DELEGATION_REQUEST_20251129_040839.md to archive/
+[MOVE] Moved OPENAI_DELEGATION_REQUEST_20251129_044732.md to archive/
+[MOVE] Moved OPENAI_DELEGATION_RESULT_20251128_133813.md to archive/
+[MOVE] Moved OPENAI_DELEGATION_RESULT_20251128_153911.md to archive/
+[MOVE] Moved OPENAI_DELEGATION_RESULT_20251128_154108.md to archive/
+[MOVE] Moved OPENAI_DELEGATION_RESULT_20251129_032056.md to archive/
+[MOVE] Moved OPENAI_DELEGATION_RESULT_20251129_044745.md to archive/
+[MOVE] Moved PROMPT_SEQUENCE_FOR_GPT.md to archive/
+[MOVE] Moved AUTO_CONVERSION_GUIDE.md to archive/
+[MOVE] Moved NEW_PROJECT_SETUP_GUIDE.md to archive/
+[MOVE] Moved OPENAI_DELEGATION_GUIDE.md to archive/
+C:\Python\Lib\site-packages\huggingface_hub\file_download.py:143: UserWarning: `huggingface_hub` cache-system uses symlinks by default to efficiently store duplicated files but your machine does not support them in C:\Users\hshk9\.cache\huggingface\hub\models--BAAI--bge-m3. Caching files will still work but in a degraded version that might require more space on your disk. This warning can be disabled by setting the `HF_HUB_DISABLE_SYMLINKS_WARNING` environment variable. For more details, see https://huggingface.co/docs/huggingface_hub/how-to-cache#limitations.
+To support symlinks on Windows, you either need to activate Developer Mode or to run Python as an administrator. In order to activate developer mode, see this article: https://docs.microsoft.com/en-us/windows/apps/get-started/enable-your-device-for-development
+  warnings.warn(message)
+Xet Storage is enabled for this repo, but the 'hf_xet' package is not installed. Falling back to regular HTTP download. For better performance, install the package with: `pip install huggingface_hub[hf_xet]` or `pip install hf_xet`
+Xet Storage is enabled for this repo, but the 'hf_xet' package is not installed. Falling back to regular HTTP download. For better performance, install the package with: `pip install huggingface_hub[hf_xet]` or `pip install hf_xet`
+Xet Storage is enabled for this repo, but the 'hf_xet' package is not installed. Falling back to regular HTTP download. For better performance, install the package with: `pip install huggingface_hub[hf_xet]` or `pip install hf_xet`
+Xet Storage is enabled for this repo, but the 'hf_xet' package is not installed. Falling back to regular HTTP download. For better performance, install the package with: `pip install huggingface_hub[hf_xet]` or `pip install hf_xet`
+[MOVE] Moved QUICK_REFERENCE.md to archive/
+[MOVE] Moved phase_00_backend-config-fix.md to archive/
+[MOVE] Moved phase_00_backend-test-isolation.md to archive/
+[MOVE] Moved phase_00_docs-dashboard-refresh.md to archive/
+[MOVE] Moved phase_00_F1.1.md to archive/
+[MOVE] Moved phase_00_fileorg-p2-country-uk.md to archive/
+[MOVE] Moved phase_00_fileorg-p2-docker.md to archive/
+[MOVE] Moved phase_00_fileorg-p2-frontend-build.md to archive/
+[MOVE] Moved phase_00_fileorg-p2-search.md to archive/
+[MOVE] Moved phase_00_fileorg-p2-test-fixes.md to archive/
+[MOVE] Moved phase_00_fix-password-hashing.md to archive/
+[MOVE] Moved phase_00_fix-postcode-validator.md to archive/
+[MOVE] Moved phase_00_high-direct-strong.md to archive/
+[MOVE] Moved phase_00_implement-search-endpoint.md to archive/
+[MOVE] Moved phase_00_low-easy-task.md to archive/
+[MOVE] Moved phase_00_medium-task.md to archive/
+[MOVE] Moved phase_00_phase-0.md to archive/
+[MOVE] Moved phase_00_phase3-branch-rollback.md to archive/
+[MOVE] Moved phase_00_phase3-config-loading.md to archive/
+[MOVE] Moved phase_00_phase3-dashboard-metrics.md to archive/
+[MOVE] Moved phase_00_test-1-simple-modification.md to archive/
+[MOVE] Moved phase_00_test-phase1.md to archive/
+[MOVE] Moved phase_01_backend-requirements-fix.md to archive/
+[MOVE] Moved phase_01_backend-test-imports.md to archive/
+[MOVE] Moved phase_01_F2.1.md to archive/
+[MOVE] Moved phase_01_fileorg-p2-batch-upload.md to archive/
+[MOVE] Moved phase_01_fileorg-p2-country-canada.md to archive/
+[MOVE] Moved phase_01_fileorg-p2-frontend-build.md to archive/
+[MOVE] Moved phase_01_fix-ato-classifier.md to archive/
+[MOVE] Moved phase_01_fix-file-validator-import.md to archive/
+[MOVE] Moved phase_01_implement-batch-endpoint.md to archive/
+[MOVE] Moved phase_01_impossible-task.md to archive/
+[MOVE] Moved phase_01_low-needs-escalation.md to archive/
+[MOVE] Moved phase_01_low-tricky-task.md to archive/
+[MOVE] Moved phase_01_P1.md to archive/
+[MOVE] Moved phase_01_P2.2.md to archive/
+[MOVE] Moved phase_01_phase3-discovery-promotion.md to archive/
+[MOVE] Moved phase_01_phase3-doctor-tests.md to archive/
+[MOVE] Moved phase_01_phase3-t0t1-checks.md to archive/
+[MOVE] Moved phase_01_test-2-medium-complexity.md to archive/
+[MOVE] Moved phase_02_F1.3.md to archive/
+[MOVE] Moved phase_02_fileorg-p2-auth.md to archive/
+[MOVE] Moved phase_02_fileorg-p2-country-australia.md to archive/
+[MOVE] Moved phase_02_fileorg-p2-docker.md to archive/
+[MOVE] Moved phase_02_fix-health-check-tests.md to archive/
+[MOVE] Moved phase_02_implement-auth-endpoints.md to archive/
+[MOVE] Moved phase_02_P2.3.md to archive/
+[MOVE] Moved phase_02_P2.md to archive/
+[MOVE] Moved phase_02_test-3-potential-replan.md to archive/
+[MOVE] Moved phase_02_unskip-critical-tests.md to archive/
+[MOVE] Moved phase_03_e2e-smoke-8100.md to archive/
+[MOVE] Moved phase_03_fileorg-p2-country-uk.md to archive/
+[MOVE] Moved phase_03_P2.4.md to archive/
+[MOVE] Moved phase_03_P3.md to archive/
+[MOVE] Moved phase_04_P4.md to archive/
+[MOVE] Moved phase_05_fileorg-p2-country-australia.md to archive/
+[MOVE] Moved phase_05_P2.6.md to archive/
+[MOVE] Moved phase_05_P5.md to archive/
+[MOVE] Moved phase_06_fileorg-p2-search.md to archive/
+[MOVE] Moved phase_06_P2.7.md to archive/
+[MOVE] Moved phase_06_P6.md to archive/
+[MOVE] Moved phase_07_P2.8.md to archive/
+[MOVE] Moved phase_07_P7.md to archive/
+[MOVE] Moved phase_08_fileorg-p2-auth.md to archive/
+[MOVE] Moved phase_08_P2.9.md to archive/
+[MOVE] Moved phase_09_fileorg-p2-qa-hardening.md to archive/
+[MOVE] Moved phase_11_fileorg-p2-docs-final.md to archive/
+[MOVE] Moved phase_12_fileorg-p2-auth-hardening.md to archive/
+[MOVE] Moved phase_13_fileorg-p2-search-quality.md to archive/
+[MOVE] Moved phase_14_fileorg-p2-batch-observability.md to archive/
+[MOVE] Moved phase_15_fileorg-p2-file-safety.md to archive/
+[MOVE] Moved phase_16_fileorg-p2-storage-config.md to archive/
+[MOVE] Moved phase_17_fileorg-p2-export-sharing.md to archive/
+[MOVE] Moved phase_18_fileorg-p2-ui-ux-polish.md to archive/
+[MOVE] Moved phase_19_fileorg-p2-logging-metrics.md to archive/
+[MOVE] Moved phase_21_fileorg-p2-e2e-smoke.md to archive/
+[MOVE] Moved phase_22_fileorg-p2-security-basics.md to archive/
+[MOVE] Moved phase_23_fileorg-p2-perf-tuning.md to archive/
+[MOVE] Moved phase_24_fileorg-p2-planning-fortify.md to archive/
+[MOVE] Moved ref1.md to archive/
+[MOVE] Moved ref10.md to archive/
+[MOVE] Moved ref11.md to archive/
+[MOVE] Moved ref2.md to archive/
+[MOVE] Moved ref3.md to archive/
+[MOVE] Moved ref4.md to archive/
+[MOVE] Moved ref5.md to archive/
+[MOVE] Moved ref6.md to archive/
+[MOVE] Moved ref7.md to archive/
+[MOVE] Moved REF_01_EXISTING_SOLUTIONS_COMPILED.md to archive/
+[MOVE] Moved REF_02_USER_REQUIREMENTS_AND_LESSONS.md to archive/
+[MOVE] Moved AUTOPACK_PHASE2_TASK1_SPEC.md to archive/
+[MOVE] Moved CONSOLIDATED_BUILD.md to archive/
+[MOVE] Moved CONSOLIDATED_BUILD_HISTORY.md to archive/
+[MOVE] Moved CONSOLIDATED_MISC.md to archive/
+[MOVE] Moved CONSOLIDATED_REFERENCE.md to archive/
+[MOVE] Moved CONSOLIDATED_STRATEGIC_ANALYSIS.md to archive/
+[MOVE] Moved FINAL_BUILD_REPORT.md to archive/
+[MOVE] Moved HOW_TO_RUN_PHASE2.md to archive/
+[MOVE] Moved MANUAL_TRACKING.md to archive/
+[MOVE] Moved PHASE2_BUILD_REPORT_20251128_182220.md to archive/
+[MOVE] Moved PHASE2_README.md to archive/
+[MOVE] Moved PHASE2_SETUP_SUMMARY.md to archive/
+[MOVE] Moved CONSOLIDATED_STRATEGY.md to archive/
+[MOVE] Moved fileorganizer_final_strategic_review.md to archive/
+[MOVE] Moved tier_00_Config.md to archive/
+[MOVE] Moved tier_00_Demo_Tier.md to archive/
+[MOVE] Moved tier_00_Docker_Deployment.md to archive/
+[MOVE] Moved tier_00_fileorg-p2.md to archive/
+[MOVE] Moved tier_00_FileOrganizer_Test_Suite_Fix.md to archive/
+[MOVE] Moved tier_00_Frontend_Build_System.md to archive/
+[MOVE] Moved tier_00_HighPriority.md to archive/
+[MOVE] Moved tier_00_High_Priority.md to archive/
+[MOVE] Moved tier_00_Infra.md to archive/
+[MOVE] Moved tier_00_Phase_2_Beta.md to archive/
+[MOVE] Moved tier_00_Probe_Test_Tier.md to archive/
+[MOVE] Moved tier_00_Smoke_Test_Tier.md to archive/
+[MOVE] Moved tier_00_Stability.md to archive/
+[MOVE] Moved tier_00_Test.md to archive/
+[MOVE] Moved tier_00_Test_Tier.md to archive/
+[MOVE] Moved tier_00_Tier_1.md to archive/
+[MOVE] Moved tier_00_Validation.md to archive/
+[MOVE] Moved tier_01_Backend_Test_Fixes.md to archive/
+[MOVE] Moved tier_01_Infrastructure.md to archive/
+[MOVE] Moved tier_01_Infrastructure_&_Deployment.md to archive/
+[MOVE] Moved tier_01_Medium_Priority.md to archive/
+[MOVE] Moved tier_01_Tests.md to archive/
+[MOVE] Moved tier_02_API.md to archive/
+[MOVE] Moved tier_02_CountryPacks.md to archive/
+[MOVE] Moved tier_02_Low_Priority_(Complex).md to archive/
+[MOVE] Moved tier_02_Observability.md to archive/
+[MOVE] Moved tier_03_Advanced_Features.md to archive/
+[DELETE] Deleted CONFIDENCE_THRESHOLD_FIX_20251211.md
+[MOVE] Removed empty directory: archive\superseded\file-organizer-app-v1\backlog-maintenance-1765297485\diagnostics\commands
+[MOVE] Removed empty directory: archive\superseded\file-organizer-app-v1\backlog-maintenance-1765297485\diagnostics
+[MOVE] Removed empty directory: archive\superseded\file-organizer-app-v1\backlog-maintenance-1765297570\diagnostics\commands
+[MOVE] Removed empty directory: archive\superseded\file-organizer-app-v1\backlog-maintenance-1765297570\diagnostics
+[MOVE] Removed empty directory: archive\superseded\file-organizer-app-v1\backlog-maintenance-1765298547\diagnostics\commands
+[MOVE] Removed empty directory: archive\superseded\file-organizer-app-v1\backlog-maintenance-1765298547\diagnostics
+[MOVE] Removed empty directory: archive\superseded\file-organizer-app-v1\backlog-maintenance-1765299305\diagnostics\commands
+[MOVE] Removed empty directory: archive\superseded\file-organizer-app-v1\backlog-maintenance-1765299305\diagnostics
+[MOVE] Removed empty directory: archive\superseded\file-organizer-app-v1\refs
+[MOVE] Removed empty directory: archive\superseded\delegations
+[MOVE] Removed empty directory: archive\superseded\diagnostics
+[MOVE] Removed empty directory: archive\superseded\phases
+[MOVE] Removed empty directory: archive\superseded\refs
+[MOVE] Removed empty directory: archive\superseded\reports
+[MOVE] Removed empty directory: archive\superseded\research
+[MOVE] Removed empty directory: archive\superseded\tiers
+[MOVE] Removed empty directory: archive\analysiss
+[MOVE] Removed empty directory: archive\diagnostics
+[MOVE] Removed empty directory: archive\logs
+[MOVE] Removed empty directory: archive\reports
+[MOVE] Removed empty directory: archive\unsorted
+[INFO] Running semantic analysis (max 200 files) with model glm-4.6
+[SEMANTIC] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\CURSOR_REVISION_CHECKLIST.md: archive ({
+    "decision": "archive",
+    "rationine": "This is a detailed project planning and review checklist for a specific f)
+[SEMANTIC] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\MASTER_BUILD_PLAN_FILEORGANIZER.md: archive ({
+  "decision": "archive",
+  "rationine": "This file is a detailed project plan and business analysis for 'FileOrganizer)
+[SEMANTIC] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\README.md: keep ({
+    "decision": "keep",
+    "rationale": "This file is a project-specific README for a utility directory (`Unsorted In)
+[SEMANTIC] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\ACCURACY_IMPROVEMENTS_98PERCENT.md: archive ({
+    "decision": "archive",
+    "rationine": "This file documents a specific, completed feature enhancement (accuracy i)
+[SEMANTIC] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\ARCHIVE_INDEX.md: archive ({
+  "decision": "archive",
+  "rationine": "This is a meta-index file pointing to other consolidated documentation files.)
+[SEMANTIC] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\AUTOPACK_PHASE2_TASK1_SPEC.md: archive ({
+  "decision": "archive",
+  "rationine": "This is a specific task execution file for fixing test dependencies in the Fi)
+[SEMANTIC] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\AUTOPACK_RUN_ANALYSIS_FOR_GPT_REVIEW.md: archive ({
+  "decision": "archive",
+  "rationine": "This is a detailed post-mortem analysis of a specific failed run (fileorg-pha)
+[SEMANTIC] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\AUTO_CONVERSION_GUIDE.md: archive ({
+  "decision": "archive",
+  "rationine": "This documentation describes an automatic task format conversion feature that)
+[SEMANTIC] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\CLAUDE_RESPONSE_TO_GPT_REVIEW.md: archive ({
+    "decision": "archive",
+    "rationine": "This file is a detailed response to a specific strategic review (ref5.md))
+[SEMANTIC] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\CODEX_DELEGATION_REQUEST_20251128_103044.md: archive ({
+  "decision": "archive",
+  "rationine": "This is a historical bug report from 2025-11-28 documenting a specific server)
+[SEMANTIC] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\CODEX_DELEGATION_REQUEST_20251128_104813.md: archive ({
+  "decision": "archive",
+  "rationine": "This is a specific bug report from 2025-11-28 about a 500 error that was bein)
+[SEMANTIC] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\CODEX_DELEGATION_RESULT_20251128_103044.md: archive ({
+    "decision": "archive",
+    "rationale": "This is a detailed debugging analysis for a specific 500 error that was l)
+[SEMANTIC] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\CODEX_DELEGATION_RESULT_20251128_104813.md: delete ({
+    "decision": "delete",
+    "rationale": "This is a generic template file with placeholder text ('[Codex will provid)
+[SEMANTIC] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\CONSOLIDATED_BUILD.md: archive ({
+    "decision": "archive",
+    "rationine": "This is a detailed build progress report for a specific project run (file)
+[SEMANTIC] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\CONSOLIDATED_BUILD_HISTORY.md: archive ({
+    "decision": "archive",
+    "rationine": "This is a historical build report for a specific project (FileOrganizer) )
+[SEMANTIC] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\CONSOLIDATED_DEBUG.md: keep ({
+    "decision": "keep",
+    "rationale": "This file is a critical, actively maintained log of recent bugs, fixes, and )
+[SEMANTIC] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\CONSOLIDATED_MISC.md: archive ({
+  "decision": "archive",
+  "rationine": "This is a consolidated reference document auto-generated on 2025-12-04. The c)
+[SEMANTIC] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\CONSOLIDATED_REFERENCE.md: archive ({
+  "decision": "archive",
+  "rationine": "This is a consolidated reference document from 2025-12-04 that aggregates sup)
+[SEMANTIC] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\CONSOLIDATED_STRATEGIC_ANALYSIS.md: archive ({
+  "decision": "archive",
+  "rationine": "This file is a detailed strategic analysis for a specific product (FileOrgani)
+[SEMANTIC] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\CONSOLIDATED_STRATEGY.md: archive ({
+    "decision": "archive",
+    "rationine": "This file is a consolidated strategy reference for a specific product (Fi)
+[SEMANTIC] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\DEBUG_JOURNAL.md: archive ({
+    "decision": "archive",
+    "rationine": "This is a project-specific debug journal for 'FileOrganizer Phase 2', con)
+[SEMANTIC] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\DELEGATION_TO_GPT4O.md: archive ({
+    "decision": "archive",
+    "rationine": "This is a detailed bug report for a critical issue in the Autopack framew)
+[SEMANTIC] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\fileorganizer_final_strategic_review.md: archive ({
+    "decision": "archive",
+    "rationine": "This document is a detailed strategic review and implementation gate for )
+[SEMANTIC] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\FINAL_BUILD_REPORT.md: archive ({
+  "decision": "archive",
+  "rationine": "This is a final build report for a completed project (FileOrganizer v1.0) fro)
+[SEMANTIC] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\GPT_REVIEW_PROMPT.md: archive ({
+    "decision": "archive",
+    "rationine": "This file is a detailed, project-specific post-mortem and strategic revie)
+[SEMANTIC] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\GPT_STRATEGIC_ANALYSIS_PROMPT_V2.md: archive ({
+  "decision": "archive",
+  "rationine": "This file is a project-specific strategic analysis document for a 'FileOrgani)
+[SEMANTIC] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\HOW_TO_RUN_PHASE2.md: archive ({
+    "decision": "archive",
+    "rationine": "This is a highly specific, procedural guide for running 'FileOrganizer Ph)
+[SEMANTIC] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\IMPLEMENTATION_COMPLETE_SUMMARY.md: archive ({
+    "decision": "archive",
+    "rationine": "This is a detailed implementation completion log for a specific feature ()
+[SEMANTIC] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\MANUAL_TRACKING.md: archive ({
+    "decision": "archive",
+    "rationine": "This is a manual tracking template for a specific project run (task-track)
+[SEMANTIC] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\NEW_PROJECT_SETUP_GUIDE.md: keep ({
+    "decision": "keep",
+    "rationine": "This file provides essential, actionable user documentation for a core frame)
+[SEMANTIC] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\OPENAI_DELEGATION_GUIDE.md: archive ({
+    "decision": "archive",
+    "rationine": "This file describes a specific, temporary debugging feature (OpenAI GPT-4)
+[SEMANTIC] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\OPENAI_DELEGATION_REQUEST_20251128_133758.md: archive ({
+    "decision": "archive",
+    "rationine": "This is a specific bug report/issue analysis file documenting a 500 error)
+[SEMANTIC] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\OPENAI_DELEGATION_REQUEST_20251128_153852.md: archive ({
+    "decision": "archive",
+    "rationine": "This is a bug report for a specific issue (dry-run mode not applying patc)
+[SEMANTIC] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\OPENAI_DELEGATION_REQUEST_20251128_154038.md: archive ({
+    "decision": "archive",
+    "rationine": "This is an issue analysis request for implementing a missing component (G)
+[SEMANTIC] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\OPENAI_DELEGATION_REQUEST_20251129_032041.md: archive ({
+  "decision": "archive",
+  "rationine": "This is a specific bug report about patch truncation in OpenAI Builder. The i)
+[SEMANTIC] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\OPENAI_DELEGATION_REQUEST_20251129_040839.md: archive ({
+  "decision": "archive",
+  "rationine": "This is an issue analysis document describing a specific bug fix verification)
+[SEMANTIC] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\OPENAI_DELEGATION_REQUEST_20251129_044732.md: archive ({
+    "decision": "archive",
+    "rationine": "This is a transient issue analysis document describing a specific bug (em)
+[SEMANTIC] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\OPENAI_DELEGATION_RESULT_20251128_133813.md: archive ({
+    "decision": "archive",
+    "rationale": "This file is a detailed analysis of a specific 500 Internal Server Error )
+[SEMANTIC] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\OPENAI_DELEGATION_RESULT_20251128_153911.md: archive ({
+    "decision": "archive",
+    "rationine": "This is a detailed technical analysis and root cause report for a specifi)
+[SEMANTIC] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\OPENAI_DELEGATION_RESULT_20251128_154108.md: archive ({
+  "decision": "archive",
+  "rationine": "This file is a detailed analysis of a specific bug (missing GovernedApplyPath)
+[SEMANTIC] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\OPENAI_DELEGATION_RESULT_20251129_032056.md: archive ({
+    "decision": "archive",
+    "rationine": "This is a detailed bug analysis and fix proposal for a specific issue (tr)
+[SEMANTIC] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\OPENAI_DELEGATION_RESULT_20251129_044745.md: delete ({
+    "decision": "delete",
+    "rationale": "This file is a malformed, repetitive, and incomplete AI-generated analysis)
+[SEMANTIC] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\PATTERN_CONFIDENCE_ENHANCEMENT_20251211.md: archive ({
+  "decision": "archive",
+  "rationine": "This is a detailed changelog documenting a specific enhancement to the patter)
+[SEMANTIC] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\PHASE2_BUILD_REPORT_20251128_182220.md: delete ({
+    "decision": "delete",
+    "rationine": "This is a test run report from a specific date (2025-11-28) showing zero t)
+[SEMANTIC] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\PHASE2_README.md: archive ({
+    "decision": "archive",
+    "rationine": "This file is a detailed execution plan for 'Phase 2' of a specific projec)
+[SEMANTIC] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\PHASE2_SETUP_SUMMARY.md: archive ({
+  "decision": "archive",
+  "rationine": "This is a project-specific status update and execution guide for 'FileOrganiz)
+[SEMANTIC] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_00_backend-config-fix.md: delete ({
+    "decision": "delete",
+    "rationale": "This is a temporary execution log for a single, completed phase. It contai)
+[SEMANTIC] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_00_backend-test-isolation.md: delete ({
+    "decision": "delete",
+    "rationale": "This is a temporary execution log for a single, completed phase. It contai)
+[SEMANTIC] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_00_docs-dashboard-refresh.md: delete ({
+    "decision": "delete",
+    "rationale": "This is a temporary execution log for a single, completed phase. It contai)
+[SEMANTIC] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_00_F1.1.md: delete ({
+    "decision": "delete",
+    " rationale": "This is a transient status file for a single, queued phase execution. It )
+[SEMANTIC] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_00_fileorg-p2-country-uk.md: delete ({
+    "decision": "delete",
+    "rationine": "This is a transient status file for a single, queued phase execution. It c)
+[SEMANTIC] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_00_fileorg-p2-docker.md: delete ({
+    "decision": "delete",
+    "rationine": "This is a transient status file for a single, queued phase execution. It c)
+[SEMANTIC] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_00_fileorg-p2-frontend-build.md: delete ({
+    "decision": "delete",
+    "rationale": "This is a temporary status file for a single, completed phase. It contains)
+[SEMANTIC] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_00_fileorg-p2-search.md: delete ({
+    "decision": "delete",
+    "rationale": "This is a transient status file for a single, queued phase execution. It c)
+[SEMANTIC] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_00_fileorg-p2-test-fixes.md: delete ({
+    "decision": "delete",
+    "rationine": "This is a transient status file for a single, queued phase execution. It c)
+[SEMANTIC] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_00_fix-password-hashing.md: delete ({
+    "decision": "delete",
+    "rationale": "This is a temporary execution log for a single, completed phase. It contai)
+[SEMANTIC] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_00_fix-postcode-validator.md: delete ({
+    "decision": "delete",
+    "rationine": "This is a temporary execution log for a single, completed phase. It contai)
+[SEMANTIC] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_00_high-direct-strong.md: delete ({
+    "decision": "delete",
+    "rationine": "This is a temporary execution status file for a single phase run. It conta)
+[SEMANTIC] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_00_implement-search-endpoint.md: delete ({
+    "decision": "delete",
+    "rationine": "This is a temporary execution log for a single, completed phase. It contai)
+[SEMANTIC] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_00_low-easy-task.md: delete ({
+    "decision": "delete",
+    "rationine": "This is a temporary execution log for a single, completed phase ('low-easy)
+[SEMANTIC] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_00_medium-task.md: delete ({
+    "decision": "delete",
+    "rationine": "This is a temporary execution log file for a single, completed phase. It c)
+[SEMANTIC] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_00_phase-0.md: delete ({
+    "decision": "delete",
+    "rationale": "This is a temporary execution log for a single, completed phase ('phase-0 )
+[SEMANTIC] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_00_phase3-branch-rollback.md: delete ({
+    "decision": "delete",
+    "rationale": "This is a temporary execution log for a single, failed phase run. It conta)
+[SEMANTIC] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_00_phase3-config-loading.md: keep ({
+  "decision": "delete",
+  "rationale": "This is a temporary, runtime-generated status file for a single failed phase e)
+[SEMANTIC] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_00_phase3-dashboard-metrics.md: delete ({
+    "decision": "delete",
+    "rationine": "This is a temporary execution status file for a single phase run. It conta)
+[SEMANTIC] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_00_test-1-simple-modification.md: keep ({
+    "decision": "delete",
+    "rationine": "This is a transient execution log for a single, completed phase ('test-1-s)
+[SEMANTIC] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_00_test-phase1.md: delete ({
+    "decision": "delete",
+    "rationale": "This is a transient status file for a single, queued phase ('test-phase1'))
+[SEMANTIC] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_01_backend-requirements-fix.md: delete ({
+  "decision": "delete",
+  "rationale": "This is a temporary, execution-specific status file for a single, completed ph)
+[SEMANTIC] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_01_backend-test-imports.md: delete ({
+  "decision": "delete",
+  "rationine": "This is a temporary execution log for a single, completed phase ('backend-test)
+[SEMANTIC] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_01_F2.1.md: delete ({
+    "decision": "delete",
+    "rationale": "This is a temporary status file for a single, queued phase. It contains no)
+[SEMANTIC] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_01_fileorg-p2-batch-upload.md: delete ({
+    "decision": "delete",
+    "rationine": "This is a temporary status file for a single, queued phase execution. It c)
+[SEMANTIC] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_01_fileorg-p2-country-canada.md: delete ({
+    "decision": "delete",
+    "rationine": "This is a transient status file for a single, queued phase execution. It c)
+[SEMANTIC] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_01_fileorg-p2-frontend-build.md: delete ({
+    "decision": "delete",
+    "rationine": "This is a transient status file for a single, queued phase execution. It c)
+[SEMANTIC] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_01_fix-ato-classifier.md: delete ({
+    "decision": "delete",
+    "rationine": "This is a temporary, runtime-generated status file for a specific phase (')
+[SEMANTIC] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_01_fix-file-validator-import.md: delete ({
+    "decision": "delete",
+    "rationine": "This is a temporary execution log for a single, completed phase. It contai)
+[SEMANTIC] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_01_implement-batch-endpoint.md: delete ({
+    "decision": "delete",
+    "rationine": "This is a temporary execution log for a single, completed phase. It contai)
+[SEMANTIC] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_01_impossible-task.md: keep ({
+    "decision": "delete",
+    "rationale": "This is a temporary execution log for a single, failed test phase. It cont)
+[SEMANTIC] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_01_low-needs-escalation.md: delete ({
+    "decision": "delete",
+    "rationine": "This is a temporary, runtime-generated status file for a single, completed)
+[SEMANTIC] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_01_low-tricky-task.md: delete ({
+    "decision": "delete",
+    "rationine": "This is a temporary execution log for a single, completed phase ('low-tric)
+[SEMANTIC] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_01_P1.md: delete ({
+    "decision": "delete",
+    "rationine": "This is a temporary execution log for a single, completed phase (P1). It c)
+[SEMANTIC] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_01_P2.2.md: delete ({
+    "decision": "delete",
+    "rationale": "This is a temporary, empty status file for a single failed phase. It conta)
+[SEMANTIC] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_01_phase3-discovery-promotion.md: delete ({
+    "decision": "delete",
+    "rationine": "This is a temporary execution log for a single, failed phase run. It conta)
+[SEMANTIC] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_01_phase3-doctor-tests.md: delete ({
+    "decision": "delete",
+    "rationine": "This is a temporary execution log for a single, failed phase run. It conta)
+[SEMANTIC] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_01_phase3-t0t1-checks.md: delete ({
+    "decision": "delete",
+    "rationine": "This is a temporary execution log for a single, failed phase run. It conta)
+[SEMANTIC] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_01_test-2-medium-complexity.md: delete ({
+    "decision": "delete",
+    "rationale": "This is a temporary, runtime-generated status file for a single, failed ph)
+[SEMANTIC] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_02_F1.3.md: delete ({
+    "decision": "delete",
+    "rationine": "This is a temporary status file for a single, queued phase (F1.3). It cont)
+[SEMANTIC] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_02_fileorg-p2-auth.md: delete ({
+    "decision": "delete",
+    "rationale": "This is a transient status file for a single, queued phase execution. It c)
+[SEMANTIC] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_02_fileorg-p2-country-australia.md: delete ({
+    "decision": "delete",
+    " rationale": "This is a transient status file for a single, queued phase execution. It )
+[SEMANTIC] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_02_fileorg-p2-docker.md: delete ({
+    "decision": "delete",
+    "rationale": "This is a temporary execution log for a single, completed phase. It contai)
+[SEMANTIC] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_02_fix-health-check-tests.md: delete ({
+    "decision": "delete",
+    "rationine": "This is a temporary phase summary file documenting a completed, low-comple)
+[SEMANTIC] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_02_implement-auth-endpoints.md: delete ({
+  "decision": "delete",
+  "rationale": "This is a temporary execution status file for a single completed phase. It con)
+[SEMANTIC] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_02_P2.3.md: keep ({
+    "decision": "delete",
+    "rationine": "This is a temporary execution log for a single, failed phase (P2.3). It co)
+[SEMANTIC] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_02_P2.md: delete ({
+    "decision": "delete",
+    "rationine": "This is a transient execution log for a single, completed phase (P2). It c)
+[SEMANTIC] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_02_test-3-potential-replan.md: delete ({
+    "decision": "delete",
+    "rationine": "This is a temporary execution log for a single, failed phase run. It conta)
+[SEMANTIC] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_02_unskip-critical-tests.md: delete ({
+    "decision": "delete",
+    "rationale": "This is a temporary, runtime-generated status file for a single phase exec)
+[SEMANTIC] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_03_e2e-smoke-8100.md: delete ({
+    "decision": "delete",
+    "rationale": "This is a temporary execution log for a specific run (e2e-smoke-8100). It )
+[SEMANTIC] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_03_fileorg-p2-country-uk.md: delete ({
+    "decision": "delete",
+    "rationine": "This is a temporary execution log for a single, completed phase. It contai)
+[SEMANTIC] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_03_P2.4.md: keep ({
+    "decision": "delete",
+    "rationale": "This is a transient execution log for a single, completed phase (P2.4). It)
+[SEMANTIC] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_03_P3.md: keep ({
+    "decision": "delete",
+    "rationine": "This is a temporary execution log for a single, failed phase (P3). It cont)
+[SEMANTIC] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_04_P4.md: delete ({
+    "decision": "delete",
+    "rationine": "This is a temporary execution log for a single, completed phase (P4). It c)
+[SEMANTIC] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_05_fileorg-p2-country-australia.md: delete ({
+    "decision": "delete",
+    "rationine": "This is a temporary execution log for a single, completed phase. It contai)
+[SEMANTIC] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_05_P2.6.md: delete ({
+    "decision": "delete",
+    "rationine": "This is a temporary execution log for a single, failed phase (P2.6). It co)
+[SEMANTIC] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_05_P5.md: delete ({
+    "decision": "delete",
+    "rationale": "This is a temporary execution log for a single, completed phase (P5). It c)
+[SEMANTIC] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_06_fileorg-p2-search.md: delete ({
+    "decision": "delete",
+    "rationale": "This is a temporary execution log for a single, failed phase run. It conta)
+[SEMANTIC] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_06_P2.7.md: delete ({
+    "decision": "delete",
+    "rationine": "This is a temporary execution log for a single, failed phase (P2.7). It co)
+[SEMANTIC] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_06_P6.md: keep ({
+    "decision": "delete",
+    "rationale": "This is a temporary execution log for a single, completed phase (P6). It c)
+[SEMANTIC] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_07_P2.8.md: delete ({
+    "decision": "delete",
+    "rationine": "This is a temporary execution log for a single, failed phase (P2.8). It co)
+[SEMANTIC] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_07_P7.md: delete ({
+    "decision": "delete",
+    "rationale": "This is a temporary execution log for a single, completed phase (P7). It c)
+[SEMANTIC] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_08_fileorg-p2-auth.md: delete ({
+    "decision": "delete",
+    "rationine": "This is a temporary execution status file for a specific phase run. It con)
+[SEMANTIC] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_08_P2.9.md: delete ({
+    "decision": "delete",
+    "rationine": "This is a temporary execution log for a single phase (P2.9). It contains n)
+[SEMANTIC] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_09_fileorg-p2-qa-hardening.md: delete ({
+    "decision": "delete",
+    "rationine": "This is a temporary execution log for a specific, failed phase run. It con)
+[SEMANTIC] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_11_fileorg-p2-docs-final.md: delete ({
+    "decision": "delete",
+    "rationale": "This is a temporary execution log for a single, failed phase. It contains )
+[SEMANTIC] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_12_fileorg-p2-auth-hardening.md: delete ({
+    "decision": "delete",
+    "rationale": "This is a temporary execution log for a specific, failed phase run. It con)
+[SEMANTIC] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_13_fileorg-p2-search-quality.md: delete ({
+    "decision": "delete",
+    "rationale": "This is a temporary execution status file for a single, failed phase run. )
+[SEMANTIC] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_14_fileorg-p2-batch-observability.md: delete ({
+  "decision": "delete",
+  "rationine": "This is a temporary execution log for a specific phase run. It contains no las)
+[SEMANTIC] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_15_fileorg-p2-file-safety.md: delete ({
+    "decision": "delete",
+    "rationine": "This is a temporary execution log for a single, failed phase run. It conta)
+[SEMANTIC] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_16_fileorg-p2-storage-config.md: delete ({
+    "decision": "delete",
+    "rationine": "This is a temporary execution log for a specific, failed phase run. It con)
+[SEMANTIC] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_17_fileorg-p2-export-sharing.md: keep ({
+    "decision": "delete",
+    "rationale": "This is a temporary execution status file for a single, completed phase. I)
+[SEMANTIC] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_18_fileorg-p2-ui-ux-polish.md: delete ({
+    "decision": "delete",
+    "rationine": "This is a temporary execution log for a specific phase run. It contains no)
+[SEMANTIC] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_19_fileorg-p2-logging-metrics.md: delete ({
+    "decision": "delete",
+    "rationale": "This is a temporary execution status file for a single, failed phase. It c)
+[SEMANTIC] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_21_fileorg-p2-e2e-smoke.md: delete ({
+    "decision": "delete",
+    "rationine": "This is a temporary execution log for a specific phase run. It contains no)
+[SEMANTIC] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_22_fileorg-p2-security-basics.md: delete ({
+    "decision": "delete",
+    "rationale": "This is a temporary execution log for a specific, failed phase run. It con)
+[SEMANTIC] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_23_fileorg-p2-perf-tuning.md: delete ({
+    "decision": "delete",
+    "rationale": "This is a phase summary template file for a specific, failed phase ('fileo)
+[SEMANTIC] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_24_fileorg-p2-planning-fortify.md: delete ({
+    "decision": "delete",
+    "rationine": "This is a temporary execution log for a specific, failed phase run ('fileo)
+[SEMANTIC] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\PROMPT_SEQUENCE_FOR_GPT.md: archive ({
+    "decision": "archive",
+    "rationine": "This file contains a detailed, sequential prompt plan for a 'FileOrganize)
+[SEMANTIC] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\QUICK_REFERENCE.md: keep ({
+    "decision": "keep",
+    "rationine": "This file is a user-facing quick reference guide for 'magic phrases' that se)
+[SEMANTIC] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\ref1.md: archive ({
+    "decision": "archive",
+    "rationine": "This file is a detailed, conversational log of a debugging session. It co)
+[SEMANTIC] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\ref10.md: delete ({
+    "decision": "delete",
+    "rationade": "This file is a verbose, conversational log of a debugging session, not doc)
+[SEMANTIC] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\ref11.md: archive ({
+    "decision": "archive",
+    "rationine": "This file is a verbose, conversational log of a debugging session. It con)
+[SEMANTIC] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\ref2.md: archive (</think>
+{
+  "decision": "archive",
+  "rationine": "This is a detailed root cause analysis and debugging plan from 2025-)
+[SEMANTIC] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\ref3.md: archive ({
+  "decision": "archive",
+  "rationine": "This file is a detailed analysis and design document for implementing a self-)
+[SEMANTIC] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\ref4.md: delete ({
+  "decision": "delete",
+  "rationine": "This is a transient conversation log from an AI assistant executing a one-time)
+[SEMANTIC] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\ref5.md: archive ({
+    "decision": "archive",
+    "rationine": "This file is a detailed post-mortem and debug journal for a specific, fai)
+[SEMANTIC] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\ref6.md: archive ({
+    "decision": "archive",
+    "rationine": "This file is a detailed analysis and recommendation memo about specific d)
+[SEMANTIC] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\ref7.md: archive ({
+    "decision": "archive",
+    "rationine": "This is a project-specific run log and orchestration script for a 'file-o)
+[SEMANTIC] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\REF_01_EXISTING_SOLUTIONS_COMPILED.md: archive ({
+  "decision": "archive",
+  "rationine": "This file is a market research compilation of existing file organizer solutio)
+[SEMANTIC] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\REF_02_USER_REQUIREMENTS_AND_LESSONS.md: archive ({
+    "decision": "archive",
+    "rationine": "This document is a detailed requirements analysis for a specific 'FILE_OR)
+[SEMANTIC] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\tier_00_Config.md: delete ({
+    "decision": "delete",
+    "rationale": "This file is a temporary, runtime-generated status report for a specific t)
+[SEMANTIC] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\tier_00_Demo_Tier.md: delete ({
+    "decision": "delete",
+    "rationine": "This is a transient status file for a single demo tier (T1) with a 'PENDIN)
+[SEMANTIC] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\tier_00_Docker_Deployment.md: delete ({
+    "decision": "delete",
+    "rationale": "This file is a temporary status report for a specific deployment tier ('ti)
+[SEMANTIC] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\tier_00_fileorg-p2.md: delete ({
+    "decision": "delete",
+    "rationine": "This is a transient status file for a specific run (T1 - fileorg-p2). It c)
+[SEMANTIC] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\tier_00_FileOrganizer_Test_Suite_Fix.md: delete ({
+    "decision": "delete",
+    "rationine": "This file is a temporary execution report for a specific test suite fix. I)
+[SEMANTIC] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\tier_00_Frontend_Build_System.md: delete ({
+    "decision": "delete",
+    "rationine": "This is a generated status file for a specific tier ('tier-frontend') with)
+[SEMANTIC] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\tier_00_HighPriority.md: delete ({
+  "decision": "delete",
+  "rationale": "This file is a transient, runtime-generated status report for a specific job t)
+[SEMANTIC] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\tier_00_High_Priority.md: delete ({
+  "decision": "delete",
+  "rationine": "This is a runtime status file for a specific plan tier, not documentation. It )
+[SEMANTIC] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\tier_00_Infra.md: archive ({
+    "decision": "delete",
+    "rationale": "This file is a temporary, auto-generated status report for a specific tier)
+[SEMANTIC] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\tier_00_Phase_2_Beta.md: delete ({
+    "decision": "delete",
+    "rationine": "This file is a transient status report for a specific tier (P2) within the)
+[SEMANTIC] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\tier_00_Probe_Test_Tier.md: delete ({
+    "decision": "delete",
+    "rationine": "This is a transient status file for a single test tier (T1). It contains n)
+[SEMANTIC] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\tier_00_Smoke_Test_Tier.md: delete ({
+    "decision": "delete",
+    "rationine": "This is a transient status file for a specific test run ('tier-0 - Smoke T)
+[SEMANTIC] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\tier_00_Stability.md: delete ({
+    "decision": "delete",
+    "rationine": "This is a temporary, runtime-generated status file for a specific executio)
+[SEMANTIC] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\tier_00_Test.md: delete ({
+    "decision": "delete",
+    "rationine": "This is a transient status file for a specific test run ('T1-Test'). It co)
+[SEMANTIC] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\tier_00_Test_Tier.md: delete ({
+    "decision": "delete",
+    "rationine": "This is a transient status file for a single test tier (T1) with a PENDING)
+[SEMANTIC] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\tier_00_Tier_1.md: delete ({
+    "decision": "delete",
+    "rationale": "This file is a transient status report for a single tier (T1) within the A)
+[SEMANTIC] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\tier_00_Validation.md: delete ({
+    "decision": "delete",
+    "rationine": "This is a transient status file for a specific execution run (T1-Validatio)
+[SEMANTIC] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\tier_01_Backend_Test_Fixes.md: delete ({
+    "decision": "delete",
+    "rationine": "This is a temporary execution status file for a specific run (Tier T1). It)
+[SEMANTIC] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\tier_01_Infrastructure.md: delete ({
+    "decision": "delete",
+    "rationine": "This is a temporary status file for a single tier (T2-Infrastructure) with)
+[SEMANTIC] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\tier_01_Infrastructure_&_Deployment.md: delete ({
+    "decision": "delete",
+    "rationine": "This is a temporary status file for a specific tier (T2-Infrastructure) wi)
+[SEMANTIC] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\tier_01_Medium_Priority.md: delete ({
+    "decision": "delete",
+    "rationale": "This is a transient status file for a specific run/tier, not persistent do)
+[SEMANTIC] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\tier_01_Tests.md: delete ({
+    "decision": "delete",
+    "rationale": "This file is a temporary, auto-generated status report for a specific tier)
+[SEMANTIC] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\tier_02_API.md: delete ({
+    "decision": "delete",
+    "rationine": "This is a temporary, auto-generated status file for a specific project tie)
+[SEMANTIC] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\tier_02_CountryPacks.md: delete ({
+    "decision": "delete",
+    "rationale": "This file is a transient execution log for a specific task tier ('T3-Count)
+[SEMANTIC] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\tier_02_Low_Priority_(Complex).md: delete ({
+    "decision": "delete",
+    "rationine": "This is a template or placeholder file for a tier summary. It contains no )
+[SEMANTIC] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\tier_02_Observability.md: delete ({
+    "decision": "delete",
+    "rationale": "This file is a temporary, auto-generated status report for a specific tier)
+[SEMANTIC] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\tier_03_Advanced_Features.md: delete ({
+    "decision": "delete",
+    "rationine": "This file is a temporary, auto-generated status report for a specific tier)
+[SEMANTIC] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\superseded\prompts\AUTOPACK_DEBUG_HISTORY_AND_PROMPT.md: archive ({
+    "decision": "archive",
+    "rationine": "This file is a detailed, session-specific debug log for a particular proj)
+[SEMANTIC] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\docs\research\CONSOLIDATED_RESEARCH.md: archive ({
+    "decision": "archive",
+    "rationine": "This file is a consolidated research reference document, auto-generated o)
+[SEMANTIC] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\docs\research\cursor_research_brief_immigration_visa_evidence_packs_v2.md: archive ({
+    "decision": "archive",
+    "rationine": "This file is a detailed research brief for a specific feature (immigratio)
+[SEMANTIC] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\docs\research\cursor_research_brief_tax_immigration_legal_packs.md: archive ({
+    "decision": "archive",
+    "rationine": "This file is a detailed research brief for a specific product (FileOrgani)
+[SEMANTIC] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\docs\research\GPT_RESEARCH_REQUEST.md: archive ({
+    "decision": "archive",
+    "rationine": "This file is a detailed project specification and research request for a )
+[SEMANTIC] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\docs\research\immigration_visa_evidence_packs_detailed_spec.md: archive ({
+    "decision": "archive",
+    "rationine": "The file is a detailed specification for an immigration evidence pack com)
+[SEMANTIC] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\docs\research\MARKET_RESEARCH_EXTENDED_2025.md: archive ({
+  "decision": "archive",
+  "rationine": "This is a detailed market research document for a 'FileOrganizer' project. Wh)
+[SEMANTIC] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\docs\research\MARKET_RESEARCH_RIGOROUS_V2.md: archive ({
+  "decision": "archive",
+  "rationine": "This is a detailed market research document for a specific product concept (F)
+[INFO] Semantic results (172 files):
+ - C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\CURSOR_REVISION_CHECKLIST.md: archive ({
+    "decision": "archive",
+    "rationine": "This is a detailed project planning and review checklist for a specific feature (FileOrganizer) within the Autopa)
+ - C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\MASTER_BUILD_PLAN_FILEORGANIZER.md: archive ({
+  "decision": "archive",
+  "rationine": "This file is a detailed project plan and business analysis for 'FileOrganizer', a specific application. It is not fra)
+ - C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\README.md: keep ({
+    "decision": "keep",
+    "rationale": "This file is a project-specific README for a utility directory (`Unsorted Inbox`). It provides essential instruction)
+ - C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\ACCURACY_IMPROVEMENTS_98PERCENT.md: archive ({
+    "decision": "archive",
+    "rationine": "This file documents a specific, completed feature enhancement (accuracy improvements from 90% to 98%+) dated 2025)
+ - C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\ARCHIVE_INDEX.md: archive ({
+  "decision": "archive",
+  "rationine": "This is a meta-index file pointing to other consolidated documentation files. It's outdated (last updated 2025-12-04))
+ - C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\AUTOPACK_PHASE2_TASK1_SPEC.md: archive ({
+  "decision": "archive",
+  "rationine": "This is a specific task execution file for fixing test dependencies in the FileOrganizer project. It's a one-time tas)
+ - C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\AUTOPACK_RUN_ANALYSIS_FOR_GPT_REVIEW.md: archive ({
+  "decision": "archive",
+  "rationine": "This is a detailed post-mortem analysis of a specific failed run (fileorg-phase2-beta) from 2025-11-28. It documents )
+ - C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\AUTO_CONVERSION_GUIDE.md: archive ({
+  "decision": "archive",
+  "rationine": "This documentation describes an automatic task format conversion feature that appears to be a user-facing convenience)
+ - C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\CLAUDE_RESPONSE_TO_GPT_REVIEW.md: archive ({
+    "decision": "archive",
+    "rationine": "This file is a detailed response to a specific strategic review (ref5.md) regarding a FileOrganizer build simulat)
+ - C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\CODEX_DELEGATION_REQUEST_20251128_103044.md: archive ({
+  "decision": "archive",
+  "rationine": "This is a historical bug report from 2025-11-28 documenting a specific server error that has since been resolved. The)
+ - C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\CODEX_DELEGATION_REQUEST_20251128_104813.md: archive ({
+  "decision": "archive",
+  "rationine": "This is a specific bug report from 2025-11-28 about a 500 error that was being debugged. It's a historical debugging )
+ - C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\CODEX_DELEGATION_RESULT_20251128_103044.md: archive ({
+    "decision": "archive",
+    "rationale": "This is a detailed debugging analysis for a specific 500 error that was likely resolved. The content is a snapsho)
+ - C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\CODEX_DELEGATION_RESULT_20251128_104813.md: delete ({
+    "decision": "delete",
+    "rationale": "This is a generic template file with placeholder text ('[Codex will provide detailed analysis here]'). It contains)
+ - C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\CONSOLIDATED_BUILD.md: archive ({
+    "decision": "archive",
+    "rationine": "This is a detailed build progress report for a specific project run (file-organizer-app-v1) from 2025-11-28. It's)
+ - C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\CONSOLIDATED_BUILD_HISTORY.md: archive ({
+    "decision": "archive",
+    "rationine": "This is a historical build report for a specific project (FileOrganizer) completed in November 2025. While it con)
+ - C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\CONSOLIDATED_DEBUG.md: keep ({
+    "decision": "keep",
+    "rationale": "This file is a critical, actively maintained log of recent bugs, fixes, and optimizations for the Autopack Framework)
+ - C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\CONSOLIDATED_MISC.md: archive ({
+  "decision": "archive",
+  "rationine": "This is a consolidated reference document auto-generated on 2025-12-04. The content is superseded by more recent upda)
+ - C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\CONSOLIDATED_REFERENCE.md: archive ({
+  "decision": "archive",
+  "rationine": "This is a consolidated reference document from 2025-12-04 that aggregates superseded documentation (DEPLOYMENT_GUIDE.)
+ - C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\CONSOLIDATED_STRATEGIC_ANALYSIS.md: archive ({
+  "decision": "archive",
+  "rationine": "This file is a detailed strategic analysis for a specific product (FileOrganizer). It is not part of the core Autopac)
+ - C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\CONSOLIDATED_STRATEGY.md: archive ({
+    "decision": "archive",
+    "rationine": "This file is a consolidated strategy reference for a specific product (FileOrganizer) that is now superseded. The)
+ - C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\DEBUG_JOURNAL.md: archive ({
+    "decision": "archive",
+    "rationine": "This is a project-specific debug journal for 'FileOrganizer Phase 2', containing transient issues (patch corrupti)
+ - C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\DELEGATION_TO_GPT4O.md: archive ({
+    "decision": "archive",
+    "rationine": "This is a detailed bug report for a critical issue in the Autopack framework. The issue describes a 'dry-run mode)
+ - C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\fileorganizer_final_strategic_review.md: archive ({
+    "decision": "archive",
+    "rationine": "This document is a detailed strategic review and implementation gate for a 'FileOrganizer' project, dated 2025-11)
+ - C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\FINAL_BUILD_REPORT.md: archive ({
+  "decision": "archive",
+  "rationine": "This is a final build report for a completed project (FileOrganizer v1.0) from November 2025. While it contains valua)
+ - C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\GPT_REVIEW_PROMPT.md: archive ({
+    "decision": "archive",
+    "rationine": "This file is a detailed, project-specific post-mortem and strategic review request for a single simulated build ()
+ - C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\GPT_STRATEGIC_ANALYSIS_PROMPT_V2.md: archive ({
+  "decision": "archive",
+  "rationine": "This file is a project-specific strategic analysis document for a 'FileOrganizer' project. It contains detailed busin)
+ - C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\HOW_TO_RUN_PHASE2.md: archive ({
+    "decision": "archive",
+    "rationine": "This is a highly specific, procedural guide for running 'FileOrganizer Phase 2' with the Autopack framework. It c)
+ - C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\IMPLEMENTATION_COMPLETE_SUMMARY.md: archive ({
+    "decision": "archive",
+    "rationine": "This is a detailed implementation completion log for a specific feature (Directory Routing & File Organization) f)
+ - C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\MANUAL_TRACKING.md: archive ({
+    "decision": "archive",
+    "rationine": "This is a manual tracking template for a specific project run (task-tracker-v1) that was never populated. It's a )
+ - C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\NEW_PROJECT_SETUP_GUIDE.md: keep ({
+    "decision": "keep",
+    "rationine": "This file provides essential, actionable user documentation for a core framework feature (project setup). It is not )
+ - C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\OPENAI_DELEGATION_GUIDE.md: archive ({
+    "decision": "archive",
+    "rationine": "This file describes a specific, temporary debugging feature (OpenAI GPT-4o delegation) that is not part of the co)
+ - C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\OPENAI_DELEGATION_REQUEST_20251128_133758.md: archive ({
+    "decision": "archive",
+    "rationine": "This is a specific bug report/issue analysis file documenting a 500 error on the /builder_result endpoint. While )
+ - C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\OPENAI_DELEGATION_REQUEST_20251128_153852.md: archive ({
+    "decision": "archive",
+    "rationine": "This is a bug report for a specific issue (dry-run mode not applying patches) that has been superseded by recent )
+ - C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\OPENAI_DELEGATION_REQUEST_20251128_154038.md: archive ({
+    "decision": "archive",
+    "rationine": "This is an issue analysis request for implementing a missing component (GovernedApplyPath). While it contains rel)
+ - C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\OPENAI_DELEGATION_REQUEST_20251129_032041.md: archive ({
+  "decision": "archive",
+  "rationine": "This is a specific bug report about patch truncation in OpenAI Builder. The issue has been superseded by the v0.4.1 u)
+ - C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\OPENAI_DELEGATION_REQUEST_20251129_040839.md: archive ({
+  "decision": "archive",
+  "rationine": "This is an issue analysis document describing a specific bug fix verification for patch truncation. It contains tempo)
+ - C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\OPENAI_DELEGATION_REQUEST_20251129_044732.md: archive ({
+    "decision": "archive",
+    "rationine": "This is a transient issue analysis document describing a specific bug (empty phase descriptions blocking tests) a)
+ - C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\OPENAI_DELEGATION_RESULT_20251128_133813.md: archive ({
+    "decision": "archive",
+    "rationale": "This file is a detailed analysis of a specific 500 Internal Server Error from November 28, 2025. It contains a ro)
+ - C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\OPENAI_DELEGATION_RESULT_20251128_153911.md: archive ({
+    "decision": "archive",
+    "rationine": "This is a detailed technical analysis and root cause report for a specific bug (missing patch application logic a)
+ - C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\OPENAI_DELEGATION_RESULT_20251128_154108.md: archive ({
+  "decision": "archive",
+  "rationine": "This file is a detailed analysis of a specific bug (missing GovernedApplyPath class) with proposed fixes. It's a snap)
+ - C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\OPENAI_DELEGATION_RESULT_20251129_032056.md: archive ({
+    "decision": "archive",
+    "rationine": "This is a detailed bug analysis and fix proposal for a specific issue (truncated patches from OpenAI API). The co)
+ - C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\OPENAI_DELEGATION_RESULT_20251129_044745.md: delete ({
+    "decision": "delete",
+    "rationale": "This file is a malformed, repetitive, and incomplete AI-generated analysis of a bug. It contains duplicated sectio)
+ - C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\PATTERN_CONFIDENCE_ENHANCEMENT_20251211.md: archive ({
+  "decision": "archive",
+  "rationine": "This is a detailed changelog documenting a specific enhancement to the pattern matching system from December 11, 2025)
+ - C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\PHASE2_BUILD_REPORT_20251128_182220.md: delete ({
+    "decision": "delete",
+    "rationine": "This is a test run report from a specific date (2025-11-28) showing zero tasks and zero activity. It contains no a)
+ - C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\PHASE2_README.md: archive ({
+    "decision": "archive",
+    "rationine": "This file is a detailed execution plan for 'Phase 2' of a specific project (FileOrganizer). It's a transient, pro)
+ - C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\PHASE2_SETUP_SUMMARY.md: archive ({
+  "decision": "archive",
+  "rationine": "This is a project-specific status update and execution guide for 'FileOrganizer Phase 2' from November 2025. It's now)
+ - C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_00_backend-config-fix.md: delete ({
+    "decision": "delete",
+    "rationale": "This is a temporary execution log for a single, completed phase. It contains no lasting architectural or procedura)
+ - C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_00_backend-test-isolation.md: delete ({
+    "decision": "delete",
+    "rationale": "This is a temporary execution log for a single, completed phase. It contains no lasting architectural or procedura)
+ - C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_00_docs-dashboard-refresh.md: delete ({
+    "decision": "delete",
+    "rationale": "This is a temporary execution log for a single, completed phase. It contains no lasting architectural or procedura)
+ - C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_00_F1.1.md: delete ({
+    "decision": "delete",
+    " rationale": "This is a transient status file for a single, queued phase execution. It contains no permanent information, no co)
+ - C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_00_fileorg-p2-country-uk.md: delete ({
+    "decision": "delete",
+    "rationine": "This is a transient status file for a single, queued phase execution. It contains no permanent documentation, is a)
+ - C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_00_fileorg-p2-docker.md: delete ({
+    "decision": "delete",
+    "rationine": "This is a transient status file for a single, queued phase execution. It contains no permanent value, no unique in)
+ - C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_00_fileorg-p2-frontend-build.md: delete ({
+    "decision": "delete",
+    "rationale": "This is a temporary status file for a single, completed phase. It contains no lasting value, no unique implementat)
+ - C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_00_fileorg-p2-search.md: delete ({
+    "decision": "delete",
+    "rationale": "This is a transient status file for a single, queued phase execution. It contains no permanent documentation, code)
+ - C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_00_fileorg-p2-test-fixes.md: delete ({
+    "decision": "delete",
+    "rationine": "This is a transient status file for a single, queued phase execution. It contains no permanent documentation, API )
+ - C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_00_fix-password-hashing.md: delete ({
+    "decision": "delete",
+    "rationale": "This is a temporary execution log for a single, completed phase. It contains no lasting architectural or procedura)
+ - C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_00_fix-postcode-validator.md: delete ({
+    "decision": "delete",
+    "rationine": "This is a temporary execution log for a single, completed phase. It contains no lasting architectural or procedura)
+ - C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_00_high-direct-strong.md: delete ({
+    "decision": "delete",
+    "rationine": "This is a temporary execution status file for a single phase run. It contains no lasting documentation value, is a)
+ - C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_00_implement-search-endpoint.md: delete ({
+    "decision": "delete",
+    "rationine": "This is a temporary execution log for a single, completed phase. It contains no lasting architectural or procedura)
+ - C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_00_low-easy-task.md: delete ({
+    "decision": "delete",
+    "rationine": "This is a temporary execution log for a single, completed phase ('low-easy-task'). It contains no lasting architec)
+ - C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_00_medium-task.md: delete ({
+    "decision": "delete",
+    "rationine": "This is a temporary execution log file for a single, completed phase. It contains no lasting architectural or inst)
+ - C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_00_phase-0.md: delete ({
+    "decision": "delete",
+    "rationale": "This is a temporary execution log for a single, completed phase ('phase-0 - Test Phase'). It contains no unique, p)
+ - C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_00_phase3-branch-rollback.md: delete ({
+    "decision": "delete",
+    "rationale": "This is a temporary execution log for a single, failed phase run. It contains no lasting architectural, procedural)
+ - C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_00_phase3-config-loading.md: keep ({
+  "decision": "delete",
+  "rationale": "This is a temporary, runtime-generated status file for a single failed phase execution. It contains no lasting value, )
+ - C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_00_phase3-dashboard-metrics.md: delete ({
+    "decision": "delete",
+    "rationine": "This is a temporary execution status file for a single phase run. It contains no lasting architectural or implemen)
+ - C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_00_test-1-simple-modification.md: keep ({
+    "decision": "delete",
+    "rationine": "This is a transient execution log for a single, completed phase ('test-1-simple-modification'). It contains no uni)
+ - C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_00_test-phase1.md: delete ({
+    "decision": "delete",
+    "rationale": "This is a transient status file for a single, queued phase ('test-phase1'). It contains no permanent information, )
+ - C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_01_backend-requirements-fix.md: delete ({
+  "decision": "delete",
+  "rationale": "This is a temporary, execution-specific status file for a single, completed phase ('backend-requirements-fix'). It con)
+ - C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_01_backend-test-imports.md: delete ({
+  "decision": "delete",
+  "rationine": "This is a temporary execution log for a single, completed phase ('backend-test-imports'). It contains no lasting archi)
+ - C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_01_F2.1.md: delete ({
+    "decision": "delete",
+    "rationale": "This is a temporary status file for a single, queued phase. It contains no unique information, no execution histor)
+ - C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_01_fileorg-p2-batch-upload.md: delete ({
+    "decision": "delete",
+    "rationine": "This is a temporary status file for a single, queued phase execution. It contains no unique or persistent informat)
+ - C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_01_fileorg-p2-country-canada.md: delete ({
+    "decision": "delete",
+    "rationine": "This is a transient status file for a single, queued phase execution. It contains no permanent documentation, API )
+ - C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_01_fileorg-p2-frontend-build.md: delete ({
+    "decision": "delete",
+    "rationine": "This is a transient status file for a single, queued phase execution. It contains no permanent documentation, no f)
+ - C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_01_fix-ato-classifier.md: delete ({
+    "decision": "delete",
+    "rationine": "This is a temporary, runtime-generated status file for a specific phase ('fix-ato-classifier'). It contains no las)
+ - C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_01_fix-file-validator-import.md: delete ({
+    "decision": "delete",
+    "rationine": "This is a temporary execution log for a single, completed phase. It contains no lasting value, no unique insights,)
+ - C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_01_implement-batch-endpoint.md: delete ({
+    "decision": "delete",
+    "rationine": "This is a temporary execution log for a single, completed phase. It contains no lasting architectural value, user-)
+ - C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_01_impossible-task.md: keep ({
+    "decision": "delete",
+    "rationale": "This is a temporary execution log for a single, failed test phase. It contains no lasting architectural, configura)
+ - C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_01_low-needs-escalation.md: delete ({
+    "decision": "delete",
+    "rationine": "This is a temporary, runtime-generated status file for a single, completed phase. It contains no lasting documenta)
+ - C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_01_low-tricky-task.md: delete ({
+    "decision": "delete",
+    "rationine": "This is a temporary execution log for a single, completed phase ('low-tricky-task'). It contains no lasting archit)
+ - C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_01_P1.md: delete ({
+    "decision": "delete",
+    "rationine": "This is a temporary execution log for a single, completed phase (P1). It contains no lasting architectural or proc)
+ - C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_01_P2.2.md: delete ({
+    "decision": "delete",
+    "rationale": "This is a temporary, empty status file for a single failed phase. It contains no unique information, no code, and )
+ - C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_01_phase3-discovery-promotion.md: delete ({
+    "decision": "delete",
+    "rationine": "This is a temporary execution log for a single, failed phase run. It contains no unique or lasting documentation v)
+ - C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_01_phase3-doctor-tests.md: delete ({
+    "decision": "delete",
+    "rationine": "This is a temporary execution log for a single, failed phase run. It contains no unique, persistent information an)
+ - C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_01_phase3-t0t1-checks.md: delete ({
+    "decision": "delete",
+    "rationine": "This is a temporary execution log for a single, failed phase run. It contains no lasting architectural or procedur)
+ - C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_01_test-2-medium-complexity.md: delete ({
+    "decision": "delete",
+    "rationale": "This is a temporary, runtime-generated status file for a single, failed phase execution. It contains no persistent)
+ - C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_02_F1.3.md: delete ({
+    "decision": "delete",
+    "rationine": "This is a temporary status file for a single, queued phase (F1.3). It contains no unique information, no execution)
+ - C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_02_fileorg-p2-auth.md: delete ({
+    "decision": "delete",
+    "rationale": "This is a transient status file for a single, queued phase execution. It contains no permanent documentation, only)
+ - C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_02_fileorg-p2-country-australia.md: delete ({
+    "decision": "delete",
+    " rationale": "This is a transient status file for a single, queued phase execution. It contains no permanent documentation, API)
+ - C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_02_fileorg-p2-docker.md: delete ({
+    "decision": "delete",
+    "rationale": "This is a temporary execution log for a single, completed phase. It contains no unique, reusable information and i)
+ - C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_02_fix-health-check-tests.md: delete ({
+    "decision": "delete",
+    "rationine": "This is a temporary phase summary file documenting a completed, low-complexity testing task. It contains no persis)
+ - C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_02_implement-auth-endpoints.md: delete ({
+  "decision": "delete",
+  "rationale": "This is a temporary execution status file for a single completed phase. It contains no lasting architectural or implem)
+ - C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_02_P2.3.md: keep ({
+    "decision": "delete",
+    "rationine": "This is a temporary execution log for a single, failed phase (P2.3). It contains no unique, actionable information)
+ - C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_02_P2.md: delete ({
+    "decision": "delete",
+    "rationine": "This is a transient execution log for a single, completed phase (P2). It contains no lasting architectural, proced)
+ - C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_02_test-3-potential-replan.md: delete ({
+    "decision": "delete",
+    "rationine": "This is a temporary execution log for a single, failed phase run. It contains no unique or valuable information fo)
+ - C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_02_unskip-critical-tests.md: delete ({
+    "decision": "delete",
+    "rationale": "This is a temporary, runtime-generated status file for a single phase execution. It contains no lasting architectu)
+ - C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_03_e2e-smoke-8100.md: delete ({
+    "decision": "delete",
+    "rationale": "This is a temporary execution log for a specific run (e2e-smoke-8100). It contains no lasting architectural or pro)
+ - C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_03_fileorg-p2-country-uk.md: delete ({
+    "decision": "delete",
+    "rationine": "This is a temporary execution log for a single, completed phase. It contains no lasting architectural or procedura)
+ - C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_03_P2.4.md: keep ({
+    "decision": "delete",
+    "rationale": "This is a transient execution log for a single, completed phase (P2.4). It contains no lasting architectural, proc)
+ - C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_03_P3.md: keep ({
+    "decision": "delete",
+    "rationine": "This is a temporary execution log for a single, failed phase (P3). It contains no unique, persistent information a)
+ - C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_04_P4.md: delete ({
+    "decision": "delete",
+    "rationine": "This is a temporary execution log for a single, completed phase (P4). It contains no unique, reusable information )
+ - C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_05_fileorg-p2-country-australia.md: delete ({
+    "decision": "delete",
+    "rationine": "This is a temporary execution log for a single, completed phase. It contains no lasting architectural or procedura)
+ - C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_05_P2.6.md: delete ({
+    "decision": "delete",
+    "rationine": "This is a temporary execution log for a single, failed phase (P2.6). It contains no unique, lasting information an)
+ - C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_05_P5.md: delete ({
+    "decision": "delete",
+    "rationale": "This is a temporary execution log for a single, completed phase (P5). It contains no lasting architectural or proc)
+ - C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_06_fileorg-p2-search.md: delete ({
+    "decision": "delete",
+    "rationale": "This is a temporary execution log for a single, failed phase run. It contains no persistent documentation value, i)
+ - C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_06_P2.7.md: delete ({
+    "decision": "delete",
+    "rationine": "This is a temporary execution log for a single, failed phase (P2.7). It contains no unique or lasting information,)
+ - C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_06_P6.md: keep ({
+    "decision": "delete",
+    "rationale": "This is a temporary execution log for a single, completed phase (P6). It contains no lasting technical value, API )
+ - C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_07_P2.8.md: delete ({
+    "decision": "delete",
+    "rationine": "This is a temporary execution log for a single, failed phase (P2.8). It contains no unique, persistent information)
+ - C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_07_P7.md: delete ({
+    "decision": "delete",
+    "rationale": "This is a temporary execution log for a single, completed phase (P7). It contains no lasting architectural, proced)
+ - C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_08_fileorg-p2-auth.md: delete ({
+    "decision": "delete",
+    "rationine": "This is a temporary execution status file for a specific phase run. It contains no lasting documentation value, on)
+ - C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_08_P2.9.md: delete ({
+    "decision": "delete",
+    "rationine": "This is a temporary execution log for a single phase (P2.9). It contains no lasting architectural or procedural in)
+ - C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_09_fileorg-p2-qa-hardening.md: delete ({
+    "decision": "delete",
+    "rationine": "This is a temporary execution log for a specific, failed phase run. It contains no lasting architectural or proced)
+ - C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_11_fileorg-p2-docs-final.md: delete ({
+    "decision": "delete",
+    "rationale": "This is a temporary execution log for a single, failed phase. It contains no unique or lasting information, is sup)
+ - C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_12_fileorg-p2-auth-hardening.md: delete ({
+    "decision": "delete",
+    "rationale": "This is a temporary execution log for a specific, failed phase run. It contains no lasting architectural or proced)
+ - C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_13_fileorg-p2-search-quality.md: delete ({
+    "decision": "delete",
+    "rationale": "This is a temporary execution status file for a single, failed phase run. It contains no lasting documentation val)
+ - C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_14_fileorg-p2-batch-observability.md: delete ({
+  "decision": "delete",
+  "rationine": "This is a temporary execution log for a specific phase run. It contains no lasting architectural or procedural value a)
+ - C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_15_fileorg-p2-file-safety.md: delete ({
+    "decision": "delete",
+    "rationine": "This is a temporary execution log for a single, failed phase run. It contains no lasting architectural or implemen)
+ - C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_16_fileorg-p2-storage-config.md: delete ({
+    "decision": "delete",
+    "rationine": "This is a temporary execution log for a specific, failed phase run. It contains no lasting architectural or proced)
+ - C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_17_fileorg-p2-export-sharing.md: keep ({
+    "decision": "delete",
+    "rationale": "This is a temporary execution status file for a single, completed phase. It contains no lasting architectural, API)
+ - C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_18_fileorg-p2-ui-ux-polish.md: delete ({
+    "decision": "delete",
+    "rationine": "This is a temporary execution log for a specific phase run. It contains no lasting documentation value, is not a r)
+ - C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_19_fileorg-p2-logging-metrics.md: delete ({
+    "decision": "delete",
+    "rationale": "This is a temporary execution status file for a single, failed phase. It contains no lasting value, no code, and n)
+ - C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_21_fileorg-p2-e2e-smoke.md: delete ({
+    "decision": "delete",
+    "rationine": "This is a temporary execution log for a specific phase run. It contains no lasting documentation value, is a snaps)
+ - C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_22_fileorg-p2-security-basics.md: delete ({
+    "decision": "delete",
+    "rationale": "This is a temporary execution log for a specific, failed phase run. It contains no lasting documentation value and)
+ - C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_23_fileorg-p2-perf-tuning.md: delete ({
+    "decision": "delete",
+    "rationale": "This is a phase summary template file for a specific, failed phase ('fileorg-p2-perf-tuning'). It contains no actu)
+ - C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_24_fileorg-p2-planning-fortify.md: delete ({
+    "decision": "delete",
+    "rationine": "This is a temporary execution log for a specific, failed phase run ('fileorg-p2-planning-fortify'). It contains no)
+ - C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\PROMPT_SEQUENCE_FOR_GPT.md: archive ({
+    "decision": "archive",
+    "rationine": "This file contains a detailed, sequential prompt plan for a 'FileOrganizer Project'. It is highly specific, proje)
+ - C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\QUICK_REFERENCE.md: keep ({
+    "decision": "keep",
+    "rationine": "This file is a user-facing quick reference guide for 'magic phrases' that serve as CLI shortcuts for the Autopack fr)
+ - C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\ref1.md: archive ({
+    "decision": "archive",
+    "rationine": "This file is a detailed, conversational log of a debugging session. It contains a chronological summary of user r)
+ - C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\ref10.md: delete ({
+    "decision": "delete",
+    "rationade": "This file is a verbose, conversational log of a debugging session, not documentation. It contains step-by-step com)
+ - C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\ref11.md: archive ({
+    "decision": "archive",
+    "rationine": "This file is a verbose, conversational log of a debugging session. It contains a mix of code snippets, user reque)
+ - C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\ref2.md: archive (</think>
+{
+  "decision": "archive",
+  "rationine": "This is a detailed root cause analysis and debugging plan from 2025-11-29 that documents specific historical)
+ - C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\ref3.md: archive ({
+  "decision": "archive",
+  "rationine": "This file is a detailed analysis and design document for implementing a self-healing memory and rules engine within A)
+ - C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\ref4.md: delete ({
+  "decision": "delete",
+  "rationine": "This is a transient conversation log from an AI assistant executing a one-time documentation update task. It contains )
+ - C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\ref5.md: archive ({
+    "decision": "archive",
+    "rationine": "This file is a detailed post-mortem and debug journal for a specific, failed run (`fileorg-phase2-beta`) from Nov)
+ - C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\ref6.md: archive ({
+    "decision": "archive",
+    "rationine": "This file is a detailed analysis and recommendation memo about specific disagreements and clarifications regardin)
+ - C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\ref7.md: archive ({
+    "decision": "archive",
+    "rationine": "This is a project-specific run log and orchestration script for a 'file-organizer-app-v1' test. It contains tempo)
+ - C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\REF_01_EXISTING_SOLUTIONS_COMPILED.md: archive ({
+  "decision": "archive",
+  "rationine": "This file is a market research compilation of existing file organizer solutions. While it contains potentially useful)
+ - C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\REF_02_USER_REQUIREMENTS_AND_LESSONS.md: archive ({
+    "decision": "archive",
+    "rationine": "This document is a detailed requirements analysis for a specific 'FILE_ORGANIZER' project, dated 2025-11-26. Whil)
+ - C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\tier_00_Config.md: delete ({
+    "decision": "delete",
+    "rationale": "This file is a temporary, runtime-generated status report for a specific tier ('T1-Config') within the Autopack Fr)
+ - C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\tier_00_Demo_Tier.md: delete ({
+    "decision": "delete",
+    "rationine": "This is a transient status file for a single demo tier (T1) with a 'PENDING' state. It contains no valuable docume)
+ - C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\tier_00_Docker_Deployment.md: delete ({
+    "decision": "delete",
+    "rationale": "This file is a temporary status report for a specific deployment tier ('tier-docker'). It contains no unique or pe)
+ - C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\tier_00_fileorg-p2.md: delete ({
+    "decision": "delete",
+    "rationine": "This is a transient status file for a specific run (T1 - fileorg-p2). It contains no permanent documentation, only)
+ - C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\tier_00_FileOrganizer_Test_Suite_Fix.md: delete ({
+    "decision": "delete",
+    "rationine": "This file is a temporary execution report for a specific test suite fix. It contains no lasting architectural or p)
+ - C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\tier_00_Frontend_Build_System.md: delete ({
+    "decision": "delete",
+    "rationine": "This is a generated status file for a specific tier ('tier-frontend') with no content. It's a transient artifact t)
+ - C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\tier_00_HighPriority.md: delete ({
+  "decision": "delete",
+  "rationale": "This file is a transient, runtime-generated status report for a specific job tier ('T1-HighPriority'). It contains no )
+ - C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\tier_00_High_Priority.md: delete ({
+  "decision": "delete",
+  "rationine": "This is a runtime status file for a specific plan tier, not documentation. It contains temporary state information ('P)
+ - C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\tier_00_Infra.md: archive ({
+    "decision": "delete",
+    "rationale": "This file is a temporary, auto-generated status report for a specific tier ('T1-Infra') within the Autopack Framew)
+ - C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\tier_00_Phase_2_Beta.md: delete ({
+    "decision": "delete",
+    "rationine": "This file is a transient status report for a specific tier (P2) within the Autopack Framework. It contains no perm)
+ - C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\tier_00_Probe_Test_Tier.md: delete ({
+    "decision": "delete",
+    "rationine": "This is a transient status file for a single test tier (T1). It contains no permanent documentation, only placehol)
+ - C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\tier_00_Smoke_Test_Tier.md: delete ({
+    "decision": "delete",
+    "rationine": "This is a transient status file for a specific test run ('tier-0 - Smoke Test Tier'). It contains no permanent doc)
+ - C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\tier_00_Stability.md: delete ({
+    "decision": "delete",
+    "rationine": "This is a temporary, runtime-generated status file for a specific execution tier (T1). It contains no persistent d)
+ - C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\tier_00_Test.md: delete ({
+    "decision": "delete",
+    "rationine": "This is a transient status file for a specific test run ('T1-Test'). It contains no lasting architectural or instr)
+ - C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\tier_00_Test_Tier.md: delete ({
+    "decision": "delete",
+    "rationine": "This is a transient status file for a single test tier (T1) with a PENDING state. It contains no valuable document)
+ - C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\tier_00_Tier_1.md: delete ({
+    "decision": "delete",
+    "rationale": "This file is a transient status report for a single tier (T1) within the Autopack Framework. It contains no perman)
+ - C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\tier_00_Validation.md: delete ({
+    "decision": "delete",
+    "rationine": "This is a transient status file for a specific execution run (T1-Validation). It contains no permanent documentati)
+ - C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\tier_01_Backend_Test_Fixes.md: delete ({
+    "decision": "delete",
+    "rationine": "This is a temporary execution status file for a specific run (Tier T1). It contains no lasting documentation value)
+ - C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\tier_01_Infrastructure.md: delete ({
+    "decision": "delete",
+    "rationine": "This is a temporary status file for a single tier (T2-Infrastructure) with no actual content. It's a placeholder w)
+ - C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\tier_01_Infrastructure_&_Deployment.md: delete ({
+    "decision": "delete",
+    "rationine": "This is a temporary status file for a specific tier (T2-Infrastructure) within the Autopack Framework. It contains)
+ - C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\tier_01_Medium_Priority.md: delete ({
+    "decision": "delete",
+    "rationale": "This is a transient status file for a specific run/tier, not persistent documentation. It contains no valuable inf)
+ - C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\tier_01_Tests.md: delete ({
+    "decision": "delete",
+    "rationale": "This file is a temporary, auto-generated status report for a specific tier ('T2-Tests'). It contains no unique or )
+ - C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\tier_02_API.md: delete ({
+    "decision": "delete",
+    "rationine": "This is a temporary, auto-generated status file for a specific project tier. It contains no unique or persistent i)
+ - C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\tier_02_CountryPacks.md: delete ({
+    "decision": "delete",
+    "rationale": "This file is a transient execution log for a specific task tier ('T3-CountryPacks'). It contains placeholder field)
+ - C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\tier_02_Low_Priority_(Complex).md: delete ({
+    "decision": "delete",
+    "rationine": "This is a template or placeholder file for a tier summary. It contains no unique information, only boilerplate tex)
+ - C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\tier_02_Observability.md: delete ({
+    "decision": "delete",
+    "rationale": "This file is a temporary, auto-generated status report for a specific tier of work ('T3-Observability'). It contai)
+ - C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\tier_03_Advanced_Features.md: delete ({
+    "decision": "delete",
+    "rationine": "This file is a temporary, auto-generated status report for a specific tier of work. It contains no unique or persi)
+ - C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\superseded\prompts\AUTOPACK_DEBUG_HISTORY_AND_PROMPT.md: archive ({
+    "decision": "archive",
+    "rationine": "This file is a detailed, session-specific debug log for a particular project (FileOrganizer) and a specific set o)
+ - C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\docs\research\CONSOLIDATED_RESEARCH.md: archive ({
+    "decision": "archive",
+    "rationine": "This file is a consolidated research reference document, auto-generated on 2025-12-04. It aggregates multiple old)
+ - C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\docs\research\cursor_research_brief_immigration_visa_evidence_packs_v2.md: archive ({
+    "decision": "archive",
+    "rationine": "This file is a detailed research brief for a specific feature (immigration/visa evidence packs) within a desktop )
+ - C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\docs\research\cursor_research_brief_tax_immigration_legal_packs.md: archive ({
+    "decision": "archive",
+    "rationine": "This file is a detailed research brief for a specific product (FileOrganizer) that is unrelated to the Autopack F)
+ - C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\docs\research\GPT_RESEARCH_REQUEST.md: archive ({
+    "decision": "archive",
+    "rationine": "This file is a detailed project specification and research request for a 'FileOrganizer Desktop App v1' dated 202)
+ - C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\docs\research\immigration_visa_evidence_packs_detailed_spec.md: archive ({
+    "decision": "archive",
+    "rationine": "The file is a detailed specification for an immigration evidence pack compiler, which is a specific application d)
+ - C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\docs\research\MARKET_RESEARCH_EXTENDED_2025.md: archive ({
+  "decision": "archive",
+  "rationine": "This is a detailed market research document for a 'FileOrganizer' project. While comprehensive, it is project-specifi)
+ - C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\docs\research\MARKET_RESEARCH_RIGOROUS_V2.md: archive ({
+  "decision": "archive",
+  "rationine": "This is a detailed market research document for a specific product concept (FileOrganizer). While thorough, it's a on)
+[INFO] Planned 0 non-MD actions under C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1
+[CHECKPOINT] Saved 160 files to C:\dev\Autopack\.autonomous_runs\checkpoints\tidy_checkpoint_20251211-070424.zip
+[MOVE] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\CURSOR_REVISION_CHECKLIST.md -> C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\superseded\CURSOR_REVISION_CHECKLIST.md (semantic archive)
+[MOVE] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\MASTER_BUILD_PLAN_FILEORGANIZER.md -> C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\superseded\MASTER_BUILD_PLAN_FILEORGANIZER.md (semantic archive)
+[MOVE] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\ACCURACY_IMPROVEMENTS_98PERCENT.md -> C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\superseded\archive\ACCURACY_IMPROVEMENTS_98PERCENT.md (semantic archive)
+[MOVE] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\ARCHIVE_INDEX.md -> C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\superseded\archive\ARCHIVE_INDEX.md (semantic archive)
+[MOVE] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\AUTOPACK_PHASE2_TASK1_SPEC.md -> C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\superseded\archive\AUTOPACK_PHASE2_TASK1_SPEC.md (semantic archive)
+[MOVE] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\AUTOPACK_RUN_ANALYSIS_FOR_GPT_REVIEW.md -> C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\superseded\archive\AUTOPACK_RUN_ANALYSIS_FOR_GPT_REVIEW.md (semantic archive)
+[MOVE] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\AUTO_CONVERSION_GUIDE.md -> C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\superseded\archive\AUTO_CONVERSION_GUIDE.md (semantic archive)
+[MOVE] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\CLAUDE_RESPONSE_TO_GPT_REVIEW.md -> C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\superseded\archive\CLAUDE_RESPONSE_TO_GPT_REVIEW.md (semantic archive)
+[MOVE] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\CODEX_DELEGATION_REQUEST_20251128_103044.md -> C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\superseded\archive\CODEX_DELEGATION_REQUEST_20251128_103044.md (semantic archive)
+[MOVE] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\CODEX_DELEGATION_REQUEST_20251128_104813.md -> C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\superseded\archive\CODEX_DELEGATION_REQUEST_20251128_104813.md (semantic archive)
+[MOVE] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\CODEX_DELEGATION_RESULT_20251128_103044.md -> C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\superseded\archive\CODEX_DELEGATION_RESULT_20251128_103044.md (semantic archive)
+[MOVE] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\CODEX_DELEGATION_RESULT_20251128_104813.md -> C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\superseded\archive\CODEX_DELEGATION_RESULT_20251128_104813.md (semantic delete->archive)
+[MOVE] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\CONSOLIDATED_BUILD.md -> C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\superseded\archive\CONSOLIDATED_BUILD.md (semantic archive)
+[MOVE] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\CONSOLIDATED_BUILD_HISTORY.md -> C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\superseded\archive\CONSOLIDATED_BUILD_HISTORY.md (semantic archive)
+[MOVE] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\CONSOLIDATED_MISC.md -> C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\superseded\archive\CONSOLIDATED_MISC.md (semantic archive)
+[MOVE] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\CONSOLIDATED_REFERENCE.md -> C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\superseded\archive\CONSOLIDATED_REFERENCE.md (semantic archive)
+[MOVE] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\CONSOLIDATED_STRATEGIC_ANALYSIS.md -> C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\superseded\archive\CONSOLIDATED_STRATEGIC_ANALYSIS.md (semantic archive)
+[MOVE] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\CONSOLIDATED_STRATEGY.md -> C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\superseded\archive\CONSOLIDATED_STRATEGY.md (semantic archive)
+[MOVE] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\DEBUG_JOURNAL.md -> C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\superseded\archive\DEBUG_JOURNAL.md (semantic archive)
+[MOVE] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\DELEGATION_TO_GPT4O.md -> C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\superseded\archive\DELEGATION_TO_GPT4O.md (semantic archive)
+[MOVE] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\fileorganizer_final_strategic_review.md -> C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\superseded\archive\fileorganizer_final_strategic_review.md (semantic archive)
+[MOVE] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\FINAL_BUILD_REPORT.md -> C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\superseded\archive\FINAL_BUILD_REPORT.md (semantic archive)
+[MOVE] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\GPT_REVIEW_PROMPT.md -> C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\superseded\archive\GPT_REVIEW_PROMPT.md (semantic archive)
+[MOVE] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\GPT_STRATEGIC_ANALYSIS_PROMPT_V2.md -> C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\superseded\archive\GPT_STRATEGIC_ANALYSIS_PROMPT_V2.md (semantic archive)
+[MOVE] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\HOW_TO_RUN_PHASE2.md -> C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\superseded\archive\HOW_TO_RUN_PHASE2.md (semantic archive)
+[MOVE] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\IMPLEMENTATION_COMPLETE_SUMMARY.md -> C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\superseded\archive\IMPLEMENTATION_COMPLETE_SUMMARY.md (semantic archive)
+[MOVE] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\MANUAL_TRACKING.md -> C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\superseded\archive\MANUAL_TRACKING.md (semantic archive)
+[MOVE] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\OPENAI_DELEGATION_GUIDE.md -> C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\superseded\archive\OPENAI_DELEGATION_GUIDE.md (semantic archive)
+[MOVE] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\OPENAI_DELEGATION_REQUEST_20251128_133758.md -> C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\superseded\archive\OPENAI_DELEGATION_REQUEST_20251128_133758.md (semantic archive)
+[MOVE] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\OPENAI_DELEGATION_REQUEST_20251128_153852.md -> C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\superseded\archive\OPENAI_DELEGATION_REQUEST_20251128_153852.md (semantic archive)
+[MOVE] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\OPENAI_DELEGATION_REQUEST_20251128_154038.md -> C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\superseded\archive\OPENAI_DELEGATION_REQUEST_20251128_154038.md (semantic archive)
+[MOVE] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\OPENAI_DELEGATION_REQUEST_20251129_032041.md -> C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\superseded\archive\OPENAI_DELEGATION_REQUEST_20251129_032041.md (semantic archive)
+[MOVE] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\OPENAI_DELEGATION_REQUEST_20251129_040839.md -> C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\superseded\archive\OPENAI_DELEGATION_REQUEST_20251129_040839.md (semantic archive)
+[MOVE] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\OPENAI_DELEGATION_REQUEST_20251129_044732.md -> C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\superseded\archive\OPENAI_DELEGATION_REQUEST_20251129_044732.md (semantic archive)
+[MOVE] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\OPENAI_DELEGATION_RESULT_20251128_133813.md -> C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\superseded\archive\OPENAI_DELEGATION_RESULT_20251128_133813.md (semantic archive)
+[MOVE] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\OPENAI_DELEGATION_RESULT_20251128_153911.md -> C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\superseded\archive\OPENAI_DELEGATION_RESULT_20251128_153911.md (semantic archive)
+[MOVE] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\OPENAI_DELEGATION_RESULT_20251128_154108.md -> C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\superseded\archive\OPENAI_DELEGATION_RESULT_20251128_154108.md (semantic archive)
+[MOVE] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\OPENAI_DELEGATION_RESULT_20251129_032056.md -> C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\superseded\archive\OPENAI_DELEGATION_RESULT_20251129_032056.md (semantic archive)
+[MOVE] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\OPENAI_DELEGATION_RESULT_20251129_044745.md -> C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\superseded\archive\OPENAI_DELEGATION_RESULT_20251129_044745.md (semantic delete->archive)
+[MOVE] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\PATTERN_CONFIDENCE_ENHANCEMENT_20251211.md -> C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\superseded\archive\PATTERN_CONFIDENCE_ENHANCEMENT_20251211.md (semantic archive)
+[MOVE] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\PHASE2_BUILD_REPORT_20251128_182220.md -> C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\superseded\archive\PHASE2_BUILD_REPORT_20251128_182220.md (semantic delete->archive)
+[MOVE] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\PHASE2_README.md -> C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\superseded\archive\PHASE2_README.md (semantic archive)
+[MOVE] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\PHASE2_SETUP_SUMMARY.md -> C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\superseded\archive\PHASE2_SETUP_SUMMARY.md (semantic archive)
+[MOVE] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_00_backend-config-fix.md -> C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\superseded\archive\phase_00_backend-config-fix.md (semantic delete->archive)
+[MOVE] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_00_backend-test-isolation.md -> C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\superseded\archive\phase_00_backend-test-isolation.md (semantic delete->archive)
+[MOVE] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_00_docs-dashboard-refresh.md -> C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\superseded\archive\phase_00_docs-dashboard-refresh.md (semantic delete->archive)
+[MOVE] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_00_F1.1.md -> C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\superseded\archive\phase_00_F1.1.md (semantic delete->archive)
+[MOVE] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_00_fileorg-p2-country-uk.md -> C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\superseded\archive\phase_00_fileorg-p2-country-uk.md (semantic delete->archive)
+[MOVE] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_00_fileorg-p2-docker.md -> C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\superseded\archive\phase_00_fileorg-p2-docker.md (semantic delete->archive)
+[MOVE] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_00_fileorg-p2-frontend-build.md -> C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\superseded\archive\phase_00_fileorg-p2-frontend-build.md (semantic delete->archive)
+[MOVE] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_00_fileorg-p2-search.md -> C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\superseded\archive\phase_00_fileorg-p2-search.md (semantic delete->archive)
+[MOVE] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_00_fileorg-p2-test-fixes.md -> C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\superseded\archive\phase_00_fileorg-p2-test-fixes.md (semantic delete->archive)
+[MOVE] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_00_fix-password-hashing.md -> C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\superseded\archive\phase_00_fix-password-hashing.md (semantic delete->archive)
+[MOVE] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_00_fix-postcode-validator.md -> C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\superseded\archive\phase_00_fix-postcode-validator.md (semantic delete->archive)
+[MOVE] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_00_high-direct-strong.md -> C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\superseded\archive\phase_00_high-direct-strong.md (semantic delete->archive)
+[MOVE] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_00_implement-search-endpoint.md -> C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\superseded\archive\phase_00_implement-search-endpoint.md (semantic delete->archive)
+[MOVE] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_00_low-easy-task.md -> C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\superseded\archive\phase_00_low-easy-task.md (semantic delete->archive)
+[MOVE] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_00_medium-task.md -> C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\superseded\archive\phase_00_medium-task.md (semantic delete->archive)
+[MOVE] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_00_phase-0.md -> C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\superseded\archive\phase_00_phase-0.md (semantic delete->archive)
+[MOVE] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_00_phase3-branch-rollback.md -> C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\superseded\archive\phase_00_phase3-branch-rollback.md (semantic delete->archive)
+[MOVE] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_00_phase3-dashboard-metrics.md -> C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\superseded\archive\phase_00_phase3-dashboard-metrics.md (semantic delete->archive)
+[MOVE] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_00_test-phase1.md -> C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\superseded\archive\phase_00_test-phase1.md (semantic delete->archive)
+[MOVE] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_01_backend-requirements-fix.md -> C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\superseded\archive\phase_01_backend-requirements-fix.md (semantic delete->archive)
+[MOVE] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_01_backend-test-imports.md -> C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\superseded\archive\phase_01_backend-test-imports.md (semantic delete->archive)
+[MOVE] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_01_F2.1.md -> C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\superseded\archive\phase_01_F2.1.md (semantic delete->archive)
+[MOVE] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_01_fileorg-p2-batch-upload.md -> C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\superseded\archive\phase_01_fileorg-p2-batch-upload.md (semantic delete->archive)
+[MOVE] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_01_fileorg-p2-country-canada.md -> C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\superseded\archive\phase_01_fileorg-p2-country-canada.md (semantic delete->archive)
+[MOVE] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_01_fileorg-p2-frontend-build.md -> C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\superseded\archive\phase_01_fileorg-p2-frontend-build.md (semantic delete->archive)
+[MOVE] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_01_fix-ato-classifier.md -> C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\superseded\archive\phase_01_fix-ato-classifier.md (semantic delete->archive)
+[MOVE] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_01_fix-file-validator-import.md -> C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\superseded\archive\phase_01_fix-file-validator-import.md (semantic delete->archive)
+[MOVE] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_01_implement-batch-endpoint.md -> C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\superseded\archive\phase_01_implement-batch-endpoint.md (semantic delete->archive)
+[MOVE] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_01_low-needs-escalation.md -> C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\superseded\archive\phase_01_low-needs-escalation.md (semantic delete->archive)
+[MOVE] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_01_low-tricky-task.md -> C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\superseded\archive\phase_01_low-tricky-task.md (semantic delete->archive)
+[MOVE] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_01_P1.md -> C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\superseded\archive\phase_01_P1.md (semantic delete->archive)
+[MOVE] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_01_P2.2.md -> C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\superseded\archive\phase_01_P2.2.md (semantic delete->archive)
+[MOVE] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_01_phase3-discovery-promotion.md -> C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\superseded\archive\phase_01_phase3-discovery-promotion.md (semantic delete->archive)
+[MOVE] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_01_phase3-doctor-tests.md -> C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\superseded\archive\phase_01_phase3-doctor-tests.md (semantic delete->archive)
+[MOVE] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_01_phase3-t0t1-checks.md -> C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\superseded\archive\phase_01_phase3-t0t1-checks.md (semantic delete->archive)
+[MOVE] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_01_test-2-medium-complexity.md -> C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\superseded\archive\phase_01_test-2-medium-complexity.md (semantic delete->archive)
+[MOVE] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_02_F1.3.md -> C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\superseded\archive\phase_02_F1.3.md (semantic delete->archive)
+[MOVE] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_02_fileorg-p2-auth.md -> C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\superseded\archive\phase_02_fileorg-p2-auth.md (semantic delete->archive)
+[MOVE] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_02_fileorg-p2-country-australia.md -> C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\superseded\archive\phase_02_fileorg-p2-country-australia.md (semantic delete->archive)
+[MOVE] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_02_fileorg-p2-docker.md -> C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\superseded\archive\phase_02_fileorg-p2-docker.md (semantic delete->archive)
+[MOVE] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_02_fix-health-check-tests.md -> C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\superseded\archive\phase_02_fix-health-check-tests.md (semantic delete->archive)
+[MOVE] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_02_implement-auth-endpoints.md -> C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\superseded\archive\phase_02_implement-auth-endpoints.md (semantic delete->archive)
+[MOVE] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_02_P2.md -> C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\superseded\archive\phase_02_P2.md (semantic delete->archive)
+[MOVE] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_02_test-3-potential-replan.md -> C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\superseded\archive\phase_02_test-3-potential-replan.md (semantic delete->archive)
+[MOVE] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_02_unskip-critical-tests.md -> C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\superseded\archive\phase_02_unskip-critical-tests.md (semantic delete->archive)
+[MOVE] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_03_e2e-smoke-8100.md -> C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\superseded\archive\phase_03_e2e-smoke-8100.md (semantic delete->archive)
+[MOVE] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_03_fileorg-p2-country-uk.md -> C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\superseded\archive\phase_03_fileorg-p2-country-uk.md (semantic delete->archive)
+[MOVE] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_04_P4.md -> C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\superseded\archive\phase_04_P4.md (semantic delete->archive)
+[MOVE] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_05_fileorg-p2-country-australia.md -> C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\superseded\archive\phase_05_fileorg-p2-country-australia.md (semantic delete->archive)
+[MOVE] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_05_P2.6.md -> C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\superseded\archive\phase_05_P2.6.md (semantic delete->archive)
+[MOVE] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_05_P5.md -> C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\superseded\archive\phase_05_P5.md (semantic delete->archive)
+[MOVE] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_06_fileorg-p2-search.md -> C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\superseded\archive\phase_06_fileorg-p2-search.md (semantic delete->archive)
+[MOVE] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_06_P2.7.md -> C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\superseded\archive\phase_06_P2.7.md (semantic delete->archive)
+[MOVE] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_07_P2.8.md -> C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\superseded\archive\phase_07_P2.8.md (semantic delete->archive)
+[MOVE] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_07_P7.md -> C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\superseded\archive\phase_07_P7.md (semantic delete->archive)
+[MOVE] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_08_fileorg-p2-auth.md -> C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\superseded\archive\phase_08_fileorg-p2-auth.md (semantic delete->archive)
+[MOVE] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_08_P2.9.md -> C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\superseded\archive\phase_08_P2.9.md (semantic delete->archive)
+[MOVE] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_09_fileorg-p2-qa-hardening.md -> C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\superseded\archive\phase_09_fileorg-p2-qa-hardening.md (semantic delete->archive)
+[MOVE] C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\phase_11_fileorg-p2-docs-final.md -> C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\superseded\archive\phase_11_fileorg-p2-docs-final.md (semantic delete->archive)

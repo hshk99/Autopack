@@ -360,7 +360,8 @@ class DocumentationOrganizer:
         self.log("\nExecuting actions...", "INFO")
 
         # Ensure target directories exist
-        (self.project_root / "docs").mkdir(exist_ok=True)
+        # Ensure docs folder exists even if parent path is absent (e.g., archive/superseded runs)
+        (self.project_root / "docs").mkdir(parents=True, exist_ok=True)
         (self.project_root / "docs" / "research").mkdir(parents=True, exist_ok=True)
         (self.project_root / "archive").mkdir(exist_ok=True)
 

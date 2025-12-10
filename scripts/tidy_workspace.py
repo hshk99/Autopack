@@ -655,6 +655,8 @@ def main():
         elif "archive" in root.parts and "superseded" in root.parts:
             # default project for archived superseded docs
             project_id = "file-organizer-app-v1"
+        elif root == REPO_ROOT / ".autonomous_runs":
+            project_id = "file-organizer-app-v1"
         elif root.name:
             project_id = root.name
         if args.verbose:
@@ -703,6 +705,47 @@ def main():
 
         # Special handling for generic archive root: bucket directly under archive/superseded with flattening
         normalize_dest_fn = lambda p: p
+
+        # Special handling for .autonomous_runs root: regroup runs and refs into project superseded/runs
+        if root == REPO_ROOT / ".autonomous_runs":
+            actions: List[Action] = []
+            superseded_mode = True
+            superseded_target = project_root_path / "archive" / "superseded"
+            normalize_dest_fn = lambda p: normalize_dest_generic(p, superseded_target, root)
+            ignore_dirs = {
+                project_root_path.name,
+                "archive",
+                "checkpoints",
+                "patches",
+                "exports",
+                "docs",
+                "openai_delegations",
+                "runs",
+            }
+            import re
+
+            def run_group(name: str) -> str:
+                m = re.match(r"(.+?)-\d{6,}", name)
+                if m:
+                    return m.group(1)
+                m = re.match(r"(.+?)-20\\d{6}-\\d{6}", name)
+                if m:
+                    return m.group(1)
+                return name
+
+            for child in root.iterdir():
+                if child.name in ignore_dirs:
+                    continue
+                if child.is_dir():
+                    grp = run_group(child.name)
+                    dest = normalize_dest_fn(superseded_target / "runs" / grp / child.name)
+                    actions.append(Action("move", child, dest, "runs regroup to project superseded"))
+                elif child.is_file() and child.suffix.lower() in {".md", ".txt"}:
+                    dest = normalize_dest_fn(superseded_target / "refs" / child.name)
+                    actions.append(Action("move", child, dest, "refs regroup to project superseded"))
+            if actions:
+                execute_actions(actions, dry_run=dry_run, checkpoint_dir=args.checkpoint_dir if not dry_run else None, logger=logger, run_id=run_id)
+            continue
 
         if root == REPO_ROOT / "archive":
             actions: List[Action] = []

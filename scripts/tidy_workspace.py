@@ -676,7 +676,9 @@ def main():
             tier_keywords = ["tier_00", "tier_01", "tier_02", "tier_03", "tier_04", "tier_05"]
             prompt_keywords = ["prompt"]
             debug_keywords = ["debug", "error", "journal", "diagnostic"]
-            bucket_names = {"research", "delegations", "phases", "tiers", "prompts", "diagnostics", "runs"}
+            ref_keywords = ["ref_", "ref"]
+            report_keywords = ["consolidated", "build", "report", "readme", "setup", "tracking", "plan", "manual"]
+            bucket_names = {"research", "delegations", "phases", "tiers", "prompts", "diagnostics", "runs", "refs", "reports"}
 
             def bucket_for(name: str) -> str:
                 ln = name.lower()
@@ -692,6 +694,10 @@ def main():
                     return "prompts"
                 if any(k in ln for k in debug_keywords):
                     return "diagnostics"
+                if any(ln.startswith(k) for k in ref_keywords):
+                    return "refs"
+                if any(k in ln for k in report_keywords):
+                    return "reports"
                 return ""
 
             def collapse_duplicate_buckets(parts: List[str]) -> List[str]:

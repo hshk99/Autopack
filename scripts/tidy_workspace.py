@@ -668,7 +668,104 @@ def main():
         project_root_path = REPO_ROOT / ".autonomous_runs" / "file-organizer-app-v1"
         superseded_target = project_root_path / "archive" / "superseded"
 
-        if superseded_mode and root.as_posix().endswith("archive/superseded/archive"):
+        # Special handling for generic archive root: bucket directly under archive/superseded with flattening
+        if root == REPO_ROOT / "archive":
+            actions: List[Action] = []
+            superseded_mode = True
+            superseded_target = REPO_ROOT / "archive" / "superseded"
+            research_keywords = ["research", "brief", "market", "strategy", "strategic_review", "immigration_visa", "tax", "fileorganizer_final"]
+            delegation_keywords = ["delegation", "gpt", "openai", "codex"]
+            phase_keywords = ["phase_", "p1", "p2", "p3", "p4", "p5", "p6", "p7", "p8", "p9"]
+            tier_keywords = ["tier_00", "tier_01", "tier_02", "tier_03", "tier_04", "tier_05"]
+            prompt_keywords = ["prompt"]
+            debug_keywords = ["debug", "error", "journal", "diagnostic"]
+            ref_keywords = ["ref_", "ref"]
+            report_keywords = ["consolidated", "build", "report", "readme", "setup", "tracking", "plan", "manual", "how_to", "spec", "summary", "checklist", "task"]
+            bucket_names = {"research", "delegations", "phases", "tiers", "prompts", "diagnostics", "runs", "refs", "reports"}
+
+            def bucket_for(name: str) -> str:
+                ln = name.lower()
+                if any(k in ln for k in research_keywords):
+                    return "research"
+                if any(k in ln for k in delegation_keywords):
+                    return "delegations"
+                if any(ln.startswith(k) for k in tier_keywords):
+                    return "tiers"
+                if ln.startswith("phase_") or any(k in ln for k in phase_keywords):
+                    return "phases"
+                if any(k in ln for k in prompt_keywords):
+                    return "prompts"
+                if any(k in ln for k in debug_keywords):
+                    return "diagnostics"
+                if any(ln.startswith(k) for k in ref_keywords):
+                    return "refs"
+                if any(k in ln for k in report_keywords):
+                    return "reports"
+                return ""
+
+            def collapse_duplicate_buckets(parts: List[str]) -> List[str]:
+                collapsed: List[str] = []
+                for p in parts:
+                    if collapsed and p == collapsed[-1] and p in bucket_names:
+                        continue
+                    collapsed.append(p)
+                return collapsed
+
+            def collapse_runs(parts: List[str]) -> List[str]:
+                out: List[str] = []
+                i = 0
+                while i < len(parts):
+                    if i + 1 < len(parts) and parts[i] == "runs":
+                        # drop runs/<any>
+                        i += 2
+                        continue
+                    out.append(parts[i])
+                    i += 1
+                return out
+
+            def normalize_dest(path: Path) -> Path:
+                try:
+                    rel = path.relative_to(superseded_target)
+                except ValueError:
+                    return path
+                parts = list(rel.parts)
+                while parts and parts[0] in {"archive", "superseded"}:
+                    parts.pop(0)
+                parts = collapse_runs(parts)
+                parts = collapse_duplicate_buckets(parts)
+                return superseded_target / Path(*parts)
+
+            for dirpath, dirnames, filenames in os.walk(root):
+                dirnames[:] = [d for d in dirnames if d not in {".git", "node_modules", ".pytest_cache", "__pycache__", ".venv", "venv"}]
+                for fname in filenames:
+                    src = Path(dirpath) / fname
+                    if src.suffix.lower() not in {".md", ".txt"}:
+                        continue
+                    if is_protected(src):
+                        continue
+                    rel = src.relative_to(root)
+                    rel_parts = list(rel.parts)
+                    while rel_parts and rel_parts[0] in {"archive", "superseded"}:
+                        rel_parts.pop(0)
+                    rel_parts = collapse_runs(rel_parts)
+                    bucket_hint = ""
+                    if rel_parts and rel_parts[0] == "diagnostics":
+                        bucket_hint = "diagnostics"
+                        rel_parts.pop(0)
+                    elif "diagnostics" in rel_parts:
+                        bucket_hint = "diagnostics"
+                        rel_parts = [p for p in rel_parts if p != "diagnostics"]
+                    existing_bucket = ""
+                    if rel_parts and rel_parts[0] in bucket_names:
+                        existing_bucket = rel_parts.pop(0)
+                    rel_parts = collapse_duplicate_buckets(rel_parts)
+                    bucket = bucket_hint or existing_bucket or bucket_for(fname) or "reports"
+                    target_base = superseded_target / bucket if bucket else superseded_target
+                    dest = normalize_dest(target_base / Path(*rel_parts))
+                    actions.append(Action("move", src, dest, "archive->superseded"))
+            execute_actions(actions, dry_run=dry_run, checkpoint_dir=args.checkpoint_dir if not dry_run else None, logger=logger, run_id=run_id)
+
+        elif superseded_mode and root.as_posix().endswith("archive/superseded/archive"):
             actions: List[Action] = []
             research_keywords = ["research", "brief", "market", "strategy", "strategic_review", "immigration_visa", "tax", "fileorganizer_final"]
             delegation_keywords = ["delegation", "gpt", "openai", "codex"]

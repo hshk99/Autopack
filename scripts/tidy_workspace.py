@@ -156,6 +156,60 @@ def ensure_dir(path: Path):
     path.mkdir(parents=True, exist_ok=True)
 
 
+def validate_destination_path(source: Path, dest: Path, repo_root: Path) -> tuple[bool, str]:
+    """Validate destination path for common bugs that cause nesting issues.
+
+    This prevents issues like:
+    - docs/docs/ nesting (duplicate folder names)
+    - archive/archive/archive/ deep nesting
+    - Moving file to same location
+    - Excessive path depth
+
+    Returns: (is_valid, error_message)
+    """
+    try:
+        # Normalize paths for comparison
+        src_resolved = source.resolve()
+        dest_resolved = dest.resolve()
+
+        # Check for moving file to same location
+        if src_resolved == dest_resolved:
+            return False, "Source and destination are identical"
+
+        # Check for moving file into subdirectory of itself (for directories)
+        if source.is_dir() and dest_resolved.is_relative_to(src_resolved):
+            return False, "Cannot move directory into its own subdirectory"
+
+        # Check for duplicate nesting (e.g., docs/docs/, archive/archive/)
+        # Get relative path from repo root to detect patterns
+        try:
+            rel_parts = dest_resolved.relative_to(repo_root).parts
+        except ValueError:
+            # Destination is outside repo root - allow but warn
+            return True, ""
+
+        # Check for consecutive duplicate folder names
+        for i in range(len(rel_parts) - 1):
+            if rel_parts[i] == rel_parts[i + 1]:
+                return False, f"Duplicate nesting detected: .../{rel_parts[i]}/{rel_parts[i+1]}/... (probable path construction bug)"
+
+        # Check for excessive depth (more than 10 levels is suspicious)
+        if len(rel_parts) > 10:
+            return False, f"Path too deep ({len(rel_parts)} levels) - possible runaway nesting"
+
+        # Check for paths with "runs" appearing multiple times (common bug pattern)
+        runs_count = sum(1 for part in rel_parts if part == "runs")
+        if runs_count > 1:
+            return False, f"'runs' appears {runs_count} times in path - probable duplication bug"
+
+        # All checks passed
+        return True, ""
+
+    except Exception as e:
+        # If validation itself fails, be conservative and reject
+        return False, f"Path validation error: {str(e)}"
+
+
 # ---------------------------------------------------------------------------
 # Creation-time routing helper (for Cursor/manual saves)
 # ---------------------------------------------------------------------------
@@ -695,6 +749,14 @@ def execute_actions(actions: List[Action], dry_run: bool, checkpoint_dir: Path |
     moves = deletes = 0
     for action in actions:
         if action.kind == "move":
+            # Validate destination path before moving
+            is_valid, error_msg = validate_destination_path(action.src, action.dest, REPO_ROOT)
+            if not is_valid:
+                print(f"[VALIDATION ERROR] Skipping move {action.src} -> {action.dest}")
+                print(f"[VALIDATION ERROR] Reason: {error_msg}")
+                logger.log_move_error(str(action.src), str(action.dest), error_msg, run_id)
+                continue
+
             moves += 1
             if dry_run:
                 print(f"[DRY-RUN][MOVE] {action.src} -> {action.dest} ({action.reason})")
@@ -771,9 +833,6 @@ def detect_and_route_cursor_files(root: Path, project_id: str, logger: TidyLogge
     if root != REPO_ROOT:
         return actions
 
-    # Look for files in root that were created recently (last 7 days)
-    cutoff = datetime.now() - timedelta(days=7)
-
     # File extensions to process
     extensions = ["*.md", "*.py", "*.json", "*.log", "*.sql", "*.txt", "*.yaml", "*.yml", "*.toml", "*.sh", "*.ps1"]
 
@@ -786,14 +845,6 @@ def detect_and_route_cursor_files(root: Path, project_id: str, logger: TidyLogge
             # Skip standard repo files
             if file.name in {"README.md", "LICENSE.md", "CONTRIBUTING.md", ".gitignore", "package.json",
                              "requirements.txt", "pyproject.toml", "setup.py", "Dockerfile", "docker-compose.yml"}:
-                continue
-
-            # Check if file is recent
-            try:
-                mtime = datetime.fromtimestamp(file.stat().st_mtime)
-                if mtime < cutoff:
-                    continue
-            except:
                 continue
 
             # Determine destination based on project-first classification

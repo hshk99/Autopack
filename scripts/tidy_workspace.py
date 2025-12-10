@@ -703,17 +703,18 @@ def main():
                 return collapsed
 
             def collapse_runs(parts: List[str]) -> List[str]:
+                # Keep only one consecutive runs/<project_id> pair; drop repeats.
                 out: List[str] = []
                 i = 0
+                saw_runs_pair = False
                 while i < len(parts):
-                    if (
-                        i + 3 < len(parts)
-                        and parts[i] == "runs"
-                        and parts[i + 1] == project_id
-                        and parts[i + 2] == "runs"
-                        and parts[i + 3] == project_id
-                    ):
-                        i += 2  # skip the extra "runs/<project_id>"
+                    if i + 1 < len(parts) and parts[i] == "runs" and parts[i + 1] == project_id:
+                        if saw_runs_pair:
+                            i += 2
+                            continue
+                        saw_runs_pair = True
+                        out.extend([parts[i], parts[i + 1]])
+                        i += 2
                         continue
                     out.append(parts[i])
                     i += 1

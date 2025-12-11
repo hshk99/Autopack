@@ -467,6 +467,65 @@ See [docs/README.md](docs/README.md) for development setup and contributing guid
         if moved_fileorg_sot > 0:
             print(f"  Moved {moved_fileorg_sot} SOT files to file-organizer docs/")
 
+        # Replace outdated docs/README.md with proper comprehensive README
+        docs_readme_old = fileorg_docs / "README.md"
+        if docs_readme_old.exists():
+            content = docs_readme_old.read_text(encoding="utf-8")
+            if "Unsorted Inbox" in content or len(content) < 1000:
+                print(f"  Replacing outdated docs/README.md with comprehensive version")
+                if not dry_run:
+                    docs_readme_old.write_text("""# FileOrganizer - Complete Documentation
+
+AI-powered document organization system for immigration visa packs.
+
+## Overview
+
+FileOrganizer automatically processes, classifies, and organizes immigration documentation using AI-powered analysis. It handles multiple visa types and maintains structured pack organization.
+
+## Features
+
+- **Intelligent Classification**: Automatically categorizes documents by type
+- **Multi-Visa Support**: Handles various visa application types
+- **Pack Management**: Organizes documents into structured packs
+- **AI-Powered Analysis**: Uses LLM for document understanding
+- **Batch Processing**: Efficiently handles multiple documents
+
+## Project Structure
+
+```
+file-organizer-app-v1/
+├── src/                    # Source code
+├── scripts/                # Utility scripts
+├── packs/                  # Document packs
+├── docs/                   # All documentation (YOU ARE HERE)
+│   ├── README.md          # This file
+│   ├── WHATS_LEFT_TO_BUILD.md
+│   ├── ARCHITECTURE.md
+│   ├── project_learned_rules.json
+│   └── *.json             # Phase plans and configurations
+└── archive/               # Historical files and runs
+```
+
+## Getting Started
+
+[Setup instructions to be added]
+
+## Documentation Files
+
+- **[WHATS_LEFT_TO_BUILD.md](WHATS_LEFT_TO_BUILD.md)** - Current development roadmap
+- **[ARCHITECTURE.md](ARCHITECTURE.md)** - System architecture
+- **project_learned_rules.json** - Project-specific rules and patterns
+- **autopack_phase_plan.json** - Autopack execution phases
+
+## Development
+
+[Development guidelines to be added]
+
+## Related Projects
+
+This is a subproject within the Autopack framework workspace.
+""", encoding="utf-8")
+
         # Create ARCHITECTURE.md stub if it doesn't exist
         arch = fileorg_docs / "ARCHITECTURE.md"
         if not arch.exists():
@@ -622,19 +681,51 @@ def phase4_restore_documentation(dry_run: bool = True) -> None:
 
     print(f"  Moved {moved_consolidated} CONSOLIDATED_*.md files to docs/")
 
-    # Note about file-organizer CONSOLIDATED files
-    print("\n  Note: file-organizer CONSOLIDATED files stay in project archive:")
-    fo_archive_dir = REPO_ROOT / ".autonomous_runs" / "file-organizer-app-v1" / "archive"
-    fo_consolidated = {
-        "CONSOLIDATED_DEBUG.md": fo_archive_dir / "reports" / "CONSOLIDATED_DEBUG.md",
-        "CONSOLIDATED_RESEARCH.md": fo_archive_dir / "research" / "CONSOLIDATED_RESEARCH.md",
+    # Move file-organizer CONSOLIDATED files to project docs/
+    print("\n  File-organizer CONSOLIDATED files - Moving to project docs/:")
+    fo_project_dir = REPO_ROOT / ".autonomous_runs" / "file-organizer-app-v1"
+    fo_docs_dir = fo_project_dir / "docs"
+    fo_archive_dir = fo_project_dir / "archive"
+
+    fo_consolidated_sources = {
+        "CONSOLIDATED_DEBUG.md": [
+            fo_archive_dir / "reports" / "CONSOLIDATED_DEBUG.md",
+            fo_archive_dir / "CONSOLIDATED_DEBUG.md",
+        ],
+        "CONSOLIDATED_RESEARCH.md": [
+            fo_archive_dir / "research" / "CONSOLIDATED_RESEARCH.md",
+            fo_archive_dir / "CONSOLIDATED_RESEARCH.md",
+        ],
+        "CONSOLIDATED_REFERENCE.md": [
+            fo_archive_dir / "reports" / "CONSOLIDATED_REFERENCE.md",
+            fo_archive_dir / "CONSOLIDATED_REFERENCE.md",
+        ],
     }
 
-    for name, path in fo_consolidated.items():
-        if path.exists():
-            print(f"  [OK] {name} in {path.relative_to(REPO_ROOT)}")
-        else:
-            print(f"  [MISSING] {name} (will be auto-generated)")
+    moved_fo_consolidated = 0
+    for name, possible_sources in fo_consolidated_sources.items():
+        dest = fo_docs_dir / name
+
+        if dest.exists():
+            print(f"  [OK] {name} already in docs/")
+            continue
+
+        # Try each possible source location
+        found = False
+        for source_path in possible_sources:
+            if source_path.exists():
+                print(f"  {name} -> file-organizer-app-v1/docs/")
+                if not dry_run:
+                    safe_move(source_path, dest)
+                    moved_fo_consolidated += 1
+                found = True
+                break
+
+        if not found:
+            print(f"  [SKIP] {name} not found (will be auto-generated)")
+
+    if moved_fo_consolidated > 0:
+        print(f"  Moved {moved_fo_consolidated} CONSOLIDATED files to file-organizer docs/")
 
     # ========================================================================
     # SECTION 4.3: ARCHIVE_INDEX.md (Auto-Generated)

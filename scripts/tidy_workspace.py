@@ -476,6 +476,28 @@ def age_filter(path: Path, age_days: int) -> bool:
     return mtime < cutoff
 
 
+def collapse_consecutive_duplicates(parts: List[str]) -> List[str]:
+    """Remove consecutive duplicate folder names (e.g., file-organizer-app-v1/file-organizer-app-v1 -> file-organizer-app-v1).
+
+    This fixes path construction bugs where source paths contain duplicate nesting
+    (e.g., archive/file-organizer-app-v1/file-organizer-app-v1/.autonomous_runs/...)
+    and we want to normalize them by removing the duplicates.
+
+    Args:
+        parts: List of path components
+
+    Returns:
+        List with consecutive duplicates removed
+    """
+    if not parts:
+        return parts
+    collapsed: List[str] = [parts[0]]
+    for i in range(1, len(parts)):
+        if parts[i] != parts[i-1]:
+            collapsed.append(parts[i])
+    return collapsed
+
+
 # ---------------------------------------------------------------------------
 # Non-MD scanning
 # ---------------------------------------------------------------------------
@@ -1184,6 +1206,7 @@ def main():
                 rel = Path(path.name)
             parts = [p for p in rel.parts if p not in {"archive", "superseded"}]
             parts = collapse_runs_any(parts)
+            parts = collapse_consecutive_duplicates(parts)  # <-- FIX: Remove consecutive duplicate folder names
             parts = collapse_duplicate_buckets(parts)
             return superseded_root / Path(*parts)
 
@@ -1286,6 +1309,7 @@ def main():
                     while rel_parts and rel_parts[0] in {"archive", "superseded"}:
                         rel_parts.pop(0)
                     rel_parts = collapse_runs_any(rel_parts)
+                    rel_parts = collapse_consecutive_duplicates(rel_parts)  # <-- FIX: Remove consecutive duplicate folder names
                     bucket_hint = ""
                     if rel_parts and rel_parts[0] == "diagnostics":
                         bucket_hint = "diagnostics"
@@ -1365,6 +1389,7 @@ def main():
                 while parts and parts[0] in {"archive", "superseded"}:
                     parts.pop(0)
                 parts = collapse_runs(parts)
+                parts = collapse_consecutive_duplicates(parts)  # <-- FIX: Remove consecutive duplicate folder names
                 parts = collapse_duplicate_buckets(parts)
                 return superseded_target / Path(*parts)
             normalize_dest_fn = normalize_dest
@@ -1386,6 +1411,7 @@ def main():
                     while rel_parts and rel_parts[0] in {"archive", "superseded"}:
                         rel_parts.pop(0)
                     rel_parts = collapse_runs(rel_parts)
+                    rel_parts = collapse_consecutive_duplicates(rel_parts)  # <-- FIX: Remove consecutive duplicate folder names
                     # If diagnostics folder present, force diagnostics bucket
                     bucket_hint = ""
                     if rel_parts and rel_parts[0] == "diagnostics":

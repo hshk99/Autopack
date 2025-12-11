@@ -37,10 +37,7 @@ This document supersedes PROPOSED_CLEANUP_STRUCTURE.md with corrections based on
 
 ```
 C:\dev\Autopack\
-├── README.md                           # Truth source: Project overview
-├── WORKSPACE_ORGANIZATION_SPEC.md      # Truth source: This org spec
-├── WHATS_LEFT_TO_BUILD.md             # Truth source: Roadmap
-├── WHATS_LEFT_TO_BUILD_MAINTENANCE.md # Truth source: Maintenance
+├── README.md                           # Quick start (links to docs/)
 │
 ├── package.json                        # npm config (KEEP)
 ├── tsconfig.json                       # TypeScript config (KEEP)
@@ -51,42 +48,57 @@ C:\dev\Autopack\
 ├── src/                                # Active source code
 ├── scripts/                            # Utility scripts
 ├── tests/                              # Pytest test suite (NOT scripts - standard Python)
-├── docs/                               # Active documentation
+│
+├── docs/                               # ALL TRUTH SOURCE DOCUMENTATION
+│   ├── README.md                       # Project overview (main docs)
+│   ├── WORKSPACE_ORGANIZATION_SPEC.md  # Workspace organization spec
+│   ├── WHATS_LEFT_TO_BUILD.md         # Roadmap
+│   ├── WHATS_LEFT_TO_BUILD_MAINTENANCE.md # Maintenance roadmap
 │   ├── ARCHITECTURE.md                 # System architecture
 │   ├── API_REFERENCE.md                # API documentation
 │   ├── DEPLOYMENT_GUIDE.md             # Deployment instructions
 │   ├── SETUP_GUIDE.md                  # Setup instructions
-│   └── CONTRIBUTING.md                 # Contribution guidelines
-│
-├── config/                             # Configuration files
-│   ├── project_ruleset_Autopack.json
-│   ├── project_issue_backlog.json
-│   ├── autopack_phase_plan.json
-│   └── templates/
+│   ├── CONTRIBUTING.md                 # Contribution guidelines
+│   ├── project_ruleset_Autopack.json   # Project rules (auto-updated)
+│   ├── project_issue_backlog.json      # Issue backlog (auto-updated)
+│   ├── autopack_phase_plan.json        # Phase plan (auto-updated)
+│   └── api/
+│       └── openapi.json                # API spec
 │
 ├── archive/                            # Historical files ONLY
 └── .autonomous_runs/                   # Project-specific autonomous runs
 ```
 
+**Key Change:** All truth source files consolidated in `docs/` folder. Root README.md is a simple quick-start that links to docs/README.md.
+
 ---
 
 ## Files to MOVE from Root
 
-### Configuration Files → `config/`
-- `project_ruleset_Autopack.json`
-- `project_issue_backlog.json`
-- `autopack_phase_plan.json`
+### Truth Source Documentation → `docs/`
+- `WORKSPACE_ORGANIZATION_SPEC.md` → `docs/`
+- `WHATS_LEFT_TO_BUILD.md` → `docs/`
+- `WHATS_LEFT_TO_BUILD_MAINTENANCE.md` → `docs/`
+
+### Configuration/Ruleset Files → `docs/`
+- `project_ruleset_Autopack.json` → `docs/` (auto-updated)
+- `project_issue_backlog.json` → `docs/` (auto-updated)
+- `autopack_phase_plan.json` → `docs/` (auto-updated)
 
 ### API Specifications → `docs/api/`
-- `openapi.json`
+- `openapi.json` → `docs/api/`
 
 ### Diagnostic Data → `archive/diagnostics/`
-- `test_run.json`
-- `builder_fullfile_failure_latest.json`
+- `test_run.json` → `archive/diagnostics/`
+- `builder_fullfile_failure_latest.json` → `archive/diagnostics/`
 
 ### Documentation → Archive or Delete
 - `RUN_COMMAND.txt` → `archive/docs/` or DELETE if obsolete
 - `STRUCTURE_VERIFICATION_FINAL.md` → `archive/reports/`
+
+### Root README.md
+- Keep at root as quick-start guide
+- Create comprehensive `docs/README.md` with full documentation
 
 ---
 
@@ -137,23 +149,27 @@ C:\dev\Autopack\.autonomous_runs/
 │   └── tidy_checkpoint_YYYYMMDD-HHMMSS.zip
 │
 ├── file-organizer-app-v1/                 # File organizer project
-│   ├── README.md                          # Project overview
-│   ├── WHATS_LEFT_TO_BUILD.md            # (Also at root for convenience)
+│   ├── README.md                          # Quick start (links to docs/)
 │   │
 │   ├── src/                               # Source code
 │   ├── scripts/                           # Scripts
 │   ├── packs/                             # Packs
 │   │
-│   ├── docs/                              # Active documentation
-│   │   ├── README.md                      # Truth source
-│   │   ├── ARCHITECTURE.md                # Truth source
-│   │   ├── guides/                        # How-to guides
-│   │   └── project_learned_rules.json
+│   ├── docs/                              # ALL TRUTH SOURCE DOCUMENTATION
+│   │   ├── README.md                      # Project overview (main docs)
+│   │   ├── WHATS_LEFT_TO_BUILD.md        # Roadmap
+│   │   ├── ARCHITECTURE.md                # Architecture (if exists)
+│   │   ├── project_learned_rules.json     # Learned rules (auto-updated)
+│   │   └── guides/                        # How-to guides
 │   │
 │   └── archive/                           # Historical files
 │       ├── plans/
 │       ├── reports/
+│       │   ├── CONSOLIDATED_DEBUG.md      # Auto-generated
+│       │   └── ...
 │       ├── research/
+│       │   ├── CONSOLIDATED_RESEARCH.md   # Auto-generated
+│       │   └── ...
 │       ├── prompts/
 │       ├── superseded/
 │       └── diagnostics/
@@ -180,12 +196,23 @@ C:\dev\Autopack\.autonomous_runs/
 
 ## Cleanup Actions
 
-### Phase 1: Root Cleanup
-1. Move config files to `config/`
-2. Move `openapi.json` to `docs/api/`
-3. Move diagnostic .json files to `archive/diagnostics/`
-4. Archive `STRUCTURE_VERIFICATION_FINAL.md`
-5. Handle `RUN_COMMAND.txt` (archive or delete)
+### Phase 1: Root Cleanup - Consolidate Truth Sources to docs/
+1. Move truth source .md files to `docs/`:
+   - `WORKSPACE_ORGANIZATION_SPEC.md` → `docs/`
+   - `WHATS_LEFT_TO_BUILD.md` → `docs/`
+   - `WHATS_LEFT_TO_BUILD_MAINTENANCE.md` → `docs/`
+2. Move config/ruleset files to `docs/`:
+   - `project_ruleset_Autopack.json` → `docs/`
+   - `project_issue_backlog.json` → `docs/`
+   - `autopack_phase_plan.json` → `docs/`
+3. Move `openapi.json` to `docs/api/`
+4. Move diagnostic .json files to `archive/diagnostics/`:
+   - `test_run.json` → `archive/diagnostics/`
+   - `builder_fullfile_failure_latest.json` → `archive/diagnostics/`
+5. Archive obsolete documentation:
+   - `STRUCTURE_VERIFICATION_FINAL.md` → `archive/reports/`
+   - `RUN_COMMAND.txt` → archive or delete
+6. Keep root `README.md` as quick-start (links to docs/README.md)
 
 ### Phase 2: Archive Restructuring
 1. **Eliminate `archive/src/`:**
@@ -221,35 +248,57 @@ C:\dev\Autopack\.autonomous_runs/
 
 ### Phase 3: .autonomous_runs Cleanup
 1. Rename `checkpoints/` to `tidy_checkpoints/`
-2. Add truth source files to `file-organizer-app-v1/docs/`:
-   - Create `README.md`
-   - Create `ARCHITECTURE.md` (or move from guides/)
+2. Consolidate file-organizer truth sources to `file-organizer-app-v1/docs/`:
+   - Move `README.md` from project root → `docs/README.md` (comprehensive)
+   - Move `WHATS_LEFT_TO_BUILD.md` from project root → `docs/`
+   - Keep project root `README.md` as quick-start (links to docs/)
+   - `project_learned_rules.json` already in docs/ (verify)
 3. Handle `Autopack/` folder:
    - If active: Add README.md explaining purpose
    - If inactive: Move archive/ to main archive, DELETE folder
 
-### Phase 4: Documentation
-1. Create active docs in `C:\dev\Autopack\docs/`:
-   - `ARCHITECTURE.md`
-   - `API_REFERENCE.md`
-   - `DEPLOYMENT_GUIDE.md`
-   - `CONTRIBUTING.md`
+### Phase 4: Restore & Consolidate Documentation
+1. Restore archived Autopack docs to `C:\dev\Autopack\docs/`:
+   - Restore `DEPLOYMENT_GUIDE.md` from archive/reports/
+   - Create comprehensive `docs/README.md` (project overview)
+   - `SETUP_GUIDE.md` already in docs/
+   - Search for `ARCHITECTURE.md`, `API_REFERENCE.md`, `CONTRIBUTING.md` in archive
 
-2. Create `file-organizer-app-v1/docs/` truth sources:
-   - `README.md`
-   - `ARCHITECTURE.md`
+2. Verify all truth sources in `docs/`:
+   - Documentation files
+   - Ruleset .json files (moved in Phase 1)
+   - CONSOLIDATED_*.md files (auto-generated, in archive/)
+
+3. Create quick-start root READMEs (if needed):
+   - Root `README.md` → links to docs/README.md
+   - file-organizer root `README.md` → links to docs/README.md
 
 ---
 
-## Validation Checklist (V2)
+## Validation Checklist (V2 - REVISED)
 
 A properly organized workspace has:
 
 ### Root Level:
-- [ ] Only 4 truth source .md files
-- [ ] Only standard config files (.json, .txt for npm/pip)
-- [ ] `docs/` has 4-5 active documentation files
-- [ ] No diagnostic .json files at root
+- [ ] Only 1 truth source file: `README.md` (quick-start, links to docs/)
+- [ ] Only standard config files (package.json, tsconfig.json, requirements.txt)
+- [ ] NO loose .md files (WORKSPACE_ORGANIZATION_SPEC.md, WHATS_LEFT_TO_BUILD.md, etc. → moved to docs/)
+- [ ] NO loose .json config files (project_ruleset_Autopack.json, etc. → moved to docs/)
+- [ ] NO diagnostic .json files at root
+
+### Autopack docs/:
+- [ ] ALL truth source documentation consolidated here:
+  - [ ] `README.md` (comprehensive project overview)
+  - [ ] `WORKSPACE_ORGANIZATION_SPEC.md`
+  - [ ] `WHATS_LEFT_TO_BUILD.md`
+  - [ ] `WHATS_LEFT_TO_BUILD_MAINTENANCE.md`
+  - [ ] `SETUP_GUIDE.md`
+  - [ ] `DEPLOYMENT_GUIDE.md` (restored from archive)
+  - [ ] `project_ruleset_Autopack.json`
+  - [ ] `project_issue_backlog.json`
+  - [ ] `autopack_phase_plan.json`
+  - [ ] `api/openapi.json`
+  - [ ] (Optional: ARCHITECTURE.md, API_REFERENCE.md, CONTRIBUTING.md if they exist)
 
 ### Archive:
 - [ ] NO `archive/src/` folder
@@ -258,16 +307,20 @@ A properly organized workspace has:
 - [ ] NO nested `runs/*/archive/.autonomous_runs/archive/runs/`
 - [ ] `diagnostics/data/` for diagnostic data files
 
-### .autonomous_runs:
-- [ ] `tidy_checkpoints/` (renamed from checkpoints/)
-- [ ] `file-organizer-app-v1/docs/` has truth source files
+### .autonomous_runs/file-organizer-app-v1:
+- [ ] Root has quick-start `README.md` (links to docs/)
+- [ ] `docs/` has ALL truth sources consolidated:
+  - [ ] `README.md` (comprehensive)
+  - [ ] `WHATS_LEFT_TO_BUILD.md`
+  - [ ] `project_learned_rules.json`
+  - [ ] (Optional: `ARCHITECTURE.md` if exists)
+- [ ] `checkpoints/` renamed to `tidy_checkpoints/`
 - [ ] `Autopack/` either has README.md or is deleted
-- [ ] NO loose folders (archive/, docs/, exports/, patches/, runs/)
 
-### Truth Sources:
-- [ ] `C:\dev\Autopack\docs/` - Active documentation present
-- [ ] `.autonomous_runs/file-organizer-app-v1/docs/` - Active documentation present
-- [ ] All `guides/` subfolders have parent truth sources
+### Truth Sources - ALL in docs/ folders:
+- [ ] `C:\dev\Autopack\docs/` - ALL Autopack truth sources here (not scattered at root)
+- [ ] `.autonomous_runs/file-organizer-app-v1/docs/` - ALL file-organizer truth sources here
+- [ ] Root README.md files are quick-starts that link to docs/
 
 ---
 

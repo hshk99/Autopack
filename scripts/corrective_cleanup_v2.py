@@ -75,37 +75,58 @@ def safe_delete(path: Path) -> bool:
 # ============================================================================
 
 def phase1_root_cleanup(dry_run: bool = True) -> None:
-    """Move config files, API specs, and diagnostic data from root."""
+    """Consolidate ALL truth source files to docs/ folder."""
     print("\n" + "=" * 80)
-    print("PHASE 1: ROOT DIRECTORY CLEANUP")
+    print("PHASE 1: ROOT DIRECTORY CLEANUP - CONSOLIDATE TO docs/")
     print("=" * 80)
 
-    # 1.1 Move configuration files to config/
-    config_files = [
+    docs_dir = REPO_ROOT / "docs"
+    docs_dir.mkdir(parents=True, exist_ok=True)
+
+    # 1.1 Move truth source .md files to docs/
+    truth_md_files = [
+        "WORKSPACE_ORGANIZATION_SPEC.md",
+        "WHATS_LEFT_TO_BUILD.md",
+        "WHATS_LEFT_TO_BUILD_MAINTENANCE.md"
+    ]
+
+    moved_md = 0
+
+    print("\n[1.1] Moving truth source .md files to docs/")
+    for md_file in truth_md_files:
+        src = REPO_ROOT / md_file
+        if src.exists():
+            dest = docs_dir / md_file
+            print(f"  {md_file} -> docs/")
+            if not dry_run:
+                safe_move(src, dest)
+                moved_md += 1
+
+    # 1.2 Move ruleset/config .json files to docs/
+    ruleset_files = [
         "project_ruleset_Autopack.json",
         "project_issue_backlog.json",
         "autopack_phase_plan.json"
     ]
 
-    config_dir = REPO_ROOT / "config"
-    moved_configs = 0
+    moved_rulesets = 0
 
-    print("\n[1.1] Moving configuration files to config/")
-    for config_file in config_files:
-        src = REPO_ROOT / config_file
+    print("\n[1.2] Moving ruleset/config .json files to docs/")
+    for ruleset_file in ruleset_files:
+        src = REPO_ROOT / ruleset_file
         if src.exists():
-            dest = config_dir / config_file
-            print(f"  {config_file} -> config/")
+            dest = docs_dir / ruleset_file
+            print(f"  {ruleset_file} -> docs/")
             if not dry_run:
                 safe_move(src, dest)
-                moved_configs += 1
+                moved_rulesets += 1
 
-    # 1.2 Move API specifications to docs/api/
+    # 1.3 Move API specifications to docs/api/
     api_specs = ["openapi.json"]
     api_dir = REPO_ROOT / "docs" / "api"
     moved_apis = 0
 
-    print("\n[1.2] Moving API specifications to docs/api/")
+    print("\n[1.3] Moving API specifications to docs/api/")
     for api_file in api_specs:
         src = REPO_ROOT / api_file
         if src.exists():
@@ -115,7 +136,7 @@ def phase1_root_cleanup(dry_run: bool = True) -> None:
                 safe_move(src, dest)
                 moved_apis += 1
 
-    # 1.3 Move diagnostic data to archive/diagnostics/
+    # 1.4 Move diagnostic data to archive/diagnostics/
     diag_files = [
         "test_run.json",
         "builder_fullfile_failure_latest.json"
@@ -124,7 +145,7 @@ def phase1_root_cleanup(dry_run: bool = True) -> None:
     diag_dir = REPO_ROOT / "archive" / "diagnostics"
     moved_diags = 0
 
-    print("\n[1.3] Moving diagnostic data to archive/diagnostics/")
+    print("\n[1.4] Moving diagnostic data to archive/diagnostics/")
     for diag_file in diag_files:
         src = REPO_ROOT / diag_file
         if src.exists():
@@ -134,18 +155,15 @@ def phase1_root_cleanup(dry_run: bool = True) -> None:
                 safe_move(src, dest)
                 moved_diags += 1
 
-    # 1.4 Archive documentation files
+    # 1.5 Archive obsolete documentation files
     docs_to_archive = {
         "RUN_COMMAND.txt": "archive/docs/",
         "STRUCTURE_VERIFICATION_FINAL.md": "archive/reports/",
-        "WORKSPACE_ISSUES_ANALYSIS.md": "archive/analysis/",
-        "IMPLEMENTATION_PLAN_CLEANUP_V2.md": "archive/plans/",
-        "PROPOSED_CLEANUP_STRUCTURE_V2.md": "archive/analysis/"
     }
 
-    moved_docs = 0
+    moved_archive_docs = 0
 
-    print("\n[1.4] Archiving documentation files")
+    print("\n[1.5] Archiving obsolete documentation files")
     for doc_file, dest_folder in docs_to_archive.items():
         src = REPO_ROOT / doc_file
         if src.exists():
@@ -153,13 +171,15 @@ def phase1_root_cleanup(dry_run: bool = True) -> None:
             print(f"  {doc_file} -> {dest_folder}")
             if not dry_run:
                 safe_move(src, dest)
-                moved_docs += 1
+                moved_archive_docs += 1
 
     print(f"\n[PHASE 1] Summary:")
-    print(f"  - Moved {moved_configs} config files")
-    print(f"  - Moved {moved_apis} API specs")
-    print(f"  - Moved {moved_diags} diagnostic files")
-    print(f"  - Archived {moved_docs} documentation files")
+    print(f"  - Moved {moved_md} truth source .md files to docs/")
+    print(f"  - Moved {moved_rulesets} ruleset .json files to docs/")
+    print(f"  - Moved {moved_apis} API specs to docs/api/")
+    print(f"  - Moved {moved_diags} diagnostic files to archive/")
+    print(f"  - Archived {moved_archive_docs} obsolete docs")
+    print(f"  NOTE: Root README.md stays as quick-start (will link to docs/README.md)")
 
 
 # ============================================================================
@@ -292,39 +312,88 @@ def phase3_autonomous_runs_cleanup(dry_run: bool = True) -> None:
     else:
         print("  [SKIP] Already renamed or doesn't exist")
 
-    # 3.2 Add truth sources to file-organizer-app-v1/docs/
-    fileorg_docs = autonomous_root / "file-organizer-app-v1" / "docs"
+    # 3.2 Consolidate file-organizer truth sources to docs/
+    fileorg_project = autonomous_root / "file-organizer-app-v1"
+    fileorg_docs = fileorg_project / "docs"
 
-    print("\n[3.2] Adding truth sources to file-organizer docs/")
-    if fileorg_docs.exists():
-        # Create README.md
-        readme = fileorg_docs / "README.md"
-        if not readme.exists():
-            print(f"  Creating README.md")
+    print("\n[3.2] Consolidating file-organizer truth sources to docs/")
+    if fileorg_project.exists():
+        # Ensure docs/ exists
+        if not dry_run:
+            fileorg_docs.mkdir(parents=True, exist_ok=True)
+
+        # Move README.md from project root to docs/ (comprehensive version)
+        project_readme = fileorg_project / "README.md"
+        docs_readme = fileorg_docs / "README.md"
+
+        if project_readme.exists() and not docs_readme.exists():
+            print(f"  Moving README.md from project root to docs/ (comprehensive)")
             if not dry_run:
-                readme.write_text("""# FileOrganizer - Documentation
+                safe_move(project_readme, docs_readme)
+        elif project_readme.exists() and docs_readme.exists():
+            print(f"  README.md exists in both locations - keeping docs/ version")
+            if not dry_run:
+                # Archive the project root one
+                (fileorg_project / "archive" / "superseded").mkdir(parents=True, exist_ok=True)
+                safe_move(project_readme, fileorg_project / "archive" / "superseded" / "README_OLD.md")
 
-This folder contains documentation for the FileOrganizer project.
+        # Move WHATS_LEFT_TO_BUILD.md from project root to docs/
+        project_roadmap = fileorg_project / "WHATS_LEFT_TO_BUILD.md"
+        docs_roadmap = fileorg_docs / "WHATS_LEFT_TO_BUILD.md"
 
-## Contents
+        if project_roadmap.exists() and not docs_roadmap.exists():
+            print(f"  Moving WHATS_LEFT_TO_BUILD.md from project root to docs/")
+            if not dry_run:
+                safe_move(project_roadmap, docs_roadmap)
+        elif project_roadmap.exists() and docs_roadmap.exists():
+            print(f"  WHATS_LEFT_TO_BUILD.md exists in both locations - keeping docs/ version")
+            if not dry_run:
+                (fileorg_project / "archive" / "superseded").mkdir(parents=True, exist_ok=True)
+                safe_move(project_roadmap, fileorg_project / "archive" / "superseded" / "WHATS_LEFT_TO_BUILD_OLD.md")
 
-- [Architecture](ARCHITECTURE.md) - System architecture and design
-- [Guides](guides/) - How-to guides and tutorials
-- [Research](research/) - Research and analysis documents
+        # Create quick-start README.md at project root
+        project_readme_quickstart = fileorg_project / "README.md"
+        if not project_readme_quickstart.exists():
+            print(f"  Creating quick-start README.md at project root")
+            if not dry_run:
+                project_readme_quickstart.write_text("""# FileOrganizer
+
+AI-powered document organization system for immigration visa packs.
 
 ## Quick Start
 
-See guides/ for setup and usage instructions.
+For comprehensive documentation, see [docs/README.md](docs/README.md).
 
-## Project Status
+## Key Documentation
 
-See [WHATS_LEFT_TO_BUILD.md](../WHATS_LEFT_TO_BUILD.md) for current roadmap.
+- **[Setup & Usage](docs/README.md)** - Full project documentation
+- **[Roadmap](docs/WHATS_LEFT_TO_BUILD.md)** - Current development status
+- **[Rules](docs/project_learned_rules.json)** - Project learned rules
+
+## Project Structure
+
+- `src/` - Source code
+- `scripts/` - Utility scripts
+- `packs/` - Document packs
+- `docs/` - All documentation (truth sources)
+- `archive/` - Historical files
+
+## Development
+
+See [docs/README.md](docs/README.md) for development setup and contributing guidelines.
 """)
 
-        # Create ARCHITECTURE.md (basic stub)
+        # Verify project_learned_rules.json in docs/
+        learned_rules = fileorg_docs / "project_learned_rules.json"
+        if learned_rules.exists():
+            print(f"  [OK] project_learned_rules.json already in docs/")
+        else:
+            print(f"  [WARNING] project_learned_rules.json NOT in docs/ (may not exist yet)")
+
+        # Create ARCHITECTURE.md stub if it doesn't exist
         arch = fileorg_docs / "ARCHITECTURE.md"
         if not arch.exists():
-            print(f"  Creating ARCHITECTURE.md")
+            print(f"  Creating ARCHITECTURE.md stub")
             if not dry_run:
                 arch.write_text("""# FileOrganizer Architecture
 
@@ -347,6 +416,8 @@ FileOrganizer is an AI-powered document organization system for immigration visa
 
 [To be documented]
 """)
+    else:
+        print("  [SKIP] file-organizer-app-v1 project not found")
 
     # 3.3 Handle Autopack folder
     autopack_folder = autonomous_root / "Autopack"
@@ -392,25 +463,37 @@ Autopack uses this folder for self-directed development and improvements.
 # ============================================================================
 
 def phase4_restore_documentation(dry_run: bool = True) -> None:
-    """Restore truth source documentation files that were archived."""
+    """Restore truth source documentation files that were archived.
+
+    This includes:
+    - Autopack documentation files (DEPLOYMENT_GUIDE.md, etc.)
+    - Auto-generated CONSOLIDATED_*.md files
+    - Auto-generated ARCHIVE_INDEX.md
+    - file-organizer project truth sources
+    - Ruleset files (already at root - just verify)
+    """
     print("\n" + "=" * 80)
     print("PHASE 4: RESTORE TRUTH SOURCE DOCUMENTATION")
     print("=" * 80)
 
     docs_dir = REPO_ROOT / "docs"
-    docs_dir.mkdir(exist_ok=True)
-
-    # Map of docs to restore: destination -> source location
-    docs_to_restore = {
-        "DEPLOYMENT_GUIDE.md": REPO_ROOT / "archive" / "reports" / "DEPLOYMENT_GUIDE.md",
-        # SETUP_GUIDE.md already exists in docs/
-    }
+    docs_dir.mkdir(parents=True, exist_ok=True)
 
     restored = 0
     missing = []
 
-    print("\n[4.1] Restoring archived truth sources")
-    for doc_name, source_path in docs_to_restore.items():
+    # ========================================================================
+    # SECTION 4.1: Autopack Documentation Files
+    # ========================================================================
+    print("\n[4.1] Autopack Documentation - Restoring archived truth sources")
+
+    # Map of docs to restore: destination -> source location
+    autopack_docs_to_restore = {
+        "DEPLOYMENT_GUIDE.md": REPO_ROOT / "archive" / "reports" / "DEPLOYMENT_GUIDE.md",
+        # SETUP_GUIDE.md already exists in docs/
+    }
+
+    for doc_name, source_path in autopack_docs_to_restore.items():
         dest_path = docs_dir / doc_name
 
         if dest_path.exists():
@@ -423,28 +506,135 @@ def phase4_restore_documentation(dry_run: bool = True) -> None:
                 safe_move(source_path, dest_path)
                 restored += 1
         else:
-            print(f"  [NOT FOUND] {doc_name} - source doesn't exist")
+            print(f"  [NOT FOUND] {doc_name} - searching for alternatives...")
             missing.append(doc_name)
 
-    # Check what docs we have vs what we need
-    print("\n[4.2] Documentation status")
-    required_truth_sources = {
-        "SETUP_GUIDE.md": "Setup/installation instructions",
-        "DEPLOYMENT_GUIDE.md": "Deployment instructions",
-        "ARCHITECTURE.md": "System architecture (if exists)",
-        "API_REFERENCE.md": "API documentation (if exists)",
-        "CONTRIBUTING.md": "Contribution guidelines (if exists)"
+    # ========================================================================
+    # SECTION 4.2: Auto-Generated CONSOLIDATED_*.md Files
+    # ========================================================================
+    print("\n[4.2] Auto-Generated Consolidated Files - Verifying locations")
+    print("  Note: These are auto-generated by scripts/consolidate_docs.py")
+    print("        and src/autopack/archive_consolidator.py")
+
+    # Check Autopack CONSOLIDATED files (in archive/)
+    autopack_consolidated_expected = {
+        "CONSOLIDATED_CORRESPONDENCE.md": REPO_ROOT / "archive" / "reports",
+        "CONSOLIDATED_MISC.md": REPO_ROOT / "archive" / "reports",
+        "CONSOLIDATED_REFERENCE.md": REPO_ROOT / "archive" / "reports",
+        "CONSOLIDATED_RESEARCH.md": REPO_ROOT / "archive" / "research",
+        "CONSOLIDATED_STRATEGY.md": REPO_ROOT / "archive" / "research",
     }
 
-    for doc_name, description in required_truth_sources.items():
-        doc_path = docs_dir / doc_name
-        if doc_path.exists():
-            print(f"  [OK] {doc_name} - {description}")
+    for consolidated_name, expected_dir in autopack_consolidated_expected.items():
+        consolidated_path = expected_dir / consolidated_name
+        if consolidated_path.exists():
+            print(f"  [OK] {consolidated_name} in {expected_dir.relative_to(REPO_ROOT)}/")
         else:
-            print(f"  [MISSING] {doc_name} - {description}")
-            print(f"          (Either never existed or needs to be created)")
+            print(f"  [MISSING] {consolidated_name} (will be auto-generated on next consolidate_docs.py run)")
 
-    print(f"\n[PHASE 4] Restored {restored} truth source files")
+    # Check file-organizer CONSOLIDATED files (in .autonomous_runs/file-organizer-app-v1/archive/)
+    fo_archive_dir = REPO_ROOT / ".autonomous_runs" / "file-organizer-app-v1" / "archive"
+    fo_consolidated_expected = {
+        "CONSOLIDATED_DEBUG.md": fo_archive_dir / "reports",
+        "CONSOLIDATED_RESEARCH.md": fo_archive_dir / "research",
+    }
+
+    print("\n  File-Organizer CONSOLIDATED files:")
+    for consolidated_name, expected_dir in fo_consolidated_expected.items():
+        consolidated_path = expected_dir / consolidated_name
+        if consolidated_path.exists():
+            print(f"  [OK] {consolidated_name} in {expected_dir.relative_to(REPO_ROOT)}/")
+        else:
+            print(f"  [MISSING] {consolidated_name} (will be auto-generated)")
+
+    # ========================================================================
+    # SECTION 4.3: ARCHIVE_INDEX.md (Auto-Generated)
+    # ========================================================================
+    print("\n[4.3] ARCHIVE_INDEX.md - Verifying auto-generated index")
+
+    archive_index_path = REPO_ROOT / "archive" / "reports" / "ARCHIVE_INDEX.md"
+    if archive_index_path.exists():
+        print(f"  [OK] ARCHIVE_INDEX.md exists at archive/reports/")
+        print(f"       (Auto-generated by scripts/consolidate_docs.py)")
+    else:
+        print(f"  [MISSING] ARCHIVE_INDEX.md (will be created on next consolidate_docs.py run)")
+
+    # ========================================================================
+    # SECTION 4.4: Ruleset/Config Files (Will be moved in Phase 1)
+    # ========================================================================
+    print("\n[4.4] Ruleset & Config Files - Status check")
+    print("  Note: These are auto-updated by various Autopack scripts")
+    print("        Phase 1 will move them from root to docs/")
+
+    ruleset_files = {
+        "project_ruleset_Autopack.json": "Project-wide rules (auto-updated)",
+        "project_issue_backlog.json": "Issue backlog (auto-updated)",
+        "autopack_phase_plan.json": "Phase plan (auto-updated)",
+    }
+
+    for ruleset_name, description in ruleset_files.items():
+        docs_path = docs_dir / ruleset_name
+        root_path = REPO_ROOT / ruleset_name
+
+        if docs_path.exists():
+            print(f"  [OK] {ruleset_name} in docs/ - {description}")
+        elif root_path.exists():
+            print(f"  [PENDING] {ruleset_name} at root - will be moved to docs/ in Phase 1")
+        else:
+            print(f"  [MISSING] {ruleset_name} - {description}")
+
+    # ========================================================================
+    # SECTION 4.5: file-organizer Truth Sources
+    # ========================================================================
+    print("\n[4.5] File-Organizer Project - Verifying truth sources")
+
+    fo_project_dir = REPO_ROOT / ".autonomous_runs" / "file-organizer-app-v1"
+    fo_docs_dir = fo_project_dir / "docs"
+
+    # Check README.md (already exists)
+    fo_readme = fo_project_dir / "README.md"
+    if fo_readme.exists():
+        print(f"  [OK] README.md exists at .autonomous_runs/file-organizer-app-v1/")
+    else:
+        print(f"  [MISSING] README.md (should exist)")
+
+    # Check for ARCHITECTURE.md in docs/ or archive
+    fo_architecture = fo_docs_dir / "ARCHITECTURE.md"
+    if fo_architecture.exists():
+        print(f"  [OK] ARCHITECTURE.md exists in docs/")
+    else:
+        # Search archive for it
+        print(f"  [NOT FOUND] ARCHITECTURE.md in docs/ - searching archive...")
+        # (Could search here if needed, but likely doesn't exist)
+        print(f"  [MISSING] ARCHITECTURE.md (may never have been created)")
+
+    # Check WHATS_LEFT_TO_BUILD.md
+    fo_roadmap = fo_project_dir / "WHATS_LEFT_TO_BUILD.md"
+    if fo_roadmap.exists():
+        print(f"  [OK] WHATS_LEFT_TO_BUILD.md exists")
+    else:
+        print(f"  [MISSING] WHATS_LEFT_TO_BUILD.md")
+
+    # ========================================================================
+    # SECTION 4.6: Summary
+    # ========================================================================
+    print("\n[4.6] Documentation status summary")
+
+    autopack_docs_status = {
+        "SETUP_GUIDE.md": (docs_dir / "SETUP_GUIDE.md").exists(),
+        "DEPLOYMENT_GUIDE.md": (docs_dir / "DEPLOYMENT_GUIDE.md").exists(),
+        "ARCHITECTURE.md": (docs_dir / "ARCHITECTURE.md").exists(),
+        "API_REFERENCE.md": (docs_dir / "API_REFERENCE.md").exists(),
+        "CONTRIBUTING.md": (docs_dir / "CONTRIBUTING.md").exists(),
+    }
+
+    print("\n  Autopack docs/ status:")
+    for doc_name, exists in autopack_docs_status.items():
+        status = "[OK]" if exists else "[MISSING]"
+        note = "" if exists else " (may never have existed)"
+        print(f"    {status} {doc_name}{note}")
+
+    print(f"\n[PHASE 4] Restored {restored} truth source files from archive")
     if missing:
         print(f"  Note: {len(missing)} files not found in archive (may never have existed)")
 
@@ -488,32 +678,59 @@ def validate_v2_structure() -> Tuple[bool, List[str]]:
     else:
         print("[OK] checkpoints/ renamed or doesn't exist")
 
-    # Check 4: Config files moved
-    root_configs = ["project_ruleset_Autopack.json", "project_issue_backlog.json",
-                   "autopack_phase_plan.json"]
-    loose_configs = [f for f in root_configs if (REPO_ROOT / f).exists()]
-    if loose_configs:
-        issues.append(f"[X] {len(loose_configs)} config files still at root: {', '.join(loose_configs)}")
+    # Check 4: Truth source .md files moved to docs/
+    truth_md_files = ["WORKSPACE_ORGANIZATION_SPEC.md", "WHATS_LEFT_TO_BUILD.md",
+                      "WHATS_LEFT_TO_BUILD_MAINTENANCE.md"]
+    loose_md = [f for f in truth_md_files if (REPO_ROOT / f).exists()]
+    if loose_md:
+        issues.append(f"[X] {len(loose_md)} truth source .md files still at root: {', '.join(loose_md)}")
     else:
-        print("[OK] Config files moved to config/")
+        print("[OK] Truth source .md files moved to docs/")
 
-    # Check 5: Core truth source docs exist
+    # Check 5: Ruleset .json files moved to docs/
     docs_dir = REPO_ROOT / "docs"
-    # Only require docs we KNOW should exist (SETUP_GUIDE is already there, DEPLOYMENT_GUIDE we restore)
-    core_docs = ["SETUP_GUIDE.md"]  # Minimum requirement
-    nice_to_have = ["DEPLOYMENT_GUIDE.md", "ARCHITECTURE.md", "API_REFERENCE.md", "CONTRIBUTING.md"]
+    ruleset_files = ["project_ruleset_Autopack.json", "project_issue_backlog.json",
+                    "autopack_phase_plan.json"]
 
-    missing_core = [d for d in core_docs if not (docs_dir / d).exists()]
-    if missing_core:
-        issues.append(f"[X] Missing core docs: {', '.join(missing_core)}")
+    # Check if still at root (bad)
+    loose_rulesets = [f for f in ruleset_files if (REPO_ROOT / f).exists()]
+    if loose_rulesets:
+        issues.append(f"[X] {len(loose_rulesets)} ruleset files still at root: {', '.join(loose_rulesets)}")
+
+    # Check if in docs/ (good)
+    rulesets_in_docs = [f for f in ruleset_files if (docs_dir / f).exists()]
+    if len(rulesets_in_docs) == len(ruleset_files):
+        print("[OK] All ruleset files moved to docs/")
+    elif not loose_rulesets:  # Not at root and not in docs/ = missing
+        missing_rulesets = [f for f in ruleset_files if not (docs_dir / f).exists()]
+        warnings.append(f"[!] Missing ruleset files: {', '.join(missing_rulesets)}")
+
+    # Check 6: ALL truth source documentation in docs/
+    required_truth_sources = {
+        "SETUP_GUIDE.md": "Setup/installation instructions",
+        "WORKSPACE_ORGANIZATION_SPEC.md": "Workspace organization spec",
+        "WHATS_LEFT_TO_BUILD.md": "Roadmap",
+        "WHATS_LEFT_TO_BUILD_MAINTENANCE.md": "Maintenance roadmap",
+    }
+
+    nice_to_have = {
+        "DEPLOYMENT_GUIDE.md": "Deployment guide",
+        "ARCHITECTURE.md": "System architecture",
+        "API_REFERENCE.md": "API documentation",
+        "CONTRIBUTING.md": "Contribution guidelines",
+    }
+
+    missing_required = [d for d in required_truth_sources if not (docs_dir / d).exists()]
+    if missing_required:
+        issues.append(f"[X] Missing required docs in docs/: {', '.join(missing_required)}")
     else:
-        print("[OK] Core documentation present in docs/")
+        print("[OK] All required truth sources present in docs/")
 
     missing_nice = [d for d in nice_to_have if not (docs_dir / d).exists()]
     if missing_nice:
         warnings.append(f"[!] Nice-to-have docs missing: {', '.join(missing_nice)}")
 
-    # Check 6: file-organizer docs have truth sources
+    # Check 7: file-organizer docs have truth sources
     fo_docs = REPO_ROOT / ".autonomous_runs" / "file-organizer-app-v1" / "docs"
     if fo_docs.exists():
         fo_required = ["README.md"]

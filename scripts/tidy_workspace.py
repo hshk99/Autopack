@@ -1128,11 +1128,13 @@ def main():
     db_override = args.database_url
     truth_files = args.semantic_truth or []
     if not truth_files:
-        # Default truth anchors
+        # Default truth anchors (all truth sources now in docs/ folders)
         truth_files = [
             REPO_ROOT / "README.md",
-            REPO_ROOT / ".autonomous_runs" / "file-organizer-app-v1" / "WHATS_LEFT_TO_BUILD.md",
-            REPO_ROOT / ".autonomous_runs" / "file-organizer-app-v1" / "WHATS_LEFT_TO_BUILD_MAINTENANCE.md",
+            REPO_ROOT / "docs" / "WHATS_LEFT_TO_BUILD.md",
+            REPO_ROOT / "docs" / "WHATS_LEFT_TO_BUILD_MAINTENANCE.md",
+            REPO_ROOT / "docs" / "WORKSPACE_ORGANIZATION_SPEC.md",
+            REPO_ROOT / ".autonomous_runs" / "file-organizer-app-v1" / "docs" / "WHATS_LEFT_TO_BUILD.md",
             REPO_ROOT / ".autonomous_runs" / "file-organizer-app-v1" / "archive" / "CONSOLIDATED_BUILD.md",
             REPO_ROOT / ".autonomous_runs" / "file-organizer-app-v1" / "archive" / "CONSOLIDATED_STRATEGY.md",
         ]

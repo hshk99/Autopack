@@ -52,8 +52,8 @@ class IssueTracker:
         return self.base_dir / "run_issue_index.json"
 
     def get_project_backlog_path(self) -> Path:
-        """Get path to project issue backlog (at repo root level)"""
-        return self._runs_dir.parent / "project_issue_backlog.json"
+        """Get path to project issue backlog (in docs/ folder)"""
+        return self._runs_dir.parent / "docs" / "project_issue_backlog.json"
 
     # Phase-level operations
 

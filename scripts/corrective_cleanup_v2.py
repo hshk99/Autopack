@@ -439,12 +439,33 @@ For comprehensive documentation, see [docs/README.md](docs/README.md).
 See [docs/README.md](docs/README.md) for development setup and contributing guidelines.
 """)
 
-        # Verify project_learned_rules.json in docs/
-        learned_rules = fileorg_docs / "project_learned_rules.json"
-        if learned_rules.exists():
-            print(f"  [OK] project_learned_rules.json already in docs/")
-        else:
-            print(f"  [WARNING] project_learned_rules.json NOT in docs/ (may not exist yet)")
+        # Move all SOT files from project root to docs/
+        fileorg_sot_files = {
+            "project_learned_rules.json": "Project learned rules",
+            "autopack_phase_plan.json": "Phase plan",
+            "plan_maintenance.json": "Maintenance plan",
+            "plan_maintenance_clean.json": "Clean maintenance plan",
+            "plan_task7.json": "Task 7 plan",
+            "rules_updated.json": "Updated rules",
+        }
+
+        moved_fileorg_sot = 0
+        for sot_file, description in fileorg_sot_files.items():
+            src = fileorg_project / sot_file
+            dest = fileorg_docs / sot_file
+
+            if dest.exists():
+                print(f"  [OK] {sot_file} already in docs/")
+            elif src.exists():
+                print(f"  Moving {sot_file} to docs/ ({description})")
+                if not dry_run:
+                    safe_move(src, dest)
+                    moved_fileorg_sot += 1
+            else:
+                print(f"  [SKIP] {sot_file} not found ({description})")
+
+        if moved_fileorg_sot > 0:
+            print(f"  Moved {moved_fileorg_sot} SOT files to file-organizer docs/")
 
         # Create ARCHITECTURE.md stub if it doesn't exist
         arch = fileorg_docs / "ARCHITECTURE.md"
@@ -708,6 +729,95 @@ def phase4_restore_documentation(dry_run: bool = True) -> None:
 
 
 # ============================================================================
+# PHASE 5: Organize Cleanup Documentation & Scripts
+# ============================================================================
+
+def phase5_organize_cleanup_artifacts(dry_run: bool = True) -> None:
+    """Group cleanup-related documentation and scripts for reusability."""
+    print("\n" + "=" * 80)
+    print("PHASE 5: ORGANIZE CLEANUP DOCUMENTATION & SCRIPTS")
+    print("=" * 80)
+
+    # 5.1 Group cleanup documentation in archive
+    print("\n[5.1] Grouping cleanup documentation in archive/reports/tidy_v7/")
+
+    tidy_docs_dir = REPO_ROOT / "archive" / "reports" / "tidy_v7"
+    if not dry_run:
+        tidy_docs_dir.mkdir(parents=True, exist_ok=True)
+
+    cleanup_docs = {
+        "CLEANUP_V2_SUMMARY.md": REPO_ROOT / "archive" / "reports",
+        "CONSOLIDATION_TO_DOCS_SUMMARY.md": REPO_ROOT / "archive" / "reports",
+        "DOCS_CONSOLIDATION_COMPLETE.md": REPO_ROOT / "archive" / "reports",
+        "FILE_RELOCATION_MAP.md": REPO_ROOT / "archive" / "reports",
+        "IMPLEMENTATION_PLAN_CLEANUP_V2.md": REPO_ROOT / "archive" / "reports",
+        "WORKSPACE_ISSUES_ANALYSIS.md": REPO_ROOT / "archive" / "reports",
+        "PROPOSED_CLEANUP_STRUCTURE_V2.md": REPO_ROOT / "archive" / "reports",
+    }
+
+    moved_cleanup_docs = 0
+    for doc_name, source_dir in cleanup_docs.items():
+        src = source_dir / doc_name
+        dest = tidy_docs_dir / doc_name
+
+        if dest.exists():
+            print(f"  [SKIP] {doc_name} already in tidy_v7/")
+        elif src.exists():
+            print(f"  {doc_name} -> archive/reports/tidy_v7/")
+            if not dry_run:
+                safe_move(src, dest)
+                moved_cleanup_docs += 1
+        else:
+            print(f"  [SKIP] {doc_name} not found")
+
+    print(f"  Grouped {moved_cleanup_docs} cleanup documents")
+
+    # 5.2 Group tidy/cleanup scripts
+    print("\n[5.2] Grouping tidy/cleanup scripts in scripts/tidy/")
+
+    tidy_scripts_dir = REPO_ROOT / "scripts" / "tidy"
+    if not dry_run:
+        tidy_scripts_dir.mkdir(parents=True, exist_ok=True)
+
+    tidy_scripts = [
+        "tidy_workspace.py",
+        "tidy_docs.py",
+        "tidy_logger.py",
+        "run_tidy_all.py",
+        "corrective_cleanup.py",
+        "corrective_cleanup_v2.py",
+        "comprehensive_cleanup.py",
+    ]
+
+    # Get the currently running script to avoid moving it while running
+    current_script = Path(__file__).name
+
+    moved_scripts = 0
+    for script_name in tidy_scripts:
+        src = REPO_ROOT / "scripts" / script_name
+        dest = tidy_scripts_dir / script_name
+
+        # Skip moving the currently running script
+        if script_name == current_script:
+            print(f"  [SKIP] {script_name} (currently running - move manually after)")
+            continue
+
+        if dest.exists():
+            print(f"  [SKIP] {script_name} already in tidy/")
+        elif src.exists():
+            print(f"  {script_name} -> scripts/tidy/")
+            if not dry_run:
+                safe_move(src, dest)
+                moved_scripts += 1
+        else:
+            print(f"  [SKIP] {script_name} not found")
+
+    print(f"  Grouped {moved_scripts} tidy/cleanup scripts")
+
+    print(f"\n[PHASE 5] Complete")
+
+
+# ============================================================================
 # VALIDATION (V2)
 # ============================================================================
 
@@ -887,6 +997,10 @@ def main():
     phase4_restore_documentation(dry_run)
     if not dry_run:
         git_checkpoint("cleanup-v2: phase 4 - restore truth source documentation")
+
+    phase5_organize_cleanup_artifacts(dry_run)
+    if not dry_run:
+        git_checkpoint("cleanup-v2: phase 5 - organize cleanup documentation and scripts")
 
     # Final validation
     validation_passed, issues = validate_v2_structure()

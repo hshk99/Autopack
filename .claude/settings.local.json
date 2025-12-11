@@ -46,7 +46,8 @@
       "Bash(PYTHONUTF8=1 PYTHONPATH=src DATABASE_URL=\"postgresql://autopack:autopack@localhost:5432/autopack\" QDRANT_HOST=\"http://localhost:6333\" python -m pytest:*)",
       "Bash(PYTHONUTF8=1 PYTHONPATH=src PYTHONUNBUFFERED=1 DATABASE_URL=\"postgresql://autopack:autopack@localhost:5432/autopack\" QDRANT_HOST=\"http://localhost:6333\" python:*)",
       "Bash(if [ -d \"archived_runs\" ])",
-      "Bash(dir:*)"
+      "Bash(dir:*)",
+      "Bash(xargs:*)"
     ],
     "deny": [],
     "ask": []

@@ -47,7 +47,8 @@
       "Bash(PYTHONUTF8=1 PYTHONPATH=src PYTHONUNBUFFERED=1 DATABASE_URL=\"postgresql://autopack:autopack@localhost:5432/autopack\" QDRANT_HOST=\"http://localhost:6333\" python:*)",
       "Bash(if [ -d \"archived_runs\" ])",
       "Bash(dir:*)",
-      "Bash(xargs:*)"
+      "Bash(xargs:*)",
+      "Bash(if [ -d \"c:/dev/Autopack/archive/reports/tidy_v7\" ])"
     ],
     "deny": [],
     "ask": []

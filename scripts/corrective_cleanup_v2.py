@@ -391,174 +391,62 @@ Autopack uses this folder for self-directed development and improvements.
 # PHASE 4: Documentation Creation
 # ============================================================================
 
-def phase4_documentation_creation(dry_run: bool = True) -> None:
-    """Create active documentation in docs/."""
+def phase4_restore_documentation(dry_run: bool = True) -> None:
+    """Restore truth source documentation files that were archived."""
     print("\n" + "=" * 80)
-    print("PHASE 4: DOCUMENTATION CREATION")
+    print("PHASE 4: RESTORE TRUTH SOURCE DOCUMENTATION")
     print("=" * 80)
 
     docs_dir = REPO_ROOT / "docs"
     docs_dir.mkdir(exist_ok=True)
 
-    docs_to_create = {
-        "ARCHITECTURE.md": """# Autopack Architecture
-
-## Overview
-
-Autopack is an autonomous development system that uses AI to complete software development tasks.
-
-## Core Components
-
-### 1. Autonomous Executor
-Orchestrates task execution with model selection and error handling.
-
-### 2. Task Decomposition
-Breaks down complex tasks into manageable phases.
-
-### 3. Pack System
-Reusable task templates for common development patterns.
-
-### 4. Backlog Maintenance
-Automatic issue tracking and prioritization.
-
-## Data Flow
-
-1. User provides task description
-2. Task decomposer creates execution plan
-3. Autonomous executor runs phases
-4. Results captured and validated
-
-## Directory Structure
-
-See [WORKSPACE_ORGANIZATION_SPEC.md](../WORKSPACE_ORGANIZATION_SPEC.md)
-""",
-        "API_REFERENCE.md": """# Autopack API Reference
-
-## OpenAPI Specification
-
-See [openapi.json](api/openapi.json) for complete API specification.
-
-## Key Endpoints
-
-### Task Management
-- `POST /tasks` - Create new task
-- `GET /tasks/{id}` - Get task status
-- `DELETE /tasks/{id}` - Cancel task
-
-### Pack Management
-- `GET /packs` - List available packs
-- `POST /packs/{name}/execute` - Execute pack
-
-### Execution
-- `POST /execute` - Run autonomous execution
-- `GET /runs/{id}` - Get run status
-
-## Authentication
-
-[To be documented]
-""",
-        "DEPLOYMENT_GUIDE.md": """# Autopack Deployment Guide
-
-## Prerequisites
-
-- Python 3.10+
-- PostgreSQL 14+ (for backlog persistence)
-- Qdrant (optional, for semantic search)
-
-## Installation
-
-```bash
-# Clone repository
-git clone <repo-url>
-cd Autopack
-
-# Create virtual environment
-python -m venv venv
-source venv/bin/activate  # or venv\\Scripts\\activate on Windows
-
-# Install dependencies
-pip install -r requirements.txt
-```
-
-## Configuration
-
-Create `.env` file:
-```
-DATABASE_URL=postgresql://user:pass@localhost:5432/autopack
-QDRANT_HOST=http://localhost:6333
-ANTHROPIC_API_KEY=your_key_here
-```
-
-## Running
-
-```bash
-# Start backend
-uvicorn src.backend.main:app --reload
-
-# Run autonomous executor
-python -m autopack.autonomous_executor --task "your task"
-```
-
-## Docker Deployment
-
-[To be documented]
-""",
-        "CONTRIBUTING.md": """# Contributing to Autopack
-
-## Development Setup
-
-See [SETUP_GUIDE.md](SETUP_GUIDE.md) for initial setup.
-
-## Code Style
-
-- **Python:** Black formatter, 88 char line length
-- **TypeScript:** Prettier, 2-space indents
-- **Docstrings:** Google style
-
-## Testing
-
-```bash
-# Run all tests
-pytest tests/
-
-# Run specific test file
-pytest tests/test_autonomous_executor.py
-
-# With coverage
-pytest --cov=src tests/
-```
-
-## Pull Requests
-
-1. Create feature branch from `main`
-2. Make changes with clear commit messages
-3. Add tests for new functionality
-4. Ensure all tests pass
-5. Submit PR with description
-
-## Commit Messages
-
-Use conventional commits:
-- `feat:` New feature
-- `fix:` Bug fix
-- `docs:` Documentation
-- `refactor:` Code restructuring
-- `test:` Test changes
-"""
+    # Map of docs to restore: destination -> source location
+    docs_to_restore = {
+        "DEPLOYMENT_GUIDE.md": REPO_ROOT / "archive" / "reports" / "DEPLOYMENT_GUIDE.md",
+        # SETUP_GUIDE.md already exists in docs/
     }
 
-    created = 0
-    for filename, content in docs_to_create.items():
-        filepath = docs_dir / filename
-        if not filepath.exists():
-            print(f"  Creating {filename}")
-            if not dry_run:
-                filepath.write_text(content)
-                created += 1
-        else:
-            print(f"  [SKIP] {filename} already exists")
+    restored = 0
+    missing = []
 
-    print(f"\n[PHASE 4] Created {created} documentation files")
+    print("\n[4.1] Restoring archived truth sources")
+    for doc_name, source_path in docs_to_restore.items():
+        dest_path = docs_dir / doc_name
+
+        if dest_path.exists():
+            print(f"  [SKIP] {doc_name} already in docs/")
+            continue
+
+        if source_path.exists():
+            print(f"  {doc_name} <- archive/{source_path.relative_to(REPO_ROOT / 'archive')}")
+            if not dry_run:
+                safe_move(source_path, dest_path)
+                restored += 1
+        else:
+            print(f"  [NOT FOUND] {doc_name} - source doesn't exist")
+            missing.append(doc_name)
+
+    # Check what docs we have vs what we need
+    print("\n[4.2] Documentation status")
+    required_truth_sources = {
+        "SETUP_GUIDE.md": "Setup/installation instructions",
+        "DEPLOYMENT_GUIDE.md": "Deployment instructions",
+        "ARCHITECTURE.md": "System architecture (if exists)",
+        "API_REFERENCE.md": "API documentation (if exists)",
+        "CONTRIBUTING.md": "Contribution guidelines (if exists)"
+    }
+
+    for doc_name, description in required_truth_sources.items():
+        doc_path = docs_dir / doc_name
+        if doc_path.exists():
+            print(f"  [OK] {doc_name} - {description}")
+        else:
+            print(f"  [MISSING] {doc_name} - {description}")
+            print(f"          (Either never existed or needs to be created)")
+
+    print(f"\n[PHASE 4] Restored {restored} truth source files")
+    if missing:
+        print(f"  Note: {len(missing)} files not found in archive (may never have existed)")
 
 
 # ============================================================================
@@ -609,14 +497,21 @@ def validate_v2_structure() -> Tuple[bool, List[str]]:
     else:
         print("[OK] Config files moved to config/")
 
-    # Check 5: Active docs exist
+    # Check 5: Core truth source docs exist
     docs_dir = REPO_ROOT / "docs"
-    required_docs = ["ARCHITECTURE.md", "API_REFERENCE.md", "DEPLOYMENT_GUIDE.md", "CONTRIBUTING.md"]
-    missing_docs = [d for d in required_docs if not (docs_dir / d).exists()]
-    if missing_docs:
-        warnings.append(f"[!] Missing docs: {', '.join(missing_docs)}")
+    # Only require docs we KNOW should exist (SETUP_GUIDE is already there, DEPLOYMENT_GUIDE we restore)
+    core_docs = ["SETUP_GUIDE.md"]  # Minimum requirement
+    nice_to_have = ["DEPLOYMENT_GUIDE.md", "ARCHITECTURE.md", "API_REFERENCE.md", "CONTRIBUTING.md"]
+
+    missing_core = [d for d in core_docs if not (docs_dir / d).exists()]
+    if missing_core:
+        issues.append(f"[X] Missing core docs: {', '.join(missing_core)}")
     else:
-        print("[OK] Active documentation present in docs/")
+        print("[OK] Core documentation present in docs/")
+
+    missing_nice = [d for d in nice_to_have if not (docs_dir / d).exists()]
+    if missing_nice:
+        warnings.append(f"[!] Nice-to-have docs missing: {', '.join(missing_nice)}")
 
     # Check 6: file-organizer docs have truth sources
     fo_docs = REPO_ROOT / ".autonomous_runs" / "file-organizer-app-v1" / "docs"
@@ -704,9 +599,9 @@ def main():
     if not dry_run:
         git_checkpoint("cleanup-v2: phase 3 - clean .autonomous_runs")
 
-    phase4_documentation_creation(dry_run)
+    phase4_restore_documentation(dry_run)
     if not dry_run:
-        git_checkpoint("cleanup-v2: phase 4 - create documentation")
+        git_checkpoint("cleanup-v2: phase 4 - restore truth source documentation")
 
     # Final validation
     validation_passed, issues = validate_v2_structure()

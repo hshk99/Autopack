@@ -1,23 +1,25 @@
-# Unsorted Inbox (File Organizer Project)
+# FileOrganizer
 
-This directory serves as an inbox for File Organizer project files that could not be automatically classified.
+AI-powered document organization system for immigration visa packs.
 
-## Purpose
+## Quick Start
 
-When Cursor creates files related to the File Organizer project and the tidy script cannot confidently determine their destination, they are moved here for manual review.
+For comprehensive documentation, see [docs/README.md](docs/README.md).
 
-## What to Do
+## Key Documentation
 
-1. **Review files** in this directory periodically
-2. **Move them** to the appropriate location:
-   - Plans → `archive/plans/`
-   - Analysis → `archive/analysis/`
-   - Reports → `archive/reports/`
-   - Prompts → `archive/prompts/`
-   - Diagnostics → `archive/diagnostics/`
+- **[Setup & Usage](docs/README.md)** - Full project documentation
+- **[Roadmap](docs/WHATS_LEFT_TO_BUILD.md)** - Current development status
+- **[Rules](docs/project_learned_rules.json)** - Project learned rules
 
-3. **Delete** files that are no longer needed
+## Project Structure
 
-## Automatic Cleanup
+- `src/` - Source code
+- `scripts/` - Utility scripts
+- `packs/` - Document packs
+- `docs/` - All documentation (truth sources)
+- `archive/` - Historical files
 
-Files older than 30 days in this directory may be automatically archived to `archive/superseded/` during tidy runs with the `--purge` flag.
+## Development
+
+See [docs/README.md](docs/README.md) for development setup and contributing guidelines.

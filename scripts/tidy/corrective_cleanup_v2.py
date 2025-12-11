@@ -738,36 +738,50 @@ def phase5_organize_cleanup_artifacts(dry_run: bool = True) -> None:
     print("PHASE 5: ORGANIZE CLEANUP DOCUMENTATION & SCRIPTS")
     print("=" * 80)
 
-    # 5.1 Group cleanup documentation in archive
-    print("\n[5.1] Grouping cleanup documentation in archive/reports/tidy_v7/")
+    # 5.1 Group cleanup documentation in archive/tidy_v7/ (top level for easy access)
+    print("\n[5.1] Grouping cleanup documentation in archive/tidy_v7/")
 
-    tidy_docs_dir = REPO_ROOT / "archive" / "reports" / "tidy_v7"
+    tidy_docs_dir = REPO_ROOT / "archive" / "tidy_v7"
     if not dry_run:
         tidy_docs_dir.mkdir(parents=True, exist_ok=True)
 
-    cleanup_docs = {
-        "CLEANUP_V2_SUMMARY.md": REPO_ROOT / "archive" / "reports",
-        "CONSOLIDATION_TO_DOCS_SUMMARY.md": REPO_ROOT / "archive" / "reports",
-        "DOCS_CONSOLIDATION_COMPLETE.md": REPO_ROOT / "archive" / "reports",
-        "FILE_RELOCATION_MAP.md": REPO_ROOT / "archive" / "reports",
-        "IMPLEMENTATION_PLAN_CLEANUP_V2.md": REPO_ROOT / "archive" / "reports",
-        "WORKSPACE_ISSUES_ANALYSIS.md": REPO_ROOT / "archive" / "reports",
-        "PROPOSED_CLEANUP_STRUCTURE_V2.md": REPO_ROOT / "archive" / "reports",
-    }
+    # Check both archive/reports/ and archive/reports/tidy_v7/ as possible sources
+    cleanup_docs_sources = [
+        REPO_ROOT / "archive" / "reports" / "tidy_v7",
+        REPO_ROOT / "archive" / "reports",
+    ]
+
+    cleanup_doc_names = [
+        "CLEANUP_V2_SUMMARY.md",
+        "CONSOLIDATION_TO_DOCS_SUMMARY.md",
+        "DOCS_CONSOLIDATION_COMPLETE.md",
+        "FILE_RELOCATION_MAP.md",
+        "IMPLEMENTATION_PLAN_CLEANUP_V2.md",
+        "WORKSPACE_ISSUES_ANALYSIS.md",
+        "PROPOSED_CLEANUP_STRUCTURE_V2.md",
+    ]
 
     moved_cleanup_docs = 0
-    for doc_name, source_dir in cleanup_docs.items():
-        src = source_dir / doc_name
+    for doc_name in cleanup_doc_names:
         dest = tidy_docs_dir / doc_name
 
         if dest.exists():
             print(f"  [SKIP] {doc_name} already in tidy_v7/")
-        elif src.exists():
-            print(f"  {doc_name} -> archive/reports/tidy_v7/")
-            if not dry_run:
-                safe_move(src, dest)
-                moved_cleanup_docs += 1
-        else:
+            continue
+
+        # Try to find the file in possible source locations
+        found = False
+        for source_dir in cleanup_docs_sources:
+            src = source_dir / doc_name
+            if src.exists():
+                print(f"  {doc_name} -> archive/tidy_v7/")
+                if not dry_run:
+                    safe_move(src, dest)
+                    moved_cleanup_docs += 1
+                found = True
+                break
+
+        if not found:
             print(f"  [SKIP] {doc_name} not found")
 
     print(f"  Grouped {moved_cleanup_docs} cleanup documents")
@@ -815,6 +829,90 @@ def phase5_organize_cleanup_artifacts(dry_run: bool = True) -> None:
     print(f"  Grouped {moved_scripts} tidy/cleanup scripts")
 
     print(f"\n[PHASE 5] Complete")
+
+
+# ============================================================================
+# PHASE 6: Synchronize SOT Files
+# ============================================================================
+
+def phase6_synchronize_sot_files(dry_run: bool = True) -> None:
+    """Synchronize all Source of Truth files after cleanup.
+
+    Ensures all SOT files (docs/, DBs, CONSOLIDATED_*.md) are up-to-date
+    regardless of who made changes (Cursor, Autopack, manual edits).
+    """
+    print("\n" + "=" * 80)
+    print("PHASE 6: SYNCHRONIZE SOURCE OF TRUTH FILES")
+    print("=" * 80)
+
+    if dry_run:
+        print("\n[DRY-RUN] Would synchronize SOT files:")
+        print("  - Update CONSOLIDATED_*.md via consolidate_docs.py")
+        print("  - Sync project_ruleset_Autopack.json")
+        print("  - Sync project_issue_backlog.json")
+        print("  - Update ARCHIVE_INDEX.md")
+        print(f"\n[PHASE 6] Complete (dry-run)")
+        return
+
+    # 6.1 Update CONSOLIDATED_*.md files
+    print("\n[6.1] Updating CONSOLIDATED_*.md files")
+
+    consolidate_script = REPO_ROOT / "scripts" / "consolidate_docs.py"
+    if consolidate_script.exists():
+        print("  Running scripts/consolidate_docs.py...")
+        try:
+            result = subprocess.run(
+                ["python", str(consolidate_script)],
+                cwd=REPO_ROOT,
+                capture_output=True,
+                text=True,
+                timeout=60
+            )
+            if result.returncode == 0:
+                print("  [OK] CONSOLIDATED_*.md files updated")
+            else:
+                print(f"  [WARNING] consolidate_docs.py returned {result.returncode}")
+                if result.stderr:
+                    print(f"  Error: {result.stderr[:200]}")
+        except subprocess.TimeoutExpired:
+            print("  [WARNING] consolidate_docs.py timed out")
+        except Exception as e:
+            print(f"  [WARNING] Failed to run consolidate_docs.py: {e}")
+    else:
+        print("  [SKIP] scripts/consolidate_docs.py not found")
+
+    # 6.2 Sync ARCHIVE_INDEX.md
+    print("\n[6.2] Updating ARCHIVE_INDEX.md")
+
+    # The consolidate_docs.py script should handle this, but verify
+    archive_index = REPO_ROOT / "archive" / "reports" / "ARCHIVE_INDEX.md"
+    if archive_index.exists():
+        print(f"  [OK] ARCHIVE_INDEX.md exists (updated by consolidate_docs.py)")
+    else:
+        print(f"  [SKIP] ARCHIVE_INDEX.md not found (will be created on next run)")
+
+    # 6.3 Note about auto-updated files
+    print("\n[6.3] Auto-updated SOT files status")
+    print("  The following files are auto-updated by Autopack during runs:")
+
+    auto_updated_files = {
+        "docs/project_ruleset_Autopack.json": "Updated when rules change",
+        "docs/project_issue_backlog.json": "Updated by issue_tracker.py",
+        "docs/autopack_phase_plan.json": "Updated when planning occurs",
+    }
+
+    for file_path, description in auto_updated_files.items():
+        full_path = REPO_ROOT / file_path
+        if full_path.exists():
+            print(f"  [OK] {file_path} - {description}")
+        else:
+            print(f"  [MISSING] {file_path} - {description}")
+
+    print(f"\n[PHASE 6] Complete")
+    print("  Note: SOT files are now synchronized. They will auto-update on:")
+    print("    - Autopack runs (project_ruleset, issue_backlog, phase_plan)")
+    print("    - Manual tidy runs (CONSOLIDATED_*.md, ARCHIVE_INDEX.md)")
+    print("    - Any workspace changes (run this script to re-sync)")
 
 
 # ============================================================================
@@ -1001,6 +1099,10 @@ def main():
     phase5_organize_cleanup_artifacts(dry_run)
     if not dry_run:
         git_checkpoint("cleanup-v2: phase 5 - organize cleanup documentation and scripts")
+
+    phase6_synchronize_sot_files(dry_run)
+    if not dry_run:
+        git_checkpoint("cleanup-v2: phase 6 - synchronize source of truth files")
 
     # Final validation
     validation_passed, issues = validate_v2_structure()

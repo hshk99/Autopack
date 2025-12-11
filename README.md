@@ -710,12 +710,10 @@ python scripts/tidy_workspace.py --root .autonomous_runs/file-organizer-app-v1 -
 - Flagged files (from Auditor) are never auto-moved
 
 **Comprehensive Workspace Cleanup**:
-
-For a detailed guide on running a comprehensive workspace tidy (including nested folders), see:
-- **[Comprehensive Tidy Execution Plan](COMPREHENSIVE_TIDY_EXECUTION_PLAN.md)** - Step-by-step guide for organizing scattered files across workspace root, docs/, prompts/, logs/, and nested subdirectories
-
-For detailed technical documentation on the tidy system architecture, see:
-- **[Autopack Tidy System Guide](docs/AUTOPACK_TIDY_SYSTEM_COMPREHENSIVE_GUIDE.md)** - Complete technical reference covering classification algorithms, database integration, storage destinations, and accuracy mechanisms
+- Target structure: `archive/` buckets (plans, reports, analysis, research, prompts, diagnostics/logs, scripts, refs) and project-scoped `.../.autonomous_runs/<project>/archive/superseded/` buckets (same + runs/<family>/<run-id>). Truth sources live in `C:\dev\Autopack\docs` (Autopack) and `.../<project>/docs` (projects).
+- Routing: use `route_new_doc` / `route_run_output` (or CLI helpers `run_output_paths.py` / `create_run_with_routing.py`) so new docs/runs land in the right project/bucket up front; `archive\unsorted` is last-resort inbox only.
+- Diagnostics truth: treat `CONSOLIDATED_DEBUG.md` and similar diagnostics (e.g., `ENHANCED_ERROR_LOGGING.md`) as truth candidates—review/merge into the active `docs` copy, then archive or discard if superseded.
+- For the full, step-by-step cleanup, see **[Comprehensive Tidy Execution Plan](COMPREHENSIVE_TIDY_EXECUTION_PLAN.md)** and the architecture guide **[Autopack Tidy System Guide](docs/AUTOPACK_TIDY_SYSTEM_COMPREHENSIVE_GUIDE.md)**.
 
 ### Consolidating Documentation
 

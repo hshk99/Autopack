@@ -38,6 +38,7 @@ Make run/output creation and tidy-up storage predictable and project-scoped, avo
 - Add inbox directory `C:\dev\Autopack\archive\unsorted` as the last-resort drop zone when classification is impossible at creation time; tidy_up can later bucket these.
 - Add CLI helper `scripts/run_output_paths.py` to surface the routing helpers for manual use (`--run-id/--family/--project/--doc-name/--doc-purpose`).
 - Add wrapper `scripts/create_run_with_routing.py` to wrap run creation and print the routed local output directory (uses `route_run_output`).
+- Diagnostics truth handling: treat `CONSOLIDATED_DEBUG.md` (even if currently in `archive\diagnostics`) as a truth-source candidate—review, merge into the active `docs` copy (Autopack or project), then archive or discard if superseded. Similarly, ensure `ENHANCED_ERROR_LOGGING.md` is routed to diagnostics/docs (not left in archive) after review.
 
 ## Risks / checks
 - Verify we do not move truth-source files (`WHATS_LEFT_TO_BUILD*.md`, DBs, rules) during regroup.
@@ -53,5 +54,6 @@ Make run/output creation and tidy-up storage predictable and project-scoped, avo
   2) Update tidy regroup logic to recognize these buckets so they aren’t reshuffled.
   3) Add README guidance: where Cursor-generated plans/analyses/prompts should be saved by default for File Organizer and for Autopack tidy (with inbox fallback).
   4) Ensure tidy regroup on `.autonomous_runs` preserves `runs/<family>/<run-id>` for manual runs, so reruns keep same-family grouping under `archive\superseded\runs`.
-  5) Define Autopack project buckets (plans/analysis/logs/docs/prompts) under `archive\...` and point any Autopack truth-source updates (README, consolidated_*.md) to `archive\docs`.***
+  5) Define Autopack project buckets (plans/analysis/logs/docs/prompts) under `archive\...` and point any Autopack truth-source updates (README, consolidated_*.md) to `archive\docs`.
+  6) Add probes to verify routing helpers (`route_new_doc`, `route_run_output`, CLI helpers) and truth handling for diagnostics (e.g., `CONSOLIDATED_DEBUG.md`, `ENHANCED_ERROR_LOGGING.md`) are applied and merged into docs when valid.***
 

@@ -46,19 +46,20 @@ class ArchiveConsolidator:
             # Assumes workspace_root is inside the project root (e.g. .autonomous_runs)
             self.project_dir = workspace_root.parent
             self.archive_dir = self.project_dir / "archive"
-            # CONSOLIDATED files go in docs/ for easy access (Workspace Org V2)
             self.docs_dir = self.project_dir / "docs"
         else:
-            # Standard project in .autonomous_runs
+            # Standard project in .autonomous_runs (e.g., file-organizer-app-v1)
             self.project_dir = workspace_root / project_slug
             self.archive_dir = self.project_dir / "archive"
-            # For subprojects, keep CONSOLIDATED files in project archive
-            self.docs_dir = self.archive_dir
+            self.docs_dir = self.project_dir / "docs"
 
-        # Consolidated files - stored in docs/ for Autopack, archive/ for subprojects
+        # CONSOLIDATED files - always in docs/ for easy access (Workspace Org V2)
+        # This applies to both Autopack and subprojects
         self.debug_errors_file = self.docs_dir / "CONSOLIDATED_DEBUG.md"
         self.build_history_file = self.docs_dir / "CONSOLIDATED_BUILD.md"
         self.strategic_analysis_file = self.docs_dir / "CONSOLIDATED_STRATEGY.md"
+
+        # ARCHIVE_INDEX stays in archive/ folder
         self.archive_index_file = self.archive_dir / "ARCHIVE_INDEX.md"
 
         # Project-level files

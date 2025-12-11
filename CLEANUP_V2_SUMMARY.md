@@ -62,13 +62,14 @@ Automated cleanup script that:
 ✓ Merge Autopack/archive/ to main archive, delete empty folder
 ```
 
-### Phase 4: Documentation Creation
+### Phase 4: Restore Truth Source Documentation
 ```
-✓ Create docs/ARCHITECTURE.md
-✓ Create docs/API_REFERENCE.md
-✓ Create docs/DEPLOYMENT_GUIDE.md
-✓ Create docs/CONTRIBUTING.md
+✓ Find and restore DEPLOYMENT_GUIDE.md from archive/reports/
+✓ Report status of all docs (existing, missing, or never existed)
+✓ SETUP_GUIDE.md already in docs/ (no action needed)
 ```
+
+**Note:** Doesn't create new docs - restores originals that tidy archived
 
 ### Phase 5: Validation
 Checks all V2 principles and reports issues.
@@ -82,13 +83,13 @@ Checks all V2 principles and reports issues.
 - ❌ 37 ungrouped runs in diagnostics/runs/
 - ❌ checkpoints/ not renamed
 - ❌ 3 config files still at root
-- ⚠️ 4 missing docs in docs/
+- ⚠️ 3 nice-to-have docs missing (ARCHITECTURE, API_REFERENCE, CONTRIBUTING - may never have existed)
 - ⚠️ file-organizer docs missing README.md
 - ⚠️ autopack_data/ not renamed
 - ⚠️ openapi.json still at root
 
 **What Will Be Fixed:**
-All of the above + proper grouping, flattening, and documentation.
+All of the above + proper grouping, flattening, and restore DEPLOYMENT_GUIDE.md.
 
 ---
 

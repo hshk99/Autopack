@@ -1,0 +1,18 @@
+{
+  "issue_description": "Autonomous executor running in dry-run mode - patches never applied to disk",
+  "file_paths": [
+    "src/autopack/autonomous_executor.py",
+    "src/autopack/builder_schemas.py",
+    "src/autopack/main.py",
+    "src/autopack/error_recovery.py"
+  ],
+  "context": "User discovered that phases report SUCCESS but no actual code is written. Line 304 in autonomous_executor.py has TODO comment: 'Patch applied successfully (TODO: actual patching)'. Line 285 uses dummy ci_result={}. BuilderResult POST returns HTTP 422 due to missing required fields (phase_id, run_id, status). Error recovery system is working but can't fix the fact that no actual work is being done.",
+  "error_logs": "No errors in logs - phases complete successfully but files unchanged on disk",
+  "attempted_fixes": [
+    "Integrated error recovery system",
+    "Fixed encoding errors",
+    "Added retry logic",
+    "Schema validation for BuilderResult"
+  ],
+  "timestamp": "2025-11-28T15:38:51.270783+00:00"
+}

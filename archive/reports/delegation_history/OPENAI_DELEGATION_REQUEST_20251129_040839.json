@@ -1,0 +1,15 @@
+{
+  "issue_description": "Patch truncation root cause: Need verification that all fixes work with fresh test run",
+  "file_paths": [
+    "src/autopack/openai_clients.py"
+  ],
+  "context": "Fixed: (1) Removed JSON mode (2) Added diff extraction (3) Removed contradictory line 246. Bash 605916 (03:48) and a3740b (05:00) ran BEFORE fixes. Need to confirm what happens with fresh run AFTER fixes.",
+  "error_logs": "All test runs so far used OLD code. Current code has all fixes. Ready to test.",
+  "attempted_fixes": [
+    "Removed JSON mode",
+    "Added _extract_diff_from_text",
+    "Enhanced logging",
+    "Removed contradictory prompt line 246"
+  ],
+  "timestamp": "2025-11-29T04:08:38.021049+00:00"
+}

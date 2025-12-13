@@ -89,12 +89,12 @@ class PreTidyAuditor:
 
         # Project-specific exclusions
         # For Autopack main project: exclude superseded (already processed)
-        # For sub-projects: process superseded/deprecated (needs extraction then deletion)
+        # For sub-projects: process superseded/deprecated but exclude research (reference material)
         if self.project_id == "autopack":
             EXCLUDED_DIRS = BASE_EXCLUDED | {"superseded"}
         else:
-            # Sub-projects: process everything, including superseded/deprecated
-            EXCLUDED_DIRS = BASE_EXCLUDED
+            # Sub-projects: process everything except research folder (permanent reference)
+            EXCLUDED_DIRS = BASE_EXCLUDED | {"research"}
 
         all_files = list(self.target_path.rglob("*"))
         all_files = [f for f in all_files if f.is_file()]
@@ -114,7 +114,7 @@ class PreTidyAuditor:
                 self.files_by_type[ext] = []
             self.files_by_type[ext].append(file_path)
 
-        excluded_info = f"project={self.project_id}, excluded={', '.join(EXCLUDED_DIRS)}"
+        excluded_info = f"project={self.project_id}, excluded={', '.join(sorted(EXCLUDED_DIRS))}"
         print(f"   Scanned {self.total_files} files ({excluded_info})")
 
     def _analyze_file_types(self):

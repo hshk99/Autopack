@@ -40,7 +40,7 @@ from phase2_archive_cleanup import Phase2ArchiveCleanup
 from enhanced_file_cleanup import EnhancedFileCleanup
 
 # Add project root for Autopack imports
-REPO_ROOT = Path(__file__).parent.parent.parent
+REPO_ROOT = Path(__file__).parent.parent.parent.resolve()
 sys.path.insert(0, str(REPO_ROOT / "src"))
 
 
@@ -61,9 +61,16 @@ class UnifiedTidyDirectory:
         self.interactive = interactive
         self.dry_run = dry_run
 
-        # Resolve paths
-        self.project_dir = REPO_ROOT
-        self.target_path = self.project_dir / target_directory
+        # Resolve paths - CWD-aware for multi-project support
+        cwd = Path.cwd()
+        if str(cwd).startswith(str(REPO_ROOT)):
+            # Running from within Autopack repo - use CWD as project root
+            self.project_dir = cwd
+            self.target_path = cwd / target_directory
+        else:
+            # Running from outside - use REPO_ROOT
+            self.project_dir = REPO_ROOT
+            self.target_path = REPO_ROOT / target_directory
 
     def run(self):
         """Execute unified tidy workflow"""

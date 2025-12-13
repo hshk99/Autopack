@@ -89,12 +89,12 @@ class PreTidyAuditor:
 
         # Project-specific exclusions
         # For Autopack main project: exclude superseded (already processed)
-        # For sub-projects: process superseded/deprecated but exclude research (reference material)
+        # For sub-projects: exclude research (reference) and diagnostics (runtime logs)
         if self.project_id == "autopack":
             EXCLUDED_DIRS = BASE_EXCLUDED | {"superseded"}
         else:
-            # Sub-projects: process everything except research folder (permanent reference)
-            EXCLUDED_DIRS = BASE_EXCLUDED | {"research"}
+            # Sub-projects: exclude research (permanent reference) and diagnostics (runtime logs)
+            EXCLUDED_DIRS = BASE_EXCLUDED | {"research", "diagnostics"}
 
         all_files = list(self.target_path.rglob("*"))
         all_files = [f for f in all_files if f.is_file()]

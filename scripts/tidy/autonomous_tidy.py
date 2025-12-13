@@ -464,12 +464,25 @@ class AutonomousTidy:
         # Directories to clean up (exclude research, diagnostics, prompts)
         cleanup_dirs = ["analysis", "plans", "reports"]
 
+        # Files to keep (runtime state that should be moved to docs/)
+        keep_files = {
+            "rules_updated.json",  # Should be moved to docs/
+            "plan_maintenance.json",  # Active maintenance plan
+            "plan_maintenance_clean.json",  # Active maintenance plan
+        }
+
         for dir_name in cleanup_dirs:
             dir_path = target_path / dir_name
             if dir_path.exists():
                 print(f"   📂 {dir_name}/")
-                for file_path in dir_path.rglob("*.md"):
+                # Delete ALL files (not just .md)
+                for file_path in dir_path.rglob("*"):
                     if file_path.is_file():
+                        # Keep certain runtime files (user should move them manually)
+                        if file_path.name in keep_files:
+                            print(f"      ⏭️  Keep: {file_path.name} (move to docs/ if needed)")
+                            continue
+
                         print(f"      🗑️  Delete: {file_path.name}")
                         if not self.dry_run:
                             file_path.unlink()

@@ -41,6 +41,7 @@ class PreTidyAuditor:
         self.target_path = REPO_ROOT / target_directory
         self.run_id = run_id
         self.project_id = project_id
+        self.report_path = REPO_ROOT / "PRE_TIDY_AUDIT_REPORT.md"
 
         # Database logging instead of markdown reports
         self.logger = TidyLogger(REPO_ROOT, project_id=project_id)

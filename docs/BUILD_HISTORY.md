@@ -1,8 +1,8 @@
 # Build History - Implementation Log
 
 <!-- META
-Last_Updated: 2025-12-13T15:24:57.764352Z
-Total_Builds: 8
+Last_Updated: 2025-12-13T15:34:14.117543Z
+Total_Builds: 10
 Format_Version: 2.0
 Auto_Generated: True
 Sources: CONSOLIDATED files, archive/
@@ -16,10 +16,12 @@ Sources: CONSOLIDATED files, archive/
 | 2025-12-13 | BUILD-002 | N/A | Cross-Project Tidy System Implementation Plan |  |
 | 2025-12-13 | BUILD-004 | N/A | New Project Setup Guide - Centralized Tidy System |  |
 | 2025-12-13 | BUILD-007 | N/A | Research Directory Integration with Tidy Function |  |
+| 2025-12-13 | BUILD-009 | N/A | SOT File Consolidation Proposal |  |
 | 2025-12-11 | BUILD-005 | N/A | Workspace Organization Specification |  |
 | 2025-12-11 | BUILD-003 | N/A | Autopack Deployment Guide |  |
 | 2025-11-28 | BUILD-008 | N/A | Rigorous Market Research Template (Universal) |  |
 | 2025-11-26 | BUILD-006 | N/A | Consolidated Research Reference |  |
+| 2025-11-25 | BUILD-010 | N/A | Quota-Aware Multi-Provider Routing |  |
 
 ## BUILDS (Reverse Chronological)
 
@@ -51,6 +53,13 @@ Sources: CONSOLIDATED files, archive/
 **Implementation Summary**: **Date**: 2025-12-13 **Status**: ✅ IMPLEMENTED --- **User Workflow**: - Research agents gather files → `archive/research/` - Auditor reviews files → produces comprehensive plan - Implementation decisions: IMPLEMENTED / PENDING / REJECTED **Challenge**: How to prevent tidy function from consolidating files **during** Auditor review, while still cleaning up **after** review? --- ``` archive/research/ ├── README.md (documentation) ├── active/ (awaiting Auditor review - EXCLUDED from tidy) ├── revie...
 **Source**: `archive\research\INTEGRATION_SUMMARY.md`
 
+### BUILD-009 | 2025-12-13T00:00 | SOT File Consolidation Proposal
+**Phase ID**: N/A
+**Status**: ✅ Implemented
+**Category**: Feature
+**Implementation Summary**: **Date**: 2025-12-13 **Purpose**: Reduce SOT file count from 10 to 5 core files for better AI navigation Current setup has 10 SOT files in docs/ which makes it difficult for AI (Cursor/Autopack) to quickly scan and understand project state. Many files contain overlapping or static information that doesn't need to be separate. **Purpose**: Single source of truth for AI navigation **Format**: JSON (machine-readable, fast parsing) **Content**: ```json { "project_id": "autopack", "project_name": "Au...
+**Source**: `archive\superseded\reports\SOT_CONSOLIDATION_PROPOSAL.md`
+
 ### BUILD-005 | 2025-12-11T17:40 | Workspace Organization Specification
 **Phase ID**: N/A
 **Status**: ✅ Implemented
@@ -78,4 +87,11 @@ Sources: CONSOLIDATED files, archive/
 **Category**: Feature
 **Implementation Summary**: **Last Updated**: 2025-12-04 **Auto-generated** by scripts/consolidate_docs.py - [CLAUDE_CRITICAL_ASSESSMENT_OF_GPT_REVIEWS](#claude-critical-assessment-of-gpt-reviews) - [GPT_REVIEW_PROMPT](#gpt-review-prompt) - [GPT_REVIEW_PROMPT_CHATBOT_INTEGRATION](#gpt-review-prompt-chatbot-integration) - [ref3_gpt_dual_review_chatbot_integration](#ref3-gpt-dual-review-chatbot-integration) - [REPORT_FOR_GPT_REVIEW](#report-for-gpt-review) --- **Source**: [CLAUDE_CRITICAL_ASSESSMENT_OF_GPT_REVIEWS.md](C:\dev...
 **Source**: `archive\research\CONSOLIDATED_RESEARCH.md`
+
+### BUILD-010 | 2025-11-25T00:00 | Quota-Aware Multi-Provider Routing
+**Phase ID**: N/A
+**Status**: ✅ Implemented
+**Category**: Feature
+**Implementation Summary**: **Status**: ✅ Configuration Complete | ⏭️ Implementation Pending **Date**: 2025-11-25 (Updated: 2025-12-01) **Based On**: GPT's quota management strategy + Claude Max/Code limit updates > **Note (2025-12-01)**: Model stack has been updated for optimal cost/performance. Current production stack is: > - **Low complexity**: GLM-4.6 (glm-4.6) - Zhipu AI > - **Medium complexity**: Claude Sonnet 4.5 (claude-sonnet-4-5) - Anthropic > - **High complexity**: Claude Sonnet 4.5 (claude-sonnet-4-5) - Anthro...
+**Source**: `archive\superseded\research\QUOTA_AWARE_ROUTING.md`
 

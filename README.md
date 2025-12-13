@@ -154,6 +154,15 @@ python ../../scripts/tidy/autonomous_tidy.py archive --execute    # Apply change
 # The system auto-detects the project from your working directory
 ```
 
+**Excluded Directories**:
+The tidy system automatically excludes these directories from processing:
+- `superseded/` - Already classified files moved here after manual review
+- `.git/` - Version control files
+- `.autonomous_runs/` - Runtime artifacts
+- `__pycache__/`, `node_modules/` - Build artifacts
+
+Files in `archive/superseded/` have been reviewed and classified into SOT files and will not be processed again.
+
 **Adding New Projects**:
 1. Create project structure under `.autonomous_runs/<project-id>/`
 2. Add configuration to database OR add default config in `scripts/tidy/project_config.py`:

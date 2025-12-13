@@ -209,7 +209,7 @@ class PostTidyAuditor:
         self.report_path = REPO_ROOT / "POST_TIDY_VERIFICATION_REPORT.md"
 
         # Load project configuration
-        from .project_config import load_project_config
+        from project_config import load_project_config
         self.config = load_project_config(project_id)
         self.project_root = Path(self.config['project_root'])
         if not self.project_root.is_absolute():
@@ -358,7 +358,7 @@ class AutonomousTidy:
         self.dry_run = dry_run
 
         # Auto-detect project from working directory
-        from .project_config import detect_project_id
+        from project_config import detect_project_id
         self.project_id = detect_project_id(cwd=Path.cwd())
 
         # Generate run_id for this tidy operation

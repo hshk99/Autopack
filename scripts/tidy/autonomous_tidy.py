@@ -84,13 +84,22 @@ class PreTidyAuditor:
 
     def _scan_files(self):
         """Scan all files in target directory"""
-        # Directories to exclude from tidy processing (already reviewed/classified)
-        EXCLUDED_DIRS = {"superseded", ".git", ".autonomous_runs", "__pycache__", "node_modules"}
+        # Base exclusions (always skip these)
+        BASE_EXCLUDED = {".git", "__pycache__", "node_modules"}
+
+        # Project-specific exclusions
+        # For Autopack main project: exclude superseded (already processed)
+        # For sub-projects: process superseded/deprecated (needs extraction then deletion)
+        if self.project_id == "autopack":
+            EXCLUDED_DIRS = BASE_EXCLUDED | {"superseded"}
+        else:
+            # Sub-projects: process everything, including superseded/deprecated
+            EXCLUDED_DIRS = BASE_EXCLUDED
 
         all_files = list(self.target_path.rglob("*"))
         all_files = [f for f in all_files if f.is_file()]
 
-        # Exclude files in superseded directories
+        # Exclude files based on project-specific rules
         all_files = [
             f for f in all_files
             if not any(excluded in f.parts for excluded in EXCLUDED_DIRS)
@@ -105,7 +114,8 @@ class PreTidyAuditor:
                 self.files_by_type[ext] = []
             self.files_by_type[ext].append(file_path)
 
-        print(f"   Scanned {self.total_files} files (excluded: {', '.join(EXCLUDED_DIRS)})")
+        excluded_info = f"project={self.project_id}, excluded={', '.join(EXCLUDED_DIRS)}"
+        print(f"   Scanned {self.total_files} files ({excluded_info})")
 
     def _analyze_file_types(self):
         """Analyze distribution of file types"""
@@ -376,6 +386,82 @@ class AutonomousTidy:
         timestamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
         self.run_id = f"tidy-{self.project_id}-{timestamp}"
 
+    def _cleanup_obsolete_files(self):
+        """Cleanup obsolete files after consolidation (sub-projects only)"""
+        print("\n" + "=" * 80)
+        print("CLEANUP: Removing Obsolete Files")
+        print("=" * 80)
+        print()
+
+        deleted_count = 0
+        moved_count = 0
+
+        # Load project config to get project root
+        from project_config import load_project_config
+        config = load_project_config(self.project_id)
+        project_root = Path(config['project_root'])
+        if not project_root.is_absolute():
+            project_root = REPO_ROOT / project_root
+
+        # Resolve target path correctly for sub-projects
+        # If running from within project directory, target_directory is relative to CWD
+        # Otherwise it's relative to REPO_ROOT
+        cwd = Path.cwd()
+        if self.target_directory.startswith('.') or str(cwd) != str(REPO_ROOT):
+            # Relative to current directory
+            target_path = cwd / self.target_directory
+        else:
+            # Relative to REPO_ROOT
+            target_path = REPO_ROOT / self.target_directory
+        target_path = target_path.resolve()
+
+        # 1. Delete files in archive/superseded/ (already extracted to SOT)
+        superseded_dir = target_path / "superseded"
+        if superseded_dir.exists():
+            print(f"📁 Cleaning up: {superseded_dir.relative_to(REPO_ROOT)}")
+            for file_path in superseded_dir.rglob("*"):
+                if file_path.is_file():
+                    print(f"   🗑️  Delete: {file_path.relative_to(REPO_ROOT)}")
+                    if not self.dry_run:
+                        file_path.unlink()
+                    deleted_count += 1
+
+            # Remove empty directories
+            if not self.dry_run and superseded_dir.exists():
+                import shutil
+                shutil.rmtree(superseded_dir)
+                print(f"   🗑️  Removed directory: {superseded_dir.relative_to(REPO_ROOT)}")
+
+        # 2. Move archive/deprecated/ scripts to scripts/superseded/
+        deprecated_dir = target_path / "deprecated"
+        if deprecated_dir.exists():
+            scripts_superseded = project_root / "scripts" / "superseded"
+            scripts_superseded.mkdir(parents=True, exist_ok=True)
+
+            print(f"\n📁 Moving deprecated scripts: {deprecated_dir.relative_to(REPO_ROOT)}")
+            for file_path in deprecated_dir.rglob("*"):
+                if file_path.is_file():
+                    rel_path = file_path.relative_to(deprecated_dir)
+                    dest_path = scripts_superseded / rel_path
+                    dest_path.parent.mkdir(parents=True, exist_ok=True)
+
+                    print(f"   📦 Move: {file_path.relative_to(REPO_ROOT)} → {dest_path.relative_to(REPO_ROOT)}")
+                    if not self.dry_run:
+                        import shutil
+                        shutil.move(str(file_path), str(dest_path))
+                    moved_count += 1
+
+            # Remove empty deprecated directory
+            if not self.dry_run and deprecated_dir.exists():
+                import shutil
+                shutil.rmtree(deprecated_dir)
+                print(f"   🗑️  Removed directory: {deprecated_dir.relative_to(REPO_ROOT)}")
+
+        print(f"\n✅ Cleanup Summary:")
+        print(f"   Deleted: {deleted_count} files")
+        print(f"   Moved: {moved_count} files")
+        print()
+
     def run(self):
         """Execute autonomous tidy workflow"""
         print("\n" + "=" * 80)
@@ -412,6 +498,10 @@ class AutonomousTidy:
         if result != 0:
             print("\n❌ Tidy consolidation failed")
             return result
+
+        # Step 2.5: Cleanup obsolete files (sub-projects only)
+        if self.project_id != "autopack":
+            self._cleanup_obsolete_files()
 
         # Step 3: Post-Tidy Auditor
         post_auditor = PostTidyAuditor(self.target_directory, self.project_id)

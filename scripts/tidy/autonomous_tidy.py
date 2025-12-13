@@ -84,8 +84,17 @@ class PreTidyAuditor:
 
     def _scan_files(self):
         """Scan all files in target directory"""
+        # Directories to exclude from tidy processing (already reviewed/classified)
+        EXCLUDED_DIRS = {"superseded", ".git", ".autonomous_runs", "__pycache__", "node_modules"}
+
         all_files = list(self.target_path.rglob("*"))
         all_files = [f for f in all_files if f.is_file()]
+
+        # Exclude files in superseded directories
+        all_files = [
+            f for f in all_files
+            if not any(excluded in f.parts for excluded in EXCLUDED_DIRS)
+        ]
 
         self.total_files = len(all_files)
 
@@ -96,7 +105,7 @@ class PreTidyAuditor:
                 self.files_by_type[ext] = []
             self.files_by_type[ext].append(file_path)
 
-        print(f"   Scanned {self.total_files} files")
+        print(f"   Scanned {self.total_files} files (excluded: {', '.join(EXCLUDED_DIRS)})")
 
     def _analyze_file_types(self):
         """Analyze distribution of file types"""

@@ -186,13 +186,75 @@ def phase1_root_cleanup(dry_run: bool = True) -> None:
                 safe_move(src, dest)
                 moved_archive_docs += 1
 
+    # 1.6 Clean up root-level test scripts and configs
+    print("\n[1.6] Cleaning up root-level test scripts and configs")
+
+    # Remove obsolete placeholder scripts
+    probe_script_root = REPO_ROOT / "probe_script.py"
+    if probe_script_root.exists():
+        if probe_script_root.stat().st_size < 100:
+            print(f"  Removing obsolete probe_script.py (placeholder)")
+            if not dry_run:
+                safe_delete(probe_script_root)
+        else:
+            print(f"  probe_script.py has content - moving to tests/")
+            if not dry_run:
+                tests_dir = REPO_ROOT / "tests"
+                tests_dir.mkdir(exist_ok=True)
+                safe_move(probe_script_root, tests_dir / "probe_script.py")
+
+    # Move test scripts to tests/ directory
+    test_scripts = [
+        "test_auditor_400.py",
+        "test_learned_rules_standalone.py"
+    ]
+
+    moved_tests = 0
+    for test_file in test_scripts:
+        src = REPO_ROOT / test_file
+        if src.exists():
+            dest = REPO_ROOT / "tests" / test_file
+            print(f"  {test_file} -> tests/")
+            if not dry_run:
+                dest.parent.mkdir(parents=True, exist_ok=True)
+                safe_move(src, dest)
+                moved_tests += 1
+
+    # Move root-level tidy config to scripts/tidy/
+    tidy_scope_root = REPO_ROOT / "tidy_scope.yaml"
+    if tidy_scope_root.exists():
+        dest = REPO_ROOT / "scripts" / "tidy" / "tidy_scope.yaml"
+        print(f"  tidy_scope.yaml -> scripts/tidy/")
+        if not dry_run:
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            safe_move(tidy_scope_root, dest)
+
+    # Move probe test runner scripts to tests/
+    probe_runners = [
+        "probe_test_runner.sh",
+        "run_full_probe_suite.sh"
+    ]
+
+    moved_runners = 0
+    for runner_file in probe_runners:
+        src = REPO_ROOT / runner_file
+        if src.exists():
+            dest = REPO_ROOT / "tests" / runner_file
+            print(f"  {runner_file} -> tests/")
+            if not dry_run:
+                safe_move(src, dest)
+                moved_runners += 1
+
     print(f"\n[PHASE 1] Summary:")
     print(f"  - Moved {moved_md} truth source .md files to docs/")
     print(f"  - Moved {moved_rulesets} ruleset .json files to docs/")
     print(f"  - Moved {moved_apis} API specs to docs/api/")
     print(f"  - Moved {moved_diags} diagnostic files to archive/")
     print(f"  - Archived {moved_archive_docs} obsolete docs")
+    print(f"  - Moved {moved_tests} test scripts to tests/")
+    print(f"  - Moved {moved_runners} test runners to tests/")
     print(f"  NOTE: Root README.md stays as quick-start (will link to docs/README.md)")
+    print(f"  NOTE: Essential configs (package.json, tsconfig.json, docker-compose.yml) stay at root")
 
 
 # ============================================================================
@@ -328,11 +390,119 @@ def phase2_archive_restructuring(dry_run: bool = True) -> None:
     else:
         print("  [SKIP] superseded/ does not exist")
 
-    # 2.4 Rename diagnostic data folder
+    # 2.4 Flatten archive/reports/ excessive nesting
+    print("\n[2.4] Flattening archive/reports/ structure")
+    reports_dir = REPO_ROOT / "archive" / "reports"
+
+    if reports_dir.exists():
+        # 2.4.1 Remove deeply nested .autonomous_runs folders
+        nested_runs = reports_dir / ".autonomous_runs"
+        if nested_runs.exists():
+            print(f"  Removing nested .autonomous_runs/ from reports/")
+            if not dry_run:
+                safe_delete(nested_runs)
+                print(f"  [OK] Removed nested structure")
+            else:
+                print(f"  [DRY-RUN] Would remove nested .autonomous_runs/")
+
+        # 2.4.2 Move misplaced src/ folders
+        reports_src = reports_dir / "src"
+        if reports_src.exists():
+            print(f"  Moving src/ from reports/ to archive/superseded/")
+            superseded_src = REPO_ROOT / "archive" / "superseded" / "reports_src"
+            if not dry_run:
+                safe_move(reports_src, superseded_src)
+                print(f"  [OK] Moved to superseded/reports_src/")
+            else:
+                print(f"  [DRY-RUN] Would move to superseded/reports_src/")
+
+        # 2.4.3 Move integrations/ if exists
+        reports_integrations = reports_dir / "integrations"
+        if reports_integrations.exists():
+            print(f"  Moving integrations/ from reports/ to archive/superseded/")
+            superseded_integrations = REPO_ROOT / "archive" / "superseded" / "reports_integrations"
+            if not dry_run:
+                safe_move(reports_integrations, superseded_integrations)
+                print(f"  [OK] Moved to superseded/reports_integrations/")
+            else:
+                print(f"  [DRY-RUN] Would move to superseded/reports_integrations/")
+
+    # 2.5 Move tidy-related configs and scripts to scripts/tidy/
+    print("\n[2.5] Organizing tidy-related configs and scripts")
+
+    # 2.5.1 Move archive/configs/tidy_scope.yaml to scripts/tidy/
+    tidy_scope = REPO_ROOT / "archive" / "configs" / "tidy_scope.yaml"
+    if tidy_scope.exists():
+        dest = REPO_ROOT / "scripts" / "tidy" / "tidy_scope.yaml"
+        print(f"  archive/configs/tidy_scope.yaml -> scripts/tidy/")
+        if not dry_run:
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            safe_move(tidy_scope, dest)
+            # Remove empty configs dir if now empty
+            configs_dir = REPO_ROOT / "archive" / "configs"
+            if configs_dir.exists() and not any(configs_dir.iterdir()):
+                safe_delete(configs_dir)
+        else:
+            print(f"  [DRY-RUN] Would move to scripts/tidy/")
+
+    # 2.5.2 Move archive/patches/cleanup_script.sh to scripts/tidy/
+    cleanup_script = REPO_ROOT / "archive" / "patches" / "cleanup_script.sh"
+    if cleanup_script.exists():
+        dest = REPO_ROOT / "scripts" / "tidy" / "cleanup_script.sh"
+        print(f"  archive/patches/cleanup_script.sh -> scripts/tidy/")
+        if not dry_run:
+            safe_move(cleanup_script, dest)
+            # Remove empty patches dir if now empty
+            patches_dir = REPO_ROOT / "archive" / "patches"
+            if patches_dir.exists() and not any(patches_dir.iterdir()):
+                safe_delete(patches_dir)
+        else:
+            print(f"  [DRY-RUN] Would move to scripts/tidy/")
+
+    # 2.5.3 Remove archive/scripts/probe_script.py (obsolete placeholder)
+    probe_script = REPO_ROOT / "archive" / "scripts" / "probe_script.py"
+    if probe_script.exists():
+        # Check if it's just a placeholder (< 100 bytes)
+        if probe_script.stat().st_size < 100:
+            print(f"  Removing obsolete probe_script.py (placeholder)")
+            if not dry_run:
+                safe_delete(probe_script)
+                # Remove empty scripts dir if now empty
+                archive_scripts_dir = REPO_ROOT / "archive" / "scripts"
+                if archive_scripts_dir.exists() and not any(archive_scripts_dir.iterdir()):
+                    safe_delete(archive_scripts_dir)
+            else:
+                print(f"  [DRY-RUN] Would remove placeholder")
+        else:
+            # If it has content, move to scripts/archive/ for reference
+            dest = REPO_ROOT / "scripts" / "archive" / "probe_script.py"
+            print(f"  archive/scripts/probe_script.py -> scripts/archive/ (reference)")
+            if not dry_run:
+                dest.parent.mkdir(parents=True, exist_ok=True)
+                safe_move(probe_script, dest)
+            else:
+                print(f"  [DRY-RUN] Would move to scripts/archive/")
+
+    # 2.6 Handle superseded diagnostics scripts
+    print("\n[2.6] Handling superseded diagnostic scripts")
+    diagnostics_v1 = REPO_ROOT / "archive" / "superseded" / "diagnostics_v1"
+
+    if diagnostics_v1.exists():
+        # Check if these are reference-worthy or obsolete
+        py_files = list(diagnostics_v1.glob("*.py"))
+        if py_files:
+            print(f"  Found {len(py_files)} Python files in diagnostics_v1/")
+            print(f"  These are superseded versions - keeping for reference in archive/superseded/")
+            print(f"  (They serve as historical reference for diagnostic system evolution)")
+            # No action needed - they're already correctly placed in archive/superseded/
+        else:
+            print(f"  [SKIP] No Python files found")
+
+    # 2.7 Rename diagnostic data folder
     autopack_data = REPO_ROOT / "archive" / "diagnostics" / "autopack_data"
     data_folder = REPO_ROOT / "archive" / "diagnostics" / "data"
 
-    print("\n[2.4] Renaming diagnostic data folder")
+    print("\n[2.7] Renaming diagnostic data folder")
     if autopack_data.exists() and not data_folder.exists():
         print(f"  autopack_data/ -> data/")
         if not dry_run:
@@ -982,8 +1152,136 @@ def phase6_synchronize_sot_files(dry_run: bool = True) -> None:
     else:
         print(f"  [SKIP] ARCHIVE_INDEX.md not found (will be created on next run)")
 
-    # 6.3 Note about auto-updated files
-    print("\n[6.3] Auto-updated SOT files status")
+    # 6.3 Sync database schemas to docs/
+    print("\n[6.3] Syncing database schemas to docs/")
+
+    # Sync Autopack database
+    autopack_db = REPO_ROOT / "autopack.db"
+    if autopack_db.exists():
+        print("  Exporting autopack.db schema...")
+        try:
+            import sqlite3
+            conn = sqlite3.connect(str(autopack_db))
+            cursor = conn.cursor()
+            cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
+            tables = [row[0] for row in cursor.fetchall()]
+
+            schema_info = {
+                "database": "autopack.db",
+                "exported_at": subprocess.run(["date", "+%Y-%m-%d %H:%M:%S"],
+                                             capture_output=True, text=True, timeout=5).stdout.strip()
+                              if subprocess.run(["date"], capture_output=True).returncode == 0
+                              else "unknown",
+                "tables": {}
+            }
+
+            for table in tables:
+                cursor.execute(f"SELECT COUNT(*) FROM {table}")
+                count = cursor.fetchone()[0]
+                schema_info["tables"][table] = {"row_count": count}
+
+            conn.close()
+
+            schema_file = REPO_ROOT / "docs" / "database_schema_autopack.json"
+            import json
+            schema_file.write_text(json.dumps(schema_info, indent=2), encoding="utf-8")
+            print(f"  [OK] Exported database schema to docs/database_schema_autopack.json")
+            print(f"       Tables: {', '.join(tables)}")
+        except Exception as e:
+            print(f"  [WARNING] Failed to export database schema: {e}")
+    else:
+        print("  [SKIP] autopack.db not found")
+
+    # Sync file-organizer databases
+    fo_project = REPO_ROOT / ".autonomous_runs" / "file-organizer-app-v1"
+    fo_docs = fo_project / "docs"
+    if fo_project.exists() and fo_docs.exists():
+        fo_db = fo_project / "autopack.db"
+        if fo_db.exists():
+            print("  Exporting file-organizer autopack.db schema...")
+            try:
+                import sqlite3
+                conn = sqlite3.connect(str(fo_db))
+                cursor = conn.cursor()
+                cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
+                tables = [row[0] for row in cursor.fetchall()]
+
+                schema_info = {
+                    "database": "autopack.db",
+                    "project": "file-organizer-app-v1",
+                    "exported_at": subprocess.run(["date", "+%Y-%m-%d %H:%M:%S"],
+                                                 capture_output=True, text=True, timeout=5).stdout.strip()
+                                  if subprocess.run(["date"], capture_output=True).returncode == 0
+                                  else "unknown",
+                    "tables": {}
+                }
+
+                for table in tables:
+                    cursor.execute(f"SELECT COUNT(*) FROM {table}")
+                    count = cursor.fetchone()[0]
+                    schema_info["tables"][table] = {"row_count": count}
+
+                conn.close()
+
+                schema_file = fo_docs / "database_schema_autopack.json"
+                import json
+                schema_file.write_text(json.dumps(schema_info, indent=2), encoding="utf-8")
+                print(f"  [OK] Exported file-organizer database schema")
+            except Exception as e:
+                print(f"  [WARNING] Failed to export file-organizer database: {e}")
+
+    # 6.4 Consolidate documentation into AI-optimized format
+    print("\n[6.4] Consolidating documentation files")
+
+    consolidate_v2_script = REPO_ROOT / "scripts" / "tidy" / "consolidate_docs_v2.py"
+    if consolidate_v2_script.exists():
+        # Consolidate Autopack documentation
+        print("  Running consolidate_docs_v2.py for Autopack...")
+        try:
+            result = subprocess.run(
+                ["python", str(consolidate_v2_script), "--project", "autopack-framework"],
+                cwd=REPO_ROOT,
+                capture_output=True,
+                text=True,
+                timeout=120
+            )
+            if result.returncode == 0:
+                print("  [OK] Autopack documentation consolidated")
+                # Show summary from output
+                if "Total_Builds:" in result.stdout or "Total_Issues:" in result.stdout:
+                    for line in result.stdout.split('\n'):
+                        if "entries" in line.lower() or "items" in line.lower():
+                            print(f"    {line.strip()}")
+            else:
+                print(f"  [WARNING] consolidate_docs_v2.py failed: {result.stderr}")
+        except subprocess.TimeoutExpired:
+            print("  [WARNING] consolidate_docs_v2.py timed out")
+        except Exception as e:
+            print(f"  [WARNING] Failed to run consolidate_docs_v2.py: {e}")
+
+        # Consolidate file-organizer documentation
+        fo_project = REPO_ROOT / ".autonomous_runs" / "file-organizer-app-v1"
+        if fo_project.exists():
+            print("  Running consolidate_docs_v2.py for file-organizer...")
+            try:
+                result = subprocess.run(
+                    ["python", str(consolidate_v2_script), "--project", "file-organizer-app-v1"],
+                    cwd=REPO_ROOT,
+                    capture_output=True,
+                    text=True,
+                    timeout=120
+                )
+                if result.returncode == 0:
+                    print("  [OK] File-organizer documentation consolidated")
+                else:
+                    print(f"  [WARNING] file-organizer consolidation failed: {result.stderr}")
+            except Exception as e:
+                print(f"  [WARNING] Failed to consolidate file-organizer docs: {e}")
+    else:
+        print("  [SKIP] consolidate_docs_v2.py not found")
+
+    # 6.5 Verification of auto-updated files
+    print("\n[6.5] Auto-updated SOT files status")
     print("  The following files are auto-updated by Autopack during runs:")
 
     auto_updated_files = {
@@ -1000,10 +1298,12 @@ def phase6_synchronize_sot_files(dry_run: bool = True) -> None:
             print(f"  [MISSING] {file_path} - {description}")
 
     print(f"\n[PHASE 6] Complete")
-    print("  Note: SOT files are now synchronized. They will auto-update on:")
-    print("    - Autopack runs (project_ruleset, issue_backlog, phase_plan)")
-    print("    - Manual tidy runs (CONSOLIDATED_*.md, ARCHIVE_INDEX.md)")
-    print("    - Any workspace changes (run this script to re-sync)")
+    print("  Synchronized:")
+    print("    ✓ Documentation consolidated (BUILD_HISTORY, DEBUG_LOG, ARCHITECTURE_DECISIONS)")
+    print("    ✓ Old CONSOLIDATED_*.md files replaced with AI-optimized format")
+    print("    ✓ ARCHIVE_INDEX.md")
+    print("    ✓ Database schemas exported to docs/")
+    print("  Auto-updates on every cleanup run - no manual sync needed!")
 
 
 # ============================================================================

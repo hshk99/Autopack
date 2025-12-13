@@ -203,9 +203,18 @@ class PreTidyAuditor:
 class PostTidyAuditor:
     """Verifies tidy results and auto-commits"""
 
-    def __init__(self, target_directory: str):
+    def __init__(self, target_directory: str, project_id: str = "autopack"):
         self.target_directory = target_directory
+        self.project_id = project_id
         self.report_path = REPO_ROOT / "POST_TIDY_VERIFICATION_REPORT.md"
+
+        # Load project configuration
+        from .project_config import load_project_config
+        self.config = load_project_config(project_id)
+        self.project_root = Path(self.config['project_root'])
+        if not self.project_root.is_absolute():
+            self.project_root = REPO_ROOT / self.project_root
+        self.docs_dir = self.project_root / self.config['docs_dir']
 
         # Verification results
         self.sot_files_updated = []
@@ -241,9 +250,9 @@ class PostTidyAuditor:
         print("   Verifying SOT files...")
 
         sot_files = [
-            REPO_ROOT / "docs" / "BUILD_HISTORY.md",
-            REPO_ROOT / "docs" / "DEBUG_LOG.md",
-            REPO_ROOT / "docs" / "ARCHITECTURE_DECISIONS.md",
+            self.docs_dir / self.config['sot_build_history'],
+            self.docs_dir / self.config['sot_debug_log'],
+            self.docs_dir / self.config['sot_architecture'],
         ]
 
         for sot_file in sot_files:
@@ -348,6 +357,15 @@ class AutonomousTidy:
         self.target_directory = target_directory
         self.dry_run = dry_run
 
+        # Auto-detect project from working directory
+        from .project_config import detect_project_id
+        self.project_id = detect_project_id(cwd=Path.cwd())
+
+        # Generate run_id for this tidy operation
+        import datetime
+        timestamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+        self.run_id = f"tidy-{self.project_id}-{timestamp}"
+
     def run(self):
         """Execute autonomous tidy workflow"""
         print("\n" + "=" * 80)
@@ -359,7 +377,7 @@ class AutonomousTidy:
         print()
 
         # Step 1: Pre-Tidy Auditor
-        pre_auditor = PreTidyAuditor(self.target_directory)
+        pre_auditor = PreTidyAuditor(self.target_directory, self.run_id, self.project_id)
         routing_recommendations = pre_auditor.analyze()
 
         # Step 2: Tidy Engine (consolidate with Auditor guidance)
@@ -386,7 +404,7 @@ class AutonomousTidy:
             return result
 
         # Step 3: Post-Tidy Auditor
-        post_auditor = PostTidyAuditor(self.target_directory)
+        post_auditor = PostTidyAuditor(self.target_directory, self.project_id)
         post_auditor.verify_and_commit(dry_run=self.dry_run)
 
         # Final summary

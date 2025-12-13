@@ -1,8 +1,8 @@
 # Architecture Decisions - Design Rationale
 
 <!-- META
-Last_Updated: 2025-12-13T15:00:00.000000Z
-Total_Decisions: 4
+Last_Updated: 2025-12-13T15:08:49.012809Z
+Total_Decisions: 2
 Format_Version: 2.0
 Auto_Generated: True
 Sources: CONSOLIDATED_STRATEGY, CONSOLIDATED_REFERENCE, archive/
@@ -12,61 +12,10 @@ Sources: CONSOLIDATED_STRATEGY, CONSOLIDATED_REFERENCE, archive/
 
 | Timestamp | DEC-ID | Decision | Status | Impact |
 |-----------|--------|----------|--------|--------|
-| 2025-12-13 | DEC-004 | Quota-Aware Multi-Provider LLM Routing | ⏭️ Pending Implementation | High |
-| 2025-12-13 | DEC-003 | 6-File SOT Documentation Structure | ✅ Implemented | High |
 | 2025-12-13 | DEC-002 | Automated Research → Auditor → SOT Workflow | ✅ Implemented |  |
 | 2025-12-11 | DEC-001 | Autopack Setup Guide | ✅ Implemented |  |
 
 ## DECISIONS (Reverse Chronological)
-
-### DEC-004 | 2025-12-13T00:00 | Quota-Aware Multi-Provider LLM Routing
-**Status**: ⏭️ Pending Implementation
-**Chosen Approach**: Intelligent routing across multiple LLM providers (Anthropic, OpenAI, Zhipu GLM) with quota tracking, automatic fallback, and fail-fast for high-risk categories
-**Rationale**:
-- **Problem**: Claude Max and other LLM subscriptions have weekly/daily token limits. Hitting limits mid-run blocks entire autonomous builds.
-- **Solution**: Implement quota-aware routing with three-tier fallback:
-  - **Tier 1 (Premium)**: Claude Opus 4.5 / Sonnet 4.5 for high/medium complexity
-  - **Tier 2 (Efficient)**: GLM-4.6 for low complexity (92% cheaper than Sonnet)
-  - **Tier 3 (Fallback)**: GLM-4.6 / Haiku when primary providers near quota limits
-- **Key Features**:
-  - Rolling window quota tracking (weekly/daily per provider)
-  - Soft limit triggers (80% usage) for graceful degradation
-  - High-risk categories (security, auth, schema) fail fast instead of silently downgrading
-  - Aux agents can degrade to cheaper models without compromising core build quality
-- **Benefits**:
-  - Avoids ~10-20 blocked runs per year
-  - Preserves premium quota for critical phases
-  - Reduces cost by using GLM-4.6 ($0.70/1M) for safe low-complexity tasks
-- **Implementation Status**: Configuration complete in `config/models.yaml`, tracking implementation pending
-**Source**: `archive/research/QUOTA_AWARE_ROUTING.md`
-
-### DEC-003 | 2025-12-13T00:00 | 6-File SOT Documentation Structure
-**Status**: ✅ Implemented
-**Chosen Approach**: Reduce from 10 SOT files to 6 standardized files for all projects
-**Rationale**:
-- **Problem**: 10 SOT files in docs/ made it difficult for AI (Cursor/Autopack) to quickly scan and understand project state. Many files contained overlapping or static information.
-- **Solution**: Consolidated to 6 core files:
-  1. **PROJECT_INDEX.json** - Machine-readable quick reference (setup, deployment, API, structure)
-  2. **BUILD_HISTORY.md** - Implementation history (auto-updated by tidy)
-  3. **DEBUG_LOG.md** - Troubleshooting log (auto-updated by tidy)
-  4. **ARCHITECTURE_DECISIONS.md** - Design decisions (auto-updated by tidy)
-  5. **FUTURE_PLAN.md** - Roadmap and backlog (manual planning)
-  6. **LEARNED_RULES.json** - Auto-updated learned rules and strategies
-- **Consolidations Made**:
-  - DEPLOYMENT_GUIDE.md → PROJECT_INDEX.json (deployment section) + archive/reports/
-  - SETUP_GUIDE.md → PROJECT_INDEX.json (setup section) + archive/reports/
-  - WORKSPACE_ORGANIZATION_SPEC.md → PROJECT_INDEX.json (structure section) + archive/reports/
-  - WHATS_LEFT_TO_BUILD_MAINTENANCE.md → FUTURE_PLAN.md (maintenance section)
-  - CONSOLIDATED_RESEARCH.md → archive/research/
-  - UNSORTED_REVIEW.md → Temporary file only (deleted after manual review)
-- **Benefits**:
-  - **Faster AI Scanning**: 6 files instead of 10
-  - **Clear Hierarchy**: PROJECT_INDEX.json as single entry point
-  - **JSON Format**: Machine-readable, faster parsing for AI agents
-  - **Less Duplication**: Setup/deployment/workspace info in one place
-  - **Better Archive Organization**: Static reference files moved to archive/
-- **Multi-Project Support**: Same structure applied to all projects (Autopack, file-organizer-app-v1, etc.)
-**Source**: `archive/reports/SOT_CONSOLIDATION_PROPOSAL.md`
 
 ### DEC-002 | 2025-12-13T00:00 | Automated Research → Auditor → SOT Workflow
 **Status**: ✅ Implemented

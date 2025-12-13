@@ -457,6 +457,36 @@ class AutonomousTidy:
                 shutil.rmtree(deprecated_dir)
                 print(f"   🗑️  Removed directory: {deprecated_dir.relative_to(REPO_ROOT)}")
 
+        # 3. Delete all processed archive files (analysis/, plans/, reports/, etc.)
+        # These have been extracted to SOT files and are no longer needed
+        print(f"\n📁 Cleaning up extracted archive files...")
+
+        # Directories to clean up (exclude research, diagnostics, prompts)
+        cleanup_dirs = ["analysis", "plans", "reports"]
+
+        for dir_name in cleanup_dirs:
+            dir_path = target_path / dir_name
+            if dir_path.exists():
+                print(f"   📂 {dir_name}/")
+                for file_path in dir_path.rglob("*.md"):
+                    if file_path.is_file():
+                        print(f"      🗑️  Delete: {file_path.name}")
+                        if not self.dry_run:
+                            file_path.unlink()
+                        deleted_count += 1
+
+                # Remove empty directories
+                if not self.dry_run and dir_path.exists():
+                    import shutil
+                    # Only remove if empty
+                    try:
+                        remaining_files = list(dir_path.rglob("*"))
+                        if not remaining_files or all(not f.is_file() for f in remaining_files):
+                            shutil.rmtree(dir_path)
+                            print(f"      🗑️  Removed empty directory: {dir_name}/")
+                    except:
+                        pass  # Directory not empty, keep it
+
         print(f"\n✅ Cleanup Summary:")
         print(f"   Deleted: {deleted_count} files")
         print(f"   Moved: {moved_count} files")

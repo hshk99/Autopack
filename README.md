@@ -131,6 +131,64 @@ Autonomous maintenance system for processing backlog items with propose-first di
 - Additional projects stay under `.autonomous_runs/<project>/` within this repo (not separate repos).
 - Use branches per project/maintenance effort when applying automated fixes to keep histories clean; checkpoints are recommended for maintenance/apply flows.
 
+### Multi-Project Documentation & Tidy System (2025-12-13)
+
+**Standardized 6-File SOT Structure**:
+All projects follow a consistent documentation structure for AI navigation:
+1. **PROJECT_INDEX.json** - Quick reference (setup, API, structure)
+2. **BUILD_HISTORY.md** - Implementation history (auto-updated)
+3. **DEBUG_LOG.md** - Troubleshooting log (auto-updated)
+4. **ARCHITECTURE_DECISIONS.md** - Design decisions (auto-updated)
+5. **FUTURE_PLAN.md** - Roadmap and backlog (manual)
+6. **LEARNED_RULES.json** - Auto-updated learned rules (auto-updated)
+
+**Autonomous Tidy Workflow**:
+Automatically consolidates archive files into SOT documentation using AI-powered classification:
+
+```bash
+# Tidy a project's archive directory
+cd .autonomous_runs/your-project
+python ../../scripts/tidy/autonomous_tidy.py archive --dry-run    # Preview changes
+python ../../scripts/tidy/autonomous_tidy.py archive --execute    # Apply changes
+
+# The system auto-detects the project from your working directory
+```
+
+**Adding New Projects**:
+1. Create project structure under `.autonomous_runs/<project-id>/`
+2. Add configuration to database OR add default config in `scripts/tidy/project_config.py`:
+   ```python
+   elif project_id == "your-project":
+       return {
+           'project_id': 'your-project',
+           'project_root': '.autonomous_runs/your-project',
+           'docs_dir': 'docs',
+           'archive_dir': 'archive',
+           'sot_build_history': 'BUILD_HISTORY.md',
+           'sot_debug_log': 'DEBUG_LOG.md',
+           'sot_architecture': 'ARCHITECTURE_DECISIONS.md',
+           'sot_unsorted': 'UNSORTED_REVIEW.md',
+           'project_context': {
+               'keywords': {
+                   'build': ['implementation', 'feature', 'build'],
+                   'debug': ['error', 'bug', 'fix'],
+                   'architecture': ['decision', 'design', 'architecture']
+               }
+           },
+           'enable_database_logging': True,
+           'enable_research_workflow': True
+       }
+   ```
+
+3. Run tidy from within your project directory - it will auto-detect the project and update the correct docs/ folder
+
+**File Organization**:
+- ✅ **SOT files** (6 files) go in `<project>/docs/`
+- ✅ **Runtime cache** (phase plans, issue backlogs) go in `.autonomous_runs/`
+- ✅ **Historical files** go in `<project>/archive/` (organized by type: plans/, reports/, research/, etc.)
+
+See [PROJECT_INDEX.json](docs/PROJECT_INDEX.json) for complete configuration reference.
+
 ## Plan Conversion (Markdown -> phase_spec)
 - Use `scripts/plan_from_markdown.py --in docs/PLAN.md --out .autonomous_runs/<project>/plan_generated.json` to convert markdown tasks into phase specs matching `docs/phase_spec_schema.md`.
 - Inline tags in bullets override defaults: `[complexity:low]`, `[category:tests]`, `[paths:src/,tests/]`, `[read_only:docs/]`.

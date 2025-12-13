@@ -28,6 +28,9 @@ from typing import Dict, List, Optional, Set, Tuple
 
 REPO_ROOT = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(REPO_ROOT / "scripts" / "tidy"))
+sys.path.insert(0, str(REPO_ROOT / "scripts"))
+
+from classification_auditor import ClassificationAuditor
 
 
 # ============================================================================
@@ -546,6 +549,9 @@ class DocumentConsolidator:
         # Status auditor (initialized in consolidate())
         self.auditor: Optional[StatusAuditor] = None
 
+        # Classification auditor (LLM-powered review for low-confidence classifications)
+        self.classification_auditor: Optional[ClassificationAuditor] = None
+
         # Override flags for automated workflows (e.g., research consolidation)
         self.force_status: Optional[str] = None  # Force all entries to this status
         self.force_category: Optional[str] = None  # Force all entries to this category (build/debug/decision)
@@ -562,10 +568,18 @@ class DocumentConsolidator:
         print(f"DOCUMENTATION CONSOLIDATION - {self.project_dir.name}")
         print(f"{'='*80}\n")
 
-        # Step 0: Initialize status auditor
-        print("[0] Initializing status auditor...")
+        # Step 0: Initialize auditors
+        print("[0] Initializing auditors...")
         self.auditor = StatusAuditor(self.project_dir)
         self.auditor.load_project_state()
+
+        # Initialize classification auditor with low threshold (0.60)
+        # Files below 0.60 confidence will be reviewed by LLM
+        self.classification_auditor = ClassificationAuditor(
+            audit_threshold=0.60,  # Review everything below 0.60
+            enable_auto_override=True
+        )
+        print("  [ClassificationAuditor] Initialized (threshold=0.60)")
 
         # Step 1: Process existing CONSOLIDATED files
         self._process_consolidated_files()
@@ -715,9 +729,41 @@ class DocumentConsolidator:
                                         metadata={"needs_review": True, "confidence": best_confidence})
                     print(f"    [MEDIUM_CONFIDENCE] Routed to {best_category} (confidence: {best_confidence:.2f})")
             else:
-                # Low confidence - manual review required
-                self.unsorted_entries.append((file_path, best_confidence, scores, status))
-                print(f"    [UNSORTED] Confidence too low ({best_confidence:.2f}), status={status}")
+                # Low confidence (< 0.60) - use LLM auditor for deep analysis
+                print(f"    [LOW_CONFIDENCE] Confidence too low ({best_confidence:.2f}), invoking ClassificationAuditor...")
+
+                # Prepare classifier result in auditor's expected format
+                # Map our categories to file types: build -> plan, debug -> log, decision -> decision
+                type_mapping = {"build": "plan", "debug": "log", "decision": "decision"}
+                file_type = type_mapping.get(best_category, "report")
+
+                classifier_result = (self.project_id, file_type, str(file_path), best_confidence)
+
+                # Ask auditor to review
+                if self.classification_auditor:
+                    approved, final_project, final_type, final_dest, final_confidence, audit_reason = \
+                        self.classification_auditor.audit_classification(file_path, content, classifier_result)
+
+                    if approved:
+                        # Auditor approved or overrode - map back to our categories
+                        type_to_category = {"plan": "build", "log": "debug", "decision": "decision",
+                                          "analysis": "build", "report": "build", "script": "build"}
+                        final_category = type_to_category.get(final_type, best_category)
+
+                        print(f"    [AUDITOR_APPROVED] {final_category} (confidence: {final_confidence:.2f}) - {audit_reason}")
+                        self._extract_entries(file_path, content, final_category, status=status,
+                                            metadata={"auditor_approved": True,
+                                                    "original_confidence": best_confidence,
+                                                    "final_confidence": final_confidence,
+                                                    "audit_reason": audit_reason})
+                    else:
+                        # Auditor flagged for manual review
+                        self.unsorted_entries.append((file_path, best_confidence, scores, status))
+                        print(f"    [AUDITOR_FLAGGED] Manual review required - {audit_reason}")
+                else:
+                    # No auditor available - fall back to manual review
+                    self.unsorted_entries.append((file_path, best_confidence, scores, status))
+                    print(f"    [UNSORTED] No auditor available, manual review required")
 
     def _is_schema_or_spec_file(self, file_path: Path, content: str) -> bool:
         """
@@ -1462,6 +1508,10 @@ def main():
     # Run consolidation
     consolidator = DocumentConsolidator(project_dir, dry_run=args.dry_run)
     consolidator.consolidate()
+
+    # Cleanup
+    if consolidator.classification_auditor:
+        consolidator.classification_auditor.close()
 
     return 0
 

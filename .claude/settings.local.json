@@ -51,7 +51,13 @@
       "Bash(if [ -d \"c:/dev/Autopack/archive/reports/tidy_v7\" ])",
       "Bash(done)",
       "Bash(PYTHONUTF8=1 PYTHONPATH=src DATABASE_URL=\"postgresql://autopack:autopack@localhost:5432/autopack\" python:*)",
-      "Bash(PYTHONUTF8=1 PYTHONPATH=../../src python:*)"
+      "Bash(PYTHONUTF8=1 PYTHONPATH=../../src python:*)",
+      "Bash(PYTHONUTF8=1 PYTHONPATH=../../src:../../scripts/tidy:../../scripts python:*)",
+      "Bash(PYTHONUTF8=1 PYTHONPATH=src:scripts/tidy:scripts python:*)",
+      "Bash(PYTHONUTF8=1 python scripts/tidy/script_organizer.py:*)",
+      "Bash(PYTHONUTF8=1 python:*)",
+      "Bash(PYTHONUTF8=1 PYTHONPATH=. python:*)",
+      "Bash(PYTHONUTF8=1 PYTHONPATH=. timeout 120 python:*)"
     ],
     "deny": [],
     "ask": []

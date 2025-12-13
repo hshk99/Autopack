@@ -462,7 +462,7 @@ class AutonomousTidy:
         print(f"\n📁 Cleaning up extracted archive files...")
 
         # Directories to clean up (exclude research, diagnostics, prompts)
-        cleanup_dirs = ["analysis", "plans", "reports"]
+        cleanup_dirs = ["analysis", "plans", "reports", "tidy_v7"]
 
         # Files to keep (runtime state that should be moved to docs/)
         keep_files = {
@@ -505,6 +505,30 @@ class AutonomousTidy:
         print(f"   Moved: {moved_count} files")
         print()
 
+    def _organize_scripts(self):
+        """Organize scattered scripts into scripts/ directory (Autopack main project only)"""
+        print("=" * 80)
+        print("STEP 0: Script Organization")
+        print("=" * 80)
+        print()
+
+        try:
+            from script_organizer import ScriptOrganizer
+
+            organizer = ScriptOrganizer(
+                repo_root=REPO_ROOT,
+                dry_run=self.dry_run
+            )
+
+            count = organizer.organize()
+
+            if count > 0:
+                print(f"\n✅ Organized {count} script(s)")
+                print()
+        except Exception as e:
+            print(f"⚠️  Script organization skipped: {e}")
+            print()
+
     def run(self):
         """Execute autonomous tidy workflow"""
         print("\n" + "=" * 80)
@@ -514,6 +538,10 @@ class AutonomousTidy:
         print(f"Mode: {'DRY-RUN' if self.dry_run else 'EXECUTE'}")
         print("=" * 80)
         print()
+
+        # Step 0: Script Organization (Autopack main project only)
+        if self.project_id == "autopack":
+            self._organize_scripts()
 
         # Step 1: Pre-Tidy Auditor
         pre_auditor = PreTidyAuditor(self.target_directory, self.run_id, self.project_id)
@@ -542,13 +570,27 @@ class AutonomousTidy:
             print("\n❌ Tidy consolidation failed")
             return result
 
-        # Step 2.5: Cleanup obsolete files (sub-projects only)
-        if self.project_id != "autopack":
-            self._cleanup_obsolete_files()
+        # Step 2.5: Cleanup obsolete files (all projects)
+        self._cleanup_obsolete_files()
 
         # Step 3: Post-Tidy Auditor
         post_auditor = PostTidyAuditor(self.target_directory, self.project_id)
         post_auditor.verify_and_commit(dry_run=self.dry_run)
+
+        # Step 4: Database Synchronization
+        if not self.dry_run:
+            print("\n" + "=" * 80)
+            print("Step 4: Database Synchronization")
+            print("=" * 80)
+            try:
+                from db_sync import DatabaseSync
+                db_sync = DatabaseSync(project_id=self.project_id, dry_run=self.dry_run)
+                sync_results = db_sync.sync_all()
+                db_sync.close()
+                print("✅ Database synchronization complete")
+            except Exception as e:
+                print(f"⚠️  Database sync failed: {e}")
+                print("   Continuing with tidy workflow...")
 
         # Final summary
         print("\n" + "=" * 80)

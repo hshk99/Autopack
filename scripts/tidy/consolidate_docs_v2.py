@@ -624,8 +624,7 @@ class DocumentConsolidator:
 
         # Exclusion paths (never tidy these)
         exclusion_paths = [
-            self.archive_dir / "tidy_v7",
-            self.archive_dir / "prompts",
+            self.archive_dir / "prompts",  # Prompt templates (not documentation)
             self.archive_dir / "research" / "active",  # Active research awaiting Auditor review
         ]
 

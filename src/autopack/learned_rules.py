@@ -663,8 +663,16 @@ def _get_run_hints_file(run_id: str) -> Path:
 
 
 def _get_project_rules_file(project_id: str) -> Path:
-    """Get path to project rules file"""
-    return Path(".autonomous_runs") / project_id / "project_learned_rules.json"
+    """Get path to project rules file
+
+    Returns the SOT location for learned rules in docs/ directory.
+    For main Autopack project: docs/LEARNED_RULES.json
+    For sub-projects: .autonomous_runs/{project}/docs/LEARNED_RULES.json
+    """
+    if project_id == "autopack":
+        return Path("docs") / "LEARNED_RULES.json"
+    else:
+        return Path(".autonomous_runs") / project_id / "docs" / "LEARNED_RULES.json"
 
 
 def _save_run_rule_hint(run_id: str, hint: RunRuleHint):

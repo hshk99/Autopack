@@ -125,6 +125,62 @@ Autonomous maintenance system for processing backlog items with propose-first di
 - `--maintenance-plan`, `--maintenance-patch-dir`, `--maintenance-apply`, `--maintenance-checkpoint`, `--maintenance-auto-apply-low-risk` control maintenance mode
 - Low-risk auto-apply enforces extra size/test guards and requires checkpoint
 
+### Universal Research Analysis System (IMPLEMENTED 2025-12-13)
+Strategic decision-making system that analyzes research files against project state to identify implementation opportunities:
+
+**Purpose**: Turn research (product vision, market analysis, domain requirements) into actionable implementation decisions.
+
+**4-Phase Pipeline**:
+1. **Context Assembly** - Builds comprehensive project context from:
+   - SOT files (current state): BUILD_HISTORY, ARCHITECTURE_DECISIONS, DEBUG_LOG, FUTURE_PLAN, LEARNED_RULES
+   - Research files (strategy): product vision, market research, domain requirements
+   - Database: PostgreSQL + Qdrant semantic search
+
+2. **Research Analysis** - Finds gaps between current state and research:
+   - Feature gaps (market opportunities vs implemented features)
+   - Compliance gaps (regulatory requirements vs current state)
+   - Competitive gaps (competitors' features vs our features)
+   - Vision alignment gaps (vision vs current implementation)
+
+3. **Decision Making** - Makes strategic decisions with full context:
+   - Uses Claude Sonnet for strategic reasoning
+   - Considers: vision alignment, user impact, competitive necessity, dependencies, ROI
+   - Outputs: IMPLEMENT_NOW, IMPLEMENT_LATER, REVIEW, or REJECT
+
+4. **Decision Routing** - Routes decisions to appropriate locations:
+   - IMPLEMENT_NOW → `archive/research/active/`
+   - IMPLEMENT_LATER → `docs/FUTURE_PLAN.md`
+   - REVIEW → `archive/research/reviewed/deferred/`
+   - REJECT → `archive/research/reviewed/rejected/`
+
+**Universal Design**: Works for ANY project (Autopack, file-organizer-app-v1, or future projects).
+
+**Usage**:
+```bash
+# Run full analysis pipeline
+python scripts/research/run_universal_analysis.py file-organizer-app-v1
+
+# Run individual components
+python scripts/research/context_assembler.py file-organizer-app-v1
+python scripts/research/research_analyzer.py file-organizer-app-v1
+python scripts/research/decision_engine.py file-organizer-app-v1
+```
+
+**Outputs**:
+- `context.json` - Assembled project context
+- `opportunity_analysis.json` - Gap analysis with prioritized opportunities
+- `decision_report.json` - Strategic decisions with rationale
+- Updated `docs/FUTURE_PLAN.md` - IMPLEMENT_LATER items appended
+- Routed research files in appropriate directories
+
+**Key Features**:
+- Supports both **initial planning** AND **ongoing improvement**
+- **Comprehensive context** about current state, market, domain, vision
+- **Strategic decisions** based on full context awareness
+- **Transparent reasoning** (every decision includes rationale, alignment, impact, ROI)
+
+See `archive/reports/BUILD_universal_research_analysis_system.md` for full documentation.
+
 ## Repository Structure (Autopack + Projects)
 - Autopack core lives at the repo root and includes executor, diagnostics, dashboard, and tooling.
 - Project artifacts live under `.autonomous_runs/<project>/` (plans, diagnostics, consolidated logs); e.g., `file-organizer-app-v1` is the first project built with Autopack.
@@ -197,6 +253,97 @@ Files in `archive/superseded/` have been reviewed and classified into SOT files 
 - ✅ **Historical files** go in `<project>/archive/` (organized by type: plans/, reports/, research/, etc.)
 
 See [PROJECT_INDEX.json](docs/PROJECT_INDEX.json) for complete configuration reference.
+
+#### Script Organization System (Step 0 of Autonomous Tidy)
+
+The Script Organization System automatically moves scattered scripts, patches, and configuration files from various locations into organized directories within the `scripts/` and `archive/` folders as **Step 0** of the autonomous tidy workflow.
+
+**What Gets Organized:**
+
+1. **Root Scripts** → `scripts/archive/root_scripts/`
+   - Scripts at the repository root level: `*.py`, `*.sh`, `*.bat`
+   - Example: `probe_script.py`, `test_auditor_400.py`, `run_full_probe_suite.sh`
+
+2. **Root Reports** → `archive/reports/`
+   - Markdown documentation from root: `*.md` (will be consolidated by tidy)
+   - Example: `REPORT_TIDY_V7.md`, `ANALYSIS_PHASE_PLAN.md`
+
+3. **Root Logs** → `archive/diagnostics/`
+   - Log and debug files from root: `*.log`, `*.diff`
+   - Example: `tidy_execution.log`, `patch_apply.diff`
+
+4. **Root Config** → `config/`
+   - Configuration files from root: `*.yaml`, `*.yml`
+   - Example: `tidy_scope.yaml`, `models.yaml`
+
+5. **Examples** → `scripts/examples/`
+   - All files from `examples/` directory
+   - Example: `multi_project_example.py`
+
+6. **Tasks** → `archive/tasks/`
+   - Task configuration files: `*.yaml`, `*.yml`, `*.json`
+   - Example: `tidy_consolidation.yaml`
+
+7. **Patches** → `archive/patches/`
+   - Git patches and diff files: `*.patch`, `*.diff`
+   - Example: `oi-fo-ci-failure.patch`
+
+**What Stays in Place** (Never Moved):
+
+Special Files:
+- `setup.py`, `manage.py` - Package setup
+- `conftest.py` - Pytest configuration
+- `wsgi.py`, `asgi.py` - WSGI/ASGI entry points
+- `__init__.py` - Python package markers
+- `README.md` - Project README (stays at root)
+- `docker-compose.yml`, `docker-compose.dev.yml` - Docker configs (stay at root)
+
+Directories (Never Scanned):
+- `scripts/` - Already organized
+- `src/` - Source code
+- `tests/` - Test suites (pytest)
+- `config/` - Configuration files
+- `.autonomous_runs/` - Sub-project workspaces
+- `archive/` - Already archived
+- `.git/`, `venv/`, `node_modules/`, `__pycache__/` - System directories
+
+**Usage:**
+
+```bash
+# Manual standalone script organization (preview)
+python scripts/organize_scripts.py
+
+# Execute the organization
+python scripts/organize_scripts.py --execute
+
+# Automatic organization (integrated with tidy - runs as Step 0)
+python scripts/tidy/autonomous_tidy.py archive --execute
+```
+
+**Note:** Script organization only runs for the **main Autopack project**, not for sub-projects in `.autonomous_runs/`.
+
+**Integration with Autonomous Tidy:**
+
+The script organizer runs as **Step 0** before the main tidy workflow:
+
+```
+AUTONOMOUS TIDY WORKFLOW
+═══════════════════════════════════════════════════════════
+
+Step 0: Script Organization (Autopack only)
+   ↓
+Step 1: Pre-Tidy Auditor
+   ↓
+Step 2: Documentation Consolidation
+   ↓
+Step 3: Archive Cleanup (sub-projects only)
+   ↓
+Step 4: Database Synchronization
+   ↓
+Post-Tidy Verification
+```
+
+**Configuration:** The script organization rules are defined in [scripts/tidy/script_organizer.py](scripts/tidy/script_organizer.py). To add new organization rules, edit the `script_patterns` configuration in that file.
 
 ## Plan Conversion (Markdown -> phase_spec)
 - Use `scripts/plan_from_markdown.py --in docs/PLAN.md --out .autonomous_runs/<project>/plan_generated.json` to convert markdown tasks into phase specs matching `docs/phase_spec_schema.md`.
@@ -854,3 +1001,17 @@ replan:
 
 **Milestone**: `tests-passing-v1.0` - All core tests passing (89 passed, 30 skipped, 0 failed)
 **Classification Tests**: 100% pass rate (15/15 regression tests passing)
+
+
+## Project Status
+
+<!-- SOT_SUMMARY_START -->
+**Last Updated**: 2025-12-13 19:40
+
+- **Builds Completed**: 33
+- **Latest Build**: ### BUILD-001 | 2025-12-13T00:00 | Autonomous Tidy Execution Summary
+- **Architecture Decisions**: 0
+- **Debugging Sessions**: 0
+
+*Auto-generated by Autopack Tidy System*
+<!-- SOT_SUMMARY_END -->

@@ -48,7 +48,9 @@
       "Bash(if [ -d \"archived_runs\" ])",
       "Bash(dir:*)",
       "Bash(xargs:*)",
-      "Bash(if [ -d \"c:/dev/Autopack/archive/reports/tidy_v7\" ])"
+      "Bash(if [ -d \"c:/dev/Autopack/archive/reports/tidy_v7\" ])",
+      "Bash(done)",
+      "Bash(PYTHONUTF8=1 PYTHONPATH=src DATABASE_URL=\"postgresql://autopack:autopack@localhost:5432/autopack\" python:*)"
     ],
     "deny": [],
     "ask": []

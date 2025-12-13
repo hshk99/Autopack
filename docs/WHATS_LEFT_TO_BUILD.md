@@ -236,6 +236,97 @@ This file contains tasks in Autopack format for autonomous execution.
 
 ---
 
+## Maintenance Backlog
+
+**Purpose**: Focused maintenance plan for addressing open issues (OI-FO-*) using the Autopack maintenance flow. This is separate from the Phase 2 feature tasks above.
+
+### Modes
+- **Option A**: Maintain/build the maintenance system (meta) — run acceptance criteria for `fileorg-backlog-maintenance`.
+- **Option B**: Use maintenance to fix specific open issues (OI-FO-*) from `DEBUG_LOG.md`.
+
+### Runbook
+1. **Convert markdown → plan JSON**
+   ```bash
+   python scripts/plan_from_markdown.py --in .autonomous_runs/file-organizer-app-v1/WHATS_LEFT_TO_BUILD.md --out .autonomous_runs/file-organizer-app-v1/plan_generated.json
+   ```
+   If merging: add `--merge-base autopack_phase_plan.json --allow-update` (only when overwriting IDs)
+
+2. **Run maintenance (checkpoints on by default)**
+   Diagnostics first; apply only if auditor approves + checkpoint exists; low-risk auto-apply optional.
+   ```bash
+   python src/autopack/autonomous_executor.py --run-id backlog-maint \
+     --maintenance-plan .autonomous_runs/file-organizer-app-v1/plan_generated.json \
+     --maintenance-patch-dir patches \
+     --maintenance-apply \
+     --maintenance-auto-apply-low-risk \
+     --maintenance-checkpoint \
+     --test-cmd "pytest -q tests/smoke"
+   ```
+
+3. **Logging/token efficiency**
+   Default: compact JSON summaries; include short excerpts only for high-priority events (apply failure, auditor reject, test failure, protected-path violation); keep full logs/patches as artifacts.
+
+4. **Safety**
+   Allowed paths: constrain per item; protected: `.git/`, `.autonomous_runs/`, `config/`.
+   Apply is gated by auditor and checkpoints; auto-apply low-risk enforces size/test guards.
+
+### Maintenance Items (OI-FO-*)
+
+**Task: Fix UK YAML truncation**
+- **Phase ID**: `fileorg-maint-uk-yaml-truncation`
+- **Category**: maintenance
+- **Complexity**: medium
+- **Description**: Resolve OI-FO-UK-YAML-TRUNCATION (truncated YAML in UK packs). Validate/repair YAML headers and required mappings.
+- **Acceptance Criteria**:
+  - [ ] YAML loads without truncation errors
+  - [ ] Tests pass for UK packs (targeted YAML validation or pack load)
+  - [ ] Compact diagnostics summary + artifact paths; excerpts only on failure
+- **Allowed Paths**: `prompts/`, `docs/`, `templates/`, `src/`
+- **Tests**: `pytest -q tests/test_pack_routes.py -k uk`
+- **Apply**: low-risk auto-apply permitted if auditor approves; otherwise propose-first.
+
+**Task: Fix frontend no-op**
+- **Phase ID**: `fileorg-maint-frontend-noop`
+- **Category**: maintenance
+- **Complexity**: medium
+- **Description**: Resolve OI-FO-FRONTEND-NOOP (frontend action not taking effect). Identify and fix the no-op behavior.
+- **Acceptance Criteria**:
+  - [ ] Repro fixed (no-op resolved)
+  - [ ] Targeted tests pass
+  - [ ] Compact diagnostics summary + artifact paths
+- **Allowed Paths**: `src/frontend/`, `prompts/`, `docs/`, `scripts/`
+- **Tests**: `npm test` or `pytest -q tests/test_frontend_*`
+- **Apply**: low-risk auto-apply permitted if auditor approves; otherwise propose-first.
+
+**Task: YAML Schema Warnings**
+- **Phase ID**: `oi-fo-yaml-schema`
+- **Description**: Resolve YAML schema warnings across packs.
+- **Allowed Paths**: `packs/`, `src/backend/packs/`, `tests/`
+- **Tests**: `pytest -q tests/test_pack_routes.py`
+- **Apply**: allowed (auditor+checkpoint)
+
+**Task: Patch Apply Mismatch**
+- **Phase ID**: `oi-fo-patch-mismatch`
+- **Description**: Address patch apply mismatches on structured edits.
+- **Allowed Paths**: `src/backend/`, `src/frontend/`, `tests/`
+- **Tests**: `pytest -q tests/test_autonomous_executor.py`
+- **Apply**: allowed (auditor+checkpoint)
+
+**Task: CI Failure Review**
+- **Phase ID**: `oi-fo-ci-failure`
+- **Description**: Investigate failing CI items; collect diagnostics and propose fixes.
+- **Allowed Paths**: `src/`, `tests/`, `README`, `docs/`
+- **Tests**: `pytest -q` (or targeted failing suites)
+- **Apply**: propose-first unless auditor approves + checkpoint
+
+**Meta Task (Maintenance System) — optional**
+- **Phase ID**: `fileorg-backlog-maintenance`
+- **Description**: Build/verify backlog maintenance system (diagnostics, auditor, apply gating, checkpoints, compact summaries).
+- **Allowed Paths**: `scripts/`, `src/autopack/`, `README`, `docs/`
+- **Apply**: propose-first; apply only for guarded changes.
+
+---
+
 ## Items Requiring Manual Design Input
 
 The following require **user decisions** before Autopack can build:
@@ -262,5 +353,6 @@ The following require **user decisions** before Autopack can build:
 ---
 
 **Document Status**: Ready for Autopack autonomous execution
+**Last Updated**: 2025-12-13 (merged maintenance backlog)
 **Next Action**: Run Autopack with this task file
 **Expected Outcome**: FileOrganizer v1.0 Beta ready in 25-35 autonomous hours

@@ -1,0 +1,304 @@
+{
+  "project_id": "autopack",
+  "project_name": "Autopack",
+  "description": "Autonomous build system with multi-LLM orchestration, learned rules, and self-improving intelligence",
+  "status": "production",
+  "last_updated": "2025-12-13T13:00:00Z",
+  "version": "1.0.0",
+
+  "quick_reference": {
+    "setup": "See setup section below for quick start commands",
+    "deployment": "See deployment section below for Docker deployment",
+    "structure": "See workspace_structure section below for file organization",
+    "sot_files": "See sot_files section below for documentation index"
+  },
+
+  "setup": {
+    "prerequisites": [
+      "Python 3.11+",
+      "Docker + docker-compose",
+      "Git",
+      "At least one LLM API key (GLM, Anthropic, or OpenAI)"
+    ],
+    "quick_start": [
+      "cp .env.example .env",
+      "Edit .env and add API keys (GLM_API_KEY, ANTHROPIC_API_KEY, or OPENAI_API_KEY)",
+      "docker-compose up -d",
+      "curl http://localhost:8000/health",
+      "python integrations/supervisor.py --project-id MyProject"
+    ],
+    "api_keys": {
+      "required": "At least one: GLM_API_KEY, ANTHROPIC_API_KEY, or OPENAI_API_KEY",
+      "config_location": ".env file at project root",
+      "get_keys": {
+        "glm": "https://open.bigmodel.cn/",
+        "anthropic": "https://console.anthropic.com/",
+        "openai": "https://platform.openai.com/api-keys"
+      }
+    },
+    "services": {
+      "api": "http://localhost:8000",
+      "database": "postgresql://autopack:autopack@localhost:5432/autopack",
+      "api_docs": "http://localhost:8000/docs",
+      "health_check": "http://localhost:8000/health"
+    },
+    "verify_setup": [
+      "docker-compose ps",
+      "curl http://localhost:8000/health",
+      "python integrations/supervisor.py --project-id TestProject"
+    ]
+  },
+
+  "deployment": {
+    "docker_commands": {
+      "start_all": "docker-compose up -d",
+      "start_db_only": "docker-compose up -d db",
+      "stop": "docker-compose down",
+      "restart": "docker-compose restart",
+      "logs_api": "docker-compose logs -f api",
+      "logs_db": "docker-compose logs db",
+      "rebuild": "docker-compose down && docker-compose up -d --build"
+    },
+    "local_development": {
+      "install_deps": "pip install -r requirements-dev.txt",
+      "start_db": "docker-compose up -d db",
+      "run_api": "uvicorn src.autopack.main:app --reload --host 0.0.0.0 --port 8000",
+      "run_tests": "pytest tests/ -v",
+      "run_with_coverage": "pytest tests/ -v --cov=src/autopack --cov-report=html"
+    },
+    "production_checklist": [
+      "Use managed Postgres service (AWS RDS, Google Cloud SQL, etc.)",
+      "Set DATABASE_URL environment variable",
+      "Run database migrations: python -c 'from src.autopack.database import init_db; init_db()'",
+      "Enable HTTPS via reverse proxy (nginx, Traefik, etc.)",
+      "Add authentication to API endpoints (OAuth, API keys)",
+      "Configure structured logging (JSON format)",
+      "Set up monitoring and alerts for budget exhaustion and critical failures",
+      "Never expose database credentials in version control"
+    ],
+    "environment_variables": {
+      "DATABASE_URL": "postgresql://user:pass@host:5432/dbname (default: postgres@localhost)",
+      "AUTONOMOUS_RUNS_DIR": ".autonomous_runs (default)",
+      "GLM_API_KEY": "Zhipu AI API key (for low complexity tasks)",
+      "ANTHROPIC_API_KEY": "Anthropic Claude API key (for medium/high complexity)",
+      "OPENAI_API_KEY": "OpenAI API key (optional fallback)",
+      "TESTING": "Set to '1' to skip DB initialization in test mode",
+      "CI_PROFILE": "normal or strict (for preflight gate)",
+      "TARGET_REPO_PATH": "Path to build target (default: current directory)"
+    }
+  },
+
+  "workspace_structure": {
+    "root_directories": {
+      "src/": "Application source code",
+      "scripts/": "Utility scripts (tidy, consolidation, analysis)",
+      "tests/": "Test files",
+      "docs/": "SOT files and active documentation",
+      "config/": "Configuration files (models.yaml, pricing.yaml, etc.)",
+      "archive/": "Historical files organized by category",
+      ".autonomous_runs/": "Project-specific autonomous run data",
+      "integrations/": "External integrations (supervisor, etc.)"
+    },
+    "archive_buckets": {
+      "plans/": "Implementation plans and roadmaps",
+      "reports/": "Build reports, delegation results, assessments",
+      "analysis/": "Analysis documents, reviews, progress reports",
+      "research/": "Market research, feature research",
+      "prompts/": "AI prompts and templates",
+      "diagnostics/": "Historical diagnostic data (logs/, runs/)",
+      "configs/": "Historical configuration files",
+      "docs/": "Superseded documentation",
+      "patches/": "Code patches",
+      "superseded/": "Deprecated code and files"
+    },
+    "autonomous_runs_structure": {
+      "description": "Each project gets its own folder under .autonomous_runs/",
+      "project_folders": [
+        ".autonomous_runs/file-organizer-app-v1/",
+        ".autonomous_runs/{project-id}/"
+      ],
+      "per_project_structure": {
+        "docs/": "Project SOT files (same 5-file structure)",
+        "archive/": "Project archive (same bucket structure)",
+        "src/": "Project source code (if separate from main repo)",
+        "tests/": "Project tests",
+        "checkpoints/": "Git checkpoints for rollback"
+      }
+    },
+    "organization_rules": [
+      "No loose .md files at root (except SOT files)",
+      "No nested archive folders (e.g., archive/archive/)",
+      "All historical files must go in appropriate archive bucket",
+      "Project-specific files must be under .autonomous_runs/{project-id}/",
+      "No loose folders at .autonomous_runs root"
+    ]
+  },
+
+  "active_work": {
+    "current_roadmap": "See WHATS_LEFT_TO_BUILD.md for feature roadmap and maintenance backlog",
+    "open_issues": "See DEBUG_LOG.md for troubleshooting history",
+    "recent_builds": "See BUILD_HISTORY.md for implementation log",
+    "design_decisions": "See ARCHITECTURE_DECISIONS.md for rationale"
+  },
+
+  "sot_files": {
+    "PROJECT_INDEX.json": {
+      "description": "This file - Quick reference and navigation for AI",
+      "auto_updated": false,
+      "format": "JSON",
+      "audience": "AI agents (Cursor, Autopack, Claude)",
+      "purpose": "Fast navigation, single entry point for project context"
+    },
+    "BUILD_HISTORY.md": {
+      "description": "Implementation history and completed features",
+      "auto_updated": true,
+      "updated_by": "scripts/tidy/consolidate_docs_v2.py",
+      "format": "Markdown with structured headers",
+      "entry_format": "BUILD-XXX entries with timestamp, status, source"
+    },
+    "DEBUG_LOG.md": {
+      "description": "Troubleshooting history and problem resolution",
+      "auto_updated": true,
+      "updated_by": "scripts/tidy/consolidate_docs_v2.py",
+      "format": "Markdown with structured headers",
+      "entry_format": "DBG-XXX entries with severity, root cause, solution"
+    },
+    "ARCHITECTURE_DECISIONS.md": {
+      "description": "Design decisions and rationale",
+      "auto_updated": true,
+      "updated_by": "scripts/tidy/consolidate_docs_v2.py",
+      "format": "Markdown with structured headers",
+      "entry_format": "DEC-XXX entries with chosen approach, rationale, impact"
+    },
+    "WHATS_LEFT_TO_BUILD.md": {
+      "description": "Future work, roadmap, and maintenance backlog",
+      "auto_updated": false,
+      "format": "Markdown with task lists",
+      "sections": [
+        "Feature roadmap (Phase 2+)",
+        "Maintenance backlog",
+        "Items requiring manual design input"
+      ]
+    }
+  },
+
+  "key_scripts": {
+    "consolidation": "scripts/tidy/consolidate_docs_v2.py - Consolidate archive files to SOT",
+    "tidy": "scripts/tidy/autonomous_tidy.py - Autonomous file organization",
+    "analysis": "scripts/analyze_learned_rules.py - Analyze learned rules and costs",
+    "supervisor": "integrations/supervisor.py - Main autonomous build entry point",
+    "config_loader": "scripts/tidy/project_config.py - Multi-project configuration loader"
+  },
+
+  "api_endpoints": {
+    "core": {
+      "start_run": "POST /runs/start",
+      "get_run": "GET /runs/{run_id}",
+      "update_phase": "POST /runs/{run_id}/phases/{phase_id}/update_status"
+    },
+    "issues": {
+      "record_issue": "POST /runs/{run_id}/phases/{phase_id}/record_issue",
+      "get_index": "GET /runs/{run_id}/issues/index",
+      "get_backlog": "GET /project/issues/backlog"
+    },
+    "builder_auditor": {
+      "builder_result": "POST /runs/{run_id}/phases/{phase_id}/builder_result",
+      "auditor_request": "POST /runs/{run_id}/phases/{phase_id}/auditor_request",
+      "auditor_result": "POST /runs/{run_id}/phases/{phase_id}/auditor_result",
+      "integration_status": "GET /runs/{run_id}/integration_status"
+    },
+    "metrics": {
+      "run_metrics": "GET /metrics/runs?status={state}",
+      "tier_metrics": "GET /metrics/tiers/{run_id}",
+      "issue_backlog": "GET /reports/issue_backlog_summary",
+      "budget_analysis": "GET /reports/budget_analysis",
+      "run_summary": "GET /reports/run_summary/{run_id}"
+    },
+    "utility": {
+      "root": "GET /",
+      "health": "GET /health",
+      "docs": "GET /docs",
+      "redoc": "GET /redoc"
+    }
+  },
+
+  "cost_estimates": {
+    "per_run_mixed_complexity": {
+      "total_tokens": "~5M tokens",
+      "total_cost": "$18-30 (with GLM optimization)",
+      "breakdown": {
+        "low_complexity": "GLM-4.6 @ $1.05 per 1.5M tokens",
+        "medium_complexity": "Claude Sonnet 4.5 @ $11.25 per 2.5M tokens",
+        "high_complexity": "Claude Sonnet 4.5 @ $18.00 per 1.0M tokens"
+      }
+    },
+    "per_phase": {
+      "low": "~$0.0035/phase (GLM-4.6)",
+      "medium": "~$0.084/phase (Claude Sonnet 4.5)",
+      "high": "~$0.16/phase (Claude Sonnet 4.5)"
+    }
+  },
+
+  "troubleshooting": {
+    "connection_refused_8000": "Run: docker-compose up -d",
+    "api_key_not_set": "Add API key to .env file (see setup.api_keys)",
+    "invalid_api_key": "Verify key at provider console, check for typos",
+    "rate_limit_exceeded": "Wait and retry, or upgrade plan for higher limits",
+    "insufficient_quota": "Add credits to provider account",
+    "docker_issues": "Run: docker-compose down && docker-compose up -d",
+    "database_connection": "Run: docker-compose down -v && docker-compose up -d",
+    "test_failures": "Set TESTING=1 env var before running pytest"
+  },
+
+  "references": {
+    "main_readme": "README.md - Complete system overview",
+    "learned_rules": "LEARNED_RULES_README.md - Self-improving intelligence guide",
+    "token_efficiency": "docs/TOKEN_EFFICIENCY_IMPLEMENTATION.md",
+    "quota_routing": "docs/QUOTA_AWARE_ROUTING.md",
+    "consolidated_history": "docs/archive/CONSOLIDATED_HISTORY.md",
+    "full_deployment_guide": "archive/reports/DEPLOYMENT_GUIDE.md (moved)",
+    "full_setup_guide": "archive/reports/SETUP_GUIDE.md (moved)",
+    "workspace_spec": "archive/reports/WORKSPACE_ORGANIZATION_SPEC.md (moved)",
+    "consolidated_research": "archive/research/CONSOLIDATED_RESEARCH.md (moved)"
+  },
+
+  "multi_project_config": {
+    "description": "Centralized tidy system supports multiple projects via database configuration",
+    "database_table": "tidy_project_config",
+    "auto_detection": "scripts/tidy/project_config.py detects project_id from working directory",
+    "configuration": {
+      "project_id": "Unique identifier (e.g., 'autopack', 'file-organizer-app-v1')",
+      "project_root": "Root directory path",
+      "docs_dir": "SOT files location (default: 'docs')",
+      "archive_dir": "Archive location (default: 'archive')",
+      "project_context": "JSONB with project-specific keywords for AI classification",
+      "enable_database_logging": "Log tidy operations to PostgreSQL",
+      "enable_research_workflow": "Enable research workflow (active → reviewed)"
+    },
+    "example_projects": [
+      "autopack (main project)",
+      "file-organizer-app-v1 (.autonomous_runs/file-organizer-app-v1)"
+    ]
+  },
+
+  "github_actions": {
+    "ci_workflow": {
+      "triggers": ["push to main", "push to autonomous/* branches", "pull requests to main"],
+      "jobs": ["lint (ruff + black)", "test (with PostgreSQL)", "preflight-normal", "preflight-strict"]
+    },
+    "promotion_workflow": {
+      "trigger": "Manual via GitHub Actions UI or CLI",
+      "inputs": ["run_id", "integration_branch"],
+      "eligibility_checks": ["run summary exists", "tiers clean", "no excess issues"],
+      "action": "Creates PR to main if eligible, blocks if not"
+    }
+  },
+
+  "notes": {
+    "audience": "This file is optimized for AI consumption (Cursor, Autopack, Claude Code)",
+    "format_choice": "JSON chosen for fast parsing and direct property access",
+    "maintenance": "Update this file when adding new features or changing structure",
+    "consolidation_date": "2025-12-13 - Consolidated from 10 SOT files to 5",
+    "same_structure_all_projects": "All projects follow this 5-file SOT structure"
+  }
+}

@@ -1,7 +1,7 @@
 """
 Create FileOrganizer Phase 2 Run (v2 - with error recovery)
 
-Creates a fresh run from WHATS_LEFT_TO_BUILD.md with all 9 tasks
+Creates a fresh run from FUTURE_PLAN.md with all 9 tasks
 """
 
 import requests
@@ -10,7 +10,7 @@ import sys
 API_URL = "http://localhost:8000"
 RUN_ID = "fileorg-phase2-beta-20251201"
 
-# 9 tasks from WHATS_LEFT_TO_BUILD.md
+# 9 tasks from FUTURE_PLAN.md
 TASKS = [
     {
         "phase_id": "fileorg-p2-test-fixes",

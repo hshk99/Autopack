@@ -135,7 +135,7 @@
   },
 
   "active_work": {
-    "current_roadmap": "See WHATS_LEFT_TO_BUILD.md for feature roadmap and maintenance backlog",
+    "current_roadmap": "See FUTURE_PLAN.md for feature roadmap and maintenance backlog",
     "open_issues": "See DEBUG_LOG.md for troubleshooting history",
     "recent_builds": "See BUILD_HISTORY.md for implementation log",
     "design_decisions": "See ARCHITECTURE_DECISIONS.md for rationale"
@@ -170,7 +170,7 @@
       "format": "Markdown with structured headers",
       "entry_format": "DEC-XXX entries with chosen approach, rationale, impact"
     },
-    "WHATS_LEFT_TO_BUILD.md": {
+    "FUTURE_PLAN.md": {
       "description": "Future work, roadmap, and maintenance backlog",
       "auto_updated": false,
       "format": "Markdown with task lists",

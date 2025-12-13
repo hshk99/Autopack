@@ -106,7 +106,7 @@ FILEORGANIZER_RULES = {
             "MASTER_BUILD_PLAN_FILEORGANIZER.md",
             "IMPLEMENTATION_KICKOFF_FILEORGANIZER.md",
             "CURSOR_REVISION_CHECKLIST.md",
-            "WHATS_LEFT_TO_BUILD.md",
+            "FUTURE_PLAN.md",
         ],
         "patterns": [],
     },

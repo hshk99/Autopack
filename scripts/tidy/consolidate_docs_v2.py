@@ -49,11 +49,11 @@ class StatusAuditor:
         self.codebase_keywords: Set[str] = set()
 
     def load_project_state(self):
-        """Load current project state from WHATS_LEFT_TO_BUILD and codebase."""
+        """Load current project state from FUTURE_PLAN and codebase."""
         print("  [Auditor] Loading project state...")
 
-        # Load WHATS_LEFT_TO_BUILD.md
-        whats_left = self.docs_dir / "WHATS_LEFT_TO_BUILD.md"
+        # Load FUTURE_PLAN.md
+        whats_left = self.docs_dir / "FUTURE_PLAN.md"
         if whats_left.exists():
             self._parse_whats_left_to_build(whats_left)
 
@@ -66,7 +66,7 @@ class StatusAuditor:
         print(f"    Completed tasks: {len(self.completed_tasks)}")
 
     def _parse_whats_left_to_build(self, file_path: Path):
-        """Parse WHATS_LEFT_TO_BUILD.md for task status (Autopack format)."""
+        """Parse FUTURE_PLAN.md for task status (Autopack format)."""
         try:
             content = file_path.read_text(encoding="utf-8")
 
@@ -143,7 +143,7 @@ class StatusAuditor:
                 i += 1
 
         except Exception as e:
-            print(f"    [WARNING] Failed to parse WHATS_LEFT_TO_BUILD: {e}")
+            print(f"    [WARNING] Failed to parse FUTURE_PLAN: {e}")
 
     def _scan_codebase(self):
         """Quick scan of src/ for major features/technologies."""
@@ -846,8 +846,8 @@ class DocumentConsolidator:
             return True
 
         elif status == "PENDING_ACTIVE":
-            # Check if already in WHATS_LEFT_TO_BUILD
-            print(f"    [SKIP] Active task already in WHATS_LEFT_TO_BUILD")
+            # Check if already in FUTURE_PLAN
+            print(f"    [SKIP] Active task already in FUTURE_PLAN")
             return True  # Skip consolidation
 
         elif status == "REFERENCE":

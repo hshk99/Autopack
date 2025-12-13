@@ -97,8 +97,8 @@ PROTECTED_PREFIXES = {
 }
 
 PROTECTED_FILES = {
-    "WHATS_LEFT_TO_BUILD.md",
-    "WHATS_LEFT_TO_BUILD_MAINTENANCE.md",
+    "FUTURE_PLAN.md",
+    "FUTURE_PLAN_MAINTENANCE.md",
     "autopack_phase_plan.json",
 }
 
@@ -1131,10 +1131,10 @@ def main():
         # Default truth anchors (all truth sources now in docs/ folders)
         truth_files = [
             REPO_ROOT / "README.md",
-            REPO_ROOT / "docs" / "WHATS_LEFT_TO_BUILD.md",
-            REPO_ROOT / "docs" / "WHATS_LEFT_TO_BUILD_MAINTENANCE.md",
+            REPO_ROOT / "docs" / "FUTURE_PLAN.md",
+            REPO_ROOT / "docs" / "FUTURE_PLAN_MAINTENANCE.md",
             REPO_ROOT / "docs" / "WORKSPACE_ORGANIZATION_SPEC.md",
-            REPO_ROOT / ".autonomous_runs" / "file-organizer-app-v1" / "docs" / "WHATS_LEFT_TO_BUILD.md",
+            REPO_ROOT / ".autonomous_runs" / "file-organizer-app-v1" / "docs" / "FUTURE_PLAN.md",
             REPO_ROOT / ".autonomous_runs" / "file-organizer-app-v1" / "archive" / "CONSOLIDATED_BUILD.md",
             REPO_ROOT / ".autonomous_runs" / "file-organizer-app-v1" / "archive" / "CONSOLIDATED_STRATEGY.md",
         ]

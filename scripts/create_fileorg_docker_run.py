@@ -29,7 +29,7 @@ PHASES = [
         "phase_index": 0,
         "tier_id": "tier-docker",
         "name": "Docker Deployment",
-        "description": """Create Docker deployment configuration per WHATS_LEFT_TO_BUILD.md Task 3.
+        "description": """Create Docker deployment configuration per FUTURE_PLAN.md Task 3.
 
 Goals:
 - Backend Dockerfile (Python 3.11 + dependencies)

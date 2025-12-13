@@ -91,8 +91,8 @@ def phase1_root_cleanup(dry_run: bool = True) -> None:
     # 1.1 Move truth source .md files to docs/
     truth_md_files = [
         "WORKSPACE_ORGANIZATION_SPEC.md",
-        "WHATS_LEFT_TO_BUILD.md",
-        "WHATS_LEFT_TO_BUILD_MAINTENANCE.md"
+        "FUTURE_PLAN.md",
+        "FUTURE_PLAN_MAINTENANCE.md"
     ]
 
     moved_md = 0
@@ -563,19 +563,19 @@ def phase3_autonomous_runs_cleanup(dry_run: bool = True) -> None:
                 (fileorg_project / "archive" / "superseded").mkdir(parents=True, exist_ok=True)
                 safe_move(project_readme, fileorg_project / "archive" / "superseded" / "README_OLD.md")
 
-        # Move WHATS_LEFT_TO_BUILD.md from project root to docs/
-        project_roadmap = fileorg_project / "WHATS_LEFT_TO_BUILD.md"
-        docs_roadmap = fileorg_docs / "WHATS_LEFT_TO_BUILD.md"
+        # Move FUTURE_PLAN.md from project root to docs/
+        project_roadmap = fileorg_project / "FUTURE_PLAN.md"
+        docs_roadmap = fileorg_docs / "FUTURE_PLAN.md"
 
         if project_roadmap.exists() and not docs_roadmap.exists():
-            print(f"  Moving WHATS_LEFT_TO_BUILD.md from project root to docs/")
+            print(f"  Moving FUTURE_PLAN.md from project root to docs/")
             if not dry_run:
                 safe_move(project_roadmap, docs_roadmap)
         elif project_roadmap.exists() and docs_roadmap.exists():
-            print(f"  WHATS_LEFT_TO_BUILD.md exists in both locations - keeping docs/ version")
+            print(f"  FUTURE_PLAN.md exists in both locations - keeping docs/ version")
             if not dry_run:
                 (fileorg_project / "archive" / "superseded").mkdir(parents=True, exist_ok=True)
-                safe_move(project_roadmap, fileorg_project / "archive" / "superseded" / "WHATS_LEFT_TO_BUILD_OLD.md")
+                safe_move(project_roadmap, fileorg_project / "archive" / "superseded" / "FUTURE_PLAN_OLD.md")
 
         # Create quick-start README.md at project root
         project_readme_quickstart = fileorg_project / "README.md"
@@ -593,7 +593,7 @@ For comprehensive documentation, see [docs/README.md](docs/README.md).
 ## Key Documentation
 
 - **[Setup & Usage](docs/README.md)** - Full project documentation
-- **[Roadmap](docs/WHATS_LEFT_TO_BUILD.md)** - Current development status
+- **[Roadmap](docs/FUTURE_PLAN.md)** - Current development status
 - **[Rules](docs/project_learned_rules.json)** - Project learned rules
 
 ## Project Structure
@@ -669,7 +669,7 @@ file-organizer-app-v1/
 ├── packs/                  # Document packs
 ├── docs/                   # All documentation (YOU ARE HERE)
 │   ├── README.md          # This file
-│   ├── WHATS_LEFT_TO_BUILD.md
+│   ├── FUTURE_PLAN.md
 │   ├── ARCHITECTURE.md
 │   ├── project_learned_rules.json
 │   └── *.json             # Phase plans and configurations
@@ -682,7 +682,7 @@ file-organizer-app-v1/
 
 ## Documentation Files
 
-- **[WHATS_LEFT_TO_BUILD.md](WHATS_LEFT_TO_BUILD.md)** - Current development roadmap
+- **[FUTURE_PLAN.md](FUTURE_PLAN.md)** - Current development roadmap
 - **[ARCHITECTURE.md](ARCHITECTURE.md)** - System architecture
 - **project_learned_rules.json** - Project-specific rules and patterns
 - **autopack_phase_plan.json** - Autopack execution phases
@@ -958,12 +958,12 @@ def phase4_restore_documentation(dry_run: bool = True) -> None:
         # (Could search here if needed, but likely doesn't exist)
         print(f"  [MISSING] ARCHITECTURE.md (may never have been created)")
 
-    # Check WHATS_LEFT_TO_BUILD.md
-    fo_roadmap = fo_project_dir / "WHATS_LEFT_TO_BUILD.md"
+    # Check FUTURE_PLAN.md
+    fo_roadmap = fo_project_dir / "FUTURE_PLAN.md"
     if fo_roadmap.exists():
-        print(f"  [OK] WHATS_LEFT_TO_BUILD.md exists")
+        print(f"  [OK] FUTURE_PLAN.md exists")
     else:
-        print(f"  [MISSING] WHATS_LEFT_TO_BUILD.md")
+        print(f"  [MISSING] FUTURE_PLAN.md")
 
     # ========================================================================
     # SECTION 4.6: Summary
@@ -1346,8 +1346,8 @@ def validate_v2_structure() -> Tuple[bool, List[str]]:
         print("[OK] checkpoints/ renamed or doesn't exist")
 
     # Check 4: Truth source .md files moved to docs/
-    truth_md_files = ["WORKSPACE_ORGANIZATION_SPEC.md", "WHATS_LEFT_TO_BUILD.md",
-                      "WHATS_LEFT_TO_BUILD_MAINTENANCE.md"]
+    truth_md_files = ["WORKSPACE_ORGANIZATION_SPEC.md", "FUTURE_PLAN.md",
+                      "FUTURE_PLAN_MAINTENANCE.md"]
     loose_md = [f for f in truth_md_files if (REPO_ROOT / f).exists()]
     if loose_md:
         issues.append(f"[X] {len(loose_md)} truth source .md files still at root: {', '.join(loose_md)}")
@@ -1376,8 +1376,8 @@ def validate_v2_structure() -> Tuple[bool, List[str]]:
     required_truth_sources = {
         "SETUP_GUIDE.md": "Setup/installation instructions",
         "WORKSPACE_ORGANIZATION_SPEC.md": "Workspace organization spec",
-        "WHATS_LEFT_TO_BUILD.md": "Roadmap",
-        "WHATS_LEFT_TO_BUILD_MAINTENANCE.md": "Maintenance roadmap",
+        "FUTURE_PLAN.md": "Roadmap",
+        "FUTURE_PLAN_MAINTENANCE.md": "Maintenance roadmap",
     }
 
     nice_to_have = {

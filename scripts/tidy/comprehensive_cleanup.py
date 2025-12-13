@@ -229,10 +229,10 @@ def phase2_docs_cleanup(dry_run: bool = True):
                 shutil.move(str(src), str(dest))
                 moved_count += 1
 
-    # Move WHATS_LEFT_TO_BUILD to file-organizer docs/
+    # Move FUTURE_PLAN to file-organizer docs/
     fileorg_docs = REPO_ROOT / ".autonomous_runs" / "file-organizer-app-v1" / "docs" / "guides"
     fileorg_docs.mkdir(parents=True, exist_ok=True)
-    for pattern in ["WHATS_LEFT_TO_BUILD.md", "WHATS_LEFT_TO_BUILD_MAINTENANCE.md"]:
+    for pattern in ["FUTURE_PLAN.md", "FUTURE_PLAN_MAINTENANCE.md"]:
         src = REPO_ROOT / pattern
         if src.exists():
             dest = fileorg_docs / src.name

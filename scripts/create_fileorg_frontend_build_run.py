@@ -30,7 +30,7 @@ PHASES = [
         "phase_index": 0,
         "tier_id": "tier-frontend",
         "name": "Frontend Build System",
-        "description": """Set up the FileOrganizer frontend build system per WHATS_LEFT_TO_BUILD.md Task 2.
+        "description": """Set up the FileOrganizer frontend build system per FUTURE_PLAN.md Task 2.
 
 Goals:
 - Install npm dependencies (node_modules not committed)

@@ -24,7 +24,7 @@ API_KEY = os.getenv("AUTOPACK_API_KEY")
 # Generate unique run ID
 RUN_ID = f"fileorg-test-suite-fix-{datetime.now().strftime('%Y%m%d-%H%M%S')}"
 
-# Test phase based on WHATS_LEFT_TO_BUILD.md Task 1
+# Test phase based on FUTURE_PLAN.md Task 1
 PHASES = [
     {
         "phase_id": "fileorg-p2-test-fixes",

@@ -3,7 +3,7 @@ Create Phase 2 country-pack runs for FileOrganizer (UK, Canada, Australia).
 
 Each run scopes the YAML packs + docs, wires the backend pytest suite inside
 `.autonomous_runs/file-organizer-app-v1/fileorganizer/backend`, and enforces
-the acceptance criteria from `WHATS_LEFT_TO_BUILD.md` Task 4–6.
+the acceptance criteria from `FUTURE_PLAN.md` Task 4–6.
 """
 
 from __future__ import annotations

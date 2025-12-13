@@ -14,7 +14,7 @@ Usage:
 This script creates:
 - .autonomous_runs/<project-slug>/
   ├── scripts/autopack_runner.py      (copied from template)
-  ├── WHATS_LEFT_TO_BUILD.md          (empty template)
+  ├── FUTURE_PLAN.md          (empty template)
   ├── PROJECT_README.md               (auto-generated)
   └── run.sh                          (wrapper script)
 
@@ -98,8 +98,8 @@ def create_project_structure(project_name: str, project_slug: str, base_dir: Pat
         print(f"[WARNING] Source runner not found at {source_runner}")
         print(f"[WARNING] You'll need to create autopack_runner.py manually")
 
-    # Create WHATS_LEFT_TO_BUILD.md template
-    whats_left = project_dir / "WHATS_LEFT_TO_BUILD.md"
+    # Create FUTURE_PLAN.md template
+    whats_left = project_dir / "FUTURE_PLAN.md"
     whats_left.write_text(f"""# {project_name} - Tasks for Autopack
 
 **Project**: {project_name}
@@ -163,7 +163,7 @@ cd c:/dev/Autopack/.autonomous_runs/{project_slug}
 python scripts/autopack_runner.py --non-interactive
 ```
 """)
-    print(f"[3/5] Created WHATS_LEFT_TO_BUILD.md template")
+    print(f"[3/5] Created FUTURE_PLAN.md template")
 
     # Create PROJECT_README.md
     readme = project_dir / "PROJECT_README.md"
@@ -222,7 +222,7 @@ cd c:/dev/Autopack/.autonomous_runs/{project_slug}
 
 1. **Auto-detects** if Autopack service is running
 2. **Auto-starts** uvicorn in background if needed
-3. **Reads** all tasks from `WHATS_LEFT_TO_BUILD.md`
+3. **Reads** all tasks from `FUTURE_PLAN.md`
 4. **Creates** an Autopack run with all tasks
 5. **Monitors** progress in real-time
 6. **Generates** comprehensive reports
@@ -238,7 +238,7 @@ cd c:/dev/Autopack/.autonomous_runs/{project_slug}
 .autonomous_runs/{project_slug}/
 ├── scripts/
 │   └── autopack_runner.py          # Generic runner (project-agnostic)
-├── WHATS_LEFT_TO_BUILD.md          # Task definitions (edit this!)
+├── FUTURE_PLAN.md          # Task definitions (edit this!)
 ├── PROJECT_README.md               # This file
 └── run.sh                          # Wrapper script (optional)
 ```
@@ -247,7 +247,7 @@ cd c:/dev/Autopack/.autonomous_runs/{project_slug}
 
 ## Next Steps
 
-1. **Define tasks** in `WHATS_LEFT_TO_BUILD.md`
+1. **Define tasks** in `FUTURE_PLAN.md`
 2. **Trigger build** with magic phrase: `RUN AUTOPACK END-TO-END for {project_name} now.`
 3. **Review reports** generated after completion
 
@@ -287,7 +287,7 @@ See [FileOrganizer HOW_TO_RUN_PHASE2.md](../file-organizer-app-v1/HOW_TO_RUN_PHA
     run_script.write_text(f"""#!/bin/bash
 # {project_name} - Fully Autonomous Build Runner
 #
-# This script triggers the autonomous build defined in WHATS_LEFT_TO_BUILD.md
+# This script triggers the autonomous build defined in FUTURE_PLAN.md
 # with zero human interaction. Auto-starts Autopack service if needed.
 #
 # Usage: ./run.sh
@@ -301,7 +301,7 @@ echo "{project_name.upper()} - AUTOPACK AUTONOMOUS BUILD"
 echo "================================================================================"
 echo ""
 echo "Project: {project_name}"
-echo "Tasks: All items from WHATS_LEFT_TO_BUILD.md"
+echo "Tasks: All items from FUTURE_PLAN.md"
 echo "Mode: Non-interactive (zero human prompts, auto-start service)"
 echo ""
 echo "Reports will be written to:"
@@ -332,7 +332,7 @@ echo ""
     print(f"Slug: {project_slug}")
     print(f"Location: {project_dir}")
     print(f"\nNext steps:")
-    print(f"1. Edit {project_dir}/WHATS_LEFT_TO_BUILD.md to define your tasks")
+    print(f"1. Edit {project_dir}/FUTURE_PLAN.md to define your tasks")
     print(f"2. Use magic phrase: 'RUN AUTOPACK END-TO-END for {project_name} now.'")
     print(f"\nThe magic phrase will execute:")
     print(f"  cd {project_dir}")

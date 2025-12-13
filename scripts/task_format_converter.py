@@ -36,7 +36,7 @@ class TaskFormatConverter:
     def extract_project_slug(file_path: Path) -> str:
         """Extract project slug from file path for generating Phase IDs"""
         # Try to get from parent directory name
-        # e.g., /path/to/.autonomous_runs/my-project-v1/WHATS_LEFT_TO_BUILD.md
+        # e.g., /path/to/.autonomous_runs/my-project-v1/FUTURE_PLAN.md
         parent = file_path.parent.name
 
         # Remove version suffix for cleaner phase IDs

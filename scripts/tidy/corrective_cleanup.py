@@ -327,13 +327,13 @@ def fix5_fileorganizer_archive(dry_run: bool = True):
         print("[SKIP] file-organizer archive does not exist")
         return
 
-    # 1. Move WHATS_LEFT_TO_BUILD_MAINTENANCE.md to docs/guides/
-    wltb_maint = fileorg_archive / "WHATS_LEFT_TO_BUILD_MAINTENANCE.md"
+    # 1. Move FUTURE_PLAN_MAINTENANCE.md to docs/guides/
+    wltb_maint = fileorg_archive / "FUTURE_PLAN_MAINTENANCE.md"
     if wltb_maint.exists():
         docs_guides = fileorg_root / "docs" / "guides"
         docs_guides.mkdir(parents=True, exist_ok=True)
-        dest = docs_guides / "WHATS_LEFT_TO_BUILD_MAINTENANCE.md"
-        print(f"\n[TRUTH] WHATS_LEFT_TO_BUILD_MAINTENANCE.md -> docs/guides/")
+        dest = docs_guides / "FUTURE_PLAN_MAINTENANCE.md"
+        print(f"\n[TRUTH] FUTURE_PLAN_MAINTENANCE.md -> docs/guides/")
         if not dry_run:
             safe_move(wltb_maint, dest)
 
@@ -521,7 +521,7 @@ def validate_final_structure():
     # Check 1: Loose .md files at root
     keep_md = {
         "README.md", "WORKSPACE_ORGANIZATION_SPEC.md",
-        "WHATS_LEFT_TO_BUILD.md", "WHATS_LEFT_TO_BUILD_MAINTENANCE.md",
+        "FUTURE_PLAN.md", "FUTURE_PLAN_MAINTENANCE.md",
         "PROPOSED_CLEANUP_STRUCTURE.md", "CLEANUP_SUMMARY_REPORT.md",
         "CLEANUP_VERIFICATION_ISSUES.md", "ROOT_CAUSE_ANALYSIS_CLEANUP_FAILURE.md",
         "IMPLEMENTATION_PLAN_SYSTEMIC_CLEANUP_FIX.md"

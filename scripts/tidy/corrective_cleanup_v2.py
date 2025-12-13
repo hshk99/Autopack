@@ -109,7 +109,7 @@ def phase1_root_cleanup(dry_run: bool = True) -> None:
 
     # 1.2 Move ruleset/config .json files to docs/
     ruleset_files = [
-        "project_ruleset_Autopack.json",
+        "LEARNED_RULES.json",
         "project_issue_backlog.json",
         "autopack_phase_plan.json"
     ]
@@ -917,7 +917,7 @@ def phase4_restore_documentation(dry_run: bool = True) -> None:
     print("        Phase 1 will move them from root to docs/")
 
     ruleset_files = {
-        "project_ruleset_Autopack.json": "Project-wide rules (auto-updated)",
+        "LEARNED_RULES.json": "Project-wide rules (auto-updated)",
         "project_issue_backlog.json": "Issue backlog (auto-updated)",
         "autopack_phase_plan.json": "Phase plan (auto-updated)",
     }
@@ -1109,7 +1109,7 @@ def phase6_synchronize_sot_files(dry_run: bool = True) -> None:
     if dry_run:
         print("\n[DRY-RUN] Would synchronize SOT files:")
         print("  - Update CONSOLIDATED_*.md via consolidate_docs.py")
-        print("  - Sync project_ruleset_Autopack.json")
+        print("  - Sync LEARNED_RULES.json")
         print("  - Sync project_issue_backlog.json")
         print("  - Update ARCHIVE_INDEX.md")
         print(f"\n[PHASE 6] Complete (dry-run)")
@@ -1285,9 +1285,9 @@ def phase6_synchronize_sot_files(dry_run: bool = True) -> None:
     print("  The following files are auto-updated by Autopack during runs:")
 
     auto_updated_files = {
-        "docs/project_ruleset_Autopack.json": "Updated when rules change",
-        "docs/project_issue_backlog.json": "Updated by issue_tracker.py",
-        "docs/autopack_phase_plan.json": "Updated when planning occurs",
+        "docs/LEARNED_RULES.json": "Updated when rules change",
+        ".autonomous_runs/project_issue_backlog.json": "Updated by issue_tracker.py",
+        ".autonomous_runs/autopack_phase_plan.json": "Updated when planning occurs",
     }
 
     for file_path, description in auto_updated_files.items():
@@ -1354,23 +1354,35 @@ def validate_v2_structure() -> Tuple[bool, List[str]]:
     else:
         print("[OK] Truth source .md files moved to docs/")
 
-    # Check 5: Ruleset .json files moved to docs/
+    # Check 5: SOT ruleset in docs/, cache files in .autonomous_runs/
     docs_dir = REPO_ROOT / "docs"
-    ruleset_files = ["project_ruleset_Autopack.json", "project_issue_backlog.json",
-                    "autopack_phase_plan.json"]
+    autonomous_runs_dir = REPO_ROOT / ".autonomous_runs"
 
-    # Check if still at root (bad)
-    loose_rulesets = [f for f in ruleset_files if (REPO_ROOT / f).exists()]
+    # LEARNED_RULES.json should be in docs/ (SOT file)
+    sot_ruleset = "LEARNED_RULES.json"
+    # Cache files should be in .autonomous_runs/
+    cache_files = ["project_issue_backlog.json", "autopack_phase_plan.json"]
+
+    # Check if SOT ruleset is still at root (bad)
+    loose_rulesets = []
+    if (REPO_ROOT / sot_ruleset).exists():
+        loose_rulesets.append(sot_ruleset)
     if loose_rulesets:
         issues.append(f"[X] {len(loose_rulesets)} ruleset files still at root: {', '.join(loose_rulesets)}")
 
-    # Check if in docs/ (good)
-    rulesets_in_docs = [f for f in ruleset_files if (docs_dir / f).exists()]
-    if len(rulesets_in_docs) == len(ruleset_files):
-        print("[OK] All ruleset files moved to docs/")
-    elif not loose_rulesets:  # Not at root and not in docs/ = missing
-        missing_rulesets = [f for f in ruleset_files if not (docs_dir / f).exists()]
-        warnings.append(f"[!] Missing ruleset files: {', '.join(missing_rulesets)}")
+    # Check if SOT ruleset is in docs/ (good)
+    if (docs_dir / sot_ruleset).exists():
+        print(f"[OK] {sot_ruleset} in docs/ (SOT file)")
+    elif not loose_rulesets:
+        warnings.append(f"[!] Missing SOT ruleset: {sot_ruleset}")
+
+    # Check if cache files are in .autonomous_runs/ (good)
+    cache_in_runs = [f for f in cache_files if (autonomous_runs_dir / f).exists()]
+    if len(cache_in_runs) == len(cache_files):
+        print("[OK] Cache files in .autonomous_runs/ (runtime data)")
+    else:
+        missing_cache = [f for f in cache_files if not (autonomous_runs_dir / f).exists()]
+        warnings.append(f"[!] Missing cache files in .autonomous_runs/: {', '.join(missing_cache)}")
 
     # Check 6: ALL truth source documentation in docs/
     required_truth_sources = {

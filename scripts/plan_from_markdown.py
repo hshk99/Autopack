@@ -5,7 +5,7 @@ Convert a markdown plan into phase specs JSON (phase_spec_schema-compatible).
 Usage:
   python scripts/plan_from_markdown.py --in docs/PLAN.md --out .autonomous_runs/file-organizer-app-v1/plan_generated.json
   # Merge into existing plan (plan JSON in docs/)
-  python scripts/plan_from_markdown.py --in docs/PLAN.md --merge-base docs/autopack_phase_plan.json --allow-update --out docs/autopack_phase_plan.json
+  python scripts/plan_from_markdown.py --in docs/PLAN.md --merge-base .autonomous_runs/autopack_phase_plan.json --allow-update --out .autonomous_runs/autopack_phase_plan.json
 """
 
 import argparse

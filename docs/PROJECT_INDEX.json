@@ -179,6 +179,13 @@
         "Maintenance backlog",
         "Items requiring manual design input"
       ]
+    },
+    "LEARNED_RULES.json": {
+      "description": "Auto-updated learned rules and strategies",
+      "auto_updated": true,
+      "updated_by": "src/autopack/strategy_engine.py",
+      "format": "JSON",
+      "purpose": "Machine learning from build patterns and errors"
     }
   },
 

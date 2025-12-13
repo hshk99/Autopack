@@ -13,7 +13,7 @@ Usage:
 What this syncs:
   - CONSOLIDATED_*.md (via consolidate_docs.py)
   - ARCHIVE_INDEX.md (via consolidate_docs.py)
-  - Verifies project_ruleset_Autopack.json in docs/
+  - Verifies LEARNED_RULES.json in docs/
   - Verifies project_issue_backlog.json in docs/
   - Verifies autopack_phase_plan.json in docs/
 """
@@ -72,7 +72,7 @@ def verify_sot_files() -> None:
 
     docs_dir = REPO_ROOT / "docs"
     sot_files = {
-        "project_ruleset_Autopack.json": "Project-wide rules (auto-updated by Autopack)",
+        "LEARNED_RULES.json": "Project-wide rules (auto-updated by Autopack)",
         "project_issue_backlog.json": "Issue backlog (auto-updated by issue_tracker.py)",
         "autopack_phase_plan.json": "Phase plan (auto-updated when planning occurs)",
         "CONSOLIDATED_CORRESPONDENCE.md": "Consolidated correspondence files",

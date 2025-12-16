@@ -1556,32 +1556,58 @@ class AnthropicBuilderClient:
         try:
             # Parse JSON
             result_json = None
+            initial_parse_error = None
             try:
                 result_json = json.loads(content.strip())
-            except json.JSONDecodeError:
+            except json.JSONDecodeError as e:
+                initial_parse_error = str(e)
                 # Try extracting from markdown code fence
                 if "```json" in content:
                     json_start = content.find("```json") + 7
                     json_end = content.find("```", json_start)
                     if json_end > json_start:
                         json_str = content[json_start:json_end].strip()
-                        result_json = json.loads(json_str)
-            
+                        try:
+                            result_json = json.loads(json_str)
+                            initial_parse_error = None  # Fence extraction succeeded
+                        except json.JSONDecodeError as e2:
+                            initial_parse_error = str(e2)
+
             if not result_json:
-                error_msg = "LLM output invalid format - expected JSON with 'operations' array"
-                if was_truncated:
-                    error_msg += " (stop_reason=max_tokens)"
-                logger.error(f"{error_msg}\nFirst 500 chars: {content[:500]}")
-                return BuilderResult(
-                    success=False,
-                    patch_content="",
-                    builder_messages=[error_msg],
-                    tokens_used=response.usage.input_tokens + response.usage.output_tokens,
-                    model_used=model,
-                    error=error_msg,
-                    stop_reason=stop_reason,
-                    was_truncated=was_truncated
-                )
+                # BUILD-039: Apply JSON repair to structured_edit mode (same as full-file mode)
+                logger.info("[Builder] Attempting JSON repair on malformed structured_edit output...")
+                from autopack.repair_helpers import JsonRepairHelper, save_repair_debug
+                json_repair = JsonRepairHelper()
+                error_msg = initial_parse_error or "Failed to parse JSON with 'operations' array"
+                repaired_json, repair_method = json_repair.attempt_repair(content, error_msg)
+
+                if repaired_json is not None:
+                    logger.info(f"[Builder] Structured edit JSON repair succeeded via {repair_method}")
+                    save_repair_debug(
+                        file_path="builder_structured_edit.json",
+                        original="",
+                        attempted=content,
+                        repaired=json.dumps(repaired_json),
+                        error=error_msg,
+                        method=repair_method
+                    )
+                    result_json = repaired_json
+                else:
+                    # JSON repair failed - return error
+                    error_msg = "LLM output invalid format - expected JSON with 'operations' array"
+                    if was_truncated:
+                        error_msg += " (stop_reason=max_tokens)"
+                    logger.error(f"{error_msg}\nFirst 500 chars: {content[:500]}")
+                    return BuilderResult(
+                        success=False,
+                        patch_content="",
+                        builder_messages=[error_msg],
+                        tokens_used=response.usage.input_tokens + response.usage.output_tokens,
+                        model_used=model,
+                        error=error_msg,
+                        stop_reason=stop_reason,
+                        was_truncated=was_truncated
+                    )
             
             # Extract summary and operations
             summary = result_json.get("summary", "Structured edits")

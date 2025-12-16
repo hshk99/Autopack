@@ -1,8 +1,8 @@
 # Build History - Implementation Log
 
 <!-- META
-Last_Updated: 2025-12-13T18:52:02.200096Z
-Total_Builds: 33
+Last_Updated: 2025-12-16T18:45:00Z
+Total_Builds: 34
 Format_Version: 2.0
 Auto_Generated: True
 Sources: CONSOLIDATED files, archive/
@@ -12,6 +12,7 @@ Sources: CONSOLIDATED files, archive/
 
 | Timestamp | BUILD-ID | Phase | Summary | Files Changed |
 |-----------|----------|-------|---------|---------------|
+| 2025-12-16 | BUILD-039 | N/A | JSON Repair for Structured Edit Mode | 1 |
 | 2025-12-16 | BUILD-038 | N/A | Builder Format Mismatch Auto-Fallback Fix | 1 |
 | 2025-12-16 | BUILD-037 | N/A | Builder Truncation Auto-Recovery Fix | 3 |
 | 2025-12-16 | BUILD-036 | N/A | Database/API Integration Fixes + Auto-Conversion Validation | 6 |
@@ -50,6 +51,104 @@ Sources: CONSOLIDATED files, archive/
 | 2025-11-26 | BUILD-016 | N/A | Consolidated Research Reference |  |
 
 ## BUILDS (Reverse Chronological)
+
+### BUILD-039 | 2025-12-16T18:45 | JSON Repair for Structured Edit Mode
+**Phase ID**: N/A
+**Status**: ✅ Implemented
+**Category**: Critical Bugfix - Self-Healing Enhancement
+**Date**: 2025-12-16
+
+**Objective**: Enable Autopack to automatically recover from malformed JSON in structured_edit mode using JSON repair
+
+**Problem Identified**:
+During research-citation-fix run, after BUILD-038's auto-fallback successfully triggered (switching from full-file to structured_edit mode), Autopack encountered repeated failures with "Unterminated string starting at: line 6 column 22 (char 134)" JSON parsing errors in structured_edit mode. All 5 retry attempts failed with identical parsing errors because the structured_edit parser lacked JSON repair capability.
+
+**Root Cause Analysis**:
+1. **Missing JSON repair**: The `_parse_structured_edit_output()` method ([anthropic_clients.py](src/autopack/anthropic_clients.py:1556-1584)) only attempted direct `json.loads()` and markdown fence extraction
+2. **Inconsistent repair coverage**: Full-file mode parser (lines 882-899) HAD `JsonRepairHelper` integration, but structured_edit mode did NOT
+3. **Impact**: When BUILD-038 successfully fell back to structured_edit mode, that mode itself failed repeatedly due to malformed JSON, exhausting all attempts
+4. **Cascade failure**: BUILD-038's auto-recovery worked correctly (detected format mismatch → triggered fallback), but the fallback TARGET was brittle
+
+**Fix Applied** ([anthropic_clients.py](src/autopack/anthropic_clients.py:1576-1610)):
+
+1. **Track parse errors**: Added `initial_parse_error` variable to preserve JSON.loads() exception messages
+2. **Preserve error through fence extraction**: If markdown fence extraction also fails, preserve that error message
+3. **Import repair utilities**: Added `from autopack.repair_helpers import JsonRepairHelper, save_repair_debug`
+4. **Apply JSON repair**: When direct parsing and fence extraction both fail, call `json_repair.attempt_repair(content, error_msg)`
+5. **Use repaired JSON**: If repair succeeds, use `repaired_json` and log success with repair method
+6. **Save debug telemetry**: Call `save_repair_debug()` to record original/repaired JSON for analysis
+7. **Graceful failure**: If repair fails, return error as before (no regression)
+
+**Code Changes**:
+```python
+# BEFORE (lines 1556-1584): Only tried direct JSON.loads() and fence extraction
+try:
+    result_json = json.loads(content.strip())
+except json.JSONDecodeError:
+    if "```json" in content:
+        # Extract from fence...
+        result_json = json.loads(json_str)
+
+if not result_json:
+    # FAILED - no repair attempted
+    return BuilderResult(success=False, error=error_msg, ...)
+
+# AFTER (lines 1576-1610): Added JSON repair step
+try:
+    result_json = json.loads(content.strip())
+except json.JSONDecodeError as e:
+    initial_parse_error = str(e)
+    if "```json" in content:
+        try:
+            result_json = json.loads(json_str)
+            initial_parse_error = None
+        except json.JSONDecodeError as e2:
+            initial_parse_error = str(e2)
+
+if not result_json:
+    # BUILD-039: Try JSON repair before giving up
+    logger.info("[Builder] Attempting JSON repair on malformed structured_edit output...")
+    from autopack.repair_helpers import JsonRepairHelper, save_repair_debug
+    json_repair = JsonRepairHelper()
+    repaired_json, repair_method = json_repair.attempt_repair(content, initial_parse_error)
+
+    if repaired_json is not None:
+        logger.info(f"[Builder] Structured edit JSON repair succeeded via {repair_method}")
+        save_repair_debug(...)
+        result_json = repaired_json
+    else:
+        # Still failed - return error (no regression)
+        return BuilderResult(success=False, error=error_msg, ...)
+```
+
+**Impact**:
+- ✅ Structured edit mode now has same JSON repair capability as full-file mode
+- ✅ When BUILD-038 falls back to structured_edit, that mode can now self-heal from JSON errors
+- ✅ Autopack gains two-layer autonomous recovery: format mismatch → fallback → JSON repair
+- ✅ Eliminates wasted attempts on repeated "Unterminated string" errors
+- ✅ Consistent repair behavior across all Builder modes
+
+**Expected Behavior Change**:
+Before: structured_edit returns malformed JSON → exhausts all 5 attempts with same error → phase FAILED
+After: structured_edit returns malformed JSON → logs "[Builder] Attempting JSON repair on malformed structured_edit output..." → repair succeeds → logs "[Builder] Structured edit JSON repair succeeded via {method}" → phase continues
+
+**Files Modified**:
+- `src/autopack/anthropic_clients.py` (added JSON repair to structured_edit parser, fixed import from `autopack.repair_helpers`)
+
+**Validation**:
+Will be validated in next Autopack run when structured_edit mode encounters malformed JSON
+
+**Dependencies**:
+- Requires `autopack.repair_helpers.JsonRepairHelper` (already exists)
+- Requires `autopack.repair_helpers.save_repair_debug` (already exists)
+- Builds on BUILD-038 (format mismatch auto-fallback)
+
+**Notes**:
+- This fix completes the auto-recovery pipeline: BUILD-037 (truncation) → BUILD-038 (format mismatch) → BUILD-039 (JSON repair)
+- Together, these three builds enable Autopack to navigate Builder errors fully autonomously
+- JSON repair methods: regex-based repair, json5 parsing, ast-based parsing, llm-based repair
+
+---
 
 ### BUILD-038 | 2025-12-16T15:02 | Builder Format Mismatch Auto-Fallback Fix
 **Phase ID**: N/A

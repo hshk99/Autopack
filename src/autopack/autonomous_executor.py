@@ -331,6 +331,10 @@ class AutonomousExecutor:
         # [Phase 3: execute_fix] Track execute_fix attempts per phase
         self._execute_fix_by_phase: Dict[str, int] = {}  # phase_id -> execute_fix count
 
+        # [Learning Pipeline] Track rules marker for mid-run refresh
+        self._rules_marker_path = None
+        self._rules_marker_mtime = None
+
         # Phase 1.4-1.5: Run proactive startup checks (from DEBUG_JOURNAL.md)
         self._run_startup_checks()
 
@@ -528,9 +532,6 @@ class AutonomousExecutor:
 
         # Learning Pipeline: Load project learned rules (Stage 0B)
         self._load_project_learning_context()
-        # Track rules marker for mid-run refresh
-        self._rules_marker_path = None
-        self._rules_marker_mtime = None
 
     def _run_startup_checks(self):
         """

@@ -12,6 +12,7 @@ Sources: CONSOLIDATED files, archive/
 
 | Timestamp | BUILD-ID | Phase | Summary | Files Changed |
 |-----------|----------|-------|---------|---------------|
+| 2025-12-16 | BUILD-036 | N/A | Database/API Integration Fixes + Auto-Conversion Validation | 6 |
 | 2025-12-13 | BUILD-001 | N/A | Autonomous Tidy Execution Summary |  |
 | 2025-12-13 | BUILD-002 | N/A | Autonomous Tidy Implementation - COMPLETE |  |
 | 2025-12-13 | BUILD-003 | N/A | Centralized Multi-Project Tidy System Design |  |
@@ -47,6 +48,64 @@ Sources: CONSOLIDATED files, archive/
 | 2025-11-26 | BUILD-016 | N/A | Consolidated Research Reference |  |
 
 ## BUILDS (Reverse Chronological)
+
+### BUILD-036 | 2025-12-16T02:00 | Database/API Integration Fixes + Auto-Conversion Validation
+**Phase ID**: N/A
+**Status**: ✅ Implemented
+**Category**: Bugfix + Validation
+**Implementation Summary**:
+**Date**: 2025-12-16
+**Status**: ✅ COMPLETE - Autopack running successfully
+
+**Objective**: Resolve 5 critical database/API integration issues preventing autonomous execution
+
+**Issues Resolved**:
+
+1. **API Key Authentication (403 errors)**
+   - Problem: Auto-load requests missing X-API-Key header
+   - Fixed: [autonomous_executor.py:4424-4426, 4567-4569](src/autopack/autonomous_executor.py#L4424-L4569)
+
+2. **Environment Variables Not Passed to API Server**
+   - Problem: Subprocess didn't inherit DATABASE_URL → API used SQLite instead of PostgreSQL
+   - Fixed: Added env=os.environ.copy() to subprocess.Popen ([autonomous_executor.py:4496-4517](src/autopack/autonomous_executor.py#L4496-L4517))
+
+3. **Missing goal_anchor Column in PostgreSQL**
+   - Problem: Schema outdated, missing column from models.py
+   - Fixed: ALTER TABLE runs ADD COLUMN goal_anchor TEXT
+
+4. **Incorrect Tier/Phase ID Handling**
+   - Problem: API setting auto-increment 'id' instead of 'tier_id'/'phase_id'
+   - Fixed: [main.py:362-389](src/autopack/main.py#L362-L389) - use correct columns + db.flush()
+
+5. **Missing _rules_marker_path Initialization**
+   - Problem: AttributeError in main execution path
+   - Fixed: [autonomous_executor.py:318-320](src/autopack/autonomous_executor.py#L318-L320) - initialize in __init__
+
+**Auto-Conversion Validation**:
+- ✅ Legacy plan detection (phase_spec.json)
+- ✅ Auto-migration to autopack_phase_plan.json
+- ✅ 6 phases loaded successfully
+- ✅ Run created in PostgreSQL database
+- ✅ Phase 1 execution started autonomously
+
+**Current Status**: Autopack executing research-citation-fix plan (Phase 1/6 in progress)
+
+**Files Modified**:
+- `src/autopack/autonomous_executor.py` (4 fixes: API key headers, env vars, _rules_marker_path init)
+- `src/autopack/main.py` (tier/phase ID handling fix)
+- `docs/LEARNED_RULES.json` (5 new rules documenting patterns)
+- `docs/BUILD_HISTORY.md` (this entry)
+- `docs/ARCHITECTURE_DECISIONS.md` (pending - database schema decisions)
+- PostgreSQL `runs` table (schema update)
+
+**Learned Rules**: 5 critical patterns documented in LEARNED_RULES.json
+- AUTOPACK-API-SUBPROCESS-ENV (environment inheritance)
+- AUTOPACK-POSTGRES-SCHEMA-SYNC (manual migration required)
+- AUTOPACK-API-ID-COLUMNS (tier/phase ID conventions)
+- AUTOPACK-INSTANCE-VAR-INIT (initialization location)
+- AUTOPACK-PLAN-AUTOCONVERT (updated with integration details)
+
+**Source**: BUILD-036 implementation session (2025-12-16)
 
 ### BUILD-001 | 2025-12-13T00:00 | Autonomous Tidy Execution Summary
 **Phase ID**: N/A

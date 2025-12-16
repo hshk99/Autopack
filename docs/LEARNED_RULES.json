@@ -1,3 +1,79 @@
 {
-  "rules": []
+  "rules": [
+    {
+      "id": "AUTOPACK-PLAN-AUTOCONVERT",
+      "category": "automation",
+      "severity": "info",
+      "title": "Plan Format Auto-Conversion Support (FULLY AUTOMATIC)",
+      "description": "Autopack AUTOMATICALLY detects and converts plan files from multiple formats when autonomous_executor starts. Just drop a plan file and run - NO manual conversion needed!",
+      "rationale": "Completely eliminates manual conversion work. Autopack handles JSON, legacy JSON, and markdown formats transparently.",
+      "learned_from": "BUILD-036 - Database/API integration fixes (2025-12-16)",
+      "date_added": "2025-12-15",
+      "date_updated": "2025-12-16",
+      "applies_to": [
+        "autonomous_executor.py startup",
+        "API endpoint /runs/{run_id}/start_from_plan"
+      ],
+      "action": "Just run: python src/autopack/autonomous_executor.py --run-id <run-id>. Autopack will auto-detect plan format (autopack_phase_plan.json, phase_spec.json, or IMPLEMENTATION_PLAN.md), auto-convert if needed, create DB entry via API, and start executing. Global plan is at .autonomous_runs/autopack/autopack_phase_plan.json",
+      "example": "# Just run Autopack - it handles everything automatically\npython src/autopack/autonomous_executor.py --run-id research-citation-fix\n# Autopack will find .autonomous_runs/research-citation-fix/autopack_phase_plan.json (or other formats) and execute"
+    },
+    {
+      "id": "AUTOPACK-API-SUBPROCESS-ENV",
+      "category": "bugfix",
+      "severity": "critical",
+      "title": "API Server Subprocess Must Inherit Environment Variables",
+      "description": "When autonomous_executor starts the API server as a subprocess, it must pass environment variables (DATABASE_URL, QDRANT_HOST, etc.) or the API will use wrong database",
+      "rationale": "subprocess.Popen without env parameter creates a minimal environment, causing API server to use default settings instead of PostgreSQL",
+      "learned_from": "BUILD-036 - API server was connecting to SQLite instead of PostgreSQL (2025-12-16)",
+      "date_added": "2025-12-16",
+      "applies_to": [
+        "autonomous_executor.py _ensure_api_server_running()"
+      ],
+      "action": "Always include env=os.environ.copy() in subprocess.Popen calls when starting the API server"
+    },
+    {
+      "id": "AUTOPACK-POSTGRES-SCHEMA-SYNC",
+      "category": "database",
+      "severity": "critical",
+      "title": "PostgreSQL Schema Must Match SQLAlchemy Models",
+      "description": "When models.py is updated with new columns, PostgreSQL schema must be updated manually (no auto-migration)",
+      "rationale": "SQLAlchemy doesn't auto-migrate existing databases, causing runtime errors when queries reference new columns",
+      "learned_from": "BUILD-036 - Missing goal_anchor column caused 500 errors (2025-12-16)",
+      "date_added": "2025-12-16",
+      "applies_to": [
+        "models.py changes",
+        "PostgreSQL database"
+      ],
+      "action": "After adding columns to models.py, run ALTER TABLE commands on PostgreSQL: docker exec autopack-db-1 psql -U autopack -d autopack -c 'ALTER TABLE <table> ADD COLUMN IF NOT EXISTS <column> <type>;'"
+    },
+    {
+      "id": "AUTOPACK-API-ID-COLUMNS",
+      "category": "database",
+      "severity": "critical",
+      "title": "Use Correct ID Columns for Tier/Phase Creation",
+      "description": "Tier and Phase models have TWO id fields: auto-increment 'id' (integer PK) and human-readable 'tier_id'/'phase_id' (string). API endpoints must use the correct ones.",
+      "rationale": "PostgreSQL has integer auto-increment PKs, while string IDs are for human reference. Setting 'id' directly causes type errors.",
+      "learned_from": "BUILD-036 - TypeError when creating tiers with string IDs (2025-12-16)",
+      "date_added": "2025-12-16",
+      "applies_to": [
+        "main.py API endpoints",
+        "Tier and Phase model creation"
+      ],
+      "action": "Use tier_id/phase_id for string identifiers, let 'id' auto-increment. Call db.flush() after tier creation to get auto-generated tier.id before creating phases."
+    },
+    {
+      "id": "AUTOPACK-INSTANCE-VAR-INIT",
+      "category": "bugfix",
+      "severity": "medium",
+      "title": "Initialize All Instance Variables in __init__",
+      "description": "Instance variables accessed in main execution path must be initialized in __init__, not in conditional branches",
+      "rationale": "Variables initialized only in conditional paths (like backlog maintenance) cause AttributeError when accessed in regular execution",
+      "learned_from": "BUILD-036 - _rules_marker_path AttributeError (2025-12-16)",
+      "date_added": "2025-12-16",
+      "applies_to": [
+        "autonomous_executor.py __init__"
+      ],
+      "action": "Initialize all instance variables to None in __init__, even if they're set later in conditional paths"
+    }
+  ]
 }

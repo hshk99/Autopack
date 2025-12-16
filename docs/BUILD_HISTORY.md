@@ -88,7 +88,16 @@ After: Builder returns JSON when git diff expected → logs "Falling back to str
 
 **Post-Implementation**:
 - Commit `a34eb272`: Format mismatch fallback fix
-- Status: Ready for validation testing
+- Commit `72e33fb1`: Updated BUILD_HISTORY.md with BUILD-038
+
+**Validation Results** (2025-12-16T15:22):
+- ✅ **FIX CONFIRMED WORKING**: Format mismatch auto-recovery triggered successfully
+- ✅ Log evidence: `ERROR: LLM output invalid format - no git diff markers found` (15:22:03)
+- ✅ Log evidence: `WARNING: Falling back to structured_edit after full-file parse/truncation failure` (15:22:03)
+- ✅ Log evidence: `INFO: Builder succeeded (3583 tokens)` after fallback (15:22:27)
+- ✅ Phase completed successfully after auto-recovery (phase_1_relax_numeric_verification)
+- ✅ No more exhausted retry attempts - system self-healed on first format mismatch
+- 🎯 **BUILD-038 validated**: Auto-fallback from format mismatch now works as designed
 
 ### BUILD-037 | 2025-12-16T02:25 | Builder Truncation Auto-Recovery Fix
 **Phase ID**: N/A

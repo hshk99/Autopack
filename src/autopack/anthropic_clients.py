@@ -1612,7 +1612,70 @@ class AnthropicBuilderClient:
             # Extract summary and operations
             summary = result_json.get("summary", "Structured edits")
             operations_json = result_json.get("operations", [])
-            
+
+            # BUILD-040: Auto-convert full-file format to structured_edit format
+            # If LLM produced {"files": [...]} instead of {"operations": [...]}, convert it
+            if not operations_json and "files" in result_json:
+                logger.info("[Builder] Detected full-file format in structured_edit mode - auto-converting to operations")
+                files_json = result_json.get("files", [])
+                operations_json = []
+
+                for file_entry in files_json:
+                    file_path = file_entry.get("path")
+                    mode = file_entry.get("mode", "modify")
+                    new_content = file_entry.get("new_content")
+
+                    if not file_path:
+                        continue
+
+                    if mode == "create" and new_content:
+                        # Convert "create" to prepend operation (which creates file if missing)
+                        # Using prepend instead of insert to handle non-existent files
+                        operations_json.append({
+                            "type": "prepend",
+                            "file_path": file_path,
+                            "content": new_content
+                        })
+                        logger.info(f"[Builder] Converted create file '{file_path}' to prepend operation")
+                    elif mode == "delete":
+                        # For delete, we need to know file line count
+                        # Since we don't have it here, skip delete conversions
+                        # DELETE mode is rare for restoration tasks anyway
+                        logger.warning(f"[Builder] Skipping delete mode conversion for '{file_path}' (not supported)")
+                        continue
+                    elif mode == "modify" and new_content:
+                        # Convert "modify" to replace operation (whole file)
+                        # Check if file exists in context to get line count
+                        file_exists = file_path in files
+                        if file_exists:
+                            # Get actual line count from existing file
+                            existing_content = files.get(file_path, "")
+                            if isinstance(existing_content, str):
+                                line_count = existing_content.count('\n') + 1
+                                operations_json.append({
+                                    "type": "replace",
+                                    "file_path": file_path,
+                                    "start_line": 1,
+                                    "end_line": line_count,
+                                    "content": new_content
+                                })
+                                logger.info(f"[Builder] Converted modify file '{file_path}' to replace operation (lines 1-{line_count})")
+                            else:
+                                logger.warning(f"[Builder] Skipping modify for '{file_path}' (existing content not string)")
+                        else:
+                            # File doesn't exist, treat as create (use prepend)
+                            operations_json.append({
+                                "type": "prepend",
+                                "file_path": file_path,
+                                "content": new_content
+                            })
+                            logger.info(f"[Builder] Converted modify non-existent file '{file_path}' to prepend operation (create)")
+
+                if operations_json:
+                    logger.info(f"[Builder] Format conversion successful: {len(operations_json)} operations generated")
+                else:
+                    logger.warning("[Builder] Format conversion produced no operations")
+
             if not operations_json:
                 # Treat empty structured edits as a safe no-op rather than a hard failure.
                 info_msg = "Structured edit produced no operations; treating as no-op"

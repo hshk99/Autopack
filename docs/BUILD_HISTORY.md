@@ -1,8 +1,8 @@
 # Build History - Implementation Log
 
 <!-- META
-Last_Updated: 2025-12-16T18:45:00Z
-Total_Builds: 34
+Last_Updated: 2025-12-16T22:15:00Z
+Total_Builds: 35
 Format_Version: 2.0
 Auto_Generated: True
 Sources: CONSOLIDATED files, archive/
@@ -12,6 +12,7 @@ Sources: CONSOLIDATED files, archive/
 
 | Timestamp | BUILD-ID | Phase | Summary | Files Changed |
 |-----------|----------|-------|---------|---------------|
+| 2025-12-16 | BUILD-040 | N/A | Auto-Convert Full-File Format to Structured Edit | 1 |
 | 2025-12-16 | BUILD-039 | N/A | JSON Repair for Structured Edit Mode | 1 |
 | 2025-12-16 | BUILD-038 | N/A | Builder Format Mismatch Auto-Fallback Fix | 1 |
 | 2025-12-16 | BUILD-037 | N/A | Builder Truncation Auto-Recovery Fix | 3 |
@@ -51,6 +52,126 @@ Sources: CONSOLIDATED files, archive/
 | 2025-11-26 | BUILD-016 | N/A | Consolidated Research Reference |  |
 
 ## BUILDS (Reverse Chronological)
+
+### BUILD-040 | 2025-12-16T22:15 | Auto-Convert Full-File Format to Structured Edit
+**Phase ID**: N/A
+**Status**: ✅ Implemented
+**Category**: Critical Bugfix - Format Compatibility Enhancement
+**Date**: 2025-12-16
+
+**Objective**: Enable Autopack to automatically convert full-file format JSON to structured_edit format when LLM produces wrong schema
+
+**Problem Identified**:
+During research-citation-fix v2.2 restoration run, BUILD-039 successfully repaired malformed JSON (fixing syntax errors like unterminated strings), but the repaired JSON had `{"files": [...]}` (full-file format) instead of `{"operations": [...]}` (structured_edit format). The parser checked `result_json.get("operations", [])`, found empty array, and treated it as no-op, resulting in no files being created despite all 5 phases completing successfully.
+
+**Root Cause Analysis**:
+1. **Format Schema Mismatch**: LLM produced full-file format (`"files"` key) when structured_edit format (`"operations"` key) was expected
+2. **BUILD-039 limitation**: JSON repair fixes *syntax* errors (malformed JSON) but not *semantic* errors (wrong schema)
+3. **Parser behavior**: Code at [anthropic_clients.py:1614](src/autopack/anthropic_clients.py#L1614) checks `operations_json = result_json.get("operations", [])`, which returns empty list when key doesn't exist
+4. **Impact**: All phases completed with "empty operations; treating as no-op" despite LLM generating valid file content
+
+**Evidence** (.autonomous_runs/autopack/debug/repairs/20251216_213657_builder_structured_edit.json_repair.json):
+```json
+{
+  "repaired_content": "{\"files\": [{\"path\": \"src/autopack/research/gatherers/github_gatherer.py\", \"mode\": \"create\", \"new_content\": \"...\"}]}"
+}
+```
+
+Parser expected:
+```json
+{
+  "operations": [{"type": "prepend", "file_path": "...", "content": "..."}]
+}
+```
+
+**Fix Applied** ([anthropic_clients.py:1616-1677](src/autopack/anthropic_clients.py#L1616-L1677)):
+
+Added automatic format conversion after JSON repair:
+
+1. **Detect format mismatch**: Check if `operations` array is empty BUT `files` key exists
+2. **Convert full-file to structured_edit**: For each file entry:
+   - `mode="create"` + `new_content` → `type="prepend"` operation (creates new file)
+   - `mode="modify"` + file exists → `type="replace"` operation (whole-file replacement with actual line count)
+   - `mode="modify"` + file missing → `type="prepend"` operation (treat as create)
+   - `mode="delete"` → Skip (rare, not needed for restoration tasks)
+3. **Preserve file content**: Extract `new_content` from files array and map to operation `content`
+4. **Use correct operation types**: `prepend` for new files (handles missing files), `replace` for existing files (with proper line ranges)
+5. **Log conversion**: Track what was converted for debugging
+
+**Code Changes**:
+```python
+# Added after line 1614 (extract operations)
+# BUILD-040: Auto-convert full-file format to structured_edit format
+if not operations_json and "files" in result_json:
+    logger.info("[Builder] Detected full-file format in structured_edit mode - auto-converting to operations")
+    files_json = result_json.get("files", [])
+    operations_json = []
+
+    for file_entry in files_json:
+        file_path = file_entry.get("path")
+        mode = file_entry.get("mode", "modify")
+        new_content = file_entry.get("new_content")
+
+        if mode == "create" and new_content:
+            # Convert to prepend operation (creates file)
+            operations_json.append({
+                "type": "prepend",
+                "file_path": file_path,
+                "content": new_content
+            })
+        elif mode == "modify" and new_content:
+            # Check if file exists to determine operation type
+            if file_path in files:
+                # Existing file: use replace with actual line count
+                line_count = files[file_path].count('\n') + 1
+                operations_json.append({
+                    "type": "replace",
+                    "file_path": file_path,
+                    "start_line": 1,
+                    "end_line": line_count,
+                    "content": new_content
+                })
+            else:
+                # Missing file: treat as create (use prepend)
+                operations_json.append({
+                    "type": "prepend",
+                    "file_path": file_path,
+                    "content": new_content
+                })
+
+    if operations_json:
+        logger.info(f"[Builder] Format conversion successful: {len(operations_json)} operations generated")
+```
+
+**Impact**:
+- ✅ Autopack can now handle LLMs producing wrong format after mode switches
+- ✅ BUILD-039 + BUILD-040 together provide complete recovery: syntax repair → semantic conversion
+- ✅ No more "empty operations" when LLM produces valid content in wrong schema
+- ✅ Files will be created successfully even when format mismatch occurs
+- ✅ Three-layer auto-recovery: format mismatch (BUILD-038) → JSON syntax repair (BUILD-039) → schema conversion (BUILD-040)
+
+**Expected Behavior Change**:
+Before: BUILD-039 repairs malformed JSON → parser finds no operations → "treating as no-op" → no files created
+After: BUILD-039 repairs malformed JSON → BUILD-040 detects `"files"` key → converts to operations → files created successfully
+
+**Files Modified**:
+- `src/autopack/anthropic_clients.py` (added format conversion logic after JSON repair)
+
+**Validation**:
+Tested with simulated conversion: full-file `{"files": [{"path": "...", "mode": "create", "new_content": "..."}]}` → structured_edit `[{"type": "prepend", "file_path": "...", "content": "..."}]` ✅
+
+**Dependencies**:
+- Builds on BUILD-039 (JSON repair must succeed first)
+- Uses structured_edits.EditOperation validation (existing)
+- Requires `files` context dict (already available in method scope)
+
+**Notes**:
+- This completes the full auto-recovery pipeline: BUILD-037 (truncation) → BUILD-038 (format fallback) → BUILD-039 (JSON syntax repair) → BUILD-040 (schema conversion)
+- Together, these four builds enable Autopack to recover from virtually any Builder output issue autonomously
+- Format conversion is conservative: only converts when `operations` empty AND `files` present
+- Delete mode intentionally not supported (rare, complex, not needed for restoration tasks)
+
+---
 
 ### BUILD-039 | 2025-12-16T18:45 | JSON Repair for Structured Edit Mode
 **Phase ID**: N/A

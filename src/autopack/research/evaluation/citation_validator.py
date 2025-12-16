@@ -7,7 +7,7 @@ that quoted text can be found in the original source content.
 
 from typing import Dict, List
 
-from src.autopack.research.models.validators import CitationValidator, Finding
+from autopack.research.models.validators import CitationValidator, Finding
 
 
 class CitationValidityEvaluator:

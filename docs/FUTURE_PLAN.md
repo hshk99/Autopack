@@ -11,17 +11,18 @@ This file contains tasks in Autopack format for autonomous execution.
 
 ## ACTIVE: Research System - Citation Validity Improvement
 
-**Current Status**: Phase 0 ✅ | Phase 1 ✅ | BUILD-039 ✅ | BUILD-040 ✅ | Files Restored ✅ | Ready for Evaluation
-**Citation Validity**: 59.3% baseline (target: ≥80%)
+**Current Status**: Phase 0 ✅ | Phase 1 ✅ | Evaluation ✅ | BUILD-040 ✅ | Proceed to Phase 2
+**Citation Validity**: 72.2% (was 59.3% baseline, target: ≥80%)
 **Plan Version**: v2.3
 **Reference**: [docs/RESEARCH_CITATION_FIX_PLAN.md](RESEARCH_CITATION_FIX_PLAN.md)
 
 ### Context
-The research system citation validity improvement project is implementing fixes to increase citation accuracy from 59.3% to ≥80%. Foundation work and Phase 1 fix are complete. BUILD-039 and BUILD-040 successfully validated. All restoration files created successfully. Ready to run evaluation tests to measure citation validity improvement.
+The research system citation validity improvement project is implementing fixes to increase citation accuracy from 59.3% baseline to ≥80% target. Phase 0 foundation modules and Phase 1 fix are complete. Phase 1 evaluation shows **72.2% validity (+12.9% improvement)** but did not reach ≥80% target. **Phase 2 enhanced normalization is needed** to address remaining "extraction_span not found" failures (3/5 invalid citations).
 
 **Completed Work**:
 - ✅ Phase 0: Foundation modules (text_normalization.py, verification.py) - 54/54 tests passing
 - ✅ Phase 1: Relax numeric verification (validators.py created with fix) - 20/20 tests passing
+- ✅ **Phase 1 Evaluation**: Citation validity 72.2% (+12.9% from baseline) - **TARGET NOT MET (<80%)**
 - ✅ BUILD-039: JSON repair for structured_edit mode - **VALIDATED**
 - ✅ BUILD-040: Auto-convert full-file format to structured_edit - **VALIDATED**
 - ✅ File Restoration: github_gatherer.py, citation_validator.py - **COMPLETE**
@@ -76,24 +77,28 @@ The research system citation validity improvement project is implementing fixes 
 **Completion**: v2.3 run (2025-12-16T22:30)
 **Status**: ✅ COMPLETE
 
-### Task R3: Run Phase 1 Evaluation
+### Task R3: Run Phase 1 Evaluation ✅ COMPLETE
 **Phase ID**: `run_phase1_evaluation_v2`
 **Category**: test
 **Complexity**: low
 **Description**: Execute evaluation script to measure citation validity after Phase 1 fix. Test on 3-5 sample repositories.
 
 **Acceptance Criteria**:
-- [ ] Evaluation script runs successfully
-- [ ] 3-5 repositories tested (GitHub search for "machine learning" or similar)
-- [ ] Citation validity measured and documented
-- [ ] Results saved to .autonomous_runs/research-citation-fix/phase1_evaluation_results.json
-- [ ] Comparison to 59.3% baseline included
-- [ ] Decision: If ≥80%, mark SUCCESS. If <80%, proceed to R4.
+- [x] Evaluation script created and runs successfully
+- [x] 6 repositories tested across 3 topics (ML, web, data viz)
+- [x] Citation validity measured: **72.2%** (13 valid / 18 total findings)
+- [x] Results saved to .autonomous_runs/research-citation-fix/phase1_evaluation_results.json
+- [x] Comparison to baseline: +12.9% improvement (from 59.3% to 72.2%)
+- [x] Decision: **<80% → Proceed to Phase 2 (Task R4)**
+
+**Evaluation Results**:
+- Repositories: tensorflow/tensorflow, huggingface/transformers, twbs/bootstrap, fastapi/fastapi, d3/d3, grafana/grafana
+- Failure Analysis: 3 "extraction_span not found" (text normalization), 2 "numeric mismatch"
+- **Conclusion**: Phase 1 improved validity but Phase 2 needed for ≥80% target
 
 **Dependencies**: Tasks R1 ✅, R2 ✅
-**Estimated Tokens**: 5,000
-**Expected Impact**: Citation validity: 59.3% → 74-79%
-**Status**: READY (dependencies complete)
+**Completion**: 2025-12-16T23:04
+**Status**: ✅ COMPLETE
 
 ### Task R4: Enhanced Text Normalization (CONDITIONAL)
 **Phase ID**: `phase2_enhanced_normalization_v2`

@@ -16,7 +16,7 @@ from typing import Dict, List, Optional
 import anthropic
 import requests
 
-from src.autopack.research.models.validators import Finding
+from autopack.research.models.validators import Finding
 
 logger = logging.getLogger(__name__)
 
@@ -195,12 +195,15 @@ README CONTENT:
             findings = []
             for item in findings_data[:max_findings]:
                 try:
+                    # Combine title and LLM interpretation into content field
+                    title = item.get("title", "Untitled")
+                    analysis = item.get("content", "")
+                    combined_content = f"{title}. {analysis}" if analysis else title
+
                     finding = Finding(
-                        title=item.get("title", "Untitled"),
-                        content=item.get("content", ""),
+                        content=combined_content,
                         extraction_span=item.get("extraction_span", ""),
                         category=item.get("category", "technical_analysis"),
-                        relevance_score=float(item.get("relevance_score", 0.5)),
                         source_hash=source_hash,
                     )
                     findings.append(finding)

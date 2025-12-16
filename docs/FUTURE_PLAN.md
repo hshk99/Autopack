@@ -1,9 +1,97 @@
-# What's Left to Build - FileOrganizer Phase 2 (Beta Release)
+# What's Left to Build - Autopack Project Plans
+
+**Last Updated**: 2025-12-16
+**Active Projects**:
+1. Research System (Citation Validity Improvement)
+2. FileOrganizer Phase 2 (Beta Release)
+
+This file contains tasks in Autopack format for autonomous execution.
+
+---
+
+## ACTIVE: Research System - Citation Validity Improvement
+
+**Current Status**: Phase 0 Foundation COMPLETE | Research System Code NEEDS RESTORATION
+**Citation Validity**: 59.3% (target: ≥80%)
+**Reference**: [docs/RESEARCH_CITATION_FIX_PLAN.md](RESEARCH_CITATION_FIX_PLAN.md), [archive/research/active/CITATION_VALIDITY_IMPROVEMENT_PLAN.md](../archive/research/active/CITATION_VALIDITY_IMPROVEMENT_PLAN.md)
+
+### Context
+The research system (src/autopack/research/) was implemented and working as of Dec 15, achieving 59.3% citation validity in Phase 0 evaluation. The code was subsequently tidied/archived. Foundation modules (text_normalization.py, verification.py) were created but the main research code needs to be restored before applying citation fixes.
+
+### Task R1: Restore Research System Code
+**Phase ID**: `research-restore-system`
+**Category**: restoration
+**Complexity**: low
+**Description**: Restore research system code from archive or reconstruct from documentation into src/autopack/research/. The system includes discovery, gatherers, synthesis, evaluation, decision_frameworks, and models modules.
+
+**Acceptance Criteria**:
+- [ ] src/autopack/research/models/validators.py exists with CitationValidator class
+- [ ] src/autopack/research/gatherers/github_gatherer.py exists
+- [ ] src/autopack/research/evaluation/ module exists
+- [ ] All research system imports resolve correctly
+- [ ] System is in a permanent location (won't be tidied away)
+
+**Dependencies**: None
+**Estimated Tokens**: 5,000
+**Status**: PENDING
+
+### Task R2: Apply Phase 1 - Relax Numeric Verification
+**Phase ID**: `research-phase1-relax-numeric`
+**Category**: feature
+**Complexity**: medium
+**Description**: Modify validators.py to only check numeric values in extraction_span, NOT in finding.content (LLM paraphrase). This is the primary fix expected to improve citation validity by +15-20%.
+
+**Acceptance Criteria**:
+- [ ] _verify_numeric_extraction() only validates extraction_span contains numbers
+- [ ] No longer checks if finding.content numbers match extraction_span numbers
+- [ ] Returns True if extraction_span has numbers for market_intelligence/competitive_analysis categories
+- [ ] All existing tests pass
+
+**Dependencies**: `research-restore-system`
+**Estimated Tokens**: 8,000
+**Expected Impact**: Citation validity: 59.3% → 74-79%
+**Status**: QUEUED (blocked by R1)
+
+### Task R3: Run Post-Phase1 Evaluation
+**Phase ID**: `research-eval-after-phase1`
+**Category**: test
+**Complexity**: low
+**Description**: Run Phase 0 evaluation script to measure citation validity after Phase 1 fix.
+
+**Acceptance Criteria**:
+- [ ] Evaluation completes for 5 test topics
+- [ ] Citation validity measured and documented
+- [ ] If ≥80%, mark SUCCESS and STOP
+- [ ] If <80%, proceed to Phase 2
+
+**Dependencies**: `research-phase1-relax-numeric`
+**Estimated Tokens**: 3,000
+**Status**: QUEUED (blocked by R2)
+
+### Task R4: Apply Phase 2 - Enhanced Text Normalization (Conditional)
+**Phase ID**: `research-phase2-normalization`
+**Category**: feature
+**Complexity**: medium
+**Description**: IF Phase 1 evaluation shows <80% validity, integrate text_normalization.normalize_text() into validators.py to handle HTML entities, Unicode variations, and markdown artifacts.
+
+**Acceptance Criteria**:
+- [ ] validators.py imports from autopack.text_normalization
+- [ ] _normalize_text() method updated with enhanced normalization
+- [ ] Handles HTML entities (html.unescape)
+- [ ] Handles Unicode normalization (NFKC)
+- [ ] All tests pass
+
+**Dependencies**: `research-eval-after-phase1`
+**Estimated Tokens**: 10,000
+**Expected Impact**: +5-10% citation validity
+**Status**: CONDITIONAL (execute only if R3 shows <80%)
+
+---
+
+## FileOrganizer Phase 2 (Beta Release)
 
 **Current Status**: v1.0.0 Alpha Complete (9/9 weeks finished)
 **Next Phase**: Beta Release + Production Hardening
-
-This file contains tasks in Autopack format for autonomous execution.
 
 ---
 

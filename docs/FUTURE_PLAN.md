@@ -11,71 +11,70 @@ This file contains tasks in Autopack format for autonomous execution.
 
 ## ACTIVE: Research System - Citation Validity Improvement
 
-**Current Status**: Phase 0 ✅ | Phase 1 ✅ | BUILD-039 ✅ VALIDATED | Restoration NEEDS FILE CREATION
+**Current Status**: Phase 0 ✅ | Phase 1 ✅ | BUILD-039 ✅ | BUILD-040 ✅ | Files Restored ✅ | Ready for Evaluation
 **Citation Validity**: 59.3% baseline (target: ≥80%)
-**Plan Version**: v2.2
+**Plan Version**: v2.3
 **Reference**: [docs/RESEARCH_CITATION_FIX_PLAN.md](RESEARCH_CITATION_FIX_PLAN.md)
 
 ### Context
-The research system citation validity improvement project is implementing fixes to increase citation accuracy from 59.3% to ≥80%. Foundation work and Phase 1 fix are complete. BUILD-039 successfully validated. Remaining work involves creating the missing files (github_gatherer, evaluation modules) and running actual evaluation tests.
+The research system citation validity improvement project is implementing fixes to increase citation accuracy from 59.3% to ≥80%. Foundation work and Phase 1 fix are complete. BUILD-039 and BUILD-040 successfully validated. All restoration files created successfully. Ready to run evaluation tests to measure citation validity improvement.
 
 **Completed Work**:
 - ✅ Phase 0: Foundation modules (text_normalization.py, verification.py) - 54/54 tests passing
 - ✅ Phase 1: Relax numeric verification (validators.py created with fix) - 20/20 tests passing
-- ✅ BUILD-039: JSON repair for structured_edit mode (enables autonomous recovery) - **VALIDATED**
+- ✅ BUILD-039: JSON repair for structured_edit mode - **VALIDATED**
+- ✅ BUILD-040: Auto-convert full-file format to structured_edit - **VALIDATED**
+- ✅ File Restoration: github_gatherer.py, citation_validator.py - **COMPLETE**
 
 **Restoration Run Results**:
 
 **v2.1 Run** (2025-12-16, 16:37-16:57):
-- Duration: 20 minutes
-- Failures: 12/25 budget consumed
+- Duration: 20 minutes | Failures: 12/25 budget | Status: FATAL
 - Root cause: JSON parsing errors in structured_edit mode
-- Status: FATAL (marked for retry with BUILD-039 active)
 
 **v2.2 Run** (2025-12-16, 21:35-21:45):
-- Duration: ~10 minutes
-- Failures: 0/25 budget (BUILD-039 prevented all JSON parse errors)
-- Phases completed: 5/5 (100%)
-- JSON repair triggered: 3 times, success rate 100%
-- Status: ✅ DONE_SUCCESS (BUILD-039 validation complete)
-- **Issue**: Empty operations after JSON repair - files not created
-- **Next step**: Manual file creation or re-run with adjusted instructions
+- Duration: 10 minutes | Failures: 0/25 budget | Status: ✅ SUCCESS
+- BUILD-039 validated: JSON repair 100% success (3/3)
+- Issue: Empty operations (schema mismatch) - no files created
 
-### Task R1: Restore GitHub Gatherer ✅ PARTIALLY COMPLETE / 🔄 NEEDS COMPLETION
+**v2.3 Run** (2025-12-16, 22:25-22:43):
+- Duration: 17 minutes | Format conversions: 3/4 success | Status: ✅ FILES CREATED
+- BUILD-040 validated: Format auto-conversion working
+- Files created: github_gatherer.py (9.2KB), citation_validator.py (4KB), __init__.py (204B)
+
+### Task R1: Restore GitHub Gatherer ✅ COMPLETE
 **Phase ID**: `restore_github_gatherer_v2`
 **Category**: restoration
 **Complexity**: medium
 **Description**: Create src/autopack/research/gatherers/github_gatherer.py with GitHub API integration, README fetching, and LLM-based finding extraction.
 
 **Acceptance Criteria**:
-- [ ] File src/autopack/research/gatherers/github_gatherer.py exists
-- [ ] GitHubGatherer class with discover_repositories(), fetch_readme(), extract_findings() methods
-- [ ] LLM extraction prompt emphasizes CHARACTER-FOR-CHARACTER quotes in extraction_span
-- [ ] JSON parsing handles markdown code blocks
-- [ ] File imports successfully (no syntax errors)
+- [x] File src/autopack/research/gatherers/github_gatherer.py exists
+- [x] GitHubGatherer class with discover_repositories(), fetch_readme(), extract_findings() methods
+- [x] LLM extraction prompt emphasizes CHARACTER-FOR-CHARACTER quotes in extraction_span
+- [x] JSON parsing handles markdown code blocks
+- [x] File imports successfully (no syntax errors)
 
-**Dependencies**: None (standalone file creation)
-**Estimated Tokens**: 8,000
-**Status**: QUEUED (ready for v2.2 run with BUILD-039 active)
-**Previous Attempt**: Failed 5 times with "Unterminated string" JSON errors (BUILD-039 now fixes this)
+**Dependencies**: None
+**Completion**: v2.3 run (2025-12-16T22:28)
+**Status**: ✅ COMPLETE
 
-### Task R2: Restore Evaluation Module
+### Task R2: Restore Evaluation Module ✅ COMPLETE
 **Phase ID**: `restore_evaluation_module_v2`
 **Category**: restoration
 **Complexity**: medium
 **Description**: Create src/autopack/research/evaluation/ module with CitationValidityEvaluator class that uses validators.CitationValidator.
 
 **Acceptance Criteria**:
-- [ ] Directory src/autopack/research/evaluation/ exists
-- [ ] File citation_validator.py created with CitationValidityEvaluator
-- [ ] Imports validators.CitationValidator successfully
-- [ ] evaluate_summary() method implemented (tracks valid/invalid counts, failure reasons)
-- [ ] Returns structured results: total, valid, invalid, validity_percentage, failure_breakdown
+- [x] Directory src/autopack/research/evaluation/ exists
+- [x] File citation_validator.py created with CitationValidityEvaluator
+- [x] Imports validators.CitationValidator successfully
+- [x] evaluate_summary() method implemented (tracks valid/invalid counts, failure reasons)
+- [x] Returns structured results: total, valid, invalid, validity_percentage, failure_breakdown
 
-**Dependencies**: Task R1 (github_gatherer must exist)
-**Estimated Tokens**: 6,000
-**Status**: QUEUED (blocked by R1)
-**Previous Attempt**: Builder succeeded but Quality Gate blocked (pytest exit code 2 due to R1 failure cascade)
+**Dependencies**: Task R1
+**Completion**: v2.3 run (2025-12-16T22:30)
+**Status**: ✅ COMPLETE
 
 ### Task R3: Run Phase 1 Evaluation
 **Phase ID**: `run_phase1_evaluation_v2`
@@ -91,10 +90,10 @@ The research system citation validity improvement project is implementing fixes 
 - [ ] Comparison to 59.3% baseline included
 - [ ] Decision: If ≥80%, mark SUCCESS. If <80%, proceed to R4.
 
-**Dependencies**: Tasks R1, R2
+**Dependencies**: Tasks R1 ✅, R2 ✅
 **Estimated Tokens**: 5,000
 **Expected Impact**: Citation validity: 59.3% → 74-79%
-**Status**: QUEUED (blocked by R1, R2)
+**Status**: READY (dependencies complete)
 
 ### Task R4: Enhanced Text Normalization (CONDITIONAL)
 **Phase ID**: `phase2_enhanced_normalization_v2`
@@ -135,12 +134,17 @@ The research system citation validity improvement project is implementing fixes 
 **Status**: CONDITIONAL
 
 ### Infrastructure Fixes Completed
+
 **BUILD-039** (2025-12-16T18:45) - JSON Repair for Structured Edit Mode
 - ✅ Added JsonRepairHelper to structured_edit mode parser
 - ✅ Enables autonomous recovery from malformed JSON
-- ✅ Addresses 7 out of 12 failures from first restoration run
-- ✅ Completes auto-recovery pipeline: BUILD-037 → BUILD-038 → BUILD-039
-- **Impact**: Next restoration run should succeed with JSON repair active
+- ✅ Validation: v2.2 run had 0 JSON parse failures (vs 12 in v2.1)
+
+**BUILD-040** (2025-12-16T22:43) - Auto-Convert Full-File Format to Structured Edit
+- ✅ Auto-converts `{"files": [...]}` to `{"operations": [...]}`
+- ✅ Handles semantic errors (wrong schema) in addition to syntax errors
+- ✅ Validation: v2.3 run successfully created all 3 files
+- ✅ Completes 4-layer auto-recovery: BUILD-037 → 038 → 039 → 040
 
 ---
 

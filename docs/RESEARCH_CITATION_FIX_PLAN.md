@@ -2,9 +2,9 @@
 
 **Project**: Autopack Research Citation Validity Improvement
 **Goal**: Improve citation validity by fixing numeric verification and text normalization
-**Current Status**: Phase 0 ✅ | Phase 1 ✅ | BUILD-039 ✅ VALIDATED | Restoration NEEDS FILE CREATION
-**Last Updated**: 2025-12-16 21:45
-**Version**: 2.2 (updated after v2.2 restoration run - BUILD-039 validation complete)
+**Current Status**: Phase 0 ✅ | Phase 1 ✅ | BUILD-039 ✅ | BUILD-040 ✅ | Files Restored ✅ | Ready for Evaluation
+**Last Updated**: 2025-12-16 22:51
+**Version**: 2.3 (updated after v2.3 restoration run - BUILD-040 validation complete)
 
 ---
 
@@ -16,6 +16,7 @@ This plan addresses citation validation issues discovered during Autopack resear
 1. **Numeric verification too strict**: Checked LLM's paraphrased content instead of only `extraction_span` ✅ FIXED
 2. **Text normalization gaps**: HTML entities, Unicode variations, markdown artifacts not handled (Phase 2)
 3. **Builder JSON parsing failures**: Malformed JSON in structured_edit mode ✅ FIXED (BUILD-039)
+4. **Schema format mismatch**: LLM producing `{"files": [...]}` instead of `{"operations": [...]}` ✅ FIXED (BUILD-040)
 
 ---
 
@@ -153,9 +154,33 @@ Added JSON repair to `_parse_structured_edit_output()` method in [anthropic_clie
 ### Impact
 - ✅ Structured edit mode now has same JSON repair capability as full-file mode
 - ✅ Next restoration run will autonomously recover from "Unterminated string" errors
-- ✅ Completes auto-recovery pipeline: BUILD-037 → BUILD-038 → BUILD-039
+- ✅ Completes auto-recovery pipeline: BUILD-037 → BUILD-038 → BUILD-039 → BUILD-040
 
-**Documented in**: [BUILD_HISTORY.md](BUILD_HISTORY.md:55-151)
+**Documented in**: [BUILD_HISTORY.md](BUILD_HISTORY.md:55-172)
+
+---
+
+## BUILD-040: Auto-Convert Full-File Format to Structured Edit ✅ VALIDATED
+
+**Implementation Date**: 2025-12-16T22:43
+**Commit**: 2bf772df
+**Problem**: BUILD-039 successfully repaired JSON syntax but produced empty operations because LLM generated `{"files": [...]}` format instead of `{"operations": [...]}`
+
+### Solution
+Added format auto-conversion after JSON repair (anthropic_clients.py:1616-1677):
+- Detects when `operations` is empty but `files` key exists
+- Converts `create` mode → `prepend` operation
+- Converts `modify` existing → `replace` with actual line count
+- Converts `modify` missing → `prepend` (treat as create)
+- Skips `delete` mode (rare, not needed for restoration)
+
+### Impact
+- ✅ Handles semantic errors (wrong schema) in addition to syntax errors
+- ✅ Files created even when LLM produces wrong format
+- ✅ Completes 4-layer auto-recovery pipeline: BUILD-037 → 038 → 039 → 040
+- ✅ Reduces dependency on manual intervention
+
+**Documented in**: [BUILD_HISTORY.md](BUILD_HISTORY.md:55-172)
 
 ---
 
@@ -190,8 +215,29 @@ Added JSON repair to `_parse_structured_edit_output()` method in [anthropic_clie
 - JSON repair succeeded in fixing malformed JSON
 - But the repaired JSON contained no actual edit operations
 - **Impact**: No files were created (github_gatherer.py, evaluation modules missing)
-- **Root Cause**: After repair, structured_edit JSON had empty or missing operations array
-- **Status**: BUILD-039 validated (JSON repair works), but file creation requires different approach
+- **Root Cause**: Schema mismatch - LLM produced `{"files": [...]}` but parser expected `{"operations": [...]}`
+- **Resolution**: ✅ BUILD-040 implemented (2025-12-16T22:43)
+
+### v2.3 Run Execution Summary (BUILD-040 ACTIVE - VALIDATION)
+**Run ID**: research-system-restore-and-evaluate-v2 (phases reset and re-run)
+**Execution Time**: 22:25:53 - 22:43:08 (≈17 minutes)
+**Phases Attempted**: 5
+**Phases Completed**: 5/5 (100%)
+**Format Conversion Triggers**: 4 times (3 successful, 1 no files key)
+**Files Created**: 3/3 (100% success)
+**Status**: ✅ FILES CREATED
+
+**BUILD-040 Validation Result**: ✅ **COMPLETE SUCCESS**
+- **Objective**: Validate that BUILD-040 auto-converts full-file format to structured_edit operations
+- **Result**: Files successfully created after format conversion
+- **Evidence**:
+  - 22:27:01: Converted github_gatherer.py → 1 operation
+  - 22:31:41: Detected but no files key (correctly skipped)
+  - 22:42:37: Converted evaluation files → 2 operations
+- **Files Created**:
+  - ✅ src/autopack/research/gatherers/github_gatherer.py (9,221 bytes)
+  - ✅ src/autopack/research/evaluation/citation_validator.py (4,020 bytes)
+  - ✅ src/autopack/research/evaluation/__init__.py (204 bytes)
 
 ### v2.1 Phase-by-Phase Analysis (for reference)
 

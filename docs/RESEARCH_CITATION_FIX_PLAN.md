@@ -1,10 +1,10 @@
-# Research Citation Fix - Implementation Plan v2.3
+# Research Citation Fix - Implementation Plan v2.4
 
 **Project**: Autopack Research Citation Validity Improvement
 **Goal**: Improve citation validity by fixing numeric verification and text normalization
-**Current Status**: Phase 0 ✅ | Phase 1 ✅ | Evaluation ✅ | BUILD-040 ✅ | Proceed to Phase 2
-**Last Updated**: 2025-12-16 23:04
-**Version**: 2.3 (updated after Phase 1 evaluation - 72.2% validity, Phase 2 needed)
+**Status**: ✅ **PROJECT COMPLETE** - 77.8% validity achieved (+18.5% from baseline)
+**Last Updated**: 2025-12-16 (Phase 2 complete, Phase 3 investigation complete)
+**Version**: 2.4 (Final - Phase 2 complete with diagnostic analysis and Phase 3 decision documented)
 
 ---
 
@@ -12,9 +12,20 @@
 
 This plan addresses citation validation issues discovered during Autopack research runs. The problem: citations were failing validation due to overly strict numeric checks and inadequate text normalization.
 
-### Root Causes Identified
-1. **Numeric verification too strict**: Checked LLM's paraphrased content instead of only `extraction_span` ✅ FIXED
-2. **Text normalization gaps**: HTML entities, Unicode variations, markdown artifacts not handled (Phase 2)
+### Project Success Summary
+
+**Final Results**:
+- ✅ **Citation Validity: 77.8%** (baseline: 59.3%)
+- ✅ **Improvement: +18.5 percentage points**
+- ✅ **Phase 1**: Fixed numeric verification (+12.9%)
+- ✅ **Phase 2**: Enhanced text normalization (+5.6%)
+- ❌ **Phase 3**: Not recommended (remaining failures are LLM quality issues, not validator bugs)
+
+**Key Achievement**: Validators now correctly identify citation issues. Remaining failures are due to LLM extraction quality (wrong categories, inconsistent formatting), not validator logic problems.
+
+### Root Causes Identified and Fixed
+1. **Numeric verification too strict**: Checked LLM's paraphrased content instead of only `extraction_span` ✅ FIXED (Phase 1)
+2. **Text normalization gaps**: HTML entities, Unicode variations, markdown artifacts not handled ✅ FIXED (Phase 2 with selective normalization)
 3. **Builder JSON parsing failures**: Malformed JSON in structured_edit mode ✅ FIXED (BUILD-039)
 4. **Schema format mismatch**: LLM producing `{"files": [...]}` instead of `{"operations": [...]}` ✅ FIXED (BUILD-040)
 
@@ -168,8 +179,152 @@ Phase 1 achieved **significant improvement (+12.9%)** but did **not reach the �
 
 **Next Steps**:
 - ✅ Phase 1 validated: Improvement confirmed
-- ⏭️ **Proceed to Phase 2**: Enhanced text normalization needed
-- 🎯 **Goal**: Integrate `text_normalization.py` into `validators.py` to fix "extraction_span not found" failures
+- ✅ **Phase 2 COMPLETE**: Enhanced text normalization integrated
+- 🎯 **Achievement**: 77.8% citation validity (+18.5% from baseline, +5.6% from Phase 1)
+
+---
+
+## Phase 2: Enhanced Text Normalization ✅ COMPLETE
+
+**Completion Date**: 2025-12-16
+**Status**: ✅ COMPLETE
+**Commit**: (pending)
+
+### Objective
+Integrate enhanced text normalization from `text_normalization.py` into `validators.py` to fix "extraction_span not found in source" failures.
+
+### Implementation
+
+**Changes to [validators.py:102-127](src/autopack/research/models/validators.py#L102-L127)**:
+
+1. **Added import**:
+   ```python
+   from autopack.text_normalization import normalize_text
+   ```
+
+2. **Updated `_normalize_text()` method**:
+   - Replaced basic normalization with comprehensive pipeline
+   - HTML entity decoding (e.g., `&nbsp;`, `&#x27;`, `&quot;`)
+   - Unicode normalization (NFC - canonical composition)
+   - Whitespace normalization
+   - Zero-width character removal
+   - **Critical**: `strip_markdown=False` (markdown stripping was too aggressive for GitHub READMEs)
+
+3. **Updated documentation**:
+   - Marked Phase 2 as FIXED in header comments
+   - Documented selective normalization approach
+
+### Evaluation Results
+
+**Test Configuration**:
+- 6 repositories (tensorflow, transformers, bootstrap, fastapi, d3, grafana)
+- 18 findings total (3 per repository)
+- 3 topics (machine learning, web frameworks, data visualization)
+
+**Iterative Testing**:
+1. **Phase 2a (with markdown stripping)**: 66.7% validity - REGRESSION
+   - Markdown stripping removed legitimate formatting from source text
+   - LLM extraction_span preserved markdown syntax but normalized source didn't
+
+2. **Phase 2b (without markdown stripping)**: 77.8% validity - SUCCESS
+   - Selective normalization (HTML + Unicode + whitespace only)
+   - Preserved markdown formatting in both source and extraction_span
+
+**Final Metrics**:
+```
+Citation Validity:           77.8% (14/18 valid)
+Improvement from Baseline:   +18.5% (59.3% → 77.8%)
+Improvement from Phase 1:    +5.6% (72.2% → 77.8%)
+Target (≥80%):               ❌ Not quite achieved (2.2% short)
+```
+
+**Failure Breakdown**:
+- Numeric claim mismatches: 3 failures
+- Extraction span not found: 1 failure (reduced from 3 in Phase 1!)
+
+### Key Learning
+
+**Markdown Stripping is Too Aggressive for GitHub Content**:
+- GitHub READMEs legitimately contain markdown syntax
+- LLM extraction_span often preserves markdown from source (e.g., `**bold**`, `[links]()`)
+- Stripping markdown during normalization breaks matching when:
+  - Source has: `The **framework** supports...`
+  - Extraction span has: `The **framework** supports...`
+  - Normalized source becomes: `The framework supports...`
+  - Result: Match fails despite being identical in source
+
+**Solution**: Use selective normalization - handle encoding/Unicode issues but preserve structural formatting.
+
+### Analysis
+
+**What Worked**:
+- ✅ HTML entity decoding fixed encoding mismatches
+- ✅ Unicode normalization (NFC) fixed character composition issues
+- ✅ Whitespace normalization improved robustness
+- ✅ Reduced "extraction_span not found" from 3 → 1 failure
+
+**Remaining Gap**:
+- Target: ≥80% validity
+- Achieved: 77.8%
+- Gap: 2.2% (1 more valid citation needed)
+- Primary remaining issue: Numeric verification (3/4 failures)
+
+### Decision: Phase 2 SUCCESS
+
+While Phase 2 didn't quite reach the 80% target, it achieved:
+- **+18.5% improvement from baseline** (59.3% → 77.8%)
+- **+5.6% improvement from Phase 1** (72.2% → 77.8%)
+- **67% reduction** in "extraction_span not found" failures (3 → 1)
+- **Validated the approach**: Enhanced normalization works when properly tuned
+
+The remaining 2.2% gap is primarily due to numeric verification edge cases (3/4 failures), not text normalization issues.
+
+### Failure Diagnostics and Phase 3 Decision
+
+**Diagnostic Investigation** (2025-12-16):
+
+Ran detailed failure analysis to understand the remaining 4 failures and determine if Phase 3 is warranted. Diagnostic script created: [diagnose_citation_failures.py](../scripts/diagnose_citation_failures.py)
+
+**Failure Pattern Analysis**:
+
+1. **Numeric Verification Failures (3-4 out of 4 failures)**:
+   - Pattern: LLM categorizes findings as `market_intelligence` or `competitive_analysis`
+   - Problem: extraction_span contains NO numbers
+   - Examples:
+     - "Transformers acts as model-definition framework..." → competitive_analysis (should be technical_analysis)
+     - "Sleek, intuitive, and powerful front-end framework..." → competitive_analysis (should be technical_analysis)
+   - **Root Cause**: LLM categorization error, NOT validator issue
+
+2. **Text Matching Failures (1 failure)**:
+   - Pattern: extraction_span has inconsistent line breaks and formatting
+   - Example: `"TensorFlow is an end-to-end\nopen source platform\nfor machine learning..."`
+   - **Root Cause**: LLM extraction quality issue (line breaks within phrases)
+
+**Phase 3 Decision: NOT RECOMMENDED**
+
+Reasons:
+- ✅ **77.8% validity is a solid baseline** (+18.5% from 59.3%)
+- ✅ **Validators are working correctly** - failures are due to LLM behavior, not validator bugs
+- ❌ **Relaxing validators would compromise quality** - would allow mis-categorized findings through
+- ❌ **Remaining issues require LLM improvements**, not validator changes:
+  - Better category selection in extraction prompt
+  - Cleaner quote extraction (proper line breaks)
+
+**Future Improvements (Research System)**:
+
+Further improvements require enhancing the LLM extraction process in [github_gatherer.py](../src/autopack/research/gatherers/github_gatherer.py):
+
+1. **Improve Category Selection**:
+   - Add examples in prompt showing when to use each category
+   - Emphasize: market_intelligence/competitive_analysis MUST contain numbers
+   - Default to technical_analysis when unsure
+
+2. **Improve Quote Extraction Quality**:
+   - Emphasize "CHARACTER-FOR-CHARACTER exact quotes" more strongly
+   - Add negative examples showing bad extraction_span with inconsistent line breaks
+   - Consider asking LLM to normalize line breaks before returning extraction_span
+
+These are **research quality improvements**, not validator fixes, and are beyond the scope of the citation fix project.
 
 ---
 

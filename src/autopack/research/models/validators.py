@@ -4,13 +4,15 @@ This module validates that extracted research findings contain accurate citation
 that match the source documents.
 
 CURRENT STATUS: Contains known issues that will be fixed in citation validity improvement phases:
-- Phase 1: Numeric verification is too strict (checks both content AND extraction_span)
-- Phase 2: Text normalization is too basic (misses HTML entities, Unicode, markdown)
+- Phase 1: Numeric verification is too strict (checks both content AND extraction_span) ✅ FIXED
+- Phase 2: Text normalization is too basic (misses HTML entities, Unicode, markdown) ✅ FIXED
 """
 
 import re
 from dataclasses import dataclass
 from typing import Optional
+
+from autopack.text_normalization import normalize_text
 
 
 @dataclass
@@ -98,17 +100,19 @@ class CitationValidator:
         )
 
     def _normalize_text(self, text: str) -> str:
-        """Normalize text for matching.
+        """Normalize text for matching using enhanced normalization.
 
-        CURRENT IMPLEMENTATION (Phase 0 - too basic):
-        - Collapses whitespace
-        - Converts to lowercase
-
-        MISSING (will be added in Phase 2):
-        - HTML entity decoding
-        - Unicode normalization
-        - Markdown artifact stripping
+        PHASE 2 ENHANCEMENT (2025-12-16):
+        - Uses text_normalization.normalize_text() for comprehensive normalization
+        - Handles HTML entities (e.g., &nbsp;, &#x27;, &quot;)
+        - Unicode normalization (NFC - canonical composition)
+        - Whitespace normalization
         - Zero-width character removal
+
+        NOTE: Markdown stripping is DISABLED (strip_markdown=False) because:
+        - GitHub READMEs often contain markdown formatting in the actual content
+        - LLM extraction_span may preserve markdown syntax from source
+        - Stripping markdown caused regression in Phase 2 testing (66.7% vs 72.2%)
 
         Args:
             text: Text to normalize
@@ -119,9 +123,8 @@ class CitationValidator:
         if not text:
             return ""
 
-        # Basic normalization: collapse whitespace and lowercase
-        normalized = re.sub(r'\s+', ' ', text.strip())
-        return normalized.lower()
+        # Use selective normalization (HTML entities + Unicode + whitespace, but NOT markdown)
+        return normalize_text(text, strip_markdown=False)
 
     def _verify_numeric_extraction(self, finding: Finding, normalized_span: str) -> bool:
         """Verify numeric values in extraction.

@@ -3116,9 +3116,14 @@ Just the new description that should replace the current one while preserving th
                 except Exception as e:
                     logger.warning(f"[{phase_id}] Memory retrieval failed: {e}")
 
+            # BUILD-044: Add protected paths to phase spec for LLM guidance
+            # This prevents protected path violations by informing the LLM upfront
+            protected_paths = ["src/autopack/", "config/", ".autonomous_runs/", ".git/"]
+            phase_with_isolation = {**phase, "protected_paths": protected_paths}
+
             # Use LlmService for complexity-based model selection with escalation
             builder_result = self.llm_service.execute_builder_phase(
-                phase_spec=phase,
+                phase_spec=phase_with_isolation,
                 file_context=file_context,
                 max_tokens=None,  # Let ModelRouter decide based on phase config
                 project_rules=project_rules,  # Stage 0B: Persistent project rules

@@ -1842,7 +1842,7 @@ class AnthropicBuilderClient:
 
             # Simple file creation phases don't need complex instructions
             if complexity == "low" and task_category in ("feature", "bugfix"):
-                return self._build_minimal_system_prompt(use_structured_edit)
+                return self._build_minimal_system_prompt(use_structured_edit, phase_spec)
 
         if use_structured_edit:
             # NEW: Structured edit mode for large files (Stage 2) - per IMPLEMENTATION_PLAN3.md Phase 2.1
@@ -1996,6 +1996,42 @@ Requirements:
 - Apply learned rules from project history
 - Output ONLY the raw git diff format patch (no JSON, no markdown fences, no explanations)"""
 
+        # BUILD-044: Add protected path isolation guidance
+        if phase_spec:
+            # Get protected paths from phase spec (passed from executor)
+            protected_paths = phase_spec.get("protected_paths", [])
+            if protected_paths:
+                isolation_guidance = """
+
+CRITICAL ISOLATION RULES:
+The following paths are PROTECTED and MUST NOT be modified under any circumstances:
+"""
+                for path in protected_paths:
+                    isolation_guidance += f"  - {path}\n"
+
+                isolation_guidance += """
+If your task requires functionality from these protected modules:
+1. USE their existing APIs via imports (import statements)
+2. CREATE NEW files in different directories outside protected paths
+3. EXTEND functionality by creating wrapper/adapter modules
+4. DO NOT modify, extend, or touch any protected files directly
+
+VIOLATION CONSEQUENCES:
+Any attempt to modify protected paths will cause immediate patch rejection.
+Your changes will be lost and the phase will fail.
+
+ALLOWED APPROACH:
+✓ Import from protected modules: from src.autopack.embeddings import EmbeddingModel
+✓ Create new files: src/my_feature/search.py
+✓ Use APIs: embedding_model = EmbeddingModel(); results = embedding_model.search(query)
+
+FORBIDDEN APPROACH:
+✗ Modify protected files: src/autopack/embeddings/model.py
+✗ Extend protected classes in-place
+✗ Add methods to protected modules
+"""
+                base_prompt += isolation_guidance
+
         # Inject prevention rules from debug journal
         try:
             prevention_rules = get_prevention_prompt_injection()
@@ -2007,19 +2043,20 @@ Requirements:
 
         return base_prompt
 
-    def _build_minimal_system_prompt(self, use_structured_edit: bool = False) -> str:
+    def _build_minimal_system_prompt(self, use_structured_edit: bool = False, phase_spec: Optional[Dict] = None) -> str:
         """Build minimal system prompt for simple phases (BUILD-043)
 
         Trimmed version saves ~3K tokens for low-complexity tasks.
 
         Args:
             use_structured_edit: If True, use structured edit JSON format.
+            phase_spec: Phase specification for protected path guidance (BUILD-044).
 
         Returns:
             Minimal system prompt optimized for token efficiency.
         """
         if use_structured_edit:
-            return """You are a code modification assistant. Generate structured JSON edit operations.
+            base_prompt = """You are a code modification assistant. Generate structured JSON edit operations.
 
 Output format:
 {
@@ -2042,7 +2079,7 @@ Rules:
 - Include \\n in content where needed
 """
         else:
-            return """You are a code modification assistant. Generate git diff format patches.
+            base_prompt = """You are a code modification assistant. Generate git diff format patches.
 
 Rules:
 - Use standard git diff format
@@ -2061,6 +2098,24 @@ index abc123..def456 100644
      print("existing")
 +    print("new line")
 """
+
+        # BUILD-044: Add protected path isolation guidance
+        if phase_spec:
+            protected_paths = phase_spec.get("protected_paths", [])
+            if protected_paths:
+                isolation_guidance = """
+
+CRITICAL: The following paths are PROTECTED - DO NOT modify them:
+"""
+                for path in protected_paths:
+                    isolation_guidance += f"  - {path}\n"
+
+                isolation_guidance += """
+Instead: Use their APIs via imports, create new files elsewhere.
+"""
+                base_prompt += isolation_guidance
+
+        return base_prompt
 
     def _build_user_prompt(
         self,

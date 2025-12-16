@@ -1048,7 +1048,7 @@ class AutonomousExecutor:
         try:
             from datetime import datetime, timezone
             from autopack.database import get_db
-            from autopack.models import Phase, PhaseState
+            from autopack.models import Phase, PhaseState, Tier
 
             db = next(get_db())
             phase = db.query(Phase).filter(
@@ -1086,7 +1086,7 @@ class AutonomousExecutor:
         try:
             from datetime import datetime, timezone
             from autopack.database import get_db
-            from autopack.models import Phase, PhaseState
+            from autopack.models import Phase, PhaseState, Tier
 
             db = next(get_db())
             phase = db.query(Phase).filter(
@@ -1179,14 +1179,16 @@ class AutonomousExecutor:
         """
         try:
             from autopack.database import get_db
-            from autopack.models import Phase, PhaseState
+            from autopack.models import Phase, PhaseState, Tier
 
             db = next(get_db())
 
             # Query for executable phases:
             # - QUEUED phases (not yet started)
             # - EXECUTING phases with retries available (attempts_used < max_attempts)
-            executable_phases = db.query(Phase).filter(
+            executable_phases = db.query(Phase, Tier).join(
+                Tier, Phase.tier_id == Tier.id
+            ).filter(
                 Phase.run_id == self.run_id,
                 (
                     (Phase.state == PhaseState.QUEUED) |
@@ -1196,7 +1198,7 @@ class AutonomousExecutor:
                     )
                 )
             ).order_by(
-                Phase.tier_index,
+                Tier.tier_index,
                 Phase.phase_index
             ).all()
 
@@ -1204,8 +1206,8 @@ class AutonomousExecutor:
                 logger.debug(f"[{self.run_id}] No executable phases found in database")
                 return None
 
-            # Return first executable phase
-            phase_db = executable_phases[0]
+            # Unpack tuple from join (phase_db, tier_db)
+            phase_db, tier_db = executable_phases[0]
             logger.info(
                 f"[{phase_db.phase_id}] Found executable phase: "
                 f"state={phase_db.state}, attempts={phase_db.attempts_used}/{phase_db.max_attempts}"
@@ -1216,16 +1218,16 @@ class AutonomousExecutor:
                 "phase_id": phase_db.phase_id,
                 "run_id": phase_db.run_id,
                 "tier_id": phase_db.tier_id,
-                "tier_index": phase_db.tier_index,
+                "tier_index": tier_db.tier_index,
                 "phase_index": phase_db.phase_index,
                 "name": phase_db.name,
                 "description": phase_db.description,
                 "state": phase_db.state.value if hasattr(phase_db.state, 'value') else str(phase_db.state),
                 "complexity": phase_db.complexity,
                 "task_category": phase_db.task_category,
-                "scope": phase_db.scope,
-                "dependencies": phase_db.dependencies or [],
-                "acceptance_criteria": phase_db.acceptance_criteria or [],
+                "scope": {},  # Phase model stores scope mode as string, not config dict
+                "dependencies": getattr(phase_db, 'dependencies', None) or [],
+                "acceptance_criteria": getattr(phase_db, 'acceptance_criteria', None) or [],
                 "attempts_used": phase_db.attempts_used,
                 "max_attempts": phase_db.max_attempts,
                 "last_attempt_timestamp": phase_db.last_attempt_timestamp,
@@ -3555,10 +3557,12 @@ Just the new description that should replace the current one while preserving th
     def _load_repository_context(self, phase: Dict) -> Dict:
         """Load repository files for Claude Builder context
 
-        Smart context loading with two modes:
-        1. Scope-aware: If phase has scope configuration, use ContextSelector
+        Smart context loading with three modes:
+        1. Pattern-based targeting: If phase matches known patterns (country templates,
+           frontend, docker), load only relevant files to reduce input context
+        2. Scope-aware: If phase has scope configuration, use ContextSelector
            to load only specified files (for external projects)
-        2. Heuristic-based: Legacy mode with freshness guarantees
+        3. Heuristic-based: Legacy mode with freshness guarantees
            (for autopack_maintenance without scope)
 
         Args:
@@ -3569,6 +3573,28 @@ Just the new description that should replace the current one while preserving th
         """
         import subprocess
         import re
+
+        # NEW: Phase 2 - Smart context reduction for known phase patterns
+        # This reduces input token usage and gives more room for output tokens
+        phase_id = phase.get("phase_id", "")
+        phase_name = phase.get("name", "").lower()
+        phase_desc = phase.get("description", "").lower()
+        task_category = phase.get("task_category", "")
+
+        # Pattern 1: Country template phases (UK, CA, AU templates)
+        if "template" in phase_name and ("country" in phase_desc or "template" in phase_id):
+            logger.info(f"[{phase_id}] Using targeted context for country template phase")
+            return self._load_targeted_context_for_templates(phase)
+
+        # Pattern 2: Frontend-only phases
+        if task_category == "frontend" or "frontend" in phase_name:
+            logger.info(f"[{phase_id}] Using targeted context for frontend phase")
+            return self._load_targeted_context_for_frontend(phase)
+
+        # Pattern 3: Docker/deployment phases
+        if "docker" in phase_name or task_category == "deployment":
+            logger.info(f"[{phase_id}] Using targeted context for docker/deployment phase")
+            return self._load_targeted_context_for_docker(phase)
 
         # NEW: Check for scope configuration (GPT recommendation)
         scope_config = phase.get("scope")
@@ -3828,6 +3854,109 @@ Just the new description that should replace the current one while preserving th
             rel_str += "/"
 
         return [rel_str]
+
+    def _load_targeted_context_for_templates(self, phase: Dict) -> Dict:
+        """Load minimal context for country template phases (UK, CA, AU)
+
+        These phases typically create:
+        - templates/countries/{country}/template.yaml
+        - src/autopack/document_categories.py (or similar)
+
+        We only need to load template-related files, not the entire codebase.
+        """
+        workspace = Path(self.workspace)
+        existing_files = {}
+
+        # Load only template-related files
+        patterns = [
+            "templates/**/*.yaml",
+            "src/autopack/document_categories.py",
+            "src/autopack/validation.py",
+            "src/autopack/models.py",
+            "config/**/*.yaml"
+        ]
+
+        for pattern in patterns:
+            for filepath in workspace.glob(pattern):
+                if filepath.is_file() and "__pycache__" not in str(filepath):
+                    try:
+                        rel_path = str(filepath.relative_to(workspace))
+                        content = filepath.read_text(encoding='utf-8', errors='ignore')
+                        existing_files[rel_path] = content[:15000]
+                    except Exception as e:
+                        logger.debug(f"Could not load {filepath}: {e}")
+
+        logger.info(f"[Context] Loaded {len(existing_files)} template-related files (targeted)")
+        return {"existing_files": existing_files}
+
+    def _load_targeted_context_for_frontend(self, phase: Dict) -> Dict:
+        """Load minimal context for frontend phases
+
+        Frontend phases only need:
+        - frontend/ directory contents
+        - package.json, vite.config.ts, tsconfig.json
+        """
+        workspace = Path(self.workspace)
+        existing_files = {}
+
+        patterns = [
+            "frontend/**/*.ts",
+            "frontend/**/*.tsx",
+            "frontend/**/*.css",
+            "frontend/**/*.json",
+            "package.json",
+            "vite.config.ts",
+            "tsconfig.json",
+            "tailwind.config.js"
+        ]
+
+        for pattern in patterns:
+            for filepath in workspace.glob(pattern):
+                if filepath.is_file() and "node_modules" not in str(filepath):
+                    try:
+                        rel_path = str(filepath.relative_to(workspace))
+                        content = filepath.read_text(encoding='utf-8', errors='ignore')
+                        existing_files[rel_path] = content[:15000]
+                    except Exception as e:
+                        logger.debug(f"Could not load {filepath}: {e}")
+
+        logger.info(f"[Context] Loaded {len(existing_files)} frontend files (targeted)")
+        return {"existing_files": existing_files}
+
+    def _load_targeted_context_for_docker(self, phase: Dict) -> Dict:
+        """Load minimal context for Docker/deployment phases
+
+        Docker phases only need:
+        - Dockerfile, docker-compose.yml, .dockerignore
+        - Database initialization scripts
+        - Configuration files
+        """
+        workspace = Path(self.workspace)
+        existing_files = {}
+
+        patterns = [
+            "Dockerfile",
+            "docker-compose.yml",
+            ".dockerignore",
+            "scripts/init-db.sql",
+            "scripts/**/*.sh",
+            "config/**/*.yaml",
+            "requirements.txt",
+            "package.json"
+        ]
+
+        for pattern in patterns:
+            for filepath in workspace.glob(pattern):
+                if filepath.is_file():
+                    try:
+                        rel_path = str(filepath.relative_to(workspace))
+                        content = filepath.read_text(encoding='utf-8', errors='ignore')
+                        existing_files[rel_path] = content[:15000]
+                    except Exception as e:
+                        logger.debug(f"Could not load {filepath}: {e}")
+
+        logger.info(f"[Context] Loaded {len(existing_files)} docker/deployment files (targeted)")
+        return {"existing_files": existing_files}
 
     def _load_scoped_context(self, phase: Dict, scope_config: Dict) -> Dict:
         """Load context using scope configuration (GPT recommendation).
@@ -4604,7 +4733,7 @@ Just the new description that should replace the current one while preserving th
         """
         # Try direct database update first (more reliable than API)
         try:
-            from autopack.models import Phase, PhaseState
+            from autopack.models import Phase, PhaseState, Tier
 
             # Expire all cached objects to get fresh data
             self.db_session.expire_all()
@@ -4814,15 +4943,15 @@ Just the new description that should replace the current one while preserving th
                 logger.warning(f"Stale phase detection failed: {e}")
                 # Continue even if stale detection fails
 
-            # Get next queued phase
-            next_phase = self.get_next_queued_phase(run_data)
+            # Get next executable phase (BUILD-041: database-backed state persistence)
+            next_phase = self.get_next_executable_phase()
 
             if not next_phase:
-                logger.info("No more QUEUED phases, execution complete")
+                logger.info("No more executable phases, execution complete")
                 break
 
             phase_id = next_phase.get("phase_id")
-            logger.info(f"Next phase: {phase_id}")
+            logger.info(f"[BUILD-041] Next phase: {phase_id}")
 
             # [Self-Troubleshoot] Check if phase was escalated/skipped
             if phase_id in self._skipped_phases:
@@ -5194,7 +5323,9 @@ Environment Variables:
         logger.info("Interrupted by user, shutting down...")
         sys.exit(0)
     except Exception as e:
+        import traceback
         logger.error(f"Fatal error: {e}")
+        logger.error(f"Traceback:\n{traceback.format_exc()}")
         sys.exit(1)
 
 

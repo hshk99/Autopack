@@ -266,16 +266,26 @@ class AnthropicBuilderClient:
 
             # Increase max_tokens for full_file mode with large files or large_refactor changes
             # This prevents truncation of YAML pack files and other large file replacements
+            # FIX: Hybrid approach to eliminate max_tokens truncation (MAX_TOKENS_FIX_PROPOSAL.md)
             if max_tokens is None:
-                if builder_mode == "full_file" or change_size == "large_refactor":
-                    # Large refactors need more output budget (16K tokens)
+                # Phase 3: Complexity-based token scaling
+                complexity = phase_spec.get("complexity", "medium")
+                if complexity == "low":
+                    max_tokens = 8192  # Increased from 4096 - handles multi-file structured edits
+                elif complexity == "medium":
+                    max_tokens = 12288
+                elif complexity == "high":
                     max_tokens = 16384
+                else:
+                    max_tokens = 8192  # Default fallback
+
+                # Override for special modes (full_file or large_refactor need max budget)
+                if builder_mode == "full_file" or change_size == "large_refactor":
+                    max_tokens = max(max_tokens, 16384)
                     logger.debug(
                         "[TOKEN_EST] Using increased max_tokens=%d for builder_mode=%s change_size=%s",
                         max_tokens, builder_mode, change_size
                     )
-                else:
-                    max_tokens = 4096
             elif max_tokens <= 0:
                 logger.warning(
                     "[TOKEN_EST] max_tokens invalid (%s); falling back to default 4096",

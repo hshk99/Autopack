@@ -11,80 +11,125 @@ This file contains tasks in Autopack format for autonomous execution.
 
 ## ACTIVE: Research System - Citation Validity Improvement
 
-**Current Status**: Phase 0 Foundation COMPLETE | Research System Code NEEDS RESTORATION
-**Citation Validity**: 59.3% (target: ≥80%)
-**Reference**: [docs/RESEARCH_CITATION_FIX_PLAN.md](RESEARCH_CITATION_FIX_PLAN.md), [archive/research/active/CITATION_VALIDITY_IMPROVEMENT_PLAN.md](../archive/research/active/CITATION_VALIDITY_IMPROVEMENT_PLAN.md)
+**Current Status**: Phase 0 ✅ | Phase 1 ✅ | BUILD-039 ✅ | Restoration PENDING
+**Citation Validity**: 59.3% baseline (target: ≥80%)
+**Plan Version**: v2.2
+**Reference**: [docs/RESEARCH_CITATION_FIX_PLAN.md](RESEARCH_CITATION_FIX_PLAN.md)
 
 ### Context
-The research system (src/autopack/research/) was implemented and working as of Dec 15, achieving 59.3% citation validity in Phase 0 evaluation. The code was subsequently tidied/archived. Foundation modules (text_normalization.py, verification.py) were created but the main research code needs to be restored before applying citation fixes.
+The research system citation validity improvement project is implementing fixes to increase citation accuracy from 59.3% to ≥80%. Foundation work and Phase 1 fix are complete. Remaining work involves restoring github_gatherer and evaluation modules, then running evaluation tests.
 
-### Task R1: Restore Research System Code
-**Phase ID**: `research-restore-system`
+**Completed Work**:
+- ✅ Phase 0: Foundation modules (text_normalization.py, verification.py) - 54/54 tests passing
+- ✅ Phase 1: Relax numeric verification (validators.py created with fix) - 20/20 tests passing
+- ✅ BUILD-039: JSON repair for structured_edit mode (enables autonomous recovery)
+
+**First Restoration Run Results** (2025-12-16, v2.1):
+- Duration: 20 minutes
+- Failures: 12/25 budget consumed
+- Root cause: JSON parsing errors in structured_edit mode (fixed by BUILD-039)
+- Status: FATAL (marked for retry with BUILD-039 active)
+
+### Task R1: Restore GitHub Gatherer ✅ PARTIALLY COMPLETE / 🔄 NEEDS COMPLETION
+**Phase ID**: `restore_github_gatherer_v2`
 **Category**: restoration
-**Complexity**: low
-**Description**: Restore research system code from archive or reconstruct from documentation into src/autopack/research/. The system includes discovery, gatherers, synthesis, evaluation, decision_frameworks, and models modules.
-
-**Acceptance Criteria**:
-- [ ] src/autopack/research/models/validators.py exists with CitationValidator class
-- [ ] src/autopack/research/gatherers/github_gatherer.py exists
-- [ ] src/autopack/research/evaluation/ module exists
-- [ ] All research system imports resolve correctly
-- [ ] System is in a permanent location (won't be tidied away)
-
-**Dependencies**: None
-**Estimated Tokens**: 5,000
-**Status**: PENDING
-
-### Task R2: Apply Phase 1 - Relax Numeric Verification
-**Phase ID**: `research-phase1-relax-numeric`
-**Category**: feature
 **Complexity**: medium
-**Description**: Modify validators.py to only check numeric values in extraction_span, NOT in finding.content (LLM paraphrase). This is the primary fix expected to improve citation validity by +15-20%.
+**Description**: Create src/autopack/research/gatherers/github_gatherer.py with GitHub API integration, README fetching, and LLM-based finding extraction.
 
 **Acceptance Criteria**:
-- [ ] _verify_numeric_extraction() only validates extraction_span contains numbers
-- [ ] No longer checks if finding.content numbers match extraction_span numbers
-- [ ] Returns True if extraction_span has numbers for market_intelligence/competitive_analysis categories
-- [ ] All existing tests pass
+- [ ] File src/autopack/research/gatherers/github_gatherer.py exists
+- [ ] GitHubGatherer class with discover_repositories(), fetch_readme(), extract_findings() methods
+- [ ] LLM extraction prompt emphasizes CHARACTER-FOR-CHARACTER quotes in extraction_span
+- [ ] JSON parsing handles markdown code blocks
+- [ ] File imports successfully (no syntax errors)
 
-**Dependencies**: `research-restore-system`
+**Dependencies**: None (standalone file creation)
 **Estimated Tokens**: 8,000
-**Expected Impact**: Citation validity: 59.3% → 74-79%
-**Status**: QUEUED (blocked by R1)
+**Status**: QUEUED (ready for v2.2 run with BUILD-039 active)
+**Previous Attempt**: Failed 5 times with "Unterminated string" JSON errors (BUILD-039 now fixes this)
 
-### Task R3: Run Post-Phase1 Evaluation
-**Phase ID**: `research-eval-after-phase1`
+### Task R2: Restore Evaluation Module
+**Phase ID**: `restore_evaluation_module_v2`
+**Category**: restoration
+**Complexity**: medium
+**Description**: Create src/autopack/research/evaluation/ module with CitationValidityEvaluator class that uses validators.CitationValidator.
+
+**Acceptance Criteria**:
+- [ ] Directory src/autopack/research/evaluation/ exists
+- [ ] File citation_validator.py created with CitationValidityEvaluator
+- [ ] Imports validators.CitationValidator successfully
+- [ ] evaluate_summary() method implemented (tracks valid/invalid counts, failure reasons)
+- [ ] Returns structured results: total, valid, invalid, validity_percentage, failure_breakdown
+
+**Dependencies**: Task R1 (github_gatherer must exist)
+**Estimated Tokens**: 6,000
+**Status**: QUEUED (blocked by R1)
+**Previous Attempt**: Builder succeeded but Quality Gate blocked (pytest exit code 2 due to R1 failure cascade)
+
+### Task R3: Run Phase 1 Evaluation
+**Phase ID**: `run_phase1_evaluation_v2`
 **Category**: test
 **Complexity**: low
-**Description**: Run Phase 0 evaluation script to measure citation validity after Phase 1 fix.
+**Description**: Execute evaluation script to measure citation validity after Phase 1 fix. Test on 3-5 sample repositories.
 
 **Acceptance Criteria**:
-- [ ] Evaluation completes for 5 test topics
+- [ ] Evaluation script runs successfully
+- [ ] 3-5 repositories tested (GitHub search for "machine learning" or similar)
 - [ ] Citation validity measured and documented
-- [ ] If ≥80%, mark SUCCESS and STOP
-- [ ] If <80%, proceed to Phase 2
+- [ ] Results saved to .autonomous_runs/research-citation-fix/phase1_evaluation_results.json
+- [ ] Comparison to 59.3% baseline included
+- [ ] Decision: If ≥80%, mark SUCCESS. If <80%, proceed to R4.
 
-**Dependencies**: `research-phase1-relax-numeric`
-**Estimated Tokens**: 3,000
-**Status**: QUEUED (blocked by R2)
+**Dependencies**: Tasks R1, R2
+**Estimated Tokens**: 5,000
+**Expected Impact**: Citation validity: 59.3% → 74-79%
+**Status**: QUEUED (blocked by R1, R2)
 
-### Task R4: Apply Phase 2 - Enhanced Text Normalization (Conditional)
-**Phase ID**: `research-phase2-normalization`
+### Task R4: Enhanced Text Normalization (CONDITIONAL)
+**Phase ID**: `phase2_enhanced_normalization_v2`
 **Category**: feature
 **Complexity**: medium
-**Description**: IF Phase 1 evaluation shows <80% validity, integrate text_normalization.normalize_text() into validators.py to handle HTML entities, Unicode variations, and markdown artifacts.
+**Description**: IF Task R3 evaluation shows <80% validity, integrate text_normalization.normalize_text() into validators.py _normalize_text() method.
 
 **Acceptance Criteria**:
+- [ ] CONDITIONAL: Execute only if R3 shows <80%
 - [ ] validators.py imports from autopack.text_normalization
-- [ ] _normalize_text() method updated with enhanced normalization
-- [ ] Handles HTML entities (html.unescape)
-- [ ] Handles Unicode normalization (NFKC)
-- [ ] All tests pass
+- [ ] _normalize_text() uses normalize_text(text, strip_markdown=True)
+- [ ] HTML entity handling verified
+- [ ] Unicode normalization verified
+- [ ] Markdown artifact stripping verified
+- [ ] All tests pass (20/20 in test_research_validators.py)
 
-**Dependencies**: `research-eval-after-phase1`
-**Estimated Tokens**: 10,000
-**Expected Impact**: +5-10% citation validity
-**Status**: CONDITIONAL (execute only if R3 shows <80%)
+**Dependencies**: Task R3 results
+**Estimated Tokens**: 6,000
+**Expected Impact**: +5-10% citation validity (74-79% → 79-89%)
+**Status**: CONDITIONAL
+
+### Task R5: Final Evaluation (CONDITIONAL)
+**Phase ID**: `run_phase2_evaluation_v2`
+**Category**: test
+**Complexity**: low
+**Description**: IF Task R4 was applied, re-run evaluation to measure final citation validity.
+
+**Acceptance Criteria**:
+- [ ] CONDITIONAL: Execute only if R4 was applied
+- [ ] Evaluation runs successfully on same test repositories
+- [ ] Final citation validity measured
+- [ ] Results compared to Phase 0 (59.3%) and Phase 1 baselines
+- [ ] Decision documented: SUCCESS (≥80%) or needs Phase 3
+
+**Dependencies**: Task R4
+**Estimated Tokens**: 3,000
+**Expected Impact**: Final validation of ≥80% target
+**Status**: CONDITIONAL
+
+### Infrastructure Fixes Completed
+**BUILD-039** (2025-12-16T18:45) - JSON Repair for Structured Edit Mode
+- ✅ Added JsonRepairHelper to structured_edit mode parser
+- ✅ Enables autonomous recovery from malformed JSON
+- ✅ Addresses 7 out of 12 failures from first restoration run
+- ✅ Completes auto-recovery pipeline: BUILD-037 → BUILD-038 → BUILD-039
+- **Impact**: Next restoration run should succeed with JSON repair active
 
 ---
 

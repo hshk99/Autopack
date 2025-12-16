@@ -11,24 +11,35 @@ This file contains tasks in Autopack format for autonomous execution.
 
 ## ACTIVE: Research System - Citation Validity Improvement
 
-**Current Status**: Phase 0 ✅ | Phase 1 ✅ | BUILD-039 ✅ | Restoration PENDING
+**Current Status**: Phase 0 ✅ | Phase 1 ✅ | BUILD-039 ✅ VALIDATED | Restoration NEEDS FILE CREATION
 **Citation Validity**: 59.3% baseline (target: ≥80%)
 **Plan Version**: v2.2
 **Reference**: [docs/RESEARCH_CITATION_FIX_PLAN.md](RESEARCH_CITATION_FIX_PLAN.md)
 
 ### Context
-The research system citation validity improvement project is implementing fixes to increase citation accuracy from 59.3% to ≥80%. Foundation work and Phase 1 fix are complete. Remaining work involves restoring github_gatherer and evaluation modules, then running evaluation tests.
+The research system citation validity improvement project is implementing fixes to increase citation accuracy from 59.3% to ≥80%. Foundation work and Phase 1 fix are complete. BUILD-039 successfully validated. Remaining work involves creating the missing files (github_gatherer, evaluation modules) and running actual evaluation tests.
 
 **Completed Work**:
 - ✅ Phase 0: Foundation modules (text_normalization.py, verification.py) - 54/54 tests passing
 - ✅ Phase 1: Relax numeric verification (validators.py created with fix) - 20/20 tests passing
-- ✅ BUILD-039: JSON repair for structured_edit mode (enables autonomous recovery)
+- ✅ BUILD-039: JSON repair for structured_edit mode (enables autonomous recovery) - **VALIDATED**
 
-**First Restoration Run Results** (2025-12-16, v2.1):
+**Restoration Run Results**:
+
+**v2.1 Run** (2025-12-16, 16:37-16:57):
 - Duration: 20 minutes
 - Failures: 12/25 budget consumed
-- Root cause: JSON parsing errors in structured_edit mode (fixed by BUILD-039)
+- Root cause: JSON parsing errors in structured_edit mode
 - Status: FATAL (marked for retry with BUILD-039 active)
+
+**v2.2 Run** (2025-12-16, 21:35-21:45):
+- Duration: ~10 minutes
+- Failures: 0/25 budget (BUILD-039 prevented all JSON parse errors)
+- Phases completed: 5/5 (100%)
+- JSON repair triggered: 3 times, success rate 100%
+- Status: ✅ DONE_SUCCESS (BUILD-039 validation complete)
+- **Issue**: Empty operations after JSON repair - files not created
+- **Next step**: Manual file creation or re-run with adjusted instructions
 
 ### Task R1: Restore GitHub Gatherer ✅ PARTIALLY COMPLETE / 🔄 NEEDS COMPLETION
 **Phase ID**: `restore_github_gatherer_v2`

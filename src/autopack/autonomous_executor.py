@@ -3608,10 +3608,23 @@ Just the new description that should replace the current one while preserving th
         existing_files = {}  # Final output format
         max_files = 40  # Increased limit to accommodate recently modified files
 
+        # BUILD-043: Token-aware context loading
+        # Target: Keep input context under 20K tokens to leave room for output
+        TARGET_INPUT_TOKENS = 20000
+        current_token_estimate = 0
+
+        def _estimate_file_tokens(content: str) -> int:
+            """Estimate token count for file content (~4 chars per token)"""
+            return len(content) // 4
+
         def _load_file(filepath: Path) -> bool:
             """Load a single file if not already loaded. Returns True if loaded."""
+            nonlocal current_token_estimate
+
             if len(existing_files) >= max_files:
                 return False
+
+            # BUILD-043: Check token budget before loading
             rel_path = str(filepath.relative_to(workspace))
             if rel_path in loaded_paths:
                 return False
@@ -3619,10 +3632,20 @@ Just the new description that should replace the current one while preserving th
                 return False
             if "__pycache__" in rel_path or ".pyc" in rel_path:
                 return False
+
             try:
                 content = filepath.read_text(encoding='utf-8', errors='ignore')
-                existing_files[rel_path] = content[:15000]  # Increased limit for important files
+                content_trimmed = content[:15000]  # Increased limit for important files
+
+                # BUILD-043: Check if adding this file would exceed token budget
+                file_tokens = _estimate_file_tokens(content_trimmed)
+                if current_token_estimate + file_tokens > TARGET_INPUT_TOKENS:
+                    logger.debug(f"[Context] Skipping {rel_path} - would exceed token budget ({current_token_estimate + file_tokens} > {TARGET_INPUT_TOKENS})")
+                    return False
+
+                existing_files[rel_path] = content_trimmed
                 loaded_paths.add(rel_path)
+                current_token_estimate += file_tokens
                 return True
             except Exception as e:
                 logger.warning(f"Failed to read {filepath}: {e}")
@@ -3737,8 +3760,11 @@ Just the new description that should replace the current one while preserving th
                     break
                 _load_file(py_file)
 
+        # BUILD-043: Log token budget usage
         logger.info(f"[Context] Total: {len(existing_files)} files loaded for Builder context "
                    f"(modified={modified_count}, mentioned={mentioned_count})")
+        logger.info(f"[TOKEN_BUDGET] Context loading: ~{current_token_estimate} tokens "
+                   f"({current_token_estimate * 100 // TARGET_INPUT_TOKENS}% of {TARGET_INPUT_TOKENS} budget)")
 
         return {"existing_files": existing_files}
 

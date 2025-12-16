@@ -244,11 +244,31 @@ class AnthropicBuilderClient:
             # Explicit override: honor builder_mode=structured_edit from phase spec
             if phase_spec.get("builder_mode") == "structured_edit":
                 use_structured_edit = True
-            
-            # Build system prompt (with mode selection per GPT_RESPONSE10)
+
+            # BUILD-043: Hybrid mode optimization - use full_file for multi-file creation
+            # Structured edit JSON overhead (~500-1000 tokens) wastes budget for simple tasks
+            if use_structured_edit:
+                phase_name = phase_spec.get("name", "").lower()
+                phase_desc = phase_spec.get("description", "").lower()
+
+                # Detect multi-file creation phases (country templates, feature scaffolding, etc.)
+                creates_multiple_files = (
+                    "template" in phase_name or
+                    "multiple files" in phase_desc or
+                    "create" in phase_desc and ("files" in phase_desc or "modules" in phase_desc)
+                )
+
+                if creates_multiple_files:
+                    # Override to full_file mode for better token efficiency
+                    use_full_file_mode_flag = True
+                    use_structured_edit = False
+                    logger.info(f"[Builder] Using full_file mode for multi-file creation phase (BUILD-043 optimization)")
+
+            # BUILD-043: Build context-aware system prompt (trim for simple phases)
             system_prompt = self._build_system_prompt(
                 use_full_file_mode=use_full_file_mode_flag,
-                use_structured_edit=use_structured_edit
+                use_structured_edit=use_structured_edit,
+                phase_spec=phase_spec  # Pass phase info for context-aware prompts
             )
 
             # Build user prompt (includes full file content for full-file mode or line numbers for structured edit)
@@ -386,11 +406,28 @@ class AnthropicBuilderClient:
                 # Get final message for token usage
                 response = stream.get_final_message()
 
+            # BUILD-043: Comprehensive token budget logging
+            actual_input_tokens = response.usage.input_tokens
+            actual_output_tokens = response.usage.output_tokens
+            total_tokens_used = actual_input_tokens + actual_output_tokens
+            output_utilization = (actual_output_tokens / max_tokens * 100) if max_tokens else 0
+
+            logger.info(
+                f"[TOKEN_BUDGET] phase={phase_id} complexity={complexity} "
+                f"input={actual_input_tokens} output={actual_output_tokens}/{max_tokens} "
+                f"total={total_tokens_used} utilization={output_utilization:.1f}% "
+                f"model={model}"
+            )
+
             # Track truncation (stop_reason from Anthropic API)
             stop_reason = getattr(response, 'stop_reason', None)
             was_truncated = (stop_reason == 'max_tokens')
             if was_truncated:
                 logger.warning(f"[Builder] Output was truncated (stop_reason=max_tokens)")
+                logger.warning(
+                    f"[TOKEN_BUDGET] TRUNCATION: phase={phase_id} used {actual_output_tokens}/{max_tokens} tokens "
+                    f"(100% utilization) - consider increasing max_tokens for this complexity level"
+                )
 
             format_error_codes = {
                 "full_file_parse_failed_diff_detected",
@@ -1784,14 +1821,29 @@ class AnthropicBuilderClient:
                 error=str(e)
             )
 
-    def _build_system_prompt(self, use_full_file_mode: bool = True, use_structured_edit: bool = False) -> str:
+    def _build_system_prompt(
+        self,
+        use_full_file_mode: bool = True,
+        use_structured_edit: bool = False,
+        phase_spec: Optional[Dict] = None
+    ) -> str:
         """Build system prompt for Claude Builder
-        
+
         Args:
             use_full_file_mode: If True, use new full-file replacement format (GPT_RESPONSE10).
                                If False, use legacy git diff format (deprecated).
             use_structured_edit: If True, use structured edit mode for large files (Stage 2).
+            phase_spec: Phase specification for context-aware prompt optimization (BUILD-043).
         """
+        # BUILD-043: Use minimal prompt for simple phases to save tokens
+        if phase_spec:
+            complexity = phase_spec.get("complexity", "medium")
+            task_category = phase_spec.get("task_category", "")
+
+            # Simple file creation phases don't need complex instructions
+            if complexity == "low" and task_category in ("feature", "bugfix"):
+                return self._build_minimal_system_prompt(use_structured_edit)
+
         if use_structured_edit:
             # NEW: Structured edit mode for large files (Stage 2) - per IMPLEMENTATION_PLAN3.md Phase 2.1
             base_prompt = """You are a code modification assistant. Generate targeted edit operations for large files.
@@ -1954,6 +2006,61 @@ Requirements:
             pass
 
         return base_prompt
+
+    def _build_minimal_system_prompt(self, use_structured_edit: bool = False) -> str:
+        """Build minimal system prompt for simple phases (BUILD-043)
+
+        Trimmed version saves ~3K tokens for low-complexity tasks.
+
+        Args:
+            use_structured_edit: If True, use structured edit JSON format.
+
+        Returns:
+            Minimal system prompt optimized for token efficiency.
+        """
+        if use_structured_edit:
+            return """You are a code modification assistant. Generate structured JSON edit operations.
+
+Output format:
+{
+  "summary": "Brief description",
+  "operations": [
+    {
+      "type": "insert|replace|delete|append|prepend",
+      "file_path": "path/to/file",
+      "line": 100,  // for insert
+      "start_line": 50, "end_line": 55,  // for replace/delete
+      "content": "code here\\n"  // for insert/replace/append/prepend
+    }
+  ]
+}
+
+Rules:
+- Line numbers are 1-indexed
+- Use targeted, minimal changes
+- Do NOT output full file contents
+- Include \\n in content where needed
+"""
+        else:
+            return """You are a code modification assistant. Generate git diff format patches.
+
+Rules:
+- Use standard git diff format
+- Start with 'diff --git a/path b/path'
+- Include proper @@ hunk headers
+- Use +/- for added/removed lines
+- Context lines have no prefix
+- Be precise and complete
+
+Example:
+diff --git a/src/example.py b/src/example.py
+index abc123..def456 100644
+--- a/src/example.py
++++ b/src/example.py
+@@ -10,3 +10,4 @@ def example():
+     print("existing")
++    print("new line")
+"""
 
     def _build_user_prompt(
         self,

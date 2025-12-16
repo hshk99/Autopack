@@ -2818,17 +2818,20 @@ Just the new description that should replace the current one while preserving th
             )
 
             # Auto-fallback: if full-file output failed due to truncation/parse, retry with structured edits
+            # Also fallback when Builder returns wrong format (JSON when expecting git diff, or vice versa)
             retry_parse_markers = [
                 "full_file_parse_failed",
                 "expected json with 'files' array",
                 "full-file json parse failed",
                 "output was truncated",
                 "stop_reason=max_tokens",
+                "no git diff markers found",  # Builder returned JSON when git diff expected
+                "output must start with 'diff --git'",  # Same issue, different phrasing
             ]
             error_text_lower = (builder_result.error or "").lower() if builder_result.error else ""
+            # Remove use_full_file_mode requirement - format mismatches can happen with any mode
             should_retry_structured = (
                 not builder_result.success
-                and use_full_file_mode
                 and any(m in error_text_lower for m in retry_parse_markers)
             )
             if should_retry_structured:

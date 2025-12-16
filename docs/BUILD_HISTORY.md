@@ -12,7 +12,8 @@ Sources: CONSOLIDATED files, archive/
 
 | Timestamp | BUILD-ID | Phase | Summary | Files Changed |
 |-----------|----------|-------|---------|---------------|
-| 2025-12-16 | BUILD-037 | N/A | Builder Truncation Auto-Recovery Fix | 1 |
+| 2025-12-16 | BUILD-038 | N/A | Builder Format Mismatch Auto-Fallback Fix | 1 |
+| 2025-12-16 | BUILD-037 | N/A | Builder Truncation Auto-Recovery Fix | 3 |
 | 2025-12-16 | BUILD-036 | N/A | Database/API Integration Fixes + Auto-Conversion Validation | 6 |
 | 2025-12-13 | BUILD-001 | N/A | Autonomous Tidy Execution Summary |  |
 | 2025-12-13 | BUILD-002 | N/A | Autonomous Tidy Implementation - COMPLETE |  |
@@ -49,6 +50,45 @@ Sources: CONSOLIDATED files, archive/
 | 2025-11-26 | BUILD-016 | N/A | Consolidated Research Reference |  |
 
 ## BUILDS (Reverse Chronological)
+
+### BUILD-038 | 2025-12-16T15:02 | Builder Format Mismatch Auto-Fallback Fix
+**Phase ID**: N/A
+**Status**: ✅ Implemented
+**Category**: Critical Bugfix - Self-Healing Enhancement
+**Date**: 2025-12-16
+
+**Objective**: Enable Autopack to automatically recover from Builder format mismatches (JSON vs git diff)
+
+**Problem Identified**:
+During research-citation-fix run validation, Builder repeatedly returned JSON format when git diff format was expected, generating error: "LLM output invalid format - no git diff markers found. Output must start with 'diff --git'". The auto-fallback to structured_edit mode was NOT triggering, causing Autopack to exhaust all 5 attempts with the same error instead of auto-recovering.
+
+**Root Cause Analysis**:
+1. **Missing error pattern**: The error text "no git diff markers found" was not included in the `retry_parse_markers` list ([autonomous_executor.py](src/autopack/autonomous_executor.py:2822-2830))
+2. **Incorrect mode guard**: Fallback check required `use_full_file_mode=True` (line 2831), but format mismatches can occur with ANY builder_mode (scaffolding_heavy, structured_edit, etc.)
+3. **Impact**: System could not self-heal from format mismatches, only from truncation
+
+**Fix Applied** ([autonomous_executor.py](src/autopack/autonomous_executor.py:2820-2840)):
+1. Added "no git diff markers found" to `retry_parse_markers` list
+2. Added "output must start with 'diff --git'" (alternative phrasing)
+3. Removed `use_full_file_mode` requirement - format mismatches should trigger fallback regardless of mode
+4. Added explanatory comments about format mismatch handling
+
+**Impact**:
+- ✅ Autopack now auto-recovers from BOTH truncation AND format mismatches
+- ✅ When Builder returns wrong format, system automatically falls back to structured_edit
+- ✅ Self-healing works across all builder_modes, not just full_file_mode
+- ✅ Eliminates wasted attempts on repeated format errors
+
+**Expected Behavior Change**:
+Before: Builder returns JSON when git diff expected → exhausts all 5 attempts → phase FAILED
+After: Builder returns JSON when git diff expected → logs "Falling back to structured_edit after full-file parse/truncation failure" → retry succeeds
+
+**Files Modified**:
+- `src/autopack/autonomous_executor.py` (fallback markers + mode guard removal)
+
+**Post-Implementation**:
+- Commit `a34eb272`: Format mismatch fallback fix
+- Status: Ready for validation testing
 
 ### BUILD-037 | 2025-12-16T02:25 | Builder Truncation Auto-Recovery Fix
 **Phase ID**: N/A

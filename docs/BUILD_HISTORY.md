@@ -12,6 +12,7 @@ Sources: CONSOLIDATED files, archive/
 
 | Timestamp | BUILD-ID | Phase | Summary | Files Changed |
 |-----------|----------|-------|---------|---------------|
+| 2025-12-16 | BUILD-037 | N/A | Builder Truncation Auto-Recovery Fix | 1 |
 | 2025-12-16 | BUILD-036 | N/A | Database/API Integration Fixes + Auto-Conversion Validation | 6 |
 | 2025-12-13 | BUILD-001 | N/A | Autonomous Tidy Execution Summary |  |
 | 2025-12-13 | BUILD-002 | N/A | Autonomous Tidy Implementation - COMPLETE |  |
@@ -48,6 +49,52 @@ Sources: CONSOLIDATED files, archive/
 | 2025-11-26 | BUILD-016 | N/A | Consolidated Research Reference |  |
 
 ## BUILDS (Reverse Chronological)
+
+### BUILD-037 | 2025-12-16T02:25 | Builder Truncation Auto-Recovery Fix
+**Phase ID**: N/A
+**Status**: ✅ Implemented
+**Category**: Bugfix - Self-Healing Enhancement
+**Date**: 2025-12-16
+
+**Objective**: Enable Autopack to automatically recover from Builder output truncation by triggering structured_edit fallback
+
+**Problem Identified**:
+Autopack's research-citation-fix run encountered repeated Builder failures with "LLM output invalid format - no git diff markers found" accompanied by `stop_reason=max_tokens` truncation. The autonomous executor has existing fallback logic (lines 2819-2850) to retry with structured_edit mode when truncation is detected, but this recovery mechanism wasn't triggering.
+
+**Root Cause**:
+Builder parsers detected truncation (`was_truncated=True` at line 381-383) but error returns didn't include truncation info in the error message or BuilderResult fields. The executor's fallback check looks for `"stop_reason=max_tokens"` in the error text (line 2825), but parsers only returned generic format errors.
+
+**Fix Applied** ([anthropic_clients.py](src/autopack/anthropic_clients.py)):
+
+1. **Legacy Diff Parser** (lines 1490-1519):
+   - Added truncation marker to error message when `was_truncated=True`
+   - Included `stop_reason` and `was_truncated` fields in BuilderResult
+   - Both success and error paths now propagate truncation info
+
+2. **Full-File Parser** (lines 911-970):
+   - Added truncation marker to 3 error return points
+   - Included `stop_reason` and `was_truncated` in all error BuilderResults
+   - Success path already correct (line 1193-1201)
+
+3. **Structured Edit Parser** (lines 1570-1675):
+   - Added truncation marker to JSON parse error
+   - Included `stop_reason` and `was_truncated` in both success and error returns
+
+**Impact**:
+- ✅ When Builder hits max_tokens and generates invalid format, error message now includes "(stop_reason=max_tokens)"
+- ✅ Autonomous executor's existing fallback logic (line 2825 check) will now trigger
+- ✅ System will automatically retry with structured_edit mode instead of exhausting all attempts
+- ✅ Self-healing capability restored - Autopack navigates truncation errors autonomously
+
+**Expected Behavior Change**:
+Before: Phase fails after 5 attempts with same truncation error
+After: Phase detects truncation, falls back to structured_edit automatically, succeeds
+
+**Files Modified**:
+- `src/autopack/anthropic_clients.py` (BuilderResult truncation propagation in 3 parsers)
+
+**Testing Plan**:
+Re-run research-citation-fix plan to verify truncation recovery triggers structured_edit fallback
 
 ### BUILD-036 | 2025-12-16T02:00 | Database/API Integration Fixes + Auto-Conversion Validation
 **Phase ID**: N/A

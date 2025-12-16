@@ -1,79 +1,676 @@
 {
   "rules": [
     {
-      "id": "AUTOPACK-PLAN-AUTOCONVERT",
-      "category": "automation",
-      "severity": "info",
-      "title": "Plan Format Auto-Conversion Support (FULLY AUTOMATIC)",
-      "description": "Autopack AUTOMATICALLY detects and converts plan files from multiple formats when autonomous_executor starts. Just drop a plan file and run - NO manual conversion needed!",
-      "rationale": "Completely eliminates manual conversion work. Autopack handles JSON, legacy JSON, and markdown formats transparently.",
-      "learned_from": "BUILD-036 - Database/API integration fixes (2025-12-16)",
-      "date_added": "2025-12-15",
-      "date_updated": "2025-12-16",
-      "applies_to": [
-        "autonomous_executor.py startup",
-        "API endpoint /runs/{run_id}/start_from_plan"
+      "rule_id": "feature.rule_dee10caf",
+      "task_category": "feature",
+      "scope_pattern": null,
+      "constraint": "Phase 'Relax numeric verification to only check extraction_span, not LLM's paraphrased content' was rejected by auditor - ensure code quality and completeness. Details: LLM output invalid format - no git diff markers found. Output must start with 'diff --git'",
+      "source_hint_ids": [
+        "research-citation-fix:phase_1_relax_numeric_verification"
       ],
-      "action": "Just run: python src/autopack/autonomous_executor.py --run-id <run-id>. Autopack will auto-detect plan format (autopack_phase_plan.json, phase_spec.json, or IMPLEMENTATION_PLAN.md), auto-convert if needed, create DB entry via API, and start executing. Global plan is at .autonomous_runs/autopack/autopack_phase_plan.json",
-      "example": "# Just run Autopack - it handles everything automatically\npython src/autopack/autonomous_executor.py --run-id research-citation-fix\n# Autopack will find .autonomous_runs/research-citation-fix/autopack_phase_plan.json (or other formats) and execute"
+      "promotion_count": 1,
+      "first_seen": "2025-12-16T02:02:55.470938+00:00",
+      "last_seen": "2025-12-16T02:23:40.771537+00:00",
+      "status": "active",
+      "stage": "new"
     },
     {
-      "id": "AUTOPACK-API-SUBPROCESS-ENV",
-      "category": "bugfix",
-      "severity": "critical",
-      "title": "API Server Subprocess Must Inherit Environment Variables",
-      "description": "When autonomous_executor starts the API server as a subprocess, it must pass environment variables (DATABASE_URL, QDRANT_HOST, etc.) or the API will use wrong database",
-      "rationale": "subprocess.Popen without env parameter creates a minimal environment, causing API server to use default settings instead of PostgreSQL",
-      "learned_from": "BUILD-036 - API server was connecting to SQLite instead of PostgreSQL (2025-12-16)",
-      "date_added": "2025-12-16",
-      "applies_to": [
-        "autonomous_executor.py _ensure_api_server_running()"
+      "rule_id": "feature.rule_5446b611",
+      "task_category": "feature",
+      "scope_pattern": null,
+      "constraint": "Phase 'Relax numeric verification to only check extraction_span, not LLM's paraphrased content' was rejected by auditor - ensure code quality and completeness. Details: Failed with FAILED on attempt 1",
+      "source_hint_ids": [
+        "research-citation-fix:phase_1_relax_numeric_verification"
       ],
-      "action": "Always include env=os.environ.copy() in subprocess.Popen calls when starting the API server"
+      "promotion_count": 1,
+      "first_seen": "2025-12-16T02:02:55.589859+00:00",
+      "last_seen": "2025-12-16T02:23:40.771537+00:00",
+      "status": "active",
+      "stage": "new"
     },
     {
-      "id": "AUTOPACK-POSTGRES-SCHEMA-SYNC",
-      "category": "database",
-      "severity": "critical",
-      "title": "PostgreSQL Schema Must Match SQLAlchemy Models",
-      "description": "When models.py is updated with new columns, PostgreSQL schema must be updated manually (no auto-migration)",
-      "rationale": "SQLAlchemy doesn't auto-migrate existing databases, causing runtime errors when queries reference new columns",
-      "learned_from": "BUILD-036 - Missing goal_anchor column caused 500 errors (2025-12-16)",
-      "date_added": "2025-12-16",
-      "applies_to": [
-        "models.py changes",
-        "PostgreSQL database"
+      "rule_id": "feature.rule_d00d400c",
+      "task_category": "feature",
+      "scope_pattern": null,
+      "constraint": "Phase 'Relax numeric verification to only check extraction_span, not LLM's paraphrased content' generated invalid patch - ensure proper diff format. Details: Failed with PATCH_FAILED on attempt 2",
+      "source_hint_ids": [
+        "research-citation-fix:phase_1_relax_numeric_verification"
       ],
-      "action": "After adding columns to models.py, run ALTER TABLE commands on PostgreSQL: docker exec autopack-db-1 psql -U autopack -d autopack -c 'ALTER TABLE <table> ADD COLUMN IF NOT EXISTS <column> <type>;'"
+      "promotion_count": 1,
+      "first_seen": "2025-12-16T02:03:54.281649+00:00",
+      "last_seen": "2025-12-16T02:23:40.771537+00:00",
+      "status": "active",
+      "stage": "new"
     },
     {
-      "id": "AUTOPACK-API-ID-COLUMNS",
-      "category": "database",
-      "severity": "critical",
-      "title": "Use Correct ID Columns for Tier/Phase Creation",
-      "description": "Tier and Phase models have TWO id fields: auto-increment 'id' (integer PK) and human-readable 'tier_id'/'phase_id' (string). API endpoints must use the correct ones.",
-      "rationale": "PostgreSQL has integer auto-increment PKs, while string IDs are for human reference. Setting 'id' directly causes type errors.",
-      "learned_from": "BUILD-036 - TypeError when creating tiers with string IDs (2025-12-16)",
-      "date_added": "2025-12-16",
-      "applies_to": [
-        "main.py API endpoints",
-        "Tier and Phase model creation"
+      "rule_id": "test.rule_6a479daf",
+      "task_category": "test",
+      "scope_pattern": null,
+      "constraint": "Phase 'Run Phase 0 evaluation to measure citation validity after Phase 1 fix' was rejected by auditor - ensure code quality and completeness. Details: LLM output invalid format - no git diff markers found. Output must start with 'diff --git'",
+      "source_hint_ids": [
+        "research-citation-fix:phase_2_run_evaluation_after_phase1"
       ],
-      "action": "Use tier_id/phase_id for string identifiers, let 'id' auto-increment. Call db.flush() after tier creation to get auto-generated tier.id before creating phases."
+      "promotion_count": 1,
+      "first_seen": "2025-12-16T02:05:15.728420+00:00",
+      "last_seen": "2025-12-16T02:23:40.771537+00:00",
+      "status": "active",
+      "stage": "new"
     },
     {
-      "id": "AUTOPACK-INSTANCE-VAR-INIT",
-      "category": "bugfix",
-      "severity": "medium",
-      "title": "Initialize All Instance Variables in __init__",
-      "description": "Instance variables accessed in main execution path must be initialized in __init__, not in conditional branches",
-      "rationale": "Variables initialized only in conditional paths (like backlog maintenance) cause AttributeError when accessed in regular execution",
-      "learned_from": "BUILD-036 - _rules_marker_path AttributeError (2025-12-16)",
-      "date_added": "2025-12-16",
-      "applies_to": [
-        "autonomous_executor.py __init__"
+      "rule_id": "test.rule_b50e5fc3",
+      "task_category": "test",
+      "scope_pattern": null,
+      "constraint": "Phase 'Run Phase 0 evaluation to measure citation validity after Phase 1 fix' was rejected by auditor - ensure code quality and completeness. Details: Failed with FAILED on attempt 1",
+      "source_hint_ids": [
+        "research-citation-fix:phase_2_run_evaluation_after_phase1"
       ],
-      "action": "Initialize all instance variables to None in __init__, even if they're set later in conditional paths"
+      "promotion_count": 1,
+      "first_seen": "2025-12-16T02:05:15.826470+00:00",
+      "last_seen": "2025-12-16T02:23:40.771537+00:00",
+      "status": "active",
+      "stage": "new"
+    },
+    {
+      "rule_id": "test.rule_6a479daf",
+      "task_category": "test",
+      "scope_pattern": null,
+      "constraint": "Phase 'Run Phase 0 evaluation to measure citation validity after Phase 1 fix' was rejected by auditor - ensure code quality and completeness. Details: LLM output invalid format - no git diff markers found. Output must start with 'diff --git'",
+      "source_hint_ids": [
+        "research-citation-fix:phase_2_run_evaluation_after_phase1"
+      ],
+      "promotion_count": 1,
+      "first_seen": "2025-12-16T02:05:35.436180+00:00",
+      "last_seen": "2025-12-16T02:23:40.771537+00:00",
+      "status": "active",
+      "stage": "new"
+    },
+    {
+      "rule_id": "test.rule_d3dc5961",
+      "task_category": "test",
+      "scope_pattern": null,
+      "constraint": "Phase 'Run Phase 0 evaluation to measure citation validity after Phase 1 fix' was rejected by auditor - ensure code quality and completeness. Details: Failed with FAILED on attempt 2",
+      "source_hint_ids": [
+        "research-citation-fix:phase_2_run_evaluation_after_phase1"
+      ],
+      "promotion_count": 1,
+      "first_seen": "2025-12-16T02:05:41.538426+00:00",
+      "last_seen": "2025-12-16T02:23:40.771537+00:00",
+      "status": "active",
+      "stage": "new"
+    },
+    {
+      "rule_id": "test.rule_6a479daf",
+      "task_category": "test",
+      "scope_pattern": null,
+      "constraint": "Phase 'Run Phase 0 evaluation to measure citation validity after Phase 1 fix' was rejected by auditor - ensure code quality and completeness. Details: LLM output invalid format - no git diff markers found. Output must start with 'diff --git'",
+      "source_hint_ids": [
+        "research-citation-fix:phase_2_run_evaluation_after_phase1"
+      ],
+      "promotion_count": 1,
+      "first_seen": "2025-12-16T02:06:28.912225+00:00",
+      "last_seen": "2025-12-16T02:23:40.771537+00:00",
+      "status": "active",
+      "stage": "new"
+    },
+    {
+      "rule_id": "test.rule_b50e5fc3",
+      "task_category": "test",
+      "scope_pattern": null,
+      "constraint": "Phase 'Run Phase 0 evaluation to measure citation validity after Phase 1 fix' was rejected by auditor - ensure code quality and completeness. Details: Failed with FAILED on attempt 1",
+      "source_hint_ids": [
+        "research-citation-fix:phase_2_run_evaluation_after_phase1"
+      ],
+      "promotion_count": 1,
+      "first_seen": "2025-12-16T02:06:28.982883+00:00",
+      "last_seen": "2025-12-16T02:23:40.771537+00:00",
+      "status": "active",
+      "stage": "new"
+    },
+    {
+      "rule_id": "test.rule_6a479daf",
+      "task_category": "test",
+      "scope_pattern": null,
+      "constraint": "Phase 'Run Phase 0 evaluation to measure citation validity after Phase 1 fix' was rejected by auditor - ensure code quality and completeness. Details: LLM output invalid format - no git diff markers found. Output must start with 'diff --git'",
+      "source_hint_ids": [
+        "research-citation-fix:phase_2_run_evaluation_after_phase1"
+      ],
+      "promotion_count": 1,
+      "first_seen": "2025-12-16T02:06:47.370437+00:00",
+      "last_seen": "2025-12-16T02:23:40.771537+00:00",
+      "status": "active",
+      "stage": "new"
+    },
+    {
+      "rule_id": "test.rule_d3dc5961",
+      "task_category": "test",
+      "scope_pattern": null,
+      "constraint": "Phase 'Run Phase 0 evaluation to measure citation validity after Phase 1 fix' was rejected by auditor - ensure code quality and completeness. Details: Failed with FAILED on attempt 2",
+      "source_hint_ids": [
+        "research-citation-fix:phase_2_run_evaluation_after_phase1"
+      ],
+      "promotion_count": 1,
+      "first_seen": "2025-12-16T02:06:47.458334+00:00",
+      "last_seen": "2025-12-16T02:23:40.771537+00:00",
+      "status": "active",
+      "stage": "new"
+    },
+    {
+      "rule_id": "test.rule_6a479daf",
+      "task_category": "test",
+      "scope_pattern": null,
+      "constraint": "Phase 'Run Phase 0 evaluation to measure citation validity after Phase 1 fix' was rejected by auditor - ensure code quality and completeness. Details: LLM output invalid format - no git diff markers found. Output must start with 'diff --git'",
+      "source_hint_ids": [
+        "research-citation-fix:phase_2_run_evaluation_after_phase1"
+      ],
+      "promotion_count": 1,
+      "first_seen": "2025-12-16T02:07:51.453938+00:00",
+      "last_seen": "2025-12-16T02:23:40.771537+00:00",
+      "status": "active",
+      "stage": "new"
+    },
+    {
+      "rule_id": "test.rule_dc2ee5db",
+      "task_category": "test",
+      "scope_pattern": null,
+      "constraint": "Phase 'Run Phase 0 evaluation to measure citation validity after Phase 1 fix' was rejected by auditor - ensure code quality and completeness. Details: Failed with FAILED on attempt 3",
+      "source_hint_ids": [
+        "research-citation-fix:phase_2_run_evaluation_after_phase1"
+      ],
+      "promotion_count": 1,
+      "first_seen": "2025-12-16T02:07:51.549262+00:00",
+      "last_seen": "2025-12-16T02:23:40.771537+00:00",
+      "status": "active",
+      "stage": "new"
+    },
+    {
+      "rule_id": "test.rule_6a479daf",
+      "task_category": "test",
+      "scope_pattern": null,
+      "constraint": "Phase 'Run Phase 0 evaluation to measure citation validity after Phase 1 fix' was rejected by auditor - ensure code quality and completeness. Details: LLM output invalid format - no git diff markers found. Output must start with 'diff --git'",
+      "source_hint_ids": [
+        "research-citation-fix:phase_2_run_evaluation_after_phase1"
+      ],
+      "promotion_count": 1,
+      "first_seen": "2025-12-16T02:08:00.160339+00:00",
+      "last_seen": "2025-12-16T02:23:40.771537+00:00",
+      "status": "active",
+      "stage": "new"
+    },
+    {
+      "rule_id": "test.rule_4a46704f",
+      "task_category": "test",
+      "scope_pattern": null,
+      "constraint": "Phase 'Run Phase 0 evaluation to measure citation validity after Phase 1 fix' was rejected by auditor - ensure code quality and completeness. Details: Failed with FAILED on attempt 4",
+      "source_hint_ids": [
+        "research-citation-fix:phase_2_run_evaluation_after_phase1"
+      ],
+      "promotion_count": 1,
+      "first_seen": "2025-12-16T02:08:00.266690+00:00",
+      "last_seen": "2025-12-16T02:23:40.771537+00:00",
+      "status": "active",
+      "stage": "new"
+    },
+    {
+      "rule_id": "test.rule_6a479daf",
+      "task_category": "test",
+      "scope_pattern": null,
+      "constraint": "Phase 'Run Phase 0 evaluation to measure citation validity after Phase 1 fix' was rejected by auditor - ensure code quality and completeness. Details: LLM output invalid format - no git diff markers found. Output must start with 'diff --git'",
+      "source_hint_ids": [
+        "research-citation-fix:phase_2_run_evaluation_after_phase1"
+      ],
+      "promotion_count": 1,
+      "first_seen": "2025-12-16T02:09:21.420925+00:00",
+      "last_seen": "2025-12-16T02:23:40.771537+00:00",
+      "status": "active",
+      "stage": "new"
+    },
+    {
+      "rule_id": "test.rule_a021ef07",
+      "task_category": "test",
+      "scope_pattern": null,
+      "constraint": "Phase 'Run Phase 0 evaluation to measure citation validity after Phase 1 fix' was rejected by auditor - ensure code quality and completeness. Details: Failed with FAILED on attempt 5",
+      "source_hint_ids": [
+        "research-citation-fix:phase_2_run_evaluation_after_phase1"
+      ],
+      "promotion_count": 1,
+      "first_seen": "2025-12-16T02:09:21.519424+00:00",
+      "last_seen": "2025-12-16T02:23:40.771537+00:00",
+      "status": "active",
+      "stage": "new"
+    },
+    {
+      "rule_id": "feature.rule_f7a59ea4",
+      "task_category": "feature",
+      "scope_pattern": null,
+      "constraint": "Phase 'Enhance text normalization to handle HTML entities, Unicode, and markdown artifacts' was rejected by auditor - ensure code quality and completeness. Details: LLM output invalid format - no git diff markers found. Output must start with 'diff --git'",
+      "source_hint_ids": [
+        "research-citation-fix:phase_3_enhanced_normalization"
+      ],
+      "promotion_count": 1,
+      "first_seen": "2025-12-16T02:10:19.392838+00:00",
+      "last_seen": "2025-12-16T02:23:40.771537+00:00",
+      "status": "active",
+      "stage": "new"
+    },
+    {
+      "rule_id": "feature.rule_27af912f",
+      "task_category": "feature",
+      "scope_pattern": null,
+      "constraint": "Phase 'Enhance text normalization to handle HTML entities, Unicode, and markdown artifacts' was rejected by auditor - ensure code quality and completeness. Details: Failed with FAILED on attempt 1",
+      "source_hint_ids": [
+        "research-citation-fix:phase_3_enhanced_normalization"
+      ],
+      "promotion_count": 1,
+      "first_seen": "2025-12-16T02:10:19.449250+00:00",
+      "last_seen": "2025-12-16T02:23:40.771537+00:00",
+      "status": "active",
+      "stage": "new"
+    },
+    {
+      "rule_id": "feature.rule_afc2bb59",
+      "task_category": "feature",
+      "scope_pattern": null,
+      "constraint": "Phase 'Enhance text normalization to handle HTML entities, Unicode, and markdown artifacts' generated invalid patch - ensure proper diff format. Details: Failed with PATCH_FAILED on attempt 2",
+      "source_hint_ids": [
+        "research-citation-fix:phase_3_enhanced_normalization"
+      ],
+      "promotion_count": 1,
+      "first_seen": "2025-12-16T02:11:03.666833+00:00",
+      "last_seen": "2025-12-16T02:23:40.771537+00:00",
+      "status": "active",
+      "stage": "new"
+    },
+    {
+      "rule_id": "feature.rule_f7a59ea4",
+      "task_category": "feature",
+      "scope_pattern": null,
+      "constraint": "Phase 'Enhance text normalization to handle HTML entities, Unicode, and markdown artifacts' was rejected by auditor - ensure code quality and completeness. Details: LLM output invalid format - no git diff markers found. Output must start with 'diff --git'",
+      "source_hint_ids": [
+        "research-citation-fix:phase_3_enhanced_normalization"
+      ],
+      "promotion_count": 1,
+      "first_seen": "2025-12-16T02:12:00.573021+00:00",
+      "last_seen": "2025-12-16T02:23:40.771537+00:00",
+      "status": "active",
+      "stage": "new"
+    },
+    {
+      "rule_id": "feature.rule_f1aa465e",
+      "task_category": "feature",
+      "scope_pattern": null,
+      "constraint": "Phase 'Enhance text normalization to handle HTML entities, Unicode, and markdown artifacts' was rejected by auditor - ensure code quality and completeness. Details: Failed with FAILED on attempt 3",
+      "source_hint_ids": [
+        "research-citation-fix:phase_3_enhanced_normalization"
+      ],
+      "promotion_count": 1,
+      "first_seen": "2025-12-16T02:12:11.186508+00:00",
+      "last_seen": "2025-12-16T02:23:40.771537+00:00",
+      "status": "active",
+      "stage": "new"
+    },
+    {
+      "rule_id": "feature.rule_31c7ae47",
+      "task_category": "feature",
+      "scope_pattern": null,
+      "constraint": "Phase 'Enhance text normalization to handle HTML entities, Unicode, and markdown artifacts' generated invalid patch - ensure proper diff format. Details: Failed with PATCH_FAILED on attempt 4",
+      "source_hint_ids": [
+        "research-citation-fix:phase_3_enhanced_normalization"
+      ],
+      "promotion_count": 1,
+      "first_seen": "2025-12-16T02:12:53.511041+00:00",
+      "last_seen": "2025-12-16T02:23:40.771537+00:00",
+      "status": "active",
+      "stage": "new"
+    },
+    {
+      "rule_id": "feature.rule_b15f610c",
+      "task_category": "feature",
+      "scope_pattern": null,
+      "constraint": "Phase 'Enhance text normalization to handle HTML entities, Unicode, and markdown artifacts' generated invalid patch - ensure proper diff format. Details: Failed with PATCH_FAILED on attempt 5",
+      "source_hint_ids": [
+        "research-citation-fix:phase_3_enhanced_normalization"
+      ],
+      "promotion_count": 1,
+      "first_seen": "2025-12-16T02:13:48.682932+00:00",
+      "last_seen": "2025-12-16T02:23:40.771537+00:00",
+      "status": "active",
+      "stage": "new"
+    },
+    {
+      "rule_id": "feature.rule_f7a59ea4",
+      "task_category": "feature",
+      "scope_pattern": null,
+      "constraint": "Phase 'Enhance text normalization to handle HTML entities, Unicode, and markdown artifacts' was rejected by auditor - ensure code quality and completeness. Details: LLM output invalid format - no git diff markers found. Output must start with 'diff --git'",
+      "source_hint_ids": [
+        "research-citation-fix:phase_3_enhanced_normalization"
+      ],
+      "promotion_count": 1,
+      "first_seen": "2025-12-16T02:14:45.634555+00:00",
+      "last_seen": "2025-12-16T02:23:40.771537+00:00",
+      "status": "active",
+      "stage": "new"
+    },
+    {
+      "rule_id": "feature.rule_27af912f",
+      "task_category": "feature",
+      "scope_pattern": null,
+      "constraint": "Phase 'Enhance text normalization to handle HTML entities, Unicode, and markdown artifacts' was rejected by auditor - ensure code quality and completeness. Details: Failed with FAILED on attempt 1",
+      "source_hint_ids": [
+        "research-citation-fix:phase_3_enhanced_normalization"
+      ],
+      "promotion_count": 1,
+      "first_seen": "2025-12-16T02:14:45.734054+00:00",
+      "last_seen": "2025-12-16T02:23:40.771537+00:00",
+      "status": "active",
+      "stage": "new"
+    },
+    {
+      "rule_id": "feature.rule_f7a59ea4",
+      "task_category": "feature",
+      "scope_pattern": null,
+      "constraint": "Phase 'Enhance text normalization to handle HTML entities, Unicode, and markdown artifacts' was rejected by auditor - ensure code quality and completeness. Details: LLM output invalid format - no git diff markers found. Output must start with 'diff --git'",
+      "source_hint_ids": [
+        "research-citation-fix:phase_3_enhanced_normalization"
+      ],
+      "promotion_count": 1,
+      "first_seen": "2025-12-16T02:15:29.900473+00:00",
+      "last_seen": "2025-12-16T02:23:40.771537+00:00",
+      "status": "active",
+      "stage": "new"
+    },
+    {
+      "rule_id": "feature.rule_49ae6b2f",
+      "task_category": "feature",
+      "scope_pattern": null,
+      "constraint": "Phase 'Enhance text normalization to handle HTML entities, Unicode, and markdown artifacts' was rejected by auditor - ensure code quality and completeness. Details: Failed with FAILED on attempt 2",
+      "source_hint_ids": [
+        "research-citation-fix:phase_3_enhanced_normalization"
+      ],
+      "promotion_count": 1,
+      "first_seen": "2025-12-16T02:15:30.013147+00:00",
+      "last_seen": "2025-12-16T02:23:40.771537+00:00",
+      "status": "active",
+      "stage": "new"
+    },
+    {
+      "rule_id": "feature.rule_f7a59ea4",
+      "task_category": "feature",
+      "scope_pattern": null,
+      "constraint": "Phase 'Enhance text normalization to handle HTML entities, Unicode, and markdown artifacts' was rejected by auditor - ensure code quality and completeness. Details: LLM output invalid format - no git diff markers found. Output must start with 'diff --git'",
+      "source_hint_ids": [
+        "research-citation-fix:phase_3_enhanced_normalization"
+      ],
+      "promotion_count": 1,
+      "first_seen": "2025-12-16T02:16:19.349914+00:00",
+      "last_seen": "2025-12-16T02:23:40.771537+00:00",
+      "status": "active",
+      "stage": "new"
+    },
+    {
+      "rule_id": "feature.rule_f1aa465e",
+      "task_category": "feature",
+      "scope_pattern": null,
+      "constraint": "Phase 'Enhance text normalization to handle HTML entities, Unicode, and markdown artifacts' was rejected by auditor - ensure code quality and completeness. Details: Failed with FAILED on attempt 3",
+      "source_hint_ids": [
+        "research-citation-fix:phase_3_enhanced_normalization"
+      ],
+      "promotion_count": 1,
+      "first_seen": "2025-12-16T02:16:19.474896+00:00",
+      "last_seen": "2025-12-16T02:23:40.771537+00:00",
+      "status": "active",
+      "stage": "new"
+    },
+    {
+      "rule_id": "feature.rule_f7a59ea4",
+      "task_category": "feature",
+      "scope_pattern": null,
+      "constraint": "Phase 'Enhance text normalization to handle HTML entities, Unicode, and markdown artifacts' was rejected by auditor - ensure code quality and completeness. Details: LLM output invalid format - no git diff markers found. Output must start with 'diff --git'",
+      "source_hint_ids": [
+        "research-citation-fix:phase_3_enhanced_normalization"
+      ],
+      "promotion_count": 1,
+      "first_seen": "2025-12-16T02:17:04.283682+00:00",
+      "last_seen": "2025-12-16T02:23:40.772537+00:00",
+      "status": "active",
+      "stage": "new"
+    },
+    {
+      "rule_id": "feature.rule_b26cf530",
+      "task_category": "feature",
+      "scope_pattern": null,
+      "constraint": "Phase 'Enhance text normalization to handle HTML entities, Unicode, and markdown artifacts' was rejected by auditor - ensure code quality and completeness. Details: Failed with FAILED on attempt 4",
+      "source_hint_ids": [
+        "research-citation-fix:phase_3_enhanced_normalization"
+      ],
+      "promotion_count": 1,
+      "first_seen": "2025-12-16T02:17:04.388797+00:00",
+      "last_seen": "2025-12-16T02:23:40.772537+00:00",
+      "status": "active",
+      "stage": "new"
+    },
+    {
+      "rule_id": "feature.rule_f7a59ea4",
+      "task_category": "feature",
+      "scope_pattern": null,
+      "constraint": "Phase 'Enhance text normalization to handle HTML entities, Unicode, and markdown artifacts' was rejected by auditor - ensure code quality and completeness. Details: LLM output invalid format - no git diff markers found. Output must start with 'diff --git'",
+      "source_hint_ids": [
+        "research-citation-fix:phase_3_enhanced_normalization"
+      ],
+      "promotion_count": 1,
+      "first_seen": "2025-12-16T02:17:48.709815+00:00",
+      "last_seen": "2025-12-16T02:23:40.772537+00:00",
+      "status": "active",
+      "stage": "new"
+    },
+    {
+      "rule_id": "feature.rule_e85fd5bf",
+      "task_category": "feature",
+      "scope_pattern": null,
+      "constraint": "Phase 'Enhance text normalization to handle HTML entities, Unicode, and markdown artifacts' was rejected by auditor - ensure code quality and completeness. Details: Failed with FAILED on attempt 5",
+      "source_hint_ids": [
+        "research-citation-fix:phase_3_enhanced_normalization"
+      ],
+      "promotion_count": 1,
+      "first_seen": "2025-12-16T02:17:48.812828+00:00",
+      "last_seen": "2025-12-16T02:23:40.772537+00:00",
+      "status": "active",
+      "stage": "new"
+    },
+    {
+      "rule_id": "test.rule_25422acd",
+      "task_category": "test",
+      "scope_pattern": null,
+      "constraint": "Phase 'Run Phase 0 evaluation to measure citation validity after Phase 3 fix' was rejected by auditor - ensure code quality and completeness. Details: LLM output invalid format - no git diff markers found. Output must start with 'diff --git'",
+      "source_hint_ids": [
+        "research-citation-fix:phase_4_run_evaluation_after_phase3"
+      ],
+      "promotion_count": 1,
+      "first_seen": "2025-12-16T02:18:31.612955+00:00",
+      "last_seen": "2025-12-16T02:23:40.772537+00:00",
+      "status": "active",
+      "stage": "new"
+    },
+    {
+      "rule_id": "test.rule_fa5cafb8",
+      "task_category": "test",
+      "scope_pattern": null,
+      "constraint": "Phase 'Run Phase 0 evaluation to measure citation validity after Phase 3 fix' was rejected by auditor - ensure code quality and completeness. Details: Failed with FAILED on attempt 1",
+      "source_hint_ids": [
+        "research-citation-fix:phase_4_run_evaluation_after_phase3"
+      ],
+      "promotion_count": 1,
+      "first_seen": "2025-12-16T02:18:31.712769+00:00",
+      "last_seen": "2025-12-16T02:23:40.772537+00:00",
+      "status": "active",
+      "stage": "new"
+    },
+    {
+      "rule_id": "test.rule_2c653e84",
+      "task_category": "test",
+      "scope_pattern": null,
+      "constraint": "Phase 'Run Phase 0 evaluation to measure citation validity after Phase 3 fix' succeeded after retries - model escalation was needed. Details: Succeeded on attempt 2 after 1 failed attempts",
+      "source_hint_ids": [
+        "research-citation-fix:phase_4_run_evaluation_after_phase3"
+      ],
+      "promotion_count": 1,
+      "first_seen": "2025-12-16T02:19:06.971577+00:00",
+      "last_seen": "2025-12-16T02:23:40.772537+00:00",
+      "status": "active",
+      "stage": "new"
+    },
+    {
+      "rule_id": "feature.rule_e2649252",
+      "task_category": "feature",
+      "scope_pattern": null,
+      "constraint": "Phase 'Improve extraction prompt to emphasize character-for-character exact quoting with examples' was rejected by auditor - ensure code quality and completeness. Details: LLM output invalid format - no git diff markers found. Output must start with 'diff --git'",
+      "source_hint_ids": [
+        "research-citation-fix:phase_5_improve_extraction_prompt"
+      ],
+      "promotion_count": 1,
+      "first_seen": "2025-12-16T02:19:39.091642+00:00",
+      "last_seen": "2025-12-16T02:23:40.772537+00:00",
+      "status": "active",
+      "stage": "new"
+    },
+    {
+      "rule_id": "feature.rule_4acacb26",
+      "task_category": "feature",
+      "scope_pattern": null,
+      "constraint": "Phase 'Improve extraction prompt to emphasize character-for-character exact quoting with examples' was rejected by auditor - ensure code quality and completeness. Details: Failed with FAILED on attempt 1",
+      "source_hint_ids": [
+        "research-citation-fix:phase_5_improve_extraction_prompt"
+      ],
+      "promotion_count": 1,
+      "first_seen": "2025-12-16T02:19:39.193654+00:00",
+      "last_seen": "2025-12-16T02:23:40.772537+00:00",
+      "status": "active",
+      "stage": "new"
+    },
+    {
+      "rule_id": "feature.rule_18044136",
+      "task_category": "feature",
+      "scope_pattern": null,
+      "constraint": "Phase 'Improve extraction prompt to emphasize character-for-character exact quoting with examples' generated invalid patch - ensure proper diff format. Details: Failed with PATCH_FAILED on attempt 2",
+      "source_hint_ids": [
+        "research-citation-fix:phase_5_improve_extraction_prompt"
+      ],
+      "promotion_count": 1,
+      "first_seen": "2025-12-16T02:20:00.649472+00:00",
+      "last_seen": "2025-12-16T02:23:40.772537+00:00",
+      "status": "active",
+      "stage": "new"
+    },
+    {
+      "rule_id": "feature.rule_e2649252",
+      "task_category": "feature",
+      "scope_pattern": null,
+      "constraint": "Phase 'Improve extraction prompt to emphasize character-for-character exact quoting with examples' was rejected by auditor - ensure code quality and completeness. Details: LLM output invalid format - no git diff markers found. Output must start with 'diff --git'",
+      "source_hint_ids": [
+        "research-citation-fix:phase_5_improve_extraction_prompt"
+      ],
+      "promotion_count": 1,
+      "first_seen": "2025-12-16T02:20:23.980067+00:00",
+      "last_seen": "2025-12-16T02:23:40.772537+00:00",
+      "status": "active",
+      "stage": "new"
+    },
+    {
+      "rule_id": "feature.rule_b5410360",
+      "task_category": "feature",
+      "scope_pattern": null,
+      "constraint": "Phase 'Improve extraction prompt to emphasize character-for-character exact quoting with examples' was rejected by auditor - ensure code quality and completeness. Details: Failed with FAILED on attempt 3",
+      "source_hint_ids": [
+        "research-citation-fix:phase_5_improve_extraction_prompt"
+      ],
+      "promotion_count": 1,
+      "first_seen": "2025-12-16T02:20:30.905787+00:00",
+      "last_seen": "2025-12-16T02:23:40.772537+00:00",
+      "status": "active",
+      "stage": "new"
+    },
+    {
+      "rule_id": "feature.rule_677da1b6",
+      "task_category": "feature",
+      "scope_pattern": null,
+      "constraint": "Phase 'Improve extraction prompt to emphasize character-for-character exact quoting with examples' generated invalid patch - ensure proper diff format. Details: Failed with PATCH_FAILED on attempt 4",
+      "source_hint_ids": [
+        "research-citation-fix:phase_5_improve_extraction_prompt"
+      ],
+      "promotion_count": 1,
+      "first_seen": "2025-12-16T02:20:56.351941+00:00",
+      "last_seen": "2025-12-16T02:23:40.772537+00:00",
+      "status": "active",
+      "stage": "new"
+    },
+    {
+      "rule_id": "feature.rule_e2649252",
+      "task_category": "feature",
+      "scope_pattern": null,
+      "constraint": "Phase 'Improve extraction prompt to emphasize character-for-character exact quoting with examples' was rejected by auditor - ensure code quality and completeness. Details: LLM output invalid format - no git diff markers found. Output must start with 'diff --git'",
+      "source_hint_ids": [
+        "research-citation-fix:phase_5_improve_extraction_prompt"
+      ],
+      "promotion_count": 1,
+      "first_seen": "2025-12-16T02:21:54.007722+00:00",
+      "last_seen": "2025-12-16T02:23:40.772537+00:00",
+      "status": "active",
+      "stage": "new"
+    },
+    {
+      "rule_id": "feature.rule_08260d6d",
+      "task_category": "feature",
+      "scope_pattern": null,
+      "constraint": "Phase 'Improve extraction prompt to emphasize character-for-character exact quoting with examples' was rejected by auditor - ensure code quality and completeness. Details: Failed with FAILED on attempt 5",
+      "source_hint_ids": [
+        "research-citation-fix:phase_5_improve_extraction_prompt"
+      ],
+      "promotion_count": 1,
+      "first_seen": "2025-12-16T02:21:54.112180+00:00",
+      "last_seen": "2025-12-16T02:23:40.772537+00:00",
+      "status": "active",
+      "stage": "new"
+    },
+    {
+      "rule_id": "test.rule_6c8f6478",
+      "task_category": "test",
+      "scope_pattern": null,
+      "constraint": "Phase 'Run final Phase 0 evaluation and generate comprehensive results report' was rejected by auditor - ensure code quality and completeness. Details: LLM output invalid format - no git diff markers found. Output must start with 'diff --git'",
+      "source_hint_ids": [
+        "research-citation-fix:phase_6_final_evaluation"
+      ],
+      "promotion_count": 1,
+      "first_seen": "2025-12-16T02:22:46.339449+00:00",
+      "last_seen": "2025-12-16T02:23:40.772537+00:00",
+      "status": "active",
+      "stage": "new"
+    },
+    {
+      "rule_id": "test.rule_88d8d6de",
+      "task_category": "test",
+      "scope_pattern": null,
+      "constraint": "Phase 'Run final Phase 0 evaluation and generate comprehensive results report' was rejected by auditor - ensure code quality and completeness. Details: Failed with FAILED on attempt 1",
+      "source_hint_ids": [
+        "research-citation-fix:phase_6_final_evaluation"
+      ],
+      "promotion_count": 1,
+      "first_seen": "2025-12-16T02:22:46.443875+00:00",
+      "last_seen": "2025-12-16T02:23:40.772537+00:00",
+      "status": "active",
+      "stage": "new"
+    },
+    {
+      "rule_id": "test.rule_5d414940",
+      "task_category": "test",
+      "scope_pattern": null,
+      "constraint": "Phase 'Run final Phase 0 evaluation and generate comprehensive results report' succeeded after retries - model escalation was needed. Details: Succeeded on attempt 2 after 1 failed attempts",
+      "source_hint_ids": [
+        "research-citation-fix:phase_6_final_evaluation"
+      ],
+      "promotion_count": 1,
+      "first_seen": "2025-12-16T02:23:30.716666+00:00",
+      "last_seen": "2025-12-16T02:23:40.772537+00:00",
+      "status": "active",
+      "stage": "new"
     }
   ]
 }

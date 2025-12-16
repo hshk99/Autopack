@@ -956,6 +956,145 @@ class GovernedApplyPath:
 
         return errors
 
+    def _validate_patch_context(self, patch_content: str) -> List[str]:
+        """
+        BUILD-045: Validate that patch hunk context lines match actual file content.
+
+        This detects goal drift where LLM generates patches for the wrong file state,
+        preventing git apply failures due to context mismatches.
+
+        Returns:
+            List of validation error messages (empty if context matches)
+        """
+        import re
+        from pathlib import Path
+
+        errors = []
+
+        # Parse patch to extract file paths and hunks
+        current_file = None
+        current_hunks = []
+
+        lines = patch_content.split('\n')
+        i = 0
+        while i < len(lines):
+            line = lines[i]
+
+            # Extract file path from diff header
+            if line.startswith('diff --git'):
+                # Save previous file's hunks for validation
+                if current_file and current_hunks:
+                    file_errors = self._validate_file_hunks(current_file, current_hunks)
+                    errors.extend(file_errors)
+
+                # Extract new file path (e.g., "diff --git a/src/file.py b/src/file.py")
+                parts = line.split()
+                if len(parts) >= 4:
+                    # Remove a/ or b/ prefix
+                    current_file = parts[3].lstrip('b/')
+                    current_hunks = []
+
+            # Parse hunk header (e.g., "@@ -10,5 +12,6 @@")
+            elif line.startswith('@@'):
+                match = re.match(r'^@@\s+-(\d+),(\d+)\s+\+(\d+),(\d+)\s+@@', line)
+                if match:
+                    old_start = int(match.group(1))
+                    old_count = int(match.group(2))
+
+                    # Extract context lines from this hunk
+                    hunk_lines = []
+                    j = i + 1
+                    while j < len(lines) and not lines[j].startswith('@@') and not lines[j].startswith('diff --git'):
+                        hunk_lines.append(lines[j])
+                        j += 1
+
+                    # Extract context lines (lines without + or - prefix, or lines with - prefix)
+                    context_lines = []
+                    for hunk_line in hunk_lines:
+                        if hunk_line.startswith(' ') or hunk_line.startswith('-'):
+                            # Remove the prefix to get actual line content
+                            context_lines.append(hunk_line[1:] if hunk_line else '')
+
+                    if context_lines:
+                        current_hunks.append({
+                            'start_line': old_start,
+                            'count': old_count,
+                            'context': context_lines[:5]  # First 5 context lines for validation
+                        })
+
+            i += 1
+
+        # Validate last file's hunks
+        if current_file and current_hunks:
+            file_errors = self._validate_file_hunks(current_file, current_hunks)
+            errors.extend(file_errors)
+
+        return errors
+
+    def _validate_file_hunks(self, file_path: str, hunks: List[Dict]) -> List[str]:
+        """
+        Validate that hunk context lines match actual file content.
+
+        Args:
+            file_path: Relative path to file
+            hunks: List of hunk dictionaries with start_line, count, and context
+
+        Returns:
+            List of validation error messages
+        """
+        errors = []
+
+        # Check if file exists
+        full_path = self.workspace / file_path
+        if not full_path.exists():
+            # File doesn't exist yet - this is a new file, skip validation
+            return errors
+
+        try:
+            # Read actual file content
+            with open(full_path, 'r', encoding='utf-8', errors='ignore') as f:
+                actual_lines = f.readlines()
+
+            # Validate each hunk
+            for hunk in hunks:
+                start_line = hunk['start_line']
+                context = hunk['context']
+
+                # Check if start_line is within file bounds
+                if start_line < 1 or start_line > len(actual_lines):
+                    errors.append(
+                        f"{file_path}: Hunk starts at line {start_line} but file only has {len(actual_lines)} lines"
+                    )
+                    continue
+
+                # Check if context lines match (allowing for minor whitespace differences)
+                for i, context_line in enumerate(context[:3]):  # Check first 3 context lines
+                    actual_line_num = start_line + i - 1  # 0-indexed
+                    if actual_line_num < 0 or actual_line_num >= len(actual_lines):
+                        continue
+
+                    actual_line = actual_lines[actual_line_num].rstrip('\n')
+                    context_line_normalized = context_line.rstrip()
+                    actual_line_normalized = actual_line.rstrip()
+
+                    # Compare normalized lines (ignore trailing whitespace)
+                    if context_line_normalized != actual_line_normalized:
+                        # Allow minor differences (e.g., tabs vs spaces) for first line
+                        if i == 0 and context_line_normalized.strip() == actual_line_normalized.strip():
+                            continue
+
+                        errors.append(
+                            f"{file_path}:{start_line + i}: Context mismatch - "
+                            f"expected '{context_line_normalized}' but found '{actual_line_normalized}'"
+                        )
+                        break  # Don't flood with errors for same hunk
+
+        except Exception as e:
+            # Don't fail validation if we can't read the file - let git apply handle it
+            logger.debug(f"[BUILD-045] Could not validate {file_path}: {e}")
+
+        return errors
+
     def _validate_pack_schema_in_patch(self, patch_content: str) -> List[str]:
         """
         If the patch touches pack YAML files, validate them against the pack schema.
@@ -1529,6 +1668,18 @@ class GovernedApplyPath:
             debug_patch_file = self.workspace / "last_patch_debug.diff"
             with open(debug_patch_file, 'w', encoding='utf-8') as f:
                 f.write(patch_content)
+
+            # BUILD-045: Validate patch context matches actual file state before applying
+            # This prevents git apply failures due to goal drift / context mismatch
+            context_errors = self._validate_patch_context(patch_content)
+            if context_errors:
+                error_details = "\n".join(f"  - {err}" for err in context_errors)
+                error_msg = f"Patch context validation failed - hunks don't match actual file state:\n{error_details}"
+                logger.error(f"[BUILD-045] {error_msg}")
+                logger.warning("[BUILD-045] This typically indicates goal drift - LLM generated patch for wrong file state")
+                # Don't fail immediately - let git apply attempt and provide feedback
+                # This allows 3-way merge to potentially resolve minor context mismatches
+                logger.info("[BUILD-045] Proceeding with git apply - 3-way merge may resolve context differences")
 
             # First, try strict apply (dry run)
             logger.info("Checking if patch can be applied (dry run)...")

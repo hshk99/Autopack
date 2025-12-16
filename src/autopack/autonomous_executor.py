@@ -4750,11 +4750,6 @@ Environment Variables:
         help="Auto-apply only auditor-approved, low-risk patches (in-scope, small diff, tests passing) with checkpoint",
     )
     parser.add_argument(
-        "--maintenance-auto-apply-low-risk",
-        action="store_true",
-        help="Auto-apply only auditor-approved, low-risk patches (in-scope, small diff, tests passing) with checkpoint",
-    )
-    parser.add_argument(
         "--maintenance-checkpoint",
         action="store_true",
         help="Create a git checkpoint before maintenance apply (required for apply path)",

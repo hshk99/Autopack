@@ -204,6 +204,12 @@ class Phase(Base):
     quality_level = Column(String, nullable=True)  # "ok" | "needs_review" | "blocked"
     quality_blocked = Column(Boolean, nullable=False, default=False)
 
+    # Attempt tracking (BUILD-041: Database-backed state persistence)
+    attempts_used = Column(Integer, nullable=False, default=0)  # Current attempt count
+    max_attempts = Column(Integer, nullable=False, default=5)  # Maximum attempts allowed
+    last_attempt_timestamp = Column(DateTime, nullable=True)  # When last attempt occurred
+    last_failure_reason = Column(String, nullable=True)  # Most recent failure status
+
     # Timestamps
     created_at = Column(DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
     updated_at = Column(

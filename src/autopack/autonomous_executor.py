@@ -933,8 +933,199 @@ class AutonomousExecutor:
                 except Exception as e:
                     logger.warning(f"[{phase_id}] Failed to parse timestamp '{last_updated_str}': {e}")
 
+    def _get_tier_index(self, tier_id: int, tiers: List[Dict]) -> int:
+        """Get tier_index for a given tier_id
+
+        Args:
+            tier_id: Database tier ID (integer)
+            tiers: List of tier dicts from API
+
+        Returns:
+            tier_index if found, else 999 (sort to end)
+        """
+        for tier in tiers:
+            if tier.get("id") == tier_id or tier.get("tier_id") == tier_id:
+                return tier.get("tier_index", 999)
+        return 999
+
+    # =========================================================================
+    # BUILD-041: Database Helper Methods for State Persistence
+    # =========================================================================
+
+    def _get_phase_from_db(self, phase_id: str) -> Optional[Any]:
+        """Fetch phase from database with attempt tracking state
+
+        Args:
+            phase_id: Phase identifier (e.g., "fileorg-p2-test-fixes")
+
+        Returns:
+            Phase model instance with current attempt state, or None if not found
+        """
+        try:
+            from autopack.database import get_db
+            from autopack.models import Phase
+
+            db = next(get_db())
+            phase = db.query(Phase).filter(
+                Phase.phase_id == phase_id,
+                Phase.run_id == self.run_id
+            ).first()
+
+            if phase:
+                logger.debug(
+                    f"[{phase_id}] Loaded from DB: attempts_used={phase.attempts_used}/{phase.max_attempts}, "
+                    f"state={phase.state}"
+                )
+            else:
+                logger.warning(f"[{phase_id}] Not found in database")
+
+            return phase
+
+        except Exception as e:
+            logger.error(f"[{phase_id}] Failed to fetch from database: {e}")
+            return None
+
+    def _update_phase_attempts_in_db(
+        self,
+        phase_id: str,
+        attempts_used: int,
+        last_failure_reason: Optional[str] = None,
+        timestamp: Optional[Any] = None
+    ) -> bool:
+        """Update phase attempt tracking in database
+
+        Args:
+            phase_id: Phase identifier
+            attempts_used: New attempt count
+            last_failure_reason: Failure status from most recent attempt
+            timestamp: Timestamp of last attempt (defaults to now)
+
+        Returns:
+            True if update successful, False otherwise
+        """
+        try:
+            from datetime import datetime, timezone
+            from autopack.database import get_db
+            from autopack.models import Phase
+
+            db = next(get_db())
+            phase = db.query(Phase).filter(
+                Phase.phase_id == phase_id,
+                Phase.run_id == self.run_id
+            ).first()
+
+            if not phase:
+                logger.error(f"[{phase_id}] Cannot update attempts: phase not found in database")
+                return False
+
+            # Update attempt tracking
+            phase.attempts_used = attempts_used
+            if last_failure_reason:
+                phase.last_failure_reason = last_failure_reason
+            phase.last_attempt_timestamp = timestamp or datetime.now(timezone.utc)
+
+            db.commit()
+
+            logger.info(
+                f"[{phase_id}] Updated attempts in DB: {attempts_used}/{phase.max_attempts} "
+                f"(reason: {last_failure_reason or 'N/A'})"
+            )
+            return True
+
+        except Exception as e:
+            logger.error(f"[{phase_id}] Failed to update attempts in database: {e}")
+            return False
+
+    def _mark_phase_complete_in_db(self, phase_id: str) -> bool:
+        """Mark phase as COMPLETE in database
+
+        Args:
+            phase_id: Phase identifier
+
+        Returns:
+            True if update successful, False otherwise
+        """
+        try:
+            from datetime import datetime, timezone
+            from autopack.database import get_db
+            from autopack.models import Phase, PhaseState
+
+            db = next(get_db())
+            phase = db.query(Phase).filter(
+                Phase.phase_id == phase_id,
+                Phase.run_id == self.run_id
+            ).first()
+
+            if not phase:
+                logger.error(f"[{phase_id}] Cannot mark complete: phase not found in database")
+                return False
+
+            # Update to COMPLETE state
+            phase.state = PhaseState.COMPLETE
+            phase.completed_at = datetime.now(timezone.utc)
+
+            db.commit()
+
+            logger.info(f"[{phase_id}] Marked COMPLETE in database")
+            return True
+
+        except Exception as e:
+            logger.error(f"[{phase_id}] Failed to mark complete in database: {e}")
+            return False
+
+    def _mark_phase_failed_in_db(self, phase_id: str, reason: str) -> bool:
+        """Mark phase as FAILED in database
+
+        Args:
+            phase_id: Phase identifier
+            reason: Failure reason (e.g., "MAX_ATTEMPTS_EXHAUSTED", "BUILDER_FAILED")
+
+        Returns:
+            True if update successful, False otherwise
+        """
+        try:
+            from datetime import datetime, timezone
+            from autopack.database import get_db
+            from autopack.models import Phase, PhaseState
+
+            db = next(get_db())
+            phase = db.query(Phase).filter(
+                Phase.phase_id == phase_id,
+                Phase.run_id == self.run_id
+            ).first()
+
+            if not phase:
+                logger.error(f"[{phase_id}] Cannot mark failed: phase not found in database")
+                return False
+
+            # Update to FAILED state
+            phase.state = PhaseState.FAILED
+            phase.last_failure_reason = reason
+            phase.completed_at = datetime.now(timezone.utc)
+
+            db.commit()
+
+            logger.info(f"[{phase_id}] Marked FAILED in database (reason: {reason})")
+            return True
+
+        except Exception as e:
+            logger.error(f"[{phase_id}] Failed to mark failed in database: {e}")
+            return False
+
+    # =========================================================================
+    # End of BUILD-041 Database Helper Methods
+    # =========================================================================
+
     def get_next_queued_phase(self, run_data: Dict) -> Optional[Dict]:
         """Find next QUEUED phase in tier/index order
+
+        Supports both flat (current API) and nested (legacy) phase structures.
+
+        Flat structure (current API):
+            {"phases": [...], "tiers": [...]}
+
+        Nested structure (legacy):
+            {"tiers": [{"phases": [...]}]}
 
         Args:
             run_data: Run data from API
@@ -942,20 +1133,33 @@ class AutonomousExecutor:
         Returns:
             Phase dict if found, None otherwise
         """
+        # Try flat structure first (current API format)
+        phases = run_data.get("phases", [])
         tiers = run_data.get("tiers", [])
 
-        # Sort tiers by tier_index
-        sorted_tiers = sorted(tiers, key=lambda t: t.get("tier_index", 0))
-
-        # Find first QUEUED phase across all tiers
-        for tier in sorted_tiers:
-            phases = tier.get("phases", [])
-            # Sort phases within tier
-            sorted_phases = sorted(phases, key=lambda p: p.get("phase_index", 0))
+        if phases:
+            # Sort by tier_index (via tier_id lookup) and phase_index
+            sorted_phases = sorted(phases, key=lambda p: (
+                self._get_tier_index(p.get("tier_id"), tiers),
+                p.get("phase_index", 0)
+            ))
 
             for phase in sorted_phases:
-                if phase.get("state") == "QUEUED":  # Note: API uses "state" not "status"
+                if phase.get("state") == "QUEUED":
                     return phase
+
+        # Fallback to nested structure (legacy format)
+        # This ensures backward compatibility with older runs
+        if tiers:
+            sorted_tiers = sorted(tiers, key=lambda t: t.get("tier_index", 0))
+
+            for tier in sorted_tiers:
+                tier_phases = tier.get("phases", [])
+                sorted_tier_phases = sorted(tier_phases, key=lambda p: p.get("phase_index", 0))
+
+                for phase in sorted_tier_phases:
+                    if phase.get("state") == "QUEUED":
+                        return phase
 
         return None
 

@@ -4,13 +4,29 @@
     "builder_failure": {
       "category": "builder_failure",
       "base_severity": "major",
-      "age_in_runs": 30,
-      "age_in_tiers": 30,
+      "age_in_runs": 32,
+      "age_in_tiers": 32,
       "first_seen_run_id": "research-citation-fix",
       "last_seen_run_id": "build-complete-runs-api",
-      "last_seen_at": "2025-12-16T13:24:12.150256Z",
+      "last_seen_at": "2025-12-16T13:33:34.702020Z",
       "seen_in_tiers": [],
       "status": "open"
+    },
+    "executor_failure_loop": {
+      "category": "executor_architecture",
+      "base_severity": "critical",
+      "age_in_runs": 1,
+      "age_in_tiers": 1,
+      "first_seen_run_id": "fileorg-phase2-beta-release",
+      "last_seen_run_id": "fileorg-phase2-beta-release",
+      "last_seen_at": "2025-12-17T01:50:20.000000Z",
+      "seen_in_tiers": ["core-features"],
+      "description": "Executor enters infinite loop when execute_phase() returns before exhausting max_attempts (due to Doctor/health checks). Phase remains QUEUED in database, main loop re-picks it, causing infinite retry cycle.",
+      "root_cause": "State management split between instance attributes (attempt_index) and database (phase.state). When execute_phase() returns early, database not updated to FAILED, causing re-selection.",
+      "impact": "Blocks long autonomous runs, wastes token budget on infinite retries",
+      "proposed_fix": "Database-backed state persistence - move attempt tracking to database, execute single attempt per call, atomic state updates",
+      "fix_document": "docs/EXECUTOR_STATE_PERSISTENCE_ARCHITECTURE.md",
+      "status": "diagnosed"
     }
   }
 }

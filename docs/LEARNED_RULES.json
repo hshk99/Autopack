@@ -139,11 +139,25 @@
         "research-citation-fix:phase_3_enhanced_normalization",
         "research-citation-fix:phase_3_enhanced_normalization",
         "research-citation-fix:phase_3_enhanced_normalization",
-        "research-citation-fix:phase_3_enhanced_normalization"
+        "research-citation-fix:phase_3_enhanced_normalization",
+        "research-system-restore-and-evaluate:implement_phase2_enhanced_normalization",
+        "research-system-restore-and-evaluate:implement_phase2_enhanced_normalization",
+        "research-system-restore-and-evaluate:implement_phase2_enhanced_normalization",
+        "research-system-restore-and-evaluate-v2:phase2_enhanced_normalization_v2",
+        "research-system-restore-and-evaluate-v2:phase2_enhanced_normalization_v2",
+        "research-system-restore-and-evaluate-v2:phase2_enhanced_normalization_v2",
+        "research-system-restore-and-evaluate-v2:phase2_enhanced_normalization_v2",
+        "research-system-restore-and-evaluate-v2:phase2_enhanced_normalization_v2",
+        "research-system-restore-and-evaluate-v2:phase2_enhanced_normalization_v2",
+        "research-system-restore-and-evaluate-v2:phase2_enhanced_normalization_v2",
+        "research-system-restore-and-evaluate-v2:phase2_enhanced_normalization_v2",
+        "research-system-restore-and-evaluate-v2:phase2_enhanced_normalization_v2",
+        "research-system-restore-and-evaluate-v2:phase2_enhanced_normalization_v2",
+        "research-system-restore-and-evaluate-v2:phase2_enhanced_normalization_v2"
       ],
-      "promotion_count": 134,
+      "promotion_count": 148,
       "first_seen": "2025-12-16T02:02:55.470938+00:00",
-      "last_seen": "2025-12-16T04:03:00.998806+00:00",
+      "last_seen": "2025-12-16T11:43:08.919257+00:00",
       "status": "active",
       "stage": "new"
     },
@@ -249,11 +263,21 @@
         "research-citation-fix:phase_2_run_evaluation_after_phase1",
         "research-citation-fix:phase_2_run_evaluation_after_phase1",
         "research-citation-fix:phase_2_run_evaluation_after_phase1",
-        "research-citation-fix:phase_2_run_evaluation_after_phase1"
+        "research-citation-fix:phase_2_run_evaluation_after_phase1",
+        "research-system-restore-and-evaluate:run_phase1_evaluation",
+        "research-system-restore-and-evaluate:run_phase1_evaluation",
+        "research-system-restore-and-evaluate:run_phase1_evaluation",
+        "research-system-restore-and-evaluate:run_phase2_evaluation",
+        "research-system-restore-and-evaluate:run_phase2_evaluation",
+        "research-system-restore-and-evaluate:run_phase2_evaluation",
+        "research-system-restore-and-evaluate:run_phase2_evaluation",
+        "research-system-restore-and-evaluate-v2:run_phase2_evaluation_v2",
+        "research-system-restore-and-evaluate-v2:run_phase2_evaluation_v2",
+        "research-system-restore-and-evaluate-v2:run_phase2_evaluation_v2"
       ],
-      "promotion_count": 69,
+      "promotion_count": 79,
       "first_seen": "2025-12-16T02:05:15.728420+00:00",
-      "last_seen": "2025-12-16T04:03:00.997801+00:00",
+      "last_seen": "2025-12-16T11:43:08.919257+00:00",
       "status": "active",
       "stage": "new"
     },
@@ -870,6 +894,208 @@
       "promotion_count": 1,
       "first_seen": "2025-12-16T02:23:30.716666+00:00",
       "last_seen": "2025-12-16T02:23:40.772537+00:00",
+      "status": "active",
+      "stage": "new"
+    },
+    {
+      "rule_id": "restoration.rule_00eb59f0",
+      "task_category": "restoration",
+      "scope_pattern": null,
+      "constraint": "Phase 'Restore Github Gatherer' was rejected by auditor - ensure code quality and completeness. Details: Unterminated string starting at: line 6 column 22 (char 134)",
+      "source_hint_ids": [
+        "research-system-restore-and-evaluate:restore_github_gatherer",
+        "research-system-restore-and-evaluate-v2:restore_github_gatherer_v2",
+        "research-system-restore-and-evaluate-v2:restore_github_gatherer_v2",
+        "research-system-restore-and-evaluate-v2:restore_github_gatherer_v2",
+        "research-system-restore-and-evaluate-v2:restore_evaluation_module_v2",
+        "research-system-restore-and-evaluate-v2:restore_evaluation_module_v2",
+        "research-system-restore-and-evaluate-v2:restore_evaluation_module_v2"
+      ],
+      "promotion_count": 7,
+      "first_seen": "2025-12-16T05:39:17.664966+00:00",
+      "last_seen": "2025-12-16T11:43:08.919257+00:00",
+      "status": "active",
+      "stage": "new"
+    },
+    {
+      "rule_id": "restoration.rule_12ed2355",
+      "task_category": "restoration",
+      "scope_pattern": null,
+      "constraint": "Phase 'Restore Github Gatherer' was rejected by auditor - ensure code quality and completeness. Details: Failed with FAILED on attempt 1",
+      "source_hint_ids": [
+        "research-system-restore-and-evaluate:restore_github_gatherer"
+      ],
+      "promotion_count": 1,
+      "first_seen": "2025-12-16T05:39:17.771483+00:00",
+      "last_seen": "2025-12-16T05:57:39.786585+00:00",
+      "status": "active",
+      "stage": "new"
+    },
+    {
+      "rule_id": "restoration.rule_00eb59f0",
+      "task_category": "restoration",
+      "scope_pattern": null,
+      "constraint": "Phase 'Restore Github Gatherer' was rejected by auditor - ensure code quality and completeness. Details: Unterminated string starting at: line 6 column 22 (char 134)",
+      "source_hint_ids": [
+        "research-system-restore-and-evaluate:restore_github_gatherer"
+      ],
+      "promotion_count": 1,
+      "first_seen": "2025-12-16T05:40:35.121525+00:00",
+      "last_seen": "2025-12-16T05:57:39.786585+00:00",
+      "status": "active",
+      "stage": "new"
+    },
+    {
+      "rule_id": "restoration.rule_52835508",
+      "task_category": "restoration",
+      "scope_pattern": null,
+      "constraint": "Phase 'Restore Github Gatherer' was rejected by auditor - ensure code quality and completeness. Details: Failed with FAILED on attempt 2",
+      "source_hint_ids": [
+        "research-system-restore-and-evaluate:restore_github_gatherer"
+      ],
+      "promotion_count": 1,
+      "first_seen": "2025-12-16T05:40:41.558719+00:00",
+      "last_seen": "2025-12-16T05:57:39.786585+00:00",
+      "status": "active",
+      "stage": "new"
+    },
+    {
+      "rule_id": "restoration.rule_00eb59f0",
+      "task_category": "restoration",
+      "scope_pattern": null,
+      "constraint": "Phase 'Restore Github Gatherer' was rejected by auditor - ensure code quality and completeness. Details: Unterminated string starting at: line 6 column 22 (char 134)",
+      "source_hint_ids": [
+        "research-system-restore-and-evaluate:restore_github_gatherer"
+      ],
+      "promotion_count": 1,
+      "first_seen": "2025-12-16T05:42:28.737536+00:00",
+      "last_seen": "2025-12-16T05:57:39.786585+00:00",
+      "status": "active",
+      "stage": "new"
+    },
+    {
+      "rule_id": "restoration.rule_12ed2355",
+      "task_category": "restoration",
+      "scope_pattern": null,
+      "constraint": "Phase 'Restore Github Gatherer' was rejected by auditor - ensure code quality and completeness. Details: Failed with FAILED on attempt 1",
+      "source_hint_ids": [
+        "research-system-restore-and-evaluate:restore_github_gatherer"
+      ],
+      "promotion_count": 1,
+      "first_seen": "2025-12-16T05:42:28.826155+00:00",
+      "last_seen": "2025-12-16T05:57:39.786585+00:00",
+      "status": "active",
+      "stage": "new"
+    },
+    {
+      "rule_id": "restoration.rule_00eb59f0",
+      "task_category": "restoration",
+      "scope_pattern": null,
+      "constraint": "Phase 'Restore Github Gatherer' was rejected by auditor - ensure code quality and completeness. Details: Unterminated string starting at: line 6 column 22 (char 134)",
+      "source_hint_ids": [
+        "research-system-restore-and-evaluate:restore_github_gatherer"
+      ],
+      "promotion_count": 1,
+      "first_seen": "2025-12-16T05:43:44.342833+00:00",
+      "last_seen": "2025-12-16T05:57:39.786585+00:00",
+      "status": "active",
+      "stage": "new"
+    },
+    {
+      "rule_id": "restoration.rule_52835508",
+      "task_category": "restoration",
+      "scope_pattern": null,
+      "constraint": "Phase 'Restore Github Gatherer' was rejected by auditor - ensure code quality and completeness. Details: Failed with FAILED on attempt 2",
+      "source_hint_ids": [
+        "research-system-restore-and-evaluate:restore_github_gatherer"
+      ],
+      "promotion_count": 1,
+      "first_seen": "2025-12-16T05:43:44.447318+00:00",
+      "last_seen": "2025-12-16T05:57:39.786585+00:00",
+      "status": "active",
+      "stage": "new"
+    },
+    {
+      "rule_id": "restoration.rule_00eb59f0",
+      "task_category": "restoration",
+      "scope_pattern": null,
+      "constraint": "Phase 'Restore Github Gatherer' was rejected by auditor - ensure code quality and completeness. Details: Unterminated string starting at: line 6 column 22 (char 134)",
+      "source_hint_ids": [
+        "research-system-restore-and-evaluate:restore_github_gatherer"
+      ],
+      "promotion_count": 1,
+      "first_seen": "2025-12-16T05:45:13.378464+00:00",
+      "last_seen": "2025-12-16T05:57:39.786585+00:00",
+      "status": "active",
+      "stage": "new"
+    },
+    {
+      "rule_id": "restoration.rule_30b55822",
+      "task_category": "restoration",
+      "scope_pattern": null,
+      "constraint": "Phase 'Restore Github Gatherer' was rejected by auditor - ensure code quality and completeness. Details: Failed with FAILED on attempt 3",
+      "source_hint_ids": [
+        "research-system-restore-and-evaluate:restore_github_gatherer"
+      ],
+      "promotion_count": 1,
+      "first_seen": "2025-12-16T05:45:13.470694+00:00",
+      "last_seen": "2025-12-16T05:57:39.786585+00:00",
+      "status": "active",
+      "stage": "new"
+    },
+    {
+      "rule_id": "restoration.rule_00eb59f0",
+      "task_category": "restoration",
+      "scope_pattern": null,
+      "constraint": "Phase 'Restore Github Gatherer' was rejected by auditor - ensure code quality and completeness. Details: Unterminated string starting at: line 6 column 22 (char 134)",
+      "source_hint_ids": [
+        "research-system-restore-and-evaluate:restore_github_gatherer"
+      ],
+      "promotion_count": 1,
+      "first_seen": "2025-12-16T05:46:28.016059+00:00",
+      "last_seen": "2025-12-16T05:57:39.786585+00:00",
+      "status": "active",
+      "stage": "new"
+    },
+    {
+      "rule_id": "restoration.rule_38046871",
+      "task_category": "restoration",
+      "scope_pattern": null,
+      "constraint": "Phase 'Restore Github Gatherer' was rejected by auditor - ensure code quality and completeness. Details: Failed with FAILED on attempt 4",
+      "source_hint_ids": [
+        "research-system-restore-and-evaluate:restore_github_gatherer"
+      ],
+      "promotion_count": 1,
+      "first_seen": "2025-12-16T05:46:28.101436+00:00",
+      "last_seen": "2025-12-16T05:57:39.786585+00:00",
+      "status": "active",
+      "stage": "new"
+    },
+    {
+      "rule_id": "restoration.rule_00eb59f0",
+      "task_category": "restoration",
+      "scope_pattern": null,
+      "constraint": "Phase 'Restore Github Gatherer' was rejected by auditor - ensure code quality and completeness. Details: Unterminated string starting at: line 6 column 22 (char 134)",
+      "source_hint_ids": [
+        "research-system-restore-and-evaluate:restore_github_gatherer"
+      ],
+      "promotion_count": 1,
+      "first_seen": "2025-12-16T05:47:52.688142+00:00",
+      "last_seen": "2025-12-16T05:57:39.786585+00:00",
+      "status": "active",
+      "stage": "new"
+    },
+    {
+      "rule_id": "restoration.rule_28014e04",
+      "task_category": "restoration",
+      "scope_pattern": null,
+      "constraint": "Phase 'Restore Github Gatherer' was rejected by auditor - ensure code quality and completeness. Details: Failed with FAILED on attempt 5",
+      "source_hint_ids": [
+        "research-system-restore-and-evaluate:restore_github_gatherer"
+      ],
+      "promotion_count": 1,
+      "first_seen": "2025-12-16T05:47:52.745053+00:00",
+      "last_seen": "2025-12-16T05:57:39.786585+00:00",
       "status": "active",
       "stage": "new"
     }

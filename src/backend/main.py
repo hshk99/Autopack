@@ -3,6 +3,7 @@
 from fastapi import FastAPI
 from .api.auth import router as auth_router
 from .api.search import include_router as include_search_router
+from .api.runs import router as runs_router
 from .database import Base, engine
 
 app = FastAPI(
@@ -18,6 +19,7 @@ def on_startup():
 
 # Include routers
 app.include_router(auth_router)
+app.include_router(runs_router)
 include_search_router(app)
 if __name__ == "__main__":
     import uvicorn

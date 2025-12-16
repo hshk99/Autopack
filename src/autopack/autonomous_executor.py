@@ -1163,17 +1163,91 @@ class AutonomousExecutor:
 
         return None
 
-    def execute_phase(self, phase: Dict) -> Tuple[bool, str]:
-        """Execute Builder -> Auditor -> QualityGate pipeline for a phase with model escalation
+    def get_next_executable_phase(self) -> Optional[Dict]:
+        """Find next executable phase using database state (BUILD-041)
 
-        This method implements a retry loop with model escalation:
-        - Attempts 0-1: Use cheapest model in escalation chain
-        - Attempts 2-3: Use middle model in escalation chain
-        - Attempts 4+: Use strongest model in escalation chain
-        - After max_attempts failures: Mark phase as FAILED and skip
+        Queries database for phases that are either:
+        1. QUEUED (not yet started), OR
+        2. EXECUTING with retries available (attempts_used < max_attempts)
+
+        This replaces instance-based phase selection with database-backed selection,
+        fixing the infinite loop bug where phases stuck in EXECUTING state weren't
+        being retried.
+
+        Returns:
+            Phase dict if found, None otherwise
+        """
+        try:
+            from autopack.database import get_db
+            from autopack.models import Phase, PhaseState
+
+            db = next(get_db())
+
+            # Query for executable phases:
+            # - QUEUED phases (not yet started)
+            # - EXECUTING phases with retries available (attempts_used < max_attempts)
+            executable_phases = db.query(Phase).filter(
+                Phase.run_id == self.run_id,
+                (
+                    (Phase.state == PhaseState.QUEUED) |
+                    (
+                        (Phase.state == PhaseState.EXECUTING) &
+                        (Phase.attempts_used < Phase.max_attempts)
+                    )
+                )
+            ).order_by(
+                Phase.tier_index,
+                Phase.phase_index
+            ).all()
+
+            if not executable_phases:
+                logger.debug(f"[{self.run_id}] No executable phases found in database")
+                return None
+
+            # Return first executable phase
+            phase_db = executable_phases[0]
+            logger.info(
+                f"[{phase_db.phase_id}] Found executable phase: "
+                f"state={phase_db.state}, attempts={phase_db.attempts_used}/{phase_db.max_attempts}"
+            )
+
+            # Convert database model to dict for compatibility with existing code
+            phase_dict = {
+                "phase_id": phase_db.phase_id,
+                "run_id": phase_db.run_id,
+                "tier_id": phase_db.tier_id,
+                "tier_index": phase_db.tier_index,
+                "phase_index": phase_db.phase_index,
+                "name": phase_db.name,
+                "description": phase_db.description,
+                "state": phase_db.state.value if hasattr(phase_db.state, 'value') else str(phase_db.state),
+                "complexity": phase_db.complexity,
+                "task_category": phase_db.task_category,
+                "scope": phase_db.scope,
+                "dependencies": phase_db.dependencies or [],
+                "acceptance_criteria": phase_db.acceptance_criteria or [],
+                "attempts_used": phase_db.attempts_used,
+                "max_attempts": phase_db.max_attempts,
+                "last_attempt_timestamp": phase_db.last_attempt_timestamp,
+                "last_failure_reason": phase_db.last_failure_reason,
+            }
+
+            return phase_dict
+
+        except Exception as e:
+            logger.error(f"[{self.run_id}] Failed to query executable phases from database: {e}")
+            return None
+
+    def execute_phase(self, phase: Dict) -> Tuple[bool, str]:
+        """Execute Builder -> Auditor -> QualityGate pipeline for a phase with database-backed state persistence
+
+        BUILD-041: This method now executes ONE attempt per call, relying on the database for retry state.
+        - Database tracks: attempts_used, max_attempts, last_attempt_timestamp, last_failure_reason
+        - Model escalation: attempts 0-1 use cheap models, 2-3 mid-tier, 4+ strongest
+        - Main loop handles retries by re-invoking this method
 
         Args:
-            phase: Phase data from API
+            phase: Phase data from API or database
 
         Returns:
             Tuple of (success: bool, status: str)
@@ -1182,253 +1256,288 @@ class AutonomousExecutor:
         phase_id = phase.get("phase_id")
         scope_config = phase.get("scope") or {}
         allowed_scope_paths = self._derive_allowed_paths_from_scope(scope_config)
-        logger.info(f"Executing phase: {phase_id}")
+
+        # [BUILD-041] Load phase state from database
+        phase_db = self._get_phase_from_db(phase_id)
+        if not phase_db:
+            logger.error(f"[{phase_id}] Phase not found in database, cannot execute")
+            return False, "FAILED"
+
+        # Check if already exhausted attempts
+        if phase_db.attempts_used >= phase_db.max_attempts:
+            logger.warning(
+                f"[{phase_id}] Phase has already exhausted all attempts "
+                f"({phase_db.attempts_used}/{phase_db.max_attempts}). Marking as FAILED."
+            )
+            self._mark_phase_failed_in_db(phase_id, "MAX_ATTEMPTS_EXHAUSTED")
+            return False, "FAILED"
 
         # [Goal Anchoring] Initialize goal anchor for this phase on first execution
         # Per GPT_RESPONSE27: Store original intent before any re-planning occurs
         self._initialize_phase_goal_anchor(phase)
 
-        # Get max attempts from LlmService (reads from config)
-        max_attempts = self.llm_service.get_max_attempts() if self.llm_service else 5
+        # Current attempt index from database
+        attempt_index = phase_db.attempts_used
+        max_attempts = phase_db.max_attempts
 
-        # Track attempt index for this phase
-        attempt_key = f"_attempt_index_{phase_id}"
-        attempt_index = getattr(self, attempt_key, 0)
+        # Reload project rules mid-run if rules_updated.json advanced
+        self._refresh_project_rules_if_updated()
 
-        # Retry loop with model escalation
-        while attempt_index < max_attempts:
-            logger.info(f"[{phase_id}] Attempt {attempt_index + 1}/{max_attempts} (model escalation enabled)")
+        # [BUILD-041] Execute single attempt with error recovery
+        def _execute_phase_inner():
+            return self._execute_phase_with_recovery(
+                phase,
+                attempt_index=attempt_index,
+                allowed_paths=allowed_scope_paths,
+            )
 
-            # Reload project rules mid-run if rules_updated.json advanced
-            self._refresh_project_rules_if_updated()
+        try:
+            success, status = self.error_recovery.execute_with_retry(
+                func=_execute_phase_inner,
+                operation_name=f"Phase execution: {phase_id}",
+                max_retries=1  # Only 1 retry for transient errors within an attempt
+            )
 
-            # Store current attempt for inner method
-            setattr(self, attempt_key, attempt_index)
+            if success:
+                # [BUILD-041] Mark phase COMPLETE in database
+                self._mark_phase_complete_in_db(phase_id)
 
-            # Wrap phase execution with error recovery
-            def _execute_phase_inner():
-                return self._execute_phase_with_recovery(
-                    phase,
-                    attempt_index=attempt_index,
-                    allowed_paths=allowed_scope_paths,
-                )
-
-            try:
-                success, status = self.error_recovery.execute_with_retry(
-                    func=_execute_phase_inner,
-                    operation_name=f"Phase execution: {phase_id}",
-                    max_retries=1  # Only 1 retry for transient errors within an attempt
-                )
-
-                if success:
-                    # Success: no need to record attempt outcome here; LlmService
-                    # already tracked model usage and selection metadata.
-
-                    # Learning Pipeline: Record hint if succeeded after retries
-                    # This means we learned something worth sharing with future phases
-                    if attempt_index > 0:
-                        self._record_learning_hint(
-                            phase=phase,
-                            hint_type="success_after_retry",
-                            details=f"Succeeded on attempt {attempt_index + 1} after {attempt_index} failed attempts"
-                        )
-
-                    return success, status
-
-                # Record failure and determine if we should retry
-                failure_outcome = self._status_to_outcome(status)
-                # Update health budget tracking
-                self._run_total_failures += 1
-                if status == "PATCH_FAILED":
-                    self._run_patch_failure_count += 1
-
-                # Learning Pipeline: Record hint about what went wrong
-                # These hints help future phases avoid same mistakes
-                self._record_learning_hint(
-                    phase=phase,
-                    hint_type=failure_outcome,
-                    details=f"Failed with {status} on attempt {attempt_index + 1}"
-                )
-
-                # Mid-Run Re-Planning: Record error for approach flaw detection
-                self._record_phase_error(
-                    phase=phase,
-                    error_type=failure_outcome,
-                    error_details=f"Status: {status}",
-                    attempt_index=attempt_index
-                )
-
-                # Run governed diagnostics to gather evidence before mutations
-                self._run_diagnostics_for_failure(
-                    failure_class=failure_outcome,
-                    phase=phase,
-                    context={
-                        "status": status,
-                        "attempt_index": attempt_index,
-                        "logs_excerpt": f"Status: {status}, Attempt: {attempt_index + 1}",
-                    },
-                )
-
-                # [Doctor Integration] Invoke Doctor for diagnosis after sufficient failures
-                doctor_response = self._invoke_doctor(
-                    phase=phase,
-                    error_category=failure_outcome,
-                    builder_attempts=attempt_index + 1,
-                    last_patch=None,  # TODO: pass last patch from builder_result
-                    patch_errors=[],  # TODO: pass patch errors if available
-                    logs_excerpt=f"Status: {status}, Attempt: {attempt_index + 1}",
-                )
-
-                if doctor_response:
-                    # Handle Doctor's recommended action
-                    action_taken, should_continue = self._handle_doctor_action(
+                # Learning Pipeline: Record hint if succeeded after retries
+                if attempt_index > 0:
+                    self._record_learning_hint(
                         phase=phase,
-                        response=doctor_response,
-                        attempt_index=attempt_index,
+                        hint_type="success_after_retry",
+                        details=f"Succeeded on attempt {attempt_index + 1} after {attempt_index} failed attempts"
                     )
 
-                    if not should_continue:
-                        # Doctor recommended skipping, fatal, or rollback
-                        return False, status
+                logger.info(f"[{phase_id}] Phase completed successfully on attempt {attempt_index + 1}")
+                return True, "COMPLETE"
 
-                    if action_taken == "replan":
-                        # Doctor recommended replanning - it's already been handled
-                        attempt_index = 0
-                        setattr(self, attempt_key, 0)
-                        continue
+            # [BUILD-041] Attempt failed - update database and check if exhausted
+            failure_outcome = self._status_to_outcome(status)
 
-                # Check if we should trigger re-planning before next retry
-                should_replan, flaw_type = self._should_trigger_replan(phase)
-                if should_replan:
-                    logger.info(f"[{phase_id}] Triggering mid-run re-planning due to {flaw_type}")
+            # Update health budget tracking
+            self._run_total_failures += 1
+            if status == "PATCH_FAILED":
+                self._run_patch_failure_count += 1
 
-                    # Get error history for context
-                    error_history = self._phase_error_history.get(phase_id, [])
+            # Learning Pipeline: Record hint about what went wrong
+            self._record_learning_hint(
+                phase=phase,
+                hint_type=failure_outcome,
+                details=f"Failed with {status} on attempt {attempt_index + 1}"
+            )
 
-                    # Invoke re-planner
-                    revised_phase = self._revise_phase_approach(phase, flaw_type, error_history)
+            # Mid-Run Re-Planning: Record error for approach flaw detection
+            self._record_phase_error(
+                phase=phase,
+                error_type=failure_outcome,
+                error_details=f"Status: {status}",
+                attempt_index=attempt_index
+            )
 
-                    if revised_phase:
-                        # Switch to revised approach and reset attempts
-                        phase = revised_phase
-                        attempt_index = 0
-                        setattr(self, attempt_key, 0)
-                        self._run_replan_count += 1  # Increment global replan counter
-                        logger.info(f"[{phase_id}] Re-planning successful (run total: {self._run_replan_count}/{self.MAX_REPLANS_PER_RUN}). Restarting with revised approach.")
-                        continue
-                    else:
-                        logger.warning(f"[{phase_id}] Re-planning failed, continuing with original approach")
+            # Run governed diagnostics to gather evidence before mutations
+            self._run_diagnostics_for_failure(
+                failure_class=failure_outcome,
+                phase=phase,
+                context={
+                    "status": status,
+                    "attempt_index": attempt_index,
+                    "logs_excerpt": f"Status: {status}, Attempt: {attempt_index + 1}",
+                },
+            )
 
-                # Increment attempt and continue loop
-                attempt_index += 1
-                setattr(self, attempt_key, attempt_index)
+            # [Doctor Integration] Invoke Doctor for diagnosis after sufficient failures
+            doctor_response = self._invoke_doctor(
+                phase=phase,
+                error_category=failure_outcome,
+                builder_attempts=attempt_index + 1,
+                last_patch=None,  # TODO: pass last patch from builder_result
+                patch_errors=[],  # TODO: pass patch errors if available
+                logs_excerpt=f"Status: {status}, Attempt: {attempt_index + 1}",
+            )
 
-                if attempt_index < max_attempts:
-                    logger.warning(f"[{phase_id}] Attempt {attempt_index} failed, escalating model for retry...")
-                continue
+            if doctor_response:
+                # Handle Doctor's recommended action
+                action_taken, should_continue = self._handle_doctor_action(
+                    phase=phase,
+                    response=doctor_response,
+                    attempt_index=attempt_index,
+                )
 
-            except Exception as e:
-                logger.error(f"[{phase_id}] Attempt {attempt_index + 1} raised exception: {e}")
+                if not should_continue:
+                    # [BUILD-041] Doctor recommended skipping - mark phase FAILED
+                    self._mark_phase_failed_in_db(phase_id, f"DOCTOR_SKIP: {status}")
+                    logger.warning(f"[{phase_id}] Doctor recommended skipping, marking FAILED")
+                    return False, status
 
-                # Report detailed error context for debugging
-                from .error_reporter import report_error
-                report_error(
-                    error=e,
+                if action_taken == "replan":
+                    # [BUILD-041] Doctor recommended replanning - reset attempts in database
+                    logger.info(f"[{phase_id}] Doctor triggered re-planning, resetting attempts to 0")
+                    self._update_phase_attempts_in_db(phase_id, attempts_used=0, last_failure_reason=None)
+                    return False, "REPLAN_REQUESTED"
+
+            # Check if we should trigger re-planning before next retry
+            should_replan, flaw_type = self._should_trigger_replan(phase)
+            if should_replan:
+                logger.info(f"[{phase_id}] Triggering mid-run re-planning due to {flaw_type}")
+
+                # Get error history for context
+                error_history = self._phase_error_history.get(phase_id, [])
+
+                # Invoke re-planner
+                revised_phase = self._revise_phase_approach(phase, flaw_type, error_history)
+
+                if revised_phase:
+                    # [BUILD-041] Reset attempts in database for revised approach
+                    self._run_replan_count += 1
+                    logger.info(f"[{phase_id}] Re-planning successful (run total: {self._run_replan_count}/{self.MAX_REPLANS_PER_RUN})")
+                    self._update_phase_attempts_in_db(phase_id, attempts_used=0, last_failure_reason="REPLANNED")
+                    return False, "REPLAN_REQUESTED"
+                else:
+                    logger.warning(f"[{phase_id}] Re-planning failed, continuing with original approach")
+
+            # [BUILD-041] Increment attempts_used in database
+            new_attempts = attempt_index + 1
+            self._update_phase_attempts_in_db(
+                phase_id,
+                attempts_used=new_attempts,
+                last_failure_reason=status
+            )
+
+            # Check if attempts exhausted
+            if new_attempts >= max_attempts:
+                logger.error(f"[{phase_id}] All {max_attempts} attempts exhausted. Marking phase as FAILED.")
+
+                # Log to debug journal for persistent tracking
+                from .error_reporter import log_error
+                log_error(
+                    error_signature=f"Phase {phase_id} max attempts exhausted",
+                    symptom=f"Phase failed after {max_attempts} attempts with model escalation",
                     run_id=self.run_id,
                     phase_id=phase_id,
-                    component="executor",
-                    operation="execute_phase",
-                    context_data={
-                        "attempt_index": attempt_index,
-                        "max_attempts": max_attempts,
-                        "phase_description": phase.get("description", "")[:200],
-                        "phase_complexity": phase.get("complexity"),
-                        "phase_task_category": phase.get("task_category"),
-                    }
+                    suspected_cause="Task complexity exceeds model capabilities or task is impossible",
+                    priority="HIGH"
                 )
 
-                # Update health budget tracking
-                self._run_total_failures += 1
-                error_str = str(e).lower()
-                if "500" in error_str or "internal server error" in error_str:
-                    self._run_http_500_count += 1
+                self._mark_phase_failed_in_db(phase_id, "MAX_ATTEMPTS_EXHAUSTED")
+                return False, "FAILED"
 
-                # Mid-Run Re-Planning: Record error for approach flaw detection
-                self._record_phase_error(
+            logger.warning(f"[{phase_id}] Attempt {new_attempts}/{max_attempts} failed, will escalate model for next retry")
+            return False, status
+
+        except Exception as e:
+            # [BUILD-041] Handle exceptions with database state updates
+            logger.error(f"[{phase_id}] Attempt {attempt_index + 1} raised exception: {e}")
+
+            # Report detailed error context for debugging
+            from .error_reporter import report_error
+            report_error(
+                error=e,
+                run_id=self.run_id,
+                phase_id=phase_id,
+                component="executor",
+                operation="execute_phase",
+                context_data={
+                    "attempt_index": attempt_index,
+                    "max_attempts": max_attempts,
+                    "phase_description": phase.get("description", "")[:200],
+                    "phase_complexity": phase.get("complexity"),
+                    "phase_task_category": phase.get("task_category"),
+                }
+            )
+
+            # Update health budget tracking
+            self._run_total_failures += 1
+            error_str = str(e).lower()
+            if "500" in error_str or "internal server error" in error_str:
+                self._run_http_500_count += 1
+
+            # Mid-Run Re-Planning: Record error for approach flaw detection
+            self._record_phase_error(
+                phase=phase,
+                error_type="infra_error",
+                error_details=str(e),
+                attempt_index=attempt_index
+            )
+
+            # Diagnostics: gather evidence for infra errors before any mutations
+            self._run_diagnostics_for_failure(
+                failure_class="infra_error",
+                phase=phase,
+                context={
+                    "exception": str(e)[:300],
+                    "attempt_index": attempt_index,
+                },
+            )
+
+            # [Doctor Integration] Invoke Doctor for diagnosis on exceptions
+            doctor_response = self._invoke_doctor(
+                phase=phase,
+                error_category="infra_error",
+                builder_attempts=attempt_index + 1,
+                logs_excerpt=f"Exception: {type(e).__name__}: {str(e)[:500]}",
+            )
+
+            if doctor_response:
+                action_taken, should_continue = self._handle_doctor_action(
                     phase=phase,
-                    error_type="infra_error",
-                    error_details=str(e),
-                    attempt_index=attempt_index
+                    response=doctor_response,
+                    attempt_index=attempt_index,
                 )
 
-                # Diagnostics: gather evidence for infra errors before any mutations
-                self._run_diagnostics_for_failure(
-                    failure_class="infra_error",
-                    phase=phase,
-                    context={
-                        "exception": str(e)[:300],
-                        "attempt_index": attempt_index,
-                    },
+                if not should_continue:
+                    # [BUILD-041] Doctor recommended skipping - mark phase FAILED
+                    self._mark_phase_failed_in_db(phase_id, f"DOCTOR_SKIP: {type(e).__name__}")
+                    return False, "FAILED"
+
+                if action_taken == "replan":
+                    # [BUILD-041] Doctor recommended replanning after exception - reset attempts
+                    logger.info(f"[{phase_id}] Doctor triggered re-planning after exception, resetting attempts to 0")
+                    self._update_phase_attempts_in_db(phase_id, attempts_used=0, last_failure_reason=None)
+                    return False, "REPLAN_REQUESTED"
+
+            # Check if we should trigger re-planning before next retry
+            should_replan, flaw_type = self._should_trigger_replan(phase)
+            if should_replan:
+                logger.info(f"[{phase_id}] Triggering mid-run re-planning due to {flaw_type}")
+                error_history = self._phase_error_history.get(phase_id, [])
+                revised_phase = self._revise_phase_approach(phase, flaw_type, error_history)
+                if revised_phase:
+                    # [BUILD-041] Reset attempts for revised approach
+                    self._run_replan_count += 1
+                    logger.info(f"[{phase_id}] Re-planning successful (run total: {self._run_replan_count}/{self.MAX_REPLANS_PER_RUN})")
+                    self._update_phase_attempts_in_db(phase_id, attempts_used=0, last_failure_reason="REPLANNED_AFTER_EXCEPTION")
+                    return False, "REPLAN_REQUESTED"
+
+            # [BUILD-041] Increment attempts_used in database after exception
+            new_attempts = attempt_index + 1
+            self._update_phase_attempts_in_db(
+                phase_id,
+                attempts_used=new_attempts,
+                last_failure_reason=f"EXCEPTION: {type(e).__name__}"
+            )
+
+            # Check if attempts exhausted
+            if new_attempts >= max_attempts:
+                logger.error(f"[{phase_id}] All {max_attempts} attempts exhausted after exception. Marking phase as FAILED.")
+
+                # Log to debug journal for persistent tracking
+                from .error_reporter import log_error
+                log_error(
+                    error_signature=f"Phase {phase_id} max attempts exhausted (exception)",
+                    symptom=f"Phase failed after {max_attempts} attempts with final exception: {type(e).__name__}",
+                    run_id=self.run_id,
+                    phase_id=phase_id,
+                    suspected_cause=str(e)[:200],
+                    priority="HIGH"
                 )
 
-                # [Doctor Integration] Invoke Doctor for diagnosis on exceptions
-                doctor_response = self._invoke_doctor(
-                    phase=phase,
-                    error_category="infra_error",
-                    builder_attempts=attempt_index + 1,
-                    logs_excerpt=f"Exception: {type(e).__name__}: {str(e)[:500]}",
-                )
+                self._mark_phase_failed_in_db(phase_id, f"MAX_ATTEMPTS_EXHAUSTED: {type(e).__name__}")
+                return False, "FAILED"
 
-                if doctor_response:
-                    action_taken, should_continue = self._handle_doctor_action(
-                        phase=phase,
-                        response=doctor_response,
-                        attempt_index=attempt_index,
-                    )
-
-                    if not should_continue:
-                        return False, "FAILED"
-
-                    if action_taken == "replan":
-                        attempt_index = 0
-                        setattr(self, attempt_key, 0)
-                        continue
-
-                # Check if we should trigger re-planning before next retry
-                should_replan, flaw_type = self._should_trigger_replan(phase)
-                if should_replan:
-                    logger.info(f"[{phase_id}] Triggering mid-run re-planning due to {flaw_type}")
-                    error_history = self._phase_error_history.get(phase_id, [])
-                    revised_phase = self._revise_phase_approach(phase, flaw_type, error_history)
-                    if revised_phase:
-                        phase = revised_phase
-                        attempt_index = 0
-                        setattr(self, attempt_key, 0)
-                        self._run_replan_count += 1  # Increment global replan counter
-                        logger.info(f"[{phase_id}] Re-planning successful (run total: {self._run_replan_count}/{self.MAX_REPLANS_PER_RUN}). Restarting with revised approach.")
-                        continue
-
-                attempt_index += 1
-                setattr(self, attempt_key, attempt_index)
-                if attempt_index >= max_attempts:
-                    break
-                continue
-
-        # All attempts exhausted - mark phase as FAILED
-        logger.error(f"[{phase_id}] All {max_attempts} attempts exhausted. Marking phase as FAILED.")
-
-        # Log to debug journal for persistent tracking
-        log_error(
-            error_signature=f"Phase {phase_id} max attempts exhausted",
-            symptom=f"Phase failed after {max_attempts} attempts with model escalation",
-            run_id=self.run_id,
-            phase_id=phase_id,
-            suspected_cause="Task complexity exceeds model capabilities or task is impossible",
-            priority="HIGH"
-        )
-
-        self._update_phase_status(phase_id, "FAILED")
-        return False, "FAILED"
+            logger.warning(f"[{phase_id}] Attempt {new_attempts}/{max_attempts} raised exception, will retry")
+            return False, "EXCEPTION_OCCURRED"
 
     def _status_to_outcome(self, status: str) -> str:
         """Map phase status to outcome for escalation tracking."""

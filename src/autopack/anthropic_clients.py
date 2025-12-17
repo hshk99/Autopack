@@ -153,10 +153,22 @@ class AnthropicBuilderClient:
         if lockfile_phase or manifest_phase:
             phase_spec.setdefault("change_size", "large_refactor")
 
-        # Increase token budget when emitting larger artifacts (lockfiles, docker configs, packs)
+        # BUILD-042: Apply complexity-based token scaling FIRST (before special case overrides)
+        # This ensures the base token budget is set correctly before task-specific increases
         task_category = phase_spec.get("task_category", "")
         if max_tokens is None:
-            max_tokens = 4096
+            complexity = phase_spec.get("complexity", "medium")
+            if complexity == "low":
+                max_tokens = 8192  # BUILD-042: Increased from 4096
+            elif complexity == "medium":
+                max_tokens = 12288  # BUILD-042: Complexity-based scaling
+            elif complexity == "high":
+                max_tokens = 16384  # BUILD-042: Complexity-based scaling
+            else:
+                max_tokens = 8192  # Default fallback
+
+        # Increase token budget when emitting larger artifacts (lockfiles, docker configs, packs)
+        # These override the complexity-based defaults if they need more
         if lockfile_phase or manifest_phase:
             max_tokens = max(max_tokens, 12000)
         if task_category in ("deployment", "frontend"):
@@ -284,28 +296,14 @@ class AnthropicBuilderClient:
             builder_mode = phase_spec.get("builder_mode", "")
             change_size = phase_spec.get("change_size", "")
 
-            # Increase max_tokens for full_file mode with large files or large_refactor changes
-            # This prevents truncation of YAML pack files and other large file replacements
-            # FIX: Hybrid approach to eliminate max_tokens truncation (MAX_TOKENS_FIX_PROPOSAL.md)
-            if max_tokens is None:
-                # Phase 3: Complexity-based token scaling
-                complexity = phase_spec.get("complexity", "medium")
-                if complexity == "low":
-                    max_tokens = 8192  # Increased from 4096 - handles multi-file structured edits
-                elif complexity == "medium":
-                    max_tokens = 12288
-                elif complexity == "high":
-                    max_tokens = 16384
-                else:
-                    max_tokens = 8192  # Default fallback
-
-                # Override for special modes (full_file or large_refactor need max budget)
-                if builder_mode == "full_file" or change_size == "large_refactor":
-                    max_tokens = max(max_tokens, 16384)
-                    logger.debug(
-                        "[TOKEN_EST] Using increased max_tokens=%d for builder_mode=%s change_size=%s",
-                        max_tokens, builder_mode, change_size
-                    )
+            # BUILD-042: Override for special modes (full_file or large_refactor need max budget)
+            # This is in addition to the complexity-based scaling applied earlier
+            if builder_mode == "full_file" or change_size == "large_refactor":
+                max_tokens = max(max_tokens, 16384)
+                logger.debug(
+                    "[TOKEN_EST] Using increased max_tokens=%d for builder_mode=%s change_size=%s",
+                    max_tokens, builder_mode, change_size
+                )
             elif max_tokens <= 0:
                 logger.warning(
                     "[TOKEN_EST] max_tokens invalid (%s); falling back to default 4096",

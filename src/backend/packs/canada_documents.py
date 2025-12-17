@@ -15,15 +15,16 @@ Includes support for Canadian date formats and postal code validation.
 from typing import Dict, List, Optional, Any
 from datetime import datetime
 import re
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, field_validator
 
 
 class CanadianPostalCode(BaseModel):
     """Canadian postal code validator and parser."""
     
     code: str = Field(..., description="Postal code in format A1A 1A1")
-    
-    @validator('code')
+
+    @field_validator('code')
+    @classmethod
     def validate_postal_code(cls, v: str) -> str:
         """Validate Canadian postal code format."""
         # Remove spaces and convert to uppercase

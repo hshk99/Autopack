@@ -40,9 +40,9 @@ def hash_password(password: str) -> str:
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """
-    Verify a plaintext password against a bcrypt hash.
+    Verify a plaintext password against a bcrypt hash, ensuring it is not longer than 72 bytes.
     """
-    return bcrypt.checkpw(plain_password.encode("utf-8"), hashed_password.encode("utf-8"))
+    return bcrypt.checkpw(plain_password[:72].encode("utf-8"), hashed_password.encode("utf-8"))
 
 
 def ensure_keys() -> None:

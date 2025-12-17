@@ -4,7 +4,7 @@ User database model.
 from datetime import datetime, timezone
 from sqlalchemy import Column, Integer, String, Boolean, DateTime
 
-from ..database import Base
+from backend.database import Base
 
 class User(Base):
     """
@@ -47,5 +47,5 @@ class User(Base):
 
 
 # Re-export get_db for backward compatibility with existing tests
-from ..database import get_db  # noqa: E402,F401
+from backend.database import get_db  # noqa: E402,F401
 

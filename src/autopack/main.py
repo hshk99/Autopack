@@ -77,6 +77,10 @@ app = FastAPI(
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
+# Mount authentication router
+from backend.api import auth as auth_router
+app.include_router(auth_router.router, tags=["authentication"])
+
 # Global exception handler for debugging
 import logging
 from fastapi.responses import JSONResponse

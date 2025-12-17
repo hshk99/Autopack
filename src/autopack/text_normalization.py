@@ -139,30 +139,33 @@ def normalize_whitespace(text: str) -> str:
 
 def normalize_text(text: Optional[str], strip_markdown: bool = True) -> str:
     """Apply full text normalization pipeline.
-    
+
     Args:
         text: Input text to normalize.
         strip_markdown: Whether to remove markdown formatting artifacts.
-        
+
     Returns:
-        Fully normalized text.
+        Fully normalized text (lowercase).
     """
     if not text:
         return ''
-    
+
     result = text
-    
+
     # Step 1: Decode HTML entities
     result = decode_html_entities(result)
-    
+
     # Step 2: Normalize Unicode
     result = normalize_unicode(result)
-    
+
     # Step 3: Optionally strip markdown
     if strip_markdown:
         result = strip_markdown_artifacts(result)
-    
+
     # Step 4: Normalize whitespace
     result = normalize_whitespace(result)
-    
+
+    # Step 5: Convert to lowercase for case-insensitive matching
+    result = result.lower()
+
     return result

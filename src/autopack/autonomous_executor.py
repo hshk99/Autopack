@@ -44,6 +44,7 @@ from sqlalchemy.orm import sessionmaker
 from autopack.quality_gate import QualityGate
 from autopack.config import settings
 from autopack.llm_client import BuilderResult, AuditorResult
+from autopack.executor_lock import ExecutorLockManager  # BUILD-048-T1
 from autopack.error_recovery import (
     ErrorRecoverySystem, get_error_recovery, safe_execute,
     DoctorRequest, DoctorResponse, DoctorContextSummary,
@@ -5376,6 +5377,15 @@ Environment Variables:
     if args.verbose:
         logging.getLogger().setLevel(logging.DEBUG)
 
+    # BUILD-048-T1: Acquire executor lock to prevent duplicates
+    lock_manager = ExecutorLockManager(args.run_id)
+    if not lock_manager.acquire():
+        logger.error(
+            f"Another executor is already running for run_id={args.run_id}. "
+            f"Exiting to prevent duplicate work and token waste."
+        )
+        sys.exit(1)
+
     # Create executor
     try:
         executor = AutonomousExecutor(
@@ -5419,6 +5429,9 @@ Environment Variables:
         logger.error(f"Fatal error: {e}")
         logger.error(f"Traceback:\n{traceback.format_exc()}")
         sys.exit(1)
+    finally:
+        # BUILD-048-T1: Release executor lock
+        lock_manager.release()
 
 
 if __name__ == "__main__":

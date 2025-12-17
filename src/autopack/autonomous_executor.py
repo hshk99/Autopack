@@ -1168,11 +1168,17 @@ class AutonomousExecutor:
 
         Queries database for phases that are either:
         1. QUEUED (not yet started), OR
-        2. EXECUTING with retries available (attempts_used < max_attempts)
+        2. EXECUTING with retries available (attempts_used < max_attempts), OR
+        3. FAILED with retries available (auto-reset to QUEUED for retry)
 
         This replaces instance-based phase selection with database-backed selection,
         fixing the infinite loop bug where phases stuck in EXECUTING state weren't
         being retried.
+
+        AUTO-RESET FEATURE:
+        FAILED phases with remaining retry attempts are automatically reset to QUEUED.
+        This eliminates the need for manual intervention when phases fail due to
+        transient issues (max_tokens truncation, network errors, etc.).
 
         Returns:
             Phase dict if found, None otherwise
@@ -1180,11 +1186,33 @@ class AutonomousExecutor:
         try:
             from autopack.database import get_db
             from autopack.models import Phase, PhaseState, Tier
+            from datetime import datetime, timezone
 
             db = next(get_db())
 
+            # AUTO-RESET: Reset FAILED phases with retries remaining to QUEUED
+            # This allows BUILD-041 through BUILD-045 fixes to be applied on retry
+            failed_phases_with_retries = db.query(Phase).filter(
+                Phase.run_id == self.run_id,
+                Phase.state == PhaseState.FAILED,
+                Phase.builder_attempts < Phase.max_builder_attempts
+            ).all()
+
+            if failed_phases_with_retries:
+                logger.info(f"[AUTO-RESET] Found {len(failed_phases_with_retries)} FAILED phases with retries remaining")
+                for phase in failed_phases_with_retries:
+                    logger.info(
+                        f"[AUTO-RESET] Resetting {phase.phase_id} to QUEUED "
+                        f"(attempts: {phase.builder_attempts}/{phase.max_builder_attempts})"
+                    )
+                    phase.state = PhaseState.QUEUED
+                    phase.started_at = None
+                    phase.completed_at = None
+                    phase.updated_at = datetime.now(timezone.utc)
+                db.commit()
+
             # Query for executable phases:
-            # - QUEUED phases (not yet started)
+            # - QUEUED phases (not yet started OR just auto-reset from FAILED)
             # - EXECUTING phases with retries available (attempts_used < max_attempts)
             executable_phases = db.query(Phase, Tier).join(
                 Tier, Phase.tier_id == Tier.id
@@ -1194,7 +1222,7 @@ class AutonomousExecutor:
                     (Phase.state == PhaseState.QUEUED) |
                     (
                         (Phase.state == PhaseState.EXECUTING) &
-                        (Phase.attempts_used < Phase.max_attempts)
+                        (Phase.builder_attempts < Phase.max_builder_attempts)
                     )
                 )
             ).order_by(
@@ -1210,7 +1238,7 @@ class AutonomousExecutor:
             phase_db, tier_db = executable_phases[0]
             logger.info(
                 f"[{phase_db.phase_id}] Found executable phase: "
-                f"state={phase_db.state}, attempts={phase_db.attempts_used}/{phase_db.max_attempts}"
+                f"state={phase_db.state}, attempts={phase_db.builder_attempts}/{phase_db.max_builder_attempts}"
             )
 
             # Convert database model to dict for compatibility with existing code
@@ -1228,10 +1256,10 @@ class AutonomousExecutor:
                 "scope": {},  # Phase model stores scope mode as string, not config dict
                 "dependencies": getattr(phase_db, 'dependencies', None) or [],
                 "acceptance_criteria": getattr(phase_db, 'acceptance_criteria', None) or [],
-                "attempts_used": phase_db.attempts_used,
-                "max_attempts": phase_db.max_attempts,
-                "last_attempt_timestamp": phase_db.last_attempt_timestamp,
-                "last_failure_reason": phase_db.last_failure_reason,
+                "builder_attempts": phase_db.builder_attempts,
+                "max_builder_attempts": phase_db.max_builder_attempts,
+                "auditor_attempts": phase_db.auditor_attempts,
+                "max_auditor_attempts": phase_db.max_auditor_attempts,
             }
 
             return phase_dict

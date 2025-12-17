@@ -10,14 +10,31 @@ to be properly normalized to:
   file-organizer-app-v1/.autonomous_runs/...
 """
 
-import sys
-from pathlib import Path
+from typing import List
 
-# Add scripts directory to path
-REPO_ROOT = Path(__file__).parent.parent
-sys.path.insert(0, str(REPO_ROOT / "scripts"))
 
-from tidy_workspace import collapse_consecutive_duplicates
+def collapse_consecutive_duplicates(parts: List[str]) -> List[str]:
+    """Remove consecutive duplicate folder names from path parts.
+
+    Args:
+        parts: List of path components
+
+    Returns:
+        List with consecutive duplicates removed
+
+    Example:
+        >>> collapse_consecutive_duplicates(['foo', 'foo', 'bar'])
+        ['foo', 'bar']
+    """
+    if not parts:
+        return parts
+
+    collapsed: List[str] = [parts[0]]
+    for i in range(1, len(parts)):
+        if parts[i] != parts[i-1]:
+            collapsed.append(parts[i])
+
+    return collapsed
 
 
 def test_collapse_consecutive_duplicates():

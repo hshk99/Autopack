@@ -18,7 +18,8 @@ def test_ensure_directories(file_layout, tmp_path):
     """Test that ensure_directories creates all required directories"""
     file_layout.ensure_directories()
 
-    run_dir = tmp_path / "test-run-001"
+    # Path structure: base_dir / project_id / runs / family / run_id
+    run_dir = tmp_path / "autopack" / "runs" / "test-run-001"
     assert run_dir.exists()
     assert (run_dir / "tiers").exists()
     assert (run_dir / "phases").exists()
@@ -28,25 +29,26 @@ def test_ensure_directories(file_layout, tmp_path):
 def test_get_run_summary_path(file_layout, tmp_path):
     """Test getting run summary path"""
     path = file_layout.get_run_summary_path()
-    assert path == tmp_path / "test-run-001" / "run_summary.md"
+    # Path structure: base_dir / project_id / runs / family / run_id / file
+    assert path == tmp_path / "autopack" / "runs" / "test-run-001" / "run_summary.md"
 
 
 def test_get_tier_summary_path(file_layout, tmp_path):
     """Test getting tier summary path"""
     path = file_layout.get_tier_summary_path(0, "Foundation")
-    assert path == tmp_path / "test-run-001" / "tiers" / "tier_00_Foundation.md"
+    assert path == tmp_path / "autopack" / "runs" / "test-run-001" / "tiers" / "tier_00_Foundation.md"
 
 
 def test_get_tier_summary_path_with_spaces(file_layout, tmp_path):
     """Test tier summary path with spaces in name"""
     path = file_layout.get_tier_summary_path(1, "Auth & Security")
-    assert path == tmp_path / "test-run-001" / "tiers" / "tier_01_Auth_&_Security.md"
+    assert path == tmp_path / "autopack" / "runs" / "test-run-001" / "tiers" / "tier_01_Auth_&_Security.md"
 
 
 def test_get_phase_summary_path(file_layout, tmp_path):
     """Test getting phase summary path"""
     path = file_layout.get_phase_summary_path(0, "F1.1")
-    assert path == tmp_path / "test-run-001" / "phases" / "phase_00_F1.1.md"
+    assert path == tmp_path / "autopack" / "runs" / "test-run-001" / "phases" / "phase_00_F1.1.md"
 
 
 def test_write_run_summary(file_layout, tmp_path):

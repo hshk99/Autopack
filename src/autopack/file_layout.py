@@ -8,9 +8,34 @@ Per §3 and §5 of v7 playbook, Supervisor maintains persistent artefacts:
 
 import os
 from pathlib import Path
-from typing import Optional
+from typing import Optional, List
 
 from .config import settings
+
+
+def collapse_consecutive_duplicates(parts: List[str]) -> List[str]:
+    """Remove consecutive duplicate folder names from path parts.
+
+    This prevents path nesting bugs like:
+        test-run/test-run/file.md
+    from becoming:
+        test-run/file.md
+
+    Args:
+        parts: List of path components
+
+    Returns:
+        List with consecutive duplicates removed
+    """
+    if not parts:
+        return parts
+
+    collapsed: List[str] = [parts[0]]
+    for i in range(1, len(parts)):
+        if parts[i] != parts[i-1]:
+            collapsed.append(parts[i])
+
+    return collapsed
 
 
 class RunFileLayout:
@@ -22,11 +47,21 @@ class RunFileLayout:
         self.family = self._extract_family(run_id)
 
         if base_dir is not None:
-            self.base_dir = base_dir / self.project_id / "runs" / self.family / run_id
+            # Build path parts and remove consecutive duplicates to prevent
+            # test-run-001/test-run-001/ nesting bugs
+            parts = [str(base_dir), self.project_id, "runs", self.family, run_id]
+            collapsed = collapse_consecutive_duplicates(parts)
+            self.base_dir = Path(collapsed[0])
+            for part in collapsed[1:]:
+                self.base_dir = self.base_dir / part
         else:
             # New structure: .autonomous_runs/{project}/runs/{family}/{run_id}/
             base = Path(settings.autonomous_runs_dir)
-            self.base_dir = base / self.project_id / "runs" / self.family / run_id
+            parts = [str(base), self.project_id, "runs", self.family, run_id]
+            collapsed = collapse_consecutive_duplicates(parts)
+            self.base_dir = Path(collapsed[0])
+            for part in collapsed[1:]:
+                self.base_dir = self.base_dir / part
 
     def ensure_directories(self) -> None:
         """Create all required directories for the run"""

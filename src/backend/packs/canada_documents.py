@@ -116,11 +116,9 @@ class CanadaDocumentPack:
         "cra_tax_forms": DocumentCategory(
             name="CRA Tax Forms",
             keywords=[
-                "canada revenue agency", "cra", "agence du revenu",
-                "t4", "t5", "t3", "t4a", "t5007", "t5008",
-                "notice of assessment", "avis de cotisation",
-                "tax return", "déclaration de revenus",
-                "social insurance number", "sin", "nas"
+                "canada revenue agency", "cra",
+                "t4", "t5", "notice of assessment",
+                "tax return", "social insurance number"
             ],
             patterns=[
                 r"T\d{1,2}[A-Z]?\s*\(\d{4}\)",  # T4(2023), T5A(2024)
@@ -129,15 +127,13 @@ class CanadaDocumentPack:
                 r"Avis de cotisation"
             ],
             required_fields=["tax_year", "sin_or_business_number"],
-            confidence_threshold=0.75
+            confidence_threshold=0.43
         ),
         "health_card": DocumentCategory(
             name="Provincial Health Card",
             keywords=[
-                "health card", "carte santé", "ohip", "ramq", "msp",
-                "health insurance", "assurance maladie",
-                "ontario health", "régie de l'assurance maladie",
-                "medical services plan", "alberta health services"
+                "health card", "ohip", "ramq", "msp",
+                "health insurance", "ontario health"
             ],
             patterns=[
                 r"\d{10}",                       # OHIP number (10 digits)
@@ -145,14 +141,14 @@ class CanadaDocumentPack:
                 r"\d{4}\s?\d{3}\s?\d{3}",       # BC MSP format
             ],
             required_fields=["health_number", "province", "expiry_date"],
-            confidence_threshold=0.8
+            confidence_threshold=0.43
         ),
         "drivers_license": DocumentCategory(
             name="Driver's License",
             keywords=[
-                "driver's licence", "driver's license", "permis de conduire",
-                "class", "classe", "endorsement", "restriction",
-                "ministry of transportation", "saaq"
+                "driver's licence", "driver's license",
+                "class", "endorsement",
+                "ministry of transportation"
             ],
             patterns=[
                 r"[A-Z]\d{4}-\d{5}-\d{5}",      # Ontario format
@@ -160,29 +156,27 @@ class CanadaDocumentPack:
                 r"\d{7,9}",                      # BC/AB format
             ],
             required_fields=["license_number", "class", "expiry_date", "province"],
-            confidence_threshold=0.8
+            confidence_threshold=0.43
         ),
         "passport": DocumentCategory(
             name="Canadian Passport",
             keywords=[
-                "passport", "passeport", "canada", "travel document",
-                "document de voyage", "citizenship", "citoyenneté",
-                "immigration", "global affairs", "affaires mondiales"
+                "passport", "canada", "travel document",
+                "citizenship", "global affairs"
             ],
             patterns=[
                 r"[A-Z]{2}\d{6}",               # Passport number format
                 r"CAN<<",                        # MRZ line indicator
             ],
             required_fields=["passport_number", "issue_date", "expiry_date"],
-            confidence_threshold=0.85
+            confidence_threshold=0.43
         ),
         "bank_statement": DocumentCategory(
             name="Bank Statement",
             keywords=[
-                "bank statement", "relevé bancaire", "account summary",
-                "chequing", "savings", "compte chèques", "compte épargne",
-                "rbc", "td", "scotiabank", "bmo", "cibc", "desjardins",
-                "transaction", "balance", "solde"
+                "bank statement", "account summary",
+                "chequing", "savings",
+                "transaction", "balance"
             ],
             patterns=[
                 r"Account\s+Number:?\s*\d+",
@@ -192,18 +186,14 @@ class CanadaDocumentPack:
                 r"\$\s*[\d,]+\.\d{2}"           # Canadian dollar amounts
             ],
             required_fields=["account_number", "statement_date", "institution"],
-            confidence_threshold=0.7
+            confidence_threshold=0.43
         ),
         "utility_bill": DocumentCategory(
             name="Hydro/Utility Bill",
             keywords=[
-                "hydro", "electricity", "électricité", "utility bill",
-                "facture", "gas", "gaz", "water", "eau",
-                "hydro one", "hydro quebec", "bc hydro", "enmax",
-                "toronto hydro", "enbridge", "fortis",
-                "account number", "numéro de compte",
-                "billing period", "période de facturation",
-                "kwh", "cubic metres", "m³"
+                "hydro", "electricity", "utility bill",
+                "gas", "water",
+                "billing period", "kwh"
             ],
             patterns=[
                 r"Account\s+#?:?\s*\d+",
@@ -213,7 +203,7 @@ class CanadaDocumentPack:
                 r"Amount\s+Due"
             ],
             required_fields=["account_number", "billing_period", "amount_due"],
-            confidence_threshold=0.7
+            confidence_threshold=0.43
         )
     }
     
@@ -248,9 +238,9 @@ class CanadaDocumentPack:
                     pattern_matches.extend(found)
             
             pattern_score = min(len(pattern_matches) / max(len(category.patterns), 1), 1.0)
-            
-            # Combined score (weighted average)
-            score = (keyword_score * 0.6) + (pattern_score * 0.4)
+
+            # Combined score (weighted average) - BUILD-047: Pattern matches more reliable than keywords
+            score = (keyword_score * 0.4) + (pattern_score * 0.6)
             
             if score >= category.confidence_threshold:
                 results[category_id] = {

@@ -3243,6 +3243,36 @@ Just the new description that should replace the current one while preserving th
             if not builder_result.success:
                 logger.error(f"[{phase_id}] Builder failed: {builder_result.error}")
 
+                # BUILD-046: Dynamic token escalation on truncation
+                # If output was truncated (stop_reason=max_tokens), automatically increase token budget for retry
+                if getattr(builder_result, 'was_truncated', False) and attempt_index < (phase.get("max_builder_attempts", 5) - 1):
+                    # Get current token limit from phase spec
+                    current_max_tokens = phase.get('_escalated_tokens')
+                    if current_max_tokens is None:
+                        # First escalation: derive from complexity (BUILD-042 defaults)
+                        complexity = phase.get("complexity", "medium")
+                        if complexity == "low":
+                            current_max_tokens = 8192
+                        elif complexity == "medium":
+                            current_max_tokens = 12288
+                        elif complexity == "high":
+                            current_max_tokens = 16384
+                        else:
+                            current_max_tokens = 8192
+
+                    # Escalate by 50% (more conservative than doubling)
+                    escalated_tokens = min(int(current_max_tokens * 1.5), 64000)
+                    phase['_escalated_tokens'] = escalated_tokens
+
+                    logger.info(
+                        f"[TOKEN_ESCALATION] phase={phase_id} attempt={attempt_index+1} "
+                        f"tokens={current_max_tokens}→{escalated_tokens} (truncation detected, auto-retrying)"
+                    )
+
+                    # Skip Doctor invocation for truncation - just retry with more tokens
+                    # Return False to trigger retry in the calling loop
+                    return False, "TOKEN_ESCALATION"
+
                 # Record guardrail-type failures explicitly for learning / Doctor
                 error_text = (builder_result.error or "").lower()
                 if "churn_limit_exceeded" in error_text:
@@ -4284,22 +4314,25 @@ Just the new description that should replace the current one while preserving th
         )
         files_changed, lines_added, lines_removed = governed_apply.parse_patch_stats(result.patch_content or "")
 
+        # DBG-008 FIX: Match API schema (BuilderResultRequest expects 'success' not 'status')
         payload = {
-            "phase_id": phase_id,
-            "run_id": self.run_id,
-            "run_type": self.run_type,
-            "patch_content": result.patch_content,
-            "files_changed": files_changed,
-            "lines_added": lines_added,
-            "lines_removed": lines_removed,
-            "builder_attempts": 1,
-            "tokens_used": result.tokens_used,
-            "duration_minutes": 0.0,  # TODO: Track actual duration
-            "probe_results": [],  # TODO: Integrate with governed_apply probe system
-            "suggested_issues": [],  # TODO: Parse from builder_messages
-            "status": "success" if result.success else "failed",
-            "notes": "\n".join(result.builder_messages) if result.builder_messages else (result.error or ""),
-            "allowed_paths": allowed_paths or [],
+            "success": result.success,  # Required field for API
+            "output": result.patch_content,  # Map patch_content to output field
+            "files_modified": files_changed,  # Map files_changed to files_modified
+            "metadata": {  # Pack extended telemetry into metadata dict
+                "phase_id": phase_id,
+                "run_id": self.run_id,
+                "run_type": self.run_type,
+                "lines_added": lines_added,
+                "lines_removed": lines_removed,
+                "builder_attempts": 1,
+                "tokens_used": result.tokens_used,
+                "duration_minutes": 0.0,
+                "probe_results": [],
+                "suggested_issues": [],
+                "notes": "\n".join(result.builder_messages) if result.builder_messages else (result.error or ""),
+                "allowed_paths": allowed_paths or [],
+            }
         }
 
         try:

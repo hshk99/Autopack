@@ -44,3 +44,7 @@ docs/
 
 # Environment files
 .env*
+
+# Autonomous runs and logs
+.autonomous_runs/
+*.log

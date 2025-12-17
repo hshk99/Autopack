@@ -18,19 +18,20 @@ EXPOSE 8000
 CMD ["uvicorn", "src.autopack.main:app", "--host", "0.0.0.0", "--port", "8000"]
 
 # Stage for frontend
-FROM node:18 as frontend
+FROM node:20 as frontend
 
 # Set the working directory in the container
 WORKDIR /app
 
-# Copy the package.json and package-lock.json
-COPY ./package.json /app
+# Copy the package.json and package-lock.json from the correct frontend location
+COPY ./src/autopack/dashboard/frontend/package.json /app/
+COPY ./src/autopack/dashboard/frontend/package-lock.json* /app/
 
 # Install frontend dependencies
 RUN npm install
 
-# Copy the rest of the application code
-COPY ./ /app
+# Copy the rest of the frontend application code
+COPY ./src/autopack/dashboard/frontend /app
 
 # Build the frontend
 RUN npm run build

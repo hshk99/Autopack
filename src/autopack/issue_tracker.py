@@ -179,6 +179,7 @@ class IssueTracker:
     def save_project_backlog(self, backlog: ProjectIssueBacklog) -> None:
         """Save project issue backlog"""
         path = self.get_project_backlog_path()
+        path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(backlog.model_dump_json(indent=2), encoding="utf-8")
 
     def update_project_backlog(

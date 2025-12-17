@@ -302,8 +302,8 @@ def test_project_backlog_persistence(issue_tracker, tmp_path):
         category="test_failure",
     )
 
-    # Create new tracker instance
-    tracker2 = IssueTracker(run_id="test-run-002", project_id="TestProject")
+    # Create new tracker instance with same base_dir
+    tracker2 = IssueTracker(run_id="test-run-002", project_id="TestProject", base_dir=tmp_path)
 
     # Load backlog - should contain issue from first tracker
     backlog = tracker2.load_project_backlog()

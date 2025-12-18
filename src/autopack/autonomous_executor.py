@@ -65,6 +65,10 @@ from autopack.health_checks import run_health_checks, HealthCheckResult
 from autopack.file_layout import RunFileLayout
 from autopack.maintenance_auditor import AuditorInput, DiffStats, TestResult, evaluate as audit_evaluate
 from autopack.backlog_maintenance import parse_patch_stats, create_git_checkpoint
+from autopack.deliverables_validator import (
+    validate_deliverables,
+    format_validation_feedback_for_builder,
+)
 
 # Memory and validation imports
 from autopack import models
@@ -91,6 +95,9 @@ logger = logging.getLogger(__name__)
 # Disabled by default (user opt-in via models.yaml).
 
 MAX_EXECUTE_FIX_PER_PHASE = 1  # Maximum execute_fix attempts per phase
+
+# BUILD-050 Phase 2: Maximum retry attempts per phase
+MAX_RETRY_ATTEMPTS = 5  # Maximum Builder retry attempts before phase fails
 
 # Allowed fix types (v1: git, file, python; later: docker, shell)
 ALLOWED_FIX_TYPES = {"git", "file", "python"}
@@ -736,6 +743,85 @@ class AutonomousExecutor:
             "run_hints": relevant_hints,
         }
 
+    def _build_deliverables_contract(self, phase: Dict, phase_id: str) -> Optional[str]:
+        """
+        Build deliverables contract as hard constraint for Builder prompt.
+
+        Per BUILD-050 Phase 1: Extract deliverables from phase scope and format them
+        as non-negotiable requirements BEFORE learning hints.
+
+        Args:
+            phase: Phase specification dict
+            phase_id: Phase identifier for logging
+
+        Returns:
+            Formatted deliverables contract string or None if no deliverables specified
+        """
+        from .deliverables_validator import extract_deliverables_from_scope
+        from os.path import commonpath
+
+        scope = phase.get("scope")
+        if not scope:
+            return None
+
+        # Extract expected deliverables
+        expected_paths = extract_deliverables_from_scope(scope)
+        if not expected_paths:
+            return None
+
+        # Find common path prefix to emphasize structure
+        common_prefix = "/"
+        if len(expected_paths) > 1:
+            try:
+                common_prefix = commonpath(expected_paths)
+            except (ValueError, TypeError):
+                pass  # No common prefix, use root
+
+        # Get forbidden patterns from recent validation failures
+        forbidden_patterns = []
+        learning_context = self._get_learning_context_for_phase(phase)
+        run_hints = learning_context.get("run_hints", [])
+
+        for hint in run_hints:
+            hint_text = hint if isinstance(hint, str) else getattr(hint, 'hint_text', '')
+            # Extract patterns like "Wrong: path/to/file"
+            if "Wrong:" in hint_text and "→" in hint_text:
+                parts = hint_text.split("Wrong:")
+                if len(parts) > 1:
+                    wrong_part = parts[1].split("→")[0].strip()
+                    if wrong_part and wrong_part not in forbidden_patterns:
+                        forbidden_patterns.append(wrong_part)
+
+        # Build contract
+        contract_parts = []
+        contract_parts.append("=" * 80)
+        contract_parts.append("⚠️  CRITICAL FILE PATH REQUIREMENTS (NON-NEGOTIABLE)")
+        contract_parts.append("=" * 80)
+        contract_parts.append("")
+        contract_parts.append("You MUST create files at these EXACT paths. This is not negotiable.")
+        contract_parts.append("")
+
+        if common_prefix and common_prefix != "/":
+            contract_parts.append(f"📁 All files MUST be under: {common_prefix}/")
+            contract_parts.append("")
+
+        if forbidden_patterns:
+            contract_parts.append("❌ FORBIDDEN patterns (from previous failed attempts):")
+            for pattern in forbidden_patterns[:3]:  # Show first 3
+                contract_parts.append(f"   • DO NOT use: {pattern}")
+            contract_parts.append("")
+
+        contract_parts.append("✓ REQUIRED file paths:")
+        for path in expected_paths:
+            contract_parts.append(f"   {path}")
+        contract_parts.append("")
+        contract_parts.append("=" * 80)
+        contract_parts.append("")
+
+        logger.info(f"[{phase_id}] Built deliverables contract: {len(expected_paths)} required paths, {len(forbidden_patterns)} forbidden patterns")
+
+        return "\n".join(contract_parts)
+
     def _mark_rules_updated(self, project_id: str, promoted_count: int):
         """
         Mark that project rules have been updated.
@@ -974,7 +1060,7 @@ class AutonomousExecutor:
 
             if phase:
                 logger.debug(
-                    f"[{phase_id}] Loaded from DB: attempts_used={phase.attempts_used}/{phase.max_attempts}, "
+                    f"[{phase_id}] Loaded from DB: retry_attempt={phase.retry_attempt}, revision_epoch={phase.revision_epoch}, escalation_level={phase.escalation_level}, "
                     f"state={phase.state}"
                 )
             else:
@@ -989,17 +1075,24 @@ class AutonomousExecutor:
     def _update_phase_attempts_in_db(
         self,
         phase_id: str,
-        attempts_used: int,
+        attempts_used: int = None,
         last_failure_reason: Optional[str] = None,
-        timestamp: Optional[Any] = None
+        timestamp: Optional[Any] = None,
+        # BUILD-050 Phase 2: Support decoupled counters
+        retry_attempt: Optional[int] = None,
+        revision_epoch: Optional[int] = None,
+        escalation_level: Optional[int] = None,
     ) -> bool:
         """Update phase attempt tracking in database
 
         Args:
             phase_id: Phase identifier
-            attempts_used: New attempt count
+            attempts_used: DEPRECATED - use retry_attempt instead (kept for backwards compatibility)
             last_failure_reason: Failure status from most recent attempt
             timestamp: Timestamp of last attempt (defaults to now)
+            retry_attempt: BUILD-050 - Monotonic retry counter (for hints and escalation)
+            revision_epoch: BUILD-050 - Replan counter (increments on Doctor replan)
+            escalation_level: BUILD-050 - Model escalation level (0=base, 1=escalated, etc.)
 
         Returns:
             True if update successful, False otherwise
@@ -1019,18 +1112,37 @@ class AutonomousExecutor:
                 logger.error(f"[{phase_id}] Cannot update attempts: phase not found in database")
                 return False
 
-            # Update attempt tracking
-            phase.attempts_used = attempts_used
+            # Update attempt tracking (backwards compatibility)
+            if attempts_used is not None:
+                phase.attempts_used = attempts_used
+
+            # BUILD-050 Phase 2: Update decoupled counters
+            if retry_attempt is not None:
+                phase.retry_attempt = retry_attempt
+            if revision_epoch is not None:
+                phase.revision_epoch = revision_epoch
+            if escalation_level is not None:
+                phase.escalation_level = escalation_level
+
             if last_failure_reason:
                 phase.last_failure_reason = last_failure_reason
             phase.last_attempt_timestamp = timestamp or datetime.now(timezone.utc)
 
             db.commit()
 
-            logger.info(
-                f"[{phase_id}] Updated attempts in DB: {attempts_used}/{phase.max_attempts} "
-                f"(reason: {last_failure_reason or 'N/A'})"
-            )
+            # BUILD-050: Enhanced logging with decoupled counters
+            if retry_attempt is not None or revision_epoch is not None or escalation_level is not None:
+                logger.info(
+                    f"[{phase_id}] Updated counters in DB: "
+                    f"retry={phase.retry_attempt}, epoch={phase.revision_epoch}, "
+                    f"escalation={phase.escalation_level} "
+                    f"(reason: {last_failure_reason or 'N/A'})"
+                )
+            else:
+                logger.info(
+                    f"[{phase_id}] Updated attempts in DB: retry={retry_attempt}, epoch={revision_epoch}, escalation={escalation_level} "
+                    f"(reason: {last_failure_reason or 'N/A'})"
+                )
             return True
 
         except Exception as e:
@@ -1169,7 +1281,7 @@ class AutonomousExecutor:
 
         Queries database for phases that are either:
         1. QUEUED (not yet started), OR
-        2. EXECUTING with retries available (attempts_used < max_attempts), OR
+        2. EXECUTING with retries available (retry_attempt < MAX_RETRY_ATTEMPTS), OR
         3. FAILED with retries available (auto-reset to QUEUED for retry)
 
         This replaces instance-based phase selection with database-backed selection,
@@ -1214,7 +1326,7 @@ class AutonomousExecutor:
 
             # Query for executable phases:
             # - QUEUED phases (not yet started OR just auto-reset from FAILED)
-            # - EXECUTING phases with retries available (attempts_used < max_attempts)
+            # - EXECUTING phases with retries available (retry_attempt < MAX_RETRY_ATTEMPTS)
             executable_phases = db.query(Phase, Tier).join(
                 Tier, Phase.tier_id == Tier.id
             ).filter(
@@ -1254,7 +1366,7 @@ class AutonomousExecutor:
                 "state": phase_db.state.value if hasattr(phase_db.state, 'value') else str(phase_db.state),
                 "complexity": phase_db.complexity,
                 "task_category": phase_db.task_category,
-                "scope": {},  # Phase model stores scope mode as string, not config dict
+                "scope": getattr(phase_db, 'scope', None) or {},  # Read actual scope config from database
                 "dependencies": getattr(phase_db, 'dependencies', None) or [],
                 "acceptance_criteria": getattr(phase_db, 'acceptance_criteria', None) or [],
                 "builder_attempts": phase_db.builder_attempts,
@@ -1273,7 +1385,7 @@ class AutonomousExecutor:
         """Execute Builder -> Auditor -> QualityGate pipeline for a phase with database-backed state persistence
 
         BUILD-041: This method now executes ONE attempt per call, relying on the database for retry state.
-        - Database tracks: attempts_used, max_attempts, last_attempt_timestamp, last_failure_reason
+        - Database tracks: retry_attempt, revision_epoch, escalation_level, last_attempt_timestamp, last_failure_reason
         - Model escalation: attempts 0-1 use cheap models, 2-3 mid-tier, 4+ strongest
         - Main loop handles retries by re-invoking this method
 
@@ -1295,10 +1407,10 @@ class AutonomousExecutor:
             return False, "FAILED"
 
         # Check if already exhausted attempts
-        if phase_db.attempts_used >= phase_db.max_attempts:
+        if phase_db.retry_attempt >= MAX_RETRY_ATTEMPTS:
             logger.warning(
                 f"[{phase_id}] Phase has already exhausted all attempts "
-                f"({phase_db.attempts_used}/{phase_db.max_attempts}). Marking as FAILED."
+                f"({phase_db.retry_attempt}/{MAX_RETRY_ATTEMPTS}). Marking as FAILED."
             )
             self._mark_phase_failed_in_db(phase_id, "MAX_ATTEMPTS_EXHAUSTED")
             return False, "FAILED"
@@ -1308,8 +1420,8 @@ class AutonomousExecutor:
         self._initialize_phase_goal_anchor(phase)
 
         # Current attempt index from database
-        attempt_index = phase_db.attempts_used
-        max_attempts = phase_db.max_attempts
+        attempt_index = phase_db.retry_attempt
+        max_attempts = MAX_RETRY_ATTEMPTS
 
         # Reload project rules mid-run if rules_updated.json advanced
         self._refresh_project_rules_if_updated()
@@ -1403,9 +1515,19 @@ class AutonomousExecutor:
                     return False, status
 
                 if action_taken == "replan":
-                    # [BUILD-041] Doctor recommended replanning - reset attempts in database
-                    logger.info(f"[{phase_id}] Doctor triggered re-planning, resetting attempts to 0")
-                    self._update_phase_attempts_in_db(phase_id, attempts_used=0, last_failure_reason=None)
+                    # BUILD-050 Phase 2: Non-destructive replanning - increment epoch, preserve retry progress
+                    phase_db = self._get_phase_from_db(phase_id)
+                    if phase_db:
+                        new_epoch = phase_db.revision_epoch + 1
+                        logger.info(
+                            f"[{phase_id}] Doctor triggered re-planning (epoch {phase_db.revision_epoch} → {new_epoch}), "
+                            f"preserving retry progress (retry_attempt={phase_db.retry_attempt}, escalation={phase_db.escalation_level})"
+                        )
+                        self._update_phase_attempts_in_db(
+                            phase_id,
+                            revision_epoch=new_epoch,
+                            last_failure_reason="DOCTOR_REPLAN"
+                        )
                     return False, "REPLAN_REQUESTED"
 
             # Check if we should trigger re-planning before next retry
@@ -1420,10 +1542,20 @@ class AutonomousExecutor:
                 revised_phase = self._revise_phase_approach(phase, flaw_type, error_history)
 
                 if revised_phase:
-                    # [BUILD-041] Reset attempts in database for revised approach
+                    # BUILD-050 Phase 2: Non-destructive replanning
                     self._run_replan_count += 1
-                    logger.info(f"[{phase_id}] Re-planning successful (run total: {self._run_replan_count}/{self.MAX_REPLANS_PER_RUN})")
-                    self._update_phase_attempts_in_db(phase_id, attempts_used=0, last_failure_reason="REPLANNED")
+                    phase_db = self._get_phase_from_db(phase_id)
+                    if phase_db:
+                        new_epoch = phase_db.revision_epoch + 1
+                        logger.info(
+                            f"[{phase_id}] Re-planning successful (run total: {self._run_replan_count}/{self.MAX_REPLANS_PER_RUN}, "
+                            f"epoch {phase_db.revision_epoch} → {new_epoch}), preserving retry progress"
+                        )
+                        self._update_phase_attempts_in_db(
+                            phase_id,
+                            revision_epoch=new_epoch,
+                            last_failure_reason="REPLANNED"
+                        )
                     return False, "REPLAN_REQUESTED"
                 else:
                     logger.warning(f"[{phase_id}] Re-planning failed, continuing with original approach")
@@ -1432,7 +1564,7 @@ class AutonomousExecutor:
             new_attempts = attempt_index + 1
             self._update_phase_attempts_in_db(
                 phase_id,
-                attempts_used=new_attempts,
+                retry_attempt=new_attempts,
                 last_failure_reason=status
             )
 
@@ -1471,7 +1603,7 @@ class AutonomousExecutor:
                 operation="execute_phase",
                 context_data={
                     "attempt_index": attempt_index,
-                    "max_attempts": max_attempts,
+                    "max_retry_attempts": MAX_RETRY_ATTEMPTS,
                     "phase_description": phase.get("description", "")[:200],
                     "phase_complexity": phase.get("complexity"),
                     "phase_task_category": phase.get("task_category"),
@@ -1523,9 +1655,19 @@ class AutonomousExecutor:
                     return False, "FAILED"
 
                 if action_taken == "replan":
-                    # [BUILD-041] Doctor recommended replanning after exception - reset attempts
-                    logger.info(f"[{phase_id}] Doctor triggered re-planning after exception, resetting attempts to 0")
-                    self._update_phase_attempts_in_db(phase_id, attempts_used=0, last_failure_reason=None)
+                    # BUILD-050 Phase 2: Non-destructive replanning after exception
+                    phase_db = self._get_phase_from_db(phase_id)
+                    if phase_db:
+                        new_epoch = phase_db.revision_epoch + 1
+                        logger.info(
+                            f"[{phase_id}] Doctor triggered re-planning after exception (epoch {phase_db.revision_epoch} → {new_epoch}), "
+                            f"preserving retry progress"
+                        )
+                        self._update_phase_attempts_in_db(
+                            phase_id,
+                            revision_epoch=new_epoch,
+                            last_failure_reason="DOCTOR_REPLAN_AFTER_EXCEPTION"
+                        )
                     return False, "REPLAN_REQUESTED"
 
             # Check if we should trigger re-planning before next retry
@@ -1535,17 +1677,27 @@ class AutonomousExecutor:
                 error_history = self._phase_error_history.get(phase_id, [])
                 revised_phase = self._revise_phase_approach(phase, flaw_type, error_history)
                 if revised_phase:
-                    # [BUILD-041] Reset attempts for revised approach
+                    # BUILD-050 Phase 2: Non-destructive replanning after exception
                     self._run_replan_count += 1
-                    logger.info(f"[{phase_id}] Re-planning successful (run total: {self._run_replan_count}/{self.MAX_REPLANS_PER_RUN})")
-                    self._update_phase_attempts_in_db(phase_id, attempts_used=0, last_failure_reason="REPLANNED_AFTER_EXCEPTION")
+                    phase_db = self._get_phase_from_db(phase_id)
+                    if phase_db:
+                        new_epoch = phase_db.revision_epoch + 1
+                        logger.info(
+                            f"[{phase_id}] Re-planning successful (run total: {self._run_replan_count}/{self.MAX_REPLANS_PER_RUN}, "
+                            f"epoch {phase_db.revision_epoch} → {new_epoch}), preserving retry progress"
+                        )
+                        self._update_phase_attempts_in_db(
+                            phase_id,
+                            revision_epoch=new_epoch,
+                            last_failure_reason="REPLANNED_AFTER_EXCEPTION"
+                        )
                     return False, "REPLAN_REQUESTED"
 
             # [BUILD-041] Increment attempts_used in database after exception
             new_attempts = attempt_index + 1
             self._update_phase_attempts_in_db(
                 phase_id,
-                attempts_used=new_attempts,
+                retry_attempt=new_attempts,
                 last_failure_reason=f"EXCEPTION: {type(e).__name__}"
             )
 
@@ -3145,14 +3297,22 @@ Just the new description that should replace the current one while preserving th
                 except Exception as e:
                     logger.warning(f"[{phase_id}] Memory retrieval failed: {e}")
 
+            # BUILD-050 Phase 1: Add deliverables contract as hard constraint
+            # This ensures Builder creates files at correct paths from the start
+            deliverables_contract = self._build_deliverables_contract(phase, phase_id)
+
             # BUILD-044: Add protected paths to phase spec for LLM guidance
             # This prevents protected path violations by informing the LLM upfront
             protected_paths = ["src/autopack/", "config/", ".autonomous_runs/", ".git/"]
-            phase_with_isolation = {**phase, "protected_paths": protected_paths}
+            phase_with_constraints = {
+                **phase,
+                "protected_paths": protected_paths,
+                "deliverables_contract": deliverables_contract,  # BUILD-050: Hard constraint
+            }
 
             # Use LlmService for complexity-based model selection with escalation
             builder_result = self.llm_service.execute_builder_phase(
-                phase_spec=phase_with_isolation,
+                phase_spec=phase_with_constraints,
                 file_context=file_context,
                 max_tokens=None,  # Let ModelRouter decide based on phase config
                 project_rules=project_rules,  # Stage 0B: Persistent project rules
@@ -3185,8 +3345,12 @@ Just the new description that should replace the current one while preserving th
             )
             if should_retry_structured:
                 logger.warning(f"[{phase_id}] Falling back to structured_edit after full-file parse/truncation failure")
-                phase_structured = dict(phase)
-                phase_structured["builder_mode"] = "structured_edit"
+                phase_structured = {
+                    **phase,
+                    "builder_mode": "structured_edit",
+                    "protected_paths": protected_paths,
+                    "deliverables_contract": deliverables_contract,  # BUILD-050: Keep contract on retry
+                }
                 builder_result = self.llm_service.execute_builder_phase(
                     phase_spec=phase_structured,
                     file_context=file_context,
@@ -3354,6 +3518,84 @@ Just the new description that should replace the current one while preserving th
 
             logger.info(f"[{phase_id}] Builder succeeded ({builder_result.tokens_used} tokens)")
 
+            # DELIVERABLES VALIDATION: Check if patch creates required files
+            # This prevents Builder from creating files in wrong locations
+            scope_config = phase.get("scope", {})
+            is_valid, validation_errors, validation_details = validate_deliverables(
+                patch_content=builder_result.patch_content or "",
+                phase_scope=scope_config,
+                phase_id=phase_id,
+                workspace=Path(self.workspace)
+            )
+
+            if not is_valid:
+                # Generate detailed feedback for Builder to self-correct
+                feedback = format_validation_feedback_for_builder(
+                    errors=validation_errors,
+                    details=validation_details,
+                    phase_description=phase.get("description", "")
+                )
+
+                logger.error(f"[{phase_id}] Deliverables validation failed")
+                logger.error(f"[{phase_id}] {feedback}")
+
+                # Create a Builder result with validation error for retry
+                builder_result = BuilderResult(
+                    success=False,
+                    patch_content="",
+                    builder_messages=[
+                        "DELIVERABLES_VALIDATION_FAILED",
+                        feedback,
+                        f"Expected files: {', '.join(validation_details.get('expected_paths', [])[:5])}",
+                        f"Your patch created: {', '.join(validation_details.get('actual_paths', [])[:5])}"
+                    ],
+                    tokens_used=builder_result.tokens_used,
+                    model_used=getattr(builder_result, "model_used", None),
+                    error=f"Deliverables validation failed: {len(validation_details.get('missing_paths', []))} required files missing"
+                )
+
+                # Post failure to API and return for retry
+                self._post_builder_result(phase_id, builder_result, allowed_paths)
+
+                # Record as learning hint for future phases
+                # Generate a hint that emphasizes the path structure pattern
+                missing_paths = validation_details.get('missing_paths', [])
+                misplaced = validation_details.get('misplaced_paths', {})
+
+                hint_details = []
+
+                # If there are misplaced files, emphasize the path correction
+                if misplaced:
+                    # Find common prefix in expected paths to show the pattern
+                    expected_paths = validation_details.get('expected_paths', [])
+                    if expected_paths:
+                        # Get common directory prefix
+                        from os.path import commonpath
+                        try:
+                            common_prefix = commonpath(expected_paths)
+                            hint_details.append(f"All files must be under: {common_prefix}/")
+                        except (ValueError, TypeError):
+                            pass
+
+                    # Show examples of wrong → correct
+                    for expected, actual in list(misplaced.items())[:2]:
+                        hint_details.append(f"Wrong: {actual} → Correct: {expected}")
+
+                # If still space, add first few missing files
+                if len(hint_details) < 3 and missing_paths:
+                    hint_details.append(f"Missing {len(missing_paths)} files including: {', '.join(missing_paths[:3])}")
+
+                hint_text = "; ".join(hint_details) if hint_details else f"Missing: {', '.join(missing_paths[:3])}"
+
+                self._record_learning_hint(
+                    phase=phase,
+                    hint_type="deliverables_validation_failed",
+                    details=hint_text
+                )
+
+                # Return False to trigger retry with validation feedback
+                return False, "DELIVERABLES_VALIDATION_FAILED"
+
             # Post builder result to API
             self._post_builder_result(phase_id, builder_result, allowed_paths)
 
@@ -3363,7 +3605,6 @@ Just the new description that should replace the current one while preserving th
             # NEW: Check if this is a structured edit (Stage 2) or regular patch
             if builder_result.edit_plan:
                 # Structured edit mode (Stage 2) - per IMPLEMENTATION_PLAN3.md Phase 4
-                from pathlib import Path
                 from autopack.structured_edits import StructuredEditApplicator
                 
                 logger.info(f"[{phase_id}] Applying structured edit plan with {len(builder_result.edit_plan.operations)} operations")
@@ -3392,7 +3633,6 @@ Just the new description that should replace the current one while preserving th
                 error_msg = None
             else:
                 # Regular patch mode (full-file or diff)
-                from pathlib import Path
                 from autopack.governed_apply import GovernedApplyPath
 
                 # NEW: Pre-apply YAML/compose validation (per IMPLEMENTATION_PLAN_MEMORY_AND_CONTEXT.md)

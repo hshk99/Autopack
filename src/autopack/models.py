@@ -24,6 +24,7 @@ from .database import Base
 class RunState(str, Enum):
     """Run lifecycle states per §3 of v7 playbook"""
 
+    QUEUED = "QUEUED"  # Legacy state for backwards compatibility
     PLAN_BOOTSTRAP = "PLAN_BOOTSTRAP"
     RUN_CREATED = "RUN_CREATED"
     PHASE_QUEUEING = "PHASE_QUEUEING"

@@ -204,9 +204,12 @@ class Phase(Base):
     quality_level = Column(String, nullable=True)  # "ok" | "needs_review" | "blocked"
     quality_blocked = Column(Boolean, nullable=False, default=False)
 
-    # Attempt tracking (BUILD-041: Database-backed state persistence)
-    attempts_used = Column(Integer, nullable=False, default=0)  # Current attempt count
-    max_attempts = Column(Integer, nullable=False, default=5)  # Maximum attempts allowed
+    # BUILD-050 Phase 2: Decoupled attempt counters for non-destructive replanning
+    retry_attempt = Column(Integer, nullable=False, default=0)  # Monotonic retry counter (for hints accumulation and model escalation)
+    revision_epoch = Column(Integer, nullable=False, default=0)  # Replan counter (increments when Doctor revises approach)
+    escalation_level = Column(Integer, nullable=False, default=0)  # Model escalation level (0=base, 1=escalated, etc.)
+
+    # Attempt tracking metadata
     last_attempt_timestamp = Column(DateTime, nullable=True)  # When last attempt occurred
     last_failure_reason = Column(String, nullable=True)  # Most recent failure status
 

@@ -778,7 +778,7 @@ class AutonomousExecutor:
                 pass  # No common prefix, use root
 
         # Get forbidden patterns from recent validation failures
-        forbidden_patterns = []
+        forbidden_patterns: List[str] = []
         learning_context = self._get_learning_context_for_phase(phase)
         run_hints = learning_context.get("run_hints", [])
 
@@ -791,6 +791,42 @@ class AutonomousExecutor:
                     wrong_part = parts[1].split("→")[0].strip()
                     if wrong_part and wrong_part not in forbidden_patterns:
                         forbidden_patterns.append(wrong_part)
+
+            # Also honor explicit "DO NOT create a top-level 'X/'" style hints.
+            # (We use these for repeated deliverables misplacement patterns.)
+            if "DO NOT create" in hint_text and "'" in hint_text:
+                try:
+                    # Example: DO NOT create a top-level 'tracer_bullet/' package.
+                    quoted = hint_text.split("'")[1]
+                    if quoted.endswith("/") and quoted not in forbidden_patterns:
+                        forbidden_patterns.append(quoted)
+                except Exception:
+                    pass
+
+        # Heuristic defaults: if expected paths indicate a specific required root,
+        # explicitly forbid common wrong roots even before we have structured "Wrong:" hints.
+        expected_set = set(expected_paths)
+        if any(p.startswith("src/autopack/research/tracer_bullet/") for p in expected_set):
+            for bad in ("tracer_bullet/", "src/tracer_bullet/", "tests/tracer_bullet/"):
+                if bad not in forbidden_patterns:
+                    forbidden_patterns.append(bad)
+            # Also forbid common "near-miss" placements inside src/autopack/
+            for bad in ("src/autopack/tracer_bullet.py", "src/autopack/tracer_bullet/"):
+                if bad not in forbidden_patterns:
+                    forbidden_patterns.append(bad)
+
+        # Strict allowlist roots derived from expected deliverables.
+        # This is used as a hard constraint in the prompt: Builder must not create files outside these roots.
+        allowed_roots: List[str] = []
+        preferred_roots = [
+            "src/autopack/research/",
+            "src/autopack/cli/",
+            "tests/research/",
+            "docs/research/",
+        ]
+        for r in preferred_roots:
+            if any(p.startswith(r) for p in expected_set) and r not in allowed_roots:
+                allowed_roots.append(r)
 
         # Build contract
         contract_parts = []
@@ -805,6 +841,13 @@ class AutonomousExecutor:
             contract_parts.append(f"📁 All files MUST be under: {common_prefix}/")
             contract_parts.append("")
 
+        if allowed_roots:
+            contract_parts.append("✅ ALLOWED ROOTS (HARD RULE):")
+            contract_parts.append("You may ONLY create/modify files under these root prefixes. Creating ANY file outside them will be rejected.")
+            for r in allowed_roots:
+                contract_parts.append(f"   • {r}")
+            contract_parts.append("")
+
         if forbidden_patterns:
             contract_parts.append("❌ FORBIDDEN patterns (from previous failed attempts):")
             for pattern in forbidden_patterns[:3]:  # Show first 3
@@ -815,6 +858,17 @@ class AutonomousExecutor:
         for path in expected_paths:
             contract_parts.append(f"   {path}")
         contract_parts.append("")
+
+        # Chunk 0 core requirement: gold_set.json must be non-empty valid JSON.
+        # We fail fast on empty/invalid JSON before apply (BUILD-070), but also harden the prompt contract here
+        # so the Builder stops emitting empty placeholders.
+        if any(p.endswith("src/autopack/research/evaluation/gold_set.json") or p.endswith("/gold_set.json") for p in expected_set):
+            contract_parts.append("🧾 JSON DELIVERABLES (HARD RULE):")
+            contract_parts.append("- `src/autopack/research/evaluation/gold_set.json` MUST be valid, non-empty JSON.")
+            contract_parts.append("- Minimal acceptable placeholder is `[]` (empty array) — but the file must NOT be blank.")
+            contract_parts.append("- Any empty/invalid JSON will be rejected before patch apply.")
+            contract_parts.append("")
+
         contract_parts.append("=" * 80)
         contract_parts.append("")
 
@@ -1298,17 +1352,34 @@ class AutonomousExecutor:
         """
         try:
             from autopack.database import get_db
-            from autopack.models import Phase, PhaseState, Tier
+            from autopack.models import Phase, PhaseState, Tier, Run
             from datetime import datetime, timezone
 
             db = next(get_db())
+
+            # Tier gating: for multi-tier runs, only execute phases in the earliest tier
+            # that still has incomplete work. This prevents later chunks from running
+            # when an earlier chunk has FAILED and requires human review.
+            run = db.query(Run).filter(Run.id == self.run_id).first()
+            active_tier_index: Optional[int] = None
+            if run and getattr(run, "run_scope", None) == "multi_tier":
+                # Find the earliest tier index that contains any non-COMPLETE phase.
+                active_tier_index = db.query(Tier.tier_index).join(
+                    Phase, Phase.tier_id == Tier.id
+                ).filter(
+                    Phase.run_id == self.run_id,
+                    Phase.state != PhaseState.COMPLETE,
+                ).order_by(Tier.tier_index.asc()).limit(1).scalar()
 
             # AUTO-RESET: Reset FAILED phases with retries remaining to QUEUED
             # This allows BUILD-041 through BUILD-045 fixes to be applied on retry
             failed_phases_with_retries = db.query(Phase).filter(
                 Phase.run_id == self.run_id,
                 Phase.state == PhaseState.FAILED,
-                Phase.builder_attempts < Phase.max_builder_attempts
+                # BUILD-041/050: retry budget is governed by retry_attempt (decoupled counters),
+                # not builder_attempts. Using builder_attempts here can cause an infinite
+                # FAILED↔QUEUED loop after retry_attempt is exhausted.
+                Phase.retry_attempt < MAX_RETRY_ATTEMPTS
             ).all()
 
             if failed_phases_with_retries:
@@ -1316,7 +1387,7 @@ class AutonomousExecutor:
                 for phase in failed_phases_with_retries:
                     logger.info(
                         f"[AUTO-RESET] Resetting {phase.phase_id} to QUEUED "
-                        f"(attempts: {phase.builder_attempts}/{phase.max_builder_attempts})"
+                        f"(retry_attempt: {phase.retry_attempt}/{MAX_RETRY_ATTEMPTS})"
                     )
                     phase.state = PhaseState.QUEUED
                     phase.started_at = None
@@ -1335,9 +1406,11 @@ class AutonomousExecutor:
                     (Phase.state == PhaseState.QUEUED) |
                     (
                         (Phase.state == PhaseState.EXECUTING) &
-                        (Phase.builder_attempts < Phase.max_builder_attempts)
+                        (Phase.retry_attempt < MAX_RETRY_ATTEMPTS)
                     )
-                )
+                ),
+                # If multi-tier gating is active, only execute phases from the active tier.
+                True if active_tier_index is None else (Tier.tier_index == active_tier_index),
             ).order_by(
                 Tier.tier_index,
                 Phase.phase_index
@@ -1358,7 +1431,10 @@ class AutonomousExecutor:
             phase_dict = {
                 "phase_id": phase_db.phase_id,
                 "run_id": phase_db.run_id,
-                "tier_id": phase_db.tier_id,
+                # Prefer stable external tier identifier (string) for logs/issue tracking.
+                "tier_id": tier_db.tier_id,
+                # Keep DB PK available for internal/debug use.
+                "tier_db_id": phase_db.tier_id,
                 "tier_index": tier_db.tier_index,
                 "phase_index": phase_db.phase_index,
                 "name": phase_db.name,
@@ -1729,6 +1805,8 @@ class AutonomousExecutor:
             "PATCH_FAILED": "patch_apply_error",
             "BLOCKED": "auditor_reject",
             "CI_FAILED": "ci_fail",
+            # BUILD-049 / DBG-014: treat deliverables validation failures as tactical path-correction issues
+            "DELIVERABLES_VALIDATION_FAILED": "deliverables_validation_failed",
         }
         return outcome_map.get(status, "auditor_reject")
 
@@ -2292,6 +2370,27 @@ class AutonomousExecutor:
         # Detect approach flaw
         flaw_type = self._detect_approach_flaw(phase)
         if flaw_type:
+            # DBG-014 / BUILD-049 coordination: deliverables path failures should be handled
+            # by the deliverables validator + learning hints loop, not mid-run replanning.
+            #
+            # Mid-run replanning here can introduce conflicting guidance and de-stabilize convergence.
+            if flaw_type == "deliverables_validation_failed":
+                try:
+                    phase_id = phase.get("phase_id")
+                    phase_db = self._get_phase_from_db(phase_id) if phase_id else None
+                    max_attempts = getattr(phase_db, "max_builder_attempts", None) if phase_db else None
+                    builder_attempts = getattr(phase_db, "builder_attempts", None) if phase_db else None
+                    if isinstance(max_attempts, int) and max_attempts > 0 and isinstance(builder_attempts, int):
+                        if builder_attempts < max_attempts:
+                            logger.info(
+                                f"[Re-Plan] Deferring for deliverables validation failure "
+                                f"(attempt {builder_attempts}/{max_attempts}) - allowing learning hints to converge"
+                            )
+                            return False, None
+                except Exception as e:
+                    logger.warning(f"[Re-Plan] Failed to evaluate deliverables replan deferral: {e}")
+                    return False, None
+
             return True, flaw_type
 
         return False, None
@@ -2386,12 +2485,20 @@ Just the new description that should replace the current one while preserving th
                 logger.error("[Re-Plan] LlmService not initialized")
                 return None
 
-            # Get the anthropic client directly for re-planning
-            import os
+            # NOTE: Re-planning is best-effort. If Anthropic is disabled/unavailable (e.g., credits exhausted),
+            # skip replanning rather than spamming repeated 400s.
+            try:
+                if hasattr(self.llm_service, "model_router") and "anthropic" in getattr(self.llm_service.model_router, "disabled_providers", set()):
+                    logger.info("[Re-Plan] Skipping re-planning because provider 'anthropic' is disabled for this run/process")
+                    return None
+            except Exception:
+                pass
 
+            # Current implementation uses Anthropic directly for replanning; require key.
+            import os
             api_key = os.environ.get("ANTHROPIC_API_KEY")
             if not api_key:
-                logger.error("[Re-Plan] ANTHROPIC_API_KEY not set for re-planning")
+                logger.info("[Re-Plan] Skipping re-planning because ANTHROPIC_API_KEY is not set")
                 return None
 
             # Use Claude for re-planning (strongest model)
@@ -2586,6 +2693,28 @@ Just the new description that should replace the current one while preserving th
         Returns:
             True if Doctor should be invoked
         """
+        # DBG-014 / BUILD-049 coordination: deliverables validation failures are tactical path-correction
+        # problems that should be handled by the deliverables validator + learning hints loop.
+        #
+        # Invoking Doctor here can trigger re-planning which may introduce conflicting guidance and
+        # destabilize monotonic self-correction (see docs/DBG-014_REPLAN_INTERFERENCE_ANALYSIS.md).
+        #
+        # Defer Doctor until we've exhausted the normal retry budget for this phase.
+        if error_category == "deliverables_validation_failed":
+            try:
+                phase_db = self._get_phase_from_db(phase_id)
+                max_attempts = getattr(phase_db, "max_builder_attempts", None) if phase_db else None
+                if isinstance(max_attempts, int) and max_attempts > 0 and builder_attempts < max_attempts:
+                    logger.info(
+                        f"[Doctor] Deferring for deliverables validation failure "
+                        f"(attempt {builder_attempts}/{max_attempts}) - allowing learning hints to converge"
+                    )
+                    return False
+            except Exception as e:
+                # Best-effort safety: if DB read fails, still avoid Doctor on deliverables failures.
+                logger.warning(f"[Doctor] Failed to read phase max attempts for {phase_id}: {e}")
+                return False
+
         is_infra = error_category == "infra_error"
 
         # Check minimum builder attempts (only for non-infra failures)
@@ -3179,6 +3308,24 @@ Just the new description that should replace the current one while preserving th
         phase_id = phase.get("phase_id")
 
         try:
+            # Chunk 0 batching (research-tracer-bullet) is handled by a specialized executor path
+            # to reduce patch size and avoid incomplete/truncated patches.
+            if phase_id == "research-tracer-bullet":
+                return self._execute_research_tracer_bullet_batched(
+                    phase=phase,
+                    attempt_index=attempt_index,
+                    allowed_paths=allowed_paths,
+                )
+
+            # Chunk 2B batching (research-gatherers-web-compilation) is handled by a specialized executor path
+            # to reduce patch size and avoid incomplete/truncated patches (common for tests/docs).
+            if phase_id == "research-gatherers-web-compilation":
+                return self._execute_research_gatherers_web_compilation_batched(
+                    phase=phase,
+                    attempt_index=attempt_index,
+                    allowed_paths=allowed_paths,
+                )
+
             # Step 1: Execute with Builder using LlmService
             logger.info(f"[{phase_id}] Step 1/4: Generating code with Builder (via LlmService)...")
 
@@ -3303,12 +3450,65 @@ Just the new description that should replace the current one while preserving th
 
             # BUILD-044: Add protected paths to phase spec for LLM guidance
             # This prevents protected path violations by informing the LLM upfront
-            protected_paths = ["src/autopack/", "config/", ".autonomous_runs/", ".git/"]
+            # Protected paths: should block system/infra artifacts but NOT block normal code creation.
+            # NOTE: Research phases legitimately create files under src/autopack/ (e.g., src/autopack/research/*).
+            protected_paths = [".autonomous_runs/", ".git/", "autopack.db"]
             phase_with_constraints = {
                 **phase,
                 "protected_paths": protected_paths,
                 "deliverables_contract": deliverables_contract,  # BUILD-050: Hard constraint
             }
+
+            # BUILD-065: Deliverables manifest gate (two-step)
+            # Step 1: Ask LLM for an explicit manifest of file paths it will create (JSON array).
+            # Step 2: Only if the manifest matches deliverables exactly do we run the normal Builder.
+            try:
+                from .deliverables_validator import extract_deliverables_from_scope
+
+                scope_cfg = phase.get("scope") or {}
+                expected_paths = extract_deliverables_from_scope(scope_cfg)
+                if expected_paths and self.llm_service and deliverables_contract:
+                    # Derive allowed roots (tight allowlist) but ensure ALL expected paths are covered.
+                    expected_set = {p for p in expected_paths if isinstance(p, str)}
+                    expected_list = sorted(expected_set)
+                    allowed_roots: List[str] = []
+                    preferred_roots = ("src/autopack/research/", "src/autopack/cli/", "tests/research/", "docs/research/")
+                    for r in preferred_roots:
+                        if any(p.startswith(r) for p in expected_list):
+                            allowed_roots.append(r)
+
+                    def _covered(path: str) -> bool:
+                        return any(path.startswith(r) for r in allowed_roots)
+
+                    if not allowed_roots or not all(_covered(p) for p in expected_list):
+                        expanded: List[str] = []
+                        for p in expected_list:
+                            parts = p.split("/")
+                            root = "/".join(parts[:2]) + "/" if len(parts) >= 2 else parts[0] + "/"
+                            if root not in expanded:
+                                expanded.append(root)
+                        allowed_roots = expanded
+
+                    ok_manifest, manifest_paths, manifest_error, _raw = self.llm_service.generate_deliverables_manifest(
+                        expected_paths=list(expected_set),
+                        allowed_roots=allowed_roots,
+                        run_id=self.run_id,
+                        phase_id=phase_id,
+                        attempt_index=attempt_index,
+                    )
+                    if not ok_manifest:
+                        err_details = manifest_error or "deliverables manifest gate failed"
+                        logger.error(f"[{phase_id}] Deliverables manifest gate FAILED: {err_details}")
+                        self._record_phase_error(phase, "deliverables_manifest_failed", err_details, attempt_index)
+                        self._record_learning_hint(phase, "deliverables_manifest_failed", err_details)
+                        return False, "DELIVERABLES_VALIDATION_FAILED"
+                    else:
+                        logger.info(f"[{phase_id}] Deliverables manifest gate PASSED ({len(manifest_paths or [])} paths)")
+                        # Attach manifest to phase spec so Builder prompt can be constrained.
+                        phase_with_constraints["deliverables_manifest"] = manifest_paths or []
+            except Exception as e:
+                # Manifest gate should not crash the executor; fall back to normal builder
+                logger.warning(f"[{phase_id}] Deliverables manifest gate error (skipping gate): {e}")
 
             # Use LlmService for complexity-based model selection with escalation
             builder_result = self.llm_service.execute_builder_phase(
@@ -3521,6 +3721,12 @@ Just the new description that should replace the current one while preserving th
             # DELIVERABLES VALIDATION: Check if patch creates required files
             # This prevents Builder from creating files in wrong locations
             scope_config = phase.get("scope", {})
+            # If we computed a manifest for this attempt, pass it into deliverables validation so we can enforce consistency.
+            if isinstance(phase_with_constraints.get("deliverables_manifest"), list) and phase_with_constraints.get("deliverables_manifest"):
+                try:
+                    scope_config = {**(scope_config or {}), "deliverables_manifest": phase_with_constraints["deliverables_manifest"]}
+                except Exception:
+                    pass
             is_valid, validation_errors, validation_details = validate_deliverables(
                 patch_content=builder_result.patch_content or "",
                 phase_scope=scope_config,
@@ -3581,6 +3787,18 @@ Just the new description that should replace the current one while preserving th
                     for expected, actual in list(misplaced.items())[:2]:
                         hint_details.append(f"Wrong: {actual} → Correct: {expected}")
 
+                # Strong heuristic: if builder keeps creating a top-level tracer_bullet/ package,
+                # explicitly forbid it and restate the required base directories.
+                actual_paths = validation_details.get("actual_paths", []) or []
+                if any(p.startswith("tracer_bullet/") for p in actual_paths):
+                    hint_details.insert(
+                        0,
+                        "DO NOT create a top-level 'tracer_bullet/' package. "
+                        "All tracer bullet code MUST live under 'src/autopack/research/tracer_bullet/'. "
+                        "Tests MUST live under 'tests/research/tracer_bullet/'. "
+                        "Docs MUST live under 'docs/research/'."
+                    )
+
                 # If still space, add first few missing files
                 if len(hint_details) < 3 and missing_paths:
                     hint_details.append(f"Missing {len(missing_paths)} files including: {', '.join(missing_paths[:3])}")
@@ -3595,6 +3813,91 @@ Just the new description that should replace the current one while preserving th
 
                 # Return False to trigger retry with validation feedback
                 return False, "DELIVERABLES_VALIDATION_FAILED"
+
+            # BUILD-070: Pre-apply validation for new JSON deliverables (avoid burning attempts on apply corruption)
+            try:
+                from .deliverables_validator import extract_deliverables_from_scope, validate_new_json_deliverables_in_patch
+
+                expected_paths = extract_deliverables_from_scope(scope_config or {})
+                ok_json, json_errors, json_details = validate_new_json_deliverables_in_patch(
+                    patch_content=builder_result.patch_content or "",
+                    expected_paths=expected_paths,
+                    workspace=Path(self.workspace),
+                )
+                if not ok_json:
+                    # BUILD-075: Auto-repair empty/invalid required JSON deliverables (gold_set.json) to minimal valid JSON.
+                    try:
+                        from .deliverables_validator import repair_empty_required_json_deliverables_in_patch
+
+                        repaired, repaired_patch, repairs = repair_empty_required_json_deliverables_in_patch(
+                            patch_content=builder_result.patch_content or "",
+                            expected_paths=expected_paths,
+                            workspace=Path(self.workspace),
+                            minimal_json="[]\n",
+                        )
+                        if repaired:
+                            logger.warning(f"[{phase_id}] Auto-repaired {len(repairs)} required JSON deliverable(s) to minimal valid JSON")
+                            for r in repairs[:5]:
+                                logger.warning(f"[{phase_id}]    repaired {r.get('path')}: {r.get('reason')} -> {r.get('applied')}")
+
+                            builder_result.patch_content = repaired_patch
+
+                            # Re-validate after repair
+                            ok_json2, json_errors2, json_details2 = validate_new_json_deliverables_in_patch(
+                                patch_content=builder_result.patch_content or "",
+                                expected_paths=expected_paths,
+                                workspace=Path(self.workspace),
+                            )
+                            if ok_json2:
+                                self._record_learning_hint(
+                                    phase=phase,
+                                    hint_type="success_after_retry",
+                                    details="Auto-repaired required JSON deliverable to minimal valid JSON placeholder ([]).",
+                                )
+                                ok_json = True
+                                json_errors = []
+                                json_details = json_details2
+                            else:
+                                json_errors = json_errors2
+                                json_details = json_details2
+                    except Exception as e:
+                        logger.warning(f"[{phase_id}] Auto-repair for JSON deliverables skipped due to error: {e}")
+
+                if not ok_json:
+                    logger.error(f"[{phase_id}] Pre-apply JSON deliverables validation failed")
+                    for e in json_errors[:5]:
+                        logger.error(f"[{phase_id}]    {e}")
+
+                    feedback_lines = [
+                        "❌ DELIVERABLES VALIDATION FAILED (JSON CONTENT)",
+                        "",
+                        "One or more required JSON deliverables are empty or invalid JSON.",
+                        "Fix the JSON file content (must be non-empty valid JSON) and regenerate the patch.",
+                        "Minimal acceptable placeholder is `[]`.",
+                        "",
+                    ]
+                    for item in (json_details.get("invalid_json_files", []) or [])[:10]:
+                        p = item.get("path")
+                        r = item.get("reason")
+                        feedback_lines.append(f"- {p}: {r}")
+
+                    builder_result = BuilderResult(
+                        success=False,
+                        patch_content="",
+                        builder_messages=["DELIVERABLES_VALIDATION_FAILED", "\n".join(feedback_lines)],
+                        tokens_used=builder_result.tokens_used,
+                        model_used=getattr(builder_result, "model_used", None),
+                        error="Deliverables JSON validation failed",
+                    )
+                    self._post_builder_result(phase_id, builder_result, allowed_paths)
+                    self._record_learning_hint(
+                        phase=phase,
+                        hint_type="deliverables_validation_failed",
+                        details="JSON deliverable invalid/empty (must be valid non-empty JSON; e.g. gold_set.json)",
+                    )
+                    return False, "DELIVERABLES_VALIDATION_FAILED"
+            except Exception as e:
+                logger.warning(f"[{phase_id}] Pre-apply JSON validation skipped due to error: {e}")
 
             # Post builder result to API
             self._post_builder_result(phase_id, builder_result, allowed_paths)
@@ -3688,6 +3991,25 @@ Just the new description that should replace the current one while preserving th
                 # NEW: Extract scope_paths for Option C Layer 2 validation
                 scope_config = phase.get("scope")
                 scope_paths = scope_config.get("paths", []) if scope_config else []
+
+                # BUILD-068: If no allowed_paths were provided by scope, but this phase has explicit deliverables,
+                # derive allowed root prefixes from deliverables so GovernedApply can write under those roots.
+                # This is critical for research phases that create files under src/autopack/research/* (which is
+                # protected by default in GovernedApplyPath).
+                if not allowed_paths:
+                    try:
+                        from .deliverables_validator import extract_deliverables_from_scope
+
+                        expected_paths = extract_deliverables_from_scope(scope_config or {})
+                        expected_set = {p for p in expected_paths if isinstance(p, str)}
+                        derived_allowed: List[str] = []
+                        for r in ("src/autopack/research/", "src/autopack/cli/", "tests/research/", "docs/research/"):
+                            if any(p.startswith(r) for p in expected_set):
+                                derived_allowed.append(r)
+                        if derived_allowed:
+                            allowed_paths = derived_allowed
+                    except Exception as e:
+                        logger.debug(f"[{phase_id}] Failed to derive allowed_paths from deliverables: {e}")
 
                 governed_apply = GovernedApplyPath(
                     workspace=Path(self.workspace),
@@ -3802,6 +4124,9 @@ Just the new description that should replace the current one while preserving th
                     phase_name = phase.get("name", phase_id)
                     summary = f"{phase_name}: {phase.get('description', '')[:200]}"
                     changes = []  # TODO: Extract changed files from builder_result
+                    # ci_result is a dict returned by _run_ci_checks with a boolean "passed" field
+                    # (or skipped=True for skipped CI).
+                    ci_success = bool(ci_result.get("passed", False)) if isinstance(ci_result, dict) else False
                     ci_result = "pass" if ci_success else "fail"
 
                     self.memory_service.write_phase_summary(
@@ -3857,6 +4182,722 @@ Just the new description that should replace the current one while preserving th
 
             self._update_phase_status(phase_id, "FAILED")
             return False, "FAILED"
+
+    def _execute_research_tracer_bullet_batched(
+        self,
+        *,
+        phase: Dict,
+        attempt_index: int,
+        allowed_paths: Optional[List[str]],
+    ) -> Tuple[bool, str]:
+        """
+        Specialized in-phase batching for Chunk 0 (research-tracer-bullet).
+
+        Why:
+        - Chunk 0 creates 11 new files; LLM often returns truncated patches (unclosed quotes),
+          or malformed header-only new-file diffs (no hunks), which prevents convergence.
+        - Splitting into smaller batches materially reduces truncation probability and surfaces
+          format issues earlier with tighter feedback.
+        """
+        phase_id = phase.get("phase_id") or "research-tracer-bullet"
+
+        # Load repository context for Builder
+        file_context = self._load_repository_context(phase)
+        logger.info(f"[{phase_id}] Loaded {len(file_context.get('existing_files', {}))} files for context")
+
+        # Pre-flight policy (keep aligned with main execution path)
+        use_full_file_mode = True
+        if phase.get("builder_mode") == "structured_edit":
+            use_full_file_mode = False
+        if file_context and len(file_context.get("existing_files", {})) >= 30:
+            use_full_file_mode = False
+
+        learning_context = self._get_learning_context_for_phase(phase)
+        project_rules = learning_context.get("project_rules", [])
+        run_hints = learning_context.get("run_hints", [])
+        if project_rules or run_hints:
+            logger.info(f"[{phase_id}] Learning context: {len(project_rules)} rules, {len(run_hints)} hints")
+
+        retrieved_context = ""
+        if self.memory_service and self.memory_service.enabled:
+            try:
+                phase_description = phase.get("description", "")
+                query = f"{phase_description[:500]}"
+                project_id = self._get_project_slug() or self.run_id
+                retrieved = self.memory_service.retrieve_context(
+                    query=query,
+                    project_id=project_id,
+                    run_id=self.run_id,
+                    include_code=True,
+                    include_summaries=True,
+                    include_errors=True,
+                    include_hints=True,
+                    include_planning=True,
+                    include_plan_changes=True,
+                    include_decisions=True,
+                )
+                retrieved_context = self.memory_service.format_retrieved_context(retrieved, max_chars=4000)
+                if retrieved_context:
+                    logger.info(f"[{phase_id}] Retrieved {len(retrieved_context)} chars of context from memory")
+            except Exception as e:
+                logger.warning(f"[{phase_id}] Memory retrieval failed: {e}")
+
+        protected_paths = [".autonomous_runs/", ".git/", "autopack.db"]
+
+        # Partition deliverables into batches
+        from .deliverables_validator import extract_deliverables_from_scope, validate_new_file_diffs_have_complete_structure
+        from .deliverables_validator import validate_deliverables, format_validation_feedback_for_builder
+
+        scope_base = phase.get("scope") or {}
+        all_paths = [p for p in extract_deliverables_from_scope(scope_base) if isinstance(p, str) and p.strip()]
+        batch_core = sorted([p for p in all_paths if p.startswith("src/autopack/research/tracer_bullet/")])
+        batch_eval = sorted([p for p in all_paths if p.startswith("src/autopack/research/evaluation/")])
+        batch_tests = sorted([p for p in all_paths if p.startswith("tests/research/tracer_bullet/")])
+        batch_docs = sorted([p for p in all_paths if p.startswith("docs/research/")])
+        batches = [b for b in [batch_core, batch_eval, batch_tests, batch_docs] if b]
+        if not batches:
+            batches = [sorted(set(all_paths))]
+        logger.info(f"[{phase_id}] Chunk0 batching enabled: {len(batches)} batches ({', '.join(str(len(b)) for b in batches)} files)")
+
+        # Baseline diff for combined patch generation
+        baseline_diff = ""
+        try:
+            proc = subprocess.run(
+                ["git", "diff", "--no-color"],
+                cwd=str(self.workspace),
+                capture_output=True,
+                text=True,
+            )
+            baseline_diff = proc.stdout or ""
+        except Exception as e:
+            logger.warning(f"[{phase_id}] Failed to capture baseline git diff: {e}")
+
+        total_tokens = 0
+        last_builder_result: Optional[BuilderResult] = None
+
+        for idx, batch_paths in enumerate(batches, 1):
+            logger.info(f"[{phase_id}] Batch {idx}/{len(batches)}: {len(batch_paths)} deliverables")
+
+            # Use batch scope with only "paths" to avoid extract_deliverables_from_scope pulling the full deliverables dict.
+            batch_scope = {k: v for k, v in (scope_base or {}).items() if k not in ("deliverables", "paths")}
+            batch_scope["paths"] = list(batch_paths)
+            phase_for_batch = {**phase, "scope": batch_scope}
+
+            deliverables_contract = self._build_deliverables_contract(phase_for_batch, phase_id)
+            phase_with_constraints = {
+                **phase_for_batch,
+                "protected_paths": protected_paths,
+                "deliverables_contract": deliverables_contract,
+            }
+
+            # Manifest gate for this batch
+            manifest_paths: List[str] = []
+            try:
+                expected_paths = extract_deliverables_from_scope(batch_scope)
+                if expected_paths and self.llm_service and deliverables_contract:
+                    expected_set = {p for p in expected_paths if isinstance(p, str)}
+                    expected_list = sorted(expected_set)
+                    allowed_roots: List[str] = []
+                    for r in ("src/autopack/research/", "tests/research/", "docs/research/"):
+                        if any(p.startswith(r) for p in expected_list):
+                            allowed_roots.append(r)
+                    if not allowed_roots:
+                        # Expand to first-2 segments roots
+                        expanded: List[str] = []
+                        for p in expected_list:
+                            parts = p.split("/")
+                            root = "/".join(parts[:2]) + "/" if len(parts) >= 2 else parts[0] + "/"
+                            if root not in expanded:
+                                expanded.append(root)
+                        allowed_roots = expanded
+
+                    ok_manifest, manifest_paths, manifest_error, _raw = self.llm_service.generate_deliverables_manifest(
+                        expected_paths=list(expected_set),
+                        allowed_roots=allowed_roots,
+                        run_id=self.run_id,
+                        phase_id=phase_id,
+                        attempt_index=attempt_index,
+                    )
+                    if not ok_manifest:
+                        err_details = manifest_error or "deliverables manifest gate failed"
+                        logger.error(f"[{phase_id}] Deliverables manifest gate FAILED (batch {idx}): {err_details}")
+                        self._record_phase_error(phase, "deliverables_manifest_failed", err_details, attempt_index)
+                        self._record_learning_hint(phase, "deliverables_manifest_failed", err_details)
+                        return False, "DELIVERABLES_VALIDATION_FAILED"
+                    logger.info(f"[{phase_id}] Deliverables manifest gate PASSED (batch {idx}, {len(manifest_paths or [])} paths)")
+                    phase_with_constraints["deliverables_manifest"] = manifest_paths or []
+            except Exception as e:
+                logger.warning(f"[{phase_id}] Deliverables manifest gate error (batch {idx}, skipping gate): {e}")
+
+            # Run Builder for this batch
+            builder_result = self.llm_service.execute_builder_phase(
+                phase_spec=phase_with_constraints,
+                file_context=file_context,
+                max_tokens=None,
+                project_rules=project_rules,
+                run_hints=run_hints,
+                run_id=self.run_id,
+                phase_id=phase_id,
+                run_context={},
+                attempt_index=attempt_index,
+                use_full_file_mode=use_full_file_mode,
+                config=self.builder_output_config,
+                retrieved_context=retrieved_context,
+            )
+
+            if not builder_result.success:
+                logger.error(f"[{phase_id}] Builder failed (batch {idx}): {builder_result.error}")
+                self._post_builder_result(phase_id, builder_result, allowed_paths)
+                self._update_phase_status(phase_id, "FAILED")
+                return False, "FAILED"
+
+            last_builder_result = builder_result
+            total_tokens += int(getattr(builder_result, "tokens_used", 0) or 0)
+            logger.info(f"[{phase_id}] Builder succeeded (batch {idx}, {builder_result.tokens_used} tokens)")
+
+            # Deliverables validation for this batch
+            scope_config = dict(batch_scope)
+            if manifest_paths:
+                scope_config["deliverables_manifest"] = manifest_paths
+            is_valid, validation_errors, validation_details = validate_deliverables(
+                patch_content=builder_result.patch_content or "",
+                phase_scope=scope_config,
+                phase_id=phase_id,
+                workspace=Path(self.workspace),
+            )
+            if not is_valid:
+                feedback = format_validation_feedback_for_builder(
+                    errors=validation_errors,
+                    details=validation_details,
+                    phase_description=phase.get("description", ""),
+                )
+                logger.error(f"[{phase_id}] Deliverables validation failed (batch {idx})")
+                logger.error(f"[{phase_id}] {feedback}")
+                fail_result = BuilderResult(
+                    success=False,
+                    patch_content="",
+                    builder_messages=["DELIVERABLES_VALIDATION_FAILED", feedback],
+                    tokens_used=builder_result.tokens_used,
+                    model_used=getattr(builder_result, "model_used", None),
+                    error="Deliverables validation failed",
+                )
+                self._post_builder_result(phase_id, fail_result, allowed_paths)
+                return False, "DELIVERABLES_VALIDATION_FAILED"
+
+            # Structural validation for new files (headers + hunks + content where applicable)
+            expected_paths = extract_deliverables_from_scope(scope_config or {})
+            ok_struct, struct_errors, struct_details = validate_new_file_diffs_have_complete_structure(
+                patch_content=builder_result.patch_content or "",
+                expected_paths=expected_paths,
+                workspace=Path(self.workspace),
+                allow_empty_suffixes=["__init__.py", ".gitkeep"],
+            )
+            if not ok_struct:
+                logger.error(f"[{phase_id}] Patch format invalid for new file diffs (batch {idx})")
+                for e in struct_errors[:10]:
+                    logger.error(f"[{phase_id}]    {e}")
+                feedback_lines = [
+                    "❌ PATCH FORMAT ERROR (NEW FILE DIFFS)",
+                    "",
+                    "For EVERY new file deliverable, your patch MUST include:",
+                    "- `--- /dev/null` and `+++ b/<path>` headers",
+                    "- at least one `@@ ... @@` hunk header",
+                    "- `+` content lines for the file body (do not emit header-only diffs)",
+                    "",
+                ]
+                for p in (struct_details.get("missing_headers", []) or [])[:10]:
+                    feedback_lines.append(f"- Missing headers: {p}")
+                for p in (struct_details.get("missing_hunks", []) or [])[:10]:
+                    feedback_lines.append(f"- Missing hunks: {p}")
+                for p in (struct_details.get("empty_content", []) or [])[:10]:
+                    feedback_lines.append(f"- Empty content: {p}")
+                fail_result = BuilderResult(
+                    success=False,
+                    patch_content="",
+                    builder_messages=["DELIVERABLES_VALIDATION_FAILED", "\n".join(feedback_lines)],
+                    tokens_used=builder_result.tokens_used,
+                    model_used=getattr(builder_result, "model_used", None),
+                    error="Patch format invalid for new file diffs (missing headers/hunks/content)",
+                )
+                self._post_builder_result(phase_id, fail_result, allowed_paths)
+                return False, "DELIVERABLES_VALIDATION_FAILED"
+
+            # Pre-apply JSON deliverable validation + repair (reuse existing helpers)
+            try:
+                from .deliverables_validator import validate_new_json_deliverables_in_patch, repair_empty_required_json_deliverables_in_patch
+
+                ok_json, json_errors, _json_details = validate_new_json_deliverables_in_patch(
+                    patch_content=builder_result.patch_content or "",
+                    expected_paths=expected_paths,
+                    workspace=Path(self.workspace),
+                )
+                if not ok_json:
+                    repaired, repaired_patch, repairs = repair_empty_required_json_deliverables_in_patch(
+                        patch_content=builder_result.patch_content or "",
+                        expected_paths=expected_paths,
+                        workspace=Path(self.workspace),
+                        minimal_json="[]\n",
+                    )
+                    if repaired:
+                        logger.warning(f"[{phase_id}] Auto-repaired {len(repairs)} JSON deliverable(s) (batch {idx})")
+                        builder_result.patch_content = repaired_patch
+                        ok_json2, json_errors2, _ = validate_new_json_deliverables_in_patch(
+                            patch_content=builder_result.patch_content or "",
+                            expected_paths=expected_paths,
+                            workspace=Path(self.workspace),
+                        )
+                        ok_json = ok_json2
+                        json_errors = json_errors2
+                if not ok_json:
+                    logger.error(f"[{phase_id}] Pre-apply JSON deliverables validation failed (batch {idx})")
+                    for e in (json_errors or [])[:5]:
+                        logger.error(f"[{phase_id}]    {e}")
+                    fail_result = BuilderResult(
+                        success=False,
+                        patch_content="",
+                        builder_messages=["DELIVERABLES_VALIDATION_FAILED", "JSON deliverable empty/invalid"],
+                        tokens_used=builder_result.tokens_used,
+                        model_used=getattr(builder_result, "model_used", None),
+                        error="Deliverables JSON validation failed",
+                    )
+                    self._post_builder_result(phase_id, fail_result, allowed_paths)
+                    return False, "DELIVERABLES_VALIDATION_FAILED"
+            except Exception as e:
+                logger.warning(f"[{phase_id}] Pre-apply JSON validation skipped due to error (batch {idx}): {e}")
+
+            # Apply patch for this batch
+            from autopack.governed_apply import GovernedApplyPath
+
+            # Derive scope_paths and allowed_paths for governed apply from this batch scope
+            scope_paths = batch_scope.get("paths", []) if isinstance(batch_scope, dict) else []
+            derived_allowed: List[str] = []
+            for r in ("src/autopack/research/", "tests/research/", "docs/research/"):
+                if any(p.startswith(r) for p in expected_paths):
+                    derived_allowed.append(r)
+            if not derived_allowed:
+                derived_allowed = allowed_paths or []
+
+            governed_apply = GovernedApplyPath(
+                workspace=Path(self.workspace),
+                run_type=self.run_type,
+                autopack_internal_mode=self.run_type in ["autopack_maintenance", "autopack_upgrade", "self_repair"],
+                scope_paths=scope_paths,
+                allowed_paths=derived_allowed or None,
+            )
+            patch_success, error_msg = governed_apply.apply_patch(builder_result.patch_content, full_file_mode=True)
+            if not patch_success:
+                logger.error(f"[{phase_id}] Failed to apply patch (batch {idx}): {error_msg}")
+                self._update_phase_status(phase_id, "FAILED")
+                return False, "PATCH_FAILED"
+            logger.info(f"[{phase_id}] Patch applied successfully (batch {idx})")
+
+            # Refresh context so next batch sees created files
+            try:
+                file_context = self._load_repository_context(phase_for_batch)
+            except Exception as e:
+                logger.warning(f"[{phase_id}] Context refresh failed after batch {idx}: {e}")
+
+        # Build combined patch for auditor/quality gate
+        combined_patch = ""
+        try:
+            proc = subprocess.run(
+                ["git", "diff", "--no-color"],
+                cwd=str(self.workspace),
+                capture_output=True,
+                text=True,
+            )
+            combined_patch = proc.stdout or ""
+        except Exception as e:
+            logger.warning(f"[{phase_id}] Failed to compute combined patch after batching: {e}")
+
+        # Post a single combined builder result to API for phase-level visibility
+        combined_result = BuilderResult(
+            success=True,
+            patch_content=combined_patch or (last_builder_result.patch_content if last_builder_result else ""),
+            builder_messages=[f"batched_chunk0: {len(batches)} batches applied"],
+            tokens_used=total_tokens,
+            model_used=getattr(last_builder_result, "model_used", None) if last_builder_result else None,
+            error=None,
+        )
+        self._post_builder_result(phase_id, combined_result, allowed_paths)
+
+        # Proceed with normal CI/Auditor/Quality Gate using the combined patch content
+        logger.info(f"[{phase_id}] Step 3/5: Running CI checks...")
+        ci_result = self._run_ci_checks(phase_id, phase)
+
+        logger.info(f"[{phase_id}] Step 4/5: Reviewing patch with Auditor (via LlmService)...")
+        auditor_result = self.llm_service.execute_auditor_review(
+            patch_content=combined_result.patch_content,
+            phase_spec=phase,
+            max_tokens=None,
+            project_rules=project_rules,
+            run_hints=run_hints,
+            run_id=self.run_id,
+            phase_id=phase_id,
+            run_context={},
+            ci_result=ci_result,
+            coverage_delta=0.0,
+            attempt_index=attempt_index,
+        )
+        logger.info(f"[{phase_id}] Auditor completed: approved={auditor_result.approved}, issues={len(auditor_result.issues_found)}")
+        self._post_auditor_result(phase_id, auditor_result)
+
+        logger.info(f"[{phase_id}] Step 5/5: Applying Quality Gate...")
+        quality_report = self.quality_gate.assess_phase(
+            phase_id=phase_id,
+            phase_spec=phase,
+            auditor_result={"approved": auditor_result.approved, "issues_found": auditor_result.issues_found},
+            ci_result=ci_result,
+            coverage_delta=0.0,
+            patch_content=combined_result.patch_content,
+            files_changed=None,
+        )
+        logger.info(f"[{phase_id}] Quality Gate: {quality_report.quality_level}")
+        if quality_report.is_blocked():
+            logger.warning(f"[{phase_id}] Phase BLOCKED by quality gate")
+            for issue in quality_report.issues:
+                logger.warning(f"  - {issue}")
+            self._update_phase_status(phase_id, "BLOCKED")
+            return False, "BLOCKED"
+
+        self._update_phase_status(phase_id, "COMPLETE")
+        logger.info(f"[{phase_id}] Phase completed successfully (batched)")
+        return True, "COMPLETE"
+
+    def _execute_research_gatherers_web_compilation_batched(
+        self,
+        *,
+        phase: Dict,
+        attempt_index: int,
+        allowed_paths: Optional[List[str]],
+    ) -> Tuple[bool, str]:
+        """
+        Specialized in-phase batching for Chunk 2B (research-gatherers-web-compilation).
+
+        Why:
+        - Chunk 2B often produces truncated/incomplete patches (e.g., unclosed triple quotes in tests)
+          and/or malformed header-only new file diffs for docs, which blocks convergence.
+        - Splitting deliverables into smaller, prefix-based batches materially reduces truncation
+          probability and yields earlier, tighter feedback.
+        """
+        phase_id = phase.get("phase_id") or "research-gatherers-web-compilation"
+
+        # Load repository context for Builder
+        file_context = self._load_repository_context(phase)
+        logger.info(f"[{phase_id}] Loaded {len(file_context.get('existing_files', {}))} files for context")
+
+        # Pre-flight policy (keep aligned with main execution path)
+        use_full_file_mode = True
+        if phase.get("builder_mode") == "structured_edit":
+            use_full_file_mode = False
+        if file_context and len(file_context.get("existing_files", {})) >= 30:
+            use_full_file_mode = False
+
+        learning_context = self._get_learning_context_for_phase(phase)
+        project_rules = learning_context.get("project_rules", [])
+        run_hints = learning_context.get("run_hints", [])
+        if project_rules or run_hints:
+            logger.info(f"[{phase_id}] Learning context: {len(project_rules)} rules, {len(run_hints)} hints")
+
+        retrieved_context = ""
+        if self.memory_service and self.memory_service.enabled:
+            try:
+                phase_description = phase.get("description", "")
+                query = f"{phase_description[:500]}"
+                project_id = self._get_project_slug() or self.run_id
+                retrieved = self.memory_service.retrieve_context(
+                    query=query,
+                    project_id=project_id,
+                    run_id=self.run_id,
+                    include_code=True,
+                    include_summaries=True,
+                    include_errors=True,
+                    include_hints=True,
+                    include_planning=True,
+                    include_plan_changes=True,
+                    include_decisions=True,
+                )
+                retrieved_context = self.memory_service.format_retrieved_context(retrieved, max_chars=4000)
+                if retrieved_context:
+                    logger.info(f"[{phase_id}] Retrieved {len(retrieved_context)} chars of context from memory")
+            except Exception as e:
+                logger.warning(f"[{phase_id}] Memory retrieval failed: {e}")
+
+        protected_paths = [".autonomous_runs/", ".git/", "autopack.db"]
+
+        # Partition deliverables into batches
+        from .deliverables_validator import extract_deliverables_from_scope, validate_new_file_diffs_have_complete_structure
+        from .deliverables_validator import validate_deliverables, format_validation_feedback_for_builder
+
+        scope_base = phase.get("scope") or {}
+        all_paths = [p for p in extract_deliverables_from_scope(scope_base) if isinstance(p, str) and p.strip()]
+
+        # Suggested batches:
+        # - src/research/gatherers/*
+        # - src/research/agents/*
+        # - tests/research/gatherers/* + tests/research/agents/*
+        # - docs/research/*
+        batch_gatherers = sorted([p for p in all_paths if p.startswith("src/research/gatherers/")])
+        batch_agents = sorted([p for p in all_paths if p.startswith("src/research/agents/")])
+        batch_tests = sorted(
+            [p for p in all_paths if p.startswith("tests/research/gatherers/") or p.startswith("tests/research/agents/")]
+        )
+        batch_docs = sorted([p for p in all_paths if p.startswith("docs/research/")])
+        batches = [b for b in [batch_gatherers, batch_agents, batch_tests, batch_docs] if b]
+        if not batches:
+            batches = [sorted(set(all_paths))]
+        logger.info(
+            f"[{phase_id}] Chunk2B batching enabled: {len(batches)} batches ({', '.join(str(len(b)) for b in batches)} files)"
+        )
+
+        total_tokens = 0
+        last_builder_result: Optional[BuilderResult] = None
+
+        for idx, batch_paths in enumerate(batches, 1):
+            logger.info(f"[{phase_id}] Batch {idx}/{len(batches)}: {len(batch_paths)} deliverables")
+
+            # Use batch scope with only "paths" to avoid extract_deliverables_from_scope pulling the full deliverables dict.
+            batch_scope = {k: v for k, v in (scope_base or {}).items() if k not in ("deliverables", "paths")}
+            batch_scope["paths"] = list(batch_paths)
+            phase_for_batch = {**phase, "scope": batch_scope}
+
+            deliverables_contract = self._build_deliverables_contract(phase_for_batch, phase_id)
+            phase_with_constraints = {
+                **phase_for_batch,
+                "protected_paths": protected_paths,
+                "deliverables_contract": deliverables_contract,
+            }
+
+            # Manifest gate for this batch
+            manifest_paths: List[str] = []
+            try:
+                expected_paths = extract_deliverables_from_scope(batch_scope)
+                if expected_paths and self.llm_service and deliverables_contract:
+                    expected_set = {p for p in expected_paths if isinstance(p, str)}
+                    expected_list = sorted(expected_set)
+                    allowed_roots: List[str] = []
+                    for r in ("src/research/", "tests/research/", "docs/research/"):
+                        if any(p.startswith(r) for p in expected_list):
+                            allowed_roots.append(r)
+                    if not allowed_roots:
+                        # Expand to first-2 segments roots
+                        expanded: List[str] = []
+                        for p in expected_list:
+                            parts = p.split("/")
+                            root = "/".join(parts[:2]) + "/" if len(parts) >= 2 else parts[0] + "/"
+                            if root not in expanded:
+                                expanded.append(root)
+                        allowed_roots = expanded
+
+                    ok_manifest, manifest_paths, manifest_error, _raw = self.llm_service.generate_deliverables_manifest(
+                        expected_paths=list(expected_set),
+                        allowed_roots=allowed_roots,
+                        run_id=self.run_id,
+                        phase_id=phase_id,
+                        attempt_index=attempt_index,
+                    )
+                    if not ok_manifest:
+                        err_details = manifest_error or "deliverables manifest gate failed"
+                        logger.error(f"[{phase_id}] Deliverables manifest gate FAILED (batch {idx}): {err_details}")
+                        self._record_phase_error(phase, "deliverables_manifest_failed", err_details, attempt_index)
+                        self._record_learning_hint(phase, "deliverables_manifest_failed", err_details)
+                        return False, "DELIVERABLES_VALIDATION_FAILED"
+                    logger.info(f"[{phase_id}] Deliverables manifest gate PASSED (batch {idx}, {len(manifest_paths or [])} paths)")
+                    phase_with_constraints["deliverables_manifest"] = manifest_paths or []
+            except Exception as e:
+                logger.warning(f"[{phase_id}] Deliverables manifest gate error (batch {idx}, skipping gate): {e}")
+
+            # Run Builder for this batch
+            builder_result = self.llm_service.execute_builder_phase(
+                phase_spec=phase_with_constraints,
+                file_context=file_context,
+                max_tokens=None,
+                project_rules=project_rules,
+                run_hints=run_hints,
+                run_id=self.run_id,
+                phase_id=phase_id,
+                run_context={},
+                attempt_index=attempt_index,
+                use_full_file_mode=use_full_file_mode,
+                config=self.builder_output_config,
+                retrieved_context=retrieved_context,
+            )
+
+            if not builder_result.success:
+                logger.error(f"[{phase_id}] Builder failed (batch {idx}): {builder_result.error}")
+                self._post_builder_result(phase_id, builder_result, allowed_paths)
+                self._update_phase_status(phase_id, "FAILED")
+                return False, "FAILED"
+
+            last_builder_result = builder_result
+            total_tokens += int(getattr(builder_result, "tokens_used", 0) or 0)
+            logger.info(f"[{phase_id}] Builder succeeded (batch {idx}, {builder_result.tokens_used} tokens)")
+
+            # Deliverables validation for this batch
+            scope_config = dict(batch_scope)
+            if manifest_paths:
+                scope_config["deliverables_manifest"] = manifest_paths
+            is_valid, validation_errors, validation_details = validate_deliverables(
+                patch_content=builder_result.patch_content or "",
+                phase_scope=scope_config,
+                phase_id=phase_id,
+                workspace=Path(self.workspace),
+            )
+            if not is_valid:
+                feedback = format_validation_feedback_for_builder(
+                    errors=validation_errors,
+                    details=validation_details,
+                    phase_description=phase.get("description", ""),
+                )
+                logger.error(f"[{phase_id}] Deliverables validation failed (batch {idx})")
+                logger.error(f"[{phase_id}] {feedback}")
+                fail_result = BuilderResult(
+                    success=False,
+                    patch_content="",
+                    builder_messages=["DELIVERABLES_VALIDATION_FAILED", feedback],
+                    tokens_used=builder_result.tokens_used,
+                    model_used=getattr(builder_result, "model_used", None),
+                    error="Deliverables validation failed",
+                )
+                self._post_builder_result(phase_id, fail_result, allowed_paths)
+                return False, "DELIVERABLES_VALIDATION_FAILED"
+
+            # Structural validation for new files (headers + hunks + content where applicable)
+            expected_paths = extract_deliverables_from_scope(scope_config or {})
+            ok_struct, struct_errors, struct_details = validate_new_file_diffs_have_complete_structure(
+                patch_content=builder_result.patch_content or "",
+                expected_paths=expected_paths,
+                workspace=Path(self.workspace),
+                allow_empty_suffixes=["__init__.py", ".gitkeep"],
+            )
+            if not ok_struct:
+                logger.error(f"[{phase_id}] Patch format invalid for new file diffs (batch {idx})")
+                for e in struct_errors[:10]:
+                    logger.error(f"[{phase_id}]    {e}")
+                feedback_lines = [
+                    "❌ PATCH FORMAT ERROR (NEW FILE DIFFS)",
+                    "",
+                    "For EVERY new file deliverable, your patch MUST include:",
+                    "- `--- /dev/null` and `+++ b/<path>` headers",
+                    "- at least one `@@ ... @@` hunk header",
+                    "- `+` content lines for the file body (do not emit header-only diffs)",
+                    "",
+                ]
+                for p in (struct_details.get("missing_headers", []) or [])[:10]:
+                    feedback_lines.append(f"- Missing headers: {p}")
+                for p in (struct_details.get("missing_hunks", []) or [])[:10]:
+                    feedback_lines.append(f"- Missing hunks: {p}")
+                for p in (struct_details.get("empty_content", []) or [])[:10]:
+                    feedback_lines.append(f"- Empty content: {p}")
+                fail_result = BuilderResult(
+                    success=False,
+                    patch_content="",
+                    builder_messages=["DELIVERABLES_VALIDATION_FAILED", "\n".join(feedback_lines)],
+                    tokens_used=builder_result.tokens_used,
+                    model_used=getattr(builder_result, "model_used", None),
+                    error="Patch format invalid for new file diffs (missing headers/hunks/content)",
+                )
+                self._post_builder_result(phase_id, fail_result, allowed_paths)
+                return False, "DELIVERABLES_VALIDATION_FAILED"
+
+            # Apply patch for this batch
+            from autopack.governed_apply import GovernedApplyPath
+
+            # Derive scope_paths and allowed_paths for governed apply from this batch scope
+            scope_paths = batch_scope.get("paths", []) if isinstance(batch_scope, dict) else []
+            derived_allowed: List[str] = []
+            for r in ("src/research/", "tests/research/", "docs/research/"):
+                if any(p.startswith(r) for p in expected_paths):
+                    derived_allowed.append(r)
+            if not derived_allowed:
+                derived_allowed = allowed_paths or []
+
+            governed_apply = GovernedApplyPath(
+                workspace=Path(self.workspace),
+                run_type=self.run_type,
+                autopack_internal_mode=self.run_type in ["autopack_maintenance", "autopack_upgrade", "self_repair"],
+                scope_paths=scope_paths,
+                allowed_paths=derived_allowed or None,
+            )
+            patch_success, error_msg = governed_apply.apply_patch(builder_result.patch_content, full_file_mode=True)
+            if not patch_success:
+                logger.error(f"[{phase_id}] Failed to apply patch (batch {idx}): {error_msg}")
+                self._update_phase_status(phase_id, "FAILED")
+                return False, "PATCH_FAILED"
+            logger.info(f"[{phase_id}] Patch applied successfully (batch {idx})")
+
+            # Refresh context so next batch sees created files
+            try:
+                file_context = self._load_repository_context(phase_for_batch)
+            except Exception as e:
+                logger.warning(f"[{phase_id}] Context refresh failed after batch {idx}: {e}")
+
+        # Build combined patch for auditor/quality gate
+        combined_patch = ""
+        try:
+            proc = subprocess.run(
+                ["git", "diff", "--no-color"],
+                cwd=str(self.workspace),
+                capture_output=True,
+                text=True,
+            )
+            combined_patch = proc.stdout or ""
+        except Exception as e:
+            logger.warning(f"[{phase_id}] Failed to compute combined patch after batching: {e}")
+
+        # Post a single combined builder result to API for phase-level visibility
+        combined_result = BuilderResult(
+            success=True,
+            patch_content=combined_patch or (last_builder_result.patch_content if last_builder_result else ""),
+            builder_messages=[f"batched_chunk2b: {len(batches)} batches applied"],
+            tokens_used=total_tokens,
+            model_used=getattr(last_builder_result, "model_used", None) if last_builder_result else None,
+            error=None,
+        )
+        self._post_builder_result(phase_id, combined_result, allowed_paths)
+
+        # Proceed with normal CI/Auditor/Quality Gate using the combined patch content
+        logger.info(f"[{phase_id}] Step 3/5: Running CI checks...")
+        ci_result = self._run_ci_checks(phase_id, phase)
+
+        logger.info(f"[{phase_id}] Step 4/5: Reviewing patch with Auditor (via LlmService)...")
+        auditor_result = self.llm_service.execute_auditor_review(
+            patch_content=combined_result.patch_content,
+            phase_spec=phase,
+            max_tokens=None,
+            project_rules=project_rules,
+            run_hints=run_hints,
+            run_id=self.run_id,
+            phase_id=phase_id,
+            run_context={},
+            ci_result=ci_result,
+            coverage_delta=0.0,
+            attempt_index=attempt_index,
+        )
+        logger.info(f"[{phase_id}] Auditor completed: approved={auditor_result.approved}, issues={len(auditor_result.issues_found)}")
+        self._post_auditor_result(phase_id, auditor_result)
+
+        logger.info(f"[{phase_id}] Step 5/5: Applying Quality Gate...")
+        quality_report = self.quality_gate.assess_phase(
+            phase_id=phase_id,
+            phase_spec=phase,
+            auditor_result={"approved": auditor_result.approved, "issues_found": auditor_result.issues_found},
+            ci_result=ci_result,
+            coverage_delta=0.0,
+            patch_content=combined_result.patch_content,
+            files_changed=None,
+        )
+        logger.info(f"[{phase_id}] Quality Gate: {quality_report.quality_level}")
+        if quality_report.is_blocked():
+            logger.warning(f"[{phase_id}] Phase BLOCKED by quality gate")
+            for issue in quality_report.issues:
+                logger.warning(f"  - {issue}")
+            self._update_phase_status(phase_id, "BLOCKED")
+            return False, "BLOCKED"
+
+        self._update_phase_status(phase_id, "COMPLETE")
+        logger.info(f"[{phase_id}] Phase completed successfully (batched)")
+        return True, "COMPLETE"
 
     def _load_repository_context(self, phase: Dict) -> Dict:
         """Load repository files for Claude Builder context
@@ -4685,6 +5726,39 @@ Just the new description that should replace the current one while preserving th
 
         try:
             response = requests.post(url, headers=headers, json=payload, timeout=10)
+            if response.status_code == 422:
+                # Backwards compatibility: some backend deployments still (incorrectly) expect BuilderResultRequest
+                # at the auditor_result endpoint, requiring a "success" field.
+                #
+                # If we see this schema-mismatch signature, retry with a minimal BuilderResultRequest wrapper.
+                try:
+                    detail = response.json().get("detail")
+                except Exception:
+                    detail = None
+                is_missing_success = False
+                if isinstance(detail, list):
+                    for item in detail:
+                        loc = item.get("loc") if isinstance(item, dict) else None
+                        msg = item.get("msg") if isinstance(item, dict) else ""
+                        if loc == ["body", "success"] and "Field required" in str(msg):
+                            is_missing_success = True
+                            break
+                if is_missing_success:
+                    fallback = {
+                        "success": bool(result.approved),
+                        "output": payload.get("review_notes") or "",
+                        "files_modified": [],
+                        "metadata": payload,
+                    }
+                    logger.warning(
+                        f"[{phase_id}] auditor_result POST returned 422 missing success; retrying with "
+                        f"BuilderResultRequest-compatible payload for backwards compatibility."
+                    )
+                    response2 = requests.post(url, headers=headers, json=fallback, timeout=10)
+                    response2.raise_for_status()
+                    logger.debug(f"Posted auditor result for phase {phase_id} (compat retry)")
+                    return
+
             response.raise_for_status()
             logger.debug(f"Posted auditor result for phase {phase_id}")
         except requests.exceptions.RequestException as e:
@@ -5222,6 +6296,7 @@ Just the new description that should replace the current one while preserving th
         phases_executed = 0
         phases_failed = 0
         stop_signal_file = Path(".autonomous_runs/.stop_executor")
+        stop_reason: str | None = None
         
         while True:
             # Check for stop signal (from monitor script)
@@ -5231,11 +6306,13 @@ Just the new description that should replace the current one while preserving th
                     logger.critical(f"[STOP_SIGNAL] Stop signal detected: {signal_content}")
                     logger.info("Stopping execution as requested by monitor")
                     stop_signal_file.unlink()  # Remove signal file
+                    stop_reason = "stop_signal"
                     break
             
             # Check iteration limit
             if max_iterations and iteration >= max_iterations:
                 logger.info(f"Reached max iterations ({max_iterations}), stopping")
+                stop_reason = "max_iterations"
                 break
 
             iteration += 1
@@ -5281,32 +6358,11 @@ Just the new description that should replace the current one while preserving th
 
             if not next_phase:
                 logger.info("No more executable phases, execution complete")
+                stop_reason = "no_more_executable_phases"
                 break
 
             phase_id = next_phase.get("phase_id")
             logger.info(f"[BUILD-041] Next phase: {phase_id}")
-
-            # [Self-Troubleshoot] Check if phase was escalated/skipped
-            if phase_id in self._skipped_phases:
-                # Track skip attempts to prevent infinite loops
-                skip_attempts_key = f"_skip_attempts_{phase_id}"
-                skip_attempts = getattr(self, skip_attempts_key, 0) + 1
-                setattr(self, skip_attempts_key, skip_attempts)
-
-                if skip_attempts > 10:
-                    logger.error(f"[FATAL] Phase {phase_id} stuck after 10 skip attempts. Aborting run.")
-                    break
-
-                logger.warning(f"[Escalation] Skipping phase {phase_id} - previously escalated (attempt {skip_attempts})")
-                # Force update phase status to FAILED in database directly
-                if self._force_mark_phase_failed(phase_id):
-                    # Success - wait for database sync
-                    time.sleep(2)
-                else:
-                    logger.error(f"[Escalation] Could not mark {phase_id} as FAILED, waiting 5s before retry")
-                    time.sleep(5)
-                phases_failed += 1
-                continue
 
             # Execute phase
             success, status = self.execute_phase(next_phase)
@@ -5327,35 +6383,8 @@ Just the new description that should replace the current one while preserving th
                         f"Stopping execution to save token usage."
                     )
                     logger.info(f"Total phases executed: {phases_executed}, failed: {phases_failed}")
+                    stop_reason = "stop_on_first_failure"
                     break
-
-                # [Self-Troubleshoot] Track consecutive failures and escalate
-                self._phase_failure_counts[phase_id] = self._phase_failure_counts.get(phase_id, 0) + 1
-                failure_count = self._phase_failure_counts[phase_id]
-
-                if failure_count >= self.MAX_PHASE_FAILURES:
-                    logger.critical(
-                        f"[ESCALATION] Phase {phase_id} failed {failure_count} times consecutively. "
-                        f"Skipping phase and continuing to next. Manual intervention required."
-                    )
-                    self._skipped_phases.add(phase_id)
-
-                    # Log escalation to debug journal
-                    from autopack.debug_journal import log_escalation
-                    try:
-                        log_escalation(
-                            error_category="PHASE_FAILURE",
-                            error_count=failure_count,
-                            threshold=self.MAX_PHASE_FAILURES,
-                            reason=f"Phase '{phase_id}' failed {failure_count} consecutive times with status '{status}'",
-                            run_id=self.run_id,
-                            phase_id=phase_id
-                        )
-                    except Exception as e:
-                        logger.warning(f"Failed to log escalation: {e}")
-
-                    # Force mark phase as failed
-                    self._force_mark_phase_failed(phase_id)
 
             # Wait before next iteration
             if max_iterations is None or iteration < max_iterations:
@@ -5364,32 +6393,48 @@ Just the new description that should replace the current one while preserving th
 
         logger.info("Autonomous execution loop finished")
 
-        # Log run completion summary to CONSOLIDATED_BUILD.md
-        try:
-            log_build_event(
-                event_type="RUN_COMPLETE",
-                description=f"Run {self.run_id} completed. Phases: {phases_executed} successful, {phases_failed} failed. Total iterations: {iteration}",
-                deliverables=[f"Run ID: {self.run_id}", f"Successful: {phases_executed}", f"Failed: {phases_failed}"],
-                project_slug=self._get_project_slug()
-            )
-        except Exception as e:
-            logger.warning(f"Failed to log run completion: {e}")
+        # IMPORTANT: Only finalize a run when there are no executable phases remaining.
+        # If we stop due to max-iterations/stop-signal/stop-on-failure, the run should remain resumable
+        # (i.e., do NOT force it into a DONE_* state).
+        if stop_reason == "no_more_executable_phases":
+            # Log run completion summary to CONSOLIDATED_BUILD.md
+            try:
+                log_build_event(
+                    event_type="RUN_COMPLETE",
+                    description=f"Run {self.run_id} completed. Phases: {phases_executed} successful, {phases_failed} failed. Total iterations: {iteration}",
+                    deliverables=[f"Run ID: {self.run_id}", f"Successful: {phases_executed}", f"Failed: {phases_failed}"],
+                    project_slug=self._get_project_slug()
+                )
+            except Exception as e:
+                logger.warning(f"Failed to log run completion: {e}")
 
-        # Best-effort fallback: ensure run_summary.md reflects terminal state even if API-side hook fails
-        self._best_effort_write_run_summary(phases_failed=phases_failed)
+            # Best-effort fallback: ensure run_summary.md reflects terminal state even if API-side hook fails
+            self._best_effort_write_run_summary(phases_failed=phases_failed)
 
-        # Learning Pipeline: Promote hints to persistent rules (Stage 0B)
-        try:
-            project_id = self._get_project_slug()
-            promoted_count = promote_hints_to_rules(self.run_id, project_id)
-            if promoted_count > 0:
-                logger.info(f"Learning Pipeline: Promoted {promoted_count} hints to persistent project rules")
-                # Mark that rules have changed for future planning updates
-                self._mark_rules_updated(project_id, promoted_count)
-            else:
-                logger.info("Learning Pipeline: No hints qualified for promotion (need 2+ occurrences)")
-        except Exception as e:
-            logger.warning(f"Failed to promote hints to rules: {e}")
+            # Learning Pipeline: Promote hints to persistent rules (Stage 0B)
+            try:
+                project_id = self._get_project_slug()
+                promoted_count = promote_hints_to_rules(self.run_id, project_id)
+                if promoted_count > 0:
+                    logger.info(f"Learning Pipeline: Promoted {promoted_count} hints to persistent project rules")
+                    # Mark that rules have changed for future planning updates
+                    self._mark_rules_updated(project_id, promoted_count)
+                else:
+                    logger.info("Learning Pipeline: No hints qualified for promotion (need 2+ occurrences)")
+            except Exception as e:
+                logger.warning(f"Failed to promote hints to rules: {e}")
+        else:
+            # Non-terminal stop: keep the run resumable.
+            # Still log a lightweight event for visibility.
+            try:
+                log_build_event(
+                    event_type="RUN_PAUSED",
+                    description=f"Run {self.run_id} paused (reason={stop_reason}). Iterations: {iteration}",
+                    deliverables=[f"Run ID: {self.run_id}", f"Reason: {stop_reason}", f"Iterations: {iteration}"],
+                    project_slug=self._get_project_slug()
+                )
+            except Exception as e:
+                logger.warning(f"Failed to log run pause: {e}")
 
     def _best_effort_write_run_summary(self, phases_failed: Optional[int] = None, failure_reason: Optional[str] = None):
         """

@@ -158,6 +158,15 @@ class GovernedApplyPath:
         "src/autopack/openai_clients.py",
         "src/autopack/gemini_clients.py",
         "src/autopack/glm_clients.py",
+        # Research system deliverables live under src/autopack/research/* and must be writable in project runs.
+        "src/autopack/research/",
+        # Research CLI is a required deliverable in Chunk 1A (and is safe to allow in project runs).
+        "src/autopack/cli/",
+        # Research integration deliverables (Chunk 4) are safe, narrow subtrees under src/autopack/.
+        "src/autopack/integrations/",
+        "src/autopack/phases/",
+        "src/autopack/autonomous/",
+        "src/autopack/workflow/",
         "config/models.yaml",
     ]
 
@@ -769,7 +778,7 @@ class GovernedApplyPath:
 
     def _fix_empty_file_diffs(self, patch_content: str) -> str:
         """
-        Fix incomplete diff headers for empty new files.
+        Fix incomplete diff headers for empty new files / header-only new files.
 
         LLMs often generate incomplete diffs for empty __init__.py files like:
             diff --git a/path/__init__.py b/path/__init__.py
@@ -778,6 +787,10 @@ class GovernedApplyPath:
             diff --git ...  (next file)
 
         This is missing the --- /dev/null and +++ b/path lines.
+
+        Additionally, some LLMs emit *header-only* new file diffs without an index line.
+        We treat those similarly: ensure each `diff --git` + `new file mode` block has
+        `--- /dev/null` and `+++ b/<path>` before the next diff begins.
 
         Args:
             patch_content: Patch content that may have incomplete empty file diffs
@@ -788,9 +801,38 @@ class GovernedApplyPath:
         lines = patch_content.split('\n')
         result = []
         i = 0
+        last_diff_line = None
+        pending_new_file_headers: Optional[str] = None  # stores "b/path"
 
         while i < len(lines):
             line = lines[i]
+
+            if line.startswith('diff --git'):
+                # If we were in a new-file block missing headers, insert them before starting next diff.
+                if pending_new_file_headers:
+                    result.append('--- /dev/null')
+                    result.append(f'+++ {pending_new_file_headers}')
+                    logger.debug(f"Fixed missing new-file headers for {pending_new_file_headers}")
+                    pending_new_file_headers = None
+                last_diff_line = line
+                result.append(line)
+                i += 1
+                continue
+
+            # Detect new file mode; if headers are missing by the time we reach next diff, we'll insert them.
+            if line.startswith('new file mode'):
+                # Infer b/path from last diff --git line.
+                if last_diff_line:
+                    parts = last_diff_line.split()
+                    if len(parts) >= 4:
+                        pending_new_file_headers = parts[3]  # b/path
+                result.append(line)
+                i += 1
+                continue
+
+            # If the model *did* provide headers, clear pending flag.
+            if line.startswith('--- ') or line.startswith('+++ '):
+                pending_new_file_headers = None
 
             # Check for incomplete empty file pattern
             if line.startswith('index ') and 'e69de29' in line:
@@ -809,12 +851,19 @@ class GovernedApplyPath:
                                 result.append('--- /dev/null')
                                 result.append(f'+++ {file_path}')
                                 logger.debug(f"Fixed empty file diff for {file_path}")
+                                pending_new_file_headers = None
                             break
                 i += 1
                 continue
 
             result.append(line)
             i += 1
+
+        # If patch ended while still pending headers for a new file, flush them.
+        if pending_new_file_headers:
+            result.append('--- /dev/null')
+            result.append(f'+++ {pending_new_file_headers}')
+            logger.debug(f"Fixed missing new-file headers for {pending_new_file_headers}")
 
         return '\n'.join(result)
 
@@ -928,7 +977,8 @@ class GovernedApplyPath:
                     break
 
         # Check for malformed hunk headers (common LLM error)
-        hunk_header_pattern = re.compile(r'^@@\s+-(\d+),(\d+)\s+\+(\d+),(\d+)\s+@@')
+        # Valid unified diff allows omitted counts when they are 1: @@ -1 +1 @@
+        hunk_header_pattern = re.compile(r'^@@\s+-(\d+)(?:,(\d+))?\s+\+(\d+)(?:,(\d+))?\s+@@')
         for i, line in enumerate(lines, 1):
             if line.startswith('@@'):
                 match = hunk_header_pattern.match(line)

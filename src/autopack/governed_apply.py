@@ -167,6 +167,10 @@ class GovernedApplyPath:
         "src/autopack/phases/",
         "src/autopack/autonomous/",
         "src/autopack/workflow/",
+        # Diagnostics parity deliverables (follow-ups): safe internal tooling, narrow subtree.
+        "src/autopack/diagnostics/",
+        # Dashboard integration for handoff/prompt generation (follow-up): narrow subtree.
+        "src/autopack/dashboard/",
         "config/models.yaml",
     ]
 

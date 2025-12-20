@@ -1,8 +1,8 @@
 # Debug Log - Problem Solving History
 
 <!-- META
-Last_Updated: 2025-12-20T04:37:59Z
-Total_Issues: 19
+Last_Updated: 2025-12-20T05:18:32Z
+Total_Issues: 20
 Format_Version: 2.0
 Auto_Generated: True
 Sources: CONSOLIDATED_DEBUG, archive/, fileorg-phase2-beta-release
@@ -12,6 +12,7 @@ Sources: CONSOLIDATED_DEBUG, archive/, fileorg-phase2-beta-release
 
 | Timestamp | DBG-ID | Severity | Summary | Status |
 |-----------|--------|----------|---------|--------|
+| 2025-12-20 | DBG-049 | HIGH | Followups 1–3 (Diagnostics Parity) blocked by protected-path isolation because deliverables live under `src/autopack/diagnostics/` and `src/autopack/dashboard/` which were not allowlisted | ✅ Resolved (Manual Hotfix: BUILD-090) |
 | 2025-12-20 | DBG-048 | MEDIUM | Chunk 2B quality gate not met: missing `src/autopack/research/*` deliverables and insufficient unit test/coverage confirmation; implement modules + expand tests and verify ≥25 tests + ≥80% coverage | ✅ Resolved (Manual Quality Fix: BUILD-089) |
 | 2025-12-19 | DBG-047 | HIGH | Executor could incorrectly flip a resumable run to DONE_FAILED during best-effort run_summary writes after a single phase failure (retries still remaining) | ✅ Resolved (Manual Hotfix: BUILD-088) |
 | 2025-12-19 | DBG-046 | MEDIUM | Research requirements root mismatch + missing deps caused predictable churn; unify requirements to `src/autopack/research/*` and add preflight analyzer to catch blockers before execution | ✅ Resolved (Manual Tooling: BUILD-087) |
@@ -61,6 +62,21 @@ Sources: CONSOLIDATED_DEBUG, archive/, fileorg-phase2-beta-release
 | 2025-12-11 | DBG-002 | CRITICAL | Workspace Organization Issues - Root Cause Analysis | ✅ Resolved |
 
 ## DEBUG ENTRIES (Reverse Chronological)
+
+### DBG-049 | 2025-12-20T05:18 | Followups 1–3 (Diagnostics Parity) blocked by protected-path isolation because deliverables live under `src/autopack/diagnostics/` and `src/autopack/dashboard/` which were not allowlisted
+**Severity**: HIGH
+**Status**: ✅ Resolved (Manual Hotfix: BUILD-090)
+
+**Symptoms**:
+- Diagnostics Parity follow-up phases cannot apply their deliverables despite correct patches because `src/autopack/` is protected by default.
+
+**Fix**:
+- Add narrow allowlist entries for:
+  - `src/autopack/diagnostics/`
+  - `src/autopack/dashboard/`
+
+**References**:
+- `docs/BUILD_HISTORY.md` (BUILD-090)
 
 ### DBG-048 | 2025-12-20T04:37 | Chunk 2B quality gate not met: missing `src/autopack/research/*` deliverables and insufficient unit test/coverage confirmation; implement modules + expand tests and verify ≥25 tests + ≥80% coverage
 **Severity**: MEDIUM

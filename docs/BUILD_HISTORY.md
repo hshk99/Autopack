@@ -1,8 +1,8 @@
 # Build History - Implementation Log
 
 <!-- META
-Last_Updated: 2025-12-20T04:37:59Z
-Total_Builds: 54
+Last_Updated: 2025-12-20T05:18:32Z
+Total_Builds: 55
 Format_Version: 2.0
 Auto_Generated: True
 Sources: CONSOLIDATED files, archive/
@@ -12,6 +12,7 @@ Sources: CONSOLIDATED files, archive/
 
 | Timestamp | BUILD-ID | Phase | Summary | Files Changed |
 |-----------|----------|-------|---------|---------------|
+| 2025-12-20 | BUILD-090 | Hotfix | Allowlist diagnostics parity subtrees (`src/autopack/diagnostics/`, `src/autopack/dashboard/`) so Followups 1–3 can apply under governed isolation | 1 |
 | 2025-12-20 | BUILD-089 | Quality | Chunk 2B quality gate: implement missing `src/autopack/research/*` deliverables for web compilation + fix/expand tests to meet ≥25 tests and ≥80% coverage | 8 |
 | 2025-12-19 | BUILD-088 | Hotfix | Executor: prevent best-effort run_summary writes from prematurely finalizing `runs.state` to DONE_* while phases are still retryable/resumable | 1 |
 | 2025-12-19 | BUILD-087 | Tooling | Research system preflight + requirements normalization: unify chunk deliverable roots to `src/autopack/research/*`, add missing deps, add preflight analyzer | 8 |
@@ -99,6 +100,24 @@ Sources: CONSOLIDATED files, archive/
 | 2025-11-26 | BUILD-016 | N/A | Consolidated Research Reference |  |
 
 ## BUILDS (Reverse Chronological)
+
+### BUILD-090 | 2025-12-20T05:18 | Hotfix | Allowlist diagnostics parity subtrees (`src/autopack/diagnostics/`, `src/autopack/dashboard/`) so Followups 1–3 can apply under governed isolation
+**Status**: ✅ Implemented (manual)
+**Category**: Reliability / Isolation Policy
+
+**Problem**:
+- Followups 1–3 (Diagnostics Parity) target `src/autopack/diagnostics/*` and (for prompt/dashboard integration) `src/autopack/dashboard/*`.
+- `src/autopack/` is protected by default; without a narrow allowlist these phases will fail at governed apply even if patches are correct.
+
+**Fix**:
+- Add narrow allowlist entries (no broadening to all of `src/autopack/`):
+  - `src/autopack/diagnostics/`
+  - `src/autopack/dashboard/`
+
+**Files Modified**:
+- `src/autopack/governed_apply.py`
+
+---
 
 ### BUILD-089 | 2025-12-20T04:37 | Quality | Chunk 2B quality gate: implement missing `src/autopack/research/*` deliverables for web compilation + fix/expand tests to meet ≥25 tests and ≥80% coverage
 **Status**: ✅ Implemented (manual)

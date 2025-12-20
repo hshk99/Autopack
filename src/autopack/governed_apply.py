@@ -171,6 +171,8 @@ class GovernedApplyPath:
         "src/autopack/diagnostics/",
         # Dashboard integration for handoff/prompt generation (follow-up): narrow subtree.
         "src/autopack/dashboard/",
+        # Research API router integration requires narrow update to main.py (followup-4).
+        "src/autopack/main.py",
         "config/models.yaml",
     ]
 

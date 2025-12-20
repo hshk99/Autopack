@@ -1,8 +1,8 @@
 # Build History - Implementation Log
 
 <!-- META
-Last_Updated: 2025-12-20T16:35:00Z
-Total_Builds: 57
+Last_Updated: 2025-12-20T17:40:00Z
+Total_Builds: 58
 Format_Version: 2.0
 Auto_Generated: True
 Sources: CONSOLIDATED files, archive/
@@ -12,6 +12,7 @@ Sources: CONSOLIDATED files, archive/
 
 | Timestamp | BUILD-ID | Phase | Summary | Files Changed |
 |-----------|----------|-------|---------|---------------|
+| 2025-12-20 | BUILD-096 | Hotfix | Add `src/autopack/main.py` to ALLOWED_PATHS in governed_apply.py to enable research-api-router followup (narrowly unblocks main.py for FastAPI router registration, per followup-4 requirements) | 1 |
 | 2025-12-20 | BUILD-095 | Hotfix | Fix autonomous_executor.py manifest gate allowed_roots computation (3 locations): add `examples/` to preferred_roots and fix fallback logic to detect filenames, matching BUILD-094 fix in deliverables_validator.py | 1 |
 | 2025-12-20 | BUILD-094 | Hotfix | Fix deliverables_validator.py root computation bug: add `examples/` to preferred_roots and fix fallback logic to detect filenames (containing `.`) in second segment, preventing false "outside allowed roots" failures | 2 |
 | 2025-12-20 | BUILD-093 | Hotfix | Reset `retry_attempt` counter to allow phases 2-3 retry after ImportError fix; phases successfully completed on second execution | 0 |

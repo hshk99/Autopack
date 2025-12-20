@@ -1,8 +1,8 @@
 # Build History - Implementation Log
 
 <!-- META
-Last_Updated: 2025-12-20T16:00:00Z
-Total_Builds: 56
+Last_Updated: 2025-12-20T16:35:00Z
+Total_Builds: 57
 Format_Version: 2.0
 Auto_Generated: True
 Sources: CONSOLIDATED files, archive/
@@ -12,6 +12,7 @@ Sources: CONSOLIDATED files, archive/
 
 | Timestamp | BUILD-ID | Phase | Summary | Files Changed |
 |-----------|----------|-------|---------|---------------|
+| 2025-12-20 | BUILD-092 | Hotfix | Implement missing `format_rules_for_prompt` and `format_hints_for_prompt` functions in learned_rules.py to fix ImportError blocking Builder execution | 1 |
 | 2025-12-20 | BUILD-091 | Hotfix | Fix YAML syntax errors in follow-up requirements: quote backtick-prefixed feature strings to prevent YAML parsing failures during run seeding | 4 |
 | 2025-12-20 | BUILD-090 | Hotfix | Allowlist diagnostics parity subtrees (`src/autopack/diagnostics/`, `src/autopack/dashboard/`) so Followups 1–3 can apply under governed isolation | 1 |
 | 2025-12-20 | BUILD-089 | Quality | Chunk 2B quality gate: implement missing `src/autopack/research/*` deliverables for web compilation + fix/expand tests to meet ≥25 tests and ≥80% coverage | 8 |

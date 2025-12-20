@@ -776,3 +776,47 @@ def save_run_hint(
 
     _save_run_rule_hint(run_id, hint)
     return hint
+
+
+# ============================================================================
+# Formatting Helpers (for LLM clients)
+# ============================================================================
+
+def format_rules_for_prompt(rules: List[LearnedRule]) -> str:
+    """Format learned rules for inclusion in LLM prompts.
+
+    Args:
+        rules: List of learned rules
+
+    Returns:
+        Formatted string for prompt injection
+    """
+    if not rules:
+        return ""
+
+    sections = []
+    for rule in rules:
+        scope_info = f" (scope: {rule.scope_pattern})" if rule.scope_pattern else ""
+        sections.append(f"- {rule.rule_text}{scope_info}")
+
+    return "\n".join(sections)
+
+
+def format_hints_for_prompt(hints: List[RunRuleHint]) -> str:
+    """Format run hints for inclusion in LLM prompts.
+
+    Args:
+        hints: List of run hints
+
+    Returns:
+        Formatted string for prompt injection
+    """
+    if not hints:
+        return ""
+
+    sections = []
+    for hint in hints:
+        scope_info = f" (scope: {', '.join(hint.scope_paths[:3])})" if hint.scope_paths else ""
+        sections.append(f"- {hint.hint_text}{scope_info}")
+
+    return "\n".join(sections)

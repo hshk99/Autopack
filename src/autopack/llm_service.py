@@ -12,7 +12,7 @@ import logging
 import os
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 from sqlalchemy.orm import Session
 
@@ -252,6 +252,47 @@ class LlmService:
             print(f"Warning: OpenAI model {requested_model} selected but OpenAI not available. Falling back to Anthropic (claude-sonnet-4-5).")
             return anthropic_client, "claude-sonnet-4-5"
         raise RuntimeError(f"OpenAI model {requested_model} selected but no LLM clients are available")
+
+    def generate_deliverables_manifest(
+        self,
+        *,
+        expected_paths: List[str],
+        allowed_roots: List[str],
+        run_id: Optional[str] = None,
+        phase_id: Optional[str] = None,
+        attempt_index: int = 0,
+    ) -> Tuple[bool, List[str], Optional[str], Optional[str]]:
+        """
+        Deliverables manifest gate (executor-side).
+
+        The executor uses this to produce a deterministic manifest of file paths that Builder is allowed
+        to touch for the current phase/batch. This is used for:
+        - injecting `deliverables_manifest` into Builder prompts (when supported)
+        - validating patches do not introduce files outside the approved manifest
+
+        NOTE:
+        - Earlier iterations implemented this as an LLM "plan first" call; in this codebase we use a
+          deterministic gate to avoid extra token spend and to keep convergence stable.
+        """
+        try:
+            exp = [p for p in (expected_paths or []) if isinstance(p, str) and p.strip()]
+            manifest = sorted(set(exp))
+
+            roots = [r for r in (allowed_roots or []) if isinstance(r, str) and r.strip()]
+            if roots:
+                not_covered = [p for p in manifest if not any(p.startswith(r) for r in roots)]
+                if not_covered:
+                    err = (
+                        f"Expected paths include entries outside allowed_roots. "
+                        f"outside_count={len(not_covered)} sample={not_covered[:5]} roots={roots} "
+                        f"(run_id={run_id}, phase_id={phase_id}, attempt={attempt_index})"
+                    )
+                    return False, [], err, None
+
+            raw = json.dumps(manifest, indent=2, sort_keys=False)
+            return True, manifest, None, raw
+        except Exception as e:
+            return False, [], f"deliverables manifest gate exception: {e}", None
 
     def execute_builder_phase(
         self,

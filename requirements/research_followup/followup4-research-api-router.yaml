@@ -1,0 +1,41 @@
+phase_id: research-api-router
+run_id: autopack-diagnostics-parity-v1
+chunk_number: followup-4
+description: |
+  Unified Research Plan gap: expose research system via FastAPI router.
+
+  The unified plan references mounting a research router into the Autopack FastAPI app.
+  The original research chunk requirements focused on modules/tests/docs, but did not
+  explicitly require a stable API surface for running and inspecting research sessions.
+
+goals:
+  - Add a minimal, stable research API router:
+    - start a research session
+    - get session status/result
+    - list sessions (basic)
+  - Keep auth optional (but integrate cleanly with existing auth patterns if present)
+
+deliverables:
+  code:
+    - src/autopack/research/api/router.py
+    - src/autopack/research/api/schemas.py
+    - src/autopack/main.py
+  tests:
+    - tests/autopack/research/api/test_research_router.py
+  docs:
+    - docs/research/API_REFERENCE.md
+
+features:
+  - `POST /research/sessions` create + enqueue a research session (stub ok, deterministic response)
+  - `GET /research/sessions/{id}` return status + artifact locations
+  - `GET /research/sessions` list recent sessions
+  - Add router mounting in `src/autopack/main.py` under a `research` tag
+
+validation:
+  functional:
+    - OpenAPI includes /research endpoints
+    - Tests cover basic request/response shapes using FastAPI TestClient
+  quality:
+    - ≥10 unit tests passing
+
+

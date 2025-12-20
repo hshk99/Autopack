@@ -1,0 +1,38 @@
+phase_id: cli-phase-management
+run_id: autopack-diagnostics-parity-v1
+chunk_number: followup-5
+description: |
+  Unified Research Plan gap: CLI commands referenced in the unified plan
+  (create-phase / execute-phase / review-phase / phase-status) are not explicitly
+  covered by the existing research chunks.
+
+goals:
+  - Add CLI commands to manage phases from requirements YAMLs:
+    - create phase/run from YAML (seed)
+    - execute a phase/run via existing executor logic
+    - show status
+    - submit review decision (approve/reject) for review-gated phases
+
+deliverables:
+  code:
+    - src/autopack/cli/commands/phases.py
+    - src/autopack/cli/commands/review.py
+  tests:
+    - tests/autopack/cli/test_phase_commands.py
+  docs:
+    - docs/cli/research_commands.md
+
+features:
+  - `autopack create-phase --run-id ... --phase-id ... --requirements <yaml>`
+  - `autopack execute-run --run-id ... --api-url ...`
+  - `autopack phase-status --run-id ... --phase-id ...`
+  - `autopack review-phase --run-id ... --phase-id ... --decision approve|reject --reason ...`
+
+validation:
+  functional:
+    - Commands parse and execute without crashing (tests mock DB + executor calls)
+    - Creating a phase stores the YAML in Phase.scope
+  quality:
+    - ≥15 unit tests passing
+
+

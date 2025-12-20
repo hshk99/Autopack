@@ -1,0 +1,33 @@
+phase_id: research-examples-and-docs
+run_id: autopack-diagnostics-parity-v1
+chunk_number: followup-6
+description: |
+  Unified Research Plan gap: add concrete example sessions and align docs paths.
+
+  The unified plan references example markdown artifacts under an `examples/` directory.
+  Existing research chunks created documentation under `docs/research/`, but examples
+  are not consistently present as standalone runnable narratives.
+
+goals:
+  - Add 3 detailed example session documents (market/app/autopack)
+  - Ensure docs are internally linked and not stale
+
+deliverables:
+  docs:
+    - examples/market_research_example.md
+    - examples/app_research_example.md
+    - examples/autopack_research_example.md
+    - docs/research/EXAMPLES.md
+
+features:
+  - Each example includes:
+    - goal, inputs, configuration, expected outputs
+    - a short “what can go wrong” section and troubleshooting pointers
+    - references to CLI commands and API endpoints (if available)
+
+validation:
+  quality:
+    - No broken relative links in the example docs
+    - Examples reference current commands/paths
+
+

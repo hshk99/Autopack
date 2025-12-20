@@ -1,8 +1,8 @@
 # Debug Log - Problem Solving History
 
 <!-- META
-Last_Updated: 2025-12-19T13:04:45Z
-Total_Issues: 16
+Last_Updated: 2025-12-20T04:37:59Z
+Total_Issues: 19
 Format_Version: 2.0
 Auto_Generated: True
 Sources: CONSOLIDATED_DEBUG, archive/, fileorg-phase2-beta-release
@@ -12,6 +12,9 @@ Sources: CONSOLIDATED_DEBUG, archive/, fileorg-phase2-beta-release
 
 | Timestamp | DBG-ID | Severity | Summary | Status |
 |-----------|--------|----------|---------|--------|
+| 2025-12-20 | DBG-048 | MEDIUM | Chunk 2B quality gate not met: missing `src/autopack/research/*` deliverables and insufficient unit test/coverage confirmation; implement modules + expand tests and verify ≥25 tests + ≥80% coverage | ✅ Resolved (Manual Quality Fix: BUILD-089) |
+| 2025-12-19 | DBG-047 | HIGH | Executor could incorrectly flip a resumable run to DONE_FAILED during best-effort run_summary writes after a single phase failure (retries still remaining) | ✅ Resolved (Manual Hotfix: BUILD-088) |
+| 2025-12-19 | DBG-046 | MEDIUM | Research requirements root mismatch + missing deps caused predictable churn; unify requirements to `src/autopack/research/*` and add preflight analyzer to catch blockers before execution | ✅ Resolved (Manual Tooling: BUILD-087) |
 | 2025-12-19 | DBG-045 | LOW | Runbook/capability report became stale after stabilization fixes; update docs and add explicit next-cursor takeover prompt to prevent protocol drift | ✅ Resolved (Manual Docs: BUILD-086) |
 | 2025-12-19 | DBG-044 | HIGH | Chunk 5 manifests may contain directory prefixes (ending in `/`); strict manifest enforcement treated created files under those prefixes as outside-manifest | ✅ Resolved (Manual Hotfixes: BUILD-085) |
 | 2025-12-19 | DBG-043 | HIGH | Chunk 5 uses directory deliverables (e.g., `tests/research/unit/`), but deliverables validator treated them as literal files causing deterministic failures | ✅ Resolved (Manual Hotfixes: BUILD-084) |
@@ -58,6 +61,84 @@ Sources: CONSOLIDATED_DEBUG, archive/, fileorg-phase2-beta-release
 | 2025-12-11 | DBG-002 | CRITICAL | Workspace Organization Issues - Root Cause Analysis | ✅ Resolved |
 
 ## DEBUG ENTRIES (Reverse Chronological)
+
+### DBG-048 | 2025-12-20T04:37 | Chunk 2B quality gate not met: missing `src/autopack/research/*` deliverables and insufficient unit test/coverage confirmation; implement modules + expand tests and verify ≥25 tests + ≥80% coverage
+**Severity**: MEDIUM
+**Status**: ✅ Resolved (Manual Quality Fix: BUILD-089)
+
+**Symptoms**:
+- Chunk 2B tests failed during collection due to import-path mismatch and missing deliverables under `src/autopack/research/`.
+- After basic fixes, the phase still lacked explicit confirmation of the quality targets (`≥25` unit tests and `≥80%` coverage for new modules).
+
+**Fix**:
+- Implement missing deliverable modules for Chunk 2B under `src/autopack/research/` and align tests to import `autopack.research.*`.
+- Expand unit tests to cover key behaviors (robots disallow, content-type filtering, link/code extraction, deduplication, gap detection).
+- Run tests + coverage to produce explicit confirmation.
+
+**Evidence**:
+- Unit tests: **39 passed**
+- Coverage (target modules): **93% total**, each module ≥89%
+
+**References**:
+- `docs/BUILD_HISTORY.md` (BUILD-089)
+
+### DBG-047 | 2025-12-19T14:30 | Executor could incorrectly flip a resumable run to DONE_FAILED during best-effort run_summary writes after a single phase failure (retries still remaining)
+**Severity**: HIGH
+**Status**: ✅ Resolved (Manual Hotfix: BUILD-088)
+**Context**: Research system convergence / executor run state correctness.
+
+**Symptoms**:
+- During `research-system-v29`, the first phase (`research-tracer-bullet`) hit a transient `PATCH_FAILED` on attempt 1 (expected to be retried).
+- The executor’s “best-effort run_summary writer” mutated `runs.state` to `DONE_FAILED_REQUIRES_HUMAN_REVIEW` even though retries remained and phases were still QUEUED/resumable.
+- This can deterministically prevent convergence by finalizing a run prematurely.
+
+**Root Cause**:
+- `_best_effort_write_run_summary()` attempted to “derive a terminal state” from non-COMPLETE phases.
+- The helper is invoked opportunistically (e.g., after phase state updates) and must not finalize runs unless the main loop is truly finished.
+
+**Fix**:
+- Add an explicit guard (`allow_run_state_mutation=False` default) so `_best_effort_write_run_summary()` does not mutate `Run.state` during non-terminal updates.
+- Only allow run state mutation when the main loop has truly reached `no_more_executable_phases`.
+
+**Files Modified**:
+- `src/autopack/autonomous_executor.py`
+
+**References**:
+- `docs/BUILD_HISTORY.md` (BUILD-088)
+
+### DBG-046 | 2025-12-19T00:00 | Research requirements root mismatch + missing deps caused predictable churn; unify requirements to `src/autopack/research/*` and add preflight analyzer to catch blockers before execution
+**Severity**: MEDIUM
+**Status**: ✅ Resolved (Manual Tooling: BUILD-087)
+**Context**: Research system execution planning + phase deliverables convergence.
+
+**Symptoms**:
+- Chunk requirement YAMLs mixed deliverable roots (`src/research/*` vs `src/autopack/research/*`), increasing the chance of:
+  - duplicate parallel implementations,
+  - import-path confusion,
+  - deliverables/manifest mismatch churn.
+- Several chunk YAMLs referenced external libraries (e.g. `requests`, `beautifulsoup4`, `praw`, etc.) that were not consistently declared in dependency files, making CI/test failures and runtime import errors likely even when deliverables were generated correctly.
+
+**Fix**:
+- Normalize research chunk deliverables to a single root: `src/autopack/research/*` (update Chunk 1B/2A/2B/3 requirement YAMLs).
+- Add missing research runtime/test dependencies to dependency declarations (`requirements.txt`, `requirements-dev.txt`, `pyproject.toml`).
+- Add a lightweight preflight tool to flag:
+  - deliverables-root mismatches,
+  - governed-apply protected-path feasibility,
+  - missing deps (including dev deps),
+  - missing external API credential env vars (informational).
+
+**Files Modified**:
+- `.autonomous_runs/file-organizer-app-v1/archive/research/active/requirements/chunk1b-foundation-intent-discovery.yaml`
+- `.autonomous_runs/file-organizer-app-v1/archive/research/active/requirements/chunk2a-gatherers-social.yaml`
+- `.autonomous_runs/file-organizer-app-v1/archive/research/active/requirements/chunk2b-gatherers-web-compilation.yaml`
+- `.autonomous_runs/file-organizer-app-v1/archive/research/active/requirements/chunk3-meta-analysis.yaml`
+- `requirements.txt`
+- `requirements-dev.txt`
+- `pyproject.toml`
+- `src/autopack/research/preflight_analyzer.py`
+
+**References**:
+- `docs/BUILD_HISTORY.md` (BUILD-087)
 
 ### DBG-045 | 2025-12-19T13:04 | Runbook/capability report became stale after stabilization fixes; update docs and add explicit next-cursor takeover prompt to prevent protocol drift
 **Severity**: LOW

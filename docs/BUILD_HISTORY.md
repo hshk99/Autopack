@@ -1,8 +1,8 @@
 # Build History - Implementation Log
 
 <!-- META
-Last_Updated: 2025-12-19T13:04:45Z
-Total_Builds: 51
+Last_Updated: 2025-12-20T04:37:59Z
+Total_Builds: 54
 Format_Version: 2.0
 Auto_Generated: True
 Sources: CONSOLIDATED files, archive/
@@ -12,6 +12,9 @@ Sources: CONSOLIDATED files, archive/
 
 | Timestamp | BUILD-ID | Phase | Summary | Files Changed |
 |-----------|----------|-------|---------|---------------|
+| 2025-12-20 | BUILD-089 | Quality | Chunk 2B quality gate: implement missing `src/autopack/research/*` deliverables for web compilation + fix/expand tests to meet ≥25 tests and ≥80% coverage | 8 |
+| 2025-12-19 | BUILD-088 | Hotfix | Executor: prevent best-effort run_summary writes from prematurely finalizing `runs.state` to DONE_* while phases are still retryable/resumable | 1 |
+| 2025-12-19 | BUILD-087 | Tooling | Research system preflight + requirements normalization: unify chunk deliverable roots to `src/autopack/research/*`, add missing deps, add preflight analyzer | 8 |
 | 2025-12-19 | BUILD-086 | Docs | Update capability gap report + runbook to reflect post-stabilization reality; add next-cursor takeover prompt | 3 |
 | 2025-12-19 | BUILD-085 | Hotfix | Chunk 5 convergence: allow prefix entries in deliverables manifests (paths ending in `/`) so manifest enforcement doesn’t reject files created under approved directories | 1 |
 | 2025-12-19 | BUILD-084 | Hotfix | Chunk 5 convergence: support directory deliverables (paths ending in `/`) in deliverables validation so phases can specify test/doc directories without deterministic failure | 1 |
@@ -96,6 +99,91 @@ Sources: CONSOLIDATED files, archive/
 | 2025-11-26 | BUILD-016 | N/A | Consolidated Research Reference |  |
 
 ## BUILDS (Reverse Chronological)
+
+### BUILD-089 | 2025-12-20T04:37 | Quality | Chunk 2B quality gate: implement missing `src/autopack/research/*` deliverables for web compilation + fix/expand tests to meet ≥25 tests and ≥80% coverage
+**Status**: ✅ Implemented (manual)
+**Category**: Quality / Research System
+**Phase ID**: research-gatherers-web-compilation (Chunk 2B)
+
+**Problem**:
+- Chunk 2B tests failed at collection due to incorrect import paths and missing deliverable modules under `src/autopack/research/gatherers/` and `src/autopack/research/agents/`.
+- Unit-test count and per-module coverage did not meet the Chunk 2B quality targets.
+
+**Fix**:
+- Implement missing deliverable modules:
+  - `WebScraper` (robots best-effort, UA header, per-domain rate limiting, content-type filtering)
+  - `ContentExtractor` (HTML/text/JSON extraction + links + code blocks)
+  - `CompilationAgent` + `AnalysisAgent` (dedupe/categorize/gap detection helpers)
+- Update and expand unit tests to meet quality gate targets and validate key behaviors via mocking.
+
+**Evidence (explicit confirmation)**:
+- Unit tests: **39 passed**
+- Coverage (target modules):
+  - `autopack.research.gatherers.web_scraper`: **89%**
+  - `autopack.research.gatherers.content_extractor`: **91%**
+  - `autopack.research.agents.compilation_agent`: **98%**
+  - `autopack.research.agents.analysis_agent`: **100%**
+  - Total (these modules): **93%**
+
+**Files Modified**:
+- `src/autopack/research/gatherers/web_scraper.py`
+- `src/autopack/research/gatherers/content_extractor.py`
+- `src/autopack/research/agents/compilation_agent.py`
+- `src/autopack/research/agents/analysis_agent.py`
+- `tests/research/gatherers/test_web_scraper.py`
+- `tests/research/gatherers/test_content_extractor.py`
+- `tests/research/agents/test_compilation_agent.py`
+- `tests/research/agents/test_analysis_agent.py`
+
+---
+
+### BUILD-088 | 2025-12-19T14:30 | Hotfix | Executor: prevent best-effort run_summary writes from prematurely finalizing `runs.state` to DONE_* while phases are still retryable/resumable
+**Status**: ✅ Implemented (manual)
+**Category**: Reliability / Convergence / Executor
+
+**Problem**:
+- In `research-system-v29`, a transient early phase failure (`PATCH_FAILED`) triggered `_best_effort_write_run_summary()` which incorrectly set the run to `DONE_FAILED_REQUIRES_HUMAN_REVIEW` even though retries remained and the run should be resumable.
+
+**Fix**:
+- Add `allow_run_state_mutation` flag (default false) to `_best_effort_write_run_summary()`.
+- Only allow that helper to mutate `Run.state` when the executor is truly finalizing due to `no_more_executable_phases`.
+
+**Files Modified**:
+- `src/autopack/autonomous_executor.py`
+
+**Related Debug Entry**:
+- `docs/DEBUG_LOG.md` (DBG-047)
+
+---
+
+### BUILD-087 | 2025-12-19T00:00 | Tooling | Research system preflight + requirements normalization: unify chunk deliverable roots to `src/autopack/research/*`, add missing deps, add preflight analyzer
+**Status**: ✅ Implemented (manual)
+**Category**: Tooling / Research System Reliability
+
+**Change**:
+- Normalize research chunk YAML deliverable roots:
+  - Update Chunk 1B/2A/2B/3 requirement YAML `deliverables.code` from `src/research/*` to `src/autopack/research/*`.
+- Add/align research dependencies:
+  - Runtime deps in `requirements.txt` + `pyproject.toml` (HTTP, parsing, APIs, retry, reporting).
+  - Dev/test deps in `requirements-dev.txt` + `pyproject.toml` optional dev deps (`pytest-benchmark`, `faker`).
+- Add a lightweight preflight analyzer:
+  - `python -m autopack.research.preflight_analyzer --requirements-dir <dir>`
+  - Validates deliverables roots + protected-path feasibility + missing deps (including dev deps) + missing API env vars (informational).
+
+**Files Modified**:
+- `.autonomous_runs/file-organizer-app-v1/archive/research/active/requirements/chunk1b-foundation-intent-discovery.yaml`
+- `.autonomous_runs/file-organizer-app-v1/archive/research/active/requirements/chunk2a-gatherers-social.yaml`
+- `.autonomous_runs/file-organizer-app-v1/archive/research/active/requirements/chunk2b-gatherers-web-compilation.yaml`
+- `.autonomous_runs/file-organizer-app-v1/archive/research/active/requirements/chunk3-meta-analysis.yaml`
+- `requirements.txt`
+- `requirements-dev.txt`
+- `pyproject.toml`
+- `src/autopack/research/preflight_analyzer.py`
+
+**Related Debug Entry**:
+- `docs/DEBUG_LOG.md` (DBG-046)
+
+---
 
 ### BUILD-086 | 2025-12-19T13:04 | Docs | Update capability gap report + runbook to reflect post-stabilization reality; add next-cursor takeover prompt
 **Status**: ✅ Implemented (manual)

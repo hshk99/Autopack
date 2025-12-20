@@ -1,8 +1,8 @@
 # Build History - Implementation Log
 
 <!-- META
-Last_Updated: 2025-12-20T17:40:00Z
-Total_Builds: 58
+Last_Updated: 2025-12-20T18:22:00Z
+Total_Builds: 59
 Format_Version: 2.0
 Auto_Generated: True
 Sources: CONSOLIDATED files, archive/
@@ -12,6 +12,7 @@ Sources: CONSOLIDATED files, archive/
 
 | Timestamp | BUILD-ID | Phase | Summary | Files Changed |
 |-----------|----------|-------|---------|---------------|
+| 2025-12-20 | BUILD-097 | Hotfix | Clean merge conflict markers from src/autopack/main.py left by retry-api-router-v2 failed patch attempts, enabling research-api-router phase to converge successfully with Claude Sonnet 4.5 | 1 |
 | 2025-12-20 | BUILD-096 | Hotfix | Add `src/autopack/main.py` to ALLOWED_PATHS in governed_apply.py to enable research-api-router followup (narrowly unblocks main.py for FastAPI router registration, per followup-4 requirements) | 1 |
 | 2025-12-20 | BUILD-095 | Hotfix | Fix autonomous_executor.py manifest gate allowed_roots computation (3 locations): add `examples/` to preferred_roots and fix fallback logic to detect filenames, matching BUILD-094 fix in deliverables_validator.py | 1 |
 | 2025-12-20 | BUILD-094 | Hotfix | Fix deliverables_validator.py root computation bug: add `examples/` to preferred_roots and fix fallback logic to detect filenames (containing `.`) in second segment, preventing false "outside allowed roots" failures | 2 |

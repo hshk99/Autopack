@@ -3472,7 +3472,7 @@ Just the new description that should replace the current one while preserving th
                     expected_set = {p for p in expected_paths if isinstance(p, str)}
                     expected_list = sorted(expected_set)
                     allowed_roots: List[str] = []
-                    preferred_roots = ("src/autopack/research/", "src/autopack/cli/", "tests/research/", "docs/research/")
+                    preferred_roots = ("src/autopack/research/", "src/autopack/cli/", "tests/research/", "docs/research/", "examples/")
                     for r in preferred_roots:
                         if any(p.startswith(r) for p in expected_list):
                             allowed_roots.append(r)
@@ -3484,7 +3484,11 @@ Just the new description that should replace the current one while preserving th
                         expanded: List[str] = []
                         for p in expected_list:
                             parts = p.split("/")
-                            root = "/".join(parts[:2]) + "/" if len(parts) >= 2 else parts[0] + "/"
+                            # If second segment contains '.', it's likely a filename, not a directory
+                            if len(parts) >= 2 and "." in parts[1]:
+                                root = parts[0] + "/"
+                            else:
+                                root = "/".join(parts[:2]) + "/" if len(parts) >= 2 else parts[0] + "/"
                             if root not in expanded:
                                 expanded.append(root)
                         allowed_roots = expanded
@@ -4298,7 +4302,7 @@ Just the new description that should replace the current one while preserving th
                     expected_set = {p for p in expected_paths if isinstance(p, str)}
                     expected_list = sorted(expected_set)
                     allowed_roots: List[str] = []
-                    for r in ("src/autopack/research/", "tests/research/", "docs/research/"):
+                    for r in ("src/autopack/research/", "tests/research/", "docs/research/", "examples/"):
                         if any(p.startswith(r) for p in expected_list):
                             allowed_roots.append(r)
                     if not allowed_roots:
@@ -4306,7 +4310,11 @@ Just the new description that should replace the current one while preserving th
                         expanded: List[str] = []
                         for p in expected_list:
                             parts = p.split("/")
-                            root = "/".join(parts[:2]) + "/" if len(parts) >= 2 else parts[0] + "/"
+                            # If second segment contains '.', it's likely a filename, not a directory
+                            if len(parts) >= 2 and "." in parts[1]:
+                                root = parts[0] + "/"
+                            else:
+                                root = "/".join(parts[:2]) + "/" if len(parts) >= 2 else parts[0] + "/"
                             if root not in expanded:
                                 expanded.append(root)
                         allowed_roots = expanded
@@ -4676,7 +4684,7 @@ Just the new description that should replace the current one while preserving th
                     expected_set = {p for p in expected_paths if isinstance(p, str)}
                     expected_list = sorted(expected_set)
                     allowed_roots: List[str] = []
-                    for r in ("src/research/", "tests/research/", "docs/research/"):
+                    for r in ("src/research/", "tests/research/", "docs/research/", "examples/"):
                         if any(p.startswith(r) for p in expected_list):
                             allowed_roots.append(r)
                     if not allowed_roots:
@@ -4684,7 +4692,11 @@ Just the new description that should replace the current one while preserving th
                         expanded: List[str] = []
                         for p in expected_list:
                             parts = p.split("/")
-                            root = "/".join(parts[:2]) + "/" if len(parts) >= 2 else parts[0] + "/"
+                            # If second segment contains '.', it's likely a filename, not a directory
+                            if len(parts) >= 2 and "." in parts[1]:
+                                root = parts[0] + "/"
+                            else:
+                                root = "/".join(parts[:2]) + "/" if len(parts) >= 2 else parts[0] + "/"
                             if root not in expanded:
                                 expanded.append(root)
                         allowed_roots = expanded
@@ -6409,7 +6421,9 @@ Just the new description that should replace the current one while preserving th
                 logger.warning(f"Failed to log run completion: {e}")
 
             # Best-effort fallback: ensure run_summary.md reflects terminal state even if API-side hook fails
-            self._best_effort_write_run_summary(phases_failed=phases_failed)
+            # Here we are truly finalizing the run (no executable phases remaining),
+            # so allow mutating run.state to a terminal DONE_* state if needed.
+            self._best_effort_write_run_summary(phases_failed=phases_failed, allow_run_state_mutation=True)
 
             # Learning Pipeline: Promote hints to persistent rules (Stage 0B)
             try:
@@ -6436,7 +6450,12 @@ Just the new description that should replace the current one while preserving th
             except Exception as e:
                 logger.warning(f"Failed to log run pause: {e}")
 
-    def _best_effort_write_run_summary(self, phases_failed: Optional[int] = None, failure_reason: Optional[str] = None):
+    def _best_effort_write_run_summary(
+        self,
+        phases_failed: Optional[int] = None,
+        failure_reason: Optional[str] = None,
+        allow_run_state_mutation: bool = False,
+    ):
         """
         Write run_summary.md even if API hooks fail (covers short single-phase runs).
         """
@@ -6448,25 +6467,32 @@ Just the new description that should replace the current one while preserving th
             if not run:
                 return
 
-            # Derive a conservative terminal state if DB state is missing or stale
-            terminal_run_states = {
-                models.RunState.DONE_SUCCESS,
-                models.RunState.DONE_FAILED_REQUIRES_HUMAN_REVIEW,
-                models.RunState.DONE_FAILED_BUDGET_EXHAUSTED,
-                models.RunState.DONE_FAILED_POLICY_VIOLATION,
-                models.RunState.DONE_FAILED_ENVIRONMENT,
-            }
-            if run.state not in terminal_run_states:
-                # If caller provided explicit failure count, trust it
-                if phases_failed is not None and phases_failed > 0:
-                    run.state = models.RunState.DONE_FAILED_REQUIRES_HUMAN_REVIEW
-                else:
-                    # Fall back to DB snapshot: if any phase is non-COMPLETE, mark failed
-                    failed_phases = [p for p in run.phases if p.state != models.PhaseState.COMPLETE]
-                    if failed_phases:
+            # IMPORTANT:
+            # This helper is invoked opportunistically (e.g., after a phase hits a terminal status),
+            # and MUST NOT finalize or otherwise mutate the run state unless explicitly requested.
+            #
+            # Without this guard, a single transient failure (with retries remaining) can incorrectly
+            # flip the run into DONE_FAILED_REQUIRES_HUMAN_REVIEW, preventing convergence.
+            if allow_run_state_mutation:
+                # Derive a conservative terminal state if DB state is missing or stale
+                terminal_run_states = {
+                    models.RunState.DONE_SUCCESS,
+                    models.RunState.DONE_FAILED_REQUIRES_HUMAN_REVIEW,
+                    models.RunState.DONE_FAILED_BUDGET_EXHAUSTED,
+                    models.RunState.DONE_FAILED_POLICY_VIOLATION,
+                    models.RunState.DONE_FAILED_ENVIRONMENT,
+                }
+                if run.state not in terminal_run_states:
+                    # If caller provided explicit failure count, trust it
+                    if phases_failed is not None and phases_failed > 0:
                         run.state = models.RunState.DONE_FAILED_REQUIRES_HUMAN_REVIEW
                     else:
-                        run.state = models.RunState.DONE_SUCCESS
+                        # Fall back to DB snapshot: if any phase is non-COMPLETE, mark failed
+                        failed_phases = [p for p in run.phases if p.state != models.PhaseState.COMPLETE]
+                        if failed_phases:
+                            run.state = models.RunState.DONE_FAILED_REQUIRES_HUMAN_REVIEW
+                        else:
+                            run.state = models.RunState.DONE_SUCCESS
 
             # Calculate phase stats
             all_phases = list(run.phases)

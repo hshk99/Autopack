@@ -12,6 +12,7 @@ Sources: CONSOLIDATED_DEBUG, archive/, fileorg-phase2-beta-release
 
 | Timestamp | DBG-ID | Severity | Summary | Status |
 |-----------|--------|----------|---------|--------|
+| 2025-12-20 | DBG-054 | HIGH | Autonomous_executor.py had 3 duplicate copies of allowed_roots computation logic (lines 3474, 4300, 4678) with same bug as DBG-053; manifest gate rejected examples/ deliverables despite deliverables_validator.py being fixed in BUILD-094 | ✅ Resolved (Manual Hotfix: BUILD-095) |
 | 2025-12-20 | DBG-053 | HIGH | Deliverables validator incorrectly computed allowed_roots for file deliverables like `examples/market_research_example.md`, creating root `examples/market_research_example.md/` instead of `examples/`, causing false "outside allowed roots" failures for research-examples-and-docs phase | ✅ Resolved (Manual Hotfix: BUILD-094) |
 | 2025-12-20 | DBG-052 | MEDIUM | After fixing ImportError (DBG-051), phases 2-3 could not retry because `retry_attempt` counter was at 5/5 (MAX_RETRY_ATTEMPTS); reset counter to 0 to enable successful retry | ✅ Resolved (Manual DB Reset: BUILD-093) |
 | 2025-12-20 | DBG-051 | HIGH | LLM clients (OpenAI, Gemini, GLM) attempt to import missing `format_rules_for_prompt` and `format_hints_for_prompt` functions from learned_rules.py, causing ImportError and blocking Builder execution in all follow-up phases | ✅ Resolved (Manual Hotfix: BUILD-092) |

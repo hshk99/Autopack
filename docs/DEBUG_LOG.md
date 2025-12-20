@@ -1,8 +1,8 @@
 # Debug Log - Problem Solving History
 
 <!-- META
-Last_Updated: 2025-12-20T18:22:00Z
-Total_Issues: 24
+Last_Updated: 2025-12-20T18:58:00Z
+Total_Issues: 25
 Format_Version: 2.0
 Auto_Generated: True
 Sources: CONSOLIDATED_DEBUG, archive/, fileorg-phase2-beta-release
@@ -12,6 +12,7 @@ Sources: CONSOLIDATED_DEBUG, archive/, fileorg-phase2-beta-release
 
 | Timestamp | DBG-ID | Severity | Summary | Status |
 |-----------|--------|----------|---------|--------|
+| 2025-12-20 | DBG-057 | HIGH | Diagnostics-deep-retrieval phase failed with TypeError "unsupported operand type(s) for -: 'NoneType' and 'int'" at autonomous_executor.py:3617 during truncation recovery - SQLAlchemy model .get() method doesn't support default values like dict.get() | ✅ Resolved (Manual Hotfix: BUILD-098) |
 | 2025-12-20 | DBG-056 | HIGH | Research-api-router retry-v2/v3 failed due to merge conflict markers (`<<<<<<< ours`) left in src/autopack/main.py from previous failed patch attempts, causing context mismatch errors and preventing convergence despite BUILD-096 fix | ✅ Resolved (Manual Hotfix: BUILD-097) |
 | 2025-12-20 | DBG-055 | HIGH | Research-api-router phase blocked by protected-path isolation: patch attempts to modify `src/autopack/main.py` for FastAPI router registration, but main.py not in ALLOWED_PATHS (narrower than diagnostics subtrees in BUILD-090) | ✅ Resolved (Manual Hotfix: BUILD-096) |
 | 2025-12-20 | DBG-054 | HIGH | Autonomous_executor.py had 3 duplicate copies of allowed_roots computation logic (lines 3474, 4300, 4678) with same bug as DBG-053; manifest gate rejected examples/ deliverables despite deliverables_validator.py being fixed in BUILD-094 | ✅ Resolved (Manual Hotfix: BUILD-095) |

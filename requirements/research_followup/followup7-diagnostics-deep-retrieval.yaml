@@ -1,0 +1,52 @@
+phase_id: diagnostics-deep-retrieval
+run_id: autopack-diagnostics-parity-v2
+chunk_number: followup-7
+description: |
+  Diagnostics Parity (Stage 2A): Bounded deep retrieval escalation.
+
+  When Stage 1 evidence (handoff bundle) lacks sufficient signal, retrieve
+  targeted snippets from run-local artifacts + SOT + optional memory, with
+  strict per-category caps and recency awareness to prevent context noise.
+
+goals:
+  - Implement gated deep retrieval (only when Stage 1 is insufficient)
+  - Enforce hard bounds: max 3 snippets per category, ≤120 lines or ≤8000 chars each
+  - Prefer recency (30-60 day window) and project/run scope
+  - Always include citations (file path + section/line-range hint)
+
+deliverables:
+  code:
+    - src/autopack/diagnostics/deep_retrieval.py
+    - src/autopack/diagnostics/retrieval_triggers.py
+  tests:
+    - tests/autopack/diagnostics/test_deep_retrieval.py
+    - tests/autopack/diagnostics/test_retrieval_triggers.py
+  docs:
+    - docs/autopack/diagnostics_deep_retrieval.md
+
+features:
+  - "Stage 2 triggers (any one is sufficient):"
+  - "  - Missing key artifacts (no error report, no diagnostics summary, no failing test output)"
+  - "  - Ambiguous failure category (unknown, mixed symptoms, multiple competing root causes)"
+  - "  - Repeated failures with similar messages across attempts (approach-flaw signal)"
+  - "  - High blast-radius phases (integration/core/protected-path-related)"
+  - "Retrieval sources (in priority order):"
+  - "  1. Run-local artifacts (diagnostics, errors, phase summaries)"
+  - "  2. SOT docs (DEBUG_LOG.md, BUILD_HISTORY.md, BUILD-*.md, DBG-*.md)"
+  - "  3. Structured memory index (vector memory) only after 1-2 fail-open fallbacks"
+  - "Hard bounds (token + noise control):"
+  - "  - Per category cap: at most 3 snippets each from: SOT debug history, SOT build history, code docs/API docs, prior run summaries"
+  - "  - Recency window: prefer last 30-60 days unless operator overrides"
+  - "  - Scope: same project_id; avoid cross-project retrieval by default"
+  - "  - Snippet size: ≤120 lines or ≤8000 chars per snippet"
+  - "Update bundle index with retrieved snippets + citations"
+
+validation:
+  functional:
+    - Deep retrieval never exceeds configured caps (3 per category, size limits)
+    - Retrieval output always includes citations (file path + section header or line-range hint)
+    - Works with missing SOT files (degrades gracefully)
+    - No crash on missing memory index
+  quality:
+    - "≥8 unit tests passing (caps, citations, graceful degradation)"
+    - Deterministic output for same inputs (no random sampling)

@@ -3614,7 +3614,8 @@ Just the new description that should replace the current one while preserving th
 
                 # BUILD-046: Dynamic token escalation on truncation
                 # If output was truncated (stop_reason=max_tokens), automatically increase token budget for retry
-                if getattr(builder_result, 'was_truncated', False) and attempt_index < (phase.get("max_builder_attempts", 5) - 1):
+                max_builder_attempts = getattr(phase, "max_builder_attempts", None) or 5
+                if getattr(builder_result, 'was_truncated', False) and attempt_index < (max_builder_attempts - 1):
                     # Get current token limit from phase spec
                     current_max_tokens = phase.get('_escalated_tokens')
                     if current_max_tokens is None:

@@ -1,0 +1,51 @@
+phase_id: diagnostics-iteration-loop
+run_id: autopack-diagnostics-parity-v2
+chunk_number: followup-8
+description: |
+  Diagnostics Parity (Stage 2B): Iteration loop enhancements for Cursor-like steering.
+
+  Let Autopack ask for missing evidence explicitly (without token blowups) by
+  adding "evidence requests" to prompts and providing compact "human response"
+  ingestion mechanism.
+
+goals:
+  - Add explicit "evidence requests" section to handoff prompts
+  - Support compact human response ingestion (short answers + file path attachments)
+  - Make prompts progressively more targeted after 1-2 iterations
+  - Keep token overhead minimal (≤500 chars per iteration round-trip)
+
+deliverables:
+  code:
+    - src/autopack/diagnostics/evidence_requests.py
+    - src/autopack/diagnostics/human_response_parser.py
+  tests:
+    - tests/autopack/diagnostics/test_evidence_requests.py
+    - tests/autopack/diagnostics/test_human_response_parser.py
+  docs:
+    - docs/autopack/diagnostics_iteration_loop.md
+
+features:
+  - "Evidence requests generation:"
+  - "  - Analyze handoff bundle to identify missing artifacts"
+  - "  - Generate targeted questions (not open-ended exploration)"
+  - "  - List missing files/artifacts with rationale"
+  - "  - Keep requests ≤5 items per iteration"
+  - "Human response ingestion:"
+  - "  - Parse compact text format: 'Q1: <answer>; Q2: <answer>; Attached: <path1>, <path2>'"
+  - "  - Support file path attachment references (relative or absolute)"
+  - "  - Validate and incorporate new evidence into bundle index"
+  - "  - Update handoff/summary.md with iteration history"
+  - "Integration with existing handoff workflow:"
+  - "  - Extend cursor_prompt.md to include evidence requests section"
+  - "  - Add iteration counter to handoff/index.json"
+  - "  - Support multi-round iteration (stop after 3 rounds or operator says 'done')"
+
+validation:
+  functional:
+    - Evidence requests are specific and actionable (not vague)
+    - Human response parser handles malformed input gracefully
+    - Iteration history is preserved in bundle
+    - No token explosion: each iteration adds ≤500 chars overhead
+  quality:
+    - "≥6 unit tests passing (request generation, response parsing, iteration tracking)"
+    - Prompts become progressively more targeted (manual verification with 2 test cases)

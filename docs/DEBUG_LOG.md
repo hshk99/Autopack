@@ -12,6 +12,8 @@ Sources: CONSOLIDATED_DEBUG, archive/, fileorg-phase2-beta-release
 
 | Timestamp | DBG-ID | Severity | Summary | Status |
 |-----------|--------|----------|---------|--------|
+| 2025-12-20 | DBG-053 | HIGH | Deliverables validator incorrectly computed allowed_roots for file deliverables like `examples/market_research_example.md`, creating root `examples/market_research_example.md/` instead of `examples/`, causing false "outside allowed roots" failures for research-examples-and-docs phase | ✅ Resolved (Manual Hotfix: BUILD-094) |
+| 2025-12-20 | DBG-052 | MEDIUM | After fixing ImportError (DBG-051), phases 2-3 could not retry because `retry_attempt` counter was at 5/5 (MAX_RETRY_ATTEMPTS); reset counter to 0 to enable successful retry | ✅ Resolved (Manual DB Reset: BUILD-093) |
 | 2025-12-20 | DBG-051 | HIGH | LLM clients (OpenAI, Gemini, GLM) attempt to import missing `format_rules_for_prompt` and `format_hints_for_prompt` functions from learned_rules.py, causing ImportError and blocking Builder execution in all follow-up phases | ✅ Resolved (Manual Hotfix: BUILD-092) |
 | 2025-12-20 | DBG-050 | HIGH | Follow-up requirements YAML files contain invalid syntax: backtick-prefixed strings in feature lists cause YAML parser failures during run seeding, blocking `autopack-followups-v1` creation | ✅ Resolved (Manual Hotfix: BUILD-091) |
 | 2025-12-20 | DBG-049 | HIGH | Followups 1–3 (Diagnostics Parity) blocked by protected-path isolation because deliverables live under `src/autopack/diagnostics/` and `src/autopack/dashboard/` which were not allowlisted | ✅ Resolved (Manual Hotfix: BUILD-090) |

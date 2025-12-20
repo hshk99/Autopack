@@ -12,6 +12,8 @@ Sources: CONSOLIDATED files, archive/
 
 | Timestamp | BUILD-ID | Phase | Summary | Files Changed |
 |-----------|----------|-------|---------|---------------|
+| 2025-12-20 | BUILD-094 | Hotfix | Fix deliverables_validator.py root computation bug: add `examples/` to preferred_roots and fix fallback logic to detect filenames (containing `.`) in second segment, preventing false "outside allowed roots" failures | 2 |
+| 2025-12-20 | BUILD-093 | Hotfix | Reset `retry_attempt` counter to allow phases 2-3 retry after ImportError fix; phases successfully completed on second execution | 0 |
 | 2025-12-20 | BUILD-092 | Hotfix | Implement missing `format_rules_for_prompt` and `format_hints_for_prompt` functions in learned_rules.py to fix ImportError blocking Builder execution | 1 |
 | 2025-12-20 | BUILD-091 | Hotfix | Fix YAML syntax errors in follow-up requirements: quote backtick-prefixed feature strings to prevent YAML parsing failures during run seeding | 4 |
 | 2025-12-20 | BUILD-090 | Hotfix | Allowlist diagnostics parity subtrees (`src/autopack/diagnostics/`, `src/autopack/dashboard/`) so Followups 1–3 can apply under governed isolation | 1 |

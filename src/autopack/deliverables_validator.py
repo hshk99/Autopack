@@ -612,6 +612,7 @@ def validate_deliverables(
         "src/autopack/cli/",
         "tests/research/",
         "docs/research/",
+        "examples/",
     ]
     for r in preferred_roots:
         if any(p.startswith(r) for p in expected_list) and r not in allowed_roots:
@@ -621,12 +622,17 @@ def validate_deliverables(
         return any(path.startswith(r) for r in roots)
 
     # If preferred roots do not cover all expected paths, expand to first-2-segments roots.
+    # Fix: if second segment looks like a filename (contains '.'), use first segment + "/" as root.
     if not allowed_roots or not all(_covered_by_roots(p, allowed_roots) for p in expected_list):
         expanded: List[str] = []
         for p in expected_list:
             parts = p.split("/")
             if len(parts) >= 2:
-                root = "/".join(parts[:2]) + "/"
+                # If second segment contains '.', it's likely a filename, not a directory
+                if "." in parts[1]:
+                    root = parts[0] + "/"
+                else:
+                    root = "/".join(parts[:2]) + "/"
             else:
                 root = parts[0] + "/"
             if root not in expanded:

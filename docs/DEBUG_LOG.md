@@ -1,8 +1,8 @@
 # Debug Log - Problem Solving History
 
 <!-- META
-Last_Updated: 2025-12-20T05:18:32Z
-Total_Issues: 20
+Last_Updated: 2025-12-20T16:00:00Z
+Total_Issues: 21
 Format_Version: 2.0
 Auto_Generated: True
 Sources: CONSOLIDATED_DEBUG, archive/, fileorg-phase2-beta-release
@@ -12,6 +12,7 @@ Sources: CONSOLIDATED_DEBUG, archive/, fileorg-phase2-beta-release
 
 | Timestamp | DBG-ID | Severity | Summary | Status |
 |-----------|--------|----------|---------|--------|
+| 2025-12-20 | DBG-050 | HIGH | Follow-up requirements YAML files contain invalid syntax: backtick-prefixed strings in feature lists cause YAML parser failures during run seeding, blocking `autopack-followups-v1` creation | ✅ Resolved (Manual Hotfix: BUILD-091) |
 | 2025-12-20 | DBG-049 | HIGH | Followups 1–3 (Diagnostics Parity) blocked by protected-path isolation because deliverables live under `src/autopack/diagnostics/` and `src/autopack/dashboard/` which were not allowlisted | ✅ Resolved (Manual Hotfix: BUILD-090) |
 | 2025-12-20 | DBG-048 | MEDIUM | Chunk 2B quality gate not met: missing `src/autopack/research/*` deliverables and insufficient unit test/coverage confirmation; implement modules + expand tests and verify ≥25 tests + ≥80% coverage | ✅ Resolved (Manual Quality Fix: BUILD-089) |
 | 2025-12-19 | DBG-047 | HIGH | Executor could incorrectly flip a resumable run to DONE_FAILED during best-effort run_summary writes after a single phase failure (retries still remaining) | ✅ Resolved (Manual Hotfix: BUILD-088) |

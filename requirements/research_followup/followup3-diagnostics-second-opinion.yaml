@@ -23,12 +23,12 @@ deliverables:
 
 features:
   - Triggered only when:
-    - `--second-opinion` flag is enabled
+    - "--second-opinion flag is enabled"
     - required provider keys configured
     - handoff bundle exists
   - Produces:
-    - `second_opinion.json` (parseable)
-    - `second_opinion.md` (human-readable)
+    - "second_opinion.json (parseable)"
+    - "second_opinion.md (human-readable)"
   - Enforces hard caps:
     - max snippets per category
     - max snippet size

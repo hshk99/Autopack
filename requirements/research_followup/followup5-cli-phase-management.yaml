@@ -23,10 +23,10 @@ deliverables:
     - docs/cli/research_commands.md
 
 features:
-  - `autopack create-phase --run-id ... --phase-id ... --requirements <yaml>`
-  - `autopack execute-run --run-id ... --api-url ...`
-  - `autopack phase-status --run-id ... --phase-id ...`
-  - `autopack review-phase --run-id ... --phase-id ... --decision approve|reject --reason ...`
+  - "autopack create-phase --run-id ... --phase-id ... --requirements <yaml>"
+  - "autopack execute-run --run-id ... --api-url ..."
+  - "autopack phase-status --run-id ... --phase-id ..."
+  - "autopack review-phase --run-id ... --phase-id ... --decision approve|reject --reason ..."
 
 validation:
   functional:

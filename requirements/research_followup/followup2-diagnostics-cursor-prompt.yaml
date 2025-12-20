@@ -24,7 +24,7 @@ deliverables:
     - docs/autopack/diagnostics_cursor_prompt.md
 
 features:
-  - CLI command: `autopack handoff-prompt --run-id <id>` (or similar)
+  - "CLI command: autopack handoff-prompt --run-id <id> (or similar)"
   - Dashboard integration: endpoint or button that returns the prompt text
   - Prompt includes explicit "attach/open these files" list derived from handoff index.json
   - Prompt includes “unknowns / questions” section if evidence is missing

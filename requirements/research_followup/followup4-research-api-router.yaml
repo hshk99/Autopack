@@ -26,10 +26,10 @@ deliverables:
     - docs/research/API_REFERENCE.md
 
 features:
-  - `POST /research/sessions` create + enqueue a research session (stub ok, deterministic response)
-  - `GET /research/sessions/{id}` return status + artifact locations
-  - `GET /research/sessions` list recent sessions
-  - Add router mounting in `src/autopack/main.py` under a `research` tag
+  - "POST /research/sessions create + enqueue a research session (stub ok, deterministic response)"
+  - "GET /research/sessions/{id} return status + artifact locations"
+  - "GET /research/sessions list recent sessions"
+  - "Add router mounting in src/autopack/main.py under a research tag"
 
 validation:
   functional:

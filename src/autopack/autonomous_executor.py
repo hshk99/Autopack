@@ -4130,6 +4130,14 @@ Just the new description that should replace the current one while preserving th
 
             logger.info(f"[{phase_id}] Quality Gate: {quality_report.quality_level}")
 
+            # Check if large deletion notification needed (100-200 lines - informational only)
+            if quality_report.risk_assessment:
+                checks = quality_report.risk_assessment.get("checks", {})
+                if checks.get("deletion_notification_needed") and not checks.get("deletion_approval_required"):
+                    # Send informational notification (don't block)
+                    logger.info(f"[{phase_id}] Large deletion detected (100+ lines) - sending notification")
+                    self._send_deletion_notification(phase_id, quality_report)
+
             # Check if blocked (due to CI failure or other issues)
             if quality_report.is_blocked():
                 logger.warning(f"[{phase_id}] Phase BLOCKED by quality gate")
@@ -6933,6 +6941,69 @@ Just the new description that should replace the current one while preserving th
         # Timeout reached
         logger.warning(f"[{phase_id}] ⏱️  Approval timeout after {timeout_seconds}s")
         return False
+
+    def _send_deletion_notification(self, phase_id: str, quality_report) -> None:
+        """
+        Send informational Telegram notification for large deletions (100-200 lines).
+        This is notification-only - does not block execution.
+
+        Args:
+            phase_id: Phase identifier
+            quality_report: QualityReport with risk assessment
+        """
+        try:
+            from autopack.notifications.telegram_notifier import TelegramNotifier
+
+            notifier = TelegramNotifier()
+
+            if not notifier.is_configured():
+                return  # Silently skip if not configured
+
+            # Extract deletion info from risk assessment
+            risk_assessment = quality_report.risk_assessment
+            if not risk_assessment:
+                return
+
+            metadata = risk_assessment.get("metadata", {})
+            checks = risk_assessment.get("checks", {})
+            net_deletion = checks.get("net_deletion", 0)
+            loc_removed = metadata.get("loc_removed", 0)
+            loc_added = metadata.get("loc_added", 0)
+            risk_level = risk_assessment.get("risk_level", "unknown")
+            risk_score = risk_assessment.get("risk_score", 0)
+
+            # Determine emoji based on risk level
+            risk_emoji = {
+                "low": "✅",
+                "medium": "⚠️",
+                "high": "🔴",
+                "critical": "🚨",
+            }.get(risk_level, "❓")
+
+            # Format message
+            message = (
+                f"📊 *Autopack Deletion Notification*\\n\\n"
+                f"*Run*: `{self.run_id}`\\n"
+                f"*Phase*: `{phase_id}`\\n"
+                f"*Risk*: {risk_emoji} {risk_level.upper()} (score: {risk_score}/100)\\n\\n"
+                f"*Net Deletion*: {net_deletion} lines\\n"
+                f"  ├─ Removed: {loc_removed}\\n"
+                f"  └─ Added: {loc_added}\\n\\n"
+                f"ℹ️ _This is informational only. Execution continues automatically._\\n\\n"
+                f"_Time_: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')} UTC"
+            )
+
+            # Send notification (no buttons needed, just FYI)
+            notifier.send_completion_notice(
+                phase_id=phase_id,
+                status="info",
+                message=message
+            )
+
+            logger.info(f"[{phase_id}] Sent deletion notification to Telegram (informational only)")
+
+        except Exception as e:
+            logger.warning(f"[{phase_id}] Failed to send deletion notification: {e}")
 
     def _send_phase_failure_notification(self, phase_id: str, reason: str) -> None:
         """

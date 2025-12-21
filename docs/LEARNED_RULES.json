@@ -1098,6 +1098,178 @@
       "last_seen": "2025-12-16T05:57:39.786585+00:00",
       "status": "active",
       "stage": "new"
+    },
+    {
+      "rule_id": "IMPLEMENT_FEATURE.rule_373f3dc6",
+      "task_category": "IMPLEMENT_FEATURE",
+      "scope_pattern": null,
+      "constraint": "Phase 'diagnostics-deep-retrieval' generated invalid patch - ensure proper diff format. Details: Failed with PATCH_FAILED on attempt 1",
+      "source_hint_ids": [
+        "autopack-diagnostics-parity-v4:diagnostics-deep-retrieval",
+        "autopack-diagnostics-parity-v5:diagnostics-iteration-loop",
+        "autopack-diagnostics-parity-v5:diagnostics-iteration-loop",
+        "autopack-diagnostics-parity-v5:diagnostics-iteration-loop",
+        "autopack-diagnostics-parity-v5:diagnostics-iteration-loop",
+        "autopack-diagnostics-parity-v5:diagnostics-iteration-loop",
+        "diagnostics-parity-phases-124:diagnostics-handoff-bundle",
+        "diagnostics-parity-phases-124:diagnostics-handoff-bundle",
+        "diagnostics-parity-phases-124:diagnostics-handoff-bundle",
+        "diagnostics-parity-phases-124:diagnostics-handoff-bundle",
+        "diagnostics-parity-phases-124:diagnostics-handoff-bundle",
+        "diagnostics-parity-phases-124:diagnostics-cursor-prompt",
+        "diagnostics-parity-phases-124:diagnostics-cursor-prompt",
+        "diagnostics-parity-phases-124:diagnostics-cursor-prompt",
+        "diagnostics-parity-phases-124:diagnostics-cursor-prompt",
+        "diagnostics-parity-phases-124:diagnostics-cursor-prompt",
+        "diagnostics-parity-phases-124:diagnostics-cursor-prompt",
+        "diagnostics-parity-phases-124:diagnostics-handoff-bundle",
+        "diagnostics-parity-phases-124:diagnostics-handoff-bundle",
+        "diagnostics-parity-phases-124:diagnostics-handoff-bundle",
+        "diagnostics-parity-phases-124:diagnostics-handoff-bundle",
+        "diagnostics-parity-phases-124:diagnostics-handoff-bundle",
+        "diagnostics-parity-phases-124:diagnostics-cursor-prompt",
+        "diagnostics-parity-phases-124:diagnostics-cursor-prompt",
+        "diagnostics-parity-phases-124:diagnostics-cursor-prompt",
+        "diagnostics-parity-phases-124:diagnostics-cursor-prompt",
+        "diagnostics-parity-phases-124:diagnostics-cursor-prompt",
+        "diagnostics-parity-phases-124:diagnostics-cursor-prompt",
+        "diagnostics-parity-phases-124:diagnostics-handoff-bundle",
+        "diagnostics-parity-phases-124:diagnostics-handoff-bundle",
+        "diagnostics-parity-phases-124:diagnostics-handoff-bundle",
+        "diagnostics-parity-phases-124:diagnostics-handoff-bundle",
+        "diagnostics-parity-phases-124:diagnostics-handoff-bundle",
+        "diagnostics-parity-phases-124:diagnostics-cursor-prompt",
+        "diagnostics-parity-phases-124:diagnostics-cursor-prompt",
+        "diagnostics-parity-phases-124:diagnostics-cursor-prompt",
+        "diagnostics-parity-phases-124:diagnostics-cursor-prompt",
+        "diagnostics-parity-phases-124:diagnostics-cursor-prompt",
+        "diagnostics-parity-phases-124:diagnostics-cursor-prompt",
+        "diagnostics-parity-phases-124:diagnostics-handoff-bundle",
+        "diagnostics-parity-phases-124:diagnostics-handoff-bundle",
+        "diagnostics-parity-phases-124:diagnostics-handoff-bundle"
+      ],
+      "promotion_count": 42,
+      "first_seen": "2025-12-20T11:51:58.953481+00:00",
+      "last_seen": "2025-12-21T01:50:25.198774+00:00",
+      "status": "active",
+      "stage": "new"
+    },
+    {
+      "rule_id": "IMPLEMENT_FEATURE.rule_73db12f0",
+      "task_category": "IMPLEMENT_FEATURE",
+      "scope_pattern": null,
+      "constraint": "Phase 'diagnostics-deep-retrieval' generated invalid patch - ensure proper diff format. Details: Failed with PATCH_FAILED on attempt 2",
+      "source_hint_ids": [
+        "autopack-diagnostics-parity-v4:diagnostics-deep-retrieval",
+        "diagnostics-parity-phases-124:diagnostics-cursor-prompt",
+        "diagnostics-parity-phases-124:diagnostics-cursor-prompt",
+        "diagnostics-parity-phases-124:diagnostics-cursor-prompt",
+        "diagnostics-parity-phases-124:diagnostics-cursor-prompt",
+        "diagnostics-parity-phases-124:diagnostics-cursor-prompt",
+        "diagnostics-parity-phases-124:diagnostics-cursor-prompt",
+        "diagnostics-parity-phases-124:diagnostics-cursor-prompt",
+        "diagnostics-parity-phases-124:diagnostics-cursor-prompt",
+        "diagnostics-parity-phases-124:diagnostics-cursor-prompt"
+      ],
+      "promotion_count": 10,
+      "first_seen": "2025-12-20T11:57:16.263757+00:00",
+      "last_seen": "2025-12-21T01:50:25.198774+00:00",
+      "status": "active",
+      "stage": "new"
+    },
+    {
+      "rule_id": "IMPLEMENT_FEATURE.rule_41c38a8f",
+      "task_category": "IMPLEMENT_FEATURE",
+      "scope_pattern": null,
+      "constraint": "Phase 'diagnostics-deep-retrieval' succeeded after retries - model escalation was needed. Details: Succeeded on attempt 2 after 1 failed attempts",
+      "source_hint_ids": [
+        "autopack-diagnostics-parity-v4:diagnostics-deep-retrieval"
+      ],
+      "promotion_count": 1,
+      "first_seen": "2025-12-20T12:05:59.718363+00:00",
+      "last_seen": "2025-12-20T12:11:16.425182+00:00",
+      "status": "active",
+      "stage": "new"
+    },
+    {
+      "rule_id": "IMPLEMENT_FEATURE.rule_48d15b11",
+      "task_category": "IMPLEMENT_FEATURE",
+      "scope_pattern": null,
+      "constraint": "Phase 'diagnostics-handoff-bundle': deliverables_validation_failed. Details: Missing 4 files including: docs/autopack/diagnostics_handoff_bundle.md, src/autopack/cli/commands/handoff.py, src/autopack/diagnostics/handoff_bundler.py",
+      "source_hint_ids": [
+        "diagnostics-parity-phases-124:diagnostics-handoff-bundle",
+        "diagnostics-parity-phases-124:diagnostics-handoff-bundle",
+        "diagnostics-parity-phases-124:diagnostics-handoff-bundle",
+        "diagnostics-parity-phases-124:diagnostics-handoff-bundle",
+        "diagnostics-parity-phases-124:diagnostics-cursor-prompt",
+        "diagnostics-parity-phases-124:diagnostics-cursor-prompt",
+        "diagnostics-parity-phases-124:diagnostics-handoff-bundle",
+        "diagnostics-parity-phases-124:diagnostics-handoff-bundle",
+        "diagnostics-parity-phases-124:diagnostics-handoff-bundle",
+        "diagnostics-parity-phases-124:diagnostics-cursor-prompt",
+        "diagnostics-parity-phases-124:diagnostics-cursor-prompt"
+      ],
+      "promotion_count": 11,
+      "first_seen": "2025-12-20T13:57:25.254265+00:00",
+      "last_seen": "2025-12-21T01:50:25.198774+00:00",
+      "status": "active",
+      "stage": "new"
+    },
+    {
+      "rule_id": "IMPLEMENT_FEATURE.rule_48d15b11",
+      "task_category": "IMPLEMENT_FEATURE",
+      "scope_pattern": null,
+      "constraint": "Phase 'diagnostics-handoff-bundle': deliverables_validation_failed. Details: Missing 4 files including: docs/autopack/diagnostics_handoff_bundle.md, src/autopack/cli/commands/handoff.py, src/autopack/diagnostics/handoff_bundler.py",
+      "source_hint_ids": [
+        "diagnostics-parity-phases-124:diagnostics-handoff-bundle"
+      ],
+      "promotion_count": 1,
+      "first_seen": "2025-12-20T14:01:11.284060+00:00",
+      "last_seen": "2025-12-20T14:32:14.690367+00:00",
+      "status": "active",
+      "stage": "new"
+    },
+    {
+      "rule_id": "IMPLEMENT_FEATURE.rule_48d15b11",
+      "task_category": "IMPLEMENT_FEATURE",
+      "scope_pattern": null,
+      "constraint": "Phase 'diagnostics-handoff-bundle': deliverables_validation_failed. Details: Missing 4 files including: docs/autopack/diagnostics_handoff_bundle.md, src/autopack/cli/commands/handoff.py, src/autopack/diagnostics/handoff_bundler.py",
+      "source_hint_ids": [
+        "diagnostics-parity-phases-124:diagnostics-handoff-bundle"
+      ],
+      "promotion_count": 1,
+      "first_seen": "2025-12-20T14:03:22.429886+00:00",
+      "last_seen": "2025-12-20T14:32:14.690367+00:00",
+      "status": "active",
+      "stage": "new"
+    },
+    {
+      "rule_id": "IMPLEMENT_FEATURE.rule_8f843b26",
+      "task_category": "IMPLEMENT_FEATURE",
+      "scope_pattern": null,
+      "constraint": "Phase 'diagnostics-cursor-prompt': deliverables_validation_failed. Details: All files must be under: /; Wrong: tests/test_cursor_prompt_generator.py \u2192 Correct: tests/autopack/diagnostics/test_cursor_prompt_generator.py; Missing 3 files including: docs/autopack/diagnostics_cursor_prompt.md, src/autopack/dashboard/server.py, tests/autopack/diagnostics/test_cursor_prompt_generator.py",
+      "source_hint_ids": [
+        "diagnostics-parity-phases-124:diagnostics-cursor-prompt"
+      ],
+      "promotion_count": 1,
+      "first_seen": "2025-12-20T14:24:25.167767+00:00",
+      "last_seen": "2025-12-20T14:32:14.690367+00:00",
+      "status": "active",
+      "stage": "new"
+    },
+    {
+      "rule_id": "IMPLEMENT_FEATURE.rule_d60378ff",
+      "task_category": "IMPLEMENT_FEATURE",
+      "scope_pattern": null,
+      "constraint": "Phase 'diagnostics-cursor-prompt': deliverables_validation_failed. Details: Missing 4 files including: docs/autopack/diagnostics_cursor_prompt.md, src/autopack/dashboard/server.py, src/autopack/diagnostics/cursor_prompt_generator.py",
+      "source_hint_ids": [
+        "diagnostics-parity-phases-124:diagnostics-cursor-prompt"
+      ],
+      "promotion_count": 1,
+      "first_seen": "2025-12-20T14:26:23.213085+00:00",
+      "last_seen": "2025-12-20T14:32:14.690367+00:00",
+      "status": "active",
+      "stage": "new"
     }
   ]
 }

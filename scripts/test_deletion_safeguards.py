@@ -232,7 +232,7 @@ def test_approval_workflow():
 def test_thresholds():
     """Test different deletion amounts against thresholds."""
     print("\n" + "="*60)
-    print("TEST: Threshold Sensitivity")
+    print("TEST: Two-Tier Threshold Sensitivity")
     print("="*60)
 
     scorer = RiskScorer()
@@ -240,21 +240,23 @@ def test_thresholds():
 
     test_cases = [
         (10, 5, "Tiny change (net: 5)"),
-        (30, 10, "Small change (net: 20)"),
-        (80, 20, "Medium change (net: 60) - Just above TROUBLESHOOT_THRESHOLD (50)"),
-        (200, 40, "Large change (net: 160) - Above FEATURE_THRESHOLD (150)"),
-        (350, 30, "Very large change (net: 320) - Above REFACTOR_THRESHOLD (300)"),
-        (426, 12, "Critical change (net: 414) - The ref6.md incident"),
+        (50, 20, "Small change (net: 30)"),
+        (80, 20, "Medium change (net: 60)"),
+        (120, 10, "Above NOTIFICATION_THRESHOLD (net: 110) - Should NOTIFY only"),
+        (150, 20, "Large change (net: 130) - Should NOTIFY only"),
+        (180, 10, "Very large (net: 170) - Should NOTIFY only"),
+        (220, 10, "Above BLOCKING_THRESHOLD (net: 210) - Should BLOCK + NOTIFY"),
+        (350, 30, "Critical (net: 320) - Should BLOCK + NOTIFY"),
+        (426, 12, "The ref6.md incident (net: 414) - Should BLOCK + NOTIFY"),
     ]
 
-    print(f"\nThresholds:")
-    print(f"  TROUBLESHOOT: 50 lines (strict)")
-    print(f"  FEATURE: 150 lines (moderate)")
-    print(f"  REFACTOR: 300 lines (lenient)")
+    print(f"\nTwo-Tier Thresholds:")
+    print(f"  NOTIFICATION_THRESHOLD: 100 lines (send Telegram notification, don't block)")
+    print(f"  BLOCKING_THRESHOLD: 200 lines (require approval, block execution)")
 
     print(f"\nTest Results:")
-    print(f"{'Removed':<10} {'Added':<10} {'Net':<10} {'Risk':<10} {'Blocked?':<10} {'Description'}")
-    print("-" * 80)
+    print(f"{'Removed':<10} {'Added':<10} {'Net':<10} {'Risk':<10} {'Notify?':<10} {'Block?':<10} {'Description'}")
+    print("-" * 100)
 
     for removed, added, desc in test_cases:
         result = scorer.score_change(
@@ -272,10 +274,12 @@ def test_thresholds():
             risk_result=result
         )
 
-        blocked = "✅ YES" if quality_level == "blocked" else "❌ NO"
+        checks = result.get("checks", {})
+        notify = "✅ YES" if checks.get("deletion_notification_needed") else "❌ NO"
+        blocked = "✅ YES" if checks.get("deletion_approval_required") else "❌ NO"
 
         print(f"{removed:<10} {added:<10} {removed-added:<10} "
-              f"{result['risk_level']:<10} {blocked:<10} {desc}")
+              f"{result['risk_level']:<10} {notify:<10} {blocked:<10} {desc}")
 
 
 def main():

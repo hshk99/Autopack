@@ -61,7 +61,9 @@
       "Bash(PYTHONUTF8=1 cat:*)",
       "Bash(PYTHONUTF8=1 grep:*)",
       "Bash(PYTHONUTF8=1 tail:*)",
-      "Bash(PYTHONUTF8=1 sed:*)"
+      "Bash(PYTHONUTF8=1 sed:*)",
+      "Bash(curl.exe:*)",
+      "Bash(rm:*)"
     ],
     "deny": [],
     "ask": []

@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException
 from typing import List
-from src.autopack.research.api.schemas import ResearchSession, CreateResearchSession
+from .schemas import ResearchSession, CreateResearchSession
 
 research_router = APIRouter()
 
@@ -36,4 +36,7 @@ async def get_research_session(session_id: str):
         if session.session_id == session_id:
             return session
     raise HTTPException(status_code=404, detail="Session not found")
+
+# Export as 'router' for backwards compatibility with __init__.py
+router = research_router
 

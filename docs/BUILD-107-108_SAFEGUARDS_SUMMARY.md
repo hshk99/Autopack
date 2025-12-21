@@ -117,57 +117,60 @@ uvicorn backend.main:app --port 8001
 
 ---
 
-## BUILD-108: Context-Aware Deletion Safeguards
+## BUILD-108: Two-Tier Deletion Safeguards
 
-### Thresholds
+### Two-Tier Notification System
 
-| Context        | Threshold         | Rationale                                      |
+| Net Deletion   | Action            | Rationale                                      |
 |----------------|-------------------|------------------------------------------------|
-| Troubleshooting| > 50 net lines    | Bug fixes should delete minimal code          |
-| Feature Work   | > 150 net lines   | Moderate tolerance for feature development     |
-| Refactoring    | > 300 net lines   | Lenient for legitimate refactoring             |
+| < 100 lines    | No notification   | Small changes, safe to proceed automatically   |
+| 100-200 lines  | **Notify only**   | Send Telegram notification, execution continues|
+| > 200 lines    | **Block + Notify**| Require human approval via Telegram            |
 | Critical Risk  | risk_score ≥ 70   | Any critical-risk change requires approval     |
+
+**Key Benefit**: You get informed of medium deletions (100-200 lines) without workflow interruption, but catastrophic deletions (200+ lines) require explicit approval.
 
 ### Implementation
 
-**1. Risk Scorer** ([risk_scorer.py:105-138](../src/autopack/risk_scorer.py#L105-L138))
+**1. Risk Scorer** ([risk_scorer.py:105-133](../src/autopack/risk_scorer.py#L105-L133))
 
 ```python
 # Calculate net deletion
 net_deletion = loc_removed - loc_added
 
-# Context-aware thresholds
-TROUBLESHOOT_THRESHOLD = 50   # Strict
-REFACTOR_THRESHOLD = 300      # Lenient
-FEATURE_THRESHOLD = 150       # Moderate
+# Two-tier deletion thresholds
+NOTIFICATION_THRESHOLD = 100   # Send notification (don't block) at >100 lines
+BLOCKING_THRESHOLD = 200       # Require approval (block) at >200 lines
 
-if net_deletion > TROUBLESHOOT_THRESHOLD:
+if net_deletion > BLOCKING_THRESHOLD:
+    # Tier 2: Block and require approval (200+ lines)
     checks["large_deletion"] = True
-
-    if net_deletion > REFACTOR_THRESHOLD:
-        deletion_severity = 40  # Critical
-        reasons.append(f"CRITICAL DELETION: Net removal of {net_deletion} lines")
-    elif net_deletion > FEATURE_THRESHOLD:
-        deletion_severity = 30  # High
-        reasons.append(f"LARGE DELETION: Net removal of {net_deletion} lines")
-    else:
-        deletion_severity = 20  # Medium
-        reasons.append(f"MEDIUM DELETION: Net removal of {net_deletion} lines")
-
+    checks["deletion_notification_needed"] = True
+    checks["deletion_approval_required"] = True
+    deletion_severity = 40
+    reasons.append(f"CRITICAL DELETION: Net removal of {net_deletion} lines (requires approval)")
     score += deletion_severity
-    checks["deletion_threshold_exceeded"] = True
+elif net_deletion > NOTIFICATION_THRESHOLD:
+    # Tier 1: Send notification only, don't block (100+ lines)
+    checks["large_deletion"] = True
+    checks["deletion_notification_needed"] = True
+    checks["deletion_approval_required"] = False
+    deletion_severity = 20
+    reasons.append(f"LARGE DELETION: Net removal of {net_deletion} lines (notification sent)")
+    score += deletion_severity
 ```
 
-**2. Quality Gate** ([quality_gate.py:243-253](../src/autopack/quality_gate.py#L243-L253))
+**2. Quality Gate** ([quality_gate.py:247-250](../src/autopack/quality_gate.py#L247-L250))
 
 ```python
 def _determine_quality_level(..., risk_result=None):
-    # NEW: Check for large deletions that require approval
+    # Check for large deletions that require approval
     if risk_result:
         checks = risk_result.get("checks", {})
 
-        # Block if deletion threshold exceeded
-        if checks.get("deletion_threshold_exceeded"):
+        # Block ONLY if deletion requires approval (200+ lines)
+        # Notification-only deletions (100-200 lines) don't block
+        if checks.get("deletion_approval_required"):
             return "blocked"  # Requires human approval
 
         # Block if risk level is critical
@@ -175,7 +178,25 @@ def _determine_quality_level(..., risk_result=None):
             return "blocked"  # Too risky to proceed automatically
 ```
 
-**3. Failed Phase Notifications** ([autonomous_executor.py:6937-6982](../src/autopack/autonomous_executor.py#L6937-L6982))
+**3. Deletion Notifications** ([autonomous_executor.py:6945-7006](../src/autopack/autonomous_executor.py#L6945-L7006))
+
+```python
+def _send_deletion_notification(self, phase_id: str, quality_report):
+    """Send informational Telegram notification for large deletions (100-200 lines).
+    This is notification-only - does not block execution."""
+
+    message = (
+        f"📊 *Autopack Deletion Notification*\\n\\n"
+        f"*Net Deletion*: {net_deletion} lines\\n"
+        f"  ├─ Removed: {loc_removed}\\n"
+        f"  └─ Added: {loc_added}\\n\\n"
+        f"ℹ️ _This is informational only. Execution continues automatically._"
+    )
+
+    notifier.send_completion_notice(phase_id, "info", message)
+```
+
+**4. Failed Phase Notifications** ([autonomous_executor.py:7008-7049](../src/autopack/autonomous_executor.py#L7008-L7049))
 
 ```python
 def _send_phase_failure_notification(self, phase_id: str, reason: str):
@@ -205,62 +226,81 @@ def _send_phase_failure_notification(self, phase_id: str, reason: str):
 
 ## Complete Flow Example
 
-### Scenario: 426-Line Deletion Attempt
+### Scenario 1: Medium Deletion (120 lines) - Notification Only
+
+```
+[Phase: feature-update]
+
+1. Builder creates patch
+   - Lines added: 10
+   - Lines removed: 120
+   - Net deletion: 110 lines
+
+2. Risk Scorer analyzes
+   └─> net_deletion (110) > NOTIFICATION_THRESHOLD (100)
+   └─> net_deletion (110) < BLOCKING_THRESHOLD (200)
+   └─> Sets deletion_notification_needed = True
+   └─> Sets deletion_approval_required = False
+   └─> Risk score: 35/100, Risk level: LOW
+
+3. Quality Gate checks
+   └─> Sees deletion_approval_required = False
+   └─> Returns quality_level = "ok"
+
+4. Executor sends notification (doesn't block)
+   └─> Calls _send_deletion_notification()
+   └─> Execution continues automatically
+
+5. Your phone receives:
+   📊 Autopack Deletion Notification
+
+   Phase: feature-update
+   Net Deletion: 110 lines
+   Risk: ⚠️ MEDIUM
+
+   ℹ️ This is informational only. Execution continues automatically.
+
+Result: ✅ You're informed, execution continues!
+```
+
+### Scenario 2: Critical Deletion (414 lines) - Requires Approval
 
 ```
 [Phase: diagnostics-deep-retrieval]
 
 1. Builder creates patch
-   - Files changed: src/autopack/diagnostics/deep_retrieval.py
    - Lines added: 12
    - Lines removed: 426
    - Net deletion: 414 lines
 
 2. Risk Scorer analyzes
-   └─> net_deletion (414) > REFACTOR_THRESHOLD (300)
-   └─> Adds 40 risk points
-   └─> Risk score: 85/100
-   └─> Risk level: CRITICAL
-   └─> Sets deletion_threshold_exceeded = True
+   └─> net_deletion (414) > BLOCKING_THRESHOLD (200)
+   └─> Sets deletion_notification_needed = True
+   └─> Sets deletion_approval_required = True
+   └─> Risk score: 85/100, Risk level: HIGH
 
 3. Quality Gate checks
-   └─> Sees deletion_threshold_exceeded = True
+   └─> Sees deletion_approval_required = True
    └─> Returns quality_level = "blocked"
 
-4. Executor detects blocked phase
+4. Executor blocks and requests approval
    └─> Calls _request_human_approval()
    └─> POST /approval/request
        └─> TelegramNotifier.send_approval_request()
-           └─> Telegram API sends message
 
 5. Your phone receives:
    ⚠️ Autopack Approval Needed
 
    Phase: diagnostics-deep-retrieval
-   Run: my-run-123
-   Risk: 🚨 CRITICAL (score: 85/100)
+   Risk: 🔴 HIGH (score: 85/100)
    Net Deletion: 414 lines
      ├─ Removed: 426
      └─ Added: 12
 
-   Files:
-     • src/autopack/diagnostics/deep_retrieval.py
-
-   ⚠️ Troubleshooting context: Large deletions unexpected
-
-   Sent: 2025-12-21 03:00:00 UTC
-
-   [✅ Approve]  [❌ Reject]  [📊 Show Details]
+   [✅ Approve]  [❌ Reject]
 
 6. You tap ❌ Reject
-   └─> Telegram POSTs to /telegram/webhook
-   └─> Backend calls POST /approval/reject/diagnostics-deep-retrieval
-   └─> Executor polling detects status = "rejected"
-
-7. Executor halts
-   └─> self._update_phase_status(phase_id, "BLOCKED")
-   └─> Returns (False, "BLOCKED: Human approval denied or timed out")
-   └─> Sends failure notification to Telegram
+   └─> Executor halts, marks phase BLOCKED
 
 Result: ✅ Catastrophic deletion prevented!
 ```
@@ -357,14 +397,17 @@ NGROK_URL="https://harrybot.ngrok.app"
 
 ### Adjust Deletion Thresholds
 
-Edit [src/autopack/risk_scorer.py](../src/autopack/risk_scorer.py#L109-L111):
+Edit [src/autopack/risk_scorer.py](../src/autopack/risk_scorer.py#L109-L110):
 
 ```python
-# Context-aware deletion thresholds
-TROUBLESHOOT_THRESHOLD = 50   # Strict: troubleshooting should delete minimal code
-REFACTOR_THRESHOLD = 300       # Lenient: refactoring can be larger
-FEATURE_THRESHOLD = 150        # Moderate: feature work
+# Two-tier deletion thresholds
+NOTIFICATION_THRESHOLD = 100   # Send notification (don't block) at >100 lines
+BLOCKING_THRESHOLD = 200       # Require approval (block) at >200 lines
 ```
+
+**Example Adjustments:**
+- More lenient: `NOTIFICATION_THRESHOLD = 150, BLOCKING_THRESHOLD = 300`
+- More strict: `NOTIFICATION_THRESHOLD = 50, BLOCKING_THRESHOLD = 100`
 
 ### Adjust Approval Timeout
 

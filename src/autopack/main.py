@@ -81,6 +81,10 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 from backend.api import auth as auth_router
 app.include_router(auth_router.router, tags=["authentication"])
 
+# Mount research router
+from autopack.research.api.router import research_router
+app.include_router(research_router, prefix="/research", tags=["research"])
+
 # Global exception handler for debugging
 import logging
 from fastapi.responses import JSONResponse

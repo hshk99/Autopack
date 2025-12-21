@@ -102,40 +102,35 @@ class RiskScorer:
         else:
             checks["loc_delta"] = "low"
 
-        # 2. Large deletion detection (max 40 points)
+        # 2. Large deletion detection (max 40 points) - TWO-TIER SYSTEM
         net_deletion = loc_removed - loc_added
 
-        # Context-aware deletion thresholds
-        TROUBLESHOOT_THRESHOLD = 50   # Strict: troubleshooting should delete minimal code
-        REFACTOR_THRESHOLD = 300       # Lenient: refactoring can be larger
-        FEATURE_THRESHOLD = 150        # Moderate: feature work
+        # Two-tier deletion thresholds
+        NOTIFICATION_THRESHOLD = 100   # Send notification (don't block) at >100 lines
+        BLOCKING_THRESHOLD = 200       # Require approval (block) at >200 lines
 
-        if net_deletion > TROUBLESHOOT_THRESHOLD:
+        # Initialize flags
+        checks["large_deletion"] = False
+        checks["deletion_notification_needed"] = False
+        checks["deletion_approval_required"] = False
+        checks["net_deletion"] = net_deletion
+
+        if net_deletion > BLOCKING_THRESHOLD:
+            # Tier 2: Block and require approval (200+ lines)
             checks["large_deletion"] = True
-
-            # Severity based on context (inferred from magnitude)
-            if net_deletion > REFACTOR_THRESHOLD:
-                # Very large deletion - critical
-                deletion_severity = 40
-                reasons.append(f"CRITICAL DELETION: Net removal of {net_deletion} lines (threshold: {REFACTOR_THRESHOLD})")
-            elif net_deletion > FEATURE_THRESHOLD:
-                # Large deletion - high
-                deletion_severity = 30
-                reasons.append(f"LARGE DELETION: Net removal of {net_deletion} lines (threshold: {FEATURE_THRESHOLD})")
-            else:
-                # Medium deletion - may be acceptable for refactoring but not troubleshooting
-                deletion_severity = 20
-                reasons.append(f"MEDIUM DELETION: Net removal of {net_deletion} lines (threshold: {TROUBLESHOOT_THRESHOLD})")
-
+            checks["deletion_notification_needed"] = True
+            checks["deletion_approval_required"] = True
+            deletion_severity = 40
+            reasons.append(f"CRITICAL DELETION: Net removal of {net_deletion} lines (requires approval, threshold: {BLOCKING_THRESHOLD})")
             score += deletion_severity
-
-            # Store deletion metrics
-            checks["deletion_threshold_exceeded"] = True
-            checks["net_deletion"] = net_deletion
-        else:
-            checks["large_deletion"] = False
-            checks["deletion_threshold_exceeded"] = False
-            checks["net_deletion"] = net_deletion
+        elif net_deletion > NOTIFICATION_THRESHOLD:
+            # Tier 1: Send notification only, don't block (100+ lines)
+            checks["large_deletion"] = True
+            checks["deletion_notification_needed"] = True
+            checks["deletion_approval_required"] = False
+            deletion_severity = 20
+            reasons.append(f"LARGE DELETION: Net removal of {net_deletion} lines (notification sent, threshold: {NOTIFICATION_THRESHOLD})")
+            score += deletion_severity
 
         # 3. Critical path detection (max 30 points)
         critical_paths_hit = []

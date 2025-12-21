@@ -244,8 +244,9 @@ class QualityGate:
         if risk_result:
             checks = risk_result.get("checks", {})
 
-            # Block if deletion threshold exceeded
-            if checks.get("deletion_threshold_exceeded"):
+            # Block ONLY if deletion requires approval (200+ lines)
+            # Notification-only deletions (100-200 lines) don't block
+            if checks.get("deletion_approval_required"):
                 return "blocked"  # Requires human approval
 
             # Block if risk level is critical

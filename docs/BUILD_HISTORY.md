@@ -1,8 +1,8 @@
 # Build History - Implementation Log
 
 <!-- META
-Last_Updated: 2025-12-21T02:30:00Z
-Total_Builds: 106
+Last_Updated: 2025-12-21T12:00:00Z
+Total_Builds: 111
 Format_Version: 2.0
 Auto_Generated: True
 Sources: CONSOLIDATED files, archive/
@@ -12,6 +12,11 @@ Sources: CONSOLIDATED files, archive/
 
 | Timestamp | BUILD-ID | Phase | Summary | Files Changed |
 |-----------|----------|-------|---------|---------------|
+| 2025-12-21 | BUILD-111 | Tooling | Telegram setup and testing scripts: create setup_telegram.py (interactive bot config), verify_telegram_credentials.py (credential validation), check_telegram_id.py (bot token vs chat ID identification) | 3 |
+| 2025-12-21 | BUILD-110 | Feature | Automatic save points for deletions >50 lines: create git tags (save-before-deletion-{phase_id}-{timestamp}) with recovery instructions before large deletions | 1 |
+| 2025-12-21 | BUILD-109 | Hotfix | Update test_deletion_safeguards.py to use new flag names (deletion_notification_needed, deletion_approval_required) and add dotenv support for .env loading | 1 |
+| 2025-12-21 | BUILD-108 | Feature | Two-tier deletion safeguards: 100-200 lines = notification only (don't block), 200+ lines = require approval (block execution) + phase failure notifications | 3 |
+| 2025-12-21 | BUILD-107 | Feature | Telegram approval system: TelegramNotifier class with send_approval_request(), send_completion_notice(), webhook-based approve/reject buttons | 1 |
 | 2025-12-21 | BUILD-106 | Quality | Fix handoff_bundler.py test failures: add missing 'version' field to index.json, change glob() to rglob() for recursive artifact discovery (nested dirs, binary files), add *.txt and *.bin patterns - achieves 100% test pass rate (45 passed / 47 total, 2 skipped) for diagnostics parity implementation | 1 |
 | 2025-12-21 | BUILD-105 | System | Add executor-side batching for diagnostics parity phases 1, 2, 4 (handoff-bundle, cursor-prompt, second-opinion): prevent truncation/malformed-diff convergence failures by splitting 3-4 file phases into smaller batches (code → tests → docs) | 1 |
 | 2025-12-21 | BUILD-104 | Hotfix | Fix ImportError in autonomous_executor.py: incorrect `log_error` import should be `report_error` (function doesn't exist in error_reporter.py), blocking all phase execution after max attempts | 1 |

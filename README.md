@@ -391,6 +391,63 @@ curl http://localhost:8000/runs/my-run-id/errors/summary
 curl http://localhost:8000/runs/my-run-id/errors
 ```
 
+### Deletion Safeguards & Telegram Notifications (NEW - BUILD-107 to BUILD-111)
+Two-tier deletion protection system with mobile notifications:
+
+**Two-Tier Notification System**:
+| Net Deletion   | Action            | Rationale                                      |
+|----------------|-------------------|------------------------------------------------|
+| < 100 lines    | No notification   | Small changes, safe to proceed automatically   |
+| 100-200 lines  | **Notify only**   | Send Telegram notification, execution continues|
+| > 200 lines    | **Block + Notify**| Require human approval via Telegram            |
+| 50+ lines      | **Auto-save**     | Create git tag save point before deletion      |
+
+**Key Features**:
+- **Automatic Save Points**: Git tags created before deletions >50 lines for easy recovery
+- **Telegram Integration**: Mobile notifications for large deletions and phase failures
+- **Interactive Approval**: Optional approve/reject buttons via webhook (requires ngrok)
+- **Smart Detection**: Net deletion calculation (lines removed - lines added)
+
+**Configuration** (`.env`):
+```bash
+# Required for Telegram notifications
+TELEGRAM_BOT_TOKEN="your_bot_token"
+TELEGRAM_CHAT_ID="your_chat_id"
+
+# Optional for interactive buttons
+NGROK_URL="https://your-domain.ngrok.app"
+AUTOPACK_CALLBACK_URL="http://localhost:8001"
+```
+
+**Setup & Testing**:
+```bash
+# Interactive setup wizard
+python scripts/setup_telegram.py
+
+# Verify credentials
+python scripts/verify_telegram_credentials.py
+
+# Test notifications (no actual deletions)
+python scripts/test_deletion_safeguards.py --test-telegram
+
+# Test full approval workflow (requires ngrok + backend)
+python scripts/test_deletion_safeguards.py --test-approval
+
+# Test threshold sensitivity
+python scripts/test_deletion_safeguards.py --test-thresholds
+```
+
+**Recovery from Deletions**:
+```bash
+# List save points
+git tag | grep save-before-deletion
+
+# Restore from save point
+git reset --hard save-before-deletion-{phase_id}-{timestamp}
+```
+
+See [docs/BUILD-107-108_SAFEGUARDS_SUMMARY.md](docs/BUILD-107-108_SAFEGUARDS_SUMMARY.md) for complete documentation.
+
 ### Autopack Doctor
 LLM-based diagnostic system for intelligent failure recovery:
 - **Failure Diagnosis**: Analyzes phase failures and recommends recovery actions

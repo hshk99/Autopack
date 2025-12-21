@@ -65,7 +65,10 @@
       "Bash(curl.exe:*)",
       "Bash(rm:*)",
       "Bash(if [ -n \"$TELEGRAM_BOT_TOKEN\" ])",
-      "Bash(if [ -n \"$TELEGRAM_CHAT_ID\" ])"
+      "Bash(if [ -n \"$TELEGRAM_CHAT_ID\" ])",
+      "Bash(findstr:*)",
+      "Bash(\"C:/dev/chatbot_project/ngrok.exe\" version)",
+      "Bash(./ngrok.exe version:*)"
     ],
     "deny": [],
     "ask": []

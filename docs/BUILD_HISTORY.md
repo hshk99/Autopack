@@ -1,8 +1,8 @@
 # Build History - Implementation Log
 
 <!-- META
-Last_Updated: 2025-12-21T17:00:00Z
-Total_Builds: 113
+Last_Updated: 2025-12-21T23:30:00Z
+Total_Builds: 114
 Format_Version: 2.0
 Auto_Generated: True
 Sources: CONSOLIDATED files, archive/
@@ -12,6 +12,7 @@ Sources: CONSOLIDATED files, archive/
 
 | Timestamp | BUILD-ID | Phase | Summary | Files Changed |
 |-----------|----------|-------|---------|---------------|
+| 2025-12-21 | BUILD-114 | Hotfix | BUILD-113 Structured Edit Support: Fix proactive mode to handle edit_plan in addition to patch_content (research phases use structured edits when context ≥30 files, setting patch_content="" and using edit_plan instead) - update autonomous_executor.py line 4068 condition to check both formats, add edit_plan parameter to make_proactive_decision(), implement _convert_edit_plan_to_patch() helper for unified diff conversion | 2 |
 | 2025-12-21 | BUILD-113 | Feature | Iterative Autonomous Investigation (Phase 1+2+3 COMPLETE): multi-round evidence collection with goal-aware judgment - IterativeInvestigator, GoalAwareDecisionMaker, DecisionExecutor with safety nets (save points, rollback), enhanced decision logging with alternatives tracking, **NEW: Proactive mode integration** - analyzes fresh patches before applying (risk assessment, confidence scoring, auto-apply CLEAR_FIX or request approval for RISKY), integrated into autonomous_executor with --enable-autonomous-fixes CLI flag - 90% → 100% diagnostics parity | 10 |
 | 2025-12-21 | BUILD-112 | Feature | Diagnostics Parity with Cursor (70% → 90%): fix README.md doc link, complete rewrite of cursor_prompt_generator.py (40 → 434 lines with 8 rich sections), add deep retrieval auto-triggers to diagnostics_agent.py, wire --enable-second-opinion CLI flag to autonomous_executor.py | 5 |
 | 2025-12-21 | BUILD-111 | Tooling | Telegram setup and testing scripts: create setup_telegram.py (interactive bot config), verify_telegram_credentials.py (credential validation), check_telegram_id.py (bot token vs chat ID identification) | 3 |

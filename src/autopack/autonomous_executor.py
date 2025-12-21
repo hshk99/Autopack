@@ -4065,7 +4065,7 @@ Just the new description that should replace the current one while preserving th
             self._post_builder_result(phase_id, builder_result, allowed_paths)
 
             # BUILD-113 Proactive Mode: Assess patch before applying (if enabled)
-            if self.enable_autonomous_fixes and getattr(self, "iterative_investigator", None) and builder_result.patch_content:
+            if self.enable_autonomous_fixes and getattr(self, "iterative_investigator", None) and (builder_result.patch_content or getattr(builder_result, "edit_plan", None)):
                 logger.info(f"[BUILD-113] Running proactive decision analysis for {phase_id}")
 
                 try:
@@ -4085,9 +4085,10 @@ Just the new description that should replace the current one while preserving th
                         category=phase.get("category", "feature"),
                     )
 
-                    # Make proactive decision based on generated patch
+                    # Make proactive decision based on generated patch (or edit_plan)
                     decision = decision_maker.make_proactive_decision(
                         patch_content=builder_result.patch_content,
+                        edit_plan=getattr(builder_result, "edit_plan", None),
                         phase_spec=phase_spec
                     )
 

@@ -492,8 +492,9 @@ class GoalAwareDecisionMaker:
 
     def make_proactive_decision(
         self,
-        patch_content: str,
-        phase_spec: PhaseSpec
+        patch_content: Optional[str] = None,
+        edit_plan: Optional[Any] = None,
+        phase_spec: PhaseSpec = None
     ) -> Decision:
         """
         Make proactive decision about a freshly generated patch for feature implementation.
@@ -502,13 +503,19 @@ class GoalAwareDecisionMaker:
         Analyzes the patch to decide if it's safe to auto-apply or requires human approval.
 
         Args:
-            patch_content: The generated patch from Builder
+            patch_content: The generated patch from Builder (unified diff format)
+            edit_plan: The structured edit plan from Builder (alternative to patch_content)
             phase_spec: Deliverables, acceptance criteria, path constraints
 
         Returns:
             Decision object with type, rationale, risk assessment
         """
         logger.info(f"[GoalAwareDecisionMaker] Proactive decision for {phase_spec.phase_id}")
+
+        # BUILD-114: Convert edit_plan to patch_content if needed
+        if not patch_content and edit_plan:
+            logger.info("[GoalAwareDecisionMaker] Converting edit_plan to unified diff for risk assessment")
+            patch_content = self._convert_edit_plan_to_patch(edit_plan)
 
         # Parse patch to extract metadata
         patch_metadata = self._parse_patch_metadata(patch_content, phase_spec)
@@ -895,3 +902,90 @@ class GoalAwareDecisionMaker:
                     return None
 
         return None
+
+    def _convert_edit_plan_to_patch(self, edit_plan: Any) -> str:
+        """
+        Convert StructuredEditPlan to unified diff format for risk assessment.
+
+        BUILD-114: When Builder uses structured edits (edit_plan) instead of traditional
+        patches (patch_content), we need to convert the edit_plan to a unified diff so that
+        the proactive decision logic can analyze it.
+
+        Args:
+            edit_plan: StructuredEditPlan object with file edits
+
+        Returns:
+            Unified diff string (git diff format)
+        """
+        import difflib
+        from pathlib import Path
+
+        logger.info("[GoalAwareDecisionMaker] Converting edit_plan to unified diff")
+
+        all_diffs = []
+
+        # Handle edit_plan structure (from anthropic_clients.py)
+        # edit_plan can be a dict with 'edits' list or a StructuredEditPlan object
+        edits = []
+        if isinstance(edit_plan, dict):
+            edits = edit_plan.get("edits", [])
+        elif hasattr(edit_plan, "edits"):
+            edits = edit_plan.edits
+        else:
+            logger.warning(f"[GoalAwareDecisionMaker] Unknown edit_plan structure: {type(edit_plan)}")
+            return ""
+
+        for edit in edits:
+            # Extract file path and new content
+            if isinstance(edit, dict):
+                file_path = edit.get("path", "")
+                new_content = edit.get("new_content", "")
+            elif hasattr(edit, "path") and hasattr(edit, "new_content"):
+                file_path = edit.path
+                new_content = edit.new_content
+            else:
+                logger.warning(f"[GoalAwareDecisionMaker] Unknown edit structure: {type(edit)}")
+                continue
+
+            if not file_path:
+                continue
+
+            # Read current file content (if exists)
+            full_path = Path(file_path)
+            if full_path.exists():
+                try:
+                    with open(full_path, 'r', encoding='utf-8') as f:
+                        current_content = f.read()
+                except Exception as e:
+                    logger.warning(f"[GoalAwareDecisionMaker] Could not read {file_path}: {e}")
+                    current_content = ""
+            else:
+                # New file - empty current content
+                current_content = ""
+
+            # Generate unified diff
+            current_lines = current_content.splitlines(keepends=True)
+            new_lines = new_content.splitlines(keepends=True)
+
+            diff = difflib.unified_diff(
+                current_lines,
+                new_lines,
+                fromfile=f"a/{file_path}",
+                tofile=f"b/{file_path}",
+                lineterm=''
+            )
+
+            diff_content = ''.join(diff)
+            if diff_content:
+                all_diffs.append(diff_content)
+
+        # Combine all diffs
+        patch_content = '\n'.join(all_diffs)
+
+        if not patch_content:
+            logger.warning("[GoalAwareDecisionMaker] Generated patch from edit_plan is empty")
+            # Return minimal valid patch to avoid breaking downstream logic
+            return ""
+
+        logger.info(f"[GoalAwareDecisionMaker] Converted edit_plan to {len(patch_content)} char patch")
+        return patch_content

@@ -53,7 +53,9 @@ def test_deletion_detection(lines_removed=426, lines_added=12):
     print(f"  Risk Score: {result['risk_score']}/100")
     print(f"  Risk Level: {result['risk_level'].upper()}")
     print(f"  Large Deletion Detected: {result['checks']['large_deletion']}")
-    print(f"  Deletion Threshold Exceeded: {result['checks']['deletion_threshold_exceeded']}")
+    print(f"  Notification Needed: {result['checks'].get('deletion_notification_needed', False)}")
+    print(f"  Approval Required: {result['checks'].get('deletion_approval_required', False)}")
+    print(f"  Net Deletion: {result['checks']['net_deletion']}")
 
     print(f"\nRisk Reasons:")
     for reason in result['reasons']:

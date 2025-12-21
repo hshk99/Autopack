@@ -4130,9 +4130,19 @@ Just the new description that should replace the current one while preserving th
 
             logger.info(f"[{phase_id}] Quality Gate: {quality_report.quality_level}")
 
-            # Check if large deletion notification needed (100-200 lines - informational only)
+            # Check for any large deletion (>50 lines) - create save point
             if quality_report.risk_assessment:
                 checks = quality_report.risk_assessment.get("checks", {})
+                net_deletion = checks.get("net_deletion", 0)
+
+                if net_deletion > 50:
+                    # Create automatic save point before large deletions
+                    logger.info(f"[{phase_id}] Large deletion detected ({net_deletion} lines) - creating save point")
+                    save_point_tag = self._create_deletion_save_point(phase_id, net_deletion)
+                    if save_point_tag:
+                        logger.info(f"[{phase_id}] Save point created: {save_point_tag}")
+
+                # Send notification for 100-200 line deletions (informational only)
                 if checks.get("deletion_notification_needed") and not checks.get("deletion_approval_required"):
                     # Send informational notification (don't block)
                     logger.info(f"[{phase_id}] Large deletion detected (100+ lines) - sending notification")
@@ -6941,6 +6951,78 @@ Just the new description that should replace the current one while preserving th
         # Timeout reached
         logger.warning(f"[{phase_id}] ⏱️  Approval timeout after {timeout_seconds}s")
         return False
+
+    def _create_deletion_save_point(self, phase_id: str, net_deletion: int) -> Optional[str]:
+        """
+        Create a git tag save point before applying large deletions.
+        This allows easy recovery if the deletion was a mistake.
+
+        Args:
+            phase_id: Phase identifier
+            net_deletion: Number of net lines being deleted
+
+        Returns:
+            Tag name if successful, None otherwise
+        """
+        try:
+            import subprocess
+            from datetime import datetime
+
+            # Generate tag name
+            timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+            tag_name = f"save-before-deletion-{phase_id}-{timestamp}"
+
+            # Check if there are uncommitted changes
+            result = subprocess.run(
+                ["git", "diff", "--quiet"],
+                cwd=self.root,
+                capture_output=True
+            )
+
+            if result.returncode != 0:
+                # There are uncommitted changes - create a temporary commit first
+                subprocess.run(
+                    ["git", "add", "-A"],
+                    cwd=self.root,
+                    check=True,
+                    capture_output=True
+                )
+
+                commit_msg = (
+                    f"[SAVE POINT] Before {phase_id} deletion ({net_deletion} lines)\n\n"
+                    f"Automatic save point created by Autopack before large deletion.\n"
+                    f"Phase: {phase_id}\n"
+                    f"Net deletion: {net_deletion} lines\n"
+                    f"Run: {self.run_id}\n\n"
+                    f"To restore:\n"
+                    f"  git reset --hard {tag_name}\n"
+                    f"  # or\n"
+                    f"  git checkout {tag_name} -- <file>\n"
+                )
+
+                subprocess.run(
+                    ["git", "commit", "-m", commit_msg],
+                    cwd=self.root,
+                    check=True,
+                    capture_output=True
+                )
+
+            # Create lightweight tag at current HEAD
+            subprocess.run(
+                ["git", "tag", tag_name],
+                cwd=self.root,
+                check=True,
+                capture_output=True
+            )
+
+            logger.info(f"[{phase_id}] Created save point tag: {tag_name}")
+            logger.info(f"[{phase_id}] To restore: git reset --hard {tag_name}")
+
+            return tag_name
+
+        except Exception as e:
+            logger.warning(f"[{phase_id}] Failed to create save point: {e}")
+            return None
 
     def _send_deletion_notification(self, phase_id: str, quality_report) -> None:
         """

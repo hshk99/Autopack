@@ -63,7 +63,9 @@
       "Bash(PYTHONUTF8=1 tail:*)",
       "Bash(PYTHONUTF8=1 sed:*)",
       "Bash(curl.exe:*)",
-      "Bash(rm:*)"
+      "Bash(rm:*)",
+      "Bash(if [ -n \"$TELEGRAM_BOT_TOKEN\" ])",
+      "Bash(if [ -n \"$TELEGRAM_CHAT_ID\" ])"
     ],
     "deny": [],
     "ask": []

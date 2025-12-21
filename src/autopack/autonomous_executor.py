@@ -227,7 +227,8 @@ class AutonomousExecutor:
         # Initialize database tables (creates llm_usage_events table)
         # Import Base and models to register them with metadata
         from autopack.database import Base
-        from autopack import models  # noqa: F401
+        # BUILD-115: models.py removed - skip model registration
+        # from autopack import models  # noqa: F401
         from autopack.usage_recorder import LlmUsageEvent  # noqa: F401
 
         # Create all tables using the same engine as the session

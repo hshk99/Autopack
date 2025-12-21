@@ -1273,6 +1273,10 @@ class AutonomousExecutor:
             db.commit()
 
             logger.info(f"[{phase_id}] Marked FAILED in database (reason: {reason})")
+
+            # Send Telegram notification for phase failure
+            self._send_phase_failure_notification(phase_id, reason)
+
             return True
 
         except Exception as e:
@@ -6929,6 +6933,53 @@ Just the new description that should replace the current one while preserving th
         # Timeout reached
         logger.warning(f"[{phase_id}] ⏱️  Approval timeout after {timeout_seconds}s")
         return False
+
+    def _send_phase_failure_notification(self, phase_id: str, reason: str) -> None:
+        """
+        Send Telegram notification when a phase fails or gets stuck.
+
+        Args:
+            phase_id: Phase identifier
+            reason: Failure reason (e.g., "MAX_ATTEMPTS_EXHAUSTED", "BUILDER_FAILED")
+        """
+        try:
+            from autopack.notifications.telegram_notifier import TelegramNotifier
+
+            notifier = TelegramNotifier()
+
+            if not notifier.is_configured():
+                return  # Silently skip if not configured
+
+            # Determine emoji based on failure type
+            emoji = "❌"
+            if "EXHAUSTED" in reason:
+                emoji = "🔁"  # Retry exhausted
+            elif "TIMEOUT" in reason:
+                emoji = "⏱️"  # Timeout
+            elif "STUCK" in reason:
+                emoji = "⚠️"  # Stuck
+
+            # Format message
+            message = (
+                f"{emoji} *Autopack Phase Failed*\\n\\n"
+                f"*Run*: `{self.run_id}`\\n"
+                f"*Phase*: `{phase_id}`\\n"
+                f"*Reason*: {reason}\\n\\n"
+                f"The executor has halted. Please review the logs and take action.\\n\\n"
+                f"_Time_: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')} UTC"
+            )
+
+            # Send notification (no buttons needed for failures, just FYI)
+            notifier.send_completion_notice(
+                phase_id=phase_id,
+                status="failed",
+                message=message
+            )
+
+            logger.info(f"[{phase_id}] Sent failure notification to Telegram")
+
+        except Exception as e:
+            logger.warning(f"[{phase_id}] Failed to send Telegram notification: {e}")
 
     def _force_mark_phase_failed(self, phase_id: str) -> bool:
         """

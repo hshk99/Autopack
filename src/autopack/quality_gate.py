@@ -188,6 +188,7 @@ class QualityGate:
             ci_passed=ci_passed,
             has_major_issues=has_major_issues,
             coverage_regressed=coverage_regressed,
+            risk_result=risk_result,
         )
 
         return QualityReport(
@@ -231,6 +232,7 @@ class QualityGate:
         ci_passed: bool,
         has_major_issues: bool,
         coverage_regressed: bool,
+        risk_result: Optional[Dict] = None,
     ) -> str:
         """
         Determine quality level based on checks.
@@ -238,6 +240,18 @@ class QualityGate:
         Returns:
             "ok" | "needs_review" | "blocked"
         """
+        # NEW: Check for large deletions that require approval
+        if risk_result:
+            checks = risk_result.get("checks", {})
+
+            # Block if deletion threshold exceeded
+            if checks.get("deletion_threshold_exceeded"):
+                return "blocked"  # Requires human approval
+
+            # Block if risk level is critical
+            if risk_result.get("risk_level") == "critical":
+                return "blocked"  # Too risky to proceed automatically
+
         if is_high_risk:
             # High-risk categories: Strict enforcement
             if not ci_passed:

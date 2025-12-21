@@ -102,7 +102,42 @@ class RiskScorer:
         else:
             checks["loc_delta"] = "low"
 
-        # 2. Critical path detection (max 30 points)
+        # 2. Large deletion detection (max 40 points)
+        net_deletion = loc_removed - loc_added
+
+        # Context-aware deletion thresholds
+        TROUBLESHOOT_THRESHOLD = 50   # Strict: troubleshooting should delete minimal code
+        REFACTOR_THRESHOLD = 300       # Lenient: refactoring can be larger
+        FEATURE_THRESHOLD = 150        # Moderate: feature work
+
+        if net_deletion > TROUBLESHOOT_THRESHOLD:
+            checks["large_deletion"] = True
+
+            # Severity based on context (inferred from magnitude)
+            if net_deletion > REFACTOR_THRESHOLD:
+                # Very large deletion - critical
+                deletion_severity = 40
+                reasons.append(f"CRITICAL DELETION: Net removal of {net_deletion} lines (threshold: {REFACTOR_THRESHOLD})")
+            elif net_deletion > FEATURE_THRESHOLD:
+                # Large deletion - high
+                deletion_severity = 30
+                reasons.append(f"LARGE DELETION: Net removal of {net_deletion} lines (threshold: {FEATURE_THRESHOLD})")
+            else:
+                # Medium deletion - may be acceptable for refactoring but not troubleshooting
+                deletion_severity = 20
+                reasons.append(f"MEDIUM DELETION: Net removal of {net_deletion} lines (threshold: {TROUBLESHOOT_THRESHOLD})")
+
+            score += deletion_severity
+
+            # Store deletion metrics
+            checks["deletion_threshold_exceeded"] = True
+            checks["net_deletion"] = net_deletion
+        else:
+            checks["large_deletion"] = False
+            checks["deletion_threshold_exceeded"] = False
+            checks["net_deletion"] = net_deletion
+
+        # 3. Critical path detection (max 30 points)
         critical_paths_hit = []
         for file_path in files_changed:
             for critical_path in self.CRITICAL_PATHS:
@@ -116,7 +151,7 @@ class RiskScorer:
         else:
             checks["critical_paths"] = []
 
-        # 3. High-risk file extensions (max 15 points)
+        # 4. High-risk file extensions (max 15 points)
         high_risk_files = []
         for file_path in files_changed:
             for ext in self.HIGH_RISK_EXTENSIONS:
@@ -130,7 +165,7 @@ class RiskScorer:
         else:
             checks["high_risk_files"] = []
 
-        # 4. Test presence (max 20 points penalty if missing)
+        # 5. Test presence (max 20 points penalty if missing)
         test_files = [f for f in files_changed if "test" in f.lower() or f.endswith("_test.py")]
         if not test_files and loc_delta > 50:
             checks["tests_present"] = False
@@ -139,7 +174,7 @@ class RiskScorer:
         else:
             checks["tests_present"] = True
 
-        # 5. Code hygiene (max 10 points)
+        # 6. Code hygiene (max 10 points)
         if patch_content:
             hygiene_issues = []
             for marker in self.HYGIENE_MARKERS:

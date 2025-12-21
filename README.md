@@ -448,6 +448,62 @@ git reset --hard save-before-deletion-{phase_id}-{timestamp}
 
 See [docs/BUILD-107-108_SAFEGUARDS_SUMMARY.md](docs/BUILD-107-108_SAFEGUARDS_SUMMARY.md) for complete documentation.
 
+### Iterative Autonomous Investigation (NEW - BUILD-113)
+Multi-round autonomous debugging that resolves failures without human intervention when safe:
+
+**Key Features**:
+- **Goal-Aware Decisions**: Uses deliverables + acceptance criteria to guide fixes
+- **Multi-Round Investigation**: Iteratively collects evidence until root cause found
+- **Autonomous Low-Risk Fixes**: Auto-applies fixes <100 lines with no side effects
+- **Full Audit Trails**: All decisions logged with rationale and alternatives
+- **Safety Nets**: Git save points, automatic rollback, risk-based gating
+
+**How It Works**:
+1. **Investigation**: Autopack runs multi-round diagnostics, collecting evidence iteratively
+2. **Goal Analysis**: Compares evidence against phase deliverables and acceptance criteria
+3. **Risk Assessment**: LOW (<100 lines, safe), MEDIUM (100-200, notify), HIGH (>200, block)
+4. **Autonomous Fix**: For low-risk fixes, auto-applies with git save point + rollback on failure
+5. **Smart Escalation**: Only blocks for truly risky (protected paths, large deletions) or ambiguous situations
+
+**Enable** (experimental, default: false):
+```bash
+python -m autopack.autonomous_executor \
+  --run-id my-run \
+  --enable-autonomous-fixes
+```
+
+**Review Decision Logs**:
+```bash
+# View autonomous decisions
+cat .autonomous_runs/my-run/decision_log.json
+
+# Each decision includes:
+# - Rationale (why this fix?)
+# - Alternatives considered (what else was possible?)
+# - Risk assessment (why low/medium/high?)
+# - Deliverables met (which goals achieved?)
+# - Files modified + net deletion count
+# - Git save point for rollback
+```
+
+**Example Autonomous Fix**:
+```
+Phase: research-tracer-bullet
+Failure: ImportError - cannot import 'TracerBullet'
+
+Round 1: Initial diagnostics
+- Found: TracerBullet class exists in tracer_bullet.py
+- Missing: Import statement in __init__.py
+
+Decision: CLEAR_FIX (auto-applied)
+- Fix: Add "from .tracer_bullet import TracerBullet" to __init__.py
+- Risk: LOW (1 line added, within allowed_paths, no side effects)
+- Result: Tests passed, deliverable met, committed automatically
+- Save point: git tag save-before-fix-research-tracer-bullet-20251221
+```
+
+See [docs/BUILD-113_ITERATIVE_AUTONOMOUS_INVESTIGATION.md](docs/BUILD-113_ITERATIVE_AUTONOMOUS_INVESTIGATION.md) for complete documentation.
+
 ### Autopack Doctor
 LLM-based diagnostic system for intelligent failure recovery:
 - **Failure Diagnosis**: Analyzes phase failures and recommends recovery actions

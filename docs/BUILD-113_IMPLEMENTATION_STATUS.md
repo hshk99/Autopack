@@ -266,8 +266,9 @@ Our research-build113-test is designed to validate BUILD-113 in proactive mode:
 2. ✅ **Implement `make_proactive_decision()` in GoalAwareDecisionMaker** - COMPLETE
 3. ✅ **Integrate proactive BUILD-113 into autonomous_executor.py** - COMPLETE
 4. ✅ **Add `_request_build113_approval()` and `_request_build113_clarification()` helpers** - COMPLETE
-5. ⏳ **Re-run research-build113-test to validate decisions** - IN PROGRESS
-6. ⏳ **Document test results and decision quality** - PENDING
+5. ✅ **BUILD-114: Add structured edit support** - COMPLETE (Commit 81018e1b)
+6. ⏳ **Re-run research-build113-test to validate decisions** - PENDING
+7. ⏳ **Document test results and decision quality** - PENDING
 
 ## Summary
 

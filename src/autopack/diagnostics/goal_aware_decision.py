@@ -150,6 +150,7 @@ class GoalAwareDecisionMaker:
                 deliverables_met=best_strategy.meets_deliverables,
                 files_modified=best_strategy.files_to_modify,
                 net_deletion=self._estimate_net_deletion(best_strategy),
+                confidence=best_strategy.confidence,
                 questions_for_human=[
                     "Approve high-risk fix?",
                     f"Fix will modify {len(best_strategy.files_to_modify)} files "
@@ -192,6 +193,7 @@ class GoalAwareDecisionMaker:
                 deliverables_met=best_strategy.meets_deliverables,
                 files_modified=best_strategy.files_to_modify,
                 net_deletion=self._estimate_net_deletion(best_strategy),
+                confidence=best_strategy.confidence,
                 questions_for_human=[
                     "Fix does not create all required deliverables - proceed anyway?",
                     f"Missing: {goal_alignment['missing_deliverables']}"
@@ -264,12 +266,27 @@ class GoalAwareDecisionMaker:
             module_match = re.search(r"cannot import name '(\w+)'", error_message)
             if module_match:
                 module_name = module_match.group(1)
+
+                # Find __init__.py file from deliverables (most common case)
+                target_files = [d for d in phase_spec.deliverables if d.endswith('__init__.py')]
+
+                if not target_files:
+                    # Fallback: derive from phase_id
+                    target_files = [f"src/autopack/{phase_spec.phase_id.replace('-', '/')}/__init__.py"]
+
+                # Use the first __init__.py file as the target
+                target_file = target_files[0]
+
+                # Match all deliverables that are __init__.py files
+                # (since adding import satisfies the requirement to create/update __init__.py)
+                met_deliverables = [d for d in phase_spec.deliverables if d.endswith('__init__.py')]
+
                 strategies.append(FixStrategy(
                     description=f"Add missing import for '{module_name}' to __init__.py",
-                    files_to_modify=[f"src/autopack/{phase_spec.phase_id.replace('-', '/')}/__init__.py"],
+                    files_to_modify=[target_file],
                     estimated_lines_changed=1,
                     touches_protected_paths=False,
-                    meets_deliverables=[d for d in phase_spec.deliverables if "working module" in d.lower()],
+                    meets_deliverables=met_deliverables,
                     passes_acceptance_criteria=[c for c in phase_spec.acceptance_criteria if "import" in c.lower()],
                     side_effects=[],
                     confidence=0.85,
@@ -475,12 +492,11 @@ class GoalAwareDecisionMaker:
 
     def _generate_patch_stub(self, strategy: FixStrategy) -> Optional[str]:
         """
-        Generate patch stub for auto-fix.
+        Generate patch for auto-fix.
 
-        This is a simplified version - real implementation would generate
-        actual diffs based on strategy.
+        Generates actual diff by reading file content and creating the modified version.
         """
-        # For import fixes, generate simple import addition patch
+        # For import fixes, generate import addition patch
         if "import" in strategy.description.lower():
             # Extract module name
             match = re.search(r"'(\w+)'", strategy.description)
@@ -488,11 +504,63 @@ class GoalAwareDecisionMaker:
                 module_name = match.group(1)
                 file_path = strategy.files_to_modify[0]
 
-                # Simple patch stub
-                return f"""diff --git a/{file_path} b/{file_path}
-@@ -1,1 +1,2 @@
-+from .{module_name.lower()} import {module_name}
- # existing content
-"""
+                # Read current file content (if exists)
+                from pathlib import Path
+                full_path = Path(file_path)
+
+                if full_path.exists():
+                    try:
+                        with open(full_path, 'r', encoding='utf-8') as f:
+                            current_content = f.read()
+                    except Exception as e:
+                        logger.warning(f"[GoalAwareDecisionMaker] Could not read {file_path}: {e}")
+                        current_content = ""
+                else:
+                    # File doesn't exist - create new content
+                    current_content = ""
+
+                # Generate new content with import added
+                import_line = f"from .{module_name.lower()} import {module_name}\n"
+
+                if current_content:
+                    # Add import at the beginning (after any existing imports)
+                    lines = current_content.split('\n')
+
+                    # Find last import line
+                    last_import_idx = -1
+                    for i, line in enumerate(lines):
+                        if line.strip().startswith(('from ', 'import ')):
+                            last_import_idx = i
+
+                    # Insert after last import, or at beginning
+                    if last_import_idx >= 0:
+                        lines.insert(last_import_idx + 1, import_line.rstrip())
+                    else:
+                        lines.insert(0, import_line.rstrip())
+
+                    new_content = '\n'.join(lines)
+                else:
+                    # Empty file - just add the import
+                    new_content = import_line
+
+                # Generate unified diff
+                import difflib
+                current_lines = current_content.splitlines(keepends=True)
+                new_lines = new_content.splitlines(keepends=True)
+
+                diff = difflib.unified_diff(
+                    current_lines,
+                    new_lines,
+                    fromfile=f"a/{file_path}",
+                    tofile=f"b/{file_path}",
+                    lineterm=''
+                )
+
+                patch_content = ''.join(diff)
+                if patch_content:
+                    return patch_content
+                else:
+                    logger.warning("[GoalAwareDecisionMaker] Generated patch is empty")
+                    return None
 
         return None

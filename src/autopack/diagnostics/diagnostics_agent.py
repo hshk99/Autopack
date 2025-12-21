@@ -16,6 +16,8 @@ import yaml
 from autopack.diagnostics.command_runner import CommandResult, GovernedCommandRunner
 from autopack.diagnostics.hypothesis import HypothesisLedger
 from autopack.diagnostics.probes import Probe, ProbeLibrary, ProbeRunResult
+from autopack.diagnostics.retrieval_triggers import RetrievalTrigger
+from autopack.diagnostics.deep_retrieval import DeepRetrieval
 from autopack.memory import MemoryService
 
 
@@ -26,6 +28,8 @@ class DiagnosticOutcome:
     ledger_summary: str
     artifacts: List[str]
     budget_exhausted: bool = False
+    deep_retrieval_triggered: bool = False
+    deep_retrieval_results: Optional[Dict] = None
 
 
 class DiagnosticsAgent:
@@ -141,6 +145,42 @@ class DiagnosticsAgent:
                 mode=mode,
             )
 
+            # Stage 2: Deep Retrieval Escalation (auto-triggered based on Stage 1 evidence)
+            deep_retrieval_triggered = False
+            deep_retrieval_results = None
+
+            attempt_number = context.get("builder_attempts", 1)
+            handoff_bundle = self._build_handoff_bundle(
+                failure_class, phase_id, probe_results, ledger_summary, context
+            )
+
+            # Check if deep retrieval should be triggered
+            try:
+                retrieval_trigger = RetrievalTrigger(self.diagnostics_dir.parent)
+                if retrieval_trigger.should_escalate(handoff_bundle, phase_id or "unknown", attempt_number):
+                    priority = retrieval_trigger.get_retrieval_priority(handoff_bundle)
+                    deep_retrieval = DeepRetrieval(
+                        run_dir=self.diagnostics_dir.parent,
+                        repo_root=self.workspace
+                    )
+                    deep_retrieval_results = deep_retrieval.retrieve(
+                        phase_id=phase_id or "unknown",
+                        handoff_bundle=handoff_bundle,
+                        priority=priority
+                    )
+                    deep_retrieval_triggered = True
+
+                    # Persist deep retrieval results
+                    deep_retrieval_path = self.diagnostics_dir / "deep_retrieval.json"
+                    deep_retrieval_path.write_text(
+                        json.dumps(deep_retrieval_results, indent=2),
+                        encoding="utf-8"
+                    )
+            except Exception as e:
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.warning(f"[DiagnosticsAgent] Deep retrieval failed: {e}")
+
             return DiagnosticOutcome(
                 failure_class=failure_class,
                 probe_results=probe_results,
@@ -148,6 +188,8 @@ class DiagnosticsAgent:
                 artifacts=[a for a in artifacts if a],
                 budget_exhausted=self.runner.command_count >= self.runner.max_commands
                 or (time.monotonic() - start) >= self.max_seconds,
+                deep_retrieval_triggered=deep_retrieval_triggered,
+                deep_retrieval_results=deep_retrieval_results,
             )
         finally:
             self._lock.release()
@@ -155,6 +197,56 @@ class DiagnosticsAgent:
     # ------------------------------------------------------------------ #
     # Internals
     # ------------------------------------------------------------------ #
+
+    def _build_handoff_bundle(
+        self,
+        failure_class: str,
+        phase_id: Optional[str],
+        probe_results: List[ProbeRunResult],
+        ledger_summary: str,
+        context: Dict,
+    ) -> Dict:
+        """Build minimal handoff bundle for retrieval trigger analysis.
+
+        Args:
+            failure_class: Classification of failure
+            phase_id: Phase identifier
+            probe_results: Results from probe execution
+            ledger_summary: Hypothesis ledger summary
+            context: Additional context from caller
+
+        Returns:
+            Handoff bundle dictionary for trigger analysis
+        """
+        error_message = context.get("error_message", "")
+        stack_trace = context.get("stack_trace", "")
+
+        # Extract recent changes from baseline git status
+        recent_changes = []
+        for pr in probe_results:
+            for cr in pr.command_results:
+                if cr.label and "git" in cr.label and cr.stdout:
+                    recent_changes.extend(cr.stdout.split("\n")[:10])
+
+        # Determine if we have a clear root cause from probes
+        root_cause = ""
+        resolved_probes = [pr for pr in probe_results if pr.resolved]
+        if resolved_probes:
+            root_cause = f"Resolved by probe: {resolved_probes[0].probe.name}"
+        elif ledger_summary and len(ledger_summary) > 50:
+            root_cause = ledger_summary
+
+        return {
+            "failure_class": failure_class,
+            "phase_id": phase_id,
+            "error_message": error_message,
+            "stack_trace": stack_trace,
+            "recent_changes": recent_changes,
+            "root_cause": root_cause,
+            "ledger_summary": ledger_summary,
+            "probe_count": len(probe_results),
+            "resolved_probes": len(resolved_probes),
+        }
 
     def _collect_baseline_signals(self) -> List[CommandResult]:
         commands = [

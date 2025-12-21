@@ -355,7 +355,7 @@ Post-Tidy Verification
 - Autopack should approach Cursor “tier 4” troubleshooting depth: when failures happen, it should autonomously run governed probes/commands (from a vetted allowlist), gather evidence (logs, test output, patch traces), iterate hypotheses, and log decisions—without requiring the user to type raw commands.
 - Natural-language control is preferred: the intent router (and future dashboard hooks) should trigger safe actions like planning ingest, memory maintenance, diagnostics, and context queries.
 - Safety is mandatory: all actions must respect allowlists/denylists, timeouts, budgets, and avoid destructive ops; writes happen only in approved worktrees/contexts.
-- See `docs/TROUBLESHOOTING_AUTONOMY_PLAN.md` for the implementation plan to reach this capability.
+- See `docs/IMPLEMENTATION_PLAN_DIAGNOSTICS_PARITY_WITH_CURSOR.md` for the implementation plan to reach this capability.
 
 ### Patch Apply Hardening (2025-12-06)
 - `GovernedApplyPath` now refuses the direct-write fallback whenever a patch touches existing files; fallback is limited to clean new-file-only patches and must write all expected files.

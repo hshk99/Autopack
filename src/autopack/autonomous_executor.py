@@ -157,6 +157,7 @@ class AutonomousExecutor:
         workspace: Path = Path("."),
         use_dual_auditor: bool = True,
         run_type: str = "project_build",
+        enable_second_opinion: bool = False,
     ):
         """Initialize autonomous executor
 
@@ -171,12 +172,14 @@ class AutonomousExecutor:
             run_type: Run type - 'project_build' (default), 'autopack_maintenance',
                       'autopack_upgrade', or 'self_repair'. Maintenance types allow
                       modification of src/autopack/ and config/ paths.
+            enable_second_opinion: Enable second opinion triage for diagnostics (requires API key)
         """
         # Load environment variables from .env for CLI runs
         load_dotenv()
 
         self.run_id = run_id
         self.api_url = api_url.rstrip('/')
+        self.enable_second_opinion = enable_second_opinion
         self.api_key = api_key
         self.workspace = workspace
         self.use_dual_auditor = use_dual_auditor
@@ -7665,6 +7668,12 @@ Environment Variables:
     )
 
     parser.add_argument(
+        "--enable-second-opinion",
+        action="store_true",
+        help="Enable second opinion triage for diagnostics (requires API key)"
+    )
+
+    parser.add_argument(
         "--verbose",
         action="store_true",
         help="Enable verbose logging"
@@ -7702,6 +7711,7 @@ Environment Variables:
             workspace=args.workspace,
             use_dual_auditor=not args.no_dual_auditor,
             run_type=args.run_type,
+            enable_second_opinion=args.enable_second_opinion,
         )
     except ValueError as e:
         logger.error(f"Failed to initialize executor: {e}")

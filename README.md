@@ -449,21 +449,34 @@ git reset --hard save-before-deletion-{phase_id}-{timestamp}
 See [docs/BUILD-107-108_SAFEGUARDS_SUMMARY.md](docs/BUILD-107-108_SAFEGUARDS_SUMMARY.md) for complete documentation.
 
 ### Iterative Autonomous Investigation (NEW - BUILD-113)
-Multi-round autonomous debugging that resolves failures without human intervention when safe:
+Multi-round autonomous debugging that resolves failures without human intervention when safe, plus **proactive decision-making** for fresh feature implementations:
 
 **Key Features**:
 - **Goal-Aware Decisions**: Uses deliverables + acceptance criteria to guide fixes
-- **Multi-Round Investigation**: Iteratively collects evidence until root cause found
+- **Multi-Round Investigation**: Iteratively collects evidence until root cause found (reactive mode)
+- **Proactive Patch Analysis**: Analyzes fresh patches BEFORE applying them (NEW)
 - **Autonomous Low-Risk Fixes**: Auto-applies fixes <100 lines with no side effects
 - **Full Audit Trails**: All decisions logged with rationale and alternatives
 - **Safety Nets**: Git save points, automatic rollback, risk-based gating
 
 **How It Works**:
+
+*Reactive Mode* (after failure):
 1. **Investigation**: Autopack runs multi-round diagnostics, collecting evidence iteratively
 2. **Goal Analysis**: Compares evidence against phase deliverables and acceptance criteria
 3. **Risk Assessment**: LOW (<100 lines, safe), MEDIUM (100-200, notify), HIGH (>200, block)
 4. **Autonomous Fix**: For low-risk fixes, auto-applies with git save point + rollback on failure
 5. **Smart Escalation**: Only blocks for truly risky (protected paths, large deletions) or ambiguous situations
+
+*Proactive Mode* (NEW - before applying):
+1. **Patch Analysis**: Builder generates patch, BUILD-113 analyzes it before application
+2. **Risk Classification**: Database files → HIGH, >200 lines → HIGH, 100-200 → MEDIUM, <100 → LOW
+3. **Confidence Scoring**: Based on deliverables coverage, patch size, code clarity
+4. **Decision**:
+   - **CLEAR_FIX** (LOW/MED risk + high confidence) → Auto-apply with DecisionExecutor
+   - **RISKY** (HIGH risk) → Request human approval via Telegram before applying
+   - **AMBIGUOUS** (low confidence or missing deliverables) → Request clarification
+5. **Safe Execution**: All CLEAR_FIX patches applied with save points, validation, rollback on failure
 
 **Enable** (experimental, default: false):
 ```bash

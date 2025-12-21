@@ -4064,6 +4064,108 @@ Just the new description that should replace the current one while preserving th
             # Post builder result to API
             self._post_builder_result(phase_id, builder_result, allowed_paths)
 
+            # BUILD-113 Proactive Mode: Assess patch before applying (if enabled)
+            if self.enable_autonomous_fixes and getattr(self, "iterative_investigator", None) and builder_result.patch_content:
+                logger.info(f"[BUILD-113] Running proactive decision analysis for {phase_id}")
+
+                try:
+                    from autopack.diagnostics.diagnostics_models import PhaseSpec, DecisionType
+
+                    # Use GoalAwareDecisionMaker directly (no investigation needed for fresh features)
+                    decision_maker = self.iterative_investigator.decision_maker
+
+                    # Construct PhaseSpec from phase dict
+                    phase_spec = PhaseSpec(
+                        phase_id=phase_id,
+                        deliverables=phase.get("deliverables", []),
+                        acceptance_criteria=phase.get("acceptance_criteria", []),
+                        allowed_paths=allowed_paths or [],
+                        protected_paths=phase.get("protected_paths", []),
+                        complexity=phase.get("complexity", "medium"),
+                        category=phase.get("category", "feature"),
+                    )
+
+                    # Make proactive decision based on generated patch
+                    decision = decision_maker.make_proactive_decision(
+                        patch_content=builder_result.patch_content,
+                        phase_spec=phase_spec
+                    )
+
+                    logger.info(
+                        f"[BUILD-113] Proactive decision: {decision.type.value} "
+                        f"(risk={decision.risk_level}, confidence={decision.confidence:.0%}, "
+                        f"deliverables_met={len(decision.deliverables_met)}/{len(phase_spec.deliverables)})"
+                    )
+
+                    if decision.type == DecisionType.CLEAR_FIX:
+                        # Auto-apply low/medium risk patch with high confidence
+                        logger.info(f"[BUILD-113] CLEAR_FIX decision - auto-applying patch via DecisionExecutor")
+
+                        execution_result = self.decision_executor.execute_decision(
+                            decision=decision,
+                            phase_spec=phase_spec
+                        )
+
+                        if execution_result.success:
+                            logger.info(
+                                f"[BUILD-113] ✓ Autonomous implementation complete: {execution_result.commit_sha}\n"
+                                f"  Files modified: {', '.join(decision.files_modified[:3])}"
+                                f"{'...' if len(decision.files_modified) > 3 else ''}\n"
+                                f"  Decision ID: {execution_result.decision_id}\n"
+                                f"  Save point: {execution_result.save_point}"
+                            )
+                            self._update_phase_status(phase_id, "COMPLETE")
+                            return True, "AUTONOMOUS_FIX_APPLIED"
+                        else:
+                            logger.warning(
+                                f"[BUILD-113] Autonomous fix failed: {execution_result.error_message}\n"
+                                f"  Rollback performed: {execution_result.rollback_performed}\n"
+                                f"  Falling through to standard flow..."
+                            )
+                            # Fall through to standard flow
+
+                    elif decision.type == DecisionType.RISKY:
+                        # High-risk patch - request approval BEFORE applying
+                        logger.info(f"[BUILD-113] RISKY decision - requesting human approval before applying patch")
+
+                        approval_granted = self._request_build113_approval(
+                            phase_id=phase_id,
+                            decision=decision,
+                            patch_content=builder_result.patch_content,
+                            timeout_seconds=3600
+                        )
+
+                        if not approval_granted:
+                            logger.error(f"[BUILD-113] High-risk patch denied or timed out - blocking phase")
+                            self._update_phase_status(phase_id, "BLOCKED")
+                            return False, "BUILD113_APPROVAL_DENIED"
+
+                        logger.info(f"[BUILD-113] High-risk patch approved - continuing with standard flow")
+                        # Continue to standard patch application below
+
+                    elif decision.type == DecisionType.AMBIGUOUS:
+                        # Ambiguous - ask clarifying questions
+                        logger.info(f"[BUILD-113] AMBIGUOUS decision - requesting human clarification")
+
+                        clarification = self._request_build113_clarification(
+                            phase_id=phase_id,
+                            decision=decision,
+                            timeout_seconds=3600
+                        )
+
+                        if not clarification:
+                            logger.error(f"[BUILD-113] Clarification timed out - blocking phase")
+                            self._update_phase_status(phase_id, "BLOCKED")
+                            return False, "BUILD113_CLARIFICATION_TIMEOUT"
+
+                        logger.info(f"[BUILD-113] Human clarification received - continuing with standard flow")
+                        # Continue to standard patch application below
+
+                except Exception as e:
+                    logger.exception(f"[BUILD-113] Proactive decision analysis failed: {e}")
+                    logger.warning(f"[BUILD-113] Continuing with standard flow after error")
+                    # Continue to standard patch application
+
             # Step 2: Apply patch first (so we can run CI on it)
             logger.info(f"[{phase_id}] Step 2/5: Applying patch...")
 
@@ -7060,6 +7162,228 @@ Just the new description that should replace the current one while preserving th
         # Timeout reached
         logger.warning(f"[{phase_id}] ⏱️  Approval timeout after {timeout_seconds}s")
         return False
+
+    def _request_build113_approval(
+        self,
+        phase_id: str,
+        decision,
+        patch_content: str,
+        timeout_seconds: int = 3600
+    ) -> bool:
+        """
+        Request human approval for BUILD-113 RISKY decisions via Telegram.
+
+        Sends approval request with decision details, risk assessment, and patch preview.
+        Polls for approval decision until timeout.
+
+        Args:
+            phase_id: Phase identifier
+            decision: BUILD-113 Decision object with risk/confidence details
+            patch_content: Full patch content for preview
+            timeout_seconds: How long to wait for approval (default: 1 hour)
+
+        Returns:
+            True if approved, False if rejected or timed out
+        """
+        import time
+        import requests
+
+        logger.info(f"[BUILD-113] Requesting human approval for RISKY decision on {phase_id}...")
+
+        # Build approval request with BUILD-113 decision details
+        try:
+            url = f"{self.api_url}/approval/request"
+            headers = {"Content-Type": "application/json"}
+            if self.api_key:
+                headers["X-API-Key"] = self.api_key
+
+            # Extract patch preview (first 500 chars)
+            patch_preview = patch_content[:500] + ("..." if len(patch_content) > 500 else "")
+
+            response = requests.post(
+                url,
+                json={
+                    "phase_id": phase_id,
+                    "run_id": self.run_id,
+                    "context": "build113_risky_decision",
+                    "decision_info": {
+                        "type": decision.type.value,
+                        "risk_level": decision.risk_level,
+                        "confidence": f"{decision.confidence:.0%}",
+                        "rationale": decision.rationale,
+                        "files_modified": decision.files_modified[:5],  # First 5 files
+                        "files_count": len(decision.files_modified),
+                        "deliverables_met": decision.deliverables_met,
+                        "net_deletion": decision.net_deletion,
+                        "questions": decision.questions_for_human,
+                    },
+                    "patch_preview": patch_preview,
+                },
+                headers=headers,
+                timeout=30
+            )
+            response.raise_for_status()
+            result = response.json()
+
+            if result.get("status") == "rejected":
+                logger.error(f"[BUILD-113] Approval request rejected: {result.get('reason', 'Unknown')}")
+                return False
+
+            logger.info(f"[BUILD-113] Approval request sent, waiting for user decision...")
+
+        except Exception as e:
+            logger.error(f"[BUILD-113] Failed to send approval request: {e}")
+            # If Telegram is not configured, auto-reject high-risk patches
+            logger.warning(f"[BUILD-113] Defaulting to REJECT for RISKY decision without approval system")
+            return False
+
+        # Poll for approval status (reuse same polling logic as regular approval)
+        elapsed = 0
+        poll_interval = 10  # seconds
+
+        while elapsed < timeout_seconds:
+            try:
+                url = f"{self.api_url}/approval/status/{phase_id}"
+                headers = {}
+                if self.api_key:
+                    headers["X-API-Key"] = self.api_key
+
+                response = requests.get(url, headers=headers, timeout=10)
+                response.raise_for_status()
+                status_data = response.json()
+
+                status = status_data.get("status")
+
+                if status == "approved":
+                    logger.info(f"[BUILD-113] ✅ RISKY patch APPROVED by user")
+                    return True
+
+                if status == "rejected":
+                    logger.warning(f"[BUILD-113] ❌ RISKY patch REJECTED by user")
+                    return False
+
+                # Still pending, wait and check again
+                time.sleep(poll_interval)
+                elapsed += poll_interval
+
+                if elapsed % 60 == 0:  # Log every minute
+                    logger.info(f"[BUILD-113] Still waiting for approval... ({elapsed}s / {timeout_seconds}s)")
+
+            except Exception as e:
+                logger.warning(f"[BUILD-113] Error checking approval status: {e}")
+                time.sleep(poll_interval)
+                elapsed += poll_interval
+
+        # Timeout reached
+        logger.warning(f"[BUILD-113] ⏱️  Approval timeout after {timeout_seconds}s - defaulting to REJECT")
+        return False
+
+    def _request_build113_clarification(
+        self,
+        phase_id: str,
+        decision,
+        timeout_seconds: int = 3600
+    ) -> Optional[str]:
+        """
+        Request human clarification for BUILD-113 AMBIGUOUS decisions via Telegram.
+
+        Sends clarification request with decision details and questions.
+        Polls for human response until timeout.
+
+        Args:
+            phase_id: Phase identifier
+            decision: BUILD-113 Decision object with questions
+            timeout_seconds: How long to wait for clarification (default: 1 hour)
+
+        Returns:
+            Human response text if provided, None if timed out
+        """
+        import time
+        import requests
+
+        logger.info(f"[BUILD-113] Requesting human clarification for AMBIGUOUS decision on {phase_id}...")
+
+        # Build clarification request with BUILD-113 decision details
+        try:
+            url = f"{self.api_url}/clarification/request"
+            headers = {"Content-Type": "application/json"}
+            if self.api_key:
+                headers["X-API-Key"] = self.api_key
+
+            response = requests.post(
+                url,
+                json={
+                    "phase_id": phase_id,
+                    "run_id": self.run_id,
+                    "context": "build113_ambiguous_decision",
+                    "decision_info": {
+                        "type": decision.type.value,
+                        "risk_level": decision.risk_level,
+                        "confidence": f"{decision.confidence:.0%}",
+                        "rationale": decision.rationale,
+                        "questions": decision.questions_for_human,
+                        "alternatives": decision.alternatives_considered,
+                    },
+                },
+                headers=headers,
+                timeout=30
+            )
+            response.raise_for_status()
+            result = response.json()
+
+            if result.get("status") == "rejected":
+                logger.error(f"[BUILD-113] Clarification request rejected: {result.get('reason', 'Unknown')}")
+                return None
+
+            logger.info(f"[BUILD-113] Clarification request sent, waiting for user response...")
+
+        except Exception as e:
+            logger.error(f"[BUILD-113] Failed to send clarification request: {e}")
+            # If Telegram is not configured, cannot get clarification
+            logger.warning(f"[BUILD-113] No clarification system available - cannot resolve AMBIGUOUS decision")
+            return None
+
+        # Poll for clarification response
+        elapsed = 0
+        poll_interval = 10  # seconds
+
+        while elapsed < timeout_seconds:
+            try:
+                url = f"{self.api_url}/clarification/status/{phase_id}"
+                headers = {}
+                if self.api_key:
+                    headers["X-API-Key"] = self.api_key
+
+                response = requests.get(url, headers=headers, timeout=10)
+                response.raise_for_status()
+                status_data = response.json()
+
+                status = status_data.get("status")
+
+                if status == "answered":
+                    clarification_text = status_data.get("response", "")
+                    logger.info(f"[BUILD-113] ✅ Clarification received: {clarification_text[:100]}...")
+                    return clarification_text
+
+                if status == "rejected":
+                    logger.warning(f"[BUILD-113] ❌ Clarification request rejected by user")
+                    return None
+
+                # Still pending, wait and check again
+                time.sleep(poll_interval)
+                elapsed += poll_interval
+
+                if elapsed % 60 == 0:  # Log every minute
+                    logger.info(f"[BUILD-113] Still waiting for clarification... ({elapsed}s / {timeout_seconds}s)")
+
+            except Exception as e:
+                logger.warning(f"[BUILD-113] Error checking clarification status: {e}")
+                time.sleep(poll_interval)
+                elapsed += poll_interval
+
+        # Timeout reached
+        logger.warning(f"[BUILD-113] ⏱️  Clarification timeout after {timeout_seconds}s")
+        return None
 
     def _create_deletion_save_point(self, phase_id: str, net_deletion: int) -> Optional[str]:
         """

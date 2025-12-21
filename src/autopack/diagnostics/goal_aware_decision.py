@@ -490,6 +490,337 @@ class GoalAwareDecisionMaker:
         # Default: assume balanced changes
         return 0
 
+    def make_proactive_decision(
+        self,
+        patch_content: str,
+        phase_spec: PhaseSpec
+    ) -> Decision:
+        """
+        Make proactive decision about a freshly generated patch for feature implementation.
+
+        This is for BUILD-113 proactive mode (not reactive failure investigation).
+        Analyzes the patch to decide if it's safe to auto-apply or requires human approval.
+
+        Args:
+            patch_content: The generated patch from Builder
+            phase_spec: Deliverables, acceptance criteria, path constraints
+
+        Returns:
+            Decision object with type, rationale, risk assessment
+        """
+        logger.info(f"[GoalAwareDecisionMaker] Proactive decision for {phase_spec.phase_id}")
+
+        # Parse patch to extract metadata
+        patch_metadata = self._parse_patch_metadata(patch_content, phase_spec)
+
+        # Assess risk based on patch characteristics
+        risk_level = self._assess_patch_risk(patch_metadata, phase_spec)
+
+        # Check goal alignment
+        goal_alignment = self._check_patch_goal_alignment(patch_metadata, phase_spec)
+
+        # Estimate confidence based on patch clarity and coverage
+        confidence = self._estimate_patch_confidence(patch_metadata, goal_alignment)
+
+        # Generate rationale
+        rationale_parts = []
+        rationale_parts.append(f"Proactive analysis of generated patch for {phase_spec.phase_id}.")
+        rationale_parts.append(
+            f"Risk: {risk_level.value} ({patch_metadata['total_lines_changed']} lines, "
+            f"{len(patch_metadata['files_modified'])} files)."
+        )
+        rationale_parts.append(
+            f"Confidence: {confidence:.0%} based on patch structure and deliverables coverage."
+        )
+
+        if goal_alignment["meets_deliverables"]:
+            rationale_parts.append(
+                f"Meets deliverables: {', '.join(patch_metadata['deliverables_met'])}."
+            )
+        else:
+            rationale_parts.append(
+                f"Missing deliverables: {', '.join(goal_alignment['missing_deliverables'])}."
+            )
+
+        rationale = " ".join(rationale_parts)
+
+        # Generate alternatives
+        alternatives = self._generate_proactive_alternatives(risk_level, confidence, goal_alignment)
+
+        # Decide based on risk, confidence, and goal alignment
+        if risk_level == RiskLevel.HIGH:
+            # High risk - always require approval
+            logger.info(f"[GoalAwareDecisionMaker] RISKY decision: HIGH risk ({patch_metadata['total_lines_changed']} lines)")
+            return Decision(
+                type=DecisionType.RISKY,
+                fix_strategy=f"Implement {phase_spec.phase_id}",
+                rationale=rationale,
+                alternatives_considered=alternatives,
+                risk_level=risk_level.value,
+                deliverables_met=patch_metadata['deliverables_met'],
+                files_modified=patch_metadata['files_modified'],
+                net_deletion=patch_metadata['net_deletion'],
+                confidence=confidence,
+                patch=patch_content,
+                questions_for_human=[
+                    f"Approve high-risk implementation? ({patch_metadata['total_lines_changed']} lines, "
+                    f"{len(patch_metadata['files_modified'])} files)",
+                    f"Deliverables: {', '.join(patch_metadata['deliverables_met']) if patch_metadata['deliverables_met'] else 'None'}",
+                ]
+            )
+
+        if confidence < self.min_confidence_for_auto_fix:
+            # Low confidence - escalate
+            logger.info(f"[GoalAwareDecisionMaker] AMBIGUOUS decision: Low confidence ({confidence:.0%})")
+            return Decision(
+                type=DecisionType.AMBIGUOUS,
+                fix_strategy=f"Implement {phase_spec.phase_id}",
+                rationale=rationale,
+                alternatives_considered=alternatives,
+                risk_level=risk_level.value,
+                deliverables_met=patch_metadata['deliverables_met'],
+                files_modified=patch_metadata['files_modified'],
+                net_deletion=patch_metadata['net_deletion'],
+                confidence=confidence,
+                patch=patch_content,
+                questions_for_human=[
+                    f"Is this implementation correct? (confidence: {confidence:.0%})",
+                    "Should any additional checks or tests be added?",
+                ]
+            )
+
+        if not goal_alignment["meets_deliverables"]:
+            # Doesn't meet deliverables - escalate
+            logger.info("[GoalAwareDecisionMaker] AMBIGUOUS decision: Missing deliverables")
+            return Decision(
+                type=DecisionType.AMBIGUOUS,
+                fix_strategy=f"Implement {phase_spec.phase_id}",
+                rationale=rationale,
+                alternatives_considered=alternatives,
+                risk_level=risk_level.value,
+                deliverables_met=patch_metadata['deliverables_met'],
+                files_modified=patch_metadata['files_modified'],
+                net_deletion=patch_metadata['net_deletion'],
+                confidence=confidence,
+                patch=patch_content,
+                questions_for_human=[
+                    "Patch does not create all required deliverables - proceed anyway?",
+                    f"Missing: {', '.join(goal_alignment['missing_deliverables'])}",
+                ]
+            )
+
+        # Low/Medium risk, high confidence, meets deliverables - CLEAR_FIX
+        logger.info(f"[GoalAwareDecisionMaker] CLEAR_FIX decision: {risk_level.value} risk, {confidence:.0%} confidence")
+        return Decision(
+            type=DecisionType.CLEAR_FIX,
+            fix_strategy=f"Implement {phase_spec.phase_id}",
+            rationale=rationale,
+            alternatives_considered=alternatives,
+            risk_level=risk_level.value,
+            deliverables_met=patch_metadata['deliverables_met'],
+            files_modified=patch_metadata['files_modified'],
+            net_deletion=patch_metadata['net_deletion'],
+            confidence=confidence,
+            patch=patch_content,
+        )
+
+    def _parse_patch_metadata(self, patch_content: str, phase_spec: PhaseSpec) -> Dict[str, Any]:
+        """
+        Parse patch to extract files modified, lines changed, and deliverables met.
+
+        Returns:
+            Dict with: files_modified, lines_added, lines_deleted, total_lines_changed,
+                       net_deletion, deliverables_met, touches_protected_paths
+        """
+        files_modified = []
+        lines_added = 0
+        lines_deleted = 0
+        touches_protected_paths = False
+
+        # Parse unified diff format
+        current_file = None
+        for line in patch_content.split('\n'):
+            # File header: diff --git a/path b/path
+            if line.startswith('diff --git'):
+                match = re.search(r'b/(.+)$', line)
+                if match:
+                    current_file = match.group(1)
+                    files_modified.append(current_file)
+
+                    # Check if touches protected paths
+                    for protected in phase_spec.protected_paths:
+                        if current_file.startswith(protected):
+                            touches_protected_paths = True
+
+            # Count added/deleted lines
+            elif line.startswith('+') and not line.startswith('+++'):
+                lines_added += 1
+            elif line.startswith('-') and not line.startswith('---'):
+                lines_deleted += 1
+
+        total_lines_changed = lines_added + lines_deleted
+        net_deletion = lines_deleted - lines_added
+
+        # Match deliverables (file path matching)
+        deliverables_met = []
+        for deliverable in phase_spec.deliverables:
+            if any(deliverable in file_path for file_path in files_modified):
+                deliverables_met.append(deliverable)
+
+        logger.info(
+            f"[GoalAwareDecisionMaker] Patch metadata: {len(files_modified)} files, "
+            f"+{lines_added}/-{lines_deleted} lines, "
+            f"{len(deliverables_met)}/{len(phase_spec.deliverables)} deliverables met"
+        )
+
+        return {
+            "files_modified": files_modified,
+            "lines_added": lines_added,
+            "lines_deleted": lines_deleted,
+            "total_lines_changed": total_lines_changed,
+            "net_deletion": net_deletion,
+            "deliverables_met": deliverables_met,
+            "touches_protected_paths": touches_protected_paths,
+        }
+
+    def _assess_patch_risk(
+        self,
+        patch_metadata: Dict[str, Any],
+        phase_spec: PhaseSpec
+    ) -> RiskLevel:
+        """
+        Assess risk level of a patch based on metadata.
+
+        Risk factors:
+        - HIGH: >200 lines, protected paths, database changes
+        - MEDIUM: 100-200 lines, multiple files
+        - LOW: <100 lines, within allowed_paths, no side effects
+        """
+        # Check protected paths (ALWAYS HIGH RISK)
+        if patch_metadata["touches_protected_paths"]:
+            logger.info("[GoalAwareDecisionMaker] HIGH RISK: touches protected paths")
+            return RiskLevel.HIGH
+
+        # Check for database-related files (ALWAYS HIGH RISK, regardless of size)
+        for file_path in patch_metadata["files_modified"]:
+            file_lower = file_path.lower()
+            # Check for database-related patterns
+            db_patterns = ['database', 'migration', 'schema', '/models.py', '\\models.py', 'models.py']
+            if any(pattern in file_lower for pattern in db_patterns):
+                logger.info(f"[GoalAwareDecisionMaker] HIGH RISK: database-related file {file_path}")
+                return RiskLevel.HIGH
+
+        # Check line count
+        if patch_metadata["total_lines_changed"] > self.medium_risk_threshold:
+            logger.info(f"[GoalAwareDecisionMaker] HIGH RISK: {patch_metadata['total_lines_changed']} lines")
+            return RiskLevel.HIGH
+
+        if patch_metadata["total_lines_changed"] > self.low_risk_threshold:
+            logger.info(f"[GoalAwareDecisionMaker] MEDIUM RISK: {patch_metadata['total_lines_changed']} lines")
+            return RiskLevel.MEDIUM
+
+        # Low risk
+        logger.info(f"[GoalAwareDecisionMaker] LOW RISK: {patch_metadata['total_lines_changed']} lines, no red flags")
+        return RiskLevel.LOW
+
+    def _check_patch_goal_alignment(
+        self,
+        patch_metadata: Dict[str, Any],
+        phase_spec: PhaseSpec
+    ) -> Dict[str, Any]:
+        """
+        Check if patch meets phase goals (deliverables).
+
+        Returns:
+            Dict with: meets_deliverables, missing_deliverables
+        """
+        met_deliverables = set(patch_metadata["deliverables_met"])
+        all_deliverables = set(phase_spec.deliverables)
+        missing = all_deliverables - met_deliverables
+
+        return {
+            "meets_deliverables": len(missing) == 0,
+            "missing_deliverables": list(missing),
+        }
+
+    def _estimate_patch_confidence(
+        self,
+        patch_metadata: Dict[str, Any],
+        goal_alignment: Dict[str, Any]
+    ) -> float:
+        """
+        Estimate confidence in patch correctness.
+
+        Factors:
+        - Deliverables coverage (high coverage = high confidence)
+        - Patch size (smaller = higher confidence)
+        - Net deletion (large deletions = lower confidence)
+
+        Returns:
+            Confidence score between 0.0 and 1.0
+        """
+        confidence = 0.7  # Base confidence
+
+        # Boost for meeting deliverables
+        if goal_alignment["meets_deliverables"]:
+            confidence += 0.15
+
+        # Adjust based on patch size
+        total_lines = patch_metadata["total_lines_changed"]
+        if total_lines < 50:
+            confidence += 0.1  # Very small patch
+        elif total_lines > 200:
+            confidence -= 0.1  # Large patch
+
+        # Penalize large deletions (risky)
+        if patch_metadata["net_deletion"] > 50:
+            confidence -= 0.1
+
+        # Clamp to [0.0, 1.0]
+        confidence = max(0.0, min(1.0, confidence))
+
+        return confidence
+
+    def _generate_proactive_alternatives(
+        self,
+        risk_level: RiskLevel,
+        confidence: float,
+        goal_alignment: Dict[str, Any]
+    ) -> List[str]:
+        """Generate list of alternatives considered for proactive decision."""
+        alternatives = []
+
+        if risk_level == RiskLevel.LOW and confidence >= 0.7 and goal_alignment["meets_deliverables"]:
+            alternatives.append(
+                f"Auto-apply patch (SELECTED: {risk_level.value} risk, {confidence:.0%} confidence)"
+            )
+            alternatives.append(
+                f"Request human approval (rejected: low risk and high confidence)"
+            )
+        elif risk_level == RiskLevel.HIGH:
+            alternatives.append(
+                f"Request human approval (SELECTED: HIGH risk requires review)"
+            )
+            alternatives.append(
+                f"Auto-apply anyway (rejected: safety first)"
+            )
+        elif confidence < 0.7:
+            alternatives.append(
+                f"Request human clarification (SELECTED: {confidence:.0%} confidence too low)"
+            )
+            alternatives.append(
+                f"Auto-apply anyway (rejected: insufficient confidence)"
+            )
+        else:
+            alternatives.append(
+                f"Request human approval (SELECTED: {risk_level.value} risk or missing deliverables)"
+            )
+            alternatives.append(
+                f"Auto-apply anyway (rejected: needs verification)"
+            )
+
+        return alternatives
+
     def _generate_patch_stub(self, strategy: FixStrategy) -> Optional[str]:
         """
         Generate patch for auto-fix.

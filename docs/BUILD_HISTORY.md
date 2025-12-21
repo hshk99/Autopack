@@ -12,7 +12,7 @@ Sources: CONSOLIDATED files, archive/
 
 | Timestamp | BUILD-ID | Phase | Summary | Files Changed |
 |-----------|----------|-------|---------|---------------|
-| 2025-12-21 | BUILD-113 | Feature | Iterative Autonomous Investigation: multi-round evidence collection with goal-aware judgment - IterativeInvestigator, GoalAwareDecisionMaker, DecisionExecutor with safety nets (save points, rollback) and enhanced decision logging with alternatives tracking - 90% → 95% diagnostics parity | 6+ |
+| 2025-12-21 | BUILD-113 | Feature | Iterative Autonomous Investigation (Phase 1+2): multi-round evidence collection with goal-aware judgment - IterativeInvestigator, GoalAwareDecisionMaker, DecisionExecutor with safety nets (save points, rollback), enhanced decision logging with alternatives tracking, integrated into autonomous_executor with --enable-autonomous-fixes CLI flag - 90% → 95% diagnostics parity | 8 |
 | 2025-12-21 | BUILD-112 | Feature | Diagnostics Parity with Cursor (70% → 90%): fix README.md doc link, complete rewrite of cursor_prompt_generator.py (40 → 434 lines with 8 rich sections), add deep retrieval auto-triggers to diagnostics_agent.py, wire --enable-second-opinion CLI flag to autonomous_executor.py | 5 |
 | 2025-12-21 | BUILD-111 | Tooling | Telegram setup and testing scripts: create setup_telegram.py (interactive bot config), verify_telegram_credentials.py (credential validation), check_telegram_id.py (bot token vs chat ID identification) | 3 |
 | 2025-12-21 | BUILD-110 | Feature | Automatic save points for deletions >50 lines: create git tags (save-before-deletion-{phase_id}-{timestamp}) with recovery instructions before large deletions | 1 |

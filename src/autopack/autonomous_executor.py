@@ -158,6 +158,7 @@ class AutonomousExecutor:
         use_dual_auditor: bool = True,
         run_type: str = "project_build",
         enable_second_opinion: bool = False,
+        enable_autonomous_fixes: bool = False,
     ):
         """Initialize autonomous executor
 
@@ -173,6 +174,7 @@ class AutonomousExecutor:
                       'autopack_upgrade', or 'self_repair'. Maintenance types allow
                       modification of src/autopack/ and config/ paths.
             enable_second_opinion: Enable second opinion triage for diagnostics (requires API key)
+            enable_autonomous_fixes: Enable autonomous fixes for low-risk issues (BUILD-113)
         """
         # Load environment variables from .env for CLI runs
         load_dotenv()
@@ -180,6 +182,7 @@ class AutonomousExecutor:
         self.run_id = run_id
         self.api_url = api_url.rstrip('/')
         self.enable_second_opinion = enable_second_opinion
+        self.enable_autonomous_fixes = enable_autonomous_fixes
         self.api_key = api_key
         self.workspace = workspace
         self.use_dual_auditor = use_dual_auditor
@@ -286,6 +289,44 @@ class AutonomousExecutor:
         except Exception as e:
             logger.warning(f"[Diagnostics] Initialization failed; diagnostics disabled: {e}")
             self.diagnostics_agent = None
+
+        # BUILD-113: Iterative Autonomous Investigation (goal-aware autonomous fixes)
+        self.iterative_investigator = None
+        if self.enable_autonomous_fixes and self.diagnostics_agent:
+            try:
+                from autopack.diagnostics.iterative_investigator import IterativeInvestigator
+                from autopack.diagnostics.goal_aware_decision import GoalAwareDecisionMaker
+                from autopack.diagnostics.decision_executor import DecisionExecutor
+
+                decision_maker = GoalAwareDecisionMaker(
+                    low_risk_threshold=100,
+                    medium_risk_threshold=200,
+                    min_confidence_for_auto_fix=0.7,
+                )
+
+                self.decision_executor = DecisionExecutor(
+                    run_id=self.run_id,
+                    workspace=Path(self.workspace),
+                    memory_service=self.memory_service,
+                    decision_logger=self._record_decision_entry,
+                )
+
+                self.iterative_investigator = IterativeInvestigator(
+                    run_id=self.run_id,
+                    workspace=Path(self.workspace),
+                    diagnostics_agent=self.diagnostics_agent,
+                    decision_maker=decision_maker,
+                    memory_service=self.memory_service,
+                    max_rounds=5,
+                    max_probes_per_round=3,
+                )
+                logger.info(f"[BUILD-113] Iterative Autonomous Investigation enabled")
+            except Exception as e:
+                logger.warning(f"[BUILD-113] Iterative Investigation init failed; autonomous fixes disabled: {e}")
+                self.iterative_investigator = None
+        else:
+            if self.enable_autonomous_fixes and not self.diagnostics_agent:
+                logger.warning("[BUILD-113] Autonomous fixes require diagnostics_agent; feature disabled")
 
         logger.info(f"Initialized autonomous executor for run: {run_id}")
         logger.info(f"API URL: {api_url}")
@@ -2650,12 +2691,77 @@ Just the new description that should replace the current one while preserving th
         phase: Dict,
         context: Optional[Dict] = None,
     ):
-        """Invoke governed diagnostics with safety/budget controls."""
+        """Invoke governed diagnostics with safety/budget controls.
+
+        If autonomous fixes are enabled (BUILD-113), attempts iterative investigation
+        with goal-aware decision making. Otherwise, runs standard diagnostics.
+        """
         if not getattr(self, "diagnostics_agent", None):
             return None
+
         ctx = dict(context or {})
         ctx.setdefault("phase_id", phase.get("phase_id"))
         ctx.setdefault("phase_name", phase.get("name"))
+
+        # BUILD-113: Try iterative investigation if enabled
+        if getattr(self, "iterative_investigator", None):
+            try:
+                logger.info(f"[BUILD-113] Running iterative investigation for {phase.get('phase_id')}")
+
+                # Construct PhaseSpec from phase
+                from autopack.diagnostics.diagnostics_models import PhaseSpec, DecisionType
+
+                phase_spec = PhaseSpec(
+                    phase_id=phase.get("phase_id", "unknown"),
+                    deliverables=phase.get("deliverables", []),
+                    acceptance_criteria=phase.get("acceptance_criteria", []),
+                    allowed_paths=phase.get("allowed_paths", []),
+                    protected_paths=phase.get("protected_paths", []),
+                    complexity=phase.get("complexity", "medium"),
+                    category=phase.get("category", "feature"),
+                )
+
+                # Run iterative investigation
+                investigation_result = self.iterative_investigator.investigate_and_resolve(
+                    failure_context={
+                        "failure_class": failure_class,
+                        **ctx
+                    },
+                    phase_spec=phase_spec
+                )
+
+                # Handle decision
+                decision = investigation_result.decision
+                logger.info(f"[BUILD-113] Investigation decision: {decision.type.value}")
+
+                if decision.type == DecisionType.CLEAR_FIX:
+                    # Auto-apply fix
+                    logger.info(f"[BUILD-113] Applying autonomous fix: {decision.fix_strategy}")
+                    execution_result = self.decision_executor.execute_decision(
+                        decision=decision,
+                        phase_spec=phase_spec
+                    )
+
+                    if execution_result.success:
+                        logger.info(f"[BUILD-113] Autonomous fix applied successfully: {execution_result.commit_sha}")
+                        return investigation_result  # Return investigation result as diagnostic outcome
+                    else:
+                        logger.warning(f"[BUILD-113] Autonomous fix failed: {execution_result.error_message}")
+                        # Fall through to standard diagnostics
+
+                elif decision.type in [DecisionType.RISKY, DecisionType.AMBIGUOUS]:
+                    # Escalate to human - just return the investigation result for now
+                    logger.info(f"[BUILD-113] Decision requires human input: {decision.type.value}")
+                    # Could integrate with TelegramNotifier here for notifications
+                    return investigation_result
+
+                # If NEED_MORE_EVIDENCE or fall-through, continue with standard diagnostics below
+
+            except Exception as e:
+                logger.exception(f"[BUILD-113] Iterative investigation failed: {e}")
+                # Fall through to standard diagnostics
+
+        # Standard diagnostics (original behavior)
         try:
             return self.diagnostics_agent.run_diagnostics(
                 failure_class=failure_class,
@@ -7674,6 +7780,12 @@ Environment Variables:
     )
 
     parser.add_argument(
+        "--enable-autonomous-fixes",
+        action="store_true",
+        help="Enable autonomous fixes for low-risk issues (BUILD-113)"
+    )
+
+    parser.add_argument(
         "--verbose",
         action="store_true",
         help="Enable verbose logging"
@@ -7712,6 +7824,7 @@ Environment Variables:
             use_dual_auditor=not args.no_dual_auditor,
             run_type=args.run_type,
             enable_second_opinion=args.enable_second_opinion,
+            enable_autonomous_fixes=args.enable_autonomous_fixes,
         )
     except ValueError as e:
         logger.error(f"Failed to initialize executor: {e}")

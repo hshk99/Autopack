@@ -16,58 +16,17 @@ from __future__ import annotations
 
 import logging
 import re
-from dataclasses import dataclass, field
-from enum import Enum
 from typing import Dict, List, Optional, Any
 
-from autopack.diagnostics.iterative_investigator import PhaseSpec
+from autopack.diagnostics.diagnostics_models import (
+    Decision,
+    DecisionType,
+    FixStrategy,
+    PhaseSpec,
+    RiskLevel,
+)
 
 logger = logging.getLogger(__name__)
-
-
-class DecisionType(Enum):
-    """Types of decisions."""
-    CLEAR_FIX = "clear_fix"           # Low risk, goal-aligned, auto-apply
-    NEED_MORE_EVIDENCE = "need_more"  # Continue investigation
-    AMBIGUOUS = "ambiguous"           # Multiple valid approaches, ask human
-    RISKY = "risky"                   # High risk, block for approval
-
-
-class RiskLevel(Enum):
-    """Risk levels for decisions."""
-    LOW = "LOW"       # <100 lines, within allowed_paths, no side effects
-    MEDIUM = "MEDIUM" # 100-200 lines, multiple files
-    HIGH = "HIGH"     # >200 lines, protected paths, breaking changes
-    UNKNOWN = "UNKNOWN"  # Cannot assess risk
-
-
-@dataclass
-class FixStrategy:
-    """A potential fix approach."""
-    description: str
-    files_to_modify: List[str]
-    estimated_lines_changed: int
-    touches_protected_paths: bool
-    meets_deliverables: List[str]
-    passes_acceptance_criteria: List[str]
-    side_effects: List[str]
-    confidence: float  # 0.0 to 1.0
-
-
-@dataclass
-class Decision:
-    """Result of goal-aware decision making."""
-    type: DecisionType
-    fix_strategy: str
-    rationale: str
-    alternatives_considered: List[str]
-    risk_level: str
-    deliverables_met: List[str]
-    files_modified: List[str]
-    net_deletion: int
-    patch: Optional[str] = None
-    questions_for_human: Optional[List[str]] = None
-    confidence: float = 0.0
 
 
 class GoalAwareDecisionMaker:

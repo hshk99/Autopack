@@ -23,54 +23,18 @@ from typing import Dict, List, Optional, Any
 
 from autopack.diagnostics.diagnostics_agent import DiagnosticsAgent, DiagnosticOutcome
 from autopack.diagnostics.probes import Probe, ProbeCommand, ProbeRunResult
-from autopack.diagnostics.goal_aware_decision import GoalAwareDecisionMaker, Decision, DecisionType
+from autopack.diagnostics.goal_aware_decision import GoalAwareDecisionMaker
+from autopack.diagnostics.diagnostics_models import (
+    Decision,
+    DecisionType,
+    EvidenceGap,
+    EvidenceGapType,
+    InvestigationResult,
+    PhaseSpec,
+)
 from autopack.memory import MemoryService
 
 logger = logging.getLogger(__name__)
-
-
-class EvidenceGapType(Enum):
-    """Types of evidence gaps."""
-    MISSING_FILE_CONTENT = "missing_file_content"
-    MISSING_COMMAND_OUTPUT = "missing_command_output"
-    MISSING_TEST_OUTPUT = "missing_test_output"
-    MISSING_ERROR_DETAILS = "missing_error_details"
-    MISSING_DEPENDENCY_INFO = "missing_dependency_info"
-    AMBIGUOUS_ROOT_CAUSE = "ambiguous_root_cause"
-
-
-@dataclass
-class EvidenceGap:
-    """Missing evidence identified during investigation."""
-    gap_type: EvidenceGapType
-    description: str
-    priority: int  # 1 (critical), 2 (high), 3 (medium)
-    probe_suggestion: Optional[ProbeCommand] = None
-    rationale: Optional[str] = None
-
-
-@dataclass
-class PhaseSpec:
-    """Phase specification from requirements."""
-    phase_id: str
-    deliverables: List[str]
-    acceptance_criteria: List[str]
-    allowed_paths: List[str]
-    protected_paths: List[str]
-    complexity: str = "medium"
-    category: str = "feature"
-
-
-@dataclass
-class InvestigationResult:
-    """Result of multi-round investigation."""
-    decision: Decision
-    evidence: Dict[str, Any]
-    rounds: int
-    probes_executed: List[ProbeRunResult]
-    timeline: List[str]
-    total_time_seconds: float
-    gaps_identified: List[EvidenceGap] = field(default_factory=list)
 
 
 class IterativeInvestigator:

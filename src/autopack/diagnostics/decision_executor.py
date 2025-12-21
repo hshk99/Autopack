@@ -22,31 +22,20 @@ import json
 import logging
 import subprocess
 import time
-from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional, Any
 
-from autopack.diagnostics.goal_aware_decision import Decision, DecisionType
-from autopack.diagnostics.iterative_investigator import PhaseSpec
-from autopack.deliverables_validator import validate_deliverables_in_patch
+from autopack.diagnostics.diagnostics_models import (
+    Decision,
+    DecisionType,
+    ExecutionResult,
+    PhaseSpec,
+)
+from autopack.deliverables_validator import validate_deliverables
 from autopack.memory import MemoryService
 
 logger = logging.getLogger(__name__)
-
-
-@dataclass
-class ExecutionResult:
-    """Result of decision execution."""
-    success: bool
-    decision_id: str
-    save_point: Optional[str]
-    patch_applied: bool
-    deliverables_validated: bool
-    tests_passed: bool
-    rollback_performed: bool
-    error_message: Optional[str] = None
-    commit_sha: Optional[str] = None
 
 
 class DecisionExecutor:
@@ -332,9 +321,15 @@ class DecisionExecutor:
         Uses existing deliverables_validator.
         """
         try:
-            ok, errors, _ = validate_deliverables_in_patch(
+            # Construct phase_scope for validator
+            phase_scope = {
+                "deliverables": deliverables
+            }
+
+            ok, errors, _ = validate_deliverables(
                 patch_content=patch_content,
-                expected_paths=deliverables,
+                phase_scope=phase_scope,
+                phase_id="autonomous-fix",
                 workspace=self.workspace
             )
 

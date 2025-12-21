@@ -1062,7 +1062,7 @@ class AutonomousExecutor:
                             logger.error(f"[{phase_id}] Failed to reset stale phase: {e}")
 
                             # Log stale phase reset failure
-                            log_error(
+                            report_error(
                                 error_signature="Stale phase reset failure",
                                 symptom=f"Phase {phase_id}: {type(e).__name__}: {str(e)}",
                                 run_id=self.run_id,
@@ -1649,8 +1649,8 @@ class AutonomousExecutor:
                 logger.error(f"[{phase_id}] All {max_attempts} attempts exhausted. Marking phase as FAILED.")
 
                 # Log to debug journal for persistent tracking
-                from .error_reporter import log_error
-                log_error(
+                from .error_reporter import report_error
+                report_error(
                     error_signature=f"Phase {phase_id} max attempts exhausted",
                     symptom=f"Phase failed after {max_attempts} attempts with model escalation",
                     run_id=self.run_id,
@@ -1782,8 +1782,8 @@ class AutonomousExecutor:
                 logger.error(f"[{phase_id}] All {max_attempts} attempts exhausted after exception. Marking phase as FAILED.")
 
                 # Log to debug journal for persistent tracking
-                from .error_reporter import log_error
-                log_error(
+                from .error_reporter import report_error
+                report_error(
                     error_signature=f"Phase {phase_id} max attempts exhausted (exception)",
                     symptom=f"Phase failed after {max_attempts} attempts with final exception: {type(e).__name__}",
                     run_id=self.run_id,
@@ -3326,9 +3326,35 @@ Just the new description that should replace the current one while preserving th
                     allowed_paths=allowed_paths,
                 )
 
-            # Diagnostics parity followups (followup-7/8) create multiple files (code + tests + docs) and
+            # Diagnostics parity followups create multiple files (code + tests + docs) and
             # commonly hit truncation/malformed-diff convergence failures when generated as one patch.
             # Use in-phase batching (like Chunk 0 / Chunk 2B) to reduce patch size and tighten manifest gates.
+
+            # Followup-1: handoff-bundle (4 files: 2 code + 1 test + 1 doc)
+            if phase_id == "diagnostics-handoff-bundle":
+                return self._execute_diagnostics_handoff_bundle_batched(
+                    phase=phase,
+                    attempt_index=attempt_index,
+                    allowed_paths=allowed_paths,
+                )
+
+            # Followup-2: cursor-prompt (4 files: 2 code + 1 test + 1 doc)
+            if phase_id == "diagnostics-cursor-prompt":
+                return self._execute_diagnostics_cursor_prompt_batched(
+                    phase=phase,
+                    attempt_index=attempt_index,
+                    allowed_paths=allowed_paths,
+                )
+
+            # Followup-3: second-opinion (3 files: 1 code + 1 test + 1 doc)
+            if phase_id == "diagnostics-second-opinion-triage":
+                return self._execute_diagnostics_second_opinion_batched(
+                    phase=phase,
+                    attempt_index=attempt_index,
+                    allowed_paths=allowed_paths,
+                )
+
+            # Followup-7: deep-retrieval (5 files: 2 code + 2 tests + 1 doc)
             if phase_id == "diagnostics-deep-retrieval":
                 return self._execute_diagnostics_deep_retrieval_batched(
                     phase=phase,
@@ -3336,6 +3362,7 @@ Just the new description that should replace the current one while preserving th
                     allowed_paths=allowed_paths,
                 )
 
+            # Followup-8: iteration-loop (5 files: 2 code + 2 tests + 1 doc)
             if phase_id == "diagnostics-iteration-loop":
                 return self._execute_diagnostics_iteration_loop_batched(
                     phase=phase,
@@ -4104,10 +4131,21 @@ Just the new description that should replace the current one while preserving th
                 logger.warning(f"[{phase_id}] Phase BLOCKED by quality gate")
                 for issue in quality_report.issues:
                     logger.warning(f"  - {issue}")
-                # Note: Patch is already applied - in future we could rollback here
-                # For now, mark as blocked but leave changes (human review needed)
-                self._update_phase_status(phase_id, "BLOCKED")
-                return False, "BLOCKED"
+
+                # NEW: Request human approval via Telegram
+                approval_granted = self._request_human_approval(
+                    phase_id=phase_id,
+                    quality_report=quality_report,
+                    timeout_seconds=3600  # 1 hour timeout
+                )
+
+                if not approval_granted:
+                    logger.error(f"[{phase_id}] Approval denied or timed out")
+                    self._update_phase_status(phase_id, "BLOCKED")
+                    return False, "BLOCKED: Human approval denied or timed out"
+
+                logger.info(f"[{phase_id}] Human approval GRANTED - proceeding with phase")
+                # Continue execution below
 
             # Update phase status to COMPLETE
             self._update_phase_status(phase_id, "COMPLETE")
@@ -4708,6 +4746,112 @@ Just the new description that should replace the current one while preserving th
             allowed_paths=allowed_paths,
             batches=batches,
             batching_label="diagnostics_iteration_loop",
+            manifest_allowed_roots=("src/autopack/diagnostics/", "tests/autopack/diagnostics/", "docs/autopack/"),
+            apply_allowed_roots=("src/autopack/diagnostics/", "tests/autopack/diagnostics/", "docs/autopack/"),
+        )
+
+    def _execute_diagnostics_handoff_bundle_batched(
+        self,
+        *,
+        phase: Dict,
+        attempt_index: int,
+        allowed_paths: Optional[List[str]],
+    ) -> Tuple[bool, str]:
+        """Specialized in-phase batching for followup-1 `diagnostics-handoff-bundle` (code → tests → docs)."""
+        from .deliverables_validator import extract_deliverables_from_scope
+
+        scope_base = phase.get("scope") or {}
+        all_paths = [p for p in extract_deliverables_from_scope(scope_base) if isinstance(p, str) and p.strip()]
+
+        # Batch 1: code files (src/autopack/)
+        batch_code = sorted([p for p in all_paths if p.startswith("src/autopack/") and not p.startswith("src/autopack/cli/")])
+        # Batch 2: CLI code
+        batch_cli = sorted([p for p in all_paths if p.startswith("src/autopack/cli/")])
+        # Batch 3: tests
+        batch_tests = sorted([p for p in all_paths if p.startswith("tests/autopack/diagnostics/")])
+        # Batch 4: docs
+        batch_docs = sorted([p for p in all_paths if p.startswith("docs/autopack/")])
+
+        batches = [b for b in [batch_code, batch_cli, batch_tests, batch_docs] if b]
+        if not batches:
+            batches = [sorted(set(all_paths))]
+
+        return self._execute_batched_deliverables_phase(
+            phase=phase,
+            attempt_index=attempt_index,
+            allowed_paths=allowed_paths,
+            batches=batches,
+            batching_label="diagnostics_handoff_bundle",
+            manifest_allowed_roots=("src/autopack/diagnostics/", "src/autopack/cli/", "tests/autopack/diagnostics/", "docs/autopack/"),
+            apply_allowed_roots=("src/autopack/diagnostics/", "src/autopack/cli/", "tests/autopack/diagnostics/", "docs/autopack/"),
+        )
+
+    def _execute_diagnostics_cursor_prompt_batched(
+        self,
+        *,
+        phase: Dict,
+        attempt_index: int,
+        allowed_paths: Optional[List[str]],
+    ) -> Tuple[bool, str]:
+        """Specialized in-phase batching for followup-2 `diagnostics-cursor-prompt` (code → tests → docs)."""
+        from .deliverables_validator import extract_deliverables_from_scope
+
+        scope_base = phase.get("scope") or {}
+        all_paths = [p for p in extract_deliverables_from_scope(scope_base) if isinstance(p, str) and p.strip()]
+
+        # Batch 1: diagnostics code
+        batch_diag = sorted([p for p in all_paths if p.startswith("src/autopack/diagnostics/")])
+        # Batch 2: dashboard code
+        batch_dash = sorted([p for p in all_paths if p.startswith("src/autopack/dashboard/")])
+        # Batch 3: tests
+        batch_tests = sorted([p for p in all_paths if p.startswith("tests/autopack/diagnostics/")])
+        # Batch 4: docs
+        batch_docs = sorted([p for p in all_paths if p.startswith("docs/autopack/")])
+
+        batches = [b for b in [batch_diag, batch_dash, batch_tests, batch_docs] if b]
+        if not batches:
+            batches = [sorted(set(all_paths))]
+
+        return self._execute_batched_deliverables_phase(
+            phase=phase,
+            attempt_index=attempt_index,
+            allowed_paths=allowed_paths,
+            batches=batches,
+            batching_label="diagnostics_cursor_prompt",
+            manifest_allowed_roots=("src/autopack/diagnostics/", "src/autopack/dashboard/", "tests/autopack/diagnostics/", "docs/autopack/"),
+            apply_allowed_roots=("src/autopack/diagnostics/", "src/autopack/dashboard/", "tests/autopack/diagnostics/", "docs/autopack/"),
+        )
+
+    def _execute_diagnostics_second_opinion_batched(
+        self,
+        *,
+        phase: Dict,
+        attempt_index: int,
+        allowed_paths: Optional[List[str]],
+    ) -> Tuple[bool, str]:
+        """Specialized in-phase batching for followup-3 `diagnostics-second-opinion-triage` (code → tests → docs)."""
+        from .deliverables_validator import extract_deliverables_from_scope
+
+        scope_base = phase.get("scope") or {}
+        all_paths = [p for p in extract_deliverables_from_scope(scope_base) if isinstance(p, str) and p.strip()]
+
+        # Batch 1: code
+        batch_code = sorted([p for p in all_paths if p.startswith("src/autopack/diagnostics/")])
+        # Batch 2: tests
+        batch_tests = sorted([p for p in all_paths if p.startswith("tests/autopack/diagnostics/")])
+        # Batch 3: docs
+        batch_docs = sorted([p for p in all_paths if p.startswith("docs/autopack/")])
+
+        batches = [b for b in [batch_code, batch_tests, batch_docs] if b]
+        if not batches:
+            batches = [sorted(set(all_paths))]
+
+        return self._execute_batched_deliverables_phase(
+            phase=phase,
+            attempt_index=attempt_index,
+            allowed_paths=allowed_paths,
+            batches=batches,
+            batching_label="diagnostics_second_opinion",
             manifest_allowed_roots=("src/autopack/diagnostics/", "tests/autopack/diagnostics/", "docs/autopack/"),
             apply_allowed_roots=("src/autopack/diagnostics/", "tests/autopack/diagnostics/", "docs/autopack/"),
         )
@@ -6167,7 +6311,7 @@ Just the new description that should replace the current one while preserving th
                         logger.info(f"[{phase_id}] Phase 2.3: Validation errors indicate malformed patch - LLM should regenerate")
 
                         # Log validation failures to debug journal
-                        log_error(
+                        report_error(
                             error_signature=f"Patch validation failure (422)",
                             symptom=f"Phase {phase_id}: {error_detail}",
                             run_id=self.run_id,
@@ -6664,6 +6808,127 @@ Just the new description that should replace the current one while preserving th
                 self._best_effort_write_run_summary()
         except requests.exceptions.RequestException as e:
             logger.warning(f"Failed to update phase {phase_id} status: {e}")
+
+    def _request_human_approval(
+        self,
+        phase_id: str,
+        quality_report,
+        timeout_seconds: int = 3600
+    ) -> bool:
+        """
+        Request human approval via Telegram for blocked phases.
+
+        Sends approval request to backend API, which triggers Telegram notification.
+        Polls for approval decision until timeout.
+
+        Args:
+            phase_id: Phase identifier
+            quality_report: Quality gate report with risk assessment
+            timeout_seconds: How long to wait for approval (default: 1 hour)
+
+        Returns:
+            True if approved, False if rejected or timed out
+        """
+        import time
+        import requests
+
+        logger.info(f"[{phase_id}] Requesting human approval via Telegram...")
+
+        # Extract risk assessment from quality report
+        risk_assessment = getattr(quality_report, 'risk_assessment', None)
+        if not risk_assessment:
+            logger.warning(f"[{phase_id}] No risk assessment found in quality report")
+            deletion_info = {
+                'net_deletion': 0,
+                'loc_removed': 0,
+                'loc_added': 0,
+                'files': [],
+                'risk_level': 'unknown',
+                'risk_score': 0,
+            }
+        else:
+            metadata = risk_assessment.get('metadata', {})
+            deletion_info = {
+                'net_deletion': metadata.get('loc_removed', 0) - metadata.get('loc_added', 0),
+                'loc_removed': metadata.get('loc_removed', 0),
+                'loc_added': metadata.get('loc_added', 0),
+                'files': [],  # TODO: Extract from quality report
+                'risk_level': risk_assessment.get('risk_level', 'unknown'),
+                'risk_score': risk_assessment.get('risk_score', 0),
+            }
+
+        # Send approval request to backend API
+        try:
+            url = f"{self.api_url}/approval/request"
+            headers = {"Content-Type": "application/json"}
+            if self.api_key:
+                headers["X-API-Key"] = self.api_key
+
+            response = requests.post(
+                url,
+                json={
+                    "phase_id": phase_id,
+                    "deletion_info": deletion_info,
+                    "run_id": self.run_id,
+                    "context": "troubleshoot",  # TODO: Derive from phase context
+                },
+                headers=headers,
+                timeout=30
+            )
+            response.raise_for_status()
+            result = response.json()
+
+            if result.get("status") == "rejected":
+                logger.error(f"[{phase_id}] Approval request rejected: {result.get('reason', 'Unknown')}")
+                return False
+
+            logger.info(f"[{phase_id}] Approval request sent, waiting for user decision...")
+
+        except Exception as e:
+            logger.error(f"[{phase_id}] Failed to send approval request: {e}")
+            # If Telegram is not configured, auto-reject
+            return False
+
+        # Poll for approval status
+        elapsed = 0
+        poll_interval = 10  # seconds
+
+        while elapsed < timeout_seconds:
+            try:
+                url = f"{self.api_url}/approval/status/{phase_id}"
+                headers = {}
+                if self.api_key:
+                    headers["X-API-Key"] = self.api_key
+
+                response = requests.get(url, headers=headers, timeout=10)
+                response.raise_for_status()
+                status_data = response.json()
+
+                status = status_data.get("status")
+
+                if status == "approved":
+                    logger.info(f"[{phase_id}] ✅ Approval GRANTED by user")
+                    return True
+
+                if status == "rejected":
+                    logger.warning(f"[{phase_id}] ❌ Approval REJECTED by user")
+                    return False
+
+                # Still pending, wait and check again
+                time.sleep(poll_interval)
+                elapsed += poll_interval
+
+                if elapsed % 60 == 0:  # Log every minute
+                    logger.info(f"[{phase_id}] Still waiting for approval... ({elapsed}s / {timeout_seconds}s)")
+
+            except Exception as e:
+                logger.warning(f"[{phase_id}] Error checking approval status: {e}")
+                time.sleep(poll_interval)
+                elapsed += poll_interval
+
+        # Timeout reached
+        logger.warning(f"[{phase_id}] ⏱️  Approval timeout after {timeout_seconds}s")
+        return False
 
     def _force_mark_phase_failed(self, phase_id: str) -> bool:
         """

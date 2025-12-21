@@ -71,7 +71,8 @@ from autopack.deliverables_validator import (
 )
 
 # Memory and validation imports
-from autopack import models
+# BUILD-115: models.py removed - database write code disabled below
+# from autopack import models
 from autopack.diagnostics.diagnostics_agent import DiagnosticsAgent
 from autopack.memory import MemoryService, should_block_on_drift, extract_goal_from_description
 from autopack.validators import validate_yaml_syntax, validate_docker_compose, ValidationResult
@@ -2330,24 +2331,26 @@ class AutonomousExecutor:
             except Exception as e:
                 logger.warning(f"[PlanChange] Failed to write to memory: {e}")
 
-        try:
-            plan_change = models.PlanChange(
-                run_id=self.run_id,
-                phase_id=phase_id,
-                project_id=project_id,
-                timestamp=timestamp,
-                author="autonomous_executor",
-                summary=summary,
-                rationale=rationale,
-                replaces_version=replaces_version,
-                status="active",
-                vector_id=vector_id or None,
-            )
-            self.db_session.add(plan_change)
-            self.db_session.commit()
-        except Exception as e:
-            logger.warning(f"[PlanChange] DB write failed: {e}")
-            self.db_session.rollback()
+        # BUILD-115: models.PlanChange removed - skip database write
+        # try:
+        #     plan_change = models.PlanChange(
+        #         run_id=self.run_id,
+        #         phase_id=phase_id,
+        #         project_id=project_id,
+        #         timestamp=timestamp,
+        #         author="autonomous_executor",
+        #         summary=summary,
+        #         rationale=rationale,
+        #         replaces_version=replaces_version,
+        #         status="active",
+        #         vector_id=vector_id or None,
+        #     )
+        #     self.db_session.add(plan_change)
+        #     self.db_session.commit()
+        # except Exception as e:
+        #     logger.warning(f"[PlanChange] DB write failed: {e}")
+        #     self.db_session.rollback()
+        logger.debug(f"[PlanChange] Skipped DB write (models.py removed)")
 
     def _record_decision_entry(
         self,
@@ -2377,23 +2380,25 @@ class AutonomousExecutor:
             except Exception as e:
                 logger.warning(f"[DecisionLog] Failed to write to memory: {e}")
 
-        try:
-            decision = models.DecisionLog(
-                run_id=self.run_id,
-                phase_id=phase_id,
-                project_id=project_id,
-                timestamp=timestamp,
-                trigger=trigger,
-                alternatives=alternatives,
-                choice=choice,
-                rationale=rationale,
-                vector_id=vector_id or None,
-            )
-            self.db_session.add(decision)
-            self.db_session.commit()
-        except Exception as e:
-            logger.warning(f"[DecisionLog] DB write failed: {e}")
-            self.db_session.rollback()
+        # BUILD-115: models.DecisionLog removed - skip database write
+        # try:
+        #     decision = models.DecisionLog(
+        #         run_id=self.run_id,
+        #         phase_id=phase_id,
+        #         project_id=project_id,
+        #         timestamp=timestamp,
+        #         trigger=trigger,
+        #         alternatives=alternatives,
+        #         choice=choice,
+        #         rationale=rationale,
+        #         vector_id=vector_id or None,
+        #     )
+        #     self.db_session.add(decision)
+        #     self.db_session.commit()
+        # except Exception as e:
+        #     logger.warning(f"[DecisionLog] DB write failed: {e}")
+        #     self.db_session.rollback()
+        logger.debug(f"[DecisionLog] Skipped DB write (models.py removed)")
 
     def _should_trigger_replan(self, phase: Dict) -> Tuple[bool, Optional[str]]:
         """

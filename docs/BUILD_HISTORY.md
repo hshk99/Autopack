@@ -1,8 +1,8 @@
 # Build History - Implementation Log
 
 <!-- META
-Last_Updated: 2025-12-20T18:58:00Z
-Total_Builds: 60
+Last_Updated: 2025-12-21T02:30:00Z
+Total_Builds: 106
 Format_Version: 2.0
 Auto_Generated: True
 Sources: CONSOLIDATED files, archive/
@@ -12,6 +12,14 @@ Sources: CONSOLIDATED files, archive/
 
 | Timestamp | BUILD-ID | Phase | Summary | Files Changed |
 |-----------|----------|-------|---------|---------------|
+| 2025-12-21 | BUILD-106 | Quality | Fix handoff_bundler.py test failures: add missing 'version' field to index.json, change glob() to rglob() for recursive artifact discovery (nested dirs, binary files), add *.txt and *.bin patterns - achieves 100% test pass rate (45 passed / 47 total, 2 skipped) for diagnostics parity implementation | 1 |
+| 2025-12-21 | BUILD-105 | System | Add executor-side batching for diagnostics parity phases 1, 2, 4 (handoff-bundle, cursor-prompt, second-opinion): prevent truncation/malformed-diff convergence failures by splitting 3-4 file phases into smaller batches (code → tests → docs) | 1 |
+| 2025-12-21 | BUILD-104 | Hotfix | Fix ImportError in autonomous_executor.py: incorrect `log_error` import should be `report_error` (function doesn't exist in error_reporter.py), blocking all phase execution after max attempts | 1 |
+| 2025-12-21 | BUILD-103 | Integration | Mount research router in main.py + fix import issues: corrected router.py relative import, aligned __init__.py exports with actual schemas, added router mounting with /research prefix | 3 |
+| 2025-12-20 | BUILD-102 | Completion | Diagnostics parity phases 3 & 5 completed autonomously via autopack-diagnostics-parity-v5 (BUILD-101 batching enabled convergence for deep_retrieval + iteration_loop phases) | 0 |
+| 2025-12-20 | BUILD-101 | System | Executor-side batching mechanism for diagnostics phases: added generic batched deliverables execution with per-batch manifest gates, validation, and docs-truncation fallback | 1 |
+| 2025-12-20 | BUILD-100 | Hotfix | Executor startup fix: import `DiagnosticsAgent` from `autopack.diagnostics.diagnostics_agent` (namespace package has no re-export), unblocking diagnostics parity runs | 2 |
+| 2025-12-20 | BUILD-099 | Hotfix | Executor: add in-phase batching for diagnostics followups (`diagnostics-deep-retrieval`, `diagnostics-iteration-loop`) to prevent multi-file patch truncation/malformed diffs + tighten per-batch manifest enforcement | 3 |
 | 2025-12-20 | BUILD-098 | Hotfix | Fix TypeError in autonomous_executor.py line 3617 where phase.get() returned None instead of default value 5, causing "NoneType - int" crash during truncation recovery | 1 |
 | 2025-12-20 | BUILD-097 | Hotfix | Clean merge conflict markers from src/autopack/main.py left by retry-api-router-v2 failed patch attempts, enabling research-api-router phase to converge successfully with Claude Sonnet 4.5 | 1 |
 | 2025-12-20 | BUILD-096 | Hotfix | Add `src/autopack/main.py` to ALLOWED_PATHS in governed_apply.py to enable research-api-router followup (narrowly unblocks main.py for FastAPI router registration, per followup-4 requirements) | 1 |
@@ -108,6 +116,57 @@ Sources: CONSOLIDATED files, archive/
 | 2025-11-26 | BUILD-016 | N/A | Consolidated Research Reference |  |
 
 ## BUILDS (Reverse Chronological)
+
+### BUILD-100 | 2025-12-20T20:26 | Hotfix | Executor startup fix: DiagnosticsAgent import path
+**Status**: ✅ Implemented (manual)
+**Category**: Reliability / Convergence / Executor
+
+**Problem**:
+- `autopack.autonomous_executor` failed at import-time with:
+  - `ImportError: cannot import name 'DiagnosticsAgent' from 'autopack.diagnostics' (unknown location)`
+- Root cause: `src/autopack/diagnostics/` is a namespace package (no `__init__.py`), so it does not re-export `DiagnosticsAgent`.
+
+**Fix**:
+- Import directly from the module:
+  - `from autopack.diagnostics.diagnostics_agent import DiagnosticsAgent`
+
+**Files Modified**:
+- `src/autopack/autonomous_executor.py`
+- `docs/BUILD_HISTORY.md`
+- `docs/DEBUG_LOG.md`
+
+**Related Debug Entry**:
+- `docs/DEBUG_LOG.md` (DBG-059)
+
+---
+
+### BUILD-099 | 2025-12-20T20:12 | Hotfix | Executor: in-phase batching for diagnostics followups to prevent truncation + manifest violations
+**Status**: ✅ Implemented (manual)
+**Category**: Reliability / Convergence / Executor
+**Phase IDs**:
+- `diagnostics-deep-retrieval`
+- `diagnostics-iteration-loop`
+
+**Problem**:
+- These followups each require generating **5 deliverables** (2 code + 2 tests + 1 doc).
+- Builder repeatedly produced truncated/malformed diffs and/or created files outside the deliverables manifest (e.g. stray `__init__.py`), exhausting retries and blocking autonomous convergence.
+
+**Fix**:
+- Add **executor-side in-phase batching** (code → tests → docs) for both phase IDs, reusing the proven Chunk 0 / Chunk 2B batching pattern:
+  - Per-batch **deliverables manifest gate** (tight expected paths)
+  - Per-batch deliverables + new-file-diff structural validation
+  - Apply patch per batch under governed isolation
+  - Run CI/Auditor/Quality Gate only once at the end using the combined diff
+
+**Files Modified**:
+- `src/autopack/autonomous_executor.py`
+- `docs/BUILD_HISTORY.md`
+- `docs/DEBUG_LOG.md`
+
+**Related Debug Entry**:
+- `docs/DEBUG_LOG.md` (DBG-058)
+
+---
 
 ### BUILD-090 | 2025-12-20T05:18 | Hotfix | Allowlist diagnostics parity subtrees (`src/autopack/diagnostics/`, `src/autopack/dashboard/`) so Followups 1–3 can apply under governed isolation
 **Status**: ✅ Implemented (manual)

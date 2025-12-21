@@ -1,8 +1,8 @@
 # Debug Log - Problem Solving History
 
 <!-- META
-Last_Updated: 2025-12-20T18:58:00Z
-Total_Issues: 25
+Last_Updated: 2025-12-21T02:30:00Z
+Total_Issues: 65
 Format_Version: 2.0
 Auto_Generated: True
 Sources: CONSOLIDATED_DEBUG, archive/, fileorg-phase2-beta-release
@@ -12,6 +12,14 @@ Sources: CONSOLIDATED_DEBUG, archive/, fileorg-phase2-beta-release
 
 | Timestamp | DBG-ID | Severity | Summary | Status |
 |-----------|--------|----------|---------|--------|
+| 2025-12-21 | DBG-065 | MEDIUM | Diagnostics parity test suite had 4 failures in handoff_bundler tests (test_index_json_structure, test_nested_directory_structure, test_binary_file_handling, test_regenerate_overwrites): missing 'version' field in index.json, glob() instead of rglob() prevented recursive artifact discovery, missing *.txt and *.bin patterns | ✅ Resolved (Manual Quality Fix: BUILD-106) |
+| 2025-12-21 | DBG-064 | HIGH | Diagnostics parity phases 1, 2, 4 risk same multi-file truncation/malformed-diff convergence failures as phases 3 & 5 (which needed BUILD-101 batching); each phase creates 3-4 deliverables (code + tests + docs) susceptible to patch truncation and manifest violations | ✅ Resolved (Manual System Fix: BUILD-105) |
+| 2025-12-21 | DBG-063 | HIGH | Executor ImportError when logging phase max attempts: tries to import non-existent `log_error` function from error_reporter.py (correct function is `report_error`), causing executor crash after phase exhausts retries | ✅ Resolved (Manual Hotfix: BUILD-104) |
+| 2025-12-21 | DBG-062 | MEDIUM | Research API router deliverables created but not integrated: router.py had absolute import causing circular dependency, __init__.py expected non-existent schema names, router not mounted in main.py | ✅ Resolved (Manual Integration: BUILD-103) |
+| 2025-12-20 | DBG-061 | LOW | Diagnostics parity Phase 3 & 5 completed successfully after BUILD-101 batching fix; marked as completion note (no new system bugs encountered) | ✅ Complete (Autonomous: BUILD-102) |
+| 2025-12-20 | DBG-060 | HIGH | Diagnostics followups Phase 3 & 5 failed repeatedly due to docs-batch markdown truncation (ellipsis placeholders triggering validator rejections); batching mechanism with fallback enabled convergence | ✅ Resolved (System Fix: BUILD-101) |
+| 2025-12-20 | DBG-059 | HIGH | Executor failed to start (ImportError: cannot import DiagnosticsAgent from autopack.diagnostics); diagnostics parity runs could not execute any phases | ✅ Resolved (Manual Hotfix: BUILD-100) |
+| 2025-12-20 | DBG-058 | HIGH | Diagnostics followups (deep-retrieval + iteration-loop) repeatedly failed after 5 attempts due to multi-file Builder patch truncation/malformed diffs and deliverables manifest violations (extra/missing files), blocking autonomous convergence | ✅ Resolved (Manual Hotfix: BUILD-099) |
 | 2025-12-20 | DBG-057 | HIGH | Diagnostics-deep-retrieval phase failed with TypeError "unsupported operand type(s) for -: 'NoneType' and 'int'" at autonomous_executor.py:3617 during truncation recovery - SQLAlchemy model .get() method doesn't support default values like dict.get() | ✅ Resolved (Manual Hotfix: BUILD-098) |
 | 2025-12-20 | DBG-056 | HIGH | Research-api-router retry-v2/v3 failed due to merge conflict markers (`<<<<<<< ours`) left in src/autopack/main.py from previous failed patch attempts, causing context mismatch errors and preventing convergence despite BUILD-096 fix | ✅ Resolved (Manual Hotfix: BUILD-097) |
 | 2025-12-20 | DBG-055 | HIGH | Research-api-router phase blocked by protected-path isolation: patch attempts to modify `src/autopack/main.py` for FastAPI router registration, but main.py not in ALLOWED_PATHS (narrower than diagnostics subtrees in BUILD-090) | ✅ Resolved (Manual Hotfix: BUILD-096) |
@@ -70,6 +78,52 @@ Sources: CONSOLIDATED_DEBUG, archive/, fileorg-phase2-beta-release
 | 2025-12-11 | DBG-002 | CRITICAL | Workspace Organization Issues - Root Cause Analysis | ✅ Resolved |
 
 ## DEBUG ENTRIES (Reverse Chronological)
+
+### DBG-059 | 2025-12-20T20:26 | Executor startup ImportError: DiagnosticsAgent
+**Severity**: HIGH
+**Status**: ✅ Resolved (Manual Hotfix: BUILD-100)
+
+**Symptoms**:
+- Running `python -m autopack.autonomous_executor ...` crashed immediately with:
+  - `ImportError: cannot import name 'DiagnosticsAgent' from 'autopack.diagnostics' (unknown location)`
+- No runs could execute any phases (hard blocker).
+
+**Root Cause**:
+- `src/autopack/diagnostics/` is a namespace package (no `__init__.py`), so `autopack.diagnostics` does not re-export `DiagnosticsAgent` even though it exists in `diagnostics_agent.py`.
+
+**Fix**:
+- Update import to:
+  - `from autopack.diagnostics.diagnostics_agent import DiagnosticsAgent`
+
+**References**:
+- `docs/BUILD_HISTORY.md` (BUILD-100)
+
+---
+
+### DBG-058 | 2025-12-20T20:12 | Diagnostics followups blocked by truncation + manifest violations
+**Severity**: HIGH
+**Status**: ✅ Resolved (Manual Hotfix: BUILD-099)
+**Run**: `autopack-diagnostics-parity-v2`
+**Phase IDs**:
+- `diagnostics-deep-retrieval`
+- `diagnostics-iteration-loop`
+
+**Symptoms**:
+- Both phases repeatedly failed after 5 attempts.
+- Builder output commonly included:
+  - Truncated/malformed diffs (unclosed quotes, incomplete unified diff structure)
+  - Deliverables contract/manifest violations (extra files like `__init__.py`, missing docs)
+
+**Root Cause**:
+- Multi-file generation pressure (5 deliverables per phase) exceeded reliable patch emission size/format stability; retries did not converge.
+
+**Fix**:
+- Implement executor-side **in-phase batching** (code → tests → docs) with per-batch manifest gating and validation, using the same pattern as Chunk 0 + Chunk 2B batching.
+
+**References**:
+- `docs/BUILD_HISTORY.md` (BUILD-099)
+
+---
 
 ### DBG-049 | 2025-12-20T05:18 | Followups 1–3 (Diagnostics Parity) blocked by protected-path isolation because deliverables live under `src/autopack/diagnostics/` and `src/autopack/dashboard/` which were not allowlisted
 **Severity**: HIGH

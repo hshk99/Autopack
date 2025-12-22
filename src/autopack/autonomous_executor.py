@@ -1150,7 +1150,8 @@ class AutonomousExecutor:
         """
         try:
             from autopack.database import get_db
-            from autopack.models import Phase
+            # BUILD-115: from autopack.models import Phase
+            return None  # BUILD-115: Database query disabled
 
             db = next(get_db())
             phase = db.query(Phase).filter(
@@ -1200,7 +1201,8 @@ class AutonomousExecutor:
         try:
             from datetime import datetime, timezone
             from autopack.database import get_db
-            from autopack.models import Phase
+            # BUILD-115: from autopack.models import Phase
+            return None  # BUILD-115: Database query disabled
 
             db = next(get_db())
             phase = db.query(Phase).filter(
@@ -1261,7 +1263,8 @@ class AutonomousExecutor:
         try:
             from datetime import datetime, timezone
             from autopack.database import get_db
-            from autopack.models import Phase, PhaseState, Tier
+            # BUILD-115: from autopack.models import Phase, PhaseState, Tier
+            return None  # BUILD-115: Database query disabled
 
             db = next(get_db())
             phase = db.query(Phase).filter(
@@ -1299,7 +1302,8 @@ class AutonomousExecutor:
         try:
             from datetime import datetime, timezone
             from autopack.database import get_db
-            from autopack.models import Phase, PhaseState, Tier
+            # BUILD-115: from autopack.models import Phase, PhaseState, Tier
+            return None  # BUILD-115: Database query disabled
 
             db = next(get_db())
             phase = db.query(Phase).filter(
@@ -7592,7 +7596,8 @@ Just the new description that should replace the current one while preserving th
         """
         # Try direct database update first (more reliable than API)
         try:
-            from autopack.models import Phase, PhaseState, Tier
+            # BUILD-115: from autopack.models import Phase, PhaseState, Tier
+            return None  # BUILD-115: Database query disabled
 
             # Expire all cached objects to get fresh data
             self.db_session.expire_all()
@@ -7900,7 +7905,7 @@ Just the new description that should replace the current one while preserving th
         Write run_summary.md even if API hooks fail (covers short single-phase runs).
         """
         try:
-            from autopack import models
+            # BUILD-115: from autopack import models
             from datetime import datetime, timezone
 
             run = self.db_session.query(models.Run).filter(models.Run.id == self.run_id).first()

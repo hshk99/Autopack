@@ -7805,8 +7805,8 @@ Just the new description that should replace the current one while preserving th
                 logger.warning(f"Stale phase detection failed: {e}")
                 # Continue even if stale detection fails
 
-            # Get next executable phase (BUILD-041: database-backed state persistence)
-            next_phase = self.get_next_executable_phase()
+            # BUILD-115: Use API-based phase selection instead of obsolete database queries
+            next_phase = self._select_next_queued_phase_from_tiers()
 
             if not next_phase:
                 logger.info("No more executable phases, execution complete")

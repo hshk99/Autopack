@@ -1401,107 +1401,113 @@ class AutonomousExecutor:
             Phase dict if found, None otherwise
         """
         try:
-            from autopack.database import get_db
-            from autopack.models import Phase, PhaseState, Tier, Run
-            from datetime import datetime, timezone
+            # BUILD-115: models.py removed, database ORM queries replaced with API calls
+            # This method is obsolete - executor uses _select_next_queued_phase_from_tiers() instead
+            logger.debug("[BUILD-115] get_next_executable_phase() is obsolete - returning None")
+            return None
 
-            db = next(get_db())
-
-            # Tier gating: for multi-tier runs, only execute phases in the earliest tier
-            # that still has incomplete work. This prevents later chunks from running
-            # when an earlier chunk has FAILED and requires human review.
-            run = db.query(Run).filter(Run.id == self.run_id).first()
-            active_tier_index: Optional[int] = None
-            if run and getattr(run, "run_scope", None) == "multi_tier":
-                # Find the earliest tier index that contains any non-COMPLETE phase.
-                active_tier_index = db.query(Tier.tier_index).join(
-                    Phase, Phase.tier_id == Tier.id
-                ).filter(
-                    Phase.run_id == self.run_id,
-                    Phase.state != PhaseState.COMPLETE,
-                ).order_by(Tier.tier_index.asc()).limit(1).scalar()
-
-            # AUTO-RESET: Reset FAILED phases with retries remaining to QUEUED
-            # This allows BUILD-041 through BUILD-045 fixes to be applied on retry
-            failed_phases_with_retries = db.query(Phase).filter(
-                Phase.run_id == self.run_id,
-                Phase.state == PhaseState.FAILED,
-                # BUILD-041/050: retry budget is governed by retry_attempt (decoupled counters),
-                # not builder_attempts. Using builder_attempts here can cause an infinite
-                # FAILED↔QUEUED loop after retry_attempt is exhausted.
-                Phase.retry_attempt < MAX_RETRY_ATTEMPTS
-            ).all()
-
-            if failed_phases_with_retries:
-                logger.info(f"[AUTO-RESET] Found {len(failed_phases_with_retries)} FAILED phases with retries remaining")
-                for phase in failed_phases_with_retries:
-                    logger.info(
-                        f"[AUTO-RESET] Resetting {phase.phase_id} to QUEUED "
-                        f"(retry_attempt: {phase.retry_attempt}/{MAX_RETRY_ATTEMPTS})"
-                    )
-                    phase.state = PhaseState.QUEUED
-                    phase.started_at = None
-                    phase.completed_at = None
-                    phase.updated_at = datetime.now(timezone.utc)
-                db.commit()
-
-            # Query for executable phases:
-            # - QUEUED phases (not yet started OR just auto-reset from FAILED)
-            # - EXECUTING phases with retries available (retry_attempt < MAX_RETRY_ATTEMPTS)
-            executable_phases = db.query(Phase, Tier).join(
-                Tier, Phase.tier_id == Tier.id
-            ).filter(
-                Phase.run_id == self.run_id,
-                (
-                    (Phase.state == PhaseState.QUEUED) |
-                    (
-                        (Phase.state == PhaseState.EXECUTING) &
-                        (Phase.retry_attempt < MAX_RETRY_ATTEMPTS)
-                    )
-                ),
-                # If multi-tier gating is active, only execute phases from the active tier.
-                True if active_tier_index is None else (Tier.tier_index == active_tier_index),
-            ).order_by(
-                Tier.tier_index,
-                Phase.phase_index
-            ).all()
-
-            if not executable_phases:
-                logger.debug(f"[{self.run_id}] No executable phases found in database")
-                return None
-
-            # Unpack tuple from join (phase_db, tier_db)
-            phase_db, tier_db = executable_phases[0]
-            logger.info(
-                f"[{phase_db.phase_id}] Found executable phase: "
-                f"state={phase_db.state}, attempts={phase_db.builder_attempts}/{phase_db.max_builder_attempts}"
-            )
-
-            # Convert database model to dict for compatibility with existing code
-            phase_dict = {
-                "phase_id": phase_db.phase_id,
-                "run_id": phase_db.run_id,
-                # Prefer stable external tier identifier (string) for logs/issue tracking.
-                "tier_id": tier_db.tier_id,
-                # Keep DB PK available for internal/debug use.
-                "tier_db_id": phase_db.tier_id,
-                "tier_index": tier_db.tier_index,
-                "phase_index": phase_db.phase_index,
-                "name": phase_db.name,
-                "description": phase_db.description,
-                "state": phase_db.state.value if hasattr(phase_db.state, 'value') else str(phase_db.state),
-                "complexity": phase_db.complexity,
-                "task_category": phase_db.task_category,
-                "scope": getattr(phase_db, 'scope', None) or {},  # Read actual scope config from database
-                "dependencies": getattr(phase_db, 'dependencies', None) or [],
-                "acceptance_criteria": getattr(phase_db, 'acceptance_criteria', None) or [],
-                "builder_attempts": phase_db.builder_attempts,
-                "max_builder_attempts": phase_db.max_builder_attempts,
-                "auditor_attempts": phase_db.auditor_attempts,
-                "max_auditor_attempts": phase_db.max_auditor_attempts,
-            }
-
-            return phase_dict
+            # OBSOLETE CODE BELOW (kept for reference, never executes):
+            # from autopack.database import get_db
+            # from autopack.models import Phase, PhaseState, Tier, Run
+            # from datetime import datetime, timezone
+            #
+            # db = next(get_db())
+            #
+            # # Tier gating: for multi-tier runs, only execute phases in the earliest tier
+            # # that still has incomplete work. This prevents later chunks from running
+            # # when an earlier chunk has FAILED and requires human review.
+            # run = db.query(Run).filter(Run.id == self.run_id).first()
+            # active_tier_index: Optional[int] = None
+            # if run and getattr(run, "run_scope", None) == "multi_tier":
+            #     # Find the earliest tier index that contains any non-COMPLETE phase.
+            #     active_tier_index = db.query(Tier.tier_index).join(
+            #         Phase, Phase.tier_id == Tier.id
+            #     ).filter(
+            #         Phase.run_id == self.run_id,
+            #         Phase.state != PhaseState.COMPLETE,
+            #     ).order_by(Tier.tier_index.asc()).limit(1).scalar()
+            #
+            # # AUTO-RESET: Reset FAILED phases with retries remaining to QUEUED
+            # # This allows BUILD-041 through BUILD-045 fixes to be applied on retry
+            # failed_phases_with_retries = db.query(Phase).filter(
+            #     Phase.run_id == self.run_id,
+            #     Phase.state == PhaseState.FAILED,
+            #     # BUILD-041/050: retry budget is governed by retry_attempt (decoupled counters),
+            #     # not builder_attempts. Using builder_attempts here can cause an infinite
+            #     # FAILED↔QUEUED loop after retry_attempt is exhausted.
+            #     Phase.retry_attempt < MAX_RETRY_ATTEMPTS
+            # ).all()
+            #
+            # if failed_phases_with_retries:
+            #     logger.info(f"[AUTO-RESET] Found {len(failed_phases_with_retries)} FAILED phases with retries remaining")
+            #     for phase in failed_phases_with_retries:
+            #         logger.info(
+            #             f"[AUTO-RESET] Resetting {phase.phase_id} to QUEUED "
+            #             f"(retry_attempt: {phase.retry_attempt}/{MAX_RETRY_ATTEMPTS})"
+            #         )
+            #         phase.state = PhaseState.QUEUED
+            #         phase.started_at = None
+            #         phase.completed_at = None
+            #         phase.updated_at = datetime.now(timezone.utc)
+            #     db.commit()
+            #
+            # # Query for executable phases:
+            # # - QUEUED phases (not yet started OR just auto-reset from FAILED)
+            # # - EXECUTING phases with retries available (retry_attempt < MAX_RETRY_ATTEMPTS)
+            # executable_phases = db.query(Phase, Tier).join(
+            #     Tier, Phase.tier_id == Tier.id
+            # ).filter(
+            #     Phase.run_id == self.run_id,
+            #     (
+            #         (Phase.state == PhaseState.QUEUED) |
+            #         (
+            #             (Phase.state == PhaseState.EXECUTING) &
+            #             (Phase.retry_attempt < MAX_RETRY_ATTEMPTS)
+            #         )
+            #     ),
+            #     # If multi-tier gating is active, only execute phases from the active tier.
+            #     True if active_tier_index is None else (Tier.tier_index == active_tier_index),
+            # ).order_by(
+            #     Tier.tier_index,
+            #     Phase.phase_index
+            # ).all()
+            #
+            # if not executable_phases:
+            #     logger.debug(f"[{self.run_id}] No executable phases found in database")
+            #     return None
+            #
+            # # Unpack tuple from join (phase_db, tier_db)
+            # phase_db, tier_db = executable_phases[0]
+            # logger.info(
+            #     f"[{phase_db.phase_id}] Found executable phase: "
+            #     f"state={phase_db.state}, attempts={phase_db.builder_attempts}/{phase_db.max_builder_attempts}"
+            # )
+            #
+            # # Convert database model to dict for compatibility with existing code
+            # phase_dict = {
+            #     "phase_id": phase_db.phase_id,
+            #     "run_id": phase_db.run_id,
+            #     # Prefer stable external tier identifier (string) for logs/issue tracking.
+            #     "tier_id": tier_db.tier_id,
+            #     # Keep DB PK available for internal/debug use.
+            #     "tier_db_id": phase_db.tier_id,
+            #     "tier_index": tier_db.tier_index,
+            #     "phase_index": phase_db.phase_index,
+            #     "name": phase_db.name,
+            #     "description": phase_db.description,
+            #     "state": phase_db.state.value if hasattr(phase_db.state, 'value') else str(phase_db.state),
+            #     "complexity": phase_db.complexity,
+            #     "task_category": phase_db.task_category,
+            #     "scope": getattr(phase_db, 'scope', None) or {},  # Read actual scope config from database
+            #     "dependencies": getattr(phase_db, 'dependencies', None) or [],
+            #     "acceptance_criteria": getattr(phase_db, 'acceptance_criteria', None) or [],
+            #     "builder_attempts": phase_db.builder_attempts,
+            #     "max_builder_attempts": phase_db.max_builder_attempts,
+            #     "auditor_attempts": phase_db.auditor_attempts,
+            #     "max_auditor_attempts": phase_db.max_auditor_attempts,
+            # }
+            #
+            # return phase_dict
 
         except Exception as e:
             logger.error(f"[{self.run_id}] Failed to query executable phases from database: {e}")

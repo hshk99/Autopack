@@ -7806,7 +7806,7 @@ Just the new description that should replace the current one while preserving th
                 # Continue even if stale detection fails
 
             # BUILD-115: Use API-based phase selection instead of obsolete database queries
-            next_phase = self._select_next_queued_phase_from_tiers()
+            next_phase = self.get_next_queued_phase(run_data)
 
             if not next_phase:
                 logger.info("No more executable phases, execution complete")

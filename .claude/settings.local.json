@@ -68,7 +68,10 @@
       "Bash(if [ -n \"$TELEGRAM_CHAT_ID\" ])",
       "Bash(findstr:*)",
       "Bash(\"C:/dev/chatbot_project/ngrok.exe\" version)",
-      "Bash(./ngrok.exe version:*)"
+      "Bash(./ngrok.exe version:*)",
+      "Bash(./ngrok.exe http:*)",
+      "Bash(PYTHONUTF8=1 PYTHONPATH=src DATABASE_URL=\"sqlite:///autopack.db\" python scripts/create_research_build113_run.py:*)",
+      "Bash(PYTHONUTF8=1 sqlite3:*)"
     ],
     "deny": [],
     "ask": []

@@ -1,1 +1,60 @@
-[]
+{
+  "test_cases": [
+    {
+      "id": "tc001",
+      "query": "What are the best practices for implementing vector search in Python?",
+      "expected_sources": [
+        "github.com/qdrant/qdrant-client",
+        "python.langchain.com/docs/modules/data_connection/vectorstores"
+      ],
+      "expected_quality_score": 0.85,
+      "category": "technical_implementation"
+    },
+    {
+      "id": "tc002",
+      "query": "How to design a research system with multiple evidence gatherers?",
+      "expected_sources": [
+        "github.com/langchain-ai/langchain",
+        "docs.anthropic.com/claude/docs/research-patterns"
+      ],
+      "expected_quality_score": 0.80,
+      "category": "system_architecture"
+    },
+    {
+      "id": "tc003",
+      "query": "What are common pitfalls in autonomous AI systems?",
+      "expected_sources": [
+        "arxiv.org/abs/2304.xxxxx",
+        "openai.com/research/safety"
+      ],
+      "expected_quality_score": 0.75,
+      "category": "safety_research"
+    },
+    {
+      "id": "tc004",
+      "query": "How to implement rate limiting for API calls in Python?",
+      "expected_sources": [
+        "github.com/tomasbasham/ratelimit",
+        "docs.python-requests.org/en/latest/user/advanced/#rate-limiting"
+      ],
+      "expected_quality_score": 0.90,
+      "category": "technical_implementation"
+    },
+    {
+      "id": "tc005",
+      "query": "What frameworks exist for decision-making in AI agents?",
+      "expected_sources": [
+        "github.com/microsoft/autogen",
+        "github.com/langchain-ai/langgraph"
+      ],
+      "expected_quality_score": 0.82,
+      "category": "system_architecture"
+    }
+  ],
+  "metadata": {
+    "version": "1.0.0",
+    "created": "2025-12-21",
+    "purpose": "Research system evaluation test data for BUILD-113 validation",
+    "total_cases": 5
+  }
+}

@@ -80,9 +80,26 @@ Purpose: Daily chronological log of build activities and execution runs
 
 ---
 
+### BUILD-118 BUILD-115 Partial Rollback
+
+**Status**: Complete
+**Goal**: Restore models.py to fix backend server ImportError
+**Change**: Restored src/autopack/models.py from commit f730d863
+
+**Context**: BUILD-115 removed models.py to make executor API-only, but main.py (backend server) and database.py still depend on it. The backend server failed to start with:
+```
+ImportError: cannot import name 'models' from 'autopack'
+```
+
+**Resolution**: Restored models.py from git history. BUILD-115's executor changes remain intact (executor is still fully API-based with no direct database queries). Only the backend API server continues to use ORM models, which is the intended architecture.
+
+**Impact**: Backend server now starts successfully with approval endpoint enabled
+
+---
+
 ### BUILD-115 Multi-Part Hotfix
 
-**Status**: Complete (7 parts)
+**Status**: Partial (rolled back models.py removal - see BUILD-118)
 **Goal**: Remove obsolete models.py dependencies - make executor fully API-based
 
 **Parts Completed**:
@@ -91,7 +108,10 @@ Purpose: Daily chronological log of build activities and execution runs
 3. Replace with API-based phase selection ✅
 4. Additional database query removals (Parts 4-7) ✅
 
-**Impact**: Executor now runs fully on API layer with no direct database ORM queries
+**Parts Rolled Back**:
+1. models.py deletion ❌ (restored in BUILD-118 - backend API server still needs it)
+
+**Impact**: Executor now runs fully on API layer with no direct database ORM queries. Backend API server continues to use models.py for database operations.
 
 ---
 

@@ -6,7 +6,28 @@ Autopack is a framework for orchestrating autonomous AI agents (Builder and Audi
 
 ---
 
-## Recent Updates (v0.4.1 - Patch Apply Hardening)
+## Recent Updates (v0.4.2 - BUILD-113/114/115 Complete)
+
+### BUILD-113 Autonomous Investigation + BUILD-114/115 Hotfixes (2025-12-22)
+**BUILD-113**: Iterative Autonomous Investigation with Goal-Aware Judgment - COMPLETE ✅
+- Proactive decision analysis: Analyzes patches before applying (risk assessment, confidence scoring)
+- Auto-apply CLEAR_FIX decisions, request approval for RISKY changes
+- Integrated into executor with `--enable-autonomous-fixes` CLI flag
+- Validation: Successfully triggered for research-build113-test (decision: risky, HIGH risk, +472 lines)
+
+**BUILD-114**: Structured Edit Support for BUILD-113 Proactive Mode - COMPLETE ✅
+- Fixed: BUILD-113 integration now checks BOTH `patch_content` AND `edit_plan` (not just patch_content)
+- Builder uses `edit_plan` (structured edits) when context ≥30 files
+- Modified: [`src/autopack/integrations/build_history_integrator.py:66-67`](src/autopack/integrations/build_history_integrator.py#L66-L67)
+
+**BUILD-115**: Remove Obsolete models.py Dependencies (7 parts) - COMPLETE ✅
+- **Architecture Change**: Executor now fully API-based (no direct database ORM queries)
+- Phase selection: Uses `get_next_queued_phase(run_data)` from API instead of DB queries
+- Phase execution: Uses `PhaseDefaults` class when database state unavailable
+- Database methods: All `_mark_phase_*_in_db()` methods return None (no-ops)
+- Result: No more ImportError crashes, executor fully functional with API-only mode
+
+See [`docs/BUILD-114-115-COMPLETION-SUMMARY.md`](docs/BUILD-114-115-COMPLETION-SUMMARY.md) for full details.
 
 ### Adaptive structured edits for large scopes (2025-12-09)
 - Builder now auto-falls back to structured_edit when full-file outputs truncate or fail JSON parsing on large, multi-path phases (e.g., search, batch-upload).

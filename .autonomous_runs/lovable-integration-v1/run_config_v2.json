@@ -1,0 +1,426 @@
+{
+  "run_id": "lovable-integration-v1",
+  "version": "2.0",
+  "description": "Lovable Patterns Integration - Revised Post-GPT-5.2 Validation",
+  "created_at": "2025-12-22T17:45:00Z",
+  "revised_at": "2025-12-22T20:30:00Z",
+  "priority": "high",
+  "estimated_duration": "9 weeks (realistic), 11 weeks (conservative), 7 weeks (aggressive)",
+  "team_size": 2,
+  "validation_status": "GO WITH REVISIONS (GPT-5.2: 80% confidence)",
+
+  "phases": [
+    {
+      "phase_id": "lovable-p0-foundation",
+      "name": "Phase 0: Foundation & Governance",
+      "priority": 0,
+      "tier": "phase0-foundation",
+      "estimated_effort": "1 week",
+      "roi_rating": 5,
+      "dependencies": [],
+      "sub_phases": [
+        {
+          "phase_id": "lovable-p0.1-protected-path",
+          "name": "Protected-Path Strategy",
+          "estimated_effort": "2 days",
+          "deliverables": [
+            "Create src/autopack/lovable/ subtree",
+            "Update ALLOWED_PATHS configuration",
+            "Document scope_paths enforcement",
+            "Governance model documentation"
+          ]
+        },
+        {
+          "phase_id": "lovable-p0.2-semantic-embeddings",
+          "name": "Semantic Embedding Backend",
+          "estimated_effort": "2 days",
+          "deliverables": [
+            "sentence-transformers integration",
+            "validate_semantic_embeddings() function",
+            "Fail-closed enforcement for Lovable features",
+            "Documentation with embedding requirements"
+          ]
+        },
+        {
+          "phase_id": "lovable-p0.3-browser-telemetry",
+          "name": "Browser Telemetry Ingestion",
+          "estimated_effort": "3 days",
+          "deliverables": [
+            "Telemetry schema definition",
+            "Manual artifact ingestion (JSON)",
+            "API endpoint: POST /api/browser/telemetry",
+            "Storage pipeline under .autonomous_runs/<run_id>/browser/"
+          ]
+        }
+      ]
+    },
+    {
+      "phase_id": "lovable-p1-agentic-file-search",
+      "name": "Agentic File Search Implementation",
+      "priority": 1,
+      "tier": "phase1-core-precision",
+      "estimated_effort": "4 days",
+      "roi_rating": 5,
+      "dependencies": ["lovable-p0.2-semantic-embeddings"],
+      "implementation_module": "src/autopack/lovable/agentic_search.py",
+      "integration_points": [
+        "src/autopack/memory/memory_service.py",
+        "src/autopack/memory/embeddings.py",
+        "src/autopack/context_selector.py"
+      ],
+      "validation_criteria": {
+        "token_reduction": ">=40% (50k → 30k)",
+        "hallucination_reduction": ">=50% (20% → 10%)",
+        "semantic_embeddings": "confirmed working"
+      }
+    },
+    {
+      "phase_id": "lovable-p1-intelligent-file-selection",
+      "name": "Intelligent File Selection Implementation",
+      "priority": 2,
+      "tier": "phase1-core-precision",
+      "estimated_effort": "4 days",
+      "roi_rating": 5,
+      "dependencies": ["lovable-p1-agentic-file-search"],
+      "implementation_module": "src/autopack/lovable/intelligent_file_selection.py",
+      "integration_points": [
+        "src/autopack/context_selector.py._rank_and_limit_context()"
+      ],
+      "validation_criteria": {
+        "token_reduction": "cumulative >=60% (50k → 20k)",
+        "patch_success": ">=80% (from 75%)"
+      }
+    },
+    {
+      "phase_id": "lovable-p1-build-validation",
+      "name": "Build Validation Pipeline Implementation",
+      "priority": 3,
+      "tier": "phase1-core-precision",
+      "estimated_effort": "3 days",
+      "roi_rating": 4,
+      "dependencies": [],
+      "implementation_module": "src/autopack/lovable/build_validation.py",
+      "integration_points": [
+        "src/autopack/governed_apply.py (post-apply hook)"
+      ],
+      "validation_criteria": {
+        "patch_success": ">=90% (syntax errors caught pre-commit)"
+      }
+    },
+    {
+      "phase_id": "lovable-p1-dynamic-retry-delays",
+      "name": "Dynamic Retry Delays Implementation",
+      "priority": 4,
+      "tier": "phase1-core-precision",
+      "estimated_effort": "3 days",
+      "roi_rating": 4,
+      "dependencies": [],
+      "implementation_module": "src/autopack/lovable/retry_policy.py",
+      "integration_points": [
+        "src/autopack/llm_service.py (retry layer)"
+      ],
+      "validation_criteria": {
+        "api_errors_reduced": ">=30%"
+      }
+    },
+    {
+      "phase_id": "lovable-p1-evaluation",
+      "name": "Phase 1 Go/No-Go Evaluation",
+      "priority": 4.5,
+      "tier": "phase1-core-precision",
+      "estimated_effort": "1 week",
+      "roi_rating": 5,
+      "dependencies": [
+        "lovable-p1-agentic-file-search",
+        "lovable-p1-intelligent-file-selection",
+        "lovable-p1-build-validation",
+        "lovable-p1-dynamic-retry-delays"
+      ],
+      "go_no_go_criteria": {
+        "token_reduction": ">=40%",
+        "patch_success": ">=85%",
+        "no_critical_bugs": true,
+        "user_feedback": ">=4.0/5.0",
+        "semantic_embeddings": "confirmed working"
+      },
+      "notes": "HARD GATE - Must pass before Phase 2"
+    },
+    {
+      "phase_id": "lovable-p1.5-sse-streaming",
+      "name": "SSE Streaming Implementation",
+      "priority": 4.75,
+      "tier": "phase1.5-sse",
+      "estimated_effort": "2-3 days",
+      "roi_rating": 4,
+      "dependencies": ["lovable-p1-evaluation"],
+      "implementation_module": "src/autopack/lovable/sse_streaming.py",
+      "integration_points": [
+        "src/autopack/main.py (SSE endpoint)",
+        "src/autopack/dashboard/components/DiagnosticsSummary.tsx"
+      ],
+      "scope": "Run/phase state + progress + approval status changes",
+      "deferred": "Full logs, diagnostics payloads (security concerns)",
+      "validation_criteria": {
+        "dashboard_polling_eliminated": true,
+        "ux_responsiveness_improved": true
+      },
+      "notes": "RESTORED - Was incorrectly removed in v1.0. SSE serves different consumers than Claude Chrome."
+    },
+    {
+      "phase_id": "lovable-p2-package-detection",
+      "name": "Automatic Package Detection Implementation",
+      "priority": 5,
+      "tier": "phase2-quality-ux",
+      "estimated_effort": "3 days",
+      "roi_rating": 5,
+      "dependencies": ["lovable-p1.5-sse-streaming"],
+      "implementation_module": "src/autopack/lovable/package_detection.py",
+      "integration_points": [
+        "Diagnostics pipeline"
+      ],
+      "validation_criteria": {
+        "import_error_reduction": ">=70% (15% → 5%)"
+      }
+    },
+    {
+      "phase_id": "lovable-p2-hmr-error-detection",
+      "name": "HMR Error Detection Implementation (Browser Synergy)",
+      "priority": 6,
+      "tier": "phase2-quality-ux",
+      "estimated_effort": "3 days",
+      "roi_rating": 4,
+      "dependencies": ["lovable-p0.3-browser-telemetry"],
+      "implementation_module": "src/autopack/lovable/hmr_detector.py",
+      "integration_points": [
+        "Browser telemetry consumer",
+        "DiagnosticsAgent"
+      ],
+      "validation_criteria": {
+        "hmr_errors_detected": ">90% of console errors"
+      },
+      "notes": "Upgraded priority due to Claude Code in Chrome synergy"
+    },
+    {
+      "phase_id": "lovable-p2-missing-import-autofix",
+      "name": "Missing Import Auto-Completion Implementation (Browser Synergy)",
+      "priority": 7,
+      "tier": "phase2-quality-ux",
+      "estimated_effort": "3 days",
+      "roi_rating": 4,
+      "dependencies": ["lovable-p0.3-browser-telemetry", "lovable-p2-package-detection"],
+      "implementation_module": "src/autopack/lovable/import_autofix.py",
+      "integration_points": [
+        "Browser telemetry consumer",
+        "src/autopack/governed_apply.py (scoped patches)"
+      ],
+      "validation_criteria": {
+        "import_fixes_validated": ">80% success rate in browser"
+      },
+      "notes": "Upgraded priority due to Claude Code in Chrome synergy"
+    },
+    {
+      "phase_id": "lovable-p2-conversation-state",
+      "name": "Conversation State Management Implementation",
+      "priority": 8,
+      "tier": "phase2-quality-ux",
+      "estimated_effort": "4 days",
+      "roi_rating": 4,
+      "dependencies": [],
+      "implementation_module": "src/autopack/lovable/conversation_state.py",
+      "integration_points": [
+        "DB (new table) or .autonomous_runs/<run>/conversation_state.json",
+        "Prompt injection points"
+      ],
+      "validation_criteria": {
+        "multi_turn_intelligence": "improved",
+        "context_retention": "across phases"
+      }
+    },
+    {
+      "phase_id": "lovable-p2-fallback-chain",
+      "name": "Fallback Chain Architecture Implementation",
+      "priority": 9,
+      "tier": "phase2-quality-ux",
+      "estimated_effort": "3 days",
+      "roi_rating": 4,
+      "dependencies": ["lovable-p1-dynamic-retry-delays"],
+      "implementation_module": "src/autopack/lovable/fallback_chain.py",
+      "integration_points": [
+        "model_router.py",
+        "File read/write operations",
+        "Diagnostics probes"
+      ],
+      "validation_criteria": {
+        "resilience_improved": true,
+        "graceful_degradation": "working"
+      }
+    },
+    {
+      "phase_id": "lovable-p3-morph-fast-apply",
+      "name": "Morph Fast Apply Integration",
+      "priority": 10,
+      "tier": "phase3-advanced",
+      "estimated_effort": "7 days",
+      "roi_rating": 5,
+      "dependencies": ["lovable-p1-build-validation"],
+      "implementation_module": "src/autopack/lovable/morph_fast_apply.py",
+      "integration_points": [
+        "src/autopack/governed_apply.py (optional transformation)"
+      ],
+      "validation_criteria": {
+        "code_preservation": "99% (surgical edits)",
+        "easier_review": "smaller diffs"
+      },
+      "notes": "Requires Morph API subscription (~$100/month). Privacy policy required."
+    },
+    {
+      "phase_id": "lovable-p3-system-prompts",
+      "name": "Comprehensive System Prompts Implementation",
+      "priority": 11,
+      "tier": "phase3-advanced",
+      "estimated_effort": "4 days",
+      "roi_rating": 5,
+      "dependencies": [],
+      "implementation_module": "src/autopack/lovable/system_prompts.py",
+      "integration_points": [
+        "src/autopack/llm_service.py (prompt injection)"
+      ],
+      "validation_criteria": {
+        "instruction_following": "improved",
+        "quality_consistency": "improved",
+        "hallucinations_reduced": true
+      }
+    },
+    {
+      "phase_id": "lovable-p3-context-truncation",
+      "name": "Context Truncation Implementation",
+      "priority": 12,
+      "tier": "phase3-advanced",
+      "estimated_effort": "3 days",
+      "roi_rating": 3,
+      "dependencies": ["lovable-p1-intelligent-file-selection"],
+      "implementation_module": "src/autopack/lovable/context_truncation.py",
+      "integration_points": [
+        "src/autopack/context_selector.py (aggressive truncation)"
+      ],
+      "validation_criteria": {
+        "additional_token_savings": "30% on top of P1/P2",
+        "total_reduction": "60% (50k → 20k)"
+      }
+    }
+  ],
+
+  "success_metrics": {
+    "phase1": {
+      "token_reduction": ">=40% (50k → 30k)",
+      "patch_success": ">=85% (from 75%)",
+      "hallucination_reduction": ">=50% (20% → 10%)",
+      "semantic_embeddings": "confirmed working"
+    },
+    "phase2": {
+      "import_error_reduction": ">=70% (15% → 5%)",
+      "hmr_errors_detected": ">90%",
+      "import_fixes_validated": ">80%",
+      "sse_eliminates_polling": true
+    },
+    "phase3": {
+      "code_preservation": "99% (Morph)",
+      "total_token_reduction": "60% (50k → 20k)",
+      "patch_success": "95%",
+      "execution_time": "50% faster (3min → 1.5min)"
+    }
+  },
+
+  "timeline": {
+    "conservative_80pct_confidence": "11 weeks",
+    "realistic_50pct_confidence": "9 weeks",
+    "aggressive_20pct_confidence": "7 weeks",
+    "recommended": "9 weeks (communicate 11 weeks to stakeholders)",
+    "breakdown": {
+      "phase0": "1 week",
+      "phase1": "3.5 weeks (3 weeks impl + 0.5 week eval)",
+      "phase1.5": "0.5 weeks",
+      "phase2": "2.5 weeks",
+      "phase3": "1.5 weeks"
+    }
+  },
+
+  "infrastructure_requirements": {
+    "sentence_transformers": {
+      "required_for": ["lovable-p1-agentic-file-search"],
+      "cost": "free (local)",
+      "optional": false,
+      "install": "pip install sentence-transformers torch"
+    },
+    "morph_api": {
+      "required_for": ["lovable-p3-morph-fast-apply"],
+      "cost": "~$100/month",
+      "optional": false,
+      "privacy_policy_required": true
+    }
+  },
+
+  "feature_flags": [
+    "lovable_enabled (KILL SWITCH)",
+    "lovable_agentic_search",
+    "lovable_intelligent_file_selection",
+    "lovable_build_validation",
+    "lovable_dynamic_retry_delays",
+    "lovable_sse_streaming",
+    "lovable_package_detection",
+    "lovable_hmr_error_detection",
+    "lovable_missing_import_autofix",
+    "lovable_conversation_state",
+    "lovable_fallback_chain",
+    "lovable_morph_fast_apply",
+    "lovable_system_prompts",
+    "lovable_context_truncation"
+  ],
+
+  "rollout_strategy": {
+    "gradual_deployment": true,
+    "stages": ["10%", "50%", "100%"],
+    "monitoring_period_days": 7
+  },
+
+  "deferred_patterns": {
+    "phase4_optimization": [
+      "Lazy Manifest Loading",
+      "AI Gateway with Fallback",
+      "Comprehensive Logging Enhancements"
+    ],
+    "phase5_evidence_request": {
+      "status": "DOWNGRADED (was CANCELLED)",
+      "rationale": "Serves headless/asynchronous workflows, not just Claude Chrome",
+      "revised_scope": "Minimal headless capability + Telegram integration",
+      "effort": "2-3 days",
+      "priority": "Phase 2 or deferred to Phase 4"
+    }
+  },
+
+  "gpt52_validation": {
+    "verdict": "GO WITH REVISIONS",
+    "confidence": "80%",
+    "critical_corrections": [
+      "SSE removal was flawed - RESTORED",
+      "file_manifest/ doesn't exist - architecture rebased",
+      "Hash embeddings not semantic - fail-closed enforcement added",
+      "Protected-path isolation - narrow allowlist strategy defined",
+      "Timeline aggressive - adjusted to 9 weeks realistic"
+    ],
+    "blockers_resolved": [
+      "Phase 0 added (foundation & governance)",
+      "Semantic embedding validation required",
+      "Browser telemetry ingestion mini-phase added",
+      "Protected-path strategy: src/autopack/lovable/ + scope_paths",
+      "SSE restored as Phase 1.5"
+    ]
+  },
+
+  "documentation_updates_required": [
+    "README.md - Update with revised timeline and Phase 0",
+    "FUTURE_PLAN.md - Mark phases as in-progress/complete",
+    "BUILD_HISTORY.md - Add BUILD-122 (Lovable Integration v2.0)",
+    "docs/LOVABLE_INTEGRATION_GUIDE.md - New guide with actual Autopack modules"
+  ]
+}

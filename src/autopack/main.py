@@ -765,6 +765,72 @@ def submit_auditor_result(
     return {"message": "Auditor result submitted"}
 
 
+@app.post("/approval/request")
+async def request_approval(request: Request):
+    """Handle approval requests from BUILD-113 autonomous executor.
+
+    This endpoint receives approval requests for risky or ambiguous decisions.
+    Current implementation: auto-approve (TODO: integrate with Telegram/Dashboard).
+
+    Expected payload:
+    {
+        "phase_id": str,
+        "run_id": str,
+        "context": str,  # "build113_risky_decision", "build113_ambiguous_decision", or "troubleshoot"
+        "decision_info": dict  # Decision metadata
+        "deletion_info": dict  # (optional) For deletion approvals
+    }
+
+    Returns:
+    {
+        "status": "approved" | "rejected" | "pending",
+        "reason": str (optional)
+    }
+    """
+    try:
+        data = await request.json()
+        phase_id = data.get("phase_id")
+        run_id = data.get("run_id")
+        context = data.get("context", "unknown")
+        decision_info = data.get("decision_info", {})
+
+        logger.info(
+            f"[APPROVAL] Request received: run={run_id}, phase={phase_id}, "
+            f"context={context}, decision_type={decision_info.get('type', 'N/A')}"
+        )
+
+        # TODO: Integrate with Telegram notifier or dashboard for human approval
+        # For now, auto-approve all requests (temporary implementation for BUILD-117)
+        #
+        # Future implementations:
+        # 1. Send Telegram notification with approve/reject buttons
+        # 2. Add dashboard UI panel for approval requests
+        # 3. Implement approval timeout and default behavior
+        # 4. Store approval requests in database for audit trail
+
+        auto_approve = os.getenv("AUTO_APPROVE_BUILD113", "true").lower() == "true"
+
+        if auto_approve:
+            logger.warning(
+                f"[APPROVAL] AUTO-APPROVING request for {phase_id} "
+                f"(AUTO_APPROVE_BUILD113={auto_approve})"
+            )
+            return {
+                "status": "approved",
+                "reason": "Auto-approved (approval system integration pending - BUILD-117)"
+            }
+        else:
+            logger.info(f"[APPROVAL] Rejecting request for {phase_id} (auto-approve disabled)")
+            return {
+                "status": "rejected",
+                "reason": "Auto-approve disabled, manual approval not yet implemented"
+            }
+
+    except Exception as e:
+        logger.error(f"[APPROVAL] Error processing approval request: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Approval request processing failed: {str(e)}")
+
+
 @app.get("/health")
 def health_check():
     """Health check endpoint"""

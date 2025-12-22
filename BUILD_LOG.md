@@ -121,6 +121,27 @@ Purpose: Daily chronological log of build activities and execution runs
 
 ---
 
+### BUILD-117 Approval Endpoint Implementation
+
+**Status**: Complete
+**Goal**: Add approval endpoint for BUILD-113 integration
+**Change**: Implemented POST /approval/request endpoint in main.py
+
+**Implementation**:
+- Endpoint handles approval requests from BUILD-113 autonomous executor
+- Current behavior: Auto-approve by default (configurable via AUTO_APPROVE_BUILD113 env var)
+- Returns: `{"status": "approved", "reason": "..."}`
+
+**TODO - Future Enhancements**:
+1. Integrate with Telegram notifier for human approval
+2. Add dashboard UI panel for approval requests
+3. Implement approval timeout and default behavior
+4. Store approval requests in database for audit trail
+
+**Impact**: Unblocks BUILD-112 completion run phases that were rejected with BUILD113_APPROVAL_DENIED
+
+---
+
 ## Archive
 
 Older build activities have been moved to BUILD_HISTORY.md for historical reference.

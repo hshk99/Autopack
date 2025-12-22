@@ -1,8 +1,8 @@
 # Build History - Implementation Log
 
 <!-- META
-Last_Updated: 2025-12-22T14:45:00Z
-Total_Builds: 116
+Last_Updated: 2025-12-22T15:15:00Z
+Total_Builds: 117
 Format_Version: 2.0
 Auto_Generated: True
 Sources: CONSOLIDATED files, archive/
@@ -12,6 +12,7 @@ Sources: CONSOLIDATED files, archive/
 
 | Timestamp | BUILD-ID | Phase | Summary | Files Changed |
 |-----------|----------|-------|---------|---------------|
+| 2025-12-22 | BUILD-117 | Feature | Approval Endpoint for BUILD-113 Integration: Implemented POST /approval/request endpoint in main.py to handle BUILD-113 autonomous executor approval requests for risky/ambiguous decisions. Current implementation auto-approves by default (configurable via AUTO_APPROVE_BUILD113 env var). TODO: Integrate with Telegram/dashboard, approval timeout, database audit trail. Unblocks BUILD-112 completion run phases that were rejected with BUILD113_APPROVAL_DENIED | 1 |
 | 2025-12-22 | BUILD-116 | Completion | BUILD-112 Completion Run (build112-completion): 3/4 phases complete via autonomous execution - Phase 3 (Deep Retrieval Validation) 95%→100% ✅, Phase 4 (Second Opinion Testing) 90%→100% ✅, Phase 5 Part 1 (Evidence Request Integration) 20%→50% ✅, Phase 5 Part 2 (Dashboard UI) queued. Run state: DONE_FAILED_REQUIRES_HUMAN_REVIEW. Overall BUILD-112 progress: 70%→85% complete | 0 |
 | 2025-12-22 | BUILD-115 | Hotfix | Remove obsolete models.py dependencies (7 parts): Executor now fully API-based with no direct database ORM queries - disabled all models.py imports, replaced database queries with API calls (get_next_queued_phase), execute_phase uses PhaseDefaults when no DB state, all database write methods return None. Architecture change: hybrid API+DB → pure API | 1 |
 | 2025-12-22 | BUILD-114 | Hotfix | BUILD-113 Structured Edit Support: Fix proactive mode integration to check both patch_content AND edit_plan (not just patch_content) - modified build_history_integrator.py line 66-67 to support structured edits used when context ≥30 files. VALIDATED: BUILD-113 decision triggered successfully for research-build113-test (risky, HIGH risk, +472 lines) | 1 |

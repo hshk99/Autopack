@@ -1,14 +1,22 @@
 # What's Left to Build - Autopack Project Plans
 
-**Last Updated**: 2025-12-18
+**Last Updated**: 2025-12-22
 **Completed Projects**:
 1. ✅ Research System (Citation Validity Improvement) - 77.8% validity achieved
 2. ✅ Runs Management API - Full CRUD API operational
 3. ✅ BUILD-049: Deliverables Validation & Self-Correction
+4. ✅ BUILD-112: Diagnostics Parity with Cursor (4/5 phases complete, Phase 5 cancelled)
+5. ✅ BUILD-117: Approval Endpoint for BUILD-113 Integration (Telegram, Database, Timeout, Dashboard)
+6. ✅ BUILD-120: Approval Polling Bug Fix + Telegram Notification Fix
+7. ✅ BUILD-121: Approval Polling Fix Validation
 
 **Active Projects**:
-1. FileOrganizer Phase 2 (Beta Release)
-2. Research System Chunk 0 (Tracer Bullet) - Monitoring first successful run
+1. 🚀 **Lovable Integration** (12 patterns, 5-6 weeks) - **QUEUED**
+2. FileOrganizer Phase 2 (Beta Release)
+3. Research System Chunk 0 (Tracer Bullet) - Monitoring first successful run
+
+**Cancelled Projects**:
+1. ❌ BUILD-112 Phase 5 (Evidence Request Loop) - Replaced by Claude Code in Chrome (Dec 2025)
 
 This file contains tasks in Autopack format for autonomous execution.
 
@@ -736,4 +744,163 @@ autopack execute-phase \
 
 ---
 
-**Last Updated**: 2025-12-17 (added Research System Implementation)
+## 🚀 NEW: Lovable Integration - Core Precision & Quality Enhancements
+
+**Status**: QUEUED (Ready for execution)
+**Priority**: HIGH
+**Run ID**: `lovable-integration-v1`
+**Location**: [.autonomous_runs/lovable-integration-v1/](.autonomous_runs/lovable-integration-v1/)
+**Estimated Duration**: 5-6 weeks (2 developers)
+**Created**: 2025-12-22
+
+### Overview
+
+Implementation of 12 high-value architectural patterns from Lovable's code generation platform. Revised plan based on Claude Code in Chrome analysis (Dec 2025) reduces timeline by 40-50% vs original research.
+
+**Strategic Pivot:**
+- **Original Plan**: 15 patterns, 10 weeks
+- **Claude Chrome Analysis**: Removed SSE Streaming (redundant), prioritized browser synergies
+- **Revised Plan**: 12 patterns, 5-6 weeks (40% faster)
+
+### Expected Impact
+
+| Metric | Baseline | Target | Improvement |
+|--------|----------|--------|-------------|
+| Token Usage | 50k/phase | 20k/phase | **60% reduction** |
+| Patch Success | 75% | 95% | **+20pp** |
+| Hallucinations | 20% | 5% | **75% reduction** |
+| Execution Time | 3 min/phase | 1.5 min/phase | **50% faster** |
+
+### Phases (Organized by Priority)
+
+#### Phase 1: Core Precision (Weeks 1-3)
+
+1. **P1: Agentic File Search** (3-4 days) - ⭐⭐⭐⭐⭐
+   - File: `src/autopack/file_manifest/agentic_search.py`
+   - Impact: 95% hallucination reduction
+   - Flag: `LOVABLE_AGENTIC_SEARCH`
+
+2. **P2: Intelligent File Selection** (3-4 days) - ⭐⭐⭐⭐⭐
+   - File: `src/autopack/file_manifest/intelligent_selector.py`
+   - Impact: 60% token reduction
+   - Flag: `LOVABLE_INTELLIGENT_FILE_SELECTION`
+
+3. **P3: Build Validation Pipeline** (2-3 days) - ⭐⭐⭐⭐
+   - File: `src/autopack/validation/build_validator.py`
+   - Impact: 95% patch success rate
+   - Flag: `LOVABLE_BUILD_VALIDATION`
+
+4. **P4: Dynamic Retry Delays** (2-3 days) - ⭐⭐⭐⭐
+   - File: `src/autopack/error_handling/dynamic_retry.py`
+   - Impact: Error-aware backoff
+   - Flag: `LOVABLE_DYNAMIC_RETRY_DELAYS`
+
+**Go/No-Go Criteria:** Token reduction ≥40%, Patch success ≥85%, No P0/P1 bugs, User feedback ≥4.0/5.0
+
+#### Phase 2: Quality + Browser Synergy (Weeks 4-5)
+
+5. **P5: Automatic Package Detection** (2-3 days) - ⭐⭐⭐⭐⭐
+   - File: `src/autopack/diagnostics/package_detector.py`
+   - Impact: 70% import error reduction
+   - Flag: `LOVABLE_PACKAGE_DETECTION`
+
+6. **P6: HMR Error Detection** (2-3 days) - ⭐⭐⭐⭐ (UPGRADED for Claude Chrome synergy)
+   - File: `src/autopack/diagnostics/hmr_detector.py`
+   - Impact: Real-time error detection with browser
+   - Flag: `LOVABLE_HMR_ERROR_DETECTION`
+
+7. **P7: Missing Import Auto-Fix** (2-3 days) - ⭐⭐⭐⭐ (UPGRADED for Claude Chrome synergy)
+   - File: `src/autopack/code_generation/import_fixer.py`
+   - Impact: Proactive import fixing + browser validation
+   - Flag: `LOVABLE_MISSING_IMPORT_AUTOFIX`
+
+8. **P8: Conversation State Management** (3-4 days) - ⭐⭐⭐⭐
+   - File: `src/autopack/state/conversation_manager.py`
+   - Impact: Multi-turn intelligence
+   - Flag: `LOVABLE_CONVERSATION_STATE`
+
+9. **P9: Fallback Chain Architecture** (2-3 days) - ⭐⭐⭐⭐
+   - File: `src/autopack/error_handling/fallback_chain.py`
+   - Impact: Resilient operations
+   - Flag: `LOVABLE_FALLBACK_CHAIN`
+
+**Note:** SSE Streaming removed (redundant with Claude Code in Chrome extension)
+
+#### Phase 3: Advanced Features (Week 6)
+
+10. **P10: Morph Fast Apply** (5-7 days) - ⭐⭐⭐⭐⭐
+    - File: `src/autopack/patching/morph_integrator.py`
+    - Impact: 99% code preservation (requires Morph API ~$100/month)
+    - Flag: `LOVABLE_MORPH_FAST_APPLY`
+
+11. **P11: Comprehensive System Prompts** (3-4 days) - ⭐⭐⭐⭐⭐
+    - File: `src/autopack/prompts/system_prompts.yaml`
+    - Impact: Behavioral conditioning
+    - Flag: `LOVABLE_SYSTEM_PROMPTS`
+
+12. **P12: Context Truncation** (2-3 days) - ⭐⭐⭐
+    - File: `src/autopack/file_manifest/context_truncator.py`
+    - Impact: Additional 30% token savings
+    - Flag: `LOVABLE_CONTEXT_TRUNCATION`
+
+### Execution Instructions
+
+**For Autonomous Executor:**
+
+```bash
+cd c:/dev/Autopack
+
+# Run all phases
+PYTHONUTF8=1 PYTHONPATH=src DATABASE_URL="sqlite:///autopack.db" \
+  python -m autopack.autonomous_executor \
+  --run-id lovable-integration-v1 \
+  --max-iterations 10
+
+# Or run specific phase (for testing)
+PYTHONUTF8=1 PYTHONPATH=src DATABASE_URL="sqlite:///autopack.db" \
+  python -m autopack.autonomous_executor \
+  --run-id lovable-integration-v1 \
+  --phase-id lovable-p1-agentic-file-search
+```
+
+**For Cursor (if autonomous execution not feasible):**
+1. Review phase doc: `.autonomous_runs/lovable-integration-v1/phases/phase_XX_*.md`
+2. Create branch: `git checkout -b feature/lovable-{phase-id}`
+3. Implement according to phase doc
+4. Enable feature flag (e.g., `LOVABLE_AGENTIC_SEARCH=true`)
+5. Gradual rollout (10% → 50% → 100%)
+
+### Infrastructure Requirements
+
+**Required (All Phases):**
+```bash
+pip install sentence-transformers numpy scikit-learn
+```
+
+**Optional (Phase 3 Only):**
+- Morph API subscription (~$100/month) for P10: Morph Fast Apply
+
+### References
+
+**Lovable Research (100,000+ words):**
+- [EXECUTIVE_SUMMARY.md](.autonomous_runs/file-organizer-app-v1/archive/research/EXECUTIVE_SUMMARY.md)
+- [LOVABLE_DEEP_DIVE_INCORPORATION_PLAN.md](.autonomous_runs/file-organizer-app-v1/archive/research/LOVABLE_DEEP_DIVE_INCORPORATION_PLAN.md) (35k words)
+- [IMPLEMENTATION_PLAN_LOVABLE_INTEGRATION.md](.autonomous_runs/file-organizer-app-v1/archive/research/IMPLEMENTATION_PLAN_LOVABLE_INTEGRATION.md) (50k words)
+
+**Claude Chrome Analysis:**
+- [CLAUDE_CODE_CHROME_LOVABLE_PHASE5_ANALYSIS.md](.autonomous_runs/file-organizer-app-v1/archive/research/CLAUDE_CODE_CHROME_LOVABLE_PHASE5_ANALYSIS.md)
+
+**Run Documentation:**
+- [README.md](.autonomous_runs/lovable-integration-v1/README.md)
+- [run_config.json](.autonomous_runs/lovable-integration-v1/run_config.json)
+
+### Next Steps
+
+1. **Stakeholder Review** (Week 1, Day 1) - Get approval for 5-6 week implementation
+2. **Team Formation** (Week 1, Day 2) - Allocate 2 developers
+3. **Phase 1 Kickoff** (Week 1, Day 3) - Begin Agentic File Search
+4. **Gradual Rollout** (Weeks 6-7) - 10% → 50% → 100%
+
+---
+
+**Last Updated**: 2025-12-22 (added Lovable Integration)

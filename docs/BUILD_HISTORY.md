@@ -1,8 +1,8 @@
 # Build History - Implementation Log
 
 <!-- META
-Last_Updated: 2025-12-22T17:30:00Z
-Total_Builds: 121
+Last_Updated: 2025-12-22T22:00:00Z
+Total_Builds: 122
 Format_Version: 2.0
 Auto_Generated: True
 Sources: CONSOLIDATED files, archive/
@@ -12,6 +12,7 @@ Sources: CONSOLIDATED files, archive/
 
 | Timestamp | BUILD-ID | Phase | Summary | Files Changed |
 |-----------|----------|-------|---------|---------------|
+| 2025-12-22 | BUILD-122 | Setup | Lovable Integration Setup: Created autonomous run folder (.autonomous_runs/lovable-integration-v1/) with 12 phases organized by priority (P1: Agentic File Search → P12: Context Truncation). Revised plan based on Claude Code in Chrome analysis - removed SSE Streaming, upgraded browser synergy patterns (HMR Error Detection, Missing Import Auto-Fix). Expected impact: 60% token reduction (50k→20k), 95% patch success (+20pp), 75% hallucination reduction, 50% faster execution. Timeline: 5-6 weeks (vs 10 weeks original). Strategic pivot: Cancelled BUILD-112 Phase 5 Evidence Requests (replaced by Claude Chrome). Ready for autonomous execution or manual implementation via Cursor | 0 |
 | 2025-12-22 | BUILD-121 | Validation | Approval Polling Fix Validation: Test run build112-completion with BUILD-120 fix - zero approval polling 404 errors (vs hundreds in BUILD-120), executor correctly extracts approval_id from POST response and uses GET /approval/status/{approval_id} endpoint. Validates auto-approve mode detection before polling. Bug confirmed fixed | 0 |
 | 2025-12-22 | BUILD-120 | Hotfix | Approval Polling Bug Fix + Telegram Notification Fix: (1) Fixed executor calling wrong endpoint - was GET /approval/status/{phase_id} (string), now extracts approval_id from POST response and uses GET /approval/status/{approval_id} (integer). Added immediate approval check for auto-approve mode. Fixed in 2 locations (autonomous_executor.py lines 7138-7162, 7263-7288). (2) Fixed Telegram notification - removed "Show Details" button causing API 400 error (localhost URL invalid for Telegram inline buttons). Telegram notifications now send successfully | 2 |
 | 2025-12-22 | BUILD-117 | Feature | Approval Endpoint for BUILD-113 Integration (Complete with all 4 enhancements): (1) Telegram integration ✅ - approval requests to phone with Approve/Reject buttons, real-time notifications, completion notices. (2) Database audit trail ✅ - ApprovalRequest model tracks all requests, who/when approved/rejected, timeout tracking. (3) Timeout mechanism ✅ - configurable timeout (15min default), background cleanup task, auto-apply default action. (4) Dashboard UI support ✅ - /approval/pending and /approval/status endpoints ready for UI. See docs/BUILD-117-ENHANCEMENTS.md | 3 |

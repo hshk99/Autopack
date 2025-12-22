@@ -1,0 +1,183 @@
+{
+  "run_id": "lovable-integration-v1",
+  "description": "Lovable Patterns Integration - Core Precision & Quality Enhancements (Revised Post-Claude Chrome Analysis)",
+  "created_at": "2025-12-22T17:45:00Z",
+  "priority": "high",
+  "estimated_duration": "5-6 weeks",
+  "team_size": 2,
+  "phases": [
+    {
+      "phase_id": "lovable-p1-agentic-file-search",
+      "name": "Agentic File Search Implementation",
+      "priority": 1,
+      "tier": "phase1-core-precision",
+      "estimated_effort": "3-4 days",
+      "roi_rating": 5,
+      "dependencies": []
+    },
+    {
+      "phase_id": "lovable-p1-intelligent-file-selection",
+      "name": "Intelligent File Selection Implementation",
+      "priority": 2,
+      "tier": "phase1-core-precision",
+      "estimated_effort": "3-4 days",
+      "roi_rating": 5,
+      "dependencies": ["lovable-p1-agentic-file-search"]
+    },
+    {
+      "phase_id": "lovable-p1-build-validation",
+      "name": "Build Validation Pipeline Implementation",
+      "priority": 3,
+      "tier": "phase1-core-precision",
+      "estimated_effort": "2-3 days",
+      "roi_rating": 4,
+      "dependencies": []
+    },
+    {
+      "phase_id": "lovable-p1-dynamic-retry-delays",
+      "name": "Dynamic Retry Delays Implementation",
+      "priority": 4,
+      "tier": "phase1-core-precision",
+      "estimated_effort": "2-3 days",
+      "roi_rating": 4,
+      "dependencies": []
+    },
+    {
+      "phase_id": "lovable-p2-package-detection",
+      "name": "Automatic Package Detection Implementation",
+      "priority": 5,
+      "tier": "phase2-quality-ux",
+      "estimated_effort": "2-3 days",
+      "roi_rating": 5,
+      "dependencies": ["lovable-p1-agentic-file-search", "lovable-p1-intelligent-file-selection"]
+    },
+    {
+      "phase_id": "lovable-p2-hmr-error-detection",
+      "name": "HMR Error Detection Implementation (Browser Synergy)",
+      "priority": 6,
+      "tier": "phase2-quality-ux",
+      "estimated_effort": "2-3 days",
+      "roi_rating": 4,
+      "dependencies": ["lovable-p1-build-validation"],
+      "notes": "Upgraded priority due to Claude Code in Chrome synergy"
+    },
+    {
+      "phase_id": "lovable-p2-missing-import-autofix",
+      "name": "Missing Import Auto-Completion Implementation (Browser Synergy)",
+      "priority": 7,
+      "tier": "phase2-quality-ux",
+      "estimated_effort": "2-3 days",
+      "roi_rating": 4,
+      "dependencies": ["lovable-p2-package-detection"],
+      "notes": "Upgraded priority due to Claude Code in Chrome synergy"
+    },
+    {
+      "phase_id": "lovable-p2-conversation-state",
+      "name": "Conversation State Management Implementation",
+      "priority": 8,
+      "tier": "phase2-quality-ux",
+      "estimated_effort": "3-4 days",
+      "roi_rating": 4,
+      "dependencies": []
+    },
+    {
+      "phase_id": "lovable-p2-fallback-chain",
+      "name": "Fallback Chain Architecture Implementation",
+      "priority": 9,
+      "tier": "phase2-quality-ux",
+      "estimated_effort": "2-3 days",
+      "roi_rating": 4,
+      "dependencies": ["lovable-p1-dynamic-retry-delays"]
+    },
+    {
+      "phase_id": "lovable-p3-morph-fast-apply",
+      "name": "Morph Fast Apply Integration",
+      "priority": 10,
+      "tier": "phase3-advanced",
+      "estimated_effort": "5-7 days",
+      "roi_rating": 5,
+      "dependencies": ["lovable-p1-build-validation"],
+      "notes": "Requires Morph API subscription (~$100/month)"
+    },
+    {
+      "phase_id": "lovable-p3-system-prompts",
+      "name": "Comprehensive System Prompts Implementation",
+      "priority": 11,
+      "tier": "phase3-advanced",
+      "estimated_effort": "3-4 days",
+      "roi_rating": 5,
+      "dependencies": []
+    },
+    {
+      "phase_id": "lovable-p3-context-truncation",
+      "name": "Context Truncation Implementation",
+      "priority": 12,
+      "tier": "phase3-advanced",
+      "estimated_effort": "2-3 days",
+      "roi_rating": 3,
+      "dependencies": ["lovable-p1-intelligent-file-selection"]
+    }
+  ],
+  "success_metrics": {
+    "token_usage_reduction": {
+      "baseline": "50k per phase",
+      "target": "20k per phase",
+      "improvement": "60%"
+    },
+    "patch_success_rate": {
+      "baseline": "75%",
+      "target": "95%",
+      "improvement": "+20pp"
+    },
+    "hallucination_reduction": {
+      "baseline": "20%",
+      "target": "5%",
+      "improvement": "75%"
+    },
+    "execution_time": {
+      "baseline": "3 min per phase",
+      "target": "1.5 min per phase",
+      "improvement": "50%"
+    }
+  },
+  "go_no_go_criteria": {
+    "after_phase1": {
+      "token_reduction": ">=40%",
+      "patch_success": ">=85%",
+      "no_critical_bugs": true,
+      "user_feedback": ">=4.0/5.0"
+    }
+  },
+  "infrastructure_requirements": {
+    "morph_api": {
+      "required_for": ["lovable-p3-morph-fast-apply"],
+      "cost": "~$100/month",
+      "optional": false
+    }
+  },
+  "feature_flags": [
+    "lovable_agentic_search",
+    "lovable_intelligent_file_selection",
+    "lovable_build_validation",
+    "lovable_dynamic_retry_delays",
+    "lovable_package_detection",
+    "lovable_hmr_error_detection",
+    "lovable_missing_import_autofix",
+    "lovable_conversation_state",
+    "lovable_fallback_chain",
+    "lovable_morph_fast_apply",
+    "lovable_system_prompts",
+    "lovable_context_truncation"
+  ],
+  "rollout_strategy": {
+    "gradual_deployment": true,
+    "stages": ["10%", "50%", "100%"],
+    "monitoring_period_days": 7
+  },
+  "documentation_updates_required": [
+    "README.md - Add Lovable integration section",
+    "FUTURE_PLAN.md - Mark phases as in-progress/complete",
+    "BUILD_HISTORY.md - Add BUILD-122 (Lovable Integration)",
+    "docs/LOVABLE_INTEGRATION_GUIDE.md - New guide for using Lovable patterns"
+  ]
+}

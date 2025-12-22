@@ -1536,11 +1536,16 @@ class AutonomousExecutor:
         scope_config = phase.get("scope") or {}
         allowed_scope_paths = self._derive_allowed_paths_from_scope(scope_config)
 
-        # [BUILD-041] Load phase state from database
+        # BUILD-115: Database queries disabled - use API phase data with defaults
         phase_db = self._get_phase_from_db(phase_id)
         if not phase_db:
-            logger.error(f"[{phase_id}] Phase not found in database, cannot execute")
-            return False, "FAILED"
+            logger.debug(f"[{phase_id}] No database state (BUILD-115), using API data with defaults")
+            # Create a simple object with default retry state
+            class PhaseDefaults:
+                retry_attempt = 0
+                revision_epoch = 0
+                escalation_level = 0
+            phase_db = PhaseDefaults()
 
         # Check if already exhausted attempts
         if phase_db.retry_attempt >= MAX_RETRY_ATTEMPTS:

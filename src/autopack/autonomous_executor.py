@@ -52,6 +52,7 @@ from autopack.error_recovery import (
 )
 from autopack.llm_service import LlmService
 from autopack.debug_journal import log_error, log_fix, mark_resolved
+from autopack.error_reporter import report_error
 from autopack.archive_consolidator import log_build_event, log_feature
 from autopack.learned_rules import (
     load_project_rules,
@@ -1108,7 +1109,7 @@ class AutonomousExecutor:
                             logger.error(f"[{phase_id}] Failed to reset stale phase: {e}")
 
                             # Log stale phase reset failure
-                            report_error(
+                            log_error(
                                 error_signature="Stale phase reset failure",
                                 symptom=f"Phase {phase_id}: {type(e).__name__}: {str(e)}",
                                 run_id=self.run_id,
@@ -1714,8 +1715,7 @@ class AutonomousExecutor:
                 logger.error(f"[{phase_id}] All {max_attempts} attempts exhausted. Marking phase as FAILED.")
 
                 # Log to debug journal for persistent tracking
-                from .error_reporter import report_error
-                report_error(
+                log_error(
                     error_signature=f"Phase {phase_id} max attempts exhausted",
                     symptom=f"Phase failed after {max_attempts} attempts with model escalation",
                     run_id=self.run_id,
@@ -1735,7 +1735,6 @@ class AutonomousExecutor:
             logger.error(f"[{phase_id}] Attempt {attempt_index + 1} raised exception: {e}")
 
             # Report detailed error context for debugging
-            from .error_reporter import report_error
             report_error(
                 error=e,
                 run_id=self.run_id,
@@ -1847,8 +1846,7 @@ class AutonomousExecutor:
                 logger.error(f"[{phase_id}] All {max_attempts} attempts exhausted after exception. Marking phase as FAILED.")
 
                 # Log to debug journal for persistent tracking
-                from .error_reporter import report_error
-                report_error(
+                log_error(
                     error_signature=f"Phase {phase_id} max attempts exhausted (exception)",
                     symptom=f"Phase failed after {max_attempts} attempts with final exception: {type(e).__name__}",
                     run_id=self.run_id,
@@ -6566,7 +6564,7 @@ Just the new description that should replace the current one while preserving th
                         logger.info(f"[{phase_id}] Phase 2.3: Validation errors indicate malformed patch - LLM should regenerate")
 
                         # Log validation failures to debug journal
-                        report_error(
+                        log_error(
                             error_signature=f"Patch validation failure (422)",
                             symptom=f"Phase {phase_id}: {error_detail}",
                             run_id=self.run_id,
@@ -7137,7 +7135,18 @@ Just the new description that should replace the current one while preserving th
                 logger.error(f"[{phase_id}] Approval request rejected: {result.get('reason', 'Unknown')}")
                 return False
 
-            logger.info(f"[{phase_id}] Approval request sent, waiting for user decision...")
+            # Check if immediately approved (auto-approve mode)
+            if result.get("status") == "approved":
+                logger.info(f"[{phase_id}] ✅ Approval GRANTED (auto-approved)")
+                return True
+
+            # Extract approval_id for polling
+            approval_id = result.get("approval_id")
+            if not approval_id:
+                logger.error(f"[{phase_id}] No approval_id in response - cannot poll for status")
+                return False
+
+            logger.info(f"[{phase_id}] Approval request sent (approval_id={approval_id}), waiting for user decision...")
 
         except Exception as e:
             logger.error(f"[{phase_id}] Failed to send approval request: {e}")
@@ -7150,7 +7159,7 @@ Just the new description that should replace the current one while preserving th
 
         while elapsed < timeout_seconds:
             try:
-                url = f"{self.api_url}/approval/status/{phase_id}"
+                url = f"{self.api_url}/approval/status/{approval_id}"
                 headers = {}
                 if self.api_key:
                     headers["X-API-Key"] = self.api_key
@@ -7251,7 +7260,18 @@ Just the new description that should replace the current one while preserving th
                 logger.error(f"[BUILD-113] Approval request rejected: {result.get('reason', 'Unknown')}")
                 return False
 
-            logger.info(f"[BUILD-113] Approval request sent, waiting for user decision...")
+            # Check if immediately approved (auto-approve mode)
+            if result.get("status") == "approved":
+                logger.info(f"[BUILD-113] ✅ RISKY patch APPROVED (auto-approved)")
+                return True
+
+            # Extract approval_id for polling
+            approval_id = result.get("approval_id")
+            if not approval_id:
+                logger.error(f"[BUILD-113] No approval_id in response - cannot poll for status")
+                return False
+
+            logger.info(f"[BUILD-113] Approval request sent (approval_id={approval_id}), waiting for user decision...")
 
         except Exception as e:
             logger.error(f"[BUILD-113] Failed to send approval request: {e}")
@@ -7265,7 +7285,7 @@ Just the new description that should replace the current one while preserving th
 
         while elapsed < timeout_seconds:
             try:
-                url = f"{self.api_url}/approval/status/{phase_id}"
+                url = f"{self.api_url}/approval/status/{approval_id}"
                 headers = {}
                 if self.api_key:
                     headers["X-API-Key"] = self.api_key

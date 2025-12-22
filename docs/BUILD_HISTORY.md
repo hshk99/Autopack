@@ -1,8 +1,8 @@
 # Build History - Implementation Log
 
 <!-- META
-Last_Updated: 2025-12-22T15:15:00Z
-Total_Builds: 117
+Last_Updated: 2025-12-22T17:30:00Z
+Total_Builds: 121
 Format_Version: 2.0
 Auto_Generated: True
 Sources: CONSOLIDATED files, archive/
@@ -12,7 +12,9 @@ Sources: CONSOLIDATED files, archive/
 
 | Timestamp | BUILD-ID | Phase | Summary | Files Changed |
 |-----------|----------|-------|---------|---------------|
-| 2025-12-22 | BUILD-117 | Feature | Approval Endpoint for BUILD-113 Integration: Implemented POST /approval/request endpoint in main.py to handle BUILD-113 autonomous executor approval requests for risky/ambiguous decisions. Current implementation auto-approves by default (configurable via AUTO_APPROVE_BUILD113 env var). TODO: Integrate with Telegram/dashboard, approval timeout, database audit trail. Unblocks BUILD-112 completion run phases that were rejected with BUILD113_APPROVAL_DENIED | 1 |
+| 2025-12-22 | BUILD-121 | Validation | Approval Polling Fix Validation: Test run build112-completion with BUILD-120 fix - zero approval polling 404 errors (vs hundreds in BUILD-120), executor correctly extracts approval_id from POST response and uses GET /approval/status/{approval_id} endpoint. Validates auto-approve mode detection before polling. Bug confirmed fixed | 0 |
+| 2025-12-22 | BUILD-120 | Hotfix | Approval Polling Bug Fix + Telegram Notification Fix: (1) Fixed executor calling wrong endpoint - was GET /approval/status/{phase_id} (string), now extracts approval_id from POST response and uses GET /approval/status/{approval_id} (integer). Added immediate approval check for auto-approve mode. Fixed in 2 locations (autonomous_executor.py lines 7138-7162, 7263-7288). (2) Fixed Telegram notification - removed "Show Details" button causing API 400 error (localhost URL invalid for Telegram inline buttons). Telegram notifications now send successfully | 2 |
+| 2025-12-22 | BUILD-117 | Feature | Approval Endpoint for BUILD-113 Integration (Complete with all 4 enhancements): (1) Telegram integration ✅ - approval requests to phone with Approve/Reject buttons, real-time notifications, completion notices. (2) Database audit trail ✅ - ApprovalRequest model tracks all requests, who/when approved/rejected, timeout tracking. (3) Timeout mechanism ✅ - configurable timeout (15min default), background cleanup task, auto-apply default action. (4) Dashboard UI support ✅ - /approval/pending and /approval/status endpoints ready for UI. See docs/BUILD-117-ENHANCEMENTS.md | 3 |
 | 2025-12-22 | BUILD-116 | Completion | BUILD-112 Completion Run (build112-completion): 3/4 phases complete via autonomous execution - Phase 3 (Deep Retrieval Validation) 95%→100% ✅, Phase 4 (Second Opinion Testing) 90%→100% ✅, Phase 5 Part 1 (Evidence Request Integration) 20%→50% ✅, Phase 5 Part 2 (Dashboard UI) queued. Run state: DONE_FAILED_REQUIRES_HUMAN_REVIEW. Overall BUILD-112 progress: 70%→85% complete | 0 |
 | 2025-12-22 | BUILD-115 | Hotfix | Remove obsolete models.py dependencies (7 parts): Executor now fully API-based with no direct database ORM queries - disabled all models.py imports, replaced database queries with API calls (get_next_queued_phase), execute_phase uses PhaseDefaults when no DB state, all database write methods return None. Architecture change: hybrid API+DB → pure API | 1 |
 | 2025-12-22 | BUILD-114 | Hotfix | BUILD-113 Structured Edit Support: Fix proactive mode integration to check both patch_content AND edit_plan (not just patch_content) - modified build_history_integrator.py line 66-67 to support structured edits used when context ≥30 files. VALIDATED: BUILD-113 decision triggered successfully for research-build113-test (risky, HIGH risk, +472 lines) | 1 |

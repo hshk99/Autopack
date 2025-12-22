@@ -86,11 +86,6 @@ class TelegramNotifier:
                     "text": "❌ Reject",
                     "callback_data": f"reject:{phase_id}"
                 }
-            ], [
-                {
-                    "text": "📊 Show Details",
-                    "url": f"{self.callback_url}/dashboard"
-                }
             ]]
         }
 

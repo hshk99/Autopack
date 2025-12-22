@@ -18,7 +18,7 @@ EXPOSE 8000
 CMD ["uvicorn", "src.autopack.main:app", "--host", "0.0.0.0", "--port", "8000"]
 
 # Stage for frontend
-FROM node:20 as frontend
+FROM node:25 as frontend
 
 # Set the working directory in the container
 WORKDIR /app

@@ -628,6 +628,29 @@ class AnthropicBuilderClient:
                             # Fall through to original result if retry parse fails
                             pass
 
+            # BUILD-129 Phase 1: Token estimation validation telemetry
+            if result and phase_spec:
+                estimated_tokens = phase_spec.get("_estimated_output_tokens")
+                if estimated_tokens and result.tokens_used:
+                    # Extract output tokens from result
+                    # Note: result.tokens_used includes both input and output tokens
+                    # We need to extract just output tokens for comparison
+                    actual_output_tokens = actual_output_tokens if 'actual_output_tokens' in locals() else None
+
+                    if actual_output_tokens:
+                        estimation_error = abs(actual_output_tokens - estimated_tokens) / estimated_tokens
+                        logger.info(
+                            f"[TokenEstimation] Predicted: {estimated_tokens} output tokens, "
+                            f"Actual: {actual_output_tokens} output tokens, "
+                            f"Error: {estimation_error*100:.1f}%"
+                        )
+                    else:
+                        # Fallback: if we don't have output tokens separately, log total tokens
+                        logger.info(
+                            f"[TokenEstimation] Predicted output: {estimated_tokens} tokens, "
+                            f"Actual total (input+output): {result.tokens_used} tokens"
+                        )
+
             return result
 
         except Exception as e:

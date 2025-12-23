@@ -449,25 +449,35 @@ class ManifestGenerator:
         try:
             estimator = TokenEstimator()
 
-            # Estimate output tokens based on deliverables
-            estimated_tokens = estimator.estimate_builder_output_tokens(
-                num_files=len(deliverables),
-                avg_file_size=1000,  # Conservative estimate
-                operation_type="patch",
-                context_size=len(phase.get("scope", {}).get("paths", [])) * 500
+            complexity = phase.get("complexity", "medium")
+            scope_cfg = phase.get("scope") or {}
+            scope_paths = scope_cfg.get("paths", []) if isinstance(scope_cfg, dict) else []
+            scope_paths = [p for p in scope_paths if isinstance(p, str)]
+
+            # Estimate output tokens based on deliverables.
+            # Note: execution-time estimation may refine this using workspace-aware file complexity.
+            estimate = estimator.estimate(
+                deliverables=deliverables,
+                category=category or "implementation",
+                complexity=complexity,
+                scope_paths=scope_paths,
             )
 
-            # Add to phase metadata
-            phase["_estimated_output_tokens"] = estimated_tokens
+            # Add to phase metadata for executors/telemetry to reuse.
+            phase["_estimated_output_tokens"] = estimate.estimated_tokens
             phase.setdefault("metadata", {})["token_prediction"] = {
-                "predicted": estimated_tokens,
+                "predicted_output_tokens": estimate.estimated_tokens,
+                "deliverable_count": estimate.deliverable_count,
+                "confidence": estimate.confidence,
+                "category": category or "implementation",
+                "complexity": complexity,
                 "timestamp": datetime.now(timezone.utc).isoformat(),
-                "source": "manifest_generator"
+                "source": "manifest_generator",
             }
 
             logger.info(
-                f"[BUILD-129] Added token estimate to phase: {estimated_tokens} tokens "
-                f"({len(deliverables)} deliverables)"
+                f"[BUILD-129] Added token estimate to phase: {estimate.estimated_tokens} output tokens "
+                f"({len(deliverables)} deliverables, confidence={estimate.confidence:.2f})"
             )
         except Exception as e:
             # Non-critical - log and continue

@@ -32,6 +32,7 @@ class TokenEstimationRecord:
         self.error_pct = error_pct
         self.source_file = source_file
         self.line_number = line_number
+        self.meta: Dict = {}
 
     @property
     def absolute_error(self) -> int:
@@ -55,6 +56,23 @@ class TelemetryAnalyzer:
         r'Actual:\s+(\d+)\s+output tokens,\s+Error:\s+([\d.]+)%'
     )
 
+    # Pattern:
+    # [TokenEstimationV2] predicted_output=448 actual_output=128 smape=111.8% selected_budget=8192 category=implementation ...
+    TELEMETRY_V2_PATTERN = re.compile(
+        r'\[TokenEstimationV2\]\s+'
+        r'predicted_output=(\d+)\s+'
+        r'actual_output=(\d+)\s+'
+        r'smape=([\d.]+)%\s+'
+        r'selected_budget=([^\s]+)\s+'
+        r'category=([^\s]+)\s+'
+        r'complexity=([^\s]+)\s+'
+        r'deliverables=(\d+)\s+'
+        r'success=([^\s]+)\s+'
+        r'stop_reason=([^\s]+)\s+'
+        r'truncated=([^\s]+)\s+'
+        r'model=([^\s]+)'
+    )
+
     # Timestamp pattern (various formats)
     TIMESTAMP_PATTERN = re.compile(
         r'^(\d{4}-\d{2}-\d{2}[T\s]\d{2}:\d{2}:\d{2})'
@@ -76,6 +94,42 @@ class TelemetryAnalyzer:
         try:
             with open(log_path, 'r', encoding='utf-8', errors='ignore') as f:
                 for line_num, line in enumerate(f, 1):
+                    v2 = self.TELEMETRY_V2_PATTERN.search(line)
+                    if v2:
+                        predicted = int(v2.group(1))
+                        actual = int(v2.group(2))
+                        smape_pct = float(v2.group(3))
+
+                        # Extract timestamp if present
+                        timestamp = ""
+                        ts_match = self.TIMESTAMP_PATTERN.search(line)
+                        if ts_match:
+                            timestamp = ts_match.group(1)
+
+                        record = TokenEstimationRecord(
+                            timestamp=timestamp,
+                            predicted=predicted,
+                            actual=actual,
+                            error_pct=smape_pct,  # Store as error_pct for reporting compatibility
+                            source_file=str(log_path),
+                            line_number=line_num
+                        )
+                        # Attach lightweight metadata for richer reporting
+                        record.meta = {
+                            "format": "v2",
+                            "selected_budget": v2.group(4),
+                            "category": v2.group(5),
+                            "complexity": v2.group(6),
+                            "deliverables": int(v2.group(7)),
+                            "success": v2.group(8),
+                            "stop_reason": v2.group(9),
+                            "truncated": v2.group(10),
+                            "model": v2.group(11),
+                        }
+                        self.records.append(record)
+                        count += 1
+                        continue
+
                     match = self.TELEMETRY_PATTERN.search(line)
                     if match:
                         predicted = int(match.group(1))
@@ -96,6 +150,7 @@ class TelemetryAnalyzer:
                             source_file=str(log_path),
                             line_number=line_num
                         )
+                        record.meta = {"format": "v1"}
                         self.records.append(record)
                         count += 1
         except Exception as e:
@@ -141,14 +196,32 @@ class TelemetryAnalyzer:
         over_estimated = [r for r in self.records if r.is_over_estimated]
         under_estimated = [r for r in self.records if r.is_under_estimated]
 
+        # Truncation- and risk-oriented metrics (best-effort; only for V2 records)
+        v2_records = [r for r in self.records if getattr(r, "meta", {}).get("format") == "v2"]
+        truncated = [r for r in v2_records if str(r.meta.get("truncated")).lower() == "true"]
+        succeeded = [r for r in v2_records if str(r.meta.get("success")).lower() == "true"]
+        # Underestimation flag: actual > predicted
+        under_risk = [r for r in self.records if r.actual > r.predicted]
+
         stats = {
             "total_records": len(self.records),
+            "formats": {
+                "v2_records": len(v2_records),
+                "v1_records": len(self.records) - len(v2_records),
+            },
             "error_rate": {
                 "mean": sum(errors) / len(errors),
                 "median": sorted(errors)[len(errors) // 2],
                 "min": min(errors),
                 "max": max(errors),
                 "std_dev": self._std_dev(errors),
+            },
+            "directional": {
+                "under_estimated_count": len(under_estimated),
+                "over_estimated_count": len(over_estimated),
+                "under_estimated_pct": len(under_estimated) / len(self.records) * 100,
+                "over_estimated_pct": len(over_estimated) / len(self.records) * 100,
+                "under_risk_pct": len(under_risk) / len(self.records) * 100,
             },
             "predicted_tokens": {
                 "mean": sum(predicted) / len(predicted),
@@ -166,12 +239,12 @@ class TelemetryAnalyzer:
                 "mean": sum(absolute_errors) / len(absolute_errors),
                 "median": sorted(absolute_errors)[len(absolute_errors) // 2],
             },
-            "bias": {
-                "over_estimated_count": len(over_estimated),
-                "under_estimated_count": len(under_estimated),
-                "over_estimated_pct": len(over_estimated) / len(self.records) * 100,
-                "under_estimated_pct": len(under_estimated) / len(self.records) * 100,
-            }
+            "v2": {
+                "truncated_count": len(truncated),
+                "truncated_pct": (len(truncated) / len(v2_records) * 100) if v2_records else 0.0,
+                "success_count": len(succeeded),
+                "success_pct": (len(succeeded) / len(v2_records) * 100) if v2_records else 0.0,
+            },
         }
 
         return stats
@@ -195,7 +268,7 @@ class TelemetryAnalyzer:
         if "error" in stats:
             return f"# Token Estimation Analysis\n\n{stats['error']}\n"
 
-        # Check if meets target
+        # Check if meets target (legacy: mean % error)
         mean_error = stats["error_rate"]["mean"]
         target_met = "✅ YES" if mean_error < 30.0 else "❌ NO"
 
@@ -205,8 +278,13 @@ Generated: {datetime.now().isoformat()}
 ## Summary
 
 **Total Records Analyzed:** {stats['total_records']}
+**Formats:** v2={stats.get('formats', {}).get('v2_records', 0)} v1={stats.get('formats', {}).get('v1_records', 0)}
 **Mean Error Rate:** {mean_error:.1f}%
 **Target (<30% error):** {target_met}
+**Under-estimation rate:** {stats.get('directional', {}).get('under_estimated_pct', 0.0):.1f}% (risk for truncation)
+**Over-estimation rate:** {stats.get('directional', {}).get('over_estimated_pct', 0.0):.1f}%
+**V2 truncation rate:** {stats.get('v2', {}).get('truncated_pct', 0.0):.1f}% (only where V2 telemetry present)
+**V2 success rate:** {stats.get('v2', {}).get('success_pct', 0.0):.1f}% (only where V2 telemetry present)
 
 ## Error Rate Statistics
 
@@ -232,10 +310,10 @@ Generated: {datetime.now().isoformat()}
 - **Mean:** {stats['absolute_error']['mean']:.0f} tokens
 - **Median:** {stats['absolute_error']['median']:.0f} tokens
 
-## Estimation Bias
+## Estimation Direction (Risk)
 
-- **Over-estimated:** {stats['bias']['over_estimated_count']} records ({stats['bias']['over_estimated_pct']:.1f}%)
-- **Under-estimated:** {stats['bias']['under_estimated_count']} records ({stats['bias']['under_estimated_pct']:.1f}%)
+- **Over-estimated:** {stats['directional']['over_estimated_count']} records ({stats['directional']['over_estimated_pct']:.1f}%)
+- **Under-estimated:** {stats['directional']['under_estimated_count']} records ({stats['directional']['under_estimated_pct']:.1f}%)
 
 ## Recommendations
 
@@ -280,8 +358,8 @@ Generated: {datetime.now().isoformat()}
 """
 
         # Bias-specific recommendations
-        over_pct = stats['bias']['over_estimated_pct']
-        under_pct = stats['bias']['under_estimated_pct']
+        over_pct = stats['directional']['over_estimated_pct']
+        under_pct = stats['directional']['under_estimated_pct']
 
         if over_pct > 70:
             report += """
@@ -313,10 +391,10 @@ Over/under-estimation is relatively balanced, which is good.
 
         report += """## Next Steps
 
-1. **Continue Monitoring:** Run this analysis after every 10-20 production runs
-2. **Tune Coefficients:** If error rate remains high, adjust TokenEstimator
-3. **Pattern Analysis:** Look for specific deliverable types with high errors
-4. **Validation:** Compare with BUILD-129 Phase 2 continuation recovery usage
+1. **Prioritize V2 telemetry:** Ensure logs include `[TokenEstimationV2]` so we measure the real TokenEstimator.
+2. **Collect representative runs:** Prefer successful phases; failure-mode outputs skew token counts downwards.
+3. **Tune for truncation risk:** Track under-estimation rate + truncation rate alongside error.
+4. **Stratify:** Break down by category/deliverable count once you have enough V2 records.
 
 ## Data Sources
 

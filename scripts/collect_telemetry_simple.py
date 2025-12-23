@@ -29,41 +29,37 @@ logging.basicConfig(
 from autopack.anthropic_clients import AnthropicBuilderClient
 
 
-# Test scenarios with different estimated token counts
+# Test scenarios. We intentionally do NOT inject a manual token estimate:
+# the goal is to collect telemetry for the real TokenEstimator.
 TEST_SCENARIOS = [
     {
-        "name": "small-util (low estimate)",
+        "name": "small-util",
         "goal": "Create a simple string utility function that capitalizes first letter of each word",
         "deliverables": ["src/utils/string_helper.py"],
-        "estimated_tokens": 300,
         "complexity": "low"
     },
     {
-        "name": "medium-util (medium estimate)",
+        "name": "medium-util",
         "goal": "Create a data validator with email and phone number validation",
         "deliverables": ["src/utils/validator.py"],
-        "estimated_tokens": 800,
         "complexity": "medium"
     },
     {
-        "name": "config-parser (high estimate)",
+        "name": "config-parser",
         "goal": "Create a JSON config parser with schema validation and error handling",
         "deliverables": ["src/utils/config_parser.py"],
-        "estimated_tokens": 1500,
         "complexity": "medium"
     },
     {
-        "name": "multi-file (very high estimate)",
+        "name": "multi-file",
         "goal": "Create a cache module with tests - in-memory cache with TTL support",
         "deliverables": ["src/utils/cache.py", "tests/test_cache.py"],
-        "estimated_tokens": 2000,
         "complexity": "medium"
     },
     {
-        "name": "simple-test (conservative estimate)",
+        "name": "simple-test",
         "goal": "Create a test fixture helper that generates sample user data",
         "deliverables": ["tests/fixtures/user_data.py"],
-        "estimated_tokens": 400,
         "complexity": "low"
     },
 ]
@@ -80,7 +76,7 @@ def run_telemetry_test(api_key: str, scenario: dict, run_num: int, total: int):
     """
     print(f"\n{'='*70}")
     print(f"[{run_num}/{total}] {scenario['name']}")
-    print(f"Estimated tokens: {scenario['estimated_tokens']}")
+    print(f"Complexity: {scenario['complexity']}")
     print(f"{'='*70}")
 
     client = AnthropicBuilderClient(api_key=api_key)
@@ -89,7 +85,6 @@ def run_telemetry_test(api_key: str, scenario: dict, run_num: int, total: int):
         "phase_id": f"telemetry-test-{run_num}",
         "goal": scenario["goal"],
         "deliverables": scenario["deliverables"],
-        "_estimated_output_tokens": scenario["estimated_tokens"],
         "scope": {
             "paths": ["src/utils/", "tests/"],
             "read_only_context": []

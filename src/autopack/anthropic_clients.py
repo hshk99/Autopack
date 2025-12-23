@@ -164,25 +164,46 @@ class AnthropicBuilderClient:
         complexity = phase_spec.get("complexity", "medium")
         deliverables = phase_spec.get("deliverables", [])
 
-        if max_tokens is None and deliverables:
-            # Use TokenEstimator for deliverable-based estimation
+        token_estimate = None
+        token_selected_budget = None
+
+        if deliverables:
+            # BUILD-129 Phase 1: Use TokenEstimator for deliverable-based estimation.
+            # If manifest_generator already populated _estimated_output_tokens we still recompute here,
+            # because workspace-aware complexity analysis is only available at execution time.
             try:
                 estimator = TokenEstimator(workspace=Path.cwd())
-                estimate = estimator.estimate(
+                token_estimate = estimator.estimate(
                     deliverables=deliverables,
                     category=task_category or "implementation",
                     complexity=complexity,
-                    scope_paths=scope_paths
+                    scope_paths=scope_paths,
                 )
-                max_tokens = estimator.select_budget(estimate, complexity)
+                token_selected_budget = estimator.select_budget(token_estimate, complexity)
+
+                # Persist estimator output into the phase for downstream telemetry/reporting.
+                phase_spec["_estimated_output_tokens"] = token_estimate.estimated_tokens
+                phase_spec.setdefault("metadata", {}).setdefault("token_prediction", {}).update(
+                    {
+                        "predicted_output_tokens": token_estimate.estimated_tokens,
+                        "selected_budget": token_selected_budget,
+                        "confidence": token_estimate.confidence,
+                        "source": "token_estimator",
+                    }
+                )
+
+                if max_tokens is None:
+                    max_tokens = token_selected_budget
+
                 logger.info(
-                    f"[BUILD-129] Token estimate: {estimate.estimated_tokens} tokens "
-                    f"({estimate.deliverable_count} deliverables, confidence={estimate.confidence:.2f}), "
-                    f"selected budget: {max_tokens}"
+                    f"[BUILD-129] Token estimate: {token_estimate.estimated_tokens} output tokens "
+                    f"({token_estimate.deliverable_count} deliverables, confidence={token_estimate.confidence:.2f}), "
+                    f"selected budget: {token_selected_budget}"
                 )
             except Exception as e:
                 logger.warning(f"[BUILD-129] Token estimation failed, using fallback: {e}")
-                max_tokens = None  # Fall through to complexity-based default
+                token_estimate = None
+                token_selected_budget = None
 
         # BUILD-042: Apply complexity-based token scaling FIRST (before special case overrides)
         # This ensures the base token budget is set correctly before task-specific increases
@@ -628,28 +649,54 @@ class AnthropicBuilderClient:
                             # Fall through to original result if retry parse fails
                             pass
 
-            # BUILD-129 Phase 1: Token estimation validation telemetry
+            # BUILD-129 Phase 1+: Token estimation telemetry
+            # NOTE: This compares TokenEstimator's predicted *output* tokens to actual *output* tokens.
             if result and phase_spec:
-                estimated_tokens = phase_spec.get("_estimated_output_tokens")
-                if estimated_tokens and result.tokens_used:
-                    # Extract output tokens from result
-                    # Note: result.tokens_used includes both input and output tokens
-                    # We need to extract just output tokens for comparison
-                    actual_output_tokens = actual_output_tokens if 'actual_output_tokens' in locals() else None
+                predicted_output_tokens = None
+                if isinstance(token_estimate, object) and token_estimate is not None:
+                    predicted_output_tokens = getattr(token_estimate, "estimated_tokens", None)
+                if not predicted_output_tokens:
+                    predicted_output_tokens = phase_spec.get("_estimated_output_tokens")
 
-                    if actual_output_tokens:
-                        estimation_error = abs(actual_output_tokens - estimated_tokens) / estimated_tokens
-                        logger.info(
-                            f"[TokenEstimation] Predicted: {estimated_tokens} output tokens, "
-                            f"Actual: {actual_output_tokens} output tokens, "
-                            f"Error: {estimation_error*100:.1f}%"
-                        )
-                    else:
-                        # Fallback: if we don't have output tokens separately, log total tokens
-                        logger.info(
-                            f"[TokenEstimation] Predicted output: {estimated_tokens} tokens, "
-                            f"Actual total (input+output): {result.tokens_used} tokens"
-                        )
+                actual_out = actual_output_tokens if "actual_output_tokens" in locals() else None
+                stop_reason_local = stop_reason if "stop_reason" in locals() else None
+                was_truncated_local = was_truncated if "was_truncated" in locals() else None
+
+                if predicted_output_tokens and actual_out:
+                    # Symmetric error (SMAPE-like) avoids metric bias toward overestimation.
+                    denom = max(1, (abs(actual_out) + abs(predicted_output_tokens)) / 2)
+                    smape = abs(actual_out - predicted_output_tokens) / denom
+
+                    logger.info(
+                        "[TokenEstimationV2] predicted_output=%s actual_output=%s smape=%.1f%% "
+                        "selected_budget=%s category=%s complexity=%s deliverables=%s success=%s "
+                        "stop_reason=%s truncated=%s model=%s",
+                        predicted_output_tokens,
+                        actual_out,
+                        smape * 100.0,
+                        token_selected_budget or phase_spec.get("metadata", {}).get("token_prediction", {}).get("selected_budget"),
+                        task_category or "implementation",
+                        complexity,
+                        len(deliverables) if isinstance(deliverables, list) else 0,
+                        getattr(result, "success", None),
+                        stop_reason_local,
+                        was_truncated_local,
+                        model,
+                    )
+                elif predicted_output_tokens and result.tokens_used:
+                    # Fallback: if we don't have output tokens separately, log total tokens
+                    logger.info(
+                        "[TokenEstimationV2] predicted_output=%s actual_total=%s "
+                        "selected_budget=%s category=%s complexity=%s deliverables=%s success=%s model=%s",
+                        predicted_output_tokens,
+                        result.tokens_used,
+                        token_selected_budget or phase_spec.get("metadata", {}).get("token_prediction", {}).get("selected_budget"),
+                        task_category or "implementation",
+                        complexity,
+                        len(deliverables) if isinstance(deliverables, list) else 0,
+                        getattr(result, "success", None),
+                        model,
+                    )
 
             return result
 

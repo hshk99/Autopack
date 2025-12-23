@@ -1,0 +1,16 @@
+{
+  "failure_class": "maintenance",
+  "phase_id": "backlog-updated-requirements-tx-e166dc8a",
+  "mode": "maintenance",
+  "ledger": "1) Investigate maintenance (conf=0.30) evidence=baseline_git_status -> exit 0, timed_out=False; baseline_git_diff -> exit 0, timed_out=False; baseline_disk_usage -> exit 0, timed_out=False; actions=no actions yet; outcome=pending",
+  "probes": [
+    {
+      "name": "baseline_git_state",
+      "commands": [
+        "git status --short"
+      ],
+      "resolved": true
+    }
+  ],
+  "timestamp": 1765298603.6950064
+}

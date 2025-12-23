@@ -1,0 +1,12 @@
+# Command: git diff --stat
+# Exit: 0
+# Duration: 0.08s
+
+# STDOUT
+
+ autopack.db | Bin 499712 -> 499712 bytes
+ 1 file changed, 0 insertions(+), 0 deletions(-)
+
+
+# STDERR
+

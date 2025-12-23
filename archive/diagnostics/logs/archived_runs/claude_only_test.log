@@ -1,0 +1,30 @@
+[2025-11-29 17:24:52] INFO: Applying pre-emptive encoding fix...
+[2025-11-29 17:24:52] INFO: [Recovery] Fixing Unicode encoding error...
+[2025-11-29 17:24:52] INFO: [Recovery] SUCCESS: Encoding fixed (UTF-8 enabled)
+[2025-11-29 17:24:52] INFO: Initialized autonomous executor for run: fileorg-test-claude-all-complexity-2025-11-29
+[2025-11-29 17:24:52] INFO: API URL: http://localhost:8000
+[2025-11-29 17:24:52] INFO: Workspace: .autonomous_runs\file-organizer-app-v1
+[2025-11-29 17:24:52] INFO: Starting autonomous execution loop...
+[2025-11-29 17:24:52] INFO: Poll interval: 10s
+[2025-11-29 17:24:52] INFO: Max iterations: 2
+[2025-11-29 17:24:52] INFO: Initializing infrastructure...
+[2025-11-29 17:24:53] INFO: Builder: Anthropic (Claude Sonnet 4.5)
+[2025-11-29 17:24:54] INFO: Auditor: Anthropic (Claude)
+[2025-11-29 17:24:54] INFO: Quality Gate: Initialized
+[2025-11-29 17:24:54] INFO: Iteration 1: Fetching run status...
+[2025-11-29 17:24:54] INFO: Next phase: fileorg-p2-docker
+[2025-11-29 17:24:54] INFO: Executing phase: fileorg-p2-docker
+[2025-11-29 17:24:54] INFO: [fileorg-p2-docker] Step 1/4: Generating code with Builder...
+[2025-11-29 17:24:54] INFO: [fileorg-p2-docker] Loaded 2 files for context
+[2025-11-29 17:24:54] ERROR: [fileorg-p2-docker] Builder failed: slice(None, 500, None)
+[2025-11-29 17:24:54] WARNING: Phase fileorg-p2-docker finished with status: FAILED
+[2025-11-29 17:24:54] INFO: Waiting 10s before next phase...
+[2025-11-29 17:25:04] INFO: Iteration 2: Fetching run status...
+[2025-11-29 17:25:04] INFO: Next phase: fileorg-p2-country-uk
+[2025-11-29 17:25:04] INFO: Executing phase: fileorg-p2-country-uk
+[2025-11-29 17:25:04] INFO: [fileorg-p2-country-uk] Step 1/4: Generating code with Builder...
+[2025-11-29 17:25:04] INFO: [fileorg-p2-country-uk] Loaded 2 files for context
+[2025-11-29 17:25:04] ERROR: [fileorg-p2-country-uk] Builder failed: slice(None, 500, None)
+[2025-11-29 17:25:04] WARNING: Phase fileorg-p2-country-uk finished with status: FAILED
+[2025-11-29 17:25:04] INFO: Reached max iterations (2), stopping
+[2025-11-29 17:25:04] INFO: Autonomous execution loop finished

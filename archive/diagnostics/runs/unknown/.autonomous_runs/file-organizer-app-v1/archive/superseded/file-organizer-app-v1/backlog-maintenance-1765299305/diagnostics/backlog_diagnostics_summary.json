@@ -1,0 +1,113 @@
+[
+  {
+    "phase_id": "backlog-all-12-test-files-passing",
+    "ledger": "1) Investigate maintenance (conf=0.30) evidence=baseline_git_status -> exit 0, timed_out=False; baseline_git_diff -> exit 0, timed_out=False; baseline_disk_usage -> exit 0, timed_out=False; actions=no actions yet; outcome=pending",
+    "artifacts": [
+      ".autonomous_runs\\backlog-maintenance-1765299305\\diagnostics\\commands\\1765299320_baseline_git_status.log",
+      ".autonomous_runs\\backlog-maintenance-1765299305\\diagnostics\\commands\\1765299320_baseline_git_diff.log",
+      ".autonomous_runs\\backlog-maintenance-1765299305\\diagnostics\\commands\\1765299334_baseline_disk_usage.log",
+      ".autonomous_runs\\backlog-maintenance-1765299305\\diagnostics\\commands\\1765299334_baseline_df.log",
+      ".autonomous_runs\\backlog-maintenance-1765299305\\diagnostics\\commands\\1765299334_git_status.log"
+    ],
+    "budget_exhausted": false,
+    "checkpoint": "c588fa2bc5e20591a00adbb4bd79b05753820741",
+    "auditor_verdict": "require_human",
+    "auditor_reasons": [
+      "no diff provided"
+    ],
+    "apply_result": null,
+    "patch_path": null,
+    "test_hashes": [
+      "f62dd13bcc05"
+    ]
+  },
+  {
+    "phase_id": "backlog-pytest-ini-with-proper--30102fcd",
+    "ledger": "1) Investigate maintenance (conf=0.30) evidence=baseline_git_status -> exit 0, timed_out=False; baseline_git_diff -> exit 0, timed_out=False; baseline_disk_usage -> exit 0, timed_out=False; actions=no actions yet; outcome=pending",
+    "artifacts": [
+      ".autonomous_runs\\backlog-maintenance-1765299305\\diagnostics\\commands\\1765299334_baseline_git_status.log",
+      ".autonomous_runs\\backlog-maintenance-1765299305\\diagnostics\\commands\\1765299334_baseline_git_diff.log",
+      ".autonomous_runs\\backlog-maintenance-1765299305\\diagnostics\\commands\\1765299348_baseline_disk_usage.log",
+      ".autonomous_runs\\backlog-maintenance-1765299305\\diagnostics\\commands\\1765299348_baseline_df.log",
+      ".autonomous_runs\\backlog-maintenance-1765299305\\diagnostics\\commands\\1765299348_git_status.log"
+    ],
+    "budget_exhausted": false,
+    "checkpoint": "c588fa2bc5e20591a00adbb4bd79b05753820741",
+    "auditor_verdict": "require_human",
+    "auditor_reasons": [
+      "no diff provided"
+    ],
+    "apply_result": null,
+    "patch_path": null,
+    "test_hashes": [
+      "f62dd13bcc05"
+    ]
+  },
+  {
+    "phase_id": "backlog-updated-requirements-tx-e166dc8a",
+    "ledger": "1) Investigate maintenance (conf=0.30) evidence=baseline_git_status -> exit 0, timed_out=False; baseline_git_diff -> exit 0, timed_out=False; baseline_disk_usage -> exit 0, timed_out=False; actions=no actions yet; outcome=pending",
+    "artifacts": [
+      ".autonomous_runs\\backlog-maintenance-1765299305\\diagnostics\\commands\\1765299348_baseline_git_status.log",
+      ".autonomous_runs\\backlog-maintenance-1765299305\\diagnostics\\commands\\1765299348_baseline_git_diff.log",
+      ".autonomous_runs\\backlog-maintenance-1765299305\\diagnostics\\commands\\1765299361_baseline_disk_usage.log",
+      ".autonomous_runs\\backlog-maintenance-1765299305\\diagnostics\\commands\\1765299361_baseline_df.log",
+      ".autonomous_runs\\backlog-maintenance-1765299305\\diagnostics\\commands\\1765299361_git_status.log"
+    ],
+    "budget_exhausted": false,
+    "checkpoint": "c588fa2bc5e20591a00adbb4bd79b05753820741",
+    "auditor_verdict": "require_human",
+    "auditor_reasons": [
+      "no diff provided"
+    ],
+    "apply_result": null,
+    "patch_path": null,
+    "test_hashes": [
+      "f62dd13bcc05"
+    ]
+  },
+  {
+    "phase_id": "backlog-no-dependency-conflicts",
+    "ledger": "1) Investigate maintenance (conf=0.30) evidence=baseline_git_status -> exit 0, timed_out=False; baseline_git_diff -> exit 0, timed_out=False; baseline_disk_usage -> exit 0, timed_out=False; actions=no actions yet; outcome=pending",
+    "artifacts": [
+      ".autonomous_runs\\backlog-maintenance-1765299305\\diagnostics\\commands\\1765299361_baseline_git_status.log",
+      ".autonomous_runs\\backlog-maintenance-1765299305\\diagnostics\\commands\\1765299361_baseline_git_diff.log",
+      ".autonomous_runs\\backlog-maintenance-1765299305\\diagnostics\\commands\\1765299376_baseline_disk_usage.log",
+      ".autonomous_runs\\backlog-maintenance-1765299305\\diagnostics\\commands\\1765299376_baseline_df.log",
+      ".autonomous_runs\\backlog-maintenance-1765299305\\diagnostics\\commands\\1765299376_git_status.log"
+    ],
+    "budget_exhausted": false,
+    "checkpoint": "c588fa2bc5e20591a00adbb4bd79b05753820741",
+    "auditor_verdict": "require_human",
+    "auditor_reasons": [
+      "no diff provided",
+      "failure class not aligned with item context"
+    ],
+    "apply_result": null,
+    "patch_path": null,
+    "test_hashes": [
+      "f62dd13bcc05"
+    ]
+  },
+  {
+    "phase_id": "backlog-node-modules-installed-locally",
+    "ledger": "1) Investigate maintenance (conf=0.30) evidence=baseline_git_status -> exit 0, timed_out=False; baseline_git_diff -> exit 0, timed_out=False; baseline_disk_usage -> exit 0, timed_out=False; actions=no actions yet; outcome=pending",
+    "artifacts": [
+      ".autonomous_runs\\backlog-maintenance-1765299305\\diagnostics\\commands\\1765299376_baseline_git_status.log",
+      ".autonomous_runs\\backlog-maintenance-1765299305\\diagnostics\\commands\\1765299376_baseline_git_diff.log",
+      ".autonomous_runs\\backlog-maintenance-1765299305\\diagnostics\\commands\\1765299390_baseline_disk_usage.log",
+      ".autonomous_runs\\backlog-maintenance-1765299305\\diagnostics\\commands\\1765299390_baseline_df.log",
+      ".autonomous_runs\\backlog-maintenance-1765299305\\diagnostics\\commands\\1765299390_git_status.log"
+    ],
+    "budget_exhausted": false,
+    "checkpoint": "c588fa2bc5e20591a00adbb4bd79b05753820741",
+    "auditor_verdict": "require_human",
+    "auditor_reasons": [
+      "no diff provided"
+    ],
+    "apply_result": null,
+    "patch_path": null,
+    "test_hashes": [
+      "f62dd13bcc05"
+    ]
+  }
+]

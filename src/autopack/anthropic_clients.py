@@ -162,7 +162,14 @@ class AnthropicBuilderClient:
         # BUILD-129 Phase 1: Use deliverable-based token estimation if available
         task_category = phase_spec.get("task_category", "")
         complexity = phase_spec.get("complexity", "medium")
-        deliverables = phase_spec.get("deliverables", [])
+        # Deliverables may be stored either at the top-level (preferred) or under scope.deliverables.
+        # Use either so token estimation + telemetry work through abstraction layers.
+        deliverables = phase_spec.get("deliverables")
+        if not deliverables:
+            scope_cfg = phase_spec.get("scope") or {}
+            if isinstance(scope_cfg, dict):
+                deliverables = scope_cfg.get("deliverables")
+        deliverables = deliverables or []
 
         token_estimate = None
         token_selected_budget = None
@@ -330,7 +337,12 @@ class AnthropicBuilderClient:
             # BUILD-129 Phase 3: NDJSON format selection for truncation tolerance
             # Per TOKEN_BUDGET_ANALYSIS_REVISED.md Layer 3: Use NDJSON for multi-file scopes (≥5 deliverables)
             use_ndjson_format = False
-            deliverables = phase_spec.get("deliverables", [])
+            deliverables = phase_spec.get("deliverables")
+            if not deliverables:
+                scope_cfg = phase_spec.get("scope") or {}
+                if isinstance(scope_cfg, dict):
+                    deliverables = scope_cfg.get("deliverables")
+            deliverables = deliverables or []
             if deliverables and len(deliverables) >= 5:
                 # NDJSON provides truncation tolerance: only last incomplete line lost, not entire output
                 use_ndjson_format = True
@@ -2169,7 +2181,14 @@ class AnthropicBuilderClient:
         if use_ndjson_format:
             # BUILD-129 Phase 3: NDJSON format for truncation tolerance
             parser = NDJSONParser()
-            deliverables = phase_spec.get("deliverables", []) if phase_spec else []
+            deliverables = []
+            if phase_spec:
+                deliverables = phase_spec.get("deliverables")
+                if not deliverables:
+                    scope_cfg = phase_spec.get("scope") or {}
+                    if isinstance(scope_cfg, dict):
+                        deliverables = scope_cfg.get("deliverables")
+            deliverables = deliverables or []
             summary = phase_spec.get("description", "Implement changes") if phase_spec else "Implement changes"
 
             base_prompt = """You are an expert software engineer working on an autonomous build system.

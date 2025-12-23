@@ -1,2 +1,40 @@
-INFO:     Will watch for changes in these directories: ['c:\\dev\\Autopack']
-ERROR:    [WinError 10013] An attempt was made to access a socket in a way forbidden by its access permissions
+C:\Python\Lib\site-packages\pydantic\_internal\_config.py:334: UserWarning: Valid config keys have changed in V2:
+* 'schema_extra' has been renamed to 'json_schema_extra'
+  warnings.warn(message, UserWarning)
+INFO:     Started server process [113416]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+INFO:     127.0.0.1:57946 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57977 - "POST /runs HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:58536 - "POST /runs HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:58553 - "GET /docs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53302 - "POST /runs/start HTTP/1.1" 403 Forbidden
+INFO:     127.0.0.1:51343 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51345 - "GET /runs/build132-coverage-delta-integration HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51372 - "POST /runs/build132-coverage-delta-integration/phases/build132-phase1-enable-coverage/builder_result HTTP/1.1" 422 Unprocessable Entity
+INFO:     127.0.0.1:51374 - "POST /runs/build132-coverage-delta-integration/phases/build132-phase1-enable-coverage/update_status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58446 - "GET /runs/build132-coverage-delta-integration HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49256 - "POST /runs/build132-coverage-delta-integration/phases/build132-phase2-coverage-tracker/builder_result HTTP/1.1" 422 Unprocessable Entity
+INFO:     127.0.0.1:49258 - "POST /runs/build132-coverage-delta-integration/phases/build132-phase2-coverage-tracker/update_status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51278 - "GET /runs/build132-coverage-delta-integration HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54709 - "POST /runs/build132-coverage-delta-integration/phases/build132-phase3-executor-integration/builder_result HTTP/1.1" 422 Unprocessable Entity
+INFO:     127.0.0.1:58294 - "POST /runs/build132-coverage-delta-integration/phases/build132-phase3-executor-integration/update_status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53467 - "GET /runs/build132-coverage-delta-integration HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59709 - "POST /runs/build132-coverage-delta-integration/phases/build132-phase4-documentation/builder_result HTTP/1.1" 422 Unprocessable Entity
+INFO:     127.0.0.1:59711 - "POST /runs/build132-coverage-delta-integration/phases/build132-phase4-documentation/update_status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52530 - "GET /runs/build132-coverage-delta-integration HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52685 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52693 - "GET /runs/build132-coverage-delta-integration HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51765 - "POST /runs/build132-coverage-delta-integration/phases/build132-phase1-enable-coverage/builder_result HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58312 - "POST /runs/build132-coverage-delta-integration/phases/build132-phase1-enable-coverage/update_status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63249 - "GET /runs/build132-coverage-delta-integration HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51764 - "POST /runs/build132-coverage-delta-integration/phases/build132-phase2-coverage-tracker/builder_result HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51769 - "POST /runs/build132-coverage-delta-integration/phases/build132-phase2-coverage-tracker/update_status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49374 - "GET /runs/build132-coverage-delta-integration HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57060 - "POST /runs/build132-coverage-delta-integration/phases/build132-phase3-executor-integration/builder_result HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57062 - "POST /runs/build132-coverage-delta-integration/phases/build132-phase3-executor-integration/update_status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53227 - "GET /runs/build132-coverage-delta-integration HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60327 - "POST /runs/build132-coverage-delta-integration/phases/build132-phase4-documentation/builder_result HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60350 - "POST /runs/build132-coverage-delta-integration/phases/build132-phase4-documentation/update_status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54255 - "GET /runs/build132-coverage-delta-integration HTTP/1.1" 200 OK

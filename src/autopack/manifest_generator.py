@@ -504,7 +504,8 @@ class ManifestGenerator:
         warnings = []
 
         # Check if scope already provided
-        existing_scope = phase.get("scope", {})
+        # Some runs may serialize scope as null; treat that as empty scope.
+        existing_scope = phase.get("scope") or {}
         if existing_scope.get("paths"):
             logger.info(f"Phase '{phase_id}' already has scope.paths - skipping generation")
             return phase, 1.0, []
@@ -529,6 +530,8 @@ class ManifestGenerator:
             # Preserve allowed_paths and protected_paths from existing_scope
             enhanced_phase = {
                 **phase,
+                # Keep a top-level deliverables list for downstream consumers (builder/token estimator).
+                "deliverables": existing_deliverables,
                 "scope": {
                     "paths": scope_paths,
                     "deliverables": existing_deliverables,  # Preserve original

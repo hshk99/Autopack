@@ -1,0 +1,188 @@
+[2025-11-30 23:23:32] INFO: Applying pre-emptive encoding fix...
+[2025-11-30 23:23:32] INFO: [Recovery] Fixing Unicode encoding error...
+[2025-11-30 23:23:32] INFO: [Recovery] SUCCESS: Encoding fixed (UTF-8 enabled)
+[2025-11-30 23:23:32] INFO: Database tables initialized
+[2025-11-30 23:23:32] INFO: Initialized autonomous executor for run: escalation-test-20251130-232314
+[2025-11-30 23:23:32] INFO: API URL: http://localhost:8000
+[2025-11-30 23:23:32] INFO: Workspace: .
+[2025-11-30 23:23:32] INFO: Running proactive startup checks from DEBUG_JOURNAL.md...
+[2025-11-30 23:23:32] INFO: [HIGH] Checking: Windows Unicode Fix (PYTHONUTF8)
+[2025-11-30 23:23:32] INFO:   Reason: Prevents UnicodeEncodeError with emoji characters in logs (Issue #3)
+[2025-11-30 23:23:32] INFO:   Check PASSED
+[2025-11-30 23:23:32] INFO: Startup checks complete
+[2025-11-30 23:23:32] INFO: Starting autonomous execution loop...
+[2025-11-30 23:23:32] INFO: Poll interval: 10s
+[2025-11-30 23:23:32] INFO: Initializing infrastructure...
+[2025-11-30 23:23:36] INFO: LlmService: Initialized with ModelRouter and UsageRecorder
+[2025-11-30 23:23:37] INFO: [DEPRECATED] Builder: Anthropic (Claude Sonnet 4.5) - Use LlmService instead
+[2025-11-30 23:23:39] INFO: [DEPRECATED] Auditor: Dual (OpenAI + Anthropic) - Use LlmService instead
+[2025-11-30 23:23:39] INFO: Quality Gate: Initialized
+[2025-11-30 23:23:39] INFO: Iteration 1: Fetching run status...
+[2025-11-30 23:23:39] INFO: Next phase: low-easy-task
+[2025-11-30 23:23:39] INFO: Executing phase: low-easy-task
+[2025-11-30 23:23:39] INFO: [low-easy-task] Attempt 1/5 (model escalation enabled)
+[2025-11-30 23:23:39] INFO: [low-easy-task] Step 1/4: Generating code with Builder (via LlmService)...
+[2025-11-30 23:23:39] INFO: [low-easy-task] Loaded 30 files for context
+[2025-11-30 23:23:49] INFO: HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-11-30 23:23:49] INFO: [low-easy-task] Builder succeeded (40142 tokens)
+[2025-11-30 23:23:49] INFO: [low-easy-task] Step 2/5: Applying patch...
+[2025-11-30 23:23:49] INFO: Writing patch to temp_patch.diff
+[2025-11-30 23:23:49] INFO: Checking if patch can be applied (dry run)...
+[2025-11-30 23:23:49] WARNING: Strict patch check failed: error: patch failed: src/autopack/config.py:1
+error: src/autopack/config.py: patch does not apply
+[2025-11-30 23:23:49] INFO: Retrying with lenient mode (--ignore-whitespace -C1)...
+[2025-11-30 23:23:49] INFO: Lenient mode check passed
+[2025-11-30 23:23:49] INFO: Applying patch to filesystem...
+[2025-11-30 23:23:49] INFO: Patch applied successfully - 1 files modified
+[2025-11-30 23:23:49] INFO:   - src/autopack/config.py
+[2025-11-30 23:23:49] INFO: [Validation] All 1 modified files validated successfully
+[2025-11-30 23:23:49] INFO: [low-easy-task] Patch applied successfully to filesystem
+[2025-11-30 23:23:49] INFO: [low-easy-task] Step 3/5: Running CI checks...
+[2025-11-30 23:23:49] INFO: [low-easy-task] Running CI checks (pytest)...
+[2025-11-30 23:23:52] WARNING: [low-easy-task] CI detected possible collection error - pytest failed (code 4) but no test counts found
+[2025-11-30 23:23:52] WARNING: [low-easy-task] CI checks FAILED: 0/0 passed, 0 failed, 0 errors
+[2025-11-30 23:23:52] INFO: [low-easy-task] Step 4/5: Reviewing patch with Auditor (via LlmService)...
+[2025-11-30 23:23:56] INFO: HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-11-30 23:23:57] INFO: [low-easy-task] Auditor completed: approved=True, issues=1
+[2025-11-30 23:23:57] INFO: [low-easy-task] Step 5/5: Applying Quality Gate...
+[2025-11-30 23:23:57] INFO: [low-easy-task] Quality Gate: needs_review
+[2025-11-30 23:23:57] INFO: Updated phase low-easy-task status to COMPLETE
+[2025-11-30 23:23:57] INFO: [low-easy-task] Phase completed successfully
+[2025-11-30 23:23:57] WARNING: File not found: C:\dev\Autopack\.autonomous_runs\autopack\archive\CONSOLIDATED_BUILD.md
+[2025-11-30 23:23:57] INFO: [ARCHIVE_CONSOLIDATOR] Logged build event: PHASE_COMPLETE
+[2025-11-30 23:23:57] INFO: Phase low-easy-task completed successfully
+[2025-11-30 23:23:57] INFO: Waiting 10s before next phase...
+[2025-11-30 23:24:07] INFO: Iteration 2: Fetching run status...
+[2025-11-30 23:24:07] INFO: Next phase: low-tricky-task
+[2025-11-30 23:24:07] INFO: Executing phase: low-tricky-task
+[2025-11-30 23:24:07] INFO: [low-tricky-task] Attempt 1/5 (model escalation enabled)
+[2025-11-30 23:24:07] INFO: [low-tricky-task] Step 1/4: Generating code with Builder (via LlmService)...
+[2025-11-30 23:24:07] INFO: [low-tricky-task] Loaded 30 files for context
+[2025-11-30 23:24:07] INFO: [ModelSelector] Selected gpt-4o-mini for builder (complexity=low, attempt=0, intra_tier=0)
+[2025-11-30 23:24:14] INFO: HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-11-30 23:24:14] INFO: [low-tricky-task] Builder succeeded (40226 tokens)
+[2025-11-30 23:24:14] WARNING: Failed to post builder result: 500 Server Error: Internal Server Error for url: http://localhost:8000/runs/escalation-test-20251130-232314/phases/low-tricky-task/builder_result
+[2025-11-30 23:24:14] INFO: [ARCHIVE_CONSOLIDATOR] Logged new error: API failure: POST builder_result
+[2025-11-30 23:24:14] INFO: [low-tricky-task] Step 2/5: Applying patch...
+[2025-11-30 23:24:14] INFO: Writing patch to temp_patch.diff
+[2025-11-30 23:24:14] INFO: Checking if patch can be applied (dry run)...
+[2025-11-30 23:24:14] WARNING: Strict patch check failed: error: patch failed: src/autopack/utils.py:1
+error: src/autopack/utils.py: patch does not apply
+[2025-11-30 23:24:14] INFO: Retrying with lenient mode (--ignore-whitespace -C1)...
+[2025-11-30 23:24:14] WARNING: Lenient mode also failed: error: patch failed: src/autopack/utils.py:1
+error: src/autopack/utils.py: patch does not apply
+[2025-11-30 23:24:14] INFO: Retrying with 3-way merge mode (-3)...
+[2025-11-30 23:24:14] WARNING: All git apply modes failed, attempting direct file write fallback...
+[2025-11-30 23:24:14] WARNING: Skipping src/autopack/utils.py - cannot apply partial patch to existing file via direct write
+[2025-11-30 23:24:14] ERROR: Direct file write also failed: error: src/autopack/utils.py: does not exist in index
+[2025-11-30 23:24:14] ERROR: Patch content:
+diff --git a/src/autopack/utils.py b/src/autopack/utils.py
+index 00000000..d1e2f3a4 100644
+--- a/src/autopack/utils.py
++++ b/src/autopack/utils.py
+@@ -1,0 +1,20 @@
++"""Utility functions for Autopack"""
++
++import random
++
++def calculate_retry_delay(attempt_index: int, base_delay: float = 1.0, max_delay: float = 60.0) -> float:
++    """
++    Calculate the retry delay using exponential backoff with jitter.
++
++    Args:
++        attempt_index (int): The current attempt index (0-based).
++        base...
+[2025-11-30 23:24:14] ERROR: [low-tricky-task] Failed to apply patch to filesystem: error: patch failed: src/autopack/utils.py:1
+error: src/autopack/utils.py: patch does not apply
+[2025-11-30 23:24:14] INFO: Updated phase low-tricky-task status to FAILED
+[2025-11-30 23:24:14] WARNING: [low-tricky-task] Attempt 1 failed, escalating model for retry...
+[2025-11-30 23:24:14] INFO: [low-tricky-task] Attempt 2/5 (model escalation enabled)
+[2025-11-30 23:24:14] INFO: [low-tricky-task] Step 1/4: Generating code with Builder (via LlmService)...
+[2025-11-30 23:24:14] INFO: [low-tricky-task] Loaded 30 files for context
+[2025-11-30 23:24:14] INFO: [ModelSelector] Selected gpt-4o for builder (complexity=low, attempt=1, intra_tier=1)
+[2025-11-30 23:24:21] INFO: HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-11-30 23:24:21] INFO: [low-tricky-task] Builder succeeded (40242 tokens)
+[2025-11-30 23:24:21] INFO: [low-tricky-task] Step 2/5: Applying patch...
+[2025-11-30 23:24:21] INFO: Removing existing file for new file patch: src/autopack/utils.py
+[2025-11-30 23:24:21] INFO: Writing patch to temp_patch.diff
+[2025-11-30 23:24:21] INFO: Checking if patch can be applied (dry run)...
+[2025-11-30 23:24:21] INFO: Applying patch to filesystem...
+[2025-11-30 23:24:21] INFO: Patch applied successfully - 1 files modified
+[2025-11-30 23:24:21] INFO:   - src/autopack/utils.py
+[2025-11-30 23:24:21] INFO: [Validation] All 1 modified files validated successfully
+[2025-11-30 23:24:21] INFO: [low-tricky-task] Patch applied successfully to filesystem
+[2025-11-30 23:24:21] INFO: [low-tricky-task] Step 3/5: Running CI checks...
+[2025-11-30 23:24:21] INFO: [low-tricky-task] Running CI checks (pytest)...
+[2025-11-30 23:24:25] WARNING: [low-tricky-task] CI detected possible collection error - pytest failed (code 4) but no test counts found
+[2025-11-30 23:24:25] WARNING: [low-tricky-task] CI checks FAILED: 0/0 passed, 0 failed, 0 errors
+[2025-11-30 23:24:25] INFO: [low-tricky-task] Step 4/5: Reviewing patch with Auditor (via LlmService)...
+[2025-11-30 23:24:25] INFO: [ModelSelector] Selected gpt-4o for auditor (complexity=low, attempt=1, intra_tier=1)
+[2025-11-30 23:24:26] INFO: HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-11-30 23:24:26] INFO: [low-tricky-task] Auditor completed: approved=True, issues=0
+[2025-11-30 23:24:26] INFO: [low-tricky-task] Step 5/5: Applying Quality Gate...
+[2025-11-30 23:24:26] INFO: [low-tricky-task] Quality Gate: needs_review
+[2025-11-30 23:24:26] INFO: Updated phase low-tricky-task status to COMPLETE
+[2025-11-30 23:24:26] INFO: [low-tricky-task] Phase completed successfully
+[2025-11-30 23:24:26] WARNING: File not found: C:\dev\Autopack\.autonomous_runs\autopack\archive\CONSOLIDATED_BUILD.md
+[2025-11-30 23:24:26] INFO: [ARCHIVE_CONSOLIDATOR] Logged build event: PHASE_COMPLETE
+[2025-11-30 23:24:26] INFO: Phase low-tricky-task completed successfully
+[2025-11-30 23:24:26] INFO: Waiting 10s before next phase...
+[2025-11-30 23:24:36] INFO: Iteration 3: Fetching run status...
+[2025-11-30 23:24:36] INFO: Next phase: medium-task
+[2025-11-30 23:24:36] INFO: Executing phase: medium-task
+[2025-11-30 23:24:36] INFO: [medium-task] Attempt 1/5 (model escalation enabled)
+[2025-11-30 23:24:36] INFO: [medium-task] Step 1/4: Generating code with Builder (via LlmService)...
+[2025-11-30 23:24:36] INFO: [medium-task] Loaded 30 files for context
+[2025-11-30 23:24:36] INFO: [ModelSelector] Selected gpt-4o for builder (complexity=medium, attempt=0, intra_tier=0)
+[2025-11-30 23:24:42] INFO: HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-11-30 23:24:42] INFO: [medium-task] Builder succeeded (40226 tokens)
+[2025-11-30 23:24:42] INFO: [medium-task] Step 2/5: Applying patch...
+[2025-11-30 23:24:42] INFO: Removing existing file for new file patch: src/autopack/utils.py
+[2025-11-30 23:24:42] INFO: Writing patch to temp_patch.diff
+[2025-11-30 23:24:42] INFO: Checking if patch can be applied (dry run)...
+[2025-11-30 23:24:42] INFO: Applying patch to filesystem...
+[2025-11-30 23:24:42] INFO: Patch applied successfully - 1 files modified
+[2025-11-30 23:24:42] INFO:   - src/autopack/utils.py
+[2025-11-30 23:24:42] INFO: [Validation] All 1 modified files validated successfully
+[2025-11-30 23:24:42] INFO: [medium-task] Patch applied successfully to filesystem
+[2025-11-30 23:24:42] INFO: [medium-task] Step 3/5: Running CI checks...
+[2025-11-30 23:24:42] INFO: [medium-task] Running CI checks (pytest)...
+[2025-11-30 23:24:46] WARNING: [medium-task] CI detected possible collection error - pytest failed (code 4) but no test counts found
+[2025-11-30 23:24:46] WARNING: [medium-task] CI checks FAILED: 0/0 passed, 0 failed, 0 errors
+[2025-11-30 23:24:46] INFO: [medium-task] Step 4/5: Reviewing patch with Auditor (via LlmService)...
+[2025-11-30 23:24:46] INFO: [ModelSelector] Selected gpt-4o for auditor (complexity=medium, attempt=0, intra_tier=0)
+[2025-11-30 23:24:48] INFO: HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-11-30 23:24:48] INFO: [medium-task] Auditor completed: approved=True, issues=1
+[2025-11-30 23:24:48] INFO: [medium-task] Step 5/5: Applying Quality Gate...
+[2025-11-30 23:24:48] INFO: [medium-task] Quality Gate: needs_review
+[2025-11-30 23:24:48] INFO: Updated phase medium-task status to COMPLETE
+[2025-11-30 23:24:48] INFO: [medium-task] Phase completed successfully
+[2025-11-30 23:24:48] WARNING: File not found: C:\dev\Autopack\.autonomous_runs\autopack\archive\CONSOLIDATED_BUILD.md
+[2025-11-30 23:24:48] INFO: [ARCHIVE_CONSOLIDATOR] Logged build event: PHASE_COMPLETE
+[2025-11-30 23:24:48] INFO: Phase medium-task completed successfully
+[2025-11-30 23:24:48] INFO: Waiting 10s before next phase...
+[2025-11-30 23:24:58] INFO: Iteration 4: Fetching run status...
+[2025-11-30 23:24:58] INFO: No more QUEUED phases, execution complete
+[2025-11-30 23:24:58] INFO: Autonomous execution loop finished
+[2025-11-30 23:24:58] WARNING: File not found: C:\dev\Autopack\.autonomous_runs\autopack\archive\CONSOLIDATED_BUILD.md
+[2025-11-30 23:24:58] INFO: [ARCHIVE_CONSOLIDATOR] Logged build event: RUN_COMPLETE
+[MODEL] Builder using gpt-4o-mini due to: routing_policy:docs
+[MODEL] Auditor using gpt-4o-mini due to: routing_policy:docs
+[Quality Gate] Phase low-easy-task
+Category: docs
+Quality Level: NEEDS_REVIEW
+
+Issues (blocking):
+  ✗ CI tests failed: Unknown error
+[Quality Gate] Phase low-tricky-task
+Category: backend
+Quality Level: NEEDS_REVIEW
+
+Issues (blocking):
+  ✗ CI tests failed: Unknown error
+[Quality Gate] Phase medium-task
+Category: backend
+Quality Level: NEEDS_REVIEW
+
+Issues (blocking):
+  ✗ CI tests failed: Unknown error

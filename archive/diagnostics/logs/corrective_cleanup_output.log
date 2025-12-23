@@ -1,0 +1,354 @@
+================================================================================
+CORRECTIVE CLEANUP
+Implementing: PROPOSED_CLEANUP_STRUCTURE.md
+Fixing: comprehensive_cleanup.py failures
+================================================================================
+Mode: EXECUTE
+
+
+[GIT] [OK] Created checkpoint: corrective: pre-cleanup checkpoint
+
+================================================================================
+FIX 1: ROOT LOOSE FILES (43 .log + 29 .md files)
+================================================================================
+
+[LOGS] Found 44 .log files at root
+  api_fixed.log -> archive/diagnostics/logs/
+  [SKIP] Destination already exists: api_fixed.log
+  api_fresh.log -> archive/diagnostics/logs/
+  [SKIP] Destination already exists: api_fresh.log
+  api_fresh_restart.log -> archive/diagnostics/logs/
+  [SKIP] Destination already exists: api_fresh_restart.log
+  api_restart.log -> archive/diagnostics/logs/
+  [SKIP] Destination already exists: api_restart.log
+  api_server_final.log -> archive/diagnostics/logs/
+  [SKIP] Destination already exists: api_server_final.log
+  api_server_fixed.log -> archive/diagnostics/logs/
+  [SKIP] Destination already exists: api_server_fixed.log
+  api_server_fresh.log -> archive/diagnostics/logs/
+  [SKIP] Destination already exists: api_server_fresh.log
+  api_server_fullfile_test.log -> archive/diagnostics/logs/
+  [SKIP] Destination already exists: api_server_fullfile_test.log
+  api_server_fullfile_test2.log -> archive/diagnostics/logs/
+  [SKIP] Destination already exists: api_server_fullfile_test2.log
+  api_server_test.log -> archive/diagnostics/logs/
+  [SKIP] Destination already exists: api_server_test.log
+  api_server_test3.log -> archive/diagnostics/logs/
+  [SKIP] Destination already exists: api_server_test3.log
+  corrective_cleanup_output.log -> archive/diagnostics/logs/
+  dry-run-root-full.log -> archive/diagnostics/logs/
+  [SKIP] Destination already exists: dry-run-root-full.log
+  dry-run-root.log -> archive/diagnostics/logs/
+  [SKIP] Destination already exists: dry-run-root.log
+  fileorg_test_run.log -> archive/diagnostics/logs/
+  [SKIP] Destination already exists: fileorg_test_run.log
+  full_test_run.log -> archive/diagnostics/logs/
+  [SKIP] Destination already exists: full_test_run.log
+  maintenance_observation_run.log -> archive/diagnostics/logs/
+  [SKIP] Destination already exists: maintenance_observation_run.log
+  phase2_beta_run.log -> archive/diagnostics/logs/
+  [SKIP] Destination already exists: phase2_beta_run.log
+  phase2_resume_run.log -> archive/diagnostics/logs/
+  [SKIP] Destination already exists: phase2_resume_run.log
+  phase3_all_claude.log -> archive/diagnostics/logs/
+  [SKIP] Destination already exists: phase3_all_claude.log
+  phase3_all_fixes.log -> archive/diagnostics/logs/
+  [SKIP] Destination already exists: phase3_all_fixes.log
+  phase3_all_fixes_test.log -> archive/diagnostics/logs/
+  [SKIP] Destination already exists: phase3_all_fixes_test.log
+  phase3_delegated_run.log -> archive/diagnostics/logs/
+  [SKIP] Destination already exists: phase3_delegated_run.log
+  phase3_final_fix.log -> archive/diagnostics/logs/
+  [SKIP] Destination already exists: phase3_final_fix.log
+  phase3_final_test.log -> archive/diagnostics/logs/
+  [SKIP] Destination already exists: phase3_final_test.log
+  phase3_final_verification.log -> archive/diagnostics/logs/
+  [SKIP] Destination already exists: phase3_final_verification.log
+  phase3_fixed_tokens.log -> archive/diagnostics/logs/
+  [SKIP] Destination already exists: phase3_fixed_tokens.log
+  phase3_fullfile_test.log -> archive/diagnostics/logs/
+  [SKIP] Destination already exists: phase3_fullfile_test.log
+  phase3_fullfile_test2.log -> archive/diagnostics/logs/
+  [SKIP] Destination already exists: phase3_fullfile_test2.log
+  phase3_fullfile_test3.log -> archive/diagnostics/logs/
+  [SKIP] Destination already exists: phase3_fullfile_test3.log
+  phase3_increased_tokens.log -> archive/diagnostics/logs/
+  [SKIP] Destination already exists: phase3_increased_tokens.log
+  phase3_maintenance_run.log -> archive/diagnostics/logs/
+  [SKIP] Destination already exists: phase3_maintenance_run.log
+  phase3_model_stack_test.log -> archive/diagnostics/logs/
+  [SKIP] Destination already exists: phase3_model_stack_test.log
+  phase3_smart_retry_test.log -> archive/diagnostics/logs/
+  [SKIP] Destination already exists: phase3_smart_retry_test.log
+  phase3_sonnet_test.log -> archive/diagnostics/logs/
+  [SKIP] Destination already exists: phase3_sonnet_test.log
+  phase3_test_fixed.log -> archive/diagnostics/logs/
+  [SKIP] Destination already exists: phase3_test_fixed.log
+  phase3_test_run.log -> archive/diagnostics/logs/
+  [SKIP] Destination already exists: phase3_test_run.log
+  phase3_test_run_v2.log -> archive/diagnostics/logs/
+  [SKIP] Destination already exists: phase3_test_run_v2.log
+  phase3_with_validator.log -> archive/diagnostics/logs/
+  [SKIP] Destination already exists: phase3_with_validator.log
+  probe_api_test.log -> archive/diagnostics/logs/
+  [SKIP] Destination already exists: probe_api_test.log
+  test_run.log -> archive/diagnostics/logs/
+  [SKIP] Destination already exists: test_run.log
+  test_run_live.log -> archive/diagnostics/logs/
+  [SKIP] Destination already exists: test_run_live.log
+  test_run_output.log -> archive/diagnostics/logs/
+  [SKIP] Destination already exists: test_run_output.log
+  tidy_run_output.log -> archive/diagnostics/logs/
+  [SKIP] Destination already exists: tidy_run_output.log
+
+[MD FILES] Classifying 32 .md files
+  ACCURACY_IMPROVEMENTS_98PERCENT.md -> archive/reports/
+  [SKIP] Destination already exists: ACCURACY_IMPROVEMENTS_98PERCENT.md
+  CLEANUP_SUMMARY_REPORT.md -> KEEP at root (truth source)
+  CLEANUP_VERIFICATION_ISSUES.md -> KEEP at root (truth source)
+  COMPREHENSIVE_TIDY_EXECUTION_PLAN.md -> archive/plans/
+  [SKIP] Destination already exists: COMPREHENSIVE_TIDY_EXECUTION_PLAN.md
+  CONFIDENCE_THRESHOLD_FIX_20251211.md -> archive/reports/
+  [SKIP] Destination already exists: CONFIDENCE_THRESHOLD_FIX_20251211.md
+  DIRECTORY_ROUTING_UPDATE_SUMMARY.md -> archive/reports/
+  [SKIP] Destination already exists: DIRECTORY_ROUTING_UPDATE_SUMMARY.md
+  FILEORG_PROBE_PLAN.md -> archive/plans/
+  [SKIP] Destination already exists: FILEORG_PROBE_PLAN.md
+  FINAL_TEST.md -> archive/reports/
+  [SKIP] Destination already exists: FINAL_TEST.md
+  GPT_REVIEW_READY.md -> archive/analysis/
+  IMPLEMENTATION_COMPLETE_SUMMARY.md -> archive/reports/
+  [SKIP] Destination already exists: IMPLEMENTATION_COMPLETE_SUMMARY.md
+  IMPLEMENTATION_PLAN2.md -> archive/plans/
+  [SKIP] Destination already exists: IMPLEMENTATION_PLAN2.md
+  IMPLEMENTATION_PLAN3.md -> archive/plans/
+  [SKIP] Destination already exists: IMPLEMENTATION_PLAN3.md
+  IMPLEMENTATION_PLAN_SYSTEMIC_CLEANUP_FIX.md -> KEEP at root (truth source)
+  IMPLEMENTATION_PLAN_TIDY_STORAGE.md -> archive/plans/
+  [SKIP] Destination already exists: IMPLEMENTATION_PLAN_TIDY_STORAGE.md
+  IMPLEMENTATION_PLAN_TIDY_WORKSPACE.md -> archive/plans/
+  [SKIP] Destination already exists: IMPLEMENTATION_PLAN_TIDY_WORKSPACE.md
+  IMPLEMENTATION_REVISION_TIDY_STORAGE.md -> archive/plans/
+  [SKIP] Destination already exists: IMPLEMENTATION_REVISION_TIDY_STORAGE.md
+  IMPROVEMENTS_IMPLEMENTED_20251211.md -> archive/reports/
+  [SKIP] Destination already exists: IMPROVEMENTS_IMPLEMENTED_20251211.md
+  LEARNED_RULES_README.md -> archive/reports/
+  [SKIP] Destination already exists: LEARNED_RULES_README.md
+  PATTERN_CONFIDENCE_ENHANCEMENT_20251211.md -> archive/reports/
+  [SKIP] Destination already exists: PATTERN_CONFIDENCE_ENHANCEMENT_20251211.md
+  plan.md -> archive/plans/
+  [SKIP] Destination already exists: plan.md
+  PROBE_ANALYSIS.md -> archive/analysis/
+  [SKIP] Destination already exists: PROBE_ANALYSIS.md
+  PROBE_PLAN.md -> archive/plans/
+  [SKIP] Destination already exists: PROBE_PLAN.md
+  PROBE_VERIFICATION_COMPLETE_20251211.md -> archive/reports/
+  [SKIP] Destination already exists: PROBE_VERIFICATION_COMPLETE_20251211.md
+  PROPOSED_CLEANUP_STRUCTURE.md -> KEEP at root (truth source)
+  QDRANT_CURSOR_PROMPT.md -> archive/reports/
+  QDRANT_TRANSITION_PLAN.md -> archive/plans/
+  [SKIP] Destination already exists: QDRANT_TRANSITION_PLAN.md
+  README.md -> KEEP at root (truth source)
+  ROOT_CAUSE_ANALYSIS_CLEANUP_FAILURE.md -> KEEP at root (truth source)
+  SCOPE_FIX_PROGRESS.md -> archive/reports/
+  [SKIP] Destination already exists: SCOPE_FIX_PROGRESS.md
+  TEST_RUN_ANALYSIS.md -> archive/analysis/
+  [SKIP] Destination already exists: TEST_RUN_ANALYSIS.md
+  TEST_RUN_GUIDE.md -> archive/reports/
+  [SKIP] Destination already exists: TEST_RUN_GUIDE.md
+  VECTOR_DB_INTEGRATION_COMPLETE.md -> archive/reports/
+  [SKIP] Destination already exists: VECTOR_DB_INTEGRATION_COMPLETE.md
+
+[FIX 1] Moved 1 .log files, 2 .md files
+
+[GIT] [OK] Created checkpoint: corrective: fix 1 - root loose files cleaned
+
+================================================================================
+FIX 2: PROMPTS FOLDER
+================================================================================
+[MERGE] prompts/ -> archive/prompts/
+
+[FIX 2] Complete
+
+[GIT] [OK] Created checkpoint: corrective: fix 2 - prompts folder merged to archive
+
+================================================================================
+FIX 3: ARCHIVE/DIAGNOSTICS NESTING
+================================================================================
+
+[NESTED] Found diagnostics/.autonomous_runs/
+  .autonomous_runs/file-organizer-app-v1 -> diagnostics/runs/
+  .autonomous_runs/fileorg-country-uk-20251204-212535 -> diagnostics/runs/
+  .autonomous_runs/fileorg-country-uk-20251205-132826 -> diagnostics/runs/
+  .autonomous_runs/fileorg-country-uk-20251205-134545 -> diagnostics/runs/
+  .autonomous_runs/fileorg-country-uk-20251205-140835 -> diagnostics/runs/
+  .autonomous_runs/fileorg-country-uk-20251205-144540 -> diagnostics/runs/
+  .autonomous_runs/fileorg-country-uk-20251205-174139 -> diagnostics/runs/
+  .autonomous_runs/fileorg-country-uk-20251205-220321 -> diagnostics/runs/
+  .autonomous_runs/fileorg-country-uk-20251205-223040 -> diagnostics/runs/
+  .autonomous_runs/fileorg-country-uk-20251206-113755 -> diagnostics/runs/
+  .autonomous_runs/fileorg-country-uk-20251206-173917 -> diagnostics/runs/
+  .autonomous_runs/fileorg-docker-build-20251204-204638 -> diagnostics/runs/
+  .autonomous_runs/fileorg-p2-20251206-02 -> diagnostics/runs/
+  .autonomous_runs/fileorg-p2-20251208c -> diagnostics/runs/
+  .autonomous_runs/fileorg-p2-20251208e -> diagnostics/runs/
+  .autonomous_runs/fileorg-p2-20251208f -> diagnostics/runs/
+  .autonomous_runs/fileorg-test-suite-fix-20251204-012845 -> diagnostics/runs/
+  .autonomous_runs/fileorg-test-suite-fix-20251204-013130 -> diagnostics/runs/
+  .autonomous_runs/fileorg-test-suite-fix-20251204-020922 -> diagnostics/runs/
+  .autonomous_runs/fileorg-test-suite-fix-20251204-023849 -> diagnostics/runs/
+  .autonomous_runs/fileorg-test-suite-fix-20251204-031524 -> diagnostics/runs/
+  .autonomous_runs/fileorg-test-suite-fix-20251204-032112 -> diagnostics/runs/
+  .autonomous_runs/fileorg-test-suite-fix-20251204-032633 -> diagnostics/runs/
+  .autonomous_runs/fileorg-test-suite-fix-20251204-033359 -> diagnostics/runs/
+  .autonomous_runs/fileorg-test-suite-fix-20251204-034154 -> diagnostics/runs/
+  .autonomous_runs/fileorg-test-suite-fix-20251204-040829 -> diagnostics/runs/
+  .autonomous_runs/fileorg-test-suite-fix-20251204-132708 -> diagnostics/runs/
+  .autonomous_runs/fileorg-test-suite-fix-20251204-133056 -> diagnostics/runs/
+  .autonomous_runs/fileorg-test-suite-fix-20251204-133519 -> diagnostics/runs/
+  .autonomous_runs/fileorg-test-suite-fix-20251204-134331 -> diagnostics/runs/
+  .autonomous_runs/fileorg-test-suite-fix-20251204-134726 -> diagnostics/runs/
+  .autonomous_runs/fileorg-test-suite-fix-20251204-134925 -> diagnostics/runs/
+  .autonomous_runs/scope-smoke-20251206184302 -> diagnostics/runs/
+  .autonomous_runs/start -> diagnostics/runs/
+  [DELETE] Removed empty .autonomous_runs/
+
+[NESTED] Found diagnostics/archive/
+  diagnostics/archive/ -> archive/archive/
+  [DELETE] Removed empty folder: archive\diagnostics\archive
+
+[NESTED] Found diagnostics/docs/
+  diagnostics/docs/ -> KEEP as diagnostics/docs/ (for debug notes)
+
+[NESTED] Found diagnostics/exports/
+  diagnostics/exports/ -> archive/exports/
+  [DELETE] Removed empty folder: archive\diagnostics\exports
+
+[NESTED] Found diagnostics/patches/
+  diagnostics/patches/ -> archive/patches/
+  [DELETE] Removed empty folder: archive\diagnostics\patches
+
+[NESTED] Found diagnostics/archived_runs/
+
+[NESTED] Found diagnostics/autopack/
+
+[MD FILES] Found 2 .md files in diagnostics/
+  CONSOLIDATED_DEBUG.md -> diagnostics/docs/
+  ENHANCED_ERROR_LOGGING.md -> diagnostics/docs/
+
+[FIX 3] Complete
+
+[GIT] No changes to commit
+
+================================================================================
+FIX 4: .AUTONOMOUS_RUNS ROOT
+================================================================================
+
+[DELEGATIONS] Merging openai_delegations/ -> archive/reports/
+  [DELETE] Removed empty folder: .autonomous_runs\openai_delegations
+
+[NOTE] Found loose folders at .autonomous_runs root: archive, docs, exports, patches, runs
+  These require project-specific review and are not automatically moved
+
+[FIX 4] Complete
+
+[GIT] [OK] Created checkpoint: corrective: fix 4 - autonomous_runs root cleaned
+
+================================================================================
+FIX 5: FILE-ORGANIZER ARCHIVE
+================================================================================
+
+[TRUTH] WHATS_LEFT_TO_BUILD_MAINTENANCE.md -> docs/guides/
+
+[RUN] backend-fixes-v6-20251130/ -> diagnostics/runs/
+
+[FILE] 'plans' file -> reports/plans_notes.txt
+
+[CLASSIFY] 13 loose .md files in archive/
+  CONSOLIDATED_DEBUG.md -> reports (default)/
+  CURSOR_REVISION_CHECKLIST.md -> reports/
+  MASTER_BUILD_PLAN_FILEORGANIZER.md -> plans/
+  NEW_PROJECT_SETUP_GUIDE.md -> reports/
+  phase_00_phase3-config-loading.md -> analysis/
+  phase_00_test-1-simple-modification.md -> analysis/
+  phase_01_impossible-task.md -> analysis/
+  phase_02_P2.3.md -> analysis/
+  phase_03_P2.4.md -> analysis/
+  phase_03_P3.md -> analysis/
+  phase_06_P6.md -> analysis/
+  phase_17_fileorg-p2-export-sharing.md -> analysis/
+  QUICK_REFERENCE.md -> reports/
+
+[RESEARCH] docs/research/ -> research/
+  [DELETE] Removed empty folder: .autonomous_runs\file-organizer-app-v1\archive\docs\research
+  [DELETE] Removed empty docs/
+
+[DELETE] Removing .faiss/ (old vector DB)
+
+[NESTED] Found .autonomous_runs/autopack/
+  [NOTE] Requires manual review - not automatically removed
+
+[FIX 5] Complete
+
+[GIT] [OK] Created checkpoint: corrective: fix 5 - file-organizer archive cleaned
+
+================================================================================
+FIX 6: ARCHIVE/RUNS LOCATION
+================================================================================
+[MOVE] archive/runs/ -> archive/diagnostics/runs/
+  archive
+  Autopack
+  file-organizer-app-v1
+  general
+  tidy_activity.log
+
+[FIX 6] Complete
+
+[GIT] No changes to commit
+
+================================================================================
+FIX 7: CREATE UNSORTED BUCKET
+================================================================================
+[CREATE] archive/unsorted/ (last-resort inbox)
+  Created unsorted/ with README.md
+
+[FIX 7] Complete
+
+[GIT] No changes to commit
+
+================================================================================
+VALIDATION: COMPREHENSIVE STRUCTURE CHECK
+================================================================================
+  - ACCURACY_IMPROVEMENTS_98PERCENT.md
+  - COMPREHENSIVE_TIDY_EXECUTION_PLAN.md
+  - CONFIDENCE_THRESHOLD_FIX_20251211.md
+  - DIRECTORY_ROUTING_UPDATE_SUMMARY.md
+  - FILEORG_PROBE_PLAN.md
+  ... and 19 more
+  - api_fixed.log
+  - api_fresh.log
+  - api_fresh_restart.log
+  - api_restart.log
+  - api_server_final.log
+[OK] All archive buckets exist
+[OK] No openai_delegations/ at .autonomous_runs root
+[OK] No loose .md files in file-organizer archive/
+
+[OK] Root structure: .autonomous_runs, archive, config, docs, scripts, src, tests
+
+================================================================================
+VALIDATION: [X] ISSUES FOUND
+  [X] 24 loose .md files at root
+  [X] 43 loose .log files at root
+  [X] prompts/ folder still at root
+  [X] Nested folders in diagnostics/: archived_runs, autopack
+  [X] archive/runs/ folder (should be archive/diagnostics/runs/)
+
+================================================================================
+CORRECTIVE CLEANUP COMPLETE
+================================================================================
+
+Changes committed. Review with:
+  git log -10 --oneline
+
+[!] WARNING: Some validation issues remain - review output above

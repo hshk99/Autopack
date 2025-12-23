@@ -1,0 +1,25 @@
+{
+  "failure_class": "maintenance",
+  "phase_id": "oi-fo-ci-failure",
+  "mode": "maintenance",
+  "ledger": "1) Investigate maintenance (conf=0.30) evidence=baseline_git_status -> exit None, timed_out=False; baseline_git_diff -> exit None, timed_out=False; baseline_disk_usage -> exit None, timed_out=False; actions=no actions yet; outcome=pending",
+  "probes": [
+    {
+      "name": "baseline_git_state",
+      "commands": [
+        "git status --short",
+        "git diff --stat"
+      ],
+      "resolved": false
+    },
+    {
+      "name": "baseline_env",
+      "commands": [
+        "python -m site --user-base",
+        "python -m sysconfig"
+      ],
+      "resolved": false
+    }
+  ],
+  "timestamp": 1765279726.8396196
+}

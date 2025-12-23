@@ -1,0 +1,12 @@
+# Command: df -h .
+# Exit: 0
+# Duration: 0.08s
+
+# STDOUT
+
+Filesystem      Size  Used Avail Use% Mounted on
+C:              872G  800G   73G  92% /c
+
+
+# STDERR
+

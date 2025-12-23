@@ -1,0 +1,11 @@
+# Command: tail -n 200 logs/autopack/autonomous_executor.log
+# Exit: 1
+# Duration: 0.03s
+
+# STDOUT
+
+
+
+# STDERR
+
+tail: cannot open 'logs/autopack/autonomous_executor.log' for reading: No such file or directory

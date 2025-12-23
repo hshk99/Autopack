@@ -1,0 +1,415 @@
+warning: in the working copy of '.claude/settings.local.json', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'tidy_run_output.log', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'WORKSPACE_ORGANIZATION_SPEC.md', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'scripts/run_comprehensive_cleanup.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'scripts/run_family_extractor.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'scripts/workspace_reorganizer.py', LF will be replaced by CRLF the next time Git touches it
+Running documentation update hook...
+[main 0cf10394] workspace reorganization: pre-cleanup checkpoint
+ 7 files changed, 3049 insertions(+), 1 deletion(-)
+ create mode 100644 WORKSPACE_ORGANIZATION_SPEC.md
+ create mode 100644 scripts/run_comprehensive_cleanup.py
+ create mode 100644 scripts/run_family_extractor.py
+ create mode 100644 scripts/workspace_reorganizer.py
+ create mode 100644 workspace_reorg_output.log
+Running documentation update hook...
+[main 275234bb] workspace reorganization: phase 1 - root cleaned
+ 70 files changed, 28866 deletions(-)
+ delete mode 100644 ACCURACY_IMPROVEMENTS_98PERCENT.md
+ delete mode 100644 COMPREHENSIVE_TIDY_EXECUTION_PLAN.md
+ delete mode 100644 CONFIDENCE_THRESHOLD_FIX_20251211.md
+ delete mode 100644 DIRECTORY_ROUTING_UPDATE_SUMMARY.md
+ delete mode 100644 FILEORG_PROBE_PLAN.md
+ delete mode 100644 FINAL_TEST.md
+ delete mode 100644 GPT_REVIEW_READY.md
+ delete mode 100644 IMPLEMENTATION_COMPLETE_SUMMARY.md
+ delete mode 100644 IMPLEMENTATION_PLAN2.md
+ delete mode 100644 IMPLEMENTATION_PLAN3.md
+ delete mode 100644 IMPLEMENTATION_PLAN_TIDY_STORAGE.md
+ delete mode 100644 IMPLEMENTATION_PLAN_TIDY_WORKSPACE.md
+ delete mode 100644 IMPLEMENTATION_REVISION_TIDY_STORAGE.md
+ delete mode 100644 IMPROVEMENTS_IMPLEMENTED_20251211.md
+ delete mode 100644 LEARNED_RULES_README.md
+ delete mode 100644 PATTERN_CONFIDENCE_ENHANCEMENT_20251211.md
+ delete mode 100644 PROBE_ANALYSIS.md
+ delete mode 100644 PROBE_PLAN.md
+ delete mode 100644 PROBE_VERIFICATION_COMPLETE_20251211.md
+ delete mode 100644 QDRANT_CURSOR_PROMPT.md
+ delete mode 100644 QDRANT_TRANSITION_PLAN.md
+ delete mode 100644 SCOPE_FIX_PROGRESS.md
+ delete mode 100644 TEST_RUN_ANALYSIS.md
+ delete mode 100644 TEST_RUN_GUIDE.md
+ delete mode 100644 VECTOR_DB_INTEGRATION_COMPLETE.md
+ delete mode 100644 api_fixed.log
+ delete mode 100644 api_fresh.log
+ delete mode 100644 api_fresh_restart.log
+ delete mode 100644 api_restart.log
+ delete mode 100644 api_server_final.log
+ delete mode 100644 api_server_fixed.log
+ delete mode 100644 api_server_fresh.log
+ delete mode 100644 api_server_fullfile_test.log
+ delete mode 100644 api_server_fullfile_test2.log
+ delete mode 100644 api_server_test.log
+ delete mode 100644 api_server_test3.log
+ delete mode 100644 dry-run-root-full.log
+ delete mode 100644 dry-run-root.log
+ delete mode 100644 fileorg_test_run.log
+ delete mode 100644 full_test_run.log
+ delete mode 100644 maintenance_observation_run.log
+ delete mode 100644 phase2_beta_run.log
+ delete mode 100644 phase2_resume_run.log
+ delete mode 100644 phase3_all_claude.log
+ delete mode 100644 phase3_all_fixes.log
+ delete mode 100644 phase3_all_fixes_test.log
+ delete mode 100644 phase3_delegated_run.log
+ delete mode 100644 phase3_final_fix.log
+ delete mode 100644 phase3_final_test.log
+ delete mode 100644 phase3_final_verification.log
+ delete mode 100644 phase3_fixed_tokens.log
+ delete mode 100644 phase3_fullfile_test.log
+ delete mode 100644 phase3_fullfile_test2.log
+ delete mode 100644 phase3_fullfile_test3.log
+ delete mode 100644 phase3_increased_tokens.log
+ delete mode 100644 phase3_maintenance_run.log
+ delete mode 100644 phase3_model_stack_test.log
+ delete mode 100644 phase3_smart_retry_test.log
+ delete mode 100644 phase3_sonnet_test.log
+ delete mode 100644 phase3_test_fixed.log
+ delete mode 100644 phase3_test_run.log
+ delete mode 100644 phase3_test_run_v2.log
+ delete mode 100644 phase3_with_validator.log
+ delete mode 100644 plan.md
+ delete mode 100644 probe_api_test.log
+ delete mode 100644 test_run.log
+ delete mode 100644 test_run_live.log
+ delete mode 100644 test_run_output.log
+ delete mode 100644 tidy_run_output.log
+ delete mode 100644 workspace_reorg_output.log
+Running documentation update hook...
+On branch main
+Your branch is ahead of 'origin/main' by 13 commits.
+  (use "git push" to publish your local commits)
+
+nothing to commit, working tree clean
+================================================================================
+COMPREHENSIVE WORKSPACE REORGANIZATION
+================================================================================
+Mode: EXECUTE
+
+
+[GIT] Created checkpoint: workspace reorganization: pre-cleanup checkpoint
+
+================================================================================
+PHASE 1: CLEANING ROOT DIRECTORY
+================================================================================
+
+Found 72 loose files in root
+[MOVE] ACCURACY_IMPROVEMENTS_98PERCENT.md → archive/reports\ACCURACY_IMPROVEMENTS_98PERCENT.md
+[MOVE] COMPREHENSIVE_TIDY_EXECUTION_PLAN.md → archive/plans\COMPREHENSIVE_TIDY_EXECUTION_PLAN.md
+[MOVE] CONFIDENCE_THRESHOLD_FIX_20251211.md → archive/reports\CONFIDENCE_THRESHOLD_FIX_20251211.md
+[MOVE] DIRECTORY_ROUTING_UPDATE_SUMMARY.md → archive/reports\DIRECTORY_ROUTING_UPDATE_SUMMARY.md
+[MOVE] FILEORG_PROBE_PLAN.md → archive/plans\FILEORG_PROBE_PLAN.md
+[MOVE] FINAL_TEST.md → archive/reports\FINAL_TEST.md
+[MOVE] GPT_REVIEW_READY.md → archive/delegations\GPT_REVIEW_READY.md
+[MOVE] IMPLEMENTATION_COMPLETE_SUMMARY.md → archive/reports\IMPLEMENTATION_COMPLETE_SUMMARY.md
+[MOVE] IMPLEMENTATION_PLAN2.md → archive/plans\IMPLEMENTATION_PLAN2.md
+[MOVE] IMPLEMENTATION_PLAN3.md → archive/plans\IMPLEMENTATION_PLAN3.md
+[MOVE] IMPLEMENTATION_PLAN_TIDY_STORAGE.md → archive/plans\IMPLEMENTATION_PLAN_TIDY_STORAGE.md
+[MOVE] IMPLEMENTATION_PLAN_TIDY_WORKSPACE.md → archive/plans\IMPLEMENTATION_PLAN_TIDY_WORKSPACE.md
+[MOVE] IMPLEMENTATION_REVISION_TIDY_STORAGE.md → archive/plans\IMPLEMENTATION_REVISION_TIDY_STORAGE.md
+[MOVE] IMPROVEMENTS_IMPLEMENTED_20251211.md → archive/reports\IMPROVEMENTS_IMPLEMENTED_20251211.md
+[MOVE] LEARNED_RULES_README.md → archive/reports\LEARNED_RULES_README.md
+[MOVE] PATTERN_CONFIDENCE_ENHANCEMENT_20251211.md → archive/reports\PATTERN_CONFIDENCE_ENHANCEMENT_20251211.md
+[MOVE] plan.md → archive/plans\plan.md
+[MOVE] PROBE_ANALYSIS.md → archive/analysis\PROBE_ANALYSIS.md
+[MOVE] PROBE_PLAN.md → archive/plans\PROBE_PLAN.md
+[MOVE] PROBE_VERIFICATION_COMPLETE_20251211.md → archive/reports\PROBE_VERIFICATION_COMPLETE_20251211.md
+[MOVE] QDRANT_CURSOR_PROMPT.md → archive/prompts\QDRANT_CURSOR_PROMPT.md
+[MOVE] QDRANT_TRANSITION_PLAN.md → archive/plans\QDRANT_TRANSITION_PLAN.md
+[PROTECTED] README.md
+[MOVE] SCOPE_FIX_PROGRESS.md → archive/reports\SCOPE_FIX_PROGRESS.md
+[MOVE] TEST_RUN_ANALYSIS.md → archive/analysis\TEST_RUN_ANALYSIS.md
+[MOVE] TEST_RUN_GUIDE.md → archive/reports\TEST_RUN_GUIDE.md
+[MOVE] VECTOR_DB_INTEGRATION_COMPLETE.md → archive/reports\VECTOR_DB_INTEGRATION_COMPLETE.md
+[PROTECTED] WORKSPACE_ORGANIZATION_SPEC.md
+[MOVE] api_fixed.log → archive/diagnostics\logs\api_fixed.log
+[MOVE] api_fresh.log → archive/diagnostics\logs\api_fresh.log
+[MOVE] api_fresh_restart.log → archive/diagnostics\logs\api_fresh_restart.log
+[MOVE] api_restart.log → archive/diagnostics\logs\api_restart.log
+[MOVE] api_server_final.log → archive/diagnostics\logs\api_server_final.log
+[MOVE] api_server_fixed.log → archive/diagnostics\logs\api_server_fixed.log
+[MOVE] api_server_fresh.log → archive/diagnostics\logs\api_server_fresh.log
+[MOVE] api_server_fullfile_test.log → archive/diagnostics\logs\api_server_fullfile_test.log
+[MOVE] api_server_fullfile_test2.log → archive/diagnostics\logs\api_server_fullfile_test2.log
+[MOVE] api_server_test.log → archive/diagnostics\logs\api_server_test.log
+[MOVE] api_server_test3.log → archive/diagnostics\logs\api_server_test3.log
+[MOVE] dry-run-root-full.log → archive/diagnostics\logs\dry-run-root-full.log
+[MOVE] dry-run-root.log → archive/diagnostics\logs\dry-run-root.log
+[MOVE] fileorg_test_run.log → archive/diagnostics\logs\fileorg_test_run.log
+[MOVE] full_test_run.log → archive/diagnostics\logs\full_test_run.log
+[MOVE] maintenance_observation_run.log → archive/diagnostics\logs\maintenance_observation_run.log
+[MOVE] phase2_beta_run.log → archive/diagnostics\logs\phase2_beta_run.log
+[MOVE] phase2_resume_run.log → archive/diagnostics\logs\phase2_resume_run.log
+[MOVE] phase3_all_claude.log → archive/diagnostics\logs\phase3_all_claude.log
+[MOVE] phase3_all_fixes.log → archive/diagnostics\logs\phase3_all_fixes.log
+[MOVE] phase3_all_fixes_test.log → archive/diagnostics\logs\phase3_all_fixes_test.log
+[MOVE] phase3_delegated_run.log → archive/diagnostics\logs\phase3_delegated_run.log
+[MOVE] phase3_final_fix.log → archive/diagnostics\logs\phase3_final_fix.log
+[MOVE] phase3_final_test.log → archive/diagnostics\logs\phase3_final_test.log
+[MOVE] phase3_final_verification.log → archive/diagnostics\logs\phase3_final_verification.log
+[MOVE] phase3_fixed_tokens.log → archive/diagnostics\logs\phase3_fixed_tokens.log
+[MOVE] phase3_fullfile_test.log → archive/diagnostics\logs\phase3_fullfile_test.log
+[MOVE] phase3_fullfile_test2.log → archive/diagnostics\logs\phase3_fullfile_test2.log
+[MOVE] phase3_fullfile_test3.log → archive/diagnostics\logs\phase3_fullfile_test3.log
+[MOVE] phase3_increased_tokens.log → archive/diagnostics\logs\phase3_increased_tokens.log
+[MOVE] phase3_maintenance_run.log → archive/diagnostics\logs\phase3_maintenance_run.log
+[MOVE] phase3_model_stack_test.log → archive/diagnostics\logs\phase3_model_stack_test.log
+[MOVE] phase3_smart_retry_test.log → archive/diagnostics\logs\phase3_smart_retry_test.log
+[MOVE] phase3_sonnet_test.log → archive/diagnostics\logs\phase3_sonnet_test.log
+[MOVE] phase3_test_fixed.log → archive/diagnostics\logs\phase3_test_fixed.log
+[MOVE] phase3_test_run.log → archive/diagnostics\logs\phase3_test_run.log
+[MOVE] phase3_test_run_v2.log → archive/diagnostics\logs\phase3_test_run_v2.log
+[MOVE] phase3_with_validator.log → archive/diagnostics\logs\phase3_with_validator.log
+[MOVE] probe_api_test.log → archive/diagnostics\logs\probe_api_test.log
+[MOVE] test_run.log → archive/diagnostics\logs\test_run.log
+[MOVE] test_run_live.log → archive/diagnostics\logs\test_run_live.log
+[MOVE] test_run_output.log → archive/diagnostics\logs\test_run_output.log
+[MOVE] tidy_run_output.log → archive/diagnostics\logs\tidy_run_output.log
+[MOVE] workspace_reorg_output.log → archive/diagnostics\logs\workspace_reorg_output.log
+
+Summary: 70 moved, 0 skipped, 2 protected
+
+[GIT] Created checkpoint: workspace reorganization: phase 1 - root cleaned
+
+================================================================================
+PHASE 2: CLEANING AUTOPACK ARCHIVE
+================================================================================
+
+[FLATTEN] Flattening C:\dev\Autopack\archive\superseded
+[MOVE] .autonomous_runs → archive/.autonomous_runs
+[MERGE] analysis/ (merging with existing)
+[MOVE] api_server_final.log → archive/api_server_final.log
+[MOVE] api_server_fixed.log → archive/api_server_fixed.log
+[MOVE] api_server_fresh.log → archive/api_server_fresh.log
+[MOVE] api_server_fullfile_test.log → archive/api_server_fullfile_test.log
+[MOVE] api_server_fullfile_test2.log → archive/api_server_fullfile_test2.log
+[MOVE] api_server_test.log → archive/api_server_test.log
+[MOVE] api_server_test3.log → archive/api_server_test3.log
+[MOVE] archive → archive/archive
+[MERGE] delegations/ (merging with existing)
+[MERGE] diagnostics/ (merging with existing)
+[MOVE] dry-run-root.log → archive/dry-run-root.log
+[MOVE] fileorg_test_run.log → archive/fileorg_test_run.log
+[MERGE] logs/ (merging with existing)
+[MOVE] phase2_beta_run.log → archive/phase2_beta_run.log
+[MOVE] phase2_resume_run.log → archive/phase2_resume_run.log
+[MOVE] phase3_all_claude.log → archive/phase3_all_claude.log
+[MOVE] phase3_all_fixes.log → archive/phase3_all_fixes.log
+[MOVE] phase3_all_fixes_test.log → archive/phase3_all_fixes_test.log
+[MOVE] phase3_delegated_run.log → archive/phase3_delegated_run.log
+[MOVE] phase3_final_fix.log → archive/phase3_final_fix.log
+[MOVE] phase3_final_test.log → archive/phase3_final_test.log
+Running documentation update hook...
+On branch main
+Your branch is ahead of 'origin/main' by 13 commits.
+  (use "git push" to publish your local commits)
+
+nothing to commit, working tree clean
+[MOVE] phase3_final_verification.log → archive/phase3_final_verification.log
+[MOVE] phase3_fixed_tokens.log → archive/phase3_fixed_tokens.log
+[MOVE] phase3_fullfile_test.log → archive/phase3_fullfile_test.log
+[MOVE] phase3_fullfile_test2.log → archive/phase3_fullfile_test2.log
+[MOVE] phase3_fullfile_test3.log → archive/phase3_fullfile_test3.log
+[MOVE] phase3_increased_tokens.log → archive/phase3_increased_tokens.log
+[MOVE] phase3_maintenance_run.log → archive/phase3_maintenance_run.log
+[MOVE] phase3_model_stack_test.log → archive/phase3_model_stack_test.log
+[MOVE] phase3_smart_retry_test.log → archive/phase3_smart_retry_test.log
+[MOVE] phase3_sonnet_test.log → archive/phase3_sonnet_test.log
+[MOVE] phase3_test_fixed.log → archive/phase3_test_fixed.log
+[MOVE] phase3_test_run.log → archive/phase3_test_run.log
+[MOVE] phase3_test_run_v2.log → archive/phase3_test_run_v2.log
+[MOVE] phase3_with_validator.log → archive/phase3_with_validator.log
+[MERGE] plans/ (merging with existing)
+[MERGE] prompts/ (merging with existing)
+[MOVE] refs → archive/refs
+[MERGE] reports/ (merging with existing)
+[MOVE] research → archive/research
+[MOVE] scripts → archive/scripts
+[MOVE] src → archive/src
+[MOVE] test_run.log → archive/test_run.log
+[MOVE] test_run_live.log → archive/test_run_live.log
+[MOVE] test_run_output.log → archive/test_run_output.log
+[DELETE] Removed empty superseded/ folder
+[FLATTEN] Moved 186 items
+
+[DIAGNOSTICS] Organizing runs by family in C:\dev\Autopack\archive\diagnostics
+
+[GIT] No changes to commit
+
+================================================================================
+PHASE 3: CLEANING FILE-ORGANIZER ARCHIVE
+================================================================================
+
+[FLATTEN] Flattening C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\superseded
+[MOVE] archive → archive/archive
+[MOVE] CURSOR_REVISION_CHECKLIST.md → archive/CURSOR_REVISION_CHECKLIST.md
+[MOVE] docs → archive/docs
+[MOVE] file-organizer-app-v1 → archive/file-organizer-app-v1
+[MOVE] MASTER_BUILD_PLAN_FILEORGANIZER.md → archive/MASTER_BUILD_PLAN_FILEORGANIZER.md
+[MOVE] prompts → archive/prompts
+[DELETE] Removed empty superseded/ folder
+[FLATTEN] Moved 6 items
+
+[CLEANUP] Removing project folder file-organizer-app-v1/ and merging contents
+[MOVE] file-organizer-app-v1/.autonomous_runs → .autonomous_runs
+[MOVE] file-organizer-app-v1/autopack → autopack
+[MOVE] file-organizer-app-v1/autopack-phase-plan → autopack-phase-plan
+[MOVE] file-organizer-app-v1/autopack-phase-plan-20251208-023213 → autopack-phase-plan-20251208-023213
+[MOVE] file-organizer-app-v1/autopack-phase-plan-20251208-024800 → autopack-phase-plan-20251208-024800
+[MOVE] file-organizer-app-v1/autopack-phase-plan-20251208-031121 → autopack-phase-plan-20251208-031121
+[MOVE] file-organizer-app-v1/autopack-phase-plan-20251208-032214 → autopack-phase-plan-20251208-032214
+[MOVE] file-organizer-app-v1/autopack-phase-plan-20251208-032930 → autopack-phase-plan-20251208-032930
+[MOVE] file-organizer-app-v1/autopack-phase-plan-20251208-033442 → autopack-phase-plan-20251208-033442
+[MOVE] file-organizer-app-v1/autopack-phase-plan-20251208-034101 → autopack-phase-plan-20251208-034101
+[MOVE] file-organizer-app-v1/autopack-phase-plan-20251208-034758 → autopack-phase-plan-20251208-034758
+[MOVE] file-organizer-app-v1/backend-fixes-v6-20251130 → backend-fixes-v6-20251130
+[MOVE] file-organizer-app-v1/backlog-maintenance-1765286879 → backlog-maintenance-1765286879
+[MOVE] file-organizer-app-v1/backlog-maintenance-1765287477 → backlog-maintenance-1765287477
+[MOVE] file-organizer-app-v1/backlog-maintenance-1765287554 → backlog-maintenance-1765287554
+[MOVE] file-organizer-app-v1/backlog-maintenance-1765287723 → backlog-maintenance-1765287723
+[MOVE] file-organizer-app-v1/backlog-maintenance-1765288552 → backlog-maintenance-1765288552
+[MOVE] file-organizer-app-v1/backlog-maintenance-1765290364 → backlog-maintenance-1765290364
+[MOVE] file-organizer-app-v1/backlog-maintenance-1765297485 → backlog-maintenance-1765297485
+[MOVE] file-organizer-app-v1/backlog-maintenance-1765297570 → backlog-maintenance-1765297570
+[MOVE] file-organizer-app-v1/backlog-maintenance-1765298547 → backlog-maintenance-1765298547
+[MOVE] file-organizer-app-v1/backlog-maintenance-1765299305 → backlog-maintenance-1765299305
+[MOVE] file-organizer-app-v1/codex_delegations → codex_delegations
+[MOVE] file-organizer-app-v1/demo-run-002 → demo-run-002
+[MOVE] file-organizer-app-v1/deprecated → deprecated
+[MOVE] file-organizer-app-v1/escalation-test-20251130-232314 → escalation-test-20251130-232314
+[MOVE] file-organizer-app-v1/escalation-validation-20251130 → escalation-validation-20251130
+[MOVE] file-organizer-app-v1/fileorg-backend-fixes-v2-20251130 → fileorg-backend-fixes-v2-20251130
+[MOVE] file-organizer-app-v1/fileorg-backend-fixes-v3-20251130 → fileorg-backend-fixes-v3-20251130
+[MOVE] file-organizer-app-v1/fileorg-backend-fixes-v5-20251130 → fileorg-backend-fixes-v5-20251130
+[MOVE] file-organizer-app-v1/fileorg-backend-tests-fix-20251130 → fileorg-backend-tests-fix-20251130
+[MOVE] file-organizer-app-v1/fileorg-country-uk-20251204-201930 → fileorg-country-uk-20251204-201930
+[MOVE] file-organizer-app-v1/fileorg-country-uk-20251204-212535 → fileorg-country-uk-20251204-212535
+[MOVE] file-organizer-app-v1/fileorg-country-uk-20251204-222421 → fileorg-country-uk-20251204-222421
+[MOVE] file-organizer-app-v1/fileorg-country-uk-20251204-225723 → fileorg-country-uk-20251204-225723
+[MOVE] file-organizer-app-v1/fileorg-country-uk-20251204-231207 → fileorg-country-uk-20251204-231207
+[MOVE] file-organizer-app-v1/fileorg-country-uk-20251204-232618 → fileorg-country-uk-20251204-232618
+[MOVE] file-organizer-app-v1/fileorg-country-uk-20251204-234837 → fileorg-country-uk-20251204-234837
+[MOVE] file-organizer-app-v1/fileorg-country-uk-20251205-000537 → fileorg-country-uk-20251205-000537
+[MOVE] file-organizer-app-v1/fileorg-country-uk-20251205-001903 → fileorg-country-uk-20251205-001903
+[MOVE] file-organizer-app-v1/fileorg-country-uk-20251205-132826 → fileorg-country-uk-20251205-132826
+[MOVE] file-organizer-app-v1/fileorg-country-uk-20251205-134545 → fileorg-country-uk-20251205-134545
+[MOVE] file-organizer-app-v1/fileorg-country-uk-20251205-140835 → fileorg-country-uk-20251205-140835
+[MOVE] file-organizer-app-v1/fileorg-country-uk-20251205-144540 → fileorg-country-uk-20251205-144540
+[MOVE] file-organizer-app-v1/fileorg-country-uk-20251205-160547 → fileorg-country-uk-20251205-160547
+[MOVE] file-organizer-app-v1/fileorg-country-uk-20251205-161949 → fileorg-country-uk-20251205-161949
+[MOVE] file-organizer-app-v1/fileorg-country-uk-20251205-174139 → fileorg-country-uk-20251205-174139
+[MOVE] file-organizer-app-v1/fileorg-country-uk-20251205-220321 → fileorg-country-uk-20251205-220321
+[MOVE] file-organizer-app-v1/fileorg-country-uk-20251205-223040 → fileorg-country-uk-20251205-223040
+[MOVE] file-organizer-app-v1/fileorg-country-uk-20251206-000714 → fileorg-country-uk-20251206-000714
+[MOVE] file-organizer-app-v1/fileorg-country-uk-20251206-013406 → fileorg-country-uk-20251206-013406
+[MOVE] file-organizer-app-v1/fileorg-country-uk-20251206-113755 → fileorg-country-uk-20251206-113755
+[MOVE] file-organizer-app-v1/fileorg-country-uk-20251206-173917 → fileorg-country-uk-20251206-173917
+[MOVE] file-organizer-app-v1/fileorg-docker-20251204-144730 → fileorg-docker-20251204-144730
+[MOVE] file-organizer-app-v1/fileorg-docker-20251204-144955 → fileorg-docker-20251204-144955
+[MOVE] file-organizer-app-v1/fileorg-docker-20251204-150122 → fileorg-docker-20251204-150122
+[MOVE] file-organizer-app-v1/fileorg-docker-build-20251204-183124 → fileorg-docker-build-20251204-183124
+[MOVE] file-organizer-app-v1/fileorg-docker-build-20251204-183327 → fileorg-docker-build-20251204-183327
+[MOVE] file-organizer-app-v1/fileorg-docker-build-20251204-184617 → fileorg-docker-build-20251204-184617
+[MOVE] file-organizer-app-v1/fileorg-docker-build-20251204-190728 → fileorg-docker-build-20251204-190728
+[MOVE] file-organizer-app-v1/fileorg-docker-build-20251204-192754 → fileorg-docker-build-20251204-192754
+[MOVE] file-organizer-app-v1/fileorg-docker-build-20251204-193725 → fileorg-docker-build-20251204-193725
+[MOVE] file-organizer-app-v1/fileorg-docker-build-20251204-194513 → fileorg-docker-build-20251204-194513
+[MOVE] file-organizer-app-v1/fileorg-docker-build-20251204-201016 → fileorg-docker-build-20251204-201016
+[MOVE] file-organizer-app-v1/fileorg-docker-build-20251204-204638 → fileorg-docker-build-20251204-204638
+[MOVE] file-organizer-app-v1/fileorg-docker-build-20251204-221304 → fileorg-docker-build-20251204-221304
+[MOVE] file-organizer-app-v1/fileorg-frontend-build-20251204-142624 → fileorg-frontend-build-20251204-142624
+[MOVE] file-organizer-app-v1/fileorg-frontend-build-20251204-142850 → fileorg-frontend-build-20251204-142850
+[MOVE] file-organizer-app-v1/fileorg-frontend-build-20251204-143002 → fileorg-frontend-build-20251204-143002
+[MOVE] file-organizer-app-v1/fileorg-frontend-build-20251204-143242 → fileorg-frontend-build-20251204-143242
+[MOVE] file-organizer-app-v1/fileorg-p2-20251206-01 → fileorg-p2-20251206-01
+[MOVE] file-organizer-app-v1/fileorg-p2-20251206-02 → fileorg-p2-20251206-02
+[MOVE] file-organizer-app-v1/fileorg-p2-20251208 → fileorg-p2-20251208
+[MOVE] file-organizer-app-v1/fileorg-p2-20251208b → fileorg-p2-20251208b
+[MOVE] file-organizer-app-v1/fileorg-p2-20251208c → fileorg-p2-20251208c
+[MOVE] file-organizer-app-v1/fileorg-p2-20251208d → fileorg-p2-20251208d
+[MOVE] file-organizer-app-v1/fileorg-p2-20251208e → fileorg-p2-20251208e
+[MOVE] file-organizer-app-v1/fileorg-p2-20251208f → fileorg-p2-20251208f
+[MOVE] file-organizer-app-v1/fileorg-p2-20251208g → fileorg-p2-20251208g
+[MOVE] file-organizer-app-v1/fileorg-p2-20251208h → fileorg-p2-20251208h
+[MOVE] file-organizer-app-v1/fileorg-p2-20251208i → fileorg-p2-20251208i
+[MOVE] file-organizer-app-v1/fileorg-p2-20251208k → fileorg-p2-20251208k
+[MOVE] file-organizer-app-v1/fileorg-p2-20251208l → fileorg-p2-20251208l
+[MOVE] file-organizer-app-v1/fileorg-p2-20251208n → fileorg-p2-20251208n
+[MOVE] file-organizer-app-v1/fileorg-p2-20251208p → fileorg-p2-20251208p
+[MOVE] file-organizer-app-v1/fileorg-p2-20251208q → fileorg-p2-20251208q
+[MOVE] file-organizer-app-v1/fileorg-p2-20251208r → fileorg-p2-20251208r
+[MOVE] file-organizer-app-v1/fileorg-p2-20251208s → fileorg-p2-20251208s
+[MOVE] file-organizer-app-v1/fileorg-p2-20251208t → fileorg-p2-20251208t
+[MOVE] file-organizer-app-v1/fileorg-phase2-beta → fileorg-phase2-beta
+[MOVE] file-organizer-app-v1/fileorg-phase2-beta-20251201 → fileorg-phase2-beta-20251201
+[MOVE] file-organizer-app-v1/fileorg-phase2-final → fileorg-phase2-final
+[MOVE] file-organizer-app-v1/fileorg-phase2-resume-20251130-165300 → fileorg-phase2-resume-20251130-165300
+[MOVE] file-organizer-app-v1/fileorg-phase2-with-descriptions → fileorg-phase2-with-descriptions
+[MOVE] file-organizer-app-v1/fileorg-test-claude-all-complexity-2025-11-29 → fileorg-test-claude-all-complexity-2025-11-29
+[MOVE] file-organizer-app-v1/fileorg-test-claude-sonnet-2025-11-29 → fileorg-test-claude-sonnet-2025-11-29
+[MOVE] file-organizer-app-v1/fileorg-test-enhanced-prompt-2025-11-29 → fileorg-test-enhanced-prompt-2025-11-29
+[MOVE] file-organizer-app-v1/fileorg-test-suite-fix-20251203-181941 → fileorg-test-suite-fix-20251203-181941
+[MOVE] file-organizer-app-v1/fileorg-test-suite-fix-20251204-011803 → fileorg-test-suite-fix-20251204-011803
+[MOVE] file-organizer-app-v1/fileorg-test-suite-fix-20251204-012032 → fileorg-test-suite-fix-20251204-012032
+[MOVE] file-organizer-app-v1/fileorg-test-suite-fix-20251204-012845 → fileorg-test-suite-fix-20251204-012845
+[MOVE] file-organizer-app-v1/fileorg-test-suite-fix-20251204-013130 → fileorg-test-suite-fix-20251204-013130
+[MOVE] file-organizer-app-v1/fileorg-test-suite-fix-20251204-014945 → fileorg-test-suite-fix-20251204-014945
+[MOVE] file-organizer-app-v1/fileorg-test-suite-fix-20251204-020922 → fileorg-test-suite-fix-20251204-020922
+[MOVE] file-organizer-app-v1/fileorg-test-suite-fix-20251204-022901 → fileorg-test-suite-fix-20251204-022901
+[MOVE] file-organizer-app-v1/fileorg-test-suite-fix-20251204-023038 → fileorg-test-suite-fix-20251204-023038
+[MOVE] file-organizer-app-v1/fileorg-test-suite-fix-20251204-023849 → fileorg-test-suite-fix-20251204-023849
+[MOVE] file-organizer-app-v1/fileorg-test-suite-fix-20251204-031524 → fileorg-test-suite-fix-20251204-031524
+[MOVE] file-organizer-app-v1/fileorg-test-suite-fix-20251204-032112 → fileorg-test-suite-fix-20251204-032112
+[MOVE] file-organizer-app-v1/fileorg-test-suite-fix-20251204-032633 → fileorg-test-suite-fix-20251204-032633
+[MOVE] file-organizer-app-v1/fileorg-test-suite-fix-20251204-033359 → fileorg-test-suite-fix-20251204-033359
+[MOVE] file-organizer-app-v1/fileorg-test-suite-fix-20251204-034154 → fileorg-test-suite-fix-20251204-034154
+[MOVE] file-organizer-app-v1/fileorg-test-suite-fix-20251204-035405 → fileorg-test-suite-fix-20251204-035405
+[MOVE] file-organizer-app-v1/fileorg-test-suite-fix-20251204-035906 → fileorg-test-suite-fix-20251204-035906
+[MOVE] file-organizer-app-v1/fileorg-test-suite-fix-20251204-040338 → fileorg-test-suite-fix-20251204-040338
+[MOVE] file-organizer-app-v1/fileorg-test-suite-fix-20251204-040829 → fileorg-test-suite-fix-20251204-040829
+[MOVE] file-organizer-app-v1/fileorg-test-suite-fix-20251204-132708 → fileorg-test-suite-fix-20251204-132708
+[MOVE] file-organizer-app-v1/fileorg-test-suite-fix-20251204-133056 → fileorg-test-suite-fix-20251204-133056
+[MOVE] file-organizer-app-v1/fileorg-test-suite-fix-20251204-133519 → fileorg-test-suite-fix-20251204-133519
+[MOVE] file-organizer-app-v1/fileorg-test-suite-fix-20251204-134331 → fileorg-test-suite-fix-20251204-134331
+[MOVE] file-organizer-app-v1/fileorg-test-suite-fix-20251204-134726 → fileorg-test-suite-fix-20251204-134726
+[MOVE] file-organizer-app-v1/fileorg-test-suite-fix-20251204-134925 → fileorg-test-suite-fix-20251204-134925
+[MOVE] file-organizer-app-v1/fileorg-test-verification-2025-11-29 → fileorg-test-verification-2025-11-29
+[MOVE] file-organizer-app-v1/phase3-delegated-20251201-215649 → phase3-delegated-20251201-215649
+[MOVE] file-organizer-app-v1/phase3-delegated-20251201-220659 → phase3-delegated-20251201-220659
+[MOVE] file-organizer-app-v1/phase3-delegated-20251202-022323 → phase3-delegated-20251202-022323
+[MOVE] file-organizer-app-v1/phase3-delegated-20251202-030213 → phase3-delegated-20251202-030213
+[MOVE] file-organizer-app-v1/phase3-delegated-20251202-030505 → phase3-delegated-20251202-030505
+[MOVE] file-organizer-app-v1/phase3-delegated-20251202-031850 → phase3-delegated-20251202-031850
+[MOVE] file-organizer-app-v1/phase3-delegated-20251202-033912 → phase3-delegated-20251202-033912
+[MOVE] file-organizer-app-v1/phase3-delegated-20251202-134835 → phase3-delegated-20251202-134835
+[MOVE] file-organizer-app-v1/phase3-delegated-20251202-192817 → phase3-delegated-20251202-192817
+[MOVE] file-organizer-app-v1/phase3-delegated-20251202-194253 → phase3-delegated-20251202-194253
+[MOVE] file-organizer-app-v1/run-20251207-01 → run-20251207-01
+[MOVE] file-organizer-app-v1/run-20251208-01 → run-20251208-01
+[MOVE] file-organizer-app-v1/scope-smoke-20251206184302 → scope-smoke-20251206184302
+[MOVE] file-organizer-app-v1/start → start
+[MOVE] file-organizer-app-v1/test-goal-anchoring-20251203-013508 → test-goal-anchoring-20251203-013508
+[MOVE] file-organizer-app-v1/test-goal-anchoring-20251203-022603 → test-goal-anchoring-20251203-022603
+[MOVE] file-organizer-app-v1/test-run-001 → test-run-001
+[MOVE] file-organizer-app-v1/test-run-002 → test-run-002
+[MOVE] file-organizer-app-v1/test-run-003 → test-run-003
+[MOVE] file-organizer-app-v1/__pycache__ → __pycache__
+[DELETE] Removed empty file-organizer-app-v1/ folder
+
+[GIT] No changes to commit
+
+================================================================================
+REORGANIZATION COMPLETE
+================================================================================
+
+Changes committed. Review with: git log -5 --oneline

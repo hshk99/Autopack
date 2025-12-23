@@ -1,0 +1,48 @@
+================================================================================
+ERROR REPORT - 2025-12-06T19:22:39.077413+00:00
+================================================================================
+Error Type: ResponseValidationError
+Error Message: 1 validation errors:
+  {'type': 'get_attribute_error', 'loc': ('response', 'tiers', 0, 'phases'), 'msg': "Error extracting attribute: LookupError: 'queued' is not among the defined enum values. Enum name: phasestate. Possible values: QUEUED, EXECUTING, GATE, ..., SKIPPED", 'input': <autopack.models.Tier object at 0x000001ABE9CF5700>, 'ctx': {'error': "LookupError: 'queued' is not among the defined enum values. Enum name: phasestate. Possible values: QUEUED, EXECUTING, GATE, ..., SKIPPED"}, 'url': 'https://errors.pydantic.dev/2.7/v/get_attribute_error'}
+
+Run ID: scope-smoke-20251206184302
+Component: api
+Operation: GET /runs/scope-smoke-20251206184302
+
+Stack Trace:
+--------------------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Python\Lib\site-packages\starlette\middleware\errors.py", line 162, in __call__
+    await self.app(scope, receive, _send)
+  File "C:\Python\Lib\site-packages\starlette\middleware\exceptions.py", line 79, in __call__
+    raise exc
+  File "C:\Python\Lib\site-packages\starlette\middleware\exceptions.py", line 68, in __call__
+    await self.app(scope, receive, sender)
+  File "C:\Python\Lib\site-packages\fastapi\middleware\asyncexitstack.py", line 20, in __call__
+    raise e
+  File "C:\Python\Lib\site-packages\fastapi\middleware\asyncexitstack.py", line 17, in __call__
+    await self.app(scope, receive, send)
+  File "C:\Python\Lib\site-packages\starlette\routing.py", line 718, in __call__
+    await route.handle(scope, receive, send)
+  File "C:\Python\Lib\site-packages\starlette\routing.py", line 276, in handle
+    await self.app(scope, receive, send)
+  File "C:\Python\Lib\site-packages\starlette\routing.py", line 66, in app
+    response = await func(request)
+               ^^^^^^^^^^^^^^^^^^^
+  File "C:\Python\Lib\site-packages\fastapi\routing.py", line 292, in app
+    content = await serialize_response(
+              ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python\Lib\site-packages\fastapi\routing.py", line 155, in serialize_response
+    raise ResponseValidationError(
+fastapi.exceptions.ResponseValidationError: 1 validation errors:
+  {'type': 'get_attribute_error', 'loc': ('response', 'tiers', 0, 'phases'), 'msg': "Error extracting attribute: LookupError: 'queued' is not among the defined enum values. Enum name: phasestate. Possible values: QUEUED, EXECUTING, GATE, ..., SKIPPED", 'input': <autopack.models.Tier object at 0x000001ABE9CF5700>, 'ctx': {'error': "LookupError: 'queued' is not among the defined enum values. Enum name: phasestate. Possible values: QUEUED, EXECUTING, GATE, ..., SKIPPED"}, 'url': 'https://errors.pydantic.dev/2.7/v/get_attribute_error'}
+
+
+
+Context Data:
+--------------------------------------------------------------------------------
+method: GET
+url: http://127.0.0.1:8100/runs/scope-smoke-20251206184302
+headers: {'user-agent': 'Mozilla/5.0 (Windows NT; Windows NT 10.0; en-AU) WindowsPowerShell/5.1.26100.7019', 'host': '127.0.0.1:8100', 'connection': 'Keep-Alive'}
+query_params: {}
+================================================================================

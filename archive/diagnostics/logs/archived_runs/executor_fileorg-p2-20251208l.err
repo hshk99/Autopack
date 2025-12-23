@@ -1,0 +1,147 @@
+[2025-12-09 00:50:49] INFO: Applying pre-emptive encoding fix...
+[2025-12-09 00:50:49] INFO: [Recovery] Fixing Unicode encoding error...
+[2025-12-09 00:50:49] INFO: [Recovery] SUCCESS: Encoding fixed (UTF-8 enabled)
+[2025-12-09 00:50:49] INFO: Database tables initialized
+[2025-12-09 00:50:49] INFO: Loaded BuilderOutputConfig: max_lines_for_full_file=1000, max_lines_hard_limit=1000
+[2025-12-09 00:50:49] INFO: Doctor execute_fix enabled: True
+[2025-12-09 00:50:49] INFO: FileSizeTelemetry initialized: .autonomous_runs\file-organizer-app-v1\.autonomous_runs\autopack\file_size_telemetry.jsonl
+[2025-12-09 00:50:49] INFO: Initialized autonomous executor for run: fileorg-p2-20251208l
+[2025-12-09 00:50:49] INFO: API URL: http://127.0.0.1:8100
+[2025-12-09 00:50:49] INFO: Workspace: .autonomous_runs\file-organizer-app-v1
+[2025-12-09 00:50:49] INFO: Running proactive startup checks from DEBUG_JOURNAL.md...
+[2025-12-09 00:50:49] INFO: [HIGH] Checking: Windows Unicode Fix (PYTHONUTF8)
+[2025-12-09 00:50:49] INFO:   Reason: Prevents UnicodeEncodeError with emoji characters in logs (Issue #3)
+[2025-12-09 00:50:49] INFO:   Check PASSED
+[2025-12-09 00:50:49] INFO: Startup checks complete
+[2025-12-09 00:50:49] INFO: [HealthCheck:T0] API Keys: PASSED (0ms) - All required API keys present
+[2025-12-09 00:50:49] INFO: [HealthCheck:T0] Database: PASSED (0ms) - Database accessible: C:\dev\Autopack\autopack.db
+[2025-12-09 00:50:49] INFO: [HealthCheck:T0] Workspace: PASSED (0ms) - Workspace valid: C:\dev\Autopack
+[2025-12-09 00:50:49] INFO: [HealthCheck:T0] Config: PASSED (20ms) - Configuration files valid
+[2025-12-09 00:50:49] INFO: Loading learning context for project: file-organizer-app-v1
+[2025-12-09 00:50:49] INFO:   Loaded 36 persistent project rules
+[2025-12-09 00:50:49] INFO:     - Phase 'Fix FileOrganizer Test Suite' generated inv...
+[2025-12-09 00:50:49] INFO:     - Phase 'Fix FileOrganizer Test Suite' generated inv...
+[2025-12-09 00:50:49] INFO:     - Phase 'Fix FileOrganizer Test Suite' was rejected ...
+[2025-12-09 00:50:49] INFO: Learning context loaded successfully
+[2025-12-09 00:50:49] INFO: Starting autonomous execution loop...
+[2025-12-09 00:50:49] INFO: Poll interval: 5s
+[2025-12-09 00:50:49] INFO: API server is already running
+[2025-12-09 00:50:49] INFO: Initializing infrastructure...
+[2025-12-09 00:50:51] INFO: LlmService: Initialized with ModelRouter and UsageRecorder
+[2025-12-09 00:50:51] INFO: Quality Gate: Initialized
+[2025-12-09 00:50:51] INFO: Iteration 1: Fetching run status...
+[2025-12-09 00:50:51] INFO: Next phase: fileorg-p2-test-fixes
+[2025-12-09 00:50:51] WARNING: [Scope] Could not determine workspace from scope paths, using default: .autonomous_runs\file-organizer-app-v1
+[2025-12-09 00:50:51] INFO: Executing phase: fileorg-p2-test-fixes
+[2025-12-09 00:50:51] INFO: [fileorg-p2-test-fixes] Attempt 1/5 (model escalation enabled)
+[2025-12-09 00:50:51] INFO: [fileorg-p2-test-fixes] Step 1/4: Generating code with Builder (via LlmService)...
+[2025-12-09 00:50:51] WARNING: [Scope] Could not determine workspace from scope paths, using default: .autonomous_runs\file-organizer-app-v1
+[2025-12-09 00:50:51] INFO: [Scope] Loaded 41 files from scope configuration
+[2025-12-09 00:50:51] INFO: [Scope] Scope paths: ['fileorganizer/backend/tests/', 'fileorganizer/backend/requirements.txt', 'fileorganizer/backend/pytest.ini']
+[2025-12-09 00:50:51] INFO: [Scope] Loaded paths: ['fileorganizer/backend/tests/conftest.py', 'fileorganizer/backend/tests/test_classification.py', 'fileorganizer/backend/tests/test_document_service.py', 'fileorganizer/backend/tests/test_e2e.py', 'fileorganizer/backend/tests/test_embeddings.py', 'fileorganizer/backend/tests/test_error_handling.py', 'fileorganizer/backend/tests/test_export.py', 'fileorganizer/backend/tests/test_health.py', 'fileorganizer/backend/tests/test_integration.py', 'fileorganizer/backend/tests/test_ocr_service.py']...
+[2025-12-09 00:50:51] INFO: [fileorg-p2-test-fixes] Loaded 41 files for context
+[2025-12-09 00:50:51] WARNING: [Scope] Could not determine workspace from scope paths, using default: .autonomous_runs\file-organizer-app-v1
+[2025-12-09 00:50:51] ERROR: [Scope] VALIDATION FAILED: 13 files loaded outside scope:
+  Scope paths: ['fileorganizer/backend/tests', 'fileorganizer/backend/requirements.txt', 'fileorganizer/backend/pytest.ini']
+  Read-only context prefixes: ['fileorganizer/backend/app/', 'fileorganizer/backend/models/', 'fileorganizer/backend/services/']
+  Files outside scope: ['fileorganizer/backend/tests/test_error_handling.py', 'fileorganizer/backend/tests/test_ocr_service.py', 'fileorganizer/backend/tests/test_export.py', 'fileorganizer/backend/tests/__init__.py', 'fileorganizer/backend/tests/test_embeddings.py', 'fileorganizer/backend/tests/conftest.py', 'fileorganizer/backend/tests/test_performance.py', 'fileorganizer/backend/tests/test_integration.py', 'fileorganizer/backend/tests/test_classification.py', 'fileorganizer/backend/tests/test_health.py']
+[2025-12-09 00:50:51] ERROR: [fileorg-p2-test-fixes] Execution failed: Scope validation failed: loaded files outside scope.paths
+Traceback:
+Traceback (most recent call last):
+  File "C:\dev\Autopack\src\autopack\autonomous_executor.py", line 2250, in _execute_phase_with_recovery
+    self._validate_scope_context(phase, file_context, scope_config)
+  File "C:\dev\Autopack\src\autopack\autonomous_executor.py", line 3136, in _validate_scope_context
+    raise RuntimeError(f"Scope validation failed: loaded files outside scope.paths")
+RuntimeError: Scope validation failed: loaded files outside scope.paths
+
+[2025-12-09 00:50:51] INFO: [ARCHIVE_CONSOLIDATOR] Logged new error: Phase fileorg-p2-test-fixes inner execution failure
+[2025-12-09 00:50:51] INFO: Updated phase fileorg-p2-test-fixes status to FAILED
+[2025-12-09 00:50:51] WARNING: [fileorg-p2-test-fixes] Attempt 1 failed, escalating model for retry...
+[2025-12-09 00:50:51] INFO: [fileorg-p2-test-fixes] Attempt 2/5 (model escalation enabled)
+[2025-12-09 00:50:51] INFO: [fileorg-p2-test-fixes] Step 1/4: Generating code with Builder (via LlmService)...
+[2025-12-09 00:50:51] WARNING: [Scope] Could not determine workspace from scope paths, using default: .autonomous_runs\file-organizer-app-v1
+[2025-12-09 00:50:51] INFO: [Scope] Loaded 41 files from scope configuration
+[2025-12-09 00:50:51] INFO: [Scope] Scope paths: ['fileorganizer/backend/tests/', 'fileorganizer/backend/requirements.txt', 'fileorganizer/backend/pytest.ini']
+[2025-12-09 00:50:51] INFO: [Scope] Loaded paths: ['fileorganizer/backend/tests/conftest.py', 'fileorganizer/backend/tests/test_classification.py', 'fileorganizer/backend/tests/test_document_service.py', 'fileorganizer/backend/tests/test_e2e.py', 'fileorganizer/backend/tests/test_embeddings.py', 'fileorganizer/backend/tests/test_error_handling.py', 'fileorganizer/backend/tests/test_export.py', 'fileorganizer/backend/tests/test_health.py', 'fileorganizer/backend/tests/test_integration.py', 'fileorganizer/backend/tests/test_ocr_service.py']...
+[2025-12-09 00:50:51] INFO: [fileorg-p2-test-fixes] Loaded 41 files for context
+[2025-12-09 00:50:51] WARNING: [Scope] Could not determine workspace from scope paths, using default: .autonomous_runs\file-organizer-app-v1
+[2025-12-09 00:50:51] ERROR: [Scope] VALIDATION FAILED: 13 files loaded outside scope:
+  Scope paths: ['fileorganizer/backend/tests', 'fileorganizer/backend/requirements.txt', 'fileorganizer/backend/pytest.ini']
+  Read-only context prefixes: ['fileorganizer/backend/app/', 'fileorganizer/backend/models/', 'fileorganizer/backend/services/']
+  Files outside scope: ['fileorganizer/backend/tests/test_error_handling.py', 'fileorganizer/backend/tests/test_ocr_service.py', 'fileorganizer/backend/tests/test_export.py', 'fileorganizer/backend/tests/__init__.py', 'fileorganizer/backend/tests/test_embeddings.py', 'fileorganizer/backend/tests/conftest.py', 'fileorganizer/backend/tests/test_performance.py', 'fileorganizer/backend/tests/test_integration.py', 'fileorganizer/backend/tests/test_classification.py', 'fileorganizer/backend/tests/test_health.py']
+[2025-12-09 00:50:51] ERROR: [fileorg-p2-test-fixes] Execution failed: Scope validation failed: loaded files outside scope.paths
+Traceback:
+Traceback (most recent call last):
+  File "C:\dev\Autopack\src\autopack\autonomous_executor.py", line 2250, in _execute_phase_with_recovery
+    self._validate_scope_context(phase, file_context, scope_config)
+  File "C:\dev\Autopack\src\autopack\autonomous_executor.py", line 3136, in _validate_scope_context
+    raise RuntimeError(f"Scope validation failed: loaded files outside scope.paths")
+RuntimeError: Scope validation failed: loaded files outside scope.paths
+
+[2025-12-09 00:50:51] INFO: [ARCHIVE_CONSOLIDATOR] Logged new error: Phase fileorg-p2-test-fixes inner execution failure
+[2025-12-09 00:50:51] INFO: Updated phase fileorg-p2-test-fixes status to FAILED
+[2025-12-09 00:50:51] INFO: [Doctor] Routine failure detected -> using cheap model
+[2025-12-09 00:50:57] INFO: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+[2025-12-09 00:50:57] INFO: [Doctor] Diagnosis complete: action=replan, confidence=0.75, phase=fileorg-p2-test-fixes, model=claude-sonnet-4-5, is_complex=False, escalated=False, health_ratio=0.08
+[2025-12-09 00:50:57] INFO: [Doctor] Diagnosis complete: action=replan, confidence=0.75, phase_calls=1, run_calls=1
+[2025-12-09 00:50:57] INFO: [Doctor] Action: replan - triggering approach revision
+[2025-12-09 00:50:57] INFO: [Re-Plan] Revising approach for fileorg-p2-test-fixes due to doctor_replan:Two consecutive auditor rejections indicate the Bu (attempt 1)
+[2025-12-09 00:50:57] INFO: [GoalAnchor] Original intent: Stabilize the backend test suite by resolving dependency pin conflicts (fastapi/starlette/httpx), up...
+[2025-12-09 00:51:06] INFO: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+[2025-12-09 00:51:06] INFO: [GoalAnchor] Alignment classification: narrower - Heuristic detection: revision appears to reduce scope
+[2025-12-09 00:51:06] WARNING: [GoalAnchor] WARNING: Revision appears to narrow scope for fileorg-p2-test-fixes. Original intent: 'Stabilize the backend test suite by resolving depe...' This may indicate goal drift.
+[2025-12-09 00:51:06] INFO: [Re-Plan] Successfully revised phase fileorg-p2-test-fixes
+[2025-12-09 00:51:06] INFO: [Re-Plan] Original: Stabilize the backend test suite by resolving dependency pin conflicts (fastapi/starlette/httpx), up...
+[2025-12-09 00:51:06] INFO: [Re-Plan] Revised: Stabilize the backend test suite through systematic dependency resolution and test environment prepa...
+[2025-12-09 00:51:06] INFO: [GoalAnchor] REPLAN_TELEMETRY: run_id=fileorg-p2-20251208l phase_id=fileorg-p2-test-fixes attempt=1 alignment=narrower replan_count_phase=1 replan_count_run=1
+[2025-12-09 00:51:06] INFO: [ARCHIVE_CONSOLIDATOR] Logged build event: PHASE_REPLANNED
+[2025-12-09 00:51:06] INFO: [Doctor] Replan successful, phase revised
+[2025-12-09 00:51:06] INFO: [fileorg-p2-test-fixes] Attempt 1/5 (model escalation enabled)
+[2025-12-09 00:51:06] INFO: [fileorg-p2-test-fixes] Step 1/4: Generating code with Builder (via LlmService)...
+[2025-12-09 00:51:06] WARNING: [Scope] Could not determine workspace from scope paths, using default: .autonomous_runs\file-organizer-app-v1
+[2025-12-09 00:51:06] INFO: [Scope] Loaded 41 files from scope configuration
+[2025-12-09 00:51:06] INFO: [Scope] Scope paths: ['fileorganizer/backend/tests/', 'fileorganizer/backend/requirements.txt', 'fileorganizer/backend/pytest.ini']
+[2025-12-09 00:51:06] INFO: [Scope] Loaded paths: ['fileorganizer/backend/tests/conftest.py', 'fileorganizer/backend/tests/test_classification.py', 'fileorganizer/backend/tests/test_document_service.py', 'fileorganizer/backend/tests/test_e2e.py', 'fileorganizer/backend/tests/test_embeddings.py', 'fileorganizer/backend/tests/test_error_handling.py', 'fileorganizer/backend/tests/test_export.py', 'fileorganizer/backend/tests/test_health.py', 'fileorganizer/backend/tests/test_integration.py', 'fileorganizer/backend/tests/test_ocr_service.py']...
+[2025-12-09 00:51:06] INFO: [fileorg-p2-test-fixes] Loaded 41 files for context
+[2025-12-09 00:51:06] WARNING: [Scope] Could not determine workspace from scope paths, using default: .autonomous_runs\file-organizer-app-v1
+[2025-12-09 00:51:06] ERROR: [Scope] VALIDATION FAILED: 13 files loaded outside scope:
+  Scope paths: ['fileorganizer/backend/tests', 'fileorganizer/backend/requirements.txt', 'fileorganizer/backend/pytest.ini']
+  Read-only context prefixes: ['fileorganizer/backend/app/', 'fileorganizer/backend/models/', 'fileorganizer/backend/services/']
+  Files outside scope: ['fileorganizer/backend/tests/test_error_handling.py', 'fileorganizer/backend/tests/test_ocr_service.py', 'fileorganizer/backend/tests/test_export.py', 'fileorganizer/backend/tests/__init__.py', 'fileorganizer/backend/tests/test_embeddings.py', 'fileorganizer/backend/tests/conftest.py', 'fileorganizer/backend/tests/test_performance.py', 'fileorganizer/backend/tests/test_integration.py', 'fileorganizer/backend/tests/test_classification.py', 'fileorganizer/backend/tests/test_health.py']
+[2025-12-09 00:51:06] ERROR: [fileorg-p2-test-fixes] Execution failed: Scope validation failed: loaded files outside scope.paths
+Traceback:
+Traceback (most recent call last):
+  File "C:\dev\Autopack\src\autopack\autonomous_executor.py", line 2250, in _execute_phase_with_recovery
+    self._validate_scope_context(phase, file_context, scope_config)
+  File "C:\dev\Autopack\src\autopack\autonomous_executor.py", line 3136, in _validate_scope_context
+    raise RuntimeError(f"Scope validation failed: loaded files outside scope.paths")
+RuntimeError: Scope validation failed: loaded files outside scope.paths
+
+[2025-12-09 00:51:06] INFO: [ARCHIVE_CONSOLIDATOR] Logged new error: Phase fileorg-p2-test-fixes inner execution failure
+[2025-12-09 00:51:06] INFO: Updated phase fileorg-p2-test-fixes status to FAILED
+[2025-12-09 00:51:06] INFO: [Re-Plan] Max replans (1) reached for fileorg-p2-test-fixes
+[2025-12-09 00:51:06] WARNING: [fileorg-p2-test-fixes] Attempt 1 failed, escalating model for retry...
+[2025-12-09 00:51:06] INFO: [fileorg-p2-test-fixes] Attempt 2/5 (model escalation enabled)
+[2025-12-09 00:51:06] INFO: [fileorg-p2-test-fixes] Step 1/4: Generating code with Builder (via LlmService)...
+[2025-12-09 00:51:06] WARNING: [Scope] Could not determine workspace from scope paths, using default: .autonomous_runs\file-organizer-app-v1
+[2025-12-09 00:51:06] INFO: [Scope] Loaded 41 files from scope configuration
+[2025-12-09 00:51:06] INFO: [Scope] Scope paths: ['fileorganizer/backend/tests/', 'fileorganizer/backend/requirements.txt', 'fileorganizer/backend/pytest.ini']
+[2025-12-09 00:51:06] INFO: [Scope] Loaded paths: ['fileorganizer/backend/tests/conftest.py', 'fileorganizer/backend/tests/test_classification.py', 'fileorganizer/backend/tests/test_document_service.py', 'fileorganizer/backend/tests/test_e2e.py', 'fileorganizer/backend/tests/test_embeddings.py', 'fileorganizer/backend/tests/test_error_handling.py', 'fileorganizer/backend/tests/test_export.py', 'fileorganizer/backend/tests/test_health.py', 'fileorganizer/backend/tests/test_integration.py', 'fileorganizer/backend/tests/test_ocr_service.py']...
+[2025-12-09 00:51:06] INFO: [fileorg-p2-test-fixes] Loaded 41 files for context
+[2025-12-09 00:51:06] WARNING: [Scope] Could not determine workspace from scope paths, using default: .autonomous_runs\file-organizer-app-v1
+[2025-12-09 00:51:06] ERROR: [Scope] VALIDATION FAILED: 13 files loaded outside scope:
+  Scope paths: ['fileorganizer/backend/tests', 'fileorganizer/backend/requirements.txt', 'fileorganizer/backend/pytest.ini']
+  Read-only context prefixes: ['fileorganizer/backend/app/', 'fileorganizer/backend/models/', 'fileorganizer/backend/services/']
+  Files outside scope: ['fileorganizer/backend/tests/test_error_handling.py', 'fileorganizer/backend/tests/test_ocr_service.py', 'fileorganizer/backend/tests/test_export.py', 'fileorganizer/backend/tests/__init__.py', 'fileorganizer/backend/tests/test_embeddings.py', 'fileorganizer/backend/tests/conftest.py', 'fileorganizer/backend/tests/test_performance.py', 'fileorganizer/backend/tests/test_integration.py', 'fileorganizer/backend/tests/test_classification.py', 'fileorganizer/backend/tests/test_health.py']
+[2025-12-09 00:51:06] ERROR: [fileorg-p2-test-fixes] Execution failed: Scope validation failed: loaded files outside scope.paths
+Traceback:
+Traceback (most recent call last):
+  File "C:\dev\Autopack\src\autopack\autonomous_executor.py", line 2250, in _execute_phase_with_recovery
+    self._validate_scope_context(phase, file_context, scope_config)
+  File "C:\dev\Autopack\src\autopack\autonomous_executor.py", line 3136, in _validate_scope_context
+    raise RuntimeError(f"Scope validation failed: loaded files outside scope.paths")
+RuntimeError: Scope validation failed: loaded files outside scope.paths
+
+[2025-12-09 00:51:06] INFO: [ARCHIVE_CONSOLIDATOR] Logged new error: Phase fileorg-p2-test-fixes inner execution failure
+[2025-12-09 00:51:06] INFO: Updated phase fileorg-p2-test-fixes status to FAILED
+[2025-12-09 00:51:06] INFO: [Doctor] Complex failure detected -> using strong model

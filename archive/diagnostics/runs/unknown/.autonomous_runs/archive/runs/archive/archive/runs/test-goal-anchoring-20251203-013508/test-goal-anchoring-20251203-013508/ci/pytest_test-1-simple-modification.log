@@ -1,0 +1,9 @@
+
+
+--- STDERR ---
+
+ERROR: usage: __main__.py [options] [file_or_dir] [file_or_dir] [...]
+__main__.py: error: unrecognized arguments: --timeout=60
+  inifile: C:\dev\Autopack\pytest.ini
+  rootdir: C:\dev\Autopack
+

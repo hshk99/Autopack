@@ -1571,11 +1571,14 @@
         "build127-phase1-self-healing-governance:build127-phase1-self-healing-governance",
         "build127-phase1-self-healing-governance:build127-phase1-self-healing-governance",
         "build127-phase1-self-healing-governance:build127-phase1-self-healing-governance",
-        "build127-phase1-self-healing-governance:build127-phase1-self-healing-governance"
+        "build127-phase1-self-healing-governance:build127-phase1-self-healing-governance",
+        "build132-coverage-delta-integration:build132-phase2-coverage-tracker",
+        "build132-coverage-delta-integration:build132-phase2-coverage-tracker",
+        "build132-coverage-delta-integration:build132-phase2-coverage-tracker"
       ],
-      "promotion_count": 284,
+      "promotion_count": 287,
       "first_seen": "2025-12-22T03:39:55.795516+00:00",
-      "last_seen": "2025-12-23T03:17:37.866729+00:00",
+      "last_seen": "2025-12-23T10:26:22.441451+00:00",
       "status": "active",
       "stage": "new"
     },
@@ -1944,6 +1947,54 @@
       "promotion_count": 1,
       "first_seen": "2025-12-23T04:08:57.962945+00:00",
       "last_seen": "2025-12-23T04:09:51.641405+00:00",
+      "status": "active",
+      "stage": "new"
+    },
+    {
+      "rule_id": "configuration.rule_c8af76af",
+      "task_category": "configuration",
+      "scope_pattern": null,
+      "constraint": "Phase 'Enable Coverage Collection' generated invalid patch - ensure proper diff format. Details: Failed with PATCH_FAILED on attempt 1",
+      "source_hint_ids": [
+        "build132-coverage-delta-integration:build132-phase1-enable-coverage",
+        "build132-coverage-delta-integration:build132-phase1-enable-coverage",
+        "build132-coverage-delta-integration:build132-phase1-enable-coverage"
+      ],
+      "promotion_count": 3,
+      "first_seen": "2025-12-23T10:05:19.127169+00:00",
+      "last_seen": "2025-12-23T10:26:22.441451+00:00",
+      "status": "active",
+      "stage": "new"
+    },
+    {
+      "rule_id": "integration.rule_deac64b3",
+      "task_category": "integration",
+      "scope_pattern": null,
+      "constraint": "Phase 'Integrate CoverageTracker with Executor' was rejected by auditor - ensure code quality and completeness. Details: Failed with FAILED on attempt 1",
+      "source_hint_ids": [
+        "build132-coverage-delta-integration:build132-phase3-executor-integration",
+        "build132-coverage-delta-integration:build132-phase3-executor-integration",
+        "build132-coverage-delta-integration:build132-phase3-executor-integration"
+      ],
+      "promotion_count": 3,
+      "first_seen": "2025-12-23T10:09:41.465606+00:00",
+      "last_seen": "2025-12-23T10:26:22.441451+00:00",
+      "status": "active",
+      "stage": "new"
+    },
+    {
+      "rule_id": "docs.rule_d1909066",
+      "task_category": "docs",
+      "scope_pattern": null,
+      "constraint": "Phase 'Documentation and Baseline Setup' generated invalid patch - ensure proper diff format. Details: Failed with PATCH_FAILED on attempt 1",
+      "source_hint_ids": [
+        "build132-coverage-delta-integration:build132-phase4-documentation",
+        "build132-coverage-delta-integration:build132-phase4-documentation",
+        "build132-coverage-delta-integration:build132-phase4-documentation"
+      ],
+      "promotion_count": 3,
+      "first_seen": "2025-12-23T10:14:36.016310+00:00",
+      "last_seen": "2025-12-23T10:26:22.441451+00:00",
       "status": "active",
       "stage": "new"
     }

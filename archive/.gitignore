@@ -1,0 +1,45 @@
+# Archive Directory - Output Restrictions
+# Purpose: Prevent Autopack from creating random files/folders in archive/
+#
+# ALLOWED subdirectories:
+# - prompts/   (agent prompt templates)
+# - tidy_v7/   (tidy system implementation docs)
+# - research/  (research workflow)
+# - diagnostics/ (diagnostic logs and runs)
+# - patches/   (code patches)
+# - configs/   (configuration archives)
+# - scripts/   (archived scripts)
+# - superseded/ (deprecated code)
+#
+# DISALLOWED: Any new top-level files or directories not listed above
+
+# Block all new files in archive root
+/*
+
+# Allow specific subdirectories (whitelist approach)
+!/prompts/
+!/tidy_v7/
+!/research/
+!/diagnostics/
+!/patches/
+!/configs/
+!/scripts/
+!/superseded/
+!/reports/
+
+# Allow this .gitignore file itself
+!/.gitignore
+
+# Allow README files for documentation
+!/README.md
+
+# Within allowed directories, permit all content
+!/prompts/**
+!/tidy_v7/**
+!/research/**
+!/diagnostics/**
+!/patches/**
+!/configs/**
+!/scripts/**
+!/superseded/**
+!/reports/**

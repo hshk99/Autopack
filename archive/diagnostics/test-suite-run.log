@@ -1,0 +1,683 @@
+============================= test session starts =============================
+platform win32 -- Python 3.12.3, pytest-8.2.1, pluggy-1.5.0 -- C:\Python\python.exe
+cachedir: .pytest_cache
+rootdir: C:\dev\Autopack
+configfile: pytest.ini
+testpaths: tests
+plugins: anyio-3.7.1, asyncio-1.3.0, cov-7.0.0, timeout-2.4.0
+asyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=function, asyncio_default_test_loop_scope=function
+collecting ... collected 388 items
+
+tests/backend/api/test_auth.py::TestRegisterEndpoint::test_register_success PASSED [  0%]
+tests/backend/api/test_auth.py::TestRegisterEndpoint::test_register_duplicate_username PASSED [  0%]
+tests/backend/api/test_auth.py::TestRegisterEndpoint::test_register_duplicate_email PASSED [  0%]
+tests/backend/api/test_auth.py::TestRegisterEndpoint::test_register_invalid_email PASSED [  1%]
+tests/backend/api/test_auth.py::TestRegisterEndpoint::test_register_short_password PASSED [  1%]
+tests/backend/api/test_auth.py::TestRegisterEndpoint::test_register_short_username PASSED [  1%]
+tests/backend/api/test_auth.py::TestLoginEndpoint::test_login_success PASSED [  1%]
+tests/backend/api/test_auth.py::TestLoginEndpoint::test_login_wrong_password PASSED [  2%]
+tests/backend/api/test_auth.py::TestLoginEndpoint::test_login_nonexistent_user PASSED [  2%]
+tests/backend/api/test_auth.py::TestMeEndpoint::test_get_current_user PASSED [  2%]
+tests/backend/api/test_auth.py::TestMeEndpoint::test_get_current_user_no_token PASSED [  2%]
+tests/backend/api/test_batch.py::test_upload_batch_success SKIPPED       [  3%]
+tests/backend/api/test_batch.py::test_upload_batch_no_files SKIPPED      [  3%]
+tests/backend/api/test_batch.py::test_upload_batch_exceeds_limit SKIPPED [  3%]
+tests/backend/api/test_batch.py::test_upload_batch_invalid_file_type SKIPPED [  3%]
+tests/backend/api/test_batch.py::test_upload_batch_mixed_valid_invalid SKIPPED [  4%]
+tests/backend/api/test_batch.py::test_get_batch_status_not_implemented SKIPPED [  4%]
+tests/backend/api/test_search.py::TestSearchEndpoint::test_search_no_filters SKIPPED [  4%]
+tests/backend/api/test_search.py::TestSearchEndpoint::test_search_full_text SKIPPED [  4%]
+tests/backend/api/test_search.py::TestSearchEndpoint::test_search_by_document_type SKIPPED [  5%]
+tests/backend/api/test_search.py::TestSearchEndpoint::test_search_by_pack_name SKIPPED [  5%]
+tests/backend/api/test_search.py::TestSearchEndpoint::test_search_by_confidence_range SKIPPED [  5%]
+tests/backend/api/test_search.py::TestSearchEndpoint::test_search_by_date_range SKIPPED [  5%]
+tests/backend/api/test_search.py::TestSearchEndpoint::test_search_combined_filters SKIPPED [  6%]
+tests/backend/api/test_search.py::TestSearchEndpoint::test_pagination_first_page SKIPPED [  6%]
+tests/backend/api/test_search.py::TestSearchEndpoint::test_pagination_second_page SKIPPED [  6%]
+tests/backend/api/test_search.py::TestSearchEndpoint::test_pagination_last_page_partial SKIPPED [  6%]
+tests/backend/api/test_search.py::TestSearchEndpoint::test_empty_results SKIPPED [  7%]
+tests/backend/api/test_search.py::TestSearchEndpoint::test_invalid_confidence_range SKIPPED [  7%]
+tests/backend/api/test_search.py::TestSearchEndpoint::test_invalid_date_range SKIPPED [  7%]
+tests/backend/api/test_search.py::TestSearchEndpoint::test_invalid_page_number SKIPPED [  7%]
+tests/backend/api/test_search.py::TestSearchEndpoint::test_invalid_page_size SKIPPED [  8%]
+tests/backend/api/test_search.py::TestSearchEndpoint::test_page_size_limit SKIPPED [  8%]
+tests/backend/api/test_search.py::TestSearchEndpoint::test_confidence_bounds SKIPPED [  8%]
+tests/backend/api/test_search.py::TestSearchEndpoint::test_result_ordering SKIPPED [  9%]
+tests/backend/api/test_search.py::TestSearchEndpoint::test_result_structure SKIPPED [  9%]
+tests/backend/api/test_search.py::TestSearchEndpoint::test_case_insensitive_search SKIPPED [  9%]
+tests/backend/classification/test_uk_documents.py::TestUKDocumentClassifier::test_initialization SKIPPED [  9%]
+tests/backend/classification/test_uk_documents.py::TestUKDocumentClassifier::test_hmrc_tax_return_classification SKIPPED [ 10%]
+tests/backend/classification/test_uk_documents.py::TestUKDocumentClassifier::test_nhs_record_classification SKIPPED [ 10%]
+tests/backend/classification/test_uk_documents.py::TestUKDocumentClassifier::test_driving_licence_classification SKIPPED [ 10%]
+tests/backend/classification/test_uk_documents.py::TestUKDocumentClassifier::test_passport_classification SKIPPED [ 10%]
+tests/backend/classification/test_uk_documents.py::TestUKDocumentClassifier::test_bank_statement_classification SKIPPED [ 11%]
+tests/backend/classification/test_uk_documents.py::TestUKDocumentClassifier::test_utility_bill_classification SKIPPED [ 11%]
+tests/backend/classification/test_uk_documents.py::TestUKDocumentClassifier::test_uk_date_extraction SKIPPED [ 11%]
+tests/backend/classification/test_uk_documents.py::TestUKDocumentClassifier::test_postcode_extraction SKIPPED [ 11%]
+tests/backend/classification/test_uk_documents.py::TestUKDocumentClassifier::test_ni_number_extraction SKIPPED [ 12%]
+tests/backend/classification/test_uk_documents.py::TestUKDocumentClassifier::test_nhs_number_extraction SKIPPED [ 12%]
+tests/backend/classification/test_uk_documents.py::TestUKDocumentClassifier::test_get_category SKIPPED [ 12%]
+tests/backend/classification/test_uk_documents.py::TestUKDocumentClassifier::test_get_invalid_category SKIPPED [ 12%]
+tests/backend/classification/test_uk_documents.py::TestUKDocumentClassifier::test_empty_text_classification SKIPPED [ 13%]
+tests/backend/classification/test_uk_documents.py::TestUKDocumentClassifier::test_mixed_document_classification SKIPPED [ 13%]
+tests/backend/classification/test_uk_documents.py::TestUKDocumentClassifier::test_category_required_fields SKIPPED [ 13%]
+tests/backend/classification/test_uk_documents.py::TestUKDocumentClassifier::test_pattern_weights SKIPPED [ 13%]
+tests/backend/classification/test_uk_documents.py::TestUKDocumentClassifier::test_case_insensitive_matching SKIPPED [ 14%]
+tests/backend/classification/test_uk_documents.py::TestUKDocumentClassifier::test_score_normalization SKIPPED [ 14%]
+tests/backend/packs/test_australia_documents.py::TestAustralianDateFormat::test_parse_date_slash_format SKIPPED [ 14%]
+tests/backend/packs/test_australia_documents.py::TestAustralianDateFormat::test_parse_date_dash_format SKIPPED [ 14%]
+tests/backend/packs/test_australia_documents.py::TestAustralianDateFormat::test_parse_date_full_month SKIPPED [ 15%]
+tests/backend/packs/test_australia_documents.py::TestAustralianDateFormat::test_parse_date_abbreviated_month SKIPPED [ 15%]
+tests/backend/packs/test_australia_documents.py::TestAustralianDateFormat::test_parse_date_invalid SKIPPED [ 15%]
+tests/backend/packs/test_australia_documents.py::TestAustralianDateFormat::test_format_date_default SKIPPED [ 15%]
+tests/backend/packs/test_australia_documents.py::TestAustralianDateFormat::test_format_date_dash SKIPPED [ 16%]
+tests/backend/packs/test_australia_documents.py::TestPostcodeValidator::test_validate_postcode_nsw_valid SKIPPED [ 16%]
+tests/backend/packs/test_australia_documents.py::TestPostcodeValidator::test_validate_postcode_vic_valid SKIPPED [ 16%]
+tests/backend/packs/test_australia_documents.py::TestPostcodeValidator::test_validate_postcode_qld_valid SKIPPED [ 17%]
+tests/backend/packs/test_australia_documents.py::TestPostcodeValidator::test_validate_postcode_sa_valid SKIPPED [ 17%]
+tests/backend/packs/test_australia_documents.py::TestPostcodeValidator::test_validate_postcode_wa_valid SKIPPED [ 17%]
+tests/backend/packs/test_australia_documents.py::TestPostcodeValidator::test_validate_postcode_tas_valid SKIPPED [ 17%]
+tests/backend/packs/test_australia_documents.py::TestPostcodeValidator::test_validate_postcode_nt_valid SKIPPED [ 18%]
+tests/backend/packs/test_australia_documents.py::TestPostcodeValidator::test_validate_postcode_act_valid SKIPPED [ 18%]
+tests/backend/packs/test_australia_documents.py::TestPostcodeValidator::test_validate_postcode_invalid_format SKIPPED [ 18%]
+tests/backend/packs/test_australia_documents.py::TestPostcodeValidator::test_validate_postcode_invalid_range SKIPPED [ 18%]
+tests/backend/packs/test_australia_documents.py::TestPostcodeValidator::test_get_state_from_postcode_nsw SKIPPED [ 19%]
+tests/backend/packs/test_australia_documents.py::TestPostcodeValidator::test_get_state_from_postcode_vic SKIPPED [ 19%]
+tests/backend/packs/test_australia_documents.py::TestPostcodeValidator::test_get_state_from_postcode_qld SKIPPED [ 19%]
+tests/backend/packs/test_australia_documents.py::TestPostcodeValidator::test_get_state_from_postcode_invalid SKIPPED [ 19%]
+tests/backend/packs/test_australia_documents.py::TestDocumentClassificationRule::test_create_valid_rule SKIPPED [ 20%]
+tests/backend/packs/test_australia_documents.py::TestDocumentClassificationRule::test_invalid_regex_pattern SKIPPED [ 20%]
+tests/backend/packs/test_australia_documents.py::TestAustralianDocumentPack::test_classify_ato_tax_return SKIPPED [ 20%]
+tests/backend/packs/test_australia_documents.py::TestAustralianDocumentPack::test_classify_medicare_card SKIPPED [ 20%]
+tests/backend/packs/test_australia_documents.py::TestAustralianDocumentPack::test_classify_drivers_license SKIPPED [ 21%]
+tests/backend/packs/test_australia_documents.py::TestAustralianDocumentPack::test_classify_passport SKIPPED [ 21%]
+tests/backend/packs/test_australia_documents.py::TestAustralianDocumentPack::test_classify_bank_statement SKIPPED [ 21%]
+tests/backend/packs/test_australia_documents.py::TestAustralianDocumentPack::test_classify_utility_bill SKIPPED [ 21%]
+tests/backend/packs/test_australia_documents.py::TestAustralianDocumentPack::test_classify_unknown_document SKIPPED [ 22%]
+tests/backend/services/test_file_validator.py::test_validate_file_empty SKIPPED [ 22%]
+tests/backend/services/test_file_validator.py::test_validate_file_too_large SKIPPED [ 22%]
+tests/backend/services/test_file_validator.py::test_validate_file_unsupported_type SKIPPED [ 22%]
+tests/backend/services/test_file_validator.py::test_validate_file_success SKIPPED [ 23%]
+tests/backend/services/test_file_validator.py::test_validate_file_mime_detection_error SKIPPED [ 23%]
+tests/backend/services/test_file_validator.py::test_validate_image_content_invalid SKIPPED [ 23%]
+tests/backend/services/test_task_queue.py::test_processing_result_model PASSED [ 23%]
+tests/backend/services/test_task_queue.py::test_processing_result_with_error PASSED [ 24%]
+tests/backend/services/test_task_queue.py::test_queue_batch_processing PASSED [ 24%]
+tests/backend/services/test_task_queue.py::test_get_task_status_pending PASSED [ 24%]
+tests/backend/services/test_task_queue.py::test_perform_ocr_placeholder PASSED [ 25%]
+tests/backend/services/test_task_queue.py::test_classify_document_placeholder PASSED [ 25%]
+tests/backend/test_database.py::test_testing_environment SKIPPED         [ 25%]
+tests/backend/test_database.py::test_database_session_isolation SKIPPED  [ 25%]
+tests/backend/test_database.py::test_database_rollback SKIPPED (Backend
+database features not fully implemented yet)                             [ 26%]
+tests/backend/test_database.py::test_database_connection_string SKIPPED  [ 26%]
+tests/backend/test_database.py::test_session_commit_and_rollback SKIPPED [ 26%]
+tests/backend/test_health.py::test_health_check SKIPPED (Backend health
+endpoints not fully implemented yet)                                     [ 26%]
+tests/backend/test_health.py::test_readiness_check SKIPPED (Backend
+health endpoints not fully implemented yet)                              [ 27%]
+tests/backend/test_health.py::test_root_endpoint SKIPPED (Backend health
+endpoints not fully implemented yet)                                     [ 27%]
+tests/backend/test_health.py::test_api_docs_available SKIPPED (Backend
+health endpoints not fully implemented yet)                              [ 27%]
+tests/backend/tests/test_canada_documents.py::TestCanadaTaxPack::test_required_top_level_keys PASSED [ 27%]
+tests/backend/tests/test_canada_documents.py::TestCanadaTaxPack::test_country_is_canada PASSED [ 28%]
+tests/backend/tests/test_canada_documents.py::TestCanadaTaxPack::test_domain_is_tax PASSED [ 28%]
+tests/backend/tests/test_canada_documents.py::TestCanadaTaxPack::test_categories_non_empty PASSED [ 28%]
+tests/backend/tests/test_canada_documents.py::TestCanadaTaxPack::test_category_structure PASSED [ 28%]
+tests/backend/tests/test_canada_documents.py::TestCanadaTaxPack::test_no_duplicate_category_names PASSED [ 29%]
+tests/backend/tests/test_canada_documents.py::TestCanadaTaxPack::test_checklists_non_empty PASSED [ 29%]
+tests/backend/tests/test_canada_documents.py::TestCanadaTaxPack::test_checklist_structure PASSED [ 29%]
+tests/backend/tests/test_canada_documents.py::TestCanadaTaxPack::test_official_sources_non_empty PASSED [ 29%]
+tests/backend/tests/test_canada_documents.py::TestCanadaTaxPack::test_official_sources_are_urls PASSED [ 30%]
+tests/backend/tests/test_canada_documents.py::TestCanadaTaxPack::test_cra_category_exists PASSED [ 30%]
+tests/backend/tests/test_canada_documents.py::TestCanadaTaxPack::test_version_format PASSED [ 30%]
+tests/backend/tests/test_canada_documents.py::TestCanadaImmigrationPack::test_required_top_level_keys PASSED [ 30%]
+tests/backend/tests/test_canada_documents.py::TestCanadaImmigrationPack::test_country_is_canada PASSED [ 31%]
+tests/backend/tests/test_canada_documents.py::TestCanadaImmigrationPack::test_domain_is_immigration PASSED [ 31%]
+tests/backend/tests/test_canada_documents.py::TestCanadaImmigrationPack::test_categories_non_empty PASSED [ 31%]
+tests/backend/tests/test_canada_documents.py::TestCanadaImmigrationPack::test_category_structure PASSED [ 31%]
+tests/backend/tests/test_canada_documents.py::TestCanadaImmigrationPack::test_no_duplicate_category_names PASSED [ 32%]
+tests/backend/tests/test_canada_documents.py::TestCanadaImmigrationPack::test_checklists_non_empty PASSED [ 32%]
+tests/backend/tests/test_canada_documents.py::TestCanadaImmigrationPack::test_checklist_structure PASSED [ 32%]
+tests/backend/tests/test_canada_documents.py::TestCanadaImmigrationPack::test_official_sources_non_empty PASSED [ 32%]
+tests/backend/tests/test_canada_documents.py::TestCanadaImmigrationPack::test_official_sources_are_urls PASSED [ 33%]
+tests/backlog/test_backlog_maintenance.py::TestBacklogItemParsing::test_parse_empty_file PASSED [ 33%]
+tests/backlog/test_backlog_maintenance.py::TestBacklogItemParsing::test_parse_single_item PASSED [ 33%]
+tests/backlog/test_backlog_maintenance.py::TestBacklogItemParsing::test_parse_multiple_items PASSED [ 34%]
+tests/backlog/test_backlog_maintenance.py::TestBacklogItemParsing::test_parse_respects_max_items PASSED [ 34%]
+tests/backlog/test_backlog_maintenance.py::TestBacklogItemParsing::test_parse_file_not_found PASSED [ 34%]
+tests/backlog/test_backlog_maintenance.py::TestBacklogItemParsing::test_parse_generates_unique_ids PASSED [ 34%]
+tests/backlog/test_backlog_maintenance.py::TestBacklogItemParsing::test_parse_handles_unicode PASSED [ 35%]
+tests/backlog/test_backlog_maintenance.py::TestBacklogItemsToPhases::test_empty_items_returns_empty_phases PASSED [ 35%]
+tests/backlog/test_backlog_maintenance.py::TestBacklogItemsToPhases::test_single_item_creates_phase PASSED [ 35%]
+tests/backlog/test_backlog_maintenance.py::TestBacklogItemsToPhases::test_default_allowed_paths_applied PASSED [ 35%]
+tests/backlog/test_backlog_maintenance.py::TestBacklogItemsToPhases::test_item_allowed_paths_preserved PASSED [ 36%]
+tests/backlog/test_backlog_maintenance.py::TestBacklogItemsToPhases::test_budgets_applied PASSED [ 36%]
+tests/backlog/test_backlog_maintenance.py::TestBacklogItemsToPhases::test_metadata_includes_backlog_info PASSED [ 36%]
+tests/backlog/test_backlog_maintenance.py::TestWritePlan::test_write_plan_creates_file PASSED [ 36%]
+tests/backlog/test_backlog_maintenance.py::TestWritePlan::test_write_plan_creates_parent_dirs PASSED [ 37%]
+tests/backlog/test_backlog_maintenance.py::TestWritePlan::test_write_plan_valid_json PASSED [ 37%]
+tests/backlog/test_backlog_maintenance.py::TestGitCheckpoint::test_create_checkpoint_success PASSED [ 37%]
+tests/backlog/test_backlog_maintenance.py::TestGitCheckpoint::test_create_checkpoint_failure PASSED [ 37%]
+tests/backlog/test_backlog_maintenance.py::TestGitCheckpoint::test_revert_to_checkpoint_success PASSED [ 38%]
+tests/backlog/test_backlog_maintenance.py::TestGitCheckpoint::test_revert_to_checkpoint_failure PASSED [ 38%]
+tests/backlog/test_backlog_maintenance.py::TestParsePatchStats::test_empty_patch PASSED [ 38%]
+tests/backlog/test_backlog_maintenance.py::TestParsePatchStats::test_simple_patch PASSED [ 38%]
+tests/backlog/test_backlog_maintenance.py::TestParsePatchStats::test_multiple_files_patch PASSED [ 39%]
+tests/backlog/test_backlog_maintenance.py::TestParsePatchStats::test_addition_only_patch PASSED [ 39%]
+tests/backlog/test_backlog_maintenance.py::TestParsePatchStats::test_deletion_only_patch PASSED [ 39%]
+tests/backlog/test_backlog_maintenance.py::TestBacklogItemDataclass::test_default_allowed_paths PASSED [ 39%]
+tests/backlog/test_backlog_maintenance.py::TestBacklogItemDataclass::test_custom_allowed_paths PASSED [ 40%]
+tests/backlog/test_backlog_maintenance.py::TestIntegration::test_full_workflow PASSED [ 40%]
+tests/smoke/test_basic.py::test_smoke PASSED                             [ 40%]
+tests/smoke/test_basic.py::test_import_autopack PASSED                   [ 40%]
+tests/smoke/test_basic.py::test_import_models PASSED                     [ 41%]
+tests/test_api.py::test_root_endpoint PASSED                             [ 41%]
+tests/test_api.py::test_health_check PASSED                              [ 41%]
+tests/test_api.py::test_start_run PASSED                                 [ 42%]
+tests/test_api.py::test_start_run_duplicate_id PASSED                    [ 42%]
+tests/test_api.py::test_get_run PASSED                                   [ 42%]
+tests/test_api.py::test_get_run_not_found PASSED                         [ 42%]
+tests/test_api.py::test_update_phase_status PASSED                       [ 43%]
+tests/test_api.py::test_update_phase_invalid_state PASSED                [ 43%]
+tests/test_api.py::test_update_nonexistent_phase PASSED                  [ 43%]
+tests/test_api.py::test_file_layout_created FAILED                       [ 43%]
+tests/test_api.py::test_run_with_multiple_phases_in_tier PASSED          [ 44%]
+tests/test_api.py::test_phase_with_unknown_tier PASSED                   [ 44%]
+tests/test_api.py::test_max_minor_issues_computed PASSED                 [ 44%]
+tests/test_autonomous_executor.py::test_status_to_outcome_mapping PASSED [ 44%]
+tests/test_autonomous_executor.py::test_derive_allowed_paths_from_scope PASSED [ 45%]
+tests/test_autonomous_executor.py::test_get_next_queued_phase PASSED     [ 45%]
+tests/test_autonomous_executor.py::test_record_phase_error_appends_history PASSED [ 45%]
+tests/test_backlog_maintenance.py::test_parse_backlog_markdown_collects_bullets PASSED [ 45%]
+tests/test_backlog_maintenance.py::test_backlog_items_to_phases_has_scope_and_budgets PASSED [ 46%]
+tests/test_backlog_maintenance.py::test_checkpoint_and_revert PASSED     [ 46%]
+tests/test_backlog_maintenance.py::test_parse_patch_stats_counts_files_and_lines PASSED [ 46%]
+tests/test_classification_regression.py::TestClassificationRegression::test_unicode_encoding_fixed PASSED [ 46%]
+tests/test_classification_regression.py::TestClassificationRegression::test_postgresql_transaction_errors_handled PASSED [ 47%]
+tests/test_classification_regression.py::TestClassificationRegression::test_pattern_matching_confidence_improved PASSED [ 47%]
+tests/test_classification_regression.py::TestClassificationRegression::test_qdrant_api_compatibility PASSED [ 47%]
+tests/test_classification_regression.py::TestClassificationRegression::test_generic_files_flagged_by_auditor PASSED [ 47%]
+tests/test_classification_regression.py::TestClassificationRegression::test_high_confidence_with_agreement PASSED [ 48%]
+tests/test_classification_regression.py::TestClassificationRegression::test_learning_mechanism_stores_patterns PASSED [ 48%]
+tests/test_classification_regression.py::TestClassificationRegression::test_user_corrections_highest_priority PASSED [ 48%]
+tests/test_classification_regression.py::TestEdgeCases::test_empty_file_content PASSED [ 48%]
+tests/test_classification_regression.py::TestEdgeCases::test_very_long_filename PASSED [ 49%]
+tests/test_classification_regression.py::TestEdgeCases::test_special_characters_in_filename PASSED [ 49%]
+tests/test_classification_regression.py::TestEdgeCases::test_binary_content_handling PASSED [ 49%]
+tests/test_classification_regression.py::TestAccuracyCritical::test_fileorg_plans_classified_correctly PASSED [ 50%]
+tests/test_classification_regression.py::TestAccuracyCritical::test_autopack_scripts_classified_correctly PASSED [ 50%]
+tests/test_classification_regression.py::TestAccuracyCritical::test_api_logs_classified_to_autopack PASSED [ 50%]
+tests/test_classify_routes.py::TestClassifyRoutes::test_classify_endpoint_success SKIPPED [ 50%]
+tests/test_classify_routes.py::TestClassifyRoutes::test_classify_endpoint_failure SKIPPED [ 51%]
+tests/test_classify_routes.py::TestClassifyRoutes::test_classify_endpoint_invalid_input SKIPPED [ 51%]
+tests/test_classify_routes.py::TestClassifyRoutes::test_classify_endpoint_no_data SKIPPED [ 51%]
+tests/test_classify_routes.py::TestClassifyRoutes::test_classify_endpoint_partial_data SKIPPED [ 51%]
+tests/test_classify_routes.py::TestClassifyRoutes::test_classify_endpoint_large_data SKIPPED [ 52%]
+tests/test_classify_routes.py::TestClassifyRoutes::test_classify_endpoint_timeout SKIPPED [ 52%]
+tests/test_classify_routes.py::TestClassifyRoutes::test_classify_endpoint_dependency_error SKIPPED [ 52%]
+tests/test_classify_routes.py::TestClassifyRoutes::test_classify_endpoint_unexpected_response SKIPPED [ 52%]
+tests/test_dashboard_diagnostics_api.py::test_latest_diagnostics_returns_placeholder_when_empty PASSED [ 53%]
+tests/test_dashboard_diagnostics_api.py::test_latest_diagnostics_returns_newest_summary PASSED [ 53%]
+tests/test_dashboard_diagnostics_api.py::test_latest_diagnostics_handles_corrupt_json PASSED [ 53%]
+tests/test_dashboard_integration.py::test_dashboard_run_status SKIPPED   [ 53%]
+tests/test_dashboard_integration.py::test_dashboard_run_status_not_found SKIPPED [ 54%]
+tests/test_dashboard_integration.py::test_dashboard_usage_empty SKIPPED  [ 54%]
+tests/test_dashboard_integration.py::test_dashboard_usage_with_data SKIPPED [ 54%]
+tests/test_dashboard_integration.py::test_dashboard_human_notes SKIPPED  [ 54%]
+tests/test_dashboard_integration.py::test_dashboard_models_list SKIPPED  [ 55%]
+tests/test_dashboard_integration.py::test_dashboard_models_override_global SKIPPED [ 55%]
+tests/test_dashboard_integration.py::test_dashboard_models_override_run SKIPPED [ 55%]
+tests/test_dashboard_integration.py::test_dashboard_run_progress_calculation SKIPPED [ 55%]
+tests/test_diagnostics.py::test_command_runner_allows_safe_command PASSED [ 56%]
+tests/test_diagnostics.py::test_command_runner_blocks_banned PASSED      [ 56%]
+tests/test_diagnostics.py::test_command_runner_sandbox_copy PASSED       [ 56%]
+tests/test_diagnostics.py::test_probe_library_returns_expected_sets PASSED [ 56%]
+tests/test_diagnostics.py::test_diagnostics_agent_with_stub_runner PASSED [ 57%]
+tests/test_doctor_routing.py::TestIsComplexFailure::test_simple_failure_returns_false PASSED [ 57%]
+tests/test_doctor_routing.py::TestIsComplexFailure::test_multiple_error_categories_returns_true PASSED [ 57%]
+tests/test_doctor_routing.py::TestIsComplexFailure::test_multiple_patch_errors_returns_true PASSED [ 57%]
+tests/test_doctor_routing.py::TestIsComplexFailure::test_many_attempts_returns_true PASSED [ 58%]
+tests/test_doctor_routing.py::TestIsComplexFailure::test_high_health_ratio_returns_true PASSED [ 58%]
+tests/test_doctor_routing.py::TestIsComplexFailure::test_prior_escalated_action_returns_true PASSED [ 58%]
+tests/test_doctor_routing.py::TestIsComplexFailure::test_edge_case_just_below_thresholds PASSED [ 59%]
+tests/test_doctor_routing.py::TestChooseDoctorModel::test_high_health_ratio_returns_strong_model PASSED [ 59%]
+tests/test_doctor_routing.py::TestChooseDoctorModel::test_routine_failure_returns_cheap_model PASSED [ 59%]
+tests/test_doctor_routing.py::TestChooseDoctorModel::test_complex_failure_returns_strong_model PASSED [ 59%]
+tests/test_doctor_routing.py::TestChooseDoctorModel::test_multiple_error_categories_returns_strong_model PASSED [ 60%]
+tests/test_doctor_routing.py::TestChooseDoctorModel::test_multiple_patch_errors_returns_strong_model PASSED [ 60%]
+tests/test_doctor_routing.py::TestShouldEscalateDoctorModel::test_cheap_model_low_confidence_multiple_attempts_returns_true PASSED [ 60%]
+tests/test_doctor_routing.py::TestShouldEscalateDoctorModel::test_strong_model_never_escalates PASSED [ 60%]
+tests/test_doctor_routing.py::TestShouldEscalateDoctorModel::test_high_confidence_prevents_escalation PASSED [ 61%]
+tests/test_doctor_routing.py::TestShouldEscalateDoctorModel::test_low_attempts_prevents_escalation PASSED [ 61%]
+tests/test_doctor_routing.py::TestShouldEscalateDoctorModel::test_threshold_confidence_with_multiple_attempts PASSED [ 61%]
+tests/test_doctor_routing.py::TestShouldEscalateDoctorModel::test_confidence_at_threshold_prevents_escalation PASSED [ 61%]
+tests/test_doctor_routing.py::TestDoctorContextSummary::test_from_context_creates_correct_summary PASSED [ 62%]
+tests/test_doctor_routing.py::TestDoctorContextSummary::test_to_dict_produces_expected_json PASSED [ 62%]
+tests/test_doctor_routing.py::TestDoctorContextSummary::test_to_dict_has_all_required_keys PASSED [ 62%]
+tests/test_doctor_routing.py::TestDoctorContextSummary::test_summary_with_complex_error_data PASSED [ 62%]
+tests/test_doctor_routing.py::TestDoctorContextSummary::test_summary_with_empty_lists PASSED [ 63%]
+tests/test_document_classifier_uk.py::TestUKDocumentClassifier::test_classify_document SKIPPED [ 63%]
+tests/test_document_classifier_uk.py::TestUKDocumentClassifier::test_extract_uk_date SKIPPED [ 63%]
+tests/test_document_classifier_uk.py::TestUKDocumentClassifier::test_extract_uk_postcode SKIPPED [ 63%]
+tests/test_file_layout.py::test_ensure_directories FAILED                [ 64%]
+tests/test_file_layout.py::test_get_run_summary_path FAILED              [ 64%]
+tests/test_file_layout.py::test_get_tier_summary_path FAILED             [ 64%]
+tests/test_file_layout.py::test_get_tier_summary_path_with_spaces FAILED [ 64%]
+tests/test_file_layout.py::test_get_phase_summary_path FAILED            [ 65%]
+tests/test_file_layout.py::test_write_run_summary PASSED                 [ 65%]
+tests/test_file_layout.py::test_write_tier_summary PASSED                [ 65%]
+tests/test_file_layout.py::test_write_phase_summary PASSED               [ 65%]
+tests/test_file_layout.py::test_write_phase_summary_no_category PASSED   [ 66%]
+tests/test_file_size_guards.py::TestBuilderOutputConfig::test_default_values PASSED [ 66%]
+tests/test_file_size_guards.py::TestBuilderOutputConfig::test_from_yaml PASSED [ 66%]
+tests/test_file_size_guards.py::TestBuilderOutputConfig::test_from_yaml_missing_file_uses_defaults PASSED [ 67%]
+tests/test_file_size_guards.py::TestFileSizeTelemetry::test_record_preflight_reject PASSED [ 67%]
+tests/test_file_size_guards.py::TestFileSizeTelemetry::test_record_bucket_switch PASSED [ 67%]
+tests/test_file_size_guards.py::TestPreflightGuard::test_bucket_a_allows_small_file PASSED [ 67%]
+tests/test_file_size_guards.py::TestPreflightGuard::test_bucket_b_switches_to_diff_mode PASSED [ 68%]
+tests/test_file_size_guards.py::TestPreflightGuard::test_bucket_c_rejects_large_file PASSED [ 68%]
+tests/test_file_size_guards.py::TestParserGuards::test_readonly_enforcement_rejects_large_file_modification PASSED [ 68%]
+tests/test_file_size_guards.py::TestParserGuards::test_shrinkage_detection_rejects_80_percent_reduction PASSED [ 68%]
+tests/test_file_size_guards.py::TestParserGuards::test_shrinkage_allowed_with_opt_in PASSED [ 69%]
+tests/test_file_size_guards.py::TestParserGuards::test_growth_detection_rejects_5x_increase PASSED [ 69%]
+tests/test_file_size_guards.py::TestParserGuards::test_growth_allowed_with_opt_in PASSED [ 69%]
+tests/test_file_size_guards.py::TestIntegration::test_three_bucket_policy PASSED [ 69%]
+tests/test_file_size_guards.py::TestIntegration::test_telemetry_integration PASSED [ 70%]
+tests/test_git_rollback.py::test_create_rollback_point_creates_branch PASSED [ 70%]
+tests/test_git_rollback.py::test_create_rollback_point_overwrites_existing PASSED [ 70%]
+tests/test_git_rollback.py::test_create_rollback_point_stashes_changes PASSED [ 70%]
+tests/test_git_rollback.py::test_rollback_to_point_success PASSED        [ 71%]
+tests/test_git_rollback.py::test_rollback_to_point_missing_branch PASSED [ 71%]
+tests/test_git_rollback.py::test_cleanup_rollback_point_success PASSED   [ 71%]
+tests/test_git_rollback.py::test_cleanup_rollback_point_noop_when_missing PASSED [ 71%]
+tests/test_governed_apply.py::test_direct_write_fallback_skips_mixed_patches PASSED [ 72%]
+tests/test_issue_tracker.py::test_phase_issue_creation FAILED            [ 72%]
+tests/test_issue_tracker.py::test_issue_deduplication_in_phase FAILED    [ 72%]
+tests/test_issue_tracker.py::test_run_issue_index FAILED                 [ 72%]
+tests/test_issue_tracker.py::test_run_issue_index_multiple_tiers FAILED  [ 73%]
+tests/test_issue_tracker.py::test_project_backlog_aging FAILED           [ 73%]
+tests/test_issue_tracker.py::test_aging_triggers_needs_cleanup FAILED    [ 73%]
+tests/test_issue_tracker.py::test_major_issue_doesnt_age FAILED          [ 73%]
+tests/test_issue_tracker.py::test_phase_issue_state FAILED               [ 74%]
+tests/test_issue_tracker.py::test_issue_evidence_refs FAILED             [ 74%]
+tests/test_issue_tracker.py::test_multiple_issues_in_phase FAILED        [ 74%]
+tests/test_issue_tracker.py::test_project_backlog_persistence FAILED     [ 75%]
+tests/test_maintenance_auditor.py::test_auditor_rejects_protected_path PASSED [ 75%]
+tests/test_maintenance_auditor.py::test_auditor_requires_human_on_missing_tests PASSED [ 75%]
+tests/test_maintenance_auditor.py::test_auditor_approves_safe_small_change PASSED [ 75%]
+tests/test_models.py::test_run_creation PASSED                           [ 76%]
+tests/test_models.py::test_tier_creation PASSED                          [ 76%]
+tests/test_models.py::test_phase_creation PASSED                         [ 76%]
+tests/test_models.py::test_run_tier_relationship PASSED                  [ 76%]
+tests/test_models.py::test_tier_phase_relationship PASSED                [ 77%]
+tests/test_models.py::test_cascade_delete PASSED                         [ 77%]
+tests/test_pack_routes.py::TestPackRoutes::test_pack_endpoint_success SKIPPED [ 77%]
+tests/test_pack_routes.py::TestPackRoutes::test_pack_endpoint_failure SKIPPED [ 77%]
+tests/test_pack_routes.py::TestPackRoutes::test_pack_endpoint_invalid_input SKIPPED [ 78%]
+tests/test_pack_routes.py::TestPackRoutes::test_pack_endpoint_no_data SKIPPED [ 78%]
+tests/test_pack_routes.py::TestPackRoutes::test_pack_endpoint_partial_data SKIPPED [ 78%]
+tests/test_pack_routes.py::TestPackRoutes::test_pack_endpoint_large_data SKIPPED [ 78%]
+tests/test_pack_routes.py::TestPackRoutes::test_pack_endpoint_timeout SKIPPED [ 79%]
+tests/test_pack_routes.py::TestPackRoutes::test_pack_endpoint_dependency_error SKIPPED [ 79%]
+tests/test_pack_routes.py::TestPackRoutes::test_pack_endpoint_unexpected_response SKIPPED [ 79%]
+tests/test_path_normalization.py::test_collapse_consecutive_duplicates PASSED [ 79%]
+tests/test_plan_parser.py::test_parse_markdown_basic PASSED              [ 80%]
+tests/test_plan_parser.py::test_phases_to_plan_structure PASSED          [ 80%]
+tests/test_plan_parser.py::test_merge_plans_allows_update PASSED         [ 80%]
+tests/test_qdrant_store.py::TestQdrantStore::test_ensure_collection SKIPPEDNABLED=true and ensure Qdrant is running on localhost:6333) [ 80%]
+tests/test_qdrant_store.py::TestQdrantStore::test_upsert_and_search SKIPPEDNABLED=true and ensure Qdrant is running on localhost:6333) [ 81%]
+tests/test_qdrant_store.py::TestQdrantStore::test_search_with_filter SKIPPEDNABLED=true and ensure Qdrant is running on localhost:6333) [ 81%]
+tests/test_qdrant_store.py::TestQdrantStore::test_scroll SKIPPED (Qdrant
+not available or QDRANT_TEST_ENABLED not set. Set
+QDRANT_TEST_ENABLED=true and ensure Qdrant is running on localhost:6333) [ 81%]
+tests/test_qdrant_store.py::TestQdrantStore::test_get_and_update_payload SKIPPEDNABLED=true and ensure Qdrant is running on localhost:6333) [ 81%]
+tests/test_qdrant_store.py::TestQdrantStore::test_delete SKIPPED (Qdrant
+not available or QDRANT_TEST_ENABLED not set. Set
+QDRANT_TEST_ENABLED=true and ensure Qdrant is running on localhost:6333) [ 82%]
+tests/test_qdrant_store.py::TestQdrantStore::test_count SKIPPED (Qdrant
+not available or QDRANT_TEST_ENABLED not set. Set
+QDRANT_TEST_ENABLED=true and ensure Qdrant is running on localhost:6333) [ 82%]
+tests/test_qdrant_store.py::TestQdrantStore::test_tombstoned_filtering SKIPPEDNABLED=true and ensure Qdrant is running on localhost:6333) [ 82%]
+tests/test_qdrant_store.py::test_qdrant_memory_service_integration SKIPPEDNABLED=true and ensure Qdrant is running on localhost:6333) [ 82%]
+tests/test_research_validators.py::TestCitationValidatorTextNormalization::test_whitespace_normalization FAILED [ 83%]
+tests/test_research_validators.py::TestCitationValidatorTextNormalization::test_case_insensitive FAILED [ 83%]
+tests/test_research_validators.py::TestCitationValidatorTextNormalization::test_empty_string PASSED [ 83%]
+tests/test_research_validators.py::TestNumericVerificationPhase1::test_market_intelligence_with_numbers_valid PASSED [ 84%]
+tests/test_research_validators.py::TestNumericVerificationPhase1::test_market_intelligence_without_numbers_invalid PASSED [ 84%]
+tests/test_research_validators.py::TestNumericVerificationPhase1::test_competitive_analysis_with_numbers_valid PASSED [ 84%]
+tests/test_research_validators.py::TestNumericVerificationPhase1::test_competitive_analysis_without_numbers_invalid PASSED [ 84%]
+tests/test_research_validators.py::TestNumericVerificationPhase1::test_technical_analysis_no_number_requirement PASSED [ 85%]
+tests/test_research_validators.py::TestNumericVerificationPhase1::test_technical_analysis_with_numbers_also_valid PASSED [ 85%]
+tests/test_research_validators.py::TestNumericVerificationPhase1::test_content_paraphrase_no_longer_fails PASSED [ 85%]
+tests/test_research_validators.py::TestFullVerificationPipeline::test_all_checks_pass PASSED [ 85%]
+tests/test_research_validators.py::TestFullVerificationPipeline::test_extraction_span_not_in_source PASSED [ 86%]
+tests/test_research_validators.py::TestFullVerificationPipeline::test_hash_mismatch PASSED [ 86%]
+tests/test_research_validators.py::TestFullVerificationPipeline::test_numeric_claim_without_numbers PASSED [ 86%]
+tests/test_research_validators.py::TestFullVerificationPipeline::test_case_insensitive_matching FAILED [ 86%]
+tests/test_research_validators.py::TestFullVerificationPipeline::test_whitespace_variations PASSED [ 87%]
+tests/test_research_validators.py::TestFullVerificationPipeline::test_no_source_hash_skips_check2 PASSED [ 87%]
+tests/test_research_validators.py::TestEdgeCases::test_empty_extraction_span PASSED [ 87%]
+tests/test_research_validators.py::TestEdgeCases::test_numeric_extraction_with_decimals PASSED [ 87%]
+tests/test_research_validators.py::TestEdgeCases::test_numeric_extraction_multiple_numbers PASSED [ 88%]
+tests/test_text_normalization.py::TestDecodeHtmlEntities::test_basic_entities PASSED [ 88%]
+tests/test_text_normalization.py::TestDecodeHtmlEntities::test_numeric_entities PASSED [ 88%]
+tests/test_text_normalization.py::TestDecodeHtmlEntities::test_mixed_content PASSED [ 88%]
+tests/test_text_normalization.py::TestDecodeHtmlEntities::test_empty_input PASSED [ 89%]
+tests/test_text_normalization.py::TestNormalizeUnicode::test_nfc_normalization PASSED [ 89%]
+tests/test_text_normalization.py::TestNormalizeUnicode::test_replacement_char_removal PASSED [ 89%]
+tests/test_text_normalization.py::TestNormalizeUnicode::test_empty_input PASSED [ 89%]
+tests/test_text_normalization.py::TestStripMarkdownArtifacts::test_link_removal PASSED [ 90%]
+tests/test_text_normalization.py::TestStripMarkdownArtifacts::test_image_removal PASSED [ 90%]
+tests/test_text_normalization.py::TestStripMarkdownArtifacts::test_bold_removal PASSED [ 90%]
+tests/test_text_normalization.py::TestStripMarkdownArtifacts::test_italic_removal PASSED [ 90%]
+tests/test_text_normalization.py::TestStripMarkdownArtifacts::test_code_removal PASSED [ 91%]
+tests/test_text_normalization.py::TestStripMarkdownArtifacts::test_header_removal PASSED [ 91%]
+tests/test_text_normalization.py::TestStripMarkdownArtifacts::test_empty_input PASSED [ 91%]
+tests/test_text_normalization.py::TestNormalizeWhitespace::test_multiple_spaces PASSED [ 92%]
+tests/test_text_normalization.py::TestNormalizeWhitespace::test_mixed_whitespace PASSED [ 92%]
+tests/test_text_normalization.py::TestNormalizeWhitespace::test_trim PASSED [ 92%]
+tests/test_text_normalization.py::TestNormalizeText::test_full_pipeline PASSED [ 92%]
+tests/test_text_normalization.py::TestNormalizeText::test_empty_input PASSED [ 93%]
+tests/test_verification.py::TestExtractNumbers::test_extract_integers PASSED [ 93%]
+tests/test_verification.py::TestExtractNumbers::test_extract_decimals PASSED [ 93%]
+tests/test_verification.py::TestExtractNumbers::test_extract_with_commas PASSED [ 93%]
+tests/test_verification.py::TestExtractNumbers::test_extract_negative_numbers PASSED [ 94%]
+tests/test_verification.py::TestExtractNumbers::test_empty_text PASSED   [ 94%]
+tests/test_verification.py::TestVerifyNumericValues::test_exact_match PASSED [ 94%]
+tests/test_verification.py::TestVerifyNumericValues::test_multiple_numbers_match PASSED [ 94%]
+tests/test_verification.py::TestVerifyNumericValues::test_missing_number PASSED [ 95%]
+tests/test_verification.py::TestVerifyNumericValues::test_empty_extracted PASSED [ 95%]
+tests/test_verification.py::TestVerifyNumericValues::test_no_source PASSED [ 95%]
+tests/test_verification.py::TestVerifyNumericValues::test_floating_point_tolerance PASSED [ 95%]
+tests/test_verification.py::TestVerifyCitationInSource::test_exact_match PASSED [ 96%]
+tests/test_verification.py::TestVerifyCitationInSource::test_normalized_match PASSED [ 96%]
+tests/test_verification.py::TestVerifyCitationInSource::test_no_match PASSED [ 96%]
+tests/test_verification.py::TestVerifyCitationInSource::test_empty_extracted PASSED [ 96%]
+tests/test_verification.py::TestVerifyCitationInSource::test_empty_source PASSED [ 97%]
+tests/test_verification.py::TestVerifyCitationInSource::test_min_length_skip PASSED [ 97%]
+tests/test_verification.py::TestVerifyCitationInSource::test_with_html_entities PASSED [ 97%]
+tests/test_verification.py::TestVerifyExtraction::test_both_verifications_pass PASSED [ 97%]
+tests/test_verification.py::TestVerifyExtraction::test_numeric_fails PASSED [ 98%]
+tests/test_verification.py::TestVerifyExtraction::test_text_fails PASSED [ 98%]
+tests/test_verification.py::TestVerifyExtraction::test_only_numeric_verification PASSED [ 98%]
+tests/test_verification.py::TestVerifyExtraction::test_only_text_verification PASSED [ 98%]
+tests/test_verification.py::TestVerifyExtraction::test_real_world_scenario PASSED [ 99%]
+tests/test_verification.py::TestIntegrationWithTextNormalization::test_markdown_formatting PASSED [ 99%]
+tests/test_verification.py::TestIntegrationWithTextNormalization::test_unicode_normalization PASSED [ 99%]
+tests/test_verification.py::TestIntegrationWithTextNormalization::test_whitespace_normalization PASSED [100%]
+
+================================== FAILURES ===================================
+__________________________ test_file_layout_created ___________________________
+tests\test_api.py:120: in test_file_layout_created
+    assert (run_dir / "run_summary.md").exists()
+E   AssertionError: assert False
+E    +  where False = <bound method Path.exists of WindowsPath('C:/Users/hshk9/AppData/Local/Temp/pytest-of-hshk9/pytest-0/test_file_layout_created0/.autonomous_runs/test-run-001/run_summary.md')>()
+E    +    where <bound method Path.exists of WindowsPath('C:/Users/hshk9/AppData/Local/Temp/pytest-of-hshk9/pytest-0/test_file_layout_created0/.autonomous_runs/test-run-001/run_summary.md')> = (WindowsPath('C:/Users/hshk9/AppData/Local/Temp/pytest-of-hshk9/pytest-0/test_file_layout_created0/.autonomous_runs/test-run-001') / 'run_summary.md').exists
+___________________________ test_ensure_directories ___________________________
+tests\test_file_layout.py:22: in test_ensure_directories
+    assert run_dir.exists()
+E   AssertionError: assert False
+E    +  where False = <bound method Path.exists of WindowsPath('C:/Users/hshk9/AppData/Local/Temp/pytest-of-hshk9/pytest-0/test_ensure_directories0/test-run-001')>()
+E    +    where <bound method Path.exists of WindowsPath('C:/Users/hshk9/AppData/Local/Temp/pytest-of-hshk9/pytest-0/test_ensure_directories0/test-run-001')> = WindowsPath('C:/Users/hshk9/AppData/Local/Temp/pytest-of-hshk9/pytest-0/test_ensure_directories0/test-run-001').exists
+__________________________ test_get_run_summary_path __________________________
+tests\test_file_layout.py:31: in test_get_run_summary_path
+    assert path == tmp_path / "test-run-001" / "run_summary.md"
+E   AssertionError: assert WindowsPath('C:/Users/hshk9/AppData/Local/Temp/pytest-of-hshk9/pytest-0/test_get_run_summary_path0/autopack/runs/test-run-001/test-run-001/run_summary.md') == ((WindowsPath('C:/Users/hshk9/AppData/Local/Temp/pytest-of-hshk9/pytest-0/test_get_run_summary_path0') / 'test-run-001') / 'run_summary.md')
+_________________________ test_get_tier_summary_path __________________________
+tests\test_file_layout.py:37: in test_get_tier_summary_path
+    assert path == tmp_path / "test-run-001" / "tiers" / "tier_00_Foundation.md"
+E   AssertionError: assert WindowsPath('C:/Users/hshk9/AppData/Local/Temp/pytest-of-hshk9/pytest-0/test_get_tier_summary_path0/autopack/runs/test-run-001/test-run-001/tiers/tier_00_Foundation.md') == (((WindowsPath('C:/Users/hshk9/AppData/Local/Temp/pytest-of-hshk9/pytest-0/test_get_tier_summary_path0') / 'test-run-001') / 'tiers') / 'tier_00_Foundation.md')
+___________________ test_get_tier_summary_path_with_spaces ____________________
+tests\test_file_layout.py:43: in test_get_tier_summary_path_with_spaces
+    assert path == tmp_path / "test-run-001" / "tiers" / "tier_01_Auth_&_Security.md"
+E   AssertionError: assert WindowsPath('C:/Users/hshk9/AppData/Local/Temp/pytest-of-hshk9/pytest-0/test_get_tier_summary_path_wit0/autopack/runs/test-run-001/test-run-001/tiers/tier_01_Auth_&_Security.md') == (((WindowsPath('C:/Users/hshk9/AppData/Local/Temp/pytest-of-hshk9/pytest-0/test_get_tier_summary_path_wit0') / 'test-run-001') / 'tiers') / 'tier_01_Auth_&_Security.md')
+_________________________ test_get_phase_summary_path _________________________
+tests\test_file_layout.py:49: in test_get_phase_summary_path
+    assert path == tmp_path / "test-run-001" / "phases" / "phase_00_F1.1.md"
+E   AssertionError: assert WindowsPath('C:/Users/hshk9/AppData/Local/Temp/pytest-of-hshk9/pytest-0/test_get_phase_summary_path0/autopack/runs/test-run-001/test-run-001/phases/phase_00_F1.1.md') == (((WindowsPath('C:/Users/hshk9/AppData/Local/Temp/pytest-of-hshk9/pytest-0/test_get_phase_summary_path0') / 'test-run-001') / 'phases') / 'phase_00_F1.1.md')
+__________________________ test_phase_issue_creation __________________________
+tests\test_issue_tracker.py:21: in test_phase_issue_creation
+    phase_file, run_index, backlog = issue_tracker.record_issue(
+src\autopack\issue_tracker.py:270: in record_issue
+    project_backlog = self.update_project_backlog(issue, tier_id)
+src\autopack\issue_tracker.py:229: in update_project_backlog
+    self.save_project_backlog(backlog)
+src\autopack\issue_tracker.py:182: in save_project_backlog
+    path.write_text(backlog.model_dump_json(indent=2), encoding="utf-8")
+C:\Python\Lib\pathlib.py:1047: in write_text
+    with self.open(mode='w', encoding=encoding, errors=errors, newline=newline) as f:
+C:\Python\Lib\pathlib.py:1013: in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+E   FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\hshk9\\AppData\\Local\\Temp\\pytest-of-hshk9\\pytest-0\\docs\\project_issue_backlog.json'
+______________________ test_issue_deduplication_in_phase ______________________
+tests\test_issue_tracker.py:55: in test_issue_deduplication_in_phase
+    phase_file1, _, _ = issue_tracker.record_issue(
+src\autopack\issue_tracker.py:270: in record_issue
+    project_backlog = self.update_project_backlog(issue, tier_id)
+src\autopack\issue_tracker.py:229: in update_project_backlog
+    self.save_project_backlog(backlog)
+src\autopack\issue_tracker.py:182: in save_project_backlog
+    path.write_text(backlog.model_dump_json(indent=2), encoding="utf-8")
+C:\Python\Lib\pathlib.py:1047: in write_text
+    with self.open(mode='w', encoding=encoding, errors=errors, newline=newline) as f:
+C:\Python\Lib\pathlib.py:1013: in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+E   FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\hshk9\\AppData\\Local\\Temp\\pytest-of-hshk9\\pytest-0\\docs\\project_issue_backlog.json'
+____________________________ test_run_issue_index _____________________________
+tests\test_issue_tracker.py:84: in test_run_issue_index
+    _, run_index1, _ = issue_tracker.record_issue(
+src\autopack\issue_tracker.py:270: in record_issue
+    project_backlog = self.update_project_backlog(issue, tier_id)
+src\autopack\issue_tracker.py:229: in update_project_backlog
+    self.save_project_backlog(backlog)
+src\autopack\issue_tracker.py:182: in save_project_backlog
+    path.write_text(backlog.model_dump_json(indent=2), encoding="utf-8")
+C:\Python\Lib\pathlib.py:1047: in write_text
+    with self.open(mode='w', encoding=encoding, errors=errors, newline=newline) as f:
+C:\Python\Lib\pathlib.py:1013: in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+E   FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\hshk9\\AppData\\Local\\Temp\\pytest-of-hshk9\\pytest-0\\docs\\project_issue_backlog.json'
+_____________________ test_run_issue_index_multiple_tiers _____________________
+tests\test_issue_tracker.py:118: in test_run_issue_index_multiple_tiers
+    _, _, _ = issue_tracker.record_issue(
+src\autopack\issue_tracker.py:270: in record_issue
+    project_backlog = self.update_project_backlog(issue, tier_id)
+src\autopack\issue_tracker.py:229: in update_project_backlog
+    self.save_project_backlog(backlog)
+src\autopack\issue_tracker.py:182: in save_project_backlog
+    path.write_text(backlog.model_dump_json(indent=2), encoding="utf-8")
+C:\Python\Lib\pathlib.py:1047: in write_text
+    with self.open(mode='w', encoding=encoding, errors=errors, newline=newline) as f:
+C:\Python\Lib\pathlib.py:1013: in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+E   FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\hshk9\\AppData\\Local\\Temp\\pytest-of-hshk9\\pytest-0\\docs\\project_issue_backlog.json'
+_________________________ test_project_backlog_aging __________________________
+tests\test_issue_tracker.py:147: in test_project_backlog_aging
+    _, _, backlog1 = issue_tracker.record_issue(
+src\autopack\issue_tracker.py:270: in record_issue
+    project_backlog = self.update_project_backlog(issue, tier_id)
+src\autopack\issue_tracker.py:229: in update_project_backlog
+    self.save_project_backlog(backlog)
+src\autopack\issue_tracker.py:182: in save_project_backlog
+    path.write_text(backlog.model_dump_json(indent=2), encoding="utf-8")
+C:\Python\Lib\pathlib.py:1047: in write_text
+    with self.open(mode='w', encoding=encoding, errors=errors, newline=newline) as f:
+C:\Python\Lib\pathlib.py:1013: in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+E   FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\hshk9\\AppData\\Local\\Temp\\pytest-of-hshk9\\pytest-0\\docs\\project_issue_backlog.json'
+______________________ test_aging_triggers_needs_cleanup ______________________
+tests\test_issue_tracker.py:189: in test_aging_triggers_needs_cleanup
+    _, _, backlog = tracker.record_issue(
+src\autopack\issue_tracker.py:270: in record_issue
+    project_backlog = self.update_project_backlog(issue, tier_id)
+src\autopack\issue_tracker.py:229: in update_project_backlog
+    self.save_project_backlog(backlog)
+src\autopack\issue_tracker.py:182: in save_project_backlog
+    path.write_text(backlog.model_dump_json(indent=2), encoding="utf-8")
+C:\Python\Lib\pathlib.py:1047: in write_text
+    with self.open(mode='w', encoding=encoding, errors=errors, newline=newline) as f:
+C:\Python\Lib\pathlib.py:1013: in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+E   FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\hshk9\\AppData\\Local\\Temp\\pytest-of-hshk9\\pytest-0\\docs\\project_issue_backlog.json'
+_________________________ test_major_issue_doesnt_age _________________________
+tests\test_issue_tracker.py:207: in test_major_issue_doesnt_age
+    _, _, backlog = issue_tracker.record_issue(
+src\autopack\issue_tracker.py:270: in record_issue
+    project_backlog = self.update_project_backlog(issue, tier_id)
+src\autopack\issue_tracker.py:229: in update_project_backlog
+    self.save_project_backlog(backlog)
+src\autopack\issue_tracker.py:182: in save_project_backlog
+    path.write_text(backlog.model_dump_json(indent=2), encoding="utf-8")
+C:\Python\Lib\pathlib.py:1047: in write_text
+    with self.open(mode='w', encoding=encoding, errors=errors, newline=newline) as f:
+C:\Python\Lib\pathlib.py:1013: in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+E   FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\hshk9\\AppData\\Local\\Temp\\pytest-of-hshk9\\pytest-0\\docs\\project_issue_backlog.json'
+___________________________ test_phase_issue_state ____________________________
+tests\test_issue_tracker.py:230: in test_phase_issue_state
+    phase_file1, _, _ = issue_tracker.record_issue(
+src\autopack\issue_tracker.py:270: in record_issue
+    project_backlog = self.update_project_backlog(issue, tier_id)
+src\autopack\issue_tracker.py:229: in update_project_backlog
+    self.save_project_backlog(backlog)
+src\autopack\issue_tracker.py:182: in save_project_backlog
+    path.write_text(backlog.model_dump_json(indent=2), encoding="utf-8")
+C:\Python\Lib\pathlib.py:1047: in write_text
+    with self.open(mode='w', encoding=encoding, errors=errors, newline=newline) as f:
+C:\Python\Lib\pathlib.py:1013: in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+E   FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\hshk9\\AppData\\Local\\Temp\\pytest-of-hshk9\\pytest-0\\docs\\project_issue_backlog.json'
+__________________________ test_issue_evidence_refs ___________________________
+tests\test_issue_tracker.py:258: in test_issue_evidence_refs
+    phase_file, _, _ = issue_tracker.record_issue(
+src\autopack\issue_tracker.py:270: in record_issue
+    project_backlog = self.update_project_backlog(issue, tier_id)
+src\autopack\issue_tracker.py:229: in update_project_backlog
+    self.save_project_backlog(backlog)
+src\autopack\issue_tracker.py:182: in save_project_backlog
+    path.write_text(backlog.model_dump_json(indent=2), encoding="utf-8")
+C:\Python\Lib\pathlib.py:1047: in write_text
+    with self.open(mode='w', encoding=encoding, errors=errors, newline=newline) as f:
+C:\Python\Lib\pathlib.py:1013: in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+E   FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\hshk9\\AppData\\Local\\Temp\\pytest-of-hshk9\\pytest-0\\docs\\project_issue_backlog.json'
+________________________ test_multiple_issues_in_phase ________________________
+tests\test_issue_tracker.py:277: in test_multiple_issues_in_phase
+    issue_tracker.record_issue(
+src\autopack\issue_tracker.py:270: in record_issue
+    project_backlog = self.update_project_backlog(issue, tier_id)
+src\autopack\issue_tracker.py:229: in update_project_backlog
+    self.save_project_backlog(backlog)
+src\autopack\issue_tracker.py:182: in save_project_backlog
+    path.write_text(backlog.model_dump_json(indent=2), encoding="utf-8")
+C:\Python\Lib\pathlib.py:1047: in write_text
+    with self.open(mode='w', encoding=encoding, errors=errors, newline=newline) as f:
+C:\Python\Lib\pathlib.py:1013: in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+E   FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\hshk9\\AppData\\Local\\Temp\\pytest-of-hshk9\\pytest-0\\docs\\project_issue_backlog.json'
+______________________ test_project_backlog_persistence _______________________
+tests\test_issue_tracker.py:295: in test_project_backlog_persistence
+    issue_tracker.record_issue(
+src\autopack\issue_tracker.py:270: in record_issue
+    project_backlog = self.update_project_backlog(issue, tier_id)
+src\autopack\issue_tracker.py:229: in update_project_backlog
+    self.save_project_backlog(backlog)
+src\autopack\issue_tracker.py:182: in save_project_backlog
+    path.write_text(backlog.model_dump_json(indent=2), encoding="utf-8")
+C:\Python\Lib\pathlib.py:1047: in write_text
+    with self.open(mode='w', encoding=encoding, errors=errors, newline=newline) as f:
+C:\Python\Lib\pathlib.py:1013: in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+E   FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\hshk9\\AppData\\Local\\Temp\\pytest-of-hshk9\\pytest-0\\docs\\project_issue_backlog.json'
+____ TestCitationValidatorTextNormalization.test_whitespace_normalization _____
+tests\test_research_validators.py:31: in test_whitespace_normalization
+    assert normalized1 == "the quick brown fox"
+E   AssertionError: assert 'The quick brown fox' == 'the quick brown fox'
+E     
+E     - the quick brown fox
+E     ? ^
+E     + The quick brown fox
+E     ? ^
+________ TestCitationValidatorTextNormalization.test_case_insensitive _________
+tests\test_research_validators.py:37: in test_case_insensitive
+    assert validator._normalize_text("Hello World") == validator._normalize_text("hello world")
+E   AssertionError: assert 'Hello World' == 'hello world'
+E     
+E     - hello world
+E     ? ^     ^
+E     + Hello World
+E     ? ^     ^
+_________ TestFullVerificationPipeline.test_case_insensitive_matching _________
+tests\test_research_validators.py:252: in test_case_insensitive_matching
+    assert result.valid is True
+E   AssertionError: assert False is True
+E    +  where False = VerificationResult(valid=False, reason='extraction_span not found in source document', confidence=0.95).valid
+============================== warnings summary ===============================
+..\..\Python\Lib\site-packages\starlette\formparsers.py:10
+  C:\Python\Lib\site-packages\starlette\formparsers.py:10: PendingDeprecationWarning: Please use `import python_multipart` instead.
+    import multipart
+
+src\backend\main.py:15
+src\backend\main.py:15
+  C:\dev\Autopack\src\backend\main.py:15: DeprecationWarning: 
+          on_event is deprecated, use lifespan event handlers instead.
+  
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+          
+    @app.on_event("startup")
+
+..\..\Python\Lib\site-packages\fastapi\applications.py:4547
+..\..\Python\Lib\site-packages\fastapi\applications.py:4547
+  C:\Python\Lib\site-packages\fastapi\applications.py:4547: DeprecationWarning: 
+          on_event is deprecated, use lifespan event handlers instead.
+  
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+          
+    return self.router.on_event(event_type)
+
+src\autopack\maintenance_auditor.py:27
+  C:\dev\Autopack\src\autopack\maintenance_auditor.py:27: PytestCollectionWarning: cannot collect test class 'TestResult' because it has a __init__ constructor (from: tests/test_maintenance_auditor.py)
+    @dataclass
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ===========================
+FAILED tests/test_api.py::test_file_layout_created - AssertionError: assert False
+ +  where False = <bound method Path.exists of WindowsPath('C:/Users/hshk9/AppData/Local/Temp/pytest-of-hshk9/pytest-0/test_file_layout_created0/.autonomous_runs/test-run-001/run_summary.md')>()
+ +    where <bound method Path.exists of WindowsPath('C:/Users/hshk9/AppData/Local/Temp/pytest-of-hshk9/pytest-0/test_file_layout_created0/.autonomous_runs/test-run-001/run_summary.md')> = (WindowsPath('C:/Users/hshk9/AppData/Local/Temp/pytest-of-hshk9/pytest-0/test_file_layout_created0/.autonomous_runs/test-run-001') / 'run_summary.md').exists
+FAILED tests/test_file_layout.py::test_ensure_directories - AssertionError: assert False
+ +  where False = <bound method Path.exists of WindowsPath('C:/Users/hshk9/AppData/Local/Temp/pytest-of-hshk9/pytest-0/test_ensure_directories0/test-run-001')>()
+ +    where <bound method Path.exists of WindowsPath('C:/Users/hshk9/AppData/Local/Temp/pytest-of-hshk9/pytest-0/test_ensure_directories0/test-run-001')> = WindowsPath('C:/Users/hshk9/AppData/Local/Temp/pytest-of-hshk9/pytest-0/test_ensure_directories0/test-run-001').exists
+FAILED tests/test_file_layout.py::test_get_run_summary_path - AssertionError: assert WindowsPath('C:/Users/hshk9/AppData/Local/Temp/pytest-of-hshk9/pytest-0/test_get_run_summary_path0/autopack/runs/test-run-001/test-run-001/run_summary.md') == ((WindowsPath('C:/Users/hshk9/AppData/Local/Temp/pytest-of-hshk9/pytest-0/test_get_run_summary_path0') / 'test-run-001') / 'run_summary.md')
+FAILED tests/test_file_layout.py::test_get_tier_summary_path - AssertionError: assert WindowsPath('C:/Users/hshk9/AppData/Local/Temp/pytest-of-hshk9/pytest-0/test_get_tier_summary_path0/autopack/runs/test-run-001/test-run-001/tiers/tier_00_Foundation.md') == (((WindowsPath('C:/Users/hshk9/AppData/Local/Temp/pytest-of-hshk9/pytest-0/test_get_tier_summary_path0') / 'test-run-001') / 'tiers') / 'tier_00_Foundation.md')
+FAILED tests/test_file_layout.py::test_get_tier_summary_path_with_spaces - AssertionError: assert WindowsPath('C:/Users/hshk9/AppData/Local/Temp/pytest-of-hshk9/pytest-0/test_get_tier_summary_path_wit0/autopack/runs/test-run-001/test-run-001/tiers/tier_01_Auth_&_Security.md') == (((WindowsPath('C:/Users/hshk9/AppData/Local/Temp/pytest-of-hshk9/pytest-0/test_get_tier_summary_path_wit0') / 'test-run-001') / 'tiers') / 'tier_01_Auth_&_Security.md')
+FAILED tests/test_file_layout.py::test_get_phase_summary_path - AssertionError: assert WindowsPath('C:/Users/hshk9/AppData/Local/Temp/pytest-of-hshk9/pytest-0/test_get_phase_summary_path0/autopack/runs/test-run-001/test-run-001/phases/phase_00_F1.1.md') == (((WindowsPath('C:/Users/hshk9/AppData/Local/Temp/pytest-of-hshk9/pytest-0/test_get_phase_summary_path0') / 'test-run-001') / 'phases') / 'phase_00_F1.1.md')
+FAILED tests/test_issue_tracker.py::test_phase_issue_creation - FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\hshk9\\AppData\\Local\\Temp\\pytest-of-hshk9\\pytest-0\\docs\\project_issue_backlog.json'
+FAILED tests/test_issue_tracker.py::test_issue_deduplication_in_phase - FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\hshk9\\AppData\\Local\\Temp\\pytest-of-hshk9\\pytest-0\\docs\\project_issue_backlog.json'
+FAILED tests/test_issue_tracker.py::test_run_issue_index - FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\hshk9\\AppData\\Local\\Temp\\pytest-of-hshk9\\pytest-0\\docs\\project_issue_backlog.json'
+FAILED tests/test_issue_tracker.py::test_run_issue_index_multiple_tiers - FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\hshk9\\AppData\\Local\\Temp\\pytest-of-hshk9\\pytest-0\\docs\\project_issue_backlog.json'
+FAILED tests/test_issue_tracker.py::test_project_backlog_aging - FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\hshk9\\AppData\\Local\\Temp\\pytest-of-hshk9\\pytest-0\\docs\\project_issue_backlog.json'
+FAILED tests/test_issue_tracker.py::test_aging_triggers_needs_cleanup - FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\hshk9\\AppData\\Local\\Temp\\pytest-of-hshk9\\pytest-0\\docs\\project_issue_backlog.json'
+FAILED tests/test_issue_tracker.py::test_major_issue_doesnt_age - FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\hshk9\\AppData\\Local\\Temp\\pytest-of-hshk9\\pytest-0\\docs\\project_issue_backlog.json'
+FAILED tests/test_issue_tracker.py::test_phase_issue_state - FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\hshk9\\AppData\\Local\\Temp\\pytest-of-hshk9\\pytest-0\\docs\\project_issue_backlog.json'
+FAILED tests/test_issue_tracker.py::test_issue_evidence_refs - FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\hshk9\\AppData\\Local\\Temp\\pytest-of-hshk9\\pytest-0\\docs\\project_issue_backlog.json'
+FAILED tests/test_issue_tracker.py::test_multiple_issues_in_phase - FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\hshk9\\AppData\\Local\\Temp\\pytest-of-hshk9\\pytest-0\\docs\\project_issue_backlog.json'
+FAILED tests/test_issue_tracker.py::test_project_backlog_persistence - FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\hshk9\\AppData\\Local\\Temp\\pytest-of-hshk9\\pytest-0\\docs\\project_issue_backlog.json'
+FAILED tests/test_research_validators.py::TestCitationValidatorTextNormalization::test_whitespace_normalization - AssertionError: assert 'The quick brown fox' == 'the quick brown fox'
+  
+  - the quick brown fox
+  ? ^
+  + The quick brown fox
+  ? ^
+FAILED tests/test_research_validators.py::TestCitationValidatorTextNormalization::test_case_insensitive - AssertionError: assert 'Hello World' == 'hello world'
+  
+  - hello world
+  ? ^     ^
+  + Hello World
+  ? ^     ^
+FAILED tests/test_research_validators.py::TestFullVerificationPipeline::test_case_insensitive_matching - AssertionError: assert False is True
+ +  where False = VerificationResult(valid=False, reason='extraction_span not found in source document', confidence=0.95).valid
+===== 20 failed, 239 passed, 129 skipped, 6 warnings in 142.02s (0:02:22) =====

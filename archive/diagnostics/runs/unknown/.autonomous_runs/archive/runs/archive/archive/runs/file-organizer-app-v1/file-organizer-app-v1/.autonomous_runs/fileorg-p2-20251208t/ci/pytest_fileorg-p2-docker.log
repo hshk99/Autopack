@@ -1,0 +1,112 @@
+============================= test session starts =============================
+collecting ... collected 36 items
+
+fileorganizer\backend\tests\test_classification.py::test_classification_service_initialization PASSED [  2%]
+fileorganizer\backend\tests\test_classification.py::test_build_classification_prompt PASSED [  5%]
+fileorganizer\backend\tests\test_classification.py::test_parse_classification_result PASSED [  8%]
+fileorganizer\backend\tests\test_document_service.py::test_upload_document PASSED [ 11%]
+fileorganizer\backend\tests\test_document_service.py::test_upload_document_size_limit PASSED [ 13%]
+fileorganizer\backend\tests\test_document_service.py::test_upload_unsupported_format PASSED [ 16%]
+fileorganizer\backend\tests\test_e2e.py::test_complete_workflow PASSED   [ 19%]
+fileorganizer\backend\tests\test_e2e.py::test_multiple_documents_workflow PASSED [ 22%]
+fileorganizer\backend\tests\test_e2e.py::test_all_packs_loadable FAILED  [ 25%]
+fileorganizer\backend\tests\test_embeddings.py::test_embeddings_service_initialization PASSED [ 27%]
+fileorganizer\backend\tests\test_embeddings.py::test_serialize_deserialize_embedding PASSED [ 30%]
+fileorganizer\backend\tests\test_embeddings.py::test_cosine_similarity PASSED [ 33%]
+fileorganizer\backend\tests\test_error_handling.py::test_document_not_found PASSED [ 36%]
+fileorganizer\backend\tests\test_error_handling.py::test_invalid_file_upload PASSED [ 38%]
+fileorganizer\backend\tests\test_error_handling.py::test_pack_not_found PASSED [ 41%]
+fileorganizer\backend\tests\test_error_handling.py::test_classification_without_text PASSED [ 44%]
+fileorganizer\backend\tests\test_export.py::test_pdf_export PASSED       [ 47%]
+fileorganizer\backend\tests\test_export.py::test_excel_export PASSED     [ 50%]
+fileorganizer\backend\tests\test_export.py::test_csv_export FAILED       [ 52%]
+fileorganizer\backend\tests\test_health.py::test_health_check PASSED     [ 55%]
+fileorganizer\backend\tests\test_health.py::test_database_health PASSED  [ 58%]
+fileorganizer\backend\tests\test_integration.py::TestFullWorkflow::test_tax_pack_workflow PASSED [ 61%]
+fileorganizer\backend\tests\test_integration.py::TestFullWorkflow::test_immigration_pack_workflow FAILED [ 63%]
+fileorganizer\backend\tests\test_integration.py::TestFullWorkflow::test_error_handling PASSED [ 66%]
+fileorganizer\backend\tests\test_integration.py::TestAPIEndpoints::test_health_endpoints PASSED [ 69%]
+fileorganizer\backend\tests\test_integration.py::TestAPIEndpoints::test_document_endpoints PASSED [ 72%]
+fileorganizer\backend\tests\test_integration.py::TestAPIEndpoints::test_pack_endpoints FAILED [ 75%]
+fileorganizer\backend\tests\test_integration.py::test_all_packs_functional FAILED [ 77%]
+fileorganizer\backend\tests\test_integration.py::test_all_packs_functional ERROR [ 77%]
+fileorganizer\backend\tests\test_ocr_service.py::test_ocr_service_initialization PASSED [ 80%]
+fileorganizer\backend\tests\test_ocr_service.py::test_extract_text_from_image PASSED [ 83%]
+fileorganizer\backend\tests\test_performance.py::test_document_list_performance PASSED [ 86%]
+fileorganizer\backend\tests\test_performance.py::test_search_performance PASSED [ 88%]
+fileorganizer\backend\tests\test_performance.py::test_cache_performance PASSED [ 91%]
+fileorganizer\backend\tests\test_triage.py::test_update_document_category FAILED [ 94%]
+fileorganizer\backend\tests\test_triage.py::test_approve_document PASSED [ 97%]
+fileorganizer\backend\tests\test_triage.py::test_search_documents PASSED [100%]
+fileorganizer\backend\tests\test_triage.py::test_search_documents ERROR  [100%]
+
+=================================== ERRORS ====================================
+_______________ ERROR at teardown of test_all_packs_functional ________________
+E   sqlite3.OperationalError: no such table: categories
+
+The above exception was the direct cause of the following exception:
+E   sqlalchemy.exc.OperationalError: (sqlite3.OperationalError) no such table: categories
+    [SQL: 
+    DROP TABLE categories]
+    (Background on this error at: https://sqlalche.me/e/20/e3q8)
+---------------------------- Captured stderr call -----------------------------
+C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\fileorganizer\backend\app\services\pack_service.py:76: SAWarning: Identity map already had an identity for (<class 'app.models.category.Category'>, (7,), None), replacing it with newly flushed object.   Are there load operations occurring inside of an event handler within the flush?
+  self.db.commit()
+C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\fileorganizer\backend\app\services\pack_service.py:76: SAWarning: Identity map already had an identity for (<class 'app.models.category.Category'>, (2,), None), replacing it with newly flushed object.   Are there load operations occurring inside of an event handler within the flush?
+  self.db.commit()
+C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\fileorganizer\backend\app\services\pack_service.py:76: SAWarning: Identity map already had an identity for (<class 'app.models.category.Category'>, (4,), None), replacing it with newly flushed object.   Are there load operations occurring inside of an event handler within the flush?
+  self.db.commit()
+C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\fileorganizer\backend\app\services\pack_service.py:76: SAWarning: Identity map already had an identity for (<class 'app.models.category.Category'>, (8,), None), replacing it with newly flushed object.   Are there load operations occurring inside of an event handler within the flush?
+  self.db.commit()
+C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\fileorganizer\backend\app\services\pack_service.py:76: SAWarning: Identity map already had an identity for (<class 'app.models.category.Category'>, (1,), None), replacing it with newly flushed object.   Are there load operations occurring inside of an event handler within the flush?
+  self.db.commit()
+C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\fileorganizer\backend\app\services\pack_service.py:76: SAWarning: Identity map already had an identity for (<class 'app.models.category.Category'>, (5,), None), replacing it with newly flushed object.   Are there load operations occurring inside of an event handler within the flush?
+  self.db.commit()
+C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\fileorganizer\backend\app\services\pack_service.py:76: SAWarning: Identity map already had an identity for (<class 'app.models.category.Category'>, (9,), None), replacing it with newly flushed object.   Are there load operations occurring inside of an event handler within the flush?
+  self.db.commit()
+C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\fileorganizer\backend\app\services\pack_service.py:76: SAWarning: Identity map already had an identity for (<class 'app.models.category.Category'>, (3,), None), replacing it with newly flushed object.   Are there load operations occurring inside of an event handler within the flush?
+  self.db.commit()
+C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\fileorganizer\backend\app\services\pack_service.py:76: SAWarning: Identity map already had an identity for (<class 'app.models.category.Category'>, (6,), None), replacing it with newly flushed object.   Are there load operations occurring inside of an event handler within the flush?
+  self.db.commit()
+_________________ ERROR at teardown of test_search_documents __________________
+E   sqlite3.OperationalError: no such table: categories
+
+The above exception was the direct cause of the following exception:
+E   sqlalchemy.exc.OperationalError: (sqlite3.OperationalError) no such table: categories
+    [SQL: 
+    DROP TABLE categories]
+    (Background on this error at: https://sqlalche.me/e/20/e3q8)
+---------------------------- Captured stdout setup ----------------------------
+[OK] Database initialized
+[OK] FileOrganizer backend started successfully
+---------------------------- Captured stdout call -----------------------------
+2025-12-09 13:07:10,286 - httpx - INFO - HTTP Request: GET http://testserver/api/v1/documents/search?filename=invoice "HTTP/1.1 200 OK"
+2025-12-09 13:07:10,291 - httpx - INFO - HTTP Request: GET http://testserver/api/v1/documents/search?min_confidence=80 "HTTP/1.1 200 OK"
+------------------------------ Captured log call ------------------------------
+INFO     httpx:_client.py:1013 HTTP Request: GET http://testserver/api/v1/documents/search?filename=invoice "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1013 HTTP Request: GET http://testserver/api/v1/documents/search?min_confidence=80 "HTTP/1.1 200 OK"
+================================== FAILURES ===================================
+C:\Python\Lib\site-packages\sqlalchemy\engine\default.py:951: sqlalchemy.exc.OperationalError: (sqlite3.OperationalError) no such table: categories
+C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\fileorganizer\backend\tests\test_export.py:103: assert 500 == 200
+C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\fileorganizer\backend\tests\test_integration.py:110: assert 500 == 200
+C:\Python\Lib\site-packages\sqlalchemy\engine\default.py:951: sqlalchemy.exc.OperationalError: (sqlite3.OperationalError) no such table: scenario_packs
+C:\Python\Lib\site-packages\sqlalchemy\orm\loading.py:1686: sqlalchemy.orm.exc.ObjectDeletedError: Instance '<ScenarioPack at 0x206f7bfd5e0>' has been deleted, or its row is otherwise not present.
+C:\Python\Lib\site-packages\sqlalchemy\engine\default.py:951: sqlalchemy.exc.OperationalError: (sqlite3.OperationalError) no such table: scenario_packs
+=========================== short test summary info ===========================
+FAILED fileorganizer\backend\tests\test_e2e.py::test_all_packs_loadable - sql...
+FAILED fileorganizer\backend\tests\test_export.py::test_csv_export - assert 5...
+FAILED fileorganizer\backend\tests\test_integration.py::TestFullWorkflow::test_immigration_pack_workflow
+FAILED fileorganizer\backend\tests\test_integration.py::TestAPIEndpoints::test_pack_endpoints
+FAILED fileorganizer\backend\tests\test_integration.py::test_all_packs_functional
+FAILED fileorganizer\backend\tests\test_triage.py::test_update_document_category
+ERROR fileorganizer\backend\tests\test_integration.py::test_all_packs_functional
+ERROR fileorganizer\backend\tests\test_triage.py::test_search_documents - sql...
+=================== 6 failed, 30 passed, 2 errors in 11.81s ===================
+
+
+--- STDERR ---
+
+C:\Python\Lib\site-packages\pytest_asyncio\plugin.py:247: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))

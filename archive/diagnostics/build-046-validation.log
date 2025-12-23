@@ -1,0 +1,46 @@
+faiss library not installed; FaissStore will use in-memory fallback
+[2025-12-17 15:26:56] INFO: Applying pre-emptive encoding fix...
+[2025-12-17 15:26:56] INFO: [Recovery] Fixing Unicode encoding error...
+[2025-12-17 15:26:56] INFO: [Recovery] SUCCESS: Encoding fixed (UTF-8 enabled)
+[2025-12-17 15:26:56] INFO: Database tables initialized
+[2025-12-17 15:26:56] INFO: Loaded BuilderOutputConfig: max_lines_for_full_file=1000, max_lines_hard_limit=1000
+[2025-12-17 15:26:56] INFO: Doctor execute_fix enabled: True
+[2025-12-17 15:26:56] INFO: FileSizeTelemetry initialized: .autonomous_runs\autopack\file_size_telemetry.jsonl
+[2025-12-17 15:26:58] INFO: HTTP Request: GET http://localhost:6333 "HTTP/1.1 200 OK"
+[2025-12-17 15:26:58] INFO: [Qdrant] Connected to localhost:6333
+[2025-12-17 15:26:58] INFO: [MemoryService] Using Qdrant backend
+[2025-12-17 15:26:58] INFO: HTTP Request: GET http://localhost:6333/collections "HTTP/1.1 200 OK"
+[2025-12-17 15:26:58] INFO: HTTP Request: GET http://localhost:6333/collections "HTTP/1.1 200 OK"
+[2025-12-17 15:26:58] INFO: HTTP Request: GET http://localhost:6333/collections "HTTP/1.1 200 OK"
+[2025-12-17 15:26:58] INFO: HTTP Request: GET http://localhost:6333/collections "HTTP/1.1 200 OK"
+[2025-12-17 15:26:58] INFO: HTTP Request: GET http://localhost:6333/collections "HTTP/1.1 200 OK"
+[2025-12-17 15:26:58] INFO: [MemoryService] Initialized (backend=qdrant, enabled=True, top_k=5)
+[2025-12-17 15:26:58] INFO: MemoryService initialized (enabled=True)
+[2025-12-17 15:26:58] INFO: [FileLayout] Project: file-organizer-app-v1, Family: fileorg-phase2-beta-release, Base: .autonomous_runs\file-organizer-app-v1\runs\fileorg-phase2-beta-release\fileorg-phase2-beta-release
+[2025-12-17 15:26:58] INFO: Initialized autonomous executor for run: fileorg-phase2-beta-release
+[2025-12-17 15:26:58] INFO: API URL: http://localhost:8000
+[2025-12-17 15:26:58] INFO: Workspace: .
+[2025-12-17 15:26:58] INFO: Running proactive startup checks from DEBUG_JOURNAL.md...
+[2025-12-17 15:26:58] INFO: [HIGH] Checking: Windows Unicode Fix (PYTHONUTF8)
+[2025-12-17 15:26:58] INFO:   Reason: Prevents UnicodeEncodeError with emoji characters in logs (Issue #3)
+[2025-12-17 15:26:58] INFO:   Check PASSED
+[2025-12-17 15:26:58] INFO: Startup checks complete
+[2025-12-17 15:26:58] INFO: [HealthCheck:T0] API Keys: PASSED (0ms) - All required API keys present
+[2025-12-17 15:26:58] INFO: [HealthCheck:T0] Database: PASSED (0ms) - Database accessible: C:\dev\Autopack\autopack.db
+[2025-12-17 15:26:58] INFO: [HealthCheck:T0] Workspace: PASSED (0ms) - Workspace valid: C:\dev\Autopack
+[2025-12-17 15:26:58] INFO: [HealthCheck:T0] Config: PASSED (22ms) - Configuration files valid
+[2025-12-17 15:26:58] INFO: Starting autonomous execution loop...
+[2025-12-17 15:26:58] INFO: Poll interval: 10s
+[2025-12-17 15:27:00] WARNING: Port 8000 is open but API health check failed. Assuming API is running.
+[2025-12-17 15:27:00] INFO: Initializing infrastructure...
+[2025-12-17 15:27:03] INFO: LlmService: Initialized with ModelRouter and UsageRecorder
+[2025-12-17 15:27:03] INFO: Quality Gate: Initialized
+[2025-12-17 15:27:03] INFO: Iteration 1: Fetching run status...
+[2025-12-17 15:27:05] INFO: [GoalAnchor] Initialized: Dockerfile, docker-compose.yml, PostgreSQL + Qdrant...
+[2025-12-17 15:27:05] INFO: No more executable phases, execution complete
+[2025-12-17 15:27:05] INFO: Autonomous execution loop finished
+[2025-12-17 15:27:05] WARNING: File not found: C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\docs\CONSOLIDATED_BUILD.md
+[2025-12-17 15:27:05] INFO: [ARCHIVE_CONSOLIDATOR] Logged build event: RUN_COMPLETE
+[2025-12-17 15:27:05] INFO: Learning Pipeline: Promoted 213 hints to persistent project rules
+[2025-12-17 15:27:05] INFO: Learning Pipeline: Marked rules updated (total: 146 rules)
+[2025-12-17 15:27:05] INFO: [PLANNING NOTICE] 213 new rules promoted. Future planning should incorporate 146 total project rules.

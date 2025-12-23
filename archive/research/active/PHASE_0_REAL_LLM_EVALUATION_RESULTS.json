@@ -1,0 +1,55 @@
+{
+  "evaluation_date": "2025-12-15T08:11:20.707555+00:00",
+  "topics_evaluated": 5,
+  "avg_citation_validity": 0.5933893557422969,
+  "total_cost_usd": 2.08,
+  "results": [
+    {
+      "topic": "file organization tools",
+      "timestamp": "2025-12-15T08:05:23.666332+00:00",
+      "num_findings": 6,
+      "citation_validity": 0.5714285714285714,
+      "cost_usd": 0.6,
+      "errors": [
+        "'charmap' codec can't encode characters in position 139-186: character maps to <undefined>"
+      ],
+      "go_no_go": "NO-GO"
+    },
+    {
+      "topic": "AI coding assistants",
+      "timestamp": "2025-12-15T08:06:19.512205+00:00",
+      "num_findings": 15,
+      "citation_validity": 0.5294117647058824,
+      "cost_usd": 0.6,
+      "errors": [],
+      "go_no_go": "CONDITIONAL GO"
+    },
+    {
+      "topic": "task automation frameworks",
+      "timestamp": "2025-12-15T08:07:58.967681+00:00",
+      "num_findings": 12,
+      "citation_validity": 0.6190476190476191,
+      "cost_usd": 0.6,
+      "errors": [],
+      "go_no_go": "CONDITIONAL GO"
+    },
+    {
+      "topic": "knowledge management systems",
+      "timestamp": "2025-12-15T08:09:13.681265+00:00",
+      "num_findings": 15,
+      "citation_validity": 0.6470588235294118,
+      "cost_usd": 0.6,
+      "errors": [],
+      "go_no_go": "CONDITIONAL GO"
+    },
+    {
+      "topic": "blockchain-based social networks",
+      "timestamp": "2025-12-15T08:10:46.187179+00:00",
+      "num_findings": 3,
+      "citation_validity": 0.6,
+      "cost_usd": 0.6,
+      "errors": [],
+      "go_no_go": "NO-GO"
+    }
+  ]
+}

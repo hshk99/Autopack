@@ -1,0 +1,11 @@
+# Command: du -sh .
+# Exit: 0
+# Duration: 13.34s
+
+# STDOUT
+
+1.6G	.
+
+
+# STDERR
+

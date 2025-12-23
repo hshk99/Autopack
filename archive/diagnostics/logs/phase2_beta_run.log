@@ -1,0 +1,554 @@
+[2025-12-01 03:17:43] INFO: Applying pre-emptive encoding fix...
+[2025-12-01 03:17:43] INFO: [Recovery] Fixing Unicode encoding error...
+[2025-12-01 03:17:43] INFO: [Recovery] SUCCESS: Encoding fixed (UTF-8 enabled)
+[2025-12-01 03:17:43] INFO: Database tables initialized
+[2025-12-01 03:17:43] INFO: Initialized autonomous executor for run: fileorg-phase2-beta-20251201
+[2025-12-01 03:17:43] INFO: API URL: http://localhost:8000
+[2025-12-01 03:17:43] INFO: Workspace: .
+[2025-12-01 03:17:43] INFO: Running proactive startup checks from DEBUG_JOURNAL.md...
+[2025-12-01 03:17:43] INFO: [HIGH] Checking: Windows Unicode Fix (PYTHONUTF8)
+[2025-12-01 03:17:43] INFO:   Reason: Prevents UnicodeEncodeError with emoji characters in logs (Issue #3)
+[2025-12-01 03:17:43] INFO:   Check PASSED
+[2025-12-01 03:17:43] INFO: Startup checks complete
+[2025-12-01 03:17:43] INFO: Loading learning context for project: file-organizer-app-v1
+[2025-12-01 03:17:43] INFO:   No persistent project rules found (will learn from this run)
+[2025-12-01 03:17:43] INFO: Learning context loaded successfully
+[2025-12-01 03:17:43] INFO: Starting autonomous execution loop...
+[2025-12-01 03:17:43] INFO: Poll interval: 10s
+[2025-12-01 03:17:43] INFO: Initializing infrastructure...
+[2025-12-01 03:17:47] INFO: LlmService: Initialized with ModelRouter and UsageRecorder
+[2025-12-01 03:17:47] INFO: Quality Gate: Initialized
+[2025-12-01 03:17:47] INFO: Iteration 1: Fetching run status...
+[2025-12-01 03:17:47] INFO: Next phase: fileorg-p2-test-fixes
+[2025-12-01 03:17:47] INFO: Executing phase: fileorg-p2-test-fixes
+[2025-12-01 03:17:47] INFO: [fileorg-p2-test-fixes] Attempt 1/5 (model escalation enabled)
+[2025-12-01 03:17:47] INFO: [fileorg-p2-test-fixes] Step 1/4: Generating code with Builder (via LlmService)...
+[2025-12-01 03:17:47] INFO: [fileorg-p2-test-fixes] Loaded 30 files for context
+[2025-12-01 03:17:47] INFO: [ModelSelector] Selected gpt-4o-mini for builder (complexity=low, attempt=0, intra_tier=0)
+[2025-12-01 03:17:47] INFO: [MODEL-SELECT] Builder: model=gpt-4o-mini, complexity=low->low, attempt=0, category=testing
+[2025-12-01 03:18:02] INFO: HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-12-01 03:18:02] INFO: [fileorg-p2-test-fixes] Builder succeeded (41689 tokens)
+[2025-12-01 03:18:02] ERROR: [fileorg-p2-test-fixes] Patch validation failed (422): Patch validation failed:
+  - [invalid_hunk_header] (line 24): Invalid hunk header format: @@ -20,6 +22
+  - [invalid_hunk_header] (line 95): Invalid hunk header format: @@ -20,6 +22
+[2025-12-01 03:18:02] INFO: [fileorg-p2-test-fixes] Phase 2.3: Validation errors indicate malformed patch - LLM should regenerate
+[2025-12-01 03:18:02] INFO: [ARCHIVE_CONSOLIDATOR] Logged new error: Patch validation failure (422)
+[2025-12-01 03:18:02] WARNING: Failed to post builder result: Patch validation failed: Patch validation failed:
+  - [invalid_hunk_header] (line 24): Invalid hunk header format: @@ -20,6 +22
+  - [invalid_hunk_header] (line 95): Invalid hunk header format: @@ -20,6 +22
+[2025-12-01 03:18:02] INFO: [ARCHIVE_CONSOLIDATOR] Logged new error: API failure: POST builder_result
+[2025-12-01 03:18:02] INFO: [fileorg-p2-test-fixes] Step 2/5: Applying patch...
+[2025-12-01 03:18:02] INFO: Writing patch to temp_patch.diff
+[2025-12-01 03:18:02] INFO: Checking if patch can be applied (dry run)...
+[2025-12-01 03:18:02] WARNING: Strict patch check failed: error: patch fragment without header at line 14: @@ -10,8 +10,9 @@?
+[2025-12-01 03:18:02] INFO: Retrying with lenient mode (--ignore-whitespace -C1)...
+[2025-12-01 03:18:02] WARNING: Lenient mode also failed: error: patch fragment without header at line 14: @@ -10,8 +10,9 @@?
+[2025-12-01 03:18:02] INFO: Retrying with 3-way merge mode (-3)...
+[2025-12-01 03:18:02] WARNING: All git apply modes failed, attempting direct file write fallback...
+[2025-12-01 03:18:02] WARNING: Skipping tests/test_pack_routes.py - cannot apply partial patch to existing file via direct write
+[2025-12-01 03:18:02] WARNING: Skipping tests/test_classify_routes.py - cannot apply partial patch to existing file via direct write
+[2025-12-01 03:18:02] ERROR: Direct file write also failed: error: patch fragment without header at line 14: @@ -10,8 +10,9 @@?
+[2025-12-01 03:18:02] ERROR: Patch content:
+diff --git a/tests/test_pack_routes.py b/tests/test_pack_routes.py
+index 1234567..89abcdef 100644
+--- a/tests/test_pack_routes.py
++++ b/tests/test_pack_routes.py
+@@ -1,5 +1,6 @@
+ import pytest
+ from fastapi.testclient import TestClient
+ from src.autopack.main import app
+ 
++from unittest.mock import patch
+ from src.autopack.models import RunState, PhaseState
+ 
+ 
+@@ -10,8 +10,9 @@
+     client = TestClient(app)
+     return client
+ 
+ 
++@patch("src.autopack.issue_tracker.IssueTracker")
+ def test_star...
+[2025-12-01 03:18:02] ERROR: [fileorg-p2-test-fixes] Failed to apply patch to filesystem: error: patch fragment without header at line 14: @@ -10,8 +10,9 @@?
+[2025-12-01 03:18:02] INFO: Updated phase fileorg-p2-test-fixes status to FAILED
+[2025-12-01 03:18:02] WARNING: [fileorg-p2-test-fixes] Attempt 1 failed, escalating model for retry...
+[2025-12-01 03:18:02] INFO: [fileorg-p2-test-fixes] Attempt 2/5 (model escalation enabled)
+[2025-12-01 03:18:02] INFO: [fileorg-p2-test-fixes] Step 1/4: Generating code with Builder (via LlmService)...
+[2025-12-01 03:18:02] INFO: [fileorg-p2-test-fixes] Loaded 30 files for context
+[2025-12-01 03:18:02] INFO: [ModelSelector] Selected gpt-4o for builder (complexity=low, attempt=1, intra_tier=1)
+[2025-12-01 03:18:02] INFO: [MODEL-SELECT] Builder: model=gpt-4o, complexity=low->low, attempt=1, category=testing
+[2025-12-01 03:18:11] INFO: HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-12-01 03:18:11] INFO: [fileorg-p2-test-fixes] Builder succeeded (41458 tokens)
+[2025-12-01 03:18:11] WARNING: Failed to post builder result: 500 Server Error: Internal Server Error for url: http://localhost:8000/runs/fileorg-phase2-beta-20251201/phases/fileorg-p2-test-fixes/builder_result
+[2025-12-01 03:18:11] INFO: [ARCHIVE_CONSOLIDATOR] Logged new error: API failure: POST builder_result
+[2025-12-01 03:18:11] INFO: [fileorg-p2-test-fixes] Step 2/5: Applying patch...
+[2025-12-01 03:18:11] INFO: Writing patch to temp_patch.diff
+[2025-12-01 03:18:11] INFO: Checking if patch can be applied (dry run)...
+[2025-12-01 03:18:11] WARNING: Strict patch check failed: error: tests/test_classify_routes.py: No such file or directory
+error: tests/test_pack_routes.py: No such file or directory
+[2025-12-01 03:18:11] INFO: Retrying with lenient mode (--ignore-whitespace -C1)...
+[2025-12-01 03:18:11] WARNING: Lenient mode also failed: error: tests/test_classify_routes.py: No such file or directory
+error: tests/test_pack_routes.py: No such file or directory
+[2025-12-01 03:18:11] INFO: Retrying with 3-way merge mode (-3)...
+[2025-12-01 03:18:11] WARNING: All git apply modes failed, attempting direct file write fallback...
+[2025-12-01 03:18:11] WARNING: Skipping tests/test_classify_routes.py - cannot apply partial patch to existing file via direct write
+[2025-12-01 03:18:11] WARNING: Skipping tests/test_pack_routes.py - cannot apply partial patch to existing file via direct write
+[2025-12-01 03:18:11] ERROR: Direct file write also failed: error: tests/test_classify_routes.py: does not exist in index
+error: tests/test_pack_routes.py: does not exist in index
+[2025-12-01 03:18:11] ERROR: Patch content:
+diff --git a/tests/test_classify_routes.py b/tests/test_classify_routes.py
+index 1234567..89abcde 100644
+--- a/tests/test_classify_routes.py
++++ b/tests/test_classify_routes.py
+@@ -1,9 +1,14 @@
+ import pytest
+ from fastapi.testclient import TestClient
+ from src.autopack.main import app
++from unittest.mock import patch
+ 
+ client = TestClient(app)
+ 
++@pytest.fixture
++def mock_classify():
++    with patch('src.autopack.routes.classify') as mock:
++        yield mock
+ 
+ def test_classify_route_success...
+[2025-12-01 03:18:11] ERROR: [fileorg-p2-test-fixes] Failed to apply patch to filesystem: error: tests/test_classify_routes.py: No such file or directory
+error: tests/test_pack_routes.py: No such file or directory
+[2025-12-01 03:18:11] INFO: Updated phase fileorg-p2-test-fixes status to FAILED
+[2025-12-01 03:18:11] INFO: [REPLAN-TRIGGER] reason=repeated_error_short_msg type=patch_apply_error phase=fileorg-p2-test-fixes attempt=2 count=2
+[2025-12-01 03:18:11] INFO: [fileorg-p2-test-fixes] Triggering mid-run re-planning due to patch_apply_error
+[2025-12-01 03:18:11] INFO: [Re-Plan] Revising approach for fileorg-p2-test-fixes due to patch_apply_error
+[2025-12-01 03:18:19] INFO: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+[2025-12-01 03:18:19] INFO: [Re-Plan] Successfully revised phase fileorg-p2-test-fixes
+[2025-12-01 03:18:19] INFO: [Re-Plan] Original: Fix failing backend tests in test_pack_routes.py and test_classify_routes.py. Ensure all API endpoin...
+[2025-12-01 03:18:19] INFO: [Re-Plan] Revised: Instead of applying patches to fix failing tests, completely rewrite the test files test_pack_routes...
+[2025-12-01 03:18:19] INFO: [ARCHIVE_CONSOLIDATOR] Logged build event: PHASE_REPLANNED
+[2025-12-01 03:18:19] INFO: [fileorg-p2-test-fixes] Re-planning successful (run total: 1/5). Restarting with revised approach.
+[2025-12-01 03:18:19] INFO: [fileorg-p2-test-fixes] Attempt 1/5 (model escalation enabled)
+[2025-12-01 03:18:19] INFO: [fileorg-p2-test-fixes] Step 1/4: Generating code with Builder (via LlmService)...
+[2025-12-01 03:18:19] INFO: [fileorg-p2-test-fixes] Loaded 30 files for context
+[2025-12-01 03:18:19] INFO: [ModelSelector] Selected gpt-4o-mini for builder (complexity=low, attempt=0, intra_tier=0)
+[2025-12-01 03:18:19] INFO: [MODEL-SELECT] Builder: model=gpt-4o-mini, complexity=low->low, attempt=0, category=testing
+[2025-12-01 03:18:39] INFO: HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-12-01 03:18:39] INFO: [fileorg-p2-test-fixes] Builder succeeded (42158 tokens)
+[2025-12-01 03:18:39] WARNING: Failed to post builder result: 500 Server Error: Internal Server Error for url: http://localhost:8000/runs/fileorg-phase2-beta-20251201/phases/fileorg-p2-test-fixes/builder_result
+[2025-12-01 03:18:39] INFO: [ARCHIVE_CONSOLIDATOR] Logged new error: API failure: POST builder_result
+[2025-12-01 03:18:39] INFO: [fileorg-p2-test-fixes] Step 2/5: Applying patch...
+[2025-12-01 03:18:39] INFO: Writing patch to temp_patch.diff
+[2025-12-01 03:18:39] INFO: Checking if patch can be applied (dry run)...
+[2025-12-01 03:18:39] WARNING: Strict patch check failed: error: tests/test_pack_routes.py: No such file or directory
+error: tests/test_classify_routes.py: No such file or directory
+[2025-12-01 03:18:39] INFO: Retrying with lenient mode (--ignore-whitespace -C1)...
+[2025-12-01 03:18:39] WARNING: Lenient mode also failed: error: tests/test_pack_routes.py: No such file or directory
+error: tests/test_classify_routes.py: No such file or directory
+[2025-12-01 03:18:39] INFO: Retrying with 3-way merge mode (-3)...
+[2025-12-01 03:18:39] WARNING: All git apply modes failed, attempting direct file write fallback...
+[2025-12-01 03:18:39] WARNING: Skipping tests/test_pack_routes.py - cannot apply partial patch to existing file via direct write
+[2025-12-01 03:18:39] WARNING: Skipping tests/test_classify_routes.py - cannot apply partial patch to existing file via direct write
+[2025-12-01 03:18:39] ERROR: Direct file write also failed: error: tests/test_pack_routes.py: does not exist in index
+error: tests/test_classify_routes.py: does not exist in index
+[2025-12-01 03:18:39] ERROR: Patch content:
+diff --git a/tests/test_pack_routes.py b/tests/test_pack_routes.py
+index 00000000..11111111
+--- a/tests/test_pack_routes.py
++++ b/tests/test_pack_routes.py
+@@ -0,0 +0,63 @@
++import pytest
++from unittest.mock import patch, MagicMock
++from fastapi.testclient import TestClient
++from src.autopack.main import app
++
++client = TestClient(app)
++
++class MockResponse:
++    def __init__(self, json_data, status_code):
++        self.json_data = json_data
++        self.status_code = status_code
++
++    def jso...
+[2025-12-01 03:18:39] ERROR: [fileorg-p2-test-fixes] Failed to apply patch to filesystem: error: tests/test_pack_routes.py: No such file or directory
+error: tests/test_classify_routes.py: No such file or directory
+[2025-12-01 03:18:39] INFO: Updated phase fileorg-p2-test-fixes status to FAILED
+[2025-12-01 03:18:39] INFO: [Re-Plan] Max replans (1) reached for fileorg-p2-test-fixes
+[2025-12-01 03:18:39] WARNING: [fileorg-p2-test-fixes] Attempt 1 failed, escalating model for retry...
+[2025-12-01 03:18:39] INFO: [fileorg-p2-test-fixes] Attempt 2/5 (model escalation enabled)
+[2025-12-01 03:18:39] INFO: [fileorg-p2-test-fixes] Step 1/4: Generating code with Builder (via LlmService)...
+[2025-12-01 03:18:39] INFO: [fileorg-p2-test-fixes] Loaded 30 files for context
+[2025-12-01 03:18:39] INFO: [ModelSelector] Selected gpt-4o for builder (complexity=low, attempt=1, intra_tier=1)
+[2025-12-01 03:18:39] INFO: [MODEL-SELECT] Builder: model=gpt-4o, complexity=low->low, attempt=1, category=testing
+[2025-12-01 03:18:58] INFO: HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-12-01 03:18:58] INFO: [fileorg-p2-test-fixes] Builder succeeded (42706 tokens)
+[2025-12-01 03:18:58] INFO: [fileorg-p2-test-fixes] Step 2/5: Applying patch...
+[2025-12-01 03:18:58] INFO: Removing existing file for new file patch: tests/test_classify_routes.py
+[2025-12-01 03:18:58] INFO: Removing existing file for new file patch: tests/test_pack_routes.py
+[2025-12-01 03:18:58] INFO: Writing patch to temp_patch.diff
+[2025-12-01 03:18:58] INFO: Checking if patch can be applied (dry run)...
+[2025-12-01 03:18:58] INFO: Applying patch to filesystem...
+[2025-12-01 03:18:58] INFO: Patch applied successfully - 2 files modified
+[2025-12-01 03:18:58] INFO:   - tests/test_classify_routes.py
+[2025-12-01 03:18:58] INFO:   - tests/test_pack_routes.py
+[2025-12-01 03:18:58] INFO: [Validation] All 2 modified files validated successfully
+[2025-12-01 03:18:58] INFO: [fileorg-p2-test-fixes] Patch applied successfully to filesystem
+[2025-12-01 03:18:58] INFO: [fileorg-p2-test-fixes] Step 3/5: Running CI checks...
+[2025-12-01 03:18:58] INFO: [fileorg-p2-test-fixes] Running CI checks (pytest)...
+[2025-12-01 03:18:59] WARNING: [fileorg-p2-test-fixes] CI detected possible collection error - pytest failed (code 4) but no test counts found
+[2025-12-01 03:18:59] WARNING: [fileorg-p2-test-fixes] CI checks FAILED: 0/0 passed, 0 failed, 0 errors
+[2025-12-01 03:18:59] INFO: [fileorg-p2-test-fixes] Step 4/5: Reviewing patch with Auditor (via LlmService)...
+[2025-12-01 03:18:59] INFO: [ModelSelector] Selected gpt-4o for auditor (complexity=low, attempt=1, intra_tier=1)
+[2025-12-01 03:18:59] INFO: [MODEL-SELECT] Auditor: model=gpt-4o, complexity=low->low, attempt=1, category=testing
+[2025-12-01 03:19:02] INFO: HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-12-01 03:19:02] INFO: [fileorg-p2-test-fixes] Auditor completed: approved=True, issues=2
+[2025-12-01 03:19:02] INFO: [fileorg-p2-test-fixes] Step 5/5: Applying Quality Gate...
+[2025-12-01 03:19:02] INFO: [fileorg-p2-test-fixes] Quality Gate: needs_review
+[2025-12-01 03:19:02] INFO: Updated phase fileorg-p2-test-fixes status to COMPLETE
+[2025-12-01 03:19:02] INFO: [fileorg-p2-test-fixes] Phase completed successfully
+[2025-12-01 03:19:02] INFO: [ARCHIVE_CONSOLIDATOR] Logged build event: PHASE_COMPLETE
+[2025-12-01 03:19:02] INFO: Phase fileorg-p2-test-fixes completed successfully
+[2025-12-01 03:19:02] INFO: Waiting 10s before next phase...
+[2025-12-01 03:19:12] INFO: Iteration 2: Fetching run status...
+[2025-12-01 03:19:12] INFO: Next phase: fileorg-p2-frontend-build
+[2025-12-01 03:19:12] INFO: Executing phase: fileorg-p2-frontend-build
+[2025-12-01 03:19:12] INFO: [fileorg-p2-frontend-build] Attempt 1/5 (model escalation enabled)
+[2025-12-01 03:19:12] INFO: [fileorg-p2-frontend-build] Step 1/4: Generating code with Builder (via LlmService)...
+[2025-12-01 03:19:12] INFO: [fileorg-p2-frontend-build] Loaded 30 files for context
+[2025-12-01 03:19:12] INFO: [ModelSelector] Selected gpt-4o-mini for builder (complexity=low, attempt=0, intra_tier=0)
+[2025-12-01 03:19:12] INFO: [MODEL-SELECT] Builder: model=gpt-4o-mini, complexity=low->low, attempt=0, category=frontend
+[2025-12-01 03:20:06] INFO: HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-12-01 03:20:06] INFO: [fileorg-p2-frontend-build] Builder succeeded (43678 tokens)
+[2025-12-01 03:20:06] WARNING: Failed to post builder result: 500 Server Error: Internal Server Error for url: http://localhost:8000/runs/fileorg-phase2-beta-20251201/phases/fileorg-p2-frontend-build/builder_result
+[2025-12-01 03:20:06] INFO: [ARCHIVE_CONSOLIDATOR] Logged new error: API failure: POST builder_result
+[2025-12-01 03:20:06] INFO: [fileorg-p2-frontend-build] Step 2/5: Applying patch...
+[2025-12-01 03:20:06] INFO: Writing patch to temp_patch.diff
+[2025-12-01 03:20:06] INFO: Checking if patch can be applied (dry run)...
+[2025-12-01 03:20:06] WARNING: Strict patch check failed: error: patch failed: package.json:1
+error: package.json: patch does not apply
+error: patch failed: src/autopack/main.py:10
+error: src/autopack/main.py: patch does not apply
+[2025-12-01 03:20:06] INFO: Retrying with lenient mode (--ignore-whitespace -C1)...
+[2025-12-01 03:20:06] WARNING: Lenient mode also failed: error: patch failed: package.json:1
+error: package.json: patch does not apply
+Context reduced to (1/1) to apply fragment at 79
+[2025-12-01 03:20:06] INFO: Retrying with 3-way merge mode (-3)...
+[2025-12-01 03:20:07] WARNING: All git apply modes failed, attempting direct file write fallback...
+[2025-12-01 03:20:07] WARNING: Skipping package.json - cannot apply partial patch to existing file via direct write
+[2025-12-01 03:20:07] WARNING: Skipping src/autopack/main.py - cannot apply partial patch to existing file via direct write
+[2025-12-01 03:20:07] ERROR: Direct file write also failed: error: repository lacks the necessary blob to perform 3-way merge.
+Falling back to direct application...
+error: patch failed: package.json:1
+error: package.json: patch does not apply
+error: repository lacks the necessary blob to perform 3-way merge.
+Falling back to direct application...
+error: patch failed: src/autopack/main.py:1
+error: src/autopack/main.py: patch does not apply
+[2025-12-01 03:20:07] ERROR: Patch content:
+diff --git a/package.json b/package.json
+index 1234567..89abcdef 100644
+--- a/package.json
++++ b/package.json
+@@ -1,30 +1,34 @@
+ {
+   "name": "autopack-frontend",
+   "version": "0.1.0",
+   "private": true,
+   "type": "module",
+   "scripts": {
+-    "dev": "vite",
+-    "build": "tsc && vite build",
+-    "preview": "vite preview",
+-    "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
+-    "type-check": "tsc --noEmit"
++    "dev": "vite",
++    "build": "tsc && vite...
+[2025-12-01 03:20:07] ERROR: [fileorg-p2-frontend-build] Failed to apply patch to filesystem: error: patch failed: package.json:1
+error: package.json: patch does not apply
+error: patch failed: src/autopack/main.py:10
+error: src/autopack/main.py: patch does not apply
+[2025-12-01 03:20:07] INFO: Updated phase fileorg-p2-frontend-build status to FAILED
+[2025-12-01 03:20:07] WARNING: [fileorg-p2-frontend-build] Attempt 1 failed, escalating model for retry...
+[2025-12-01 03:20:07] INFO: [fileorg-p2-frontend-build] Attempt 2/5 (model escalation enabled)
+[2025-12-01 03:20:07] INFO: [fileorg-p2-frontend-build] Step 1/4: Generating code with Builder (via LlmService)...
+[2025-12-01 03:20:07] INFO: [fileorg-p2-frontend-build] Loaded 30 files for context
+[2025-12-01 03:20:07] INFO: [ModelSelector] Selected gpt-4o for builder (complexity=low, attempt=1, intra_tier=1)
+[2025-12-01 03:20:07] INFO: [MODEL-SELECT] Builder: model=gpt-4o, complexity=low->low, attempt=1, category=frontend
+[2025-12-01 03:20:21] INFO: HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-12-01 03:20:21] INFO: [fileorg-p2-frontend-build] Builder succeeded (41919 tokens)
+[2025-12-01 03:20:21] INFO: [fileorg-p2-frontend-build] Step 2/5: Applying patch...
+[2025-12-01 03:20:21] INFO: Removing existing file for new file patch: src/autopack/frontend/vite.config.ts
+[2025-12-01 03:20:21] INFO: Removing existing file for new file patch: src/autopack/frontend/package.json
+[2025-12-01 03:20:21] INFO: Removing existing file for new file patch: src/autopack/frontend/tsconfig.json
+[2025-12-01 03:20:21] INFO: Removing existing file for new file patch: src/autopack/frontend/tsconfig.node.json
+[2025-12-01 03:20:21] INFO: Writing patch to temp_patch.diff
+[2025-12-01 03:20:21] INFO: Checking if patch can be applied (dry run)...
+[2025-12-01 03:20:21] INFO: Applying patch to filesystem...
+[2025-12-01 03:20:21] INFO: Patch applied successfully - 4 files modified
+[2025-12-01 03:20:21] INFO:   - src/autopack/frontend/vite.config.ts
+[2025-12-01 03:20:21] INFO:   - src/autopack/frontend/package.json
+[2025-12-01 03:20:21] INFO:   - src/autopack/frontend/tsconfig.json
+[2025-12-01 03:20:21] INFO:   - src/autopack/frontend/tsconfig.node.json
+[2025-12-01 03:20:21] INFO: [Validation] All 4 modified files validated successfully
+[2025-12-01 03:20:21] INFO: [fileorg-p2-frontend-build] Patch applied successfully to filesystem
+[2025-12-01 03:20:21] INFO: [fileorg-p2-frontend-build] Step 3/5: Running CI checks...
+[2025-12-01 03:20:21] INFO: [fileorg-p2-frontend-build] Running CI checks (pytest)...
+[2025-12-01 03:20:22] WARNING: [fileorg-p2-frontend-build] CI detected possible collection error - pytest failed (code 4) but no test counts found
+[2025-12-01 03:20:22] WARNING: [fileorg-p2-frontend-build] CI checks FAILED: 0/0 passed, 0 failed, 0 errors
+[2025-12-01 03:20:22] INFO: [fileorg-p2-frontend-build] Step 4/5: Reviewing patch with Auditor (via LlmService)...
+[2025-12-01 03:20:22] INFO: [ModelSelector] Selected gpt-4o for auditor (complexity=low, attempt=1, intra_tier=1)
+[2025-12-01 03:20:22] INFO: [MODEL-SELECT] Auditor: model=gpt-4o, complexity=low->low, attempt=1, category=frontend
+[2025-12-01 03:20:26] INFO: HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-12-01 03:20:26] INFO: [fileorg-p2-frontend-build] Auditor completed: approved=True, issues=2
+[2025-12-01 03:20:26] INFO: [fileorg-p2-frontend-build] Step 5/5: Applying Quality Gate...
+[2025-12-01 03:20:26] INFO: [fileorg-p2-frontend-build] Quality Gate: needs_review
+[2025-12-01 03:20:26] INFO: Updated phase fileorg-p2-frontend-build status to COMPLETE
+[2025-12-01 03:20:26] INFO: [fileorg-p2-frontend-build] Phase completed successfully
+[2025-12-01 03:20:26] INFO: [ARCHIVE_CONSOLIDATOR] Logged build event: PHASE_COMPLETE
+[2025-12-01 03:20:26] INFO: Phase fileorg-p2-frontend-build completed successfully
+[2025-12-01 03:20:26] INFO: Waiting 10s before next phase...
+[2025-12-01 03:20:36] INFO: Iteration 3: Fetching run status...
+[2025-12-01 03:20:36] INFO: Next phase: fileorg-p2-docker
+[2025-12-01 03:20:36] INFO: Executing phase: fileorg-p2-docker
+[2025-12-01 03:20:36] INFO: [fileorg-p2-docker] Attempt 1/5 (model escalation enabled)
+[2025-12-01 03:20:36] INFO: [fileorg-p2-docker] Step 1/4: Generating code with Builder (via LlmService)...
+[2025-12-01 03:20:36] INFO: [fileorg-p2-docker] Loaded 30 files for context
+[2025-12-01 03:20:36] INFO: [ModelSelector] Selected gpt-4o for builder (complexity=medium, attempt=0, intra_tier=0)
+[2025-12-01 03:20:36] INFO: [MODEL-SELECT] Builder: model=gpt-4o, complexity=medium->medium, attempt=0, category=deployment
+[2025-12-01 03:20:47] INFO: HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-12-01 03:20:47] INFO: [fileorg-p2-docker] Builder succeeded (41517 tokens)
+[2025-12-01 03:20:47] INFO: [fileorg-p2-docker] Step 2/5: Applying patch...
+[2025-12-01 03:20:47] INFO: Removing existing file for new file patch: Dockerfile
+[2025-12-01 03:20:47] INFO: Removing existing file for new file patch: docker-compose.yml
+[2025-12-01 03:20:47] INFO: Writing patch to temp_patch.diff
+[2025-12-01 03:20:47] INFO: Checking if patch can be applied (dry run)...
+[2025-12-01 03:20:47] INFO: Applying patch to filesystem...
+[2025-12-01 03:20:47] INFO: Patch applied successfully - 2 files modified
+[2025-12-01 03:20:47] INFO:   - Dockerfile
+[2025-12-01 03:20:47] INFO:   - docker-compose.yml
+[2025-12-01 03:20:47] INFO: [Validation] All 2 modified files validated successfully
+[2025-12-01 03:20:47] INFO: [fileorg-p2-docker] Patch applied successfully to filesystem
+[2025-12-01 03:20:47] INFO: [fileorg-p2-docker] Step 3/5: Running CI checks...
+[2025-12-01 03:20:47] INFO: [fileorg-p2-docker] Running CI checks (pytest)...
+[2025-12-01 03:20:48] WARNING: [fileorg-p2-docker] CI detected possible collection error - pytest failed (code 4) but no test counts found
+[2025-12-01 03:20:48] WARNING: [fileorg-p2-docker] CI checks FAILED: 0/0 passed, 0 failed, 0 errors
+[2025-12-01 03:20:48] INFO: [fileorg-p2-docker] Step 4/5: Reviewing patch with Auditor (via LlmService)...
+[2025-12-01 03:20:48] INFO: [ModelSelector] Selected gpt-4o for auditor (complexity=medium, attempt=0, intra_tier=0)
+[2025-12-01 03:20:48] INFO: [MODEL-SELECT] Auditor: model=gpt-4o, complexity=medium->medium, attempt=0, category=deployment
+[2025-12-01 03:20:52] INFO: HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-12-01 03:20:52] INFO: [fileorg-p2-docker] Auditor completed: approved=False, issues=4
+[2025-12-01 03:20:52] INFO: [fileorg-p2-docker] Step 5/5: Applying Quality Gate...
+[2025-12-01 03:20:52] INFO: [fileorg-p2-docker] Quality Gate: needs_review
+[2025-12-01 03:20:52] INFO: Updated phase fileorg-p2-docker status to COMPLETE
+[2025-12-01 03:20:52] INFO: [fileorg-p2-docker] Phase completed successfully
+[2025-12-01 03:20:52] INFO: [ARCHIVE_CONSOLIDATOR] Logged build event: PHASE_COMPLETE
+[2025-12-01 03:20:52] INFO: Phase fileorg-p2-docker completed successfully
+[2025-12-01 03:20:52] INFO: Waiting 10s before next phase...
+[2025-12-01 03:21:02] INFO: Iteration 4: Fetching run status...
+[2025-12-01 03:21:02] INFO: Next phase: fileorg-p2-country-uk
+[2025-12-01 03:21:02] INFO: Executing phase: fileorg-p2-country-uk
+[2025-12-01 03:21:02] INFO: [fileorg-p2-country-uk] Attempt 1/5 (model escalation enabled)
+[2025-12-01 03:21:02] INFO: [fileorg-p2-country-uk] Step 1/4: Generating code with Builder (via LlmService)...
+[2025-12-01 03:21:02] INFO: [fileorg-p2-country-uk] Loaded 30 files for context
+[2025-12-01 03:21:02] INFO: [ModelSelector] Selected gpt-4o for builder (complexity=medium, attempt=0, intra_tier=0)
+[2025-12-01 03:21:02] INFO: [MODEL-SELECT] Builder: model=gpt-4o, complexity=medium->medium, attempt=0, category=backend
+[2025-12-01 03:21:19] INFO: HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-12-01 03:21:19] INFO: [fileorg-p2-country-uk] Builder succeeded (42268 tokens)
+[2025-12-01 03:21:19] ERROR: [fileorg-p2-country-uk] Patch validation failed (422): Patch validation failed:
+  - [invalid_hunk_header] (line 92): Invalid hunk header format: @@ -0,0 +1 @@
+[2025-12-01 03:21:19] INFO: [fileorg-p2-country-uk] Phase 2.3: Validation errors indicate malformed patch - LLM should regenerate
+[2025-12-01 03:21:19] INFO: [ARCHIVE_CONSOLIDATOR] Logged new error: Patch validation failure (422)
+[2025-12-01 03:21:19] WARNING: Failed to post builder result: Patch validation failed: Patch validation failed:
+  - [invalid_hunk_header] (line 92): Invalid hunk header format: @@ -0,0 +1 @@
+[2025-12-01 03:21:19] INFO: [ARCHIVE_CONSOLIDATOR] Logged new error: API failure: POST builder_result
+[2025-12-01 03:21:19] INFO: [fileorg-p2-country-uk] Step 2/5: Applying patch...
+[2025-12-01 03:21:19] INFO: Writing patch to temp_patch.diff
+[2025-12-01 03:21:19] INFO: Checking if patch can be applied (dry run)...
+[2025-12-01 03:21:19] WARNING: Strict patch check failed: error: patch failed: src/autopack/__init__.py:1
+error: src/autopack/__init__.py: patch does not apply
+[2025-12-01 03:21:19] INFO: Retrying with lenient mode (--ignore-whitespace -C1)...
+[2025-12-01 03:21:19] WARNING: Lenient mode also failed: error: patch failed: src/autopack/__init__.py:1
+error: src/autopack/__init__.py: patch does not apply
+[2025-12-01 03:21:19] INFO: Retrying with 3-way merge mode (-3)...
+[2025-12-01 03:21:19] INFO: 3-way merge mode check passed
+[2025-12-01 03:21:19] INFO: Applying patch to filesystem...
+[2025-12-01 03:21:19] ERROR: Failed to apply patch: temp_patch.diff:7: trailing whitespace.
+"""UK-specific Document Classification Module
+temp_patch.diff:8: trailing whitespace.
+
+temp_patch.diff:9: trailing whitespace.
+This module provides classification for UK-specific documents:
+temp_patch.diff:10: trailing whitespace.
+- HMRC Tax Returns
+temp_patch.diff:11: trailing whitespace.
+- NHS Records
+Falling back to direct application...
+Applied patch to 'src/autopack/__init__.py' with conflicts.
+Falling back to direct application...
+U src/autopack/__init__.py
+warning: squelched 144 whitespace errors
+warning: 149 lines add whitespace errors.
+[2025-12-01 03:21:19] ERROR: [fileorg-p2-country-uk] Failed to apply patch to filesystem: temp_patch.diff:7: trailing whitespace.
+"""UK-specific Document Classification Module
+temp_patch.diff:8: trailing whitespace.
+
+temp_patch.diff:9: trailing whitespace.
+This module provides classification for UK-specific documents:
+temp_patch.diff:10: trailing whitespace.
+- HMRC Tax Returns
+temp_patch.diff:11: trailing whitespace.
+- NHS Records
+Falling back to direct application...
+Applied patch to 'src/autopack/__init__.py' with conflicts.
+Falling back to direct application...
+U src/autopack/__init__.py
+warning: squelched 144 whitespace errors
+warning: 149 lines add whitespace errors.
+[2025-12-01 03:21:19] INFO: Updated phase fileorg-p2-country-uk status to FAILED
+[2025-12-01 03:21:19] WARNING: [fileorg-p2-country-uk] Attempt 1 failed, escalating model for retry...
+[2025-12-01 03:21:19] INFO: [fileorg-p2-country-uk] Attempt 2/5 (model escalation enabled)
+[2025-12-01 03:21:19] INFO: [fileorg-p2-country-uk] Step 1/4: Generating code with Builder (via LlmService)...
+[2025-12-01 03:21:19] INFO: [fileorg-p2-country-uk] Loaded 30 files for context
+[2025-12-01 03:21:19] INFO: [ModelSelector] Selected claude-sonnet-4-5 for builder (complexity=medium, attempt=1, intra_tier=1)
+[2025-12-01 03:21:19] INFO: [MODEL-SELECT] Builder: model=claude-sonnet-4-5, complexity=medium->medium, attempt=1, category=backend
+[2025-12-01 03:21:19] INFO: [DEBUG] file_context type: <class 'dict'>
+[2025-12-01 03:21:19] INFO: [DEBUG] file_context keys: ['existing_files']
+[2025-12-01 03:21:19] INFO: [DEBUG] files type: <class 'dict'>
+[2025-12-01 03:21:19] INFO: [DEBUG] files keys (first 3): ['package.json', 'requirements.txt', 'pyproject.toml']
+[2025-12-01 03:21:19] INFO: [DEBUG] Processing file: package.json
+[2025-12-01 03:21:19] INFO: [DEBUG]   content type: <class 'str'>
+[2025-12-01 03:21:19] INFO: [DEBUG]   content preview: {
+  "name": "autopack-frontend",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scr
+[2025-12-01 03:21:19] INFO: [DEBUG] Processing file: requirements.txt
+[2025-12-01 03:21:19] INFO: [DEBUG]   content type: <class 'str'>
+[2025-12-01 03:21:19] INFO: [DEBUG]   content preview: # Core FastAPI dependencies
+fastapi>=0.104.0
+uvicorn[standard]>=0.24.0
+pydantic>=2.5.0
+pydantic-sett
+[2025-12-01 03:21:19] INFO: [DEBUG] Processing file: pyproject.toml
+[2025-12-01 03:21:19] INFO: [DEBUG]   content type: <class 'str'>
+[2025-12-01 03:21:19] INFO: [DEBUG]   content preview: [project]
+name = "autopack"
+version = "0.1.0"
+description = "Supervisor/orchestrator implementing th
+[2025-12-01 03:21:19] INFO: [DEBUG] Processing file: README.md
+[2025-12-01 03:21:19] INFO: [DEBUG]   content type: <class 'str'>
+[2025-12-01 03:21:19] INFO: [DEBUG]   content preview: # Autopack Framework
+
+**Autonomous AI Code Generation Framework**
+
+Autopack is a framework for orche
+[2025-12-01 03:21:19] INFO: [DEBUG] Processing file: .gitignore
+[2025-12-01 03:21:19] INFO: [DEBUG]   content type: <class 'str'>
+[2025-12-01 03:21:19] INFO: [DEBUG]   content preview: # Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+build/
+develop-eggs/
+dist/
+d
+[2025-12-01 03:22:33] INFO: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+[2025-12-01 03:22:33] INFO: [fileorg-p2-country-uk] Builder succeeded (7621 tokens)
+[2025-12-01 03:22:43] WARNING: Failed to post builder result: HTTPConnectionPool(host='localhost', port=8000): Read timed out. (read timeout=10)
+[2025-12-01 03:22:43] INFO: [ARCHIVE_CONSOLIDATOR] Logged new error: API failure: POST builder_result
+[2025-12-01 03:22:43] INFO: [fileorg-p2-country-uk] Step 2/5: Applying patch...
+[2025-12-01 03:22:43] INFO: Writing patch to temp_patch.diff
+[2025-12-01 03:22:43] INFO: Checking if patch can be applied (dry run)...
+[2025-12-01 03:22:43] WARNING: Strict patch check failed: error: git diff header lacks filename information when removing 1 leading pathname component (line 555)
+[2025-12-01 03:22:43] INFO: Retrying with lenient mode (--ignore-whitespace -C1)...
+[2025-12-01 03:22:43] WARNING: Lenient mode also failed: error: git diff header lacks filename information when removing 1 leading pathname component (line 555)
+[2025-12-01 03:22:43] INFO: Retrying with 3-way merge mode (-3)...
+[2025-12-01 03:22:43] WARNING: All git apply modes failed, attempting direct file write fallback...
+[2025-12-01 03:22:43] INFO: Directly wrote file: src/backend/classification/packs/uk_documents.py
+[2025-12-01 03:22:43] INFO: Directly wrote file: tests/backend/classification/test_uk_documents.py
+[2025-12-01 03:22:43] INFO: Direct file write succeeded - 2 files written
+[2025-12-01 03:22:43] INFO:   - src/backend/classification/packs/uk_documents.py
+[2025-12-01 03:22:43] INFO:   - tests/backend/classification/test_uk_documents.py
+[2025-12-01 03:22:43] INFO: [Validation] All 2 modified files validated successfully
+[2025-12-01 03:22:43] INFO: [fileorg-p2-country-uk] Patch applied successfully to filesystem
+[2025-12-01 03:22:43] INFO: [fileorg-p2-country-uk] Step 3/5: Running CI checks...
+[2025-12-01 03:22:43] INFO: [fileorg-p2-country-uk] Running CI checks (pytest)...
+[2025-12-01 03:22:45] WARNING: [fileorg-p2-country-uk] CI detected possible collection error - pytest failed (code 4) but no test counts found
+[2025-12-01 03:22:45] WARNING: [fileorg-p2-country-uk] CI checks FAILED: 0/0 passed, 0 failed, 0 errors
+[2025-12-01 03:22:45] INFO: [fileorg-p2-country-uk] Step 4/5: Reviewing patch with Auditor (via LlmService)...
+[2025-12-01 03:22:45] INFO: [ModelSelector] Selected gpt-4o for auditor (complexity=medium, attempt=1, intra_tier=1)
+[2025-12-01 03:22:45] INFO: [MODEL-SELECT] Auditor: model=gpt-4o, complexity=medium->medium, attempt=1, category=backend
+[2025-12-01 03:22:49] INFO: HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-12-01 03:22:49] INFO: [fileorg-p2-country-uk] Auditor completed: approved=True, issues=2
+[2025-12-01 03:22:59] WARNING: Failed to post auditor result: HTTPConnectionPool(host='localhost', port=8000): Read timed out. (read timeout=10)
+[2025-12-01 03:22:59] INFO: [ARCHIVE_CONSOLIDATOR] Logged new error: API failure: POST auditor_result
+[2025-12-01 03:22:59] INFO: [fileorg-p2-country-uk] Step 5/5: Applying Quality Gate...
+[2025-12-01 03:22:59] INFO: [fileorg-p2-country-uk] Quality Gate: needs_review
+[2025-12-01 03:23:29] WARNING: Failed to update phase fileorg-p2-country-uk status: HTTPConnectionPool(host='localhost', port=8000): Read timed out. (read timeout=30)
+[2025-12-01 03:23:29] INFO: [fileorg-p2-country-uk] Phase completed successfully
+[2025-12-01 03:23:29] INFO: [ARCHIVE_CONSOLIDATOR] Logged build event: PHASE_COMPLETE
+[2025-12-01 03:23:29] INFO: Phase fileorg-p2-country-uk completed successfully
+[2025-12-01 03:23:29] INFO: Waiting 10s before next phase...
+[2025-12-01 03:23:39] INFO: Iteration 5: Fetching run status...
+[2025-12-01 03:23:49] ERROR: [Recovery] Fetch run status from API failed (attempt 1/4): ReadTimeout: HTTPConnectionPool(host='localhost', port=8000): Read timed out. (read timeout=10)
+[2025-12-01 03:23:49] INFO: [Recovery] Attempting self-healing for network error
+[2025-12-01 03:23:49] INFO: [Recovery] Network error - waiting 1s before retry...
+[2025-12-01 03:23:50] INFO: [ARCHIVE_CONSOLIDATOR] Logged fix for: network: ReadTimeout
+[2025-12-01 03:23:50] INFO: [Recovery] Error fixed, retrying Fetch run status from API...
+[2025-12-01 03:24:00] ERROR: [Recovery] Fetch run status from API failed (attempt 2/4): ReadTimeout: HTTPConnectionPool(host='localhost', port=8000): Read timed out. (read timeout=10)
+[2025-12-01 03:24:00] INFO: [Recovery] Attempting self-healing for network error
+[2025-12-01 03:24:00] INFO: [Recovery] Network error - waiting 2s before retry...
+[2025-12-01 03:24:02] INFO: [ARCHIVE_CONSOLIDATOR] Logged fix for: network: ReadTimeout
+[2025-12-01 03:24:02] INFO: [Recovery] Error fixed, retrying Fetch run status from API...
+[2025-12-01 03:24:12] CRITICAL: [Escalation] Error 'ReadTimeout' in category 'network' occurred 3 times - manual intervention required
+[2025-12-01 03:24:12] INFO: [ARCHIVE_CONSOLIDATOR] Logged new error: ESCALATION: network (3/3)
+[2025-12-01 03:24:12] CRITICAL: [ESCALATION] network - Error 'ReadTimeout' in category 'network' occurred 3 times - manual intervention required (occurred 3 times, threshold: 3)
+[2025-12-01 03:24:12] ERROR: [Recovery] Fetch run status from API failed (attempt 3/4): ReadTimeout: HTTPConnectionPool(host='localhost', port=8000): Read timed out. (read timeout=10)
+[2025-12-01 03:24:12] INFO: [Recovery] Attempting self-healing for network error
+[2025-12-01 03:24:12] INFO: [Recovery] Network error - waiting 4s before retry...
+[2025-12-01 03:24:16] INFO: [ARCHIVE_CONSOLIDATOR] Logged fix for: network: ReadTimeout
+[2025-12-01 03:24:16] INFO: [Recovery] Error fixed, retrying Fetch run status from API...
+[2025-12-01 03:24:26] ERROR: [Recovery] Fetch run status from API failed (attempt 4/4): ReadTimeout: HTTPConnectionPool(host='localhost', port=8000): Read timed out. (read timeout=10)
+[2025-12-01 03:24:26] ERROR: [Recovery] Max retries reached for Fetch run status from API
+[2025-12-01 03:24:26] ERROR: [Recovery] Fetch run status from API failed permanently after 4 attempts
+Error type: ReadTimeout
+Error message: HTTPConnectionPool(host='localhost', port=8000): Read timed out. (read timeout=10)
+Category: network
+Severity: transient
+[2025-12-01 03:24:26] ERROR: Failed to fetch run status: HTTPConnectionPool(host='localhost', port=8000): Read timed out. (read timeout=10)
+[2025-12-01 03:24:26] INFO: Waiting 10s before retry...
+[2025-12-01 03:24:36] INFO: Iteration 6: Fetching run status...
+[2025-12-01 03:24:46] ERROR: [Recovery] Fetch run status from API failed (attempt 1/4): ReadTimeout: HTTPConnectionPool(host='localhost', port=8000): Read timed out. (read timeout=10)
+[2025-12-01 03:24:46] INFO: [Recovery] Attempting self-healing for network error
+[2025-12-01 03:24:46] INFO: [Recovery] Network error - waiting 1s before retry...
+[2025-12-01 03:24:47] INFO: [ARCHIVE_CONSOLIDATOR] Logged fix for: network: ReadTimeout
+[2025-12-01 03:24:47] INFO: [Recovery] Error fixed, retrying Fetch run status from API...
+[2025-12-01 03:24:57] ERROR: [Recovery] Fetch run status from API failed (attempt 2/4): ReadTimeout: HTTPConnectionPool(host='localhost', port=8000): Read timed out. (read timeout=10)
+[2025-12-01 03:24:57] INFO: [Recovery] Attempting self-healing for network error
+[2025-12-01 03:24:57] INFO: [Recovery] Network error - waiting 2s before retry...
+[2025-12-01 03:24:59] INFO: [ARCHIVE_CONSOLIDATOR] Logged fix for: network: ReadTimeout
+[2025-12-01 03:24:59] INFO: [Recovery] Error fixed, retrying Fetch run status from API...
+[2025-12-01 03:25:09] ERROR: [Recovery] Fetch run status from API failed (attempt 3/4): ReadTimeout: HTTPConnectionPool(host='localhost', port=8000): Read timed out. (read timeout=10)
+[2025-12-01 03:25:09] INFO: [Recovery] Attempting self-healing for network error
+[2025-12-01 03:25:09] INFO: [Recovery] Network error - waiting 4s before retry...
+[2025-12-01 03:25:13] INFO: [ARCHIVE_CONSOLIDATOR] Logged fix for: network: ReadTimeout
+[2025-12-01 03:25:13] INFO: [Recovery] Error fixed, retrying Fetch run status from API...
+[2025-12-01 03:25:23] ERROR: [Recovery] Fetch run status from API failed (attempt 4/4): ReadTimeout: HTTPConnectionPool(host='localhost', port=8000): Read timed out. (read timeout=10)
+[2025-12-01 03:25:23] ERROR: [Recovery] Max retries reached for Fetch run status from API
+[2025-12-01 03:25:23] ERROR: [Recovery] Fetch run status from API failed permanently after 4 attempts
+Error type: ReadTimeout
+Error message: HTTPConnectionPool(host='localhost', port=8000): Read timed out. (read timeout=10)
+Category: network
+Severity: transient
+[2025-12-01 03:25:23] ERROR: Failed to fetch run status: HTTPConnectionPool(host='localhost', port=8000): Read timed out. (read timeout=10)
+[2025-12-01 03:25:23] INFO: Waiting 10s before retry...
+[2025-12-01 03:25:33] INFO: Iteration 7: Fetching run status...
+[2025-12-01 03:25:43] ERROR: [Recovery] Fetch run status from API failed (attempt 1/4): ReadTimeout: HTTPConnectionPool(host='localhost', port=8000): Read timed out. (read timeout=10)
+[2025-12-01 03:25:43] INFO: [Recovery] Attempting self-healing for network error
+[2025-12-01 03:25:43] INFO: [Recovery] Network error - waiting 1s before retry...
+[2025-12-01 03:25:44] INFO: [ARCHIVE_CONSOLIDATOR] Logged fix for: network: ReadTimeout
+[2025-12-01 03:25:44] INFO: [Recovery] Error fixed, retrying Fetch run status from API...

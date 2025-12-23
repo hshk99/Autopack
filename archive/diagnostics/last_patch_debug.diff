@@ -1,0 +1,13 @@
+diff --git a/scripts/verify_e2e_8100.py b/scripts/verify_e2e_8100.py
+index 1111111..2222222 100644
+--- a/scripts/verify_e2e_8100.py
++++ b/scripts/verify_e2e_8100.py
+@@ -4,7 +4,7 @@ def main() -> int:
+ 
+     try:
+         status_resp = post_json(
+-            f"{args.api_url}/runs/{args.run_id}/phases/{first_phase_id}/update_status",
++            f"{args.api_url}/runs/{args.run_id}/phases/{first_phase_id}/status",
+             status_payload,
+             api_key,
+         )

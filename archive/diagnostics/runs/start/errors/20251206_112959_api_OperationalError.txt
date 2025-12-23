@@ -1,0 +1,131 @@
+================================================================================
+ERROR REPORT - 2025-12-06T11:29:59.434525+00:00
+================================================================================
+Error Type: OperationalError
+Error Message: (psycopg2.OperationalError) server closed the connection unexpectedly
+	This probably means the server terminated abnormally
+	before or while processing the request.
+
+[SQL: SELECT runs.id AS runs_id, runs.state AS runs_state, runs.created_at AS runs_created_at, runs.updated_at AS runs_updated_at, runs.started_at AS runs_started_at, runs.completed_at AS runs_completed_at, runs.safety_profile AS runs_safety_profile, runs.run_scope AS runs_run_scope, runs.token_cap AS runs_token_cap, runs.max_phases AS runs_max_phases, runs.max_duration_minutes AS runs_max_duration_minutes, runs.max_minor_issues_total AS runs_max_minor_issues_total, runs.tokens_used AS runs_tokens_used, runs.ci_runs_used AS runs_ci_runs_used, runs.minor_issues_count AS runs_minor_issues_count, runs.major_issues_count AS runs_major_issues_count, runs.promotion_eligible_to_main AS runs_promotion_eligible_to_main, runs.debt_status AS runs_debt_status, runs.failure_reason AS runs_failure_reason 
+FROM runs 
+WHERE runs.id = %(id_1)s 
+ LIMIT %(param_1)s]
+[parameters: {'id_1': 'fileorg-p2-auth-20251206-01', 'param_1': 1}]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+Run ID: start
+Component: api
+Operation: POST /runs/start
+
+Stack Trace:
+--------------------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Python\Lib\site-packages\sqlalchemy\engine\base.py", line 1967, in _exec_single_context
+    self.dialect.do_execute(
+  File "C:\Python\Lib\site-packages\sqlalchemy\engine\default.py", line 951, in do_execute
+    cursor.execute(statement, parameters)
+psycopg2.OperationalError: server closed the connection unexpectedly
+	This probably means the server terminated abnormally
+	before or while processing the request.
+
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Python\Lib\site-packages\starlette\middleware\errors.py", line 164, in __call__
+    request = Request(scope)
+  File "C:\Python\Lib\site-packages\starlette\middleware\exceptions.py", line 63, in __call__
+    if message["type"] == "http.response.start":
+  File "C:\Python\Lib\site-packages\starlette\_exception_handler.py", line 53, in wrapped_app
+  File "C:\Python\Lib\site-packages\starlette\_exception_handler.py", line 42, in wrapped_app
+  File "C:\Python\Lib\site-packages\fastapi\middleware\asyncexitstack.py", line 18, in __call__
+    except Exception as e:
+  File "C:\Python\Lib\site-packages\starlette\routing.py", line 716, in __call__
+    if match == Match.FULL:
+  File "C:\Python\Lib\site-packages\starlette\routing.py", line 736, in app
+    else:
+        ^^
+  File "C:\Python\Lib\site-packages\starlette\routing.py", line 290, in handle
+    return f"{class_name}(path={path!r}, name={name!r}, methods={methods!r})"
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python\Lib\site-packages\fastapi\routing.py", line 125, in app
+    response_content: Any,
+        ^^^^^^^^^^^^^^^^^^^
+  File "C:\Python\Lib\site-packages\starlette\_exception_handler.py", line 53, in wrapped_app
+  File "C:\Python\Lib\site-packages\starlette\_exception_handler.py", line 42, in wrapped_app
+  File "C:\Python\Lib\site-packages\fastapi\routing.py", line 111, in app
+    exclude_unset=exclude_unset,
+                   ^^^^^^^^^^^^^^
+  File "C:\Python\Lib\site-packages\fastapi\routing.py", line 391, in app
+    response_class: Union[Type[Response], DefaultPlaceholder] = Default(
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python\Lib\site-packages\fastapi\routing.py", line 292, in run_endpoint_function
+    content = await serialize_response(
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python\Lib\site-packages\starlette\concurrency.py", line 32, in run_in_threadpool
+    task_group.start_soon(run, functools.partial(func, **kwargs))
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python\Lib\site-packages\anyio\to_thread.py", line 56, in run_sync
+  File "C:\Python\Lib\site-packages\anyio\_backends\_asyncio.py", line 2177, in run_sync_in_worker_thread
+  File "C:\Python\Lib\site-packages\anyio\_backends\_asyncio.py", line 859, in run
+    workers.add(worker)
+                     ^^^
+  File "C:\Python\Lib\site-packages\slowapi\extension.py", line 766, in sync_wrapper
+    response = func(*args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\dev\Autopack\src\autopack\main.py", line 152, in start_run
+    """Start a new autonomous build run with tiers and phases."""
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python\Lib\site-packages\sqlalchemy\orm\query.py", line 2759, in first
+    return self.limit(1)._iter().first()  # type: ignore
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python\Lib\site-packages\sqlalchemy\orm\query.py", line 2857, in _iter
+    result: Union[ScalarResult[_T], Result[_T]] = self.session.execute(
+                                                  ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python\Lib\site-packages\sqlalchemy\orm\session.py", line 2351, in execute
+    return self._execute_internal(
+           ^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python\Lib\site-packages\sqlalchemy\orm\session.py", line 2249, in _execute_internal
+    result: Result[Any] = compile_state_cls.orm_execute_statement(
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python\Lib\site-packages\sqlalchemy\orm\context.py", line 306, in orm_execute_statement
+    result = conn.execute(
+             ^^^^^^^^^^^^^
+  File "C:\Python\Lib\site-packages\sqlalchemy\engine\base.py", line 1419, in execute
+    return meth(
+           ^^^^^
+  File "C:\Python\Lib\site-packages\sqlalchemy\sql\elements.py", line 526, in _execute_on_connection
+    return connection._execute_clauseelement(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python\Lib\site-packages\sqlalchemy\engine\base.py", line 1641, in _execute_clauseelement
+    ret = self._execute_context(
+          ^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python\Lib\site-packages\sqlalchemy\engine\base.py", line 1846, in _execute_context
+    return self._exec_single_context(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python\Lib\site-packages\sqlalchemy\engine\base.py", line 1986, in _exec_single_context
+    self._handle_dbapi_exception(
+  File "C:\Python\Lib\site-packages\sqlalchemy\engine\base.py", line 2355, in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+  File "C:\Python\Lib\site-packages\sqlalchemy\engine\base.py", line 1967, in _exec_single_context
+    self.dialect.do_execute(
+  File "C:\Python\Lib\site-packages\sqlalchemy\engine\default.py", line 951, in do_execute
+    cursor.execute(statement, parameters)
+sqlalchemy.exc.OperationalError: (psycopg2.OperationalError) server closed the connection unexpectedly
+	This probably means the server terminated abnormally
+	before or while processing the request.
+
+[SQL: SELECT runs.id AS runs_id, runs.state AS runs_state, runs.created_at AS runs_created_at, runs.updated_at AS runs_updated_at, runs.started_at AS runs_started_at, runs.completed_at AS runs_completed_at, runs.safety_profile AS runs_safety_profile, runs.run_scope AS runs_run_scope, runs.token_cap AS runs_token_cap, runs.max_phases AS runs_max_phases, runs.max_duration_minutes AS runs_max_duration_minutes, runs.max_minor_issues_total AS runs_max_minor_issues_total, runs.tokens_used AS runs_tokens_used, runs.ci_runs_used AS runs_ci_runs_used, runs.minor_issues_count AS runs_minor_issues_count, runs.major_issues_count AS runs_major_issues_count, runs.promotion_eligible_to_main AS runs_promotion_eligible_to_main, runs.debt_status AS runs_debt_status, runs.failure_reason AS runs_failure_reason 
+FROM runs 
+WHERE runs.id = %(id_1)s 
+ LIMIT %(param_1)s]
+[parameters: {'id_1': 'fileorg-p2-auth-20251206-01', 'param_1': 1}]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+
+
+Context Data:
+--------------------------------------------------------------------------------
+method: POST
+url: http://localhost:8001/runs/start
+headers: {'x-api-key': 'QFv5CsSk6fvtvzVIPv-toUaaLlKzeG4xK5MSKN90TRc', 'user-agent': 'Mozilla/5.0 (Windows NT; Windows NT 10.0; en-AU) WindowsPowerShell/5.1.26100.7019', 'content-type': 'application/json', 'host': 'localhost:8001', 'content-length': '1144', 'expect': '100-continue', 'connection': 'Keep-Alive'}
+query_params: {}
+================================================================================

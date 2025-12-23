@@ -1,0 +1,38 @@
+[2025-12-09 01:46:10] INFO: Applying pre-emptive encoding fix...
+[2025-12-09 01:46:10] INFO: [Recovery] Fixing Unicode encoding error...
+[2025-12-09 01:46:10] INFO: [Recovery] SUCCESS: Encoding fixed (UTF-8 enabled)
+[2025-12-09 01:46:10] INFO: Database tables initialized
+[2025-12-09 01:46:10] INFO: Loaded BuilderOutputConfig: max_lines_for_full_file=1000, max_lines_hard_limit=1000
+[2025-12-09 01:46:10] INFO: Doctor execute_fix enabled: True
+[2025-12-09 01:46:10] INFO: FileSizeTelemetry initialized: .autonomous_runs\file-organizer-app-v1\.autonomous_runs\autopack\file_size_telemetry.jsonl
+[2025-12-09 01:46:10] INFO: Initialized autonomous executor for run: fileorg-p2-20251208n
+[2025-12-09 01:46:10] INFO: API URL: http://127.0.0.1:8100
+[2025-12-09 01:46:10] INFO: Workspace: .autonomous_runs\file-organizer-app-v1
+[2025-12-09 01:46:10] INFO: Running proactive startup checks from DEBUG_JOURNAL.md...
+[2025-12-09 01:46:10] INFO: [HIGH] Checking: Windows Unicode Fix (PYTHONUTF8)
+[2025-12-09 01:46:10] INFO:   Reason: Prevents UnicodeEncodeError with emoji characters in logs (Issue #3)
+[2025-12-09 01:46:10] INFO:   Check PASSED
+[2025-12-09 01:46:10] INFO: Startup checks complete
+[2025-12-09 01:46:10] INFO: [HealthCheck:T0] API Keys: PASSED (0ms) - All required API keys present
+[2025-12-09 01:46:10] INFO: [HealthCheck:T0] Database: PASSED (0ms) - Database accessible: C:\dev\Autopack\autopack.db
+[2025-12-09 01:46:10] INFO: [HealthCheck:T0] Workspace: PASSED (0ms) - Workspace valid: C:\dev\Autopack
+[2025-12-09 01:46:10] INFO: [HealthCheck:T0] Config: PASSED (32ms) - Configuration files valid
+[2025-12-09 01:46:10] INFO: Loading learning context for project: file-organizer-app-v1
+[2025-12-09 01:46:10] INFO:   Loaded 36 persistent project rules
+[2025-12-09 01:46:10] INFO:     - Phase 'Fix FileOrganizer Test Suite' generated inv...
+[2025-12-09 01:46:10] INFO:     - Phase 'Fix FileOrganizer Test Suite' generated inv...
+[2025-12-09 01:46:10] INFO:     - Phase 'Fix FileOrganizer Test Suite' was rejected ...
+[2025-12-09 01:46:10] INFO: Learning context loaded successfully
+[2025-12-09 01:46:10] INFO: Starting autonomous execution loop...
+[2025-12-09 01:46:10] INFO: Poll interval: 5s
+[2025-12-09 01:46:10] INFO: API server is already running
+[2025-12-09 01:46:10] INFO: Initializing infrastructure...
+[2025-12-09 01:46:12] INFO: LlmService: Initialized with ModelRouter and UsageRecorder
+[2025-12-09 01:46:12] INFO: Quality Gate: Initialized
+[2025-12-09 01:46:12] INFO: Iteration 1: Fetching run status...
+[2025-12-09 01:46:12] INFO: No more QUEUED phases, execution complete
+[2025-12-09 01:46:12] INFO: Autonomous execution loop finished
+[2025-12-09 01:46:12] INFO: [ARCHIVE_CONSOLIDATOR] Logged build event: RUN_COMPLETE
+[2025-12-09 01:46:12] INFO: Learning Pipeline: Promoted 13 hints to persistent project rules
+[2025-12-09 01:46:12] INFO: Learning Pipeline: Marked rules updated (total: 36 rules)
+[2025-12-09 01:46:12] INFO: [PLANNING NOTICE] 13 new rules promoted. Future planning should incorporate 36 total project rules.

@@ -1,0 +1,51 @@
+============================= test session starts =============================
+platform win32 -- Python 3.12.3, pytest-8.2.1, pluggy-1.5.0 -- C:\Python\python.exe
+cachedir: .pytest_cache
+rootdir: C:\dev\Autopack
+configfile: pytest.ini
+plugins: anyio-3.7.1, asyncio-1.3.0, cov-7.0.0, timeout-2.4.0
+asyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=function, asyncio_default_test_loop_scope=function
+collecting ... collected 40 items / 2 skipped
+
+src/backend/tests/test_canada_documents.py::TestCanadianPostalCode::test_valid_postal_codes PASSED [  2%]
+src/backend/tests/test_canada_documents.py::TestCanadianPostalCode::test_valid_postal_codes_no_space PASSED [  5%]
+src/backend/tests/test_canada_documents.py::TestCanadianPostalCode::test_invalid_postal_codes PASSED [  7%]
+src/backend/tests/test_canada_documents.py::TestCanadianPostalCode::test_postal_code_formatting PASSED [ 10%]
+src/backend/tests/test_canada_documents.py::TestCanadianDateFormat::test_parse_iso_date PASSED [ 12%]
+src/backend/tests/test_canada_documents.py::TestCanadianDateFormat::test_parse_dd_mm_yyyy PASSED [ 15%]
+src/backend/tests/test_canada_documents.py::TestCanadianDateFormat::test_parse_long_format PASSED [ 17%]
+src/backend/tests/test_canada_documents.py::TestCanadianDateFormat::test_parse_invalid_date PASSED [ 20%]
+src/backend/tests/test_canada_documents.py::TestCanadianDateFormat::test_format_date_iso PASSED [ 22%]
+src/backend/tests/test_canada_documents.py::TestCanadianDateFormat::test_format_date_short PASSED [ 25%]
+src/backend/tests/test_canada_documents.py::TestCanadianDateFormat::test_format_date_long PASSED [ 27%]
+src/backend/tests/test_canada_documents.py::TestCanadaDocumentPack::test_classify_cra_tax_form PASSED [ 30%]
+src/backend/tests/test_canada_documents.py::TestCanadaDocumentPack::test_classify_health_card PASSED [ 32%]
+src/backend/tests/test_canada_documents.py::TestCanadaDocumentPack::test_classify_drivers_license PASSED [ 35%]
+src/backend/tests/test_canada_documents.py::TestCanadaDocumentPack::test_classify_passport PASSED [ 37%]
+src/backend/tests/test_canada_documents.py::TestCanadaDocumentPack::test_classify_bank_statement PASSED [ 40%]
+src/backend/tests/test_canada_documents.py::TestCanadaDocumentPack::test_classify_utility_bill PASSED [ 42%]
+src/backend/tests/test_canada_documents.py::TestCanadaDocumentPack::test_classify_unknown_document PASSED [ 45%]
+src/backend/tests/test_canada_documents.py::TestCanadaDocumentPack::test_validate_postal_code_valid PASSED [ 47%]
+src/backend/tests/test_canada_documents.py::TestCanadaDocumentPack::test_validate_postal_code_invalid PASSED [ 50%]
+src/backend/tests/test_canada_documents.py::TestCanadaDocumentPack::test_extract_dates PASSED [ 52%]
+src/backend/tests/test_canada_documents.py::TestCanadaDocumentPack::test_get_category_info PASSED [ 55%]
+src/backend/tests/test_canada_documents.py::TestCanadaDocumentPack::test_get_category_info_invalid PASSED [ 57%]
+src/backend/tests/test_canada_documents.py::TestCanadaDocumentPack::test_list_categories PASSED [ 60%]
+src/backend/tests/test_canada_documents.py::TestCanadaDocumentPack::test_all_matches_returned PASSED [ 62%]
+src/backend/tests/test_uk_documents.py::TestUKPostalCodeValidator::test_valid_postcodes PASSED [ 65%]
+src/backend/tests/test_uk_documents.py::TestUKPostalCodeValidator::test_valid_postcodes_without_space PASSED [ 67%]
+src/backend/tests/test_uk_documents.py::TestUKPostalCodeValidator::test_invalid_postcodes PASSED [ 70%]
+src/backend/tests/test_uk_documents.py::TestUKPostalCodeValidator::test_normalize_postcode PASSED [ 72%]
+src/backend/tests/test_uk_documents.py::TestUKDateParser::test_parse_dd_mm_yyyy PASSED [ 75%]
+src/backend/tests/test_uk_documents.py::TestUKDateParser::test_parse_dd_mm_yy PASSED [ 77%]
+src/backend/tests/test_uk_documents.py::TestUKDateParser::test_parse_d_month_yyyy PASSED [ 80%]
+src/backend/tests/test_uk_documents.py::TestUKDateParser::test_parse_d_mmm_yyyy PASSED [ 82%]
+src/backend/tests/test_uk_documents.py::TestUKDateParser::test_parse_invalid_date PASSED [ 85%]
+src/backend/tests/test_uk_documents.py::TestUKDocumentClassifier::test_classify_hmrc_tax_return PASSED [ 87%]
+src/backend/tests/test_uk_documents.py::TestUKDocumentClassifier::test_classify_nhs_record PASSED [ 90%]
+src/backend/tests/test_uk_documents.py::TestUKDocumentClassifier::test_classify_driving_licence PASSED [ 92%]
+src/backend/tests/test_uk_documents.py::TestUKDocumentClassifier::test_classify_passport PASSED [ 95%]
+src/backend/tests/test_uk_documents.py::TestUKDocumentClassifier::test_classify_bank_statement PASSED [ 97%]
+src/backend/tests/test_uk_documents.py::TestUKDocumentClassifier::test_classify_utility_bill PASSED [100%]
+
+======================== 40 passed, 2 skipped in 0.95s ========================

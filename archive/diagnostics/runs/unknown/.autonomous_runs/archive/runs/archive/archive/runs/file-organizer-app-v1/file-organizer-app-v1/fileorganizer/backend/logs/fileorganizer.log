@@ -1,0 +1,266 @@
+2025-11-28 16:31:45,881 - httpx - INFO - _client.py:1013 - HTTP Request: POST http://testserver/api/v1/documents/upload "HTTP/1.1 200 OK"
+2025-11-28 16:31:45,903 - httpx - INFO - _client.py:1013 - HTTP Request: POST http://testserver/api/v1/classify "HTTP/1.1 500 Internal Server Error"
+2025-11-28 16:31:45,907 - app.core.middleware - ERROR - middleware.py:31 - Unexpected error: name 'Category' is not defined
+2025-11-28 16:31:46,023 - app.core.middleware - ERROR - middleware.py:32 - Traceback (most recent call last):
+  File "C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\fileorganizer\backend\venv\Lib\site-packages\starlette\middleware\base.py", line 159, in call_next
+    message = await recv_stream.receive()
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\fileorganizer\backend\venv\Lib\site-packages\anyio\streams\memory.py", line 126, in receive
+    raise EndOfStream from None
+anyio.EndOfStream
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\fileorganizer\backend\app\core\middleware.py", line 16, in error_handler_middleware
+    response = await call_next(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\fileorganizer\backend\venv\Lib\site-packages\starlette\middleware\base.py", line 165, in call_next
+    raise app_exc
+  File "C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\fileorganizer\backend\venv\Lib\site-packages\starlette\middleware\base.py", line 151, in coro
+    await self.app(scope, receive_or_disconnect, send_no_error)
+  File "C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\fileorganizer\backend\venv\Lib\site-packages\starlette\middleware\cors.py", line 83, in __call__
+    await self.app(scope, receive, send)
+  File "C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\fileorganizer\backend\venv\Lib\site-packages\starlette\middleware\exceptions.py", line 62, in __call__
+    await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+  File "C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\fileorganizer\backend\venv\Lib\site-packages\starlette\_exception_handler.py", line 64, in wrapped_app
+    raise exc
+  File "C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\fileorganizer\backend\venv\Lib\site-packages\starlette\_exception_handler.py", line 53, in wrapped_app
+    await app(scope, receive, sender)
+  File "C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\fileorganizer\backend\venv\Lib\site-packages\starlette\routing.py", line 762, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\fileorganizer\backend\venv\Lib\site-packages\starlette\routing.py", line 782, in app
+    await route.handle(scope, receive, send)
+  File "C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\fileorganizer\backend\venv\Lib\site-packages\starlette\routing.py", line 297, in handle
+    await self.app(scope, receive, send)
+  File "C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\fileorganizer\backend\venv\Lib\site-packages\starlette\routing.py", line 77, in app
+    await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+  File "C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\fileorganizer\backend\venv\Lib\site-packages\starlette\_exception_handler.py", line 64, in wrapped_app
+    raise exc
+  File "C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\fileorganizer\backend\venv\Lib\site-packages\starlette\_exception_handler.py", line 53, in wrapped_app
+    await app(scope, receive, sender)
+  File "C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\fileorganizer\backend\venv\Lib\site-packages\starlette\routing.py", line 72, in app
+    response = await func(request)
+               ^^^^^^^^^^^^^^^^^^^
+  File "C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\fileorganizer\backend\venv\Lib\site-packages\fastapi\routing.py", line 299, in app
+    raise e
+  File "C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\fileorganizer\backend\venv\Lib\site-packages\fastapi\routing.py", line 294, in app
+    raw_response = await run_endpoint_function(
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\fileorganizer\backend\venv\Lib\site-packages\fastapi\routing.py", line 191, in run_endpoint_function
+    return await dependant.call(**values)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\fileorganizer\backend\app\routers\documents.py", line 107, in update_document_category
+    category = db.query(Category).filter(Category.id == request.category_id).first()
+                        ^^^^^^^^
+NameError: name 'Category' is not defined
+
+2025-11-28 16:31:46,025 - httpx - INFO - _client.py:1013 - HTTP Request: PATCH http://testserver/api/v1/documents/1/category "HTTP/1.1 500 Internal Server Error"
+2025-11-28 16:31:46,248 - httpx - INFO - _client.py:1013 - HTTP Request: GET http://testserver/api/v1/documents/search?filename=invoice "HTTP/1.1 422 Unprocessable Entity"
+2025-11-28 16:31:46,566 - httpx - INFO - _client.py:1013 - HTTP Request: GET http://testserver/api/v1/documents/99999 "HTTP/1.1 404 Not Found"
+2025-11-28 16:31:46,667 - httpx - INFO - _client.py:1013 - HTTP Request: POST http://testserver/api/v1/documents/upload "HTTP/1.1 400 Bad Request"
+2025-11-28 16:31:46,770 - httpx - INFO - _client.py:1013 - HTTP Request: GET http://testserver/api/v1/packs/99999 "HTTP/1.1 404 Not Found"
+2025-11-28 16:31:46,896 - httpx - INFO - _client.py:1013 - HTTP Request: POST http://testserver/api/v1/classify "HTTP/1.1 400 Bad Request"
+2025-11-28 16:31:47,046 - httpx - INFO - _client.py:1013 - HTTP Request: GET http://testserver/api/v1/export/pdf/1 "HTTP/1.1 500 Internal Server Error"
+2025-11-28 16:31:47,328 - httpx - INFO - _client.py:1013 - HTTP Request: GET http://testserver/api/v1/export/excel/1 "HTTP/1.1 200 OK"
+2025-11-28 16:31:47,529 - httpx - INFO - _client.py:1013 - HTTP Request: GET http://testserver/api/v1/export/csv/1 "HTTP/1.1 200 OK"
+2025-11-28 16:31:47,638 - httpx - INFO - _client.py:1013 - HTTP Request: GET http://testserver/api/v1/health "HTTP/1.1 200 OK"
+2025-11-28 16:31:47,739 - httpx - INFO - _client.py:1013 - HTTP Request: GET http://testserver/api/v1/health/db "HTTP/1.1 200 OK"
+2025-11-28 16:31:47,911 - httpx - INFO - _client.py:1013 - HTTP Request: POST http://testserver/api/v1/documents/1/approve "HTTP/1.1 200 OK"
+2025-11-28 16:31:47,921 - httpx - INFO - _client.py:1013 - HTTP Request: GET http://testserver/api/v1/export/pdf/1 "HTTP/1.1 500 Internal Server Error"
+2025-11-28 16:31:48,125 - httpx - INFO - _client.py:1013 - HTTP Request: GET http://testserver/api/v1/export/pdf/1 "HTTP/1.1 500 Internal Server Error"
+2025-11-28 16:31:48,230 - httpx - INFO - _client.py:1013 - HTTP Request: GET http://testserver/api/v1/documents/99999 "HTTP/1.1 404 Not Found"
+2025-11-28 16:31:48,235 - httpx - INFO - _client.py:1013 - HTTP Request: GET http://testserver/api/v1/packs/99999 "HTTP/1.1 404 Not Found"
+2025-11-28 16:31:48,240 - httpx - INFO - _client.py:1013 - HTTP Request: POST http://testserver/api/v1/documents/99999/approve "HTTP/1.1 404 Not Found"
+2025-11-28 16:31:48,351 - httpx - INFO - _client.py:1013 - HTTP Request: GET http://testserver/api/v1/health "HTTP/1.1 200 OK"
+2025-11-28 16:31:48,355 - httpx - INFO - _client.py:1013 - HTTP Request: GET http://testserver/api/v1/health/db "HTTP/1.1 200 OK"
+2025-11-28 16:31:48,454 - httpx - INFO - _client.py:1013 - HTTP Request: GET http://testserver/api/v1/documents "HTTP/1.1 200 OK"
+2025-11-28 16:31:48,458 - httpx - INFO - _client.py:1013 - HTTP Request: GET http://testserver/api/v1/documents/search?filename=test "HTTP/1.1 422 Unprocessable Entity"
+2025-11-28 16:31:48,593 - httpx - INFO - _client.py:1013 - HTTP Request: GET http://testserver/api/v1/packs "HTTP/1.1 200 OK"
+2025-11-28 16:31:48,597 - httpx - INFO - _client.py:1013 - HTTP Request: GET http://testserver/api/v1/packs/1 "HTTP/1.1 200 OK"
+2025-11-28 16:31:48,604 - httpx - INFO - _client.py:1013 - HTTP Request: GET http://testserver/api/v1/packs/1/categories "HTTP/1.1 200 OK"
+2025-11-28 16:31:48,987 - httpx - INFO - _client.py:1013 - HTTP Request: GET http://testserver/api/v1/documents "HTTP/1.1 200 OK"
+2025-11-28 16:31:49,113 - httpx - INFO - _client.py:1013 - HTTP Request: GET http://testserver/api/v1/documents/search?filename=invoice "HTTP/1.1 422 Unprocessable Entity"
+2025-11-28 16:31:49,253 - app.core.middleware - ERROR - middleware.py:31 - Unexpected error: name 'Category' is not defined
+2025-11-28 16:31:49,259 - app.core.middleware - ERROR - middleware.py:32 - Traceback (most recent call last):
+  File "C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\fileorganizer\backend\venv\Lib\site-packages\starlette\middleware\base.py", line 159, in call_next
+    message = await recv_stream.receive()
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\fileorganizer\backend\venv\Lib\site-packages\anyio\streams\memory.py", line 126, in receive
+    raise EndOfStream from None
+anyio.EndOfStream
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\fileorganizer\backend\app\core\middleware.py", line 16, in error_handler_middleware
+    response = await call_next(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\fileorganizer\backend\venv\Lib\site-packages\starlette\middleware\base.py", line 165, in call_next
+    raise app_exc
+  File "C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\fileorganizer\backend\venv\Lib\site-packages\starlette\middleware\base.py", line 151, in coro
+    await self.app(scope, receive_or_disconnect, send_no_error)
+  File "C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\fileorganizer\backend\venv\Lib\site-packages\starlette\middleware\cors.py", line 83, in __call__
+    await self.app(scope, receive, send)
+  File "C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\fileorganizer\backend\venv\Lib\site-packages\starlette\middleware\exceptions.py", line 62, in __call__
+    await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+  File "C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\fileorganizer\backend\venv\Lib\site-packages\starlette\_exception_handler.py", line 64, in wrapped_app
+    raise exc
+  File "C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\fileorganizer\backend\venv\Lib\site-packages\starlette\_exception_handler.py", line 53, in wrapped_app
+    await app(scope, receive, sender)
+  File "C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\fileorganizer\backend\venv\Lib\site-packages\starlette\routing.py", line 762, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\fileorganizer\backend\venv\Lib\site-packages\starlette\routing.py", line 782, in app
+    await route.handle(scope, receive, send)
+  File "C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\fileorganizer\backend\venv\Lib\site-packages\starlette\routing.py", line 297, in handle
+    await self.app(scope, receive, send)
+  File "C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\fileorganizer\backend\venv\Lib\site-packages\starlette\routing.py", line 77, in app
+    await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+  File "C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\fileorganizer\backend\venv\Lib\site-packages\starlette\_exception_handler.py", line 64, in wrapped_app
+    raise exc
+  File "C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\fileorganizer\backend\venv\Lib\site-packages\starlette\_exception_handler.py", line 53, in wrapped_app
+    await app(scope, receive, sender)
+  File "C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\fileorganizer\backend\venv\Lib\site-packages\starlette\routing.py", line 72, in app
+    response = await func(request)
+               ^^^^^^^^^^^^^^^^^^^
+  File "C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\fileorganizer\backend\venv\Lib\site-packages\fastapi\routing.py", line 299, in app
+    raise e
+  File "C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\fileorganizer\backend\venv\Lib\site-packages\fastapi\routing.py", line 294, in app
+    raw_response = await run_endpoint_function(
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\fileorganizer\backend\venv\Lib\site-packages\fastapi\routing.py", line 191, in run_endpoint_function
+    return await dependant.call(**values)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\fileorganizer\backend\app\routers\documents.py", line 107, in update_document_category
+    category = db.query(Category).filter(Category.id == request.category_id).first()
+                        ^^^^^^^^
+NameError: name 'Category' is not defined
+
+2025-11-28 16:31:49,260 - httpx - INFO - _client.py:1013 - HTTP Request: PATCH http://testserver/api/v1/documents/1/category "HTTP/1.1 500 Internal Server Error"
+2025-11-28 16:31:49,396 - httpx - INFO - _client.py:1013 - HTTP Request: POST http://testserver/api/v1/documents/1/approve "HTTP/1.1 200 OK"
+2025-11-28 16:31:49,533 - httpx - INFO - _client.py:1013 - HTTP Request: GET http://testserver/api/v1/documents/search?filename=invoice "HTTP/1.1 422 Unprocessable Entity"
+2025-12-04 14:08:49,531 - httpx - INFO - _client.py:1026 - HTTP Request: GET http://testserver/api/v1/documents/99999 "HTTP/1.1 404 Not Found"
+2025-12-04 14:08:49,622 - httpx - INFO - _client.py:1026 - HTTP Request: POST http://testserver/api/v1/documents/upload "HTTP/1.1 400 Bad Request"
+2025-12-04 14:08:49,718 - httpx - INFO - _client.py:1026 - HTTP Request: GET http://testserver/api/v1/packs/99999 "HTTP/1.1 404 Not Found"
+2025-12-04 14:08:49,845 - httpx - INFO - _client.py:1026 - HTTP Request: POST http://testserver/api/v1/classify "HTTP/1.1 400 Bad Request"
+2025-12-04 14:08:49,981 - httpx - INFO - _client.py:1026 - HTTP Request: GET http://testserver/api/v1/export/pdf/1 "HTTP/1.1 500 Internal Server Error"
+2025-12-04 14:08:50,687 - httpx - INFO - _client.py:1026 - HTTP Request: GET http://testserver/api/v1/export/excel/1 "HTTP/1.1 200 OK"
+2025-12-04 14:08:50,827 - httpx - INFO - _client.py:1026 - HTTP Request: GET http://testserver/api/v1/export/csv/1 "HTTP/1.1 200 OK"
+2025-12-04 14:08:50,910 - httpx - INFO - _client.py:1026 - HTTP Request: GET http://testserver/api/v1/health "HTTP/1.1 200 OK"
+2025-12-04 14:08:50,998 - httpx - INFO - _client.py:1026 - HTTP Request: GET http://testserver/api/v1/health/db "HTTP/1.1 200 OK"
+2025-12-04 14:08:51,331 - httpx - INFO - _client.py:1026 - HTTP Request: GET http://testserver/api/v1/documents "HTTP/1.1 200 OK"
+2025-12-04 14:08:51,430 - httpx - INFO - _client.py:1026 - HTTP Request: GET http://testserver/api/v1/documents/search?filename=invoice "HTTP/1.1 422 Unprocessable Entity"
+2025-12-04 14:08:51,637 - app.core.middleware - ERROR - middleware.py:31 - Unexpected error: name 'Category' is not defined
+2025-12-04 14:08:51,671 - app.core.middleware - ERROR - middleware.py:32 - Traceback (most recent call last):
+  File "C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\fileorganizer\backend\app\core\middleware.py", line 16, in error_handler_middleware
+    response = await call_next(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python\Lib\site-packages\starlette\middleware\base.py", line 168, in call_next
+    raise app_exc from app_exc.__cause__ or app_exc.__context__
+  File "C:\Python\Lib\site-packages\starlette\middleware\base.py", line 144, in coro
+    await self.app(scope, receive_or_disconnect, send_no_error)
+  File "C:\Python\Lib\site-packages\starlette\middleware\cors.py", line 85, in __call__
+    await self.app(scope, receive, send)
+  File "C:\Python\Lib\site-packages\starlette\middleware\exceptions.py", line 63, in __call__
+    await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+  File "C:\Python\Lib\site-packages\starlette\_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "C:\Python\Lib\site-packages\starlette\_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "C:\Python\Lib\site-packages\fastapi\middleware\asyncexitstack.py", line 18, in __call__
+    await self.app(scope, receive, send)
+  File "C:\Python\Lib\site-packages\starlette\routing.py", line 716, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "C:\Python\Lib\site-packages\starlette\routing.py", line 736, in app
+    await route.handle(scope, receive, send)
+  File "C:\Python\Lib\site-packages\starlette\routing.py", line 290, in handle
+    await self.app(scope, receive, send)
+  File "C:\Python\Lib\site-packages\fastapi\routing.py", line 125, in app
+    await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+  File "C:\Python\Lib\site-packages\starlette\_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "C:\Python\Lib\site-packages\starlette\_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "C:\Python\Lib\site-packages\fastapi\routing.py", line 111, in app
+    response = await f(request)
+               ^^^^^^^^^^^^^^^^
+  File "C:\Python\Lib\site-packages\fastapi\routing.py", line 391, in app
+    raw_response = await run_endpoint_function(
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python\Lib\site-packages\fastapi\routing.py", line 290, in run_endpoint_function
+    return await dependant.call(**values)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\fileorganizer\backend\app\routers\documents.py", line 107, in update_document_category
+    category = db.query(Category).filter(Category.id == request.category_id).first()
+                        ^^^^^^^^
+NameError: name 'Category' is not defined
+
+2025-12-04 14:08:51,672 - httpx - INFO - _client.py:1026 - HTTP Request: PATCH http://testserver/api/v1/documents/1/category "HTTP/1.1 500 Internal Server Error"
+2025-12-04 14:08:51,790 - httpx - INFO - _client.py:1026 - HTTP Request: POST http://testserver/api/v1/documents/1/approve "HTTP/1.1 200 OK"
+2025-12-04 14:08:51,919 - httpx - INFO - _client.py:1026 - HTTP Request: GET http://testserver/api/v1/documents/search?filename=invoice "HTTP/1.1 422 Unprocessable Entity"
+2025-12-04 14:10:23,855 - httpx - INFO - _client.py:1026 - HTTP Request: GET http://testserver/api/v1/export/pdf/4 "HTTP/1.1 500 Internal Server Error"
+2025-12-04 14:11:01,269 - httpx - INFO - _client.py:1026 - HTTP Request: GET http://testserver/api/v1/documents/search?filename=invoice "HTTP/1.1 422 Unprocessable Entity"
+2025-12-04 14:18:48,225 - httpx - INFO - _client.py:1026 - HTTP Request: GET http://testserver/api/v1/documents/99999 "HTTP/1.1 404 Not Found"
+2025-12-04 14:18:48,275 - httpx - INFO - _client.py:1026 - HTTP Request: POST http://testserver/api/v1/documents/upload "HTTP/1.1 400 Bad Request"
+2025-12-04 14:18:48,324 - httpx - INFO - _client.py:1026 - HTTP Request: GET http://testserver/api/v1/packs/99999 "HTTP/1.1 404 Not Found"
+2025-12-04 14:18:48,386 - httpx - INFO - _client.py:1026 - HTTP Request: POST http://testserver/api/v1/classify "HTTP/1.1 400 Bad Request"
+2025-12-04 14:18:48,500 - httpx - INFO - _client.py:1026 - HTTP Request: GET http://testserver/api/v1/export/pdf/1 "HTTP/1.1 200 OK"
+2025-12-04 14:18:48,632 - httpx - INFO - _client.py:1026 - HTTP Request: GET http://testserver/api/v1/export/excel/1 "HTTP/1.1 200 OK"
+2025-12-04 14:18:48,702 - httpx - INFO - _client.py:1026 - HTTP Request: GET http://testserver/api/v1/export/csv/1 "HTTP/1.1 200 OK"
+2025-12-04 14:18:48,749 - httpx - INFO - _client.py:1026 - HTTP Request: GET http://testserver/api/v1/health "HTTP/1.1 200 OK"
+2025-12-04 14:18:48,800 - httpx - INFO - _client.py:1026 - HTTP Request: GET http://testserver/api/v1/health/db "HTTP/1.1 200 OK"
+2025-12-04 14:18:48,851 - app.services.ocr_service - WARNING - ocr_service.py:110 - Tesseract binary not available - returning empty OCR result. Install Tesseract OCR for full functionality.
+2025-12-04 14:18:49,408 - httpx - INFO - _client.py:1026 - HTTP Request: GET http://testserver/api/v1/documents "HTTP/1.1 200 OK"
+2025-12-04 14:18:49,468 - httpx - INFO - _client.py:1026 - HTTP Request: GET http://testserver/api/v1/documents/search?filename=invoice "HTTP/1.1 200 OK"
+2025-12-04 14:18:49,546 - httpx - INFO - _client.py:1026 - HTTP Request: PATCH http://testserver/api/v1/documents/1/category "HTTP/1.1 200 OK"
+2025-12-04 14:18:49,632 - httpx - INFO - _client.py:1026 - HTTP Request: POST http://testserver/api/v1/documents/1/approve "HTTP/1.1 200 OK"
+2025-12-04 14:18:49,723 - httpx - INFO - _client.py:1026 - HTTP Request: GET http://testserver/api/v1/documents/search?filename=invoice "HTTP/1.1 200 OK"
+2025-12-04 14:18:49,726 - httpx - INFO - _client.py:1026 - HTTP Request: GET http://testserver/api/v1/documents/search?min_confidence=80 "HTTP/1.1 200 OK"
+2025-12-04 14:19:36,395 - httpx - INFO - _client.py:1026 - HTTP Request: GET http://testserver/api/v1/documents/99999 "HTTP/1.1 404 Not Found"
+2025-12-04 14:19:36,444 - httpx - INFO - _client.py:1026 - HTTP Request: POST http://testserver/api/v1/documents/upload "HTTP/1.1 400 Bad Request"
+2025-12-04 14:19:36,493 - httpx - INFO - _client.py:1026 - HTTP Request: GET http://testserver/api/v1/packs/99999 "HTTP/1.1 404 Not Found"
+2025-12-04 14:19:36,553 - httpx - INFO - _client.py:1026 - HTTP Request: POST http://testserver/api/v1/classify "HTTP/1.1 400 Bad Request"
+2025-12-04 14:19:36,655 - httpx - INFO - _client.py:1026 - HTTP Request: GET http://testserver/api/v1/export/pdf/1 "HTTP/1.1 200 OK"
+2025-12-04 14:19:36,771 - httpx - INFO - _client.py:1026 - HTTP Request: GET http://testserver/api/v1/export/excel/1 "HTTP/1.1 200 OK"
+2025-12-04 14:19:36,843 - httpx - INFO - _client.py:1026 - HTTP Request: GET http://testserver/api/v1/export/csv/1 "HTTP/1.1 200 OK"
+2025-12-04 14:19:36,889 - httpx - INFO - _client.py:1026 - HTTP Request: GET http://testserver/api/v1/health "HTTP/1.1 200 OK"
+2025-12-04 14:19:36,936 - httpx - INFO - _client.py:1026 - HTTP Request: GET http://testserver/api/v1/health/db "HTTP/1.1 200 OK"
+2025-12-04 14:19:36,988 - app.services.ocr_service - WARNING - ocr_service.py:96 - Tesseract binary not available - returning empty OCR result. Install Tesseract OCR for full functionality.
+2025-12-04 14:19:37,039 - httpx - INFO - _client.py:1026 - HTTP Request: GET http://testserver/api/v1/documents "HTTP/1.1 200 OK"
+2025-12-04 14:19:37,111 - httpx - INFO - _client.py:1026 - HTTP Request: GET http://testserver/api/v1/documents/search?filename=invoice "HTTP/1.1 200 OK"
+2025-12-04 14:19:37,187 - httpx - INFO - _client.py:1026 - HTTP Request: PATCH http://testserver/api/v1/documents/1/category "HTTP/1.1 200 OK"
+2025-12-04 14:19:37,246 - httpx - INFO - _client.py:1026 - HTTP Request: POST http://testserver/api/v1/documents/1/approve "HTTP/1.1 200 OK"
+2025-12-04 14:19:37,309 - httpx - INFO - _client.py:1026 - HTTP Request: GET http://testserver/api/v1/documents/search?filename=invoice "HTTP/1.1 200 OK"
+2025-12-04 14:19:37,312 - httpx - INFO - _client.py:1026 - HTTP Request: GET http://testserver/api/v1/documents/search?min_confidence=80 "HTTP/1.1 200 OK"
+2025-12-04 19:56:07,988 - httpx - INFO - _client.py:1026 - HTTP Request: GET http://testserver/api/v1/documents/99999 "HTTP/1.1 404 Not Found"
+2025-12-04 19:56:08,178 - httpx - INFO - _client.py:1026 - HTTP Request: POST http://testserver/api/v1/documents/upload "HTTP/1.1 400 Bad Request"
+2025-12-04 19:56:08,279 - httpx - INFO - _client.py:1026 - HTTP Request: GET http://testserver/api/v1/packs/99999 "HTTP/1.1 404 Not Found"
+2025-12-04 19:56:08,444 - httpx - INFO - _client.py:1026 - HTTP Request: POST http://testserver/api/v1/classify "HTTP/1.1 400 Bad Request"
+2025-12-04 19:56:08,587 - httpx - INFO - _client.py:1026 - HTTP Request: GET http://testserver/api/v1/export/pdf/1 "HTTP/1.1 200 OK"
+2025-12-04 19:56:08,827 - httpx - INFO - _client.py:1026 - HTTP Request: GET http://testserver/api/v1/export/excel/1 "HTTP/1.1 200 OK"
+2025-12-04 19:56:08,962 - httpx - INFO - _client.py:1026 - HTTP Request: GET http://testserver/api/v1/export/csv/1 "HTTP/1.1 200 OK"
+2025-12-04 19:56:09,054 - httpx - INFO - _client.py:1026 - HTTP Request: GET http://testserver/api/v1/health "HTTP/1.1 200 OK"
+2025-12-04 19:56:09,150 - httpx - INFO - _client.py:1026 - HTTP Request: GET http://testserver/api/v1/health/db "HTTP/1.1 200 OK"
+2025-12-04 19:56:09,254 - app.services.ocr_service - WARNING - ocr_service.py:96 - Tesseract binary not available - returning empty OCR result. Install Tesseract OCR for full functionality.
+2025-12-04 19:56:09,403 - httpx - INFO - _client.py:1026 - HTTP Request: GET http://testserver/api/v1/documents "HTTP/1.1 200 OK"
+2025-12-04 19:56:09,512 - httpx - INFO - _client.py:1026 - HTTP Request: GET http://testserver/api/v1/documents/search?filename=invoice "HTTP/1.1 200 OK"
+2025-12-04 19:56:09,691 - httpx - INFO - _client.py:1026 - HTTP Request: PATCH http://testserver/api/v1/documents/1/category "HTTP/1.1 200 OK"
+2025-12-04 19:56:09,837 - httpx - INFO - _client.py:1026 - HTTP Request: POST http://testserver/api/v1/documents/1/approve "HTTP/1.1 200 OK"
+2025-12-04 19:56:09,950 - httpx - INFO - _client.py:1026 - HTTP Request: GET http://testserver/api/v1/documents/search?filename=invoice "HTTP/1.1 200 OK"
+2025-12-04 19:56:09,953 - httpx - INFO - _client.py:1026 - HTTP Request: GET http://testserver/api/v1/documents/search?min_confidence=80 "HTTP/1.1 200 OK"
+2025-12-04 19:56:31,471 - httpx - INFO - _client.py:1026 - HTTP Request: GET http://testserver/api/v1/documents/99999 "HTTP/1.1 404 Not Found"
+2025-12-04 19:56:31,556 - httpx - INFO - _client.py:1026 - HTTP Request: POST http://testserver/api/v1/documents/upload "HTTP/1.1 400 Bad Request"
+2025-12-04 19:56:31,641 - httpx - INFO - _client.py:1026 - HTTP Request: GET http://testserver/api/v1/packs/99999 "HTTP/1.1 404 Not Found"
+2025-12-04 19:56:31,744 - httpx - INFO - _client.py:1026 - HTTP Request: POST http://testserver/api/v1/classify "HTTP/1.1 400 Bad Request"
+2025-12-04 19:56:31,880 - httpx - INFO - _client.py:1026 - HTTP Request: GET http://testserver/api/v1/export/pdf/1 "HTTP/1.1 200 OK"
+2025-12-04 19:56:32,026 - httpx - INFO - _client.py:1026 - HTTP Request: GET http://testserver/api/v1/export/excel/1 "HTTP/1.1 200 OK"
+2025-12-04 19:56:32,147 - httpx - INFO - _client.py:1026 - HTTP Request: GET http://testserver/api/v1/export/csv/1 "HTTP/1.1 200 OK"
+2025-12-04 19:56:32,237 - httpx - INFO - _client.py:1026 - HTTP Request: GET http://testserver/api/v1/health "HTTP/1.1 200 OK"
+2025-12-04 19:56:32,322 - httpx - INFO - _client.py:1026 - HTTP Request: GET http://testserver/api/v1/health/db "HTTP/1.1 200 OK"
+2025-12-04 19:56:32,390 - app.services.ocr_service - WARNING - ocr_service.py:96 - Tesseract binary not available - returning empty OCR result. Install Tesseract OCR for full functionality.
+2025-12-04 19:56:32,477 - httpx - INFO - _client.py:1026 - HTTP Request: GET http://testserver/api/v1/documents "HTTP/1.1 200 OK"
+2025-12-04 19:56:32,580 - httpx - INFO - _client.py:1026 - HTTP Request: GET http://testserver/api/v1/documents/search?filename=invoice "HTTP/1.1 200 OK"
+2025-12-04 19:56:32,715 - httpx - INFO - _client.py:1026 - HTTP Request: PATCH http://testserver/api/v1/documents/1/category "HTTP/1.1 200 OK"
+2025-12-04 19:56:32,822 - httpx - INFO - _client.py:1026 - HTTP Request: POST http://testserver/api/v1/documents/1/approve "HTTP/1.1 200 OK"
+2025-12-04 19:56:32,936 - httpx - INFO - _client.py:1026 - HTTP Request: GET http://testserver/api/v1/documents/search?filename=invoice "HTTP/1.1 200 OK"
+2025-12-04 19:56:32,939 - httpx - INFO - _client.py:1026 - HTTP Request: GET http://testserver/api/v1/documents/search?min_confidence=80 "HTTP/1.1 200 OK"

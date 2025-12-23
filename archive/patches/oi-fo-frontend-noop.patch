@@ -1,0 +1,19 @@
+diff --git a/docs/MAINTENANCE_NOTES.md b/docs/MAINTENANCE_NOTES.md
+index 1234567..2345678 100644
+--- a/docs/MAINTENANCE_NOTES.md
++++ b/docs/MAINTENANCE_NOTES.md
+@@ -13,3 +13,14 @@
+
+ **Test**: Verify UK pack YAML files load without truncation errors
+ **Validation**: pytest -q tests/test_pack_routes.py -k uk (when available)
++
++## OI-FO-FRONTEND-NOOP
++
++**Issue**: Frontend build structured edit yields no operations (empty_patch).
++
++**Fix Applied**:
++- Empty-patch guard relaxed for structured-edit no-op
++- Plan scope reduced for frontend phases
++
++**Status**: RESOLVED (code fix already applied)
++**Test**: Verify frontend build accepts no-op structured edits without failure

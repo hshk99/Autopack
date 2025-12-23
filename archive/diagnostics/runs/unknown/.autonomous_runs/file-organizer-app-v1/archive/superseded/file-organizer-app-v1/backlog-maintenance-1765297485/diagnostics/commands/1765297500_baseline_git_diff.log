@@ -1,0 +1,12 @@
+# Command: git diff --stat
+# Exit: 0
+# Duration: 0.09s
+
+# STDOUT
+
+ scripts/tidy_workspace.py | 12 ++++++++----
+ 1 file changed, 8 insertions(+), 4 deletions(-)
+
+
+# STDERR
+

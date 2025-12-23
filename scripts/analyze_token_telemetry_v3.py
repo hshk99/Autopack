@@ -187,13 +187,21 @@ class TelemetryAnalyzerV3:
             total += count
         return total
 
-    def calculate_tier1_metrics(self, records: List[TokenEstimationRecord]) -> Dict:
+    def calculate_tier1_metrics(self, records: List[TokenEstimationRecord], under_multiplier: float = 1.0) -> Dict:
         """Tier 1: Risk Metrics (truncation prevention)."""
         if not records:
             return {"error": "No records"}
 
-        # Underestimation: actual > predicted (risk of truncation)
-        underestimated = [r for r in records if r.actual > r.predicted]
+        # Underestimation: actual > predicted * multiplier (risk of truncation)
+        # multiplier=1.0 is strict; >1.0 adds tolerance to ignore small deviations.
+        try:
+            under_multiplier = float(under_multiplier)
+        except Exception:
+            under_multiplier = 1.0
+        if under_multiplier <= 0:
+            under_multiplier = 1.0
+
+        underestimated = [r for r in records if r.actual > (r.predicted * under_multiplier)]
         underestimation_rate = len(underestimated) / len(records) * 100
 
         # Truncation (V2 only)
@@ -208,6 +216,7 @@ class TelemetryAnalyzerV3:
         return {
             "underestimation_rate_pct": underestimation_rate,
             "underestimation_count": len(underestimated),
+            "under_multiplier": under_multiplier,
             "truncation_rate_pct": truncation_rate,
             "truncation_count": len(truncated),
             "success_rate_pct": success_rate,
@@ -253,6 +262,7 @@ class TelemetryAnalyzerV3:
         }
 
     def generate_report(self, success_only: bool = False, stratify: bool = False,
+                       under_multiplier: float = 1.0,
                        output_path: Optional[Path] = None) -> str:
         """Generate comprehensive analysis report."""
         if not self.records:
@@ -265,7 +275,7 @@ class TelemetryAnalyzerV3:
             if not analysis_records:
                 return "# Token Estimation Analysis\n\nNo successful records found for analysis.\n"
 
-        tier1 = self.calculate_tier1_metrics(analysis_records)
+        tier1 = self.calculate_tier1_metrics(analysis_records, under_multiplier=under_multiplier)
         tier2 = self.calculate_tier2_metrics(analysis_records)
         diagnostic = self.calculate_diagnostic_metrics(analysis_records)
 
@@ -285,6 +295,7 @@ Generated: {datetime.now().isoformat()}
 - **Total Records**: {len(self.records)}
 - **Analysis Records**: {len(analysis_records)}
 - **V2 Records**: {tier1.get('v2_samples', 0)}
+- **Underestimation tolerance**: actual > predicted * {tier1.get('under_multiplier', 1.0):.2f}
 
 ---
 
@@ -361,7 +372,7 @@ Consider cost optimization (Tier 2) if waste ratio P90 > 3x, but this is seconda
 
         # Stratification section
         if stratify:
-            report += self._generate_stratified_analysis(analysis_records)
+            report += self._generate_stratified_analysis(analysis_records, under_multiplier=under_multiplier)
 
         # Recommendations
         report += """
@@ -406,7 +417,7 @@ Total files analyzed: {len(set(r.source_file for r in self.records))}
 
         return report
 
-    def _generate_stratified_analysis(self, records: List[TokenEstimationRecord]) -> str:
+    def _generate_stratified_analysis(self, records: List[TokenEstimationRecord], under_multiplier: float = 1.0) -> str:
         """Generate stratified breakdown by category/complexity."""
         v2_records = [r for r in records if r.meta.get("format") == "v2"]
 
@@ -422,7 +433,7 @@ Total files analyzed: {len(set(r.source_file for r in self.records))}
 
         report += "### By Category\n\n"
         for category, cat_records in sorted(by_category.items()):
-            tier1 = self.calculate_tier1_metrics(cat_records)
+            tier1 = self.calculate_tier1_metrics(cat_records, under_multiplier=under_multiplier)
             report += f"**{category}** ({len(cat_records)} samples):\n"
             report += f"- Underestimation: {tier1.get('underestimation_rate_pct', 0):.1f}%\n"
             report += f"- Truncation: {tier1.get('truncation_rate_pct', 0):.1f}%\n"
@@ -435,8 +446,32 @@ Total files analyzed: {len(set(r.source_file for r in self.records))}
 
         report += "### By Complexity\n\n"
         for complexity, comp_records in sorted(by_complexity.items()):
-            tier1 = self.calculate_tier1_metrics(comp_records)
+            tier1 = self.calculate_tier1_metrics(comp_records, under_multiplier=under_multiplier)
             report += f"**{complexity}** ({len(comp_records)} samples):\n"
+            report += f"- Underestimation: {tier1.get('underestimation_rate_pct', 0):.1f}%\n"
+            report += f"- Truncation: {tier1.get('truncation_rate_pct', 0):.1f}%\n"
+            report += f"- Success: {tier1.get('success_rate_pct', 0):.1f}%\n\n"
+
+        # By deliverable-count bucket
+        def bucket(n: int) -> str:
+            if n <= 1:
+                return "1"
+            if n <= 5:
+                return "2-5"
+            return "6+"
+
+        by_bucket = defaultdict(list)
+        for r in v2_records:
+            try:
+                dcount = int(r.meta.get("deliverables", 0))
+            except Exception:
+                dcount = 0
+            by_bucket[bucket(dcount)].append(r)
+
+        report += "### By Deliverable Count\n\n"
+        for b, b_records in sorted(by_bucket.items(), key=lambda x: ["1", "2-5", "6+"].index(x[0]) if x[0] in ["1", "2-5", "6+"] else 99):
+            tier1 = self.calculate_tier1_metrics(b_records, under_multiplier=under_multiplier)
+            report += f"**{b} files** ({len(b_records)} samples):\n"
             report += f"- Underestimation: {tier1.get('underestimation_rate_pct', 0):.1f}%\n"
             report += f"- Truncation: {tier1.get('truncation_rate_pct', 0):.1f}%\n"
             report += f"- Success: {tier1.get('success_rate_pct', 0):.1f}%\n\n"
@@ -476,6 +511,12 @@ def main():
         action="store_true",
         help="Include stratified analysis by category/complexity"
     )
+    parser.add_argument(
+        "--under-multiplier",
+        type=float,
+        default=1.0,
+        help="Count underestimation when actual > predicted * multiplier (default: 1.0)"
+    )
 
     args = parser.parse_args()
 
@@ -495,6 +536,7 @@ def main():
     report = analyzer.generate_report(
         success_only=args.success_only,
         stratify=args.stratify,
+        under_multiplier=args.under_multiplier,
         output_path=args.output
     )
 

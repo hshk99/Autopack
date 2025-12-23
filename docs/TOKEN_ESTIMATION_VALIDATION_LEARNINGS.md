@@ -221,7 +221,7 @@ Our 5 V2 samples are:
 
 - [x] Implement TokenEstimationV2 telemetry
 - [x] Fix manifest_generator.py API calls
-- [x] Enhance analyzer with stratification support
+- [x] Add V3 analyzer for success-only filtering + 2-tier metrics + stratification
 - [x] Remove manual estimate injection from test scripts
 - [x] Add SMAPE + truncation/success metadata
 
@@ -233,7 +233,7 @@ Our 5 V2 samples are:
 
 **Method**:
 1. Wait for autonomous runs to complete successfully (BUILD-130, etc.)
-2. Analyze production logs: `python scripts/analyze_token_telemetry.py --log-dir .autonomous_runs`
+2. Analyze production logs: `python scripts/analyze_token_telemetry_v3.py --log-dir .autonomous_runs`
 3. Filter for V2 telemetry with `success=True`
 4. Ensure diverse deliverable categories and complexity levels
 
@@ -249,9 +249,10 @@ Our 5 V2 samples are:
 
 1. **Generate stratified reports**
    ```bash
-   python scripts/analyze_token_telemetry.py \
+   python scripts/analyze_token_telemetry_v3.py \
      --log-dir .autonomous_runs \
-     --stratify-by success,category,complexity \
+     --success-only \
+     --stratify \
      --output reports/telemetry_stratified_analysis.md
    ```
 
@@ -260,9 +261,11 @@ Our 5 V2 samples are:
    - Is there systematic bias (over/under)?
    - What's the actual truncation rate?
    - Do complexity levels correlate with accuracy?
+   - Do deliverable-count buckets (1 / 2-5 / 6+) behave differently?
 
 3. **Calculate target metrics**
-   - Underestimation rate (target: <5%)
+   - Underestimation rate (target: <5%)  
+     Recommended tolerance: treat underestimation as `actual > predicted * 1.1` to ignore tiny deltas.
    - Truncation rate (target: <2%)
    - Waste ratio (target: <2x at P95)
 

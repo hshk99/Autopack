@@ -1,10 +1,107 @@
 # Build Log - Daily Activity Log
 
 <!-- META
-Last_Updated: 2025-12-22T14:45:00Z
+Last_Updated: 2025-12-23T15:30:00Z
 Format_Version: 1.0
 Purpose: Daily chronological log of build activities and execution runs
 -->
+
+## 2025-12-23
+
+### BUILD-129 Phase 1 Token Estimator Validation - PRODUCTION-READY ✅
+
+**Activity**: Token estimation validation infrastructure complete
+**Start Time**: 2025-12-23 08:00:00
+**Completion Time**: 2025-12-23 15:30:00
+**Status**: PRODUCTION-READY (awaiting representative data)
+
+#### Implementation Journey
+
+**Initial Implementation (V1 - FLAWED)**:
+- Implemented V1 telemetry logging predicted vs actual tokens
+- Collected baseline: "79.4% error rate" from test harness
+- **Critical Flaw** (identified by parallel cursor): Measured manual test inputs, NOT real TokenEstimator predictions
+- Would have caused catastrophic 80% coefficient reduction based on invalid data
+
+**Corrected Implementation (V2 Telemetry)**:
+- Commit `13459ed3`: Fixed telemetry to extract real predictions from `token_estimate.estimated_tokens`
+- Added SMAPE (symmetric error) metric to avoid bias
+- Added metadata: success, truncation, stop_reason, category, complexity, deliverable count
+- **Impact**: Now measures what actually matters - TokenEstimator prediction accuracy
+
+**Enhanced Analysis (V3 Analyzer)**:
+- Commit `97f70319`: Production-ready analyzer with 2-tier metrics
+- **Tier 1 (Risk)**: Underestimation ≤5%, Truncation ≤2% (drive tuning decisions)
+- **Tier 2 (Cost)**: Waste ratio P90 < 3x (secondary optimization)
+- Success-only filtering (`--success-only` flag)
+- Stratification by category/complexity/deliverable-count (1/2-5/6+ files)
+- Underestimation tolerance (`--under-multiplier 1.1` to ignore trivial deltas)
+
+#### Key Learnings
+
+1. **Measure What Matters**: Truncation/underestimation, not just SMAPE
+2. **Representative Samples Required**: Success=True only for tuning decisions
+3. **Stratification Critical**: Category/complexity/deliverable-count breakdown needed
+4. **Avoid Premature Optimization**: Wait for valid data before coefficient changes
+5. **Asymmetric Loss Functions**: Weight underestimation heavily (truncation risk)
+6. **Tolerance for Trivial Differences**: Use multiplier to ignore 1-2 token deltas
+
+#### Files Modified/Created
+
+**Core Telemetry**:
+- `src/autopack/anthropic_clients.py:652-699` - V2 telemetry logging
+- `src/autopack/manifest_generator.py` - Fixed TokenEstimator API call
+
+**Analysis Infrastructure**:
+- `scripts/analyze_token_telemetry_v3.py` - V3 analyzer (505 lines)
+- `scripts/collect_telemetry_simple.py` - Corrected test harness
+
+**Documentation**:
+- `docs/BUILD-129_PHASE1_VALIDATION_COMPLETE.md` - Complete implementation summary (480 lines)
+- `docs/TOKEN_ESTIMATION_VALIDATION_LEARNINGS.md` - Critical learnings (383 lines)
+- `docs/TOKEN_ESTIMATION_V3_ENHANCEMENTS.md` - V3 methodology (371 lines)
+
+#### Current Status
+
+**✅ COMPLETE**:
+- V2 Telemetry: Logs real TokenEstimator predictions
+- V3 Analyzer: 2-tier metrics, success filtering, stratification
+- Deliverable-count buckets: 1 / 2-5 / 6+ files
+- Underestimation tolerance: --under-multiplier flag
+- Comprehensive documentation
+
+**⏳ BLOCKED**:
+- Representative data collection: Need 20+ successful production samples
+- Current blocker: BUILD-130 runs failed on deliverables validation before Builder execution
+- Telemetry only logs when Builder actually generates output
+
+#### Next Steps
+
+When successful production runs complete:
+```bash
+python scripts/analyze_token_telemetry_v3.py \
+  --log-dir .autonomous_runs \
+  --success-only \
+  --stratify \
+  --under-multiplier 1.1 \
+  --output reports/telemetry_success_stratified.md
+```
+
+If Tier 1 metrics exceed targets → Tune category-specific coefficients
+Otherwise → No tuning needed (current estimator working well)
+
+---
+
+### BUILD-130 Schema Validation & Prevention Attempts
+
+**Run ID**: build130-schema-validation-prevention
+**Multiple Attempts**: build130_attempt3, build130_attempt4, build130_final
+**Status**: DONE (deliverables validation failed - code already exists)
+**Goal**: Test BUILD-130 prevention infrastructure
+
+**Outcome**: All attempts failed on deliverables validation (Builder produced empty patch because files already exist from manual implementation). Expected behavior since BUILD-130 was manually implemented earlier. No new telemetry samples collected.
+
+---
 
 ## 2025-12-22
 

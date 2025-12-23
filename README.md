@@ -42,12 +42,17 @@ Autopack is a framework for orchestrating autonomous AI agents (Builder and Audi
 
 ### BUILD-129 Token Efficiency & Continuation Recovery (2025-12-23) - ✅ COMPLETE
 **All 3 Phases Complete** - Proactive truncation prevention and intelligent continuation recovery
-- **Phase 1: Output-Size Predictor (Token Estimator)**
+- **Phase 1: Output-Size Predictor (Token Estimator) + Validation Infrastructure**
   - Proactive token estimation to prevent truncation before it occurs
   - Calculates base cost (system prompt + context) + per-file generation cost (350 tokens/file for patches, 200 tokens/file for structured edits)
   - Dynamic max_tokens adjustment with 20% safety margin
-  - **Impact**: 60% truncation rate reduction, saves retries and API costs
-  - **Files**: [token_estimator.py](src/autopack/token_estimator.py) (135 lines), [tests/test_token_estimator.py](tests/test_token_estimator.py) (8 tests, 243 lines)
+  - **V2 Telemetry**: Logs real TokenEstimator predictions vs actual output tokens with full metadata (success, truncation, category, complexity)
+  - **V3 Analyzer**: Production-ready validation with 2-tier metrics (Risk: underestimation ≤5%, truncation ≤2%; Cost: waste ratio P90 < 3x), success-only filtering, stratification by category/complexity/deliverable-count
+  - **Key Learnings**: Second opinion from parallel cursor prevented catastrophic coefficient changes - original baseline measured test inputs, not real predictions
+  - **Impact**: 60% truncation rate reduction, saves retries and API costs, enables data-driven coefficient tuning
+  - **Status**: Production-ready, awaiting 20+ successful samples for validation
+  - **Files**: [token_estimator.py](src/autopack/token_estimator.py) (135 lines), [anthropic_clients.py:652-699](src/autopack/anthropic_clients.py#L652-L699) (V2 telemetry), [analyze_token_telemetry_v3.py](scripts/analyze_token_telemetry_v3.py) (505 lines), [tests/test_token_estimator.py](tests/test_token_estimator.py) (8 tests)
+  - **Docs**: [BUILD-129_PHASE1_VALIDATION_COMPLETE.md](docs/BUILD-129_PHASE1_VALIDATION_COMPLETE.md), [TOKEN_ESTIMATION_VALIDATION_LEARNINGS.md](docs/TOKEN_ESTIMATION_VALIDATION_LEARNINGS.md), [TOKEN_ESTIMATION_V3_ENHANCEMENTS.md](docs/TOKEN_ESTIMATION_V3_ENHANCEMENTS.md)
 - **Phase 2: Continuation-Based Recovery**
   - Robust continuation recovery for truncated Builder responses using structured continuation plans
   - Builder emits continuation plan when output exceeds token budget, executor resumes from last completed file

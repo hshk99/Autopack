@@ -65,7 +65,8 @@ class PhaseFinalizer:
         auditor_result: Optional[Dict],
         deliverables: List[str],
         applied_files: List[str],
-        workspace: Path
+        workspace: Path,
+        builder_output: Optional[str] = None
     ) -> PhaseFinalizationDecision:
         """
         Comprehensive completion check.
@@ -80,6 +81,7 @@ class PhaseFinalizer:
             deliverables: Required deliverables list
             applied_files: Files actually applied in patch
             workspace: Workspace path
+            builder_output: Builder's output text (for manifest extraction, BUILD-127 Phase 3)
 
         Returns:
             PhaseFinalizationDecision with blocking issues and warnings
@@ -172,6 +174,28 @@ class PhaseFinalizer:
                     logger.error(
                         f"[PhaseFinalizer] BLOCK: Missing deliverables: {missing}"
                     )
+
+        # Gate 3.5: Structured manifest validation (BUILD-127 Phase 3)
+        if builder_output and deliverables:
+            manifest = deliverables_validator_module.extract_manifest_from_output(builder_output)
+            if manifest:
+                logger.info(f"[PhaseFinalizer] Validating structured deliverables manifest")
+                passed, issues = deliverables_validator_module.validate_structured_manifest(
+                    manifest=manifest,
+                    workspace=workspace,
+                    expected_deliverables=deliverables
+                )
+
+                if not passed:
+                    blocking_issues.append(f"Manifest validation failed: {'; '.join(issues)}")
+                    logger.error(f"[PhaseFinalizer] BLOCK: Manifest validation failed with {len(issues)} issues")
+                    for issue in issues:
+                        logger.error(f"[PhaseFinalizer]   - {issue}")
+                else:
+                    logger.info(f"[PhaseFinalizer] ✅ Structured manifest validated successfully")
+            else:
+                # Manifest not found - log as warning but don't block (optional feature)
+                logger.info(f"[PhaseFinalizer] No structured manifest found in builder output (optional)")
 
         # Decision
         if blocking_issues:

@@ -2328,6 +2328,37 @@ FORBIDDEN APPROACH:
             # Gracefully continue if prevention rules can't be loaded
             pass
 
+        # BUILD-127 Phase 3: Request deliverables manifest from Builder
+        if phase_spec and phase_spec.get("deliverables"):
+            manifest_request = """
+
+**DELIVERABLES MANIFEST (BUILD-127 Phase 3)**:
+After implementing the changes, provide a deliverables manifest at the end of your response (after the main output):
+
+DELIVERABLES_MANIFEST:
+```json
+{
+  "created": [
+    {"path": "src/autopack/example.py", "symbols": ["ExampleClass", "example_function"]},
+    {"path": "tests/test_example.py", "symbols": ["test_example_creation", "test_example_validation"]}
+  ],
+  "modified": [
+    {"path": "src/autopack/main.py", "changes": "Added example import and initialization"}
+  ]
+}
+```
+
+This manifest will be validated to ensure all required deliverables are created with expected symbols.
+
+MANIFEST REQUIREMENTS:
+1. Include ALL created files with their key symbols (classes, functions, constants)
+2. Include ALL modified files with a brief description of changes
+3. Use complete paths from repository root
+4. For test files, list test function names
+5. For source files, list public classes and functions
+"""
+            base_prompt += manifest_request
+
         return base_prompt
 
     def _build_minimal_system_prompt(self, use_structured_edit: bool = False, use_ndjson_format: bool = False, phase_spec: Optional[Dict] = None) -> str:

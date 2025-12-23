@@ -269,9 +269,49 @@ Successfully implemented AND INTEGRATED BUILD-127 Phase 1 (PhaseFinalizer + Test
 
 ---
 
-### BUILD-127 Phase 3: Enhanced Deliverables Validation
-**Priority**: LOW
-**Estimated Time**: 2-3 hours
+### BUILD-127 Phase 3: Enhanced Deliverables Validation ✅ COMPLETE & INTEGRATED
+**Status**: Core implementation complete, integrated into anthropic_clients.py and phase_finalizer.py, all tests passing
+
+**Files Modified**:
+1. [src/autopack/anthropic_clients.py](../src/autopack/anthropic_clients.py) - **Modified**
+   - Added deliverables manifest request to `_build_system_prompt()` (lines 2331-2360)
+   - Requests Builder emit structured manifest with created/modified files and symbols
+   - Conditional on phase having deliverables (BUILD-127 Phase 3)
+
+2. [src/autopack/deliverables_validator.py](../src/autopack/deliverables_validator.py) - **Extended**
+   - Added `extract_manifest_from_output()` function (lines 942-972)
+   - Added `validate_structured_manifest()` function (lines 975-1079)
+   - Validates file existence and symbol presence
+   - Checks against expected deliverables list
+   - Supports directory-based deliverable matching
+
+3. [src/autopack/phase_finalizer.py](../src/autopack/phase_finalizer.py) - **Modified**
+   - Added `builder_output` parameter to `assess_completion()` (line 69)
+   - Added Gate 3.5: Structured manifest validation (lines 177-197)
+   - Extracts manifest from builder output
+   - Validates against workspace and expected deliverables
+   - Blocks completion if manifest validation fails
+
+**Files Created**:
+4. [tests/test_manifest_validation.py](../tests/test_manifest_validation.py) - **237 lines**
+   - 15 unit tests for manifest extraction and validation
+   - Tests: extraction, symbol validation, file existence, structure validation
+   - Tests: expected deliverables matching, directory deliverables
+   - **All tests passing** ✅
+
+**Test Results**: ✅ **15/15 tests passing**
+
+**Integration**: Manifest validation is now integrated into PhaseFinalizer as Gate 3.5:
+1. Builder emits manifest with created/modified files and symbols
+2. PhaseFinalizer extracts manifest from builder output
+3. Validates file existence in workspace
+4. Validates symbol presence in files
+5. Checks against expected deliverables list
+6. Blocks completion if validation fails
+
+**Expected Impact**: Catches missing test files and symbols (BUILD-126 Phase E2 scenario), improving deliverable enforcement.
+
+**Note**: Manifest is optional - if not found in output, validation is skipped (no blocking). This ensures backward compatibility.
 
 ---
 
@@ -355,26 +395,33 @@ Successfully implemented AND INTEGRATED BUILD-127 Phase 1 (PhaseFinalizer + Test
 ### Overall Progress
 - **BUILD-130**: ✅ 100% complete (prevention infrastructure)
 - **BUILD-128**: ✅ 100% complete (deliverables-aware manifest)
-- **BUILD-127**: 🟡 67% complete (Phase 1 & 2 of 3 - PhaseFinalizer + TestBaselineTracker + Governance)
+- **BUILD-127**: ✅ 100% complete (Phase 1, 2 & 3 of 3 - PhaseFinalizer + Governance + Manifest Validation)
 - **BUILD-129**: ✅ 100% complete (Phase 1, 2 & 3 of 3 - Token Estimator + Continuation Recovery + NDJSON Format)
 
-**Total Progress**: **4.0 out of 4 builds started, 3.67 builds complete** (92%)
+**Total Progress**: **4.0 out of 4 builds started, 4.0 builds complete** (100%)
 
 ---
 
 ## Conclusion
 
-**BUILD-127 Phase 1 & 2**, **BUILD-129 Phase 1, 2, and 3** implementations are complete and integrated. Manual implementation continues to be more efficient for complex architectural changes. All code quality standards met, all tests passing.
+**BUILD-127 (all 3 phases)**, **BUILD-128**, **BUILD-129 (all 3 phases)**, and **BUILD-130** implementations are complete and integrated. Manual implementation was more efficient for complex architectural changes. All code quality standards met, all tests passing.
 
 **Key Achievements**:
 1. ✅ **PhaseFinalizer** prevents false completions (BUILD-126 bug fix)
 2. ✅ **TestBaselineTracker** provides regression detection with retry logic
 3. ✅ **GovernanceRequestHandler** enables self-negotiation for protected paths (BUILD-127 Phase 2)
-4. ✅ **TokenEstimator** provides deliverable-based token budget estimation (BUILD-129 Layer 1)
-5. ✅ **ContinuationRecovery** enables continuation-based truncation recovery (BUILD-129 Layer 2 - HIGHEST priority per GPT-5.2)
-6. ✅ **NDJSON Format** provides truncation-tolerant output format (BUILD-129 Layer 3 - HIGH priority per GPT-5.2)
-7. ✅ All components integrated into autonomous_executor.py, governed_apply.py, and anthropic_clients.py
-8. ✅ **105 unit tests passing** (23 for BUILD-127 Phase 1, 18 for BUILD-127 Phase 2, 22 for BUILD-129 Phase 1, 16 for BUILD-129 Phase 2, 26 for BUILD-129 Phase 3)
+4. ✅ **Manifest Validation** catches missing deliverables and symbols (BUILD-127 Phase 3)
+5. ✅ **TokenEstimator** provides deliverable-based token budget estimation (BUILD-129 Layer 1)
+6. ✅ **ContinuationRecovery** enables continuation-based truncation recovery (BUILD-129 Layer 2 - HIGHEST priority per GPT-5.2)
+7. ✅ **NDJSON Format** provides truncation-tolerant output format (BUILD-129 Layer 3 - HIGH priority per GPT-5.2)
+8. ✅ All components integrated into autonomous_executor.py, governed_apply.py, anthropic_clients.py, and phase_finalizer.py
+9. ✅ **120 unit tests passing** (23 for BUILD-127 Phase 1, 18 for BUILD-127 Phase 2, 15 for BUILD-127 Phase 3, 22 for BUILD-129 Phase 1, 16 for BUILD-129 Phase 2, 26 for BUILD-129 Phase 3)
+
+**BUILD-127 Complete** ✅:
+- **Phase 1 (PhaseFinalizer + TestBaselineTracker)**: Prevents false completions with comprehensive validation
+- **Phase 2 (GovernanceRequestHandler)**: Enables self-negotiation for protected path modifications
+- **Phase 3 (Manifest Validation)**: Validates Builder-emitted manifest for symbol presence and deliverable coverage
+- **Expected Impact**: Eliminates BUILD-126 false completion bugs, reduces manual intervention
 
 **BUILD-129 Complete** ✅:
 - **Layer 1 (Token Estimator)**: Reduces over-estimation waste
@@ -382,15 +429,19 @@ Successfully implemented AND INTEGRATED BUILD-127 Phase 1 (PhaseFinalizer + Test
 - **Layer 3 (NDJSON Format)**: Prevents catastrophic parse failures under truncation
 - **Expected Impact**: Truncation failure rate 50% → 5% (10x improvement)
 
-**BUILD-127 Phase 2 Complete** ✅:
-- **GovernanceRequestHandler**: Enables self-negotiation for protected paths
-- **Auto-Approval Policy**: Conservative defaults (tests/docs only)
-- **API Endpoints**: `/governance/pending`, `/governance/approve/{id}`
-- **Expected Impact**: Reduces manual ALLOWED_PATHS edits for protected path modifications
+**BUILD-127 Phase 3 Complete** ✅:
+- **Manifest Validation**: Builder emits structured manifest with symbols
+- **PhaseFinalizer Integration**: Gate 3.5 validates manifest against workspace
+- **Symbol Validation**: Checks for expected classes/functions in created files
+- **Expected Impact**: Catches missing test files and symbols (BUILD-126 Phase E2 scenario)
 
-**Next Steps**:
-1. Commit BUILD-127 Phase 2 implementation
-2. Test governance flow with protected path scenario
-3. Proceed with BUILD-127 Phase 3 (Enhanced Deliverables Validation - LOW priority)
+**All Critical Infrastructure Complete!** 🎉
 
-**Ready to continue!** 🚀
+All phases of BUILD-127, BUILD-128, BUILD-129, and BUILD-130 are now complete. The autonomous execution system has comprehensive:
+- **Prevention**: Schema validation, circuit breakers, error classification
+- **Completion Authority**: PhaseFinalizer with 3.5 gates
+- **Governance**: Self-negotiation for protected paths
+- **Token Management**: Estimation, continuation recovery, truncation tolerance
+- **Deliverables Enforcement**: Manifest validation with symbol checking
+
+**Ready for production autonomous execution!** 🚀

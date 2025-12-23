@@ -937,3 +937,143 @@ def format_validation_feedback_for_builder(
     feedback.append("Ensure all file paths match the deliverables specification exactly.")
 
     return "\n".join(feedback)
+
+
+def extract_manifest_from_output(output: str) -> Optional[Dict]:
+    """Extract deliverables manifest from Builder output (BUILD-127 Phase 3).
+
+    Builder should include a manifest at the end of output like:
+
+    DELIVERABLES_MANIFEST:
+    ```json
+    {
+      "created": [...],
+      "modified": [...]
+    }
+    ```
+
+    Returns:
+        Dict with manifest data, or None if not found
+    """
+    import re
+
+    # Look for DELIVERABLES_MANIFEST marker
+    pattern = r'DELIVERABLES_MANIFEST:\s*```json\s*(\{.*?\})\s*```'
+    match = re.search(pattern, output, re.DOTALL | re.IGNORECASE)
+
+    if not match:
+        return None
+
+    try:
+        manifest = json.loads(match.group(1))
+        return manifest
+    except json.JSONDecodeError:
+        logger.warning("[ManifestValidator] Failed to parse deliverables manifest JSON")
+        return None
+
+
+def validate_structured_manifest(
+    manifest: Dict,
+    workspace: Path,
+    expected_deliverables: Optional[List[str]] = None
+) -> Tuple[bool, List[str]]:
+    """Validate Builder's deliverables manifest (BUILD-127 Phase 3).
+
+    Args:
+        manifest: Parsed deliverables manifest from Builder
+        workspace: Workspace path for file validation
+        expected_deliverables: Optional list of expected file paths
+
+    Returns:
+        Tuple of (passed: bool, issues: List[str])
+    """
+    issues = []
+
+    # Validate manifest structure
+    if not isinstance(manifest, dict):
+        issues.append("Manifest is not a dictionary")
+        return False, issues
+
+    created = manifest.get("created", [])
+    modified = manifest.get("modified", [])
+
+    if not isinstance(created, list):
+        issues.append("Manifest 'created' field is not a list")
+    if not isinstance(modified, list):
+        issues.append("Manifest 'modified' field is not a list")
+
+    if issues:
+        return False, issues
+
+    # Validate created files
+    for item in created:
+        if not isinstance(item, dict):
+            issues.append(f"Created item is not a dictionary: {item}")
+            continue
+
+        path = item.get("path")
+        if not path:
+            issues.append(f"Created item missing 'path' field: {item}")
+            continue
+
+        # Check file exists
+        file_path = workspace / path
+        if not file_path.exists():
+            issues.append(f"Created file does not exist: {path}")
+            continue
+
+        # Validate symbols if provided
+        symbols = item.get("symbols", [])
+        if symbols:
+            try:
+                content = file_path.read_text(encoding='utf-8')
+                for symbol in symbols:
+                    if symbol not in content:
+                        issues.append(f"{path} missing expected symbol: {symbol}")
+            except Exception as e:
+                issues.append(f"Error reading {path}: {e}")
+
+    # Validate modified files
+    for item in modified:
+        if not isinstance(item, dict):
+            issues.append(f"Modified item is not a dictionary: {item}")
+            continue
+
+        path = item.get("path")
+        if not path:
+            issues.append(f"Modified item missing 'path' field: {item}")
+            continue
+
+        # Check file exists
+        file_path = workspace / path
+        if not file_path.exists():
+            issues.append(f"Modified file does not exist: {path}")
+
+    # Check against expected deliverables if provided
+    if expected_deliverables:
+        manifest_paths = set()
+        for item in created:
+            if isinstance(item, dict) and "path" in item:
+                manifest_paths.add(item["path"])
+        for item in modified:
+            if isinstance(item, dict) and "path" in item:
+                manifest_paths.add(item["path"])
+
+        # Normalize expected deliverables
+        expected_normalized = set()
+        for deliv in expected_deliverables:
+            normalized = sanitize_deliverable_path(deliv)
+            if normalized:
+                expected_normalized.add(normalized)
+
+        # Check for missing deliverables
+        for expected in expected_normalized:
+            # Allow partial matches (e.g., tests/ directory matches test_foo.py)
+            if not any(
+                path == expected or path.startswith(expected)
+                for path in manifest_paths
+            ):
+                issues.append(f"Expected deliverable not in manifest: {expected}")
+
+    passed = len(issues) == 0
+    return passed, issues

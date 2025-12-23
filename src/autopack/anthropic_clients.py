@@ -31,6 +31,8 @@ from .repair_helpers import JsonRepairHelper, save_repair_debug
 from .token_estimator import TokenEstimator
 # BUILD-129 Phase 2: Continuation-based recovery
 from .continuation_recovery import ContinuationRecovery
+# BUILD-129 Phase 3: NDJSON truncation-tolerant format
+from .ndjson_format import NDJSONParser, NDJSONApplier, detect_ndjson_format
 
 logger = logging.getLogger(__name__)
 
@@ -304,10 +306,26 @@ class AnthropicBuilderClient:
                     use_structured_edit = False
                     logger.info(f"[Builder] Using full_file mode for multi-file creation phase (BUILD-043 optimization)")
 
+            # BUILD-129 Phase 3: NDJSON format selection for truncation tolerance
+            # Per TOKEN_BUDGET_ANALYSIS_REVISED.md Layer 3: Use NDJSON for multi-file scopes (≥5 deliverables)
+            use_ndjson_format = False
+            deliverables = phase_spec.get("deliverables", [])
+            if deliverables and len(deliverables) >= 5:
+                # NDJSON provides truncation tolerance: only last incomplete line lost, not entire output
+                use_ndjson_format = True
+                # NDJSON is a variant of structured output, not full-file or diff
+                use_full_file_mode_flag = False
+                use_structured_edit = False
+                logger.info(
+                    f"[BUILD-129:Layer3] Using NDJSON format for {len(deliverables)} deliverables "
+                    f"(truncation-tolerant mode)"
+                )
+
             # BUILD-043: Build context-aware system prompt (trim for simple phases)
             system_prompt = self._build_system_prompt(
                 use_full_file_mode=use_full_file_mode_flag,
                 use_structured_edit=use_structured_edit,
+                use_ndjson_format=use_ndjson_format,
                 phase_spec=phase_spec  # Pass phase info for context-aware prompts
             )
 
@@ -462,7 +480,12 @@ class AnthropicBuilderClient:
             }
 
             def _parse_once(text: str):
-                if use_structured_edit:
+                if use_ndjson_format:
+                    return self._parse_ndjson_output(
+                        text, file_context, response, model, phase_spec, config=config,
+                        stop_reason=stop_reason, was_truncated=was_truncated
+                    )
+                elif use_structured_edit:
                     return self._parse_structured_edit_output(
                         text, file_context, response, model, phase_spec, config=config,
                         stop_reason=stop_reason, was_truncated=was_truncated
@@ -1928,10 +1951,131 @@ class AnthropicBuilderClient:
                 error=str(e)
             )
 
+    def _parse_ndjson_output(
+        self,
+        content: str,
+        file_context: Optional[Dict],
+        response: Any,
+        model: str,
+        phase_spec: Dict,
+        config: Optional[Any] = None,
+        stop_reason: Optional[str] = None,
+        was_truncated: bool = False
+    ) -> BuilderResult:
+        """
+        Parse NDJSON format output (BUILD-129 Phase 3).
+
+        NDJSON is truncation-tolerant: each line is a complete JSON object,
+        so if truncation occurs, all complete lines are still usable.
+
+        Args:
+            content: Raw LLM output in NDJSON format
+            file_context: Repository file context
+            response: API response object
+            model: Model name
+            phase_spec: Phase specification
+            config: Builder configuration
+            stop_reason: Stop reason from API
+            was_truncated: Whether output was truncated
+
+        Returns:
+            BuilderResult with success/failure status
+        """
+        try:
+            # Parse NDJSON
+            parser = NDJSONParser()
+            parse_result = parser.parse(content)
+
+            logger.info(
+                f"[BUILD-129:NDJSON] Parsed {parse_result.lines_parsed} lines, "
+                f"{len(parse_result.operations)} operations, "
+                f"truncated={parse_result.was_truncated}"
+            )
+
+            if not parse_result.operations:
+                error_msg = "NDJSON parsing produced no valid operations"
+                if was_truncated:
+                    error_msg += " (stop_reason=max_tokens)"
+                logger.error(error_msg)
+                return BuilderResult(
+                    success=False,
+                    patch_content="",
+                    builder_messages=[error_msg],
+                    tokens_used=response.usage.input_tokens + response.usage.output_tokens,
+                    model_used=model,
+                    error="ndjson_no_operations",
+                    stop_reason=stop_reason,
+                    was_truncated=was_truncated
+                )
+
+            # Apply operations using NDJSONApplier
+            workspace = Path(file_context.get("workspace", ".")) if file_context else Path(".")
+            applier = NDJSONApplier(workspace=workspace)
+            apply_result = applier.apply(parse_result.operations)
+
+            logger.info(
+                f"[BUILD-129:NDJSON] Applied {len(apply_result['applied'])} operations, "
+                f"{len(apply_result['failed'])} failed"
+            )
+
+            # Generate patch content for review (summary of changes)
+            patch_lines = [f"# NDJSON Operations Applied ({len(apply_result['applied'])} files)"]
+            for file_path in apply_result['applied']:
+                patch_lines.append(f"# - {file_path}")
+
+            if apply_result['failed']:
+                patch_lines.append(f"\n# Failed operations ({len(apply_result['failed'])}):")
+                for failed in apply_result['failed']:
+                    patch_lines.append(f"# - {failed['file_path']}: {failed['error']}")
+
+            patch_content = "\n".join(patch_lines)
+
+            # Determine success
+            success = len(apply_result['applied']) > 0 and len(apply_result['failed']) == 0
+
+            # Build messages
+            messages = []
+            if parse_result.was_truncated and parse_result.total_expected:
+                completed = len(parse_result.operations)
+                expected = parse_result.total_expected
+                messages.append(
+                    f"Output truncated: completed {completed}/{expected} operations. "
+                    f"Continuation recovery can complete remaining {expected - completed} operations."
+                )
+
+            return BuilderResult(
+                success=success,
+                patch_content=patch_content,
+                builder_messages=messages,
+                tokens_used=response.usage.input_tokens + response.usage.output_tokens,
+                model_used=model,
+                stop_reason=stop_reason,
+                was_truncated=parse_result.was_truncated,
+                raw_output=content  # Store raw output for continuation recovery
+            )
+
+        except Exception as e:
+            logger.error(f"[BUILD-129:NDJSON] Error parsing NDJSON output: {e}")
+            error_msg = f"NDJSON parsing failed: {str(e)}"
+            if was_truncated:
+                error_msg += " (stop_reason=max_tokens)"
+
+            return BuilderResult(
+                success=False,
+                patch_content="",
+                builder_messages=[error_msg],
+                tokens_used=response.usage.input_tokens + response.usage.output_tokens,
+                model_used=model,
+                error="ndjson_parse_error",
+                stop_reason=stop_reason,
+                was_truncated=was_truncated
+            )
+
     def _build_system_prompt(
         self,
         use_full_file_mode: bool = True,
         use_structured_edit: bool = False,
+        use_ndjson_format: bool = False,
         phase_spec: Optional[Dict] = None
     ) -> str:
         """Build system prompt for Claude Builder
@@ -1940,6 +2084,7 @@ class AnthropicBuilderClient:
             use_full_file_mode: If True, use new full-file replacement format (GPT_RESPONSE10).
                                If False, use legacy git diff format (deprecated).
             use_structured_edit: If True, use structured edit mode for large files (Stage 2).
+            use_ndjson_format: If True, use NDJSON format for truncation tolerance (BUILD-129 Phase 3).
             phase_spec: Phase specification for context-aware prompt optimization (BUILD-043).
         """
         # BUILD-043: Use minimal prompt for simple phases to save tokens
@@ -1949,9 +2094,44 @@ class AnthropicBuilderClient:
 
             # Simple file creation phases don't need complex instructions
             if complexity == "low" and task_category in ("feature", "bugfix"):
-                return self._build_minimal_system_prompt(use_structured_edit, phase_spec)
+                return self._build_minimal_system_prompt(use_structured_edit, use_ndjson_format, phase_spec)
 
-        if use_structured_edit:
+        if use_ndjson_format:
+            # BUILD-129 Phase 3: NDJSON format for truncation tolerance
+            parser = NDJSONParser()
+            deliverables = phase_spec.get("deliverables", []) if phase_spec else []
+            summary = phase_spec.get("description", "Implement changes") if phase_spec else "Implement changes"
+
+            base_prompt = """You are an expert software engineer working on an autonomous build system.
+
+**OUTPUT FORMAT: NDJSON (Newline-Delimited JSON) - TRUNCATION-TOLERANT**
+
+Generate output in NDJSON format - one complete JSON object per line.
+This format is truncation-tolerant: if output is cut off mid-generation, all complete lines are still valid.
+
+"""
+            # Add format instructions from NDJSONParser
+            base_prompt += parser.format_for_prompt(deliverables, summary)
+
+            base_prompt += """
+
+**CRITICAL REQUIREMENTS**:
+1. Each line MUST be a complete, valid JSON object
+2. NO line breaks within JSON objects (use \\n for newlines in content strings)
+3. First line: meta object with summary and total_operations
+4. Subsequent lines: one operation per line
+
+**OPERATION TYPES**:
+- create: Full file content for new files
+- modify: Structured edit operations for existing files
+- delete: Remove files
+
+**TRUNCATION TOLERANCE**:
+This format ensures that if generation is truncated, all complete operation lines are preserved and usable.
+Only the last incomplete line is lost."""
+
+            return base_prompt
+        elif use_structured_edit:
             # NEW: Structured edit mode for large files (Stage 2) - per IMPLEMENTATION_PLAN3.md Phase 2.1
             base_prompt = """You are a code modification assistant. Generate targeted edit operations for large files.
 
@@ -2150,13 +2330,14 @@ FORBIDDEN APPROACH:
 
         return base_prompt
 
-    def _build_minimal_system_prompt(self, use_structured_edit: bool = False, phase_spec: Optional[Dict] = None) -> str:
+    def _build_minimal_system_prompt(self, use_structured_edit: bool = False, use_ndjson_format: bool = False, phase_spec: Optional[Dict] = None) -> str:
         """Build minimal system prompt for simple phases (BUILD-043)
 
         Trimmed version saves ~3K tokens for low-complexity tasks.
 
         Args:
             use_structured_edit: If True, use structured edit JSON format.
+            use_ndjson_format: If True, use NDJSON format (BUILD-129 Phase 3).
             phase_spec: Phase specification for protected path guidance (BUILD-044).
 
         Returns:

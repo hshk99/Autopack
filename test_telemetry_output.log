@@ -1,0 +1,16 @@
+2025-12-23 19:31:03,555 - autopack.token_estimator - INFO - [TokenEstimator] Budget selection: base=8192, estimated=448, with_buffer=537, selected=8192, confidence=80.0%
+2025-12-23 19:31:03,556 - autopack.anthropic_clients - INFO - [BUILD-129] Token estimate: 448 tokens (1 deliverables, confidence=0.80), selected budget: 8192
+2025-12-23 19:31:03,556 - autopack.journal_reader - WARNING - CONSOLIDATED_DEBUG.md not found at C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\CONSOLIDATED_DEBUG.md
+2025-12-23 19:31:03,583 - autopack.anthropic_clients - WARNING - [TOKEN_SOFT_CAP] run_id=unknown phase_id=test-token-telemetry est_total=12273 soft_cap=12000 (prompt=805 completion=11468 complexity=low)
+2025-12-23 19:31:05,567 - httpx - INFO - HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2025-12-23 19:31:07,638 - autopack.anthropic_clients - INFO - [TOKEN_BUDGET] phase=test-token-telemetry complexity=low input=845 output=104/16384 total=949 utilization=0.6% model=claude-sonnet-4-5
+2025-12-23 19:31:07,638 - autopack.anthropic_clients - INFO - [TokenEstimation] Predicted: 500 output tokens, Actual: 104 output tokens, Error: 79.2%
+
+=== Testing Token Estimation Telemetry ===
+Estimated output tokens: 500
+Running Builder...
+
+Result: success=False
+Tokens used: 949
+
+=== Check logs above for [TokenEstimation] line ===

@@ -939,6 +939,56 @@ def format_validation_feedback_for_builder(
     return "\n".join(feedback)
 
 
+def _validate_python_symbols(file_path: Path, expected_symbols: List[str], path: str) -> List[str]:
+    """Validate Python symbols using AST parsing (BUILD-127 Phase 3 Enhancement).
+
+    Uses AST parsing instead of substring search to avoid false positives
+    (symbol name in comments/strings) and false negatives (commented out code).
+
+    Args:
+        file_path: Path to Python file
+        expected_symbols: List of expected symbol names (classes, functions)
+        path: Relative path for error messages
+
+    Returns:
+        List of validation issues (empty if all symbols found)
+    """
+    import ast
+
+    issues = []
+
+    try:
+        content = file_path.read_text(encoding='utf-8')
+
+        # Try AST parsing first (most robust)
+        try:
+            tree = ast.parse(content, filename=str(file_path))
+
+            # Extract actual symbols from AST
+            actual_symbols = set()
+            for node in ast.walk(tree):
+                if isinstance(node, (ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef)):
+                    actual_symbols.add(node.name)
+
+            # Check expected symbols
+            for symbol in expected_symbols:
+                if symbol not in actual_symbols:
+                    issues.append(f"{path} missing expected symbol: {symbol}")
+
+        except SyntaxError:
+            # Fallback to substring search if AST parsing fails (syntax errors)
+            # This is acceptable because syntax errors will be caught by CI anyway
+            logger.warning(f"[ManifestValidator] AST parsing failed for {path}, falling back to substring search")
+            for symbol in expected_symbols:
+                if symbol not in content:
+                    issues.append(f"{path} missing expected symbol: {symbol}")
+
+    except Exception as e:
+        issues.append(f"Error reading {path}: {e}")
+
+    return issues
+
+
 def extract_manifest_from_output(output: str) -> Optional[Dict]:
     """Extract deliverables manifest from Builder output (BUILD-127 Phase 3).
 
@@ -1025,13 +1075,8 @@ def validate_structured_manifest(
         # Validate symbols if provided
         symbols = item.get("symbols", [])
         if symbols:
-            try:
-                content = file_path.read_text(encoding='utf-8')
-                for symbol in symbols:
-                    if symbol not in content:
-                        issues.append(f"{path} missing expected symbol: {symbol}")
-            except Exception as e:
-                issues.append(f"Error reading {path}: {e}")
+            symbol_issues = _validate_python_symbols(file_path, symbols, path)
+            issues.extend(symbol_issues)
 
     # Validate modified files
     for item in modified:

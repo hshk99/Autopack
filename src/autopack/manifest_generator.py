@@ -426,6 +426,53 @@ class ManifestGenerator:
 
         return scope_paths, read_only_context
 
+    def _add_token_estimate_metadata(
+        self,
+        phase: Dict,
+        deliverables: List[str],
+        category: str
+    ) -> None:
+        """
+        Add token estimation metadata to phase (BUILD-129 Phase 1 integration).
+
+        Optional optimization: Pre-compute token estimates during manifest generation
+        so executor can reuse instead of recalculating.
+
+        Args:
+            phase: Phase dict to enhance (modified in-place)
+            deliverables: List of deliverable paths
+            category: Phase category (backend, frontend, tests, etc.)
+        """
+        from datetime import datetime, timezone
+        from autopack.token_estimator import TokenEstimator
+
+        try:
+            estimator = TokenEstimator()
+
+            # Estimate output tokens based on deliverables
+            estimated_tokens = estimator.estimate_builder_output_tokens(
+                num_files=len(deliverables),
+                avg_file_size=1000,  # Conservative estimate
+                operation_type="patch",
+                context_size=len(phase.get("scope", {}).get("paths", [])) * 500
+            )
+
+            # Add to phase metadata
+            phase["_estimated_output_tokens"] = estimated_tokens
+            phase.setdefault("metadata", {})["token_prediction"] = {
+                "predicted": estimated_tokens,
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "source": "manifest_generator"
+            }
+
+            logger.info(
+                f"[BUILD-129] Added token estimate to phase: {estimated_tokens} tokens "
+                f"({len(deliverables)} deliverables)"
+            )
+        except Exception as e:
+            # Non-critical - log and continue
+            logger.warning(f"[BUILD-129] Token estimation failed: {e}")
+
     def _enhance_phase(
         self,
         phase: Dict
@@ -488,6 +535,10 @@ class ManifestGenerator:
             }
 
             logger.info(f"[BUILD-128] Generated scope: {len(scope_paths)} paths, {len(read_only_context)} context files")
+
+            # BUILD-129 Phase 1: Optional token estimation during manifest generation
+            self._add_token_estimate_metadata(enhanced_phase, existing_deliverables, category)
+
             return enhanced_phase, category_confidence, []
 
         # Match goal to category and generate scope (existing behavior)
@@ -551,6 +602,11 @@ class ManifestGenerator:
 
         # Store match_result in phase metadata for PlanAnalyzer (BUILD-124)
         enhanced_phase["metadata"]["_match_result"] = match_result
+
+        # BUILD-129 Phase 1: Optional token estimation during manifest generation
+        deliverables = existing_scope.get("deliverables", [])
+        if deliverables:
+            self._add_token_estimate_metadata(enhanced_phase, deliverables, match_result.category)
 
         return enhanced_phase, match_result.confidence, warnings
 

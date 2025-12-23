@@ -316,3 +316,29 @@ class TestManifestValidation:
 
             assert passed is False
             assert any("not a dictionary" in issue for issue in issues)
+
+    def test_validate_manifest_symbol_in_comment_not_matched(self):
+        """Test that symbols in comments are not matched (AST validation)."""
+        with TemporaryDirectory() as tmpdir:
+            workspace = Path(tmpdir)
+
+            # Create file with symbol name only in comment
+            (workspace / "src").mkdir()
+            (workspace / "src/example.py").write_text(
+                "# This file should have ExampleClass but doesn't\n"
+                "# TODO: Add ExampleClass implementation\n"
+                "pass\n"
+            )
+
+            manifest = {
+                "created": [
+                    {"path": "src/example.py", "symbols": ["ExampleClass"]}
+                ],
+                "modified": []
+            }
+
+            passed, issues = validate_structured_manifest(manifest, workspace)
+
+            # Should FAIL because ExampleClass only appears in comment, not as actual symbol
+            assert passed is False
+            assert any("missing expected symbol: ExampleClass" in issue for issue in issues)

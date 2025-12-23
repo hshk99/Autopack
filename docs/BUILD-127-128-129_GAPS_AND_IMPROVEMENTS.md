@@ -402,6 +402,76 @@ changes = []  # TODO: Extract changed files from builder_result
 
 ---
 
+## Part 5.5: Token Estimation Telemetry - COMPLETED ✅
+
+**Status**: Implemented on 2025-12-23
+**Commit**: b5604e41 - "Add BUILD-129 Phase 1 token estimation validation telemetry"
+
+### Implementation Summary
+
+Added `[TokenEstimation]` logging in [anthropic_clients.py:631-652](../src/autopack/anthropic_clients.py#L631-L652):
+- Logs predicted vs actual output tokens after each Builder execution
+- Calculates error percentage: `|actual - predicted| / predicted * 100%`
+- Non-intrusive: Only activates when `_estimated_output_tokens` present in phase_spec
+
+### Usage
+
+**Analyze Telemetry Data:**
+```bash
+# Scan all logs in .autonomous_runs
+python scripts/analyze_token_telemetry.py
+
+# Generate report file
+python scripts/analyze_token_telemetry.py --output docs/token_estimation_report.md
+
+# Show 10 worst predictions
+python scripts/analyze_token_telemetry.py --worst 10
+```
+
+**Analysis Script** ([scripts/analyze_token_telemetry.py](../scripts/analyze_token_telemetry.py)):
+- Scans log files for `[TokenEstimation]` entries
+- Calculates mean/median/std dev of error rates
+- Identifies over/under-estimation bias
+- Generates recommendations for coefficient tuning
+- Target: <30% mean error rate
+
+### Monitoring Workflow
+
+1. **After Every 10-20 Production Runs:**
+   ```bash
+   python scripts/analyze_token_telemetry.py --output reports/token_estimation_$(date +%Y%m%d).md
+   ```
+
+2. **Review Report:**
+   - Check mean error rate (target: <30%)
+   - Identify bias (over vs under-estimation)
+   - Note worst predictions for pattern analysis
+
+3. **Tune if Needed:**
+   - If error rate >30%: Adjust coefficients in [token_estimator.py](../src/autopack/token_estimator.py)
+   - If consistent over-estimation: Reduce base estimates
+   - If consistent under-estimation: Increase safety buffers
+
+4. **Track Improvement:**
+   - Compare reports over time
+   - Validate that tuning reduces error rate
+   - Document coefficient changes in BUILD_HISTORY.md
+
+### Example Telemetry Output
+
+```
+2025-12-23 19:05:50 - autopack.anthropic_clients - INFO - [TokenEstimation] Predicted: 500 output tokens, Actual: 114 output tokens, Error: 77.2%
+```
+
+### Next Validation Steps
+
+- ⏳ Collect data from 10-20 production runs with telemetry
+- ⏳ Run first analysis to establish baseline
+- ⏳ Tune TokenEstimator if error rate >30%
+- ⏳ Monitor improvement after tuning
+
+---
+
 ## Part 6: Efficiency and Systematic Improvement Opportunities
 
 ### Opportunity 1: Consolidate Batching Logic

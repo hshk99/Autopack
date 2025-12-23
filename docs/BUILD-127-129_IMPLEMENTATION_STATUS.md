@@ -128,9 +128,43 @@ Successfully implemented AND INTEGRATED BUILD-127 Phase 1 (PhaseFinalizer + Test
 
 ---
 
-### BUILD-129 Phase 2: Continuation-Based Recovery
-**Priority**: MEDIUM
-**Estimated Time**: 3-4 hours
+### BUILD-129 Phase 2: Continuation-Based Recovery ✅ COMPLETE & INTEGRATED
+**Status**: Core implementation complete, integrated into anthropic_clients.py, all tests passing
+
+**Files Created**:
+1. [src/autopack/continuation_recovery.py](../src/autopack/continuation_recovery.py) - **451 lines**
+   - `ContinuationContext` dataclass with truncation metadata
+   - `ContinuationRecovery` class with format-aware parsing
+   - Supports diff, full_file, and NDJSON formats
+   - Format detection: `_detect_format()` with pattern matching
+   - Diff parsing: `_parse_diff_truncation()` with regex-based file extraction
+   - NDJSON parsing: `_parse_ndjson_truncation()` with line-by-line JSON
+   - Continuation prompt building with completed/remaining lists
+   - Smart output merging to avoid duplicates
+
+2. [tests/test_continuation_recovery.py](../tests/test_continuation_recovery.py) - **365 lines**
+   - 16 unit tests for continuation recovery
+   - Tests: format detection, truncation parsing, prompt building, output merging
+   - **All tests passing** ✅
+
+**Files Modified**:
+3. [src/autopack/anthropic_clients.py](../src/autopack/anthropic_clients.py) - **Modified**
+   - Added ContinuationRecovery import (line 33)
+   - Integrated continuation logic in execute_phase() (lines 482-553)
+   - Detects truncation via stop_reason="max_tokens"
+   - Builds continuation prompt with remaining deliverables
+   - Executes continuation request and merges outputs
+   - Re-parses merged content and updates token usage
+   - Falls back gracefully if continuation fails
+
+**Test Results**: ✅ **16/16 tests passing**
+
+**Integration**: Continuation recovery is now automatically triggered when:
+1. Builder output is truncated (stop_reason="max_tokens")
+2. Deliverables list is available
+3. Continuation context can be extracted from partial output
+
+**Expected Impact**: Reduce truncation failures from 50% → 5% per GPT-5.2 analysis
 
 ---
 
@@ -221,27 +255,28 @@ Successfully implemented AND INTEGRATED BUILD-127 Phase 1 (PhaseFinalizer + Test
 - **BUILD-130**: ✅ 100% complete (prevention infrastructure)
 - **BUILD-128**: ✅ 100% complete (deliverables-aware manifest)
 - **BUILD-127**: 🟡 33% complete (Phase 1 of 3 - PhaseFinalizer + TestBaselineTracker)
-- **BUILD-129**: 🟡 33% complete (Phase 1 of 3 - Token Estimator)
+- **BUILD-129**: 🟢 67% complete (Phase 1 & 2 of 3 - Token Estimator + Continuation Recovery)
 
-**Total Progress**: **3.0 out of 4 builds started, 2.67 builds complete** (67%)
+**Total Progress**: **3.0 out of 4 builds started, 3.0 builds complete** (75%)
 
 ---
 
 ## Conclusion
 
-**BUILD-127 Phase 1** and **BUILD-129 Phase 1** implementations are complete and integrated. Manual implementation continues to be more efficient for complex architectural changes. All code quality standards met, all tests passing.
+**BUILD-127 Phase 1**, **BUILD-129 Phase 1**, and **BUILD-129 Phase 2** implementations are complete and integrated. Manual implementation continues to be more efficient for complex architectural changes. All code quality standards met, all tests passing.
 
 **Key Achievements**:
 1. ✅ **PhaseFinalizer** prevents false completions (BUILD-126 bug fix)
 2. ✅ **TestBaselineTracker** provides regression detection with retry logic
 3. ✅ **TokenEstimator** provides deliverable-based token budget estimation
-4. ✅ All components integrated into autonomous_executor.py and anthropic_clients.py
-5. ✅ 45 unit tests passing (23 for BUILD-127, 22 for BUILD-129)
+4. ✅ **ContinuationRecovery** enables continuation-based truncation recovery (HIGHEST priority per GPT-5.2)
+5. ✅ All components integrated into autonomous_executor.py and anthropic_clients.py
+6. ✅ 61 unit tests passing (23 for BUILD-127 Phase 1, 22 for BUILD-129 Phase 1, 16 for BUILD-129 Phase 2)
 
 **Next Steps**:
-1. Commit BUILD-129 Phase 1 implementation
+1. Commit BUILD-129 Phase 2 implementation
 2. Test BUILD-126 scenario to validate false completion fix
 3. Proceed with BUILD-127 Phase 2 (Governance Request Handler)
-4. Proceed with BUILD-129 Phase 2 (Continuation-Based Recovery)
+4. Proceed with BUILD-129 Phase 3 (NDJSON Format)
 
 **Ready to continue!** 🚀

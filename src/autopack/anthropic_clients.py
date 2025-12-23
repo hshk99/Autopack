@@ -29,6 +29,8 @@ from .llm_service import estimate_tokens
 from .repair_helpers import JsonRepairHelper, save_repair_debug
 # BUILD-129 Phase 1: Deliverable-based token estimation
 from .token_estimator import TokenEstimator
+# BUILD-129 Phase 2: Continuation-based recovery
+from .continuation_recovery import ContinuationRecovery
 
 logger = logging.getLogger(__name__)
 
@@ -476,6 +478,79 @@ class AnthropicBuilderClient:
                     )
 
             result = _parse_once(content)
+
+            # BUILD-129 Phase 2: Continuation-based recovery for truncated outputs
+            if was_truncated and deliverables:
+                logger.info("[BUILD-129] Truncation detected, attempting continuation recovery...")
+                try:
+                    recovery = ContinuationRecovery()
+                    continuation_context = recovery.detect_truncation_context(
+                        raw_output=content,
+                        deliverables=deliverables,
+                        stop_reason=stop_reason,
+                        tokens_used=actual_output_tokens
+                    )
+
+                    if continuation_context:
+                        logger.info(
+                            f"[BUILD-129] Continuation context: {len(continuation_context.completed_files)} completed, "
+                            f"{len(continuation_context.remaining_deliverables)} remaining, format={continuation_context.format_type}"
+                        )
+
+                        # Build continuation prompt
+                        continuation_prompt = recovery.build_continuation_prompt(
+                            continuation_context,
+                            user_prompt  # Original prompt from earlier in this method
+                        )
+
+                        # Execute continuation request
+                        logger.info(f"[BUILD-129] Executing continuation request for {len(continuation_context.remaining_deliverables)} remaining deliverables...")
+                        with self.client.messages.stream(
+                            model=model,
+                            max_tokens=min(max_tokens or 64000, 64000),
+                            system=system_prompt,
+                            messages=[{"role": "user", "content": continuation_prompt}],
+                            temperature=0.2
+                        ) as cont_stream:
+                            continuation_content = ""
+                            for text in cont_stream.text_stream:
+                                continuation_content += text
+
+                            continuation_response = cont_stream.get_final_message()
+
+                        # Log continuation token usage
+                        cont_input_tokens = continuation_response.usage.input_tokens
+                        cont_output_tokens = continuation_response.usage.output_tokens
+                        logger.info(
+                            f"[BUILD-129] Continuation tokens: input={cont_input_tokens} output={cont_output_tokens}"
+                        )
+
+                        # Merge outputs
+                        merged_content = recovery.merge_outputs(
+                            partial_output=content,
+                            continuation_output=continuation_content,
+                            format_type=continuation_context.format_type
+                        )
+
+                        logger.info(
+                            f"[BUILD-129] Merged output: original={len(content)} chars, "
+                            f"continuation={len(continuation_content)} chars, merged={len(merged_content)} chars"
+                        )
+
+                        # Re-parse merged output
+                        result = _parse_once(merged_content)
+
+                        # Update token usage to include continuation
+                        if result and result.tokens_used:
+                            result.tokens_used = actual_input_tokens + actual_output_tokens + cont_input_tokens + cont_output_tokens
+
+                        logger.info("[BUILD-129] Continuation recovery complete, re-parsed merged output")
+                    else:
+                        logger.warning("[BUILD-129] Truncation detected but no continuation context extracted")
+
+                except Exception as e:
+                    logger.error(f"[BUILD-129] Continuation recovery failed: {e}", exc_info=True)
+                    # Fall through to original result if continuation fails
 
             # Adaptive churn relaxation: if only churn_limit_exceeded and small scope, retry once with relaxed threshold
             if (

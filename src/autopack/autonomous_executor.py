@@ -3842,11 +3842,14 @@ Just the new description that should replace the current one while preserving th
                         expanded: List[str] = []
                         for p in expected_list:
                             parts = p.split("/")
-                            # If second segment contains '.', it's likely a filename, not a directory
-                            if len(parts) >= 2 and "." in parts[1]:
+                            # For root-level files (no "/"), include the file itself
+                            if len(parts) == 1:
+                                root = p
+                            # If second segment contains '.', it's likely a filename, use first dir
+                            elif len(parts) >= 2 and "." in parts[1]:
                                 root = parts[0] + "/"
                             else:
-                                root = "/".join(parts[:2]) + "/" if len(parts) >= 2 else parts[0] + "/"
+                                root = "/".join(parts[:2]) + "/"
                             if root not in expanded:
                                 expanded.append(root)
                         allowed_roots = expanded
@@ -4896,11 +4899,14 @@ Just the new description that should replace the current one while preserving th
                         expanded: List[str] = []
                         for p in expected_list:
                             parts = p.split("/")
-                            # If second segment contains '.', it's likely a filename, not a directory
-                            if len(parts) >= 2 and "." in parts[1]:
+                            # For root-level files (no "/"), include the file itself
+                            if len(parts) == 1:
+                                root = p
+                            # If second segment contains '.', it's likely a filename, use first dir
+                            elif len(parts) >= 2 and "." in parts[1]:
                                 root = parts[0] + "/"
                             else:
-                                root = "/".join(parts[:2]) + "/" if len(parts) >= 2 else parts[0] + "/"
+                                root = "/".join(parts[:2]) + "/"
                             if root not in expanded:
                                 expanded.append(root)
                         allowed_roots = expanded
@@ -5479,11 +5485,14 @@ Just the new description that should replace the current one while preserving th
                         expanded: List[str] = []
                         for p in expected_list:
                             parts = p.split("/")
-                            # If second segment contains '.', it's likely a filename, not a directory
-                            if len(parts) >= 2 and "." in parts[1]:
+                            # For root-level files (no "/"), include the file itself
+                            if len(parts) == 1:
+                                root = p
+                            # If second segment contains '.', it's likely a filename, use first dir
+                            elif len(parts) >= 2 and "." in parts[1]:
                                 root = parts[0] + "/"
                             else:
-                                root = "/".join(parts[:2]) + "/" if len(parts) >= 2 else parts[0] + "/"
+                                root = "/".join(parts[:2]) + "/"
                             if root not in expanded:
                                 expanded.append(root)
                         allowed_roots = expanded
@@ -5861,11 +5870,14 @@ Just the new description that should replace the current one while preserving th
                         expanded: List[str] = []
                         for p in expected_list:
                             parts = p.split("/")
-                            # If second segment contains '.', it's likely a filename, not a directory
-                            if len(parts) >= 2 and "." in parts[1]:
+                            # For root-level files (no "/"), include the file itself
+                            if len(parts) == 1:
+                                root = p
+                            # If second segment contains '.', it's likely a filename, use first dir
+                            elif len(parts) >= 2 and "." in parts[1]:
                                 root = parts[0] + "/"
                             else:
-                                root = "/".join(parts[:2]) + "/" if len(parts) >= 2 else parts[0] + "/"
+                                root = "/".join(parts[:2]) + "/"
                             if root not in expanded:
                                 expanded.append(root)
                         allowed_roots = expanded

@@ -4498,11 +4498,21 @@ Just the new description that should replace the current one while preserving th
                 )
 
                 if not patch_success:
-                    logger.error(f"[{phase_id}] Failed to apply patch to filesystem: {error_msg}")
-                    self._update_phase_status(phase_id, "FAILED")
-                    return False, "PATCH_FAILED"
+                    # BUILD-127 Phase 2: Check if this is a governance request
+                    governance_handled = self._try_handle_governance_request(
+                        phase_id, error_msg, builder_result.patch_content, governed_apply
+                    )
 
-                logger.info(f"[{phase_id}] Patch applied successfully to filesystem")
+                    if governance_handled:
+                        # Governance flow succeeded (either auto-approved or human-approved)
+                        logger.info(f"[{phase_id}] Governance request approved, patch applied")
+                    else:
+                        # Regular patch failure or governance denied
+                        logger.error(f"[{phase_id}] Failed to apply patch to filesystem: {error_msg}")
+                        self._update_phase_status(phase_id, "FAILED")
+                        return False, "PATCH_FAILED"
+                else:
+                    logger.info(f"[{phase_id}] Patch applied successfully to filesystem")
 
             # Step 3: Run CI checks on the applied code
             logger.info(f"[{phase_id}] Step 3/5: Running CI checks...")
@@ -7298,6 +7308,138 @@ Just the new description that should replace the current one while preserving th
                 self._best_effort_write_run_summary()
         except requests.exceptions.RequestException as e:
             logger.warning(f"Failed to update phase {phase_id} status: {e}")
+
+    def _try_handle_governance_request(
+        self,
+        phase_id: str,
+        error_msg: str,
+        patch_content: str,
+        governed_apply: Any
+    ) -> bool:
+        """
+        Handle protected path governance request (BUILD-127 Phase 2).
+
+        Args:
+            phase_id: Phase ID
+            error_msg: Error message from apply_patch (may be structured JSON)
+            patch_content: Patch content that failed
+            governed_apply: GovernedApplyPath instance
+
+        Returns:
+            True if governance request was approved and patch applied, False otherwise
+        """
+        import json
+        from autopack.governance_requests import (
+            create_governance_request,
+            approve_request,
+            get_pending_requests
+        )
+
+        # Try to parse as structured error
+        try:
+            error_data = json.loads(error_msg)
+
+            if error_data.get("error_type") != "protected_path_violation":
+                # Not a governance error
+                return False
+
+            violated_paths = error_data.get("violated_paths", [])
+            justification = error_data.get("justification", "")
+
+            logger.info(
+                f"[Governance:{phase_id}] Protected path violation detected: "
+                f"{len(violated_paths)} paths"
+            )
+
+        except (json.JSONDecodeError, KeyError, TypeError):
+            # Not a structured error
+            return False
+
+        # Create governance request in database
+        request = create_governance_request(
+            db_session=self.db,
+            run_id=self.run_id,
+            phase_id=phase_id,
+            violated_paths=violated_paths,
+            justification=justification,
+            risk_scorer=getattr(self, 'risk_scorer', None)
+        )
+
+        logger.info(
+            f"[Governance:{phase_id}] Request {request.request_id} created: "
+            f"risk={request.risk_level}, auto_approved={request.auto_approved}"
+        )
+
+        # Check if auto-approved
+        if request.auto_approved:
+            logger.info(f"[Governance:{phase_id}] Auto-approved, retrying patch application")
+            return self._retry_with_allowance(
+                phase_id, patch_content, violated_paths, governed_apply
+            )
+
+        # Request human approval
+        logger.info(
+            f"[Governance:{phase_id}] Requesting human approval for {request.request_id}"
+        )
+
+        # TODO: Integrate with Telegram approval flow
+        # For now, fail and require manual approval via API
+        logger.warning(
+            f"[Governance:{phase_id}] Manual approval required. "
+            f"Approve via: POST /api/governance/approve/{request.request_id}"
+        )
+
+        self._update_phase_status(phase_id, "BLOCKED")
+        return False
+
+    def _retry_with_allowance(
+        self,
+        phase_id: str,
+        patch_content: str,
+        allowed_paths: List[str],
+        original_governed_apply: Any
+    ) -> bool:
+        """
+        Retry patch application with temporary path allowance overlay (BUILD-127 Phase 2).
+
+        Args:
+            phase_id: Phase ID
+            patch_content: Patch content to retry
+            allowed_paths: Additional paths to allow
+            original_governed_apply: Original GovernedApplyPath instance
+
+        Returns:
+            True if retry succeeded, False otherwise
+        """
+        from autopack.governed_apply import GovernedApplyPath
+
+        logger.info(
+            f"[Governance:{phase_id}] Retrying with allowance: {len(allowed_paths)} paths"
+        )
+
+        # Create permissive governed_apply instance
+        governed_apply_permissive = GovernedApplyPath(
+            workspace=Path(self.workspace),
+            run_type=self.run_type,
+            autopack_internal_mode=getattr(original_governed_apply, 'autopack_internal_mode', False),
+            scope_paths=getattr(original_governed_apply, 'scope_paths', None),
+            allowed_paths=getattr(original_governed_apply, 'allowed_paths', []) + allowed_paths
+        )
+
+        # Retry patch application
+        patch_success, error_msg = governed_apply_permissive.apply_patch(
+            patch_content,
+            full_file_mode=True
+        )
+
+        if patch_success:
+            logger.info(f"[Governance:{phase_id}] ✅ Retry succeeded with allowance")
+            return True
+        else:
+            logger.error(
+                f"[Governance:{phase_id}] ❌ Retry failed even with allowance: {error_msg}"
+            )
+            return False
 
     def _request_human_approval(
         self,

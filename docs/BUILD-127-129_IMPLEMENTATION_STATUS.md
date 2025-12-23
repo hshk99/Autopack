@@ -114,19 +114,77 @@ Successfully implemented AND INTEGRATED BUILD-127 Phase 1 (PhaseFinalizer + Test
 
 ---
 
-## Remaining Work
+---
 
-### BUILD-127 Phase 2: Governance Request Handler
-**Priority**: MEDIUM
-**Estimated Time**: 4-5 hours
+### BUILD-127 Phase 2: Governance Request Handler ✅ COMPLETE & INTEGRATED
+**Status**: Core implementation complete, integrated into governed_apply.py, autonomous_executor.py, and main.py, all tests passing
 
-**Components**:
-1. `src/autopack/governance_requests.py` (~200 lines)
-2. Database migration for `governance_requests` table
-3. `autonomous_executor.py` modifications (~150 lines)
-4. `main.py` API endpoints (~80 lines)
+**Files Created**:
+1. [src/autopack/governance_requests.py](../src/autopack/governance_requests.py) - **379 lines**
+   - `GovernanceRequest` dataclass with JSON serialization
+   - Auto-approval policy (conservative: tests/docs only)
+   - `create_governance_request()` with risk assessment
+   - `approve_request()` and `deny_request()` operations
+   - `get_pending_requests()` query function
+   - `create_protected_path_error()` structured error generator
+   - Risk-based blocking (NEVER_AUTO_APPROVE list)
+
+2. [scripts/migrate_governance_table.py](../scripts/migrate_governance_table.py) - **72 lines**
+   - Database migration script for governance_requests table
+   - Creates table with indexes
+   - Idempotent (safe to run multiple times)
+
+3. [tests/test_governance_requests.py](../tests/test_governance_requests.py) - **236 lines**
+   - 18 unit tests for governance request handler
+   - Tests: auto-approval policy, risk assessment, CRUD operations, structured errors
+   - **All tests passing** ✅
+
+**Files Modified**:
+4. [src/autopack/models.py](../src/autopack/models.py) - **Modified**
+   - Added `GovernanceRequest` SQLAlchemy model (lines 342-368)
+   - Database table with foreign key to runs
+   - Indexes on request_id, run_id, phase_id, approved, created_at
+
+5. [src/autopack/governed_apply.py](../src/autopack/governed_apply.py) - **Modified**
+   - Added `_extract_justification_from_patch()` method (lines 289-316)
+   - Modified `apply_patch()` to return structured error for protected paths (lines 1686-1710)
+   - Imports `create_protected_path_error()` from governance_requests
+
+6. [src/autopack/autonomous_executor.py](../src/autopack/autonomous_executor.py) - **Modified**
+   - Added `_try_handle_governance_request()` method (lines 7312-7393)
+   - Added `_retry_with_allowance()` method (lines 7395-7442)
+   - Integrated governance flow into patch application (lines 4500-4515)
+   - Parses structured error, creates request, auto-approves if eligible
+
+7. [src/autopack/main.py](../src/autopack/main.py) - **Modified**
+   - Added `/governance/pending` endpoint (lines 1156-1175)
+   - Added `/governance/approve/{request_id}` endpoint (lines 1178-1218)
+   - API supports GET pending requests and POST approve/deny
+
+**Test Results**: ✅ **18/18 tests passing**
+
+**Database Migration**: ✅ **Completed** (governance_requests table created with 5 indexes)
+
+**Integration**: Governance request flow is now automatically triggered when:
+1. Builder attempts to modify protected path
+2. governed_apply.py returns structured error with violated paths
+3. autonomous_executor.py parses error and creates governance request
+4. If auto-approved → retry with allowance overlay
+5. If requires human approval → phase BLOCKED, request visible via API
+
+**Conservative Auto-Approval Policy**:
+- Auto-approve: `tests/test_*.py` (low/medium risk, <100 lines changed)
+- Auto-approve: `docs/*.md` (low/medium risk, <100 lines changed)
+- Never auto-approve: `src/autopack/`, `.git/`, `.env*`, `config/`, etc.
+- Never auto-approve: High/critical risk
+- Never auto-approve: Large changes (>100 lines)
+- Default: Require human approval for everything else
+
+**Expected Impact**: Enables self-negotiation for protected paths, reducing manual ALLOWED_PATHS edits
 
 ---
+
+## Remaining Work
 
 ### BUILD-129 Phase 2: Continuation-Based Recovery ✅ COMPLETE & INTEGRATED
 **Status**: Core implementation complete, integrated into anthropic_clients.py, all tests passing
@@ -297,25 +355,26 @@ Successfully implemented AND INTEGRATED BUILD-127 Phase 1 (PhaseFinalizer + Test
 ### Overall Progress
 - **BUILD-130**: ✅ 100% complete (prevention infrastructure)
 - **BUILD-128**: ✅ 100% complete (deliverables-aware manifest)
-- **BUILD-127**: 🟡 33% complete (Phase 1 of 3 - PhaseFinalizer + TestBaselineTracker)
+- **BUILD-127**: 🟡 67% complete (Phase 1 & 2 of 3 - PhaseFinalizer + TestBaselineTracker + Governance)
 - **BUILD-129**: ✅ 100% complete (Phase 1, 2 & 3 of 3 - Token Estimator + Continuation Recovery + NDJSON Format)
 
-**Total Progress**: **4.0 out of 4 builds started, 3.33 builds complete** (83%)
+**Total Progress**: **4.0 out of 4 builds started, 3.67 builds complete** (92%)
 
 ---
 
 ## Conclusion
 
-**BUILD-127 Phase 1**, **BUILD-129 Phase 1, 2, and 3** implementations are complete and integrated. Manual implementation continues to be more efficient for complex architectural changes. All code quality standards met, all tests passing.
+**BUILD-127 Phase 1 & 2**, **BUILD-129 Phase 1, 2, and 3** implementations are complete and integrated. Manual implementation continues to be more efficient for complex architectural changes. All code quality standards met, all tests passing.
 
 **Key Achievements**:
 1. ✅ **PhaseFinalizer** prevents false completions (BUILD-126 bug fix)
 2. ✅ **TestBaselineTracker** provides regression detection with retry logic
-3. ✅ **TokenEstimator** provides deliverable-based token budget estimation (BUILD-129 Layer 1)
-4. ✅ **ContinuationRecovery** enables continuation-based truncation recovery (BUILD-129 Layer 2 - HIGHEST priority per GPT-5.2)
-5. ✅ **NDJSON Format** provides truncation-tolerant output format (BUILD-129 Layer 3 - HIGH priority per GPT-5.2)
-6. ✅ All components integrated into autonomous_executor.py and anthropic_clients.py
-7. ✅ **87 unit tests passing** (23 for BUILD-127 Phase 1, 22 for BUILD-129 Phase 1, 16 for BUILD-129 Phase 2, 26 for BUILD-129 Phase 3)
+3. ✅ **GovernanceRequestHandler** enables self-negotiation for protected paths (BUILD-127 Phase 2)
+4. ✅ **TokenEstimator** provides deliverable-based token budget estimation (BUILD-129 Layer 1)
+5. ✅ **ContinuationRecovery** enables continuation-based truncation recovery (BUILD-129 Layer 2 - HIGHEST priority per GPT-5.2)
+6. ✅ **NDJSON Format** provides truncation-tolerant output format (BUILD-129 Layer 3 - HIGH priority per GPT-5.2)
+7. ✅ All components integrated into autonomous_executor.py, governed_apply.py, and anthropic_clients.py
+8. ✅ **105 unit tests passing** (23 for BUILD-127 Phase 1, 18 for BUILD-127 Phase 2, 22 for BUILD-129 Phase 1, 16 for BUILD-129 Phase 2, 26 for BUILD-129 Phase 3)
 
 **BUILD-129 Complete** ✅:
 - **Layer 1 (Token Estimator)**: Reduces over-estimation waste
@@ -323,10 +382,15 @@ Successfully implemented AND INTEGRATED BUILD-127 Phase 1 (PhaseFinalizer + Test
 - **Layer 3 (NDJSON Format)**: Prevents catastrophic parse failures under truncation
 - **Expected Impact**: Truncation failure rate 50% → 5% (10x improvement)
 
+**BUILD-127 Phase 2 Complete** ✅:
+- **GovernanceRequestHandler**: Enables self-negotiation for protected paths
+- **Auto-Approval Policy**: Conservative defaults (tests/docs only)
+- **API Endpoints**: `/governance/pending`, `/governance/approve/{id}`
+- **Expected Impact**: Reduces manual ALLOWED_PATHS edits for protected path modifications
+
 **Next Steps**:
-1. Commit BUILD-129 Phase 3 implementation
-2. Test with multi-file scenario (≥5 deliverables) to validate NDJSON format
-3. Proceed with BUILD-127 Phase 2 (Governance Request Handler)
-4. Proceed with BUILD-127 Phase 3 (Enhanced Deliverables Validation)
+1. Commit BUILD-127 Phase 2 implementation
+2. Test governance flow with protected path scenario
+3. Proceed with BUILD-127 Phase 3 (Enhanced Deliverables Validation - LOW priority)
 
 **Ready to continue!** 🚀

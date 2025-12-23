@@ -337,3 +337,32 @@ class ApprovalRequest(Base):
     telegram_message_id = Column(String, nullable=True)
     telegram_sent = Column(Boolean, nullable=False, default=False)
     telegram_error = Column(Text, nullable=True)
+
+
+class GovernanceRequest(Base):
+    """Governance requests for BUILD-127 Phase 2 protected path modifications."""
+
+    __tablename__ = "governance_requests"
+
+    id = Column(Integer, primary_key=True, index=True)
+    request_id = Column(String, unique=True, nullable=False, index=True)
+    run_id = Column(String, ForeignKey("runs.id"), nullable=False, index=True)
+    phase_id = Column(String, nullable=False, index=True)
+
+    # Request details
+    requested_paths = Column(Text, nullable=False)  # JSON array of paths
+    justification = Column(Text, nullable=True)
+    risk_level = Column(String, nullable=True)  # "low", "medium", "high", "critical"
+
+    # Approval status
+    auto_approved = Column(Boolean, nullable=False, default=False)
+    approved = Column(Boolean, nullable=True, index=True)  # None = pending, True/False = decided
+    approved_by = Column(String, nullable=True)
+
+    # Timestamps
+    created_at = Column(
+        DateTime,
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc),
+        index=True
+    )

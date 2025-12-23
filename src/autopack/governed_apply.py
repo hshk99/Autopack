@@ -286,6 +286,35 @@ class GovernedApplyPath:
 
         return False
 
+    def _extract_justification_from_patch(self, patch_content: str) -> str:
+        """
+        Extract Builder's justification from patch content (BUILD-127 Phase 2).
+
+        Args:
+            patch_content: Patch content to analyze
+
+        Returns:
+            Extracted justification string or generic message
+        """
+        # Look for common comment patterns in patches
+        justification_lines = []
+
+        for line in patch_content.split('\n')[:50]:  # Check first 50 lines
+            line = line.strip()
+
+            # Diff comments (starting with '#')
+            if line.startswith('# ') and len(line) > 3:
+                justification_lines.append(line[2:].strip())
+
+            # Git commit message format
+            if line.startswith('Subject:') or line.startswith('Summary:'):
+                justification_lines.append(line.split(':', 1)[1].strip())
+
+        if justification_lines:
+            return ' '.join(justification_lines[:3])  # First 3 lines
+
+        return "No justification provided in patch"
+
     def _validate_patch_paths(self, files: List[str]) -> Tuple[bool, List[str]]:
         """
         Validate that patch does not touch protected directories or violate scope.
@@ -1686,9 +1715,28 @@ class GovernedApplyPath:
             # [Workspace Isolation] Check for protected path violations BEFORE applying
             is_valid, violations = self._validate_patch_paths(files_to_modify)
             if not is_valid:
-                error_msg = f"Patch rejected - protected path violations: {', '.join(violations)}"
-                logger.error(f"[Isolation] {error_msg}")
-                return False, error_msg
+                # BUILD-127 Phase 2: Return structured error for governance flow
+                protected_path_violations = [
+                    v.replace("Protected path: ", "")
+                    for v in violations if v.startswith("Protected path:")
+                ]
+
+                if protected_path_violations:
+                    # Structured error for governance handling
+                    from .governance_requests import create_protected_path_error
+                    error_msg = create_protected_path_error(
+                        violated_paths=protected_path_violations,
+                        justification=self._extract_justification_from_patch(patch_content)
+                    )
+                    logger.warning(
+                        f"[Governance] Protected path violation: {len(protected_path_violations)} paths"
+                    )
+                    return False, error_msg
+                else:
+                    # Non-protected violations (scope, etc.) - regular error
+                    error_msg = f"Patch rejected - violations: {', '.join(violations)}"
+                    logger.error(f"[Isolation] {error_msg}")
+                    return False, error_msg
 
             backups = self._backup_files(files_to_modify)
             logger.debug(f"[Integrity] Backed up {len(backups)} existing files before patch")

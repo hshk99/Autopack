@@ -6,15 +6,110 @@ Autopack is a framework for orchestrating autonomous AI agents (Builder and Audi
 
 ---
 
-## Recent Updates (v0.4.2 - BUILD-113/114/115 Complete)
+## Recent Updates (v0.4.5 - BUILD-130 Prevention Infrastructure Complete)
 
-### BUILD-122 Lovable Integration Setup (2025-12-22) - QUEUED
+### BUILD-130 Schema Validation & Circuit Breaker (2025-12-23) - ✅ COMPLETE
+**Prevention Infrastructure** - Eliminates infinite retry loops and schema drift errors
+- **Problem Solved**: BUILD-127/129 blocked by 500 errors from invalid database enum values (e.g., `state='READY'` not in RunState enum), infinite retry loops burning tokens
+- **Solution**: Multi-layer prevention system with schema validation, error classification, and emergency repair
+- **Key Components**:
+  - **ErrorClassifier**: Classify errors as TRANSIENT (retry) vs DETERMINISTIC (fail-fast) - prevents infinite retries on enum violations, schema errors, bad requests
+  - **SchemaValidator**: Startup validation using raw SQL to detect invalid enum values, fuzzy matching for suggested fixes, bypass ORM serialization issues
+  - **BreakGlassRepair**: Emergency repair CLI tool with diagnose and repair modes, transaction-safe SQL repairs, audit logging to `.autonomous_runs/break_glass_repairs.jsonl`
+  - **Circuit Breaker**: Integrated into executor's `get_run_status()` - classifies API errors, provides remediation suggestions, prevents retry loops
+- **Files Created**:
+  - [src/autopack/error_classifier.py](src/autopack/error_classifier.py) - Error classification (257 lines)
+  - [src/autopack/schema_validator.py](src/autopack/schema_validator.py) - Schema validation (233 lines)
+  - [src/autopack/break_glass_repair.py](src/autopack/break_glass_repair.py) - Repair tool (169 lines)
+  - [scripts/break_glass_repair.py](scripts/break_glass_repair.py) - CLI interface (122 lines)
+- **Integration Points**:
+  - [autonomous_executor.py:665-690](src/autopack/autonomous_executor.py#L665-L690) - Startup schema validation
+  - [autonomous_executor.py:1040-1106](src/autopack/autonomous_executor.py#L1040-L1106) - Circuit breaker in get_run_status()
+  - [config.py:49-66](src/autopack/config.py#L49-L66) - get_database_url() helper
+- **Usage**:
+  ```bash
+  # Diagnose schema issues (read-only)
+  python scripts/break_glass_repair.py diagnose
+
+  # Repair schema violations (with confirmation)
+  python scripts/break_glass_repair.py repair
+
+  # Auto-repair (use with caution)
+  python scripts/break_glass_repair.py repair --auto-approve
+  ```
+- **Impact**: Prevents infinite retry loops, enables autonomous self-improvement (unblocks BUILD-127/129), provides clear remediation paths for schema issues
+- **Status**: Manually implemented (autonomous attempt failed - code already existed from prior manual work)
+
+### BUILD-123v2 Manifest Generator - Deterministic Scope Generation (2025-12-22) - ✅ COMPLETE
+**Meta-Layer Enhancement** - Automatic scope generation from unorganized implementation plans
+- **Problem Solved**: BUILD-123v1 (Plan Analyzer) had high token overhead (N LLM calls per phase), ungrounded scope generation (hallucination risk), and governance mismatch
+- **Solution**: Deterministic-first manifest generator with 0 LLM calls for >80% of cases
+- **Key Architecture**: `Minimal Plan → RepoScanner → PatternMatcher → PreflightValidator → scope.paths → ContextSelector`
+- **Core Innovation**:
+  - **Earned confidence** from multiple signals (anchor files 40%, match density 30%, locality 20%)
+  - **Repo-grounded** (scans actual file structure, respects .gitignore)
+  - **Compiles globs to explicit file lists** (not glob patterns for enforcement)
+  - **Reuses existing primitives** (emits `scope.paths` for ContextSelector)
+  - **85-100% token savings** vs LLM-based approach
+- **New Capabilities**:
+  - Deterministic repo scanning: Detects anchor files (auth/, api/, database/, etc.)
+  - Pattern matching: Keyword → category → scope with confidence scoring
+  - Preflight validation: Hard checks before execution (path existence, governance, size caps)
+  - Adaptive scope expansion: Controlled strategies (file→parent, add sibling, LLM fallback)
+  - Quality gates generation: Default success criteria and validation tests
+- **Components Created**:
+  - [src/autopack/repo_scanner.py](src/autopack/repo_scanner.py) - Deterministic repo structure analysis (0 LLM calls)
+  - [src/autopack/pattern_matcher.py](src/autopack/pattern_matcher.py) - Earned confidence scoring (9 categories)
+  - [src/autopack/preflight_validator.py](src/autopack/preflight_validator.py) - Validation (reuses governed_apply logic)
+  - [src/autopack/scope_expander.py](src/autopack/scope_expander.py) - Controlled scope expansion (deterministic-first)
+  - [src/autopack/manifest_generator.py](src/autopack/manifest_generator.py) - Main orchestrator
+  - Docs: [docs/BUILD-123v2_MANIFEST_GENERATOR.md](docs/BUILD-123v2_MANIFEST_GENERATOR.md)
+- **Critical Design Decisions** (per GPT-5.2 validation):
+  - ✅ Compile globs → explicit list (not glob patterns for enforcement)
+  - ✅ Preflight validation (not governed_apply modification)
+  - ✅ Earned confidence scores (not assumed from keywords)
+  - ✅ Reuse ContextSelector (emit scope.paths, not file_manifest)
+  - ✅ Quality gates from deliverables + defaults
+  - ✅ Adaptive scope expansion (for underspecified manifests)
+- **Impact**: 85-100% token savings, repo-grounded scope (no hallucination), deterministic for >80% cases, reuses existing infrastructure
+
+### BUILD-122 Lovable Integration Setup (2025-12-22) - PHASE 0 READY FOR EXECUTION ✅
 **Lovable Integration** - 12 high-value architectural patterns from Lovable AI platform
 - Autonomous run created: [`.autonomous_runs/lovable-integration-v1/`](.autonomous_runs/lovable-integration-v1/)
-- Expected impact: **60% token reduction** (50k→20k), **95% patch success** (+20pp), **75% hallucination reduction**, **50% faster execution**
-- Timeline: 5-6 weeks (40% faster than original 10-week plan)
-- Strategic pivot: Cancelled BUILD-112 Phase 5 (Evidence Requests) - replaced by Claude Code in Chrome (Dec 2025)
-- See: [FUTURE_PLAN.md - Lovable Integration](docs/FUTURE_PLAN.md) for full details
+- **GPT-5.2 Independent Validation**: GO WITH REVISIONS (80% confidence) - [VALIDATION_COMPLETE.md](.autonomous_runs/lovable-integration-v1/VALIDATION_COMPLETE.md)
+- **Phase 0 Implementation Package**: [PHASE0_EXECUTION_READY.md](.autonomous_runs/lovable-integration-v1/PHASE0_EXECUTION_READY.md) ✅
+  - Autonomous run config: [run_config_phase0.json](.autonomous_runs/lovable-integration-v1/run_config_phase0.json)
+  - Execution script: [execute_phase0_foundation.py](scripts/execute_phase0_foundation.py)
+  - Feasibility assessment: [AUTONOMOUS_IMPLEMENTATION_FEASIBILITY.md](.autonomous_runs/lovable-integration-v1/AUTONOMOUS_IMPLEMENTATION_FEASIBILITY.md)
+  - Quality gates checklist: [AUTONOMOUS_IMPLEMENTATION_CHECKLIST.md](.autonomous_runs/lovable-integration-v1/AUTONOMOUS_IMPLEMENTATION_CHECKLIST.md)
+- **Critical Corrections Made**:
+  - SSE Streaming RESTORED (was incorrectly removed - serves different consumers than Claude Chrome)
+  - Architecture rebased onto actual Autopack modules (not Lovable's `file_manifest/`)
+  - Semantic embeddings enforced (hash embeddings blocked for Lovable features)
+  - Protected-path strategy defined (`src/autopack/lovable/` subtree + narrow allowlist)
+- **Expected Impact**: **60% token reduction** (50k→20k), **95% patch success** (+20pp), **75% hallucination reduction**, **50% faster execution**
+- **Timeline (Revised)**:
+  - **Realistic**: 9 weeks (50% confidence)
+  - **Conservative**: 11 weeks (80% confidence) - recommended for stakeholder communication
+  - **Aggressive**: 7 weeks (20% confidence)
+- **Phase Structure**:
+  - **Phase 0**: Foundation & Governance (1 week) - **READY FOR EXECUTION** ✅
+  - **Phase 1**: Core Precision (3.5 weeks) - Agentic Search, File Selection, Build Validation, Retry Delays
+  - **Phase 1.5**: SSE Streaming (0.5 weeks) - RESTORED
+  - **Phase 2**: Quality + Browser Synergy (2.5 weeks)
+  - **Phase 3**: Advanced Features (1.5 weeks)
+- **Infrastructure Requirements**:
+  - sentence-transformers (local semantic embeddings) - `pip install sentence-transformers torch`
+  - Morph API subscription ($100/month for Phase 3)
+- **Execution Instructions**:
+  ```bash
+  # Check prerequisites
+  python scripts/execute_phase0_foundation.py --dry-run
+
+  # Execute Phase 0 (with approval prompts)
+  python scripts/execute_phase0_foundation.py
+  ```
+- See: [REVISED_IMPLEMENTATION_PLAN.md](.autonomous_runs/lovable-integration-v1/REVISED_IMPLEMENTATION_PLAN.md) for full details
 
 ### BUILD-113 Autonomous Investigation + BUILD-114/115 Hotfixes (2025-12-22)
 **BUILD-113**: Iterative Autonomous Investigation with Goal-Aware Judgment - COMPLETE ✅

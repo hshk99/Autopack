@@ -27,6 +27,8 @@ from .llm_client import BuilderResult, AuditorResult
 from .journal_reader import get_prevention_prompt_injection
 from .llm_service import estimate_tokens
 from .repair_helpers import JsonRepairHelper, save_repair_debug
+# BUILD-129 Phase 1: Deliverable-based token estimation
+from .token_estimator import TokenEstimator
 
 logger = logging.getLogger(__name__)
 
@@ -153,11 +155,35 @@ class AnthropicBuilderClient:
         if lockfile_phase or manifest_phase:
             phase_spec.setdefault("change_size", "large_refactor")
 
+        # BUILD-129 Phase 1: Use deliverable-based token estimation if available
+        task_category = phase_spec.get("task_category", "")
+        complexity = phase_spec.get("complexity", "medium")
+        deliverables = phase_spec.get("deliverables", [])
+
+        if max_tokens is None and deliverables:
+            # Use TokenEstimator for deliverable-based estimation
+            try:
+                estimator = TokenEstimator(workspace=Path.cwd())
+                estimate = estimator.estimate(
+                    deliverables=deliverables,
+                    category=task_category or "implementation",
+                    complexity=complexity,
+                    scope_paths=scope_paths
+                )
+                max_tokens = estimator.select_budget(estimate, complexity)
+                logger.info(
+                    f"[BUILD-129] Token estimate: {estimate.estimated_tokens} tokens "
+                    f"({estimate.deliverable_count} deliverables, confidence={estimate.confidence:.2f}), "
+                    f"selected budget: {max_tokens}"
+                )
+            except Exception as e:
+                logger.warning(f"[BUILD-129] Token estimation failed, using fallback: {e}")
+                max_tokens = None  # Fall through to complexity-based default
+
         # BUILD-042: Apply complexity-based token scaling FIRST (before special case overrides)
         # This ensures the base token budget is set correctly before task-specific increases
-        task_category = phase_spec.get("task_category", "")
+        # This serves as fallback if token estimation is not available
         if max_tokens is None:
-            complexity = phase_spec.get("complexity", "medium")
             if complexity == "low":
                 max_tokens = 8192  # BUILD-042: Increased from 4096
             elif complexity == "medium":

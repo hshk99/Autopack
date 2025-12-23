@@ -10,11 +10,13 @@ from sqlalchemy import (
     DateTime,
     Enum as SQLEnum,
     ForeignKey,
+    ForeignKeyConstraint,
     Integer,
     JSON,
     String,
     Text,
     UniqueConstraint,
+    Float,
 )
 from sqlalchemy.orm import relationship, synonym
 
@@ -164,6 +166,12 @@ class Phase(Base):
     """Individual phase of work within a tier"""
 
     __tablename__ = "phases"
+    __table_args__ = (
+        # NOTE: `phase_id` is NOT globally unique across runs in existing data.
+        # Many subsystems (including TokenEstimationV2 DB telemetry) need a stable phase identifier.
+        # Enforce uniqueness at the (run_id, phase_id) level.
+        UniqueConstraint("run_id", "phase_id", name="uq_phases_run_id_phase_id"),
+    )
 
     id = Column(Integer, primary_key=True, index=True)
     phase_id = Column(String, nullable=False, index=True)  # e.g. "F2.3", "auth-001"
@@ -360,6 +368,64 @@ class GovernanceRequest(Base):
     approved_by = Column(String, nullable=True)
 
     # Timestamps
+    created_at = Column(
+        DateTime,
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc),
+        index=True
+    )
+
+
+class TokenEstimationV2Event(Base):
+    """TokenEstimationV2 telemetry events for BUILD-129 overhead model validation"""
+
+    __tablename__ = "token_estimation_v2_events"
+    __table_args__ = (
+        # Link telemetry to the specific phase instance within a run.
+        # IMPORTANT: `phases.phase_id` is not globally unique; use composite key.
+        ForeignKeyConstraint(
+            ["run_id", "phase_id"],
+            ["phases.run_id", "phases.phase_id"],
+            ondelete="CASCADE",
+            name="fk_token_est_v2_run_phase",
+        ),
+    )
+
+    id = Column(Integer, primary_key=True, index=True, name="event_id")
+    run_id = Column(String, ForeignKey("runs.id"), nullable=False, index=True)
+    phase_id = Column(String, nullable=False, index=True)
+
+    # Timestamp
+    timestamp = Column(
+        DateTime,
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc),
+        index=True
+    )
+
+    # Estimation inputs
+    category = Column(String, nullable=False, index=True)
+    complexity = Column(String, nullable=False, index=True)
+    deliverable_count = Column(Integer, nullable=False, index=True)
+    deliverables_json = Column(Text, nullable=False)  # JSON array of deliverable paths
+
+    # Token predictions vs actuals
+    predicted_output_tokens = Column(Integer, nullable=False)
+    actual_output_tokens = Column(Integer, nullable=False)
+    selected_budget = Column(Integer, nullable=False)
+
+    # Outcome
+    success = Column(Boolean, nullable=False, index=True)
+    truncated = Column(Boolean, nullable=False, default=False, index=True)
+    stop_reason = Column(String, nullable=True)
+    model = Column(String, nullable=False)
+
+    # Calculated metrics
+    smape_percent = Column(Float, nullable=True)  # 200 * |pred - actual| / (|pred| + |actual|)
+    waste_ratio = Column(Float, nullable=True)    # pred / actual
+    underestimated = Column(Boolean, nullable=True, index=True)  # actual > pred
+
+    # Timestamp
     created_at = Column(
         DateTime,
         nullable=False,

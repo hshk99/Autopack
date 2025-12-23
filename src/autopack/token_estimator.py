@@ -38,32 +38,64 @@ class TokenEstimator:
     Replaces file-count heuristic with accurate prediction.
     """
 
-    # Empirical weights from BUILD-126/127/128 telemetry
+    # BUILD-129 Phase 2 Revision: Overhead model to avoid deliverables scaling trap
+    # Base coefficients represent marginal cost per deliverable (not total phase cost)
+    # Overhead is added separately based on category/complexity to capture fixed costs
     TOKEN_WEIGHTS = {
-        "new_file_backend": 800,     # New backend file (create)
-        "new_file_frontend": 1200,   # New frontend file (JSX/TSX verbose)
-        "new_file_test": 600,        # New test file
-        "new_file_doc": 200,         # New documentation
-        "new_file_config": 400,      # New config/migration
-        "modify_backend": 300,       # Modify existing backend
-        "modify_frontend": 450,      # Modify existing frontend
-        "modify_test": 250,          # Modify existing test
-        "modify_doc": 150,           # Modify existing doc
-        "modify_config": 200,        # Modify existing config
+        "new_file_backend": 2000,    # Marginal cost for new backend file
+        "new_file_frontend": 2800,   # Marginal cost for new frontend file (JSX/TSX verbose)
+        "new_file_test": 1400,       # Marginal cost for new test file
+        "new_file_doc": 500,         # Marginal cost for new documentation
+        "new_file_config": 1000,     # Marginal cost for new config/migration
+        "modify_backend": 700,       # Marginal cost for modifying backend
+        "modify_frontend": 1100,     # Marginal cost for modifying frontend
+        "modify_test": 600,          # Marginal cost for modifying test
+        "modify_doc": 400,           # Marginal cost for modifying doc
+        "modify_config": 500,        # Marginal cost for modifying config
     }
 
-    # Category multipliers (boilerplate overhead)
-    CATEGORY_MULTIPLIERS = {
-        "backend": 1.2,      # SQLAlchemy models, pydantic, typing
-        "database": 1.2,     # Migrations, schema updates
-        "frontend": 1.4,     # JSX/TSX verbosity, hooks, state management
-        "deployment": 1.1,   # Docker, k8s configs
-        "testing": 1.0,      # Tests are typically concise
-        "documentation": 0.8, # Docs are text-heavy but shorter
-        "implementation": 1.15, # General implementation overhead
+    # Phase overhead: fixed cost based on category and complexity
+    # BUILD-129 Phase 2 Revision: Captures context setup, boilerplate, coordination costs
+    # This replaces the problematic deliverables scaling multipliers
+    PHASE_OVERHEAD = {
+        # (category, complexity) → base overhead tokens
+        ("implementation", "low"): 2000,
+        ("implementation", "medium"): 3000,
+        ("implementation", "high"): 5000,
+        ("refactoring", "low"): 2500,
+        ("refactoring", "medium"): 3500,
+        ("refactoring", "high"): 5500,
+        ("configuration", "low"): 800,
+        ("configuration", "medium"): 1500,
+        ("configuration", "high"): 2500,
+        ("integration", "low"): 3000,
+        ("integration", "medium"): 4000,
+        ("integration", "high"): 6000,
+        ("testing", "low"): 1500,
+        ("testing", "medium"): 2500,
+        ("testing", "high"): 4000,
+        ("documentation", "low"): 1500,
+        ("documentation", "medium"): 2500,
+        ("documentation", "high"): 3500,
+        ("docs", "low"): 1500,
+        ("docs", "medium"): 2500,
+        ("docs", "high"): 3500,
+        ("backend", "low"): 2000,
+        ("backend", "medium"): 3000,
+        ("backend", "high"): 5000,
+        ("frontend", "low"): 2500,
+        ("frontend", "medium"): 3500,
+        ("frontend", "high"): 5500,
+        ("database", "low"): 2000,
+        ("database", "medium"): 3000,
+        ("database", "high"): 5000,
+        ("deployment", "low"): 2000,
+        ("deployment", "medium"): 3000,
+        ("deployment", "high"): 5000,
     }
 
-    # Safety margins
+    # Safety margins - BUILD-129 Phase 2 Revision: Restored to original conservative values
+    # Keep these constant during coefficient tuning to avoid compounding errors
     SAFETY_MARGIN = 1.3  # +30% for boilerplate, imports, error handling
     BUFFER_MARGIN = 1.2  # +20% buffer for final budget selection
 
@@ -107,25 +139,32 @@ class TokenEstimator:
             )
 
         breakdown = {}
-        total_tokens = 0
+        marginal_cost = 0
 
         for deliverable in deliverables:
             tokens = self._estimate_deliverable(deliverable, category)
-            total_tokens += tokens
+            marginal_cost += tokens
 
             # Track breakdown by type
             deliverable_type = self._classify_deliverable(deliverable, category)
             breakdown[deliverable_type] = breakdown.get(deliverable_type, 0) + tokens
 
-        # Apply safety margin (+30%)
-        total_tokens = int(total_tokens * self.SAFETY_MARGIN)
+        # BUILD-129 Phase 2 Revision: Overhead model
+        # total = overhead(category, complexity) + Σ(marginal cost per deliverable)
+        overhead = self.PHASE_OVERHEAD.get((category, complexity), 2000)
+        base_tokens = overhead + marginal_cost
 
-        # Apply category multiplier
-        multiplier = self.CATEGORY_MULTIPLIERS.get(category, 1.0)
-        total_tokens = int(total_tokens * multiplier)
+        # Apply safety margin (+30%)
+        total_tokens = int(base_tokens * self.SAFETY_MARGIN)
 
         # Calculate confidence based on deliverable specificity
         confidence = self._calculate_confidence(deliverables)
+
+        logger.debug(
+            f"[TokenEstimator] Overhead model: overhead={overhead}, marginal_cost={marginal_cost}, "
+            f"base={base_tokens}, safety={self.SAFETY_MARGIN:.1f}x, final={total_tokens}, "
+            f"deliverables={len(deliverables)}"
+        )
 
         return TokenEstimate(
             estimated_tokens=total_tokens,
@@ -186,14 +225,40 @@ class TokenEstimator:
             Estimated tokens
         """
         path = self._sanitize_deliverable_path(deliverable)
+        normalized_path = path.replace("\\", "/")
 
         # Detect if new file vs modification
         is_new = any(verb in deliverable.lower() for verb in ["create", "new", "add"])
-        is_test = "test" in path.lower()
-        is_doc = path.startswith("docs/") or path.endswith(".md")
-        is_config = any(path.endswith(ext) for ext in [".yaml", ".json", ".toml", ".txt", ".ini"])
-        is_migration = "alembic/versions" in path or "migration" in path.lower()
-        is_frontend = any(path.endswith(ext) for ext in [".tsx", ".jsx", ".vue", ".svelte"])
+
+        # If deliverables are plain paths (common), infer "new" by filesystem existence.
+        # This avoids systematic underestimation where new files were treated as modifications.
+        if not is_new and self.workspace:
+            try:
+                inferred_path = self.workspace / path
+                if not inferred_path.exists():
+                    is_new = True
+            except Exception:
+                pass
+
+        # Test file detection: avoid substring matches like "contest" or "src/.../test_utils.py"
+        # Prefer path-based conventions.
+        lower_norm = normalized_path.lower()
+        basename = Path(lower_norm).name
+        is_test = (
+            lower_norm.startswith("tests/")
+            or "/tests/" in lower_norm
+            or basename.startswith("test_")
+            or basename.endswith("_test.py")
+            or basename.endswith(".spec.ts")
+            or basename.endswith(".spec.tsx")
+            or basename.endswith(".test.ts")
+            or basename.endswith(".test.tsx")
+        )
+
+        is_doc = lower_norm.startswith("docs/") or lower_norm.endswith(".md")
+        is_config = any(lower_norm.endswith(ext) for ext in [".yml", ".yaml", ".json", ".toml", ".txt", ".ini"])
+        is_migration = "alembic/versions" in lower_norm or "migration" in lower_norm
+        is_frontend = any(lower_norm.endswith(ext) for ext in [".tsx", ".jsx", ".vue", ".svelte"])
 
         # Select weight category
         if is_doc:
@@ -233,15 +298,37 @@ class TokenEstimator:
             Classification label
         """
         path = self._sanitize_deliverable_path(deliverable)
-        is_new = any(verb in deliverable.lower() for verb in ["create", "new", "add"])
+        normalized_path = path.replace("\\", "/")
+        lower_norm = normalized_path.lower()
 
-        if "test" in path.lower():
+        is_new = any(verb in deliverable.lower() for verb in ["create", "new", "add"])
+        if not is_new and self.workspace:
+            try:
+                inferred_path = self.workspace / path
+                if not inferred_path.exists():
+                    is_new = True
+            except Exception:
+                pass
+
+        basename = Path(lower_norm).name
+        is_test = (
+            lower_norm.startswith("tests/")
+            or "/tests/" in lower_norm
+            or basename.startswith("test_")
+            or basename.endswith("_test.py")
+            or basename.endswith(".spec.ts")
+            or basename.endswith(".spec.tsx")
+            or basename.endswith(".test.ts")
+            or basename.endswith(".test.tsx")
+        )
+
+        if is_test:
             return "test_new" if is_new else "test_modify"
-        elif path.endswith(".md") or path.startswith("docs/"):
+        elif lower_norm.endswith(".md") or lower_norm.startswith("docs/"):
             return "doc_new" if is_new else "doc_modify"
-        elif any(path.endswith(ext) for ext in [".yaml", ".json", ".toml", ".txt"]):
+        elif any(lower_norm.endswith(ext) for ext in [".yml", ".yaml", ".json", ".toml", ".txt", ".ini"]):
             return "config_new" if is_new else "config_modify"
-        elif any(path.endswith(ext) for ext in [".tsx", ".jsx", ".vue"]):
+        elif any(lower_norm.endswith(ext) for ext in [".tsx", ".jsx", ".vue"]):
             return "frontend_new" if is_new else "frontend_modify"
         else:
             return "backend_new" if is_new else "backend_modify"

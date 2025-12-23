@@ -37,6 +37,86 @@ from .ndjson_format import NDJSONParser, NDJSONApplier, detect_ndjson_format
 logger = logging.getLogger(__name__)
 
 
+def _write_token_estimation_v2_telemetry(
+    run_id: str,
+    phase_id: str,
+    category: str,
+    complexity: str,
+    deliverables: List[str],
+    predicted_output_tokens: int,
+    actual_output_tokens: int,
+    selected_budget: int,
+    success: bool,
+    truncated: bool,
+    stop_reason: Optional[str],
+    model: str,
+) -> None:
+    """Write TokenEstimationV2 event to database for validation.
+
+    Feature flag: TELEMETRY_DB_ENABLED (default: false for backwards compat)
+    """
+    # Feature flag check
+    if not os.environ.get("TELEMETRY_DB_ENABLED", "").lower() in ["1", "true", "yes"]:
+        return
+
+    try:
+        from .database import SessionLocal
+        from .models import TokenEstimationV2Event
+
+        # Calculate metrics
+        if actual_output_tokens > 0 and predicted_output_tokens > 0:
+            denom = (abs(actual_output_tokens) + abs(predicted_output_tokens)) / 2
+            smape = abs(actual_output_tokens - predicted_output_tokens) / max(1, denom) * 100.0
+            waste_ratio = predicted_output_tokens / actual_output_tokens
+            underestimated = actual_output_tokens > predicted_output_tokens
+        else:
+            smape = None
+            waste_ratio = None
+            underestimated = None
+
+        # Sanitize deliverables (max 20, truncate long paths)
+        deliverables_clean = []
+        for d in deliverables[:20]:  # Cap at 20
+            if len(str(d)) > 200:
+                deliverables_clean.append(str(d)[:197] + "...")
+            else:
+                deliverables_clean.append(str(d))
+
+        deliverables_json = json.dumps(deliverables_clean)
+
+        # Write to DB
+        session = SessionLocal()
+        try:
+            event = TokenEstimationV2Event(
+                run_id=run_id,
+                phase_id=phase_id,
+                category=category,
+                complexity=complexity,
+                deliverable_count=len(deliverables),
+                deliverables_json=deliverables_json,
+                predicted_output_tokens=predicted_output_tokens,
+                actual_output_tokens=actual_output_tokens,
+                selected_budget=selected_budget,
+                success=success,
+                truncated=truncated,
+                stop_reason=stop_reason,
+                model=model,
+                # Keep DB semantics aligned with migrations/views:
+                # - smape_percent is a percent (float)
+                # - waste_ratio is predicted/actual (float ratio, not percent)
+                smape_percent=float(smape) if smape is not None else None,
+                waste_ratio=float(waste_ratio) if waste_ratio is not None else None,
+                underestimated=underestimated,
+            )
+            session.add(event)
+            session.commit()
+        finally:
+            session.close()
+    except Exception as e:
+        # Don't fail the build on telemetry errors
+        logger.warning(f"[TokenEstimationV2] Failed to write DB telemetry: {e}")
+
+
 # Per GPT_RESPONSE24 C1: Normalize complexity to handle variations
 ALLOWED_COMPLEXITIES = {"low", "medium", "high", "maintenance"}
 
@@ -695,6 +775,22 @@ class AnthropicBuilderClient:
                         was_truncated_local,
                         model,
                     )
+
+                    # BUILD-129 Phase 3: Write telemetry to DB for validation
+                    _write_token_estimation_v2_telemetry(
+                        run_id=phase_spec.get("run_id", "unknown"),
+                        phase_id=phase_spec.get("phase_id", "unknown"),
+                        category=task_category or "implementation",
+                        complexity=complexity,
+                        deliverables=deliverables if isinstance(deliverables, list) else [],
+                        predicted_output_tokens=predicted_output_tokens,
+                        actual_output_tokens=actual_out,
+                        selected_budget=token_selected_budget or phase_spec.get("metadata", {}).get("token_prediction", {}).get("selected_budget", 0),
+                        success=getattr(result, "success", False),
+                        truncated=was_truncated_local or False,
+                        stop_reason=stop_reason_local,
+                        model=model,
+                    )
                 elif predicted_output_tokens and result.tokens_used:
                     # Fallback: if we don't have output tokens separately, log total tokens
                     logger.info(
@@ -708,6 +804,22 @@ class AnthropicBuilderClient:
                         len(deliverables) if isinstance(deliverables, list) else 0,
                         getattr(result, "success", None),
                         model,
+                    )
+
+                    # BUILD-129 Phase 3: Write telemetry to DB (fallback case)
+                    _write_token_estimation_v2_telemetry(
+                        run_id=phase_spec.get("run_id", "unknown"),
+                        phase_id=phase_spec.get("phase_id", "unknown"),
+                        category=task_category or "implementation",
+                        complexity=complexity,
+                        deliverables=deliverables if isinstance(deliverables, list) else [],
+                        predicted_output_tokens=predicted_output_tokens,
+                        actual_output_tokens=result.tokens_used,  # Using total tokens as fallback
+                        selected_budget=token_selected_budget or phase_spec.get("metadata", {}).get("token_prediction", {}).get("selected_budget", 0),
+                        success=getattr(result, "success", False),
+                        truncated=False,  # Unknown in fallback
+                        stop_reason=None,
+                        model=model,
                     )
 
             return result

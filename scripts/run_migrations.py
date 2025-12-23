@@ -2,7 +2,12 @@
 """Simple migration runner
 
 Following GPT's recommendation: Simple migration scripts (not full Migration Manager yet).
-Run SQL files from scripts/migrations/ directory in order.
+Run SQL files from both:
+- migrations/ (root)  [primary schema + telemetry migrations]
+- scripts/migrations/ (legacy/utility migrations)
+
+Files are executed in lexicographic order within each directory, with root migrations
+running first by default.
 """
 
 import argparse
@@ -25,10 +30,10 @@ def get_db_path() -> Path:
     return db_path
 
 
-def get_migration_files(migrations_dir: Path) -> list[tuple[str, Path]]:
-    """Get sorted list of migration files"""
+def get_migration_files(migrations_dir: Path, label: str) -> list[tuple[str, Path]]:
+    """Get sorted list of migration files from a single directory."""
     if not migrations_dir.exists():
-        print(f"No migrations directory found at {migrations_dir}")
+        print(f"[*] No migrations directory found at {migrations_dir} ({label})")
         return []
 
     # Get all .sql files, sorted by name
@@ -95,17 +100,19 @@ def main():
     # Get database path
     db_path = Path(args.db) if args.db else get_db_path()
 
-    # Get migrations directory
-    migrations_dir = Path(__file__).parent / "migrations"
-
     print(f"[*] Database: {db_path}")
-    print(f"[*] Migrations directory: {migrations_dir}")
+    root_migrations_dir = Path.cwd() / "migrations"
+    scripts_migrations_dir = Path(__file__).parent / "migrations"
+    print(f"[*] Root migrations directory: {root_migrations_dir}")
+    print(f"[*] Scripts migrations directory: {scripts_migrations_dir}")
 
     if args.dry_run:
         print("[*] DRY RUN MODE - No changes will be made")
 
-    # Get migration files
-    migrations = get_migration_files(migrations_dir)
+    # Get migration files (root first, then legacy scripts/)
+    migrations = []
+    migrations.extend(get_migration_files(root_migrations_dir, label="root"))
+    migrations.extend(get_migration_files(scripts_migrations_dir, label="scripts"))
 
     if not migrations:
         print("[*] No migrations found")

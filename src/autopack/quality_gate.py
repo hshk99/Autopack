@@ -427,9 +427,9 @@ class QualityGate:
         phase_id: str,
         phase_spec: Any,
         auditor_result: Dict,
-        ci_result: Dict,
-        coverage_delta: float,
-        patch_content: str,
+        ci_result: Optional[Dict] = None,
+        coverage_delta: float = 0.0,
+        patch_content: str = "",
         files_changed: Optional[List[str]] = None,
     ) -> QualityReport:
         """Assess phase quality (basic implementation).
@@ -438,9 +438,9 @@ class QualityGate:
             phase_id: Phase identifier
             phase_spec: Phase specification
             auditor_result: Auditor review result
-            ci_result: CI test results
-            coverage_delta: Code coverage change
-            patch_content: Patch content
+            ci_result: CI test results (optional, defaults to empty dict)
+            coverage_delta: Code coverage change (optional, defaults to 0.0)
+            patch_content: Patch content (optional, defaults to empty string)
             files_changed: List of changed files
 
         Returns:
@@ -448,6 +448,10 @@ class QualityGate:
         """
         issues = []
         is_blocking = False
+
+        # Default ci_result to empty dict if None
+        if ci_result is None:
+            ci_result = {}
 
         # Check auditor approval
         if auditor_result.get("approved") is False:

@@ -16,6 +16,37 @@ Each entry includes:
 
 ## Chronological Index
 
+### BUILD-129: Token Estimator Overhead Model - Phase 3 P0 Fixes (2025-12-24)
+
+**Status**: COMPLETE
+
+**Summary**: Addressed all critical gaps in BUILD-129 Phase 3 telemetry DB persistence implementation. Fixed complexity constraint mismatch, added comprehensive regression test suite, and validated production readiness for telemetry collection.
+
+**Files Modified**:
+- `migrations/004_fix_complexity_constraint.sql` - Created and applied complexity constraint fix
+- `tests/test_token_estimation_v2_telemetry.py` - Created regression test suite (5/5 passing)
+- `docs/BUILD-129_PHASE3_P0_FIXES_COMPLETE.md` - Created comprehensive fix documentation
+- `BUILD_LOG.md` - Updated with P0 fixes summary
+
+**Files Verified Working**:
+- `src/autopack/anthropic_clients.py` - Telemetry helper function + 2 call sites
+- `scripts/replay_telemetry.py` - DB-backed replay with real deliverables
+- `scripts/export_token_estimation_telemetry.py` - NDJSON export
+- `migrations/003_fix_token_estimation_v2_events_fk.sql` - Composite FK
+
+**Impact**:
+- Prevents silent telemetry loss for `complexity='maintenance'` phases
+- Provides automated regression testing for telemetry correctness
+- Validates metric calculations (SMAPE, waste_ratio, underestimation)
+- Confirms production readiness for `TELEMETRY_DB_ENABLED=1` deployment
+- Enables collection of 30-50 stratified samples for real validation
+
+**Documentation**:
+- [BUILD-129_PHASE3_P0_FIXES_COMPLETE.md](docs/BUILD-129_PHASE3_P0_FIXES_COMPLETE.md)
+- [BUILD-129_PHASE3_P0_TELEMETRY_IMPLEMENTATION_COMPLETE.md](docs/BUILD-129_PHASE3_P0_TELEMETRY_IMPLEMENTATION_COMPLETE.md)
+
+---
+
 ### BUILD-132: Coverage Delta Integration (2025-12-23)
 
 **Status**: COMPLETE

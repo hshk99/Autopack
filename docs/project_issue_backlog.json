@@ -4,11 +4,11 @@
     "builder_failure": {
       "category": "builder_failure",
       "base_severity": "major",
-      "age_in_runs": 37,
-      "age_in_tiers": 37,
+      "age_in_runs": 43,
+      "age_in_tiers": 43,
       "first_seen_run_id": "research-citation-fix",
-      "last_seen_run_id": "build130-schema-validation-prevention",
-      "last_seen_at": "2025-12-23T03:57:56.561300Z",
+      "last_seen_run_id": "build129-p3-week1-telemetry",
+      "last_seen_at": "2025-12-23T13:54:03.429892Z",
       "seen_in_tiers": [],
       "status": "open"
     },

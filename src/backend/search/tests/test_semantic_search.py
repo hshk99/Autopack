@@ -1,250 +1,166 @@
-"""Tests for semantic search functionality.
-
-Tests the EmbeddingService and SemanticSearchEngine classes.
-"""
-
+"""Tests for semantic search module."""
 import pytest
-import numpy as np
-
-# Skip all tests if sentence-transformers not installed
-pytorch_available = True
-try:
-    import torch
-    from sentence_transformers import SentenceTransformer
-except ImportError:
-    pytorch_available = False
-
-pytestmark = pytest.mark.skipif(
-    not pytorch_available,
-    reason="sentence-transformers not installed"
-)
+from pathlib import Path
+from src.backend.search.semantic_search import SemanticSearchEngine, SearchResult
 
 
-class TestEmbeddingService:
-    """Tests for EmbeddingService."""
+@pytest.fixture
+def temp_workspace(tmp_path):
+    """Create temporary workspace with test files."""
+    # Create test files
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src" / "main.py").write_text("def main(): pass")
+    (tmp_path / "src" / "utils.py").write_text("def helper(): pass")
+    (tmp_path / "tests").mkdir()
+    (tmp_path / "tests" / "test_main.py").write_text("def test_main(): pass")
+    (tmp_path / "README.md").write_text("# Project README")
     
-    @pytest.fixture
-    def service(self):
-        """Create embedding service fixture."""
-        from src.backend.search.embedding_service import EmbeddingService
-        return EmbeddingService()
+    return tmp_path
+
+
+@pytest.fixture
+def search_engine(temp_workspace):
+    """Create search engine with indexed files."""
+    engine = SemanticSearchEngine(temp_workspace)
     
-    def test_embed_text_returns_array(self, service):
-        """Test that embed_text returns numpy array."""
-        embedding = service.embed_text("Hello world")
-        assert isinstance(embedding, np.ndarray)
+    # Index test files
+    engine.index_file("src/main.py", {"type": "python", "size": 100})
+    engine.index_file("src/utils.py", {"type": "python", "size": 80})
+    engine.index_file("tests/test_main.py", {"type": "test", "size": 120})
+    engine.index_file("README.md", {"type": "markdown", "size": 50})
     
-    def test_embed_text_dimension(self, service):
-        """Test embedding dimension is 768 for all-mpnet-base-v2."""
-        embedding = service.embed_text("Test text")
-        assert embedding.shape == (768,)
-    
-    def test_embed_text_normalized(self, service):
-        """Test that embeddings are L2 normalized."""
-        embedding = service.embed_text("Test text", normalize=True)
-        norm = np.linalg.norm(embedding)
-        assert abs(norm - 1.0) < 1e-5
-    
-    def test_embed_texts_batch(self, service):
-        """Test batch embedding."""
-        texts = ["Hello", "World", "Test"]
-        embeddings = service.embed_texts(texts)
-        assert embeddings.shape == (3, 768)
-    
-    def test_embed_texts_empty(self, service):
-        """Test empty input returns empty array."""
-        embeddings = service.embed_texts([])
-        assert len(embeddings) == 0
-    
-    def test_similarity_same_text(self, service):
-        """Test similarity of identical texts is ~1.0."""
-        sim = service.similarity("Hello world", "Hello world")
-        assert sim > 0.99
-    
-    def test_similarity_different_texts(self, service):
-        """Test similarity of different texts is lower."""
-        sim = service.similarity(
-            "Python programming language",
-            "Cooking recipes for dinner"
-        )
-        assert sim < 0.5
-    
-    def test_similarity_semantic(self, service):
-        """Test semantic similarity works."""
-        # Similar meaning, different words
-        sim_similar = service.similarity(
-            "The cat sat on the mat",
-            "A feline rested on the rug"
-        )
-        # Completely different topics
-        sim_different = service.similarity(
-            "The cat sat on the mat",
-            "Stock market analysis report"
-        )
-        assert sim_similar > sim_different
-    
-    def test_batch_similarity(self, service):
-        """Test batch similarity computation."""
-        query = "Machine learning"
-        candidates = [
-            "Deep learning neural networks",
-            "Cooking pasta recipes",
-            "Artificial intelligence research"
-        ]
-        scores = service.batch_similarity(query, candidates)
-        assert len(scores) == 3
-        # ML should be more similar to AI/DL than cooking
-        assert scores[0] > scores[1]
-        assert scores[2] > scores[1]
+    return engine
 
 
 class TestSemanticSearchEngine:
     """Tests for SemanticSearchEngine."""
     
-    @pytest.fixture
-    def engine(self):
-        """Create search engine fixture."""
-        from src.backend.search.semantic_search import SemanticSearchEngine
-        return SemanticSearchEngine()
+    def test_initialization(self, temp_workspace):
+        """Test engine initialization."""
+        engine = SemanticSearchEngine(temp_workspace)
+        assert engine.workspace_path == temp_workspace
+        assert len(engine._index) == 0
     
-    @pytest.fixture
-    def populated_engine(self, engine):
-        """Create engine with sample documents."""
-        documents = [
-            {"id": "1", "text": "Python programming tutorial for beginners"},
-            {"id": "2", "text": "Machine learning and artificial intelligence"},
-            {"id": "3", "text": "Web development with JavaScript and React"},
-            {"id": "4", "text": "Data science with Python and pandas"},
-            {"id": "5", "text": "Cooking recipes for Italian pasta dishes"},
-        ]
-        engine.add_documents(documents)
-        return engine
+    def test_index_file(self, temp_workspace):
+        """Test file indexing."""
+        engine = SemanticSearchEngine(temp_workspace)
+        engine.index_file("test.py", {"type": "python"})
+        
+        assert "test.py" in engine._index
+        assert engine._index["test.py"]["type"] == "python"
     
-    def test_add_document(self, engine):
-        """Test adding a single document."""
-        engine.add_document("test", "Test document")
-        assert engine.document_count == 1
+    def test_search_empty_query(self, search_engine):
+        """Test search with empty query."""
+        results = search_engine.search("")
+        assert len(results) == 0
     
-    def test_add_documents_batch(self, engine):
-        """Test adding multiple documents."""
-        docs = [
-            {"id": "1", "text": "First document"},
-            {"id": "2", "text": "Second document"},
-        ]
-        count = engine.add_documents(docs)
-        assert count == 2
-        assert engine.document_count == 2
+    def test_search_exact_path_match(self, search_engine):
+        """Test search with exact path match."""
+        results = search_engine.search("main.py")
+        
+        assert len(results) >= 1
+        assert results[0].file_path in ["src/main.py", "tests/test_main.py"]
+        assert results[0].confidence >= 0.75
     
-    def test_remove_document(self, populated_engine):
-        """Test removing a document."""
-        initial_count = populated_engine.document_count
-        removed = populated_engine.remove_document("1")
-        assert removed is True
-        assert populated_engine.document_count == initial_count - 1
+    def test_search_partial_match(self, search_engine):
+        """Test search with partial match."""
+        results = search_engine.search("utils")
+        
+        assert len(results) >= 1
+        assert "utils.py" in results[0].file_path
+        assert results[0].confidence >= 0.50
     
-    def test_remove_nonexistent(self, engine):
-        """Test removing nonexistent document returns False."""
-        removed = engine.remove_document("nonexistent")
-        assert removed is False
+    def test_search_metadata_match(self, search_engine):
+        """Test search matching metadata."""
+        results = search_engine.search("python")
+        
+        assert len(results) >= 2  # main.py and utils.py
+        for result in results[:2]:
+            assert result.metadata["type"] == "python"
     
-    def test_clear(self, populated_engine):
-        """Test clearing all documents."""
-        populated_engine.clear()
-        assert populated_engine.document_count == 0
+    def test_search_confidence_threshold(self, search_engine):
+        """Test confidence threshold filtering."""
+        # High threshold should return fewer results
+        high_results = search_engine.search("test", min_confidence=0.85)
+        low_results = search_engine.search("test", min_confidence=0.50)
+        
+        assert len(high_results) <= len(low_results)
     
-    def test_search_returns_results(self, populated_engine):
-        """Test search returns results."""
-        results = populated_engine.search("Python programming")
-        assert len(results) > 0
-    
-    def test_search_relevance(self, populated_engine):
-        """Test search returns relevant results first."""
-        results = populated_engine.search("Python programming", top_k=3)
-        # Python-related docs should rank higher than cooking
-        doc_ids = [r.document_id for r in results]
-        assert "5" not in doc_ids[:2]  # Cooking should not be in top 2
-    
-    def test_search_top_k(self, populated_engine):
-        """Test top_k limits results."""
-        results = populated_engine.search("programming", top_k=2)
+    def test_search_max_results(self, search_engine):
+        """Test max results limit."""
+        results = search_engine.search("py", max_results=2)
         assert len(results) <= 2
     
-    def test_search_threshold(self, populated_engine):
-        """Test threshold filters low-scoring results."""
-        results = populated_engine.search(
-            "quantum physics",
-            threshold=0.9  # Very high threshold
-        )
-        # Should return few or no results for unrelated query
-        assert len(results) == 0 or all(r.score >= 0.9 for r in results)
+    def test_search_sorting(self, search_engine):
+        """Test results are sorted by confidence and score."""
+        results = search_engine.search("main")
+        
+        if len(results) > 1:
+            # Check confidence is non-increasing
+            for i in range(len(results) - 1):
+                assert results[i].confidence >= results[i + 1].confidence
     
-    def test_search_empty_index(self, engine):
-        """Test search on empty index returns empty list."""
-        results = engine.search("test query")
-        assert results == []
+    def test_snippet_extraction(self, search_engine):
+        """Test snippet extraction from files."""
+        results = search_engine.search("main")
+        
+        # At least one result should have a snippet
+        assert any(r.snippet is not None for r in results)
     
-    def test_search_result_structure(self, populated_engine):
-        """Test search result has correct structure."""
-        results = populated_engine.search("Python", top_k=1)
-        assert len(results) == 1
-        result = results[0]
-        assert hasattr(result, "document_id")
-        assert hasattr(result, "score")
-        assert hasattr(result, "text")
-        assert hasattr(result, "metadata")
+    def test_confidence_levels(self, search_engine):
+        """Test confidence level labels."""
+        assert search_engine.get_confidence_level(0.90) == "high"
+        assert search_engine.get_confidence_level(0.75) == "medium"
+        assert search_engine.get_confidence_level(0.55) == "low"
+        assert search_engine.get_confidence_level(0.30) == "very_low"
     
-    def test_search_with_metadata(self, engine):
-        """Test search with metadata filter."""
-        engine.add_document(
-            "1", "Python tutorial",
-            metadata={"category": "programming", "level": "beginner"}
+    def test_clear_index(self, search_engine):
+        """Test index clearing."""
+        assert len(search_engine._index) > 0
+        
+        search_engine.clear_index()
+        
+        assert len(search_engine._index) == 0
+        assert len(search_engine._embeddings_cache) == 0
+    
+    def test_nonexistent_file_snippet(self, search_engine):
+        """Test snippet extraction for nonexistent file."""
+        snippet = search_engine._extract_snippet(
+            "nonexistent.py",
+            {"test"},
+            max_length=100
         )
-        engine.add_document(
-            "2", "Python advanced",
-            metadata={"category": "programming", "level": "advanced"}
-        )
-        engine.add_document(
-            "3", "Cooking basics",
-            metadata={"category": "cooking", "level": "beginner"}
+        assert snippet is None
+    
+    def test_calculate_match_all_terms_in_path(self, search_engine):
+        """Test match calculation with all terms in path."""
+        score, confidence = search_engine._calculate_match(
+            "src/main.py",
+            {"type": "python"},
+            {"main", "py"}
         )
         
-        # Filter by category
-        results = engine.search(
-            "tutorial",
-            filter_metadata={"category": "programming"}
+        assert score > 0
+        assert confidence >= 0.85  # High confidence
+    
+    def test_calculate_match_partial(self, search_engine):
+        """Test match calculation with partial match."""
+        score, confidence = search_engine._calculate_match(
+            "src/utils.py",
+            {"type": "python"},
+            {"utils", "helper", "test"}
         )
-        for r in results:
-            assert r.metadata.get("category") == "programming"
+        
+        assert score > 0
+        assert 0.50 <= confidence < 0.85  # Medium or low confidence
     
-    def test_get_document(self, populated_engine):
-        """Test retrieving document by ID."""
-        doc = populated_engine.get_document("1")
-        assert doc is not None
-        assert doc.id == "1"
-    
-    def test_get_document_not_found(self, engine):
-        """Test retrieving nonexistent document returns None."""
-        doc = engine.get_document("nonexistent")
-        assert doc is None
-    
-    def test_get_similar_documents(self, populated_engine):
-        """Test finding similar documents."""
-        # Doc 1 is Python tutorial, should be similar to doc 4 (Python data science)
-        results = populated_engine.get_similar_documents("1", top_k=2)
-        assert len(results) > 0
-        # Should not include the source document
-        assert all(r.document_id != "1" for r in results)
-    
-    def test_search_result_to_dict(self, populated_engine):
-        """Test SearchResult.to_dict() method."""
-        results = populated_engine.search("Python", top_k=1)
-        result_dict = results[0].to_dict()
-        assert "document_id" in result_dict
-        assert "score" in result_dict
-        assert "text" in result_dict
-        assert "metadata" in result_dict
-    
-    def test_embedding_dimension_property(self, engine):
-        """Test embedding_service property access."""
-        dim = engine.embedding_service.embedding_dimension
-        assert dim == 768
+    def test_calculate_match_no_match(self, search_engine):
+        """Test match calculation with no match."""
+        score, confidence = search_engine._calculate_match(
+            "src/main.py",
+            {"type": "python"},
+            {"nonexistent", "missing"}
+        )
+        
+        assert score == 0.0
+        assert confidence < 0.50  # Very low confidence

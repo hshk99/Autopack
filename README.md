@@ -6,7 +6,24 @@ Autopack is a framework for orchestrating autonomous AI agents (Builder and Audi
 
 ---
 
-## Recent Updates (v0.4.5 - BUILD-130 Prevention Infrastructure Complete)
+## Recent Updates (v0.4.6 - BUILD-129 Telemetry Production Ready)
+
+### BUILD-129 Phase 3 P0 Telemetry Fixes (2025-12-24) - ✅ COMPLETE
+**Production-Ready Telemetry Collection** - Critical gaps addressed, regression testing complete
+- **Problem Solved**: Initial telemetry DB implementation had complexity constraint mismatch and no regression tests
+- **Solution**: Code review identified 5 critical issues, fixed 2, verified 3 already working correctly
+- **Key Fixes**:
+  - **Migration 004**: Fixed complexity constraint from `'critical'` → `'maintenance'` (prevents silent telemetry loss)
+  - **Regression Test Suite**: Created 5 comprehensive tests validating metrics, feature flag, sanitization, fail-safe
+  - **Verified Working**: Metric storage (waste_ratio=1.5 float, not 150 int), replay script DB integration, composite FK
+- **Test Results**: 5/5 passing - feature flag, metric calculations (SMAPE=40%, waste_ratio=1.5), underestimation, sanitization, fail-safe
+- **Production Readiness**: ✅ Ready to enable `TELEMETRY_DB_ENABLED=1` for collection of 30-50 stratified samples
+- **Files Modified**:
+  - [migrations/004_fix_complexity_constraint.sql](migrations/004_fix_complexity_constraint.sql) - Applied complexity fix
+  - [tests/test_token_estimation_v2_telemetry.py](tests/test_token_estimation_v2_telemetry.py) - Created 5-test suite (271 lines)
+- **Files Verified**: [anthropic_clients.py](src/autopack/anthropic_clients.py) (helper + calls), [replay_telemetry.py](scripts/replay_telemetry.py) (DB-backed), [export_token_estimation_telemetry.py](scripts/export_token_estimation_telemetry.py) (NDJSON)
+- **Impact**: Prevents silent failures, validates correctness, enables confident production deployment
+- **Docs**: [BUILD-129_PHASE3_P0_FIXES_COMPLETE.md](docs/BUILD-129_PHASE3_P0_FIXES_COMPLETE.md)
 
 ### BUILD-130 Schema Validation & Circuit Breaker (2025-12-23) - ✅ COMPLETE
 **Prevention Infrastructure** - Eliminates infinite retry loops and schema drift errors

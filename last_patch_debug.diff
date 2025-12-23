@@ -1,538 +1,579 @@
-diff --git a/BUILD_HISTORY.md b/BUILD_HISTORY.md
+diff --git a/src/autopack/diagnostics/package_detector.py b/src/autopack/diagnostics/package_detector.py
 new file mode 100644
 index 0000000..1111111
 --- /dev/null
-+++ b/BUILD_HISTORY.md
-@@ -0,0 +1,89 @@
-+# Build History
++++ b/src/autopack/diagnostics/package_detector.py
+@@ -0,0 +1,469 @@
++"""Package detection and dependency analysis.
 +
-+Chronological index of all completed builds in the Autopack project.
++Detects missing packages through static analysis and runtime validation.
++"""
++from dataclasses import dataclass, field
++from pathlib import Path
++from typing import List, Set, Dict, Optional
++import ast
++import sys
++import logging
++import subprocess
 +
-+## Format
++logger = logging.getLogger(__name__)
 +
-+Each entry includes:
-+- **Build ID**: Unique identifier (e.g., BUILD-132)
-+- **Date**: Completion date
-+- **Status**: COMPLETE, IN_PROGRESS, or BLOCKED
-+- **Summary**: Brief description of changes
-+- **Files Modified**: Key files affected
-+- **Impact**: Effect on system functionality
 +
-+---
++@dataclass
++class PackageRequirement:
++    """Represents a package requirement detected in code."""
++    name: str
++    import_statement: str
++    file_path: str
++    line_number: int
++    is_stdlib: bool
++    is_installed: bool
++    suggested_package: Optional[str] = None
 +
-+## Chronological Index
 +
-+### BUILD-132: Coverage Delta Integration (2025-12-23)
++@dataclass
++class PackageDetectionResult:
++    """Result of package detection analysis."""
++    missing_packages: List[PackageRequirement]
++    installed_packages: List[str]
++    stdlib_imports: List[str]
++    total_imports: int
++    files_analyzed: int
++    errors: List[str]
 +
-+**Status**: COMPLETE
++    @property
++    def has_missing_packages(self) -> bool:
++        """Check if any packages are missing."""
++        return len(self.missing_packages) > 0
 +
-+**Summary**: Replaced hardcoded 0.0 coverage delta with pytest-cov tracking. Quality Gate can now detect coverage regressions by comparing current coverage against T0 baseline.
++    @property
++    def missing_package_names(self) -> Set[str]:
++        """Get unique set of missing package names."""
++        return {req.suggested_package or req.name for req in self.missing_packages}
 +
-+**Files Modified**:
-+- `pytest.ini` - Added pytest-cov configuration with JSON output
-+- `src/autopack/coverage_tracker.py` - Created coverage delta calculator
-+- `tests/test_coverage_tracker.py` - Added comprehensive test suite
-+- `src/autopack/autonomous_executor.py` - Integrated coverage tracking into Quality Gate
++    @property
++    def coverage_percentage(self) -> float:
++        """Calculate percentage of imports that are satisfied."""
++        if self.total_imports == 0:
++            return 100.0
++        satisfied = len(self.installed_packages) + len(self.stdlib_imports)
++        return (satisfied / self.total_imports) * 100.0
 +
-+**Impact**: 
-+- Quality Gate now enforces coverage regression prevention
-+- Baseline establishment required: run `pytest --cov` to generate `.coverage_baseline.json`
-+- Coverage delta displayed in phase execution logs
-+- Blocks phases that decrease coverage below baseline
 +
-+**Documentation**: 
-+- [BUILD-132_COVERAGE_DELTA_INTEGRATION.md](docs/BUILD-132_COVERAGE_DELTA_INTEGRATION.md)
-+- [BUILD-132_IMPLEMENTATION_STATUS.md](docs/BUILD-132_IMPLEMENTATION_STATUS.md)
++class PackageDetector:
++    """Detects missing packages through static analysis and runtime validation."""
 +
-+---
++    # Common package name mappings (import name -> package name)
++    PACKAGE_MAPPINGS = {
++        "cv2": "opencv-python",
++        "PIL": "Pillow",
++        "sklearn": "scikit-learn",
++        "yaml": "PyYAML",
++        "jose": "python-jose",
++        "multipart": "python-multipart",
++        "telegram": "python-telegram-bot",
++        "magic": "python-magic",
++        "dateutil": "python-dateutil",
++        "OpenSSL": "pyOpenSSL",
++        "nacl": "PyNaCl",
++    }
 +
-+### BUILD-042: Eliminate max_tokens Truncation Issues (2025-12-17)
++    # Python standard library modules (comprehensive list)
++    STDLIB_MODULES = {
++        "__future__",
++        "_thread",
++        "abc",
++        "aifc",
++        "argparse",
++        "array",
++        "ast",
++        "asynchat",
++        "asyncio",
++        "asyncore",
++        "atexit",
++        "audioop",
++        "base64",
++        "bdb",
++        "binascii",
++        "binhex",
++        "bisect",
++        "builtins",
++        "bz2",
++        "calendar",
++        "cgi",
++        "cgitb",
++        "chunk",
++        "cmath",
++        "cmd",
++        "code",
++        "codecs",
++        "codeop",
++        "collections",
++        "colorsys",
++        "compileall",
++        "concurrent",
++        "configparser",
++        "contextlib",
++        "contextvars",
++        "copy",
++        "copyreg",
++        "cProfile",
++        "crypt",
++        "csv",
++        "ctypes",
++        "curses",
++        "dataclasses",
++        "datetime",
++        "dbm",
++        "decimal",
++        "difflib",
++        "dis",
++        "distutils",
++        "doctest",
++        "email",
++        "encodings",
++        "enum",
++        "errno",
++        "faulthandler",
++        "fcntl",
++        "filecmp",
++        "fileinput",
++        "fnmatch",
++        "formatter",
++        "fractions",
++        "ftplib",
++        "functools",
++        "gc",
++        "getopt",
++        "getpass",
++        "gettext",
++        "glob",
++        "graphlib",
++        "grp",
++        "gzip",
++        "hashlib",
++        "heapq",
++        "hmac",
++        "html",
++        "http",
++        "imaplib",
++        "imghdr",
++        "imp",
++        "importlib",
++        "inspect",
++        "io",
++        "ipaddress",
++        "itertools",
++        "json",
++        "keyword",
++        "lib2to3",
++        "linecache",
++        "locale",
++        "logging",
++        "lzma",
++        "mailbox",
++        "mailcap",
++        "marshal",
++        "math",
++        "mimetypes",
++        "mmap",
++        "modulefinder",
++        "msilib",
++        "msvcrt",
++        "multiprocessing",
++        "netrc",
++        "nis",
++        "nntplib",
++        "numbers",
++        "operator",
++        "optparse",
++        "os",
++        "ossaudiodev",
++        "parser",
++        "pathlib",
++        "pdb",
++        "pickle",
++        "pickletools",
++        "pipes",
++        "pkgutil",
++        "platform",
++        "plistlib",
++        "poplib",
++        "posix",
++        "posixpath",
++        "pprint",
++        "profile",
++        "pstats",
++        "pty",
++        "pwd",
++        "py_compile",
++        "pyclbr",
++        "pydoc",
++        "queue",
++        "quopri",
++        "random",
++        "re",
++        "readline",
++        "reprlib",
++        "resource",
++        "rlcompleter",
++        "runpy",
++        "sched",
++        "secrets",
++        "select",
++        "selectors",
++        "shelve",
++        "shlex",
++        "shutil",
++        "signal",
++        "site",
++        "smtpd",
++        "smtplib",
++        "sndhdr",
++        "socket",
++        "socketserver",
++        "spwd",
++        "sqlite3",
++        "ssl",
++        "stat",
++        "statistics",
++        "string",
++        "stringprep",
++        "struct",
++        "subprocess",
++        "sunau",
++        "symbol",
++        "symtable",
++        "sys",
++        "sysconfig",
++        "syslog",
++        "tabnanny",
++        "tarfile",
++        "telnetlib",
++        "tempfile",
++        "termios",
++        "test",
++        "textwrap",
++        "threading",
++        "time",
++        "timeit",
++        "tkinter",
++        "token",
++        "tokenize",
++        "trace",
++        "traceback",
++        "tracemalloc",
++        "tty",
++        "turtle",
++        "turtledemo",
++        "types",
++        "typing",
++        "unicodedata",
++        "unittest",
++        "urllib",
++        "uu",
++        "uuid",
++        "venv",
++        "warnings",
++        "wave",
++        "weakref",
++        "webbrowser",
++        "winreg",
++        "winsound",
++        "wsgiref",
++        "xdrlib",
++        "xml",
++        "xmlrpc",
++        "zipapp",
++        "zipfile",
++        "zipimport",
++        "zlib",
++    }
 +
-+**Status**: COMPLETE
++    def __init__(self, project_root: Path):
++        """Initialize package detector.
++        
++        Args:
++            project_root: Root directory of the project
++        """
++        self.project_root = project_root
 +
-+**Summary**: Fixed 60% phase failure rate due to max_tokens truncation by implementing complexity-based token scaling and smart context reduction.
++    def detect_missing_packages(self, scope_paths: Optional[List[str]] = None) -> PackageDetectionResult:
++        """Detect missing packages in the project.
++        
++        Args:
++            scope_paths: Optional list of specific paths to analyze
++            
++        Returns:
++            PackageDetectionResult with analysis results
++        """
++        missing_packages = []
++        installed_packages = []
++        stdlib_imports = []
++        total_imports = 0
++        files_analyzed = 0
++        errors = []
 +
-+**Files Modified**:
-+- `src/autopack/anthropic_clients.py` - Complexity-based token scaling (8K/12K/16K)
-+- `src/autopack/autonomous_executor.py` - Pattern-based context reduction
++        # Get Python files to analyze
++        if scope_paths:
++            python_files = []
++            for path_str in scope_paths:
++                path = self.project_root / path_str
++                if path.is_file() and path.suffix == ".py":
++                    python_files.append(path)
++                elif path.is_dir():
++                    python_files.extend(path.rglob("*.py"))
++        else:
++            python_files = list(self.project_root.rglob("*.py"))
 +
-+**Impact**: 
-+- Reduced first-attempt failure rate from 60% to <5%
-+- Saved $0.12 per phase ($1.80 per 15-phase run)
-+- Eliminated unnecessary model escalation (Sonnet → Opus)
++        # Analyze each file
++        for file_path in python_files:
++            try:
++                imports = self._extract_imports(file_path)
++                files_analyzed += 1
++                
++                for import_name, import_stmt, line_no in imports:
++                    total_imports += 1
++                    
++                    # Check if stdlib
++                    if self._is_stdlib(import_name):
++                        stdlib_imports.append(import_name)
++                        continue
++                    
++                    # Check if installed
++                    if self._is_installed(import_name):
++                        installed_packages.append(import_name)
++                        continue
++                    
++                    # Missing package
++                    suggested_package = self.PACKAGE_MAPPINGS.get(import_name, import_name)
++                    missing_packages.append(PackageRequirement(
++                        name=import_name,
++                        import_statement=import_stmt,
++                        file_path=str(file_path.relative_to(self.project_root)),
++                        line_number=line_no,
++                        is_stdlib=False,
++                        is_installed=False,
++                        suggested_package=suggested_package
++                    ))
++                    
++            except Exception as e:
++                errors.append(f"Error analyzing {file_path}: {e}")
++                logger.warning(f"Failed to analyze {file_path}: {e}")
 +
-+**Documentation**: [BUILD-042_MAX_TOKENS_FIX.md](archive/reports/BUILD-042_MAX_TOKENS_FIX.md)
++        return PackageDetectionResult(
++            missing_packages=missing_packages,
++            installed_packages=list(set(installed_packages)),
++            stdlib_imports=list(set(stdlib_imports)),
++            total_imports=total_imports,
++            files_analyzed=files_analyzed,
++            errors=errors
++        )
 +
-+---
++    def _extract_imports(self, file_path: Path) -> List[tuple]:
++        """Extract import statements from a Python file.
++        
++        Args:
++            file_path: Path to Python file
++            
++        Returns:
++            List of (import_name, import_statement, line_number) tuples
++        """
++        imports = []
++        
++        try:
++            content = file_path.read_text(encoding="utf-8")
++            tree = ast.parse(content, filename=str(file_path))
++            
++            for node in ast.walk(tree):
++                if isinstance(node, ast.Import):
++                    for alias in node.names:
++                        import_name = alias.name.split(".")[0]
++                        import_stmt = f"import {alias.name}"
++                        imports.append((import_name, import_stmt, node.lineno))
++                        
++                elif isinstance(node, ast.ImportFrom):
++                    if node.module:
++                        import_name = node.module.split(".")[0]
++                        import_stmt = f"from {node.module} import ..."
++                        imports.append((import_name, import_stmt, node.lineno))
++                        
++        except Exception as e:
++            logger.warning(f"Failed to parse {file_path}: {e}")
++            
++        return imports
 +
-+### BUILD-041: Executor State Persistence Fix (2025-12-17)
++    def _is_stdlib(self, module_name: str) -> bool:
++        """Check if a module is part of the standard library.
++        
++        Args:
++            module_name: Name of the module
++            
++        Returns:
++            True if module is in stdlib
++        """
++        return module_name in self.STDLIB_MODULES
 +
-+**Status**: PROPOSED
++    def _is_installed(self, module_name: str) -> bool:
++        """Check if a module is installed.
++        
++        Args:
++            module_name: Name of the module
++            
++        Returns:
++            True if module is installed
++        """
++        try:
++            __import__(module_name)
++            return True
++        except ImportError:
++            return False
 +
-+**Summary**: Proposed fix for infinite failure loops caused by desynchronization between instance attributes and database state.
++    def get_install_command(self, result: PackageDetectionResult) -> Optional[str]:
++        """Generate pip install command for missing packages.
++        
++        Args:
++            result: Package detection result
++            
++        Returns:
++            pip install command or None if no packages missing
++        """
++        if not result.missing_packages:
++            return None
++            
++        packages = sorted(result.missing_package_names)
++        return f"pip install {' '.join(packages)}"
 +
-+**Files Modified**: N/A (proposal stage)
-+
-+**Impact**: Would prevent executor from re-executing failed phases indefinitely
-+
-+**Documentation**: [BUILD-041_EXECUTOR_STATE_PERSISTENCE.md](archive/reports/BUILD-041_EXECUTOR_STATE_PERSISTENCE.md)
-+
-+---
-+
-+## Build Status Legend
-+
-+- **COMPLETE**: Build finished, tested, and merged
-+- **IN_PROGRESS**: Build actively being worked on
-+- **PROPOSED**: Build planned but not yet started
-+- **BLOCKED**: Build waiting on dependencies or decisions
-+
-+---
-+
-+## Related Documentation
-+
-+- [BUILD_LOG.md](BUILD_LOG.md) - Daily development log
-+- [docs/](docs/) - Technical specifications and architecture docs
-+- [archive/reports/](archive/reports/) - Detailed build reports
-diff --git a/BUILD_LOG.md b/BUILD_LOG.md
++    def validate_requirements_file(self, requirements_path: Path) -> Dict[str, bool]:
++        """Validate that all packages in requirements.txt are installed.
++        
++        Args:
++            requirements_path: Path to requirements.txt
++            
++        Returns:
++            Dict mapping package names to installation status
++        """
++        validation = {}
++        
++        if not requirements_path.exists():
++            return validation
++            
++        try:
++            content = requirements_path.read_text(encoding="utf-8")
++            for line in content.splitlines():
++                line = line.strip()
++                if not line or line.startswith("#"):
++                    continue
++                    
++                # Extract package name (before ==, >=, etc.)
++                package_name = line.split("==")[0].split(">=")[0].split("<=")[0].strip()
++                validation[package_name] = self._is_installed(package_name)
++                
++        except Exception as e:
++            logger.warning(f"Failed to validate requirements file: {e}")
++            
++        return validation
+diff --git a/src/backend/services/file_validator.py b/src/backend/services/file_validator.py
 new file mode 100644
 index 0000000..1111111
 --- /dev/null
-+++ b/BUILD_LOG.md
-@@ -0,0 +1,164 @@
-+# Build Log
-+
-+Daily log of development activities, decisions, and progress on the Autopack project.
-+
-+---
-+
-+## 2025-12-23: BUILD-132 Coverage Delta Integration Complete
-+
-+**Phases Completed**: 4/4
-+
-+**Summary**: Successfully integrated pytest-cov coverage tracking into Quality Gate. Replaced hardcoded 0.0 coverage delta with real-time coverage comparison against T0 baseline.
-+
-+**Key Achievements**:
-+1. ✅ Phase 1: pytest.ini configuration with JSON output
-+2. ✅ Phase 2: coverage_tracker.py implementation with delta calculation
-+3. ✅ Phase 3: autonomous_executor.py integration into Quality Gate
-+4. ✅ Phase 4: Documentation updates (BUILD_HISTORY.md, BUILD_LOG.md, implementation status)
-+
-+**Technical Details**:
-+- Coverage data stored in `.coverage.json` (current run)
-+- Baseline stored in `.coverage_baseline.json` (T0 reference)
-+- Delta calculated as: `current_coverage - baseline_coverage`
-+- Quality Gate blocks phases with negative delta
-+
-+**Next Steps**:
-+- **ACTION REQUIRED**: Establish T0 baseline by running `pytest --cov=src/autopack --cov-report=json:.coverage_baseline.json`
-+- Monitor coverage trends across future builds
-+- Consider adding coverage increase incentives (positive deltas)
-+
-+**Files Modified**:
-+- `pytest.ini` - Added `--cov-report=json:.coverage.json`
-+- `src/autopack/coverage_tracker.py` - Created with `calculate_coverage_delta()`
-+- `tests/test_coverage_tracker.py` - 100% test coverage
-+- `src/autopack/autonomous_executor.py` - Integrated into `_check_quality_gate()`
-+- `BUILD_HISTORY.md` - Added BUILD-132 entry
-+- `BUILD_LOG.md` - This entry
-+- `docs/BUILD-132_IMPLEMENTATION_STATUS.md` - Created completion status doc
-+
-+**Documentation**:
-+- [BUILD-132_COVERAGE_DELTA_INTEGRATION.md](docs/BUILD-132_COVERAGE_DELTA_INTEGRATION.md) - Full specification
-+- [BUILD-132_IMPLEMENTATION_STATUS.md](docs/BUILD-132_IMPLEMENTATION_STATUS.md) - Completion status and usage
-+
-+---
-+
-+## 2025-12-17: BUILD-042 Max Tokens Fix Complete
-+
-+**Summary**: Fixed 60% phase failure rate due to max_tokens truncation.
-+
-+**Key Changes**:
-+- Complexity-based token scaling: low=8K, medium=12K, high=16K
-+- Pattern-based context reduction for templates, frontend, docker phases
-+- Expected savings: $0.12 per phase, $1.80 per 15-phase run
-+
-+**Impact**: First-attempt success rate improved from 40% to >95%
-+
-+---
-+
-+## 2025-12-17: BUILD-041 Executor State Persistence Proposed
-+
-+**Summary**: Proposed fix for infinite failure loops in executor.
-+
-+**Problem**: Phases remain in QUEUED state after early termination, causing re-execution
-+
-+**Solution**: Move attempt tracking from instance attributes to database columns
-+
-+**Status**: Awaiting approval for 5-6 day implementation
-+
-+---
-+
-+## 2025-12-16: Research Citation Fix Iterations
-+
-+**Summary**: Multiple attempts to fix citation validation in research system.
-+
-+**Challenges**:
-+- LLM output format issues (missing git diff markers)
-+- Numeric verification too strict (paraphrasing vs exact match)
-+- Test execution failures
-+
-+**Lessons Learned**:
-+- Need better output format validation
-+- Normalization logic requires careful testing
-+- Integration tests critical for multi-component changes
-+
-+---
-+
-+## 2025-12-09: Backend Test Isolation Fixes
-+
-+**Summary**: Fixed test isolation issues in backend test suite.
-+
-+**Changes**:
-+- Isolated database sessions per test
-+- Fixed import paths for validators
-+- Updated requirements.txt for test dependencies
-+
-+**Impact**: Backend tests now run reliably in CI/CD
-+
-+---
-+
-+## 2025-12-08: Backend Configuration Fixes
-+
-+**Summary**: Resolved backend configuration and dependency issues.
-+
-+**Changes**:
-+- Fixed config loading for test environment
-+- Updated password hashing to use bcrypt
-+- Corrected file validator imports
-+
-+**Impact**: Backend services start cleanly, tests pass
-+
-+---
-+
-+## 2025-12-01: Authentication System Complete
-+
-+**Summary**: Implemented JWT-based authentication with RS256 signing.
-+
-+**Features**:
-+- User registration and login
-+- OAuth2 Password Bearer flow
-+- JWKS endpoint for token verification
-+- Bcrypt password hashing
-+
-+**Documentation**: [AUTHENTICATION.md](archive/reports/AUTHENTICATION.md)
-+
-+---
-+
-+## 2025-11-30: FileOrganizer Phase 2 Beta Release
-+
-+**Summary**: Completed FileOrganizer Phase 2 with country-specific templates.
-+
-+**Phases Completed**:
-+- UK country template
-+- Canada country template
-+- Australia country template
-+- Frontend build configuration
-+- Docker deployment setup
-+- Authentication system
-+- Batch upload functionality
-+- Search integration
-+
-+**Challenges**:
-+- Max tokens truncation (60% failure rate) - led to BUILD-042
-+- Executor failure loops - led to BUILD-041 proposal
-+
-+**Impact**: FileOrganizer now supports multi-country document classification
-+
-+---
-+
-+## Log Format
-+
-+Each entry includes:
-+- **Date**: YYYY-MM-DD format
-+- **Summary**: Brief description of day's work
-+- **Key Changes**: Bullet list of major changes
-+- **Impact**: Effect on system functionality
-+- **Challenges**: Problems encountered (if any)
-+- **Next Steps**: Planned follow-up work (if applicable)
-+
-+---
-+
-+## Related Documentation
-+
-+- [BUILD_HISTORY.md](BUILD_HISTORY.md) - Chronological build index
-+- [docs/](docs/) - Technical specifications
-+- [archive/reports/](archive/reports/) - Detailed build reports
-diff --git a/docs/BUILD-132_IMPLEMENTATION_STATUS.md b/docs/BUILD-132_IMPLEMENTATION_STATUS.md
-new file mode 100644
-index 0000000..1111111
---- /dev/null
-+++ b/docs/BUILD-132_IMPLEMENTATION_STATUS.md
-@@ -0,0 +1,267 @@
-+# BUILD-132: Coverage Delta Integration - Implementation Status
-+
-+**Status**: ✅ COMPLETE
-+**Completion Date**: 2025-12-23
-+**Total Phases**: 4/4 Complete
-+
-+---
-+
-+## Overview
-+
-+BUILD-132 successfully replaced the hardcoded `0.0` coverage delta in the Quality Gate with real pytest-cov tracking. The system can now detect coverage regressions by comparing current test coverage against a T0 baseline.
-+
-+---
-+
-+## Implementation Summary
-+
-+### Phase 1: pytest.ini Configuration ✅
-+
-+**File**: `pytest.ini`
-+
-+**Changes**:
-+- Added `--cov=src/autopack` to track coverage for autopack module
-+- Added `--cov-report=json:.coverage.json` to generate machine-readable output
-+- Added `--cov-branch` for branch coverage tracking
-+
-+**Result**: Every pytest run now generates `.coverage.json` with coverage data.
-+
-+---
-+
-+### Phase 2: Coverage Tracker Implementation ✅
-+
-+**File**: `src/autopack/coverage_tracker.py`
-+
-+**Features**:
-+- `calculate_coverage_delta()` - Compares current vs baseline coverage
-+- Handles missing baseline gracefully (returns 0.0)
-+- Handles missing current coverage (returns 0.0)
-+- Extracts `totals.percent_covered` from pytest-cov JSON format
-+
-+**Test Coverage**: 100% (see `tests/test_coverage_tracker.py`)
-+
-+---
-+
-+### Phase 3: Quality Gate Integration ✅
-+
-+**File**: `src/autopack/autonomous_executor.py`
-+
-+**Changes**:
-+- Replaced hardcoded `coverage_delta = 0.0` with `calculate_coverage_delta()` call
-+- Coverage delta now displayed in phase execution logs
-+- Quality Gate blocks phases with negative delta (coverage regression)
-+
-+**Location**: `_check_quality_gate()` method (line ~2847)
-+
-+---
-+
-+### Phase 4: Documentation Updates ✅
-+
-+**Files Updated**:
-+- `BUILD_HISTORY.md` - Added BUILD-132 entry at top of chronological index
-+- `BUILD_LOG.md` - Added 2025-12-23 entry with phase completion details
-+- `docs/BUILD-132_IMPLEMENTATION_STATUS.md` - This document
-+
-+---
-+
-+## Usage Instructions
-+
-+### Establishing T0 Baseline (REQUIRED)
-+
-+Before the coverage delta feature works, you must establish a baseline:
-+
-+```bash
-+# Run pytest with coverage and save as baseline
-+pytest --cov=src/autopack --cov-report=json:.coverage_baseline.json
-+
-+# Verify baseline file exists
-+ls -lh .coverage_baseline.json
-+```
-+
-+**Important**: 
-+- The baseline file `.coverage_baseline.json` must exist in the repository root
-+- This file represents your "T0" coverage snapshot
-+- Commit this file to version control so all developers share the same baseline
-+
-+---
-+
-+### Running Tests with Coverage Tracking
-+
-+Normal pytest runs now automatically track coverage:
-+
-+```bash
-+# Run tests (generates .coverage.json)
-+pytest
-+
-+# Coverage delta is calculated automatically during autonomous runs
-+# Check logs for: "Coverage delta: +2.5%" or "Coverage delta: -1.2%"
-+```
-+
-+---
-+
-+### Interpreting Coverage Delta
-+
-+**Positive Delta** (e.g., `+2.5%`):
-+- Current coverage is higher than baseline
-+- Quality Gate: ✅ PASS
-+- Interpretation: Tests added or improved
-+
-+**Zero Delta** (`0.0%`):
-+- Current coverage matches baseline
-+- Quality Gate: ✅ PASS
-+- Interpretation: Coverage maintained
-+
-+**Negative Delta** (e.g., `-1.2%`):
-+- Current coverage is lower than baseline
-+- Quality Gate: ❌ BLOCK
-+- Interpretation: Coverage regression detected
-+- **Action Required**: Add tests to restore coverage
-+
-+**Missing Baseline** (`0.0%` with warning):
-+- `.coverage_baseline.json` not found
-+- Quality Gate: ✅ PASS (graceful degradation)
-+- **Action Required**: Establish baseline (see above)
-+
-+---
-+
-+## Quality Gate Integration
-+
-+### How It Works
-+
-+1. **Before Phase Execution**: Quality Gate checks coverage delta
-+2. **Delta Calculation**: `current_coverage - baseline_coverage`
-+3. **Decision Logic**:
-+   - Delta ≥ 0.0 → Allow phase to proceed
-+   - Delta < 0.0 → Block phase, log warning
-+4. **Logging**: Coverage delta displayed in executor logs
-+
-+### Example Log Output
-+
-+```
-+[QUALITY_GATE] Phase: build132-phase2-coverage-tracker
-+[QUALITY_GATE] Coverage delta: +2.5% (baseline: 78.3%, current: 80.8%)
-+[QUALITY_GATE] ✅ PASS - Coverage improved
-+```
-+
-+```
-+[QUALITY_GATE] Phase: risky-refactor-phase
-+[QUALITY_GATE] Coverage delta: -3.1% (baseline: 78.3%, current: 75.2%)
-+[QUALITY_GATE] ❌ BLOCK - Coverage regression detected
-+[QUALITY_GATE] Action required: Add tests to restore coverage
-+```
-+
-+---
-+
-+## Files Modified
-+
-+| File | Change Type | Description |
-+|------|-------------|-------------|
-+| `pytest.ini` | Modified | Added `--cov-report=json:.coverage.json` |
-+| `src/autopack/coverage_tracker.py` | Created | Coverage delta calculation logic |
-+| `tests/test_coverage_tracker.py` | Created | Test suite for coverage tracker |
-+| `src/autopack/autonomous_executor.py` | Modified | Integrated coverage tracking into Quality Gate |
-+| `BUILD_HISTORY.md` | Modified | Added BUILD-132 entry |
-+| `BUILD_LOG.md` | Modified | Added 2025-12-23 entry |
-+| `docs/BUILD-132_IMPLEMENTATION_STATUS.md` | Created | This document |
-+
-+---
-+
-+## Testing
-+
-+### Unit Tests
-+
-+**File**: `tests/test_coverage_tracker.py`
-+
-+**Test Cases**:
-+1. ✅ `test_calculate_coverage_delta_with_valid_files()` - Happy path
-+2. ✅ `test_calculate_coverage_delta_missing_baseline()` - Graceful degradation
-+3. ✅ `test_calculate_coverage_delta_missing_current()` - Handles missing current file
-+4. ✅ `test_calculate_coverage_delta_invalid_json()` - Handles malformed JSON
-+5. ✅ `test_calculate_coverage_delta_missing_totals()` - Handles missing coverage data
-+
-+**Coverage**: 100% of `coverage_tracker.py`
-+
-+### Integration Testing
-+
-+**Verification Steps**:
-+1. ✅ Establish baseline: `pytest --cov=src/autopack --cov-report=json:.coverage_baseline.json`
-+2. ✅ Run autonomous executor with coverage tracking enabled
-+3. ✅ Verify coverage delta appears in logs
-+4. ✅ Verify Quality Gate blocks phases with negative delta
-+5. ✅ Verify Quality Gate allows phases with positive/zero delta
-+
-+---
-+
-+## Known Limitations
-+
-+1. **Baseline Must Be Manually Established**: 
-+   - Users must run `pytest --cov` to create `.coverage_baseline.json`
-+   - No automatic baseline generation on first run
-+
-+2. **No Historical Tracking**: 
-+   - Only compares current vs baseline (T0)
-+   - Does not track coverage trends over time
-+
-+3. **No Per-Module Granularity**: 
-+   - Reports overall coverage delta
-+   - Does not break down by module or file
-+
-+4. **Graceful Degradation**: 
-+   - Missing baseline returns `0.0` (no blocking)
-+   - Could mask coverage regressions if baseline not established
-+
-+---
-+
-+## Future Enhancements
-+
-+### Potential Improvements
-+
-+1. **Automatic Baseline Initialization**:
-+   - Detect missing baseline on first run
-+   - Auto-generate from current coverage
-+   - Prompt user to commit baseline
-+
-+2. **Coverage Trend Tracking**:
-+   - Store historical coverage data in database
-+   - Generate coverage trend graphs
-+   - Alert on sustained downward trends
-+
-+3. **Per-Module Coverage**:
-+   - Break down delta by module (e.g., `autopack.executor: +2.5%`)
-+   - Identify which modules lost coverage
-+   - Target test additions more precisely
-+
-+4. **Coverage Increase Incentives**:
-+   - Reward phases that increase coverage
-+   - Track "coverage heroes" (phases with biggest improvements)
-+   - Gamify test writing
-+
-+5. **CI/CD Integration**:
-+   - Fail CI builds on coverage regression
-+   - Post coverage delta as PR comment
-+   - Block merges that decrease coverage
-+
-+---
-+
-+## Related Documentation
-+
-+- [BUILD-132_COVERAGE_DELTA_INTEGRATION.md](BUILD-132_COVERAGE_DELTA_INTEGRATION.md) - Full specification (lines 452-550)
-+- [BUILD_HISTORY.md](../BUILD_HISTORY.md) - Chronological build index
-+- [BUILD_LOG.md](../BUILD_LOG.md) - Daily development log
-+
-+---
-+
-+## Approval & Sign-Off
-+
-+**Implementation Completed By**: Autonomous Executor (BUILD-132 run)
-+**Completion Date**: 2025-12-23
-+**Status**: ✅ COMPLETE - All 4 phases finished
-+
-+**Next Steps**:
-+1. ✅ Documentation updated (this document)
-+2. ⏳ **ACTION REQUIRED**: Establish T0 baseline (`pytest --cov`)
-+3. ⏳ Monitor coverage trends in future builds
-+4. ⏳ Consider future enhancements (see above)
-+
-+---
-+
-+**END OF BUILD-132 IMPLEMENTATION STATUS**
++++ b/src/backend/services/file_validator.py
+@@ -0,0 +1,98 @@
++"""File validation service.
++
++Provides validation for uploaded files including type checking,
++size limits, and content validation.
++"""
++from PIL import Image
++import magic
++import os
++from pathlib import Path
++from typing import Optional, Tuple
++import logging
++
++logger = logging.getLogger(__name__)
++
++
++class FileValidator:
++    """Validates uploaded files."""
++    
++    # Maximum file size (10MB)
++    MAX_FILE_SIZE = 10 * 1024 * 1024
++    
++    # Allowed MIME types
++    ALLOWED_MIME_TYPES = {
++        "image/jpeg",
++        "image/png",
++        "image/gif",
++        "image/webp",
++        "application/pdf",
++        "text/plain",
++        "application/json",
++    }
++    
++    def __init__(self):
++        """Initialize file validator."""
++        self.mime = magic.Magic(mime=True)
++    
++    def validate_file(self, file_path: Path) -> Tuple[bool, Optional[str]]:
++        """Validate a file.
++        
++        Args:
++            file_path: Path to file to validate
++            
++        Returns:
++            Tuple of (is_valid, error_message)
++        """
++        # Check file exists
++        if not file_path.exists():
++            return False, "File does not exist"
++        
++        # Check file size
++        file_size = os.path.getsize(file_path)
++        if file_size > self.MAX_FILE_SIZE:
++            return False, f"File size {file_size} exceeds maximum {self.MAX_FILE_SIZE}"
++        
++        # Check MIME type
++        try:
++            mime_type = self.mime.from_file(str(file_path))
++            if mime_type not in self.ALLOWED_MIME_TYPES:
++                return False, f"File type {mime_type} not allowed"
++        except Exception as e:
++            logger.error(f"Failed to detect MIME type: {e}")
++            return False, "Failed to detect file type"
++        
++        # Additional validation for images
++        if mime_type.startswith("image/"):
++            try:
++                with Image.open(file_path) as img:
++                    img.verify()
++            except Exception as e:
++                logger.error(f"Image validation failed: {e}")
++                return False, "Invalid image file"
++        
++        return True, None
++    
++    def get_file_info(self, file_path: Path) -> dict:
++        """Get information about a file.
++        
++        Args:
++            file_path: Path to file
++            
++        Returns:
++            Dictionary with file information
++        """
++        info = {
++            "path": str(file_path),
++            "size": os.path.getsize(file_path),
++            "mime_type": None,
++            "is_valid": False,
++        }
++        
++        try:
++            info["mime_type"] = self.mime.from_file(str(file_path))
++            is_valid, _ = self.validate_file(file_path)
++            info["is_valid"] = is_valid
++        except Exception as e:
++            logger.error(f"Failed to get file info: {e}")
++        
++        return info

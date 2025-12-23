@@ -1,6 +1,13 @@
-"""Semantic search module using sentence-transformers embeddings."""
+"""Semantic search module.
 
-from src.backend.search.embedding_service import EmbeddingService
-from src.backend.search.semantic_search import SemanticSearchEngine
+Provides semantic search capabilities with confidence scoring.
+"""
+from src.backend.search.semantic_search import (
+    SemanticSearchEngine,
+    SearchResult,
+)
 
-__all__ = ["EmbeddingService", "SemanticSearchEngine"]
+__all__ = [
+    "SemanticSearchEngine",
+    "SearchResult",
+]

@@ -174,6 +174,12 @@ class GovernedApplyPath:
         # Research API router integration requires narrow update to main.py (followup-4).
         "src/autopack/main.py",
         "config/models.yaml",
+        # BUILD-126: Large file handling modules (Phases E2-I)
+        "src/autopack/import_graph.py",
+        "src/autopack/scope_refiner.py",
+        "src/autopack/risk_scorer.py",
+        "src/autopack/context_summarizer.py",
+        "src/autopack/quality_gate.py",
     ]
 
     # Run types that support internal mode

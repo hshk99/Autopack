@@ -1,0 +1,21 @@
+{
+  "run_id": "test-autopack-maintenance",
+  "description": "Example plan for testing BUILD-123v2 with existing Autopack codebase",
+  "phases": [
+    {
+      "phase_id": "improve-autonomous-executor",
+      "goal": "Improve autonomous executor loop with better error handling",
+      "description": "Add retry logic and better logging to autonomous execution loop"
+    },
+    {
+      "phase_id": "add-memory-tests",
+      "goal": "Write tests for memory service vector search",
+      "description": "Add unit tests for embedding generation and retrieval in memory service"
+    },
+    {
+      "phase_id": "update-governance-rules",
+      "goal": "Update governed apply protection rules",
+      "description": "Refine governance enforcement and add new protected paths"
+    }
+  ]
+}

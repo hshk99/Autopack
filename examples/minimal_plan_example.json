@@ -1,0 +1,26 @@
+{
+  "run_id": "test-manifest-generation",
+  "description": "Example minimal plan for testing BUILD-123v2 Manifest Generator",
+  "phases": [
+    {
+      "phase_id": "add-auth-backend",
+      "goal": "Add JWT authentication with login and logout endpoints",
+      "description": "Implement JWT-based authentication system with secure token management"
+    },
+    {
+      "phase_id": "add-user-api",
+      "goal": "Create REST API endpoints for user management",
+      "description": "Add CRUD endpoints for user resources"
+    },
+    {
+      "phase_id": "add-database-migration",
+      "goal": "Create database migration for user authentication tables",
+      "description": "Add Alembic migration for auth-related database schema"
+    },
+    {
+      "phase_id": "add-tests",
+      "goal": "Write tests for authentication endpoints",
+      "description": "Add unit and integration tests for auth functionality"
+    }
+  ]
+}

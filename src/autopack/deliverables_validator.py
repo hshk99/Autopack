@@ -25,11 +25,17 @@ def sanitize_deliverable_path(raw: str) -> str:
     Some requirements YAMLs include deliverables like:
       - "tests/autopack/integration/test_research_end_to_end.py (10+ integration tests)"
       - "tests/research/unit/ (100+ unit tests across all modules)"
+      - "requirements.txt updated with pytest-json-report"
+      - "src/autopack/models.py modifications (baseline capture)"
+      - "Documentation in docs/BUILD-127_PHASE1_COMPLETION.md"
     These are not literal file paths and will cause deliverables validation and manifest gating
     to fail deterministically.
 
     Policy:
     - Strip any trailing parenthetical annotation: "path (comment...)" -> "path"
+    - Strip " with " annotations: "path [verb] with description" -> "path"
+    - Strip action verbs like " updated", " modifications", etc.
+    - Strip " in " prefix: "Documentation in path" -> "path"
     - Trim whitespace.
     """
     if not isinstance(raw, str):
@@ -37,9 +43,29 @@ def sanitize_deliverable_path(raw: str) -> str:
     s = raw.strip()
     if not s:
         return ""
+
+    # BUILD-128: Handle "Documentation in docs/..." format
+    if s.startswith("Documentation in "):
+        s = s[len("Documentation in "):].strip()
+
+    # BUILD-128: Remove " with " annotations like "requirements.txt updated with pytest-json-report"
+    # First split on " with " to remove the description part
+    if " with " in s:
+        s = s.split(" with ", 1)[0].rstrip()
+
     # Remove trailing inline annotation like " (10+ integration tests)"
     if " (" in s:
         s = s.split(" (", 1)[0].rstrip()
+
+    # BUILD-128: Remove common action verbs that describe changes rather than paths
+    # e.g., "requirements.txt updated" -> "requirements.txt"
+    # e.g., "src/autopack/models.py modifications" -> "src/autopack/models.py"
+    action_verbs = [" updated", " modifications", " modified", " changes", " additions"]
+    for verb in action_verbs:
+        if s.endswith(verb):
+            s = s[:-len(verb)].rstrip()
+            break
+
     return s
 
 def _extract_new_file_contents_from_unified_diff(patch_content: str) -> Dict[str, str]:

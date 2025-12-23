@@ -303,3 +303,37 @@ class DecisionLog(Base):
     choice = Column(Text, nullable=False)
     rationale = Column(Text, nullable=True)
     vector_id = Column(String, nullable=True)
+
+
+class ApprovalRequest(Base):
+    """Approval requests for BUILD-113 risky or ambiguous decisions."""
+
+    __tablename__ = "approval_requests"
+
+    id = Column(Integer, primary_key=True, index=True)
+    run_id = Column(String, nullable=False, index=True)
+    phase_id = Column(String, nullable=False, index=True)
+    context = Column(String, nullable=False)  # "build113_risky_decision", "build113_ambiguous_decision", "troubleshoot"
+    decision_info = Column(JSON, nullable=True)  # Decision metadata
+    deletion_info = Column(JSON, nullable=True)  # Deletion details if applicable
+
+    # Timestamps
+    requested_at = Column(
+        DateTime,
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc),
+        index=True
+    )
+    responded_at = Column(DateTime, nullable=True)
+    timeout_at = Column(DateTime, nullable=True)  # When request expires
+
+    # Status and response
+    status = Column(String, nullable=False, default="pending")  # pending, approved, rejected, timeout, error
+    response_method = Column(String, nullable=True)  # "telegram", "dashboard", "auto", "timeout"
+    approval_reason = Column(Text, nullable=True)
+    rejected_reason = Column(Text, nullable=True)
+
+    # Telegram integration
+    telegram_message_id = Column(String, nullable=True)
+    telegram_sent = Column(Boolean, nullable=False, default=False)
+    telegram_error = Column(Text, nullable=True)

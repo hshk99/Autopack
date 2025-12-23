@@ -58,12 +58,92 @@ limiter = Limiter(key_func=get_remote_address)
 load_dotenv()  # Load environment variables from .env on startup
 
 
+async def approval_timeout_cleanup():
+    """Background task to handle approval request timeouts.
+
+    Runs every minute to check for expired approval requests and apply
+    the configured default behavior (approve or reject).
+    """
+    import asyncio
+    from autopack.notifications.telegram_notifier import TelegramNotifier
+
+    logger.info("[APPROVAL-TIMEOUT] Background task started")
+
+    while True:
+        try:
+            await asyncio.sleep(60)  # Check every minute
+
+            # Get database session
+            db = next(get_db())
+
+            try:
+                # Find expired pending requests
+                now = datetime.now(timezone.utc)
+                expired_requests = db.query(models.ApprovalRequest).filter(
+                    models.ApprovalRequest.status == "pending",
+                    models.ApprovalRequest.timeout_at <= now
+                ).all()
+
+                if expired_requests:
+                    logger.info(f"[APPROVAL-TIMEOUT] Found {len(expired_requests)} expired requests")
+
+                    default_action = os.getenv("APPROVAL_DEFAULT_ON_TIMEOUT", "reject")
+
+                    for req in expired_requests:
+                        req.status = "timeout"
+                        req.responded_at = now
+                        req.response_method = "timeout"
+
+                        if default_action == "approve":
+                            req.approval_reason = "Auto-approved after timeout"
+                            final_status = "approved"
+                        else:
+                            req.rejected_reason = "Auto-rejected after timeout"
+                            final_status = "rejected"
+
+                        logger.warning(
+                            f"[APPROVAL-TIMEOUT] Request #{req.id} (phase={req.phase_id}) "
+                            f"expired, applying default: {final_status}"
+                        )
+
+                        # Send Telegram notification about timeout
+                        notifier = TelegramNotifier()
+                        if notifier.is_configured() and req.telegram_sent:
+                            notifier.send_completion_notice(
+                                phase_id=req.phase_id,
+                                status="timeout",
+                                message=f"⏱️ Approval timed out. Default action: {final_status}"
+                            )
+
+                    db.commit()
+
+            finally:
+                db.close()
+
+        except Exception as e:
+            logger.error(f"[APPROVAL-TIMEOUT] Error in cleanup task: {e}", exc_info=True)
+            # Continue running despite errors
+            await asyncio.sleep(60)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Skip DB init during testing (tests use their own DB setup)
     if os.getenv("TESTING") != "1":
         init_db()
+
+    # Start background task for approval timeout cleanup
+    import asyncio
+    timeout_task = asyncio.create_task(approval_timeout_cleanup())
+
     yield
+
+    # Stop background tasks
+    timeout_task.cancel()
+    try:
+        await timeout_task
+    except asyncio.CancelledError:
+        pass
 
 
 app = FastAPI(
@@ -766,11 +846,14 @@ def submit_auditor_result(
 
 
 @app.post("/approval/request")
-async def request_approval(request: Request):
+async def request_approval(request: Request, db: Session = Depends(get_db)):
     """Handle approval requests from BUILD-113 autonomous executor.
 
-    This endpoint receives approval requests for risky or ambiguous decisions.
-    Current implementation: auto-approve (TODO: integrate with Telegram/Dashboard).
+    BUILD-117 Enhanced Implementation with:
+    - Telegram notifications with approve/reject buttons
+    - Database audit trail for all approval requests
+    - Approval timeout mechanism (default: 15 minutes)
+    - Dashboard UI integration
 
     Expected payload:
     {
@@ -784,51 +867,286 @@ async def request_approval(request: Request):
     Returns:
     {
         "status": "approved" | "rejected" | "pending",
-        "reason": str (optional)
+        "reason": str (optional),
+        "approval_id": int (if stored in database)
     }
     """
     try:
+        from datetime import timedelta
+        from autopack.notifications.telegram_notifier import TelegramNotifier
+
         data = await request.json()
         phase_id = data.get("phase_id")
         run_id = data.get("run_id")
         context = data.get("context", "unknown")
         decision_info = data.get("decision_info", {})
+        deletion_info = data.get("deletion_info")
 
         logger.info(
             f"[APPROVAL] Request received: run={run_id}, phase={phase_id}, "
             f"context={context}, decision_type={decision_info.get('type', 'N/A')}"
         )
 
-        # TODO: Integrate with Telegram notifier or dashboard for human approval
-        # For now, auto-approve all requests (temporary implementation for BUILD-117)
-        #
-        # Future implementations:
-        # 1. Send Telegram notification with approve/reject buttons
-        # 2. Add dashboard UI panel for approval requests
-        # 3. Implement approval timeout and default behavior
-        # 4. Store approval requests in database for audit trail
-
+        # Configuration
         auto_approve = os.getenv("AUTO_APPROVE_BUILD113", "true").lower() == "true"
+        timeout_minutes = int(os.getenv("APPROVAL_TIMEOUT_MINUTES", "15"))
+        default_on_timeout = os.getenv("APPROVAL_DEFAULT_ON_TIMEOUT", "reject")  # "approve" or "reject"
 
+        # Calculate timeout
+        timeout_at = datetime.now(timezone.utc) + timedelta(minutes=timeout_minutes)
+
+        # Store approval request in database for audit trail
+        approval_request = models.ApprovalRequest(
+            run_id=run_id,
+            phase_id=phase_id,
+            context=context,
+            decision_info=decision_info,
+            deletion_info=deletion_info,
+            timeout_at=timeout_at,
+            status="pending"
+        )
+        db.add(approval_request)
+        db.commit()
+        db.refresh(approval_request)
+
+        logger.info(f"[APPROVAL] Stored request #{approval_request.id} in database")
+
+        # Auto-approve mode: immediate approval without notification
         if auto_approve:
+            approval_request.status = "approved"
+            approval_request.response_method = "auto"
+            approval_request.approval_reason = "Auto-approved (AUTO_APPROVE_BUILD113=true)"
+            approval_request.responded_at = datetime.now(timezone.utc)
+            db.commit()
+
             logger.warning(
-                f"[APPROVAL] AUTO-APPROVING request for {phase_id} "
-                f"(AUTO_APPROVE_BUILD113={auto_approve})"
+                f"[APPROVAL] AUTO-APPROVING request #{approval_request.id} for {phase_id}"
             )
             return {
                 "status": "approved",
-                "reason": "Auto-approved (approval system integration pending - BUILD-117)"
+                "reason": "Auto-approved (BUILD-117 - auto-approve mode enabled)",
+                "approval_id": approval_request.id
             }
+
+        # Send Telegram notification
+        notifier = TelegramNotifier()
+        telegram_sent = False
+        telegram_error = None
+
+        if notifier.is_configured():
+            logger.info(f"[APPROVAL] Sending Telegram notification for request #{approval_request.id}")
+
+            # Prepare deletion info for notification
+            telegram_deletion_info = deletion_info or {
+                'net_deletion': 0,
+                'loc_removed': 0,
+                'loc_added': 0,
+                'files': [],
+                'risk_level': decision_info.get('risk_level', 'medium'),
+                'risk_score': decision_info.get('risk_score', 50)
+            }
+
+            telegram_sent = notifier.send_approval_request(
+                phase_id=phase_id,
+                deletion_info=telegram_deletion_info,
+                run_id=run_id,
+                context=context
+            )
+
+            if not telegram_sent:
+                telegram_error = "Failed to send Telegram notification (check bot configuration)"
+                logger.error(f"[APPROVAL] {telegram_error}")
         else:
-            logger.info(f"[APPROVAL] Rejecting request for {phase_id} (auto-approve disabled)")
-            return {
-                "status": "rejected",
-                "reason": "Auto-approve disabled, manual approval not yet implemented"
-            }
+            telegram_error = "Telegram not configured (missing TELEGRAM_BOT_TOKEN or TELEGRAM_CHAT_ID)"
+            logger.warning(f"[APPROVAL] {telegram_error}")
+
+        # Update approval request with Telegram status
+        approval_request.telegram_sent = telegram_sent
+        approval_request.telegram_error = telegram_error
+        db.commit()
+
+        # Return pending status (will be updated via webhook or timeout)
+        return {
+            "status": "pending",
+            "reason": f"Awaiting human approval (timeout in {timeout_minutes} minutes, default: {default_on_timeout})",
+            "approval_id": approval_request.id,
+            "telegram_sent": telegram_sent,
+            "timeout_at": timeout_at.isoformat()
+        }
 
     except Exception as e:
         logger.error(f"[APPROVAL] Error processing approval request: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Approval request processing failed: {str(e)}")
+
+
+@app.post("/telegram/webhook")
+async def telegram_webhook(request: Request, db: Session = Depends(get_db)):
+    """Handle Telegram webhook callbacks for approval buttons.
+
+    This endpoint receives callbacks when users tap Approve/Reject buttons
+    in Telegram notifications.
+
+    Callback data format: "approve:{phase_id}" or "reject:{phase_id}"
+    """
+    try:
+        from autopack.notifications.telegram_notifier import TelegramNotifier
+
+        data = await request.json()
+        logger.info(f"[TELEGRAM] Webhook received: {data}")
+
+        # Extract callback query
+        callback_query = data.get("callback_query")
+        if not callback_query:
+            logger.warning("[TELEGRAM] No callback_query in webhook data")
+            return {"ok": True}
+
+        callback_data = callback_query.get("data")
+        message_id = callback_query.get("message", {}).get("message_id")
+        chat_id = callback_query.get("message", {}).get("chat", {}).get("id")
+        user_id = callback_query.get("from", {}).get("id")
+        username = callback_query.get("from", {}).get("username", "unknown")
+
+        if not callback_data:
+            logger.warning("[TELEGRAM] No callback data in query")
+            return {"ok": True}
+
+        # Parse callback data: "approve:{phase_id}" or "reject:{phase_id}"
+        action, phase_id = callback_data.split(":", 1)
+
+        logger.info(f"[TELEGRAM] User @{username} ({user_id}) {action}d phase {phase_id}")
+
+        # Find the approval request
+        approval_request = db.query(models.ApprovalRequest).filter(
+            models.ApprovalRequest.phase_id == phase_id,
+            models.ApprovalRequest.status == "pending"
+        ).order_by(models.ApprovalRequest.requested_at.desc()).first()
+
+        if not approval_request:
+            logger.warning(f"[TELEGRAM] No pending approval request found for {phase_id}")
+            # Still acknowledge the callback
+            notifier = TelegramNotifier()
+            if notifier.is_configured():
+                notifier.send_completion_notice(
+                    phase_id=phase_id,
+                    status="error",
+                    message="⚠️ Approval request not found or already processed"
+                )
+            return {"ok": True}
+
+        # Update approval request
+        approval_request.status = action + "ed"  # "approve" -> "approved", "reject" -> "rejected"
+        approval_request.response_method = "telegram"
+        approval_request.responded_at = datetime.now(timezone.utc)
+        approval_request.telegram_message_id = str(message_id)
+
+        if action == "approve":
+            approval_request.approval_reason = f"Approved by Telegram user @{username}"
+        else:
+            approval_request.rejected_reason = f"Rejected by Telegram user @{username}"
+
+        db.commit()
+
+        logger.info(
+            f"[TELEGRAM] Approval request #{approval_request.id} {action}ed by @{username}"
+        )
+
+        # Send confirmation message
+        notifier = TelegramNotifier()
+        if notifier.is_configured():
+            notifier.send_completion_notice(
+                phase_id=phase_id,
+                status=action + "ed",
+                message=f"Phase `{phase_id}` has been {action}ed."
+            )
+
+        return {"ok": True}
+
+    except Exception as e:
+        logger.error(f"[TELEGRAM] Webhook error: {e}", exc_info=True)
+        return {"ok": False, "error": str(e)}
+
+
+@app.get("/approval/status/{approval_id}")
+async def get_approval_status(approval_id: int, db: Session = Depends(get_db)):
+    """Check the status of an approval request.
+
+    Used by autonomous executor to poll for approval decisions.
+
+    Returns:
+    {
+        "approval_id": int,
+        "status": "pending" | "approved" | "rejected" | "timeout",
+        "requested_at": datetime,
+        "responded_at": datetime (if responded),
+        "timeout_at": datetime,
+        "approval_reason": str (if approved),
+        "rejected_reason": str (if rejected)
+    }
+    """
+    try:
+        approval_request = db.query(models.ApprovalRequest).filter(
+            models.ApprovalRequest.id == approval_id
+        ).first()
+
+        if not approval_request:
+            raise HTTPException(status_code=404, detail=f"Approval request #{approval_id} not found")
+
+        return {
+            "approval_id": approval_request.id,
+            "run_id": approval_request.run_id,
+            "phase_id": approval_request.phase_id,
+            "status": approval_request.status,
+            "requested_at": approval_request.requested_at.isoformat(),
+            "responded_at": approval_request.responded_at.isoformat() if approval_request.responded_at else None,
+            "timeout_at": approval_request.timeout_at.isoformat() if approval_request.timeout_at else None,
+            "approval_reason": approval_request.approval_reason,
+            "rejected_reason": approval_request.rejected_reason,
+            "response_method": approval_request.response_method
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"[APPROVAL] Error fetching status for #{approval_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to fetch approval status: {str(e)}")
+
+
+@app.get("/approval/pending")
+async def get_pending_approvals(db: Session = Depends(get_db)):
+    """Get all pending approval requests (for dashboard UI).
+
+    Returns:
+    {
+        "count": int,
+        "requests": [...]
+    }
+    """
+    try:
+        pending_requests = db.query(models.ApprovalRequest).filter(
+            models.ApprovalRequest.status == "pending"
+        ).order_by(models.ApprovalRequest.requested_at.desc()).all()
+
+        return {
+            "count": len(pending_requests),
+            "requests": [
+                {
+                    "id": req.id,
+                    "run_id": req.run_id,
+                    "phase_id": req.phase_id,
+                    "context": req.context,
+                    "requested_at": req.requested_at.isoformat(),
+                    "timeout_at": req.timeout_at.isoformat() if req.timeout_at else None,
+                    "decision_info": req.decision_info,
+                    "deletion_info": req.deletion_info,
+                    "telegram_sent": req.telegram_sent
+                }
+                for req in pending_requests
+            ]
+        }
+
+    except Exception as e:
+        logger.error(f"[APPROVAL] Error fetching pending approvals: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to fetch pending approvals: {str(e)}")
 
 
 @app.get("/health")

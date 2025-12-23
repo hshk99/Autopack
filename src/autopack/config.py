@@ -30,13 +30,13 @@ CONFIG_VERSION = "1.0.0"
 
 def get_config_version() -> str:
     """Return the current configuration version.
-    
+
     This utility function provides a simple way to query the configuration
     version for testing and validation purposes.
-    
+
     Returns:
         str: The current configuration version (e.g., "1.0.0")
-    
+
     Example:
         >>> from autopack.config import get_config_version
         >>> version = get_config_version()
@@ -44,3 +44,23 @@ def get_config_version() -> str:
         Config version: 1.0.0
     """
     return CONFIG_VERSION
+
+
+def get_database_url() -> str:
+    """Get database URL from environment or config.
+
+    Priority:
+    1. DATABASE_URL environment variable
+    2. settings.database_url from config
+
+    Returns:
+        str: Database URL for SQLAlchemy
+
+    Example:
+        >>> from autopack.config import get_database_url
+        >>> db_url = get_database_url()
+        >>> print(db_url)
+        sqlite:///autopack.db
+    """
+    import os
+    return os.getenv("DATABASE_URL", settings.database_url)

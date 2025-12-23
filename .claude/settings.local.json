@@ -71,7 +71,17 @@
       "Bash(./ngrok.exe version:*)",
       "Bash(./ngrok.exe http:*)",
       "Bash(PYTHONUTF8=1 PYTHONPATH=src DATABASE_URL=\"sqlite:///autopack.db\" python scripts/create_research_build113_run.py:*)",
-      "Bash(PYTHONUTF8=1 sqlite3:*)"
+      "Bash(PYTHONUTF8=1 sqlite3:*)",
+      "Bash(netstat:*)",
+      "Bash(for phase_id in build112-phase3-deep-retrieval-validation build112-phase4-second-opinion-testing build112-phase5-evidence-request-integration build112-phase5-dashboard-pause-resume)",
+      "Bash(do)",
+      "Bash(PYTHONUTF8=1 DATABASE_URL=\"sqlite:///autopack.db\" PYTHONPATH=src python:*)",
+      "Bash(PYTHONUTF8=1 PYTHONPATH=src DATABASE_URL=\"sqlite:///autopack.db\" timeout 120 python:*)",
+      "Bash(AUTO_APPROVE_BUILD113=false PYTHONUTF8=1 python:*)",
+      "Bash(env)",
+      "Bash(for f in import_graph risk_scorer context_summarizer scope_refiner)",
+      "Bash(do test:*)",
+      "Bash(PYTHONUTF8=1 DATABASE_URL=\"sqlite:///autopack.db\" python scripts/break_glass_repair.py:*)"
     ],
     "deny": [],
     "ask": []

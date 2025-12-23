@@ -1,0 +1,32 @@
+{
+  "run_id": "build129-phase1-output-size-predictor",
+  "display_name": "BUILD-129 Phase 1: Output-Size Predictor",
+  "goal": "Replace file-count heuristic with deliverable-based token estimation. Create token_estimator.py module with estimate_output_tokens() function that predicts required tokens based on deliverable types: new files (~800 tokens), modifications (~300), tests (~600), docs (~200), config (~400). Integrate into anthropic_clients.py (line 160) and manifest_generator.py (_enhance_phase method). Reference implementation: docs/TOKEN_BUDGET_ANALYSIS_REVISED.md Section 'Layer 1: Preflight Token Budget Selection'. Success criteria: BUILD-127 scenario estimated at 18k-22k tokens (vs 16k fixed before), all tests pass, no BUILD-112/113/114 regressions.",
+  "phases": [
+    {
+      "phase_id": "build129-phase1-output-size-predictor",
+      "display_name": "Phase 1: Output-Size Predictor (Layer 1)",
+      "complexity": "medium",
+      "task_category": "backend",
+      "scope": {
+        "deliverables": [
+          "src/autopack/token_estimator.py",
+          "src/autopack/anthropic_clients.py modifications",
+          "src/autopack/manifest_generator.py modifications",
+          "tests/test_token_estimator.py",
+          "docs/BUILD-129_PHASE1_OUTPUT_SIZE_PREDICTOR.md"
+        ],
+        "protected_paths": [
+          "src/autopack/autonomous_executor.py",
+          "src/autopack/models.py",
+          "src/frontend/"
+        ],
+        "read_only_context": [
+          "docs/TOKEN_BUDGET_ANALYSIS_REVISED.md",
+          "docs/BUILD-129_SELF_IMPROVEMENT_PLAN.md",
+          "src/autopack/deliverables_validator.py"
+        ]
+      }
+    }
+  ]
+}

@@ -1588,16 +1588,24 @@ class AnthropicBuilderClient:
         was_truncated: bool = False,
     ) -> 'BuilderResult':
         """Parse LLM's structured edit JSON output (Stage 2)
-        
+
         Per IMPLEMENTATION_PLAN3.md Phase 2.2
         """
         import json
         from autopack.structured_edits import EditPlan, EditOperation, EditOperationType
         from autopack.builder_config import BuilderOutputConfig
-        
+
         if config is None:
             config = BuilderOutputConfig()
-        
+
+        # Extract existing files from context for format conversion
+        files = {}
+        if file_context:
+            files = file_context.get("existing_files", {})
+            if not isinstance(files, dict):
+                logger.warning(f"[Builder] file_context.get('existing_files') returned non-dict: {type(files)}, using empty dict")
+                files = {}
+
         try:
             # Parse JSON
             result_json = None

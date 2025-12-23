@@ -78,6 +78,15 @@ from autopack.diagnostics.diagnostics_agent import DiagnosticsAgent
 from autopack.memory import MemoryService, should_block_on_drift, extract_goal_from_description
 from autopack.validators import validate_yaml_syntax, validate_docker_compose, ValidationResult
 
+# BUILD-123v2: Manifest Generator imports
+from autopack.manifest_generator import ManifestGenerator
+from autopack.repo_scanner import RepoScanner
+# from autopack.scope_expander import ScopeExpander  # BUILD-126: Temporarily disabled
+
+# BUILD-127 Phase 1: Completion authority with baseline tracking
+from autopack.phase_finalizer import PhaseFinalizer, PhaseFinalizationDecision
+from autopack.test_baseline_tracker import TestBaseline, TestBaselineTracker
+
 
 # Configure logging
 from dotenv import load_dotenv
@@ -396,6 +405,21 @@ class AutonomousExecutor:
         # [GPT_RESPONSE26] Startup validation for token_soft_caps
         self._validate_config_at_startup()
 
+        # BUILD-123v2: Initialize Manifest Generator for deterministic scope generation
+        autopack_internal_mode = self.run_type in ["autopack_maintenance", "autopack_upgrade", "self_repair"]
+        self.manifest_generator = ManifestGenerator(
+            workspace=self.workspace,
+            autopack_internal_mode=autopack_internal_mode,
+            run_type=self.run_type
+        )
+        #         self.scope_expander = ScopeExpander(
+        #             workspace=self.workspace,
+        #             repo_scanner=self.manifest_generator.scanner,
+        #             autopack_internal_mode=autopack_internal_mode,
+        #             run_type=self.run_type,
+        #         )
+        logger.info("[BUILD-123v2] Manifest generator initialized (deterministic scope generation)")
+
         # T0 Health Checks: quick environment validation before executing phases
         t0_results = run_health_checks("t0")
         for result in t0_results:
@@ -404,6 +428,42 @@ class AutonomousExecutor:
                 f"[HealthCheck:T0] {result.check_name}: {status} "
                 f"({result.duration_ms}ms) - {result.message}"
             )
+
+        # BUILD-127 Phase 1: Initialize completion authority components
+        self.baseline_tracker = TestBaselineTracker(workspace=self.workspace)
+        self.phase_finalizer = PhaseFinalizer(baseline_tracker=self.baseline_tracker)
+        logger.info("[BUILD-127] Completion authority initialized (PhaseFinalizer + TestBaselineTracker)")
+
+        # BUILD-127 Phase 1: Capture T0 test baseline (for regression detection)
+        try:
+            import subprocess
+            commit_sha_result = subprocess.run(
+                ["git", "rev-parse", "HEAD"],
+                cwd=self.workspace,
+                capture_output=True,
+                text=True,
+                timeout=10
+            )
+            if commit_sha_result.returncode == 0:
+                commit_sha = commit_sha_result.stdout.strip()
+                logger.info(f"[BUILD-127] Capturing T0 baseline at commit {commit_sha[:8]}...")
+                self.t0_baseline = self.baseline_tracker.capture_baseline(
+                    run_id=self.run_id,
+                    commit_sha=commit_sha,
+                    timeout=180  # 3 minutes for baseline capture
+                )
+                logger.info(
+                    f"[BUILD-127] T0 baseline: {self.t0_baseline.total_tests} tests, "
+                    f"{self.t0_baseline.passing_tests} passing, "
+                    f"{self.t0_baseline.failing_tests} failing, "
+                    f"{self.t0_baseline.error_tests} errors"
+                )
+            else:
+                logger.warning("[BUILD-127] Could not get git commit SHA - baseline tracking disabled")
+                self.t0_baseline = None
+        except Exception as e:
+            logger.warning(f"[BUILD-127] T0 baseline capture failed (non-blocking): {e}")
+            self.t0_baseline = None
 
     # =========================================================================
     # BACKLOG MAINTENANCE (propose-first apply with auditor gating)
@@ -641,6 +701,32 @@ class AutonomousExecutor:
         except Exception as e:
             # Gracefully continue if startup checks system fails
             logger.warning(f"Startup checks system unavailable: {e}")
+
+        # BUILD-130: Schema validation on startup (fail-fast if schema invalid)
+        try:
+            from autopack.schema_validator import SchemaValidator
+            from autopack.config import get_database_url
+
+            database_url = get_database_url()
+            if database_url:
+                validator = SchemaValidator(database_url)
+                schema_result = validator.validate_on_startup()
+
+                if not schema_result.is_valid:
+                    logger.error("[FATAL] Schema validation failed on startup!")
+                    logger.error(f"[FATAL] Found {len(schema_result.errors)} schema violations")
+                    logger.error("[FATAL] Run: python scripts/break_glass_repair.py diagnose")
+                    raise RuntimeError(
+                        f"Database schema validation failed: {len(schema_result.errors)} violations detected. "
+                        f"Run 'python scripts/break_glass_repair.py diagnose' to see details."
+                    )
+            else:
+                logger.warning("[SchemaValidator] No database URL found - skipping schema validation")
+
+        except ImportError as e:
+            logger.warning(f"[SchemaValidator] Schema validator not available: {e}")
+        except Exception as e:
+            logger.warning(f"[SchemaValidator] Schema validation failed: {e}")
 
         logger.info("Startup checks complete")
 
@@ -1018,26 +1104,72 @@ class AutonomousExecutor:
         )
 
     def get_run_status(self) -> Dict:
-        """Fetch run status from Autopack API with error recovery
+        """Fetch run status from Autopack API with error recovery and circuit breaker
 
         Returns:
             Run data with phases and status
         """
-        def _fetch_status():
-            url = f"{self.api_url}/runs/{self.run_id}"
-            headers = {}
-            if self.api_key:
-                headers["X-API-Key"] = self.api_key
+        from autopack.error_classifier import ErrorClassifier, ErrorClass
 
+        classifier = ErrorClassifier()
+        url = f"{self.api_url}/runs/{self.run_id}"
+        headers = {}
+        if self.api_key:
+            headers["X-API-Key"] = self.api_key
+
+        # Try to fetch status with circuit breaker logic
+        try:
             response = requests.get(url, headers=headers, timeout=10)
             response.raise_for_status()
             return response.json()
+        except requests.exceptions.HTTPError as e:
+            # Classify error to determine retry strategy
+            status_code = e.response.status_code if e.response else 0
+            response_body = e.response.text if e.response else str(e)
 
-        return self.error_recovery.execute_with_retry(
-            func=_fetch_status,
-            operation_name="Fetch run status from API",
-            max_retries=3
-        )
+            error_class, remediation = classifier.classify_api_error(
+                status_code=status_code,
+                response_body=response_body
+            )
+
+            # Log classification
+            should_retry = classifier.should_retry(error_class)
+            logger.error(f"[CircuitBreaker] API error classified as {error_class.value}")
+            logger.error(f"[CircuitBreaker] Remediation: {remediation}")
+            logger.error(f"[CircuitBreaker] Retry decision: {'RETRY' if should_retry else 'FAIL-FAST'}")
+
+            # Fail-fast on deterministic errors
+            if not should_retry:
+                logger.error(f"[CircuitBreaker] Deterministic error detected - stopping execution")
+                logger.error(f"[CircuitBreaker] Error: HTTP {status_code} - {response_body[:500]}")
+                raise RuntimeError(f"Deterministic API error: {remediation}") from e
+
+            # Retry transient errors with exponential backoff
+            max_retries = 3
+            for attempt in range(max_retries):
+                backoff = classifier.get_backoff_seconds(error_class, attempt)
+                logger.warning(f"[CircuitBreaker] Retrying after {backoff}s (attempt {attempt+1}/{max_retries})")
+                import time
+                time.sleep(backoff)
+
+                try:
+                    response = requests.get(url, headers=headers, timeout=10)
+                    response.raise_for_status()
+                    logger.info(f"[CircuitBreaker] Retry successful on attempt {attempt+1}")
+                    return response.json()
+                except requests.exceptions.HTTPError as retry_error:
+                    if attempt == max_retries - 1:
+                        # Last retry failed
+                        logger.error(f"[CircuitBreaker] All retries exhausted for transient error")
+                        raise
+                    continue
+
+            # Should not reach here
+            raise
+        except Exception as e:
+            # Non-HTTP errors (connection errors, timeouts, etc.)
+            logger.error(f"[CircuitBreaker] Non-HTTP error: {type(e).__name__}: {str(e)}")
+            raise
 
     def _detect_and_reset_stale_phases(self, run_data: Dict):
         """
@@ -1534,7 +1666,57 @@ class AutonomousExecutor:
             status can be: "COMPLETE", "FAILED", "BLOCKED"
         """
         phase_id = phase.get("phase_id")
+
+        # BUILD-123v2: Generate scope manifest if missing or incomplete
         scope_config = phase.get("scope") or {}
+        if not scope_config.get("paths"):
+            logger.info(f"[BUILD-123v2] Phase '{phase_id}' has no scope - generating manifest...")
+            try:
+                # Create minimal plan for this phase
+                minimal_plan = {
+                    "run_id": self.run_id,
+                    "phases": [phase]
+                }
+
+                # Generate manifest
+                result = self.manifest_generator.generate_manifest(
+                    plan_data=minimal_plan,
+                    skip_validation=False  # Run preflight validation
+                )
+
+                if result.success and result.enhanced_plan["phases"]:
+                    enhanced_phase = result.enhanced_plan["phases"][0]
+                    scope_config = enhanced_phase.get("scope", {})
+
+                    # Update phase with generated scope
+                    phase["scope"] = scope_config
+
+                    # Log confidence
+                    confidence = result.confidence_scores.get(phase_id, 0.0)
+                    category = enhanced_phase.get("metadata", {}).get("category", "unknown")
+                    logger.info(
+                        f"[BUILD-123v2] Generated scope for '{phase_id}': "
+                        f"category={category}, confidence={confidence:.1%}, "
+                        f"files={len(scope_config.get('paths', []))}"
+                    )
+
+                    # Warn if low confidence
+                    if confidence < 0.30:
+                        logger.warning(
+                            f"[BUILD-123v2] Low confidence ({confidence:.1%}) for phase '{phase_id}' - "
+                            f"scope may be incomplete. Builder may need to request expansion."
+                        )
+                else:
+                    logger.warning(
+                        f"[BUILD-123v2] Manifest generation failed for '{phase_id}': {result.error}"
+                    )
+                    # Continue with empty scope - Builder will handle
+            except Exception as e:
+                logger.error(f"[BUILD-123v2] Failed to generate manifest for '{phase_id}': {e}")
+                import traceback
+                traceback.print_exc()
+                # Continue with empty scope
+
         allowed_scope_paths = self._derive_allowed_paths_from_scope(scope_config)
 
         # BUILD-115: Database queries disabled - use API phase data with defaults
@@ -3694,7 +3876,9 @@ Just the new description that should replace the current one while preserving th
             builder_result = self.llm_service.execute_builder_phase(
                 phase_spec=phase_with_constraints,
                 file_context=file_context,
-                max_tokens=None,  # Let ModelRouter decide based on phase config
+                # If a prior attempt truncated, _escalated_tokens will be set and we must actually
+                # pass it through so the retry uses a larger completion budget.
+                max_tokens=phase.get("_escalated_tokens"),
                 project_rules=project_rules,  # Stage 0B: Persistent project rules
                 run_hints=run_hints,  # Stage 0A: Within-run hints from earlier phases
                 run_id=self.run_id,
@@ -3734,7 +3918,8 @@ Just the new description that should replace the current one while preserving th
                 builder_result = self.llm_service.execute_builder_phase(
                     phase_spec=phase_structured,
                     file_context=file_context,
-                    max_tokens=None,
+                    # Preserve any escalated budget across format fallback retries too.
+                    max_tokens=phase.get("_escalated_tokens"),
                     project_rules=project_rules,
                     run_hints=run_hints,
                     run_id=self.run_id,
@@ -3748,7 +3933,10 @@ Just the new description that should replace the current one while preserving th
 
             # Output contract: reject empty/blank patch content before posting/applying.
             # Allow explicit structured-edit no-op (builder already warned) to pass through.
-            if builder_result.success and (not builder_result.patch_content or not builder_result.patch_content.strip()):
+            # Allow edit_plan as valid alternative to patch_content (structured edits).
+            has_patch = builder_result.patch_content and builder_result.patch_content.strip()
+            has_edit_plan = hasattr(builder_result, 'edit_plan') and builder_result.edit_plan is not None
+            if builder_result.success and not has_patch and not has_edit_plan:
                 messages = builder_result.builder_messages or []
                 no_op_structured = any("Structured edit produced no operations" in m for m in messages)
                 if not no_op_structured:
@@ -3790,7 +3978,8 @@ Just the new description that should replace the current one while preserving th
 
                 # BUILD-046: Dynamic token escalation on truncation
                 # If output was truncated (stop_reason=max_tokens), automatically increase token budget for retry
-                max_builder_attempts = getattr(phase, "max_builder_attempts", None) or 5
+                # phase is a dict; use .get rather than getattr.
+                max_builder_attempts = phase.get("max_builder_attempts") or 5
                 if getattr(builder_result, 'was_truncated', False) and attempt_index < (max_builder_attempts - 1):
                     # Get current token limit from phase spec
                     current_max_tokens = phase.get('_escalated_tokens')
@@ -4400,7 +4589,55 @@ Just the new description that should replace the current one while preserving th
                 logger.info(f"[{phase_id}] Human approval GRANTED - proceeding with phase")
                 # Continue execution below
 
-            # Update phase status to COMPLETE
+            # BUILD-127 Phase 1: Use PhaseFinalizer for authoritative completion check
+            # Extract applied files from patch for deliverables validation
+            applied_files = []
+            if patch_success and builder_result.patch_content:
+                try:
+                    from autopack.governed_apply import parse_patch_stats
+                    applied_files, _, _ = parse_patch_stats(builder_result.patch_content)
+                    logger.info(f"[{phase_id}] Applied files: {applied_files}")
+                except Exception as e:
+                    logger.warning(f"[{phase_id}] Could not parse applied files: {e}")
+
+            # BUILD-127 Phase 1: Assess completion using PhaseFinalizer
+            finalization_decision = self.phase_finalizer.assess_completion(
+                phase_id=phase_id,
+                phase_spec=phase,
+                ci_result=ci_result,  # CI test results
+                baseline=self.t0_baseline,  # T0 baseline for regression detection
+                quality_report={
+                    "quality_level": quality_report.quality_level,
+                    "is_blocked": quality_report.is_blocked()
+                },
+                auditor_result={
+                    "approved": auditor_result.approved,
+                    "issues_found": auditor_result.issues_found
+                },
+                deliverables=phase.get("deliverables", []),
+                applied_files=applied_files,
+                workspace=Path(self.workspace)
+            )
+
+            # Handle finalization decision
+            if not finalization_decision.can_complete:
+                # BLOCKED or FAILED - phase cannot complete
+                logger.error(
+                    f"[{phase_id}] Phase finalization BLOCKED: {finalization_decision.reason}"
+                )
+                for issue in finalization_decision.blocking_issues:
+                    logger.error(f"  ❌ {issue}")
+                for warning in finalization_decision.warnings:
+                    logger.warning(f"  ⚠️  {warning}")
+
+                self._update_phase_status(phase_id, finalization_decision.status)
+                return False, finalization_decision.reason
+
+            # Finalization passed - phase can complete
+            logger.info(f"[{phase_id}] Phase finalization PASSED: {finalization_decision.reason}")
+            for warning in finalization_decision.warnings:
+                logger.warning(f"  ⚠️  {warning}")
+
             self._update_phase_status(phase_id, "COMPLETE")
             logger.info(f"[{phase_id}] Phase completed successfully")
 

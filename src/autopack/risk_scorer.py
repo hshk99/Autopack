@@ -1,284 +1,465 @@
-"""Risk Scorer - Deterministic proactive risk assessment
+"""Risk-Based Approval Gates with Deterministic Risk Scoring.
 
-Ported from chatbot_project as metadata provider for quality gate.
-Complements learned rules (reactive) with proactive static analysis.
+Provides deterministic risk assessment for phase changes without LLM calls.
+Supports pause/resume mechanism for high-risk changes requiring human approval.
 
-Key features:
-- LOC delta scoring
-- Critical path detection (migrations, auth, schema, infra)
-- Test presence validation
-- Code hygiene checks (TODO/FIXME/HACK)
+Architecture:
+- Deterministic risk scoring based on:
+  - Scope size (>20 files = high risk)
+  - Protected paths (src/autopack/models.py, alembic/versions/*)
+  - Category patterns (database migrations = high risk)
+  - Cross-cutting changes (multiple directories = medium risk)
+- Risk levels: LOW (0-0.3), MEDIUM (0.3-0.6), HIGH (0.6-1.0)
+- Pause/Resume mechanism:
+  - HIGH risk: Requires human approval before execution
+  - MEDIUM risk: Optional approval (configurable)
+  - LOW risk: Auto-approved
 
-Integration: Feeds quality_gate.py as metadata, NOT a standalone blocker.
+Usage:
+    scorer = RiskScorer(workspace_root=Path("/project"))
+    risk = scorer.score_phase(
+        phase_spec={"description": "...", "scope": {...}},
+        file_changes=["src/main.py", "tests/test_main.py"]
+    )
+    
+    if risk.level == RiskLevel.HIGH:
+        # Request approval
+        approval = await request_approval(risk)
+        if not approval.approved:
+            raise PhaseRejected("High-risk change rejected by human")
 """
 
+import logging
+import re
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import List, Dict, Optional, Set
+from dataclasses import dataclass
+from enum import Enum
+
+logger = logging.getLogger(__name__)
+
+
+class RiskLevel(str, Enum):
+    """Risk level classification."""
+    LOW = "low"          # 0.0 - 0.3
+    MEDIUM = "medium"    # 0.3 - 0.6
+    HIGH = "high"        # 0.6 - 1.0
+
+
+@dataclass
+class RiskScore:
+    """Risk assessment result."""
+    level: RiskLevel
+    score: float  # 0.0 - 1.0
+    factors: Dict[str, float]  # Factor name -> contribution
+    reasons: List[str]  # Human-readable reasons
+    requires_approval: bool
+    auto_approved: bool = False
 
 
 class RiskScorer:
-    """Deterministic risk scorer for code changes.
+    """Deterministic risk scorer for phase changes."""
 
-    Provides proactive risk assessment before apply, complementing
-    reactive learned rules that only fire for seen patterns.
-    """
-
-    # Critical paths that warrant higher scrutiny
-    CRITICAL_PATHS = [
-        "database/migrations",
-        "auth",
-        "infra",
-        "config/production",
-        "deployment",
-        ".github/workflows",
+    # Protected paths (high risk if modified)
+    PROTECTED_PATHS = [
+        "src/autopack/models.py",
+        "alembic/versions/*",
+        ".autonomous_runs/*",
+        ".git/*",
+        "autopack.db",
+        "config/safety_profiles.yaml",
+        "config/governance.yaml",
     ]
 
-    # High-risk file extensions
-    HIGH_RISK_EXTENSIONS = [
-        ".sql",
-        ".yaml",
-        ".yml",
-        ".env",
-        ".production",
+    # High-risk categories
+    HIGH_RISK_CATEGORIES = [
+        "database_migration",
+        "schema_change",
+        "security",
+        "authentication",
+        "authorization",
     ]
 
-    # Code hygiene markers
-    HYGIENE_MARKERS = [
-        "TODO",
-        "FIXME",
-        "HACK",
-        "XXX",
-        "TEMP",
+    # Medium-risk categories
+    MEDIUM_RISK_CATEGORIES = [
+        "api_change",
+        "refactor",
+        "infrastructure",
+        "configuration",
     ]
 
-    def __init__(self, repo_root: Optional[Path] = None):
+    # Risk thresholds
+    LARGE_SCOPE_THRESHOLD = 20  # files
+    CROSS_CUTTING_THRESHOLD = 3  # directories
+
+    def __init__(
+        self,
+        workspace_root: Path,
+        require_approval_for_medium: bool = False,
+    ):
         """Initialize risk scorer.
 
         Args:
-            repo_root: Repository root for path resolution
+            workspace_root: Root directory of workspace
+            require_approval_for_medium: Require approval for medium-risk changes
         """
-        self.repo_root = repo_root or Path.cwd()
+        self.workspace_root = workspace_root.resolve()
+        self.require_approval_for_medium = require_approval_for_medium
 
-    def score_change(
+    def score_phase(
         self,
-        files_changed: List[str],
-        loc_added: int,
-        loc_removed: int,
-        patch_content: Optional[str] = None,
-    ) -> Dict:
-        """Score a code change for risk level.
+        phase_spec: Dict,
+        file_changes: List[str],
+    ) -> RiskScore:
+        """Score risk for a phase.
 
         Args:
-            files_changed: List of file paths modified
-            loc_added: Lines of code added
-            loc_removed: Lines of code removed
-            patch_content: Optional patch/diff content for hygiene checks
+            phase_spec: Phase specification dict
+            file_changes: List of file paths to be modified
 
         Returns:
-            Dict with:
-                - risk_score: 0-100 (0=safe, 100=maximum risk)
-                - risk_level: "low" | "medium" | "high" | "critical"
-                - checks: Dict of individual check results
-                - reasons: List of human-readable risk factors
+            RiskScore with level, score, and reasons
         """
-        checks = {}
-        reasons = []
-        score = 0
+        factors: Dict[str, float] = {}
+        reasons: List[str] = []
 
-        # 1. LOC delta scoring (max 25 points)
-        loc_delta = loc_added + loc_removed
-        if loc_delta > 1000:
-            checks["loc_delta"] = "critical"
-            score += 25
-            reasons.append(f"Very large change ({loc_delta} LOC)")
-        elif loc_delta > 500:
-            checks["loc_delta"] = "high"
-            score += 20
-            reasons.append(f"Large change ({loc_delta} LOC)")
-        elif loc_delta > 200:
-            checks["loc_delta"] = "medium"
-            score += 10
-            reasons.append(f"Moderate change ({loc_delta} LOC)")
-        else:
-            checks["loc_delta"] = "low"
+        # Factor 1: Scope size (0.0 - 0.4)
+        scope_risk = self._score_scope_size(file_changes)
+        factors["scope_size"] = scope_risk
+        if scope_risk > 0.2:
+            reasons.append(
+                f"Large scope: {len(file_changes)} files "
+                f"(threshold: {self.LARGE_SCOPE_THRESHOLD})"
+            )
 
-        # 2. Large deletion detection (max 40 points) - TWO-TIER SYSTEM
-        net_deletion = loc_removed - loc_added
+        # Factor 2: Protected paths (0.0 - 0.5)
+        protected_risk = self._score_protected_paths(file_changes)
+        factors["protected_paths"] = protected_risk
+        if protected_risk > 0.0:
+            protected_files = self._get_protected_files(file_changes)
+            reasons.append(
+                f"Protected paths modified: {', '.join(protected_files)}"
+            )
 
-        # Two-tier deletion thresholds
-        NOTIFICATION_THRESHOLD = 100   # Send notification (don't block) at >100 lines
-        BLOCKING_THRESHOLD = 200       # Require approval (block) at >200 lines
+        # Factor 3: Category patterns (0.0 - 0.3)
+        category_risk = self._score_category(phase_spec)
+        factors["category"] = category_risk
+        if category_risk > 0.2:
+            category = phase_spec.get("task_category", "unknown")
+            reasons.append(f"High-risk category: {category}")
 
-        # Initialize flags
-        checks["large_deletion"] = False
-        checks["deletion_notification_needed"] = False
-        checks["deletion_approval_required"] = False
-        checks["net_deletion"] = net_deletion
+        # Factor 4: Cross-cutting changes (0.0 - 0.2)
+        cross_cutting_risk = self._score_cross_cutting(file_changes)
+        factors["cross_cutting"] = cross_cutting_risk
+        if cross_cutting_risk > 0.1:
+            dirs = self._get_affected_directories(file_changes)
+            reasons.append(
+                f"Cross-cutting changes: {len(dirs)} directories affected"
+            )
 
-        if net_deletion > BLOCKING_THRESHOLD:
-            # Tier 2: Block and require approval (200+ lines)
-            checks["large_deletion"] = True
-            checks["deletion_notification_needed"] = True
-            checks["deletion_approval_required"] = True
-            deletion_severity = 40
-            reasons.append(f"CRITICAL DELETION: Net removal of {net_deletion} lines (requires approval, threshold: {BLOCKING_THRESHOLD})")
-            score += deletion_severity
-        elif net_deletion > NOTIFICATION_THRESHOLD:
-            # Tier 1: Send notification only, don't block (100+ lines)
-            checks["large_deletion"] = True
-            checks["deletion_notification_needed"] = True
-            checks["deletion_approval_required"] = False
-            deletion_severity = 20
-            reasons.append(f"LARGE DELETION: Net removal of {net_deletion} lines (notification sent, threshold: {NOTIFICATION_THRESHOLD})")
-            score += deletion_severity
-
-        # 3. Critical path detection (max 30 points)
-        critical_paths_hit = []
-        for file_path in files_changed:
-            for critical_path in self.CRITICAL_PATHS:
-                if critical_path in file_path:
-                    critical_paths_hit.append(critical_path)
-
-        if critical_paths_hit:
-            checks["critical_paths"] = critical_paths_hit
-            score += min(30, len(critical_paths_hit) * 15)
-            reasons.append(f"Touches critical paths: {', '.join(set(critical_paths_hit))}")
-        else:
-            checks["critical_paths"] = []
-
-        # 4. High-risk file extensions (max 15 points)
-        high_risk_files = []
-        for file_path in files_changed:
-            for ext in self.HIGH_RISK_EXTENSIONS:
-                if file_path.endswith(ext):
-                    high_risk_files.append(file_path)
-
-        if high_risk_files:
-            checks["high_risk_files"] = high_risk_files
-            score += min(15, len(high_risk_files) * 5)
-            reasons.append(f"Modifies {len(high_risk_files)} high-risk config/schema file(s)")
-        else:
-            checks["high_risk_files"] = []
-
-        # 5. Test presence (max 20 points penalty if missing)
-        test_files = [f for f in files_changed if "test" in f.lower() or f.endswith("_test.py")]
-        if not test_files and loc_delta > 50:
-            checks["tests_present"] = False
-            score += 20
-            reasons.append("No test files modified in non-trivial change")
-        else:
-            checks["tests_present"] = True
-
-        # 6. Code hygiene (max 10 points)
-        if patch_content:
-            hygiene_issues = []
-            for marker in self.HYGIENE_MARKERS:
-                if marker in patch_content:
-                    hygiene_issues.append(marker)
-
-            if hygiene_issues:
-                checks["hygiene_issues"] = hygiene_issues
-                score += min(10, len(hygiene_issues) * 3)
-                reasons.append(f"Contains hygiene markers: {', '.join(hygiene_issues)}")
-            else:
-                checks["hygiene_issues"] = []
-        else:
-            checks["hygiene_issues"] = []
-
-        # Determine risk level from score
-        if score >= 70:
-            risk_level = "critical"
-        elif score >= 50:
-            risk_level = "high"
-        elif score >= 25:
-            risk_level = "medium"
-        else:
-            risk_level = "low"
-
-        return {
-            "risk_score": min(100, score),
-            "risk_level": risk_level,
-            "checks": checks,
-            "reasons": reasons if reasons else ["Low-risk routine change"],
-            "metadata": {
-                "files_changed_count": len(files_changed),
-                "loc_added": loc_added,
-                "loc_removed": loc_removed,
-                "loc_delta": loc_delta,
-            },
-        }
-
-    def format_report(self, score_result: Dict) -> str:
-        """Format risk score result as human-readable report.
-
-        Args:
-            score_result: Result from score_change()
-
-        Returns:
-            Formatted string report
-        """
-        risk_level = score_result["risk_level"]
-        risk_score = score_result["risk_score"]
-        reasons = score_result["reasons"]
-
-        # Risk level emoji
-        emoji = {
-            "low": "✅",
-            "medium": "⚠️",
-            "high": "🔴",
-            "critical": "🚨",
-        }.get(risk_level, "❓")
-
-        report = [
-            f"\n{'='*60}",
-            f"RISK ASSESSMENT: {emoji} {risk_level.upper()} (score: {risk_score}/100)",
-            f"{'='*60}",
-        ]
-
-        if reasons:
-            report.append("\nRisk Factors:")
-            for reason in reasons:
-                report.append(f"  • {reason}")
-
-        # Add check details
-        checks = score_result["checks"]
-        if checks.get("critical_paths"):
-            report.append(f"\nCritical paths: {', '.join(checks['critical_paths'])}")
-        if checks.get("high_risk_files"):
-            report.append(f"High-risk files: {len(checks['high_risk_files'])} file(s)")
-        if not checks.get("tests_present", True):
-            report.append("⚠️  No test coverage detected")
-        if checks.get("hygiene_issues"):
-            report.append(f"Hygiene: Found {', '.join(checks['hygiene_issues'])}")
-
-        report.append(f"{'='*60}\n")
-
-        return "\n".join(report)
-
-
-def integrate_with_quality_gate(quality_report: Dict, risk_result: Dict) -> Dict:
-    """Integrate risk scorer results into quality gate report.
-
-    Args:
-        quality_report: Quality gate assessment dict
-        risk_result: Risk scorer result dict
-
-    Returns:
-        Enhanced quality report with risk metadata
-    """
-    # Add risk assessment to quality report
-    quality_report["risk_assessment"] = {
-        "risk_score": risk_result["risk_score"],
-        "risk_level": risk_result["risk_level"],
-        "risk_reasons": risk_result["reasons"],
-    }
-
-    # If high/critical risk, add warning
-    if risk_result["risk_level"] in ["high", "critical"]:
-        if "warnings" not in quality_report:
-            quality_report["warnings"] = []
-        quality_report["warnings"].append(
-            f"Risk scorer flagged as {risk_result['risk_level']} risk (score: {risk_result['risk_score']})"
+        # Compute total score (weighted sum)
+        total_score = (
+            scope_risk * 0.3 +
+            protected_risk * 0.4 +
+            category_risk * 0.2 +
+            cross_cutting_risk * 0.1
         )
 
-    return quality_report
+        # Classify risk level
+        if total_score >= 0.6:
+            level = RiskLevel.HIGH
+            requires_approval = True
+        elif total_score >= 0.3:
+            level = RiskLevel.MEDIUM
+            requires_approval = self.require_approval_for_medium
+        else:
+            level = RiskLevel.LOW
+            requires_approval = False
+
+        # Auto-approve low-risk changes
+        auto_approved = level == RiskLevel.LOW
+
+        logger.info(
+            f"[RiskScorer] Phase risk: {level.value} (score={total_score:.2f}, "
+            f"requires_approval={requires_approval})"
+        )
+
+        return RiskScore(
+            level=level,
+            score=total_score,
+            factors=factors,
+            reasons=reasons,
+            requires_approval=requires_approval,
+            auto_approved=auto_approved,
+        )
+
+    def _score_scope_size(self, file_changes: List[str]) -> float:
+        """Score risk based on scope size.
+
+        Args:
+            file_changes: List of file paths
+
+        Returns:
+            Risk score (0.0 - 0.4)
+        """
+        num_files = len(file_changes)
+        if num_files == 0:
+            return 0.0
+        elif num_files <= 5:
+            return 0.0
+        elif num_files <= 10:
+            return 0.1
+        elif num_files <= self.LARGE_SCOPE_THRESHOLD:
+            return 0.2
+        else:
+            # Scale up to 0.4 for very large scopes
+            return min(0.4, 0.2 + (num_files - self.LARGE_SCOPE_THRESHOLD) * 0.01)
+
+    def _score_protected_paths(self, file_changes: List[str]) -> float:
+        """Score risk based on protected path modifications.
+
+        Args:
+            file_changes: List of file paths
+
+        Returns:
+            Risk score (0.0 - 0.5)
+        """
+        protected_files = self._get_protected_files(file_changes)
+        if not protected_files:
+            return 0.0
+
+        # High risk if any protected path is modified
+        return 0.5
+
+    def _get_protected_files(self, file_changes: List[str]) -> List[str]:
+        """Get list of protected files in changes.
+
+        Args:
+            file_changes: List of file paths
+
+        Returns:
+            List of protected file paths
+        """
+        protected = []
+        for file_path in file_changes:
+            for pattern in self.PROTECTED_PATHS:
+                if self._matches_pattern(file_path, pattern):
+                    protected.append(file_path)
+                    break
+        return protected
+
+    def _matches_pattern(self, file_path: str, pattern: str) -> bool:
+        """Check if file path matches pattern (supports wildcards).
+
+        Args:
+            file_path: File path to check
+            pattern: Pattern (supports * wildcard)
+
+        Returns:
+            True if matches
+        """
+        # Convert glob pattern to regex
+        regex_pattern = pattern.replace("*", ".*")
+        return bool(re.match(regex_pattern, file_path))
+
+    def _score_category(self, phase_spec: Dict) -> float:
+        """Score risk based on phase category.
+
+        Args:
+            phase_spec: Phase specification dict
+
+        Returns:
+            Risk score (0.0 - 0.3)
+        """
+        category = phase_spec.get("task_category", "").lower()
+        description = phase_spec.get("description", "").lower()
+
+        # Check high-risk categories
+        for high_risk_cat in self.HIGH_RISK_CATEGORIES:
+            if high_risk_cat in category or high_risk_cat in description:
+                return 0.3
+
+        # Check medium-risk categories
+        for medium_risk_cat in self.MEDIUM_RISK_CATEGORIES:
+            if medium_risk_cat in category or medium_risk_cat in description:
+                return 0.15
+
+        return 0.0
+
+    def _score_cross_cutting(self, file_changes: List[str]) -> float:
+        """Score risk based on cross-cutting changes.
+
+        Args:
+            file_changes: List of file paths
+
+        Returns:
+            Risk score (0.0 - 0.2)
+        """
+        dirs = self._get_affected_directories(file_changes)
+        num_dirs = len(dirs)
+
+        if num_dirs <= 1:
+            return 0.0
+        elif num_dirs <= 2:
+            return 0.05
+        elif num_dirs <= self.CROSS_CUTTING_THRESHOLD:
+            return 0.1
+        else:
+            # Scale up to 0.2 for very cross-cutting changes
+            return min(0.2, 0.1 + (num_dirs - self.CROSS_CUTTING_THRESHOLD) * 0.02)
+
+    def _get_affected_directories(self, file_changes: List[str]) -> Set[str]:
+        """Get set of affected directories.
+
+        Args:
+            file_changes: List of file paths
+
+        Returns:
+            Set of directory paths
+        """
+        dirs = set()
+        for file_path in file_changes:
+            path = Path(file_path)
+            if path.parent != Path("."):
+                dirs.add(str(path.parent))
+        return dirs
+
+
+class ApprovalGate:
+    """Approval gate for high-risk changes."""
+
+    def __init__(self, api_url: str, api_key: Optional[str] = None):
+        """Initialize approval gate.
+
+        Args:
+            api_url: Autopack API URL
+            api_key: API key for authentication
+        """
+        self.api_url = api_url.rstrip("/")
+        self.api_key = api_key
+
+    async def request_approval(
+        self,
+        run_id: str,
+        phase_id: str,
+        risk_score: RiskScore,
+        timeout_seconds: int = 300,
+    ) -> bool:
+        """Request human approval for high-risk change.
+
+        Args:
+            run_id: Run ID
+            phase_id: Phase ID
+            risk_score: Risk assessment
+            timeout_seconds: Approval timeout
+
+        Returns:
+            True if approved, False if rejected/timeout
+        """
+        import httpx
+
+        # Prepare approval request
+        request_data = {
+            "run_id": run_id,
+            "phase_id": phase_id,
+            "risk_level": risk_score.level.value,
+            "risk_score": risk_score.score,
+            "reasons": risk_score.reasons,
+            "timeout_seconds": timeout_seconds,
+        }
+
+        headers = {}
+        if self.api_key:
+            headers["Authorization"] = f"Bearer {self.api_key}"
+
+        try:
+            async with httpx.AsyncClient() as client:
+                # Submit approval request
+                response = await client.post(
+                    f"{self.api_url}/approval/request",
+                    json=request_data,
+                    headers=headers,
+                    timeout=10.0,
+                )
+                response.raise_for_status()
+                approval_id = response.json()["approval_id"]
+
+                logger.info(
+                    f"[ApprovalGate] Approval request submitted: {approval_id} "
+                    f"(timeout={timeout_seconds}s)"
+                )
+
+                # Poll for approval status
+                import asyncio
+                start_time = asyncio.get_event_loop().time()
+                while True:
+                    elapsed = asyncio.get_event_loop().time() - start_time
+                    if elapsed >= timeout_seconds:
+                        logger.warning(
+                            f"[ApprovalGate] Approval timeout: {approval_id}"
+                        )
+                        return False
+
+                    # Check status
+                    status_response = await client.get(
+                        f"{self.api_url}/approval/status/{approval_id}",
+                        headers=headers,
+                        timeout=10.0,
+                    )
+                    status_response.raise_for_status()
+                    status_data = status_response.json()
+
+                    if status_data["status"] == "approved":
+                        logger.info(
+                            f"[ApprovalGate] Approval granted: {approval_id}"
+                        )
+                        return True
+                    elif status_data["status"] == "rejected":
+                        logger.info(
+                            f"[ApprovalGate] Approval rejected: {approval_id}"
+                        )
+                        return False
+
+                    # Wait before polling again
+                    await asyncio.sleep(5.0)
+
+        except Exception as e:
+            logger.error(f"[ApprovalGate] Approval request failed: {e}")
+            return False
+
+    def pause_execution(
+        self,
+        run_id: str,
+        phase_id: str,
+        reason: str,
+    ) -> None:
+        """Pause execution for manual review.
+
+        Args:
+            run_id: Run ID
+            phase_id: Phase ID
+            reason: Reason for pause
+        """
+        logger.warning(
+            f"[ApprovalGate] Execution paused: run={run_id}, phase={phase_id}, "
+            f"reason={reason}"
+        )
+        # Pause mechanism: Set phase state to PAUSED in database
+        # (Implementation depends on database schema)
+
+    def resume_execution(
+        self,
+        run_id: str,
+        phase_id: str,
+    ) -> None:
+        """Resume execution after approval.
+
+        Args:
+            run_id: Run ID
+            phase_id: Phase ID
+        """
+        logger.info(
+            f"[ApprovalGate] Execution resumed: run={run_id}, phase={phase_id}"
+        )
+        # Resume mechanism: Set phase state to QUEUED in database
+        # (Implementation depends on database schema)

@@ -145,6 +145,15 @@ class GovernedApplyPath:
     # These are Autopack's own source/config directories
     PROTECTED_PATHS = [
         "src/autopack/",      # Autopack core modules
+        # CRITICAL: individual core modules that must remain protected even in internal mode
+        # (internal mode removes the broad "src/autopack/" prefix)
+        "src/autopack/config.py",
+        "src/autopack/database.py",
+        "src/autopack/models.py",
+        "src/autopack/governed_apply.py",
+        "src/autopack/autonomous_executor.py",
+        "src/autopack/main.py",
+        "src/autopack/quality_gate.py",
         "config/",            # Configuration files
         ".autonomous_runs/",  # Run state and logs
         ".git/",              # Git internals
@@ -678,6 +687,14 @@ class GovernedApplyPath:
                 # No backup available - file was new, just delete it
                 full_path = self.workspace / rel_path
                 try:
+                    if self._is_path_protected(rel_path):
+                        logger.error(
+                            "[Integrity] Refusing to delete protected file %s even though it appears 'new' "
+                            "(no backup available). Treating as failure.",
+                            rel_path,
+                        )
+                        failed += 1
+                        continue
                     full_path.unlink()
                     logger.info(f"[Integrity] Removed corrupted new file: {rel_path}")
                     restored += 1
@@ -941,16 +958,18 @@ class GovernedApplyPath:
 
     def _remove_existing_files_for_new_patches(self, patch_content: str) -> str:
         """
-        Remove existing files that patches try to create as 'new file'.
+        Handle existing files that patches try to create as 'new file'.
 
         When a patch marks a file as 'new file mode' but the file already exists,
-        delete the existing file so the patch can create it fresh.
+        DO NOT delete the file (this is dangerous and can cause silent data loss if the
+        patch is later rejected). Instead, fail fast and require the patch to be emitted
+        as a modification instead of a new-file create.
 
         Args:
             patch_content: Patch content
 
         Returns:
-            Unchanged patch content (side effect: removes conflicting files)
+            Unchanged patch content. (No side effects.)
         """
         lines = patch_content.split('\n')
         i = 0
@@ -968,12 +987,17 @@ class GovernedApplyPath:
                     # Check if next lines indicate new file mode
                     if i + 1 < len(lines) and lines[i + 1].startswith('new file mode'):
                         if full_path.exists():
-                            # File exists but patch wants to create it - remove it
-                            logger.info(f"Removing existing file for new file patch: {file_path}")
-                            try:
-                                full_path.unlink()
-                            except Exception as e:
-                                logger.warning(f"Failed to remove {file_path}: {e}")
+                            # File exists but patch wants to create it - treat as an error.
+                            # This prevents accidental deletion of critical modules (e.g. src/autopack/config.py).
+                            if self._is_path_protected(file_path):
+                                raise PatchApplyError(
+                                    f"Unsafe patch: attempts to create protected file as new when it already exists: {file_path}. "
+                                    f"Refuse to delete/replace protected files."
+                                )
+                            raise PatchApplyError(
+                                f"Unsafe patch: attempts to create existing file as new: {file_path}. "
+                                f"Emit this change as a modification instead of 'new file mode'."
+                            )
 
             i += 1
 

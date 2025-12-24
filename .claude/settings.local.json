@@ -86,7 +86,12 @@
       "Bash(PYTHONUTF8=1 PYTHONPATH=src DATABASE_URL=\"sqlite:///autopack.db\" timeout 600 python:*)",
       "Bash(PYTHONUTF8=1 PYTHONPATH=src DATABASE_URL=\"sqlite:///autopack.db\" timeout 300 python:*)",
       "Bash(PYTHONUTF8=1 PYTHONPATH=src DATABASE_URL=\"sqlite:///autopack.db\" python -c \"from autopack.database import SessionLocal; from autopack.models import Phase; session = SessionLocal\\(\\); phases = session.query\\(Phase\\).filter\\(Phase.run_id == ''build130-schema-validation-prevention''\\).all\\(\\); print\\(f''BUILD-130 phases:''\\); [print\\(f''  {p.phase_id}: {p.state}, deliverables={len\\(\\(p.scope or {}\\).get\\(\"\"deliverables\"\", []\\)\\)}''\\) for p in phases]; session.close\\(\\)\")",
-      "Bash(PYTHONUTF8=1 wc:*)"
+      "Bash(PYTHONUTF8=1 wc:*)",
+      "Bash(PYTHONUTF8=1 PYTHONPATH=src TELEMETRY_DB_ENABLED=1 DATABASE_URL=\"sqlite:///autopack.db\" python:*)",
+      "Bash(TELEMETRY_DB_ENABLED=1 PYTHONUTF8=1 PYTHONPATH=src DATABASE_URL=\"sqlite:///autopack.db\" timeout 600 python:*)",
+      "Bash(set PYTHONUTF8=1)",
+      "Bash(set PYTHONPATH=src)",
+      "Bash(set DATABASE_URL=sqlite:///autopack.db)"
     ],
     "deny": [],
     "ask": []

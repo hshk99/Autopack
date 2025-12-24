@@ -4,6 +4,54 @@ Daily log of development activities, decisions, and progress on the Autopack pro
 
 ---
 
+## 2025-12-24: BUILD-129 Phase 3 Telemetry Collection + Critical Infrastructure Fix - IN PROGRESS
+
+**Summary**: Fixed critical infrastructure issue (missing `src/autopack/config.py`) that blocked telemetry validation, then successfully collected initial production samples with real deliverables. Export/replay scripts now working correctly.
+
+**Key Achievements**:
+1. ✅ **Fixed config.py Deletion**: Restored `src/autopack/config.py` and hardened `governed_apply.py` to prevent future accidental deletions
+2. ✅ **Telemetry Collection Started**: Collected 6 samples (5 production + 1 test) with real deliverables
+3. ✅ **Export/Replay Validated**: Both scripts working correctly with SMAPE averaging 38.7% on production samples
+4. ✅ **Regression Test Added**: Created test to prevent config.py deletion in future
+
+**Critical Issue Fixed**:
+- **Problem**: `src/autopack/config.py` was accidentally deleted by malformed patch application
+- **Impact**: `ModuleNotFoundError` prevented export/replay scripts from running
+- **Root Cause**: `governed_apply.py` deleted existing files when patch incorrectly marked them as `new file mode`
+- **Fixes**:
+  - Restored `src/autopack/config.py`
+  - Added to `PROTECTED_PATHS` in `governed_apply.py`
+  - Changed `_remove_existing_files_for_new_patches()` to fail fast instead of deleting
+  - Added guard in `_restore_corrupted_files()` to refuse deleting protected files
+  - Created regression test: `tests/test_governed_apply_no_delete_protected_on_new_file_conflict.py`
+
+**Telemetry Collection Progress** (20% complete):
+- **Total Samples**: 6 (5 production + 1 test)
+- **Target**: 30-50 samples
+- **Average SMAPE**: 38.7% (target: <50%) ✅
+- **Success Rate**: 80% (4/5 production samples successful)
+- **Real Deliverables**: All samples have actual file paths (no synthetic data)
+
+**Production Samples**:
+1. lovable-p2.3-missing-import-autofix: implementation/low, 2 files, SMAPE 59.8%
+2. lovable-p2.4-conversation-state: refactoring/medium, 2 files, SMAPE 46.2%
+3. lovable-p2.5-fallback-chain: implementation/low, 2 files, SMAPE 9.2% (excellent!)
+4. build129-p3-w1.7-configuration-medium-4files: configuration/medium, 4 files, SMAPE 41.3%
+5. build129-p3-w1.8-integration-high-5files: integration/high, 5 files, SMAPE 37.2%
+
+**Next Steps**:
+- Continue collecting samples (target: 20-25 more samples)
+- Focus on coverage gaps: testing category, documentation category, 8-15 deliverable range
+- Run validation analysis after reaching 20-30 samples
+
+**Files Modified**:
+- `src/autopack/config.py` - Restored from deletion
+- `src/autopack/governed_apply.py` - Hardened against accidental deletion
+- `tests/test_governed_apply_no_delete_protected_on_new_file_conflict.py` - New regression test
+- `docs/BUILD-129_PHASE3_TELEMETRY_COLLECTION_STATUS.md` - New progress tracking document
+
+---
+
 ## 2025-12-24: BUILD-129 Phase 3 P0 Telemetry Fixes & Testing - COMPLETE
 
 **Summary**: Addressed all critical gaps in BUILD-129 Phase 3 telemetry DB persistence implementation based on comprehensive code review. Applied migration fixes, created regression test suite, and validated production readiness.

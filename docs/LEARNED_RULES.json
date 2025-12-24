@@ -1597,11 +1597,21 @@
         "lovable-p1-core-precision:lovable-p1.1-agentic-file-search",
         "lovable-p1-core-precision:lovable-p1.2-intelligent-file-selection",
         "lovable-p1-core-precision:lovable-p1.3-build-validation",
-        "lovable-p1-core-precision:lovable-p1.4-dynamic-retry-delays"
+        "lovable-p1-core-precision:lovable-p1.4-dynamic-retry-delays",
+        "lovable-p2-quality-ux:lovable-p2.1-package-detection",
+        "lovable-p2-quality-ux:lovable-p2.2-hmr-error-detection",
+        "lovable-p2-quality-ux:lovable-p2.3-missing-import-autofix",
+        "lovable-p2-quality-ux:lovable-p2.1-package-detection",
+        "lovable-p2-quality-ux:lovable-p2.2-hmr-error-detection",
+        "lovable-p2-quality-ux:lovable-p2.3-missing-import-autofix",
+        "lovable-p2-quality-ux:lovable-p2.5-fallback-chain",
+        "lovable-p0-foundation:lovable-p0.2-semantic-embeddings",
+        "lovable-p0-foundation:lovable-p0.3-browser-telemetry",
+        "lovable-p0-foundation:lovable-p0.3-browser-telemetry"
       ],
-      "promotion_count": 310,
+      "promotion_count": 320,
       "first_seen": "2025-12-22T03:39:55.795516+00:00",
-      "last_seen": "2025-12-23T13:54:06.405133+00:00",
+      "last_seen": "2025-12-24T01:16:32.110330+00:00",
       "status": "active",
       "stage": "new"
     },
@@ -2084,11 +2094,14 @@
       "scope_pattern": null,
       "constraint": "Phase 'Protected-Path Strategy' was rejected by auditor - ensure code quality and completeness. Details: Failed with FAILED on attempt 1",
       "source_hint_ids": [
+        "lovable-p0-foundation:lovable-p0.1-protected-path",
+        "lovable-p2-quality-ux:lovable-p2.4-conversation-state",
+        "lovable-p2-quality-ux:lovable-p2.4-conversation-state",
         "lovable-p0-foundation:lovable-p0.1-protected-path"
       ],
-      "promotion_count": 1,
+      "promotion_count": 4,
       "first_seen": "2025-12-23T11:52:55.141452+00:00",
-      "last_seen": "2025-12-23T11:57:12.709447+00:00",
+      "last_seen": "2025-12-24T01:16:32.110330+00:00",
       "status": "active",
       "stage": "new"
     }

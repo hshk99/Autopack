@@ -108,12 +108,200 @@ class TokenEstimator:
         """
         self.workspace = workspace or Path(".")
 
+    def _extract_doc_features(self, deliverables: List[str], task_description: str = "") -> Dict[str, bool]:
+        """
+        Extract features that signal documentation synthesis vs pure writing.
+
+        Features:
+        - api_reference_required: Needs API docs (e.g., API_REFERENCE.md, endpoints)
+        - examples_required: Needs code examples (e.g., EXAMPLES.md, snippets)
+        - research_required: Task description hints at "from scratch" or investigation
+        - usage_guide_required: Needs usage documentation
+
+        Args:
+            deliverables: List of deliverable file paths/descriptions
+            task_description: Optional task description for additional context
+
+        Returns:
+            Dict of boolean features
+        """
+        deliverables_text = " ".join(deliverables).lower()
+        task_text = (task_description or "").lower()
+        combined = f"{deliverables_text} {task_text}"
+
+        # API reference signals
+        api_reference_required = bool(
+            "api_reference" in combined
+            or "api reference" in combined
+            or "api.md" in combined
+            or "endpoints" in combined
+            or "rest api" in combined
+        )
+
+        # Examples signals
+        examples_required = bool(
+            "examples.md" in combined
+            or "example" in combined
+            or "snippets" in combined
+            or "sample code" in combined
+            or "usage example" in combined
+        )
+
+        # Research/investigation signals
+        research_required = bool(
+            "from scratch" in task_text
+            or "create documentation for" in task_text
+            or "document the" in task_text
+            or "comprehensive" in task_text
+            or "investigate" in task_text
+        )
+
+        # Usage guide signals
+        usage_guide_required = bool(
+            "usage_guide" in combined
+            or "user guide" in combined
+            or "getting started" in combined
+            or "tutorial" in combined
+        )
+
+        return {
+            "api_reference_required": api_reference_required,
+            "examples_required": examples_required,
+            "research_required": research_required,
+            "usage_guide_required": usage_guide_required,
+        }
+
+    def _is_doc_synthesis(self, deliverables: List[str], task_description: str = "") -> bool:
+        """
+        Determine if documentation task is DOC_SYNTHESIS (code investigation + writing)
+        vs DOC_WRITE (pure writing).
+
+        DOC_SYNTHESIS indicators:
+        - API_REFERENCE.md (requires API extraction)
+        - EXAMPLES.md (requires code examples)
+        - Multiple documentation files from scratch
+        - Task description mentions "from scratch" or "investigate"
+
+        Args:
+            deliverables: List of deliverable file paths/descriptions
+            task_description: Optional task description
+
+        Returns:
+            True if this is DOC_SYNTHESIS, False if DOC_WRITE
+        """
+        features = self._extract_doc_features(deliverables, task_description)
+
+        # DOC_SYNTHESIS if any of these conditions are met:
+        # 1. API reference required (needs code investigation)
+        # 2. Examples required AND research required (needs code extraction)
+        # 3. Multiple specialized docs (API, examples, usage) suggesting comprehensive effort
+
+        is_synthesis = (
+            features["api_reference_required"]
+            or (features["examples_required"] and features["research_required"])
+            or (features["examples_required"] and features["usage_guide_required"])
+        )
+
+        return is_synthesis
+
+    def _estimate_doc_synthesis(
+        self,
+        deliverables: List[str],
+        complexity: str,
+        scope_paths: Optional[List[str]] = None,
+        task_description: str = ""
+    ) -> TokenEstimate:
+        """
+        Phase-based estimation for DOC_SYNTHESIS tasks.
+
+        DOC_SYNTHESIS = code investigation + API extraction + examples + writing + coordination
+
+        Additive phases:
+        1. Investigation phase: 2500 tokens (if no code context) or 1500 (if context provided)
+        2. API extraction phase: 1200 tokens (if API reference required)
+        3. Examples generation: 1400 tokens (if examples required)
+        4. Writing phase: 850 tokens per deliverable (baseline)
+        5. Coordination overhead: 12% of writing if ≥5 deliverables
+
+        Args:
+            deliverables: List of deliverable file paths/descriptions
+            complexity: Phase complexity (low, medium, high)
+            scope_paths: Optional scope paths (proxy for context quality)
+            task_description: Task description
+
+        Returns:
+            TokenEstimate with phase breakdown
+        """
+        features = self._extract_doc_features(deliverables, task_description)
+        deliverable_count = len(deliverables)
+
+        # Phase 1: Investigation (depends on context quality)
+        # Context quality proxy: scope_paths count
+        context_quality = "none" if not scope_paths else ("strong" if len(scope_paths) > 10 else "some")
+        if context_quality == "none":
+            investigate_tokens = 2500  # Must read entire codebase
+        elif context_quality == "some":
+            investigate_tokens = 2000  # Some guidance
+        else:
+            investigate_tokens = 1500  # Strong context provided
+
+        # Phase 2: API extraction (if needed)
+        api_extract_tokens = 1200 if features["api_reference_required"] else 0
+
+        # Phase 3: Examples generation (if needed)
+        examples_tokens = 1400 if features["examples_required"] else 0
+
+        # Phase 4: Writing (per deliverable)
+        writing_tokens = 850 * deliverable_count
+
+        # Phase 5: Coordination overhead (if many deliverables)
+        coordination_tokens = int(0.12 * writing_tokens) if deliverable_count >= 5 else 0
+
+        # Sum all phases
+        base_tokens = (
+            investigate_tokens
+            + api_extract_tokens
+            + examples_tokens
+            + writing_tokens
+            + coordination_tokens
+        )
+
+        # Apply safety margin (+30%)
+        total_tokens = int(base_tokens * self.SAFETY_MARGIN)
+
+        # Breakdown for telemetry
+        breakdown = {
+            "doc_synthesis_investigate": investigate_tokens,
+            "doc_synthesis_api_extract": api_extract_tokens,
+            "doc_synthesis_examples": examples_tokens,
+            "doc_synthesis_writing": writing_tokens,
+            "doc_synthesis_coordination": coordination_tokens,
+        }
+
+        logger.info(
+            f"[TokenEstimator] DOC_SYNTHESIS detected: investigate={investigate_tokens}, "
+            f"api_extract={api_extract_tokens}, examples={examples_tokens}, "
+            f"writing={writing_tokens}, coordination={coordination_tokens}, "
+            f"base={base_tokens}, final={total_tokens}, deliverables={deliverable_count}, "
+            f"context_quality={context_quality}"
+        )
+
+        return TokenEstimate(
+            estimated_tokens=total_tokens,
+            deliverable_count=deliverable_count,
+            category="doc_synthesis",  # Override category for telemetry tracking
+            complexity=complexity,
+            breakdown=breakdown,
+            confidence=0.75  # Higher confidence with explicit phase model
+        )
+
     def estimate(
         self,
         deliverables: List[str],
         category: str,
         complexity: str,
-        scope_paths: Optional[List[str]] = None
+        scope_paths: Optional[List[str]] = None,
+        task_description: str = ""
     ) -> TokenEstimate:
         """
         Estimate output tokens required for phase.
@@ -123,6 +311,7 @@ class TokenEstimator:
             category: Phase category (backend, frontend, testing, etc.)
             complexity: Phase complexity (low, medium, high)
             scope_paths: Optional scope paths for file complexity analysis
+            task_description: Optional task description for feature extraction
 
         Returns:
             TokenEstimate with predicted tokens and breakdown
@@ -137,6 +326,18 @@ class TokenEstimator:
                 complexity=complexity,
                 confidence=0.5  # Low confidence without deliverables
             )
+
+        # BUILD-129 Phase 3: DOC_SYNTHESIS detection and phase-based estimation
+        # Check if this is a documentation synthesis task (code investigation + writing)
+        if category in ["documentation", "docs"]:
+            is_synthesis = self._is_doc_synthesis(deliverables, task_description)
+            if is_synthesis:
+                return self._estimate_doc_synthesis(
+                    deliverables=deliverables,
+                    complexity=complexity,
+                    scope_paths=scope_paths,
+                    task_description=task_description
+                )
 
         breakdown = {}
         marginal_cost = 0

@@ -50,10 +50,20 @@ def _write_token_estimation_v2_telemetry(
     truncated: bool,
     stop_reason: Optional[str],
     model: str,
+    # BUILD-129 Phase 3: Feature tracking for DOC_SYNTHESIS analysis
+    is_truncated_output: bool = False,
+    api_reference_required: Optional[bool] = None,
+    examples_required: Optional[bool] = None,
+    research_required: Optional[bool] = None,
+    usage_guide_required: Optional[bool] = None,
+    context_quality: Optional[str] = None,
 ) -> None:
     """Write TokenEstimationV2 event to database for validation.
 
     Feature flag: TELEMETRY_DB_ENABLED (default: false for backwards compat)
+
+    BUILD-129 Phase 3: Now captures feature flags for DOC_SYNTHESIS tasks to enable
+    phase-based estimation analysis and truncation-aware calibration.
     """
     # Feature flag check
     if not os.environ.get("TELEMETRY_DB_ENABLED", "").lower() in ["1", "true", "yes"]:
@@ -128,6 +138,13 @@ def _write_token_estimation_v2_telemetry(
                 smape_percent=float(smape) if smape is not None else None,
                 waste_ratio=float(waste_ratio) if waste_ratio is not None else None,
                 underestimated=underestimated,
+                # BUILD-129 Phase 3: Feature tracking for DOC_SYNTHESIS
+                is_truncated_output=is_truncated_output,
+                api_reference_required=api_reference_required,
+                examples_required=examples_required,
+                research_required=research_required,
+                usage_guide_required=usage_guide_required,
+                context_quality=context_quality,
             )
             session.add(event)
             session.commit()
@@ -272,6 +289,9 @@ class AnthropicBuilderClient:
                 deliverables = scope_cfg.get("deliverables")
         deliverables = deliverables or []
 
+        # BUILD-129 Phase 3: Extract task description for DOC_SYNTHESIS detection
+        task_description = phase_spec.get("description", "")
+
         token_estimate = None
         token_selected_budget = None
 
@@ -286,17 +306,38 @@ class AnthropicBuilderClient:
                     category=task_category or "implementation",
                     complexity=complexity,
                     scope_paths=scope_paths,
+                    task_description=task_description,
                 )
                 token_selected_budget = estimator.select_budget(token_estimate, complexity)
 
                 # Persist estimator output into the phase for downstream telemetry/reporting.
                 phase_spec["_estimated_output_tokens"] = token_estimate.estimated_tokens
+
+                # BUILD-129 Phase 3: Extract and persist DOC_SYNTHESIS features for telemetry
+                doc_features = {}
+                context_quality_value = None
+                if task_category in ["documentation", "docs"]:
+                    doc_features = estimator._extract_doc_features(deliverables, task_description)
+                    # Determine context quality from scope_paths
+                    if not scope_paths:
+                        context_quality_value = "none"
+                    elif len(scope_paths) > 10:
+                        context_quality_value = "strong"
+                    else:
+                        context_quality_value = "some"
+
                 phase_spec.setdefault("metadata", {}).setdefault("token_prediction", {}).update(
                     {
                         "predicted_output_tokens": token_estimate.estimated_tokens,
                         "selected_budget": token_selected_budget,
                         "confidence": token_estimate.confidence,
                         "source": "token_estimator",
+                        # BUILD-129 Phase 3: Feature tracking
+                        "api_reference_required": doc_features.get("api_reference_required"),
+                        "examples_required": doc_features.get("examples_required"),
+                        "research_required": doc_features.get("research_required"),
+                        "usage_guide_required": doc_features.get("usage_guide_required"),
+                        "context_quality": context_quality_value,
                     }
                 )
 
@@ -464,11 +505,17 @@ class AnthropicBuilderClient:
             )
 
             # Build user prompt (includes full file content for full-file mode or line numbers for structured edit)
+            # Hard prompt-limit protection: we may need to cap/summarize file_context to avoid provider errors.
+            model_prompt_limit = 200_000 if isinstance(model, str) and model.startswith("claude") else 128_000
+            prompt_margin = int(os.getenv("AUTOPACK_PROMPT_MAX_TOKENS_MARGIN", "8000"))
+            max_prompt_tokens = max(20_000, model_prompt_limit - prompt_margin)
+
             user_prompt = self._build_user_prompt(
                 phase_spec, file_context, project_rules, run_hints,
                 use_full_file_mode=use_full_file_mode_flag,
                 config=config,  # NEW: Pass config for read-only markers and structured edit detection
                 retrieved_context=retrieved_context,  # NEW: Vector memory context
+                context_budget_tokens=int(os.getenv("AUTOPACK_CONTEXT_BUDGET_TOKENS", "120000")),
             )
 
             # Per GPT_RESPONSE23 Q2: Add sanity checks for max_tokens
@@ -565,6 +612,23 @@ class AnthropicBuilderClient:
                         "[TOKEN_SOFT_CAP] run_id=%s phase_id=%s est_total=%d soft_cap=%d (approaching, complexity=%s)",
                         run_id, phase_id, estimated_total_tokens, soft_cap, complexity,
                     )
+
+            # If our prompt estimate exceeds the model limit, rebuild prompt with an aggressive budget.
+            if estimated_prompt_tokens > max_prompt_tokens:
+                logger.warning(
+                    "[PROMPT_BUDGET] Prompt too large (est_prompt=%d > limit=%d). Rebuilding with aggressive context budget.",
+                    estimated_prompt_tokens,
+                    max_prompt_tokens,
+                )
+                user_prompt = self._build_user_prompt(
+                    phase_spec, file_context, project_rules, run_hints,
+                    use_full_file_mode=use_full_file_mode_flag,
+                    config=config,
+                    retrieved_context=retrieved_context,
+                    context_budget_tokens=int(os.getenv("AUTOPACK_CONTEXT_BUDGET_TOKENS_AGGRESSIVE", "80000")),
+                )
+                full_prompt_text = system_prompt + "\n" + user_prompt
+                estimated_prompt_tokens = estimate_tokens(full_prompt_text)
 
             # Call Anthropic API with streaming for long operations
             # Use Claude's max output capacity (64K) to avoid truncation of large patches
@@ -798,6 +862,7 @@ class AnthropicBuilderClient:
                     )
 
                     # BUILD-129 Phase 3: Write telemetry to DB for validation
+                    token_pred_meta = phase_spec.get("metadata", {}).get("token_prediction", {})
                     _write_token_estimation_v2_telemetry(
                         run_id=phase_spec.get("run_id", "unknown"),
                         phase_id=phase_spec.get("phase_id", "unknown"),
@@ -806,11 +871,18 @@ class AnthropicBuilderClient:
                         deliverables=deliverables if isinstance(deliverables, list) else [],
                         predicted_output_tokens=predicted_output_tokens,
                         actual_output_tokens=actual_out,
-                        selected_budget=token_selected_budget or phase_spec.get("metadata", {}).get("token_prediction", {}).get("selected_budget", 0),
+                        selected_budget=token_selected_budget or token_pred_meta.get("selected_budget", 0),
                         success=getattr(result, "success", False),
                         truncated=was_truncated_local or False,
                         stop_reason=stop_reason_local,
                         model=model,
+                        # BUILD-129 Phase 3: Feature tracking
+                        is_truncated_output=was_truncated_local or False,
+                        api_reference_required=token_pred_meta.get("api_reference_required"),
+                        examples_required=token_pred_meta.get("examples_required"),
+                        research_required=token_pred_meta.get("research_required"),
+                        usage_guide_required=token_pred_meta.get("usage_guide_required"),
+                        context_quality=token_pred_meta.get("context_quality"),
                     )
                 elif predicted_output_tokens and result.tokens_used:
                     # Fallback: if we don't have output tokens separately, log total tokens
@@ -828,6 +900,7 @@ class AnthropicBuilderClient:
                     )
 
                     # BUILD-129 Phase 3: Write telemetry to DB (fallback case)
+                    token_pred_meta_fallback = phase_spec.get("metadata", {}).get("token_prediction", {})
                     _write_token_estimation_v2_telemetry(
                         run_id=phase_spec.get("run_id", "unknown"),
                         phase_id=phase_spec.get("phase_id", "unknown"),
@@ -836,11 +909,18 @@ class AnthropicBuilderClient:
                         deliverables=deliverables if isinstance(deliverables, list) else [],
                         predicted_output_tokens=predicted_output_tokens,
                         actual_output_tokens=result.tokens_used,  # Using total tokens as fallback
-                        selected_budget=token_selected_budget or phase_spec.get("metadata", {}).get("token_prediction", {}).get("selected_budget", 0),
+                        selected_budget=token_selected_budget or token_pred_meta_fallback.get("selected_budget", 0),
                         success=getattr(result, "success", False),
                         truncated=False,  # Unknown in fallback
                         stop_reason=None,
                         model=model,
+                        # BUILD-129 Phase 3: Feature tracking (fallback)
+                        is_truncated_output=False,  # Unknown in fallback
+                        api_reference_required=token_pred_meta_fallback.get("api_reference_required"),
+                        examples_required=token_pred_meta_fallback.get("examples_required"),
+                        research_required=token_pred_meta_fallback.get("research_required"),
+                        usage_guide_required=token_pred_meta_fallback.get("usage_guide_required"),
+                        context_quality=token_pred_meta_fallback.get("context_quality"),
                     )
 
             return result
@@ -851,6 +931,55 @@ class AnthropicBuilderClient:
             error_traceback = traceback.format_exc()
             error_msg = str(e)
             logger.error("[Builder] Unhandled exception during execute_phase: %s\nTraceback:\n%s", error_msg, error_traceback)
+
+            # Retry once on "prompt too long" with minimal context budget.
+            msg_l = error_msg.lower()
+            if "prompt is too long" in msg_l or ("tokens" in msg_l and "maximum" in msg_l and "too long" in msg_l):
+                try:
+                    logger.warning("[PROMPT_BUDGET] Provider rejected prompt as too long; retrying with minimal context.")
+                    user_prompt_retry = self._build_user_prompt(
+                        phase_spec, file_context, project_rules, run_hints,
+                        use_full_file_mode=use_full_file_mode_flag,
+                        config=config,
+                        retrieved_context=retrieved_context,
+                        context_budget_tokens=int(os.getenv("AUTOPACK_CONTEXT_BUDGET_TOKENS_MINIMAL", "50000")),
+                    )
+                    with self.client.messages.stream(
+                        model=model,
+                        max_tokens=min(max_tokens or 64000, 64000),
+                        system=system_prompt,
+                        messages=[{"role": "user", "content": user_prompt_retry}],
+                        temperature=0.2
+                    ) as stream:
+                        retry_content = ""
+                        for text in stream.text_stream:
+                            retry_content += text
+                        retry_response = stream.get_final_message()
+
+                    retry_stop_reason = getattr(retry_response, "stop_reason", None)
+                    retry_was_truncated = (retry_stop_reason == "max_tokens")
+
+                    if use_ndjson_format:
+                        return self._parse_ndjson_output(
+                            retry_content, file_context, retry_response, model, phase_spec, config=config,
+                            stop_reason=retry_stop_reason, was_truncated=retry_was_truncated
+                        )
+                    if use_structured_edit:
+                        return self._parse_structured_edit_output(
+                            retry_content, file_context, retry_response, model, phase_spec, config=config,
+                            stop_reason=retry_stop_reason, was_truncated=retry_was_truncated
+                        )
+                    if use_full_file_mode_flag:
+                        return self._parse_full_file_output(
+                            retry_content, file_context, retry_response, model, phase_spec, config=config,
+                            stop_reason=retry_stop_reason, was_truncated=retry_was_truncated
+                        )
+                    return self._parse_legacy_diff_output(
+                        retry_content, retry_response, model,
+                        stop_reason=retry_stop_reason, was_truncated=retry_was_truncated
+                    )
+                except Exception as retry_exc:
+                    logger.warning(f"[PROMPT_BUDGET] Minimal-context retry failed: {retry_exc}")
             
             # Check if this is the Path/list error we're tracking
             if "unsupported operand type(s) for /" in error_msg and "list" in error_msg:
@@ -2667,6 +2796,7 @@ Instead: Use their APIs via imports, create new files elsewhere.
         use_full_file_mode: bool = True,
         config = None,  # NEW: BuilderOutputConfig for thresholds
         retrieved_context: Optional[str] = None,  # NEW: Vector memory context
+        context_budget_tokens: Optional[int] = None,  # NEW: Hard cap for file_context inclusion (approx tokens)
     ) -> str:
         """Build user prompt with phase details
 
@@ -2806,6 +2936,55 @@ Instead: Use their APIs via imports, create new files elsewhere.
             if not isinstance(files, dict):
                 logger.warning(f"[Builder] file_context.get('existing_files') returned non-dict type: {type(files)}, using empty dict")
                 files = {}
+
+            # ------------------------------------------------------------------
+            # Hard context budgeting: keep prompt under provider limits even when
+            # scope expansion loads hundreds of files (e.g., research phases).
+            # We prefer deliverables, then small modifiable files, then read-only.
+            # ------------------------------------------------------------------
+            if context_budget_tokens is not None and context_budget_tokens > 0 and files:
+                try:
+                    scope_cfg = phase_spec.get("scope") or {}
+                    try:
+                        from autopack.deliverables_validator import extract_deliverables_from_scope
+                        deliverables_list = extract_deliverables_from_scope(scope_cfg) if isinstance(scope_cfg, dict) else []
+                    except Exception:
+                        deliverables_list = []
+                    if not deliverables_list and isinstance(scope_cfg, dict):
+                        deliverables_list = scope_cfg.get("deliverables") or []
+                    from autopack.context_budgeter import select_files_for_context
+
+                    query = " ".join([
+                        str(phase_spec.get("description") or ""),
+                        str(phase_spec.get("name") or ""),
+                        "Deliverables: " + ", ".join([d for d in deliverables_list if isinstance(d, str)][:20]),
+                    ]).strip()
+
+                    selection = select_files_for_context(
+                        files=files,
+                        scope_metadata=scope_metadata,
+                        deliverables=[d for d in deliverables_list if isinstance(d, str)],
+                        query=query,
+                        budget_tokens=int(context_budget_tokens),
+                        semantic=os.getenv("AUTOPACK_CONTEXT_SEMANTIC_RELEVANCE", "1") in ("1", "true", "True"),
+                    )
+
+                    if selection.omitted:
+                        prompt_parts.append("\n# Context Budgeting (Autopack)")
+                        prompt_parts.append(
+                            f"Autopack kept {len(selection.kept)} files (mode={selection.mode}) "
+                            f"and omitted {len(selection.omitted)} files to stay within budget."
+                        )
+                        prompt_parts.append(
+                            "If you need a missing file, proceed with best effort; do NOT invent its contents."
+                        )
+                        prompt_parts.append("Omitted files (sample):")
+                        for fp in selection.omitted[:40]:
+                            prompt_parts.append(f"- {fp}")
+
+                    files = selection.kept
+                except Exception as exc:
+                    logger.warning(f"[Builder] Context budgeting failed (non-fatal): {exc}")
 
             # Check if we need structured edit mode (files >1000 lines IN SCOPE)
             # NOTE: This should match the logic in execute_phase() above

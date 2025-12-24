@@ -8,6 +8,27 @@ Autopack is a framework for orchestrating autonomous AI agents (Builder and Audi
 
 ## Recent Updates (v0.4.6 - BUILD-129 Telemetry Production Ready)
 
+### BUILD-129 Phase 3 DOC_SYNTHESIS Implementation (2025-12-24) - ✅ COMPLETE
+**Phase-Based Documentation Estimation** - 76.4% improvement in documentation token prediction accuracy
+- **Problem Solved**: Documentation tasks severely underestimated (SMAPE 103.6% on real sample: predicted 5,200 vs actual 16,384 tokens)
+- **Root Cause**: Token estimator assumed "documentation = just writing" using flat 500 tokens/deliverable, missing code investigation + API extraction + examples work
+- **Solution**: Phase-based additive model with automatic DOC_SYNTHESIS detection
+- **Implementation**:
+  - **Feature Extraction**: Detects API_REFERENCE.md, EXAMPLES.md, "from scratch" patterns to classify DOC_SYNTHESIS vs DOC_WRITE
+  - **Phase-Based Model**: Additive phases (investigation: 2500/2000/1500 tokens based on context | API extraction: 1200 | examples: 1400 | writing: 850/deliverable | coordination: 12% overhead)
+  - **Context-Aware**: Adjusts investigation tokens based on code context quality (none/some/strong)
+  - **Truncation Handling**: New `is_truncated_output` flag for proper censored data treatment in calibration
+  - **Feature Tracking**: 6 new telemetry columns (api_reference_required, examples_required, research_required, usage_guide_required, context_quality, is_truncated_output)
+- **Performance Impact**: SMAPE 103.6% → 24.4% (76.4% relative improvement, meets <50% target ✅)
+- **Test Coverage**: 10/10 tests passing in [test_doc_synthesis_detection.py](tests/test_doc_synthesis_detection.py)
+- **Files Modified**:
+  - [src/autopack/token_estimator.py](src/autopack/token_estimator.py) - Feature extraction + classification + phase model
+  - [src/autopack/anthropic_clients.py](src/autopack/anthropic_clients.py) - Integration + feature persistence
+  - [src/autopack/models.py](src/autopack/models.py) - 6 new telemetry columns
+  - [scripts/migrations/add_telemetry_features.py](scripts/migrations/add_telemetry_features.py) - NEW: Database migration
+  - [tests/test_doc_synthesis_detection.py](tests/test_doc_synthesis_detection.py) - NEW: 10 comprehensive tests
+- **Impact**: Automatic DOC_SYNTHESIS detection, explainable phase breakdown, 2.46x token prediction multiplier, backward compatible
+
 ### BUILD-129 Phase 3 Infrastructure Complete (2025-12-24) - ✅ COMPLETE
 **Production-Ready Telemetry Collection** - All infrastructure blockers resolved, comprehensive automation in place
 - **Problem Solved**: 6 critical infrastructure blockers preventing large-scale telemetry collection (config.py deletion, scope validation failures, Qdrant connection errors, malformed phase specs, run_id tracking, workspace detection)

@@ -425,6 +425,17 @@ class TokenEstimationV2Event(Base):
     waste_ratio = Column(Float, nullable=True)    # pred / actual
     underestimated = Column(Boolean, nullable=True, index=True)  # actual > pred
 
+    # BUILD-129 Phase 3: Truncation awareness and feature tracking
+    # When truncated=True, actual_output_tokens is a LOWER BOUND, not exact measurement
+    is_truncated_output = Column(Boolean, nullable=False, default=False, index=True)
+
+    # Documentation synthesis features (for DOC_SYNTHESIS tasks)
+    api_reference_required = Column(Boolean, nullable=True)  # API docs needed
+    examples_required = Column(Boolean, nullable=True)       # Code examples needed
+    research_required = Column(Boolean, nullable=True)       # Investigation needed
+    usage_guide_required = Column(Boolean, nullable=True)    # Usage docs needed
+    context_quality = Column(String, nullable=True)          # "none", "some", "strong"
+
     # Timestamp
     created_at = Column(
         DateTime,

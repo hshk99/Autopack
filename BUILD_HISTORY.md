@@ -16,6 +16,47 @@ Each entry includes:
 
 ## Chronological Index
 
+### BUILD-129: Token Estimator Overhead Model - Phase 3 DOC_SYNTHESIS (2025-12-24)
+
+**Status**: COMPLETE ✅
+
+**Summary**: Implemented phase-based documentation estimation with feature extraction and truncation awareness. Reduces documentation underestimation by 76.4% (SMAPE: 103.6% → 24.4%). Automatic DOC_SYNTHESIS detection distinguishes code investigation + writing tasks from pure writing.
+
+**Problem**: Documentation tasks severely underestimated (real sample: predicted 5,200 vs actual 16,384 tokens, SMAPE 103.6%)
+
+**Solution**: Phase-based additive model
+- Investigation phase: 2500/2000/1500 tokens (context-dependent)
+- API extraction: 1200 tokens (if API_REFERENCE.md)
+- Examples generation: 1400 tokens (if EXAMPLES.md)
+- Writing: 850 tokens per deliverable
+- Coordination: 12% overhead (if ≥5 deliverables)
+
+**Files Created/Modified**:
+- `src/autopack/token_estimator.py` - Feature extraction + DOC_SYNTHESIS detection + phase model
+- `src/autopack/anthropic_clients.py` - Task description extraction + feature persistence
+- `src/autopack/models.py` - 6 new telemetry columns (is_truncated_output, api_reference_required, etc.)
+- `scripts/migrations/add_telemetry_features.py` - NEW: Database migration script
+- `tests/test_doc_synthesis_detection.py` - NEW: 10 comprehensive tests
+
+**Test Coverage** (10/10 passing):
+- DOC_SYNTHESIS detection (API reference, examples, research patterns)
+- Phase breakdown validation (investigation, extraction, examples, writing, coordination)
+- Context quality adjustment (none/some/strong)
+- Real-world sample validation (SMAPE 103.6% → 24.4%)
+
+**Impact**:
+- 76.4% relative improvement in documentation estimation accuracy
+- SMAPE reduced from 103.6% to 24.4% (meets <50% target)
+- New prediction 2.46x old prediction (12,818 vs 5,200 tokens)
+- Truncation awareness: is_truncated_output flag for censored data handling
+- Feature tracking enables future coefficient refinement
+
+**Documentation**:
+- Comprehensive inline documentation in token_estimator.py
+- Test suite serves as specification (test_doc_synthesis_detection.py)
+
+---
+
 ### BUILD-129: Token Estimator Overhead Model - Phase 3 Infrastructure (2025-12-24)
 
 **Status**: COMPLETE ✅

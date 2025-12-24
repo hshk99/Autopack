@@ -4,9 +4,47 @@ Daily log of development activities, decisions, and progress on the Autopack pro
 
 ---
 
-## 2025-12-24: BUILD-129 Phase 3 DOC_SYNTHESIS Implementation - COMPLETE ✅
+## 2025-12-24: BUILD-129 Phase 3 DOC_SYNTHESIS Implementation & Testing
 
-**Summary**: Implemented phase-based documentation estimation with feature extraction and truncation awareness. Reduces documentation underestimation by 76.4% (SMAPE: 103.6% → 24.4%). All 10 tests passing.
+**Summary**: Implemented phase-based documentation estimation with feature extraction and truncation awareness. Core logic verified (reduces SMAPE 103.6% → 24.4%), but identified 2 infrastructure blockers preventing production activation. All 10 unit tests passing.
+
+**Status**: ✅ CORE LOGIC COMPLETE, 🔶 INFRASTRUCTURE BLOCKERS IDENTIFIED
+
+### Test Results (research-system-v6 Phase)
+
+**Test Execution**: Ran research-testing-polish phase (5 documentation files: USER_GUIDE.md, API_REFERENCE.md, EXAMPLES.md, TROUBLESHOOTING.md, CONFIGURATION.md) through drain_queued_phases.py to verify DOC_SYNTHESIS detection in production.
+
+**Core Logic Verification** ✅:
+- Manual test with normalized deliverables produced correct estimate: **12,818 tokens**
+- Feature detection working: api_reference_required=True, examples_required=True, research_required=True
+- Phase breakdown accurate: investigate=2500, api_extract=1200, examples=1400, writing=4250, coordination=510
+- DOC_SYNTHESIS classification triggered correctly
+
+**Production Test Results** ❌:
+- Category: IMPLEMENT_FEATURE (should be "doc_synthesis")
+- Predicted tokens: 7,020 (should be 12,818)
+- Deliverables count: 0 (should be 5)
+- Feature flags: All NULL (should be True/True/True/False)
+- SMAPE: 52.2% (should be ~24.4%)
+
+**Root Causes Identified**:
+
+1. **Blocker 1: Nested Deliverables Structure**
+   - Phase stores deliverables as dict: `{'tests': [...], 'docs': [...], 'polish': [...]}`
+   - TokenEstimator expects `List[str]`, receives dict
+   - Code iterates over dict keys ("tests", "docs", "polish") instead of file paths
+   - Results in 0 recognized deliverables, fallback to complexity-based estimate (7,020)
+   - **Fix**: Flatten nested deliverables in anthropic_clients.py:285-290 or integrate phase_auto_fixer
+
+2. **Blocker 2: Missing Category Detection**
+   - Feature extraction gated by `if task_category in ["documentation", "docs"]`
+   - Phase has no task_category field, defaults to empty/IMPLEMENT_FEATURE
+   - Feature extraction code never executes, all flags remain NULL
+   - **Fix**: Use estimate.category instead of input task_category, or always extract for .md deliverables
+
+**Documentation**: [BUILD-129_PHASE3_DOC_SYNTHESIS_TEST_RESULTS.md](docs/BUILD-129_PHASE3_DOC_SYNTHESIS_TEST_RESULTS.md) - Complete test analysis with recommendations
+
+### Implementation Complete (Pre-Test) ✅
 
 **Problem Solved**: Documentation tasks severely underestimated (SMAPE 103.6% on real sample)
 - Root cause: Token estimator assumed "documentation = just writing" using flat 500 tokens/deliverable

@@ -6096,10 +6096,11 @@ Just the new description that should replace the current one while preserving th
         """Load repository files for Claude Builder context
 
         Smart context loading with three modes:
-        1. Pattern-based targeting: If phase matches known patterns (country templates,
+        1. Scope-aware (highest priority): If phase has scope configuration, load ONLY
+           specified files and read-only context. This must override pattern-based targeting;
+           otherwise we can accidentally load files outside scope and fail validation.
+        2. Pattern-based targeting: If phase matches known patterns (country templates,
            frontend, docker), load only relevant files to reduce input context
-        2. Scope-aware: If phase has scope configuration, use ContextSelector
-           to load only specified files (for external projects)
         3. Heuristic-based: Legacy mode with freshness guarantees
            (for autopack_maintenance without scope)
 
@@ -6119,6 +6120,15 @@ Just the new description that should replace the current one while preserving th
         phase_desc = phase.get("description", "").lower()
         task_category = phase.get("task_category", "")
 
+        # Scope MUST take precedence over targeted context.
+        # Otherwise targeted loaders can pull in root-level files (package.json, vite.config.ts, etc.)
+        # while scope expects a subproject prefix (e.g., fileorganizer/frontend/*), causing immediate
+        # scope validation failures before Builder runs.
+        scope_config = phase.get("scope")
+        if scope_config and scope_config.get("paths"):
+            logger.info(f"[{phase_id}] Using scope-aware context (overrides targeted context)")
+            return self._load_scoped_context(phase, scope_config)
+
         # Pattern 1: Country template phases (UK, CA, AU templates)
         if "template" in phase_name and ("country" in phase_desc or "template" in phase_id):
             logger.info(f"[{phase_id}] Using targeted context for country template phase")
@@ -6133,12 +6143,6 @@ Just the new description that should replace the current one while preserving th
         if "docker" in phase_name or task_category == "deployment":
             logger.info(f"[{phase_id}] Using targeted context for docker/deployment phase")
             return self._load_targeted_context_for_docker(phase)
-
-        # NEW: Check for scope configuration (GPT recommendation)
-        scope_config = phase.get("scope")
-        if scope_config and scope_config.get("paths"):
-            # Use ContextSelector for scope-aware loading
-            return self._load_scoped_context(phase, scope_config)
 
         # Fallback: Original heuristic-based loading for backward compatibility
         workspace = Path(self.workspace)
@@ -6322,11 +6326,12 @@ Just the new description that should replace the current one while preserving th
         if self.run_type in ["autopack_maintenance", "autopack_upgrade", "self_repair"]:
             return Path(self.workspace)
 
-        # For project_build, derive workspace from first scope path
+        # For project_build, derive workspace from first scope path.
+        # Scope paths can be either:
+        # - ".autonomous_runs/<project>/(...)" (historical)
+        # - "<project_slug>/(...)" e.g. "fileorganizer/frontend/..." (current external-project layout)
         scope_paths = scope_config.get("paths", [])
         if scope_paths:
-            # Assuming scope paths are like: ".autonomous_runs/file-organizer-app-v1/backend/requirements.txt"
-            # Extract project root: ".autonomous_runs/file-organizer-app-v1/"
             first_path = scope_paths[0]
             parts = Path(first_path).parts
 
@@ -6335,6 +6340,14 @@ Just the new description that should replace the current one while preserving th
                 project_root = Path(self.workspace) / parts[0] / parts[1]
                 logger.info(f"[Scope] Workspace root determined: {project_root}")
                 return project_root
+
+            # Common external project layouts: "fileorganizer/<...>" or "file-organizer-app-v1/<...>"
+            # If the first segment exists as a directory under repo root, treat it as workspace root.
+            if parts:
+                candidate = (Path(self.workspace) / parts[0]).resolve()
+                if candidate.exists() and candidate.is_dir():
+                    logger.info(f"[Scope] Workspace root determined from scope prefix: {candidate}")
+                    return candidate
 
         # Fallback to default workspace
         logger.warning(f"[Scope] Could not determine workspace from scope paths, using default: {self.workspace}")
@@ -8323,6 +8336,7 @@ Just the new description that should replace the current one while preserving th
         """
         try:
             # BUILD-115: from autopack import models
+            from autopack import models
             from datetime import datetime, timezone
 
             run = self.db_session.query(models.Run).filter(models.Run.id == self.run_id).first()

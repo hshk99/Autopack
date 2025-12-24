@@ -62,6 +62,7 @@ def _write_token_estimation_v2_telemetry(
     try:
         from .database import SessionLocal
         from .models import TokenEstimationV2Event
+        from .models import Phase as PhaseModel
 
         # Calculate metrics
         if actual_output_tokens > 0 and predicted_output_tokens > 0:
@@ -83,6 +84,26 @@ def _write_token_estimation_v2_telemetry(
                 deliverables_clean.append(str(d))
 
         deliverables_json = json.dumps(deliverables_clean)
+
+        # Try to resolve run_id if caller passed "unknown"/empty.
+        # In most flows, the executor has the true run_id; but some legacy call paths
+        # may not populate phase_spec["run_id"]. Use the phases table as a best-effort lookup.
+        if not run_id or run_id == "unknown":
+            session_lookup = SessionLocal()
+            try:
+                phase_row = (
+                    session_lookup.query(PhaseModel)
+                    .filter(PhaseModel.phase_id == phase_id)
+                    .order_by(PhaseModel.run_id.desc())
+                    .first()
+                )
+                if phase_row and getattr(phase_row, "run_id", None):
+                    run_id = phase_row.run_id
+            finally:
+                try:
+                    session_lookup.close()
+                except Exception:
+                    pass
 
         # Write to DB
         session = SessionLocal()

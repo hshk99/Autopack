@@ -354,7 +354,6 @@ class AnthropicBuilderClient:
                     # Extract SOT file name from deliverables
                     for d in deliverables:
                         if estimator._is_sot_file(d):
-                            from pathlib import Path
                             sot_file_name_value = Path(d.lower().replace("\\", "/")).name
                             break
                     # Proxy entry count from deliverable count

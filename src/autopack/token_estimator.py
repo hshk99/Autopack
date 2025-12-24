@@ -258,6 +258,131 @@ class TokenEstimator:
 
         return is_synthesis
 
+    @staticmethod
+    def _is_sot_file(deliverable: str) -> bool:
+        """
+        Detect if deliverable is a Source of Truth (SOT) file.
+
+        SOT files are structured ledgers requiring global context reconstruction:
+        - BUILD_LOG.md: Phase execution log
+        - BUILD_HISTORY.md: Historical build record
+        - CHANGELOG.md: Version change log
+        - HISTORY.md: General project history
+        - RELEASE_NOTES.md: Release documentation
+
+        BUILD-129 Phase 3 P3: SOT files show 84.2% SMAPE with DOC_SYNTHESIS model
+        because they need different estimation (context + entries + overhead).
+
+        Args:
+            deliverable: File path or description
+
+        Returns:
+            True if deliverable is an SOT file
+        """
+        path_lower = deliverable.lower().replace("\\", "/")
+        basename = Path(path_lower).name
+
+        # SOT file basenames (case-insensitive)
+        sot_basenames = {
+            "build_log.md",
+            "build_history.md",
+            "changelog.md",
+            "history.md",
+            "release_notes.md",
+        }
+
+        return basename in sot_basenames
+
+    def _estimate_doc_sot_update(
+        self,
+        deliverables: List[str],
+        complexity: str,
+        scope_paths: Optional[List[str]] = None,
+        task_description: str = ""
+    ) -> TokenEstimate:
+        """
+        Estimate tokens for Source of Truth (SOT) file updates.
+
+        SOT files differ from regular docs:
+        - Require global context reconstruction (repo/run state)
+        - Output is structured ledger (not narrative)
+        - Cost scales with number of entries, not investigation depth
+
+        BUILD-129 Phase 3 P3 Model:
+        1. Context reconstruction: 1500-3000 tokens (depends on context quality)
+        2. Write entries: 600-1200 tokens per entry (proxy: deliverable_count)
+        3. Consistency overhead: +10-20% (cross-references, formatting)
+
+        Args:
+            deliverables: List of deliverable file paths (should contain SOT file)
+            complexity: Phase complexity (affects context reconstruction)
+            scope_paths: Optional scope paths (context quality indicator)
+            task_description: Task description
+
+        Returns:
+            TokenEstimate for SOT update
+        """
+        deliverable_count = len(deliverables)
+
+        # Component 1: Context reconstruction (fixed cost)
+        # Depends on scope_paths (proxy for context quality)
+        context_quality = "none" if not scope_paths else ("strong" if len(scope_paths) > 10 else "some")
+        if context_quality == "none":
+            context_tokens = 3000  # Must reconstruct from entire repo
+        elif context_quality == "some":
+            context_tokens = 2200  # Some guidance provided
+        else:
+            context_tokens = 1500  # Strong context (recent run data)
+
+        # Component 2: Write entries (scaled by deliverable_count)
+        # deliverable_count proxies for number of entries to write
+        # Single BUILD_LOG.md deliverable → 1 entry
+        # Multiple files → multiple updates
+        entry_count = max(1, deliverable_count)
+        write_per_entry = 900  # Mid-range: 600-1200 tokens per entry
+        write_tokens = write_per_entry * entry_count
+
+        # Component 3: Consistency overhead (10-20%)
+        # Cross-references, formatting, phase linking
+        consistency_overhead_pct = 0.15  # 15% mid-range
+        consistency_tokens = int(write_tokens * consistency_overhead_pct)
+
+        # Sum components
+        base_tokens = context_tokens + write_tokens + consistency_tokens
+
+        # Apply safety margin (+30%, same as DOC_SYNTHESIS)
+        total_tokens = int(base_tokens * self.SAFETY_MARGIN)
+
+        # Breakdown for telemetry
+        breakdown = {
+            "sot_context_reconstruction": context_tokens,
+            "sot_write_entries": write_tokens,
+            "sot_consistency_overhead": consistency_tokens,
+        }
+
+        # Extract SOT file name for telemetry
+        sot_file_name = None
+        for d in deliverables:
+            if self._is_sot_file(d):
+                sot_file_name = Path(d.lower().replace("\\", "/")).name
+                break
+
+        logger.info(
+            f"[TokenEstimator] DOC_SOT_UPDATE detected: context={context_tokens}, "
+            f"write={write_tokens}, consistency={consistency_tokens}, "
+            f"base={base_tokens}, final={total_tokens}, entries={entry_count}, "
+            f"context_quality={context_quality}, sot_file={sot_file_name}"
+        )
+
+        return TokenEstimate(
+            estimated_tokens=total_tokens,
+            deliverable_count=deliverable_count,
+            category="doc_sot_update",  # New category for telemetry tracking
+            complexity=complexity,
+            breakdown=breakdown,
+            confidence=0.70  # Slightly lower than DOC_SYNTHESIS (less data)
+        )
+
     def _estimate_doc_synthesis(
         self,
         deliverables: List[str],
@@ -388,8 +513,20 @@ class TokenEstimator:
         # for pure-doc phases so DOC_SYNTHESIS can activate.
         is_pure_doc = self._all_doc_deliverables(deliverables)
         effective_category = category
-        if is_pure_doc and category not in ["documentation", "docs", "doc_synthesis"]:
+        if is_pure_doc and category not in ["documentation", "docs", "doc_synthesis", "doc_sot_update"]:
             effective_category = "documentation"
+
+        # BUILD-129 Phase 3 P3: SOT file detection (highest priority)
+        # Check for SOT files first, as they need specialized estimation
+        if is_pure_doc:
+            has_sot_file = any(self._is_sot_file(d) for d in deliverables)
+            if has_sot_file:
+                return self._estimate_doc_sot_update(
+                    deliverables=deliverables,
+                    complexity=complexity,
+                    scope_paths=scope_paths,
+                    task_description=task_description,
+                )
 
         # DOC_SYNTHESIS only applies to *pure documentation* phases; mixed phases should
         # use the regular overhead + marginal-cost model to account for code/test work too.

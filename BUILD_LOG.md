@@ -160,7 +160,80 @@ SMAPE: 52.2%            SMAPE: 29.5%          ✅
 - Continue batch processing remaining 105 queued phases (20 runs)
 - Target: Collect 30-50 DOC_SYNTHESIS samples for coefficient refinement
 - Monitor for additional documentation phases (5 identified in queue)
-- Consider SOT file detection pattern (P3 enhancement)
+
+### P3 Enhancement: SOT File Detection - COMPLETE ✅
+
+**Date**: 2025-12-24 (continuation session)
+**Status**: ✅ IMPLEMENTATION COMPLETE, ALL TESTS PASSING
+
+**Problem Identified**: SOT (Source of Truth) files showing 84.2% SMAPE with DOC_SYNTHESIS model
+- SOT files: BUILD_LOG.md, BUILD_HISTORY.md, CHANGELOG.md, etc.
+- These are **structured ledgers** requiring different estimation than regular docs
+- DOC_SYNTHESIS model assumes code investigation + writing, but SOT files need:
+  - Global context reconstruction (repo/run state) instead of code investigation
+  - Entry-based writing (scales with entries, not deliverables)
+  - Consistency overhead (cross-references, formatting)
+
+**Solution Implemented**: New `doc_sot_update` category with specialized estimation model
+
+**Implementation** ([PR pending]):
+
+1. **SOT Detection** ([token_estimator.py:261-294](src/autopack/token_estimator.py#L261-L294))
+   - `_is_sot_file()`: Detects SOT files by basename (case-insensitive)
+   - Basenames: build_log.md, build_history.md, changelog.md, history.md, release_notes.md
+   - Activated before DOC_SYNTHESIS check (highest priority for pure doc phases)
+
+2. **SOT Estimation Model** ([token_estimator.py:296-384](src/autopack/token_estimator.py#L296-L384))
+   - `_estimate_doc_sot_update()`: Phase-based model for SOT files
+   - **Phase 1**: Context reconstruction (1500-3000 tokens, depends on context quality)
+   - **Phase 2**: Write entries (900 tokens/entry, proxied by deliverable_count)
+   - **Phase 3**: Consistency overhead (+15% for cross-refs, formatting)
+   - **Safety margin**: +30% (same as DOC_SYNTHESIS)
+   - **Example**: Single BUILD_LOG.md with "some" context → 4,205 tokens (context=2200 + write=900 + overhead=135 + 30%)
+
+3. **Telemetry Fields** ([models.py:439-443](src/autopack/models.py#L439-L443))
+   - `is_sot_file`: Boolean flag for SOT file updates
+   - `sot_file_name`: String basename (e.g., "build_log.md")
+   - `sot_entry_count_hint`: Integer proxy for entries to write
+
+4. **Telemetry Recording** ([anthropic_clients.py:348-361, 40-63, 155-158](src/autopack/anthropic_clients.py#L348-L361))
+   - SOT metadata detection when `estimate.category == "doc_sot_update"`
+   - SOT fields passed through `_write_token_estimation_v2_telemetry()`
+   - Fields populated in both primary and fallback telemetry paths
+
+5. **Database Migration** ([scripts/migrations/add_sot_tracking.py](scripts/migrations/add_sot_tracking.py))
+   - Added 3 columns to `token_estimation_v2_events` table
+   - Created index `idx_telemetry_sot` on (is_sot_file, sot_file_name)
+   - Migration applied successfully: 30 existing events updated with defaults
+
+**Test Results** ✅:
+```
+SOT Detection Test:     11/11 passed (100%)
+  ✓ BUILD_LOG.md → SOT
+  ✓ BUILD_HISTORY.md → SOT
+  ✓ CHANGELOG.md → SOT
+  ✓ docs/API_REFERENCE.md → NOT SOT
+  ✓ README.md → NOT SOT
+
+SOT Estimation Test:    PASS
+  - Deliverables: ['BUILD_LOG.md']
+  - Category: doc_sot_update ✅
+  - Estimated tokens: 4,205
+  - Breakdown:
+    - sot_context_reconstruction: 2,200
+    - sot_write_entries: 900
+    - sot_consistency_overhead: 135
+
+Non-SOT Estimation Test: PASS
+  - Deliverables: ['docs/API_REFERENCE.md', 'docs/EXAMPLES.md']
+  - Category: doc_synthesis ✅ (not affected by SOT changes)
+  - Estimated tokens: 8,190
+```
+
+**Next Steps**:
+1. Re-run build132-phase4-documentation (previously 84.2% SMAPE) to verify improvement
+2. Collect more SOT file telemetry events to refine coefficients (context, entry write, overhead)
+3. Continue batch processing for DOC_SYNTHESIS samples
 
 ### Implementation (Pre-Blocker-Fix) ✅
 

@@ -436,6 +436,12 @@ class TokenEstimationV2Event(Base):
     usage_guide_required = Column(Boolean, nullable=True)    # Usage docs needed
     context_quality = Column(String, nullable=True)          # "none", "some", "strong"
 
+    # BUILD-129 Phase 3 P3: SOT (Source of Truth) file tracking
+    # SOT files (BUILD_LOG.md, BUILD_HISTORY.md, etc.) require different estimation
+    is_sot_file = Column(Boolean, nullable=True, default=False)  # Is this an SOT file update?
+    sot_file_name = Column(String, nullable=True)                # SOT file basename (e.g., "build_log.md")
+    sot_entry_count_hint = Column(Integer, nullable=True)        # Number of entries to write (proxy)
+
     # Timestamp
     created_at = Column(
         DateTime,

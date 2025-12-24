@@ -57,6 +57,10 @@ def _write_token_estimation_v2_telemetry(
     research_required: Optional[bool] = None,
     usage_guide_required: Optional[bool] = None,
     context_quality: Optional[str] = None,
+    # BUILD-129 Phase 3 P3: SOT file tracking
+    is_sot_file: Optional[bool] = None,
+    sot_file_name: Optional[str] = None,
+    sot_entry_count_hint: Optional[int] = None,
 ) -> None:
     """Write TokenEstimationV2 event to database for validation.
 
@@ -64,6 +68,9 @@ def _write_token_estimation_v2_telemetry(
 
     BUILD-129 Phase 3: Now captures feature flags for DOC_SYNTHESIS tasks to enable
     phase-based estimation analysis and truncation-aware calibration.
+
+    BUILD-129 Phase 3 P3: Now captures SOT (Source of Truth) file metadata for
+    specialized estimation of BUILD_LOG.md, BUILD_HISTORY.md, etc.
     """
     # Feature flag check
     if not os.environ.get("TELEMETRY_DB_ENABLED", "").lower() in ["1", "true", "yes"]:
@@ -145,6 +152,10 @@ def _write_token_estimation_v2_telemetry(
                 research_required=research_required,
                 usage_guide_required=usage_guide_required,
                 context_quality=context_quality,
+                # BUILD-129 Phase 3 P3: SOT file tracking
+                is_sot_file=is_sot_file,
+                sot_file_name=sot_file_name,
+                sot_entry_count_hint=sot_entry_count_hint,
             )
             session.add(event)
             session.commit()
@@ -334,6 +345,21 @@ class AnthropicBuilderClient:
                     else:
                         context_quality_value = "some"
 
+                # BUILD-129 Phase 3 P3: Detect and persist SOT file metadata for telemetry
+                is_sot_file_value = None
+                sot_file_name_value = None
+                sot_entry_count_hint_value = None
+                if token_estimate.category == "doc_sot_update":
+                    is_sot_file_value = True
+                    # Extract SOT file name from deliverables
+                    for d in deliverables:
+                        if estimator._is_sot_file(d):
+                            from pathlib import Path
+                            sot_file_name_value = Path(d.lower().replace("\\", "/")).name
+                            break
+                    # Proxy entry count from deliverable count
+                    sot_entry_count_hint_value = len(deliverables)
+
                 phase_spec.setdefault("metadata", {}).setdefault("token_prediction", {}).update(
                     {
                         "predicted_output_tokens": token_estimate.estimated_tokens,
@@ -346,6 +372,10 @@ class AnthropicBuilderClient:
                         "research_required": doc_features.get("research_required"),
                         "usage_guide_required": doc_features.get("usage_guide_required"),
                         "context_quality": context_quality_value,
+                        # BUILD-129 Phase 3 P3: SOT file tracking
+                        "is_sot_file": is_sot_file_value,
+                        "sot_file_name": sot_file_name_value,
+                        "sot_entry_count_hint": sot_entry_count_hint_value,
                     }
                 )
 
@@ -886,6 +916,10 @@ class AnthropicBuilderClient:
                         research_required=token_pred_meta.get("research_required"),
                         usage_guide_required=token_pred_meta.get("usage_guide_required"),
                         context_quality=token_pred_meta.get("context_quality"),
+                        # BUILD-129 Phase 3 P3: SOT file tracking
+                        is_sot_file=token_pred_meta.get("is_sot_file"),
+                        sot_file_name=token_pred_meta.get("sot_file_name"),
+                        sot_entry_count_hint=token_pred_meta.get("sot_entry_count_hint"),
                     )
                 elif predicted_output_tokens and result.tokens_used:
                     # Fallback: if we don't have output tokens separately, log total tokens
@@ -924,6 +958,10 @@ class AnthropicBuilderClient:
                         research_required=token_pred_meta_fallback.get("research_required"),
                         usage_guide_required=token_pred_meta_fallback.get("usage_guide_required"),
                         context_quality=token_pred_meta_fallback.get("context_quality"),
+                        # BUILD-129 Phase 3 P3: SOT file tracking (fallback)
+                        is_sot_file=token_pred_meta_fallback.get("is_sot_file"),
+                        sot_file_name=token_pred_meta_fallback.get("sot_file_name"),
+                        sot_entry_count_hint=token_pred_meta_fallback.get("sot_entry_count_hint"),
                     )
 
             return result

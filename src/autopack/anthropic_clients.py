@@ -486,13 +486,8 @@ class AnthropicBuilderClient:
 
             # BUILD-129 Phase 3: NDJSON format selection for truncation tolerance
             # Per TOKEN_BUDGET_ANALYSIS_REVISED.md Layer 3: Use NDJSON for multi-file scopes (≥5 deliverables)
+            # Note: Use already-normalized 'deliverables' from line 291 (don't reassign)
             use_ndjson_format = False
-            deliverables = phase_spec.get("deliverables")
-            if not deliverables:
-                scope_cfg = phase_spec.get("scope") or {}
-                if isinstance(scope_cfg, dict):
-                    deliverables = scope_cfg.get("deliverables")
-            deliverables = deliverables or []
             if deliverables and len(deliverables) >= 5:
                 # NDJSON provides truncation tolerance: only last incomplete line lost, not entire output
                 use_ndjson_format = True

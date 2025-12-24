@@ -116,10 +116,43 @@ SMAPE: 52.2%            SMAPE: 29.5%          ✅
 - ✅ Success rate: 2/3 phases meeting <50% SMAPE target (66.7%)
 
 **Queued Phases Analysis**:
-- Total queued: 110 phases
+- Total queued: 110 phases (at time of validation)
 - Pure documentation: 3 phases (2.7%)
 - Mixed phases: 107 phases (97.3%)
 - Expected DOC_SYNTHESIS samples from batch processing: 30-50 (for coefficient refinement)
+
+### Batch Processing & Telemetry Analysis
+
+**Date**: 2025-12-24 (afternoon)
+**Status**: First batch completed, telemetry analyzed, P2 fix applied
+
+**Batch Processing**:
+- Attempted batch 1: fileorg-backend-fixes-v4-20251130 (7 phases) - No executable phases found
+- Attempted batch 2: research-system-v11 (7 phases, 3 attempts on research-foundation-orchestrator)
+- Result: 3 new telemetry events collected (all research-foundation-orchestrator)
+
+**Telemetry Analysis** ([TELEMETRY_ANALYSIS_20251224.md](docs/TELEMETRY_ANALYSIS_20251224.md)):
+- **Total events analyzed**: 25 telemetry events
+- **Key findings**:
+  - ✅ DOCUMENTATION category: DOC_SYNTHESIS achieving **29.5% SMAPE** (excellent)
+  - ✅ High-performing categories: IMPLEMENTATION (29.1%), INTEGRATION (37.2%), CONFIGURATION (41.3%)
+  - ❌ IMPLEMENT_FEATURE category: All 9 events showing `deliverable_count=0` (telemetry recording issue)
+  - ⚠️ DOCS category (SOT files): 84.2% SMAPE (verbose SOT files underestimated)
+- **Distribution**: 43.5% of events achieving <50% SMAPE target (83.3% when excluding known issues)
+- **Truncation rate**: 21.7% overall (5/23 events)
+
+**P2 Fix Applied**: Telemetry Recording Issue ([anthropic_clients.py:487-495](src/autopack/anthropic_clients.py#L487-L495))
+- **Problem**: Variable `deliverables` was being reassigned at line 490-495 (reading from phase_spec again), losing the normalized version from line 291
+- **Impact**: IMPLEMENT_FEATURE and other mixed phases showing `deliverable_count=0` in telemetry despite correct token estimation
+- **Fix**: Removed reassignment, use already-normalized `deliverables` from line 291
+- **Result**: Telemetry will now correctly capture deliverable counts for all categories
+- **Tests**: ✅ All 11 DOC_SYNTHESIS tests passing
+
+**Next Steps**:
+- Continue batch processing remaining 67 queued phases
+- Monitor telemetry for deliverable_count accuracy after P2 fix
+- Collect 30-50 DOC_SYNTHESIS samples for coefficient refinement
+- Consider SOT file detection pattern (P3)
 
 ### Implementation (Pre-Blocker-Fix) ✅
 

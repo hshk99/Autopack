@@ -287,7 +287,8 @@ class AnthropicBuilderClient:
             scope_cfg = phase_spec.get("scope") or {}
             if isinstance(scope_cfg, dict):
                 deliverables = scope_cfg.get("deliverables")
-        deliverables = deliverables or []
+        # BUILD-129 Phase 3: Normalize nested deliverables structures (dict-of-lists) into List[str]
+        deliverables = TokenEstimator.normalize_deliverables(deliverables)
 
         # BUILD-129 Phase 3: Extract task description for DOC_SYNTHESIS detection
         task_description = phase_spec.get("description", "")
@@ -301,9 +302,14 @@ class AnthropicBuilderClient:
             # because workspace-aware complexity analysis is only available at execution time.
             try:
                 estimator = TokenEstimator(workspace=Path.cwd())
+                # If category metadata is missing, infer documentation for pure-doc phases so
+                # DOC_SYNTHESIS detection can activate.
+                effective_category = task_category or (
+                    "documentation" if estimator._all_doc_deliverables(deliverables) else "implementation"
+                )
                 token_estimate = estimator.estimate(
                     deliverables=deliverables,
-                    category=task_category or "implementation",
+                    category=effective_category,
                     complexity=complexity,
                     scope_paths=scope_paths,
                     task_description=task_description,
@@ -314,9 +320,11 @@ class AnthropicBuilderClient:
                 phase_spec["_estimated_output_tokens"] = token_estimate.estimated_tokens
 
                 # BUILD-129 Phase 3: Extract and persist DOC_SYNTHESIS features for telemetry
+                # Use estimator output category (may be doc_synthesis) rather than input task_category,
+                # because many production phases have no category metadata.
                 doc_features = {}
                 context_quality_value = None
-                if task_category in ["documentation", "docs"]:
+                if token_estimate.category in ["documentation", "docs", "doc_synthesis"]:
                     doc_features = estimator._extract_doc_features(deliverables, task_description)
                     # Determine context quality from scope_paths
                     if not scope_paths:

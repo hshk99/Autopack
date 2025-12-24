@@ -10,8 +10,13 @@ services:
       - "8000:8000"
     environment:
       - DATABASE_URL=postgresql://autopack:autopack@db:5432/autopack
+      # Vector memory (Qdrant) - reachable as 'qdrant' inside compose network
+      - AUTOPACK_USE_QDRANT=true
+      - AUTOPACK_QDRANT_HOST=qdrant
+      - AUTOPACK_QDRANT_PORT=6333
     depends_on:
       - db
+      - qdrant
 
   frontend:
     build:
@@ -33,6 +38,15 @@ services:
     ports:
       - "5432:5432"
 
+  qdrant:
+    image: qdrant/qdrant:latest
+    ports:
+      - "6333:6333"
+    volumes:
+      - qdrant_data:/qdrant/storage
+
 volumes:
   db_data:
+    driver: local
+  qdrant_data:
     driver: local

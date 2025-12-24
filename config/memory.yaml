@@ -14,6 +14,15 @@ qdrant:
   api_key: ""  # Optional API key for Qdrant Cloud
   prefer_grpc: false  # Use HTTP by default
   timeout: 60  # Request timeout in seconds
+  # Operational policy:
+  # - require=false: Qdrant is optional; Autopack should still run (FAISS fallback)
+  # - fallback_to_faiss=true: if Qdrant is unreachable, use FAISS automatically
+  require: false
+  fallback_to_faiss: true
+  # If Qdrant is configured but not running, Autopack can attempt to start it automatically
+  # (via docker compose / docker run) and wait briefly for readiness.
+  autostart: true
+  autostart_timeout_seconds: 15
 
 # FAISS fallback configuration (for offline/dev environments)
 faiss_index_path: ".autonomous_runs/file-organizer-app-v1/.faiss"

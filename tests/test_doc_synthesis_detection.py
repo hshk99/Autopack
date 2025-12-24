@@ -218,6 +218,33 @@ class TestDocSynthesisDetection:
 
         # New estimate should be much closer to actual 16384 than old 5200
         # SMAPE = |predicted - actual| / ((predicted + actual) / 2) * 100
+
+    def test_nested_deliverables_dict_and_missing_category_still_triggers_doc_synthesis(self):
+        """
+        Production phases may store deliverables as nested dicts and omit task_category.
+        Ensure estimator normalizes deliverables and infers documentation for pure-doc phases.
+        """
+        deliverables = {
+            "docs": [
+                "docs/OVERVIEW.md",
+                "docs/USAGE_GUIDE.md",
+                "docs/API_REFERENCE.md",
+                "docs/EXAMPLES.md",
+                "docs/FAQ.md",
+            ]
+        }
+        task_description = "Create comprehensive documentation from scratch"
+
+        estimate = self.estimator.estimate(
+            deliverables=deliverables,          # dict, not list
+            category="implementation",          # missing/incorrect category like production
+            complexity="low",
+            scope_paths=[],                    # no context
+            task_description=task_description,
+        )
+
+        assert estimate.deliverable_count == 5
+        assert estimate.category == "doc_synthesis"
         old_smape = abs(5200 - 16384) / ((5200 + 16384) / 2) * 100
         new_smape = abs(estimate.estimated_tokens - 16384) / ((estimate.estimated_tokens + 16384) / 2) * 100
 

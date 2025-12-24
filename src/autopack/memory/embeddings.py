@@ -42,6 +42,10 @@ try:
 except ImportError:
     logger.info("openai library not installed; using local embeddings only")
 
+def semantic_embeddings_enabled() -> bool:
+    """True when embeddings are backed by OpenAI (semantically meaningful)."""
+    return bool(_USE_OPENAI and _openai_client)
+
 
 def _local_embed(text: str, size: int = EMBEDDING_SIZE) -> List[float]:
     """
@@ -89,6 +93,28 @@ def sync_embed_text(text: str, model: str = "text-embedding-3-small") -> List[fl
     else:
         logger.debug(f"Using local offline embedding for preview: '{preview}...'")
         return _local_embed(text)
+
+def sync_embed_texts(texts: List[str], model: str = "text-embedding-3-small") -> List[List[float]]:
+    """
+    Batch embedding helper.
+    - Uses OpenAI embeddings in a single request when enabled.
+    - Falls back to local hashing embeddings per item otherwise.
+    """
+    cleaned: List[str] = []
+    for t in texts:
+        t = t or ""
+        if len(t) > MAX_EMBEDDING_CHARS:
+            t = t[:MAX_EMBEDDING_CHARS]
+        cleaned.append(t)
+
+    if _USE_OPENAI and _openai_client:
+        try:
+            resp = _openai_client.embeddings.create(input=cleaned, model=model)
+            return [list(item.embedding) for item in resp.data]
+        except Exception as e:
+            logger.warning(f"OpenAI batch embedding failed ({e}); falling back to local embeddings.")
+
+    return [_local_embed(t) for t in cleaned]
 
 
 async def async_embed_text(text: str, model: str = "text-embedding-3-small") -> List[float]:

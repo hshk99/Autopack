@@ -5,7 +5,7 @@ Deliverable-based output token estimation to reduce truncation from 50% → 30%.
 Per TOKEN_BUDGET_ANALYSIS_REVISED.md (GPT-5.2 reviewed).
 """
 from dataclasses import dataclass, field
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Any, Iterable
 from pathlib import Path
 import re
 import logging
@@ -107,6 +107,60 @@ class TokenEstimator:
             workspace: Workspace path for file analysis (optional)
         """
         self.workspace = workspace or Path(".")
+
+    @staticmethod
+    def normalize_deliverables(deliverables: Any) -> List[str]:
+        """
+        Normalize deliverables into a flat list of strings.
+
+        BUILD-129 Phase 3: Production phases sometimes store deliverables as nested dicts like:
+          {"tests": [...], "docs": [...], "polish": [...]}
+        This helper flattens dict/list/tuple/set structures safely.
+        """
+        if deliverables is None:
+            return []
+
+        # Single string
+        if isinstance(deliverables, str):
+            return [deliverables]
+
+        out: List[str] = []
+
+        def _walk(x: Any) -> None:
+            if x is None:
+                return
+            if isinstance(x, str):
+                s = x.strip()
+                if s:
+                    out.append(s)
+                return
+            if isinstance(x, dict):
+                for v in x.values():
+                    _walk(v)
+                return
+            if isinstance(x, (list, tuple, set)):
+                for v in x:
+                    _walk(v)
+                return
+            # Fallback: stringify unknown types (avoid hard failure in production)
+            try:
+                s = str(x).strip()
+                if s:
+                    out.append(s)
+            except Exception:
+                return
+
+        _walk(deliverables)
+        return out
+
+    @staticmethod
+    def _is_doc_deliverable(deliverable: str) -> bool:
+        p = (deliverable or "").strip().lower().replace("\\", "/")
+        return p.startswith("docs/") or p.endswith(".md")
+
+    @classmethod
+    def _all_doc_deliverables(cls, deliverables: List[str]) -> bool:
+        return bool(deliverables) and all(cls._is_doc_deliverable(d) for d in deliverables)
 
     def _extract_doc_features(self, deliverables: List[str], task_description: str = "") -> Dict[str, bool]:
         """
@@ -297,7 +351,7 @@ class TokenEstimator:
 
     def estimate(
         self,
-        deliverables: List[str],
+        deliverables: Any,
         category: str,
         complexity: str,
         scope_paths: Optional[List[str]] = None,
@@ -316,6 +370,8 @@ class TokenEstimator:
         Returns:
             TokenEstimate with predicted tokens and breakdown
         """
+        deliverables = self.normalize_deliverables(deliverables)
+
         if not deliverables:
             # No deliverables → use complexity default
             base_budgets = {"low": 8192, "medium": 12288, "high": 16384}
@@ -328,31 +384,39 @@ class TokenEstimator:
             )
 
         # BUILD-129 Phase 3: DOC_SYNTHESIS detection and phase-based estimation
-        # Check if this is a documentation synthesis task (code investigation + writing)
-        if category in ["documentation", "docs"]:
+        # Production safety: some phases are missing category metadata; infer "documentation"
+        # for pure-doc phases so DOC_SYNTHESIS can activate.
+        is_pure_doc = self._all_doc_deliverables(deliverables)
+        effective_category = category
+        if is_pure_doc and category not in ["documentation", "docs", "doc_synthesis"]:
+            effective_category = "documentation"
+
+        # DOC_SYNTHESIS only applies to *pure documentation* phases; mixed phases should
+        # use the regular overhead + marginal-cost model to account for code/test work too.
+        if is_pure_doc and effective_category in ["documentation", "docs"]:
             is_synthesis = self._is_doc_synthesis(deliverables, task_description)
             if is_synthesis:
                 return self._estimate_doc_synthesis(
                     deliverables=deliverables,
                     complexity=complexity,
                     scope_paths=scope_paths,
-                    task_description=task_description
+                    task_description=task_description,
                 )
 
         breakdown = {}
         marginal_cost = 0
 
         for deliverable in deliverables:
-            tokens = self._estimate_deliverable(deliverable, category)
+            tokens = self._estimate_deliverable(deliverable, effective_category)
             marginal_cost += tokens
 
             # Track breakdown by type
-            deliverable_type = self._classify_deliverable(deliverable, category)
+            deliverable_type = self._classify_deliverable(deliverable, effective_category)
             breakdown[deliverable_type] = breakdown.get(deliverable_type, 0) + tokens
 
         # BUILD-129 Phase 2 Revision: Overhead model
         # total = overhead(category, complexity) + Σ(marginal cost per deliverable)
-        overhead = self.PHASE_OVERHEAD.get((category, complexity), 2000)
+        overhead = self.PHASE_OVERHEAD.get((effective_category, complexity), 2000)
         base_tokens = overhead + marginal_cost
 
         # Apply safety margin (+30%)
@@ -370,7 +434,7 @@ class TokenEstimator:
         return TokenEstimate(
             estimated_tokens=total_tokens,
             deliverable_count=len(deliverables),
-            category=category,
+            category=effective_category,
             complexity=complexity,
             breakdown=breakdown,
             confidence=confidence

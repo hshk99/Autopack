@@ -86,6 +86,7 @@ from autopack.repo_scanner import RepoScanner
 # BUILD-127 Phase 1: Completion authority with baseline tracking
 from autopack.phase_finalizer import PhaseFinalizer, PhaseFinalizationDecision
 from autopack.test_baseline_tracker import TestBaseline, TestBaselineTracker
+from autopack.phase_auto_fixer import auto_fix_phase_scope
 
 
 # Configure logging
@@ -6994,9 +6995,64 @@ Just the new description that should replace the current one while preserving th
         # Default to Autopack framework
         return "autopack"
 
+    def _autofix_queued_phases(self, run_data: Dict[str, Any]) -> None:
+        """
+        Auto-fix queued phases into a known-good shape and persist updates to the DB.
+
+        This targets common "known-bad" failure causes:
+        - deliverables annotated strings (e.g. "path (10+ tests)") -> normalized path
+        - missing/empty scope.paths -> derived from deliverables
+        - CI timeouts too short -> tuned by complexity + prior timeout evidence
+
+        Persistence is done through `self.db_session` so the API server and retries see the fixed scope.
+        """
+        phases = run_data.get("phases") or []
+        if not isinstance(phases, list) or not phases:
+            return
+
+        changed = 0
+        for p in phases:
+            if not isinstance(p, dict):
+                continue
+            if p.get("state") != "QUEUED":
+                continue
+            phase_id = p.get("phase_id")
+            if not phase_id:
+                continue
+
+            result = auto_fix_phase_scope(p)
+            if not result.changed:
+                continue
+
+            # Update in-memory dict so this loop iteration uses the fixed scope.
+            p["scope"] = result.new_scope
+
+            try:
+                from autopack.models import Phase
+                row = (
+                    self.db_session.query(Phase)
+                    .filter(Phase.run_id == self.run_id, Phase.phase_id == phase_id)
+                    .first()
+                )
+                if row:
+                    row.scope = result.new_scope
+                    changed += 1
+            except Exception as e:
+                logger.debug(f"[AutoFix:{phase_id}] DB update failed (non-fatal): {e}")
+
+        if changed:
+            try:
+                self.db_session.commit()
+                logger.info(f"[AutoFix] Updated {changed} queued phases in DB")
+            except Exception as e:
+                self.db_session.rollback()
+                logger.warning(f"[AutoFix] Failed to commit phase auto-fixes (non-blocking): {e}")
+
     def _run_ci_checks(self, phase_id: str, phase: Dict) -> Dict[str, Any]:
         """Run CI checks based on the phase's CI specification (default: pytest)."""
-        ci_spec = phase.get("ci") or {}
+        # Phase dict from API does not typically include a top-level "ci". Persisted CI hints live under scope.
+        scope = phase.get("scope") or {}
+        ci_spec = phase.get("ci") or scope.get("ci") or {}
 
         if ci_spec.get("skip"):
             reason = ci_spec.get("reason", "CI skipped per phase configuration")
@@ -8213,6 +8269,12 @@ Just the new description that should replace the current one while preserving th
                 logger.info(f"Waiting {poll_interval}s before retry...")
                 time.sleep(poll_interval)
                 continue
+
+            # Auto-fix queued phases (normalize deliverables/scope, tune CI timeouts) before selection.
+            try:
+                self._autofix_queued_phases(run_data)
+            except Exception as e:
+                logger.warning(f"[AutoFix] Failed to auto-fix queued phases (non-blocking): {e}")
 
             # NEW: Initialize goal anchor on first iteration (for drift detection)
             if iteration == 1 and not hasattr(self, '_run_goal_anchor'):

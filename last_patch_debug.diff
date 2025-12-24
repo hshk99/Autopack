@@ -1,579 +1,773 @@
-diff --git a/src/autopack/diagnostics/package_detector.py b/src/autopack/diagnostics/package_detector.py
+diff --git a/fileorganizer/backend/packs/tax_canada.yaml b/fileorganizer/backend/packs/tax_canada.yaml
 new file mode 100644
 index 0000000..1111111
 --- /dev/null
-+++ b/src/autopack/diagnostics/package_detector.py
-@@ -0,0 +1,469 @@
-+"""Package detection and dependency analysis.
++++ b/fileorganizer/backend/packs/tax_canada.yaml
+@@ -0,0 +1,225 @@
++name: Canada Tax Documents
++description: Comprehensive document pack for Canadian tax compliance, including personal income tax, GST/HST, corporate tax, and provincial tax requirements
++version: 1.0.0
++country: Canada
++domain: tax
 +
-+Detects missing packages through static analysis and runtime validation.
-+"""
-+from dataclasses import dataclass, field
-+from pathlib import Path
-+from typing import List, Set, Dict, Optional
-+import ast
-+import sys
-+import logging
-+import subprocess
++categories:
++  - name: Personal Income Tax Returns
++    description: Documents required for T1 General income tax and benefit returns
++    examples:
++      - T1 General Income Tax and Benefit Return
++      - T4 Statement of Remuneration Paid
++      - T4A Statement of Pension, Retirement, Annuity
++      - T5 Statement of Investment Income
++      - T3 Statement of Trust Income Allocations
++      - RRSP contribution receipts
++      - Medical expense receipts
++      - Charitable donation receipts
++      - Tuition and education tax certificates (T2202)
++      - Home buyers' amount documentation
++      - Moving expense receipts
 +
-+logger = logging.getLogger(__name__)
++  - name: Employment Income Documents
++    description: Tax slips and employment-related documentation for employees
++    examples:
++      - T4 slips from all employers
++      - T4A slips for other income
++      - Record of Employment (ROE)
++      - Employment contracts
++      - Pay stubs for the tax year
++      - Union dues receipts
++      - Professional membership fees
++      - Work-from-home expense claims (T2200)
 +
++  - name: Business and Self-Employment
++    description: Documentation for self-employed individuals and business income
++    examples:
++      - T2125 Statement of Business Activities
++      - Business income and expense records
++      - GST/HST returns and remittances
++      - Business use of home calculations
++      - Vehicle expense logs
++      - Capital cost allowance schedules
++      - Accounts receivable and payable
++      - Business bank statements
++      - Invoice and receipt records
 +
-+@dataclass
-+class PackageRequirement:
-+    """Represents a package requirement detected in code."""
-+    name: str
-+    import_statement: str
-+    file_path: str
-+    line_number: int
-+    is_stdlib: bool
-+    is_installed: bool
-+    suggested_package: Optional[str] = None
++  - name: Corporate Tax Records
++    description: T2 Corporation Income Tax Return and supporting documents
++    examples:
++      - T2 Corporation Income Tax Return
++      - Financial statements (balance sheet, income statement)
++      - General Index of Financial Information (GIFI)
++      - Schedule 1 (Net Income/Loss)
++      - Schedule 8 (Capital Cost Allowance)
++      - Schedule 50 (Shareholder Information)
++      - Provincial corporate tax returns
++      - SR&ED tax credit claims
++      - Transfer pricing documentation
 +
++  - name: GST/HST and Sales Tax
++    description: Goods and Services Tax and Harmonized Sales Tax documentation
++    examples:
++      - GST/HST return forms
++      - GST/HST registration certificate
++      - Input Tax Credit (ITC) documentation
++      - Sales invoices with GST/HST
++      - Purchase receipts with GST/HST
++      - Quick Method calculation worksheets
++      - Provincial Sales Tax (PST) returns
++      - Quebec Sales Tax (QST) documentation
 +
-+@dataclass
-+class PackageDetectionResult:
-+    """Result of package detection analysis."""
-+    missing_packages: List[PackageRequirement]
-+    installed_packages: List[str]
-+    stdlib_imports: List[str]
-+    total_imports: int
-+    files_analyzed: int
-+    errors: List[str]
++  - name: Investment and Capital Gains
++    description: Documentation for investment income and capital gains/losses
++    examples:
++      - T5 investment income slips
++      - T5008 securities transactions slips
++      - Capital gains and losses schedules
++      - Adjusted cost base calculations
++      - Real estate sale agreements
++      - Principal residence designation forms
++      - Foreign investment reporting (T1135)
++      - Cryptocurrency transaction records
 +
-+    @property
-+    def has_missing_packages(self) -> bool:
-+        """Check if any packages are missing."""
-+        return len(self.missing_packages) > 0
++  - name: Retirement and Pension Income
++    description: RRSP, pension, and retirement income documentation
++    examples:
++      - RRSP contribution receipts
++      - RRSP withdrawal statements
++      - T4RSP slips
++      - T4RIF slips (RRIF income)
++      - CPP/QPP statements (T4A(P))
++      - OAS statements (T4A(OAS))
++      - Pension income splitting elections
++      - Foreign pension income documentation
 +
-+    @property
-+    def missing_package_names(self) -> Set[str]:
-+        """Get unique set of missing package names."""
-+        return {req.suggested_package or req.name for req in self.missing_packages}
++  - name: Provincial Tax Credits
++    description: Province-specific tax credits and benefit documentation
++    examples:
++      - Ontario Trillium Benefit applications
++      - BC Climate Action Tax Credit
++      - Quebec solidarity tax credit
++      - Property tax receipts
++      - Rent receipts for provincial credits
++      - Energy efficiency upgrade receipts
++      - Child care expense receipts
 +
-+    @property
-+    def coverage_percentage(self) -> float:
-+        """Calculate percentage of imports that are satisfied."""
-+        if self.total_imports == 0:
-+            return 100.0
-+        satisfied = len(self.installed_packages) + len(self.stdlib_imports)
-+        return (satisfied / self.total_imports) * 100.0
++checklists:
++  - name: Personal Income Tax Return (T1)
++    required_documents:
++      - Social Insurance Number (SIN)
++      - T4 slips from all employers
++      - T5 investment income slips
++      - T3 trust income slips (if applicable)
++      - RRSP contribution receipts
++      - Medical expense receipts (if claiming)
++      - Charitable donation receipts
++      - Tuition tax certificates (T2202)
++      - Childcare expense receipts
++      - Home office expense form (T2200) if applicable
++      - Moving expense receipts (if applicable)
++      - Previous year's Notice of Assessment
++      - Direct deposit information for refunds
 +
++  - name: Self-Employment Tax Filing
++    required_documents:
++      - Business Number (BN) from CRA
++      - T2125 Statement of Business Activities
++      - Complete income records (invoices, sales)
++      - Complete expense records with receipts
++      - Vehicle mileage log
++      - Home office expense calculations
++      - Capital asset purchase records
++      - GST/HST collected and paid records
++      - Bank statements for business accounts
++      - Accounts receivable aging report
++      - Accounts payable records
++      - Previous year's T2125 for comparison
 +
-+class PackageDetector:
-+    """Detects missing packages through static analysis and runtime validation."""
++  - name: Corporation Tax Return (T2)
++    required_documents:
++      - Business Number (BN)
++      - T2 Corporation Income Tax Return
++      - Complete financial statements
++      - General Index of Financial Information (GIFI)
++      - Schedule 1 Net Income/Loss calculation
++      - Schedule 8 Capital Cost Allowance
++      - Schedule 50 Shareholder Information
++      - Minutes of directors' meetings
++      - Shareholder loan account details
++      - Provincial tax return schedules
++      - GST/HST reconciliation
++      - Payroll remittance confirmations
 +
-+    # Common package name mappings (import name -> package name)
-+    PACKAGE_MAPPINGS = {
-+        "cv2": "opencv-python",
-+        "PIL": "Pillow",
-+        "sklearn": "scikit-learn",
-+        "yaml": "PyYAML",
-+        "jose": "python-jose",
-+        "multipart": "python-multipart",
-+        "telegram": "python-telegram-bot",
-+        "magic": "python-magic",
-+        "dateutil": "python-dateutil",
-+        "OpenSSL": "pyOpenSSL",
-+        "nacl": "PyNaCl",
-+    }
++  - name: GST/HST Registration and Filing
++    required_documents:
++      - Business Number (BN)
++      - GST/HST account number
++      - Sales records with GST/HST collected
++      - Purchase invoices with GST/HST paid
++      - Input Tax Credit (ITC) supporting documents
++      - Export sales documentation (zero-rated)
++      - Bad debt write-off records
++      - Capital asset purchase records
++      - Quick Method election (if applicable)
++      - Previous GST/HST return for comparison
 +
-+    # Python standard library modules (comprehensive list)
-+    STDLIB_MODULES = {
-+        "__future__",
-+        "_thread",
-+        "abc",
-+        "aifc",
-+        "argparse",
-+        "array",
-+        "ast",
-+        "asynchat",
-+        "asyncio",
-+        "asyncore",
-+        "atexit",
-+        "audioop",
-+        "base64",
-+        "bdb",
-+        "binascii",
-+        "binhex",
-+        "bisect",
-+        "builtins",
-+        "bz2",
-+        "calendar",
-+        "cgi",
-+        "cgitb",
-+        "chunk",
-+        "cmath",
-+        "cmd",
-+        "code",
-+        "codecs",
-+        "codeop",
-+        "collections",
-+        "colorsys",
-+        "compileall",
-+        "concurrent",
-+        "configparser",
-+        "contextlib",
-+        "contextvars",
-+        "copy",
-+        "copyreg",
-+        "cProfile",
-+        "crypt",
-+        "csv",
-+        "ctypes",
-+        "curses",
-+        "dataclasses",
-+        "datetime",
-+        "dbm",
-+        "decimal",
-+        "difflib",
-+        "dis",
-+        "distutils",
-+        "doctest",
-+        "email",
-+        "encodings",
-+        "enum",
-+        "errno",
-+        "faulthandler",
-+        "fcntl",
-+        "filecmp",
-+        "fileinput",
-+        "fnmatch",
-+        "formatter",
-+        "fractions",
-+        "ftplib",
-+        "functools",
-+        "gc",
-+        "getopt",
-+        "getpass",
-+        "gettext",
-+        "glob",
-+        "graphlib",
-+        "grp",
-+        "gzip",
-+        "hashlib",
-+        "heapq",
-+        "hmac",
-+        "html",
-+        "http",
-+        "imaplib",
-+        "imghdr",
-+        "imp",
-+        "importlib",
-+        "inspect",
-+        "io",
-+        "ipaddress",
-+        "itertools",
-+        "json",
-+        "keyword",
-+        "lib2to3",
-+        "linecache",
-+        "locale",
-+        "logging",
-+        "lzma",
-+        "mailbox",
-+        "mailcap",
-+        "marshal",
-+        "math",
-+        "mimetypes",
-+        "mmap",
-+        "modulefinder",
-+        "msilib",
-+        "msvcrt",
-+        "multiprocessing",
-+        "netrc",
-+        "nis",
-+        "nntplib",
-+        "numbers",
-+        "operator",
-+        "optparse",
-+        "os",
-+        "ossaudiodev",
-+        "parser",
-+        "pathlib",
-+        "pdb",
-+        "pickle",
-+        "pickletools",
-+        "pipes",
-+        "pkgutil",
-+        "platform",
-+        "plistlib",
-+        "poplib",
-+        "posix",
-+        "posixpath",
-+        "pprint",
-+        "profile",
-+        "pstats",
-+        "pty",
-+        "pwd",
-+        "py_compile",
-+        "pyclbr",
-+        "pydoc",
-+        "queue",
-+        "quopri",
-+        "random",
-+        "re",
-+        "readline",
-+        "reprlib",
-+        "resource",
-+        "rlcompleter",
-+        "runpy",
-+        "sched",
-+        "secrets",
-+        "select",
-+        "selectors",
-+        "shelve",
-+        "shlex",
-+        "shutil",
-+        "signal",
-+        "site",
-+        "smtpd",
-+        "smtplib",
-+        "sndhdr",
-+        "socket",
-+        "socketserver",
-+        "spwd",
-+        "sqlite3",
-+        "ssl",
-+        "stat",
-+        "statistics",
-+        "string",
-+        "stringprep",
-+        "struct",
-+        "subprocess",
-+        "sunau",
-+        "symbol",
-+        "symtable",
-+        "sys",
-+        "sysconfig",
-+        "syslog",
-+        "tabnanny",
-+        "tarfile",
-+        "telnetlib",
-+        "tempfile",
-+        "termios",
-+        "test",
-+        "textwrap",
-+        "threading",
-+        "time",
-+        "timeit",
-+        "tkinter",
-+        "token",
-+        "tokenize",
-+        "trace",
-+        "traceback",
-+        "tracemalloc",
-+        "tty",
-+        "turtle",
-+        "turtledemo",
-+        "types",
-+        "typing",
-+        "unicodedata",
-+        "unittest",
-+        "urllib",
-+        "uu",
-+        "uuid",
-+        "venv",
-+        "warnings",
-+        "wave",
-+        "weakref",
-+        "webbrowser",
-+        "winreg",
-+        "winsound",
-+        "wsgiref",
-+        "xdrlib",
-+        "xml",
-+        "xmlrpc",
-+        "zipapp",
-+        "zipfile",
-+        "zipimport",
-+        "zlib",
-+    }
++  - name: RRSP Contribution and Deduction
++    required_documents:
++      - RRSP contribution receipts from financial institutions
++      - Previous year's Notice of Assessment (shows RRSP limit)
++      - T4 slips showing pension adjustment
++      - Spousal RRSP contribution receipts (if applicable)
++      - RRSP withdrawal statements (if applicable)
++      - Home Buyers' Plan (HBP) repayment schedule
++      - Lifelong Learning Plan (LLP) repayment schedule
++      - Direct transfer documentation (if applicable)
 +
-+    def __init__(self, project_root: Path):
-+        """Initialize package detector.
-+        
-+        Args:
-+            project_root: Root directory of the project
-+        """
-+        self.project_root = project_root
++  - name: Capital Gains Tax Reporting
++    required_documents:
++      - Purchase and sale agreements for properties
++      - Real estate closing statements
++      - Adjusted cost base calculations
++      - Capital improvements receipts
++      - T5008 securities transaction slips
++      - Brokerage statements
++      - Principal residence designation form
++      - Foreign property sale documentation
++      - Cryptocurrency transaction records
++      - Capital losses from previous years
 +
-+    def detect_missing_packages(self, scope_paths: Optional[List[str]] = None) -> PackageDetectionResult:
-+        """Detect missing packages in the project.
-+        
-+        Args:
-+            scope_paths: Optional list of specific paths to analyze
-+            
-+        Returns:
-+            PackageDetectionResult with analysis results
-+        """
-+        missing_packages = []
-+        installed_packages = []
-+        stdlib_imports = []
-+        total_imports = 0
-+        files_analyzed = 0
-+        errors = []
++  - name: Foreign Income and Asset Reporting
++    required_documents:
++      - T1135 Foreign Income Verification Statement
++      - Foreign investment account statements
++      - Foreign rental property income records
++      - Foreign employment income (with T4 equivalent)
++      - Foreign pension income documentation
++      - Foreign tax paid receipts
++      - Form T2209 for foreign tax credits
++      - Currency conversion calculations
++      - Treaty exemption documentation (if applicable)
 +
-+        # Get Python files to analyze
-+        if scope_paths:
-+            python_files = []
-+            for path_str in scope_paths:
-+                path = self.project_root / path_str
-+                if path.is_file() and path.suffix == ".py":
-+                    python_files.append(path)
-+                elif path.is_dir():
-+                    python_files.extend(path.rglob("*.py"))
-+        else:
-+            python_files = list(self.project_root.rglob("*.py"))
++  - name: Small Business Deduction Claim
++    required_documents:
++      - T2 Corporation Income Tax Return
++      - Schedule 7 Aggregate Investment Income
++      - Schedule 23 Agreement Among Associated Corporations
++      - Active business income calculations
++      - Investment income breakdown
++      - Associated corporation details
++      - Canadian-Controlled Private Corporation (CCPC) status proof
++      - Taxable capital calculations
 +
-+        # Analyze each file
-+        for file_path in python_files:
-+            try:
-+                imports = self._extract_imports(file_path)
-+                files_analyzed += 1
-+                
-+                for import_name, import_stmt, line_no in imports:
-+                    total_imports += 1
-+                    
-+                    # Check if stdlib
-+                    if self._is_stdlib(import_name):
-+                        stdlib_imports.append(import_name)
-+                        continue
-+                    
-+                    # Check if installed
-+                    if self._is_installed(import_name):
-+                        installed_packages.append(import_name)
-+                        continue
-+                    
-+                    # Missing package
-+                    suggested_package = self.PACKAGE_MAPPINGS.get(import_name, import_name)
-+                    missing_packages.append(PackageRequirement(
-+                        name=import_name,
-+                        import_statement=import_stmt,
-+                        file_path=str(file_path.relative_to(self.project_root)),
-+                        line_number=line_no,
-+                        is_stdlib=False,
-+                        is_installed=False,
-+                        suggested_package=suggested_package
-+                    ))
-+                    
-+            except Exception as e:
-+                errors.append(f"Error analyzing {file_path}: {e}")
-+                logger.warning(f"Failed to analyze {file_path}: {e}")
-+
-+        return PackageDetectionResult(
-+            missing_packages=missing_packages,
-+            installed_packages=list(set(installed_packages)),
-+            stdlib_imports=list(set(stdlib_imports)),
-+            total_imports=total_imports,
-+            files_analyzed=files_analyzed,
-+            errors=errors
-+        )
-+
-+    def _extract_imports(self, file_path: Path) -> List[tuple]:
-+        """Extract import statements from a Python file.
-+        
-+        Args:
-+            file_path: Path to Python file
-+            
-+        Returns:
-+            List of (import_name, import_statement, line_number) tuples
-+        """
-+        imports = []
-+        
-+        try:
-+            content = file_path.read_text(encoding="utf-8")
-+            tree = ast.parse(content, filename=str(file_path))
-+            
-+            for node in ast.walk(tree):
-+                if isinstance(node, ast.Import):
-+                    for alias in node.names:
-+                        import_name = alias.name.split(".")[0]
-+                        import_stmt = f"import {alias.name}"
-+                        imports.append((import_name, import_stmt, node.lineno))
-+                        
-+                elif isinstance(node, ast.ImportFrom):
-+                    if node.module:
-+                        import_name = node.module.split(".")[0]
-+                        import_stmt = f"from {node.module} import ..."
-+                        imports.append((import_name, import_stmt, node.lineno))
-+                        
-+        except Exception as e:
-+            logger.warning(f"Failed to parse {file_path}: {e}")
-+            
-+        return imports
-+
-+    def _is_stdlib(self, module_name: str) -> bool:
-+        """Check if a module is part of the standard library.
-+        
-+        Args:
-+            module_name: Name of the module
-+            
-+        Returns:
-+            True if module is in stdlib
-+        """
-+        return module_name in self.STDLIB_MODULES
-+
-+    def _is_installed(self, module_name: str) -> bool:
-+        """Check if a module is installed.
-+        
-+        Args:
-+            module_name: Name of the module
-+            
-+        Returns:
-+            True if module is installed
-+        """
-+        try:
-+            __import__(module_name)
-+            return True
-+        except ImportError:
-+            return False
-+
-+    def get_install_command(self, result: PackageDetectionResult) -> Optional[str]:
-+        """Generate pip install command for missing packages.
-+        
-+        Args:
-+            result: Package detection result
-+            
-+        Returns:
-+            pip install command or None if no packages missing
-+        """
-+        if not result.missing_packages:
-+            return None
-+            
-+        packages = sorted(result.missing_package_names)
-+        return f"pip install {' '.join(packages)}"
-+
-+    def validate_requirements_file(self, requirements_path: Path) -> Dict[str, bool]:
-+        """Validate that all packages in requirements.txt are installed.
-+        
-+        Args:
-+            requirements_path: Path to requirements.txt
-+            
-+        Returns:
-+            Dict mapping package names to installation status
-+        """
-+        validation = {}
-+        
-+        if not requirements_path.exists():
-+            return validation
-+            
-+        try:
-+            content = requirements_path.read_text(encoding="utf-8")
-+            for line in content.splitlines():
-+                line = line.strip()
-+                if not line or line.startswith("#"):
-+                    continue
-+                    
-+                # Extract package name (before ==, >=, etc.)
-+                package_name = line.split("==")[0].split(">=")[0].split("<=")[0].strip()
-+                validation[package_name] = self._is_installed(package_name)
-+                
-+        except Exception as e:
-+            logger.warning(f"Failed to validate requirements file: {e}")
-+            
-+        return validation
-diff --git a/src/backend/services/file_validator.py b/src/backend/services/file_validator.py
++official_sources:
++  - https://www.canada.ca/en/services/taxes.html
++  - https://www.canada.ca/en/revenue-agency/services/tax/individuals/topics/about-your-tax-return.html
++  - https://www.canada.ca/en/revenue-agency/services/tax/businesses.html
++  - https://www.canada.ca/en/revenue-agency/services/tax/businesses/topics/gst-hst-businesses.html
++  - https://www.canada.ca/en/revenue-agency/services/forms-publications/publications/t4002.html
++  - https://www.canada.ca/en/revenue-agency/services/forms-publications/publications/t4012.html
++  - https://www.canada.ca/en/revenue-agency/services/tax/businesses/topics/corporations/corporation-income-tax-return.html
++  - https://www.canada.ca/en/revenue-agency/services/tax/international-non-residents/individuals-leaving-entering-canada-non-residents.html
++  - https://www.canada.ca/en/revenue-agency/services/tax/individuals/topics/rrsps-related-plans.html
++  - https://www.canada.ca/en/revenue-agency/services/tax/individuals/topics/about-your-tax-return/tax-return/completing-a-tax-return/deductions-credits-expenses.html
+diff --git a/fileorganizer/backend/packs/immigration_canada.yaml b/fileorganizer/backend/packs/immigration_canada.yaml
 new file mode 100644
 index 0000000..1111111
 --- /dev/null
-+++ b/src/backend/services/file_validator.py
-@@ -0,0 +1,98 @@
-+"""File validation service.
++++ b/fileorganizer/backend/packs/immigration_canada.yaml
+@@ -0,0 +1,244 @@
++name: Canada Immigration Documents
++description: Comprehensive document pack for Canadian immigration applications including Express Entry, family sponsorship, study permits, work permits, and permanent residence pathways
++version: 1.0.0
++country: Canada
++domain: immigration
 +
-+Provides validation for uploaded files including type checking,
-+size limits, and content validation.
-+"""
-+from PIL import Image
-+import magic
++categories:
++  - name: Identity and Civil Status Documents
++    description: Core identity documents required for all Canadian immigration applications
++    examples:
++      - Valid passport (all pages)
++      - Birth certificate with translation
++      - Marriage certificate or proof of common-law relationship
++      - Divorce or annulment certificates
++      - Death certificates (if applicable)
++      - National identity card
++      - Previous Canadian visas or permits
++      - Travel history documentation
++
++  - name: Express Entry and Economic Immigration
++    description: Documents for Federal Skilled Worker, Canadian Experience Class, and Provincial Nominee Programs
++    examples:
++      - Educational Credential Assessment (ECA)
++      - Language test results (IELTS, CELPIP, TEF)
++      - Work experience reference letters
++      - Employment contracts and offer letters
++      - Pay stubs and T4 slips
++      - Provincial nomination certificate
++      - Proof of funds (bank statements)
++      - Job offer with LMIA (if applicable)
++
++  - name: Family Sponsorship
++    description: Documentation for spousal, partner, parent, and dependent child sponsorship
++    examples:
++      - Sponsorship application forms (IMM 1344)
++      - Proof of relationship (photos, correspondence)
++      - Sponsor's Notice of Assessment
++      - Sponsor's employment letter
++      - Cohabitation evidence (lease, bills)
++      - Statutory Declaration of Common-Law Union
++      - Option C printout (tax documents)
++      - Undertaking agreement
++
++  - name: Study Permits
++    description: Documents required for international student applications
++    examples:
++      - Letter of acceptance from DLI
++      - Proof of financial support
++      - Guaranteed Investment Certificate (GIC)
++      - Tuition payment receipt
++      - Language proficiency test results
++      - Academic transcripts and diplomas
++      - Statement of purpose
++      - Provincial Attestation Letter (PAL)
++
++  - name: Work Permits
++    description: Documentation for temporary foreign worker and International Mobility Programs
++    examples:
++      - Job offer letter
++      - Labour Market Impact Assessment (LMIA)
++      - Employment contract
++      - Proof of qualifications and credentials
++      - Work experience letters
++      - Intra-company transfer documentation
++      - NAFTA/CUSMA professional category proof
++      - Employer compliance documents
++
++  - name: Permanent Residence Applications
++    description: Supporting documents for PR applications across all streams
++    examples:
++      - Police certificates from all countries of residence
++      - Medical examination results (IMM 1017)
++      - Biometrics confirmation
++      - Proof of funds documentation
++      - Settlement plan
++      - Reference letters from employers
++      - Educational credentials
++      - Language test results
++
++  - name: Business and Investor Immigration
++    description: Documents for Start-up Visa, Self-Employed, and investor programs
++    examples:
++      - Business plan
++      - Letter of support from designated organization
++      - Proof of business ownership
++      - Financial statements of business
++      - Tax returns (personal and business)
++      - Net worth documentation
++      - Investment fund source documentation
++      - Professional credentials and awards
++
++  - name: Refugee and Humanitarian Applications
++    description: Documentation for refugee claims and humanitarian applications
++    examples:
++      - Basis of Claim Form (BOC)
++      - Country condition documentation
++      - Persecution evidence
++      - Identity documents from home country
++      - Travel route documentation
++      - Medical reports (if applicable)
++      - Psychological assessments
++      - Supporting affidavits
++
++checklists:
++  - name: Express Entry Profile Creation
++    required_documents:
++      - Valid passport (biographical pages)
++      - Language test results (IELTS, CELPIP, or TEF - less than 2 years old)
++      - Educational Credential Assessment (ECA) for foreign degrees
++      - Work experience reference letters (detailed job duties)
++      - Proof of funds (bank statements for 6 months)
++      - Provincial nomination certificate (if applicable)
++      - Job offer with positive LMIA (if applicable)
++      - Spouse's language test results (if applicable)
++      - Spouse's ECA (if applicable)
++
++  - name: Permanent Residence Application (Post-ITA)
++    required_documents:
++      - Passport copies (all pages)
++      - Police certificates from all countries lived in 6+ months since age 18
++      - Medical examination results (IMM 1017)
++      - Proof of funds (bank statements, investment accounts)
++      - Birth certificate with certified translation
++      - Marriage certificate or proof of common-law relationship
++      - Educational credentials (degrees, diplomas, transcripts)
++      - Language test results (original)
++      - Employment reference letters on company letterhead
++      - Pay stubs and T4 slips (Canadian experience)
++      - Provincial nomination certificate (if applicable)
++      - Digital photo meeting specifications
++
++  - name: Spousal Sponsorship (Outland)
++    required_documents:
++      - IMM 1344 Sponsorship application
++      - IMM 0008 Generic application form
++      - IMM 5532 Relationship Information and Sponsorship Evaluation
++      - Marriage certificate or proof of common-law relationship
++      - Relationship evidence (photos, chat logs, emails)
++      - Sponsor's Canadian citizenship or PR proof
++      - Sponsor's Option C printout or Notice of Assessment
++      - Sponsor's employment letter and pay stubs
++      - Police certificates for applicant
++      - Medical examination for applicant
++      - Passport copies for both parties
++      - Birth certificates for both parties
++      - Divorce or death certificates (if previously married)
++
++  - name: Study Permit Application
++    required_documents:
++      - Letter of acceptance from Designated Learning Institution (DLI)
++      - Provincial Attestation Letter (PAL) if required
++      - Proof of financial support (bank statements, GIC)
++      - Tuition fee payment receipt
++      - Language proficiency test results (IELTS, TOEFL, etc.)
++      - Academic transcripts and diplomas
++      - Statement of purpose or study plan
++      - Valid passport
++      - Passport-sized photographs
++      - Police certificate (if required)
++      - Medical examination (if required)
++      - Custodianship declaration (if under 17)
++
++  - name: Work Permit with LMIA
++    required_documents:
++      - Positive Labour Market Impact Assessment (LMIA)
++      - Job offer letter from Canadian employer
++      - Employment contract
++      - Valid passport
++      - Proof of qualifications (degrees, certificates)
++      - Work experience reference letters
++      - Resume/CV
++      - Police certificate (if required)
++      - Medical examination (if required)
++      - Proof of relationship to employer (if intra-company transfer)
++      - Passport-sized photographs
++
++  - name: Parent and Grandparent Sponsorship
++    required_documents:
++      - IMM 1344 Sponsorship application
++      - IMM 0008 Generic application form
++      - IMM 5768 Financial Evaluation form
++      - Sponsor's Notice of Assessment (3 years)
++      - Sponsor's proof of income (T4, T1, Option C)
++      - Birth certificate showing relationship
++      - Parents' marriage certificate
++      - Parents' passports
++      - Police certificates for parents
++      - Medical examinations for parents
++      - Proof of sponsor's Canadian status
++      - Undertaking agreement
++
++  - name: Provincial Nominee Program (PNP)
++    required_documents:
++      - Provincial nomination certificate
++      - Language test results (CLB 4 minimum)
++      - Educational credentials and ECA
++      - Work experience reference letters
++      - Job offer from provincial employer (if required)
++      - Proof of funds
++      - Settlement plan for province
++      - Connection to province documentation
++      - Business plan (if entrepreneur stream)
++      - Investment documentation (if investor stream)
++      - Valid passport
++
++  - name: Canadian Experience Class (CEC)
++    required_documents:
++      - Proof of Canadian work experience (reference letters)
++      - Canadian work permits held
++      - T4 slips and pay stubs
++      - Employment contracts
++      - Language test results (CLB 7 for NOC 0/A, CLB 5 for NOC B)
++      - Educational credentials (ECA if foreign)
++      - Valid passport
++      - Police certificates
++      - Medical examination
++      - Proof of funds (if not currently working in Canada)
++
++  - name: Citizenship Application
++    required_documents:
++      - Permanent Residence card (both sides)
++      - Physical presence calculation
++      - Passport and travel documents (5 years)
++      - Language proof (CLB 4 in English or French)
++      - Tax documents (Notice of Assessment for 5 years)
++      - Two pieces of personal identification
++      - Two citizenship photos
++      - Receipt for citizenship fee payment
++      - Police certificates (if required)
++      - Proof of language ability (test results or Canadian education)
++
++official_sources:
++  - https://www.canada.ca/en/immigration-refugees-citizenship.html
++  - https://www.canada.ca/en/immigration-refugees-citizenship/services/immigrate-canada/express-entry.html
++  - https://www.canada.ca/en/immigration-refugees-citizenship/services/application/application-forms-guides.html
++  - https://www.canada.ca/en/immigration-refugees-citizenship/services/study-canada.html
++  - https://www.canada.ca/en/immigration-refugees-citizenship/services/work-canada.html
++  - https://www.canada.ca/en/immigration-refugees-citizenship/services/immigrate-canada/family-sponsorship.html
++  - https://www.canada.ca/en/immigration-refugees-citizenship/services/immigrate-canada/provincial-nominees.html
++  - https://www.canada.ca/en/immigration-refugees-citizenship/services/canadian-citizenship.html
++  - https://www.canada.ca/en/immigration-refugees-citizenship/services/application/medical-police/police-certificates.html
++  - https://www.canada.ca/en/immigration-refugees-citizenship/services/application/medical-police/medical-exams.html
++  - https://www.cic.gc.ca/english/helpcentre/index-featured-can.asp
++  - https://www.canada.ca/en/immigration-refugees-citizenship/corporate/publications-manuals/operational-bulletins-manuals.html
+diff --git a/fileorganizer/backend/tests/test_canada_packs.py b/fileorganizer/backend/tests/test_canada_packs.py
+new file mode 100644
+index 0000000..1111111
+--- /dev/null
++++ b/fileorganizer/backend/tests/test_canada_packs.py
+@@ -0,0 +1,286 @@
++"""Tests for Canada-specific pack templates (tax and immigration)."""
++
 +import os
++import pytest
++import yaml
 +from pathlib import Path
-+from typing import Optional, Tuple
-+import logging
-+
-+logger = logging.getLogger(__name__)
 +
 +
-+class FileValidator:
-+    """Validates uploaded files."""
-+    
-+    # Maximum file size (10MB)
-+    MAX_FILE_SIZE = 10 * 1024 * 1024
-+    
-+    # Allowed MIME types
-+    ALLOWED_MIME_TYPES = {
-+        "image/jpeg",
-+        "image/png",
-+        "image/gif",
-+        "image/webp",
-+        "application/pdf",
-+        "text/plain",
-+        "application/json",
-+    }
-+    
-+    def __init__(self):
-+        """Initialize file validator."""
-+        self.mime = magic.Magic(mime=True)
-+    
-+    def validate_file(self, file_path: Path) -> Tuple[bool, Optional[str]]:
-+        """Validate a file.
++class TestCanadaPackSchema:
++    """Test that Canada pack files conform to the required schema."""
++
++    @pytest.fixture
++    def packs_dir(self):
++        """Get the packs directory path."""
++        return Path(__file__).parent.parent / "packs"
++
++    @pytest.fixture
++    def tax_canada_pack(self, packs_dir):
++        """Load the Canada tax pack YAML."""
++        pack_path = packs_dir / "tax_canada.yaml"
++        assert pack_path.exists(), f"Tax Canada pack not found at {pack_path}"
++        with open(pack_path, 'r', encoding='utf-8') as f:
++            return yaml.safe_load(f)
++
++    @pytest.fixture
++    def immigration_canada_pack(self, packs_dir):
++        """Load the Canada immigration pack YAML."""
++        pack_path = packs_dir / "immigration_canada.yaml"
++        assert pack_path.exists(), f"Immigration Canada pack not found at {pack_path}"
++        with open(pack_path, 'r', encoding='utf-8') as f:
++            return yaml.safe_load(f)
++
++    def test_tax_canada_required_fields(self, tax_canada_pack):
++        """Test that tax_canada.yaml has all required top-level fields."""
++        required_fields = ['name', 'description', 'version', 'country', 'domain', 
++                          'categories', 'checklists', 'official_sources']
++        for field in required_fields:
++            assert field in tax_canada_pack, f"Missing required field: {field}"
++
++    def test_immigration_canada_required_fields(self, immigration_canada_pack):
++        """Test that immigration_canada.yaml has all required top-level fields."""
++        required_fields = ['name', 'description', 'version', 'country', 'domain', 
++                          'categories', 'checklists', 'official_sources']
++        for field in required_fields:
++            assert field in immigration_canada_pack, f"Missing required field: {field}"
++
++    def test_tax_canada_country_and_domain(self, tax_canada_pack):
++        """Test that tax pack has correct country and domain."""
++        assert tax_canada_pack['country'] == 'Canada', "Country should be 'Canada'"
++        assert tax_canada_pack['domain'] == 'tax', "Domain should be 'tax'"
++
++    def test_immigration_canada_country_and_domain(self, immigration_canada_pack):
++        """Test that immigration pack has correct country and domain."""
++        assert immigration_canada_pack['country'] == 'Canada', "Country should be 'Canada'"
++        assert immigration_canada_pack['domain'] == 'immigration', "Domain should be 'immigration'"
++
++    def test_tax_canada_categories_structure(self, tax_canada_pack):
++        """Test that tax pack categories have proper structure."""
++        categories = tax_canada_pack['categories']
++        assert isinstance(categories, list), "Categories should be a list"
++        assert len(categories) > 0, "Categories list should not be empty"
 +        
-+        Args:
-+            file_path: Path to file to validate
++        category_names = set()
++        for category in categories:
++            assert 'name' in category, "Category missing 'name' field"
++            assert 'description' in category, "Category missing 'description' field"
++            assert 'examples' in category, "Category missing 'examples' field"
++            assert isinstance(category['examples'], list), "Examples should be a list"
++            assert len(category['examples']) > 0, "Examples list should not be empty"
 +            
-+        Returns:
-+            Tuple of (is_valid, error_message)
-+        """
-+        # Check file exists
-+        if not file_path.exists():
-+            return False, "File does not exist"
++            # Check for duplicate category names
++            assert category['name'] not in category_names, f"Duplicate category name: {category['name']}"
++            category_names.add(category['name'])
++
++    def test_immigration_canada_categories_structure(self, immigration_canada_pack):
++        """Test that immigration pack categories have proper structure."""
++        categories = immigration_canada_pack['categories']
++        assert isinstance(categories, list), "Categories should be a list"
++        assert len(categories) > 0, "Categories list should not be empty"
 +        
-+        # Check file size
-+        file_size = os.path.getsize(file_path)
-+        if file_size > self.MAX_FILE_SIZE:
-+            return False, f"File size {file_size} exceeds maximum {self.MAX_FILE_SIZE}"
-+        
-+        # Check MIME type
-+        try:
-+            mime_type = self.mime.from_file(str(file_path))
-+            if mime_type not in self.ALLOWED_MIME_TYPES:
-+                return False, f"File type {mime_type} not allowed"
-+        except Exception as e:
-+            logger.error(f"Failed to detect MIME type: {e}")
-+            return False, "Failed to detect file type"
-+        
-+        # Additional validation for images
-+        if mime_type.startswith("image/"):
-+            try:
-+                with Image.open(file_path) as img:
-+                    img.verify()
-+            except Exception as e:
-+                logger.error(f"Image validation failed: {e}")
-+                return False, "Invalid image file"
-+        
-+        return True, None
-+    
-+    def get_file_info(self, file_path: Path) -> dict:
-+        """Get information about a file.
-+        
-+        Args:
-+            file_path: Path to file
++        category_names = set()
++        for category in categories:
++            assert 'name' in category, "Category missing 'name' field"
++            assert 'description' in category, "Category missing 'description' field"
++            assert 'examples' in category, "Category missing 'examples' field"
++            assert isinstance(category['examples'], list), "Examples should be a list"
++            assert len(category['examples']) > 0, "Examples list should not be empty"
 +            
-+        Returns:
-+            Dictionary with file information
-+        """
-+        info = {
-+            "path": str(file_path),
-+            "size": os.path.getsize(file_path),
-+            "mime_type": None,
-+            "is_valid": False,
-+        }
++            # Check for duplicate category names
++            assert category['name'] not in category_names, f"Duplicate category name: {category['name']}"
++            category_names.add(category['name'])
++
++    def test_tax_canada_checklists_structure(self, tax_canada_pack):
++        """Test that tax pack checklists have proper structure."""
++        checklists = tax_canada_pack['checklists']
++        assert isinstance(checklists, list), "Checklists should be a list"
++        assert len(checklists) > 0, "Checklists list should not be empty"
 +        
-+        try:
-+            info["mime_type"] = self.mime.from_file(str(file_path))
-+            is_valid, _ = self.validate_file(file_path)
-+            info["is_valid"] = is_valid
-+        except Exception as e:
-+            logger.error(f"Failed to get file info: {e}")
++        for checklist in checklists:
++            assert 'name' in checklist, "Checklist missing 'name' field"
++            assert 'required_documents' in checklist, "Checklist missing 'required_documents' field"
++            assert isinstance(checklist['required_documents'], list), "Required documents should be a list"
++            assert len(checklist['required_documents']) > 0, "Required documents list should not be empty"
++
++    def test_immigration_canada_checklists_structure(self, immigration_canada_pack):
++        """Test that immigration pack checklists have proper structure."""
++        checklists = immigration_canada_pack['checklists']
++        assert isinstance(checklists, list), "Checklists should be a list"
++        assert len(checklists) > 0, "Checklists list should not be empty"
 +        
-+        return info
++        for checklist in checklists:
++            assert 'name' in checklist, "Checklist missing 'name' field"
++            assert 'required_documents' in checklist, "Checklist missing 'required_documents' field"
++            assert isinstance(checklist['required_documents'], list), "Required documents should be a list"
++            assert len(checklist['required_documents']) > 0, "Required documents list should not be empty"
++
++    def test_tax_canada_official_sources(self, tax_canada_pack):
++        """Test that tax pack has valid official sources."""
++        sources = tax_canada_pack['official_sources']
++        assert isinstance(sources, list), "Official sources should be a list"
++        assert len(sources) > 0, "Official sources list should not be empty"
++        
++        for source in sources:
++            assert isinstance(source, str), "Each source should be a string"
++            assert len(source) > 0, "Source should not be empty string"
++
++    def test_immigration_canada_official_sources(self, immigration_canada_pack):
++        """Test that immigration pack has valid official sources."""
++        sources = immigration_canada_pack['official_sources']
++        assert isinstance(sources, list), "Official sources should be a list"
++        assert len(sources) > 0, "Official sources list should not be empty"
++        
++        for source in sources:
++            assert isinstance(source, str), "Each source should be a string"
++            assert len(source) > 0, "Source should not be empty string"
++
++    def test_tax_canada_version_format(self, tax_canada_pack):
++        """Test that tax pack version follows semantic versioning."""
++        version = tax_canada_pack['version']
++        assert isinstance(version, str), "Version should be a string"
++        parts = version.split('.')
++        assert len(parts) == 3, "Version should follow semantic versioning (X.Y.Z)"
++        for part in parts:
++            assert part.isdigit(), f"Version part '{part}' should be numeric"
++
++    def test_immigration_canada_version_format(self, immigration_canada_pack):
++        """Test that immigration pack version follows semantic versioning."""
++        version = immigration_canada_pack['version']
++        assert isinstance(version, str), "Version should be a string"
++        parts = version.split('.')
++        assert len(parts) == 3, "Version should follow semantic versioning (X.Y.Z)"
++        for part in parts:
++            assert part.isdigit(), f"Version part '{part}' should be numeric"
++
++
++class TestCanadaPackContent:
++    """Test the content quality and completeness of Canada packs."""
++
++    @pytest.fixture
++    def packs_dir(self):
++        """Get the packs directory path."""
++        return Path(__file__).parent.parent / "packs"
++
++    @pytest.fixture
++    def tax_canada_pack(self, packs_dir):
++        """Load the Canada tax pack YAML."""
++        with open(packs_dir / "tax_canada.yaml", 'r', encoding='utf-8') as f:
++            return yaml.safe_load(f)
++
++    @pytest.fixture
++    def immigration_canada_pack(self, packs_dir):
++        """Load the Canada immigration pack YAML."""
++        with open(packs_dir / "immigration_canada.yaml", 'r', encoding='utf-8') as f:
++            return yaml.safe_load(f)
++
++    def test_tax_canada_has_t1_content(self, tax_canada_pack):
++        """Test that tax pack includes T1 income tax return content."""
++        all_text = str(tax_canada_pack).lower()
++        assert 't1' in all_text, "Tax pack should include T1 content"
++
++    def test_tax_canada_has_gst_hst_content(self, tax_canada_pack):
++        """Test that tax pack includes GST/HST content."""
++        all_text = str(tax_canada_pack).lower()
++        assert 'gst' in all_text or 'hst' in all_text, "Tax pack should include GST/HST content"
++
++    def test_tax_canada_has_rrsp_content(self, tax_canada_pack):
++        """Test that tax pack includes RRSP content."""
++        all_text = str(tax_canada_pack).lower()
++        assert 'rrsp' in all_text, "Tax pack should include RRSP content"
++
++    def test_immigration_canada_has_express_entry_content(self, immigration_canada_pack):
++        """Test that immigration pack includes Express Entry content."""
++        all_text = str(immigration_canada_pack).lower()
++        assert 'express entry' in all_text, "Immigration pack should include Express Entry content"
++
++    def test_immigration_canada_has_study_permit_content(self, immigration_canada_pack):
++        """Test that immigration pack includes study permit content."""
++        all_text = str(immigration_canada_pack).lower()
++        assert 'study permit' in all_text, "Immigration pack should include study permit content"
++
++    def test_immigration_canada_has_sponsorship_content(self, immigration_canada_pack):
++        """Test that immigration pack includes family sponsorship content."""
++        all_text = str(immigration_canada_pack).lower()
++        assert 'sponsorship' in all_text, "Immigration pack should include sponsorship content"
++
++    def test_tax_canada_categories_count(self, tax_canada_pack):
++        """Test that tax pack has reasonable number of categories."""
++        categories = tax_canada_pack['categories']
++        assert len(categories) >= 3, "Tax pack should have at least 3 categories"
++        assert len(categories) <= 10, "Tax pack should not have more than 10 categories"
++
++    def test_immigration_canada_categories_count(self, immigration_canada_pack):
++        """Test that immigration pack has reasonable number of categories."""
++        categories = immigration_canada_pack['categories']
++        assert len(categories) >= 3, "Immigration pack should have at least 3 categories"
++        assert len(categories) <= 10, "Immigration pack should not have more than 10 categories"
++
++    def test_tax_canada_checklists_count(self, tax_canada_pack):
++        """Test that tax pack has reasonable number of checklists."""
++        checklists = tax_canada_pack['checklists']
++        assert len(checklists) >= 3, "Tax pack should have at least 3 checklists"
++        assert len(checklists) <= 15, "Tax pack should not have more than 15 checklists"
++
++    def test_immigration_canada_checklists_count(self, immigration_canada_pack):
++        """Test that immigration pack has reasonable number of checklists."""
++        checklists = immigration_canada_pack['checklists']
++        assert len(checklists) >= 3, "Immigration pack should have at least 3 checklists"
++        assert len(checklists) <= 15, "Immigration pack should not have more than 15 checklists"
++
++    def test_tax_canada_official_sources_are_canada_ca(self, tax_canada_pack):
++        """Test that tax pack official sources include canada.ca links."""
++        sources = tax_canada_pack['official_sources']
++        canada_ca_sources = [s for s in sources if 'canada.ca' in s.lower()]
++        assert len(canada_ca_sources) > 0, "Tax pack should include canada.ca official sources"
++
++    def test_immigration_canada_official_sources_are_canada_ca(self, immigration_canada_pack):
++        """Test that immigration pack official sources include canada.ca links."""
++        sources = immigration_canada_pack['official_sources']
++        canada_ca_sources = [s for s in sources if 'canada.ca' in s.lower()]
++        assert len(canada_ca_sources) > 0, "Immigration pack should include canada.ca official sources"
++
++    def test_tax_canada_description_not_empty(self, tax_canada_pack):
++        """Test that tax pack has meaningful description."""
++        description = tax_canada_pack['description']
++        assert len(description) > 20, "Description should be meaningful (>20 chars)"
++
++    def test_immigration_canada_description_not_empty(self, immigration_canada_pack):
++        """Test that immigration pack has meaningful description."""
++        description = immigration_canada_pack['description']
++        assert len(description) > 20, "Description should be meaningful (>20 chars)"
++
++    def test_tax_canada_examples_not_generic(self, tax_canada_pack):
++        """Test that tax pack examples are specific, not generic placeholders."""
++        for category in tax_canada_pack['categories']:
++            for example in category['examples']:
++                assert 'example' not in example.lower() or len(example) > 15, \
++                    f"Example '{example}' appears to be a generic placeholder"
++
++    def test_immigration_canada_examples_not_generic(self, immigration_canada_pack):
++        """Test that immigration pack examples are specific, not generic placeholders."""
++        for category in immigration_canada_pack['categories']:
++            for example in category['examples']:
++                assert 'example' not in example.lower() or len(example) > 15, \
++                    f"Example '{example}' appears to be a generic placeholder"
++
++    def test_tax_canada_has_cra_references(self, tax_canada_pack):
++        """Test that tax pack references CRA (Canada Revenue Agency)."""
++        all_text = str(tax_canada_pack).lower()
++        assert 'cra' in all_text or 'revenue agency' in all_text, \
++            "Tax pack should reference CRA"
++
++    def test_immigration_canada_has_ircc_references(self, immigration_canada_pack):
++        """Test that immigration pack references IRCC."""
++        sources_text = ' '.join(immigration_canada_pack['official_sources']).lower()
++        assert 'immigration-refugees-citizenship' in sources_text, \
++            "Immigration pack should reference IRCC in official sources"
++
++    def test_tax_canada_has_t4_content(self, tax_canada_pack):
++        """Test that tax pack includes T4 employment slip content."""
++        all_text = str(tax_canada_pack).lower()
++        assert 't4' in all_text, "Tax pack should include T4 content"
++
++    def test_immigration_canada_has_lmia_content(self, immigration_canada_pack):
++        """Test that immigration pack includes LMIA content for work permits."""
++        all_text = str(immigration_canada_pack).lower()
++        assert 'lmia' in all_text, "Immigration pack should include LMIA content"

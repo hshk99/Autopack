@@ -1,0 +1,197 @@
+name: UK Immigration Documents
+description: Comprehensive document pack for UK visa applications, settlement, citizenship, and immigration compliance including Skilled Worker, Family, Student, and Settlement routes
+version: 1.0.0
+country: UK
+domain: immigration
+
+categories:
+  - name: Visa Application Documents
+    description: Core documents required for UK visa applications across all routes
+    examples:
+      - Valid passport (with at least 6 months validity)
+      - Passport-sized photographs
+      - Visa application form (online confirmation)
+      - Biometric residence permit (if applicable)
+      - Previous UK visas
+      - Travel history documentation
+      - Tuberculosis test certificate (if required)
+      - Criminal record certificate
+
+  - name: Financial Evidence
+    description: Proof of financial maintenance and sponsorship for visa applications
+    examples:
+      - Bank statements (usually 28 days)
+      - Payslips (usually 6 months)
+      - Employment contract and letter
+      - Savings account statements
+      - Sponsorship letters
+      - Scholarship award letters
+      - Loan approval letters
+      - Tax returns and assessments
+
+  - name: Skilled Worker Visa
+    description: Documents for Skilled Worker visa route (formerly Tier 2)
+    examples:
+      - Certificate of Sponsorship (CoS)
+      - Job offer letter
+      - Employment contract
+      - Proof of English language ability
+      - Educational qualifications and certificates
+      - Professional registration certificates
+      - Salary evidence and payslips
+      - Employer sponsor license details
+
+  - name: Family and Partner Visas
+    description: Documentation for spouse, partner, parent, and family reunion visas
+    examples:
+      - Marriage certificate or civil partnership certificate
+      - Relationship evidence (photos, correspondence)
+      - Cohabitation proof (joint tenancy, bills)
+      - Sponsor financial evidence
+      - Accommodation evidence
+      - English language test certificate
+      - Birth certificates (for children)
+      - Divorce or death certificates (if applicable)
+
+  - name: Student Visa Documents
+    description: Documents required for Student visa route (formerly Tier 4)
+    examples:
+      - Confirmation of Acceptance for Studies (CAS)
+      - University offer letter
+      - Academic qualifications and transcripts
+      - English language test results (IELTS, etc.)
+      - Financial evidence for tuition and maintenance
+      - Parental consent (if under 18)
+      - ATAS certificate (if required for course)
+      - Previous education certificates
+
+  - name: Settlement and Citizenship
+    description: Documents for Indefinite Leave to Remain (ILR) and British citizenship
+    examples:
+      - Continuous residence evidence
+      - Life in the UK test certificate
+      - English language qualification
+      - Employment history and P60s
+      - Council tax bills
+      - Utility bills and bank statements
+      - NHS registration
+      - Absences from UK record
+      - Good character evidence
+
+checklists:
+  - name: Skilled Worker Visa Application
+    required_documents:
+      - Valid passport with blank pages
+      - Certificate of Sponsorship (CoS) reference number
+      - Job offer letter from UK employer
+      - Employment contract with salary details
+      - Proof of English language ability (IELTS or equivalent, or degree taught in English)
+      - Educational qualification certificates and transcripts
+      - Professional registration certificates (if applicable)
+      - Bank statements showing maintenance funds (if required)
+      - Tuberculosis test certificate (if from listed country)
+      - Criminal record certificate (if required)
+      - Previous passport and visa pages
+      - Biometric residence permit (if switching from UK)
+
+  - name: Spouse/Partner Visa Application
+    required_documents:
+      - Valid passport for applicant
+      - Marriage certificate or civil partnership certificate
+      - Relationship evidence (photos, messages, travel together)
+      - Cohabitation evidence (joint tenancy, utility bills, bank statements)
+      - Sponsor UK passport or settled status proof
+      - Sponsor employment letter and contract
+      - Sponsor payslips (6 months)
+      - Sponsor bank statements (6 months)
+      - Accommodation evidence (mortgage, tenancy agreement)
+      - English language test certificate (A1 level minimum)
+      - Tuberculosis test certificate (if applicable)
+      - Divorce or death certificates (if previously married)
+
+  - name: Student Visa Application
+    required_documents:
+      - Valid passport with blank pages
+      - Confirmation of Acceptance for Studies (CAS) from university
+      - University offer letter (unconditional)
+      - Academic qualifications (degree certificates, transcripts)
+      - English language test results (IELTS or equivalent)
+      - Financial evidence (tuition fees and living costs for 28 days)
+      - Bank statements or loan letters
+      - Parental consent letter (if under 18)
+      - ATAS certificate (if required for science/engineering courses)
+      - Tuberculosis test certificate (if from listed country)
+      - Previous education certificates
+
+  - name: Indefinite Leave to Remain (ILR)
+    required_documents:
+      - Valid passport and current visa
+      - Biometric residence permit
+      - Life in the UK test pass certificate
+      - English language qualification (B1 level)
+      - Continuous residence evidence (5 or 10 years)
+      - Employment history and P60s for each year
+      - Payslips for qualifying period
+      - Bank statements showing UK residence
+      - Council tax bills for each year
+      - Utility bills (gas, electricity, water)
+      - Tenancy agreements or mortgage statements
+      - NHS registration letter
+      - Absences from UK calculation and evidence
+
+  - name: British Citizenship (Naturalisation)
+    required_documents:
+      - Valid passport and ILR biometric permit
+      - Life in the UK test certificate
+      - English language qualification (B1 level)
+      - Residence evidence for 5 years (or 3 if spouse of British citizen)
+      - Employment history and P60s
+      - Payslips for qualifying period
+      - Bank statements for 5 years
+      - Council tax bills for each year
+      - Utility bills throughout period
+      - Absences from UK record (max 450 days in 5 years, 90 in last year)
+      - Good character evidence (no criminal record)
+      - Two referees (one professional, one personal)
+      - Referee identity documents
+
+  - name: Visitor Visa Application
+    required_documents:
+      - Valid passport (6 months validity)
+      - Visa application form confirmation
+      - Passport-sized photographs
+      - Travel itinerary and accommodation bookings
+      - Bank statements (3-6 months)
+      - Employment letter and payslips
+      - Invitation letter from UK host (if applicable)
+      - Proof of ties to home country
+      - Travel insurance
+      - Previous travel history
+      - Tuberculosis test (if applicable)
+
+  - name: EU Settlement Scheme
+    required_documents:
+      - Valid passport or national identity card
+      - Proof of residence in UK before 31 December 2020
+      - Continuous residence evidence (5 years for settled status)
+      - National Insurance number
+      - Employment records and P60s
+      - Bank statements and utility bills
+      - Council tax records
+      - NHS registration
+      - Rental agreements or mortgage statements
+      - School records (for children)
+
+official_sources:
+  - https://www.gov.uk/browse/visas-immigration
+  - https://www.gov.uk/skilled-worker-visa
+  - https://www.gov.uk/uk-family-visa
+  - https://www.gov.uk/student-visa
+  - https://www.gov.uk/settle-in-the-uk
+  - https://www.gov.uk/apply-citizenship-indefinite-leave-to-remain
+  - https://www.gov.uk/government/organisations/uk-visas-and-immigration
+  - https://www.gov.uk/english-language
+  - https://www.gov.uk/life-in-the-uk-test
+  - https://www.gov.uk/tb-test-visa
+  - https://www.gov.uk/prove-financial-means-visa
+  - https://www.gov.uk/eu-settled-status

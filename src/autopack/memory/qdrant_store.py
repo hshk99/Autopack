@@ -79,6 +79,7 @@ class QdrantStore:
                 "Install with: pip install qdrant-client"
             )
 
+        self._unavailable_logged = False
         self.client = QdrantClient(
             host=host,
             port=port,
@@ -87,7 +88,22 @@ class QdrantStore:
             timeout=timeout,
         )
         self._default_dim = 1536  # OpenAI text-embedding-ada-002 dimension
+        # Validate connectivity up front so callers can fall back cleanly.
+        try:
+            self.client.get_collections()
+        except Exception as e:
+            logger.warning(f"[Qdrant] Connection check failed for {host}:{port}: {e}")
+            raise
+
         logger.info(f"[Qdrant] Connected to {host}:{port}")
+
+    def _log_unavailable(self, message: str, exc: Exception) -> None:
+        """Log Qdrant connection issues without spamming."""
+        if not self._unavailable_logged:
+            self._unavailable_logged = True
+            logger.warning(f"[Qdrant] {message}: {exc}")
+        else:
+            logger.debug(f"[Qdrant] {message}: {exc}")
 
     def _str_to_uuid(self, string_id: str) -> str:
         """
@@ -132,7 +148,7 @@ class QdrantStore:
             else:
                 logger.debug(f"[Qdrant] Collection '{name}' already exists")
         except Exception as e:
-            logger.error(f"[Qdrant] Failed to ensure collection '{name}': {e}")
+            self._log_unavailable(f"Failed to ensure collection '{name}'", e)
             raise
 
     def upsert(
@@ -184,7 +200,7 @@ class QdrantStore:
             return len(points)
 
         except Exception as e:
-            logger.error(f"[Qdrant] Failed to upsert to '{collection}': {e}")
+            self._log_unavailable(f"Failed to upsert to '{collection}'", e)
             raise
 
     def search(
@@ -250,7 +266,7 @@ class QdrantStore:
             return results
 
         except Exception as e:
-            logger.error(f"[Qdrant] Search failed in '{collection}': {e}")
+            self._log_unavailable(f"Search failed in '{collection}'", e)
             return []
 
     def scroll(
@@ -307,7 +323,7 @@ class QdrantStore:
             return results
 
         except Exception as e:
-            logger.error(f"[Qdrant] Scroll failed in '{collection}': {e}")
+            self._log_unavailable(f"Scroll failed in '{collection}'", e)
             return []
 
     def get_payload(self, collection: str, point_id: str) -> Optional[Dict[str, Any]]:
@@ -336,7 +352,7 @@ class QdrantStore:
                 return payload
             return None
         except Exception as e:
-            logger.error(f"[Qdrant] Get payload failed for '{point_id}': {e}")
+            self._log_unavailable(f"Get payload failed for '{point_id}'", e)
             return None
 
     def update_payload(
@@ -370,7 +386,7 @@ class QdrantStore:
             )
             return True
         except Exception as e:
-            logger.error(f"[Qdrant] Update payload failed for '{point_id}': {e}")
+            self._log_unavailable(f"Update payload failed for '{point_id}'", e)
             return False
 
     def delete(self, collection: str, ids: List[str]) -> int:
@@ -398,7 +414,7 @@ class QdrantStore:
             logger.debug(f"[Qdrant] Deleted {len(ids)} points from '{collection}'")
             return len(ids)
         except Exception as e:
-            logger.error(f"[Qdrant] Delete failed in '{collection}': {e}")
+            self._log_unavailable(f"Delete failed in '{collection}'", e)
             return 0
 
     def count(self, collection: str, filter: Optional[Dict[str, Any]] = None) -> int:
@@ -436,7 +452,7 @@ class QdrantStore:
             return result.count
 
         except Exception as e:
-            logger.error(f"[Qdrant] Count failed in '{collection}': {e}")
+            self._log_unavailable(f"Count failed in '{collection}'", e)
             return 0
 
     def delete_collection(self, name: str) -> bool:

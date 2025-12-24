@@ -1,0 +1,143 @@
+name: UK Tax Documents
+description: Comprehensive document pack for UK tax compliance, including Self Assessment, PAYE, Corporation Tax, VAT, and Capital Gains Tax requirements
+version: 1.0.0
+country: UK
+domain: tax
+
+categories:
+  - name: Personal Tax Returns
+    description: Documents required for Self Assessment tax returns and personal income tax
+    examples:
+      - SA100 Self Assessment tax return
+      - P60 End of Year Certificate
+      - P45 Details of employee leaving work
+      - P11D Benefits and expenses
+      - Dividend vouchers
+      - Bank interest statements
+      - Rental income records
+      - Capital gains records
+
+  - name: Employment Tax Documents
+    description: PAYE and National Insurance documentation for employees and employers
+    examples:
+      - P60 annual summary
+      - P45 leaving employment
+      - P11D taxable benefits
+      - Payslips
+      - Employment contracts
+      - Expense claims and receipts
+      - Company car documentation
+
+  - name: Business Tax Records
+    description: Corporation Tax, VAT, and business accounting records
+    examples:
+      - CT600 Corporation Tax return
+      - Annual accounts and financial statements
+      - VAT returns (VAT100)
+      - VAT registration certificate
+      - Business expense receipts
+      - Invoice records
+      - Bank statements
+      - Asset registers
+
+  - name: Capital Gains Tax
+    description: Documentation for capital gains and losses on asset disposals
+    examples:
+      - Property sale contracts
+      - Share dealing records
+      - Purchase and sale invoices
+      - Valuation reports
+      - Improvement cost records
+      - CGT calculations
+
+  - name: Tax Credits and Benefits
+    description: Documentation for tax credits, child benefit, and other HMRC benefits
+    examples:
+      - Tax credit award notices
+      - Child benefit statements
+      - Universal Credit documentation
+      - Income proof for benefits
+      - Childcare cost receipts
+
+checklists:
+  - name: Self Assessment Tax Return
+    required_documents:
+      - SA100 Self Assessment tax return form
+      - P60 End of Year Certificate (if employed)
+      - P45 forms (if changed jobs)
+      - P11D Benefits and expenses form
+      - Bank and building society interest statements
+      - Dividend vouchers and statements
+      - Rental income and expense records
+      - Pension contribution statements
+      - Gift Aid donation records
+      - Student loan repayment information
+      - National Insurance number
+      - UTR (Unique Taxpayer Reference)
+
+  - name: PAYE Employment Records
+    required_documents:
+      - P60 End of Year Certificate
+      - Monthly payslips for tax year
+      - P11D taxable benefits form
+      - Employment contract
+      - Expense claim forms and receipts
+      - Mileage logs (if claiming)
+      - Professional subscription receipts
+      - Pension contribution statements
+
+  - name: Corporation Tax Return
+    required_documents:
+      - CT600 Corporation Tax return
+      - Statutory accounts (balance sheet, profit and loss)
+      - Company Tax Return computations
+      - Corporation Tax reference number
+      - Companies House registration number
+      - Director loan account records
+      - Capital allowances calculations
+      - Research and Development claims (if applicable)
+
+  - name: VAT Registration and Returns
+    required_documents:
+      - VAT registration certificate
+      - VAT100 return forms (quarterly or monthly)
+      - Sales invoices and records
+      - Purchase invoices and receipts
+      - VAT account reconciliation
+      - Import/export documentation (if applicable)
+      - Bad debt relief records
+      - Flat Rate Scheme documentation (if applicable)
+
+  - name: Capital Gains Tax Reporting
+    required_documents:
+      - Property sale completion statements
+      - Property purchase contracts
+      - Share dealing contract notes
+      - Valuation reports at acquisition
+      - Improvement and enhancement cost receipts
+      - Legal and professional fees invoices
+      - CGT calculation worksheets
+      - Annual exempt amount records
+
+  - name: Tax Investigation or Enquiry
+    required_documents:
+      - HMRC enquiry letter
+      - All tax returns for relevant years
+      - Supporting documentation for returns
+      - Bank statements for relevant periods
+      - Business records and accounts
+      - Correspondence with HMRC
+      - Professional advisor correspondence
+      - Settlement agreements (if applicable)
+
+official_sources:
+  - https://www.gov.uk/self-assessment-tax-returns
+  - https://www.gov.uk/topic/personal-tax/self-assessment
+  - https://www.gov.uk/topic/business-tax/corporation-tax
+  - https://www.gov.uk/topic/business-tax/vat
+  - https://www.gov.uk/capital-gains-tax
+  - https://www.gov.uk/government/organisations/hm-revenue-customs
+  - https://www.gov.uk/topic/personal-tax/income-tax
+  - https://www.gov.uk/tax-credits
+  - https://www.gov.uk/government/publications/rates-and-allowances-income-tax
+  - https://www.gov.uk/guidance/help-and-support-for-self-assessment

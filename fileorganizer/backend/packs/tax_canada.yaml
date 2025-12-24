@@ -1,0 +1,225 @@
+name: Canada Tax Documents
+description: Comprehensive document pack for Canadian tax compliance, including personal income tax, GST/HST, corporate tax, and provincial tax requirements
+version: 1.0.0
+country: Canada
+domain: tax
+
+categories:
+  - name: Personal Income Tax Returns
+    description: Documents required for T1 General income tax and benefit returns
+    examples:
+      - T1 General Income Tax and Benefit Return
+      - T4 Statement of Remuneration Paid
+      - T4A Statement of Pension, Retirement, Annuity
+      - T5 Statement of Investment Income
+      - T3 Statement of Trust Income Allocations
+      - RRSP contribution receipts
+      - Medical expense receipts
+      - Charitable donation receipts
+      - Tuition and education tax certificates (T2202)
+      - Home buyers' amount documentation
+      - Moving expense receipts
+
+  - name: Employment Income Documents
+    description: Tax slips and employment-related documentation for employees
+    examples:
+      - T4 slips from all employers
+      - T4A slips for other income
+      - Record of Employment (ROE)
+      - Employment contracts
+      - Pay stubs for the tax year
+      - Union dues receipts
+      - Professional membership fees
+      - Work-from-home expense claims (T2200)
+
+  - name: Business and Self-Employment
+    description: Documentation for self-employed individuals and business income
+    examples:
+      - T2125 Statement of Business Activities
+      - Business income and expense records
+      - GST/HST returns and remittances
+      - Business use of home calculations
+      - Vehicle expense logs
+      - Capital cost allowance schedules
+      - Accounts receivable and payable
+      - Business bank statements
+      - Invoice and receipt records
+
+  - name: Corporate Tax Records
+    description: T2 Corporation Income Tax Return and supporting documents
+    examples:
+      - T2 Corporation Income Tax Return
+      - Financial statements (balance sheet, income statement)
+      - General Index of Financial Information (GIFI)
+      - Schedule 1 (Net Income/Loss)
+      - Schedule 8 (Capital Cost Allowance)
+      - Schedule 50 (Shareholder Information)
+      - Provincial corporate tax returns
+      - SR&ED tax credit claims
+      - Transfer pricing documentation
+
+  - name: GST/HST and Sales Tax
+    description: Goods and Services Tax and Harmonized Sales Tax documentation
+    examples:
+      - GST/HST return forms
+      - GST/HST registration certificate
+      - Input Tax Credit (ITC) documentation
+      - Sales invoices with GST/HST
+      - Purchase receipts with GST/HST
+      - Quick Method calculation worksheets
+      - Provincial Sales Tax (PST) returns
+      - Quebec Sales Tax (QST) documentation
+
+  - name: Investment and Capital Gains
+    description: Documentation for investment income and capital gains/losses
+    examples:
+      - T5 investment income slips
+      - T5008 securities transactions slips
+      - Capital gains and losses schedules
+      - Adjusted cost base calculations
+      - Real estate sale agreements
+      - Principal residence designation forms
+      - Foreign investment reporting (T1135)
+      - Cryptocurrency transaction records
+
+  - name: Retirement and Pension Income
+    description: RRSP, pension, and retirement income documentation
+    examples:
+      - RRSP contribution receipts
+      - RRSP withdrawal statements
+      - T4RSP slips
+      - T4RIF slips (RRIF income)
+      - CPP/QPP statements (T4A(P))
+      - OAS statements (T4A(OAS))
+      - Pension income splitting elections
+      - Foreign pension income documentation
+
+  - name: Provincial Tax Credits
+    description: Province-specific tax credits and benefit documentation
+    examples:
+      - Ontario Trillium Benefit applications
+      - BC Climate Action Tax Credit
+      - Quebec solidarity tax credit
+      - Property tax receipts
+      - Rent receipts for provincial credits
+      - Energy efficiency upgrade receipts
+      - Child care expense receipts
+
+checklists:
+  - name: Personal Income Tax Return (T1)
+    required_documents:
+      - Social Insurance Number (SIN)
+      - T4 slips from all employers
+      - T5 investment income slips
+      - T3 trust income slips (if applicable)
+      - RRSP contribution receipts
+      - Medical expense receipts (if claiming)
+      - Charitable donation receipts
+      - Tuition tax certificates (T2202)
+      - Childcare expense receipts
+      - Home office expense form (T2200) if applicable
+      - Moving expense receipts (if applicable)
+      - Previous year's Notice of Assessment
+      - Direct deposit information for refunds
+
+  - name: Self-Employment Tax Filing
+    required_documents:
+      - Business Number (BN) from CRA
+      - T2125 Statement of Business Activities
+      - Complete income records (invoices, sales)
+      - Complete expense records with receipts
+      - Vehicle mileage log
+      - Home office expense calculations
+      - Capital asset purchase records
+      - GST/HST collected and paid records
+      - Bank statements for business accounts
+      - Accounts receivable aging report
+      - Accounts payable records
+      - Previous year's T2125 for comparison
+
+  - name: Corporation Tax Return (T2)
+    required_documents:
+      - Business Number (BN)
+      - T2 Corporation Income Tax Return
+      - Complete financial statements
+      - General Index of Financial Information (GIFI)
+      - Schedule 1 Net Income/Loss calculation
+      - Schedule 8 Capital Cost Allowance
+      - Schedule 50 Shareholder Information
+      - Minutes of directors' meetings
+      - Shareholder loan account details
+      - Provincial tax return schedules
+      - GST/HST reconciliation
+      - Payroll remittance confirmations
+
+  - name: GST/HST Registration and Filing
+    required_documents:
+      - Business Number (BN)
+      - GST/HST account number
+      - Sales records with GST/HST collected
+      - Purchase invoices with GST/HST paid
+      - Input Tax Credit (ITC) supporting documents
+      - Export sales documentation (zero-rated)
+      - Bad debt write-off records
+      - Capital asset purchase records
+      - Quick Method election (if applicable)
+      - Previous GST/HST return for comparison
+
+  - name: RRSP Contribution and Deduction
+    required_documents:
+      - RRSP contribution receipts from financial institutions
+      - Previous year's Notice of Assessment (shows RRSP limit)
+      - T4 slips showing pension adjustment
+      - Spousal RRSP contribution receipts (if applicable)
+      - RRSP withdrawal statements (if applicable)
+      - Home Buyers' Plan (HBP) repayment schedule
+      - Lifelong Learning Plan (LLP) repayment schedule
+      - Direct transfer documentation (if applicable)
+
+  - name: Capital Gains Tax Reporting
+    required_documents:
+      - Purchase and sale agreements for properties
+      - Real estate closing statements
+      - Adjusted cost base calculations
+      - Capital improvements receipts
+      - T5008 securities transaction slips
+      - Brokerage statements
+      - Principal residence designation form
+      - Foreign property sale documentation
+      - Cryptocurrency transaction records
+      - Capital losses from previous years
+
+  - name: Foreign Income and Asset Reporting
+    required_documents:
+      - T1135 Foreign Income Verification Statement
+      - Foreign investment account statements
+      - Foreign rental property income records
+      - Foreign employment income (with T4 equivalent)
+      - Foreign pension income documentation
+      - Foreign tax paid receipts
+      - Form T2209 for foreign tax credits
+      - Currency conversion calculations
+      - Treaty exemption documentation (if applicable)
+
+  - name: Small Business Deduction Claim
+    required_documents:
+      - T2 Corporation Income Tax Return
+      - Schedule 7 Aggregate Investment Income
+      - Schedule 23 Agreement Among Associated Corporations
+      - Active business income calculations
+      - Investment income breakdown
+      - Associated corporation details
+      - Canadian-Controlled Private Corporation (CCPC) status proof
+      - Taxable capital calculations
+
+official_sources:
+  - https://www.canada.ca/en/services/taxes.html
+  - https://www.canada.ca/en/revenue-agency/services/tax/individuals/topics/about-your-tax-return.html
+  - https://www.canada.ca/en/revenue-agency/services/tax/businesses.html
+  - https://www.canada.ca/en/revenue-agency/services/tax/businesses/topics/gst-hst-businesses.html
+  - https://www.canada.ca/en/revenue-agency/services/forms-publications/publications/t4002.html
+  - https://www.canada.ca/en/revenue-agency/services/forms-publications/publications/t4012.html
+  - https://www.canada.ca/en/revenue-agency/services/tax/businesses/topics/corporations/corporation-income-tax-return.html
+  - https://www.canada.ca/en/revenue-agency/services/tax/international-non-residents/individuals-leaving-entering-canada-non-residents.html
+  - https://www.canada.ca/en/revenue-agency/services/tax/individuals/topics/rrsps-related-plans.html
+  - https://www.canada.ca/en/revenue-agency/services/tax/individuals/topics/about-your-tax-return/tax-return/completing-a-tax-return/deductions-credits-expenses.html

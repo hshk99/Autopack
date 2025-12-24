@@ -91,7 +91,12 @@
       "Bash(TELEMETRY_DB_ENABLED=1 PYTHONUTF8=1 PYTHONPATH=src DATABASE_URL=\"sqlite:///autopack.db\" timeout 600 python:*)",
       "Bash(set PYTHONUTF8=1)",
       "Bash(set PYTHONPATH=src)",
-      "Bash(set DATABASE_URL=sqlite:///autopack.db)"
+      "Bash(set DATABASE_URL=sqlite:///autopack.db)",
+      "Bash(TELEMETRY_DB_ENABLED=1 PYTHONUTF8=1 PYTHONPATH=src DATABASE_URL=\"sqlite:///autopack.db\" timeout 300 python:*)",
+      "Bash(PYTHONUTF8=1 PYTHONPATH=src DATABASE_URL=\"sqlite:///autopack.db\" python -m pytest:*)",
+      "Bash(TELEMETRY_DB_ENABLED=1 PYTHONUTF8=1 PYTHONPATH=src DATABASE_URL=\"sqlite:///autopack.db\" AUTOPACK_API_URL=\"http://localhost:8000\" timeout 600 python:*)",
+      "Bash(PYTHONUTF8=1 PYTHONPATH=src DATABASE_URL=\"sqlite:///autopack.db\" timeout 60 python -m pytest:*)",
+      "Bash(PYTHONUTF8=1 DATABASE_URL=\"sqlite:///autopack.db\" python scripts/migrations/add_telemetry_features.py:*)"
     ],
     "deny": [],
     "ask": []

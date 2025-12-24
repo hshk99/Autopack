@@ -16,6 +16,9 @@ Payload schema:
 
 import logging
 import os
+import socket
+import subprocess
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -42,6 +45,217 @@ ALL_COLLECTIONS = [
     COLLECTION_DOCTOR_HINTS,
     COLLECTION_PLANNING,
 ]
+
+_BOOL_TRUE = {"1", "true", "yes", "y", "on"}
+_BOOL_FALSE = {"0", "false", "no", "n", "off"}
+
+
+class NullStore:
+    """No-op store used when memory is disabled."""
+
+    def ensure_collection(self, name: str, size: int = 1536) -> None:  # noqa: ARG002
+        return None
+
+    def upsert(self, collection: str, points: List[Dict[str, Any]]) -> int:  # noqa: ARG002
+        return 0
+
+    def search(  # noqa: ARG002
+        self,
+        collection: str,
+        query_vector: List[float],
+        filter: Optional[Dict[str, Any]] = None,
+        limit: int = 5,
+    ) -> List[Dict[str, Any]]:
+        return []
+
+    def scroll(  # noqa: ARG002
+        self,
+        collection: str,
+        filter: Optional[Dict[str, Any]] = None,
+        limit: int = 100,
+    ) -> List[Dict[str, Any]]:
+        return []
+
+    def delete(self, collection: str, ids: List[str]) -> int:  # noqa: ARG002
+        return 0
+
+    def count(self, collection: str, filter: Optional[Dict[str, Any]] = None) -> int:  # noqa: ARG002
+        return 0
+
+    def get_payload(self, collection: str, point_id: str) -> Optional[Dict[str, Any]]:  # noqa: ARG002
+        return None
+
+    def update_payload(self, collection: str, point_id: str, payload: Dict[str, Any]) -> bool:  # noqa: ARG002
+        return False
+
+
+def _parse_bool_env(value: Optional[str]) -> Optional[bool]:
+    if value is None:
+        return None
+    v = value.strip().lower()
+    if v in _BOOL_TRUE:
+        return True
+    if v in _BOOL_FALSE:
+        return False
+    return None
+
+
+def _find_repo_root() -> Path:
+    """Best-effort repo root discovery (for docker-compose.yml lookup)."""
+    # memory_service.py -> autopack/memory/ -> src/ -> repo root
+    return Path(__file__).resolve().parents[3]
+
+
+def _is_localhost(host: str) -> bool:
+    h = (host or "").strip().lower()
+    return h in {"localhost", "127.0.0.1", "::1"}
+
+
+def _tcp_reachable(host: str, port: int, timeout_s: float) -> bool:
+    try:
+        with socket.create_connection((host, port), timeout=timeout_s):
+            return True
+    except Exception:
+        return False
+
+
+def _docker_available() -> bool:
+    try:
+        r = subprocess.run(
+            ["docker", "version"],
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+        return r.returncode == 0
+    except Exception:
+        return False
+
+
+def _docker_compose_cmd() -> Optional[List[str]]:
+    """Return a usable docker compose command, if present."""
+    # Prefer `docker compose`
+    try:
+        r = subprocess.run(
+            ["docker", "compose", "version"],
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+        if r.returncode == 0:
+            return ["docker", "compose"]
+    except Exception:
+        pass
+    # Fallback `docker-compose`
+    try:
+        r = subprocess.run(
+            ["docker-compose", "version"],
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+        if r.returncode == 0:
+            return ["docker-compose"]
+    except Exception:
+        pass
+    return None
+
+
+def _autostart_qdrant_if_needed(
+    *,
+    host: str,
+    port: int,
+    timeout_seconds: int,
+    enabled: bool,
+) -> bool:
+    """
+    Attempt to start Qdrant automatically (docker compose preferred) and wait for readiness.
+
+    Returns True if Qdrant becomes reachable, False otherwise.
+    """
+    if not enabled:
+        return False
+
+    # Autostart is only safe for localhost usage. If host is a remote service or a docker
+    # network hostname, we shouldn't try to start it locally.
+    if not _is_localhost(host):
+        return False
+
+    # If already reachable, nothing to do.
+    if _tcp_reachable(host, port, timeout_s=0.4):
+        return True
+
+    if not _docker_available():
+        return False
+
+    repo_root = _find_repo_root()
+    compose_path = repo_root / "docker-compose.yml"
+
+    started = False
+    compose_cmd = _docker_compose_cmd()
+    if compose_cmd and compose_path.exists():
+        try:
+            r = subprocess.run(
+                [*compose_cmd, "up", "-d", "qdrant"],
+                cwd=repo_root,
+                capture_output=True,
+                text=True,
+                timeout=60,
+            )
+            started = r.returncode == 0
+        except Exception:
+            started = False
+
+    if not started:
+        # Fallback: docker run / docker start for a named container
+        container_name = "autopack-qdrant"
+        try:
+            # If container exists, start it.
+            inspect = subprocess.run(
+                ["docker", "inspect", container_name],
+                capture_output=True,
+                text=True,
+                timeout=10,
+            )
+            if inspect.returncode == 0:
+                r = subprocess.run(
+                    ["docker", "start", container_name],
+                    capture_output=True,
+                    text=True,
+                    timeout=30,
+                )
+                started = r.returncode == 0
+            else:
+                r = subprocess.run(
+                    [
+                        "docker",
+                        "run",
+                        "-d",
+                        "--name",
+                        container_name,
+                        "-p",
+                        f"{port}:6333",
+                        "qdrant/qdrant:latest",
+                    ],
+                    capture_output=True,
+                    text=True,
+                    timeout=60,
+                )
+                started = r.returncode == 0
+        except Exception:
+            started = False
+
+    if not started:
+        return False
+
+    # Wait briefly for readiness.
+    deadline = time.time() + max(1, timeout_seconds)
+    while time.time() < deadline:
+        if _tcp_reachable(host, port, timeout_s=0.4):
+            return True
+        time.sleep(0.5)
+
+    return False
 
 
 def _load_memory_config() -> Dict[str, Any]:
@@ -78,27 +292,100 @@ class MemoryService:
             use_qdrant: Use Qdrant instead of FAISS (default from config)
         """
         config = _load_memory_config()
+        env_enabled = _parse_bool_env(os.getenv("AUTOPACK_ENABLE_MEMORY"))
         self.enabled = config.get("enable_memory", enabled)
+        if env_enabled is not None:
+            self.enabled = env_enabled
         self.top_k = config.get("top_k_retrieval", 5)
         self.max_embed_chars = config.get("max_embed_chars", MAX_EMBEDDING_CHARS)
         self.planning_collection = config.get("planning_collection", COLLECTION_PLANNING)
+
+        if not self.enabled:
+            self.store = NullStore()
+            self.backend = "disabled"
+            logger.info("[MemoryService] Memory disabled (enable_memory=false)")
+            return
 
         # Determine which backend to use
         if use_qdrant is None:
             use_qdrant = config.get("use_qdrant", False)
 
+        env_use_qdrant = _parse_bool_env(os.getenv("AUTOPACK_USE_QDRANT"))
+        if env_use_qdrant is not None:
+            use_qdrant = env_use_qdrant
+
         # Initialize appropriate store
+        qdrant_config = config.get("qdrant", {})
+        fallback_to_faiss = bool(qdrant_config.get("fallback_to_faiss", True))
+        require_qdrant = bool(qdrant_config.get("require", False))
+        autostart_default = bool(qdrant_config.get("autostart", False))
+        autostart_timeout_seconds = int(qdrant_config.get("autostart_timeout_seconds", 15))
+
+        qdrant_host = os.getenv("AUTOPACK_QDRANT_HOST") or qdrant_config.get("host", "localhost")
+        qdrant_port = int(os.getenv("AUTOPACK_QDRANT_PORT") or qdrant_config.get("port", 6333))
+        qdrant_api_key = (os.getenv("AUTOPACK_QDRANT_API_KEY") or qdrant_config.get("api_key") or "").strip() or None
+        env_qdrant_prefer_grpc = _parse_bool_env(os.getenv("AUTOPACK_QDRANT_PREFER_GRPC"))
+        qdrant_prefer_grpc = (
+            env_qdrant_prefer_grpc
+            if env_qdrant_prefer_grpc is not None
+            else bool(qdrant_config.get("prefer_grpc", False))
+        )
+        qdrant_timeout = int(os.getenv("AUTOPACK_QDRANT_TIMEOUT") or qdrant_config.get("timeout", 60))
+
+        env_autostart = _parse_bool_env(os.getenv("AUTOPACK_QDRANT_AUTOSTART"))
+        autostart_enabled = env_autostart if env_autostart is not None else autostart_default
+        try:
+            autostart_timeout_seconds = int(os.getenv("AUTOPACK_QDRANT_AUTOSTART_TIMEOUT") or autostart_timeout_seconds)
+        except Exception:
+            autostart_timeout_seconds = autostart_timeout_seconds
+
         if use_qdrant and QDRANT_AVAILABLE:
-            qdrant_config = config.get("qdrant", {})
-            self.store = QdrantStore(
-                host=qdrant_config.get("host", "localhost"),
-                port=qdrant_config.get("port", 6333),
-                api_key=qdrant_config.get("api_key") or None,
-                prefer_grpc=qdrant_config.get("prefer_grpc", False),
-                timeout=qdrant_config.get("timeout", 60),
-            )
-            self.backend = "qdrant"
-            logger.info("[MemoryService] Using Qdrant backend")
+            try:
+                self.store = QdrantStore(
+                    host=qdrant_host,
+                    port=qdrant_port,
+                    api_key=qdrant_api_key,
+                    prefer_grpc=qdrant_prefer_grpc,
+                    timeout=qdrant_timeout,
+                )
+                self.backend = "qdrant"
+                logger.info("[MemoryService] Using Qdrant backend")
+            except Exception as exc:
+                # If Qdrant is desired but not reachable, try to start it automatically (when local).
+                if _autostart_qdrant_if_needed(
+                    host=str(qdrant_host),
+                    port=int(qdrant_port),
+                    timeout_seconds=autostart_timeout_seconds,
+                    enabled=autostart_enabled,
+                ):
+                    try:
+                        self.store = QdrantStore(
+                            host=qdrant_host,
+                            port=qdrant_port,
+                            api_key=qdrant_api_key,
+                            prefer_grpc=qdrant_prefer_grpc,
+                            timeout=qdrant_timeout,
+                        )
+                        self.backend = "qdrant"
+                        logger.info("[MemoryService] Qdrant autostart succeeded; using Qdrant backend")
+                        return
+                    except Exception:
+                        # Fall through to existing policy (require vs fallback)
+                        pass
+
+                if require_qdrant or not fallback_to_faiss:
+                    raise
+                logger.warning(
+                    f"[MemoryService] Qdrant unavailable at {qdrant_host}:{qdrant_port}; "
+                    f"falling back to FAISS ({exc})"
+                )
+                if index_dir is None:
+                    index_dir = config.get(
+                        "faiss_index_path",
+                        ".autonomous_runs/file-organizer-app-v1/.faiss"
+                    )
+                self.store = FaissStore(index_dir=index_dir)
+                self.backend = "faiss"
         elif use_qdrant and not QDRANT_AVAILABLE:
             logger.warning(
                 "[MemoryService] Qdrant requested but not available; falling back to FAISS"
@@ -126,12 +413,38 @@ class MemoryService:
         if self.planning_collection not in collections:
             collections.append(self.planning_collection)
 
-        for collection in collections:
-            self.store.ensure_collection(collection, EMBEDDING_SIZE)
+        try:
+            for collection in collections:
+                self.store.ensure_collection(collection, EMBEDDING_SIZE)
+        except Exception as exc:
+            # If Qdrant became unavailable during init, prefer a clean FAISS fallback
+            # rather than disabling memory entirely.
+            if self.backend == "qdrant" and fallback_to_faiss and not require_qdrant:
+                logger.warning(
+                    f"[MemoryService] Qdrant init failed during collection setup; falling back to FAISS ({exc})"
+                )
+                if index_dir is None:
+                    index_dir = config.get(
+                        "faiss_index_path",
+                        ".autonomous_runs/file-organizer-app-v1/.faiss"
+                    )
+                self.store = FaissStore(index_dir=index_dir)
+                self.backend = "faiss"
+                for collection in collections:
+                    self.store.ensure_collection(collection, EMBEDDING_SIZE)
+            else:
+                raise
 
         logger.info(
             f"[MemoryService] Initialized (backend={self.backend}, enabled={self.enabled}, top_k={self.top_k})"
         )
+
+    def _safe_store_call(self, label: str, fn, default):
+        try:
+            return fn()
+        except Exception as exc:
+            logger.warning(f"[MemoryService] {label} failed; continuing without memory op: {exc}")
+            return default
 
     # -------------------------------------------------------------------------
     # Code Docs (workspace files)
@@ -177,9 +490,13 @@ class MemoryService:
             "timestamp": datetime.now(timezone.utc).isoformat(),
         }
 
-        self.store.upsert(
-            COLLECTION_CODE_DOCS,
-            [{"id": point_id, "vector": vector, "payload": payload}],
+        self._safe_store_call(
+            "index_file/upsert",
+            lambda: self.store.upsert(
+                COLLECTION_CODE_DOCS,
+                [{"id": point_id, "vector": vector, "payload": payload}],
+            ),
+            0,
         )
         logger.debug(f"[MemoryService] Indexed file: {path}")
         return point_id
@@ -206,11 +523,15 @@ class MemoryService:
 
         limit = limit or self.top_k
         query_vector = sync_embed_text(query)
-        return self.store.search(
-            COLLECTION_CODE_DOCS,
-            query_vector,
-            filter={"project_id": project_id},
-            limit=limit,
+        return self._safe_store_call(
+            "search_code/search",
+            lambda: self.store.search(
+                COLLECTION_CODE_DOCS,
+                query_vector,
+                filter={"project_id": project_id},
+                limit=limit,
+            ),
+            [],
         )
 
     # -------------------------------------------------------------------------
@@ -261,9 +582,13 @@ class MemoryService:
             "timestamp": datetime.now(timezone.utc).isoformat(),
         }
 
-        self.store.upsert(
-            COLLECTION_RUN_SUMMARIES,
-            [{"id": point_id, "vector": vector, "payload": payload}],
+        self._safe_store_call(
+            "write_phase_summary/upsert",
+            lambda: self.store.upsert(
+                COLLECTION_RUN_SUMMARIES,
+                [{"id": point_id, "vector": vector, "payload": payload}],
+            ),
+            0,
         )
         logger.info(f"[MemoryService] Wrote phase summary: {phase_id}")
         return point_id
@@ -284,11 +609,15 @@ class MemoryService:
         filter_dict = {"project_id": project_id}
         if run_id:
             filter_dict["run_id"] = run_id
-        return self.store.search(
-            COLLECTION_RUN_SUMMARIES,
-            query_vector,
-            filter=filter_dict,
-            limit=limit,
+        return self._safe_store_call(
+            "search_summaries/search",
+            lambda: self.store.search(
+                COLLECTION_RUN_SUMMARIES,
+                query_vector,
+                filter=filter_dict,
+                limit=limit,
+            ),
+            [],
         )
 
     # -------------------------------------------------------------------------
@@ -338,9 +667,13 @@ class MemoryService:
             "timestamp": datetime.now(timezone.utc).isoformat(),
         }
 
-        self.store.upsert(
-            COLLECTION_ERRORS_CI,
-            [{"id": point_id, "vector": vector, "payload": payload}],
+        self._safe_store_call(
+            "write_error/upsert",
+            lambda: self.store.upsert(
+                COLLECTION_ERRORS_CI,
+                [{"id": point_id, "vector": vector, "payload": payload}],
+            ),
+            0,
         )
         logger.info(f"[MemoryService] Wrote error: {error_type} in {phase_id}")
         return point_id
@@ -357,11 +690,15 @@ class MemoryService:
 
         limit = limit or self.top_k
         query_vector = sync_embed_text(query)
-        return self.store.search(
-            COLLECTION_ERRORS_CI,
-            query_vector,
-            filter={"project_id": project_id},
-            limit=limit,
+        return self._safe_store_call(
+            "search_errors/search",
+            lambda: self.store.search(
+                COLLECTION_ERRORS_CI,
+                query_vector,
+                filter={"project_id": project_id},
+                limit=limit,
+            ),
+            [],
         )
 
     # -------------------------------------------------------------------------
@@ -409,9 +746,13 @@ class MemoryService:
             "timestamp": datetime.now(timezone.utc).isoformat(),
         }
 
-        self.store.upsert(
-            COLLECTION_DOCTOR_HINTS,
-            [{"id": point_id, "vector": vector, "payload": payload}],
+        self._safe_store_call(
+            "write_doctor_hint/upsert",
+            lambda: self.store.upsert(
+                COLLECTION_DOCTOR_HINTS,
+                [{"id": point_id, "vector": vector, "payload": payload}],
+            ),
+            0,
         )
         logger.info(f"[MemoryService] Wrote doctor hint: {action} in {phase_id}")
         return point_id
@@ -428,11 +769,15 @@ class MemoryService:
 
         limit = limit or self.top_k
         query_vector = sync_embed_text(query)
-        return self.store.search(
-            COLLECTION_DOCTOR_HINTS,
-            query_vector,
-            filter={"project_id": project_id},
-            limit=limit,
+        return self._safe_store_call(
+            "search_doctor_hints/search",
+            lambda: self.store.search(
+                COLLECTION_DOCTOR_HINTS,
+                query_vector,
+                filter={"project_id": project_id},
+                limit=limit,
+            ),
+            [],
         )
 
     # -------------------------------------------------------------------------
@@ -478,9 +823,13 @@ class MemoryService:
             "content_preview": content_truncated[:800],
         }
 
-        self.store.upsert(
-            self.planning_collection,
-            [{"id": point_id, "vector": vector, "payload": payload}],
+        self._safe_store_call(
+            "write_planning_artifact/upsert",
+            lambda: self.store.upsert(
+                self.planning_collection,
+                [{"id": point_id, "vector": vector, "payload": payload}],
+            ),
+            0,
         )
         logger.info(f"[MemoryService] Stored planning artifact {path} v{version}")
         return point_id
@@ -519,9 +868,13 @@ class MemoryService:
             "timestamp": timestamp,
         }
 
-        self.store.upsert(
-            self.planning_collection,
-            [{"id": point_id, "vector": vector, "payload": payload}],
+        self._safe_store_call(
+            "write_plan_change/upsert",
+            lambda: self.store.upsert(
+                self.planning_collection,
+                [{"id": point_id, "vector": vector, "payload": payload}],
+            ),
+            0,
         )
         logger.info("[MemoryService] Stored plan change")
         return point_id
@@ -562,9 +915,13 @@ class MemoryService:
             "timestamp": timestamp,
         }
 
-        self.store.upsert(
-            self.planning_collection,
-            [{"id": point_id, "vector": vector, "payload": payload}],
+        self._safe_store_call(
+            "write_decision_log/upsert",
+            lambda: self.store.upsert(
+                self.planning_collection,
+                [{"id": point_id, "vector": vector, "payload": payload}],
+            ),
+            0,
         )
         logger.info("[MemoryService] Stored decision log")
         return point_id
@@ -582,11 +939,15 @@ class MemoryService:
 
         limit = limit or self.top_k
         query_vector = sync_embed_text(query)
-        results = self.store.search(
-            self.planning_collection,
-            query_vector,
-            filter={"project_id": project_id},
-            limit=limit,
+        results = self._safe_store_call(
+            "search_planning/search",
+            lambda: self.store.search(
+                self.planning_collection,
+                query_vector,
+                filter={"project_id": project_id},
+                limit=limit,
+            ),
+            [],
         )
         if types:
             results = [r for r in results if r.get("payload", {}).get("type") in types]
@@ -594,10 +955,14 @@ class MemoryService:
 
     def latest_plan_change(self, project_id: str) -> List[Dict[str, Any]]:
         """Return latest plan changes (sorted newest first)."""
-        docs = self.store.scroll(
-            self.planning_collection,
-            filter={"project_id": project_id},
-            limit=500,
+        docs = self._safe_store_call(
+            "latest_plan_change/scroll",
+            lambda: self.store.scroll(
+                self.planning_collection,
+                filter={"project_id": project_id},
+                limit=500,
+            ),
+            [],
         )
         plan_changes = []
         for d in docs:
@@ -623,7 +988,11 @@ class MemoryService:
     ) -> bool:
         """Mark an entry as tombstoned without deleting its vector."""
         try:
-            payload = self.store.get_payload(collection, point_id)
+            payload = self._safe_store_call(
+                "tombstone_entry/get_payload",
+                lambda: self.store.get_payload(collection, point_id),
+                None,
+            )
             if payload is None:
                 return False
             payload.update(
@@ -633,7 +1002,13 @@ class MemoryService:
                     "replaced_by": replaced_by or payload.get("replaced_by"),
                 }
             )
-            return self.store.update_payload(collection, point_id, payload)
+            return bool(
+                self._safe_store_call(
+                    "tombstone_entry/update_payload",
+                    lambda: self.store.update_payload(collection, point_id, payload),
+                    False,
+                )
+            )
         except Exception as exc:
             logger.warning(f"[MemoryService] Failed to tombstone {point_id}: {exc}")
             return False

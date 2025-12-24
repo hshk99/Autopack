@@ -67,14 +67,22 @@ class TestTokenEstimator:
             complexity="medium"
         )
 
-        # new_file_backend=800 * safety=1.3 * category=1.2 = 1248
-        expected = int(800 * 1.3 * 1.2)
+        # Overhead model:
+        # overhead(backend, medium)=3000 + new_file_backend=2000 => 5000
+        # safety=1.3 => 6500
+        expected = int((3000 + 2000) * 1.3)
         assert estimate.estimated_tokens == expected
         assert estimate.deliverable_count == 1
         assert estimate.category == "backend"
 
     def test_estimate_multiple_files_mixed(self, estimator):
         """Test estimate for multiple files (new + modify)."""
+        # Create files that are explicitly modified so filesystem inference treats them as modifications.
+        (estimator.workspace / "src" / "autopack").mkdir(parents=True, exist_ok=True)
+        (estimator.workspace / "docs").mkdir(parents=True, exist_ok=True)
+        (estimator.workspace / "src" / "autopack" / "bar.py").write_text("# existing\n")
+        (estimator.workspace / "docs" / "README.md").write_text("# existing\n")
+
         deliverables = [
             "Create src/autopack/foo.py",      # new_backend: 800
             "Modify src/autopack/bar.py",      # modify_backend: 300
@@ -87,10 +95,11 @@ class TestTokenEstimator:
             complexity="high"
         )
 
-        # (800 + 300 + 600 + 150) = 1850
-        # * safety=1.3 = 2405
-        # * category=1.2 = 2886
-        expected = int((800 + 300 + 600 + 150) * 1.3 * 1.2)
+        # Expected via overhead model + per-deliverable estimation (includes file complexity adjustment
+        # for existing modified files).
+        overhead = estimator.PHASE_OVERHEAD[("backend", "high")]
+        marginal = sum(estimator._estimate_deliverable(d, "backend") for d in deliverables)
+        expected = int((overhead + marginal) * estimator.SAFETY_MARGIN)
         assert estimate.estimated_tokens == expected
         assert estimate.deliverable_count == 4
 
@@ -103,8 +112,10 @@ class TestTokenEstimator:
             complexity="medium"
         )
 
-        # new_file_frontend=1200 * safety=1.3 * category=1.4 = 2184
-        expected = int(1200 * 1.3 * 1.4)
+        # Overhead model:
+        # overhead(frontend, medium)=3500 + new_file_frontend=2800 => 6300
+        # safety=1.3 => 8190
+        expected = int((3500 + 2800) * 1.3)
         assert estimate.estimated_tokens == expected
 
     def test_select_budget_uses_max_of_base_and_estimate(self, estimator):
@@ -170,6 +181,8 @@ class TestTokenEstimator:
 
     def test_classify_deliverable_test_modify(self, estimator):
         """Test deliverable classification for test modifications."""
+        (estimator.workspace / "tests").mkdir(parents=True, exist_ok=True)
+        (estimator.workspace / "tests" / "test_foo.py").write_text("# existing\n")
         classification = estimator._classify_deliverable(
             "Modify tests/test_foo.py",
             "backend"
@@ -186,6 +199,8 @@ class TestTokenEstimator:
 
     def test_classify_deliverable_doc_modify(self, estimator):
         """Test deliverable classification for doc modifications."""
+        (estimator.workspace / "docs").mkdir(parents=True, exist_ok=True)
+        (estimator.workspace / "docs" / "BUILD_HISTORY.md").write_text("# existing\n")
         classification = estimator._classify_deliverable(
             "Update docs/BUILD_HISTORY.md",
             "documentation"
@@ -271,26 +286,50 @@ class TestTokenEstimator:
 
     def test_estimate_deliverable_weights(self, estimator):
         """Test individual deliverable weight selection."""
+        # Create files for "Modify ..." cases so filesystem inference produces modify weights.
+        (estimator.workspace / "src").mkdir(parents=True, exist_ok=True)
+        (estimator.workspace / "components").mkdir(parents=True, exist_ok=True)
+        (estimator.workspace / "tests").mkdir(parents=True, exist_ok=True)
+        (estimator.workspace / "docs").mkdir(parents=True, exist_ok=True)
+        (estimator.workspace / "src" / "backend.py").write_text("# existing\n")
+        (estimator.workspace / "components" / "App.tsx").write_text("// existing\n")
+        (estimator.workspace / "tests" / "test.py").write_text("# existing\n")
+        (estimator.workspace / "docs" / "README.md").write_text("# existing\n")
+        (estimator.workspace / "config.yaml").write_text("# existing\n")
+
         cases = [
-            ("Create src/backend.py", "backend", 800),        # new_file_backend
-            ("Modify src/backend.py", "backend", 300),        # modify_backend
-            ("Create components/App.tsx", "frontend", 1200),  # new_file_frontend
-            ("Modify components/App.tsx", "frontend", 450),   # modify_frontend
-            ("Create tests/test.py", "testing", 600),         # new_file_test
-            ("Modify tests/test.py", "testing", 250),         # modify_test
-            ("Create docs/README.md", "documentation", 200),  # new_file_doc
-            ("Modify docs/README.md", "documentation", 150),  # modify_doc
-            ("Create config.yaml", "backend", 400),           # new_file_config
-            ("Modify config.yaml", "backend", 200),           # modify_config
+            ("Create src/backend.py", "backend", 2000, None),              # new_file_backend
+            ("Modify src/backend.py", "backend", 700, "src/backend.py"),   # modify_backend
+            ("Create components/App.tsx", "frontend", 2800, None),         # new_file_frontend
+            ("Modify components/App.tsx", "frontend", 1100, "components/App.tsx"),  # modify_frontend
+            ("Create tests/test.py", "testing", 1400, None),               # new_file_test
+            ("Modify tests/test.py", "testing", 600, "tests/test.py"),     # modify_test
+            ("Create docs/README.md", "documentation", 500, None),         # new_file_doc
+            ("Modify docs/README.md", "documentation", 400, "docs/README.md"),  # modify_doc
+            ("Create config.yaml", "backend", 1000, None),                 # new_file_config
+            ("Modify config.yaml", "backend", 500, "config.yaml"),         # modify_config
         ]
 
-        for deliverable, category, expected_base in cases:
+        for deliverable, category, expected_base, existing_path in cases:
             tokens = estimator._estimate_deliverable(deliverable, category)
-            # Should match base weight (no file complexity adjustment)
-            assert tokens == expected_base
+            if existing_path is None:
+                # New files do not get file-complexity adjustment
+                assert tokens == expected_base
+            else:
+                # Existing modified files DO get file-complexity adjustment
+                mult = estimator._analyze_file_complexity(estimator.workspace / existing_path)
+                assert tokens == int(expected_base * mult)
 
     def test_build127_scenario(self, estimator):
-        """Test BUILD-127 scenario (12 files, should estimate 18k-22k)."""
+        """Test BUILD-127 scenario (12 files)."""
+        # Create files that are explicitly modified so filesystem inference treats them as modifications.
+        (estimator.workspace / "src" / "autopack").mkdir(parents=True, exist_ok=True)
+        (estimator.workspace / "docs").mkdir(parents=True, exist_ok=True)
+        (estimator.workspace / "src" / "autopack" / "autonomous_executor.py").write_text("# existing\n")
+        (estimator.workspace / "src" / "autopack" / "main.py").write_text("# existing\n")
+        (estimator.workspace / "src" / "autopack" / "quality_gate.py").write_text("# existing\n")
+        (estimator.workspace / "docs" / "BUILD_HISTORY.md").write_text("# existing\n")
+
         deliverables = [
             "Create src/autopack/phase_finalizer.py",
             "Create src/autopack/test_baseline_tracker.py",
@@ -311,19 +350,17 @@ class TestTokenEstimator:
             complexity="high"
         )
 
-        # Expected calculation:
-        # breakdown shows: backend_new=2000, test_new=2400, backend_modify=900, doc_new=200, doc_modify=150
-        # Base: 2000 + 2400 + 900 + 200 + 150 = 5650
-        # * safety=1.3 = 7345
-        # * category=1.2 (backend) = 8814
-        # This is reasonable for 12 files (average ~735 tokens per file before safety margins)
-        assert 8000 <= estimate.estimated_tokens <= 10000
+        # Expected via overhead model + per-deliverable estimation (includes file complexity adjustment
+        # for existing modified files).
+        overhead = estimator.PHASE_OVERHEAD[("backend", "high")]
+        marginal = sum(estimator._estimate_deliverable(d, "backend") for d in deliverables)
+        assert estimate.estimated_tokens == int((overhead + marginal) * estimator.SAFETY_MARGIN)
         assert estimate.deliverable_count == 12
 
-        # Select budget (should be 18k-22k with realistic weights)
+        # Select budget
         budget = estimator.select_budget(estimate, "high")
-        # Should be max(16384, estimate * 1.2) ≈ 16384-20000
-        assert 16000 <= budget <= 25000
+        # max(16384, estimate*1.2)
+        assert budget == max(16384, int(estimate.estimated_tokens * 1.2))
 
 
 class TestTokenEstimatorIntegration:

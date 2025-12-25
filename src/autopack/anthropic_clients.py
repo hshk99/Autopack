@@ -76,6 +76,15 @@ def _write_token_estimation_v2_telemetry(
     if not os.environ.get("TELEMETRY_DB_ENABLED", "").lower() in ["1", "true", "yes"]:
         return
 
+    # BUILD-129 Phase 3: Telemetry validity guard
+    # Reject anomalous events with suspiciously low actual_output_tokens (<50)
+    # These are likely parser errors, API failures, or other edge cases that corrupt metrics
+    if actual_output_tokens < 50:
+        logger.warning(
+            f"[TELEMETRY] Skipping invalid event for {phase_id}: actual_output_tokens={actual_output_tokens} < 50 (likely error)"
+        )
+        return
+
     try:
         from .database import SessionLocal
         from .models import TokenEstimationV2Event

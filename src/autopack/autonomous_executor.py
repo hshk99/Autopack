@@ -3894,6 +3894,12 @@ Just the new description that should replace the current one while preserving th
                 retrieved_context=retrieved_context,  # NEW: Vector memory context
             )
 
+            # BUILD-129 Phase 3 P10: Sync metadata from phase_spec back to phase
+            # The builder call modifies phase_spec (via phase_with_constraints), setting actual_max_tokens
+            # We need to sync this back to the phase dict so P10 can read it for escalation
+            if "metadata" in phase_with_constraints:
+                phase.setdefault("metadata", {}).update(phase_with_constraints["metadata"])
+
             # Auto-fallback: if full-file output failed due to truncation/parse, retry with structured edits
             # Also fallback when Builder returns wrong format (JSON when expecting git diff, or vice versa)
             retry_parse_markers = [
@@ -3934,6 +3940,10 @@ Just the new description that should replace the current one while preserving th
                     config=self.builder_output_config,
                     retrieved_context=retrieved_context,  # NEW: Vector memory context
                 )
+
+                # BUILD-129 Phase 3 P10: Sync metadata from phase_structured back to phase
+                if "metadata" in phase_structured:
+                    phase.setdefault("metadata", {}).update(phase_structured["metadata"])
 
             # Output contract: reject empty/blank patch content before posting/applying.
             # Allow explicit structured-edit no-op (builder already warned) to pass through.

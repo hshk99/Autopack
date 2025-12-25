@@ -715,9 +715,11 @@ class AnthropicBuilderClient:
             stop_reason = getattr(response, 'stop_reason', None)
             was_truncated = (stop_reason == 'max_tokens')
 
-            # BUILD-129 Phase 3 P10: Store utilization for escalate-once logic
+            # BUILD-129 Phase 3 P10: Store utilization and actual tokens for escalate-once logic
             # Store in metadata so autonomous_executor can decide whether to escalate
-            phase_spec.setdefault("metadata", {}).setdefault("token_budget", {})["output_utilization"] = output_utilization
+            token_budget_metadata = phase_spec.setdefault("metadata", {}).setdefault("token_budget", {})
+            token_budget_metadata["output_utilization"] = output_utilization
+            token_budget_metadata["actual_output_tokens"] = actual_output_tokens  # For P10 base calculation
 
             if was_truncated:
                 logger.warning(f"[Builder] Output was truncated (stop_reason=max_tokens)")

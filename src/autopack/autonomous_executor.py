@@ -4007,12 +4007,27 @@ Just the new description that should replace the current one while preserving th
                 already_escalated = phase.get('_escalated_once', False)
 
                 if should_escalate and not already_escalated and attempt_index < (max_builder_attempts - 1):
-                    # BUILD-129 Phase 3 P10: Read selected_budget (P7 buffered value), not actual_max_tokens (P4 ceiling)
-                    # selected_budget represents the intended budget with P7 buffers applied
-                    # actual_max_tokens may be higher due to P4 hard ceiling enforcement
-                    current_max_tokens = token_prediction.get('selected_budget') or token_prediction.get('actual_max_tokens')
+                    # BUILD-129 Phase 3 P10: Escalate from highest evidence-based bound
+                    # If truncation happened at ceiling, base must be at least the ceiling
+                    # If high utilization, actual tokens used is the best signal
+                    # Take max of: selected_budget (P7 intent), actual_max_tokens (P4 ceiling), tokens_used (actual)
 
-                    if current_max_tokens is None:
+                    selected_budget = token_prediction.get('selected_budget', 0)
+                    actual_max_tokens = token_prediction.get('actual_max_tokens', 0)
+                    tokens_used = token_budget.get('actual_output_tokens', 0)  # From API response
+
+                    # Determine the highest evidence-based bound
+                    base_candidates = {
+                        'selected_budget': selected_budget,
+                        'actual_max_tokens': actual_max_tokens,
+                        'tokens_used': tokens_used
+                    }
+
+                    # Find the max and track which source it came from
+                    current_max_tokens = max(base_candidates.values())
+                    base_source = max(base_candidates, key=base_candidates.get)
+
+                    if current_max_tokens == 0:
                         # Fallback to complexity-based defaults (BUILD-042)
                         complexity = phase.get("complexity", "medium")
                         if complexity == "low":
@@ -4023,6 +4038,7 @@ Just the new description that should replace the current one while preserving th
                             current_max_tokens = 16384
                         else:
                             current_max_tokens = 8192
+                        base_source = "complexity_default"
 
                     # Escalate by 25% (conservative to save tokens)
                     escalation_factor = 1.25
@@ -4030,13 +4046,22 @@ Just the new description that should replace the current one while preserving th
                     phase['_escalated_tokens'] = escalated_tokens
                     phase['_escalated_once'] = True  # Prevent multiple escalations
 
-                    # Record escalation factor in metadata for telemetry
-                    phase.setdefault('metadata', {}).setdefault('token_budget', {})['retry_budget_escalation_factor'] = escalation_factor
+                    # Record P10 escalation details in metadata for telemetry and dashboard
+                    p10_metadata = {
+                        'retry_budget_escalation_factor': escalation_factor,
+                        'p10_base_value': current_max_tokens,
+                        'p10_base_source': base_source,
+                        'p10_retry_max_tokens': escalated_tokens,
+                        'p10_selected_budget': selected_budget,
+                        'p10_actual_max_tokens': actual_max_tokens,
+                        'p10_tokens_used': tokens_used
+                    }
+                    phase.setdefault('metadata', {}).setdefault('token_budget', {}).update(p10_metadata)
 
                     reason = "truncation" if was_truncated else f"{output_utilization:.1f}% utilization"
                     logger.info(
                         f"[BUILD-129:P10] ESCALATE-ONCE: phase={phase_id} attempt={attempt_index+1} "
-                        f"tokens={current_max_tokens}→{escalated_tokens} (1.25x, {reason})"
+                        f"base={current_max_tokens} (from {base_source}) → retry={escalated_tokens} (1.25x, {reason})"
                     )
 
                     # Skip Doctor invocation for truncation/high-util - just retry with more tokens

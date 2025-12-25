@@ -16,11 +16,11 @@ Each entry includes:
 
 ## Chronological Index
 
-### BUILD-129: Token Estimator Overhead Model - Phase 3 P4-P9 Truncation Mitigation (2025-12-25)
+### BUILD-129: Token Estimator Overhead Model - Phase 3 P4-P10 Truncation Mitigation (2025-12-25)
 
-**Status**: COMPLETE ✅ (P4-P9 implemented, validation batch pending)
+**Status**: COMPLETE ✅ (P4-P10 implemented, P10 escalation base corrected twice, validation pending)
 
-**Summary**: Comprehensive truncation mitigation reducing truncation rate from 52.6% toward target ≤2%. Implemented P4 (budget enforcement), P5 (category recording), P6 (truncation-aware SMAPE), P7 (confidence-based buffering), P8 (telemetry budget recording), and P9 (narrowed 2.2x buffer to doc_synthesis/doc_sot_update only).
+**Summary**: Comprehensive truncation mitigation reducing truncation rate from 52.6% toward target ≤2%. Implemented P4 (budget enforcement), P5 (category recording), P6 (truncation-aware SMAPE), P7 (confidence-based buffering), P8 (telemetry budget recording), P9 (narrowed 2.2x buffer), and P10 (escalate-once with TWO CRITICAL escalation base fixes).
 
 **Problem**: 52.6% truncation rate (20/38 events) blocking Tier-1 risk targets and wasting tokens on retries.
 
@@ -31,21 +31,31 @@ Each entry includes:
 - **P7**: Adaptive buffer margins (1.4x low confidence, 1.6x high deliverable count, 2.2x doc_synthesis/sot)
 - **P8**: Store actual enforced max_tokens in telemetry (not pre-enforcement value)
 - **P9**: Narrowed 2.2x buffer from all documentation to only doc_synthesis/doc_sot_update
+- **P10**: Escalate-once for high utilization/truncation (≥95% OR truncated, 1.25x multiplier, ONE retry limit)
+  - **CRITICAL BUG FIX #1** (Commit 6d998d5f): P10 was escalating from wrong base (P4 ceiling instead of P7 selected_budget), rendering it ineffective. Fixed to read `selected_budget` (P7 intent) for correct escalation.
+  - **CRITICAL BUG FIX #2** (Commit 3f47d86a): Preferring `selected_budget` still wrong when truncation at higher ceiling. Fixed to use evidence-based max: `base = max(selected_budget, actual_max_tokens, tokens_used)`. Ensures escalation always above proven lower bound.
 
 **Files Modified**:
-- `src/autopack/anthropic_clients.py` - P4 enforcement relocated, P5 category recording, P8 actual budget storage
+- `src/autopack/anthropic_clients.py` - P4 enforcement relocated, P5 category recording, P8+P10 metadata storage, P10 utilization tracking, P10 actual_output_tokens storage
+- `src/autopack/autonomous_executor.py` - P10 escalate-once logic with evidence-based escalation base (two fixes)
 - `src/autopack/token_estimator.py` - P7 confidence-based buffering, P9 narrowed buffer
 - `scripts/analyze_token_telemetry_v3.py` - P6 truncation-aware SMAPE
 - `scripts/truncation_triage_report.py` - NEW: Truncation analysis tool
+- `scripts/p10_effectiveness_dashboard.py` - NEW: P10 monitoring dashboard
 - `scripts/test_budget_enforcement.py` - NEW: P4 validation
 - `scripts/test_category_recording.py` - NEW: P5 validation
 - `scripts/test_confidence_buffering.py` - NEW: P7+P9 validation
+- `scripts/test_escalate_once.py` - NEW: P10 validation
+- `scripts/analyze_p7p9_validation.py` - NEW: P7+P9+P10 validation analysis tool
 
 **Impact**:
-- Expected truncation reduction: 52.6% → ~25% (approaching ≤2% target)
-- Token efficiency: P9 prevents waste on simple DOC_WRITE tasks
+- Expected truncation reduction: 52.6% → <30% (P7+P9+P10 combined)
+- Token efficiency: P9 prevents waste on simple DOC_WRITE, P10 uses 1.25x (vs old 1.5x)
 - Clean telemetry: P6+P8 enable accurate SMAPE analysis without censored data bias
-- Validation batch pending (10-15 phases with intentional coverage)
+- **P10 escalation base fix #1**: Ensures retry budgets align with P7 intent (e.g., 15,604 → 19,505 instead of 16,384 → 20,480)
+- **P10 escalation base fix #2**: Correctly handles truncation-at-ceiling scenarios (base ≥ ceiling where truncation occurred)
+- **P10 observability**: Added p10_base_value, p10_base_source, p10_retry_max_tokens for dashboard
+- Validation: Code review passed twice, awaiting targeted truncation test for end-to-end confirmation
 
 ---
 

@@ -219,7 +219,7 @@ if estimate.category in ["doc_synthesis", "doc_sot_update"]:
 
 **User Feedback**: "Biggest improvement opportunity (high ROI): narrow the 2.2x 'documentation low complexity' buffer. Make 2.2x buffer apply only to doc_synthesis and doc_sot_update. Keep DOC_WRITE closer to baseline (1.2-1.4x). This preserves truncation reduction where needed without ballooning token waste."
 
-### P10: Escalate-Once for High Utilization/Truncation (autonomous_executor.py:3983-4033, anthropic_clients.py:707-721)
+### P10: Escalate-Once for High Utilization/Truncation (autonomous_executor.py:4009-4041, anthropic_clients.py:679-680, 707-721)
 
 **Issue**: Validation batch showed 66.7% truncation (2/3 events), WORSE than baseline 53.8%, with phases hitting EXACTLY 100% utilization despite P7 buffers.
 
@@ -231,55 +231,97 @@ if estimate.category in ["doc_synthesis", "doc_sot_update"]:
   - Used 1.5x multiplier (wasteful)
   - Used old BUILD-042 defaults instead of P4+P7 actual_max_tokens
 
-**Solution Implemented** (autonomous_executor.py:3983-4033):
+**CRITICAL BUG #1 DISCOVERED** (Commit 6d998d5f - 2025-12-25 22:27):
+P10 was escalating from **wrong base**, rendering it ineffective:
+- **Bug**: Read `actual_max_tokens` (P4 ceiling, e.g., 16,384) instead of `selected_budget` (P7 intent, e.g., 15,604)
+- **Impact**: Escalation from 16,384 → 20,480 (wrong) instead of 15,604 → 19,505 (correct)
+- **Root cause**: Only `actual_max_tokens` was stored in metadata, not `selected_budget`
+
+**Solution #1 Implemented** (Commit 6d998d5f):
+
+1. **Store both values** (anthropic_clients.py:679-680):
 ```python
-# BUILD-129 Phase 3 P10: Escalate-once for high utilization or truncation
-# Trigger: truncated OR ≥95% utilization
-should_escalate = (was_truncated or output_utilization >= 95.0)
-
-# Limit: ONE escalation per phase
-already_escalated = phase.get('_escalated_once', False)
-
-if should_escalate and not already_escalated:
-    # Use actual_max_tokens from P4+P7 (not old complexity defaults)
-    current_max_tokens = token_prediction.get('actual_max_tokens')
-
-    # Escalate by 25% (conservative to save tokens)
-    escalation_factor = 1.25
-    escalated_tokens = min(int(current_max_tokens * escalation_factor), 64000)
-
-    phase['_escalated_tokens'] = escalated_tokens
-    phase['_escalated_once'] = True  # Prevent multiple escalations
-
-    # Record escalation factor in metadata for telemetry
-    phase.setdefault('metadata', {})['token_budget']['retry_budget_escalation_factor'] = escalation_factor
+# BUILD-129 Phase 3 P10: Store BOTH selected_budget (P7 intent) and actual_max_tokens (P4 ceiling)
+phase_spec["metadata"]["token_prediction"]["selected_budget"] = token_selected_budget  # P7 buffered value
+phase_spec["metadata"]["token_prediction"]["actual_max_tokens"] = max_tokens  # P4 ceiling
 ```
 
-**Also stores utilization** (anthropic_clients.py:707-721):
+2. **Prefer selected_budget** (autonomous_executor.py:4013):
 ```python
-# BUILD-129 Phase 3 P10: Store utilization for escalate-once logic
-output_utilization = (actual_output_tokens / max_tokens * 100) if max_tokens else 0
-phase_spec.setdefault("metadata", {})["token_budget"]["output_utilization"] = output_utilization
-
-if output_utilization >= 95.0:
-    logger.warning(
-        f"[TOKEN_BUDGET] HIGH UTILIZATION: {output_utilization:.1f}% - may benefit from escalation on retry"
-    )
+current_max_tokens = token_prediction.get('selected_budget') or token_prediction.get('actual_max_tokens')
 ```
+
+**CRITICAL BUG #2 DISCOVERED** (Commit 3f47d86a - 2025-12-25 23:45):
+Preferring `selected_budget` is still wrong when truncation happened at a **higher ceiling**:
+- **Bug**: If API call capped at 16,384 and truncated there, evidence shows "needed > 16,384"
+- **Impact**: Escalating from selected_budget (15,604) → 19,505 only adds +3,121 over the **actual cap**
+- **Root cause**: Ignored the tightest lower bound (the ceiling where truncation occurred)
+
+**Solution #2 Implemented** (Commit 3f47d86a):
+
+**Evidence-based escalation base** = `max(selected_budget, actual_max_tokens, tokens_used)`
+
+1. **Calculate base from max of three sources** (autonomous_executor.py:4009-4065):
+```python
+selected_budget = token_prediction.get('selected_budget', 0)
+actual_max_tokens = token_prediction.get('actual_max_tokens', 0)
+tokens_used = token_budget.get('actual_output_tokens', 0)  # From API response
+
+base_candidates = {
+    'selected_budget': selected_budget,
+    'actual_max_tokens': actual_max_tokens,
+    'tokens_used': tokens_used
+}
+
+current_max_tokens = max(base_candidates.values())
+base_source = max(base_candidates, key=base_candidates.get)
+```
+
+2. **Store actual_output_tokens** (anthropic_clients.py:718-722):
+```python
+token_budget_metadata = phase_spec.setdefault("metadata", {}).setdefault("token_budget", {})
+token_budget_metadata["output_utilization"] = output_utilization
+token_budget_metadata["actual_output_tokens"] = actual_output_tokens  # For P10 base calculation
+```
+
+3. **Add comprehensive observability** (autonomous_executor.py:4046-4058):
+```python
+p10_metadata = {
+    'retry_budget_escalation_factor': escalation_factor,
+    'p10_base_value': current_max_tokens,
+    'p10_base_source': base_source,
+    'p10_retry_max_tokens': escalated_tokens,
+    'p10_selected_budget': selected_budget,
+    'p10_actual_max_tokens': actual_max_tokens,
+    'p10_tokens_used': tokens_used
+}
+```
+
+**Why this is correct**:
+- If truncation at ceiling (16,384), base ≥ 16,384 (uses `actual_max_tokens`)
+- If high utilization without ceiling hit, `tokens_used` is best signal
+- If neither, `selected_budget` represents P7 intent
+- Makes P10 correct across **all** ceiling/override/retry paths
 
 **Impact**:
 - ✅ Triggers on high utilization (≥95%) even if not truncated yet
 - ✅ Limits to ONE escalation per phase (prevents runaway token spend)
 - ✅ Uses 1.25x multiplier (saves ~17% tokens vs 1.5x per escalation)
-- ✅ Uses actual_max_tokens from P4+P7 (respects P7 buffers)
-- ✅ Validation Event 3: Budget 16,707 → would escalate to 20,883 on retry (1.25x)
+- ✅ **FIXED**: Evidence-based base ensures escalation is always above proven lower bound
+- ✅ Respects P7 buffer intent while handling ceiling-truncation cases correctly
+- ✅ Comprehensive observability for dashboard and debugging
 
 **Expected Impact**:
 - Prevents "exactly at budget" truncations (100% utilization cases)
 - More conservative than old 1.5x (saves tokens while still preventing truncation)
 - One-escalation limit prevents runaway costs on pathological cases
+- **Escalation base fix #2**: Correctly handles truncation-at-ceiling scenarios
 
-**Validation**: [scripts/test_escalate_once.py](scripts/test_escalate_once.py) - All tests passing ✅
+**Validation**:
+- [scripts/test_escalate_once.py](scripts/test_escalate_once.py) - All tests passing ✅
+- Code review validation: Fix #1 verified correct by inspection (commit 6d998d5f)
+- Code review validation: Fix #2 implements evidence-based max (commit 3f47d86a)
+- **PENDING**: Targeted truncation test to confirm logs show correct base and source
 
 ### Files Modified
 

@@ -4007,9 +4007,10 @@ Just the new description that should replace the current one while preserving th
                 already_escalated = phase.get('_escalated_once', False)
 
                 if should_escalate and not already_escalated and attempt_index < (max_builder_attempts - 1):
-                    # Get actual max_tokens that was enforced by P4+P7
-                    # This is the budget that was actually used, including P7 buffer
-                    current_max_tokens = token_prediction.get('actual_max_tokens')
+                    # BUILD-129 Phase 3 P10: Read selected_budget (P7 buffered value), not actual_max_tokens (P4 ceiling)
+                    # selected_budget represents the intended budget with P7 buffers applied
+                    # actual_max_tokens may be higher due to P4 hard ceiling enforcement
+                    current_max_tokens = token_prediction.get('selected_budget') or token_prediction.get('actual_max_tokens')
 
                     if current_max_tokens is None:
                         # Fallback to complexity-based defaults (BUILD-042)

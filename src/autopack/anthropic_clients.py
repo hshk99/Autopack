@@ -674,7 +674,9 @@ class AnthropicBuilderClient:
             # Ensures max_tokens >= token_selected_budget even after all overrides (builder_mode, change_size, etc)
             if token_selected_budget:
                 max_tokens = max(max_tokens or 0, token_selected_budget)
-                # Update stored value for telemetry
+                # BUILD-129 Phase 3 P10: Store BOTH selected_budget (P7 buffered) and actual_max_tokens (P4 ceiling)
+                # P10 needs selected_budget (the intent) not actual_max_tokens (which may be higher due to P4 enforcement)
+                phase_spec.setdefault("metadata", {}).setdefault("token_prediction", {})["selected_budget"] = token_selected_budget
                 phase_spec.setdefault("metadata", {}).setdefault("token_prediction", {})["actual_max_tokens"] = max_tokens
                 logger.info(f"[BUILD-129:P4] Final max_tokens enforcement: {max_tokens} (token_selected_budget={token_selected_budget})")
 

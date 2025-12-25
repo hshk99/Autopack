@@ -3980,15 +3980,29 @@ Just the new description that should replace the current one while preserving th
             if not builder_result.success:
                 logger.error(f"[{phase_id}] Builder failed: {builder_result.error}")
 
-                # BUILD-046: Dynamic token escalation on truncation
-                # If output was truncated (stop_reason=max_tokens), automatically increase token budget for retry
-                # phase is a dict; use .get rather than getattr.
+                # BUILD-129 Phase 3 P10: Escalate-once for high utilization or truncation
+                # If output was truncated OR high utilization (≥95%), increase token budget for retry
+                # Limit to ONE escalation per phase to prevent runaway token spend
                 max_builder_attempts = phase.get("max_builder_attempts") or 5
-                if getattr(builder_result, 'was_truncated', False) and attempt_index < (max_builder_attempts - 1):
-                    # Get current token limit from phase spec
-                    current_max_tokens = phase.get('_escalated_tokens')
+                metadata = phase.get("metadata", {})
+                token_budget = metadata.get("token_budget", {})
+                token_prediction = metadata.get("token_prediction", {})
+
+                # Check if we should escalate
+                was_truncated = getattr(builder_result, 'was_truncated', False)
+                output_utilization = token_budget.get("output_utilization", 0)
+                should_escalate = (was_truncated or output_utilization >= 95.0)
+
+                # Check if we've already escalated once
+                already_escalated = phase.get('_escalated_once', False)
+
+                if should_escalate and not already_escalated and attempt_index < (max_builder_attempts - 1):
+                    # Get actual max_tokens that was enforced by P4+P7
+                    # This is the budget that was actually used, including P7 buffer
+                    current_max_tokens = token_prediction.get('actual_max_tokens')
+
                     if current_max_tokens is None:
-                        # First escalation: derive from complexity (BUILD-042 defaults)
+                        # Fallback to complexity-based defaults (BUILD-042)
                         complexity = phase.get("complexity", "medium")
                         if complexity == "low":
                             current_max_tokens = 8192
@@ -3999,16 +4013,22 @@ Just the new description that should replace the current one while preserving th
                         else:
                             current_max_tokens = 8192
 
-                    # Escalate by 50% (more conservative than doubling)
-                    escalated_tokens = min(int(current_max_tokens * 1.5), 64000)
+                    # Escalate by 25% (conservative to save tokens)
+                    escalation_factor = 1.25
+                    escalated_tokens = min(int(current_max_tokens * escalation_factor), 64000)
                     phase['_escalated_tokens'] = escalated_tokens
+                    phase['_escalated_once'] = True  # Prevent multiple escalations
 
+                    # Record escalation factor in metadata for telemetry
+                    phase.setdefault('metadata', {}).setdefault('token_budget', {})['retry_budget_escalation_factor'] = escalation_factor
+
+                    reason = "truncation" if was_truncated else f"{output_utilization:.1f}% utilization"
                     logger.info(
-                        f"[TOKEN_ESCALATION] phase={phase_id} attempt={attempt_index+1} "
-                        f"tokens={current_max_tokens}→{escalated_tokens} (truncation detected, auto-retrying)"
+                        f"[BUILD-129:P10] ESCALATE-ONCE: phase={phase_id} attempt={attempt_index+1} "
+                        f"tokens={current_max_tokens}→{escalated_tokens} (1.25x, {reason})"
                     )
 
-                    # Skip Doctor invocation for truncation - just retry with more tokens
+                    # Skip Doctor invocation for truncation/high-util - just retry with more tokens
                     # Return False to trigger retry in the calling loop
                     return False, "TOKEN_ESCALATION"
 

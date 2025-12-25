@@ -365,6 +365,8 @@ class AnthropicBuilderClient:
                         "selected_budget": token_selected_budget,
                         "confidence": token_estimate.confidence,
                         "source": "token_estimator",
+                        # BUILD-129 Phase 3 P5: Store estimated category for telemetry
+                        "estimated_category": token_estimate.category,
                         # BUILD-129 Phase 3: Feature tracking
                         "api_reference_required": doc_features.get("api_reference_required"),
                         "examples_required": doc_features.get("examples_required"),
@@ -378,13 +380,10 @@ class AnthropicBuilderClient:
                     }
                 )
 
-                if max_tokens is None:
-                    max_tokens = token_selected_budget
-
                 logger.info(
                     f"[BUILD-129] Token estimate: {token_estimate.estimated_tokens} output tokens "
                     f"({token_estimate.deliverable_count} deliverables, confidence={token_estimate.confidence:.2f}), "
-                    f"selected budget: {token_selected_budget}"
+                    f"selected budget: {token_selected_budget} (P4 enforcement applied before API call)"
                 )
             except Exception as e:
                 logger.warning(f"[BUILD-129] Token estimation failed, using fallback: {e}")
@@ -662,6 +661,14 @@ class AnthropicBuilderClient:
                 full_prompt_text = system_prompt + "\n" + user_prompt
                 estimated_prompt_tokens = estimate_tokens(full_prompt_text)
 
+            # BUILD-129 Phase 3 P4+P8: Final enforcement of max_tokens before API call
+            # Ensures max_tokens >= token_selected_budget even after all overrides (builder_mode, change_size, etc)
+            if token_selected_budget:
+                max_tokens = max(max_tokens or 0, token_selected_budget)
+                # Update stored value for telemetry
+                phase_spec.setdefault("metadata", {}).setdefault("token_prediction", {})["actual_max_tokens"] = max_tokens
+                logger.info(f"[BUILD-129:P4] Final max_tokens enforcement: {max_tokens} (token_selected_budget={token_selected_budget})")
+
             # Call Anthropic API with streaming for long operations
             # Use Claude's max output capacity (64K) to avoid truncation of large patches
             # Enable streaming to avoid 10-minute timeout for complex generations
@@ -696,11 +703,21 @@ class AnthropicBuilderClient:
             # Track truncation (stop_reason from Anthropic API)
             stop_reason = getattr(response, 'stop_reason', None)
             was_truncated = (stop_reason == 'max_tokens')
+
+            # BUILD-129 Phase 3 P10: Store utilization for escalate-once logic
+            # Store in metadata so autonomous_executor can decide whether to escalate
+            phase_spec.setdefault("metadata", {}).setdefault("token_budget", {})["output_utilization"] = output_utilization
+
             if was_truncated:
                 logger.warning(f"[Builder] Output was truncated (stop_reason=max_tokens)")
                 logger.warning(
                     f"[TOKEN_BUDGET] TRUNCATION: phase={phase_id} used {actual_output_tokens}/{max_tokens} tokens "
                     f"(100% utilization) - consider increasing max_tokens for this complexity level"
+                )
+            elif output_utilization >= 95.0:
+                logger.warning(
+                    f"[TOKEN_BUDGET] HIGH UTILIZATION: phase={phase_id} used {actual_output_tokens}/{max_tokens} tokens "
+                    f"({output_utilization:.1f}% utilization) - may benefit from escalation on retry"
                 )
 
             format_error_codes = {
@@ -755,6 +772,11 @@ class AnthropicBuilderClient:
                             continuation_context,
                             user_prompt  # Original prompt from earlier in this method
                         )
+
+                        # BUILD-129 Phase 3 P4: Enforce max_tokens before continuation
+                        if token_selected_budget:
+                            max_tokens = max(max_tokens or 0, token_selected_budget)
+                            logger.info(f"[BUILD-129:P4] Continuation max_tokens enforcement: {max_tokens}")
 
                         # Execute continuation request
                         logger.info(f"[BUILD-129] Executing continuation request for {len(continuation_context.remaining_deliverables)} remaining deliverables...")
@@ -898,12 +920,14 @@ class AnthropicBuilderClient:
                     _write_token_estimation_v2_telemetry(
                         run_id=phase_spec.get("run_id", "unknown"),
                         phase_id=phase_spec.get("phase_id", "unknown"),
-                        category=task_category or "implementation",
+                        # BUILD-129 Phase 3 P5: Use estimated_category from token estimator
+                        category=token_pred_meta.get("estimated_category") or task_category or "implementation",
                         complexity=complexity,
                         deliverables=deliverables if isinstance(deliverables, list) else [],
                         predicted_output_tokens=predicted_output_tokens,
                         actual_output_tokens=actual_out,
-                        selected_budget=token_selected_budget or token_pred_meta.get("selected_budget", 0),
+                        # BUILD-129 Phase 3 P8: Use actual enforced max_tokens (not pre-enforcement budget)
+                        selected_budget=token_pred_meta.get("actual_max_tokens") or token_selected_budget or token_pred_meta.get("selected_budget", 0),
                         success=getattr(result, "success", False),
                         truncated=was_truncated_local or False,
                         stop_reason=stop_reason_local,
@@ -940,12 +964,14 @@ class AnthropicBuilderClient:
                     _write_token_estimation_v2_telemetry(
                         run_id=phase_spec.get("run_id", "unknown"),
                         phase_id=phase_spec.get("phase_id", "unknown"),
-                        category=task_category or "implementation",
+                        # BUILD-129 Phase 3 P5: Use estimated_category from token estimator
+                        category=token_pred_meta_fallback.get("estimated_category") or task_category or "implementation",
                         complexity=complexity,
                         deliverables=deliverables if isinstance(deliverables, list) else [],
                         predicted_output_tokens=predicted_output_tokens,
                         actual_output_tokens=result.tokens_used,  # Using total tokens as fallback
-                        selected_budget=token_selected_budget or token_pred_meta_fallback.get("selected_budget", 0),
+                        # BUILD-129 Phase 3 P8: Use actual enforced max_tokens (not pre-enforcement budget)
+                        selected_budget=token_pred_meta_fallback.get("actual_max_tokens") or token_selected_budget or token_pred_meta_fallback.get("selected_budget", 0),
                         success=getattr(result, "success", False),
                         truncated=False,  # Unknown in fallback
                         stop_reason=None,
@@ -984,6 +1010,12 @@ class AnthropicBuilderClient:
                         retrieved_context=retrieved_context,
                         context_budget_tokens=int(os.getenv("AUTOPACK_CONTEXT_BUDGET_TOKENS_MINIMAL", "50000")),
                     )
+
+                    # BUILD-129 Phase 3 P4: Enforce max_tokens before retry
+                    if token_selected_budget:
+                        max_tokens = max(max_tokens or 0, token_selected_budget)
+                        logger.info(f"[BUILD-129:P4] Retry max_tokens enforcement: {max_tokens}")
+
                     with self.client.messages.stream(
                         model=model,
                         max_tokens=min(max_tokens or 64000, 64000),

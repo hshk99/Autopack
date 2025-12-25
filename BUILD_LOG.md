@@ -4,11 +4,11 @@ Daily log of development activities, decisions, and progress on the Autopack pro
 
 ---
 
-## 2025-12-25: BUILD-129 Phase 3 P4-P9 - Truncation Mitigation ✅
+## 2025-12-25: BUILD-129 Phase 3 P4-P10 - Truncation Mitigation ✅
 
-**Summary**: Implemented comprehensive truncation mitigation with P4 (budget enforcement relocated), P5 (category recording), P6 (truncation-aware SMAPE), P7 (confidence-based buffering with 1.6x for high deliverable count), P8 (telemetry budget recording fix), and P9 (narrowed 2.2x buffer to doc_synthesis/doc_sot_update only). Triage analysis identified documentation (low complexity) as primary truncation driver (2.12x underestimation). P7+P9 implement adaptive buffer margins to reduce truncation from 52.6% toward target ≤2% without wasting tokens on simple documentation tasks.
+**Summary**: Implemented comprehensive truncation mitigation with P4 (budget enforcement relocated), P5 (category recording), P6 (truncation-aware SMAPE), P7 (confidence-based buffering with 1.6x for high deliverable count), P8 (telemetry budget recording fix), P9 (narrowed 2.2x buffer to doc_synthesis/doc_sot_update only), and P10 (escalate-once for high utilization/truncation). Triage analysis identified documentation (low complexity) as primary truncation driver (2.12x underestimation). P7+P9+P10 implement adaptive buffer margins plus intelligent retry escalation to reduce truncation from 52.6% toward target ≤2% without wasting tokens.
 
-**Status**: ✅ P4-P9 IMPLEMENTED - VALIDATION BATCH PENDING
+**Status**: ✅ P4-P10 IMPLEMENTED - VALIDATION BATCH PENDING
 
 ### Problem Statement
 
@@ -219,32 +219,97 @@ if estimate.category in ["doc_synthesis", "doc_sot_update"]:
 
 **User Feedback**: "Biggest improvement opportunity (high ROI): narrow the 2.2x 'documentation low complexity' buffer. Make 2.2x buffer apply only to doc_synthesis and doc_sot_update. Keep DOC_WRITE closer to baseline (1.2-1.4x). This preserves truncation reduction where needed without ballooning token waste."
 
+### P10: Escalate-Once for High Utilization/Truncation (autonomous_executor.py:3983-4033, anthropic_clients.py:707-721)
+
+**Issue**: Validation batch showed 66.7% truncation (2/3 events), WORSE than baseline 53.8%, with phases hitting EXACTLY 100% utilization despite P7 buffers.
+
+**Root Cause**:
+- Event 3: Predicted 10,442 → Budget 16,707 (1.6x P7 buffer) → **TRUNCATED at exactly 16,707 tokens**
+- Phase needed MORE than 1.6x buffer, but old escalation logic:
+  - Only triggered on truncation (not high utilization)
+  - Allowed multiple escalations (runaway token risk)
+  - Used 1.5x multiplier (wasteful)
+  - Used old BUILD-042 defaults instead of P4+P7 actual_max_tokens
+
+**Solution Implemented** (autonomous_executor.py:3983-4033):
+```python
+# BUILD-129 Phase 3 P10: Escalate-once for high utilization or truncation
+# Trigger: truncated OR ≥95% utilization
+should_escalate = (was_truncated or output_utilization >= 95.0)
+
+# Limit: ONE escalation per phase
+already_escalated = phase.get('_escalated_once', False)
+
+if should_escalate and not already_escalated:
+    # Use actual_max_tokens from P4+P7 (not old complexity defaults)
+    current_max_tokens = token_prediction.get('actual_max_tokens')
+
+    # Escalate by 25% (conservative to save tokens)
+    escalation_factor = 1.25
+    escalated_tokens = min(int(current_max_tokens * escalation_factor), 64000)
+
+    phase['_escalated_tokens'] = escalated_tokens
+    phase['_escalated_once'] = True  # Prevent multiple escalations
+
+    # Record escalation factor in metadata for telemetry
+    phase.setdefault('metadata', {})['token_budget']['retry_budget_escalation_factor'] = escalation_factor
+```
+
+**Also stores utilization** (anthropic_clients.py:707-721):
+```python
+# BUILD-129 Phase 3 P10: Store utilization for escalate-once logic
+output_utilization = (actual_output_tokens / max_tokens * 100) if max_tokens else 0
+phase_spec.setdefault("metadata", {})["token_budget"]["output_utilization"] = output_utilization
+
+if output_utilization >= 95.0:
+    logger.warning(
+        f"[TOKEN_BUDGET] HIGH UTILIZATION: {output_utilization:.1f}% - may benefit from escalation on retry"
+    )
+```
+
+**Impact**:
+- ✅ Triggers on high utilization (≥95%) even if not truncated yet
+- ✅ Limits to ONE escalation per phase (prevents runaway token spend)
+- ✅ Uses 1.25x multiplier (saves ~17% tokens vs 1.5x per escalation)
+- ✅ Uses actual_max_tokens from P4+P7 (respects P7 buffers)
+- ✅ Validation Event 3: Budget 16,707 → would escalate to 20,883 on retry (1.25x)
+
+**Expected Impact**:
+- Prevents "exactly at budget" truncations (100% utilization cases)
+- More conservative than old 1.5x (saves tokens while still preventing truncation)
+- One-escalation limit prevents runaway costs on pathological cases
+
+**Validation**: [scripts/test_escalate_once.py](scripts/test_escalate_once.py) - All tests passing ✅
+
 ### Files Modified
 
-1. [src/autopack/anthropic_clients.py](src/autopack/anthropic_clients.py) - P4 budget enforcement relocated (lines 673-679, 767-769, 1004-1007), P5 category recording (lines 369, 905, 948), P8 actual budget storage (lines 678, 916, 960)
-2. [src/autopack/token_estimator.py](src/autopack/token_estimator.py) - P7 confidence-based buffering (lines 610-625), P9 narrowed 2.2x buffer (lines 623-628)
-3. [scripts/analyze_token_telemetry_v3.py](scripts/analyze_token_telemetry_v3.py) - P6 truncation-aware SMAPE (lines 244-310)
-4. [scripts/truncation_triage_report.py](scripts/truncation_triage_report.py) - NEW: Truncation analysis tool
-5. [scripts/test_budget_enforcement.py](scripts/test_budget_enforcement.py) - NEW: P4 validation
-6. [scripts/test_category_recording.py](scripts/test_category_recording.py) - NEW: P5 validation
-7. [scripts/test_confidence_buffering.py](scripts/test_confidence_buffering.py) - NEW: P7+P9 validation (updated with DOC_SYNTHESIS/SOT test cases)
+1. [src/autopack/anthropic_clients.py](src/autopack/anthropic_clients.py) - P4 budget enforcement relocated (lines 673-679, 767-769, 1004-1007), P5 category recording (lines 369, 905, 948), P8 actual budget storage (lines 678, 916, 960), P10 utilization tracking (lines 707-721)
+2. [src/autopack/autonomous_executor.py](src/autopack/autonomous_executor.py) - P10 escalate-once logic (lines 3983-4033)
+3. [src/autopack/token_estimator.py](src/autopack/token_estimator.py) - P7 confidence-based buffering (lines 610-625), P9 narrowed 2.2x buffer (lines 623-628)
+4. [scripts/analyze_token_telemetry_v3.py](scripts/analyze_token_telemetry_v3.py) - P6 truncation-aware SMAPE (lines 244-310)
+5. [scripts/truncation_triage_report.py](scripts/truncation_triage_report.py) - NEW: Truncation analysis tool
+6. [scripts/test_budget_enforcement.py](scripts/test_budget_enforcement.py) - NEW: P4 validation
+7. [scripts/test_category_recording.py](scripts/test_category_recording.py) - NEW: P5 validation
+8. [scripts/test_confidence_buffering.py](scripts/test_confidence_buffering.py) - NEW: P7+P9 validation (updated with DOC_SYNTHESIS/SOT test cases)
+9. [scripts/test_escalate_once.py](scripts/test_escalate_once.py) - NEW: P10 validation
+10. [scripts/analyze_p7p9_validation.py](scripts/analyze_p7p9_validation.py) - NEW: P7+P9+P10 validation analysis tool
+11. [BUILD129_P7P9_VALIDATION_STATUS.md](BUILD129_P7P9_VALIDATION_STATUS.md) - P7+P9 validation status
 
 ### Next Steps
 
-1. **Run 10-15 phase validation batch** with P7+P9 active (NEXT TASK):
+1. **Run 10-15 phase validation batch** with P7+P9+P10 active (NEXT TASK):
    - Intentional coverage: 3-5 docs (DOC_SYNTHESIS + SOT), 3-5 implement_feature, 2-3 testing
    - Recompute truncation rate and waste ratio P90 using actual_max_tokens from P8
    - **Go/No-Go rule**: If truncation still >25-30%, pause and tune before full backlog drain
-2. **Add "escalate-once" logic** for 100% utilization cases:
-   - If tokens_used / actual_max_tokens > 0.95 (or truncated), multiply max_tokens by ×1.25 on retry
-   - Record as retry_budget_escalation_factor in telemetry
-3. **Resume stratified batch processing** (not FIFO) to reach ≥50 success events
-4. **Fill gaps**: testing (0 events), maintenance (0 events), deliverables 8-15 (0 events)
-5. **Use truncated events as constraints** to improve estimator:
+   - **Expected improvement**: P10 should catch the 100% utilization cases (2/3 from first batch)
+2. **Resume stratified batch processing** (not FIFO) to reach ≥50 success events (if Go decision)
+3. **Fill gaps**: testing (0 events), maintenance (0 events), deliverables 8-15 (0 events)
+4. **Use truncated events as constraints** to improve estimator:
    - Store lower-bound factor: lb = actual_lower_bound / predicted
    - Aggregate by (estimated_category, deliverable bucket, complexity)
    - If segment repeatedly shows lb > 1.6, tune estimation (not just buffer)
-6. **Fix remaining deliverables_count=0 cases**: Add deliverables_source field
+5. **Fix remaining deliverables_count=0 cases**: Add deliverables_source field
+6. **Add truncation triage report to guide tuning**: Compute lb_factor by segment for remaining truncated events
 
 ---
 

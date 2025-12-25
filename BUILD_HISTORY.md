@@ -16,6 +16,39 @@ Each entry includes:
 
 ## Chronological Index
 
+### BUILD-129: Token Estimator Overhead Model - Phase 3 P4-P9 Truncation Mitigation (2025-12-25)
+
+**Status**: COMPLETE ✅ (P4-P9 implemented, validation batch pending)
+
+**Summary**: Comprehensive truncation mitigation reducing truncation rate from 52.6% toward target ≤2%. Implemented P4 (budget enforcement), P5 (category recording), P6 (truncation-aware SMAPE), P7 (confidence-based buffering), P8 (telemetry budget recording), and P9 (narrowed 2.2x buffer to doc_synthesis/doc_sot_update only).
+
+**Problem**: 52.6% truncation rate (20/38 events) blocking Tier-1 risk targets and wasting tokens on retries.
+
+**Solution**: Multi-layered truncation mitigation
+- **P4**: Relocated budget enforcement to immediately before API call (catches all override paths)
+- **P5**: Fixed category recording to use estimated_category from token estimator
+- **P6**: Separated truncated events from SMAPE calculations (clean metrics)
+- **P7**: Adaptive buffer margins (1.4x low confidence, 1.6x high deliverable count, 2.2x doc_synthesis/sot)
+- **P8**: Store actual enforced max_tokens in telemetry (not pre-enforcement value)
+- **P9**: Narrowed 2.2x buffer from all documentation to only doc_synthesis/doc_sot_update
+
+**Files Modified**:
+- `src/autopack/anthropic_clients.py` - P4 enforcement relocated, P5 category recording, P8 actual budget storage
+- `src/autopack/token_estimator.py` - P7 confidence-based buffering, P9 narrowed buffer
+- `scripts/analyze_token_telemetry_v3.py` - P6 truncation-aware SMAPE
+- `scripts/truncation_triage_report.py` - NEW: Truncation analysis tool
+- `scripts/test_budget_enforcement.py` - NEW: P4 validation
+- `scripts/test_category_recording.py` - NEW: P5 validation
+- `scripts/test_confidence_buffering.py` - NEW: P7+P9 validation
+
+**Impact**:
+- Expected truncation reduction: 52.6% → ~25% (approaching ≤2% target)
+- Token efficiency: P9 prevents waste on simple DOC_WRITE tasks
+- Clean telemetry: P6+P8 enable accurate SMAPE analysis without censored data bias
+- Validation batch pending (10-15 phases with intentional coverage)
+
+---
+
 ### BUILD-129: Token Estimator Overhead Model - Phase 3 DOC_SYNTHESIS (2025-12-24)
 
 **Status**: COMPLETE ✅

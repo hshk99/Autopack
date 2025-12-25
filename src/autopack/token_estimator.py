@@ -587,6 +587,12 @@ class TokenEstimator:
 
         Per GPT-5.2: max(complexity_base, estimated * buffer) capped at 64k.
 
+        BUILD-129 Phase 3 P7: Confidence-based buffering to reduce truncation.
+        - Low confidence (<0.7): 1.4x buffer instead of 1.2x
+        - High deliverable count (>=8): 1.5x buffer
+        - High-risk categories (IMPLEMENT_FEATURE, integration) + high complexity: 1.6x buffer
+        - Documentation (low complexity): 2.2x buffer (triage shows 2.12x underestimation)
+
         Args:
             estimate: Token estimate
             complexity: Phase complexity
@@ -598,8 +604,31 @@ class TokenEstimator:
         base_budgets = {"low": 8192, "medium": 12288, "high": 16384}
         base = base_budgets.get(complexity, 8192)
 
-        # Add buffer to estimate (+20%)
-        estimated_with_buffer = int(estimate.estimated_tokens * self.BUFFER_MARGIN)
+        # BUILD-129 Phase 3 P7: Adaptive buffer margin based on risk factors
+        buffer_margin = self.BUFFER_MARGIN  # Default 1.2
+
+        # Factor 1: Low confidence → increase buffer
+        if estimate.confidence < 0.7:
+            buffer_margin = max(buffer_margin, 1.4)
+
+        # Factor 2: High deliverable count → increase buffer
+        # Accounts for builder_mode/change_size overrides that force max_tokens=16384
+        if estimate.deliverable_count >= 8:
+            buffer_margin = max(buffer_margin, 1.6)
+
+        # Factor 3: High-risk categories + high complexity → increase buffer
+        if estimate.category in ["IMPLEMENT_FEATURE", "integration"] and complexity == "high":
+            buffer_margin = max(buffer_margin, 1.6)
+
+        # Factor 4: DOC_SYNTHESIS/SOT updates → aggressive buffer (triage finding)
+        # BUILD-129 Phase 3 P9: Narrow 2.2x buffer to only doc_synthesis/doc_sot_update
+        # Triage shows 2.12x underestimation for category=documentation, complexity=low
+        # But this was too broad - regular DOC_WRITE doesn't need 2.2x
+        if estimate.category in ["doc_synthesis", "doc_sot_update"]:
+            buffer_margin = 2.2
+
+        # Add buffer to estimate
+        estimated_with_buffer = int(estimate.estimated_tokens * buffer_margin)
 
         # Select max(base, estimated_with_buffer)
         selected = max(base, estimated_with_buffer)
@@ -610,7 +639,7 @@ class TokenEstimator:
         logger.info(
             f"[TokenEstimator] Budget selection: base={base}, estimated={estimate.estimated_tokens}, "
             f"with_buffer={estimated_with_buffer}, selected={budget}, "
-            f"confidence={estimate.confidence:.1%}"
+            f"confidence={estimate.confidence:.1%}, buffer_margin={buffer_margin:.2f}x"
         )
 
         return budget

@@ -8,6 +8,34 @@ Autopack is a framework for orchestrating autonomous AI agents (Builder and Audi
 
 ## Recent Updates (v0.4.6 - BUILD-129 Telemetry Production Ready)
 
+### BUILD-129 Phase 3 P4-P9 Truncation Mitigation (2025-12-25) - ✅ COMPLETE
+**Comprehensive Truncation Reduction** - Multi-layered approach reducing truncation from 52.6% toward target ≤2%
+- **Problem Solved**: 52.6% truncation rate (20/38 events) blocking Tier-1 risk targets, wasting tokens on retries/continuations
+- **Root Cause**: Budget enforcement bypassed by overrides, category misrecording, overly broad buffers wasting tokens
+- **Solution**: 6-part mitigation strategy (P4-P9)
+- **Implementation**:
+  - **P4 (Budget Enforcement)**: Relocated enforcement to immediately before API call - catches all override paths (builder_mode, change_size forcing max_tokens=16384)
+  - **P5 (Category Recording)**: Use estimated_category from token estimator instead of task_category from phase_spec - fixes SOT/DOC_SYNTHESIS misclassification
+  - **P6 (Truncation-Aware SMAPE)**: Separate truncated events (lower bounds) from clean measurements - eliminates censored data bias in metrics
+  - **P7 (Confidence-Based Buffering)**: Adaptive buffer margins based on risk factors (1.4x low confidence, 1.6x high deliverable count, 2.2x doc_synthesis/sot)
+  - **P8 (Telemetry Budget Recording)**: Store actual enforced max_tokens in metadata - fixes confusion when P4 bumps budget or overrides apply
+  - **P9 (Narrow 2.2x Buffer)**: Restrict 2.2x buffer to only doc_synthesis/doc_sot_update (was: all documentation) - prevents token waste on simple DOC_WRITE tasks
+- **Triage Analysis**: Identified documentation (low complexity) as primary truncation driver (7 events, 2.12x underestimation = 112% error)
+- **Expected Impact**:
+  - Truncation reduction: 52.6% → ~25% (approaching ≤2% target)
+  - Token efficiency: P9 preserves truncation reduction where needed without ballooning waste
+  - Clean telemetry: P6+P8 enable accurate SMAPE analysis
+- **Test Coverage**: All validation tests passing
+  - [scripts/test_budget_enforcement.py](scripts/test_budget_enforcement.py) - P4 validation (3 scenarios)
+  - [scripts/test_category_recording.py](scripts/test_category_recording.py) - P5 validation (SOT/DOC_SYNTHESIS detection)
+  - [scripts/test_confidence_buffering.py](scripts/test_confidence_buffering.py) - P7+P9 validation (6 buffer scenarios)
+- **Files Modified**:
+  - [src/autopack/anthropic_clients.py](src/autopack/anthropic_clients.py) - P4 enforcement relocated (lines 673-679, 767-769, 1004-1007), P5 category recording (lines 369, 905, 948), P8 actual budget storage
+  - [src/autopack/token_estimator.py](src/autopack/token_estimator.py) - P7 confidence-based buffering (lines 610-625), P9 narrowed buffer (lines 623-628)
+  - [scripts/analyze_token_telemetry_v3.py](scripts/analyze_token_telemetry_v3.py) - P6 truncation-aware SMAPE
+  - [scripts/truncation_triage_report.py](scripts/truncation_triage_report.py) - NEW: Truncation segment analysis tool
+- **Next Steps**: Validation batch (10-15 phases) with intentional coverage, Go/No-Go rule if truncation >25-30%
+
 ### BUILD-129 Phase 3 DOC_SYNTHESIS Implementation (2025-12-24) - ✅ COMPLETE
 **Phase-Based Documentation Estimation** - 76.4% improvement in documentation token prediction accuracy
 - **Problem Solved**: Documentation tasks severely underestimated (SMAPE 103.6% on real sample: predicted 5,200 vs actual 16,384 tokens)

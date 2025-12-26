@@ -95,6 +95,7 @@ class NDJSONParser:
         was_truncated = False
         lines_parsed = 0
         lines_failed = 0
+        failed_examples: List[Tuple[int, str, str]] = []  # (line_num, snippet, error)
 
         logger.info(f"[NDJSON:Parse] Parsing {len(lines)} lines")
 
@@ -182,6 +183,8 @@ class NDJSONParser:
                     continue
 
                 lines_failed += 1
+                if len(failed_examples) < 5:
+                    failed_examples.append((i + 1, line[:160], str(e)))
 
                 # Last line truncated?
                 if i == len(lines) - 1:
@@ -191,16 +194,19 @@ class NDJSONParser:
                         f"Successfully parsed {len(operations)} operations."
                     )
                 else:
-                    # Mid-output parse failure is unexpected
-                    logger.error(
-                        f"[NDJSON:Parse] Failed to parse line #{i+1} (not last line): {e}"
-                    )
-                    logger.debug(f"[NDJSON:Parse] Problematic line: {line[:100]}")
+                    # Mid-output parse failure is unexpected, but can happen when models emit non-JSON objects.
+                    # We keep a small sample and log it once at the end to avoid spamming logs.
+                    pass
 
         logger.info(
             f"[NDJSON:Parse] Complete: {lines_parsed} lines parsed, {lines_failed} failed, "
             f"{len(operations)} operations extracted, truncated={was_truncated}"
         )
+        if lines_failed and not operations and failed_examples:
+            logger.error(
+                "[NDJSON:Parse] No operations extracted; sample failed lines: "
+                + " | ".join([f"#{ln}:{err}::{snip}" for (ln, snip, err) in failed_examples])
+            )
 
         return NDJSONParseResult(
             operations=operations,

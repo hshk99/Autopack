@@ -162,6 +162,29 @@ class TestNDJSONParser:
         assert len(result.operations) == 2  # First and last lines valid
         assert result.lines_failed == 1
 
+    def test_parse_files_wrapper_schema_multiline(self, parser):
+        """Test recovery of alternate {"files":[...]} schema (pretty-printed multi-line JSON)."""
+        output = """{
+  "files": [
+    {"path": "docs/a.md", "mode": "create", "new_content": "hello"},
+    {"path": "docs/b.md", "mode": "create", "new_content": "world"}
+  ]
+}"""
+        result = parser.parse(output)
+        assert len(result.operations) == 2
+        assert {op.file_path for op in result.operations} == {"docs/a.md", "docs/b.md"}
+        assert all(op.op_type == "create" for op in result.operations)
+
+    def test_parse_files_wrapper_truncated_outer_recovers_inner(self, parser):
+        """Recover file objects even when the outer {"files":[...]} wrapper is truncated/incomplete."""
+        output = """{
+  "files": [
+    {"path": "docs/a.md", "mode": "create", "new_content": "hello"},
+    {"path": "docs/b.md", "mode": "create", "new_content": "world"}"""
+        result = parser.parse(output)
+        assert len(result.operations) == 2
+        assert {op.file_path for op in result.operations} == {"docs/a.md", "docs/b.md"}
+
     def test_format_for_prompt(self, parser):
         """Test generating NDJSON format instruction."""
         deliverables = ["src/user.py", "src/auth.py", "tests/test_user.py"]

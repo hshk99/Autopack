@@ -231,25 +231,34 @@ class NDJSONParser:
 
                 recovered_ops: List[NDJSONOperation] = []
                 recovered_total_expected = None
-                for obj in recovered_objs:
-                    if isinstance(obj, list):
-                        # JSON array of operations
-                        for item in obj:
+                def _extract_ops_from_value(v: object) -> None:
+                    nonlocal recovered_total_expected
+                    if isinstance(v, list):
+                        for item in v:
+                            _extract_ops_from_value(item)
+                        return
+                    if not isinstance(v, dict):
+                        return
+                    # Meta line
+                    if v.get("type") == "meta":
+                        recovered_total_expected = v.get("total_operations")
+                        return
+                    # Common alternate schema: {"files":[{"path","mode","new_content"}, ...]}
+                    files = v.get("files")
+                    if isinstance(files, list):
+                        for item in files:
                             if isinstance(item, dict):
-                                if item.get("type") == "meta":
-                                    recovered_total_expected = item.get("total_operations")
-                                    continue
                                 op = self._parse_operation(item, 0)
                                 if op:
                                     recovered_ops.append(op)
-                        continue
-                    if isinstance(obj, dict):
-                        if obj.get("type") == "meta":
-                            recovered_total_expected = obj.get("total_operations")
-                            continue
-                        op = self._parse_operation(obj, 0)
-                        if op:
-                            recovered_ops.append(op)
+                        return
+                    # Treat as a single operation dict
+                    op = self._parse_operation(v, 0)
+                    if op:
+                        recovered_ops.append(op)
+
+                for obj in recovered_objs:
+                    _extract_ops_from_value(obj)
 
                 if recovered_ops:
                     logger.warning(
@@ -304,13 +313,72 @@ class NDJSONParser:
                     except Exception:
                         return None
 
+                def _extract_json_string_value(s: str, start_quote_idx: int) -> Tuple[Optional[str], int]:
+                    """
+                    Parse a JSON-style string starting at the opening quote in s[start_quote_idx].
+                    Returns (value, next_index_after_closing_quote). On failure, returns (None, start_quote_idx+1).
+                    """
+                    if start_quote_idx < 0 or start_quote_idx >= len(s) or s[start_quote_idx] != '"':
+                        return None, start_quote_idx + 1
+                    i = start_quote_idx + 1
+                    out: List[str] = []
+                    esc = False
+                    while i < len(s):
+                        ch = s[i]
+                        if esc:
+                            # Keep escapes best-effort; JSON escape semantics aren't required for salvage.
+                            out.append(ch)
+                            esc = False
+                            i += 1
+                            continue
+                        if ch == "\\":
+                            esc = True
+                            i += 1
+                            continue
+                        if ch == '"':
+                            return "".join(out), i + 1
+                        out.append(ch)
+                        i += 1
+                    return None, start_quote_idx + 1
+
+                def _salvage_files_object_fields(s: str) -> Optional[Dict]:
+                    """
+                    Truncate/invalid-JSON tolerant salvage for file-objects like:
+                      {"path":"...","mode":"create","new_content":"..."}
+                    even when the full JSON object isn't strictly parseable.
+                    """
+                    # Cheap prefilter to keep this bounded.
+                    if '"path"' not in s or '"new_content"' not in s:
+                        return None
+
+                    def _find_key_value(key: str) -> Optional[str]:
+                        m = re.search(rf'"{re.escape(key)}"\s*:', s)
+                        if not m:
+                            return None
+                        j = m.end()
+                        # Skip whitespace
+                        while j < len(s) and s[j].isspace():
+                            j += 1
+                        # Only salvage string values
+                        if j >= len(s) or s[j] != '"':
+                            return None
+                        val, _next = _extract_json_string_value(s, j)
+                        return val
+
+                    path = _find_key_value("path")
+                    new_content = _find_key_value("new_content")
+                    mode = _find_key_value("mode") or "create"
+                    if not path or new_content is None:
+                        return None
+                    return {"path": path, "mode": mode, "new_content": new_content}
+
                 # Balanced brace scan that respects strings/escapes.
                 in_str = False
                 esc = False
                 depth = 0
                 start_idx: Optional[int] = None
                 max_candidates = 200
-                max_scan_chars = 400_000  # keep bounded
+                max_scan_chars = min(len(text), 2_000_000)  # keep bounded but allow large deliverables
                 scan = text[:max_scan_chars]
 
                 for i, ch in enumerate(scan):
@@ -340,10 +408,22 @@ class NDJSONParser:
                             if depth == 0 and start_idx is not None:
                                 candidate = scan[start_idx : i + 1]
                                 obj = _try_parse_obj(candidate)
+                                if not isinstance(obj, dict):
+                                    # Targeted salvage: recover file-object fields even when JSON is slightly invalid.
+                                    obj = _salvage_files_object_fields(candidate)
                                 if isinstance(obj, dict):
-                                    op = self._parse_operation(obj, 0)
-                                    if op:
-                                        recovered_ops.append(op)
+                                    # Expand {"files":[...]} wrapper if present
+                                    files = obj.get("files")
+                                    if isinstance(files, list):
+                                        for item in files:
+                                            if isinstance(item, dict):
+                                                op = self._parse_operation(item, 0)
+                                                if op:
+                                                    recovered_ops.append(op)
+                                    else:
+                                        op = self._parse_operation(obj, 0)
+                                        if op:
+                                            recovered_ops.append(op)
                                 start_idx = None
                                 if len(recovered_ops) >= max_candidates:
                                     break

@@ -449,3 +449,50 @@ class TokenEstimationV2Event(Base):
         default=lambda: datetime.now(timezone.utc),
         index=True
     )
+
+
+class TokenBudgetEscalationEvent(Base):
+    """
+    Token budget escalation telemetry (BUILD-129 Phase 3 P10).
+
+    Why a separate table:
+    - TokenEstimationV2Event is recorded inside the builder call (anthropic_clients.py).
+    - P10 decisions are made later in autonomous_executor.py after seeing truncation/utilization.
+    - This table records the escalation decision at the moment it is made (base/source/retry).
+    """
+
+    __tablename__ = "token_budget_escalation_events"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["run_id", "phase_id"],
+            ["phases.run_id", "phases.phase_id"],
+            ondelete="CASCADE",
+            name="fk_token_budget_escalation_run_phase",
+        ),
+    )
+
+    id = Column(Integer, primary_key=True, index=True, name="event_id")
+    run_id = Column(String, ForeignKey("runs.id"), nullable=False, index=True)
+    phase_id = Column(String, nullable=False, index=True)
+
+    timestamp = Column(
+        DateTime,
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc),
+        index=True,
+    )
+
+    attempt_index = Column(Integer, nullable=False)
+    reason = Column(String, nullable=False)  # "truncation" or "utilization"
+    was_truncated = Column(Boolean, nullable=False, default=False)
+    output_utilization = Column(Float, nullable=True)  # percent
+
+    escalation_factor = Column(Float, nullable=False)
+    base_value = Column(Integer, nullable=False)
+    base_source = Column(String, nullable=False)
+    retry_max_tokens = Column(Integer, nullable=False)
+
+    # Candidate values (for debugging / post-hoc validation)
+    selected_budget = Column(Integer, nullable=True)
+    actual_max_tokens = Column(Integer, nullable=True)
+    tokens_used = Column(Integer, nullable=True)

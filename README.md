@@ -36,6 +36,27 @@ Autopack is a framework for orchestrating autonomous AI agents (Builder and Audi
   - [scripts/truncation_triage_report.py](scripts/truncation_triage_report.py) - NEW: Truncation segment analysis tool
 - **Next Steps**: Validation batch (10-15 phases) with intentional coverage, Go/No-Go rule if truncation >25-30%
 
+### BUILD-129 Phase 3 P10 Validation Unblocked + P10-First Draining (2025-12-26) - ✅ COMPLETE (Infra)
+**Deterministic P10 Validation** - P10 validation is now representative (distribution-based) and DB-backed (no log scraping required).
+- **API identity + DB health gating** (removes `/runs/{id}` 500s from wrong service / wrong DB):
+  - `src/autopack/main.py`: `/health` validates DB and returns `service="autopack"`; returns 503 when DB is misconfigured.
+  - `src/autopack/autonomous_executor.py`: requires `service=="autopack"` and refuses incompatible/non-JSON `/health`.
+  - Fixed API auto-start target to `autopack.main:app` (correct under `PYTHONPATH=src`).
+- **DB-backed P10 events**:
+  - New table `token_budget_escalation_events` (migration: `migrations/005_add_p10_escalation_events.sql`).
+  - Executor writes an escalation event when P10 triggers (base/source/retry tokens), making validation deterministic.
+- **P10-first draining**:
+  - New ranked plan generator: `scripts/create_p10_first_drain_plan.py` (prioritizes queued phases likely to hit truncation/≥95% utilization).
+  - Updated validator: `scripts/check_p10_validation_status.py` now checks escalation events table.
+- **SQLite migration runner hardened**:
+  - `scripts/run_migrations.py` now runs **root** migrations by default (use `--include-scripts` to also run legacy `scripts/migrations/*.sql`).
+  - Fixed broken telemetry view `v_truncation_analysis` to match `phases.name` (migration: `migrations/006_fix_v_truncation_analysis_view.sql`).
+
+**Stability confirmation (draining)**:
+- **Stateful retries are working**: `retry_attempt`/`revision_epoch` persist in SQLite (`phases` table), so repeated drain batches no longer “forget” attempt counters.
+- **P10 retry budgets are actually applied** on subsequent attempts (e.g., retry uses `max_tokens=35177` after a recorded escalation with `retry_max_tokens=35177`), aligning with the intended self-healing behavior.
+- **NDJSON deliverables validation is compatible**: NDJSON outputs now include a lightweight diff-like header so deliverables validation can “see” created paths.
+
 ### BUILD-129 Phase 3 DOC_SYNTHESIS Implementation (2025-12-24) - ✅ COMPLETE
 **Phase-Based Documentation Estimation** - 76.4% improvement in documentation token prediction accuracy
 - **Problem Solved**: Documentation tasks severely underestimated (SMAPE 103.6% on real sample: predicted 5,200 vs actual 16,384 tokens)

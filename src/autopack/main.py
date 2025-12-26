@@ -12,6 +12,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Security
 from contextlib import asynccontextmanager
 from fastapi.security import APIKeyHeader
 from fastapi.staticfiles import StaticFiles
+from sqlalchemy import text
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session, joinedload
 from slowapi import Limiter, _rate_limit_exceeded_handler
@@ -377,11 +378,21 @@ def start_run(request_data: schemas.RunStartRequest, request: Request, db: Sessi
 @app.get("/runs/{run_id}", response_model=schemas.RunResponse)
 def get_run(run_id: str, db: Session = Depends(get_db)):
     """Get run details including all tiers and phases."""
-    run = db.query(models.Run).filter(models.Run.id == run_id).first()
-    if not run:
-        raise HTTPException(status_code=404, detail=f"Run {run_id} not found")
-
-    return run
+    try:
+        run = db.query(models.Run).filter(models.Run.id == run_id).first()
+        if not run:
+            raise HTTPException(status_code=404, detail=f"Run {run_id} not found")
+        return run
+    except OperationalError as e:
+        # Avoid opaque 500s when the API is pointed at the wrong DB (common during local validation).
+        logger.error(f"[RUNS] Database error while fetching run {run_id}: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=503,
+            detail=(
+                "Database unavailable or misconfigured for Autopack API. "
+                "Ensure the API server and executor use the same DATABASE_URL."
+            ),
+        )
 
 
 @app.post("/runs/{run_id}/phases/{phase_id}/update_status")
@@ -1219,6 +1230,34 @@ async def approve_governance_request(
 
 
 @app.get("/health")
-def health_check():
-    """Health check endpoint"""
-    return {"status": "healthy"}
+def health_check(db: Session = Depends(get_db)):
+    """
+    Health check endpoint.
+
+    BUILD-129 Phase 3: Treat DB connectivity as part of health to prevent false-positives where
+    /health is 200 but /runs/{id} fails with 500 due to DB misconfiguration (e.g., API using
+    default Postgres while executor wrote runs into local SQLite).
+    """
+    try:
+        # Basic connectivity
+        db.execute(text("SELECT 1"))
+        # Basic schema sanity (will raise if tables missing/misconfigured)
+        db.query(models.Run).limit(1).all()
+        return {
+            "status": "healthy",
+            "service": "autopack",
+            "component": "supervisor_api",
+            "db_ok": True,
+        }
+    except Exception as e:
+        logger.error(f"[HEALTH] DB health check failed: {e}", exc_info=True)
+        # 503 so callers know to treat the server as unhealthy.
+        return JSONResponse(
+            status_code=503,
+            content={
+                "status": "unhealthy",
+                "db_ok": False,
+                "error": str(e),
+                "hint": "Start the API server with the same DATABASE_URL as the executor.",
+            },
+        )

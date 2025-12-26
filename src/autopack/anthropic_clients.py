@@ -2421,10 +2421,21 @@ class AnthropicBuilderClient:
                 f"truncated={parse_result.was_truncated}"
             )
 
+            # Some providers may not report stop_reason=max_tokens even when the NDJSON stream is cut mid-line.
+            # Use utilization as the tie-breaker: only treat NDJSON-level truncation as token truncation when we're
+            # near the completion ceiling.
+            output_utilization = 0.0
+            try:
+                tb = (phase_spec.get("metadata") or {}).get("token_budget") or {}
+                output_utilization = float(tb.get("output_utilization") or 0.0)
+            except Exception:
+                output_utilization = 0.0
+            effective_truncation = bool(was_truncated or (parse_result.was_truncated and output_utilization >= 95.0))
+
             if not parse_result.operations:
                 error_msg = "NDJSON parsing produced no valid operations"
-                if was_truncated:
-                    error_msg += " (stop_reason=max_tokens)"
+                if effective_truncation:
+                    error_msg += " (truncated)"
                 logger.error(error_msg)
                 return BuilderResult(
                     success=False,
@@ -2434,7 +2445,8 @@ class AnthropicBuilderClient:
                     model_used=model,
                     error="ndjson_no_operations",
                     stop_reason=stop_reason,
-                    was_truncated=was_truncated
+                    was_truncated=effective_truncation,
+                    raw_output=content
                 )
 
             # Apply operations using NDJSONApplier
@@ -2447,17 +2459,19 @@ class AnthropicBuilderClient:
                 f"{len(apply_result['failed'])} failed"
             )
 
-            # Generate patch content for review (summary of changes)
-            patch_lines = [f"# NDJSON Operations Applied ({len(apply_result['applied'])} files)"]
-            for file_path in apply_result['applied']:
-                patch_lines.append(f"# - {file_path}")
-
-            if apply_result['failed']:
+            # IMPORTANT: Deliverables validation expects patch_content to mention file paths via diff markers.
+            # NDJSON operations are applied directly to disk, so we generate a lightweight "synthetic diff header"
+            # that includes `+++ b/<path>` for each applied file so downstream validators can see what was created.
+            applied_paths = list(apply_result.get("applied") or [])
+            patch_lines = [f"# NDJSON Operations Applied ({len(applied_paths)} files)"]
+            for p in applied_paths:
+                patch_lines.append(f"diff --git a/{p} b/{p}")
+                patch_lines.append(f"+++ b/{p}")
+            if apply_result.get("failed"):
                 patch_lines.append(f"\n# Failed operations ({len(apply_result['failed'])}):")
-                for failed in apply_result['failed']:
+                for failed in apply_result["failed"]:
                     patch_lines.append(f"# - {failed['file_path']}: {failed['error']}")
-
-            patch_content = "\n".join(patch_lines)
+            patch_content = "\n".join(patch_lines) + "\n"
 
             # Determine success
             success = len(apply_result['applied']) > 0 and len(apply_result['failed']) == 0
@@ -2479,7 +2493,7 @@ class AnthropicBuilderClient:
                 tokens_used=response.usage.input_tokens + response.usage.output_tokens,
                 model_used=model,
                 stop_reason=stop_reason,
-                was_truncated=parse_result.was_truncated,
+                was_truncated=effective_truncation,
                 raw_output=content  # Store raw output for continuation recovery
             )
 
@@ -2497,7 +2511,8 @@ class AnthropicBuilderClient:
                 model_used=model,
                 error="ndjson_parse_error",
                 stop_reason=stop_reason,
-                was_truncated=was_truncated
+                was_truncated=was_truncated,
+                raw_output=content
             )
 
     def _build_system_prompt(

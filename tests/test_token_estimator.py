@@ -129,8 +129,9 @@ class TestTokenEstimator:
             confidence=0.8
         )
         budget = estimator.select_budget(estimate, "medium")
-        # max(12288, 20000 * 1.2) = max(12288, 24000) = 24000
-        assert budget == 24000
+        # BUILD-129 Phase 3 P7: deliverable_count>=8 => buffer_margin=1.6
+        # max(12288, 20000 * 1.6) = max(12288, 32000) = 32000
+        assert budget == 32000
 
         # Case 2: Base higher than estimate
         estimate2 = TokenEstimate(
@@ -359,8 +360,8 @@ class TestTokenEstimator:
 
         # Select budget
         budget = estimator.select_budget(estimate, "high")
-        # max(16384, estimate*1.2)
-        assert budget == max(16384, int(estimate.estimated_tokens * 1.2))
+        # BUILD-129 Phase 3 P7: deliverable_count>=8 => buffer_margin=1.6
+        assert budget == max(16384, int(estimate.estimated_tokens * 1.6))
 
 
 class TestTokenEstimatorIntegration:

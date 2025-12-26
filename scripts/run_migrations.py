@@ -74,7 +74,8 @@ def run_migration(db_path: Path, migration_file: Path, dry_run: bool = False):
         conn.commit()
         conn.close()
 
-        print(f"[✓] Migration {migration_file.name} completed successfully")
+        # Avoid non-ASCII checkmarks that can crash on Windows cp1252 consoles.
+        print(f"[OK] Migration {migration_file.name} completed successfully")
         return True
 
     except Exception as e:
@@ -94,6 +95,11 @@ def main():
         type=str,
         help="Database path (default: autopack.db in current directory)"
     )
+    parser.add_argument(
+        "--include-scripts",
+        action="store_true",
+        help="Also run scripts/migrations/*.sql (legacy; may not be SQLite-safe).",
+    )
 
     args = parser.parse_args()
 
@@ -109,10 +115,11 @@ def main():
     if args.dry_run:
         print("[*] DRY RUN MODE - No changes will be made")
 
-    # Get migration files (root first, then legacy scripts/)
+    # Get migration files (root first). scripts/migrations is legacy and may not be SQLite-safe.
     migrations = []
     migrations.extend(get_migration_files(root_migrations_dir, label="root"))
-    migrations.extend(get_migration_files(scripts_migrations_dir, label="scripts"))
+    if args.include_scripts:
+        migrations.extend(get_migration_files(scripts_migrations_dir, label="scripts"))
 
     if not migrations:
         print("[*] No migrations found")
@@ -129,7 +136,8 @@ def main():
             print(f"[ERROR] Migration failed, stopping at version {version}")
             return 1
 
-    print(f"\n[✓] Successfully ran {success_count}/{len(migrations)} migrations")
+    # Avoid non-ASCII checkmarks that can crash on Windows cp1252 consoles.
+    print(f"\n[OK] Successfully ran {success_count}/{len(migrations)} migrations")
     return 0
 
 

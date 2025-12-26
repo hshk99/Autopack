@@ -29,7 +29,8 @@ class BuilderResult:
     error: Optional[str] = None
     edit_plan: Optional['EditPlan'] = None  # NEW: For structured edits (Stage 2) - per IMPLEMENTATION_PLAN3.md
     stop_reason: Optional[str] = None  # Anthropic API stop_reason: 'end_turn', 'max_tokens', 'stop_sequence'
-    was_truncated: bool = False  # True if stop_reason == 'max_tokens'
+    was_truncated: bool = False  # True if output is known-truncated (stop_reason=='max_tokens' or truncation-tolerant parser detected truncation)
+    raw_output: Optional[str] = None  # Raw LLM output (used for continuation recovery / truncation analysis)
 
 
 @dataclass

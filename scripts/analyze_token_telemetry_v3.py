@@ -242,24 +242,72 @@ class TelemetryAnalyzerV3:
         }
 
     def calculate_diagnostic_metrics(self, records: List[TokenEstimationRecord]) -> Dict:
-        """Diagnostic metrics (SMAPE, basic stats)."""
+        """
+        Diagnostic metrics (SMAPE, basic stats).
+
+        BUILD-129 Phase 3 P6: Exclude truncated events from SMAPE calculations.
+        Truncated events represent lower bounds (actual >= X), not true actuals,
+        and will bias SMAPE calculations toward underestimation.
+        """
         if not records:
             return {"error": "No records"}
 
-        errors = [r.error_pct for r in records]
-        predicted = [r.predicted for r in records]
-        actual = [r.actual for r in records]
+        # BUILD-129 Phase 3 P6: Separate truncated and non-truncated events
+        non_truncated = [r for r in records if not r.was_truncated]
+        truncated = [r for r in records if r.was_truncated]
 
-        return {
-            "smape_mean": statistics.mean(errors),
-            "smape_median": statistics.median(errors),
-            "smape_min": min(errors),
-            "smape_max": max(errors),
-            "predicted_mean": statistics.mean(predicted),
-            "predicted_median": statistics.median(predicted),
-            "actual_mean": statistics.mean(actual),
-            "actual_median": statistics.median(actual),
-        }
+        # Calculate SMAPE only on non-truncated events
+        result = {}
+
+        if non_truncated:
+            errors = [r.error_pct for r in non_truncated]
+            predicted = [r.predicted for r in non_truncated]
+            actual = [r.actual for r in non_truncated]
+
+            result.update({
+                "smape_mean": statistics.mean(errors),
+                "smape_median": statistics.median(errors),
+                "smape_min": min(errors),
+                "smape_max": max(errors),
+                "predicted_mean": statistics.mean(predicted),
+                "predicted_median": statistics.median(predicted),
+                "actual_mean": statistics.mean(actual),
+                "actual_median": statistics.median(actual),
+                "non_truncated_count": len(non_truncated),
+            })
+        else:
+            result.update({
+                "smape_mean": 0,
+                "smape_median": 0,
+                "smape_min": 0,
+                "smape_max": 0,
+                "predicted_mean": 0,
+                "predicted_median": 0,
+                "actual_mean": 0,
+                "actual_median": 0,
+                "non_truncated_count": 0,
+            })
+
+        # Report truncated events separately as lower bounds
+        if truncated:
+            truncated_predicted = [r.predicted for r in truncated]
+            truncated_actual = [r.actual for r in truncated]
+
+            result.update({
+                "truncated_count": len(truncated),
+                "truncated_predicted_mean": statistics.mean(truncated_predicted),
+                "truncated_actual_min": statistics.mean(truncated_actual),  # Actual is lower bound
+                "truncated_underestimation_pct": len([r for r in truncated if r.is_under_estimated]) / len(truncated) * 100,
+            })
+        else:
+            result.update({
+                "truncated_count": 0,
+                "truncated_predicted_mean": 0,
+                "truncated_actual_min": 0,
+                "truncated_underestimation_pct": 0,
+            })
+
+        return result
 
     def generate_report(self, success_only: bool = False, stratify: bool = False,
                        under_multiplier: float = 1.0,
@@ -331,12 +379,23 @@ Generated: {datetime.now().isoformat()}
 
 ## 📊 DIAGNOSTIC METRICS (SMAPE - for reference only)
 
-### SMAPE (Symmetric Mean Absolute Percentage Error)
+**BUILD-129 Phase 3 P6**: SMAPE calculated on non-truncated events only. Truncated events reported separately as lower bounds.
+
+### SMAPE (Symmetric Mean Absolute Percentage Error) - Non-Truncated Only
 - **Mean**: {diagnostic.get('smape_mean', 0):.1f}%
 - **Median**: {diagnostic.get('smape_median', 0):.1f}%
 - **Range**: {diagnostic.get('smape_min', 0):.1f}% - {diagnostic.get('smape_max', 0):.1f}%
+- **Samples**: {diagnostic.get('non_truncated_count', 0)} non-truncated events
 
-### Token Distribution
+### Truncated Events (Lower Bound Estimates)
+- **Count**: {diagnostic.get('truncated_count', 0)} events ({diagnostic.get('truncated_count', 0) / max(len(analysis_records), 1) * 100:.1f}% of total)
+- **Predicted (mean)**: {diagnostic.get('truncated_predicted_mean', 0):.0f} tokens
+- **Actual (lower bound mean)**: {diagnostic.get('truncated_actual_min', 0):.0f} tokens
+- **Underestimated**: {diagnostic.get('truncated_underestimation_pct', 0):.1f}%
+
+**Note**: Truncated events have actual >= reported value. Excluding from SMAPE prevents bias toward underestimation.
+
+### Token Distribution (Non-Truncated)
 - **Predicted**: mean={diagnostic.get('predicted_mean', 0):.0f}, median={diagnostic.get('predicted_median', 0):.0f}
 - **Actual**: mean={diagnostic.get('actual_mean', 0):.0f}, median={diagnostic.get('actual_median', 0):.0f}
 

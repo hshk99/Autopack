@@ -1283,15 +1283,21 @@ class AutonomousExecutor:
             Phase model instance with current attempt state, or None if not found
         """
         try:
-            from autopack.database import get_db
-            # BUILD-115: from autopack.models import Phase
-            return None  # BUILD-115: Database query disabled
+            from autopack.database import SessionLocal
+            from autopack.models import Phase
 
-            db = next(get_db())
-            phase = db.query(Phase).filter(
-                Phase.phase_id == phase_id,
-                Phase.run_id == self.run_id
-            ).first()
+            db = SessionLocal()
+            try:
+                phase = (
+                    db.query(Phase)
+                    .filter(Phase.phase_id == phase_id, Phase.run_id == self.run_id)
+                    .first()
+                )
+            finally:
+                try:
+                    db.close()
+                except Exception:
+                    pass
 
             if phase:
                 logger.debug(
@@ -1334,51 +1340,59 @@ class AutonomousExecutor:
         """
         try:
             from datetime import datetime, timezone
-            from autopack.database import get_db
-            # BUILD-115: from autopack.models import Phase
-            return None  # BUILD-115: Database query disabled
+            from autopack.database import SessionLocal
+            from autopack.models import Phase
 
-            db = next(get_db())
-            phase = db.query(Phase).filter(
-                Phase.phase_id == phase_id,
-                Phase.run_id == self.run_id
-            ).first()
-
-            if not phase:
-                logger.error(f"[{phase_id}] Cannot update attempts: phase not found in database")
-                return False
-
-            # Update attempt tracking (backwards compatibility)
-            if attempts_used is not None:
-                phase.attempts_used = attempts_used
-
-            # BUILD-050 Phase 2: Update decoupled counters
-            if retry_attempt is not None:
-                phase.retry_attempt = retry_attempt
-            if revision_epoch is not None:
-                phase.revision_epoch = revision_epoch
-            if escalation_level is not None:
-                phase.escalation_level = escalation_level
-
-            if last_failure_reason:
-                phase.last_failure_reason = last_failure_reason
-            phase.last_attempt_timestamp = timestamp or datetime.now(timezone.utc)
-
-            db.commit()
-
-            # BUILD-050: Enhanced logging with decoupled counters
-            if retry_attempt is not None or revision_epoch is not None or escalation_level is not None:
-                logger.info(
-                    f"[{phase_id}] Updated counters in DB: "
-                    f"retry={phase.retry_attempt}, epoch={phase.revision_epoch}, "
-                    f"escalation={phase.escalation_level} "
-                    f"(reason: {last_failure_reason or 'N/A'})"
+            db = SessionLocal()
+            try:
+                phase = (
+                    db.query(Phase)
+                    .filter(Phase.phase_id == phase_id, Phase.run_id == self.run_id)
+                    .first()
                 )
-            else:
-                logger.info(
-                    f"[{phase_id}] Updated attempts in DB: retry={retry_attempt}, epoch={revision_epoch}, escalation={escalation_level} "
-                    f"(reason: {last_failure_reason or 'N/A'})"
-                )
+
+                if not phase:
+                    logger.error(f"[{phase_id}] Cannot update attempts: phase not found in database")
+                    return False
+
+                # Update attempt tracking (backwards compatibility)
+                if attempts_used is not None and hasattr(phase, "attempts_used"):
+                    phase.attempts_used = attempts_used
+
+                # BUILD-050 Phase 2: Update decoupled counters
+                if retry_attempt is not None:
+                    phase.retry_attempt = retry_attempt
+                if revision_epoch is not None:
+                    phase.revision_epoch = revision_epoch
+                if escalation_level is not None:
+                    phase.escalation_level = escalation_level
+
+                if last_failure_reason:
+                    phase.last_failure_reason = last_failure_reason
+                if hasattr(phase, "last_attempt_timestamp"):
+                    phase.last_attempt_timestamp = timestamp or datetime.now(timezone.utc)
+
+                # Log while the instance is still bound to a live Session.
+                if retry_attempt is not None or revision_epoch is not None or escalation_level is not None:
+                    logger.info(
+                        f"[{phase_id}] Updated counters in DB: "
+                        f"retry={phase.retry_attempt}, epoch={phase.revision_epoch}, "
+                        f"escalation={phase.escalation_level} "
+                        f"(reason: {last_failure_reason or 'N/A'})"
+                    )
+                else:
+                    logger.info(
+                        f"[{phase_id}] Updated attempts in DB: retry={retry_attempt}, epoch={revision_epoch}, escalation={escalation_level} "
+                        f"(reason: {last_failure_reason or 'N/A'})"
+                    )
+
+                db.commit()
+            finally:
+                try:
+                    db.close()
+                except Exception:
+                    pass
+
             return True
 
         except Exception as e:
@@ -1396,25 +1410,31 @@ class AutonomousExecutor:
         """
         try:
             from datetime import datetime, timezone
-            from autopack.database import get_db
-            # BUILD-115: from autopack.models import Phase, PhaseState, Tier
-            return None  # BUILD-115: Database query disabled
+            from autopack.database import SessionLocal
+            from autopack.models import Phase, PhaseState
 
-            db = next(get_db())
-            phase = db.query(Phase).filter(
-                Phase.phase_id == phase_id,
-                Phase.run_id == self.run_id
-            ).first()
+            db = SessionLocal()
+            try:
+                phase = (
+                    db.query(Phase)
+                    .filter(Phase.phase_id == phase_id, Phase.run_id == self.run_id)
+                    .first()
+                )
 
-            if not phase:
-                logger.error(f"[{phase_id}] Cannot mark complete: phase not found in database")
-                return False
+                if not phase:
+                    logger.error(f"[{phase_id}] Cannot mark complete: phase not found in database")
+                    return False
 
-            # Update to COMPLETE state
-            phase.state = PhaseState.COMPLETE
-            phase.completed_at = datetime.now(timezone.utc)
+                # Update to COMPLETE state
+                phase.state = PhaseState.COMPLETE
+                phase.completed_at = datetime.now(timezone.utc)
 
-            db.commit()
+                db.commit()
+            finally:
+                try:
+                    db.close()
+                except Exception:
+                    pass
 
             logger.info(f"[{phase_id}] Marked COMPLETE in database")
             return True
@@ -1435,26 +1455,32 @@ class AutonomousExecutor:
         """
         try:
             from datetime import datetime, timezone
-            from autopack.database import get_db
-            # BUILD-115: from autopack.models import Phase, PhaseState, Tier
-            return None  # BUILD-115: Database query disabled
+            from autopack.database import SessionLocal
+            from autopack.models import Phase, PhaseState
 
-            db = next(get_db())
-            phase = db.query(Phase).filter(
-                Phase.phase_id == phase_id,
-                Phase.run_id == self.run_id
-            ).first()
+            db = SessionLocal()
+            try:
+                phase = (
+                    db.query(Phase)
+                    .filter(Phase.phase_id == phase_id, Phase.run_id == self.run_id)
+                    .first()
+                )
 
-            if not phase:
-                logger.error(f"[{phase_id}] Cannot mark failed: phase not found in database")
-                return False
+                if not phase:
+                    logger.error(f"[{phase_id}] Cannot mark failed: phase not found in database")
+                    return False
 
-            # Update to FAILED state
-            phase.state = PhaseState.FAILED
-            phase.last_failure_reason = reason
-            phase.completed_at = datetime.now(timezone.utc)
+                # Update to FAILED state
+                phase.state = PhaseState.FAILED
+                phase.last_failure_reason = reason
+                phase.completed_at = datetime.now(timezone.utc)
 
-            db.commit()
+                db.commit()
+            finally:
+                try:
+                    db.close()
+                except Exception:
+                    pass
 
             logger.info(f"[{phase_id}] Marked FAILED in database (reason: {reason})")
 
@@ -1747,6 +1773,37 @@ class AutonomousExecutor:
         # Current attempt index from database
         attempt_index = phase_db.retry_attempt
         max_attempts = MAX_RETRY_ATTEMPTS
+
+        # BUILD-129 Phase 3 P10: Apply persisted escalate-once budget on the *next* attempt.
+        # We persist P10 decisions into token_budget_escalation_events with attempt_index=1-based attempt that triggered.
+        # When retry_attempt increments from 0->1, we should apply the retry budget for that next attempt.
+        try:
+            from autopack.database import SessionLocal
+            from autopack.models import TokenBudgetEscalationEvent
+
+            db = SessionLocal()
+            try:
+                evt = (
+                    db.query(TokenBudgetEscalationEvent)
+                    .filter(
+                        TokenBudgetEscalationEvent.run_id == self.run_id,
+                        TokenBudgetEscalationEvent.phase_id == phase_id,
+                    )
+                    .order_by(TokenBudgetEscalationEvent.timestamp.desc())
+                    .first()
+                )
+            finally:
+                try:
+                    db.close()
+                except Exception:
+                    pass
+
+            if evt and (attempt_index == int(evt.attempt_index or 0)) and evt.retry_max_tokens:
+                # Attach a transient override used by execute_builder_phase(max_tokens=...)
+                phase["_escalated_tokens"] = int(evt.retry_max_tokens)
+        except Exception:
+            # Best-effort only; do not block execution if DB telemetry isn't available.
+            pass
 
         # Reload project rules mid-run if rules_updated.json advanced
         self._refresh_project_rules_if_updated()
@@ -4064,6 +4121,39 @@ Just the new description that should replace the current one while preserving th
                         f"base={current_max_tokens} (from {base_source}) → retry={escalated_tokens} (1.25x, {reason})"
                     )
 
+                    # BUILD-129 Phase 3: Persist P10 decision to DB (deterministic validation).
+                    # This avoids relying on reproducing truncation events or scraping logs.
+                    try:
+                        if os.environ.get("TELEMETRY_DB_ENABLED", "").lower() in ["1", "true", "yes"]:
+                            from autopack.database import SessionLocal
+                            from autopack.models import TokenBudgetEscalationEvent
+                            session = SessionLocal()
+                            try:
+                                evt = TokenBudgetEscalationEvent(
+                                    run_id=self.run_id,
+                                    phase_id=phase_id,
+                                    attempt_index=attempt_index + 1,
+                                    reason="truncation" if was_truncated else "utilization",
+                                    was_truncated=bool(was_truncated),
+                                    output_utilization=float(output_utilization) if output_utilization is not None else None,
+                                    escalation_factor=float(escalation_factor),
+                                    base_value=int(current_max_tokens),
+                                    base_source=str(base_source),
+                                    retry_max_tokens=int(escalated_tokens),
+                                    selected_budget=int(selected_budget) if selected_budget else None,
+                                    actual_max_tokens=int(actual_max_tokens) if actual_max_tokens else None,
+                                    tokens_used=int(tokens_used) if tokens_used else None,
+                                )
+                                session.add(evt)
+                                session.commit()
+                            finally:
+                                try:
+                                    session.close()
+                                except Exception:
+                                    pass
+                    except Exception as e:
+                        logger.warning(f"[BUILD-129:P10] Failed to write DB escalation telemetry: {e}")
+
                     # Skip Doctor invocation for truncation/high-util - just retry with more tokens
                     # Return False to trigger retry in the calling loop
                     return False, "TOKEN_ESCALATION"
@@ -4174,6 +4264,107 @@ Just the new description that should replace the current one while preserving th
 
                 logger.error(f"[{phase_id}] Deliverables validation failed")
                 logger.error(f"[{phase_id}] {feedback}")
+
+                # BUILD-129 Phase 3 P10 (expanded): If the builder output was truncated / near-ceiling,
+                # deliverables validation failures are often just "incomplete output". In that case,
+                # skip feedback and escalate-once immediately.
+                try:
+                    max_builder_attempts = phase.get("max_builder_attempts") or 5
+                    metadata = phase.get("metadata", {})
+                    token_budget = metadata.get("token_budget", {})
+                    token_prediction = metadata.get("token_prediction", {})
+
+                    was_truncated = getattr(builder_result, "was_truncated", False)
+                    output_utilization = token_budget.get("output_utilization", 0) or 0
+                    should_escalate = (was_truncated or output_utilization >= 95.0)
+                    already_escalated = phase.get("_escalated_once", False)
+
+                    if should_escalate and not already_escalated and attempt_index < (max_builder_attempts - 1):
+                        selected_budget = token_prediction.get("selected_budget", 0)
+                        actual_max_tokens = token_prediction.get("actual_max_tokens", 0)
+                        tokens_used = token_budget.get("actual_output_tokens", 0)
+
+                        base_candidates = {
+                            "selected_budget": selected_budget,
+                            "actual_max_tokens": actual_max_tokens,
+                            "tokens_used": tokens_used,
+                        }
+
+                        current_max_tokens = max(base_candidates.values())
+                        base_source = max(base_candidates, key=base_candidates.get)
+
+                        if current_max_tokens == 0:
+                            complexity = phase.get("complexity", "medium")
+                            if complexity == "low":
+                                current_max_tokens = 8192
+                            elif complexity == "medium":
+                                current_max_tokens = 12288
+                            elif complexity == "high":
+                                current_max_tokens = 16384
+                            else:
+                                current_max_tokens = 8192
+                            base_source = "complexity_default"
+
+                        escalation_factor = 1.25
+                        escalated_tokens = min(int(current_max_tokens * escalation_factor), 64000)
+                        phase["_escalated_tokens"] = escalated_tokens
+                        phase["_escalated_once"] = True
+
+                        p10_metadata = {
+                            "retry_budget_escalation_factor": escalation_factor,
+                            "p10_base_value": current_max_tokens,
+                            "p10_base_source": base_source,
+                            "p10_retry_max_tokens": escalated_tokens,
+                            "p10_selected_budget": selected_budget,
+                            "p10_actual_max_tokens": actual_max_tokens,
+                            "p10_tokens_used": tokens_used,
+                        }
+                        phase.setdefault("metadata", {}).setdefault("token_budget", {}).update(p10_metadata)
+
+                        reason = "truncation" if was_truncated else f"{output_utilization:.1f}% utilization"
+                        logger.info(
+                            f"[BUILD-129:P10] ESCALATE-ONCE: phase={phase_id} attempt={attempt_index+1} "
+                            f"base={current_max_tokens} (from {base_source}) → retry={escalated_tokens} (1.25x, {reason})"
+                        )
+
+                        # Persist P10 decision to DB (deterministic validation).
+                        try:
+                            if os.environ.get("TELEMETRY_DB_ENABLED", "").lower() in ["1", "true", "yes"]:
+                                from autopack.database import SessionLocal
+                                from autopack.models import TokenBudgetEscalationEvent
+
+                                session = SessionLocal()
+                                try:
+                                    evt = TokenBudgetEscalationEvent(
+                                        run_id=self.run_id,
+                                        phase_id=phase_id,
+                                        attempt_index=attempt_index + 1,
+                                        reason="truncation" if was_truncated else "utilization",
+                                        was_truncated=bool(was_truncated),
+                                        output_utilization=float(output_utilization)
+                                        if output_utilization is not None
+                                        else None,
+                                        escalation_factor=float(escalation_factor),
+                                        base_value=int(current_max_tokens),
+                                        base_source=str(base_source),
+                                        retry_max_tokens=int(escalated_tokens),
+                                        selected_budget=int(selected_budget) if selected_budget else None,
+                                        actual_max_tokens=int(actual_max_tokens) if actual_max_tokens else None,
+                                        tokens_used=int(tokens_used) if tokens_used else None,
+                                    )
+                                    session.add(evt)
+                                    session.commit()
+                                finally:
+                                    try:
+                                        session.close()
+                                    except Exception:
+                                        pass
+                        except Exception as e:
+                            logger.warning(f"[BUILD-129:P10] Failed to write DB escalation telemetry: {e}")
+
+                        return False, "TOKEN_ESCALATION"
+                except Exception as e:
+                    logger.warning(f"[BUILD-129:P10] Deliverables-failure escalation check failed: {e}")
 
                 # Create a Builder result with validation error for retry
                 builder_result = BuilderResult(
@@ -7495,7 +7686,7 @@ Just the new description that should replace the current one while preserving th
 
         # Create governance request in database
         request = create_governance_request(
-            db_session=self.db,
+            db_session=self.db_session,
             run_id=self.run_id,
             phase_id=phase_id,
             violated_paths=violated_paths,
@@ -8193,8 +8384,34 @@ Just the new description that should replace the current one while preserving th
         try:
             response = requests.get(f"{self.api_url}/health", timeout=2)
             if response.status_code == 200:
-                logger.info("API server is already running")
-                return True
+                # BUILD-129 Phase 3: /health should reflect DB readiness too (see src/autopack/main.py).
+                # If DB is unhealthy, treat API as not usable for executor.
+                try:
+                    payload = response.json()
+                    # Require that the service identify itself as the Autopack Supervisor API.
+                    # This prevents false positives when another service is listening on the same port
+                    # (e.g., src/backend FastAPI which has /health but not the supervisor API contract).
+                    if payload.get("service") != "autopack":
+                        logger.error(
+                            "A service responded on /health but did not identify as the Autopack Supervisor API "
+                            f"(service={payload.get('service')!r}). Refusing to use it."
+                        )
+                        return False
+
+                    if payload.get("db_ok") is False or payload.get("status") not in (None, "healthy"):
+                        logger.warning(
+                            "API server responded to /health but reported unhealthy DB. "
+                            "Executor requires a healthy API+DB; will attempt to start a local API server."
+                        )
+                    else:
+                        logger.info("API server is already running")
+                        return True
+                except Exception:
+                    # If health isn't JSON, treat as incompatible to avoid using the wrong service.
+                    logger.error(
+                        "Service responded 200 on /health but did not return JSON. Refusing to use it."
+                    )
+                    return False
         except Exception:
             pass  # Server not responding, continue to start it
         
@@ -8204,9 +8421,14 @@ Just the new description that should replace the current one while preserving th
             result = sock.connect_ex((host, port))
             sock.close()
             if result == 0:
-                # Port is open but /health failed - might be different service
-                logger.warning(f"Port {port} is open but API health check failed. Assuming API is running.")
-                return True
+                # Port is open but /health failed - likely a different service or a broken API.
+                # Do NOT assume it's usable; this causes opaque 500s later.
+                logger.error(
+                    f"Port {port} is open but {self.api_url}/health is not healthy. "
+                    "Another service may be using the port, or the API is misconfigured. "
+                    "Stop the conflicting process or set AUTOPACK_API_URL to a different port."
+                )
+                return False
         except Exception:
             pass
         
@@ -8218,7 +8440,9 @@ Just the new description that should replace the current one while preserving th
             import sys
             api_cmd = [
                 sys.executable, "-m", "uvicorn",
-                "src.autopack.main:app",
+                # IMPORTANT: module path is relative to PYTHONPATH=src; 'src.autopack...' is not importable
+                # because 'src/' is not a Python package (no src/__init__.py).
+                "autopack.main:app",
                 "--host", host,
                 "--port", str(port)
             ]

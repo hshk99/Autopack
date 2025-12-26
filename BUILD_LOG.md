@@ -10,6 +10,74 @@ Daily log of development activities, decisions, and progress on the Autopack pro
 
 **Status**: ✅ P4-P10 IMPLEMENTED - VALIDATION BATCH PENDING
 
+---
+
+## 2025-12-26: BUILD-129 Phase 3 P10 Validation Unblocked (API Identity + DB-Backed Escalations) ✅
+
+**Summary**: P10 is now practically validatable in production: we removed API/DB ambiguity, added a DB-backed `token_budget_escalation_events` table written at the moment P10 triggers, and added a P10-first queued-phase ranking plan to get a natural trigger quickly.
+
+### Fix 1: Eradicate API Server Ambiguity on Port 8000
+
+**Problem**: Targeted P10 validation runs were failing before the builder attempt due to `/runs/{id}` returning 500. Root cause was "port 8000 is open" and `/health` returning 200 from a different service, plus DB mismatch (API and executor pointed at different DBs).
+
+**Fix**:
+- `src/autopack/main.py` `/health` now validates DB connectivity and returns `service="autopack"` (503 if DB misconfigured).
+- `src/autopack/autonomous_executor.py` now requires `/health` JSON with `service=="autopack"` and refuses incompatible/non-JSON responses.
+- Fixed API auto-start uvicorn target to `autopack.main:app` (correct import under `PYTHONPATH=src`).
+
+**Result**: No more `/runs/{id}` 500s during validation; executor reliably targets the Supervisor API.
+
+### Fix 2: Make P10 Validation Deterministic (DB-Backed Escalation Events)
+
+**Problem**: P10 triggers are stochastic; replaying a historically truncating phase is not reproducible. Also, TokenEstimationV2 telemetry is written inside the builder call, but P10 decisions occur later in the executor loop.
+
+**Fix**:
+- Added migration `migrations/005_add_p10_escalation_events.sql` to create `token_budget_escalation_events`.
+- Added SQLAlchemy model `TokenBudgetEscalationEvent` (`src/autopack/models.py`).
+- Executor writes an event at the moment P10 triggers (base/source/retry tokens, utilization, attempt index).
+- Updated `scripts/check_p10_validation_status.py` to check DB-backed escalation events.
+
+**Result**: Once P10 triggers once during draining, the DB event provides definitive end-to-end validation (no log scraping required).
+
+### Fix 3: P10-First Draining Plan
+
+**Problem**: "Targeted replay" isn't feasible; the correct validation strategy is to run representative draining biased toward likely P10 triggers.
+
+**Fix**:
+- Added `scripts/create_p10_first_drain_plan.py` to rank queued phases/runs by P10 trigger probability (deliverables≥8/12, category risk, complexity, doc_synthesis/SOT signals).
+- Generated `p10_first_plan.txt` to drive execution.
+
+### DB Sync / Migrations
+
+**Issue**: `scripts/run_migrations.py` was blocked by a broken telemetry view `v_truncation_analysis` referencing `phases.phase_name` (current schema uses `phases.name`).
+
+**Fix**:
+- Updated `migrations/001_add_telemetry_tables.sql` view definition to use `p.name AS phase_name`.
+- Added `migrations/006_fix_v_truncation_analysis_view.sql` to drop/recreate the view for existing DBs.
+- Hardened `scripts/run_migrations.py` (ASCII-only output; root migrations only by default; `--include-scripts` for legacy).
+
+**Additional Fix (required for DB telemetry to work)**:
+- Root migrations historically rebuild `token_estimation_v2_events` without Phase 3 feature columns, causing runtime inserts to fail (e.g., missing `is_truncated_output`).
+- Added `migrations/007_rebuild_token_estimation_v2_events_with_features.sql` to rebuild `token_estimation_v2_events` with:
+  - truncation awareness (`is_truncated_output`)
+  - DOC_SYNTHESIS feature flags (api/examples/research/usage/context_quality)
+  - SOT tracking (is_sot_file, sot_file_name, sot_entry_count_hint)
+
+### P10 End-to-End Validation: ✅ OBSERVED IN REAL DRAIN
+
+During P10-first draining (`research-system-v18`), P10 fired and wrote a DB-backed escalation event:
+- phase: `research-integration`
+- trigger: NDJSON truncation manifested as deliverables validation failure (incomplete output)
+- escalation: base=36902 (from selected_budget) -> retry=46127 (1.25x)
+- DB: `token_budget_escalation_events` now contains at least 1 row (use `scripts/check_p10_validation_status.py`)
+
+### P10 Stability: ✅ Retried budgets applied across drain batches
+
+Validated that P10 is not just recorded, but **actually used**:
+- Subsequent drain attempts picked up prior escalation events and enforced the stored `retry_max_tokens` as the next Builder call `max_tokens` (example observed: `max_tokens enforcement: 35177` after a `retry_max_tokens=35177` escalation event).
+- Phase attempt counters (`retry_attempt`, `revision_epoch`) persist in SQLite, so P10 retry behavior survives process restarts and repeated drain batches.
+
+
 ### Problem Statement
 
 **Baseline Telemetry** (38 events):

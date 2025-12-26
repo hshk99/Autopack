@@ -18,7 +18,7 @@ Each entry includes:
 
 ### BUILD-129: Token Estimator Overhead Model - Phase 3 P4-P10 Truncation Mitigation (2025-12-25)
 
-**Status**: COMPLETE ✅ (P4-P10 implemented, P10 escalation base corrected twice, validation pending)
+**Status**: COMPLETE ✅ (P4-P10 implemented, P10 escalation base corrected twice; P10 validation now proceeds via P10-first draining with DB-backed escalation events)
 
 **Summary**: Comprehensive truncation mitigation reducing truncation rate from 52.6% toward target ≤2%. Implemented P4 (budget enforcement), P5 (category recording), P6 (truncation-aware SMAPE), P7 (confidence-based buffering), P8 (telemetry budget recording), P9 (narrowed 2.2x buffer), and P10 (escalate-once with TWO CRITICAL escalation base fixes).
 
@@ -55,7 +55,16 @@ Each entry includes:
 - **P10 escalation base fix #1**: Ensures retry budgets align with P7 intent (e.g., 15,604 → 19,505 instead of 16,384 → 20,480)
 - **P10 escalation base fix #2**: Correctly handles truncation-at-ceiling scenarios (base ≥ ceiling where truncation occurred)
 - **P10 observability**: Added p10_base_value, p10_base_source, p10_retry_max_tokens for dashboard
-- Validation: Code review passed twice, awaiting targeted truncation test for end-to-end confirmation
+- Validation: Targeted replay was non-deterministic. Validation now proceeds via representative P10-first draining, with deterministic DB evidence when P10 triggers.
+
+**Additional Phase 3 Enhancements (2025-12-26)**:
+- **API identity + DB health gating**: `/health` returns `service="autopack"` and validates DB; executor requires correct service identity to avoid wrong-service 500s on `/runs/{id}`.
+- **DB-backed P10 escalation events**: Added `token_budget_escalation_events` (migration `migrations/005_add_p10_escalation_events.sql`) written at the moment P10 triggers.
+- **P10-first drain plan**: Added `scripts/create_p10_first_drain_plan.py` to rank queued phases by likelihood of triggering P10 and generate `p10_first_plan.txt`.
+- **SQLite migration runner hardening**: Fixed broken telemetry view `v_truncation_analysis` to match `phases.name` (migration `migrations/006_fix_v_truncation_analysis_view.sql`) and updated `scripts/run_migrations.py` to run root migrations by default.
+- **TokenEstimationV2 schema sync**: Added `migrations/007_rebuild_token_estimation_v2_events_with_features.sql` to ensure `token_estimation_v2_events` includes Phase 3 feature columns required by DB telemetry writers.
+- **P10 end-to-end validation**: Observed P10 escalation during P10-first drain (`research-system-v18`), with DB-backed event recorded in `token_budget_escalation_events` (base=36902 from selected_budget -> retry=46127).
+- **P10 stability**: Verified retries are stateful (SQLite `phases.retry_attempt`/`revision_epoch` persist) and the executor applies `retry_max_tokens` on subsequent attempts (e.g., enforcing `max_tokens=35177` on retry after escalation).
 
 ---
 

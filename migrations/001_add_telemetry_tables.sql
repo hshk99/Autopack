@@ -307,7 +307,8 @@ ORDER BY usage_date DESC, tum.model_name;
 CREATE VIEW IF NOT EXISTS v_truncation_analysis AS
 SELECT 
     te.phase_id,
-    p.phase_name,
+    -- phases table uses column `name` (not `phase_name`)
+    p.name AS phase_name,
     te.truncation_type,
     te.severity,
     COUNT(*) as event_count,
@@ -317,7 +318,7 @@ SELECT
     ROUND(SUM(CASE WHEN te.recovery_successful = 1 THEN 1 ELSE 0 END) * 100.0 / COUNT(*), 2) as recovery_rate_pct
 FROM truncation_events te
 LEFT JOIN phases p ON te.phase_id = p.phase_id
-GROUP BY te.phase_id, p.phase_name, te.truncation_type, te.severity
+GROUP BY te.phase_id, p.name, te.truncation_type, te.severity
 ORDER BY event_count DESC;
 
 -- View: Error summary

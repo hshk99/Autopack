@@ -1721,6 +1721,47 @@ class GovernedApplyPath:
             logger.warning("Empty patch content provided")
             return True, None  # Empty patch is technically successful
 
+        # BUILD-129 NDJSON mode: When the Builder uses NDJSON, operations are applied directly to disk
+        # inside the LLM client. The executor still threads a synthetic diff-like header through the
+        # pipeline so deliverables validation can see the touched paths:
+        #
+        #   # NDJSON Operations Applied (N files)
+        #   diff --git a/<path> b/<path>
+        #   +++ b/<path>
+        #
+        # This is intentionally NOT a complete git diff and must NOT be fed into git apply.
+        # Treat it as "already applied", but still enforce scope/protected-path constraints by
+        # validating the referenced paths.
+        stripped = patch_content.lstrip()
+        if stripped.startswith("# NDJSON Operations Applied"):
+            try:
+                files_to_modify = self._extract_files_from_patch(patch_content)
+                is_valid, violations = self._validate_patch_paths(files_to_modify)
+                if not is_valid:
+                    # BUILD-127 Phase 2: preserve governance behavior for protected-path violations
+                    protected_path_violations = [
+                        v.replace("Protected path: ", "")
+                        for v in violations
+                        if v.startswith("Protected path:")
+                    ]
+                    if protected_path_violations:
+                        from .governance_requests import create_protected_path_error
+                        error_msg = create_protected_path_error(
+                            violated_paths=protected_path_violations,
+                            justification=self._extract_justification_from_patch(patch_content),
+                        )
+                        logger.warning(
+                            f"[Governance] Protected path violation: {len(protected_path_violations)} paths"
+                        )
+                        return False, error_msg
+                    error_msg = f"Patch rejected - violations: {', '.join(violations)}"
+                    logger.error(f"[Isolation] {error_msg}")
+                    return False, error_msg
+                logger.info("[NDJSON] Detected synthetic NDJSON patch header; skipping git apply (already applied)")
+                return True, None
+            except Exception as e:
+                return False, f"ndjson_synthetic_patch_validation_failed: {e}"
+
         try:
             # Sanitize patch to fix common LLM output issues
             patch_content = self._sanitize_patch(patch_content)

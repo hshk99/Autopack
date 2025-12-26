@@ -2627,12 +2627,42 @@ class AnthropicBuilderClient:
                         return True
                     return any(path.startswith(prefix) for prefix in manifest_prefixes)
 
+                # Canonicalize common wrong-root prefixes into repo-root paths.
+                # Example observed in research-system-v9: "code/src/research/..." should be "src/research/..."
+                # Only rewrite if the rewritten path is actually allowed by the manifest.
+                def _canonicalize_to_manifest(path: str) -> str:
+                    candidates = [path]
+                    if path.startswith("./"):
+                        candidates.append(path[2:])
+                    if path.startswith("code/"):
+                        candidates.append(path[len("code/"):])
+                    if path.startswith("code/src/"):
+                        candidates.append("src/" + path[len("code/src/"):])
+                    if path.startswith("code/docs/"):
+                        candidates.append("docs/" + path[len("code/docs/"):])
+                    if path.startswith("code/tests/"):
+                        candidates.append("tests/" + path[len("code/tests/"):])
+
+                    for c in candidates:
+                        c2 = c.replace("\\", "/")
+                        while "//" in c2:
+                            c2 = c2.replace("//", "/")
+                        if _in_manifest(c2):
+                            return c2
+                    return path
+
                 outside = []
                 for op in parse_result.operations:
                     fp = (op.file_path or "").replace("\\", "/")
                     while "//" in fp:
                         fp = fp.replace("//", "/")
-                    if fp and not _in_manifest(fp):
+                    if not fp:
+                        continue
+                    canon = _canonicalize_to_manifest(fp)
+                    if canon != fp:
+                        op.file_path = canon
+                        fp = canon
+                    if not _in_manifest(fp):
                         outside.append(fp)
 
                 if outside:

@@ -12,6 +12,7 @@ GPT-5.2 Priority: HIGH - prevents catastrophic JSON parse failures under truncat
 """
 import json
 import logging
+import ast
 from dataclasses import dataclass
 from typing import List, Dict, Optional, Tuple
 from pathlib import Path
@@ -125,6 +126,34 @@ class NDJSONParser:
                     operations.append(op)
 
             except json.JSONDecodeError as e:
+                # Some models emit Python-literal dicts/lists (single quotes) instead of strict JSON.
+                # Try to salvage via ast.literal_eval on a per-line basis.
+                salvaged = False
+                try:
+                    if (line.startswith("{") or line.startswith("[")) and ("'" in line) and ('"' not in line):
+                        lit = ast.literal_eval(line)
+                        if isinstance(lit, (dict, list)):
+                            obj = lit
+                            salvaged = True
+                except Exception:
+                    salvaged = False
+
+                if salvaged:
+                    lines_parsed += 1
+                    # Handle meta line
+                    if isinstance(obj, dict) and obj.get("type") == "meta":
+                        total_expected = obj.get("total_operations")
+                        logger.info(
+                            f"[NDJSON:Parse] Meta line: total_operations={total_expected}, "
+                            f"summary={str(obj.get('summary', 'N/A'))[:50]}"
+                        )
+                        continue
+                    if isinstance(obj, dict):
+                        op = self._parse_operation(obj, i + 1)
+                        if op:
+                            operations.append(op)
+                    continue
+
                 lines_failed += 1
 
                 # Last line truncated?

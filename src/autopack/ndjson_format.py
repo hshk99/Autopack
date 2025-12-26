@@ -375,6 +375,26 @@ class NDJSONParser:
         """Parse a single operation object."""
         op_type = obj.get("type")
 
+        # Alternate schema seen in the wild (Claude sometimes ignores NDJSON and emits a JSON payload like):
+        # {
+        #   "files": [{"path": "...", "mode": "create", "new_content": "..."}, ...]
+        # }
+        # or emits file objects directly (pretty-printed/truncated). Normalize those into NDJSON operations.
+        if not op_type:
+            if isinstance(obj.get("path"), str) and obj.get("new_content") is not None:
+                mode = (obj.get("mode") or "create")
+                if isinstance(mode, str) and mode.lower() == "delete":
+                    op_type = "delete"
+                else:
+                    # Treat both create/modify as full-file write (NDJSONApplier create overwrites if exists)
+                    op_type = "create"
+                # Map fields into expected names
+                obj = {
+                    "type": op_type,
+                    "file_path": obj.get("path"),
+                    "content": obj.get("new_content"),
+                }
+
         # Some models omit "type" and emit objects like:
         #   {"file_path": "...", "content": "..."}
         # or structured modify payloads with {"file_path": "...", "operations": [...]}

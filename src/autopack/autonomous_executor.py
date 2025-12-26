@@ -3886,6 +3886,15 @@ Just the new description that should replace the current one while preserving th
                 if expected_paths and self.llm_service and deliverables_contract:
                     # Derive allowed roots (tight allowlist) but ensure ALL expected paths are covered.
                     expected_set = {p for p in expected_paths if isinstance(p, str)}
+                    # Don't allow broad bucket prefixes (docs/tests/code/polish) to dilute the manifest.
+                    # These "root bucket" deliverables are useful as prefixes for validation, but if they
+                    # enter deliverables_manifest they allow wrong-root drift (e.g. docs/* instead of docs/research/*).
+                    bucket_roots = {"docs", "tests", "code", "polish"}
+                    expected_set = {
+                        p
+                        for p in expected_set
+                        if p.rstrip("/").replace("\\", "/") not in bucket_roots
+                    }
                     expected_list = sorted(expected_set)
                     allowed_roots: List[str] = []
                     preferred_roots = ("src/autopack/research/", "src/autopack/cli/", "tests/research/", "docs/research/", "examples/")

@@ -763,7 +763,9 @@ class AnthropicBuilderClient:
             result = _parse_once(content)
 
             # BUILD-129 Phase 2: Continuation-based recovery for truncated outputs
-            if was_truncated and deliverables:
+            # NOTE: Skip continuation for NDJSON mode. NDJSON is already truncation-tolerant and continuation
+            # merging can produce invalid mixed-format output (e.g., JSON lists) that breaks NDJSON parsing.
+            if was_truncated and deliverables and not use_ndjson_format:
                 logger.info("[BUILD-129] Truncation detected, attempting continuation recovery...")
                 try:
                     recovery = ContinuationRecovery()
@@ -2452,6 +2454,66 @@ class AnthropicBuilderClient:
             # Apply operations using NDJSONApplier
             workspace = Path(file_context.get("workspace", ".")) if file_context else Path(".")
             applier = NDJSONApplier(workspace=workspace)
+
+            # HARD RUNTIME GUARD: If a deliverables manifest exists, do NOT apply any NDJSON operation
+            # whose file_path is outside the manifest/prefixes. This prevents workspace drift even when
+            # the model violates path constraints.
+            manifest_paths_raw = None
+            if isinstance(phase_spec, dict):
+                scope_cfg = phase_spec.get("scope") or {}
+                if isinstance(scope_cfg, dict):
+                    manifest_paths_raw = scope_cfg.get("deliverables_manifest")
+                if manifest_paths_raw is None:
+                    manifest_paths_raw = phase_spec.get("deliverables_manifest")
+
+            if isinstance(manifest_paths_raw, list) and manifest_paths_raw:
+                manifest_set = set()
+                manifest_prefixes = []
+                for p in manifest_paths_raw:
+                    if isinstance(p, str) and p.strip():
+                        norm = p.strip().replace("\\", "/")
+                        while "//" in norm:
+                            norm = norm.replace("//", "/")
+                        manifest_set.add(norm)
+                        if norm.endswith("/"):
+                            manifest_prefixes.append(norm)
+
+                def _in_manifest(path: str) -> bool:
+                    if path in manifest_set:
+                        return True
+                    return any(path.startswith(prefix) for prefix in manifest_prefixes)
+
+                outside = []
+                for op in parse_result.operations:
+                    fp = (op.file_path or "").replace("\\", "/")
+                    while "//" in fp:
+                        fp = fp.replace("//", "/")
+                    if fp and not _in_manifest(fp):
+                        outside.append(fp)
+
+                if outside:
+                    outside = sorted(set(outside))
+                    msg = (
+                        "NDJSON operations contained file paths outside deliverables_manifest; "
+                        "skipping apply to prevent workspace drift."
+                    )
+                    logger.error(f"[BUILD-129:NDJSON] {msg} outside_count={len(outside)} sample={outside[:10]}")
+                    return BuilderResult(
+                        success=False,
+                        patch_content="",
+                        builder_messages=[
+                            msg,
+                            f"outside_count={len(outside)}",
+                            f"outside_sample={outside[:10]}",
+                        ],
+                        tokens_used=response.usage.input_tokens + response.usage.output_tokens,
+                        model_used=model,
+                        error="ndjson_outside_manifest",
+                        stop_reason=stop_reason,
+                        was_truncated=effective_truncation,
+                        raw_output=content,
+                    )
+
             apply_result = applier.apply(parse_result.operations)
 
             logger.info(
@@ -2589,6 +2651,9 @@ Only the last incomplete line is lost."""
                 manifest = None
                 if isinstance(scope_cfg, dict):
                     manifest = scope_cfg.get("deliverables_manifest")
+                # Executor often attaches deliverables_manifest at the top-level phase spec.
+                if manifest is None:
+                    manifest = phase_spec.get("deliverables_manifest")
                 if isinstance(manifest, list) and manifest:
                     # Keep prompt compact: list first N entries; rule remains "only these paths/prefixes".
                     manifest_strs = [str(p).strip() for p in manifest if isinstance(p, str) and str(p).strip()]

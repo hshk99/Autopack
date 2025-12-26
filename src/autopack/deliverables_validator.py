@@ -398,6 +398,10 @@ def normalize_path(path: str, workspace: Optional[Path] = None) -> str:
     # Convert backslashes to forward slashes
     path = path.replace("\\", "/")
 
+    # Collapse accidental double slashes (e.g. "docs//", "code//tests").
+    while "//" in path:
+        path = path.replace("//", "/")
+
     # Remove leading ./
     if path.startswith("./"):
         path = path[2:]
@@ -442,8 +446,20 @@ def extract_deliverables_from_scope(scope: Dict[str, Any]) -> List[str]:
                         deliverables.append(sanitize_deliverable_path(items))
 
     # Format 2: scope["paths"] (legacy format)
+    # IMPORTANT: In newer runs, `scope["paths"]` often represents *context roots* (e.g. ["code", "tests", "docs"])
+    # rather than literal deliverables. Treat only "file-like" entries as deliverables and ignore bare bucket roots.
     if "paths" in scope and isinstance(scope["paths"], list):
-        deliverables.extend([sanitize_deliverable_path(p) for p in scope["paths"]])
+        bucket_roots = {"docs", "tests", "code", "polish"}
+        for p in scope["paths"]:
+            sp = sanitize_deliverable_path(p)
+            if not isinstance(sp, str):
+                continue
+            sp_norm = sp.replace("\\", "/").strip()
+            sp_base = sp_norm.rstrip("/")
+            # Ignore bare bucket roots like "docs", "tests", "code", "polish"
+            if sp_base in bucket_roots and "/" not in sp_base and "." not in sp_base:
+                continue
+            deliverables.append(sp_norm)
 
     # Normalize common top-level directory markers to prefixes.
     # Many phase specs include deliverables like "docs", "tests", "polish", "code" as *root buckets*.
@@ -666,7 +682,8 @@ def validate_deliverables(
     if not allowed_roots or not all(_covered_by_roots(p, allowed_roots) for p in expected_list):
         expanded: List[str] = []
         for p in expected_list:
-            parts = p.split("/")
+            p_norm = p.rstrip("/")
+            parts = [seg for seg in p_norm.split("/") if seg]
             if len(parts) >= 2:
                 # If second segment contains '.', it's likely a filename, not a directory
                 if "." in parts[1]:
@@ -674,7 +691,7 @@ def validate_deliverables(
                 else:
                     root = "/".join(parts[:2]) + "/"
             else:
-                root = parts[0] + "/"
+                root = (parts[0] + "/") if parts else ""
             if root not in expanded:
                 expanded.append(root)
         allowed_roots = expanded

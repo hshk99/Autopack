@@ -13,6 +13,7 @@ GPT-5.2 Priority: HIGH - prevents catastrophic JSON parse failures under truncat
 import json
 import logging
 import ast
+import re
 from dataclasses import dataclass
 from typing import List, Dict, Optional, Tuple
 from pathlib import Path
@@ -140,6 +141,29 @@ class NDJSONParser:
                         salvaged = True
                 except Exception:
                     salvaged = False
+
+                # As a last resort, try to coerce "loose JSON" to valid JSON:
+                # - unquoted keys: {type: 'meta'} -> {"type": "meta"}
+                # - python literals: True/False/None -> true/false/null
+                # - single quotes -> double quotes (best-effort)
+                if not salvaged:
+                    try:
+                        candidate = line.strip()
+                        if candidate.endswith(","):
+                            candidate = candidate[:-1]
+                        candidate = re.sub(r'([{,]\s*)([A-Za-z_][A-Za-z0-9_]*)\s*:', r'\1"\2":', candidate)
+                        # Replace Python literals with JSON literals
+                        candidate = re.sub(r"\bTrue\b", "true", candidate)
+                        candidate = re.sub(r"\bFalse\b", "false", candidate)
+                        candidate = re.sub(r"\bNone\b", "null", candidate)
+                        # If there are no double-quotes at all, assume single quotes are used for strings.
+                        if '"' not in candidate and "'" in candidate:
+                            candidate = candidate.replace("'", '"')
+                        obj2 = json.loads(candidate)
+                        obj = obj2
+                        salvaged = True
+                    except Exception:
+                        salvaged = False
 
                 if salvaged:
                     lines_parsed += 1

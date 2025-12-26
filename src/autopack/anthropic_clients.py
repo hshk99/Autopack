@@ -2479,19 +2479,37 @@ class AnthropicBuilderClient:
                         was_truncated=effective_truncation,
                     )
 
-                # Fallback: model sometimes returns a single structured-edit JSON object (often pretty-printed).
-                # Try to decode the *entire* payload and route it to the structured-edit parser.
+                # Fallback: model sometimes returns a structured-edit JSON object (often pretty-printed and/or truncated).
+                # Try to recover *any* decodable JSON value from the payload by scanning for the first '{' or '[' that
+                # can be parsed with JSONDecoder.raw_decode. This is truncation-tolerant and ignores leading "{" fragments.
                 try:
                     import json as _json
                     from json import JSONDecoder as _JSONDecoder
                     import ast as _ast
 
-                    obj = None
-                    try:
+                    def _scan_decode_any_json(text: str):
                         decoder = _JSONDecoder()
-                        obj, _end = decoder.raw_decode(sanitized)
-                    except Exception:
-                        obj = _ast.literal_eval(sanitized)
+                        idx = 0
+                        while True:
+                            # Find next plausible JSON start
+                            m1 = text.find("{", idx)
+                            m2 = text.find("[", idx)
+                            starts = [p for p in (m1, m2) if p != -1]
+                            if not starts:
+                                return None
+                            start = min(starts)
+                            try:
+                                obj, end = decoder.raw_decode(text[start:])
+                                return obj
+                            except Exception:
+                                # If it looks like a Python literal, try literal_eval at this position
+                                try:
+                                    obj = _ast.literal_eval(text[start:])
+                                    return obj
+                                except Exception:
+                                    idx = start + 1
+
+                    obj = _scan_decode_any_json(sanitized)
 
                     if isinstance(obj, dict) and isinstance(obj.get("operations"), list):
                         logger.warning("[BUILD-129:NDJSON] Decoded structured-edit plan; routing to structured-edit parser")

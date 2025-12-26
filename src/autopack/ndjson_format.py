@@ -278,9 +278,21 @@ class NDJSONParser:
         """Parse a single operation object."""
         op_type = obj.get("type")
 
+        # Some models omit "type" and emit objects like:
+        #   {"file_path": "...", "content": "..."}
+        # or structured modify payloads with {"file_path": "...", "operations": [...]}
+        # Infer operation type in these cases.
         if not op_type:
-            logger.warning(f"[NDJSON:Parse] Line #{line_num} missing 'type' field")
-            return None
+            if isinstance(obj.get("file_path"), str):
+                if obj.get("content") is not None:
+                    op_type = "create"
+                elif isinstance(obj.get("operations"), list):
+                    op_type = "modify"
+                elif obj.get("delete") is True or obj.get("op") == "delete":
+                    op_type = "delete"
+            if not op_type:
+                logger.warning(f"[NDJSON:Parse] Line #{line_num} missing 'type' field")
+                return None
 
         if op_type == "create":
             return NDJSONOperation(

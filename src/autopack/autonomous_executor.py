@@ -3899,7 +3899,10 @@ Just the new description that should replace the current one while preserving th
                     if not allowed_roots or not all(_covered(p) for p in expected_list):
                         expanded: List[str] = []
                         for p in expected_list:
-                            parts = p.split("/")
+                            # Normalize trailing-slash directory prefixes like "docs/" so we don't
+                            # accidentally generate roots like "docs//".
+                            p_norm = p.rstrip("/")
+                            parts = p_norm.split("/") if p_norm else []
                             # For root-level files (no "/"), include the file itself
                             if len(parts) == 1:
                                 root = p

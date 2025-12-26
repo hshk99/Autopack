@@ -362,6 +362,18 @@ class NDJSONApplier:
 
             return content.replace(old_text, new_text, 1)  # Replace first occurrence
 
+        elif sub_type == "replace_all":
+            # Replace ALL occurrences of old_text with new_text
+            old_text = sub_op.get("old_text", "")
+            new_text = sub_op.get("new_text", "")
+
+            if not old_text:
+                raise ValueError(f"replace_all requires non-empty old_text in {file_path}")
+            if old_text not in content:
+                raise ValueError(f"replace_all anchor '{old_text[:50]}' not found in {file_path}")
+
+            return content.replace(old_text, new_text)
+
         else:
             logger.warning(f"[NDJSON:Apply] Unknown sub-operation type: {sub_type}")
             return content

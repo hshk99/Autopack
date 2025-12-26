@@ -2581,6 +2581,29 @@ This format is truncation-tolerant: if output is cut off mid-generation, all com
 This format ensures that if generation is truncated, all complete operation lines are preserved and usable.
 Only the last incomplete line is lost."""
 
+            # BUILD-129 Phase 3: Tighten path correctness using deliverables_manifest (when present).
+            # Many failures were due to writing outside the manifest or using wrong file paths (e.g. docs/* vs docs/research/*).
+            # When a manifest is present, it is the authoritative allowlist for file_path values.
+            if phase_spec:
+                scope_cfg = phase_spec.get("scope") or {}
+                manifest = None
+                if isinstance(scope_cfg, dict):
+                    manifest = scope_cfg.get("deliverables_manifest")
+                if isinstance(manifest, list) and manifest:
+                    # Keep prompt compact: list first N entries; rule remains "only these paths/prefixes".
+                    manifest_strs = [str(p).strip() for p in manifest if isinstance(p, str) and str(p).strip()]
+                    preview = manifest_strs[:60]
+                    base_prompt += "\n\n**FILE PATH CONSTRAINT (DELIVERABLES MANIFEST - STRICT)**:\n"
+                    base_prompt += "- For EVERY operation line, `file_path` MUST be exactly one of the approved paths below.\n"
+                    base_prompt += "- If an approved entry ends with `/`, it is a directory prefix; then `file_path` MUST be under that prefix.\n"
+                    base_prompt += "- DO NOT create/modify/delete any file outside this manifest.\n"
+                    base_prompt += "- DO NOT improvise alternate locations (e.g. `docs/API.md` when `docs/research/API_REFERENCE.md` is required).\n"
+                    base_prompt += "\nApproved manifest (preview):\n"
+                    for p in preview:
+                        base_prompt += f"- {p}\n"
+                    if len(manifest_strs) > len(preview):
+                        base_prompt += f"- ... ({len(manifest_strs) - len(preview)} more)\n"
+
             return base_prompt
         elif use_structured_edit:
             # NEW: Structured edit mode for large files (Stage 2) - per IMPLEMENTATION_PLAN3.md Phase 2.1

@@ -445,8 +445,22 @@ def extract_deliverables_from_scope(scope: Dict[str, Any]) -> List[str]:
     if "paths" in scope and isinstance(scope["paths"], list):
         deliverables.extend([sanitize_deliverable_path(p) for p in scope["paths"]])
 
-    # Drop empties after sanitization
-    return [p for p in deliverables if isinstance(p, str) and p.strip()]
+    # Normalize common top-level directory markers to prefixes.
+    # Many phase specs include deliverables like "docs", "tests", "polish", "code" as *root buckets*.
+    # These are not literal files and will never appear in diffs; treat them as directory prefixes (e.g. "docs/").
+    normalized: List[str] = []
+    for p in deliverables:
+        if not isinstance(p, str):
+            continue
+        p = p.strip()
+        if not p:
+            continue
+        if p in {"docs", "tests", "polish", "code"}:
+            p = p.rstrip("/") + "/"
+        normalized.append(p)
+
+    # Drop empties after normalization
+    return [p for p in normalized if isinstance(p, str) and p.strip()]
 
 
 def validate_new_file_diffs_have_complete_structure(

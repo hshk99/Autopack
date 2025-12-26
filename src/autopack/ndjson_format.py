@@ -208,6 +208,64 @@ class NDJSONParser:
                 + " | ".join([f"#{ln}:{err}::{snip}" for (ln, snip, err) in failed_examples])
             )
 
+        # Fallback: Some models emit *pretty-printed* JSON objects (multi-line) instead of NDJSON (one JSON per line).
+        # In that case, line-by-line parsing will see lines like "{" and fail. Try to recover by scanning the full
+        # text and using JSONDecoder.raw_decode to extract full objects across newlines.
+        if not operations:
+            try:
+                decoder = json.JSONDecoder()
+                text = output.strip()
+                idx = 0
+                recovered_objs: List[object] = []
+                while True:
+                    m = re.search(r"[\{\[]", text[idx:])
+                    if not m:
+                        break
+                    start = idx + m.start()
+                    try:
+                        obj, end = decoder.raw_decode(text[start:])
+                        recovered_objs.append(obj)
+                        idx = start + end
+                    except Exception:
+                        idx = start + 1
+
+                recovered_ops: List[NDJSONOperation] = []
+                recovered_total_expected = None
+                for obj in recovered_objs:
+                    if isinstance(obj, list):
+                        # JSON array of operations
+                        for item in obj:
+                            if isinstance(item, dict):
+                                if item.get("type") == "meta":
+                                    recovered_total_expected = item.get("total_operations")
+                                    continue
+                                op = self._parse_operation(item, 0)
+                                if op:
+                                    recovered_ops.append(op)
+                        continue
+                    if isinstance(obj, dict):
+                        if obj.get("type") == "meta":
+                            recovered_total_expected = obj.get("total_operations")
+                            continue
+                        op = self._parse_operation(obj, 0)
+                        if op:
+                            recovered_ops.append(op)
+
+                if recovered_ops:
+                    logger.warning(
+                        f"[NDJSON:Parse] Recovered {len(recovered_ops)} operations from multi-line JSON output "
+                        f"({len(recovered_objs)} JSON values decoded)"
+                    )
+                    return NDJSONParseResult(
+                        operations=recovered_ops,
+                        was_truncated=was_truncated,
+                        total_expected=recovered_total_expected,
+                        lines_parsed=len(recovered_objs),
+                        lines_failed=lines_failed,
+                    )
+            except Exception:
+                pass
+
         return NDJSONParseResult(
             operations=operations,
             was_truncated=was_truncated,

@@ -2413,9 +2413,19 @@ class AnthropicBuilderClient:
             BuilderResult with success/failure status
         """
         try:
+            # Pre-sanitize: strip common markdown fences that break NDJSON line parsing.
+            raw = content or ""
+            lines = []
+            for ln in raw.splitlines():
+                s = ln.strip()
+                if s.startswith("```"):
+                    continue
+                lines.append(ln)
+            sanitized = "\n".join(lines).strip()
+
             # Parse NDJSON
             parser = NDJSONParser()
-            parse_result = parser.parse(content)
+            parse_result = parser.parse(sanitized)
 
             logger.info(
                 f"[BUILD-129:NDJSON] Parsed {parse_result.lines_parsed} lines, "
@@ -2435,7 +2445,39 @@ class AnthropicBuilderClient:
             effective_truncation = bool(was_truncated or (parse_result.was_truncated and output_utilization >= 95.0))
 
             if not parse_result.operations:
-                error_msg = "NDJSON parsing produced no valid operations"
+                # Fallback: model sometimes ignores NDJSON and returns a normal diff.
+                # If so, parse as legacy diff to avoid wasting the whole attempt.
+                if "diff --git" in sanitized or sanitized.startswith("*** Begin Patch"):
+                    logger.warning("[BUILD-129:NDJSON] No NDJSON operations found; falling back to legacy diff parse")
+                    return self._parse_legacy_diff_output(
+                        sanitized,
+                        response,
+                        model,
+                        stop_reason=stop_reason,
+                        was_truncated=effective_truncation,
+                    )
+
+                # Fallback: model may return a JSON array of operations instead of NDJSON.
+                try:
+                    import json as _json
+                    obj = _json.loads(sanitized)
+                    if isinstance(obj, list) and obj and all(isinstance(x, dict) for x in obj):
+                        logger.warning("[BUILD-129:NDJSON] Detected JSON array; converting to NDJSON operations")
+                        converted = "\n".join(_json.dumps(x, ensure_ascii=False) for x in obj)
+                        parse_result = parser.parse(converted)
+                    elif isinstance(obj, dict) and obj.get("type") in ("create", "modify", "delete", "meta"):
+                        logger.warning("[BUILD-129:NDJSON] Detected single JSON op; converting to NDJSON")
+                        converted = _json.dumps(obj, ensure_ascii=False)
+                        parse_result = parser.parse(converted)
+                except Exception:
+                    pass
+
+                if parse_result.operations:
+                    logger.info(
+                        f"[BUILD-129:NDJSON] Salvaged {len(parse_result.operations)} operations after fallback conversion"
+                    )
+                else:
+                    error_msg = "NDJSON parsing produced no valid operations"
                 if effective_truncation:
                     error_msg += " (truncated)"
                 logger.error(error_msg)

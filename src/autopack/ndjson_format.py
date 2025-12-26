@@ -101,6 +101,11 @@ class NDJSONParser:
             if not line:
                 continue  # Skip empty lines
 
+            # Be tolerant of models that add prose/markdown around NDJSON.
+            # Only attempt JSON parsing for lines that plausibly start a JSON value.
+            if not (line.startswith("{") or line.startswith("[")):
+                continue
+
             try:
                 obj = json.loads(line)
                 lines_parsed += 1

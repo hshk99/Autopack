@@ -218,3 +218,17 @@ While draining `research-system-v9` in **single-phase batches** (telemetry enabl
 - **Result**: parsing now reliably recovers and applies operations under truncation (e.g., 7–8 operations recovered/applied), so the dominant remaining failure is expected **deliverables validation** due to partial output under `stop_reason=max_tokens` (P10 escalation observed).
 
 **Commit**: `b0fe3cc6` — `src/autopack/ndjson_format.py`, `tests/test_ndjson_format.py`
+
+---
+
+## 2025-12-27 Update: Systemic convergence hardening (research-system-v9)
+
+Additional systemic fixes were required after NDJSON parsing was stabilized. These changes ensure phases can converge across retries under NDJSON + truncation without scope drift or destructive recovery actions:
+
+- **Cumulative deliverables validation**: required deliverables already present in the workspace satisfy validation. This is critical because NDJSON operations are applied directly to disk and a retry may only emit the *remaining* files.
+- **Deliverables sanitation**: prose bullets like “Logging configuration” are filtered so they do not enter deliverables/scope/manifest logic.
+- **Deliverables-aware scope inference**: bucketed deliverables dicts (`{"code/tests/docs":[...]}`) are flattened to file paths (prevents accidental `code/tests/docs` bucket roots).
+- **Project workspace root**: for `project_build`, scope prefixes like `src/`, `docs/`, `tests/` resolve to repo root (prevents false “outside scope” blocks).
+- **NDJSON apply**: `governed_apply` treats “NDJSON Operations Applied …” as a synthetic header and skips `git apply` (operations already applied), while still enforcing scope/protected-path rules.
+- **Safety**: Doctor `execute_fix` of `fix_type=git` is blocked for `project_build` runs and the reason is recorded (prevents destructive `git reset --hard` / `git clean -fd` from wiping partially-generated deliverables).
+- **CI traceability**: CI logs now always persist a `report_path` so PhaseFinalizer can reference the exact test output artifact.

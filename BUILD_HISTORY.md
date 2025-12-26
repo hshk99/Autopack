@@ -72,6 +72,14 @@ Each entry includes:
   - Validated in repeated `research-system-v9` single-batch drains: operations are recovered/applied under truncation, shifting the dominant blocker to deliverables truncation/partial output (expected).
   - **Commit**: `b0fe3cc6` — `src/autopack/ndjson_format.py`, `tests/test_ndjson_format.py`
 
+- **Convergence hardening (research-system-v9)**:
+  - Deliverables validation now supports **multi-attempt convergence** by counting required deliverables already present on disk.
+  - Deliverables-aware scope inference now **flattens bucketed deliverables dicts** (avoids accidental `code/tests/docs` bucket roots being treated as deliverables/scope).
+  - `project_build` workspace root detection now treats repo-top-level buckets (`src/`, `docs/`, `tests/`, etc.) as anchored to repo root (prevents false “outside scope” blocks).
+  - `governed_apply` now treats the NDJSON “Operations Applied …” header as synthetic and skips `git apply` (operations already applied), while still enforcing scope/protected-path rules.
+  - Doctor `execute_fix` of type `git` is blocked for `project_build` to prevent destructive resets/cleans; action is recorded in the debug journal when blocked.
+  - CI results now always include `report_path` (persisted CI log) to support PhaseFinalizer and later forensic review.
+
 ---
 
 ### BUILD-129: Token Estimator Overhead Model - Phase 3 DOC_SYNTHESIS (2025-12-24)

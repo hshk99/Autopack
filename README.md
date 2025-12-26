@@ -67,6 +67,18 @@ Autopack is a framework for orchestrating autonomous AI agents (Builder and Audi
   - Remaining failures shift to expected truncation-driven partial deliverables + P10 escalation
 - **Commit**: `b0fe3cc6`
 
+### BUILD-129 Phase 3 Convergence Hardening (research-system-v9) (2025-12-27) - ✅ COMPLETE (Systemic)
+**Root-cause fixes to ensure phases can converge across attempts** under NDJSON + truncation, without workspace drift or destructive “fixes”.
+- **Deliverables validation is now cumulative**: required deliverables already present on disk satisfy validation (enables multi-attempt convergence under NDJSON truncation).
+- **Scope/workspace root correctness**:
+  - Fixed deliverables-aware scope inference to **flatten bucketed deliverables dicts** (`{"code/tests/docs":[...]}`) into real paths (no more accidental `code/tests/docs` as scope roots).
+  - `project_build` workspace root now correctly resolves to the **repo root** for standard buckets (`src/`, `docs/`, `tests/`, etc.), preventing false “outside scope” rejections.
+- **NDJSON apply correctness**: `governed_apply` treats the synthetic “NDJSON Operations Applied …” header as **already-applied** (skips `git apply` while still enforcing path restrictions).
+- **Safety / traceability**:
+  - **Blocked** Doctor `execute_fix` of type `git` for `project_build` runs (prevents `git reset --hard` / `git clean -fd` wiping partially-generated deliverables).
+  - P10 `TOKEN_ESCALATION` no longer triggers Doctor/replan; retries remain stateful and deterministic.
+  - CI logs now always persist a `report_path` to support PhaseFinalizer and later forensic review.
+
 ### BUILD-129 Phase 3 DOC_SYNTHESIS Implementation (2025-12-24) - ✅ COMPLETE
 **Phase-Based Documentation Estimation** - 76.4% improvement in documentation token prediction accuracy
 - **Problem Solved**: Documentation tasks severely underestimated (SMAPE 103.6% on real sample: predicted 5,200 vs actual 16,384 tokens)

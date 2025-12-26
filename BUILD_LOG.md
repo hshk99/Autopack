@@ -441,6 +441,25 @@ p10_metadata = {
 
 ---
 
+## 2025-12-27: research-system-v9 Convergence Hardening (Deliverables + Scope + NDJSON Apply) ✅
+
+**Summary**: Root-caused and fixed the remaining systemic blockers preventing phases from converging under NDJSON + truncation. After these fixes, drains no longer fail due to “no ops parsed”, “outside scope” false positives, or trying to `git apply` an NDJSON synthetic header.
+
+### Fixes
+- **Cumulative deliverables validation**: deliverables validation now counts already-existing required files on disk as present (enables multi-attempt convergence when NDJSON output is truncated).
+- **Scope inference correctness**:
+  - Flattened bucketed deliverables dicts (`{"code/tests/docs":[...]}`) into real path lists (prevents `code/` being treated as a project workspace root).
+  - For `project_build`, treat bucket prefixes like `src/`, `docs/`, `tests/` as repo-root anchored to avoid false “outside scope” rejections.
+  - Filtered out non-path prose “deliverables” (e.g., “Logging configuration”) so they do not enter scope/manifest/validator logic.
+- **NDJSON apply**: `governed_apply` now detects the synthetic “NDJSON Operations Applied …” header and **skips git-apply** (operations were already applied), while still enforcing protected-path and scope rules.
+- **Safety + traceability**:
+  - Doctor `execute_fix` of `fix_type=git` is **blocked for `project_build`** and a debug-journal entry is written with the reason (prevents destructive `git reset --hard` / `git clean -fd` wiping partially-generated deliverables).
+  - CI logs now always persist a `report_path` to support PhaseFinalizer and post-mortem review.
+
+### Repo integrity check
+- **Tracked file deletions**: none observed (`git ls-files -d` empty).
+- **Untracked deliverables cleanup**: drain-generated untracked artifacts were removed via `git clean` (safe; does not touch tracked files). This cleanup was done only to keep the repo working tree clean for commits and review.
+
 ## 2025-12-24: BUILD-129 Phase 3 DOC_SYNTHESIS - PRODUCTION VERIFIED ✅
 
 **Summary**: Implemented phase-based documentation estimation with feature extraction and truncation awareness. Identified and resolved 2 infrastructure blockers. **Production validation complete**: Processed 3 pure doc phases + 1 mixed phase, DOC_SYNTHESIS achieving 29.5% SMAPE (73.3% improvement from 103.6%). All 11 tests passing.

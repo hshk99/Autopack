@@ -2423,6 +2423,28 @@ class AnthropicBuilderClient:
                 lines.append(ln)
             sanitized = "\n".join(lines).strip()
 
+            # If the model ignored NDJSON and returned a single structured-edit JSON object (often pretty-printed),
+            # route to the structured-edit parser instead of failing with ndjson_no_operations.
+            # This shows up as lines like "{" and "}" (pretty JSON) and a top-level "operations" array.
+            try:
+                import json as _json
+                if sanitized.startswith("{") and '"operations"' in sanitized and "diff --git" not in sanitized:
+                    obj = _json.loads(sanitized)
+                    if isinstance(obj, dict) and isinstance(obj.get("operations"), list):
+                        logger.warning("[BUILD-129:NDJSON] Detected structured-edit JSON; falling back to structured-edit parser")
+                        return self._parse_structured_edit_output(
+                            sanitized,
+                            file_context,
+                            response,
+                            model,
+                            phase_spec,
+                            config=config,
+                            stop_reason=stop_reason,
+                            was_truncated=bool(was_truncated),
+                        )
+            except Exception:
+                pass
+
             # Parse NDJSON
             parser = NDJSONParser()
             parse_result = parser.parse(sanitized)

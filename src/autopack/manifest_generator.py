@@ -511,7 +511,35 @@ class ManifestGenerator:
             return phase, 1.0, []
 
         # BUILD-128: Check deliverables and infer scope (prevents category mismatches)
-        existing_deliverables = existing_scope.get("deliverables", [])
+        existing_deliverables_raw = existing_scope.get("deliverables", [])
+
+        # BUILD-128/129: deliverables may be stored as a dict with buckets like:
+        #   {"code": [...], "tests": [...], "docs": [...]}
+        # Treat bucket KEYS as labels, not paths. Flatten to a List[str] for:
+        # - category inference
+        # - scope.paths generation
+        # - token estimation (len(dict) == 3 was undercounting deliverables)
+        existing_deliverables: List[str] = []
+        if isinstance(existing_deliverables_raw, dict):
+            for v in existing_deliverables_raw.values():
+                if isinstance(v, str) and v.strip():
+                    existing_deliverables.append(v.strip())
+                elif isinstance(v, (list, tuple, set)):
+                    for item in v:
+                        if isinstance(item, str) and item.strip():
+                            existing_deliverables.append(item.strip())
+        elif isinstance(existing_deliverables_raw, str):
+            if existing_deliverables_raw.strip():
+                existing_deliverables = [existing_deliverables_raw.strip()]
+        elif isinstance(existing_deliverables_raw, (list, tuple, set)):
+            for item in existing_deliverables_raw:
+                if isinstance(item, str) and item.strip():
+                    existing_deliverables.append(item.strip())
+
+        # De-dup while preserving order
+        if existing_deliverables:
+            existing_deliverables = list(dict.fromkeys(existing_deliverables))
+
         if existing_deliverables:
             logger.info(f"[BUILD-128] Phase '{phase_id}' has deliverables - inferring scope from deliverables")
 
@@ -534,7 +562,8 @@ class ManifestGenerator:
                 "deliverables": existing_deliverables,
                 "scope": {
                     "paths": scope_paths,
-                    "deliverables": existing_deliverables,  # Preserve original
+                    # Preserve original scope deliverables (may be dict) for validators that understand buckets.
+                    "deliverables": existing_deliverables_raw if existing_deliverables_raw else existing_deliverables,
                     "read_only_context": read_only_context,
                     "allowed_paths": existing_scope.get("allowed_paths", []),  # BUILD-128: Preserve from constraints
                     "protected_paths": existing_scope.get("protected_paths", [])  # BUILD-128: Preserve from constraints

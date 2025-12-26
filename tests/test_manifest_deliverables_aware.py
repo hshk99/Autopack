@@ -321,6 +321,34 @@ class TestEnhancePhaseWithDeliverables:
         assert enhanced["metadata"]["category"] == "backend"
         assert confidence == 0.8
 
+    def test_infer_from_bucketed_deliverables_dict_flattens_paths(self, generator):
+        """Bucketed deliverables dict (code/tests/docs) should be flattened (no 'code' key leaked into scope.paths)."""
+        phase = {
+            "phase_id": "bucketed-phase",
+            "goal": "Implement research system components",
+            "scope": {
+                "deliverables": {
+                    "code": ["src/research/agents/meta_auditor.py"],
+                    "tests": ["tests/research/agents/test_meta_auditor.py"],
+                    "docs": ["docs/research/meta_analysis.md"],
+                }
+            },
+        }
+
+        enhanced, confidence, warnings = generator._enhance_phase(phase)
+
+        assert warnings == []
+        # scope.paths should contain actual file paths, not bucket keys like "code"
+        assert "code" not in enhanced["scope"]["paths"]
+        assert "tests" not in enhanced["scope"]["paths"]
+        assert "docs" not in enhanced["scope"]["paths"]
+        assert "src/research/agents/meta_auditor.py" in enhanced["scope"]["paths"]
+        assert "tests/research/agents/test_meta_auditor.py" in enhanced["scope"]["paths"]
+        assert "docs/research/meta_analysis.md" in enhanced["scope"]["paths"]
+        # Top-level deliverables should be a flattened list
+        assert isinstance(enhanced.get("deliverables"), list)
+        assert "src/research/agents/meta_auditor.py" in enhanced["deliverables"]
+
 
 class TestBuild127Regression:
     """Regression tests for BUILD-127 manifest issue."""

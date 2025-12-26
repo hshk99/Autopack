@@ -3564,6 +3564,22 @@ Just the new description that should replace the current one while preserving th
         fix_type = response.fix_type or ""
         verify_command = response.verify_command
 
+        # Safety: In project_build runs, do not allow Doctor to execute git-based fixes.
+        # The git fix recipes commonly include `git reset --hard` / `git clean -fd` which will:
+        # - wipe partially-generated deliverables needed for convergence
+        # - create noisy checkpoint commits
+        # - potentially discard unrelated local work in the repo
+        #
+        # For Autopack self-maintenance runs, git execute_fix is acceptable (controlled, intentional).
+        if self.run_type == "project_build" and fix_type == "git":
+            logger.warning(
+                f"[Doctor] Blocking execute_fix of type 'git' for project_build run (phase={phase_id}). "
+                f"Falling back to normal retry loop."
+            )
+            hint = response.builder_hint or "Fix attempt blocked: git execute_fix is disabled for project_build runs"
+            self._builder_hint_by_phase[phase_id] = hint
+            return "execute_fix_blocked_git_project_build", True
+
         if not fix_commands:
             logger.warning(f"[Doctor] execute_fix requested but no fix_commands provided")
             return "execute_fix_no_commands", True
@@ -6617,6 +6633,16 @@ Just the new description that should replace the current one while preserving th
                 project_root = Path(self.workspace) / parts[0] / parts[1]
                 logger.info(f"[Scope] Workspace root determined: {project_root}")
                 return project_root
+
+            # Autopack monorepo heuristic: if scope paths start with standard repo-top-level buckets,
+            # the workspace root should be the repo root (NOT the bucket directory). This prevents
+            # accidental scope isolation where writes to e.g. "src/*" are blocked because the derived
+            # workspace is "docs/" or "tests/".
+            repo_root_buckets = {"src", "docs", "tests", "config", "scripts", "migrations", "archive", "examples"}
+            if parts and parts[0] in repo_root_buckets:
+                repo_root = Path(self.workspace).resolve()
+                logger.info(f"[Scope] Workspace root determined as repo root for bucket '{parts[0]}': {repo_root}")
+                return repo_root
 
             # Common external project layouts: "fileorganizer/<...>" or "file-organizer-app-v1/<...>"
             # If the first segment exists as a directory under repo root, treat it as workspace root.

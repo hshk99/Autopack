@@ -130,11 +130,14 @@ class NDJSONParser:
                 # Try to salvage via ast.literal_eval on a per-line basis.
                 salvaged = False
                 try:
-                    if (line.startswith("{") or line.startswith("[")) and ("'" in line) and ('"' not in line):
-                        lit = ast.literal_eval(line)
-                        if isinstance(lit, (dict, list)):
-                            obj = lit
-                            salvaged = True
+                    candidate = line
+                    # Common when models emit Python list elements: "{...}," at EOL
+                    if candidate.endswith(","):
+                        candidate = candidate[:-1]
+                    lit = ast.literal_eval(candidate)
+                    if isinstance(lit, (dict, list)):
+                        obj = lit
+                        salvaged = True
                 except Exception:
                     salvaged = False
 

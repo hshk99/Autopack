@@ -3576,6 +3576,21 @@ Just the new description that should replace the current one while preserving th
                 f"[Doctor] Blocking execute_fix of type 'git' for project_build run (phase={phase_id}). "
                 f"Falling back to normal retry loop."
             )
+            try:
+                log_fix(
+                    error_signature=f"execute_fix blocked (git) for {phase_id}",
+                    fix_description=(
+                        "Blocked Doctor execute_fix with fix_type='git' for project_build run to prevent "
+                        "destructive repo operations (e.g., git reset --hard / git clean -fd) from wiping "
+                        "partially-generated deliverables and obscuring debugging history."
+                    ),
+                    files_changed=[],
+                    run_id=self.run_id,
+                    phase_id=phase_id,
+                    outcome="BLOCKED_GIT_EXECUTE_FIX",
+                )
+            except Exception:
+                pass
             hint = response.builder_hint or "Fix attempt blocked: git execute_fix is disabled for project_build runs"
             self._builder_hint_by_phase[phase_id] = hint
             return "execute_fix_blocked_git_project_build", True
@@ -7486,10 +7501,10 @@ Just the new description that should replace the current one while preserving th
         elif no_tests_detected and passed:
             error_msg = "Warning: pytest reported success but no tests executed"
 
-        if not passed or ci_spec.get("log_on_success"):
-            full_output = result.stdout + "\n\n--- STDERR ---\n\n" + result.stderr
-            log_name = ci_spec.get("log_name", f"pytest_{phase_id}.log")
-            self._persist_ci_log(log_name, full_output, phase_id)
+        # Always persist a CI log so downstream components (PhaseFinalizer/dashboard) have a stable report_path.
+        full_output = result.stdout + "\n\n--- STDERR ---\n\n" + result.stderr
+        log_name = ci_spec.get("log_name", f"pytest_{phase_id}.log")
+        report_path = self._persist_ci_log(log_name, full_output, phase_id)
 
         if not passed and not error_msg:
             error_msg = f"pytest exited with code {result.returncode}"
@@ -7521,6 +7536,7 @@ Just the new description that should replace the current one while preserving th
             "duration_seconds": round(duration, 2),
             "output": output,
             "error": error_msg,
+            "report_path": str(report_path) if report_path else None,
             "skipped": False,
             "suspicious_zero_tests": no_tests_detected,
         }
@@ -7592,10 +7608,10 @@ Just the new description that should replace the current one while preserving th
         output = self._trim_ci_output(result.stdout + result.stderr)
         passed = result.returncode == 0
 
-        if not passed or ci_spec.get("log_on_success"):
-            full_output = result.stdout + "\n\n--- STDERR ---\n\n" + result.stderr
-            log_name = ci_spec.get("log_name", f"ci_{phase_id}.log")
-            self._persist_ci_log(log_name, full_output, phase_id)
+        # Always persist a CI log so downstream components have a stable report_path.
+        full_output = result.stdout + "\n\n--- STDERR ---\n\n" + result.stderr
+        log_name = ci_spec.get("log_name", f"ci_{phase_id}.log")
+        report_path = self._persist_ci_log(log_name, full_output, phase_id)
 
         message = (
             ci_spec.get("success_message")
@@ -7621,6 +7637,7 @@ Just the new description that should replace the current one while preserving th
             "duration_seconds": round(duration, 2),
             "output": output,
             "error": None if passed else f"Exit code {result.returncode}",
+            "report_path": str(report_path) if report_path else None,
             "skipped": False,
             "suspicious_zero_tests": False,
         }
@@ -7630,15 +7647,17 @@ Just the new description that should replace the current one while preserving th
             return output
         return output[: limit // 2] + "\n\n... (truncated) ...\n\n" + output[-limit // 2 :]
 
-    def _persist_ci_log(self, log_name: str, content: str, phase_id: str) -> None:
+    def _persist_ci_log(self, log_name: str, content: str, phase_id: str) -> Optional[Path]:
         ci_log_dir = Path(self.workspace) / ".autonomous_runs" / self.run_id / "ci"
         ci_log_dir.mkdir(parents=True, exist_ok=True)
         log_path = ci_log_dir / log_name
         try:
             log_path.write_text(content, encoding="utf-8")
             logger.info(f"[{phase_id}] CI output written to: {log_path}")
+            return log_path
         except Exception as log_err:
             logger.warning(f"[{phase_id}] Failed to write CI log ({log_name}): {log_err}")
+            return None
 
     def _parse_pytest_counts(self, output: str) -> tuple[int, int, int]:
         import re

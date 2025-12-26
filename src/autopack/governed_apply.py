@@ -2166,3 +2166,41 @@ class GovernedApplyPath:
                 lines_removed += 1
 
         return files_changed, lines_added, lines_removed
+
+
+# Backwards-compatible helper for call sites that import `parse_patch_stats` from this module.
+# Note: `autopack.backlog_maintenance.parse_patch_stats` returns a DiffStats dataclass; many executor
+# call sites want a simple tuple.
+def parse_patch_stats(patch_content: str) -> Tuple[List[str], int, int]:
+    """
+    Parse patch to extract statistics.
+
+    Returns:
+        Tuple of (files_changed, lines_added, lines_removed)
+    """
+    files_changed: List[str] = []
+    seen = set()
+    for line in (patch_content or "").split("\n"):
+        if line.startswith("diff --git"):
+            parts = line.split()
+            if len(parts) >= 4 and parts[2].startswith("a/"):
+                p = parts[2][2:]
+                if p and p not in seen:
+                    seen.add(p)
+                    files_changed.append(p)
+        elif line.startswith("+++") and not line.startswith("+++ /dev/null"):
+            # Handles both "+++ b/<path>" and (rare) malformed variants by stripping common prefix
+            p = line.replace("+++ b/", "", 1).strip()
+            if p and p not in seen:
+                seen.add(p)
+                files_changed.append(p)
+
+    lines_added = 0
+    lines_removed = 0
+    for line in (patch_content or "").split("\n"):
+        if line.startswith("+") and not line.startswith("+++"):
+            lines_added += 1
+        elif line.startswith("-") and not line.startswith("---"):
+            lines_removed += 1
+
+    return files_changed, lines_added, lines_removed

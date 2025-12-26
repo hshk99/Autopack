@@ -2479,6 +2479,36 @@ class AnthropicBuilderClient:
                         was_truncated=effective_truncation,
                     )
 
+                # Fallback: model sometimes returns a single structured-edit JSON object (often pretty-printed).
+                # Try to decode the *entire* payload and route it to the structured-edit parser.
+                try:
+                    import json as _json
+                    from json import JSONDecoder as _JSONDecoder
+                    import ast as _ast
+
+                    obj = None
+                    try:
+                        decoder = _JSONDecoder()
+                        obj, _end = decoder.raw_decode(sanitized)
+                    except Exception:
+                        obj = _ast.literal_eval(sanitized)
+
+                    if isinstance(obj, dict) and isinstance(obj.get("operations"), list):
+                        logger.warning("[BUILD-129:NDJSON] Decoded structured-edit plan; routing to structured-edit parser")
+                        plan_json = _json.dumps(obj, ensure_ascii=False)
+                        return self._parse_structured_edit_output(
+                            plan_json,
+                            file_context,
+                            response,
+                            model,
+                            phase_spec,
+                            config=config,
+                            stop_reason=stop_reason,
+                            was_truncated=effective_truncation,
+                        )
+                except Exception:
+                    pass
+
                 # Fallback: model may return a JSON array of operations instead of NDJSON.
                 try:
                     import json as _json

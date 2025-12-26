@@ -2551,6 +2551,38 @@ class AnthropicBuilderClient:
                 if effective_truncation:
                     error_msg += " (truncated)"
                 logger.error(error_msg)
+
+                # Persist a small debug sample of the raw/sanitized output so we can diagnose format drift.
+                # This is intentionally bounded to avoid huge files.
+                try:
+                    from datetime import datetime
+                    from pathlib import Path as _Path
+
+                    phase_id = str(phase_spec.get("phase_id") or phase_spec.get("id") or phase_spec.get("name") or "unknown_phase")
+                    stamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+                    out_dir = _Path(".autonomous_runs") / "autopack" / "ndjson_failures"
+                    out_dir.mkdir(parents=True, exist_ok=True)
+                    out_path = out_dir / f"{stamp}_{phase_id}_ndjson_no_ops.txt"
+
+                    head = sanitized[:8000]
+                    tail = sanitized[-2000:] if len(sanitized) > 9000 else ""
+                    payload = (
+                        f"phase_id={phase_id}\n"
+                        f"model={model}\n"
+                        f"stop_reason={stop_reason}\n"
+                        f"was_truncated={was_truncated}\n"
+                        f"effective_truncation={effective_truncation}\n"
+                        f"lines={len((sanitized or '').splitlines())}\n"
+                        f"--- BEGIN HEAD (<=8000 chars) ---\n{head}\n"
+                        f"--- END HEAD ---\n"
+                    )
+                    if tail:
+                        payload += f"--- BEGIN TAIL (<=2000 chars) ---\n{tail}\n--- END TAIL ---\n"
+                    out_path.write_text(payload, encoding="utf-8", errors="replace")
+                    logger.warning(f"[BUILD-129:NDJSON] Wrote debug sample for ndjson_no_operations to {out_path}")
+                except Exception as e:
+                    logger.warning(f"[BUILD-129:NDJSON] Failed to write debug sample: {e}")
+
                 return BuilderResult(
                     success=False,
                     patch_content="",

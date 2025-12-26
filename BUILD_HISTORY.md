@@ -66,6 +66,12 @@ Each entry includes:
 - **P10 end-to-end validation**: Observed P10 escalation during P10-first drain (`research-system-v18`), with DB-backed event recorded in `token_budget_escalation_events` (base=36902 from selected_budget -> retry=46127).
 - **P10 stability**: Verified retries are stateful (SQLite `phases.retry_attempt`/`revision_epoch` persist) and the executor applies `retry_max_tokens` on subsequent attempts (e.g., enforcing `max_tokens=35177` on retry after escalation).
 
+**Additional Phase 3 Enhancements (2025-12-27)**:
+- **NDJSON convergence hardening**: Eliminated a systemic `ndjson_no_operations` failure mode when models emit a top-level `{"files":[...]}` JSON payload instead of NDJSON lines.
+  - Parser now expands the `files` wrapper into operations, and can salvage inner file objects even when the outer wrapper is truncated.
+  - Validated in repeated `research-system-v9` single-batch drains: operations are recovered/applied under truncation, shifting the dominant blocker to deliverables truncation/partial output (expected).
+  - **Commit**: `b0fe3cc6` — `src/autopack/ndjson_format.py`, `tests/test_ndjson_format.py`
+
 ---
 
 ### BUILD-129: Token Estimator Overhead Model - Phase 3 DOC_SYNTHESIS (2025-12-24)

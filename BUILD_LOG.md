@@ -423,6 +423,24 @@ p10_metadata = {
 
 ---
 
+## 2025-12-27: BUILD-129 Phase 3 NDJSON Convergence Hardening (research-system-v9 drain) 🔄
+
+**Summary**: Eliminated a systemic `ndjson_no_operations` failure mode caused by models emitting a top-level `{"files":[...]}` JSON payload (instead of NDJSON). Added truncate-tolerant salvage so we can recover file operations even when the outer wrapper is truncated. Confirmed in repeated `research-system-v9` single-batch drains: parsing now reliably recovers and applies operations, shifting the dominant blocker from “no ops parsed” to expected truncation-driven **partial deliverables** + P10 escalation.
+
+**Key Results (research-system-v9, batch-size=1 runs)**:
+- `Builder failed: ndjson_no_operations`: **0 occurrences** in observed runs
+- `[NDJSON:Parse] Recovered ... operations ...`: consistently observed (e.g., 7–8 ops recovered/applied) even under `stop_reason=max_tokens`
+- `Builder failed: ndjson_outside_manifest`: not observed in these runs (manifest guard remains strict)
+- Remaining failures: **deliverables validation** missing N files due to truncation/partial output; P10 triggers observed (escalate-once)
+
+**Change**:
+- `src/autopack/ndjson_format.py`: expand `{"files":[...]}` wrapper into operations; salvage inner file objects from truncated streams
+- `tests/test_ndjson_format.py`: regression tests for wrapper + truncated wrapper recovery
+
+**Commit**: `b0fe3cc6` (main) — “NDJSON: recover ops from files wrapper + truncated streams”
+
+---
+
 ## 2025-12-24: BUILD-129 Phase 3 DOC_SYNTHESIS - PRODUCTION VERIFIED ✅
 
 **Summary**: Implemented phase-based documentation estimation with feature extraction and truncation awareness. Identified and resolved 2 infrastructure blockers. **Production validation complete**: Processed 3 pure doc phases + 1 mixed phase, DOC_SYNTHESIS achieving 29.5% SMAPE (73.3% improvement from 103.6%). All 11 tests passing.

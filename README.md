@@ -57,6 +57,16 @@ Autopack is a framework for orchestrating autonomous AI agents (Builder and Audi
 - **P10 retry budgets are actually applied** on subsequent attempts (e.g., retry uses `max_tokens=35177` after a recorded escalation with `retry_max_tokens=35177`), aligning with the intended self-healing behavior.
 - **NDJSON deliverables validation is compatible**: NDJSON outputs now include a lightweight diff-like header so deliverables validation can “see” created paths.
 
+### BUILD-129 Phase 3 NDJSON Convergence Hardening (2025-12-27) - ✅ COMPLETE (Parser)
+**Systemic NDJSON robustness fix**: eliminated `ndjson_no_operations` for a common model output pattern where the model ignores NDJSON and emits a single JSON payload with `{"files":[{"path","mode","new_content"}, ...]}`.
+- **Parser behavior**:
+  - Expands `{"files":[...]}` into NDJSON operations
+  - Salvages inner file objects even if the outer wrapper is truncated/incomplete
+- **Observed effect (research-system-v9 draining)**:
+  - `ndjson_no_operations` trends toward zero
+  - Remaining failures shift to expected truncation-driven partial deliverables + P10 escalation
+- **Commit**: `b0fe3cc6`
+
 ### BUILD-129 Phase 3 DOC_SYNTHESIS Implementation (2025-12-24) - ✅ COMPLETE
 **Phase-Based Documentation Estimation** - 76.4% improvement in documentation token prediction accuracy
 - **Problem Solved**: Documentation tasks severely underestimated (SMAPE 103.6% on real sample: predicted 5,200 vs actual 16,384 tokens)

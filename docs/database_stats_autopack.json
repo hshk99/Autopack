@@ -1,0 +1,73 @@
+{
+  "database": "autopack.db",
+  "exported_at": "2025-12-27T01:09:09.572409",
+  "file_size_kb": 2432,
+  "tables": {
+    "llm_usage_events": {
+      "row_count": 1423
+    },
+    "runs": {
+      "row_count": 72
+    },
+    "tiers": {
+      "row_count": 201
+    },
+    "phases": {
+      "row_count": 457
+    },
+    "doctor_usage_stats": {
+      "row_count": 0
+    },
+    "planning_artifacts": {
+      "row_count": 0
+    },
+    "plan_changes": {
+      "row_count": 10
+    },
+    "decision_log": {
+      "row_count": 306
+    },
+    "users": {
+      "row_count": 0
+    },
+    "documents": {
+      "row_count": 0
+    },
+    "approval_requests": {
+      "row_count": 4
+    },
+    "governance_requests": {
+      "row_count": 0
+    },
+    "sqlite_sequence": {
+      "row_count": 2
+    },
+    "build_runs": {
+      "row_count": 0
+    },
+    "phase_executions": {
+      "row_count": 0
+    },
+    "token_usage_metrics": {
+      "row_count": 0
+    },
+    "truncation_events": {
+      "row_count": 0
+    },
+    "performance_metrics": {
+      "row_count": 0
+    },
+    "error_logs": {
+      "row_count": 0
+    },
+    "audit_trail": {
+      "row_count": 0
+    },
+    "token_budget_escalation_events": {
+      "row_count": 34
+    },
+    "token_estimation_v2_events": {
+      "row_count": 100
+    }
+  }
+}

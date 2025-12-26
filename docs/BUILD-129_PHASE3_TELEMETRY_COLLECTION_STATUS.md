@@ -206,3 +206,15 @@ After validation with 30+ samples:
 **Next Action**: Run more queued phases to collect 20-25 additional samples
 
 **Confidence Level**: HIGH - Infrastructure validated, scripts working, initial samples look good.
+
+---
+
+## 2025-12-27 Update: Convergence blocker shifted from NDJSON parsing to truncation/partial deliverables
+
+While draining `research-system-v9` in **single-phase batches** (telemetry enabled), we observed a systemic NDJSON failure mode and addressed it:
+
+- **Issue**: models sometimes output a single JSON payload `{"files":[{"path","mode","new_content"}, ...]}` (or a truncated version) instead of NDJSON lines, leading to `ndjson_no_operations`.
+- **Fix (shipped)**: `NDJSONParser` now expands `{"files":[...]}` into operations and can salvage inner file objects even when the outer wrapper is truncated.
+- **Result**: parsing now reliably recovers and applies operations under truncation (e.g., 7–8 operations recovered/applied), so the dominant remaining failure is expected **deliverables validation** due to partial output under `stop_reason=max_tokens` (P10 escalation observed).
+
+**Commit**: `b0fe3cc6` — `src/autopack/ndjson_format.py`, `tests/test_ndjson_format.py`

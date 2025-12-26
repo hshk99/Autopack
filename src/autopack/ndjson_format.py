@@ -266,6 +266,103 @@ class NDJSONParser:
             except Exception:
                 pass
 
+        # Fallback: If the model emitted pretty-printed / truncated JSON, the overall structure may be invalid,
+        # but many *inner* objects can still be complete. Recover any balanced `{...}` objects from the stream
+        # and treat those as candidate operations.
+        if not operations:
+            try:
+                text = output
+                recovered_ops: List[NDJSONOperation] = []
+
+                def _try_parse_obj(s: str) -> Optional[Dict]:
+                    s = s.strip()
+                    if not (s.startswith("{") and s.endswith("}")):
+                        return None
+                    # Try strict JSON first
+                    try:
+                        obj = json.loads(s)
+                        return obj if isinstance(obj, dict) else None
+                    except Exception:
+                        pass
+                    # Try python literal dict
+                    try:
+                        obj = ast.literal_eval(s)
+                        return obj if isinstance(obj, dict) else None
+                    except Exception:
+                        pass
+                    # Try loose-json coercion (unquoted keys / single quotes / python literals)
+                    try:
+                        candidate = s
+                        candidate = re.sub(r'([{,]\s*)([A-Za-z_][A-Za-z0-9_]*)\s*:', r'\1"\2":', candidate)
+                        candidate = re.sub(r"\bTrue\b", "true", candidate)
+                        candidate = re.sub(r"\bFalse\b", "false", candidate)
+                        candidate = re.sub(r"\bNone\b", "null", candidate)
+                        if '"' not in candidate and "'" in candidate:
+                            candidate = candidate.replace("'", '"')
+                        obj = json.loads(candidate)
+                        return obj if isinstance(obj, dict) else None
+                    except Exception:
+                        return None
+
+                # Balanced brace scan that respects strings/escapes.
+                in_str = False
+                esc = False
+                depth = 0
+                start_idx: Optional[int] = None
+                max_candidates = 200
+                max_scan_chars = 400_000  # keep bounded
+                scan = text[:max_scan_chars]
+
+                for i, ch in enumerate(scan):
+                    if in_str:
+                        if esc:
+                            esc = False
+                            continue
+                        if ch == "\\":
+                            esc = True
+                            continue
+                        if ch == '"':
+                            in_str = False
+                        continue
+
+                    if ch == '"':
+                        in_str = True
+                        continue
+
+                    if ch == "{":
+                        if depth == 0:
+                            start_idx = i
+                        depth += 1
+                        continue
+                    if ch == "}":
+                        if depth > 0:
+                            depth -= 1
+                            if depth == 0 and start_idx is not None:
+                                candidate = scan[start_idx : i + 1]
+                                obj = _try_parse_obj(candidate)
+                                if isinstance(obj, dict):
+                                    op = self._parse_operation(obj, 0)
+                                    if op:
+                                        recovered_ops.append(op)
+                                start_idx = None
+                                if len(recovered_ops) >= max_candidates:
+                                    break
+
+                if recovered_ops:
+                    logger.warning(
+                        f"[NDJSON:Parse] Recovered {len(recovered_ops)} operations from balanced-object scan "
+                        f"(pretty/truncated JSON fallback)"
+                    )
+                    return NDJSONParseResult(
+                        operations=recovered_ops,
+                        was_truncated=True,  # very likely partial stream if we needed this fallback
+                        total_expected=None,
+                        lines_parsed=len(recovered_ops),
+                        lines_failed=lines_failed,
+                    )
+            except Exception:
+                pass
+
         return NDJSONParseResult(
             operations=operations,
             was_truncated=was_truncated,

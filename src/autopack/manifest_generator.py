@@ -521,20 +521,47 @@ class ManifestGenerator:
         # - token estimation (len(dict) == 3 was undercounting deliverables)
         existing_deliverables: List[str] = []
         if isinstance(existing_deliverables_raw, dict):
+            # Reuse deliverables sanitizer so we don't treat prose bullets as scope paths.
+            try:
+                from autopack.deliverables_validator import sanitize_deliverable_path
+            except Exception:
+                sanitize_deliverable_path = None  # type: ignore
             for v in existing_deliverables_raw.values():
                 if isinstance(v, str) and v.strip():
-                    existing_deliverables.append(v.strip())
+                    item = v.strip()
+                    if sanitize_deliverable_path:
+                        item = sanitize_deliverable_path(item)
+                    if item:
+                        existing_deliverables.append(item)
                 elif isinstance(v, (list, tuple, set)):
                     for item in v:
                         if isinstance(item, str) and item.strip():
-                            existing_deliverables.append(item.strip())
+                            it = item.strip()
+                            if sanitize_deliverable_path:
+                                it = sanitize_deliverable_path(it)
+                            if it:
+                                existing_deliverables.append(it)
         elif isinstance(existing_deliverables_raw, str):
             if existing_deliverables_raw.strip():
-                existing_deliverables = [existing_deliverables_raw.strip()]
+                it = existing_deliverables_raw.strip()
+                try:
+                    from autopack.deliverables_validator import sanitize_deliverable_path
+                    it = sanitize_deliverable_path(it)
+                except Exception:
+                    pass
+                existing_deliverables = [it] if it else []
         elif isinstance(existing_deliverables_raw, (list, tuple, set)):
+            try:
+                from autopack.deliverables_validator import sanitize_deliverable_path
+            except Exception:
+                sanitize_deliverable_path = None  # type: ignore
             for item in existing_deliverables_raw:
                 if isinstance(item, str) and item.strip():
-                    existing_deliverables.append(item.strip())
+                    it = item.strip()
+                    if sanitize_deliverable_path:
+                        it = sanitize_deliverable_path(it)
+                    if it:
+                        existing_deliverables.append(it)
 
         # De-dup while preserving order
         if existing_deliverables:

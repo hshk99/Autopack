@@ -67,7 +67,20 @@ def sanitize_deliverable_path(raw: str) -> str:
             s = s[:-len(verb)].rstrip()
             break
 
-    return s
+    # Heuristic: if this still doesn't look like a filesystem path, drop it.
+    # Some phases include "deliverables" as prose bullets like "Logging configuration".
+    # Those are not paths and should not participate in scope/manifest/validator logic.
+    s_norm = s.replace("\\", "/").strip()
+    if not s_norm:
+        return ""
+    if s_norm.endswith("/"):
+        return s_norm
+    if "/" not in s_norm:
+        basename = Path(s_norm).name
+        allow_extensionless = {"LICENSE", "Makefile", "Dockerfile", "README"}
+        if "." not in basename and basename not in allow_extensionless:
+            return ""
+    return s_norm
 
 def _extract_new_file_contents_from_unified_diff(patch_content: str) -> Dict[str, str]:
     """

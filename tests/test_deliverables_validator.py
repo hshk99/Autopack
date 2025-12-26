@@ -130,6 +130,22 @@ class TestExtractDeliverablesFromScope:
         assert "src/main.py" in deliverables
         assert len(deliverables) == 1
 
+    def test_filters_non_path_prose_deliverables(self):
+        """Non-path prose bullets should be dropped (e.g., 'Logging configuration')."""
+        scope = {
+            "deliverables": {
+                "docs": [
+                    "docs/research/USER_GUIDE.md",
+                    "Logging configuration",
+                    "CLI output formatting improvements",
+                ]
+            }
+        }
+        deliverables = extract_deliverables_from_scope(scope)
+        assert "docs/research/USER_GUIDE.md" in deliverables
+        assert "Logging configuration" not in deliverables
+        assert "CLI output formatting improvements" not in deliverables
+
     def test_empty_scope(self):
         """Test extraction from empty scope"""
         deliverables = extract_deliverables_from_scope({})

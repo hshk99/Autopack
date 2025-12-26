@@ -265,6 +265,34 @@ new file mode 100644
         assert is_valid is True  # Extra files are OK
         assert "src/utils.py" in details["extra_paths"]
 
+    def test_workspace_existing_deliverable_counts_as_present(self, tmp_path):
+        """Deliverables already present on disk should satisfy validation (NDJSON multi-attempt convergence)."""
+        # Only create src/main.py in the patch...
+        patch = """
+diff --git a/src/main.py b/src/main.py
+new file mode 100644
+--- /dev/null
++++ b/src/main.py
+@@ -0,0 +1,3 @@
++def main():
++    return 1
+"""
+        # ...but tests/test_main.py already exists in the workspace from a prior attempt.
+        test_file = tmp_path / "tests" / "test_main.py"
+        test_file.parent.mkdir(parents=True, exist_ok=True)
+        test_file.write_text("def test_main():\n    assert True\n", encoding="utf-8")
+
+        scope = {
+            "deliverables": {
+                "code": ["src/main.py"],
+                "tests": ["tests/test_main.py"],
+            }
+        }
+
+        is_valid, errors, details = validate_deliverables(patch, scope, "test-phase", workspace=tmp_path)
+        assert is_valid is True, f"Expected validation to pass using workspace state; errors={errors}"
+        assert details["missing_paths"] == []
+
     def test_examples_directory_allowed(self):
         """Test that examples/ deliverables are properly allowed (BUILD-094 regression test)"""
         patch = """

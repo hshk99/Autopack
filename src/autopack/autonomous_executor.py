@@ -1841,6 +1841,23 @@ class AutonomousExecutor:
             # [BUILD-041] Attempt failed - update database and check if exhausted
             failure_outcome = self._status_to_outcome(status)
 
+            # BUILD-129/P10 convergence: TOKEN_ESCALATION is not a diagnosable "approach flaw".
+            # It's an intentional control-flow signal: retry with a larger completion budget.
+            # Do NOT run diagnostics/Doctor/replan here; doing so resets state and prevents
+            # the stateful retry budget from being applied across drain batches.
+            if status == "TOKEN_ESCALATION":
+                new_attempts = attempt_index + 1
+                self._update_phase_attempts_in_db(
+                    phase_id,
+                    retry_attempt=new_attempts,
+                    last_failure_reason=status,
+                )
+                logger.info(
+                    f"[{phase_id}] TOKEN_ESCALATION recorded; advancing retry_attempt to {new_attempts} "
+                    f"and deferring diagnosis so the next attempt can use the escalated max_tokens."
+                )
+                return False, status
+
             # Update health budget tracking
             self._run_total_failures += 1
             if status == "PATCH_FAILED":

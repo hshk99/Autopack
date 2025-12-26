@@ -13,6 +13,7 @@ Key features:
 import logging
 import json
 import re
+import os
 from pathlib import Path
 from typing import Dict, List, Set, Tuple, Optional, Any
 
@@ -716,6 +717,50 @@ def validate_deliverables(
     actual_normalized = {normalize_path(p, workspace) for p in actual_paths}
     details["actual_paths"] = sorted(actual_normalized)
 
+    # NDJSON + truncation convergence: allow multi-attempt completion.
+    # NDJSON operations are applied directly to disk and the executor emits a lightweight synthetic diff
+    # containing only files applied in *this attempt*. If we only validate against patch_content, then
+    # multi-attempt convergence will fail even when earlier attempts already created some deliverables.
+    #
+    # Treat any expected deliverable that already exists in the workspace as "present", while still
+    # enforcing allowed-roots/manifest constraints on *newly created paths in this patch*.
+    workspace_present_exact: Set[str] = set()
+    workspace_present_prefixes: Set[str] = set()
+    try:
+        if workspace:
+            for p in expected_exact:
+                try:
+                    fp = workspace / p
+                    if fp.exists() and fp.is_file():
+                        workspace_present_exact.add(p)
+                except Exception:
+                    continue
+
+            # Prefix deliverables: satisfied if any file exists under that directory in workspace.
+            for prefix in expected_prefixes:
+                try:
+                    root = workspace / prefix.rstrip("/")
+                    if not root.exists() or not root.is_dir():
+                        continue
+                    found_any = False
+                    # Bounded walk: stop after the first file.
+                    for dirpath, _dirnames, filenames in os.walk(root):
+                        if filenames:
+                            found_any = True
+                            break
+                        # also treat encountering subdirectories with files later; walk continues
+                    if found_any:
+                        workspace_present_prefixes.add(prefix)
+                except Exception:
+                    continue
+    except Exception:
+        # Best-effort only; never fail validation due to workspace probing.
+        pass
+
+    # Expose workspace-derived satisfaction for diagnostics/debugging.
+    details["workspace_present_paths"] = sorted(workspace_present_exact)
+    details["workspace_present_prefixes"] = sorted(workspace_present_prefixes)
+
     # Detect common "wrong root" patterns and record them for feedback.
     forbidden_roots = ("tracer_bullet/", "src/tracer_bullet/", "tests/tracer_bullet/")
     detected_forbidden = sorted({r for r in forbidden_roots if any(p.startswith(r) for p in actual_normalized)})
@@ -723,13 +768,20 @@ def validate_deliverables(
 
     logger.info(f"[{phase_id}] Deliverables validation:")
     logger.info(f"  Expected: {len(expected_normalized)} files")
-    logger.info(f"  Found in patch: {len(actual_normalized)} files")
+    if workspace:
+        logger.info(
+            f"  Found in patch: {len(actual_normalized)} files "
+            f"(+{len(workspace_present_exact)} existing files in workspace)"
+        )
+    else:
+        logger.info(f"  Found in patch: {len(actual_normalized)} files")
 
     # Find missing deliverables
-    missing_exact = expected_exact - actual_normalized
+    satisfied_exact = set(actual_normalized).union(workspace_present_exact)
+    missing_exact = expected_exact - satisfied_exact
     missing_prefixes = []
     for prefix in expected_prefixes:
-        if not any(a.startswith(prefix) for a in actual_normalized):
+        if not any(a.startswith(prefix) for a in actual_normalized) and prefix not in workspace_present_prefixes:
             missing_prefixes.append(prefix)
     missing = set(missing_exact).union(set(missing_prefixes))
     details["missing_paths"] = sorted(missing)

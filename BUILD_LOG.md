@@ -625,6 +625,12 @@ p10_metadata = {
 - **Fix**: `src/autopack/governed_apply.py` now normalizes scope paths and patch paths consistently (trims whitespace, converts `\\`→`/`, strips `./`, collapses duplicate slashes) before comparing.
 - **Verification**: Added `tests/test_governed_apply.py::test_scope_path_normalization_allows_backslashes_and_dot_slash`.
 
+### Drain note: research-system-v13 status (as of 2025-12-27)
+
+- **Observed**: `research-meta-analysis` hit a transient Anthropic connectivity/DNS error (`getaddrinfo failed`) resulting in `INFRA_RETRY` (retryable).
+- **Observed**: On the subsequent attempt, the phase proceeded but was correctly blocked as **real**: `CRITICAL regression` with **19 persistent failures** (human approval override does not bypass CI regressions).
+- **Interpretation**: infra issues here look transient; the regression block is expected “real gate” behavior.
+
 ### Follow-up: Local diff join hardening (avoid `patch fragment without header`)
 
 - **Observed during v12 draining**: `git apply --check` failed with `patch fragment without header` on a multi-file patch generated locally from full-file Builder content.

@@ -900,14 +900,14 @@ JWT_AUDIENCE=autopack-clients
 - JWKS endpoint: `/api/auth/.well-known/jwks.json` (share with verifiers).
 - Key load status: `/api/auth/key-status` (reports env vs generated keys).
 
-### Dashboard (status & usage)
+### 📊 Real-Time Dashboard
 - Provides run status, usage, and models list. Refer to `tests/test_dashboard_integration.py` for expected payloads/fields.
 - Key routes (FastAPI):
   - `GET /dashboard/status` — overall health/version.
   - `GET /dashboard/usage` — recent token/phase usage aggregates.
   - `GET /dashboard/models` — current model routing table (source: `config/models.yaml`).
 - Start the dashboard/API: `python -m uvicorn autopack.main:app --host 127.0.0.1 --port 8100` (set `PYTHONPATH=src`, `DATABASE_URL=sqlite:///autopack.db`).
-- Architecture: `LlmService` is the central routing layer; ensure diagrams include `LlmService` in the control plane feeding dashboard/model metadata.
+- Architecture: **LlmService (Model Router + Usage Track)** is the central control-plane routing layer feeding dashboard/model metadata.
 
 ### Hardening: Syntax + Unicode + Incident Fatigue
 - Pre-emptive encoding fix at startup

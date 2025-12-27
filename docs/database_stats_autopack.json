@@ -1,10 +1,10 @@
 {
   "database": "autopack.db",
-  "exported_at": "2025-12-27T14:05:28.485714",
-  "file_size_kb": 2508,
+  "exported_at": "2025-12-27T15:44:07.036948",
+  "file_size_kb": 2540,
   "tables": {
     "llm_usage_events": {
-      "row_count": 1472
+      "row_count": 1486
     },
     "runs": {
       "row_count": 72
@@ -34,7 +34,7 @@
       "row_count": 0
     },
     "approval_requests": {
-      "row_count": 22
+      "row_count": 27
     },
     "governance_requests": {
       "row_count": 2
@@ -67,7 +67,7 @@
       "row_count": 39
     },
     "token_estimation_v2_events": {
-      "row_count": 124
+      "row_count": 129
     }
   }
 }

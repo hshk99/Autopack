@@ -94,6 +94,10 @@ Each entry includes:
   - `src/autopack/autonomous_executor.py` pytest CI now emits a structured pytest-json-report (`pytest_<phase_id>.json`) and returns it as `report_path` (with `log_path` preserved).
   - `src/autopack/phase_finalizer.py` delta computation is fail-safe (never crashes the phase on JSON decode issues).
   - Regression test: `tests/test_phase_finalizer.py::test_assess_completion_ci_report_not_json_does_not_crash`.
+- **CI collection/import error correctness (pytest-json-report collectors)**:
+  - `src/autopack/phase_finalizer.py` now blocks deterministically on failed `collectors[]` entries (baseline-independent), closing a false-complete path where `exitcode=2` / `tests=[]` could still be overridden.
+  - `src/autopack/test_baseline_tracker.py` now accounts for failed collectors in baseline capture + delta computation.
+  - Verification: `tests/test_phase_finalizer.py::test_assess_completion_failed_collectors_block_without_baseline`.
 - **execute_fix traceability**: `src/autopack/archive_consolidator.py` now auto-creates missing issue headers when appending a fix, and records `run_id` / `phase_id` / `outcome` for blocked actions.
 
 ---

@@ -154,4 +154,27 @@ This document records the **root cause analysis (RCA)** for the systemic blocker
 - **Fix**: `src/autopack/anthropic_clients.py` now joins locally-generated diffs with a blank line separator and guarantees the patch ends with a newline.
 - **Verification**: Observed this failure mode during `research-system-v12` drain; fix prevents boundary-related parse errors for concatenated diffs.
 
+### Blocker L: PhaseFinalizer missed pytest collection/import errors (pytest-json-report encodes them as failed collectors)
+
+- **Symptom**:
+  - CI log shows `collected N items / 1 error` and exits with code `2` due to ImportError during collection.
+  - pytest-json-report `.json` artifacts commonly contain:
+    - `exitcode=2`
+    - `summary.total=0`
+    - `tests=[]`
+    - and the actual error details only under `collectors[]` with `outcome="failed"` and `longrepr=...`
+- **Impact**:
+  - Systemic false completion risk: phases could be marked `COMPLETE` under human approval override even though CI never executed any tests (collection/import failure).
+  - Baseline tracking could mis-classify the run as “0 tests / 0 errors” and fail to block on catastrophic CI failures.
+- **Root cause**:
+  - `TestBaselineTracker` only looked at `report["tests"]` and missed failed `collectors[]`.
+  - `PhaseFinalizer` only blocked on delta-derived `new_collection_errors_persistent` (which depends on baseline + delta computation) and did not baseline-independently block on collector failures in the CI report itself.
+- **Fix**:
+  - `src/autopack/phase_finalizer.py`: added a baseline-independent Gate 0 that parses pytest-json-report `collectors[]` and blocks on any failed collector, returning a clear “CI collection/import error” message.
+  - `src/autopack/test_baseline_tracker.py`: baseline capture + delta computation now incorporate failed `collectors[]` as error signatures, and treat collector failures as errors even when `tests=[]`.
+- **Verification**:
+  - Unit tests:
+    - `tests/test_phase_finalizer.py::test_assess_completion_failed_collectors_block_without_baseline`
+    - `tests/test_phase_finalizer.py`, `tests/test_phase_finalizer_simple.py`, `tests/test_baseline_tracker.py` all pass locally.
+
 

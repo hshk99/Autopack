@@ -603,6 +603,22 @@ p10_metadata = {
 - **Fix**: replaced emoji output with ASCII-safe `[OK]` / `[WARN]` messages.
 - **Verification**: `python scripts/tidy/db_sync.py --project autopack` completes successfully (Qdrant may still warn if not running).
 
+### Fix 3: PhaseFinalizer blocks deterministically on pytest collection/import errors (pytest-json-report collectors)
+
+- **Problem**: In pytest-json-report, collection/import failures often produce:
+  - `exitcode=2`
+  - `summary.total=0`
+  - `tests=[]`
+  - while the actual ImportError details live under `collectors[]` as a failed collector
+  
+  This allowed phases to be “human-overridden” into `COMPLETE` even though CI never executed any tests (systemic false completion risk).
+- **Fix**:
+  - `src/autopack/phase_finalizer.py`: added a baseline-independent Gate 0 that parses pytest-json-report `collectors[]` and blocks on any failed collector (with a clear error message).
+  - `src/autopack/test_baseline_tracker.py`: collection/import errors are now treated as errors by reading failed `collectors[]` and including them in `error_signatures` / delta computation.
+- **Verification**:
+  - New unit test: `tests/test_phase_finalizer.py::test_assess_completion_failed_collectors_block_without_baseline`
+  - Existing PhaseFinalizer/BaselineTracker unit suite continues to pass.
+
 ### Follow-up: Local diff join hardening (avoid `patch fragment without header`)
 
 - **Observed during v12 draining**: `git apply --check` failed with `patch fragment without header` on a multi-file patch generated locally from full-file Builder content.

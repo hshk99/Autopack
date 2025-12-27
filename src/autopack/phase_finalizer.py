@@ -8,6 +8,7 @@ from dataclasses import dataclass, field
 from typing import List, Dict, Optional, Set
 from pathlib import Path
 import logging
+import json
 
 from autopack.test_baseline_tracker import TestBaseline, TestDelta, TestBaselineTracker
 # Note: deliverables_validator is a module with standalone functions, not a class
@@ -90,6 +91,15 @@ class PhaseFinalizer:
         warnings = []
 
         logger.info(f"[PhaseFinalizer] Assessing completion for phase {phase_id}")
+
+        # Gate 0: Always block on CI collection/import errors (even when baseline missing).
+        # pytest-json-report represents these as failed collectors and often produces:
+        #   exitcode=2, summary.total=0, tests=[]
+        if ci_result:
+            collection_block = self._detect_collection_error(ci_result, workspace)
+            if collection_block:
+                blocking_issues.append(collection_block)
+                logger.error(f"[PhaseFinalizer] BLOCK: {collection_block}")
 
         # Gate 1: CI baseline regression check
         if baseline and ci_result:
@@ -230,6 +240,54 @@ class PhaseFinalizer:
                 logger.warning(f"[PhaseFinalizer]   ⚠️  {warning}")
 
         return decision
+
+    def _detect_collection_error(self, ci_result: Dict, workspace: Path) -> Optional[str]:
+        """
+        Detect CI collection/import errors from the structured pytest report.
+
+        This is intentionally baseline-independent: collection errors are catastrophic and should
+        block completion even when T0 baseline capture is unavailable.
+        """
+        try:
+            report_path = ci_result.get("report_path")
+            if not report_path:
+                return None
+            p = Path(report_path)
+            if not p.exists():
+                # If we don't have a structured report, fall back to the executor's signal.
+                if bool(ci_result.get("suspicious_zero_tests")) and not bool(ci_result.get("passed", False)):
+                    return "CI collection/import error suspected (0 tests detected)"
+                return None
+
+            # Only parse JSON reports; log files are handled by 'suspicious_zero_tests' above.
+            if p.suffix.lower() != ".json":
+                if bool(ci_result.get("suspicious_zero_tests")) and not bool(ci_result.get("passed", False)):
+                    return "CI collection/import error suspected (0 tests detected)"
+                return None
+
+            report = json.loads(p.read_text(encoding="utf-8"))
+            exitcode = report.get("exitcode")
+            summary = report.get("summary", {}) or {}
+            total = summary.get("total", 0)
+            collectors = report.get("collectors", []) or []
+            failed_collectors = [c for c in collectors if c.get("outcome") not in (None, "passed")]
+
+            # Collection errors often have exitcode=2 and zero executed tests.
+            if failed_collectors:
+                first = failed_collectors[0]
+                nodeid = first.get("nodeid", "<unknown>")
+                longrepr = (first.get("longrepr") or "").splitlines()
+                detail = longrepr[0] if longrepr else "collector failed"
+                return f"CI collection/import error: {nodeid} ({detail})"
+
+            if exitcode and exitcode != 0 and int(total) == 0 and bool(ci_result.get("suspicious_zero_tests")):
+                return f"CI failed before running tests (exitcode={exitcode}, total_tests=0)"
+
+        except Exception as e:
+            logger.warning(f"[PhaseFinalizer] Failed to detect collection errors from CI report: {e}")
+            return None
+
+        return None
 
     def _compute_ci_delta(
         self,

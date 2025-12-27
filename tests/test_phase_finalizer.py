@@ -251,6 +251,61 @@ class TestPhaseFinalizer:
         assert any("collection errors" in issue for issue in decision.blocking_issues)
 
     @patch('autopack.phase_finalizer.deliverables_validator_module')
+    def test_assess_completion_failed_collectors_block_without_baseline(
+        self,
+        mock_deliverables_module,
+        finalizer,
+        mock_baseline_tracker,
+        tmp_path
+    ):
+        """
+        pytest-json-report encodes collection/import errors as failed collectors (exitcode=2),
+        often with tests=[] and summary.total=0. This must block deterministically even without
+        a baseline (baseline capture can fail/time out).
+        """
+        mock_deliverables_module.validate_deliverables.return_value = {
+            "success": True, "missing": []
+        }
+
+        report_path = tmp_path / "pytest_report.json"
+        report_path.write_text(
+            """
+{
+  "exitcode": 2,
+  "summary": { "total": 0, "collected": 10 },
+  "tests": [],
+  "collectors": [
+    {
+      "nodeid": "tests/some_module/test_broken_import.py",
+      "outcome": "failed",
+      "result": [],
+      "longrepr": "ImportError while importing test module 'tests/some_module/test_broken_import.py'\\nE   ImportError: cannot import name 'X'"
+    }
+  ]
+}
+            """.strip(),
+            encoding="utf-8"
+        )
+
+        decision = finalizer.assess_completion(
+            phase_id="test-phase",
+            phase_spec={"validation": {"tests": []}},
+            ci_result={"report_path": str(report_path), "passed": False, "suspicious_zero_tests": True},
+            baseline=None,
+            quality_report={"quality_level": "high", "is_blocked": False},
+            auditor_result={},
+            deliverables=["file1.py"],
+            applied_files=["file1.py"],
+            workspace=tmp_path
+        )
+
+        assert not decision.can_complete
+        assert decision.status == "FAILED"
+        assert any("CI collection/import error" in issue for issue in decision.blocking_issues)
+        # With baseline=None, we should not attempt delta computation.
+        assert not mock_baseline_tracker.compute_full_delta.called
+
+    @patch('autopack.phase_finalizer.deliverables_validator_module')
     def test_assess_completion_flaky_tests_warn_only(
         self,
         mock_deliverables_module,

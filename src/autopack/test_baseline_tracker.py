@@ -161,6 +161,14 @@ class TestBaselineTracker:
         # Extract baseline data
         summary = report.get("summary", {})
         tests = report.get("tests", [])
+        collectors = report.get("collectors", [])
+
+        # Collection/import errors are represented as failed collectors in pytest-json-report
+        # even when "tests" is empty (exitcode=2).
+        failed_collectors = [
+            c for c in collectors
+            if c.get("outcome") not in (None, "passed")
+        ]
 
         failing_test_ids = [
             test["nodeid"] for test in tests
@@ -172,15 +180,44 @@ class TestBaselineTracker:
             if test.get("outcome") == "error":
                 error_signatures[test["nodeid"]] = self._extract_error_signature(test)
 
+        # Include collection errors (failed collectors) as error signatures keyed by collector nodeid.
+        for collector in failed_collectors:
+            nodeid = collector.get("nodeid")
+            if not nodeid:
+                continue
+            longrepr = collector.get("longrepr", "") or ""
+            first_line = (longrepr.splitlines()[0] if longrepr else "Collection error")[:200]
+            error_signatures[nodeid] = f"COLLECT:{first_line}"
+
+        # Prefer pytest summary counts when present; otherwise compute from the test list.
+        total_tests = summary.get("total", len(tests) if isinstance(tests, list) else 0)
+        passed_tests = summary.get("passed")
+        failed_tests = summary.get("failed")
+        skipped_tests = summary.get("skipped")
+        # pytest-json-report commonly uses "error" (singular) for test errors; keep both for robustness
+        error_tests_summary = summary.get("error", summary.get("errors"))
+
+        if passed_tests is None:
+            passed_tests = sum(1 for t in tests if t.get("outcome") == "passed")
+        if failed_tests is None:
+            failed_tests = sum(1 for t in tests if t.get("outcome") == "failed")
+        if skipped_tests is None:
+            skipped_tests = sum(1 for t in tests if t.get("outcome") == "skipped")
+        if error_tests_summary is None:
+            error_tests_summary = sum(1 for t in tests if t.get("outcome") == "error")
+
+        # Count failed collectors as errors as well (collection/import errors)
+        error_tests_total = int(error_tests_summary) + len(failed_collectors)
+
         baseline = TestBaseline(
             run_id=run_id,
             commit_sha=commit_sha,
             timestamp=datetime.now(timezone.utc),
-            total_tests=summary.get("total", 0),
-            passing_tests=summary.get("passed", 0),
-            failing_tests=summary.get("failed", 0),
-            error_tests=summary.get("error", 0),
-            skipped_tests=summary.get("skipped", 0),
+            total_tests=int(total_tests),
+            passing_tests=int(passed_tests),
+            failing_tests=int(failed_tests),
+            error_tests=int(error_tests_total),
+            skipped_tests=int(skipped_tests),
             failing_test_ids=failing_test_ids,
             error_signatures=error_signatures
         )
@@ -212,15 +249,17 @@ class TestBaselineTracker:
         # Parse current results
         current_report = json.loads(current_report_path.read_text(encoding='utf-8'))
         current_tests = current_report.get("tests", [])
+        current_collectors = current_report.get("collectors", [])
 
-        current_failing = set(
+        current_failed_or_error = set(
             test["nodeid"] for test in current_tests
-            if test.get("outcome") == "failed"
+            if test.get("outcome") in ("failed", "error")
         )
 
-        current_errors = set(
-            test["nodeid"] for test in current_tests
-            if test.get("outcome") == "error"
+        # pytest-json-report represents collection/import errors as failed collectors.
+        current_collection_errors = set(
+            c.get("nodeid") for c in current_collectors
+            if c.get("nodeid") and c.get("outcome") not in (None, "passed")
         )
 
         current_passing = set(
@@ -232,9 +271,9 @@ class TestBaselineTracker:
         baseline_errors = set(baseline.error_signatures.keys())
 
         # Compute deltas
-        newly_failing = list(current_failing - baseline_failing)
+        newly_failing = list(current_failed_or_error - baseline_failing)
         newly_passing = list(current_passing & baseline_failing)  # Was failing, now passing
-        new_collection_errors = list(current_errors - baseline_errors)
+        new_collection_errors = list(current_collection_errors - baseline_errors)
 
         delta = TestDelta(
             newly_failing=newly_failing,

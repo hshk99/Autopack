@@ -229,4 +229,23 @@ This document records the **root cause analysis (RCA)** for the systemic blocker
   - The new regression test passes locally (`python -m pytest -q tests/test_deliverables_validator.py`).
   - Follow-on drains should no longer fail deliverables validation solely because `patch_content==""` when an edit plan exists.
 
+### Blocker P: Structured edit apply rejected new-file ops as “File not in context”
+
+- **Symptom**: Phases using structured edits failed at apply with:
+  - `[StructuredEdit] File not in context: <path>`
+  - and the phase finalized as `STRUCTURED_EDIT_FAILED`.
+- **Impact**: Systemic drain blocker for any structured edit plan that:
+  - creates a new file (the file cannot exist “in context” yet), or
+  - touches an existing file omitted from `file_contents` due to scope/context limits.
+- **Root cause**: `StructuredEditApplicator.apply_edit_plan()` hard-required `file_path in file_contents` and failed otherwise, even though it can safely read from disk (existing files) or start from empty content (new files).
+- **Fix**:
+  - `src/autopack/structured_edits.py`: when a file is missing from `file_contents`, fall back to:
+    - read existing file content from disk, or
+    - use empty content for a new file,
+    - while rejecting unsafe paths (absolute / `..` traversal).
+  - Added regression tests: `tests/test_structured_edits_applicator.py`.
+- **Verification**:
+  - `python -m pytest -q tests/test_structured_edits_applicator.py`
+  - Re-draining `build130-schema-validation-prevention` should no longer fail with `[StructuredEdit] File not in context`.
+
 

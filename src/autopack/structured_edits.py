@@ -218,15 +218,37 @@ class StructuredEditApplicator:
         modified_contents = {}
         
         for file_path, ops in operations_by_file.items():
-            # Get current content
-            if file_path not in file_contents:
-                error = f"File not in context: {file_path}"
-                logger.error(f"[StructuredEdit] {error}")
-                failed += len(ops)
-                failed_ops.extend([(op, error) for op in ops])
-                continue
-            
-            current_content = file_contents[file_path]
+            # Get current content.
+            #
+            # NOTE: file_contents represents "context" loaded for the Builder; it may omit files due to
+            # scope limits, and it will never include newly-created files. Structured edits must still be
+            # applicable in these cases, so we fall back to reading from disk (or empty content if the file
+            # does not yet exist).
+            if file_path in file_contents:
+                current_content = file_contents[file_path]
+            else:
+                # Basic path safety: only allow relative paths inside the workspace.
+                rel = Path(file_path)
+                if rel.is_absolute() or ".." in rel.parts:
+                    error = f"Unsafe file path: {file_path}"
+                    logger.error(f"[StructuredEdit] {error}")
+                    failed += len(ops)
+                    failed_ops.extend([(op, error) for op in ops])
+                    continue
+
+                full_path = self.workspace / rel
+                if full_path.exists():
+                    try:
+                        current_content = full_path.read_text(encoding="utf-8")
+                    except Exception as e:
+                        error = f"Failed to read {file_path}: {e}"
+                        logger.error(f"[StructuredEdit] {error}")
+                        failed += len(ops)
+                        failed_ops.extend([(op, error) for op in ops])
+                        continue
+                else:
+                    # New file - start from empty content.
+                    current_content = ""
             
             # Sort operations by line number (apply from bottom to top to preserve line numbers)
             sorted_ops = self._sort_operations(ops)

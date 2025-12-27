@@ -4,6 +4,14 @@ Daily log of development activities, decisions, and progress on the Autopack pro
 
 ---
 
+## 2025-12-27: Structured Edit Applicator Unblocked New-File Ops (Systemic Drain Fix) ✅
+
+**Summary**: Fixed a systemic drain blocker where structured edit plans failed with `STRUCTURED_EDIT_FAILED` and logs like `[StructuredEdit] File not in context: <path>` when the plan created new files (or touched existing files omitted from Builder context due to scope limits). `StructuredEditApplicator` now falls back to reading missing files from disk (when present) or treating them as empty content (new file), while rejecting unsafe paths. Added regression tests covering both “create new file without context” and “read existing file from disk when not in context”.
+
+**Status**: ✅ FIXED + TESTED (unblocks `build130-schema-validation-prevention` Phase 0 structured edit application)
+
+---
+
 ## 2025-12-25: BUILD-129 Phase 3 P4-P10 - Truncation Mitigation ✅
 
 **Summary**: Implemented comprehensive truncation mitigation with P4 (budget enforcement relocated), P5 (category recording), P6 (truncation-aware SMAPE), P7 (confidence-based buffering with 1.6x for high deliverable count), P8 (telemetry budget recording fix), P9 (narrowed 2.2x buffer to doc_synthesis/doc_sot_update only), and P10 (escalate-once for high utilization/truncation). Triage analysis identified documentation (low complexity) as primary truncation driver (2.12x underestimation). P7+P9+P10 implement adaptive buffer margins plus intelligent retry escalation to reduce truncation from 52.6% toward target ≤2% without wasting tokens.

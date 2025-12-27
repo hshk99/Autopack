@@ -4994,6 +4994,13 @@ Just the new description that should replace the current one while preserving th
                     logger.warning(f"[{phase_id}] Could not parse applied files: {e}")
 
             # BUILD-127 Phase 1: Assess completion using PhaseFinalizer
+            # Extract apply_stats from ci_result if available, otherwise use local apply_stats
+            finalizer_apply_stats = None
+            if isinstance(ci_result, dict) and "apply_stats" in ci_result:
+                finalizer_apply_stats = ci_result.get("apply_stats")
+            elif apply_stats:
+                finalizer_apply_stats = apply_stats
+
             finalization_decision = self.phase_finalizer.assess_completion(
                 phase_id=phase_id,
                 phase_spec=phase,
@@ -5012,7 +5019,8 @@ Just the new description that should replace the current one while preserving th
                 },
                 deliverables=phase.get("deliverables", []),
                 applied_files=applied_files,
-                workspace=Path(self.workspace)
+                workspace=Path(self.workspace),
+                apply_stats=finalizer_apply_stats
             )
 
             # Handle finalization decision

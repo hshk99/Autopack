@@ -1,6 +1,6 @@
 {
   "database": "autopack.db",
-  "exported_at": "2025-12-28T00:52:34.826705",
+  "exported_at": "2025-12-28T09:35:56.479433",
   "tables": {
     "llm_usage_events": {
       "columns": [
@@ -77,7 +77,7 @@
           "primary_key": false
         }
       ],
-      "row_count": 1576
+      "row_count": 1579
     },
     "runs": {
       "columns": [

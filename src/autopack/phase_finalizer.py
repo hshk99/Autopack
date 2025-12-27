@@ -68,7 +68,8 @@ class PhaseFinalizer:
         deliverables: List[str],
         applied_files: List[str],
         workspace: Path,
-        builder_output: Optional[str] = None
+        builder_output: Optional[str] = None,
+        apply_stats: Optional[Dict] = None
     ) -> PhaseFinalizationDecision:
         """
         Comprehensive completion check.
@@ -84,6 +85,7 @@ class PhaseFinalizer:
             applied_files: Files actually applied in patch
             workspace: Workspace path
             builder_output: Builder's output text (for manifest extraction, BUILD-127 Phase 3)
+            apply_stats: Apply statistics dict (from autonomous_executor) with mode, operations, patch size
 
         Returns:
             PhaseFinalizationDecision with blocking issues and warnings
@@ -92,6 +94,37 @@ class PhaseFinalizer:
         warnings = []
 
         logger.info(f"[PhaseFinalizer] Assessing completion for phase {phase_id}")
+
+        # Gate -1: No-op detection (prevent false "work completed" when apply did nothing)
+        # Only block if required deliverables are missing in workspace
+        noop_detected = False
+        if apply_stats and deliverables:
+            is_noop = self._detect_noop(apply_stats)
+            allow_noop = phase_spec.get("allow_noop", False)
+
+            if is_noop:
+                noop_detected = True
+                if allow_noop:
+                    logger.info(f"[PhaseFinalizer] No-op detected but allowed by phase spec")
+                    warnings.append("Phase completed with no changes (allow_noop=true)")
+                else:
+                    # Check if deliverables exist - if they do, this might be legitimately idempotent
+                    missing = self._missing_deliverables_in_workspace(deliverables, workspace)
+                    if missing:
+                        blocking_issues.append(
+                            f"No-op detected: no changes applied but required deliverables missing: {missing}"
+                        )
+                        logger.error(
+                            f"[PhaseFinalizer] BLOCK: No-op with missing deliverables. "
+                            f"Apply stats: {apply_stats}"
+                        )
+                    else:
+                        # Deliverables exist, so phase is legitimately idempotent
+                        logger.info(
+                            f"[PhaseFinalizer] No-op detected but all deliverables exist "
+                            "(phase is idempotent)"
+                        )
+                        warnings.append("Phase completed with no changes (all deliverables already exist)")
 
         # Gate 0: Always block on CI collection/import errors (even when baseline missing).
         # pytest-json-report represents these as failed collectors and often produces:
@@ -174,7 +207,10 @@ class PhaseFinalizer:
         #
         # Important: do not rely on applied_files. A valid phase can be idempotent (no changes needed),
         # and some apply modes (structured edits, full-file conversions) may not yield a clean applied_files list.
-        if deliverables:
+        #
+        # Skip deliverables check if allow_noop=True and no-op was detected (already checked in Gate -1)
+        allow_noop = phase_spec.get("allow_noop", False)
+        if deliverables and not (noop_detected and allow_noop):
             missing = self._missing_deliverables_in_workspace(deliverables, workspace)
             if missing:
                 blocking_issues.append(f"Missing required deliverables: {missing}")
@@ -403,4 +439,29 @@ class PhaseFinalizer:
         if delta.regression_severity != "none":
             return True
 
+        return False
+
+    def _detect_noop(self, apply_stats: Dict) -> bool:
+        """
+        Detect if the apply operation was a no-op (no actual changes made).
+
+        Args:
+            apply_stats: Apply statistics dict from autonomous_executor
+
+        Returns:
+            True if no-op detected
+        """
+        mode = apply_stats.get("mode")
+
+        if mode == "structured_edit":
+            # For structured edits, check if any operations were actually applied
+            operations_applied = apply_stats.get("operations_applied", 0)
+            return operations_applied == 0
+
+        elif mode == "patch":
+            # For patch mode, check if patch was empty or whitespace-only
+            patch_nonempty = apply_stats.get("patch_nonempty", False)
+            return not patch_nonempty
+
+        # Unknown mode or missing stats - be conservative, don't flag as no-op
         return False

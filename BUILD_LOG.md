@@ -4,6 +4,36 @@ Daily log of development activities, decisions, and progress on the Autopack pro
 
 ---
 
+## 2025-12-28: No-Op Guard Implementation (Prevent False Completions) ✅
+
+**Summary**: Implemented a no-op detection guard in PhaseFinalizer to prevent false "work completed" scenarios when the apply operation did nothing (empty patch or zero operations applied) but required deliverables are missing. This addresses a systemic issue where phases could complete incorrectly when the Builder/Auditor pair claimed success but no actual file changes were made.
+
+**Implementation Details**:
+- Added `apply_stats` parameter to `PhaseFinalizer.assess_completion()` containing apply mode, operation counts, and patch size metrics
+- Implemented `_detect_noop()` method that checks:
+  - **Patch mode**: `patch_nonempty == False` indicates empty/whitespace-only patch
+  - **Structured edit mode**: `operations_applied == 0` indicates no operations actually applied
+- Added **Gate -1** (runs before all other gates) that:
+  - Blocks completion when no-op detected AND required deliverables are missing in workspace
+  - Allows completion when no-op detected BUT all deliverables already exist (legitimately idempotent phase)
+  - Respects `allow_noop: true` escape hatch in phase_spec for explicitly idempotent phases
+
+**Files Changed**:
+- [src/autopack/phase_finalizer.py](src/autopack/phase_finalizer.py): Added no-op detection logic and `_detect_noop()` method
+- [src/autopack/autonomous_executor.py](src/autopack/autonomous_executor.py): Pass `apply_stats` to PhaseFinalizer
+- [tests/test_phase_finalizer_simple.py](tests/test_phase_finalizer_simple.py): Added 6 new unit tests covering all no-op scenarios
+
+**Test Coverage**:
+- No-op patch blocks when deliverables missing ✅
+- No-op patch allowed when deliverables exist (idempotent) ✅
+- No-op structured_edit blocks when deliverables missing ✅
+- No-op allowed with `allow_noop=true` flag ✅
+- `_detect_noop()` method for both patch and structured_edit modes ✅
+
+**Status**: ✅ IMPLEMENTED + TESTED (prevents false completions during draining)
+
+---
+
 ## 2025-12-28: Prevent `/runs/{run_id}` 500s for Legacy String `Phase.scope` (Systemic Drain Fix) ✅
 
 **Summary**: Fixed a systemic drain blocker where the Supervisor API would return **500** for `GET /runs/{run_id}` when legacy runs stored `Phase.scope` as a JSON string (or plain string) instead of a dict. The API response schema (`PhaseResponse.scope: Dict`) would fail validation/serialization, blocking the executor from fetching run status and stalling draining. `PhaseResponse` now normalizes non-dict scopes into a dict (e.g., `{"_legacy_text": ...}`), allowing scope auto-fix to proceed normally. Added regression tests for both plain-string and JSON-string scope normalization.

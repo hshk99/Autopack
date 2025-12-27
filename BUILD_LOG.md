@@ -629,6 +629,7 @@ p10_metadata = {
 
 - **Observed**: `research-meta-analysis` hit a transient Anthropic connectivity/DNS error (`getaddrinfo failed`) resulting in `INFRA_RETRY` (retryable).
 - **Observed**: On the subsequent attempt, the phase proceeded but was correctly blocked as **real**: `CRITICAL regression` with **19 persistent failures** (human approval override does not bypass CI regressions).
+- **Observed (completion)**: v13 queued phases reached `queued=0`, but later phases (`research-integration`, `research-testing-polish`) were **blocked by CI collection/import errors** after partial/truncated patch application. This is expected to remain a “real” failure mode under truncation/partial edits (and is now correctly blocked by PhaseFinalizer).
 - **Interpretation**: infra issues here look transient; the regression block is expected “real gate” behavior.
 
 ### Follow-up: Local diff join hardening (avoid `patch fragment without header`)

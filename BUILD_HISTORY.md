@@ -103,6 +103,7 @@ Each entry includes:
   - Verification: `tests/test_governed_apply.py::test_scope_path_normalization_allows_backslashes_and_dot_slash`.
 - **Drain observation (research-system-v13)**:
   - `research-meta-analysis` saw a transient Anthropic connectivity/DNS failure (`getaddrinfo failed`) marked `INFRA_RETRY`, followed by a “real” CI block: **CRITICAL regression with 19 persistent failures**.
+  - Later v13 queued phases reached `queued=0` but were also blocked by CI collection/import errors after partial/truncated patch application (correctly blocked by PhaseFinalizer).
 - **execute_fix traceability**: `src/autopack/archive_consolidator.py` now auto-creates missing issue headers when appending a fix, and records `run_id` / `phase_id` / `outcome` for blocked actions.
 
 ---

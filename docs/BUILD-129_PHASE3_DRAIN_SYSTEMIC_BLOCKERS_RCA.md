@@ -177,4 +177,20 @@ This document records the **root cause analysis (RCA)** for the systemic blocker
     - `tests/test_phase_finalizer.py::test_assess_completion_failed_collectors_block_without_baseline`
     - `tests/test_phase_finalizer.py`, `tests/test_phase_finalizer_simple.py`, `tests/test_baseline_tracker.py` all pass locally.
 
+### Blocker M: Scope enforcement false negatives on Windows (backslashes / `./` in scope_paths)
+
+- **Symptom**: Multi-batch (Chunk2B) phases fail at apply with:
+  - `Patch rejected - violations: Outside scope: <path>`
+  - even when the rejected file is clearly part of the phase scope (and may even have been modified in a previous batch).
+- **Impact**: Systemic `PATCH_FAILED` in Chunk2B drains; phases cannot converge even though the patch content is valid and in-scope.
+- **Root cause**: `scope_paths` and patch file paths can arrive in different normalized forms on Windows:
+  - `scope_paths` may contain OS-native strings (e.g., `.\src\...` from `Path` stringification)
+  - patch paths are typically POSIX-style (`src/...`)
+  
+  The scope validator compared these strings directly after only shallow normalization, producing false “Outside scope” rejections.
+- **Fix**: `src/autopack/governed_apply.py` now normalizes both scope and patch paths consistently (trims whitespace, converts `\\`→`/`, strips `./`, collapses duplicate slashes) before scope comparison.
+- **Verification**:
+  - Unit test: `tests/test_governed_apply.py::test_scope_path_normalization_allows_backslashes_and_dot_slash`
+  - Affected drains (e.g., `research-system-v13` Chunk2B phases) should no longer fail due to separator/`./` mismatches; remaining apply failures should reflect true scope violations.
+
 

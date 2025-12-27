@@ -98,6 +98,9 @@ Each entry includes:
   - `src/autopack/phase_finalizer.py` now blocks deterministically on failed `collectors[]` entries (baseline-independent), closing a false-complete path where `exitcode=2` / `tests=[]` could still be overridden.
   - `src/autopack/test_baseline_tracker.py` now accounts for failed collectors in baseline capture + delta computation.
   - Verification: `tests/test_phase_finalizer.py::test_assess_completion_failed_collectors_block_without_baseline`.
+- **Scope enforcement path normalization (Windows-safe)**:
+  - `src/autopack/governed_apply.py` now normalizes scope paths and patch paths consistently (trims whitespace, converts `\\`→`/`, strips `./`) before scope comparison, preventing false “Outside scope” rejections in multi-batch/Chunk2B drains.
+  - Verification: `tests/test_governed_apply.py::test_scope_path_normalization_allows_backslashes_and_dot_slash`.
 - **execute_fix traceability**: `src/autopack/archive_consolidator.py` now auto-creates missing issue headers when appending a fix, and records `run_id` / `phase_id` / `outcome` for blocked actions.
 
 ---

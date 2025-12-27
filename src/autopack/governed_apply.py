@@ -341,6 +341,23 @@ class GovernedApplyPath:
         """
         violations = []
 
+        def _norm_relpath(p: object) -> str:
+            """
+            Normalize relative paths for scope comparison.
+
+            Important for Windows drains where scope paths may come from `Path` stringification
+            (backslashes) while patch paths are POSIX-style.
+            """
+            s = str(p or "").strip()
+            s = s.replace("\\", "/")
+            # Strip common leading prefixes
+            while s.startswith("./"):
+                s = s[2:]
+            s = s.lstrip("/")  # keep relative
+            # Collapse duplicate separators
+            s = re.sub(r"/{2,}", "/", s)
+            return s
+
         # Check 1: Protected paths (existing)
         for file_path in files:
             if self._is_path_protected(file_path):
@@ -353,13 +370,19 @@ class GovernedApplyPath:
             normalized_scope = set()
             scope_prefixes: List[str] = []
             for path in self.scope_paths:
-                norm = path.replace('\\', '/')
-                normalized_scope.add(norm.rstrip('/'))
-                if norm.endswith('/'):
-                    scope_prefixes.append(norm)
+                raw = str(path or "")
+                norm = _norm_relpath(raw)
+                if not norm:
+                    continue
+                is_prefix = raw.strip().endswith(("/", "\\"))
+                if is_prefix:
+                    # Keep prefixes in canonical "dir/" form
+                    scope_prefixes.append(norm.rstrip("/") + "/")
+                else:
+                    normalized_scope.add(norm.rstrip("/"))
 
             for file_path in files:
-                normalized_file = file_path.replace('\\', '/')
+                normalized_file = _norm_relpath(file_path).rstrip("/")
                 in_exact = normalized_file in normalized_scope
                 in_prefix = any(normalized_file.startswith(prefix) for prefix in scope_prefixes)
                 if not in_exact and not in_prefix:

@@ -43,3 +43,19 @@ index 0000000..e69de29
     # Existing file should remain unchanged
     assert existing.read_text(encoding="utf-8") == "hello\n"
 
+
+def test_scope_path_normalization_allows_backslashes_and_dot_slash(tmp_path: Path):
+    """
+    Scope enforcement must be robust across OS path styles:
+    - scope_paths may contain Windows backslashes (from Path stringification)
+    - patch paths are typically POSIX-style with forward slashes
+    """
+    apply_path = GovernedApplyPath(
+        workspace=tmp_path,
+        run_type="project_build",
+        scope_paths=[r".\src\research\gatherers\web_scraper.py  "],
+    )
+
+    ok, violations = apply_path._validate_patch_paths(["src/research/gatherers/web_scraper.py"])
+    assert ok is True
+    assert violations == []

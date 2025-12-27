@@ -619,6 +619,12 @@ p10_metadata = {
   - New unit test: `tests/test_phase_finalizer.py::test_assess_completion_failed_collectors_block_without_baseline`
   - Existing PhaseFinalizer/BaselineTracker unit suite continues to pass.
 
+### Fix 4: Scope enforcement path normalization (Windows-safe; prevents false “Outside scope”)
+
+- **Problem**: In Chunk2B multi-batch phases, `scope_paths` can be derived from `Path` values or OS-native paths (e.g. `.\src\...`) while patch file paths are typically POSIX-style (`src/...`). This mismatch caused systemic apply failures: `Patch rejected - violations: Outside scope: ...` even when the file was clearly in-scope.
+- **Fix**: `src/autopack/governed_apply.py` now normalizes scope paths and patch paths consistently (trims whitespace, converts `\\`→`/`, strips `./`, collapses duplicate slashes) before comparing.
+- **Verification**: Added `tests/test_governed_apply.py::test_scope_path_normalization_allows_backslashes_and_dot_slash`.
+
 ### Follow-up: Local diff join hardening (avoid `patch fragment without header`)
 
 - **Observed during v12 draining**: `git apply --check` failed with `patch fragment without header` on a multi-file patch generated locally from full-file Builder content.

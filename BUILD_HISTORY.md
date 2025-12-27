@@ -91,6 +91,7 @@ Each entry includes:
 - **Drain reliability hardening**: `scripts/drain_queued_phases.py` now defaults to an ephemeral `AUTOPACK_API_URL` (free localhost port) when not explicitly set, preventing silent API/DB mismatches where DB shows queued phases but the executor sees none.
 - **Drain run type propagation**: `scripts/drain_queued_phases.py` now supports `--run-type` (or `AUTOPACK_RUN_TYPE`) and passes it through to `AutonomousExecutor`, unblocking Autopack-internal maintenance drains that legitimately modify `src/autopack/*` (use `--run-type autopack_maintenance`).
 - **API run serialization for tierless runs**: `src/autopack/schemas.py` `RunResponse` now includes a top-level `phases` list so executor selection works even when Tier rows are missing (patch-scoped/legacy runs).
+- **Deliverables validation for structured edits**: deliverables validation now accounts for structured edit plans by passing `edit_plan.operations[*].file_path` as `touched_paths` (prevents false “0 files in patch” failures when `patch_content==""`).
 - **CI artifact correctness for PhaseFinalizer**:
   - `src/autopack/autonomous_executor.py` pytest CI now emits a structured pytest-json-report (`pytest_<phase_id>.json`) and returns it as `report_path` (with `log_path` preserved).
   - `src/autopack/phase_finalizer.py` delta computation is fail-safe (never crashes the phase on JSON decode issues).

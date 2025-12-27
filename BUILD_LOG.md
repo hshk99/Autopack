@@ -495,6 +495,18 @@ p10_metadata = {
 **Verification**:
 - Re-draining `build129-p3-week1-telemetry` with `--run-type autopack_maintenance` shows `autopack_internal_mode` unlocking `src/autopack/` and the phase proceeds to completion (subject to normal CI/regression gates).
 
+### Fix 6: Deliverables validation supports structured edit plans (edit_plan operations)
+
+**Problem**: In structured edit mode, Builder returns `patch_content==""` and an `edit_plan.operations` list. Deliverables validation previously only inspected `patch_content`, producing false failures like “Found in patch: 0 files” even though operations touched the required deliverable paths.
+
+**Fix**:
+- `src/autopack/deliverables_validator.py`: added optional `touched_paths` and merges it into `actual_paths` for validation.
+- `src/autopack/autonomous_executor.py`: extracts `file_path` from `builder_result.edit_plan.operations` and passes them to deliverables validation.
+- Added regression test: `tests/test_deliverables_validator.py::test_structured_edit_touched_paths_satisfy_directory_deliverables`.
+
+**Verification**:
+- `python -m pytest -q tests/test_deliverables_validator.py` passes locally.
+
 ---
 
 ## 2025-12-27: research-system-v9 Convergence Hardening (Deliverables + Scope + NDJSON Apply) ✅

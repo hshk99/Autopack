@@ -216,6 +216,27 @@ new file mode 100644
         assert len(errors) > 0
         assert "tests/test_main.py" in details["missing_paths"]
 
+    def test_structured_edit_touched_paths_satisfy_directory_deliverables(self, tmp_path: Path):
+        """Structured edit plans may have patch_content=='' but still touch files via operations."""
+        patch = ""  # structured edit mode returns no unified diff
+        scope = {
+            "deliverables": {
+                "code": ["src/autopack/", "src/autopack/models/"],
+            }
+        }
+
+        is_valid, errors, details = validate_deliverables(
+            patch_content=patch,
+            phase_scope=scope,
+            phase_id="test-phase",
+            workspace=tmp_path,
+            touched_paths=["src/autopack/models/__init__.py"],
+        )
+
+        assert is_valid is True
+        assert errors == []
+        assert details["missing_paths"] == []
+
     def test_misplaced_file(self):
         """Test detection of misplaced files"""
         patch = """

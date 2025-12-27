@@ -627,7 +627,8 @@ def validate_deliverables(
     patch_content: str,
     phase_scope: Dict[str, Any],
     phase_id: str,
-    workspace: Optional[Path] = None
+    workspace: Optional[Path] = None,
+    touched_paths: Optional[List[str]] = None,
 ) -> Tuple[bool, List[str], Dict[str, Any]]:
     """Validate that patch creates expected deliverables
 
@@ -636,6 +637,9 @@ def validate_deliverables(
         phase_scope: Phase scope configuration
         phase_id: Phase identifier (for logging)
         workspace: Workspace root directory
+        touched_paths: Optional list of file paths that will be created/modified by non-diff
+            builder outputs (e.g., structured edit plans). These paths are treated as "present in patch"
+            for deliverables validation purposes.
 
     Returns:
         Tuple of (is_valid, error_messages, details_dict)
@@ -647,6 +651,7 @@ def validate_deliverables(
     details = {
         "expected_paths": [],
         "actual_paths": [],
+        "touched_paths": [],
         "missing_paths": [],
         "extra_paths": [],
         "misplaced_paths": {},
@@ -727,8 +732,16 @@ def validate_deliverables(
 
     # Extract actual paths from patch
     actual_paths = extract_paths_from_patch(patch_content)
+    if touched_paths:
+        for p in touched_paths:
+            if isinstance(p, str) and p.strip():
+                actual_paths.add(p.strip())
     actual_normalized = {normalize_path(p, workspace) for p in actual_paths}
     details["actual_paths"] = sorted(actual_normalized)
+    if touched_paths:
+        details["touched_paths"] = sorted(
+            {normalize_path(p, workspace) for p in touched_paths if isinstance(p, str) and p.strip()}
+        )
 
     # NDJSON + truncation convergence: allow multi-attempt completion.
     # NDJSON operations are applied directly to disk and the executor emits a lightweight synthetic diff

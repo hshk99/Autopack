@@ -212,4 +212,21 @@ This document records the **root cause analysis (RCA)** for the systemic blocker
     - patch apply proceeds without `protected_path_violation`
     - phase reaches `COMPLETE` (subject to the usual CI/regression gates).
 
+### Blocker O: Deliverables validation ignored structured edit plans (patch_content empty → false “0 files”)
+
+- **Symptom**:
+  - Builder returns a structured edit plan (`edit_plan.operations`), and `patch_content==""` (expected for structured edits).
+  - Deliverables validation fails anyway with:
+    - `Found in patch: 0 files`
+    - missing directory deliverables such as `src/autopack/models/` despite an operation touching `src/autopack/models/__init__.py`.
+- **Impact**: Systemic false failures for any phase that enters structured-edit mode (e.g., because a large context file forces structured edits), preventing convergence even when the Builder produced valid operations.
+- **Root cause**: `validate_deliverables()` only inspected `patch_content` to infer “files in your patch” and the executor did not provide any alternate “touched paths” when operating in structured edit mode.
+- **Fix**:
+  - `src/autopack/deliverables_validator.py`: added optional `touched_paths` support, merged into `actual_paths` for validation (and surfaced in `details`).
+  - `src/autopack/autonomous_executor.py`: when `builder_result.edit_plan.operations` exists, extract `file_path` values and pass them as `touched_paths` into deliverables validation.
+  - Regression test: `tests/test_deliverables_validator.py::test_structured_edit_touched_paths_satisfy_directory_deliverables`.
+- **Verification**:
+  - The new regression test passes locally (`python -m pytest -q tests/test_deliverables_validator.py`).
+  - Follow-on drains should no longer fail deliverables validation solely because `patch_content==""` when an edit plan exists.
+
 

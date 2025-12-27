@@ -4307,11 +4307,31 @@ Just the new description that should replace the current one while preserving th
                     scope_config = {**(scope_config or {}), "deliverables_manifest": phase_with_constraints["deliverables_manifest"]}
                 except Exception:
                     pass
+
+            # Structured-edit deliverables: when the Builder returns an EditPlan (patch_content == ""),
+            # deliverables validation must still see which files would be touched. Otherwise we can
+            # incorrectly fail with "Found in patch: 0 files" even though operations exist.
+            touched_paths = None
+            try:
+                plan = getattr(builder_result, "edit_plan", None)
+                ops = getattr(plan, "operations", None) if plan is not None else None
+                if ops:
+                    extracted = []
+                    for op in ops:
+                        p = getattr(op, "file_path", None)
+                        if isinstance(p, str) and p.strip():
+                            extracted.append(p.strip())
+                    if extracted:
+                        touched_paths = extracted
+            except Exception:
+                touched_paths = None
+
             is_valid, validation_errors, validation_details = validate_deliverables(
                 patch_content=builder_result.patch_content or "",
                 phase_scope=scope_config,
                 phase_id=phase_id,
-                workspace=Path(self.workspace)
+                workspace=Path(self.workspace),
+                touched_paths=touched_paths,
             )
 
             if not is_valid:

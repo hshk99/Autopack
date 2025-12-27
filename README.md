@@ -1435,10 +1435,16 @@ replan:
 
 **Version**: 0.5.1 (Memory & Classification Enhancements)
 **License**: MIT
-**Last Updated**: 2025-12-11
-
-**Milestone**: `tests-passing-v1.0` - All core tests passing (89 passed, 30 skipped, 0 failed)
+**Milestone note**: The “tests-passing-v1.0” milestone refers to a scoped historical validation suite, not the full repository test run used in modern draining. See “CI / completion policy” below.
 **Classification Tests**: 100% pass rate (15/15 regression tests passing)
+
+## CI / completion policy (important for draining)
+
+During draining, Autopack runs the repo’s CI (typically `pytest`) but **phase completion is based on regression delta**, not absolute “all tests green”:
+
+- **Baseline-delta gating**: a phase may complete even if CI exitcode is non-zero when it introduces no new persistent regressions relative to the captured baseline.
+- **Collection/import errors**: pytest collection failures (exitcode `2`, failed collectors / import errors) are treated as **hard blocks** and should not complete.
+- **Human approval override**: quality-gate “BLOCKED” can be overridden only within the existing PhaseFinalizer rules (it still blocks on critical regressions and collection errors).
 
 
 ## Project Status

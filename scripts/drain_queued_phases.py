@@ -74,6 +74,11 @@ def main() -> int:
             "Use autopack_maintenance for draining Autopack-internal phases that modify src/autopack/."
         ),
     )
+    p.add_argument(
+        "--no-dual-auditor",
+        action="store_true",
+        help="Disable dual auditor mode to reduce LLM calls during draining/triage.",
+    )
 
     args = p.parse_args()
 
@@ -112,6 +117,7 @@ def main() -> int:
                 workspace=Path("."),
                 api_url=os.environ.get("AUTOPACK_API_URL", "http://localhost:8000"),
                 run_type=args.run_type,
+                use_dual_auditor=not args.no_dual_auditor,
             )
             executor.run_autonomous_loop(
                 poll_interval=10,

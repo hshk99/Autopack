@@ -82,6 +82,14 @@ def main() -> int:
 
     args = p.parse_args()
 
+    # Default DATABASE_URL to the local SQLite DB when running from repo root.
+    # This avoids accidental fallback to Postgres localhost when operators forget to set DATABASE_URL.
+    if not os.environ.get("DATABASE_URL"):
+        default_db_path = Path("autopack.db")
+        if default_db_path.exists():
+            os.environ["DATABASE_URL"] = "sqlite:///autopack.db"
+            print("[drain] DATABASE_URL not set; defaulting to sqlite:///autopack.db")
+
     # Autopack is supposed to be autonomous; enable Qdrant autostart by default if operator didn't set it.
     os.environ.setdefault("AUTOPACK_QDRANT_AUTOSTART", "1")
 

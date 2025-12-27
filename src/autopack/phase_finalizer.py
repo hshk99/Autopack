@@ -307,6 +307,43 @@ class PhaseFinalizer:
 
         return sorted(set(missing))
 
+    def _extract_collection_error_digest(self, ci_result: Dict, workspace: Path, max_errors: int = 5) -> Optional[List[str]]:
+        """
+        Extract a digest of collection/import errors from the pytest report.
+
+        Returns a list of formatted error strings (up to max_errors) with nodeid + first line of longrepr.
+        Returns None if no collection errors found.
+
+        This digest can be written to phase summaries and persisted in ci_result.
+        """
+        try:
+            report_path = ci_result.get("report_path")
+            if not report_path:
+                return None
+            p = Path(report_path)
+            if not p.exists() or p.suffix.lower() != ".json":
+                return None
+
+            report = json.loads(p.read_text(encoding="utf-8"))
+            collectors = report.get("collectors", []) or []
+            failed_collectors = [c for c in collectors if c.get("outcome") not in (None, "passed")]
+
+            if not failed_collectors:
+                return None
+
+            digest = []
+            for collector in failed_collectors[:max_errors]:
+                nodeid = collector.get("nodeid", "<unknown>")
+                longrepr = (collector.get("longrepr") or "").splitlines()
+                detail = longrepr[0] if longrepr else "collector failed"
+                digest.append(f"{nodeid}: {detail}")
+
+            return digest if digest else None
+
+        except Exception as e:
+            logger.warning(f"[PhaseFinalizer] Failed to extract collection error digest: {e}")
+            return None
+
     def _detect_collection_error(self, ci_result: Dict, workspace: Path) -> Optional[str]:
         """
         Detect CI collection/import errors from the structured pytest report.

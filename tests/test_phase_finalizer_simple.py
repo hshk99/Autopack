@@ -1,6 +1,7 @@
 """
 Simplified unit tests for PhaseFinalizer (BUILD-127 Phase 1).
 """
+import json
 import pytest
 from pathlib import Path
 from unittest.mock import Mock, patch
@@ -224,3 +225,68 @@ def test_finalizer_detect_noop_structured_edit_mode():
         "operations_planned": 5,
         "operations_applied": 3
     })
+
+
+def test_finalizer_extract_collection_error_digest(tmp_path):
+    """Test _extract_collection_error_digest method."""
+    tracker = Mock()
+    finalizer = PhaseFinalizer(tracker)
+
+    # Create a mock pytest JSON report with collection errors
+    report = {
+        "exitcode": 2,
+        "summary": {"total": 0},
+        "collectors": [
+            {
+                "nodeid": "tests/test_foo.py",
+                "outcome": "failed",
+                "longrepr": "ImportError: No module named 'missing_module'\nAdditional line"
+            },
+            {
+                "nodeid": "tests/test_bar.py",
+                "outcome": "failed",
+                "longrepr": "SyntaxError: invalid syntax"
+            }
+        ]
+    }
+
+    report_path = tmp_path / "pytest_report.json"
+    report_path.write_text(json.dumps(report), encoding="utf-8")
+
+    ci_result = {"report_path": str(report_path)}
+
+    digest = finalizer._extract_collection_error_digest(ci_result, tmp_path, max_errors=5)
+
+    assert digest is not None
+    assert len(digest) == 2
+    assert "tests/test_foo.py:" in digest[0]
+    assert "ImportError" in digest[0]
+    assert "tests/test_bar.py:" in digest[1]
+    assert "SyntaxError" in digest[1]
+
+
+def test_finalizer_extract_collection_error_digest_no_errors(tmp_path):
+    """Test _extract_collection_error_digest returns None when no errors."""
+    tracker = Mock()
+    finalizer = PhaseFinalizer(tracker)
+
+    # Create a mock pytest JSON report with no collection errors
+    report = {
+        "exitcode": 0,
+        "summary": {"total": 5, "passed": 5},
+        "collectors": [
+            {
+                "nodeid": "tests/test_foo.py",
+                "outcome": "passed"
+            }
+        ]
+    }
+
+    report_path = tmp_path / "pytest_report.json"
+    report_path.write_text(json.dumps(report), encoding="utf-8")
+
+    ci_result = {"report_path": str(report_path)}
+
+    digest = finalizer._extract_collection_error_digest(ci_result, tmp_path)
+
+    assert digest is None

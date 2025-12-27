@@ -5034,6 +5034,29 @@ Just the new description that should replace the current one while preserving th
                 for warning in finalization_decision.warnings:
                     logger.warning(f"  ⚠️  {warning}")
 
+                # Write phase summary with issues (including collector error digest if available)
+                try:
+                    issues_lines = list(finalization_decision.blocking_issues)
+                    # Add collector error digest if present in ci_result
+                    if isinstance(ci_result, dict) and ci_result.get("collector_error_digest"):
+                        digest = ci_result["collector_error_digest"]
+                        issues_lines.append(f"Collection/Import Errors ({len(digest)}):")
+                        for error_line in digest:
+                            issues_lines.append(f"  {error_line}")
+
+                    phase_index = int(phase.get("phase_index", 0) or 0)
+                    self.run_layout.write_phase_summary(
+                        phase_index=phase_index,
+                        phase_id=phase_id,
+                        phase_name=str(phase.get("name") or phase_id),
+                        state=finalization_decision.status,
+                        task_category=phase.get("task_category"),
+                        complexity=phase.get("complexity"),
+                        issues_lines=issues_lines
+                    )
+                except Exception as e:
+                    logger.warning(f"[{phase_id}] Failed to write phase summary with issues: {e}")
+
                 self._update_phase_status(phase_id, finalization_decision.status)
                 return False, finalization_decision.reason
 
@@ -7628,6 +7651,23 @@ Just the new description that should replace the current one while preserving th
         else:
             logger.warning(f"[{phase_id}] CI checks FAILED: return code {result.returncode}")
 
+        # Extract collector error digest for phase summary and downstream components
+        collector_digest = None
+        if result.returncode == 2 or (no_tests_detected and not passed):
+            # Exitcode 2 typically indicates collection/import errors
+            # Extract digest using PhaseFinalizer's helper
+            try:
+                workspace_path = Path(self.workspace)
+                collector_digest = self.phase_finalizer._extract_collection_error_digest(
+                    {"report_path": str(report_path) if report_path else None},
+                    workspace_path,
+                    max_errors=5
+                )
+                if collector_digest:
+                    logger.warning(f"[{phase_id}] Collection errors detected: {len(collector_digest)} failures")
+            except Exception as e:
+                logger.warning(f"[{phase_id}] Failed to extract collector digest: {e}")
+
         return {
             "status": "passed" if passed else "failed",
             "message": message,
@@ -7643,6 +7683,7 @@ Just the new description that should replace the current one while preserving th
             "log_path": str(log_path) if log_path else None,
             "skipped": False,
             "suspicious_zero_tests": no_tests_detected,
+            "collector_error_digest": collector_digest,  # NEW: Collector error digest
         }
 
     def _run_custom_ci(self, phase_id: str, ci_spec: Dict[str, Any]) -> Dict[str, Any]:

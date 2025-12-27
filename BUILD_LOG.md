@@ -4,6 +4,38 @@ Daily log of development activities, decisions, and progress on the Autopack pro
 
 ---
 
+## 2025-12-28: Collector/Import Error Digest in Phase Summaries ✅
+
+**Summary**: Added a collector error digest feature that extracts and surfaces pytest collection/import errors directly in phase summaries when `pytest` exits with code 2 (collection failed). This reduces log hunting by surfacing the top 5 collection failures (ImportError, SyntaxError, etc.) in the phase summary Issues section and making them available to QualityGate and PhaseFinalizer.
+
+**Implementation Details**:
+- Added `_extract_collection_error_digest()` method to PhaseFinalizer that:
+  - Parses pytest JSON report's `collectors` array for failed collectors
+  - Extracts nodeid and first line of longrepr for each failure
+  - Returns top 5 errors as a concise digest list
+- Modified `_run_pytest_ci()` in autonomous_executor to:
+  - Call digest extraction when `returncode == 2` or `no_tests_detected`
+  - Persist digest in `ci_result["collector_error_digest"]` for downstream access
+- Modified finalization failure handling to write phase summaries with collector digest in Issues section
+
+**Files Changed**:
+- [src/autopack/phase_finalizer.py](src/autopack/phase_finalizer.py): Added `_extract_collection_error_digest()` method
+- [src/autopack/autonomous_executor.py](src/autopack/autonomous_executor.py): Extract and persist digest, write to phase summary
+- [tests/test_phase_finalizer_simple.py](tests/test_phase_finalizer_simple.py): Added 2 unit tests for digest extraction
+
+**Test Coverage**:
+- Extract digest from pytest JSON with collection errors ✅
+- Return None when no collection errors present ✅
+
+**Benefits**:
+- Reduced log hunting for collection/import errors
+- Phase summaries now surface diagnostic info immediately
+- QualityGate and PhaseFinalizer can access structured error data
+
+**Status**: ✅ IMPLEMENTED + TESTED (improves diagnostics during draining)
+
+---
+
 ## 2025-12-28: No-Op Guard Implementation (Prevent False Completions) ✅
 
 **Summary**: Implemented a no-op detection guard in PhaseFinalizer to prevent false "work completed" scenarios when the apply operation did nothing (empty patch or zero operations applied) but required deliverables are missing. This addresses a systemic issue where phases could complete incorrectly when the Builder/Auditor pair claimed success but no actual file changes were made.

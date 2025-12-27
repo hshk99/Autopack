@@ -16,22 +16,40 @@ Drain queued phases in tiny batches with telemetry enabled, only fixing **system
 - **`research-system-v20`** (`project_build`)
   - Result: **queued 1 → 0** (phase completed).
   - Notes: Observed **100% token utilization + truncation** and NDJSON partial parse, but apply/validation succeeded and phase finalized.
+  - References:
+    - CI log: `.autonomous_runs/research-system-v20/ci/pytest_research-foundation-intent-discovery.log`
+    - CI report: `.autonomous_runs/research-system-v20/ci/pytest_research-foundation-intent-discovery.json`
+    - Phase summary: `.autonomous_runs/autopack/runs/research-system-v20/phases/phase_01_research-foundation-intent-discovery.md`
 
 - **`research-system-v26`** (`project_build`)
   - Result: **queued 1 → 0** (phase `research-testing-polish` completed).
   - Notes: Similar truncation/NDJSON partial parse pattern; CI failed but phase finalized via existing policy (no systemic blocker).
+  - References:
+    - CI log: `.autonomous_runs/research-system-v26/ci/pytest_research-testing-polish.log`
+    - CI report: `.autonomous_runs/research-system-v26/ci/pytest_research-testing-polish.json`
+    - Phase summary: `.autonomous_runs/autopack/runs/research-system-v26/phases/phase_00_research-testing-polish.md`
 
 - **`research-system-v29`** (`project_build`)
   - Result: **queued 1 → 0**.
   - Outcome: **real gate** – PhaseFinalizer correctly blocked on **pytest collection/import errors** (exit code 2, failed collectors / ImportError). No systemic fix applied.
+  - References:
+    - CI log (shows “10 errors during collection”): `.autonomous_runs/research-system-v29/ci/pytest_research-testing-polish.log`
+    - CI report: `.autonomous_runs/research-system-v29/ci/pytest_research-testing-polish.json`
 
 - **`build112-completion`** (`autopack_maintenance` by heuristic)
   - Result: **queued 1 → 0** (phase `build112-phase5-dashboard-pause-resume` completed).
   - Notes: Builder emitted a JSON `{"files":[...]}` blob (not a diff), then structured-edit fallback produced **no operations** (no-op). This did not block draining under the current finalization/override policy; treated as run-specific behavior, not systemic.
+  - References:
+    - CI log: `.autonomous_runs/build112-completion/ci/pytest_build112-phase5-dashboard-pause-resume.log`
+    - CI report: `.autonomous_runs/build112-completion/ci/pytest_build112-phase5-dashboard-pause-resume.json`
+    - Phase summary: `.autonomous_runs/autopack/runs/build112-completion/phases/phase_03_build112-phase5-dashboard-pause-resume.md`
 
 - **`scope-smoke-20251206184302`** (`project_build`)
   - Result: **queued 1 → 0** (P1 completed).
   - Notes: Extremely large context; structured edit used on `README.md`. CI failed but finalized via existing policy.
+  - References:
+    - CI log: `.autonomous_runs/scope-smoke-20251206184302/ci/pytest_P1.log`
+    - CI report: `.autonomous_runs/scope-smoke-20251206184302/ci/pytest_P1.json`
 
 - **`research-system-v1`** (`project_build`)
   - Initial attempt: **systemic drain blocker** – executor could not fetch run status because the Supervisor API returned **500** for `GET /runs/research-system-v1`.
@@ -41,6 +59,10 @@ Drain queued phases in tiny batches with telemetry enabled, only fixing **system
     - Tests: `tests/test_api_schema_scope_normalization.py`.
     - SOT updates: `BUILD_LOG.md`, `docs/BUILD_HISTORY.md`, `docs/BUILD-129_PHASE3_DRAIN_SYSTEMIC_BLOCKERS_RCA.md` (Blocker Q), plus DB export sync.
   - Post-fix re-run: `research-system-v1` drained to **queued 1 → 0** (phase executed; ended with `REPLAN_REQUESTED` but no queued phases remained).
+  - References:
+    - CI log: `.autonomous_runs/research-system-v1/ci/pytest_research-tracer-bullet.log`
+    - CI report: `.autonomous_runs/research-system-v1/ci/pytest_research-tracer-bullet.json`
+    - API-500 fix commit: `5a29b35c`
 
 ### Systemic changes delivered this session
 

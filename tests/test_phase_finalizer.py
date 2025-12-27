@@ -9,7 +9,7 @@ Tests:
 """
 import pytest
 from pathlib import Path
-from unittest.mock import Mock, MagicMock, patch
+from unittest.mock import Mock, patch
 from datetime import datetime, timezone
 
 from autopack.phase_finalizer import PhaseFinalizer, PhaseFinalizationDecision
@@ -80,10 +80,8 @@ class TestPhaseFinalizationDecision:
 class TestPhaseFinalizer:
     """Test PhaseFinalizer."""
 
-    @patch('autopack.phase_finalizer.deliverables_validator_module')
     def test_assess_completion_all_gates_pass(
         self,
-        mock_deliverables_module,
         finalizer,
         mock_baseline_tracker,
         tmp_path
@@ -93,20 +91,20 @@ class TestPhaseFinalizer:
         delta = TestDelta(regression_severity="none")
         mock_baseline_tracker.compute_full_delta.return_value = delta
 
-        # Mock deliverables - all present
-        mock_deliverables_module.validate_deliverables.return_value = {
-            "success": True,
-            "missing": []
-        }
+        # Deliverables exist in workspace
+        (tmp_path / "file1.py").write_text("# ok\n", encoding="utf-8")
 
         phase_spec = {
             "validation": {"tests": []}
         }
 
+        report_path = tmp_path / "report.json"
+        report_path.write_text("{}", encoding="utf-8")
+
         decision = finalizer.assess_completion(
             phase_id="test-phase",
             phase_spec=phase_spec,
-            ci_result={"report_path": tmp_path / "report.json"},
+            ci_result={"report_path": str(report_path)},
             baseline=Mock(),
             quality_report={"quality_level": "high", "is_blocked": False},
             auditor_result={},
@@ -119,10 +117,8 @@ class TestPhaseFinalizer:
         assert decision.status == "COMPLETE"
         assert len(decision.blocking_issues) == 0
 
-    @patch('autopack.phase_finalizer.deliverables_validator_module')
     def test_assess_completion_ci_persistent_failures_block(
         self,
-        mock_deliverables_module,
         finalizer,
         mock_baseline_tracker,
         sample_baseline,
@@ -136,16 +132,13 @@ class TestPhaseFinalizer:
         )
         mock_baseline_tracker.compute_full_delta.return_value = delta
 
-        # Deliverables validation passes (CI regression is what should block)
-        mock_deliverables_module.validate_deliverables.return_value = {
-            "success": True, "missing": []
-        }
+        (tmp_path / "file1.py").write_text("# ok\n", encoding="utf-8")
 
         phase_spec = {"validation": {"tests": []}}
 
         # Create dummy report file
         report_path = tmp_path / "report.json"
-        report_path.write_text("{}")
+        report_path.write_text("{}", encoding="utf-8")
 
         decision = finalizer.assess_completion(
             phase_id="test-phase",
@@ -163,10 +156,8 @@ class TestPhaseFinalizer:
         assert decision.status == "FAILED"
         assert any("HIGH regression" in issue for issue in decision.blocking_issues)
 
-    @patch('autopack.phase_finalizer.deliverables_validator_module')
     def test_assess_completion_phase_validation_tests_block(
         self,
-        mock_deliverables_module,
         finalizer,
         mock_baseline_tracker,
         sample_baseline,
@@ -180,9 +171,7 @@ class TestPhaseFinalizer:
         )
         mock_baseline_tracker.compute_full_delta.return_value = delta
 
-        mock_deliverables_module.validate_deliverables.return_value = {
-            "success": True, "missing": []
-        }
+        (tmp_path / "file1.py").write_text("# ok\n", encoding="utf-8")
 
         # Phase specifies this test as critical
         phase_spec = {
@@ -192,7 +181,7 @@ class TestPhaseFinalizer:
         }
 
         report_path = tmp_path / "report.json"
-        report_path.write_text("{}")
+        report_path.write_text("{}", encoding="utf-8")
 
         decision = finalizer.assess_completion(
             phase_id="test-phase",
@@ -210,10 +199,8 @@ class TestPhaseFinalizer:
         assert decision.status == "FAILED"
         assert any("Phase validation tests failed" in issue for issue in decision.blocking_issues)
 
-    @patch('autopack.phase_finalizer.deliverables_validator_module')
     def test_assess_completion_collection_errors_block(
         self,
-        mock_deliverables_module,
         finalizer,
         mock_baseline_tracker,
         sample_baseline,
@@ -226,14 +213,12 @@ class TestPhaseFinalizer:
         )
         mock_baseline_tracker.compute_full_delta.return_value = delta
 
-        mock_deliverables_module.validate_deliverables.return_value = {
-            "success": True, "missing": []
-        }
+        (tmp_path / "file1.py").write_text("# ok\n", encoding="utf-8")
 
         phase_spec = {"validation": {"tests": []}}
 
         report_path = tmp_path / "report.json"
-        report_path.write_text("{}")
+        report_path.write_text("{}", encoding="utf-8")
 
         decision = finalizer.assess_completion(
             phase_id="test-phase",
@@ -250,10 +235,8 @@ class TestPhaseFinalizer:
         assert not decision.can_complete
         assert any("collection errors" in issue for issue in decision.blocking_issues)
 
-    @patch('autopack.phase_finalizer.deliverables_validator_module')
     def test_assess_completion_failed_collectors_block_without_baseline(
         self,
-        mock_deliverables_module,
         finalizer,
         mock_baseline_tracker,
         tmp_path
@@ -263,9 +246,7 @@ class TestPhaseFinalizer:
         often with tests=[] and summary.total=0. This must block deterministically even without
         a baseline (baseline capture can fail/time out).
         """
-        mock_deliverables_module.validate_deliverables.return_value = {
-            "success": True, "missing": []
-        }
+        (tmp_path / "file1.py").write_text("# ok\n", encoding="utf-8")
 
         report_path = tmp_path / "pytest_report.json"
         report_path.write_text(
@@ -305,10 +286,8 @@ class TestPhaseFinalizer:
         # With baseline=None, we should not attempt delta computation.
         assert not mock_baseline_tracker.compute_full_delta.called
 
-    @patch('autopack.phase_finalizer.deliverables_validator_module')
     def test_assess_completion_flaky_tests_warn_only(
         self,
-        mock_deliverables_module,
         finalizer,
         mock_baseline_tracker,
         sample_baseline,
@@ -320,15 +299,12 @@ class TestPhaseFinalizer:
             regression_severity="none"
         )
         mock_baseline_tracker.compute_full_delta.return_value = delta
-
-        mock_deliverables_module.validate_deliverables.return_value = {
-            "success": True, "missing": []
-        }
+        (tmp_path / "file1.py").write_text("# ok\n", encoding="utf-8")
 
         phase_spec = {"validation": {"tests": []}}
 
         report_path = tmp_path / "report.json"
-        report_path.write_text("{}")
+        report_path.write_text("{}", encoding="utf-8")
 
         decision = finalizer.assess_completion(
             phase_id="test-phase",
@@ -345,10 +321,8 @@ class TestPhaseFinalizer:
         assert decision.can_complete  # Should NOT block
         assert any("Flaky tests" in w for w in decision.warnings)
 
-    @patch('autopack.phase_finalizer.deliverables_validator_module')
     def test_assess_completion_quality_gate_blocked(
         self,
-        mock_deliverables_module,
         finalizer,
         mock_baseline_tracker,
         tmp_path
@@ -356,10 +330,7 @@ class TestPhaseFinalizer:
         """Test quality gate blocks completion."""
         delta = TestDelta(regression_severity="none")
         mock_baseline_tracker.compute_full_delta.return_value = delta
-
-        mock_deliverables_module.validate_deliverables.return_value = {
-            "success": True, "missing": []
-        }
+        (tmp_path / "file1.py").write_text("# ok\n", encoding="utf-8")
 
         phase_spec = {"validation": {"tests": []}}
 
@@ -378,10 +349,8 @@ class TestPhaseFinalizer:
         assert not decision.can_complete
         assert any("Quality gate blocked" in issue for issue in decision.blocking_issues)
 
-    @patch('autopack.phase_finalizer.deliverables_validator_module')
     def test_assess_completion_missing_deliverables_block(
         self,
-        mock_deliverables_module,
         finalizer,
         mock_baseline_tracker,
         tmp_path
@@ -389,12 +358,6 @@ class TestPhaseFinalizer:
         """Test missing deliverables block completion."""
         delta = TestDelta(regression_severity="none")
         mock_baseline_tracker.compute_full_delta.return_value = delta
-
-        # Mock deliverables - missing files
-        mock_deliverables_module.validate_deliverables.return_value = {
-            "success": False,
-            "missing": ["tests/test_missing.py"],
-        }
 
         phase_spec = {"validation": {"tests": []}}
 
@@ -413,31 +376,26 @@ class TestPhaseFinalizer:
         assert not decision.can_complete
         assert any("Missing required deliverables" in issue for issue in decision.blocking_issues)
 
-    @patch('autopack.phase_finalizer.deliverables_validator_module')
-    def test_assess_completion_medium_regression_warns_only(
+    def test_assess_completion_medium_regression_blocks(
         self,
-        mock_deliverables_module,
         finalizer,
         mock_baseline_tracker,
         sample_baseline,
         tmp_path
     ):
-        """Test medium regression generates warning, not block."""
+        """Test medium regression blocks completion (delta-based strict gating)."""
         delta = TestDelta(
             newly_failing_persistent=["test1.py::test1", "test2.py::test2"],
             regression_severity="medium"
         )
         mock_baseline_tracker.compute_full_delta.return_value = delta
-
-        mock_deliverables_module.validate_deliverables.return_value = {
-            "success": True, "missing": []
-        }
+        (tmp_path / "file1.py").write_text("# ok\n", encoding="utf-8")
 
         # No phase validation_tests specified
         phase_spec = {"validation": {"tests": []}}
 
         report_path = tmp_path / "report.json"
-        report_path.write_text("{}")
+        report_path.write_text("{}", encoding="utf-8")
 
         decision = finalizer.assess_completion(
             phase_id="test-phase",
@@ -451,8 +409,8 @@ class TestPhaseFinalizer:
             workspace=tmp_path
         )
 
-        assert decision.can_complete  # Should NOT block
-        assert any("Medium regression" in w for w in decision.warnings)
+        assert not decision.can_complete
+        assert any("MEDIUM regression" in issue for issue in decision.blocking_issues)
 
     def test_should_block_on_ci(self, finalizer):
         """Test should_block_on_ci logic."""
@@ -469,9 +427,9 @@ class TestPhaseFinalizer:
         delta3 = TestDelta(regression_severity="high")
         assert finalizer.should_block_on_ci(delta3, set())
 
-        # Medium severity, no phase tests → don't block
+        # Medium severity, no phase tests → block
         delta4 = TestDelta(regression_severity="medium")
-        assert not finalizer.should_block_on_ci(delta4, set())
+        assert finalizer.should_block_on_ci(delta4, set())
 
     def test_assess_completion_ci_report_not_json_does_not_crash(
         self,

@@ -35,8 +35,7 @@ def test_finalization_decision_blocked():
     assert len(decision.blocking_issues) == 1
 
 
-@patch('autopack.phase_finalizer.deliverables_validator_module')
-def test_finalizer_all_gates_pass(mock_deliverables, tmp_path):
+def test_finalizer_all_gates_pass(tmp_path):
     """Test completion when all gates pass."""
     tracker = Mock()
     finalizer = PhaseFinalizer(tracker)
@@ -44,12 +43,7 @@ def test_finalizer_all_gates_pass(mock_deliverables, tmp_path):
     # Mock CI delta - no regressions
     delta = TestDelta(regression_severity="none")
     tracker.compute_full_delta.return_value = delta
-    
-    # Mock deliverables - all present
-    mock_deliverables.validate_deliverables.return_value = {
-        "success": True,
-        "missing": []
-    }
+    (tmp_path / "file1.py").write_text("# ok\n", encoding="utf-8")
     
     decision = finalizer.assess_completion(
         phase_id="test-phase",
@@ -66,8 +60,7 @@ def test_finalizer_all_gates_pass(mock_deliverables, tmp_path):
     assert decision.can_complete
 
 
-@patch('autopack.phase_finalizer.deliverables_validator_module')
-def test_finalizer_high_regression_blocks(mock_deliverables, tmp_path):
+def test_finalizer_high_regression_blocks(tmp_path):
     """Test CI high regression blocks completion."""
     tracker = Mock()
     finalizer = PhaseFinalizer(tracker)
@@ -78,14 +71,10 @@ def test_finalizer_high_regression_blocks(mock_deliverables, tmp_path):
         regression_severity="high"
     )
     tracker.compute_full_delta.return_value = delta
-    
-    mock_deliverables.validate_deliverables.return_value = {
-        "success": True,
-        "missing": []
-    }
+    (tmp_path / "file1.py").write_text("# ok\n", encoding="utf-8")
     
     report_path = tmp_path / "report.json"
-    report_path.write_text("{}")
+    report_path.write_text("{}", encoding="utf-8")
     
     baseline = Mock()
     

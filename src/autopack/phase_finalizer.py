@@ -9,6 +9,7 @@ from typing import List, Dict, Optional, Set
 from pathlib import Path
 import logging
 import json
+import os
 
 from autopack.test_baseline_tracker import TestBaseline, TestDelta, TestBaselineTracker
 # Note: deliverables_validator is a module with standalone functions, not a class
@@ -128,22 +129,16 @@ class PhaseFinalizer:
                         f"[PhaseFinalizer] BLOCK: Phase validation tests failed: {overlap}"
                     )
 
-            # BLOCK on high/critical overall regression
-            if delta.regression_severity in ["high", "critical"]:
+            # BLOCK on any persistent regression (low/medium/high/critical)
+            #
+            # Rationale: Autopack may run on a "red" baseline (known pre-existing failures).
+            # The intended policy is delta-based: do not accept *new* persistent regressions.
+            if delta.regression_severity != "none":
                 blocking_issues.append(
                     f"{delta.regression_severity.upper()} regression: "
                     f"{len(delta.newly_failing_persistent)} persistent failures"
                 )
-                logger.error(
-                    f"[PhaseFinalizer] BLOCK: {delta.regression_severity.upper()} regression"
-                )
-
-            # WARN on medium regression (unless overlap with validation_tests above)
-            elif delta.regression_severity == "medium":
-                warnings.append(
-                    f"Medium regression: {len(delta.newly_failing_persistent)} persistent failures"
-                )
-                logger.warning(f"[PhaseFinalizer] Medium regression detected")
+                logger.error(f"[PhaseFinalizer] BLOCK: {delta.regression_severity.upper()} regression")
 
             # Log flaky suspects
             if delta.flaky_suspects:
@@ -175,22 +170,15 @@ class PhaseFinalizer:
                     blocking_issues.append(f"Quality gate blocked: {quality_level}")
                     logger.error(f"[PhaseFinalizer] BLOCK: Quality gate blocked ({quality_level})")
 
-        # Gate 3: Deliverables validation
-        if deliverables and applied_files:
-            deliverables_result = deliverables_validator_module.validate_deliverables(
-                required_deliverables=deliverables,
-                applied_files=applied_files
-            )
-
-            if not deliverables_result.get("success", True):
-                missing = deliverables_result.get("missing", [])
-                if missing:
-                    blocking_issues.append(
-                        f"Missing required deliverables: {missing}"
-                    )
-                    logger.error(
-                        f"[PhaseFinalizer] BLOCK: Missing deliverables: {missing}"
-                    )
+        # Gate 3: Deliverables existence validation (workspace-based)
+        #
+        # Important: do not rely on applied_files. A valid phase can be idempotent (no changes needed),
+        # and some apply modes (structured edits, full-file conversions) may not yield a clean applied_files list.
+        if deliverables:
+            missing = self._missing_deliverables_in_workspace(deliverables, workspace)
+            if missing:
+                blocking_issues.append(f"Missing required deliverables: {missing}")
+                logger.error(f"[PhaseFinalizer] BLOCK: Missing deliverables: {missing}")
 
         # Gate 3.5: Structured manifest validation (BUILD-127 Phase 3)
         if builder_output and deliverables:
@@ -240,6 +228,48 @@ class PhaseFinalizer:
                 logger.warning(f"[PhaseFinalizer]   ⚠️  {warning}")
 
         return decision
+
+    def _missing_deliverables_in_workspace(self, deliverables: List[str], workspace: Path) -> List[str]:
+        """
+        Workspace-based deliverables validation.
+
+        Supports both:
+        - exact file deliverables (e.g., "src/foo.py")
+        - directory/prefix deliverables (e.g., "tests/research/unit/") satisfied by any file under that dir
+        """
+        missing: List[str] = []
+        for d in deliverables:
+            if not isinstance(d, str) or not d.strip():
+                continue
+            rel = d.replace("\\", "/").strip()
+
+            # Prefix deliverables (directory)
+            if rel.endswith("/"):
+                try:
+                    root = workspace / rel.rstrip("/")
+                    if not root.exists() or not root.is_dir():
+                        missing.append(rel)
+                        continue
+                    found_any = False
+                    for dirpath, _dirnames, filenames in os.walk(root):
+                        if filenames:
+                            found_any = True
+                            break
+                    if not found_any:
+                        missing.append(rel)
+                except Exception:
+                    missing.append(rel)
+                continue
+
+            # Exact file deliverable
+            try:
+                p = workspace / rel
+                if not p.exists():
+                    missing.append(rel)
+            except Exception:
+                missing.append(rel)
+
+        return sorted(set(missing))
 
     def _detect_collection_error(self, ci_result: Dict, workspace: Path) -> Optional[str]:
         """
@@ -369,8 +399,8 @@ class PhaseFinalizer:
             if overlap:
                 return True
 
-        # Block on high/critical regression
-        if delta.regression_severity in ["high", "critical"]:
+        # Block on any regression severity (low/medium/high/critical).
+        if delta.regression_severity != "none":
             return True
 
         return False

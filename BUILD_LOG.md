@@ -603,6 +603,11 @@ p10_metadata = {
 - **Fix**: replaced emoji output with ASCII-safe `[OK]` / `[WARN]` messages.
 - **Verification**: `python scripts/tidy/db_sync.py --project autopack` completes successfully (Qdrant may still warn if not running).
 
+### Follow-up: Local diff join hardening (avoid `patch fragment without header`)
+
+- **Observed during v12 draining**: `git apply --check` failed with `patch fragment without header` on a multi-file patch generated locally from full-file Builder content.
+- **Fix**: `src/autopack/anthropic_clients.py` now joins per-file diffs with a blank line and ensures a trailing newline, to keep `git apply` parsing stable.
+
 ## 2025-12-24: BUILD-129 Phase 3 DOC_SYNTHESIS - PRODUCTION VERIFIED ✅
 
 **Summary**: Implemented phase-based documentation estimation with feature extraction and truncation awareness. Identified and resolved 2 infrastructure blockers. **Production validation complete**: Processed 3 pure doc phases + 1 mixed phase, DOC_SYNTHESIS achieving 29.5% SMAPE (73.3% improvement from 103.6%). All 11 tests passing.

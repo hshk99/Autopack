@@ -17,11 +17,11 @@ class CompetitiveIntensity:
     """
     
     DEFAULT_WEIGHTS = {
-        'rivalry_intensity': 0.25,
+        'rivalry': 0.25,
         'threat_of_new_entrants': 0.20,
-        'bargaining_power_suppliers': 0.15,
-        'bargaining_power_buyers': 0.20,
-        'threat_of_substitutes': 0.20
+        'threat_of_substitutes': 0.20,
+        'buyer_power': 0.20,
+        'supplier_power': 0.15
     }
     
     def __init__(self, weights: Optional[Dict[str, float]] = None):
@@ -29,94 +29,100 @@ class CompetitiveIntensity:
         
         Args:
             weights: Custom weights for criteria (must sum to 1.0)
-            
+        
         Raises:
             ValueError: If weights don't sum to 1.0
         """
         self.weights = weights or self.DEFAULT_WEIGHTS.copy()
         self.scores: Dict[str, float] = {}
         self.competitors: List[Dict[str, Any]] = []
-        self.metadata: Dict[str, Any] = {}
-        
-        if abs(sum(self.weights.values()) - 1.0) > 0.001:
-            raise ValueError(f"Weights must sum to 1.0, got {sum(self.weights.values())}")
+        self._validate_weights()
     
-    def set_score(self, criterion: str, score: float, evidence: Optional[str] = None) -> None:
+    def _validate_weights(self) -> None:
+        """Validate that weights sum to 1.0."""
+        total = sum(self.weights.values())
+        if not (0.99 <= total <= 1.01):
+            raise ValueError(f"Weights must sum to 1.0, got {total}")
+    
+    def set_score(self, criterion: str, score: float) -> None:
         """Set score for a specific criterion.
         
         Args:
             criterion: Name of the criterion
-            score: Score value (0-10, higher = more intense competition)
-            evidence: Supporting evidence for the score
-            
+            score: Score value (0-10 scale, higher = more intense competition)
+        
         Raises:
             ValueError: If criterion not in weights or score out of range
         """
         if criterion not in self.weights:
             raise ValueError(f"Unknown criterion: {criterion}")
-        if not 0 <= score <= 10:
+        if not (0 <= score <= 10):
             raise ValueError(f"Score must be between 0 and 10, got {score}")
-        
         self.scores[criterion] = score
-        if evidence:
-            if 'evidence' not in self.metadata:
-                self.metadata['evidence'] = {}
-            self.metadata['evidence'][criterion] = evidence
     
-    def add_competitor(self, name: str, market_share: Optional[float] = None, 
-                      strengths: Optional[List[str]] = None,
-                      weaknesses: Optional[List[str]] = None) -> None:
+    def set_scores(self, scores: Dict[str, float]) -> None:
+        """Set multiple scores at once.
+        
+        Args:
+            scores: Dictionary of criterion scores
+        """
+        for criterion, score in scores.items():
+            self.set_score(criterion, score)
+    
+    def add_competitor(self, name: str, market_share: float, 
+                      strengths: List[str], weaknesses: List[str]) -> None:
         """Add a competitor to the analysis.
         
         Args:
             name: Competitor name
-            market_share: Estimated market share (0-100)
+            market_share: Market share percentage (0-100)
             strengths: List of competitor strengths
             weaknesses: List of competitor weaknesses
         """
-        competitor = {
+        if not (0 <= market_share <= 100):
+            raise ValueError("Market share must be between 0 and 100")
+        
+        self.competitors.append({
             'name': name,
             'market_share': market_share,
-            'strengths': strengths or [],
-            'weaknesses': weaknesses or []
-        }
-        self.competitors.append(competitor)
+            'strengths': strengths.copy(),
+            'weaknesses': weaknesses.copy()
+        })
     
     def calculate_score(self) -> float:
-        """Calculate weighted overall competitive intensity score.
+        """Calculate weighted competitive intensity score.
         
         Returns:
             Weighted score (0-10 scale, higher = more intense)
-            
+        
         Raises:
-            ValueError: If not all criteria have been scored
+            ValueError: If not all criteria have scores
         """
         missing = set(self.weights.keys()) - set(self.scores.keys())
         if missing:
             raise ValueError(f"Missing scores for criteria: {missing}")
         
-        total = sum(self.scores[criterion] * self.weights[criterion] 
-                   for criterion in self.weights.keys())
-        return round(total, 2)
+        total_score = sum(
+            self.weights[criterion] * self.scores[criterion]
+            for criterion in self.weights.keys()
+        )
+        return round(total_score, 2)
     
     def get_interpretation(self) -> str:
-        """Get interpretation of the overall score.
+        """Get interpretation of the competitive intensity score.
         
         Returns:
             Interpretation string
         """
         score = self.calculate_score()
-        
         if score >= 8.0:
-            return "Extremely Intense Competition"
+            return "Extremely Intense"
         elif score >= 6.0:
-            return "High Competition"
+            return "Highly Competitive"
         elif score >= 4.0:
-            return "Moderate Competition"
-        elif score >= 2.0:
-            return "Low Competition"
+            return "Moderately Competitive"
         else:
-            return "Minimal Competition"
+            return "Low Competition"
     
     def get_market_concentration(self) -> Dict[str, Any]:
         """Calculate market concentration metrics.
@@ -125,96 +131,118 @@ class CompetitiveIntensity:
             Dictionary with concentration analysis
         """
         if not self.competitors:
-            return {'herfindahl_index': None, 'top_3_share': None, 'concentration': 'Unknown'}
+            return {
+                'herfindahl_index': 0.0,
+                'top_3_share': 0.0,
+                'concentration_level': 'Unknown'
+            }
         
         # Calculate Herfindahl-Hirschman Index (HHI)
-        competitors_with_share = [c for c in self.competitors if c.get('market_share')]
+        hhi = sum(comp['market_share'] ** 2 for comp in self.competitors)
         
-        if not competitors_with_share:
-            return {'herfindahl_index': None, 'top_3_share': None, 'concentration': 'Unknown'}
+        # Calculate top 3 market share
+        sorted_competitors = sorted(
+            self.competitors,
+            key=lambda x: x['market_share'],
+            reverse=True
+        )
+        top_3_share = sum(comp['market_share'] for comp in sorted_competitors[:3])
         
-        shares = [c['market_share'] for c in competitors_with_share]
-        hhi = sum(s ** 2 for s in shares)
-        
-        # Top 3 concentration
-        top_3_share = sum(sorted(shares, reverse=True)[:3])
-        
-        # Interpret concentration
-        if hhi > 2500:
-            concentration = "Highly Concentrated"
-        elif hhi > 1500:
-            concentration = "Moderately Concentrated"
+        # Determine concentration level
+        if hhi < 1500:
+            concentration = 'Fragmented'
+        elif hhi < 2500:
+            concentration = 'Moderate Concentration'
         else:
-            concentration = "Unconcentrated"
+            concentration = 'High Concentration'
         
         return {
             'herfindahl_index': round(hhi, 2),
             'top_3_share': round(top_3_share, 2),
-            'concentration': concentration,
-            'num_competitors': len(competitors_with_share)
+            'concentration_level': concentration,
+            'number_of_competitors': len(self.competitors)
         }
     
-    def get_detailed_breakdown(self) -> Dict[str, Any]:
-        """Get detailed breakdown of competitive analysis.
+    def get_detailed_analysis(self) -> Dict[str, Any]:
+        """Get detailed competitive analysis.
         
         Returns:
-            Dictionary with detailed analysis
+            Dictionary with comprehensive competitive analysis
         """
+        contributions = {
+            criterion: round(self.weights[criterion] * self.scores[criterion], 2)
+            for criterion in self.weights.keys()
+        }
+        
         total_score = self.calculate_score()
         
-        breakdown = {
-            'overall_score': total_score,
+        return {
+            'total_score': total_score,
             'interpretation': self.get_interpretation(),
-            'criteria': [],
-            'competitors': self.competitors,
-            'market_concentration': self.get_market_concentration()
+            'scores': self.scores.copy(),
+            'weights': self.weights.copy(),
+            'contributions': contributions,
+            'market_concentration': self.get_market_concentration(),
+            'competitors': self.competitors.copy(),
+            'key_competitive_forces': self._get_key_forces(contributions),
+            'competitive_advantages': self._identify_opportunities()
         }
+    
+    def _get_key_forces(self, contributions: Dict[str, float]) -> List[str]:
+        """Identify the most significant competitive forces."""
+        sorted_forces = sorted(
+            contributions.items(),
+            key=lambda x: x[1],
+            reverse=True
+        )
+        return [force for force, _ in sorted_forces[:3]]
+    
+    def _identify_opportunities(self) -> List[str]:
+        """Identify potential competitive opportunities."""
+        opportunities = []
         
-        for criterion, weight in sorted(self.weights.items(), 
-                                       key=lambda x: x[1], reverse=True):
-            score = self.scores[criterion]
-            contribution = score * weight
-            
-            criterion_data = {
-                'name': criterion,
-                'score': score,
-                'weight': weight,
-                'contribution': round(contribution, 2),
-                'evidence': self.metadata.get('evidence', {}).get(criterion)
-            }
-            breakdown['criteria'].append(criterion_data)
+        if self.scores.get('threat_of_new_entrants', 10) < 5.0:
+            opportunities.append("Low barriers to entry - market accessible")
         
-        return breakdown
+        if self.scores.get('buyer_power', 10) < 5.0:
+            opportunities.append("Weak buyer power - pricing flexibility")
+        
+        if self.scores.get('threat_of_substitutes', 10) < 5.0:
+            opportunities.append("Few substitutes - strong market position")
+        
+        concentration = self.get_market_concentration()
+        if concentration['concentration_level'] == 'Fragmented':
+            opportunities.append("Fragmented market - consolidation opportunity")
+        
+        return opportunities
     
     def get_recommendations(self) -> List[str]:
-        """Generate recommendations based on competitive analysis.
+        """Generate strategic recommendations based on competitive analysis.
         
         Returns:
-            List of recommendation strings
+            List of strategic recommendations
         """
         recommendations = []
+        score = self.calculate_score()
+        opportunities = self._identify_opportunities()
         
-        overall = self.calculate_score()
-        
-        if overall >= 7.0:
+        if score >= 7.0:
             recommendations.append("High competition - differentiation strategy critical")
             recommendations.append("Consider niche markets or blue ocean opportunities")
-        elif overall < 4.0:
+        elif score >= 5.0:
+            recommendations.append("Moderate competition - focus on competitive advantages")
+        else:
             recommendations.append("Low competition - opportunity for market leadership")
         
-        # Analyze specific forces
-        if self.scores.get('threat_of_new_entrants', 0) < 4.0:
-            recommendations.append("Low barriers to entry - establish strong market position quickly")
+        if opportunities:
+            recommendations.append("Leverage identified opportunities:")
+            recommendations.extend(opportunities)
         
-        if self.scores.get('bargaining_power_buyers', 0) >= 7.0:
-            recommendations.append("High buyer power - focus on value proposition and customer lock-in")
+        if self.scores.get('rivalry', 0) >= 7.0:
+            recommendations.append("Intense rivalry - build strong brand and customer loyalty")
         
-        if self.scores.get('threat_of_substitutes', 0) >= 7.0:
-            recommendations.append("High substitution threat - emphasize unique value and switching costs")
-        
-        # Market concentration insights
         concentration = self.get_market_concentration()
-        if concentration.get('concentration') == 'Highly Concentrated':
-            recommendations.append("Concentrated market - consider partnership or acquisition strategies")
+        if concentration['concentration_level'] == 'High Concentration':
+            recommendations.append("Concentrated market - partnership or acquisition strategy")
         
         return recommendations

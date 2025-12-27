@@ -1800,7 +1800,10 @@ class AnthropicBuilderClient:
                     error=error_msg
                 )
             
-            patch_content = "\n".join(diff_parts)
+            # Join diffs defensively. Some `git apply` versions are picky about
+            # patch boundaries; ensure each diff starts on a fresh line and the
+            # overall patch ends with a newline to avoid "patch fragment without header".
+            patch_content = "\n\n".join(d.rstrip("\n") for d in diff_parts).rstrip("\n") + "\n"
             logger.info(f"[Builder] Generated {len(diff_parts)} file diffs locally from full-file content")
 
             return BuilderResult(

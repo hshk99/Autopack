@@ -145,4 +145,13 @@ This document records the **root cause analysis (RCA)** for the systemic blocker
 - **Verification**:
   - `python scripts/tidy/db_sync.py --project autopack` completes successfully (Qdrant may still be unavailable and is handled as a warning).
 
+### Blocker K: Patch apply fails with `patch fragment without header` for locally-generated multi-file diffs
+
+- **Symptom**: `git apply --check` fails with errors like:
+  - `patch fragment without header at line N: @@ ...`
+- **Impact**: Phase fails at apply step even though the Builder output was full-file content and Autopack generated diffs locally.
+- **Root cause**: Multi-file patch assembly was not strict about diff boundaries / trailing newline, which can cause `git apply` to misparse later hunks as “floating” fragments in some cases.
+- **Fix**: `src/autopack/anthropic_clients.py` now joins locally-generated diffs with a blank line separator and guarantees the patch ends with a newline.
+- **Verification**: Observed this failure mode during `research-system-v12` drain; fix prevents boundary-related parse errors for concatenated diffs.
+
 

@@ -1,260 +1,296 @@
 """Citation Formatter
 
-This module provides citation formatting utilities for research reports,
-supporting multiple citation styles.
+This module formats citations and references for research reports.
 """
 
 from typing import Dict, Any, List, Optional
 from datetime import datetime
 
 
-class Citation:
-    """Represents a single citation.
+class CitationFormatter:
+    """Formats citations in various academic styles.
     
     Attributes:
-        authors: List of author names
-        title: Publication title
-        year: Publication year
-        source: Source (journal, website, etc.)
-        url: Optional URL
-        access_date: Optional access date for web sources
+        style: Citation style (APA, MLA, Chicago, IEEE)
+        citations: List of citation dictionaries
     """
     
-    def __init__(self, authors: List[str], title: str, year: int,
-                 source: str, url: Optional[str] = None,
-                 access_date: Optional[datetime] = None):
-        """Initialize a citation.
-        
-        Args:
-            authors: List of author names
-            title: Publication title
-            year: Publication year
-            source: Source name
-            url: Optional URL
-            access_date: Optional access date
-        """
-        self.authors = authors
-        self.title = title
-        self.year = year
-        self.source = source
-        self.url = url
-        self.access_date = access_date or datetime.now()
+    SUPPORTED_STYLES = ['APA', 'MLA', 'Chicago', 'IEEE']
     
-    def format_authors_apa(self) -> str:
-        """Format authors in APA style.
-        
-        Returns:
-            Formatted author string
-        """
-        if not self.authors:
-            return "Unknown Author"
-        
-        if len(self.authors) == 1:
-            return self.authors[0]
-        elif len(self.authors) == 2:
-            return f"{self.authors[0]} & {self.authors[1]}"
-        else:
-            return f"{self.authors[0]} et al."
-    
-    def format_authors_mla(self) -> str:
-        """Format authors in MLA style.
-        
-        Returns:
-            Formatted author string
-        """
-        if not self.authors:
-            return "Unknown Author"
-        
-        if len(self.authors) == 1:
-            return self.authors[0]
-        else:
-            return f"{self.authors[0]}, et al."
-    
-    def to_apa(self) -> str:
-        """Format citation in APA style.
-        
-        Returns:
-            APA-formatted citation string
-        """
-        citation = f"{self.format_authors_apa()} ({self.year}). {self.title}. "
-        citation += f"{self.source}."
-        
-        if self.url:
-            citation += f" Retrieved from {self.url}"
-        
-        return citation
-    
-    def to_mla(self) -> str:
-        """Format citation in MLA style.
-        
-        Returns:
-            MLA-formatted citation string
-        """
-        citation = f"{self.format_authors_mla()}. \"{self.title}.\" "
-        citation += f"{self.source}, {self.year}."
-        
-        if self.url:
-            citation += f" {self.url}. "
-            citation += f"Accessed {self.access_date.strftime('%d %b. %Y')}."
-        
-        return citation
-    
-    def to_chicago(self) -> str:
-        """Format citation in Chicago style.
-        
-        Returns:
-            Chicago-formatted citation string
-        """
-        if not self.authors:
-            author_str = "Unknown Author"
-        elif len(self.authors) == 1:
-            author_str = self.authors[0]
-        else:
-            author_str = f"{self.authors[0]} et al."
-        
-        citation = f"{author_str}. \"{self.title}.\" "
-        citation += f"{self.source} ({self.year})."
-        
-        if self.url:
-            citation += f" {self.url}."
-        
-        return citation
-
-
-class CitationFormatter:
-    """Manages and formats citations for research reports."""
-    
-    def __init__(self, style: str = 'apa'):
+    def __init__(self, style: str = 'APA'):
         """Initialize the citation formatter.
         
         Args:
-            style: Citation style ('apa', 'mla', 'chicago')
-            
+            style: Citation style to use
+        
         Raises:
             ValueError: If style is not supported
         """
-        valid_styles = ['apa', 'mla', 'chicago']
-        if style.lower() not in valid_styles:
-            raise ValueError(f"Style must be one of {valid_styles}")
-        
-        self.style = style.lower()
-        self.citations: List[Citation] = []
+        if style not in self.SUPPORTED_STYLES:
+            raise ValueError(f"Style must be one of {self.SUPPORTED_STYLES}")
+        self.style = style
+        self.citations: List[Dict[str, Any]] = []
     
-    def add_citation(self, citation: Citation) -> None:
-        """Add a citation to the formatter.
+    def add_citation(self, citation_type: str, **kwargs) -> str:
+        """Add a citation and return formatted reference.
         
         Args:
-            citation: Citation instance to add
+            citation_type: Type of citation (article, book, website, report)
+            **kwargs: Citation details (author, title, year, etc.)
+        
+        Returns:
+            Citation ID for in-text references
         """
+        citation_id = f"ref{len(self.citations) + 1}"
+        citation = {
+            'id': citation_id,
+            'type': citation_type,
+            **kwargs
+        }
         self.citations.append(citation)
+        return citation_id
     
-    def add_from_dict(self, data: Dict[str, Any]) -> None:
-        """Add a citation from dictionary data.
+    def format_in_text(self, citation_id: str, page: Optional[str] = None) -> str:
+        """Format in-text citation.
         
         Args:
-            data: Dictionary with citation data
-        """
-        citation = Citation(
-            authors=data.get('authors', []),
-            title=data.get('title', 'Untitled'),
-            year=data.get('year', datetime.now().year),
-            source=data.get('source', 'Unknown Source'),
-            url=data.get('url'),
-            access_date=data.get('access_date')
-        )
-        self.add_citation(citation)
-    
-    def format_citation(self, citation: Citation) -> str:
-        """Format a single citation in the current style.
-        
-        Args:
-            citation: Citation to format
-            
-        Returns:
-            Formatted citation string
-        """
-        if self.style == 'apa':
-            return citation.to_apa()
-        elif self.style == 'mla':
-            return citation.to_mla()
-        elif self.style == 'chicago':
-            return citation.to_chicago()
-        else:
-            return str(citation.__dict__)
-    
-    def format_all(self) -> List[str]:
-        """Format all citations in the current style.
+            citation_id: Citation ID
+            page: Optional page number
         
         Returns:
-            List of formatted citation strings
+            Formatted in-text citation
         """
-        return [self.format_citation(c) for c in self.citations]
+        citation = self._get_citation(citation_id)
+        if not citation:
+            return f"[{citation_id}]"
+        
+        if self.style == 'APA':
+            return self._format_apa_in_text(citation, page)
+        elif self.style == 'MLA':
+            return self._format_mla_in_text(citation, page)
+        elif self.style == 'Chicago':
+            return self._format_chicago_in_text(citation, page)
+        else:  # IEEE
+            return self._format_ieee_in_text(citation, page)
     
-    def generate_bibliography(self) -> str:
-        """Generate a formatted bibliography.
+    def format_reference_list(self) -> str:
+        """Format complete reference list.
         
         Returns:
-            Bibliography string with all citations
+            Formatted reference list
         """
         if not self.citations:
-            return "No citations available."
+            return "No references."
         
-        # Sort citations by author last name
-        sorted_citations = sorted(self.citations, 
-                                 key=lambda c: c.authors[0] if c.authors else 'ZZZ')
+        # Sort citations
+        sorted_citations = self._sort_citations()
         
-        lines = []
+        # Format header
+        if self.style == 'APA':
+            header = "References\n\n"
+        elif self.style == 'MLA':
+            header = "Works Cited\n\n"
+        elif self.style == 'Chicago':
+            header = "Bibliography\n\n"
+        else:  # IEEE
+            header = "References\n\n"
         
-        if self.style == 'apa':
-            lines.append("References\n")
-        elif self.style == 'mla':
-            lines.append("Works Cited\n")
-        else:
-            lines.append("Bibliography\n")
+        # Format each citation
+        references = []
+        for i, citation in enumerate(sorted_citations, 1):
+            if self.style == 'APA':
+                ref = self._format_apa_reference(citation)
+            elif self.style == 'MLA':
+                ref = self._format_mla_reference(citation)
+            elif self.style == 'Chicago':
+                ref = self._format_chicago_reference(citation)
+            else:  # IEEE
+                ref = f"[{i}] {self._format_ieee_reference(citation)}"
+            references.append(ref)
         
-        for citation in sorted_citations:
-            lines.append(self.format_citation(citation))
-        
-        return '\n'.join(lines)
+        return header + "\n".join(references)
     
-    def generate_inline_citation(self, citation: Citation) -> str:
-        """Generate an inline citation reference.
-        
-        Args:
-            citation: Citation to reference
-            
-        Returns:
-            Inline citation string
-        """
-        if self.style == 'apa':
-            return f"({citation.format_authors_apa()}, {citation.year})"
-        elif self.style == 'mla':
-            return f"({citation.format_authors_mla()})"
-        elif self.style == 'chicago':
-            author = citation.authors[0] if citation.authors else "Unknown"
-            return f"({author} {citation.year})"
-        else:
-            return f"[{citation.year}]"
+    def _get_citation(self, citation_id: str) -> Optional[Dict[str, Any]]:
+        """Get citation by ID."""
+        for citation in self.citations:
+            if citation['id'] == citation_id:
+                return citation
+        return None
     
-    def export_to_bibtex(self) -> str:
-        """Export citations to BibTeX format.
+    def _sort_citations(self) -> List[Dict[str, Any]]:
+        """Sort citations according to style."""
+        if self.style == 'IEEE':
+            # IEEE uses order of appearance
+            return self.citations.copy()
+        else:
+            # Alphabetical by author
+            return sorted(
+                self.citations,
+                key=lambda x: x.get('author', x.get('title', ''))
+            )
+    
+    # APA Style Formatting
+    def _format_apa_in_text(self, citation: Dict[str, Any], 
+                           page: Optional[str]) -> str:
+        """Format APA in-text citation."""
+        author = citation.get('author', 'Unknown')
+        year = citation.get('year', 'n.d.')
+        
+        # Extract last name if full name provided
+        if ',' in author:
+            author = author.split(',')[0]
+        elif ' ' in author:
+            author = author.split()[-1]
+        
+        if page:
+            return f"({author}, {year}, p. {page})"
+        return f"({author}, {year})"
+    
+    def _format_apa_reference(self, citation: Dict[str, Any]) -> str:
+        """Format APA reference."""
+        ctype = citation.get('type', 'article')
+        
+        if ctype == 'article':
+            return self._format_apa_article(citation)
+        elif ctype == 'book':
+            return self._format_apa_book(citation)
+        elif ctype == 'website':
+            return self._format_apa_website(citation)
+        else:
+            return self._format_apa_report(citation)
+    
+    def _format_apa_article(self, citation: Dict[str, Any]) -> str:
+        """Format APA journal article."""
+        author = citation.get('author', 'Unknown')
+        year = citation.get('year', 'n.d.')
+        title = citation.get('title', 'Untitled')
+        journal = citation.get('journal', '')
+        volume = citation.get('volume', '')
+        pages = citation.get('pages', '')
+        doi = citation.get('doi', '')
+        
+        ref = f"{author} ({year}). {title}. "
+        if journal:
+            ref += f"*{journal}*"
+        if volume:
+            ref += f", *{volume}*"
+        if pages:
+            ref += f", {pages}"
+        if doi:
+            ref += f". https://doi.org/{doi}"
+        
+        return ref
+    
+    def _format_apa_book(self, citation: Dict[str, Any]) -> str:
+        """Format APA book."""
+        author = citation.get('author', 'Unknown')
+        year = citation.get('year', 'n.d.')
+        title = citation.get('title', 'Untitled')
+        publisher = citation.get('publisher', '')
+        
+        ref = f"{author} ({year}). *{title}*"
+        if publisher:
+            ref += f". {publisher}"
+        
+        return ref
+    
+    def _format_apa_website(self, citation: Dict[str, Any]) -> str:
+        """Format APA website."""
+        author = citation.get('author', citation.get('organization', 'Unknown'))
+        year = citation.get('year', 'n.d.')
+        title = citation.get('title', 'Untitled')
+        url = citation.get('url', '')
+        access_date = citation.get('access_date', '')
+        
+        ref = f"{author} ({year}). *{title}*"
+        if url:
+            ref += f". Retrieved from {url}"
+        if access_date:
+            ref += f" (accessed {access_date})"
+        
+        return ref
+    
+    def _format_apa_report(self, citation: Dict[str, Any]) -> str:
+        """Format APA report."""
+        author = citation.get('author', citation.get('organization', 'Unknown'))
+        year = citation.get('year', 'n.d.')
+        title = citation.get('title', 'Untitled')
+        report_number = citation.get('report_number', '')
+        publisher = citation.get('publisher', '')
+        
+        ref = f"{author} ({year}). *{title}*"
+        if report_number:
+            ref += f" (Report No. {report_number})"
+        if publisher:
+            ref += f". {publisher}"
+        
+        return ref
+    
+    # MLA Style Formatting
+    def _format_mla_in_text(self, citation: Dict[str, Any], 
+                           page: Optional[str]) -> str:
+        """Format MLA in-text citation."""
+        author = citation.get('author', 'Unknown')
+        
+        # Extract last name
+        if ',' in author:
+            author = author.split(',')[0]
+        elif ' ' in author:
+            author = author.split()[-1]
+        
+        if page:
+            return f"({author} {page})"
+        return f"({author})"
+    
+    def _format_mla_reference(self, citation: Dict[str, Any]) -> str:
+        """Format MLA reference."""
+        author = citation.get('author', 'Unknown')
+        title = citation.get('title', 'Untitled')
+        year = citation.get('year', 'n.d.')
+        
+        return f"{author}. \"{title}.\" {year}."
+    
+    # Chicago Style Formatting
+    def _format_chicago_in_text(self, citation: Dict[str, Any], 
+                               page: Optional[str]) -> str:
+        """Format Chicago in-text citation (notes style)."""
+        # Chicago uses footnotes, return superscript number
+        index = self.citations.index(citation) + 1
+        return f"[{index}]"
+    
+    def _format_chicago_reference(self, citation: Dict[str, Any]) -> str:
+        """Format Chicago reference."""
+        author = citation.get('author', 'Unknown')
+        title = citation.get('title', 'Untitled')
+        year = citation.get('year', 'n.d.')
+        
+        return f"{author}. *{title}*. {year}."
+    
+    # IEEE Style Formatting
+    def _format_ieee_in_text(self, citation: Dict[str, Any], 
+                            page: Optional[str]) -> str:
+        """Format IEEE in-text citation."""
+        index = self.citations.index(citation) + 1
+        if page:
+            return f"[{index}, p. {page}]"
+        return f"[{index}]"
+    
+    def _format_ieee_reference(self, citation: Dict[str, Any]) -> str:
+        """Format IEEE reference."""
+        author = citation.get('author', 'Unknown')
+        title = citation.get('title', 'Untitled')
+        year = citation.get('year', 'n.d.')
+        
+        return f'{author}, "{title}," {year}.'
+    
+    def clear_citations(self) -> None:
+        """Clear all citations."""
+        self.citations.clear()
+    
+    def get_citation_count(self) -> int:
+        """Get number of citations.
         
         Returns:
-            BibTeX-formatted string
+            Number of citations
         """
-        entries = []
-        
-        for i, citation in enumerate(self.citations, 1):
-            entry = f"@article{{ref{i},\n"
-            entry += f"  author = {{{' and '.join(citation.authors)}}},\n"
-            entry += f"  title = {{{citation.title}}},\n"
-            entry += f"  journal = {{{citation.source}}},\n"
-            entry += f"  year = {{{citation.year}}}"
-            
-            if citation.url:
-                entry += f",\n  url = {{{citation.url}}}"
-            
-            entry += "\n}"
-            entries.append(entry)
-        
-        return '\n\n'.join(entries)
+        return len(self.citations)

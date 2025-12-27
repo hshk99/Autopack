@@ -4708,13 +4708,19 @@ Just the new description that should replace the current one while preserving th
 
             # Step 2: Apply patch first (so we can run CI on it)
             logger.info(f"[{phase_id}] Step 2/5: Applying patch...")
+            apply_stats: dict | None = None
+            apply_stats_lines: list[str] = []
 
             # NEW: Check if this is a structured edit (Stage 2) or regular patch
             if builder_result.edit_plan:
                 # Structured edit mode (Stage 2) - per IMPLEMENTATION_PLAN3.md Phase 4
                 from autopack.structured_edits import StructuredEditApplicator
                 
-                logger.info(f"[{phase_id}] Applying structured edit plan with {len(builder_result.edit_plan.operations)} operations")
+                ops_planned = len(builder_result.edit_plan.operations)
+                touched_paths = sorted(
+                    {getattr(op, "file_path", "") for op in builder_result.edit_plan.operations if getattr(op, "file_path", "")}
+                )
+                logger.info(f"[{phase_id}] Applying structured edit plan with {ops_planned} operations")
                 
                 # Get file contents from context
                 file_contents = {}
@@ -4736,6 +4742,21 @@ Just the new description that should replace the current one while preserving th
                     return False, "STRUCTURED_EDIT_FAILED"
                 
                 logger.info(f"[{phase_id}] Structured edits applied successfully ({edit_result.operations_applied} operations)")
+                apply_stats = {
+                    "mode": "structured_edit",
+                    "operations_planned": ops_planned,
+                    "operations_applied": int(edit_result.operations_applied or 0),
+                    "operations_failed": int(edit_result.operations_failed or 0),
+                    "touched_paths_count": len(touched_paths),
+                    "touched_paths": touched_paths[:50],  # cap for logs/summaries
+                }
+                apply_stats_lines = [
+                    f"Apply mode: structured_edit",
+                    f"Operations planned: {apply_stats['operations_planned']}",
+                    f"Operations applied: {apply_stats['operations_applied']}",
+                    f"Operations failed: {apply_stats['operations_failed']}",
+                    f"Touched paths (count): {apply_stats['touched_paths_count']}",
+                ]
                 patch_success = True
                 error_msg = None
             else:
@@ -4827,6 +4848,17 @@ Just the new description that should replace the current one while preserving th
                     builder_result.patch_content,
                     full_file_mode=True
                 )
+                patch_len = len(builder_result.patch_content or "")
+                apply_stats = {
+                    "mode": "patch",
+                    "patch_nonempty": bool((builder_result.patch_content or "").strip()),
+                    "patch_bytes": patch_len,
+                }
+                apply_stats_lines = [
+                    "Apply mode: patch",
+                    f"Patch non-empty: {apply_stats['patch_nonempty']}",
+                    f"Patch bytes: {apply_stats['patch_bytes']}",
+                ]
 
                 if not patch_success:
                     # BUILD-127 Phase 2: Check if this is a governance request
@@ -4845,9 +4877,28 @@ Just the new description that should replace the current one while preserving th
                 else:
                     logger.info(f"[{phase_id}] Patch applied successfully to filesystem")
 
+            # Best-effort: write apply stats into the phase summary markdown for later forensic review.
+            try:
+                phase_index = int(phase.get("phase_index", 0) or 0)
+                self.run_layout.write_phase_summary(
+                    phase_index=phase_index,
+                    phase_id=phase_id,
+                    phase_name=str(phase.get("name") or phase_id),
+                    state="EXECUTING",
+                    task_category=phase.get("task_category"),
+                    complexity=phase.get("complexity"),
+                    execution_lines=apply_stats_lines or None,
+                )
+            except Exception:
+                # Non-blocking: phase summaries are best-effort.
+                pass
+
             # Step 3: Run CI checks on the applied code
             logger.info(f"[{phase_id}] Step 3/5: Running CI checks...")
             ci_result = self._run_ci_checks(phase_id, phase)
+            if isinstance(ci_result, dict) and apply_stats:
+                # Keep this small; it may be logged and passed to QualityGate.
+                ci_result.setdefault("apply_stats", apply_stats)
 
             # Step 4: Review with Auditor using LlmService (with real CI results)
             logger.info(f"[{phase_id}] Step 4/5: Reviewing patch with Auditor (via LlmService)...")

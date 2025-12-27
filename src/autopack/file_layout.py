@@ -8,7 +8,7 @@ Per §3 and §5 of v7 playbook, Supervisor maintains persistent artefacts:
 
 import os
 from pathlib import Path
-from typing import Optional, List
+from typing import Optional, List, Sequence
 
 from .config import settings
 
@@ -195,8 +195,20 @@ class RunFileLayout:
         state: str,
         task_category: Optional[str] = None,
         complexity: Optional[str] = None,
+        execution_lines: Optional[Sequence[str]] = None,
+        issues_lines: Optional[Sequence[str]] = None,
     ) -> None:
         """Write or update phase summary file"""
+        execution_section = (
+            "\n".join(f"- {line}" for line in execution_lines)
+            if execution_lines
+            else "(To be populated as phase executes)"
+        )
+        issues_section = (
+            "\n".join(f"- {line}" for line in issues_lines)
+            if issues_lines
+            else "(To be populated if issues arise)"
+        )
         content = f"""# Phase Summary: {phase_id} - {phase_name}
 
 ## Status
@@ -209,10 +221,10 @@ class RunFileLayout:
 - **Complexity:** {complexity or 'N/A'}
 
 ## Execution
-(To be populated as phase executes)
+{execution_section}
 
 ## Issues
-(To be populated if issues arise)
+{issues_section}
 """
         path = self.get_phase_summary_path(phase_index, phase_id)
         path.write_text(content, encoding="utf-8")

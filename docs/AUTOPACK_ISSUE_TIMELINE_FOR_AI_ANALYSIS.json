@@ -1,0 +1,528 @@
+{
+  "metadata": {
+    "purpose": "Chronological timeline of Autopack issues, fixes, and evolution for AI-driven root cause analysis",
+    "created": "2025-12-27",
+    "scope": "Last 5 Cursor chat sessions covering BUILD-129 Phase 3 implementation and drain operations",
+    "analysis_targets": [
+      "Root cause identification",
+      "Pattern detection in persistent errors",
+      "Fix effectiveness tracking",
+      "Issue cascades and dependencies"
+    ]
+  },
+  "timeline": [
+    {
+      "date": "2025-12-27 00:00-02:00",
+      "phase": "NDJSON Parser Convergence",
+      "issues": [
+        {
+          "id": "NDJSON-001",
+          "symptom": "Builder failed: ndjson_no_operations - operations list empty despite model output",
+          "root_cause": "Model emitting top-level JSON wrapper {\"files\":[...]} instead of NDJSON lines; parser decoded but treated as single op and dropped",
+          "impact": "Systemic blocker - phases cannot apply any operations",
+          "fix": {
+            "commit": "b0fe3cc6",
+            "files": ["src/autopack/ndjson_format.py", "tests/test_ndjson_format.py"],
+            "description": "Parser now expands {\"files\":[...]} wrapper into NDJSON operations; truncate-tolerant scan extracts inner file objects even if outer wrapper incomplete"
+          },
+          "verification": "3 single-batch drains showed ndjson_no_operations: 0 occurrences; operations recovered and applied",
+          "led_to": ["DELIV-001"],
+          "persisted": false
+        }
+      ]
+    },
+    {
+      "date": "2025-12-27 01:00-02:30",
+      "phase": "Deliverables & Scope Convergence",
+      "issues": [
+        {
+          "id": "DELIV-001",
+          "symptom": "Deliverables validation fails with 'Found in patch: 6/17 files' across multiple retry attempts",
+          "root_cause": "validate_deliverables() only checked current patch text; NDJSON earlier attempts wrote files to disk but later attempts didn't re-emit them in synthetic diff",
+          "impact": "Multi-attempt convergence impossible; phases stuck in retry loop",
+          "fix": {
+            "commit": "5349a1ae",
+            "files": ["src/autopack/deliverables_validator.py", "tests/test_deliverables_validator.py"],
+            "description": "Cumulative validation: existing deliverables on disk now satisfy requirements"
+          },
+          "verification": "Phases could complete across multiple truncated attempts",
+          "persisted": false
+        },
+        {
+          "id": "SCOPE-001",
+          "symptom": "Writes to src/*, docs/*, tests/* rejected as 'outside scope'",
+          "root_cause": "Inferred scope paths included bucket roots like 'code/tests/docs'; _determine_workspace_root() picked C:\\dev\\Autopack\\code instead of repo root",
+          "impact": "False 'outside scope' blocks prevent valid file operations",
+          "fix": {
+            "commit": "0dc08ecc",
+            "files": ["src/autopack/autonomous_executor.py", "src/autopack/manifest_generator.py", "tests/test_manifest_deliverables_aware.py"],
+            "description": "Heuristic: if scope starts with src/docs/tests/etc., treat workspace as repo root; flatten bucketed deliverables {code:[...], tests:[...]} to prevent 'code' becoming a scope root"
+          },
+          "persisted": false
+        },
+        {
+          "id": "SCOPE-002",
+          "symptom": "Nonsense scope entries like 'Improved' causing 'outside manifest' violations",
+          "root_cause": "Prose deliverables like 'Logging configuration' treated as file paths",
+          "impact": "Manifest validation fails on non-existent file paths",
+          "fix": {
+            "commit": "de8c9c4d",
+            "files": ["src/autopack/deliverables_validator.py", "src/autopack/manifest_generator.py"],
+            "description": "Sanitizer filters out prose bullets (non-path strings) before scope/manifest/validator logic"
+          },
+          "persisted": false
+        },
+        {
+          "id": "APPLY-001",
+          "symptom": "Patch validation failed - incomplete diff structure on NDJSON synthetic header",
+          "root_cause": "Executor called git apply on synthetic 'NDJSON Operations Applied...' header (not a real diff)",
+          "impact": "Apply phase fails even though operations already applied to disk",
+          "fix": {
+            "commit": "9b53e09f",
+            "files": ["src/autopack/governed_apply.py", "tests/test_governed_apply_ndjson_synthetic_header.py"],
+            "description": "GovernedApplyPath.apply_patch() detects NDJSON synthetic header and skips git apply while still enforcing scope/protected-path validation"
+          },
+          "persisted": false
+        }
+      ]
+    },
+    {
+      "date": "2025-12-27 01:30-02:30",
+      "phase": "Doctor & Retry Interference",
+      "issues": [
+        {
+          "id": "RETRY-001",
+          "symptom": "Doctor/replan triggered after TOKEN_ESCALATION, resetting state and preventing P10 retry budget from being applied",
+          "root_cause": "TOKEN_ESCALATION treated as diagnosable failure instead of control-flow signal",
+          "impact": "P10 escalation loop never converges; retries don't use escalated token budget",
+          "fix": {
+            "commit": "5349a1ae",
+            "files": ["src/autopack/autonomous_executor.py"],
+            "description": "Skip Doctor/diagnostics/replan for TOKEN_ESCALATION; advance retry_attempt deterministically"
+          },
+          "persisted": false
+        },
+        {
+          "id": "SAFETY-001",
+          "symptom": "git reset --hard / git clean -fd could be executed mid-convergence, wiping partial deliverables",
+          "root_cause": "Doctor execute_fix with fix_type=git allowed in project_build runs",
+          "impact": "Convergence blocked by destructive repo operations; traceability lost",
+          "fix": {
+            "commit": "0dc08ecc",
+            "files": ["src/autopack/autonomous_executor.py"],
+            "description": "Block execute_fix with fix_type=git for project_build; record reason in debug journal"
+          },
+          "verification": "log_fix() now auto-creates issue entry if missing; includes run_id/phase_id/outcome",
+          "persisted": false
+        }
+      ]
+    },
+    {
+      "date": "2025-12-27 08:00-12:30",
+      "phase": "Drain Reliability & API/DB Mismatch",
+      "issues": [
+        {
+          "id": "DRAIN-001",
+          "symptom": "Drain reports queued>0 but executor says 'No more executable phases'",
+          "root_cause": "Drain script counted queued phases from local SQLite; executor queried API server pointing at different DB (API/DB mismatch)",
+          "impact": "Drains silently stall; queued phases never execute",
+          "fix": {
+            "commit": "Part of drain_queued_phases.py updates",
+            "files": ["scripts/drain_queued_phases.py"],
+            "description": "Default to ephemeral AUTOPACK_API_URL (free localhost port) when not set; ensures API and drain script use same DATABASE_URL"
+          },
+          "persisted": false
+        },
+        {
+          "id": "API-001",
+          "symptom": "GET /runs/{id} returns empty phases list; executor sees no executable work",
+          "root_cause": "RunResponse schema missing top-level phases field; only serialized Tier rows (missing for patch-scoped/legacy runs)",
+          "impact": "Executor cannot select queued phases from tierless runs",
+          "fix": {
+            "commit": "Schema update",
+            "files": ["src/autopack/schemas.py"],
+            "description": "RunResponse includes top-level phases list; works for runs with/without Tier rows"
+          },
+          "persisted": false
+        },
+        {
+          "id": "API-002",
+          "symptom": "POST /update_status returns 400 'Invalid phase state: BLOCKED'",
+          "root_cause": "Executor sending 'BLOCKED' status; API only accepts PhaseState enum values (no BLOCKED)",
+          "impact": "Phase state updates fail; DB state incorrect",
+          "fix": {
+            "commit": "Part of autonomous_executor updates",
+            "files": ["src/autopack/autonomous_executor.py"],
+            "description": "Map 'BLOCKED' → 'FAILED' in _update_phase_status and governance handler"
+          },
+          "persisted": false
+        }
+      ]
+    },
+    {
+      "date": "2025-12-27 09:00-10:30",
+      "phase": "CI Artifact & PhaseFinalizer",
+      "issues": [
+        {
+          "id": "CI-001",
+          "symptom": "PhaseFinalizer crashes with JSONDecodeError when parsing report_path",
+          "root_cause": "CI only persisted text log; PhaseFinalizer assumed report_path was pytest-json-report JSON file",
+          "impact": "Phase finalization fails; cannot compute test baseline delta",
+          "fix": {
+            "commit": "Part of autonomous_executor CI updates",
+            "files": ["src/autopack/autonomous_executor.py", "src/autopack/phase_finalizer.py"],
+            "description": "pytest CI now emits JSON report (--json-report); PhaseFinalizer delta computation wrapped to never crash phase execution"
+          },
+          "verification": "CI results include both report_path (JSON) and log_path (text)",
+          "persisted": false
+        },
+        {
+          "id": "FINALIZER-001",
+          "symptom": "Phases permanently FAILED despite '✅ Approval GRANTED (auto-approved)' in logs",
+          "root_cause": "PhaseFinalizer hard-failed any phase with quality_report.is_blocked=True; didn't consider human_approved override",
+          "impact": "Quality gate deadlock; phases cannot reach COMPLETE even with no regressions",
+          "fix": {
+            "commit": "Part of autonomous_executor/phase_finalizer updates",
+            "files": ["src/autopack/autonomous_executor.py", "src/autopack/phase_finalizer.py"],
+            "description": "Thread human_approved into quality_report; PhaseFinalizer treats blocked-but-human-approved as warning (still blocks on critical regressions)"
+          },
+          "verification": "research-system-v17 phases completed with auto-approval override",
+          "persisted": false
+        }
+      ]
+    },
+    {
+      "date": "2025-12-27 10:30-12:30",
+      "phase": "Diff Generation & Apply Guards",
+      "issues": [
+        {
+          "id": "DIFF-001",
+          "symptom": "governed_apply rejects patch: 'Unsafe patch: attempts to create existing file as new'",
+          "root_cause": "Full-file diff generator emitted 'new file mode 100644' for existing files (old_content missing)",
+          "impact": "Apply blocked for valid patches",
+          "fix": {
+            "commit": "Part of anthropic_clients updates",
+            "files": ["src/autopack/anthropic_clients.py"],
+            "description": "If diff about to be emitted as 'new file mode' but path exists on disk, read existing content and emit modify diff"
+          },
+          "persisted": false
+        },
+        {
+          "id": "APPLY-002",
+          "symptom": "governed_apply rejects valid modified files with 'unclosed quote' error",
+          "root_cause": "_detect_truncated_content() collected '+' lines from ALL diffs including modified files; diff hunks don't represent full file content",
+          "impact": "False positive truncation detection on ordinary modifications",
+          "fix": {
+            "commit": "Part of governed_apply updates",
+            "files": ["src/autopack/governed_apply.py"],
+            "description": "Only run unclosed-quote/YAML truncation heuristics for new files (--- /dev/null), not modifications"
+          },
+          "persisted": false
+        },
+        {
+          "id": "NDJSON-002",
+          "symptom": "Builder failed: None (unhelpful error) when modify operation truncated",
+          "root_cause": "NDJSON modify operations missing 'operations' list raised ValueError; phase fails with no useful diagnostic",
+          "impact": "Truncation scenarios produce confusing failures",
+          "fix": {
+            "commit": "Part of ndjson_format updates",
+            "files": ["src/autopack/ndjson_format.py", "tests/test_ndjson_apply_truncation_tolerant.py"],
+            "description": "Introduce NDJSONSkipOperation; missing modify operations treated as skipped (non-fatal); result includes skipped list"
+          },
+          "persisted": false
+        },
+        {
+          "id": "NDJSON-003",
+          "symptom": "NDJSON apply: replace_all with empty old_text causes partial apply failures",
+          "root_cause": "Malformed replace_all ops (empty old_text from truncation) raised ValueError; entire apply failed",
+          "impact": "Partial NDJSON apply blocking convergence",
+          "fix": {
+            "commit": "Part of ndjson_format updates",
+            "files": ["src/autopack/ndjson_format.py"],
+            "description": "Treat replace_all with empty old_text as no-op with warning instead of raising exception"
+          },
+          "persisted": false
+        }
+      ]
+    },
+    {
+      "date": "2025-12-27 09:00-12:30",
+      "phase": "Test Collection & Compatibility",
+      "issues": [
+        {
+          "id": "PYTEST-001",
+          "symptom": "pytest collection: 14 errors from import failures (SQLAlchemy table redefinition, missing CLI commands, diagnostics APIs)",
+          "root_cause": "Multiple issues: (1) backend models imported via two paths creating duplicate SQLAlchemy Base, (2) tests expected autopack.cli.commands.* package layout, (3) missing compat exports for diagnostics",
+          "impact": "CI collection failures block all tests; phases fail quality gate",
+          "fix": {
+            "commit": "Multiple commits for pytest collection fixes",
+            "files": [
+              "src/backend/models/user.py",
+              "src/autopack/cli/__init__.py",
+              "src/autopack/cli/commands/phases.py",
+              "src/autopack/diagnostics/scope_expander.py",
+              "src/autopack/diagnostics/deep_retrieval.py",
+              "src/autopack/diagnostics/diagnostics_agent.py",
+              "src/autopack/diagnostics/package_detector.py",
+              "src/autopack/diagnostics/evidence_requests.py",
+              "src/autopack/diagnostics/cursor_prompt_generator.py",
+              "tracer_bullet/gatherer.py",
+              "tracer_bullet/orchestrator.py"
+            ],
+            "description": "Consolidated SQLAlchemy imports; created CLI commands package; added diagnostics compat shims; created tracer_bullet test-facing package"
+          },
+          "verification": "pytest --collect-only reported 1102 tests collected (down from 14 errors)",
+          "persisted": false
+        },
+        {
+          "id": "RESEARCH-001",
+          "symptom": "Research test collection failures: missing ResearchHookManager, ResearchPhaseConfig, ReviewConfig",
+          "root_cause": "Tests expected legacy API surface that was refactored; new storage-oriented classes didn't match test expectations",
+          "impact": "CI collection failures; research-system-v12+ drains blocked",
+          "fix": {
+            "commit": "Multiple commits for research compat",
+            "files": [
+              "src/autopack/autonomous/research_hooks.py",
+              "src/autopack/phases/research_phase.py",
+              "src/autopack/workflow/research_review.py",
+              "src/autopack/integrations/build_history_integrator.py",
+              "src/research/gatherers/github_gatherer.py",
+              "src/research/discovery/web_discovery.py",
+              "src/research/agents/intent_clarifier.py"
+            ],
+            "description": "Added compatibility shims: ResearchHookManager/Trigger/Result, ResearchPhaseConfig/Result, ReviewConfig/Result; restored lifecycle methods (start/complete/fail/cancel); fixed helper methods (pagination, URL check, scope precedence)"
+          },
+          "verification": "research-system-v17 completed 2 phases; newly failing tests reduced from 16 to 0",
+          "persistent_issues": ["Some tests still expect network/LLM mocks"]
+        },
+        {
+          "id": "TEST-001",
+          "symptom": "src/research/frameworks/market_attractiveness.py: NameError: List is not defined",
+          "root_cause": "Missing 'List' import in type annotations",
+          "impact": "Collection error blocks research-meta-analysis",
+          "fix": {
+            "commit": "Simple import addition",
+            "files": ["src/research/frameworks/market_attractiveness.py"],
+            "description": "Added 'from typing import List'"
+          },
+          "persisted": false
+        }
+      ]
+    },
+    {
+      "date": "2025-12-27 12:00-End",
+      "phase": "Production Drain Validation",
+      "issues": [
+        {
+          "id": "REAL-001",
+          "symptom": "suspicious_shrinkage guard blocks >60% deletions",
+          "root_cause": "Intentional safety guard",
+          "impact": "Phases requiring mass deletions blocked unless allow_mass_deletion=true in spec",
+          "fix": "Not a bug - designed behavior",
+          "persisted": true,
+          "mitigation": "Phase spec must explicitly allow_mass_deletion for intentional large deletions"
+        },
+        {
+          "id": "REAL-002",
+          "symptom": "MAX_ATTEMPTS_EXHAUSTED after 5 retry attempts",
+          "root_cause": "Real convergence failure; repeated truncation/patch failures exhausted retry budget",
+          "impact": "Phase failed legitimately",
+          "fix": "Not systemic - individual phase issue",
+          "persisted": true,
+          "requires": "New run with fresh retry counters or manual intervention"
+        },
+        {
+          "id": "REAL-003",
+          "symptom": "Protected path modification requires manual approval",
+          "root_cause": "Governance rule: src/autopack/config.py modification blocked",
+          "impact": "Phase waits for human approval",
+          "fix": "Not a bug - designed governance",
+          "persisted": true,
+          "requires": "Human approval or phase replan to avoid protected paths"
+        }
+      ]
+    }
+  ],
+  "fix_effectiveness_summary": {
+    "fully_resolved": [
+      "NDJSON-001: Parser now handles {\"files\":[...]} wrapper",
+      "DELIV-001: Cumulative validation enables multi-attempt convergence",
+      "SCOPE-001: Workspace root detection fixed",
+      "SCOPE-002: Prose deliverables filtered",
+      "APPLY-001: NDJSON synthetic header detection",
+      "RETRY-001: TOKEN_ESCALATION no longer triggers Doctor",
+      "SAFETY-001: git execute_fix blocked for project_build",
+      "DRAIN-001: API/DB mismatch prevented",
+      "API-001: RunResponse includes phases",
+      "API-002: Invalid BLOCKED state mapped to FAILED",
+      "CI-001: JSON reports now generated",
+      "FINALIZER-001: Human approval override working",
+      "DIFF-001: New file mode detection fixed",
+      "APPLY-002: Truncation detector scoped to new files only",
+      "NDJSON-002: Truncated modify ops non-fatal",
+      "NDJSON-003: Empty replace_all operations handled",
+      "PYTEST-001: Collection errors resolved",
+      "RESEARCH-001: Compatibility shims added",
+      "TEST-001: Import fixes"
+    ],
+    "partially_resolved": [],
+    "persistent_by_design": [
+      "REAL-001: suspicious_shrinkage (safety guard)",
+      "REAL-002: MAX_ATTEMPTS_EXHAUSTED (retry limit)",
+      "REAL-003: Protected path governance"
+    ]
+  },
+  "pattern_analysis": {
+    "cascade_chains": [
+      {
+        "trigger": "NDJSON-001 (parser wrapper issue)",
+        "cascade": [
+          "Led to DELIV-001 (deliverables not found because ops not applied)",
+          "Led to RETRY-001 (repeated retries without convergence)",
+          "Led to SAFETY-001 (Doctor attempted git reset to recover)"
+        ],
+        "resolution_order": ["NDJSON-001", "DELIV-001", "RETRY-001", "SAFETY-001"]
+      },
+      {
+        "trigger": "SCOPE-001 (wrong workspace root)",
+        "cascade": [
+          "Led to APPLY-001 (operations applied but rejected as outside scope)",
+          "Led to SCOPE-002 (manifest validation failures)"
+        ],
+        "resolution_order": ["SCOPE-001", "SCOPE-002", "APPLY-001"]
+      },
+      {
+        "trigger": "DRAIN-001 (API/DB mismatch)",
+        "cascade": [
+          "Led to API-001 (phases not serialized)",
+          "Led to API-002 (invalid state updates)"
+        ],
+        "resolution_order": ["DRAIN-001", "API-001", "API-002"]
+      },
+      {
+        "trigger": "PYTEST-001 (test collection failures)",
+        "cascade": [
+          "Led to FINALIZER-001 (quality gate always blocked)",
+          "Led to RESEARCH-001 (research tests couldn't run)"
+        ],
+        "resolution_order": ["PYTEST-001", "RESEARCH-001", "FINALIZER-001"]
+      }
+    ],
+    "root_cause_categories": {
+      "Parser/Format Handling": ["NDJSON-001", "NDJSON-002", "NDJSON-003"],
+      "State Management": ["DELIV-001", "RETRY-001", "API-002"],
+      "Scope/Path Logic": ["SCOPE-001", "SCOPE-002", "DIFF-001", "APPLY-002"],
+      "API/DB Sync": ["DRAIN-001", "API-001"],
+      "CI/Testing": ["CI-001", "PYTEST-001", "RESEARCH-001", "TEST-001"],
+      "Finalization/Approval": ["FINALIZER-001"],
+      "Safety/Governance": ["SAFETY-001", "APPLY-001", "REAL-001", "REAL-003"]
+    },
+    "common_failure_modes": [
+      {
+        "pattern": "Validation logic only checking current attempt, not cumulative state",
+        "instances": ["DELIV-001", "APPLY-001"],
+        "fix_approach": "Check both patch content AND disk state"
+      },
+      {
+        "pattern": "Parser/detector treating partial/synthetic content as full content",
+        "instances": ["NDJSON-001", "APPLY-002"],
+        "fix_approach": "Add context-aware detection (is this synthetic? is this a partial diff?)"
+      },
+      {
+        "pattern": "Missing API contract validation between components",
+        "instances": ["API-001", "API-002", "RESEARCH-001"],
+        "fix_approach": "Add compatibility shims; validate schema before transmission"
+      },
+      {
+        "pattern": "Control flow signals treated as errors",
+        "instances": ["RETRY-001"],
+        "fix_approach": "Distinguish intentional signals from diagnostic failures"
+      }
+    ]
+  },
+  "file_references": {
+    "high_frequency_fix_targets": [
+      {
+        "file": "src/autopack/ndjson_format.py",
+        "issues_addressed": ["NDJSON-001", "NDJSON-002", "NDJSON-003"],
+        "risk_level": "high",
+        "reason": "Core parser; changes affect all NDJSON operations"
+      },
+      {
+        "file": "src/autopack/autonomous_executor.py",
+        "issues_addressed": ["RETRY-001", "SAFETY-001", "API-002", "CI-001", "FINALIZER-001", "SCOPE-001", "DIFF-001"],
+        "risk_level": "critical",
+        "reason": "Main execution orchestrator; most fix surface area"
+      },
+      {
+        "file": "src/autopack/deliverables_validator.py",
+        "issues_addressed": ["DELIV-001", "SCOPE-002"],
+        "risk_level": "medium",
+        "reason": "Validation logic for convergence"
+      },
+      {
+        "file": "src/autopack/governed_apply.py",
+        "issues_addressed": ["APPLY-001", "APPLY-002", "DIFF-001"],
+        "risk_level": "high",
+        "reason": "Safety-critical apply logic"
+      },
+      {
+        "file": "src/autopack/phase_finalizer.py",
+        "issues_addressed": ["CI-001", "FINALIZER-001"],
+        "risk_level": "medium",
+        "reason": "Completion authority; quality gate logic"
+      }
+    ],
+    "test_coverage_additions": [
+      "tests/test_ndjson_format.py (NDJSON wrapper/truncation)",
+      "tests/test_deliverables_validator.py (cumulative validation)",
+      "tests/test_governed_apply_ndjson_synthetic_header.py (synthetic header skip)",
+      "tests/test_ndjson_apply_truncation_tolerant.py (missing operations)",
+      "tests/test_manifest_deliverables_aware.py (bucketed deliverables)",
+      "tests/test_phase_finalizer.py (human approval override)"
+    ]
+  },
+  "monitoring_recommendations": {
+    "key_log_signals_success": [
+      "[NDJSON:Parse] Recovered X operations from multi-line JSON output",
+      "[NDJSON:Apply] Applied X operations, 0 failed",
+      "WARN: Quality gate blocked ... but human-approved override present",
+      "[NDJSON] Detected synthetic NDJSON patch header; skipping git apply",
+      "Found in patch: X files (+Y existing files in workspace)"
+    ],
+    "key_log_signals_failure": [
+      "ndjson_no_operations",
+      "ndjson_outside_manifest",
+      "outside scope",
+      "Patch validation failed - incomplete diff structure",
+      "Unsafe patch: attempts to create existing file",
+      "Builder failed: None",
+      "POST /update_status 400",
+      "unclosed quote (on modified files)"
+    ],
+    "convergence_indicators": [
+      "queued count decreasing over drains",
+      "complete count increasing",
+      "failed count stable or decreasing",
+      "P10 escalation followed by successful retry",
+      "Deliverables validation: 0 missing when workspace checked"
+    ]
+  },
+  "recommended_next_steps": {
+    "immediate": [
+      "Continue draining research-system-v13+ runs with --batch-size 1",
+      "Monitor for any new systemic blockers not in this timeline",
+      "Triage REAL-001/002/003 failures to determine if new runs needed"
+    ],
+    "medium_term": [
+      "Add telemetry for fix effectiveness (track ndjson_no_operations rate over time)",
+      "Create regression suite from issues marked 'fully_resolved'",
+      "Document governance override procedures for REAL-003 scenarios"
+    ],
+    "long_term": [
+      "Consider parser fuzzing to catch new NDJSON format variations",
+      "Add proactive validation in Builder output generation",
+      "Improve error messages for truncation scenarios (currently 'Builder failed: None')"
+    ]
+  }
+}

@@ -8565,6 +8565,41 @@ Just the new description that should replace the current one while preserving th
         try:
             # Start API server in background
             import sys
+            import os
+            from pathlib import Path
+
+            # Configurable startup wait (Windows + cold start can exceed 10s).
+            # Default: 30s. Override with AUTOPACK_API_STARTUP_TIMEOUT_SECONDS.
+            try:
+                startup_timeout_s = int(os.getenv("AUTOPACK_API_STARTUP_TIMEOUT_SECONDS", "30"))
+            except Exception:
+                startup_timeout_s = 30
+            startup_timeout_s = max(5, min(300, startup_timeout_s))
+
+            # Ensure the uvicorn subprocess can import `autopack.*` from `src/`.
+            # NOTE: modifying sys.path in this process does NOT affect the subprocess.
+            env = os.environ.copy()
+            try:
+                src_path = str((Path(self.workspace).resolve() / "src"))
+                existing = env.get("PYTHONPATH", "")
+                if src_path and (src_path not in existing.split(os.pathsep)):
+                    env["PYTHONPATH"] = src_path + (os.pathsep + existing if existing else "")
+            except Exception:
+                pass
+            env.setdefault("PYTHONUTF8", "1")
+
+            # Capture uvicorn logs for RCA (previously discarded to DEVNULL).
+            log_dir = Path(".autonomous_runs") / self.run_id / "diagnostics"
+            try:
+                log_dir.mkdir(parents=True, exist_ok=True)
+            except Exception:
+                pass
+            api_log_path = log_dir / f"api_server_{host}_{port}.log"
+            log_fp = None
+            try:
+                log_fp = open(api_log_path, "ab")
+            except Exception:
+                log_fp = None
             api_cmd = [
                 sys.executable, "-m", "uvicorn",
                 # IMPORTANT: module path is relative to PYTHONPATH=src; 'src.autopack...' is not importable
@@ -8580,23 +8615,36 @@ Just the new description that should replace the current one while preserving th
                 import subprocess
                 process = subprocess.Popen(
                     api_cmd,
-                    stdout=subprocess.DEVNULL,
-                    stderr=subprocess.DEVNULL,
+                    stdout=log_fp or subprocess.DEVNULL,
+                    stderr=log_fp or subprocess.DEVNULL,
+                    env=env,
                     creationflags=subprocess.CREATE_NEW_PROCESS_GROUP | subprocess.DETACHED_PROCESS
                 )
             else:
                 # Unix: use nohup-like behavior
                 process = subprocess.Popen(
                     api_cmd,
-                    stdout=subprocess.DEVNULL,
-                    stderr=subprocess.DEVNULL,
+                    stdout=log_fp or subprocess.DEVNULL,
+                    stderr=log_fp or subprocess.DEVNULL,
+                    env=env,
                     start_new_session=True
                 )
             
             # Wait a bit for server to start
             logger.info(f"Waiting for API server to start on {host}:{port}...")
-            for i in range(10):  # Wait up to 10 seconds
+            for i in range(startup_timeout_s):  # Wait up to configured seconds
                 time.sleep(1)
+
+                # If the server process exits early, surface the log path.
+                try:
+                    if process.poll() is not None:
+                        logger.error(
+                            f"API server process exited early (code={process.returncode}). "
+                            f"See log: {api_log_path}"
+                        )
+                        return False
+                except Exception:
+                    pass
                 try:
                     response = requests.get(f"{self.api_url}/health", timeout=1)
                     if response.status_code == 200:
@@ -8604,16 +8652,16 @@ Just the new description that should replace the current one while preserving th
                         return True
                 except Exception:
                     pass
-                if i < 9:
-                    logger.info(f"  Still waiting... ({i+1}/10)")
+                if i < startup_timeout_s - 1:
+                    logger.info(f"  Still waiting... ({i+1}/{startup_timeout_s})")
             
-            logger.error("API server failed to start within 10 seconds")
+            logger.error(f"API server failed to start within {startup_timeout_s} seconds (log: {api_log_path})")
             return False
             
         except Exception as e:
             logger.error(f"Failed to start API server: {e}")
             logger.info("Please start the API server manually:")
-            logger.info(f"  python -m uvicorn src.autopack.main:app --host {host} --port {port}")
+            logger.info(f"  (ensure PYTHONPATH=src) python -m uvicorn autopack.main:app --host {host} --port {port}")
             return False
 
     def run_autonomous_loop(

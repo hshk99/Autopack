@@ -485,6 +485,16 @@ p10_metadata = {
 **Verification**:
 - Logging a blocked execute_fix now creates a durable entry in `.autonomous_runs/file-organizer-app-v1/docs/CONSOLIDATED_DEBUG.md` including `Run ID` and `Outcome=BLOCKED_GIT_EXECUTE_FIX`.
 
+### Fix 5: Drain run type propagation (unblocks Autopack-internal maintenance drains)
+
+**Problem**: `scripts/drain_queued_phases.py` always created `AutonomousExecutor` with the default `run_type="project_build"`. For Autopack-internal queued runs whose phases legitimately modify `src/autopack/*` (e.g., utility modules), this guarantees early failure with `protected_path_violation` and requires manual governance approval per phase.
+
+**Fix**:
+- `scripts/drain_queued_phases.py`: added `--run-type` (plus `AUTOPACK_RUN_TYPE` default) and passes it through to `AutonomousExecutor`.
+
+**Verification**:
+- Re-draining `build129-p3-week1-telemetry` with `--run-type autopack_maintenance` shows `autopack_internal_mode` unlocking `src/autopack/` and the phase proceeds to completion (subject to normal CI/regression gates).
+
 ---
 
 ## 2025-12-27: research-system-v9 Convergence Hardening (Deliverables + Scope + NDJSON Apply) ✅

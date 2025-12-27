@@ -65,6 +65,15 @@ def main() -> int:
     p.add_argument("--poll-seconds", type=int, default=2)
     p.add_argument("--stop-on-first-failure", action="store_true")
     p.add_argument("--max-batches", type=int, default=None, help="Optional cap for number of batches")
+    p.add_argument(
+        "--run-type",
+        choices=["project_build", "autopack_maintenance", "autopack_upgrade", "self_repair"],
+        default=os.environ.get("AUTOPACK_RUN_TYPE", "project_build"),
+        help=(
+            "Run type passed to the AutonomousExecutor. "
+            "Use autopack_maintenance for draining Autopack-internal phases that modify src/autopack/."
+        ),
+    )
 
     args = p.parse_args()
 
@@ -102,6 +111,7 @@ def main() -> int:
                 run_id=args.run_id,
                 workspace=Path("."),
                 api_url=os.environ.get("AUTOPACK_API_URL", "http://localhost:8000"),
+                run_type=args.run_type,
             )
             executor.run_autonomous_loop(
                 poll_interval=10,

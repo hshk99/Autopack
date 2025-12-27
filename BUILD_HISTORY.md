@@ -89,6 +89,7 @@ Each entry includes:
 
 **Additional Phase 3 Enhancements (2025-12-27, drain reliability + CI correctness)**:
 - **Drain reliability hardening**: `scripts/drain_queued_phases.py` now defaults to an ephemeral `AUTOPACK_API_URL` (free localhost port) when not explicitly set, preventing silent API/DB mismatches where DB shows queued phases but the executor sees none.
+- **Drain run type propagation**: `scripts/drain_queued_phases.py` now supports `--run-type` (or `AUTOPACK_RUN_TYPE`) and passes it through to `AutonomousExecutor`, unblocking Autopack-internal maintenance drains that legitimately modify `src/autopack/*` (use `--run-type autopack_maintenance`).
 - **API run serialization for tierless runs**: `src/autopack/schemas.py` `RunResponse` now includes a top-level `phases` list so executor selection works even when Tier rows are missing (patch-scoped/legacy runs).
 - **CI artifact correctness for PhaseFinalizer**:
   - `src/autopack/autonomous_executor.py` pytest CI now emits a structured pytest-json-report (`pytest_<phase_id>.json`) and returns it as `report_path` (with `log_path` preserved).

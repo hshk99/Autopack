@@ -193,4 +193,23 @@ This document records the **root cause analysis (RCA)** for the systemic blocker
   - Unit test: `tests/test_governed_apply.py::test_scope_path_normalization_allows_backslashes_and_dot_slash`
   - Affected drains (e.g., `research-system-v13` Chunk2B phases) should no longer fail due to separator/`./` mismatches; remaining apply failures should reflect true scope violations.
 
+### Blocker N: Drain script forces `project_build` (cannot drain Autopack-internal phases touching `src/autopack/*`)
+
+- **Symptom**: Draining a run whose phase scope includes `src/autopack/*` fails early with:
+  - `[Isolation] BLOCKED: Patch attempts to modify protected path: src/autopack/...`
+  - `error_type=protected_path_violation`
+  - log includes: `Approve via: POST /api/governance/approve/<request_id>` (manual approval required)
+- **Impact**: Drain cannot converge for internal Autopack maintenance runs because phases are guaranteed to fail patch apply unless a human manually approves every request.
+- **Root cause**:
+  - `scripts/drain_queued_phases.py` constructed `AutonomousExecutor(...)` without passing a `run_type`, so it always used the default `run_type="project_build"`.
+  - In `project_build`, `governed_apply` enforces `PROTECTED_PATHS` including `src/autopack/`, which blocks legitimate Autopack-internal phase work.
+- **Fix**:
+  - `scripts/drain_queued_phases.py`: added `--run-type` (and `AUTOPACK_RUN_TYPE` default) and passes it through to `AutonomousExecutor`.
+  - Operators can now drain internal runs with `--run-type autopack_maintenance` to enable `autopack_internal_mode` (unlocks `src/autopack/` while still protecting critical core files).
+- **Verification**:
+  - Re-draining `build129-p3-week1-telemetry` with `--run-type autopack_maintenance` shows:
+    - `[Isolation] autopack_internal_mode enabled - unlocking src/autopack/ for maintenance`
+    - patch apply proceeds without `protected_path_violation`
+    - phase reaches `COMPLETE` (subject to the usual CI/regression gates).
+
 

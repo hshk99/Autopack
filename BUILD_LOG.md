@@ -4,6 +4,14 @@ Daily log of development activities, decisions, and progress on the Autopack pro
 
 ---
 
+## 2025-12-28: Prevent `/runs/{run_id}` 500s for Legacy String `Phase.scope` (Systemic Drain Fix) ✅
+
+**Summary**: Fixed a systemic drain blocker where the Supervisor API would return **500** for `GET /runs/{run_id}` when legacy runs stored `Phase.scope` as a JSON string (or plain string) instead of a dict. The API response schema (`PhaseResponse.scope: Dict`) would fail validation/serialization, blocking the executor from fetching run status and stalling draining. `PhaseResponse` now normalizes non-dict scopes into a dict (e.g., `{"_legacy_text": ...}`), allowing scope auto-fix to proceed normally. Added regression tests for both plain-string and JSON-string scope normalization.
+
+**Status**: ✅ FIXED + TESTED (unblocks draining legacy runs like `research-system-v1`)
+
+---
+
 ## 2025-12-27: Structured Edit Applicator Unblocked New-File Ops (Systemic Drain Fix) ✅
 
 **Summary**: Fixed a systemic drain blocker where structured edit plans failed with `STRUCTURED_EDIT_FAILED` and logs like `[StructuredEdit] File not in context: <path>` when the plan created new files (or touched existing files omitted from Builder context due to scope limits). `StructuredEditApplicator` now falls back to reading missing files from disk (when present) or treating them as empty content (new file), while rejecting unsafe paths. Added regression tests covering both “create new file without context” and “read existing file from disk when not in context”.

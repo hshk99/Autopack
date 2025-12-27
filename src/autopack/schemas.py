@@ -1,9 +1,10 @@
 """Pydantic schemas for API requests and responses"""
 
 from datetime import datetime
+import json
 from typing import Any, Dict, List, Optional
 
-from pydantic import BaseModel, Field, ConfigDict
+from pydantic import BaseModel, Field, ConfigDict, field_validator
 
 
 class RunCreate(BaseModel):
@@ -75,6 +76,33 @@ class PhaseResponse(BaseModel):
     builder_mode: Optional[str]
     phase_index: int
     scope: Optional[Dict[str, Any]] = None
+
+    @field_validator("scope", mode="before")
+    @classmethod
+    def normalize_scope(cls, v: Any) -> Any:
+        """Normalize legacy / malformed scope values into a dict.
+
+        Some legacy runs persisted `Phase.scope` as a JSON string (or even a plain string),
+        which can cause API serialization/validation to fail and surface as a 500 on
+        `GET /runs/{run_id}`. We coerce these into a dict so executors can continue draining
+        (typically triggering scope auto-fix because `scope.paths` is missing).
+        """
+        if v is None:
+            return None
+        if isinstance(v, dict):
+            return v
+        if isinstance(v, str):
+            try:
+                loaded = json.loads(v)
+            except Exception:
+                return {"_legacy_text": v}
+            if isinstance(loaded, dict):
+                return loaded
+            if isinstance(loaded, str):
+                return {"_legacy_text": loaded}
+            return {"_legacy_value": loaded}
+        # e.g. list/bool/int from old JSON blobs
+        return {"_legacy_value": v}
 
     model_config = ConfigDict(from_attributes=True)
 

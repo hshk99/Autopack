@@ -218,6 +218,23 @@ This document records the **root cause analysis (RCA)** for the systemic blocker
   - Builder returns a structured edit plan (`edit_plan.operations`), and `patch_content==""` (expected for structured edits).
   - Deliverables validation fails anyway with:
     - `Found in patch: 0 files`
+
+### Blocker Q: Supervisor API `/runs/{run_id}` returned 500 for legacy runs with string `Phase.scope`
+
+- **Symptom**: Executor fails early with retries and then:
+  - `Failed to fetch run status: 500 Server Error ... /runs/<run_id>`
+  - `CircuitBreaker` classifies as transient infra and exhausts retries.
+- **Impact**: Draining stalls completely for the run (executor cannot even see queued work).
+- **Root cause**:
+  - Some legacy runs persisted `Phase.scope` as a JSON string (or plain string) rather than a dict-like JSON object.
+  - `GET /runs/{run_id}` uses `response_model=RunResponse`, which nests `PhaseResponse` and expects `scope: Dict[str, Any]`.
+  - Pydantic validation/serialization fails on string scopes, surfacing as an API 500.
+- **Fix**:
+  - `src/autopack/schemas.py`: `PhaseResponse.scope` now normalizes non-dict inputs into a dict (e.g., `{"_legacy_text": ...}`), and parses JSON-string dicts when possible.
+  - Regression tests: `tests/test_api_schema_scope_normalization.py`.
+- **Verification**:
+  - The regression tests pass locally.
+  - Draining can proceed for legacy runs that previously 500’d on `/runs/{run_id}` (e.g., `research-system-v1`).
     - missing directory deliverables such as `src/autopack/models/` despite an operation touching `src/autopack/models/__init__.py`.
 - **Impact**: Systemic false failures for any phase that enters structured-edit mode (e.g., because a large context file forces structured edits), preventing convergence even when the Builder produced valid operations.
 - **Root cause**: `validate_deliverables()` only inspected `patch_content` to infer “files in your patch” and the executor did not provide any alternate “touched paths” when operating in structured edit mode.

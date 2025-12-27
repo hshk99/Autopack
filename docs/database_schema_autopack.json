@@ -1,6 +1,6 @@
 {
   "database": "autopack.db",
-  "exported_at": "2025-12-27T22:25:42.740930",
+  "exported_at": "2025-12-28T00:52:34.826705",
   "tables": {
     "llm_usage_events": {
       "columns": [
@@ -77,7 +77,7 @@
           "primary_key": false
         }
       ],
-      "row_count": 1551
+      "row_count": 1576
     },
     "runs": {
       "columns": [
@@ -1009,7 +1009,7 @@
           "primary_key": false
         }
       ],
-      "row_count": 56
+      "row_count": 66
     },
     "governance_requests": {
       "columns": [
@@ -1905,7 +1905,7 @@
           "primary_key": false
         }
       ],
-      "row_count": 39
+      "row_count": 40
     },
     "token_estimation_v2_events": {
       "columns": [
@@ -2078,7 +2078,7 @@
           "primary_key": false
         }
       ],
-      "row_count": 151
+      "row_count": 162
     }
   }
 }

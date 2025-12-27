@@ -32,7 +32,7 @@ try:
     POSTGRES_AVAILABLE = True
 except ImportError:
     POSTGRES_AVAILABLE = False
-    print("Warning: psycopg2 not available, PostgreSQL sync disabled")
+    print("[WARN] psycopg2 not available, PostgreSQL sync disabled")
 
 try:
     from autopack.memory.qdrant_store import QdrantStore
@@ -40,7 +40,7 @@ try:
     QDRANT_AVAILABLE = True
 except ImportError as e:
     QDRANT_AVAILABLE = False
-    print(f"Warning: Qdrant not available, vector store sync disabled ({e})")
+    print(f"[WARN] Qdrant not available, vector store sync disabled ({e})")
 
 
 class DatabaseSync:
@@ -72,9 +72,9 @@ class DatabaseSync:
             try:
                 self.pg_conn = psycopg2.connect(db_url)
                 self._ensure_tables()
-                print(f"✅ Connected to PostgreSQL")
+                print("[OK] Connected to PostgreSQL")
             except Exception as e:
-                print(f"⚠️  PostgreSQL connection failed: {e}")
+                print(f"[WARN] PostgreSQL connection failed: {e}")
 
         # Qdrant
         qdrant_host = os.getenv("QDRANT_HOST", "http://localhost:6333")
@@ -89,9 +89,9 @@ class DatabaseSync:
                     port = 6333
 
                 self.qdrant = QdrantStore(host=host, port=port)
-                print(f"✅ Connected to Qdrant at {qdrant_host}")
+                print(f"[OK] Connected to Qdrant at {qdrant_host}")
             except Exception as e:
-                print(f"⚠️  Qdrant connection failed: {e}")
+                print(f"[WARN] Qdrant connection failed: {e}")
 
     def _ensure_tables(self):
         """Ensure PostgreSQL tables exist"""
@@ -178,7 +178,7 @@ class DatabaseSync:
 
     def _sync_to_postgres(self) -> int:
         """Sync SOT files to PostgreSQL"""
-        print("📊 Syncing to PostgreSQL...")
+        print("Syncing to PostgreSQL...")
 
         synced_count = 0
         cur = self.pg_conn.cursor()
@@ -234,13 +234,13 @@ class DatabaseSync:
             self.pg_conn.commit()
 
         cur.close()
-        print(f"   ✅ Synced {synced_count} entries to PostgreSQL")
+        print(f"   [OK] Synced {synced_count} entries to PostgreSQL")
 
         return synced_count
 
     def _sync_to_qdrant(self) -> int:
         """Sync SOT files to Qdrant vector store"""
-        print("🔍 Syncing to Qdrant...")
+        print("Syncing to Qdrant...")
 
         synced_count = 0
         collection_name = f"{self.project_id}_sot_docs"
@@ -250,7 +250,7 @@ class DatabaseSync:
             # OpenAI text-embedding-3-small produces 1536-dimensional embeddings
             self.qdrant.ensure_collection(collection_name, size=1536)
         except Exception as e:
-            print(f"   ⚠️  Could not create collection: {e}")
+            print(f"   [WARN] Could not create collection: {e}")
             return 0
 
         # Process each SOT file
@@ -272,7 +272,7 @@ class DatabaseSync:
             try:
                 embedding = sync_embed_text(content)
             except Exception as e:
-                print(f"   ⚠️  Could not create embedding for {file_type}: {e}")
+                print(f"   [WARN] Could not create embedding for {file_type}: {e}")
                 continue
 
             # Create point
@@ -296,20 +296,20 @@ class DatabaseSync:
             try:
                 self.qdrant.upsert(collection_name, points)
             except Exception as e:
-                print(f"   ⚠️  Could not upsert to Qdrant: {e}")
+                print(f"   [WARN] Could not upsert to Qdrant: {e}")
 
-        print(f"   ✅ Synced {synced_count} documents to Qdrant")
+        print(f"   [OK] Synced {synced_count} documents to Qdrant")
 
         return synced_count
 
     def _update_readme(self) -> bool:
         """Update README.md with latest SOT summary"""
-        print("📝 Updating README.md...")
+        print("Updating README.md...")
 
         readme_path = self.project_dir / "README.md"
 
         if not readme_path.exists():
-            print(f"   ⚠️  README.md not found at {readme_path}")
+            print(f"   [WARN] README.md not found at {readme_path}")
             return False
 
         # Read current README
@@ -351,7 +351,7 @@ class DatabaseSync:
                 self.pg_conn.commit()
                 cur.close()
 
-        print(f"   ✅ Updated README.md")
+        print("   [OK] Updated README.md")
 
         return True
 
@@ -449,7 +449,7 @@ class DatabaseSync:
 
     def _cross_validate(self) -> List[str]:
         """Cross-validate data across PostgreSQL, Qdrant, and files"""
-        print("🔍 Cross-validating data...")
+        print("Cross-validating data...")
 
         errors = []
 
@@ -478,12 +478,12 @@ class DatabaseSync:
                     if len(file_entries) != db_count:
                         error = f"{file_type}: File has {len(file_entries)} entries, DB has {db_count}"
                         errors.append(error)
-                        print(f"   ⚠️  {error}")
+                        print(f"   [WARN] {error}")
 
             cur.close()
 
         if not errors:
-            print(f"   ✅ All data sources in sync")
+            print("   [OK] All data sources in sync")
 
         return errors
 
@@ -495,14 +495,14 @@ class DatabaseSync:
         print(f"Project: {self.project_id}")
         print(f"PostgreSQL entries: {results['postgres']}")
         print(f"Qdrant documents: {results['qdrant']}")
-        print(f"README updated: {'✅' if results['readme'] else '❌'}")
+        print(f"README updated: {'YES' if results['readme'] else 'NO'}")
 
         if results['validation_errors']:
-            print(f"\n⚠️  Validation Errors:")
+            print("\n[WARN] Validation Errors:")
             for error in results['validation_errors']:
                 print(f"   - {error}")
         else:
-            print(f"\n✅ All systems in sync!")
+            print("\n[OK] All systems in sync!")
 
         print(f"{'='*80}\n")
 

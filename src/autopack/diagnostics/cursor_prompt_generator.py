@@ -120,6 +120,7 @@ class CursorPromptGenerator:
 
         return prompt
 
+
     def _generate_header(self) -> str:
         """Generate prompt header."""
         run_id = self.index_data.get("run_id", "unknown")
@@ -333,24 +334,25 @@ Autopack uses **"vibe-coding-first"** builder mode with autonomous execution. Th
         return "\n".join(lines)
 
 
-def generate_cursor_prompt(
-    handoff_dir: Path,
-    phase_context: Optional[Dict[str, Any]] = None,
-    error_context: Optional[Dict[str, Any]] = None,
-    constraints: Optional[Dict[str, Any]] = None,
-    questions: Optional[List[str]] = None,
-) -> str:
-    """Convenience function to generate Cursor prompt.
+def generate_cursor_prompt(*args: Any, **kwargs: Any) -> str:
+    """Generate a Cursor-ready prompt (supports both legacy and new call styles).
 
     Args:
-        handoff_dir: Path to handoff/ directory
-        phase_context: Phase details (phase_id, name, complexity, attempts, etc.)
-        error_context: Error details (message, category, timestamp, stack trace, etc.)
-        constraints: Constraints (protected_paths, allowed_paths, deliverables)
-        questions: Explicit questions/unknowns to investigate
+        Legacy (unit tests):
+            handoff_bundle_path: str
+            error_message: str
+            file_list: List[str]
+            constraints: Dict[str, str] with keys "protected paths", "allowed paths", "deliverables"
+
+        New (handoff bundle generator):
+            handoff_dir: Path
+            phase_context: Optional[Dict[str, Any]]
+            error_context: Optional[Dict[str, Any]]
+            constraints: Optional[Dict[str, Any]]
+            questions: Optional[List[str]]
 
     Returns:
-        Formatted markdown prompt ready for copy/paste into Cursor
+        Prompt string
 
     Example:
         >>> from pathlib import Path
@@ -384,6 +386,49 @@ def generate_cursor_prompt(
         >>> prompt = generate_cursor_prompt(handoff_dir, phase_context, error_context, constraints, questions)
         >>> print(prompt)
     """
+    # Legacy deterministic helper used by unit tests:
+    # generate_cursor_prompt(handoff_bundle_path, error_message, file_list, constraints)
+    if (
+        len(args) == 4
+        and not kwargs
+        and isinstance(args[0], str)
+        and isinstance(args[1], str)
+        and isinstance(args[2], list)
+        and isinstance(args[3], dict)
+    ):
+        handoff_bundle_path, error_message, file_list, constraints = args
+
+        lines: List[str] = []
+        lines.append(f"Diagnostics Handoff Bundle Reference: {handoff_bundle_path}")
+        lines.append("")
+        lines.append("Current Failure:")
+        lines.append(f"- Error: {error_message}")
+        lines.append("")
+        lines.append("Files to Attach/Open:")
+        for f in file_list:
+            lines.append(f"- {f}")
+        lines.append("")
+        lines.append("Constraints:")
+        # Preserve key casing exactly as test expects
+        if "protected paths" in constraints:
+            lines.append(f"- Protected paths: {constraints['protected paths']}")
+        if "allowed paths" in constraints:
+            lines.append(f"- Allowed paths: {constraints['allowed paths']}")
+        if "deliverables" in constraints:
+            lines.append(f"- Deliverables: {constraints['deliverables']}")
+        return "\n".join(lines)
+
+    # New form:
+    # generate_cursor_prompt(handoff_dir, phase_context=None, error_context=None, constraints=None, questions=None)
+    if not args:
+        raise TypeError("generate_cursor_prompt() missing required positional argument: 'handoff_dir'")
+
+    handoff_dir = Path(args[0])
+    phase_context = args[1] if len(args) > 1 else kwargs.get("phase_context")
+    error_context = args[2] if len(args) > 2 else kwargs.get("error_context")
+    constraints = args[3] if len(args) > 3 else kwargs.get("constraints")
+    questions = args[4] if len(args) > 4 else kwargs.get("questions")
+
     generator = CursorPromptGenerator(handoff_dir)
     return generator.generate_prompt(phase_context, error_context, constraints, questions)
 

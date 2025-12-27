@@ -232,3 +232,39 @@ Additional systemic fixes were required after NDJSON parsing was stabilized. The
 - **NDJSON apply**: `governed_apply` treats “NDJSON Operations Applied …” as a synthetic header and skips `git apply` (operations already applied), while still enforcing scope/protected-path rules.
 - **Safety**: Doctor `execute_fix` of `fix_type=git` is blocked for `project_build` runs and the reason is recorded (prevents destructive `git reset --hard` / `git clean -fd` from wiping partially-generated deliverables).
 - **CI traceability**: CI logs now always persist a `report_path` so PhaseFinalizer can reference the exact test output artifact.
+
+---
+
+## 2025-12-27 Update: Drain reliability + CI artifact correctness + execute_fix traceability
+
+During representative draining we discovered additional systemic blockers that could prevent queued phases from converging even when NDJSON/apply/scope were healthy.
+
+### 1) Drain can stall due to API/DB mismatch (BUILD-115)
+
+- **Symptom**: drain prints `queued>0` from SQLite, but executor prints “No more executable phases”.
+- **Root cause**: drain counts phases via DB; executor selects phases via API. If the drain connects to a different running API (or different `DATABASE_URL`), the executor sees a different dataset.
+- **Fix**: `scripts/drain_queued_phases.py` now defaults to a fresh ephemeral `AUTOPACK_API_URL` (free localhost port) unless the operator explicitly sets it, forcing auto-start of an API aligned to the current `DATABASE_URL`.
+- **Verification**: representative drain on `fileorg-backend-fixes-v4-20251130` now selects queued phases and decrements queued counts.
+
+### 2) Runs can have phases without tiers (serialization gap)
+
+- **Symptom**: `/runs/{run_id}` returns `tiers=[]` and no phases, so executor sees nothing queued.
+- **Root cause**: some runs have `phases` rows but no `tiers` rows populated (patch-scoped/legacy runs); the API response didn’t include a top-level `phases` list.
+- **Fix**: `src/autopack/schemas.py` `RunResponse` now includes `phases: List[PhaseResponse]`.
+- **Verification**: executor selection now finds QUEUED phases via `run_data["phases"]`.
+
+### 3) PhaseFinalizer crash: CI report_path was a text log, not pytest JSON
+
+- **Symptom**: `json.decoder.JSONDecodeError` in `TestBaselineTracker.diff()` when reading `ci_result["report_path"]`.
+- **Root cause**: CI runner persisted only a `.log` file but labeled it `report_path`; baseline tracker expects a pytest-json-report JSON file.
+- **Fix**:
+  - `src/autopack/autonomous_executor.py`: pytest CI now emits `--json-report --json-report-file=.autonomous_runs/<run_id>/ci/pytest_<phase_id>.json` and returns it as `report_path` (keeps `log_path` too).
+  - `src/autopack/phase_finalizer.py`: delta computation is fail-safe (never crashes completion authority).
+  - Regression test added: `tests/test_phase_finalizer.py::test_assess_completion_ci_report_not_json_does_not_crash`.
+
+### 4) “Blocked execute_fix” events are now durably recorded
+
+- **Symptom**: blocked actions could be missing from `CONSOLIDATED_DEBUG.md` if no prior issue header existed.
+- **Root cause**: append-to-issue only worked when the issue header already existed.
+- **Fix**: `src/autopack/archive_consolidator.py` auto-creates missing issue entries and records `run_id`/`phase_id`/`outcome` for `log_fix` events.
+- **Verification**: grep confirms blocked entries appear with Run ID + Outcome in `.autonomous_runs/file-organizer-app-v1/docs/CONSOLIDATED_DEBUG.md`.

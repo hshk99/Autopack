@@ -9,15 +9,15 @@ import threading
 import time
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
 import yaml
 
 from autopack.diagnostics.command_runner import CommandResult, GovernedCommandRunner
 from autopack.diagnostics.hypothesis import HypothesisLedger
 from autopack.diagnostics.probes import Probe, ProbeLibrary, ProbeRunResult
-from autopack.diagnostics.retrieval_triggers import RetrievalTrigger
-from autopack.diagnostics.deep_retrieval import DeepRetrieval
+from autopack.diagnostics.retrieval_triggers import RetrievalTrigger, RetrievalTriggerDetector
+from autopack.diagnostics.deep_retrieval import DeepRetrieval, DeepRetrievalEngine
 from autopack.memory import MemoryService
 
 
@@ -47,7 +47,9 @@ class DiagnosticsAgent:
         self,
         run_id: str,
         workspace: Path,
+        embedding_model: Optional[Any] = None,
         memory_service: Optional[MemoryService] = None,
+        enable_second_opinion: bool = False,
         decision_logger: Optional[Callable[[str, str, str, Optional[str], Optional[str]], None]] = None,
         diagnostics_dir: Optional[Path] = None,
         max_probes: int = 8,
@@ -57,7 +59,9 @@ class DiagnosticsAgent:
         cfg = self._load_config()
         self.run_id = run_id
         self.workspace = workspace.resolve()
+        self.embedding_model = embedding_model
         self.memory_service = memory_service
+        self.enable_second_opinion = enable_second_opinion
         self.decision_logger = decision_logger
         self.max_probes = cfg.get("max_probes", max_probes)
         self.max_seconds = cfg.get("max_seconds", max_seconds)
@@ -84,6 +88,33 @@ class DiagnosticsAgent:
                 "logs/autopack/builder.log",
                 "logs/autopack/auditor.log",
             ],
+        )
+
+        # Compatibility: Stage-2 engine hooks expected by BUILD-112 tests.
+        self.trigger_detector = RetrievalTriggerDetector()
+        self.deep_retrieval_engine = DeepRetrievalEngine(embedding_model=embedding_model) if embedding_model else None
+
+    def retrieve_deep_context_if_needed(self, error_context: Dict[str, Any], query: str) -> Optional[Dict[str, List[Dict[str, Any]]]]:
+        """Test-facing helper: return deep context when trigger detector says to escalate."""
+        if not self.deep_retrieval_engine:
+            return None
+        attempt_number = int(error_context.get("attempt_number", 1) or 1)
+        previous_errors = error_context.get("errors", []) or []
+        stage1_retrieval_count = int(error_context.get("stage1_retrieval_count", 0) or 0)
+
+        if not self.trigger_detector.should_escalate_to_stage2(
+            phase_id=str(error_context.get("phase_id", "unknown")),
+            attempt_number=attempt_number,
+            previous_errors=previous_errors,
+            stage1_retrieval_count=stage1_retrieval_count,
+        ):
+            return None
+
+        return self.deep_retrieval_engine.retrieve_deep_context(
+            query=query,
+            categories=["implementation", "tests", "config", "docs"],
+            max_snippets_per_category=3,
+            max_lines_per_snippet=120,
         )
 
     # ------------------------------------------------------------------ #

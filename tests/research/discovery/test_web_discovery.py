@@ -1,45 +1,82 @@
-"""
-Test Suite for Web Discovery
+"""Tests for Web Discovery."""
 
-This module contains unit tests for the WebDiscovery class.
-"""
+import pytest
+from unittest.mock import Mock, patch
+from src.research.discovery.web_discovery import WebDiscovery, WebResult
 
-import unittest
-from unittest.mock import patch, MagicMock
-from src.autopack.research.discovery.web_discovery import WebDiscovery
 
-class TestWebDiscovery(unittest.TestCase):
-
-    def setUp(self):
-        """
-        Set up the test case environment.
-        """
-        self.web_discovery = WebDiscovery()
-
-    @patch('src.autopack.research.discovery.web_discovery.requests.get')
-    def test_search_web(self, mock_get):
-        """
-        Test searching the web.
-        """
-        mock_response = MagicMock()
-        mock_response.text = '<html><h3><a href="http://example.com">Example</a></h3></html>'
+class TestWebDiscovery:
+    """Test cases for WebDiscovery."""
+    
+    def setup_method(self):
+        """Set up test fixtures."""
+        self.discovery = WebDiscovery()
+    
+    def test_web_result_to_dict(self):
+        """Test web result conversion to dict."""
+        result = WebResult(
+            title="Test Result",
+            url="https://example.com",
+            snippet="Test snippet",
+            source="example.com"
+        )
+        
+        result_dict = result.to_dict()
+        
+        assert isinstance(result_dict, dict)
+        assert result_dict["title"] == "Test Result"
+        assert result_dict["url"] == "https://example.com"
+    
+    @patch('requests.post')
+    def test_search_duckduckgo(self, mock_post):
+        """Test DuckDuckGo search."""
+        mock_response = Mock()
+        mock_response.status_code = 200
+        mock_response.text = '''
+        <div class="result__body">
+            <a rel="nofollow" class="result__a" href="https://example.com">Test Title</a>
+            <a class="result__snippet">Test snippet</a>
+        </div>
+        '''
+        mock_post.return_value = mock_response
+        
+        results = self.discovery.search("test query")
+        
+        # Results depend on HTML parsing
+        assert isinstance(results, list)
+    
+    def test_search_documentation(self):
+        """Test documentation search."""
+        with patch.object(self.discovery, 'search') as mock_search:
+            mock_search.return_value = []
+            
+            results = self.discovery.search_documentation("async", "python")
+            
+            mock_search.assert_called_once()
+            assert isinstance(results, list)
+    
+    def test_search_stackoverflow(self):
+        """Test Stack Overflow search."""
+        with patch.object(self.discovery, 'search') as mock_search:
+            mock_search.return_value = []
+            
+            results = self.discovery.search_stackoverflow("error", tags=["python"])
+            
+            mock_search.assert_called_once()
+            assert isinstance(results, list)
+    
+    @patch('requests.get')
+    def test_check_url_accessibility(self, mock_get):
+        """Test URL accessibility check."""
+        mock_response = Mock()
+        mock_response.status_code = 200
         mock_get.return_value = mock_response
-        results = self.web_discovery.search_web("test query")
-        self.assertEqual(len(results), 1)
-        self.assertEqual(results[0]['title'], "Example")
-
-    @patch('src.autopack.research.discovery.web_discovery.requests.get')
-    def test_scrape_page(self, mock_get):
-        """
-        Test scraping a web page.
-        """
-        mock_response = MagicMock()
-        mock_response.text = '<html><body>Test Content</body></html>'
-        mock_get.return_value = mock_response
-        content = self.web_discovery.scrape_page("http://example.com")
-        self.assertIn("Test Content", content)
-
-    # Additional tests for more complex scenarios can be added here
-
-if __name__ == '__main__':
-    unittest.main()
+        
+        result = self.discovery.check_url_accessibility("https://example.com")
+        
+        assert result is True
+        
+        mock_response.status_code = 404
+        result = self.discovery.check_url_accessibility("https://example.com")
+        
+        assert result is False

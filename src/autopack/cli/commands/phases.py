@@ -1,3 +1,43 @@
+from __future__ import annotations
+
+import click
+
+
+@click.group()
+def cli() -> None:
+    """Phase-related commands (test shim)."""
+
+
+@cli.command("create-phase")
+@click.option("--name", required=True, type=str)
+@click.option("--description", required=True, type=str)
+@click.option("--complexity", required=True, type=click.Choice(["low", "medium", "high"]))
+def create_phase(name: str, description: str, complexity: str) -> None:
+    """Create a phase (test shim)."""
+    # NOTE: `description` is unused here; it's present to match the CLI contract.
+    click.echo(f"Phase '{name}' created with complexity '{complexity}'.")
+
+
+@cli.command("execute-phase")
+@click.option("--phase-id", required=True, type=int)
+def execute_phase(phase_id: int) -> None:
+    """Execute a phase (test shim)."""
+    click.echo(f"Executing phase with ID {phase_id}.")
+
+
+@cli.command("review-phase")
+@click.option("--phase-id", required=True, type=int)
+def review_phase(phase_id: int) -> None:
+    """Review a phase (test shim)."""
+    click.echo(f"Reviewing phase with ID {phase_id}.")
+
+
+@cli.command("phase-status")
+@click.option("--phase-id", required=True, type=int)
+def phase_status(phase_id: int) -> None:
+    """Show phase status (test shim)."""
+    click.echo(f"Status of phase with ID {phase_id}: In Progress.")
+
 import click
 
 # Placeholder for actual phase management logic

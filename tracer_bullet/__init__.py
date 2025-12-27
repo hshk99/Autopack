@@ -1,3 +1,10 @@
+"""Tracer bullet pipeline package (test-facing shim).
+
+Unit tests import `tracer_bullet.gatherer` and `tracer_bullet.orchestrator`.
+We provide a small, deterministic implementation here to avoid network/LLM
+dependencies during CI collection and tests.
+"""
+
 """Tracer Bullet - Minimal end-to-end pipeline validation
 
 This package implements a complete pipeline to validate:

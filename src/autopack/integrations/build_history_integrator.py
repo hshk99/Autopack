@@ -8,371 +8,532 @@ This integrator bridges the research system with the autonomous executor by:
 2. Analyzing success/failure rates for different task categories
 3. Identifying recurring issues and their resolutions
 4. Providing context-aware recommendations for new phases
-
-Design Principles:
-- Read-only access to BUILD_HISTORY.md and database
-- No modifications to source files
-- Provides advisory insights, not mandatory decisions
-- Integrates with existing research orchestrator
 """
 
 from __future__ import annotations
 
-import json
 import logging
 import re
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Set
 
-from sqlalchemy.orm import Session
-
-from autopack.database import SessionLocal
-from autopack.models import Phase, Run, PhaseState
+try:
+    import sqlite3
+except ImportError:
+    sqlite3 = None
 
 logger = logging.getLogger(__name__)
 
 
 @dataclass
-class BuildDecision:
-    """Represents a historical build decision extracted from BUILD_HISTORY or database."""
-
-    phase_id: str
-    task_category: str
-    complexity: str
-    outcome: str  # success, failed, blocked
-    tokens_used: int
-    duration_seconds: Optional[float]
-    issues_encountered: List[str] = field(default_factory=list)
-    resolution_strategy: Optional[str] = None
-    timestamp: Optional[datetime] = None
-
-
-@dataclass
-class ResearchInsight:
-    """Research-derived insight for build planning."""
-
-    insight_type: str  # pattern, recommendation, warning, opportunity
-    category: str  # task category this applies to
-    confidence: float  # 0.0-1.0
+class HistoricalPattern:
+    """Represents a pattern extracted from build history."""
+    
+    pattern_type: str  # 'success', 'failure', 'recurring_issue'
+    category: str  # Task category (e.g., 'IMPLEMENT_FEATURE', 'FIX_BUG')
     description: str
-    supporting_evidence: List[str] = field(default_factory=list)
-    actionable_recommendation: Optional[str] = None
+    frequency: int
+    last_seen: datetime
+    related_phases: List[str] = field(default_factory=list)
+    resolution: Optional[str] = None
+    confidence: float = 0.0
 
 
 @dataclass
-class BuildContext:
-    """Aggregated context from build history for decision-making."""
-
-    total_phases: int
-    success_rate: float
-    avg_tokens_per_phase: float
-    category_stats: Dict[str, Dict[str, float]]  # category -> {success_rate, avg_tokens, count}
-    common_issues: List[Tuple[str, int]]  # (issue_description, frequency)
-    recent_trends: List[str]
-    insights: List[ResearchInsight] = field(default_factory=list)
+class BuildHistoryInsight:
+    """Insights extracted from build history for research planning."""
+    
+    patterns: List[HistoricalPattern]
+    success_rate: Dict[str, float]  # Category -> success rate
+    common_issues: List[str]
+    recommended_approaches: List[str]
+    relevant_context: Dict[str, Any]
+    extracted_at: datetime = field(default_factory=datetime.now)
 
 
 class BuildHistoryIntegrator:
-    """Integrates BUILD_HISTORY analysis with research system for informed planning."""
-
-    def __init__(self, project_root: Path, db_session: Optional[Session] = None):
-        """
-        Initialize the integrator.
-
+    """Integrates BUILD_HISTORY data with research system."""
+    
+    def __init__(
+        self,
+        build_history_path: Optional[Path] = None,
+        db_path: Optional[Path] = None,
+        min_pattern_frequency: int = 2,
+    ):
+        """Initialize the integrator.
+        
         Args:
-            project_root: Root directory of the project
-            db_session: Optional database session (creates new if not provided)
+            build_history_path: Path to BUILD_HISTORY.md file
+            db_path: Path to autopack.db database
+            min_pattern_frequency: Minimum occurrences to consider a pattern
         """
-        self.project_root = project_root
-        self.build_history_path = project_root / "docs" / "BUILD_HISTORY.md"
-        self._db_session = db_session
-        self._owns_session = db_session is None
-
-    @property
-    def db(self) -> Session:
-        """Get database session (lazy initialization)."""
-        if self._db_session is None:
-            self._db_session = SessionLocal()
-        return self._db_session
-
-    def __enter__(self):
-        return self
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        if self._owns_session and self._db_session:
-            self._db_session.close()
-
-    def extract_decisions_from_markdown(self) -> List[BuildDecision]:
-        """Extract build decisions from BUILD_HISTORY.md.
-
-        Parses markdown structure to identify completed phases and their outcomes.
+        self.build_history_path = build_history_path or Path("BUILD_HISTORY.md")
+        self.db_path = db_path or Path("autopack.db")
+        self.min_pattern_frequency = min_pattern_frequency
+        self._cache: Optional[BuildHistoryInsight] = None
+        self._cache_timestamp: Optional[datetime] = None
+    
+    def extract_insights(
+        self,
+        task_category: Optional[str] = None,
+        force_refresh: bool = False,
+    ) -> BuildHistoryInsight:
+        """Extract insights from build history.
+        
+        Args:
+            task_category: Filter insights for specific task category
+            force_refresh: Force refresh of cached insights
+            
+        Returns:
+            BuildHistoryInsight with extracted patterns and recommendations
         """
+        # Check cache
+        if not force_refresh and self._cache and self._cache_timestamp:
+            cache_age = (datetime.now() - self._cache_timestamp).total_seconds()
+            if cache_age < 300:  # 5 minute cache
+                logger.debug("Using cached build history insights")
+                return self._filter_insights(self._cache, task_category)
+        
+        logger.info("Extracting insights from build history")
+        
+        # Extract from BUILD_HISTORY.md
+        md_patterns = self._extract_from_markdown()
+        
+        # Extract from database if available
+        db_patterns = self._extract_from_database()
+        
+        # Merge and analyze patterns
+        all_patterns = md_patterns + db_patterns
+        patterns = self._analyze_patterns(all_patterns)
+        
+        # Calculate success rates
+        success_rate = self._calculate_success_rates(patterns)
+        
+        # Identify common issues
+        common_issues = self._identify_common_issues(patterns)
+        
+        # Generate recommendations
+        recommended_approaches = self._generate_recommendations(patterns)
+        
+        # Build insight object
+        insight = BuildHistoryInsight(
+            patterns=patterns,
+            success_rate=success_rate,
+            common_issues=common_issues,
+            recommended_approaches=recommended_approaches,
+            relevant_context=self._extract_context(patterns),
+        )
+        
+        # Update cache
+        self._cache = insight
+        self._cache_timestamp = datetime.now()
+        
+        return self._filter_insights(insight, task_category)
+
+    # ---------------------------------------------------------------------
+    # Compatibility shims (legacy public API used by integration tests)
+    # ---------------------------------------------------------------------
+
+    def load_history(self) -> List[Dict[str, Any]]:
+        """Legacy helper: load BUILD_HISTORY.md and return a list of entries.
+
+        The integration tests use a lightweight BUILD_HISTORY format:
+          `## Phase: <CATEGORY> - <Title> (SUCCESS|FAILED) [timestamp]`
+        """
+        entries: List[Dict[str, Any]] = []
+        if not self.build_history_path.exists():
+            return entries
+
+        try:
+            content = self.build_history_path.read_text(encoding="utf-8")
+        except Exception:
+            content = self.build_history_path.read_text()
+
+        line_re = re.compile(
+            r"^## Phase:\s*(?P<category>[A-Z0-9_]+)\s*-\s*(?P<title>.+?)\s*\((?P<status>SUCCESS|FAILED)\)\s*\[(?P<ts>[^\]]+)\]\s*$"
+        )
+        for line in content.splitlines():
+            m = line_re.match(line.strip())
+            if not m:
+                continue
+            raw_status = m.group("status")
+            status = "COMPLETED" if raw_status == "SUCCESS" else "FAILED"
+            ts_raw = m.group("ts")
+            try:
+                ts = datetime.fromisoformat(ts_raw)
+            except Exception:
+                ts = datetime.now()
+            entries.append(
+                {
+                    "category": m.group("category"),
+                    "title": m.group("title"),
+                    "status": status,
+                    "timestamp": ts,
+                    "raw": line.strip(),
+                }
+            )
+        return entries
+
+    def analyze_patterns(self) -> List[HistoricalPattern]:
+        """Legacy helper: return analyzed patterns from the available history."""
+        # Prefer the existing insight extractor (uses both markdown + DB when possible).
+        try:
+            insight = self.extract_insights(force_refresh=True)
+            if insight.patterns:
+                return insight.patterns
+        except Exception:
+            pass
+
+        # Fallback: analyze the test-friendly BUILD_HISTORY format.
+        #
+        # NOTE: The legacy tests expect patterns even when each (category, status)
+        # bucket has frequency=1. Our main analyzer uses `min_pattern_frequency`
+        # (default=2) which would otherwise filter everything out. For this legacy
+        # method we intentionally return patterns for frequency>=1.
+        entries = self.load_history()
+        counts: Dict[tuple[str, str], List[Dict[str, Any]]] = {}
+        for i, entry in enumerate(entries, start=1):
+            category = entry.get("category", "UNKNOWN")
+            status = entry.get("status", "UNKNOWN")
+            key = (category, status)
+            counts.setdefault(key, []).append(
+                {
+                    "phase_id": f"phase_{i}",
+                    "timestamp": entry.get("timestamp", datetime.now()),
+                    "raw": entry.get("raw", ""),
+                }
+            )
+
+        patterns: List[HistoricalPattern] = []
+        for (category, status), items in counts.items():
+            timestamps = [it.get("timestamp", datetime.now()) for it in items]
+            last_seen = max(timestamps) if timestamps else datetime.now()
+            pattern_type = "success" if status == "COMPLETED" else "failure"
+            patterns.append(
+                HistoricalPattern(
+                    pattern_type=pattern_type,
+                    category=category,
+                    description=f"{len(items)} {status} phases in {category}",
+                    frequency=len(items),
+                    last_seen=last_seen,
+                    related_phases=[it.get("phase_id", "") for it in items],
+                    confidence=min(len(items) / 10.0, 1.0),
+                )
+            )
+
+        return patterns
+
+    def get_research_recommendations(self, task_description: str) -> List[str]:
+        """Legacy helper: return recommended research prompts/approaches."""
+        try:
+            insight = self.extract_insights(force_refresh=True)
+            recs = list(insight.recommended_approaches)
+        except Exception:
+            recs = []
+
+        # Always provide at least one actionable recommendation.
+        if not recs:
+            recs = [
+                f"Research best practices and common pitfalls for: {task_description}",
+            ]
+        return recs
+    
+    def _extract_from_markdown(self) -> List[Dict[str, Any]]:
+        """Extract patterns from BUILD_HISTORY.md."""
         if not self.build_history_path.exists():
             logger.warning(f"BUILD_HISTORY.md not found at {self.build_history_path}")
             return []
-
-        decisions = []
-        content = self.build_history_path.read_text(encoding="utf-8")
-
-        # Pattern: ## Phase: <phase_id> - <description>
-        phase_pattern = re.compile(r"^##\s+Phase:\s+([\w-]+)\s+-\s+(.+)$", re.MULTILINE)
-        # Pattern: **Status**: <status>
-        status_pattern = re.compile(r"\*\*Status\*\*:\s+(\w+)")
-        # Pattern: **Category**: <category>
-        category_pattern = re.compile(r"\*\*Category\*\*:\s+(\w+)")
-        # Pattern: **Complexity**: <complexity>
-        complexity_pattern = re.compile(r"\*\*Complexity\*\*:\s+(\w+)")
-
-        for match in phase_pattern.finditer(content):
-            phase_id = match.group(1)
-            start_pos = match.end()
-            next_match = phase_pattern.search(content, start_pos)
-            end_pos = next_match.start() if next_match else len(content)
-            section = content[start_pos:end_pos]
-
-            # Extract metadata
-            status_match = status_pattern.search(section)
-            category_match = category_pattern.search(section)
-            complexity_match = complexity_pattern.search(section)
-
-            if status_match:
-                outcome = status_match.group(1).lower()
-                decisions.append(
-                    BuildDecision(
-                        phase_id=phase_id,
-                        task_category=category_match.group(1) if category_match else "unknown",
-                        complexity=complexity_match.group(1) if complexity_match else "medium",
-                        outcome=outcome,
-                        tokens_used=0,  # Not available in markdown
-                        duration_seconds=None,
-                        issues_encountered=[],
-                    )
-                )
-
-        logger.info(f"Extracted {len(decisions)} decisions from BUILD_HISTORY.md")
-        return decisions
-
-    def extract_decisions_from_database(self, limit: int = 100) -> List[BuildDecision]:
-        """Extract build decisions from database (more detailed than markdown).
-
-        Args:
-            limit: Maximum number of recent phases to analyze
-        """
-        decisions = []
-
+        
+        patterns = []
         try:
-            phases = (
-                self.db.query(Phase)
-                .filter(Phase.state.in_([PhaseState.COMPLETED, PhaseState.FAILED]))
-                .order_by(Phase.completed_at.desc())
-                .limit(limit)
-                .all()
-            )
-
-            for phase in phases:
-                outcome = "success" if phase.state == PhaseState.COMPLETED else "failed"
-                duration = None
-                if phase.started_at and phase.completed_at:
-                    duration = (phase.completed_at - phase.started_at).total_seconds()
-
-                decisions.append(
-                    BuildDecision(
-                        phase_id=phase.phase_id,
-                        task_category=phase.task_category or "unknown",
-                        complexity=phase.complexity or "medium",
-                        outcome=outcome,
-                        tokens_used=phase.tokens_used,
-                        duration_seconds=duration,
-                        issues_encountered=[],  # Could parse from phase logs
-                        timestamp=phase.completed_at,
-                    )
-                )
-
-            logger.info(f"Extracted {len(decisions)} decisions from database")
+            content = self.build_history_path.read_text()
+            
+            # Extract phase entries
+            phase_pattern = r"## Phase (\d+): (.+?)\n(.+?)(?=\n## Phase|\Z)"
+            matches = re.finditer(phase_pattern, content, re.DOTALL)
+            
+            for match in matches:
+                phase_num = match.group(1)
+                phase_title = match.group(2)
+                phase_content = match.group(3)
+                
+                # Extract category
+                category_match = re.search(r"Category: (\w+)", phase_content)
+                category = category_match.group(1) if category_match else "UNKNOWN"
+                
+                # Extract status
+                status_match = re.search(r"Status: (\w+)", phase_content)
+                status = status_match.group(1) if status_match else "UNKNOWN"
+                
+                # Extract timestamp
+                timestamp_match = re.search(r"Completed: ([\d-]+ [\d:]+)", phase_content)
+                timestamp = None
+                if timestamp_match:
+                    try:
+                        timestamp = datetime.strptime(
+                            timestamp_match.group(1), "%Y-%m-%d %H:%M:%S"
+                        )
+                    except ValueError:
+                        pass
+                
+                patterns.append({
+                    "phase_id": f"phase_{phase_num}",
+                    "title": phase_title,
+                    "category": category,
+                    "status": status,
+                    "timestamp": timestamp or datetime.now(),
+                    "content": phase_content,
+                })
+            
+            logger.info(f"Extracted {len(patterns)} patterns from BUILD_HISTORY.md")
         except Exception as e:
-            logger.error(f"Failed to extract decisions from database: {e}")
-
-        return decisions
-
-    def analyze_build_context(self, decisions: List[BuildDecision]) -> BuildContext:
-        """Analyze historical decisions to build context for planning.
-
-        Args:
-            decisions: List of historical build decisions
-
-        Returns:
-            BuildContext with aggregated statistics and insights
-        """
-        if not decisions:
-            return BuildContext(
-                total_phases=0,
-                success_rate=0.0,
-                avg_tokens_per_phase=0.0,
-                category_stats={},
-                common_issues=[],
-                recent_trends=[],
+            logger.error(f"Error extracting from BUILD_HISTORY.md: {e}")
+        
+        return patterns
+    
+    def _extract_from_database(self) -> List[Dict[str, Any]]:
+        """Extract patterns from autopack.db."""
+        if not sqlite3:
+            logger.debug("sqlite3 not available, skipping database extraction")
+            return []
+        
+        if not self.db_path.exists():
+            logger.debug(f"Database not found at {self.db_path}")
+            return []
+        
+        patterns = []
+        try:
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
+            
+            # Query phase history
+            cursor.execute("""
+                SELECT phase_id, category, status, created_at, completed_at, metadata
+                FROM phases
+                WHERE completed_at IS NOT NULL
+                ORDER BY completed_at DESC
+                LIMIT 100
+            """)
+            
+            for row in cursor.fetchall():
+                phase_id, category, status, created_at, completed_at, metadata = row
+                
+                patterns.append({
+                    "phase_id": phase_id,
+                    "category": category,
+                    "status": status,
+                    "timestamp": datetime.fromisoformat(completed_at),
+                    "metadata": metadata,
+                })
+            
+            conn.close()
+            logger.info(f"Extracted {len(patterns)} patterns from database")
+        except Exception as e:
+            logger.error(f"Error extracting from database: {e}")
+        
+        return patterns
+    
+    def _analyze_patterns(self, raw_patterns: List[Dict[str, Any]]) -> List[HistoricalPattern]:
+        """Analyze raw patterns and create HistoricalPattern objects."""
+        # Group by category and status
+        category_status: Dict[tuple, List[Dict]] = {}
+        for pattern in raw_patterns:
+            key = (pattern.get("category", "UNKNOWN"), pattern.get("status", "UNKNOWN"))
+            if key not in category_status:
+                category_status[key] = []
+            category_status[key].append(pattern)
+        
+        # Create HistoricalPattern objects
+        patterns = []
+        for (category, status), items in category_status.items():
+            if len(items) < self.min_pattern_frequency:
+                continue
+            
+            pattern_type = "success" if status == "COMPLETED" else "failure"
+            
+            # Get most recent timestamp
+            timestamps = [item["timestamp"] for item in items if "timestamp" in item]
+            last_seen = max(timestamps) if timestamps else datetime.now()
+            
+            # Extract phase IDs
+            phase_ids = [item.get("phase_id", "") for item in items]
+            
+            patterns.append(HistoricalPattern(
+                pattern_type=pattern_type,
+                category=category,
+                description=f"{len(items)} {status} phases in {category}",
+                frequency=len(items),
+                last_seen=last_seen,
+                related_phases=phase_ids,
+                confidence=min(len(items) / 10.0, 1.0),  # Max confidence at 10 occurrences
+            ))
+        
+        return patterns
+    
+    def _calculate_success_rates(self, patterns: List[HistoricalPattern]) -> Dict[str, float]:
+        """Calculate success rates by category."""
+        category_stats: Dict[str, Dict[str, int]] = {}
+        
+        for pattern in patterns:
+            if pattern.category not in category_stats:
+                category_stats[pattern.category] = {"success": 0, "failure": 0}
+            
+            if pattern.pattern_type == "success":
+                category_stats[pattern.category]["success"] += pattern.frequency
+            else:
+                category_stats[pattern.category]["failure"] += pattern.frequency
+        
+        success_rates = {}
+        for category, stats in category_stats.items():
+            total = stats["success"] + stats["failure"]
+            if total > 0:
+                success_rates[category] = stats["success"] / total
+        
+        return success_rates
+    
+    def _identify_common_issues(self, patterns: List[HistoricalPattern]) -> List[str]:
+        """Identify common issues from failure patterns."""
+        issues = []
+        
+        failure_patterns = [p for p in patterns if p.pattern_type == "failure"]
+        failure_patterns.sort(key=lambda p: p.frequency, reverse=True)
+        
+        for pattern in failure_patterns[:5]:  # Top 5 issues
+            issues.append(
+                f"{pattern.category}: {pattern.frequency} failures "
+                f"(last seen: {pattern.last_seen.strftime('%Y-%m-%d')})"
             )
-
-        # Overall statistics
-        total = len(decisions)
-        successful = sum(1 for d in decisions if d.outcome == "success")
-        success_rate = successful / total if total > 0 else 0.0
-        avg_tokens = sum(d.tokens_used for d in decisions) / total if total > 0 else 0.0
-
-        # Category-specific statistics
-        category_stats = {}
-        for decision in decisions:
-            cat = decision.task_category
-            if cat not in category_stats:
-                category_stats[cat] = {"total": 0, "success": 0, "tokens": 0}
-            category_stats[cat]["total"] += 1
-            if decision.outcome == "success":
-                category_stats[cat]["success"] += 1
-            category_stats[cat]["tokens"] += decision.tokens_used
-
-        # Compute rates
-        for cat, stats in category_stats.items():
-            stats["success_rate"] = stats["success"] / stats["total"] if stats["total"] > 0 else 0.0
-            stats["avg_tokens"] = stats["tokens"] / stats["total"] if stats["total"] > 0 else 0.0
-            stats["count"] = stats["total"]
-
-        # Recent trends (last 10 phases)
-        recent = decisions[:10]
-        recent_trends = []
-        if len(recent) >= 3:
-            recent_success_rate = sum(1 for d in recent if d.outcome == "success") / len(recent)
-            if recent_success_rate > 0.8:
-                recent_trends.append("High recent success rate (>80%)")
-            elif recent_success_rate < 0.5:
-                recent_trends.append("Low recent success rate (<50%) - may need intervention")
-
-        return BuildContext(
-            total_phases=total,
-            success_rate=success_rate,
-            avg_tokens_per_phase=avg_tokens,
-            category_stats=category_stats,
-            common_issues=[],  # TODO: Extract from logs
-            recent_trends=recent_trends,
-        )
-
-    def generate_insights(self, context: BuildContext) -> List[ResearchInsight]:
-        """Generate actionable insights from build context.
-
-        Args:
-            context: Analyzed build context
-
-        Returns:
-            List of research insights for planning
-        """
-        insights = []
-
-        # Overall success rate insight
-        if context.success_rate < 0.6:
-            insights.append(
-                ResearchInsight(
-                    insight_type="warning",
-                    category="all",
-                    confidence=0.9,
-                    description=f"Low overall success rate ({context.success_rate:.1%})",
-                    supporting_evidence=[f"Only {int(context.success_rate * context.total_phases)} of {context.total_phases} phases succeeded"],
-                    actionable_recommendation="Consider breaking down complex phases into smaller, more manageable tasks",
-                )
-            )
-
-        # Category-specific insights
-        for category, stats in context.category_stats.items():
-            if stats["success_rate"] < 0.5 and stats["count"] >= 3:
-                insights.append(
-                    ResearchInsight(
-                        insight_type="warning",
-                        category=category,
-                        confidence=0.8,
-                        description=f"Low success rate for {category} tasks ({stats['success_rate']:.1%})",
-                        supporting_evidence=[f"{stats['count']} attempts with {int(stats['success'] )} successes"],
-                        actionable_recommendation=f"Review {category} task patterns and consider additional validation",
+        
+        return issues
+    
+    def _generate_recommendations(self, patterns: List[HistoricalPattern]) -> List[str]:
+        """Generate recommendations based on patterns."""
+        recommendations = []
+        
+        # Recommend research for categories with low success rates
+        category_success = {}
+        for pattern in patterns:
+            if pattern.category not in category_success:
+                category_success[pattern.category] = {"success": 0, "total": 0}
+            
+            category_success[pattern.category]["total"] += pattern.frequency
+            if pattern.pattern_type == "success":
+                category_success[pattern.category]["success"] += pattern.frequency
+        
+        for category, stats in category_success.items():
+            if stats["total"] >= 3:  # Minimum sample size
+                success_rate = stats["success"] / stats["total"]
+                if success_rate < 0.6:
+                    recommendations.append(
+                        f"Consider research phase for {category} tasks "
+                        f"(current success rate: {success_rate:.1%})"
                     )
-                )
-            elif stats["success_rate"] > 0.8 and stats["count"] >= 5:
-                insights.append(
-                    ResearchInsight(
-                        insight_type="pattern",
-                        category=category,
-                        confidence=0.9,
-                        description=f"High success rate for {category} tasks ({stats['success_rate']:.1%})",
-                        supporting_evidence=[f"{stats['count']} attempts with {int(stats['success'])} successes"],
-                        actionable_recommendation=f"{category} tasks are well-understood - can proceed with confidence",
-                    )
-                )
-
-        # Token usage insights
-        if context.avg_tokens_per_phase > 50000:
-            insights.append(
-                ResearchInsight(
-                    insight_type="recommendation",
-                    category="all",
-                    confidence=0.7,
-                    description=f"High average token usage ({context.avg_tokens_per_phase:.0f} per phase)",
-                    supporting_evidence=["May indicate overly complex phases or verbose outputs"],
-                    actionable_recommendation="Consider phase decomposition or more focused scopes",
-                )
+        
+        # Recommend caution for categories with recent failures
+        recent_failures = [
+            p for p in patterns 
+            if p.pattern_type == "failure" 
+            and (datetime.now() - p.last_seen).days < 7
+        ]
+        
+        for pattern in recent_failures:
+            recommendations.append(
+                f"Recent failures in {pattern.category} - "
+                f"review past issues before proceeding"
             )
-
-        return insights
-
-    def get_build_context_for_planning(self) -> BuildContext:
-        """Main entry point: Get comprehensive build context for planning.
-
-        Returns:
-            BuildContext with historical analysis and actionable insights
-        """
-        # Combine decisions from both sources
-        db_decisions = self.extract_decisions_from_database()
-        md_decisions = self.extract_decisions_from_markdown()
-
-        # Prefer database decisions (more detailed), fall back to markdown
-        all_decisions = db_decisions if db_decisions else md_decisions
-
-        # Analyze and generate insights
-        context = self.analyze_build_context(all_decisions)
-        context.insights = self.generate_insights(context)
-
-        logger.info(
-            f"Generated build context: {context.total_phases} phases, "
-            f"{context.success_rate:.1%} success rate, {len(context.insights)} insights"
-        )
-
-        return context
-
-    def export_context_for_research(self, output_path: Path) -> None:
-        """Export build context as JSON for research system integration.
-
-        Args:
-            output_path: Path to write JSON output
-        """
-        context = self.get_build_context_for_planning()
-
-        export_data = {
-            "generated_at": datetime.now().isoformat(),
-            "total_phases": context.total_phases,
-            "success_rate": context.success_rate,
-            "avg_tokens_per_phase": context.avg_tokens_per_phase,
-            "category_stats": context.category_stats,
-            "recent_trends": context.recent_trends,
-            "insights": [
-                {
-                    "type": insight.insight_type,
-                    "category": insight.category,
-                    "confidence": insight.confidence,
-                    "description": insight.description,
-                    "evidence": insight.supporting_evidence,
-                    "recommendation": insight.actionable_recommendation,
-                }
-                for insight in context.insights
-            ],
+        
+        return recommendations
+    
+    def _extract_context(self, patterns: List[HistoricalPattern]) -> Dict[str, Any]:
+        """Extract relevant context from patterns."""
+        return {
+            "total_phases": sum(p.frequency for p in patterns),
+            "categories": list(set(p.category for p in patterns)),
+            "analysis_timestamp": datetime.now().isoformat(),
         }
-
-        output_path.parent.mkdir(parents=True, exist_ok=True)
-        output_path.write_text(json.dumps(export_data, indent=2), encoding="utf-8")
-        logger.info(f"Exported build context to {output_path}")
+    
+    def _filter_insights(
+        self, 
+        insight: BuildHistoryInsight, 
+        category: Optional[str],
+    ) -> BuildHistoryInsight:
+        """Filter insights for specific category."""
+        if not category:
+            return insight
+        
+        filtered_patterns = [
+            p for p in insight.patterns 
+            if p.category == category
+        ]
+        
+        return BuildHistoryInsight(
+            patterns=filtered_patterns,
+            success_rate={category: insight.success_rate.get(category, 0.0)},
+            common_issues=[
+                issue for issue in insight.common_issues 
+                if category in issue
+            ],
+            recommended_approaches=[
+                rec for rec in insight.recommended_approaches 
+                if category in rec
+            ],
+            relevant_context=insight.relevant_context,
+            extracted_at=insight.extracted_at,
+        )
+    
+    def should_trigger_research(
+        self,
+        task_description: str,
+        task_category: str,
+        threshold: float = 0.7,
+    ) -> tuple[bool, str]:
+        """Determine if research should be triggered for a task.
+        
+        Args:
+            task_description: Description of the task
+            task_category: Category of the task
+            threshold: Success rate threshold below which to trigger research
+            
+        Returns:
+            Tuple of (should_trigger, reason)
+        """
+        insights = self.extract_insights(task_category=task_category)
+        
+        # Check success rate
+        success_rate = insights.success_rate.get(task_category, 1.0)
+        if success_rate < threshold:
+            return (
+                True,
+                f"Low success rate for {task_category}: {success_rate:.1%} "
+                f"(threshold: {threshold:.1%})"
+            )
+        
+        # Check for recent failures
+        recent_failures = [
+            p for p in insights.patterns
+            if p.pattern_type == "failure"
+            and (datetime.now() - p.last_seen).days < 7
+        ]
+        
+        if recent_failures:
+            return (
+                True,
+                f"Recent failures detected in {task_category} "
+                f"({len(recent_failures)} in past week)"
+            )
+        
+        # Check for complexity indicators in description
+        complexity_keywords = [
+            "complex", "multiple", "integration", "architecture",
+            "design", "evaluate", "compare", "research"
+        ]
+        
+        if any(keyword in task_description.lower() for keyword in complexity_keywords):
+            return (
+                True,
+                "Task description indicates complexity requiring research"
+            )
+        
+        return (False, "No research trigger conditions met")

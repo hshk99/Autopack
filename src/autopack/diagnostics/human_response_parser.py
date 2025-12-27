@@ -16,9 +16,11 @@ from typing import List, Optional, Dict, Any, Tuple
 from enum import Enum
 import re
 import json
+from datetime import datetime
+from pathlib import Path
 
 from .evidence_requests import (
-    EvidenceRequest,
+    StructuredEvidenceRequest,
     EvidenceRequestBatch,
     EvidenceType,
     EvidencePriority,
@@ -446,25 +448,156 @@ class HumanResponseParser:
         result.missing_evidence = list(all_indices - addressed_indices)
 
 
-def parse_human_response(
+def parse_human_evidence_response(
     response_text: str,
     original_requests: Optional[EvidenceRequestBatch] = None,
-    max_tokens: int = 2000
+    max_tokens: int = 2000,
 ) -> Tuple[str, ParsedResponseBatch]:
-    """Convenience function to parse human response and get prompt context.
-    
-    Args:
-        response_text: The raw response from human
-        original_requests: The original evidence request batch
-        max_tokens: Maximum tokens for the context output
-    
-    Returns:
-        Tuple of (context_string, parsed_batch)
-    """
+    """Parse an evidence response (Stage 2) and return (context, parsed_batch)."""
     parser = HumanResponseParser()
     parsed = parser.parse_response(response_text, original_requests)
     context = parsed.get_context_for_prompt(max_tokens)
     return context, parsed
+
+
+# -------------------------------------------------------------------------------------------------
+# Legacy / test-facing API (used by tests/autopack/diagnostics/test_human_response_parser.py)
+# -------------------------------------------------------------------------------------------------
+
+
+@dataclass
+class HumanResponse:
+    phase_id: str
+    response_text: str
+    timestamp: datetime
+    metadata: Optional[Dict[str, Any]] = None
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "phase_id": self.phase_id,
+            "response_text": self.response_text,
+            "timestamp": self.timestamp.replace(microsecond=0).isoformat(),
+            "metadata": self.metadata,
+        }
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "HumanResponse":
+        ts = data.get("timestamp")
+        dt = datetime.fromisoformat(ts) if isinstance(ts, str) else datetime.utcnow()
+        return cls(
+            phase_id=data.get("phase_id", "unknown"),
+            response_text=data.get("response_text", ""),
+            timestamp=dt,
+            metadata=data.get("metadata"),
+        )
+
+
+def parse_human_response(
+    phase_id: str,
+    response_text: str,
+    metadata: Optional[Dict[str, Any]] = None,
+) -> HumanResponse:
+    """Parse a human response from text (plain or JSON with an 'answer' field)."""
+    text = (response_text or "").strip()
+
+    merged_meta: Dict[str, Any] = {}
+    if metadata:
+        merged_meta.update(metadata)
+
+    if text.startswith("{") or text.startswith("["):
+        try:
+            data = json.loads(text)
+            if isinstance(data, dict) and "answer" in data:
+                answer = str(data.get("answer", "")).strip()
+                extra = {k: v for k, v in data.items() if k != "answer"}
+                merged_meta.update(extra)
+                return HumanResponse(phase_id=phase_id, response_text=answer, timestamp=datetime.utcnow(), metadata=merged_meta or None)
+        except Exception:
+            pass
+
+    return HumanResponse(phase_id=phase_id, response_text=text.strip(), timestamp=datetime.utcnow(), metadata=merged_meta or None)
+
+
+def format_response_for_context(response: HumanResponse) -> str:
+    """Format a response as a compact context block."""
+    ts = response.timestamp.strftime("%Y-%m-%d %H:%M UTC")
+    lines = [f"💬 HUMAN GUIDANCE [{response.phase_id}]", f"Response: {response.response_text}", f"{ts}"]
+    if response.metadata:
+        if "reasoning" in response.metadata:
+            lines.append(f"Reasoning: {response.metadata['reasoning']}")
+        if "confidence" in response.metadata:
+            lines.append(f"Confidence: {response.metadata['confidence']}")
+    return "\n".join(lines)
+
+
+def inject_response_into_context(original_context: str, response: HumanResponse) -> str:
+    """Inject formatted guidance at the top of an existing context string."""
+    formatted = format_response_for_context(response)
+    separator = "─" * 40
+    base = original_context or ""
+    if not base:
+        return f"{formatted}\n{separator}\n"
+    return f"{formatted}\n{separator}\n{base}"
+
+
+def extract_choice_number(text: str) -> Optional[int]:
+    """Extract a 1-based choice number from a response string."""
+    if text is None:
+        return None
+    s = str(text).strip()
+    if not s:
+        return None
+    # Plain integer
+    if re.fullmatch(r"\d+", s):
+        return int(s)
+    m = re.search(r"(?i)\b(option|choice)\s*(\d+)\b", s)
+    if m:
+        return int(m.group(2))
+    m = re.match(r"\s*(\d+)\s*[:\-]", s)
+    if m:
+        return int(m.group(1))
+    m = re.match(r"\s*(\d+)\b", s)
+    if m:
+        return int(m.group(1))
+    return None
+
+
+def validate_response_for_decision(response: HumanResponse, num_options: int) -> Tuple[bool, Optional[str]]:
+    choice = extract_choice_number(response.response_text)
+    if choice is None:
+        return False, "Response must include a valid choice number."
+    if choice < 1 or choice > num_options:
+        return False, f"Choice {choice} out of range (1-{num_options})."
+    return True, None
+
+
+def save_human_response(response: HumanResponse, filepath: str) -> None:
+    Path(filepath).write_text(json.dumps(response.to_dict(), indent=2), encoding="utf-8")
+
+
+def load_human_response(filepath: str) -> HumanResponse:
+    data = json.loads(Path(filepath).read_text(encoding="utf-8"))
+    return HumanResponse.from_dict(data)
+
+
+def create_response_from_cli_args(
+    phase_id: str,
+    response_parts: List[str],
+    metadata: Optional[Dict[str, Any]] = None,
+) -> HumanResponse:
+    return HumanResponse(
+        phase_id=phase_id,
+        response_text=" ".join(response_parts) if response_parts else "",
+        timestamp=datetime.utcnow(),
+        metadata=metadata,
+    )
+
+
+def format_response_summary(response: HumanResponse, max_length: int = 120) -> str:
+    base = f"[{response.phase_id}] {response.response_text}"
+    if len(base) <= max_length:
+        return base
+    return base[: max(0, max_length - 3)] + "..."
 
 
 def compress_evidence_for_prompt(

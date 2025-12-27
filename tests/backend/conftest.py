@@ -5,14 +5,18 @@ from pathlib import Path
 
 import pytest
 
-# Add project root and src to sys.path to enable absolute imports
-# This must happen before any backend imports
+# Add project root and src to sys.path to enable absolute imports.
+# This must happen before any backend imports.
+#
+# IMPORTANT: Do NOT add `src/backend` directly to sys.path.
+# Doing so makes the backend importable both as `backend.*` and `src.backend.*`,
+# which can cause module duplication and SQLAlchemy model/table re-definition
+# errors during pytest collection.
 project_root = Path(__file__).resolve().parent.parent.parent
 src_path = project_root / "src"
-backend_path = src_path / "backend"
 
 # Insert paths in reverse order of priority (last inserted = highest priority)
-for path in (project_root, src_path, backend_path):
+for path in (project_root, src_path):
     path_str = str(path)
     if path_str not in sys.path:
         sys.path.insert(0, path_str)
@@ -21,18 +25,8 @@ for path in (project_root, src_path, backend_path):
 try:
     from fastapi.testclient import TestClient
     
-    # Try importing backend.main with proper error handling
-    try:
-        from backend.main import app
-    except ImportError:
-        # Fallback: try importing from src.backend if backend package structure exists
-        try:
-            from src.backend.main import app
-        except ImportError:
-            raise ImportError(
-                "Cannot import backend.main. Ensure backend package exists at src/backend/ "
-                "with __init__.py and main.py files."
-            )
+    # Prefer the canonical import path for this repo layout.
+    from src.backend.main import app
     
     BACKEND_AVAILABLE = True
     

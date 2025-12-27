@@ -15,6 +15,7 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import List, Optional, Dict, Any
 import json
+from pathlib import Path
 
 
 class EvidenceType(Enum):
@@ -43,8 +44,8 @@ class EvidencePriority(Enum):
 
 
 @dataclass
-class EvidenceRequest:
-    """A single evidence request.
+class StructuredEvidenceRequest:
+    """A single structured evidence request.
     
     Attributes:
         evidence_type: The type of evidence being requested
@@ -97,15 +98,15 @@ class EvidenceRequestBatch:
         deadline_hint: Optional deadline for providing evidence
     """
     phase_id: str
-    requests: List[EvidenceRequest] = field(default_factory=list)
+    requests: List[StructuredEvidenceRequest] = field(default_factory=list)
     max_response_tokens: int = 2000  # Keep responses compact
     deadline_hint: Optional[str] = None
     
-    def add_request(self, request: EvidenceRequest) -> None:
+    def add_request(self, request: StructuredEvidenceRequest) -> None:
         """Add a request to the batch."""
         self.requests.append(request)
     
-    def get_sorted_requests(self) -> List[EvidenceRequest]:
+    def get_sorted_requests(self) -> List[StructuredEvidenceRequest]:
         """Get requests sorted by priority (critical first)."""
         return sorted(self.requests, key=lambda r: r.priority.value)
     
@@ -155,7 +156,7 @@ class EvidenceRequestBatch:
             deadline_hint=data.get("deadline_hint"),
         )
         for req_data in data.get("requests", []):
-            batch.add_request(EvidenceRequest(
+            batch.add_request(StructuredEvidenceRequest(
                 evidence_type=EvidenceType(req_data["type"]),
                 description=req_data["description"],
                 path_hint=req_data.get("path_hint"),
@@ -184,7 +185,7 @@ class EvidenceRequestBuilder:
     def request_log(self, description: str, path: Optional[str] = None,
                     priority: EvidencePriority = EvidencePriority.MEDIUM) -> "EvidenceRequestBuilder":
         """Request a log file."""
-        self.batch.add_request(EvidenceRequest(
+        self.batch.add_request(StructuredEvidenceRequest(
             evidence_type=EvidenceType.LOG_FILE,
             description=description,
             path_hint=path,
@@ -196,7 +197,7 @@ class EvidenceRequestBuilder:
     def request_error(self, description: str,
                       priority: EvidencePriority = EvidencePriority.HIGH) -> "EvidenceRequestBuilder":
         """Request an error message or stack trace."""
-        self.batch.add_request(EvidenceRequest(
+        self.batch.add_request(StructuredEvidenceRequest(
             evidence_type=EvidenceType.ERROR_MESSAGE,
             description=description,
             priority=priority,
@@ -207,7 +208,7 @@ class EvidenceRequestBuilder:
     def request_config(self, description: str, path: Optional[str] = None,
                        priority: EvidencePriority = EvidencePriority.MEDIUM) -> "EvidenceRequestBuilder":
         """Request a configuration file."""
-        self.batch.add_request(EvidenceRequest(
+        self.batch.add_request(StructuredEvidenceRequest(
             evidence_type=EvidenceType.CONFIG_FILE,
             description=description,
             path_hint=path,
@@ -219,7 +220,7 @@ class EvidenceRequestBuilder:
     def request_command_output(self, command: str, description: str,
                                priority: EvidencePriority = EvidencePriority.MEDIUM) -> "EvidenceRequestBuilder":
         """Request output from a command."""
-        self.batch.add_request(EvidenceRequest(
+        self.batch.add_request(StructuredEvidenceRequest(
             evidence_type=EvidenceType.COMMAND_OUTPUT,
             description=description,
             path_hint=f"Run: {command}",
@@ -231,7 +232,7 @@ class EvidenceRequestBuilder:
     def request_file(self, description: str, path: str,
                      priority: EvidencePriority = EvidencePriority.MEDIUM) -> "EvidenceRequestBuilder":
         """Request content of a specific file."""
-        self.batch.add_request(EvidenceRequest(
+        self.batch.add_request(StructuredEvidenceRequest(
             evidence_type=EvidenceType.FILE_CONTENT,
             description=description,
             path_hint=path,
@@ -243,7 +244,7 @@ class EvidenceRequestBuilder:
     def request_env_var(self, var_name: str, description: str,
                         priority: EvidencePriority = EvidencePriority.LOW) -> "EvidenceRequestBuilder":
         """Request an environment variable value."""
-        self.batch.add_request(EvidenceRequest(
+        self.batch.add_request(StructuredEvidenceRequest(
             evidence_type=EvidenceType.ENVIRONMENT_VAR,
             description=description,
             path_hint=var_name,
@@ -255,7 +256,7 @@ class EvidenceRequestBuilder:
     def request_test_output(self, description: str, test_command: Optional[str] = None,
                             priority: EvidencePriority = EvidencePriority.HIGH) -> "EvidenceRequestBuilder":
         """Request test output."""
-        self.batch.add_request(EvidenceRequest(
+        self.batch.add_request(StructuredEvidenceRequest(
             evidence_type=EvidenceType.TEST_OUTPUT,
             description=description,
             path_hint=test_command,
@@ -269,7 +270,7 @@ class EvidenceRequestBuilder:
                        priority: EvidencePriority = EvidencePriority.MEDIUM,
                        format_hint: Optional[str] = None) -> "EvidenceRequestBuilder":
         """Request custom evidence."""
-        self.batch.add_request(EvidenceRequest(
+        self.batch.add_request(StructuredEvidenceRequest(
             evidence_type=evidence_type,
             description=description,
             path_hint=path_hint,
@@ -389,3 +390,154 @@ def create_evidence_request_for_failure(
     builder.set_max_tokens(1500)  # Keep responses compact
     
     return builder.build()
+
+
+# -------------------------------------------------------------------------------------------------
+# Legacy / convenience API (unit tests + CLI tooling)
+# -------------------------------------------------------------------------------------------------
+
+
+class EvidenceRequestType(Enum):
+    """Legacy evidence request types used by older tooling/tests."""
+
+    CLARIFICATION = "clarification"
+    EXAMPLE = "example"
+    CONTEXT = "context"
+    VALIDATION = "validation"
+    DECISION = "decision"
+
+
+@dataclass
+class EvidenceRequest:
+    """Legacy EvidenceRequest used by tests."""
+
+    phase_id: str
+    request_type: EvidenceRequestType
+    question: str
+    context: str
+    options: Optional[List[str]] = None
+    blocking: bool = True
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "phase_id": self.phase_id,
+            "request_type": self.request_type.value,
+            "question": self.question,
+            "context": self.context,
+            "options": self.options,
+            "blocking": self.blocking,
+        }
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "EvidenceRequest":
+        return cls(
+            phase_id=data["phase_id"],
+            request_type=EvidenceRequestType(data["request_type"]),
+            question=data.get("question", ""),
+            context=data.get("context", ""),
+            options=data.get("options"),
+            blocking=bool(data.get("blocking", True)),
+        )
+
+
+def format_evidence_request(request: EvidenceRequest) -> str:
+    header = f"🔍 EVIDENCE REQUEST [{request.phase_id}]"
+    lines: List[str] = [
+        header,
+        f"Type: {request.request_type.value}",
+        f"Question: {request.question}",
+        f"Context: {request.context}",
+    ]
+    # Tests expect "Options:" to appear even when options is an empty list.
+    if request.options is not None:
+        lines.append("Options:")
+        for idx, opt in enumerate(request.options or [], 1):
+            lines.append(f"{idx}. {opt}")
+
+    if request.blocking:
+        lines.append("⏸️ BLOCKING")
+    else:
+        lines.append("⚠️ NON-BLOCKING (best guess if no response)")
+
+    return "\n".join(lines)
+
+
+def format_multiple_requests(requests: List[EvidenceRequest]) -> str:
+    if not requests:
+        return ""
+    lines: List[str] = [
+        "📋 EVIDENCE REQUESTS",
+        "Reply with: autopack respond ...",
+        "",
+    ]
+    total = len(requests)
+    for i, req in enumerate(requests, 1):
+        lines.append(f"[Request {i}/{total}]")
+        lines.append(format_evidence_request(req))
+        lines.append("")
+    return "\n".join(lines).rstrip()
+
+
+def create_clarification_request(
+    phase_id: str,
+    question: str,
+    context: str,
+    blocking: bool = True,
+) -> EvidenceRequest:
+    return EvidenceRequest(
+        phase_id=phase_id,
+        request_type=EvidenceRequestType.CLARIFICATION,
+        question=question,
+        context=context,
+        blocking=blocking,
+    )
+
+
+def create_decision_request(
+    phase_id: str,
+    question: str,
+    options: List[str],
+    context: str,
+    blocking: bool = True,
+) -> EvidenceRequest:
+    return EvidenceRequest(
+        phase_id=phase_id,
+        request_type=EvidenceRequestType.DECISION,
+        question=question,
+        context=context,
+        options=options,
+        blocking=blocking,
+    )
+
+
+def create_example_request(
+    phase_id: str,
+    question: str,
+    context: str,
+    blocking: bool = False,
+) -> EvidenceRequest:
+    return EvidenceRequest(
+        phase_id=phase_id,
+        request_type=EvidenceRequestType.EXAMPLE,
+        question=question,
+        context=context,
+        blocking=blocking,
+    )
+
+
+def save_evidence_requests(requests: List[EvidenceRequest], filepath: str) -> None:
+    Path(filepath).write_text(
+        json.dumps([r.to_dict() for r in requests], indent=2),
+        encoding="utf-8",
+    )
+
+
+def load_evidence_requests(filepath: str) -> List[EvidenceRequest]:
+    path = Path(filepath)
+    if not path.exists():
+        return []
+    raw = path.read_text(encoding="utf-8").strip()
+    if not raw:
+        return []
+    data = json.loads(raw)
+    return [EvidenceRequest.from_dict(item) for item in data]

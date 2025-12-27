@@ -37,7 +37,13 @@ class RedditGatherer:
         subreddit = self.reddit.subreddit(subreddit_name)
         return [post for post in subreddit.hot(limit=10)]
 
-gatherer = RedditGatherer(client_id='your_client_id', client_secret='your_client_secret', user_agent='your_user_agent')
-posts = gatherer.fetch_subreddit_data('python')
-for post in posts:
-    print(post.title)
+if __name__ == "__main__":
+    # Example usage (guarded to avoid side effects on import / during pytest collection)
+    gatherer = RedditGatherer(
+        client_id="your_client_id",
+        client_secret="your_client_secret",
+        user_agent="your_user_agent",
+    )
+    posts = gatherer.fetch_subreddit_data("python") or []
+    for post in posts:
+        print(post.title)

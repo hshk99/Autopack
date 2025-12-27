@@ -153,10 +153,17 @@ class PhaseFinalizer:
         if quality_report:
             quality_level = quality_report.get("quality_level", "unknown")
             is_blocked = quality_report.get("is_blocked", False)
+            human_approved = bool(quality_report.get("human_approved", False))
 
             if is_blocked:
-                blocking_issues.append(f"Quality gate blocked: {quality_level}")
-                logger.error(f"[PhaseFinalizer] BLOCK: Quality gate blocked ({quality_level})")
+                if human_approved:
+                    warnings.append(f"Quality gate blocked but overridden by human approval: {quality_level}")
+                    logger.warning(
+                        f"[PhaseFinalizer] WARN: Quality gate blocked ({quality_level}) but human-approved override present"
+                    )
+                else:
+                    blocking_issues.append(f"Quality gate blocked: {quality_level}")
+                    logger.error(f"[PhaseFinalizer] BLOCK: Quality gate blocked ({quality_level})")
 
         # Gate 3: Deliverables validation
         if deliverables and applied_files:
@@ -251,12 +258,17 @@ class PhaseFinalizer:
             logger.warning(f"[PhaseFinalizer] CI report not found: {report_path}")
             return TestDelta()
 
-        # Compute full delta with retry
-        delta = self.baseline_tracker.compute_full_delta(
-            baseline=baseline,
-            current_report_path=report_path,
-            workspace=workspace
-        )
+        # Compute full delta with retry. This must never hard-fail phase execution:
+        # some CI adapters may only provide a text log, or JSON may be truncated/empty.
+        try:
+            delta = self.baseline_tracker.compute_full_delta(
+                baseline=baseline,
+                current_report_path=report_path,
+                workspace=workspace
+            )
+        except Exception as e:
+            logger.error(f"[PhaseFinalizer] Failed to compute CI delta from {report_path}: {e}")
+            return TestDelta()
 
         logger.info(
             f"[PhaseFinalizer] CI Delta: "

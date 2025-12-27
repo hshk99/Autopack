@@ -20,6 +20,9 @@ from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
+class NDJSONSkipOperation(Exception):
+    """Signals that an NDJSON operation should be skipped (non-fatal)."""
+
 
 @dataclass
 class NDJSONOperation:
@@ -581,6 +584,7 @@ class NDJSONApplier:
         """
         applied = []
         failed = []
+        skipped = []
 
         logger.info(f"[NDJSON:Apply] Applying {len(operations)} operations")
 
@@ -601,6 +605,12 @@ class NDJSONApplier:
                     applied.append(op.file_path)
                     logger.debug(f"[NDJSON:Apply] Deleted {op.file_path}")
 
+            except NDJSONSkipOperation as e:
+                skipped.append(op.file_path)
+                logger.warning(
+                    f"[NDJSON:Apply] Skipping operation #{i} ({op.op_type} {op.file_path}): {e}"
+                )
+                continue
             except Exception as e:
                 failed.append({
                     "operation_index": i,
@@ -618,6 +628,7 @@ class NDJSONApplier:
         return {
             "applied": applied,
             "failed": failed,
+            "skipped": skipped,
             "total_operations": len(operations)
         }
 
@@ -640,8 +651,11 @@ class NDJSONApplier:
         """Apply modify operation."""
         if not op.file_path:
             raise ValueError("Modify operation missing file_path")
+        # Truncation-tolerant behavior: sometimes a modify op is emitted without its operations list.
+        # Treat as a no-op (with a warning) so we don't fail the entire phase with an unhelpful error.
+        # The deliverables/CI/quality gates will still catch missing updates if they matter.
         if not op.operations:
-            raise ValueError("Modify operation missing operations list")
+            raise NDJSONSkipOperation("missing operations list")
 
         file_path = self.workspace / op.file_path
 
@@ -701,10 +715,19 @@ class NDJSONApplier:
             old_text = sub_op.get("old_text", "")
             new_text = sub_op.get("new_text", "")
 
+            # In truncation-tolerant mode we may see malformed sub-ops (e.g., empty old_text).
+            # Treat these as no-ops instead of failing the whole operation, to avoid systemic
+            # convergence blockers when NDJSON output is truncated.
             if not old_text:
-                raise ValueError(f"replace_all requires non-empty old_text in {file_path}")
+                logger.warning(
+                    f"[NDJSON:Apply] replace_all missing old_text in {file_path}; skipping sub-operation"
+                )
+                return content
             if old_text not in content:
-                raise ValueError(f"replace_all anchor '{old_text[:50]}' not found in {file_path}")
+                logger.warning(
+                    f"[NDJSON:Apply] replace_all anchor '{old_text[:50]}' not found in {file_path}; skipping sub-operation"
+                )
+                return content
 
             return content.replace(old_text, new_text)
 

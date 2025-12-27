@@ -72,6 +72,13 @@ Each entry includes:
   - Validated in repeated `research-system-v9` single-batch drains: operations are recovered/applied under truncation, shifting the dominant blocker to deliverables truncation/partial output (expected).
   - **Commit**: `b0fe3cc6` — `src/autopack/ndjson_format.py`, `tests/test_ndjson_format.py`
 
+- **research-system-v12 CI collection unblocked (legacy research API compatibility)**:
+  - Added back-compat exports/methods so historical runs and tests no longer fail at collection time (`ResearchHookManager`, `ResearchPhaseConfig`, `ReviewConfig`, plus `BuildHistoryIntegrator.load_history()` etc.).
+  - Verification: `pytest` subset for research hooks + end-to-end integration + review workflow now passes (`28 passed`).
+
+- **Windows-friendly DB/SOT sync**:
+  - Hardened `scripts/tidy/db_sync.py` console output to avoid `UnicodeEncodeError` on non-UTF8 Windows code pages.
+
 - **Convergence hardening (research-system-v9)**:
   - Deliverables validation now supports **multi-attempt convergence** by counting required deliverables already present on disk.
   - Deliverables-aware scope inference now **flattens bucketed deliverables dicts** (avoids accidental `code/tests/docs` bucket roots being treated as deliverables/scope).
@@ -79,6 +86,15 @@ Each entry includes:
   - `governed_apply` now treats the NDJSON “Operations Applied …” header as synthetic and skips `git apply` (operations already applied), while still enforcing scope/protected-path rules.
   - Doctor `execute_fix` of type `git` is blocked for `project_build` to prevent destructive resets/cleans; action is recorded in the debug journal when blocked.
   - CI results now always include `report_path` (persisted CI log) to support PhaseFinalizer and later forensic review.
+
+**Additional Phase 3 Enhancements (2025-12-27, drain reliability + CI correctness)**:
+- **Drain reliability hardening**: `scripts/drain_queued_phases.py` now defaults to an ephemeral `AUTOPACK_API_URL` (free localhost port) when not explicitly set, preventing silent API/DB mismatches where DB shows queued phases but the executor sees none.
+- **API run serialization for tierless runs**: `src/autopack/schemas.py` `RunResponse` now includes a top-level `phases` list so executor selection works even when Tier rows are missing (patch-scoped/legacy runs).
+- **CI artifact correctness for PhaseFinalizer**:
+  - `src/autopack/autonomous_executor.py` pytest CI now emits a structured pytest-json-report (`pytest_<phase_id>.json`) and returns it as `report_path` (with `log_path` preserved).
+  - `src/autopack/phase_finalizer.py` delta computation is fail-safe (never crashes the phase on JSON decode issues).
+  - Regression test: `tests/test_phase_finalizer.py::test_assess_completion_ci_report_not_json_does_not_crash`.
+- **execute_fix traceability**: `src/autopack/archive_consolidator.py` now auto-creates missing issue headers when appending a fix, and records `run_id` / `phase_id` / `outcome` for blocked actions.
 
 ---
 

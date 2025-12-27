@@ -79,6 +79,12 @@ Autopack is a framework for orchestrating autonomous AI agents (Builder and Audi
   - P10 `TOKEN_ESCALATION` no longer triggers Doctor/replan; retries remain stateful and deterministic.
   - CI logs now always persist a `report_path` to support PhaseFinalizer and later forensic review.
 
+### BUILD-129 Phase 3 Drain Reliability + CI Artifact Correctness + execute_fix Traceability (2025-12-27) - ✅ COMPLETE (Systemic)
+- **Drain reliability**: `scripts/drain_queued_phases.py` defaults to an ephemeral `AUTOPACK_API_URL` (free localhost port) when not explicitly set, preventing silent API/DB mismatches that stall draining.
+- **Run serialization**: `RunResponse` includes a top-level `phases` list so queued work is visible even when Tier rows are missing (patch-scoped/legacy runs).
+- **CI artifact correctness**: pytest CI now emits a pytest-json-report file and returns it as `report_path`; PhaseFinalizer is fail-safe if parsing fails.
+- **execute_fix traceability**: blocked actions are always recorded (issue auto-created if needed) and include `run_id` / `phase_id` / `outcome`.
+
 ### BUILD-129 Phase 3 DOC_SYNTHESIS Implementation (2025-12-24) - ✅ COMPLETE
 **Phase-Based Documentation Estimation** - 76.4% improvement in documentation token prediction accuracy
 - **Problem Solved**: Documentation tasks severely underestimated (SMAPE 103.6% on real sample: predicted 5,200 vs actual 16,384 tokens)
@@ -1437,10 +1443,10 @@ replan:
 ## Project Status
 
 <!-- SOT_SUMMARY_START -->
-**Last Updated**: 2025-12-13 19:40
+**Last Updated**: 2025-12-27 14:07
 
-- **Builds Completed**: 33
-- **Latest Build**: ### BUILD-001 | 2025-12-13T00:00 | Autonomous Tidy Execution Summary
+- **Builds Completed**: 80
+- **Latest Build**: ### BUILD-100 | 2025-12-20T20:26 | Hotfix | Executor startup fix: DiagnosticsAgent import path
 - **Architecture Decisions**: 0
 - **Debugging Sessions**: 0
 

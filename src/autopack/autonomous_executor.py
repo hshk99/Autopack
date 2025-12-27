@@ -4890,6 +4890,7 @@ Just the new description that should replace the current one while preserving th
                     self._send_deletion_notification(phase_id, quality_report)
 
             # Check if blocked (due to CI failure or other issues)
+            approval_granted = False
             if quality_report.is_blocked():
                 logger.warning(f"[{phase_id}] Phase BLOCKED by quality gate")
                 for issue in quality_report.issues:
@@ -4929,7 +4930,10 @@ Just the new description that should replace the current one while preserving th
                 baseline=self.t0_baseline,  # T0 baseline for regression detection
                 quality_report={
                     "quality_level": quality_report.quality_level,
-                    "is_blocked": quality_report.is_blocked()
+                    "is_blocked": quality_report.is_blocked(),
+                    # If the phase was blocked but explicitly approved via governance,
+                    # PhaseFinalizer should not hard-block solely on quality gate.
+                    "human_approved": bool(approval_granted),
                 },
                 auditor_result={
                     "approved": auditor_result.approved,
@@ -7451,7 +7455,17 @@ Just the new description that should replace the current one while preserving th
             f"--timeout={per_test_timeout}",
         ]
         pytest_args = ci_spec.get("args", [])
+        # BUILD-127: Emit a structured pytest JSON report so PhaseFinalizer/TestBaselineTracker can
+        # compute regressions safely. We still persist a full text log for humans.
+        ci_dir = Path(self.workspace) / ".autonomous_runs" / self.run_id / "ci"
+        ci_dir.mkdir(parents=True, exist_ok=True)
+        json_report_path = ci_dir / ci_spec.get("json_report_name", f"pytest_{phase_id}.json")
+
         cmd = [sys.executable, "-m", "pytest", *pytest_paths, *default_args, *pytest_args]
+        if "--json-report" not in cmd:
+            cmd.append("--json-report")
+        if not any(str(a).startswith("--json-report-file=") for a in cmd):
+            cmd.append(f"--json-report-file={json_report_path}")
 
         env = os.environ.copy()
         env.setdefault("PYTHONPATH", str(workdir / "src"))
@@ -7501,10 +7515,20 @@ Just the new description that should replace the current one while preserving th
         elif no_tests_detected and passed:
             error_msg = "Warning: pytest reported success but no tests executed"
 
-        # Always persist a CI log so downstream components (PhaseFinalizer/dashboard) have a stable report_path.
+        # Always persist a CI log so downstream components (dashboard/humans) have a stable artifact.
         full_output = result.stdout + "\n\n--- STDERR ---\n\n" + result.stderr
         log_name = ci_spec.get("log_name", f"pytest_{phase_id}.log")
-        report_path = self._persist_ci_log(log_name, full_output, phase_id)
+        log_path = self._persist_ci_log(log_name, full_output, phase_id)
+
+        # Prefer structured JSON report for automated delta computation. Fall back to the log if missing.
+        report_path: Optional[Path] = None
+        try:
+            if json_report_path.exists() and json_report_path.stat().st_size > 0:
+                report_path = json_report_path
+        except Exception:
+            report_path = None
+        if report_path is None:
+            report_path = log_path
 
         if not passed and not error_msg:
             error_msg = f"pytest exited with code {result.returncode}"
@@ -7537,6 +7561,7 @@ Just the new description that should replace the current one while preserving th
             "output": output,
             "error": error_msg,
             "report_path": str(report_path) if report_path else None,
+            "log_path": str(log_path) if log_path else None,
             "skipped": False,
             "suspicious_zero_tests": no_tests_detected,
         }
@@ -7691,13 +7716,20 @@ Just the new description that should replace the current one while preserving th
 
         Args:
             phase_id: Phase ID
-            status: New status (QUEUED, EXECUTING, COMPLETE, FAILED, BLOCKED)
+            status: New status (QUEUED, EXECUTING, GATE, CI_RUNNING, COMPLETE, FAILED, SKIPPED)
         """
         try:
             url = f"{self.api_url}/runs/{self.run_id}/phases/{phase_id}/update_status"
             headers = {"Content-Type": "application/json"}
             if self.api_key:
                 headers["X-API-Key"] = self.api_key
+
+            # The API only accepts models.PhaseState values; "BLOCKED" is a quality-gate outcome,
+            # not a phase state. Represent blocked states as FAILED (with quality_blocked set elsewhere)
+            # or as GATE where appropriate.
+            if status == "BLOCKED":
+                status = "FAILED"
+
             response = requests.post(
                 url,
                 json={"state": status},
@@ -7707,7 +7739,7 @@ Just the new description that should replace the current one while preserving th
             response.raise_for_status()
             logger.info(f"Updated phase {phase_id} status to {status}")
             # Best-effort run_summary rewrite when a phase reaches a terminal state
-            if status in ("COMPLETE", "FAILED", "BLOCKED"):
+            if status in ("COMPLETE", "FAILED", "SKIPPED"):
                 self._best_effort_write_run_summary()
         except requests.exceptions.RequestException as e:
             logger.warning(f"Failed to update phase {phase_id} status: {e}")
@@ -7792,7 +7824,8 @@ Just the new description that should replace the current one while preserving th
             f"Approve via: POST /api/governance/approve/{request.request_id}"
         )
 
-        self._update_phase_status(phase_id, "BLOCKED")
+        # Mark as FAILED (phase state) — the governance request is tracked separately.
+        self._update_phase_status(phase_id, "FAILED")
         return False
 
     def _retry_with_allowance(

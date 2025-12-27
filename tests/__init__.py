@@ -1,3 +1,13 @@
+"""Test package marker.
+
+Pytest can import test modules by basename. When two test files share the same
+basename (e.g. `test_orchestrator.py` in multiple directories), Python import
+cache collisions can occur.
+
+Making `tests/` a package ensures fully-qualified module names and prevents
+`import file mismatch` collection errors.
+"""
+
 """Test package for Autopack."""
 
 import sys

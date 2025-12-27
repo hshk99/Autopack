@@ -1,0 +1,206 @@
+"""Tests for research hooks."""
+
+import pytest
+from pathlib import Path
+
+from autopack.autonomous.research_hooks import (
+    ResearchHookManager,
+    ResearchTrigger,
+    ResearchHookResult
+)
+
+
+@pytest.fixture
+def hook_manager(tmp_path):
+    """Create research hook manager."""
+    config = {
+        "research_storage_dir": str(tmp_path / "research")
+    }
+    return ResearchHookManager(config)
+
+
+def test_default_triggers(hook_manager):
+    """Test that default triggers are initialized."""
+    assert len(hook_manager.triggers) > 0
+    
+    trigger_names = [t.name for t in hook_manager.triggers]
+    assert "unknown_category" in trigger_names
+    assert "high_risk" in trigger_names
+    assert "low_success_rate" in trigger_names
+
+
+def test_add_custom_trigger(hook_manager):
+    """Test adding a custom trigger."""
+    initial_count = len(hook_manager.triggers)
+    
+    trigger = ResearchTrigger(
+        name="custom_trigger",
+        description="Custom test trigger",
+        condition=lambda ctx: ctx.get("custom_flag", False)
+    )
+    
+    hook_manager.add_trigger(trigger)
+    assert len(hook_manager.triggers) == initial_count + 1
+
+
+def test_remove_trigger(hook_manager):
+    """Test removing a trigger."""
+    initial_count = len(hook_manager.triggers)
+    
+    # Remove existing trigger
+    removed = hook_manager.remove_trigger("unknown_category")
+    assert removed
+    assert len(hook_manager.triggers) == initial_count - 1
+    
+    # Try to remove non-existent trigger
+    removed = hook_manager.remove_trigger("non_existent")
+    assert not removed
+
+
+def test_unknown_category_trigger(hook_manager):
+    """Test unknown category trigger."""
+    context = {
+        "category": "UNKNOWN_CATEGORY",
+        "known_categories": ["IMPLEMENT_FEATURE", "FIX_BUG"]
+    }
+    
+    result = hook_manager.should_trigger_research(context)
+    assert result.triggered
+    assert result.trigger_name == "unknown_category"
+
+
+def test_high_risk_trigger(hook_manager):
+    """Test high risk trigger."""
+    context = {
+        "risk_level": "high"
+    }
+    
+    result = hook_manager.should_trigger_research(context)
+    assert result.triggered
+    assert result.trigger_name == "high_risk"
+
+
+def test_low_success_rate_trigger(hook_manager):
+    """Test low success rate trigger."""
+    context = {
+        "success_rate": 0.3
+    }
+    
+    result = hook_manager.should_trigger_research(context)
+    assert result.triggered
+    assert result.trigger_name == "low_success_rate"
+
+
+def test_no_trigger_fired(hook_manager):
+    """Test when no triggers match."""
+    context = {
+        "category": "IMPLEMENT_FEATURE",
+        "known_categories": ["IMPLEMENT_FEATURE"],
+        "risk_level": "low",
+        "success_rate": 0.9
+    }
+    
+    result = hook_manager.should_trigger_research(context)
+    assert not result.triggered
+    assert result.trigger_name is None
+
+
+def test_disabled_trigger(hook_manager):
+    """Test that disabled triggers don't fire."""
+    # Disable a trigger
+    for trigger in hook_manager.triggers:
+        if trigger.name == "high_risk":
+            trigger.enabled = False
+            break
+    
+    context = {"risk_level": "high"}
+    result = hook_manager.should_trigger_research(context)
+    
+    # Should not trigger the disabled one
+    assert result.trigger_name != "high_risk"
+
+
+def test_pre_planning_hook(hook_manager):
+    """Test pre-planning hook integration."""
+    task_metadata = {
+        "category": "UNKNOWN",
+        "known_categories": ["IMPLEMENT_FEATURE"]
+    }
+    
+    phase_id = hook_manager.pre_planning_hook(
+        "Test task",
+        task_metadata
+    )
+    
+    # Should create research phase
+    assert phase_id is not None
+    assert phase_id.startswith("research_")
+
+
+def test_post_research_hook(hook_manager):
+    """Test post-research hook integration."""
+    # Create a research phase first
+    task_metadata = {"risk_level": "high"}
+    phase_id = hook_manager.pre_planning_hook("Test task", task_metadata)
+    
+    planning_context = {"original": "data"}
+    
+    # Call post-research hook
+    updated_context = hook_manager.post_research_hook(
+        phase_id,
+        planning_context
+    )
+    
+    # Should have added research insights
+    assert "research_insights" in updated_context
+    assert "research_phase_id" in updated_context
+    assert updated_context["research_phase_id"] == phase_id
+    assert updated_context["original"] == "data"
+
+
+def test_hook_history(hook_manager):
+    """Test hook execution history."""
+    # Trigger some hooks
+    hook_manager.should_trigger_research({"risk_level": "high"})
+    hook_manager.should_trigger_research({"success_rate": 0.3})
+    hook_manager.should_trigger_research({"risk_level": "low"})
+    
+    history = hook_manager.get_hook_history()
+    assert len(history) == 3
+    
+    # Test limit
+    limited_history = hook_manager.get_hook_history(limit=2)
+    assert len(limited_history) == 2
+
+
+def test_trigger_statistics(hook_manager):
+    """Test trigger statistics."""
+    # Trigger some hooks
+    hook_manager.should_trigger_research({"risk_level": "high"})
+    hook_manager.should_trigger_research({"risk_level": "critical"})
+    hook_manager.should_trigger_research({"success_rate": 0.3})
+    
+    stats = hook_manager.get_trigger_statistics()
+    
+    assert "high_risk" in stats
+    assert stats["high_risk"]["count"] == 2
+    assert "low_success_rate" in stats
+    assert stats["low_success_rate"]["count"] == 1
+
+
+def test_trigger_error_handling(hook_manager):
+    """Test that trigger errors are handled gracefully."""
+    # Add trigger with faulty condition
+    def faulty_condition(ctx):
+        raise ValueError("Test error")
+    
+    trigger = ResearchTrigger(
+        name="faulty_trigger",
+        description="Trigger that raises error",
+        condition=faulty_condition
+    )
+    hook_manager.add_trigger(trigger)
+    
+    # Should not crash
+    result = hook_manager.should_trigger_research({})
+    assert isinstance(result, ResearchHookResult)

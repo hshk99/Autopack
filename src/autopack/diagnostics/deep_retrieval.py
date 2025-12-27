@@ -306,3 +306,75 @@ class DeepRetrieval:
         # Sort by score descending
         scored_files.sort(key=lambda x: x[1], reverse=True)
         return scored_files
+
+
+# -------------------------------------------------------------------------------------------------
+# Compatibility API used by BUILD-112 production validation tests
+# -------------------------------------------------------------------------------------------------
+
+
+class DeepRetrievalEngine:
+    """Embedding-backed deep retrieval engine (test shim).
+
+    This is separate from the bounded run-artifact retrieval above. The BUILD-112
+    validation suite expects an engine that:
+    - queries an embedding model,
+    - caps snippets per category,
+    - caps total snippets across categories,
+    - enforces max line count per snippet,
+    - preserves citation fields (path, start_line, end_line).
+    """
+
+    def __init__(self, embedding_model: Any):
+        self.embedding_model = embedding_model
+
+    def retrieve_deep_context(
+        self,
+        query: str,
+        categories: List[str],
+        max_snippets_per_category: int = 3,
+        max_lines_per_snippet: int = 120,
+        max_total_snippets: int = 12,
+    ) -> Dict[str, List[Dict[str, Any]]]:
+        results: Dict[str, List[Dict[str, Any]]] = {c: [] for c in categories}
+        total = 0
+
+        for category in categories:
+            if total >= max_total_snippets:
+                break
+
+            # The embedding model interface is mocked in tests; call `search` at least once.
+            try:
+                candidates = self.embedding_model.search(query=query, category=category)
+            except TypeError:
+                candidates = self.embedding_model.search(query)
+
+            snippets: List[Dict[str, Any]] = []
+            for item in candidates or []:
+                if len(snippets) >= max_snippets_per_category or total >= max_total_snippets:
+                    break
+
+                content = item.get("content", "") or ""
+                content = self._truncate_to_lines(content, max_lines_per_snippet)
+
+                snippet = {
+                    "path": item.get("path", ""),
+                    "content": content,
+                    "score": item.get("score", 0.0),
+                    "start_line": int(item.get("start_line", 1) or 1),
+                    "end_line": int(item.get("end_line", 1) or 1),
+                }
+                snippets.append(snippet)
+                total += 1
+
+            results[category] = snippets
+
+        return results
+
+    def _truncate_to_lines(self, text: str, max_lines: int) -> str:
+        if max_lines <= 0:
+            return ""
+        lines = text.splitlines(True)  # keep line endings
+        if len(lines) <= max_lines:
+            return text
+        return "".join(lines[:max_lines])

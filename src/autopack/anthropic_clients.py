@@ -1847,9 +1847,30 @@ class AnthropicBuilderClient:
         import subprocess
         import tempfile
         
+        from pathlib import Path
+
         # Determine file mode: new, deleted, or modified
         is_new_file = not old_content and bool(new_content)
         is_deleted_file = bool(old_content) and not new_content
+
+        # Safety: if we think this is a "new file" but it already exists on disk,
+        # treat this as a modification instead of emitting `new file mode`.
+        # This avoids governed-apply rejecting the patch as unsafe.
+        if is_new_file:
+            try:
+                existing_path = Path(file_path)
+                if existing_path.exists():
+                    logger.warning(
+                        f"[Builder] Diff generation: {file_path} exists but old_content empty; "
+                        "treating as modify (not new file mode)"
+                    )
+                    old_content = existing_path.read_text(encoding="utf-8", errors="ignore")
+                    is_new_file = False
+                    is_deleted_file = False
+            except Exception as e:
+                logger.warning(
+                    f"[Builder] Diff generation: could not read existing file {file_path} to avoid new-file mode: {e}"
+                )
         
         # Construct git-format diff header (per GPT_RESPONSE12 Q3)
         # Order matters: diff --git, new/deleted file mode, index, ---, +++

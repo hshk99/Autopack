@@ -146,7 +146,10 @@ class ArchiveConsolidator:
         fix_description: str,
         files_changed: List[str],
         test_run_id: Optional[str] = None,
-        result: str = "success"
+        result: str = "success",
+        run_id: Optional[str] = None,
+        phase_id: Optional[str] = None,
+        outcome: Optional[str] = None,
     ):
         """
         Log a fix that was applied for an error.
@@ -159,8 +162,12 @@ class ArchiveConsolidator:
 **Fix Applied** ({timestamp}):
 {fix_description}
 
+**Run ID**: {run_id or test_run_id or "N/A"}
+**Phase ID**: {phase_id or "N/A"}
+**Outcome**: {outcome or "N/A"}
+
 **Files Changed**:
-{chr(10).join(f"- {f}" for f in files_changed)}
+{chr(10).join(f"- {f}" for f in files_changed) if files_changed else "- (none)"}
 
 **Test Run**: {test_run_id or "Not tested yet"}
 **Result**: {result}
@@ -524,26 +531,37 @@ These files contain unique information not yet merged:
 
         # Find the issue header
         issue_marker = f"### {error_signature}"
-        if issue_marker in file_content:
-            # Find the next issue or section
-            parts = file_content.split(issue_marker)
-            if len(parts) >= 2:
-                # Find next issue/section
-                next_marker_idx = parts[1].find("\n###")
-                if next_marker_idx == -1:
-                    next_marker_idx = parts[1].find("\n---")
+        if issue_marker not in file_content:
+            # If the issue doesn't exist yet, create it so "blocked" actions are always traceable.
+            self.log_error_event(
+                error_signature=error_signature,
+                symptom="Event logged without pre-existing issue header (auto-created).",
+                run_id=None,
+                phase_id=None,
+                suspected_cause=None,
+                priority="MEDIUM",
+            )
+            file_content = file_path.read_text(encoding='utf-8')
 
-                if next_marker_idx != -1:
-                    updated = (
-                        parts[0] + issue_marker +
-                        parts[1][:next_marker_idx] + "\n" + content +
-                        parts[1][next_marker_idx:]
-                    )
-                else:
-                    updated = parts[0] + issue_marker + parts[1] + "\n" + content
+        # Find the next issue or section
+        parts = file_content.split(issue_marker)
+        if len(parts) >= 2:
+            # Find next issue/section
+            next_marker_idx = parts[1].find("\n###")
+            if next_marker_idx == -1:
+                next_marker_idx = parts[1].find("\n---")
 
-                file_path.write_text(updated, encoding='utf-8')
-                logger.debug(f"Appended to issue '{error_signature}' in {file_path.name}")
+            if next_marker_idx != -1:
+                updated = (
+                    parts[0] + issue_marker +
+                    parts[1][:next_marker_idx] + "\n" + content +
+                    parts[1][next_marker_idx:]
+                )
+            else:
+                updated = parts[0] + issue_marker + parts[1] + "\n" + content
+
+            file_path.write_text(updated, encoding='utf-8')
+            logger.debug(f"Appended to issue '{error_signature}' in {file_path.name}")
 
     def _replace_section(self, file_path: Path, section_name: str, content: str):
         """Replace an entire section with new content"""
@@ -688,6 +706,9 @@ def log_fix(
         files_changed=files_changed or [],
         test_run_id=test_run_id,
         result=result,
+        run_id=run_id,
+        phase_id=phase_id,
+        outcome=outcome,
     )
 
 

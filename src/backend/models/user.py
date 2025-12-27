@@ -4,7 +4,7 @@ User database model.
 from datetime import datetime, timezone
 from sqlalchemy import Column, Integer, String, Boolean, DateTime
 
-from backend.database import Base
+from ..database import Base, get_db
 
 class User(Base):
     """
@@ -46,6 +46,4 @@ class User(Base):
         return {k: v for k, v in self.__dict__.items() if not k.startswith('_') and k != 'hashed_password'}
 
 
-# Re-export get_db for backward compatibility with existing tests
-from backend.database import get_db  # noqa: E402,F401
-
+__all__ = ["User", "Base", "get_db"]

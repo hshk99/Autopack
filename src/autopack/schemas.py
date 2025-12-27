@@ -65,6 +65,8 @@ class PhaseResponse(BaseModel):
 
     id: int
     phase_id: str
+    run_id: str
+    tier_id: int
     name: str
     description: Optional[str]
     state: str
@@ -111,5 +113,8 @@ class RunResponse(BaseModel):
     debt_status: Optional[str]
     failure_reason: Optional[str]
     tiers: List[TierResponse] = Field(default_factory=list)
+    # Some runs (e.g. patch-scoped or legacy) may not have Tier rows populated.
+    # Include a top-level phases list so executors can still select queued work.
+    phases: List[PhaseResponse] = Field(default_factory=list)
 
     model_config = ConfigDict(from_attributes=True)

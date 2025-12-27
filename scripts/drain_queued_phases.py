@@ -23,6 +23,7 @@ import argparse
 import os
 import sys
 import time
+import socket
 from pathlib import Path
 
 # Ensure src/ is importable when running from repo root
@@ -40,6 +41,23 @@ def _count_phases(db, run_id: str) -> tuple[int, int, int]:
     return queued, complete, failed
 
 
+def _pick_free_local_port() -> int:
+    """Pick a free TCP port on localhost.
+
+    We use this to avoid accidentally connecting to an already-running Autopack API
+    that may be pointing at a different DATABASE_URL than the drain script.
+    """
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    try:
+        sock.bind(("127.0.0.1", 0))
+        return int(sock.getsockname()[1])
+    finally:
+        try:
+            sock.close()
+        except Exception:
+            pass
+
+
 def main() -> int:
     p = argparse.ArgumentParser(description="Drain queued phases for an Autopack run in batches")
     p.add_argument("--run-id", required=True)
@@ -52,6 +70,16 @@ def main() -> int:
 
     # Autopack is supposed to be autonomous; enable Qdrant autostart by default if operator didn't set it.
     os.environ.setdefault("AUTOPACK_QDRANT_AUTOSTART", "1")
+
+    # IMPORTANT: The executor selects phases via the Supervisor API (BUILD-115), but this script
+    # counts queued phases via the local DB. If we accidentally connect to an already-running API
+    # pointed at a different DATABASE_URL, the executor may see "no executable phases" even when
+    # the local DB shows queued work. To prevent that, default to a fresh, free localhost port
+    # unless the operator explicitly set AUTOPACK_API_URL.
+    if not os.environ.get("AUTOPACK_API_URL"):
+        port = _pick_free_local_port()
+        os.environ["AUTOPACK_API_URL"] = f"http://localhost:{port}"
+        print(f"[drain] AUTOPACK_API_URL not set; using ephemeral API URL: {os.environ['AUTOPACK_API_URL']}")
 
     db = SessionLocal()
     try:

@@ -227,3 +227,44 @@ class RetrievalTrigger:
             return "medium"
         else:
             return "low"
+
+
+# --- Compatibility API used by tests (BUILD-112 validation suite) ---
+
+
+class RetrievalTriggerDetector:
+    """Simple Stage-2 escalation detector used by unit tests.
+
+    This class intentionally implements a minimal heuristic contract:
+    - Escalate on 3rd attempt (or later) if failures persist.
+    - Escalate on 'complex' error patterns (multiple distinct error types).
+    - Do not escalate on first attempt or trivial single-error scenarios.
+    """
+
+    def should_escalate_to_stage2(
+        self,
+        phase_id: str,
+        attempt_number: int,
+        previous_errors: List[str],
+        stage1_retrieval_count: int,
+    ) -> bool:
+        # Never on first attempt.
+        if attempt_number <= 1:
+            return False
+
+        # Escalate after 3 attempts regardless of error type.
+        if attempt_number >= 3:
+            return True
+
+        # Attempt 2: escalate if we see multiple distinct error categories.
+        kinds = set()
+        for e in previous_errors:
+            if not e:
+                continue
+            head = e.split(":")[0].strip()
+            kinds.add(head)
+
+        if len(kinds) >= 3:
+            return True
+
+        return False

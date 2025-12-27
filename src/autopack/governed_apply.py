@@ -1333,7 +1333,7 @@ class GovernedApplyPath:
         errors = []
         lines = patch_content.split('\n')
 
-        # Track files being patched and their new content
+        # Track files being patched and their new content (only meaningful for NEW files)
         current_file = None
         new_file_lines = []
         in_new_file = False
@@ -1355,8 +1355,10 @@ class GovernedApplyPath:
             elif line.startswith('--- /dev/null'):
                 in_new_file = True
 
-            elif line.startswith('+') and not line.startswith('+++'):
-                # Collect added lines for new files
+            elif in_new_file and line.startswith('+') and not line.startswith('+++'):
+                # Collect added lines ONLY for new files.
+                # For modified files, diff hunks do not represent full file content, so truncation
+                # heuristics (like "file ends with unclosed quote") would create false positives.
                 new_file_lines.append(line[1:])  # Remove + prefix
 
             elif line.startswith('\\ No newline at end of file'):

@@ -47,6 +47,7 @@ Autopack is a framework for orchestrating autonomous AI agents (Builder and Audi
   - Executor writes an escalation event when P10 triggers (base/source/retry tokens), making validation deterministic.
 - **P10-first draining**:
   - New ranked plan generator: `scripts/create_p10_first_drain_plan.py` (prioritizes queued phases likely to hit truncation/≥95% utilization).
+  - New helper selector: `scripts/pick_next_run.py` (prints `run_id` + inferred `run_type`, preferring P10-first ranking and falling back to highest queued count).
   - Updated validator: `scripts/check_p10_validation_status.py` now checks escalation events table.
 - **SQLite migration runner hardened**:
   - `scripts/run_migrations.py` now runs **root** migrations by default (use `--include-scripts` to also run legacy `scripts/migrations/*.sql`).

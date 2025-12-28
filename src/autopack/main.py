@@ -8,6 +8,9 @@ from typing import List, Optional
 
 from dotenv import load_dotenv
 
+# DIAGNOSTIC: Log DATABASE_URL before load_dotenv() to verify subprocess inheritance
+print(f"[API_SERVER_STARTUP] DATABASE_URL from environment: {os.getenv('DATABASE_URL', 'NOT SET')}")
+
 from fastapi import Depends, FastAPI, HTTPException, Request, Security
 from contextlib import asynccontextmanager
 from fastapi.security import APIKeyHeader
@@ -59,6 +62,7 @@ limiter = Limiter(key_func=get_remote_address)
 # Load .env but DON'T override existing env vars (e.g., DATABASE_URL from executor)
 # This ensures subprocess API server inherits DATABASE_URL from parent process
 load_dotenv(override=False)
+print(f"[API_SERVER_STARTUP] DATABASE_URL after load_dotenv(): {os.getenv('DATABASE_URL', 'NOT SET')}")
 
 
 async def approval_timeout_cleanup():

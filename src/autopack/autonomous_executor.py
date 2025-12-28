@@ -4088,6 +4088,36 @@ Just the new description that should replace the current one while preserving th
                         error="empty_patch: builder produced no changes",
                     )
 
+            # BUILD-141 Telemetry Unblock: Targeted retry for "empty files array" errors
+            # This error occurs when Builder returns files: [] despite having deliverables
+            # Likely caused by prompt ambiguity (directory prefixes, deliverables contract)
+            # T1 fixes the prompt, but this retry provides a safety net for edge cases
+            empty_files_markers = ["empty files array", "llm returned empty files array"]
+            error_text_lower = (builder_result.error or "").lower() if builder_result.error else ""
+            is_empty_files_error = any(m in error_text_lower for m in empty_files_markers)
+
+            if not builder_result.success and is_empty_files_error:
+                # Check if we've already retried for empty files array (limit to 1 retry)
+                empty_files_retry_count = phase.get('_empty_files_retry_count', 0)
+                max_builder_attempts = phase.get("max_builder_attempts") or 5
+
+                if empty_files_retry_count == 0 and attempt_index < (max_builder_attempts - 1):
+                    logger.warning(
+                        f"[{phase_id}] Empty files array detected - retrying ONCE with stronger deliverables emphasis "
+                        f"(attempt {attempt_index+1}/{max_builder_attempts})"
+                    )
+                    phase['_empty_files_retry_count'] = 1
+
+                    # The prompt fix (T1) should already handle this, so just retry with same config
+                    # If it fails again, the error is deterministic and we should fail fast
+                    return False, "EMPTY_FILES_RETRY"
+                else:
+                    logger.error(
+                        f"[{phase_id}] Empty files array persists after targeted retry - failing fast to avoid token waste"
+                    )
+                    # Don't retry again - this is likely a deterministic error
+                    # Fall through to normal error handling
+
             # Retryable infra errors: backoff and retry without burning through non-infra budgets
             infra_markers = ["connection error", "timeout", "timed out", "api failure", "server error", "http 500"]
             error_text_lower = (builder_result.error or "").lower() if builder_result.error else ""

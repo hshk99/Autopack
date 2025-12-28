@@ -3270,7 +3270,11 @@ Instead: Use their APIs via imports, create new files elsewhere.
             prompt_parts.append("\n## File Modification Constraints")
             prompt_parts.append("CRITICAL: You may ONLY modify these files:\n")
             for allowed in scope_paths:
-                prompt_parts.append(f"- {allowed}")
+                # BUILD-141 Telemetry Unblock: Clarify directory prefix semantics
+                if allowed.endswith('/'):
+                    prompt_parts.append(f"- {allowed} (directory prefix - creating/modifying files under this path is ALLOWED)")
+                else:
+                    prompt_parts.append(f"- {allowed}")
             prompt_parts.append(
                 "\nIf you touch any other file your patch will be rejected immediately."
             )
@@ -3283,6 +3287,24 @@ Instead: Use their APIs via imports, create new files elsewhere.
             prompt_parts.append(
                 "\nDo not add new files or edit files outside this list. "
                 "All other paths are strictly forbidden."
+            )
+
+        # BUILD-141 Telemetry Unblock: Add explicit deliverables contract
+        # Extract deliverables from phase_spec (same logic as token estimation)
+        deliverables_list = phase_spec.get("deliverables")
+        if not deliverables_list:
+            scope_cfg = phase_spec.get("scope") or {}
+            if isinstance(scope_cfg, dict):
+                deliverables_list = scope_cfg.get("deliverables")
+
+        if deliverables_list and isinstance(deliverables_list, list):
+            prompt_parts.append("\n## REQUIRED DELIVERABLES")
+            prompt_parts.append("Your output MUST include at least these files:\n")
+            for deliverable in deliverables_list:
+                prompt_parts.append(f"- {deliverable}")
+            prompt_parts.append(
+                "\n⚠️ CRITICAL: The 'files' array in your JSON output MUST contain at least one file "
+                "and MUST cover all deliverables listed above. Empty files array is NOT allowed."
             )
 
         if project_rules:

@@ -521,6 +521,8 @@ class BatchDrainController:
             env = os.environ.copy()
             env["PYTHONUTF8"] = "1"
             env["PYTHONIOENCODING"] = "utf-8"
+            # CRITICAL: Enable telemetry collection for token estimation
+            env["TELEMETRY_DB_ENABLED"] = "1"
             if self.api_url:
                 env["AUTOPACK_API_URL"] = self.api_url
             # B2: Ensure DATABASE_URL is explicit

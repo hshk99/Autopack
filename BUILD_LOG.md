@@ -4,6 +4,63 @@ Daily log of development activities, decisions, and progress on the Autopack pro
 
 ---
 
+## 2025-12-28: Batch Drain Controller for Efficient Failed Phase Processing ✅
+
+**Summary**: Created a smart batch drain orchestration tool that efficiently processes failed phases across multiple runs. Instead of manually draining runs one-by-one, the controller automates phase selection, execution, progress tracking, and resume capability. Designed to help process the 57 runs with failed phases in a controlled, efficient manner.
+
+**Key Features**:
+- **Smart Phase Selection:** Prioritizes phases by failure type (unknown > collection errors > deliverable errors > other)
+- **Progress Tracking:** Persists session state after each phase for resume capability
+- **Resume Support:** Can stop/start without losing progress
+- **Flexible Operation:** Process all runs or target specific run_id, configurable batch sizes
+- **Dry-run Mode:** Preview operations before committing
+
+**Priority Logic**:
+1. Unknown failures (no last_failure_reason) - likely transient
+2. Collection/import errors - might be fixed by systemic improvements
+3. Deliverable errors - might be fixed by no-op guard
+4. Other failures - remaining failed phases
+
+Within each category, prefers:
+- Lower phase_index (earlier phases in run)
+- Runs with fewer total failures (easier to complete)
+
+**Files Created**:
+- [scripts/batch_drain_controller.py](scripts/batch_drain_controller.py): Main controller with smart selection and progress tracking
+- [scripts/drain_one_phase.py](scripts/drain_one_phase.py): Single-phase drain helper
+- [docs/guides/BATCH_DRAIN_GUIDE.md](docs/guides/BATCH_DRAIN_GUIDE.md): Comprehensive usage guide
+- [scripts/examples/batch_drain_57_runs.sh](scripts/examples/batch_drain_57_runs.sh): Bash example script
+- [scripts/examples/batch_drain_57_runs.ps1](scripts/examples/batch_drain_57_runs.ps1): PowerShell example script
+
+**Usage Examples**:
+```bash
+# Process 10 failed phases (default)
+python scripts/batch_drain_controller.py
+
+# Process 25 failed phases
+python scripts/batch_drain_controller.py --batch-size 25
+
+# Target specific run
+python scripts/batch_drain_controller.py --run-id build130-schema-validation-prevention
+
+# Dry run preview
+python scripts/batch_drain_controller.py --batch-size 10 --dry-run
+
+# Resume interrupted session
+python scripts/batch_drain_controller.py --resume
+```
+
+**Benefits**:
+- Eliminates manual run-by-run draining overhead
+- Smart prioritization increases success rate by tackling easier failures first
+- Session persistence enables stop/resume workflow
+- Summary reports provide visibility into failure patterns
+- Integrates with existing tools (pick_next_run.py, drain_queued_phases.py)
+
+**Status**: ✅ IMPLEMENTED + DOCUMENTED (ready for processing 57 failed runs)
+
+---
+
 ## 2025-12-28: Collector/Import Error Digest in Phase Summaries ✅
 
 **Summary**: Added a collector error digest feature that extracts and surfaces pytest collection/import errors directly in phase summaries when `pytest` exits with code 2 (collection failed). This reduces log hunting by surfacing the top 5 collection failures (ImportError, SyntaxError, etc.) in the phase summary Issues section and making them available to QualityGate and PhaseFinalizer.

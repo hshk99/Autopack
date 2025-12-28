@@ -8,6 +8,21 @@ Autopack is a framework for orchestrating autonomous AI agents (Builder and Audi
 
 ## Recent Updates (v0.4.10 - Systemic Blocker Remediation)
 
+### 2025-12-28 (Part 3): Research System CI Collection Remediation - ✅ COMPLETE
+**Zero Test Collection Failures Restored** - Eliminated all 6 collection errors, restored test-compatible APIs
+- **Problem Solved**: pytest collection failing with 6 import errors + import file mismatch, blocking CI and batch drain validation
+- **Solution**: Complete API compatibility restoration per [docs/guides/RESEARCH_SYSTEM_CI_COLLECTION_REMEDIATION_PLAN.md](docs/guides/RESEARCH_SYSTEM_CI_COLLECTION_REMEDIATION_PLAN.md)
+- **Collection Fixes**:
+  1. **Import File Mismatch** (5 test dirs): Added `__init__.py` to `tests/backend/api/`, `tests/backlog/`, `tests/research/unit/`, `tests/research/gatherers/`, `tests/autopack/research/gatherers/`
+  2. **autopack.cli.research_commands**: Added `list_phases` alias + `ResearchPhaseExecutor` import
+  3. **autopack.phases.research_phase**: Complete rebuild with `ResearchPhase`, `ResearchPhaseExecutor`, `ResearchQuery`, `ResearchResult`, `ResearchStatus`, `ResearchPhaseStatus`, `ResearchPhaseResult`
+  4. **autopack.workflow.research_review**: Complete rebuild with `ReviewDecision`, `ReviewCriteria`, `ReviewResult`, `ResearchReviewWorkflow`
+  5. **autopack.integrations.build_history_integrator**: Added `BuildHistoryInsights`, `should_trigger_research()`, `format_insights_for_prompt()`, `_merge_insights()`, enhanced markdown parser
+  6. **research.frameworks.product_feasibility**: Complete rebuild with `TechnicalRequirement`, `ResourceRequirement`, `FeasibilityLevel.VERY_HIGH_FEASIBILITY`, scoring methods
+- **Dependency Declarations**: Added `click>=8.1.0`, `requests>=2.31.0`, `rich>=13.0.0`, `praw>=7.7.0` to [pyproject.toml](pyproject.toml)
+- **Validation**: ✅ **0 collection errors, 1571 tests collected** (was 6 errors blocking 6 test modules)
+- **README Claim Validated**: "Zero test collection failures" is now accurate ✓
+
 ### 2025-12-28 (Part 2): Systemic Blocker Fixes + Batch Drain Architecture Issue - ✅ FIXES COMPLETE / ⚠️ MONITORING BLOCKED
 **Import-Time Crash Prevention + Path Bug Fixes** - Eliminated ALL syntax/import errors blocking execution
 - **Problem Solved**: Triage identified 4 systemic blockers causing phases to fail before execution (import crashes, syntax errors, duplicate paths, test collection failures)
@@ -16,8 +31,9 @@ Autopack is a framework for orchestrating autonomous AI agents (Builder and Audi
   1. **SyntaxError in autonomous_executor.py**: Removed 8 stray `coverage_delta=` lines + dead import (caused ModuleNotFoundError on every import)
   2. **Import Regression Test**: Created [tests/test_autonomous_executor_import.py](tests/test_autonomous_executor_import.py) to prevent future import-time crashes
   3. **Fileorg Stub Path Bug**: Fixed duplicate path creation (`fileorganizer/fileorganizer/...`) in [autonomous_executor.py:7005-7112](src/autopack/autonomous_executor.py)
-  4. **CI Collection Blockers**: Added missing test compatibility classes (ReviewDecision, ResearchPhaseResult) to research_review.py and research_phase.py
+  4. **CI Collection Blockers (Partial)**: Added missing test compatibility classes (ReviewDecision, ResearchPhaseResult) to research_review.py and research_phase.py
 - **Validation**: All 27 targeted tests passing (2 import + 17 review + 8 reddit)
+- **Note**: Part 3 completed the remaining collection blockers (5 more modules + dependency declarations)
 - **CRITICAL FINDING - Batch Drain Design Flaw** ([docs/guides/BATCH_DRAIN_POST_REMEDIATION_REPORT.md](docs/guides/BATCH_DRAIN_POST_REMEDIATION_REPORT.md)):
   - ⚠️ **Batch drain controller processed 0 phases** due to `skip_runs_with_queued` safety logic
   - **Root Cause**: `research-system-v2` run has 1 QUEUED phase, causing controller to skip ALL 5 FAILED phases

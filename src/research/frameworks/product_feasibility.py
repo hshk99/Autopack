@@ -5,221 +5,223 @@ cost implications, and resource requirements.
 """
 
 from typing import Dict, Any, Optional, List
+from dataclasses import dataclass, field
+from enum import Enum
 
 
+class RiskLevel(Enum):
+    """Risk level enumeration."""
+    LOW = "low"
+    MEDIUM = "medium"
+    HIGH = "high"
+    CRITICAL = "critical"
+
+
+class FeasibilityLevel(Enum):
+    """Overall feasibility assessment."""
+    NOT_FEASIBLE = "not_feasible"
+    MARGINALLY_FEASIBLE = "marginally_feasible"
+    FEASIBLE = "feasible"
+    HIGHLY_FEASIBLE = "highly_feasible"
+    VERY_HIGH_FEASIBILITY = "very_high_feasibility"  # Test expects this
+
+
+@dataclass
+class TechnicalRequirement:
+    """Individual technical requirement (singular for test compatibility)."""
+    name: str
+    complexity: str  # "low", "medium", "high"
+    availability: str  # "readily_available", "limited", "unavailable"
+    maturity: str  # "mature", "developing", "experimental"
+
+
+@dataclass
+class ResourceRequirement:
+    """Resource requirement (singular for test compatibility)."""
+    team_size: int
+    required_skills: List[str]
+    development_time_months: int
+    estimated_cost: float
+
+
+@dataclass
 class ProductFeasibility:
-    """Assesses product viability using multi-dimensional analysis.
-    
-    Attributes:
-        weights: Dictionary of criterion weights (must sum to 1.0)
-        scores: Dictionary of criterion scores (0-10 scale)
-        risk_factors: List of identified risks
+    """Product Feasibility Framework Calculator.
+
+    Assesses product viability across multiple dimensions:
+    - Technical feasibility
+    - Resource requirements
+    - Risk assessment
     """
-    
-    DEFAULT_WEIGHTS = {
-        'technical_feasibility': 0.30,
-        'resource_availability': 0.25,
-        'cost_viability': 0.20,
-        'time_to_market': 0.15,
-        'scalability': 0.10
-    }
-    
-    def __init__(self, weights: Optional[Dict[str, float]] = None):
-        """Initialize the Product Feasibility framework.
-        
-        Args:
-            weights: Custom weights for criteria (must sum to 1.0)
-        
-        Raises:
-            ValueError: If weights don't sum to 1.0
+
+    technical_requirements: List[TechnicalRequirement] = field(default_factory=list)
+    resource_requirements: Optional[ResourceRequirement] = None
+    risks: List[Dict[str, Any]] = field(default_factory=list)
+    dependencies: List[str] = field(default_factory=list)
+    constraints: List[str] = field(default_factory=list)
+
+    def calculate_technical_score(self) -> float:
+        """Calculate technical feasibility score (0-100).
+
+        Returns higher scores for:
+        - Low complexity
+        - Readily available tech
+        - Mature technologies
         """
-        self.weights = weights or self.DEFAULT_WEIGHTS.copy()
-        self.scores: Dict[str, float] = {}
-        self.risk_factors: List[Dict[str, Any]] = []
-        self._validate_weights()
-    
-    def _validate_weights(self) -> None:
-        """Validate that weights sum to 1.0."""
-        total = sum(self.weights.values())
-        if not (0.99 <= total <= 1.01):
-            raise ValueError(f"Weights must sum to 1.0, got {total}")
-    
-    def set_score(self, criterion: str, score: float) -> None:
-        """Set score for a specific criterion.
-        
-        Args:
-            criterion: Name of the criterion
-            score: Score value (0-10 scale)
-        
-        Raises:
-            ValueError: If criterion not in weights or score out of range
+        if not self.technical_requirements:
+            return 50.0
+
+        scores = []
+        for req in self.technical_requirements:
+            score = 0.0
+
+            # Complexity scoring (lower is better)
+            complexity_map = {"low": 100, "medium": 60, "high": 20}
+            score += complexity_map.get(req.complexity, 50) * 0.4
+
+            # Availability scoring
+            availability_map = {
+                "readily_available": 100,
+                "limited": 50,
+                "unavailable": 10,
+            }
+            score += availability_map.get(req.availability, 50) * 0.3
+
+            # Maturity scoring
+            maturity_map = {"mature": 100, "developing": 50, "experimental": 15}
+            score += maturity_map.get(req.maturity, 50) * 0.3
+
+            scores.append(score)
+
+        return sum(scores) / len(scores)
+
+    def calculate_resource_score(self) -> float:
+        """Calculate resource feasibility score (0-100).
+
+        Returns higher scores for:
+        - Smaller teams
+        - Shorter timelines
+        - Lower costs
         """
-        if criterion not in self.weights:
-            raise ValueError(f"Unknown criterion: {criterion}")
-        if not (0 <= score <= 10):
-            raise ValueError(f"Score must be between 0 and 10, got {score}")
-        self.scores[criterion] = score
-    
-    def set_scores(self, scores: Dict[str, float]) -> None:
-        """Set multiple scores at once.
-        
-        Args:
-            scores: Dictionary of criterion scores
-        """
-        for criterion, score in scores.items():
-            self.set_score(criterion, score)
-    
-    def add_risk_factor(self, name: str, severity: str, mitigation: str) -> None:
-        """Add a risk factor to the analysis.
-        
-        Args:
-            name: Name/description of the risk
-            severity: Risk severity (low, medium, high, critical)
-            mitigation: Proposed mitigation strategy
-        """
-        valid_severities = ['low', 'medium', 'high', 'critical']
-        if severity.lower() not in valid_severities:
-            raise ValueError(f"Severity must be one of {valid_severities}")
-        
-        self.risk_factors.append({
-            'name': name,
-            'severity': severity.lower(),
-            'mitigation': mitigation
-        })
-    
-    def calculate_score(self) -> float:
-        """Calculate weighted feasibility score.
-        
-        Returns:
-            Weighted score (0-10 scale)
-        
-        Raises:
-            ValueError: If not all criteria have scores
-        """
-        missing = set(self.weights.keys()) - set(self.scores.keys())
-        if missing:
-            raise ValueError(f"Missing scores for criteria: {missing}")
-        
-        total_score = sum(
-            self.weights[criterion] * self.scores[criterion]
-            for criterion in self.weights.keys()
-        )
-        return round(total_score, 2)
-    
-    def get_risk_adjusted_score(self) -> float:
-        """Calculate risk-adjusted feasibility score.
-        
-        Returns:
-            Risk-adjusted score (0-10 scale)
-        """
-        base_score = self.calculate_score()
-        
-        # Calculate risk penalty
-        risk_penalty = 0.0
-        severity_weights = {
-            'low': 0.1,
-            'medium': 0.3,
-            'high': 0.6,
-            'critical': 1.0
-        }
-        
-        for risk in self.risk_factors:
-            risk_penalty += severity_weights[risk['severity']]
-        
-        # Cap penalty at 40% of base score
-        max_penalty = base_score * 0.4
-        actual_penalty = min(risk_penalty, max_penalty)
-        
-        return round(base_score - actual_penalty, 2)
-    
-    def get_interpretation(self) -> str:
-        """Get interpretation of the feasibility score.
-        
-        Returns:
-            Interpretation string
-        """
-        score = self.get_risk_adjusted_score()
-        if score >= 8.0:
-            return "Highly Feasible"
-        elif score >= 6.0:
-            return "Feasible"
-        elif score >= 4.0:
-            return "Marginally Feasible"
+        if not self.resource_requirements:
+            return 50.0
+
+        res = self.resource_requirements
+        score = 0.0
+
+        # Team size scoring (smaller is better)
+        if res.team_size <= 5:
+            score += 30
+        elif res.team_size <= 10:
+            score += 20
+        elif res.team_size <= 20:
+            score += 10
         else:
-            return "Not Feasible"
-    
-    def get_detailed_analysis(self) -> Dict[str, Any]:
-        """Get detailed analysis including risk assessment.
-        
-        Returns:
-            Dictionary with score breakdown and risk analysis
+            score += 5
+
+        # Timeline scoring (shorter is better)
+        if res.development_time_months <= 6:
+            score += 35
+        elif res.development_time_months <= 12:
+            score += 25
+        elif res.development_time_months <= 24:
+            score += 15
+        else:
+            score += 5
+
+        # Cost scoring (lower is better)
+        if res.estimated_cost <= 500_000:
+            score += 35
+        elif res.estimated_cost <= 1_000_000:
+            score += 25
+        elif res.estimated_cost <= 5_000_000:
+            score += 15
+        elif res.estimated_cost <= 10_000_000:
+            score += 10
+        else:
+            score += 5
+
+        return score
+
+    def calculate_risk_score(self) -> float:
+        """Calculate risk score (0-100).
+
+        Returns higher scores for lower risks.
         """
-        base_score = self.calculate_score()
-        risk_adjusted_score = self.get_risk_adjusted_score()
-        
-        contributions = {
-            criterion: round(self.weights[criterion] * self.scores[criterion], 2)
-            for criterion in self.weights.keys()
-        }
-        
+        # Base score
+        score = 100.0
+
+        # Penalize for risks
+        for risk in self.risks:
+            level = risk.get("level", "low")
+            impact = risk.get("impact", "low")
+
+            # Risk penalty
+            level_penalty = {
+                "low": 5,
+                "medium": 15,
+                "high": 25,
+                "critical": 35,
+            }.get(level, 10)
+
+            impact_penalty = {
+                "low": 5,
+                "medium": 15,
+                "high": 25,
+                "critical": 35,
+            }.get(impact, 10)
+
+            score -= (level_penalty + impact_penalty) / 2
+
+        # Penalize for dependencies
+        score -= len(self.dependencies) * 3
+
+        # Penalize for constraints
+        score -= len(self.constraints) * 2
+
+        return max(0.0, min(100.0, score))
+
+    def get_feasibility_level(self) -> FeasibilityLevel:
+        """Determine overall feasibility level."""
+        # Calculate aggregate score
+        tech_score = self.calculate_technical_score()
+        resource_score = self.calculate_resource_score()
+        risk_score = self.calculate_risk_score()
+
+        # Weighted average (tech and risk are more important)
+        overall_score = (tech_score * 0.4 + resource_score * 0.3 + risk_score * 0.3)
+
+        # Map to feasibility level
+        if overall_score >= 85:
+            return FeasibilityLevel.VERY_HIGH_FEASIBILITY
+        elif overall_score >= 70:
+            return FeasibilityLevel.HIGHLY_FEASIBLE
+        elif overall_score >= 50:
+            return FeasibilityLevel.FEASIBLE
+        elif overall_score >= 30:
+            return FeasibilityLevel.MARGINALLY_FEASIBLE
+        else:
+            return FeasibilityLevel.NOT_FEASIBLE
+
+    def identify_critical_risks(self) -> List[Dict[str, Any]]:
+        """Identify critical and high-severity risks."""
+        critical_risks = []
+        for risk in self.risks:
+            level = risk.get("level", "low")
+            if level in ["critical", "high"]:
+                critical_risks.append(risk)
+        return critical_risks
+
+    def generate_report(self) -> Dict[str, Any]:
+        """Generate comprehensive feasibility report."""
         return {
-            'base_score': base_score,
-            'risk_adjusted_score': risk_adjusted_score,
-            'interpretation': self.get_interpretation(),
-            'scores': self.scores.copy(),
-            'weights': self.weights.copy(),
-            'contributions': contributions,
-            'risk_factors': self.risk_factors.copy(),
-            'critical_risks': self._get_critical_risks(),
-            'weak_areas': self._get_weak_areas()
+            "technical_score": self.calculate_technical_score(),
+            "resource_score": self.calculate_resource_score(),
+            "risk_score": self.calculate_risk_score(),
+            "feasibility_level": self.get_feasibility_level().value,
+            "critical_risks": self.identify_critical_risks(),
+            "technical_requirements_count": len(self.technical_requirements),
+            "risk_count": len(self.risks),
+            "dependency_count": len(self.dependencies),
+            "constraint_count": len(self.constraints),
         }
-    
-    def _get_critical_risks(self) -> List[Dict[str, Any]]:
-        """Get high and critical severity risks."""
-        return [
-            risk for risk in self.risk_factors
-            if risk['severity'] in ['high', 'critical']
-        ]
-    
-    def _get_weak_areas(self) -> List[str]:
-        """Identify weak areas (score < 5)."""
-        return [
-            criterion for criterion, score in self.scores.items()
-            if score < 5.0
-        ]
-    
-    def get_recommendations(self) -> List[str]:
-        """Generate recommendations based on analysis.
-        
-        Returns:
-            List of strategic recommendations
-        """
-        recommendations = []
-        score = self.get_risk_adjusted_score()
-        weak_areas = self._get_weak_areas()
-        critical_risks = self._get_critical_risks()
-        
-        if score >= 7.0:
-            recommendations.append("Product is highly feasible - proceed with development")
-        elif score >= 5.0:
-            recommendations.append("Product is feasible with risk mitigation")
-        else:
-            recommendations.append("Product feasibility is questionable - reconsider approach")
-        
-        if critical_risks:
-            recommendations.append(
-                f"Address {len(critical_risks)} critical risk(s) before proceeding"
-            )
-        
-        if weak_areas:
-            recommendations.append(
-                f"Strengthen weak areas: {', '.join(weak_areas)}"
-            )
-        
-        if self.scores.get('technical_feasibility', 0) < 6.0:
-            recommendations.append("Conduct technical proof-of-concept")
-        
-        if self.scores.get('time_to_market', 0) < 5.0:
-            recommendations.append("Develop accelerated timeline or phased approach")
-        
-        return recommendations

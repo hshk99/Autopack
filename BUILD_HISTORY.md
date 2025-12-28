@@ -16,6 +16,67 @@ Each entry includes:
 
 ## Chronological Index
 
+### BUILD-132: Research System CI Collection Remediation (2025-12-28)
+
+**Status**: COMPLETE ✅
+
+**Summary**: Restored zero test collection failures by implementing complete API compatibility restoration across 6 research system modules, eliminating all pytest collection errors.
+
+**Problem**: pytest collection failing with 6 ImportError + 1 import file mismatch error, blocking CI and batch drain validation. README claimed "zero test collection failures" but actual state was 6 errors blocking test execution.
+
+**Solution**: Systematic remediation per [RESEARCH_SYSTEM_CI_COLLECTION_REMEDIATION_PLAN.md](docs/guides/RESEARCH_SYSTEM_CI_COLLECTION_REMEDIATION_PLAN.md)
+
+**Implementation Details**:
+1. **Import File Mismatch Fix**: Added `__init__.py` to 5 test directories to create proper Python packages
+   - `tests/backend/api/`, `tests/backlog/`, `tests/research/unit/`, `tests/research/gatherers/`, `tests/autopack/research/gatherers/`
+   - Resolved duplicate basename collisions (test_reddit_gatherer.py, test_auth.py, test_backlog_maintenance.py, test_evidence_model.py, test_orchestrator.py)
+
+2. **API Compatibility Restoration**:
+   - **autopack.cli.research_commands**: Added `list_phases` alias, `ResearchPhaseExecutor` import
+   - **autopack.phases.research_phase**: Rebuilt with dataclass-based API (`ResearchPhase`, `ResearchPhaseExecutor`, `ResearchQuery`, `ResearchResult`, `ResearchStatus`, `ResearchPhaseStatus`, `ResearchPhaseResult`)
+   - **autopack.workflow.research_review**: Rebuilt with workflow classes (`ReviewDecision`, `ReviewCriteria`, `ReviewResult`, `ResearchReviewWorkflow` with auto-review logic)
+   - **autopack.integrations.build_history_integrator**: Added `BuildHistoryInsights` dataclass, `should_trigger_research()`, `format_insights_for_prompt()`, `_merge_insights()`, enhanced markdown parser (✓/✗ status support)
+   - **research.frameworks.product_feasibility**: Rebuilt with `TechnicalRequirement`, `ResourceRequirement` (singular), `FeasibilityLevel.VERY_HIGH_FEASIBILITY`, scoring algorithms
+
+3. **Dependency Declarations**: Added missing runtime dependencies to pyproject.toml
+   - `click>=8.1.0`, `requests>=2.31.0`, `rich>=13.0.0`, `praw>=7.7.0`
+
+**Validation Results**:
+- ✅ **0 collection errors** (down from 6)
+- ✅ **1571 tests collected** successfully
+- ✅ All 5 failing test modules now collect without errors:
+  - tests/autopack/cli/test_research_commands.py (10 tests)
+  - tests/autopack/phases/test_research_phase.py (10 tests)
+  - tests/autopack/workflow/test_research_review.py (17 tests)
+  - tests/autopack/integrations/test_build_history_integrator.py (7 tests)
+  - tests/research/frameworks/test_product_feasibility.py (9 tests)
+
+**Files Modified**:
+- `src/autopack/cli/research_commands.py` - Added list_phases alias, ResearchPhaseExecutor import
+- `src/autopack/phases/research_phase.py` - Complete rebuild (315 lines)
+- `src/autopack/workflow/research_review.py` - Complete rebuild (298 lines)
+- `src/autopack/integrations/build_history_integrator.py` - Added BuildHistoryInsights + 3 methods (443 lines)
+- `src/research/frameworks/product_feasibility.py` - Complete rebuild (228 lines)
+- `pyproject.toml` - Added 4 dependencies
+
+**Files Created**:
+- `tests/backend/api/__init__.py`
+- `tests/backlog/__init__.py`
+- `tests/research/unit/__init__.py`
+- `tests/research/gatherers/__init__.py`
+- `tests/autopack/research/gatherers/__init__.py`
+
+**Impact**:
+- ✅ README claim "Zero test collection failures" now accurate
+- ✅ CI/pytest can now collect all tests without errors
+- ✅ Test-driven development unblocked for research system
+- ✅ Batch drain validation no longer blocked by collection errors
+- 🎯 Enables future research system development with proper test coverage
+
+**Reference**: [docs/guides/RESEARCH_SYSTEM_CI_COLLECTION_REMEDIATION_PLAN.md](docs/guides/RESEARCH_SYSTEM_CI_COLLECTION_REMEDIATION_PLAN.md)
+
+---
+
 ### BUILD-129: Token Estimator Overhead Model - Phase 3 P4-P10 Truncation Mitigation (2025-12-25)
 
 **Status**: COMPLETE ✅ (P4-P10 implemented, P10 escalation base corrected twice; P10 validation now proceeds via P10-first draining with DB-backed escalation events)

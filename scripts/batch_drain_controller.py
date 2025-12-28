@@ -188,6 +188,10 @@ class BatchDrainSession:
     stopped_runs: Set[str] = None  # Run IDs deprioritized due to repeat failures
     # No-yield streak tracking
     consecutive_zero_yield: int = 0  # Count of consecutive phases with 0 telemetry events
+    # Sample-first triage tracking (T3)
+    sampled_runs: Set[str] = None  # Run IDs that have had at least 1 phase drained (sampled)
+    promising_runs: Set[str] = None  # Run IDs that passed sample evaluation (continue draining)
+    deprioritized_runs: Set[str] = None  # Run IDs that failed sample evaluation (cooldown)
 
     def __post_init__(self):
         if self.results is None:
@@ -198,6 +202,13 @@ class BatchDrainSession:
             self.stopped_fingerprints = set()
         if self.stopped_runs is None:
             self.stopped_runs = set()
+        # T3: Sample-first triage sets
+        if self.sampled_runs is None:
+            self.sampled_runs = set()
+        if self.promising_runs is None:
+            self.promising_runs = set()
+        if self.deprioritized_runs is None:
+            self.deprioritized_runs = set()
 
     @classmethod
     def create_new(cls, batch_size: int = 10) -> BatchDrainSession:
@@ -312,6 +323,10 @@ class BatchDrainController:
         if not self.session:
             return False, None
 
+        # T3: Check if run is deprioritized after sample-first triage
+        if phase.run_id in self.session.deprioritized_runs:
+            return True, f"run {phase.run_id} deprioritized (sample-first triage)"
+
         # Check if run is stopped due to repeated failures
         if phase.run_id in self.session.stopped_runs:
             return True, f"run {phase.run_id} deprioritized (too many repeat failures)"
@@ -334,6 +349,63 @@ class BatchDrainController:
             return True, f"phase already attempted {phase_attempts} times (limit: {self.max_attempts_per_phase})"
 
         return False, None
+
+    def _evaluate_sample_result(self, result: DrainResult):
+        """
+        Evaluate a sample result (first phase from a run) to decide whether to continue or deprioritize the run.
+
+        T3: Sample-first triage strategy.
+
+        Criteria for "promising" run (continue draining):
+        - Success = True (phase completed successfully)
+        - OR has telemetry yield > 0 (we got data)
+        - OR timeout but no repeating fingerprint (might succeed with more resources)
+
+        Criteria for "deprioritize" run (cooldown):
+        - Repeating failure fingerprint (indicates systematic issue)
+        - AND zero telemetry yield (no data benefit)
+        - AND not a timeout (timeouts might just need more time)
+        """
+        if not self.session:
+            return
+
+        run_id = result.run_id
+
+        # Mark as sampled
+        self.session.sampled_runs.add(run_id)
+
+        # Evaluate promise criteria
+        is_promising = False
+        deprioritize_reason = None
+
+        if result.success:
+            is_promising = True
+        elif (result.telemetry_events_collected or 0) > 0:
+            is_promising = True
+        elif result.subprocess_returncode in (-1, 143):
+            # Timeout - might succeed with more time/resources
+            is_promising = True
+        else:
+            # Failed with no telemetry - check if it's a repeating failure
+            if result.failure_fingerprint:
+                fingerprint_count = self.session.fingerprint_counts.get(result.failure_fingerprint, 0)
+                if fingerprint_count >= 1:  # If we've seen this error before (even once)
+                    deprioritize_reason = f"repeating fingerprint: {result.failure_fingerprint[:80]}..."
+                    is_promising = False
+                else:
+                    # First time seeing this error - give it another chance
+                    is_promising = True
+            else:
+                # No fingerprint - might be transient
+                is_promising = True
+
+        if is_promising:
+            self.session.promising_runs.add(run_id)
+            print(f"  [SAMPLE-OK] {run_id}: Promising (continue draining)")
+        else:
+            self.session.deprioritized_runs.add(run_id)
+            reason = deprioritize_reason or "failed with no telemetry"
+            print(f"  [SAMPLE-SKIP] {run_id}: Deprioritized ({reason})")
 
     def _get_telemetry_counts(self) -> Optional[int]:
         """
@@ -449,36 +521,58 @@ class BatchDrainController:
             print("  No eligible phases remaining after applying stop conditions")
             return None
 
-        # Categorize phases by failure type (now with timeouts deprioritized)
-        unknown_failures = []
-        collection_errors = []
-        deliverable_errors = []
-        patch_errors = []
-        timeout_errors = []
-        other_failures = []
+        # T3: Sample-first triage - split phases into unsampled vs sampled runs
+        unsampled_phases = []
+        promising_run_phases = []
+        other_phases = []
 
         for phase in candidate_phases:
-            failure_reason = (phase.last_failure_reason or "").lower()
-
-            if not phase.last_failure_reason:
-                unknown_failures.append(phase)
-            elif "collection" in failure_reason or "import" in failure_reason:
-                collection_errors.append(phase)
-            elif "deliverable" in failure_reason or "missing" in failure_reason:
-                deliverable_errors.append(phase)
-            elif "patch" in failure_reason or "no-op" in failure_reason or "manifest" in failure_reason:
-                patch_errors.append(phase)
-            elif "timeout" in failure_reason or "timed out" in failure_reason:
-                timeout_errors.append(phase)
+            if self.session and phase.run_id in self.session.sampled_runs:
+                # Run has been sampled - check if it's promising
+                if phase.run_id in self.session.promising_runs:
+                    promising_run_phases.append(phase)
+                # Deprioritized runs already filtered out in _should_skip_phase
             else:
-                other_failures.append(phase)
+                # Unsampled run - prioritize to get sample
+                unsampled_phases.append(phase)
 
-        # Pick from highest priority category (timeouts last!)
-        for category in [unknown_failures, collection_errors, deliverable_errors, patch_errors, other_failures, timeout_errors]:
-            if category:
-                # Sort by phase_index (earlier phases first)
-                category.sort(key=lambda p: (p.phase_index or 0))
-                return category[0]
+        # Prioritization: unsampled runs first, then promising runs, then others
+        priority_groups = [unsampled_phases, promising_run_phases, other_phases]
+
+        for group in priority_groups:
+            if not group:
+                continue
+
+            # Within each group, categorize by failure type
+            unknown_failures = []
+            collection_errors = []
+            deliverable_errors = []
+            patch_errors = []
+            timeout_errors = []
+            other_failures = []
+
+            for phase in group:
+                failure_reason = (phase.last_failure_reason or "").lower()
+
+                if not phase.last_failure_reason:
+                    unknown_failures.append(phase)
+                elif "collection" in failure_reason or "import" in failure_reason:
+                    collection_errors.append(phase)
+                elif "deliverable" in failure_reason or "missing" in failure_reason:
+                    deliverable_errors.append(phase)
+                elif "patch" in failure_reason or "no-op" in failure_reason or "manifest" in failure_reason:
+                    patch_errors.append(phase)
+                elif "timeout" in failure_reason or "timed out" in failure_reason:
+                    timeout_errors.append(phase)
+                else:
+                    other_failures.append(phase)
+
+            # Pick from highest priority category (timeouts last!)
+            for category in [unknown_failures, collection_errors, deliverable_errors, patch_errors, other_failures, timeout_errors]:
+                if category:
+                    # Sort by phase_index (earlier phases first)
+                    category.sort(key=lambda p: (p.phase_index or 0))
+                    return category[0]
 
         return None
 
@@ -741,6 +835,10 @@ class BatchDrainController:
                 self.session.results.append(result)
                 self.session.total_processed += 1
                 processed_keys.append(f"{result.run_id}:{result.phase_id}")
+
+                # T3: Evaluate sample result if this was first phase from this run
+                if result.run_id not in self.session.sampled_runs:
+                    self._evaluate_sample_result(result)
 
                 if result.success:
                     self.session.total_success += 1

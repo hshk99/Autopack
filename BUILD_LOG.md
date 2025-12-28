@@ -481,7 +481,7 @@ p10_metadata = {
 8. [scripts/test_confidence_buffering.py](scripts/test_confidence_buffering.py) - NEW: P7+P9 validation (updated with DOC_SYNTHESIS/SOT test cases)
 9. [scripts/test_escalate_once.py](scripts/test_escalate_once.py) - NEW: P10 validation
 10. [scripts/analyze_p7p9_validation.py](scripts/analyze_p7p9_validation.py) - NEW: P7+P9+P10 validation analysis tool
-11. [BUILD129_P7P9_VALIDATION_STATUS.md](BUILD129_P7P9_VALIDATION_STATUS.md) - P7+P9 validation status
+11. [BUILD129_P7P9_VALIDATION_STATUS.md](docs/reports/BUILD129_P7P9_VALIDATION_STATUS.md) - P7+P9 validation status
 
 ### Next Steps
 

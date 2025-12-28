@@ -56,7 +56,9 @@ async def verify_api_key(api_key: str = Security(API_KEY_HEADER)):
 # Rate limiting
 limiter = Limiter(key_func=get_remote_address)
 
-load_dotenv()  # Load environment variables from .env on startup
+# Load .env but DON'T override existing env vars (e.g., DATABASE_URL from executor)
+# This ensures subprocess API server inherits DATABASE_URL from parent process
+load_dotenv(override=False)
 
 
 async def approval_timeout_cleanup():

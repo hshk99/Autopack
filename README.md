@@ -8,6 +8,35 @@ Autopack is a framework for orchestrating autonomous AI agents (Builder and Audi
 
 ## Recent Updates (v0.4.11 - Telemetry & Triage Infrastructure)
 
+### 2025-12-28 (Part 5): Database Hygiene & Telemetry Seeding Automation - ✅ COMPLETE
+**Two-Database Strategy + Quickstart Workflow** - Prevent DB confusion, automate telemetry collection end-to-end
+- **Problem Solved**: DATABASE_URL import-time binding causes API server to inherit wrong database; manual multi-step workflow prone to errors
+- **Solution**: Complete DB hygiene infrastructure with automation scripts and comprehensive docs
+- **Two-Database Strategy**:
+  - **Legacy Backlog DB** (`autopack_legacy.db`): 70 runs, 456 phases (207 FAILED, 107 QUEUED, 141 COMPLETE) - for production failure analysis
+  - **Telemetry Seed DB** (`autopack_telemetry_seed.db`): Fresh database for collecting ≥20 success samples - isolated from legacy data
+  - Both properly `.gitignore`d, clear separation prevents accidental data mixing
+- **DB Identity Checker** ([scripts/db_identity_check.py](scripts/db_identity_check.py)):
+  - Standalone DB inspector with detailed stats (runs/phases/events, state breakdown, telemetry success rate)
+  - Usage: `DATABASE_URL="sqlite:///autopack_legacy.db" python scripts/db_identity_check.py`
+- **Quickstart Automation**:
+  - [scripts/telemetry_seed_quickstart.ps1](scripts/telemetry_seed_quickstart.ps1) - Windows PowerShell end-to-end workflow
+  - [scripts/telemetry_seed_quickstart.sh](scripts/telemetry_seed_quickstart.sh) - Unix/Linux Bash end-to-end workflow
+  - Automates: DB creation → run seeding → API server start → batch drain → validation
+- **Comprehensive Documentation**:
+  - [docs/guides/DB_HYGIENE_README.md](docs/guides/DB_HYGIENE_README.md) - Quick start guide with command reference
+  - [docs/guides/DB_HYGIENE_AND_TELEMETRY_SEEDING.md](docs/guides/DB_HYGIENE_AND_TELEMETRY_SEEDING.md) - Complete runbook (90+ lines) with troubleshooting
+  - [docs/guides/DB_HYGIENE_IMPLEMENTATION_SUMMARY.md](docs/guides/DB_HYGIENE_IMPLEMENTATION_SUMMARY.md) - Implementation status and next steps
+- **Key Design Decision - API Server Workflow**:
+  - DATABASE_URL must be set BEFORE importing autopack (import-time binding in config.py)
+  - Solution: Start API server in separate terminal with explicit DATABASE_URL, then batch drain with --api-url flag
+  - Documented workaround in all guides
+- **Impact**:
+  - ✅ Zero DB confusion (explicit DATABASE_URL enforcement + identity checks)
+  - ✅ Safe telemetry collection (isolated from legacy failures)
+  - ✅ Automated workflow (quickstart scripts handle entire pipeline)
+  - ✅ Production-ready runbook (troubleshooting + command reference)
+
 ### 2025-12-28 (Part 4): Telemetry Collection & Batch Drain Intelligence - ✅ COMPLETE
 **T1-T5 Framework Upgrades** - Safe telemetry seeding, DB identity guardrails, intelligent triage, LLM boundary detection, calibration tooling
 - **Problem Solved**: No telemetry data for token estimation calibration; batch drain wasting tokens on systematically failing runs; unclear why phases produce zero telemetry

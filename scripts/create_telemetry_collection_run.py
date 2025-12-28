@@ -27,6 +27,15 @@ import os
 import sys
 from pathlib import Path
 
+# Require DATABASE_URL to be explicitly set
+if not os.environ.get("DATABASE_URL"):
+    print("[ERROR] DATABASE_URL must be set", file=sys.stderr)
+    print("", file=sys.stderr)
+    print("Example usage:", file=sys.stderr)
+    print("  DATABASE_URL='sqlite:///autopack_telemetry_seed.db' python scripts/create_telemetry_collection_run.py", file=sys.stderr)
+    print("", file=sys.stderr)
+    sys.exit(1)
+
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 

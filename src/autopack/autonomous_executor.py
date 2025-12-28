@@ -230,20 +230,18 @@ class AutonomousExecutor:
         self.error_recovery._fix_encoding_error(dummy_ctx)
 
         # Initialize database for usage tracking (share DB config with API server)
-        db_url = settings.database_url
+        from autopack.config import get_database_url
+        from autopack.database import SessionLocal, init_db
+
+        # Use get_database_url() for runtime binding (respects DATABASE_URL env var)
+        db_url = get_database_url()
         engine = create_engine(db_url)
         Session = sessionmaker(bind=engine)
         self.db_session = Session()
 
-        # Initialize database tables (creates llm_usage_events table)
-        # Import Base and models to register them with metadata
-        from autopack.database import Base
-        # BUILD-115: models.py removed - skip model registration
-        # from autopack import models  # noqa: F401
-        from autopack.usage_recorder import LlmUsageEvent  # noqa: F401
-
-        # Create all tables using the same engine as the session
-        Base.metadata.create_all(bind=engine)
+        # Initialize ALL database tables (not just llm_usage_events)
+        # This creates runs, phases, tiers, llm_usage_events, token_estimation_v2_events, etc.
+        init_db()
         logger.info("Database tables initialized")
 
         # Initialize LlmService (replaces direct client instantiation)

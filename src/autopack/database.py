@@ -3,12 +3,13 @@
 from sqlalchemy import create_engine
 from sqlalchemy.orm import declarative_base, sessionmaker
 
-from .config import settings
+from .config import get_database_url
 
 # Enable pool_pre_ping so dropped/closed connections are detected and re-established.
 # pool_recycle guards against server-side timeouts on long-lived processes.
+# Use get_database_url() for runtime binding (respects DATABASE_URL env var)
 engine = create_engine(
-    settings.database_url,
+    get_database_url(),
     pool_pre_ping=True,
     pool_recycle=1800,
 )

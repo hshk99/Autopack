@@ -394,14 +394,16 @@ class BatchDrainController:
         exclude_keys = exclude_keys or []
         exclude_set = set(exclude_keys)
 
-        queued_runs: set[str] = set()
+        # Build set of currently queued phase keys (run_id:phase_id)
+        # We'll skip individual QUEUED phases, not entire runs
+        queued_phase_keys: set[str] = set()
         if self.skip_runs_with_queued:
-            queued_runs = self._queued_runs_set(db_session)
-            if run_id_filter and run_id_filter in queued_runs:
-                # Safety: if a run has queued phases already, re-queueing a FAILED phase makes multiple QUEUED phases.
-                # The executor will then drain the *earliest* queued phase (tier_index/phase_index), which may not be
-                # the FAILED phase we intended to retry.
-                return None
+            queued_phases = db_session.query(Phase).filter(Phase.state == PhaseState.QUEUED).all()
+            queued_phase_keys = {f"{p.run_id}:{p.phase_id}" for p in queued_phases}
+
+            # Log for transparency
+            if queued_phase_keys:
+                print(f"  [INFO] Skipping {len(queued_phase_keys)} individual QUEUED phases (not entire runs)")
 
         query = db_session.query(Phase).filter(Phase.state == PhaseState.FAILED)
 
@@ -409,8 +411,13 @@ class BatchDrainController:
             query = query.filter(Phase.run_id == run_id_filter)
 
         failed_phases = query.all()
-        if self.skip_runs_with_queued and queued_runs:
-            failed_phases = [p for p in failed_phases if p.run_id not in queued_runs]
+
+        # Skip individual QUEUED phases, not entire runs
+        if self.skip_runs_with_queued and queued_phase_keys:
+            failed_phases = [
+                p for p in failed_phases
+                if f"{p.run_id}:{p.phase_id}" not in queued_phase_keys
+            ]
 
         # Filter out runs matching skip_run_prefixes
         if self.skip_run_prefixes:
@@ -880,8 +887,9 @@ def main() -> int:
         action="store_true",
         default=True,
         help=(
-            "Safety default: do not retry FAILED phases in runs that already have QUEUED phases. "
-            "Otherwise a retry can create multiple QUEUED phases and the executor may drain a different phase first."
+            "Safety default: skip individual QUEUED phases when selecting FAILED phases to drain. "
+            "This prevents re-queueing a phase that is already queued, but still allows draining "
+            "other FAILED phases from the same run."
         ),
     )
     ap.add_argument(

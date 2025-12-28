@@ -7,16 +7,19 @@ This controller orchestrates draining of failed phases with:
 - Resume capability (can stop/start without losing progress)
 - Automatic retry with backoff for transient failures
 - Summary reporting after each batch
+- Adaptive timeout controls (starts low, increases for high-value phases)
+- Failure fingerprinting (detects repeating errors, stops wasteful retries)
+- Telemetry-aware tracking (measures yield-per-minute, optimizes for samples)
 
 Usage:
   # Process 10 failed phases (default)
   python scripts/batch_drain_controller.py
 
-  # Process 25 failed phases
-  python scripts/batch_drain_controller.py --batch-size 25
+  # Process 25 failed phases with 15-minute timeout
+  python scripts/batch_drain_controller.py --batch-size 25 --phase-timeout-seconds 900
 
-  # Process failed phases from specific run
-  python scripts/batch_drain_controller.py --run-id build130-schema-validation-prevention
+  # Process failed phases from specific run, with total time limit
+  python scripts/batch_drain_controller.py --run-id build130-schema-validation-prevention --max-total-minutes 60
 
   # Dry run (show what would be processed)
   python scripts/batch_drain_controller.py --dry-run
@@ -29,17 +32,108 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import subprocess
 import sys
-from dataclasses import dataclass, asdict
+import os
+from collections import defaultdict
+from dataclasses import dataclass, asdict, field
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Set
+
+# Default DATABASE_URL to the local SQLite DB when running from repo root.
+# IMPORTANT: must run before importing autopack.database (SessionLocal binds at import time).
+if not os.environ.get("DATABASE_URL"):
+    _default_db_path = Path("autopack.db")
+    if _default_db_path.exists():
+        os.environ["DATABASE_URL"] = "sqlite:///autopack.db"
+        print("[batch_drain] DATABASE_URL not set; defaulting to sqlite:///autopack.db")
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 from autopack.database import SessionLocal
 from autopack.models import Phase, PhaseState
+
+
+def normalize_error_text(text: str) -> str:
+    """
+    Normalize error text for fingerprinting.
+
+    Removes:
+    - Timestamps (2025-12-28, 16:22:03, etc.)
+    - File paths (c:\\dev\\Autopack\\..., /tmp/..., etc.)
+    - Memory addresses (0x7f8a1b2c3d4e)
+    - Line numbers (line 123, :456, etc.)
+    - Specific IDs (session-20251228-162203, etc.)
+
+    Returns normalized text for similarity comparison.
+    """
+    if not text:
+        return ""
+
+    # Lowercase for case-insensitive matching
+    normalized = text.lower()
+
+    # Remove timestamps
+    normalized = re.sub(r'\d{4}-\d{2}-\d{2}', 'date', normalized)
+    normalized = re.sub(r'\d{2}:\d{2}:\d{2}', 'time', normalized)
+
+    # Remove file paths (Windows and Unix)
+    normalized = re.sub(r'[a-z]:\\[\w\\.\\-]+', 'path', normalized)
+    normalized = re.sub(r'/[\w/\.\-]+', 'path', normalized)
+
+    # Remove memory addresses
+    normalized = re.sub(r'0x[0-9a-f]+', 'addr', normalized)
+
+    # Remove line numbers
+    normalized = re.sub(r'line \d+', 'line num', normalized)
+    normalized = re.sub(r':\d+', ':num', normalized)
+
+    # Remove session/run IDs
+    normalized = re.sub(r'(session|run|batch|drain)-\d{8}-\d{6}', r'\1-id', normalized)
+
+    # Remove numbers that aren't part of words
+    normalized = re.sub(r'\b\d+\b', 'num', normalized)
+
+    # Collapse whitespace
+    normalized = re.sub(r'\s+', ' ', normalized)
+
+    return normalized.strip()
+
+
+def compute_failure_fingerprint(result: 'DrainResult') -> str:
+    """
+    Compute a fingerprint for a DrainResult to detect repeating failures.
+
+    Fingerprint includes:
+    - Final state
+    - Normalized error message (first 200 chars)
+    - Return code bucket (0, timeout=-1, other errors)
+
+    Returns: Short fingerprint string for grouping similar failures.
+    """
+    parts = [result.final_state]
+
+    # Bucket return codes: 0 (success), -1 (timeout), 1 (error), other
+    if result.subprocess_returncode is not None:
+        if result.subprocess_returncode == -1:
+            parts.append("timeout")
+        elif result.subprocess_returncode == 0:
+            parts.append("rc0")
+        elif result.subprocess_returncode == 1:
+            parts.append("rc1")
+        elif result.subprocess_returncode == 143:
+            parts.append("timeout143")  # SIGTERM timeout
+        else:
+            parts.append(f"rc{result.subprocess_returncode}")
+
+    # Add normalized error message (first 200 chars for fingerprint)
+    if result.error_message:
+        normalized = normalize_error_text(result.error_message)[:200]
+        parts.append(normalized)
+
+    return "|".join(parts)
 
 
 @dataclass
@@ -53,10 +147,24 @@ class DrainResult:
     success: bool
     error_message: Optional[str] = None
     timestamp: str = None
+    # Observability fields (A1)
+    subprocess_returncode: Optional[int] = None
+    subprocess_duration_seconds: Optional[float] = None
+    subprocess_stdout_path: Optional[str] = None
+    subprocess_stderr_path: Optional[str] = None
+    subprocess_stdout_excerpt: Optional[str] = None
+    subprocess_stderr_excerpt: Optional[str] = None
+    # Failure fingerprinting
+    failure_fingerprint: Optional[str] = None
+    # Telemetry tracking
+    telemetry_events_collected: Optional[int] = None
+    telemetry_yield_per_minute: Optional[float] = None
 
     def __post_init__(self):
         if self.timestamp is None:
             self.timestamp = datetime.now(timezone.utc).isoformat()
+        if self.failure_fingerprint is None and not self.success:
+            self.failure_fingerprint = compute_failure_fingerprint(self)
 
 
 @dataclass
@@ -69,11 +177,24 @@ class BatchDrainSession:
     total_processed: int = 0
     total_success: int = 0
     total_failed: int = 0
+    total_timeouts: int = 0
+    total_telemetry_events: int = 0
     results: List[DrainResult] = None
+    # Failure fingerprint tracking: fingerprint -> count
+    fingerprint_counts: Dict[str, int] = None
+    # Stop conditions tracking
+    stopped_fingerprints: Set[str] = None  # Fingerprints that hit repeat limit
+    stopped_runs: Set[str] = None  # Run IDs deprioritized due to repeat failures
 
     def __post_init__(self):
         if self.results is None:
             self.results = []
+        if self.fingerprint_counts is None:
+            self.fingerprint_counts = {}
+        if self.stopped_fingerprints is None:
+            self.stopped_fingerprints = set()
+        if self.stopped_runs is None:
+            self.stopped_runs = set()
 
     @classmethod
     def create_new(cls, batch_size: int = 10) -> BatchDrainSession:
@@ -90,8 +211,12 @@ class BatchDrainSession:
         """Save session state to disk."""
         session_dir.mkdir(parents=True, exist_ok=True)
         session_file = session_dir / f"{self.session_id}.json"
+        # Convert sets to lists for JSON serialization
+        data = asdict(self)
+        data['stopped_fingerprints'] = list(self.stopped_fingerprints) if self.stopped_fingerprints else []
+        data['stopped_runs'] = list(self.stopped_runs) if self.stopped_runs else []
         with open(session_file, 'w', encoding='utf-8') as f:
-            json.dump(asdict(self), f, indent=2)
+            json.dump(data, f, indent=2)
 
     @classmethod
     def load(cls, session_dir: Path, session_id: str) -> BatchDrainSession:
@@ -102,6 +227,13 @@ class BatchDrainSession:
         # Convert results back to DrainResult objects
         results = [DrainResult(**r) for r in data.get('results', [])]
         data['results'] = results
+        # Convert lists back to sets
+        data['stopped_fingerprints'] = set(data.get('stopped_fingerprints', []))
+        data['stopped_runs'] = set(data.get('stopped_runs', []))
+        # Provide defaults for new fields if loading old session
+        data.setdefault('fingerprint_counts', {})
+        data.setdefault('total_timeouts', 0)
+        data.setdefault('total_telemetry_events', 0)
         return cls(**data)
 
     @classmethod
@@ -133,18 +265,109 @@ class BatchDrainController:
         self,
         workspace: Path,
         session_dir: Optional[Path] = None,
-        dry_run: bool = False
+        dry_run: bool = False,
+        skip_runs_with_queued: bool = True,
+        api_url: Optional[str] = None,
+        phase_timeout_seconds: int = 900,  # Default 15 minutes (was 30)
+        max_total_minutes: Optional[int] = None,
+        max_timeouts_per_run: int = 2,
+        max_attempts_per_phase: int = 2,
+        max_fingerprint_repeats: int = 3,
     ):
         self.workspace = workspace
         self.session_dir = session_dir or (workspace / ".autonomous_runs" / "batch_drain_sessions")
         self.dry_run = dry_run
+        self.skip_runs_with_queued = skip_runs_with_queued
+        # If provided, reuse a single API URL across drains (prevents spawning many uvicorn servers).
+        # This should point at an API server using the same DATABASE_URL as this controller process.
+        self.api_url = api_url
         self.session: Optional[BatchDrainSession] = None
+        # Adaptive timeout controls
+        self.phase_timeout_seconds = phase_timeout_seconds
+        self.max_total_minutes = max_total_minutes
+        self.max_timeouts_per_run = max_timeouts_per_run
+        self.max_attempts_per_phase = max_attempts_per_phase
+        self.max_fingerprint_repeats = max_fingerprint_repeats
+        # Session start time for total time limit tracking
+        self.session_start_time: Optional[float] = None
+
+    def _queued_runs_set(self, db_session) -> set[str]:
+        rows = db_session.query(Phase.run_id).filter(Phase.state == PhaseState.QUEUED).all()
+        return {run_id for (run_id,) in rows if run_id}
+
+    def _should_skip_phase(self, phase: Phase) -> tuple[bool, Optional[str]]:
+        """
+        Check if a phase should be skipped based on stop conditions.
+
+        Returns: (should_skip, reason)
+        """
+        if not self.session:
+            return False, None
+
+        # Check if run is stopped due to repeated failures
+        if phase.run_id in self.session.stopped_runs:
+            return True, f"run {phase.run_id} deprioritized (too many repeat failures)"
+
+        # Count timeouts for this run in current session
+        run_timeouts = sum(
+            1 for r in self.session.results
+            if r.run_id == phase.run_id and r.subprocess_returncode in (-1, 143)
+        )
+        if run_timeouts >= self.max_timeouts_per_run:
+            return True, f"run {phase.run_id} has {run_timeouts} timeouts (limit: {self.max_timeouts_per_run})"
+
+        # Count attempts for this specific phase
+        phase_key = f"{phase.run_id}:{phase.phase_id}"
+        phase_attempts = sum(
+            1 for r in self.session.results
+            if f"{r.run_id}:{r.phase_id}" == phase_key
+        )
+        if phase_attempts >= self.max_attempts_per_phase:
+            return True, f"phase already attempted {phase_attempts} times (limit: {self.max_attempts_per_phase})"
+
+        return False, None
+
+    def _get_telemetry_counts(self) -> Optional[int]:
+        """
+        Get current total telemetry event count.
+
+        Returns: Total events across token_estimation_v2_events + token_budget_escalation_events, or None on error.
+        """
+        try:
+            cmd = [
+                sys.executable,
+                "scripts/telemetry_row_counts.py",
+            ]
+            result = subprocess.run(
+                cmd,
+                cwd=self.workspace,
+                capture_output=True,
+                text=True,
+                timeout=10,
+            )
+            if result.returncode != 0:
+                return None
+
+            # Parse output: "- token_estimation_v2_events: 162"
+            total = 0
+            for line in result.stdout.splitlines():
+                if "token_estimation_v2_events:" in line or "token_budget_escalation_events:" in line:
+                    parts = line.split(":")
+                    if len(parts) == 2:
+                        try:
+                            count = int(parts[1].strip())
+                            total += count
+                        except ValueError:
+                            pass
+            return total
+        except Exception:
+            return None
 
     def pick_next_failed_phase(
         self,
         db_session,
         run_id_filter: Optional[str] = None,
-        exclude_phases: List[str] = None
+        exclude_keys: List[str] = None
     ) -> Optional[Phase]:
         """
         Pick the next failed phase to drain using smart prioritization.
@@ -153,34 +376,65 @@ class BatchDrainController:
         1. Phases with no last_failure_reason (unknown failure, likely transient)
         2. Phases with collection errors (might be fixed by systemic improvements)
         3. Phases with deliverables missing (might be fixed by no-op guard)
-        4. Other failed phases
+        4. Phases with patch/no-op errors (quick to execute)
+        5. Other failed phases (excluding timeouts - those go last)
+        6. Timeout phases (expensive, low success rate)
 
         Within each category, prefer:
         - Lower phase_index (earlier in run)
         - Runs with fewer total failed phases (easier to complete runs)
         """
-        exclude_phases = exclude_phases or []
+        exclude_keys = exclude_keys or []
+        exclude_set = set(exclude_keys)
+
+        queued_runs: set[str] = set()
+        if self.skip_runs_with_queued:
+            queued_runs = self._queued_runs_set(db_session)
+            if run_id_filter and run_id_filter in queued_runs:
+                # Safety: if a run has queued phases already, re-queueing a FAILED phase makes multiple QUEUED phases.
+                # The executor will then drain the *earliest* queued phase (tier_index/phase_index), which may not be
+                # the FAILED phase we intended to retry.
+                return None
 
         query = db_session.query(Phase).filter(Phase.state == PhaseState.FAILED)
 
         if run_id_filter:
             query = query.filter(Phase.run_id == run_id_filter)
 
-        if exclude_phases:
-            query = query.filter(~Phase.phase_id.in_(exclude_phases))
-
         failed_phases = query.all()
+        if self.skip_runs_with_queued and queued_runs:
+            failed_phases = [p for p in failed_phases if p.run_id not in queued_runs]
+        # IMPORTANT: phase_id is not globally unique across runs. Exclude by composite key.
+        failed_phases = [
+            p for p in failed_phases
+            if f"{p.run_id}:{p.phase_id}" not in exclude_set
+        ]
 
         if not failed_phases:
             return None
 
-        # Categorize phases by failure type
+        # Filter out phases that should be skipped
+        candidate_phases = []
+        for phase in failed_phases:
+            should_skip, reason = self._should_skip_phase(phase)
+            if not should_skip:
+                candidate_phases.append(phase)
+            elif reason:
+                print(f"  [SKIP] {phase.run_id}/{phase.phase_id}: {reason}")
+
+        if not candidate_phases:
+            print("  No eligible phases remaining after applying stop conditions")
+            return None
+
+        # Categorize phases by failure type (now with timeouts deprioritized)
         unknown_failures = []
         collection_errors = []
         deliverable_errors = []
+        patch_errors = []
+        timeout_errors = []
         other_failures = []
 
-        for phase in failed_phases:
+        for phase in candidate_phases:
             failure_reason = (phase.last_failure_reason or "").lower()
 
             if not phase.last_failure_reason:
@@ -189,11 +443,15 @@ class BatchDrainController:
                 collection_errors.append(phase)
             elif "deliverable" in failure_reason or "missing" in failure_reason:
                 deliverable_errors.append(phase)
+            elif "patch" in failure_reason or "no-op" in failure_reason or "manifest" in failure_reason:
+                patch_errors.append(phase)
+            elif "timeout" in failure_reason or "timed out" in failure_reason:
+                timeout_errors.append(phase)
             else:
                 other_failures.append(phase)
 
-        # Pick from highest priority category
-        for category in [unknown_failures, collection_errors, deliverable_errors, other_failures]:
+        # Pick from highest priority category (timeouts last!)
+        for category in [unknown_failures, collection_errors, deliverable_errors, patch_errors, other_failures, timeout_errors]:
             if category:
                 # Sort by phase_index (earlier phases first)
                 category.sort(key=lambda p: (p.phase_index or 0))
@@ -246,18 +504,54 @@ class BatchDrainController:
                 sys.executable,
                 "scripts/drain_one_phase.py",
                 "--run-id", run_id,
-                "--phase-id", phase_id
+                "--phase-id", phase_id,
+                "--force"  # Allow non-exclusive execution (batch controller ensures sequential processing)
             ]
 
             print(f"  Draining: {run_id} / {phase_id} (index {phase_index})")
+
+            # A2: Create persistent log directory for this session
+            log_dir = self.workspace / ".autonomous_runs" / "batch_drain_sessions" / self.session.session_id / "logs"
+            log_dir.mkdir(parents=True, exist_ok=True)
+
+            stdout_path = log_dir / f"{run_id}__{phase_id}.stdout.txt"
+            stderr_path = log_dir / f"{run_id}__{phase_id}.stderr.txt"
+
+            # B1: Force UTF-8 environment for subprocess
+            env = os.environ.copy()
+            env["PYTHONUTF8"] = "1"
+            env["PYTHONIOENCODING"] = "utf-8"
+            if self.api_url:
+                env["AUTOPACK_API_URL"] = self.api_url
+            # B2: Ensure DATABASE_URL is explicit
+            if "DATABASE_URL" in os.environ:
+                env["DATABASE_URL"] = os.environ["DATABASE_URL"]
+
+            # A1: Capture subprocess metrics
+            import time
+            start_time = time.time()
+
+            # Capture telemetry baseline before drain
+            telemetry_before = self._get_telemetry_counts()
 
             result = subprocess.run(
                 cmd,
                 cwd=self.workspace,
                 capture_output=True,
                 text=True,
-                timeout=600  # 10 minute timeout per phase
+                timeout=self.phase_timeout_seconds,
+                env=env,
             )
+
+            duration = time.time() - start_time
+
+            # Capture telemetry after drain and compute delta
+            telemetry_after = self._get_telemetry_counts()
+            telemetry_delta = telemetry_after - telemetry_before if telemetry_before is not None and telemetry_after is not None else None
+
+            # A2: Write full stdout/stderr to disk
+            stdout_path.write_text(result.stdout or "", encoding="utf-8")
+            stderr_path.write_text(result.stderr or "", encoding="utf-8")
 
             # Refresh phase state
             session.expire(phase)
@@ -265,7 +559,30 @@ class BatchDrainController:
             final_state = phase.state.value if phase.state else "UNKNOWN"
 
             success = final_state == PhaseState.COMPLETE.value
-            error_msg = None if success else (phase.last_failure_reason or "Unknown error")
+            if success:
+                error_msg = None
+            else:
+                # Prefer DB failure reason; fall back to subprocess stderr/stdout
+                error_msg = phase.last_failure_reason
+                if not error_msg:
+                    stderr = (result.stderr or "").strip()
+                    stdout = (result.stdout or "").strip()
+                    # A3: Eliminate "Unknown error" - always include returncode and log paths
+                    if result.returncode != 0:
+                        error_msg = f"subprocess exit {result.returncode} (stderr: {stderr_path})"
+                        if stderr:
+                            error_msg = f"{error_msg[:200]} | {stderr[:300]}"
+                    elif stderr:
+                        error_msg = f"exit 0 but stderr present (see {stderr_path}): {stderr[:500]}"
+                    elif stdout:
+                        error_msg = f"exit 0 but not COMPLETE (see {stdout_path}): {stdout[:500]}"
+                    else:
+                        error_msg = f"exit 0 but not COMPLETE (empty output, see {stdout_path}, {stderr_path})"
+
+            # Compute telemetry yield per minute
+            telemetry_yield = None
+            if telemetry_delta is not None and telemetry_delta > 0 and duration > 0:
+                telemetry_yield = round((telemetry_delta / duration) * 60, 2)  # events per minute
 
             return DrainResult(
                 run_id=run_id,
@@ -274,10 +591,23 @@ class BatchDrainController:
                 initial_state=initial_state,
                 final_state=final_state,
                 success=success,
-                error_message=error_msg
+                error_message=error_msg,
+                subprocess_returncode=result.returncode,
+                subprocess_duration_seconds=round(duration, 2),
+                subprocess_stdout_path=str(stdout_path),
+                subprocess_stderr_path=str(stderr_path),
+                subprocess_stdout_excerpt=(result.stdout or "")[:500] if result.stdout else None,
+                subprocess_stderr_excerpt=(result.stderr or "")[:500] if result.stderr else None,
+                telemetry_events_collected=telemetry_delta,
+                telemetry_yield_per_minute=telemetry_yield
             )
 
-        except subprocess.TimeoutExpired:
+        except subprocess.TimeoutExpired as e:
+            # Try to write whatever output we got before timeout
+            duration = time.time() - start_time if 'start_time' in locals() else 1800
+            if 'stdout_path' in locals() and 'stderr_path' in locals():
+                stdout_path.write_text(e.stdout or "", encoding="utf-8")
+                stderr_path.write_text(e.stderr or "", encoding="utf-8")
             return DrainResult(
                 run_id=run_id,
                 phase_id=phase_id,
@@ -285,7 +615,11 @@ class BatchDrainController:
                 initial_state=initial_state,
                 final_state="TIMEOUT",
                 success=False,
-                error_message="Phase drain timed out after 10 minutes"
+                error_message=f"Phase drain timed out after 30 minutes (see logs)",
+                subprocess_returncode=-1,  # Timeout
+                subprocess_duration_seconds=round(duration, 2),
+                subprocess_stdout_path=str(stdout_path) if 'stdout_path' in locals() else None,
+                subprocess_stderr_path=str(stderr_path) if 'stderr_path' in locals() else None
             )
         except Exception as e:
             return DrainResult(
@@ -295,7 +629,7 @@ class BatchDrainController:
                 initial_state=initial_state,
                 final_state="ERROR",
                 success=False,
-                error_message=str(e)
+                error_message=f"Exception during drain: {type(e).__name__}: {str(e)}"
             )
         finally:
             session.close()
@@ -337,21 +671,38 @@ class BatchDrainController:
             print(f"Filter: run_id = {run_id_filter}")
         if self.dry_run:
             print("Mode: DRY RUN (no changes will be made)")
+        print(f"Adaptive Controls:")
+        print(f"  - Phase timeout: {self.phase_timeout_seconds}s ({self.phase_timeout_seconds // 60}m)")
+        print(f"  - Max total time: {self.max_total_minutes}m" if self.max_total_minutes else "  - Max total time: unlimited")
+        print(f"  - Max timeouts per run: {self.max_timeouts_per_run}")
+        print(f"  - Max attempts per phase: {self.max_attempts_per_phase}")
+        print(f"  - Max fingerprint repeats: {self.max_fingerprint_repeats}")
         print()
 
         # Track which phases we've already processed
-        processed_phase_ids = [r.phase_id for r in self.session.results]
+        processed_keys = [f"{r.run_id}:{r.phase_id}" for r in self.session.results]
+
+        # Start session timer
+        import time
+        self.session_start_time = time.time()
 
         # Process phases
         db_session = SessionLocal()
         try:
             for i in range(self.session.total_processed, batch_size):
+                # Check total time limit
+                if self.max_total_minutes:
+                    elapsed_minutes = (time.time() - self.session_start_time) / 60
+                    if elapsed_minutes >= self.max_total_minutes:
+                        print(f"  [TIME LIMIT] Reached max total time ({self.max_total_minutes}m)")
+                        break
+
                 print(f"[{i+1}/{batch_size}] Selecting next phase...")
 
                 phase = self.pick_next_failed_phase(
                     db_session,
                     run_id_filter=run_id_filter,
-                    exclude_phases=processed_phase_ids
+                    exclude_keys=processed_keys
                 )
 
                 if not phase:
@@ -364,16 +715,38 @@ class BatchDrainController:
                 # Update session
                 self.session.results.append(result)
                 self.session.total_processed += 1
-                processed_phase_ids.append(result.phase_id)
+                processed_keys.append(f"{result.run_id}:{result.phase_id}")
 
                 if result.success:
                     self.session.total_success += 1
-                    print(f"  ✓ Success: {result.final_state}")
+                    print(f"  [OK] Success: {result.final_state}")
                 else:
                     self.session.total_failed += 1
-                    print(f"  ✗ Failed: {result.final_state}")
+                    print(f"  [FAIL] Failed: {result.final_state}")
                     if result.error_message:
                         print(f"    Error: {result.error_message[:100]}")
+
+                # Track timeout count
+                if result.subprocess_returncode in (-1, 143):
+                    self.session.total_timeouts += 1
+
+                # Track telemetry events
+                if result.telemetry_events_collected:
+                    self.session.total_telemetry_events += result.telemetry_events_collected
+                    print(f"    [TELEMETRY] +{result.telemetry_events_collected} events ({result.telemetry_yield_per_minute:.2f}/min)")
+
+                # Track failure fingerprints and check for repeats
+                if result.failure_fingerprint:
+                    self.session.fingerprint_counts[result.failure_fingerprint] = \
+                        self.session.fingerprint_counts.get(result.failure_fingerprint, 0) + 1
+
+                    repeat_count = self.session.fingerprint_counts[result.failure_fingerprint]
+                    if repeat_count >= self.max_fingerprint_repeats:
+                        # Mark this fingerprint as stopped
+                        self.session.stopped_fingerprints.add(result.failure_fingerprint)
+                        # Mark the run as stopped (deprioritize it)
+                        self.session.stopped_runs.add(result.run_id)
+                        print(f"    [STOP] Fingerprint repeated {repeat_count}x - deprioritizing run {result.run_id}")
 
                 # Save progress after each phase
                 self.session.save(self.session_dir)
@@ -398,12 +771,38 @@ class BatchDrainController:
         print(f"Completed: {session.completed_at or 'In progress'}")
         print()
         print(f"Total Processed: {session.total_processed}")
-        print(f"  ✓ Succeeded: {session.total_success}")
-        print(f"  ✗ Failed: {session.total_failed}")
+        print(f"  [OK] Succeeded: {session.total_success}")
+        print(f"  [FAIL] Failed: {session.total_failed}")
+        print(f"  [TIMEOUT] Timeouts: {session.total_timeouts}")
 
         if session.total_processed > 0:
             success_rate = (session.total_success / session.total_processed) * 100
             print(f"Success Rate: {success_rate:.1f}%")
+
+        # Telemetry summary
+        print()
+        print("Telemetry Collection:")
+        print(f"  Total Events: {session.total_telemetry_events}")
+        if session.total_telemetry_events > 0:
+            # Compute total duration (all non-timeout phases)
+            total_duration_minutes = sum(
+                (r.subprocess_duration_seconds or 0) / 60
+                for r in session.results
+                if r.subprocess_returncode not in (-1, 143)
+            )
+            if total_duration_minutes > 0:
+                overall_yield = session.total_telemetry_events / total_duration_minutes
+                print(f"  Overall Yield: {overall_yield:.2f} events/minute")
+
+        # Stop conditions summary
+        print()
+        print("Stop Conditions:")
+        print(f"  Stopped Runs: {len(session.stopped_runs)}")
+        if session.stopped_runs:
+            for run_id in sorted(session.stopped_runs):
+                print(f"    - {run_id}")
+        print(f"  Unique Fingerprints: {len(session.fingerprint_counts)}")
+        print(f"  Repeat Limit Hits: {len(session.stopped_fingerprints)}")
 
         print()
         print("Results by Run:")
@@ -417,7 +816,11 @@ class BatchDrainController:
         for run_id, results in sorted(by_run.items()):
             succeeded = sum(1 for r in results if r.success)
             total = len(results)
-            print(f"  {run_id}: {succeeded}/{total} succeeded")
+            timeouts = sum(1 for r in results if r.subprocess_returncode in (-1, 143))
+            telemetry = sum(r.telemetry_events_collected or 0 for r in results)
+
+            status = " [STOPPED]" if run_id in session.stopped_runs else ""
+            print(f"  {run_id}{status}: {succeeded}/{total} succeeded, {timeouts} timeouts, {telemetry} events")
 
         print()
         print("Session saved to:")
@@ -449,10 +852,74 @@ def main() -> int:
         action="store_true",
         help="Resume previous incomplete session"
     )
+    ap.add_argument(
+        "--skip-runs-with-queued",
+        action="store_true",
+        default=True,
+        help=(
+            "Safety default: do not retry FAILED phases in runs that already have QUEUED phases. "
+            "Otherwise a retry can create multiple QUEUED phases and the executor may drain a different phase first."
+        ),
+    )
+    ap.add_argument(
+        "--no-skip-runs-with-queued",
+        action="store_true",
+        help="Disable --skip-runs-with-queued (not recommended unless you fully understand the risks).",
+    )
+    ap.add_argument(
+        "--api-url",
+        default=None,
+        help=(
+            "Optional: reuse a single API URL for all drains (prevents spawning many uvicorn servers). "
+            "Example: http://127.0.0.1:8000"
+        ),
+    )
+    # Adaptive draining controls
+    ap.add_argument(
+        "--phase-timeout-seconds",
+        type=int,
+        default=900,
+        help="Timeout per phase in seconds (default: 900 = 15 minutes, was 30m)",
+    )
+    ap.add_argument(
+        "--max-total-minutes",
+        type=int,
+        default=None,
+        help="Optional: stop draining after this many minutes total (across all phases)",
+    )
+    ap.add_argument(
+        "--max-timeouts-per-run",
+        type=int,
+        default=2,
+        help="Skip run after this many timeout failures (default: 2)",
+    )
+    ap.add_argument(
+        "--max-attempts-per-phase",
+        type=int,
+        default=2,
+        help="Skip phase after this many retry attempts (default: 2)",
+    )
+    ap.add_argument(
+        "--max-fingerprint-repeats",
+        type=int,
+        default=3,
+        help="Deprioritize run after same error fingerprint repeats this many times (default: 3)",
+    )
     args = ap.parse_args()
 
     workspace = Path.cwd()
-    controller = BatchDrainController(workspace, dry_run=args.dry_run)
+    skip_runs_with_queued = bool(args.skip_runs_with_queued and not args.no_skip_runs_with_queued)
+    controller = BatchDrainController(
+        workspace,
+        dry_run=args.dry_run,
+        skip_runs_with_queued=skip_runs_with_queued,
+        api_url=args.api_url,
+        phase_timeout_seconds=args.phase_timeout_seconds,
+        max_total_minutes=args.max_total_minutes,
+        max_timeouts_per_run=args.max_timeouts_per_run,
+        max_attempts_per_phase=args.max_attempts_per_phase,
+        max_fingerprint_repeats=args.max_fingerprint_repeats,
+    )
 
     try:
         session = controller.run_batch(

@@ -6,6 +6,54 @@ Autopack is a framework for orchestrating autonomous AI agents (Builder and Audi
 
 ---
 
+## Recent Updates (v0.4.7 - Drain Efficiency & Quality Gates)
+
+### 2025-12-28: Batch Drain Controller + No-Op Guard + Collector Digest - ✅ COMPLETE
+**Smart Drain Orchestration & Enhanced Quality Gates** - Efficient failed phase processing with improved diagnostics
+- **Problem Solved**: 57 runs with failed phases requiring manual one-by-one draining; false completions when apply produces no changes; collection errors hidden in logs
+- **Solution**: Batch drain controller + no-op detection gate + collector error digest
+- **Implementation**:
+  - **Batch Drain Controller** ([scripts/batch_drain_controller.py](scripts/batch_drain_controller.py)): Smart orchestration for processing failed phases across multiple runs
+    - Priority-based phase selection (unknown failures → collection errors → deliverable errors → other)
+    - Session persistence with resume capability
+    - Summary reporting for failure pattern visibility
+  - **No-Op Guard** (PhaseFinalizer Gate -1): Prevents false completions when apply operations produce no changes
+    - Detects empty patches (`patch_nonempty=False`) and zero-operation structured edits
+    - Blocks when deliverables missing, allows when deliverables exist (idempotent phases)
+    - Respects `allow_noop=true` escape hatch in phase_spec
+  - **Collector Error Digest**: Surfaces pytest collection/import errors in phase summaries
+    - Extracts top 5 collection failures from pytest JSON reports
+    - Persisted in `ci_result["collector_error_digest"]` for downstream access
+    - Reduces log hunting during draining
+- **Test Coverage**: 8 new unit tests for no-op guard + collector digest (all passing ✅)
+- **Files Modified**:
+  - [src/autopack/phase_finalizer.py](src/autopack/phase_finalizer.py): Added Gate -1 (no-op detection), `_detect_noop()`, `_extract_collection_error_digest()`
+  - [src/autopack/autonomous_executor.py](src/autopack/autonomous_executor.py): Pass apply_stats to finalizer, extract/persist collector digest
+  - [tests/test_phase_finalizer_simple.py](tests/test_phase_finalizer_simple.py): 8 new tests
+- **Files Created**:
+  - [scripts/batch_drain_controller.py](scripts/batch_drain_controller.py): Main controller
+  - [scripts/drain_one_phase.py](scripts/drain_one_phase.py): Single-phase helper
+  - [docs/guides/BATCH_DRAIN_GUIDE.md](docs/guides/BATCH_DRAIN_GUIDE.md): Comprehensive guide
+  - [BATCH_DRAIN_QUICKSTART.md](BATCH_DRAIN_QUICKSTART.md): Quick start guide
+  - [scripts/examples/batch_drain_57_runs.{sh,ps1}](scripts/examples/): Example automation
+- **Usage**:
+  ```bash
+  # Process 10 failed phases (smart priority)
+  python scripts/batch_drain_controller.py
+
+  # Preview with dry run
+  python scripts/batch_drain_controller.py --batch-size 25 --dry-run
+
+  # Resume interrupted session
+  python scripts/batch_drain_controller.py --resume
+  ```
+- **Benefits**:
+  - Eliminates manual overhead for processing 57 failed runs
+  - Smart prioritization increases success rate by tackling easier failures first
+  - No-op guard prevents false completions (systemic drain improvement)
+  - Collector digest surfaces import errors immediately
+  - Session persistence enables stop/resume workflow
+
 ## Recent Updates (v0.4.6 - BUILD-129 Telemetry Production Ready)
 
 ### BUILD-129 Phase 3 P4-P9 Truncation Mitigation (2025-12-25) - ✅ COMPLETE

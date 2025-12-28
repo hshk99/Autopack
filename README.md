@@ -6,7 +6,43 @@ Autopack is a framework for orchestrating autonomous AI agents (Builder and Audi
 
 ---
 
-## Recent Updates (v0.4.10 - Systemic Blocker Remediation)
+## Recent Updates (v0.4.11 - Telemetry & Triage Infrastructure)
+
+### 2025-12-28 (Part 4): Telemetry Collection & Batch Drain Intelligence - ✅ COMPLETE
+**T1-T5 Framework Upgrades** - Safe telemetry seeding, DB identity guardrails, intelligent triage, LLM boundary detection, calibration tooling
+- **Problem Solved**: No telemetry data for token estimation calibration; batch drain wasting tokens on systematically failing runs; unclear why phases produce zero telemetry
+- **Solution**: Complete telemetry infrastructure per T1-T5 task list (5 deliverables)
+- **T1 - Telemetry Run Seeding** ([scripts/create_telemetry_collection_run.py](scripts/create_telemetry_collection_run.py)):
+  - Fixed ORM schema compliance (Run/Tier/Phase with correct foreign keys)
+  - Creates 10 simple, achievable phases (6 implementation, 3 tests, 1 docs)
+  - Deprecated broken [scripts/collect_telemetry_data.py](scripts/collect_telemetry_data.py)
+  - Added smoke tests in [tests/scripts/test_create_telemetry_run.py](tests/scripts/test_create_telemetry_run.py)
+- **T2 - DB Identity Guardrails** ([src/autopack/db_identity.py](src/autopack/db_identity.py)):
+  - `print_db_identity()`: Shows DATABASE_URL, file path, mtime, row counts (runs/phases/events)
+  - `check_empty_db_warning()`: Warns/exits if DB is empty (0 runs/phases), requires `--allow-empty-db` flag
+  - Integrated into [batch_drain_controller.py](scripts/batch_drain_controller.py) and [drain_one_phase.py](scripts/drain_one_phase.py)
+- **T3 - Sample-First Per-Run Triage** ([scripts/batch_drain_controller.py:353-408](scripts/batch_drain_controller.py#L353-L408)):
+  - Drain 1 phase per run → evaluate (success/yield/fingerprint) → continue or deprioritize
+  - Promising runs: success=True OR yield>0 OR timeout with no repeat fingerprint
+  - Deprioritized runs: repeating fingerprint + zero telemetry + not timeout
+  - Prioritization: unsampled runs > promising runs > others
+- **T4 - Telemetry Clarity** ([scripts/batch_drain_controller.py:140-248](scripts/batch_drain_controller.py#L140-L248)):
+  - Added `reached_llm_boundary: bool` to DrainResult (detects message/context limit hits)
+  - Added `zero_yield_reason: str` to DrainResult (classifies: success_no_llm_calls, timeout, failed_before_llm, llm_boundary_hit, execution_error, unknown)
+  - Real-time logging during batch execution + summary statistics
+- **T5 - Calibration Job** ([scripts/calibrate_token_estimator.py](scripts/calibrate_token_estimator.py)):
+  - Reads llm_usage_events (success=True AND truncated=False)
+  - Groups by category/complexity, computes actual vs estimated ratios
+  - Confidence scoring (sample count + variance)
+  - Generates markdown report + JSON patch with proposed coefficient multipliers
+  - Read-only, no auto-edits, gated behind min samples (default: 5) and confidence (default: 0.7)
+- **Legacy DB Restoration**: Restored autopack.db from git history to autopack_legacy.db (456 phases: 207 FAILED, 107 QUEUED, 141 COMPLETE)
+- **Validation**: All T1-T5 tasks complete, 4 new commits pushed
+- **Impact**:
+  - ✅ Unblocked telemetry data collection (T1 seeding + T2 safety)
+  - ✅ Reduced token waste on failing runs (T3 sample-first triage)
+  - ✅ Clear visibility into zero-yield reasons (T4 explainability)
+  - ✅ Safe, data-driven calibration workflow (T5 gated job)
 
 ### 2025-12-28 (Part 3): Research System CI Collection Remediation - ✅ COMPLETE
 **Zero Test Collection Failures Restored** - Eliminated all 6 collection errors, restored test-compatible APIs

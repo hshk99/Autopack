@@ -1,8 +1,8 @@
 # Build History - Implementation Log
 
 <!-- META
-Last_Updated: 2025-12-28T00:50:00Z
-Total_Builds: 137
+Last_Updated: 2025-12-28T22:00:00Z
+Total_Builds: 139
 Format_Version: 2.0
 Auto_Generated: False
 Sources: CONSOLIDATED files, archive/, manual updates
@@ -12,6 +12,8 @@ Sources: CONSOLIDATED files, archive/, manual updates
 
 | Timestamp | BUILD-ID | Phase | Summary | Files Changed |
 |-----------|----------|-------|---------|---------------|
+| 2025-12-28 | BUILD-139 | Infrastructure | T1-T5 Telemetry & Triage Framework: Complete telemetry infrastructure for token estimation calibration and intelligent batch draining. **T1 (Telemetry Seeding)**: Fixed create_telemetry_collection_run.py for ORM compliance (Run/Tier/Phase), creates 10 achievable phases (6 impl, 3 tests, 1 docs), deprecated broken collect_telemetry_data.py, added smoke tests. **T2 (DB Identity Guardrails)**: Created db_identity.py with print_db_identity() (shows URL/path/mtime/counts), check_empty_db_warning() (exits on 0 runs/phases unless --allow-empty-db), integrated into batch_drain_controller.py and drain_one_phase.py. **T3 (Sample-First Triage)**: Drain 1 phase per run → evaluate (success/yield/fingerprint) → continue if promising OR deprioritize if repeating failure with 0 telemetry; prioritization: unsampled > promising > others. **T4 (Telemetry Clarity)**: Added reached_llm_boundary (detects message/context limits) and zero_yield_reason (success_no_llm_calls, timeout, failed_before_llm, llm_boundary_hit, execution_error, unknown) to DrainResult; real-time logging + summary stats. **T5 (Calibration Job)**: Created calibrate_token_estimator.py - reads llm_usage_events (success=True AND truncated=False), groups by category/complexity, computes actual/estimated ratios, generates markdown report + JSON patch with proposed coefficient multipliers; read-only, no auto-edits, gated behind min samples (5) and confidence (0.7). **Legacy DB**: Restored autopack.db from git history to autopack_legacy.db (456 phases). Impact: Unblocked telemetry data collection, reduced token waste on failing runs, clear zero-yield diagnostics, safe calibration workflow. Files: scripts/create_telemetry_collection_run.py (fixed), scripts/collect_telemetry_data.py (deprecated), tests/scripts/test_create_telemetry_run.py (new), src/autopack/db_identity.py (new), scripts/batch_drain_controller.py (T3+T4 enhancements), scripts/drain_one_phase.py (T2 integration), scripts/calibrate_token_estimator.py (new). Commits: 08a7f8a9 (T1), 8eaee3c2 (T2), ad46799b (T3), 36db646a (T4), a093f0d0 (T5) | 7 |
+| 2025-12-28 | BUILD-138 | Tooling | Telemetry Collection Validation & Token-Safe Triage: Fixed critical bug where TELEMETRY_DB_ENABLED=1 was missing from subprocess environment (causing 100% telemetry loss). Added adaptive controls: --skip-run-prefix to exclude systematic failure clusters, --max-consecutive-zero-yield for early detection of telemetry issues. Diagnostic batch validated fix (3 events collected vs 0 before). Created analyze_batch_session.py for auto-analysis. All 10 integration tests passing. Ready for 274-phase backlog with token-safe triage settings. | 4 |
 | 2025-12-28 | BUILD-137 | System | API schema hardening: prevent `GET /runs/{run_id}` 500s for legacy runs where `Phase.scope` is stored as a JSON string / plain string. Added Pydantic normalization in `PhaseResponse` to coerce non-dict scopes into a dict (e.g., `{\"_legacy_text\": ...}`) so the API can serialize and the executor can keep draining (scope auto-fix can then derive `scope.paths`). Added regression tests for plain-string and JSON-string scopes. | 2 |
 | 2025-12-27 | BUILD-136 | System | Structured edits: allow applying structured edit operations even when target files are missing from Builder context (new file creation or scope-limited context). `StructuredEditApplicator` now reads missing existing files from disk or uses empty content for new files (with basic path safety). Added regression tests. Unblocked `build130-schema-validation-prevention` Phase 0 which failed with `[StructuredEdit] File not in context` and `STRUCTURED_EDIT_FAILED`. | 2 |
 | 2025-12-23 | BUILD-129 | Phase 1 Validation (V3) | Token Estimation Telemetry V3 Analyzer - Final Refinements: Enhanced V3 analyzer with production-ready validation framework based on second opinion feedback. Additions: (1) Deliverable-count bucket stratification (1 file / 2-5 files / 6+ files) to identify multi-file phase behavior differences, (2) --under-multiplier flag for configurable underestimation tolerance (default 1.0 strict, recommended 1.1 for 10% tolerance) - implements actual > predicted * multiplier to avoid flagging trivial 1-2 token differences, (3) Documentation alignment - updated TOKEN_ESTIMATION_VALIDATION_LEARNINGS.md Phase 2/3 to reference V3 analyzer commands instead of older analyzer. Production-ready command: `python scripts/analyze_token_telemetry_v3.py --log-dir .autonomous_runs --success-only --stratify --under-multiplier 1.1 --output reports/telemetry_success_stratified.md`. V3 methodology complete: 2-tier metrics (Tier 1 Risk: underestimation ≤5%, truncation ≤2%; Tier 2 Cost: waste ratio P90 < 3x), success-only filtering, category/complexity/deliverable-count stratification. Status: PRODUCTION-READY, awaiting representative data (need 20+ successful production samples). Files: scripts/analyze_token_telemetry_v3.py (+50 lines deliverable-count stratification, --under-multiplier parameter handling), docs/TOKEN_ESTIMATION_VALIDATION_LEARNINGS.md (Phase 2/3 command updates), reports/v3_parser_smoke.md (smoke test results). Docs: TOKEN_ESTIMATION_V3_ENHANCEMENTS.md, TOKEN_ESTIMATION_VALIDATION_LEARNINGS.md | 3 |
@@ -145,6 +147,81 @@ Sources: CONSOLIDATED files, archive/, manual updates
 | 2025-11-26 | BUILD-016 | N/A | Consolidated Research Reference |  |
 
 ## BUILDS (Reverse Chronological)
+
+### BUILD-138 | 2025-12-28T18:30 | Tooling | Telemetry Collection Validation & Token-Safe Triage
+**Status**: ✅ Implemented (manual)
+**Category**: Tooling / Batch Draining / Telemetry
+
+**CRITICAL BUG FIXED**: 100% telemetry loss during batch drains
+- **Root Cause**: `TELEMETRY_DB_ENABLED=1` environment variable missing from subprocess environment in `batch_drain_controller.py`
+- **Impact**: LLM clients (`anthropic_clients.py`) check `os.environ.get("TELEMETRY_DB_ENABLED")` and silently return if not set, dropping all telemetry events
+- **Evidence**: Previous batches had 0 events/min because feature flag was disabled
+- **Fix**: Added `env["TELEMETRY_DB_ENABLED"] = "1"` at line 307 in subprocess environment setup
+
+**Adaptive Controls Enhancement** (Token-Safe Triage):
+1. **Run Prefix Filtering** (`--skip-run-prefix`):
+   - Exclude entire run families by prefix match (e.g., `research-system-*`)
+   - Diagnostic batch identified research-system runs with 100% CI import errors
+   - Implementation: Filter failed phases in `pick_next_failed_phase()` (lines 415-420)
+   - Dry-run test confirmed filtering works correctly
+
+2. **No-Yield Streak Detection** (`--max-consecutive-zero-yield`):
+   - Stop processing after N consecutive phases with 0 telemetry events
+   - Early detection of DB/flag configuration issues
+   - Tracks `consecutive_zero_yield` counter in session state
+   - Implementation: Check after each phase in `run_batch()` (lines 750-759)
+
+**Diagnostic Batch Results** (session: `batch-drain-20251228-061426`):
+- **Settings**: 10 phases, 15m timeout, TELEMETRY_DB_ENABLED=1 (fixed)
+- **Processed**: 3/10 phases (stopped after detecting same fingerprint 3x)
+- **Success Rate**: 0% (all research-system-v7 CI import errors - expected)
+- **Timeout Rate**: 0% (failures happened fast - no wasted time)
+- **Telemetry Yield**: 0.14-0.17 events/min (low but expected for CI errors)
+- **Proof of Fix**: Collected 3 events (1 per phase) - previously would have been 0
+- **Fingerprinting**: Detected same error 3x, auto-stopped run (working as designed)
+- **Error Pattern**: `CI collection/import error: tests/autopack/workflow/test_research_review.py (ImportError)`
+
+**Integration Testing**:
+- Created `tests/scripts/test_batch_drain_telemetry.py` with 10 comprehensive tests
+- All 10 tests passing (telemetry counting, yield calculation, edge cases)
+- Validates telemetry delta tracking implementation end-to-end
+
+**Analysis Tools Created**:
+- `scripts/analyze_batch_session.py` - Auto-analyze session JSON with recommendations
+- `docs/guides/BATCH_DRAIN_TRIAGE_COMMAND.md` - Comprehensive token-safe triage guide
+- `.autopack/prompt_for_other_cursor.md` - Context document for recommendations
+
+**Recommended Triage Settings** (based on diagnostic results):
+```bash
+PYTHONUTF8=1 PYTHONPATH=src DATABASE_URL="sqlite:///autopack.db" TELEMETRY_DB_ENABLED=1 \
+python scripts/batch_drain_controller.py \
+  --batch-size 50 \
+  --phase-timeout-seconds 600 \
+  --max-total-minutes 60 \
+  --max-fingerprint-repeats 2 \
+  --max-timeouts-per-run 1 \
+  --max-attempts-per-phase 1 \
+  --skip-run-prefix research-system \
+  --max-consecutive-zero-yield 10
+```
+
+**Parameter Justification**:
+- **10m timeout** (600s): Diagnostic batch showed 0% timeout rate (failures happen fast)
+- **Strict fingerprint limit (2x)**: Quick brake on dominant "CI import error" pattern
+- **Skip research-system**: 100% same error across all research-system phases (systematic blocker)
+- **No-yield detection (10)**: Flags telemetry collection issues early (DB/flag mismatch)
+- **60m total cap**: Prevents runaway sessions during triage
+- **Batch size 50**: Large enough to discover full fingerprint distribution
+
+**Files Modified**:
+- `scripts/batch_drain_controller.py`: Telemetry fix + run filtering + no-yield detection
+- `docs/guides/BATCH_DRAIN_TRIAGE_COMMAND.md`: Comprehensive triage guide (260 lines)
+- `scripts/analyze_batch_session.py`: Session analysis tool (220 lines)
+- `tests/scripts/test_batch_drain_telemetry.py`: Integration tests (223 lines, 10 tests)
+
+**Status**: ✅ **COMPLETE** - Telemetry collection validated, token-safe triage controls implemented, ready for 274-phase backlog
+
+---
 
 ### BUILD-100 | 2025-12-20T20:26 | Hotfix | Executor startup fix: DiagnosticsAgent import path
 **Status**: ✅ Implemented (manual)

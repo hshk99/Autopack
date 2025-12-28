@@ -8,6 +8,30 @@ Autopack is a framework for orchestrating autonomous AI agents (Builder and Audi
 
 ## Recent Updates (v0.4.11 - Telemetry & Triage Infrastructure)
 
+### 2025-12-28 (Part 6): Database Identity Drift Resolution - ✅ COMPLETE
+**CRITICAL FIX: Executor and API Server DB Alignment** - Eliminated systematic database clearing/404 errors
+- **Problem Solved**: Executor and API server using different databases → 404 errors → database appearing "cleared" after execution
+- **Root Cause**: NOT database clearing, but **DB identity drift** from 3 sources:
+  1. `database.py` import-time binding used `settings.database_url` instead of runtime `get_database_url()`
+  2. `autonomous_executor.py` partial schema creation (only `llm_usage_events` table, missing `runs`, `phases`, `token_estimation_v2_events`)
+  3. API server `load_dotenv()` overriding DATABASE_URL from parent executor process
+- **Solution**: Complete DB identity unification
+  - [src/autopack/database.py](src/autopack/database.py#L11-L12): Changed `settings.database_url` → `get_database_url()` for runtime binding
+  - [src/autopack/autonomous_executor.py](src/autopack/autonomous_executor.py#L232-L245): Changed partial schema → `init_db()` for complete schema (all tables)
+  - [src/autopack/main.py](src/autopack/main.py#L64): Changed `load_dotenv()` → `load_dotenv(override=False)` to preserve parent env vars
+  - [scripts/create_telemetry_collection_run.py](scripts/create_telemetry_collection_run.py#L31-L37): Added explicit DATABASE_URL requirement check
+- **Evidence of Success**:
+  - **Before**: Executor uses `autopack_telemetry_seed.db` (1 run, 10 phases) → API server uses `autopack.db` (0 runs) → 404 errors → DB appears cleared
+  - **After**: Both use `autopack_telemetry_seed.db` (verified in API server logs) → No 404 errors → Database PRESERVED (1 run, 10 phases maintained)
+  - Database persistence verified: Before drain (1 run, 10 QUEUED phases) → After drain (1 run, 1 FAILED + 9 QUEUED phases)
+- **Impact**:
+  - ✅ **CRITICAL BLOCKER RESOLVED**: Database identity drift was preventing ALL autonomous execution
+  - ✅ Executor and API server use SAME database (verified with diagnostic logging)
+  - ✅ Database persistence guaranteed (no more "clearing" after execution)
+  - ✅ Unblocks T1-T5 telemetry collection, batch drain controller, all autonomous runs
+- **Commits**: `2c2ac87b` (core DB identity fixes), `40c70db7` (.env override fix), `fee59b13` (diagnostic logging)
+- **Technical Details**: [.autopack/TELEMETRY_DB_ROOT_CAUSE.md](.autopack/TELEMETRY_DB_ROOT_CAUSE.md)
+
 ### 2025-12-28 (Part 5): Database Hygiene & Telemetry Seeding Automation - ✅ COMPLETE
 **Two-Database Strategy + Quickstart Workflow** - Prevent DB confusion, automate telemetry collection end-to-end
 - **Problem Solved**: DATABASE_URL import-time binding causes API server to inherit wrong database; manual multi-step workflow prone to errors

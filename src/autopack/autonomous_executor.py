@@ -1967,6 +1967,16 @@ class AutonomousExecutor:
                 last_failure_reason=status
             )
 
+            # Token-efficiency guard: CI collection/import errors are deterministic environment/test failures.
+            # Retrying (and escalating models / triggering deep retrieval) wastes tokens and can further dirty the workspace.
+            status_lower = (status or "").lower()
+            if "ci collection/import error" in status_lower or "collection errors detected" in status_lower:
+                logger.error(
+                    f"[{phase_id}] Deterministic CI collection/import failure. "
+                    f"Skipping escalation/retry to avoid token waste."
+                )
+                return False, status
+
             # Check if attempts exhausted
             if new_attempts >= max_attempts:
                 logger.error(f"[{phase_id}] All {max_attempts} attempts exhausted. Marking phase as FAILED.")
@@ -4543,7 +4553,6 @@ Just the new description that should replace the current one while preserving th
 
                             builder_result.patch_content = repaired_patch
 
-                            # Re-validate after repair
                             ok_json2, json_errors2, json_details2 = validate_new_json_deliverables_in_patch(
                                 patch_content=builder_result.patch_content or "",
                                 expected_paths=expected_paths,
@@ -5166,7 +5175,6 @@ Just the new description that should replace the current one while preserving th
         phase: Dict,
         attempt_index: int,
         allowed_paths: Optional[List[str]],
-        batches: List[List[str]],
         batching_label: str,
         manifest_allowed_roots: Tuple[str, ...],
         apply_allowed_roots: Tuple[str, ...],
@@ -5715,7 +5723,6 @@ Just the new description that should replace the current one while preserving th
     ) -> Tuple[bool, str]:
         """Specialized in-phase batching for followup-2 `diagnostics-cursor-prompt` (code → tests → docs)."""
         from .deliverables_validator import extract_deliverables_from_scope
-
         scope_base = phase.get("scope") or {}
         all_paths = [p for p in extract_deliverables_from_scope(scope_base) if isinstance(p, str) and p.strip()]
 
@@ -6994,8 +7001,26 @@ Just the new description that should replace the current one while preserving th
         for scoped_path in scope_config.get("paths", []):
             resolved = self._resolve_scope_target(scoped_path, workspace_root, must_exist=False)
             if not resolved:
-                missing_files.append(scoped_path)
-                rel_key = _normalize_rel_path(scoped_path)
+                # Path doesn't exist yet - compute proper relative key using same logic as _resolve_scope_target
+                # to prevent fileorganizer/fileorganizer/... duplicate paths
+                path_obj = Path(scoped_path.strip())
+                if path_obj.is_absolute():
+                    try:
+                        rel_key = str(path_obj.relative_to(base_workspace)).replace("\\", "/")
+                    except ValueError:
+                        # Absolute path outside workspace - skip
+                        continue
+                else:
+                    # Try relative to workspace_root first, then base_workspace
+                    candidate = workspace_root / path_obj
+                    try:
+                        rel_key = str(candidate.resolve().relative_to(base_workspace)).replace("\\", "/")
+                    except ValueError:
+                        # Fall back to treating as relative to base_workspace
+                        rel_key = str(path_obj).replace("\\", "/")
+
+                rel_key = _normalize_rel_path(rel_key)
+                missing_files.append(rel_key)  # Store normalized rel_key, not scoped_path
                 scope_metadata[rel_key] = {"category": "modifiable", "missing": True}
                 existing_files.setdefault(rel_key, "")
                 continue
@@ -7082,7 +7107,8 @@ Just the new description that should replace the current one while preserving th
             # Auto-create empty stubs for common manifest/lockfiles to reduce churn and truncation
             for missing in list(missing_files):
                 if missing.endswith(("package-lock.json", "yarn.lock")):
-                    missing_path = (workspace_root / missing).resolve()
+                    # missing is already a normalized relative path from base_workspace
+                    missing_path = (base_workspace / missing).resolve()
                     missing_path.parent.mkdir(parents=True, exist_ok=True)
                     missing_path.write_text("{}", encoding="utf-8")
                     logger.info(f"[Scope] Created stub for missing file: {missing}")

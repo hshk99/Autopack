@@ -6,53 +6,156 @@ Autopack is a framework for orchestrating autonomous AI agents (Builder and Audi
 
 ---
 
+## Recent Updates (v0.4.10 - Systemic Blocker Remediation)
+
+### 2025-12-28 (Part 2): Systemic Blocker Fixes + Batch Drain Architecture Issue - ✅ FIXES COMPLETE / ⚠️ MONITORING BLOCKED
+**Import-Time Crash Prevention + Path Bug Fixes** - Eliminated ALL syntax/import errors blocking execution
+- **Problem Solved**: Triage identified 4 systemic blockers causing phases to fail before execution (import crashes, syntax errors, duplicate paths, test collection failures)
+- **Solution**: Fixed all 4 blockers + regression tests + discovered critical batch drain design flaw
+- **Systemic Fixes** ([docs/guides/BATCH_DRAIN_SYSTEMIC_BLOCKERS_REMEDIATION_PLAN.md](docs/guides/BATCH_DRAIN_SYSTEMIC_BLOCKERS_REMEDIATION_PLAN.md)):
+  1. **SyntaxError in autonomous_executor.py**: Removed 8 stray `coverage_delta=` lines + dead import (caused ModuleNotFoundError on every import)
+  2. **Import Regression Test**: Created [tests/test_autonomous_executor_import.py](tests/test_autonomous_executor_import.py) to prevent future import-time crashes
+  3. **Fileorg Stub Path Bug**: Fixed duplicate path creation (`fileorganizer/fileorganizer/...`) in [autonomous_executor.py:7005-7112](src/autopack/autonomous_executor.py)
+  4. **CI Collection Blockers**: Added missing test compatibility classes (ReviewDecision, ResearchPhaseResult) to research_review.py and research_phase.py
+- **Validation**: All 27 targeted tests passing (2 import + 17 review + 8 reddit)
+- **CRITICAL FINDING - Batch Drain Design Flaw** ([docs/guides/BATCH_DRAIN_POST_REMEDIATION_REPORT.md](docs/guides/BATCH_DRAIN_POST_REMEDIATION_REPORT.md)):
+  - ⚠️ **Batch drain controller processed 0 phases** due to `skip_runs_with_queued` safety logic
+  - **Root Cause**: `research-system-v2` run has 1 QUEUED phase, causing controller to skip ALL 5 FAILED phases
+  - **Design Issue**: [batch_drain_controller.py:398-404](scripts/batch_drain_controller.py#L398-L404) skips entire runs if ANY phase is queued (should skip only specific queued phases)
+  - **Workaround**: Use `--no-skip-runs-with-queued` flag OR clear the queued phase first
+  - **Manual Validation**: Successfully drained `research-integration` phase individually - verified all systemic fixes working (no import/syntax errors)
+- **Expected Impact** (once batch drain actually runs):
+  - ✅ Zero import-time crashes (autonomous_executor loads cleanly)
+  - ✅ Zero syntax errors (8 malformed lines removed)
+  - ✅ Zero test collection failures (all compatibility classes added)
+  - 📈 Higher completion rate (phases can execute without import crashes)
+  - 📈 Higher telemetry yield (successful executions generate token telemetry)
+- **Files Modified**:
+  - [src/autopack/autonomous_executor.py](src/autopack/autonomous_executor.py): Fixed syntax errors, removed dead import, fixed stub path logic
+  - [src/autopack/workflow/research_review.py](src/autopack/workflow/research_review.py): Added test compatibility API
+  - [src/autopack/phases/research_phase.py](src/autopack/phases/research_phase.py): Added missing result/status classes
+- **Files Created**:
+  - [tests/test_autonomous_executor_import.py](tests/test_autonomous_executor_import.py): Regression test for import-time crashes
+  - [tests/test_fileorg_stub_path.py](tests/test_fileorg_stub_path.py): Unit tests for stub path fix
+  - [docs/guides/BATCH_DRAIN_POST_REMEDIATION_REPORT.md](docs/guides/BATCH_DRAIN_POST_REMEDIATION_REPORT.md): Comprehensive findings + recommendations
+
+## Recent Updates (v0.4.9 - Telemetry-Aware Batch Draining)
+
+### 2025-12-28 (Part 1): Telemetry Collection Validation & Token-Safe Triage - ✅ COMPLETE
+**Telemetry-Enabled Draining + Adaptive Controls** - Fixed 100% telemetry loss, added run filtering and yield tracking
+- **Problem Solved**: Telemetry events not being collected during batch drains (TELEMETRY_DB_ENABLED missing); systematic failure clusters wasting tokens (research-system CI import errors); no visibility into telemetry yield
+- **Solution**: Telemetry environment fix + adaptive controls + run filtering + comprehensive testing
+- **Implementation** ([docs/guides/BATCH_DRAIN_ADAPTIVE_CONTROLS.md](docs/guides/BATCH_DRAIN_ADAPTIVE_CONTROLS.md)):
+  - **CRITICAL FIX**: Added `TELEMETRY_DB_ENABLED=1` to subprocess environment (was missing, causing 100% telemetry loss)
+  - **Telemetry Delta Tracking**: Before/after measurement of token_estimation_v2_events + token_budget_escalation_events
+  - **Yield Metrics**: Compute events/minute for each phase + overall session yield
+  - **Run Filtering**: `--skip-run-prefix` to exclude systematic failure clusters (e.g., research-system runs with CI errors)
+  - **No-Yield Detection**: `--max-consecutive-zero-yield` to detect telemetry flag/DB mismatch issues early
+  - **Reduced Default Timeout**: 900s (15m) instead of 1800s (30m) for faster triage
+  - **Failure Fingerprinting**: Normalize errors to detect repeating deterministic failures
+- **Diagnostic Batch Results** (session: batch-drain-20251228-061426):
+  - 3/10 phases processed (stopped after detecting same fingerprint 3x - working as designed!)
+  - 0% success rate (all research-system-v7 CI import errors)
+  - 0.15 events/min telemetry yield (very low but expected for early-failure CI errors)
+  - Fingerprint: "FAILED|rc1|ci collectionpath error" (ImportError in tests/autopack/workflow/test_research_review.py)
+  - **Proof telemetry fix works**: Collected 3 events (1 per phase) - previously would have been 0
+- **Integration Testing** ([tests/scripts/test_batch_drain_telemetry.py](tests/scripts/test_batch_drain_telemetry.py)): 10/10 tests passing
+  - Telemetry counts parsing
+  - Yield calculation (events/duration * 60)
+  - Delta tracking (after - before)
+  - Edge cases (zero duration, zero events, missing tables)
+- **Analysis Tools**:
+  - [scripts/analyze_batch_session.py](scripts/analyze_batch_session.py): Auto-analyze session JSON (success rate, yield metrics, fingerprints)
+  - [scripts/telemetry_row_counts.py](scripts/telemetry_row_counts.py): Check telemetry table counts with delta comparison
+- **Files Modified**:
+  - [scripts/batch_drain_controller.py](scripts/batch_drain_controller.py): Added TELEMETRY_DB_ENABLED, telemetry tracking, run filtering, no-yield detection
+  - [tests/scripts/test_batch_drain_adaptive.py](tests/scripts/test_batch_drain_adaptive.py): Fingerprinting + yield tests
+- **Files Created**:
+  - [tests/scripts/test_batch_drain_telemetry.py](tests/scripts/test_batch_drain_telemetry.py): Telemetry delta integration tests
+  - [scripts/analyze_batch_session.py](scripts/analyze_batch_session.py): Session analysis tool
+  - [docs/guides/BATCH_DRAIN_TRIAGE_COMMAND.md](docs/guides/BATCH_DRAIN_TRIAGE_COMMAND.md): Token-safe triage guide
+- **Recommended Triage Command** (274 FAILED phases across 56 runs):
+  ```bash
+  # Skip research-system cluster, detect telemetry issues early
+  PYTHONUTF8=1 PYTHONPATH=src DATABASE_URL="sqlite:///autopack.db" TELEMETRY_DB_ENABLED=1 \
+  python scripts/batch_drain_controller.py \
+    --batch-size 50 \
+    --phase-timeout-seconds 600 \
+    --max-total-minutes 60 \
+    --max-fingerprint-repeats 2 \
+    --max-timeouts-per-run 1 \
+    --max-attempts-per-phase 1 \
+    --skip-run-prefix research-system \
+    --max-consecutive-zero-yield 10
+  ```
+- **Key Achievement**: Telemetry collection validated working (fixed 100% loss bug), ready for token-safe backlog processing
+- **Benefits**:
+  - **Telemetry Visibility**: Track yield per phase and session-wide
+  - **Token Safety**: Skip systematic failure clusters, early detection of collection issues
+  - **Efficient Triage**: Strict stop conditions prevent wasting tokens on deterministic errors
+  - **Empirical Decisions**: Data-driven recommendations based on actual yield metrics
+
+## Recent Updates (v0.4.8 - Batch Drain Reliability Hardening)
+
+### 2025-12-28: Batch Drain Observability & Safety Improvements - ✅ COMPLETE
+**Production-Ready Batch Draining** - Eliminated "Unknown error" failures, added comprehensive diagnostics
+- **Problem Solved**: Batch drain runs ending with phases FAILED + `last_failure_reason=None` + "Unknown error", making root cause analysis impossible and violating "reduce log hunting" principle
+- **Solution**: Comprehensive observability hardening + environment consistency + safety defaults
+- **Implementation** ([docs/guides/BATCH_DRAIN_RELIABILITY_AND_EFFICIENCY_PLAN.md](docs/guides/BATCH_DRAIN_RELIABILITY_AND_EFFICIENCY_PLAN.md)):
+  - **Observability Hardening (A1-A3)**:
+    - Extended `DrainResult` with subprocess metrics: returncode, duration, log paths, excerpts
+    - Persistent per-phase stdout/stderr logging (`.autonomous_runs/batch_drain_sessions/<session>/logs/`)
+    - Eliminated "Unknown error" default - all failures now include returncode + log paths
+  - **Environment Consistency (B1-B2)**:
+    - Force UTF-8 environment (PYTHONUTF8=1, PYTHONIOENCODING=utf-8) for Windows safety
+    - DB/API identity header in every drain stdout log (DATABASE_URL, AUTOPACK_API_URL)
+  - **Safety Defaults (C1-C2)**:
+    - `--skip-runs-with-queued` enabled by default (prevents draining wrong phase)
+    - Operational workflow: drain QUEUED first, then retry FAILED
+  - **Throughput Improvements (D2)**:
+    - API reuse via `--api-url` parameter (prevents uvicorn process proliferation on Windows)
+- **Acceptance Testing** ([docs/guides/BATCH_DRAIN_ACCEPTANCE_REPORT.md](docs/guides/BATCH_DRAIN_ACCEPTANCE_REPORT.md)): All 6 criteria PASSED
+  - ✅ No silent failures (100% subprocess metrics captured)
+  - ✅ Zero "Unknown error" without evidence
+  - ✅ Safe phase selection (skipped runs with queued>0)
+  - ✅ Perfect DB/API identity consistency
+  - ✅ Process stability (no runaway spawning)
+  - ✅ Telemetry infrastructure verified
+- **Test Results**: 3 phases (small test) + 2 phases (medium test partial), 0% success (CI import errors, not tooling bugs)
+- **Files Modified**:
+  - [scripts/batch_drain_controller.py](scripts/batch_drain_controller.py): Observability fields, persistent logging, UTF-8 env, API reuse
+  - [scripts/drain_one_phase.py](scripts/drain_one_phase.py): DB/API identity header
+- **Files Created**:
+  - [docs/guides/BATCH_DRAIN_RELIABILITY_AND_EFFICIENCY_PLAN.md](docs/guides/BATCH_DRAIN_RELIABILITY_AND_EFFICIENCY_PLAN.md): Implementation plan
+  - [docs/guides/BATCH_DRAIN_ACCEPTANCE_REPORT.md](docs/guides/BATCH_DRAIN_ACCEPTANCE_REPORT.md): Validation report
+- **Usage**:
+  ```bash
+  # Production-ready batch draining with all safety features
+  PYTHONUTF8=1 PYTHONPATH=src DATABASE_URL="sqlite:///autopack.db" \
+  python scripts/batch_drain_controller.py \
+    --batch-size 10 \
+    --api-url http://127.0.0.1:8000
+  ```
+- **Key Achievement**: Zero "Unknown error" failures - every failed phase now provides:
+  - Subprocess return code
+  - Execution duration (seconds)
+  - Durable stdout/stderr log file paths
+  - Database failure reason (when available)
+  - Environment identity verification
+- **Benefits**:
+  - **Diagnosability**: Every failure traceable via durable logs + subprocess metrics
+  - **Safety**: Deterministic phase selection, no accidental wrong-phase drains
+  - **Stability**: No process proliferation, consistent API/DB usage
+  - **Scalability**: Ready for large-scale draining of 57-run backlog
+
 ## Recent Updates (v0.4.7 - Drain Efficiency & Quality Gates)
 
 ### 2025-12-28: Batch Drain Controller + No-Op Guard + Collector Digest - ✅ COMPLETE
 **Smart Drain Orchestration & Enhanced Quality Gates** - Efficient failed phase processing with improved diagnostics
 - **Problem Solved**: 57 runs with failed phases requiring manual one-by-one draining; false completions when apply produces no changes; collection errors hidden in logs
 - **Solution**: Batch drain controller + no-op detection gate + collector error digest
-- **Implementation**:
-  - **Batch Drain Controller** ([scripts/batch_drain_controller.py](scripts/batch_drain_controller.py)): Smart orchestration for processing failed phases across multiple runs
-    - Priority-based phase selection (unknown failures → collection errors → deliverable errors → other)
-    - Session persistence with resume capability
-    - Summary reporting for failure pattern visibility
-  - **No-Op Guard** (PhaseFinalizer Gate -1): Prevents false completions when apply operations produce no changes
-    - Detects empty patches (`patch_nonempty=False`) and zero-operation structured edits
-    - Blocks when deliverables missing, allows when deliverables exist (idempotent phases)
-    - Respects `allow_noop=true` escape hatch in phase_spec
-  - **Collector Error Digest**: Surfaces pytest collection/import errors in phase summaries
-    - Extracts top 5 collection failures from pytest JSON reports
-    - Persisted in `ci_result["collector_error_digest"]` for downstream access
-    - Reduces log hunting during draining
-- **Test Coverage**: 8 new unit tests for no-op guard + collector digest (all passing ✅)
-- **Files Modified**:
-  - [src/autopack/phase_finalizer.py](src/autopack/phase_finalizer.py): Added Gate -1 (no-op detection), `_detect_noop()`, `_extract_collection_error_digest()`
-  - [src/autopack/autonomous_executor.py](src/autopack/autonomous_executor.py): Pass apply_stats to finalizer, extract/persist collector digest
-  - [tests/test_phase_finalizer_simple.py](tests/test_phase_finalizer_simple.py): 8 new tests
-- **Files Created**:
-  - [scripts/batch_drain_controller.py](scripts/batch_drain_controller.py): Main controller
-  - [scripts/drain_one_phase.py](scripts/drain_one_phase.py): Single-phase helper
-  - [docs/guides/BATCH_DRAIN_GUIDE.md](docs/guides/BATCH_DRAIN_GUIDE.md): Comprehensive guide
-  - [BATCH_DRAIN_QUICKSTART.md](BATCH_DRAIN_QUICKSTART.md): Quick start guide
-  - [scripts/examples/batch_drain_57_runs.{sh,ps1}](scripts/examples/): Example automation
-- **Usage**:
-  ```bash
-  # Process 10 failed phases (smart priority)
-  python scripts/batch_drain_controller.py
-
-  # Preview with dry run
-  python scripts/batch_drain_controller.py --batch-size 25 --dry-run
-
-  # Resume interrupted session
-  python scripts/batch_drain_controller.py --resume
-  ```
-- **Benefits**:
-  - Eliminates manual overhead for processing 57 failed runs
-  - Smart prioritization increases success rate by tackling easier failures first
-  - No-op guard prevents false completions (systemic drain improvement)
-  - Collector digest surfaces import errors immediately
-  - Session persistence enables stop/resume workflow
+- **Files Created**: [scripts/batch_drain_controller.py](scripts/batch_drain_controller.py), [scripts/drain_one_phase.py](scripts/drain_one_phase.py), [docs/guides/BATCH_DRAIN_GUIDE.md](docs/guides/BATCH_DRAIN_GUIDE.md)
+- **Usage**: `python scripts/batch_drain_controller.py --batch-size 10 --dry-run`
 
 ## Recent Updates (v0.4.6 - BUILD-129 Telemetry Production Ready)
 

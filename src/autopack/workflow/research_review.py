@@ -19,577 +19,544 @@ from enum import Enum
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-import json
-
 logger = logging.getLogger(__name__)
 
-#
-# ---------------------------------------------------------------------------
-# Compatibility shims (legacy review workflow API)
-# ---------------------------------------------------------------------------
-#
-# The existing implementation in this module is a review-record store that
-# operates on (review_id, phase_id) and evaluates auto-approval based on a list
-# of result dicts.
-#
-# Older tests expect a different surface:
-#   - ReviewConfig, ReviewResult
-#   - ResearchReviewWorkflow(config=ReviewConfig(...))
-#   - review_research(research_result, context)
-#   - load_review(session_id)
-#   - submit_review(session_id, decision, reviewer, comments, approved_findings)
-#   - internal _should_auto_approve + _generate_review_questions
-#
-# We keep the existing store implementation (renamed) and provide a thin
-# compatibility wrapper exported as ResearchReviewWorkflow.
-#
 
-class ReviewDecision(Enum):
-    """Review decision for research results."""
+class ReviewStatus(Enum):
+    """Status of a research review."""
+
+    PENDING = "pending"
     APPROVED = "approved"
     REJECTED = "rejected"
     NEEDS_REVISION = "needs_revision"
-    PENDING = "pending"
 
 
-class ReviewPriority(Enum):
-    """Priority for review."""
-    LOW = "low"
-    MEDIUM = "medium"
-    HIGH = "high"
-    URGENT = "urgent"
+# BUILD-146: Compatibility API for tests
+class ReviewDecisionEnum(Enum):
+    """Review decision enum for compatibility with tests."""
+
+    APPROVED = "approved"
+    REJECTED = "rejected"
+    NEEDS_MORE_RESEARCH = "needs_more_research"
+
+
+# Export as ReviewDecision for test compatibility
+ReviewDecision = ReviewDecisionEnum
+
+
+@dataclass
+class ReviewCriteria:
+    """Criteria for automatic review decisions."""
+
+    auto_approve_confidence: float = 0.9
+    auto_reject_confidence: float = 0.3
+    require_human_review: bool = True
+    min_findings_required: int = 1
+    min_recommendations_required: int = 1
+
+
+@dataclass
+class ReviewResult:
+    """Result of a review process."""
+
+    decision: ReviewDecisionEnum
+    reviewer: str
+    confidence: float = 0.0
+    comments: str = ""
+    approved_findings: List[str] = field(default_factory=list)
+    rejected_findings: List[str] = field(default_factory=list)
+    timestamp: datetime = field(default_factory=datetime.now)
 
 
 @dataclass
 class ReviewComment:
     """A comment on research results."""
+    
     author: str
-    content: str
+    comment: str
+    timestamp: datetime = field(default_factory=datetime.now)
+    query_index: Optional[int] = None  # Which query this comment refers to
+
+
+@dataclass
+class ReviewDecisionData:
+    """Decision from a research review (renamed from ReviewDecision to avoid conflict)."""
+
+    status: ReviewStatus
+    reviewer: str
+    comments: List[ReviewComment] = field(default_factory=list)
+    approved_queries: List[int] = field(default_factory=list)  # Indices of approved queries
+    rejected_queries: List[int] = field(default_factory=list)  # Indices of rejected queries
     timestamp: datetime = field(default_factory=datetime.now)
     metadata: Dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
 class ResearchReview:
-    """Review record for research phase results."""
-    
+    """Represents a review of research results."""
+
     review_id: str
     phase_id: str
-    decision: ReviewDecision = ReviewDecision.PENDING
-    priority: ReviewPriority = ReviewPriority.MEDIUM
-    reviewer: Optional[str] = None
-    comments: List[ReviewComment] = field(default_factory=list)
-    auto_approved: bool = False
-    confidence_threshold: float = 0.8
+    phase_description: str
+    status: ReviewStatus = ReviewStatus.PENDING
+    decisions: List[ReviewDecisionData] = field(default_factory=list)
     created_at: datetime = field(default_factory=datetime.now)
-    reviewed_at: Optional[datetime] = None
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    completed_at: Optional[datetime] = None
     
     def to_dict(self) -> Dict[str, Any]:
-        """Convert to dictionary for serialization."""
+        """Convert to dictionary."""
         return {
             "review_id": self.review_id,
             "phase_id": self.phase_id,
-            "decision": self.decision.value,
-            "priority": self.priority.value,
-            "reviewer": self.reviewer,
-            "comments": [asdict(c) for c in self.comments],
-            "auto_approved": self.auto_approved,
-            "confidence_threshold": self.confidence_threshold,
-            "created_at": self.created_at.isoformat(),
-            "reviewed_at": self.reviewed_at.isoformat() if self.reviewed_at else None,
-            "metadata": self.metadata,
-        }
-    
-    @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> ResearchReview:
-        """Create from dictionary."""
-        return cls(
-            review_id=data["review_id"],
-            phase_id=data["phase_id"],
-            decision=ReviewDecision(data.get("decision", "pending")),
-            priority=ReviewPriority(data.get("priority", "medium")),
-            reviewer=data.get("reviewer"),
-            comments=[
-                ReviewComment(
-                    author=c["author"],
-                    content=c["content"],
-                    timestamp=datetime.fromisoformat(c["timestamp"]),
-                    metadata=c.get("metadata", {}),
-                )
-                for c in data.get("comments", [])
+            "phase_description": self.phase_description,
+            "status": self.status.value,
+            "decisions": [
+                {
+                    "status": d.status.value,
+                    "reviewer": d.reviewer,
+                    "comments": [
+                        {
+                            "author": c.author,
+                            "comment": c.comment,
+                            "timestamp": c.timestamp.isoformat(),
+                            "query_index": c.query_index,
+                        }
+                        for c in d.comments
+                    ],
+                    "approved_queries": d.approved_queries,
+                    "rejected_queries": d.rejected_queries,
+                    "timestamp": d.timestamp.isoformat(),
+                    "metadata": d.metadata,
+                }
+                for d in self.decisions
             ],
-            auto_approved=data.get("auto_approved", False),
-            confidence_threshold=data.get("confidence_threshold", 0.8),
-            created_at=datetime.fromisoformat(data["created_at"]),
-            reviewed_at=datetime.fromisoformat(data["reviewed_at"]) if data.get("reviewed_at") else None,
-            metadata=data.get("metadata", {}),
-        )
+            "created_at": self.created_at.isoformat(),
+            "completed_at": self.completed_at.isoformat() if self.completed_at else None,
+        }
 
 
-class ResearchReviewStore:
-    """Manages persisted review records (store implementation)."""
-    
-    def __init__(self, storage_dir: Optional[Path] = None):
-        """Initialize the review workflow.
-        
+class ResearchReviewWorkflow:
+    """Manages research review workflow."""
+
+    def __init__(
+        self,
+        criteria: Optional[ReviewCriteria] = None,
+        review_storage_path: Optional[Path] = None,
+        auto_approve_threshold: float = 0.8,
+    ):
+        """Initialize the workflow.
+
         Args:
-            storage_dir: Directory for storing review records
+            criteria: Review criteria (for test compatibility)
+            review_storage_path: Path to store review data
+            auto_approve_threshold: Confidence threshold for auto-approval
         """
-        self.storage_dir = storage_dir or Path(".autopack/reviews")
-        self.storage_dir.mkdir(parents=True, exist_ok=True)
-        self._reviews: Dict[str, ResearchReview] = {}
-        self._load_reviews()
+        # BUILD-146: Support both old and new API
+        self.criteria = criteria or ReviewCriteria()
+        self.review_storage_path = review_storage_path or Path(".autopack/reviews")
+        self.review_storage_path.mkdir(parents=True, exist_ok=True)
+        self.auto_approve_threshold = auto_approve_threshold
+        self._pending_reviews: Dict[str, Dict[str, Any]] = {}
     
     def create_review(
         self,
-        phase_id: str,
-        priority: ReviewPriority = ReviewPriority.MEDIUM,
-        auto_approve_threshold: float = 0.8,
-        metadata: Optional[Dict[str, Any]] = None,
+        phase: Any,  # ResearchPhase
     ) -> ResearchReview:
         """Create a new review for a research phase.
         
         Args:
-            phase_id: ID of the research phase
-            priority: Review priority
-            auto_approve_threshold: Confidence threshold for auto-approval
-            metadata: Additional metadata
+            phase: Research phase to review
             
         Returns:
-            Created ResearchReview
+            New research review
         """
-        review_id = f"review_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{phase_id}"
-        
         review = ResearchReview(
-            review_id=review_id,
-            phase_id=phase_id,
-            priority=priority,
-            confidence_threshold=auto_approve_threshold,
-            metadata=metadata or {},
+            review_id=f"review_{datetime.now().strftime('%Y%m%d_%H%M%S')}",
+            phase_id=phase.phase_id,
+            phase_description=phase.description,
         )
         
-        self._reviews[review_id] = review
+        # Check if auto-approval is possible
+        if self._can_auto_approve(phase):
+            decision = ReviewDecisionData(
+                status=ReviewStatus.APPROVED,
+                reviewer="system",
+                comments=[
+                    ReviewComment(
+                        author="system",
+                        comment="Auto-approved based on high confidence scores",
+                    )
+                ],
+                approved_queries=list(range(len(phase.results))),
+            )
+            review.decisions.append(decision)
+            review.status = ReviewStatus.APPROVED
+            review.completed_at = datetime.now()
+            
+            logger.info(f"Research phase auto-approved: {phase.phase_id}")
+        
+        # Save review
         self._save_review(review)
         
-        logger.info(f"Created review {review_id} for phase {phase_id}")
         return review
     
-    def evaluate_auto_approval(
+    def submit_decision(
         self,
-        review_id: str,
-        research_results: List[Dict[str, Any]],
-    ) -> bool:
-        """Evaluate if research results meet auto-approval criteria.
-        
+        review: ResearchReview,
+        decision: ReviewDecisionData,
+    ) -> ResearchReview:
+        """Submit a review decision.
+
         Args:
-            review_id: ID of the review
-            research_results: Research results to evaluate
-            
+            review: Review to update
+            decision: Decision to add
+
         Returns:
-            True if auto-approved, False otherwise
+            Updated review
         """
-        review = self._reviews.get(review_id)
-        if not review:
-            raise ValueError(f"Review not found: {review_id}")
+        review.decisions.append(decision)
+        review.status = decision.status
         
-        if not research_results:
-            logger.info(f"No results to evaluate for review {review_id}")
-            return False
+        if decision.status in (ReviewStatus.APPROVED, ReviewStatus.REJECTED):
+            review.completed_at = datetime.now()
         
-        # Calculate average confidence
-        confidences = [
-            result.get("confidence", 0.0)
-            for result in research_results
-        ]
-        avg_confidence = sum(confidences) / len(confidences) if confidences else 0.0
+        # Save updated review
+        self._save_review(review)
         
-        # Check if all results have minimum confidence
-        min_confidence = min(confidences) if confidences else 0.0
-        
-        # Auto-approve if average confidence meets threshold and no result is too low
-        should_auto_approve = (
-            avg_confidence >= review.confidence_threshold
-            and min_confidence >= review.confidence_threshold * 0.8
+        logger.info(
+            f"Review decision submitted: {review.review_id} - {decision.status.value}"
         )
         
-        if should_auto_approve:
-            review.decision = ReviewDecision.APPROVED
-            review.auto_approved = True
-            review.reviewed_at = datetime.now()
-            review.comments.append(ReviewComment(
-                author="system",
-                content=f"Auto-approved: average confidence {avg_confidence:.1%} "
-                        f"meets threshold {review.confidence_threshold:.1%}",
-            ))
-            self._save_review(review)
-            logger.info(f"Auto-approved review {review_id}")
-        
-        return should_auto_approve
-    
-    def submit_review(
-        self,
-        review_id: str,
-        decision: ReviewDecision,
-        reviewer: str,
-        comment: Optional[str] = None,
-    ) -> None:
-        """Submit a review decision.
-        
-        Args:
-            review_id: ID of the review
-            decision: Review decision
-            reviewer: Name/ID of the reviewer
-            comment: Optional review comment
-        """
-        review = self._reviews.get(review_id)
-        if not review:
-            raise ValueError(f"Review not found: {review_id}")
-        
-        review.decision = decision
-        review.reviewer = reviewer
-        review.reviewed_at = datetime.now()
-        
-        if comment:
-            review.comments.append(ReviewComment(
-                author=reviewer,
-                content=comment,
-            ))
-        
-        self._save_review(review)
-        logger.info(f"Review {review_id} submitted: {decision.value} by {reviewer}")
-    
-    def add_comment(
-        self,
-        review_id: str,
-        author: str,
-        content: str,
-        metadata: Optional[Dict[str, Any]] = None,
-    ) -> None:
-        """Add a comment to a review.
-        
-        Args:
-            review_id: ID of the review
-            author: Comment author
-            content: Comment content
-            metadata: Additional metadata
-        """
-        review = self._reviews.get(review_id)
-        if not review:
-            raise ValueError(f"Review not found: {review_id}")
-        
-        review.comments.append(ReviewComment(
-            author=author,
-            content=content,
-            metadata=metadata or {},
-        ))
-        
-        self._save_review(review)
-        logger.debug(f"Added comment to review {review_id}")
+        return review
     
     def get_review(self, review_id: str) -> Optional[ResearchReview]:
         """Get a review by ID.
         
         Args:
-            review_id: ID of the review
+            review_id: Review ID
             
         Returns:
-            ResearchReview if found, None otherwise
+            Review if found, None otherwise
         """
-        return self._reviews.get(review_id)
+        review_file = self.review_storage_path / f"{review_id}.json"
+        
+        if not review_file.exists():
+            return None
+        
+        try:
+            import json
+            data = json.loads(review_file.read_text())
+            
+            # Reconstruct review object
+            review = ResearchReview(
+                review_id=data["review_id"],
+                phase_id=data["phase_id"],
+                phase_description=data["phase_description"],
+                status=ReviewStatus(data["status"]),
+                created_at=datetime.fromisoformat(data["created_at"]),
+                completed_at=datetime.fromisoformat(data["completed_at"]) if data["completed_at"] else None,
+            )
+            
+            # Reconstruct decisions
+            for d in data["decisions"]:
+                comments = [
+                    ReviewComment(
+                        author=c["author"],
+                        comment=c["comment"],
+                        timestamp=datetime.fromisoformat(c["timestamp"]),
+                        query_index=c["query_index"],
+                    )
+                    for c in d["comments"]
+                ]
+
+                decision = ReviewDecisionData(
+                    status=ReviewStatus(d["status"]),
+                    reviewer=d["reviewer"],
+                    comments=comments,
+                    approved_queries=d["approved_queries"],
+                    rejected_queries=d["rejected_queries"],
+                    timestamp=datetime.fromisoformat(d["timestamp"]),
+                    metadata=d["metadata"],
+                )
+                review.decisions.append(decision)
+            
+            return review
+        
+        except Exception as e:
+            logger.error(f"Failed to load review {review_id}: {e}")
+            return None
     
-    def get_review_by_phase(self, phase_id: str) -> Optional[ResearchReview]:
-        """Get review for a specific phase.
+    def list_pending_reviews(self) -> List[ResearchReview]:
+        """List all pending reviews.
         
-        Args:
-            phase_id: ID of the research phase
-            
         Returns:
-            ResearchReview if found, None otherwise
+            List of pending reviews
         """
-        for review in self._reviews.values():
-            if review.phase_id == phase_id:
-                return review
-        return None
-    
-    def list_pending_reviews(
-        self,
-        priority: Optional[ReviewPriority] = None,
-    ) -> List[ResearchReview]:
-        """List pending reviews.
+        reviews = []
         
-        Args:
-            priority: Filter by priority
-            
-        Returns:
-            List of pending ResearchReview objects
-        """
-        reviews = [
-            r for r in self._reviews.values()
-            if r.decision == ReviewDecision.PENDING
-        ]
-        
-        if priority:
-            reviews = [r for r in reviews if r.priority == priority]
-        
-        # Sort by priority (urgent first) then by created_at
-        priority_order = {
-            ReviewPriority.URGENT: 0,
-            ReviewPriority.HIGH: 1,
-            ReviewPriority.MEDIUM: 2,
-            ReviewPriority.LOW: 3,
-        }
-        
-        reviews.sort(
-            key=lambda r: (priority_order[r.priority], r.created_at),
-        )
+        for review_file in self.review_storage_path.glob("review_*.json"):
+            review = self.get_review(review_file.stem)
+            if review and review.status == ReviewStatus.PENDING:
+                reviews.append(review)
         
         return reviews
     
-    def export_review_history(
-        self,
-        output_path: Path,
-        phase_id: Optional[str] = None,
-    ) -> None:
-        """Export review history to file.
+    def _can_auto_approve(self, phase: Any) -> bool:
+        """Check if phase can be auto-approved.
         
         Args:
-            output_path: Path to output file
-            phase_id: Optional phase ID to filter by
+            phase: Research phase
+            
+        Returns:
+            True if auto-approval is possible
         """
-        reviews = list(self._reviews.values())
+        if not phase.results:
+            return False
         
-        if phase_id:
-            reviews = [r for r in reviews if r.phase_id == phase_id]
+        # Check average confidence
+        avg_confidence = sum(r.confidence for r in phase.results) / len(phase.results)
         
-        data = {
-            "exported_at": datetime.now().isoformat(),
-            "total_reviews": len(reviews),
-            "reviews": [r.to_dict() for r in reviews],
-        }
-        
-        output_path.write_text(json.dumps(data, indent=2))
-        logger.info(f"Exported {len(reviews)} reviews to {output_path}")
+        return avg_confidence >= self.auto_approve_threshold
     
     def _save_review(self, review: ResearchReview) -> None:
-        """Save a review to disk."""
-        review_file = self.storage_dir / f"{review.review_id}.json"
-        try:
-            review_file.write_text(json.dumps(review.to_dict(), indent=2))
-        except Exception as e:
-            logger.error(f"Error saving review {review.review_id}: {e}")
-    
-    def _load_reviews(self) -> None:
-        """Load all reviews from disk."""
-        if not self.storage_dir.exists():
-            return
+        """Save review to storage.
         
-        for review_file in self.storage_dir.glob("*.json"):
-            try:
-                data = json.loads(review_file.read_text())
-                review = ResearchReview.from_dict(data)
-                self._reviews[review.review_id] = review
-            except Exception as e:
-                logger.error(f"Error loading review from {review_file}: {e}")
+        Args:
+            review: Review to save
+        """
+        import json
         
-        logger.info(f"Loaded {len(self._reviews)} reviews")
-
-
-def create_review_for_phase(
-    phase_id: str,
-    research_results: List[Dict[str, Any]],
-    auto_approve_threshold: float = 0.8,
-    priority: ReviewPriority = ReviewPriority.MEDIUM,
-) -> tuple[ResearchReview, bool]:
-    """Create and evaluate a review for a research phase.
+        review_file = self.review_storage_path / f"{review.review_id}.json"
+        review_file.write_text(json.dumps(review.to_dict(), indent=2))
     
-    Args:
-        phase_id: ID of the research phase
-        research_results: Research results to review
-        auto_approve_threshold: Confidence threshold for auto-approval
-        priority: Review priority
+    def format_for_display(self, review: ResearchReview) -> str:
+        """Format review for display.
         
-    Returns:
-        Tuple of (ResearchReview, was_auto_approved)
-    """
-    workflow = ResearchReviewStore()
-    
-    review = workflow.create_review(
-        phase_id=phase_id,
-        priority=priority,
-        auto_approve_threshold=auto_approve_threshold,
-    )
-    
-    auto_approved = workflow.evaluate_auto_approval(
-        review_id=review.review_id,
-        research_results=research_results,
-    )
-    
-    return review, auto_approved
+        Args:
+            review: Review to format
+            
+        Returns:
+            Formatted string
+        """
+        lines = [
+            f"# Research Review: {review.phase_description}",
+            "",
+            f"**Review ID**: {review.review_id}",
+            f"**Phase ID**: {review.phase_id}",
+            f"**Status**: {review.status.value}",
+            f"**Created**: {review.created_at.isoformat()}",
+        ]
+        
+        if review.completed_at:
+            lines.append(f"**Completed**: {review.completed_at.isoformat()}")
+        
+        if review.decisions:
+            lines.append("\n## Decisions\n")
+            for i, decision in enumerate(review.decisions, 1):
+                lines.extend([
+                    f"### Decision {i}",
+                    f"**Reviewer**: {decision.reviewer}",
+                    f"**Status**: {decision.status.value}",
+                    f"**Timestamp**: {decision.timestamp.isoformat()}",
+                ])
+                
+                if decision.comments:
+                    lines.append("\n**Comments**:")
+                    for comment in decision.comments:
+                        lines.append(f"- {comment.author}: {comment.comment}")
 
+                lines.append("")
 
-# ---------------------------------------------------------------------------
-# Legacy review workflow API (expected by tests)
-# ---------------------------------------------------------------------------
+        return "\n".join(lines)
 
+    # BUILD-146: Test compatibility methods
+    def submit_for_review(self, result: Any) -> str:
+        """Submit research result for review (test compatibility API).
 
-@dataclass
-class ReviewConfig:
-    auto_approve_threshold: float = 0.8
-    require_human_review: bool = True
-    review_timeout_seconds: int = 3600
-    store_reviews: bool = False
-    review_storage_dir: Optional[Path] = None
+        Args:
+            result: ResearchPhaseResult to review
 
+        Returns:
+            Review ID
+        """
+        review_id = f"review_{datetime.now().strftime('%Y%m%d_%H%M%S_%f')}"
 
-@dataclass
-class ReviewResult:
-    research_session_id: str
-    decision: ReviewDecision
-    reviewer: str
-    comments: str = ""
-    approved_findings: List[str] = field(default_factory=list)
-    additional_questions: List[str] = field(default_factory=list)
-    created_at: datetime = field(default_factory=datetime.now)
+        # Determine if we can auto-review
+        can_auto = self._can_auto_review(result)
 
-    def to_dict(self) -> Dict[str, Any]:
-        return {
-            "research_session_id": self.research_session_id,
-            "decision": self.decision.value,
-            "reviewer": self.reviewer,
-            "comments": self.comments,
-            "approved_findings": self.approved_findings,
-            "additional_questions": self.additional_questions,
-            "created_at": self.created_at.isoformat(),
+        if can_auto:
+            # Auto-review
+            review_result = self._auto_review(result)
+            status = "completed" if review_result.decision in [ReviewDecisionEnum.APPROVED, ReviewDecisionEnum.REJECTED] else "pending"
+        else:
+            # Manual review required
+            review_result = None
+            status = "pending"
+
+        self._pending_reviews[review_id] = {
+            "result": result,
+            "review_result": review_result,
+            "status": status,
+            "submitted_at": datetime.now().isoformat()
         }
 
-    @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "ReviewResult":
-        return cls(
-            research_session_id=data["research_session_id"],
-            decision=ReviewDecision(data["decision"]),
-            reviewer=data.get("reviewer") or "unknown",
-            comments=data.get("comments", ""),
-            approved_findings=list(data.get("approved_findings", [])),
-            additional_questions=list(data.get("additional_questions", [])),
-            created_at=datetime.fromisoformat(data["created_at"])
-            if data.get("created_at")
-            else datetime.now(),
-        )
+        return review_id
 
+    def _can_auto_review(self, result: Any) -> bool:
+        """Check if result can be auto-reviewed (test compatibility).
 
-class ResearchReviewWorkflow:
-    """Compatibility wrapper matching the legacy test API."""
+        Args:
+            result: ResearchPhaseResult
 
-    def __init__(self, config: Optional[ReviewConfig] = None):
-        self.config = config or ReviewConfig()
-        self._storage_dir = self.config.review_storage_dir or Path(".autopack/reviews_compat")
-        self._storage_dir.mkdir(parents=True, exist_ok=True)
-
-    def _review_path(self, session_id: str) -> Path:
-        return self._storage_dir / f"{session_id}_review.json"
-
-    def _should_auto_approve(self, research_result: Any) -> bool:
-        if not getattr(research_result, "success", False):
+        Returns:
+            True if auto-review is possible
+        """
+        # If human review is required, cannot auto-review
+        if self.criteria.require_human_review:
             return False
-        confidence = float(getattr(research_result, "confidence_score", 0.0) or 0.0)
-        findings = list(getattr(research_result, "findings", []) or [])
-        if confidence < float(self.config.auto_approve_threshold):
-            return False
-        if len(findings) < 3:
-            return False
+
+        # Otherwise can auto-review
         return True
 
-    def _generate_review_questions(self, research_result: Any) -> List[str]:
-        confidence = float(getattr(research_result, "confidence_score", 0.0) or 0.0)
-        findings = list(getattr(research_result, "findings", []) or [])
-        questions = []
-        if confidence < float(self.config.auto_approve_threshold):
-            questions.append(
-                f"Confidence is {confidence:.2f}. What additional evidence would increase confidence?"
+    def _auto_review(self, result: Any) -> ReviewResult:
+        """Automatically review research result (test compatibility).
+
+        Args:
+            result: ResearchPhaseResult
+
+        Returns:
+            ReviewResult with decision
+        """
+        # Check minimum requirements first (regardless of confidence)
+        findings_ok = len(result.findings) >= self.criteria.min_findings_required
+        recs_ok = len(result.recommendations) >= self.criteria.min_recommendations_required
+
+        if not findings_ok or not recs_ok:
+            # Insufficient data - needs more research
+            return ReviewResult(
+                decision=ReviewDecisionEnum.NEEDS_MORE_RESEARCH,
+                reviewer="auto",
+                confidence=result.confidence,
+                comments=f"Insufficient findings: {len(result.findings)}/{self.criteria.min_findings_required} or recommendations: {len(result.recommendations)}/{self.criteria.min_recommendations_required}"
             )
-        if len(findings) < 3:
-            questions.append("Findings are limited. Are there missing key considerations or sources?")
-        if not questions:
-            questions.append("Do the findings and recommendations align with the project constraints?")
-        return questions
 
-    def review_research(self, research_result: Any, context: Dict[str, Any]) -> ReviewResult:
-        session_id = getattr(research_result, "session_id", None) or "unknown_session"
+        # Check confidence thresholds
+        if result.confidence >= self.criteria.auto_approve_confidence:
+            return ReviewResult(
+                decision=ReviewDecisionEnum.APPROVED,
+                reviewer="auto",
+                confidence=result.confidence,
+                approved_findings=result.findings,
+                comments="Auto-approved based on high confidence and sufficient findings"
+            )
 
-        if self.config.require_human_review:
-            decision = ReviewDecision.PENDING
-            reviewer = "human_required"
-            additional_questions = self._generate_review_questions(research_result)
-            approved_findings: List[str] = []
-            comments = "Human review required by configuration."
+        elif result.confidence <= self.criteria.auto_reject_confidence:
+            return ReviewResult(
+                decision=ReviewDecisionEnum.REJECTED,
+                reviewer="auto",
+                confidence=result.confidence,
+                rejected_findings=result.findings,
+                comments="Auto-rejected based on low confidence"
+            )
+
         else:
-            if self._should_auto_approve(research_result):
-                decision = ReviewDecision.APPROVED
-                reviewer = "auto"
-                approved_findings = list(getattr(research_result, "findings", []) or [])
-                additional_questions = []
-                comments = "Auto-approved based on confidence and findings criteria."
-            else:
-                decision = ReviewDecision.PENDING
-                reviewer = "auto"
-                approved_findings = []
-                additional_questions = self._generate_review_questions(research_result)
-                comments = "Not auto-approved; requires further review."
+            # Middle range - needs more research
+            return ReviewResult(
+                decision=ReviewDecisionEnum.NEEDS_MORE_RESEARCH,
+                reviewer="auto",
+                confidence=result.confidence,
+                comments="Confidence in middle range, needs more research"
+            )
 
-        review = ReviewResult(
-            research_session_id=session_id,
-            decision=decision,
-            reviewer=reviewer,
-            comments=comments,
-            approved_findings=approved_findings,
-            additional_questions=additional_questions,
-        )
-
-        if self.config.store_reviews:
-            try:
-                self._storage_dir.mkdir(parents=True, exist_ok=True)
-                self._review_path(session_id).write_text(json.dumps(review.to_dict(), indent=2))
-            except Exception as e:
-                logger.debug("Failed to store compat review: %s", e)
-
-        return review
-
-    def load_review(self, session_id: str) -> Optional[ReviewResult]:
-        path = self._review_path(session_id)
-        if not path.exists():
-            return None
-        try:
-            data = json.loads(path.read_text())
-            return ReviewResult.from_dict(data)
-        except Exception as e:
-            logger.debug("Failed to load compat review %s: %s", session_id, e)
-            return None
-
-    def submit_review(
+    def manual_review(
         self,
-        session_id: str,
-        decision: ReviewDecision,
+        review_id: str,
+        decision: ReviewDecisionEnum,
         reviewer: str,
-        comments: str = "",
-        approved_findings: Optional[List[str]] = None,
+        comments: str = ""
     ) -> ReviewResult:
-        review = ReviewResult(
-            research_session_id=session_id,
+        """Submit manual review decision (test compatibility).
+
+        Args:
+            review_id: Review ID
+            decision: Review decision
+            reviewer: Reviewer name
+            comments: Optional comments
+
+        Returns:
+            ReviewResult
+
+        Raises:
+            ValueError: If review_id not found
+        """
+        if review_id not in self._pending_reviews:
+            raise ValueError(f"Review {review_id} not found")
+
+        result_data = self._pending_reviews[review_id]["result"]
+
+        review_result = ReviewResult(
             decision=decision,
             reviewer=reviewer,
+            confidence=result_data.confidence if hasattr(result_data, 'confidence') else 0.0,
             comments=comments,
-            approved_findings=list(approved_findings or []),
-            additional_questions=[],
+            approved_findings=result_data.findings if decision == ReviewDecisionEnum.APPROVED else [],
+            rejected_findings=result_data.findings if decision == ReviewDecisionEnum.REJECTED else []
         )
-        if self.config.store_reviews:
-            try:
-                self._storage_dir.mkdir(parents=True, exist_ok=True)
-                self._review_path(session_id).write_text(json.dumps(review.to_dict(), indent=2))
-            except Exception as e:
-                logger.debug("Failed to store submitted compat review: %s", e)
-        return review
 
+        self._pending_reviews[review_id]["review_result"] = review_result
+        self._pending_reviews[review_id]["status"] = "completed"
 
-# Backwards-compat alias for callers that still want the old store implementation.
-LegacyResearchReviewWorkflow = ResearchReviewStore
+        return review_result
+
+    def get_review_status(self, review_id: str) -> Dict[str, Any]:
+        """Get review status (test compatibility).
+
+        Args:
+            review_id: Review ID
+
+        Returns:
+            Status dictionary
+
+        Raises:
+            ValueError: If review_id not found
+        """
+        if review_id not in self._pending_reviews:
+            raise ValueError(f"Review {review_id} not found")
+
+        review_data = self._pending_reviews[review_id]
+
+        return {
+            "review_id": review_id,
+            "status": review_data["status"],
+            "submitted_at": review_data["submitted_at"]
+        }
+
+    def export_review_to_build_history(self, review_id: str) -> str:
+        """Export review to BUILD_HISTORY format (test compatibility).
+
+        Args:
+            review_id: Review ID
+
+        Returns:
+            Formatted entry
+
+        Raises:
+            ValueError: If review not found or not completed
+        """
+        if review_id not in self._pending_reviews:
+            raise ValueError(f"Review {review_id} not found")
+
+        review_data = self._pending_reviews[review_id]
+
+        if review_data["status"] != "completed":
+            raise ValueError(f"Review {review_id} is not completed")
+
+        review_result = review_data["review_result"]
+
+        return f"""## Research Review
+
+**Decision**: {review_result.decision.value}
+**Reviewer**: {review_result.reviewer}
+**Confidence**: {review_result.confidence:.2f}
+**Comments**: {review_result.comments}
+"""

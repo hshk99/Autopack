@@ -30,12 +30,29 @@ logger = logging.getLogger(__name__)
 
 class ResearchStatus(Enum):
     """Status of a research phase."""
-    
+
     PENDING = "pending"
     IN_PROGRESS = "in_progress"
     COMPLETED = "completed"
     FAILED = "failed"
     SKIPPED = "skipped"
+
+
+# BUILD-146: Compatibility alias for tests
+ResearchPhaseStatus = ResearchStatus
+
+
+@dataclass
+class ResearchPhaseResult:
+    """Result from a research phase (BUILD-146: compatibility for tests)."""
+
+    status: ResearchStatus
+    query: str
+    findings: List[str] = field(default_factory=list)
+    recommendations: List[str] = field(default_factory=list)
+    confidence: float = 0.0
+    iterations_used: int = 0
+    duration_seconds: float = 0.0
 
 
 @dataclass

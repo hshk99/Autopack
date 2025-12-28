@@ -185,6 +185,8 @@ class BatchDrainSession:
     # Stop conditions tracking
     stopped_fingerprints: Set[str] = None  # Fingerprints that hit repeat limit
     stopped_runs: Set[str] = None  # Run IDs deprioritized due to repeat failures
+    # No-yield streak tracking
+    consecutive_zero_yield: int = 0  # Count of consecutive phases with 0 telemetry events
 
     def __post_init__(self):
         if self.results is None:
@@ -234,6 +236,7 @@ class BatchDrainSession:
         data.setdefault('fingerprint_counts', {})
         data.setdefault('total_timeouts', 0)
         data.setdefault('total_telemetry_events', 0)
+        data.setdefault('consecutive_zero_yield', 0)
         return cls(**data)
 
     @classmethod
@@ -273,6 +276,8 @@ class BatchDrainController:
         max_timeouts_per_run: int = 2,
         max_attempts_per_phase: int = 2,
         max_fingerprint_repeats: int = 3,
+        skip_run_prefixes: Optional[List[str]] = None,
+        max_consecutive_zero_yield: Optional[int] = None,
     ):
         self.workspace = workspace
         self.session_dir = session_dir or (workspace / ".autonomous_runs" / "batch_drain_sessions")
@@ -288,6 +293,8 @@ class BatchDrainController:
         self.max_timeouts_per_run = max_timeouts_per_run
         self.max_attempts_per_phase = max_attempts_per_phase
         self.max_fingerprint_repeats = max_fingerprint_repeats
+        self.skip_run_prefixes = skip_run_prefixes or []
+        self.max_consecutive_zero_yield = max_consecutive_zero_yield
         # Session start time for total time limit tracking
         self.session_start_time: Optional[float] = None
 
@@ -404,6 +411,14 @@ class BatchDrainController:
         failed_phases = query.all()
         if self.skip_runs_with_queued and queued_runs:
             failed_phases = [p for p in failed_phases if p.run_id not in queued_runs]
+
+        # Filter out runs matching skip_run_prefixes
+        if self.skip_run_prefixes:
+            failed_phases = [
+                p for p in failed_phases
+                if not any(p.run_id.startswith(prefix) for prefix in self.skip_run_prefixes)
+            ]
+
         # IMPORTANT: phase_id is not globally unique across runs. Exclude by composite key.
         failed_phases = [
             p for p in failed_phases
@@ -732,10 +747,16 @@ class BatchDrainController:
                 if result.subprocess_returncode in (-1, 143):
                     self.session.total_timeouts += 1
 
-                # Track telemetry events
+                # Track telemetry events and no-yield streak
                 if result.telemetry_events_collected:
                     self.session.total_telemetry_events += result.telemetry_events_collected
+                    self.session.consecutive_zero_yield = 0  # Reset streak on success
                     print(f"    [TELEMETRY] +{result.telemetry_events_collected} events ({result.telemetry_yield_per_minute:.2f}/min)")
+                else:
+                    self.session.consecutive_zero_yield += 1
+                    if self.max_consecutive_zero_yield and self.session.consecutive_zero_yield >= self.max_consecutive_zero_yield:
+                        print(f"    [STOP] {self.session.consecutive_zero_yield} consecutive phases with 0 telemetry (limit: {self.max_consecutive_zero_yield})")
+                        break
 
                 # Track failure fingerprints and check for repeats
                 if result.failure_fingerprint:
@@ -907,6 +928,18 @@ def main() -> int:
         default=3,
         help="Deprioritize run after same error fingerprint repeats this many times (default: 3)",
     )
+    ap.add_argument(
+        "--skip-run-prefix",
+        action="append",
+        dest="skip_run_prefixes",
+        help="Skip runs whose run_id starts with this prefix (can be specified multiple times). Example: --skip-run-prefix research-system",
+    )
+    ap.add_argument(
+        "--max-consecutive-zero-yield",
+        type=int,
+        default=None,
+        help="Stop draining after N consecutive phases with 0 telemetry events (default: unlimited). Useful for detecting systematic telemetry collection issues.",
+    )
     args = ap.parse_args()
 
     workspace = Path.cwd()
@@ -921,6 +954,8 @@ def main() -> int:
         max_timeouts_per_run=args.max_timeouts_per_run,
         max_attempts_per_phase=args.max_attempts_per_phase,
         max_fingerprint_repeats=args.max_fingerprint_repeats,
+        skip_run_prefixes=args.skip_run_prefixes,
+        max_consecutive_zero_yield=args.max_consecutive_zero_yield,
     )
 
     try:

@@ -137,6 +137,117 @@ def compute_failure_fingerprint(result: 'DrainResult') -> str:
     return "|".join(parts)
 
 
+def detect_llm_boundary(stdout: str, stderr: str) -> bool:
+    """
+    T4: Detect if we hit an LLM boundary (message limit or context limit).
+
+    Looks for patterns in stdout/stderr indicating:
+    - Message limit reached (e.g., "max_turns", "message limit")
+    - Context limit reached (e.g., "context_length_exceeded", "maximum context")
+    - Token limit reached (e.g., "token limit", "max tokens")
+
+    Args:
+        stdout: Subprocess stdout content
+        stderr: Subprocess stderr content
+
+    Returns:
+        True if LLM boundary detected, False otherwise
+    """
+    if not stdout and not stderr:
+        return False
+
+    combined = (stdout or "") + "\n" + (stderr or "")
+    combined_lower = combined.lower()
+
+    # Patterns indicating LLM boundary
+    boundary_patterns = [
+        "max_turns",
+        "message limit",
+        "context_length_exceeded",
+        "maximum context",
+        "token limit exceeded",
+        "max tokens",
+        "context window exceeded",
+        "conversation too long",
+        "exceeded maximum",
+    ]
+
+    return any(pattern in combined_lower for pattern in boundary_patterns)
+
+
+def detect_zero_yield_reason(
+    success: bool,
+    telemetry_events: Optional[int],
+    returncode: Optional[int],
+    stdout: str,
+    stderr: str,
+    final_state: str
+) -> Optional[str]:
+    """
+    T4: Determine why a phase produced zero telemetry events.
+
+    Possible reasons:
+    - "success_no_llm_calls": Phase completed but didn't call LLM (e.g., pure file operations)
+    - "timeout": Phase timed out before collecting telemetry
+    - "failed_before_llm": Phase failed during setup/validation before reaching LLM
+    - "llm_boundary_hit": Hit message/context limit before completing
+    - "execution_error": Runtime error during execution
+    - "unknown": Other reason
+
+    Args:
+        success: Whether phase completed successfully
+        telemetry_events: Number of telemetry events collected (None or 0)
+        returncode: Subprocess return code
+        stdout: Subprocess stdout content
+        stderr: Subprocess stderr content
+        final_state: Final phase state
+
+    Returns:
+        Reason string if yield was 0, None otherwise
+    """
+    # If we got telemetry, no zero-yield reason
+    if telemetry_events and telemetry_events > 0:
+        return None
+
+    # Success but no LLM calls
+    if success:
+        return "success_no_llm_calls"
+
+    # Timeout
+    if returncode in (-1, 143):
+        return "timeout"
+
+    # LLM boundary hit
+    if detect_llm_boundary(stdout, stderr):
+        return "llm_boundary_hit"
+
+    # Failed before reaching LLM - check if error is in setup/validation phase
+    combined = (stdout or "") + "\n" + (stderr or "")
+    combined_lower = combined.lower()
+
+    early_failure_patterns = [
+        "validation error",
+        "schema error",
+        "missing required field",
+        "invalid phase",
+        "phase not found",
+        "run not found",
+        "database error",
+        "connection error",
+        "permission denied",
+    ]
+
+    if any(pattern in combined_lower for pattern in early_failure_patterns):
+        return "failed_before_llm"
+
+    # Execution error (non-zero returncode, not timeout)
+    if returncode and returncode not in (0, -1, 143):
+        return "execution_error"
+
+    # Unknown reason
+    return "unknown"
+
+
 @dataclass
 class DrainResult:
     """Result of draining a single phase."""
@@ -160,6 +271,9 @@ class DrainResult:
     # Telemetry tracking
     telemetry_events_collected: Optional[int] = None
     telemetry_yield_per_minute: Optional[float] = None
+    # T4: Telemetry clarity - LLM boundary + 0-yield reasons
+    reached_llm_boundary: Optional[bool] = None  # True if we hit message limit or context limit
+    zero_yield_reason: Optional[str] = None  # Reason why telemetry yield was 0
 
     def __post_init__(self):
         if self.timestamp is None:
@@ -703,6 +817,19 @@ class BatchDrainController:
             if telemetry_delta is not None and telemetry_delta > 0 and duration > 0:
                 telemetry_yield = round((telemetry_delta / duration) * 60, 2)  # events per minute
 
+            # T4: Detect LLM boundary and zero-yield reason
+            stdout_str = result.stdout or ""
+            stderr_str = result.stderr or ""
+            reached_boundary = detect_llm_boundary(stdout_str, stderr_str)
+            zero_yield_reason_val = detect_zero_yield_reason(
+                success=success,
+                telemetry_events=telemetry_delta,
+                returncode=result.returncode,
+                stdout=stdout_str,
+                stderr=stderr_str,
+                final_state=final_state
+            )
+
             return DrainResult(
                 run_id=run_id,
                 phase_id=phase_id,
@@ -718,7 +845,9 @@ class BatchDrainController:
                 subprocess_stdout_excerpt=(result.stdout or "")[:500] if result.stdout else None,
                 subprocess_stderr_excerpt=(result.stderr or "")[:500] if result.stderr else None,
                 telemetry_events_collected=telemetry_delta,
-                telemetry_yield_per_minute=telemetry_yield
+                telemetry_yield_per_minute=telemetry_yield,
+                reached_llm_boundary=reached_boundary,
+                zero_yield_reason=zero_yield_reason_val
             )
 
         except subprocess.TimeoutExpired as e:
@@ -727,6 +856,12 @@ class BatchDrainController:
             if 'stdout_path' in locals() and 'stderr_path' in locals():
                 stdout_path.write_text(e.stdout or "", encoding="utf-8")
                 stderr_path.write_text(e.stderr or "", encoding="utf-8")
+
+            # T4: Check for LLM boundary in timeout case
+            timeout_stdout = e.stdout or ""
+            timeout_stderr = e.stderr or ""
+            timeout_boundary = detect_llm_boundary(timeout_stdout, timeout_stderr)
+
             return DrainResult(
                 run_id=run_id,
                 phase_id=phase_id,
@@ -738,7 +873,9 @@ class BatchDrainController:
                 subprocess_returncode=-1,  # Timeout
                 subprocess_duration_seconds=round(duration, 2),
                 subprocess_stdout_path=str(stdout_path) if 'stdout_path' in locals() else None,
-                subprocess_stderr_path=str(stderr_path) if 'stderr_path' in locals() else None
+                subprocess_stderr_path=str(stderr_path) if 'stderr_path' in locals() else None,
+                reached_llm_boundary=timeout_boundary,
+                zero_yield_reason="timeout"
             )
         except Exception as e:
             return DrainResult(
@@ -860,9 +997,16 @@ class BatchDrainController:
                     print(f"    [TELEMETRY] +{result.telemetry_events_collected} events ({result.telemetry_yield_per_minute:.2f}/min)")
                 else:
                     self.session.consecutive_zero_yield += 1
+                    # T4: Log zero-yield reason for transparency
+                    if result.zero_yield_reason:
+                        print(f"    [TELEMETRY] 0 events (reason: {result.zero_yield_reason})")
                     if self.max_consecutive_zero_yield and self.session.consecutive_zero_yield >= self.max_consecutive_zero_yield:
                         print(f"    [STOP] {self.session.consecutive_zero_yield} consecutive phases with 0 telemetry (limit: {self.max_consecutive_zero_yield})")
                         break
+
+                # T4: Log LLM boundary detection
+                if result.reached_llm_boundary:
+                    print(f"    [LLM-BOUNDARY] Hit message/context limit during execution")
 
                 # Track failure fingerprints and check for repeats
                 if result.failure_fingerprint:
@@ -922,6 +1066,24 @@ class BatchDrainController:
             if total_duration_minutes > 0:
                 overall_yield = session.total_telemetry_events / total_duration_minutes
                 print(f"  Overall Yield: {overall_yield:.2f} events/minute")
+
+        # T4: Zero-yield reason breakdown
+        zero_yield_phases = [r for r in session.results if not (r.telemetry_events_collected and r.telemetry_events_collected > 0)]
+        if zero_yield_phases:
+            print()
+            print("Zero-Yield Breakdown:")
+            reason_counts = {}
+            for r in zero_yield_phases:
+                reason = r.zero_yield_reason or "unknown"
+                reason_counts[reason] = reason_counts.get(reason, 0) + 1
+            for reason, count in sorted(reason_counts.items(), key=lambda x: -x[1]):
+                print(f"  {reason}: {count}")
+
+        # T4: LLM boundary detection summary
+        llm_boundary_phases = [r for r in session.results if r.reached_llm_boundary]
+        if llm_boundary_phases:
+            print()
+            print(f"LLM Boundary Hits: {len(llm_boundary_phases)} phases hit message/context limits")
 
         # Stop conditions summary
         print()

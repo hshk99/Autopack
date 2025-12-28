@@ -54,6 +54,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 from autopack.database import SessionLocal
 from autopack.models import Phase, PhaseState
+from autopack.db_identity import print_db_identity, check_empty_db_warning, add_empty_db_arg
 
 
 def normalize_error_text(text: str) -> str:
@@ -948,6 +949,7 @@ def main() -> int:
         default=None,
         help="Stop draining after N consecutive phases with 0 telemetry events (default: unlimited). Useful for detecting systematic telemetry collection issues.",
     )
+    add_empty_db_arg(ap)
     args = ap.parse_args()
 
     workspace = Path.cwd()
@@ -967,6 +969,18 @@ def main() -> int:
     )
 
     try:
+        # Print DB identity and check for empty DB
+        db_session = SessionLocal()
+        try:
+            print_db_identity(db_session)
+            check_empty_db_warning(
+                db_session,
+                script_name="batch_drain_controller",
+                allow_empty=args.allow_empty_db
+            )
+        finally:
+            db_session.close()
+
         session = controller.run_batch(
             batch_size=args.batch_size,
             run_id_filter=args.run_id,

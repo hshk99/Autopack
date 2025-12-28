@@ -26,6 +26,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 from autopack.database import SessionLocal
 from autopack.models import Phase, PhaseState
 from autopack.autonomous_executor import AutonomousExecutor
+from autopack.db_identity import print_db_identity, add_empty_db_arg
 
 
 def _pick_free_local_port() -> int:
@@ -51,53 +52,99 @@ def main() -> int:
         default=os.environ.get("AUTOPACK_RUN_TYPE", "project_build"),
     )
     p.add_argument("--no-dual-auditor", action="store_true")
+    p.add_argument(
+        "--force",
+        action="store_true",
+        help=(
+            "Proceed even if there are other QUEUED phases in the run (non-exclusive execution). "
+            "Without --force, this script refuses to run if it cannot guarantee the target phase "
+            "is the next QUEUED phase."
+        ),
+    )
+    add_empty_db_arg(p)
 
     args = p.parse_args()
 
     # Enable Qdrant autostart
     os.environ.setdefault("AUTOPACK_QDRANT_AUTOSTART", "1")
 
-    # Check phase exists and is in a drainable state
+    # Print DB identity (no empty check - drain_one_phase is a targeted operation)
     db = SessionLocal()
     try:
-        phase = db.query(Phase).filter(
-            Phase.run_id == args.run_id,
-            Phase.phase_id == args.phase_id
-        ).first()
+        print_db_identity(db)
+        phase = (
+            db.query(Phase)
+            .filter(Phase.run_id == args.run_id, Phase.phase_id == args.phase_id)
+            .first()
+        )
 
         if not phase:
             print(f"Error: Phase not found: {args.run_id} / {args.phase_id}", file=sys.stderr)
             return 1
 
-        if phase.state not in (PhaseState.QUEUED, PhaseState.FAILED):
-            print(f"Warning: Phase state is {phase.state.value}, not QUEUED or FAILED")
-            # Continue anyway - executor might still be able to retry it
+        initial_state = phase.state.value if phase.state else "UNKNOWN"
+
+        if phase.state == PhaseState.FAILED:
+            print(f"[drain_one_phase] Re-queueing FAILED phase -> QUEUED: {args.run_id} / {args.phase_id}")
+            phase.state = PhaseState.QUEUED
+            # Keep last_failure_reason for context; the executor will update it on re-failure.
+            db.commit()
+            db.refresh(phase)
+
+        if phase.state != PhaseState.QUEUED:
+            print(
+                f"[drain_one_phase] Refusing to drain: phase state is {phase.state.value}, not QUEUED.",
+                file=sys.stderr,
+            )
+            return 2
+
+        queued_in_run = (
+            db.query(Phase)
+            .filter(Phase.run_id == args.run_id, Phase.state == PhaseState.QUEUED)
+            .count()
+        )
+        if queued_in_run != 1 and not args.force:
+            print(
+                f"[drain_one_phase] Refusing to drain non-exclusively: run has {queued_in_run} QUEUED phases. "
+                f"Use --force if you accept that the executor may run a different phase first.",
+                file=sys.stderr,
+            )
+            return 2
 
     finally:
         db.close()
 
     # Use free port to avoid conflicts
-    port = _pick_free_local_port()
-    os.environ["AUTOPACK_API_URL"] = f"http://localhost:{port}"
+    if not os.environ.get("AUTOPACK_API_URL"):
+        port = _pick_free_local_port()
+        os.environ["AUTOPACK_API_URL"] = f"http://localhost:{port}"
+    else:
+        port = int(os.environ["AUTOPACK_API_URL"].rsplit(":", 1)[-1])
 
+    # B2: Print DB/API identity for observability
+    db_url = os.environ.get("DATABASE_URL", "sqlite:///autopack.db (default)")
+    api_url = os.environ.get("AUTOPACK_API_URL", f"http://localhost:{port}")
+    print(f"[drain_one_phase] ===== ENVIRONMENT IDENTITY =====")
+    print(f"[drain_one_phase] DATABASE_URL: {db_url}")
+    print(f"[drain_one_phase] AUTOPACK_API_URL: {api_url}")
+    print(f"[drain_one_phase] ================================")
     print(f"[drain_one_phase] Draining: {args.run_id} / {args.phase_id}")
-    print(f"[drain_one_phase] Using API port: {port}")
     print()
 
     # Create executor and drain single phase
     executor = AutonomousExecutor(
-        workspace=str(Path.cwd()),
+        run_id=args.run_id,
+        workspace=Path.cwd(),
         run_type=args.run_type,
-        api_url=f"http://localhost:{port}",
-        enable_dual_auditor=not args.no_dual_auditor,
+        api_url=os.environ.get("AUTOPACK_API_URL", f"http://localhost:{port}"),
+        use_dual_auditor=not args.no_dual_auditor,
     )
 
     try:
-        # Execute a single iteration targeting this specific phase
-        # The executor will pick up QUEUED/FAILED phases from the run
-        executor.execute_run(
-            run_id=args.run_id,
-            max_iterations=1,  # Only one phase
+        # Execute a single iteration; with exclusivity guard above, this should drain the target phase.
+        executor.run_autonomous_loop(
+            poll_interval=10,
+            max_iterations=1,
             stop_on_first_failure=False,
         )
 

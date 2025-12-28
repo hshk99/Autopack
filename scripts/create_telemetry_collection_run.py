@@ -12,6 +12,15 @@ Strategy:
 - Mix of categories (implementation/tests/docs)
 
 Goal: Collect 10+ successful telemetry samples (success=True)
+
+Usage:
+    PYTHONUTF8=1 PYTHONPATH=src DATABASE_URL="sqlite:///autopack.db" \\
+        python scripts/create_telemetry_collection_run.py
+
+Then drain with:
+    PYTHONUTF8=1 PYTHONPATH=src DATABASE_URL="sqlite:///autopack.db" \\
+        TELEMETRY_DB_ENABLED=1 timeout 600 \\
+        python scripts/drain_one_phase.py --run-id telemetry-collection-v4 --phase-id telemetry-p1-string-util
 """
 
 import os
@@ -21,148 +30,175 @@ from pathlib import Path
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-os.environ["DATABASE_URL"] = "sqlite:///autopack.db"
-
 from autopack.database import SessionLocal
-from autopack.models import Run, Phase, RunState, PhaseState
+from autopack.models import Run, Tier, Phase, RunState, TierState, PhaseState
 
 RUN_ID = "telemetry-collection-v4"
+TIER_ID = "T1"
 
 # 10 simple, achievable phases
 PHASES = [
     # Phase 1: String utility (low complexity, 1 file)
     {
         "phase_id": "telemetry-p1-string-util",
-        "goal": "Create a string utility module with capitalize_words and reverse_string functions",
-        "deliverables": ["examples/telemetry_utils/string_helper.py"],
-        "scope": {"paths": ["examples/telemetry_utils/"], "read_only_context": []},
+        "name": "String utility module",
+        "description": "Create a string utility module with capitalize_words and reverse_string functions",
+        "scope": {
+            "paths": ["examples/telemetry_utils/"],
+            "read_only_context": [],
+            "deliverables": ["examples/telemetry_utils/string_helper.py"]
+        },
         "complexity": "low",
-        "category": "implementation",
-        "priority": 1
+        "task_category": "implementation",
+        "phase_index": 0
     },
 
     # Phase 2: Number utility (low complexity, 1 file)
     {
         "phase_id": "telemetry-p2-number-util",
-        "goal": "Create a number utility module with is_even, is_prime, and factorial functions",
-        "deliverables": ["examples/telemetry_utils/number_helper.py"],
-        "scope": {"paths": ["examples/telemetry_utils/"], "read_only_context": []},
+        "name": "Number utility module",
+        "description": "Create a number utility module with is_even, is_prime, and factorial functions",
+        "scope": {
+            "paths": ["examples/telemetry_utils/"],
+            "read_only_context": [],
+            "deliverables": ["examples/telemetry_utils/number_helper.py"]
+        },
         "complexity": "low",
-        "category": "implementation",
-        "priority": 2
+        "task_category": "implementation",
+        "phase_index": 1
     },
 
     # Phase 3: List utility (medium complexity, 1 file)
     {
         "phase_id": "telemetry-p3-list-util",
-        "goal": "Create a list utility module with chunk, flatten, unique, and group_by functions",
-        "deliverables": ["examples/telemetry_utils/list_helper.py"],
-        "scope": {"paths": ["examples/telemetry_utils/"], "read_only_context": []},
+        "name": "List utility module",
+        "description": "Create a list utility module with chunk, flatten, unique, and group_by functions",
+        "scope": {
+            "paths": ["examples/telemetry_utils/"],
+            "read_only_context": [],
+            "deliverables": ["examples/telemetry_utils/list_helper.py"]
+        },
         "complexity": "medium",
-        "category": "implementation",
-        "priority": 3
+        "task_category": "implementation",
+        "phase_index": 2
     },
 
     # Phase 4: Date utility (medium complexity, 1 file)
     {
         "phase_id": "telemetry-p4-date-util",
-        "goal": "Create a date utility module with format_date, parse_date, add_days, and diff_days functions using Python datetime module",
-        "deliverables": ["examples/telemetry_utils/date_helper.py"],
-        "scope": {"paths": ["examples/telemetry_utils/"], "read_only_context": []},
+        "name": "Date utility module",
+        "description": "Create a date utility module with format_date, parse_date, add_days, and diff_days functions using Python datetime module",
+        "scope": {
+            "paths": ["examples/telemetry_utils/"],
+            "read_only_context": [],
+            "deliverables": ["examples/telemetry_utils/date_helper.py"]
+        },
         "complexity": "medium",
-        "category": "implementation",
-        "priority": 4
+        "task_category": "implementation",
+        "phase_index": 3
     },
 
     # Phase 5: Dict utility (medium complexity, 1 file)
     {
         "phase_id": "telemetry-p5-dict-util",
-        "goal": "Create a dict utility module with deep_merge, get_nested, set_nested, and filter_keys functions",
-        "deliverables": ["examples/telemetry_utils/dict_helper.py"],
-        "scope": {"paths": ["examples/telemetry_utils/"], "read_only_context": []},
+        "name": "Dict utility module",
+        "description": "Create a dict utility module with deep_merge, get_nested, set_nested, and filter_keys functions",
+        "scope": {
+            "paths": ["examples/telemetry_utils/"],
+            "read_only_context": [],
+            "deliverables": ["examples/telemetry_utils/dict_helper.py"]
+        },
         "complexity": "medium",
-        "category": "implementation",
-        "priority": 5
+        "task_category": "implementation",
+        "phase_index": 4
     },
 
     # Phase 6: String utility tests (medium complexity, 2 files)
     {
         "phase_id": "telemetry-p6-string-tests",
-        "goal": "Create comprehensive tests for string_helper module with fixtures",
-        "deliverables": [
-            "examples/telemetry_utils/test_string_helper.py",
-            "examples/telemetry_utils/conftest.py"
-        ],
+        "name": "String helper tests",
+        "description": "Create comprehensive tests for string_helper module with fixtures",
         "scope": {
             "paths": ["examples/telemetry_utils/"],
-            "read_only_context": ["examples/telemetry_utils/string_helper.py"]
+            "read_only_context": ["examples/telemetry_utils/string_helper.py"],
+            "deliverables": [
+                "examples/telemetry_utils/test_string_helper.py",
+                "examples/telemetry_utils/conftest.py"
+            ]
         },
         "complexity": "medium",
-        "category": "tests",
-        "priority": 6
+        "task_category": "tests",
+        "phase_index": 5
     },
 
     # Phase 7: Number utility tests (low complexity, 1 file)
     {
         "phase_id": "telemetry-p7-number-tests",
-        "goal": "Create comprehensive tests for number_helper module",
-        "deliverables": ["examples/telemetry_utils/test_number_helper.py"],
+        "name": "Number helper tests",
+        "description": "Create comprehensive tests for number_helper module",
         "scope": {
             "paths": ["examples/telemetry_utils/"],
             "read_only_context": [
                 "examples/telemetry_utils/number_helper.py",
                 "examples/telemetry_utils/conftest.py"
-            ]
+            ],
+            "deliverables": ["examples/telemetry_utils/test_number_helper.py"]
         },
         "complexity": "low",
-        "category": "tests",
-        "priority": 7
+        "task_category": "tests",
+        "phase_index": 6
     },
 
     # Phase 8: List utility tests (medium complexity, 1 file)
     {
         "phase_id": "telemetry-p8-list-tests",
-        "goal": "Create comprehensive tests for list_helper module",
-        "deliverables": ["examples/telemetry_utils/test_list_helper.py"],
+        "name": "List helper tests",
+        "description": "Create comprehensive tests for list_helper module",
         "scope": {
             "paths": ["examples/telemetry_utils/"],
             "read_only_context": [
                 "examples/telemetry_utils/list_helper.py",
                 "examples/telemetry_utils/conftest.py"
-            ]
+            ],
+            "deliverables": ["examples/telemetry_utils/test_list_helper.py"]
         },
         "complexity": "medium",
-        "category": "tests",
-        "priority": 8
+        "task_category": "tests",
+        "phase_index": 7
     },
 
     # Phase 9: README documentation (low complexity, 1 file)
     {
         "phase_id": "telemetry-p9-readme",
-        "goal": "Create README.md for telemetry_utils with usage examples",
-        "deliverables": ["examples/telemetry_utils/README.md"],
+        "name": "Telemetry utils README",
+        "description": "Create README.md for telemetry_utils with usage examples",
         "scope": {
             "paths": ["examples/telemetry_utils/"],
             "read_only_context": [
                 "examples/telemetry_utils/string_helper.py",
                 "examples/telemetry_utils/number_helper.py",
                 "examples/telemetry_utils/list_helper.py"
-            ]
+            ],
+            "deliverables": ["examples/telemetry_utils/README.md"]
         },
         "complexity": "low",
-        "category": "docs",
-        "priority": 9
+        "task_category": "docs",
+        "phase_index": 8
     },
 
     # Phase 10: File utility (medium complexity, 1 file)
     {
         "phase_id": "telemetry-p10-file-util",
-        "goal": "Create a file utility module with read_json, write_json, read_lines, and write_lines functions",
-        "deliverables": ["examples/telemetry_utils/file_helper.py"],
-        "scope": {"paths": ["examples/telemetry_utils/"], "read_only_context": []},
+        "name": "File utility module",
+        "description": "Create a file utility module with read_json, write_json, read_lines, and write_lines functions",
+        "scope": {
+            "paths": ["examples/telemetry_utils/"],
+            "read_only_context": [],
+            "deliverables": ["examples/telemetry_utils/file_helper.py"]
+        },
         "complexity": "medium",
-        "category": "implementation",
-        "priority": 10
+        "task_category": "implementation",
+        "phase_index": 9
     }
 ]
 
@@ -173,58 +209,94 @@ def create_run():
 
     try:
         # Check if run exists
-        existing = session.query(Run).filter(Run.id == RUN_ID).first()
-        if existing:
+        existing_run = session.query(Run).filter(Run.id == RUN_ID).first()
+        if existing_run:
             print(f"[ERROR] Run {RUN_ID} already exists")
+            print(f"        To recreate, first delete with:")
+            print(f"        PYTHONUTF8=1 PYTHONPATH=src DATABASE_URL=\"sqlite:///autopack.db\" python -c \\")
+            print(f"            \"from autopack.database import SessionLocal; from autopack.models import Run; \\")
+            print(f"             s = SessionLocal(); s.query(Run).filter(Run.id == '{RUN_ID}').delete(); s.commit(); s.close()\"")
             sys.exit(1)
 
         # Create run
         run = Run(
             id=RUN_ID,
-            state=RunState.QUEUED,
+            state=RunState.RUN_CREATED,
             token_cap=500000,  # 500k tokens should be plenty for 10 simple phases
             max_phases=15,
-            max_duration_minutes=60
+            max_duration_minutes=120
         )
         session.add(run)
         session.flush()
 
         print(f"[OK] Created run: {RUN_ID}")
 
+        # Create tier (required for phases)
+        tier = Tier(
+            tier_id=TIER_ID,
+            run_id=RUN_ID,
+            tier_index=0,
+            name="Telemetry Collection Tier",
+            description="Simple utility implementations for telemetry collection",
+            state=TierState.PENDING,
+            token_cap=500000,
+            ci_run_cap=20
+        )
+        session.add(tier)
+        session.flush()
+
+        print(f"[OK] Created tier: {TIER_ID}")
+
         # Create phases
         print(f"\nCreating {len(PHASES)} phases...")
         for phase_def in PHASES:
             phase = Phase(
                 run_id=RUN_ID,
+                tier_id=tier.id,
                 phase_id=phase_def["phase_id"],
+                phase_index=phase_def["phase_index"],
+                name=phase_def["name"],
+                description=phase_def["description"],
                 state=PhaseState.QUEUED,
-                goal=phase_def["goal"],
-                deliverables=phase_def["deliverables"],
                 scope=phase_def["scope"],
                 complexity=phase_def["complexity"],
-                priority=phase_def["priority"],
-                metadata={"telemetry": True, "category": phase_def["category"]}
+                task_category=phase_def["task_category"],
+                max_builder_attempts=3,
+                max_auditor_attempts=2,
+                incident_token_cap=50000
             )
             session.add(phase)
-            print(f"[OK] Created phase: {phase_def['phase_id']}")
+            print(f"  [{phase_def['phase_index']+1:2d}] {phase_def['phase_id']:35s} ({phase_def['complexity']:6s} {phase_def['task_category']})")
 
         session.commit()
 
-        print(f"\nSummary:")
-        print(f"- Total phases: {len(PHASES)}")
-        print(f"- Implementation: 6 phases (3 low, 3 medium complexity)")
-        print(f"- Tests: 3 phases (1 low, 2 medium complexity)")
-        print(f"- Docs: 1 phase (low complexity)")
+        print(f"\n{'='*70}")
+        print(f"TELEMETRY COLLECTION RUN CREATED")
+        print(f"{'='*70}")
+        print(f"Run ID: {RUN_ID}")
+        print(f"Total phases: {len(PHASES)}")
+        print(f"\nPhase breakdown:")
+        print(f"  Implementation: 6 phases (3 low, 3 medium complexity)")
+        print(f"  Tests: 3 phases (1 low, 2 medium complexity)")
+        print(f"  Docs: 1 phase (low complexity)")
         print(f"\nDeliverable counts:")
-        print(f"- 1 file: 9 phases")
-        print(f"- 2 files: 1 phase")
+        print(f"  1 file: 9 phases")
+        print(f"  2 files: 1 phase")
         print(f"\nExpected telemetry samples: 10+ successful Builder executions")
-        print(f"\nTo run:")
-        print(f"  PYTHONUTF8=1 PYTHONPATH=src DATABASE_URL=\"sqlite:///autopack.db\" python -m autopack.autonomous_executor --run-id {RUN_ID}")
+        print(f"\nTo drain individual phases:")
+        print(f"  PYTHONUTF8=1 PYTHONPATH=src DATABASE_URL=\"sqlite:///autopack.db\" \\")
+        print(f"      TELEMETRY_DB_ENABLED=1 timeout 600 \\")
+        print(f"      python scripts/drain_one_phase.py --run-id {RUN_ID} --phase-id <phase_id>")
+        print(f"\nOr drain all phases in batch:")
+        print(f"  PYTHONUTF8=1 PYTHONPATH=src DATABASE_URL=\"sqlite:///autopack.db\" \\")
+        print(f"      python scripts/drain_queued_phases.py --run-id {RUN_ID} --batch-size 5")
+        print(f"{'='*70}\n")
 
     except Exception as e:
         session.rollback()
         print(f"[ERROR] {e}")
+        import traceback
+        traceback.print_exc()
         raise
     finally:
         session.close()

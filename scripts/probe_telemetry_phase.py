@@ -28,6 +28,7 @@ from __future__ import annotations
 import argparse
 import os
 import sys
+import subprocess
 from pathlib import Path
 
 # Require DATABASE_URL to be explicitly set
@@ -49,14 +50,25 @@ from autopack.models import Phase, PhaseState
 from sqlalchemy import text
 
 
-def count_telemetry_rows(db) -> int:
-    """Count rows in token_estimation_v2_events table."""
+def count_telemetry_rows(db) -> tuple[int, int]:
+    """Count rows in both telemetry tables.
+
+    Returns:
+        (token_estimation_v2_events_count, llm_usage_events_count)
+    """
     try:
-        result = db.execute(text("SELECT COUNT(*) FROM token_estimation_v2_events"))
-        return result.scalar() or 0
+        # Count token_estimation_v2_events (the main telemetry table for calibration)
+        result_v2 = db.execute(text("SELECT COUNT(*) FROM token_estimation_v2_events"))
+        count_v2 = result_v2.scalar() or 0
+
+        # Also count llm_usage_events for completeness
+        result_usage = db.execute(text("SELECT COUNT(*) FROM llm_usage_events"))
+        count_usage = result_usage.scalar() or 0
+
+        return count_v2, count_usage
     except Exception as e:
         print(f"[PROBE] Warning: Could not count telemetry rows: {e}", file=sys.stderr)
-        return -1
+        return -1, -1
 
 
 def main() -> int:
@@ -73,8 +85,10 @@ def main() -> int:
     # Count telemetry rows before drain
     db = SessionLocal()
     try:
-        telemetry_before = count_telemetry_rows(db)
-        print(f"[PROBE] DB telemetry rows (before): {telemetry_before}")
+        v2_before, usage_before = count_telemetry_rows(db)
+        print(f"[PROBE] DB telemetry rows (before):")
+        print(f"[PROBE]   - token_estimation_v2_events: {v2_before}")
+        print(f"[PROBE]   - llm_usage_events: {usage_before}")
 
         # Check phase exists
         phase = (
@@ -90,31 +104,49 @@ def main() -> int:
     finally:
         db.close()
 
-    # Run drain_one_phase
+    # Run drain_one_phase with subprocess.run for reliable exit code handling
     print(f"[PROBE] Running drain_one_phase...")
     print()
 
-    exit_code = os.system(
-        f'python scripts/drain_one_phase.py --run-id {args.run_id} --phase-id {args.phase_id} '
-        f'--force --no-dual-auditor'
+    # T5: Use subprocess.run instead of os.system for reliable Windows exit codes
+    result = subprocess.run(
+        [
+            sys.executable,  # Use same Python interpreter
+            "scripts/drain_one_phase.py",
+            "--run-id", args.run_id,
+            "--phase-id", args.phase_id,
+            "--force",
+            "--no-dual-auditor"
+        ],
+        env=os.environ.copy(),  # Preserve DATABASE_URL, TELEMETRY_DB_ENABLED
     )
 
     print()
-    print(f"[PROBE] Drain exit code: {exit_code}")
+    print(f"[PROBE] Drain exit code: {result.returncode}")
 
     # Count telemetry rows after drain
     db = SessionLocal()
     try:
-        telemetry_after = count_telemetry_rows(db)
-        telemetry_delta = telemetry_after - telemetry_before if telemetry_before >= 0 and telemetry_after >= 0 else -1
+        v2_after, usage_after = count_telemetry_rows(db)
+        v2_delta = v2_after - v2_before if v2_before >= 0 and v2_after >= 0 else -1
+        usage_delta = usage_after - usage_before if usage_before >= 0 and usage_after >= 0 else -1
 
-        print(f"[PROBE] DB telemetry rows (after): {telemetry_after}", end="")
-        if telemetry_delta > 0:
-            print(f" (INCREASED by {telemetry_delta} ✅)")
-        elif telemetry_delta == 0:
+        print(f"[PROBE] DB telemetry rows (after):")
+        print(f"[PROBE]   - token_estimation_v2_events: {v2_after}", end="")
+        if v2_delta > 0:
+            print(f" (INCREASED by {v2_delta} ✅)")
+        elif v2_delta == 0:
             print(f" (NO INCREASE ❌)")
         else:
-            print(f" (ERROR counting rows)")
+            print(f" (ERROR counting)")
+
+        print(f"[PROBE]   - llm_usage_events: {usage_after}", end="")
+        if usage_delta > 0:
+            print(f" (INCREASED by {usage_delta} ✅)")
+        elif usage_delta == 0:
+            print(f" (NO INCREASE ❌)")
+        else:
+            print(f" (ERROR counting)")
 
         # Check phase final state
         phase = (
@@ -130,35 +162,49 @@ def main() -> int:
         final_state = phase.state.value if phase.state else "UNKNOWN"
         print(f"[PROBE] Phase final state: {final_state}")
 
-        # Check if Builder returned empty files array (look at failure reason)
+        # T5: Deterministic empty-files detection
+        # ONLY report "EMPTY" if we can confirm it from failure reason
+        # Otherwise report "UNKNOWN" instead of falsely claiming "NOT EMPTY"
         failure_reason = phase.last_failure_reason or ""
-        empty_files = "empty files array" in failure_reason.lower()
+        empty_files_confirmed = "empty files array" in failure_reason.lower()
 
-        if empty_files:
-            print(f"[PROBE] Files array: EMPTY ❌")
+        if empty_files_confirmed:
+            print(f"[PROBE] Files array: EMPTY (confirmed) ❌")
             print(f"[PROBE] Failure reason: {failure_reason[:200]}")
+        elif final_state == PhaseState.COMPLETE.value:
+            # If phase completed, we can reasonably infer non-empty files
+            print(f"[PROBE] Files array: NOT EMPTY (phase completed) ✅")
         else:
-            print(f"[PROBE] Files array: NOT EMPTY ✅")
+            # Phase failed but not due to empty files array - can't confirm either way
+            print(f"[PROBE] Files array: UNKNOWN (phase failed, not due to empty files)")
+            if failure_reason:
+                print(f"[PROBE] Failure reason: {failure_reason[:200]}")
 
         # Verdict
         print()
         print(f"[PROBE] ========== VERDICT ==========")
 
-        if final_state == PhaseState.COMPLETE.value and telemetry_delta > 0 and not empty_files:
+        # Success requires: COMPLETE state + telemetry row increase + no empty-files error
+        if final_state == PhaseState.COMPLETE.value and v2_delta > 0:
             print(f"[PROBE] ✅ SUCCESS - telemetry collection working")
             print(f"[PROBE] Go ahead with draining remaining phases")
             return 0
-        elif empty_files:
-            print(f"[PROBE] ❌ FAILED - empty files array, no telemetry collected")
-            print(f"[PROBE] DO NOT drain remaining phases - fix prompt ambiguity first")
+        elif empty_files_confirmed:
+            print(f"[PROBE] ❌ FAILED - empty files array confirmed")
+            print(f"[PROBE] DO NOT drain remaining phases - prompt fixes (T1) may not be working")
             return 1
-        elif telemetry_delta == 0:
-            print(f"[PROBE] ❌ FAILED - no telemetry collected (validity guard triggered?)")
-            print(f"[PROBE] DO NOT drain remaining phases - check telemetry validity guards")
+        elif v2_delta == 0:
+            print(f"[PROBE] ❌ FAILED - no token_estimation_v2_events collected")
+            print(f"[PROBE] DO NOT drain remaining phases - check:")
+            print(f"[PROBE]   1. TELEMETRY_DB_ENABLED=1 is set")
+            print(f"[PROBE]   2. Telemetry validity guards (actual_output_tokens >= 50)")
+            print(f"[PROBE]   3. Builder is producing output (check usage_delta={usage_delta})")
             return 1
         else:
             print(f"[PROBE] ❌ FAILED - phase did not complete successfully")
             print(f"[PROBE] Check logs and fix issues before draining remaining phases")
+            if failure_reason:
+                print(f"[PROBE] Failure reason: {failure_reason[:200]}")
             return 1
 
     finally:

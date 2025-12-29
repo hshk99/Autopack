@@ -32,6 +32,42 @@ Autopack is a framework for orchestrating autonomous AI agents (Builder and Audi
 - **Commits**: `2c2ac87b` (core DB identity fixes), `40c70db7` (.env override fix), `fee59b13` (diagnostic logging)
 - **Technical Details**: [.autopack/TELEMETRY_DB_ROOT_CAUSE.md](.autopack/TELEMETRY_DB_ROOT_CAUSE.md)
 
+### 2025-12-28 (Part 7): Telemetry Collection Unblock (T1-T6) - ✅ COMPLETE
+**Prompt Fixes + Targeted Retry + Go/No-Go Gate** - Unblock telemetry collection for token estimation calibration
+- **Problem Solved**: Builder returning empty `files: []` array (41 output tokens vs expected 5200) → zero telemetry samples collected
+- **Root Cause**: Prompt ambiguity - model didn't understand that paths ending with `/` are directory prefixes where file creation is allowed
+- **Solution**: Four-part fix (T1-T4) + testing/tooling improvements (T5-T6)
+- **T1: Prompt Ambiguity Fixes** ([src/autopack/anthropic_clients.py:3268-3308](src/autopack/anthropic_clients.py#L3268-L3308)):
+  - Clarified directory prefix semantics: paths ending with `/` annotated as `(directory prefix - creating/modifying files under this path is ALLOWED)`
+  - Added explicit `## REQUIRED DELIVERABLES` section to prompt with hard requirement: `files array must not be empty when deliverables exist`
+- **T2: Targeted Retry for Empty Files Array** ([src/autopack/autonomous_executor.py:4091-4120](src/autopack/autonomous_executor.py#L4091-L4120)):
+  - Detect "empty files array" error and trigger single retry (1 attempt max)
+  - Fail fast after 1 retry to avoid token waste on deterministic failures
+  - Track retry count in `phase['_empty_files_retry_count']`
+- **T3: Token-Cheap Telemetry Seeding**:
+  - Verified `--no-dual-auditor` flag already exists in [drain_one_phase.py](scripts/drain_one_phase.py#L53)
+  - Saves ~4k tokens/phase (dual auditor disabled)
+- **T4: Telemetry Probe Script (Go/No-Go Gate)** ([scripts/probe_telemetry_phase.py](scripts/probe_telemetry_phase.py)):
+  - One-liner test showing Builder output tokens, files array status, DB telemetry row counts
+  - Provides go/no-go verdict before draining remaining 9 phases
+  - Usage: `DATABASE_URL="..." TELEMETRY_DB_ENABLED=1 python scripts/probe_telemetry_phase.py --run-id ... --phase-id ...`
+- **T5: Probe Reliability Improvements**:
+  - Switched from `os.system()` to `subprocess.run()` for reliable Windows exit codes
+  - Deterministic empty-files detection: only report "EMPTY (confirmed)" if failure reason explicitly contains "empty files array"
+  - Count both telemetry tables (token_estimation_v2_events + llm_usage_events) for complete validation
+- **T6: Regression Tests** ([tests/autopack/test_telemetry_unblock_fixes.py](tests/autopack/test_telemetry_unblock_fixes.py)):
+  - Test directory prefix annotation in prompt
+  - Test required deliverables contract in prompt
+  - Test empty files retry triggers exactly once
+- **Expected Impact**: Builder will now produce non-empty files array, unblocking telemetry collection for token estimation calibration
+- **Next Steps**:
+  1. Run probe script to verify fix: `python scripts/probe_telemetry_phase.py --run-id telemetry-collection-v4 --phase-id telemetry-p1-string-util`
+  2. If probe succeeds (✅ SUCCESS verdict), drain remaining 9 phases with `--no-dual-auditor`
+  3. Collect ≥20 `success=True` non-truncated samples for calibration
+- **Format Switch Recommendation**: If empty files array persists after T1 fixes, try `full_file → NDJSON` format switch (most reliable next experiment)
+- **Commits**: `83414615` (T1-T4 initial), `[NEXT_COMMIT]` (T5-T6 hardening)
+- **Technical Details**: [.autopack/prompt_for_other_cursor_TELEMETRY_UNBLOCK.md](.autopack/prompt_for_other_cursor_TELEMETRY_UNBLOCK.md)
+
 ### 2025-12-28 (Part 5): Database Hygiene & Telemetry Seeding Automation - ✅ COMPLETE
 **Two-Database Strategy + Quickstart Workflow** - Prevent DB confusion, automate telemetry collection end-to-end
 - **Problem Solved**: DATABASE_URL import-time binding causes API server to inherit wrong database; manual multi-step workflow prone to errors

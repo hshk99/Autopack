@@ -7531,9 +7531,14 @@ Just the new description that should replace the current one while preserving th
         """Run CI checks based on the phase's CI specification (default: pytest)."""
         # BUILD-141 Part 8: Support AUTOPACK_SKIP_CI=1 for telemetry seeding runs
         # (avoids blocking on unrelated test import errors during telemetry collection)
+        # GUARDRAIL: Only honor AUTOPACK_SKIP_CI for telemetry runs to prevent weakening production runs
         if os.getenv("AUTOPACK_SKIP_CI") == "1":
-            logger.info(f"[{phase_id}] CI skipped (AUTOPACK_SKIP_CI=1 - telemetry seeding mode)")
-            return None  # Return None so PhaseFinalizer doesn't run collection error detection
+            is_telemetry_run = self.run_id.startswith("telemetry-collection-")
+            if is_telemetry_run:
+                logger.info(f"[{phase_id}] CI skipped (AUTOPACK_SKIP_CI=1 - telemetry seeding mode)")
+                return None  # Return None so PhaseFinalizer doesn't run collection error detection
+            else:
+                logger.warning(f"[{phase_id}] AUTOPACK_SKIP_CI=1 set but run_id '{self.run_id}' is not a telemetry run - ignoring flag and running CI normally")
 
         # Phase dict from API does not typically include a top-level "ci". Persisted CI hints live under scope.
         scope = phase.get("scope") or {}

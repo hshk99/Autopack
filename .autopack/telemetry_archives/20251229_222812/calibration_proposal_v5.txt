@@ -1,0 +1,86 @@
+======================================================================
+TOKEN ESTIMATOR CALIBRATION PROPOSAL (V5)
+======================================================================
+Generated: 2025-12-29T11:34:48.107107+00:00
+
+Total clean samples: 25
+
+CALIBRATION RESULTS BY GROUP:
+
+[docs/low]
+  Samples: 3
+  Avg predicted: 2600 tokens
+  Avg actual: 7779 tokens
+  Median ratio (actual/predicted): 1.402x
+  Ratio range: 1.340x to 6.233x
+  Underestimated: 3/3 (100.0%)
+  Confidence: 7.5%
+  Proposed action: INCREASE coefficients by 40%
+  Priority: MEDIUM
+
+[implementation/low]
+  Samples: 8
+  Avg predicted: 5200 tokens
+  Avg actual: 1675 tokens
+  Median ratio (actual/predicted): 0.313x
+  Ratio range: 0.215x to 0.443x
+  Underestimated: 0/8 (0.0%)
+  Confidence: 65.8%
+  Proposed action: DECREASE coefficients by 69%
+  Priority: MEDIUM
+
+[implementation/medium]
+  Samples: 7
+  Avg predicted: 6573 tokens
+  Avg actual: 2469 tokens
+  Median ratio (actual/predicted): 0.379x
+  Ratio range: 0.257x to 0.477x
+  Underestimated: 0/7 (0.0%)
+  Confidence: 63.7%
+  Proposed action: DECREASE coefficients by 62%
+  Priority: MEDIUM
+
+[tests/low]
+  Samples: 4
+  Avg predicted: 4420 tokens
+  Avg actual: 1696 tokens
+  Median ratio (actual/predicted): 0.370x
+  Ratio range: 0.328x to 0.468x
+  Underestimated: 0/4 (0.0%)
+  Confidence: 57.0%
+  Proposed action: DECREASE coefficients by 63%
+  Priority: MEDIUM
+
+[tests/medium]
+  Samples: 3
+  Avg predicted: 4420 tokens
+  Avg actual: 3519 tokens
+  Median ratio (actual/predicted): 0.727x
+  Ratio range: 0.537x to 1.124x
+  Underestimated: 1/3 (33.3%)
+  Confidence: 42.5%
+  Proposed action: DECREASE coefficients by 27%
+  Priority: MEDIUM
+
+======================================================================
+RECOMMENDATIONS (confidence ≥ 50%):
+======================================================================
+
+✓ [implementation/low] (8 samples, 65.8% confidence)
+  → DECREASE coefficients by 69%
+  Priority: MEDIUM
+
+✓ [implementation/medium] (7 samples, 63.7% confidence)
+  → DECREASE coefficients by 62%
+  Priority: MEDIUM
+
+✓ [tests/low] (4 samples, 57.0% confidence)
+  → DECREASE coefficients by 63%
+  Priority: MEDIUM
+
+⚠️  IMPORTANT: These are PROPOSALS only. Review before applying.
+   1. Check if sample distribution is representative
+   2. Consider if coefficients were already tuned for these categories
+   3. Manually update src/autopack/token_estimator.py PHASE_OVERHEAD if warranted
+
+======================================================================

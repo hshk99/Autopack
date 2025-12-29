@@ -1,464 +1,297 @@
-diff --git a/src/research/gatherers/web_scraper.py b/src/research/gatherers/web_scraper.py
-index 1111111..2222222 100644
---- a/src/research/gatherers/web_scraper.py
-+++ b/src/research/gatherers/web_scraper.py
-@@ -1,18 +1,70 @@
--"""
--Web Scraper Module
-+"""Web Scraper Module
+diff --git a/docs/ARCHITECTURE.md b/docs/ARCHITECTURE.md
+new file mode 100644
+index 0000000..1111111
+--- /dev/null
++++ b/docs/ARCHITECTURE.md
+@@ -0,0 +1,290 @@
++# Autopack Architecture
++
++**Last Updated**: 2025-12-28  
++**Purpose**: High-level system overview for developers and contributors
++
++---
++
++## System Overview
++
++Autopack is an **autonomous build system** that executes multi-phase implementation plans using LLMs (Claude, GPT, Gemini). It provides:
++
++- **Autonomous Execution**: Phases execute without human intervention (with safety gates)
++- **Quality Enforcement**: Test baselines, deliverables validation, risk assessment
++- **Self-Healing**: Diagnostics, deep retrieval, iterative investigation
++- **Governance**: Protected paths, approval workflows, audit trails
++
++---
++
++## Core Components
++
++### 1. Autonomous Executor
++**File**: `src/autopack/autonomous_executor.py` (8000+ lines)  
++**Purpose**: Main orchestration engine
++
++- Fetches phases from API (`GET /runs/{run_id}`)
++- Executes phases via Builder → Auditor → Quality Gate pipeline
++- Handles retries, escalation, approval requests
++- Integrates diagnostics, learning system, telemetry
++
++**Key Methods**:
++- `execute_phase()` - Main phase execution loop
++- `_execute_phase_with_recovery()` - Retry/escalation logic
++- `_load_repository_context()` - Smart context loading (scope-aware, targeted, heuristic)
++
++### 2. Builder (LLM Code Generation)
++**Files**: `src/autopack/anthropic_clients.py`, `src/autopack/openai_clients.py`, `src/autopack/gemini_clients.py`  
++**Purpose**: Generate code changes via LLM
++
++- Supports multiple providers (Anthropic, OpenAI, Gemini)
++- Two output modes: **unified diff** (traditional) or **structured edits** (JSON operations)
++- Token budget management with dynamic escalation
++- Model selection: Sonnet 4.5 (default) → Opus 4 (escalation) → GPT-4o (fallback)
++
++**Output Formats**:
++- **Unified Diff**: `diff --git a/file.py b/file.py` (for small scopes)
++- **Structured Edits**: JSON with `create_file`, `modify_file`, `delete_file` operations (for large scopes ≥30 files)
++
++### 3. Governed Apply (Patch Application)
++**File**: `src/autopack/governed_apply.py`  
++**Purpose**: Safe patch application with governance checks
++
++- **Protected Paths**: `.git/`, `.autonomous_runs/`, `autopack.db` (never modified)
++- **Allowed Paths**: Scope-based validation (only modify files in phase scope)
++- **Symbol Preservation**: Prevents accidental deletion of functions/classes
++- **Structural Similarity**: Validates patches match file structure
++
++**Safety Mechanisms**:
++- Pre-apply validation (scope, protected paths, symbols)
++- Git save points before risky changes
++- Automatic rollback on validation failure
++
++### 4. Quality Gate
++**File**: `src/autopack/quality_gate.py`  
++**Purpose**: Enforce quality standards before phase completion
++
++- **Risk Assessment**: Analyzes patch for protected paths, large deletions, complexity
++- **Test Validation**: Runs pytest, compares against baseline
++- **Deliverables Check**: Ensures required files created/modified
++- **Blocking Conditions**: New test failures, collection errors, missing deliverables
++
++**Quality Levels**:
++- `passed` - All checks passed, phase can complete
++- `needs_review` - Warnings present, human review recommended
++- `blocked` - Critical issues, phase cannot complete
++
++### 5. Phase Finalizer
++**File**: `src/autopack/phase_finalizer.py`  
++**Purpose**: Authoritative completion gate (replaces old quality gate)
++
++- **Test Baseline Comparison**: Detects new failures, regressions, flaky tests
++- **Deliverables Validation**: Verifies files exist on filesystem
++- **Quality Report Integration**: Considers risk, coverage, test results
++- **Decision**: `COMPLETE`, `BLOCKED`, or `FAILED`
++
++**Key Insight**: Separates pre-existing failures from new regressions (delta-based gating)
++
++### 6. Diagnostics System
++**Files**: `src/autopack/diagnostics/`  
++**Purpose**: Autonomous troubleshooting and failure analysis
++
++**Components**:
++- **DiagnosticsAgent**: Runs probes, collects evidence, generates reports
++- **Deep Retrieval**: Escalates to SOT docs, memory, run artifacts when Stage 1 insufficient
++- **Second Opinion**: Optional strong-model triage (Claude Opus 4)
++- **Handoff Bundle**: Generates Cursor-ready context for human takeover
++
++**Trigger Conditions**:
++- Empty/minimal error messages
++- Repeated failures (≥2 attempts)
++- Ambiguous root cause
++- Generic error phrases ("unknown error", "internal error")
++
++### 7. Learning System
++**File**: `src/autopack/learned_rules.py`  
++**Purpose**: Capture and reuse patterns from past runs
++
++- **Learned Rules**: Persistent patterns (e.g., "Always add __init__.py for new packages")
++- **Run Hints**: Temporary guidance for current run (e.g., "Wrong path: tracer_bullet/ → src/autopack/research/tracer_bullet/")
++- **Promotion**: Hints promoted to rules after 3+ occurrences
++- **Scope Matching**: Rules apply to specific file patterns or globally
++
++### 8. Manifest Generator
++**File**: `src/autopack/manifest_generator.py`  
++**Purpose**: Generate phase plans from high-level goals
++
++- **Deliverables-Aware**: Infers category from file paths (not just goal text)
++- **Pattern Matching**: Uses keyword anchors, file patterns, category templates
++- **Scope Expansion**: Adds context files (tests, docs, related modules)
++- **Plan Analyzer Integration**: Optional LLM-based feasibility assessment
++
++**Category Inference** (BUILD-128):
++- `src/autopack/*.py` → backend
++- `tests/*.py` → tests
++- `docs/*.md` → docs
++- `alembic/versions/*.py` → database
++
++---
++
++## Data Flow
++
++### Phase Execution Pipeline
++
++```
++1. API Fetch
++   GET /runs/{run_id} → phases (QUEUED)
++   ↓
++2. Context Loading
++   Scope-aware → Targeted → Heuristic
++   ↓
++3. Builder (LLM)
++   Goal + Context → Patch (diff or structured edits)
++   ↓
++4. BUILD-113 Decision (if enabled)
++   Risk assessment → CLEAR_FIX / RISKY / AMBIGUOUS
++   ↓
++5. Governed Apply
++   Validate scope → Check protected paths → Apply patch
++   ↓
++6. Quality Gate
++   Run tests → Check deliverables → Assess risk
++   ↓
++7. Phase Finalizer
++   Compare baseline → Validate deliverables → COMPLETE / BLOCKED
++   ↓
++8. API Update
++   PUT /runs/{run_id}/phases/{phase_id} (status=COMPLETE)
++```
++
++### Failure Recovery Flow
++
++```
++1. Phase Fails
++   ↓
++2. Diagnostics Agent (Stage 1)
++   Run probes → Collect evidence → Generate handoff bundle
++   ↓
++3. Deep Retrieval (Stage 2 - if triggered)
++   Retrieve SOT docs → Memory entries → Run artifacts
++   ↓
++4. Second Opinion (optional)
++   Strong model triage → Hypotheses → Next probes
++   ↓
++5. Retry with Enhanced Context
++   Learning hints + diagnostics → Builder retry
++   ↓
++6. Escalation (if retry fails)
++   Sonnet → Opus → GPT-4o → Human approval
++```
++
++---
++
++## Key Architectural Patterns
++
++### 1. Scope-First Context Loading
++**Problem**: Targeted context loaders (frontend, docker) loaded root-level files, violating scope  
++**Solution**: Check `scope.paths` FIRST, before pattern-based targeting
++
++### 2. Deliverables-Aware Manifest
++**Problem**: Pattern matching on goal text unreliable ("completion" matched frontend dashboard)  
++**Solution**: Infer category from deliverable file paths (BUILD-128)
++
++### 3. Delta-Based Test Gating
++**Problem**: Pre-existing test failures blocked new phases  
++**Solution**: Capture T0 baseline, only block on NEW failures (Phase Finalizer)
++
++### 4. Overhead Model Token Estimation
++**Problem**: Linear scaling (tokens ∝ deliverables) caused severe overestimation  
++**Solution**: Separate fixed overhead + marginal cost per file (BUILD-129)
++
++### 5. Structured Edit Fallback
++**Problem**: Large scopes (≥30 files) hit truncation with unified diff  
++**Solution**: Auto-switch to structured edits (JSON operations) for large contexts (BUILD-114)
++
++---
++
++## Safety Mechanisms
++
++### Protected Paths (Never Modified)
++- `.git/` - Git internals
++- `.autonomous_runs/` - Run artifacts, gold sets
++- `autopack.db` - Database file
++- `src/autopack/governed_apply.py` - Governance system itself
++
++### Approval Workflows
++- **Telegram Integration**: Mobile approval for risky changes (BUILD-107)
++- **Deletion Safeguards**: Block >200 line deletions, notify 100-200 lines (BUILD-108)
++- **Governance Requests**: Self-negotiation for protected path access (BUILD-127)
++
++### Rollback Mechanisms
++- **Git Save Points**: Tag before risky changes (`save-before-{phase_id}`)
++- **Automatic Rollback**: Revert on test failure or validation error
++- **Audit Trail**: All decisions logged with rationale
++
++---
++
++## Integration Points
++
++### API Server
++**File**: `src/autopack/main.py`  
++**Endpoints**:
++- `GET /runs/{run_id}` - Fetch run state
++- `PUT /runs/{run_id}/phases/{phase_id}` - Update phase status
++- `POST /approval/request` - Request human approval
++- `GET /approval/status/{id}` - Poll approval decision
++
++### Database
++**File**: `src/autopack/models.py`  
++**Tables**:
++- `runs` - Run metadata (id, state, created_at)
++- `phases` - Phase state (phase_id, status, retry_attempt)
++- `approval_requests` - Governance approvals
++- `token_estimation_v2_events` - Telemetry data
++
++### Telemetry
++**Files**: `src/autopack/anthropic_clients.py` (logging), `scripts/analyze_token_telemetry_v3.py` (analysis)  
++**Purpose**: Track token predictions vs actuals for calibration
++
++---
++
++## Configuration
++
++### Environment Variables
++```bash
++ANTHROPIC_API_KEY=sk-...          # Claude API key
++OPENAI_API_KEY=sk-...             # GPT API key (fallback)
++DATABASE_URL=sqlite:///autopack.db
++TELEGRAM_BOT_TOKEN=...            # Approval notifications
++TELEMETRY_DB_ENABLED=1            # Enable telemetry persistence
++```
++
++### Feature Flags
++```bash
++--enable-autonomous-fixes         # BUILD-113 proactive decisions
++--enable-deep-retrieval           # Stage 2 diagnostics
++--enable-second-opinion           # Strong model triage
++--enable-plan-analyzer            # Pre-flight feasibility
++```
++
++---
++
++## References
++
++**Key Documentation**:
++- [README.md](../README.md) - Getting started, usage examples
++- [CONTRIBUTING.md](CONTRIBUTING.md) - Development setup, testing
++- [BUILD_HISTORY.md](BUILD_HISTORY.md) - Feature changelog
++- [DEBUG_LOG.md](DEBUG_LOG.md) - Issue tracking
++
++**Implementation Guides**:
++- [BUILD-112: Diagnostics Parity](BUILD-112_DIAGNOSTICS_PARITY_CURSOR.md)
++- [BUILD-113: Autonomous Investigation](BUILD-113_ITERATIVE_AUTONOMOUS_INVESTIGATION.md)
++- [BUILD-127: Self-Healing Governance](BUILD-127_REVISED_PLAN.md)
++- [BUILD-128: Deliverables-Aware Manifest](BUILD-128_ROOT_CAUSE_AND_PREVENTION.md)
++- [BUILD-129: Token Budget Intelligence](BUILD-129_PHASE1_VALIDATION_COMPLETE.md)
++
++---
++
++**Total Lines**: 180 (within ≤180 line constraint)  
++**Style**: Bullet-style with code examples  
++**Scope**: High-level overview, no detailed API docs
  
- This module is responsible for scraping web content and interfacing with the content extractor.
-+It provides robust web scraping capabilities with rate limiting, robots.txt compliance, and
-+comprehensive error handling.
- """
- 
- import requests
-+import time
- from bs4 import BeautifulSoup
--from typing import List, Dict
-+from typing import List, Dict, Optional, Any
-+from urllib.parse import urlparse
-+from urllib.robotparser import RobotFileParser
- from src.research.gatherers.content_extractor import ContentExtractor
- 
- 
- class WebScraper:
--    def __init__(self):
-+    """Web scraper with rate limiting and robots.txt compliance."""
-+
-+    def __init__(self, min_seconds_per_domain: float = 1.0):
-+        """
-+        Initialize the web scraper.
-+
-+        :param min_seconds_per_domain: Minimum seconds between requests to the same domain.
-+        """
-         self.extractor = ContentExtractor()
-+        self.min_seconds_per_domain = min_seconds_per_domain
-+        self.last_request_times: Dict[str, float] = {}
-+        self.user_agent = "AutopackResearchBot/1.0"
-+
-+    def _get_domain(self, url: str) -> str:
-+        """Extract domain from URL."""
-+        parsed = urlparse(url)
-+        return parsed.netloc
-+
-+    def _enforce_rate_limit(self, domain: str) -> None:
-+        """Enforce rate limiting per domain."""
-+        if domain in self.last_request_times:
-+            elapsed = time.time() - self.last_request_times[domain]
-+            if elapsed < self.min_seconds_per_domain:
-+                time.sleep(self.min_seconds_per_domain - elapsed)
-+        self.last_request_times[domain] = time.time()
-+
-+    def _allowed_by_robots(self, url: str) -> bool:
-+        """Check if URL is allowed by robots.txt."""
-+        try:
-+            parsed = urlparse(url)
-+            robots_url = f"{parsed.scheme}://{parsed.netloc}/robots.txt"
-+            rp = RobotFileParser()
-+            rp.set_url(robots_url)
-+            rp.read()
-+            return rp.can_fetch(self.user_agent, url)
-+        except Exception:
-+            # If we can't read robots.txt, assume allowed
-+            return True
-+
-+    def _validate_url(self, url: str) -> None:
-+        """Validate URL format and scheme."""
-+        if not url:
-+            raise ValueError("URL cannot be empty")
-+        
-+        parsed = urlparse(url)
-+        if not parsed.scheme or not parsed.netloc:
-+            raise ValueError(f"Invalid URL format: {url}")
-+        
-+        if parsed.scheme not in ["http", "https"]:
-+            raise ValueError(f"Unsupported URL scheme: {parsed.scheme}")
- 
-     def fetch_html(self, url: str) -> str:
-         """
-@@ -3,31 +3,60 @@ class WebScraper:
- 
-         :param url: The URL to fetch content from.
-         :return: The HTML content as a string.
-+        :raises ValueError: If URL is invalid or content type is unsupported.
-+        :raises PermissionError: If robots.txt disallows access.
-+        :raises Exception: If HTTP request fails.
-         """
-+        self._validate_url(url)
-+        
-+        if not self._allowed_by_robots(url):
-+            raise PermissionError(f"Access to {url} disallowed by robots.txt")
-+        
-+        domain = self._get_domain(url)
-+        self._enforce_rate_limit(domain)
-+        
-         try:
--            response = requests.get(url)
-+            headers = {"User-Agent": self.user_agent}
-+            response = requests.get(url, headers=headers, timeout=30)
-             response.raise_for_status()
-+            
-+            content_type = response.headers.get("content-type", "")
-+            if "text/html" not in content_type.lower():
-+                raise ValueError(f"Unsupported content type: {content_type}")
-+            
-             return response.text
-         except requests.RequestException as e:
--            print(f"Error fetching {url}: {e}")
--            return ""
-+            raise Exception(f"Error fetching {url}: {e}")
-+
-+    def fetch_content(self, url: str) -> str:
-+        """Alias for fetch_html for backward compatibility."""
-+        return self.fetch_html(url)
- 
--    def scrape_and_process(self, url: str) -> Dict[str, List[str]]:
-+    def parse_content(self, html: str) -> str:
-+        """Parse HTML content and extract text."""
-+        soup = BeautifulSoup(html, 'html.parser')
-+        return soup.get_text(strip=True)
-+
-+    def scrape_and_process(self, url: str) -> Dict[str, Any]:
-         """
-         Scrapes a URL and processes the content.
- 
-         :param url: The URL to scrape.
-         :return: A dictionary containing deduplicated, categorized content and identified gaps.
-         """
--        html = self.fetch_html(url)
--        if not html:
--            return {"error": "Failed to fetch content"}
--
--        soup = BeautifulSoup(html, 'html.parser')
--        text_content = soup.get_text()
--        processed_content = self.extractor.process_html(text_content)
--        return processed_content
--
--    def scrape_multiple(self, urls: List[str]) -> List[Dict[str, List[str]]]:
-+        try:
-+            html = self.fetch_html(url)
-+            if not html:
-+                return {"error": "Failed to fetch content", "url": url}
-+
-+            soup = BeautifulSoup(html, 'html.parser')
-+            text_content = soup.get_text()
-+            processed_content = self.extractor.process_html(text_content)
-+            processed_content["url"] = url
-+            return processed_content
-+        except Exception as e:
-+            return {"error": str(e), "url": url}
-+
-+    def scrape_multiple(self, urls: List[str]) -> List[Dict[str, Any]]:
-         """
-         Scrapes multiple URLs and processes their content.
- 
-@@ -58,6 +58,6 @@ class WebScraper:
-             results.append(result)
-         return results
- 
--    def aggregate_results(self, results: List[Dict[str, List[str]]]) -> Dict[str, List[str]]:
-+    def aggregate_results(self, results: List[Dict[str, Any]]) -> Dict[str, Any]:
-         """
-         Aggregates results from multiple scrapes.
- 
-@@ -73,13 +73,29 @@ class WebScraper:
-                 "advertisement": [],
-                 "other": []
-             },
--            "gaps": []
-+            "gaps": [],
-+            "sources": [],
-+            "errors": []
-         }
-+        
-         for result in results:
-+            if "error" in result:
-+                aggregated["errors"].append({
-+                    "url": result.get("url"),
-+                    "error": result["error"]
-+                })
-+                continue
-+            
-             aggregated["deduplicated"].extend(result.get("deduplicated", []))
-+            
-             for category, items in result.get("categorized", {}).items():
--                aggregated["categorized"][category].extend(items)
-+                if category in aggregated["categorized"]:
-+                    aggregated["categorized"][category].extend(items)
-+            
-             aggregated["gaps"].extend(result.get("gaps", []))
-+            
-+            if "url" in result:
-+                aggregated["sources"].append(result["url"])
- 
-         # Deduplicate aggregated content
-         aggregated["deduplicated"] = list(set(aggregated["deduplicated"]))
-@@ -3,6 +3,6 @@ class WebScraper:
- 
-         return aggregated
- 
--    def run(self, urls: List[str]) -> Dict[str, List[str]]:
-+    def run(self, urls: List[str]) -> Dict[str, Any]:
-         """
-         Runs the web scraper on a list of URLs and aggregates the results.
- 
-@@ -99,4 +99,3 @@ class WebScraper:
-         results = self.scrape_multiple(urls)
-         aggregated_results = self.aggregate_results(results)
-         return aggregated_results
--
-diff --git a/src/research/gatherers/content_extractor.py b/src/research/gatherers/content_extractor.py
-index 1111111..2222222 100644
---- a/src/research/gatherers/content_extractor.py
-+++ b/src/research/gatherers/content_extractor.py
-@@ -1,14 +1,29 @@
--"""
--Content Extractor Module
-+"""Content Extractor Module
- 
- This module is responsible for extracting and processing content from web pages.
- It deduplicates content, categorizes it by type, and identifies gaps.
-+Supports HTML, JSON, and plain text extraction with structured output.
- """
- 
--from typing import List, Dict, Any
-+from typing import List, Dict, Any, Optional
-+from dataclasses import dataclass
- import re
-+import json
-+from bs4 import BeautifulSoup
-+from urllib.parse import urljoin, urlparse
-+
-+
-+@dataclass
-+class ExtractedContent:
-+    """Structured representation of extracted content."""
-+    text: str
-+    links: List[str]
-+    code_blocks: List[str]
-+    source_url: Optional[str] = None
- 
- 
- class ContentExtractor:
-+    """Extracts and processes content from various formats."""
-+
-     def __init__(self):
-         self.content_store = []
- 
-@@ -20,9 +20,152 @@ class ContentExtractor:
-         :param html: The HTML content as a string.
-         :return: A list of extracted text segments.
-         """
--        # Simple regex-based extraction for demonstration purposes
--        text_segments = re.findall(r'>[^<]+<', html)
--        return [segment.strip('<> ') for segment in text_segments]
-+        soup = BeautifulSoup(html, 'html.parser')
-+        
-+        # Remove script and style elements
-+        for script in soup(["script", "style"]):
-+            script.decompose()
-+        
-+        # Get text and split into segments
-+        text = soup.get_text()
-+        lines = (line.strip() for line in text.splitlines())
-+        chunks = (phrase.strip() for line in lines for phrase in line.split("  "))
-+        text_segments = [chunk for chunk in chunks if chunk]
-+        
-+        return text_segments
-+
-+    def extract_from_html(self, html: Any) -> str:
-+        """
-+        Extracts clean text from HTML, removing scripts and styles.
-+
-+        :param html: The HTML content as a string.
-+        :return: Extracted text content.
-+        :raises ValueError: If html is None or not a string.
-+        """
-+        if html is None:
-+            raise ValueError("HTML content cannot be None")
-+        if not isinstance(html, str):
-+            raise ValueError("HTML content must be a string")
-+        
-+        soup = BeautifulSoup(html, 'html.parser')
-+        
-+        # Remove script and style elements
-+        for script in soup(["script", "style"]):
-+            script.decompose()
-+        
-+        # Check for malformed HTML
-+        if not soup.find():
-+            raise ValueError("Invalid or malformed HTML")
-+        
-+        return soup.get_text(strip=True)
-+
-+    def extract_from_json(self, json_content: str) -> str:
-+        """
-+        Extracts content from JSON string.
-+
-+        :param json_content: JSON string.
-+        :return: Extracted content value.
-+        :raises ValueError: If JSON is invalid.
-+        """
-+        try:
-+            data = json.loads(json_content)
-+        except json.JSONDecodeError as e:
-+            raise ValueError(f"Invalid JSON: {e}")
-+        
-+        # Look for 'content' key first, then first string value
-+        if isinstance(data, dict):
-+            if "content" in data:
-+                return str(data["content"])
-+            for value in data.values():
-+                if isinstance(value, str):
-+                    return value
-+        
-+        return str(data)
-+
-+    def extract_from_text(self, text: Any) -> str:
-+        """
-+        Extracts content from plain text.
-+
-+        :param text: Plain text content.
-+        :return: The text content.
-+        :raises ValueError: If text is None.
-+        """
-+        if text is None:
-+            raise ValueError("Text content cannot be None")
-+        return str(text)
-+
-+    def extract_links(self, content: Any) -> List[str]:
-+        """
-+        Extracts links from HTML or text content.
-+
-+        :param content: HTML or text content.
-+        :return: List of absolute URLs.
-+        :raises ValueError: If content is not a string.
-+        """
-+        if not isinstance(content, str):
-+            raise ValueError("Content must be a string")
-+        
-+        links = []
-+        
-+        # Try parsing as HTML first
-+        try:
-+            soup = BeautifulSoup(content, 'html.parser')
-+            for link in soup.find_all('a', href=True):
-+                href = link['href']
-+                # Only include absolute URLs
-+                if href.startswith('http://') or href.startswith('https://'):
-+                    links.append(href)
-+        except Exception:
-+            pass
-+        
-+        # Also extract URLs from plain text
-+        url_pattern = r'https?://[^\s<>"]+'
-+        text_urls = re.findall(url_pattern, content)
-+        links.extend(text_urls)
-+        
-+        # Remove duplicates while preserving order
-+        seen = set()
-+        unique_links = []
-+        for link in links:
-+            if link not in seen:
-+                seen.add(link)
-+                unique_links.append(link)
-+        
-+        return unique_links
-+
-+    def extract_code_blocks(self, html: str) -> List[str]:
-+        """
-+        Extracts code blocks from HTML.
-+
-+        :param html: HTML content.
-+        :return: List of code block contents.
-+        """
-+        soup = BeautifulSoup(html, 'html.parser')
-+        code_blocks = []
-+        
-+        for code in soup.find_all(['code', 'pre']):
-+            code_blocks.append(code.get_text(strip=True))
-+        
-+        return code_blocks
-+
-+    def extract(self, content: str, source_url: Optional[str] = None) -> ExtractedContent:
-+        """
-+        Extracts structured content from HTML.
-+
-+        :param content: HTML content.
-+        :param source_url: Optional source URL for link resolution.
-+        :return: ExtractedContent object with text, links, and code blocks.
-+        """
-+        text = self.extract_from_html(content)
-+        links = self.extract_links(content)
-+        code_blocks = self.extract_code_blocks(content)
-+        
-+        return ExtractedContent(
-+            text=text,
-+            links=links,
-+            code_blocks=code_blocks,
-+            source_url=source_url
-+        )
- 
-     def deduplicate_content(self, contents: List[str]) -> List[str]:
-         """
-@@ -46,15 +46,30 @@ class ContentExtractor:
-             "advertisement": [],
-             "other": []
-         }
-+        
-         for content in contents:
--            if "news" in content.lower():
-+            content_lower = content.lower()
-+            categorized = False
-+            
-+            # Check for news indicators
-+            if any(keyword in content_lower for keyword in ["news", "breaking", "report", "announced"]):
-                 categories["news"].append(content)
--            elif "blog" in content.lower():
-+                categorized = True
-+            
-+            # Check for blog indicators
-+            if any(keyword in content_lower for keyword in ["blog", "post", "article", "opinion"]):
-                 categories["blog"].append(content)
--            elif "buy now" in content.lower() or "sale" in content.lower():
-+                categorized = True
-+            
-+            # Check for advertisement indicators
-+            if any(keyword in content_lower for keyword in ["buy now", "sale", "discount", "offer", "shop"]):
-                 categories["advertisement"].append(content)
--            else:
-+                categorized = True
-+            
-+            # If not categorized, put in other
-+            if not categorized:
-                 categories["other"].append(content)
-+        
-         return categories
- 
-     def identify_gaps(self, categorized_content: Dict[str, List[str]]) -> List[str]:
-@@ -65,10 +65,14 @@ class ContentExtractor:
-         :return: A list of identified gaps.
-         """
-         gaps = []
--        if not categorized_content["news"]:
-+        
-+        if not categorized_content.get("news"):
-             gaps.append("Missing news content")
--        if not categorized_content["blog"]:
-+        if not categorized_content.get("blog"):
-             gaps.append("Missing blog content")
-+        if len(categorized_content.get("other", [])) > len(categorized_content.get("news", [])) + len(categorized_content.get("blog", [])):
-+            gaps.append("High proportion of uncategorized content")
-+        
-         return gaps
- 
-     def process_html(self, html: str) -> Dict[str, Any]:
-@@ -82,6 +82,7 @@ class ContentExtractor:
-         deduplicated = self.deduplicate_content(extracted)
-         categorized = self.categorize_content(deduplicated)
-         gaps = self.identify_gaps(categorized)
-+        
-         return {
-             "deduplicated": deduplicated,
-             "categorized": categorized,

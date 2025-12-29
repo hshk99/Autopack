@@ -1,0 +1,54 @@
+======================================================================
+DATA QUALITY SANITY CHECKS
+======================================================================
+
+Total clean samples: 25
+
+[CHECK 1] Outlier Detection
+  SMAPE outliers (>100%): 9/25
+    - telemetry-v5-d2-usage-examples: SMAPE=144.7%, actual=16205, predicted=2600
+    - telemetry-v5-p1-string-utils: SMAPE=124.1%, actual=1218, predicted=5200
+    - telemetry-v5-p2-number-utils: SMAPE=129.3%, actual=1117, predicted=5200
+    - telemetry-v5-p3-list-utils: SMAPE=106.4%, actual=1588, predicted=5200
+    - telemetry-v5-p6-path-utils: SMAPE=112.4%, actual=1459, predicted=5200
+    ... and 4 more
+  Waste outliers (>4x): 2/25
+    - telemetry-v5-p1-string-utils: waste=4.27x, predicted=5200, actual=1218
+    - telemetry-v5-p2-number-utils: waste=4.66x, predicted=5200, actual=1117
+
+[CHECK 2] Distribution Balance
+  By category:
+    implementation: 15 (60.0%)
+    tests: 7 (28.0%)
+    docs: 3 (12.0%)
+  By complexity:
+    low: 15 (60.0%)
+    medium: 10 (40.0%)
+
+[CHECK 3] SMAPE Stability by Group
+  [docs/low] mean=69.1%, std=65.5%, CV=0.95 → UNSTABLE
+  [implementation/low] mean=103.6%, std=19.0%, CV=0.18 → STABLE
+  [implementation/medium] mean=91.8%, std=16.5%, CV=0.18 → STABLE
+  [tests/low] mean=89.5%, std=12.2%, CV=0.14 → STABLE
+  [tests/medium] mean=34.5%, std=24.4%, CV=0.71 → UNSTABLE
+
+[CHECK 4] Sample Size Adequacy
+  Minimum recommended: 5 samples per group for calibration
+  Groups with ≥5 samples: 2/5
+    [docs/low] n=3 ✗ INADEQUATE
+    [tests/medium] n=3 ✗ INADEQUATE
+    [tests/low] n=4 ✗ INADEQUATE
+    [implementation/medium] n=7 ✓ ADEQUATE
+    [implementation/low] n=8 ✓ ADEQUATE
+
+[CHECK 5] Overall Data Quality Score
+  ✗ Outlier rate high: 22.0%
+  ✓ Category distribution balanced (max 60.0%)
+  ✓ Complexity distribution reasonable (max 60.0%)
+  ✗ Sample size inadequacy: 40.0% of groups
+  ✓ Total samples adequate: 25
+
+  QUALITY SCORE: 3/5
+  → VERDICT: Usable with caution, consider targeted v6 sampling
+
+======================================================================

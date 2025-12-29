@@ -1,0 +1,48 @@
+============================================================
+TELEMETRY ANALYSIS V5 - SUCCESS-ONLY SAMPLES
+============================================================
+
+Total Clean Samples: 25
+
+OVERALL METRICS (25 clean samples):
+  Average Predicted: 5054 tokens
+  Average Actual: 2854 tokens
+  Average SMAPE: 85.6%
+  Median SMAPE: 91.5%
+  SMAPE StdDev: 32.9%
+  Average Waste Ratio: 2.49x
+  Underestimated: 4/25 (16.0%)
+
+BREAKDOWN BY CATEGORY:
+  IMPLEMENTATION (n=15):
+    Avg SMAPE: 98.1%
+    Avg Waste: 3.05x
+    Underestimated: 0/15
+  TESTS (n=7):
+    Avg SMAPE: 65.9%
+    Avg Waste: 2.10x
+    Underestimated: 1/7
+  DOCS (n=3):
+    Avg SMAPE: 69.1%
+    Avg Waste: 0.54x
+    Underestimated: 3/3
+
+BREAKDOWN BY COMPLEXITY:
+  LOW (n=15):
+    Avg SMAPE: 92.9%
+    Avg Waste: 2.57x
+    Underestimated: 3/15
+  MEDIUM (n=10):
+    Avg SMAPE: 74.6%
+    Avg Waste: 2.36x
+    Underestimated: 1/10
+
+RISK ASSESSMENT:
+  Truncated samples: 0/25 (0.0%)
+  Underestimation rate: 16.0%
+  Severe underestimation (SMAPE > 100%): 9
+
+COST ASSESSMENT:
+  High waste samples (>3x): 8/25 (32.0%)
+  Max waste ratio: 4.66x
+

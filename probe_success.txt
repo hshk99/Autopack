@@ -1,0 +1,186 @@
+faiss library not installed; FaissStore will use in-memory fallback
+[2025-12-29 17:49:20] INFO: Applying pre-emptive encoding fix...
+[2025-12-29 17:49:20] INFO: [Recovery] Fixing Unicode encoding error...
+======================================================================
+DATABASE IDENTITY
+======================================================================
+DATABASE_URL: sqlite:///C:/dev/Autopack/telemetry_seed_final_green6.db
+SQLite file: C:\dev\Autopack\telemetry_seed_final_green6.db
+Last modified: 2025-12-29T06:48:48.561970+00:00
+
+Row counts:
+  Runs: 1
+  Phases: 10
+  LLM usage events: 0
+======================================================================
+
+[drain_one_phase] Re-queueing FAILED phase -> QUEUED: telemetry-collection-v4 / telemetry-p1-string-util
+[drain_one_phase] ===== ENVIRONMENT IDENTITY =====
+[drain_one_phase] DATABASE_URL: sqlite:///C:/dev/Autopack/telemetry_seed_final_green6.db
+[drain_one_phase] AUTOPACK_API_URL: http://localhost:51653
+[drain_one_phase] ================================
+[drain_one_phase] Draining: telemetry-collection-v4 / telemetry-p1-string-util
+
+[2025-12-29 17:49:20] INFO: [Recovery] SUCCESS: Encoding fixed (UTF-8 enabled)
+[2025-12-29 17:49:20] INFO: Database tables initialized
+[2025-12-29 17:49:20] INFO: Loaded BuilderOutputConfig: max_lines_for_full_file=1000, max_lines_hard_limit=1000
+[2025-12-29 17:49:20] INFO: Doctor execute_fix enabled: True
+[2025-12-29 17:49:20] INFO: FileSizeTelemetry initialized: c:\dev\Autopack\.autonomous_runs\autopack\file_size_telemetry.jsonl
+[2025-12-29 17:49:31] WARNING: [Qdrant] Connection check failed for localhost:6333: [WinError 10061] No connection could be made because the target machine actively refused it
+[2025-12-29 17:49:32] WARNING: [MemoryService] Qdrant unavailable at localhost:6333; falling back to FAISS ([WinError 10061] No connection could be made because the target machine actively refused it)
+[2025-12-29 17:49:32] INFO: [FAISS] Created collection 'code_docs' with dim=1536
+[2025-12-29 17:49:32] INFO: [FAISS] Created collection 'run_summaries' with dim=1536
+[2025-12-29 17:49:32] INFO: [FAISS] Created collection 'errors_ci' with dim=1536
+[2025-12-29 17:49:32] INFO: [FAISS] Created collection 'doctor_hints' with dim=1536
+[2025-12-29 17:49:32] INFO: [FAISS] Created collection 'planning' with dim=1536
+[2025-12-29 17:49:32] INFO: [MemoryService] Initialized (backend=faiss, enabled=True, top_k=5)
+[2025-12-29 17:49:32] INFO: MemoryService initialized (enabled=True)
+[2025-12-29 17:49:32] INFO: [FileLayout] Project: autopack, Family: telemetry-collection-v4, Base: .autonomous_runs\autopack\runs\telemetry-collection-v4
+[2025-12-29 17:49:32] INFO: Initialized autonomous executor for run: telemetry-collection-v4
+[2025-12-29 17:49:32] INFO: API URL: http://localhost:51653
+[2025-12-29 17:49:32] INFO: Workspace: c:\dev\Autopack
+[2025-12-29 17:49:32] INFO: Running proactive startup checks from DEBUG_JOURNAL.md...
+[2025-12-29 17:49:32] INFO: [HIGH] Checking: Windows Unicode Fix (PYTHONUTF8)
+[2025-12-29 17:49:32] INFO:   Reason: Prevents UnicodeEncodeError with emoji characters in logs (Issue #3)
+[2025-12-29 17:49:32] INFO:   Check PASSED
+[2025-12-29 17:49:32] INFO: [SchemaValidator] Starting database schema validation...
+[2025-12-29 17:49:32] INFO: [SchemaValidator] ✅ Database schema validation PASSED
+[2025-12-29 17:49:32] INFO: Startup checks complete
+[2025-12-29 17:49:34] INFO: [BUILD-123v2] Manifest generator initialized (deterministic scope generation)
+[2025-12-29 17:49:36] INFO: [HealthCheck:T0] API Keys: PASSED (0ms) - All required API keys present
+[2025-12-29 17:49:36] INFO: [HealthCheck:T0] Database: PASSED (0ms) - Database accessible: c:\dev\Autopack\autopack.db
+[2025-12-29 17:49:36] INFO: [HealthCheck:T0] Workspace: PASSED (0ms) - Workspace valid: c:\dev\Autopack
+[2025-12-29 17:49:36] INFO: [HealthCheck:T0] Config: PASSED (70ms) - Configuration files valid
+[2025-12-29 17:49:36] INFO: [HealthCheck:T0] Vector Memory: PASSED (1758ms) - Qdrant unreachable at localhost:6333; autostart attempted or unavailable. Falling back to FAISS.
+[2025-12-29 17:49:36] INFO: [BUILD-127] Completion authority initialized (PhaseFinalizer + TestBaselineTracker)
+[2025-12-29 17:49:36] INFO: [BUILD-127] Capturing T0 baseline at commit 626777fa...
+[2025-12-29 17:49:36] INFO: [Baseline] Using cached baseline for commit 626777fa
+[2025-12-29 17:49:36] INFO: [BUILD-127] T0 baseline: 0 tests, 0 passing, 0 failing, 17 errors
+[2025-12-29 17:49:36] INFO: Starting autonomous execution loop...
+[2025-12-29 17:49:36] INFO: Poll interval: 10s
+[2025-12-29 17:49:36] INFO: Max iterations: 1
+[2025-12-29 17:49:42] INFO: API server not detected at http://localhost:51653, attempting to start it...
+[2025-12-29 17:49:42] INFO: Waiting for API server to start on localhost:51653...
+[2025-12-29 17:49:45] INFO:   Still waiting... (1/30)
+[2025-12-29 17:49:46] INFO: ✅ API server started successfully
+[2025-12-29 17:49:46] INFO: ✅ Run 'telemetry-collection-v4' verified in API database
+[2025-12-29 17:49:46] INFO: Initializing infrastructure...
+[2025-12-29 17:49:50] INFO: LlmService: Initialized with ModelRouter and UsageRecorder
+[2025-12-29 17:49:50] INFO: Quality Gate: Initialized
+[2025-12-29 17:49:50] INFO: Iteration 1: Fetching run status...
+[2025-12-29 17:49:50] INFO: [GoalAnchor] Initialized: Create a string utility module with capitalize_words and reverse_string functions...
+[2025-12-29 17:49:50] INFO: [BUILD-041] Next phase: telemetry-p1-string-util
+[2025-12-29 17:49:50] INFO: [Scope] Workspace root determined as repo root for bucket 'examples': C:\dev\Autopack
+[2025-12-29 17:49:50] INFO: [telemetry-p1-string-util] Step 1/4: Generating code with Builder (via LlmService)...
+[2025-12-29 17:49:50] INFO: [telemetry-p1-string-util] Using scope-aware context (overrides targeted context)
+[2025-12-29 17:49:50] INFO: [Scope] Workspace root determined as repo root for bucket 'examples': C:\dev\Autopack
+[2025-12-29 17:49:50] INFO: [Scope] Loaded 4 files from scope configuration
+[2025-12-29 17:49:50] INFO: [Scope] Scope paths: ['examples/telemetry_utils/']
+[2025-12-29 17:49:50] INFO: [Scope] Loaded paths: ['examples/telemetry_utils/number_utils.py', 'examples/telemetry_utils/string_helper.py', 'examples/telemetry_utils/string_utils.py', 'examples/telemetry_utils/__init__.py']...
+[2025-12-29 17:49:50] INFO: [telemetry-p1-string-util] Loaded 4 files for context
+[2025-12-29 17:49:50] INFO: [Scope] Workspace root determined as repo root for bucket 'examples': C:\dev\Autopack
+[2025-12-29 17:49:50] INFO: [Scope] Validation passed: 4 files match scope configuration
+[2025-12-29 17:49:50] INFO: [telemetry-p1-string-util] Built deliverables contract: 1 required paths, 0 forbidden patterns
+[2025-12-29 17:49:50] INFO: [telemetry-p1-string-util] Deliverables manifest gate PASSED (1 paths)
+[2025-12-29 17:49:50] INFO: [ModelSelector] Selected claude-opus-4-5 for builder (complexity=low, attempt=1, intra_tier=1)
+[2025-12-29 17:49:50] INFO: [MODEL-SELECT] Builder: model=claude-opus-4-5, complexity=low->low, attempt=1, category=implementation
+[2025-12-29 17:49:50] INFO: [TokenEstimator] Budget selection: base=8192, estimated=3419, with_buffer=4102, selected=8192, confidence=80.0%, buffer_margin=1.20x
+[2025-12-29 17:49:50] INFO: [BUILD-129] Token estimate: 3419 output tokens (1 deliverables, confidence=0.80), selected budget: 8192 (P4 enforcement applied before API call)
+[2025-12-29 17:49:50] WARNING: CONSOLIDATED_DEBUG.md not found at c:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\CONSOLIDATED_DEBUG.md
+[2025-12-29 17:49:50] WARNING: [TOKEN_SOFT_CAP] run_id=telemetry-collection-v4 phase_id=telemetry-p1-string-util est_total=15650 soft_cap=12000 (prompt=4182 completion=11468 complexity=low)
+[2025-12-29 17:49:50] INFO: [BUILD-129:P4] Final max_tokens enforcement: 16384 (token_selected_budget=8192)
+[2025-12-29 17:49:52] INFO: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+[2025-12-29 17:50:04] INFO: [TOKEN_BUDGET] phase=telemetry-p1-string-util complexity=low input=4828 output=795/16384 total=5623 utilization=4.9% model=claude-opus-4-5
+[2025-12-29 17:50:04] INFO: [Builder] DEBUG: diff_parts is empty, checking for no-op success
+[2025-12-29 17:50:04] INFO: [Builder] DEBUG: attempted_file_paths=['examples/telemetry_utils/string_helper.py']
+[2025-12-29 17:50:04] INFO: [Builder] DEBUG: checking examples/telemetry_utils/string_helper.py -> c:\dev\Autopack\examples\telemetry_utils\string_helper.py exists=True
+[2025-12-29 17:50:04] INFO: [Builder] DEBUG: existing_count=1/1, all_exist=True
+[2025-12-29 17:50:04] INFO: [Builder] Full-file produced no diffs; treating as no-op success (all 1 file(s) already exist and match generated content)
+[2025-12-29 17:50:04] INFO: [TokenEstimationV2] predicted_output=3419 actual_output=795 smape=124.5% selected_budget=8192 category=implementation complexity=low deliverables=1 success=True stop_reason=end_turn truncated=False model=claude-opus-4-5
+[2025-12-29 17:50:04] INFO: [telemetry-p1-string-util] Builder succeeded (5623 tokens)
+[2025-12-29 17:50:04] INFO: [telemetry-p1-string-util] Deliverables validation:
+[2025-12-29 17:50:04] INFO:   Expected: 1 files
+[2025-12-29 17:50:04] INFO:   Found in patch: 0 files (+0 existing files in workspace)
+[2025-12-29 17:50:04] INFO: [telemetry-p1-string-util] ✅ Deliverables validation PASSED
+[2025-12-29 17:50:04] INFO: [telemetry-p1-string-util] Step 2/5: Applying patch...
+[2025-12-29 17:50:04] WARNING: Empty patch content provided
+[2025-12-29 17:50:04] INFO: [telemetry-p1-string-util] Patch applied successfully to filesystem
+[2025-12-29 17:50:04] INFO: [telemetry-p1-string-util] Step 3/5: Running CI checks...
+[2025-12-29 17:50:04] INFO: [telemetry-p1-string-util] Running CI checks (pytest)...
+[2025-12-29 17:50:36] INFO: [telemetry-p1-string-util] CI output written to: c:\dev\Autopack\.autonomous_runs\telemetry-collection-v4\ci\pytest_telemetry-p1-string-util.log
+[2025-12-29 17:50:36] WARNING: [telemetry-p1-string-util] CI checks FAILED: return code 2
+[2025-12-29 17:50:36] WARNING: [telemetry-p1-string-util] Collection errors detected: 5 failures
+[2025-12-29 17:50:36] INFO: [telemetry-p1-string-util] Step 4/5: Reviewing patch with Auditor (via LlmService)...
+[2025-12-29 17:50:36] INFO: [ModelSelector] Selected claude-opus-4-5 for auditor (complexity=low, attempt=1, intra_tier=1)
+[2025-12-29 17:50:36] INFO: [MODEL-SELECT] Auditor: model=claude-opus-4-5, complexity=low->low, attempt=1, category=implementation
+[2025-12-29 17:50:36] WARNING: CONSOLIDATED_DEBUG.md not found at c:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\CONSOLIDATED_DEBUG.md
+[2025-12-29 17:50:40] INFO: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+[2025-12-29 17:50:40] INFO: [telemetry-p1-string-util] Auditor completed: approved=False, issues=1
+[2025-12-29 17:50:40] INFO: [telemetry-p1-string-util] Step 5/5: Applying Quality Gate...
+[2025-12-29 17:50:40] INFO: [telemetry-p1-string-util] Quality Gate: BLOCKED
+[2025-12-29 17:50:40] WARNING: [telemetry-p1-string-util] Phase BLOCKED by quality gate
+[2025-12-29 17:50:40] WARNING:   - Auditor rejected changes
+[2025-12-29 17:50:40] INFO: [telemetry-p1-string-util] Requesting human approval via Telegram...
+[2025-12-29 17:50:40] INFO: [telemetry-p1-string-util] ✅ Approval GRANTED (auto-approved)
+[2025-12-29 17:50:40] INFO: [telemetry-p1-string-util] Human approval GRANTED - proceeding with phase
+[2025-12-29 17:50:40] INFO: [PhaseFinalizer] Assessing completion for phase telemetry-p1-string-util
+[2025-12-29 17:50:40] ERROR: [PhaseFinalizer] BLOCK: CI collection/import error: tests/autopack/autonomous/test_research_hooks.py (('C:\\dev\\Autopack\\tests\\autopack\\autonomous\\test_research_hooks.py', 5, 'Skipped: Research hooks tests temporarily disabled: test suite targets old API (ResearchHookManager with add_trigger/remove_trigger methods, ResearchHookResult). Current implementation uses ResearchHooks with ResearchDecision and different API. Needs test rewrite to match current architecture. See BUILD-141 Part 8.'))
+[2025-12-29 17:50:40] INFO: [PhaseFinalizer] CI Delta: 0 persistent failures, 0 flaky suspects, 0 newly passing, severity=none
+[2025-12-29 17:50:40] WARNING: [PhaseFinalizer] WARN: Quality gate blocked (BLOCKED) but human-approved override present
+[2025-12-29 17:50:40] ERROR: [PhaseFinalizer] ❌ Phase telemetry-p1-string-util BLOCKED: CI collection/import error: tests/autopack/autonomous/test_research_hooks.py (('C:\\dev\\Autopack\\tests\\autopack\\autonomous\\test_research_hooks.py', 5, 'Skipped: Research hooks tests temporarily disabled: test suite targets old API (ResearchHookManager with add_trigger/remove_trigger methods, ResearchHookResult). Current implementation uses ResearchHooks with ResearchDecision and different API. Needs test rewrite to match current architecture. See BUILD-141 Part 8.'))
+[2025-12-29 17:50:40] ERROR: [telemetry-p1-string-util] Phase finalization BLOCKED: CI collection/import error: tests/autopack/autonomous/test_research_hooks.py (('C:\\dev\\Autopack\\tests\\autopack\\autonomous\\test_research_hooks.py', 5, 'Skipped: Research hooks tests temporarily disabled: test suite targets old API (ResearchHookManager with add_trigger/remove_trigger methods, ResearchHookResult). Current implementation uses ResearchHooks with ResearchDecision and different API. Needs test rewrite to match current architecture. See BUILD-141 Part 8.'))
+[2025-12-29 17:50:40] ERROR:   ❌ CI collection/import error: tests/autopack/autonomous/test_research_hooks.py (('C:\\dev\\Autopack\\tests\\autopack\\autonomous\\test_research_hooks.py', 5, 'Skipped: Research hooks tests temporarily disabled: test suite targets old API (ResearchHookManager with add_trigger/remove_trigger methods, ResearchHookResult). Current implementation uses ResearchHooks with ResearchDecision and different API. Needs test rewrite to match current architecture. See BUILD-141 Part 8.'))
+[2025-12-29 17:50:40] WARNING:   ⚠️  Quality gate blocked but overridden by human approval: BLOCKED
+[2025-12-29 17:50:40] INFO: Updated phase telemetry-p1-string-util status to FAILED
+[2025-12-29 17:51:20] INFO: [MemoryService] Stored decision log
+[2025-12-29 17:51:20] INFO: [RetrievalTrigger] Phase telemetry-p1-string-util attempt 1: Error messages lack context - triggering deep retrieval
+[2025-12-29 17:51:20] INFO: [DeepRetrieval] Starting bounded retrieval for phase telemetry-p1-string-util (priority=medium)
+[2025-12-29 17:51:21] INFO: [DeepRetrieval] Retrieved 0 run artifacts (0 bytes), 1 SOT files (15360 bytes), 0 memory entries (0 bytes)
+[2025-12-29 17:51:21] INFO: [Doctor] Routine failure detected -> using cheap model
+[2025-12-29 17:51:26] INFO: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+[2025-12-29 17:51:26] INFO: [Doctor] Diagnosis complete: action=skip_phase, confidence=0.95, phase=telemetry-p1-string-util, model=claude-sonnet-4-5, is_complex=False, escalated=False, health_ratio=0.04
+[2025-12-29 17:51:26] INFO: [Doctor] Diagnosis complete: action=skip_phase, confidence=0.95, phase_calls=1, run_calls=1
+[2025-12-29 17:51:26] INFO: [Doctor] Action: skip_phase - marking phase as FAILED and continuing
+[2025-12-29 17:51:26] INFO: Updated phase telemetry-p1-string-util status to FAILED
+[2025-12-29 17:51:26] INFO: [MemoryService] Stored decision log
+[2025-12-29 17:51:26] INFO: [telemetry-p1-string-util] Marked FAILED in database (reason: DOCTOR_SKIP: CI collection/import error: tests/autopack/autonomous/test_research_hooks.py (('C:\\dev\\Autopack\\tests\\autopack\\autonomous\\test_research_hooks.py', 5, 'Skipped: Research hooks tests temporarily disabled: test suite targets old API (ResearchHookManager with add_trigger/remove_trigger methods, ResearchHookResult). Current implementation uses ResearchHooks with ResearchDecision and different API. Needs test rewrite to match current architecture. See BUILD-141 Part 8.')))
+[2025-12-29 17:51:27] INFO: [telemetry-p1-string-util] Sent failure notification to Telegram
+[2025-12-29 17:51:27] WARNING: [telemetry-p1-string-util] Doctor recommended skipping, marking FAILED
+[2025-12-29 17:51:27] WARNING: Phase telemetry-p1-string-util finished with status: CI collection/import error: tests/autopack/autonomous/test_research_hooks.py (('C:\\dev\\Autopack\\tests\\autopack\\autonomous\\test_research_hooks.py', 5, 'Skipped: Research hooks tests temporarily disabled: test suite targets old API (ResearchHookManager with add_trigger/remove_trigger methods, ResearchHookResult). Current implementation uses ResearchHooks with ResearchDecision and different API. Needs test rewrite to match current architecture. See BUILD-141 Part 8.'))
+[2025-12-29 17:51:27] INFO: Reached max iterations (1), stopping
+[2025-12-29 17:51:27] INFO: Autonomous execution loop finished
+[2025-12-29 17:51:27] INFO: [ARCHIVE_CONSOLIDATOR] Logged build event: RUN_PAUSED
+Quality Gate: PASS
+Blocking: False
+
+Risk Assessment:
+  auditor_approved: False
+  ci_passed: False
+  coverage_delta: 0.0
+  files_changed_count: 0
+
+[drain_one_phase] Final state: FAILED
+[drain_one_phase] Phase did not complete successfully
+[drain_one_phase] Failure reason: DOCTOR_SKIP: CI collection/import error: tests/autopack/autonomous/test_research_hooks.py (('C:\\dev\\Autopack\\tests\\autopack\\autonomous\\test_research_hooks.py', 5, 'Skipped: Research hooks tests 
+[PROBE] Phase: telemetry-p1-string-util
+[PROBE] DATABASE_URL: sqlite:///C:/dev/Autopack/telemetry_seed_final_green6.db
+[PROBE] TELEMETRY_DB_ENABLED: 1
+
+[PROBE] DB telemetry rows (before):
+[PROBE]   - token_estimation_v2_events: 1
+[PROBE]   - llm_usage_events: 0
+[PROBE] Running drain_one_phase...
+
+
+[PROBE] Drain exit code: 1
+[PROBE] DB telemetry rows (after):
+[PROBE]   - token_estimation_v2_events: 2 (INCREASED by 1 ✅)
+[PROBE]   - llm_usage_events: 3 (INCREASED by 3 ✅)
+[PROBE] Phase final state: FAILED
+[PROBE] Files array: UNKNOWN (phase failed, not due to empty files)
+[PROBE] Failure reason: DOCTOR_SKIP: CI collection/import error: tests/autopack/autonomous/test_research_hooks.py (('C:\\dev\\Autopack\\tests\\autopack\\autonomous\\test_research_hooks.py', 5, 'Skipped: Research hooks tests 
+
+[PROBE] ========== VERDICT ==========
+[PROBE] ❌ FAILED - phase did not complete successfully
+[PROBE] Check logs and fix issues before draining remaining phases
+[PROBE] Failure reason: DOCTOR_SKIP: CI collection/import error: tests/autopack/autonomous/test_research_hooks.py (('C:\\dev\\Autopack\\tests\\autopack\\autonomous\\test_research_hooks.py', 5, 'Skipped: Research hooks tests 

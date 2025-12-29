@@ -22,14 +22,27 @@ Usage:
         python scripts/create_telemetry_v6_targeted_run.py
 """
 
+import os
 import sys
 from pathlib import Path
+
+# Require DATABASE_URL to prevent silent fallback to Postgres
+if not os.environ.get("DATABASE_URL"):
+    print("[telemetry_v6_seed] ERROR: DATABASE_URL must be set explicitly.", file=sys.stderr)
+    print("", file=sys.stderr)
+    print("Example usage (PowerShell):", file=sys.stderr)
+    print("  $env:DATABASE_URL='sqlite:///C:/dev/Autopack/telemetry_seed_v6.db'", file=sys.stderr)
+    print("  python scripts/create_telemetry_v6_targeted_run.py", file=sys.stderr)
+    print("", file=sys.stderr)
+    print("Example usage (bash):", file=sys.stderr)
+    print("  DATABASE_URL='sqlite:///telemetry_seed_v6.db' python scripts/create_telemetry_v6_targeted_run.py", file=sys.stderr)
+    sys.exit(1)
 
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 from autopack.database import SessionLocal, init_db
-from autopack.models import Run, Phase, PhaseState
+from autopack.models import Run, RunState, Phase, PhaseState, Tier, TierState
 from datetime import datetime, timezone
 import json
 
@@ -45,16 +58,16 @@ def create_telemetry_v6_run():
     try:
         # Create run
         run = Run(
-            run_id="telemetry-collection-v6",
-            goal=(
-                "Targeted telemetry sampling to stabilize weak groups from v5. "
-                "Focus: docs/low (n=3→13), docs/medium (n=0→5), tests/medium (n=3→8). "
-                "All docs phases have explicit output caps (≤150-250 lines) and minimal context. "
-                "Multi-deliverable phases to diversify deliverable count distribution."
-            ),
-            status="EXECUTING",
+            id="telemetry-collection-v6",
+            state=RunState.PHASE_EXECUTION,
             created_at=datetime.now(timezone.utc),
-            metadata_json=json.dumps({
+            goal_anchor=json.dumps({
+                "goal": (
+                    "Targeted telemetry sampling to stabilize weak groups from v5. "
+                    "Focus: docs/low (n=3→13), docs/medium (n=0→5), tests/medium (n=3→8). "
+                    "All docs phases have explicit output caps (≤150-250 lines) and minimal context. "
+                    "Multi-deliverable phases to diversify deliverable count distribution."
+                ),
                 "purpose": "telemetry_v6_targeted_sampling",
                 "target_groups": ["docs/low", "docs/medium", "tests/medium"],
                 "v5_gaps": {
@@ -75,8 +88,21 @@ def create_telemetry_v6_run():
         session.add(run)
         session.flush()
 
-        print(f"Created run: {run.run_id}")
+        print(f"Created run: {run.id}")
         print()
+
+        # Create a single tier for all phases
+        tier = Tier(
+            tier_id="telemetry-v6-T1",
+            run_id=run.id,
+            tier_index=1,
+            name="telemetry-v6-tier1",
+            description="Single tier for all v6 telemetry sampling phases",
+            state=TierState.IN_PROGRESS,
+            created_at=datetime.now(timezone.utc),
+        )
+        session.add(tier)
+        session.flush()
 
         # Define phases
         phases = []
@@ -91,8 +117,8 @@ def create_telemetry_v6_run():
                 "deliverables": ["docs/QUICKSTART.md"],
                 "goal": (
                     "Create concise QUICKSTART.md (≤150 lines). "
-                    "Cover: installation (5 lines), basic usage (1 example), first run. "
-                    "No comprehensive documentation. Minimal context (3-5 files)."
+                    "Cover: installation (5 lines), basic usage (1 snippet), first run. "
+                    "Keep it brief. Minimal context (3-5 files)."
                 ),
             },
             {
@@ -125,7 +151,7 @@ def create_telemetry_v6_run():
                 "goal": (
                     "Create CONFIG_GUIDE.md (≤150 lines). "
                     "Cover: environment variables, .env file, common configs. "
-                    "3-5 examples total. Context: config files + 2-3 source files."
+                    "3-5 code snippets total. Context: config files + 2-3 source files."
                 ),
             },
             {
@@ -147,7 +173,7 @@ def create_telemetry_v6_run():
                 "goal": (
                     "Create ERROR_HANDLING.md (≤150 lines). "
                     "Cover: common errors, recovery strategies, debugging tips. "
-                    "Bullet-style, 3-5 examples. Context: error_*.py files (4-6 files)."
+                    "Bullet-style, 3-5 scenarios. Context: error_*.py files (4-6 files)."
                 ),
             },
             {
@@ -169,7 +195,7 @@ def create_telemetry_v6_run():
                 "goal": (
                     "Create TESTING_GUIDE.md (≤150 lines). "
                     "Cover: running tests, writing tests, test structure. "
-                    "3 examples total. Context: test files + pytest.ini (5-7 files)."
+                    "3 snippets total. Context: test files + pytest.ini (5-7 files)."
                 ),
             },
             {
@@ -179,8 +205,8 @@ def create_telemetry_v6_run():
                 "deliverables": ["docs/API_BASICS.md"],
                 "goal": (
                     "Create API_BASICS.md (≤200 lines). "
-                    "Cover: endpoints overview, auth, common responses. "
-                    "High-level only, no exhaustive API reference. Context: router files (6-8 files)."
+                    "Cover: API routes overview, auth, common responses. "
+                    "High-level only, no exhaustive reference. Context: router files (6-8 files)."
                 ),
             },
             {
@@ -340,15 +366,17 @@ def create_telemetry_v6_run():
         # Create phase records
         for idx, phase_spec in enumerate(all_phases, 1):
             phase = Phase(
-                run_id=run.run_id,
+                run_id=run.id,
+                tier_id=tier.id,
                 phase_id=phase_spec["phase_id"],
-                phase_number=idx,
-                goal=phase_spec["goal"],
+                phase_index=idx,
+                name=phase_spec["phase_id"],
+                description=phase_spec["goal"],
                 state=PhaseState.QUEUED,
+                task_category=phase_spec["category"],
+                complexity=phase_spec["complexity"],
                 scope=json.dumps({
                     "deliverables": phase_spec["deliverables"],
-                    "task_category": phase_spec["category"],
-                    "complexity": phase_spec["complexity"],
                 }),
                 created_at=datetime.now(timezone.utc),
             )
@@ -378,11 +406,18 @@ def create_telemetry_v6_run():
         print("  ✓ Multi-deliverable phases to diversify deliverable count")
         print()
         print("Next steps:")
-        print("  1. Run batch drain:")
-        print("     PYTHONUTF8=1 PYTHONPATH=src TELEMETRY_DB_ENABLED=1 AUTOPACK_SKIP_CI=1 \\")
-        print("     DATABASE_URL='sqlite:///C:/dev/Autopack/telemetry_seed_v6.db' \\")
-        print("     python scripts/batch_drain_controller.py \\")
-        print("       --run-id telemetry-collection-v6 --batch-size 20 --phase-timeout-seconds 900")
+        print("  1. Drain queued phases (batch_drain_controller only works for FAILED phases):")
+        print("     PowerShell:")
+        print("       $env:PYTHONUTF8='1'; $env:PYTHONPATH='src'; $env:TELEMETRY_DB_ENABLED='1'")
+        print("       $env:AUTOPACK_SKIP_CI='1'; $env:DATABASE_URL='sqlite:///C:/dev/Autopack/telemetry_seed_v6.db'")
+        print("       python scripts/drain_queued_phases.py --run-id telemetry-collection-v6 `")
+        print("         --batch-size 20 --max-batches 1 --no-dual-auditor --run-type autopack_maintenance")
+        print("")
+        print("     Bash:")
+        print("       PYTHONUTF8=1 PYTHONPATH=src TELEMETRY_DB_ENABLED=1 AUTOPACK_SKIP_CI=1 \\")
+        print("         DATABASE_URL='sqlite:///C:/dev/Autopack/telemetry_seed_v6.db' \\")
+        print("         python scripts/drain_queued_phases.py --run-id telemetry-collection-v6 \\")
+        print("           --batch-size 20 --max-batches 1 --no-dual-auditor --run-type autopack_maintenance")
         print()
         print("  2. After completion:")
         print("     - Re-run calibration analysis")

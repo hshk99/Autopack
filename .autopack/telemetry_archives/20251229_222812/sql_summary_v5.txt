@@ -1,0 +1,25 @@
+============================================================
+TELEMETRY DATABASE SUMMARY
+============================================================
+v2_total: 26
+v2_clean: 25
+Clean rate: 96.2%
+
+Category Breakdown (clean samples):
+  implementation: 15
+  tests: 7
+  docs: 3
+
+Complexity Breakdown (clean samples):
+  low: 15
+  medium: 10
+
+Deliverable Count Distribution (clean samples):
+  1 deliverables: 24 samples
+  2 deliverables: 1 samples
+
+SMAPE Statistics (clean samples):
+  Average SMAPE: 85.6%
+  Min SMAPE: 11.7%
+  Max SMAPE: 144.7%
+  Average Waste Ratio: 2.486

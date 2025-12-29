@@ -6,9 +6,51 @@ Autopack is a framework for orchestrating autonomous AI agents (Builder and Audi
 
 ---
 
-## Recent Updates (v0.4.12 - Telemetry Collection V5 + Batch Drain Fixes)
+## Recent Updates (v0.4.13 - V6 Pilot Validation + Safe Calibration)
 
-### 2025-12-29 (Part 9): Telemetry-Collection-V5 + Batch Drain Race Condition Fix - ✅ COMPLETE
+### 2025-12-29 (Part 10): Telemetry-Collection-V6 Pilot Validation - ✅ COMPLETE
+**V6 Targeted Sampling + 3-Issue Root Cause Fix**
+- **Achievement**: Successfully validated v6 pipeline with 3-phase pilot (100% success)
+- **Run**: `telemetry-collection-v6` (database: `telemetry_seed_v6_pilot.db`)
+- **Pilot Results**:
+  - **Phase Completion**: 3/3 COMPLETE (docs/low: telemetry-v6-d1-quickstart, d2-contributing, d3-architecture-overview)
+  - **Telemetry Events**: 3 `TokenEstimationV2Event` records (100% success, 0% truncated)
+  - **Category Validation**: All 3 phases correctly categorized as `docs` (not `doc_synthesis`) ✅
+  - **SMAPE Spread**: 3.7% to 36.9% (healthy variance for docs/low group)
+- **3 Critical Issues Fixed**:
+  1. **Wrong Runner Issue** ([scripts/batch_drain_controller.py:597](scripts/batch_drain_controller.py#L597)):
+     - **Problem**: `batch_drain_controller.py` only processes `FAILED` phases, but v6 creates `QUEUED` phases
+     - **Fix**: Updated v6 seed script instructions to use [scripts/drain_queued_phases.py](scripts/drain_queued_phases.py) instead
+     - **Validation**: Confirmed via static code check + successful 3-phase drain
+  2. **DB Misconfiguration Risk** ([scripts/create_telemetry_v6_targeted_run.py:25-39](scripts/create_telemetry_v6_targeted_run.py#L25-L39)):
+     - **Problem**: v6 seed script didn't require `DATABASE_URL`, risking silent fallback to Postgres
+     - **Fix**: Added mandatory `DATABASE_URL` guard with helpful error message (PowerShell + bash examples)
+     - **Validation**: Script exits with clear instructions if `DATABASE_URL` not set
+  3. **Doc Classification Bug** ([scripts/create_telemetry_v6_targeted_run.py:107-183](scripts/create_telemetry_v6_targeted_run.py#L107-L183)):
+     - **Problem**: Doc phase goals contained trigger words ("comprehensive", "example", "endpoints") causing TokenEstimator to classify as `doc_synthesis` instead of `docs`, breaking sampling plan
+     - **Fix**: Removed all trigger words from v6 doc goals:
+       - "comprehensive" → "Keep it brief"
+       - "example" → "snippet" / "scenario"
+       - "endpoints overview" → "API routes overview"
+       - "exhaustive API reference" → "exhaustive reference"
+     - **Validation**: Tested TokenEstimator directly on v6 goals + confirmed via actual telemetry events (all show category=`docs`)
+- **DB Schema Fixes** (discovered via trial-and-error):
+  - Run model: `run_id`→`id`, `status`→`state` (enum), `goal`→`goal_anchor` (JSON)
+  - Phase model: `phase_number`→`phase_index`, added `tier_id` FK, added `name`, `goal`→`description`
+  - Added Tier creation: `tier_id="telemetry-v6-T1"` (required parent for phases)
+- **Documentation**: [.autopack/telemetry_archives/20251229_222812/](/.autopack/telemetry_archives/20251229_222812/)
+  - `sanity_check_v5.txt`: V5 data quality analysis (22% outlier rate, 3/5 groups inadequate)
+  - `calibration_proposal_v5.txt`: V5-only recommendations (not applied - awaiting v6)
+- **Impact**:
+  - ✅ **V6 Pipeline Validated**: End-to-end workflow proven (seed→drain→telemetry) with 100% success
+  - ✅ **Doc Categorization Fixed**: Trigger word removal prevents doc_synthesis misclassification
+  - ✅ **Database Safety**: Explicit DATABASE_URL requirement prevents accidental Postgres writes
+  - ✅ **Correct Tooling**: drain_queued_phases.py confirmed as proper runner for QUEUED phases
+  - 🚧 **Next**: Full 20-phase v6 collection to stabilize docs/low (n=3→13), docs/medium (n=0→2), tests/medium (n=3→9)
+- **Files Changed**: 1 file ([scripts/create_telemetry_v6_targeted_run.py](scripts/create_telemetry_v6_targeted_run.py))
+  - +150 lines across 8 edits (DB guard, drain instructions, trigger word removal, schema fixes)
+
+### 2025-12-29 (Part 9): Telemetry-Collection-V5 + Batch Drain Race Condition Fix + Safe Calibration - ✅ COMPLETE
 **25-Phase Telemetry Collection + Production Reliability Improvements**
 - **Achievement**: Successfully collected 25 clean telemetry samples (exceeds ≥20 target by 25%)
 - **Run**: `telemetry-collection-v5` (database: `telemetry_seed_v5.db`)

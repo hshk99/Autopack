@@ -1,5 +1,5 @@
 # Core FastAPI dependencies
-fastapi>=0.104.0,<0.105.0
+fastapi>=0.104.0,<0.129.0
 starlette>=0.27.0,<0.28.0  # pin to FastAPI-compatible range to avoid routing regressions
 uvicorn[standard]>=0.24.0
 pydantic>=2.5.0

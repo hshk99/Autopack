@@ -402,8 +402,12 @@ class AnthropicBuilderClient:
         # BUILD-042: Apply complexity-based token scaling FIRST (before special case overrides)
         # This ensures the base token budget is set correctly before task-specific increases
         # This serves as fallback if token estimation is not available
+        # BUILD-142: If TokenEstimator provided a category-aware budget, use that instead of complexity fallback
         if max_tokens is None:
-            if complexity == "low":
+            if token_selected_budget:
+                # Use category-aware budget from TokenEstimator
+                max_tokens = token_selected_budget
+            elif complexity == "low":
                 max_tokens = 8192  # BUILD-042: Increased from 4096
             elif complexity == "medium":
                 max_tokens = 12288  # BUILD-042: Complexity-based scaling
@@ -563,14 +567,38 @@ class AnthropicBuilderClient:
             builder_mode = phase_spec.get("builder_mode", "")
             change_size = phase_spec.get("change_size", "")
 
-            # BUILD-042: Override for special modes (full_file or large_refactor need max budget)
-            # This is in addition to the complexity-based scaling applied earlier
+            # BUILD-142: Category-aware conditional override for special modes
+            # Only apply 16384 floor for non-docs categories or when selected_budget already >= 16384
+            # This preserves category-aware base budget reductions (e.g., docs/low=4096) while maintaining
+            # safety overrides for high-risk code phases
             if builder_mode == "full_file" or change_size == "large_refactor":
-                max_tokens = max(max_tokens, 16384)
-                logger.debug(
-                    "[TOKEN_EST] Using increased max_tokens=%d for builder_mode=%s change_size=%s",
-                    max_tokens, builder_mode, change_size
+                # Normalize category for consistent comparison
+                normalized_category = task_category.lower() if task_category else ""
+                is_docs_like = normalized_category in ["docs", "documentation", "doc_synthesis", "doc_sot_update"]
+
+                # Only force 16384 floor if:
+                # 1. No selected budget available (None), OR
+                # 2. Selected budget is already >= 16384 (not an intentional reduction), OR
+                # 3. Category is NOT docs-like (preserve safety for code phases)
+                should_apply_floor = (
+                    not token_selected_budget or
+                    token_selected_budget >= 16384 or
+                    not is_docs_like
                 )
+
+                if should_apply_floor:
+                    max_tokens = max(max_tokens, 16384)
+                    logger.debug(
+                        "[TOKEN_EST] Using increased max_tokens=%d for builder_mode=%s change_size=%s "
+                        "(category=%s, selected_budget=%s)",
+                        max_tokens, builder_mode, change_size, task_category, token_selected_budget
+                    )
+                else:
+                    logger.debug(
+                        "[BUILD-142] Preserving category-aware budget=%d for docs-like category=%s "
+                        "(skipping 16384 floor override)",
+                        token_selected_budget, task_category
+                    )
             elif max_tokens <= 0:
                 logger.warning(
                     "[TOKEN_EST] max_tokens invalid (%s); falling back to default 4096",
@@ -670,13 +698,16 @@ class AnthropicBuilderClient:
                 full_prompt_text = system_prompt + "\n" + user_prompt
                 estimated_prompt_tokens = estimate_tokens(full_prompt_text)
 
+            # BUILD-142: Store selected_budget (estimator intent) BEFORE P4 enforcement
+            # This ensures telemetry records the category-aware budget decision, not the final ceiling
+            if token_selected_budget:
+                phase_spec.setdefault("metadata", {}).setdefault("token_prediction", {})["selected_budget"] = token_selected_budget
+
             # BUILD-129 Phase 3 P4+P8: Final enforcement of max_tokens before API call
             # Ensures max_tokens >= token_selected_budget even after all overrides (builder_mode, change_size, etc)
             if token_selected_budget:
                 max_tokens = max(max_tokens or 0, token_selected_budget)
-                # BUILD-129 Phase 3 P10: Store BOTH selected_budget (P7 buffered) and actual_max_tokens (P4 ceiling)
-                # P10 needs selected_budget (the intent) not actual_max_tokens (which may be higher due to P4 enforcement)
-                phase_spec.setdefault("metadata", {}).setdefault("token_prediction", {})["selected_budget"] = token_selected_budget
+                # BUILD-142: Store actual_max_tokens (final ceiling) AFTER P4 enforcement
                 phase_spec.setdefault("metadata", {}).setdefault("token_prediction", {})["actual_max_tokens"] = max_tokens
                 logger.info(f"[BUILD-129:P4] Final max_tokens enforcement: {max_tokens} (token_selected_budget={token_selected_budget})")
 
@@ -941,8 +972,9 @@ class AnthropicBuilderClient:
                         deliverables=deliverables if isinstance(deliverables, list) else [],
                         predicted_output_tokens=predicted_output_tokens,
                         actual_output_tokens=actual_out,
-                        # BUILD-129 Phase 3 P8: Use actual enforced max_tokens (not pre-enforcement budget)
-                        selected_budget=token_pred_meta.get("actual_max_tokens") or token_selected_budget or token_pred_meta.get("selected_budget", 0),
+                        # BUILD-142: Record estimator intent (selected_budget), not final ceiling (actual_max_tokens)
+                        # This preserves category-aware budget decisions in telemetry for calibration
+                        selected_budget=token_pred_meta.get("selected_budget") or token_selected_budget or 0,
                         success=getattr(result, "success", False),
                         truncated=was_truncated_local or False,
                         stop_reason=stop_reason_local,
@@ -985,8 +1017,9 @@ class AnthropicBuilderClient:
                         deliverables=deliverables if isinstance(deliverables, list) else [],
                         predicted_output_tokens=predicted_output_tokens,
                         actual_output_tokens=result.tokens_used,  # Using total tokens as fallback
-                        # BUILD-129 Phase 3 P8: Use actual enforced max_tokens (not pre-enforcement budget)
-                        selected_budget=token_pred_meta_fallback.get("actual_max_tokens") or token_selected_budget or token_pred_meta_fallback.get("selected_budget", 0),
+                        # BUILD-142: Record estimator intent (selected_budget), not final ceiling (actual_max_tokens)
+                        # This preserves category-aware budget decisions in telemetry for calibration
+                        selected_budget=token_pred_meta_fallback.get("selected_budget") or token_selected_budget or 0,
                         success=getattr(result, "success", False),
                         truncated=False,  # Unknown in fallback
                         stop_reason=None,

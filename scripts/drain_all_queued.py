@@ -12,12 +12,14 @@ import sys
 import subprocess
 from pathlib import Path
 
-# Default DATABASE_URL
+# Require DATABASE_URL to be explicit to prevent silent DB identity drift.
 if not os.environ.get("DATABASE_URL"):
-    _default_db_path = Path("autopack.db")
-    if _default_db_path.exists():
-        os.environ["DATABASE_URL"] = "sqlite:///autopack.db"
-        print("[drain-all] DATABASE_URL not set; defaulting to sqlite:///autopack.db")
+    print("[drain-all] ERROR: DATABASE_URL must be set explicitly.", file=sys.stderr)
+    print("", file=sys.stderr)
+    print("Example usage:", file=sys.stderr)
+    print("  (PowerShell) $env:DATABASE_URL='sqlite:///autopack_telemetry_seed.db'", file=sys.stderr)
+    print("  (bash)      DATABASE_URL='sqlite:///autopack_telemetry_seed.db' python scripts/drain_all_queued.py", file=sys.stderr)
+    sys.exit(1)
 
 # Ensure src/ is importable
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))

@@ -8772,6 +8772,7 @@ Just the new description that should replace the current one while preserving th
                     stdout=log_fp or subprocess.DEVNULL,
                     stderr=log_fp or subprocess.DEVNULL,
                     env=env,
+                    cwd=str(Path(self.workspace).resolve()),
                     creationflags=subprocess.CREATE_NEW_PROCESS_GROUP | subprocess.DETACHED_PROCESS
                 )
             else:
@@ -8781,6 +8782,7 @@ Just the new description that should replace the current one while preserving th
                     stdout=log_fp or subprocess.DEVNULL,
                     stderr=log_fp or subprocess.DEVNULL,
                     env=env,
+                    cwd=str(Path(self.workspace).resolve()),
                     start_new_session=True
                 )
             
@@ -8803,6 +8805,24 @@ Just the new description that should replace the current one while preserving th
                     response = requests.get(f"{self.api_url}/health", timeout=1)
                     if response.status_code == 200:
                         logger.info("✅ API server started successfully")
+                        # Optional: fail fast if the API is healthy but the run is missing (common DB drift symptom).
+                        if os.getenv("AUTOPACK_SKIP_RUN_EXISTENCE_CHECK") != "1":
+                            try:
+                                run_resp = requests.get(f"{self.api_url}/runs/{self.run_id}", timeout=2)
+                                if run_resp.status_code == 404:
+                                    logger.error(
+                                        "[DB_MISMATCH] API is healthy but run was not found. "
+                                        f"run_id={self.run_id!r}. This usually means the API and executor are "
+                                        "pointed at different SQLite files (cwd/relative path drift) or the run was not seeded "
+                                        "into this DATABASE_URL."
+                                    )
+                                    # Hint: enable DEBUG_DB_IDENTITY=1 and re-check /health payload.
+                                    logger.error(
+                                        "Hint: set DEBUG_DB_IDENTITY=1 and re-check /health for sqlite_file + run counts."
+                                    )
+                                    return False
+                            except Exception as _e:
+                                logger.warning(f"Run existence check skipped due to error: {_e}")
                         return True
                 except Exception:
                     pass

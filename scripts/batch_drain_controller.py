@@ -42,13 +42,15 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Optional, Set
 
-# Default DATABASE_URL to the local SQLite DB when running from repo root.
+# Require DATABASE_URL to be explicit to prevent silent DB identity drift.
 # IMPORTANT: must run before importing autopack.database (SessionLocal binds at import time).
 if not os.environ.get("DATABASE_URL"):
-    _default_db_path = Path("autopack.db")
-    if _default_db_path.exists():
-        os.environ["DATABASE_URL"] = "sqlite:///autopack.db"
-        print("[batch_drain] DATABASE_URL not set; defaulting to sqlite:///autopack.db")
+    print("[batch_drain] ERROR: DATABASE_URL must be set explicitly.", file=sys.stderr)
+    print("", file=sys.stderr)
+    print("Example usage:", file=sys.stderr)
+    print("  (PowerShell) $env:DATABASE_URL='sqlite:///autopack_telemetry_seed.db'", file=sys.stderr)
+    print("  (bash)      DATABASE_URL='sqlite:///autopack_telemetry_seed.db' python scripts/batch_drain_controller.py ...", file=sys.stderr)
+    sys.exit(1)
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 

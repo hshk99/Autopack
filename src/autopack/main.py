@@ -64,6 +64,11 @@ limiter = Limiter(key_func=get_remote_address)
 load_dotenv(override=False)
 print(f"[API_SERVER_STARTUP] DATABASE_URL after load_dotenv(): {os.getenv('DATABASE_URL', 'NOT SET')}")
 
+# P0 diagnostic: Log actual resolved database URL after normalization
+from autopack.config import get_database_url
+resolved_url = get_database_url()
+print(f"[API_SERVER_STARTUP] Resolved DATABASE_URL (after normalization): {resolved_url}")
+
 
 async def approval_timeout_cleanup():
     """Background task to handle approval request timeouts.
@@ -1249,12 +1254,30 @@ def health_check(db: Session = Depends(get_db)):
         db.execute(text("SELECT 1"))
         # Basic schema sanity (will raise if tables missing/misconfigured)
         db.query(models.Run).limit(1).all()
-        return {
+        payload = {
             "status": "healthy",
             "service": "autopack",
             "component": "supervisor_api",
             "db_ok": True,
         }
+        # Optional DB identity payload for drift debugging.
+        # This is intentionally gated because it reveals local file paths.
+        if os.getenv("DEBUG_DB_IDENTITY") == "1":
+            try:
+                from autopack.db_identity import _get_sqlite_db_path  # type: ignore
+
+                run_ids = [r[0] for r in db.query(models.Run.id).order_by(models.Run.id.asc()).limit(5).all()]
+                payload["db_identity"] = {
+                    "database_url": os.getenv("DATABASE_URL"),
+                    "sqlite_file": str(_get_sqlite_db_path() or ""),
+                    "runs": db.query(models.Run).count(),
+                    "phases": db.query(models.Phase).count(),
+                    "sample_run_ids": run_ids,
+                }
+            except Exception as _e:
+                payload["db_identity_error"] = str(_e)
+
+        return payload
     except Exception as e:
         logger.error(f"[HEALTH] DB health check failed: {e}", exc_info=True)
         # 503 so callers know to treat the server as unhealthy.

@@ -14,11 +14,11 @@ Strategy:
 Goal: Collect 10+ successful telemetry samples (success=True)
 
 Usage:
-    PYTHONUTF8=1 PYTHONPATH=src DATABASE_URL="sqlite:///autopack.db" \\
+    PYTHONUTF8=1 PYTHONPATH=src DATABASE_URL="sqlite:///autopack_telemetry_seed.db" \\
         python scripts/create_telemetry_collection_run.py
 
 Then drain with:
-    PYTHONUTF8=1 PYTHONPATH=src DATABASE_URL="sqlite:///autopack.db" \\
+    PYTHONUTF8=1 PYTHONPATH=src DATABASE_URL="sqlite:///autopack_telemetry_seed.db" \\
         TELEMETRY_DB_ENABLED=1 timeout 600 \\
         python scripts/drain_one_phase.py --run-id telemetry-collection-v4 --phase-id telemetry-p1-string-util
 """
@@ -222,7 +222,8 @@ def create_run():
         if existing_run:
             print(f"[ERROR] Run {RUN_ID} already exists")
             print(f"        To recreate, first delete with:")
-            print(f"        PYTHONUTF8=1 PYTHONPATH=src DATABASE_URL=\"sqlite:///autopack.db\" python -c \\")
+            db_url = os.environ.get("DATABASE_URL", "sqlite:///autopack_telemetry_seed.db")
+            print(f"        PYTHONUTF8=1 PYTHONPATH=src DATABASE_URL=\"{db_url}\" python -c \\")
             print(f"            \"from autopack.database import SessionLocal; from autopack.models import Run; \\")
             print(f"             s = SessionLocal(); s.query(Run).filter(Run.id == '{RUN_ID}').delete(); s.commit(); s.close()\"")
             sys.exit(1)
@@ -293,12 +294,13 @@ def create_run():
         print(f"  2 files: 1 phase")
         print(f"\nExpected telemetry samples: 10+ successful Builder executions")
         print(f"\nTo drain individual phases:")
-        print(f"  PYTHONUTF8=1 PYTHONPATH=src DATABASE_URL=\"sqlite:///autopack.db\" \\")
+        db_url = os.environ.get("DATABASE_URL", "sqlite:///autopack_telemetry_seed.db")
+        print(f"  PYTHONUTF8=1 PYTHONPATH=src DATABASE_URL=\"{db_url}\" \\")
         print(f"      TELEMETRY_DB_ENABLED=1 timeout 600 \\")
         print(f"      python scripts/drain_one_phase.py --run-id {RUN_ID} --phase-id <phase_id>")
         print(f"\nOr drain all phases in batch:")
-        print(f"  PYTHONUTF8=1 PYTHONPATH=src DATABASE_URL=\"sqlite:///autopack.db\" \\")
-        print(f"      python scripts/drain_queued_phases.py --run-id {RUN_ID} --batch-size 5")
+        print(f"  PYTHONUTF8=1 PYTHONPATH=src DATABASE_URL=\"{db_url}\" \\")
+        print(f"      python scripts/batch_drain_controller.py --run-id {RUN_ID} --batch-size 10")
         print(f"{'='*70}\n")
 
     except Exception as e:

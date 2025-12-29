@@ -60,17 +60,30 @@ def get_database_url() -> str:
 
     url = os.getenv("DATABASE_URL", settings.database_url)
 
-    # Normalize relative SQLite paths to absolute
-    if url.startswith("sqlite:///"):
-        # Extract path after sqlite:///
-        db_path = url[len("sqlite:///"):]
+    # Normalize relative SQLite paths to absolute (stable across subprocess cwd differences).
+    # IMPORTANT: We resolve relative paths against the repo root derived from this file's location,
+    # not Path.cwd(), because cwd can differ between scripts, uvicorn subprocesses, and terminals.
+    if isinstance(url, str) and url.startswith("sqlite:///") and not url.startswith("sqlite:///:memory:"):
+        db_path_str = url[len("sqlite:///"):]
 
-        # If it's a relative path (no drive letter on Windows, no leading / on Unix)
-        if not Path(db_path).is_absolute():
-            # Resolve to absolute path from repo root
-            # Assume scripts are always run from repo root
-            abs_path = Path.cwd() / db_path
-            url = f"sqlite:///{abs_path}"
+        # Detect Windows drive absolute paths (e.g., C:\... or C:/...).
+        is_windows_drive_abs = (
+            len(db_path_str) >= 3
+            and db_path_str[1] == ":"
+            and (db_path_str[2] == "\\" or db_path_str[2] == "/")
+        )
+
+        db_path = Path(db_path_str)
+        if not db_path.is_absolute() and not is_windows_drive_abs:
+            # src/autopack/config.py -> src/autopack -> src -> repo root
+            repo_root = Path(__file__).resolve().parents[2]
+            db_path = (repo_root / db_path).resolve()
+        else:
+            # Still normalize slashes and resolve for consistency.
+            db_path = db_path.resolve()
+
+        # SQLAlchemy URLs want forward slashes even on Windows (sqlite:///C:/path/to.db).
+        url = f"sqlite:///{db_path.as_posix()}"
 
     return url
 

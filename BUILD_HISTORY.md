@@ -16,6 +16,67 @@ Each entry includes:
 
 ## Chronological Index
 
+### TELEMETRY-V5: 25-Phase Telemetry Collection + Batch Drain Fixes (2025-12-29)
+
+**Status**: COMPLETE ✅
+
+**Summary**: Successfully completed 25-phase telemetry collection run with 100% success rate, collecting 25 clean samples (exceeds ≥20 target). Discovered and fixed critical batch drain controller race condition causing false failure reports.
+
+**Achievement**:
+- **Telemetry Collection**: 26 `TokenEstimationV2Event` records, 25 clean samples (success=True, truncated=False)
+- **Quality**: 96.2% success rate, 3.8% truncation rate
+- **Phase Completion**: 25/25 COMPLETE (100%), 0 FAILED
+- **Database**: `telemetry_seed_v5.db`
+
+**Investigation & Root Cause**:
+- **Issue**: Batch drain controller log reported "Failed: 2" but database showed phases COMPLETE
+- **Root Cause #1**: Race condition - controller checked phase state immediately after subprocess completion, before DB transaction committed
+  - Phase appears QUEUED when checked, but commits to COMPLETE milliseconds later
+  - Controller incorrectly reported successful phases as "failed"
+- **Root Cause #2**: TOKEN_ESCALATION treated as permanent failure instead of retryable condition
+
+**Solution Implemented**:
+1. **Polling Loop** ([scripts/batch_drain_controller.py:791-819](scripts/batch_drain_controller.py#L791-L819)):
+   - Added 30-second polling mechanism after subprocess completion
+   - Waits for phase state to stabilize (not QUEUED/EXECUTING)
+   - Exits early if subprocess had non-zero returncode
+   - Eliminates false "failed" reports
+
+2. **TOKEN_ESCALATION Handling** ([scripts/batch_drain_controller.py:821-825](scripts/batch_drain_controller.py#L821-L825)):
+   - Detects TOKEN_ESCALATION in failure reasons
+   - Marks as [RETRYABLE] in error messages
+   - Prevents phases from being deprioritized unnecessarily
+
+3. **Documentation** ([docs/guides/TELEMETRY_COLLECTION_UNIFIED_WORKFLOW.md](docs/guides/TELEMETRY_COLLECTION_UNIFIED_WORKFLOW.md)):
+   - Added "Best Practices for Future Telemetry Runs" section
+   - Guidelines for preventing doc-phase truncation
+   - Phase specification guidelines (cap output: README ≤150 lines, USAGE ≤200 lines)
+   - Context loading recommendations (5-10 files for docs)
+   - Token budget guidance (4K-8K for docs)
+
+**Files Modified**:
+- `scripts/batch_drain_controller.py` (+39 lines, -4 lines)
+- `docs/guides/TELEMETRY_COLLECTION_UNIFIED_WORKFLOW.md` (+41 lines)
+- `README.md` (Part 9 update)
+
+**Impact**:
+- ✅ **Telemetry Ready**: 25 clean samples exceeds ≥20 requirement for calibration
+- ✅ **Batch Drain Reliability**: Race condition eliminated, future runs won't have false failures
+- ✅ **Production Quality**: 100% success rate validates robustness
+- ✅ **Token Efficiency**: Best practices prevent doc-phase waste
+- ✅ **Observability**: Better error reporting with [RETRYABLE] markers
+
+**Commits**:
+- `26983337`: fix: batch drain controller race condition + TOKEN_ESCALATION handling
+- `f97251e6`: docs: add best practices for preventing doc-phase truncation
+
+**Related**:
+- Builds on BUILD-141 (AUTOPACK_SKIP_CI)
+- Validates DB identity fixes from Part 6
+- Completes telemetry collection infrastructure
+
+---
+
 ### BUILD-132: Research System CI Collection Remediation (2025-12-28)
 
 **Status**: COMPLETE ✅

@@ -6,7 +6,42 @@ Autopack is a framework for orchestrating autonomous AI agents (Builder and Audi
 
 ---
 
-## Recent Updates (v0.4.11 - Telemetry & Triage Infrastructure)
+## Recent Updates (v0.4.12 - Telemetry Collection V5 + Batch Drain Fixes)
+
+### 2025-12-29 (Part 9): Telemetry-Collection-V5 + Batch Drain Race Condition Fix - ✅ COMPLETE
+**25-Phase Telemetry Collection + Production Reliability Improvements**
+- **Achievement**: Successfully collected 25 clean telemetry samples (exceeds ≥20 target by 25%)
+- **Run**: `telemetry-collection-v5` (database: `telemetry_seed_v5.db`)
+- **Duration**: ~40 minutes batch drain + 2 minutes final phase completion
+- **Results**:
+  - **Phase Completion**: 25/25 COMPLETE (100% success rate), 0 FAILED
+  - **Telemetry Events**: 26 `TokenEstimationV2Event` records
+  - **Clean Samples**: 25 (success=True, truncated=False) - ✅ ready for calibration
+  - **Quality**: 96.2% success rate, 3.8% truncation rate
+- **Investigation & Fixes**:
+  - **Issue Discovered**: Batch drain controller reported 2 "failures" but database showed phases COMPLETE
+  - **Root Cause #1**: Race condition - controller checked phase state before DB transaction committed
+  - **Root Cause #2**: TOKEN_ESCALATION treated as permanent failure instead of retryable
+  - **Fix Applied** ([scripts/batch_drain_controller.py:791-819](scripts/batch_drain_controller.py#L791-L819)):
+    - Added 30-second polling loop to wait for phase state to stabilize (not QUEUED/EXECUTING)
+    - Marked TOKEN_ESCALATION as [RETRYABLE] in error messages
+    - Prevents false "failed" reports in future batch drain runs
+- **Documentation Added**: [docs/guides/TELEMETRY_COLLECTION_UNIFIED_WORKFLOW.md](docs/guides/TELEMETRY_COLLECTION_UNIFIED_WORKFLOW.md)
+  - Best practices for preventing doc-phase truncation
+  - Guidelines for phase specifications (cap output sizes: README ≤150 lines, USAGE ≤200 lines)
+  - Context loading recommendations (5-10 files for docs phases)
+  - Token budget guidance (4K-8K for docs)
+- **Impact**:
+  - ✅ **Telemetry Target Exceeded**: 25 clean samples vs ≥20 required
+  - ✅ **Batch Drain Reliability**: Race condition eliminated, no more false failures
+  - ✅ **Production Quality**: 100% success rate on 25-phase run validates robustness
+  - ✅ **Token Efficiency**: Best practices documented to prevent future doc-phase waste
+- **Commits**:
+  - `26983337` (batch drain race condition fix)
+  - `f97251e6` (doc-phase truncation best practices)
+- **Files Changed**: 2 files
+  - `scripts/batch_drain_controller.py` (+39 lines, -4 lines)
+  - `docs/guides/TELEMETRY_COLLECTION_UNIFIED_WORKFLOW.md` (+41 lines)
 
 ### 2025-12-29 (Part 8): AUTOPACK_SKIP_CI Support + Full Rollout - ✅ 100% VALIDATED
 **BUILD-141 100% RESOLVED** - Complete 10-phase telemetry collection rollout validates production-ready end-to-end

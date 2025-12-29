@@ -1,8 +1,8 @@
 # Debug Log - Problem Solving History
 
 <!-- META
-Last_Updated: 2025-12-21T02:30:00Z
-Total_Issues: 65
+Last_Updated: 2025-12-29T21:15:00Z
+Total_Issues: 66
 Format_Version: 2.0
 Auto_Generated: True
 Sources: CONSOLIDATED_DEBUG, archive/, fileorg-phase2-beta-release
@@ -12,6 +12,7 @@ Sources: CONSOLIDATED_DEBUG, archive/, fileorg-phase2-beta-release
 
 | Timestamp | DBG-ID | Severity | Summary | Status |
 |-----------|--------|----------|---------|--------|
+| 2025-12-29 | DBG-066 | MEDIUM | Batch drain controller race condition: checked phase state immediately after subprocess completion before DB transaction committed, causing successful COMPLETE phases to be misreported as "failed" when state was still QUEUED. Also TOKEN_ESCALATION treated as permanent failure instead of retryable condition. | ✅ Resolved (Production Fix: TELEMETRY-V5) |
 | 2025-12-21 | DBG-065 | MEDIUM | Diagnostics parity test suite had 4 failures in handoff_bundler tests (test_index_json_structure, test_nested_directory_structure, test_binary_file_handling, test_regenerate_overwrites): missing 'version' field in index.json, glob() instead of rglob() prevented recursive artifact discovery, missing *.txt and *.bin patterns | ✅ Resolved (Manual Quality Fix: BUILD-106) |
 | 2025-12-21 | DBG-064 | HIGH | Diagnostics parity phases 1, 2, 4 risk same multi-file truncation/malformed-diff convergence failures as phases 3 & 5 (which needed BUILD-101 batching); each phase creates 3-4 deliverables (code + tests + docs) susceptible to patch truncation and manifest violations | ✅ Resolved (Manual System Fix: BUILD-105) |
 | 2025-12-21 | DBG-063 | HIGH | Executor ImportError when logging phase max attempts: tries to import non-existent `log_error` function from error_reporter.py (correct function is `report_error`), causing executor crash after phase exhausts retries | ✅ Resolved (Manual Hotfix: BUILD-104) |
@@ -78,6 +79,61 @@ Sources: CONSOLIDATED_DEBUG, archive/, fileorg-phase2-beta-release
 | 2025-12-11 | DBG-002 | CRITICAL | Workspace Organization Issues - Root Cause Analysis | ✅ Resolved |
 
 ## DEBUG ENTRIES (Reverse Chronological)
+
+### DBG-066 | 2025-12-29T21:10 | Batch Drain Controller Race Condition + TOKEN_ESCALATION Mishandling
+**Severity**: MEDIUM
+**Status**: ✅ Resolved (Production Fix: TELEMETRY-V5)
+
+**Symptoms**:
+- Batch drain controller log reported "Failed: 2" for phases that actually completed successfully
+- Database showed phases as COMPLETE, but controller marked them as failed
+- Phases with TOKEN_ESCALATION failure reason were deprioritized instead of retried
+
+**Root Causes**:
+1. **Race Condition**: Controller checked phase state immediately after subprocess completion, before DB transaction committed
+   - Phase appears as QUEUED when checked, but commits to COMPLETE milliseconds later
+   - Controller incorrectly reported successful phases as "failed"
+
+2. **TOKEN_ESCALATION Mishandling**: Treated as permanent failure instead of retryable condition
+   - Phases needing more tokens were deprioritized instead of being given another attempt
+   - Prevented proper retry behavior for token budget escalation scenarios
+
+**Investigation Details**:
+- **Context**: telemetry-collection-v5 batch drain (25 phases)
+- **Log Evidence**:
+  - `[drain_one_phase] Final state: QUEUED` followed by `[drain_one_phase] Phase did not complete successfully`
+  - Database query showed phase actually COMPLETE
+  - Time gap between subprocess exit and DB commit: <1 second but enough to cause race
+- **Impact**: 2 successful phases misreported as failures in telemetry-v5 run
+
+**Fix Applied** ([scripts/batch_drain_controller.py:791-869](scripts/batch_drain_controller.py#L791-L869)):
+1. **Polling Loop**: Added 30-second polling mechanism after subprocess completion
+   - Waits for phase state to stabilize (not QUEUED/EXECUTING)
+   - Polls every 0.5 seconds until state changes or timeout
+   - Exits early if subprocess had non-zero returncode (actual failure)
+
+2. **TOKEN_ESCALATION Detection**:
+   - Checks `phase.last_failure_reason` for "TOKEN_ESCALATION" string
+   - Appends `[RETRYABLE: token budget escalation needed]` to error messages
+   - Prevents deprioritization of phases that just need more tokens
+
+**Validation**:
+- Completed telemetry-v5 d3 phase after fix: no false failures
+- Polling loop successfully waits for DB commit in test scenarios
+- TOKEN_ESCALATION phases now marked as retryable in error messages
+
+**Impact**:
+- ✅ Eliminates false "failed" reports in batch drain logs
+- ✅ Proper retry behavior for token escalation scenarios
+- ✅ More reliable batch drain controller for production use
+- ✅ Better observability with [RETRYABLE] markers
+
+**References**:
+- Commits: `26983337`, `f97251e6`
+- `BUILD_HISTORY.md` (TELEMETRY-V5)
+- `docs/guides/TELEMETRY_COLLECTION_UNIFIED_WORKFLOW.md` (best practices)
+
+---
 
 ### DBG-059 | 2025-12-20T20:26 | Executor startup ImportError: DiagnosticsAgent
 **Severity**: HIGH

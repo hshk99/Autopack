@@ -788,10 +788,41 @@ class BatchDrainController:
             stdout_path.write_text(result.stdout or "", encoding="utf-8")
             stderr_path.write_text(result.stderr or "", encoding="utf-8")
 
-            # Refresh phase state
-            session.expire(phase)
-            session.refresh(phase)
-            final_state = phase.state.value if phase.state else "UNKNOWN"
+            # Poll DB for final state (fix race condition where subprocess completes but DB not yet committed)
+            # Wait up to 30 seconds for phase state to stabilize
+            final_state = None
+            poll_start = time.time()
+            max_poll_duration = 30  # seconds
+            poll_interval = 0.5  # seconds
+
+            while time.time() - poll_start < max_poll_duration:
+                session.expire(phase)
+                session.refresh(phase)
+                current_state = phase.state.value if phase.state else "UNKNOWN"
+
+                # If state is stable (not QUEUED/EXECUTING), we're done
+                if current_state not in [PhaseState.QUEUED.value, PhaseState.EXECUTING.value]:
+                    final_state = current_state
+                    break
+
+                # If subprocess failed (non-zero exit), don't wait for state change
+                if result.returncode != 0:
+                    final_state = current_state
+                    break
+
+                time.sleep(poll_interval)
+
+            # If polling timed out, use last observed state
+            if final_state is None:
+                session.expire(phase)
+                session.refresh(phase)
+                final_state = phase.state.value if phase.state else "UNKNOWN"
+
+            # TOKEN_ESCALATION is a retryable condition, not a true failure
+            # It means the phase needed more tokens and should be retried
+            is_token_escalation = False
+            if phase.last_failure_reason and "TOKEN_ESCALATION" in phase.last_failure_reason:
+                is_token_escalation = True
 
             success = final_state == PhaseState.COMPLETE.value
             if success:
@@ -831,6 +862,10 @@ class BatchDrainController:
                 stderr=stderr_str,
                 final_state=final_state
             )
+
+            # If TOKEN_ESCALATION, append note to error message for visibility
+            if is_token_escalation and error_msg:
+                error_msg = f"{error_msg} [RETRYABLE: token budget escalation needed]"
 
             return DrainResult(
                 run_id=run_id,

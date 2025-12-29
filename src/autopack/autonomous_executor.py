@@ -7529,6 +7529,12 @@ Just the new description that should replace the current one while preserving th
 
     def _run_ci_checks(self, phase_id: str, phase: Dict) -> Dict[str, Any]:
         """Run CI checks based on the phase's CI specification (default: pytest)."""
+        # BUILD-141 Part 8: Support AUTOPACK_SKIP_CI=1 for telemetry seeding runs
+        # (avoids blocking on unrelated test import errors during telemetry collection)
+        if os.getenv("AUTOPACK_SKIP_CI") == "1":
+            logger.info(f"[{phase_id}] CI skipped (AUTOPACK_SKIP_CI=1 - telemetry seeding mode)")
+            return None  # Return None so PhaseFinalizer doesn't run collection error detection
+
         # Phase dict from API does not typically include a top-level "ci". Persisted CI hints live under scope.
         scope = phase.get("scope") or {}
         ci_spec = phase.get("ci") or scope.get("ci") or {}

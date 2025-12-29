@@ -8841,6 +8841,46 @@ Just the new description that should replace the current one while preserving th
             logger.error("Cannot proceed without API server. Exiting.")
             return
 
+        # P0: Sanity check - verify run exists in API database before proceeding
+        # This detects DB identity mismatch (API using different DB than expected)
+        try:
+            import requests
+            url = f"{self.api_url}/runs/{self.run_id}"
+            headers = {}
+            if self.api_key:
+                headers["X-API-Key"] = self.api_key
+            response = requests.get(url, headers=headers, timeout=10)
+            if response.status_code == 404:
+                logger.error("=" * 70)
+                logger.error("[DB_MISMATCH] RUN NOT FOUND IN API DATABASE")
+                logger.error("=" * 70)
+                logger.error(f"API server is healthy but run '{self.run_id}' not found")
+                logger.error(f"This indicates database identity mismatch:")
+                logger.error(f"  - Executor DATABASE_URL: {os.environ.get('DATABASE_URL', 'NOT SET')}")
+                logger.error(f"  - API server may be using different database")
+                logger.error(f"")
+                logger.error(f"Recommended fixes:")
+                logger.error(f"  1. Verify DATABASE_URL is set correctly before starting executor")
+                logger.error(f"  2. Verify run was seeded in the correct database")
+                logger.error(f"  3. Check API server logs for actual DATABASE_URL used")
+                logger.error(f"  4. Use absolute paths for SQLite (not relative)")
+                logger.error("=" * 70)
+                raise RuntimeError(
+                    f"Run '{self.run_id}' not found in API database. "
+                    f"Database identity mismatch detected. "
+                    f"Cannot proceed - would cause 404 errors on every API call."
+                )
+            response.raise_for_status()
+            logger.info(f"✅ Run '{self.run_id}' verified in API database")
+        except requests.exceptions.HTTPError as e:
+            if e.response.status_code == 404:
+                raise  # Re-raise 404 as RuntimeError handled above
+            logger.warning(f"Could not verify run existence (non-404 error): {e}")
+            # Continue anyway - might be transient API error
+        except Exception as e:
+            logger.warning(f"Could not verify run existence: {e}")
+            # Continue anyway - don't block execution on sanity check failure
+
         # Initialize infrastructure
         self._init_infrastructure()
 

@@ -51,8 +51,27 @@ def get_database_url() -> str:
     Priority:
     1. DATABASE_URL environment variable
     2. settings.database_url from config
-    """
 
-    return os.getenv("DATABASE_URL", settings.database_url)
+    P0: Normalize SQLite URLs to absolute paths to prevent
+    different processes from using different files due to
+    different working directories.
+    """
+    from pathlib import Path
+
+    url = os.getenv("DATABASE_URL", settings.database_url)
+
+    # Normalize relative SQLite paths to absolute
+    if url.startswith("sqlite:///"):
+        # Extract path after sqlite:///
+        db_path = url[len("sqlite:///"):]
+
+        # If it's a relative path (no drive letter on Windows, no leading / on Unix)
+        if not Path(db_path).is_absolute():
+            # Resolve to absolute path from repo root
+            # Assume scripts are always run from repo root
+            abs_path = Path.cwd() / db_path
+            url = f"sqlite:///{abs_path}"
+
+    return url
 
 

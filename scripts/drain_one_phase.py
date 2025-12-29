@@ -15,11 +15,15 @@ import sys
 import socket
 from pathlib import Path
 
-# Default DATABASE_URL to local SQLite
+# Require DATABASE_URL to be explicitly set (P0: prevent silent fallback to autopack.db)
 if not os.environ.get("DATABASE_URL"):
-    _default_db_path = Path("autopack.db")
-    if _default_db_path.exists():
-        os.environ["DATABASE_URL"] = "sqlite:///autopack.db"
+    print("[ERROR] DATABASE_URL must be set", file=sys.stderr)
+    print("", file=sys.stderr)
+    print("Example usage:", file=sys.stderr)
+    print("  DATABASE_URL='sqlite:///autopack_telemetry_seed.db' TELEMETRY_DB_ENABLED=1 \\", file=sys.stderr)
+    print("    python scripts/drain_one_phase.py --run-id <RUN_ID> --phase-id <PHASE_ID>", file=sys.stderr)
+    print("", file=sys.stderr)
+    sys.exit(1)
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 

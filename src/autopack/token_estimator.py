@@ -38,6 +38,11 @@ class TokenEstimator:
     Replaces file-count heuristic with accurate prediction.
     """
 
+    # Calibration version tracking
+    CALIBRATION_VERSION = "v5-step1"  # BUILD-141 Part 9: damped partial calibration
+    CALIBRATION_DATE = "2025-12-29"
+    CALIBRATION_SAMPLES = 25  # Clean samples from telemetry-collection-v5
+
     # BUILD-129 Phase 2 Revision: Overhead model to avoid deliverables scaling trap
     # Base coefficients represent marginal cost per deliverable (not total phase cost)
     # Overhead is added separately based on category/complexity to capture fixed costs
@@ -57,10 +62,18 @@ class TokenEstimator:
     # Phase overhead: fixed cost based on category and complexity
     # BUILD-129 Phase 2 Revision: Captures context setup, boilerplate, coordination costs
     # This replaces the problematic deliverables scaling multipliers
+    #
+    # BUILD-141 Part 9: v5 Calibration Step 1 (damped partial update)
+    # Applied geometric damping (sqrt) to avoid over-correction:
+    # - implementation/low: 2000 → 1120 (ratio=0.313, sqrt≈0.56, -44%)
+    # - implementation/medium: 3000 → 1860 (ratio=0.379, sqrt≈0.62, -38%)
+    # - tests/low: 1500 → 915 (ratio=0.370, sqrt≈0.61, -39%)
+    # Source: 25 clean samples from telemetry-collection-v5
+    # Docs coefficients unchanged (n=3, unstable, awaiting v6 targeted sampling)
     PHASE_OVERHEAD = {
         # (category, complexity) → base overhead tokens
-        ("implementation", "low"): 2000,
-        ("implementation", "medium"): 3000,
+        ("implementation", "low"): 1120,      # BUILD-141: v5 calibration (was 2000, -44%)
+        ("implementation", "medium"): 1860,   # BUILD-141: v5 calibration (was 3000, -38%)
         ("implementation", "high"): 5000,
         ("refactoring", "low"): 2500,
         ("refactoring", "medium"): 3500,
@@ -71,7 +84,7 @@ class TokenEstimator:
         ("integration", "low"): 3000,
         ("integration", "medium"): 4000,
         ("integration", "high"): 6000,
-        ("testing", "low"): 1500,
+        ("testing", "low"): 915,              # BUILD-141: v5 calibration (was 1500, -39%)
         ("testing", "medium"): 2500,
         ("testing", "high"): 4000,
         ("documentation", "low"): 1500,

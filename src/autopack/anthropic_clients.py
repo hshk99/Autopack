@@ -1574,6 +1574,7 @@ class AnthropicBuilderClient:
             
             # Generate unified diff for each file
             diff_parts = []
+            attempted_file_paths = []  # BUILD-141 Part 8: Track files Builder attempted to modify
             existing_files = {}
             if file_context:
                 existing_files = file_context.get("existing_files", file_context)
@@ -1624,9 +1625,12 @@ class AnthropicBuilderClient:
                 file_path = file_entry.get("path", "")
                 mode = file_entry.get("mode", "modify")
                 new_content = file_entry.get("new_content", "")
-                
+
                 if not file_path:
                     continue
+
+                # BUILD-141 Part 8: Track attempted file paths for no-op detection
+                attempted_file_paths.append(file_path)
                 
                 # Get original content
                 old_content = existing_files.get(file_path, "")
@@ -1790,15 +1794,54 @@ class AnthropicBuilderClient:
                     diff_parts.append(diff)
             
             if not diff_parts:
-                error_msg = "No valid file changes generated"
-                return BuilderResult(
-                    success=False,
-                    patch_content="",
-                    builder_messages=[error_msg],
-                    tokens_used=response.usage.input_tokens + response.usage.output_tokens,
-                    model_used=model,
-                    error=error_msg
-                )
+                # BUILD-141 Part 8: Treat "no diffs" as no-op success if deliverables already exist
+                # This handles idempotent phases where Builder generates content matching existing files
+
+                # Check if all attempted files exist on disk
+                # If Builder tried to modify files that already match the generated content,
+                # this is a successful no-op (idempotent phase)
+                from pathlib import Path
+                repo_root = Path.cwd()  # Workspace root where autonomous executor runs
+
+                all_files_exist = False
+                if attempted_file_paths:
+                    existing_count = 0
+                    for path in attempted_file_paths:
+                        file_path = repo_root / path
+                        if file_path.exists() and file_path.is_file():
+                            existing_count += 1
+
+                    all_files_exist = (existing_count == len(attempted_file_paths))
+
+                if all_files_exist:
+                    # Idempotent phase: Builder regenerated content matching existing files
+                    # This is a success - treat as no-op
+                    no_op_msg = (
+                        f"Full-file produced no diffs; treating as no-op success "
+                        f"(all {len(attempted_file_paths)} file(s) already exist and match generated content)"
+                    )
+                    logger.info(f"[Builder] {no_op_msg}")
+
+                    return BuilderResult(
+                        success=True,  # Success, not failure!
+                        patch_content="",  # Empty patch is OK for no-op
+                        builder_messages=[no_op_msg],
+                        tokens_used=response.usage.input_tokens + response.usage.output_tokens,
+                        model_used=model,
+                        stop_reason=stop_reason,
+                        was_truncated=was_truncated
+                    )
+                else:
+                    # Deliverables don't exist or couldn't be determined - this is a real failure
+                    error_msg = "No valid file changes generated"
+                    return BuilderResult(
+                        success=False,
+                        patch_content="",
+                        builder_messages=[error_msg],
+                        tokens_used=response.usage.input_tokens + response.usage.output_tokens,
+                        model_used=model,
+                        error=error_msg
+                    )
             
             # Join diffs defensively. Some `git apply` versions are picky about
             # patch boundaries; ensure each diff starts on a fresh line and the

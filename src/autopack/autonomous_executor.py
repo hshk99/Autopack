@@ -4072,13 +4072,15 @@ Just the new description that should replace the current one while preserving th
 
             # Output contract: reject empty/blank patch content before posting/applying.
             # Allow explicit structured-edit no-op (builder already warned) to pass through.
+            # BUILD-141 Part 8: Allow explicit full-file no-op (idempotent phase) to pass through.
             # Allow edit_plan as valid alternative to patch_content (structured edits).
             has_patch = builder_result.patch_content and builder_result.patch_content.strip()
             has_edit_plan = hasattr(builder_result, 'edit_plan') and builder_result.edit_plan is not None
             if builder_result.success and not has_patch and not has_edit_plan:
                 messages = builder_result.builder_messages or []
                 no_op_structured = any("Structured edit produced no operations" in m for m in messages)
-                if not no_op_structured:
+                no_op_fullfile = any("Full-file produced no diffs" in m for m in messages)
+                if not no_op_structured and not no_op_fullfile:
                     builder_result = BuilderResult(
                         success=False,
                         patch_content="",

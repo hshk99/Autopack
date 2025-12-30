@@ -31,6 +31,11 @@ class Settings(BaseSettings):
     run_max_phases: int = 25
     run_max_duration_minutes: int = 120
 
+    # BUILD-145: Git-based executor rollback (opt-in, disabled by default)
+    # When enabled, creates git savepoints before applying patches and rolls back on failure
+    # Set via environment variable: AUTOPACK_ROLLBACK_ENABLED=true
+    executor_rollback_enabled: bool = False
+
 
 settings = Settings()
 

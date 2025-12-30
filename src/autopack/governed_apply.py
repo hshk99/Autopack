@@ -22,6 +22,8 @@ from pathlib import Path
 from typing import List, Tuple, Optional, Dict, Set
 
 from .repair_helpers import YamlRepairHelper, save_repair_debug
+from .rollback_manager import RollbackManager
+from .config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -202,6 +204,8 @@ class GovernedApplyPath:
         autopack_internal_mode: bool = False,
         run_type: str = "project_build",
         scope_paths: List[str] = None,
+        run_id: Optional[str] = None,
+        phase_id: Optional[str] = None,
     ):
         """
         Initialize GovernedApplyPath.
@@ -213,6 +217,8 @@ class GovernedApplyPath:
             autopack_internal_mode: If True, allows writes to src/autopack/ (requires maintenance run_type)
             run_type: Type of run - "project_build" (default) or "autopack_maintenance"
             scope_paths: Optional list of allowed file paths (scope enforcement - Option C Layer 2)
+            run_id: Optional run ID for rollback manager (BUILD-145)
+            phase_id: Optional phase ID for rollback manager (BUILD-145)
 
         Raises:
             ValueError: If autopack_internal_mode=True but run_type is not a maintenance type
@@ -225,6 +231,10 @@ class GovernedApplyPath:
         Note on scope enforcement (per GPT_RESPONSE - Option C Layer 2):
         - If scope_paths is provided, ONLY those paths can be modified
         - This is the second validation layer (after context loading)
+
+        Note on rollback (BUILD-145):
+        - If executor_rollback_enabled=true and run_id/phase_id provided, creates git savepoints
+        - On patch apply failure, automatically rolls back to savepoint
         """
         if isinstance(workspace, str):
             workspace = Path(workspace)
@@ -233,6 +243,12 @@ class GovernedApplyPath:
         self.run_type = run_type
         self.autopack_internal_mode = autopack_internal_mode
         self.scope_paths = scope_paths or []  # NEW: Store scope paths for validation
+
+        # BUILD-145: Initialize rollback manager if enabled and IDs provided
+        self.rollback_manager: Optional[RollbackManager] = None
+        if settings.executor_rollback_enabled and run_id and phase_id:
+            self.rollback_manager = RollbackManager(workspace, run_id, phase_id)
+            logger.info(f"[Rollback] Rollback manager enabled for run={run_id}, phase={phase_id}")
 
         # [Q7 Implementation] Validate autopack_internal_mode is only used with maintenance runs
         if autopack_internal_mode and run_type not in self.MAINTENANCE_RUN_TYPES:
@@ -1787,6 +1803,9 @@ class GovernedApplyPath:
             except Exception as e:
                 return False, f"ndjson_synthetic_patch_validation_failed: {e}"
 
+        # BUILD-145: Track savepoint creation status for rollback
+        savepoint_created = False
+
         try:
             # Sanitize patch to fix common LLM output issues
             patch_content = self._sanitize_patch(patch_content)
@@ -1830,6 +1849,14 @@ class GovernedApplyPath:
 
             backups = self._backup_files(files_to_modify)
             logger.debug(f"[Integrity] Backed up {len(backups)} existing files before patch")
+
+            # BUILD-145: Create git savepoint before applying patch (if rollback enabled)
+            if self.rollback_manager:
+                success, error = self.rollback_manager.create_savepoint()
+                if success:
+                    savepoint_created = True
+                else:
+                    logger.warning(f"[Rollback] Failed to create savepoint: {error} - proceeding without rollback")
 
             # Validate patch for common LLM truncation issues
             validation_errors = self._validate_patch_quality(patch_content)
@@ -2014,6 +2041,17 @@ class GovernedApplyPath:
             if result.returncode != 0:
                 error_msg = result.stderr.strip()
                 logger.error(f"Failed to apply patch: {error_msg}")
+
+                # BUILD-145: Rollback to savepoint on apply failure
+                if savepoint_created and self.rollback_manager:
+                    rollback_success, rollback_error = self.rollback_manager.rollback_to_savepoint(
+                        f"Git apply failed: {error_msg}"
+                    )
+                    if rollback_success:
+                        logger.info("[Rollback] Successfully rolled back to pre-patch state")
+                    else:
+                        logger.error(f"[Rollback] Rollback failed: {rollback_error}")
+
                 return False, error_msg
 
             # Extract files that were modified
@@ -2026,6 +2064,19 @@ class GovernedApplyPath:
             all_valid, corrupted = self._validate_applied_files(files_changed)
             if not all_valid:
                 logger.error(f"[Integrity] Git apply corrupted {len(corrupted)} files - restoring")
+
+                # BUILD-145: Rollback to savepoint on validation failure
+                if savepoint_created and self.rollback_manager:
+                    rollback_success, rollback_error = self.rollback_manager.rollback_to_savepoint(
+                        f"Post-apply validation failed: {len(corrupted)} corrupted files"
+                    )
+                    if rollback_success:
+                        logger.info("[Rollback] Successfully rolled back to pre-patch state")
+                        return False, f"Patch corrupted {len(corrupted)} files - rolled back to savepoint"
+                    else:
+                        logger.error(f"[Rollback] Rollback failed: {rollback_error}")
+
+                # Fallback to file-level restore if rollback not enabled or failed
                 restored, failed = self._restore_corrupted_files(corrupted, backups)
                 return False, f"Patch corrupted {len(corrupted)} files (restored {restored}, failed {failed})"
 
@@ -2040,11 +2091,26 @@ class GovernedApplyPath:
                 # The caller can check logs for DATA_INTEGRITY warnings.
                 # Per GPT_RESPONSE18: These are advisory checks in Phase 1.
 
+            # BUILD-145: Cleanup savepoint on successful apply
+            if savepoint_created and self.rollback_manager:
+                self.rollback_manager.cleanup_savepoint()
+
             return True, None
 
         except Exception as e:
             error_msg = str(e)
             logger.error(f"Exception during patch application: {error_msg}")
+
+            # BUILD-145: Rollback to savepoint on exception
+            if savepoint_created and self.rollback_manager:
+                rollback_success, rollback_error = self.rollback_manager.rollback_to_savepoint(
+                    f"Exception during patch apply: {error_msg}"
+                )
+                if rollback_success:
+                    logger.info("[Rollback] Successfully rolled back to pre-patch state after exception")
+                else:
+                    logger.error(f"[Rollback] Rollback failed: {rollback_error}")
+
             # Clean up temp file if it exists
             patch_file = self.workspace / "temp_patch.diff"
             if patch_file.exists():

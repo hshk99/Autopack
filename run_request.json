@@ -1,0 +1,74 @@
+{
+  "run": {
+    "run_id": "autopack-onephase-build144-runbook-and-executor-rollback",
+    "safety_profile": "normal",
+    "run_scope": "multi_tier",
+    "token_cap": 350000,
+    "max_phases": 1,
+    "max_duration_minutes": 120
+  },
+  "tiers": [
+    {
+      "tier_id": "T1",
+      "tier_index": 0,
+      "name": "Ops + Safety Hardening",
+      "description": "Create BUILD-144 migration runbook and implement safe executor rollback via git savepoints/branch strategy."
+    }
+  ],
+  "phases": [
+    {
+      "phase_id": "F1.build144-runbook-executor-rollback",
+      "phase_index": 0,
+      "tier_id": "T1",
+      "name": "BUILD-144 runbook + executor rollback (deterministic, guarded)",
+      "description": "Deliver two items: (1) an operator-grade BUILD-144 migration runbook for total_tokens and nullable token splits, aligned with scripts/migrations/add_total_tokens_build144.py, including verification and rollback instructions; (2) implement deterministic, opt-in executor rollback for failed patch apply / failed post-apply validation using git (branch or tag savepoints) without touching protected paths. Keep scope minimal and add targeted tests for rollback logic where feasible.",
+      "task_category": "backend",
+      "complexity": "medium",
+      "builder_mode": "default",
+      "scope": {
+        "paths": [
+          "docs/guides/BUILD-144_USAGE_TOTAL_TOKENS_MIGRATION_RUNBOOK.md",
+          "README.md",
+          "docs/BUILD_HISTORY.md",
+          "scripts/migrations/add_total_tokens_build144.py",
+          "src/autopack/autonomous_executor.py",
+          "src/autopack/governed_apply.py",
+          "src/autopack/file_layout.py",
+          "src/autopack/config.py",
+          "tests/autopack/test_executor_rollback.py",
+          "tests/autopack/test_build144_migration_runbook_smoke.py"
+        ],
+        "read_only_context": [
+          {
+            "path": "docs/guides/BUILD-142_MIGRATION_RUNBOOK.md",
+            "reason": "Use as format/quality reference for an operator-grade migration runbook (prereqs, steps, verification, rollback)."
+          },
+          {
+            "path": "docs/guides/TELEMETRY_COLLECTION_UNIFIED_WORKFLOW.md",
+            "reason": "Keep operational instructions consistent with existing env var patterns and workflows."
+          },
+          {
+            "path": "src/autopack/llm_service.py",
+            "reason": "Understand how total_tokens and split tokens are recorded; ensure rollback doesn't affect usage recording semantics."
+          }
+        ],
+        "acceptance_criteria": [
+          "Runbook exists at docs/guides/BUILD-144_USAGE_TOTAL_TOKENS_MIGRATION_RUNBOOK.md and includes: prerequisites (backup), environment variables, how to run scripts/migrations/add_total_tokens_build144.py, verification commands (SQL + Python snippets), troubleshooting, and rollback guidance.",
+          "Runbook explicitly verifies: llm_usage_events has total_tokens (non-null), prompt_tokens/completion_tokens nullable, and dashboard totals use total_tokens (no under-reporting).",
+          "Executor rollback is implemented as an opt-in feature (config flag or env var) and does NOT run by default.",
+          "Rollback triggers on: patch apply failure OR post-apply validation failure (governed apply error) OR critical test/quality-gate failure (define clearly).",
+          "Rollback mechanism is deterministic and git-based: create a savepoint (tag or branch/commit hash) before apply; on failure, revert/reset to savepoint; log the savepoint id and rollback action.",
+          "Rollback never touches protected paths (.git/, .autonomous_runs/, autopack.db) other than using git commands to reset working tree safely.",
+          "Add targeted tests: (a) unit test for savepoint creation/rollback logic using a temp git repo (no network), (b) smoke test that runbook file exists and contains key headings/commands (lightweight string assertions).",
+          "All targeted tests pass."
+        ],
+        "test_cmd": "pytest -q tests/autopack/test_executor_rollback.py tests/autopack/test_build144_migration_runbook_smoke.py",
+        "notes": [
+          "Prefer tag-based savepoints (e.g., save-before-{run_id}-{phase_id}-{timestamp}) OR commit-hash savepoints; ensure cleanup strategy (avoid tag explosion) is documented.",
+          "Rollback code must be robust on Windows (PowerShell-friendly paths) and should use subprocess with explicit args (no shell=True).",
+          "Keep rollback narrowly scoped to repo state reset; do not attempt DB rollback."
+        ]
+      }
+    }
+  ]
+}

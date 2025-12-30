@@ -1998,11 +1998,14 @@
         "build130-schema-validation-prevention:build130-phase0-circuit-breaker",
         "build130-schema-validation-prevention:build130-phase0-circuit-breaker",
         "build130-schema-validation-prevention:build130-phase0-circuit-breaker",
-        "build130-schema-validation-prevention:build130-phase1-schema-validator"
+        "build130-schema-validation-prevention:build130-phase1-schema-validator",
+        "autopack-onephase-build144-runbook-and-executor-rollback:F1.build144-runbook-executor-rollback",
+        "autopack-onephase-build144-runbook-and-executor-rollback:F1.build144-runbook-executor-rollback",
+        "autopack-onephase-build144-runbook-and-executor-rollback:F1.build144-runbook-executor-rollback"
       ],
-      "promotion_count": 58,
+      "promotion_count": 61,
       "first_seen": "2025-12-23T03:09:10.676192+00:00",
-      "last_seen": "2025-12-23T13:38:00.269720+00:00",
+      "last_seen": "2025-12-30T06:19:03.077897+00:00",
       "status": "active",
       "stage": "new"
     },

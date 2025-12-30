@@ -798,56 +798,36 @@ def submit_builder_result(
             status_code=500,
             detail="Database error during commit"
         )
-
-    return {"message": "Builder result submitted", "phase": phase}
-
-
-@app.get("/api/doctor-stats/{run_id}", response_model=dashboard_schemas.DoctorStatsResponse)
-def get_doctor_stats_endpoint(run_id: str, db: Session = Depends(get_db)):
-    """Get Doctor usage statistics for a run.
+    # Calculate token efficiency metrics (BUILD-145)
+    token_efficiency = None
+    try:
+        token_efficiency = get_token_efficiency_stats(db, run_id)
+    except Exception as e:
+        logger.warning(f"Failed to get token efficiency stats: {e}")
     
-    Returns:
-        - Total Doctor calls this run
-        - Cheap vs strong model ratio
-        - Action distribution (pie chart data)
-        - Escalation frequency
-    """
-    stats = get_doctor_stats(db, run_id)
-    
-    if not stats:
-        # Return empty stats if no Doctor calls yet
-        return dashboard_schemas.DoctorStatsResponse(
-            run_id=run_id,
-            doctor_calls_total=0,
-            doctor_cheap_calls=0,
-            doctor_strong_calls=0,
-            doctor_escalations=0,
-            doctor_actions={},
-            cheap_vs_strong_ratio=0.0,
-            escalation_frequency=0.0
-        )
-    
-    return dashboard_schemas.DoctorStatsResponse(**stats)
-
-
-@app.post("/runs/{run_id}/phases/{phase_id}/auditor_result")
-def submit_auditor_result(
-    run_id: str,
-    phase_id: str,
-    auditor_result: AuditorResult,
-    db: Session = Depends(get_db),
-):
-    """Submit Auditor result metadata for a phase."""
-    phase = (
-        db.query(models.Phase)
-        .filter(models.Phase.run_id == run_id, models.Phase.phase_id == phase_id)
-        .first()
+    return dashboard_schemas.DashboardRunStatus(
+        run_id=run.id,
+        state=run.state,
+        current_tier_name=current_tier_name,
+        current_phase_name=current_phase_name,
+        current_tier_index=current_tier_index,
+        current_phase_index=current_phase_index,
+        total_tiers=total_tiers,
+        total_phases=total_phases,
+        completed_tiers=completed_tiers,
+        completed_phases=completed_phases,
+        percent_complete=percent_complete,
+        tiers_percent_complete=tiers_percent_complete,
+        tokens_used=tokens_used,
+        token_cap=token_cap,
+        token_utilization=token_utilization,
+        minor_issues_count=minor_issues_count,
+        major_issues_count=major_issues_count,
+        quality_level=quality_level,
+        quality_blocked=quality_blocked,
+        quality_warnings=quality_warnings,
+        token_efficiency=token_efficiency,
     )
-
-    if not phase:
-        raise HTTPException(status_code=404, detail=f"Phase {phase_id} not found")
-
-    phase.auditor_attempts = auditor_result.auditor_attempts
     phase.tokens_used = max(phase.tokens_used or 0, auditor_result.tokens_used or 0)
 
     logger.info(
@@ -1424,7 +1404,13 @@ def get_run_token_efficiency(
     db: Session = Depends(get_db),
     api_key: str = Depends(verify_api_key)
 ):
-    """Get token efficiency metrics for a run (BUILD-145)"""
+    """Get token efficiency metrics for a run (BUILD-145)
+    
+    Returns aggregated token efficiency statistics:
+    - Total artifact substitutions and tokens saved
+    - Context budget usage and mode distribution
+    - Files kept vs omitted across all phases
+    """
     # Verify run exists
     run = db.query(models.Run).filter(models.Run.id == run_id).first()
     if not run:

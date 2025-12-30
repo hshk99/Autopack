@@ -1,0 +1,58 @@
+{
+  "run": {
+    "run_id": "autopack-onephase-initdb-completeness-drift-test",
+    "safety_profile": "normal",
+    "run_scope": "multi_tier",
+    "token_cap": 120000,
+    "max_phases": 1,
+    "max_duration_minutes": 45
+  },
+  "tiers": [
+    {
+      "tier_id": "T1",
+      "tier_index": 0,
+      "name": "Micro-Hardening: init_db Completeness",
+      "description": "Ensure init_db registers all usage_recorder tables (incl. DoctorUsageStats) and add a drift test."
+    }
+  ],
+  "phases": [
+    {
+      "phase_id": "F1.initdb-completeness",
+      "phase_index": 0,
+      "tier_id": "T1",
+      "name": "init_db completeness + schema drift test",
+      "description": "Harden src/autopack/database.py:init_db() to register ALL tables from src/autopack/usage_recorder.py (not just LlmUsageEvent). This prevents fresh DBs from missing doctor_usage_stats and other usage tables. Then add a fast schema drift test that creates an in-memory sqlite DB, runs init_db(), and asserts critical tables exist (at minimum: llm_usage_events and doctor_usage_stats). Keep changes minimal and test-driven.",
+      "task_category": "tests",
+      "complexity": "low",
+      "builder_mode": "default",
+      "scope": {
+        "paths": [
+          "src/autopack/database.py",
+          "src/autopack/usage_recorder.py",
+          "tests/autopack/test_init_db_schema_completeness.py"
+        ],
+        "read_only_context": [
+          {
+            "path": "src/autopack/main.py",
+            "reason": "Main app calls init_db; ensure expectations match runtime."
+          },
+          {
+            "path": "tests/test_dashboard_integration.py",
+            "reason": "Reference existing in-memory DB testing patterns (StaticPool, overrides)."
+          }
+        ],
+        "acceptance_criteria": [
+          "init_db imports/registers all usage_recorder ORM tables (including DoctorUsageStats) before Base.metadata.create_all().",
+          "New test file tests/autopack/test_init_db_schema_completeness.py exists and is fast (in-memory SQLite).",
+          "Test asserts that init_db creates both llm_usage_events and doctor_usage_stats tables (and fails clearly if missing).",
+          "All targeted tests pass."
+        ],
+        "test_cmd": "pytest -q tests/autopack/test_init_db_schema_completeness.py",
+        "notes": [
+          "Prefer importing the usage_recorder module (from . import usage_recorder) so all its models register with Base.",
+          "Avoid touching migrations; this is about fresh DB create_all completeness."
+        ]
+      }
+    }
+  ]
+}

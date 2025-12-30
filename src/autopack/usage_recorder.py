@@ -21,6 +21,8 @@ class LlmUsageEvent(Base):
     run_id = Column(String, nullable=True, index=True)  # null for global aux runs
     phase_id = Column(String, nullable=True)
     role = Column(String, nullable=False)  # builder, auditor, agent:planner, doctor, etc.
+    # BUILD-144 P0.4: Always record total_tokens (non-null); splits are optional
+    total_tokens = Column(Integer, nullable=False, default=0)  # Always populated
     # BUILD-144: nullable=True to support total-only recording when exact splits unavailable
     prompt_tokens = Column(Integer, nullable=True)
     completion_tokens = Column(Integer, nullable=True)
@@ -63,7 +65,8 @@ class DoctorUsageStats(Base):
 class UsageEventData:
     """Dataclass for passing usage event data
 
-    BUILD-144: prompt_tokens and completion_tokens are Optional to support
+    BUILD-144 P0.4: total_tokens is always required (non-null).
+    prompt_tokens and completion_tokens are Optional to support
     total-only recording when exact splits are unavailable from provider.
     """
 
@@ -72,9 +75,10 @@ class UsageEventData:
     run_id: Optional[str]
     phase_id: Optional[str]
     role: str
-    prompt_tokens: Optional[int]
-    completion_tokens: Optional[int]
-    
+    total_tokens: int  # Always required
+    prompt_tokens: Optional[int]  # Optional: NULL when split unavailable
+    completion_tokens: Optional[int]  # Optional: NULL when split unavailable
+
     # Doctor-specific fields
     is_doctor_call: bool = False
     doctor_model: Optional[str] = None  # "cheap" or "strong"
@@ -98,6 +102,7 @@ def record_usage(db: Session, event: UsageEventData) -> LlmUsageEvent:
         run_id=event.run_id,
         phase_id=event.phase_id,
         role=event.role,
+        total_tokens=event.total_tokens,
         prompt_tokens=event.prompt_tokens,
         completion_tokens=event.completion_tokens,
         created_at=datetime.now(timezone.utc),

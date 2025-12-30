@@ -8,15 +8,16 @@ Autopack is a framework for orchestrating autonomous AI agents (Builder and Audi
 
 ## Recent Updates (v0.4.17 - BUILD-144 NULL-Safe Token Accounting)
 
-### 2025-12-30: BUILD-144 P0 + P0.1 + P0.2 - ✅ COMPLETE
-**Eliminated Heuristic Token Guessing + Dashboard NULL-Safety**
+### 2025-12-30: BUILD-144 P0 + P0.1 + P0.2 + P0.3 + P0.4 - ✅ COMPLETE
+**Eliminated Heuristic Token Guessing + Dashboard NULL-Safety + Total Tokens Column**
 - **Achievement**: Removed ALL heuristic token splits (40/60, 60/40, 70/30) from Builder/Auditor/Doctor, replaced with exact counts or explicit NULL recording
 - **Problem Solved**:
   - BUILD-143 fallbacks still used heuristic guesses when exact tokens unavailable
   - Stage 2 docs had drift vs actual implementation (claimed non-existent `rename_symbol` operation)
   - Dashboard would crash on NULL token splits (`+= None` TypeError)
   - Schema didn't support nullable prompt_tokens/completion_tokens
-- **Solution Implemented** (3 phases):
+  - **NEW P0.4**: Total-only events lost token totals (NULL→0 coalescing under-reported totals)
+- **Solution Implemented** (5 phases):
 
   **P0: No-Guessing Policy** (llm_service.py, docs):
   1. **Eliminated Heuristic Splits** ([llm_service.py:403-432, 524-553, 938-997](src/autopack/llm_service.py#L403-L432)):
@@ -40,23 +41,49 @@ Autopack is a framework for orchestrating autonomous AI agents (Builder and Audi
      - Prevents `TypeError: unsupported operand type(s) for +=: 'int' and 'NoneType'`
 
   **P0.2: Schema Nullable Fix** (usage_recorder.py):
-  5. **Nullable Columns** ([usage_recorder.py:24-26, 75-76](src/autopack/usage_recorder.py#L24-L26)):
+  5. **Nullable Columns** ([usage_recorder.py:27-28, 79-80](src/autopack/usage_recorder.py#L27-L28)):
      - Changed `prompt_tokens = Column(Integer, nullable=True)` (was False)
      - Changed `completion_tokens = Column(Integer, nullable=True)` (was False)
      - Updated `UsageEventData` to `Optional[int]` for both fields
 
-- **Test Coverage**: All 21 tests passing ✅
+  **P0.3: Migration Safety** (scripts/migrations/):
+  6. **Idempotent Migration** ([scripts/migrations/add_total_tokens_build144.py](scripts/migrations/add_total_tokens_build144.py)):
+     - Created migration script to add `total_tokens` column to existing databases
+     - Idempotent: checks if column exists, safe to re-run
+     - Backfills existing rows: `total_tokens = COALESCE(prompt_tokens, 0) + COALESCE(completion_tokens, 0)`
+     - Handles SQLite vs PostgreSQL differences
+     - Verification output shows row counts and token patterns
+
+  **P0.4: Total Tokens Column** (usage_recorder.py, llm_service.py, main.py):
+  7. **Always-Populated Total** ([usage_recorder.py:25, 78](src/autopack/usage_recorder.py#L25)):
+     - Added `total_tokens = Column(Integer, nullable=False, default=0)` to `LlmUsageEvent`
+     - Updated `UsageEventData` to require `total_tokens: int` (not Optional)
+     - **Semantic Fix**: Total-only events now preserve token totals instead of losing them
+  8. **Recording Updates** ([llm_service.py:606-660](src/autopack/llm_service.py#L606-L660)):
+     - `_record_usage()`: always sets `total_tokens = prompt_tokens + completion_tokens`
+     - `_record_usage_total_only()`: explicitly sets `total_tokens=total_tokens` parameter
+     - Every usage event now has total_tokens populated
+  9. **Dashboard Totals Fix** ([main.py:1314-1349](src/autopack/main.py#L1314-L1349)):
+     - Changed aggregation to use `event.total_tokens` directly (not sum of splits)
+     - Prevents under-reporting: total-only events contribute correct totals
+     - Splits still use COALESCE NULL→0 for subtotals
+
+- **Test Coverage**: All 33 tests passing ✅
   - 7 tests: [test_exact_token_accounting.py](tests/autopack/test_exact_token_accounting.py) (exact token validation)
-  - 7 tests: [test_no_guessing_token_splits.py](tests/autopack/test_no_guessing_token_splits.py) (NEW - regression prevention)
-  - 7 tests: [test_llm_usage_schema_drift.py](tests/autopack/test_llm_usage_schema_drift.py) (NEW - nullable schema validation)
+  - 7 tests: [test_no_guessing_token_splits.py](tests/autopack/test_no_guessing_token_splits.py) (regression prevention)
+  - 8 tests: [test_llm_usage_schema_drift.py](tests/autopack/test_llm_usage_schema_drift.py) (nullable schema + total_tokens validation)
+  - 4 tests: [test_dashboard_null_tokens.py](tests/autopack/test_dashboard_null_tokens.py) (dashboard integration with NULL tokens)
+  - 7 tests: [test_token_telemetry_parity.py](tests/autopack/test_token_telemetry_parity.py) (provider parity validation)
   - Static code check: Scans llm_service.py for forbidden heuristic patterns (e.g., `tokens * 0.4`)
 
 - **Impact**:
   - ✅ **Zero heuristic guessing** - all token accounting is exact or explicitly NULL
   - ✅ **Dashboard crash prevention** - safely handles NULL token splits
   - ✅ **Schema correctness** - supports total-only recording pattern
+  - ✅ **Total tokens preservation** - total-only events now report correct totals (not under-reported)
   - ✅ **Doc accuracy** - Stage 2 structured edits matches implementation
   - ✅ **Regression protection** - static code analysis prevents heuristics from returning
+  - ✅ **Migration safety** - idempotent script for upgrading existing databases
   - ✅ **Production ready** - all critical correctness issues resolved
 
 - **Success Criteria**: ALL PASS ✅
@@ -64,16 +91,23 @@ Autopack is a framework for orchestrating autonomous AI agents (Builder and Audi
   - ✅ `_record_usage_total_only()` used when exact counts unavailable
   - ✅ Dashboard aggregation handles NULL without crashing
   - ✅ Schema supports `prompt_tokens=None, completion_tokens=None`
-  - ✅ All P0 + P0.1 + P0.2 tests pass (21/21)
+  - ✅ **NEW**: total_tokens column exists and is always populated (non-null)
+  - ✅ **NEW**: Dashboard uses total_tokens field for accurate totals (not sum of NULL splits)
+  - ✅ **NEW**: Migration script successfully upgrades existing databases
+  - ✅ All P0 + P0.1 + P0.2 + P0.3 + P0.4 tests pass (33/33)
   - ✅ Zero regressions (BUILD-143 tests still pass)
 
-- **Files Changed**: 6 files
-  - Core service: [src/autopack/llm_service.py](src/autopack/llm_service.py) (heuristic removal + total-only recording)
-  - Dashboard: [src/autopack/main.py](src/autopack/main.py) (NULL-safe aggregation)
-  - Schema: [src/autopack/usage_recorder.py](src/autopack/usage_recorder.py) (nullable columns)
+- **Files Changed**: 10 files
+  - Core service: [src/autopack/llm_service.py](src/autopack/llm_service.py) (heuristic removal + total-only recording + total_tokens population)
+  - Dashboard: [src/autopack/main.py](src/autopack/main.py) (NULL-safe aggregation + total_tokens usage)
+  - Schema: [src/autopack/usage_recorder.py](src/autopack/usage_recorder.py) (nullable columns + total_tokens column)
+  - Migration: [scripts/migrations/add_total_tokens_build144.py](scripts/migrations/add_total_tokens_build144.py) (NEW - idempotent migration)
   - Docs: [docs/stage2_structured_edits.md](docs/stage2_structured_edits.md) (drift fix)
-  - Tests: [tests/autopack/test_no_guessing_token_splits.py](tests/autopack/test_no_guessing_token_splits.py) (NEW)
-  - Tests: [tests/autopack/test_llm_usage_schema_drift.py](tests/autopack/test_llm_usage_schema_drift.py) (NEW)
+  - Tests: [tests/autopack/test_no_guessing_token_splits.py](tests/autopack/test_no_guessing_token_splits.py) (regression prevention)
+  - Tests: [tests/autopack/test_llm_usage_schema_drift.py](tests/autopack/test_llm_usage_schema_drift.py) (schema validation + total_tokens tests)
+  - Tests: [tests/autopack/test_dashboard_null_tokens.py](tests/autopack/test_dashboard_null_tokens.py) (dashboard integration - refactored to in-memory SQLite)
+  - Docs: [README.md](README.md) (updated with P0.3 + P0.4 achievements)
+  - Docs: [docs/BUILD_HISTORY.md](docs/BUILD_HISTORY.md) (pending update)
 
 - **Commit**: Pending
 

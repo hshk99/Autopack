@@ -1312,7 +1312,7 @@ def get_dashboard_usage(period: str = "week", db: Session = Depends(get_db)):
         return dashboard_schemas.UsageResponse(providers=[], models=[])
 
     # Aggregate by provider
-    # BUILD-144: Handle NULL token splits from total-only recording
+    # BUILD-144 P0.4: Use total_tokens for totals, COALESCE NULL->0 for splits
     provider_stats = {}
     for event in usage_events:
         if event.provider not in provider_stats:
@@ -1321,15 +1321,13 @@ def get_dashboard_usage(period: str = "week", db: Session = Depends(get_db)):
                 "completion_tokens": 0,
                 "total_tokens": 0
             }
-        # Treat None as 0 (COALESCE approach)
-        prompt_tokens = event.prompt_tokens or 0
-        completion_tokens = event.completion_tokens or 0
-        provider_stats[event.provider]["prompt_tokens"] += prompt_tokens
-        provider_stats[event.provider]["completion_tokens"] += completion_tokens
-        provider_stats[event.provider]["total_tokens"] += (prompt_tokens + completion_tokens)
+        # Use total_tokens for totals (always populated), COALESCE NULL->0 for split subtotals
+        provider_stats[event.provider]["total_tokens"] += event.total_tokens
+        provider_stats[event.provider]["prompt_tokens"] += (event.prompt_tokens or 0)
+        provider_stats[event.provider]["completion_tokens"] += (event.completion_tokens or 0)
 
     # Aggregate by model
-    # BUILD-144: Handle NULL token splits from total-only recording
+    # BUILD-144 P0.4: Use total_tokens for totals, COALESCE NULL->0 for splits
     model_stats = {}
     for event in usage_events:
         key = f"{event.provider}:{event.model}"
@@ -1341,12 +1339,10 @@ def get_dashboard_usage(period: str = "week", db: Session = Depends(get_db)):
                 "completion_tokens": 0,
                 "total_tokens": 0
             }
-        # Treat None as 0 (COALESCE approach)
-        prompt_tokens = event.prompt_tokens or 0
-        completion_tokens = event.completion_tokens or 0
-        model_stats[key]["prompt_tokens"] += prompt_tokens
-        model_stats[key]["completion_tokens"] += completion_tokens
-        model_stats[key]["total_tokens"] += (prompt_tokens + completion_tokens)
+        # Use total_tokens for totals (always populated), COALESCE NULL->0 for split subtotals
+        model_stats[key]["total_tokens"] += event.total_tokens
+        model_stats[key]["prompt_tokens"] += (event.prompt_tokens or 0)
+        model_stats[key]["completion_tokens"] += (event.completion_tokens or 0)
 
     # Convert to response models
     providers = [

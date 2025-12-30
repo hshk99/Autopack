@@ -57,12 +57,29 @@ class TestLlmUsageSchemadrift:
             f"completion_tokens column must be nullable, got nullable={completion_tokens_col['nullable']}"
         )
 
+    def test_total_tokens_column_exists_and_not_nullable(self, test_db: Session):
+        """BUILD-144 P0.4: Verify total_tokens column exists and is NOT nullable"""
+        # Ensure tables exist by triggering a dummy query
+        test_db.execute(text("SELECT 1")).fetchall()
+
+        inspector = inspect(engine)
+        columns = inspector.get_columns("llm_usage_events")
+
+        total_tokens_col = next((col for col in columns if col["name"] == "total_tokens"), None)
+        assert total_tokens_col is not None, "total_tokens column not found"
+
+        # total_tokens should be non-nullable (False means NOT NULL)
+        assert total_tokens_col["nullable"] == False, (
+            f"total_tokens column must be non-nullable, got nullable={total_tokens_col['nullable']}"
+        )
+
     def test_insert_null_prompt_tokens_succeeds(self, test_db: Session):
         """Test that inserting NULL prompt_tokens succeeds"""
         event = LlmUsageEvent(
             provider="openai",
             model="gpt-4o",
             role="builder",
+            total_tokens=600,  # Total must always be set
             prompt_tokens=None,  # NULL
             completion_tokens=600,
             run_id="test-run",
@@ -75,7 +92,8 @@ class TestLlmUsageSchemadrift:
             test_db.commit()
             test_db.refresh(event)
 
-            # Verify NULL was stored
+            # Verify NULL was stored and total_tokens is correct
+            assert event.total_tokens == 600
             assert event.prompt_tokens is None
             assert event.completion_tokens == 600
         finally:
@@ -89,6 +107,7 @@ class TestLlmUsageSchemadrift:
             provider="anthropic",
             model="claude-sonnet-4-5",
             role="auditor",
+            total_tokens=400,  # Total must always be set
             prompt_tokens=400,
             completion_tokens=None,  # NULL
             run_id="test-run",
@@ -101,7 +120,8 @@ class TestLlmUsageSchemadrift:
             test_db.commit()
             test_db.refresh(event)
 
-            # Verify NULL was stored
+            # Verify NULL was stored and total_tokens is correct
+            assert event.total_tokens == 400
             assert event.prompt_tokens == 400
             assert event.completion_tokens is None
         finally:
@@ -115,6 +135,7 @@ class TestLlmUsageSchemadrift:
             provider="google",
             model="gemini-2.5-pro",
             role="builder",
+            total_tokens=1000,  # Total must always be set (total-only recording)
             prompt_tokens=None,  # NULL
             completion_tokens=None,  # NULL
             run_id="test-run",
@@ -127,7 +148,8 @@ class TestLlmUsageSchemadrift:
             test_db.commit()
             test_db.refresh(event)
 
-            # Verify NULLs were stored
+            # Verify NULLs were stored and total_tokens is correct
+            assert event.total_tokens == 1000
             assert event.prompt_tokens is None
             assert event.completion_tokens is None
         finally:
@@ -142,6 +164,7 @@ class TestLlmUsageSchemadrift:
             provider="openai",
             model="gpt-4o",
             role="doctor",
+            total_tokens=800,  # Total must always be set (total-only recording)
             prompt_tokens=None,
             completion_tokens=None,
             run_id="test-run",
@@ -160,6 +183,7 @@ class TestLlmUsageSchemadrift:
             ).first()
 
             assert queried_event is not None
+            assert queried_event.total_tokens == 800
             assert queried_event.prompt_tokens is None
             assert queried_event.completion_tokens is None
             assert queried_event.provider == "openai"
@@ -176,6 +200,7 @@ class TestLlmUsageSchemadrift:
             provider="openai",
             model="gpt-4o",
             role="builder",
+            total_tokens=1200,  # Total-only recording
             prompt_tokens=None,
             completion_tokens=None,
             run_id="null-test-run",
@@ -187,6 +212,7 @@ class TestLlmUsageSchemadrift:
             provider="openai",
             model="gpt-4o",
             role="builder",
+            total_tokens=1000,  # Exact split: 400 + 600
             prompt_tokens=400,
             completion_tokens=600,
             run_id="exact-test-run",

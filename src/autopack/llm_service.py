@@ -591,6 +591,8 @@ class LlmService:
         """
         Record LLM usage in database with exact token splits.
 
+        BUILD-144 P0.4: Always records total_tokens = prompt_tokens + completion_tokens.
+
         Args:
             provider: Provider name (openai, anthropic, etc.)
             model: Model name
@@ -605,6 +607,7 @@ class LlmService:
                 provider=provider,
                 model=model,
                 role=role,
+                total_tokens=prompt_tokens + completion_tokens,
                 prompt_tokens=prompt_tokens,
                 completion_tokens=completion_tokens,
                 run_id=run_id,
@@ -630,9 +633,9 @@ class LlmService:
         """
         Record LLM usage when provider doesn't return exact token splits.
 
-        BUILD-144 P0: Prefer this over heuristic guessing. Records total tokens
-        with prompt_tokens=None and completion_tokens=None to indicate "total-only"
-        accounting. Dashboard and analytics should handle None splits gracefully.
+        BUILD-144 P0.4: Records total_tokens explicitly with prompt_tokens=None and
+        completion_tokens=None to indicate "total-only" accounting. Dashboard totals
+        now use total_tokens field to avoid under-reporting.
 
         Args:
             provider: Provider name (openai, anthropic, etc.)
@@ -643,21 +646,18 @@ class LlmService:
             phase_id: Optional phase identifier
         """
         try:
-            # Record with None for prompt/completion to signal "total-only" accounting
-            # Note: This requires LlmUsageEvent schema to support nullable prompt_tokens/completion_tokens
+            # Record with total_tokens populated and prompt/completion as None
             usage_event = LlmUsageEvent(
                 provider=provider,
                 model=model,
                 role=role,
+                total_tokens=total_tokens,
                 prompt_tokens=None,  # Explicit None: no guessing
                 completion_tokens=None,  # Explicit None: no guessing
                 run_id=run_id,
                 phase_id=phase_id,
                 created_at=datetime.now(timezone.utc),
             )
-            # Store total in a way the schema can handle
-            # If schema doesn't support None, we'll need to use a sentinel like 0 + log warning
-            # For now, assume schema supports nullable fields (per BUILD-142 migration)
             self.db.add(usage_event)
             self.db.commit()
             logger.info(

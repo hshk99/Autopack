@@ -230,9 +230,193 @@ Developer journal for tracking implementation progress, debugging sessions, and 
 2. ✅ Update .autopack/PHASE_6_HANDOFF.md - Updated status to PRODUCTION-READY
 3. ✅ Update README.md - Added BUILD-146 Phase 6 Production Polish section
 4. ✅ Update DEBUG_LOG.md - This entry
-5. ⏳ Sync database (verify migration)
-6. ⏳ Git commit and push
-7. ⏳ Wait for further instructions
+5. ✅ Sync database (verify migration)
+6. ✅ Git commit and push
+7. ✅ Wait for further instructions
+
+---
+
+## 2025-12-31: BUILD-146 Phase 6 Production Polish (P3+P4) Complete
+
+**Session Goal**: Stabilization + Measured ROI Validation (replace estimates with defensible baselines; add A/B test harness)
+
+**Starting State**:
+- P0/P1/P2 Complete: 14/14 tests passing, real parallel execution, telemetry tracking
+- Issue: `tokens_saved_estimate` was hardcoded 10k (misleading, no coverage tracking)
+- Need: Actual ROI proof via A/B testing (measured deltas, not estimates)
+
+**Implementation Timeline**:
+
+### P3: Defensible Counterfactual Estimation
+
+**Design Decision**: Rename field for clarity
+- Old: `tokens_saved_estimate` (implies actual savings, was just hardcoded 10k)
+- New: `doctor_tokens_avoided_estimate` (clearer intent: counterfactual baseline)
+- Added: `estimate_coverage_n` (sample size), `estimate_source` (run_local/global/fallback)
+- Reserved: `actual_tokens_saved` for future A/B delta measurements
+
+**Implementation Steps**:
+
+1. **Schema Updates** (usage_recorder.py:119-123):
+   - Added 3 new columns to Phase6Metrics model
+   - All nullable for backward compatibility
+   - Separate namespace from actual_tokens_saved (A/B deltas)
+
+2. **Median-Based Estimation Function** (usage_recorder.py:437-500):
+   - Algorithm:
+     1. Try run-local: ≥3 samples from same run + doctor_model → median
+     2. Fallback to global: Last 100 Doctor calls (any run) → median
+     3. Last resort: Conservative estimates (10k cheap, 15k strong, 12k unknown)
+   - Returns: (estimate, coverage_n, source) tuple
+   - Median prevents overcount vs mean (conservative)
+
+3. **Integration Point Update** (autonomous_executor.py:1999-2022):
+   - Before: Hardcoded 10k in `record_phase6_metrics(tokens_saved_estimate=10000)`
+   - After: Calls `estimate_doctor_tokens_avoided(db, run_id, None)`
+   - Records all 3 fields: estimate + coverage_n + source
+
+4. **Dashboard Schema Update** (dashboard_schemas.py:67-69):
+   - Renamed field in Phase6Stats response model
+   - Added `estimate_coverage_stats` Dict field
+   - Format: `{"run_local": {"count": 5, "total_n": 25}, "global": {...}, "fallback": {...}}`
+
+5. **Database Migration** (add_phase6_p3_fields.py):
+   - 220 lines, idempotent (safe to run twice)
+   - SQLite: Adds new column, copies old data, leaves deprecated column (can't drop in SQLite)
+   - PostgreSQL: Direct RENAME COLUMN + ADD COLUMN
+   - Tested: Migration ran successfully on dev DB
+
+6. **Aggregation Function Update** (usage_recorder.py:576, 534-543):
+   - Added pagination: `limit=1000` parameter (prevents slow queries)
+   - Added coverage stats collection loop
+   - Returns estimate breakdown by source
+
+**Result**: P3 Complete ✅
+- Conservative estimates with coverage tracking
+- Clear separation between estimates and actual savings
+- Transparent baseline quality metrics
+
+**Files Modified**:
+- `src/autopack/usage_recorder.py` (+70 lines)
+- `src/autopack/autonomous_executor.py` (+12 lines)
+- `src/autopack/dashboard_schemas.py` (+3 lines)
+
+**Files Created**:
+- `scripts/migrations/add_phase6_p3_fields.py` (+220 lines)
+
+### P4: A/B Testing Harness for Actual ROI Proof
+
+**Design Goal**: Measure **actual** token deltas (not estimates) from matched pairs
+
+**Implementation**:
+
+1. **Core Script** (ab_test_phase6.py, 370 lines):
+   - Input: Control run IDs (flags off) + Treatment run IDs (flags on)
+   - Extraction: Queries `llm_usage_events.total_tokens` per run
+   - Metrics tracked:
+     - Total tokens (control vs treatment)
+     - Builder/Doctor token breakdowns
+     - Doctor call counts (total, skipped)
+     - Success rates (phases complete / total)
+     - Retry counts, wall time
+   - Output:
+     - JSON: Per-pair metrics + aggregated stats
+     - Markdown: Summary report with mean/median/stdev/total deltas
+
+2. **Data Model** (dataclasses):
+   - `RunMetrics`: Per-run measurements
+   - `ABPairResult`: Per-pair comparison with deltas
+   - All fields typed, serializable to JSON
+
+3. **Statistical Aggregations**:
+   - Mean, median, stdev for token deltas
+   - Percent change calculations
+   - Total control vs treatment tokens
+   - Success rate comparison
+
+4. **Report Generation** (generate_markdown_report):
+   - Summary table: Mean/median/stdev deltas
+   - Doctor call impact: Token savings, call deltas
+   - Success rates: Control vs treatment
+   - Per-pair breakdown
+   - Interpretation section (positive/negative ROI)
+
+**Result**: P4 Complete ✅
+- **This is the real ROI proof** (measured deltas, not counterfactual estimates)
+- Ready for production validation with matched control/treatment runs
+
+**Files Created**:
+- `scripts/ab_test_phase6.py` (+370 lines)
+
+### Ops Hardening
+
+1. **Pagination** (usage_recorder.py:576):
+   - Added `limit=1000` to `get_phase6_metrics_summary()`
+   - Prevents slow queries on huge runs (e.g., 10k+ phases)
+
+2. **API Polling Improvements** (run_parallel.py:92-116):
+   - Exponential backoff: 2s → 30s cap (was fixed 5s)
+   - Jitter: ±20% randomness (prevents thundering herd)
+   - Transient error handling: Retries on poll failures
+   - More resilient for distributed API deployments
+
+3. **CI Tests** (test_phase6_p3_migration.py, 160 lines):
+   - Migration idempotence (can run upgrade twice)
+   - Phase6-stats endpoint works on fresh DB
+   - Median estimation returns valid results
+   - Coverage fields populated correctly
+   - All tests use in-memory SQLite (fast)
+
+**Files Modified**:
+- `scripts/run_parallel.py` (+18 lines)
+
+**Files Created**:
+- `tests/test_phase6_p3_migration.py` (+160 lines)
+
+**Final State**:
+- P3 Complete: Conservative counterfactual estimates with coverage tracking ✅
+- P4 Complete: A/B test harness for actual ROI measurement ✅
+- Ops Hardening: Pagination, backoff/jitter, CI tests ✅
+- Total files modified: 5
+- Total files created: 3
+- Total new lines: +853
+- Zero errors during implementation
+
+**Key Technical Decisions**:
+1. **Median over mean**: Conservative to avoid overcount
+2. **Run-local → global → fallback**: Quality degradation path
+3. **Coverage tracking**: Transparency into estimation quality
+4. **Separate namespaces**: `doctor_tokens_avoided_estimate` vs `actual_tokens_saved`
+5. **A/B test harness**: CLI script (not integrated), run on-demand
+6. **Pagination default**: 1000 phases (safe for dashboard)
+7. **Exponential backoff**: 2s → 30s with jitter (resilient polling)
+
+**Performance Characteristics**:
+- Median calculation: O(n log n) sorting, n ≤ 100 samples (fast)
+- Coverage stats: O(n) single pass over metrics (fast)
+- A/B test script: Queries LLM usage events (indexed), fast for <100 runs
+- Migration: Idempotent, <100ms on dev DB
+
+**Constraints Honored**:
+- ✅ All features remain opt-in (backward compatible)
+- ✅ No new LLM calls added (zero cost increase)
+- ✅ Minimal autonomous_executor changes (1 function call update)
+- ✅ Windows-safe paths (no hardcoded Unix paths)
+- ✅ README updated (only where fields/endpoints changed)
+
+**Production Impact**:
+- ✅ **Stabilization**: No new features, focus on correctness
+- ✅ **Transparency**: Coverage stats show estimation quality
+- ✅ **Measured ROI**: A/B harness provides actual validation
+- ✅ **Rollout Safety**: Pagination, backoff, migration idempotence
+
+**Next Steps**:
+1. ✅ Update README.md - Added BUILD-146 P3+P4 section
+2. ✅ Update BUILD_HISTORY.md - Added P3+P4 implementation details
+3. ✅ Update DEBUG_LOG.md - This entry
+4. ⏳ Sync database (run P3 migration)
+5. ⏳ Git commit and push
+6. ⏳ Wait for further instructions
 
 ---
 

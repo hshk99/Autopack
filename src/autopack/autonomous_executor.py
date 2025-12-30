@@ -1996,11 +1996,18 @@ class AutonomousExecutor:
                         # [BUILD-146 P2] Record Phase 6 telemetry for failure hardening
                         if os.getenv("TELEMETRY_DB_ENABLED", "false").lower() == "true":
                             try:
-                                from autopack.usage_recorder import record_phase6_metrics
+                                from autopack.usage_recorder import record_phase6_metrics, estimate_doctor_tokens_avoided
                                 from autopack.database import SessionLocal
 
                                 db = SessionLocal()
                                 try:
+                                    # BUILD-146 P3: Use median-based estimation with coverage tracking
+                                    estimate, coverage_n, source = estimate_doctor_tokens_avoided(
+                                        db=db,
+                                        run_id=self.run_id,
+                                        doctor_model=None,  # Could enhance to track expected model
+                                    )
+
                                     record_phase6_metrics(
                                         db=db,
                                         run_id=self.run_id,
@@ -2009,7 +2016,9 @@ class AutonomousExecutor:
                                         failure_pattern_detected=mitigation_result.pattern_id,
                                         failure_hardening_mitigated=True,
                                         doctor_call_skipped=True,
-                                        tokens_saved_estimate=10000,  # Estimated Doctor + diagnostics cost
+                                        doctor_tokens_avoided_estimate=estimate,
+                                        estimate_coverage_n=coverage_n,
+                                        estimate_source=source,
                                     )
                                 finally:
                                     db.close()

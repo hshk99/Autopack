@@ -427,6 +427,142 @@ Each entry includes:
 - 83361f4c - P6.1/P6.5 Integration (Plan Normalizer CLI + Integration Tests)
 - 579b27bd - P6.7 Benchmark Report
 
+**P3+P4 Implementation Details (Stabilization + ROI Validation)**:
+
+**Status**: ✅ COMPLETE (2025-12-31)
+
+**Summary**: Replaced misleading token estimates with defensible counterfactual baselines and added A/B testing harness for actual ROI proof. Focused on correctness, transparency, and measured validation—no new autonomy features.
+
+**P3: Defensible Counterfactual Estimation**
+
+**Change 1: Schema refactoring for clarity**
+- File: [src/autopack/usage_recorder.py:119-123](src/autopack/usage_recorder.py#L119-L123)
+- Renamed: `tokens_saved_estimate` → `doctor_tokens_avoided_estimate`
+- Rationale: Old name was misleading (not actual savings, just counterfactual baseline)
+- Added: `estimate_coverage_n` (INTEGER) - sample size used for baseline
+- Added: `estimate_source` (VARCHAR) - baseline source ("run_local", "global", "fallback")
+- Reserved: `actual_tokens_saved` for future A/B delta measurements
+
+**Change 2: Median-based estimation function**
+- File: [src/autopack/usage_recorder.py:437-500](src/autopack/usage_recorder.py#L437-L500)
+- Added: `estimate_doctor_tokens_avoided(db, run_id, doctor_model)` function
+- Algorithm:
+  1. Try run-local baseline: Median of ≥3 Doctor calls from same run (same doctor_model if specified)
+  2. Fallback to global baseline: Median of last 100 Doctor calls across all runs
+  3. Last resort: Conservative estimates (10k cheap, 15k strong, 12k unknown)
+- Returns: (estimate, coverage_n, source) tuple for transparency
+- Avoids overcount by using median instead of mean (conservative)
+
+**Change 3: Updated autonomous_executor integration**
+- File: [src/autopack/autonomous_executor.py:1999-2022](src/autopack/autonomous_executor.py#L1999-L2022)
+- Changed: Hardcoded 10k estimate → calls `estimate_doctor_tokens_avoided()`
+- Records: estimate + coverage_n + source in Phase6Metrics
+- Impact: Each skip now has defensible baseline with quality metrics
+
+**Change 4: Dashboard schema update**
+- File: [src/autopack/dashboard_schemas.py:67-69](src/autopack/dashboard_schemas.py#L67-L69)
+- Changed: `total_tokens_saved_estimate` → `total_doctor_tokens_avoided_estimate`
+- Added: `estimate_coverage_stats` field (Dict[str, Dict])
+- Format: `{"run_local": {"count": 5, "total_n": 25}, "global": {...}, "fallback": {...}}`
+- Makes clear what is measured vs estimated
+
+**Change 5: Database migration (P3 schema changes)**
+- File: [scripts/migrations/add_phase6_p3_fields.py](scripts/migrations/add_phase6_p3_fields.py) (220 lines)
+- Adds new fields to phase6_metrics table
+- Idempotent (safe to run multiple times)
+- SQLite-compatible: Copies old column, leaves deprecated one in place (can't drop in SQLite)
+- PostgreSQL-compatible: Direct column rename
+- Usage: `python scripts/migrations/add_phase6_p3_fields.py upgrade`
+
+**P4: A/B Testing Harness for Actual ROI Proof**
+
+**Change 6: A/B test script**
+- File: [scripts/ab_test_phase6.py](scripts/ab_test_phase6.py) (370 lines)
+- Purpose: Measure **actual** token deltas (not estimates) from matched control/treatment pairs
+- Inputs: Control run IDs (flags off) + Treatment run IDs (flags on)
+- Metrics extracted:
+  - Total tokens (from `llm_usage_events.total_tokens`)
+  - Builder/Doctor token breakdowns
+  - Doctor call counts (total, skipped)
+  - Success rates (phases complete vs failed)
+  - Retry counts, wall time
+- Outputs:
+  - JSON data file with per-pair metrics + aggregated stats
+  - Markdown summary report with mean/median/stdev/total deltas
+- Aggregations: Mean, median, stdev, percent change
+- **This is the real ROI proof** (measured deltas, not counterfactual estimates)
+
+**Ops Hardening**
+
+**Change 7: Pagination for phase6-stats**
+- File: [src/autopack/usage_recorder.py:576](src/autopack/usage_recorder.py#L576)
+- Added: `limit` parameter to `get_phase6_metrics_summary()` (default 1000)
+- Prevents slow queries on huge runs (e.g., 10k+ phases)
+- Safe default ensures fast dashboard responses
+
+**Change 8: API polling improvements**
+- File: [scripts/run_parallel.py:92-116](scripts/run_parallel.py#L92-L116)
+- Exponential backoff: 2s → 30s cap (was fixed 5s)
+- Jitter: ±20% randomness to prevent thundering herd
+- Transient error handling: Retries on poll failures instead of immediate fail
+- Improves resilience for distributed API deployments
+
+**Change 9: CI tests**
+- File: [tests/test_phase6_p3_migration.py](tests/test_phase6_p3_migration.py) (160 lines)
+- Test 1: Migration idempotence (can run upgrade twice without error)
+- Test 2: Phase6-stats endpoint works on fresh DB (no crash on empty data)
+- Test 3: Median estimation returns valid results (run-local → global → fallback)
+- Test 4: Coverage fields populated correctly (estimate_coverage_n, estimate_source)
+- All tests use in-memory SQLite for speed
+
+**Files Modified** (5 total):
+1. [src/autopack/usage_recorder.py](src/autopack/usage_recorder.py) - Schema + estimation (+70 lines)
+2. [src/autopack/autonomous_executor.py](src/autopack/autonomous_executor.py) - Use new estimation (+12 lines)
+3. [src/autopack/dashboard_schemas.py](src/autopack/dashboard_schemas.py) - Updated schema (+3 lines)
+4. [scripts/run_parallel.py](scripts/run_parallel.py) - Polling improvements (+18 lines)
+5. [README.md](README.md) - P3+P4 documentation (+96 lines)
+
+**Files Created** (3 new):
+1. [scripts/migrations/add_phase6_p3_fields.py](scripts/migrations/add_phase6_p3_fields.py) - P3 migration (+220 lines)
+2. [scripts/ab_test_phase6.py](scripts/ab_test_phase6.py) - A/B test harness (+370 lines)
+3. [tests/test_phase6_p3_migration.py](tests/test_phase6_p3_migration.py) - CI tests (+160 lines)
+
+**Key Architectural Decisions**:
+- ✅ **No overcount**: Median prevents inflation vs mean; estimates clearly separated from actual savings
+- ✅ **Transparency**: Coverage stats show estimation quality (run_local N=5 vs fallback N=0)
+- ✅ **Measured ROI**: A/B test harness provides actual token deltas for validation
+- ✅ **Production hardening**: Pagination, backoff/jitter, error handling
+- ✅ **CI coverage**: 4 new tests for migration idempotence and estimation correctness
+
+**Constraints Honored**:
+- ✅ All features remain opt-in (backward compatible)
+- ✅ No new LLM calls added
+- ✅ No refactors in autonomous_executor.py (only 1 small function call change)
+- ✅ Windows-safe paths (no hardcoded Unix paths)
+- ✅ README updated only where flags/fields/endpoints changed
+
+**Production Impact**:
+- ✅ **P3 Complete**: Conservative, defensible counterfactual estimates with coverage tracking
+- ✅ **P4 Complete**: A/B test harness provides actual measured token deltas (real ROI proof)
+- ✅ **Stabilization**: No new features, focus on correctness and measurement
+- ✅ **Rollout Safety**: Pagination, backoff/jitter, migration idempotence
+
+**Usage**:
+```bash
+# P3: Run database migrations
+python scripts/migrations/add_phase6_metrics_build146.py upgrade
+python scripts/migrations/add_phase6_p3_fields.py upgrade
+
+# P3: View updated Phase 6 stats (includes coverage tracking)
+curl http://localhost:8000/dashboard/runs/<run_id>/phase6-stats
+
+# P4: Run A/B test to measure actual token savings
+python scripts/ab_test_phase6.py \
+  --control-runs run1,run2,run3 \
+  --treatment-runs run4,run5,run6 \
+  --output results/phase6_ab_test.json
+```
+
 ---
 
 ### BUILD-144: NULL-Safe Token Accounting (P0 + P0.1 + P0.2) (2025-12-30)

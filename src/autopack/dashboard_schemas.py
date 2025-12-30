@@ -64,7 +64,9 @@ class Phase6Stats(BaseModel):
     failure_hardening_triggered_count: int
     failure_patterns_detected: Dict[str, int] = {}  # {pattern_id: count}
     doctor_calls_skipped_count: int
-    total_tokens_saved_estimate: int
+    # BUILD-146 P3: Counterfactual estimate (NOT actual tokens saved from A/B)
+    total_doctor_tokens_avoided_estimate: int
+    estimate_coverage_stats: Dict[str, Dict] = {}  # {source: {count: N, total_n: N}}
     intention_context_injected_count: int
     total_intention_context_chars: int
     avg_intention_context_chars_per_phase: float = 0.0

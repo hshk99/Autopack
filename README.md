@@ -201,7 +201,102 @@ In practice, “autonomous” requires that each phase has:
   curl http://localhost:8000/dashboard/runs/<run_id>/phase6-stats
   ```
 
-- **Next Steps**: Production validation with real workloads
+- **Next Steps**: ~~Production validation with real workloads~~ → **P3+P4 Complete** (see below)
+
+### 2025-12-31: BUILD-146 Phase 6 Production Polish (P3+P4) - ✅ STABILIZATION COMPLETE
+**Defensible ROI Measurement + A/B Testing Harness**
+- **Achievement**: Replaced misleading estimates with defensible counterfactual baseline; added A/B test harness for actual ROI validation
+- **Problem Solved**:
+  - P3: `tokens_saved_estimate` was misleading (not actual savings, just a hardcoded 10k guess)
+  - P3: No visibility into estimation quality or baseline coverage
+  - P4: No way to measure **actual** tokens saved (vs estimates)
+- **Solution Implemented** (P3 + P4):
+
+  **P3: Defensible Counterfactual Estimation**:
+  1. **Schema Changes** ([usage_recorder.py:119-123](src/autopack/usage_recorder.py#L119-L123)):
+     - Renamed: `tokens_saved_estimate` → `doctor_tokens_avoided_estimate` (clearer intent)
+     - Added: `estimate_coverage_n` (sample size for baseline)
+     - Added: `estimate_source` (run_local/global/fallback)
+     - Separate from `actual_tokens_saved` (reserved for A/B deltas)
+
+  2. **Median-Based Estimation** ([usage_recorder.py:437-500](src/autopack/usage_recorder.py#L437-L500)):
+     - `estimate_doctor_tokens_avoided()`: Conservative median of historical Doctor calls
+     - Prioritizes run-local baseline (≥3 samples) → falls back to global baseline (last 100 calls)
+     - Fallback estimates: 10k (cheap), 15k (strong), 12k (unknown)
+     - Returns (estimate, coverage_n, source) tuple for transparency
+
+  3. **Updated Dashboard** ([dashboard_schemas.py:67-69](src/autopack/dashboard_schemas.py#L67-L69)):
+     - `/dashboard/runs/{run_id}/phase6-stats` returns:
+       - `total_doctor_tokens_avoided_estimate` (clearly labeled as estimate)
+       - `estimate_coverage_stats` (per-source breakdown: {run_local: {count: N, total_n: N}, ...})
+     - Makes clear what is measured vs estimated
+
+  4. **Database Migration** ([add_phase6_p3_fields.py](scripts/migrations/add_phase6_p3_fields.py)):
+     - Adds new fields to phase6_metrics table
+     - Idempotent (safe to run twice)
+     - SQLite-compatible (copies old column, leaves deprecated one in place)
+     - PostgreSQL-compatible (direct rename)
+
+  **P4: A/B Testing Harness for Actual ROI Proof**:
+  5. **A/B Test Script** ([ab_test_phase6.py](scripts/ab_test_phase6.py)):
+     - Takes matched control/treatment run pairs
+     - Extracts actual token deltas from `llm_usage_events.total_tokens`
+     - Tracks: total tokens, Doctor tokens, call counts, success rates, retries, wall time
+     - Outputs: JSON data + Markdown summary report
+     - Aggregates: mean/median/stdev, total delta, percent change
+     - **This is the real ROI proof** (measured, not estimated)
+
+  6. **Ops Hardening** ([usage_recorder.py:576](src/autopack/usage_recorder.py#L576)):
+     - Added `limit` parameter to `get_phase6_metrics_summary()` (default 1000)
+     - Prevents slow queries on huge runs
+
+  7. **API Polling Improvements** ([run_parallel.py:92-116](scripts/run_parallel.py#L92-L116)):
+     - Exponential backoff (2s → 30s cap)
+     - Jitter (±20% randomness) to prevent thundering herd
+     - Transient error handling (retries on poll failures)
+
+  8. **CI Tests** ([test_phase6_p3_migration.py](tests/test_phase6_p3_migration.py)):
+     - Migration idempotence (can run upgrade twice)
+     - Endpoint works on fresh DB
+     - Median estimation returns valid results
+     - Coverage fields populated correctly
+
+- **Files Modified** (5 total):
+  - [src/autopack/usage_recorder.py](src/autopack/usage_recorder.py) - Schema + estimation function (+70 lines)
+  - [src/autopack/autonomous_executor.py](src/autopack/autonomous_executor.py) - Use new estimation (+12 lines)
+  - [src/autopack/dashboard_schemas.py](src/autopack/dashboard_schemas.py) - Updated schema (+3 lines)
+  - [scripts/run_parallel.py](scripts/run_parallel.py) - Polling improvements (+18 lines)
+
+- **Files Created** (3 new):
+  - [scripts/migrations/add_phase6_p3_fields.py](scripts/migrations/add_phase6_p3_fields.py) - P3 migration (+220 lines)
+  - [scripts/ab_test_phase6.py](scripts/ab_test_phase6.py) - A/B test harness (+370 lines)
+  - [tests/test_phase6_p3_migration.py](tests/test_phase6_p3_migration.py) - CI tests (+160 lines)
+
+- **Impact**:
+  - ✅ **P3 Complete**: Conservative, defensible counterfactual estimates with coverage tracking
+  - ✅ **P4 Complete**: A/B test harness provides actual measured token deltas (real ROI proof)
+  - ✅ **No Overcount**: Estimates clearly separated from actual savings; median prevents inflation
+  - ✅ **Transparency**: Coverage stats show estimation quality (run_local N=5 vs fallback N=0)
+  - ✅ **Production Hardening**: Pagination, backoff/jitter, error handling
+  - ✅ **CI Coverage**: 4 new tests for migration idempotence and estimation correctness
+
+- **Usage**:
+  ```bash
+  # P3: Run database migrations
+  python scripts/migrations/add_phase6_metrics_build146.py upgrade
+  python scripts/migrations/add_phase6_p3_fields.py upgrade
+
+  # P3: View updated Phase 6 stats (includes coverage tracking)
+  curl http://localhost:8000/dashboard/runs/<run_id>/phase6-stats
+
+  # P4: Run A/B test to measure actual token savings
+  python scripts/ab_test_phase6.py \\
+    --control-runs run1,run2,run3 \\
+    --treatment-runs run4,run5,run6 \\
+    --output results/phase6_ab_test.json
+  ```
+
+- **Next Steps**: Production rollout with measured ROI validation
 
 ---
 

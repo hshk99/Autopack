@@ -115,7 +115,12 @@ class Phase6Metrics(Base):
     failure_pattern_detected = Column(String, nullable=True)  # pattern_id if detected
     failure_hardening_mitigated = Column(Boolean, nullable=False, default=False)
     doctor_call_skipped = Column(Boolean, nullable=False, default=False)
-    tokens_saved_estimate = Column(Integer, nullable=False, default=0)
+
+    # BUILD-146 P3: Counterfactual estimate of tokens avoided by skipping Doctor
+    # This is NOT actual tokens saved (use A/B deltas for that), but expected baseline cost
+    doctor_tokens_avoided_estimate = Column(Integer, nullable=False, default=0)
+    estimate_coverage_n = Column(Integer, nullable=True)  # Sample size for baseline
+    estimate_source = Column(String, nullable=True)  # "run_local", "global", "fallback"
 
     # Intention context metrics
     intention_context_injected = Column(Boolean, nullable=False, default=False)
@@ -429,6 +434,72 @@ def get_token_efficiency_stats(db: Session, run_id: str) -> Dict:
     }
 
 
+def estimate_doctor_tokens_avoided(
+    db: Session,
+    run_id: str,
+    doctor_model: Optional[str] = None,
+) -> tuple[int, int, str]:
+    """
+    Estimate tokens that would be consumed by a Doctor call using median baseline.
+
+    BUILD-146 P3: Conservative counterfactual estimation for Doctor skip ROI.
+    - NOT actual tokens saved (use A/B deltas for that)
+    - Uses median of historical Doctor calls to avoid overcount
+    - Prioritizes run-local baseline, falls back to global baseline
+
+    Args:
+        db: Database session
+        run_id: Current run ID (for run-local baseline)
+        doctor_model: Optional Doctor model type ("cheap", "strong")
+
+    Returns:
+        Tuple of (estimate, sample_size, source):
+        - estimate: Median tokens per Doctor call (conservative)
+        - sample_size: Number of samples in baseline
+        - source: "run_local", "global", or "fallback"
+    """
+    from sqlalchemy import func
+
+    # Try run-local baseline first (same run, same doctor_model if specified)
+    query = db.query(LlmUsageEvent.total_tokens).filter(
+        LlmUsageEvent.run_id == run_id,
+        LlmUsageEvent.is_doctor_call == True,
+    )
+    if doctor_model:
+        query = query.filter(LlmUsageEvent.doctor_model == doctor_model)
+
+    run_local_samples = query.all()
+
+    if len(run_local_samples) >= 3:  # Require at least 3 samples for median
+        tokens = sorted([s[0] for s in run_local_samples])
+        median_idx = len(tokens) // 2
+        median_tokens = tokens[median_idx]
+        return (median_tokens, len(tokens), "run_local")
+
+    # Fallback to global baseline (last 100 Doctor calls, any run)
+    query = db.query(LlmUsageEvent.total_tokens).filter(
+        LlmUsageEvent.is_doctor_call == True,
+    )
+    if doctor_model:
+        query = query.filter(LlmUsageEvent.doctor_model == doctor_model)
+
+    global_samples = query.order_by(LlmUsageEvent.created_at.desc()).limit(100).all()
+
+    if len(global_samples) >= 3:
+        tokens = sorted([s[0] for s in global_samples])
+        median_idx = len(tokens) // 2
+        median_tokens = tokens[median_idx]
+        return (median_tokens, len(tokens), "global")
+
+    # Last resort: conservative fallback estimate
+    # Use 10k for cheap Doctor, 15k for strong, 12k if unknown
+    fallback_estimate = {
+        "cheap": 10000,
+        "strong": 15000,
+    }.get(doctor_model or "", 12000)
+    return (fallback_estimate, 0, "fallback")
+
+
 def record_phase6_metrics(
     db: Session,
     run_id: str,
@@ -437,7 +508,9 @@ def record_phase6_metrics(
     failure_pattern_detected: Optional[str] = None,
     failure_hardening_mitigated: bool = False,
     doctor_call_skipped: bool = False,
-    tokens_saved_estimate: int = 0,
+    doctor_tokens_avoided_estimate: int = 0,
+    estimate_coverage_n: Optional[int] = None,
+    estimate_source: Optional[str] = None,
     intention_context_injected: bool = False,
     intention_context_chars: int = 0,
     intention_context_source: Optional[str] = None,
@@ -458,7 +531,9 @@ def record_phase6_metrics(
         failure_pattern_detected: Pattern ID if detected (e.g., "python_missing_dep")
         failure_hardening_mitigated: Whether failure was mitigated without Doctor
         doctor_call_skipped: Whether Doctor call was skipped due to mitigation
-        tokens_saved_estimate: Estimated tokens saved by skipping Doctor
+        doctor_tokens_avoided_estimate: Counterfactual estimate of Doctor tokens avoided (median baseline)
+        estimate_coverage_n: Sample size used for baseline estimate
+        estimate_source: Source of baseline ("run_local", "global", "fallback")
         intention_context_injected: Whether intention context was injected
         intention_context_chars: Number of characters of intention context
         intention_context_source: Source of intention context ("memory", "fallback")
@@ -478,7 +553,9 @@ def record_phase6_metrics(
         failure_pattern_detected=failure_pattern_detected,
         failure_hardening_mitigated=failure_hardening_mitigated,
         doctor_call_skipped=doctor_call_skipped,
-        tokens_saved_estimate=tokens_saved_estimate,
+        doctor_tokens_avoided_estimate=doctor_tokens_avoided_estimate,
+        estimate_coverage_n=estimate_coverage_n,
+        estimate_source=estimate_source,
         intention_context_injected=intention_context_injected,
         intention_context_chars=intention_context_chars,
         intention_context_source=intention_context_source,
@@ -496,18 +573,20 @@ def record_phase6_metrics(
     return metrics
 
 
-def get_phase6_metrics_summary(db: Session, run_id: str) -> Dict:
+def get_phase6_metrics_summary(db: Session, run_id: str, limit: int = 1000) -> Dict:
     """
     Get aggregated Phase 6 metrics for a run.
 
     Args:
         db: Database session
         run_id: Run ID
+        limit: Maximum number of phase metrics to aggregate (default 1000, prevents slow queries)
 
     Returns:
         Dictionary with aggregated Phase 6 metrics
     """
-    metrics = db.query(Phase6Metrics).filter(Phase6Metrics.run_id == run_id).all()
+    # BUILD-146 Ops hardening: Add limit to prevent slow queries on huge runs
+    metrics = db.query(Phase6Metrics).filter(Phase6Metrics.run_id == run_id).limit(limit).all()
 
     if not metrics:
         return {
@@ -515,7 +594,8 @@ def get_phase6_metrics_summary(db: Session, run_id: str) -> Dict:
             "failure_hardening_triggered_count": 0,
             "failure_patterns_detected": {},
             "doctor_calls_skipped_count": 0,
-            "total_tokens_saved_estimate": 0,
+            "total_doctor_tokens_avoided_estimate": 0,
+            "estimate_coverage_stats": {},
             "intention_context_injected_count": 0,
             "total_intention_context_chars": 0,
             "plan_normalization_used": False,
@@ -524,9 +604,20 @@ def get_phase6_metrics_summary(db: Session, run_id: str) -> Dict:
     # Aggregate metrics
     failure_hardening_triggered_count = sum(1 for m in metrics if m.failure_hardening_triggered)
     doctor_calls_skipped_count = sum(1 for m in metrics if m.doctor_call_skipped)
-    total_tokens_saved_estimate = sum(m.tokens_saved_estimate for m in metrics)
+    total_doctor_tokens_avoided_estimate = sum(m.doctor_tokens_avoided_estimate for m in metrics)
     intention_context_injected_count = sum(1 for m in metrics if m.intention_context_injected)
     total_intention_context_chars = sum(m.intention_context_chars for m in metrics)
+
+    # BUILD-146 P3: Collect estimate coverage stats
+    estimate_coverage_stats = {}
+    for m in metrics:
+        if m.estimate_source:
+            source = m.estimate_source
+            if source not in estimate_coverage_stats:
+                estimate_coverage_stats[source] = {"count": 0, "total_n": 0}
+            estimate_coverage_stats[source]["count"] += 1
+            if m.estimate_coverage_n:
+                estimate_coverage_stats[source]["total_n"] += m.estimate_coverage_n
 
     # Count failure patterns
     failure_patterns_detected = {}
@@ -544,7 +635,8 @@ def get_phase6_metrics_summary(db: Session, run_id: str) -> Dict:
         "failure_hardening_triggered_count": failure_hardening_triggered_count,
         "failure_patterns_detected": failure_patterns_detected,
         "doctor_calls_skipped_count": doctor_calls_skipped_count,
-        "total_tokens_saved_estimate": total_tokens_saved_estimate,
+        "total_doctor_tokens_avoided_estimate": total_doctor_tokens_avoided_estimate,
+        "estimate_coverage_stats": estimate_coverage_stats,  # {"run_local": {"count": 5, "total_n": 25}, ...}
         "intention_context_injected_count": intention_context_injected_count,
         "total_intention_context_chars": total_intention_context_chars,
         "avg_intention_context_chars_per_phase": (

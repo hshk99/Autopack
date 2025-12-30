@@ -89,24 +89,34 @@ async def api_executor(run_id: str, workspace: Path, api_url: Optional[str] = No
             response.raise_for_status()
             logger.info(f"[{run_id}] Run started successfully")
 
-            # Poll for completion
-            poll_interval = 5  # seconds
+            # Poll for completion with exponential backoff + jitter (BUILD-146 Ops hardening)
+            import random
+            poll_interval = 2  # start with 2s
+            max_poll_interval = 30  # cap at 30s
             elapsed = 0
 
             while elapsed < timeout:
-                await asyncio.sleep(poll_interval)
-                elapsed += poll_interval
+                # Add jitter (±20% randomness) to prevent thundering herd
+                jittered_interval = poll_interval * (0.8 + 0.4 * random.random())
+                await asyncio.sleep(jittered_interval)
+                elapsed += jittered_interval
 
                 # Check run status
-                status_response = await client.get(
-                    f"{api_url}/runs/{run_id}/status",
-                    headers=headers,
-                )
-                status_response.raise_for_status()
-                status_data = status_response.json()
+                try:
+                    status_response = await client.get(
+                        f"{api_url}/runs/{run_id}/status",
+                        headers=headers,
+                    )
+                    status_response.raise_for_status()
+                    status_data = status_response.json()
+                except httpx.HTTPError as poll_err:
+                    logger.warning(f"[{run_id}] Status poll failed: {poll_err}, will retry")
+                    # Don't fail immediately on transient errors, just backoff and retry
+                    poll_interval = min(poll_interval * 1.5, max_poll_interval)
+                    continue
 
                 state = status_data.get("state", "UNKNOWN")
-                logger.debug(f"[{run_id}] State: {state} (elapsed: {elapsed}s)")
+                logger.debug(f"[{run_id}] State: {state} (elapsed: {elapsed:.0f}s)")
 
                 # Check for terminal states
                 if state in ["COMPLETE", "SUCCEEDED"]:

@@ -61,6 +61,32 @@ class DoctorUsageStats(Base):
     )
 
 
+class TokenEfficiencyMetrics(Base):
+    """Token efficiency metrics per phase (BUILD-145)"""
+
+    __tablename__ = "token_efficiency_metrics"
+
+    id = Column(Integer, primary_key=True, index=True)
+    run_id = Column(String, nullable=False, index=True)
+    phase_id = Column(String, nullable=False, index=True)
+
+    # Artifact substitution metrics
+    artifact_substitutions = Column(Integer, nullable=False, default=0)
+    tokens_saved_artifacts = Column(Integer, nullable=False, default=0)
+
+    # Context budget metrics
+    budget_mode = Column(String, nullable=False)  # "semantic" or "lexical"
+    budget_used = Column(Integer, nullable=False, default=0)
+    budget_cap = Column(Integer, nullable=False, default=0)
+    files_kept = Column(Integer, nullable=False, default=0)
+    files_omitted = Column(Integer, nullable=False, default=0)
+
+    # Phase outcome (BUILD-145 P1 hardening: terminal state tracking)
+    # Nullable for backward compatibility; stores COMPLETE, FAILED, BLOCKED, etc.
+    phase_outcome = Column(String, nullable=True, index=True)
+
+    created_at = Column(DateTime, nullable=False, default=lambda: datetime.now(timezone.utc), index=True)
+
 @dataclass
 class UsageEventData:
     """Dataclass for passing usage event data
@@ -209,5 +235,120 @@ def get_doctor_stats(db: Session, run_id: str) -> Optional[Dict]:
         "escalation_frequency": (
             stats.doctor_escalations / stats.doctor_calls_total
             if stats.doctor_calls_total > 0 else 0
+        ),
+    }
+
+
+def record_token_efficiency_metrics(
+    db: Session,
+    run_id: str,
+    phase_id: str,
+    artifact_substitutions: int,
+    tokens_saved_artifacts: int,
+    budget_mode: str,
+    budget_used: int,
+    budget_cap: int,
+    files_kept: int,
+    files_omitted: int,
+    phase_outcome: Optional[str] = None,
+) -> TokenEfficiencyMetrics:
+    """Record token efficiency metrics for a phase.
+
+    Args:
+        db: Database session
+        run_id: Run identifier
+        phase_id: Phase identifier
+        artifact_substitutions: Number of files substituted with artifacts
+        tokens_saved_artifacts: Estimated tokens saved via artifacts
+        budget_mode: Context budget mode ("semantic" or "lexical")
+        budget_used: Estimated tokens used in context
+        budget_cap: Token budget cap
+        files_kept: Number of files kept in context
+        files_omitted: Number of files omitted from context
+        phase_outcome: Optional terminal phase outcome (COMPLETE, FAILED, BLOCKED, etc.)
+
+    Returns:
+        Created TokenEfficiencyMetrics record
+    """
+    metrics = TokenEfficiencyMetrics(
+        run_id=run_id,
+        phase_id=phase_id,
+        artifact_substitutions=artifact_substitutions,
+        tokens_saved_artifacts=tokens_saved_artifacts,
+        budget_mode=budget_mode,
+        budget_used=budget_used,
+        budget_cap=budget_cap,
+        files_kept=files_kept,
+        files_omitted=files_omitted,
+        phase_outcome=phase_outcome,
+        created_at=datetime.now(timezone.utc),
+    )
+
+    db.add(metrics)
+    db.commit()
+    db.refresh(metrics)
+
+    return metrics
+
+
+def get_token_efficiency_stats(db: Session, run_id: str) -> Dict:
+    """Get aggregated token efficiency statistics for a run.
+    
+    Args:
+        db: Database session
+        run_id: Run identifier
+    
+    Returns:
+        Dictionary with aggregated token efficiency stats
+    """
+    metrics = db.query(TokenEfficiencyMetrics).filter(
+        TokenEfficiencyMetrics.run_id == run_id
+    ).all()
+    
+    if not metrics:
+        return {
+            "run_id": run_id,
+            "total_phases": 0,
+            "total_artifact_substitutions": 0,
+            "total_tokens_saved_artifacts": 0,
+            "total_budget_used": 0,
+            "total_budget_cap": 0,
+            "total_files_kept": 0,
+            "total_files_omitted": 0,
+            "semantic_mode_count": 0,
+            "lexical_mode_count": 0,
+            "avg_artifact_substitutions_per_phase": 0.0,
+            "avg_tokens_saved_per_phase": 0.0,
+            "budget_utilization": 0.0,
+        }
+    
+    total_artifact_substitutions = sum(m.artifact_substitutions for m in metrics)
+    total_tokens_saved_artifacts = sum(m.tokens_saved_artifacts for m in metrics)
+    total_budget_used = sum(m.budget_used for m in metrics)
+    total_budget_cap = sum(m.budget_cap for m in metrics)
+    total_files_kept = sum(m.files_kept for m in metrics)
+    total_files_omitted = sum(m.files_omitted for m in metrics)
+    semantic_mode_count = sum(1 for m in metrics if m.budget_mode == "semantic")
+    lexical_mode_count = sum(1 for m in metrics if m.budget_mode == "lexical")
+    
+    return {
+        "run_id": run_id,
+        "total_phases": len(metrics),
+        "total_artifact_substitutions": total_artifact_substitutions,
+        "total_tokens_saved_artifacts": total_tokens_saved_artifacts,
+        "total_budget_used": total_budget_used,
+        "total_budget_cap": total_budget_cap,
+        "total_files_kept": total_files_kept,
+        "total_files_omitted": total_files_omitted,
+        "semantic_mode_count": semantic_mode_count,
+        "lexical_mode_count": lexical_mode_count,
+        "avg_artifact_substitutions_per_phase": (
+            total_artifact_substitutions / len(metrics) if metrics else 0.0
+        ),
+        "avg_tokens_saved_per_phase": (
+            total_tokens_saved_artifacts / len(metrics) if metrics else 0.0
+        ),
+        "budget_utilization": (
+            total_budget_used / total_budget_cap if total_budget_cap > 0 else 0.0
         ),
     }

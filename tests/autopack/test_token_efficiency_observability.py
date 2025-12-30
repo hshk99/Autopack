@@ -385,3 +385,113 @@ class TestExecutorTelemetryIntegration:
         assert any("budget=semantic" in msg for msg in log_messages)
         assert any("used=5000/10000tok" in msg for msg in log_messages)
         assert any("files=10kept/2omitted" in msg for msg in log_messages)
+
+
+class TestKeptOnlyTelemetry:
+    """Test kept-only savings calculation (BUILD-145 P1 hardening)."""
+
+    def test_recompute_savings_after_budgeting(self, test_db):
+        """Should only count savings for files kept after budgeting."""
+        # Simulate scope_metadata with some artifact substitutions
+        scope_metadata = {
+            "file1.py": {
+                "category": "read_only",
+                "source": "artifact:summary",
+                "tokens_saved": 1000,
+            },
+            "file2.py": {
+                "category": "read_only",
+                "source": "artifact:summary",
+                "tokens_saved": 2000,
+            },
+            "file3.py": {
+                "category": "read_only",
+                "source": "full_file",  # Not an artifact
+            },
+            "file4.py": {
+                "category": "read_only",
+                "source": "artifact:summary",
+                "tokens_saved": 1500,
+            },
+        }
+
+        # Simulate budgeting keeping only file1 and file3 (omitting file2 and file4)
+        kept_files = {"file1.py", "file3.py"}
+
+        # Recompute as done in _load_scoped_context
+        kept_artifact_substitutions = 0
+        kept_tokens_saved = 0
+        substituted_paths_sample = []
+
+        for path, metadata in scope_metadata.items():
+            if path in kept_files and metadata.get("source", "").startswith("artifact:"):
+                kept_artifact_substitutions += 1
+                kept_tokens_saved += metadata.get("tokens_saved", 0)
+                if len(substituted_paths_sample) < 10:
+                    substituted_paths_sample.append(path)
+
+        # Should only count file1.py (kept + artifact)
+        assert kept_artifact_substitutions == 1
+        assert kept_tokens_saved == 1000
+        assert substituted_paths_sample == ["file1.py"]
+
+        # Original would have been 3 substitutions, 4500 tokens saved (over-reporting)
+
+    def test_substituted_paths_sample_capped(self, test_db):
+        """Should cap substituted paths list at 10 entries."""
+        scope_metadata = {}
+        kept_files = set()
+
+        # Create 15 substituted files
+        for i in range(15):
+            path = f"file{i}.py"
+            scope_metadata[path] = {
+                "category": "read_only",
+                "source": "artifact:summary",
+                "tokens_saved": 100,
+            }
+            kept_files.add(path)
+
+        # Recompute
+        substituted_paths_sample = []
+        for path, metadata in scope_metadata.items():
+            if path in kept_files and metadata.get("source", "").startswith("artifact:"):
+                if len(substituted_paths_sample) < 10:
+                    substituted_paths_sample.append(path)
+
+        # Should be capped at 10
+        assert len(substituted_paths_sample) == 10
+
+    def test_phase_outcome_recorded(self, test_db):
+        """Should record phase outcome in metrics."""
+        # Test COMPLETE outcome
+        metrics_complete = record_token_efficiency_metrics(
+            db=test_db,
+            run_id="test-run",
+            phase_id="phase-001",
+            artifact_substitutions=2,
+            tokens_saved_artifacts=1000,
+            budget_mode="semantic",
+            budget_used=8000,
+            budget_cap=10000,
+            files_kept=5,
+            files_omitted=2,
+            phase_outcome="COMPLETE",
+        )
+        assert metrics_complete.phase_outcome == "COMPLETE"
+
+        # Test FAILED outcome
+        metrics_failed = record_token_efficiency_metrics(
+            db=test_db,
+            run_id="test-run",
+            phase_id="phase-002",
+            artifact_substitutions=1,
+            tokens_saved_artifacts=500,
+            budget_mode="lexical",
+            budget_used=5000,
+            budget_cap=10000,
+            files_kept=3,
+            files_omitted=1,
+            phase_outcome="FAILED",
+        )
+        assert metrics_failed.phase_outcome == "FAILED"

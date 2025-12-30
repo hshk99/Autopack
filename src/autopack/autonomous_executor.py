@@ -1441,6 +1441,81 @@ class AutonomousExecutor:
             logger.error(f"[{phase_id}] Failed to mark complete in database: {e}")
             return False
 
+    def _record_token_efficiency_telemetry(self, phase_id: str, phase_outcome: str) -> None:
+        """Record token efficiency telemetry for a phase (BUILD-145 P1 hardening).
+
+        Best-effort telemetry recording that never fails the phase.
+        Records metrics for terminal outcomes: COMPLETE, FAILED, BLOCKED.
+
+        Args:
+            phase_id: Phase identifier
+            phase_outcome: Terminal outcome (COMPLETE, FAILED, BLOCKED, etc.)
+        """
+        try:
+            # Check if we have context data from _load_scoped_context
+            if not hasattr(self, '_last_file_context'):
+                return
+
+            file_ctx = self._last_file_context
+            artifact_stats = file_ctx.get("artifact_stats", {})
+            budget_selection = file_ctx.get("budget_selection")
+
+            if not (artifact_stats or budget_selection):
+                return
+
+            from autopack.usage_recorder import record_token_efficiency_metrics
+
+            # Extract artifact stats (BUILD-145 P1: now reflects kept files only)
+            artifact_substitutions = artifact_stats.get("substitutions", 0) if artifact_stats else 0
+            tokens_saved_artifacts = artifact_stats.get("tokens_saved", 0) if artifact_stats else 0
+            substituted_paths_sample = artifact_stats.get("substituted_paths_sample", []) if artifact_stats else []
+
+            # Extract budget selection stats
+            if budget_selection:
+                budget_mode = budget_selection.mode
+                budget_used = budget_selection.used_tokens_est
+                budget_cap = budget_selection.budget_tokens
+                files_kept = budget_selection.files_kept_count
+                files_omitted = budget_selection.files_omitted_count
+            else:
+                budget_mode = "unknown"
+                budget_used = 0
+                budget_cap = 0
+                files_kept = 0
+                files_omitted = 0
+
+            # Record metrics with phase outcome
+            record_token_efficiency_metrics(
+                db=self.db,
+                run_id=self.run_id,
+                phase_id=phase_id,
+                artifact_substitutions=artifact_substitutions,
+                tokens_saved_artifacts=tokens_saved_artifacts,
+                budget_mode=budget_mode,
+                budget_used=budget_used,
+                budget_cap=budget_cap,
+                files_kept=files_kept,
+                files_omitted=files_omitted,
+                phase_outcome=phase_outcome,
+            )
+
+            # Compact logging: cap list at 10, join with commas
+            paths_preview = ", ".join(substituted_paths_sample[:10])
+            if substituted_paths_sample:
+                paths_suffix = f" paths=[{paths_preview}]"
+            else:
+                paths_suffix = ""
+
+            logger.info(
+                f"[TOKEN_EFFICIENCY] phase={phase_id} outcome={phase_outcome} "
+                f"artifacts={artifact_substitutions} saved={tokens_saved_artifacts}tok "
+                f"budget={budget_mode} used={budget_used}/{budget_cap}tok "
+                f"files={files_kept}kept/{files_omitted}omitted{paths_suffix}"
+            )
+        except Exception as e:
+            # Best-effort telemetry - never fail the phase
+            logger.warning(f"[{phase_id}] Failed to record token efficiency telemetry: {e}")
+
     def _mark_phase_failed_in_db(self, phase_id: str, reason: str) -> bool:
         """Mark phase as FAILED in database
 
@@ -1481,6 +1556,9 @@ class AutonomousExecutor:
                     pass
 
             logger.info(f"[{phase_id}] Marked FAILED in database (reason: {reason})")
+
+            # BUILD-145 P1: Record token efficiency telemetry for failed phases
+            self._record_token_efficiency_telemetry(phase_id, "FAILED")
 
             # Send Telegram notification for phase failure
             self._send_phase_failure_notification(phase_id, reason)
@@ -1832,6 +1910,9 @@ class AutonomousExecutor:
                         hint_type="success_after_retry",
                         details=f"Succeeded on attempt {attempt_index + 1} after {attempt_index} failed attempts"
                     )
+
+                # BUILD-145 P1.1: Record token efficiency telemetry
+                self._record_token_efficiency_telemetry(phase_id, "COMPLETE")
 
                 logger.info(f"[{phase_id}] Phase completed successfully on attempt {attempt_index + 1}")
                 return True, "COMPLETE"
@@ -3804,6 +3885,8 @@ Just the new description that should replace the current one while preserving th
             # Load repository context for Builder
             try:
                 file_context = self._load_repository_context(phase)
+                # BUILD-145 P1.1: Store context for telemetry
+                self._last_file_context = file_context
                 logger.info(f"[{phase_id}] Loaded {len(file_context.get('existing_files', {}))} files for context")
 
                 # NEW: Validate scope configuration if present (GPT recommendation - Option C)
@@ -3818,6 +3901,7 @@ Just the new description that should replace the current one while preserving th
                     logger.error(f"Traceback: {traceback.format_exc()}")
                     # Return empty context to allow execution to continue
                     file_context = {"existing_files": {}}
+                    self._last_file_context = file_context
                 else:
                     raise
 
@@ -7018,8 +7102,8 @@ Just the new description that should replace the current one while preserving th
 
         # BUILD-145 P1: Initialize artifact loader for token-efficient context loading
         from autopack.artifact_loader import ArtifactLoader
-        run_id = phase.get("run_id", "")
-        artifact_loader = ArtifactLoader(base_workspace, run_id) if run_id else None
+        # Use executor's run_id (always available) instead of phase.get("run_id")
+        artifact_loader = ArtifactLoader(base_workspace, self.run_id) if self.run_id else None
         total_tokens_saved = 0
         artifact_substitutions = 0
 
@@ -7216,14 +7300,53 @@ Just the new description that should replace the current one while preserving th
                 f"~{total_tokens_saved:,} tokens saved"
             )
 
+        # BUILD-145 P1.1: Apply context budgeting to loaded files
+        from autopack.context_budgeter import select_files_for_context, reset_embedding_cache
+        from autopack.config import settings
+
+        # BUILD-145 P1 (hardening): Reset embedding cache per phase to enforce per-phase cap
+        reset_embedding_cache()
+
+        budget_selection = select_files_for_context(
+            files=existing_files,
+            scope_metadata=scope_metadata,
+            deliverables=phase.get("deliverables", []),
+            query=phase.get("description", ""),
+            budget_tokens=settings.context_budget_tokens
+        )
+
+        # Replace existing_files with budgeted selection
+        existing_files = budget_selection.kept
+        logger.info(
+            f"[Context Budget] Mode: {budget_selection.mode}, "
+            f"Used: {budget_selection.used_tokens_est}/{budget_selection.budget_tokens} tokens, "
+            f"Files: {budget_selection.files_kept_count} kept, {budget_selection.files_omitted_count} omitted"
+        )
+
+        # BUILD-145 P1 (hardening): Recompute artifact stats for kept files only
+        # Original artifact_stats were computed before budgeting, so some substituted files may have been omitted
+        kept_artifact_substitutions = 0
+        kept_tokens_saved = 0
+        substituted_paths_sample = []
+        kept_files = set(existing_files.keys())
+
+        for path, metadata in scope_metadata.items():
+            if path in kept_files and metadata.get("source", "").startswith("artifact:"):
+                kept_artifact_substitutions += 1
+                kept_tokens_saved += metadata.get("tokens_saved", 0)
+                if len(substituted_paths_sample) < 10:
+                    substituted_paths_sample.append(path)
+
         return {
             "existing_files": existing_files,
             "scope_metadata": scope_metadata,
             "missing_scope_files": missing_files,
             "artifact_stats": {
-                "substitutions": artifact_substitutions,
-                "tokens_saved": total_tokens_saved
-            } if artifact_substitutions > 0 else None,
+                "substitutions": kept_artifact_substitutions,
+                "tokens_saved": kept_tokens_saved,
+                "substituted_paths_sample": substituted_paths_sample
+            } if kept_artifact_substitutions > 0 else None,
+            "budget_selection": budget_selection,  # Store for telemetry
         }
 
     def _validate_scope_context(self, phase: Dict, file_context: Dict, scope_config: Dict):

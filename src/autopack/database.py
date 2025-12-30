@@ -30,6 +30,10 @@ def init_db():
     """Initialize database tables"""
     # Import models to register them with Base.metadata
     from . import models  # noqa: F401
-    from .usage_recorder import LlmUsageEvent  # noqa: F401
+    from .usage_recorder import (  # noqa: F401
+        LlmUsageEvent,
+        DoctorUsageStats,
+        TokenEfficiencyMetrics,
+    )
 
     Base.metadata.create_all(bind=engine)

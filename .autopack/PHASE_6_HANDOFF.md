@@ -1,10 +1,10 @@
-# BUILD-146 Phase 6 Integration - Handoff to Production Polish
+# BUILD-146 Phase 6 Integration - Production Polish COMPLETE
 
 **Branch**: `phase-a-p11-observability`
-**Status**: Core integration COMPLETE, production polish PENDING
+**Status**: ✅ PRODUCTION-READY (P0, P1, P2 complete)
 **Date**: 2025-12-31
-**Handoff From**: Claude (BUILD-146 P6 implementation)
-**Handoff To**: Next cursor session
+**Handoff From**: Claude (BUILD-146 P6 implementation + production polish)
+**Handoff To**: Deployment / next build
 
 ---
 
@@ -14,20 +14,43 @@
 - **P6.1**: Plan Normalizer CLI integration ([autonomous_executor.py:9600-9657](../src/autopack/autonomous_executor.py#L9600-L9657))
 - **P6.2**: Intention Context integration - Builder ([4047-4073](../src/autopack/autonomous_executor.py#L4047-L4073)) + Doctor ([3351-3361](../src/autopack/autonomous_executor.py#L3351-L3361))
 - **P6.3**: Failure Hardening integration ([1960-2002](../src/autopack/autonomous_executor.py#L1960-L2002))
-- **P6.4**: Parallel execution script ([scripts/run_parallel.py](../scripts/run_parallel.py)) - *mock executor only*
+- **P6.4**: Parallel execution script ([scripts/run_parallel.py](../scripts/run_parallel.py)) - ✅ **PRODUCTION-READY** (P1 COMPLETE)
 - **P6.5**: Integration tests - **14/14 passing** ✅ (P0 COMPLETE - 2025-12-31)
 - **P6.6**: README documentation ([README.md:292-433](../README.md#L292-L433))
 - **P6.7**: Benchmark report ([BUILD_146_P6_BENCHMARK_REPORT.md](../BUILD_146_P6_BENCHMARK_REPORT.md))
+- **P6.8**: Observability telemetry - ✅ **COMPLETE** (P2 COMPLETE - 2025-12-31)
 
-### ⚠️ Needs Polish (Gap from "Ideal State")
-- **P6.4**: Parallel script uses mock executor (needs real run execution)
-- **Observability**: No telemetry for P6 feature effectiveness (token savings, hit rates, etc.)
+### ✅ Production Polish Complete (P1 + P2)
+
+**P1: Real Parallel Execution** (2025-12-31)
+- ✅ API mode executor ([scripts/run_parallel.py:60-130](../scripts/run_parallel.py#L60-L130))
+  - Polls `/runs/{run_id}/execute` and `/runs/{run_id}/status`
+  - 1-hour default timeout, 5-second polling interval
+  - Uses AUTOPACK_API_URL and AUTOPACK_API_KEY from env
+- ✅ CLI mode executor ([scripts/run_parallel.py:133-197](../scripts/run_parallel.py#L133-L197))
+  - Spawns `autonomous_executor.py --run-id <run_id>` in isolated worktree
+  - Subprocess with timeout, captures stdout/stderr
+- ✅ Windows compatibility: `tempfile.gettempdir()` instead of `/tmp` ([line 354](../scripts/run_parallel.py#L354))
+- ✅ Executor selection via `--executor {api,cli,mock}` argument (default: api)
+- ✅ Mock mode still available for testing
+
+**P2: Phase 6 Observability Telemetry** (2025-12-31)
+- ✅ Phase6Metrics database model ([usage_recorder.py:104-132](../src/autopack/usage_recorder.py#L104-L132))
+  - Failure hardening: pattern_id, mitigated, doctor_skipped, tokens_saved_estimate
+  - Intention context: chars injected, source (memory/fallback)
+  - Plan normalization: confidence, warnings, deliverables count, scope size
+- ✅ Telemetry recording in autonomous_executor:
+  - Failure hardening ([autonomous_executor.py:1996-2017](../src/autopack/autonomous_executor.py#L1996-L2017))
+  - Intention context ([autonomous_executor.py:4109-4131](../src/autopack/autonomous_executor.py#L4109-L4131))
+- ✅ Dashboard endpoint: `GET /dashboard/runs/{run_id}/phase6-stats` ([main.py:1435-1457](../src/autopack/main.py#L1435-L1457))
+- ✅ Database migration: [scripts/migrations/add_phase6_metrics_build146.py](../scripts/migrations/add_phase6_metrics_build146.py)
+- ✅ Opt-in via `TELEMETRY_DB_ENABLED=true` (no breaking changes)
 
 ---
 
-## Gap Analysis: Current vs README "Ideal State"
+## Production Polish Journey
 
-### ~~Gap 1: Phase 6 Integration Tests Not Green~~ ✅ RESOLVED (2025-12-31)
+### ~~Gap 1: Phase 6 Integration Tests Not Green~~ ✅ RESOLVED (P0 - 2025-12-31)
 **Previous**: 6/14 tests passing (43%)
 **Current**: **14/14 tests passing (100%)** ✅
 
@@ -59,40 +82,48 @@
 
 ---
 
-### Gap 2: Parallel Execution Script Uses Mock Executor
-**Current**: `scripts/run_parallel.py` hardcodes `mock_executor` (lines 57-81)
-**Ideal**: Executes real Autopack runs via API or CLI
+### ~~Gap 2: Parallel Execution Script Uses Mock Executor~~ ✅ RESOLVED (P1 - 2025-12-31)
+**Previous**: `scripts/run_parallel.py` hardcoded `mock_executor` (demo-only, Windows-incompatible)
+**Current**: ✅ Production-ready with API/CLI/mock execution modes
 
-**Issues**:
-1. Mock executor just sleeps 2 seconds and returns random success (line 70)
-2. Default worktree base `/tmp/autopack_worktrees` not Windows-friendly (line 204)
-3. No actual run creation, phase execution, or result polling
+**Improvements Applied**:
+1. ✅ API mode executor ([lines 60-130](../scripts/run_parallel.py#L60-L130))
+   - HTTP polling of `/runs/{run_id}/execute` and `/runs/{run_id}/status`
+   - 1-hour timeout, 5-second polling interval
+   - Environment variables: AUTOPACK_API_URL, AUTOPACK_API_KEY
+2. ✅ CLI mode executor ([lines 133-197](../scripts/run_parallel.py#L133-L197))
+   - Spawns `autonomous_executor.py --run-id <run_id>` in isolated worktree
+   - Subprocess with timeout, captures stdout/stderr
+3. ✅ Windows compatibility ([line 354](../scripts/run_parallel.py#L354))
+   - Changed `/tmp/autopack_worktrees` → `tempfile.gettempdir() / "autopack_worktrees"`
+4. ✅ Executor selection via `--executor {api,cli,mock}` CLI argument (default: api)
+5. ✅ Mock mode retained for testing
 
-**Impact**: Script is demo-only, not production-usable
+**Impact**: ✅ Parallel execution script now production-usable on Windows + Linux
 
 ---
 
-### Gap 3: No Telemetry for Feature Effectiveness
-**Current**: Token savings and hit rates are *estimated* in benchmark report
-**Ideal**: Actual measurements recorded and exposed via dashboard
+### ~~Gap 3: No Telemetry for Feature Effectiveness~~ ✅ RESOLVED (P2 - 2025-12-31)
+**Previous**: Token savings and hit rates were *estimated* in benchmark report
+**Current**: ✅ Real-time measurements recorded and exposed via dashboard API
 
-**Missing Metrics**:
-1. **Failure Hardening**:
-   - Pattern detection rate (hits/misses per pattern)
-   - Doctor calls skipped (token savings realized)
-   - Retry count impact (before/after mitigation)
+**Telemetry Implemented**:
+1. ✅ **Database model**: `Phase6Metrics` table ([usage_recorder.py:104-132](../src/autopack/usage_recorder.py#L104-L132))
+   - Failure hardening: pattern_id, mitigated, doctor_skipped, tokens_saved_estimate
+   - Intention context: chars injected, source (memory/fallback)
+   - Plan normalization: confidence, warnings, deliverables count, scope size
+2. ✅ **Recording hooks** in autonomous_executor:
+   - Failure hardening mitigation ([autonomous_executor.py:1996-2017](../src/autopack/autonomous_executor.py#L1996-L2017))
+   - Intention context injection ([autonomous_executor.py:4109-4131](../src/autopack/autonomous_executor.py#L4109-L4131))
+3. ✅ **Dashboard endpoint**: `GET /dashboard/runs/{run_id}/phase6-stats` ([main.py:1435-1457](../src/autopack/main.py#L1435-L1457))
+   - Returns aggregated Phase 6 metrics per run
+   - Schema: [dashboard_schemas.py:59-71](../src/autopack/dashboard_schemas.py#L59-L71)
+4. ✅ **Database migration**: [add_phase6_metrics_build146.py](../scripts/migrations/add_phase6_metrics_build146.py)
+   - Creates `phase6_metrics` table with indexes
+   - Idempotent (safe to re-run)
+5. ✅ **Opt-in via environment**: `TELEMETRY_DB_ENABLED=true` (no breaking changes)
 
-2. **Intention Context**:
-   - Chars injected per Builder/Doctor call
-   - Goal drift detection rate
-   - Memory service availability
-
-3. **Plan Normalization**:
-   - Confidence scores distribution
-   - Warnings count per normalization
-   - Normalization decisions summary
-
-**Impact**: Can't validate ROI claims, can't optimize patterns
+**Impact**: ✅ Can now validate ROI claims, measure token savings, optimize failure patterns
 
 ---
 

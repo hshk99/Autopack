@@ -55,6 +55,22 @@ class TokenEfficiencyStats(BaseModel):
     avg_tokens_saved_per_phase: float = 0.0
     budget_utilization: float = 0.0
 
+
+class Phase6Stats(BaseModel):
+    """Phase 6 True Autonomy feature effectiveness statistics (BUILD-146)"""
+
+    run_id: str
+    total_phases: int
+    failure_hardening_triggered_count: int
+    failure_patterns_detected: Dict[str, int] = {}  # {pattern_id: count}
+    doctor_calls_skipped_count: int
+    total_tokens_saved_estimate: int
+    intention_context_injected_count: int
+    total_intention_context_chars: int
+    avg_intention_context_chars_per_phase: float = 0.0
+    plan_normalization_used: bool = False
+
+
 class ProviderUsage(BaseModel):
     """Token usage for a provider"""
 

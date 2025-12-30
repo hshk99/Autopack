@@ -1417,7 +1417,7 @@ def get_run_token_efficiency(
     api_key: str = Depends(verify_api_key)
 ):
     """Get token efficiency metrics for a run (BUILD-145)
-    
+
     Returns aggregated token efficiency statistics:
     - Total artifact substitutions and tokens saved
     - Context budget usage and mode distribution
@@ -1427,9 +1427,35 @@ def get_run_token_efficiency(
     run = db.query(models.Run).filter(models.Run.id == run_id).first()
     if not run:
         raise HTTPException(status_code=404, detail="Run not found")
-    
+
     stats = get_token_efficiency_stats(db, run_id)
     return dashboard_schemas.TokenEfficiencyStats(**stats)
+
+
+@app.get("/dashboard/runs/{run_id}/phase6-stats", response_model=dashboard_schemas.Phase6Stats)
+def get_run_phase6_stats(
+    run_id: str,
+    db: Session = Depends(get_db),
+    api_key: str = Depends(verify_api_key)
+):
+    """Get Phase 6 True Autonomy feature effectiveness metrics (BUILD-146)
+
+    Returns aggregated Phase 6 statistics:
+    - Failure hardening pattern detection and mitigation rates
+    - Doctor calls skipped and estimated token savings
+    - Intention context injection statistics
+    - Plan normalization usage
+    """
+    # Verify run exists
+    run = db.query(models.Run).filter(models.Run.id == run_id).first()
+    if not run:
+        raise HTTPException(status_code=404, detail="Run not found")
+
+    from autopack.usage_recorder import get_phase6_metrics_summary
+
+    stats = get_phase6_metrics_summary(db, run_id)
+    return dashboard_schemas.Phase6Stats(run_id=run_id, **stats)
+
 
 @app.post("/dashboard/models/override")
 def add_dashboard_model_override(override_request: dashboard_schemas.ModelOverrideRequest, db: Session = Depends(get_db)):

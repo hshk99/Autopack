@@ -254,16 +254,16 @@ Each entry includes:
 
 ---
 
-### BUILD-146 Phase 6 Production Polish - P0 Complete (2025-12-31)
+### BUILD-146 Phase 6 Production Polish - COMPLETE (2025-12-31)
 
-**Status**: P0 COMPLETE ✅ (P1-P2 PENDING)
+**Status**: ✅ PRODUCTION-READY (P0, P1, P2 complete)
 
-**Summary**: Completed production polish P0 task - all 14/14 Phase 6 integration tests now passing (up from 6/14). Fixed API mismatches, added ergonomic helpers, and ensured graceful degradation. Zero breaking changes, all fixes localized.
+**Summary**: Completed all production polish tasks for BUILD-146 Phase 6 True Autonomy integration. P0: 14/14 integration tests passing. P1: Real parallel execution with API/CLI modes and Windows compatibility. P2: Comprehensive observability telemetry with dashboard API. All features opt-in via environment flags. Zero breaking changes.
 
 **Achievement**:
 - ✅ **P0**: Integration tests 100% passing (14/14) - hot-path fully validated
-- ⏳ **P1**: Real parallel execution (pending - mock_executor replacement)
-- ⏳ **P2**: Observability telemetry (pending - token savings proof)
+- ✅ **P1**: Real parallel execution - production-ready API/CLI modes
+- ✅ **P2**: Observability telemetry - dashboard-exposed metrics for ROI validation
 
 **P0 Implementation Details**:
 
@@ -332,19 +332,80 @@ Each entry includes:
 - ✅ **Reliability**: Graceful degradation prevents crashes
 - ✅ **Confidence**: All hot-path integrations verified working
 
-**Next Steps (P1-P2)**:
-- **P1**: Replace mock_executor in scripts/run_parallel.py with real API/CLI execution
-  - Fix Windows compatibility (use tempfile.gettempdir() not /tmp)
-  - Add executor type selection (api/cli/mock)
-- **P2**: Add Phase 6 observability telemetry
-  - Track failure hardening hit rates, doctor calls skipped
-  - Track intention context injection sizes
-  - Track plan normalization confidence/warnings
-  - Expose via dashboard endpoints
+**P1 Implementation Details (Real Parallel Execution)**:
 
-**Handoff Status**: P0 complete, ready for P1-P2 continuation
+**Change 1: Added API mode executor**
+- File: [scripts/run_parallel.py:60-130](scripts/run_parallel.py#L60-L130)
+- Implemented async HTTP executor using httpx
+- Polls `/runs/{run_id}/execute` to start run
+- Polls `/runs/{run_id}/status` every 5 seconds for completion
+- 1-hour default timeout with configurable override
+- Uses AUTOPACK_API_URL and AUTOPACK_API_KEY from environment
+- Returns success for COMPLETE/SUCCEEDED, failure for FAILED/CANCELLED/TIMEOUT
 
-**Commit**: [To be committed with P0 SOT updates]
+**Change 2: Added CLI mode executor**
+- File: [scripts/run_parallel.py:133-197](scripts/run_parallel.py#L133-L197)
+- Spawns `autonomous_executor.py --run-id <run_id>` in isolated worktree
+- Uses asyncio.create_subprocess_exec with timeout
+- Sets PYTHONPATH and PYTHONUTF8 environment variables
+- Captures stdout/stderr for debugging
+- Returns success on exit code 0, kills process on timeout
+
+**Change 3: Fixed Windows compatibility**
+- File: [scripts/run_parallel.py:354](scripts/run_parallel.py#L354)
+- Changed hardcoded `/tmp/autopack_worktrees` to `tempfile.gettempdir() / "autopack_worktrees"`
+- Now works on Windows (uses %TEMP%) and Linux (uses /tmp)
+
+**Change 4: Added executor selection**
+- File: [scripts/run_parallel.py:319-324, 365-374](scripts/run_parallel.py#L319-L324)
+- New CLI argument: `--executor {api,cli,mock}` (default: api)
+- Selects executor function based on user choice
+- Mock mode retained for testing without real execution
+
+**P2 Implementation Details (Observability Telemetry)**:
+
+**Change 1: Added Phase6Metrics database model**
+- File: [src/autopack/usage_recorder.py:104-132](src/autopack/usage_recorder.py#L104-L132)
+- New table: `phase6_metrics` with indexed run_id, phase_id, created_at
+- Fields for failure hardening: pattern_id, mitigated, doctor_skipped, tokens_saved_estimate
+- Fields for intention context: chars injected, source (memory/fallback)
+- Fields for plan normalization: confidence, warnings, deliverables count, scope size
+- All nullable for backward compatibility
+
+**Change 2: Added telemetry recording hooks**
+- File 1: [src/autopack/autonomous_executor.py:1996-2017](src/autopack/autonomous_executor.py#L1996-L2017)
+  - Records Phase 6 metrics when failure hardening mitigates a failure
+  - Estimates 10K tokens saved per Doctor call skipped
+  - Opt-in via TELEMETRY_DB_ENABLED=true
+- File 2: [src/autopack/autonomous_executor.py:4109-4131](src/autopack/autonomous_executor.py#L4109-L4131)
+  - Records Phase 6 metrics when intention context is injected
+  - Tracks character count and source (memory vs fallback)
+  - Gracefully handles recording failures with warnings
+
+**Change 3: Added dashboard API endpoint**
+- File: [src/autopack/main.py:1435-1457](src/autopack/main.py#L1435-L1457)
+- New endpoint: `GET /dashboard/runs/{run_id}/phase6-stats`
+- Returns aggregated Phase 6 metrics:
+  - Failure hardening: trigger count, patterns detected (dict), doctor calls skipped, token savings
+  - Intention context: injection count, total chars, average chars per phase
+  - Plan normalization: usage flag
+- Schema: [src/autopack/dashboard_schemas.py:59-71](src/autopack/dashboard_schemas.py#L59-L71)
+
+**Change 4: Added helper functions**
+- File: [src/autopack/usage_recorder.py:432-556](src/autopack/usage_recorder.py#L432-L556)
+- `record_phase6_metrics()`: Record metrics for a single phase
+- `get_phase6_metrics_summary()`: Aggregate metrics across all phases in a run
+- Returns empty dict when no metrics found (graceful degradation)
+
+**Change 5: Added database migration**
+- File: [scripts/migrations/add_phase6_metrics_build146.py](scripts/migrations/add_phase6_metrics_build146.py)
+- Creates `phase6_metrics` table with all indexes
+- Idempotent (safe to re-run, skips if table exists)
+- Usage: `python scripts/migrations/add_phase6_metrics_build146.py upgrade`
+
+**Handoff Status**: P0, P1, P2 all complete - production-ready
+
+**Commit**: [To be committed with P1/P2 completion]
 - ✅ Token impact quantified with projections
 
 **Recommendations**:

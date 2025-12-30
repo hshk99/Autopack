@@ -1992,6 +1992,30 @@ class AutonomousExecutor:
                         logger.info(
                             f"[{phase_id}] Failure hardening claims fix applied, skipping diagnostics/Doctor"
                         )
+
+                        # [BUILD-146 P2] Record Phase 6 telemetry for failure hardening
+                        if os.getenv("TELEMETRY_DB_ENABLED", "false").lower() == "true":
+                            try:
+                                from autopack.usage_recorder import record_phase6_metrics
+                                from autopack.database import SessionLocal
+
+                                db = SessionLocal()
+                                try:
+                                    record_phase6_metrics(
+                                        db=db,
+                                        run_id=self.run_id,
+                                        phase_id=phase_id,
+                                        failure_hardening_triggered=True,
+                                        failure_pattern_detected=mitigation_result.pattern_id,
+                                        failure_hardening_mitigated=True,
+                                        doctor_call_skipped=True,
+                                        tokens_saved_estimate=10000,  # Estimated Doctor + diagnostics cost
+                                    )
+                                finally:
+                                    db.close()
+                            except Exception as e:
+                                logger.warning(f"[{phase_id}] Failed to record Phase 6 telemetry: {e}")
+
                         # Increment attempts and continue to next retry
                         new_attempts = attempt_index + 1
                         self._update_phase_attempts_in_db(
@@ -4081,6 +4105,31 @@ Just the new description that should replace the current one while preserving th
                             retrieved_context = f"{intention_context}\n\n{retrieved_context}"
                         else:
                             retrieved_context = intention_context
+
+                        # [BUILD-146 P2] Record Phase 6 telemetry for intention context
+                        if os.getenv("TELEMETRY_DB_ENABLED", "false").lower() == "true":
+                            try:
+                                from autopack.usage_recorder import record_phase6_metrics
+                                from autopack.database import SessionLocal
+
+                                db = SessionLocal()
+                                try:
+                                    # Determine source: memory or fallback
+                                    source = "memory" if hasattr(self, "memory_service") and self.memory_service else "fallback"
+
+                                    record_phase6_metrics(
+                                        db=db,
+                                        run_id=self.run_id,
+                                        phase_id=phase_id,
+                                        intention_context_injected=True,
+                                        intention_context_chars=len(intention_context),
+                                        intention_context_source=source,
+                                    )
+                                finally:
+                                    db.close()
+                            except Exception as e:
+                                logger.warning(f"[{phase_id}] Failed to record Phase 6 telemetry: {e}")
+
                 except Exception as e:
                     logger.warning(f"[{phase_id}] Intention context injection failed: {e}")
 

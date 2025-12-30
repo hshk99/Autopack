@@ -100,6 +100,38 @@ class TokenEfficiencyMetrics(Base):
 
     created_at = Column(DateTime, nullable=False, default=lambda: datetime.now(timezone.utc), index=True)
 
+
+class Phase6Metrics(Base):
+    """Phase 6 True Autonomy feature effectiveness metrics (BUILD-146)"""
+
+    __tablename__ = "phase6_metrics"
+
+    id = Column(Integer, primary_key=True, index=True)
+    run_id = Column(String, nullable=False, index=True)
+    phase_id = Column(String, nullable=False, index=True)
+
+    # Failure hardening metrics
+    failure_hardening_triggered = Column(Boolean, nullable=False, default=False)
+    failure_pattern_detected = Column(String, nullable=True)  # pattern_id if detected
+    failure_hardening_mitigated = Column(Boolean, nullable=False, default=False)
+    doctor_call_skipped = Column(Boolean, nullable=False, default=False)
+    tokens_saved_estimate = Column(Integer, nullable=False, default=0)
+
+    # Intention context metrics
+    intention_context_injected = Column(Boolean, nullable=False, default=False)
+    intention_context_chars = Column(Integer, nullable=False, default=0)
+    intention_context_source = Column(String, nullable=True)  # "memory", "fallback", None
+
+    # Plan normalization metrics (for runs using plan normalizer)
+    plan_normalization_used = Column(Boolean, nullable=False, default=False)
+    plan_normalization_confidence = Column(Integer, nullable=True)  # 1-10 scale
+    plan_normalization_warnings = Column(Integer, nullable=False, default=0)
+    plan_deliverables_count = Column(Integer, nullable=True)
+    plan_scope_size_bytes = Column(Integer, nullable=True)
+
+    created_at = Column(DateTime, nullable=False, default=lambda: datetime.now(timezone.utc), index=True)
+
+
 @dataclass
 class UsageEventData:
     """Dataclass for passing usage event data
@@ -394,4 +426,131 @@ def get_token_efficiency_stats(db: Session, run_id: str) -> Dict:
             total_budget_used / total_budget_cap if total_budget_cap > 0 else 0.0
         ),
         "phase_outcome_counts": outcome_counts,  # {"COMPLETE": 10, "FAILED": 2, "UNKNOWN": 1}
+    }
+
+
+def record_phase6_metrics(
+    db: Session,
+    run_id: str,
+    phase_id: str,
+    failure_hardening_triggered: bool = False,
+    failure_pattern_detected: Optional[str] = None,
+    failure_hardening_mitigated: bool = False,
+    doctor_call_skipped: bool = False,
+    tokens_saved_estimate: int = 0,
+    intention_context_injected: bool = False,
+    intention_context_chars: int = 0,
+    intention_context_source: Optional[str] = None,
+    plan_normalization_used: bool = False,
+    plan_normalization_confidence: Optional[int] = None,
+    plan_normalization_warnings: int = 0,
+    plan_deliverables_count: Optional[int] = None,
+    plan_scope_size_bytes: Optional[int] = None,
+) -> Phase6Metrics:
+    """
+    Record Phase 6 True Autonomy feature effectiveness metrics.
+
+    Args:
+        db: Database session
+        run_id: Run ID
+        phase_id: Phase ID
+        failure_hardening_triggered: Whether failure hardening was triggered
+        failure_pattern_detected: Pattern ID if detected (e.g., "python_missing_dep")
+        failure_hardening_mitigated: Whether failure was mitigated without Doctor
+        doctor_call_skipped: Whether Doctor call was skipped due to mitigation
+        tokens_saved_estimate: Estimated tokens saved by skipping Doctor
+        intention_context_injected: Whether intention context was injected
+        intention_context_chars: Number of characters of intention context
+        intention_context_source: Source of intention context ("memory", "fallback")
+        plan_normalization_used: Whether plan normalizer was used
+        plan_normalization_confidence: Confidence score (1-10)
+        plan_normalization_warnings: Number of normalization warnings
+        plan_deliverables_count: Number of deliverables in normalized plan
+        plan_scope_size_bytes: Size of normalized plan scope in bytes
+
+    Returns:
+        Created Phase6Metrics record
+    """
+    metrics = Phase6Metrics(
+        run_id=run_id,
+        phase_id=phase_id,
+        failure_hardening_triggered=failure_hardening_triggered,
+        failure_pattern_detected=failure_pattern_detected,
+        failure_hardening_mitigated=failure_hardening_mitigated,
+        doctor_call_skipped=doctor_call_skipped,
+        tokens_saved_estimate=tokens_saved_estimate,
+        intention_context_injected=intention_context_injected,
+        intention_context_chars=intention_context_chars,
+        intention_context_source=intention_context_source,
+        plan_normalization_used=plan_normalization_used,
+        plan_normalization_confidence=plan_normalization_confidence,
+        plan_normalization_warnings=plan_normalization_warnings,
+        plan_deliverables_count=plan_deliverables_count,
+        plan_scope_size_bytes=plan_scope_size_bytes,
+    )
+
+    db.add(metrics)
+    db.commit()
+    db.refresh(metrics)
+
+    return metrics
+
+
+def get_phase6_metrics_summary(db: Session, run_id: str) -> Dict:
+    """
+    Get aggregated Phase 6 metrics for a run.
+
+    Args:
+        db: Database session
+        run_id: Run ID
+
+    Returns:
+        Dictionary with aggregated Phase 6 metrics
+    """
+    metrics = db.query(Phase6Metrics).filter(Phase6Metrics.run_id == run_id).all()
+
+    if not metrics:
+        return {
+            "total_phases": 0,
+            "failure_hardening_triggered_count": 0,
+            "failure_patterns_detected": {},
+            "doctor_calls_skipped_count": 0,
+            "total_tokens_saved_estimate": 0,
+            "intention_context_injected_count": 0,
+            "total_intention_context_chars": 0,
+            "plan_normalization_used": False,
+        }
+
+    # Aggregate metrics
+    failure_hardening_triggered_count = sum(1 for m in metrics if m.failure_hardening_triggered)
+    doctor_calls_skipped_count = sum(1 for m in metrics if m.doctor_call_skipped)
+    total_tokens_saved_estimate = sum(m.tokens_saved_estimate for m in metrics)
+    intention_context_injected_count = sum(1 for m in metrics if m.intention_context_injected)
+    total_intention_context_chars = sum(m.intention_context_chars for m in metrics)
+
+    # Count failure patterns
+    failure_patterns_detected = {}
+    for m in metrics:
+        if m.failure_pattern_detected:
+            failure_patterns_detected[m.failure_pattern_detected] = (
+                failure_patterns_detected.get(m.failure_pattern_detected, 0) + 1
+            )
+
+    # Check if plan normalization was used (run-level, not phase-level)
+    plan_normalization_used = any(m.plan_normalization_used for m in metrics)
+
+    return {
+        "total_phases": len(metrics),
+        "failure_hardening_triggered_count": failure_hardening_triggered_count,
+        "failure_patterns_detected": failure_patterns_detected,
+        "doctor_calls_skipped_count": doctor_calls_skipped_count,
+        "total_tokens_saved_estimate": total_tokens_saved_estimate,
+        "intention_context_injected_count": intention_context_injected_count,
+        "total_intention_context_chars": total_intention_context_chars,
+        "avg_intention_context_chars_per_phase": (
+            total_intention_context_chars / intention_context_injected_count
+            if intention_context_injected_count > 0
+            else 0.0
+        ),
+        "plan_normalization_used": plan_normalization_used,
     }

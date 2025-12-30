@@ -18,8 +18,11 @@ import argparse
 import logging
 import sys
 import os
+import subprocess
+import tempfile
+import httpx
 from pathlib import Path
-from typing import List
+from typing import List, Optional
 from datetime import datetime
 
 # Add src to path for imports
@@ -54,8 +57,148 @@ def read_run_ids_from_file(file_path: str) -> List[str]:
     return run_ids
 
 
+async def api_executor(run_id: str, workspace: Path, api_url: Optional[str] = None, api_key: Optional[str] = None, timeout: int = 3600) -> bool:
+    """Execute run via Autopack API.
+
+    Args:
+        run_id: Run ID to execute
+        workspace: Workspace path (not used for API mode, run executes server-side)
+        api_url: API server URL (default: from AUTOPACK_API_URL env var or http://localhost:8000)
+        api_key: API key for authentication (default: from AUTOPACK_API_KEY env var)
+        timeout: Maximum execution time in seconds (default: 3600 = 1 hour)
+
+    Returns:
+        True if run completed successfully, False otherwise
+    """
+    api_url = api_url or os.getenv("AUTOPACK_API_URL", "http://localhost:8000")
+    api_key = api_key or os.getenv("AUTOPACK_API_KEY")
+
+    logger.info(f"[{run_id}] Starting execution via API: {api_url}")
+
+    headers = {}
+    if api_key:
+        headers["Authorization"] = f"Bearer {api_key}"
+
+    async with httpx.AsyncClient(timeout=httpx.Timeout(timeout)) as client:
+        try:
+            # Start the run
+            response = await client.post(
+                f"{api_url}/runs/{run_id}/execute",
+                headers=headers,
+            )
+            response.raise_for_status()
+            logger.info(f"[{run_id}] Run started successfully")
+
+            # Poll for completion
+            poll_interval = 5  # seconds
+            elapsed = 0
+
+            while elapsed < timeout:
+                await asyncio.sleep(poll_interval)
+                elapsed += poll_interval
+
+                # Check run status
+                status_response = await client.get(
+                    f"{api_url}/runs/{run_id}/status",
+                    headers=headers,
+                )
+                status_response.raise_for_status()
+                status_data = status_response.json()
+
+                state = status_data.get("state", "UNKNOWN")
+                logger.debug(f"[{run_id}] State: {state} (elapsed: {elapsed}s)")
+
+                # Check for terminal states
+                if state in ["COMPLETE", "SUCCEEDED"]:
+                    logger.info(f"[{run_id}] Execution completed successfully")
+                    return True
+                elif state in ["FAILED", "CANCELLED", "TIMEOUT"]:
+                    logger.error(f"[{run_id}] Execution failed with state: {state}")
+                    return False
+                elif state not in ["PENDING", "QUEUED", "EXECUTING", "RUNNING"]:
+                    logger.warning(f"[{run_id}] Unknown state: {state}, assuming still running")
+
+            # Timeout reached
+            logger.error(f"[{run_id}] Execution timeout after {timeout}s")
+            return False
+
+        except httpx.HTTPError as e:
+            logger.error(f"[{run_id}] API error: {e}")
+            return False
+        except Exception as e:
+            logger.error(f"[{run_id}] Unexpected error: {e}", exc_info=True)
+            return False
+
+
+async def cli_executor(run_id: str, workspace: Path, timeout: int = 3600) -> bool:
+    """Execute run via CLI (autonomous_executor.py) in the worktree.
+
+    Args:
+        run_id: Run ID to execute
+        workspace: Workspace path where the worktree is located
+        timeout: Maximum execution time in seconds (default: 3600 = 1 hour)
+
+    Returns:
+        True if run completed successfully, False otherwise
+    """
+    logger.info(f"[{run_id}] Starting execution via CLI in workspace: {workspace}")
+
+    # Construct command to run autonomous_executor.py
+    python_exe = sys.executable
+    executor_script = workspace / "src" / "autopack" / "autonomous_executor.py"
+
+    if not executor_script.exists():
+        logger.error(f"[{run_id}] Executor script not found: {executor_script}")
+        return False
+
+    # Build command with environment variables
+    cmd = [python_exe, str(executor_script), "--run-id", run_id]
+
+    # Set environment variables for the subprocess
+    env = os.environ.copy()
+    env["PYTHONPATH"] = str(workspace / "src")
+    env["PYTHONUTF8"] = "1"
+
+    try:
+        # Run the executor
+        process = await asyncio.create_subprocess_exec(
+            *cmd,
+            cwd=workspace,
+            env=env,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+
+        # Wait for completion with timeout
+        try:
+            stdout, stderr = await asyncio.wait_for(
+                process.communicate(),
+                timeout=timeout
+            )
+
+            # Check exit code
+            if process.returncode == 0:
+                logger.info(f"[{run_id}] Execution completed successfully")
+                return True
+            else:
+                logger.error(f"[{run_id}] Execution failed with exit code: {process.returncode}")
+                if stderr:
+                    logger.error(f"[{run_id}] Error output:\n{stderr.decode('utf-8', errors='replace')[:1000]}")
+                return False
+
+        except asyncio.TimeoutError:
+            logger.error(f"[{run_id}] Execution timeout after {timeout}s")
+            process.kill()
+            await process.wait()
+            return False
+
+    except Exception as e:
+        logger.error(f"[{run_id}] CLI execution error: {e}", exc_info=True)
+        return False
+
+
 async def mock_executor(run_id: str, workspace: Path) -> bool:
-    """Mock executor for testing (replace with actual executor logic).
+    """Mock executor for testing (no real execution).
 
     Args:
         run_id: Run ID
@@ -64,7 +207,7 @@ async def mock_executor(run_id: str, workspace: Path) -> bool:
     Returns:
         True for success, False for failure
     """
-    logger.info(f"[{run_id}] Executing in workspace: {workspace}")
+    logger.info(f"[{run_id}] Executing in workspace: {workspace} (MOCK MODE)")
 
     # Simulate work
     await asyncio.sleep(2)
@@ -74,9 +217,9 @@ async def mock_executor(run_id: str, workspace: Path) -> bool:
     success = random.random() > 0.1
 
     if success:
-        logger.info(f"[{run_id}] Execution completed successfully")
+        logger.info(f"[{run_id}] Execution completed successfully (MOCK)")
     else:
-        logger.error(f"[{run_id}] Execution failed")
+        logger.error(f"[{run_id}] Execution failed (MOCK)")
 
     return success
 
@@ -164,13 +307,20 @@ async def main():
 
     parser.add_argument(
         "--worktree-base",
-        help="Base directory for worktrees (default: $WORKTREE_BASE or /tmp/autopack_worktrees)",
+        help="Base directory for worktrees (default: $WORKTREE_BASE or <temp>/autopack_worktrees)",
     )
 
     parser.add_argument(
         "--report",
         default="parallel_execution_report.md",
         help="Path to write execution report (default: parallel_execution_report.md)",
+    )
+
+    parser.add_argument(
+        "--executor",
+        choices=["api", "cli", "mock"],
+        default="api",
+        help="Executor type: api (via HTTP API), cli (subprocess), or mock (testing only, default: api)",
     )
 
     parser.add_argument(
@@ -201,7 +351,7 @@ async def main():
 
     # Configuration
     source_repo = args.source_repo or os.getenv("SOURCE_REPO") or Path.cwd()
-    worktree_base = args.worktree_base or os.getenv("WORKTREE_BASE") or Path("/tmp/autopack_worktrees")
+    worktree_base = args.worktree_base or os.getenv("WORKTREE_BASE") or (Path(tempfile.gettempdir()) / "autopack_worktrees")
 
     source_repo = Path(source_repo).resolve()
     worktree_base = Path(worktree_base).resolve()
@@ -212,11 +362,22 @@ async def main():
     # Ensure worktree base exists
     worktree_base.mkdir(parents=True, exist_ok=True)
 
+    # Select executor based on --executor argument
+    if args.executor == "api":
+        executor_func = api_executor
+        logger.info("Using API executor mode")
+    elif args.executor == "cli":
+        executor_func = cli_executor
+        logger.info("Using CLI executor mode")
+    else:  # mock
+        executor_func = mock_executor
+        logger.info("Using MOCK executor mode (no real execution)")
+
     # Execute runs in parallel
     try:
         results = await execute_parallel_runs(
             run_ids=run_ids,
-            executor_func=mock_executor,  # TODO: Replace with actual executor
+            executor_func=executor_func,
             max_concurrent=args.max_concurrent,
             source_repo=source_repo,
             worktree_base=worktree_base,

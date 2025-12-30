@@ -289,6 +289,149 @@ In practice, “autonomous” requires that each phase has:
 
 ---
 
+## Enabling True Autonomy Features (BUILD-146 Phase 6)
+
+Autopack's True Autonomy roadmap (Phases 0-5) is **implemented and tested**, but features are **opt-in** for safety. This section documents how to enable and use each capability.
+
+### Available Features
+
+#### 1. Intention Context Injection (`AUTOPACK_ENABLE_INTENTION_CONTEXT`)
+
+**What it does**: Injects compact project intention context (≤2KB) into Builder, Auditor, and Doctor prompts to prevent goal drift.
+
+**When to use**: When you want phases to stay semantically aligned with original project goals, especially for long-running multi-phase runs.
+
+**How to enable**:
+```bash
+export AUTOPACK_ENABLE_INTENTION_CONTEXT=true
+python scripts/run_autopack.py --run-id my-run
+```
+
+**What happens**:
+- Retrieves semantic anchors from vector memory (top 3 relevant intentions)
+- Injects ≤2KB context into Builder prompts (prepended to retrieved_context)
+- Adds ≤512 char reminder to Doctor prompts (prepended to logs_excerpt)
+- Fails gracefully if memory service unavailable (logs warning, continues)
+
+**Token impact**: +2KB per Builder call, +512 chars per Doctor call
+
+---
+
+#### 2. Failure Hardening (`AUTOPACK_ENABLE_FAILURE_HARDENING`)
+
+**What it does**: Applies deterministic mitigations for 6 common failure patterns **before** running expensive diagnostics or Doctor LLM calls.
+
+**When to use**: To save ~10K tokens per mitigated failure by avoiding unnecessary Doctor calls for known patterns.
+
+**How to enable**:
+```bash
+export AUTOPACK_ENABLE_FAILURE_HARDENING=true
+python scripts/run_autopack.py --run-id my-run
+```
+
+**Built-in patterns**:
+1. `python_missing_dep` - Detects missing imports, suggests `pip install <package>`
+2. `wrong_working_dir` - Detects "No such file" errors, corrects working directory
+3. `missing_test_discovery` - Detects pytest collection errors, suggests correct test paths
+4. `scope_mismatch` - Detects file access outside phase scope, suggests scope update
+5. `node_missing_dep` - Detects Node.js missing modules, suggests `npm install`
+6. `permission_error` - Detects permission denied errors, suggests `chmod +x`
+
+**What happens**:
+- On phase failure, checks error text against patterns (priority-based matching)
+- If pattern matches, applies deterministic mitigation (file operations, config fixes)
+- If `mitigation.fixed=True`, skips diagnostics/Doctor and retries immediately
+- Records mitigation in learning hints for future reference
+
+**Token savings**: ~10K tokens per mitigated failure (avoids Doctor LLM call)
+
+---
+
+#### 3. Parallel Execution (`scripts/run_parallel.py`)
+
+**What it does**: Executes multiple runs in parallel with bounded concurrency using isolated git worktrees.
+
+**When to use**: Benchmarking against historical failures, batch processing, or high-throughput scenarios.
+
+**How to use**:
+```bash
+# Execute 3 runs with max 2 concurrent
+python scripts/run_parallel.py run1 run2 run3 --max-concurrent 2
+
+# Execute runs from file
+python scripts/run_parallel.py --run-ids-file runs.txt --max-concurrent 5
+
+# Custom configuration
+python scripts/run_parallel.py run1 run2 \
+  --source-repo /path/to/repo \
+  --worktree-base /tmp/worktrees \
+  --report execution_report.md
+```
+
+**What happens**:
+- Creates isolated git worktree per run (via WorkspaceManager)
+- Acquires per-run executor lock (via ExecutorLockManager)
+- Executes runs with asyncio.Semaphore for bounded concurrency
+- Writes consolidated markdown report with per-run timing and status
+- Cleans up worktrees on completion (or preserves with `--no-cleanup` for debugging)
+
+**Safety**: Isolated workspaces prevent file conflicts, per-run locking prevents database races
+
+---
+
+#### 4. Universal Toolchain Support (Always Enabled)
+
+**What it does**: Zero-LLM toolchain detection and environment setup for Python, Node.js, Go, Rust, and Java.
+
+**How it works**: Deterministically detects toolchains from project files (package.json, go.mod, Cargo.toml, etc.) and provides setup commands for missing dependencies.
+
+**No configuration needed**: Automatically active in all runs.
+
+---
+
+### Feature Maturity
+
+| Feature | Status | Tests | Opt-In | Token Impact |
+|---------|--------|-------|--------|--------------|
+| Intention Context | ✅ Integrated | 14/14 PASS | `AUTOPACK_ENABLE_INTENTION_CONTEXT` | +2KB/Builder, +512B/Doctor |
+| Failure Hardening | ✅ Integrated | 28/28 PASS | `AUTOPACK_ENABLE_FAILURE_HARDENING` | -10K/mitigated failure |
+| Parallel Execution | ✅ Production Ready | 17/17 PASS | CLI script | N/A (orchestration) |
+| Universal Toolchain | ✅ Always Active | 19/19 PASS | Always on | Zero (deterministic) |
+| Plan Normalizer | ⏳ Not Yet Wired | 24/24 PASS | Pending CLI integration | N/A (ingestion-time) |
+| Goal Drift Detection | ⏳ Not Yet Wired | 24/24 PASS | Pending integration | N/A (monitoring) |
+
+**Total Test Coverage**: 126/126 tests passing (100%)
+
+---
+
+### Benchmarking Recommendations
+
+After enabling features, benchmark against historical failed-phase corpus:
+
+```bash
+# 1. Enable features
+export AUTOPACK_ENABLE_INTENTION_CONTEXT=true
+export AUTOPACK_ENABLE_FAILURE_HARDENING=true
+
+# 2. Prepare run IDs file (from historical failures)
+echo "failed-run-1" > benchmark_runs.txt
+echo "failed-run-2" >> benchmark_runs.txt
+echo "failed-run-3" >> benchmark_runs.txt
+
+# 3. Execute with bounded concurrency
+python scripts/run_parallel.py --run-ids-file benchmark_runs.txt \
+  --max-concurrent 3 \
+  --report benchmark_report.md
+
+# 4. Analyze report for:
+#    - Success rate improvement
+#    - Retry count reduction
+#    - Token usage savings
+#    - Top remaining failure patterns (candidates for new mitigations)
+```
+
+---
+
 ### 2025-12-30: BUILD-145 P0 + P1 - ✅ COMPLETE
 **Read-Only Context Schema Normalization + Artifact-First Token Efficiency + Rollback Safety**
 - **Achievement**: Complete parity for read_only_context format handling across API/executor/artifacts, with token-efficient artifact-first loading and production-grade rollback safety

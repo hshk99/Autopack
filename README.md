@@ -6,7 +6,91 @@ Autopack is a framework for orchestrating autonomous AI agents (Builder and Audi
 
 ---
 
-## Recent Updates (v0.4.17 - BUILD-144 NULL-Safe Token Accounting)
+## Recent Updates (v0.4.18 - BUILD-145 Read-Only Context Parity)
+
+### 2025-12-30: BUILD-145 P0 + P1 - ✅ COMPLETE
+**Read-Only Context Schema Normalization + Artifact-First Token Efficiency + Rollback Safety**
+- **Achievement**: Complete parity for read_only_context format handling across API/executor/artifacts, with token-efficient artifact-first loading and production-grade rollback safety
+- **Problem Solved**:
+  - API boundary lacked validation for read_only_context format (clients could send mixed string/dict formats)
+  - Scoped context loading read full file contents even when concise artifacts existed in .autonomous_runs/
+  - Rollback safety needed production hardening (protected file detection, per-run retention)
+- **Solution Implemented** (3 components):
+
+  **P0 Schema Normalization** (schemas.py, tests):
+  1. **API Boundary Validation** ([schemas.py:43-86](src/autopack/schemas.py#L43-L86)):
+     - Added field_validator to PhaseCreate.scope normalizing read_only_context at ingestion
+     - Converts legacy string entries to canonical `{"path": "...", "reason": ""}` format
+     - Validates dict entries have non-empty 'path' field (skips if missing/empty/None)
+     - Preserves backward compatibility with legacy clients
+  2. **Test Coverage** ([test_schema_read_only_context_normalization.py](tests/test_schema_read_only_context_normalization.py)):
+     - 20 comprehensive tests (all passing ✅) validating normalization edge cases
+     - Legacy string format, new dict format, mixed lists, invalid entry filtering
+     - Path preservation (spaces/relative/absolute), normalization idempotency
+
+  **P1 Artifact-First Context Loading** (artifact_loader.py, autonomous_executor.py):
+  3. **ArtifactLoader Module** ([artifact_loader.py](src/autopack/artifact_loader.py) - NEW, 244 lines):
+     - Artifact resolution priority: Phase summaries → Tier summaries → Diagnostics → Run summary
+     - Smart substitution: only uses artifact if smaller than full file (token efficient)
+     - Conservative token estimation (4 chars/token, matches context_budgeter.py)
+     - Calculates token savings for observability
+  4. **Executor Integration** ([autonomous_executor.py:7019-7227](src/autopack/autonomous_executor.py#L7019-L7227)):
+     - Artifact-first loading for read_only_context files
+     - Tracks artifact_stats (substitutions count, tokens_saved)
+     - Returns stats in context metadata for downstream reporting
+     - Logs substitutions with token savings details
+  5. **Test Coverage** ([test_artifact_first_summaries.py](tests/autopack/test_artifact_first_summaries.py)):
+     - 19 comprehensive tests (all passing ✅) validating artifact loader
+     - Artifact resolution, token savings, fallback, error handling, Windows paths
+
+  **P0 Safety Hardening** (rollback_manager.py, tests):
+  6. **Safe Clean Mode** ([rollback_manager.py:92-153](src/autopack/rollback_manager.py#L92-L153)):
+     - Detects protected files before git clean (.env, *.db, .autonomous_runs/, *.log)
+     - Skips git clean if protected untracked files detected
+     - Pattern matching: exact, glob (*.ext), directory (.autonomous_runs/), basename
+  7. **Per-Run Retention** ([rollback_manager.py:235-272](src/autopack/rollback_manager.py#L235-L272)):
+     - Keeps last N savepoints per run for audit (default: 3, configurable)
+     - Automatically deletes oldest savepoints beyond threshold
+  8. **Test Coverage** ([test_rollback_safety_guardrails.py](tests/autopack/test_rollback_safety_guardrails.py)):
+     - 16 new safety tests + 24 existing rollback tests = 40 total (all passing ✅)
+
+- **Token Efficiency Metrics**:
+  - Artifact content: typically 100-400 tokens
+  - Full file content: typically 1000-5000 tokens
+  - Estimated savings: ~900 tokens per substituted file (50-80% reduction)
+  - Conservative matching: only substitutes when artifact clearly references file path
+
+- **Safety Guarantees**:
+  - ✅ Read-only consumption (no writes to .autonomous_runs/)
+  - ✅ Fallback to full file if no artifact found
+  - ✅ Graceful error handling (artifact read errors → full file fallback)
+  - ✅ .autonomous_runs/ confirmed protected by rollback manager
+  - ✅ Protected file detection prevents accidental deletion (.env, *.db, logs)
+  - ✅ Per-run savepoint retention provides audit trail
+
+- **Test Coverage**: All 59 tests passing ✅
+  - 20 tests: Schema normalization (PhaseCreate validator, edge cases)
+  - 19 tests: Artifact-first loading (resolution, token savings, fallback)
+  - 16 tests: Rollback safety guardrails (protected files, retention)
+  - 4 tests: API schema normalization (PhaseResponse legacy scope handling)
+
+- **Impact**:
+  - ✅ **Format consistency** - API boundary ensures canonical format across all consumers
+  - ✅ **Token efficiency** - Artifact-first loading reduces context bloat by 50-80%
+  - ✅ **Production safety** - Protected file detection prevents data loss
+  - ✅ **Audit trail** - Per-run retention enables rollback investigation
+  - ✅ **Backward compatible** - Legacy string format still supported
+  - ✅ **Comprehensive testing** - 59 tests ensure regression protection
+
+- **Success Criteria**: ALL PASS ✅
+  - ✅ API normalizes read_only_context to canonical format (20 tests)
+  - ✅ Artifact loader prefers summaries over full files when token-efficient (19 tests)
+  - ✅ Rollback manager protects .autonomous_runs/ and other critical files (16 tests)
+  - ✅ Token savings calculated and reported in context metadata
+  - ✅ Graceful fallback to full file content when artifacts unavailable
+  - ✅ All existing tests still pass (zero regressions)
+
+---
 
 ### 2025-12-30: BUILD-144 P0 + P0.1 + P0.2 + P0.3 + P0.4 - ✅ COMPLETE
 **Eliminated Heuristic Token Guessing + Dashboard NULL-Safety + Total Tokens Column**

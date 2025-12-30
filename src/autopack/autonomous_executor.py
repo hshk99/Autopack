@@ -6999,6 +6999,10 @@ Just the new description that should replace the current one while preserving th
     def _load_scoped_context(self, phase: Dict, scope_config: Dict) -> Dict:
         """Load context using scope configuration (GPT recommendation).
 
+        BUILD-145 P1: Artifact-first context loading for token efficiency.
+        For read_only_context, prefers loading run artifacts (.autonomous_runs/<run_id>/)
+        over full file contents when available, reducing token usage.
+
         Args:
             phase: Phase specification
             scope_config: Scope configuration with paths and read_only_context
@@ -7011,6 +7015,13 @@ Just the new description that should replace the current one while preserving th
         existing_files: Dict[str, str] = {}
         scope_metadata: Dict[str, Dict[str, Any]] = {}
         missing_files: List[str] = []
+
+        # BUILD-145 P1: Initialize artifact loader for token-efficient context loading
+        from autopack.artifact_loader import ArtifactLoader
+        run_id = phase.get("run_id", "")
+        artifact_loader = ArtifactLoader(base_workspace, run_id) if run_id else None
+        total_tokens_saved = 0
+        artifact_substitutions = 0
 
         def _normalize_rel_path(path_str: str) -> str:
             if not path_str:
@@ -7122,8 +7133,36 @@ Just the new description that should replace the current one while preserving th
 
             if abs_path.is_file():
                 if rel_key not in existing_files:
-                    _add_file(abs_path, rel_key)
-                scope_metadata.setdefault(rel_key, {"category": "read_only", "missing": False})
+                    # BUILD-145 P1: Try artifact-first loading for read-only context
+                    if artifact_loader:
+                        try:
+                            full_content = abs_path.read_text(encoding="utf-8", errors="ignore")
+                            content, tokens_saved, source_type = artifact_loader.load_with_artifacts(
+                                rel_key, full_content, prefer_artifacts=True
+                            )
+                            existing_files[rel_key] = content
+
+                            if tokens_saved > 0:
+                                total_tokens_saved += tokens_saved
+                                artifact_substitutions += 1
+                                scope_metadata.setdefault(rel_key, {})
+                                scope_metadata[rel_key].update({
+                                    "category": "read_only",
+                                    "missing": False,
+                                    "source": source_type,
+                                    "tokens_saved": tokens_saved
+                                })
+                            else:
+                                scope_metadata.setdefault(rel_key, {"category": "read_only", "missing": False})
+                        except Exception as exc:
+                            logger.warning(f"[Scope] Artifact loading failed for {rel_key}, using full file: {exc}")
+                            _add_file(abs_path, rel_key)
+                            scope_metadata.setdefault(rel_key, {"category": "read_only", "missing": False})
+                    else:
+                        _add_file(abs_path, rel_key)
+                        scope_metadata.setdefault(rel_key, {"category": "read_only", "missing": False})
+                else:
+                    scope_metadata.setdefault(rel_key, {"category": "read_only", "missing": False})
                 continue
 
             if not abs_path.is_dir():
@@ -7170,10 +7209,21 @@ Just the new description that should replace the current one while preserving th
         preview_paths = list(existing_files.keys())[:10]
         logger.info(f"[Scope] Loaded paths: {preview_paths}...")
 
+        # BUILD-145 P1: Report artifact-first loading token savings
+        if artifact_substitutions > 0:
+            logger.info(
+                f"[Scope] Artifact-first loading: {artifact_substitutions} files substituted, "
+                f"~{total_tokens_saved:,} tokens saved"
+            )
+
         return {
             "existing_files": existing_files,
             "scope_metadata": scope_metadata,
             "missing_scope_files": missing_files,
+            "artifact_stats": {
+                "substitutions": artifact_substitutions,
+                "tokens_saved": total_tokens_saved
+            } if artifact_substitutions > 0 else None,
         }
 
     def _validate_scope_context(self, phase: Dict, file_context: Dict, scope_config: Dict):

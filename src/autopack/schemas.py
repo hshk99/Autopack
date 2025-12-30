@@ -40,6 +40,51 @@ class PhaseCreate(BaseModel):
     builder_mode: Optional[str] = Field(None, description="Builder mode (e.g. tweak_light)")
     scope: Optional[Dict[str, Any]] = Field(None, description="Scope configuration: paths and read_only_context")
 
+    @field_validator("scope", mode="before")
+    @classmethod
+    def normalize_read_only_context(cls, v: Any) -> Any:
+        """Normalize read_only_context to canonical dict format at API boundary.
+
+        BUILD-145 P0 Schema Normalization: Ensures all consumers receive canonical
+        format even if legacy string format is provided.
+
+        Supports two formats:
+        - Legacy: ["path/to/file.py", ...]
+        - New: [{"path": "path/to/file.py", "reason": "..."}, ...]
+
+        Normalizes to canonical dict format: [{"path": "...", "reason": ""}, ...]
+        """
+        if v is None or not isinstance(v, dict):
+            return v
+
+        # Normalize read_only_context entries to canonical dict format
+        read_only_context = v.get("read_only_context")
+        if read_only_context and isinstance(read_only_context, list):
+            normalized_entries = []
+            for entry in read_only_context:
+                if isinstance(entry, dict):
+                    # Already in dict format - validate it has non-empty 'path'
+                    path = entry.get("path")
+                    if path:  # Skip if path is None, empty string, or missing
+                        normalized_entries.append({
+                            "path": path,
+                            "reason": entry.get("reason", "")
+                        })
+                    # Skip invalid entries (missing 'path', empty path, None path)
+                elif isinstance(entry, str):
+                    # Legacy string format - normalize to dict
+                    # Note: empty strings are still included (executor may handle them)
+                    normalized_entries.append({
+                        "path": entry,
+                        "reason": ""
+                    })
+                # Skip invalid entry types (int, list, None, etc.)
+
+            # Update scope with normalized entries
+            v["read_only_context"] = normalized_entries
+
+        return v
+
 
 class RunStartRequest(BaseModel):
     """Request to start a run with tiers and phases"""

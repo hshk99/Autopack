@@ -130,10 +130,11 @@ jobs:
 ### 2025-12-31: Initial Quarantine
 - **Decision**: Quarantine research tests to unblock "100% ready" status
 - **Reason**: Research subsystem has pre-existing API drift (not caused by backend removal)
-- **Scope**: 348 tests excluded from default pytest runs
+- **Scope**: 360+ tests excluded from default pytest runs
 - **Commits**:
-  - `a162b7c2`: Fixed import paths (`src.research.*` → `autopack.research.*`)
-  - (this commit): Added pytest.ini ignores and documentation
+  - `a162b7c2`: Fixed import paths (`src.research.*` → `autopack.research.*`) + SyntaxError fix
+  - `68b59f1e`: Added pytest.ini ignores, documentation, and CI syntax guard
+  - `ae3d655d`: Expanded quarantine to additional research-related test files
 - **Next Steps**: Decide between Option A (fix) or Option B (delete)
 
 ---

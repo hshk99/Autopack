@@ -16,6 +16,75 @@ Each entry includes:
 
 ## Chronological Index
 
+### BUILD-146 Phase A P12 Phase 5: Auth Consolidation & Backend Removal (2025-12-31)
+
+**Status**: ✅ COMPLETE
+
+**Summary**: Completed Phase 5 of API consolidation - migrated authentication from `backend.api.auth` to `autopack.auth` namespace and fully removed the `src/backend/` package. This is the final phase of API consolidation, achieving a single canonical server with no legacy backend code.
+
+**Architecture Changes**:
+- Created `autopack.auth` package (5 files):
+  - `__init__.py`: Clean public API exports
+  - `router.py`: FastAPI router with all auth endpoints
+  - `security.py`: JWT RS256 token operations + bcrypt password hashing
+  - `models.py`: User model using `autopack.database.Base`
+  - `schemas.py`: Pydantic request/response validation
+- Migrated JWT configuration to `autopack.config.Settings`:
+  - `jwt_private_key`, `jwt_public_key` (RSA PEM format)
+  - `jwt_algorithm` (RS256), `jwt_issuer`, `jwt_audience`
+  - `access_token_expire_minutes` (default 24 hours)
+- Wired `autopack.auth.router` into `autopack.main:app`
+- All auth endpoints preserved at `/api/auth/*` (SOT contract maintained)
+
+**Backend Package Removal**:
+- Deleted `src/backend/` package (38 files)
+- Deleted `tests/backend/` package (18 files)
+- Total: 56 files removed, 7,679 lines deleted
+- Migrated auth tests to `tests/test_autopack_auth.py` (14 comprehensive tests)
+
+**Test Coverage**:
+- Contract tests: 12/12 passing (removed 3 backend deprecation tests)
+- Auth tests: 14/14 passing (registration, login, JWKS, /me endpoint, duplicate detection, validation)
+- All 26 tests passing with full JWT RS256 functionality verified
+
+**CI Enhancements**:
+- Enhanced `scripts/check_docs_drift.py` with 5 auth path validation patterns:
+  - Detects auth endpoints at wrong paths (root vs `/api/auth/*`)
+  - Detects deprecated `backend.api.auth` imports
+  - Uses word boundary patterns to avoid false positives
+  - 0 violations detected across 1,248 documentation files
+
+**Documentation Updates**:
+- Fixed auth imports in `docs/AUTHENTICATION.md` and `archive/reports/AUTHENTICATION.md`
+- Updated canonical server references in multiple docs
+- All references now point to `PYTHONPATH=src uvicorn autopack.main:app`
+
+**Database Changes**:
+- Added User model import to `autopack.database.init_db()`
+- Test fixtures recreate database engine with test `DATABASE_URL`
+- Single database schema maintained (`autopack.database.Base`)
+
+**Contract Guarantees**:
+✅ Auth endpoints unchanged: `/api/auth/register`, `/api/auth/login`, `/api/auth/me`, `/api/auth/.well-known/jwks.json`, `/api/auth/key-status`
+✅ JWT RS256 behavior preserved (same token format, same JWKS endpoint)
+✅ Executor X-API-Key auth unaffected (separate from JWT auth)
+✅ Kill switches remain default OFF
+✅ Single database schema (`autopack.database.Base`)
+✅ All tests passing (26/26)
+✅ CI drift detection prevents regression to backend server
+
+**Files Changed**: 77 files (56 deletions, 11 new/renamed, 10 modified)
+
+**Impact**:
+- **Single canonical server**: No backend package remains
+- **Clean namespace**: All auth under `autopack.auth`
+- **Production ready**: Full test coverage with CI drift protection
+- **Zero regression risk**: Contract tests + drift detection guard against future backend re-introduction
+
+**Commit**: `4e9d3935` - "feat: BUILD-146 P12 Phase 5 - Complete Auth Consolidation & Backend Removal"
+
+---
+
 ### BUILD-146 Phase 6 P12: Production Hardening Roadmap (2025-12-31)
 
 **Status**: 📋 PLANNED (Prompts Ready)

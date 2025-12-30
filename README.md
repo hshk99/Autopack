@@ -42,17 +42,18 @@ In practice, “autonomous” requires that each phase has:
 
 ## Recent Updates
 
-### 2025-12-31: BUILD-146 P12 API Consolidation Complete (Phases 0-4) - ✅ PRODUCTION READY
-**Single Canonical Server - No Dual Control Plane Drift**
-- **Achievement**: Consolidated dual FastAPI servers into one canonical endpoint (`autopack.main:app`)
+### 2025-12-31: BUILD-146 P12 API Consolidation Complete (All Phases) - ✅ PRODUCTION READY
+**Single Canonical Server - Backend Package Fully Removed**
+- **Achievement**: Consolidated dual FastAPI servers into one canonical endpoint (`autopack.main:app`) and fully removed `src/backend/` package
 - **Problem Solved**: Backend and main servers caused split-brain issues, documentation drift, and operational confusion
-- **Solution Implemented** (4 Phases):
+- **Solution Implemented** (5 Phases):
   - **Phase 0**: Documented canonical API contract (40+ endpoints) - [CANONICAL_API_CONTRACT.md](docs/CANONICAL_API_CONTRACT.md)
   - **Phase 1**: Ported enhanced `/health` + consolidated metrics to canonical server with kill switches (default OFF)
   - **Phase 2**: Canonicalized auth (`X-API-Key` primary, `Bearer` compatible)
   - **Phase 3**: Hard-deprecated backend server (clear error on direct execution, library imports still work)
-  - **Phase 4**: Contract tests (15 tests) + CI drift detection to prevent regression
-- **End State**: `PYTHONPATH=src uvicorn autopack.main:app` serves all traffic
+  - **Phase 4**: Contract tests (12 tests) + CI drift detection to prevent regression
+  - **Phase 5**: Migrated auth to `autopack.auth` namespace and deleted `src/backend/` package (56 files removed)
+- **End State**: `PYTHONPATH=src uvicorn autopack.main:app` serves all traffic, no backend package remains
 - **Safety**: Kill switches OFF by default, additive changes only, backward compatible
 - **Status**: Production ready - see [API_CONSOLIDATION_COMPLETION_SUMMARY.md](docs/API_CONSOLIDATION_COMPLETION_SUMMARY.md)
 

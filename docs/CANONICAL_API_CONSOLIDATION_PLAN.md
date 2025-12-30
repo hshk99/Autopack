@@ -196,21 +196,30 @@ Choose one (recommended end-state: Option A):
 
 ---
 
-### Phase 5 (optional but true end-state) — Migrate auth into autopack and delete backend package
-Only do this after Phase 0–4 are stable.
+### Phase 5 — Migrate auth into autopack and delete backend package ✅ COMPLETE
 
-1. Create `src/autopack/auth/*` and port:
-   - JWT key mgmt
-   - login/register/me endpoints
-   - JWKS endpoint
+**Status**: ✅ COMPLETE (2025-12-31, commit `4e9d3935`)
 
-2. Update `autopack.main` to import from `autopack.auth.*` and remove backend auth import.
+1. ✅ Created `src/autopack/auth/*` and ported:
+   - JWT key mgmt (RS256, auto-generation for dev/test)
+   - login/register/me endpoints (all at `/api/auth/*`)
+   - JWKS endpoint (`/api/auth/.well-known/jwks.json`)
+   - User model using `autopack.database.Base`
+   - Pydantic schemas (UserCreate, Token, UserResponse, etc.)
 
-3. Remove `src/backend/` package and update tests accordingly.
+2. ✅ Updated `autopack.main` to import from `autopack.auth.*` and removed backend auth import.
 
-**Acceptance**:
-- No imports from `backend` remain in runtime.
-- All auth tests moved to autopack.
+3. ✅ Removed `src/backend/` package (38 files) and `tests/backend/` (18 files).
+   - Migrated auth tests to `tests/test_autopack_auth.py` (14 comprehensive tests)
+   - Added JWT settings to `autopack.config.Settings`
+   - Enhanced drift checker with 5 auth path validation patterns
+
+**Acceptance** (all met):
+- ✅ No imports from `backend` remain in runtime
+- ✅ All auth tests moved to autopack (14/14 passing)
+- ✅ Contract tests updated and passing (12/12)
+- ✅ CI drift detection prevents regression (0 violations)
+- ✅ All SOT endpoints preserved at `/api/auth/*`
 
 ---
 
@@ -222,11 +231,18 @@ Only do this after Phase 0–4 are stable.
 
 ---
 
-## “Definition of done” for “100% ready”
-- One canonical server documented and used by scripts: `autopack.main:app`.
-- All first-party scripts and executor are aligned to canonical endpoints + auth.
-- Consolidated metrics + health hardening live in canonical server.
-- Backend server entrypoint is deprecated or removed from docs.
-- CI has contract tests that enforce the above.
+## "Definition of done" for "100% ready" ✅ ACHIEVED
+
+All criteria met as of 2025-12-31:
+
+- ✅ One canonical server documented and used by scripts: `autopack.main:app`
+- ✅ All first-party scripts and executor aligned to canonical endpoints + auth
+- ✅ Consolidated metrics + health hardening live in canonical server
+- ✅ Backend server entrypoint removed (package fully deleted)
+- ✅ CI has contract tests that enforce the above (12 tests + drift detection)
+- ✅ Auth migrated to `autopack.auth` namespace
+- ✅ Backend package fully removed (56 files deleted, 7,679 lines)
+- ✅ Zero backend imports remain in runtime
+- ✅ Full test coverage: 26/26 tests passing (12 contract + 14 auth)
 
 

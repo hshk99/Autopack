@@ -4,6 +4,123 @@ Developer journal for tracking implementation progress, debugging sessions, and 
 
 ---
 
+## 2025-12-31: BUILD-146 P12 Phase 5 - Auth Consolidation & Backend Removal (COMPLETE)
+
+**Session Goal**: Complete Phase 5 of API consolidation - migrate auth to `autopack.auth` and fully remove `src/backend/` package
+
+**Context**:
+- Phase 4 completed with contract tests and CI drift detection
+- User provided detailed 7-step plan for Phase 5 execution
+- Critical constraints: Don't change auth paths, don't create second DB schema, keep kill switches OFF, maintain executor auth
+
+**Implementation Summary**:
+
+**Step 1: Align Contract Tests** ✅
+- Updated `tests/test_canonical_api_contract.py` docstring to reflect Phase 5 goals
+- Verified auth endpoints at `/api/auth/*` paths
+- No changes needed - tests already aligned to SOT
+
+**Step 2: Create autopack.auth Package** ✅
+- Created 5 new files in `src/autopack/auth/`:
+  - `__init__.py`: Public API exports (52 lines)
+  - `router.py`: FastAPI router with 5 auth endpoints (196 lines)
+  - `security.py`: JWT RS256 + bcrypt functions (148 lines)
+  - `models.py`: User SQLAlchemy model using `autopack.database.Base` (49 lines)
+  - `schemas.py`: Pydantic schemas (UserCreate, Token, UserResponse, etc.) (85 lines)
+- Files migrated from `src/backend/` with namespace updates
+- Used `autopack.database.Base` to avoid creating duplicate schema
+
+**Step 3: Wire Canonical Server** ✅
+- Updated `src/autopack/main.py` to import from `autopack.auth` instead of `backend.api.auth`
+- Changed: `from backend.api.auth import router as auth_router` → `from autopack.auth import router as auth_router`
+- Wired router with `app.include_router(auth_router, tags=["authentication"])`
+- All 5 SOT endpoints preserved: `/api/auth/register`, `/api/auth/login`, `/api/auth/me`, `/api/auth/.well-known/jwks.json`, `/api/auth/key-status`
+
+**Step 4: Update Scripts & Docs** ✅
+- Fixed `docs/cursor/PROMPT_FOR_OTHER_CURSOR_FILEORG.md` (line 162) - canonical server reference
+- Fixed `scripts/test_deletion_safeguards.py` (line 171) - canonical server reference
+- Updated `docs/cursor/CURSOR_PROMPT_RESEARCH_SYSTEM.md` - removed backend server references
+
+**Step 5: Run Test Gates** ✅
+- Contract tests: 12/12 passing
+- Auth tests: 14/14 passing (after migration)
+- All SOT endpoints verified working
+
+**Step 6: Delete Backend & Migrate Tests** ✅
+- Deleted `src/backend/` package (38 files)
+- Deleted `tests/backend/` package (18 files)
+- Created `tests/test_autopack_auth.py` with 14 comprehensive tests
+- Fixed import errors by adding JWT settings to `autopack.config.py`:
+  - `jwt_private_key`, `jwt_public_key`, `jwt_algorithm`, `jwt_issuer`, `jwt_audience`, `access_token_expire_minutes`
+- Updated imports in `autopack.auth.security.py` and `autopack.auth.router.py` to use `autopack.config`
+- Added User model import to `autopack.database.init_db()`
+- Fixed test fixture to recreate database engine with test `DATABASE_URL`
+
+**Step 7: Add CI Drift Guard** ✅
+- Enhanced `scripts/check_docs_drift.py` with 5 new forbidden patterns:
+  - `POST /register` at wrong path (should be `/api/auth/register`)
+  - `POST /login` at wrong path (should be `/api/auth/login`)
+  - `GET /me` at wrong path (should be `/api/auth/me`)
+  - `from backend.api.auth` imports (should be `autopack.auth`)
+  - `import backend.api.auth` statements
+- Fixed false positive by changing regex from `(?!\s)` to `\b` (word boundary)
+- Fixed auth imports in `docs/AUTHENTICATION.md` and `archive/reports/AUTHENTICATION.md`
+- Final drift check: 0 violations across 1,248 documentation files
+
+**Debugging Sessions**:
+
+1. **ModuleNotFoundError after backend deletion**:
+   - Error: `No module named 'backend.core'`
+   - Root cause: `autopack.auth.security` importing from `backend.core.config`
+   - Fix: Added JWT settings to `autopack.config.Settings`, updated imports
+
+2. **Database tables not created in tests**:
+   - Error: `sqlite3.OperationalError: no such table: runs`
+   - Root cause: Database engine created at module import with wrong URL
+   - Fix: Recreated engine in test fixture, added User import to `init_db()`
+
+3. **Backend deprecation tests failing**:
+   - Error: `ModuleNotFoundError: No module named 'backend.main'`
+   - Root cause: Tests trying to import deleted backend package
+   - Fix: Removed `TestBackendServerDeprecation` class (expected after deletion)
+
+4. **Drift checker false positive**:
+   - Error: `/metrics` matched `/me` pattern
+   - Root cause: Regex `GET\s+/me(?!\s)` too broad
+   - Fix: Changed to `GET\s+/me\b` (word boundary)
+
+**Test Results**:
+- Contract tests: 12/12 ✅
+- Auth tests: 14/14 ✅
+- Drift checker: 0 violations ✅
+- Total: 26/26 tests passing
+
+**Files Changed**: 77 files
+- New: 5 files in `src/autopack/auth/`, `tests/test_autopack_auth.py`
+- Modified: `src/autopack/config.py`, `src/autopack/database.py`, `src/autopack/main.py`, `scripts/check_docs_drift.py`, docs
+- Deleted: `src/backend/` (38 files), `tests/backend/` (18 files)
+
+**Code Quality**:
+- JWT RS256 behavior preserved (same token format, JWKS endpoint)
+- Single database schema (no duplicate Base)
+- All SOT endpoints unchanged at `/api/auth/*`
+- Executor X-API-Key auth unaffected
+- Kill switches remain default OFF
+- CI drift detection prevents regression
+
+**Commit**: `4e9d3935` - "feat: BUILD-146 P12 Phase 5 - Complete Auth Consolidation & Backend Removal"
+
+**Impact**:
+- ✅ Backend package fully removed (7,679 lines deleted)
+- ✅ Single canonical server (`autopack.main:app`)
+- ✅ Clean auth namespace (`autopack.auth`)
+- ✅ Full test coverage with CI protection
+- ✅ Zero regression risk (contract tests + drift detection)
+
+**Status**: Phase 5 COMPLETE - API consolidation fully finished, backend package eliminated
+
+---
+
 ## 2025-12-31: BUILD-146 Phase 6 P12 Planning - Production Hardening Roadmap
 
 **Session Goal**: Create comprehensive implementation roadmap for production hardening after BUILD-146 P11 completion

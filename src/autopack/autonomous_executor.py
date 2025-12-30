@@ -70,6 +70,9 @@ from autopack.deliverables_validator import (
     validate_deliverables,
     format_validation_feedback_for_builder,
 )
+from autopack.artifact_loader import ArtifactLoader, get_artifact_substitution_stats
+from autopack.context_budgeter import select_files_for_context, BudgetSelection
+from autopack.usage_recorder import record_token_efficiency_metrics
 
 # Memory and validation imports
 # BUILD-115: models.py removed - database write code disabled below
@@ -3497,21 +3500,70 @@ Just the new description that should replace the current one while preserving th
                 tokens = shlex.split(cmd)
             except ValueError as e:
                 errors.append(f"Command '{cmd}' failed shlex parsing: {e}")
-                continue
 
-            # Check if command matches any whitelist pattern
-            matched = False
-            for pattern in whitelist_patterns:
-                if re.match(pattern, cmd):
-                    matched = True
-                    break
-
-            if not matched:
-                errors.append(
-                    f"Command '{cmd}' does not match any whitelist pattern for type '{fix_type}'"
+    def _record_token_efficiency_telemetry(
+        self,
+        phase: Dict,
+        artifact_substitutions: int,
+        tokens_saved_artifacts: int,
+        budget_selection: Optional[BudgetSelection],
+    ) -> None:
+        """Record token efficiency metrics for a phase.
+        
+        Emits compact metrics payload:
+        - Artifact substitution counts and tokens saved
+        - Context budget mode, usage, and cap
+        - Files kept vs omitted
+        
+        Args:
+            phase: Phase specification
+            artifact_substitutions: Number of files substituted with artifacts
+            tokens_saved_artifacts: Estimated tokens saved via artifacts
+            budget_selection: Context budget selection result (if available)
+        """
+        try:
+            phase_id = phase.get("id", "unknown")
+            
+            # Extract budget metrics
+            budget_mode = "unknown"
+            budget_used = 0
+            budget_cap = 0
+            files_kept = 0
+            files_omitted = 0
+            
+            if budget_selection:
+                budget_mode = budget_selection.mode
+                budget_used = budget_selection.used_tokens_est
+                budget_cap = budget_selection.budget_tokens
+                files_kept = budget_selection.files_kept_count
+                files_omitted = budget_selection.files_omitted_count
+            
+            # Log compact metrics
+            logger.info(
+                f"[TOKEN_EFFICIENCY] Phase {phase_id}: "
+                f"artifacts={artifact_substitutions}, "
+                f"saved={tokens_saved_artifacts}tok, "
+                f"budget={budget_mode}, "
+                f"used={budget_used}/{budget_cap}tok, "
+                f"files={files_kept}kept/{files_omitted}omitted"
+            )
+            
+            # Record to database if available
+            if hasattr(self, 'db') and self.db:
+                record_token_efficiency_metrics(
+                    db=self.db,
+                    run_id=self.run_id,
+                    phase_id=phase_id,
+                    artifact_substitutions=artifact_substitutions,
+                    tokens_saved_artifacts=tokens_saved_artifacts,
+                    budget_mode=budget_mode,
+                    budget_used=budget_used,
+                    budget_cap=budget_cap,
+                    files_kept=files_kept,
+                    files_omitted=files_omitted,
                 )
-
-        return len(errors) == 0, errors
+        except Exception as e:
+            logger.warning(f"[TOKEN_EFFICIENCY] Failed to record metrics: {e}")
 
     def _handle_execute_fix(
         self,
@@ -5197,70 +5249,66 @@ Just the new description that should replace the current one while preserving th
                     logger.warning(f"[{phase_id}] Failed to write error to memory: {mem_e}")
 
             self._update_phase_status(phase_id, "FAILED")
-            return False, "FAILED"
-
-    def _execute_batched_deliverables_phase(
-        self,
-        *,
-        phase: Dict,
-        attempt_index: int,
-        allowed_paths: Optional[List[str]],
-        batching_label: str,
-        manifest_allowed_roots: Tuple[str, ...],
-        apply_allowed_roots: Tuple[str, ...],
-    ) -> Tuple[bool, str]:
-        """
-        Generic in-phase batching mechanism for multi-file phases that frequently hit truncation/malformed
-        diff convergence failures.
-
-        Behavior:
-        - Runs Builder once per batch, each with a batch-specific scope.paths list.
-        - Enforces per-batch deliverables manifest gate + deliverables validation + new-file diff structure checks.
-        - Applies each batch patch under governed apply using batch-derived allowed roots.
-        - After all batches are applied, posts a combined (concatenated) diff and runs a single CI/Auditor/Quality Gate pass.
-        """
-        phase_id = phase.get("phase_id") or "unknown-phase"
-
-        # Load repository context for Builder
-        file_context = self._load_repository_context(phase)
-        logger.info(f"[{phase_id}] Loaded {len(file_context.get('existing_files', {}))} files for context")
-
-        # Pre-flight policy (keep aligned with main execution path)
-        use_full_file_mode = True
-        if phase.get("builder_mode") == "structured_edit":
-            use_full_file_mode = False
-        if file_context and len(file_context.get("existing_files", {})) >= 30:
-            use_full_file_mode = False
-
-        learning_context = self._get_learning_context_for_phase(phase)
-        project_rules = learning_context.get("project_rules", [])
-        run_hints = learning_context.get("run_hints", [])
-        if project_rules or run_hints:
-            logger.info(f"[{phase_id}] Learning context: {len(project_rules)} rules, {len(run_hints)} hints")
-
-        retrieved_context = ""
-        if self.memory_service and self.memory_service.enabled:
-            try:
-                phase_description = phase.get("description", "")
-                query = f"{phase_description[:500]}"
-                project_id = self._get_project_slug() or self.run_id
-                retrieved = self.memory_service.retrieve_context(
-                    query=query,
-                    project_id=project_id,
-                    run_id=self.run_id,
-                    include_code=True,
-                    include_summaries=True,
-                    include_errors=True,
-                    include_hints=True,
-                    include_planning=True,
-                    include_plan_changes=True,
-                    include_decisions=True,
+        # Load context with artifact-first substitution (BUILD-145)
+        artifact_loader = ArtifactLoader(self.workspace, self.run_id)
+        
+        # Track artifact substitutions
+        artifact_substitutions = 0
+        tokens_saved_artifacts = 0
+        
+        # Apply artifact substitution to read_only_context
+        if read_only_context:
+            substituted_context = {}
+            for file_path, content in read_only_context.items():
+                substituted_content, tokens_saved, source_type = artifact_loader.load_with_artifacts(
+                    file_path, content, prefer_artifacts=True
                 )
-                retrieved_context = self.memory_service.format_retrieved_context(retrieved, max_chars=4000)
-                if retrieved_context:
-                    logger.info(f"[{phase_id}] Retrieved {len(retrieved_context)} chars of context from memory")
-            except Exception as e:
-                logger.warning(f"[{phase_id}] Memory retrieval failed: {e}")
+                substituted_context[file_path] = substituted_content
+                
+                if source_type.startswith("artifact:"):
+                    artifact_substitutions += 1
+                    tokens_saved_artifacts += tokens_saved
+            
+            read_only_context = substituted_context
+            
+            if artifact_substitutions > 0:
+                logger.info(
+                    f"[ARTIFACT_LOADER] Substituted {artifact_substitutions} files, "
+                    f"saved ~{tokens_saved_artifacts} tokens"
+                )
+        
+        # Apply context budgeting
+        budget_selection = None
+        if read_only_context:
+            from autopack.config import settings
+            
+            budget_tokens = getattr(settings, 'context_budget_tokens', 50000)
+            
+            budget_selection = select_files_for_context(
+                files=read_only_context,
+                scope_metadata=scope_metadata,
+                deliverables=deliverables,
+                query=phase.get('description', ''),
+                budget_tokens=budget_tokens,
+                semantic=True,
+            )
+            
+            read_only_context = budget_selection.kept
+            
+            logger.info(
+                f"[CONTEXT_BUDGET] Mode={budget_selection.mode}, "
+                f"kept={budget_selection.files_kept_count} files, "
+                f"omitted={budget_selection.files_omitted_count} files, "
+                f"used={budget_selection.used_tokens_est}/{budget_selection.budget_tokens} tokens"
+            )
+        
+        # Record token efficiency telemetry
+        self._record_token_efficiency_telemetry(
+            phase=phase,
+            artifact_substitutions=artifact_substitutions,
+            tokens_saved_artifacts=tokens_saved_artifacts,
+            budget_selection=budget_selection,
+        )
 
         protected_paths = [".autonomous_runs/", ".git/", "autopack.db"]
 

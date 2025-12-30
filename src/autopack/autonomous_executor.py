@@ -7279,7 +7279,16 @@ Just the new description that should replace the current one while preserving th
             readonly_exact: Set[str] = set()
             readonly_prefixes: List[str] = []
 
-            for path_str in readonly_context:
+            for entry in readonly_context:
+                # BUILD-145 P0: Handle both dict and legacy string format
+                if isinstance(entry, dict):
+                    path_str = entry.get("path", "")
+                else:
+                    path_str = entry
+
+                if not path_str:
+                    continue
+
                 resolved = self._resolve_scope_target(path_str, workspace_root, must_exist=False)
                 if resolved:
                     _, rel_key = resolved

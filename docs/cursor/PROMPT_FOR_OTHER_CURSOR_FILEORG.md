@@ -160,11 +160,11 @@ Autopack will complete all remaining research system work:
 
 **CRITICAL**:
 - Use explicit env vars to ensure correct database + module paths.
-- Prefer backend **port 8001** for consistent schema/behavior (port 8000 has historically been stale/inconsistent).
+- Use the canonical server (autopack.main:app) on port 8000.
 
 ```bash
 cd C:\dev\Autopack
-PYTHONUTF8=1 PYTHONPATH=src DATABASE_URL="sqlite:///autopack.db" python -m uvicorn backend.main:app --app-dir src --host 127.0.0.1 --port 8001
+PYTHONUTF8=1 PYTHONPATH=src DATABASE_URL="sqlite:///autopack.db" uvicorn autopack.main:app --host 127.0.0.1 --port 8000
 ```
 
 Keep this running in one terminal.

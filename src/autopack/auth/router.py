@@ -1,5 +1,15 @@
-"""Authentication API endpoints."""
+"""Authentication API router (JWT RS256).
 
+BUILD-146 P12 Phase 5: Migrated from backend.api.auth to consolidate
+auth under autopack namespace.
+
+SOT Contract Endpoints:
+- POST /api/auth/register
+- POST /api/auth/login
+- GET /api/auth/me
+- GET /api/auth/.well-known/jwks.json
+- GET /api/auth/key-status
+"""
 import hashlib
 from datetime import datetime, timezone
 from typing import Annotated
@@ -8,7 +18,7 @@ from fastapi import APIRouter, Depends, HTTPException, Header, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 
-from ..core.security import (
+from .security import (
     create_access_token,
     decode_access_token,
     generate_jwk_from_public_pem,
@@ -16,9 +26,10 @@ from ..core.security import (
     hash_password,
     verify_password,
 )
-from ..core.config import settings
-from ..models.user import User, get_db
-from ..schemas.user import Token, UserCreate, UserResponse
+from .models import User
+from .schemas import Token, UserCreate, UserResponse
+from autopack.database import get_db
+from autopack.config import settings  # BUILD-146 P12 Phase 5
 
 router = APIRouter(
     prefix="/api/auth",
@@ -49,6 +60,8 @@ def authenticate_user(db: Session, username: str, password: str) -> User | None:
 async def jwks():
     """
     Expose the JWKS for token verification by external services.
+
+    SOT endpoint: /api/auth/.well-known/jwks.json
     """
     ensure_keys()
     kid_source = settings.jwt_public_key.encode("utf-8")
@@ -60,6 +73,8 @@ async def jwks():
 async def key_status():
     """
     Return whether JWT keys are loaded and their source (env vs generated).
+
+    SOT endpoint: /api/auth/key-status
     """
     try:
         ensure_keys()
@@ -81,6 +96,8 @@ async def register(
 ):
     """
     Register a new user with unique username and email.
+
+    SOT endpoint: /api/auth/register
     """
     if db.query(User).filter(User.username == user_in.username).first():
         raise HTTPException(status_code=400, detail="Username already registered")
@@ -113,6 +130,8 @@ async def login(
 ):
     """
     Validate credentials and issue an access token.
+
+    SOT endpoint: /api/auth/login
     """
     user = authenticate_user(db, form_data.username, form_data.password)
     if not user:
@@ -132,6 +151,8 @@ def get_current_user(
 ) -> User:
     """
     Resolve user from Authorization header (Bearer token).
+
+    Used by /api/auth/me and other protected endpoints.
     """
     if not authorization:
         raise HTTPException(status_code=401, detail="Not authenticated")
@@ -162,5 +183,7 @@ async def me(
 ):
     """
     Return the current authenticated user.
+
+    SOT endpoint: /api/auth/me
     """
     return current_user

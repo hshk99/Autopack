@@ -168,9 +168,9 @@ app = FastAPI(
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
-# Mount authentication router
-from backend.api import auth as auth_router
-app.include_router(auth_router.router, tags=["authentication"])
+# Mount authentication router (BUILD-146 P12 Phase 5: migrated to autopack.auth)
+from autopack.auth import router as auth_router
+app.include_router(auth_router, tags=["authentication"])
 
 # Mount research router
 from autopack.research.api.router import research_router

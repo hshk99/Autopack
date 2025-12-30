@@ -1,16 +1,16 @@
 """Contract tests for canonical Autopack API.
 
-BUILD-146 P12 API Consolidation - Phase 4:
+BUILD-146 P12 API Consolidation - Phase 5 (Complete):
 These tests ensure the canonical server (autopack.main:app) provides all
-required endpoints and prevents re-introduction of dual control plane.
+required endpoints with auth migrated to autopack.auth namespace.
 
 Test coverage:
 1. Run lifecycle endpoints (executor needs)
 2. Enhanced health check (DB identity + kill switches)
 3. Dashboard endpoints
 4. Consolidated metrics endpoint (with kill switch)
-5. Kill switches default to OFF
-6. Backend server deprecation enforcement
+5. Auth endpoints at /api/auth/* (migrated from backend.api.auth)
+6. Kill switches default to OFF
 """
 
 import os
@@ -31,6 +31,23 @@ def canonical_client(tmp_path):
     # Ensure kill switches are OFF by default
     os.environ.pop("AUTOPACK_ENABLE_CONSOLIDATED_METRICS", None)
     os.environ.pop("AUTOPACK_ENABLE_PHASE6_METRICS", None)
+
+    # Recreate database engine with test DATABASE_URL
+    import autopack.database
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import sessionmaker
+
+    autopack.database.engine = create_engine(
+        f"sqlite:///{test_db}",
+        pool_pre_ping=True,
+        pool_recycle=1800,
+        connect_args={"check_same_thread": False}  # Allow multi-threading for tests
+    )
+    autopack.database.SessionLocal = sessionmaker(
+        autocommit=False,
+        autoflush=False,
+        bind=autopack.database.engine
+    )
 
     # Initialize database with tables
     from autopack.database import init_db
@@ -162,15 +179,21 @@ class TestCanonicalServerContract:
         os.environ.pop("AUTOPACK_ENABLE_CONSOLIDATED_METRICS", None)
 
     def test_auth_endpoints_exist(self, canonical_client):
-        """Test that auth endpoints exist (from backend.api.auth router)."""
-        # POST /login - should return 400/422 (missing credentials)
-        response = canonical_client.post("/login")
+        """Test that auth endpoints exist at SOT paths (/api/auth/...)."""
+        # POST /api/auth/login - should return 400/422 (missing credentials)
+        response = canonical_client.post("/api/auth/login")
         assert response.status_code in [400, 422]
 
-        # GET /.well-known/jwks.json - should return JWKS
-        response = canonical_client.get("/.well-known/jwks.json")
+        # GET /api/auth/.well-known/jwks.json - should return JWKS (SOT path)
+        response = canonical_client.get("/api/auth/.well-known/jwks.json")
         # Should work or return error based on config
         assert response.status_code in [200, 404, 500]
+
+        # GET /api/auth/key-status - should return key status (SOT endpoint)
+        response = canonical_client.get("/api/auth/key-status")
+        assert response.status_code == 200
+        data = response.json()
+        assert "keys_loaded" in data or "status" in data
 
     def test_approval_endpoints_exist(self, canonical_client):
         """Test that approval workflow endpoints exist."""
@@ -180,43 +203,6 @@ class TestCanonicalServerContract:
         data = response.json()
         assert "count" in data
         assert "requests" in data
-
-
-class TestBackendServerDeprecation:
-    """Test that backend server is properly deprecated."""
-
-    def test_backend_main_import_as_library_works(self):
-        """Test that backend.main can be imported as a library (for auth router)."""
-        # Should be able to import backend.main without error (for library usage)
-        import backend.main
-        assert hasattr(backend.main, "app")
-
-    def test_backend_main_direct_execution_fails(self):
-        """Test that running backend.main directly fails with clear error."""
-        import subprocess
-
-        result = subprocess.run(
-            ["python", "src/backend/main.py"],
-            cwd="c:/dev/Autopack",
-            capture_output=True,
-            text=True,
-            env={**os.environ, "PYTHONPATH": "src"}
-        )
-
-        # Should exit with error code
-        assert result.returncode != 0
-
-        # Should print deprecation message
-        assert "DEPRECATED" in result.stderr
-        assert "autopack.main:app" in result.stderr
-        assert "PYTHONPATH=src uvicorn" in result.stderr
-
-    def test_backend_app_is_deprecated(self):
-        """Test that backend.main.app has deprecation markers."""
-        import backend.main
-
-        # App title should indicate deprecation
-        assert "DEPRECATED" in backend.main.app.title
 
 
 class TestKillSwitchDefaults:

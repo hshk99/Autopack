@@ -543,7 +543,7 @@ grep "TOKEN_BUDGET" .autonomous_runs/research-system-v1/research-tracer-bullet.l
 cd c:/dev/Autopack
 
 # Start API server (in separate terminal)
-PYTHONUTF8=1 PYTHONPATH=src uvicorn backend.main:app --reload --port 8000
+PYTHONUTF8=1 PYTHONPATH=src uvicorn autopack.main:app --reload --port 8000
 
 # Create run and launch executor (see Step 1 above for full commands)
 # Then monitor execution logs
@@ -569,7 +569,7 @@ cd c:/dev/Autopack
 PYTHONUTF8=1 PYTHONPATH=src python scripts/create_research_run.py chunk0-tracer-bullet
 
 # 2. Start API (separate terminal)
-PYTHONUTF8=1 PYTHONPATH=src uvicorn backend.main:app --reload --port 8000
+PYTHONUTF8=1 PYTHONPATH=src uvicorn autopack.main:app --reload --port 8000
 
 # 3. Launch executor
 PYTHONUTF8=1 PYTHONPATH=src python -m autopack.autonomous_executor --run-id research-system-v1

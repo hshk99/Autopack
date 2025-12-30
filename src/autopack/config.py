@@ -66,6 +66,15 @@ class Settings(BaseSettings):
     # Default: 100k tokens (conservative estimate for read_only_context in phases)
     context_budget_tokens: int = 100_000
 
+    # JWT Authentication configuration (BUILD-146 P12 Phase 5)
+    # RS256 key pair for signing/verifying access tokens
+    jwt_private_key: str = ""  # RSA private key in PEM format (env: JWT_PRIVATE_KEY)
+    jwt_public_key: str = ""   # RSA public key in PEM format (env: JWT_PUBLIC_KEY)
+    jwt_algorithm: str = "RS256"  # JWT signing algorithm
+    jwt_issuer: str = "autopack"  # Token issuer
+    jwt_audience: str = "autopack-api"  # Token audience
+    access_token_expire_minutes: int = 1440  # Token expiration (24 hours)
+
 
 settings = Settings()
 

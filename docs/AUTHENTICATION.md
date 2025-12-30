@@ -361,8 +361,7 @@ To protect any endpoint with authentication, use the `get_current_user` dependen
 
 ```python
 from fastapi import APIRouter, Depends
-from backend.api.auth import get_current_user
-from backend.models.user import User
+from autopack.auth import get_current_user, User
 
 router = APIRouter()
 

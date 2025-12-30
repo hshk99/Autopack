@@ -1,3 +1,8 @@
+"""JWT authentication security utilities (RS256).
+
+BUILD-146 P12 Phase 5: Migrated from backend.core.security to consolidate
+auth under autopack namespace.
+"""
 import os
 import bcrypt
 import base64
@@ -8,7 +13,8 @@ from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 from jose import jwt, JWTError
 
-from .config import settings
+# Import settings from autopack config (BUILD-146 P12 Phase 5)
+from autopack.config import settings
 
 
 def _normalize_pem(pem: str) -> str:

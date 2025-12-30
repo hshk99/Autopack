@@ -18,7 +18,7 @@ from pathlib import Path
 from typing import List, Tuple
 
 
-# Patterns to detect (these indicate drift back to backend server)
+# Patterns to detect (these indicate drift back to backend server or wrong auth paths)
 FORBIDDEN_PATTERNS = [
     # Direct backend server uvicorn commands
     (r"uvicorn\s+backend\.main:app", "Direct backend.main:app uvicorn command"),
@@ -33,11 +33,22 @@ FORBIDDEN_PATTERNS = [
     (r"run\s+the\s+backend\s+server", "Instruction to run backend server"),
     (r"start\s+the\s+backend\s+server", "Instruction to start backend server"),
     (r"use\s+the\s+backend\s+server", "Recommendation to use backend server"),
+
+    # BUILD-146 P12 Phase 5: Auth endpoints must be at /api/auth/* (not root paths)
+    # These patterns detect auth endpoints at wrong paths
+    (r"POST\s+/register\b", "Auth endpoint at wrong path (should be /api/auth/register)"),
+    (r"POST\s+/login\b", "Auth endpoint at wrong path (should be /api/auth/login)"),
+    (r"GET\s+/me\b", "Auth endpoint at wrong path (should be /api/auth/me)"),
+    (r"from\s+backend\.api\.auth", "Import from deprecated backend.api.auth (use autopack.auth)"),
+    (r"import\s+backend\.api\.auth", "Import from deprecated backend.api.auth (use autopack.auth)"),
 ]
 
 # Files/directories to exclude from checking
 EXCLUDED_PATHS = [
     "docs/CANONICAL_API_CONSOLIDATION_PLAN.md",  # Planning doc mentions both servers
+    "docs/API_CONSOLIDATION_COMPLETION_SUMMARY.md",  # Completion doc documents migration
+    "docs/CANONICAL_API_CONTRACT.md",  # Contract doc documents migration from old endpoint
+    "docs/BUILD_HISTORY.md",  # History doc contains P12 entry documenting migration
     "scripts/check_docs_drift.py",  # This file (self-reference)
     ".git",  # Git metadata
     "__pycache__",  # Python cache
@@ -50,9 +61,12 @@ EXCLUDED_PATHS = [
 
 def should_check_file(file_path: Path) -> bool:
     """Determine if file should be checked for drift."""
+    # Normalize path separators for cross-platform comparison
+    normalized_path = str(file_path).replace("\\", "/")
+
     # Check if any excluded path is in the file path
     for excluded in EXCLUDED_PATHS:
-        if excluded in str(file_path):
+        if excluded in normalized_path:
             return False
 
     # Only check markdown and text documentation files
@@ -123,8 +137,10 @@ def main():
     if total_violations == 0:
         print("SUCCESS: No documentation drift detected!")
         print()
-        print("All documentation correctly references the canonical server:")
-        print("  PYTHONPATH=src uvicorn autopack.main:app")
+        print("All documentation correctly references:")
+        print("  - Canonical server: PYTHONPATH=src uvicorn autopack.main:app")
+        print("  - Auth endpoints: /api/auth/* (not root paths)")
+        print("  - Auth imports: autopack.auth (not backend.api.auth)")
         return 0
     else:
         print(f"FAILURE: Documentation drift detected!")
@@ -132,11 +148,14 @@ def main():
         print(f"Found {total_violations} violations in {files_with_violations} files.")
         print()
         print("REQUIRED FIX:")
-        print("  Update documentation to reference the canonical server:")
-        print("  PYTHONPATH=src uvicorn autopack.main:app")
+        print("  1. Canonical server: PYTHONPATH=src uvicorn autopack.main:app")
+        print("     NOT: uvicorn backend.main:app (DEPRECATED)")
         print()
-        print("  NOT the deprecated backend server:")
-        print("  uvicorn backend.main:app  (DEPRECATED)")
+        print("  2. Auth endpoints at: /api/auth/* (e.g., /api/auth/login)")
+        print("     NOT: root paths (e.g., /login)")
+        print()
+        print("  3. Auth imports: from autopack.auth import ...")
+        print("     NOT: from backend.api.auth import ... (DEPRECATED)")
         print()
         print("See docs/CANONICAL_API_CONTRACT.md for canonical API documentation.")
         return 1

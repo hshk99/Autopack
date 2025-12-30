@@ -168,9 +168,9 @@ def test_approval_workflow():
         else:
             print(f"⚠️  Backend responded with status {response.status_code}")
     except Exception as e:
-        print(f"❌ Backend not accessible: {e}")
-        print(f"\nTo start backend:")
-        print(f"  uvicorn backend.main:app --port 8001")
+        print(f"❌ API server not accessible: {e}")
+        print(f"\nTo start canonical API server:")
+        print(f"  PYTHONPATH=src uvicorn autopack.main:app --host 0.0.0.0 --port 8000")
         return False
 
     # Send approval request

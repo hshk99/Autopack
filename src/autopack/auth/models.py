@@ -1,15 +1,18 @@
-"""
-User database model.
+"""User database model for authentication.
+
+BUILD-146 P12 Phase 5: Migrated from backend.models.user to consolidate
+auth under autopack namespace. Uses autopack.database.Base (not a second Base).
 """
 from datetime import datetime, timezone
 from sqlalchemy import Column, Integer, String, Boolean, DateTime
 
-from ..database import Base, get_db
+from autopack.database import Base
+
 
 class User(Base):
     """
     User model for authentication and authorization.
-    
+
     Attributes:
         id: Primary key
         username: Unique username for login
@@ -20,9 +23,9 @@ class User(Base):
         created_at: Timestamp of account creation
         updated_at: Timestamp of last update
     """
-    
+
     __tablename__ = "users"
-    
+
     id = Column(Integer, primary_key=True, index=True)
     username = Column(String(50), unique=True, index=True, nullable=False)
     email = Column(String(255), unique=True, index=True, nullable=False)
@@ -36,14 +39,11 @@ class User(Base):
         onupdate=lambda: datetime.now(timezone.utc),
         nullable=False,
     )
-    
+
     def __repr__(self) -> str:
         """String representation of User."""
         return f"<User(id={self.id}, username='{self.username}', email='{self.email}')>"
-    
+
     def to_dict(self) -> dict:
         """Convert user to dictionary (excluding password)."""
         return {k: v for k, v in self.__dict__.items() if not k.startswith('_') and k != 'hashed_password'}
-
-
-__all__ = ["User", "Base", "get_db"]

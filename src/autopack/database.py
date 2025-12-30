@@ -35,5 +35,6 @@ def init_db():
         DoctorUsageStats,
         TokenEfficiencyMetrics,
     )
+    from .auth.models import User  # noqa: F401  # BUILD-146 P12 Phase 5
 
     Base.metadata.create_all(bind=engine)

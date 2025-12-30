@@ -365,3 +365,74 @@ def get_phase6_stats(run_id: str, db: Session = Depends(get_db)) -> Phase6Stats:
         avg_intention_context_chars_per_phase=avg_intention_chars,
         plan_normalization_used=plan_norm_used,
     )
+
+
+@router.get("/ab-results")
+def get_ab_results(
+    test_id: Optional[str] = None,
+    valid_only: bool = True,
+    limit: int = 100,
+    db: Session = Depends(get_db)
+) -> dict:
+    """Get A/B test results from database.
+
+    BUILD-146 P12: Retrieves A/B test comparison results with strict validity filtering.
+
+    Args:
+        test_id: Optional filter by specific test ID
+        valid_only: If True, only return valid comparisons (default: True)
+        limit: Maximum number of results to return (default: 100, max: 1000)
+        db: Database session
+
+    Returns:
+        Dictionary with list of A/B test results
+    """
+    from autopack.models import ABTestResult
+
+    # Validate limit
+    if limit > 1000:
+        raise HTTPException(status_code=400, detail="Limit cannot exceed 1000")
+
+    # Build query
+    query = db.query(ABTestResult)
+
+    if test_id:
+        query = query.filter(ABTestResult.test_id == test_id)
+
+    if valid_only:
+        query = query.filter(ABTestResult.is_valid == True)
+
+    # Order by most recent first, apply limit
+    results = query.order_by(ABTestResult.created_at.desc()).limit(limit).all()
+
+    return {
+        "count": len(results),
+        "filters": {
+            "test_id": test_id,
+            "valid_only": valid_only,
+        },
+        "results": [
+            {
+                "id": r.id,
+                "test_id": r.test_id,
+                "control_run_id": r.control_run_id,
+                "treatment_run_id": r.treatment_run_id,
+                "is_valid": r.is_valid,
+                "validity_errors": r.validity_errors,
+                "token_delta": r.token_delta,
+                "time_delta_seconds": r.time_delta_seconds,
+                "success_rate_delta": r.success_rate_delta,
+                "control_total_tokens": r.control_total_tokens,
+                "control_phases_complete": r.control_phases_complete,
+                "control_phases_failed": r.control_phases_failed,
+                "control_total_phases": r.control_total_phases,
+                "treatment_total_tokens": r.treatment_total_tokens,
+                "treatment_phases_complete": r.treatment_phases_complete,
+                "treatment_phases_failed": r.treatment_phases_failed,
+                "treatment_total_phases": r.treatment_total_phases,
+                "created_at": r.created_at.isoformat() if r.created_at else None,
+                "created_by": r.created_by,
+            }
+            for r in results
+        ]
+    }

@@ -58,19 +58,79 @@ def get_database_identity() -> str:
     return hash_hex
 
 
-@router.get("/health", response_model=HealthResponse)
-async def health_check() -> HealthResponse:
-    """
-    Health check endpoint.
+def check_qdrant_connection() -> str:
+    """Check Qdrant vector database connection.
 
-    Returns the current status, timestamp, and database identity.
+    BUILD-146 P12: Optional dependency check.
+
+    Returns:
+        Connection status string
+    """
+    qdrant_host = os.getenv("QDRANT_HOST")
+
+    if not qdrant_host:
+        return "disabled"
+
+    try:
+        import requests
+        # Simple health check to Qdrant
+        response = requests.get(f"{qdrant_host}/healthz", timeout=2)
+        if response.status_code == 200:
+            return "connected"
+        else:
+            return f"unhealthy (status {response.status_code})"
+    except ImportError:
+        return "client_not_installed"
+    except Exception as e:
+        logger.warning(f"Qdrant health check failed: {e}")
+        return f"error: {str(e)[:50]}"
+
+
+@router.get("/health", response_model=HealthResponse)
+async def health_check(db: Session = Depends(get_db)) -> HealthResponse:
+    """
+    Health check endpoint with dependency validation.
+
+    Returns the current status, timestamp, database identity, dependency states,
+    and kill switch configuration.
 
     BUILD-146 P4 Ops: The database_identity field can be used to detect
     when API and executor are pointing at different databases (e.g.,
     API using Postgres but executor defaulting to SQLite).
+
+    BUILD-146 P12: Enhanced with database connectivity check, Qdrant status,
+    and kill switch states for production readiness validation.
     """
+    # Check database connection
+    db_status = "connected"
+    try:
+        # Simple query to verify connection
+        db.execute(text("SELECT 1"))
+    except Exception as e:
+        logger.error(f"Database health check failed: {e}")
+        db_status = f"error: {str(e)[:50]}"
+
+    # Check Qdrant connection (optional)
+    qdrant_status = check_qdrant_connection()
+
+    # Check kill switch states (BUILD-146 P12)
+    kill_switches = {
+        "phase6_metrics": os.getenv("AUTOPACK_ENABLE_PHASE6_METRICS") == "1",
+        "consolidated_metrics": os.getenv("AUTOPACK_ENABLE_CONSOLIDATED_METRICS") == "1",
+    }
+
+    # Determine overall status
+    overall_status = "healthy" if db_status == "connected" else "degraded"
+
+    # Get version (if available from environment)
+    version = os.getenv("AUTOPACK_VERSION", "unknown")
+
     return HealthResponse(
-        status="healthy",
+        status=overall_status,
         timestamp=datetime.now(timezone.utc).isoformat(),
         database_identity=get_database_identity(),
+        database=db_status,
+        qdrant=qdrant_status,
+        kill_switches=kill_switches,
+        version=version,
     )

@@ -1490,6 +1490,8 @@ class AnthropicBuilderClient:
                     patch_content="",
                     builder_messages=[error_msg],
                     tokens_used=response.usage.input_tokens + response.usage.output_tokens,
+                prompt_tokens=response.usage.input_tokens,
+                completion_tokens=response.usage.output_tokens,
                     model_used=model,
                     error="full_file_parse_failed_diff_detected"
                 )
@@ -1565,6 +1567,8 @@ class AnthropicBuilderClient:
                             "Regenerate a valid JSON full-file response; diff fallback is disabled."
                         ],
                         tokens_used=response.usage.input_tokens + response.usage.output_tokens,
+                prompt_tokens=response.usage.input_tokens,
+                completion_tokens=response.usage.output_tokens,
                         model_used=model,
                         error="full_file_parse_failed" if not was_truncated else "full_file_parse_failed (stop_reason=max_tokens)",
                         stop_reason=stop_reason,
@@ -1585,6 +1589,8 @@ class AnthropicBuilderClient:
                     patch_content="",
                     builder_messages=[error_msg],
                     tokens_used=response.usage.input_tokens + response.usage.output_tokens,
+                prompt_tokens=response.usage.input_tokens,
+                completion_tokens=response.usage.output_tokens,
                     model_used=model,
                     error=error_msg,
                     stop_reason=stop_reason,
@@ -1607,6 +1613,8 @@ class AnthropicBuilderClient:
                         patch_content="",
                         builder_messages=[error_msg],
                         tokens_used=response.usage.input_tokens + response.usage.output_tokens,
+                prompt_tokens=response.usage.input_tokens,
+                completion_tokens=response.usage.output_tokens,
                         model_used=model,
                         error="full_file_schema_invalid" if not was_truncated else "full_file_schema_invalid (stop_reason=max_tokens)",
                         stop_reason=stop_reason,
@@ -1690,6 +1698,8 @@ class AnthropicBuilderClient:
                         patch_content="",
                         builder_messages=[pack_validation_error],
                         tokens_used=response.usage.input_tokens + response.usage.output_tokens,
+                prompt_tokens=response.usage.input_tokens,
+                completion_tokens=response.usage.output_tokens,
                         model_used=model,
                         error=pack_validation_error
                     )
@@ -1716,6 +1726,8 @@ class AnthropicBuilderClient:
                         patch_content="",
                         builder_messages=[error_msg],
                         tokens_used=response.usage.input_tokens + response.usage.output_tokens,
+                prompt_tokens=response.usage.input_tokens,
+                completion_tokens=response.usage.output_tokens,
                         model_used=model,
                         error=error_msg
                     )
@@ -1746,6 +1758,8 @@ class AnthropicBuilderClient:
                                 patch_content="",
                                 builder_messages=[error_msg],
                                 tokens_used=response.usage.input_tokens + response.usage.output_tokens,
+                prompt_tokens=response.usage.input_tokens,
+                completion_tokens=response.usage.output_tokens,
                                 model_used=model,
                                 error=error_msg
                             )
@@ -1783,6 +1797,8 @@ class AnthropicBuilderClient:
                                     patch_content="",
                                     builder_messages=[error_msg],
                                     tokens_used=response.usage.input_tokens + response.usage.output_tokens,
+                prompt_tokens=response.usage.input_tokens,
+                completion_tokens=response.usage.output_tokens,
                                     model_used=model,
                                     error=error_msg,
                                 )
@@ -1804,6 +1820,8 @@ class AnthropicBuilderClient:
                                 patch_content="",
                                 builder_messages=[error_msg],
                                 tokens_used=response.usage.input_tokens + response.usage.output_tokens,
+                prompt_tokens=response.usage.input_tokens,
+                completion_tokens=response.usage.output_tokens,
                                 model_used=model,
                                 error=error_msg
                             )
@@ -1819,6 +1837,8 @@ class AnthropicBuilderClient:
                             patch_content="",
                             builder_messages=[error_msg],
                             tokens_used=response.usage.input_tokens + response.usage.output_tokens,
+                prompt_tokens=response.usage.input_tokens,
+                completion_tokens=response.usage.output_tokens,
                             model_used=model,
                             error=error_msg
                         )
@@ -1871,6 +1891,8 @@ class AnthropicBuilderClient:
                         patch_content="",  # Empty patch is OK for no-op
                         builder_messages=[no_op_msg],
                         tokens_used=response.usage.input_tokens + response.usage.output_tokens,
+                prompt_tokens=response.usage.input_tokens,
+                completion_tokens=response.usage.output_tokens,
                         model_used=model,
                         stop_reason=stop_reason,
                         was_truncated=was_truncated
@@ -1883,6 +1905,8 @@ class AnthropicBuilderClient:
                         patch_content="",
                         builder_messages=[error_msg],
                         tokens_used=response.usage.input_tokens + response.usage.output_tokens,
+                prompt_tokens=response.usage.input_tokens,
+                completion_tokens=response.usage.output_tokens,
                         model_used=model,
                         error=error_msg
                     )
@@ -1898,6 +1922,8 @@ class AnthropicBuilderClient:
                 patch_content=patch_content,
                 builder_messages=[summary],
                 tokens_used=response.usage.input_tokens + response.usage.output_tokens,
+                prompt_tokens=response.usage.input_tokens,
+                completion_tokens=response.usage.output_tokens,
                 model_used=model,
                 stop_reason=stop_reason,
                 was_truncated=was_truncated
@@ -2226,6 +2252,8 @@ class AnthropicBuilderClient:
                         patch_content="",
                         builder_messages=[error_msg],
                         tokens_used=response.usage.input_tokens + response.usage.output_tokens,
+                prompt_tokens=response.usage.input_tokens,
+                completion_tokens=response.usage.output_tokens,
                         model_used=model,
                         error=error_msg,
                         stop_reason=stop_reason,
@@ -2237,6 +2265,8 @@ class AnthropicBuilderClient:
             patch_content=patch_content,
             builder_messages=[summary],
             tokens_used=response.usage.input_tokens + response.usage.output_tokens,
+                prompt_tokens=response.usage.input_tokens,
+                completion_tokens=response.usage.output_tokens,
             model_used=model,
             stop_reason=stop_reason,
             was_truncated=was_truncated
@@ -2322,6 +2352,8 @@ class AnthropicBuilderClient:
                         patch_content="",
                         builder_messages=[error_msg],
                         tokens_used=response.usage.input_tokens + response.usage.output_tokens,
+                prompt_tokens=response.usage.input_tokens,
+                completion_tokens=response.usage.output_tokens,
                         model_used=model,
                         error=error_msg,
                         stop_reason=stop_reason,
@@ -2404,6 +2436,8 @@ class AnthropicBuilderClient:
                     patch_content="",
                     builder_messages=[info_msg],
                     tokens_used=response.usage.input_tokens + response.usage.output_tokens,
+                prompt_tokens=response.usage.input_tokens,
+                completion_tokens=response.usage.output_tokens,
                     model_used=model,
                     error=None
                 )
@@ -2433,6 +2467,8 @@ class AnthropicBuilderClient:
                             patch_content="",
                             builder_messages=[error_msg],
                             tokens_used=response.usage.input_tokens + response.usage.output_tokens,
+                prompt_tokens=response.usage.input_tokens,
+                completion_tokens=response.usage.output_tokens,
                             model_used=model,
                             error=error_msg
                         )
@@ -2447,6 +2483,8 @@ class AnthropicBuilderClient:
                         patch_content="",
                         builder_messages=[error_msg],
                         tokens_used=response.usage.input_tokens + response.usage.output_tokens,
+                prompt_tokens=response.usage.input_tokens,
+                completion_tokens=response.usage.output_tokens,
                         model_used=model,
                         error=error_msg
                     )
@@ -2464,6 +2502,8 @@ class AnthropicBuilderClient:
                     patch_content="",
                     builder_messages=[error_msg],
                     tokens_used=response.usage.input_tokens + response.usage.output_tokens,
+                prompt_tokens=response.usage.input_tokens,
+                completion_tokens=response.usage.output_tokens,
                     model_used=model,
                     error=error_msg
                 )
@@ -2476,6 +2516,8 @@ class AnthropicBuilderClient:
                 patch_content="",  # No patch content for structured edits
                 builder_messages=[f"Generated {len(operations)} edit operations"],
                 tokens_used=response.usage.input_tokens + response.usage.output_tokens,
+                prompt_tokens=response.usage.input_tokens,
+                completion_tokens=response.usage.output_tokens,
                 model_used=model,
                 edit_plan=edit_plan,  # NEW: Store edit plan
                 stop_reason=stop_reason,
@@ -2489,6 +2531,8 @@ class AnthropicBuilderClient:
                 patch_content="",
                 builder_messages=[str(e)],
                 tokens_used=response.usage.input_tokens + response.usage.output_tokens,
+                prompt_tokens=response.usage.input_tokens,
+                completion_tokens=response.usage.output_tokens,
                 model_used=model,
                 error=str(e)
             )
@@ -2699,6 +2743,8 @@ class AnthropicBuilderClient:
                     patch_content="",
                     builder_messages=[error_msg],
                     tokens_used=response.usage.input_tokens + response.usage.output_tokens,
+                prompt_tokens=response.usage.input_tokens,
+                completion_tokens=response.usage.output_tokens,
                     model_used=model,
                     error="ndjson_no_operations",
                     stop_reason=stop_reason,
@@ -2792,6 +2838,8 @@ class AnthropicBuilderClient:
                             f"outside_sample={outside[:10]}",
                         ],
                         tokens_used=response.usage.input_tokens + response.usage.output_tokens,
+                prompt_tokens=response.usage.input_tokens,
+                completion_tokens=response.usage.output_tokens,
                         model_used=model,
                         error="ndjson_outside_manifest",
                         stop_reason=stop_reason,
@@ -2838,6 +2886,8 @@ class AnthropicBuilderClient:
                 patch_content=patch_content,
                 builder_messages=messages,
                 tokens_used=response.usage.input_tokens + response.usage.output_tokens,
+                prompt_tokens=response.usage.input_tokens,
+                completion_tokens=response.usage.output_tokens,
                 model_used=model,
                 stop_reason=stop_reason,
                 was_truncated=effective_truncation,
@@ -2855,6 +2905,8 @@ class AnthropicBuilderClient:
                 patch_content="",
                 builder_messages=[error_msg],
                 tokens_used=response.usage.input_tokens + response.usage.output_tokens,
+                prompt_tokens=response.usage.input_tokens,
+                completion_tokens=response.usage.output_tokens,
                 model_used=model,
                 error="ndjson_parse_error",
                 stop_reason=stop_reason,
@@ -3696,6 +3748,8 @@ class AnthropicAuditorClient:
                 issues_found=result_json.get("issues", []),
                 auditor_messages=[result_json.get("summary", "")],
                 tokens_used=response.usage.input_tokens + response.usage.output_tokens,
+                prompt_tokens=response.usage.input_tokens,
+                completion_tokens=response.usage.output_tokens,
                 model_used=model
             )
 

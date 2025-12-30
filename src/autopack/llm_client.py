@@ -31,6 +31,8 @@ class BuilderResult:
     stop_reason: Optional[str] = None  # Anthropic API stop_reason: 'end_turn', 'max_tokens', 'stop_sequence'
     was_truncated: bool = False  # True if output is known-truncated (stop_reason=='max_tokens' or truncation-tolerant parser detected truncation)
     raw_output: Optional[str] = None  # Raw LLM output (used for continuation recovery / truncation analysis)
+    prompt_tokens: Optional[int] = None  # BUILD-143: Exact prompt tokens from provider (replaces heuristic splits)
+    completion_tokens: Optional[int] = None  # BUILD-143: Exact completion tokens from provider (replaces heuristic splits)
 
 
 @dataclass
@@ -42,6 +44,8 @@ class AuditorResult:
     tokens_used: int
     model_used: str
     error: Optional[str] = None
+    prompt_tokens: Optional[int] = None  # BUILD-143: Exact prompt tokens from provider (replaces heuristic splits)
+    completion_tokens: Optional[int] = None  # BUILD-143: Exact completion tokens from provider (replaces heuristic splits)
 
 
 @dataclass

@@ -402,10 +402,19 @@ class LlmService:
 
         # Record usage in database
         if result.success and result.tokens_used > 0:
-            # For now, use rough 40/60 split (prompt/completion typical for builder)
-            # TODO: Update OpenAI clients to return separate prompt/completion counts
-            prompt_tokens = int(result.tokens_used * 0.4)
-            completion_tokens = result.tokens_used - prompt_tokens
+            # BUILD-143: Use exact token counts from provider when available
+            if result.prompt_tokens is not None and result.completion_tokens is not None:
+                prompt_tokens = result.prompt_tokens
+                completion_tokens = result.completion_tokens
+            else:
+                # Fallback for providers that don't return split (should not happen after BUILD-143)
+                # Use conservative 40/60 split as fallback
+                prompt_tokens = int(result.tokens_used * 0.4)
+                completion_tokens = result.tokens_used - prompt_tokens
+                logger.warning(
+                    f"[TOKEN-ACCOUNTING] Builder result missing exact token counts (model={resolved_model}). "
+                    f"Using fallback 40/60 split. This should not happen after BUILD-143."
+                )
 
             self._record_usage(
                 provider=self._model_to_provider(resolved_model),
@@ -514,10 +523,19 @@ class LlmService:
 
         # Record usage in database
         if result.tokens_used > 0:
-            # For auditor, use rough 60/40 split (prompt/completion - auditor reads more, writes less)
-            # TODO: Update OpenAI clients to return separate prompt/completion counts
-            prompt_tokens = int(result.tokens_used * 0.6)
-            completion_tokens = result.tokens_used - prompt_tokens
+            # BUILD-143: Use exact token counts from provider when available
+            if result.prompt_tokens is not None and result.completion_tokens is not None:
+                prompt_tokens = result.prompt_tokens
+                completion_tokens = result.completion_tokens
+            else:
+                # Fallback for providers that don't return split (should not happen after BUILD-143)
+                # Use conservative 60/40 split as fallback
+                prompt_tokens = int(result.tokens_used * 0.6)
+                completion_tokens = result.tokens_used - prompt_tokens
+                logger.warning(
+                    f"[TOKEN-ACCOUNTING] Auditor result missing exact token counts (model={resolved_model}). "
+                    f"Using fallback 60/40 split. This should not happen after BUILD-143."
+                )
 
             self._record_usage(
                 provider=self._model_to_provider(resolved_model),

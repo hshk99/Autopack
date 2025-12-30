@@ -114,8 +114,8 @@ class CircuitBreaker:
         
         logger.info(
             f"Circuit breaker '{name}' initialized: "
-            f"failure_threshold={config.failure_threshold}, "
-            f"timeout={config.timeout}s"
+            f"failure_threshold={self.config.failure_threshold}, "
+            f"timeout={self.config.timeout}s"
         )
 
     def call(self, func: Callable[[], Any], *args, **kwargs) -> Any:

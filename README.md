@@ -381,6 +381,126 @@ In practice, “autonomous” requires that each phase has:
 
 ---
 
+### 2025-12-31: BUILD-146 Phase 6 P11 Ops - API Split-Brain Fix ✅ COMPLETE
+**Production API Unification**
+- **Achievement**: Fixed critical API split-brain issue where `scripts/run_parallel.py` called endpoints that didn't exist in either FastAPI app
+- **Problem Solved**:
+  - Two separate FastAPI apps existed: `src/autopack/main.py` (Supervisor) and `src/backend/main.py` (Production)
+  - `scripts/run_parallel.py --executor api` called missing endpoints: `/runs/{run_id}/execute` and `/runs/{run_id}/status`
+  - Auth inconsistency: `autonomous_executor.py` used `X-API-Key`, `run_parallel.py` used `Bearer` token
+  - Neither API provided the run execution endpoints needed for API mode operation
+- **Solution Implemented**:
+
+  **1. Missing Endpoints Added** ([src/backend/api/runs.py](src/backend/api/runs.py)):
+  - `POST /runs/{run_id}/execute` - Triggers `autonomous_executor.py` as background subprocess
+    - Validates run exists and not already executing/completed
+    - Updates run state to `PHASE_EXECUTION`
+    - Spawns subprocess with 1-hour timeout
+    - Returns `{"run_id": ..., "status": "started", "state": "PHASE_EXECUTION"}`
+    - Background task updates run state on completion (SUCCESS or FAILED)
+  - `GET /runs/{run_id}/status` - Returns run state with phase completion counts
+    - Fields: `run_id`, `state`, timestamps, `tokens_used`, `total_phases`, `completed_phases`, `failed_phases`, `percent_complete`
+    - Enables polling for run progress monitoring
+
+  **2. Dual Authentication** ([src/backend/api/api_key_auth.py](src/backend/api/api_key_auth.py)):
+  - `verify_api_key_or_bearer()` - Accepts BOTH auth patterns for backward compatibility
+    - `X-API-Key` header (used by `autonomous_executor.py`)
+    - `Authorization: Bearer` token (used by `run_parallel.py`)
+    - Validates against `AUTOPACK_API_KEY` env var if set
+    - Bypasses auth in test mode (`TESTING=1`)
+  - Production API now fully compatible with both legacy and modern auth patterns
+
+  **3. Integration Tests** ([tests/test_api_split_brain_fix.py](tests/test_api_split_brain_fix.py)):
+  - Tests endpoint existence (non-405 response codes)
+  - Tests dual auth support (X-API-Key and Bearer)
+  - Validates `TESTING=1` auth bypass for fixture compatibility
+
+- **Files Modified** (3 total):
+  - [src/backend/api/runs.py](src/backend/api/runs.py) - Execute/status endpoints (+182 lines)
+  - [src/backend/api/api_key_auth.py](src/backend/api/api_key_auth.py) - Dual auth module (+111 lines NEW)
+  - [tests/test_api_split_brain_fix.py](tests/test_api_split_brain_fix.py) - Integration tests (+62 lines NEW)
+
+- **Impact**:
+  - ✅ **API Mode Functional**: `scripts/run_parallel.py --executor api` now works
+  - ✅ **Production API Complete**: `src/backend/main.py` can fully replace Supervisor API
+  - ✅ **Backward Compatible**: Both auth patterns (X-API-Key and Bearer) supported
+  - ✅ **Async Execution**: Background subprocess execution with timeout and state tracking
+  - ✅ **Zero Breaking Changes**: No modifications to existing callers
+
+- **Usage**:
+  ```bash
+  # Run parallel executions via API mode (now functional)
+  AUTOPACK_API_URL="http://localhost:8000" \
+  AUTOPACK_API_KEY="your-key" \
+  python scripts/run_parallel.py run1 run2 --executor api
+
+  # Poll run status
+  curl -H "X-API-Key: your-key" http://localhost:8000/runs/{run_id}/status
+
+  # Trigger execution
+  curl -X POST -H "Authorization: Bearer your-token" \
+    http://localhost:8000/runs/{run_id}/execute
+  ```
+
+---
+
+### 2025-12-31: BUILD-146 Phase 6 P12 - Production Hardening Roadmap 📋 PLANNED
+**Staging Validation + Close-the-Loop Improvements**
+- **Status**: Prompts ready for implementation in next session
+- **Context**: After P11 (API split-brain fix), project reached README "ideal state" for True Autonomy with observability. Remaining work is **production-facing improvements** for safe rollout and closed feedback loops (not new features).
+- **Planned Tasks** (5 components):
+
+  **1. Rollout Playbook + Safety Rails**
+  - Create `docs/STAGING_ROLLOUT.md` with production readiness checklist
+  - Add kill switches: `AUTOPACK_ENABLE_PHASE6_METRICS`, `AUTOPACK_ENABLE_CONSOLIDATED_METRICS` (default OFF)
+  - Create health check endpoint with dependency validation
+  - Document rollback procedures and performance baselines
+
+  **2. Pattern Expansion → PR Automation**
+  - Extend `scripts/pattern_expansion.py` to auto-generate code stubs
+  - Generate Python detector/mitigation stubs in `src/autopack/patterns/pattern_*.py`
+  - Generate pytest skeletons in `tests/patterns/test_pattern_*.py`
+  - Generate backlog entries in `docs/backlog/PATTERN_*.md`
+  - Target: 3-5 new patterns from real staging data
+
+  **3. Data Quality + Performance Hardening**
+  - Add database indexes with migration script for common query patterns
+  - Add pagination to consolidated metrics endpoint (max 10000)
+  - Ensure `/dashboard/runs/{run_id}/consolidated-metrics` is fast on large DBs
+  - Optional: Add retention strategy (prune raw metrics after N days, keep aggregates)
+
+  **4. A/B Results Persistence**
+  - Create `ABTestResult` model for storing A/B comparisons in database
+  - **STRICT validity checks**: Require same commit SHA and model mapping hash (not warnings!)
+  - Dashboard can show measured deltas without JSON files
+  - Migration script for both SQLite and PostgreSQL
+
+  **5. Replay Campaign**
+  - Create `scripts/replay_campaign.py` to replay failed runs
+  - Clone failed runs with new IDs and Phase 6 features enabled
+  - Use `scripts/run_parallel.py --executor api` for async execution
+  - Generate comparison reports in `archive/replay_results/`
+
+- **Implementation Prompts**:
+  - [NEXT_SESSION_TECHNICAL_PROMPT.md](NEXT_SESSION_TECHNICAL_PROMPT.md) - Complete technical specification (500+ lines)
+  - [NEXT_SESSION_USER_PROMPT.md](NEXT_SESSION_USER_PROMPT.md) - User-facing prompt for next session
+
+- **Critical Constraints**:
+  - All features opt-in (kill switches OFF by default)
+  - Windows + PostgreSQL + SQLite compatibility
+  - No double-counting tokens (4 categories kept separate)
+  - No new LLM calls (operational improvements only)
+  - Test coverage for all new endpoints and migrations
+
+- **Expected Impact** (when implemented):
+  - Production readiness with documented rollout checklist
+  - Automated pattern detection → code generation pipeline
+  - Fast dashboard queries on large databases
+  - Historical A/B test tracking with strict validity
+  - Ability to replay failed work with new features enabled
+
+---
+
 ### 2025-12-31: BUILD-146 Phase 6 Ops Hardening (DATABASE_URL Footgun Fix) - ✅ COMPLETE
 **Database Consistency Guardrails + Identity Drift Detection**
 - **Achievement**: Eliminated DATABASE_URL footguns that could cause migrations/executor to target wrong database

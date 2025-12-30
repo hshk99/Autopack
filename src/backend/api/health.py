@@ -1,20 +1,38 @@
-"""Health check endpoints."""
+"""Health check endpoints.
 
-from fastapi import APIRouter
+BUILD-146 P12: Enhanced with dependency validation and kill switch states.
+"""
+
+from fastapi import APIRouter, Depends
+from sqlalchemy.orm import Session
+from sqlalchemy import text
 from datetime import datetime, timezone
 from pydantic import BaseModel
+from typing import Dict, Optional
 import hashlib
 import re
 import os
+import logging
+
+from autopack.database import get_db
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
 
 class HealthResponse(BaseModel):
-    """Health check response model."""
+    """Health check response model.
+
+    BUILD-146 P12: Extended with dependency checks and kill switch states.
+    """
     status: str
     timestamp: str
     database_identity: str  # BUILD-146 P4 Ops: DB identity hash to detect drift
+    database: str  # BUILD-146 P12: Database connection status
+    qdrant: Optional[str]  # BUILD-146 P12: Qdrant connection status (if enabled)
+    kill_switches: Dict[str, bool]  # BUILD-146 P12: Kill switch states
+    version: Optional[str]  # API version (if available)
 
 
 def get_database_identity() -> str:

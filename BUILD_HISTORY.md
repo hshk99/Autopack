@@ -16,6 +16,73 @@ Each entry includes:
 
 ## Chronological Index
 
+### BUILD-146 Phase 6 P12: Production Hardening Roadmap (2025-12-31)
+
+**Status**: 📋 PLANNED (Prompts Ready)
+
+**Summary**: Created comprehensive implementation roadmap for production hardening and operational maturity. This phase focuses on **staging validation and close-the-loop improvements** rather than new features. All work is opt-in with kill switches for safe rollout.
+
+**Context**: After BUILD-146 P11 (API split-brain fix), the project reached the README "ideal state" for True Autonomy with observability. Remaining work is production-facing improvements to enable safe rollout and close operational feedback loops.
+
+**5 Planned Tasks**:
+
+1. **Rollout Playbook + Safety Rails**
+   - Create `docs/STAGING_ROLLOUT.md` with production readiness checklist
+   - Add kill switches: `AUTOPACK_ENABLE_PHASE6_METRICS`, `AUTOPACK_ENABLE_CONSOLIDATED_METRICS` (default OFF)
+   - Create health check endpoint with dependency validation
+   - Document rollback procedures and performance baselines
+
+2. **Pattern Expansion → PR Automation**
+   - Extend `scripts/pattern_expansion.py` to auto-generate code stubs
+   - Generate Python detector/mitigation stubs in `src/autopack/patterns/pattern_*.py`
+   - Generate pytest skeletons in `tests/patterns/test_pattern_*.py`
+   - Generate backlog entries in `docs/backlog/PATTERN_*.md`
+   - Target: 3-5 new patterns from real staging data
+
+3. **Data Quality + Performance Hardening**
+   - Add database indexes with migration script for common query patterns
+   - Add pagination to consolidated metrics endpoint (max 10000)
+   - Ensure `/dashboard/runs/{run_id}/consolidated-metrics` is fast on large DBs
+   - Optional: Add retention strategy (prune raw metrics after N days, keep aggregates)
+   - Document query plan verification steps
+
+4. **A/B Results Persistence**
+   - Create `ABTestResult` model for storing A/B comparisons in database
+   - Store A/B results in DB instead of JSON artifacts only
+   - **STRICT validity checks**: Require same commit SHA and model mapping hash (not warnings!)
+   - Dashboard can show measured deltas without JSON files
+   - Migration script for both SQLite and PostgreSQL
+
+5. **Replay Campaign**
+   - Create `scripts/replay_campaign.py` to replay failed runs
+   - Clone failed runs with new IDs and Phase 6 features enabled
+   - Use `scripts/run_parallel.py --executor api` for async execution
+   - Generate comparison reports in `archive/replay_results/`
+   - Integrate with pattern expansion for post-replay analysis
+
+**Implementation Prompts Created**:
+- [NEXT_SESSION_TECHNICAL_PROMPT.md](NEXT_SESSION_TECHNICAL_PROMPT.md) (500+ lines) - Complete technical specification with architecture context, code templates, constraints
+- [NEXT_SESSION_USER_PROMPT.md](NEXT_SESSION_USER_PROMPT.md) - Concise user-facing prompt for next cursor chat
+
+**Critical Constraints**:
+- ✅ All features opt-in (kill switches OFF by default)
+- ✅ Windows + PostgreSQL + SQLite compatibility
+- ✅ No double-counting tokens (4 categories: retrieval, second_opinion, evidence_request, base)
+- ✅ No new LLM calls (operational improvements only)
+- ✅ Test coverage for all new endpoints and migrations
+- ✅ Minimal refactor (add new code, don't reorganize existing)
+
+**Expected Impact** (when implemented):
+- Production readiness with documented rollout checklist
+- Automated pattern detection → code generation pipeline
+- Fast dashboard queries on large databases
+- Historical A/B test tracking with strict validity
+- Ability to replay failed work with new features enabled
+
+**Next Steps**: Use prompts in next cursor chat session to implement all 5 tasks systematically.
+
+---
+
 ### BUILD-146 Phase 6 P11: API Split-Brain Fix (2025-12-31)
 
 **Status**: ✅ COMPLETE

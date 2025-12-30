@@ -4,6 +4,121 @@ Developer journal for tracking implementation progress, debugging sessions, and 
 
 ---
 
+## 2025-12-31: BUILD-146 Phase 6 P12 Planning - Production Hardening Roadmap
+
+**Session Goal**: Create comprehensive implementation roadmap for production hardening after BUILD-146 P11 completion
+
+**Context**:
+- BUILD-146 P11 (API split-brain fix) just completed
+- Project has reached README "ideal state" for True Autonomy + observability
+- User requested planning for 5 remaining tasks: rollout playbook, pattern automation, performance hardening, A/B persistence, replay campaign
+- **Critical**: User wants prompts created for a new cursor chat session to implement all tasks without leaving any out
+
+**Planning Approach**:
+1. Analyzed current state across all BUILD-146 P6 components
+2. Identified what's complete vs what's planned but not implemented
+3. Created two comprehensive prompt files for next session
+
+**Prompts Created**:
+
+**File 1**: [NEXT_SESSION_TECHNICAL_PROMPT.md](NEXT_SESSION_TECHNICAL_PROMPT.md) (500+ lines)
+- Executive summary of BUILD-146 state
+- Complete architecture context (models, executors, auth patterns, state machines)
+- Recent implementation patterns with code examples from P11
+- 5 detailed task specifications with:
+  - Goals and deliverables
+  - Complete code templates for all new files
+  - Migration scripts for SQLite + PostgreSQL
+  - Testing requirements
+  - Integration points
+- Critical constraints (Windows, SQLite+Postgres, no double-counting, kill switches)
+- Success criteria (14 checkpoints)
+- File structure reference
+- Testing commands
+- Git workflow
+
+**File 2**: [NEXT_SESSION_USER_PROMPT.md](NEXT_SESSION_USER_PROMPT.md)
+- Concise user-facing prompt (ready to copy-paste)
+- Task summaries for all 5 components
+- Critical constraints checklist
+- Success criteria
+- Testing commands
+- Git workflow
+
+**5 Tasks Documented**:
+
+1. **Rollout Playbook + Safety Rails**
+   - `docs/STAGING_ROLLOUT.md` - Production readiness checklist
+   - Kill switches: `AUTOPACK_ENABLE_PHASE6_METRICS`, `AUTOPACK_ENABLE_CONSOLIDATED_METRICS`
+   - Health check endpoint: `src/backend/api/health.py`
+   - Rollback procedures, performance baselines
+
+2. **Pattern Expansion → PR Automation**
+   - Extend `scripts/pattern_expansion.py` to generate code
+   - Auto-generate detector stubs: `src/autopack/patterns/pattern_*.py`
+   - Auto-generate test skeletons: `tests/patterns/test_pattern_*.py`
+   - Auto-generate backlog entries: `docs/backlog/PATTERN_*.md`
+   - Pattern registry: `src/autopack/patterns/__init__.py`
+
+3. **Data Quality + Performance Hardening**
+   - Migration script: `scripts/migrations/add_performance_indexes.py`
+   - Database indexes on run_id + created_at combinations
+   - Pagination on consolidated metrics (max 10000)
+   - Query plan verification
+   - Optional retention script: `scripts/metrics_retention.py`
+
+4. **A/B Results Persistence**
+   - New model: `ABTestResult` in `src/autopack/models.py`
+   - Migration: `scripts/migrations/add_ab_test_results.py`
+   - Analysis script: `scripts/ab_analysis.py`
+   - Dashboard endpoint: `/ab-results` in `src/backend/api/dashboard.py`
+   - **STRICT validity**: Require matching commit SHA + model hash (not warnings!)
+
+5. **Replay Campaign**
+   - Script: `scripts/replay_campaign.py`
+   - Clone failed runs with new IDs
+   - Enable Phase 6 env vars
+   - Use `scripts/run_parallel.py --executor api`
+   - Generate comparison reports in `archive/replay_results/`
+   - Integrate with pattern expansion
+
+**Design Decisions**:
+
+- **Opt-in by Default**: All new features OFF (kill switches) for safe rollout
+- **Windows + DB Compatibility**: All code works on Windows, SQLite, and PostgreSQL
+- **No Double-Counting**: 4 token categories kept separate (retrieval, second_opinion, evidence_request, base)
+- **No New LLM Calls**: Operational improvements only
+- **Minimal Refactor**: Add new code in new files when possible
+- **Complete Code Templates**: Every new file has full implementation example in technical prompt
+
+**Code Pattern Examples Provided**:
+- Kill switch pattern with environment variable checks
+- Dual authentication pattern from BUILD-146 P11
+- Background task execution pattern from API split-brain fix
+- Migration script pattern for both SQLite and PostgreSQL
+- Pattern detector stub template with detect/mitigate functions
+- A/B validation pattern with strict matching requirements
+- Replay script template with async execution and comparison reports
+
+**Validation Approach**:
+- Ensured all 5 user-requested tasks are covered
+- Provided complete code templates (not just descriptions)
+- Included testing requirements for all components
+- Documented constraints from BUILD-146 patterns
+- Created user-friendly prompt for easy copy-paste
+
+**Files Created** (2 files, ~600 lines):
+- [NEXT_SESSION_TECHNICAL_PROMPT.md](NEXT_SESSION_TECHNICAL_PROMPT.md) (+~500 lines)
+- [NEXT_SESSION_USER_PROMPT.md](NEXT_SESSION_USER_PROMPT.md) (+~100 lines)
+
+**Next Steps**:
+- Update BUILD_HISTORY.md with P12 planning entry ✅
+- Update DEBUG_LOG.md with session summary (this entry) ✅
+- Commit and push prompt files
+- User will use prompts in next cursor chat to implement all 5 tasks
+
+---
+
 ## 2025-12-31: BUILD-146 Phase 6 P11 Ops - API Split-Brain Fix
 
 **Session Goal**: Fix critical API split-brain issue preventing `scripts/run_parallel.py` API mode from functioning

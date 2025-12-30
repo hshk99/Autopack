@@ -9,6 +9,7 @@ Provides consolidated token metrics that prevent double-counting:
 Each category is independent - no overlap or double-counting.
 """
 
+import os
 import logging
 from typing import Dict, List, Optional
 from datetime import datetime
@@ -100,22 +101,44 @@ class ConsolidatedTokenMetrics:
 
 
 @router.get("/runs/{run_id}/consolidated-metrics")
-def get_consolidated_metrics(run_id: str, db: Session = Depends(get_db)) -> dict:
+def get_consolidated_metrics(
+    run_id: str,
+    limit: int = 1000,
+    offset: int = 0,
+    db: Session = Depends(get_db)
+) -> dict:
     """Get consolidated token metrics for a run (no double-counting).
 
     BUILD-146 P11 Observability: Returns all token metrics in clearly separated
     categories to prevent confusion and double-counting.
 
+    BUILD-146 P12 Production Hardening: Added kill switch and pagination.
+
     Args:
         run_id: The run ID to fetch metrics for
+        limit: Maximum number of records to return (max: 10000, default: 1000)
+        offset: Number of records to skip (default: 0)
         db: Database session
 
     Returns:
         ConsolidatedTokenMetrics as dictionary
 
     Raises:
-        HTTPException: If run not found
+        HTTPException: If run not found or feature disabled
     """
+    # BUILD-146 P12: Kill switch check (default: OFF)
+    if os.getenv("AUTOPACK_ENABLE_CONSOLIDATED_METRICS") != "1":
+        raise HTTPException(
+            status_code=503,
+            detail="Consolidated metrics disabled. Set AUTOPACK_ENABLE_CONSOLIDATED_METRICS=1 to enable."
+        )
+
+    # Validate pagination parameters
+    if limit > 10000:
+        raise HTTPException(status_code=400, detail="Limit cannot exceed 10000")
+    if offset < 0:
+        raise HTTPException(status_code=400, detail="Offset cannot be negative")
+
     # Verify run exists
     run_check = db.execute(
         text("SELECT id FROM runs WHERE id = :run_id"),

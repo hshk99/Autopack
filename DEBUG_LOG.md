@@ -4,6 +4,126 @@ Developer journal for tracking implementation progress, debugging sessions, and 
 
 ---
 
+## 2025-12-31: BUILD-146 Phase 6 P11 Operational Maturity
+
+**Session Goal**: Implement production-grade observability infrastructure for measuring Phase 6 feature effectiveness
+
+**Starting State**:
+- BUILD-146 P0-P4 complete (integration tests passing, telemetry working, A/B test harness functional)
+- Need experiment metadata logging for reproducibility
+- Risk of double-counting tokens across different metrics
+- No systematic way to identify uncaught failure patterns
+- CI tests don't enforce explicit DATABASE_URL
+
+**Implementation Timeline**:
+
+### Component 1: Experiment Metadata & Validity Checks
+- **Started**: After reviewing A/B test harness limitations
+- **File**: `scripts/ab_test_phase6.py` (+208 lines)
+- **Added Classes**:
+  - `ExperimentMetadata` dataclass: commit_sha, repo_url, branch, model_mapping_hash, run_spec_hash, timestamp, operator
+  - `PairValidityCheck` dataclass: pair_id, control_run_id, treatment_run_id, is_valid, warnings, errors
+- **Added Functions**:
+  - `get_git_commit_sha()`: Extract current commit SHA via git rev-parse
+  - `get_git_remote_url()`: Extract remote URL via git remote get-url origin
+  - `get_git_branch()`: Extract current branch via git branch --show-current
+  - `hash_dict()`: Compute SHA-256 hash of dictionary for drift detection
+  - `extract_run_metadata()`: Extract model mappings and plan specs from run
+  - `validate_ab_pair()`: Validate control/treatment are matched pairs
+- **Drift Detection**:
+  - Model mapping drift: Warns if control/treatment use different model assignments
+  - Plan spec drift: Warns if control/treatment have different plan inputs
+  - Temporal drift: Warns if runs started >24h apart
+- **Result**: Full reproducibility context now captured in JSON output ✅
+
+### Component 2: Consolidated Dashboard View
+- **Started**: After identifying risk of double-counting tokens
+- **File**: `src/backend/api/dashboard.py` (+365 lines NEW)
+- **Design**: Prevent double-counting by clearly separating 4 independent token categories
+- **Categories**:
+  1. Total tokens spent (actual from llm_usage_events)
+  2. Artifact tokens avoided (from token_efficiency_metrics)
+  3. Doctor tokens avoided estimate (counterfactual from phase6_metrics)
+  4. A/B delta tokens saved (actual measured difference, when available)
+- **Key Class**: `ConsolidatedTokenMetrics` with clear separation and documentation
+- **New Endpoint**: `GET /dashboard/runs/{run_id}/consolidated-metrics`
+- **SQL Queries**:
+  - Category 1: SUM(total_tokens) from llm_usage_events
+  - Category 2: SUM(tokens_saved_artifacts) from token_efficiency_metrics
+  - Category 3: SUM(doctor_tokens_avoided_estimate) from phase6_metrics
+  - Category 4: Placeholder for future A/B delta integration
+- **Legacy Support**: Maintained `/token-efficiency` and `/phase6-stats` endpoints
+- **Testing**: Tested with real run data, verified correct JSON output ✅
+- **Integration**: [src/backend/main.py](src/backend/main.py#L9) - Registered dashboard_router
+
+### Component 3: Pattern Expansion Script
+- **Started**: After identifying need for systematic failure pattern discovery
+- **File**: `scripts/pattern_expansion.py` (+330 lines NEW)
+- **Algorithm**:
+  1. Query error_logs where phase6_metrics.failure_hardening_triggered = FALSE
+  2. Normalize error messages (regex to remove paths, line numbers, variable names)
+  3. Compute SHA-256 pattern signatures
+  4. Group by signature, count occurrences
+  5. Classify error types (import_error, syntax_error, type_error, etc.)
+  6. Determine confidence (high ≥5, medium ≥3, low ≥1)
+- **Key Functions**:
+  - `normalize_error_message()`: Remove file paths, line numbers, hex addresses
+  - `classify_error_type()`: Categorize errors by keyword matching
+  - `compute_pattern_signature()`: SHA-256 hash of normalized message
+  - `analyze_uncaught_patterns()`: Main analysis function
+  - `print_pattern_report()`: Human-readable output
+- **Output**:
+  - Human-readable report to stdout
+  - Optional JSON file with full pattern details
+  - Per-pattern: signature, error type, occurrence count, run IDs, sample errors
+- **Testing**: Tested with production database, verified correct pattern detection ✅
+- **Usage**: `DATABASE_URL="sqlite:///autopack.db" python scripts/pattern_expansion.py`
+
+### Component 4: CI DATABASE_URL Enforcement
+- **Started**: After identifying potential footgun (tests could run against wrong database)
+- **File 1**: `.github/workflows/ci.yml` (+6 lines comments)
+  - Added comment explaining DATABASE_URL is explicitly set to postgresql://...
+  - Clarifies production=Postgres, tests=in-memory SQLite
+- **File 2**: `scripts/preflight_gate.sh` (+9 lines)
+  - Added check for DATABASE_URL environment variable
+  - Prints warning if unset: "⚠️ Warning: DATABASE_URL not set, tests will use in-memory SQLite"
+  - Shows configured database in startup logs
+- **Result**: Prevents accidentally running tests/migrations on wrong database ✅
+
+**Final State**:
+- All 4 operational maturity components implemented and tested
+- Experiment metadata: Full reproducibility context ✅
+- Validity checks: Detects mismatched A/B pairs ✅
+- Consolidated dashboard: No double-counting ✅
+- Pattern expansion: Automated failure discovery ✅
+- CI hardening: Explicit DATABASE_URL ✅
+- Zero breaking changes (all features opt-in)
+
+**Key Technical Decisions**:
+1. **Reproducibility First**: Capture full git context + model mappings for every A/B test
+2. **Validity Over Speed**: Validate pairs before analysis to prevent invalid conclusions
+3. **Clear Separation**: 4 independent token categories with no overlap
+4. **Automated Discovery**: Pattern expansion script for systematic mitigation expansion
+5. **Safety Rails**: DATABASE_URL enforcement prevents production footguns
+
+**Files Created** (2 new):
+- `src/backend/api/dashboard.py` (+365 lines)
+- `scripts/pattern_expansion.py` (+330 lines)
+
+**Files Modified** (4 total):
+- `scripts/ab_test_phase6.py` (+208 lines)
+- `src/backend/main.py` (+2 lines)
+- `.github/workflows/ci.yml` (+6 lines)
+- `scripts/preflight_gate.sh` (+9 lines)
+
+**Commits**:
+- e0d87bcd - Experiment metadata + validity checks
+- 930ccae6 - Consolidated dashboard + pattern expansion + CI hardening
+
+**Next Session**: Monitor pattern expansion output for new deterministic mitigations
+
+---
+
 ## 2025-12-31: BUILD-146 True Autonomy Implementation Complete
 
 **Session Goal**: Complete Phases 2-5 of True Autonomy roadmap

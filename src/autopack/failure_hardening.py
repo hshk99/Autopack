@@ -140,6 +140,14 @@ class FailureHardeningRegistry:
         self.patterns[pattern.pattern_id] = pattern
         logger.debug(f"[FailureHardening] Registered pattern: {pattern.pattern_id}")
 
+    def list_patterns(self) -> List[str]:
+        """List all registered pattern IDs.
+
+        Returns:
+            List of pattern IDs sorted by priority (lowest first)
+        """
+        return sorted(self.patterns.keys(), key=lambda pid: self.patterns[pid].priority)
+
     def detect_and_mitigate(
         self, error_text: str, context: Dict
     ) -> Optional[MitigationResult]:
@@ -164,6 +172,16 @@ class FailureHardeningRegistry:
                     logger.info(
                         f"[FailureHardening] Detected pattern: {pattern.pattern_id} ({pattern.name})"
                     )
+
+                    # Extract module name for dependency errors (to enable specific suggestions)
+                    if pattern.pattern_id == "python_missing_dep":
+                        match = re.search(r"ModuleNotFoundError: No module named ['\"]?(\w+)", error_text)
+                        if match:
+                            context["detected_module"] = match.group(1)
+                    elif pattern.pattern_id == "node_missing_dep":
+                        match = re.search(r"Cannot find module ['\"](\w+)", error_text)
+                        if match:
+                            context["detected_module"] = match.group(1)
 
                     # Apply mitigation
                     mitigation_data = pattern.mitigation(context)
@@ -197,7 +215,7 @@ class FailureHardeningRegistry:
     def _detect_missing_python_dep(self, error_text: str, context: Dict) -> bool:
         """Detect missing Python dependency."""
         patterns = [
-            r"ModuleNotFoundError: No module named ['\"](\w+)",
+            r"ModuleNotFoundError: No module named ['\"]?(\w+)",
             r"ImportError: cannot import name",
             r"ImportError: No module named",
         ]
@@ -262,11 +280,16 @@ class FailureHardeningRegistry:
     def _mitigate_missing_python_dep(self, context: Dict) -> Dict:
         """Mitigate missing Python dependency."""
         workspace = context.get("workspace", Path.cwd())
+        detected_module = context.get("detected_module")
 
         suggestions = []
         actions_taken = []
 
-        # Detect package manager
+        # If we detected a specific module name, suggest installing it directly
+        if detected_module:
+            suggestions.append(f"pip install {detected_module}")
+
+        # Detect package manager and add generic suggestions
         if (workspace / "requirements.txt").exists():
             suggestions.append("pip install -r requirements.txt")
         elif (workspace / "pyproject.toml").exists():
@@ -354,11 +377,22 @@ class FailureHardeningRegistry:
     def _mitigate_missing_node_dep(self, context: Dict) -> Dict:
         """Mitigate missing Node.js dependency."""
         workspace = context.get("workspace", Path.cwd())
+        detected_module = context.get("detected_module")
 
         suggestions = []
         actions_taken = ["Detected missing Node.js dependency"]
 
-        # Detect package manager
+        # If we detected a specific module name, suggest installing it directly
+        if detected_module:
+            # Detect package manager for specific install command
+            if (workspace / "yarn.lock").exists():
+                suggestions.append(f"yarn add {detected_module}")
+            elif (workspace / "pnpm-lock.yaml").exists():
+                suggestions.append(f"pnpm add {detected_module}")
+            else:
+                suggestions.append(f"npm install {detected_module}")
+
+        # Add generic package manager suggestions
         if (workspace / "yarn.lock").exists():
             suggestions.append("yarn install")
         elif (workspace / "pnpm-lock.yaml").exists():

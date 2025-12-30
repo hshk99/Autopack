@@ -98,10 +98,23 @@ class TestBaselineTracker:
     - Pre-existing error tolerance (ignore baseline failures)
     """
 
-    def __init__(self, workspace: Path):
-        """Initialize tracker."""
+    def __init__(self, workspace: Path, run_id: Optional[str] = None):
+        """Initialize tracker.
+
+        Args:
+            workspace: Repository workspace path
+            run_id: Run identifier for scoped artifacts (optional for backward compatibility)
+        """
         self.workspace = workspace
-        self.cache_dir = workspace / ".autonomous_runs" / "baselines"
+        self.run_id = run_id
+
+        # Use run-scoped cache directory if run_id provided (P2.1 parallel-run safety)
+        if run_id:
+            self.cache_dir = workspace / ".autonomous_runs" / run_id / "baselines"
+        else:
+            # Legacy: global cache dir (not safe for parallel runs)
+            self.cache_dir = workspace / ".autonomous_runs" / "baselines"
+
         self.cache_dir.mkdir(parents=True, exist_ok=True)
 
     def capture_baseline(
@@ -130,7 +143,13 @@ class TestBaselineTracker:
         logger.info(f"[Baseline] Capturing baseline for commit {commit_sha[:8]}")
 
         # Run pytest with JSON reporter
-        report_file = self.workspace / ".autonomous_runs" / "baseline.json"
+        # Use run-scoped path to prevent collision with parallel runs (P2.1)
+        if self.run_id:
+            report_file = self.workspace / ".autonomous_runs" / self.run_id / "ci" / "baseline.json"
+            report_file.parent.mkdir(parents=True, exist_ok=True)
+        else:
+            # Legacy: global report file (not safe for parallel runs)
+            report_file = self.workspace / ".autonomous_runs" / "baseline.json"
 
         try:
             result = subprocess.run(
@@ -305,7 +324,13 @@ class TestBaselineTracker:
 
         logger.info(f"[Baseline] Retrying {len(newly_failing)} newly failing tests")
 
-        report_file = workspace / ".autonomous_runs" / "retry.json"
+        # Use run-scoped path to prevent collision with parallel runs (P2.1)
+        if self.run_id:
+            report_file = workspace / ".autonomous_runs" / self.run_id / "ci" / "retry.json"
+            report_file.parent.mkdir(parents=True, exist_ok=True)
+        else:
+            # Legacy: global report file (not safe for parallel runs)
+            report_file = workspace / ".autonomous_runs" / "retry.json"
 
         try:
             result = subprocess.run(

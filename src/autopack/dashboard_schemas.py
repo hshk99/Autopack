@@ -4,7 +4,6 @@ from typing import Dict, Literal, Optional
 
 from pydantic import BaseModel
 
-
 class DashboardRunStatus(BaseModel):
     """Run status for dashboard display"""
 
@@ -34,7 +33,27 @@ class DashboardRunStatus(BaseModel):
     quality_level: Optional[str] = None  # "ok" | "needs_review" | "blocked"
     quality_blocked: bool = False
     quality_warnings: list[str] = []
+    
+    # Token efficiency (BUILD-145) - optional for backwards compatibility
+    token_efficiency: Optional[Dict] = None
 
+
+class TokenEfficiencyStats(BaseModel):
+    """Token efficiency statistics for a run (BUILD-145)"""
+    
+    run_id: str
+    total_phases: int
+    total_artifact_substitutions: int
+    total_tokens_saved_artifacts: int
+    total_budget_used: int
+    total_budget_cap: int
+    total_files_kept: int
+    total_files_omitted: int
+    semantic_mode_count: int
+    lexical_mode_count: int
+    avg_artifact_substitutions_per_phase: float = 0.0
+    avg_tokens_saved_per_phase: float = 0.0
+    budget_utilization: float = 0.0
 
 class ProviderUsage(BaseModel):
     """Token usage for a provider"""

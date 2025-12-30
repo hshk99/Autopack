@@ -35,7 +35,9 @@ class BreakGlassRepair:
         self.database_url = database_url
         self.engine = create_engine(database_url)
         self.validator = SchemaValidator(database_url)
-        self.repair_log_path = ".autonomous_runs/break_glass_repairs.jsonl"
+        # P2.2: Use configured autonomous_runs_dir
+        from .config import settings
+        self.repair_log_path = f"{settings.autonomous_runs_dir}/break_glass_repairs.jsonl"
 
     def diagnose(self) -> SchemaValidationResult:
         """

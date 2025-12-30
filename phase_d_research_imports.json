@@ -1,0 +1,53 @@
+{
+  "run": {
+    "run_id": "autopack-onephase-research-import-errors",
+    "safety_profile": "normal",
+    "run_scope": "multi_tier",
+    "token_cap": 220000,
+    "max_phases": 1,
+    "max_duration_minutes": 75
+  },
+  "tiers": [
+    {
+      "tier_id": "T1",
+      "tier_index": 0,
+      "name": "P2 Research Test Health",
+      "description": "Fix research/gatherers import errors so the full suite is healthier (optional)."
+    }
+  ],
+  "phases": [
+    {
+      "phase_id": "F1.research-import-errors",
+      "phase_index": 0,
+      "tier_id": "T1",
+      "name": "Fix research gatherer import errors",
+      "description": "Resolve the reported 4 import errors in research/gatherers tests. Keep changes minimal: correct import paths, add missing __init__.py, or adjust test imports to match current module structure. Add/adjust tests so imports succeed; avoid large refactors unless necessary.",
+      "task_category": "tests",
+      "complexity": "low",
+      "builder_mode": "default",
+      "scope": {
+        "paths": [
+          "src/autopack/research/",
+          "tests/research/",
+          "tests/test_research_*",
+          "src/autopack/__init__.py"
+        ],
+        "read_only_context": [
+          {
+            "path": "docs/research/USER_GUIDE.md",
+            "reason": "Ensure fixes align with expected research module structure (if documented)."
+          }
+        ],
+        "acceptance_criteria": [
+          "Previously failing research/gatherers imports succeed.",
+          "Targeted test run passes (no collection/import errors).",
+          "Changes are limited to imports/module packaging; no behavior changes unless required."
+        ],
+        "test_cmd": "pytest -q tests/research -k gatherer",
+        "notes": [
+          "If research tests are intentionally out-of-scope, document that instead of fixing."
+        ]
+      }
+    }
+  ]
+}

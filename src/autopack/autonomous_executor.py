@@ -7097,7 +7097,24 @@ Just the new description that should replace the current one while preserving th
         readonly_count = 0
 
         for readonly_entry in scope_config.get("read_only_context", []):
-            resolved = self._resolve_scope_target(readonly_entry, workspace_root, must_exist=False)
+            # BUILD-145: Normalize read_only_context entry to support both formats:
+            # - Legacy: ["path/to/file.py", ...]
+            # - New: [{"path": "path/to/file.py", "reason": "..."}, ...]
+            if isinstance(readonly_entry, dict):
+                readonly_path = readonly_entry.get("path")
+                readonly_reason = readonly_entry.get("reason", "")
+                if not readonly_path:
+                    logger.warning(f"[Scope] Skipping invalid read_only_context entry (missing 'path'): {readonly_entry}")
+                    continue
+                if readonly_reason:
+                    logger.debug(f"[Scope] Read-only context: {readonly_path} (reason: {readonly_reason})")
+            elif isinstance(readonly_entry, str):
+                readonly_path = readonly_entry
+            else:
+                logger.warning(f"[Scope] Skipping invalid read_only_context entry (expected str or dict): {type(readonly_entry).__name__}")
+                continue
+
+            resolved = self._resolve_scope_target(readonly_path, workspace_root, must_exist=False)
             if not resolved:
                 continue
             abs_path, rel_key = resolved

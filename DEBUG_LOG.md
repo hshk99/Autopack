@@ -4,6 +4,77 @@ Developer journal for tracking implementation progress, debugging sessions, and 
 
 ---
 
+## 2025-12-31: BUILD-146 Phase 6 P11 Ops - API Split-Brain Fix
+
+**Session Goal**: Fix critical API split-brain issue preventing `scripts/run_parallel.py` API mode from functioning
+
+**Problem Identification**:
+- Two FastAPI apps exist: `src/autopack/main.py` (Supervisor) and `src/backend/main.py` (Production)
+- `scripts/run_parallel.py --executor api` calls `/runs/{run_id}/execute` and `/runs/{run_id}/status`
+- Neither endpoint exists in either API
+- `autonomous_executor.py` uses `X-API-Key` header, `run_parallel.py` uses `Bearer` token
+
+**Investigation Steps**:
+1. Read [src/autopack/main.py](src/autopack/main.py) - Supervisor API with `/runs/{run_id}/phases/{phase_id}/update_status`
+2. Read [src/backend/api/runs.py](src/backend/api/runs.py) - Basic CRUD endpoints only
+3. Read [scripts/run_parallel.py:60-130](scripts/run_parallel.py#L60-L130) - API executor polling logic
+4. Grep for `/execute` and `/status` usage - confirmed missing endpoints
+5. Checked auth patterns - X-API-Key vs Bearer inconsistency
+
+**Solution Design**:
+- **Primary Control Plane**: Production API (`src/backend/main.py`) per user preference
+- **Add Missing Endpoints**: Implement in `src/backend/api/runs.py`
+- **Dual Auth**: Support both `X-API-Key` AND `Bearer` token for backward compatibility
+
+**Implementation**:
+
+**File 1**: [src/backend/api/runs.py](src/backend/api/runs.py) (+182 lines)
+- Added imports: `asyncio`, `logging`, `os`, `sys`, `Path`, `BackgroundTasks`
+- Added `POST /runs/{run_id}/execute` endpoint:
+  - Validates run exists and not already executing/completed
+  - Updates run state to `RunState.PHASE_EXECUTION`
+  - Spawns `autonomous_executor.py` as background subprocess
+  - Returns `{"run_id": ..., "status": "started", "state": "PHASE_EXECUTION"}`
+  - Background task updates run state on completion (SUCCESS or FAILED)
+  - 1-hour subprocess timeout
+- Added `GET /runs/{run_id}/status` endpoint:
+  - Returns run state with phase completion counts
+  - Fields: `run_id`, `state`, timestamps, `tokens_used`, `token_cap`, `total_phases`, `completed_phases`, `failed_phases`, `executing_phases`, `percent_complete`
+- Integrated `verify_api_key_or_bearer` auth dependency
+
+**File 2**: [src/backend/api/api_key_auth.py](src/backend/api/api_key_auth.py) (NEW, +111 lines)
+- Created dual auth module for backward compatibility
+- `verify_api_key_or_bearer()`:
+  - Accepts `X-API-Key` header OR `Authorization: Bearer` token
+  - Validates against `AUTOPACK_API_KEY` env var if set
+  - Bypasses auth in test mode (`TESTING=1`)
+  - Returns auth token/key for audit trail
+- `verify_api_key_only()`:
+  - Strict X-API-Key validation for Supervisor API pattern
+
+**File 3**: [tests/test_api_split_brain_fix.py](tests/test_api_split_brain_fix.py) (NEW, +62 lines)
+- Test endpoint existence (non-405 response codes)
+- Test dual auth support (X-API-Key and Bearer)
+- Validates `TESTING=1` auth bypass
+
+**Fixes Applied**:
+- Fixed `RunState.EXECUTING` references (doesn't exist) → `RunState.PHASE_EXECUTION`
+- Import order: Added all required imports at module top
+- Auth dependency added to both new endpoints
+
+**Validation**:
+- Endpoints added to production API router
+- Auth supports both patterns without breaking changes
+- Background execution isolated from request lifecycle
+- Run state transitions properly handled
+
+**Files Modified** (3 files, +355 lines):
+- src/backend/api/runs.py (+182)
+- src/backend/api/api_key_auth.py (+111 NEW)
+- tests/test_api_split_brain_fix.py (+62 NEW)
+
+---
+
 ## 2025-12-31: BUILD-146 Phase 6 P11 Operational Maturity
 
 **Session Goal**: Implement production-grade observability infrastructure for measuring Phase 6 feature effectiveness

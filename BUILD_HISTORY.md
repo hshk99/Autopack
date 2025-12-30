@@ -16,6 +16,55 @@ Each entry includes:
 
 ## Chronological Index
 
+### BUILD-146 Phase 6 P11: API Split-Brain Fix (2025-12-31)
+
+**Status**: ✅ COMPLETE
+
+**Summary**: Fixed critical API split-brain issue where `scripts/run_parallel.py` called endpoints (`/runs/{run_id}/execute` and `/runs/{run_id}/status`) that didn't exist in either FastAPI app. Added missing endpoints to production API (`src/backend/main.py`) and implemented dual authentication (X-API-Key + Bearer token) for backward compatibility.
+
+**Problem**:
+- Two separate FastAPI applications existed:
+  - `src/autopack/main.py` (Supervisor API) - Had `/runs/{run_id}/phases/{phase_id}/update_status`
+  - `src/backend/main.py` (Production API) - Had basic CRUD but missing execute/status endpoints
+- `scripts/run_parallel.py` (API mode) called endpoints that didn't exist: `/runs/{run_id}/execute` and `/runs/{run_id}/status`
+- Auth inconsistency: `autonomous_executor.py` used `X-API-Key`, `run_parallel.py` used `Bearer` token
+
+**Solution**:
+- **Primary Control Plane**: Production API (`src/backend/main.py`)
+- **Added Missing Endpoints** to [src/backend/api/runs.py](src/backend/api/runs.py):
+  - `POST /runs/{run_id}/execute` (+113 lines) - Triggers `autonomous_executor.py` as background subprocess
+  - `GET /runs/{run_id}/status` (+46 lines) - Returns run state with phase completion counts
+- **Dual Authentication**: [src/backend/api/api_key_auth.py](src/backend/api/api_key_auth.py) (+111 lines)
+  - `verify_api_key_or_bearer()` - Accepts both `X-API-Key` header AND `Authorization: Bearer` token
+  - Backward compatible with `autonomous_executor.py` (X-API-Key) and `run_parallel.py` (Bearer)
+  - Testing mode bypass (`TESTING=1` skips all auth checks)
+
+**Files Modified**:
+- [src/backend/api/runs.py](src/backend/api/runs.py) (+182 lines)
+  - Added `POST /runs/{run_id}/execute` endpoint with background task execution
+  - Added `GET /runs/{run_id}/status` endpoint with phase state counting
+  - Integrated dual auth dependency
+- [src/backend/api/api_key_auth.py](src/backend/api/api_key_auth.py) (NEW, +111 lines)
+  - `verify_api_key_or_bearer()` - Dual auth strategy
+  - `verify_api_key_only()` - Strict X-API-Key validation
+- [tests/test_api_split_brain_fix.py](tests/test_api_split_brain_fix.py) (NEW, +62 lines)
+  - Integration tests for endpoint existence and dual auth support
+
+**Technical Details**:
+- Execute endpoint spawns `autonomous_executor.py` as subprocess with 1-hour timeout
+- Status endpoint counts phases by state (COMPLETE, FAILED, EXECUTING)
+- Run state uses `RunState.PHASE_EXECUTION` (not `EXECUTING` which doesn't exist)
+- Auth bypassed in test mode (`TESTING=1`) for fixture compatibility
+- Background execution uses FastAPI `BackgroundTasks` for async processing
+
+**Impact**:
+- ✅ `scripts/run_parallel.py --executor api` now functional
+- ✅ Production API (`src/backend/main.py`) can fully replace Supervisor API
+- ✅ Backward compatible with both auth patterns (X-API-Key and Bearer)
+- ✅ No breaking changes to existing callers
+
+---
+
 ### BUILD-146: True Autonomy Implementation Complete (Phases 0-5) (2025-12-31)
 
 **Status**: COMPLETE ✅

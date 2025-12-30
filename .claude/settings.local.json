@@ -129,7 +129,9 @@
       "Bash(PYTHONUTF8=1 PYTHONPATH=src DATABASE_URL=\"sqlite:///autopack.db\" python -m autopack.autonomous_executor:*)",
       "Bash(PYTHONUTF8=1 PYTHONPATH=src DATABASE_URL=\"sqlite:///:memory:\" pytest:*)",
       "Bash(PYTHONUTF8=1 PYTHONPATH=src DATABASE_URL=\"sqlite:///:memory:\" python:*)",
-      "Bash(PYTHONUTF8=1 DATABASE_URL=\"sqlite:///autopack.db\" python scripts/migrations/add_phase6_p3_fields.py:*)"
+      "Bash(PYTHONUTF8=1 DATABASE_URL=\"sqlite:///autopack.db\" python scripts/migrations/add_phase6_p3_fields.py:*)",
+      "Bash(PYTHONUTF8=1 DATABASE_URL=\"sqlite:///autopack.db\" python:*)",
+      "Bash(PYTHONUTF8=1 DATABASE_URL=\"sqlite:///autopack.db\" python scripts/pattern_expansion.py:*)"
     ],
     "deny": [],
     "ask": []

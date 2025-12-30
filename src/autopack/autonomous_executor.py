@@ -9597,11 +9597,64 @@ Environment Variables:
         help="Stop execution immediately when any phase fails (saves token usage)"
     )
 
+    # BUILD-146 P6.1: Plan Normalization CLI integration
+    parser.add_argument(
+        "--raw-plan-file",
+        type=Path,
+        default=None,
+        help="Path to raw unstructured plan file (enables plan normalization)"
+    )
+
+    parser.add_argument(
+        "--enable-plan-normalization",
+        action="store_true",
+        help="Enable plan normalization (transform unstructured plans to structured run specs)"
+    )
+
     args = parser.parse_args()
 
     # Configure logging level
     if args.verbose:
         logging.getLogger().setLevel(logging.DEBUG)
+
+    # BUILD-146 P6.1: Plan Normalization (ingestion-time transformation)
+    if args.enable_plan_normalization and args.raw_plan_file:
+        try:
+            from autopack.plan_normalizer import PlanNormalizer
+
+            logger.info(f"[BUILD-146 P6.1] Normalizing raw plan from: {args.raw_plan_file}")
+
+            # Read raw plan
+            with open(args.raw_plan_file, 'r') as f:
+                raw_plan_text = f.read()
+
+            # Normalize to structured run spec
+            normalizer = PlanNormalizer(project_id=args.run_id)
+            normalized_run = normalizer.normalize_plan(
+                raw_plan_text=raw_plan_text,
+                run_id=args.run_id
+            )
+
+            # Write normalized run spec to file
+            normalized_path = args.raw_plan_file.parent / f"{args.run_id}_normalized.json"
+            with open(normalized_path, 'w') as f:
+                json.dump(normalized_run.to_dict(), f, indent=2)
+
+            logger.info(f"[BUILD-146 P6.1] Normalized plan written to: {normalized_path}")
+            logger.info(f"[BUILD-146 P6.1] Run ID: {normalized_run.run_id}")
+            logger.info(f"[BUILD-146 P6.1] Tiers: {len(normalized_run.tiers)}")
+            logger.info(f"[BUILD-146 P6.1] Total phases: {sum(len(t.phases) for t in normalized_run.tiers)}")
+
+            # Exit after normalization (user should review before execution)
+            logger.info("[BUILD-146 P6.1] Plan normalization complete. Review the normalized plan and submit to API.")
+            sys.exit(0)
+
+        except Exception as e:
+            logger.error(f"[BUILD-146 P6.1] Plan normalization failed: {e}", exc_info=True)
+            sys.exit(1)
+    elif args.enable_plan_normalization and not args.raw_plan_file:
+        logger.error("[BUILD-146 P6.1] --enable-plan-normalization requires --raw-plan-file")
+        sys.exit(1)
 
     # BUILD-048-T1: Acquire executor lock to prevent duplicates
     lock_manager = ExecutorLockManager(args.run_id)

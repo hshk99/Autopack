@@ -36,8 +36,35 @@ from sqlalchemy.engine import Engine
 
 
 def get_database_url() -> str:
-    """Get DATABASE_URL from environment, default to SQLite"""
-    db_url = os.getenv("DATABASE_URL", "sqlite:///autopack.db")
+    """Get DATABASE_URL from environment (REQUIRED - no default)
+
+    BUILD-146 P4 Ops: Migration scripts must target explicit DATABASE_URL to prevent
+    accidentally running migrations on SQLite when production uses Postgres.
+
+    Set DATABASE_URL before running:
+        # PowerShell (Postgres production):
+        $env:DATABASE_URL="postgresql://autopack:autopack@localhost:5432/autopack"
+        python scripts/migrations/add_phase6_metrics_build146.py upgrade
+
+        # PowerShell (SQLite dev/test - explicit opt-in):
+        $env:DATABASE_URL="sqlite:///autopack.db"
+        python scripts/migrations/add_phase6_metrics_build146.py upgrade
+    """
+    db_url = os.getenv("DATABASE_URL")
+    if not db_url:
+        print("\n" + "="*80, file=sys.stderr)
+        print("ERROR: DATABASE_URL environment variable not set", file=sys.stderr)
+        print("="*80, file=sys.stderr)
+        print("\nMigration scripts require explicit DATABASE_URL to prevent footguns.", file=sys.stderr)
+        print("Production uses Postgres; SQLite is only for dev/test.\n", file=sys.stderr)
+        print("Set DATABASE_URL before running:\n", file=sys.stderr)
+        print("  # PowerShell (Postgres production):", file=sys.stderr)
+        print("  $env:DATABASE_URL=\"postgresql://autopack:autopack@localhost:5432/autopack\"", file=sys.stderr)
+        print("  python scripts/migrations/add_phase6_metrics_build146.py upgrade\n", file=sys.stderr)
+        print("  # PowerShell (SQLite dev/test - explicit opt-in):", file=sys.stderr)
+        print("  $env:DATABASE_URL=\"sqlite:///autopack.db\"", file=sys.stderr)
+        print("  python scripts/migrations/add_phase6_metrics_build146.py upgrade\n", file=sys.stderr)
+        sys.exit(1)
     return db_url
 
 

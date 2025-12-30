@@ -5,6 +5,7 @@ from .api.auth import router as auth_router
 from .api.search import include_router as include_search_router
 from .api.runs import router as runs_router
 from .api.approvals import router as approvals_router
+from .api.health import router as health_router  # BUILD-146 P4 Ops: DB identity check
 from .database import Base, engine
 
 app = FastAPI(
@@ -19,6 +20,7 @@ def on_startup():
     Base.metadata.create_all(bind=engine)
 
 # Include routers
+app.include_router(health_router)  # BUILD-146 P4 Ops: Health + DB identity
 app.include_router(auth_router)
 app.include_router(runs_router)
 app.include_router(approvals_router)

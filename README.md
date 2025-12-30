@@ -300,6 +300,70 @@ In practice, “autonomous” requires that each phase has:
 
 ---
 
+### 2025-12-31: BUILD-146 Phase 6 Ops Hardening (DATABASE_URL Footgun Fix) - ✅ COMPLETE
+**Database Consistency Guardrails + Identity Drift Detection**
+- **Achievement**: Eliminated DATABASE_URL footguns that could cause migrations/executor to target wrong database
+- **Problem Solved**:
+  - **Footgun #1**: Migration scripts defaulted to `sqlite:///autopack.db` if DATABASE_URL unset → could accidentally run on SQLite when production uses Postgres
+  - **Footgun #2**: API server and executor could point at different databases (API=Postgres, executor=SQLite) with no detection
+  - **Lack of Documentation**: No clear guidance on "Postgres for prod, SQLite for dev/test"
+- **Solution Implemented** (3 tasks):
+
+  **1. Migration Scripts Require Explicit DATABASE_URL**:
+  - Updated 5 migration scripts to REQUIRE explicit DATABASE_URL or fail with clear error:
+    - [add_phase6_metrics_build146.py](scripts/migrations/add_phase6_metrics_build146.py)
+    - [add_phase6_p3_fields.py](scripts/migrations/add_phase6_p3_fields.py)
+    - [add_phase_outcome_build145_p1.py](scripts/migrations/add_phase_outcome_build145_p1.py)
+    - [add_telemetry_enrichment_build145_deploy.py](scripts/migrations/add_telemetry_enrichment_build145_deploy.py)
+    - [add_total_tokens_build144.py](scripts/migrations/add_total_tokens_build144.py)
+  - Error message provides PowerShell and Bash examples for both Postgres and SQLite
+  - No silent SQLite fallback → forces conscious choice
+
+  **2. Database Identity Check** ([health.py](src/backend/api/health.py)):
+  - `/health` endpoint now returns `database_identity` field (SHA-256 hash of DATABASE_URL, first 12 chars)
+  - Credentials masked before hashing (security)
+  - Path separators normalized (cross-platform consistency)
+  - Compare identity between API and executor to detect drift
+
+  **3. Database Documentation** ([DEPLOYMENT.md:185-370](docs/DEPLOYMENT.md#L185-L370)):
+  - New "Database Configuration" section with:
+    - **Production = PostgreSQL Only** (why: concurrent writes, durability, performance, schema migration support)
+    - DATABASE_URL requirements and examples (PowerShell + Bash)
+    - Common footguns + fixes
+    - Database identity check usage
+    - PostgreSQL setup instructions (Windows/Linux/Mac/Docker)
+
+- **Files Modified** (7 total):
+  - 5 migration scripts - Add DATABASE_URL requirement check
+  - [src/backend/api/health.py](src/backend/api/health.py) - Add database_identity field (+40 lines)
+  - [src/backend/main.py](src/backend/main.py) - Include health router (+2 lines)
+
+- **Files Updated** (1 doc):
+  - [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) - Add Database Configuration section (+185 lines)
+
+- **Impact**:
+  - ✅ **Footgun #1 Eliminated**: Migrations fail loudly if DATABASE_URL not set
+  - ✅ **Footgun #2 Detectable**: `/health` endpoint exposes database identity for drift detection
+  - ✅ **Clear Documentation**: Postgres vs SQLite guidance with platform-specific examples
+  - ✅ **Backward Compatible**: CI tests use explicit DATABASE_URL, no breakage
+
+- **Usage**:
+  ```bash
+  # Check database identity (API)
+  curl http://localhost:8000/health | jq -r .database_identity
+  # Output: a1b2c3d4e5f6
+
+  # Run migration with explicit DATABASE_URL (Postgres)
+  $env:DATABASE_URL="postgresql://autopack:autopack@localhost:5432/autopack"
+  python scripts/migrations/add_phase6_p3_fields.py upgrade
+
+  # Run migration with explicit DATABASE_URL (SQLite dev/test)
+  $env:DATABASE_URL="sqlite:///autopack.db"
+  python scripts/migrations/add_phase6_p3_fields.py upgrade
+  ```
+
+---
+
 ### 2025-12-31: BUILD-145 Deployment Hardening - ✅ 100% COMPLETE
 **Database Migration + Dashboard Exposure + Telemetry Enrichment**
 - **Achievement**: Production-ready deployment infrastructure for token efficiency observability with database migration, dashboard integration, and enriched telemetry (29/29 tests passing - 100%)

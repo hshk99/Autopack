@@ -1,0 +1,3 @@
+autopack-onephase-p13-expand-artifact-substitution
+autopack-onephase-p11-observability-artifact-first
+autopack-onephase-initdb-completeness-drift-test

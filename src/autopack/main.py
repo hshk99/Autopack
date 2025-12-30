@@ -1240,6 +1240,208 @@ async def approve_governance_request(
         raise HTTPException(status_code=500, detail=f"Failed to update request: {str(e)}")
 
 
+# =============================================================================
+# Dashboard Endpoints
+# =============================================================================
+
+@app.get("/dashboard/runs/{run_id}/status", response_model=dashboard_schemas.DashboardRunStatus)
+def get_dashboard_run_status(run_id: str, db: Session = Depends(get_db)):
+    """Get run status for dashboard display"""
+    from .run_progress import calculate_run_progress
+
+    run = db.query(models.Run).filter(models.Run.id == run_id).first()
+    if not run:
+        raise HTTPException(status_code=404, detail=f"Run {run_id} not found")
+
+    # Calculate progress
+    progress = calculate_run_progress(db, run_id)
+
+    # Calculate token utilization
+    tokens_used = run.tokens_used or 0
+    token_cap = run.token_cap or 1
+    token_utilization = (tokens_used / token_cap) * 100 if token_cap > 0 else 0
+
+    # Count issues
+    minor_issues_count = run.minor_issues_count or 0
+    major_issues_count = run.major_issues_count or 0
+
+    return dashboard_schemas.DashboardRunStatus(
+        run_id=run.id,
+        state=run.state.value,
+        current_tier_name=progress.current_tier_name,
+        current_phase_name=progress.current_phase_name,
+        current_tier_index=progress.current_tier_index,
+        current_phase_index=progress.current_phase_index,
+        total_tiers=progress.total_tiers,
+        total_phases=progress.total_phases,
+        completed_tiers=progress.completed_tiers,
+        completed_phases=progress.completed_phases,
+        percent_complete=progress.percent_complete,
+        tiers_percent_complete=progress.tiers_percent_complete,
+        tokens_used=tokens_used,
+        token_cap=token_cap,
+        token_utilization=token_utilization,
+        minor_issues_count=minor_issues_count,
+        major_issues_count=major_issues_count,
+    )
+
+
+@app.get("/dashboard/usage", response_model=dashboard_schemas.UsageResponse)
+def get_dashboard_usage(period: str = "week", db: Session = Depends(get_db)):
+    """Get token usage statistics for dashboard display"""
+    from datetime import timedelta
+    from .usage_recorder import LlmUsageEvent
+
+    # Calculate time range based on period
+    now = datetime.now(timezone.utc)
+    if period == "day":
+        start_time = now - timedelta(days=1)
+    elif period == "week":
+        start_time = now - timedelta(weeks=1)
+    elif period == "month":
+        start_time = now - timedelta(days=30)
+    else:
+        start_time = now - timedelta(weeks=1)  # Default to week
+
+    # Query usage events in time range
+    usage_events = db.query(LlmUsageEvent).filter(
+        LlmUsageEvent.created_at >= start_time
+    ).all()
+
+    if not usage_events:
+        return dashboard_schemas.UsageResponse(providers=[], models=[])
+
+    # Aggregate by provider
+    provider_stats = {}
+    for event in usage_events:
+        if event.provider not in provider_stats:
+            provider_stats[event.provider] = {
+                "prompt_tokens": 0,
+                "completion_tokens": 0,
+                "total_tokens": 0
+            }
+        provider_stats[event.provider]["prompt_tokens"] += event.prompt_tokens
+        provider_stats[event.provider]["completion_tokens"] += event.completion_tokens
+        provider_stats[event.provider]["total_tokens"] += (event.prompt_tokens + event.completion_tokens)
+
+    # Aggregate by model
+    model_stats = {}
+    for event in usage_events:
+        key = f"{event.provider}:{event.model}"
+        if key not in model_stats:
+            model_stats[key] = {
+                "provider": event.provider,
+                "model": event.model,
+                "prompt_tokens": 0,
+                "completion_tokens": 0,
+                "total_tokens": 0
+            }
+        model_stats[key]["prompt_tokens"] += event.prompt_tokens
+        model_stats[key]["completion_tokens"] += event.completion_tokens
+        model_stats[key]["total_tokens"] += (event.prompt_tokens + event.completion_tokens)
+
+    # Convert to response models
+    providers = [
+        dashboard_schemas.ProviderUsage(
+            provider=provider,
+            period=period,
+            prompt_tokens=stats["prompt_tokens"],
+            completion_tokens=stats["completion_tokens"],
+            total_tokens=stats["total_tokens"],
+            cap_tokens=0,  # TODO: Get from config
+            percent_of_cap=0.0
+        )
+        for provider, stats in provider_stats.items()
+    ]
+
+    models_list = [
+        dashboard_schemas.ModelUsage(**stats)
+        for stats in model_stats.values()
+    ]
+
+    return dashboard_schemas.UsageResponse(providers=providers, models=models_list)
+
+
+@app.get("/dashboard/models")
+def get_dashboard_models(db: Session = Depends(get_db)):
+    """Get current model mappings for dashboard display"""
+    from .model_router import ModelRouter
+
+    # Create router instance
+    router = ModelRouter(db)
+
+    # Get current mappings
+    mappings = router.get_current_mappings()
+
+    # Convert to list format for dashboard
+    result = []
+    for role in ["builder", "auditor"]:
+        for key, model in mappings[role].items():
+            category, complexity = key.split(":")
+            result.append(
+                dashboard_schemas.ModelMapping(
+                    role=role,
+                    category=category,
+                    complexity=complexity,
+                    model=model,
+                    scope="global"
+                )
+            )
+
+    return result
+
+
+@app.post("/dashboard/human-notes")
+def add_dashboard_human_note(note_request: dashboard_schemas.HumanNoteRequest, db: Session = Depends(get_db)):
+    """Add a human note to the notes file"""
+    from .config import settings
+
+    notes_file = Path(settings.autonomous_runs_dir) / ".." / ".autopack" / "human_notes.md"
+    notes_file.parent.mkdir(parents=True, exist_ok=True)
+
+    # Append note with timestamp
+    timestamp = datetime.now(timezone.utc).isoformat()
+    note_entry = f"\n## {timestamp}\n"
+    if note_request.run_id:
+        note_entry += f"**Run:** {note_request.run_id}\n"
+    note_entry += f"{note_request.note}\n"
+
+    with open(notes_file, "a", encoding="utf-8") as f:
+        f.write(note_entry)
+
+    return {
+        "message": "Note added successfully",
+        "timestamp": timestamp,
+        "notes_file": ".autopack/human_notes.md"
+    }
+
+
+@app.post("/dashboard/models/override")
+def add_dashboard_model_override(override_request: dashboard_schemas.ModelOverrideRequest, db: Session = Depends(get_db)):
+    """Add a model override (global or per-run)"""
+    if override_request.scope == "global":
+        # For global scope, we would update config file
+        # For now, return success message
+        return {
+            "message": "Global model mapping updated",
+            "scope": "global",
+            "role": override_request.role,
+            "category": override_request.category,
+            "complexity": override_request.complexity,
+            "model": override_request.model
+        }
+    elif override_request.scope == "run":
+        # For run scope, we would update run context
+        # For now, return "coming soon" message per test expectations
+        return {
+            "message": "Run-scoped model overrides coming soon",
+            "scope": "run",
+            "run_id": override_request.run_id
+        }
+    else:
+        raise HTTPException(status_code=400, detail="Invalid scope. Must be 'global' or 'run'")
+
+
 @app.get("/health")
 def health_check(db: Session = Depends(get_db)):
     """

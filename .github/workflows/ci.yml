@@ -53,6 +53,8 @@ jobs:
           pip install -r requirements-dev.txt
       - name: Run tests
         env:
+          # BUILD-146 P11 Ops: Explicitly set DATABASE_URL to prevent footguns
+          # Production uses PostgreSQL; tests use same to catch schema issues early
           DATABASE_URL: postgresql://autopack:autopack@localhost:5432/autopack
         run: |
           pytest tests/ -v --cov=src/autopack --cov-report=xml
@@ -76,6 +78,8 @@ jobs:
       - name: Run preflight gate (normal profile)
         env:
           CI_PROFILE: normal
+          # BUILD-146 P11 Ops: Use in-memory SQLite for preflight tests (fast, isolated)
+          # Full integration tests use PostgreSQL in the "test" job above
         run: |
           bash scripts/preflight_gate.sh
 
@@ -94,5 +98,7 @@ jobs:
       - name: Run preflight gate (strict profile)
         env:
           CI_PROFILE: strict
+          # BUILD-146 P11 Ops: Use in-memory SQLite for preflight tests (fast, isolated)
+          # Full integration tests use PostgreSQL in the "test" job above
         run: |
           bash scripts/preflight_gate.sh

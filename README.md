@@ -300,6 +300,87 @@ In practice, “autonomous” requires that each phase has:
 
 ---
 
+### 2025-12-31: BUILD-146 Phase 6 P11 - Operational Maturity ✅ COMPLETE
+**Experiment Metadata + Consolidated Dashboard + Pattern Expansion + CI Hardening**
+- **Achievement**: Production-grade observability infrastructure for measuring Phase 6 feature effectiveness at scale
+- **Problem Solved**:
+  - No experiment metadata logging (reproducibility issues)
+  - No A/B pair validity checks (model drift, temporal drift)
+  - Risk of double-counting tokens (actual spend vs artifact efficiency vs counterfactual estimates)
+  - No systematic way to identify uncaught failure patterns
+  - CI tests didn't enforce explicit DATABASE_URL (potential footguns)
+- **Solution Implemented** (4 components):
+
+  **1. Experiment Metadata & Validity Checks** ([ab_test_phase6.py](scripts/ab_test_phase6.py)):
+  - `ExperimentMetadata` dataclass: commit SHA, branch, operator, model mapping hash, run spec hash, timestamp
+  - `PairValidityCheck` dataclass: validates control/treatment runs are matched pairs
+  - Detects: model mapping drift, plan spec drift, temporal proximity (>24h warning)
+  - JSON output includes full experiment context for reproducibility
+  - Git integration: `get_git_commit_sha()`, `get_git_remote_url()`, `get_git_branch()`
+
+  **2. Consolidated Dashboard View** ([src/backend/api/dashboard.py](src/backend/api/dashboard.py)):
+  - New endpoint: `GET /dashboard/runs/{run_id}/consolidated-metrics`
+  - Prevents double-counting by clearly separating 4 independent categories:
+    1. **Total tokens spent** (actual from llm_usage_events)
+    2. **Artifact tokens avoided** (from token_efficiency_metrics)
+    3. **Doctor tokens avoided estimate** (counterfactual from phase6_metrics)
+    4. **A/B delta tokens saved** (actual measured difference, when available)
+  - Each category is independent - no overlap
+  - Legacy endpoints maintained: `/token-efficiency`, `/phase6-stats`
+
+  **3. Pattern Expansion Script** ([scripts/pattern_expansion.py](scripts/pattern_expansion.py)):
+  - Analyzes `error_logs` + `phase6_metrics` to find uncaught failure patterns
+  - Normalizes error messages (removes paths, line numbers, variable names)
+  - Computes pattern signatures via SHA-256 hash
+  - Classifies errors: import_error, syntax_error, type_error, etc.
+  - Outputs: pattern ID, occurrence count, confidence (high/medium/low), sample errors, reproduction notes
+  - Helps expand deterministic mitigation coverage over time
+  - Usage: `python scripts/pattern_expansion.py --min-occurrences 3 --output patterns.json`
+
+  **4. CI DATABASE_URL Enforcement** ([.github/workflows/ci.yml](.github/workflows/ci.yml), [scripts/preflight_gate.sh](scripts/preflight_gate.sh)):
+  - CI tests explicitly set `DATABASE_URL=postgresql://...` (prevents SQLite footguns)
+  - Preflight gate warns if DATABASE_URL unset
+  - Clear comments explain production=Postgres, tests=in-memory SQLite
+  - Prevents accidentally running tests against wrong database
+
+- **Files Created** (2 new):
+  - [src/backend/api/dashboard.py](src/backend/api/dashboard.py) - Consolidated metrics endpoint (+365 lines)
+  - [scripts/pattern_expansion.py](scripts/pattern_expansion.py) - Pattern analysis tool (+330 lines)
+
+- **Files Modified** (4 total):
+  - [scripts/ab_test_phase6.py](scripts/ab_test_phase6.py) - Experiment metadata + validity checks (+208 lines)
+  - [src/backend/main.py](src/backend/main.py) - Dashboard router registration (+2 lines)
+  - [.github/workflows/ci.yml](.github/workflows/ci.yml) - DATABASE_URL comments (+6 lines)
+  - [scripts/preflight_gate.sh](scripts/preflight_gate.sh) - DATABASE_URL warning (+9 lines)
+
+- **Impact**:
+  - ✅ **Reproducibility**: Full experiment context captured (git SHA, model mappings, timestamps)
+  - ✅ **Validity Checks**: Detects control/treatment mismatches (prevents invalid A/B results)
+  - ✅ **No Double-Counting**: 4 independent token categories clearly separated
+  - ✅ **Pattern Discovery**: Automated identification of uncaught failure signatures
+  - ✅ **CI Hardening**: Explicit DATABASE_URL prevents production footguns
+  - ✅ **Backward Compatible**: All features opt-in, legacy endpoints maintained
+
+- **Usage**:
+  ```bash
+  # View consolidated metrics (no double-counting)
+  curl http://localhost:9999/dashboard/runs/<run_id>/consolidated-metrics
+
+  # Find uncaught error patterns
+  DATABASE_URL="sqlite:///autopack.db" python scripts/pattern_expansion.py --min-occurrences 2
+
+  # Run A/B test with validity checks
+  python scripts/ab_test_phase6.py --control-runs c1,c2 --treatment-runs t1,t2
+  # Output includes experiment_metadata and validity_checks
+
+  # CI tests (DATABASE_URL enforced)
+  DATABASE_URL="postgresql://..." pytest tests/
+  ```
+
+- **Next Steps**: Monitor pattern expansion output for new deterministic mitigations
+
+---
+
 ### 2025-12-31: BUILD-146 Phase 6 Ops Hardening (DATABASE_URL Footgun Fix) - ✅ COMPLETE
 **Database Consistency Guardrails + Identity Drift Detection**
 - **Achievement**: Eliminated DATABASE_URL footguns that could cause migrations/executor to target wrong database

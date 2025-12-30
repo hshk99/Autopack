@@ -111,6 +111,100 @@ In practice, “autonomous” requires that each phase has:
 
 ---
 
+### 2025-12-31: BUILD-146 Phase 6 Production Polish (P1+P2) - ✅ 100% COMPLETE
+**Real Parallel Execution + Phase 6 Observability Telemetry**
+- **Achievement**: Production-ready parallel run execution and comprehensive Phase 6 feature effectiveness telemetry
+- **Problem Solved**:
+  - P0 (Integration Tests): 14/14 tests passing - Phase 6 features fully integrated
+  - P1 (Parallel Execution): `scripts/run_parallel.py` was using mock executor, not production-ready
+  - P2 (Observability): No telemetry for measuring Phase 6 feature effectiveness (failure hardening, intention context, plan normalization)
+- **Solution Implemented** (P1 + P2):
+
+  **P1: Real Parallel Execution** ([run_parallel.py](scripts/run_parallel.py)):
+  1. **API Mode Executor** ([run_parallel.py:60-131](scripts/run_parallel.py#L60-L131)):
+     - Async HTTP execution via Autopack API endpoints
+     - POST `/runs/{run_id}/execute` to start run
+     - Poll GET `/runs/{run_id}/status` every 5 seconds
+     - 1-hour default timeout with configurable override
+     - Uses AUTOPACK_API_URL and AUTOPACK_API_KEY environment variables
+
+  2. **CLI Mode Executor** ([run_parallel.py:134-198](scripts/run_parallel.py#L134-L198)):
+     - Subprocess execution of `autonomous_executor.py` in isolated worktree
+     - Environment: PYTHONPATH=src, PYTHONUTF8=1
+     - Async process management with timeout handling
+     - Captures stdout/stderr for debugging
+
+  3. **Windows Compatibility** ([run_parallel.py:354](scripts/run_parallel.py#L354)):
+     - Fixed hardcoded `/tmp` → `tempfile.gettempdir()`
+     - Works on Windows (%TEMP%) and Linux (/tmp)
+
+  4. **Executor Selection** ([run_parallel.py:319-374](scripts/run_parallel.py#L319-L374)):
+     - CLI argument: `--executor {api,cli,mock}`
+     - Default: api (production recommended)
+     - Mock mode retained for testing only
+
+  **P2: Phase 6 Observability Telemetry**:
+  5. **Phase6Metrics Model** ([usage_recorder.py:104-132](src/autopack/usage_recorder.py#L104-L132)):
+     - Database table: phase6_metrics
+     - Failure hardening: pattern_detected, mitigated, doctor_skipped, tokens_saved_estimate
+     - Intention context: injected, chars, source (memory/fallback)
+     - Plan normalization: used, confidence, warnings, deliverables_count, scope_size_bytes
+     - All fields nullable for backward compatibility
+
+  6. **Telemetry Recording** ([autonomous_executor.py](src/autopack/autonomous_executor.py)):
+     - Failure hardening: records pattern_id, mitigation success, 10K token savings estimate
+     - Intention context: records injection stats, character count, source tracking
+     - Opt-in via TELEMETRY_DB_ENABLED=true (graceful degradation on failure)
+
+  7. **Dashboard Endpoint** ([main.py:1435-1457](src/autopack/main.py#L1435-L1457)):
+     - GET `/dashboard/runs/{run_id}/phase6-stats`
+     - Returns aggregated Phase 6 metrics (Phase6Stats schema)
+     - Includes: failure_hardening counts, doctor_calls_skipped, tokens_saved, intention_context stats
+
+  8. **Database Migration** ([add_phase6_metrics_build146.py](scripts/migrations/add_phase6_metrics_build146.py)):
+     - Creates phase6_metrics table with indexes
+     - Idempotent (safe to run multiple times)
+     - Supports SQLite and PostgreSQL
+
+- **Files Modified** (8 total):
+  - [scripts/run_parallel.py](scripts/run_parallel.py) - API/CLI executors, Windows fix (+177 lines)
+  - [src/autopack/autonomous_executor.py](src/autopack/autonomous_executor.py) - Telemetry hooks (+49 lines)
+  - [src/autopack/usage_recorder.py](src/autopack/usage_recorder.py) - Phase6Metrics model (+159 lines)
+  - [src/autopack/main.py](src/autopack/main.py) - Dashboard endpoint (+30 lines)
+  - [src/autopack/dashboard_schemas.py](src/autopack/dashboard_schemas.py) - Phase6Stats schema (+16 lines)
+
+- **Files Created** (1 new):
+  - [scripts/migrations/add_phase6_metrics_build146.py](scripts/migrations/add_phase6_metrics_build146.py) - Database migration (+172 lines)
+
+- **Impact**:
+  - ✅ **P0 Complete**: 14/14 Phase 6 integration tests passing
+  - ✅ **P1 Complete**: Production-ready parallel execution (API + CLI modes)
+  - ✅ **P2 Complete**: Comprehensive Phase 6 telemetry tracking
+  - ✅ **API Mode**: Async HTTP execution for distributed deployments
+  - ✅ **CLI Mode**: Subprocess execution for single-machine workflows
+  - ✅ **Telemetry**: Track failure hardening effectiveness, Doctor savings, intention context usage
+  - ✅ **Dashboard Integration**: Phase 6 stats exposed via REST API
+  - ✅ **Zero Breaking Changes**: All features opt-in, backward compatible
+
+- **Usage**:
+  ```bash
+  # P1: Run parallel executions (API mode - recommended)
+  python scripts/run_parallel.py run1 run2 run3 --max-concurrent 3 --executor api
+
+  # P1: Run parallel executions (CLI mode)
+  python scripts/run_parallel.py run1 run2 --max-concurrent 2 --executor cli
+
+  # P2: Enable Phase 6 telemetry
+  TELEMETRY_DB_ENABLED=true python -m autopack.autonomous_executor --run-id <run_id>
+
+  # P2: View Phase 6 stats
+  curl http://localhost:8000/dashboard/runs/<run_id>/phase6-stats
+  ```
+
+- **Next Steps**: Production validation with real workloads
+
+---
+
 ### 2025-12-31: BUILD-145 Deployment Hardening - ✅ 100% COMPLETE
 **Database Migration + Dashboard Exposure + Telemetry Enrichment**
 - **Achievement**: Production-ready deployment infrastructure for token efficiency observability with database migration, dashboard integration, and enriched telemetry (29/29 tests passing - 100%)

@@ -413,6 +413,8 @@ class TokenEstimationV2Event(Base):
     predicted_output_tokens = Column(Integer, nullable=False)
     actual_output_tokens = Column(Integer, nullable=False)
     selected_budget = Column(Integer, nullable=False)
+    # BUILD-142 PARITY: Separate estimator intent from final ceiling
+    actual_max_tokens = Column(Integer, nullable=True)  # Final ceiling after P4 enforcement
 
     # Outcome
     success = Column(Boolean, nullable=False, index=True)

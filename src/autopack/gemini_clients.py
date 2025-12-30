@@ -9,6 +9,7 @@ Environment variables:
 import os
 import json
 import logging
+from pathlib import Path
 from typing import Dict, List, Optional
 
 try:
@@ -19,6 +20,7 @@ except ImportError:
     genai = None
 
 from .llm_client import BuilderResult, AuditorResult
+from .token_estimator import TokenEstimator
 
 logger = logging.getLogger(__name__)
 
@@ -70,7 +72,10 @@ class GeminiBuilderClient:
         max_tokens: Optional[int] = None,
         model: str = "gemini-2.5-pro",
         project_rules: Optional[List] = None,
-        run_hints: Optional[List] = None
+        run_hints: Optional[List] = None,
+        use_full_file_mode: bool = True,
+        config = None,
+        retrieved_context: Optional[str] = None
     ) -> BuilderResult:
         """Execute a phase and generate code patch
 
@@ -86,11 +91,119 @@ class GeminiBuilderClient:
             model: Gemini model to use
             project_rules: Persistent project learned rules (Stage 0B)
             run_hints: Within-run hints from earlier phases (Stage 0A)
+            use_full_file_mode: Use full-file mode (not used by Gemini yet)
+            config: BuilderOutputConfig (not used by Gemini yet)
+            retrieved_context: Vector memory context (not used by Gemini yet)
 
         Returns:
             BuilderResult with patch_content and metadata
         """
         try:
+            # BUILD-142 PARITY: Token estimation with category-aware budgets
+            # Defensive: ensure phase_spec is always a dict
+            if phase_spec is None:
+                phase_spec = {}
+
+            # Extract metadata for token estimation
+            task_category = phase_spec.get("task_category", "")
+            complexity = phase_spec.get("complexity", "medium")
+            deliverables = phase_spec.get("deliverables")
+            if not deliverables:
+                scope_cfg = phase_spec.get("scope") or {}
+                if isinstance(scope_cfg, dict):
+                    deliverables = scope_cfg.get("deliverables")
+            deliverables = TokenEstimator.normalize_deliverables(deliverables)
+            task_description = phase_spec.get("description", "")
+
+            # BUILD-142 PARITY: Compute token budget using TokenEstimator
+            token_estimate = None
+            token_selected_budget = None
+
+            if deliverables:
+                try:
+                    estimator = TokenEstimator(workspace=Path.cwd())
+                    effective_category = task_category or (
+                        "documentation" if estimator._all_doc_deliverables(deliverables) else "implementation"
+                    )
+                    token_estimate = estimator.estimate(
+                        deliverables=deliverables,
+                        category=effective_category,
+                        complexity=complexity,
+                        scope_paths=[],
+                        task_description=task_description,
+                    )
+                    token_selected_budget = estimator.select_budget(token_estimate, complexity)
+
+                    # Persist estimator output for telemetry
+                    phase_spec["_estimated_output_tokens"] = token_estimate.estimated_tokens
+                    phase_spec.setdefault("metadata", {}).setdefault("token_prediction", {}).update({
+                        "predicted_output_tokens": token_estimate.estimated_tokens,
+                        "selected_budget": token_selected_budget,
+                        "confidence": token_estimate.confidence,
+                        "source": "token_estimator",
+                        "estimated_category": token_estimate.category,
+                    })
+
+                    logger.info(
+                        f"[BUILD-142:Gemini] Token estimate: {token_estimate.estimated_tokens} output tokens "
+                        f"({token_estimate.deliverable_count} deliverables, confidence={token_estimate.confidence:.2f}), "
+                        f"selected budget: {token_selected_budget}"
+                    )
+                except Exception as e:
+                    logger.warning(f"[BUILD-142:Gemini] Token estimation failed, using fallback: {e}")
+                    token_estimate = None
+                    token_selected_budget = None
+
+            # BUILD-142 PARITY: Apply complexity-based fallback or use category-aware budget
+            if max_tokens is None:
+                if token_selected_budget:
+                    max_tokens = token_selected_budget
+                elif complexity == "low":
+                    max_tokens = 8192
+                elif complexity == "medium":
+                    max_tokens = 12288
+                elif complexity == "high":
+                    max_tokens = 16384
+                else:
+                    max_tokens = 8192
+
+            # BUILD-142 PARITY: Conditional override for special modes (preserve category-aware budgets)
+            # Gemini uses 8192 default, but we apply same logic as OpenAI for consistency
+            normalized_category = task_category.lower() if task_category else ""
+            is_docs_like = normalized_category in ["docs", "documentation", "doc_synthesis", "doc_sot_update"]
+
+            # Apply 8192 floor conditionally (skip for docs-like with intentionally low budgets)
+            # Note: Using 8192 instead of 16384 to match Gemini's typical budget
+            gemini_floor = 8192
+            should_apply_floor = (
+                not token_selected_budget or
+                token_selected_budget >= gemini_floor or
+                not is_docs_like
+            )
+
+            if should_apply_floor:
+                max_tokens = max(max_tokens, gemini_floor)
+                logger.debug(
+                    f"[BUILD-142:Gemini] Applied {gemini_floor} floor: max_tokens={max_tokens} "
+                    f"(category={task_category}, selected_budget={token_selected_budget})"
+                )
+            else:
+                logger.debug(
+                    f"[BUILD-142:Gemini] Preserving category-aware budget={token_selected_budget} for docs-like category={task_category} "
+                    f"(skipping {gemini_floor} floor override)"
+                )
+
+            # BUILD-142 PARITY: Store selected_budget (estimator intent) BEFORE P4 enforcement
+            if token_selected_budget:
+                phase_spec.setdefault("metadata", {}).setdefault("token_prediction", {})["selected_budget"] = token_selected_budget
+
+            # BUILD-142 PARITY: P4 enforcement (final max_tokens >= selected_budget)
+            if token_selected_budget:
+                max_tokens = max(max_tokens or 0, token_selected_budget)
+                # Store actual_max_tokens (final ceiling) AFTER P4 enforcement
+                phase_spec.setdefault("metadata", {}).setdefault("token_prediction", {})["actual_max_tokens"] = max_tokens
+                logger.info(f"[BUILD-142:Gemini:P4] Final max_tokens enforcement: {max_tokens} (token_selected_budget={token_selected_budget})")
+
             # Build system prompt for Builder
             system_prompt = self._build_system_prompt()
 
@@ -99,12 +212,12 @@ class GeminiBuilderClient:
                 phase_spec, file_context, project_rules, run_hints
             )
 
-            # Create model instance
+            # Create model instance with calculated token budget
             gemini_model = genai.GenerativeModel(
                 model_name=model,
                 system_instruction=system_prompt,
                 generation_config=genai.GenerationConfig(
-                    max_output_tokens=max_tokens or 8192,  # Gemini 2.5 Pro max output
+                    max_output_tokens=max_tokens,  # Use category-aware budget
                     temperature=0.2
                 )
             )

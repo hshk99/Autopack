@@ -1,8 +1,8 @@
 # Debug Log - Problem Solving History
 
 <!-- META
-Last_Updated: 2025-12-29T21:15:00Z
-Total_Issues: 66
+Last_Updated: 2025-12-30T08:00:00Z
+Total_Issues: 67
 Format_Version: 2.0
 Auto_Generated: True
 Sources: CONSOLIDATED_DEBUG, archive/, fileorg-phase2-beta-release
@@ -12,6 +12,7 @@ Sources: CONSOLIDATED_DEBUG, archive/, fileorg-phase2-beta-release
 
 | Timestamp | DBG-ID | Severity | Summary | Status |
 |-----------|--------|----------|---------|--------|
+| 2025-12-30 | DBG-067 | LOW | BUILD-142 production readiness: Added telemetry schema enhancement documentation, migration runbook, calibration coverage warnings, and CI drift prevention tests to complete BUILD-142 ideal state. No bugs encountered - pure documentation and safety infrastructure. | ✅ Complete (Documentation + CI Hardening) |
 | 2025-12-29 | DBG-066 | MEDIUM | Batch drain controller race condition: checked phase state immediately after subprocess completion before DB transaction committed, causing successful COMPLETE phases to be misreported as "failed" when state was still QUEUED. Also TOKEN_ESCALATION treated as permanent failure instead of retryable condition. | ✅ Resolved (Production Fix: TELEMETRY-V5) |
 | 2025-12-21 | DBG-065 | MEDIUM | Diagnostics parity test suite had 4 failures in handoff_bundler tests (test_index_json_structure, test_nested_directory_structure, test_binary_file_handling, test_regenerate_overwrites): missing 'version' field in index.json, glob() instead of rglob() prevented recursive artifact discovery, missing *.txt and *.bin patterns | ✅ Resolved (Manual Quality Fix: BUILD-106) |
 | 2025-12-21 | DBG-064 | HIGH | Diagnostics parity phases 1, 2, 4 risk same multi-file truncation/malformed-diff convergence failures as phases 3 & 5 (which needed BUILD-101 batching); each phase creates 3-4 deliverables (code + tests + docs) susceptible to patch truncation and manifest violations | ✅ Resolved (Manual System Fix: BUILD-105) |

@@ -45,9 +45,9 @@ from autopack.db_identity import print_db_identity, check_empty_db_warning, add_
 
 
 try:
-    from autopack.usage_recorder import LlmUsageEvent
+    from autopack.models import TokenEstimationV2Event
 except (ImportError, AttributeError):
-    print("ERROR: LlmUsageEvent model not found in database schema")
+    print("ERROR: TokenEstimationV2Event model not found in database schema")
     print("Telemetry collection may not be enabled or database needs migration")
     sys.exit(1)
 
@@ -62,6 +62,9 @@ class CalibrationSample:
     deliverable_count: int
     estimated_tokens: int
     actual_tokens: int
+    selected_budget: int  # Estimator intent (BEFORE P4 enforcement)
+    # BUILD-142 PARITY: Separate estimator intent from final ceiling
+    actual_max_tokens: Optional[int]  # Final ceiling sent to API (AFTER P4 enforcement)
     success: bool
     truncated: bool
     timestamp: str
@@ -82,9 +85,13 @@ class CalibrationResult:
     confidence: float  # 0.0-1.0 based on sample count and ratio variance
     proposed_multiplier: float  # Suggested adjustment to current coefficients
     samples: List[CalibrationSample]
+    # Cost-aware metrics
+    median_budget_waste: float  # selected_budget / actual_tokens
+    p90_budget_waste: float
+    avg_selected_budget: float
 
 
-def collect_telemetry_samples(session) -> List[CalibrationSample]:
+def collect_telemetry_samples(session, include_run_ids: Optional[List[str]] = None) -> List[CalibrationSample]:
     """
     Collect telemetry samples from database.
 
@@ -92,20 +99,28 @@ def collect_telemetry_samples(session) -> List[CalibrationSample]:
     - success = True (phase completed successfully)
     - truncated = False (no output truncation)
     - Has both estimated_tokens and actual_output_tokens
+    - Optionally filter by run IDs
 
     Args:
         session: Database session
+        include_run_ids: Optional list of run IDs to include (None = all runs)
 
     Returns:
         List of calibration samples
     """
-    # Query LlmUsageEvents with required filters
-    events = session.query(LlmUsageEvent).filter(
-        LlmUsageEvent.success == True,
-        LlmUsageEvent.truncated == False,
-        LlmUsageEvent.estimated_tokens.isnot(None),
-        LlmUsageEvent.actual_output_tokens.isnot(None)
-    ).all()
+    # Query TokenEstimationV2Events with required filters
+    query = session.query(TokenEstimationV2Event).filter(
+        TokenEstimationV2Event.success == True,
+        TokenEstimationV2Event.truncated == False,
+        TokenEstimationV2Event.predicted_output_tokens.isnot(None),
+        TokenEstimationV2Event.actual_output_tokens.isnot(None)
+    )
+
+    # Apply run-id filter if specified
+    if include_run_ids:
+        query = query.filter(TokenEstimationV2Event.run_id.in_(include_run_ids))
+
+    events = query.all()
 
     samples = []
     for event in events:
@@ -124,8 +139,11 @@ def collect_telemetry_samples(session) -> List[CalibrationSample]:
             category=category,
             complexity=complexity,
             deliverable_count=deliverable_count,
-            estimated_tokens=event.estimated_tokens,
+            estimated_tokens=event.predicted_output_tokens,
             actual_tokens=event.actual_output_tokens,
+            selected_budget=event.selected_budget,
+            # BUILD-142 PARITY: Extract actual_max_tokens (final ceiling) for accurate waste calculation
+            actual_max_tokens=event.actual_max_tokens,
             success=event.success,
             truncated=event.truncated,
             timestamp=event.timestamp or datetime.now(timezone.utc).isoformat()
@@ -192,19 +210,36 @@ def compute_calibration_result(
     # Compute confidence based on sample count and ratio variance
     # More samples → higher confidence
     # Lower variance → higher confidence
-    sample_confidence = min(1.0, len(samples) / 20)  # Max at 20 samples
+    # Max confidence at 12 samples (achievable target for well-studied groups)
+    sample_confidence = min(1.0, len(samples) / 12)
 
     # Variance-based confidence: lower when ratios are widely spread
+    # Use 1/(1+std) formula so confidence doesn't instantly collapse to 0
     ratio_variance = sum((r - avg_ratio) ** 2 for r in ratios) / len(ratios)
     ratio_std = ratio_variance ** 0.5
-    variance_confidence = max(0.0, 1.0 - ratio_std)
+    variance_confidence = 1.0 / (1.0 + ratio_std)
 
-    confidence = (sample_confidence + variance_confidence) / 2
+    # Weight sample count more heavily (60/40) since we want min-samples gate to be meaningful
+    confidence = 0.6 * sample_confidence + 0.4 * variance_confidence
 
     # Proposed multiplier: use median ratio as it's more robust to outliers
     # If median_ratio = 1.5, we're systematically underestimating by 50%
     # Proposed multiplier = median_ratio to correct the bias
     proposed_multiplier = median_ratio
+
+    # Cost-aware metrics: budget waste analysis
+    # BUILD-142 PARITY: Use actual_max_tokens (final ceiling) instead of selected_budget (estimator intent)
+    # actual_max_tokens reflects what was actually sent to the API, giving accurate waste measurement
+    # Fallback to selected_budget for backward compatibility with pre-BUILD-142 telemetry
+    budget_waste_ratios = [
+        (s.actual_max_tokens or s.selected_budget) / s.actual_tokens if s.actual_tokens > 0 else 0
+        for s in samples
+    ]
+    sorted_waste = sorted(budget_waste_ratios)
+    median_budget_waste = sorted_waste[len(sorted_waste) // 2]
+    p90_index = int(len(sorted_waste) * 0.9)
+    p90_budget_waste = sorted_waste[p90_index] if p90_index < len(sorted_waste) else sorted_waste[-1]
+    avg_selected_budget = sum(s.selected_budget for s in samples) / len(samples)
 
     return CalibrationResult(
         category=category,
@@ -218,7 +253,10 @@ def compute_calibration_result(
         max_ratio=max_ratio,
         confidence=confidence,
         proposed_multiplier=proposed_multiplier,
-        samples=samples
+        samples=samples,
+        median_budget_waste=median_budget_waste,
+        p90_budget_waste=p90_budget_waste,
+        avg_selected_budget=avg_selected_budget
     )
 
 
@@ -360,6 +398,12 @@ def main():
         default=Path("."),
         help="Directory for output files (default: current directory)"
     )
+    parser.add_argument(
+        "--include-run-id",
+        action="append",
+        dest="include_run_ids",
+        help="Only include samples from specified run IDs (repeatable). Example: --include-run-id telemetry-collection-v5 --include-run-id telemetry-collection-v6"
+    )
     add_empty_db_arg(parser)
 
     args = parser.parse_args()
@@ -382,14 +426,30 @@ def main():
     print(f"Min samples per group: {args.min_samples}")
     print(f"Confidence threshold: {args.confidence_threshold:.0%}")
     print(f"Output directory: {args.output_dir}")
+    if args.include_run_ids:
+        print(f"Run-ID filter: {', '.join(args.include_run_ids)}")
+    else:
+        print(f"Run-ID filter: None (all runs)")
     print()
 
     # Collect telemetry samples
     session = SessionLocal()
     try:
         print("Collecting telemetry samples...")
-        samples = collect_telemetry_samples(session)
+        samples = collect_telemetry_samples(session, include_run_ids=args.include_run_ids)
         print(f"  Found {len(samples)} samples (success=True, truncated=False)")
+
+        # BUILD-142: Check actual_max_tokens coverage
+        if samples:
+            populated_count = sum(1 for s in samples if s.actual_max_tokens is not None)
+            coverage_pct = (populated_count / len(samples) * 100) if len(samples) > 0 else 0
+            print(f"\nTelemetry coverage: actual_max_tokens populated in {populated_count}/{len(samples)} samples ({coverage_pct:.1f}%)")
+            if coverage_pct < 80.0:
+                print("⚠️  WARNING: Low actual_max_tokens coverage (<80%)")
+                print("   Waste numbers may be underestimated (falling back to selected_budget)")
+                print("   Consider running BUILD-142 migration/backfill:")
+                print("     python scripts/migrations/add_actual_max_tokens_to_token_estimation_v2.py")
+                print()
 
         if not samples:
             print("\n[STOP] No telemetry samples found")
@@ -411,6 +471,7 @@ def main():
         # Compute calibration results
         print("\nComputing calibration results...")
         results = []
+        below_threshold_groups = []
         for (category, complexity), group_samples in groups.items():
             result = compute_calibration_result(
                 category=category,
@@ -424,6 +485,7 @@ def main():
                       f"median ratio: {result.median_ratio:.2f}x, "
                       f"confidence: {result.confidence:.1%}")
             else:
+                below_threshold_groups.append((category, complexity, len(group_samples)))
                 print(f"  [{category}/{complexity}] {len(group_samples)} samples (below min threshold)")
 
         if not results:
@@ -452,15 +514,41 @@ def main():
         print("\n" + "=" * 70)
         print("CALIBRATION SUMMARY")
         print("=" * 70)
-        total_samples = sum(r.sample_count for r in results)
+        samples_in_results = sum(r.sample_count for r in results)
         high_confidence = [r for r in results if r.confidence >= args.confidence_threshold]
 
-        print(f"Total samples: {total_samples}")
-        print(f"Total groups: {len(results)}")
-        print(f"High-confidence groups: {len(high_confidence)}")
+        print(f"Total clean samples collected: {len(samples)}")
+        print(f"Total groups found: {len(groups)}")
+        print(f"Groups meeting min-samples threshold: {len(results)}")
+        print(f"Samples included in results: {samples_in_results}")
+        print(f"High-confidence groups (≥{args.confidence_threshold:.0%}): {len(high_confidence)}")
+
+        if below_threshold_groups:
+            print(f"\nBelow-threshold groups (need more samples for V7):")
+            for cat, comp, count in sorted(below_threshold_groups, key=lambda x: (x[0], x[1])):
+                needed = args.min_samples - count
+                print(f"  [{cat}/{comp}] {count} samples (need {needed} more to reach {args.min_samples})")
+
+        # Cost-aware analysis
+        print("\n" + "=" * 70)
+        print("COST-AWARE ANALYSIS (Budget Waste)")
+        print("=" * 70)
+        print("Group                      Median Waste  P90 Waste  Avg Budget  Avg Actual")
+        print("-" * 70)
+        for result in sorted(results, key=lambda r: (r.category, r.complexity or '')):
+            print(f"{result.category}/{result.complexity or 'all':15s}   "
+                  f"{result.median_budget_waste:6.2f}x      "
+                  f"{result.p90_budget_waste:6.2f}x    "
+                  f"{result.avg_selected_budget:7.0f}     "
+                  f"{result.avg_actual:7.0f}")
+        print("=" * 70)
+        print("Note: Waste = actual_max_tokens / actual_tokens (BUILD-142+)")
+        print("      Fallback to selected_budget for pre-BUILD-142 telemetry")
+        print("      Median waste >2x suggests over-budgeting")
+        print()
 
         if high_confidence:
-            print("\nRecommended adjustments (high-confidence groups):")
+            print("Recommended adjustments (high-confidence groups):")
             for result in sorted(high_confidence, key=lambda r: -r.confidence):
                 action = "increase" if result.median_ratio > 1.0 else "decrease"
                 pct = abs((result.proposed_multiplier - 1) * 100)

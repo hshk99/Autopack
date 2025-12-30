@@ -211,6 +211,74 @@ python scripts/analyze_token_telemetry_v3.py \
 
 ---
 
+## Token Budget Semantics (BUILD-142)
+
+### Budget Terminology
+
+Post-BUILD-142, the system maintains **two separate values** to distinguish estimator intent from final API ceiling:
+
+| Field | Meaning | When Recorded | Usage |
+|-------|---------|---------------|-------|
+| **selected_budget** | Estimator **intent** | BEFORE P4 enforcement | Understanding estimator behavior |
+| **actual_max_tokens** | Final provider **ceiling** | AFTER P4 enforcement | Waste calculation, API cost analysis |
+
+**Waste Calculation**: Always use `actual_max_tokens / actual_output_tokens` (not `selected_budget / actual_output_tokens`) for accurate API cost measurement.
+
+### Category-Aware Base Budgets
+
+BUILD-142 introduced category-aware base budget floors to reduce token waste for documentation and testing phases:
+
+| Category | Complexity | Base Budget | Rationale |
+|----------|-----------|-------------|-----------|
+| **docs** (all variants) | low | 4096 | Concise documentation rarely needs >4K output |
+| **tests** | low | 6144 | Test generation typically moderate complexity |
+| **implementation** | low | 8192 | Code changes require more context |
+| All other categories | any | 8192 | Default floor maintained |
+
+**Provider Coverage**: These floors apply across **Anthropic**, **OpenAI**, and **Gemini** clients (BUILD-142 provider parity).
+
+**Docs Variants**: The category-aware logic recognizes `docs`, `documentation`, `doc_synthesis`, `doc_sot_update` as docs-like categories.
+
+### Verification Snippet
+
+After running telemetry collection with BUILD-142, verify that docs/low budgets are hitting the expected 4096 floor:
+
+```python
+# Python verification
+from autopack.database import SessionLocal
+from autopack.models import TokenEstimationV2Event
+
+session = SessionLocal()
+docs_low_events = session.query(TokenEstimationV2Event).filter(
+    TokenEstimationV2Event.category.in_(["docs", "documentation", "doc_synthesis", "doc_sot_update"]),
+    TokenEstimationV2Event.complexity == "low"
+).all()
+
+for event in docs_low_events[:5]:  # Show first 5 samples
+    print(f"{event.phase_id}: selected_budget={event.selected_budget}, actual_max_tokens={event.actual_max_tokens}")
+
+session.close()
+```
+
+**Expected Output**: `selected_budget` values around 4096-5000 for docs/low phases (vs. 8192+ pre-BUILD-142).
+
+### Migration Notes
+
+If you have existing telemetry data from **before BUILD-142**, run the migration to add the `actual_max_tokens` column:
+
+```bash
+# PowerShell
+$env:DATABASE_URL="sqlite:///C:/dev/Autopack/telemetry_seed_v5.db"
+python scripts/migrations/add_actual_max_tokens_to_token_estimation_v2.py
+
+# Unix
+DATABASE_URL="sqlite:///autopack.db" python scripts/migrations/add_actual_max_tokens_to_token_estimation_v2.py
+```
+
+See [BUILD-142 Migration Runbook](BUILD-142_MIGRATION_RUNBOOK.md) for detailed migration instructions and verification steps.
+
+---
+
 ## Telemetry Collection Targets
 
 ### Minimum Viable

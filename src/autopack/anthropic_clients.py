@@ -61,6 +61,8 @@ def _write_token_estimation_v2_telemetry(
     is_sot_file: Optional[bool] = None,
     sot_file_name: Optional[str] = None,
     sot_entry_count_hint: Optional[int] = None,
+    # BUILD-142 PARITY: Separate estimator intent from final ceiling
+    actual_max_tokens: Optional[int] = None,
 ) -> None:
     """Write TokenEstimationV2 event to database for validation.
 
@@ -71,6 +73,9 @@ def _write_token_estimation_v2_telemetry(
 
     BUILD-129 Phase 3 P3: Now captures SOT (Source of Truth) file metadata for
     specialized estimation of BUILD_LOG.md, BUILD_HISTORY.md, etc.
+
+    BUILD-142 PARITY: Now captures actual_max_tokens (final ceiling after P4 enforcement)
+    separately from selected_budget (estimator intent) for accurate waste calculation.
     """
     # Feature flag check
     if not os.environ.get("TELEMETRY_DB_ENABLED", "").lower() in ["1", "true", "yes"]:
@@ -165,6 +170,8 @@ def _write_token_estimation_v2_telemetry(
                 is_sot_file=is_sot_file,
                 sot_file_name=sot_file_name,
                 sot_entry_count_hint=sot_entry_count_hint,
+                # BUILD-142 PARITY: Final ceiling after P4 enforcement
+                actual_max_tokens=actual_max_tokens,
             )
             session.add(event)
             session.commit()
@@ -990,6 +997,8 @@ class AnthropicBuilderClient:
                         is_sot_file=token_pred_meta.get("is_sot_file"),
                         sot_file_name=token_pred_meta.get("sot_file_name"),
                         sot_entry_count_hint=token_pred_meta.get("sot_entry_count_hint"),
+                        # BUILD-142 PARITY: Final ceiling after P4 enforcement
+                        actual_max_tokens=token_pred_meta.get("actual_max_tokens"),
                     )
                 elif predicted_output_tokens and result.tokens_used:
                     # Fallback: if we don't have output tokens separately, log total tokens
@@ -1035,6 +1044,8 @@ class AnthropicBuilderClient:
                         is_sot_file=token_pred_meta_fallback.get("is_sot_file"),
                         sot_file_name=token_pred_meta_fallback.get("sot_file_name"),
                         sot_entry_count_hint=token_pred_meta_fallback.get("sot_entry_count_hint"),
+                        # BUILD-142 PARITY: Final ceiling after P4 enforcement
+                        actual_max_tokens=token_pred_meta_fallback.get("actual_max_tokens"),
                     )
 
             return result

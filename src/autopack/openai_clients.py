@@ -10,10 +10,12 @@ Per v7 GPT architect recommendation:
 import os
 import json
 import logging
+from pathlib import Path
 from typing import Dict, List, Optional
 from openai import OpenAI
 
 from .llm_client import BuilderResult, AuditorResult
+from .token_estimator import TokenEstimator
 
 logger = logging.getLogger(__name__)
 
@@ -40,7 +42,10 @@ class OpenAIBuilderClient:
         max_tokens: Optional[int] = None,
         model: str = "glm-4.6",
         project_rules: Optional[List] = None,
-        run_hints: Optional[List] = None
+        run_hints: Optional[List] = None,
+        use_full_file_mode: bool = True,
+        config = None,
+        retrieved_context: Optional[str] = None
     ) -> BuilderResult:
         """Execute a phase and generate code patch
 
@@ -56,11 +61,118 @@ class OpenAIBuilderClient:
             model: OpenAI model to use
             project_rules: Persistent project learned rules (Stage 0B)
             run_hints: Within-run hints from earlier phases (Stage 0A)
+            use_full_file_mode: Use full-file mode (not used by OpenAI yet)
+            config: BuilderOutputConfig (not used by OpenAI yet)
+            retrieved_context: Vector memory context (not used by OpenAI yet)
 
         Returns:
             BuilderResult with patch_content and metadata
         """
         try:
+            # BUILD-142 PARITY: Token estimation with category-aware budgets
+            # Defensive: ensure phase_spec is always a dict
+            if phase_spec is None:
+                phase_spec = {}
+
+            # Extract metadata for token estimation
+            task_category = phase_spec.get("task_category", "")
+            complexity = phase_spec.get("complexity", "medium")
+            deliverables = phase_spec.get("deliverables")
+            if not deliverables:
+                scope_cfg = phase_spec.get("scope") or {}
+                if isinstance(scope_cfg, dict):
+                    deliverables = scope_cfg.get("deliverables")
+            deliverables = TokenEstimator.normalize_deliverables(deliverables)
+            task_description = phase_spec.get("description", "")
+
+            # BUILD-142 PARITY: Compute token budget using TokenEstimator
+            token_estimate = None
+            token_selected_budget = None
+
+            if deliverables:
+                try:
+                    estimator = TokenEstimator(workspace=Path.cwd())
+                    effective_category = task_category or (
+                        "documentation" if estimator._all_doc_deliverables(deliverables) else "implementation"
+                    )
+                    token_estimate = estimator.estimate(
+                        deliverables=deliverables,
+                        category=effective_category,
+                        complexity=complexity,
+                        scope_paths=[],
+                        task_description=task_description,
+                    )
+                    token_selected_budget = estimator.select_budget(token_estimate, complexity)
+
+                    # Persist estimator output for telemetry
+                    phase_spec["_estimated_output_tokens"] = token_estimate.estimated_tokens
+                    phase_spec.setdefault("metadata", {}).setdefault("token_prediction", {}).update({
+                        "predicted_output_tokens": token_estimate.estimated_tokens,
+                        "selected_budget": token_selected_budget,
+                        "confidence": token_estimate.confidence,
+                        "source": "token_estimator",
+                        "estimated_category": token_estimate.category,
+                    })
+
+                    logger.info(
+                        f"[BUILD-142:OpenAI] Token estimate: {token_estimate.estimated_tokens} output tokens "
+                        f"({token_estimate.deliverable_count} deliverables, confidence={token_estimate.confidence:.2f}), "
+                        f"selected budget: {token_selected_budget}"
+                    )
+                except Exception as e:
+                    logger.warning(f"[BUILD-142:OpenAI] Token estimation failed, using fallback: {e}")
+                    token_estimate = None
+                    token_selected_budget = None
+
+            # BUILD-142 PARITY: Apply complexity-based fallback or use category-aware budget
+            if max_tokens is None:
+                if token_selected_budget:
+                    max_tokens = token_selected_budget
+                elif complexity == "low":
+                    max_tokens = 8192
+                elif complexity == "medium":
+                    max_tokens = 12288
+                elif complexity == "high":
+                    max_tokens = 16384
+                else:
+                    max_tokens = 8192
+
+            # BUILD-142 PARITY: Conditional override for special modes (preserve category-aware budgets)
+            # Note: OpenAI client doesn't have builder_mode="full_file", but we implement the logic
+            # for consistency and future-proofing
+            normalized_category = task_category.lower() if task_category else ""
+            is_docs_like = normalized_category in ["docs", "documentation", "doc_synthesis", "doc_sot_update"]
+
+            # Apply 16384 floor conditionally (skip for docs-like with intentionally low budgets)
+            should_apply_floor = (
+                not token_selected_budget or
+                token_selected_budget >= 16384 or
+                not is_docs_like
+            )
+
+            if should_apply_floor:
+                max_tokens = max(max_tokens, 16384)
+                logger.debug(
+                    f"[BUILD-142:OpenAI] Applied 16384 floor: max_tokens={max_tokens} "
+                    f"(category={task_category}, selected_budget={token_selected_budget})"
+                )
+            else:
+                logger.debug(
+                    f"[BUILD-142:OpenAI] Preserving category-aware budget={token_selected_budget} for docs-like category={task_category} "
+                    f"(skipping 16384 floor override)"
+                )
+
+            # BUILD-142 PARITY: Store selected_budget (estimator intent) BEFORE P4 enforcement
+            if token_selected_budget:
+                phase_spec.setdefault("metadata", {}).setdefault("token_prediction", {})["selected_budget"] = token_selected_budget
+
+            # BUILD-142 PARITY: P4 enforcement (final max_tokens >= selected_budget)
+            if token_selected_budget:
+                max_tokens = max(max_tokens or 0, token_selected_budget)
+                # Store actual_max_tokens (final ceiling) AFTER P4 enforcement
+                phase_spec.setdefault("metadata", {}).setdefault("token_prediction", {})["actual_max_tokens"] = max_tokens
+                logger.info(f"[BUILD-142:OpenAI:P4] Final max_tokens enforcement: {max_tokens} (token_selected_budget={token_selected_budget})")
+
             # Build system prompt for Builder
             system_prompt = self._build_system_prompt()
 
@@ -79,9 +191,8 @@ class OpenAIBuilderClient:
                 ],
                 "temperature": 0.2,
             }
-            # Use maximum output tokens for each model family
-            # gpt-4o: 16,384 max output, gpt-4-turbo: 4,096 max output
-            token_budget = max_tokens or 16384
+            # Use calculated token budget (category-aware if available)
+            token_budget = max_tokens
             if model.startswith("gpt-5"):
                 params["max_completion_tokens"] = token_budget
             else:

@@ -63,17 +63,18 @@ class TokenEstimator:
     # BUILD-129 Phase 2 Revision: Captures context setup, boilerplate, coordination costs
     # This replaces the problematic deliverables scaling multipliers
     #
-    # BUILD-141 Part 9: v5 Calibration Step 1 (damped partial update)
-    # Applied geometric damping (sqrt) to avoid over-correction:
-    # - implementation/low: 2000 → 1120 (ratio=0.313, sqrt≈0.56, -44%)
-    # - implementation/medium: 3000 → 1860 (ratio=0.379, sqrt≈0.62, -38%)
-    # - tests/low: 1500 → 915 (ratio=0.370, sqrt≈0.61, -39%)
-    # Source: 25 clean samples from telemetry-collection-v5
-    # Docs coefficients unchanged (n=3, unstable, awaiting v6 targeted sampling)
+    # BUILD-141 Part 9-10: v5+v6 Combined Calibration (Hybrid Option C)
+    # Step 1 (v5): 25 samples, sqrt-damped reductions
+    # Step 2 (v5+v6): 45 samples, sqrt-damped second round with cost-aware analysis
+    # - implementation/low: 1120 → 634 (ratio=0.32, waste=10.3x, sqrt≈0.57, -43.4%)
+    # - implementation/medium: 1860 → 1176 (ratio=0.40, waste=6.4x, sqrt≈0.63, -36.8%)
+    # - tests/low: 1500 → 915 (v5 only, ratio=0.370, sqrt≈0.61, -39%)
+    # Source: 45 clean samples (25 v5 + 20 v6), 77% confidence on impl groups
+    # Docs coefficients unchanged (need ±50% reduction cap safety margin first)
     PHASE_OVERHEAD = {
         # (category, complexity) → base overhead tokens
-        ("implementation", "low"): 1120,      # BUILD-141: v5 calibration (was 2000, -44%)
-        ("implementation", "medium"): 1860,   # BUILD-141: v5 calibration (was 3000, -38%)
+        ("implementation", "low"): 634,       # BUILD-141-C: v5+v6 combined (45 samples), sqrt-damped (was 1120, -43.4%)
+        ("implementation", "medium"): 1176,   # BUILD-141-C: v5+v6 combined (45 samples), sqrt-damped (was 1860, -36.8%)
         ("implementation", "high"): 5000,
         ("refactoring", "low"): 2500,
         ("refactoring", "medium"): 3500,
@@ -590,6 +591,43 @@ class TokenEstimator:
             confidence=confidence
         )
 
+    @staticmethod
+    def _normalize_category(category: str) -> str:
+        """
+        Normalize category name to canonical form.
+
+        Maps variations to standard names:
+        - documentation/docs → docs
+        - testing/tests → tests
+        - implementation/IMPLEMENT_FEATURE → implementation
+
+        Args:
+            category: Raw category name
+
+        Returns:
+            Normalized category name
+        """
+        category_lower = category.lower()
+
+        # Documentation variants
+        if category_lower in ["documentation", "doc_write", "doc"]:
+            return "docs"
+
+        # Testing variants
+        if category_lower in ["testing"]:
+            return "tests"
+
+        # Implementation variants
+        if category_lower in ["implement_feature"]:
+            return "implementation"
+
+        # Keep special categories as-is
+        if category_lower in ["doc_synthesis", "doc_sot_update"]:
+            return category_lower
+
+        # Default: return lowercase original
+        return category_lower
+
     def select_budget(
         self,
         estimate: TokenEstimate,
@@ -606,6 +644,11 @@ class TokenEstimator:
         - High-risk categories (IMPLEMENT_FEATURE, integration) + high complexity: 1.6x buffer
         - Documentation (low complexity): 2.2x buffer (triage shows 2.12x underestimation)
 
+        BUILD-142: Category-aware base budget floors to reduce waste.
+        - docs/low: 4096 (down from 8192) - telemetry shows 84.6% hit base floor with 2.41x waste
+        - tests/low: 6144 (down from 8192) - telemetry shows 10.11x waste at base floor
+        - doc_synthesis/doc_sot_update: keep higher floors for safety (existing 2.2x buffer)
+
         Args:
             estimate: Token estimate
             complexity: Phase complexity
@@ -613,9 +656,39 @@ class TokenEstimator:
         Returns:
             Selected budget (tokens)
         """
-        # Base budgets from complexity
-        base_budgets = {"low": 8192, "medium": 12288, "high": 16384}
-        base = base_budgets.get(complexity, 8192)
+        # BUILD-142: Category-aware base budgets
+        # Normalize category for consistent lookup
+        normalized_category = self._normalize_category(estimate.category)
+
+        # Define base budgets by (category, complexity)
+        # Falls back to universal base if not specified
+        BASE_BUDGET_BY_CATEGORY = {
+            ("docs", "low"): 4096,      # BUILD-142: down from 8192 (84.6% base dominance, 2.41x waste)
+            ("docs", "medium"): 8192,   # Keep current
+            ("docs", "high"): 12288,    # Keep current
+            ("tests", "low"): 6144,     # BUILD-142: down from 8192 (10.11x waste)
+            ("tests", "medium"): 8192,  # Keep current
+            ("tests", "high"): 12288,   # Keep current
+            ("implementation", "low"): 8192,    # Keep current (high variance)
+            ("implementation", "medium"): 12288,
+            ("implementation", "high"): 16384,
+            # Special categories keep higher floors for safety
+            ("doc_synthesis", "low"): 8192,
+            ("doc_synthesis", "medium"): 12288,
+            ("doc_synthesis", "high"): 16384,
+            ("doc_sot_update", "low"): 8192,
+            ("doc_sot_update", "medium"): 12288,
+            ("doc_sot_update", "high"): 16384,
+        }
+
+        # Universal fallback for complexity if category not found
+        UNIVERSAL_BASE_BUDGETS = {"low": 8192, "medium": 12288, "high": 16384}
+
+        # Try category-specific lookup first, fall back to universal
+        base = BASE_BUDGET_BY_CATEGORY.get(
+            (normalized_category, complexity),
+            UNIVERSAL_BASE_BUDGETS.get(complexity, 8192)
+        )
 
         # BUILD-129 Phase 3 P7: Adaptive buffer margin based on risk factors
         buffer_margin = self.BUFFER_MARGIN  # Default 1.2

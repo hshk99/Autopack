@@ -114,7 +114,15 @@
       "Bash(set \"AUTOPACK_SKIP_CI=1\")",
       "Bash(set \"DATABASE_URL=sqlite:///C:/dev/Autopack/telemetry_seed_v6_pilot.db\")",
       "Bash(PYTHONUTF8=1 PYTHONPATH=src TELEMETRY_DB_ENABLED=1 AUTOPACK_SKIP_CI=1 DATABASE_URL=\"sqlite:///C:/dev/Autopack/telemetry_seed_v6_pilot.db\" python:*)",
-      "Bash(PYTHONUTF8=1 PYTHONPATH=src DATABASE_URL=\"sqlite:///C:/dev/Autopack/telemetry_seed_v6_pilot.db\" python:*)"
+      "Bash(PYTHONUTF8=1 PYTHONPATH=src DATABASE_URL=\"sqlite:///C:/dev/Autopack/telemetry_seed_v6_pilot.db\" python:*)",
+      "Bash($env:PYTHONUTF8=\"1\")",
+      "Bash($env:PYTHONPATH=\"src\")",
+      "Bash($env:TELEMETRY_DB_ENABLED=\"1\")",
+      "Bash($env:AUTOPACK_SKIP_CI=\"1\")",
+      "Bash($env:DATABASE_URL=\"sqlite:///C:/dev/Autopack/telemetry_seed_v5.db\")",
+      "Bash(PYTHONUTF8=1 PYTHONPATH=src TELEMETRY_DB_ENABLED=1 AUTOPACK_SKIP_CI=1 DATABASE_URL=\"sqlite:///C:/dev/Autopack/telemetry_seed_v5.db\" python:*)",
+      "Bash(PYTHONUTF8=1 PYTHONPATH=src TELEMETRY_DB_ENABLED=1 DATABASE_URL=\"sqlite:///C:/dev/Autopack/telemetry_seed_v5.db\" python:*)",
+      "Bash(PYTHONUTF8=1 PYTHONPATH=src DATABASE_URL=\"sqlite:///C:/dev/Autopack/telemetry_seed_v5.db\" python -c \"from autopack.database import SessionLocal; from autopack.models import Run, Tier, Phase; s=SessionLocal\\(\\); rid=''telemetry-collection-v7''; s.query\\(Phase\\).filter\\(Phase.run_id==rid\\).delete\\(synchronize_session=False\\); s.query\\(Tier\\).filter\\(Tier.run_id==rid\\).delete\\(synchronize_session=False\\); s.query\\(Run\\).filter\\(Run.id==rid\\).delete\\(synchronize_session=False\\); s.commit\\(\\); s.close\\(\\); print\\(''Deleted run ''+rid\\)\")"
     ],
     "deny": [],
     "ask": []

@@ -2126,11 +2126,16 @@
         "build132-coverage-delta-integration:build132-phase4-documentation",
         "build132-coverage-delta-integration:build132-phase4-documentation",
         "build132-coverage-delta-integration:build132-phase4-documentation",
-        "build132-coverage-delta-integration:build132-phase4-documentation"
+        "build132-coverage-delta-integration:build132-phase4-documentation",
+        "telemetry-collection-v6:telemetry-v6-d1-quickstart",
+        "telemetry-collection-v6:telemetry-v6-d2-contributing",
+        "telemetry-collection-v8b-override-fix:telemetry-v8b-d1-installation-steps",
+        "telemetry-collection-v8b-override-fix:telemetry-v8b-d1-installation-steps",
+        "telemetry-collection-v8b-override-fix:telemetry-v8b-d3-troubleshooting-tips"
       ],
-      "promotion_count": 9,
+      "promotion_count": 14,
       "first_seen": "2025-12-23T10:14:36.016310+00:00",
-      "last_seen": "2025-12-23T10:58:44.336791+00:00",
+      "last_seen": "2025-12-29T14:58:07.103328+00:00",
       "status": "active",
       "stage": "new"
     },

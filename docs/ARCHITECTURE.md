@@ -1,6 +1,6 @@
 # Autopack Architecture
 
-**Last Updated**: 2025-12-28  
+**Last Updated**: 2025-12-29  
 **Purpose**: High-level system overview for developers and contributors
 
 ---

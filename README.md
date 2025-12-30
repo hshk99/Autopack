@@ -59,6 +59,57 @@ Autopack is a framework for orchestrating autonomous AI agents (Builder and Audi
   - Validation deliverables: examples/telemetry_v8_docs/ (3 files), examples/telemetry_v8_tests/ (2 files), examples/telemetry_v8b_docs/ (3 files)
 - **Commit**: `4c96a1ad` - "feat: BUILD-142 - Category-aware conditional override fix + V8b validation"
 
+### 2025-12-30: BUILD-142 Provider Parity + Telemetry Schema Enhancement - ✅ COMPLETE
+**OpenAI & Gemini Get Category-Aware Budgets + Migration Support**
+- **Achievement**: Extended BUILD-142 category-aware budget optimization to all providers (Anthropic, OpenAI, Gemini)
+- **Problem Solved**: OpenAI and Gemini clients used hardcoded token budgets (16384, 8192) without category awareness → missed 50-75% waste reduction opportunity
+- **Solution Implemented** (4 tasks):
+  1. **Provider Parity Audit** ([src/autopack/openai_clients.py](src/autopack/openai_clients.py), [src/autopack/gemini_clients.py](src/autopack/gemini_clients.py)):
+     - Added TokenEstimator integration with category-aware fallback logic
+     - Implemented conditional override (skip floor for docs-like categories)
+     - Added P4 enforcement with telemetry separation (selected_budget vs actual_max_tokens)
+     - OpenAI: 16384 floor conditionally applied | Gemini: 8192 floor conditionally applied
+  2. **Telemetry Schema Enhancement** ([src/autopack/models.py:416-417](src/autopack/models.py#L416-L417)):
+     - Added `actual_max_tokens` column to TokenEstimationV2Event (final provider ceiling)
+     - Separated from `selected_budget` (estimator intent) for accurate waste calculation
+     - Migration script: [scripts/migrations/add_actual_max_tokens_to_token_estimation_v2.py](scripts/migrations/add_actual_max_tokens_to_token_estimation_v2.py)
+  3. **Telemetry Writers Updated** ([src/autopack/anthropic_clients.py:971-1002](src/autopack/anthropic_clients.py#L971-L1002)):
+     - Updated `_write_token_estimation_v2_telemetry` signature to accept `actual_max_tokens`
+     - Modified both call sites to pass actual_max_tokens from metadata
+  4. **Calibration Script Updated** ([scripts/calibrate_token_estimator.py:234-237](scripts/calibrate_token_estimator.py#L234-L237)):
+     - Waste calculation now uses `actual_max_tokens / actual_output_tokens` (not selected_budget)
+     - Fallback to selected_budget for backward compatibility
+     - Added coverage warning if <80% samples have actual_max_tokens populated
+- **Budget Terminology** (BUILD-142 semantics):
+  - **selected_budget**: Estimator **intent** (recorded BEFORE P4 enforcement)
+  - **actual_max_tokens**: Final provider **ceiling** (recorded AFTER P4 enforcement)
+  - Waste calculation: Always use actual_max_tokens for accurate API cost measurement
+- **Test Coverage**: 26 tests passing ✅
+  - 15 tests: [test_anthropic_clients_category_aware_override.py](tests/autopack/test_anthropic_clients_category_aware_override.py)
+  - 11 tests: [test_token_estimator_base_budgets.py](tests/autopack/test_token_estimator_base_budgets.py)
+  - 4 tests (NEW): [test_token_estimation_v2_schema_drift.py](tests/autopack/test_token_estimation_v2_schema_drift.py) (CI drift prevention)
+- **Documentation**:
+  - [docs/BUILD-142-PROVIDER-PARITY-REPORT.md](docs/BUILD-142-PROVIDER-PARITY-REPORT.md) (560+ lines implementation report)
+  - [docs/guides/BUILD-142_MIGRATION_RUNBOOK.md](docs/guides/BUILD-142_MIGRATION_RUNBOOK.md) (migration instructions with verification)
+  - [docs/guides/TELEMETRY_COLLECTION_UNIFIED_WORKFLOW.md](docs/guides/TELEMETRY_COLLECTION_UNIFIED_WORKFLOW.md) (updated with BUILD-142 semantics)
+- **Migration Support**:
+  - Idempotent migration script with backfill logic
+  - Verification snippets (Python + SQL) for population rate checks
+  - Coverage warnings in calibration output
+- **CI Drift Prevention**: New test ensures schema and writer signature won't regress
+- **Impact**:
+  - ✅ **Provider Parity**: All 3 providers (Anthropic, OpenAI, Gemini) benefit from 50-75% waste reduction for docs/test phases
+  - ✅ **Telemetry Accuracy**: Waste measurements now reflect true API costs
+  - ✅ **Migration Ready**: Existing telemetry databases can upgrade with single script
+  - ✅ **Future-Proof**: CI drift check prevents accidental schema regressions
+- **Files Changed**: 11 files
+  - Providers: [openai_clients.py](src/autopack/openai_clients.py), [gemini_clients.py](src/autopack/gemini_clients.py), [anthropic_clients.py](src/autopack/anthropic_clients.py)
+  - Schema: [models.py](src/autopack/models.py)
+  - Calibration: [calibrate_token_estimator.py](scripts/calibrate_token_estimator.py)
+  - Migration: [add_actual_max_tokens_to_token_estimation_v2.py](scripts/migrations/add_actual_max_tokens_to_token_estimation_v2.py)
+  - Tests (NEW): [test_token_estimation_v2_schema_drift.py](tests/autopack/test_token_estimation_v2_schema_drift.py)
+  - Docs: [BUILD-142_MIGRATION_RUNBOOK.md](docs/guides/BUILD-142_MIGRATION_RUNBOOK.md), [TELEMETRY_COLLECTION_UNIFIED_WORKFLOW.md](docs/guides/TELEMETRY_COLLECTION_UNIFIED_WORKFLOW.md), [BUILD-142-PROVIDER-PARITY-REPORT.md](docs/BUILD-142-PROVIDER-PARITY-REPORT.md)
+
 ---
 
 ## Previous Updates (v0.4.13 - V6 Pilot Validation + Safe Calibration)

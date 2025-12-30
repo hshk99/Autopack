@@ -53,6 +53,7 @@ Autopack is a framework for orchestrating autonomous AI agents (Builder and Audi
      - Backfills existing rows: `total_tokens = COALESCE(prompt_tokens, 0) + COALESCE(completion_tokens, 0)`
      - Handles SQLite vs PostgreSQL differences
      - Verification output shows row counts and token patterns
+     - **Migration Runbook**: [BUILD-144_USAGE_TOTAL_TOKENS_MIGRATION_RUNBOOK.md](docs/guides/BUILD-144_USAGE_TOTAL_TOKENS_MIGRATION_RUNBOOK.md) provides operator-grade documentation with prerequisites, step-by-step migration instructions, verification commands (Python + SQL), troubleshooting, and rollback guidance
 
   **P0.4: Total Tokens Column** (usage_recorder.py, llm_service.py, main.py):
   7. **Always-Populated Total** ([usage_recorder.py:25, 78](src/autopack/usage_recorder.py#L25)):

@@ -36,6 +36,36 @@ class Settings(BaseSettings):
     # Set via environment variable: AUTOPACK_ROLLBACK_ENABLED=true
     executor_rollback_enabled: bool = False
 
+    # BUILD-145 P2: Extended artifact-first substitution (opt-in, disabled by default)
+    # When enabled, automatically pins run/tier/phase summaries as 'history pack' in context
+    # and optionally substitutes large SOT docs with their summaries
+    # Set via environment variable: AUTOPACK_ARTIFACT_HISTORY_PACK=true
+    artifact_history_pack_enabled: bool = False
+
+    # Maximum number of recent phase summaries to include in history pack
+    artifact_history_pack_max_phases: int = 5
+
+    # Maximum number of recent tier summaries to include in history pack
+    artifact_history_pack_max_tiers: int = 3
+
+    # Enable substitution of large SOT docs (BUILD_HISTORY, BUILD_LOG) with summaries
+    # Set via environment variable: AUTOPACK_ARTIFACT_SUBSTITUTE_SOT_DOCS=true
+    artifact_substitute_sot_docs: bool = False
+
+    # Enable artifact substitution in additional safe contexts beyond read_only_context
+    # When enabled, applies artifact-first loading to phase descriptions, tier summaries, etc.
+    # Set via environment variable: AUTOPACK_ARTIFACT_EXTENDED_CONTEXTS=true
+    artifact_extended_contexts_enabled: bool = False
+
+    # Embedding cache configuration
+    # Maximum number of embedding API calls per phase (0 = unlimited)
+    embedding_cache_max_calls_per_phase: int = 100
+
+    # Context budget configuration (BUILD-145 P1.1)
+    # Maximum tokens for context selection (rough estimate used by context_budgeter)
+    # Default: 100k tokens (conservative estimate for read_only_context in phases)
+    context_budget_tokens: int = 100_000
+
 
 settings = Settings()
 
@@ -91,5 +121,3 @@ def get_database_url() -> str:
         url = f"sqlite:///{db_path.as_posix()}"
 
     return url
-
-

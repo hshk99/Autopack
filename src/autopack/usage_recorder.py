@@ -85,6 +85,19 @@ class TokenEfficiencyMetrics(Base):
     # Nullable for backward compatibility; stores COMPLETE, FAILED, BLOCKED, etc.
     phase_outcome = Column(String, nullable=True, index=True)
 
+    # BUILD-145 deployment hardening: Embedding cache observability
+    # Nullable for backward compatibility
+    embedding_cache_hits = Column(Integer, nullable=True, default=0)
+    embedding_cache_misses = Column(Integer, nullable=True, default=0)
+    embedding_calls_made = Column(Integer, nullable=True, default=0)
+    embedding_cap_value = Column(Integer, nullable=True, default=0)
+    embedding_fallback_reason = Column(String, nullable=True)  # "cap_exceeded", "disabled", None
+
+    # BUILD-145 deployment hardening: Budgeting context observability
+    # Nullable for backward compatibility
+    deliverables_count = Column(Integer, nullable=True, default=0)
+    context_files_total = Column(Integer, nullable=True, default=0)  # Total files before budgeting
+
     created_at = Column(DateTime, nullable=False, default=lambda: datetime.now(timezone.utc), index=True)
 
 @dataclass
@@ -251,6 +264,15 @@ def record_token_efficiency_metrics(
     files_kept: int,
     files_omitted: int,
     phase_outcome: Optional[str] = None,
+    # BUILD-145 deployment hardening: embedding cache observability (all optional)
+    embedding_cache_hits: Optional[int] = None,
+    embedding_cache_misses: Optional[int] = None,
+    embedding_calls_made: Optional[int] = None,
+    embedding_cap_value: Optional[int] = None,
+    embedding_fallback_reason: Optional[str] = None,
+    # BUILD-145 deployment hardening: budgeting context observability (all optional)
+    deliverables_count: Optional[int] = None,
+    context_files_total: Optional[int] = None,
 ) -> TokenEfficiencyMetrics:
     """Record token efficiency metrics for a phase.
 
@@ -266,6 +288,13 @@ def record_token_efficiency_metrics(
         files_kept: Number of files kept in context
         files_omitted: Number of files omitted from context
         phase_outcome: Optional terminal phase outcome (COMPLETE, FAILED, BLOCKED, etc.)
+        embedding_cache_hits: Optional cache hit count
+        embedding_cache_misses: Optional cache miss count
+        embedding_calls_made: Optional total embedding API calls made
+        embedding_cap_value: Optional embedding cap value used
+        embedding_fallback_reason: Optional reason for lexical fallback
+        deliverables_count: Optional number of deliverables in phase
+        context_files_total: Optional total files before budgeting
 
     Returns:
         Created TokenEfficiencyMetrics record
@@ -281,6 +310,13 @@ def record_token_efficiency_metrics(
         files_kept=files_kept,
         files_omitted=files_omitted,
         phase_outcome=phase_outcome,
+        embedding_cache_hits=embedding_cache_hits,
+        embedding_cache_misses=embedding_cache_misses,
+        embedding_calls_made=embedding_calls_made,
+        embedding_cap_value=embedding_cap_value,
+        embedding_fallback_reason=embedding_fallback_reason,
+        deliverables_count=deliverables_count,
+        context_files_total=context_files_total,
         created_at=datetime.now(timezone.utc),
     )
 
@@ -330,7 +366,13 @@ def get_token_efficiency_stats(db: Session, run_id: str) -> Dict:
     total_files_omitted = sum(m.files_omitted for m in metrics)
     semantic_mode_count = sum(1 for m in metrics if m.budget_mode == "semantic")
     lexical_mode_count = sum(1 for m in metrics if m.budget_mode == "lexical")
-    
+
+    # BUILD-145 deployment hardening: Add phase outcome breakdown
+    outcome_counts = {}
+    for m in metrics:
+        outcome = m.phase_outcome or "UNKNOWN"
+        outcome_counts[outcome] = outcome_counts.get(outcome, 0) + 1
+
     return {
         "run_id": run_id,
         "total_phases": len(metrics),
@@ -351,4 +393,5 @@ def get_token_efficiency_stats(db: Session, run_id: str) -> Dict:
         "budget_utilization": (
             total_budget_used / total_budget_cap if total_budget_cap > 0 else 0.0
         ),
+        "phase_outcome_counts": outcome_counts,  # {"COMPLETE": 10, "FAILED": 2, "UNKNOWN": 1}
     }

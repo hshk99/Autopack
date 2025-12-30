@@ -1244,6 +1244,16 @@ def get_dashboard_run_status(run_id: str, db: Session = Depends(get_db)):
     minor_issues_count = run.minor_issues_count or 0
     major_issues_count = run.major_issues_count or 0
 
+    # Get token efficiency stats (BUILD-145 deployment hardening)
+    token_efficiency = None
+    try:
+        from .usage_recorder import get_token_efficiency_stats
+        efficiency_stats = get_token_efficiency_stats(db, run_id)
+        if efficiency_stats and efficiency_stats.get("total_phases", 0) > 0:
+            token_efficiency = efficiency_stats
+    except Exception as e:
+        logger.warning(f"[DASHBOARD] Failed to load token efficiency stats for {run_id}: {e}")
+
     return dashboard_schemas.DashboardRunStatus(
         run_id=run.id,
         state=run.state.value,
@@ -1262,6 +1272,7 @@ def get_dashboard_run_status(run_id: str, db: Session = Depends(get_db)):
         token_utilization=token_utilization,
         minor_issues_count=minor_issues_count,
         major_issues_count=major_issues_count,
+        token_efficiency=token_efficiency,
     )
 
 
@@ -1399,7 +1410,7 @@ def add_dashboard_human_note(note_request: dashboard_schemas.HumanNoteRequest, d
     }
 
 
-@app.get("/dashboard/runs/{run_id}/token-efficiency", response_model=dict)
+@app.get("/dashboard/runs/{run_id}/token-efficiency", response_model=dashboard_schemas.TokenEfficiencyStats)
 def get_run_token_efficiency(
     run_id: str,
     db: Session = Depends(get_db),
@@ -1418,7 +1429,7 @@ def get_run_token_efficiency(
         raise HTTPException(status_code=404, detail="Run not found")
     
     stats = get_token_efficiency_stats(db, run_id)
-    return stats
+    return dashboard_schemas.TokenEfficiencyStats(**stats)
 
 @app.post("/dashboard/models/override")
 def add_dashboard_model_override(override_request: dashboard_schemas.ModelOverrideRequest, db: Session = Depends(get_db)):

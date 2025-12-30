@@ -6,7 +6,64 @@ Autopack is a framework for orchestrating autonomous AI agents (Builder and Audi
 
 ---
 
-## Recent Updates (v0.4.20 - BUILD-145 P1 Hardening)
+## Recent Updates (v0.4.21 - BUILD-145 Deployment Hardening)
+
+### 2025-12-31: BUILD-145 Deployment Hardening - ✅ 100% COMPLETE
+**Database Migration + Dashboard Exposure + Telemetry Enrichment**
+- **Achievement**: Production-ready deployment infrastructure for token efficiency observability with database migration, dashboard integration, and enriched telemetry (29/29 tests passing - 100%)
+- **Problem Solved**:
+  - Existing databases missing new telemetry columns (phase_outcome, embedding cache stats, budgeting context stats)
+  - Dashboard endpoints lacking token efficiency visibility
+  - No observability into embedding cache effectiveness or budgeting context decisions
+- **Solution Implemented** (Deployment Hardening - 3 tasks):
+
+  **1. Idempotent Database Migration** ([scripts/migrations/add_telemetry_enrichment_build145_deploy.py](scripts/migrations/add_telemetry_enrichment_build145_deploy.py)):
+  - Detects and adds 7 new columns to token_efficiency_metrics table
+  - All columns nullable for backward compatibility
+  - Supports both SQLite and PostgreSQL
+  - Safe to run multiple times (idempotent)
+  - Columns added: embedding_cache_hits, embedding_cache_misses, embedding_calls_made, embedding_cap_value, embedding_fallback_reason, deliverables_count, context_files_total
+
+  **2. Dashboard Token Efficiency Exposure** ([main.py:1247-1276](src/autopack/main.py#L1247-L1276)):
+  - Enhanced /dashboard/runs/{run_id}/status endpoint with optional token_efficiency field
+  - Includes aggregated stats: total_phases, artifact_substitutions, tokens_saved, budget_utilization
+  - Phase outcome breakdown: counts by COMPLETE/FAILED/BLOCKED/UNKNOWN terminal states
+  - Graceful error handling: returns null if stats unavailable, never crashes
+  - Backward compatible: existing clients unaffected
+
+  **3. Telemetry Enrichment** ([usage_recorder.py:88-100, 255-327](src/autopack/usage_recorder.py)):
+  - Extended TokenEfficiencyMetrics model with 7 new optional fields
+  - Embedding cache observability: tracks hits, misses, API calls, cap enforcement, fallback reasons
+  - Budgeting context observability: tracks deliverables count and total files before budgeting
+  - Enhanced get_token_efficiency_stats() to include phase_outcome_counts breakdown
+  - All parameters optional with sensible defaults (backward compatible)
+
+  **4. Comprehensive Dashboard Tests** ([test_dashboard_token_efficiency.py](tests/autopack/test_dashboard_token_efficiency.py)):
+  - 7 new integration tests covering all dashboard scenarios
+  - Tests: no metrics, basic metrics, phase outcomes, enriched telemetry, backward compatibility, mixed modes, error handling
+  - In-memory SQLite with proper database dependency mocking
+
+- **Configuration**: No new settings required (uses existing BUILD-145 P1 settings)
+  - embedding_cache_max_calls_per_phase: int = 100 (0=disabled, -1=unlimited, >0=capped)
+  - context_budget_tokens: int = 100_000 (rough estimate for context selection budget)
+
+- **Impact**:
+  - ✅ **Database Migration**: Existing deployments can upgrade without data loss
+  - ✅ **Dashboard Visibility**: Token efficiency stats exposed via REST API
+  - ✅ **Embedding Cache Observability**: Track cache effectiveness (hits/misses/calls)
+  - ✅ **Budgeting Context Observability**: Track deliverables and context file counts
+  - ✅ **Phase Outcome Tracking**: Breakdown by terminal states for failure analysis
+  - ✅ **Backward Compatible**: Nullable columns, optional fields, graceful degradation
+  - ✅ **Zero Regressions**: All 29 tests passing (22 existing + 7 new dashboard tests)
+
+- **Success Criteria**: 29/29 PASS ✅
+  - ✅ Migration: idempotent, multi-DB support, safe column additions
+  - ✅ Dashboard: token_efficiency field exposed, phase outcome breakdown included
+  - ✅ Telemetry: embedding cache and budgeting context stats recordable
+  - ✅ Tests: comprehensive dashboard integration tests pass
+  - ✅ Backward compatibility: nullable columns, optional parameters, graceful errors
+
+---
 
 ### 2025-12-31: BUILD-145 P1 Hardening - ✅ 100% COMPLETE
 **Token Efficiency Telemetry Correctness + Per-Phase Embedding Cap + Terminal Outcome Coverage**

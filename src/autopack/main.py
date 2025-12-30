@@ -29,9 +29,7 @@ from .database import get_db, init_db
 from .file_layout import RunFileLayout
 from .governed_apply import GovernedApplyPath, PatchApplyError
 from .issue_tracker import IssueTracker
-from .strategy_engine import StrategyEngine
-from .usage_recorder import get_doctor_stats
-
+from .usage_recorder import get_doctor_stats, get_token_efficiency_stats
 logger = logging.getLogger(__name__)
 
 # Security: API Key authentication
@@ -1418,6 +1416,22 @@ def add_dashboard_human_note(note_request: dashboard_schemas.HumanNoteRequest, d
         "timestamp": timestamp,
         "notes_file": ".autopack/human_notes.md"
     }
+
+
+@app.get("/dashboard/runs/{run_id}/token-efficiency")
+def get_run_token_efficiency(
+    run_id: str,
+    db: Session = Depends(get_db),
+    api_key: str = Depends(verify_api_key)
+):
+    """Get token efficiency metrics for a run (BUILD-145)"""
+    # Verify run exists
+    run = db.query(models.Run).filter(models.Run.id == run_id).first()
+    if not run:
+        raise HTTPException(status_code=404, detail="Run not found")
+    
+    stats = get_token_efficiency_stats(db, run_id)
+    return stats
 
 
 @app.post("/dashboard/models/override")

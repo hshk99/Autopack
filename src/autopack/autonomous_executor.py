@@ -1957,6 +1957,50 @@ class AutonomousExecutor:
                 attempt_index=attempt_index
             )
 
+            # [BUILD-146 P6.3] Deterministic Failure Hardening (before expensive diagnostics/Doctor)
+            # Try deterministic mitigation FIRST to avoid token costs
+            if os.getenv("AUTOPACK_ENABLE_FAILURE_HARDENING", "false").lower() == "true":
+                from autopack.failure_hardening import detect_and_mitigate_failure
+
+                error_text = f"Status: {status}, Attempt: {attempt_index + 1}"
+                hardening_context = {
+                    "workspace": Path(self.workspace_root) if hasattr(self, "workspace_root") else Path.cwd(),
+                    "phase_id": phase_id,
+                    "status": status,
+                    "scope_paths": phase.get("scope", {}).get("paths", []),
+                }
+
+                mitigation_result = detect_and_mitigate_failure(error_text, hardening_context)
+
+                if mitigation_result:
+                    logger.info(
+                        f"[{phase_id}] Failure hardening detected pattern: {mitigation_result.pattern_id} "
+                        f"(success={mitigation_result.success}, fixed={mitigation_result.fixed})"
+                    )
+                    logger.info(f"[{phase_id}] Actions taken: {mitigation_result.actions_taken}")
+                    logger.info(f"[{phase_id}] Suggestions: {mitigation_result.suggestions}")
+
+                    # Record mitigation in learning hints
+                    self._record_learning_hint(
+                        phase=phase,
+                        hint_type="failure_hardening_applied",
+                        details=f"Pattern: {mitigation_result.pattern_id}, Fixed: {mitigation_result.fixed}"
+                    )
+
+                    # If mitigation claims it's fixed, skip diagnostics/Doctor and retry immediately
+                    if mitigation_result.fixed:
+                        logger.info(
+                            f"[{phase_id}] Failure hardening claims fix applied, skipping diagnostics/Doctor"
+                        )
+                        # Increment attempts and continue to next retry
+                        new_attempts = attempt_index + 1
+                        self._update_phase_attempts_in_db(
+                            phase_id,
+                            retry_attempt=new_attempts,
+                            last_failure_reason=f"HARDENING_MITIGATED: {mitigation_result.pattern_id}"
+                        )
+                        continue  # Skip diagnostics/Doctor, retry immediately
+
             # Run governed diagnostics to gather evidence before mutations
             self._run_diagnostics_for_failure(
                 failure_class=failure_outcome,
@@ -3304,6 +3348,18 @@ Just the new description that should replace the current one while preserving th
             logger.warning("[Doctor] LlmService not available, skipping Doctor invocation")
             return None
 
+        # [BUILD-146 P6.2] Add intention context to Doctor logs_excerpt
+        doctor_logs_excerpt = logs_excerpt
+        if os.getenv("AUTOPACK_ENABLE_INTENTION_CONTEXT", "false").lower() == "true":
+            try:
+                if hasattr(self, "_intention_injector"):
+                    intention_reminder = self._intention_injector.get_intention_context(max_chars=512)
+                    if intention_reminder:
+                        doctor_logs_excerpt = f"[Project Intention]\n{intention_reminder}\n\n[Error Context]\n{logs_excerpt}"
+                        logger.debug(f"[{phase_id}] Added intention reminder to Doctor context")
+            except Exception as e:
+                logger.warning(f"[{phase_id}] Failed to add intention to Doctor logs: {e}")
+
         # Build request
         request = DoctorRequest(
             phase_id=phase_id,
@@ -3312,7 +3368,7 @@ Just the new description that should replace the current one while preserving th
             health_budget=self._get_health_budget(),
             last_patch=last_patch,
             patch_errors=patch_errors or [],
-            logs_excerpt=logs_excerpt,
+            logs_excerpt=doctor_logs_excerpt,
             run_id=self.run_id,
         )
 
@@ -3999,6 +4055,34 @@ Just the new description that should replace the current one while preserving th
                         logger.info(f"[{phase_id}] Retrieved {len(retrieved_context)} chars of context from memory")
                 except Exception as e:
                     logger.warning(f"[{phase_id}] Memory retrieval failed: {e}")
+
+            # [BUILD-146 P6.2] Intention Context Injection (compact semantic anchor)
+            intention_context = ""
+            if os.getenv("AUTOPACK_ENABLE_INTENTION_CONTEXT", "false").lower() == "true":
+                try:
+                    from autopack.intention_wiring import IntentionContextInjector
+
+                    # Create injector (cached on first call per run)
+                    if not hasattr(self, "_intention_injector"):
+                        project_id = self._get_project_slug() or self.run_id
+                        self._intention_injector = IntentionContextInjector(
+                            run_id=self.run_id,
+                            project_id=project_id,
+                            memory_service=self.memory_service if hasattr(self, "memory_service") else None
+                        )
+
+                    # Get bounded intention context (≤2KB)
+                    intention_context = self._intention_injector.get_intention_context(max_chars=2048)
+
+                    if intention_context:
+                        logger.info(f"[{phase_id}] Injected {len(intention_context)} chars of intention context")
+                        # Prepend to retrieved_context so it's visible in Builder prompt
+                        if retrieved_context:
+                            retrieved_context = f"{intention_context}\n\n{retrieved_context}"
+                        else:
+                            retrieved_context = intention_context
+                except Exception as e:
+                    logger.warning(f"[{phase_id}] Intention context injection failed: {e}")
 
             # BUILD-050 Phase 1: Add deliverables contract as hard constraint
             # This ensures Builder creates files at correct paths from the start

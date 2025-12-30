@@ -269,8 +269,8 @@ python scripts/migrations/add_phase6_p3_fields.py upgrade
 **Footgun #2: API and Executor on different DBs**
 
 ```powershell
-# API server starts with Postgres (from settings.database_url)
-uvicorn src.backend.main:app --host 0.0.0.0 --port 8000
+# Canonical API server starts with Postgres (from settings.database_url)
+PYTHONPATH=src uvicorn autopack.main:app --host 0.0.0.0 --port 8000
 
 # Executor starts without DATABASE_URL set
 # ❌ Would default to SQLite (if we hadn't fixed this)

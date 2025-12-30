@@ -111,8 +111,8 @@ setup_telegram_webhook(
 # 3. Start ngrok
 ngrok http --domain=harrybot.ngrok.app 8001
 
-# 4. Start backend
-uvicorn backend.main:app --port 8001
+# 4. Start canonical server
+PYTHONPATH=src uvicorn autopack.main:app --port 8000
 ```
 
 ---
@@ -372,8 +372,8 @@ Check your phone - you should receive the notification within seconds.
 
 ### Test Approval Workflow (End-to-End)
 
-1. Start backend: `uvicorn backend.main:app --port 8001`
-2. Start ngrok: `ngrok http --domain=harrybot.ngrok.app 8001`
+1. Start canonical server: `PYTHONPATH=src uvicorn autopack.main:app --port 8000`
+2. Start ngrok: `ngrok http --domain=harrybot.ngrok.app 8000`
 3. Create a run with a phase that will exceed deletion threshold
 4. Wait for notification on phone
 5. Tap Approve or Reject

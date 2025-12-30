@@ -22,7 +22,7 @@ FileOrganizer automatically processes, classifies, and organizes immigration doc
 # Setup
 docker-compose up -d
 pip install -r requirements.txt
-uvicorn src.backend.main:app --reload
+PYTHONPATH=src uvicorn autopack.main:app --reload
 
 # Frontend (in frontend/ directory)
 npm install && npm run dev
@@ -81,7 +81,7 @@ pytest tests/ -v
 
 # Start services
 docker-compose up -d              # Database + optional Qdrant
-uvicorn src.backend.main:app --reload --port 8000
+PYTHONPATH=src uvicorn autopack.main:app --reload --port 8000
 cd frontend && npm run dev        # Frontend on port 3000
 ```
 

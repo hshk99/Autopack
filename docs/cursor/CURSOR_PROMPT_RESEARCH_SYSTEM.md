@@ -39,7 +39,7 @@ cd c:/dev/Autopack
 PYTHONUTF8=1 PYTHONPATH=src python scripts/create_research_run.py chunk0-tracer-bullet
 
 # Step 1b: Start API server (in separate terminal)
-PYTHONUTF8=1 PYTHONPATH=src uvicorn backend.main:app --reload --port 8000
+PYTHONUTF8=1 PYTHONPATH=src uvicorn autopack.main:app --reload --port 8000
 
 # Step 1c: Launch autonomous executor
 PYTHONUTF8=1 PYTHONPATH=src python -m autopack.autonomous_executor \
@@ -115,7 +115,7 @@ PYTHONUTF8=1 PYTHONPATH=src python -m autopack.autonomous_executor \
 ```bash
 # In a separate terminal
 cd c:/dev/Autopack
-PYTHONUTF8=1 PYTHONPATH=src uvicorn backend.main:app --reload --port 8000
+PYTHONUTF8=1 PYTHONPATH=src uvicorn autopack.main:app --reload --port 8000
 ```
 
 ### Step 2: Monitor Execution

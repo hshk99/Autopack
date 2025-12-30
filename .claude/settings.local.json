@@ -131,7 +131,10 @@
       "Bash(PYTHONUTF8=1 PYTHONPATH=src DATABASE_URL=\"sqlite:///:memory:\" python:*)",
       "Bash(PYTHONUTF8=1 DATABASE_URL=\"sqlite:///autopack.db\" python scripts/migrations/add_phase6_p3_fields.py:*)",
       "Bash(PYTHONUTF8=1 DATABASE_URL=\"sqlite:///autopack.db\" python:*)",
-      "Bash(PYTHONUTF8=1 DATABASE_URL=\"sqlite:///autopack.db\" python scripts/pattern_expansion.py:*)"
+      "Bash(PYTHONUTF8=1 DATABASE_URL=\"sqlite:///autopack.db\" python scripts/pattern_expansion.py:*)",
+      "Bash(PYTHONPATH=src timeout 10 python:*)",
+      "Bash(PYTHONUTF8=1 DATABASE_URL=\"sqlite:///autopack.db\" PYTHONPATH=src timeout 10 python:*)",
+      "Bash(PYTHONUTF8=1 PYTHONPATH=src DATABASE_URL=\"sqlite:///test_canonical.db\" pytest:*)"
     ],
     "deny": [],
     "ask": []

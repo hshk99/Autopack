@@ -42,6 +42,20 @@ In practice, “autonomous” requires that each phase has:
 
 ## Recent Updates
 
+### 2025-12-31: BUILD-146 P12 API Consolidation Complete (Phases 0-4) - ✅ PRODUCTION READY
+**Single Canonical Server - No Dual Control Plane Drift**
+- **Achievement**: Consolidated dual FastAPI servers into one canonical endpoint (`autopack.main:app`)
+- **Problem Solved**: Backend and main servers caused split-brain issues, documentation drift, and operational confusion
+- **Solution Implemented** (4 Phases):
+  - **Phase 0**: Documented canonical API contract (40+ endpoints) - [CANONICAL_API_CONTRACT.md](docs/CANONICAL_API_CONTRACT.md)
+  - **Phase 1**: Ported enhanced `/health` + consolidated metrics to canonical server with kill switches (default OFF)
+  - **Phase 2**: Canonicalized auth (`X-API-Key` primary, `Bearer` compatible)
+  - **Phase 3**: Hard-deprecated backend server (clear error on direct execution, library imports still work)
+  - **Phase 4**: Contract tests (15 tests) + CI drift detection to prevent regression
+- **End State**: `PYTHONPATH=src uvicorn autopack.main:app` serves all traffic
+- **Safety**: Kill switches OFF by default, additive changes only, backward compatible
+- **Status**: Production ready - see [API_CONSOLIDATION_COMPLETION_SUMMARY.md](docs/API_CONSOLIDATION_COMPLETION_SUMMARY.md)
+
 ### 2025-12-31: BUILD-146 True Autonomy Implementation Complete (Phases 0-5) - ✅ 100% COMPLETE
 **Project-Intention-Driven Autonomous Building with Universal Toolchain Support**
 - **Achievement**: Completed full True Autonomy roadmap (5 phases) with 126/126 tests passing (100%)

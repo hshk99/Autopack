@@ -21,56 +21,70 @@ Structured edits use a JSON-based operation format defined in [`src/autopack/str
 ```python
 @dataclass
 class EditOperation:
-    operation_type: str    # "insert", "delete", "replace", "rename_symbol"
-    file_path: str         # Target file path
-    line_start: int        # Starting line number (1-indexed)
-    line_end: int          # Ending line number (inclusive)
-    new_content: str       # New content to insert/replace
-    symbol_name: Optional[str]  # For rename operations
-    new_symbol_name: Optional[str]  # For rename operations
+    type: EditOperationType    # INSERT, REPLACE, DELETE, APPEND, PREPEND
+    file_path: str             # Target file path
+
+    # For INSERT, APPEND, PREPEND
+    line: Optional[int] = None
+    content: Optional[str] = None
+
+    # For REPLACE, DELETE
+    start_line: Optional[int] = None
+    end_line: Optional[int] = None
+
+    # Context for validation (optional)
+    context_before: Optional[str] = None
+    context_after: Optional[str] = None
 ```
 
 ### Operation Types
 
-1. **insert**: Add new lines at a specific location
+1. **INSERT**: Add new lines at a specific location
    ```json
    {
-     "operation_type": "insert",
+     "type": "insert",
      "file_path": "src/example.py",
-     "line_start": 42,
-     "line_end": 42,
-     "new_content": "    # New comment\n    new_function()\n"
+     "line": 42,
+     "content": "    # New comment\n    new_function()\n"
    }
    ```
 
-2. **delete**: Remove lines
+2. **DELETE**: Remove lines (1-indexed, inclusive)
    ```json
    {
-     "operation_type": "delete",
+     "type": "delete",
      "file_path": "src/example.py",
-     "line_start": 10,
-     "line_end": 15
+     "start_line": 10,
+     "end_line": 15
    }
    ```
 
-3. **replace**: Replace existing lines
+3. **REPLACE**: Replace existing lines (1-indexed, inclusive)
    ```json
    {
-     "operation_type": "replace",
+     "type": "replace",
      "file_path": "src/example.py",
-     "line_start": 20,
-     "line_end": 25,
-     "new_content": "def updated_function():\n    return True\n"
+     "start_line": 20,
+     "end_line": 25,
+     "content": "def updated_function():\n    return True\n"
    }
    ```
 
-4. **rename_symbol**: Rename a symbol across the file
+4. **APPEND**: Append lines to end of file
    ```json
    {
-     "operation_type": "rename_symbol",
+     "type": "append",
      "file_path": "src/example.py",
-     "symbol_name": "old_function_name",
-     "new_symbol_name": "new_function_name"
+     "content": "# Footer comment\n"
+   }
+   ```
+
+5. **PREPEND**: Prepend lines to start of file
+   ```json
+   {
+     "type": "prepend",
+     "file_path": "src/example.py",
+     "content": "#!/usr/bin/env python3\n"
    }
    ```
 
@@ -91,8 +105,8 @@ The `EditPlan` contains:
 ```python
 @dataclass
 class EditPlan:
+    summary: str  # Human-readable description of changes
     operations: List[EditOperation]
-    validation_rules: List[str]  # Safety checks before applying
 ```
 
 ## Applying Structured Edits
@@ -155,8 +169,8 @@ Structured edits go through the same validation as patches:
 
 ```json
 {
-  "phase_id": "R1.rename-function",
-  "name": "Rename get_user to fetch_user across codebase",
+  "phase_id": "R1.update-function",
+  "name": "Update function signature across codebase",
   "builder_mode": "structured_edit",
   "scope": {
     "paths": [
@@ -167,16 +181,18 @@ Structured edits go through the same validation as patches:
   },
   "edit_operations": [
     {
-      "operation_type": "rename_symbol",
+      "type": "replace",
       "file_path": "src/user_service.py",
-      "symbol_name": "get_user",
-      "new_symbol_name": "fetch_user"
+      "start_line": 42,
+      "end_line": 45,
+      "content": "def fetch_user(user_id: str) -> User:\n    # Updated implementation\n    return database.get(user_id)\n"
     },
     {
-      "operation_type": "rename_symbol",
+      "type": "replace",
       "file_path": "src/api/users.py",
-      "symbol_name": "get_user",
-      "new_symbol_name": "fetch_user"
+      "start_line": 15,
+      "end_line": 17,
+      "content": "    user = fetch_user(user_id)\n"
     }
   ]
 }

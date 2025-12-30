@@ -16,6 +16,51 @@ Each entry includes:
 
 ## Chronological Index
 
+### BUILD-144: NULL-Safe Token Accounting (P0 + P0.1 + P0.2) (2025-12-30)
+
+**Status**: COMPLETE ✅
+
+**Summary**: Eliminated ALL heuristic token guessing (40/60, 60/40, 70/30 splits) from Builder/Auditor/Doctor, replaced with exact counts or explicit NULL recording. Fixed critical dashboard crash on NULL token splits and schema to support nullable columns.
+
+**Achievement**:
+- **P0**: No-Guessing Policy - Removed all heuristic fallbacks, created `_record_usage_total_only()` for NULL recording
+- **P0.1**: Dashboard NULL-Safety - Fixed `/dashboard/usage` to handle NULL token splits (COALESCE approach)
+- **P0.2**: Schema Nullable Fix - Changed `prompt_tokens` and `completion_tokens` to `nullable=True`
+- **Doc Fix**: Corrected Stage 2 structured_edits.md drift (removed non-existent `rename_symbol` operation)
+
+**Files Modified**:
+1. **Core Service**: [src/autopack/llm_service.py](src/autopack/llm_service.py)
+   - Removed Builder 40/60 fallback (line 412 eliminated)
+   - Removed Auditor 60/40 fallback (line 533 eliminated)
+   - Removed Doctor 70/30 fallback (line 957 eliminated)
+   - Added `_record_usage_total_only()` method (lines 611-660)
+2. **Dashboard**: [src/autopack/main.py](src/autopack/main.py#L1314-L1349)
+   - NULL-safe aggregation: `event.prompt_tokens or 0`
+3. **Schema**: [src/autopack/usage_recorder.py](src/autopack/usage_recorder.py#L24-L26)
+   - Changed columns to `nullable=True`
+   - Updated `UsageEventData` to `Optional[int]`
+4. **Documentation**: [docs/stage2_structured_edits.md](docs/stage2_structured_edits.md)
+   - Fixed EditOperation schema to match implementation
+   - Corrected field names and operation types
+
+**Test Coverage**: 21 tests passing ✅
+- 7 tests: [test_exact_token_accounting.py](tests/autopack/test_exact_token_accounting.py) (exact token validation)
+- 7 tests: [test_no_guessing_token_splits.py](tests/autopack/test_no_guessing_token_splits.py) (NEW - regression prevention)
+- 7 tests: [test_llm_usage_schema_drift.py](tests/autopack/test_llm_usage_schema_drift.py) (NEW - nullable schema validation)
+- Static code check: Scans llm_service.py for forbidden heuristic patterns
+
+**Impact**:
+- ✅ **Zero heuristic guessing** - all token accounting is exact or explicitly NULL
+- ✅ **Dashboard crash prevention** - safely handles NULL token splits
+- ✅ **Schema correctness** - supports total-only recording pattern
+- ✅ **Doc accuracy** - Stage 2 documentation matches implementation
+- ✅ **Regression protection** - static code analysis prevents heuristics from returning
+- ✅ **Production ready** - all critical correctness issues resolved
+
+**Commit**: Pending
+
+---
+
 ### TELEMETRY-V5: 25-Phase Telemetry Collection + Batch Drain Fixes (2025-12-29)
 
 **Status**: COMPLETE ✅

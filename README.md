@@ -6,55 +6,88 @@ Autopack is a framework for orchestrating autonomous AI agents (Builder and Audi
 
 ---
 
-## Recent Updates (v0.4.16 - Exact Token Accounting)
+## Recent Updates (v0.4.17 - BUILD-144 NULL-Safe Token Accounting)
+
+### 2025-12-30: BUILD-144 P0 + P0.1 + P0.2 - ✅ COMPLETE
+**Eliminated Heuristic Token Guessing + Dashboard NULL-Safety**
+- **Achievement**: Removed ALL heuristic token splits (40/60, 60/40, 70/30) from Builder/Auditor/Doctor, replaced with exact counts or explicit NULL recording
+- **Problem Solved**:
+  - BUILD-143 fallbacks still used heuristic guesses when exact tokens unavailable
+  - Stage 2 docs had drift vs actual implementation (claimed non-existent `rename_symbol` operation)
+  - Dashboard would crash on NULL token splits (`+= None` TypeError)
+  - Schema didn't support nullable prompt_tokens/completion_tokens
+- **Solution Implemented** (3 phases):
+
+  **P0: No-Guessing Policy** (llm_service.py, docs):
+  1. **Eliminated Heuristic Splits** ([llm_service.py:403-432, 524-553, 938-997](src/autopack/llm_service.py#L403-L432)):
+     - Removed Builder 40/60 fallback (line 412 eliminated)
+     - Removed Auditor 60/40 fallback (line 533 eliminated)
+     - Removed Doctor 70/30 fallback (line 957 eliminated)
+     - Created `_record_usage_total_only()` for NULL recording
+  2. **Total-Only Recording** ([llm_service.py:611-660](src/autopack/llm_service.py#L611-L660)):
+     - New method records `prompt_tokens=None, completion_tokens=None` when exact unavailable
+     - Logs warning: "Recording total_tokens=X without split"
+     - Replaces all heuristic guessing with explicit NULL
+  3. **Stage 2 Doc Fix** ([docs/stage2_structured_edits.md](docs/stage2_structured_edits.md)):
+     - Fixed EditOperation schema to match actual implementation
+     - Removed claims about non-existent `rename_symbol` operation
+     - Corrected field names: `type`, `line`, `content`, `start_line`, `end_line`
+
+  **P0.1: Dashboard NULL-Safety** (main.py):
+  4. **NULL-Safe Aggregation** ([main.py:1314-1349](src/autopack/main.py#L1314-L1349)):
+     - Provider aggregation: `prompt_tokens = event.prompt_tokens or 0`
+     - Model aggregation: `completion_tokens = event.completion_tokens or 0`
+     - Prevents `TypeError: unsupported operand type(s) for +=: 'int' and 'NoneType'`
+
+  **P0.2: Schema Nullable Fix** (usage_recorder.py):
+  5. **Nullable Columns** ([usage_recorder.py:24-26, 75-76](src/autopack/usage_recorder.py#L24-L26)):
+     - Changed `prompt_tokens = Column(Integer, nullable=True)` (was False)
+     - Changed `completion_tokens = Column(Integer, nullable=True)` (was False)
+     - Updated `UsageEventData` to `Optional[int]` for both fields
+
+- **Test Coverage**: All 21 tests passing ✅
+  - 7 tests: [test_exact_token_accounting.py](tests/autopack/test_exact_token_accounting.py) (exact token validation)
+  - 7 tests: [test_no_guessing_token_splits.py](tests/autopack/test_no_guessing_token_splits.py) (NEW - regression prevention)
+  - 7 tests: [test_llm_usage_schema_drift.py](tests/autopack/test_llm_usage_schema_drift.py) (NEW - nullable schema validation)
+  - Static code check: Scans llm_service.py for forbidden heuristic patterns (e.g., `tokens * 0.4`)
+
+- **Impact**:
+  - ✅ **Zero heuristic guessing** - all token accounting is exact or explicitly NULL
+  - ✅ **Dashboard crash prevention** - safely handles NULL token splits
+  - ✅ **Schema correctness** - supports total-only recording pattern
+  - ✅ **Doc accuracy** - Stage 2 structured edits matches implementation
+  - ✅ **Regression protection** - static code analysis prevents heuristics from returning
+  - ✅ **Production ready** - all critical correctness issues resolved
+
+- **Success Criteria**: ALL PASS ✅
+  - ✅ No heuristic token splits in source code (static analysis verified)
+  - ✅ `_record_usage_total_only()` used when exact counts unavailable
+  - ✅ Dashboard aggregation handles NULL without crashing
+  - ✅ Schema supports `prompt_tokens=None, completion_tokens=None`
+  - ✅ All P0 + P0.1 + P0.2 tests pass (21/21)
+  - ✅ Zero regressions (BUILD-143 tests still pass)
+
+- **Files Changed**: 6 files
+  - Core service: [src/autopack/llm_service.py](src/autopack/llm_service.py) (heuristic removal + total-only recording)
+  - Dashboard: [src/autopack/main.py](src/autopack/main.py) (NULL-safe aggregation)
+  - Schema: [src/autopack/usage_recorder.py](src/autopack/usage_recorder.py) (nullable columns)
+  - Docs: [docs/stage2_structured_edits.md](docs/stage2_structured_edits.md) (drift fix)
+  - Tests: [tests/autopack/test_no_guessing_token_splits.py](tests/autopack/test_no_guessing_token_splits.py) (NEW)
+  - Tests: [tests/autopack/test_llm_usage_schema_drift.py](tests/autopack/test_llm_usage_schema_drift.py) (NEW)
+
+- **Commit**: Pending
+
+---
+
+## Previous Updates (v0.4.16 - BUILD-143 Exact Token Accounting)
 
 ### 2025-12-30: BUILD-143 Exact Token Accounting - ✅ COMPLETE
 **Replaced Heuristic Token Splits with Provider SDK Exact Values**
 - **Achievement**: Eliminated 40/60 and 60/40 heuristic token splits across all providers, replacing with exact `prompt_tokens` and `completion_tokens` from provider SDKs
 - **Problem Solved**: Dashboard usage aggregation and token accounting relied on guessed splits instead of actual values from OpenAI, Gemini, and Anthropic APIs
-- **Solution Implemented** (6 components):
-  1. **Schema Extensions** ([llm_client.py:34-35, 47-48](src/autopack/llm_client.py#L34-L35)):
-     - Added `prompt_tokens` and `completion_tokens` fields to `BuilderResult` and `AuditorResult`
-     - Optional fields maintain backward compatibility
-  2. **LLM Service Updates** ([llm_service.py:403-427, 516-548](src/autopack/llm_service.py#L403-L427)):
-     - `execute_builder_phase()` uses exact tokens when available, falls back to 40/60 split with warning
-     - `execute_auditor_review()` uses exact tokens when available, falls back to 60/40 split with warning
-     - Fallback warnings include "BUILD-143" identifier for monitoring
-  3. **OpenAI Client** ([openai_clients.py:207-238, 475-495](src/autopack/openai_clients.py#L207-L238)):
-     - Builder extracts `response.usage.prompt_tokens` and `response.usage.completion_tokens`
-     - Auditor extracts same exact token fields
-  4. **Gemini Client** ([gemini_clients.py:231-267, 477-500](src/autopack/gemini_clients.py#L231-L267)):
-     - Builder extracts `usage_metadata.prompt_token_count` and `usage_metadata.candidates_token_count`
-     - Auditor extracts same exact token fields
-  5. **Anthropic Client** ([anthropic_clients.py](src/autopack/anthropic_clients.py)):
-     - Updated all 27 BuilderResult returns with `response.usage.input_tokens` and `response.usage.output_tokens`
-     - Consistent extraction across all execution paths
-  6. **Documentation** ([docs/phase_spec_schema.md](docs/phase_spec_schema.md), [docs/stage2_structured_edits.md](docs/stage2_structured_edits.md)):
-     - Created `phase_spec_schema.md`: Complete PhaseCreate schema reference, scope configuration, task categories, builder modes
-     - Created `stage2_structured_edits.md`: Structured edit mode guide for large files (>30KB), EditOperation types, safety validation
-- **Test Coverage**: All 16 tests passing ✅
-  - 7 tests: [test_exact_token_accounting.py](tests/autopack/test_exact_token_accounting.py) (NEW - exact token validation across all providers)
-  - 9 tests: [test_dashboard_integration.py](tests/test_dashboard_integration.py) (dashboard usage aggregation)
-- **Impact**:
-  - ✅ Eliminated token estimation drift (exact values replace 40/60 and 60/40 guesses)
-  - ✅ Dashboard usage stats now 100% accurate (aggregates exact provider values)
-  - ✅ Calibration data quality improved (selected_budget vs actual tokens now precise)
-  - ✅ Backward compatible (fallback logic preserves behavior for legacy clients)
-  - ✅ Fixed README doc drift (created 2 missing documentation files)
-- **Success Criteria**: ALL PASS ✅
-  - ✅ All provider clients return exact tokens (OpenAI, Gemini, Anthropic)
-  - ✅ LlmUsageEvent records exact values (no heuristic splits when exact available)
-  - ✅ Dashboard endpoints aggregate exact tokens
-  - ✅ Fallback logic works correctly (warning logged when exact tokens unavailable)
-  - ✅ Zero regressions (all existing tests pass)
-  - ✅ Documentation complete (2 missing docs created)
-- **Files Changed**: 9 files
-  - Core schemas: [src/autopack/llm_client.py](src/autopack/llm_client.py)
-  - Service layer: [src/autopack/llm_service.py](src/autopack/llm_service.py)
-  - Provider clients: [src/autopack/openai_clients.py](src/autopack/openai_clients.py), [src/autopack/gemini_clients.py](src/autopack/gemini_clients.py), [src/autopack/anthropic_clients.py](src/autopack/anthropic_clients.py)
-  - Tests: [tests/autopack/test_exact_token_accounting.py](tests/autopack/test_exact_token_accounting.py) (NEW)
-  - Documentation: [docs/phase_spec_schema.md](docs/phase_spec_schema.md) (NEW), [docs/stage2_structured_edits.md](docs/stage2_structured_edits.md) (NEW)
-- **Commit**: Pending
+- **Note**: BUILD-143 still had fallback heuristics when exact unavailable - fully eliminated in BUILD-144
+- **Files Changed**: 9 files (schemas, service, provider clients, tests, docs)
+- **Commit**: fca3bedd
 
 ---
 

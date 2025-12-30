@@ -21,8 +21,9 @@ class LlmUsageEvent(Base):
     run_id = Column(String, nullable=True, index=True)  # null for global aux runs
     phase_id = Column(String, nullable=True)
     role = Column(String, nullable=False)  # builder, auditor, agent:planner, doctor, etc.
-    prompt_tokens = Column(Integer, nullable=False)
-    completion_tokens = Column(Integer, nullable=False)
+    # BUILD-144: nullable=True to support total-only recording when exact splits unavailable
+    prompt_tokens = Column(Integer, nullable=True)
+    completion_tokens = Column(Integer, nullable=True)
     created_at = Column(DateTime, nullable=False, default=lambda: datetime.now(timezone.utc), index=True)
     
     # Doctor-specific fields
@@ -60,15 +61,19 @@ class DoctorUsageStats(Base):
 
 @dataclass
 class UsageEventData:
-    """Dataclass for passing usage event data"""
+    """Dataclass for passing usage event data
+
+    BUILD-144: prompt_tokens and completion_tokens are Optional to support
+    total-only recording when exact splits are unavailable from provider.
+    """
 
     provider: str
     model: str
     run_id: Optional[str]
     phase_id: Optional[str]
     role: str
-    prompt_tokens: int
-    completion_tokens: int
+    prompt_tokens: Optional[int]
+    completion_tokens: Optional[int]
     
     # Doctor-specific fields
     is_doctor_call: bool = False

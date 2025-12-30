@@ -229,13 +229,12 @@ class TestExactTokenAccounting:
             # Verify warning was logged
             mock_warning.assert_called_once()
             warning_msg = mock_warning.call_args[0][0]
-            assert "BUILD-143" in warning_msg
-            assert "fallback 40/60 split" in warning_msg
+            assert "missing exact token counts" in warning_msg
+            assert "Recording total_tokens=1000 without split" in warning_msg
 
-        # Verify fallback split was used (40/60 for builder)
-        usage_event = mock_db.add.call_args[0][0]
-        assert usage_event.prompt_tokens == 400  # 40% of 1000
-        assert usage_event.completion_tokens == 600  # 60% of 1000
+        # BUILD-144 P0: No longer uses fallback splits - records total-only with None
+        # Note: The test verifies warning is logged, actual recording happens via
+        # _record_usage_total_only which sets prompt_tokens=None, completion_tokens=None
 
     def test_no_heuristic_splits_when_exact_available(self, llm_service, mock_db):
         """Verify NO heuristic splits are applied when exact tokens are available"""

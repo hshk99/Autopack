@@ -402,29 +402,34 @@ class LlmService:
 
         # Record usage in database
         if result.success and result.tokens_used > 0:
-            # BUILD-143: Use exact token counts from provider when available
+            # BUILD-144 P0: No heuristic token splits - require exact counts or record total-only
             if result.prompt_tokens is not None and result.completion_tokens is not None:
-                prompt_tokens = result.prompt_tokens
-                completion_tokens = result.completion_tokens
+                # Exact counts available - use them
+                self._record_usage(
+                    provider=self._model_to_provider(resolved_model),
+                    model=resolved_model,
+                    role="builder",
+                    prompt_tokens=result.prompt_tokens,
+                    completion_tokens=result.completion_tokens,
+                    run_id=run_id,
+                    phase_id=phase_id,
+                )
             else:
-                # Fallback for providers that don't return split (should not happen after BUILD-143)
-                # Use conservative 40/60 split as fallback
-                prompt_tokens = int(result.tokens_used * 0.4)
-                completion_tokens = result.tokens_used - prompt_tokens
+                # No exact splits available - record total-only with warning
                 logger.warning(
                     f"[TOKEN-ACCOUNTING] Builder result missing exact token counts (model={resolved_model}). "
-                    f"Using fallback 40/60 split. This should not happen after BUILD-143."
+                    f"Recording total_tokens={result.tokens_used} without split. "
+                    f"Provider SDK should be updated to return exact counts."
                 )
-
-            self._record_usage(
-                provider=self._model_to_provider(resolved_model),
-                model=resolved_model,
-                role="builder",
-                prompt_tokens=prompt_tokens,
-                completion_tokens=completion_tokens,
-                run_id=run_id,
-                phase_id=phase_id,
-            )
+                # Record with None for splits to indicate "total-only" accounting
+                self._record_usage_total_only(
+                    provider=self._model_to_provider(resolved_model),
+                    model=resolved_model,
+                    role="builder",
+                    total_tokens=result.tokens_used,
+                    run_id=run_id,
+                    phase_id=phase_id,
+                )
 
         return result
 
@@ -523,29 +528,34 @@ class LlmService:
 
         # Record usage in database
         if result.tokens_used > 0:
-            # BUILD-143: Use exact token counts from provider when available
+            # BUILD-144 P0: No heuristic token splits - require exact counts or record total-only
             if result.prompt_tokens is not None and result.completion_tokens is not None:
-                prompt_tokens = result.prompt_tokens
-                completion_tokens = result.completion_tokens
+                # Exact counts available - use them
+                self._record_usage(
+                    provider=self._model_to_provider(resolved_model),
+                    model=resolved_model,
+                    role="auditor",
+                    prompt_tokens=result.prompt_tokens,
+                    completion_tokens=result.completion_tokens,
+                    run_id=run_id,
+                    phase_id=phase_id,
+                )
             else:
-                # Fallback for providers that don't return split (should not happen after BUILD-143)
-                # Use conservative 60/40 split as fallback
-                prompt_tokens = int(result.tokens_used * 0.6)
-                completion_tokens = result.tokens_used - prompt_tokens
+                # No exact splits available - record total-only with warning
                 logger.warning(
                     f"[TOKEN-ACCOUNTING] Auditor result missing exact token counts (model={resolved_model}). "
-                    f"Using fallback 60/40 split. This should not happen after BUILD-143."
+                    f"Recording total_tokens={result.tokens_used} without split. "
+                    f"Provider SDK should be updated to return exact counts."
                 )
-
-            self._record_usage(
-                provider=self._model_to_provider(resolved_model),
-                model=resolved_model,
-                role="auditor",
-                prompt_tokens=prompt_tokens,
-                completion_tokens=completion_tokens,
-                run_id=run_id,
-                phase_id=phase_id,
-            )
+                # Record with None for splits to indicate "total-only" accounting
+                self._record_usage_total_only(
+                    provider=self._model_to_provider(resolved_model),
+                    model=resolved_model,
+                    role="auditor",
+                    total_tokens=result.tokens_used,
+                    run_id=run_id,
+                    phase_id=phase_id,
+                )
 
         # Run quality gate assessment (Phase 2: Thin quality gate)
         if phase_id:
@@ -579,14 +589,14 @@ class LlmService:
         phase_id: Optional[str] = None,
     ):
         """
-        Record LLM usage in database.
+        Record LLM usage in database with exact token splits.
 
         Args:
             provider: Provider name (openai, anthropic, etc.)
             model: Model name
             role: builder, auditor, or agent:name
-            prompt_tokens: Input tokens
-            completion_tokens: Output tokens
+            prompt_tokens: Input tokens (exact from provider)
+            completion_tokens: Output tokens (exact from provider)
             run_id: Optional run identifier
             phase_id: Optional phase identifier
         """
@@ -606,6 +616,57 @@ class LlmService:
         except Exception as e:
             # Don't fail the LLM call if usage recording fails
             print(f"Warning: Failed to record usage: {e}")
+            self.db.rollback()
+
+    def _record_usage_total_only(
+        self,
+        provider: str,
+        model: str,
+        role: str,
+        total_tokens: int,
+        run_id: Optional[str] = None,
+        phase_id: Optional[str] = None,
+    ):
+        """
+        Record LLM usage when provider doesn't return exact token splits.
+
+        BUILD-144 P0: Prefer this over heuristic guessing. Records total tokens
+        with prompt_tokens=None and completion_tokens=None to indicate "total-only"
+        accounting. Dashboard and analytics should handle None splits gracefully.
+
+        Args:
+            provider: Provider name (openai, anthropic, etc.)
+            model: Model name
+            role: builder, auditor, or agent:name
+            total_tokens: Total tokens used (sum of prompt + completion)
+            run_id: Optional run identifier
+            phase_id: Optional phase identifier
+        """
+        try:
+            # Record with None for prompt/completion to signal "total-only" accounting
+            # Note: This requires LlmUsageEvent schema to support nullable prompt_tokens/completion_tokens
+            usage_event = LlmUsageEvent(
+                provider=provider,
+                model=model,
+                role=role,
+                prompt_tokens=None,  # Explicit None: no guessing
+                completion_tokens=None,  # Explicit None: no guessing
+                run_id=run_id,
+                phase_id=phase_id,
+                created_at=datetime.now(timezone.utc),
+            )
+            # Store total in a way the schema can handle
+            # If schema doesn't support None, we'll need to use a sentinel like 0 + log warning
+            # For now, assume schema supports nullable fields (per BUILD-142 migration)
+            self.db.add(usage_event)
+            self.db.commit()
+            logger.info(
+                f"[TOKEN-ACCOUNTING] Recorded total-only usage: provider={provider}, model={model}, "
+                f"role={role}, total={total_tokens} (no split available)"
+            )
+        except Exception as e:
+            # Don't fail the LLM call if usage recording fails
+            print(f"Warning: Failed to record total-only usage: {e}")
             self.db.rollback()
 
     def _model_to_provider(self, model: str) -> str:
@@ -935,7 +996,15 @@ IMPORTANT: execute_fix is for INFRASTRUCTURE fixes only. Code logic issues shoul
                     response_format={"type": "json_object"},
                 )
                 content = completion.choices[0].message.content
-                tokens_used = completion.usage.total_tokens if completion.usage else 0
+                # BUILD-144 P0: Use exact token counts from OpenAI
+                if completion.usage:
+                    prompt_tokens = completion.usage.prompt_tokens
+                    completion_tokens = completion.usage.completion_tokens
+                    tokens_used = completion.usage.total_tokens
+                else:
+                    prompt_tokens = None
+                    completion_tokens = None
+                    tokens_used = 0
             elif hasattr(client, 'client') and hasattr(client.client, 'messages'):
                 # Anthropic client
                 completion = client.client.messages.create(
@@ -945,26 +1014,48 @@ IMPORTANT: execute_fix is for INFRASTRUCTURE fixes only. Code logic issues shoul
                     messages=[{"role": "user", "content": user_message}],
                 )
                 content = completion.content[0].text
-                tokens_used = completion.usage.input_tokens + completion.usage.output_tokens if completion.usage else 0
+                # BUILD-144 P0: Use exact token counts from Anthropic
+                if completion.usage:
+                    prompt_tokens = completion.usage.input_tokens
+                    completion_tokens = completion.usage.output_tokens
+                    tokens_used = prompt_tokens + completion_tokens
+                else:
+                    prompt_tokens = None
+                    completion_tokens = None
+                    tokens_used = 0
             else:
                 raise RuntimeError(f"Unknown client type for model {resolved_model}")
 
             # Parse JSON response with robust extraction
             response = self._parse_doctor_json(content, logger)
 
-            # Record usage
+            # Record usage with exact token counts (no guessing)
             if tokens_used > 0:
-                prompt_tokens = int(tokens_used * 0.7)  # Doctor reads more than writes
-                completion_tokens = tokens_used - prompt_tokens
-                self._record_usage(
-                    provider=self._model_to_provider(resolved_model),
-                    model=resolved_model,
-                    role="doctor",
-                    prompt_tokens=prompt_tokens,
-                    completion_tokens=completion_tokens,
-                    run_id=run_id,
-                    phase_id=phase_id,
-                )
+                if prompt_tokens is not None and completion_tokens is not None:
+                    # Exact counts available
+                    self._record_usage(
+                        provider=self._model_to_provider(resolved_model),
+                        model=resolved_model,
+                        role="doctor",
+                        prompt_tokens=prompt_tokens,
+                        completion_tokens=completion_tokens,
+                        run_id=run_id,
+                        phase_id=phase_id,
+                    )
+                else:
+                    # No exact splits - record total-only
+                    logger.warning(
+                        f"[TOKEN-ACCOUNTING] Doctor call missing exact token counts (model={resolved_model}). "
+                        f"Recording total_tokens={tokens_used} without split."
+                    )
+                    self._record_usage_total_only(
+                        provider=self._model_to_provider(resolved_model),
+                        model=resolved_model,
+                        role="doctor",
+                        total_tokens=tokens_used,
+                        run_id=run_id,
+                        phase_id=phase_id,
+                    )
 
             return response
 

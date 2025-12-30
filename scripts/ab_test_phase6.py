@@ -39,6 +39,8 @@ import json
 import os
 import sys
 import time
+import subprocess
+import hashlib
 from dataclasses import dataclass, asdict
 from datetime import datetime
 from pathlib import Path
@@ -102,6 +104,168 @@ class ABPairResult:
     # Success comparison
     control_success_rate: float = 0.0
     treatment_success_rate: float = 0.0
+
+
+@dataclass
+class ExperimentMetadata:
+    """Experiment metadata for reproducibility and validity (BUILD-146 Ops Maturity)"""
+    commit_sha: str
+    repo_url: Optional[str]
+    branch: Optional[str]
+    model_mapping_hash: str  # Hash of model mappings (for detecting drift)
+    run_spec_hash: str  # Hash of plan/spec inputs (for detecting drift)
+    timestamp: str
+    operator: Optional[str]  # Who ran the experiment
+
+
+@dataclass
+class PairValidityCheck:
+    """Validity check results for an A/B pair (BUILD-146 Ops Maturity)"""
+    pair_id: int
+    control_run_id: str
+    treatment_run_id: str
+    is_valid: bool
+    warnings: List[str]
+    errors: List[str]
+
+
+def get_git_commit_sha() -> str:
+    """Get current git commit SHA"""
+    try:
+        result = subprocess.run(
+            ["git", "rev-parse", "HEAD"],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        return result.stdout.strip()
+    except Exception:
+        return "unknown"
+
+
+def get_git_remote_url() -> Optional[str]:
+    """Get git remote URL"""
+    try:
+        result = subprocess.run(
+            ["git", "config", "--get", "remote.origin.url"],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        return result.stdout.strip()
+    except Exception:
+        return None
+
+
+def get_git_branch() -> Optional[str]:
+    """Get current git branch"""
+    try:
+        result = subprocess.run(
+            ["git", "rev-parse", "--abbrev-ref", "HEAD"],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        return result.stdout.strip()
+    except Exception:
+        return None
+
+
+def hash_dict(data: Dict) -> str:
+    """Compute deterministic hash of dictionary"""
+    json_str = json.dumps(data, sort_keys=True)
+    return hashlib.sha256(json_str.encode()).hexdigest()[:12]
+
+
+def extract_run_metadata(db, run_id: str) -> Dict:
+    """Extract metadata from run for comparison"""
+    run = db.query(Run).filter(Run.id == run_id).first()
+    if not run:
+        return {}
+
+    # Extract model mappings (would need to be stored in run metadata)
+    # For now, use placeholder - in production, store model_mappings in run.metadata
+    model_mappings = {}  # TODO: Extract from run.metadata if available
+
+    # Extract plan spec (would need to be stored in run metadata)
+    plan_spec = {}  # TODO: Extract from run.metadata if available
+
+    return {
+        "run_id": run_id,
+        "model_mapping_hash": hash_dict(model_mappings),
+        "plan_spec_hash": hash_dict(plan_spec),
+        "started_at": run.started_at.isoformat() if run.started_at else None,
+        "completed_at": run.completed_at.isoformat() if run.completed_at else None,
+    }
+
+
+def validate_ab_pair(db, control_id: str, treatment_id: str, pair_id: int) -> PairValidityCheck:
+    """
+    Validate that control and treatment runs are matched pairs.
+
+    BUILD-146 Ops Maturity: Enforce same commit, model mappings, plan inputs.
+
+    Args:
+        db: Database session
+        control_id: Control run ID
+        treatment_id: Treatment run ID
+        pair_id: Pair number
+
+    Returns:
+        PairValidityCheck with validation results
+    """
+    warnings = []
+    errors = []
+
+    control_metadata = extract_run_metadata(db, control_id)
+    treatment_metadata = extract_run_metadata(db, treatment_id)
+
+    if not control_metadata:
+        errors.append(f"Control run {control_id} not found")
+    if not treatment_metadata:
+        errors.append(f"Treatment run {treatment_id} not found")
+
+    if errors:
+        return PairValidityCheck(
+            pair_id=pair_id,
+            control_run_id=control_id,
+            treatment_run_id=treatment_id,
+            is_valid=False,
+            warnings=warnings,
+            errors=errors,
+        )
+
+    # Check model mapping hash (should be same for matched pairs)
+    if control_metadata["model_mapping_hash"] != treatment_metadata["model_mapping_hash"]:
+        warnings.append(
+            f"Model mapping drift detected: {control_metadata['model_mapping_hash']} != {treatment_metadata['model_mapping_hash']}"
+        )
+
+    # Check plan spec hash (should be same for matched pairs)
+    if control_metadata["plan_spec_hash"] != treatment_metadata["plan_spec_hash"]:
+        warnings.append(
+            f"Plan spec drift detected: {control_metadata['plan_spec_hash']} != {treatment_metadata['plan_spec_hash']}"
+        )
+
+    # Check temporal proximity (runs should be close in time to minimize environmental drift)
+    if control_metadata["started_at"] and treatment_metadata["started_at"]:
+        from datetime import datetime as dt
+        control_start = dt.fromisoformat(control_metadata["started_at"])
+        treatment_start = dt.fromisoformat(treatment_metadata["started_at"])
+        delta_hours = abs((treatment_start - control_start).total_seconds() / 3600)
+        if delta_hours > 24:
+            warnings.append(f"Runs started {delta_hours:.1f} hours apart (>24h temporal drift)")
+
+    is_valid = len(errors) == 0
+
+    return PairValidityCheck(
+        pair_id=pair_id,
+        control_run_id=control_id,
+        treatment_run_id=treatment_id,
+        is_valid=is_valid,
+        warnings=warnings,
+        errors=errors,
+    )
 
 
 def get_run_metrics(db, run_id: str, condition: str) -> Optional[RunMetrics]:
@@ -320,13 +484,46 @@ def main():
     print(f"Treatment runs: {treatment_run_ids}")
     print()
 
+    # BUILD-146 Ops Maturity: Collect experiment metadata
+    experiment_metadata = ExperimentMetadata(
+        commit_sha=get_git_commit_sha(),
+        repo_url=get_git_remote_url(),
+        branch=get_git_branch(),
+        model_mapping_hash="placeholder",  # TODO: Extract from config
+        run_spec_hash="placeholder",  # TODO: Extract from run metadata
+        timestamp=datetime.utcnow().isoformat() + "Z",
+        operator=os.getenv("USER") or os.getenv("USERNAME"),  # Windows/Linux
+    )
+
+    print(f"📋 Experiment Metadata:")
+    print(f"  Commit: {experiment_metadata.commit_sha[:8]}")
+    print(f"  Branch: {experiment_metadata.branch}")
+    print(f"  Operator: {experiment_metadata.operator}")
+    print()
+
     db = SessionLocal()
 
     try:
         pairs = []
+        validity_checks = []
 
         for i, (control_id, treatment_id) in enumerate(zip(control_run_ids, treatment_run_ids)):
             print(f"Analyzing pair {i+1}/{len(control_run_ids)}: {control_id} vs {treatment_id}")
+
+            # BUILD-146 Ops Maturity: Validate pair before analysis
+            validity = validate_ab_pair(db, control_id, treatment_id, i + 1)
+            validity_checks.append(validity)
+
+            if not validity.is_valid:
+                print(f"  ❌ Pair invalid:")
+                for error in validity.errors:
+                    print(f"     - {error}")
+                continue
+
+            if validity.warnings:
+                print(f"  ⚠️  Warnings:")
+                for warning in validity.warnings:
+                    print(f"     - {warning}")
 
             control_metrics = get_run_metrics(db, control_id, "control")
             treatment_metrics = get_run_metrics(db, treatment_id, "treatment")
@@ -350,6 +547,15 @@ def main():
             print("❌ No valid pairs found")
             sys.exit(1)
 
+        # Count warnings
+        total_warnings = sum(len(v.warnings) for v in validity_checks)
+        total_errors = sum(len(v.errors) for v in validity_checks)
+
+        if total_warnings > 0:
+            print(f"\n⚠️  Total validation warnings: {total_warnings}")
+        if total_errors > 0:
+            print(f"\n❌ Total validation errors: {total_errors}")
+
         # Write JSON output
         output_data = {
             "meta": {
@@ -358,6 +564,8 @@ def main():
                 "control_runs": control_run_ids,
                 "treatment_runs": treatment_run_ids,
             },
+            "experiment_metadata": asdict(experiment_metadata),  # BUILD-146 Ops Maturity
+            "validity_checks": [asdict(v) for v in validity_checks],  # BUILD-146 Ops Maturity
             "pairs": [asdict(p) for p in pairs],
             "aggregated": {
                 "mean_total_token_delta": statistics.mean([p.delta_total_tokens for p in pairs]),

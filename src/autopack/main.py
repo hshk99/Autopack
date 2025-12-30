@@ -29,6 +29,7 @@ from .database import get_db, init_db
 from .file_layout import RunFileLayout
 from .governed_apply import GovernedApplyPath, PatchApplyError
 from .issue_tracker import IssueTracker
+from .strategy_engine import StrategyEngine
 from .usage_recorder import get_doctor_stats, get_token_efficiency_stats
 logger = logging.getLogger(__name__)
 
@@ -1398,7 +1399,7 @@ def add_dashboard_human_note(note_request: dashboard_schemas.HumanNoteRequest, d
     }
 
 
-@app.get("/dashboard/runs/{run_id}/token-efficiency")
+@app.get("/dashboard/runs/{run_id}/token-efficiency", response_model=dict)
 def get_run_token_efficiency(
     run_id: str,
     db: Session = Depends(get_db),
@@ -1418,7 +1419,6 @@ def get_run_token_efficiency(
     
     stats = get_token_efficiency_stats(db, run_id)
     return stats
-
 
 @app.post("/dashboard/models/override")
 def add_dashboard_model_override(override_request: dashboard_schemas.ModelOverrideRequest, db: Session = Depends(get_db)):

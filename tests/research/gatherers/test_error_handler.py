@@ -3,7 +3,7 @@
 import pytest
 import requests
 from unittest.mock import Mock, patch
-from src.research.gatherers.error_handler import ErrorHandler
+from autopack.research.gatherers.error_handler import ErrorHandler
 
 
 class TestErrorHandler:

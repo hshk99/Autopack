@@ -9,7 +9,7 @@ class TestScalability:
 
     def test_linear_scaling_sessions(self):
         """Test that session creation scales linearly."""
-        from src.research.session_manager import SessionManager
+        from autopack.research.session_manager import SessionManager
         
         manager = SessionManager()
         
@@ -34,7 +34,7 @@ class TestScalability:
 
     def test_concurrent_load_handling(self):
         """Test handling of high concurrent load."""
-        from src.research.session_manager import SessionManager
+        from autopack.research.session_manager import SessionManager
         
         manager = SessionManager()
         
@@ -56,7 +56,7 @@ class TestScalability:
 
     def test_data_volume_scaling(self):
         """Test handling of increasing data volumes."""
-        from src.research.analyzer import Analyzer
+        from autopack.research.analyzer import Analyzer
         
         analyzer = Analyzer()
         
@@ -84,8 +84,8 @@ class TestScalability:
 
     def test_sustained_load(self):
         """Test system under sustained load."""
-        from src.research.session_manager import SessionManager
-        from src.research.query_processor import QueryProcessor
+        from autopack.research.session_manager import SessionManager
+        from autopack.research.query_processor import QueryProcessor
         
         manager = SessionManager()
         processor = QueryProcessor()
@@ -107,7 +107,7 @@ class TestScalability:
 
     def test_resource_cleanup(self):
         """Test that resources are properly cleaned up at scale."""
-        from src.research.session_manager import SessionManager
+        from autopack.research.session_manager import SessionManager
         
         manager = SessionManager()
         

@@ -2,7 +2,7 @@
 
 import pytest
 from unittest.mock import Mock, patch
-from src.research.discovery.web_discovery import WebDiscovery, WebResult
+from autopack.research.discovery.web_discovery import WebDiscovery, WebResult
 
 
 class TestWebDiscovery:

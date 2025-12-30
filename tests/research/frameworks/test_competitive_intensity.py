@@ -1,7 +1,7 @@
 """Tests for Competitive Intensity Framework"""
 
 import pytest
-from src.research.frameworks.competitive_intensity import CompetitiveIntensity
+from autopack.research.frameworks.competitive_intensity import CompetitiveIntensity
 
 
 class TestCompetitiveIntensity:

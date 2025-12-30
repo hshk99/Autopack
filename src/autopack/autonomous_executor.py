@@ -2025,14 +2025,15 @@ class AutonomousExecutor:
                             except Exception as e:
                                 logger.warning(f"[{phase_id}] Failed to record Phase 6 telemetry: {e}")
 
-                        # Increment attempts and continue to next retry
+                        # Increment attempts and return for immediate retry (caller handles retry loop)
                         new_attempts = attempt_index + 1
                         self._update_phase_attempts_in_db(
                             phase_id,
                             retry_attempt=new_attempts,
                             last_failure_reason=f"HARDENING_MITIGATED: {mitigation_result.pattern_id}"
                         )
-                        continue  # Skip diagnostics/Doctor, retry immediately
+                        # Return FAILED status so caller can retry immediately with mitigation applied
+                        return (False, "FAILED")
 
             # Run governed diagnostics to gather evidence before mutations
             self._run_diagnostics_for_failure(

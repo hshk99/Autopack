@@ -2,7 +2,7 @@
 
 import pytest
 import time
-from src.research.gatherers.parallel_executor import ParallelExecutor
+from autopack.research.gatherers.parallel_executor import ParallelExecutor
 
 
 class TestParallelExecutor:

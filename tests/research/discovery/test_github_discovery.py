@@ -2,7 +2,7 @@
 
 import pytest
 from unittest.mock import Mock, patch
-from src.research.discovery.github_discovery import GitHubDiscovery, GitHubRepository, GitHubIssue
+from autopack.research.discovery.github_discovery import GitHubDiscovery, GitHubRepository, GitHubIssue
 
 
 class TestGitHubDiscovery:

@@ -2,8 +2,8 @@
 import pytest
 from unittest.mock import Mock, AsyncMock, patch
 
-from src.research.intent_clarification import IntentClarificationAgent, ClarifiedIntent
-from src.research.models import ResearchQuery
+from autopack.research.intent_clarification import IntentClarificationAgent, ClarifiedIntent
+from autopack.research.models import ResearchQuery
 
 
 class TestIntentClarificationAgent:

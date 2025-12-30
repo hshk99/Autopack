@@ -9,7 +9,7 @@ class TestRecovery:
 
     def test_session_recovery_after_error(self):
         """Test session recovery after an error."""
-        from src.research.session_manager import SessionManager
+        from autopack.research.session_manager import SessionManager
         
         manager = SessionManager()
         session_id = manager.create_session(query="test")
@@ -30,7 +30,7 @@ class TestRecovery:
 
     def test_retry_mechanism(self):
         """Test retry mechanism for failed operations."""
-        from src.research.data_collector import DataCollector
+        from autopack.research.data_collector import DataCollector
         
         collector = DataCollector(max_retries=3)
         
@@ -55,7 +55,7 @@ class TestRecovery:
 
     def test_partial_failure_handling(self):
         """Test handling of partial failures in multi-source collection."""
-        from src.research.data_collector import DataCollector
+        from autopack.research.data_collector import DataCollector
         
         collector = DataCollector()
         
@@ -79,7 +79,7 @@ class TestRecovery:
 
     def test_state_consistency_after_crash(self):
         """Test state consistency after simulated crash."""
-        from src.research.session_manager import SessionManager
+        from autopack.research.session_manager import SessionManager
         
         manager = SessionManager()
         
@@ -99,8 +99,8 @@ class TestRecovery:
 
     def test_graceful_degradation(self):
         """Test graceful degradation when services are unavailable."""
-        from src.research.data_collector import DataCollector
-        from src.research.analyzer import Analyzer
+        from autopack.research.data_collector import DataCollector
+        from autopack.research.analyzer import Analyzer
         
         collector = DataCollector()
         analyzer = Analyzer()
@@ -121,7 +121,7 @@ class TestRecovery:
 
     def test_circuit_breaker_pattern(self):
         """Test circuit breaker pattern for failing services."""
-        from src.research.data_collector import DataCollector
+        from autopack.research.data_collector import DataCollector
         
         collector = DataCollector(circuit_breaker_threshold=3)
         
@@ -149,7 +149,7 @@ class TestRecovery:
 
     def test_rollback_on_error(self):
         """Test rollback mechanism on error."""
-        from src.research.session_manager import SessionManager
+        from autopack.research.session_manager import SessionManager
         
         manager = SessionManager()
         session_id = manager.create_session(query="test")
@@ -169,7 +169,7 @@ class TestRecovery:
 
     def test_health_check_recovery(self):
         """Test system health check and recovery."""
-        from src.research.session_manager import SessionManager
+        from autopack.research.session_manager import SessionManager
         
         manager = SessionManager()
         

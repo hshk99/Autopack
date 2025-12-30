@@ -134,7 +134,7 @@ class TestRollbackManager:
         assert rollback_manager.savepoint_tag in log_content
 
     def test_cleanup_savepoint_deletes_tag(self, rollback_manager, temp_git_repo):
-        """Cleanup should delete the savepoint tag"""
+        """Cleanup should delete the savepoint tag when keep_last_n=False"""
         rollback_manager.create_savepoint()
         tag_name = rollback_manager.savepoint_tag
 
@@ -147,8 +147,8 @@ class TestRollbackManager:
         )
         assert tag_name in result.stdout
 
-        # Cleanup
-        rollback_manager.cleanup_savepoint()
+        # Cleanup with keep_last_n=False (original behavior)
+        rollback_manager.cleanup_savepoint(keep_last_n=False)
 
         # Verify tag deleted
         result = subprocess.run(

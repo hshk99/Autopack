@@ -15,9 +15,11 @@ Mechanism:
 Protected paths:
 - Never touches .git/, .autonomous_runs/, autopack.db except via git commands
 - Windows-safe: uses subprocess with explicit args (no shell=True)
+- Safe clean mode: protects .env, *.db, .autonomous_runs/ from deletion
 
 Cleanup strategy:
 - Savepoint tags are kept for 7 days by default
+- Per-run retention: keeps last N savepoints for audit (default: 3)
 - Can be cleaned up via: git tag -d save-before-*
 - Or run cleanup method to delete tags older than threshold
 """
@@ -26,15 +28,28 @@ import subprocess
 import logging
 from pathlib import Path
 from datetime import datetime
-from typing import Optional, Tuple
+from typing import Optional, Tuple, List, Set
 
 logger = logging.getLogger(__name__)
+
+# Protected file patterns - never deleted by git clean during rollback
+# These files are important for development and should not be removed
+PROTECTED_PATTERNS = {
+    ".env",           # Environment configuration
+    ".env.local",     # Local environment overrides
+    "*.db",           # SQLite databases
+    "autopack.db",    # Main database file
+    ".autonomous_runs/",  # Run artifacts (should be gitignored)
+    "*.log",          # Log files
+    ".vscode/",       # VSCode settings
+    ".idea/",         # IntelliJ settings
+}
 
 
 class RollbackManager:
     """Manages git-based savepoints and rollback for autonomous executor."""
 
-    def __init__(self, workspace: Path, run_id: str, phase_id: str):
+    def __init__(self, workspace: Path, run_id: str, phase_id: str, max_savepoints_per_run: int = 3):
         """
         Initialize rollback manager.
 
@@ -42,11 +57,13 @@ class RollbackManager:
             workspace: Path to git repository root
             run_id: Current run ID
             phase_id: Current phase ID
+            max_savepoints_per_run: Maximum savepoints to keep per run (default: 3)
         """
         self.workspace = Path(workspace)
         self.run_id = run_id
         self.phase_id = phase_id
         self.savepoint_tag: Optional[str] = None
+        self.max_savepoints_per_run = max_savepoints_per_run
 
     def create_savepoint(self) -> Tuple[bool, Optional[str]]:
         """
@@ -89,12 +106,76 @@ class RollbackManager:
             logger.error(f"[Rollback] Exception creating savepoint: {e}")
             return False, f"git_tag_exception: {str(e)}"
 
-    def rollback_to_savepoint(self, reason: str) -> Tuple[bool, Optional[str]]:
+    def _check_protected_untracked_files(self) -> Tuple[bool, List[str]]:
+        """
+        Check for protected untracked files that would be deleted by git clean.
+
+        Returns:
+            Tuple of (has_protected_files: bool, protected_files: List[str])
+        """
+        try:
+            # Get list of untracked files that would be deleted by git clean
+            result = subprocess.run(
+                ["git", "clean", "-fdn"],  # Dry run mode
+                cwd=self.workspace,
+                capture_output=True,
+                text=True,
+                timeout=10
+            )
+
+            if result.returncode != 0:
+                logger.warning(f"[Rollback] Failed to check untracked files: {result.stderr.strip()}")
+                return False, []
+
+            # Parse output - format is "Would remove <path>"
+            untracked_files = []
+            for line in result.stdout.split("\n"):
+                if line.startswith("Would remove "):
+                    file_path = line.replace("Would remove ", "").strip()
+                    untracked_files.append(file_path)
+
+            # Check if any untracked files match protected patterns
+            protected_files = []
+            for file_path in untracked_files:
+                # Normalize path separators for matching
+                normalized_path = file_path.replace("\\", "/")
+
+                for pattern in PROTECTED_PATTERNS:
+                    matched = False
+
+                    # Simple pattern matching - expand if needed
+                    if pattern.endswith("/"):
+                        # Directory pattern - match if path starts with or contains directory
+                        if normalized_path.startswith(pattern) or ("/" + pattern) in normalized_path:
+                            matched = True
+                    elif "*" in pattern:
+                        # Glob pattern (simple implementation for *.ext patterns)
+                        suffix = pattern.replace("*", "")
+                        if normalized_path.endswith(suffix):
+                            matched = True
+                    else:
+                        # Exact match - check full path or basename
+                        basename = normalized_path.split("/")[-1]
+                        if normalized_path == pattern or basename == pattern or normalized_path.endswith("/" + pattern):
+                            matched = True
+
+                    if matched:
+                        protected_files.append(file_path)
+                        break
+
+            return len(protected_files) > 0, protected_files
+
+        except Exception as e:
+            logger.warning(f"[Rollback] Exception checking protected files: {e}")
+            return False, []
+
+    def rollback_to_savepoint(self, reason: str, safe_clean: bool = True) -> Tuple[bool, Optional[str]]:
         """
         Rollback working tree to savepoint tag.
 
         Args:
             reason: Reason for rollback (for logging)
+            safe_clean: If True, check for protected files before cleaning (default: True)
 
         Returns:
             Tuple of (success: bool, error_message: Optional[str])
@@ -106,6 +187,17 @@ class RollbackManager:
         try:
             logger.warning(f"[Rollback] Rolling back to savepoint {self.savepoint_tag}")
             logger.warning(f"[Rollback] Reason: {reason}")
+
+            # Check for protected untracked files before cleaning
+            has_protected = False
+            protected_files = []
+            if safe_clean:
+                has_protected, protected_files = self._check_protected_untracked_files()
+                if has_protected:
+                    logger.warning("[Rollback] Protected untracked files detected - skipping git clean")
+                    logger.warning(f"[Rollback] Protected files: {', '.join(protected_files)}")
+                    logger.info("[Rollback] These files will NOT be deleted: .env, *.db, .autonomous_runs/, etc.")
+                    # Continue with reset, but skip clean
 
             # Reset working tree to savepoint tag (hard reset discards all changes)
             result = subprocess.run(
@@ -122,18 +214,25 @@ class RollbackManager:
                 return False, f"git_reset_failed: {error_msg}"
 
             # Clean untracked files (git reset --hard doesn't remove new files)
-            clean_result = subprocess.run(
-                ["git", "clean", "-fd"],
-                cwd=self.workspace,
-                capture_output=True,
-                text=True,
-                timeout=30
-            )
+            # Skip if safe_clean is enabled and protected files detected
+            skip_clean = safe_clean and has_protected
+            if not skip_clean:
+                clean_result = subprocess.run(
+                    ["git", "clean", "-fd"],
+                    cwd=self.workspace,
+                    capture_output=True,
+                    text=True,
+                    timeout=30
+                )
 
-            if clean_result.returncode != 0:
-                error_msg = clean_result.stderr.strip()
-                logger.warning(f"[Rollback] Failed to clean untracked files: {error_msg}")
-                # Non-fatal - reset succeeded, just couldn't clean untracked files
+                if clean_result.returncode != 0:
+                    error_msg = clean_result.stderr.strip()
+                    logger.warning(f"[Rollback] Failed to clean untracked files: {error_msg}")
+                    # Non-fatal - reset succeeded, just couldn't clean untracked files
+                else:
+                    logger.debug("[Rollback] Cleaned untracked files")
+            else:
+                logger.info("[Rollback] Skipped git clean due to protected files")
 
             logger.info(f"[Rollback] Successfully rolled back to savepoint {self.savepoint_tag}")
             logger.info(f"[Rollback] Working tree restored to pre-patch state")
@@ -150,18 +249,88 @@ class RollbackManager:
             logger.error(f"[Rollback] Exception during rollback: {e}")
             return False, f"git_reset_exception: {str(e)}"
 
-    def cleanup_savepoint(self) -> None:
+    def cleanup_savepoint(self, keep_last_n: bool = True) -> None:
         """
         Delete the savepoint tag after successful patch apply.
 
-        This prevents tag explosion in the repository.
+        This prevents tag explosion in the repository. If keep_last_n is True,
+        keeps the most recent N savepoints per run for audit purposes.
+
+        Args:
+            keep_last_n: If True, keep last N savepoints per run (default: True)
         """
         if not self.savepoint_tag:
             return
 
         try:
+            # If keep_last_n is enabled, check if we should retain this savepoint
+            if keep_last_n:
+                # Get all savepoint tags for this run
+                run_tags = self._get_run_savepoint_tags()
+
+                # Sort by timestamp (newest first)
+                run_tags_sorted = sorted(run_tags, reverse=True)
+
+                # If we have more than max_savepoints_per_run, delete oldest ones
+                if len(run_tags_sorted) > self.max_savepoints_per_run:
+                    tags_to_delete = run_tags_sorted[self.max_savepoints_per_run:]
+                    for old_tag in tags_to_delete:
+                        self._delete_tag(old_tag)
+                    logger.info(f"[Rollback] Kept last {self.max_savepoints_per_run} savepoints, deleted {len(tags_to_delete)} old ones")
+
+                # Keep the current savepoint (don't delete it)
+                logger.debug(f"[Rollback] Keeping savepoint tag for audit: {self.savepoint_tag}")
+            else:
+                # Original behavior - delete the savepoint tag immediately
+                self._delete_tag(self.savepoint_tag)
+
+        except Exception as e:
+            logger.warning(f"[Rollback] Exception cleaning up savepoint: {e}")
+
+    def _get_run_savepoint_tags(self) -> List[str]:
+        """
+        Get all savepoint tags for the current run.
+
+        Returns:
+            List of savepoint tag names for this run
+        """
+        try:
+            # Sanitize run_id for tag pattern matching
+            safe_run_id = self.run_id.replace("/", "-").replace(" ", "-")
+            pattern = f"save-before-{safe_run_id}-*"
+
             result = subprocess.run(
-                ["git", "tag", "-d", self.savepoint_tag],
+                ["git", "tag", "-l", pattern],
+                cwd=self.workspace,
+                capture_output=True,
+                text=True,
+                timeout=10
+            )
+
+            if result.returncode != 0:
+                logger.warning(f"[Rollback] Failed to list run savepoint tags: {result.stderr.strip()}")
+                return []
+
+            tags = [tag.strip() for tag in result.stdout.split("\n") if tag.strip()]
+            return tags
+
+        except Exception as e:
+            logger.warning(f"[Rollback] Exception getting run savepoint tags: {e}")
+            return []
+
+    def _delete_tag(self, tag_name: str) -> bool:
+        """
+        Delete a git tag.
+
+        Args:
+            tag_name: Name of the tag to delete
+
+        Returns:
+            True if successful, False otherwise
+        """
+        try:
+            result = subprocess.run(
+                ["git", "tag", "-d", tag_name],
                 cwd=self.workspace,
                 capture_output=True,
                 text=True,
@@ -169,13 +338,15 @@ class RollbackManager:
             )
 
             if result.returncode == 0:
-                logger.debug(f"[Rollback] Cleaned up savepoint tag: {self.savepoint_tag}")
+                logger.debug(f"[Rollback] Deleted savepoint tag: {tag_name}")
+                return True
             else:
-                # Non-fatal - just log warning
-                logger.warning(f"[Rollback] Failed to delete savepoint tag {self.savepoint_tag}: {result.stderr.strip()}")
+                logger.warning(f"[Rollback] Failed to delete savepoint tag {tag_name}: {result.stderr.strip()}")
+                return False
 
         except Exception as e:
-            logger.warning(f"[Rollback] Exception cleaning up savepoint: {e}")
+            logger.warning(f"[Rollback] Exception deleting tag {tag_name}: {e}")
+            return False
 
     def _log_rollback_action(self, reason: str) -> None:
         """

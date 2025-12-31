@@ -42,6 +42,71 @@ In practice, “autonomous” requires that each phase has:
 
 ## Recent Updates
 
+### 2025-12-31: BUILD-146 Phase A P16+ Complete - Windows/Test Hardening ✅
+**Production Reliability: UTF-8 + In-Memory DB Safety**
+- **Achievement**:
+  - Windows UTF-8 encoding safety in calibration reporter tests
+  - In-memory SQLite default for test isolation (prevents accidental Postgres dependency)
+  - MemoryService validation test for error handling
+- **Problem Solved**:
+  - Windows encoding bugs (CP1252 vs UTF-8) only manifest in CI, hard to debug
+  - Unit tests accidentally requiring Postgres startup (slow, unnecessary)
+  - Missing validation coverage for MemoryService initialization errors
+- **Solution Implemented**:
+  - Added `encoding="utf-8"` to file reads in test_calibration_reporter.py (3 locations)
+  - Set `DATABASE_URL="sqlite:///:memory:"` in conftest.py (before autopack.database import)
+  - Created test_memory_service_init_validation.py (validates FaissStore mkdir() failure modes)
+- **End State**:
+  - All tests: 19/19 calibration + 1/1 memory validation passing ✅
+  - Test isolation: In-memory DB default (production still uses Postgres)
+  - Error coverage: MemoryService validates file-vs-directory conflicts
+- **Status**: Production hardening complete - see [BUILD_HISTORY.md](BUILD_HISTORY.md#build-146-phase-a-p16-windowstest-hardening---utf-8--in-memory-db-safety-2025-12-31)
+
+### 2025-12-31: BUILD-146 Phase A P16 Complete - Research Implementation & 3-Gate CI ✅
+**Real Modules + Meaningful Test Separation**
+- **Achievement**:
+  - Implemented real research module functionality (replaced no-op compat shims)
+  - Eliminated import-path drift (`src.autopack.*` vs `autopack.*`)
+  - Made 3-gate CI meaningful with explicit aspirational markers
+  - Research tests now collect cleanly (0 errors, down from 24)
+- **Problem Solved**:
+  - Research modules were no-op stubs causing 24 collection errors
+  - Split-brain imports with try/except fallbacks
+  - Confusing tolerance comments suggesting rounding hacks
+  - Aspirational gate just re-ran core selection (no value)
+- **Solution Implemented**:
+  - **Research Implementations**: Citation/Evidence validation, EvidenceValidator, CitationValidator, QualityValidator (quality score: 0.5 evidence + 0.3 quality + 0.2 diversity)
+  - **Source Discovery**: Async DiscoveredSource with relevance ranking, deduplication, keyword matching
+  - **Intent Clarification**: Heuristic-based ClarifiedIntent (concept extraction, aspect identification, question generation)
+  - **Import Consolidation**: Standardized 4 files to `from autopack.*`, removed try/except fallbacks
+  - **3-Gate CI**: Added `@pytest.mark.aspirational` to 6 test suites, updated CI selections (core: 1468, aspirational: 110, research: 555)
+  - **Tolerance Cleanup**: Removed 40+ lines of confusing comments, kept clean `actual > predicted * tolerance`
+- **End State**:
+  - Research: 555 tests collected cleanly (0 errors) ✅
+  - Core: 1468 tests (excludes aspirational, clean signal) ✅
+  - Aspirational: 110 tests (xfail-heavy, separate tracking) ✅
+- **Status**: Research subsystem functional, 3-gate CI mature - see [BUILD_HISTORY.md](BUILD_HISTORY.md#build-146-phase-a-p16-production-hardening---research-module-implementation--3-gate-ci-maturity-2025-12-31)
+
+### 2025-12-31: BUILD-146 Phase A P15 Complete - XPASS Graduation & 3-Gate CI ✅
+**Test Suite Cleanup + Infrastructure**
+- **Achievement**:
+  - Graduated 68 XPASS tests (consistently passing but marked xfail)
+  - Reduced XFAIL count from 185 to 117
+  - Prepared 3-gate CI infrastructure (core/aspirational/research)
+- **Problem Solved**:
+  - 68 tests marked xfail but consistently passing (stale markers)
+  - XFAIL count too high with many false positives
+  - No infrastructure to separate aspirational from core tests
+- **Solution Implemented**:
+  - Removed xfail markers from 68 consistently passing tests (5 files)
+  - Updated EXPECTED_XFAIL_COUNT: 185 → 117 in test_xfail_budget.py
+  - Added 3-gate CI comments documenting strategy (full impl in P16)
+- **End State**:
+  - Tests: 1540 passing (+182), 0 failing, 117 xfailed (0 XPASS) ✅
+  - XFAIL hygiene: Only aspirational markers remain
+  - CI ready: 3-gate strategy documented
+- **Status**: Test suite clean, ready for P16 - see [BUILD_HISTORY.md](BUILD_HISTORY.md#build-146-phase-a-p15-test-suite-cleanup---xpass-graduation--3-gate-ci-2025-12-31)
+
 ### 2025-12-31: BUILD-146 Phase A P14 Complete - Marker-Based Quarantine + XFAIL Budget ✅
 **No More Hidden Tests + Budget Guards**
 - **Achievement**:

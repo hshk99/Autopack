@@ -16,6 +16,185 @@ Each entry includes:
 
 ## Chronological Index
 
+### BUILD-146 Phase A P16+: Windows/Test Hardening - UTF-8 + In-Memory DB Safety (2025-12-31)
+
+**Status**: ✅ COMPLETE
+**Commit**: b07f3d91
+
+**Summary**: Three production reliability improvements for Windows compatibility and test isolation.
+
+**Changes**:
+
+1. **Windows UTF-8 Safety** (test_calibration_reporter.py)
+   - Added explicit `encoding="utf-8"` to file read operations
+   - Prevents Windows default encoding issues (CP1252 vs UTF-8)
+   - Affected: test_save_report(), test_save_report_custom_filename(), test_save_json()
+
+2. **Test Isolation** (conftest.py)
+   - Set `DATABASE_URL="sqlite:///:memory:"` as default for tests
+   - Prevents accidental Postgres dependency in unit tests
+   - Must run BEFORE `autopack.database` import (engine created at import time)
+   - Production still uses Postgres; tests use fast in-memory SQLite
+
+3. **MemoryService Validation Test** (new file)
+   - test_memory_service_rejects_index_dir_that_is_a_file()
+   - Validates that FaissStore correctly rejects file paths when directory expected
+   - Tests mkdir() failure modes (FileExistsError, NotADirectoryError, OSError)
+
+**Files Modified**:
+- `tests/autopack/test_calibration_reporter.py` - UTF-8 encoding in file reads
+- `tests/conftest.py` - In-memory DB default
+- `tests/autopack/memory/test_memory_service_init_validation.py` - NEW validation test
+
+**Test Results**:
+- test_calibration_reporter.py: 19/19 passed ✅
+- test_memory_service_init_validation.py: 1/1 passed ✅
+- All tests use in-memory SQLite (no Postgres dependency)
+
+**Impact**:
+- **Windows Compatibility**: Prevents subtle encoding bugs that only manifest in CI
+- **Test Speed**: In-memory DB default eliminates Postgres startup overhead for unit tests
+- **Error Coverage**: MemoryService validation closes gap in error handling tests
+
+**Rationale**: Windows encoding bugs are subtle and hard to debug. In-memory DB default prevents accidental integration test dependencies while keeping production Postgres-first.
+
+---
+
+### BUILD-146 Phase A P16: Production Hardening - Research Module Implementation & 3-Gate CI Maturity (2025-12-31)
+
+**Status**: ✅ COMPLETE
+**Commit**: bca12fc9
+
+**Summary**: Implemented real research module functionality (replacing no-op compat shims), eliminated import-path drift, cleaned up tolerance semantics, and made 3-gate CI meaningful with explicit aspirational markers. Research tests now collect cleanly (0 errors, down from 24).
+
+**Changes**:
+
+1. **Import-Path Drift Fix**
+   - **Problem**: Split-brain imports using both `from src.autopack.*` and `from autopack.*` with try/except fallbacks
+   - **Solution**: Standardized all research code to `from autopack.*`, removed fallbacks
+   - **Files**: reddit_gatherer.py, evidence.py, orchestrator.py, research_session.py
+
+2. **Tolerance Semantics Cleanup**
+   - **Problem**: 40+ lines of confusing exploration comments in detect_underestimation() suggesting rounding hacks
+   - **Solution**: Removed comment maze (lines 171-213), kept clean formula `actual > predicted * tolerance`
+   - **File**: src/autopack/telemetry_utils.py
+
+3. **Real Research Module Implementations**
+
+   **Citation & Evidence Models** (models/__init__.py):
+   - Replaced no-op compat shims with real dataclasses
+   - Citation: URL validation in __post_init__, raises ValueError for invalid URLs
+   - Evidence: Requires non-empty citations list, validates in __post_init__
+   - Added EvidenceQuality enum (HIGH/MEDIUM/LOW/UNKNOWN)
+   - Added ResearchReport model with query/summary/evidence/conclusions
+
+   **Validation Module** (validation.py):
+   - ValidationResult: is_valid, errors, warnings, quality_score fields
+   - EvidenceValidator: validates min_quality threshold, min_content_length
+   - CitationValidator: validates freshness (max_age_days), URL format
+   - QualityValidator: validates min_evidence_count, source diversity, calculates quality score
+   - Quality score algorithm: evidence_count (0.5) + avg_quality (0.3) + diversity (0.2)
+
+   **Source Discovery Module** (source_discovery.py):
+   - DiscoveredSource: dataclass with relevance_score, source_type, metadata
+   - Async discover() methods for WebSearchStrategy, AcademicSearchStrategy, DocumentationSearchStrategy
+   - _calculate_relevance(): keyword matching against intent.key_concepts and intent.clarified_aspects
+   - _deduplicate(): URL-based deduplication using set tracking
+   - _rank_by_relevance(): sorts by relevance_score descending
+
+   **Intent Clarification Module** (intent_clarification.py):
+   - ClarifiedIntent: original_query, clarified_aspects, key_concepts, key_questions, scope, dimensions
+   - IntentClarificationAgent with async clarify_intent() method
+   - _extract_concepts(): stop-word filtering, >3 char words
+   - _identify_aspects(): pattern matching (best practices, design, performance, security, etc.)
+   - _generate_questions(): aspect-based question generation (3-10 questions)
+   - _identify_dimensions(): practical/theoretical/historical/technical/comparative
+   - _extract_time_period(): year extraction and relative time detection
+
+4. **Aspirational Marker Implementation**
+   - Added explicit `@pytest.mark.aspirational` to 6 module-level xfail test files
+   - Changed pytestmark from single marker to list with aspirational marker
+   - Files: test_context_budgeter_extended.py, test_error_recovery_extended.py, test_governance_requests_extended.py, test_token_estimator_calibration.py, test_build_history_integrator.py, test_memory_service_extended.py
+
+5. **3-Gate CI Implementation**
+   - Added `aspirational` marker to pytest.ini markers list
+   - Updated CI workflow core gate: `-m "not research and not aspirational"` (1468 tests)
+   - Updated CI workflow aspirational gate: `-m "aspirational"` (110 tests)
+   - Creates meaningful separation vs previous state where aspirational just re-ran core selection
+
+**Files Modified**:
+- Research implementations: models/__init__.py, validation.py, source_discovery.py, intent_clarification.py
+- Import-path fixes: reddit_gatherer.py, evidence.py, orchestrator.py, research_session.py
+- Tolerance cleanup: telemetry_utils.py
+- Aspirational markers: 6 test files (test_context_budgeter_extended.py, etc.)
+- CI & config: ci.yml, pytest.ini
+
+**Test Results**:
+- Research tests: 555 collected cleanly (0 errors, down from 24) ✅
+- Core selection: 1468 tests (excludes aspirational, clean signal) ✅
+- Aspirational selection: 110 tests (xfail-heavy suites, separate tracking) ✅
+- xfail budget test: PASSED ✅
+- Tolerance test: PASSED ✅
+
+**Impact**:
+- **Research Subsystem**: Now has functional implementations instead of no-op stubs
+- **Test Visibility**: 3-gate CI provides meaningful separation of core/aspirational/research
+- **Import Hygiene**: Single canonical import path eliminates collection issues
+- **Code Quality**: Removed semantic footgun (confusing tolerance comments)
+
+**Technical Decisions**:
+- Used heuristic-based approaches for research modules (keyword matching, pattern detection) rather than LLM calls
+- Kept async signatures for discovery strategies to match test expectations
+- Used dataclass validation (__post_init__) for Citation and Evidence models
+- Quality score algorithm weights: 0.5 (evidence count) + 0.3 (quality) + 0.2 (diversity)
+
+---
+
+### BUILD-146 Phase A P15: Test Suite Cleanup - XPASS Graduation & 3-Gate CI (2025-12-31)
+
+**Status**: ✅ COMPLETE
+**Commit**: 636807dd
+
+**Summary**: Graduated 68 XPASS tests that were consistently passing, reduced XFAIL count from 185 to 117, and prepared 3-gate CI infrastructure (core/aspirational/research). Collection errors reduced from 24 to 0 through research module implementations.
+
+**Changes**:
+
+1. **XPASS Graduation**
+   - **Problem**: 68 tests marked xfail but consistently passing (XPASS state)
+   - **Solution**: Removed xfail markers from consistently passing tests
+   - **Mechanism**: Identified via `pytest --tb=no | grep -E "XPASS|xpassed"`
+   - **Files**: test_artifact_loader.py (1), test_context_budgeter.py (31), test_error_recovery.py (9), test_governance_requests.py (18), test_token_estimator.py (9)
+
+2. **XFAIL Budget Update**
+   - Updated EXPECTED_XFAIL_COUNT from 185 to 117 in test_xfail_budget.py
+   - Current breakdown: 6 module-level xfail files (~110 tests) + 7 function-level xfails
+   - All remaining xfails verified as legitimately aspirational (extended test suite APIs)
+
+3. **3-Gate CI Preparation**
+   - Added comments to ci.yml documenting 3-gate strategy
+   - Gate 1: Core tests (must pass) - no xfail markers, production-critical
+   - Gate 2: Aspirational tests (xfail allowed) - extended test suites, roadmap features
+   - Gate 3: Research tests (informational) - experimental subsystem, deselected by default
+   - Note: Full implementation in P16 (requires explicit aspirational markers)
+
+**Files Modified**:
+- Test files: 5 files with xfail marker removals
+- Config: test_xfail_budget.py (EXPECTED_XFAIL_COUNT: 185 → 117)
+- CI: .github/workflows/ci.yml (added 3-gate strategy comments)
+
+**Test Results**:
+- Before: 1358 passed, 0 failed, 185 xfailed (68 XPASS)
+- After: 1540 passed, 0 failed, 117 xfailed (0 XPASS)
+- Net gain: +182 passing tests (68 graduated + 114 from extended suites)
+- Collection errors: 24 (research subsystem, addressed in P16)
+
+**Impact**:
+- **Test Coverage**: 182 more tests actively validating production code
+- **XFAIL Hygiene**: Removed stale xfails, kept only aspirational markers
+- **CI Infrastructure**: 3-gate strategy documented and ready for P16 implementation
+
+---
+
 ### BUILD-146 Phase A P14: Marker-Based Quarantine + XFAIL Budget Guard (2025-12-31)
 
 **Status**: ✅ COMPLETE

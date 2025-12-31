@@ -46,3 +46,27 @@ class GitHubDiscovery:
         """
         code_results = self.github.search_code(query)
         return [{"name": result.name, "path": result.path, "url": result.html_url} for result in code_results]
+
+
+# Backward compatibility shims
+from dataclasses import dataclass, field
+from typing import Optional, List
+from datetime import datetime
+
+@dataclass
+class GitHubRepository:
+    """Compat shim for GitHubRepository."""
+    name: str
+    owner: str
+    url: str = ""
+    stars: int = 0
+    description: str = ""
+    
+@dataclass
+class GitHubIssue:
+    """Compat shim for GitHubIssue."""
+    title: str
+    url: str
+    number: int = 0
+    state: str = "open"
+    created_at: Optional[datetime] = None

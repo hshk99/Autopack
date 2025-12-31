@@ -45,3 +45,27 @@ class RedditDiscovery:
         return [{"body": comment.body, "url": comment.permalink} for comment in matching_comments]
 
     # Additional methods for more specific Reddit mining tasks can be added here
+
+
+# Backward compatibility shims
+from dataclasses import dataclass, field
+from typing import Optional, List
+from datetime import datetime
+
+@dataclass
+class RedditPost:
+    """Compat shim for RedditPost."""
+    title: str
+    url: str
+    subreddit: str = ""
+    author: str = ""
+    score: int = 0
+    created_at: Optional[datetime] = None
+    
+@dataclass
+class RedditComment:
+    """Compat shim for RedditComment."""
+    body: str
+    author: str = ""
+    score: int = 0
+    created_at: Optional[datetime] = None

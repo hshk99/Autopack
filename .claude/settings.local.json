@@ -136,7 +136,12 @@
       "Bash(PYTHONUTF8=1 DATABASE_URL=\"sqlite:///autopack.db\" PYTHONPATH=src timeout 10 python:*)",
       "Bash(PYTHONUTF8=1 PYTHONPATH=src DATABASE_URL=\"sqlite:///test_canonical.db\" pytest:*)",
       "Bash(if [ -d \"tests/backend\" ])",
-      "Bash(PYTHONUTF8=1 awk:*)"
+      "Bash(PYTHONUTF8=1 awk:*)",
+      "Bash(PYTHONUTF8=1 head:*)",
+      "Bash(PYTHONUTF8=1 PYTHONPATH=src DATABASE_URL=\"sqlite:///:memory:\" timeout 360 pytest:*)",
+      "Bash(PYTHONUTF8=1 PYTHONPATH=src DATABASE_URL=\"sqlite:///:memory:\" timeout 60 pytest:*)",
+      "Bash(PYTHONUTF8=1 PYTHONPATH=src DATABASE_URL=\"sqlite:///:memory:\" timeout 120 pytest:*)",
+      "Bash(PYTHONUTF8=1 PYTHONPATH=src DATABASE_URL=\"sqlite:///:memory:\" timeout 180 pytest:*)"
     ],
     "deny": [],
     "ask": []

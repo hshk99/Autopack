@@ -331,3 +331,25 @@ def create_research_phase(phase_id: str, queries: List[str], **kwargs) -> Resear
         description=f"Research phase: {phase_id}",
         config=config,
     )
+
+
+# Backward compatibility alias for tests
+ResearchPhaseManager = ResearchPhaseExecutor
+
+# Backward compatibility - ResearchPriority not in original implementation
+class ResearchPriority:
+    """Compat shim for ResearchPriority (missing from original)."""
+    LOW = 1
+    MEDIUM = 2
+    HIGH = 3
+    CRITICAL = 4
+
+
+# Backward compatibility - create_research_phase_from_task not in original
+def create_research_phase_from_task(task_description: str, **kwargs) -> ResearchPhase:
+    """Compat shim for creating research phase from task description."""
+    return create_research_phase(
+        phase_id=f"research_{kwargs.get('task_id', 'default')}",
+        queries=[task_description],
+        **kwargs
+    )

@@ -44,3 +44,17 @@ class WebDiscovery:
         return soup.get_text()
 
     # Additional methods for more specific web discovery tasks can be added here
+
+
+# Backward compatibility shim for tests
+from dataclasses import dataclass
+from typing import Optional
+
+@dataclass
+class WebResult:
+    """Compat shim for WebResult (missing from original implementation)."""
+    url: str
+    title: str = ""
+    content: str = ""
+    relevance: float = 0.0
+    metadata: Optional[dict] = None

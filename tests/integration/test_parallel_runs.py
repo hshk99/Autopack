@@ -127,14 +127,20 @@ def test_workspace_lease_prevents_concurrent_workspace_access(git_repo, tmp_path
 
 def test_test_baseline_tracker_run_scoped_artifacts(git_repo, tmp_path):
     """Test that TestBaselineTracker uses run-scoped paths."""
+    import os
+
     # Without run_id (legacy mode - global paths)
     tracker_legacy = TestBaselineTracker(git_repo)
-    assert ".autonomous_runs/baselines" in str(tracker_legacy.cache_dir)
-    assert git_repo.name not in str(tracker_legacy.cache_dir)
+    # Normalize path separators for cross-platform compatibility
+    cache_dir_str = str(tracker_legacy.cache_dir).replace(os.sep, "/")
+    assert ".autonomous_runs/baselines" in cache_dir_str
+    # Legacy mode should NOT have run_id in path (should end with /baselines, not /run-id/baselines)
+    assert cache_dir_str.endswith("/.autonomous_runs/baselines")
 
     # With run_id (parallel-safe mode - run-scoped paths)
     tracker_scoped = TestBaselineTracker(git_repo, run_id="run-001")
-    assert ".autonomous_runs/run-001/baselines" in str(tracker_scoped.cache_dir)
+    cache_dir_scoped_str = str(tracker_scoped.cache_dir).replace(os.sep, "/")
+    assert ".autonomous_runs/run-001/baselines" in cache_dir_scoped_str
 
     # Different runs have different cache dirs
     tracker_scoped2 = TestBaselineTracker(git_repo, run_id="run-002")

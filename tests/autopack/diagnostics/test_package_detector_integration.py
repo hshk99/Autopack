@@ -347,9 +347,9 @@ mypy = "^1.0.0"
 
     def test_circular_includes(self, temp_project_dir):
         """Test handling of circular includes in requirements files"""
-        # Create circular reference
-        (temp_project_dir / "req1.txt").write_text("-r req2.txt\nrequests\n")
-        (temp_project_dir / "req2.txt").write_text("-r req1.txt\nnumpy\n")
+        # Create circular reference with proper naming (requirements*.txt pattern)
+        (temp_project_dir / "requirements-1.txt").write_text("-r requirements-2.txt\nrequests\n")
+        (temp_project_dir / "requirements-2.txt").write_text("-r requirements-1.txt\nnumpy\n")
 
         detector = PackageDetector()
         # Should handle gracefully without infinite loop

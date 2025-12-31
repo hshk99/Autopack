@@ -18,7 +18,10 @@ from pathlib import Path
 from unittest.mock import Mock, patch, MagicMock
 import numpy as np
 
-pytestmark = pytest.mark.xfail(strict=False, reason="Extended MemoryService API not fully implemented - aspirational test suite")
+pytestmark = [
+    pytest.mark.xfail(strict=False, reason="Extended MemoryService API not fully implemented - aspirational test suite"),
+    pytest.mark.aspirational
+]
 
 try:
     from autopack.memory.memory_service import MemoryService

@@ -17,7 +17,10 @@ import tempfile
 import shutil
 from unittest.mock import Mock, patch
 
-pytestmark = pytest.mark.xfail(strict=False, reason="Token estimator calibration API not implemented - aspirational test suite")
+pytestmark = [
+    pytest.mark.xfail(strict=False, reason="Token estimator calibration API not implemented - aspirational test suite"),
+    pytest.mark.aspirational
+]
 
 from autopack.token_estimator import TokenEstimator
 

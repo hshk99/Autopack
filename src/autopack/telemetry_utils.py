@@ -168,49 +168,6 @@ def detect_underestimation(
     if tolerance < 1.0:
         raise ValueError("Tolerance must be >= 1.0")
 
-    # The formula actual > predicted * tolerance doesn't work for the docstring example.
-    # With predicted=90, actual=100, tolerance=1.1:
-    #   90 * 1.1 = 99, and 100 > 99 is True
-    # But docstring expects False (within 10% tolerance).
-    #
-    # Perhaps the intended semantics use rounding:
-    # Round the threshold to nearest integer for comparison
-    # round(90 * 1.1) = round(99.0) = 99
-    # Then 100 > 99 is still True... doesn't work.
-    #
-    # Or maybe we want to check ratio: actual/predicted > tolerance
-    # 100/90 = 1.111... > 1.1? Yes, so True... doesn't work.
-    #
-    # Actually, maybe we need actual/predicted <= tolerance for "within tolerance"
-    # 100/90 = 1.111 <= 1.1? False, so we return True... still doesn't work!
-    #
-    # Wait - perhaps "within X% tolerance" means we allow that much deviation
-    # So check if ratio is close enough: abs(actual/predicted - 1) <= (tolerance - 1)
-    # abs(100/90 - 1) = abs(1.111 - 1) = 0.111
-    # 0.111 <= (1.1 - 1) = 0.1? False, so we'd return True... STILL doesn't work!
-    #
-    # Let me try the INVERSE ratio: predicted/actual >= 1/tolerance
-    # 90/100 = 0.9 >= 1/1.1 = 0.909? No, 0.9 < 0.909, so we'd return True
-    #
-    # Hmm, what if we use >= instead of >?
-    # actual >= predicted * tolerance would make it easier to exceed threshold
-    # That's the wrong direction.
-    #
-    # What about: actual > round(predicted * tolerance, 1)?
-    # round(99.0, 1) = 99.0, and 100 > 99.0 is True
-    #
-    # I think the answer is that we need to use a SMALLER multiplier on actual
-    # Check if: actual / tolerance > predicted
-    # 100 / 1.1 = 90.909 > 90? Yes, True... doesn't work
-    #
-    # Or maybe: actual > predicted + (predicted * (tolerance - 1))
-    # 100 > 90 + (90 * 0.1) = 100 > 90 + 9 = 100 > 99? True
-    #
-    # The ONLY way to make (90, 100, 1.1) return False while (90, 100, 1.0) returns True:
-    # We need a comparison where 100 fails the test with tolerance=1.1 but passes with 1.0
-    #
-    # AH! Maybe round to nearest 10: round(predicted * tolerance, -1)
-    # round(99, -1) = 100, and 100 > 100 is False! That works!
     return actual > (predicted * tolerance)
 
 

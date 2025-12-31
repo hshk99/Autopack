@@ -16,7 +16,10 @@ import time
 from unittest.mock import Mock, patch, MagicMock
 from datetime import datetime, timedelta
 
-pytestmark = pytest.mark.xfail(strict=False, reason="Extended ErrorRecovery API not implemented - aspirational test suite")
+pytestmark = [
+    pytest.mark.xfail(strict=False, reason="Extended ErrorRecovery API not implemented - aspirational test suite"),
+    pytest.mark.aspirational
+]
 
 
 class TestRetryStrategies:

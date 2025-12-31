@@ -16,7 +16,10 @@ from datetime import datetime, timedelta
 from unittest.mock import Mock, patch, MagicMock
 from pathlib import Path
 
-pytestmark = pytest.mark.xfail(strict=False, reason="Extended Governance API not implemented - aspirational test suite")
+pytestmark = [
+    pytest.mark.xfail(strict=False, reason="Extended Governance API not implemented - aspirational test suite"),
+    pytest.mark.aspirational
+]
 
 
 class TestApprovalFlow:

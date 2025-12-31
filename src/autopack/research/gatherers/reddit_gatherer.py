@@ -1,10 +1,6 @@
 import praw
-try:
-    from src.autopack.research.gatherers.rate_limiter import RateLimiter
-    from src.autopack.research.gatherers.error_handler import error_handler
-except ImportError:
-    from autopack.research.gatherers.rate_limiter import RateLimiter
-    from autopack.research.gatherers.error_handler import error_handler
+from autopack.research.gatherers.rate_limiter import RateLimiter
+from autopack.research.gatherers.error_handler import error_handler
 
 class RedditGatherer:
     """Gathers data from Reddit communities."""

@@ -15,7 +15,10 @@ import pytest
 from pathlib import Path
 from unittest.mock import Mock, patch
 
-pytestmark = pytest.mark.xfail(strict=False, reason="Extended ContextBudgeter API not implemented - aspirational test suite")
+pytestmark = [
+    pytest.mark.xfail(strict=False, reason="Extended ContextBudgeter API not implemented - aspirational test suite"),
+    pytest.mark.aspirational
+]
 
 
 class TestBudgetAllocation:

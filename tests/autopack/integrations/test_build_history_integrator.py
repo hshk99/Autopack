@@ -16,7 +16,10 @@ from autopack.integrations.build_history_integrator import (
     HistoricalPattern,
 )
 
-pytestmark = pytest.mark.xfail(strict=False, reason="Extended BuildHistoryIntegrator API not fully implemented - aspirational test suite")
+pytestmark = [
+    pytest.mark.xfail(strict=False, reason="Extended BuildHistoryIntegrator API not fully implemented - aspirational test suite"),
+    pytest.mark.aspirational
+]
 
 
 @pytest.fixture

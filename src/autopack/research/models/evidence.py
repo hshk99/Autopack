@@ -2,10 +2,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-try:
-    from src.autopack.research.models.enums import EvidenceType
-except ImportError:
-    from autopack.research.models.enums import EvidenceType
+from autopack.research.models.enums import EvidenceType
 
 
 class Evidence:

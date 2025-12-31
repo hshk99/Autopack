@@ -1,5 +1,5 @@
 import unittest
-from src.autopack.diagnostics.cursor_prompt_generator import generate_cursor_prompt
+from autopack.diagnostics.cursor_prompt_generator import generate_cursor_prompt
 
 class TestCursorPromptGenerator(unittest.TestCase):
 

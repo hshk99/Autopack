@@ -1,5 +1,5 @@
 import unittest
-from src.autopack.research.reporting.citation_formatter import CitationFormatter
+from autopack.research.reporting.citation_formatter import CitationFormatter
 
 class TestCitationFormatter(unittest.TestCase):
 

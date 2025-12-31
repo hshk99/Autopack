@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from src.autopack.models import PhaseState, RunState
+from autopack.models import PhaseState, RunState
 
 
 def test_root_endpoint(client):

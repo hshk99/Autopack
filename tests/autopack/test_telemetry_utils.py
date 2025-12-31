@@ -12,7 +12,7 @@ Covers:
 """
 
 import pytest
-from src.autopack.telemetry_utils import (
+from autopack.telemetry_utils import (
     filter_samples,
     calculate_smape,
     calculate_waste_ratio,

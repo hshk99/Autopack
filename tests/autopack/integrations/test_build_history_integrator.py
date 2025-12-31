@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from unittest.mock import Mock, patch, mock_open
 
-from src.autopack.integrations.build_history_integrator import (
+from autopack.integrations.build_history_integrator import (
     BuildHistoryIntegrator,
     BuildHistoryInsight,
     HistoricalPattern,

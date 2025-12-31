@@ -1,6 +1,6 @@
 import unittest
 from unittest.mock import MagicMock
-from src.autopack.research.validators.evidence_validator import EvidenceValidator
+from autopack.research.validators.evidence_validator import EvidenceValidator
 
 class TestEvidenceValidator(unittest.TestCase):
 

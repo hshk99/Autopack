@@ -2,12 +2,12 @@
 import pytest
 from unittest.mock import Mock
 
-from src.autopack.circuit_breaker import (
+from autopack.circuit_breaker import (
     CircuitBreaker,
     CircuitBreakerConfig,
     CircuitState
 )
-from src.autopack.circuit_breaker_registry import (
+from autopack.circuit_breaker_registry import (
     CircuitBreakerRegistry,
     CircuitBreakerStatus,
     get_global_registry

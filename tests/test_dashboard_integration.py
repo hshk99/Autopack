@@ -8,10 +8,10 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
-from src.autopack.database import Base, get_db
-from src.autopack.main import app
+from autopack.database import Base, get_db
+from autopack.main import app
 from src.autopack import models
-from src.autopack.usage_recorder import LlmUsageEvent
+from autopack.usage_recorder import LlmUsageEvent
 
 
 @pytest.fixture(scope="function")
@@ -45,7 +45,7 @@ def client(test_db, tmp_path, monkeypatch):
     os.environ["TESTING"] = "1"
 
     # Override autonomous_runs_dir at the settings object level
-    from src.autopack.config import settings
+    from autopack.config import settings
     test_runs_dir = str(tmp_path / ".autonomous_runs")
     monkeypatch.setattr(settings, "autonomous_runs_dir", test_runs_dir)
 

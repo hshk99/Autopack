@@ -8,7 +8,7 @@ from datetime import datetime, timezone
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from src.autopack.models import Base, Run, Tier, Phase, PhaseState, RunState
+from autopack.models import Base, Run, Tier, Phase, PhaseState, RunState
 
 
 @pytest.fixture

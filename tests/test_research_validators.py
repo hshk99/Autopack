@@ -7,7 +7,7 @@ This test suite verifies the citation validation logic, particularly:
 """
 
 import pytest
-from src.autopack.research.models.validators import (
+from autopack.research.models.validators import (
     Finding,
     VerificationResult,
     CitationValidator

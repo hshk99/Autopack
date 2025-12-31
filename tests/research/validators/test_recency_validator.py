@@ -1,6 +1,6 @@
 import unittest
 from unittest.mock import MagicMock
-from src.autopack.research.validators.recency_validator import RecencyValidator
+from autopack.research.validators.recency_validator import RecencyValidator
 
 class TestRecencyValidator(unittest.TestCase):
 

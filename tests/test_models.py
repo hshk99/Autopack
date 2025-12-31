@@ -2,7 +2,7 @@
 
 import pytest
 
-from src.autopack.models import Phase, PhaseState, Run, RunState, Tier, TierState
+from autopack.models import Phase, PhaseState, Run, RunState, Tier, TierState
 
 
 def test_run_creation(db_session):

@@ -6,7 +6,7 @@ from textwrap import dedent
 
 import pytest
 
-from src.autopack.diagnostics.package_detector import (
+from autopack.diagnostics.package_detector import (
     PackageDetector,
     PackageDetectionResult,
     PackageRequirement,

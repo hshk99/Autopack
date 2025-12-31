@@ -1,7 +1,7 @@
 from pathlib import Path
 
-from src.autopack.repo_scanner import RepoScanner
-from src.autopack.pattern_matcher import PatternMatcher
+from autopack.repo_scanner import RepoScanner
+from autopack.pattern_matcher import PatternMatcher
 
 
 def _touch(path: Path, content: str = "# test\n") -> None:

@@ -15,8 +15,8 @@ from unittest.mock import Mock, patch, MagicMock
 import numpy as np
 
 try:
-    from src.autopack.memory.memory_service import MemoryService
-    from src.autopack.memory.qdrant_store import QdrantStore
+    from autopack.memory.memory_service import MemoryService
+    from autopack.memory.qdrant_store import QdrantStore
 except ImportError:
     # Fallback for different import paths
     try:

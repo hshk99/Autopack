@@ -1,5 +1,5 @@
 import unittest
-from src.autopack.research.evaluation.evaluator import evaluate_pipeline
+from autopack.research.evaluation.evaluator import evaluate_pipeline
 
 class TestEndToEnd(unittest.TestCase):
     def setUp(self):

@@ -1,6 +1,6 @@
 import pytest
 from click.testing import CliRunner
-from src.autopack.cli.commands.phases import cli
+from autopack.cli.commands.phases import cli
 
 def test_create_phase():
     runner = CliRunner()

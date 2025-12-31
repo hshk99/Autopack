@@ -3,7 +3,7 @@ import pytest
 import time
 from unittest.mock import Mock, patch
 
-from src.autopack.circuit_breaker import (
+from autopack.circuit_breaker import (
     CircuitBreaker,
     CircuitBreakerConfig,
     CircuitState,

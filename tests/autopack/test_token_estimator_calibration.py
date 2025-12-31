@@ -14,7 +14,7 @@ import tempfile
 import shutil
 from unittest.mock import Mock, patch
 
-from src.autopack.token_estimator import TokenEstimator
+from autopack.token_estimator import TokenEstimator
 
 
 class TestPhaseOverheadCalibration:

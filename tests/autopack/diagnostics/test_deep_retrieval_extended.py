@@ -17,7 +17,7 @@ from datetime import datetime, timedelta
 import json
 import tempfile
 import shutil
-from src.autopack.diagnostics.deep_retrieval import DeepRetrieval
+from autopack.diagnostics.deep_retrieval import DeepRetrieval
 
 
 class TestDeepRetrievalTriggers:

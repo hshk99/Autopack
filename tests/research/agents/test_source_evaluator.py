@@ -5,7 +5,7 @@ This module contains unit tests for the SourceEvaluator class.
 """
 
 import unittest
-from src.autopack.research.agents.source_evaluator import SourceEvaluator
+from autopack.research.agents.source_evaluator import SourceEvaluator
 
 class TestSourceEvaluator(unittest.TestCase):
 

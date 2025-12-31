@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from src.autopack.issue_tracker import IssueTracker
+from autopack.issue_tracker import IssueTracker
 
 
 @pytest.fixture

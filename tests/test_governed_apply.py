@@ -4,7 +4,7 @@ Regression tests for governed_apply patch application safeguards.
 
 from pathlib import Path
 
-from src.autopack.governed_apply import GovernedApplyPath
+from autopack.governed_apply import GovernedApplyPath
 
 
 def test_direct_write_fallback_skips_mixed_patches(tmp_path: Path):

@@ -11,7 +11,7 @@ Tests cover:
 import pytest
 import json
 from pathlib import Path
-from src.autopack.calibration_reporter import (
+from autopack.calibration_reporter import (
     CalibrationReporter,
     CalibrationReport,
     CoefficientChange

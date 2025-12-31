@@ -7,6 +7,11 @@ from pathlib import Path
 
 import pytest
 
+# Ensure tests do not accidentally require a running Postgres instance.
+# Autopack defaults to Postgres for production; for unit tests we prefer in-memory SQLite.
+# IMPORTANT: This must run before importing `autopack.database` (which creates an engine at import time).
+os.environ.setdefault("DATABASE_URL", "sqlite:///:memory:")
+
 # Ensure src directory is in Python path before any imports
 project_root = Path(__file__).resolve().parent.parent
 src_path = project_root / "src"

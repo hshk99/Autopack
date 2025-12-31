@@ -274,7 +274,7 @@ class TestCalibrationReporter:
         assert output_path.exists()
         assert output_path.name == "calibration_v5-step1.md"
         
-        content = output_path.read_text()
+        content = output_path.read_text(encoding="utf-8")
         assert "# Calibration Report: v5-step1" in content
     
     def test_save_report_custom_filename(self, reporter, sample_data, tmp_path):
@@ -306,7 +306,7 @@ class TestCalibrationReporter:
         assert output_path.name == "calibration_v5-step1.json"
         
         # Verify JSON structure
-        data = json.loads(output_path.read_text())
+        data = json.loads(output_path.read_text(encoding="utf-8"))
         assert data["version"] == "v5-step1"
         assert data["sample_count"] == 25
         assert len(data["changes"]) == 3

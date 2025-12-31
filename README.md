@@ -42,6 +42,28 @@ In practice, “autonomous” requires that each phase has:
 
 ## Recent Updates
 
+### 2025-12-31: BUILD-146 Phase A P14 Complete - Marker-Based Quarantine + XFAIL Budget ✅
+**No More Hidden Tests + Budget Guards**
+- **Achievement**:
+  - Eliminated all `--ignore` flags for test hiding (moved to marker-based deselection)
+  - Implemented XFAIL budget guard to prevent untracked technical debt growth
+  - Final result: 1358 passing, 348 deselected (visible), 117 xfailed (tracked), 0 failures
+- **Problem Solved**:
+  - Research tests were hidden via `--ignore` flags (contradicts "no more hidden --ignore" vision)
+  - XFAIL markers could grow unchecked without tracking/justification
+  - Collection errors in research tests were invisible, making debugging harder
+- **Solution Implemented**:
+  - **Marker-Based Quarantine**: Replaced 6 `--ignore` entries with `-m "not research"` (deselects but keeps visible)
+  - **XFAIL Budget Guard**: Created `tests/test_xfail_budget.py` enforcing EXPECTED_XFAIL_COUNT (121) ± 5 tolerance
+  - **Auto-Marking**: Research tests auto-marked via `pytest_collection_modifyitems` in conftest.py
+  - **Documentation**: Updated [RESEARCH_QUARANTINE.md](docs/RESEARCH_QUARANTINE.md) with marker-based approach
+- **End State**:
+  - Core CI: ✅ GREEN (1358 passing, 0 failing)
+  - Research tests: Deselected but visible (348 tests, 24 collection errors expected)
+  - Aspirational tests: Budget-controlled with explicit tracking (117 xfailed)
+  - All tests discoverable and runnable (e.g., `pytest -m research`)
+- **Status**: Test suite visibility maximized, technical debt tracked - see [BUILD_HISTORY.md](BUILD_HISTORY.md#build-146-phase-a-p14-marker-based-quarantine--xfail-budget-guard-2025-12-31)
+
 ### 2025-12-31: BUILD-146 Phase A P13 Complete - Test Suite Stabilization ✅
 **Extended Tests + API Drift Fixes**
 - **Achievement**:

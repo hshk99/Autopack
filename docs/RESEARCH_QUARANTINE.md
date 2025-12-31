@@ -1,8 +1,9 @@
 # Research Subsystem Test Quarantine
 
-**Status**: QUARANTINED (as of 2025-12-31)
+**Status**: QUARANTINED (as of 2025-12-31, updated 2025-12-31 Phase A P14)
 **Reason**: API drift - missing symbols and import errors
 **Scope**: ~348 tests in `tests/research/` and `tests/autopack/research/`
+**Quarantine Method**: **Marker-based deselection** (visible but not run by default)
 
 ---
 
@@ -26,36 +27,44 @@ The research subsystem (`src/autopack/research/`) has API drift between the code
 
 ---
 
-## Current State
+## Current State (Updated Phase A P14)
 
-### Quarantined Tests
-**Default CI behavior**: Research tests are **excluded** from `pytest` runs
+### Quarantined Tests - Marker-Based Approach
+**Default CI behavior**: Research tests are **deselected** (visible but not run)
 
 ```bash
-# Default pytest (excludes research)
-pytest  # Runs 1624 core tests, skips 348 research tests
+# Default pytest (deselects research via marker)
+pytest  # Runs ~1576 core tests, deselects 348 research tests (still collected)
 ```
 
 **Pytest configuration** (`pytest.ini`):
 ```ini
 addopts =
-    --ignore=tests/research
-    --ignore=tests/autopack/research
-    --ignore=tests/autopack/integration/test_research_end_to_end.py
-    --ignore=tests/autopack/phases/test_research_phase.py
-    --ignore=tests/autopack/workflow/test_research_review.py
+    -m "not research"  # Deselect tests marked with @pytest.mark.research
 ```
+
+**Auto-marking** (`tests/research/conftest.py` and `tests/autopack/research/conftest.py`):
+All tests in research directories are automatically marked with `@pytest.mark.research` via `pytest_collection_modifyitems` hook.
 
 ### Running Research Tests
 
-To explicitly run research tests (will fail until drift fixed):
+To explicitly run research tests (will show collection errors until drift fixed):
 ```bash
-# Option 1: Run research tests explicitly
-pytest tests/research/ tests/autopack/research/
+# Option 1: Run only research tests
+pytest -m research
 
-# Option 2: Override ignores
-pytest --override-ini="addopts=" tests/research/
+# Option 2: Run all tests including research
+pytest -m ""  # Empty marker expression = run all
+
+# Option 3: Override marker deselection
+pytest --override-ini="addopts="
 ```
+
+### Advantages of Marker-Based Approach
+- **Visibility**: Research tests are collected and counted (visible in test output)
+- **Tracking**: Collection errors are visible but don't block CI
+- **Flexibility**: Easy to run research tests explicitly for debugging
+- **No hiding**: Follows README principle of "no more hidden --ignore"
 
 ---
 

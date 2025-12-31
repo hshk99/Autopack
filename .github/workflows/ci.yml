@@ -25,7 +25,13 @@ jobs:
         run: |
           black --check src/ tests/
 
-  test:
+  # BUILD-146 Phase A P15: 3-gate test strategy
+  # Gate 1: Core tests (must pass) - no xfail markers, production-critical
+  # Gate 2: Aspirational tests (xfail allowed) - extended test suites, roadmap features
+  # Gate 3: Research tests (informational) - experimental subsystem, deselected by default
+
+  test-core:
+    name: Core Tests (Must Pass)
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -51,17 +57,97 @@ jobs:
       - name: Install dependencies
         run: |
           pip install -r requirements-dev.txt
-      - name: Run tests
+      - name: Run core tests (excluding research)
         env:
           # BUILD-146 P11 Ops: Explicitly set DATABASE_URL to prevent footguns
           # Production uses PostgreSQL; tests use same to catch schema issues early
           DATABASE_URL: postgresql://autopack:autopack@localhost:5432/autopack
         run: |
-          pytest tests/ -v --cov=src/autopack --cov-report=xml
+          # Core gate: Must pass, no xfail allowed
+          # Excludes research-marked tests via pytest markers
+          pytest tests/ -m "not research" -v --cov=src/autopack --cov-report=xml --maxfail=5
+      - name: Verify no collection errors
+        run: |
+          # Ensure test collection succeeds (no import errors)
+          pytest tests/ -m "not research" --collect-only -q
+      - name: Check xfail budget
+        run: |
+          # Verify xfail count hasn't grown without approval
+          pytest tests/test_xfail_budget.py -v
       - name: Upload coverage
         uses: codecov/codecov-action@v3
         with:
           file: ./coverage.xml
+
+  test-aspirational:
+    name: Aspirational Tests (xfail allowed)
+    runs-on: ubuntu-latest
+    # Allow failure - these are roadmap/extended tests
+    continue-on-error: true
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: autopack
+          POSTGRES_PASSWORD: autopack
+          POSTGRES_DB: autopack
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: |
+          pip install -r requirements-dev.txt
+      - name: Run aspirational tests
+        env:
+          DATABASE_URL: postgresql://autopack:autopack@localhost:5432/autopack
+        run: |
+          # Aspirational gate: Track progress on extended test suites
+          # Same as core gate but we monitor xfail→xpass conversions
+          pytest tests/ -m "not research" -v --tb=short
+          echo "Aspirational test results (informational - does not block CI)"
+      - name: Report xpass tests
+        if: always()
+        run: |
+          # Identify tests that are now passing but still marked xfail
+          pytest tests/ -m "not research" -v --tb=no | grep -E "XPASS|xpassed" || echo "No XPASS tests found"
+
+  test-research:
+    name: Research Tests (Informational)
+    runs-on: ubuntu-latest
+    # Always allow failure - research subsystem is quarantined
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: |
+          pip install -r requirements-dev.txt
+      - name: Run research tests
+        env:
+          # Research tests use in-memory DB (faster, isolated)
+          DATABASE_URL: "sqlite:///:memory:"
+        run: |
+          # Research gate: Informational only
+          # Tests the quarantined research subsystem (see RESEARCH_QUARANTINE.md)
+          pytest tests/ -m "research" -v --tb=short || echo "Research tests failed (expected - subsystem has API drift)"
+      - name: Report research test status
+        if: always()
+        run: |
+          echo "Research test results are informational only and do not affect CI status"
 
   preflight-normal:
     runs-on: ubuntu-latest

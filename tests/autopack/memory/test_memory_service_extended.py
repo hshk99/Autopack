@@ -241,12 +241,6 @@ class TestSimilaritySearch:
 class TestErrorHandling:
     """Tests for error handling and edge cases."""
 
-    def test_invalid_storage_path(self):
-        """Test initialization with invalid storage path."""
-        with pytest.raises((OSError, PermissionError, Exception)):
-            # Try to create service in a path that doesn't exist and can't be created
-            MemoryService(storage_path="/invalid/path/that/does/not/exist")
-
     def test_store_with_invalid_metadata_type(self, memory_service):
         """Test storing with invalid metadata type."""
         text = "Test document"

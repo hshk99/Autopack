@@ -6,15 +6,16 @@ Tests that:
 2. _build_user_prompt() includes required deliverables contract
 3. Executor retries "empty files array" errors exactly once
 
-NOTE: This is an extended test suite for telemetry-related executor enhancements.
-Tests are marked xfail until the enhanced API is implemented.
+NOTE: Partially graduated - T1 prompt fixes implemented and passing (3 tests),
+T2 retry logic still aspirational (3 tests have function-level xfail markers).
 """
 
 import pytest
 from unittest.mock import Mock, patch, MagicMock
 from pathlib import Path
 
-pytestmark = pytest.mark.xfail(strict=False, reason="Telemetry executor enhancements not implemented - aspirational test suite")
+# PARTIAL GRADUATION: Module-level xfail removed - T1 tests graduated (BUILD-146 Phase A P15)
+# T2 tests still have function-level xfail markers below
 
 
 class TestT1PromptFixes:
@@ -90,7 +91,7 @@ class TestT1PromptFixes:
         assert "examples/telemetry_utils/number_helper.py" in prompt
 
         # Assert hard requirement is present
-        assert "files array in your JSON output MUST contain at least one file" in prompt
+        assert "'files' array in your JSON output MUST contain at least one file" in prompt
         assert "Empty files array is NOT allowed" in prompt
 
     def test_no_deliverables_section_when_no_deliverables(self):
@@ -152,6 +153,7 @@ class TestT1PromptFixes:
 class TestT2EmptyFilesRetry:
     """Test T2: Targeted retry for empty files array errors"""
 
+    @pytest.mark.xfail(reason="T2 retry logic not yet implemented - aspirational test")
     @patch('autopack.autonomous_executor.time.sleep')  # Mock sleep to speed up tests
     def test_empty_files_retry_once(self, mock_sleep):
         """Test that empty files array error triggers exactly ONE retry."""

@@ -10,14 +10,14 @@ Tests verify:
 
 Per BUILD-043/044/045 patterns: strict isolation, no protected path modifications.
 
-NOTE: This is an extended test suite for deep retrieval enhancements.
-Tests are marked xfail until the enhanced API is implemented.
+NOTE: Originally an extended/aspirational test suite, now graduated to core suite
+as deep retrieval enhancements have been implemented (22/22 tests passing).
 """
 
 import pytest
 from pathlib import Path
 
-pytestmark = pytest.mark.xfail(strict=False, reason="Deep retrieval enhancements not implemented - aspirational test suite")
+# GRADUATED: Removed xfail marker - enhancements have been implemented (BUILD-146 Phase A P15)
 from datetime import datetime, timedelta
 import json
 import tempfile
@@ -424,7 +424,10 @@ class TestDeepRetrievalEdgeCases:
         run_dir, _ = temp_dirs
 
         # Create file with unicode
-        (run_dir / "unicode.log").write_text("Error: File 'café.txt' not found 🔍\n" * 10)
+        (run_dir / "unicode.log").write_text(
+            "Error: File 'café.txt' not found 🔍\n" * 10,
+            encoding="utf-8",
+        )
 
         bundle = {"error_message": "test error"}
         result = retrieval.retrieve("phase_001", bundle)

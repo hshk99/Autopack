@@ -35,14 +35,18 @@ class TestWebScraper:
         """Test that rate limiting works."""
         scraper = WebScraper(rate_limit_seconds=0.5)
 
-        # Mock the fetch to avoid actual HTTP requests
-        with patch.object(scraper, "fetch", return_value="test content"):
+        # Mock requests.get to avoid actual HTTP requests but allow rate limiting logic to run
+        mock_response = Mock()
+        mock_response.text = "test content"
+        mock_response.raise_for_status = Mock()
+
+        with patch("research_tracer.scraper.requests.get", return_value=mock_response):
             start = time.time()
             scraper.fetch("https://example.com/page1")
-            scraper.fetch("https://example.com/page2")
+            scraper.fetch("https://example.com/page2")  # Same domain, should trigger rate limit
             elapsed = time.time() - start
 
-            # Should take at least rate_limit_seconds
+            # Should take at least rate_limit_seconds (0.5s delay between same-domain requests)
             assert elapsed >= 0.5
 
     def test_invalid_url_handling(self):

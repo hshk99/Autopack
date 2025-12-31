@@ -21,7 +21,12 @@ def test_health_check(client):
     """Test health check endpoint"""
     response = client.get("/health")
     assert response.status_code == 200
-    assert response.json() == {"status": "healthy"}
+    data = response.json()
+    # Health endpoint now returns enhanced data (BUILD-146 P12)
+    assert data["status"] == "healthy"
+    assert "timestamp" in data
+    assert "database" in data  # DB connection status
+    assert "kill_switches" in data  # Feature flags
 
 
 def test_start_run(client, sample_run_request):

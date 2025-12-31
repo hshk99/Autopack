@@ -48,6 +48,9 @@ def test_migration_idempotence():
         p3_upgrade(engine)
         assert check_column_exists(engine, "phase6_metrics", "doctor_tokens_avoided_estimate")
 
+        # Dispose engine to release file handle (Windows compatibility)
+        engine.dispose()
+
     finally:
         if os.path.exists(db_path):
             os.unlink(db_path)

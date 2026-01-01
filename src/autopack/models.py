@@ -548,3 +548,103 @@ class ABTestResult(Base):
     created_by = Column(String)  # Script or user that generated result
 
     # Note: Index constraints are defined in migration script for clarity
+
+
+# ==============================================================================
+# Storage Optimizer Models (BUILD-149 Phase 2)
+# ==============================================================================
+
+
+class StorageScan(Base):
+    """
+    Storage scan metadata persisted to database.
+
+    Tracks scan history, allowing trend analysis and comparison over time.
+    """
+    __tablename__ = 'storage_scans'
+
+    id = Column(Integer, primary_key=True, index=True)
+    timestamp = Column(DateTime, nullable=False, default=lambda: datetime.now(timezone.utc), index=True)
+    scan_type = Column(String(20), nullable=False)  # 'drive' or 'directory'
+    scan_target = Column(String(500), nullable=False)  # 'C:' or 'c:/dev/Autopack'
+    max_depth = Column(Integer, nullable=True)
+    max_items = Column(Integer, nullable=True)
+    policy_version = Column(String(50), nullable=True)
+
+    # Scan results
+    total_items_scanned = Column(Integer, nullable=False, default=0)
+    total_size_bytes = Column(BigInteger, nullable=False, default=0)
+    cleanup_candidates_count = Column(Integer, nullable=False, default=0)
+    potential_savings_bytes = Column(BigInteger, nullable=False, default=0)
+
+    # Performance
+    scan_duration_seconds = Column(Integer, nullable=True)
+
+    # Metadata
+    created_by = Column(String(100), nullable=True)  # 'cli', 'api', 'scheduled'
+    notes = Column(Text, nullable=True)
+
+
+class CleanupCandidateDB(Base):
+    """
+    Cleanup candidate persisted to database.
+
+    Tracks files/folders eligible for cleanup, approval status, and execution state.
+    """
+    __tablename__ = 'cleanup_candidates'
+
+    id = Column(Integer, primary_key=True, index=True)
+    scan_id = Column(Integer, ForeignKey('storage_scans.id', ondelete='CASCADE'), nullable=False, index=True)
+
+    # File info
+    path = Column(Text, nullable=False)
+    size_bytes = Column(BigInteger, nullable=False)
+    age_days = Column(Integer, nullable=True)
+    last_modified = Column(DateTime, nullable=True)
+
+    # Classification
+    category = Column(String(50), nullable=False, index=True)
+    reason = Column(Text, nullable=False)
+    requires_approval = Column(Boolean, nullable=False)
+
+    # Approval state
+    approval_status = Column(String(20), nullable=False, default='pending', index=True)
+    approved_by = Column(String(100), nullable=True)
+    approved_at = Column(DateTime, nullable=True)
+    rejection_reason = Column(Text, nullable=True)
+
+    # Execution state
+    execution_status = Column(String(20), nullable=True)  # 'executing', 'completed', 'failed', 'skipped'
+    executed_at = Column(DateTime, nullable=True)
+    execution_error = Column(Text, nullable=True)
+
+    # Compression (if applicable)
+    compressed = Column(Boolean, nullable=False, default=False)
+    compressed_path = Column(Text, nullable=True)
+    compression_ratio = Column(DECIMAL(5, 2), nullable=True)
+    compression_duration_seconds = Column(Integer, nullable=True)
+
+
+class ApprovalDecision(Base):
+    """
+    User approval decision for batch cleanup.
+
+    Records who approved what, when, and via which method.
+    """
+    __tablename__ = 'approval_decisions'
+
+    id = Column(Integer, primary_key=True, index=True)
+    scan_id = Column(Integer, ForeignKey('storage_scans.id', ondelete='CASCADE'), nullable=False, index=True)
+
+    # Approval metadata
+    approved_by = Column(String(100), nullable=False)
+    approved_at = Column(DateTime, nullable=False, default=lambda: datetime.now(timezone.utc), index=True)
+    approval_method = Column(String(50), nullable=True)  # 'cli_interactive', 'api', 'telegram', 'automated'
+
+    # Batch approval
+    total_candidates = Column(Integer, nullable=False)
+    total_size_bytes = Column(BigInteger, nullable=False)
+
+    # Decision
+    decision = Column(String(20), nullable=False)  # 'approve', 'reject', 'defer'
+    notes = Column(Text, nullable=True)

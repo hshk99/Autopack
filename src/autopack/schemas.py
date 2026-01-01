@@ -191,3 +191,106 @@ class RunResponse(BaseModel):
     phases: List[PhaseResponse] = Field(default_factory=list)
 
     model_config = ConfigDict(from_attributes=True)
+
+
+# ==============================================================================
+# Storage Optimizer Schemas (BUILD-149 Phase 2)
+# ==============================================================================
+
+class StorageScanRequest(BaseModel):
+    """Request to trigger a new storage scan"""
+
+    scan_type: str = Field(..., description="Scan type: 'drive' or 'directory'")
+    scan_target: str = Field(..., description="Target to scan (e.g., 'C:' or 'c:/dev/Autopack')")
+    max_depth: Optional[int] = Field(3, description="Maximum directory depth to scan")
+    max_items: Optional[int] = Field(1000, description="Maximum items to scan per directory")
+    save_to_db: bool = Field(True, description="Whether to save scan results to database")
+    created_by: Optional[str] = Field(None, description="User identifier for scan creator")
+
+
+class CleanupCandidateResponse(BaseModel):
+    """Cleanup candidate information"""
+
+    id: int
+    path: str
+    size_bytes: int
+    age_days: Optional[int]
+    category: str
+    reason: str
+    requires_approval: bool
+    approval_status: str
+    approved_by: Optional[str]
+    approved_at: Optional[datetime]
+    execution_status: Optional[str]
+    compressed: bool
+    compressed_path: Optional[str]
+    compression_ratio: Optional[float]
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class StorageScanResponse(BaseModel):
+    """Storage scan information"""
+
+    id: int
+    timestamp: datetime
+    scan_type: str
+    scan_target: str
+    total_items_scanned: int
+    total_size_bytes: int
+    cleanup_candidates_count: int
+    potential_savings_bytes: int
+    scan_duration_seconds: Optional[int]
+    created_by: Optional[str]
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class StorageScanDetailResponse(BaseModel):
+    """Detailed storage scan with candidates"""
+
+    scan: StorageScanResponse
+    candidates: List[CleanupCandidateResponse]
+    stats_by_category: Dict[str, Dict[str, Any]]
+
+
+class ApprovalRequest(BaseModel):
+    """Request to approve cleanup candidates"""
+
+    candidate_ids: List[int] = Field(..., description="List of candidate IDs to approve/reject")
+    approved_by: str = Field(..., description="User identifier (email, username, etc.)")
+    decision: str = Field(..., description="Decision: 'approve', 'reject', or 'defer'")
+    approval_method: str = Field(default='api', description="Method: 'cli_interactive', 'api', 'telegram', 'automated'")
+    notes: Optional[str] = Field(None, description="Optional notes about the decision")
+
+
+class ExecutionRequest(BaseModel):
+    """Request to execute approved deletions"""
+
+    dry_run: bool = Field(True, description="If true, preview actions without executing")
+    compress_before_delete: bool = Field(False, description="Compress files before deletion")
+    category: Optional[str] = Field(None, description="Optional category filter (e.g., 'dev_caches')")
+
+
+class ExecutionResultResponse(BaseModel):
+    """Result of executing cleanup on a single candidate"""
+
+    candidate_id: int
+    path: str
+    status: str
+    error: Optional[str]
+    freed_bytes: Optional[int]
+    compressed_path: Optional[str]
+
+
+class BatchExecutionResponse(BaseModel):
+    """Result of batch cleanup execution"""
+
+    total_candidates: int
+    successful: int
+    failed: int
+    skipped: int
+    total_freed_bytes: int
+    success_rate: float
+    execution_duration_seconds: int
+    results: List[ExecutionResultResponse]

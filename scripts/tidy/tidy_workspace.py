@@ -513,6 +513,103 @@ def collapse_consecutive_duplicates(parts: List[str]) -> List[str]:
 
 
 # ---------------------------------------------------------------------------
+# Self-Healing: Detect and fix malformed paths
+# ---------------------------------------------------------------------------
+def detect_malformed_paths(root: Path, verbose: bool = False) -> List[Tuple[Path, Path, str]]:
+    """Detect malformed paths with duplicate nesting (e.g., archive/archive/, runs/runs/).
+
+    Returns list of (source, destination, reason) tuples for cleanup actions.
+    """
+    repairs = []
+
+    for dirpath, dirnames, filenames in os.walk(root):
+        current = Path(dirpath)
+
+        # Check for duplicate folder nesting in path
+        try:
+            rel = current.relative_to(root)
+            parts = list(rel.parts)
+
+            # Detect consecutive duplicates (archive/archive, runs/runs, etc.)
+            for i in range(len(parts) - 1):
+                if parts[i] == parts[i + 1]:
+                    # Found duplicate nesting - need to fix
+                    collapsed_parts = collapse_consecutive_duplicates(parts)
+                    fixed_path = root / Path(*collapsed_parts)
+
+                    if current != fixed_path:
+                        reason = f"Duplicate nesting: {parts[i]}/{parts[i+1]} -> {parts[i]}"
+                        repairs.append((current, fixed_path, reason))
+                        if verbose:
+                            print(f"[SELF-HEAL] Detected: {current} -> {fixed_path} ({reason})")
+                        break
+
+            # Detect excessive "runs" nesting (runs/project/runs/general)
+            runs_count = sum(1 for p in parts if p == "runs")
+            if runs_count > 1:
+                # Remove duplicate "runs" entries
+                cleaned_parts = []
+                seen_runs = False
+                for p in parts:
+                    if p == "runs":
+                        if not seen_runs:
+                            cleaned_parts.append(p)
+                            seen_runs = True
+                        # Skip subsequent "runs" folders
+                    else:
+                        cleaned_parts.append(p)
+
+                fixed_path = root / Path(*cleaned_parts)
+                if current != fixed_path:
+                    reason = f"Excessive 'runs' nesting ({runs_count} occurrences)"
+                    repairs.append((current, fixed_path, reason))
+                    if verbose:
+                        print(f"[SELF-HEAL] Detected: {current} -> {fixed_path} ({reason})")
+
+        except ValueError:
+            # Path is not relative to root, skip
+            pass
+
+    return repairs
+
+
+def apply_self_healing(root: Path, dry_run: bool = True, verbose: bool = False) -> int:
+    """Apply self-healing to fix malformed paths.
+
+    Returns number of paths repaired.
+    """
+    repairs = detect_malformed_paths(root, verbose=verbose)
+
+    if not repairs:
+        if verbose:
+            print(f"[SELF-HEAL] No malformed paths detected in {root}")
+        return 0
+
+    print(f"[SELF-HEAL] Found {len(repairs)} malformed paths to repair")
+
+    repaired = 0
+    for src, dest, reason in repairs:
+        if dry_run:
+            print(f"[SELF-HEAL][DRY-RUN] Would repair: {src} -> {dest} ({reason})")
+        else:
+            try:
+                # Ensure destination parent exists
+                ensure_dir(dest.parent)
+
+                # Move directory/file to fixed location
+                if src.exists():
+                    shutil.move(str(src), str(dest))
+                    print(f"[SELF-HEAL] Repaired: {src} -> {dest} ({reason})")
+                    repaired += 1
+                else:
+                    print(f"[SELF-HEAL][WARN] Source no longer exists: {src}")
+            except Exception as e:
+                print(f"[SELF-HEAL][ERROR] Failed to repair {src}: {e}")
+
+    return repaired
+
+
+# ---------------------------------------------------------------------------
 # Non-MD scanning
 # ---------------------------------------------------------------------------
 def plan_non_md_actions(root: Path, age_days: int, prune: bool, purge: bool, verbose: bool) -> List[Action]:
@@ -522,7 +619,14 @@ def plan_non_md_actions(root: Path, age_days: int, prune: bool, purge: bool, ver
         project_root_path = REPO_ROOT / ".autonomous_runs" / "file-organizer-app-v1"
         archive_dir = project_root_path / "archive" / "superseded"
     else:
-        archive_dir = root / "archive"
+        # FIX: Prevent archive/archive/ nesting bug
+        # If root already IS the archive directory, don't append "archive" again
+        if root.name == "archive" or "archive" in root.parts:
+            # Root is already in archive hierarchy, use it directly
+            archive_dir = root
+        else:
+            # Root is not archive, create archive subdirectory
+            archive_dir = root / "archive"
     exports_dir = (root / "exports") if "superseded" not in root.parts else archive_dir
     patches_dir = (root / "patches") if "superseded" not in root.parts else archive_dir
     ensure_dir(archive_dir)
@@ -1135,6 +1239,7 @@ def main():
     parser.add_argument("--apply-truth-merge", action="store_true", help="Apply allocator suggestions into target files (append content)")
     parser.add_argument("--run-id", type=str, help="Run identifier for logging/checkpoints")
     parser.add_argument("--database-url", type=str, help="Override DATABASE_URL for this run")
+    parser.add_argument("--self-heal", action="store_true", help="Run self-healing to fix malformed paths (archive/archive/, etc.)")
     args = parser.parse_args()
 
     dry_run = not args.execute or args.dry_run
@@ -1192,6 +1297,14 @@ def main():
         selected_dsn = db_override
 
         logger = TidyLogger(REPO_ROOT, dsn=selected_dsn, project_id=project_id)
+
+        # Self-healing: detect and fix malformed paths before tidy operations
+        if args.self_heal:
+            if args.verbose:
+                print(f"[SELF-HEAL] Running self-healing on {root}")
+            repaired = apply_self_healing(root, dry_run=dry_run, verbose=args.verbose)
+            if repaired > 0:
+                print(f"[SELF-HEAL] Repaired {repaired} malformed paths")
 
         # Detect and route Cursor-created files from workspace root
         if root == REPO_ROOT:

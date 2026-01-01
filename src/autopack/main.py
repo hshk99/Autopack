@@ -1622,6 +1622,400 @@ def add_dashboard_model_override(override_request: dashboard_schemas.ModelOverri
         raise HTTPException(status_code=400, detail="Invalid scope. Must be 'global' or 'run'")
 
 
+# ==============================================================================
+# Storage Optimizer API Endpoints (BUILD-149 Phase 2)
+# ==============================================================================
+
+@app.post("/storage/scan", response_model=schemas.StorageScanResponse, dependencies=[Depends(verify_api_key)])
+def trigger_storage_scan(
+    request: schemas.StorageScanRequest,
+    db: Session = Depends(get_db)
+):
+    """
+    Trigger a new storage scan and optionally save results to database.
+
+    Args:
+        request: Scan configuration (scan_type, scan_target, max_depth, etc.)
+        db: Database session
+
+    Returns:
+        StorageScanResponse with scan metadata and summary statistics
+
+    Example:
+        ```bash
+        curl -X POST http://localhost:8000/storage/scan \
+          -H "Content-Type: application/json" \
+          -d '{
+            "scan_type": "directory",
+            "scan_target": "c:/dev/Autopack",
+            "max_depth": 3,
+            "max_items": 1000,
+            "save_to_db": true,
+            "created_by": "user@example.com"
+          }'
+        ```
+    """
+    from datetime import datetime, timezone
+    from .storage_optimizer import (
+        StorageScanner,
+        FileClassifier,
+        load_policy
+    )
+
+    start_time = datetime.now(timezone.utc)
+
+    # Load policy
+    policy = load_policy()
+
+    # Execute scan
+    scanner = StorageScanner(max_depth=request.max_depth, max_items=request.max_items)
+
+    if request.scan_type == 'drive':
+        results = scanner.scan_high_value_directories(request.scan_target)
+    elif request.scan_type == 'directory':
+        results = scanner.scan_directory(request.scan_target)
+    else:
+        raise HTTPException(status_code=400, detail=f"Invalid scan_type: {request.scan_type}")
+
+    # Classify candidates
+    classifier = FileClassifier(policy)
+    candidates = classifier.classify_batch(results)
+
+    # Calculate statistics
+    total_size_bytes = sum(r.size_bytes for r in results)
+    potential_savings_bytes = sum(c.size_bytes for c in candidates)
+    scan_duration_seconds = (datetime.now(timezone.utc) - start_time).seconds
+
+    # Save to database if requested
+    if request.save_to_db:
+        from .models import StorageScan, CleanupCandidateDB
+
+        scan = StorageScan(
+            timestamp=start_time,
+            scan_type=request.scan_type,
+            scan_target=request.scan_target,
+            max_depth=request.max_depth,
+            max_items=request.max_items,
+            policy_version=policy.version,
+            total_items_scanned=len(results),
+            total_size_bytes=total_size_bytes,
+            cleanup_candidates_count=len(candidates),
+            potential_savings_bytes=potential_savings_bytes,
+            scan_duration_seconds=scan_duration_seconds,
+            created_by=request.created_by
+        )
+        db.add(scan)
+        db.flush()  # Get scan.id before adding candidates
+
+        # Save candidates
+        for candidate in candidates:
+            candidate_db = CleanupCandidateDB(
+                scan_id=scan.id,
+                path=candidate.path,
+                size_bytes=candidate.size_bytes,
+                age_days=candidate.age_days,
+                last_modified=candidate.last_modified,
+                category=candidate.category,
+                reason=candidate.reason,
+                requires_approval=candidate.requires_approval,
+                approval_status='pending'
+            )
+            db.add(candidate_db)
+
+        db.commit()
+        db.refresh(scan)
+
+        return scan
+    else:
+        # Return in-memory scan result (not persisted)
+        return schemas.StorageScanResponse(
+            id=-1,
+            timestamp=start_time,
+            scan_type=request.scan_type,
+            scan_target=request.scan_target,
+            total_items_scanned=len(results),
+            total_size_bytes=total_size_bytes,
+            cleanup_candidates_count=len(candidates),
+            potential_savings_bytes=potential_savings_bytes,
+            scan_duration_seconds=scan_duration_seconds,
+            created_by=request.created_by
+        )
+
+
+@app.get("/storage/scans", response_model=List[schemas.StorageScanResponse])
+def list_storage_scans(
+    limit: int = 50,
+    offset: int = 0,
+    since_days: Optional[int] = None,
+    scan_type: Optional[str] = None,
+    scan_target: Optional[str] = None,
+    db: Session = Depends(get_db)
+):
+    """
+    List storage scan history with pagination and optional filters.
+
+    Args:
+        limit: Maximum number of scans to return (default: 50, max: 200)
+        offset: Number of scans to skip for pagination (default: 0)
+        since_days: Only include scans from the last N days (optional)
+        scan_type: Filter by scan type ('drive' or 'directory', optional)
+        scan_target: Filter by exact scan target path (optional)
+        db: Database session
+
+    Returns:
+        List of StorageScanResponse objects ordered by timestamp descending
+
+    Example:
+        ```bash
+        # Get last 50 scans
+        curl http://localhost:8000/storage/scans
+
+        # Get scans from last 30 days
+        curl http://localhost:8000/storage/scans?since_days=30
+
+        # Get directory scans only
+        curl http://localhost:8000/storage/scans?scan_type=directory
+
+        # Pagination
+        curl http://localhost:8000/storage/scans?limit=25&offset=25
+        ```
+    """
+    from .storage_optimizer.db import get_scan_history
+
+    # Enforce max limit
+    if limit > 200:
+        limit = 200
+
+    scans = get_scan_history(
+        db,
+        limit=limit,
+        offset=offset,
+        since_days=since_days,
+        scan_type=scan_type,
+        scan_target=scan_target
+    )
+
+    return scans
+
+
+@app.get("/storage/scans/{scan_id}", response_model=schemas.StorageScanDetailResponse)
+def get_storage_scan_detail(
+    scan_id: int,
+    db: Session = Depends(get_db)
+):
+    """
+    Get detailed scan results including all cleanup candidates.
+
+    Args:
+        scan_id: Primary key of the scan
+        db: Database session
+
+    Returns:
+        StorageScanDetailResponse with scan metadata, candidates, and stats
+
+    Example:
+        ```bash
+        curl http://localhost:8000/storage/scans/123
+        ```
+    """
+    from .storage_optimizer.db import (
+        get_scan_by_id,
+        get_cleanup_candidates_by_scan,
+        get_candidate_stats_by_category
+    )
+
+    scan = get_scan_by_id(db, scan_id)
+    if not scan:
+        raise HTTPException(status_code=404, detail=f"Scan {scan_id} not found")
+
+    candidates = get_cleanup_candidates_by_scan(db, scan_id)
+    stats = get_candidate_stats_by_category(db, scan_id)
+
+    return schemas.StorageScanDetailResponse(
+        scan=scan,
+        candidates=candidates,
+        stats_by_category=stats
+    )
+
+
+@app.post("/storage/scans/{scan_id}/approve", dependencies=[Depends(verify_api_key)])
+def approve_cleanup_candidates(
+    scan_id: int,
+    request: schemas.ApprovalRequest,
+    db: Session = Depends(get_db)
+):
+    """
+    Approve or reject cleanup candidates for a specific scan.
+
+    Args:
+        scan_id: Scan ID containing the candidates
+        request: Approval decision (candidate_ids, approved_by, decision, notes)
+        db: Database session
+
+    Returns:
+        Approval decision record with metadata
+
+    Example:
+        ```bash
+        curl -X POST http://localhost:8000/storage/scans/123/approve \
+          -H "Content-Type: application/json" \
+          -d '{
+            "candidate_ids": [1, 2, 3, 4, 5],
+            "approved_by": "user@example.com",
+            "decision": "approve",
+            "approval_method": "api",
+            "notes": "Removing old dev_caches"
+          }'
+        ```
+    """
+    from .storage_optimizer.db import (
+        get_scan_by_id,
+        create_approval_decision
+    )
+
+    # Verify scan exists
+    scan = get_scan_by_id(db, scan_id)
+    if not scan:
+        raise HTTPException(status_code=404, detail=f"Scan {scan_id} not found")
+
+    # Validate decision
+    if request.decision not in ['approve', 'reject', 'defer']:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid decision: {request.decision}. Must be 'approve', 'reject', or 'defer'"
+        )
+
+    # Create approval decision
+    try:
+        approval = create_approval_decision(
+            db,
+            scan_id=scan_id,
+            candidate_ids=request.candidate_ids,
+            approved_by=request.approved_by,
+            decision=request.decision,
+            approval_method=request.approval_method,
+            notes=request.notes
+        )
+        db.commit()
+        db.refresh(approval)
+
+        return {
+            "approval_id": approval.id,
+            "scan_id": scan_id,
+            "decision": request.decision,
+            "total_candidates": approval.total_candidates,
+            "total_size_bytes": approval.total_size_bytes,
+            "approved_by": request.approved_by,
+            "approved_at": approval.approved_at
+        }
+
+    except ValueError as e:
+        db.rollback()
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Failed to create approval decision: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to create approval decision: {str(e)}")
+
+
+@app.post("/storage/scans/{scan_id}/execute", response_model=schemas.BatchExecutionResponse, dependencies=[Depends(verify_api_key)])
+def execute_approved_cleanup(
+    scan_id: int,
+    request: schemas.ExecutionRequest,
+    db: Session = Depends(get_db)
+):
+    """
+    Execute approved cleanup candidates (deletion or dry-run preview).
+
+    SAFETY:
+    - Only deletes candidates with approval_status='approved'
+    - Uses send2trash (Recycle Bin) instead of permanent deletion
+    - Double-checks protected paths before deletion
+    - Dry-run mode enabled by default for safety
+
+    Args:
+        scan_id: Scan ID to execute cleanup for
+        request: Execution configuration (dry_run, compress_before_delete, category)
+        db: Database session
+
+    Returns:
+        BatchExecutionResponse with execution statistics and results
+
+    Example:
+        ```bash
+        # Dry-run preview (no actual deletion)
+        curl -X POST http://localhost:8000/storage/scans/123/execute \
+          -H "Content-Type: application/json" \
+          -d '{
+            "dry_run": true,
+            "compress_before_delete": false
+          }'
+
+        # Execute approved deletions
+        curl -X POST http://localhost:8000/storage/scans/123/execute \
+          -H "Content-Type: application/json" \
+          -d '{
+            "dry_run": false,
+            "compress_before_delete": true,
+            "category": "dev_caches"
+          }'
+        ```
+    """
+    from .storage_optimizer.db import get_scan_by_id
+    from .storage_optimizer.executor import CleanupExecutor
+    from .storage_optimizer import load_policy
+
+    # Verify scan exists
+    scan = get_scan_by_id(db, scan_id)
+    if not scan:
+        raise HTTPException(status_code=404, detail=f"Scan {scan_id} not found")
+
+    # Load policy
+    policy = load_policy()
+
+    # Create executor
+    executor = CleanupExecutor(
+        policy=policy,
+        dry_run=request.dry_run,
+        compress_before_delete=request.compress_before_delete
+    )
+
+    # Execute cleanup
+    try:
+        batch_result = executor.execute_approved_candidates(
+            db,
+            scan_id=scan_id,
+            category=request.category
+        )
+
+        # Convert to response format
+        results = []
+        for result in batch_result.results:
+            results.append(schemas.ExecutionResultResponse(
+                candidate_id=result.candidate_id,
+                path=result.path,
+                status=result.status.value,
+                error=result.error,
+                freed_bytes=result.freed_bytes,
+                compressed_path=result.compressed_path
+            ))
+
+        return schemas.BatchExecutionResponse(
+            total_candidates=batch_result.total_candidates,
+            successful=batch_result.successful,
+            failed=batch_result.failed,
+            skipped=batch_result.skipped,
+            total_freed_bytes=batch_result.total_freed_bytes,
+            success_rate=batch_result.success_rate,
+            execution_duration_seconds=batch_result.execution_duration_seconds,
+            results=results
+        )
+
+    except Exception as e:
+        logger.error(f"Failed to execute cleanup for scan {scan_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to execute cleanup: {str(e)}")
+
+
 @app.get("/health")
 def health_check(db: Session = Depends(get_db)):
     """

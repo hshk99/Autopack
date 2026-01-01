@@ -37,6 +37,7 @@ COLLECTION_RUN_SUMMARIES = "run_summaries"
 COLLECTION_ERRORS_CI = "errors_ci"
 COLLECTION_DOCTOR_HINTS = "doctor_hints"
 COLLECTION_PLANNING = "planning"
+COLLECTION_SOT_DOCS = "sot_docs"
 
 ALL_COLLECTIONS = [
     COLLECTION_CODE_DOCS,
@@ -44,6 +45,7 @@ ALL_COLLECTIONS = [
     COLLECTION_ERRORS_CI,
     COLLECTION_DOCTOR_HINTS,
     COLLECTION_PLANNING,
+    COLLECTION_SOT_DOCS,
 ]
 
 _BOOL_TRUE = {"1", "true", "yes", "y", "on"}
@@ -781,6 +783,132 @@ class MemoryService:
         )
 
     # -------------------------------------------------------------------------
+    # SOT (Source of Truth) Indexing
+    # -------------------------------------------------------------------------
+
+    def index_sot_docs(
+        self,
+        project_id: str,
+        workspace_root: Path,
+    ) -> Dict[str, Any]:
+        """
+        Index SOT documentation files into vector memory.
+
+        Indexes the three canonical SOT ledgers:
+        - BUILD_HISTORY.md
+        - DEBUG_LOG.md
+        - ARCHITECTURE_DECISIONS.md
+
+        Args:
+            project_id: Project identifier
+            workspace_root: Path to project workspace root
+
+        Returns:
+            Dict with indexing statistics: {"indexed": N, "skipped": bool}
+        """
+        from .sot_indexing import chunk_sot_file
+        from ..config import settings
+
+        if not self.enabled:
+            return {"indexed": 0, "skipped": True, "reason": "memory_disabled"}
+
+        if not settings.autopack_enable_sot_memory_indexing:
+            return {"indexed": 0, "skipped": True, "reason": "sot_indexing_disabled"}
+
+        docs_dir = workspace_root / "docs"
+        if not docs_dir.exists():
+            return {"indexed": 0, "skipped": True, "reason": "docs_dir_not_found"}
+
+        # Define SOT files to index
+        sot_files = {
+            "BUILD_HISTORY.md": docs_dir / "BUILD_HISTORY.md",
+            "DEBUG_LOG.md": docs_dir / "DEBUG_LOG.md",
+            "ARCHITECTURE_DECISIONS.md": docs_dir / "ARCHITECTURE_DECISIONS.md",
+        }
+
+        indexed_count = 0
+        max_chars = settings.autopack_sot_chunk_max_chars
+        overlap_chars = settings.autopack_sot_chunk_overlap_chars
+
+        for sot_file, file_path in sot_files.items():
+            if not file_path.exists():
+                logger.debug(f"[MemoryService] SOT file not found: {sot_file}")
+                continue
+
+            # Chunk the file
+            chunk_docs = chunk_sot_file(
+                file_path,
+                project_id,
+                max_chars=max_chars,
+                overlap_chars=overlap_chars,
+            )
+
+            if not chunk_docs:
+                continue
+
+            # Create points with embeddings
+            points = []
+            for doc in chunk_docs:
+                try:
+                    vector = sync_embed_text(doc["content"])
+                    points.append({
+                        "id": doc["id"],
+                        "vector": vector,
+                        "payload": doc["metadata"],
+                    })
+                except Exception as e:
+                    logger.warning(f"[MemoryService] Failed to embed SOT chunk: {e}")
+                    continue
+
+            # Upsert to store
+            if points:
+                upserted = self._safe_store_call(
+                    f"index_sot_docs/{sot_file}/upsert",
+                    lambda: self.store.upsert(COLLECTION_SOT_DOCS, points),
+                    0,
+                )
+                indexed_count += len(points)
+                logger.info(f"[MemoryService] Indexed {len(points)} chunks from {sot_file}")
+
+        return {
+            "indexed": indexed_count,
+            "skipped": False,
+        }
+
+    def search_sot(
+        self,
+        query: str,
+        project_id: str,
+        limit: Optional[int] = None,
+    ) -> List[Dict[str, Any]]:
+        """
+        Search SOT docs collection.
+
+        Args:
+            query: Search query
+            project_id: Project to search within
+            limit: Max results (default: top_k from config)
+
+        Returns:
+            List of {"id", "score", "payload"} dicts
+        """
+        if not self.enabled:
+            return []
+
+        limit = limit or self.top_k
+        query_vector = sync_embed_text(query)
+        return self._safe_store_call(
+            "search_sot/search",
+            lambda: self.store.search(
+                COLLECTION_SOT_DOCS,
+                query_vector,
+                filter={"project_id": project_id},
+                limit=limit,
+            ),
+            [],
+        )
+
+    # -------------------------------------------------------------------------
     # Planning artifacts / plan changes / decision log
     # -------------------------------------------------------------------------
 
@@ -1030,6 +1158,7 @@ class MemoryService:
         include_planning: bool = False,
         include_plan_changes: bool = False,
         include_decisions: bool = False,
+        include_sot: bool = False,
     ) -> Dict[str, List[Dict[str, Any]]]:
         """
         Retrieve combined context from all collections.
@@ -1043,10 +1172,13 @@ class MemoryService:
             include_planning: Include planning artifacts
             include_plan_changes: Include most recent plan changes (recency-biased)
             include_decisions: Include decision logs
+            include_sot: Include SOT (Source of Truth) documentation chunks
 
         Returns:
-            Dict with keys: "code", "summaries", "errors", "hints", "planning", "plan_changes", "decisions"
+            Dict with keys: "code", "summaries", "errors", "hints", "planning", "plan_changes", "decisions", "sot"
         """
+        from ..config import settings
+
         if not self.enabled:
             return {
                 "code": [],
@@ -1056,6 +1188,7 @@ class MemoryService:
                 "planning": [],
                 "plan_changes": [],
                 "decisions": [],
+                "sot": [],
             }
 
         results = {}
@@ -1093,6 +1226,10 @@ class MemoryService:
                 types=["decision_log"],
             )
 
+        if include_sot and settings.autopack_sot_retrieval_enabled:
+            sot_limit = settings.autopack_sot_retrieval_top_k
+            results["sot"] = self.search_sot(query, project_id, limit=sot_limit)
+
         return results
 
     def format_retrieved_context(
@@ -1110,6 +1247,8 @@ class MemoryService:
         Returns:
             Formatted string for prompt inclusion
         """
+        from ..config import settings
+
         sections = []
         char_count = 0
 
@@ -1219,5 +1358,30 @@ class MemoryService:
                 char_count += len(entry)
             if len(decision_section) > 1:
                 sections.append("\n".join(decision_section))
+
+        # SOT documentation chunks (respects max_chars limit from settings)
+        if retrieved.get("sot"):
+            sot_section = ["## Relevant Documentation (SOT)"]
+            sot_max_chars = settings.autopack_sot_retrieval_max_chars
+            sot_char_count = 0
+
+            for item in retrieved["sot"]:
+                payload = item.get("payload", {})
+                sot_file = payload.get("sot_file", "unknown")
+                heading = payload.get("heading") or "No heading"
+                content_preview = payload.get("content_preview", "")[:600]
+
+                entry = f"### {sot_file} - {heading}\n```\n{content_preview}\n```"
+
+                # Check both global max_chars and SOT-specific max_chars
+                if (char_count + len(entry) > max_chars) or (sot_char_count + len(entry) > sot_max_chars):
+                    break
+
+                sot_section.append(entry)
+                char_count += len(entry)
+                sot_char_count += len(entry)
+
+            if len(sot_section) > 1:
+                sections.append("\n".join(sot_section))
 
         return "\n\n".join(sections) if sections else ""

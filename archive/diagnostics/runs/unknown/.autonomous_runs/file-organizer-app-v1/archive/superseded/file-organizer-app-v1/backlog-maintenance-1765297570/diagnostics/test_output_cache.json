@@ -1,8 +1,0 @@
-{
-  "5e23f0f09aeb": {
-    "name": "pytest -q tests/smoke/",
-    "status": "passed",
-    "stdout": "============================= test session starts =============================\nplatform win32 -- Python 3.12.3, pytest-8.2.1, pluggy-1.5.0\nrootdir: C:\\dev\\Autopack\nconfigfile: pytest.ini\nplugins: anyio-3.7.1, asyncio-1.3.0, cov-7.0.0, timeout-2.4.0\nasyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=function, asyncio_default_test_loop_scope=function\ncollected 5 items\n\ntests\\smoke\\test_basic.py .....                                          [100%]\n\n============================== warnings summary ===============================\n..\\..\\Python\\Lib\\site-packages\\starlette\\formparsers.py:10\n  C:\\Python\\Lib\\site-packages\\starlette\\formparsers.py:10: PendingDeprecationWarning: Please use `import python_multipart` instead.\n    import multipart\n\n-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html\n======================== 5 passed, 1 warning in 6.78s =========================\n",
-    "stderr": ""
-  }
-}

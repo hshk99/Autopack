@@ -19,10 +19,12 @@ from autopack.config import Settings
 from autopack.memory.memory_service import MemoryService
 from autopack.memory.sot_indexing import (
     chunk_sot_file,
+    chunk_sot_json,
     chunk_text,
     extract_heading_from_chunk,
     extract_timestamp_from_chunk,
     stable_chunk_id,
+    json_to_embedding_text,
 )
 
 
@@ -309,6 +311,264 @@ Test content.
         assert len(chunks1) == len(chunks2)
         for c1, c2 in zip(chunks1, chunks2):
             assert c1["id"] == c2["id"]
+
+
+class TestSOTJSONChunking:
+    """Test JSON SOT file chunking with field-selective embedding."""
+
+    def test_json_to_embedding_text_project_index(self):
+        """Test PROJECT_INDEX.json field extraction."""
+        obj = {
+            "project_name": "Test Project",
+            "description": "A test project for validation",
+            "setup": {
+                "commands": ["npm install", "npm run build"],
+                "dependencies": ["react", "typescript"]
+            },
+            "structure": {
+                "entrypoints": ["src/index.ts", "src/main.ts"]
+            },
+            "api": {
+                "summary": "REST API with GraphQL"
+            }
+        }
+
+        items = json_to_embedding_text(obj, "PROJECT_INDEX.json")
+
+        assert len(items) > 0
+        # Check that we extracted high-signal fields
+        key_paths = [item[0] for item in items]
+        assert "project_name" in key_paths
+        assert "description" in key_paths
+        assert "setup.commands" in key_paths
+        assert "api.summary" in key_paths
+
+    def test_json_to_embedding_text_learned_rules(self):
+        """Test LEARNED_RULES.json field extraction."""
+        obj = {
+            "rules": [
+                {
+                    "id": "R001",
+                    "title": "Always validate input",
+                    "rule": "Validate all user input before processing",
+                    "when": "Processing user data",
+                    "because": "Prevents injection attacks",
+                    "examples": ["SQL injection", "XSS attacks"]
+                }
+            ]
+        }
+
+        items = json_to_embedding_text(obj, "LEARNED_RULES.json")
+
+        assert len(items) > 0
+        # Should extract rule with ID
+        assert items[0][0] == "rules.R001"
+        # Should contain rule text
+        assert "R001" in items[0][1]
+        assert "validate input" in items[0][1].lower()
+
+    def test_chunk_sot_json_project_index(self, tmp_path):
+        """Test chunking PROJECT_INDEX.json file."""
+        json_file = tmp_path / "PROJECT_INDEX.json"
+        import json
+        content = {
+            "project_name": "Autopack",
+            "description": "Autonomous development framework",
+            "setup": {
+                "commands": ["pip install -e ."],
+                "dependencies": ["sqlalchemy", "pydantic"]
+            }
+        }
+        json_file.write_text(json.dumps(content), encoding="utf-8")
+
+        chunks = chunk_sot_json(json_file, "autopack", max_chars=500, overlap_chars=50)
+
+        assert len(chunks) > 0
+        # Each chunk should have required metadata
+        for chunk in chunks:
+            assert "id" in chunk
+            assert "content" in chunk
+            assert "metadata" in chunk
+            assert chunk["metadata"]["type"] == "sot"
+            assert chunk["metadata"]["sot_file"] == "PROJECT_INDEX.json"
+            assert "json_key_path" in chunk["metadata"]
+
+    def test_chunk_sot_json_windows_line_endings(self, tmp_path):
+        """Test that Windows line endings don't affect chunk IDs."""
+        import json
+        json_file = tmp_path / "test.json"
+
+        content = {"project_name": "Test"}
+
+        # Write with Unix line endings
+        json_file.write_text(json.dumps(content, indent=2), encoding="utf-8")
+        chunks1 = chunk_sot_json(json_file, "autopack")
+
+        # Write with Windows line endings
+        json_text = json.dumps(content, indent=2).replace("\n", "\r\n")
+        json_file.write_text(json_text, encoding="utf-8")
+        chunks2 = chunk_sot_json(json_file, "autopack")
+
+        # IDs should be same despite different line endings
+        assert len(chunks1) == len(chunks2)
+        for c1, c2 in zip(chunks1, chunks2):
+            assert c1["id"] == c2["id"]
+
+
+class TestSOTChunkingBoundaries:
+    """Test improved chunking boundary detection."""
+
+    def test_chunk_text_paragraph_boundary(self):
+        """Test that chunking prefers paragraph breaks."""
+        text = "First paragraph.\n\nSecond paragraph.\n\nThird paragraph."
+
+        chunks = chunk_text(text, max_chars=50, overlap_chars=10)
+
+        # Should break at paragraph boundaries when possible
+        assert len(chunks) > 1
+
+    def test_chunk_text_markdown_heading_boundary(self):
+        """Test that chunking breaks at markdown headings."""
+        text = """Some text here.
+
+# Heading 1
+
+Content under heading 1.
+
+## Heading 2
+
+More content here."""
+
+        chunks = chunk_text(text, max_chars=80, overlap_chars=15)
+
+        # Should break near headings
+        assert len(chunks) > 1
+
+    def test_chunk_text_question_exclamation_boundaries(self):
+        """Test that chunking handles ? and ! boundaries."""
+        text = "Question one? Question two! Statement three. " * 10
+
+        chunks = chunk_text(text, max_chars=100, overlap_chars=20)
+
+        assert len(chunks) > 1
+
+
+class TestSOTMultiProject:
+    """Test multi-project docs directory resolution."""
+
+    def test_index_sot_docs_with_explicit_docs_dir(self, tmp_path):
+        """Test indexing with explicit docs_dir parameter."""
+        # Create a sub-project docs dir
+        sub_docs = tmp_path / ".autonomous_runs" / "my-project" / "docs"
+        sub_docs.mkdir(parents=True)
+
+        (sub_docs / "BUILD_HISTORY.md").write_text("""
+### BUILD-001 | Sub-project build
+Content here.
+        """, encoding="utf-8")
+
+        with patch.dict(os.environ, {
+            "AUTOPACK_ENABLE_MEMORY": "true",
+            "AUTOPACK_ENABLE_SOT_MEMORY_INDEXING": "true",
+        }):
+            service = MemoryService(enabled=True, use_qdrant=False)
+
+            # Index with explicit docs_dir
+            result = service.index_sot_docs(
+                "my-project",
+                tmp_path,
+                docs_dir=sub_docs
+            )
+
+            assert result["skipped"] is False
+            assert result["indexed"] > 0
+
+    def test_index_sot_docs_fallback_to_default(self, tmp_path):
+        """Test that docs_dir defaults to workspace_root/docs."""
+        docs_dir = tmp_path / "docs"
+        docs_dir.mkdir()
+
+        (docs_dir / "BUILD_HISTORY.md").write_text("""
+### BUILD-001 | Default location
+Content.
+        """, encoding="utf-8")
+
+        with patch.dict(os.environ, {
+            "AUTOPACK_ENABLE_MEMORY": "true",
+            "AUTOPACK_ENABLE_SOT_MEMORY_INDEXING": "true",
+        }):
+            service = MemoryService(enabled=True, use_qdrant=False)
+
+            # Index without explicit docs_dir
+            result = service.index_sot_docs("autopack", tmp_path)
+
+            assert result["skipped"] is False
+            assert result["indexed"] > 0
+
+
+class TestSOTSkipExisting:
+    """Test that re-indexing skips existing chunks."""
+
+    def test_reindex_skips_existing_chunks(self, tmp_path):
+        """Test that second indexing skips unchanged chunks."""
+        docs_dir = tmp_path / "docs"
+        docs_dir.mkdir()
+
+        (docs_dir / "BUILD_HISTORY.md").write_text("""
+### BUILD-001 | Test Build
+Test content for skip test.
+        """, encoding="utf-8")
+
+        with patch.dict(os.environ, {
+            "AUTOPACK_ENABLE_MEMORY": "true",
+            "AUTOPACK_ENABLE_SOT_MEMORY_INDEXING": "true",
+        }):
+            service = MemoryService(enabled=True, use_qdrant=False)
+
+            # First index
+            result1 = service.index_sot_docs("autopack", tmp_path)
+            indexed_first = result1["indexed"]
+
+            # Second index (should skip existing)
+            result2 = service.index_sot_docs("autopack", tmp_path)
+            indexed_second = result2["indexed"]
+
+            # Second run should index 0 new chunks (all already exist)
+            assert indexed_second == 0
+
+
+class TestSOT6FileSupport:
+    """Test that all 6 SOT files are indexed."""
+
+    def test_all_6_sot_files_indexed(self, tmp_path):
+        """Test that markdown and JSON SOT files are all indexed."""
+        import json
+        docs_dir = tmp_path / "docs"
+        docs_dir.mkdir()
+
+        # Create all 6 SOT files
+        (docs_dir / "BUILD_HISTORY.md").write_text("# Build History\nContent.", encoding="utf-8")
+        (docs_dir / "DEBUG_LOG.md").write_text("# Debug Log\nContent.", encoding="utf-8")
+        (docs_dir / "ARCHITECTURE_DECISIONS.md").write_text("# Architecture\nContent.", encoding="utf-8")
+        (docs_dir / "FUTURE_PLAN.md").write_text("# Future Plan\nContent.", encoding="utf-8")
+
+        (docs_dir / "PROJECT_INDEX.json").write_text(
+            json.dumps({"project_name": "Test"}), encoding="utf-8"
+        )
+        (docs_dir / "LEARNED_RULES.json").write_text(
+            json.dumps({"rules": [{"id": "R1", "title": "Test Rule", "rule": "Test"}]}), encoding="utf-8"
+        )
+
+        with patch.dict(os.environ, {
+            "AUTOPACK_ENABLE_MEMORY": "true",
+            "AUTOPACK_ENABLE_SOT_MEMORY_INDEXING": "true",
+        }):
+            service = MemoryService(enabled=True, use_qdrant=False)
+            result = service.index_sot_docs("autopack", tmp_path)
+
+            # Should index chunks from all 6 files
+            assert result["skipped"] is False
+            assert result["indexed"] >= 6  # At least one chunk per file
 
 
 if __name__ == "__main__":

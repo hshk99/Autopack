@@ -1797,7 +1797,143 @@ Operators must run `python scripts/migrations/add_token_efficiency_idempotency_i
 
 **SOT Updates**: BUILD_HISTORY.md (this entry), README.md (P17.x completion noted in Latest Highlights)
 
-**See Also**: 
+**See Also**:
 - `docs/P17X_PROD_POLISH_FOLLOWUPS.md` (task specification)
 - `docs/DB_IDEMPOTENCY_HARDENING_PLAN.md` (original P17.x design)
+- `scripts/migrations/add_token_efficiency_idempotency_index_build146_p17x.py` (migration script)
+
+
+### BUILD-146 Phase A P11 | 2026-01-01 | SOT Runtime + Model Intelligence - Memory Integration Completion ✅
+**Phase ID**: phase-a-p11-observability
+**Status**: ✅ Complete
+**Category**: Feature
+**Implementation Summary**:
+
+Closed critical gaps in SOT (Source of Truth) memory integration and added model intelligence operational workflows. All features remain **opt-in by default** with strict resource bounds.
+
+**Context**: SOT retrieval infrastructure existed since BUILD-145 but was never wired into the executor (dead code). This build makes SOT retrieval operational, expands coverage to all 6 canonical SOT files, and adds model intelligence workflows for catalog freshness and deprecated model auditing.
+
+**Changes Implemented**:
+
+**Part 1: SOT Retrieval Runtime Wiring** (`src/autopack/autonomous_executor.py` lines 4086, 5486, 6094, 6482):
+- Added `include_sot=bool(settings.autopack_sot_retrieval_enabled)` to all 4 `retrieve_context()` calls
+- SOT retrieval now operational when `AUTOPACK_SOT_RETRIEVAL_ENABLED=true`
+- Default behavior unchanged (disabled)
+- Formatted context includes "Relevant Documentation (SOT)" section when enabled
+
+**Part 2: Optional Startup SOT Indexing** (`src/autopack/autonomous_executor.py` lines 279, 7857-7902):
+- Added `_maybe_index_sot_docs()` method called once at executor initialization
+- Guarded by `AUTOPACK_ENABLE_SOT_MEMORY_INDEXING=true` (opt-in)
+- Indexes all SOT docs at startup when both memory and SOT indexing enabled
+- Failures logged as warnings (non-blocking)
+- Logs configuration, start, completion, and skip reasons for operator visibility
+
+**Part 3: Multi-Project Docs Directory Resolution** (`src/autopack/memory/memory_service.py` line 793, `src/autopack/autonomous_executor.py` line 7823):
+- Added `docs_dir: Optional[Path]` parameter to `MemoryService.index_sot_docs()`
+- Added `_resolve_project_docs_dir()` method to executor
+- Supports both repo root (`<workspace>/docs`) and sub-projects (`<workspace>/.autonomous_runs/<project>/docs`)
+- Defaults to `workspace_root/docs` when not specified
+- Graceful fallback with warning if sub-project docs dir missing
+
+**Part 4: Expand SOT Coverage to 6 Files** (`src/autopack/memory/sot_indexing.py` lines 205-368, `src/autopack/memory/memory_service.py` lines 827-925):
+- Extended indexing from 3 → 6 SOT files:
+  - **Markdown**: BUILD_HISTORY.md, DEBUG_LOG.md, ARCHITECTURE_DECISIONS.md, FUTURE_PLAN.md
+  - **JSON** (field-selective): PROJECT_INDEX.json, LEARNED_RULES.json
+- Implemented `json_to_embedding_text()` with field-selective extraction (no raw JSON blobs)
+- Implemented `chunk_sot_json()` for JSON chunking with stable IDs
+- Normalized line endings (`\r\n` → `\n`) before hashing for Windows safety
+- **JSON Field Extraction**:
+  - **PROJECT_INDEX.json**: `project_name`, `description`, `setup.commands`, `setup.dependencies`, `structure.entrypoints`, `api.summary`
+  - **LEARNED_RULES.json**: Each rule's `id`, `title`, `rule`, `when`, `because`, `examples` (truncated to avoid bloat)
+
+**Part 5: Skip Re-Embedding Existing Chunks** (`src/autopack/memory/memory_service.py` lines 862-889, 918-945):
+- Added `get_payload()` check before embedding each chunk
+- Skips embedding if point already exists in vector store
+- Works with both Qdrant and FAISS backends
+- Logs count of skipped chunks
+- Re-indexing unchanged docs no longer performs N embedding calls (cost-efficient)
+
+**Part 6: Improved Chunking Boundaries** (`src/autopack/memory/sot_indexing.py` lines 41-78):
+- Enhanced `chunk_text()` to prefer natural boundaries in order:
+  1. Double newline (paragraph breaks)
+  2. Markdown headings (`\n#`)
+  3. Sentence endings (`. `, `? `, `! `)
+- Previously only broke at sentence periods
+- Improves chunk coherence and retrieval quality
+
+**Part 7: Operator Visibility** (`src/autopack/autonomous_executor.py` lines 7866-7902):
+- Enhanced `_maybe_index_sot_docs()` logging:
+  - Logs SOT configuration at startup (indexing/retrieval/memory enabled states)
+  - Logs indexing start (project_id, docs_dir)
+  - Logs indexing completion (chunk count)
+  - Logs skip reasons if applicable
+- Log format: `[SOT] Configuration: indexing_enabled=true, retrieval_enabled=true, memory_enabled=true`
+- No dashboard changes needed (kept minimal)
+
+**Part 8: Model Intelligence Guardrails + Workflows** (`scripts/model_intel.py` lines 242-350, `scripts/model_audit.py` no changes):
+- **Guardrail**: Existing `scripts/model_audit.py` already supports `--fail-on` for CI enforcement (no changes needed)
+- **Freshness Workflow**: Added `refresh-all` command to `scripts/model_intel.py`
+  - Runs `ingest-catalog` + `compute-runtime-stats` in one command
+  - Safe by default (requires explicit `DATABASE_URL`)
+  - Displays next steps after completion
+- Usage:
+  ```bash
+  # Audit for deprecated models (CI-ready)
+  python scripts/model_audit.py --glob "src/**/*.py" --fail-on "glm-4.6"
+
+  # Refresh model intelligence data
+  DATABASE_URL="postgresql://..." python scripts/model_intel.py refresh-all --window-days 30
+  ```
+
+**Constraints Satisfied**:
+- ✅ **Opt-in only**: All features disabled by default (AUTOPACK_SOT_RETRIEVAL_ENABLED, AUTOPACK_ENABLE_SOT_MEMORY_INDEXING)
+- ✅ **Bounded outputs**: SOT retrieval respects `AUTOPACK_SOT_RETRIEVAL_MAX_CHARS`
+- ✅ **Idempotent**: Stable chunk IDs (content hash) + skip-existing prevents duplicates
+- ✅ **Multi-project correct**: Works for root and sub-project docs dirs
+- ✅ **Windows-safe**: Line endings normalized before hashing
+- ✅ **No info deletion**: Indexing is additive only
+
+**Test Coverage** (`tests/test_sot_memory_indexing.py`, 11 new tests):
+1. **TestSOTJSONChunking**: JSON field extraction and chunking
+2. **TestSOTChunkingBoundaries**: Enhanced boundary detection (paragraphs, headings, punctuation)
+3. **TestSOTMultiProject**: Multi-project docs directory resolution
+4. **TestSOTSkipExisting**: Re-indexing skips existing chunks
+5. **TestSOT6FileSupport**: All 6 SOT files indexed
+- All tests use mocked embeddings (no Qdrant required)
+- Existing tests remain passing (backward compatibility maintained)
+
+**Impact**:
+- **Before**: SOT retrieval code existed but was never called → dead code
+- **Before**: Only 3 SOT files indexed (missing FUTURE_PLAN, PROJECT_INDEX, LEARNED_RULES)
+- **Before**: No multi-project support
+- **Before**: Re-indexing re-embedded all chunks → unnecessary API costs
+- **Before**: Poor chunking boundaries (only sentence periods)
+- **Before**: No operator visibility into SOT status
+- **Before**: Manual model intelligence refresh
+- **After**: ✅ SOT retrieval fully operational (when enabled)
+- **After**: ✅ All 6 canonical SOT files indexed with field-selective JSON handling
+- **After**: ✅ Multi-project correct (root + sub-projects)
+- **After**: ✅ Re-indexing skips existing chunks → cost-efficient
+- **After**: ✅ Improved chunking at natural boundaries (paragraphs, headings, punctuation)
+- **After**: ✅ Clear logging for operators
+- **After**: ✅ One-command model intelligence refresh
+
+**Files Modified**:
+- `src/autopack/autonomous_executor.py` (Parts 1, 2, 3, 7)
+- `src/autopack/memory/memory_service.py` (Parts 3, 4, 5)
+- `src/autopack/memory/sot_indexing.py` (Parts 4, 6)
+- `scripts/model_intel.py` (Part 8: refresh-all command)
+- `tests/test_sot_memory_indexing.py` (11 new tests)
+
+**Documentation**:
+- `docs/IMPLEMENTATION_SUMMARY_SOT_RUNTIME_MODEL_INTEL.md` (comprehensive implementation summary)
+- `docs/IMPROVEMENTS_PLAN_SOT_RUNTIME_AND_MODEL_INTEL.md` (original plan)
+
+**Dependencies**: BUILD-145 (SOT retrieval infrastructure)
+
+**SOT Updates**: BUILD_HISTORY.md (this entry), README.md (Latest Highlights updated), IMPLEMENTATION_SUMMARY_SOT_RUNTIME_MODEL_INTEL.md (comprehensive details)
+
+**See Also**:
+- `docs/IMPROVEMENTS_PLAN_SOT_RUNTIME_AND_MODEL_INTEL.md` (original plan)
+- `docs/IMPLEMENTATION_SUMMARY_SOT_RUNTIME_MODEL_INTEL.md` (detailed implementation summary)
 - `scripts/migrations/add_token_efficiency_idempotency_index_build146_p17x.py` (migration script)

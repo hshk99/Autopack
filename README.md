@@ -58,26 +58,27 @@ In practice, “autonomous” requires that each phase has:
 
 ### Latest Highlights (Last 3 Builds)
 
+#### 2026-01-01: BUILD-146 Phase A P11 - SOT Runtime + Model Intelligence ✅
+**Memory Integration: Full SOT Wiring + 6-File Coverage + Model Intelligence Workflows**
+- SOT retrieval now operational in executor (closes primary runtime gap)
+- Expanded SOT coverage from 3 → 6 files (markdown + JSON with field-selective embedding)
+- Multi-project docs directory support (root + sub-projects)
+- Re-indexing optimized (skips existing chunks, Windows-safe line endings)
+- Enhanced chunking boundaries (paragraphs, headings, punctuation)
+- Model intelligence workflows: audit guardrails + one-command refresh
+- See [BUILD_HISTORY.md](docs/BUILD_HISTORY.md#build-146-phase-a-p11) for full details
+
 #### 2026-01-01: BUILD-146 Phase A P17.x - DB Idempotency Hardening ✅
 **Production Polish: Operator Guidance + Optional Postgres Validation**
 - Enhanced smoke test with database context hints (PostgreSQL vs SQLite clarity)
 - Rollout checklist explicit index verification step (Stage 0 pre-production validation)
 - Optional Postgres integration test validates real DB enforcement (4 tests, opt-in by default)
-- Zero CI noise: tests skip cleanly on SQLite, run only with `DATABASE_URL=postgresql://`
 - See [BUILD_HISTORY.md](docs/BUILD_HISTORY.md#build-146-phase-a-p17x) for full details
 
 #### 2025-12-31: BUILD-146 Phase A P16+ - Windows/Test Hardening ✅
 **Production Reliability: UTF-8 + In-Memory DB Safety**
 - Windows UTF-8 encoding safety in calibration tests
 - In-memory SQLite default for test isolation (prevents accidental Postgres dependency)
-- MemoryService validation test for error handling
-- See [BUILD_HISTORY.md](docs/BUILD_HISTORY.md#build-146-phase-a-p16) for full details
-
-#### 2025-12-31: BUILD-146 Phase A P16 - Research Implementation & 3-Gate CI ✅
-**Production Hardening: Research Module Implementation & CI Maturity**
-- Research module full integration with evidence-backed second opinion system
-- Three-gate CI maturity (phase gate → auditor gate → CI gate)
-- Token efficiency telemetry with calibrated estimation
 - See [BUILD_HISTORY.md](docs/BUILD_HISTORY.md#build-146-phase-a-p16) for full details
 
 **Prior updates**: See [docs/CHANGELOG.md](docs/CHANGELOG.md) for the complete version history from v0.4.6 through BUILD-145.

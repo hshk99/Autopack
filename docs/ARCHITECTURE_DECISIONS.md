@@ -1,8 +1,8 @@
 # Architecture Decisions - Design Rationale
 
 <!-- META
-Last_Updated: 2025-12-13T18:52:02.204139Z
-Total_Decisions: 10
+Last_Updated: 2026-01-01T00:00:00.000000Z
+Total_Decisions: 11
 Format_Version: 2.0
 Auto_Generated: True
 Sources: CONSOLIDATED_STRATEGY, CONSOLIDATED_REFERENCE, archive/
@@ -12,6 +12,7 @@ Sources: CONSOLIDATED_STRATEGY, CONSOLIDATED_REFERENCE, archive/
 
 | Timestamp | DEC-ID | Decision | Status | Impact |
 |-----------|--------|----------|--------|--------|
+| 2026-01-01 | DEC-011 | SOT Memory Integration - Field-Selective JSON Embedding | ✅ Implemented | Memory Cost |
 | 2025-12-13 | DEC-003 | Manual Tidy Function - Complete Guide | ✅ Implemented |  |
 | 2025-12-13 | DEC-001 | Archive Directory Cleanup Plan | ✅ Implemented |  |
 | 2025-12-13 | DEC-002 | Automated Research Workflow - Implementation Compl | ✅ Implemented |  |
@@ -24,6 +25,70 @@ Sources: CONSOLIDATED_STRATEGY, CONSOLIDATED_REFERENCE, archive/
 | 2025-12-09 | DEC-007 | Documentation Consolidation Implementation Plan | ✅ Implemented |  |
 
 ## DECISIONS (Reverse Chronological)
+
+### DEC-011 | 2026-01-01T00:00 | SOT Memory Integration - Field-Selective JSON Embedding
+**Status**: ✅ Implemented
+**Build**: BUILD-146 Phase A P11
+**Context**: Expanding SOT indexing from 3 → 6 files required handling JSON sources (PROJECT_INDEX.json, LEARNED_RULES.json)
+
+**Decision**: Implement field-selective JSON embedding rather than embedding full JSON blobs
+
+**Chosen Approach**:
+- Extract high-signal fields from JSON into natural language fragments
+- Embed only extracted text (not raw JSON structure)
+- Each field becomes a separate chunk with metadata tracking key path
+- **PROJECT_INDEX.json fields**: `project_name`, `description`, `setup.commands`, `setup.dependencies`, `structure.entrypoints`, `api.summary`
+- **LEARNED_RULES.json fields**: Per-rule extraction of `id`, `title`, `rule`, `when`, `because`, `examples` (truncated)
+- Transform to natural language: `"Project: Autopack"`, `"Rule rule_001: Always validate inputs | When: ..."`
+
+**Alternatives Considered**:
+
+1. **Embed Full JSON Blobs**:
+   - ❌ Rejected: Poor retrieval quality (JSON syntax noise dominates embeddings)
+   - ❌ Token bloat: Full PROJECT_INDEX.json could be 10K+ tokens
+   - ❌ Semantic mismatch: Embedding `{"dependencies": ["react", "typescript"]}` vs. `"Dependencies: react, typescript"`
+
+2. **Flatten JSON to Key-Value Pairs**:
+   - ❌ Rejected: Still includes low-signal fields (`version`, `last_updated`, nested IDs)
+   - ❌ No semantic structure: `api.endpoints[3].method` vs. `"API: REST endpoints with GraphQL support"`
+
+3. **Manual Curated Summaries**:
+   - ❌ Rejected: Requires manual maintenance when JSON schema changes
+   - ❌ No programmatic consistency across projects
+
+**Rationale**:
+- **Embedding quality**: Natural language fragments match retrieval queries better than JSON syntax
+- **Bounded output**: Field-selective extraction prevents prompt bloat (only high-signal fields indexed)
+- **Maintainability**: Programmatic extraction scales to new JSON files with minimal code changes
+- **Cost efficiency**: Skip low-signal fields → fewer chunks → lower embedding/storage costs
+- **Retrieval precision**: Key path metadata (`json_key_path: "rules.rule_001"`) enables targeted debugging
+
+**Implementation**:
+- `sot_indexing.py:json_to_embedding_text()`: Maps file name → field extraction strategy
+- `sot_indexing.py:chunk_sot_json()`: Wraps extraction with stable chunk ID generation
+- `memory_service.py:index_sot_docs()`: Separate processing for markdown vs. JSON files
+- Truncation safety: Fields truncated to `max_chars` if individual field exceeds limit
+
+**Constraints Satisfied**:
+- ✅ Bounded outputs: Each field limited to max_chars (default 1200)
+- ✅ Opt-in: Indexing only occurs when `AUTOPACK_ENABLE_SOT_MEMORY_INDEXING=true`
+- ✅ Idempotent: Stable chunk IDs with content hash (re-indexing skips existing chunks)
+- ✅ No prompt bloat: Only high-signal fields embedded (not full JSON)
+
+**Impact**:
+- **Memory cost**: ~50-100 chunks for typical PROJECT_INDEX.json + LEARNED_RULES.json (vs. 1000+ for full JSON)
+- **Retrieval quality**: Natural language queries like "what are the project dependencies?" return relevant chunks
+- **Extensibility**: Adding new JSON files requires ~20 lines of field extraction logic
+
+**Future Considerations**:
+- If JSON schemas stabilize, consider schema-driven extraction (declarative field mappings)
+- For very large JSON files (>100 rules), consider pagination/sampling strategies
+- Monitor retrieval quality to adjust field selection
+
+**References**:
+- Implementation: `src/autopack/memory/sot_indexing.py` (lines 205-368)
+- Tests: `tests/test_sot_memory_indexing.py::TestSOTJSONChunking`
+- Plan: `docs/IMPROVEMENTS_PLAN_SOT_RUNTIME_AND_MODEL_INTEL.md` (Part 4)
 
 ### DEC-003 | 2025-12-13T09:51 | Manual Tidy Function - Complete Guide
 **Status**: ✅ Implemented

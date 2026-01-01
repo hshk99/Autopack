@@ -790,23 +790,28 @@ class MemoryService:
         self,
         project_id: str,
         workspace_root: Path,
+        docs_dir: Optional[Path] = None,
     ) -> Dict[str, Any]:
         """
         Index SOT documentation files into vector memory.
 
-        Indexes the three canonical SOT ledgers:
+        Indexes the canonical SOT files:
         - BUILD_HISTORY.md
         - DEBUG_LOG.md
         - ARCHITECTURE_DECISIONS.md
+        - FUTURE_PLAN.md
+        - PROJECT_INDEX.json (field-selective)
+        - LEARNED_RULES.json (field-selective)
 
         Args:
             project_id: Project identifier
             workspace_root: Path to project workspace root
+            docs_dir: Optional explicit docs directory path (defaults to workspace_root/docs)
 
         Returns:
             Dict with indexing statistics: {"indexed": N, "skipped": bool}
         """
-        from .sot_indexing import chunk_sot_file
+        from .sot_indexing import chunk_sot_file, chunk_sot_json
         from ..config import settings
 
         if not self.enabled:
@@ -815,22 +820,30 @@ class MemoryService:
         if not settings.autopack_enable_sot_memory_indexing:
             return {"indexed": 0, "skipped": True, "reason": "sot_indexing_disabled"}
 
-        docs_dir = workspace_root / "docs"
+        docs_dir = docs_dir or (workspace_root / "docs")
         if not docs_dir.exists():
             return {"indexed": 0, "skipped": True, "reason": "docs_dir_not_found"}
 
-        # Define SOT files to index
-        sot_files = {
+        # Define SOT files to index (markdown files)
+        sot_markdown_files = {
             "BUILD_HISTORY.md": docs_dir / "BUILD_HISTORY.md",
             "DEBUG_LOG.md": docs_dir / "DEBUG_LOG.md",
             "ARCHITECTURE_DECISIONS.md": docs_dir / "ARCHITECTURE_DECISIONS.md",
+            "FUTURE_PLAN.md": docs_dir / "FUTURE_PLAN.md",
+        }
+
+        # Define SOT JSON files (use field-selective chunking)
+        sot_json_files = {
+            "PROJECT_INDEX.json": docs_dir / "PROJECT_INDEX.json",
+            "LEARNED_RULES.json": docs_dir / "LEARNED_RULES.json",
         }
 
         indexed_count = 0
         max_chars = settings.autopack_sot_chunk_max_chars
         overlap_chars = settings.autopack_sot_chunk_overlap_chars
 
-        for sot_file, file_path in sot_files.items():
+        # Index markdown files
+        for sot_file, file_path in sot_markdown_files.items():
             if not file_path.exists():
                 logger.debug(f"[MemoryService] SOT file not found: {sot_file}")
                 continue
@@ -846,10 +859,22 @@ class MemoryService:
             if not chunk_docs:
                 continue
 
-            # Create points with embeddings
+            # Create points with embeddings (skip existing chunks to avoid re-embedding)
             points = []
+            skipped_existing = 0
             for doc in chunk_docs:
                 try:
+                    # Check if point already exists
+                    existing = self._safe_store_call(
+                        f"index_sot_docs/{sot_file}/get_payload",
+                        lambda: self.store.get_payload(COLLECTION_SOT_DOCS, doc["id"]),
+                        None,
+                    )
+                    if existing:
+                        skipped_existing += 1
+                        continue
+
+                    # Embed and add to points
                     vector = sync_embed_text(doc["content"])
                     points.append({
                         "id": doc["id"],
@@ -860,6 +885,9 @@ class MemoryService:
                     logger.warning(f"[MemoryService] Failed to embed SOT chunk: {e}")
                     continue
 
+            if skipped_existing > 0:
+                logger.debug(f"[MemoryService] Skipped {skipped_existing} existing chunks from {sot_file}")
+
             # Upsert to store
             if points:
                 upserted = self._safe_store_call(
@@ -869,6 +897,62 @@ class MemoryService:
                 )
                 indexed_count += len(points)
                 logger.info(f"[MemoryService] Indexed {len(points)} chunks from {sot_file}")
+
+        # Index JSON files with field-selective chunking
+        for sot_file, file_path in sot_json_files.items():
+            if not file_path.exists():
+                logger.debug(f"[MemoryService] SOT file not found: {sot_file}")
+                continue
+
+            # Chunk the JSON file
+            chunk_docs = chunk_sot_json(
+                file_path,
+                project_id,
+                max_chars=max_chars,
+                overlap_chars=overlap_chars,
+            )
+
+            if not chunk_docs:
+                continue
+
+            # Create points with embeddings (skip existing chunks to avoid re-embedding)
+            points = []
+            skipped_existing = 0
+            for doc in chunk_docs:
+                try:
+                    # Check if point already exists
+                    existing = self._safe_store_call(
+                        f"index_sot_docs/{sot_file}/get_payload",
+                        lambda: self.store.get_payload(COLLECTION_SOT_DOCS, doc["id"]),
+                        None,
+                    )
+                    if existing:
+                        skipped_existing += 1
+                        continue
+
+                    # Embed and add to points
+                    vector = sync_embed_text(doc["content"])
+                    points.append({
+                        "id": doc["id"],
+                        "vector": vector,
+                        "payload": doc["metadata"],
+                    })
+                except Exception as e:
+                    logger.warning(f"[MemoryService] Failed to embed SOT JSON chunk: {e}")
+                    continue
+
+            if skipped_existing > 0:
+                logger.debug(f"[MemoryService] Skipped {skipped_existing} existing JSON chunks from {sot_file}")
+
+            # Upsert to store
+            if points:
+                upserted = self._safe_store_call(
+                    f"index_sot_docs/{sot_file}/upsert",
+                    lambda: self.store.upsert(COLLECTION_SOT_DOCS, points),
+                    0,
+                )
+                indexed_count += len(points)
+                logger.info(f"[MemoryService] Indexed {len(points)} JSON chunks from {sot_file}")
 
         return {
             "indexed": indexed_count,

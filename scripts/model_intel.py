@@ -10,6 +10,7 @@ Commands:
 - recommend: Generate recommendations for a use case
 - report: Display latest recommendations
 - propose-patch: Generate YAML patch for a recommendation
+- refresh-all: Refresh catalog + runtime stats in one command
 
 Usage:
     python scripts/model_intel.py ingest-catalog
@@ -18,6 +19,7 @@ Usage:
     python scripts/model_intel.py recommend --use-case tidy_semantic
     python scripts/model_intel.py report --latest
     python scripts/model_intel.py propose-patch --recommendation-id <id>
+    python scripts/model_intel.py refresh-all --window-days 30
 """
 
 import argparse
@@ -239,6 +241,42 @@ def cmd_propose_patch(args):
         sys.exit(1)
 
 
+def cmd_refresh_all(args):
+    """Refresh all model intelligence data (catalog + runtime stats)."""
+    print("=" * 70)
+    print("Model Intelligence: Refresh All")
+    print("=" * 70)
+
+    # Step 1: Ingest catalog
+    print("\n[1/2] Ingesting catalog...")
+    try:
+        results = ingest_all()
+        print(f"  ✓ Models ingested: {results['catalog']}")
+        print(f"  ✓ Pricing records ingested: {results['pricing']}")
+    except Exception as e:
+        print(f"  ✗ Catalog ingestion failed: {e}")
+        import traceback
+        traceback.print_exc()
+        sys.exit(1)
+
+    # Step 2: Compute runtime stats
+    print(f"\n[2/2] Computing runtime stats (window: {args.window_days} days)...")
+    try:
+        with get_model_intelligence_session() as session:
+            count = compute_runtime_stats(session, window_days=args.window_days)
+            print(f"  ✓ Stats records created: {count}")
+    except Exception as e:
+        print(f"  ✗ Runtime stats computation failed: {e}")
+        import traceback
+        traceback.print_exc()
+        sys.exit(1)
+
+    print("\n✓ Refresh complete!")
+    print(f"  - Next steps:")
+    print(f"    • Review recommendations: python scripts/model_intel.py report --latest")
+    print(f"    • Generate new recommendations: python scripts/model_intel.py recommend --use-case <use_case> --current-model <model>")
+
+
 def main():
     """Main CLI entry point."""
     parser = argparse.ArgumentParser(
@@ -306,6 +344,14 @@ def main():
     parser_patch.add_argument("--recommendation-id", type=int, required=True, help="Recommendation ID")
     parser_patch.add_argument("--output", help="Write patch to file")
 
+    # refresh-all command
+    parser_refresh = subparsers.add_parser(
+        "refresh-all", help="Refresh all model intelligence data (catalog + runtime stats)"
+    )
+    parser_refresh.add_argument(
+        "--window-days", type=int, default=30, help="Rolling window in days for runtime stats (default: 30)"
+    )
+
     args = parser.parse_args()
 
     if not args.command:
@@ -325,6 +371,8 @@ def main():
         cmd_report(args)
     elif args.command == "propose-patch":
         cmd_propose_patch(args)
+    elif args.command == "refresh-all":
+        cmd_refresh_all(args)
 
 
 if __name__ == "__main__":

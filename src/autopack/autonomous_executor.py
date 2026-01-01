@@ -275,6 +275,9 @@ class AutonomousExecutor:
             logger.warning(f"MemoryService initialization failed, running without memory: {e}")
             self.memory_service = None
 
+        # Optional: Index SOT docs at startup if enabled
+        self._maybe_index_sot_docs()
+
         # Run file layout + diagnostics directories
         # Project ID is auto-detected from run_id prefix by RunFileLayout
         self.project_id = self._detect_project_id(self.run_id)
@@ -4083,6 +4086,7 @@ Just the new description that should replace the current one while preserving th
                         include_planning=True,
                         include_plan_changes=True,
                         include_decisions=True,
+                        include_sot=bool(settings.autopack_sot_retrieval_enabled),
                     )
                     retrieved_context = self.memory_service.format_retrieved_context(retrieved, max_chars=4000)
                     if retrieved_context:
@@ -5482,6 +5486,7 @@ Just the new description that should replace the current one while preserving th
                     include_planning=True,
                     include_plan_changes=True,
                     include_decisions=True,
+                    include_sot=bool(settings.autopack_sot_retrieval_enabled),
                 )
                 retrieved_context = self.memory_service.format_retrieved_context(retrieved, max_chars=4000)
                 if retrieved_context:
@@ -6092,6 +6097,7 @@ Just the new description that should replace the current one while preserving th
                     include_planning=True,
                     include_plan_changes=True,
                     include_decisions=True,
+                    include_sot=bool(settings.autopack_sot_retrieval_enabled),
                 )
                 retrieved_context = self.memory_service.format_retrieved_context(retrieved, max_chars=4000)
                 if retrieved_context:
@@ -6480,6 +6486,7 @@ Just the new description that should replace the current one while preserving th
                     include_planning=True,
                     include_plan_changes=True,
                     include_decisions=True,
+                    include_sot=bool(settings.autopack_sot_retrieval_enabled),
                 )
                 retrieved_context = self.memory_service.format_retrieved_context(retrieved, max_chars=4000)
                 if retrieved_context:
@@ -7815,6 +7822,84 @@ Just the new description that should replace the current one while preserving th
 
         # Default to Autopack framework
         return "autopack"
+
+    def _resolve_project_docs_dir(self, project_id: str) -> Path:
+        """Resolve the correct docs directory for a project.
+
+        Args:
+            project_id: Project identifier (e.g., 'autopack', 'telemetry-collection-v5')
+
+        Returns:
+            Path to the project's docs directory
+
+        Notes:
+            - For repo-root projects (project_id == 'autopack'), uses <workspace>/docs
+            - For sub-projects, checks <workspace>/.autonomous_runs/<project_id>/docs
+            - Falls back to <workspace>/docs with a warning if sub-project docs not found
+        """
+        ws = Path(self.workspace)
+
+        # Check for sub-project docs directory
+        candidate = ws / ".autonomous_runs" / project_id / "docs"
+        if candidate.exists():
+            logger.debug(f"[Executor] Using sub-project docs dir: {candidate}")
+            return candidate
+
+        # Fallback to root docs directory
+        root_docs = ws / "docs"
+        if not candidate.exists() and project_id != "autopack":
+            logger.warning(
+                f"[Executor] Sub-project docs dir not found: {candidate}, "
+                f"falling back to {root_docs}"
+            )
+        return root_docs
+
+    def _maybe_index_sot_docs(self) -> None:
+        """Index SOT documentation files at startup if enabled.
+
+        Only indexes when:
+        - Memory service is enabled
+        - AUTOPACK_ENABLE_SOT_MEMORY_INDEXING=true
+
+        Failures are logged as warnings and do not crash the run.
+        """
+        # Log SOT configuration for operator visibility
+        logger.info(
+            f"[SOT] Configuration: "
+            f"indexing_enabled={settings.autopack_enable_sot_memory_indexing}, "
+            f"retrieval_enabled={settings.autopack_sot_retrieval_enabled}, "
+            f"memory_enabled={self.memory_service.enabled if self.memory_service else False}"
+        )
+
+        if not self.memory_service or not self.memory_service.enabled:
+            logger.debug("[SOT] Memory service disabled, skipping SOT indexing")
+            return
+
+        if not settings.autopack_enable_sot_memory_indexing:
+            logger.debug("[SOT] SOT indexing disabled by config")
+            return
+
+        try:
+            project_id = self._get_project_slug() or self.run_id
+            docs_dir = self._resolve_project_docs_dir(project_id=project_id)
+            logger.info(f"[SOT] Starting indexing for project={project_id}, docs_dir={docs_dir}")
+
+            result = self.memory_service.index_sot_docs(
+                project_id=project_id,
+                workspace_root=Path(self.workspace),
+                docs_dir=docs_dir,
+            )
+
+            if result.get("skipped"):
+                logger.info(f"[SOT] Indexing skipped: {result.get('reason', 'unknown')}")
+            else:
+                indexed_count = result.get("indexed", 0)
+                logger.info(
+                    f"[SOT] Indexing complete: {indexed_count} chunks indexed "
+                    f"(project={project_id}, docs={docs_dir})"
+                )
+        except Exception as e:
+            logger.warning(f"[SOT] Indexing failed: {e}", exc_info=True)
 
     def _autofix_queued_phases(self, run_data: Dict[str, Any]) -> None:
         """

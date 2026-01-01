@@ -261,6 +261,35 @@ Post-Tidy Verification
 
 **Configuration:** The script organization rules are defined in [scripts/tidy/script_organizer.py](scripts/tidy/script_organizer.py). To add new organization rules, edit the `script_patterns` configuration in that file.
 
+### Storage Optimizer (2026-01-01)
+
+**Policy-aware disk space analysis and cleanup recommendations**
+
+The Storage Optimizer analyzes disk usage and identifies cleanup opportunities while respecting protected paths and retention policies. MVP provides dry-run reporting only (no deletion).
+
+**Quick Start:**
+```bash
+# Scan C: drive and generate report
+python scripts/storage/scan_and_report.py
+
+# Scan specific directory
+python scripts/storage/scan_and_report.py --dir c:/dev
+```
+
+**Key Features:**
+- Policy-driven classification from `config/storage_policy.yaml`
+- Protected path enforcement (never flags SOT files, src/, tests/, .git/, databases)
+- Retention window compliance (90/180/365 day windows)
+- Category-based analysis (dev_caches, diagnostics_logs, runs, archive_buckets)
+- Dry-run reporting (text + JSON formats)
+
+**Documentation:**
+- **Module**: [src/autopack/storage_optimizer/](src/autopack/storage_optimizer/)
+- **Completion Report**: [docs/STORAGE_OPTIMIZER_MVP_COMPLETION.md](docs/STORAGE_OPTIMIZER_MVP_COMPLETION.md)
+- **Policy**: [config/storage_policy.yaml](config/storage_policy.yaml) + [docs/DATA_RETENTION_AND_STORAGE_POLICY.md](docs/DATA_RETENTION_AND_STORAGE_POLICY.md)
+
+Future phases will add execution capabilities (send2trash), automation (Windows Task Scheduler), and WizTree integration for faster scanning.
+
 ## Plan Conversion (Markdown -> phase_spec)
 - Use `scripts/plan_from_markdown.py --in docs/PLAN.md --out .autonomous_runs/<project>/plan_generated.json` to convert markdown tasks into phase specs matching `docs/phase_spec_schema.md`.
 - Inline tags in bullets override defaults: `[complexity:low]`, `[category:tests]`, `[paths:src/,tests/]`, `[read_only:docs/]`.
@@ -971,6 +1000,27 @@ python scripts/tidy_workspace.py --root .autonomous_runs/file-organizer-app-v1 -
 - Routing: use `route_new_doc` / `route_run_output` (or CLI helpers `run_output_paths.py` / `create_run_with_routing.py`) so new docs/runs land in the right project/bucket up front; `archive\unsorted` is last-resort inbox only.
 - Diagnostics truth: treat `CONSOLIDATED_DEBUG.md` and similar diagnostics (e.g., `ENHANCED_ERROR_LOGGING.md`) as truth candidates—review/merge into the active `docs` copy, then archive or discard if superseded.
 - For the full, step-by-step cleanup, see **[Comprehensive Tidy Execution Plan](COMPREHENSIVE_TIDY_EXECUTION_PLAN.md)** and the architecture guide **[Autopack Tidy System Guide](docs/AUTOPACK_TIDY_SYSTEM_COMPREHENSIVE_GUIDE.md)**.
+
+#### Tidy vs Storage Optimizer: Responsibilities + Shared Retention Policy
+
+Autopack has **two** related systems that touch files on disk:
+
+- **Tidy (workspace organization + knowledge reuse)**:
+  - Goal: keep project knowledge **machine-usable** and **retrievable** (SOT ledgers + optional semantic indexing).
+  - Actions: route root clutter into `archive/` buckets, consolidate historical markdown into SOT ledgers, maintain `archive/superseded/` as an audit trail.
+  - Safety: never silently overwrite divergent SOT files; default should be dry-run/explicit.
+
+- **Storage Optimizer (disk space reclamation)**:
+  - Goal: reclaim disk space (primarily Windows) via safe cleanup + approvals + rollback.
+  - Actions: remove or compact *safe* storage candidates (dev caches, old artifacts, etc.) based on policy.
+  - Safety: must never delete SOT, source code, or required run artifacts without explicit approval.
+
+**Single source of truth for retention and deletion safety**:
+- See `docs/DATA_RETENTION_AND_STORAGE_POLICY.md` for:
+  - protected paths (never delete),
+  - retention windows for logs/runs/superseded,
+  - allowed cleanup actions by category,
+  - how Tidy + Storage Optimizer coordinate without breaking SOT retrieval or auditability.
 
 ### Consolidating Documentation
 

@@ -3,7 +3,7 @@
   "project_name": "Autopack",
   "description": "Autonomous build system with multi-LLM orchestration, learned rules, and self-improving intelligence",
   "status": "production",
-  "last_updated": "2025-12-13T13:00:00Z",
+  "last_updated": "2026-01-01T22:15:00Z",
   "version": "1.0.0",
 
   "quick_reference": {
@@ -95,10 +95,12 @@
   "workspace_structure": {
     "root_directories": {
       "src/": "Application source code",
+      "src/autopack/storage_optimizer/": "Policy-aware disk space analysis and cleanup (BUILD-148)",
       "scripts/": "Utility scripts (tidy, consolidation, analysis)",
+      "scripts/storage/": "Storage scanning and reporting scripts",
       "tests/": "Test files",
       "docs/": "SOT files and active documentation",
-      "config/": "Configuration files (models.yaml, pricing.yaml, etc.)",
+      "config/": "Configuration files (models.yaml, pricing.yaml, storage_policy.yaml, etc.)",
       "archive/": "Historical files organized by category",
       ".autonomous_runs/": "Project-specific autonomous run data",
       "integrations/": "External integrations (supervisor, etc.)"
@@ -198,7 +200,8 @@
     "tidy": "scripts/tidy/autonomous_tidy.py - Autonomous file organization",
     "analysis": "scripts/analyze_learned_rules.py - Analyze learned rules and costs",
     "supervisor": "integrations/supervisor.py - Main autonomous build entry point",
-    "config_loader": "scripts/tidy/project_config.py - Multi-project configuration loader"
+    "config_loader": "scripts/tidy/project_config.py - Multi-project configuration loader",
+    "storage_scan": "scripts/storage/scan_and_report.py - Policy-aware disk space analysis"
   },
 
   "api_endpoints": {
@@ -266,6 +269,8 @@
     "learned_rules": "LEARNED_RULES_README.md - Self-improving intelligence guide",
     "token_efficiency": "docs/TOKEN_EFFICIENCY_IMPLEMENTATION.md",
     "quota_routing": "docs/QUOTA_AWARE_ROUTING.md",
+    "storage_optimizer": "docs/STORAGE_OPTIMIZER_MVP_COMPLETION.md",
+    "data_retention_policy": "docs/DATA_RETENTION_AND_STORAGE_POLICY.md",
     "consolidated_history": "docs/archive/CONSOLIDATED_HISTORY.md",
     "full_deployment_guide": "archive/reports/DEPLOYMENT_GUIDE.md (moved)",
     "full_setup_guide": "archive/reports/SETUP_GUIDE.md (moved)",

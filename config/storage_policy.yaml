@@ -1,0 +1,134 @@
+# Machine-readable retention + deletion safety policy.
+#
+# Canonical human-readable policy: docs/DATA_RETENTION_AND_STORAGE_POLICY.md
+#
+# This file is intended to be loaded by BOTH:
+# - Tidy (workspace organization + consolidation)
+# - Storage Optimizer (disk space reclamation)
+#
+# Design principles:
+# - Conservative defaults
+# - Never delete protected paths
+# - Approval required for risky actions
+# - Retention windows are explicit and centralized
+#
+# Notes:
+# - Globs are matched against normalized POSIX-style paths ("/" separators).
+# - Where patterns can be ambiguous, prefer explicit denies over broad allows.
+
+version: "1.0"
+date: "2026-01-01"
+
+paths:
+  # Absolute protections: NEVER delete or “optimize away”.
+  protected_globs:
+    # Source + tests
+    - "src/**"
+    - "tests/**"
+    # Repo + CI metadata
+    - ".git/**"
+    - ".github/**"
+    # Core SOT (Autopack root project)
+    - "docs/PROJECT_INDEX.json"
+    - "docs/BUILD_HISTORY.md"
+    - "docs/DEBUG_LOG.md"
+    - "docs/ARCHITECTURE_DECISIONS.md"
+    - "docs/FUTURE_PLAN.md"
+    - "docs/LEARNED_RULES.json"
+    # Audit trail (managed by tidy)
+    - "archive/superseded/**"
+    # Databases (local)
+    - "*.db"
+    - "*.sqlite"
+    - "autopack.db"
+    - "fileorganizer.db"
+
+  # Optional extra protections that can be tightened over time.
+  # For example: protect certain runs, reports, or manually pinned artifacts.
+  pinned_globs: []
+
+retention_days:
+  # Defaults (tune per machine/storage constraints).
+  diagnostics:
+    compress_after: 14
+    delete_after: 90
+    delete_requires_approval: true
+
+  runs:
+    compress_after: 30
+    delete_after: 180
+    delete_requires_approval: true
+
+  superseded:
+    keep_at_least: 180
+    delete_after: 365
+    delete_requires_approval: true
+
+categories:
+  # Category definitions for storage optimizer classification and tidy routing safeguards.
+  # Each category sets allowed actions and whether approval is required.
+  #
+  # Allowed actions: none | report | compress | move_to_archive | delete
+  dev_caches:
+    match_globs:
+      - "**/node_modules/**"
+      - "**/.venv/**"
+      - "**/venv/**"
+      - "**/__pycache__/**"
+      - "**/*.pyc"
+      - "**/dist/**"
+      - "**/build/**"
+    allowed_actions:
+      # Conservative: default to proposing deletions, require approval.
+      delete: { enabled: true, requires_approval: true }
+      compress: { enabled: false, requires_approval: false }
+      move_to_archive: { enabled: false, requires_approval: false }
+
+  diagnostics_logs:
+    match_globs:
+      - "archive/diagnostics/**"
+      - ".autonomous_runs/**/runs/**/diagnostics/**"
+      - ".autonomous_runs/**/runs/**/errors/**"
+      - "archive/diagnostics/logs/**"
+    allowed_actions:
+      compress: { enabled: true, requires_approval: false }
+      delete: { enabled: true, requires_approval: true }
+
+  runs:
+    match_globs:
+      - ".autonomous_runs/**/runs/**"
+    allowed_actions:
+      compress: { enabled: true, requires_approval: false }
+      delete: { enabled: true, requires_approval: true }
+
+  archive_buckets:
+    match_globs:
+      - "archive/reports/**"
+      - "archive/research/**"
+      - "archive/prompts/**"
+      - "archive/plans/**"
+      - "archive/unsorted/**"
+    allowed_actions:
+      compress: { enabled: true, requires_approval: false }
+      delete: { enabled: true, requires_approval: true }
+
+  # Catch-all: unknown content should not be auto-deleted.
+  unknown:
+    match_globs: ["**"]
+    allowed_actions:
+      report: { enabled: true, requires_approval: false }
+      delete: { enabled: false, requires_approval: true }
+
+coordination:
+  # Ordering guidance for tooling (not enforced unless a tool chooses to).
+  recommended_order:
+    - "tidy_up"
+    - "executor_sot_index_refresh"
+    - "storage_optimizer"
+
+  # Storage Optimizer must not delete items needed for knowledge reuse/auditability.
+  must_preserve_for_reuse:
+    - "docs/**"               # SOT + canonical guides (subject to WORKSPACE_ORGANIZATION_SPEC)
+    - "archive/superseded/**" # audit trail within retention windows
+
+

@@ -140,10 +140,14 @@ def check_idempotency_index() -> Tuple[bool, str]:
                 migration_cmd = (
                     "python scripts/migrations/add_token_efficiency_idempotency_index_build146_p17x.py upgrade"
                 )
+                db_hint = (
+                    "(PostgreSQL for production, SQLite for dev/test)" if dialect == "sqlite"
+                    else "(Production database)"
+                )
                 return False, (
                     f"✗ Missing idempotency index: {index_name}\n"
-                    f"  This index is required for race-safe telemetry recording.\n"
-                    f"  Run: {migration_cmd}"
+                    f"  This index is required for race-safe telemetry recording {db_hint}.\n"
+                    f"  Run migration: {migration_cmd}"
                 )
         finally:
             db.close()

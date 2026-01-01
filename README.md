@@ -59,10 +59,11 @@ In practice, “autonomous” requires that each phase has:
 ### Latest Highlights (Last 3 Builds)
 
 #### 2026-01-01: BUILD-146 Phase A P17.x - DB Idempotency Hardening ✅
-**Race-Safe Telemetry Under Concurrency**
-- DB-level uniqueness enforcement for token efficiency telemetry (partial unique index)
-- Race-safe IntegrityError handling prevents duplicate metrics under concurrent writes
-- Production smoke test validates index presence and blocks deployment when missing
+**Production Polish: Operator Guidance + Optional Postgres Validation**
+- Enhanced smoke test with database context hints (PostgreSQL vs SQLite clarity)
+- Rollout checklist explicit index verification step (Stage 0 pre-production validation)
+- Optional Postgres integration test validates real DB enforcement (4 tests, opt-in by default)
+- Zero CI noise: tests skip cleanly on SQLite, run only with `DATABASE_URL=postgresql://`
 - See [BUILD_HISTORY.md](docs/BUILD_HISTORY.md#build-146-phase-a-p17x) for full details
 
 #### 2025-12-31: BUILD-146 Phase A P16+ - Windows/Test Hardening ✅

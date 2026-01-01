@@ -1732,3 +1732,72 @@ Re-run research-citation-fix plan to verify truncation recovery triggers structu
 **Implementation Summary**: **Last Updated**: 2025-12-04 **Auto-generated** by scripts/consolidate_docs.py - [CLAUDE_CRITICAL_ASSESSMENT_OF_GPT_REVIEWS](#claude-critical-assessment-of-gpt-reviews) - [GPT_REVIEW_PROMPT](#gpt-review-prompt) - [GPT_REVIEW_PROMPT_CHATBOT_INTEGRATION](#gpt-review-prompt-chatbot-integration) - [ref3_gpt_dual_review_chatbot_integration](#ref3-gpt-dual-review-chatbot-integration) - [REPORT_FOR_GPT_REVIEW](#report-for-gpt-review) --- **Source**: [CLAUDE_CRITICAL_ASSESSMENT_OF_GPT_REVIEWS.md](C:\dev...
 **Source**: `archive\research\CONSOLIDATED_RESEARCH.md`
 
+
+### BUILD-146 Phase A P17.x | 2026-01-01 | DB Idempotency Hardening - Production Polish Follow-ups ✅
+**Phase ID**: phase-a-p11-observability
+**Status**: ✅ Complete
+**Category**: Production Hardening
+**Implementation Summary**:
+
+Completed remaining P17.x production polish follow-ups to strengthen operator guidance and production deployment confidence for the DB-level idempotency enforcement feature.
+
+**Context**: BUILD-146 P17.1 added DB-level idempotency via partial unique index `ux_token_eff_metrics_run_phase_outcome` on `token_efficiency_metrics(run_id, phase_id, phase_outcome WHERE phase_outcome IS NOT NULL)`. P17.x closes remaining documentation and validation gaps identified in production rollout planning.
+
+**Changes Implemented**:
+
+1. **Smoke Test Enhancement** (`scripts/smoke_autonomy_features.py` lines 143-150):
+   - Added database context hint to missing index error message
+   - Clarifies "(PostgreSQL for production, SQLite for dev/test)" when index is absent
+   - Ensures operators immediately understand which DB type they're targeting
+   - Migration command remains copy/pasteable from smoke test output
+
+2. **Rollout Checklist Clarification** (`docs/PRODUCTION_ROLLOUT_CHECKLIST.md` lines 157-161):
+   - Added explicit Step 3 to Stage 0 "Pre-Production Validation"
+   - **Verification step**: "Verify P17.x idempotency index present; if missing run migration:"
+   - Includes copy/pasteable migration command with database context hint
+   - Canonical guidance: operators see the same migration command in both smoke test and rollout docs
+   - Re-numbered subsequent steps (4-6) to maintain sequence
+
+3. **Optional Postgres Integration Test** (`tests/integration/test_token_efficiency_idempotency_index_postgres.py`, NEW, 350+ lines):
+   - **Opt-in by design**: Skips automatically unless `DATABASE_URL=postgresql://...` or `AUTOPACK_TEST_POSTGRES=1`
+   - No CI noise: Confirmed 4 tests skip cleanly on SQLite (default behavior)
+   - **Test coverage**:
+     - `test_index_exists_in_postgres`: Validates index presence, uniqueness, and column structure via `pg_indexes` introspection
+     - `test_duplicate_terminal_outcome_prevented`: Inserts duplicate `(run_id, phase_id, phase_outcome)` and confirms `IntegrityError` raised with DB-level enforcement
+     - `test_null_outcome_allows_duplicates`: Validates backward compatibility (NULL outcomes bypass partial index predicate)
+     - `test_different_outcomes_allowed`: Edge case validation (FAILED vs COMPLETE for same phase allowed as separate records)
+   - Stronger validation than mock-based `IntegrityError` tests (uses real Postgres enforcement)
+
+**Constraints Satisfied**:
+- ✅ **No information deletion**: All changes additive (smoke test hint, rollout step insertion, new test file)
+- ✅ **Small doc changes**: Minimal, focused updates (1-2 lines in smoke test, 5 lines in rollout checklist)
+- ✅ **Postgres test opt-in**: Skips by default, no accidental Postgres dependency in CI
+- ✅ **Operator guidance copy/pasteable**: Migration command identical in smoke test and rollout docs
+
+**Migration Dependency**:
+Operators must run `python scripts/migrations/add_token_efficiency_idempotency_index_build146_p17x.py upgrade` before production deployment if index is missing (smoke test detects absence and blocks GO status).
+
+**Impact**:
+- **Production confidence**: Smoke test + rollout docs provide canonical migration guidance (no ambiguity)
+- **Database clarity**: Operators see "(PostgreSQL for production, SQLite for dev/test)" hint immediately
+- **Stronger validation**: Optional Postgres integration test validates real DB enforcement (not just mocked `IntegrityError`)
+- **Zero CI noise**: Postgres test skips cleanly on SQLite (4/4 tests skipped in default environment)
+
+**Test Results**: 
+- Core tests: 53 passing ✅ (no regressions)
+- Postgres integration: 4 skipped (expected, SQLite default) ✅
+- With `DATABASE_URL=postgresql://...`: 4 passing (validates index enforcement) ✅
+
+**Files**:
+- `scripts/smoke_autonomy_features.py` (lines 143-150: database hint added)
+- `docs/PRODUCTION_ROLLOUT_CHECKLIST.md` (lines 157-161: Step 3 inserted)
+- `tests/integration/test_token_efficiency_idempotency_index_postgres.py` (NEW, 350+ lines)
+
+**Dependencies**: P17.1 (idempotency index migration), P17.3 (smoke test + rollout checklist infrastructure)
+
+**SOT Updates**: BUILD_HISTORY.md (this entry), README.md (P17.x completion noted in Latest Highlights)
+
+**See Also**: 
+- `docs/P17X_PROD_POLISH_FOLLOWUPS.md` (task specification)
+- `docs/DB_IDEMPOTENCY_HARDENING_PLAN.md` (original P17.x design)
+- `scripts/migrations/add_token_efficiency_idempotency_index_build146_p17x.py` (migration script)

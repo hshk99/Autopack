@@ -356,7 +356,7 @@ if __name__ == "__main__":
         print("[INFO] NOTE: --run-type autopack_maintenance is required to modify src/autopack/")
         print()
         print("[INFO] This run will test recent improvements:")
-        print("  - GLM-4.6 model routing")
+        print("  - GLM-4.7 model routing")
         print("  - Model escalation on phase failure")
         print("  - Mid-run re-planning detection")
         print("  - Self-healing recovery")

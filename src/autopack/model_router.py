@@ -299,11 +299,11 @@ class ModelRouter:
 
         # Default fallback
         if role == "builder":
-            return self.config.get("defaults", {}).get("high_risk_builder", "glm-4.6")
+            return self.config.get("defaults", {}).get("high_risk_builder", "claude-sonnet-4-5")
         elif role == "auditor":
-            return self.config.get("defaults", {}).get("high_risk_auditor", "glm-4.6")
+            return self.config.get("defaults", {}).get("high_risk_auditor", "claude-sonnet-4-5")
         else:
-            return "glm-4.6"  # Safe default
+            return "claude-sonnet-4-5"  # Safe default
 
     def _is_provider_over_soft_limit(self, model: str) -> bool:
         """

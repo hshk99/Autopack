@@ -432,10 +432,9 @@ class ModelSelector:
             logger.warning(
                 f"[ModelSelector] No escalation chain for {role}/{complexity}, using default"
             )
-            if role == "builder":
-                return "glm-4.6"
-            else:
-                return "glm-4.6"
+            # Keep fallback aligned with current routing defaults (models.yaml).
+            # Avoid legacy GLM defaults here.
+            return "claude-sonnet-4-5"
 
         # Map intra-tier attempt to chain index
         # Each model in chain gets one attempt before moving to next

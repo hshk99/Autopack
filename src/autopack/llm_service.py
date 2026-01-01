@@ -217,8 +217,11 @@ class LlmService:
                 print(f"Warning: Gemini model {requested_model} selected but GOOGLE_API_KEY not set. Falling back to OpenAI (gpt-4o).")
                 return openai_client, "gpt-4o"
             if glm_client is not None:
-                print(f"Warning: Gemini model {requested_model} selected but GOOGLE_API_KEY not set. Falling back to GLM (glm-4.6).")
-                return glm_client, "glm-4.6"
+                # Keep GLM fallback model configurable (avoid hardcoding model bumps).
+                from autopack.model_registry import resolve_model_alias
+                glm_fallback = resolve_model_alias("glm-tidy")
+                print(f"Warning: Gemini model {requested_model} selected but GOOGLE_API_KEY not set. Falling back to GLM ({glm_fallback}).")
+                return glm_client, glm_fallback
             raise RuntimeError(f"Gemini model {requested_model} selected but no LLM clients are available. Set GOOGLE_API_KEY, ANTHROPIC_API_KEY, OPENAI_API_KEY, or GLM_API_KEY.")
 
         # Legacy GLM models: treated as misconfiguration

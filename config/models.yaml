@@ -144,6 +144,14 @@ model_aliases:
   opus: claude-opus-4-5
   gemini-flash: gemini-2.5-flash
   gemini-lite: gemini-2.5-flash-lite
+  # Zhipu GLM aliases (used by tidy tooling and optional legacy utilities)
+  glm-tidy: glm-4.7
+  glm-legacy: glm-4.6
+
+# Tool-specific model choices (non-routing; used by scripts/tools like tidy)
+# Keep these centralized so model bumps do not require searching the codebase.
+tool_models:
+  tidy_semantic: glm-4.7
 escalation_chains:
   builder:
     low:

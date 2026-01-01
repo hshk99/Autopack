@@ -2,6 +2,10 @@
 
 **BUILD-146 Phase A P17**: Safe staged rollout guide for Autopack autonomy features.
 
+> **Optional (Post-P17) hardening**: For DB-enforced idempotency under concurrency (PostgreSQL-first),
+> see `docs/DB_IDEMPOTENCY_HARDENING_PLAN.md`. This adds a partial unique index for
+> `token_efficiency_metrics` and a race-safe fallback on `IntegrityError`.
+
 ## Overview
 
 This checklist ensures safe, monitored rollout of Autopack's autonomous execution features in production environments. Follow the staged approach below to minimize risk and maximize observability.
@@ -98,6 +102,16 @@ GROUP BY run_id;
 SELECT budget_mode, COUNT(*) as phases
 FROM token_efficiency_metrics
 GROUP BY budget_mode;
+
+-- Duplicate-detector (should return 0 rows)
+-- P17.1 app-level idempotency + P17.x DB unique index should guarantee uniqueness
+-- per (run_id, phase_id, phase_outcome) when phase_outcome IS NOT NULL.
+SELECT run_id, phase_id, phase_outcome, COUNT(*) AS n
+FROM token_efficiency_metrics
+WHERE phase_outcome IS NOT NULL
+GROUP BY run_id, phase_id, phase_outcome
+HAVING COUNT(*) > 1
+ORDER BY n DESC, run_id, phase_id;
 ```
 
 ### 3. Phase 6 Metrics (`phase6_metrics`)
@@ -140,9 +154,14 @@ WHERE run_id = 'your-run-id';
 **Steps**:
 1. ✅ Run smoke test script (see below)
 2. ✅ Verify all DB tables are accessible
-3. ✅ Confirm LLM provider keys are valid
-4. ✅ Run core test suite: `pytest -m "not research and not aspirational"`
-5. ✅ Collect baseline metrics (no autonomy features)
+3. ✅ Verify P17.x idempotency index present; if missing run migration:
+   ```bash
+   python scripts/migrations/add_token_efficiency_idempotency_index_build146_p17x.py upgrade
+   ```
+   (PostgreSQL for production, SQLite for dev/test)
+4. ✅ Confirm LLM provider keys are valid
+5. ✅ Run core test suite: `pytest -m "not research and not aspirational"`
+6. ✅ Collect baseline metrics (no autonomy features)
 
 **Success Criteria**:
 - Smoke test reports "GO" status

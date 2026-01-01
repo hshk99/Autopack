@@ -40,7 +40,8 @@ class OpenAIBuilderClient:
         phase_spec: Dict,
         file_context: Optional[Dict] = None,
         max_tokens: Optional[int] = None,
-        model: str = "glm-4.6",
+        # OpenAI client default model (fallback provider).
+        model: str = "gpt-4o",
         project_rules: Optional[List] = None,
         run_hints: Optional[List] = None,
         use_full_file_mode: bool = True,
@@ -424,7 +425,8 @@ class OpenAIAuditorClient:
         patch_content: str,
         phase_spec: Dict,
         max_tokens: Optional[int] = None,
-        model: str = "glm-4.6",
+        # OpenAI client default model (fallback provider).
+        model: str = "gpt-4o",
         project_rules: Optional[List] = None,
         run_hints: Optional[List] = None
     ) -> AuditorResult:

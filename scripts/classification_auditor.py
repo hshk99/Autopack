@@ -70,7 +70,8 @@ class ClassificationAuditor:
     def _init_llm(self):
         """Initialize LLM client."""
         if NativeGLMClient:
-            return NativeGLMClient(model="glm-4.6")
+            # Default comes from config/models.yaml tool_models.tidy_semantic.
+            return NativeGLMClient()
         return None
 
     def audit_classification(

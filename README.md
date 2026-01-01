@@ -867,14 +867,19 @@ In practice, “autonomous” requires that each phase has:
   - ⚠️ One test skipped (RunFileLayout setup - non-blocking)
 
 - **Known Limitations**:
-  - Test coverage gap: No dedicated tests for P1.3 artifact expansion (methods verified via review)
-  - Minor wiring needed: Telemetry recording not yet integrated into autonomous_executor
-  - Dashboard integration: token_efficiency field optional for backwards compatibility
+  - Dashboard integration: token_efficiency field optional for backwards compatibility (non-blocking)
+
+- **BUILD-146 P17 Production Hardening** (Completed 2025-12-31):
+  - ✅ Telemetry idempotency guards prevent duplicate metrics across retries/crashes
+  - ✅ P1.3 comprehensive test suite (safety rules, caps enforcement, fallback behavior)
+  - ✅ Production rollout checklist with staged deployment guide
+  - ✅ Smoke test script for pre-deployment validation (no LLM calls)
+  - See [docs/PRODUCTION_ROLLOUT_CHECKLIST.md](docs/PRODUCTION_ROLLOUT_CHECKLIST.md) for rollout guide
 
 - **Next Steps**:
-  - Wire P1.1 telemetry recording into autonomous_executor execute_phase()
-  - Add P1.3 comprehensive tests for history pack and SOT substitution
-  - Enable features in production via environment variables after validation
+  - Enable features in production via staged rollout (see rollout checklist)
+  - Monitor telemetry metrics per production rollout stages
+  - Collect A/B data for token efficiency gains vs baseline
 
 ---
 

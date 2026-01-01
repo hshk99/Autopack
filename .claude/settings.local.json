@@ -141,7 +141,11 @@
       "Bash(PYTHONUTF8=1 PYTHONPATH=src DATABASE_URL=\"sqlite:///:memory:\" timeout 360 pytest:*)",
       "Bash(PYTHONUTF8=1 PYTHONPATH=src DATABASE_URL=\"sqlite:///:memory:\" timeout 60 pytest:*)",
       "Bash(PYTHONUTF8=1 PYTHONPATH=src DATABASE_URL=\"sqlite:///:memory:\" timeout 120 pytest:*)",
-      "Bash(PYTHONUTF8=1 PYTHONPATH=src DATABASE_URL=\"sqlite:///:memory:\" timeout 180 pytest:*)"
+      "Bash(PYTHONUTF8=1 PYTHONPATH=src DATABASE_URL=\"sqlite:///:memory:\" timeout 180 pytest:*)",
+      "Bash(for file in tests/autopack/test_context_budgeter_extended.py tests/autopack/test_error_recovery_extended.py tests/autopack/test_governance_requests_extended.py tests/autopack/test_telemetry_unblock_fixes.py tests/autopack/test_token_estimator_calibration.py)",
+      "Bash(for file in test_context_budgeter_extended test_error_recovery_extended test_governance_requests_extended test_telemetry_unblock_fixes)",
+      "Bash(do echo -n \"$file: \")",
+      "Bash(PYTHONUTF8=1 PYTHONPATH=src DATABASE_URL=\"sqlite:///:memory:\" timeout 90 pytest:*)"
     ],
     "deny": [],
     "ask": []

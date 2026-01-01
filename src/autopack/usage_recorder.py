@@ -313,6 +313,9 @@ def record_token_efficiency_metrics(
 ) -> TokenEfficiencyMetrics:
     """Record token efficiency metrics for a phase.
 
+    BUILD-146 P17.1: Idempotency guard ensures exactly one metrics record per
+    (run_id, phase_id, outcome) even across retries/replans/crashes.
+
     Args:
         db: Database session
         run_id: Run identifier
@@ -334,8 +337,21 @@ def record_token_efficiency_metrics(
         context_files_total: Optional total files before budgeting
 
     Returns:
-        Created TokenEfficiencyMetrics record
+        Created or existing TokenEfficiencyMetrics record
     """
+    # BUILD-146 P17.1: Idempotency check - prevent duplicate metrics for same outcome
+    # If phase_outcome is specified, check for existing record with that outcome
+    if phase_outcome:
+        existing = db.query(TokenEfficiencyMetrics).filter(
+            TokenEfficiencyMetrics.run_id == run_id,
+            TokenEfficiencyMetrics.phase_id == phase_id,
+            TokenEfficiencyMetrics.phase_outcome == phase_outcome,
+        ).first()
+
+        if existing:
+            # Already recorded for this outcome - return existing record without duplication
+            return existing
+
     metrics = TokenEfficiencyMetrics(
         run_id=run_id,
         phase_id=phase_id,

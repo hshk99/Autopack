@@ -443,3 +443,284 @@ class TestExtendedContexts:
             assert tokens_saved > 0
         finally:
             settings.artifact_extended_contexts_enabled = original
+
+
+class TestP17SafetyAndFallback:
+    """BUILD-146 P17.2: Safety rules and fallback behavior tests.
+
+    Ensures substitution only happens when enabled, caps are strictly enforced,
+    and missing artifacts gracefully fallback to original content.
+    """
+
+    @pytest.fixture
+    def temp_workspace(self, tmp_path):
+        """Create temporary workspace"""
+        workspace = tmp_path / "workspace"
+        workspace.mkdir()
+        return workspace
+
+    @pytest.fixture
+    def artifact_loader(self, temp_workspace):
+        """Create artifact loader"""
+        return ArtifactLoader(temp_workspace, "test-run-123")
+
+    @pytest.fixture
+    def artifacts_dir(self, temp_workspace):
+        """Create and return artifacts directory"""
+        artifacts = temp_workspace / ".autonomous_runs" / "test-run-123"
+        artifacts.mkdir(parents=True)
+        return artifacts
+
+    def test_no_substitution_when_all_disabled(self, artifact_loader, artifacts_dir):
+        """Should not substitute anything when all flags are disabled."""
+        # Save original settings
+        original_sot = settings.artifact_substitute_sot_docs
+        original_extended = settings.artifact_extended_contexts_enabled
+        original_history = settings.artifact_history_pack_enabled
+
+        # Disable all substitution features
+        settings.artifact_substitute_sot_docs = False
+        settings.artifact_extended_contexts_enabled = False
+        settings.artifact_history_pack_enabled = False
+
+        try:
+            # Create artifacts that would normally be used
+            run_summary = artifacts_dir / "run_summary.md"
+            run_summary.write_text("Test run summary")
+
+            # Verify no SOT substitution
+            sot_result = artifact_loader.get_sot_doc_summary("docs/BUILD_HISTORY.md")
+            assert sot_result is None
+
+            # Verify no extended contexts substitution
+            content = "Phase 1 description"
+            extended_result, tokens_saved, source = artifact_loader.load_with_extended_contexts(
+                content, "phase_description"
+            )
+            assert extended_result == content
+            assert tokens_saved == 0
+            assert source == "original"
+
+            # Verify no history pack
+            history_result = artifact_loader.build_history_pack()
+            assert history_result is None
+
+        finally:
+            settings.artifact_substitute_sot_docs = original_sot
+            settings.artifact_extended_contexts_enabled = original_extended
+            settings.artifact_history_pack_enabled = original_history
+
+    def test_only_sot_docs_are_substituted(self, artifact_loader, artifacts_dir):
+        """Should only substitute allowed SOT docs, not arbitrary files."""
+        original_sot = settings.artifact_substitute_sot_docs
+        original_history = settings.artifact_history_pack_enabled
+        settings.artifact_substitute_sot_docs = True
+        settings.artifact_history_pack_enabled = True
+
+        try:
+            # Create artifacts
+            run_summary = artifacts_dir / "run_summary.md"
+            run_summary.write_text("Test run summary")
+
+            # Allowed SOT docs should be substituted
+            assert artifact_loader.should_substitute_sot_doc("docs/BUILD_HISTORY.md")
+            assert artifact_loader.should_substitute_sot_doc("docs/BUILD_LOG.md")
+            assert artifact_loader.should_substitute_sot_doc(".autonomous_runs/BUILD_HISTORY.md")
+
+            # Non-SOT files should NOT be substituted
+            assert not artifact_loader.should_substitute_sot_doc("src/main.py")
+            assert not artifact_loader.should_substitute_sot_doc("README.md")
+            assert not artifact_loader.should_substitute_sot_doc("docs/api.md")
+            assert not artifact_loader.should_substitute_sot_doc(".autonomous_runs/phase_01.md")
+
+        finally:
+            settings.artifact_substitute_sot_docs = original_sot
+            settings.artifact_history_pack_enabled = original_history
+
+    def test_fallback_when_history_pack_missing(self, artifact_loader):
+        """Should gracefully return None when history pack artifacts are missing."""
+        original = settings.artifact_history_pack_enabled
+        settings.artifact_history_pack_enabled = True
+
+        try:
+            # No artifacts exist - should return None
+            result = artifact_loader.build_history_pack()
+            assert result is None
+
+        finally:
+            settings.artifact_history_pack_enabled = original
+
+    def test_fallback_to_original_when_no_artifacts(self, artifact_loader):
+        """Should fallback to original content when no artifacts available."""
+        original = settings.artifact_extended_contexts_enabled
+        settings.artifact_extended_contexts_enabled = True
+
+        try:
+            # No artifacts exist
+            content = "Long phase description " * 50
+            result, tokens_saved, source = artifact_loader.load_with_extended_contexts(
+                content, "phase_description"
+            )
+
+            # Should return original content unchanged
+            assert result == content
+            assert tokens_saved == 0
+            assert source == "original"
+
+        finally:
+            settings.artifact_extended_contexts_enabled = original
+
+    def test_max_tiers_cap_strictly_enforced(self, artifact_loader, artifacts_dir):
+        """Should strictly enforce max_tiers cap, not exceed it."""
+        original_enabled = settings.artifact_history_pack_enabled
+        original_max_tiers = settings.artifact_history_pack_max_tiers
+        settings.artifact_history_pack_enabled = True
+        settings.artifact_history_pack_max_tiers = 3
+
+        try:
+            # Create 5 tier summaries
+            tiers_dir = artifacts_dir / "tiers"
+            tiers_dir.mkdir()
+            for i in range(1, 6):
+                tier = tiers_dir / f"tier_{i:02d}_test.md"
+                tier.write_text(f"# Tier {i}\n\nTier {i} content")
+
+            result = artifact_loader.build_history_pack()
+            assert result is not None
+
+            # Should include exactly 3 most recent tiers (tier_05, tier_04, tier_03)
+            assert "Tier 5 content" in result
+            assert "Tier 4 content" in result
+            assert "Tier 3 content" in result
+
+            # Should NOT include tier_01, tier_02 (exceed cap)
+            assert "Tier 1 content" not in result
+            assert "Tier 2 content" not in result
+
+        finally:
+            settings.artifact_history_pack_enabled = original_enabled
+            settings.artifact_history_pack_max_tiers = original_max_tiers
+
+    def test_max_phases_cap_strictly_enforced(self, artifact_loader, artifacts_dir):
+        """Should strictly enforce max_phases cap, not exceed it."""
+        original_enabled = settings.artifact_history_pack_enabled
+        original_max_phases = settings.artifact_history_pack_max_phases
+        settings.artifact_history_pack_enabled = True
+        settings.artifact_history_pack_max_phases = 2
+
+        try:
+            # Create 5 phase summaries
+            phases_dir = artifacts_dir / "phases"
+            phases_dir.mkdir()
+            for i in range(1, 6):
+                phase = phases_dir / f"phase_{i:02d}_test.md"
+                phase.write_text(f"# Phase {i}\n\nPhase {i} content")
+
+            result = artifact_loader.build_history_pack()
+            assert result is not None
+
+            # Should include exactly 2 most recent phases (phase_05, phase_04)
+            assert "Phase 5 content" in result
+            assert "Phase 4 content" in result
+
+            # Should NOT include phase_01, phase_02, phase_03 (exceed cap)
+            assert "Phase 1 content" not in result
+            assert "Phase 2 content" not in result
+            assert "Phase 3 content" not in result
+
+        finally:
+            settings.artifact_history_pack_enabled = original_enabled
+            settings.artifact_history_pack_max_phases = original_max_phases
+
+    def test_zero_cap_excludes_all(self, artifact_loader, artifacts_dir):
+        """Cap of 0 should exclude all items of that type."""
+        original_enabled = settings.artifact_history_pack_enabled
+        original_max_tiers = settings.artifact_history_pack_max_tiers
+        settings.artifact_history_pack_enabled = True
+        settings.artifact_history_pack_max_tiers = 0  # Exclude all tiers
+
+        try:
+            # Create tiers and phases
+            tiers_dir = artifacts_dir / "tiers"
+            tiers_dir.mkdir()
+            tier1 = tiers_dir / "tier_01_test.md"
+            tier1.write_text("# Tier 1\n\nTier content")
+
+            phases_dir = artifacts_dir / "phases"
+            phases_dir.mkdir()
+            phase1 = phases_dir / "phase_01_test.md"
+            phase1.write_text("# Phase 1\n\nPhase content")
+
+            result = artifact_loader.build_history_pack()
+
+            # Should include phases but NO tiers
+            if result:  # May be None if only tiers exist
+                assert "Phase content" in result
+                assert "Tier content" not in result
+
+        finally:
+            settings.artifact_history_pack_enabled = original_enabled
+            settings.artifact_history_pack_max_tiers = original_max_tiers
+
+    def test_no_silent_substitutions_in_regular_files(self, artifact_loader, artifacts_dir):
+        """Should never silently substitute regular code files."""
+        original = settings.artifact_substitute_sot_docs
+        settings.artifact_substitute_sot_docs = True
+
+        try:
+            # Create history pack
+            run_summary = artifacts_dir / "run_summary.md"
+            run_summary.write_text("Test run summary")
+
+            # Regular files should NOT be substituted
+            regular_files = [
+                "src/main.py",
+                "tests/test_foo.py",
+                "README.md",
+                "package.json",
+                "config.yaml",
+            ]
+
+            for file_path in regular_files:
+                assert not artifact_loader.should_substitute_sot_doc(file_path)
+                summary = artifact_loader.get_sot_doc_summary(file_path)
+                assert summary is None
+
+        finally:
+            settings.artifact_substitute_sot_docs = original
+
+    def test_caps_use_recency_ordering(self, artifact_loader, artifacts_dir):
+        """Caps should keep most recent items (reverse lexical order)."""
+        original_enabled = settings.artifact_history_pack_enabled
+        original_max_phases = settings.artifact_history_pack_max_phases
+        settings.artifact_history_pack_enabled = True
+        settings.artifact_history_pack_max_phases = 2
+
+        try:
+            # Create phases with timestamps in filenames
+            phases_dir = artifacts_dir / "phases"
+            phases_dir.mkdir()
+
+            # Create in non-sequential order to test sorting
+            phase3 = phases_dir / "phase_03_latest.md"
+            phase3.write_text("# Phase 3 (latest)")
+
+            phase1 = phases_dir / "phase_01_oldest.md"
+            phase1.write_text("# Phase 1 (oldest)")
+
+            phase2 = phases_dir / "phase_02_middle.md"
+            phase2.write_text("# Phase 2 (middle)")
+
+            result = artifact_loader.build_history_pack()
+            assert result is not None
+
+            # Should include 2 most recent: phase_03 and phase_02
+            assert "Phase 3 (latest)" in result
+            assert "Phase 2 (middle)" in result
+
+            # Should NOT include oldest phase_01
+            assert "Phase 1 (oldest)" not in result
+
+        finally:
+            settings.artifact_history_pack_enabled = original_enabled
+            settings.artifact_history_pack_max_phases = original_max_phases

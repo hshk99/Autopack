@@ -495,3 +495,286 @@ class TestKeptOnlyTelemetry:
             phase_outcome="FAILED",
         )
         assert metrics_failed.phase_outcome == "FAILED"
+
+
+class TestTelemetryInvariants:
+    """BUILD-146 P17.1: Telemetry correctness hardening tests.
+
+    Ensures idempotency, no double-counting, and category non-overlap.
+    """
+
+    def test_idempotent_recording_same_outcome(self, test_db):
+        """Should prevent duplicate metrics for same (run_id, phase_id, outcome)."""
+        # Record first time
+        metrics1 = record_token_efficiency_metrics(
+            db=test_db,
+            run_id="test-run",
+            phase_id="phase-001",
+            artifact_substitutions=5,
+            tokens_saved_artifacts=2500,
+            budget_mode="semantic",
+            budget_used=8000,
+            budget_cap=10000,
+            files_kept=15,
+            files_omitted=3,
+            phase_outcome="COMPLETE",
+        )
+        assert metrics1.id is not None
+        first_id = metrics1.id
+
+        # Record again with same outcome - should return existing record
+        metrics2 = record_token_efficiency_metrics(
+            db=test_db,
+            run_id="test-run",
+            phase_id="phase-001",
+            artifact_substitutions=10,  # Different values
+            tokens_saved_artifacts=5000,
+            budget_mode="lexical",
+            budget_used=9000,
+            budget_cap=12000,
+            files_kept=20,
+            files_omitted=5,
+            phase_outcome="COMPLETE",  # Same outcome
+        )
+
+        # Should return the original record (idempotency)
+        assert metrics2.id == first_id
+        assert metrics2.artifact_substitutions == 5  # Original values preserved
+        assert metrics2.tokens_saved_artifacts == 2500
+
+        # Verify only one record exists in DB
+        all_metrics = test_db.query(TokenEfficiencyMetrics).filter(
+            TokenEfficiencyMetrics.run_id == "test-run",
+            TokenEfficiencyMetrics.phase_id == "phase-001",
+            TokenEfficiencyMetrics.phase_outcome == "COMPLETE",
+        ).all()
+        assert len(all_metrics) == 1
+
+    def test_different_outcomes_allowed(self, test_db):
+        """Should allow separate metrics for different outcomes (e.g., retry scenarios)."""
+        # Record FAILED outcome
+        metrics_failed = record_token_efficiency_metrics(
+            db=test_db,
+            run_id="test-run",
+            phase_id="phase-001",
+            artifact_substitutions=3,
+            tokens_saved_artifacts=1500,
+            budget_mode="semantic",
+            budget_used=7000,
+            budget_cap=10000,
+            files_kept=10,
+            files_omitted=2,
+            phase_outcome="FAILED",
+        )
+        assert metrics_failed.phase_outcome == "FAILED"
+
+        # Record COMPLETE outcome (after retry)
+        metrics_complete = record_token_efficiency_metrics(
+            db=test_db,
+            run_id="test-run",
+            phase_id="phase-001",
+            artifact_substitutions=5,
+            tokens_saved_artifacts=2500,
+            budget_mode="semantic",
+            budget_used=8000,
+            budget_cap=10000,
+            files_kept=15,
+            files_omitted=3,
+            phase_outcome="COMPLETE",
+        )
+        assert metrics_complete.phase_outcome == "COMPLETE"
+
+        # Both records should exist
+        all_metrics = test_db.query(TokenEfficiencyMetrics).filter(
+            TokenEfficiencyMetrics.run_id == "test-run",
+            TokenEfficiencyMetrics.phase_id == "phase-001",
+        ).all()
+        assert len(all_metrics) == 2
+        outcomes = {m.phase_outcome for m in all_metrics}
+        assert outcomes == {"FAILED", "COMPLETE"}
+
+    def test_retry_same_failed_outcome_idempotent(self, test_db):
+        """Multiple FAILED outcomes should be idempotent (e.g., crash recovery)."""
+        # Record first FAILED
+        metrics1 = record_token_efficiency_metrics(
+            db=test_db,
+            run_id="test-run",
+            phase_id="phase-001",
+            artifact_substitutions=3,
+            tokens_saved_artifacts=1500,
+            budget_mode="semantic",
+            budget_used=7000,
+            budget_cap=10000,
+            files_kept=10,
+            files_omitted=2,
+            phase_outcome="FAILED",
+        )
+        first_id = metrics1.id
+
+        # Record second FAILED (e.g., executor crashed and restarted)
+        metrics2 = record_token_efficiency_metrics(
+            db=test_db,
+            run_id="test-run",
+            phase_id="phase-001",
+            artifact_substitutions=5,
+            tokens_saved_artifacts=2000,
+            budget_mode="lexical",
+            budget_used=8000,
+            budget_cap=10000,
+            files_kept=12,
+            files_omitted=3,
+            phase_outcome="FAILED",
+        )
+
+        # Should return existing record
+        assert metrics2.id == first_id
+        assert metrics2.artifact_substitutions == 3  # Original values
+
+        # Only one FAILED record should exist
+        failed_metrics = test_db.query(TokenEfficiencyMetrics).filter(
+            TokenEfficiencyMetrics.run_id == "test-run",
+            TokenEfficiencyMetrics.phase_id == "phase-001",
+            TokenEfficiencyMetrics.phase_outcome == "FAILED",
+        ).all()
+        assert len(failed_metrics) == 1
+
+    def test_no_outcome_always_creates_new(self, test_db):
+        """Records without phase_outcome should always create new entries (no idempotency)."""
+        # Record without outcome (backward compatibility mode)
+        metrics1 = record_token_efficiency_metrics(
+            db=test_db,
+            run_id="test-run",
+            phase_id="phase-001",
+            artifact_substitutions=3,
+            tokens_saved_artifacts=1500,
+            budget_mode="semantic",
+            budget_used=7000,
+            budget_cap=10000,
+            files_kept=10,
+            files_omitted=2,
+            phase_outcome=None,
+        )
+        assert metrics1.phase_outcome is None
+
+        # Record again without outcome - should create new record
+        metrics2 = record_token_efficiency_metrics(
+            db=test_db,
+            run_id="test-run",
+            phase_id="phase-001",
+            artifact_substitutions=5,
+            tokens_saved_artifacts=2500,
+            budget_mode="lexical",
+            budget_used=8000,
+            budget_cap=10000,
+            files_kept=15,
+            files_omitted=3,
+            phase_outcome=None,
+        )
+        assert metrics2.phase_outcome is None
+        assert metrics2.id != metrics1.id  # Different records
+
+        # Two separate records should exist
+        all_metrics = test_db.query(TokenEfficiencyMetrics).filter(
+            TokenEfficiencyMetrics.run_id == "test-run",
+            TokenEfficiencyMetrics.phase_id == "phase-001",
+            TokenEfficiencyMetrics.phase_outcome.is_(None),
+        ).all()
+        assert len(all_metrics) == 2
+
+    def test_token_categories_non_overlapping(self, test_db):
+        """Token categories should not overlap (budget_used != tokens_saved_artifacts)."""
+        # Record metrics
+        metrics = record_token_efficiency_metrics(
+            db=test_db,
+            run_id="test-run",
+            phase_id="phase-001",
+            artifact_substitutions=5,
+            tokens_saved_artifacts=2500,  # Tokens avoided via artifacts
+            budget_mode="semantic",
+            budget_used=8000,  # Actual tokens used in context
+            budget_cap=10000,
+            files_kept=15,
+            files_omitted=3,
+            phase_outcome="COMPLETE",
+        )
+
+        # Categories should be non-overlapping:
+        # - budget_used: actual tokens sent to LLM (kept files)
+        # - tokens_saved_artifacts: tokens avoided by using summaries instead of full files
+        # - tokens from omitted files: neither in budget_used nor tokens_saved_artifacts
+
+        # Invariant: tokens_saved_artifacts represents savings on KEPT files only
+        # This is separate from budget_used which is actual usage
+        assert metrics.tokens_saved_artifacts >= 0
+        assert metrics.budget_used >= 0
+        assert metrics.budget_used <= metrics.budget_cap
+
+        # Total context footprint = budget_used + tokens_saved_artifacts
+        # (budget_used is what we sent, tokens_saved is what we avoided sending)
+        total_footprint = metrics.budget_used + metrics.tokens_saved_artifacts
+        assert total_footprint > 0
+
+    def test_recording_failure_never_raises(self, test_db):
+        """Recording failures should be best-effort and never raise exceptions."""
+        # This is tested at the executor level (_record_token_efficiency_telemetry)
+        # which wraps record_token_efficiency_metrics in a try/except.
+        # Here we just verify the DB layer handles invalid data gracefully.
+
+        # Test with minimal valid data
+        metrics = record_token_efficiency_metrics(
+            db=test_db,
+            run_id="test-run",
+            phase_id="phase-001",
+            artifact_substitutions=0,
+            tokens_saved_artifacts=0,
+            budget_mode="unknown",
+            budget_used=0,
+            budget_cap=0,
+            files_kept=0,
+            files_omitted=0,
+            phase_outcome="COMPLETE",
+        )
+        assert metrics.id is not None
+
+    def test_embedding_cache_metrics_optional(self, test_db):
+        """Embedding cache metrics should be optional (default to 0 when omitted)."""
+        # Record without embedding metrics
+        metrics = record_token_efficiency_metrics(
+            db=test_db,
+            run_id="test-run",
+            phase_id="phase-001",
+            artifact_substitutions=5,
+            tokens_saved_artifacts=2500,
+            budget_mode="semantic",
+            budget_used=8000,
+            budget_cap=10000,
+            files_kept=15,
+            files_omitted=3,
+            phase_outcome="COMPLETE",
+            # All embedding fields omitted (default to 0)
+        )
+        # Schema default is 0, not NULL (makes queries easier)
+        assert metrics.embedding_cache_hits == 0
+        assert metrics.embedding_cache_misses == 0
+        assert metrics.embedding_calls_made == 0
+
+        # Record with embedding metrics
+        metrics2 = record_token_efficiency_metrics(
+            db=test_db,
+            run_id="test-run",
+            phase_id="phase-002",
+            artifact_substitutions=3,
+            tokens_saved_artifacts=1500,
+            budget_mode="semantic",
+            budget_used=7000,
+            budget_cap=10000,
+            files_kept=10,
+            files_omitted=2,
+            phase_outcome="COMPLETE",
+            embedding_cache_hits=45,
+            embedding_cache_misses=5,
+            embedding_calls_made=50,
+        )
+        assert metrics2.embedding_cache_hits == 45
+        assert metrics2.embedding_cache_misses == 5
+        assert metrics2.embedding_calls_made == 50

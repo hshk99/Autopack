@@ -17,6 +17,7 @@ These are the canonical references that should stay current and are designed to 
 ### Living SOT Docs (Updated as Needed)
 - **`docs/DEPLOYMENT.md`**: Production deployment and database configuration (PostgreSQL is production).
 - **`docs/PRODUCTION_ROLLOUT_CHECKLIST.md`**: Staged rollout plan + monitoring queries.
+- **`docs/MODEL_INTELLIGENCE_SYSTEM.md`**: Model catalog + recommendation system (evidence-based model upgrades).
 - **`docs/PROJECT_INDEX.json`**: Machine-friendly index for quick project orientation.
 - **`docs/LEARNED_RULES.json`**: Accumulated prevention rules / heuristics.
 

@@ -41,13 +41,14 @@ try:
 except ImportError:  # pragma: no cover
     load_dotenv = None
 
-from glm_native_client import NativeGLMClient
-from semantic_store import get_store
-
 # Ensure sibling imports work when invoked from repo root
 SCRIPT_DIR = Path(__file__).resolve().parent
-REPO_ROOT = SCRIPT_DIR.parent
-sys.path.append(str(SCRIPT_DIR))
+REPO_ROOT = SCRIPT_DIR.parent.parent
+sys.path.insert(0, str(SCRIPT_DIR))
+sys.path.insert(0, str(SCRIPT_DIR.parent))
+
+from glm_native_client import NativeGLMClient
+from semantic_store import get_store
 
 # Import memory-based classifier
 try:

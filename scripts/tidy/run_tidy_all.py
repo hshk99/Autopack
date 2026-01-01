@@ -25,7 +25,7 @@ def load_scope(repo_root: Path):
 
 
 def main():
-    repo_root = Path(__file__).resolve().parent.parent
+    repo_root = Path(__file__).resolve().parent.parent.parent
     # Resolve semantic model from config/models.yaml (single source of truth).
     sys.path.insert(0, str(repo_root / "src"))
     try:
@@ -37,7 +37,7 @@ def main():
     for r in roots:
         cmd = [
             sys.executable,
-            str(repo_root / "scripts" / "tidy_workspace.py"),
+            str(repo_root / "scripts" / "tidy" / "tidy_workspace.py"),
             "--root", r,
             "--semantic",
             "--semantic-model", semantic_model,

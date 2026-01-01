@@ -9,15 +9,20 @@ Tests verify:
 - Integration with retrieval triggers
 
 Per BUILD-043/044/045 patterns: strict isolation, no protected path modifications.
+
+NOTE: Originally an extended/aspirational test suite, now graduated to core suite
+as deep retrieval enhancements have been implemented (22/22 tests passing).
 """
 
 import pytest
 from pathlib import Path
+
+# GRADUATED: Removed xfail marker - enhancements have been implemented (BUILD-146 Phase A P15)
 from datetime import datetime, timedelta
 import json
 import tempfile
 import shutil
-from src.autopack.diagnostics.deep_retrieval import DeepRetrieval
+from autopack.diagnostics.deep_retrieval import DeepRetrieval
 
 
 class TestDeepRetrievalTriggers:
@@ -419,7 +424,10 @@ class TestDeepRetrievalEdgeCases:
         run_dir, _ = temp_dirs
 
         # Create file with unicode
-        (run_dir / "unicode.log").write_text("Error: File 'café.txt' not found 🔍\n" * 10)
+        (run_dir / "unicode.log").write_text(
+            "Error: File 'café.txt' not found 🔍\n" * 10,
+            encoding="utf-8",
+        )
 
         bundle = {"error_message": "test error"}
         result = retrieval.retrieve("phase_001", bundle)

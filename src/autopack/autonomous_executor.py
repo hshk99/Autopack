@@ -275,6 +275,9 @@ class AutonomousExecutor:
             logger.warning(f"MemoryService initialization failed, running without memory: {e}")
             self.memory_service = None
 
+        # Optional: Index SOT docs at startup if enabled
+        self._maybe_index_sot_docs()
+
         # Run file layout + diagnostics directories
         # Project ID is auto-detected from run_id prefix by RunFileLayout
         self.project_id = self._detect_project_id(self.run_id)
@@ -1441,6 +1444,81 @@ class AutonomousExecutor:
             logger.error(f"[{phase_id}] Failed to mark complete in database: {e}")
             return False
 
+    def _record_token_efficiency_telemetry(self, phase_id: str, phase_outcome: str) -> None:
+        """Record token efficiency telemetry for a phase (BUILD-145 P1 hardening).
+
+        Best-effort telemetry recording that never fails the phase.
+        Records metrics for terminal outcomes: COMPLETE, FAILED, BLOCKED.
+
+        Args:
+            phase_id: Phase identifier
+            phase_outcome: Terminal outcome (COMPLETE, FAILED, BLOCKED, etc.)
+        """
+        try:
+            # Check if we have context data from _load_scoped_context
+            if not hasattr(self, '_last_file_context'):
+                return
+
+            file_ctx = self._last_file_context
+            artifact_stats = file_ctx.get("artifact_stats", {})
+            budget_selection = file_ctx.get("budget_selection")
+
+            if not (artifact_stats or budget_selection):
+                return
+
+            from autopack.usage_recorder import record_token_efficiency_metrics
+
+            # Extract artifact stats (BUILD-145 P1: now reflects kept files only)
+            artifact_substitutions = artifact_stats.get("substitutions", 0) if artifact_stats else 0
+            tokens_saved_artifacts = artifact_stats.get("tokens_saved", 0) if artifact_stats else 0
+            substituted_paths_sample = artifact_stats.get("substituted_paths_sample", []) if artifact_stats else []
+
+            # Extract budget selection stats
+            if budget_selection:
+                budget_mode = budget_selection.mode
+                budget_used = budget_selection.used_tokens_est
+                budget_cap = budget_selection.budget_tokens
+                files_kept = budget_selection.files_kept_count
+                files_omitted = budget_selection.files_omitted_count
+            else:
+                budget_mode = "unknown"
+                budget_used = 0
+                budget_cap = 0
+                files_kept = 0
+                files_omitted = 0
+
+            # Record metrics with phase outcome
+            record_token_efficiency_metrics(
+                db=self.db,
+                run_id=self.run_id,
+                phase_id=phase_id,
+                artifact_substitutions=artifact_substitutions,
+                tokens_saved_artifacts=tokens_saved_artifacts,
+                budget_mode=budget_mode,
+                budget_used=budget_used,
+                budget_cap=budget_cap,
+                files_kept=files_kept,
+                files_omitted=files_omitted,
+                phase_outcome=phase_outcome,
+            )
+
+            # Compact logging: cap list at 10, join with commas
+            paths_preview = ", ".join(substituted_paths_sample[:10])
+            if substituted_paths_sample:
+                paths_suffix = f" paths=[{paths_preview}]"
+            else:
+                paths_suffix = ""
+
+            logger.info(
+                f"[TOKEN_EFFICIENCY] phase={phase_id} outcome={phase_outcome} "
+                f"artifacts={artifact_substitutions} saved={tokens_saved_artifacts}tok "
+                f"budget={budget_mode} used={budget_used}/{budget_cap}tok "
+                f"files={files_kept}kept/{files_omitted}omitted{paths_suffix}"
+            )
+        except Exception as e:
+            # Best-effort telemetry - never fail the phase
+            logger.warning(f"[{phase_id}] Failed to record token efficiency telemetry: {e}")
+
     def _mark_phase_failed_in_db(self, phase_id: str, reason: str) -> bool:
         """Mark phase as FAILED in database
 
@@ -1481,6 +1559,9 @@ class AutonomousExecutor:
                     pass
 
             logger.info(f"[{phase_id}] Marked FAILED in database (reason: {reason})")
+
+            # BUILD-145 P1: Record token efficiency telemetry for failed phases
+            self._record_token_efficiency_telemetry(phase_id, "FAILED")
 
             # Send Telegram notification for phase failure
             self._send_phase_failure_notification(phase_id, reason)
@@ -1833,6 +1914,9 @@ class AutonomousExecutor:
                         details=f"Succeeded on attempt {attempt_index + 1} after {attempt_index} failed attempts"
                     )
 
+                # BUILD-145 P1.1: Record token efficiency telemetry
+                self._record_token_efficiency_telemetry(phase_id, "COMPLETE")
+
                 logger.info(f"[{phase_id}] Phase completed successfully on attempt {attempt_index + 1}")
                 return True, "COMPLETE"
 
@@ -1875,6 +1959,84 @@ class AutonomousExecutor:
                 error_details=f"Status: {status}",
                 attempt_index=attempt_index
             )
+
+            # [BUILD-146 P6.3] Deterministic Failure Hardening (before expensive diagnostics/Doctor)
+            # Try deterministic mitigation FIRST to avoid token costs
+            if os.getenv("AUTOPACK_ENABLE_FAILURE_HARDENING", "false").lower() == "true":
+                from autopack.failure_hardening import detect_and_mitigate_failure
+
+                error_text = f"Status: {status}, Attempt: {attempt_index + 1}"
+                hardening_context = {
+                    "workspace": Path(self.workspace_root) if hasattr(self, "workspace_root") else Path.cwd(),
+                    "phase_id": phase_id,
+                    "status": status,
+                    "scope_paths": phase.get("scope", {}).get("paths", []),
+                }
+
+                mitigation_result = detect_and_mitigate_failure(error_text, hardening_context)
+
+                if mitigation_result:
+                    logger.info(
+                        f"[{phase_id}] Failure hardening detected pattern: {mitigation_result.pattern_id} "
+                        f"(success={mitigation_result.success}, fixed={mitigation_result.fixed})"
+                    )
+                    logger.info(f"[{phase_id}] Actions taken: {mitigation_result.actions_taken}")
+                    logger.info(f"[{phase_id}] Suggestions: {mitigation_result.suggestions}")
+
+                    # Record mitigation in learning hints
+                    self._record_learning_hint(
+                        phase=phase,
+                        hint_type="failure_hardening_applied",
+                        details=f"Pattern: {mitigation_result.pattern_id}, Fixed: {mitigation_result.fixed}"
+                    )
+
+                    # If mitigation claims it's fixed, skip diagnostics/Doctor and retry immediately
+                    if mitigation_result.fixed:
+                        logger.info(
+                            f"[{phase_id}] Failure hardening claims fix applied, skipping diagnostics/Doctor"
+                        )
+
+                        # [BUILD-146 P2] Record Phase 6 telemetry for failure hardening
+                        if os.getenv("TELEMETRY_DB_ENABLED", "false").lower() == "true":
+                            try:
+                                from autopack.usage_recorder import record_phase6_metrics, estimate_doctor_tokens_avoided
+                                from autopack.database import SessionLocal
+
+                                db = SessionLocal()
+                                try:
+                                    # BUILD-146 P3: Use median-based estimation with coverage tracking
+                                    estimate, coverage_n, source = estimate_doctor_tokens_avoided(
+                                        db=db,
+                                        run_id=self.run_id,
+                                        doctor_model=None,  # Could enhance to track expected model
+                                    )
+
+                                    record_phase6_metrics(
+                                        db=db,
+                                        run_id=self.run_id,
+                                        phase_id=phase_id,
+                                        failure_hardening_triggered=True,
+                                        failure_pattern_detected=mitigation_result.pattern_id,
+                                        failure_hardening_mitigated=True,
+                                        doctor_call_skipped=True,
+                                        doctor_tokens_avoided_estimate=estimate,
+                                        estimate_coverage_n=coverage_n,
+                                        estimate_source=source,
+                                    )
+                                finally:
+                                    db.close()
+                            except Exception as e:
+                                logger.warning(f"[{phase_id}] Failed to record Phase 6 telemetry: {e}")
+
+                        # Increment attempts and return for immediate retry (caller handles retry loop)
+                        new_attempts = attempt_index + 1
+                        self._update_phase_attempts_in_db(
+                            phase_id,
+                            retry_attempt=new_attempts,
+                            last_failure_reason=f"HARDENING_MITIGATED: {mitigation_result.pattern_id}"
+                        )
+                        # Return FAILED status so caller can retry immediately with mitigation applied
+                        return (False, "FAILED")
 
             # Run governed diagnostics to gather evidence before mutations
             self._run_diagnostics_for_failure(
@@ -3223,6 +3385,18 @@ Just the new description that should replace the current one while preserving th
             logger.warning("[Doctor] LlmService not available, skipping Doctor invocation")
             return None
 
+        # [BUILD-146 P6.2] Add intention context to Doctor logs_excerpt
+        doctor_logs_excerpt = logs_excerpt
+        if os.getenv("AUTOPACK_ENABLE_INTENTION_CONTEXT", "false").lower() == "true":
+            try:
+                if hasattr(self, "_intention_injector"):
+                    intention_reminder = self._intention_injector.get_intention_context(max_chars=512)
+                    if intention_reminder:
+                        doctor_logs_excerpt = f"[Project Intention]\n{intention_reminder}\n\n[Error Context]\n{logs_excerpt}"
+                        logger.debug(f"[{phase_id}] Added intention reminder to Doctor context")
+            except Exception as e:
+                logger.warning(f"[{phase_id}] Failed to add intention to Doctor logs: {e}")
+
         # Build request
         request = DoctorRequest(
             phase_id=phase_id,
@@ -3231,7 +3405,7 @@ Just the new description that should replace the current one while preserving th
             health_budget=self._get_health_budget(),
             last_patch=last_patch,
             patch_errors=patch_errors or [],
-            logs_excerpt=logs_excerpt,
+            logs_excerpt=doctor_logs_excerpt,
             run_id=self.run_id,
         )
 
@@ -3804,6 +3978,8 @@ Just the new description that should replace the current one while preserving th
             # Load repository context for Builder
             try:
                 file_context = self._load_repository_context(phase)
+                # BUILD-145 P1.1: Store context for telemetry
+                self._last_file_context = file_context
                 logger.info(f"[{phase_id}] Loaded {len(file_context.get('existing_files', {}))} files for context")
 
                 # NEW: Validate scope configuration if present (GPT recommendation - Option C)
@@ -3818,6 +3994,7 @@ Just the new description that should replace the current one while preserving th
                     logger.error(f"Traceback: {traceback.format_exc()}")
                     # Return empty context to allow execution to continue
                     file_context = {"existing_files": {}}
+                    self._last_file_context = file_context
                 else:
                     raise
 
@@ -3909,12 +4086,66 @@ Just the new description that should replace the current one while preserving th
                         include_planning=True,
                         include_plan_changes=True,
                         include_decisions=True,
+                        include_sot=bool(settings.autopack_sot_retrieval_enabled),
                     )
                     retrieved_context = self.memory_service.format_retrieved_context(retrieved, max_chars=4000)
                     if retrieved_context:
                         logger.info(f"[{phase_id}] Retrieved {len(retrieved_context)} chars of context from memory")
                 except Exception as e:
                     logger.warning(f"[{phase_id}] Memory retrieval failed: {e}")
+
+            # [BUILD-146 P6.2] Intention Context Injection (compact semantic anchor)
+            intention_context = ""
+            if os.getenv("AUTOPACK_ENABLE_INTENTION_CONTEXT", "false").lower() == "true":
+                try:
+                    from autopack.intention_wiring import IntentionContextInjector
+
+                    # Create injector (cached on first call per run)
+                    if not hasattr(self, "_intention_injector"):
+                        project_id = self._get_project_slug() or self.run_id
+                        self._intention_injector = IntentionContextInjector(
+                            run_id=self.run_id,
+                            project_id=project_id,
+                            memory_service=self.memory_service if hasattr(self, "memory_service") else None
+                        )
+
+                    # Get bounded intention context (≤2KB)
+                    intention_context = self._intention_injector.get_intention_context(max_chars=2048)
+
+                    if intention_context:
+                        logger.info(f"[{phase_id}] Injected {len(intention_context)} chars of intention context")
+                        # Prepend to retrieved_context so it's visible in Builder prompt
+                        if retrieved_context:
+                            retrieved_context = f"{intention_context}\n\n{retrieved_context}"
+                        else:
+                            retrieved_context = intention_context
+
+                        # [BUILD-146 P2] Record Phase 6 telemetry for intention context
+                        if os.getenv("TELEMETRY_DB_ENABLED", "false").lower() == "true":
+                            try:
+                                from autopack.usage_recorder import record_phase6_metrics
+                                from autopack.database import SessionLocal
+
+                                db = SessionLocal()
+                                try:
+                                    # Determine source: memory or fallback
+                                    source = "memory" if hasattr(self, "memory_service") and self.memory_service else "fallback"
+
+                                    record_phase6_metrics(
+                                        db=db,
+                                        run_id=self.run_id,
+                                        phase_id=phase_id,
+                                        intention_context_injected=True,
+                                        intention_context_chars=len(intention_context),
+                                        intention_context_source=source,
+                                    )
+                                finally:
+                                    db.close()
+                            except Exception as e:
+                                logger.warning(f"[{phase_id}] Failed to record Phase 6 telemetry: {e}")
+
+                except Exception as e:
+                    logger.warning(f"[{phase_id}] Intention context injection failed: {e}")
 
             # BUILD-050 Phase 1: Add deliverables contract as hard constraint
             # This ensures Builder creates files at correct paths from the start
@@ -5255,6 +5486,7 @@ Just the new description that should replace the current one while preserving th
                     include_planning=True,
                     include_plan_changes=True,
                     include_decisions=True,
+                    include_sot=bool(settings.autopack_sot_retrieval_enabled),
                 )
                 retrieved_context = self.memory_service.format_retrieved_context(retrieved, max_chars=4000)
                 if retrieved_context:
@@ -5865,6 +6097,7 @@ Just the new description that should replace the current one while preserving th
                     include_planning=True,
                     include_plan_changes=True,
                     include_decisions=True,
+                    include_sot=bool(settings.autopack_sot_retrieval_enabled),
                 )
                 retrieved_context = self.memory_service.format_retrieved_context(retrieved, max_chars=4000)
                 if retrieved_context:
@@ -6253,6 +6486,7 @@ Just the new description that should replace the current one while preserving th
                     include_planning=True,
                     include_plan_changes=True,
                     include_decisions=True,
+                    include_sot=bool(settings.autopack_sot_retrieval_enabled),
                 )
                 retrieved_context = self.memory_service.format_retrieved_context(retrieved, max_chars=4000)
                 if retrieved_context:
@@ -7018,8 +7252,8 @@ Just the new description that should replace the current one while preserving th
 
         # BUILD-145 P1: Initialize artifact loader for token-efficient context loading
         from autopack.artifact_loader import ArtifactLoader
-        run_id = phase.get("run_id", "")
-        artifact_loader = ArtifactLoader(base_workspace, run_id) if run_id else None
+        # Use executor's run_id (always available) instead of phase.get("run_id")
+        artifact_loader = ArtifactLoader(base_workspace, self.run_id) if self.run_id else None
         total_tokens_saved = 0
         artifact_substitutions = 0
 
@@ -7216,14 +7450,53 @@ Just the new description that should replace the current one while preserving th
                 f"~{total_tokens_saved:,} tokens saved"
             )
 
+        # BUILD-145 P1.1: Apply context budgeting to loaded files
+        from autopack.context_budgeter import select_files_for_context, reset_embedding_cache
+        from autopack.config import settings
+
+        # BUILD-145 P1 (hardening): Reset embedding cache per phase to enforce per-phase cap
+        reset_embedding_cache()
+
+        budget_selection = select_files_for_context(
+            files=existing_files,
+            scope_metadata=scope_metadata,
+            deliverables=phase.get("deliverables", []),
+            query=phase.get("description", ""),
+            budget_tokens=settings.context_budget_tokens
+        )
+
+        # Replace existing_files with budgeted selection
+        existing_files = budget_selection.kept
+        logger.info(
+            f"[Context Budget] Mode: {budget_selection.mode}, "
+            f"Used: {budget_selection.used_tokens_est}/{budget_selection.budget_tokens} tokens, "
+            f"Files: {budget_selection.files_kept_count} kept, {budget_selection.files_omitted_count} omitted"
+        )
+
+        # BUILD-145 P1 (hardening): Recompute artifact stats for kept files only
+        # Original artifact_stats were computed before budgeting, so some substituted files may have been omitted
+        kept_artifact_substitutions = 0
+        kept_tokens_saved = 0
+        substituted_paths_sample = []
+        kept_files = set(existing_files.keys())
+
+        for path, metadata in scope_metadata.items():
+            if path in kept_files and metadata.get("source", "").startswith("artifact:"):
+                kept_artifact_substitutions += 1
+                kept_tokens_saved += metadata.get("tokens_saved", 0)
+                if len(substituted_paths_sample) < 10:
+                    substituted_paths_sample.append(path)
+
         return {
             "existing_files": existing_files,
             "scope_metadata": scope_metadata,
             "missing_scope_files": missing_files,
             "artifact_stats": {
-                "substitutions": artifact_substitutions,
-                "tokens_saved": total_tokens_saved
-            } if artifact_substitutions > 0 else None,
+                "substitutions": kept_artifact_substitutions,
+                "tokens_saved": kept_tokens_saved,
+                "substituted_paths_sample": substituted_paths_sample
+            } if kept_artifact_substitutions > 0 else None,
+            "budget_selection": budget_selection,  # Store for telemetry
         }
 
     def _validate_scope_context(self, phase: Dict, file_context: Dict, scope_config: Dict):
@@ -7549,6 +7822,84 @@ Just the new description that should replace the current one while preserving th
 
         # Default to Autopack framework
         return "autopack"
+
+    def _resolve_project_docs_dir(self, project_id: str) -> Path:
+        """Resolve the correct docs directory for a project.
+
+        Args:
+            project_id: Project identifier (e.g., 'autopack', 'telemetry-collection-v5')
+
+        Returns:
+            Path to the project's docs directory
+
+        Notes:
+            - For repo-root projects (project_id == 'autopack'), uses <workspace>/docs
+            - For sub-projects, checks <workspace>/.autonomous_runs/<project_id>/docs
+            - Falls back to <workspace>/docs with a warning if sub-project docs not found
+        """
+        ws = Path(self.workspace)
+
+        # Check for sub-project docs directory
+        candidate = ws / ".autonomous_runs" / project_id / "docs"
+        if candidate.exists():
+            logger.debug(f"[Executor] Using sub-project docs dir: {candidate}")
+            return candidate
+
+        # Fallback to root docs directory
+        root_docs = ws / "docs"
+        if not candidate.exists() and project_id != "autopack":
+            logger.warning(
+                f"[Executor] Sub-project docs dir not found: {candidate}, "
+                f"falling back to {root_docs}"
+            )
+        return root_docs
+
+    def _maybe_index_sot_docs(self) -> None:
+        """Index SOT documentation files at startup if enabled.
+
+        Only indexes when:
+        - Memory service is enabled
+        - AUTOPACK_ENABLE_SOT_MEMORY_INDEXING=true
+
+        Failures are logged as warnings and do not crash the run.
+        """
+        # Log SOT configuration for operator visibility
+        logger.info(
+            f"[SOT] Configuration: "
+            f"indexing_enabled={settings.autopack_enable_sot_memory_indexing}, "
+            f"retrieval_enabled={settings.autopack_sot_retrieval_enabled}, "
+            f"memory_enabled={self.memory_service.enabled if self.memory_service else False}"
+        )
+
+        if not self.memory_service or not self.memory_service.enabled:
+            logger.debug("[SOT] Memory service disabled, skipping SOT indexing")
+            return
+
+        if not settings.autopack_enable_sot_memory_indexing:
+            logger.debug("[SOT] SOT indexing disabled by config")
+            return
+
+        try:
+            project_id = self._get_project_slug() or self.run_id
+            docs_dir = self._resolve_project_docs_dir(project_id=project_id)
+            logger.info(f"[SOT] Starting indexing for project={project_id}, docs_dir={docs_dir}")
+
+            result = self.memory_service.index_sot_docs(
+                project_id=project_id,
+                workspace_root=Path(self.workspace),
+                docs_dir=docs_dir,
+            )
+
+            if result.get("skipped"):
+                logger.info(f"[SOT] Indexing skipped: {result.get('reason', 'unknown')}")
+            else:
+                indexed_count = result.get("indexed", 0)
+                logger.info(
+                    f"[SOT] Indexing complete: {indexed_count} chunks indexed "
+                    f"(project={project_id}, docs={docs_dir})"
+                )
+        except Exception as e:
+            logger.warning(f"[SOT] Indexing failed: {e}", exc_info=True)
 
     def _autofix_queued_phases(self, run_data: Dict[str, Any]) -> None:
         """
@@ -9390,11 +9741,64 @@ Environment Variables:
         help="Stop execution immediately when any phase fails (saves token usage)"
     )
 
+    # BUILD-146 P6.1: Plan Normalization CLI integration
+    parser.add_argument(
+        "--raw-plan-file",
+        type=Path,
+        default=None,
+        help="Path to raw unstructured plan file (enables plan normalization)"
+    )
+
+    parser.add_argument(
+        "--enable-plan-normalization",
+        action="store_true",
+        help="Enable plan normalization (transform unstructured plans to structured run specs)"
+    )
+
     args = parser.parse_args()
 
     # Configure logging level
     if args.verbose:
         logging.getLogger().setLevel(logging.DEBUG)
+
+    # BUILD-146 P6.1: Plan Normalization (ingestion-time transformation)
+    if args.enable_plan_normalization and args.raw_plan_file:
+        try:
+            from autopack.plan_normalizer import PlanNormalizer
+
+            logger.info(f"[BUILD-146 P6.1] Normalizing raw plan from: {args.raw_plan_file}")
+
+            # Read raw plan
+            with open(args.raw_plan_file, 'r') as f:
+                raw_plan_text = f.read()
+
+            # Normalize to structured run spec
+            normalizer = PlanNormalizer(project_id=args.run_id)
+            normalized_run = normalizer.normalize_plan(
+                raw_plan_text=raw_plan_text,
+                run_id=args.run_id
+            )
+
+            # Write normalized run spec to file
+            normalized_path = args.raw_plan_file.parent / f"{args.run_id}_normalized.json"
+            with open(normalized_path, 'w') as f:
+                json.dump(normalized_run.to_dict(), f, indent=2)
+
+            logger.info(f"[BUILD-146 P6.1] Normalized plan written to: {normalized_path}")
+            logger.info(f"[BUILD-146 P6.1] Run ID: {normalized_run.run_id}")
+            logger.info(f"[BUILD-146 P6.1] Tiers: {len(normalized_run.tiers)}")
+            logger.info(f"[BUILD-146 P6.1] Total phases: {sum(len(t.phases) for t in normalized_run.tiers)}")
+
+            # Exit after normalization (user should review before execution)
+            logger.info("[BUILD-146 P6.1] Plan normalization complete. Review the normalized plan and submit to API.")
+            sys.exit(0)
+
+        except Exception as e:
+            logger.error(f"[BUILD-146 P6.1] Plan normalization failed: {e}", exc_info=True)
+            sys.exit(1)
+    elif args.enable_plan_normalization and not args.raw_plan_file:
+        logger.error("[BUILD-146 P6.1] --enable-plan-normalization requires --raw-plan-file")
+        sys.exit(1)
 
     # BUILD-048-T1: Acquire executor lock to prevent duplicates
     lock_manager = ExecutorLockManager(args.run_id)

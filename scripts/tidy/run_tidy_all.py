@@ -2,7 +2,7 @@
 """
 One-shot tidy runner with safe defaults:
 - Scopes: loaded from tidy_scope.yaml if present; else .autonomous_runs/file-organizer-app-v1, .autonomous_runs, archive
-- Semantic on (glm-4.6), apply semantic moves; semantic deletes are downgraded to archive moves by default.
+- Semantic on (default from config/models.yaml tool_models.tidy_semantic), apply semantic moves; semantic deletes are downgraded to archive moves by default.
 - Execute enabled with checkpoint zip; auto git commits pre/post unless overridden.
 - Prune aged artifacts (30 days) to archive/superseded; no purge.
 """
@@ -26,6 +26,13 @@ def load_scope(repo_root: Path):
 
 def main():
     repo_root = Path(__file__).resolve().parent.parent
+    # Resolve semantic model from config/models.yaml (single source of truth).
+    sys.path.insert(0, str(repo_root / "src"))
+    try:
+        from autopack.model_registry import get_tool_model  # type: ignore
+        semantic_model = get_tool_model("tidy_semantic", default="glm-4.6") or "glm-4.6"
+    except Exception:
+        semantic_model = "glm-4.6"
     roots, db_overrides, purge = load_scope(repo_root)
     for r in roots:
         cmd = [
@@ -33,7 +40,7 @@ def main():
             str(repo_root / "scripts" / "tidy_workspace.py"),
             "--root", r,
             "--semantic",
-            "--semantic-model", "glm-4.6",
+            "--semantic-model", semantic_model,
             "--semantic-max-files", "200",
             "--apply-semantic",
             "--execute",

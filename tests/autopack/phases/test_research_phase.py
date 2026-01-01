@@ -5,7 +5,7 @@ import json
 from datetime import datetime
 from pathlib import Path
 
-from src.autopack.phases.research_phase import (
+from autopack.phases.research_phase import (
     ResearchPhase,
     ResearchPhaseManager,
     ResearchQuery,

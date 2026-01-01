@@ -48,7 +48,7 @@ In **PowerShell Terminal 2**, run:
 cd C:\dev\Autopack
 $env:PYTHONUTF8=1
 $env:PYTHONPATH="src"
-python -m uvicorn backend.main:app --port 8001
+uvicorn autopack.main:app --port 8000
 ```
 
 Leave this running. You should see:

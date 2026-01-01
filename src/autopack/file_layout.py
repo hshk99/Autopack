@@ -4,6 +4,10 @@ Per §3 and §5 of v7 playbook, Supervisor maintains persistent artefacts:
 - run_summary.md
 - tiers/tier_{idx}_{name}.md
 - phases/phase_{idx}_{phase_id}.md
+
+BUILD-145 P2: Extended artifact-first substitution support:
+- history_pack.md: Consolidated recent run/tier/phase summaries
+- Artifact-first loading in additional safe contexts (phase descriptions, tier summaries)
 """
 
 import os
@@ -73,6 +77,10 @@ class RunFileLayout:
     def get_run_summary_path(self) -> Path:
         """Get path to run_summary.md"""
         return self.base_dir / "run_summary.md"
+
+    def get_history_pack_path(self) -> Path:
+        """Get path to history_pack.md (BUILD-145 P2)"""
+        return self.base_dir / "history_pack.md"
 
     def get_tier_summary_path(self, tier_index: int, tier_name: str) -> Path:
         """Get path to tier summary file"""
@@ -227,6 +235,15 @@ class RunFileLayout:
 {issues_section}
 """
         path = self.get_phase_summary_path(phase_index, phase_id)
+        path.write_text(content, encoding="utf-8")
+
+    def write_history_pack(self, content: str) -> None:
+        """Write history pack file (BUILD-145 P2)
+
+        Args:
+            content: Consolidated history pack content
+        """
+        path = self.get_history_pack_path()
         path.write_text(content, encoding="utf-8")
 
     def _detect_project(self, run_id: str) -> str:

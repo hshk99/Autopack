@@ -1,7 +1,7 @@
 """Tests for Intent Clarification Agent."""
 
 import pytest
-from src.research.agents.intent_clarifier import IntentClarifier, ResearchIntent
+from autopack.research.agents.intent_clarifier import IntentClarifier, ResearchIntent
 
 
 class TestIntentClarifier:

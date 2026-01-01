@@ -4,7 +4,7 @@ import pytest
 pytestmark = pytest.mark.skip(reason="Classify routes not implemented yet")
 from unittest.mock import patch
 from fastapi.testclient import TestClient
-from src.autopack.main import app
+from autopack.main import app
 
 client = TestClient(app)
 

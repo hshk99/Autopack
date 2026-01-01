@@ -6,9 +6,9 @@ from unittest.mock import Mock, patch, MagicMock
 # BUILD-146: Skip tests if praw is not installed
 pytest.importorskip("praw")
 
-from src.research.gatherers.reddit_gatherer import RedditGatherer
-from src.research.gatherers.rate_limiter import RateLimiter
-from src.research.gatherers.error_handler import ErrorHandler
+from autopack.research.gatherers.reddit_gatherer import RedditGatherer
+from autopack.research.gatherers.rate_limiter import RateLimiter
+from autopack.research.gatherers.error_handler import ErrorHandler
 
 
 class TestRedditGatherer:

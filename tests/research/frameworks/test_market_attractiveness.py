@@ -1,7 +1,7 @@
 """Tests for Market Attractiveness Framework"""
 
 import pytest
-from src.research.frameworks.market_attractiveness import MarketAttractiveness
+from autopack.research.frameworks.market_attractiveness import MarketAttractiveness
 
 
 class TestMarketAttractiveness:

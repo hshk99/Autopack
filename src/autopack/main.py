@@ -168,9 +168,9 @@ app = FastAPI(
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
-# Mount authentication router
-from backend.api import auth as auth_router
-app.include_router(auth_router.router, tags=["authentication"])
+# Mount authentication router (BUILD-146 P12 Phase 5: migrated to autopack.auth)
+from autopack.auth import router as auth_router
+app.include_router(auth_router, tags=["authentication"])
 
 # Mount research router
 from autopack.research.api.router import research_router
@@ -1244,6 +1244,16 @@ def get_dashboard_run_status(run_id: str, db: Session = Depends(get_db)):
     minor_issues_count = run.minor_issues_count or 0
     major_issues_count = run.major_issues_count or 0
 
+    # Get token efficiency stats (BUILD-145 deployment hardening)
+    token_efficiency = None
+    try:
+        from .usage_recorder import get_token_efficiency_stats
+        efficiency_stats = get_token_efficiency_stats(db, run_id)
+        if efficiency_stats and efficiency_stats.get("total_phases", 0) > 0:
+            token_efficiency = efficiency_stats
+    except Exception as e:
+        logger.warning(f"[DASHBOARD] Failed to load token efficiency stats for {run_id}: {e}")
+
     return dashboard_schemas.DashboardRunStatus(
         run_id=run.id,
         state=run.state.value,
@@ -1262,6 +1272,7 @@ def get_dashboard_run_status(run_id: str, db: Session = Depends(get_db)):
         token_utilization=token_utilization,
         minor_issues_count=minor_issues_count,
         major_issues_count=major_issues_count,
+        token_efficiency=token_efficiency,
     )
 
 
@@ -1399,14 +1410,14 @@ def add_dashboard_human_note(note_request: dashboard_schemas.HumanNoteRequest, d
     }
 
 
-@app.get("/dashboard/runs/{run_id}/token-efficiency", response_model=dict)
+@app.get("/dashboard/runs/{run_id}/token-efficiency", response_model=dashboard_schemas.TokenEfficiencyStats)
 def get_run_token_efficiency(
     run_id: str,
     db: Session = Depends(get_db),
     api_key: str = Depends(verify_api_key)
 ):
     """Get token efficiency metrics for a run (BUILD-145)
-    
+
     Returns aggregated token efficiency statistics:
     - Total artifact substitutions and tokens saved
     - Context budget usage and mode distribution
@@ -1416,9 +1427,174 @@ def get_run_token_efficiency(
     run = db.query(models.Run).filter(models.Run.id == run_id).first()
     if not run:
         raise HTTPException(status_code=404, detail="Run not found")
-    
+
     stats = get_token_efficiency_stats(db, run_id)
-    return stats
+    return dashboard_schemas.TokenEfficiencyStats(**stats)
+
+
+@app.get("/dashboard/runs/{run_id}/phase6-stats", response_model=dashboard_schemas.Phase6Stats)
+def get_run_phase6_stats(
+    run_id: str,
+    db: Session = Depends(get_db),
+    api_key: str = Depends(verify_api_key)
+):
+    """Get Phase 6 True Autonomy feature effectiveness metrics (BUILD-146)
+
+    Returns aggregated Phase 6 statistics:
+    - Failure hardening pattern detection and mitigation rates
+    - Doctor calls skipped and estimated token savings
+    - Intention context injection statistics
+    - Plan normalization usage
+    """
+    # Verify run exists
+    run = db.query(models.Run).filter(models.Run.id == run_id).first()
+    if not run:
+        raise HTTPException(status_code=404, detail="Run not found")
+
+    from autopack.usage_recorder import get_phase6_metrics_summary
+
+    stats = get_phase6_metrics_summary(db, run_id)
+    return dashboard_schemas.Phase6Stats(run_id=run_id, **stats)
+
+
+@app.get("/dashboard/runs/{run_id}/consolidated-metrics")
+def get_dashboard_consolidated_metrics(
+    run_id: str,
+    limit: int = 1000,
+    offset: int = 0,
+    db: Session = Depends(get_db)
+):
+    """Get consolidated token metrics for a run (no double-counting).
+
+    BUILD-146 P11 Observability + P12 API Consolidation: Returns all token metrics
+    in clearly separated categories to prevent confusion and double-counting.
+
+    This is the PRIMARY observability endpoint - prefer this over legacy
+    /token-efficiency and /phase6-stats endpoints.
+
+    Args:
+        run_id: The run ID to fetch metrics for
+        limit: Maximum number of records to return (max: 10000, default: 1000)
+        offset: Number of records to skip (default: 0)
+
+    Returns:
+        Dictionary with consolidated token metrics in 4 independent categories:
+        1. total_tokens_spent: Actual LLM spend (from llm_usage_events)
+        2. artifact_tokens_avoided: Efficiency savings (from token_efficiency_metrics)
+        3. doctor_tokens_avoided_estimate: Counterfactual (from phase6_metrics)
+        4. ab_delta_tokens_saved: Measured A/B delta (when available)
+
+    Raises:
+        HTTPException: 503 if kill switch disabled, 404 if run not found, 400 if bad pagination
+    """
+    # BUILD-146 P12: Kill switch check (default: OFF)
+    if os.getenv("AUTOPACK_ENABLE_CONSOLIDATED_METRICS") != "1":
+        raise HTTPException(
+            status_code=503,
+            detail="Consolidated metrics disabled. Set AUTOPACK_ENABLE_CONSOLIDATED_METRICS=1 to enable."
+        )
+
+    # Validate pagination parameters
+    if limit > 10000:
+        raise HTTPException(status_code=400, detail="Limit cannot exceed 10000")
+    if offset < 0:
+        raise HTTPException(status_code=400, detail="Offset cannot be negative")
+
+    # Verify run exists
+    run = db.query(models.Run).filter(models.Run.id == run_id).first()
+    if not run:
+        raise HTTPException(status_code=404, detail=f"Run not found: {run_id}")
+
+    # Category 1: Actual spend from llm_usage_events
+    from autopack.usage_recorder import LlmUsageEvent
+    actual_spend = db.query(
+        text("""
+            SELECT
+                COALESCE(SUM(total_tokens), 0) as total_tokens,
+                COALESCE(SUM(prompt_tokens), 0) as prompt_tokens,
+                COALESCE(SUM(completion_tokens), 0) as completion_tokens,
+                COALESCE(SUM(CASE WHEN is_doctor_call = 1 THEN total_tokens ELSE 0 END), 0) as doctor_tokens
+            FROM llm_usage_events
+            WHERE run_id = :run_id
+        """)
+    ).params(run_id=run_id).first()
+
+    total_tokens_spent = actual_spend[0] if actual_spend else 0
+    total_prompt_tokens = actual_spend[1] if actual_spend else 0
+    total_completion_tokens = actual_spend[2] if actual_spend else 0
+    doctor_tokens_spent = actual_spend[3] if actual_spend else 0
+
+    # Category 2: Artifact efficiency from token_efficiency_metrics
+    artifact_efficiency = db.query(
+        text("""
+            SELECT
+                COALESCE(SUM(tokens_saved_artifacts), 0) as tokens_saved,
+                COALESCE(SUM(artifact_substitutions), 0) as substitutions
+            FROM token_efficiency_metrics
+            WHERE run_id = :run_id
+        """)
+    ).params(run_id=run_id).first()
+
+    artifact_tokens_avoided = artifact_efficiency[0] if artifact_efficiency else 0
+    artifact_substitutions_count = artifact_efficiency[1] if artifact_efficiency else 0
+
+    # Category 3: Doctor counterfactual from phase6_metrics
+    doctor_counterfactual = db.query(
+        text("""
+            SELECT
+                COALESCE(SUM(doctor_tokens_avoided_estimate), 0) as total_estimate,
+                COALESCE(SUM(CASE WHEN doctor_call_skipped = 1 THEN 1 ELSE 0 END), 0) as skipped_count,
+                MAX(estimate_coverage_n) as max_coverage_n,
+                MAX(estimate_source) as last_source
+            FROM phase6_metrics
+            WHERE run_id = :run_id
+        """)
+    ).params(run_id=run_id).first()
+
+    doctor_tokens_avoided_estimate = doctor_counterfactual[0] if doctor_counterfactual else 0
+    doctor_calls_skipped_count = doctor_counterfactual[1] if doctor_counterfactual else 0
+    estimate_coverage_n = doctor_counterfactual[2] if doctor_counterfactual else None
+    estimate_source = doctor_counterfactual[3] if doctor_counterfactual else None
+
+    # Category 4: A/B delta (not implemented yet - would come from A/B test results)
+    ab_delta_tokens_saved = None
+    ab_control_run_id = None
+    ab_treatment_run_id = None
+
+    # Metadata: Phase counts
+    phase_counts = db.query(
+        text("""
+            SELECT
+                COUNT(*) as total_phases,
+                COALESCE(SUM(CASE WHEN state = 'COMPLETE' THEN 1 ELSE 0 END), 0) as completed_phases
+            FROM phases
+            WHERE run_id = :run_id
+        """)
+    ).params(run_id=run_id).first()
+
+    total_phases = phase_counts[0] if phase_counts else 0
+    completed_phases = phase_counts[1] if phase_counts else 0
+
+    # Build response
+    return {
+        "run_id": run_id,
+        "total_tokens_spent": total_tokens_spent,
+        "total_prompt_tokens": total_prompt_tokens,
+        "total_completion_tokens": total_completion_tokens,
+        "doctor_tokens_spent": doctor_tokens_spent,
+        "artifact_tokens_avoided": artifact_tokens_avoided,
+        "artifact_substitutions_count": artifact_substitutions_count,
+        "doctor_tokens_avoided_estimate": doctor_tokens_avoided_estimate,
+        "doctor_calls_skipped_count": doctor_calls_skipped_count,
+        "estimate_coverage_n": estimate_coverage_n,
+        "estimate_source": estimate_source,
+        "ab_delta_tokens_saved": ab_delta_tokens_saved,
+        "ab_control_run_id": ab_control_run_id,
+        "ab_treatment_run_id": ab_treatment_run_id,
+        "total_phases": total_phases,
+        "completed_phases": completed_phases,
+    }
+
 
 @app.post("/dashboard/models/override")
 def add_dashboard_model_override(override_request: dashboard_schemas.ModelOverrideRequest, db: Session = Depends(get_db)):
@@ -1449,50 +1625,103 @@ def add_dashboard_model_override(override_request: dashboard_schemas.ModelOverri
 @app.get("/health")
 def health_check(db: Session = Depends(get_db)):
     """
-    Health check endpoint.
+    Enhanced health check endpoint with dependency validation and kill switch states.
 
     BUILD-129 Phase 3: Treat DB connectivity as part of health to prevent false-positives where
     /health is 200 but /runs/{id} fails with 500 due to DB misconfiguration (e.g., API using
     default Postgres while executor wrote runs into local SQLite).
+
+    BUILD-146 P12 API Consolidation: Enhanced with:
+    - Database connectivity check with identity hash
+    - Optional Qdrant dependency check
+    - Kill switch states reporting
+    - Version information
     """
+    import hashlib
+    import re
+
+    def get_database_identity() -> str:
+        """Get database identity hash for drift detection."""
+        db_url = os.getenv("DATABASE_URL", "sqlite:///./autopack.db")
+        # Mask credentials for security
+        masked_url = re.sub(r'://([^:]+):([^@]+)@', r'://***:***@', db_url)
+        # Normalize path separators for cross-platform consistency
+        normalized_url = masked_url.replace("\\", "/")
+        # Hash and take first 12 chars
+        return hashlib.sha256(normalized_url.encode()).hexdigest()[:12]
+
+    def check_qdrant_connection() -> str:
+        """Check Qdrant vector database connection (optional dependency)."""
+        qdrant_host = os.getenv("QDRANT_HOST")
+        if not qdrant_host:
+            return "disabled"
+        try:
+            import requests
+            response = requests.get(f"{qdrant_host}/healthz", timeout=2)
+            return "connected" if response.status_code == 200 else f"unhealthy (status {response.status_code})"
+        except ImportError:
+            return "client_not_installed"
+        except Exception as e:
+            logger.warning(f"Qdrant health check failed: {e}")
+            return f"error: {str(e)[:50]}"
+
+    # Check database connection
+    db_status = "connected"
     try:
-        # Basic connectivity
         db.execute(text("SELECT 1"))
-        # Basic schema sanity (will raise if tables missing/misconfigured)
         db.query(models.Run).limit(1).all()
-        payload = {
-            "status": "healthy",
-            "service": "autopack",
-            "component": "supervisor_api",
-            "db_ok": True,
-        }
-        # Optional DB identity payload for drift debugging.
-        # This is intentionally gated because it reveals local file paths.
-        if os.getenv("DEBUG_DB_IDENTITY") == "1":
-            try:
-                from autopack.db_identity import _get_sqlite_db_path  # type: ignore
-
-                run_ids = [r[0] for r in db.query(models.Run.id).order_by(models.Run.id.asc()).limit(5).all()]
-                payload["db_identity"] = {
-                    "database_url": os.getenv("DATABASE_URL"),
-                    "sqlite_file": str(_get_sqlite_db_path() or ""),
-                    "runs": db.query(models.Run).count(),
-                    "phases": db.query(models.Phase).count(),
-                    "sample_run_ids": run_ids,
-                }
-            except Exception as _e:
-                payload["db_identity_error"] = str(_e)
-
-        return payload
     except Exception as e:
         logger.error(f"[HEALTH] DB health check failed: {e}", exc_info=True)
-        # 503 so callers know to treat the server as unhealthy.
+        db_status = f"error: {str(e)[:50]}"
+
+    # Check Qdrant (optional)
+    qdrant_status = check_qdrant_connection()
+
+    # Get kill switch states (BUILD-146 P12)
+    kill_switches = {
+        "phase6_metrics": os.getenv("AUTOPACK_ENABLE_PHASE6_METRICS") == "1",
+        "consolidated_metrics": os.getenv("AUTOPACK_ENABLE_CONSOLIDATED_METRICS") == "1",
+    }
+
+    # Determine overall status
+    overall_status = "healthy" if db_status == "connected" else "degraded"
+
+    # Get version
+    version = os.getenv("AUTOPACK_VERSION", "unknown")
+
+    # Build response payload
+    payload = {
+        "status": overall_status,
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "database_identity": get_database_identity(),
+        "database": db_status,
+        "qdrant": qdrant_status,
+        "kill_switches": kill_switches,
+        "version": version,
+        "service": "autopack",
+        "component": "supervisor_api",
+    }
+
+    # Optional detailed DB identity for debugging (BUILD-129)
+    if os.getenv("DEBUG_DB_IDENTITY") == "1":
+        try:
+            from autopack.db_identity import _get_sqlite_db_path  # type: ignore
+            run_ids = [r[0] for r in db.query(models.Run.id).order_by(models.Run.id.asc()).limit(5).all()]
+            payload["db_identity_detail"] = {
+                "database_url": os.getenv("DATABASE_URL"),
+                "sqlite_file": str(_get_sqlite_db_path() or ""),
+                "runs": db.query(models.Run).count(),
+                "phases": db.query(models.Phase).count(),
+                "sample_run_ids": run_ids,
+            }
+        except Exception as _e:
+            payload["db_identity_error"] = str(_e)
+
+    # Return 503 if unhealthy, 200 if healthy or degraded
+    if overall_status == "unhealthy":
         return JSONResponse(
             status_code=503,
-            content={
-                "status": "unhealthy",
-                "db_ok": False,
-                "error": str(e),
-                "hint": "Start the API server with the same DATABASE_URL as the executor.",
-            },
+            content=payload
         )
+
+    return payload

@@ -3,17 +3,25 @@
 Provides token-efficient context loading by preferring run artifacts over full file contents.
 
 When loading read_only_context, this module:
-1. Checks if relevant artifacts exist in .autonomous_runs/<run_id>/
+1. Checks if relevant artifacts exist in the run's artifact directory
 2. Loads artifact summaries instead of full file content when available
 3. Falls back to full file content if no artifact exists
 4. Reports token savings for budgeting
 
-Artifact Sources (in priority order):
-- Phase summaries: .autonomous_runs/<run_id>/phases/phase_*.md
-- Tier summaries: .autonomous_runs/<run_id>/tiers/tier_*.md
-- Run summary: .autonomous_runs/<run_id>/run_summary.md
-- Diagnostics: .autonomous_runs/<run_id>/diagnostics/diagnostic_summary.json
-- Handoff bundles: .autonomous_runs/<run_id>/diagnostics/handoff_*.md
+BUILD-145 P2: Extended artifact-first substitution:
+5. Automatically pins run/tier/phase summaries as 'history pack' in context (opt-in)
+6. Optionally substitutes large SOT docs (BUILD_HISTORY, BUILD_LOG) with summaries (opt-in)
+7. Applies artifact-first loading to additional safe contexts (opt-in):
+   - Phase descriptions in tier summaries
+   - Tier summaries in run summaries
+   - Historical context references
+
+Artifact Sources (resolved via RunFileLayout, respects AUTONOMOUS_RUNS_DIR):
+- Phase summaries: {autonomous_runs_dir}/{project}/runs/{family}/{run_id}/phases/phase_*.md
+- Tier summaries: {autonomous_runs_dir}/{project}/runs/{family}/{run_id}/tiers/tier_*.md
+- Run summary: {autonomous_runs_dir}/{project}/runs/{family}/{run_id}/run_summary.md
+- Diagnostics: {autonomous_runs_dir}/{project}/runs/{family}/{run_id}/diagnostics/diagnostic_summary.json
+- Handoff bundles: {autonomous_runs_dir}/{project}/runs/{family}/{run_id}/diagnostics/handoff_*.md
 
 Token Estimation:
 - Uses same conservative estimate as context_budgeter: 1 token ≈ 4 chars
@@ -24,6 +32,9 @@ import logging
 from pathlib import Path
 from typing import Dict, Optional, Tuple, List
 import json
+
+from autopack.config import settings
+from autopack.file_layout import RunFileLayout
 
 logger = logging.getLogger(__name__)
 
@@ -41,18 +52,51 @@ def estimate_tokens(content: str) -> int:
 
 
 class ArtifactLoader:
-    """Loads run artifacts for token-efficient context."""
+    """Loads run artifacts for token-efficient context (P2.1: uses RunFileLayout)."""
 
-    def __init__(self, workspace: Path, run_id: str):
+    def __init__(self, workspace: Path, run_id: str, project_id: Optional[str] = None):
         """Initialize artifact loader.
 
         Args:
             workspace: Repository root path
             run_id: Current run ID
+            project_id: Project ID (optional, detected from run_id if not provided)
         """
         self.workspace = Path(workspace)
         self.run_id = run_id
-        self.artifacts_dir = workspace / ".autonomous_runs" / run_id
+
+        # P2.1: Use RunFileLayout to resolve artifact directory (respects AUTONOMOUS_RUNS_DIR)
+        autonomous_runs_base = self.workspace / settings.autonomous_runs_dir
+        self.layout = RunFileLayout(run_id, project_id=project_id, base_dir=autonomous_runs_base)
+        self._primary_artifacts_dir = self.layout.base_dir
+        self._legacy_artifacts_dir = self.workspace / ".autonomous_runs" / run_id
+        self._artifacts_dir_cache = None
+
+    @property
+    def artifacts_dir(self) -> Path:
+        """Get artifacts directory with lazy legacy fallback.
+
+        Tries new layout first, falls back to legacy path if new layout doesn't exist.
+        This enables backward compatibility with existing runs.
+        """
+        # Return cached value if available
+        if self._artifacts_dir_cache is not None:
+            return self._artifacts_dir_cache
+
+        # Try new layout first
+        if self._primary_artifacts_dir.exists():
+            self._artifacts_dir_cache = self._primary_artifacts_dir
+            return self._artifacts_dir_cache
+
+        # Fall back to legacy path if it exists
+        if self._legacy_artifacts_dir.exists():
+            logger.debug(f"[ArtifactLoader] Using legacy path for {self.run_id}: {self._legacy_artifacts_dir}")
+            self._artifacts_dir_cache = self._legacy_artifacts_dir
+            return self._artifacts_dir_cache
+
+        # Neither exists, return primary (new layout) for potential creation
+        self._artifacts_dir_cache = self._primary_artifacts_dir
+        return self._artifacts_dir_cache
 
     def find_artifact_for_path(self, file_path: str) -> Optional[Tuple[str, str]]:
         """Find relevant artifact for a file path.
@@ -242,3 +286,213 @@ class ArtifactLoader:
                 )
 
         return full_content, 0, "full_file"
+
+    def build_history_pack(self) -> Optional[str]:
+        """Build a 'history pack' of recent run/tier/phase summaries.
+
+        Returns a compact summary of recent execution history for context.
+        Only includes summaries if they exist and are smaller than configured limits.
+
+        Returns:
+            History pack content if available, None otherwise
+        """
+        if not settings.artifact_history_pack_enabled:
+            return None
+
+        if not self.artifacts_dir.exists():
+            return None
+
+        sections = []
+
+        # Add run summary (always include if exists)
+        run_summary = self._load_run_summary()
+        if run_summary:
+            sections.append("# Run Summary\n\n" + run_summary)
+
+        # Add recent tier summaries
+        tiers_dir = self.artifacts_dir / "tiers"
+        if tiers_dir.exists():
+            tier_files = sorted(tiers_dir.glob("tier_*.md"), reverse=True)
+            tier_files = tier_files[:settings.artifact_history_pack_max_tiers]
+            for tier_file in tier_files:
+                try:
+                    content = tier_file.read_text(encoding="utf-8", errors="ignore")
+                    sections.append(f"# Tier: {tier_file.stem}\n\n{content}")
+                except Exception as e:
+                    logger.debug(f"[ArtifactLoader] Could not read {tier_file}: {e}")
+
+        # Add recent phase summaries
+        phases_dir = self.artifacts_dir / "phases"
+        if phases_dir.exists():
+            phase_files = sorted(phases_dir.glob("phase_*.md"), reverse=True)
+            phase_files = phase_files[:settings.artifact_history_pack_max_phases]
+            for phase_file in phase_files:
+                try:
+                    content = phase_file.read_text(encoding="utf-8", errors="ignore")
+                    sections.append(f"# Phase: {phase_file.stem}\n\n{content}")
+                except Exception as e:
+                    logger.debug(f"[ArtifactLoader] Could not read {phase_file}: {e}")
+
+        if not sections:
+            return None
+
+        history_pack = "\n\n---\n\n".join(sections)
+        logger.info(
+            f"[ArtifactLoader] Built history pack with {len(sections)} sections "
+            f"(~{estimate_tokens(history_pack)} tokens)"
+        )
+        return history_pack
+
+    def should_substitute_sot_doc(self, file_path: str) -> bool:
+        """Check if a file is a large SOT doc that should be substituted.
+
+        Args:
+            file_path: Relative path to file
+
+        Returns:
+            True if file should be substituted with summary, False otherwise
+        """
+        if not settings.artifact_substitute_sot_docs:
+            return False
+
+        # List of large SOT docs that benefit from summarization
+        sot_docs = [
+            "docs/BUILD_HISTORY.md",
+            "docs/BUILD_LOG.md",
+            ".autonomous_runs/BUILD_HISTORY.md",
+            ".autonomous_runs/BUILD_LOG.md",
+        ]
+
+        return any(file_path.endswith(doc) or file_path == doc for doc in sot_docs)
+
+    def get_sot_doc_summary(self, file_path: str) -> Optional[str]:
+        """Get summary for a large SOT doc.
+
+        Looks for phase/tier summaries that reference the SOT doc content.
+
+        Args:
+            file_path: Relative path to SOT doc
+
+        Returns:
+            Summary content if available, None otherwise
+        """
+        if not self.should_substitute_sot_doc(file_path):
+            return None
+
+        # For BUILD_HISTORY/BUILD_LOG, use history pack as summary
+        history_pack = self.build_history_pack()
+        if history_pack:
+            logger.info(
+                f"[ArtifactLoader] Substituting {file_path} with history pack "
+                f"(~{estimate_tokens(history_pack)} tokens)"
+            )
+            return f"# Summary of {file_path}\n\n{history_pack}"
+
+
+    def load_with_extended_contexts(self, content: str, context_type: str) -> Tuple[str, int, str]:
+        """Load content with artifact substitution in extended safe contexts.
+
+        Applies artifact-first loading to additional contexts beyond read_only_context:
+        - Phase descriptions in tier summaries
+        - Tier summaries in run summaries
+        - Historical context references
+
+        Args:
+            content: Original content to potentially substitute
+            context_type: Type of context ('phase_description', 'tier_summary', 'historical')
+
+        Returns:
+            Tuple of (final_content, tokens_saved, source_type)
+        """
+        if not settings.artifact_extended_contexts_enabled:
+            return content, 0, "original"
+
+        # Only apply to safe, read-only contexts
+        safe_contexts = {'phase_description', 'tier_summary', 'historical'}
+        if context_type not in safe_contexts:
+            return content, 0, "original"
+
+        # Check if content references artifacts that could be substituted
+        original_tokens = estimate_tokens(content)
+
+        # For historical context, use history pack if available
+        if context_type == 'historical':
+            history_pack = self.build_history_pack()
+            if history_pack:
+                tokens_saved = original_tokens - estimate_tokens(history_pack)
+                if tokens_saved > 0:
+                    logger.info(
+                        f"[ArtifactLoader] Substituted {context_type} with history pack "
+                        f"(saved ~{tokens_saved} tokens)"
+                    )
+                    return history_pack, tokens_saved, "artifact:history_pack"
+
+        # For phase/tier descriptions, check if we have more recent summaries
+        if context_type in {'phase_description', 'tier_summary'}:
+            # Extract phase/tier references from content
+            import re
+            phase_refs = re.findall(r'phase[_\s]+(\d+)', content.lower())
+            tier_refs = re.findall(r'tier[_\s]+(\d+)', content.lower())
+
+            if phase_refs or tier_refs:
+                # Build consolidated summary from referenced artifacts
+                summary_parts = []
+
+                for phase_num in phase_refs[:3]:  # Limit to 3 most recent
+                    phases_dir = self.artifacts_dir / "phases"
+                    if phases_dir.exists():
+                        phase_files = sorted(phases_dir.glob(f"phase_{int(phase_num):02d}_*.md"))
+                        if phase_files:
+                            try:
+                                phase_content = phase_files[0].read_text(encoding="utf-8", errors="ignore")
+                                summary_parts.append(f"## Phase {phase_num}\n{phase_content[:500]}...")
+                            except Exception as e:
+                                logger.debug(f"[ArtifactLoader] Could not read phase {phase_num}: {e}")
+
+                for tier_num in tier_refs[:2]:  # Limit to 2 most recent
+                    tiers_dir = self.artifacts_dir / "tiers"
+                    if tiers_dir.exists():
+                        tier_files = sorted(tiers_dir.glob(f"tier_{int(tier_num):02d}_*.md"))
+                        if tier_files:
+                            try:
+                                tier_content = tier_files[0].read_text(encoding="utf-8", errors="ignore")
+                                summary_parts.append(f"## Tier {tier_num}\n{tier_content[:500]}...")
+                            except Exception as e:
+                                logger.debug(f"[ArtifactLoader] Could not read tier {tier_num}: {e}")
+
+                if summary_parts:
+                    consolidated = "\n\n".join(summary_parts)
+                    tokens_saved = original_tokens - estimate_tokens(consolidated)
+                    if tokens_saved > 0:
+                        logger.info(
+                            f"[ArtifactLoader] Substituted {context_type} with artifact summaries "
+                            f"(saved ~{tokens_saved} tokens)"
+                        )
+                        return consolidated, tokens_saved, f"artifact:{context_type}"
+
+        return content, 0, "original"
+        return None
+
+
+def get_artifact_substitution_stats(loader: ArtifactLoader, files: Dict[str, str]) -> Tuple[int, int]:
+    """Calculate artifact substitution statistics for a set of files.
+    
+    Args:
+        loader: ArtifactLoader instance
+        files: Dictionary of file_path -> content
+    
+    Returns:
+        Tuple of (substitution_count, total_tokens_saved)
+    """
+    substitution_count = 0
+    total_tokens_saved = 0
+    
+    for file_path, content in files.items():
+        _, tokens_saved, source_type = loader.load_with_artifacts(
+            file_path, content, prefer_artifacts=True
+        )
+        if source_type.startswith("artifact:"):
+            substitution_count += 1
+            total_tokens_saved += tokens_saved
+    
+    return substitution_count, total_tokens_saved

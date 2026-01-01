@@ -1110,7 +1110,8 @@ def main():
     parser.add_argument("--git-commit-before", type=str, help="Commit message for checkpoint commit before actions")
     parser.add_argument("--git-commit-after", type=str, help="Commit message for checkpoint commit after actions")
     parser.add_argument("--semantic", action="store_true", help="Enable semantic classification (no file mutations)")
-    parser.add_argument("--semantic-model", type=str, default="glm-4.6", help="LLM model name for semantic mode")
+    # Default comes from config/models.yaml tool_models.tidy_semantic to avoid hardcoded model bumps.
+    parser.add_argument("--semantic-model", type=str, default=None, help="LLM model name for semantic mode (default: config/models.yaml tool_models.tidy_semantic)")
     parser.add_argument("--semantic-cache", type=Path, default=DEFAULT_SEMANTIC_CACHE, help="Cache file for semantic results")
     parser.add_argument("--semantic-max-files", type=int, default=50, help="Max files to classify per run")
     parser.add_argument("--semantic-truth", action="append", type=Path, help="Additional truth/reference files")
@@ -1147,6 +1148,18 @@ def main():
         run_git_commit(git_before, REPO_ROOT)
 
     logger = TidyLogger(REPO_ROOT)
+
+    # Resolve default semantic model from config if not provided.
+    if args.semantic and not args.semantic_model:
+        try:
+            # Import from src/ without requiring PYTHONPATH from caller.
+            sys.path.insert(0, str(REPO_ROOT / "src"))
+            from autopack.model_registry import get_tool_model  # noqa: WPS433
+
+            args.semantic_model = get_tool_model("tidy_semantic", default="glm-4.6") or "glm-4.6"
+        except Exception:
+            # Conservative fallback if config load fails.
+            args.semantic_model = "glm-4.6"
 
     for root in roots:
         root = root.resolve()

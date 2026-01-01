@@ -498,3 +498,53 @@ class TokenBudgetEscalationEvent(Base):
     selected_budget = Column(Integer, nullable=True)
     actual_max_tokens = Column(Integer, nullable=True)
     tokens_used = Column(Integer, nullable=True)
+
+
+class ABTestResult(Base):
+    """A/B test comparison results - BUILD-146 P12.
+
+    Stores pair comparisons between control and treatment runs
+    with strict validity checks enforced.
+    """
+
+    __tablename__ = "ab_test_results"
+
+    id = Column(Integer, primary_key=True)
+    test_id = Column(String, nullable=False, index=True)  # e.g., "telemetry-v5-vs-v6"
+
+    # Run pair
+    control_run_id = Column(String, ForeignKey("runs.id"), nullable=False)
+    treatment_run_id = Column(String, ForeignKey("runs.id"), nullable=False)
+
+    # Validity checks (MUST match for valid comparison)
+    control_commit_sha = Column(String, nullable=False)
+    treatment_commit_sha = Column(String, nullable=False)
+    control_model_hash = Column(String, nullable=False)
+    treatment_model_hash = Column(String, nullable=False)
+
+    # Validity status
+    is_valid = Column(Boolean, nullable=False, default=True, index=True)
+    validity_errors = Column(JSON)  # List of validation failures
+
+    # Metrics deltas (treatment - control)
+    token_delta = Column(Integer)  # Positive = treatment used more tokens
+    time_delta_seconds = Column(Float)  # Positive = treatment took longer
+    success_rate_delta = Column(Float)  # Positive = treatment had better success rate (percentage points)
+
+    # Aggregated results from control run
+    control_total_tokens = Column(Integer)
+    control_phases_complete = Column(Integer)
+    control_phases_failed = Column(Integer)
+    control_total_phases = Column(Integer)
+
+    # Aggregated results from treatment run
+    treatment_total_tokens = Column(Integer)
+    treatment_phases_complete = Column(Integer)
+    treatment_phases_failed = Column(Integer)
+    treatment_total_phases = Column(Integer)
+
+    # Metadata
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    created_by = Column(String)  # Script or user that generated result
+
+    # Note: Index constraints are defined in migration script for clarity

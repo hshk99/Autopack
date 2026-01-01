@@ -2,8 +2,8 @@
 import pytest
 from unittest.mock import Mock, AsyncMock, patch
 
-from src.research.orchestrator import ResearchOrchestrator
-from src.research.models import ResearchQuery
+from autopack.research.orchestrator import ResearchOrchestrator
+from autopack.research.models import ResearchQuery
 
 
 class TestFullResearchPipeline:

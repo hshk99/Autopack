@@ -189,7 +189,7 @@ class RetrievalTrigger:
         unclear_patterns = [
             "unknown",
             "unclear",
-            "investigate",
+            "investigat",  # Matches both "investigate" and "investigation"
             "needs analysis",
             "not determined",
         ]

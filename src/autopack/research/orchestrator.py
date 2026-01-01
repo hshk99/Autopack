@@ -1,8 +1,8 @@
-from src.autopack.research.models.research_session import ResearchSession
-from src.autopack.research.models.research_intent import ResearchIntent
-from src.autopack.research.validators.evidence_validator import EvidenceValidator
-from src.autopack.research.validators.recency_validator import RecencyValidator
-from src.autopack.research.validators.quality_validator import QualityValidator
+from autopack.research.models.research_session import ResearchSession
+from autopack.research.models.research_intent import ResearchIntent
+from autopack.research.validators.evidence_validator import EvidenceValidator
+from autopack.research.validators.recency_validator import RecencyValidator
+from autopack.research.validators.quality_validator import QualityValidator
 
 class ResearchOrchestrator:
     def __init__(self):

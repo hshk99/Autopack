@@ -118,12 +118,7 @@ ngrok http --domain=harrybot.ngrok.app 8001
 
 ```bash
 cd c:/dev/Autopack
-PYTHONUTF8=1 PYTHONPATH=src uvicorn backend.main:app --host 0.0.0.0 --port 8001 --reload
-```
-
-Or if using main.py directly:
-```bash
-PYTHONUTF8=1 PYTHONPATH=src python src/backend/main.py
+PYTHONUTF8=1 PYTHONPATH=src uvicorn autopack.main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
 ## Step 7: Test the Integration

@@ -4,7 +4,6 @@ from typing import Dict, Literal, Optional
 
 from pydantic import BaseModel
 
-
 class DashboardRunStatus(BaseModel):
     """Run status for dashboard display"""
 
@@ -34,6 +33,44 @@ class DashboardRunStatus(BaseModel):
     quality_level: Optional[str] = None  # "ok" | "needs_review" | "blocked"
     quality_blocked: bool = False
     quality_warnings: list[str] = []
+    
+    # Token efficiency (BUILD-145) - optional for backwards compatibility
+    token_efficiency: Optional[Dict] = None
+
+
+class TokenEfficiencyStats(BaseModel):
+    """Token efficiency statistics for a run (BUILD-145)"""
+    
+    run_id: str
+    total_phases: int
+    total_artifact_substitutions: int
+    total_tokens_saved_artifacts: int
+    total_budget_used: int
+    total_budget_cap: int
+    total_files_kept: int
+    total_files_omitted: int
+    semantic_mode_count: int
+    lexical_mode_count: int
+    avg_artifact_substitutions_per_phase: float = 0.0
+    avg_tokens_saved_per_phase: float = 0.0
+    budget_utilization: float = 0.0
+
+
+class Phase6Stats(BaseModel):
+    """Phase 6 True Autonomy feature effectiveness statistics (BUILD-146)"""
+
+    run_id: str
+    total_phases: int
+    failure_hardening_triggered_count: int
+    failure_patterns_detected: Dict[str, int] = {}  # {pattern_id: count}
+    doctor_calls_skipped_count: int
+    # BUILD-146 P3: Counterfactual estimate (NOT actual tokens saved from A/B)
+    total_doctor_tokens_avoided_estimate: int
+    estimate_coverage_stats: Dict[str, Dict] = {}  # {source: {count: N, total_n: N}}
+    intention_context_injected_count: int
+    total_intention_context_chars: int
+    avg_intention_context_chars_per_phase: float = 0.0
+    plan_normalization_used: bool = False
 
 
 class ProviderUsage(BaseModel):

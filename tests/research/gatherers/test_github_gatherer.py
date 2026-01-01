@@ -2,7 +2,7 @@
 
 import pytest
 from unittest.mock import Mock, patch, MagicMock
-from src.research.gatherers.github_gatherer import GitHubGatherer
+from autopack.research.gatherers.github_gatherer import GitHubGatherer
 
 
 class TestGitHubGatherer:

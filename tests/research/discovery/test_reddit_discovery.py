@@ -2,7 +2,7 @@
 
 import pytest
 from unittest.mock import Mock, patch
-from src.research.discovery.reddit_discovery import RedditDiscovery, RedditPost, RedditComment
+from autopack.research.discovery.reddit_discovery import RedditDiscovery, RedditPost, RedditComment
 
 
 class TestRedditDiscovery:

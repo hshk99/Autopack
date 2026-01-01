@@ -12,10 +12,10 @@ import tempfile
 from pathlib import Path
 from unittest.mock import Mock, patch, MagicMock
 
-from src.autopack.builder_config import BuilderOutputConfig
-from src.autopack.file_size_telemetry import FileSizeTelemetry
-from src.autopack.anthropic_clients import AnthropicBuilderClient
-from src.autopack.llm_client import BuilderResult
+from autopack.builder_config import BuilderOutputConfig
+from autopack.file_size_telemetry import FileSizeTelemetry
+from autopack.anthropic_clients import AnthropicBuilderClient
+from autopack.llm_client import BuilderResult
 
 
 class TestBuilderOutputConfig:

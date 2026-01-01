@@ -16,10 +16,17 @@ MAX_ATTEMPTS="${MAX_ATTEMPTS:-3}"
 BACKOFF_SECONDS="${BACKOFF_SECONDS:-5}"
 CI_PROFILE="${CI_PROFILE:-normal}"
 
+# BUILD-146 P11 Ops: Set DATABASE_URL explicitly for tests
+# CI provides PostgreSQL, local dev should use explicit DATABASE_URL
+if [ -z "$DATABASE_URL" ]; then
+    echo "⚠️  Warning: DATABASE_URL not set, tests will use in-memory SQLite"
+fi
+
 echo "Configuration:"
 echo "  Max attempts: $MAX_ATTEMPTS"
 echo "  Backoff: $BACKOFF_SECONDS seconds"
 echo "  CI profile: $CI_PROFILE"
+echo "  Database: ${DATABASE_URL:-in-memory SQLite (test default)}"
 echo ""
 
 # Function to run tests

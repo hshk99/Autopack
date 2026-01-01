@@ -1,6 +1,6 @@
 from datetime import datetime
-from src.autopack.research.models.research_intent import ResearchIntent
-from src.autopack.research.models.enums import ResearchStage, ValidationStatus
+from autopack.research.models.research_intent import ResearchIntent
+from autopack.research.models.enums import ResearchStage, ValidationStatus
 
 class ResearchSession:
     def __init__(self, intent: ResearchIntent):

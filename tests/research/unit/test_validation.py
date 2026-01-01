@@ -3,14 +3,14 @@ import pytest
 from unittest.mock import Mock
 from datetime import datetime
 
-from src.research.validation import (
+from autopack.research.validation import (
     ValidationFramework,
     EvidenceValidator,
     CitationValidator,
     QualityValidator,
     ValidationResult
 )
-from src.research.models import Evidence, Citation, EvidenceQuality, ResearchReport
+from autopack.research.models import Evidence, Citation, EvidenceQuality, ResearchReport
 
 
 class TestEvidenceValidator:

@@ -2,14 +2,14 @@
 import pytest
 from unittest.mock import Mock, AsyncMock, patch
 
-from src.research.source_discovery import (
+from autopack.research.source_discovery import (
     SourceDiscoveryStrategy,
     WebSearchStrategy,
     AcademicSearchStrategy,
     DocumentationSearchStrategy,
     DiscoveredSource
 )
-from src.research.intent_clarification import ClarifiedIntent
+from autopack.research.intent_clarification import ClarifiedIntent
 
 
 class TestSourceDiscoveryStrategy:

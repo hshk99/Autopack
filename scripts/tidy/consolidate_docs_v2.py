@@ -15,6 +15,7 @@ Usage:
 """
 
 import argparse
+import hashlib
 import json
 import re
 import subprocess
@@ -1047,6 +1048,56 @@ class DocumentConsolidator:
 
         return datetime.now()
 
+    def _extract_explicit_entry_id(self, content: str, category: str) -> Optional[str]:
+        """
+        Extract explicit entry ID from content if present.
+
+        Patterns:
+        - BUILD-XXX or BUILD-HASH-xxx
+        - DBG-XXX or DBG-HASH-xxx
+        - DEC-XXX or DEC-HASH-xxx
+        - DECISION-XXX
+        """
+        # Category-specific prefixes
+        prefix_patterns = {
+            "build": [r'\bBUILD-(\d{3})\b', r'\bBUILD-HASH-([a-f0-9]{8})\b'],
+            "debug": [r'\bDBG-(\d{3})\b', r'\bDBG-HASH-([a-f0-9]{8})\b'],
+            "decision": [r'\bDEC-(\d{3})\b', r'\bDEC-HASH-([a-f0-9]{8})\b', r'\bDECISION-(\d{3})\b'],
+        }
+
+        patterns = prefix_patterns.get(category, [])
+        for pattern in patterns:
+            match = re.search(pattern, content)
+            if match:
+                # Return the full matched ID
+                return match.group(0)
+
+        return None
+
+    def _stable_entry_id(self, prefix: str, source_path: str, heading: str, timestamp: datetime) -> str:
+        """
+        Generate stable entry ID from deterministic hash.
+
+        Args:
+            prefix: BUILD, DBG, or DEC
+            source_path: Normalized source file path
+            heading: Normalized heading/title
+            timestamp: Entry timestamp
+
+        Returns:
+            Stable ID like "BUILD-HASH-3f2a91c4"
+        """
+        # Normalize inputs
+        norm_path = source_path.lower().replace("\\", "/")
+        norm_heading = heading.lower().strip()
+        norm_timestamp = timestamp.strftime("%Y-%m-%d") if timestamp else "unknown"
+
+        # Create deterministic hash
+        hash_input = f"{norm_path}::{norm_heading}::{norm_timestamp}"
+        hash_digest = hashlib.md5(hash_input.encode()).hexdigest()[:8]
+
+        return f"{prefix}-HASH-{hash_digest}"
+
     def _extract_entries(self, file_path: Path, content: str, category: str,
                          status: str = "UNKNOWN", metadata: Optional[Dict[str, any]] = None):
         """Extract entries from file based on category with status-aware metadata."""
@@ -1059,8 +1110,19 @@ class DocumentConsolidator:
         # In a more sophisticated version, we'd parse sections
 
         if category == "build":
-            entry_id = f"BUILD-{self.build_counter:03d}"
-            self.build_counter += 1
+            # Try to extract explicit ID first
+            explicit_id = self._extract_explicit_entry_id(content, "build")
+            if explicit_id:
+                entry_id = explicit_id
+            else:
+                # Generate stable ID from content
+                heading = self._extract_title(file_path, content)
+                entry_id = self._stable_entry_id(
+                    "BUILD",
+                    str(file_path.relative_to(self.project_dir)),
+                    heading,
+                    timestamp
+                )
 
             # Extract build-specific metadata
             build_metadata = self._extract_build_metadata(content)
@@ -1089,8 +1151,19 @@ class DocumentConsolidator:
                 )
 
         elif category == "debug":
-            entry_id = f"DBG-{self.debug_counter:03d}"
-            self.debug_counter += 1
+            # Try to extract explicit ID first
+            explicit_id = self._extract_explicit_entry_id(content, "debug")
+            if explicit_id:
+                entry_id = explicit_id
+            else:
+                # Generate stable ID from content
+                heading = self._extract_title(file_path, content)
+                entry_id = self._stable_entry_id(
+                    "DBG",
+                    str(file_path.relative_to(self.project_dir)),
+                    heading,
+                    timestamp
+                )
 
             # Extract debug-specific metadata
             debug_metadata = self._extract_debug_metadata(content)
@@ -1119,8 +1192,19 @@ class DocumentConsolidator:
                 )
 
         elif category == "decision":
-            entry_id = f"DEC-{self.decision_counter:03d}"
-            self.decision_counter += 1
+            # Try to extract explicit ID first
+            explicit_id = self._extract_explicit_entry_id(content, "decision")
+            if explicit_id:
+                entry_id = explicit_id
+            else:
+                # Generate stable ID from content
+                heading = self._extract_title(file_path, content)
+                entry_id = self._stable_entry_id(
+                    "DEC",
+                    str(file_path.relative_to(self.project_dir)),
+                    heading,
+                    timestamp
+                )
 
             # Extract decision-specific metadata
             decision_metadata = self._extract_decision_metadata(content)

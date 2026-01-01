@@ -10,7 +10,7 @@ import pytest
 from pathlib import Path
 from unittest.mock import Mock, patch, MagicMock
 
-from src.autopack.diagnostics.second_opinion import (
+from autopack.diagnostics.second_opinion import (
     SecondOpinionConfig,
     TriageReport,
     SecondOpinionTriageSystem,

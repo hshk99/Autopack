@@ -8,7 +8,7 @@ class TestAnalyzer:
 
     def test_analyze_simple_data(self):
         """Test analyzing simple research data."""
-        from src.research.analyzer import Analyzer
+        from autopack.research.analyzer import Analyzer
         
         analyzer = Analyzer()
         data = [
@@ -23,7 +23,7 @@ class TestAnalyzer:
 
     def test_extract_insights(self):
         """Test insight extraction from data."""
-        from src.research.analyzer import Analyzer
+        from autopack.research.analyzer import Analyzer
         
         analyzer = Analyzer()
         data = [
@@ -38,7 +38,7 @@ class TestAnalyzer:
 
     def test_sentiment_analysis(self):
         """Test sentiment analysis of content."""
-        from src.research.analyzer import Analyzer
+        from autopack.research.analyzer import Analyzer
         
         analyzer = Analyzer()
         
@@ -56,7 +56,7 @@ class TestAnalyzer:
 
     def test_topic_extraction(self):
         """Test topic extraction from documents."""
-        from src.research.analyzer import Analyzer
+        from autopack.research.analyzer import Analyzer
         
         analyzer = Analyzer()
         documents = [
@@ -72,7 +72,7 @@ class TestAnalyzer:
 
     def test_summarization(self):
         """Test text summarization."""
-        from src.research.analyzer import Analyzer
+        from autopack.research.analyzer import Analyzer
         
         analyzer = Analyzer()
         long_text = """Machine learning is a method of data analysis that automates 
@@ -87,7 +87,7 @@ class TestAnalyzer:
 
     def test_empty_data_handling(self):
         """Test handling of empty data."""
-        from src.research.analyzer import Analyzer
+        from autopack.research.analyzer import Analyzer
         
         analyzer = Analyzer()
         result = analyzer.analyze([])

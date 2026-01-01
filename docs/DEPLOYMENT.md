@@ -182,6 +182,193 @@ CI_PROFILE=normal
 
 ---
 
+## Database Configuration
+
+### Production = PostgreSQL Only
+
+**Critical**: Autopack production deployments MUST use PostgreSQL. SQLite is only for local development and testing.
+
+**Why PostgreSQL?**
+- Concurrent writes: Multiple executors can run in parallel
+- Production durability: WAL mode, connection pooling, MVCC
+- Performance: Optimized for high-volume telemetry writes
+- Schema migrations: Full column rename/drop support (SQLite has limitations)
+
+### DATABASE_URL Requirements
+
+**BUILD-146 P4 Ops Hardening**: All migration scripts now REQUIRE explicit `DATABASE_URL` to prevent accidentally running migrations on SQLite when production uses Postgres.
+
+**PowerShell (Production - PostgreSQL)**:
+
+```powershell
+# Set DATABASE_URL for production Postgres
+$env:DATABASE_URL="postgresql://autopack:autopack@localhost:5432/autopack"
+
+# Run migration
+python scripts/migrations/add_phase6_p3_fields.py upgrade
+
+# Start executor
+python -m autopack.autonomous_executor --run-id myrun
+```
+
+**PowerShell (Dev/Test - SQLite, explicit opt-in)**:
+
+```powershell
+# Explicitly opt into SQLite for local testing
+$env:DATABASE_URL="sqlite:///autopack.db"
+
+# Run migration
+python scripts/migrations/add_phase6_p3_fields.py upgrade
+
+# Start executor (local testing only)
+python -m autopack.autonomous_executor --run-id myrun
+```
+
+**Bash (Production - PostgreSQL)**:
+
+```bash
+# Set DATABASE_URL for production Postgres
+export DATABASE_URL="postgresql://autopack:autopack@localhost:5432/autopack"
+
+# Run migration
+python scripts/migrations/add_phase6_p3_fields.py upgrade
+
+# Start executor
+python -m autopack.autonomous_executor --run-id myrun
+```
+
+**Bash (Dev/Test - SQLite, explicit opt-in)**:
+
+```bash
+# Explicitly opt into SQLite for local testing
+export DATABASE_URL="sqlite:///autopack.db"
+
+# Run migration
+python scripts/migrations/add_phase6_p3_fields.py upgrade
+
+# Start executor (local testing only)
+python -m autopack.autonomous_executor --run-id myrun
+```
+
+### Common DATABASE_URL Footguns
+
+**Footgun #1: Migration on wrong DB**
+
+```powershell
+# ❌ BAD: Forgot to set DATABASE_URL, script exits with error
+python scripts/migrations/add_phase6_p3_fields.py upgrade
+
+# Output:
+# ERROR: DATABASE_URL environment variable not set
+# Migration scripts require explicit DATABASE_URL to prevent footguns.
+# Production uses Postgres; SQLite is only for dev/test.
+```
+
+**Fix**: Always set `DATABASE_URL` before running migrations.
+
+**Footgun #2: API and Executor on different DBs**
+
+```powershell
+# Canonical API server starts with Postgres (from settings.database_url)
+PYTHONPATH=src uvicorn autopack.main:app --host 0.0.0.0 --port 8000
+
+# Executor starts without DATABASE_URL set
+# ❌ Would default to SQLite (if we hadn't fixed this)
+python -m autopack.autonomous_executor --run-id myrun
+```
+
+**Fix**: Check `/health` endpoint's `database_identity` field to detect drift:
+
+```bash
+curl http://localhost:8000/health
+# {
+#   "status": "healthy",
+#   "timestamp": "2025-12-31T12:34:56Z",
+#   "database_identity": "a1b2c3d4e5f6"  # Hash of DATABASE_URL
+# }
+```
+
+If executor and API return different `database_identity` values, they're using different databases.
+
+### Database Identity Check
+
+**BUILD-146 P4 Ops**: The `/health` endpoint now returns a `database_identity` hash to detect when API and executor are pointing at different databases.
+
+**How it works**:
+1. Computes SHA-256 hash of `DATABASE_URL` (with credentials masked)
+2. Returns first 12 hex chars as identity fingerprint
+3. Compare fingerprints between API and executor to detect drift
+
+**Example**:
+
+```bash
+# Check API database identity
+curl http://localhost:8000/health | jq -r .database_identity
+# Output: a1b2c3d4e5f6
+
+# Executor logs its identity on startup
+# [2025-12-31 12:34:56] Database identity: a1b2c3d4e5f6
+
+# If hashes differ, API and executor are on different DBs!
+```
+
+### Setting Up PostgreSQL
+
+**Local PostgreSQL (Windows)**:
+
+```powershell
+# Install PostgreSQL 15+ via Chocolatey
+choco install postgresql15
+
+# Start PostgreSQL service
+Start-Service postgresql-x64-15
+
+# Create database and user
+psql -U postgres -c "CREATE USER autopack WITH PASSWORD 'autopack';"
+psql -U postgres -c "CREATE DATABASE autopack OWNER autopack;"
+
+# Set DATABASE_URL
+$env:DATABASE_URL="postgresql://autopack:autopack@localhost:5432/autopack"
+```
+
+**Local PostgreSQL (Linux/Mac)**:
+
+```bash
+# Install PostgreSQL 15+
+sudo apt-get install postgresql-15  # Ubuntu/Debian
+# or
+brew install postgresql@15  # macOS
+
+# Start PostgreSQL
+sudo systemctl start postgresql  # Linux
+# or
+brew services start postgresql@15  # macOS
+
+# Create database and user
+sudo -u postgres psql -c "CREATE USER autopack WITH PASSWORD 'autopack';"
+sudo -u postgres psql -c "CREATE DATABASE autopack OWNER autopack;"
+
+# Set DATABASE_URL
+export DATABASE_URL="postgresql://autopack:autopack@localhost:5432/autopack"
+```
+
+**Docker PostgreSQL**:
+
+```bash
+# Run Postgres in Docker
+docker run --name autopack-postgres \
+  -e POSTGRES_USER=autopack \
+  -e POSTGRES_PASSWORD=autopack \
+  -e POSTGRES_DB=autopack \
+  -p 5432:5432 \
+  -d postgres:15
+
+# Set DATABASE_URL
+export DATABASE_URL="postgresql://autopack:autopack@localhost:5432/autopack"
+```
+
+---
+
 ## Health Checks
 
 ### API Health Endpoint

@@ -2,7 +2,7 @@
 import pytest
 from datetime import datetime
 
-from src.research.models import Evidence, Citation, EvidenceQuality
+from autopack.research.models import Evidence, Citation, EvidenceQuality
 
 
 class TestEvidence:

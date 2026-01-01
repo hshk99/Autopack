@@ -8,7 +8,7 @@ from typing import List
 
 import pytest
 
-from src.autopack.git_rollback import GitRollback
+from autopack.git_rollback import GitRollback
 
 
 @pytest.fixture

@@ -1,5 +1,5 @@
 import unittest
-from src.autopack.research.agents.meta_auditor import MetaAuditor
+from autopack.research.agents.meta_auditor import MetaAuditor
 
 class MockFramework:
     def __init__(self, name, score):

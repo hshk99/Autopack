@@ -295,3 +295,7 @@ class ResearchReviewWorkflow:
             lines.append("")
 
         return "\n".join(lines)
+
+
+# Backward compatibility alias for tests
+ReviewConfig = ReviewCriteria

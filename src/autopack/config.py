@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import os
 
+from pydantic import AliasChoices, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -35,6 +36,79 @@ class Settings(BaseSettings):
     # When enabled, creates git savepoints before applying patches and rolls back on failure
     # Set via environment variable: AUTOPACK_ROLLBACK_ENABLED=true
     executor_rollback_enabled: bool = False
+
+    # BUILD-145 P2: Extended artifact-first substitution (opt-in, disabled by default)
+    # When enabled, automatically pins run/tier/phase summaries as 'history pack' in context
+    # and optionally substitutes large SOT docs with their summaries
+    # Env vars supported:
+    # - Canonical (pydantic default): ARTIFACT_HISTORY_PACK_ENABLED=true
+    # - Legacy alias: AUTOPACK_ARTIFACT_HISTORY_PACK=true
+    artifact_history_pack_enabled: bool = Field(
+        default=False,
+        validation_alias=AliasChoices("ARTIFACT_HISTORY_PACK_ENABLED", "AUTOPACK_ARTIFACT_HISTORY_PACK"),
+    )
+
+    # Maximum number of recent phase summaries to include in history pack
+    artifact_history_pack_max_phases: int = 5
+
+    # Maximum number of recent tier summaries to include in history pack
+    artifact_history_pack_max_tiers: int = 3
+
+    # Enable substitution of large SOT docs (BUILD_HISTORY, BUILD_LOG) with summaries
+    # Env vars supported:
+    # - Canonical (pydantic default): ARTIFACT_SUBSTITUTE_SOT_DOCS=true
+    # - Legacy alias: AUTOPACK_ARTIFACT_SUBSTITUTE_SOT_DOCS=true
+    artifact_substitute_sot_docs: bool = Field(
+        default=False,
+        validation_alias=AliasChoices("ARTIFACT_SUBSTITUTE_SOT_DOCS", "AUTOPACK_ARTIFACT_SUBSTITUTE_SOT_DOCS"),
+    )
+
+    # Enable artifact substitution in additional safe contexts beyond read_only_context
+    # When enabled, applies artifact-first loading to phase descriptions, tier summaries, etc.
+    # Env vars supported:
+    # - Canonical (pydantic default): ARTIFACT_EXTENDED_CONTEXTS_ENABLED=true
+    # - Legacy alias: AUTOPACK_ARTIFACT_EXTENDED_CONTEXTS=true
+    artifact_extended_contexts_enabled: bool = Field(
+        default=False,
+        validation_alias=AliasChoices("ARTIFACT_EXTENDED_CONTEXTS_ENABLED", "AUTOPACK_ARTIFACT_EXTENDED_CONTEXTS"),
+    )
+
+    # Embedding cache configuration
+    # Maximum number of embedding API calls per phase (0 = unlimited)
+    embedding_cache_max_calls_per_phase: int = 100
+
+    # Context budget configuration (BUILD-145 P1.1)
+    # Maximum tokens for context selection (rough estimate used by context_budgeter)
+    # Default: 100k tokens (conservative estimate for read_only_context in phases)
+    context_budget_tokens: int = 100_000
+
+    # SOT (Source of Truth) Memory Indexing Configuration
+    # Enable indexing of SOT ledgers (BUILD_HISTORY, DEBUG_LOG, ARCHITECTURE_DECISIONS) into vector memory
+    autopack_enable_sot_memory_indexing: bool = False
+
+    # Enable retrieval of SOT context at runtime (requires indexing to be enabled)
+    autopack_sot_retrieval_enabled: bool = False
+
+    # Maximum characters to return from SOT retrieval (to prevent prompt bloat)
+    autopack_sot_retrieval_max_chars: int = 4000
+
+    # Top-k chunks to retrieve from SOT collections
+    autopack_sot_retrieval_top_k: int = 3
+
+    # Maximum characters per chunk when indexing SOT files
+    autopack_sot_chunk_max_chars: int = 1200
+
+    # Overlap between chunks (for context continuity)
+    autopack_sot_chunk_overlap_chars: int = 150
+
+    # JWT Authentication configuration (BUILD-146 P12 Phase 5)
+    # RS256 key pair for signing/verifying access tokens
+    jwt_private_key: str = ""  # RSA private key in PEM format (env: JWT_PRIVATE_KEY)
+    jwt_public_key: str = ""   # RSA public key in PEM format (env: JWT_PUBLIC_KEY)
+    jwt_algorithm: str = "RS256"  # JWT signing algorithm
+    jwt_issuer: str = "autopack"  # Token issuer
+    jwt_audience: str = "autopack-api"  # Token audience
+    access_token_expire_minutes: int = 1440  # Token expiration (24 hours)
 
 
 settings = Settings()
@@ -91,5 +165,3 @@ def get_database_url() -> str:
         url = f"sqlite:///{db_path.as_posix()}"
 
     return url
-
-

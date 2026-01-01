@@ -15,7 +15,7 @@ import pytest
 from pathlib import Path
 import tempfile
 import shutil
-from src.autopack.diagnostics.retrieval_triggers import RetrievalTrigger
+from autopack.diagnostics.retrieval_triggers import RetrievalTrigger
 
 
 class TestRetrievalTriggerInsufficientBundle:

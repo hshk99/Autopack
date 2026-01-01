@@ -55,9 +55,13 @@ class ResearchDecision:
     task_context: Dict[str, Any] = field(default_factory=dict)
 
 
+# Backward compatibility alias for tests
+ResearchTriggerConfig = ResearchHookConfig
+
+
 class ResearchHooks:
     """Manages research hooks for autonomous mode."""
-    
+
     def __init__(
         self,
         config: Optional[ResearchHookConfig] = None,

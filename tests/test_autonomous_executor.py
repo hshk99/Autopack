@@ -9,7 +9,7 @@ from pathlib import Path
 
 import pytest
 
-from src.autopack.autonomous_executor import AutonomousExecutor
+from autopack.autonomous_executor import AutonomousExecutor
 
 
 def make_executor(tmp_path: Path) -> AutonomousExecutor:

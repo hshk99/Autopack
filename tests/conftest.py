@@ -7,6 +7,11 @@ from pathlib import Path
 
 import pytest
 
+# Ensure tests do not accidentally require a running Postgres instance.
+# Autopack defaults to Postgres for production; for unit tests we prefer in-memory SQLite.
+# IMPORTANT: This must run before importing `autopack.database` (which creates an engine at import time).
+os.environ.setdefault("DATABASE_URL", "sqlite:///:memory:")
+
 # Ensure src directory is in Python path before any imports
 project_root = Path(__file__).resolve().parent.parent
 src_path = project_root / "src"
@@ -22,9 +27,9 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from src.autopack import models
-from src.autopack.database import Base, get_db
-from src.autopack.main import app
-from src.autopack.usage_recorder import LlmUsageEvent  # noqa: F401 - ensure model registered
+from autopack.database import Base, get_db
+from autopack.main import app
+from autopack.usage_recorder import LlmUsageEvent  # noqa: F401 - ensure model registered
 
 
 @pytest.fixture(scope="function")
@@ -78,7 +83,7 @@ def client(db_engine, db_session, tmp_path, monkeypatch):
 
     # Override autonomous_runs_dir at the settings object level
     # This ensures all code using settings.autonomous_runs_dir uses the temp path
-    from src.autopack.config import settings
+    from autopack.config import settings
     test_runs_dir = str(tmp_path / ".autonomous_runs")
     monkeypatch.setattr(settings, "autonomous_runs_dir", test_runs_dir)
     os.environ["AUTONOMOUS_RUNS_DIR"] = test_runs_dir

@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from src.autopack.preflight_validator import PreflightValidator
+from autopack.preflight_validator import PreflightValidator
 
 
 def test_preflight_validator_rejects_circular_dependencies(tmp_path: Path):

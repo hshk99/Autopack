@@ -3,8 +3,8 @@ import pytest
 from unittest.mock import Mock, AsyncMock, patch
 from datetime import datetime
 
-from src.research.orchestrator import ResearchOrchestrator, ResearchSession
-from src.research.models import ResearchQuery, ResearchStage, Evidence
+from autopack.research.orchestrator import ResearchOrchestrator, ResearchSession
+from autopack.research.models import ResearchQuery, ResearchStage, Evidence
 
 
 class TestResearchOrchestrator:

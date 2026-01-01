@@ -1,7 +1,7 @@
 """Tests for Product Feasibility Framework"""
 
 import pytest
-from src.research.frameworks.product_feasibility import ProductFeasibility
+from autopack.research.frameworks.product_feasibility import ProductFeasibility
 
 
 class TestProductFeasibility:

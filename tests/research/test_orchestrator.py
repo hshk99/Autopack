@@ -1,5 +1,5 @@
 import unittest
-from src.autopack.research.orchestrator import ResearchOrchestrator
+from autopack.research.orchestrator import ResearchOrchestrator
 
 class TestResearchOrchestrator(unittest.TestCase):
 

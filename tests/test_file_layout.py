@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from src.autopack.file_layout import RunFileLayout
+from autopack.file_layout import RunFileLayout
 
 
 @pytest.fixture

@@ -44,11 +44,20 @@ class ExecutorLockManager:
 
         Args:
             run_id: Run ID to lock (one lock per run-id)
-            lock_dir: Directory for lock files. Defaults to .autonomous_runs/.locks
+            lock_dir: Directory for lock files. Defaults to {autonomous_runs_dir}/.locks
             timeout: Lock acquisition timeout in seconds (not currently used)
         """
+        from .config import settings
+
         self.run_id = run_id
-        self.lock_dir = lock_dir or Path(".autonomous_runs/.locks")
+
+        # P2.2: Respect settings.autonomous_runs_dir for parallel-run safety
+        if lock_dir is not None:
+            self.lock_dir = lock_dir
+        else:
+            # Use configured runs directory instead of hardcoded path
+            self.lock_dir = Path(settings.autonomous_runs_dir) / ".locks"
+
         self.timeout = timeout
 
         # Create lock directory if it doesn't exist

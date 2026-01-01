@@ -73,7 +73,7 @@ Start command (PowerShell):
 
 ```powershell
 $env:PYTHONUTF8='1'; $env:PYTHONPATH='src'; $env:DATABASE_URL='sqlite:///autopack.db';
-python -m uvicorn backend.main:app --app-dir src --host 127.0.0.1 --port 8001
+uvicorn autopack.main:app --host 127.0.0.1 --port 8000
 ```
 
 ### Runs that were executed to validate convergence fixes

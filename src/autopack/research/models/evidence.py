@@ -1,5 +1,9 @@
+from dataclasses import dataclass, field
 from datetime import datetime
-from src.autopack.research.models.enums import EvidenceType
+from typing import Any, Dict, List, Optional
+
+from autopack.research.models.enums import EvidenceType
+
 
 class Evidence:
     def __init__(self, source: str, evidence_type: EvidenceType, relevance: float, publication_date: datetime):
@@ -32,3 +36,15 @@ class Evidence:
 
 # This model ensures that all evidence used in research is both recent and valid,
 # supporting the integrity and credibility of the research findings.
+
+
+# Compat shim for Citation (missing from original implementation)
+@dataclass
+class Citation:
+    """Citation model for research sources."""
+    source: str
+    title: str = ""
+    authors: List[str] = field(default_factory=list)
+    publication_date: Optional[datetime] = None
+    url: Optional[str] = None
+    metadata: Dict[str, Any] = field(default_factory=dict)

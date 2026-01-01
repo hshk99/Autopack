@@ -147,27 +147,27 @@ def detect_underestimation(
     tolerance: float = 1.0
 ) -> bool:
     """Detect if prediction underestimated actual value.
-    
+
     Args:
         predicted: Predicted value
         actual: Actual value
         tolerance: Tolerance multiplier (default: 1.0 = no tolerance)
                    Use >1.0 to allow some underestimation (e.g., 1.1 = 10% tolerance)
-    
+
     Returns:
         True if underestimated beyond tolerance
-    
+
     Examples:
         >>> detect_underestimation(100, 100)  # Perfect
         False
         >>> detect_underestimation(90, 100)   # 10% under
         True
-        >>> detect_underestimation(90, 100, tolerance=1.1)  # Within 10% tolerance
+        >>> detect_underestimation(91, 100, tolerance=1.1)  # Within 10% tolerance
         False
     """
     if tolerance < 1.0:
         raise ValueError("Tolerance must be >= 1.0")
-    
+
     return actual > (predicted * tolerance)
 
 

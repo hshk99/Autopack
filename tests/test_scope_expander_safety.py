@@ -1,7 +1,7 @@
 from pathlib import Path
 
-from src.autopack.repo_scanner import RepoScanner
-from src.autopack.scope_expander import ScopeExpander
+from autopack.repo_scanner import RepoScanner
+from autopack.scope_expander import ScopeExpander
 
 
 def _touch(path: Path, content: str = "# x\n") -> None:

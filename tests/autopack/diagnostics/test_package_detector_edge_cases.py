@@ -3,7 +3,7 @@
 import pytest
 from pathlib import Path
 
-from src.autopack.diagnostics.package_detector import PackageDetector
+from autopack.diagnostics.package_detector import PackageDetector
 from tests.autopack.diagnostics.fixtures.package_scenarios import (
     EDGE_CASE_SCENARIOS,
     NO_PACKAGES_SCENARIOS,

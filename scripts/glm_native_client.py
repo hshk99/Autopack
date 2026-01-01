@@ -11,7 +11,7 @@ Auth specifics:
     timestamp: now_ms
 
 Endpoint: https://open.bigmodel.cn/api/paas/v4/chat/completions
-Default model: glm-4.6
+Default model: resolved via config/models.yaml tool_models.tidy_semantic (fallback: glm-4.6)
 
 Dependencies: requests, pyjwt
 """
@@ -35,7 +35,7 @@ class NativeGLMClient:
     def __init__(
         self,
         api_key: str | None = None,
-        model: str = "glm-4.6",
+        model: str | None = None,
         timeout: int = 30,
     ):
         if load_dotenv:
@@ -45,7 +45,22 @@ class NativeGLMClient:
             raise ValueError("GLM_API_KEY is required and must be in the form '<api_id>.<api_secret>'")
         self.api_id, self.api_secret = self.api_key.split(".", 1)
         self.base_url = "https://open.bigmodel.cn/api/paas/v4/chat/completions"
-        self.model = model
+        if model:
+            self.model = model
+        else:
+            # Default comes from config/models.yaml to avoid hardcoded model bumps.
+            try:
+                # scripts/ is at repo root; allow importing src/ for config lookup.
+                from pathlib import Path
+                import sys
+
+                repo_root = Path(__file__).resolve().parent.parent
+                sys.path.insert(0, str(repo_root / "src"))
+                from autopack.model_registry import get_tool_model  # type: ignore
+
+                self.model = get_tool_model("tidy_semantic", default="glm-4.6") or "glm-4.6"
+            except Exception:
+                self.model = "glm-4.6"
         self.timeout = timeout
 
     def _generate_token(self, ttl_seconds: int = 300) -> str:
@@ -90,7 +105,7 @@ class NativeGLMClient:
 
 
 if __name__ == "__main__":
-    print("Testing Native GLM-4.6 Client...")
+    print("Testing Native GLM Client (default from config/models.yaml)...")
     client = NativeGLMClient()
     try:
         reply = client.chat([{"role": "user", "content": "Hello, are you online?"}])

@@ -41,3 +41,17 @@ class IntentClarifier:
         return refined_query
 
     # Additional methods for handling specific clarification tasks can be added here
+
+
+# Backward compatibility - ResearchIntent not in original implementation
+from dataclasses import dataclass, field
+from typing import List, Dict, Any, Optional
+
+@dataclass
+class ResearchIntent:
+    """Compat shim for ResearchIntent (missing from original)."""
+    query: str
+    refined_query: str = ""
+    keywords: List[str] = field(default_factory=list)
+    context: Dict[str, Any] = field(default_factory=dict)
+    confidence: float = 0.0

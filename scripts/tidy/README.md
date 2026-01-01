@@ -2,6 +2,10 @@
 
 This folder contains all scripts related to workspace organization, cleanup, and Source of Truth (SOT) synchronization.
 
+## Important: SOT → Runtime Retrieval Integration
+
+The tidy system's SOT ledgers (BUILD_HISTORY, DEBUG_LOG, ARCHITECTURE_DECISIONS) can now be indexed into `MemoryService` for runtime retrieval by Autopack. See [docs/TIDY_SOT_RETRIEVAL_INTEGRATION_PLAN.md](../../docs/TIDY_SOT_RETRIEVAL_INTEGRATION_PLAN.md) for implementation details and usage.
+
 ## Quick Start
 
 ### Full Workspace Cleanup (Recommended - Fully Automatic)

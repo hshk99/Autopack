@@ -175,8 +175,12 @@ Implemented comprehensive observability features including:
             "AUTOPACK_ENABLE_MEMORY": "true",
             "AUTOPACK_ENABLE_SOT_MEMORY_INDEXING": "true",
         }):
-            from autopack.config import Settings
-            settings = Settings()
+            # Reload settings module to pick up environment changes
+            import sys
+            import importlib
+            if "autopack.config" in sys.modules:
+                importlib.reload(sys.modules["autopack.config"])
+            from autopack.config import settings
             assert settings.autopack_enable_sot_memory_indexing is True
 
             service = MemoryService(enabled=True, use_qdrant=False)
@@ -191,6 +195,12 @@ Implemented comprehensive observability features including:
             "AUTOPACK_ENABLE_MEMORY": "true",
             "AUTOPACK_ENABLE_SOT_MEMORY_INDEXING": "true",
         }):
+            # Reload settings module to pick up environment changes
+            import sys
+            import importlib
+            if "autopack.config" in sys.modules:
+                importlib.reload(sys.modules["autopack.config"])
+
             service = MemoryService(enabled=True, use_qdrant=False)
 
             # Index SOT docs
@@ -222,6 +232,12 @@ Implemented comprehensive observability features including:
             "AUTOPACK_ENABLE_SOT_MEMORY_INDEXING": "true",
             "AUTOPACK_SOT_RETRIEVAL_ENABLED": "true",
         }):
+            # Reload settings module to pick up environment changes
+            import sys
+            import importlib
+            if "autopack.config" in sys.modules:
+                importlib.reload(sys.modules["autopack.config"])
+
             service = MemoryService(enabled=True, use_qdrant=False)
 
             # Index SOT docs
@@ -244,6 +260,12 @@ Implemented comprehensive observability features including:
             "AUTOPACK_ENABLE_SOT_MEMORY_INDEXING": "true",
             "AUTOPACK_SOT_RETRIEVAL_ENABLED": "true",
         }):
+            # Reload settings module to pick up environment changes
+            import sys
+            import importlib
+            if "autopack.config" in sys.modules:
+                importlib.reload(sys.modules["autopack.config"])
+
             service = MemoryService(enabled=True, use_qdrant=False)
 
             # Index and retrieve
@@ -471,6 +493,12 @@ Content here.
             "AUTOPACK_ENABLE_MEMORY": "true",
             "AUTOPACK_ENABLE_SOT_MEMORY_INDEXING": "true",
         }):
+            # Reload settings module to pick up environment changes
+            import sys
+            import importlib
+            if "autopack.config" in sys.modules:
+                importlib.reload(sys.modules["autopack.config"])
+
             service = MemoryService(enabled=True, use_qdrant=False)
 
             # Index with explicit docs_dir
@@ -497,6 +525,12 @@ Content.
             "AUTOPACK_ENABLE_MEMORY": "true",
             "AUTOPACK_ENABLE_SOT_MEMORY_INDEXING": "true",
         }):
+            # Reload settings module to pick up environment changes
+            import sys
+            import importlib
+            if "autopack.config" in sys.modules:
+                importlib.reload(sys.modules["autopack.config"])
+
             service = MemoryService(enabled=True, use_qdrant=False)
 
             # Index without explicit docs_dir
@@ -563,6 +597,12 @@ class TestSOT6FileSupport:
             "AUTOPACK_ENABLE_MEMORY": "true",
             "AUTOPACK_ENABLE_SOT_MEMORY_INDEXING": "true",
         }):
+            # Reload settings module to pick up environment changes
+            import sys
+            import importlib
+            if "autopack.config" in sys.modules:
+                importlib.reload(sys.modules["autopack.config"])
+
             service = MemoryService(enabled=True, use_qdrant=False)
             result = service.index_sot_docs("autopack", tmp_path)
 

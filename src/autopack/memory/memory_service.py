@@ -1275,7 +1275,17 @@ class MemoryService:
                 "sot": [],
             }
 
-        results = {}
+        # Initialize results with all possible keys (consistent structure)
+        results = {
+            "code": [],
+            "summaries": [],
+            "errors": [],
+            "hints": [],
+            "planning": [],
+            "plan_changes": [],
+            "decisions": [],
+            "sot": [],
+        }
         limit = self.top_k
 
         if include_code:

@@ -58,15 +58,13 @@ In practice, “autonomous” requires that each phase has:
 
 ### Latest Highlights (Last 3 Builds)
 
-#### 2026-01-01: BUILD-146 Phase A P11 - SOT Runtime + Model Intelligence ✅
-**Memory Integration: Full SOT Wiring + 6-File Coverage + Model Intelligence Workflows**
-- SOT retrieval now operational in executor (closes primary runtime gap)
-- Expanded SOT coverage from 3 → 6 files (markdown + JSON with field-selective embedding)
-- Multi-project docs directory support (root + sub-projects)
-- Re-indexing optimized (skips existing chunks, Windows-safe line endings)
-- Enhanced chunking boundaries (paragraphs, headings, punctuation)
-- Model intelligence workflows: audit guardrails + one-command refresh
-- See [BUILD_HISTORY.md](docs/BUILD_HISTORY.md#build-146-phase-a-p11) for full details
+#### 2026-01-01: BUILD-147 Phase A P11 - SOT Runtime + Model Intelligence Integration ✅
+**Memory Integration: SOT Runtime Observability & Validation Hardening**
+- Validated complete SOT runtime integration (all 8 parts from IMPROVEMENTS_PLAN already implemented)
+- Fixed test infrastructure: consistent `retrieve_context` return structure + singleton settings reload
+- All 26 SOT memory indexing tests passing ✅
+- Production-ready: opt-in design (disabled by default), bounded outputs, multi-project support
+- See [BUILD_HISTORY.md](docs/BUILD_HISTORY.md#build-147-phase-a-p11) and [docs/IMPROVEMENTS_PLAN_SOT_RUNTIME_AND_MODEL_INTEL.md](docs/IMPROVEMENTS_PLAN_SOT_RUNTIME_AND_MODEL_INTEL.md) for full details
 
 #### 2026-01-01: BUILD-146 Phase A P17.x - DB Idempotency Hardening ✅
 **Production Polish: Operator Guidance + Optional Postgres Validation**

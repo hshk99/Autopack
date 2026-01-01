@@ -483,7 +483,7 @@ doctor_models:
 
 ### Model Escalation System
 Automatically escalates to more powerful models when phases fail repeatedly:
-- **Intra-tier escalation**: Within complexity level (e.g., glm-4.6 -> claude-sonnet-4-5)
+- **Intra-tier escalation**: Within complexity level (e.g., glm-4.7 -> claude-sonnet-4-5)
 - **Cross-tier escalation**: Bump complexity level after N failures (low -> medium -> high)
 - **Configurable thresholds**: `config/models.yaml` defines `complexity_escalation` settings
 

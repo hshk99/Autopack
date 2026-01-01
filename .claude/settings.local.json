@@ -150,7 +150,8 @@
       "Bash(du:*)",
       "Bash(if [ -d \"C:/Program Files/Steam/steamapps/common\" ])",
       "Bash(if [ -d \"$USERPROFILE/Program Files \\(x86\\)/Steam/steamapps/common\" ])",
-      "Bash(touch:*)"
+      "Bash(touch:*)",
+      "Bash(PYTHONUTF8=1 PYTHONPATH=src timeout 300 python:*)"
     ],
     "deny": [],
     "ask": []

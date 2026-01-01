@@ -1,0 +1,21 @@
+# BUILD-132 Coverage Delta Integration - V2 Telemetry Samples
+[2025-12-23 22:09:15] INFO: [TokenEstimationV2] predicted_output=462 actual_output=742 smape=46.5% selected_budget=8192 category=configuration complexity=low deliverables=2 success=False stop_reason=end_turn truncated=False model=claude-sonnet-4-5
+[2025-12-23 22:10:14] INFO: [TokenEstimationV2] predicted_output=822 actual_output=3137 smape=116.9% selected_budget=12288 category=implementation complexity=medium deliverables=2 success=True stop_reason=end_turn truncated=False model=claude-sonnet-4-5
+[2025-12-23 22:12:47] INFO: [TokenEstimationV2] predicted_output=780 actual_output=7342 smape=161.6% selected_budget=12288 category=integration complexity=medium deliverables=1 success=True stop_reason=end_turn truncated=False model=claude-sonnet-4-5
+[2025-12-23 22:14:39] INFO: [TokenEstimationV2] predicted_output=471 actual_output=5267 smape=167.2% selected_budget=8192 category=docs complexity=low deliverables=3 success=True stop_reason=end_turn truncated=False model=claude-sonnet-4-5
+
+# Lovable Phase 0 Foundation - V2 Telemetry Samples
+[2025-12-23 22:52:55] INFO: [TokenEstimationV2] predicted_output=1690 actual_output=5451 smape=105.3% selected_budget=8192 category=refactoring complexity=low deliverables=4 success=True stop_reason=end_turn truncated=False model=claude-sonnet-4-5
+[2025-12-23 22:54:22] INFO: [TokenEstimationV2] predicted_output=1210 actual_output=5293 smape=125.6% selected_budget=12288 category=implementation complexity=medium deliverables=3 success=True stop_reason=end_turn truncated=False model=claude-sonnet-4-5
+
+# Lovable Phase 1 Core Precision - V2 Telemetry Samples
+[2025-12-23 23:22:03] INFO: [TokenEstimationV2] predicted_output=822 actual_output=6742 smape=156.5% selected_budget=16384 category=implementation complexity=high deliverables=2 success=True stop_reason=end_turn truncated=False model=claude-sonnet-4-5
+[2025-12-23 23:24:06] INFO: [TokenEstimationV2] predicted_output=822 actual_output=8449 smape=164.5% selected_budget=12288 category=implementation complexity=medium deliverables=2 success=True stop_reason=end_turn truncated=False model=claude-sonnet-4-5
+[2025-12-23 23:25:47] INFO: [TokenEstimationV2] predicted_output=822 actual_output=7302 smape=159.5% selected_budget=12288 category=implementation complexity=medium deliverables=2 success=True stop_reason=end_turn truncated=False model=claude-sonnet-4-5
+[2025-12-23 23:27:22] INFO: [TokenEstimationV2] predicted_output=822 actual_output=6399 smape=154.5% selected_budget=8192 category=implementation complexity=low deliverables=2 success=True stop_reason=end_turn truncated=False model=claude-sonnet-4-5
+
+# Lovable Phase 2 Quality & UX - V2 Telemetry Samples
+[2025-12-23 23:21:46] INFO: [TokenEstimationV2] predicted_output=822 actual_output=8391 smape=164.3% selected_budget=12288 category=implementation complexity=medium deliverables=2 success=True stop_reason=end_turn truncated=False model=claude-sonnet-4-5
+[2025-12-23 23:24:29] INFO: [TokenEstimationV2] predicted_output=822 actual_output=7614 smape=161.0% selected_budget=12288 category=implementation complexity=medium deliverables=2 success=True stop_reason=end_turn truncated=False model=claude-sonnet-4-5
+[2025-12-23 23:26:08] INFO: [TokenEstimationV2] predicted_output=822 actual_output=6991 smape=157.9% selected_budget=8192 category=implementation complexity=low deliverables=2 success=True stop_reason=end_turn truncated=False model=claude-sonnet-4-5
+[2025-12-23 23:27:51] INFO: [TokenEstimationV2] predicted_output=715 actual_output=7817 smape=166.5% selected_budget=12288 category=refactoring complexity=medium deliverables=2 success=True stop_reason=end_turn truncated=False model=claude-sonnet-4-5

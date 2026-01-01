@@ -241,13 +241,13 @@
       "total_tokens": "~5M tokens",
       "total_cost": "$18-30 (with GLM optimization)",
       "breakdown": {
-        "low_complexity": "GLM-4.6 @ $1.05 per 1.5M tokens",
+        "low_complexity": "GLM-4.7 @ $1.05 per 1.5M tokens",
         "medium_complexity": "Claude Sonnet 4.5 @ $11.25 per 2.5M tokens",
         "high_complexity": "Claude Sonnet 4.5 @ $18.00 per 1.0M tokens"
       }
     },
     "per_phase": {
-      "low": "~$0.0035/phase (GLM-4.6)",
+      "low": "~$0.0035/phase (GLM-4.7)",
       "medium": "~$0.084/phase (Claude Sonnet 4.5)",
       "high": "~$0.16/phase (Claude Sonnet 4.5)"
     }

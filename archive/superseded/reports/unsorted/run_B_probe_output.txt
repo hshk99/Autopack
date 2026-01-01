@@ -1,0 +1,24 @@
+C:\Python\python.exe: can't open file 'C:\\scripts\\drain_one_phase.py': [Errno 2] No such file or directory
+[PROBE] Phase: telemetry-p2-number-util
+[PROBE] DATABASE_URL: sqlite:///telemetry_seed_debug_B.db
+[PROBE] TELEMETRY_DB_ENABLED: 1
+
+[PROBE] DB telemetry rows (before):
+[PROBE]   - token_estimation_v2_events: 0
+[PROBE]   - llm_usage_events: 0
+[PROBE] Running drain_one_phase...
+
+
+[PROBE] Drain exit code: 2
+[PROBE] DB telemetry rows (after):
+[PROBE]   - token_estimation_v2_events: 0 (NO INCREASE ❌)
+[PROBE]   - llm_usage_events: 0 (NO INCREASE ❌)
+[PROBE] Phase final state: QUEUED
+[PROBE] Files array: UNKNOWN (phase failed, not due to empty files)
+
+[PROBE] ========== VERDICT ==========
+[PROBE] ❌ FAILED - no token_estimation_v2_events collected
+[PROBE] DO NOT drain remaining phases - check:
+[PROBE]   1. TELEMETRY_DB_ENABLED=1 is set
+[PROBE]   2. Telemetry validity guards (actual_output_tokens >= 50)
+[PROBE]   3. Builder is producing output (check usage_delta=0)

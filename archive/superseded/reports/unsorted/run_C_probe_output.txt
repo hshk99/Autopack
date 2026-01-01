@@ -1,0 +1,112 @@
+faiss library not installed; FaissStore will use in-memory fallback
+[2025-12-29 16:28:44] INFO: Applying pre-emptive encoding fix...
+[2025-12-29 16:28:44] INFO: [Recovery] Fixing Unicode encoding error...
+======================================================================
+DATABASE IDENTITY
+======================================================================
+DATABASE_URL: sqlite:///C:/dev/Autopack/mismatch_executor.db
+SQLite file: C:\dev\Autopack\mismatch_executor.db
+Last modified: 2025-12-29T05:28:11.457595+00:00
+
+Row counts:
+  Runs: 1
+  Phases: 10
+  LLM usage events: 0
+======================================================================
+
+[drain_one_phase] ===== ENVIRONMENT IDENTITY =====
+[drain_one_phase] DATABASE_URL: sqlite:///C:/dev/Autopack/mismatch_executor.db
+[drain_one_phase] AUTOPACK_API_URL: http://127.0.0.1:8123
+[drain_one_phase] ================================
+[drain_one_phase] Draining: telemetry-collection-v4 / telemetry-p1-string-util
+
+[2025-12-29 16:28:44] INFO: [Recovery] SUCCESS: Encoding fixed (UTF-8 enabled)
+[2025-12-29 16:28:44] INFO: Database tables initialized
+[2025-12-29 16:28:44] INFO: Loaded BuilderOutputConfig: max_lines_for_full_file=1000, max_lines_hard_limit=1000
+[2025-12-29 16:28:44] INFO: Doctor execute_fix enabled: True
+[2025-12-29 16:28:44] INFO: FileSizeTelemetry initialized: c:\dev\Autopack\.autonomous_runs\autopack\file_size_telemetry.jsonl
+[2025-12-29 16:28:54] WARNING: [Qdrant] Connection check failed for localhost:6333: [WinError 10061] No connection could be made because the target machine actively refused it
+[2025-12-29 16:28:55] WARNING: [MemoryService] Qdrant unavailable at localhost:6333; falling back to FAISS ([WinError 10061] No connection could be made because the target machine actively refused it)
+[2025-12-29 16:28:55] INFO: [FAISS] Created collection 'code_docs' with dim=1536
+[2025-12-29 16:28:55] INFO: [FAISS] Created collection 'run_summaries' with dim=1536
+[2025-12-29 16:28:55] INFO: [FAISS] Created collection 'errors_ci' with dim=1536
+[2025-12-29 16:28:55] INFO: [FAISS] Created collection 'doctor_hints' with dim=1536
+[2025-12-29 16:28:55] INFO: [FAISS] Created collection 'planning' with dim=1536
+[2025-12-29 16:28:55] INFO: [MemoryService] Initialized (backend=faiss, enabled=True, top_k=5)
+[2025-12-29 16:28:55] INFO: MemoryService initialized (enabled=True)
+[2025-12-29 16:28:55] INFO: [FileLayout] Project: autopack, Family: telemetry-collection-v4, Base: .autonomous_runs\autopack\runs\telemetry-collection-v4
+[2025-12-29 16:28:55] INFO: Initialized autonomous executor for run: telemetry-collection-v4
+[2025-12-29 16:28:55] INFO: API URL: http://127.0.0.1:8123
+[2025-12-29 16:28:55] INFO: Workspace: c:\dev\Autopack
+[2025-12-29 16:28:55] INFO: Running proactive startup checks from DEBUG_JOURNAL.md...
+[2025-12-29 16:28:55] INFO: [HIGH] Checking: Windows Unicode Fix (PYTHONUTF8)
+[2025-12-29 16:28:55] INFO:   Reason: Prevents UnicodeEncodeError with emoji characters in logs (Issue #3)
+[2025-12-29 16:28:55] INFO:   Check PASSED
+[2025-12-29 16:28:55] INFO: [SchemaValidator] Starting database schema validation...
+[2025-12-29 16:28:55] INFO: [SchemaValidator] ✅ Database schema validation PASSED
+[2025-12-29 16:28:55] INFO: Startup checks complete
+[2025-12-29 16:28:57] INFO: [BUILD-123v2] Manifest generator initialized (deterministic scope generation)
+[2025-12-29 16:28:59] INFO: [HealthCheck:T0] API Keys: PASSED (0ms) - All required API keys present
+[2025-12-29 16:28:59] INFO: [HealthCheck:T0] Database: PASSED (0ms) - Database accessible: c:\dev\Autopack\autopack.db
+[2025-12-29 16:28:59] INFO: [HealthCheck:T0] Workspace: PASSED (0ms) - Workspace valid: c:\dev\Autopack
+[2025-12-29 16:28:59] INFO: [HealthCheck:T0] Config: PASSED (60ms) - Configuration files valid
+[2025-12-29 16:28:59] INFO: [HealthCheck:T0] Vector Memory: PASSED (1582ms) - Qdrant unreachable at localhost:6333; autostart attempted or unavailable. Falling back to FAISS.
+[2025-12-29 16:28:59] INFO: [BUILD-127] Completion authority initialized (PhaseFinalizer + TestBaselineTracker)
+[2025-12-29 16:28:59] INFO: [BUILD-127] Capturing T0 baseline at commit 78820b3d...
+[2025-12-29 16:28:59] INFO: [Baseline] Using cached baseline for commit 78820b3d
+[2025-12-29 16:28:59] INFO: [BUILD-127] T0 baseline: 0 tests, 0 passing, 0 failing, 17 errors
+[2025-12-29 16:28:59] INFO: Starting autonomous execution loop...
+[2025-12-29 16:28:59] INFO: Poll interval: 10s
+[2025-12-29 16:28:59] INFO: Max iterations: 1
+[2025-12-29 16:28:59] INFO: API server is already running
+[2025-12-29 16:28:59] ERROR: ======================================================================
+[2025-12-29 16:28:59] ERROR: [DB_MISMATCH] RUN NOT FOUND IN API DATABASE
+[2025-12-29 16:28:59] ERROR: ======================================================================
+[2025-12-29 16:28:59] ERROR: API server is healthy but run 'telemetry-collection-v4' not found
+[2025-12-29 16:28:59] ERROR: This indicates database identity mismatch:
+[2025-12-29 16:28:59] ERROR:   - Executor DATABASE_URL: sqlite:///C:/dev/Autopack/mismatch_executor.db
+[2025-12-29 16:28:59] ERROR:   - API server may be using different database
+[2025-12-29 16:28:59] ERROR: 
+[2025-12-29 16:28:59] ERROR: Recommended fixes:
+[2025-12-29 16:28:59] ERROR:   1. Verify DATABASE_URL is set correctly before starting executor
+[2025-12-29 16:28:59] ERROR:   2. Verify run was seeded in the correct database
+[2025-12-29 16:28:59] ERROR:   3. Check API server logs for actual DATABASE_URL used
+[2025-12-29 16:28:59] ERROR:   4. Use absolute paths for SQLite (not relative)
+[2025-12-29 16:28:59] ERROR: ======================================================================
+[2025-12-29 16:28:59] WARNING: Could not verify run existence: Run 'telemetry-collection-v4' not found in API database. Database identity mismatch detected. Cannot proceed - would cause 404 errors on every API call.
+[2025-12-29 16:28:59] INFO: Initializing infrastructure...
+[2025-12-29 16:29:02] INFO: LlmService: Initialized with ModelRouter and UsageRecorder
+[2025-12-29 16:29:02] INFO: Quality Gate: Initialized
+[2025-12-29 16:29:02] INFO: Iteration 1: Fetching run status...
+[2025-12-29 16:29:02] ERROR: [CircuitBreaker] API error classified as transient_infra
+[2025-12-29 16:29:02] ERROR: [CircuitBreaker] Remediation: Unknown error (HTTP 0) - retry cautiously
+[2025-12-29 16:29:02] ERROR: [CircuitBreaker] Retry decision: RETRY
+[2025-12-29 16:29:02] WARNING: [CircuitBreaker] Retrying after 5s (attempt 1/3)
+[2025-12-29 16:29:07] WARNING: [CircuitBreaker] Retrying after 10s (attempt 2/3)
+[2025-12-29 16:29:17] WARNING: [CircuitBreaker] Retrying after 15s (attempt 3/3)
+[2025-12-29 16:29:32] ERROR: [CircuitBreaker] All retries exhausted for transient error
+[2025-12-29 16:29:32] ERROR: Failed to fetch run status: 404 Client Error: Not Found for url: http://127.0.0.1:8123/runs/telemetry-collection-v4
+[2025-12-29 16:29:32] INFO: Waiting 10s before retry...
+[PROBE] Phase: telemetry-p1-string-util
+[PROBE] DATABASE_URL: sqlite:///C:/dev/Autopack/mismatch_executor.db
+[PROBE] TELEMETRY_DB_ENABLED: 1
+
+[PROBE] DB telemetry rows (before):
+[PROBE]   - token_estimation_v2_events: 0
+[PROBE]   - llm_usage_events: 0
+[PROBE] Running drain_one_phase...
+
+
+[PROBE] Drain exit code: 143
+[PROBE] DB telemetry rows (after):
+[PROBE]   - token_estimation_v2_events: 0 (NO INCREASE ❌)
+[PROBE]   - llm_usage_events: 0 (NO INCREASE ❌)
+[PROBE] Phase final state: QUEUED
+[PROBE] Files array: UNKNOWN (phase failed, not due to empty files)
+
+[PROBE] ========== VERDICT ==========
+[PROBE] ❌ FAILED - no token_estimation_v2_events collected
+[PROBE] DO NOT drain remaining phases - check:
+[PROBE]   1. TELEMETRY_DB_ENABLED=1 is set
+[PROBE]   2. Telemetry validity guards (actual_output_tokens >= 50)
+[PROBE]   3. Builder is producing output (check usage_delta=0)

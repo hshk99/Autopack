@@ -285,18 +285,81 @@ class SecondOpinionTriageSystem:
 
         Returns:
             Model response with triage and usage information
-
-        Note:
-            This is a placeholder that should be replaced with actual
-            LLM client integration (e.g., AnthropicClient).
         """
-        # TODO: Integrate with actual LLM client
-        # For now, return mock response for testing
-        logger.warning(
-            "[SecondOpinion] Using mock triage response - "
-            "integrate with LLM client for production use"
-        )
+        import os
 
+        # Check if Anthropic API key is available
+        api_key = os.getenv("ANTHROPIC_API_KEY")
+        if not api_key:
+            logger.warning(
+                "[SecondOpinion] ANTHROPIC_API_KEY not set - returning mock response. "
+                "Set ANTHROPIC_API_KEY to enable real second opinion triage."
+            )
+            return self._mock_triage_response()
+
+        try:
+            # Import Anthropic client
+            try:
+                from anthropic import Anthropic
+            except ImportError:
+                logger.warning(
+                    "[SecondOpinion] anthropic package not installed - returning mock response. "
+                    "Install with: pip install anthropic"
+                )
+                return self._mock_triage_response()
+
+            # Initialize Anthropic client
+            client = Anthropic(api_key=api_key)
+
+            # Make API call with strict token budget enforcement
+            logger.debug(
+                f"[SecondOpinion] Calling {self.config.model} with {self.config.max_tokens} max_tokens"
+            )
+
+            response = client.messages.create(
+                model=self.config.model,
+                max_tokens=self.config.max_tokens,
+                temperature=self.config.temperature,
+                messages=[{"role": "user", "content": prompt}],
+            )
+
+            # Extract content from response
+            content = ""
+            for block in response.content:
+                if hasattr(block, "text"):
+                    content += block.text
+
+            # Track usage
+            usage_info = {
+                "prompt_tokens": response.usage.input_tokens,
+                "completion_tokens": response.usage.output_tokens,
+                "total_tokens": response.usage.input_tokens + response.usage.output_tokens,
+            }
+
+            logger.debug(
+                f"[SecondOpinion] API call successful - "
+                f"tokens: {usage_info['total_tokens']} "
+                f"(prompt: {usage_info['prompt_tokens']}, completion: {usage_info['completion_tokens']})"
+            )
+
+            return {
+                "content": content,
+                "usage": usage_info,
+            }
+
+        except Exception as e:
+            logger.error(
+                f"[SecondOpinion] LLM API call failed: {e} - returning mock response",
+                exc_info=True,
+            )
+            return self._mock_triage_response()
+
+    def _mock_triage_response(self) -> Dict[str, Any]:
+        """Return mock triage response for testing or when API unavailable.
+
+        Returns:
+            Mock response in expected format
+        """
         mock_response = {
             "content": json.dumps({
                 "hypotheses": [
@@ -351,9 +414,9 @@ class SecondOpinionTriageSystem:
                 "Increasing token budget should resolve this, but we should also verify context size.",
             }),
             "usage": {
-                "prompt_tokens": 2500,
-                "completion_tokens": 800,
-                "total_tokens": 3300,
+                "prompt_tokens": 0,  # Mock has no real usage
+                "completion_tokens": 0,
+                "total_tokens": 0,
             },
         }
 

@@ -229,3 +229,33 @@ class StorageScanner:
         """
         sorted_results = sorted(results, key=lambda x: x.size_bytes, reverse=True)
         return sorted_results[:top_n]
+
+
+# ==============================================================================
+# Scanner Factory (BUILD-150 Phase 3)
+# ==============================================================================
+
+def create_scanner(prefer_wiztree: bool = True):
+    """
+    Factory to create optimal scanner based on availability.
+
+    Args:
+        prefer_wiztree: Try WizTree first if available (default: True)
+
+    Returns:
+        WizTreeScanner if available and preferred, else StorageScanner
+
+    Example:
+        >>> scanner = create_scanner(prefer_wiztree=True)
+        >>> results = scanner.scan_drive("C", max_depth=3, max_items=1000)
+    """
+    if prefer_wiztree:
+        try:
+            from .wiztree_scanner import WizTreeScanner
+            scanner = WizTreeScanner()
+            if scanner.is_available():
+                return scanner
+        except ImportError:
+            pass  # WizTree scanner not available
+
+    return StorageScanner()

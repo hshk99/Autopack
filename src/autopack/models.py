@@ -5,8 +5,10 @@ from enum import Enum
 from typing import Optional
 
 from sqlalchemy import (
+    BigInteger,
     Boolean,
     Column,
+    DECIMAL,
     DateTime,
     Enum as SQLEnum,
     ForeignKey,
@@ -647,4 +649,40 @@ class ApprovalDecision(Base):
 
     # Decision
     decision = Column(String(20), nullable=False)  # 'approve', 'reject', 'defer'
+    notes = Column(Text, nullable=True)
+
+
+class LearnedRule(Base):
+    """
+    Learned policy rules from approval patterns (BUILD-151 Phase 4).
+
+    Tracks patterns detected from user approval/rejection history,
+    suggests new policy rules to reduce manual approval burden.
+    """
+    __tablename__ = 'learned_rules'
+
+    id = Column(Integer, primary_key=True, index=True)
+    created_at = Column(DateTime, nullable=False, default=lambda: datetime.now(timezone.utc), index=True)
+
+    # Pattern
+    pattern_type = Column(String(50), nullable=False)  # 'path_pattern', 'file_type', 'age_threshold', 'size_threshold'
+    pattern_value = Column(Text, nullable=False)
+
+    # Classification
+    suggested_category = Column(String(50), nullable=False)
+    confidence_score = Column(DECIMAL(5, 2), nullable=False)
+
+    # Evidence
+    based_on_approvals = Column(Integer, nullable=False, default=0)
+    based_on_rejections = Column(Integer, nullable=False, default=0)
+    sample_paths = Column(Text, nullable=True)  # JSON array for SQLite, TEXT[] for PostgreSQL
+
+    # Lifecycle
+    status = Column(String(20), nullable=False, default='pending', index=True)  # 'pending', 'approved', 'rejected', 'applied'
+    reviewed_by = Column(String(100), nullable=True)
+    reviewed_at = Column(DateTime, nullable=True)
+    applied_to_policy_version = Column(String(50), nullable=True)
+
+    # Notes
+    description = Column(Text, nullable=True)
     notes = Column(Text, nullable=True)

@@ -48,6 +48,9 @@ from typing import Dict, List, Set, Tuple, Optional
 SCRIPT_DIR = Path(__file__).resolve().parent
 REPO_ROOT = SCRIPT_DIR.parent.parent
 sys.path.insert(0, str(SCRIPT_DIR))
+
+# Import autonomous_runs cleaner
+from autonomous_runs_cleaner import cleanup_autonomous_runs
 sys.path.insert(0, str(REPO_ROOT / "src"))
 
 # ---------------------------------------------------------------------------
@@ -68,10 +71,13 @@ ROOT_ALLOWED_FILES = {
     "Makefile",
     "nginx.conf",
     "index.html",
+    # Database - only active development database allowed
+    "autopack.db",  # Primary development database (active)
 }
 
 ROOT_ALLOWED_PATTERNS = {
-    "*.db",  # SQLite database files (dev/test)
+    # NOTE: "*.db" pattern REMOVED - only autopack.db allowed (see ROOT_ALLOWED_FILES)
+    # This enables automatic cleanup of historical/test databases
     "Dockerfile*",
     "docker-compose*.yml",
     "requirements*.txt",
@@ -287,6 +293,141 @@ def repair_project_workspace(
 
     return changed
 
+
+def classify_root_directory(dirpath: Path, repo_root: Path) -> Optional[str]:
+    """
+    Classify where a root directory should be routed.
+
+    Returns destination path relative to repo_root, or None to skip.
+    """
+    name = dirpath.name
+
+    # Check if directory is in allowed list
+    if name in ROOT_ALLOWED_DIRS:
+        return None  # Already allowed, don't route
+
+    # Special cases with content inspection
+
+    # fileorganizer/ - This is the file-organizer-app-v1 project
+    if name == "fileorganizer":
+        # This should become a proper project under .autonomous_runs/
+        # Handled by migrate_fileorganizer_to_project() separately
+        return "MIGRATE_TO_PROJECT"
+
+    # backend/ - Check contents
+    if name == "backend":
+        # If contains only test files, move to tests/backend
+        # Otherwise move to scripts/backend
+        py_files = list(dirpath.glob("*.py"))
+        if py_files and all(f.name.startswith("test_") for f in py_files):
+            return "tests/backend"
+        return "scripts/backend"
+
+    # code/ - Research/experimental code
+    if name == "code":
+        return "archive/experiments/research_code"
+
+    # logs/ - Runtime logs
+    if name == "logs":
+        return "archive/diagnostics/logs/autopack"
+
+    # migrations/ - Database migration scripts
+    if name == "migrations":
+        return "scripts/migrations"
+
+    # reports/ - Build/analysis reports
+    if name == "reports":
+        return "archive/reports"
+
+    # research_tracer/ - Research experiment
+    if name == "research_tracer":
+        return "archive/experiments/research_tracer"
+
+    # tracer_bullet/ - Proof of concept
+    if name == "tracer_bullet":
+        return "archive/experiments/tracer_bullet"
+
+    # examples/ - Example projects
+    if name == "examples":
+        # Could be docs/examples or .autonomous_runs/examples depending on contents
+        # Check if contains runnable projects or just documentation
+        has_src = (dirpath / "src").exists()
+        has_package = (dirpath / "package.json").exists() or (dirpath / "pyproject.toml").exists()
+
+        if has_src or has_package:
+            return ".autonomous_runs/examples"
+        return "docs/examples"
+
+    # Default: unknown directory, move to archive for manual review
+    return f"archive/misc/root_directories/{name}"
+
+
+def migrate_fileorganizer_to_project(
+    repo_root: Path,
+    dry_run: bool = True,
+    verbose: bool = False
+) -> bool:
+    """
+    Migrate fileorganizer/ root directory to proper project structure.
+
+    Creates .autonomous_runs/file-organizer-app-v1/ with:
+    - src/fileorganizer/ (moved from root fileorganizer/)
+    - docs/ with 6-file SOT structure
+    - archive/ with required buckets
+
+    Returns True if migration needed/performed.
+    """
+    fileorg_root = repo_root / "fileorganizer"
+    if not fileorg_root.exists():
+        if verbose:
+            print("[MIGRATE-FILEORG][SKIP] fileorganizer/ does not exist at root")
+        return False
+
+    project_root = repo_root / ".autonomous_runs" / "file-organizer-app-v1"
+    project_src = project_root / "src" / "fileorganizer"
+    project_docs = project_root / "docs"
+    project_archive = project_root / "archive"
+
+    print(f"[MIGRATE-FILEORG] Found fileorganizer/ at root → migrating to {project_root.relative_to(repo_root)}")
+
+    changed = False
+
+    # Create project structure
+    if not dry_run:
+        project_src.parent.mkdir(parents=True, exist_ok=True)
+        project_docs.mkdir(parents=True, exist_ok=True)
+        project_archive.mkdir(parents=True, exist_ok=True)
+        print(f"  CREATED {project_src.parent.relative_to(repo_root)}/")
+        print(f"  CREATED {project_docs.relative_to(repo_root)}/")
+        print(f"  CREATED {project_archive.relative_to(repo_root)}/")
+    else:
+        print(f"  [DRY-RUN] Would create {project_src.parent.relative_to(repo_root)}/")
+        print(f"  [DRY-RUN] Would create {project_docs.relative_to(repo_root)}/")
+        print(f"  [DRY-RUN] Would create {project_archive.relative_to(repo_root)}/")
+
+    # Move fileorganizer/ to src/fileorganizer/
+    if not dry_run:
+        if project_src.exists():
+            print(f"  [WARNING] Destination {project_src.relative_to(repo_root)} already exists, skipping move")
+        else:
+            fileorg_root.rename(project_src)
+            print(f"  MOVED fileorganizer/ → {project_src.relative_to(repo_root)}/")
+    else:
+        print(f"  [DRY-RUN] Would move fileorganizer/ → {project_src.relative_to(repo_root)}/")
+
+    changed = True
+
+    # Create SOT files using existing repair logic
+    changed |= repair_project_workspace(
+        repo_root,
+        "file-organizer-app-v1",
+        dry_run=dry_run,
+        verbose=verbose
+    )
+
+    return changed
+
+
 # ---------------------------------------------------------------------------
 # Helper Functions
 # ---------------------------------------------------------------------------
@@ -317,10 +458,59 @@ def is_docs_file_allowed(filename: str) -> bool:
     return False
 
 
+def classify_database_file(filepath: Path) -> str:
+    """
+    Classify database files for intelligent routing.
+
+    Returns destination path relative to archive/data/databases/
+    """
+    name = filepath.name.lower()
+
+    # Active development database - should never be routed
+    if name == "autopack.db":
+        raise ValueError(f"Active database {filepath.name} should not be routed")
+
+    # Telemetry seed databases
+    if "telemetry_seed" in name:
+        if "debug" in name:
+            return "archive/data/databases/telemetry_seeds/debug"
+        elif "final" in name or "green" in name:
+            return "archive/data/databases/telemetry_seeds/final"
+        elif "fullrun" in name or "pilot" in name or any(f"v{c}.db" in name for c in "23456789"):
+            return "archive/data/databases/telemetry_seeds"
+        else:
+            return "archive/data/databases/telemetry_seeds"
+
+    # Autopack legacy/backup databases
+    if name.startswith("autopack_"):
+        if "legacy" in name:
+            return "archive/data/databases/legacy"
+        elif "telemetry" in name:
+            return "archive/data/databases/telemetry_seeds"
+        else:
+            return "archive/data/databases/backups"
+
+    # Debug/mismatch snapshots
+    if "mismatch" in name or "debug" in name:
+        return "archive/data/databases/debug_snapshots"
+
+    # Test databases
+    if name.startswith("test"):
+        # All test databases go to test_artifacts
+        return "archive/data/databases/test_artifacts"
+
+    # Unknown database - conservative routing
+    return "archive/data/databases/misc"
+
+
 def classify_root_file(filepath: Path) -> str:
     """Classify where a root file should be routed."""
     name = filepath.name
     suffix = filepath.suffix.lower()
+
+    # Database files - use specialized classifier
+    if suffix == ".db":
+        return classify_database_file(filepath)
 
     # Python scripts
     if suffix == ".py":
@@ -656,9 +846,35 @@ def route_root_files(repo_root: Path, dry_run: bool = True, verbose: bool = Fals
             if verbose or dry_run:
                 print(f"[ROOT-ROUTE] {item.name} -> {bucket}/")
 
-        # Report unexpected directories
+        # Route directories
         elif item.is_dir() and item.name not in ROOT_ALLOWED_DIRS:
-            print(f"[WARN] Unexpected directory at root: {item.name} (manual review needed)")
+            destination = classify_root_directory(item, repo_root)
+
+            # None means directory is allowed (skip)
+            if destination is None:
+                continue
+
+            # Special migration case for fileorganizer
+            if destination == "MIGRATE_TO_PROJECT":
+                # This is handled in Phase 0 migration
+                if verbose:
+                    print(f"[ROOT-ROUTE] {item.name}/ -> (handled by Phase 0 migration)")
+                continue
+
+            # Standard routing
+            dest = repo_root / destination
+            dest.mkdir(parents=True, exist_ok=True)
+
+            dest_final = dest / item.name
+
+            # Avoid duplicate nesting
+            if dest_final.exists():
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                dest_final = dest / f"{item.name}_{timestamp}"
+
+            moves.append((item, dest_final))
+            if verbose or dry_run:
+                print(f"[ROOT-ROUTE] {item.name}/ -> {destination}/")
 
     if not moves:
         print("[ROOT-ROUTE] No files to route from root")
@@ -1032,7 +1248,16 @@ def main():
             cwd=repo_root
         )
 
+    # Phase 0: Special migrations (fileorganizer → file-organizer-app-v1)
+    print("\n" + "=" * 70)
+    print("Phase 0: Special Project Migrations")
+    print("=" * 70)
+    migrate_fileorganizer_to_project(repo_root, dry_run=dry_run, verbose=args.verbose)
+
     # Phase 1: Root routing
+    print("\n" + "=" * 70)
+    print("Phase 1: Root Directory Cleanup")
+    print("=" * 70)
     root_moves, blocked_sot_files = route_root_files(repo_root, dry_run, args.verbose)
 
     # Task B: Fail fast in execute mode if blocked SOT files exist
@@ -1063,6 +1288,18 @@ def main():
     if all_moves:
         print(f"\n[SUMMARY] Total files to move: {len(all_moves)}")
         execute_moves(all_moves, dry_run)
+
+    # Phase 2.5: .autonomous_runs cleanup
+    print("\n" + "=" * 70)
+    print("Phase 2.5: .autonomous_runs/ Cleanup")
+    print("=" * 70)
+    cleanup_autonomous_runs(
+        repo_root=repo_root,
+        dry_run=dry_run,
+        verbose=args.verbose,
+        keep_last_n_runs=10,
+        min_age_days=7
+    )
 
     # Phase 3: Archive consolidation
     # Task C: Capture SOT file hashes BEFORE consolidation

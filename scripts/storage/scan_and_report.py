@@ -8,6 +8,11 @@ Phase 2 Features:
 - Interactive approval workflow (--interactive)
 - Actual deletion via Recycle Bin (--execute, requires approval)
 
+Phase 3 Features (BUILD-150):
+- WizTree integration for 30-50x faster scanning (--wiztree)
+- Telegram notifications on scan completion (--notify)
+- Windows Task Scheduler integration (see scripts/setup_scheduled_scan.py)
+
 Usage:
     # Basic scan (dry-run reporting only)
     python scripts/storage/scan_and_report.py
@@ -23,6 +28,9 @@ Usage:
 
     # Compare with previous scan
     python scripts/storage/scan_and_report.py --compare-with 122
+
+    # Phase 3: Fast scan with WizTree + Telegram notification
+    python scripts/storage/scan_and_report.py --save-to-db --wiztree --notify
 """
 
 import sys
@@ -36,7 +44,7 @@ import os
 from datetime import datetime, timezone
 
 from autopack.storage_optimizer.policy import load_policy
-from autopack.storage_optimizer.scanner import StorageScanner
+from autopack.storage_optimizer.scanner import StorageScanner, create_scanner
 from autopack.storage_optimizer.classifier import FileClassifier
 from autopack.storage_optimizer.reporter import StorageReporter
 from autopack.storage_optimizer.models import CleanupPlan
@@ -44,6 +52,42 @@ from autopack.storage_optimizer.models import CleanupPlan
 
 # ==============================================================================
 # Phase 2: Execution and Approval Helpers
+# ==============================================================================
+
+def send_scan_completion_notification(scan, db):
+    """Send Telegram notification on scan completion (BUILD-150 Phase 3)."""
+    from autopack.storage_optimizer.telegram_notifications import StorageTelegramNotifier
+    from autopack.storage_optimizer.db import get_candidate_stats_by_category
+
+    try:
+        notifier = StorageTelegramNotifier()
+
+        if not notifier.is_configured():
+            print("[Telegram] Not configured - skipping notification")
+            print("[Telegram] Set TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID to enable")
+            return False
+
+        # Get category statistics for notification
+        category_stats = get_candidate_stats_by_category(db, scan.id)
+
+        print(f"[Telegram] Sending scan completion notification for scan {scan.id}...")
+        success = notifier.send_scan_completion(scan, category_stats)
+
+        if success:
+            print("[Telegram] ✓ Notification sent successfully")
+            print("[Telegram] Check your phone for approval buttons")
+        else:
+            print("[Telegram] ✗ Failed to send notification")
+
+        return success
+
+    except Exception as e:
+        print(f"[Telegram] Error sending notification: {e}")
+        return False
+
+
+# ==============================================================================
+# Phase 2: Database Persistence Helpers
 # ==============================================================================
 
 def execute_cleanup(args, db):
@@ -367,6 +411,18 @@ def main():
         help="Filter execution to specific category (e.g., 'dev_caches')"
     )
 
+    # Phase 3 (BUILD-150): Performance and automation
+    parser.add_argument(
+        "--wiztree",
+        action="store_true",
+        help="Use WizTree for 30-50x faster scanning (BUILD-150 Phase 3)"
+    )
+    parser.add_argument(
+        "--notify",
+        action="store_true",
+        help="Send Telegram notification on scan completion (BUILD-150 Phase 3)"
+    )
+
     args = parser.parse_args()
 
     # Validate argument combinations
@@ -418,7 +474,25 @@ def main():
 
     # Step 2: Initialize components
     print("[2/6] Initializing scanner and classifier...")
-    scanner = StorageScanner(max_depth=args.max_depth)
+
+    # Phase 3: Use WizTree scanner if requested
+    if args.wiztree:
+        print("      Using WizTree scanner for high-performance scanning...")
+        scanner = create_scanner(prefer_wiztree=True)
+        # Check if WizTree is actually available
+        from autopack.storage_optimizer.wiztree_scanner import WizTreeScanner
+        if isinstance(scanner, WizTreeScanner):
+            print("      ✓ WizTree available - expect 30-50x faster scans")
+        else:
+            print("      ⚠ WizTree not found - falling back to Python scanner")
+            print("      Download WizTree: https://www.diskanalyzer.com/download")
+    else:
+        scanner = StorageScanner()
+
+    # Set max_depth if using Python scanner
+    if hasattr(scanner, 'max_depth'):
+        scanner.max_depth = args.max_depth
+
     classifier = FileClassifier(policy)
 
     output_dir = Path(args.output_dir) if args.output_dir else None
@@ -430,12 +504,17 @@ def main():
 
     if args.dir:
         print(f"      Directory: {args.dir}")
-        scan_results = scanner.scan_directory(args.dir, max_items=args.max_items)
+        scan_results = scanner.scan_directory(args.dir, max_depth=args.max_depth, max_items=args.max_items)
         drive_letter = args.dir[0] if len(args.dir) > 0 else "C"
     else:
-        print(f"      Drive: {args.drive}:\\")
-        print(f"      Scanning high-value directories...")
-        scan_results = scanner.scan_high_value_directories(args.drive)
+        # Phase 3: Use full drive scan with WizTree (much faster than selective scanning)
+        if args.wiztree and hasattr(scanner, 'scan_drive'):
+            print(f"      Drive: {args.drive}:\\ (full drive scan via WizTree MFT)")
+            scan_results = scanner.scan_drive(args.drive, max_depth=args.max_depth, max_items=args.max_items)
+        else:
+            print(f"      Drive: {args.drive}:\\")
+            print(f"      Scanning high-value directories...")
+            scan_results = scanner.scan_high_value_directories(args.drive)
         drive_letter = args.drive
 
     print(f"      Found: {len(scan_results):,} items")
@@ -523,6 +602,11 @@ def main():
     # Phase 2: Interactive approval if requested
     if args.interactive and saved_scan:
         interactive_approval(saved_scan.id, db_session, args.approved_by)
+
+    # Phase 3: Send Telegram notification if requested
+    if args.notify and saved_scan and db_session:
+        print("")
+        send_scan_completion_notification(saved_scan, db_session)
 
     # Close database session
     if db_session:

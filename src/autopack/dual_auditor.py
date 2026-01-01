@@ -358,10 +358,22 @@ class DualAuditor:
         return (self.disagreement_count / self.total_dual_audits) * 100
 
 
-# Stub Claude auditor for testing
-# TODO: Implement actual Claude auditor client
+# DEPRECATED: Stub Claude auditor for testing
+# ⚠️  WARNING: This stub returns empty results and should NOT be used in production.
+#
+# For real Claude-based auditing, use AnthropicAuditorClient instead:
+#
+#   from autopack.anthropic_clients import AnthropicAuditorClient
+#   auditor = AnthropicAuditorClient(api_key=os.getenv("ANTHROPIC_API_KEY"))
+#
+# This stub is retained for backward compatibility only and will be removed
+# in a future release.
 class StubClaudeAuditor:
-    """Stub Claude auditor for testing dual auditor logic"""
+    """DEPRECATED: Stub Claude auditor for testing dual auditor logic.
+
+    ⚠️  This is a stub that returns empty results. Use AnthropicAuditorClient
+    from autopack.anthropic_clients for real Claude-based auditing.
+    """
 
     def review_patch(
         self,
@@ -373,11 +385,22 @@ class StubClaudeAuditor:
         run_hints: Optional[List] = None
     ) -> AuditorResult:
         """Stub review (returns empty issues for now)"""
-        # TODO: Implement actual Claude API call
+        import warnings
+        warnings.warn(
+            "StubClaudeAuditor is deprecated. Use AnthropicAuditorClient from "
+            "autopack.anthropic_clients for real Claude-based auditing.",
+            DeprecationWarning,
+            stacklevel=2
+        )
+        # Always append "-stub" to make it clear this is not a real audit
+        model_name = (model or "claude-sonnet-3-5") + "-stub"
         return AuditorResult(
             approved=True,
             issues_found=[],
-            auditor_messages=["Claude audit (stub - not implemented yet)"],
-            tokens_used=500,  # Stub
-            model_used=model or "claude-sonnet-3-5"
+            auditor_messages=[
+                "⚠️  Claude audit stub called (no real auditing performed).",
+                "Use AnthropicAuditorClient for production auditing."
+            ],
+            tokens_used=0,  # Stub - no actual API call
+            model_used=model_name
         )

@@ -372,6 +372,19 @@ class AutonomousExecutor:
         self._run_total_failures: int = 0  # Total recoverable failures in this run
         self.MAX_HTTP_500_PER_RUN = 10  # Stop run after this many 500 errors
         self.MAX_PATCH_FAILURES_PER_RUN = 15  # Stop run after this many patch failures
+
+        # [Phase C1] Store last builder result for Doctor diagnostics
+        self._last_builder_result: Optional['BuilderResult'] = None  # Last builder result (for patch/error info)
+
+        # [Phase C2] Store patch statistics extracted from builder result
+        self._last_files_changed: Optional[List[str]] = None
+        self._last_lines_added: int = 0
+        self._last_lines_removed: int = 0
+
+        # [Phase C5] Run-level branch checkpoint for rollback_run support
+        self._run_checkpoint_branch: Optional[str] = None  # Original branch before run started
+        self._run_checkpoint_commit: Optional[str] = None  # Original commit SHA before run started
+
         self.MAX_TOTAL_FAILURES_PER_RUN = 25  # Stop run after this many total failures
         # Provider infra-error tracking (per-run)
         self._provider_infra_errors: Dict[str, int] = {}
@@ -403,6 +416,12 @@ class AutonomousExecutor:
 
         # Phase 1.4-1.5: Run proactive startup checks (from DEBUG_JOURNAL.md)
         self._run_startup_checks()
+
+        # [Phase C5] Create run checkpoint for rollback_run support
+        checkpoint_success, checkpoint_error = self._create_run_checkpoint()
+        if not checkpoint_success:
+            logger.warning(f"[RunCheckpoint] Failed to create run checkpoint: {checkpoint_error}")
+            logger.warning("[RunCheckpoint] Continuing without rollback_run support")
 
         # [GPT_RESPONSE26] Startup validation for token_soft_caps
         self._validate_config_at_startup()
@@ -2050,12 +2069,25 @@ class AutonomousExecutor:
             )
 
             # [Doctor Integration] Invoke Doctor for diagnosis after sufficient failures
+            # [Phase C1] Extract patch and error info from last builder result
+            last_patch = None
+            patch_errors = []
+            if self._last_builder_result:
+                last_patch = self._last_builder_result.patch_content
+                if self._last_builder_result.error:
+                    patch_errors = [{"error": self._last_builder_result.error}]
+                # Include builder messages as additional error context
+                if self._last_builder_result.builder_messages:
+                    for msg in self._last_builder_result.builder_messages:
+                        if msg and "error" in msg.lower() or "failed" in msg.lower():
+                            patch_errors.append({"message": msg})
+
             doctor_response = self._invoke_doctor(
                 phase=phase,
                 error_category=failure_outcome,
                 builder_attempts=attempt_index + 1,
-                last_patch=None,  # TODO: pass last patch from builder_result
-                patch_errors=[],  # TODO: pass patch errors if available
+                last_patch=last_patch,
+                patch_errors=patch_errors,
                 logs_excerpt=f"Status: {status}, Attempt: {attempt_index + 1}",
             )
 
@@ -3576,8 +3608,19 @@ Just the new description that should replace the current one while preserving th
                 suspected_cause="Doctor recommended run rollback due to accumulated failures",
                 priority="CRITICAL"
             )
-            # TODO: Implement branch-based rollback (git reset to pre-run state)
-            # For now, mark phase as failed and let run terminate
+
+            # [Phase C5] Execute branch-based rollback to pre-run state
+            rollback_success, rollback_error = self._rollback_to_run_checkpoint(
+                reason=f"Doctor rollback_run: {response.rationale}"
+            )
+
+            if rollback_success:
+                logger.info(f"[Doctor] Successfully rolled back run to pre-run state")
+            else:
+                logger.error(f"[Doctor] Failed to rollback run: {rollback_error}")
+                logger.error(f"[Doctor] Working tree may be in inconsistent state - manual intervention required")
+
+            # Mark phase as failed and let run terminate
             self._update_phase_status(phase_id, "FAILED")
             self._record_decision_entry(
                 trigger="doctor",
@@ -3899,6 +3942,210 @@ Just the new description that should replace the current one while preserving th
             logger.warning(f"[Doctor] execute_fix failed - marking phase as failed")
             self._update_phase_status(phase_id, "FAILED")
             return "execute_fix_failed", False
+
+    def _build_run_context(self) -> Dict[str, Any]:
+        """Build run context with model overrides if specified.
+
+        [Phase C3] Centralized run context builder for consistency across all LLM calls.
+
+        Returns:
+            Dict with model_overrides if they exist, otherwise empty dict
+        """
+        run_context = {}
+        if hasattr(self, 'model_overrides') and self.model_overrides:
+            run_context['model_overrides'] = self.model_overrides
+        return run_context
+
+    def _compute_coverage_delta(self, ci_result: Optional[Dict[str, Any]]) -> float:
+        """Compute coverage delta from CI results.
+
+        [Phase C4] Placeholder for coverage delta computation.
+
+        Currently returns 0.0. Full implementation would require:
+        1. Running tests with coverage.py before patch
+        2. Running tests with coverage.py after patch
+        3. Computing delta from coverage reports
+
+        Args:
+            ci_result: CI test results (may contain coverage data in future)
+
+        Returns:
+            Coverage delta as float (e.g., +5.2 for 5.2% increase)
+        """
+        # TODO: Implement real coverage computation when CI includes coverage data
+        # For now, return neutral 0.0
+        return 0.0
+
+    def _create_run_checkpoint(self) -> Tuple[bool, Optional[str]]:
+        """Create a git checkpoint before run execution starts.
+
+        [Phase C5] Branch-based rollback support for Doctor rollback_run action.
+
+        Stores current branch name and commit SHA so we can rollback the entire
+        run if Doctor determines the run should be abandoned.
+
+        Returns:
+            Tuple of (success: bool, error_message: Optional[str])
+        """
+        import subprocess
+
+        try:
+            # Get current branch name
+            branch_result = subprocess.run(
+                ["git", "rev-parse", "--abbrev-ref", "HEAD"],
+                cwd=self.workspace,
+                capture_output=True,
+                text=True,
+                timeout=10
+            )
+
+            if branch_result.returncode != 0:
+                error_msg = branch_result.stderr.strip()
+                logger.warning(f"[RunCheckpoint] Failed to get current branch: {error_msg}")
+                return False, f"git_branch_failed: {error_msg}"
+
+            current_branch = branch_result.stdout.strip()
+
+            # Get current commit SHA
+            commit_result = subprocess.run(
+                ["git", "rev-parse", "HEAD"],
+                cwd=self.workspace,
+                capture_output=True,
+                text=True,
+                timeout=10
+            )
+
+            if commit_result.returncode != 0:
+                error_msg = commit_result.stderr.strip()
+                logger.warning(f"[RunCheckpoint] Failed to get current commit: {error_msg}")
+                return False, f"git_commit_failed: {error_msg}"
+
+            current_commit = commit_result.stdout.strip()
+
+            # Store checkpoint info
+            self._run_checkpoint_branch = current_branch
+            self._run_checkpoint_commit = current_commit
+
+            logger.info(f"[RunCheckpoint] Created run checkpoint: branch={current_branch}, commit={current_commit[:8]}")
+            return True, None
+
+        except subprocess.TimeoutExpired:
+            logger.warning("[RunCheckpoint] Timeout creating run checkpoint")
+            return False, "git_timeout"
+        except Exception as e:
+            logger.warning(f"[RunCheckpoint] Exception creating run checkpoint: {e}")
+            return False, f"exception: {str(e)}"
+
+    def _rollback_to_run_checkpoint(self, reason: str) -> Tuple[bool, Optional[str]]:
+        """Rollback entire run to pre-run checkpoint.
+
+        [Phase C5] Implements Doctor rollback_run action support.
+
+        Resets working tree to the commit/branch that existed before run started.
+        This is a destructive operation that discards all patches applied during the run.
+
+        Args:
+            reason: Reason for rollback (for logging/audit)
+
+        Returns:
+            Tuple of (success: bool, error_message: Optional[str])
+        """
+        import subprocess
+
+        if not self._run_checkpoint_commit:
+            logger.error("[RunCheckpoint] No checkpoint commit set - cannot rollback run")
+            return False, "no_checkpoint_commit"
+
+        try:
+            logger.warning(f"[RunCheckpoint] Rolling back entire run to checkpoint: {self._run_checkpoint_commit[:8]}")
+            logger.warning(f"[RunCheckpoint] Reason: {reason}")
+
+            # Reset to checkpoint commit (hard reset discards all changes)
+            reset_result = subprocess.run(
+                ["git", "reset", "--hard", self._run_checkpoint_commit],
+                cwd=self.workspace,
+                capture_output=True,
+                text=True,
+                timeout=30
+            )
+
+            if reset_result.returncode != 0:
+                error_msg = reset_result.stderr.strip()
+                logger.error(f"[RunCheckpoint] Failed to reset to checkpoint: {error_msg}")
+                return False, f"git_reset_failed: {error_msg}"
+
+            # Clean untracked files (same as RollbackManager safe clean logic)
+            clean_result = subprocess.run(
+                ["git", "clean", "-fd"],
+                cwd=self.workspace,
+                capture_output=True,
+                text=True,
+                timeout=30
+            )
+
+            if clean_result.returncode != 0:
+                error_msg = clean_result.stderr.strip()
+                logger.warning(f"[RunCheckpoint] Failed to clean untracked files: {error_msg}")
+                # Non-fatal - reset succeeded
+
+            # If we were on a named branch, try to return to it
+            if self._run_checkpoint_branch and self._run_checkpoint_branch != "HEAD":
+                checkout_result = subprocess.run(
+                    ["git", "checkout", self._run_checkpoint_branch],
+                    cwd=self.workspace,
+                    capture_output=True,
+                    text=True,
+                    timeout=10
+                )
+
+                if checkout_result.returncode != 0:
+                    logger.warning(f"[RunCheckpoint] Could not return to branch {self._run_checkpoint_branch}")
+                    # Non-fatal - we're at the right commit
+
+            logger.info(f"[RunCheckpoint] Successfully rolled back run to pre-run state")
+
+            # Log rollback action for audit trail
+            self._log_run_rollback_action(reason)
+
+            return True, None
+
+        except subprocess.TimeoutExpired:
+            logger.error("[RunCheckpoint] Timeout rolling back to run checkpoint")
+            return False, "git_timeout"
+        except Exception as e:
+            logger.error(f"[RunCheckpoint] Exception during run rollback: {e}")
+            return False, f"exception: {str(e)}"
+
+    def _log_run_rollback_action(self, reason: str) -> None:
+        """Log run rollback action to audit file.
+
+        [Phase C5] Audit trail for run-level rollbacks.
+
+        Args:
+            reason: Reason for rollback
+        """
+        try:
+            # Log to .autonomous_runs/{run_id}/run_rollback.log
+            from autopack.file_layout import RunFileLayout
+            layout = RunFileLayout(self.run_id, project_id=self.project_id)
+            layout.ensure_directories()
+
+            rollback_log = layout.base_dir / "run_rollback.log"
+
+            timestamp = datetime.utcnow().isoformat()
+            log_entry = (
+                f"{timestamp} | Run: {self.run_id} | "
+                f"Checkpoint: {self._run_checkpoint_commit[:8] if self._run_checkpoint_commit else 'unknown'} | "
+                f"Reason: {reason}\n"
+            )
+
+            with open(rollback_log, "a", encoding="utf-8") as f:
+                f.write(log_entry)
+
+            logger.info(f"[RunCheckpoint] Logged run rollback to {rollback_log}")
+
+        except Exception as e:
+            logger.warning(f"[RunCheckpoint] Failed to write run rollback audit log: {e}")
 
     def _execute_phase_with_recovery(
         self,
@@ -4243,11 +4490,26 @@ Just the new description that should replace the current one while preserving th
                 run_hints=run_hints,  # Stage 0A: Within-run hints from earlier phases
                 run_id=self.run_id,
                 phase_id=phase_id,
-                run_context={},  # TODO: Pass model_overrides if specified in run config
+                run_context=self._build_run_context(),  # [Phase C3] Include model overrides if specified
                 attempt_index=attempt_index,  # Pass attempt for model escalation
                 use_full_file_mode=use_full_file_mode,  # NEW: Pass mode from pre-flight check
                 config=self.builder_output_config,  # NEW: Pass config for consistency
                 retrieved_context=retrieved_context,  # NEW: Vector memory context
+            )
+
+            # [Phase C1] Store builder result for Doctor diagnostics
+            self._last_builder_result = builder_result
+
+            # [Phase C2] Extract and store patch statistics for quality gate
+            from autopack.governed_apply import GovernedApplyPath
+            is_maintenance_run = self.run_type in ["autopack_maintenance", "autopack_upgrade", "self_repair"]
+            governed_apply = GovernedApplyPath(
+                workspace=Path(self.workspace),
+                run_type=self.run_type,
+                autopack_internal_mode=is_maintenance_run,
+            )
+            self._last_files_changed, self._last_lines_added, self._last_lines_removed = governed_apply.parse_patch_stats(
+                builder_result.patch_content or ""
             )
 
             # BUILD-129 Phase 3 P10: Sync metadata from phase_spec back to phase
@@ -4290,11 +4552,26 @@ Just the new description that should replace the current one while preserving th
                     run_hints=run_hints,
                     run_id=self.run_id,
                     phase_id=phase_id,
-                    run_context={},
+                    run_context=self._build_run_context(),  # [Phase C3] Include model overrides if specified
                     attempt_index=attempt_index,
                     use_full_file_mode=False,
                     config=self.builder_output_config,
                     retrieved_context=retrieved_context,  # NEW: Vector memory context
+                )
+
+                # [Phase C1] Store fallback builder result for Doctor diagnostics
+                self._last_builder_result = builder_result
+
+                # [Phase C2] Extract and store patch statistics for quality gate (fallback path)
+                from autopack.governed_apply import GovernedApplyPath
+                is_maintenance_run = self.run_type in ["autopack_maintenance", "autopack_upgrade", "self_repair"]
+                governed_apply = GovernedApplyPath(
+                    workspace=Path(self.workspace),
+                    run_type=self.run_type,
+                    autopack_internal_mode=is_maintenance_run,
+                )
+                self._last_files_changed, self._last_lines_added, self._last_lines_removed = governed_apply.parse_patch_stats(
+                    builder_result.patch_content or ""
                 )
 
                 # BUILD-129 Phase 3 P10: Sync metadata from phase_structured back to phase
@@ -5183,9 +5460,9 @@ Just the new description that should replace the current one while preserving th
                 run_hints=run_hints,  # Stage 0A: Within-run hints from earlier phases
                 run_id=self.run_id,
                 phase_id=phase_id,
-                run_context={},  # TODO: Pass model_overrides if specified
+                run_context=self._build_run_context(),  # [Phase C3] Include model overrides if specified  # TODO: Pass model_overrides if specified
                 ci_result=ci_result,  # Now passing real CI results!
-                coverage_delta=0.0,  # TODO: Calculate actual coverage delta
+                coverage_delta=self._compute_coverage_delta(ci_result),  # [Phase C4] Coverage delta computation
                 attempt_index=attempt_index,  # Pass attempt for model escalation
             )
 
@@ -5197,6 +5474,7 @@ Just the new description that should replace the current one while preserving th
 
             # Step 5: Apply Quality Gate (with real CI results)
             logger.info(f"[{phase_id}] Step 5/5: Applying Quality Gate...")
+            # [Phase C2] Use extracted patch statistics for quality gate
             quality_report = self.quality_gate.assess_phase(
                 phase_id=phase_id,
                 phase_spec=phase,
@@ -5205,9 +5483,9 @@ Just the new description that should replace the current one while preserving th
                     "issues_found": auditor_result.issues_found,
                 },
                 ci_result=ci_result,  # Now passing real CI results!
-                coverage_delta=0.0,  # TODO: Calculate actual coverage delta
+                coverage_delta=self._compute_coverage_delta(ci_result),  # [Phase C4] Coverage delta computation
                 patch_content=builder_result.patch_content,
-                files_changed=None,  # TODO: Extract from builder result
+                files_changed=self._last_files_changed,
             )
 
             logger.info(f"[{phase_id}] Quality Gate: {quality_report.quality_level}")
@@ -5622,7 +5900,7 @@ Just the new description that should replace the current one while preserving th
                 run_hints=run_hints,
                 run_id=self.run_id,
                 phase_id=phase_id,
-                run_context={},
+                run_context=self._build_run_context(),  # [Phase C3] Include model overrides if specified
                 attempt_index=attempt_index,
                 use_full_file_mode=use_full_file_mode,
                 config=self.builder_output_config,
@@ -5852,7 +6130,7 @@ Just the new description that should replace the current one while preserving th
             run_hints=run_hints,
             run_id=self.run_id,
             phase_id=phase_id,
-            run_context={},
+            run_context=self._build_run_context(),  # [Phase C3] Include model overrides if specified
             ci_result=ci_result,
             coverage_delta=0.0,
             attempt_index=attempt_index,
@@ -6208,7 +6486,7 @@ Just the new description that should replace the current one while preserving th
                 run_hints=run_hints,
                 run_id=self.run_id,
                 phase_id=phase_id,
-                run_context={},
+                run_context=self._build_run_context(),  # [Phase C3] Include model overrides if specified
                 attempt_index=attempt_index,
                 use_full_file_mode=use_full_file_mode,
                 config=self.builder_output_config,
@@ -6404,7 +6682,7 @@ Just the new description that should replace the current one while preserving th
             run_hints=run_hints,
             run_id=self.run_id,
             phase_id=phase_id,
-            run_context={},
+            run_context=self._build_run_context(),  # [Phase C3] Include model overrides if specified
             ci_result=ci_result,
             coverage_delta=0.0,
             attempt_index=attempt_index,
@@ -6594,7 +6872,7 @@ Just the new description that should replace the current one while preserving th
                 run_hints=run_hints,
                 run_id=self.run_id,
                 phase_id=phase_id,
-                run_context={},
+                run_context=self._build_run_context(),  # [Phase C3] Include model overrides if specified
                 attempt_index=attempt_index,
                 use_full_file_mode=use_full_file_mode,
                 config=self.builder_output_config,
@@ -6747,7 +7025,7 @@ Just the new description that should replace the current one while preserving th
             run_hints=run_hints,
             run_id=self.run_id,
             phase_id=phase_id,
-            run_context={},
+            run_context=self._build_run_context(),  # [Phase C3] Include model overrides if specified
             ci_result=ci_result,
             coverage_delta=0.0,
             attempt_index=attempt_index,

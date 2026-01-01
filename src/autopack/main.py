@@ -980,6 +980,113 @@ async def request_approval(request: Request, db: Session = Depends(get_db)):
         raise HTTPException(status_code=500, detail=f"Approval request processing failed: {str(e)}")
 
 
+# ==============================================================================
+# Storage Optimizer Telegram Callback Handler (BUILD-150 Phase 3)
+# ==============================================================================
+
+async def _handle_storage_callback(
+    callback_data: str,
+    callback_id: str,
+    username: str,
+    db: Session
+) -> dict:
+    """
+    Handle storage optimizer Telegram callbacks.
+
+    Callback formats:
+    - storage_approve_all:{scan_id} - Approve all candidates
+    - storage_details:{scan_id} - View scan details
+    - storage_skip:{scan_id} - Skip this scan
+    """
+    from autopack.storage_optimizer.db import (
+        get_cleanup_candidates_by_scan,
+        create_approval_decision
+    )
+    from autopack.storage_optimizer.telegram_notifications import (
+        StorageTelegramNotifier,
+        answer_telegram_callback
+    )
+
+    import os
+
+    bot_token = os.getenv("TELEGRAM_BOT_TOKEN")
+    notifier = StorageTelegramNotifier()
+
+    try:
+        if callback_data.startswith("storage_approve_all:"):
+            scan_id = int(callback_data.split(":")[1])
+
+            logger.info(f"[TELEGRAM] User @{username} approving all candidates for scan {scan_id}")
+
+            # Get all candidates
+            candidates = get_cleanup_candidates_by_scan(db, scan_id)
+
+            if not candidates:
+                answer_telegram_callback(bot_token, callback_id, "❌ No candidates found for this scan")
+                return {"ok": True}
+
+            # Approve all
+            candidate_ids = [c.id for c in candidates]
+            total_size = sum(c.size_bytes for c in candidates)
+
+            approval = create_approval_decision(
+                db,
+                scan_id=scan_id,
+                candidate_ids=candidate_ids,
+                approved_by=f"telegram_@{username}",
+                decision="approve",
+                approval_method="telegram",
+                notes="Approved all via Telegram inline button"
+            )
+            db.commit()
+
+            # Answer callback
+            answer_telegram_callback(
+                bot_token,
+                callback_id,
+                f"✅ Approved {len(candidate_ids)} items ({total_size / (1024**3):.2f} GB)"
+            )
+
+            # Send confirmation message
+            notifier.send_approval_confirmation(
+                scan_id=scan_id,
+                approved_count=len(candidate_ids),
+                approved_size_gb=total_size / (1024**3)
+            )
+
+            logger.info(f"[TELEGRAM] Approved {len(candidate_ids)} candidates for scan {scan_id}")
+
+        elif callback_data.startswith("storage_details:"):
+            scan_id = int(callback_data.split(":")[1])
+
+            logger.info(f"[TELEGRAM] User @{username} viewing details for scan {scan_id}")
+
+            # Get API URL
+            api_url = os.getenv("AUTOPACK_API_URL", "http://localhost:8000")
+            details_url = f"{api_url}/storage/scans/{scan_id}"
+
+            answer_telegram_callback(
+                bot_token,
+                callback_id,
+                f"View details: {details_url}",
+                show_alert=True
+            )
+
+        elif callback_data.startswith("storage_skip:"):
+            scan_id = int(callback_data.split(":")[1])
+
+            logger.info(f"[TELEGRAM] User @{username} skipping scan {scan_id}")
+
+            answer_telegram_callback(bot_token, callback_id, "⏭️ Scan skipped")
+
+        return {"ok": True}
+
+    except Exception as e:
+        logger.error(f"[TELEGRAM] Storage callback error: {e}", exc_info=True)
+        answer_telegram_callback(bot_token, callback_id, f"❌ Error: {str(e)}", show_alert=True)
+        return {"ok": False, "error": str(e)}
+
+
 @app.post("/telegram/webhook")
 async def telegram_webhook(request: Request, db: Session = Depends(get_db)):
     """Handle Telegram webhook callbacks for approval buttons.
@@ -987,7 +1094,9 @@ async def telegram_webhook(request: Request, db: Session = Depends(get_db)):
     This endpoint receives callbacks when users tap Approve/Reject buttons
     in Telegram notifications.
 
-    Callback data format: "approve:{phase_id}" or "reject:{phase_id}"
+    Callback data formats:
+    - Phase approvals: "approve:{phase_id}" or "reject:{phase_id}"
+    - Storage scans (BUILD-150): "storage_approve_all:{scan_id}", "storage_details:{scan_id}", "storage_skip:{scan_id}"
     """
     try:
         from autopack.notifications.telegram_notifier import TelegramNotifier
@@ -1002,6 +1111,7 @@ async def telegram_webhook(request: Request, db: Session = Depends(get_db)):
             return {"ok": True}
 
         callback_data = callback_query.get("data")
+        callback_id = callback_query.get("id")
         message_id = callback_query.get("message", {}).get("message_id")
         chat_id = callback_query.get("message", {}).get("chat", {}).get("id")
         user_id = callback_query.get("from", {}).get("id")
@@ -1010,6 +1120,12 @@ async def telegram_webhook(request: Request, db: Session = Depends(get_db)):
         if not callback_data:
             logger.warning("[TELEGRAM] No callback data in query")
             return {"ok": True}
+
+        # BUILD-150 Phase 3: Handle storage optimizer callbacks
+        if callback_data.startswith("storage_"):
+            return await _handle_storage_callback(
+                callback_data, callback_id, username, db
+            )
 
         # Parse callback data: "approve:{phase_id}" or "reject:{phase_id}"
         action, phase_id = callback_data.split(":", 1)
@@ -2014,6 +2130,87 @@ def execute_approved_cleanup(
     except Exception as e:
         logger.error(f"Failed to execute cleanup for scan {scan_id}: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Failed to execute cleanup: {str(e)}")
+
+
+@app.get("/storage/steam/games", response_model=schemas.SteamGamesListResponse)
+def get_steam_games(
+    min_size_gb: float = 10.0,
+    min_age_days: int = 180,
+    include_all: bool = False
+):
+    """
+    Detect Steam games and find large unplayed/unused games.
+
+    Addresses user's original request for Steam game detection and storage optimization.
+
+    Args:
+        min_size_gb: Minimum game size in GB (default 10GB)
+        min_age_days: Minimum days since last update (default 180 days = 6 months)
+        include_all: Include all games regardless of size/age (default False)
+
+    Returns:
+        SteamGamesListResponse with list of games and totals
+
+    Example:
+        ```bash
+        # Find large unplayed games (>10GB, not updated in 6 months)
+        curl http://localhost:8000/storage/steam/games
+
+        # Find any games >50GB not updated in a year
+        curl "http://localhost:8000/storage/steam/games?min_size_gb=50&min_age_days=365"
+
+        # List all installed games
+        curl "http://localhost:8000/storage/steam/games?include_all=true"
+        ```
+    """
+    from .storage_optimizer.steam_detector import SteamGameDetector
+
+    detector = SteamGameDetector()
+
+    if not detector.is_available():
+        return schemas.SteamGamesListResponse(
+            total_games=0,
+            total_size_bytes=0,
+            total_size_gb=0.0,
+            games=[],
+            steam_available=False,
+            steam_path=None
+        )
+
+    # Get games
+    if include_all:
+        games = detector.detect_installed_games()
+    else:
+        games = detector.find_unplayed_games(
+            min_size_gb=min_size_gb,
+            min_age_days=min_age_days
+        )
+
+    # Convert to response format
+    game_responses = []
+    total_size = 0
+    for game in games:
+        total_size += game.size_bytes
+        game_responses.append(schemas.SteamGameResponse(
+            app_id=game.app_id,
+            name=game.name,
+            install_path=str(game.install_path),
+            size_bytes=game.size_bytes,
+            size_gb=round(game.size_bytes / (1024**3), 2),
+            last_updated=game.last_updated.isoformat() if game.last_updated else None,
+            age_days=game.age_days
+        ))
+
+    return schemas.SteamGamesListResponse(
+        total_games=len(game_responses),
+        total_size_bytes=total_size,
+        total_size_gb=round(total_size / (1024**3), 2),
+        games=game_responses,
+        steam_available=True,
+        steam_path=str(detector.steam_path) if detector.steam_path else None
+    )
+
+
 
 
 @app.get("/health")

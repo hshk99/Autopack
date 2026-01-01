@@ -105,15 +105,18 @@ class TestBaselineTracker:
             workspace: Repository workspace path
             run_id: Run identifier for scoped artifacts (optional for backward compatibility)
         """
+        from .config import settings
+
         self.workspace = workspace
         self.run_id = run_id
 
         # Use run-scoped cache directory if run_id provided (P2.1 parallel-run safety)
+        # P2.2: Respect configured autonomous_runs_dir
         if run_id:
-            self.cache_dir = workspace / ".autonomous_runs" / run_id / "baselines"
+            self.cache_dir = Path(settings.autonomous_runs_dir) / run_id / "baselines"
         else:
             # Legacy: global cache dir (not safe for parallel runs)
-            self.cache_dir = workspace / ".autonomous_runs" / "baselines"
+            self.cache_dir = Path(settings.autonomous_runs_dir) / "baselines"
 
         self.cache_dir.mkdir(parents=True, exist_ok=True)
 

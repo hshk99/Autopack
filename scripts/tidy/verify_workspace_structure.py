@@ -51,10 +51,13 @@ ROOT_ALLOWED_FILES = {
     "Makefile",
     "nginx.conf",
     "index.html",
+    # Primary development database (active)
+    "autopack.db",
 }
 
 ROOT_ALLOWED_PATTERNS = [
-    "*.db",
+    # NOTE: "*.db" pattern REMOVED - only autopack.db allowed (see ROOT_ALLOWED_FILES)
+    # This enables automatic cleanup of historical/test databases
     "Dockerfile*",
     "docker-compose*.yml",
     "requirements*.txt",

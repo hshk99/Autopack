@@ -294,3 +294,25 @@ class BatchExecutionResponse(BaseModel):
     success_rate: float
     execution_duration_seconds: int
     results: List[ExecutionResultResponse]
+
+class SteamGameResponse(BaseModel):
+    """Steam game information for storage optimization"""
+
+    app_id: Optional[str] = None
+    name: str
+    install_path: str
+    size_bytes: int
+    size_gb: float
+    last_updated: Optional[str] = None  # ISO format datetime
+    age_days: Optional[int] = None
+
+
+class SteamGamesListResponse(BaseModel):
+    """List of Steam games with totals"""
+
+    total_games: int
+    total_size_bytes: int
+    total_size_gb: float
+    games: List[SteamGameResponse]
+    steam_available: bool
+    steam_path: Optional[str] = None

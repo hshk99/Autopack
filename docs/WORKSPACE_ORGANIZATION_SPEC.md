@@ -42,7 +42,12 @@ The repository root should remain **minimal** and contain only:
 - `tsconfig*.json` - TypeScript configs (e.g., `tsconfig.node.json`)
 
 #### Database Files (Development)
-- `*.db` - SQLite database files (development/testing only)
+- `autopack.db` - **Primary development database** (active, should remain at root)
+- **Historical/test databases are NOT allowed at root** - they will be routed to `archive/data/databases/`
+  - Telemetry seed databases → `archive/data/databases/telemetry_seeds/`
+  - Debug snapshots → `archive/data/databases/debug_snapshots/`
+  - Test artifacts → `archive/data/databases/test_artifacts/`
+  - Legacy backups → `archive/data/databases/legacy/`
 - Note: Production databases should use PostgreSQL, not SQLite files
 
 #### Build Artifacts (Temporary)
@@ -222,6 +227,22 @@ The `archive/` directory serves two purposes:
 - **archive/superseded/** - Files that have been consolidated into SOT
   - Mirror structure: `superseded/reports/`, `superseded/prompts/`, etc.
 - **archive/unsorted/** - Temporary inbox for unclassified files
+- **archive/data/** - Archived data files
+  - **archive/data/databases/** - Historical database files
+    - **archive/data/databases/telemetry_seeds/** - Telemetry seed databases
+      - **archive/data/databases/telemetry_seeds/debug/** - Debug telemetry seeds
+      - **archive/data/databases/telemetry_seeds/final/** - Final/green telemetry seeds
+    - **archive/data/databases/debug_snapshots/** - Debug database snapshots
+    - **archive/data/databases/test_artifacts/** - Test database files
+    - **archive/data/databases/legacy/** - Legacy/backup databases
+    - **archive/data/databases/backups/** - Database backups
+    - **archive/data/databases/misc/** - Other databases
+- **archive/experiments/** - Archived experiments and research code
+  - **archive/experiments/research_code/** - Experimental research code
+  - **archive/experiments/research_tracer/** - Research tracer experiments
+  - **archive/experiments/tracer_bullet/** - Tracer bullet proofs of concept
+- **archive/misc/** - Miscellaneous archived items
+  - **archive/misc/root_directories/** - Directories moved from root for manual review
 
 ### Workflow
 
@@ -284,6 +305,28 @@ For each project under `.autonomous_runs/{project}/`:
 ├── runs/                      # Run execution logs
 └── logs/                      # Runtime logs
 ```
+
+### Cleanup Policy
+
+The tidy system automatically cleans up `.autonomous_runs/` to prevent clutter:
+
+**Orphaned Logs**:
+- Executor logs not contained in run directories are deleted
+- Example: `.autonomous_runs/executor.log` (not in a run directory)
+
+**Duplicate Baseline Archives**:
+- Only the most recent baseline archive is kept
+- Older `baselines_*.zip` files are deleted
+
+**Old Run Directories**:
+- Keeps last **10 runs per project** by default
+- Only deletes runs older than **7 days** by default
+- Run directories are grouped by prefix (e.g., `build-*`, `telemetry-collection-*`)
+- Runtime workspaces (`.autonomous_runs/autopack/`) and project directories are never deleted
+
+**Empty Directories**:
+- Empty directories are deleted after run cleanup
+- Prevents directory tree bloat from old runs
 
 ## 5. Scripts Directory (scripts/)
 

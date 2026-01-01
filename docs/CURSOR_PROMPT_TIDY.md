@@ -1,34 +1,53 @@
 # Cursor Prompt: Run Autopack Tidy
 
-**Purpose**: Simple guide for running Autopack's documentation consolidation (tidy) system.
+**Purpose**: Simple guide for running Autopack's workspace organization (tidy) system.
+
+**Preferred Entrypoint**: Use `scripts/tidy/tidy_up.py` - the unified entrypoint that matches README expectations.
+
+For complete documentation, see [TIDY_SYSTEM_USAGE.md](TIDY_SYSTEM_USAGE.md).
 
 ---
 
 ## What Tidy Does
 
-Tidy consolidates scattered documentation files from the `archive/` directory into the canonical SOT (Single Source of Truth) files:
+The unified tidy system performs **5 phases** of workspace organization:
+
+1. **Root Routing**: Moves stray files from repo root to proper locations
+2. **Docs Hygiene**: Enforces docs/ as truth source only (not inbox)
+3. **Archive Consolidation**: Consolidates archive markdown into SOT ledgers
+4. **Verification**: Validates workspace structure
+5. **SOT Re-index Handoff**: Marks SOT dirty for executor re-indexing
+
+**Consolidates into SOT**:
 - `docs/BUILD_HISTORY.md` - Build completion ledger
 - `docs/DEBUG_LOG.md` - Problem-solving history
 - `docs/ARCHITECTURE_DECISIONS.md` - Design decisions
 
-**Safety**: Tidy uses an **append-only** approach - it never deletes SOT files, only adds to them.
+**Safety**: Tidy uses append-only approach for SOT files and blocks on divergent duplicates.
 
 ---
 
 ## Quick Run Command
 
 ```bash
-# Standard tidy with semantic classification
-PYTHONUTF8=1 python scripts/tidy/run_tidy_all.py --semantic --project autopack-framework
+# Preview changes (dry-run, safe)
+python scripts/tidy/tidy_up.py
+
+# Execute changes
+python scripts/tidy/tidy_up.py --execute
+
+# Skip archive consolidation (faster, for quick cleanup)
+python scripts/tidy/tidy_up.py --execute --skip-archive-consolidation
 ```
 
-**What happens**:
-1. Scans `archive/` for `.md` files (85+ files typically)
-2. Uses `glm-4.7` LLM to classify and summarize each file
-3. Appends summaries to appropriate SOT files
-4. Generates tidy report in `archive/reports/tidy_v*/`
+**What happens** (full run with consolidation):
+1. Routes stray root files to archive/
+2. Validates docs/ structure
+3. Consolidates archive markdown into SOT (using glm-4.7 LLM)
+4. Creates dirty marker for executor re-indexing
+5. Generates verification report
 
-**Time**: 5-15 minutes depending on archive size and LLM speed
+**Time**: 5-15 minutes for full consolidation, <1 minute without
 
 ---
 
@@ -36,11 +55,11 @@ PYTHONUTF8=1 python scripts/tidy/run_tidy_all.py --semantic --project autopack-f
 
 Before running tidy, verify:
 
-- [ ] **Environment**: Python venv activated
-- [ ] **API Key**: `GLM_API_KEY` environment variable set (for glm-4.7)
 - [ ] **Working Directory**: At repo root (`c:\dev\Autopack`)
+- [ ] **No Divergent SOT Duplicates**: No copies of SOT files at both root and docs/ with different content (tidy will block if found)
 - [ ] **SOT Files Exist**: `docs/BUILD_HISTORY.md`, `docs/DEBUG_LOG.md`, `docs/ARCHITECTURE_DECISIONS.md`
-- [ ] **No Uncommitted Changes**: Commit or stash changes to SOT files (you can review tidy output before committing)
+- [ ] **API Key** (if using consolidation): `GLM_API_KEY` environment variable set (for glm-4.7)
+- [ ] **No Uncommitted Changes**: Commit or stash changes before running (or use `--git-checkpoint`)
 
 ---
 

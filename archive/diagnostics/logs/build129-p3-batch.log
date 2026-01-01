@@ -1,0 +1,245 @@
+faiss library not installed; FaissStore will use in-memory fallback
+[2025-12-24 15:47:49] INFO: Applying pre-emptive encoding fix...
+[2025-12-24 15:47:49] INFO: [Recovery] Fixing Unicode encoding error...
+[drain] run_id=build129-p3-week1-telemetry queued=4 complete=0 failed=8
+[drain] Starting batch 1 (max-iterations=4)...
+[2025-12-24 15:47:49] INFO: [Recovery] SUCCESS: Encoding fixed (UTF-8 enabled)
+[2025-12-24 15:47:49] INFO: Database tables initialized
+[2025-12-24 15:47:49] INFO: Loaded BuilderOutputConfig: max_lines_for_full_file=1000, max_lines_hard_limit=1000
+[2025-12-24 15:47:50] INFO: Doctor execute_fix enabled: True
+[2025-12-24 15:47:50] INFO: FileSizeTelemetry initialized: .autonomous_runs\autopack\file_size_telemetry.jsonl
+[2025-12-24 15:48:00] WARNING: [Qdrant] Connection check failed for localhost:6333: [WinError 10061] No connection could be made because the target machine actively refused it
+[2025-12-24 15:48:01] WARNING: [MemoryService] Qdrant unavailable at localhost:6333; falling back to FAISS ([WinError 10061] No connection could be made because the target machine actively refused it)
+[2025-12-24 15:48:01] INFO: [FAISS] Created collection 'code_docs' with dim=1536
+[2025-12-24 15:48:01] INFO: [FAISS] Created collection 'run_summaries' with dim=1536
+[2025-12-24 15:48:01] INFO: [FAISS] Created collection 'errors_ci' with dim=1536
+[2025-12-24 15:48:01] INFO: [FAISS] Created collection 'doctor_hints' with dim=1536
+[2025-12-24 15:48:01] INFO: [FAISS] Created collection 'planning' with dim=1536
+[2025-12-24 15:48:01] INFO: [MemoryService] Initialized (backend=faiss, enabled=True, top_k=5)
+[2025-12-24 15:48:01] INFO: MemoryService initialized (enabled=True)
+[2025-12-24 15:48:01] INFO: [FileLayout] Project: autopack, Family: build129-p3-week1-telemetry, Base: .autonomous_runs\autopack\runs\build129-p3-week1-telemetry
+[2025-12-24 15:48:01] INFO: Initialized autonomous executor for run: build129-p3-week1-telemetry
+[2025-12-24 15:48:01] INFO: API URL: http://localhost:8000
+[2025-12-24 15:48:01] INFO: Workspace: .
+[2025-12-24 15:48:01] INFO: Running proactive startup checks from DEBUG_JOURNAL.md...
+[2025-12-24 15:48:01] INFO: [HIGH] Checking: Windows Unicode Fix (PYTHONUTF8)
+[2025-12-24 15:48:01] INFO:   Reason: Prevents UnicodeEncodeError with emoji characters in logs (Issue #3)
+[2025-12-24 15:48:01] INFO:   Check PASSED
+[2025-12-24 15:48:01] INFO: [SchemaValidator] Starting database schema validation...
+[2025-12-24 15:48:01] INFO: [SchemaValidator] ✅ Database schema validation PASSED
+[2025-12-24 15:48:01] INFO: Startup checks complete
+[2025-12-24 15:48:02] INFO: [BUILD-123v2] Manifest generator initialized (deterministic scope generation)
+[2025-12-24 15:48:04] INFO: [HealthCheck:T0] API Keys: PASSED (0ms) - All required API keys present
+[2025-12-24 15:48:04] INFO: [HealthCheck:T0] Database: PASSED (0ms) - Database accessible: c:\dev\Autopack\autopack.db
+[2025-12-24 15:48:04] INFO: [HealthCheck:T0] Workspace: PASSED (0ms) - Workspace valid: c:\dev\Autopack
+[2025-12-24 15:48:04] INFO: [HealthCheck:T0] Config: PASSED (21ms) - Configuration files valid
+[2025-12-24 15:48:04] INFO: [HealthCheck:T0] Vector Memory: PASSED (1232ms) - Qdrant unreachable at localhost:6333; autostart attempted or unavailable. Falling back to FAISS.
+[2025-12-24 15:48:04] INFO: [BUILD-127] Completion authority initialized (PhaseFinalizer + TestBaselineTracker)
+[2025-12-24 15:48:04] INFO: [BUILD-127] Capturing T0 baseline at commit 1dc6756e...
+[2025-12-24 15:48:04] INFO: [Baseline] Using cached baseline for commit 1dc6756e
+[2025-12-24 15:48:04] INFO: [BUILD-127] T0 baseline: 0 tests, 0 passing, 0 failing, 0 errors
+[2025-12-24 15:48:04] INFO: Starting autonomous execution loop...
+[2025-12-24 15:48:04] INFO: Poll interval: 10s
+[2025-12-24 15:48:04] INFO: Max iterations: 4
+[2025-12-24 15:48:04] INFO: API server is already running
+[2025-12-24 15:48:04] INFO: Initializing infrastructure...
+[2025-12-24 15:48:08] INFO: LlmService: Initialized with ModelRouter and UsageRecorder
+[2025-12-24 15:48:08] INFO: Quality Gate: Initialized
+[2025-12-24 15:48:08] INFO: Iteration 1: Fetching run status...
+[2025-12-24 15:48:08] INFO: [BUILD-041] Next phase: build129-p3-w1.9-documentation-low-5files
+[2025-12-24 15:48:08] INFO: [BUILD-123v2] Phase 'build129-p3-w1.9-documentation-low-5files' has no scope - generating manifest...
+[2025-12-24 15:48:08] INFO: Generating manifest for run: build129-p3-week1-telemetry
+[2025-12-24 15:48:08] INFO: Repo structure scanned successfully
+[2025-12-24 15:48:08] INFO: [BUILD-128] Phase 'build129-p3-w1.9-documentation-low-5files' has deliverables - inferring scope from deliverables
+[2025-12-24 15:48:08] INFO: [BUILD-128] Inferred category 'documentation' from deliverables (confidence=100.0%)
+[2025-12-24 15:48:08] INFO: [BUILD-128] Generated scope: 5 paths, 0 context files
+[2025-12-24 15:48:08] INFO: [BUILD-129] Added token estimate to phase: 5200 output tokens (5 deliverables, confidence=0.80)
+[2025-12-24 15:48:08] INFO: [BUILD-123v2] Generated scope for 'build129-p3-w1.9-documentation-low-5files': category=documentation, confidence=100.0%, files=5
+[2025-12-24 15:48:08] INFO: [Scope] Workspace root determined from scope prefix: C:\dev\Autopack\docs
+[2025-12-24 15:48:08] INFO: [build129-p3-w1.9-documentation-low-5files] Step 1/4: Generating code with Builder (via LlmService)...
+[2025-12-24 15:48:08] INFO: [build129-p3-w1.9-documentation-low-5files] Using scope-aware context (overrides targeted context)
+[2025-12-24 15:48:08] INFO: [Scope] Workspace root determined from scope prefix: C:\dev\Autopack\docs
+[2025-12-24 15:48:08] WARNING: [Scope] Missing scope files: ['docs/token_estimator/OVERVIEW.md', 'docs/token_estimator/USAGE_GUIDE.md', 'docs/token_estimator/API_REFERENCE.md', 'docs/token_estimator/EXAMPLES.md', 'docs/token_estimator/FAQ.md']
+[2025-12-24 15:48:08] INFO: [Scope] Loaded 5 files from scope configuration
+[2025-12-24 15:48:08] INFO: [Scope] Scope paths: ['docs/token_estimator/OVERVIEW.md', 'docs/token_estimator/USAGE_GUIDE.md', 'docs/token_estimator/API_REFERENCE.md', 'docs/token_estimator/EXAMPLES.md', 'docs/token_estimator/FAQ.md']
+[2025-12-24 15:48:08] INFO: [Scope] Loaded paths: ['docs/token_estimator/OVERVIEW.md', 'docs/token_estimator/USAGE_GUIDE.md', 'docs/token_estimator/API_REFERENCE.md', 'docs/token_estimator/EXAMPLES.md', 'docs/token_estimator/FAQ.md']...
+[2025-12-24 15:48:08] INFO: [build129-p3-w1.9-documentation-low-5files] Loaded 5 files for context
+[2025-12-24 15:48:08] INFO: [Scope] Workspace root determined from scope prefix: C:\dev\Autopack\docs
+[2025-12-24 15:48:08] INFO: [Scope] Validation passed: 5 files match scope configuration
+[2025-12-24 15:48:08] INFO: [build129-p3-w1.9-documentation-low-5files] Built deliverables contract: 5 required paths, 0 forbidden patterns
+[2025-12-24 15:48:08] INFO: [build129-p3-w1.9-documentation-low-5files] Deliverables manifest gate PASSED (5 paths)
+[2025-12-24 15:48:08] INFO: [ModelSelector] Selected claude-sonnet-4-5 for builder (complexity=low, attempt=0, intra_tier=0)
+[2025-12-24 15:48:08] INFO: [MODEL-SELECT] Builder: model=claude-sonnet-4-5, complexity=low->low, attempt=0, category=documentation
+[2025-12-24 15:48:08] INFO: [TokenEstimator] Budget selection: base=8192, estimated=5200, with_buffer=6240, selected=8192, confidence=80.0%
+[2025-12-24 15:48:08] INFO: [BUILD-129] Token estimate: 5200 output tokens (5 deliverables, confidence=0.80), selected budget: 8192
+[2025-12-24 15:48:08] INFO: [BUILD-129:Layer3] Using NDJSON format for 5 deliverables (truncation-tolerant mode)
+[2025-12-24 15:48:08] WARNING: [TOKEN_SOFT_CAP] run_id=unknown phase_id=build129-p3-w1.9-documentation-low-5files est_total=12482 soft_cap=12000 (prompt=1014 completion=11468 complexity=low)
+[2025-12-24 15:48:10] INFO: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+[2025-12-24 15:51:25] INFO: [TOKEN_BUDGET] phase=build129-p3-w1.9-documentation-low-5files complexity=low input=1158 output=16384/16384 total=17542 utilization=100.0% model=claude-sonnet-4-5
+[2025-12-24 15:51:25] WARNING: [Builder] Output was truncated (stop_reason=max_tokens)
+[2025-12-24 15:51:25] WARNING: [TOKEN_BUDGET] TRUNCATION: phase=build129-p3-w1.9-documentation-low-5files used 16384/16384 tokens (100% utilization) - consider increasing max_tokens for this complexity level
+[2025-12-24 15:51:25] INFO: [NDJSON:Parse] Parsing 22 lines
+[2025-12-24 15:51:25] ERROR: [NDJSON:Parse] Failed to parse line #1 (not last line): Expecting value: line 1 column 1 (char 0)
+[2025-12-24 15:51:25] ERROR: [NDJSON:Parse] Failed to parse line #2 (not last line): Expecting property name enclosed in double quotes: line 1 column 2 (char 1)
+[2025-12-24 15:51:25] ERROR: [NDJSON:Parse] Failed to parse line #3 (not last line): Extra data: line 1 column 8 (char 7)
+[2025-12-24 15:51:25] ERROR: [NDJSON:Parse] Failed to parse line #4 (not last line): Expecting property name enclosed in double quotes: line 1 column 2 (char 1)
+[2025-12-24 15:51:25] ERROR: [NDJSON:Parse] Failed to parse line #5 (not last line): Extra data: line 1 column 7 (char 6)
+[2025-12-24 15:51:25] ERROR: [NDJSON:Parse] Failed to parse line #6 (not last line): Extra data: line 1 column 7 (char 6)
+[2025-12-24 15:51:25] ERROR: [NDJSON:Parse] Failed to parse line #7 (not last line): Extra data: line 1 column 14 (char 13)
+[2025-12-24 15:51:25] ERROR: [NDJSON:Parse] Failed to parse line #8 (not last line): Expecting value: line 1 column 1 (char 0)
+[2025-12-24 15:51:25] ERROR: [NDJSON:Parse] Failed to parse line #9 (not last line): Expecting property name enclosed in double quotes: line 1 column 2 (char 1)
+[2025-12-24 15:51:25] ERROR: [NDJSON:Parse] Failed to parse line #10 (not last line): Extra data: line 1 column 7 (char 6)
+[2025-12-24 15:51:25] ERROR: [NDJSON:Parse] Failed to parse line #11 (not last line): Extra data: line 1 column 7 (char 6)
+[2025-12-24 15:51:25] ERROR: [NDJSON:Parse] Failed to parse line #12 (not last line): Extra data: line 1 column 14 (char 13)
+[2025-12-24 15:51:25] ERROR: [NDJSON:Parse] Failed to parse line #13 (not last line): Expecting value: line 1 column 1 (char 0)
+[2025-12-24 15:51:25] ERROR: [NDJSON:Parse] Failed to parse line #14 (not last line): Expecting property name enclosed in double quotes: line 1 column 2 (char 1)
+[2025-12-24 15:51:25] ERROR: [NDJSON:Parse] Failed to parse line #15 (not last line): Extra data: line 1 column 7 (char 6)
+[2025-12-24 15:51:25] ERROR: [NDJSON:Parse] Failed to parse line #16 (not last line): Extra data: line 1 column 7 (char 6)
+[2025-12-24 15:51:25] ERROR: [NDJSON:Parse] Failed to parse line #17 (not last line): Extra data: line 1 column 14 (char 13)
+[2025-12-24 15:51:25] ERROR: [NDJSON:Parse] Failed to parse line #18 (not last line): Expecting value: line 1 column 1 (char 0)
+[2025-12-24 15:51:25] ERROR: [NDJSON:Parse] Failed to parse line #19 (not last line): Expecting property name enclosed in double quotes: line 1 column 2 (char 1)
+[2025-12-24 15:51:25] ERROR: [NDJSON:Parse] Failed to parse line #20 (not last line): Extra data: line 1 column 7 (char 6)
+[2025-12-24 15:51:25] ERROR: [NDJSON:Parse] Failed to parse line #21 (not last line): Extra data: line 1 column 7 (char 6)
+[2025-12-24 15:51:25] WARNING: [NDJSON:Parse] Last line (#22) truncated mid-JSON: Extra data: line 1 column 14 (char 13). Successfully parsed 0 operations.
+[2025-12-24 15:51:25] INFO: [NDJSON:Parse] Complete: 0 lines parsed, 22 failed, 0 operations extracted, truncated=True
+[2025-12-24 15:51:25] INFO: [BUILD-129:NDJSON] Parsed 0 lines, 0 operations, truncated=True
+[2025-12-24 15:51:25] ERROR: NDJSON parsing produced no valid operations (stop_reason=max_tokens)
+[2025-12-24 15:51:25] INFO: [BUILD-129] Truncation detected, attempting continuation recovery...
+[2025-12-24 15:51:25] INFO: [ContinuationRecovery] Truncation detected (stop_reason=max_tokens)
+[2025-12-24 15:51:25] INFO: [ContinuationRecovery] Detected format: unknown
+[2025-12-24 15:51:25] WARNING: [ContinuationRecovery] Unknown format type: unknown
+[2025-12-24 15:51:25] WARNING: [BUILD-129] Truncation detected but no continuation context extracted
+[2025-12-24 15:51:25] INFO: [TokenEstimationV2] predicted_output=5200 actual_output=16384 smape=103.6% selected_budget=8192 category=documentation complexity=low deliverables=5 success=False stop_reason=max_tokens truncated=True model=claude-sonnet-4-5
+[2025-12-24 15:51:25] ERROR: [build129-p3-w1.9-documentation-low-5files] Builder failed: ndjson_no_operations
+[2025-12-24 15:51:25] INFO: [TOKEN_ESCALATION] phase=build129-p3-w1.9-documentation-low-5files attempt=1 tokens=8192→12288 (truncation detected, auto-retrying)
+[2025-12-24 15:52:06] INFO: [MemoryService] Stored decision log
+[2025-12-24 15:52:06] INFO: [RetrievalTrigger] Phase build129-p3-w1.9-documentation-low-5files attempt 1: Error messages lack context - triggering deep retrieval
+[2025-12-24 15:52:06] INFO: [DeepRetrieval] Starting bounded retrieval for phase build129-p3-w1.9-documentation-low-5files (priority=medium)
+[2025-12-24 15:52:14] INFO: [DeepRetrieval] Retrieved 0 run artifacts (0 bytes), 1 SOT files (15360 bytes), 0 memory entries (0 bytes)
+[2025-12-24 15:52:14] WARNING: [build129-p3-w1.9-documentation-low-5files] Attempt 1/5 failed, will escalate model for next retry
+[2025-12-24 15:52:14] WARNING: Phase build129-p3-w1.9-documentation-low-5files finished with status: TOKEN_ESCALATION
+[2025-12-24 15:52:14] INFO: Waiting 10s before next phase...
+[2025-12-24 15:52:24] INFO: Iteration 2: Fetching run status...
+[2025-12-24 15:52:24] INFO: [BUILD-041] Next phase: build129-p3-w1.9-documentation-low-5files
+[2025-12-24 15:52:24] INFO: [BUILD-123v2] Phase 'build129-p3-w1.9-documentation-low-5files' has no scope - generating manifest...
+[2025-12-24 15:52:24] INFO: Generating manifest for run: build129-p3-week1-telemetry
+[2025-12-24 15:52:24] INFO: Repo structure scanned successfully
+[2025-12-24 15:52:24] INFO: [BUILD-128] Phase 'build129-p3-w1.9-documentation-low-5files' has deliverables - inferring scope from deliverables
+[2025-12-24 15:52:24] INFO: [BUILD-128] Inferred category 'documentation' from deliverables (confidence=100.0%)
+[2025-12-24 15:52:24] INFO: [BUILD-128] Generated scope: 5 paths, 0 context files
+[2025-12-24 15:52:24] INFO: [BUILD-129] Added token estimate to phase: 5200 output tokens (5 deliverables, confidence=0.80)
+[2025-12-24 15:52:24] INFO: [BUILD-123v2] Generated scope for 'build129-p3-w1.9-documentation-low-5files': category=documentation, confidence=100.0%, files=5
+[2025-12-24 15:52:24] INFO: [Scope] Workspace root determined from scope prefix: C:\dev\Autopack\docs
+[2025-12-24 15:52:24] INFO: [build129-p3-w1.9-documentation-low-5files] Step 1/4: Generating code with Builder (via LlmService)...
+[2025-12-24 15:52:24] INFO: [build129-p3-w1.9-documentation-low-5files] Using scope-aware context (overrides targeted context)
+[2025-12-24 15:52:24] INFO: [Scope] Workspace root determined from scope prefix: C:\dev\Autopack\docs
+[2025-12-24 15:52:24] WARNING: [Scope] Missing scope files: ['docs/token_estimator/OVERVIEW.md', 'docs/token_estimator/USAGE_GUIDE.md', 'docs/token_estimator/API_REFERENCE.md', 'docs/token_estimator/EXAMPLES.md', 'docs/token_estimator/FAQ.md']
+[2025-12-24 15:52:24] INFO: [Scope] Loaded 5 files from scope configuration
+[2025-12-24 15:52:24] INFO: [Scope] Scope paths: ['docs/token_estimator/OVERVIEW.md', 'docs/token_estimator/USAGE_GUIDE.md', 'docs/token_estimator/API_REFERENCE.md', 'docs/token_estimator/EXAMPLES.md', 'docs/token_estimator/FAQ.md']
+[2025-12-24 15:52:24] INFO: [Scope] Loaded paths: ['docs/token_estimator/OVERVIEW.md', 'docs/token_estimator/USAGE_GUIDE.md', 'docs/token_estimator/API_REFERENCE.md', 'docs/token_estimator/EXAMPLES.md', 'docs/token_estimator/FAQ.md']...
+[2025-12-24 15:52:24] INFO: [build129-p3-w1.9-documentation-low-5files] Loaded 5 files for context
+[2025-12-24 15:52:24] INFO: [Scope] Workspace root determined from scope prefix: C:\dev\Autopack\docs
+[2025-12-24 15:52:24] INFO: [Scope] Validation passed: 5 files match scope configuration
+[2025-12-24 15:52:24] INFO: [build129-p3-w1.9-documentation-low-5files] Retrieved 284 chars of context from memory
+[2025-12-24 15:52:24] INFO: [build129-p3-w1.9-documentation-low-5files] Built deliverables contract: 5 required paths, 0 forbidden patterns
+[2025-12-24 15:52:24] INFO: [build129-p3-w1.9-documentation-low-5files] Deliverables manifest gate PASSED (5 paths)
+[2025-12-24 15:52:24] INFO: [ModelSelector] Selected claude-sonnet-4-5 for builder (complexity=low, attempt=0, intra_tier=0)
+[2025-12-24 15:52:24] INFO: [MODEL-SELECT] Builder: model=claude-sonnet-4-5, complexity=low->low, attempt=0, category=documentation
+[2025-12-24 15:52:24] INFO: [TokenEstimator] Budget selection: base=8192, estimated=5200, with_buffer=6240, selected=8192, confidence=80.0%
+[2025-12-24 15:52:24] INFO: [BUILD-129] Token estimate: 5200 output tokens (5 deliverables, confidence=0.80), selected budget: 8192
+[2025-12-24 15:52:24] INFO: [BUILD-129:Layer3] Using NDJSON format for 5 deliverables (truncation-tolerant mode)
+[2025-12-24 15:52:24] WARNING: [TOKEN_SOFT_CAP] run_id=unknown phase_id=build129-p3-w1.9-documentation-low-5files est_total=12565 soft_cap=12000 (prompt=1097 completion=11468 complexity=low)
+[2025-12-24 15:52:26] INFO: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+[2025-12-24 15:55:56] INFO: [TOKEN_BUDGET] phase=build129-p3-w1.9-documentation-low-5files complexity=low input=1263 output=16384/16384 total=17647 utilization=100.0% model=claude-sonnet-4-5
+[2025-12-24 15:55:56] WARNING: [Builder] Output was truncated (stop_reason=max_tokens)
+[2025-12-24 15:55:56] WARNING: [TOKEN_BUDGET] TRUNCATION: phase=build129-p3-w1.9-documentation-low-5files used 16384/16384 tokens (100% utilization) - consider increasing max_tokens for this complexity level
+[2025-12-24 15:55:56] INFO: [NDJSON:Parse] Parsing 27 lines
+[2025-12-24 15:55:56] ERROR: [NDJSON:Parse] Failed to parse line #1 (not last line): Expecting value: line 1 column 1 (char 0)
+[2025-12-24 15:55:56] ERROR: [NDJSON:Parse] Failed to parse line #2 (not last line): Expecting property name enclosed in double quotes: line 1 column 2 (char 1)
+[2025-12-24 15:55:56] ERROR: [NDJSON:Parse] Failed to parse line #3 (not last line): Extra data: line 1 column 8 (char 7)
+[2025-12-24 15:55:56] ERROR: [NDJSON:Parse] Failed to parse line #4 (not last line): Expecting property name enclosed in double quotes: line 1 column 2 (char 1)
+[2025-12-24 15:55:56] ERROR: [NDJSON:Parse] Failed to parse line #5 (not last line): Extra data: line 1 column 7 (char 6)
+[2025-12-24 15:55:56] ERROR: [NDJSON:Parse] Failed to parse line #6 (not last line): Extra data: line 1 column 7 (char 6)
+[2025-12-24 15:55:56] ERROR: [NDJSON:Parse] Failed to parse line #7 (not last line): Extra data: line 1 column 14 (char 13)
+[2025-12-24 15:55:56] ERROR: [NDJSON:Parse] Failed to parse line #8 (not last line): Expecting value: line 1 column 1 (char 0)
+[2025-12-24 15:55:56] ERROR: [NDJSON:Parse] Failed to parse line #9 (not last line): Expecting property name enclosed in double quotes: line 1 column 2 (char 1)
+[2025-12-24 15:55:56] ERROR: [NDJSON:Parse] Failed to parse line #10 (not last line): Extra data: line 1 column 7 (char 6)
+[2025-12-24 15:55:56] ERROR: [NDJSON:Parse] Failed to parse line #11 (not last line): Extra data: line 1 column 7 (char 6)
+[2025-12-24 15:55:56] ERROR: [NDJSON:Parse] Failed to parse line #12 (not last line): Extra data: line 1 column 14 (char 13)
+[2025-12-24 15:55:56] ERROR: [NDJSON:Parse] Failed to parse line #13 (not last line): Expecting value: line 1 column 1 (char 0)
+[2025-12-24 15:55:56] ERROR: [NDJSON:Parse] Failed to parse line #14 (not last line): Expecting property name enclosed in double quotes: line 1 column 2 (char 1)
+[2025-12-24 15:55:56] ERROR: [NDJSON:Parse] Failed to parse line #15 (not last line): Extra data: line 1 column 7 (char 6)
+[2025-12-24 15:55:56] ERROR: [NDJSON:Parse] Failed to parse line #16 (not last line): Extra data: line 1 column 7 (char 6)
+[2025-12-24 15:55:56] ERROR: [NDJSON:Parse] Failed to parse line #17 (not last line): Extra data: line 1 column 14 (char 13)
+[2025-12-24 15:55:56] ERROR: [NDJSON:Parse] Failed to parse line #18 (not last line): Expecting value: line 1 column 1 (char 0)
+[2025-12-24 15:55:56] ERROR: [NDJSON:Parse] Failed to parse line #19 (not last line): Expecting property name enclosed in double quotes: line 1 column 2 (char 1)
+[2025-12-24 15:55:56] ERROR: [NDJSON:Parse] Failed to parse line #20 (not last line): Extra data: line 1 column 7 (char 6)
+[2025-12-24 15:55:56] ERROR: [NDJSON:Parse] Failed to parse line #21 (not last line): Extra data: line 1 column 7 (char 6)
+[2025-12-24 15:55:56] ERROR: [NDJSON:Parse] Failed to parse line #22 (not last line): Extra data: line 1 column 14 (char 13)
+[2025-12-24 15:55:56] ERROR: [NDJSON:Parse] Failed to parse line #23 (not last line): Expecting value: line 1 column 1 (char 0)
+[2025-12-24 15:55:56] ERROR: [NDJSON:Parse] Failed to parse line #24 (not last line): Expecting property name enclosed in double quotes: line 1 column 2 (char 1)
+[2025-12-24 15:55:56] ERROR: [NDJSON:Parse] Failed to parse line #25 (not last line): Extra data: line 1 column 7 (char 6)
+[2025-12-24 15:55:56] ERROR: [NDJSON:Parse] Failed to parse line #26 (not last line): Extra data: line 1 column 7 (char 6)
+[2025-12-24 15:55:56] WARNING: [NDJSON:Parse] Last line (#27) truncated mid-JSON: Extra data: line 1 column 14 (char 13). Successfully parsed 0 operations.
+[2025-12-24 15:55:56] INFO: [NDJSON:Parse] Complete: 0 lines parsed, 27 failed, 0 operations extracted, truncated=True
+[2025-12-24 15:55:56] INFO: [BUILD-129:NDJSON] Parsed 0 lines, 0 operations, truncated=True
+[2025-12-24 15:55:56] ERROR: NDJSON parsing produced no valid operations (stop_reason=max_tokens)
+[2025-12-24 15:55:56] INFO: [BUILD-129] Truncation detected, attempting continuation recovery...
+[2025-12-24 15:55:56] INFO: [ContinuationRecovery] Truncation detected (stop_reason=max_tokens)
+[2025-12-24 15:55:56] INFO: [ContinuationRecovery] Detected format: unknown
+[2025-12-24 15:55:56] WARNING: [ContinuationRecovery] Unknown format type: unknown
+[2025-12-24 15:55:56] WARNING: [BUILD-129] Truncation detected but no continuation context extracted
+[2025-12-24 15:55:56] INFO: [TokenEstimationV2] predicted_output=5200 actual_output=16384 smape=103.6% selected_budget=8192 category=documentation complexity=low deliverables=5 success=False stop_reason=max_tokens truncated=True model=claude-sonnet-4-5
+[2025-12-24 15:55:56] ERROR: [build129-p3-w1.9-documentation-low-5files] Builder failed: ndjson_no_operations
+[2025-12-24 15:55:56] INFO: [TOKEN_ESCALATION] phase=build129-p3-w1.9-documentation-low-5files attempt=1 tokens=8192→12288 (truncation detected, auto-retrying)
+[2025-12-24 15:56:36] INFO: [MemoryService] Stored decision log
+[2025-12-24 15:56:36] INFO: [RetrievalTrigger] Phase build129-p3-w1.9-documentation-low-5files attempt 1: Error messages lack context - triggering deep retrieval
+[2025-12-24 15:56:36] INFO: [DeepRetrieval] Starting bounded retrieval for phase build129-p3-w1.9-documentation-low-5files (priority=medium)
+[2025-12-24 15:56:37] INFO: [DeepRetrieval] Retrieved 0 run artifacts (0 bytes), 1 SOT files (15360 bytes), 0 memory entries (0 bytes)
+[2025-12-24 15:56:37] INFO: [REPLAN-TRIGGER] reason=repeated_error_short_msg type=auditor_reject phase=build129-p3-w1.9-documentation-low-5files attempt=2 count=2
+[2025-12-24 15:56:37] INFO: [build129-p3-w1.9-documentation-low-5files] Triggering mid-run re-planning due to auditor_reject
+[2025-12-24 15:56:37] INFO: [Re-Plan] Revising approach for build129-p3-w1.9-documentation-low-5files due to auditor_reject (attempt 1)
+[2025-12-24 15:56:37] INFO: [GoalAnchor] Original intent: Comprehensive documentation with examples and guides...
+[2025-12-24 15:56:44] INFO: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+[2025-12-24 15:56:44] INFO: [GoalAnchor] Alignment classification: narrower - Heuristic detection: revision appears to reduce scope
+[2025-12-24 15:56:44] WARNING: [GoalAnchor] WARNING: Revision appears to narrow scope for build129-p3-w1.9-documentation-low-5files. Original intent: 'Comprehensive documentation with examples and guid...' This may indicate goal drift.
+[2025-12-24 15:56:44] INFO: [Re-Plan] Successfully revised phase build129-p3-w1.9-documentation-low-5files
+[2025-12-24 15:56:44] INFO: [Re-Plan] Original: Comprehensive documentation with examples and guides...
+[2025-12-24 15:56:44] INFO: [Re-Plan] Revised: Create comprehensive documentation for the Token Estimator component using a staged approach that re...
+[2025-12-24 15:56:44] INFO: [GoalAnchor] REPLAN_TELEMETRY: run_id=build129-p3-week1-telemetry phase_id=build129-p3-w1.9-documentation-low-5files attempt=1 alignment=narrower replan_count_phase=1 replan_count_run=1
+[2025-12-24 15:56:44] INFO: [ARCHIVE_CONSOLIDATOR] Logged build event: PHASE_REPLANNED
+[2025-12-24 15:56:44] INFO: [MemoryService] Stored plan change
+[2025-12-24 15:56:44] INFO: [MemoryService] Stored decision log
+[2025-12-24 15:56:44] WARNING: Phase build129-p3-w1.9-documentation-low-5files finished with status: REPLAN_REQUESTED
+[2025-12-24 15:56:44] INFO: Waiting 10s before next phase...
+[2025-12-24 15:56:54] INFO: Iteration 3: Fetching run status...
+[2025-12-24 15:56:54] INFO: [BUILD-041] Next phase: build129-p3-w1.9-documentation-low-5files
+[2025-12-24 15:56:54] INFO: [BUILD-123v2] Phase 'build129-p3-w1.9-documentation-low-5files' has no scope - generating manifest...
+[2025-12-24 15:56:54] INFO: Generating manifest for run: build129-p3-week1-telemetry
+[2025-12-24 15:56:54] INFO: Repo structure scanned successfully
+[2025-12-24 15:56:54] INFO: [BUILD-128] Phase 'build129-p3-w1.9-documentation-low-5files' has deliverables - inferring scope from deliverables
+[2025-12-24 15:56:54] INFO: [BUILD-128] Inferred category 'documentation' from deliverables (confidence=100.0%)
+[2025-12-24 15:56:54] INFO: [BUILD-128] Generated scope: 5 paths, 0 context files
+[2025-12-24 15:56:54] INFO: [BUILD-129] Added token estimate to phase: 5200 output tokens (5 deliverables, confidence=0.80)
+[2025-12-24 15:56:54] INFO: [BUILD-123v2] Generated scope for 'build129-p3-w1.9-documentation-low-5files': category=documentation, confidence=100.0%, files=5
+[2025-12-24 15:56:54] INFO: [Scope] Workspace root determined from scope prefix: C:\dev\Autopack\docs
+[2025-12-24 15:56:54] INFO: [build129-p3-w1.9-documentation-low-5files] Step 1/4: Generating code with Builder (via LlmService)...
+[2025-12-24 15:56:54] INFO: [build129-p3-w1.9-documentation-low-5files] Using scope-aware context (overrides targeted context)
+[2025-12-24 15:56:54] INFO: [Scope] Workspace root determined from scope prefix: C:\dev\Autopack\docs
+[2025-12-24 15:56:54] WARNING: [Scope] Missing scope files: ['docs/token_estimator/OVERVIEW.md', 'docs/token_estimator/USAGE_GUIDE.md', 'docs/token_estimator/API_REFERENCE.md', 'docs/token_estimator/EXAMPLES.md', 'docs/token_estimator/FAQ.md']
+[2025-12-24 15:56:54] INFO: [Scope] Loaded 5 files from scope configuration
+[2025-12-24 15:56:54] INFO: [Scope] Scope paths: ['docs/token_estimator/OVERVIEW.md', 'docs/token_estimator/USAGE_GUIDE.md', 'docs/token_estimator/API_REFERENCE.md', 'docs/token_estimator/EXAMPLES.md', 'docs/token_estimator/FAQ.md']
+[2025-12-24 15:56:54] INFO: [Scope] Loaded paths: ['docs/token_estimator/OVERVIEW.md', 'docs/token_estimator/USAGE_GUIDE.md', 'docs/token_estimator/API_REFERENCE.md', 'docs/token_estimator/EXAMPLES.md', 'docs/token_estimator/FAQ.md']...
+[2025-12-24 15:56:54] INFO: [build129-p3-w1.9-documentation-low-5files] Loaded 5 files for context
+[2025-12-24 15:56:54] INFO: [Scope] Workspace root determined from scope prefix: C:\dev\Autopack\docs
+[2025-12-24 15:56:54] INFO: [Scope] Validation passed: 5 files match scope configuration
+[2025-12-24 15:56:54] INFO: [build129-p3-w1.9-documentation-low-5files] Retrieved 693 chars of context from memory
+[2025-12-24 15:56:54] INFO: [build129-p3-w1.9-documentation-low-5files] Built deliverables contract: 5 required paths, 0 forbidden patterns
+[2025-12-24 15:56:54] INFO: [build129-p3-w1.9-documentation-low-5files] Deliverables manifest gate PASSED (5 paths)
+[2025-12-24 15:56:54] INFO: [ModelSelector] Selected claude-sonnet-4-5 for builder (complexity=low, attempt=0, intra_tier=0)
+[2025-12-24 15:56:54] INFO: [MODEL-SELECT] Builder: model=claude-sonnet-4-5, complexity=low->low, attempt=0, category=documentation
+[2025-12-24 15:56:54] INFO: [TokenEstimator] Budget selection: base=8192, estimated=5200, with_buffer=6240, selected=8192, confidence=80.0%
+[2025-12-24 15:56:54] INFO: [BUILD-129] Token estimate: 5200 output tokens (5 deliverables, confidence=0.80), selected budget: 8192
+[2025-12-24 15:56:54] INFO: [BUILD-129:Layer3] Using NDJSON format for 5 deliverables (truncation-tolerant mode)
+[2025-12-24 15:56:54] WARNING: [TOKEN_SOFT_CAP] run_id=unknown phase_id=build129-p3-w1.9-documentation-low-5files est_total=12668 soft_cap=12000 (prompt=1200 completion=11468 complexity=low)
+[2025-12-24 15:56:57] INFO: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"

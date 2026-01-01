@@ -1,0 +1,87 @@
+2025-12-23 20:27:38,029 - autopack.token_estimator - INFO - [TokenEstimator] Budget selection: base=8192, estimated=448, with_buffer=537, selected=8192, confidence=80.0%
+2025-12-23 20:27:38,029 - autopack.anthropic_clients - INFO - [BUILD-129] Token estimate: 448 output tokens (1 deliverables, confidence=0.80), selected budget: 8192
+2025-12-23 20:27:38,029 - autopack.journal_reader - WARNING - CONSOLIDATED_DEBUG.md not found at c:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\CONSOLIDATED_DEBUG.md
+2025-12-23 20:27:38,057 - autopack.anthropic_clients - WARNING - [TOKEN_SOFT_CAP] run_id=unknown phase_id=telemetry-test-1 est_total=12276 soft_cap=12000 (prompt=808 completion=11468 complexity=low)
+2025-12-23 20:27:40,227 - httpx - INFO - HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2025-12-23 20:27:43,246 - autopack.anthropic_clients - INFO - [TOKEN_BUDGET] phase=telemetry-test-1 complexity=low input=851 output=129/16384 total=980 utilization=0.8% model=claude-sonnet-4-5
+2025-12-23 20:27:43,247 - autopack.anthropic_clients - INFO - [TokenEstimationV2] predicted_output=448 actual_output=129 smape=110.6% selected_budget=8192 category=implementation complexity=low deliverables=1 success=False stop_reason=end_turn truncated=False model=claude-sonnet-4-5
+2025-12-23 20:27:46,159 - autopack.token_estimator - INFO - [TokenEstimator] Budget selection: base=12288, estimated=448, with_buffer=537, selected=12288, confidence=80.0%
+2025-12-23 20:27:46,159 - autopack.anthropic_clients - INFO - [BUILD-129] Token estimate: 448 output tokens (1 deliverables, confidence=0.80), selected budget: 12288
+2025-12-23 20:27:46,159 - autopack.journal_reader - WARNING - CONSOLIDATED_DEBUG.md not found at c:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\CONSOLIDATED_DEBUG.md
+2025-12-23 20:27:48,298 - httpx - INFO - HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2025-12-23 20:27:51,002 - autopack.anthropic_clients - INFO - [TOKEN_BUDGET] phase=telemetry-test-2 complexity=medium input=851 output=124/16384 total=975 utilization=0.8% model=claude-sonnet-4-5
+2025-12-23 20:27:51,003 - autopack.anthropic_clients - INFO - [TokenEstimationV2] predicted_output=448 actual_output=124 smape=113.3% selected_budget=12288 category=implementation complexity=medium deliverables=1 success=False stop_reason=end_turn truncated=False model=claude-sonnet-4-5
+2025-12-23 20:27:53,953 - autopack.token_estimator - INFO - [TokenEstimator] Budget selection: base=12288, estimated=448, with_buffer=537, selected=12288, confidence=80.0%
+2025-12-23 20:27:53,953 - autopack.anthropic_clients - INFO - [BUILD-129] Token estimate: 448 output tokens (1 deliverables, confidence=0.80), selected budget: 12288
+2025-12-23 20:27:53,954 - autopack.journal_reader - WARNING - CONSOLIDATED_DEBUG.md not found at c:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\CONSOLIDATED_DEBUG.md
+2025-12-23 20:27:56,099 - httpx - INFO - HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2025-12-23 20:27:59,099 - autopack.anthropic_clients - INFO - [TOKEN_BUDGET] phase=telemetry-test-3 complexity=medium input=851 output=129/16384 total=980 utilization=0.8% model=claude-sonnet-4-5
+2025-12-23 20:27:59,100 - autopack.anthropic_clients - INFO - [TokenEstimationV2] predicted_output=448 actual_output=129 smape=110.6% selected_budget=12288 category=implementation complexity=medium deliverables=1 success=False stop_reason=end_turn truncated=False model=claude-sonnet-4-5
+2025-12-23 20:28:01,956 - autopack.token_estimator - INFO - [TokenEstimator] Budget selection: base=12288, estimated=822, with_buffer=986, selected=12288, confidence=80.0%
+2025-12-23 20:28:01,956 - autopack.anthropic_clients - INFO - [BUILD-129] Token estimate: 822 output tokens (2 deliverables, confidence=0.80), selected budget: 12288
+2025-12-23 20:28:01,957 - autopack.journal_reader - WARNING - CONSOLIDATED_DEBUG.md not found at c:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\CONSOLIDATED_DEBUG.md
+2025-12-23 20:28:04,262 - httpx - INFO - HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2025-12-23 20:28:07,536 - autopack.anthropic_clients - INFO - [TOKEN_BUDGET] phase=telemetry-test-4 complexity=medium input=851 output=129/16384 total=980 utilization=0.8% model=claude-sonnet-4-5
+2025-12-23 20:28:07,537 - autopack.anthropic_clients - INFO - [TokenEstimationV2] predicted_output=822 actual_output=129 smape=145.7% selected_budget=12288 category=implementation complexity=medium deliverables=2 success=False stop_reason=end_turn truncated=False model=claude-sonnet-4-5
+2025-12-23 20:28:10,441 - autopack.token_estimator - INFO - [TokenEstimator] Budget selection: base=8192, estimated=373, with_buffer=447, selected=8192, confidence=80.0%
+2025-12-23 20:28:10,441 - autopack.anthropic_clients - INFO - [BUILD-129] Token estimate: 373 output tokens (1 deliverables, confidence=0.80), selected budget: 8192
+2025-12-23 20:28:10,442 - autopack.journal_reader - WARNING - CONSOLIDATED_DEBUG.md not found at c:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\CONSOLIDATED_DEBUG.md
+2025-12-23 20:28:10,462 - autopack.anthropic_clients - WARNING - [TOKEN_SOFT_CAP] run_id=unknown phase_id=telemetry-test-5 est_total=12276 soft_cap=12000 (prompt=808 completion=11468 complexity=low)
+2025-12-23 20:28:12,519 - httpx - INFO - HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2025-12-23 20:28:15,161 - autopack.anthropic_clients - INFO - [TOKEN_BUDGET] phase=telemetry-test-5 complexity=low input=851 output=120/16384 total=971 utilization=0.7% model=claude-sonnet-4-5
+2025-12-23 20:28:15,161 - autopack.anthropic_clients - INFO - [TokenEstimationV2] predicted_output=373 actual_output=120 smape=102.6% selected_budget=8192 category=implementation complexity=low deliverables=1 success=False stop_reason=end_turn truncated=False model=claude-sonnet-4-5
+
+======================================================================
+TOKEN ESTIMATION TELEMETRY COLLECTION
+======================================================================
+Running 5 test scenarios
+Objective: Collect [TokenEstimation] telemetry for BUILD-129 validation
+Target: <30% mean error rate
+======================================================================
+
+
+======================================================================
+[1/5] small-util
+Complexity: low
+======================================================================
+✓ Completed - success=False, tokens=980
+
+======================================================================
+[2/5] medium-util
+Complexity: medium
+======================================================================
+✓ Completed - success=False, tokens=975
+
+======================================================================
+[3/5] config-parser
+Complexity: medium
+======================================================================
+✓ Completed - success=False, tokens=980
+
+======================================================================
+[4/5] multi-file
+Complexity: medium
+======================================================================
+✓ Completed - success=False, tokens=980
+
+======================================================================
+[5/5] simple-test
+Complexity: low
+======================================================================
+✓ Completed - success=False, tokens=971
+
+======================================================================
+COLLECTION SUMMARY
+======================================================================
+Total scenarios: 5
+Successful: 5
+Failed: 0
+
+Telemetry data logged to backend.log and console above
+
+Next steps:
+1. Run: python scripts/analyze_token_telemetry.py --output reports/baseline_telemetry.md
+2. Review the baseline error rate
+3. Tune TokenEstimator coefficients if error rate >30%
+======================================================================
+

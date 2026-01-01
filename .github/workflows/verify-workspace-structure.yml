@@ -1,0 +1,121 @@
+name: Verify Workspace Structure
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+  pull_request:
+    branches:
+      - main
+      - develop
+  workflow_dispatch:
+
+jobs:
+  verify-structure:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          # Install only if requirements exist (optional)
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+
+      - name: Run workspace structure verification
+        id: verify
+        # Start as non-blocking: always pass but report violations
+        continue-on-error: true
+        run: |
+          python scripts/tidy/verify_workspace_structure.py \
+            --json-output workspace-verification.json \
+            --markdown-output workspace-verification.md
+
+      - name: Upload verification report (JSON)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: workspace-verification-json
+          path: workspace-verification.json
+          retention-days: 30
+
+      - name: Upload verification report (Markdown)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: workspace-verification-md
+          path: workspace-verification.md
+          retention-days: 30
+
+      - name: Display verification summary
+        if: always()
+        run: |
+          echo "## Workspace Structure Verification" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ -f workspace-verification.md ]; then
+            cat workspace-verification.md >> $GITHUB_STEP_SUMMARY
+          else
+            echo "Verification report not generated" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Check for violations
+        if: always()
+        run: |
+          # Parse JSON report to check for violations
+          if [ -f workspace-verification.json ]; then
+            violations=$(python -c "import json; data=json.load(open('workspace-verification.json')); print(data['summary']['total_errors'])")
+            warnings=$(python -c "import json; data=json.load(open('workspace-verification.json')); print(data['summary']['total_warnings'])")
+
+            echo "::notice::Workspace verification completed: $violations errors, $warnings warnings"
+
+            if [ "$violations" -gt 0 ]; then
+              echo "::warning::Found $violations workspace structure violations. Review the verification report."
+              # Uncomment the next line to make this blocking once workspace is clean:
+              # exit 1
+            fi
+          fi
+
+  # Optional: Check for root clutter specifically
+  check-root-clutter:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Check for disallowed root files
+        id: check-root
+        continue-on-error: true
+        run: |
+          # List of allowed patterns at root (from WORKSPACE_ORGANIZATION_SPEC.md)
+          # This is a simplified check - full verification is in verify_workspace_structure.py
+
+          disallowed_files=()
+
+          # Check for common root clutter patterns
+          if ls *.log 2>/dev/null; then
+            echo "::warning::Found .log files at repository root (should be in archive/diagnostics/logs/)"
+            disallowed_files+=(*.log)
+          fi
+
+          if ls BUILD_*.md 2>/dev/null | grep -v "README"; then
+            echo "::warning::Found BUILD_*.md files at root (should be in archive/reports/ or docs/)"
+            disallowed_files+=(BUILD_*.md)
+          fi
+
+          if ls DEBUG_*.md 2>/dev/null; then
+            echo "::warning::Found DEBUG_*.md files at root (should be in archive/diagnostics/)"
+            disallowed_files+=(DEBUG_*.md)
+          fi
+
+          if [ ${#disallowed_files[@]} -gt 0 ]; then
+            echo "::notice::Run 'python scripts/tidy/tidy_up.py --execute' to clean up root clutter"
+          fi

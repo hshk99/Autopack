@@ -1476,3 +1476,13 @@ New executor (started 13:21) shows BUILD-042 active:
 **Resolution Rate**: 66.7% fully resolved, 33.3% identified/in-progress
 
 **Most Impactful Fix**: BUILD-041 (eliminated infinite retry loops, enabled 93.3% phase completion rate)
+
+---
+
+## Tidy maintenance notes (root SOT duplicate resolution)
+
+On 2026-01-01, a divergent root-level `DEBUG_LOG.md` existed alongside this canonical `docs/DEBUG_LOG.md` and blocked `tidy_up.py --execute`.
+
+To preserve auditability, the exact root duplicate was snapshotted before removal:
+- Snapshot: `archive/superseded/root_sot_duplicates/DEBUG_LOG_ROOT_DUPLICATE_20260101.md`
+- SHA256: `4787e0dab650dc766addbe5cfce6b3d20e3fde93eaca376a2ef3115153a6d4bb`

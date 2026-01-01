@@ -1,0 +1,49 @@
+faiss library not installed; FaissStore will use in-memory fallback
+[2025-12-23 21:58:02] INFO: [LOCK] Acquired executor lock for run_id=build132-coverage-delta-integration (PID=49340, host=Harry)
+[2025-12-23 21:58:02] INFO: Applying pre-emptive encoding fix...
+[2025-12-23 21:58:02] INFO: [Recovery] Fixing Unicode encoding error...
+[2025-12-23 21:58:02] INFO: [Recovery] SUCCESS: Encoding fixed (UTF-8 enabled)
+[2025-12-23 21:58:02] INFO: Database tables initialized
+[2025-12-23 21:58:02] INFO: Loaded BuilderOutputConfig: max_lines_for_full_file=1000, max_lines_hard_limit=1000
+[2025-12-23 21:58:02] INFO: Doctor execute_fix enabled: True
+[2025-12-23 21:58:02] INFO: FileSizeTelemetry initialized: .autonomous_runs\autopack\file_size_telemetry.jsonl
+[2025-12-23 21:58:08] INFO: [Qdrant] Connected to localhost:6333
+[2025-12-23 21:58:08] INFO: [MemoryService] Using Qdrant backend
+[2025-12-23 21:58:12] ERROR: [Qdrant] Failed to ensure collection 'code_docs': [WinError 10061] No connection could be made because the target machine actively refused it
+[2025-12-23 21:58:12] WARNING: MemoryService initialization failed, running without memory: [WinError 10061] No connection could be made because the target machine actively refused it
+[2025-12-23 21:58:12] INFO: [FileLayout] Project: autopack, Family: build132-coverage-delta-integration, Base: .autonomous_runs\autopack\runs\build132-coverage-delta-integration
+[2025-12-23 21:58:12] INFO: Initialized autonomous executor for run: build132-coverage-delta-integration
+[2025-12-23 21:58:12] INFO: API URL: http://localhost:8000
+[2025-12-23 21:58:12] INFO: Workspace: .
+[2025-12-23 21:58:12] INFO: Running proactive startup checks from DEBUG_JOURNAL.md...
+[2025-12-23 21:58:12] INFO: [HIGH] Checking: Windows Unicode Fix (PYTHONUTF8)
+[2025-12-23 21:58:12] INFO:   Reason: Prevents UnicodeEncodeError with emoji characters in logs (Issue #3)
+[2025-12-23 21:58:12] INFO:   Check PASSED
+[2025-12-23 21:58:12] INFO: [SchemaValidator] Starting database schema validation...
+[2025-12-23 21:58:12] INFO: [SchemaValidator] ✅ Database schema validation PASSED
+[2025-12-23 21:58:12] INFO: Startup checks complete
+[2025-12-23 21:58:13] INFO: [BUILD-123v2] Manifest generator initialized (deterministic scope generation)
+[2025-12-23 21:58:13] INFO: [HealthCheck:T0] API Keys: PASSED (0ms) - All required API keys present
+[2025-12-23 21:58:13] INFO: [HealthCheck:T0] Database: PASSED (0ms) - Database accessible: C:\dev\Autopack\autopack.db
+[2025-12-23 21:58:13] INFO: [HealthCheck:T0] Workspace: PASSED (0ms) - Workspace valid: C:\dev\Autopack
+[2025-12-23 21:58:13] INFO: [HealthCheck:T0] Config: PASSED (21ms) - Configuration files valid
+[2025-12-23 21:58:13] INFO: [BUILD-127] Completion authority initialized (PhaseFinalizer + TestBaselineTracker)
+[2025-12-23 21:58:13] INFO: [BUILD-127] Capturing T0 baseline at commit 9b1ff3c5...
+[2025-12-23 21:58:13] INFO: [Baseline] Capturing baseline for commit 9b1ff3c5
+[2025-12-23 21:58:41] INFO: [Baseline] Captured: 0/0 passing, 0 failing, 0 errors
+[2025-12-23 21:58:41] INFO: [BUILD-127] T0 baseline: 0 tests, 0 passing, 0 failing, 0 errors
+[2025-12-23 21:58:41] INFO: Starting autonomous execution loop...
+[2025-12-23 21:58:41] INFO: Poll interval: 10s
+[2025-12-23 21:58:41] INFO: API server is already running
+[2025-12-23 21:58:41] INFO: Initializing infrastructure...
+[2025-12-23 21:58:44] INFO: LlmService: Initialized with ModelRouter and UsageRecorder
+[2025-12-23 21:58:44] INFO: Quality Gate: Initialized
+[2025-12-23 21:58:44] INFO: Iteration 1: Fetching run status...
+[2025-12-23 21:58:44] INFO: No more executable phases, execution complete
+[2025-12-23 21:58:44] INFO: Autonomous execution loop finished
+[2025-12-23 21:58:44] INFO: [ARCHIVE_CONSOLIDATOR] Logged build event: RUN_COMPLETE
+[2025-12-23 21:58:44] WARNING: Failed to write run_summary from executor: name 'models' is not defined
+[2025-12-23 21:58:44] INFO: Learning Pipeline: Promoted 12 hints to persistent project rules
+[2025-12-23 21:58:44] INFO: Learning Pipeline: Marked rules updated (total: 83 rules)
+[2025-12-23 21:58:44] INFO: [PLANNING NOTICE] 12 new rules promoted. Future planning should incorporate 83 total project rules.
+[2025-12-23 21:58:44] INFO: [LOCK] Released executor lock for run_id=build132-coverage-delta-integration (PID=49340)

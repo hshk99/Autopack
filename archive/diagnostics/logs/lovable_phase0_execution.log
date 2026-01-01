@@ -1,0 +1,174 @@
+faiss library not installed; FaissStore will use in-memory fallback
+[2025-12-23 22:51:07] INFO: [LOCK] Acquired executor lock for run_id=lovable-p0-foundation (PID=78596, host=Harry)
+[2025-12-23 22:51:07] INFO: Applying pre-emptive encoding fix...
+[2025-12-23 22:51:07] INFO: [Recovery] Fixing Unicode encoding error...
+[2025-12-23 22:51:07] INFO: [Recovery] SUCCESS: Encoding fixed (UTF-8 enabled)
+[2025-12-23 22:51:07] INFO: Database tables initialized
+[2025-12-23 22:51:07] INFO: Loaded BuilderOutputConfig: max_lines_for_full_file=1000, max_lines_hard_limit=1000
+[2025-12-23 22:51:07] INFO: Doctor execute_fix enabled: True
+[2025-12-23 22:51:07] INFO: FileSizeTelemetry initialized: .autonomous_runs\autopack\file_size_telemetry.jsonl
+[2025-12-23 22:51:13] INFO: [Qdrant] Connected to localhost:6333
+[2025-12-23 22:51:13] INFO: [MemoryService] Using Qdrant backend
+[2025-12-23 22:51:17] ERROR: [Qdrant] Failed to ensure collection 'code_docs': [WinError 10061] No connection could be made because the target machine actively refused it
+[2025-12-23 22:51:17] WARNING: MemoryService initialization failed, running without memory: [WinError 10061] No connection could be made because the target machine actively refused it
+[2025-12-23 22:51:17] INFO: [FileLayout] Project: autopack, Family: lovable-p0-foundation, Base: .autonomous_runs\autopack\runs\lovable-p0-foundation
+[2025-12-23 22:51:17] INFO: Initialized autonomous executor for run: lovable-p0-foundation
+[2025-12-23 22:51:17] INFO: API URL: http://localhost:8000
+[2025-12-23 22:51:17] INFO: Workspace: .
+[2025-12-23 22:51:17] INFO: Running proactive startup checks from DEBUG_JOURNAL.md...
+[2025-12-23 22:51:17] INFO: [HIGH] Checking: Windows Unicode Fix (PYTHONUTF8)
+[2025-12-23 22:51:17] INFO:   Reason: Prevents UnicodeEncodeError with emoji characters in logs (Issue #3)
+[2025-12-23 22:51:17] INFO:   Check PASSED
+[2025-12-23 22:51:17] INFO: [SchemaValidator] Starting database schema validation...
+[2025-12-23 22:51:17] INFO: [SchemaValidator] ✅ Database schema validation PASSED
+[2025-12-23 22:51:17] INFO: Startup checks complete
+[2025-12-23 22:51:18] INFO: [BUILD-123v2] Manifest generator initialized (deterministic scope generation)
+[2025-12-23 22:51:18] INFO: [HealthCheck:T0] API Keys: PASSED (0ms) - All required API keys present
+[2025-12-23 22:51:18] INFO: [HealthCheck:T0] Database: PASSED (0ms) - Database accessible: C:\dev\Autopack\autopack.db
+[2025-12-23 22:51:18] INFO: [HealthCheck:T0] Workspace: PASSED (0ms) - Workspace valid: C:\dev\Autopack
+[2025-12-23 22:51:18] INFO: [HealthCheck:T0] Config: PASSED (27ms) - Configuration files valid
+[2025-12-23 22:51:18] INFO: [BUILD-127] Completion authority initialized (PhaseFinalizer + TestBaselineTracker)
+[2025-12-23 22:51:18] INFO: [BUILD-127] Capturing T0 baseline at commit 76165c5e...
+[2025-12-23 22:51:18] INFO: [Baseline] Using cached baseline for commit 76165c5e
+[2025-12-23 22:51:18] INFO: [BUILD-127] T0 baseline: 0 tests, 0 passing, 0 failing, 0 errors
+[2025-12-23 22:51:18] INFO: Starting autonomous execution loop...
+[2025-12-23 22:51:18] INFO: Poll interval: 10s
+[2025-12-23 22:51:18] INFO: API server is already running
+[2025-12-23 22:51:18] INFO: Initializing infrastructure...
+[2025-12-23 22:51:22] INFO: LlmService: Initialized with ModelRouter and UsageRecorder
+[2025-12-23 22:51:22] INFO: Quality Gate: Initialized
+[2025-12-23 22:51:22] INFO: Iteration 1: Fetching run status...
+[2025-12-23 22:51:22] INFO: [BUILD-041] Next phase: lovable-p0.1-protected-path
+[2025-12-23 22:51:22] INFO: [BUILD-123v2] Phase 'lovable-p0.1-protected-path' has no scope - generating manifest...
+[2025-12-23 22:51:22] INFO: Generating manifest for run: lovable-p0-foundation
+[2025-12-23 22:51:22] INFO: Repo structure scanned successfully
+[2025-12-23 22:51:22] INFO: [BUILD-128] Phase 'lovable-p0.1-protected-path' has deliverables - inferring scope from deliverables
+[2025-12-23 22:51:22] INFO: [BUILD-128] Inferred category 'backend' from deliverables (confidence=50.0%)
+[2025-12-23 22:51:22] INFO: [BUILD-128] Generated scope: 4 paths, 1 context files
+[2025-12-23 22:51:22] INFO: [BUILD-129] Added token estimate to phase: 2028 output tokens (4 deliverables, confidence=0.80)
+[2025-12-23 22:51:22] ERROR: Plan validation failed: Phase 'lovable-p0.1-protected-path' validation failed: Protected paths in scope: src/autopack/lovable/__init__.py, src/autopack/governed_apply.py, .autonomous_runs/lovable-integration-v1/GOVERNANCE.md...
+[2025-12-23 22:51:22] WARNING: [BUILD-123v2] Manifest generation failed for 'lovable-p0.1-protected-path': Phase 'lovable-p0.1-protected-path' validation failed: Protected paths in scope: src/autopack/lovable/__init__.py, src/autopack/governed_apply.py, .autonomous_runs/lovable-integration-v1/GOVERNANCE.md...
+[2025-12-23 22:51:22] INFO: [lovable-p0.1-protected-path] Step 1/4: Generating code with Builder (via LlmService)...
+[2025-12-23 22:51:22] INFO: [Context] Loaded 5 recently modified files for fresh context
+[2025-12-23 22:51:22] INFO: [Context] Total: 25 files loaded for Builder context (modified=5, mentioned=0)
+[2025-12-23 22:51:22] INFO: [TOKEN_BUDGET] Context loading: ~20000 tokens (100% of 20000 budget)
+[2025-12-23 22:51:22] INFO: [lovable-p0.1-protected-path] Loaded 25 files for context
+[2025-12-23 22:51:22] INFO: [ModelSelector] Selected claude-sonnet-4-5 for builder (complexity=low, attempt=0, intra_tier=0)
+[2025-12-23 22:51:22] INFO: [MODEL-SELECT] Builder: model=claude-sonnet-4-5, complexity=low->low, attempt=0, category=refactoring
+[2025-12-23 22:51:22] INFO: [TokenEstimator] Budget selection: base=8192, estimated=1690, with_buffer=2028, selected=8192, confidence=80.0%
+[2025-12-23 22:51:22] INFO: [BUILD-129] Token estimate: 1690 output tokens (4 deliverables, confidence=0.80), selected budget: 8192
+[2025-12-23 22:51:22] WARNING: CONSOLIDATED_DEBUG.md not found at C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\CONSOLIDATED_DEBUG.md
+[2025-12-23 22:51:22] WARNING: [TOKEN_SOFT_CAP] run_id=unknown phase_id=lovable-p0.1-protected-path est_total=39078 soft_cap=12000 (prompt=27610 completion=11468 complexity=low)
+[2025-12-23 22:51:25] INFO: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+[2025-12-23 22:52:54] INFO: [TOKEN_BUDGET] phase=lovable-p0.1-protected-path complexity=low input=36341 output=5451/16384 total=41792 utilization=33.3% model=claude-sonnet-4-5
+[2025-12-23 22:52:55] INFO: [Builder] Generated 4 file diffs locally from full-file content
+[2025-12-23 22:52:55] INFO: [TokenEstimationV2] predicted_output=1690 actual_output=5451 smape=105.3% selected_budget=8192 category=refactoring complexity=low deliverables=4 success=True stop_reason=end_turn truncated=False model=claude-sonnet-4-5
+[2025-12-23 22:52:55] INFO: [lovable-p0.1-protected-path] Builder succeeded (41792 tokens)
+[2025-12-23 22:52:55] INFO: [lovable-p0.1-protected-path] No deliverables specified in scope, skipping validation
+[2025-12-23 22:52:55] INFO: [lovable-p0.1-protected-path] Step 2/5: Applying patch...
+[2025-12-23 22:52:55] INFO: Removing existing file for new file patch: src/autopack/governed_apply.py
+[2025-12-23 22:52:55] WARNING: [Isolation] BLOCKED: Patch attempts to modify protected path: src/autopack/lovable/__init__.py
+[2025-12-23 22:52:55] WARNING: [Isolation] BLOCKED: Patch attempts to modify protected path: src/autopack/governed_apply.py
+[2025-12-23 22:52:55] WARNING: [Isolation] BLOCKED: Patch attempts to modify protected path: .autonomous_runs/lovable-integration-v1/GOVERNANCE.md
+[2025-12-23 22:52:55] ERROR: [Isolation] Patch rejected - 3 violations (protected paths + scope)
+[2025-12-23 22:52:55] WARNING: [Governance] Protected path violation: 3 paths
+[2025-12-23 22:52:55] INFO: [Governance:lovable-p0.1-protected-path] Protected path violation detected: 3 paths
+[2025-12-23 22:52:55] ERROR: [lovable-p0.1-protected-path] Execution failed: 'AutonomousExecutor' object has no attribute 'db'
+Traceback:
+Traceback (most recent call last):
+  File "C:\dev\Autopack\src\autopack\autonomous_executor.py", line 4505, in _execute_phase_with_recovery
+    governance_handled = self._try_handle_governance_request(
+                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\dev\Autopack\src\autopack\autonomous_executor.py", line 7373, in _try_handle_governance_request
+    db_session=self.db,
+               ^^^^^^^
+AttributeError: 'AutonomousExecutor' object has no attribute 'db'
+
+[2025-12-23 22:52:55] INFO: [ARCHIVE_CONSOLIDATOR] Logged new error: Phase lovable-p0.1-protected-path inner execution failure
+[2025-12-23 22:52:55] INFO: Updated phase lovable-p0.1-protected-path status to FAILED
+[2025-12-23 22:52:55] WARNING: Failed to write run_summary from executor: name 'models' is not defined
+[2025-12-23 22:53:10] INFO: [RetrievalTrigger] Phase lovable-p0.1-protected-path attempt 1: Error messages lack context - triggering deep retrieval
+[2025-12-23 22:53:10] INFO: [DeepRetrieval] Starting bounded retrieval for phase lovable-p0.1-protected-path (priority=medium)
+[2025-12-23 22:53:11] INFO: [DeepRetrieval] Retrieved 0 run artifacts (0 bytes), 1 SOT files (15360 bytes), 0 memory entries (0 bytes)
+[2025-12-23 22:53:11] WARNING: [lovable-p0.1-protected-path] Attempt 1/5 failed, will escalate model for next retry
+[2025-12-23 22:53:11] WARNING: Phase lovable-p0.1-protected-path finished with status: FAILED
+[2025-12-23 22:53:11] INFO: Waiting 10s before next phase...
+[2025-12-23 22:53:21] INFO: Iteration 2: Fetching run status...
+[2025-12-23 22:53:21] INFO: [BUILD-041] Next phase: lovable-p0.2-semantic-embeddings
+[2025-12-23 22:53:21] INFO: [BUILD-123v2] Phase 'lovable-p0.2-semantic-embeddings' has no scope - generating manifest...
+[2025-12-23 22:53:21] INFO: Generating manifest for run: lovable-p0-foundation
+[2025-12-23 22:53:21] INFO: Repo structure scanned successfully
+[2025-12-23 22:53:21] INFO: [BUILD-128] Phase 'lovable-p0.2-semantic-embeddings' has deliverables - inferring scope from deliverables
+[2025-12-23 22:53:21] INFO: [BUILD-128] Inferred category 'backend' from deliverables (confidence=33.3%)
+[2025-12-23 22:53:21] INFO: [BUILD-128] Generated scope: 3 paths, 1 context files
+[2025-12-23 22:53:21] INFO: [BUILD-129] Added token estimate to phase: 1263 output tokens (3 deliverables, confidence=0.80)
+[2025-12-23 22:53:21] ERROR: Plan validation failed: Phase 'lovable-p0.2-semantic-embeddings' validation failed: Protected paths in scope: src/autopack/memory/embeddings.py...
+[2025-12-23 22:53:21] WARNING: [BUILD-123v2] Manifest generation failed for 'lovable-p0.2-semantic-embeddings': Phase 'lovable-p0.2-semantic-embeddings' validation failed: Protected paths in scope: src/autopack/memory/embeddings.py...
+[2025-12-23 22:53:21] INFO: [lovable-p0.2-semantic-embeddings] Step 1/4: Generating code with Builder (via LlmService)...
+[2025-12-23 22:53:21] INFO: [Context] Loaded 5 recently modified files for fresh context
+[2025-12-23 22:53:22] INFO: [Context] Total: 25 files loaded for Builder context (modified=5, mentioned=0)
+[2025-12-23 22:53:22] INFO: [TOKEN_BUDGET] Context loading: ~20000 tokens (100% of 20000 budget)
+[2025-12-23 22:53:22] INFO: [lovable-p0.2-semantic-embeddings] Loaded 25 files for context
+[2025-12-23 22:53:22] INFO: [ModelSelector] Selected claude-sonnet-4-5 for builder (complexity=medium, attempt=0, intra_tier=0)
+[2025-12-23 22:53:22] INFO: [MODEL-SELECT] Builder: model=claude-sonnet-4-5, complexity=medium->medium, attempt=0, category=implementation
+[2025-12-23 22:53:22] INFO: [TokenEstimator] Budget selection: base=12288, estimated=1210, with_buffer=1452, selected=12288, confidence=80.0%
+[2025-12-23 22:53:22] INFO: [BUILD-129] Token estimate: 1210 output tokens (3 deliverables, confidence=0.80), selected budget: 12288
+[2025-12-23 22:53:22] WARNING: CONSOLIDATED_DEBUG.md not found at C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\CONSOLIDATED_DEBUG.md
+[2025-12-23 22:53:22] WARNING: [TOKEN_SOFT_CAP] run_id=unknown phase_id=lovable-p0.2-semantic-embeddings est_total=39077 soft_cap=32000 (prompt=27609 completion=11468 complexity=medium)
+[2025-12-23 22:53:26] INFO: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+[2025-12-23 22:54:22] INFO: [TOKEN_BUDGET] phase=lovable-p0.2-semantic-embeddings complexity=medium input=36335 output=5293/16384 total=41628 utilization=32.3% model=claude-sonnet-4-5
+[2025-12-23 22:54:22] INFO: [Builder] Generated 3 file diffs locally from full-file content
+[2025-12-23 22:54:22] INFO: [TokenEstimationV2] predicted_output=1210 actual_output=5293 smape=125.6% selected_budget=12288 category=implementation complexity=medium deliverables=3 success=True stop_reason=end_turn truncated=False model=claude-sonnet-4-5
+[2025-12-23 22:54:22] INFO: [lovable-p0.2-semantic-embeddings] Builder succeeded (41628 tokens)
+[2025-12-23 22:54:22] INFO: [lovable-p0.2-semantic-embeddings] No deliverables specified in scope, skipping validation
+[2025-12-23 22:54:22] INFO: [lovable-p0.2-semantic-embeddings] Step 2/5: Applying patch...
+[2025-12-23 22:54:22] INFO: Removing existing file for new file patch: src/autopack/memory/embeddings.py
+[2025-12-23 22:54:22] WARNING: [Isolation] BLOCKED: Patch attempts to modify protected path: src/autopack/memory/embeddings.py
+[2025-12-23 22:54:22] ERROR: [Isolation] Patch rejected - 1 violations (protected paths + scope)
+[2025-12-23 22:54:22] WARNING: [Governance] Protected path violation: 1 paths
+[2025-12-23 22:54:22] INFO: [Governance:lovable-p0.2-semantic-embeddings] Protected path violation detected: 1 paths
+[2025-12-23 22:54:22] ERROR: [lovable-p0.2-semantic-embeddings] Execution failed: 'AutonomousExecutor' object has no attribute 'db'
+Traceback:
+Traceback (most recent call last):
+  File "C:\dev\Autopack\src\autopack\autonomous_executor.py", line 4505, in _execute_phase_with_recovery
+    governance_handled = self._try_handle_governance_request(
+                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\dev\Autopack\src\autopack\autonomous_executor.py", line 7373, in _try_handle_governance_request
+    db_session=self.db,
+               ^^^^^^^
+AttributeError: 'AutonomousExecutor' object has no attribute 'db'
+
+[2025-12-23 22:54:22] INFO: [ARCHIVE_CONSOLIDATOR] Logged new error: Phase lovable-p0.2-semantic-embeddings inner execution failure
+[2025-12-23 22:54:22] INFO: Updated phase lovable-p0.2-semantic-embeddings status to FAILED
+[2025-12-23 22:54:22] WARNING: Failed to write run_summary from executor: name 'models' is not defined
+[2025-12-23 22:54:36] INFO: [RetrievalTrigger] Phase lovable-p0.2-semantic-embeddings attempt 1: Error messages lack context - triggering deep retrieval
+[2025-12-23 22:54:36] INFO: [DeepRetrieval] Starting bounded retrieval for phase lovable-p0.2-semantic-embeddings (priority=medium)
+[2025-12-23 22:54:37] INFO: [DeepRetrieval] Retrieved 0 run artifacts (0 bytes), 1 SOT files (15360 bytes), 0 memory entries (0 bytes)
+[2025-12-23 22:54:37] WARNING: [lovable-p0.2-semantic-embeddings] Attempt 1/5 failed, will escalate model for next retry
+[2025-12-23 22:54:37] WARNING: Phase lovable-p0.2-semantic-embeddings finished with status: FAILED
+[2025-12-23 22:54:37] INFO: Waiting 10s before next phase...
+[2025-12-23 22:54:47] INFO: Iteration 3: Fetching run status...
+[2025-12-23 22:54:47] INFO: [BUILD-041] Next phase: lovable-p0.3-browser-telemetry
+[2025-12-23 22:54:47] INFO: [BUILD-123v2] Phase 'lovable-p0.3-browser-telemetry' has no scope - generating manifest...
+[2025-12-23 22:54:47] INFO: Generating manifest for run: lovable-p0-foundation
+[2025-12-23 22:54:47] INFO: Repo structure scanned successfully
+[2025-12-23 22:54:47] INFO: [BUILD-128] Phase 'lovable-p0.3-browser-telemetry' has deliverables - inferring scope from deliverables
+[2025-12-23 22:54:47] INFO: [BUILD-128] Inferred category 'backend' from deliverables (confidence=66.7%)
+[2025-12-23 22:54:47] INFO: [BUILD-128] Generated scope: 3 paths, 1 context files
+[2025-12-23 22:54:47] INFO: [BUILD-129] Added token estimate to phase: 1872 output tokens (3 deliverables, confidence=0.80)
+[2025-12-23 22:54:47] ERROR: Plan validation failed: Phase 'lovable-p0.3-browser-telemetry' validation failed: Protected paths in scope: src/autopack/lovable/browser_telemetry.py...
+[2025-12-23 22:54:47] WARNING: [BUILD-123v2] Manifest generation failed for 'lovable-p0.3-browser-telemetry': Phase 'lovable-p0.3-browser-telemetry' validation failed: Protected paths in scope: src/autopack/lovable/browser_telemetry.py...
+[2025-12-23 22:54:47] INFO: [lovable-p0.3-browser-telemetry] Step 1/4: Generating code with Builder (via LlmService)...
+[2025-12-23 22:54:47] INFO: [Context] Loaded 5 recently modified files for fresh context
+[2025-12-23 22:54:48] INFO: [Context] Total: 25 files loaded for Builder context (modified=5, mentioned=0)
+[2025-12-23 22:54:48] INFO: [TOKEN_BUDGET] Context loading: ~20000 tokens (100% of 20000 budget)
+[2025-12-23 22:54:48] INFO: [lovable-p0.3-browser-telemetry] Loaded 25 files for context
+[2025-12-23 22:54:48] INFO: [lovable-p0.3-browser-telemetry] Learning context: 0 rules, 1 hints
+[2025-12-23 22:54:48] INFO: [ModelSelector] Selected claude-sonnet-4-5 for builder (complexity=medium, attempt=0, intra_tier=0)
+[2025-12-23 22:54:48] INFO: [MODEL-SELECT] Builder: model=claude-sonnet-4-5, complexity=medium->medium, attempt=0, category=implementation
+[2025-12-23 22:54:48] INFO: [TokenEstimator] Budget selection: base=12288, estimated=1793, with_buffer=2151, selected=12288, confidence=80.0%
+[2025-12-23 22:54:48] INFO: [BUILD-129] Token estimate: 1793 output tokens (3 deliverables, confidence=0.80), selected budget: 12288
+[2025-12-23 22:54:48] WARNING: CONSOLIDATED_DEBUG.md not found at C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\CONSOLIDATED_DEBUG.md
+[2025-12-23 22:54:48] WARNING: [TOKEN_SOFT_CAP] run_id=unknown phase_id=lovable-p0.3-browser-telemetry est_total=39122 soft_cap=32000 (prompt=27654 completion=11468 complexity=medium)
+[2025-12-23 22:54:53] INFO: Retrying request to /v1/messages in 0.420731 seconds
+[2025-12-23 22:55:02] INFO: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"

@@ -1,0 +1,105 @@
+faiss library not installed; FaissStore will use in-memory fallback
+[2025-12-24 15:37:25] INFO: Applying pre-emptive encoding fix...
+[2025-12-24 15:37:25] INFO: [Recovery] Fixing Unicode encoding error...
+[drain] run_id=fileorg-backend-fixes-v4-20251130 queued=7 complete=0 failed=0
+[drain] Starting batch 1 (max-iterations=3)...
+[2025-12-24 15:37:25] INFO: [Recovery] SUCCESS: Encoding fixed (UTF-8 enabled)
+[2025-12-24 15:37:25] INFO: Database tables initialized
+[2025-12-24 15:37:25] INFO: Loaded BuilderOutputConfig: max_lines_for_full_file=1000, max_lines_hard_limit=1000
+[2025-12-24 15:37:25] INFO: Doctor execute_fix enabled: True
+[2025-12-24 15:37:25] INFO: FileSizeTelemetry initialized: .autonomous_runs\autopack\file_size_telemetry.jsonl
+[2025-12-24 15:37:34] WARNING: [Qdrant] Connection check failed for localhost:6333: [WinError 10061] No connection could be made because the target machine actively refused it
+[2025-12-24 15:37:36] WARNING: [MemoryService] Qdrant unavailable at localhost:6333; falling back to FAISS ([WinError 10061] No connection could be made because the target machine actively refused it)
+[2025-12-24 15:37:36] INFO: [FAISS] Created collection 'code_docs' with dim=1536
+[2025-12-24 15:37:36] INFO: [FAISS] Created collection 'run_summaries' with dim=1536
+[2025-12-24 15:37:36] INFO: [FAISS] Created collection 'errors_ci' with dim=1536
+[2025-12-24 15:37:36] INFO: [FAISS] Created collection 'doctor_hints' with dim=1536
+[2025-12-24 15:37:36] INFO: [FAISS] Created collection 'planning' with dim=1536
+[2025-12-24 15:37:36] INFO: [MemoryService] Initialized (backend=faiss, enabled=True, top_k=5)
+[2025-12-24 15:37:36] INFO: MemoryService initialized (enabled=True)
+[2025-12-24 15:37:36] INFO: [FileLayout] Project: file-organizer-app-v1, Family: fileorg-backend-fixes-v4-20251130, Base: .autonomous_runs\file-organizer-app-v1\runs\fileorg-backend-fixes-v4-20251130
+[2025-12-24 15:37:36] INFO: Initialized autonomous executor for run: fileorg-backend-fixes-v4-20251130
+[2025-12-24 15:37:36] INFO: API URL: http://localhost:8000
+[2025-12-24 15:37:36] INFO: Workspace: .
+[2025-12-24 15:37:36] INFO: Running proactive startup checks from DEBUG_JOURNAL.md...
+[2025-12-24 15:37:36] INFO: [HIGH] Checking: Windows Unicode Fix (PYTHONUTF8)
+[2025-12-24 15:37:36] INFO:   Reason: Prevents UnicodeEncodeError with emoji characters in logs (Issue #3)
+[2025-12-24 15:37:36] INFO:   Check PASSED
+[2025-12-24 15:37:36] INFO: [SchemaValidator] Starting database schema validation...
+[2025-12-24 15:37:36] INFO: [SchemaValidator] ✅ Database schema validation PASSED
+[2025-12-24 15:37:36] INFO: Startup checks complete
+[2025-12-24 15:37:37] INFO: [BUILD-123v2] Manifest generator initialized (deterministic scope generation)
+[2025-12-24 15:37:38] INFO: [HealthCheck:T0] API Keys: PASSED (0ms) - All required API keys present
+[2025-12-24 15:37:38] INFO: [HealthCheck:T0] Database: PASSED (1ms) - Database accessible: c:\dev\Autopack\autopack.db
+[2025-12-24 15:37:38] INFO: [HealthCheck:T0] Workspace: PASSED (0ms) - Workspace valid: c:\dev\Autopack
+[2025-12-24 15:37:38] INFO: [HealthCheck:T0] Config: PASSED (26ms) - Configuration files valid
+[2025-12-24 15:37:38] INFO: [HealthCheck:T0] Vector Memory: PASSED (1236ms) - Qdrant unreachable at localhost:6333; autostart attempted or unavailable. Falling back to FAISS.
+[2025-12-24 15:37:38] INFO: [BUILD-127] Completion authority initialized (PhaseFinalizer + TestBaselineTracker)
+[2025-12-24 15:37:38] INFO: [BUILD-127] Capturing T0 baseline at commit 1dc6756e...
+[2025-12-24 15:37:38] INFO: [Baseline] Using cached baseline for commit 1dc6756e
+[2025-12-24 15:37:38] INFO: [BUILD-127] T0 baseline: 0 tests, 0 passing, 0 failing, 0 errors
+[2025-12-24 15:37:38] INFO: Starting autonomous execution loop...
+[2025-12-24 15:37:38] INFO: Poll interval: 10s
+[2025-12-24 15:37:38] INFO: Max iterations: 3
+[2025-12-24 15:37:38] INFO: API server is already running
+[2025-12-24 15:37:38] INFO: Initializing infrastructure...
+[2025-12-24 15:37:42] INFO: LlmService: Initialized with ModelRouter and UsageRecorder
+[2025-12-24 15:37:42] INFO: Quality Gate: Initialized
+[2025-12-24 15:37:42] INFO: Iteration 1: Fetching run status...
+[2025-12-24 15:37:42] INFO: No more executable phases, execution complete
+[2025-12-24 15:37:42] INFO: Autonomous execution loop finished
+[2025-12-24 15:37:42] INFO: [ARCHIVE_CONSOLIDATOR] Logged build event: RUN_COMPLETE
+[2025-12-24 15:37:42] INFO: Learning Pipeline: No hints qualified for promotion (need 2+ occurrences)
+[2025-12-24 15:37:44] INFO: Applying pre-emptive encoding fix...
+[2025-12-24 15:37:44] INFO: [Recovery] Fixing Unicode encoding error...
+[drain] run_id=fileorg-backend-fixes-v4-20251130 queued=7 complete=0 failed=0
+[drain] Starting batch 2 (max-iterations=3)...
+[2025-12-24 15:37:44] INFO: [Recovery] SUCCESS: Encoding fixed (UTF-8 enabled)
+[2025-12-24 15:37:44] INFO: Database tables initialized
+[2025-12-24 15:37:44] INFO: Loaded BuilderOutputConfig: max_lines_for_full_file=1000, max_lines_hard_limit=1000
+[2025-12-24 15:37:44] INFO: Doctor execute_fix enabled: True
+[2025-12-24 15:37:44] INFO: FileSizeTelemetry initialized: .autonomous_runs\autopack\file_size_telemetry.jsonl
+[2025-12-24 15:37:54] WARNING: [Qdrant] Connection check failed for localhost:6333: [WinError 10061] No connection could be made because the target machine actively refused it
+[2025-12-24 15:37:55] WARNING: [MemoryService] Qdrant unavailable at localhost:6333; falling back to FAISS ([WinError 10061] No connection could be made because the target machine actively refused it)
+[2025-12-24 15:37:55] INFO: [FAISS] Created collection 'code_docs' with dim=1536
+[2025-12-24 15:37:55] INFO: [FAISS] Created collection 'run_summaries' with dim=1536
+[2025-12-24 15:37:55] INFO: [FAISS] Created collection 'errors_ci' with dim=1536
+[2025-12-24 15:37:55] INFO: [FAISS] Created collection 'doctor_hints' with dim=1536
+[2025-12-24 15:37:55] INFO: [FAISS] Created collection 'planning' with dim=1536
+[2025-12-24 15:37:55] INFO: [MemoryService] Initialized (backend=faiss, enabled=True, top_k=5)
+[2025-12-24 15:37:55] INFO: MemoryService initialized (enabled=True)
+[2025-12-24 15:37:55] INFO: [FileLayout] Project: file-organizer-app-v1, Family: fileorg-backend-fixes-v4-20251130, Base: .autonomous_runs\file-organizer-app-v1\runs\fileorg-backend-fixes-v4-20251130
+[2025-12-24 15:37:55] INFO: Initialized autonomous executor for run: fileorg-backend-fixes-v4-20251130
+[2025-12-24 15:37:55] INFO: API URL: http://localhost:8000
+[2025-12-24 15:37:55] INFO: Workspace: .
+[2025-12-24 15:37:55] INFO: Running proactive startup checks from DEBUG_JOURNAL.md...
+[2025-12-24 15:37:55] INFO: [HIGH] Checking: Windows Unicode Fix (PYTHONUTF8)
+[2025-12-24 15:37:55] INFO:   Reason: Prevents UnicodeEncodeError with emoji characters in logs (Issue #3)
+[2025-12-24 15:37:55] INFO:   Check PASSED
+[2025-12-24 15:37:55] INFO: [SchemaValidator] Starting database schema validation...
+[2025-12-24 15:37:55] INFO: [SchemaValidator] ✅ Database schema validation PASSED
+[2025-12-24 15:37:55] INFO: Startup checks complete
+[2025-12-24 15:37:56] INFO: [BUILD-123v2] Manifest generator initialized (deterministic scope generation)
+[2025-12-24 15:37:57] INFO: [HealthCheck:T0] API Keys: PASSED (0ms) - All required API keys present
+[2025-12-24 15:37:57] INFO: [HealthCheck:T0] Database: PASSED (0ms) - Database accessible: c:\dev\Autopack\autopack.db
+[2025-12-24 15:37:57] INFO: [HealthCheck:T0] Workspace: PASSED (1ms) - Workspace valid: c:\dev\Autopack
+[2025-12-24 15:37:57] INFO: [HealthCheck:T0] Config: PASSED (25ms) - Configuration files valid
+[2025-12-24 15:37:57] INFO: [HealthCheck:T0] Vector Memory: PASSED (1214ms) - Qdrant unreachable at localhost:6333; autostart attempted or unavailable. Falling back to FAISS.
+[2025-12-24 15:37:57] INFO: [BUILD-127] Completion authority initialized (PhaseFinalizer + TestBaselineTracker)
+[2025-12-24 15:37:57] INFO: [BUILD-127] Capturing T0 baseline at commit 1dc6756e...
+[2025-12-24 15:37:57] INFO: [Baseline] Using cached baseline for commit 1dc6756e
+[2025-12-24 15:37:57] INFO: [BUILD-127] T0 baseline: 0 tests, 0 passing, 0 failing, 0 errors
+[2025-12-24 15:37:57] INFO: Starting autonomous execution loop...
+[2025-12-24 15:37:57] INFO: Poll interval: 10s
+[2025-12-24 15:37:57] INFO: Max iterations: 3
+[2025-12-24 15:37:57] INFO: API server is already running
+[2025-12-24 15:37:57] INFO: Initializing infrastructure...
+[2025-12-24 15:38:01] INFO: LlmService: Initialized with ModelRouter and UsageRecorder
+[2025-12-24 15:38:01] INFO: Quality Gate: Initialized
+[2025-12-24 15:38:01] INFO: Iteration 1: Fetching run status...
+[2025-12-24 15:38:01] INFO: No more executable phases, execution complete
+[2025-12-24 15:38:01] INFO: Autonomous execution loop finished
+[2025-12-24 15:38:01] INFO: [ARCHIVE_CONSOLIDATOR] Logged build event: RUN_COMPLETE
+[2025-12-24 15:38:01] INFO: Learning Pipeline: No hints qualified for promotion (need 2+ occurrences)
+[drain] run_id=fileorg-backend-fixes-v4-20251130 queued=7 complete=0 failed=0
+[drain] Reached max-batches=2. Exiting.

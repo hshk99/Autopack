@@ -1,0 +1,58 @@
+================================================================================
+STORAGE OPTIMIZATION REPORT
+================================================================================
+Date: 2026-01-01 22:05:08
+Drive: c:\
+
+DISK USAGE:
+  Total Space: 871.99 GB
+  Used Space:  780.94 GB (89.6%)
+  Free Space:  91.05 GB
+
+SCAN SUMMARY:
+  Files scanned:   203
+  Folders scanned: 75
+
+POLICY PROTECTIONS (items excluded from cleanup):
+  Protected paths: 25
+  Protected size:  0.01 GB
+
+  Sample protected paths:
+    - c:/dev\Autopack\autopack.db
+    - c:/dev\Autopack\autopack_legacy.db
+    - c:/dev\Autopack\autopack_telemetry_seed.db
+    - c:/dev\Autopack\autopack_telemetry_seed_v2.db
+    - c:/dev\Autopack\autopack_telemetry_seed_v3.db
+    - c:/dev\Autopack\mismatch_api.db
+    - c:/dev\Autopack\mismatch_executor.db
+    - c:/dev\Autopack\telemetry_seed_debug.db
+    - c:/dev\Autopack\telemetry_seed_debug_A.db
+    - c:/dev\Autopack\telemetry_seed_debug_B.db
+    ... and 15 more
+
+TOP 10 SPACE CONSUMERS:
+   1.       139 MB [DIR]  - c:/dev\Autopack\.autonomous_runs
+   2.        90 MB [DIR]  - c:/dev\lovable-docs
+   3.        80 MB [DIR]  - c:/dev\lovable-docs\images
+   4.        59 MB [DIR]  - c:/dev\Autopack
+   5.        30 MB [FILE] - c:/dev\Autopack\ngrok.exe
+   6.        18 MB [DIR]  - c:/dev\chatbot_project
+   7.        17 MB [DIR]  - c:/dev\chatbot_project\.tier-freeze
+   8.        12 MB [DIR]  - c:/dev\lovable-docs\assets
+   9.         6 MB [DIR]  - c:/dev\devika
+  10.         6 MB [DIR]  - c:/dev\devika\.assets
+
+CLEANUP OPPORTUNITIES:
+  Total Potential Savings: 0.00 GB
+  Total Candidates: 0
+
+  Approval Requirements:
+    Requires manual approval: 0 items
+    Can auto-delete:          0 items
+
+  Sample Cleanup Candidates:
+
+================================================================================
+This is a DRY-RUN report. No files have been deleted.
+Review the cleanup candidates before executing any deletions.
+================================================================================

@@ -1,0 +1,191 @@
+faiss library not installed; FaissStore will use in-memory fallback
+[2025-12-26 00:53:22] INFO: [LOCK] Acquired executor lock for run_id=p10-validation-test (PID=137056, host=Harry)
+[2025-12-26 00:53:22] INFO: Applying pre-emptive encoding fix...
+[2025-12-26 00:53:22] INFO: [Recovery] Fixing Unicode encoding error...
+[2025-12-26 00:53:22] INFO: [Recovery] SUCCESS: Encoding fixed (UTF-8 enabled)
+[2025-12-26 00:53:22] INFO: Database tables initialized
+[2025-12-26 00:53:22] INFO: Loaded BuilderOutputConfig: max_lines_for_full_file=1000, max_lines_hard_limit=1000
+[2025-12-26 00:53:22] INFO: Doctor execute_fix enabled: True
+[2025-12-26 00:53:22] INFO: FileSizeTelemetry initialized: .autonomous_runs\autopack\file_size_telemetry.jsonl
+[2025-12-26 00:53:32] WARNING: [Qdrant] Connection check failed for localhost:6333: [WinError 10061] No connection could be made because the target machine actively refused it
+[2025-12-26 00:53:33] WARNING: [MemoryService] Qdrant unavailable at localhost:6333; falling back to FAISS ([WinError 10061] No connection could be made because the target machine actively refused it)
+[2025-12-26 00:53:33] INFO: [FAISS] Created collection 'code_docs' with dim=1536
+[2025-12-26 00:53:33] INFO: [FAISS] Created collection 'run_summaries' with dim=1536
+[2025-12-26 00:53:33] INFO: [FAISS] Created collection 'errors_ci' with dim=1536
+[2025-12-26 00:53:33] INFO: [FAISS] Created collection 'doctor_hints' with dim=1536
+[2025-12-26 00:53:33] INFO: [FAISS] Created collection 'planning' with dim=1536
+[2025-12-26 00:53:33] INFO: [MemoryService] Initialized (backend=faiss, enabled=True, top_k=5)
+[2025-12-26 00:53:33] INFO: MemoryService initialized (enabled=True)
+[2025-12-26 00:53:33] INFO: [FileLayout] Project: autopack, Family: p10-validation-test, Base: .autonomous_runs\autopack\runs\p10-validation-test
+[2025-12-26 00:53:33] INFO: Initialized autonomous executor for run: p10-validation-test
+[2025-12-26 00:53:33] INFO: API URL: http://localhost:8000
+[2025-12-26 00:53:33] INFO: Workspace: .
+[2025-12-26 00:53:33] INFO: Running proactive startup checks from DEBUG_JOURNAL.md...
+[2025-12-26 00:53:33] INFO: [HIGH] Checking: Windows Unicode Fix (PYTHONUTF8)
+[2025-12-26 00:53:33] INFO:   Reason: Prevents UnicodeEncodeError with emoji characters in logs (Issue #3)
+[2025-12-26 00:53:33] INFO:   Check PASSED
+[2025-12-26 00:53:33] INFO: [SchemaValidator] Starting database schema validation...
+[2025-12-26 00:53:33] INFO: [SchemaValidator] ✅ Database schema validation PASSED
+[2025-12-26 00:53:33] INFO: Startup checks complete
+[2025-12-26 00:53:35] INFO: [BUILD-123v2] Manifest generator initialized (deterministic scope generation)
+[2025-12-26 00:53:36] INFO: [HealthCheck:T0] API Keys: PASSED (0ms) - All required API keys present
+[2025-12-26 00:53:36] INFO: [HealthCheck:T0] Database: PASSED (0ms) - Database accessible: c:\dev\Autopack\autopack.db
+[2025-12-26 00:53:36] INFO: [HealthCheck:T0] Workspace: PASSED (0ms) - Workspace valid: c:\dev\Autopack
+[2025-12-26 00:53:36] INFO: [HealthCheck:T0] Config: PASSED (24ms) - Configuration files valid
+[2025-12-26 00:53:36] INFO: [HealthCheck:T0] Vector Memory: PASSED (1278ms) - Qdrant unreachable at localhost:6333; autostart attempted or unavailable. Falling back to FAISS.
+[2025-12-26 00:53:36] INFO: [BUILD-127] Completion authority initialized (PhaseFinalizer + TestBaselineTracker)
+[2025-12-26 00:53:36] INFO: [BUILD-127] Capturing T0 baseline at commit 49fb08a3...
+[2025-12-26 00:53:36] INFO: [Baseline] Using cached baseline for commit 49fb08a3
+[2025-12-26 00:53:36] INFO: [BUILD-127] T0 baseline: 0 tests, 0 passing, 0 failing, 0 errors
+[2025-12-26 00:53:36] INFO: Starting autonomous execution loop...
+[2025-12-26 00:53:36] INFO: Poll interval: 10s
+[2025-12-26 00:53:36] INFO: API server is already running
+[2025-12-26 00:53:36] INFO: Initializing infrastructure...
+[2025-12-26 00:53:39] INFO: LlmService: Initialized with ModelRouter and UsageRecorder
+[2025-12-26 00:53:39] INFO: Quality Gate: Initialized
+[2025-12-26 00:53:39] INFO: Iteration 1: Fetching run status...
+[2025-12-26 00:53:39] ERROR: [CircuitBreaker] API error classified as transient_infra
+[2025-12-26 00:53:39] ERROR: [CircuitBreaker] Remediation: Unknown error (HTTP 0) - retry cautiously
+[2025-12-26 00:53:39] ERROR: [CircuitBreaker] Retry decision: RETRY
+[2025-12-26 00:53:39] WARNING: [CircuitBreaker] Retrying after 5s (attempt 1/3)
+[2025-12-26 00:53:44] WARNING: [CircuitBreaker] Retrying after 10s (attempt 2/3)
+[2025-12-26 00:53:54] WARNING: [CircuitBreaker] Retrying after 15s (attempt 3/3)
+[2025-12-26 00:54:09] ERROR: [CircuitBreaker] All retries exhausted for transient error
+[2025-12-26 00:54:09] ERROR: Failed to fetch run status: 500 Server Error: Internal Server Error for url: http://localhost:8000/runs/p10-validation-test
+[2025-12-26 00:54:09] INFO: Waiting 10s before retry...
+[2025-12-26 00:54:20] INFO: Iteration 2: Fetching run status...
+[2025-12-26 00:54:20] ERROR: [CircuitBreaker] API error classified as transient_infra
+[2025-12-26 00:54:20] ERROR: [CircuitBreaker] Remediation: Unknown error (HTTP 0) - retry cautiously
+[2025-12-26 00:54:20] ERROR: [CircuitBreaker] Retry decision: RETRY
+[2025-12-26 00:54:20] WARNING: [CircuitBreaker] Retrying after 5s (attempt 1/3)
+[2025-12-26 00:54:25] WARNING: [CircuitBreaker] Retrying after 10s (attempt 2/3)
+[2025-12-26 00:54:35] WARNING: [CircuitBreaker] Retrying after 15s (attempt 3/3)
+[2025-12-26 00:54:50] ERROR: [CircuitBreaker] All retries exhausted for transient error
+[2025-12-26 00:54:50] ERROR: Failed to fetch run status: 500 Server Error: Internal Server Error for url: http://localhost:8000/runs/p10-validation-test
+[2025-12-26 00:54:50] INFO: Waiting 10s before retry...
+[2025-12-26 00:55:00] INFO: Iteration 3: Fetching run status...
+[2025-12-26 00:55:00] ERROR: [CircuitBreaker] API error classified as transient_infra
+[2025-12-26 00:55:00] ERROR: [CircuitBreaker] Remediation: Unknown error (HTTP 0) - retry cautiously
+[2025-12-26 00:55:00] ERROR: [CircuitBreaker] Retry decision: RETRY
+[2025-12-26 00:55:00] WARNING: [CircuitBreaker] Retrying after 5s (attempt 1/3)
+[2025-12-26 00:55:05] WARNING: [CircuitBreaker] Retrying after 10s (attempt 2/3)
+[2025-12-26 00:55:15] WARNING: [CircuitBreaker] Retrying after 15s (attempt 3/3)
+[2025-12-26 00:55:30] ERROR: [CircuitBreaker] All retries exhausted for transient error
+[2025-12-26 00:55:30] ERROR: Failed to fetch run status: 500 Server Error: Internal Server Error for url: http://localhost:8000/runs/p10-validation-test
+[2025-12-26 00:55:30] INFO: Waiting 10s before retry...
+[2025-12-26 00:55:40] INFO: Iteration 4: Fetching run status...
+[2025-12-26 00:55:40] ERROR: [CircuitBreaker] API error classified as transient_infra
+[2025-12-26 00:55:40] ERROR: [CircuitBreaker] Remediation: Unknown error (HTTP 0) - retry cautiously
+[2025-12-26 00:55:40] ERROR: [CircuitBreaker] Retry decision: RETRY
+[2025-12-26 00:55:40] WARNING: [CircuitBreaker] Retrying after 5s (attempt 1/3)
+[2025-12-26 00:55:45] WARNING: [CircuitBreaker] Retrying after 10s (attempt 2/3)
+[2025-12-26 00:55:55] WARNING: [CircuitBreaker] Retrying after 15s (attempt 3/3)
+[2025-12-26 00:56:10] ERROR: [CircuitBreaker] All retries exhausted for transient error
+[2025-12-26 00:56:10] ERROR: Failed to fetch run status: 500 Server Error: Internal Server Error for url: http://localhost:8000/runs/p10-validation-test
+[2025-12-26 00:56:10] INFO: Waiting 10s before retry...
+[2025-12-26 00:56:20] INFO: Iteration 5: Fetching run status...
+[2025-12-26 00:56:20] ERROR: [CircuitBreaker] API error classified as transient_infra
+[2025-12-26 00:56:20] ERROR: [CircuitBreaker] Remediation: Unknown error (HTTP 0) - retry cautiously
+[2025-12-26 00:56:20] ERROR: [CircuitBreaker] Retry decision: RETRY
+[2025-12-26 00:56:20] WARNING: [CircuitBreaker] Retrying after 5s (attempt 1/3)
+[2025-12-26 00:56:25] WARNING: [CircuitBreaker] Retrying after 10s (attempt 2/3)
+[2025-12-26 00:56:35] WARNING: [CircuitBreaker] Retrying after 15s (attempt 3/3)
+[2025-12-26 00:56:50] ERROR: [CircuitBreaker] All retries exhausted for transient error
+[2025-12-26 00:56:50] ERROR: Failed to fetch run status: 500 Server Error: Internal Server Error for url: http://localhost:8000/runs/p10-validation-test
+[2025-12-26 00:56:50] INFO: Waiting 10s before retry...
+[2025-12-26 00:57:00] INFO: Iteration 6: Fetching run status...
+[2025-12-26 00:57:00] ERROR: [CircuitBreaker] API error classified as transient_infra
+[2025-12-26 00:57:00] ERROR: [CircuitBreaker] Remediation: Unknown error (HTTP 0) - retry cautiously
+[2025-12-26 00:57:00] ERROR: [CircuitBreaker] Retry decision: RETRY
+[2025-12-26 00:57:00] WARNING: [CircuitBreaker] Retrying after 5s (attempt 1/3)
+[2025-12-26 00:57:05] WARNING: [CircuitBreaker] Retrying after 10s (attempt 2/3)
+[2025-12-26 00:57:15] WARNING: [CircuitBreaker] Retrying after 15s (attempt 3/3)
+[2025-12-26 00:57:30] ERROR: [CircuitBreaker] All retries exhausted for transient error
+[2025-12-26 00:57:30] ERROR: Failed to fetch run status: 500 Server Error: Internal Server Error for url: http://localhost:8000/runs/p10-validation-test
+[2025-12-26 00:57:30] INFO: Waiting 10s before retry...
+[2025-12-26 00:57:40] INFO: Iteration 7: Fetching run status...
+[2025-12-26 00:57:40] ERROR: [CircuitBreaker] API error classified as transient_infra
+[2025-12-26 00:57:40] ERROR: [CircuitBreaker] Remediation: Unknown error (HTTP 0) - retry cautiously
+[2025-12-26 00:57:40] ERROR: [CircuitBreaker] Retry decision: RETRY
+[2025-12-26 00:57:40] WARNING: [CircuitBreaker] Retrying after 5s (attempt 1/3)
+[2025-12-26 00:57:45] WARNING: [CircuitBreaker] Retrying after 10s (attempt 2/3)
+[2025-12-26 00:57:55] WARNING: [CircuitBreaker] Retrying after 15s (attempt 3/3)
+[2025-12-26 00:58:10] ERROR: [CircuitBreaker] All retries exhausted for transient error
+[2025-12-26 00:58:10] ERROR: Failed to fetch run status: 500 Server Error: Internal Server Error for url: http://localhost:8000/runs/p10-validation-test
+[2025-12-26 00:58:10] INFO: Waiting 10s before retry...
+[2025-12-26 00:58:20] INFO: Iteration 8: Fetching run status...
+[2025-12-26 00:58:20] ERROR: [CircuitBreaker] API error classified as transient_infra
+[2025-12-26 00:58:20] ERROR: [CircuitBreaker] Remediation: Unknown error (HTTP 0) - retry cautiously
+[2025-12-26 00:58:20] ERROR: [CircuitBreaker] Retry decision: RETRY
+[2025-12-26 00:58:20] WARNING: [CircuitBreaker] Retrying after 5s (attempt 1/3)
+[2025-12-26 00:58:25] WARNING: [CircuitBreaker] Retrying after 10s (attempt 2/3)
+[2025-12-26 00:58:35] WARNING: [CircuitBreaker] Retrying after 15s (attempt 3/3)
+[2025-12-26 00:58:50] ERROR: [CircuitBreaker] All retries exhausted for transient error
+[2025-12-26 00:58:50] ERROR: Failed to fetch run status: 500 Server Error: Internal Server Error for url: http://localhost:8000/runs/p10-validation-test
+[2025-12-26 00:58:50] INFO: Waiting 10s before retry...
+[2025-12-26 00:59:00] INFO: Iteration 9: Fetching run status...
+[2025-12-26 00:59:00] ERROR: [CircuitBreaker] API error classified as transient_infra
+[2025-12-26 00:59:00] ERROR: [CircuitBreaker] Remediation: Unknown error (HTTP 0) - retry cautiously
+[2025-12-26 00:59:00] ERROR: [CircuitBreaker] Retry decision: RETRY
+[2025-12-26 00:59:00] WARNING: [CircuitBreaker] Retrying after 5s (attempt 1/3)
+[2025-12-26 00:59:05] WARNING: [CircuitBreaker] Retrying after 10s (attempt 2/3)
+[2025-12-26 00:59:15] WARNING: [CircuitBreaker] Retrying after 15s (attempt 3/3)
+[2025-12-26 00:59:30] ERROR: [CircuitBreaker] All retries exhausted for transient error
+[2025-12-26 00:59:30] ERROR: Failed to fetch run status: 500 Server Error: Internal Server Error for url: http://localhost:8000/runs/p10-validation-test
+[2025-12-26 00:59:30] INFO: Waiting 10s before retry...
+[2025-12-26 00:59:40] INFO: Iteration 10: Fetching run status...
+[2025-12-26 00:59:40] ERROR: [CircuitBreaker] API error classified as transient_infra
+[2025-12-26 00:59:40] ERROR: [CircuitBreaker] Remediation: Unknown error (HTTP 0) - retry cautiously
+[2025-12-26 00:59:40] ERROR: [CircuitBreaker] Retry decision: RETRY
+[2025-12-26 00:59:40] WARNING: [CircuitBreaker] Retrying after 5s (attempt 1/3)
+[2025-12-26 00:59:45] WARNING: [CircuitBreaker] Retrying after 10s (attempt 2/3)
+[2025-12-26 00:59:55] WARNING: [CircuitBreaker] Retrying after 15s (attempt 3/3)
+[2025-12-26 01:00:11] ERROR: [CircuitBreaker] All retries exhausted for transient error
+[2025-12-26 01:00:11] ERROR: Failed to fetch run status: 500 Server Error: Internal Server Error for url: http://localhost:8000/runs/p10-validation-test
+[2025-12-26 01:00:11] INFO: Waiting 10s before retry...
+[2025-12-26 01:00:21] INFO: Iteration 11: Fetching run status...
+[2025-12-26 01:00:21] ERROR: [CircuitBreaker] API error classified as transient_infra
+[2025-12-26 01:00:21] ERROR: [CircuitBreaker] Remediation: Unknown error (HTTP 0) - retry cautiously
+[2025-12-26 01:00:21] ERROR: [CircuitBreaker] Retry decision: RETRY
+[2025-12-26 01:00:21] WARNING: [CircuitBreaker] Retrying after 5s (attempt 1/3)
+[2025-12-26 01:00:26] WARNING: [CircuitBreaker] Retrying after 10s (attempt 2/3)
+[2025-12-26 01:00:36] WARNING: [CircuitBreaker] Retrying after 15s (attempt 3/3)
+[2025-12-26 01:00:51] ERROR: [CircuitBreaker] All retries exhausted for transient error
+[2025-12-26 01:00:51] ERROR: Failed to fetch run status: 500 Server Error: Internal Server Error for url: http://localhost:8000/runs/p10-validation-test
+[2025-12-26 01:00:51] INFO: Waiting 10s before retry...
+[2025-12-26 01:01:01] INFO: Iteration 12: Fetching run status...
+[2025-12-26 01:01:01] ERROR: [CircuitBreaker] API error classified as transient_infra
+[2025-12-26 01:01:01] ERROR: [CircuitBreaker] Remediation: Unknown error (HTTP 0) - retry cautiously
+[2025-12-26 01:01:01] ERROR: [CircuitBreaker] Retry decision: RETRY
+[2025-12-26 01:01:01] WARNING: [CircuitBreaker] Retrying after 5s (attempt 1/3)
+[2025-12-26 01:01:06] WARNING: [CircuitBreaker] Retrying after 10s (attempt 2/3)
+[2025-12-26 01:01:16] WARNING: [CircuitBreaker] Retrying after 15s (attempt 3/3)
+[2025-12-26 01:01:31] ERROR: [CircuitBreaker] All retries exhausted for transient error
+[2025-12-26 01:01:31] ERROR: Failed to fetch run status: 500 Server Error: Internal Server Error for url: http://localhost:8000/runs/p10-validation-test
+[2025-12-26 01:01:31] INFO: Waiting 10s before retry...
+[2025-12-26 01:01:41] INFO: Iteration 13: Fetching run status...
+[2025-12-26 01:01:41] ERROR: [CircuitBreaker] API error classified as transient_infra
+[2025-12-26 01:01:41] ERROR: [CircuitBreaker] Remediation: Unknown error (HTTP 0) - retry cautiously
+[2025-12-26 01:01:41] ERROR: [CircuitBreaker] Retry decision: RETRY
+[2025-12-26 01:01:41] WARNING: [CircuitBreaker] Retrying after 5s (attempt 1/3)
+[2025-12-26 01:01:46] WARNING: [CircuitBreaker] Retrying after 10s (attempt 2/3)
+[2025-12-26 01:01:56] WARNING: [CircuitBreaker] Retrying after 15s (attempt 3/3)
+[2025-12-26 01:02:11] ERROR: [CircuitBreaker] All retries exhausted for transient error
+[2025-12-26 01:02:11] ERROR: Failed to fetch run status: 500 Server Error: Internal Server Error for url: http://localhost:8000/runs/p10-validation-test
+[2025-12-26 01:02:11] INFO: Waiting 10s before retry...
+[2025-12-26 01:02:21] INFO: Iteration 14: Fetching run status...
+[2025-12-26 01:02:21] ERROR: [CircuitBreaker] API error classified as transient_infra
+[2025-12-26 01:02:21] ERROR: [CircuitBreaker] Remediation: Unknown error (HTTP 0) - retry cautiously
+[2025-12-26 01:02:21] ERROR: [CircuitBreaker] Retry decision: RETRY
+[2025-12-26 01:02:21] WARNING: [CircuitBreaker] Retrying after 5s (attempt 1/3)
+[2025-12-26 01:02:26] WARNING: [CircuitBreaker] Retrying after 10s (attempt 2/3)
+[2025-12-26 01:02:36] WARNING: [CircuitBreaker] Retrying after 15s (attempt 3/3)
+[2025-12-26 01:02:51] ERROR: [CircuitBreaker] All retries exhausted for transient error
+[2025-12-26 01:02:51] ERROR: Failed to fetch run status: 500 Server Error: Internal Server Error for url: http://localhost:8000/runs/p10-validation-test
+[2025-12-26 01:02:51] INFO: Waiting 10s before retry...
+[2025-12-26 01:03:01] INFO: Iteration 15: Fetching run status...
+[2025-12-26 01:03:01] ERROR: [CircuitBreaker] API error classified as transient_infra
+[2025-12-26 01:03:01] ERROR: [CircuitBreaker] Remediation: Unknown error (HTTP 0) - retry cautiously
+[2025-12-26 01:03:01] ERROR: [CircuitBreaker] Retry decision: RETRY
+[2025-12-26 01:03:01] WARNING: [CircuitBreaker] Retrying after 5s (attempt 1/3)
+[2025-12-26 01:03:06] WARNING: [CircuitBreaker] Retrying after 10s (attempt 2/3)

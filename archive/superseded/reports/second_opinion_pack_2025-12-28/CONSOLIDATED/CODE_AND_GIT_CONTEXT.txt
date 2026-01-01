@@ -1,0 +1,592 @@
+﻿\r\n====================================================================================================\r\nGIT_CONTEXT (from pack/GIT_CONTEXT.txt)\r\n====================================================================================================\r\n
+BRANCH:
+## main...origin/main [ahead 7]
+
+RECENT COMMITS:
+30b7b339 docs: add artifact references to drain report
+58001319 docs: add 2025-12-28 drain report
+5a29b35c Fix API /runs serialization for legacy string phase scopes
+cf80358c Add P10-first next-run selector for draining
+f12338f4 docs: add autopack issue timeline SOT
+04ef42e8 sync: update database exports
+cf660ea0 Fix structured edit apply when file missing from context
+5d47afb0 API autostart: configurable wait + PYTHONPATH + startup logs
+505e1fa1 drain: set DATABASE_URL before importing SessionLocal
+2ca3dd01 drain: default DATABASE_URL to local sqlite when unset
+b3bca22f drain: add --no-dual-auditor
+4ca9545a Deliverables: count structured edit touched_paths
+88f7c21c BUILD-129: drain script run_type passthrough for maintenance drains
+aea415e6 docs: record research-system-v13 drain completion findings
+352fc6fd docs: update README dashboard + log v13 drain; sync db exports
+dad02414 drain: normalize scope paths on Windows (avoid false outside-scope)
+c0cf9867 drain: block on pytest collector failures (PhaseFinalizer + baseline)
+539acec8 drain: harden local diff join + document v12 drain results
+358f3888 drain: unblock research v12 collection + SOT/DB sync hardening
+4dcc0b32 docs: record research-system-v9 convergence RCA + sync DB exports
+e793b934 ci: always persist report_path; governed_apply: export parse_patch_stats
+de8c9c4d deliverables: ignore prose bullets; sanitize scope inference
+9b53e09f ndjson: skip git-apply for synthetic applied-files header
+0dc08ecc scope: flatten bucketed deliverables + use repo root for src/docs/tests + block git execute_fix
+5349a1ae convergence: validate deliverables cumulatively + skip Doctor on TOKEN_ESCALATION
+
+DIFF cf80358c^..cf80358c:
+commit cf80358cd2584acde8d062d623c6c05a81e65eba
+Author: Harry <hshk99@hotmail.com>
+Date:   Sat Dec 27 23:55:33 2025 +1100
+
+    Add P10-first next-run selector for draining
+
+M	README.md
+A	scripts/pick_next_run.py
+A	tests/test_pick_next_run.py
+
+DIFF 5a29b35c^..5a29b35c:
+commit 5a29b35c344acfbadcbab151022e3103456ac19b
+Author: Harry <hshk99@hotmail.com>
+Date:   Sun Dec 28 00:52:49 2025 +1100
+
+    Fix API /runs serialization for legacy string phase scopes
+
+M	BUILD_LOG.md
+M	docs/BUILD-129_PHASE3_DRAIN_SYSTEMIC_BLOCKERS_RCA.md
+M	docs/BUILD_HISTORY.md
+M	docs/database_schema_autopack.json
+M	docs/database_stats_autopack.json
+M	src/autopack/schemas.py
+A	tests/test_api_schema_scope_normalization.py
+
+\r\n====================================================================================================\r\nCOMMIT cf80358c (pick_next_run.py)\r\n====================================================================================================\r\n
+commit cf80358cd2584acde8d062d623c6c05a81e65eba
+Author: Harry <hshk99@hotmail.com>
+Date:   Sat Dec 27 23:55:33 2025 +1100
+
+    Add P10-first next-run selector for draining
+
+diff --git a/README.md b/README.md
+index de884ff4..25ad5655 100644
+--- a/README.md
++++ b/README.md
+@@ -47,6 +47,7 @@ Autopack is a framework for orchestrating autonomous AI agents (Builder and Audi
+   - Executor writes an escalation event when P10 triggers (base/source/retry tokens), making validation deterministic.
+ - **P10-first draining**:
+   - New ranked plan generator: `scripts/create_p10_first_drain_plan.py` (prioritizes queued phases likely to hit truncation/ΓëÑ95% utilization).
++  - New helper selector: `scripts/pick_next_run.py` (prints `run_id` + inferred `run_type`, preferring P10-first ranking and falling back to highest queued count).
+   - Updated validator: `scripts/check_p10_validation_status.py` now checks escalation events table.
+ - **SQLite migration runner hardened**:
+   - `scripts/run_migrations.py` now runs **root** migrations by default (use `--include-scripts` to also run legacy `scripts/migrations/*.sql`).
+diff --git a/scripts/pick_next_run.py b/scripts/pick_next_run.py
+new file mode 100644
+index 00000000..67bca7dc
+--- /dev/null
++++ b/scripts/pick_next_run.py
+@@ -0,0 +1,224 @@
++"""
++Pick the next run_id to drain.
++
++Default behavior: "P10-first" selection (BUILD-129 Phase 3)
++- Prefer queued runs that are most likely to trigger P10 (truncation / >=95% utilization),
++  using the same scoring logic as scripts/create_p10_first_drain_plan.py.
++- Fall back to "highest queued count" when no queued phase scores > 0.
++
++Output:
++- Default: TSV "run_id<TAB>run_type"
++
++Usage:
++  python scripts/pick_next_run.py
++  python scripts/pick_next_run.py --format json
++"""
++
++from __future__ import annotations
++
++import argparse
++import json
++import re
++import sys
++from dataclasses import dataclass
++from pathlib import Path
++from typing import Any, Dict, Iterable, List, Tuple
++
++sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
++
++from autopack.database import SessionLocal  # noqa: E402
++from autopack.models import Phase, PhaseState  # noqa: E402
++from autopack.token_estimator import TokenEstimator  # noqa: E402
++
++
++RUN_TYPE_AUTOPACK_RE = re.compile(r"^(build\d+|build-|build_|autopack\b|autopack-|autopack_)", re.IGNORECASE)
++
++
++def infer_run_type(run_id: str) -> str:
++    # Mirrors the run-id heuristic used by the Cursor takeover prompt.
++    if RUN_TYPE_AUTOPACK_RE.match(run_id or ""):
++        return "autopack_maintenance"
++    return "project_build"
++
++
++def _flatten_deliverables(scope: Any) -> List[str]:
++    if not isinstance(scope, dict):
++        return []
++    deliverables = scope.get("deliverables")
++    if deliverables is None and isinstance(scope.get("scope"), dict):
++        deliverables = scope["scope"].get("deliverables")
++    return TokenEstimator.normalize_deliverables(deliverables)
++
++
++def _guess_complexity(phase: Phase) -> str:
++    if phase.complexity:
++        return str(phase.complexity)
++    if isinstance(phase.scope, dict) and phase.scope.get("complexity"):
++        return str(phase.scope.get("complexity"))
++    return "medium"
++
++
++def _guess_category_hint(phase: Phase) -> str:
++    if phase.task_category:
++        return str(phase.task_category)
++    if isinstance(phase.scope, dict) and phase.scope.get("category"):
++        return str(phase.scope.get("category"))
++    return "implementation"
++
++
++SOT_BASENAMES = {
++    "build_log.md",
++    "build_history.md",
++    "changelog.md",
++    "release_notes.md",
++    "history.md",
++}
++
++
++def _has_sot(deliverables: List[str]) -> bool:
++    for d in deliverables:
++        if not isinstance(d, str):
++            continue
++        base = d.replace("\\", "/").split("/")[-1].lower()
++        if base in SOT_BASENAMES:
++            return True
++    return False
++
++
++@dataclass(frozen=True)
++class ScoredPhase:
++    run_id: str
++    score: int
++    deliverable_count: int
++
++
++def score_phase_for_p10(phase: Phase, estimator: TokenEstimator) -> ScoredPhase | None:
++    if phase.state != PhaseState.QUEUED:
++        return None
++
++    scope = phase.scope if isinstance(phase.scope, dict) else {}
++    deliverables = _flatten_deliverables(scope)
++    if not deliverables:
++        return None
++
++    complexity = _guess_complexity(phase)
++    category_hint = _guess_category_hint(phase)
++    scope_paths = scope.get("paths", []) if isinstance(scope.get("paths", []), list) else []
++    task_description = (phase.description or "") + " " + (phase.name or "")
++
++    try:
++        estimate = estimator.estimate(
++            deliverables=deliverables,
++            category=category_hint,
++            complexity=complexity,
++            scope_paths=scope_paths,
++            task_description=task_description,
++        )
++        estimated_category = estimate.category
++    except Exception:
++        estimated_category = category_hint
++
++    dcount = len(deliverables)
++    score = 0
++
++    if dcount >= 12:
++        score += 3
++    elif 8 <= dcount <= 11:
++        score += 2
++
++    if estimated_category in ["IMPLEMENT_FEATURE", "integration"]:
++        score += 2
++
++    if complexity == "high":
++        score += 2
++
++    if estimated_category in ["doc_synthesis", "doc_sot_update"]:
++        score += 2
++
++    if _has_sot(deliverables):
++        score += 2
++
++    if phase.last_failure_reason and "patch" in str(phase.last_failure_reason).lower():
++        score -= 2
++
++    if score <= 0:
++        return None
++
++    return ScoredPhase(run_id=phase.run_id, score=score, deliverable_count=dcount)
++
++
++def pick_next_run_id_p10_first(queued_phases: Iterable[Phase], estimator: TokenEstimator) -> str | None:
++    scored: List[ScoredPhase] = []
++    for p in queued_phases:
++        sp = score_phase_for_p10(p, estimator)
++        if sp:
++            scored.append(sp)
++
++    if not scored:
++        return None
++
++    by_run: Dict[str, List[ScoredPhase]] = {}
++    for sp in scored:
++        by_run.setdefault(sp.run_id, []).append(sp)
++
++    run_rank: List[Tuple[int, int, str]] = []
++    for run_id, items in by_run.items():
++        items.sort(key=lambda x: (x.score, x.deliverable_count), reverse=True)
++        run_score = sum(i.score for i in items[:10])
++        top_deliverables = items[0].deliverable_count
++        run_rank.append((run_score, top_deliverables, run_id))
++
++    run_rank.sort(reverse=True)
++    return run_rank[0][2]
++
++
++def pick_next_run_id_highest_queued(session) -> str | None:
++    # Equivalent to scripts/list_run_counts.py ranking (but implemented directly here).
++    rows = (
++        session.query(Phase.run_id)
++        .filter(Phase.state == PhaseState.QUEUED)
++        .all()
++    )
++    if not rows:
++        return None
++
++    counts: Dict[str, int] = {}
++    for (run_id,) in rows:
++        counts[run_id] = counts.get(run_id, 0) + 1
++
++    return sorted(counts.items(), key=lambda kv: kv[1], reverse=True)[0][0]
++
++
++def main() -> int:
++    ap = argparse.ArgumentParser(description="Pick the next run_id to drain (P10-first with fallback).")
++    ap.add_argument("--format", choices=["tsv", "json"], default="tsv")
++    args = ap.parse_args()
++
++    session = SessionLocal()
++    try:
++        queued = session.query(Phase).filter(Phase.state == PhaseState.QUEUED).all()
++        estimator = TokenEstimator(workspace=Path.cwd())
++
++        run_id = pick_next_run_id_p10_first(queued, estimator) or pick_next_run_id_highest_queued(session)
++        if not run_id:
++            # No queued work
++            if args.format == "json":
++                print(json.dumps({"run_id": None, "run_type": None}))
++            else:
++                print("\t".join(["", ""]))
++            return 0
++
++        run_type = infer_run_type(run_id)
++        if args.format == "json":
++            print(json.dumps({"run_id": run_id, "run_type": run_type}))
++        else:
++            print(f"{run_id}\t{run_type}")
++        return 0
++    finally:
++        session.close()
++
++
++if __name__ == "__main__":
++    raise SystemExit(main())
++
++
+diff --git a/tests/test_pick_next_run.py b/tests/test_pick_next_run.py
+new file mode 100644
+index 00000000..5d3d0a48
+--- /dev/null
++++ b/tests/test_pick_next_run.py
+@@ -0,0 +1,14 @@
++from scripts.pick_next_run import infer_run_type
++
++
++def test_infer_run_type_autopack_maintenance() -> None:
++    assert infer_run_type("build112-completion") == "autopack_maintenance"
++    assert infer_run_type("autopack-followups-v1") == "autopack_maintenance"
++    assert infer_run_type("BUILD-129-something") == "autopack_maintenance"
++
++
++def test_infer_run_type_project_build() -> None:
++    assert infer_run_type("research-system-v26") == "project_build"
++    assert infer_run_type("fileorg-backend-fixes-v4-20251130") == "project_build"
++
++
+\r\n====================================================================================================\r\nCOMMIT 5a29b35c (PhaseResponse.scope normalization)\r\n====================================================================================================\r\n
+commit 5a29b35c344acfbadcbab151022e3103456ac19b
+Author: Harry <hshk99@hotmail.com>
+Date:   Sun Dec 28 00:52:49 2025 +1100
+
+    Fix API /runs serialization for legacy string phase scopes
+
+diff --git a/BUILD_LOG.md b/BUILD_LOG.md
+index aa03a180..8ff0092c 100644
+--- a/BUILD_LOG.md
++++ b/BUILD_LOG.md
+@@ -4,6 +4,14 @@ Daily log of development activities, decisions, and progress on the Autopack pro
+ 
+ ---
+ 
++## 2025-12-28: Prevent `/runs/{run_id}` 500s for Legacy String `Phase.scope` (Systemic Drain Fix) Γ£à
++
++**Summary**: Fixed a systemic drain blocker where the Supervisor API would return **500** for `GET /runs/{run_id}` when legacy runs stored `Phase.scope` as a JSON string (or plain string) instead of a dict. The API response schema (`PhaseResponse.scope: Dict`) would fail validation/serialization, blocking the executor from fetching run status and stalling draining. `PhaseResponse` now normalizes non-dict scopes into a dict (e.g., `{"_legacy_text": ...}`), allowing scope auto-fix to proceed normally. Added regression tests for both plain-string and JSON-string scope normalization.
++
++**Status**: Γ£à FIXED + TESTED (unblocks draining legacy runs like `research-system-v1`)
++
++---
++
+ ## 2025-12-27: Structured Edit Applicator Unblocked New-File Ops (Systemic Drain Fix) Γ£à
+ 
+ **Summary**: Fixed a systemic drain blocker where structured edit plans failed with `STRUCTURED_EDIT_FAILED` and logs like `[StructuredEdit] File not in context: <path>` when the plan created new files (or touched existing files omitted from Builder context due to scope limits). `StructuredEditApplicator` now falls back to reading missing files from disk (when present) or treating them as empty content (new file), while rejecting unsafe paths. Added regression tests covering both ΓÇ£create new file without contextΓÇ¥ and ΓÇ£read existing file from disk when not in contextΓÇ¥.
+diff --git a/docs/BUILD-129_PHASE3_DRAIN_SYSTEMIC_BLOCKERS_RCA.md b/docs/BUILD-129_PHASE3_DRAIN_SYSTEMIC_BLOCKERS_RCA.md
+index 83a0a46b..c4759d8a 100644
+--- a/docs/BUILD-129_PHASE3_DRAIN_SYSTEMIC_BLOCKERS_RCA.md
++++ b/docs/BUILD-129_PHASE3_DRAIN_SYSTEMIC_BLOCKERS_RCA.md
+@@ -218,6 +218,23 @@ This document records the **root cause analysis (RCA)** for the systemic blocker
+   - Builder returns a structured edit plan (`edit_plan.operations`), and `patch_content==""` (expected for structured edits).
+   - Deliverables validation fails anyway with:
+     - `Found in patch: 0 files`
++
++### Blocker Q: Supervisor API `/runs/{run_id}` returned 500 for legacy runs with string `Phase.scope`
++
++- **Symptom**: Executor fails early with retries and then:
++  - `Failed to fetch run status: 500 Server Error ... /runs/<run_id>`
++  - `CircuitBreaker` classifies as transient infra and exhausts retries.
++- **Impact**: Draining stalls completely for the run (executor cannot even see queued work).
++- **Root cause**:
++  - Some legacy runs persisted `Phase.scope` as a JSON string (or plain string) rather than a dict-like JSON object.
++  - `GET /runs/{run_id}` uses `response_model=RunResponse`, which nests `PhaseResponse` and expects `scope: Dict[str, Any]`.
++  - Pydantic validation/serialization fails on string scopes, surfacing as an API 500.
++- **Fix**:
++  - `src/autopack/schemas.py`: `PhaseResponse.scope` now normalizes non-dict inputs into a dict (e.g., `{"_legacy_text": ...}`), and parses JSON-string dicts when possible.
++  - Regression tests: `tests/test_api_schema_scope_normalization.py`.
++- **Verification**:
++  - The regression tests pass locally.
++  - Draining can proceed for legacy runs that previously 500ΓÇÖd on `/runs/{run_id}` (e.g., `research-system-v1`).
+     - missing directory deliverables such as `src/autopack/models/` despite an operation touching `src/autopack/models/__init__.py`.
+ - **Impact**: Systemic false failures for any phase that enters structured-edit mode (e.g., because a large context file forces structured edits), preventing convergence even when the Builder produced valid operations.
+ - **Root cause**: `validate_deliverables()` only inspected `patch_content` to infer ΓÇ£files in your patchΓÇ¥ and the executor did not provide any alternate ΓÇ£touched pathsΓÇ¥ when operating in structured edit mode.
+diff --git a/docs/BUILD_HISTORY.md b/docs/BUILD_HISTORY.md
+index 81155da3..0419d05a 100644
+--- a/docs/BUILD_HISTORY.md
++++ b/docs/BUILD_HISTORY.md
+@@ -1,8 +1,8 @@
+ # Build History - Implementation Log
+ 
+ <!-- META
+-Last_Updated: 2025-12-27T22:25:00Z
+-Total_Builds: 136
++Last_Updated: 2025-12-28T00:50:00Z
++Total_Builds: 137
+ Format_Version: 2.0
+ Auto_Generated: False
+ Sources: CONSOLIDATED files, archive/, manual updates
+@@ -12,6 +12,7 @@ Sources: CONSOLIDATED files, archive/, manual updates
+ 
+ | Timestamp | BUILD-ID | Phase | Summary | Files Changed |
+ |-----------|----------|-------|---------|---------------|
++| 2025-12-28 | BUILD-137 | System | API schema hardening: prevent `GET /runs/{run_id}` 500s for legacy runs where `Phase.scope` is stored as a JSON string / plain string. Added Pydantic normalization in `PhaseResponse` to coerce non-dict scopes into a dict (e.g., `{\"_legacy_text\": ...}`) so the API can serialize and the executor can keep draining (scope auto-fix can then derive `scope.paths`). Added regression tests for plain-string and JSON-string scopes. | 2 |
+ | 2025-12-27 | BUILD-136 | System | Structured edits: allow applying structured edit operations even when target files are missing from Builder context (new file creation or scope-limited context). `StructuredEditApplicator` now reads missing existing files from disk or uses empty content for new files (with basic path safety). Added regression tests. Unblocked `build130-schema-validation-prevention` Phase 0 which failed with `[StructuredEdit] File not in context` and `STRUCTURED_EDIT_FAILED`. | 2 |
+ | 2025-12-23 | BUILD-129 | Phase 1 Validation (V3) | Token Estimation Telemetry V3 Analyzer - Final Refinements: Enhanced V3 analyzer with production-ready validation framework based on second opinion feedback. Additions: (1) Deliverable-count bucket stratification (1 file / 2-5 files / 6+ files) to identify multi-file phase behavior differences, (2) --under-multiplier flag for configurable underestimation tolerance (default 1.0 strict, recommended 1.1 for 10% tolerance) - implements actual > predicted * multiplier to avoid flagging trivial 1-2 token differences, (3) Documentation alignment - updated TOKEN_ESTIMATION_VALIDATION_LEARNINGS.md Phase 2/3 to reference V3 analyzer commands instead of older analyzer. Production-ready command: `python scripts/analyze_token_telemetry_v3.py --log-dir .autonomous_runs --success-only --stratify --under-multiplier 1.1 --output reports/telemetry_success_stratified.md`. V3 methodology complete: 2-tier metrics (Tier 1 Risk: underestimation Γëñ5%, truncation Γëñ2%; Tier 2 Cost: waste ratio P90 < 3x), success-only filtering, category/complexity/deliverable-count stratification. Status: PRODUCTION-READY, awaiting representative data (need 20+ successful production samples). Files: scripts/analyze_token_telemetry_v3.py (+50 lines deliverable-count stratification, --under-multiplier parameter handling), docs/TOKEN_ESTIMATION_VALIDATION_LEARNINGS.md (Phase 2/3 command updates), reports/v3_parser_smoke.md (smoke test results). Docs: TOKEN_ESTIMATION_V3_ENHANCEMENTS.md, TOKEN_ESTIMATION_VALIDATION_LEARNINGS.md | 3 |
+ | 2025-12-23 | BUILD-133 | Planning | BUILD-132 Coverage Delta Integration Plan: Comprehensive implementation plan (2-3 hours) for integrating pytest-cov coverage tracking with Quality Gate. Problem: coverage_delta currently hardcoded to 0.0 at 8 sites in autonomous_executor.py, preventing Quality Gate from detecting coverage regressions. Solution: (1) Enable pytest-cov in pytest.ini with JSON output format, (2) Create CoverageTracker module to calculate delta (current - baseline), (3) Integrate at 8 executor call sites, (4) Establish baseline coverage. 4-phase plan includes: coverage collection setup (30 min), CoverageTracker implementation with unit tests (45 min), executor integration (30 min), documentation and baseline establishment (30 min). Deliverables: BUILD-132_COVERAGE_DELTA_INTEGRATION.md (600 lines) with complete module design, test specifications, rollout plan, and success criteria. Benefits: Enhanced Quality Gate decision-making with coverage regression detection (<5% threshold), data-driven quality assessment. Status: PLANNED, ready for implementation. Prerequisites: pytest-cov 7.0.0 already installed. Risk: LOW (graceful fallback to 0.0 on errors). Docs: docs/BUILD-132_COVERAGE_DELTA_INTEGRATION.md | 1 |
+diff --git a/docs/database_schema_autopack.json b/docs/database_schema_autopack.json
+index cd51f923..48c8514b 100644
+--- a/docs/database_schema_autopack.json
++++ b/docs/database_schema_autopack.json
+@@ -1,6 +1,6 @@
+ {
+   "database": "autopack.db",
+-  "exported_at": "2025-12-27T22:25:42.740930",
++  "exported_at": "2025-12-28T00:52:34.826705",
+   "tables": {
+     "llm_usage_events": {
+       "columns": [
+@@ -77,7 +77,7 @@
+           "primary_key": false
+         }
+       ],
+-      "row_count": 1551
++      "row_count": 1576
+     },
+     "runs": {
+       "columns": [
+@@ -1009,7 +1009,7 @@
+           "primary_key": false
+         }
+       ],
+-      "row_count": 56
++      "row_count": 66
+     },
+     "governance_requests": {
+       "columns": [
+@@ -1905,7 +1905,7 @@
+           "primary_key": false
+         }
+       ],
+-      "row_count": 39
++      "row_count": 40
+     },
+     "token_estimation_v2_events": {
+       "columns": [
+@@ -2078,7 +2078,7 @@
+           "primary_key": false
+         }
+       ],
+-      "row_count": 151
++      "row_count": 162
+     }
+   }
+ }
+\ No newline at end of file
+diff --git a/docs/database_stats_autopack.json b/docs/database_stats_autopack.json
+index 1f076ed9..13ffee8a 100644
+--- a/docs/database_stats_autopack.json
++++ b/docs/database_stats_autopack.json
+@@ -1,10 +1,10 @@
+ {
+   "database": "autopack.db",
+-  "exported_at": "2025-12-27T22:25:42.745935",
+-  "file_size_kb": 2608,
++  "exported_at": "2025-12-28T00:52:34.831715",
++  "file_size_kb": 2644,
+   "tables": {
+     "llm_usage_events": {
+-      "row_count": 1551
++      "row_count": 1576
+     },
+     "runs": {
+       "row_count": 72
+@@ -34,7 +34,7 @@
+       "row_count": 0
+     },
+     "approval_requests": {
+-      "row_count": 56
++      "row_count": 66
+     },
+     "governance_requests": {
+       "row_count": 4
+@@ -64,10 +64,10 @@
+       "row_count": 0
+     },
+     "token_budget_escalation_events": {
+-      "row_count": 39
++      "row_count": 40
+     },
+     "token_estimation_v2_events": {
+-      "row_count": 151
++      "row_count": 162
+     }
+   }
+ }
+\ No newline at end of file
+diff --git a/src/autopack/schemas.py b/src/autopack/schemas.py
+index bb094354..33aadc5d 100644
+--- a/src/autopack/schemas.py
++++ b/src/autopack/schemas.py
+@@ -1,9 +1,10 @@
+ """Pydantic schemas for API requests and responses"""
+ 
+ from datetime import datetime
++import json
+ from typing import Any, Dict, List, Optional
+ 
+-from pydantic import BaseModel, Field, ConfigDict
++from pydantic import BaseModel, Field, ConfigDict, field_validator
+ 
+ 
+ class RunCreate(BaseModel):
+@@ -76,6 +77,33 @@ class PhaseResponse(BaseModel):
+     phase_index: int
+     scope: Optional[Dict[str, Any]] = None
+ 
++    @field_validator("scope", mode="before")
++    @classmethod
++    def normalize_scope(cls, v: Any) -> Any:
++        """Normalize legacy / malformed scope values into a dict.
++
++        Some legacy runs persisted `Phase.scope` as a JSON string (or even a plain string),
++        which can cause API serialization/validation to fail and surface as a 500 on
++        `GET /runs/{run_id}`. We coerce these into a dict so executors can continue draining
++        (typically triggering scope auto-fix because `scope.paths` is missing).
++        """
++        if v is None:
++            return None
++        if isinstance(v, dict):
++            return v
++        if isinstance(v, str):
++            try:
++                loaded = json.loads(v)
++            except Exception:
++                return {"_legacy_text": v}
++            if isinstance(loaded, dict):
++                return loaded
++            if isinstance(loaded, str):
++                return {"_legacy_text": loaded}
++            return {"_legacy_value": loaded}
++        # e.g. list/bool/int from old JSON blobs
++        return {"_legacy_value": v}
++
+     model_config = ConfigDict(from_attributes=True)
+ 
+ 
+diff --git a/tests/test_api_schema_scope_normalization.py b/tests/test_api_schema_scope_normalization.py
+new file mode 100644
+index 00000000..f8434b66
+--- /dev/null
++++ b/tests/test_api_schema_scope_normalization.py
+@@ -0,0 +1,43 @@
++from autopack.schemas import PhaseResponse
++
++
++def test_phase_response_normalizes_plain_string_scope() -> None:
++    phase = PhaseResponse.model_validate(
++        {
++            "id": 1,
++            "phase_id": "P1",
++            "run_id": "r1",
++            "tier_id": 1,
++            "name": "Phase",
++            "description": None,
++            "state": "QUEUED",
++            "task_category": None,
++            "complexity": None,
++            "builder_mode": None,
++            "phase_index": 0,
++            "scope": "legacy scope text",
++        }
++    )
++    assert phase.scope == {"_legacy_text": "legacy scope text"}
++
++
++def test_phase_response_normalizes_json_string_scope() -> None:
++    phase = PhaseResponse.model_validate(
++        {
++            "id": 1,
++            "phase_id": "P1",
++            "run_id": "r1",
++            "tier_id": 1,
++            "name": "Phase",
++            "description": None,
++            "state": "QUEUED",
++            "task_category": None,
++            "complexity": None,
++            "builder_mode": None,
++            "phase_index": 0,
++            "scope": "{\"paths\": [\"README.md\"]}",
++        }
++    )
++    assert phase.scope == {"paths": ["README.md"]}
++
++

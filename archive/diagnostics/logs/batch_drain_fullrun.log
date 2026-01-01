@@ -1,0 +1,30 @@
+
+Error: Object of type set is not JSON serializable
+======================================================================
+DATABASE IDENTITY
+======================================================================
+DATABASE_URL: sqlite:///C:/dev/Autopack/telemetry_seed_fullrun.db
+SQLite file: C:\dev\Autopack\telemetry_seed_fullrun.db
+Last modified: 2025-12-29T07:54:59.552336+00:00
+
+Row counts:
+  Runs: 1
+  Phases: 10
+  LLM usage events: 0
+======================================================================
+
+
+Batch Drain Controller
+Session ID: batch-drain-20251229-075710
+Target: Process 10 failed phases
+Filter: run_id = telemetry-collection-v4
+Adaptive Controls:
+  - Phase timeout: 900s (15m)
+  - Max total time: 60m
+  - Max timeouts per run: 2
+  - Max attempts per phase: 2
+  - Max fingerprint repeats: 3
+
+[1/10] Selecting next phase...
+  [INFO] Skipping 10 individual QUEUED phases (not entire runs)
+  No more failed phases to process

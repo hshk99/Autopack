@@ -1,0 +1,55 @@
+﻿BRANCH:
+## main...origin/main [ahead 7]
+
+RECENT COMMITS:
+30b7b339 docs: add artifact references to drain report
+58001319 docs: add 2025-12-28 drain report
+5a29b35c Fix API /runs serialization for legacy string phase scopes
+cf80358c Add P10-first next-run selector for draining
+f12338f4 docs: add autopack issue timeline SOT
+04ef42e8 sync: update database exports
+cf660ea0 Fix structured edit apply when file missing from context
+5d47afb0 API autostart: configurable wait + PYTHONPATH + startup logs
+505e1fa1 drain: set DATABASE_URL before importing SessionLocal
+2ca3dd01 drain: default DATABASE_URL to local sqlite when unset
+b3bca22f drain: add --no-dual-auditor
+4ca9545a Deliverables: count structured edit touched_paths
+88f7c21c BUILD-129: drain script run_type passthrough for maintenance drains
+aea415e6 docs: record research-system-v13 drain completion findings
+352fc6fd docs: update README dashboard + log v13 drain; sync db exports
+dad02414 drain: normalize scope paths on Windows (avoid false outside-scope)
+c0cf9867 drain: block on pytest collector failures (PhaseFinalizer + baseline)
+539acec8 drain: harden local diff join + document v12 drain results
+358f3888 drain: unblock research v12 collection + SOT/DB sync hardening
+4dcc0b32 docs: record research-system-v9 convergence RCA + sync DB exports
+e793b934 ci: always persist report_path; governed_apply: export parse_patch_stats
+de8c9c4d deliverables: ignore prose bullets; sanitize scope inference
+9b53e09f ndjson: skip git-apply for synthetic applied-files header
+0dc08ecc scope: flatten bucketed deliverables + use repo root for src/docs/tests + block git execute_fix
+5349a1ae convergence: validate deliverables cumulatively + skip Doctor on TOKEN_ESCALATION
+
+DIFF cf80358c^..cf80358c:
+commit cf80358cd2584acde8d062d623c6c05a81e65eba
+Author: Harry <hshk99@hotmail.com>
+Date:   Sat Dec 27 23:55:33 2025 +1100
+
+    Add P10-first next-run selector for draining
+
+M	README.md
+A	scripts/pick_next_run.py
+A	tests/test_pick_next_run.py
+
+DIFF 5a29b35c^..5a29b35c:
+commit 5a29b35c344acfbadcbab151022e3103456ac19b
+Author: Harry <hshk99@hotmail.com>
+Date:   Sun Dec 28 00:52:49 2025 +1100
+
+    Fix API /runs serialization for legacy string phase scopes
+
+M	BUILD_LOG.md
+M	docs/BUILD-129_PHASE3_DRAIN_SYSTEMIC_BLOCKERS_RCA.md
+M	docs/BUILD_HISTORY.md
+M	docs/database_schema_autopack.json
+M	docs/database_stats_autopack.json
+M	src/autopack/schemas.py
+A	tests/test_api_schema_scope_normalization.py

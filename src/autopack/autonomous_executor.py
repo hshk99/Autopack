@@ -7875,13 +7875,31 @@ Just the new description that should replace the current one while preserving th
             logger.debug("[SOT] Memory service disabled, skipping SOT indexing")
             return
 
+        project_id = self._get_project_slug() or self.run_id
+
+        # Optional: if tidy marked SOT as dirty, we can opportunistically re-index at startup.
+        # This keeps the "tidy → SOT → semantic indexing → retrieval" pipeline fresh without re-indexing on every run.
+        ws = Path(self.workspace)
+        if project_id == "autopack":
+            dirty_marker = ws / ".autonomous_runs" / "sot_index_dirty_autopack.json"
+        else:
+            dirty_marker = ws / ".autonomous_runs" / project_id / ".autonomous_runs" / "sot_index_dirty.json"
+
+        dirty_requested = dirty_marker.exists()
+
         if not settings.autopack_enable_sot_memory_indexing:
-            logger.debug("[SOT] SOT indexing disabled by config")
+            if dirty_requested:
+                logger.info(
+                    f"[SOT] Dirty marker present but indexing disabled; leaving marker in place: {dirty_marker}"
+                )
+            else:
+                logger.debug("[SOT] SOT indexing disabled by config")
             return
 
         try:
-            project_id = self._get_project_slug() or self.run_id
             docs_dir = self._resolve_project_docs_dir(project_id=project_id)
+            if dirty_requested:
+                logger.info(f"[SOT] Dirty marker detected; re-indexing SOT now: {dirty_marker}")
             logger.info(f"[SOT] Starting indexing for project={project_id}, docs_dir={docs_dir}")
 
             result = self.memory_service.index_sot_docs(
@@ -7898,6 +7916,14 @@ Just the new description that should replace the current one while preserving th
                     f"[SOT] Indexing complete: {indexed_count} chunks indexed "
                     f"(project={project_id}, docs={docs_dir})"
                 )
+
+            # Clear dirty marker only after a successful indexing attempt (even if it indexed 0).
+            if dirty_requested:
+                try:
+                    dirty_marker.unlink(missing_ok=True)
+                    logger.info(f"[SOT] Cleared dirty marker: {dirty_marker}")
+                except Exception as e:
+                    logger.warning(f"[SOT] Failed to clear dirty marker {dirty_marker}: {e}")
         except Exception as e:
             logger.warning(f"[SOT] Indexing failed: {e}", exc_info=True)
 

@@ -1,0 +1,94 @@
+C:\Python\Lib\site-packages\pydantic\_internal\_config.py:334: UserWarning: Valid config keys have changed in V2:
+* 'schema_extra' has been renamed to 'json_schema_extra'
+  warnings.warn(message, UserWarning)
+INFO:     Started server process [858844]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:8123 (Press CTRL+C to quit)
+[API_SERVER_STARTUP] DATABASE_URL from environment: sqlite:///C:/dev/Autopack/telemetry_seed_fullrun.db
+[API_SERVER_STARTUP] DATABASE_URL after load_dotenv(): sqlite:///C:/dev/Autopack/telemetry_seed_fullrun.db
+[API_SERVER_STARTUP] Resolved DATABASE_URL (after normalization): sqlite:///C:/dev/Autopack/telemetry_seed_fullrun.db
+INFO:     127.0.0.1:62064 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64407 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64408 - "GET /runs/telemetry-collection-v4 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64416 - "GET /runs/telemetry-collection-v4 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64438 - "POST /runs/telemetry-collection-v4/phases/telemetry-p1-string-util/builder_result HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64456 - "POST /runs/telemetry-collection-v4/phases/telemetry-p1-string-util/auditor_result HTTP/1.1" 200 OK
+[APPROVAL] AUTO-APPROVING request #1 for telemetry-p1-string-util
+INFO:     127.0.0.1:64457 - "POST /approval/request HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64458 - "POST /runs/telemetry-collection-v4/phases/telemetry-p1-string-util/update_status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53867 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53868 - "GET /runs/telemetry-collection-v4 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53877 - "GET /runs/telemetry-collection-v4 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53903 - "POST /runs/telemetry-collection-v4/phases/telemetry-p2-number-util/builder_result HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54705 - "POST /runs/telemetry-collection-v4/phases/telemetry-p2-number-util/auditor_result HTTP/1.1" 200 OK
+[APPROVAL] AUTO-APPROVING request #2 for telemetry-p2-number-util
+INFO:     127.0.0.1:54706 - "POST /approval/request HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54707 - "POST /runs/telemetry-collection-v4/phases/telemetry-p2-number-util/update_status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54785 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54786 - "GET /runs/telemetry-collection-v4 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54793 - "GET /runs/telemetry-collection-v4 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54849 - "POST /runs/telemetry-collection-v4/phases/telemetry-p3-list-util/builder_result HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54882 - "POST /runs/telemetry-collection-v4/phases/telemetry-p3-list-util/auditor_result HTTP/1.1" 200 OK
+[APPROVAL] AUTO-APPROVING request #3 for telemetry-p3-list-util
+INFO:     127.0.0.1:54883 - "POST /approval/request HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54884 - "POST /runs/telemetry-collection-v4/phases/telemetry-p3-list-util/update_status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62267 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62268 - "GET /runs/telemetry-collection-v4 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62277 - "GET /runs/telemetry-collection-v4 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62157 - "POST /runs/telemetry-collection-v4/phases/telemetry-p4-date-util/builder_result HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62182 - "POST /runs/telemetry-collection-v4/phases/telemetry-p4-date-util/auditor_result HTTP/1.1" 200 OK
+[APPROVAL] AUTO-APPROVING request #4 for telemetry-p4-date-util
+INFO:     127.0.0.1:62183 - "POST /approval/request HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62184 - "POST /runs/telemetry-collection-v4/phases/telemetry-p4-date-util/update_status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62253 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62254 - "GET /runs/telemetry-collection-v4 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62261 - "GET /runs/telemetry-collection-v4 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50450 - "POST /runs/telemetry-collection-v4/phases/telemetry-p5-dict-util/builder_result HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50482 - "POST /runs/telemetry-collection-v4/phases/telemetry-p5-dict-util/auditor_result HTTP/1.1" 200 OK
+[APPROVAL] AUTO-APPROVING request #5 for telemetry-p5-dict-util
+INFO:     127.0.0.1:50483 - "POST /approval/request HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50484 - "POST /runs/telemetry-collection-v4/phases/telemetry-p5-dict-util/update_status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50549 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50550 - "GET /runs/telemetry-collection-v4 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50557 - "GET /runs/telemetry-collection-v4 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64699 - "POST /runs/telemetry-collection-v4/phases/telemetry-p6-string-tests/builder_result HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64761 - "POST /runs/telemetry-collection-v4/phases/telemetry-p6-string-tests/auditor_result HTTP/1.1" 200 OK
+[APPROVAL] AUTO-APPROVING request #6 for telemetry-p6-string-tests
+INFO:     127.0.0.1:64762 - "POST /approval/request HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64763 - "POST /runs/telemetry-collection-v4/phases/telemetry-p6-string-tests/update_status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64275 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64276 - "GET /runs/telemetry-collection-v4 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64283 - "GET /runs/telemetry-collection-v4 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64375 - "POST /runs/telemetry-collection-v4/phases/telemetry-p7-number-tests/builder_result HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64398 - "POST /runs/telemetry-collection-v4/phases/telemetry-p7-number-tests/auditor_result HTTP/1.1" 200 OK
+[APPROVAL] AUTO-APPROVING request #7 for telemetry-p7-number-tests
+INFO:     127.0.0.1:64399 - "POST /approval/request HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64402 - "POST /runs/telemetry-collection-v4/phases/telemetry-p7-number-tests/update_status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64479 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64480 - "GET /runs/telemetry-collection-v4 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64487 - "GET /runs/telemetry-collection-v4 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49547 - "POST /runs/telemetry-collection-v4/phases/telemetry-p8-list-tests/builder_result HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49592 - "POST /runs/telemetry-collection-v4/phases/telemetry-p8-list-tests/auditor_result HTTP/1.1" 200 OK
+[APPROVAL] AUTO-APPROVING request #8 for telemetry-p8-list-tests
+INFO:     127.0.0.1:49593 - "POST /approval/request HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49594 - "POST /runs/telemetry-collection-v4/phases/telemetry-p8-list-tests/update_status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56816 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56817 - "GET /runs/telemetry-collection-v4 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56826 - "GET /runs/telemetry-collection-v4 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53837 - "POST /runs/telemetry-collection-v4/phases/telemetry-p9-readme/builder_result HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53842 - "POST /runs/telemetry-collection-v4/phases/telemetry-p9-readme/auditor_result HTTP/1.1" 200 OK
+[APPROVAL] AUTO-APPROVING request #9 for telemetry-p9-readme
+INFO:     127.0.0.1:53843 - "POST /approval/request HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53844 - "POST /runs/telemetry-collection-v4/phases/telemetry-p9-readme/update_status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53872 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53873 - "GET /runs/telemetry-collection-v4 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53875 - "GET /runs/telemetry-collection-v4 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53882 - "POST /runs/telemetry-collection-v4/phases/telemetry-p10-file-util/builder_result HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53886 - "POST /runs/telemetry-collection-v4/phases/telemetry-p10-file-util/auditor_result HTTP/1.1" 200 OK
+[APPROVAL] AUTO-APPROVING request #10 for telemetry-p10-file-util
+INFO:     127.0.0.1:53887 - "POST /approval/request HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53888 - "POST /runs/telemetry-collection-v4/phases/telemetry-p10-file-util/update_status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58304 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58085 - "GET /dashboard/runs/autopack-onephase-build144-runbook-and-executor-rollback/consolidated-metrics HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:58132 - "GET /health HTTP/1.1" 200 OK

@@ -1,0 +1,431 @@
+faiss library not installed; FaissStore will use in-memory fallback
+[2025-12-23 22:00:26] INFO: [LOCK] Acquired executor lock for run_id=build132-coverage-delta-integration (PID=2596, host=Harry)
+[2025-12-23 22:00:26] INFO: Applying pre-emptive encoding fix...
+[2025-12-23 22:00:26] INFO: [Recovery] Fixing Unicode encoding error...
+[2025-12-23 22:00:26] INFO: [Recovery] SUCCESS: Encoding fixed (UTF-8 enabled)
+[2025-12-23 22:00:26] INFO: Database tables initialized
+[2025-12-23 22:00:26] INFO: Loaded BuilderOutputConfig: max_lines_for_full_file=1000, max_lines_hard_limit=1000
+[2025-12-23 22:00:26] INFO: Doctor execute_fix enabled: True
+[2025-12-23 22:00:26] INFO: FileSizeTelemetry initialized: .autonomous_runs\autopack\file_size_telemetry.jsonl
+[2025-12-23 22:00:32] INFO: [Qdrant] Connected to localhost:6333
+[2025-12-23 22:00:32] INFO: [MemoryService] Using Qdrant backend
+[2025-12-23 22:00:36] ERROR: [Qdrant] Failed to ensure collection 'code_docs': [WinError 10061] No connection could be made because the target machine actively refused it
+[2025-12-23 22:00:36] WARNING: MemoryService initialization failed, running without memory: [WinError 10061] No connection could be made because the target machine actively refused it
+[2025-12-23 22:00:36] INFO: [FileLayout] Project: autopack, Family: build132-coverage-delta-integration, Base: .autonomous_runs\autopack\runs\build132-coverage-delta-integration
+[2025-12-23 22:00:36] INFO: Initialized autonomous executor for run: build132-coverage-delta-integration
+[2025-12-23 22:00:36] INFO: API URL: http://localhost:8000
+[2025-12-23 22:00:36] INFO: Workspace: .
+[2025-12-23 22:00:36] INFO: Running proactive startup checks from DEBUG_JOURNAL.md...
+[2025-12-23 22:00:36] INFO: [HIGH] Checking: Windows Unicode Fix (PYTHONUTF8)
+[2025-12-23 22:00:36] INFO:   Reason: Prevents UnicodeEncodeError with emoji characters in logs (Issue #3)
+[2025-12-23 22:00:36] INFO:   Check PASSED
+[2025-12-23 22:00:36] INFO: [SchemaValidator] Starting database schema validation...
+[2025-12-23 22:00:36] INFO: [SchemaValidator] ✅ Database schema validation PASSED
+[2025-12-23 22:00:36] INFO: Startup checks complete
+[2025-12-23 22:00:37] INFO: [BUILD-123v2] Manifest generator initialized (deterministic scope generation)
+[2025-12-23 22:00:37] INFO: [HealthCheck:T0] API Keys: PASSED (0ms) - All required API keys present
+[2025-12-23 22:00:37] INFO: [HealthCheck:T0] Database: PASSED (0ms) - Database accessible: C:\dev\Autopack\autopack.db
+[2025-12-23 22:00:37] INFO: [HealthCheck:T0] Workspace: PASSED (0ms) - Workspace valid: C:\dev\Autopack
+[2025-12-23 22:00:37] INFO: [HealthCheck:T0] Config: PASSED (28ms) - Configuration files valid
+[2025-12-23 22:00:37] INFO: [BUILD-127] Completion authority initialized (PhaseFinalizer + TestBaselineTracker)
+[2025-12-23 22:00:37] INFO: [BUILD-127] Capturing T0 baseline at commit 9b1ff3c5...
+[2025-12-23 22:00:37] INFO: [Baseline] Using cached baseline for commit 9b1ff3c5
+[2025-12-23 22:00:37] INFO: [BUILD-127] T0 baseline: 0 tests, 0 passing, 0 failing, 0 errors
+[2025-12-23 22:00:37] INFO: Starting autonomous execution loop...
+[2025-12-23 22:00:37] INFO: Poll interval: 10s
+[2025-12-23 22:00:37] INFO: API server is already running
+[2025-12-23 22:00:37] INFO: Initializing infrastructure...
+[2025-12-23 22:00:41] INFO: LlmService: Initialized with ModelRouter and UsageRecorder
+[2025-12-23 22:00:41] INFO: Quality Gate: Initialized
+[2025-12-23 22:00:41] INFO: Iteration 1: Fetching run status...
+[2025-12-23 22:00:41] INFO: [BUILD-041] Next phase: build132-phase1-enable-coverage
+[2025-12-23 22:00:41] INFO: [BUILD-123v2] Phase 'build132-phase1-enable-coverage' has no scope - generating manifest...
+[2025-12-23 22:00:41] INFO: Generating manifest for run: build132-coverage-delta-integration
+[2025-12-23 22:00:41] INFO: Repo structure scanned successfully
+[2025-12-23 22:00:41] INFO: [BUILD-128] Phase 'build132-phase1-enable-coverage' has deliverables - inferring scope from deliverables
+[2025-12-23 22:00:41] INFO: [BUILD-128] Inferred category 'unknown' from deliverables (confidence=0.0%)
+[2025-12-23 22:00:41] INFO: [BUILD-128] Generated scope: 2 paths, 0 context files
+[2025-12-23 22:00:41] INFO: [BUILD-129] Added token estimate to phase: 462 output tokens (2 deliverables, confidence=0.80)
+[2025-12-23 22:00:41] INFO: [BUILD-123v2] Generated scope for 'build132-phase1-enable-coverage': category=unknown, confidence=0.0%, files=2
+[2025-12-23 22:00:41] WARNING: [BUILD-123v2] Low confidence (0.0%) for phase 'build132-phase1-enable-coverage' - scope may be incomplete. Builder may need to request expansion.
+[2025-12-23 22:00:41] WARNING: [Scope] Could not determine workspace from scope paths, using default: .
+[2025-12-23 22:00:41] INFO: [build132-phase1-enable-coverage] Step 1/4: Generating code with Builder (via LlmService)...
+[2025-12-23 22:00:41] WARNING: [Scope] Could not determine workspace from scope paths, using default: .
+[2025-12-23 22:00:41] INFO: [Scope] Loaded 2 files from scope configuration
+[2025-12-23 22:00:41] INFO: [Scope] Scope paths: ['pytest.ini', '.gitignore']
+[2025-12-23 22:00:41] INFO: [Scope] Loaded paths: ['pytest.ini', '.gitignore']...
+[2025-12-23 22:00:41] INFO: [build132-phase1-enable-coverage] Loaded 2 files for context
+[2025-12-23 22:00:41] WARNING: [Scope] Could not determine workspace from scope paths, using default: .
+[2025-12-23 22:00:41] INFO: [Scope] Validation passed: 2 files match scope configuration
+[2025-12-23 22:00:41] INFO: [build132-phase1-enable-coverage] Built deliverables contract: 2 required paths, 0 forbidden patterns
+[2025-12-23 22:00:41] ERROR: [build132-phase1-enable-coverage] Deliverables manifest gate FAILED: Expected paths include entries outside allowed_roots. outside_count=2 sample=['.gitignore', 'pytest.ini'] roots=['.gitignore/', 'pytest.ini/'] (run_id=build132-coverage-delta-integration, phase_id=build132-phase1-enable-coverage, attempt=0)
+[2025-12-23 22:00:53] INFO: [RetrievalTrigger] Phase build132-phase1-enable-coverage attempt 1: Error messages lack context - triggering deep retrieval
+[2025-12-23 22:00:53] INFO: [DeepRetrieval] Starting bounded retrieval for phase build132-phase1-enable-coverage (priority=medium)
+[2025-12-23 22:00:54] INFO: [DeepRetrieval] Retrieved 0 run artifacts (0 bytes), 1 SOT files (15360 bytes), 0 memory entries (0 bytes)
+[2025-12-23 22:00:54] WARNING: [build132-phase1-enable-coverage] Attempt 1/5 failed, will escalate model for next retry
+[2025-12-23 22:00:54] WARNING: Phase build132-phase1-enable-coverage finished with status: DELIVERABLES_VALIDATION_FAILED
+[2025-12-23 22:00:54] INFO: Waiting 10s before next phase...
+[2025-12-23 22:01:04] INFO: Iteration 2: Fetching run status...
+[2025-12-23 22:01:04] INFO: [BUILD-041] Next phase: build132-phase1-enable-coverage
+[2025-12-23 22:01:04] INFO: [BUILD-123v2] Phase 'build132-phase1-enable-coverage' has no scope - generating manifest...
+[2025-12-23 22:01:04] INFO: Generating manifest for run: build132-coverage-delta-integration
+[2025-12-23 22:01:04] INFO: Repo structure scanned successfully
+[2025-12-23 22:01:04] INFO: [BUILD-128] Phase 'build132-phase1-enable-coverage' has deliverables - inferring scope from deliverables
+[2025-12-23 22:01:04] INFO: [BUILD-128] Inferred category 'unknown' from deliverables (confidence=0.0%)
+[2025-12-23 22:01:04] INFO: [BUILD-128] Generated scope: 2 paths, 0 context files
+[2025-12-23 22:01:04] INFO: [BUILD-129] Added token estimate to phase: 462 output tokens (2 deliverables, confidence=0.80)
+[2025-12-23 22:01:04] INFO: [BUILD-123v2] Generated scope for 'build132-phase1-enable-coverage': category=unknown, confidence=0.0%, files=2
+[2025-12-23 22:01:04] WARNING: [BUILD-123v2] Low confidence (0.0%) for phase 'build132-phase1-enable-coverage' - scope may be incomplete. Builder may need to request expansion.
+[2025-12-23 22:01:04] WARNING: [Scope] Could not determine workspace from scope paths, using default: .
+[2025-12-23 22:01:04] INFO: [build132-phase1-enable-coverage] Step 1/4: Generating code with Builder (via LlmService)...
+[2025-12-23 22:01:04] WARNING: [Scope] Could not determine workspace from scope paths, using default: .
+[2025-12-23 22:01:04] INFO: [Scope] Loaded 2 files from scope configuration
+[2025-12-23 22:01:04] INFO: [Scope] Scope paths: ['pytest.ini', '.gitignore']
+[2025-12-23 22:01:04] INFO: [Scope] Loaded paths: ['pytest.ini', '.gitignore']...
+[2025-12-23 22:01:04] INFO: [build132-phase1-enable-coverage] Loaded 2 files for context
+[2025-12-23 22:01:04] WARNING: [Scope] Could not determine workspace from scope paths, using default: .
+[2025-12-23 22:01:04] INFO: [Scope] Validation passed: 2 files match scope configuration
+[2025-12-23 22:01:04] INFO: [build132-phase1-enable-coverage] Built deliverables contract: 2 required paths, 0 forbidden patterns
+[2025-12-23 22:01:04] ERROR: [build132-phase1-enable-coverage] Deliverables manifest gate FAILED: Expected paths include entries outside allowed_roots. outside_count=2 sample=['.gitignore', 'pytest.ini'] roots=['.gitignore/', 'pytest.ini/'] (run_id=build132-coverage-delta-integration, phase_id=build132-phase1-enable-coverage, attempt=0)
+[2025-12-23 22:01:16] INFO: [RetrievalTrigger] Phase build132-phase1-enable-coverage attempt 1: Error messages lack context - triggering deep retrieval
+[2025-12-23 22:01:16] INFO: [DeepRetrieval] Starting bounded retrieval for phase build132-phase1-enable-coverage (priority=medium)
+[2025-12-23 22:01:17] INFO: [DeepRetrieval] Retrieved 0 run artifacts (0 bytes), 1 SOT files (15360 bytes), 0 memory entries (0 bytes)
+[2025-12-23 22:01:17] WARNING: [build132-phase1-enable-coverage] Attempt 1/5 failed, will escalate model for next retry
+[2025-12-23 22:01:17] WARNING: Phase build132-phase1-enable-coverage finished with status: DELIVERABLES_VALIDATION_FAILED
+[2025-12-23 22:01:17] INFO: Waiting 10s before next phase...
+[2025-12-23 22:01:27] INFO: Iteration 3: Fetching run status...
+[2025-12-23 22:01:27] INFO: [BUILD-041] Next phase: build132-phase1-enable-coverage
+[2025-12-23 22:01:27] INFO: [BUILD-123v2] Phase 'build132-phase1-enable-coverage' has no scope - generating manifest...
+[2025-12-23 22:01:27] INFO: Generating manifest for run: build132-coverage-delta-integration
+[2025-12-23 22:01:27] INFO: Repo structure scanned successfully
+[2025-12-23 22:01:27] INFO: [BUILD-128] Phase 'build132-phase1-enable-coverage' has deliverables - inferring scope from deliverables
+[2025-12-23 22:01:27] INFO: [BUILD-128] Inferred category 'unknown' from deliverables (confidence=0.0%)
+[2025-12-23 22:01:27] INFO: [BUILD-128] Generated scope: 2 paths, 0 context files
+[2025-12-23 22:01:27] INFO: [BUILD-129] Added token estimate to phase: 462 output tokens (2 deliverables, confidence=0.80)
+[2025-12-23 22:01:27] INFO: [BUILD-123v2] Generated scope for 'build132-phase1-enable-coverage': category=unknown, confidence=0.0%, files=2
+[2025-12-23 22:01:27] WARNING: [BUILD-123v2] Low confidence (0.0%) for phase 'build132-phase1-enable-coverage' - scope may be incomplete. Builder may need to request expansion.
+[2025-12-23 22:01:27] WARNING: [Scope] Could not determine workspace from scope paths, using default: .
+[2025-12-23 22:01:27] INFO: [build132-phase1-enable-coverage] Step 1/4: Generating code with Builder (via LlmService)...
+[2025-12-23 22:01:27] WARNING: [Scope] Could not determine workspace from scope paths, using default: .
+[2025-12-23 22:01:27] INFO: [Scope] Loaded 2 files from scope configuration
+[2025-12-23 22:01:27] INFO: [Scope] Scope paths: ['pytest.ini', '.gitignore']
+[2025-12-23 22:01:27] INFO: [Scope] Loaded paths: ['pytest.ini', '.gitignore']...
+[2025-12-23 22:01:27] INFO: [build132-phase1-enable-coverage] Loaded 2 files for context
+[2025-12-23 22:01:27] WARNING: [Scope] Could not determine workspace from scope paths, using default: .
+[2025-12-23 22:01:27] INFO: [Scope] Validation passed: 2 files match scope configuration
+[2025-12-23 22:01:27] INFO: [build132-phase1-enable-coverage] Built deliverables contract: 2 required paths, 0 forbidden patterns
+[2025-12-23 22:01:27] ERROR: [build132-phase1-enable-coverage] Deliverables manifest gate FAILED: Expected paths include entries outside allowed_roots. outside_count=2 sample=['.gitignore', 'pytest.ini'] roots=['.gitignore/', 'pytest.ini/'] (run_id=build132-coverage-delta-integration, phase_id=build132-phase1-enable-coverage, attempt=0)
+[2025-12-23 22:01:39] INFO: [RetrievalTrigger] Phase build132-phase1-enable-coverage attempt 1: Error messages lack context - triggering deep retrieval
+[2025-12-23 22:01:39] INFO: [DeepRetrieval] Starting bounded retrieval for phase build132-phase1-enable-coverage (priority=medium)
+[2025-12-23 22:01:40] INFO: [DeepRetrieval] Retrieved 0 run artifacts (0 bytes), 1 SOT files (15360 bytes), 0 memory entries (0 bytes)
+[2025-12-23 22:01:40] WARNING: [build132-phase1-enable-coverage] Attempt 1/5 failed, will escalate model for next retry
+[2025-12-23 22:01:40] WARNING: Phase build132-phase1-enable-coverage finished with status: DELIVERABLES_VALIDATION_FAILED
+[2025-12-23 22:01:40] INFO: Waiting 10s before next phase...
+[2025-12-23 22:01:50] INFO: Iteration 4: Fetching run status...
+[2025-12-23 22:01:50] INFO: [BUILD-041] Next phase: build132-phase1-enable-coverage
+[2025-12-23 22:01:50] INFO: [BUILD-123v2] Phase 'build132-phase1-enable-coverage' has no scope - generating manifest...
+[2025-12-23 22:01:50] INFO: Generating manifest for run: build132-coverage-delta-integration
+[2025-12-23 22:01:50] INFO: Repo structure scanned successfully
+[2025-12-23 22:01:50] INFO: [BUILD-128] Phase 'build132-phase1-enable-coverage' has deliverables - inferring scope from deliverables
+[2025-12-23 22:01:50] INFO: [BUILD-128] Inferred category 'unknown' from deliverables (confidence=0.0%)
+[2025-12-23 22:01:50] INFO: [BUILD-128] Generated scope: 2 paths, 0 context files
+[2025-12-23 22:01:50] INFO: [BUILD-129] Added token estimate to phase: 462 output tokens (2 deliverables, confidence=0.80)
+[2025-12-23 22:01:50] INFO: [BUILD-123v2] Generated scope for 'build132-phase1-enable-coverage': category=unknown, confidence=0.0%, files=2
+[2025-12-23 22:01:50] WARNING: [BUILD-123v2] Low confidence (0.0%) for phase 'build132-phase1-enable-coverage' - scope may be incomplete. Builder may need to request expansion.
+[2025-12-23 22:01:50] WARNING: [Scope] Could not determine workspace from scope paths, using default: .
+[2025-12-23 22:01:50] INFO: [build132-phase1-enable-coverage] Step 1/4: Generating code with Builder (via LlmService)...
+[2025-12-23 22:01:50] WARNING: [Scope] Could not determine workspace from scope paths, using default: .
+[2025-12-23 22:01:50] INFO: [Scope] Loaded 2 files from scope configuration
+[2025-12-23 22:01:50] INFO: [Scope] Scope paths: ['pytest.ini', '.gitignore']
+[2025-12-23 22:01:50] INFO: [Scope] Loaded paths: ['pytest.ini', '.gitignore']...
+[2025-12-23 22:01:50] INFO: [build132-phase1-enable-coverage] Loaded 2 files for context
+[2025-12-23 22:01:50] WARNING: [Scope] Could not determine workspace from scope paths, using default: .
+[2025-12-23 22:01:50] INFO: [Scope] Validation passed: 2 files match scope configuration
+[2025-12-23 22:01:50] INFO: [build132-phase1-enable-coverage] Built deliverables contract: 2 required paths, 0 forbidden patterns
+[2025-12-23 22:01:50] ERROR: [build132-phase1-enable-coverage] Deliverables manifest gate FAILED: Expected paths include entries outside allowed_roots. outside_count=2 sample=['.gitignore', 'pytest.ini'] roots=['.gitignore/', 'pytest.ini/'] (run_id=build132-coverage-delta-integration, phase_id=build132-phase1-enable-coverage, attempt=0)
+[2025-12-23 22:02:02] INFO: [RetrievalTrigger] Phase build132-phase1-enable-coverage attempt 1: Error messages lack context - triggering deep retrieval
+[2025-12-23 22:02:02] INFO: [DeepRetrieval] Starting bounded retrieval for phase build132-phase1-enable-coverage (priority=medium)
+[2025-12-23 22:02:03] INFO: [DeepRetrieval] Retrieved 0 run artifacts (0 bytes), 1 SOT files (15360 bytes), 0 memory entries (0 bytes)
+[2025-12-23 22:02:03] WARNING: [build132-phase1-enable-coverage] Attempt 1/5 failed, will escalate model for next retry
+[2025-12-23 22:02:03] WARNING: Phase build132-phase1-enable-coverage finished with status: DELIVERABLES_VALIDATION_FAILED
+[2025-12-23 22:02:03] INFO: Waiting 10s before next phase...
+[2025-12-23 22:02:13] INFO: Iteration 5: Fetching run status...
+[2025-12-23 22:02:13] INFO: [BUILD-041] Next phase: build132-phase1-enable-coverage
+[2025-12-23 22:02:13] INFO: [BUILD-123v2] Phase 'build132-phase1-enable-coverage' has no scope - generating manifest...
+[2025-12-23 22:02:13] INFO: Generating manifest for run: build132-coverage-delta-integration
+[2025-12-23 22:02:13] INFO: Repo structure scanned successfully
+[2025-12-23 22:02:13] INFO: [BUILD-128] Phase 'build132-phase1-enable-coverage' has deliverables - inferring scope from deliverables
+[2025-12-23 22:02:13] INFO: [BUILD-128] Inferred category 'unknown' from deliverables (confidence=0.0%)
+[2025-12-23 22:02:13] INFO: [BUILD-128] Generated scope: 2 paths, 0 context files
+[2025-12-23 22:02:13] INFO: [BUILD-129] Added token estimate to phase: 462 output tokens (2 deliverables, confidence=0.80)
+[2025-12-23 22:02:13] INFO: [BUILD-123v2] Generated scope for 'build132-phase1-enable-coverage': category=unknown, confidence=0.0%, files=2
+[2025-12-23 22:02:13] WARNING: [BUILD-123v2] Low confidence (0.0%) for phase 'build132-phase1-enable-coverage' - scope may be incomplete. Builder may need to request expansion.
+[2025-12-23 22:02:13] WARNING: [Scope] Could not determine workspace from scope paths, using default: .
+[2025-12-23 22:02:13] INFO: [build132-phase1-enable-coverage] Step 1/4: Generating code with Builder (via LlmService)...
+[2025-12-23 22:02:13] WARNING: [Scope] Could not determine workspace from scope paths, using default: .
+[2025-12-23 22:02:13] INFO: [Scope] Loaded 2 files from scope configuration
+[2025-12-23 22:02:13] INFO: [Scope] Scope paths: ['pytest.ini', '.gitignore']
+[2025-12-23 22:02:13] INFO: [Scope] Loaded paths: ['pytest.ini', '.gitignore']...
+[2025-12-23 22:02:13] INFO: [build132-phase1-enable-coverage] Loaded 2 files for context
+[2025-12-23 22:02:13] WARNING: [Scope] Could not determine workspace from scope paths, using default: .
+[2025-12-23 22:02:13] INFO: [Scope] Validation passed: 2 files match scope configuration
+[2025-12-23 22:02:13] INFO: [build132-phase1-enable-coverage] Built deliverables contract: 2 required paths, 0 forbidden patterns
+[2025-12-23 22:02:13] ERROR: [build132-phase1-enable-coverage] Deliverables manifest gate FAILED: Expected paths include entries outside allowed_roots. outside_count=2 sample=['.gitignore', 'pytest.ini'] roots=['.gitignore/', 'pytest.ini/'] (run_id=build132-coverage-delta-integration, phase_id=build132-phase1-enable-coverage, attempt=0)
+[2025-12-23 22:02:24] INFO: [RetrievalTrigger] Phase build132-phase1-enable-coverage attempt 1: Error messages lack context - triggering deep retrieval
+[2025-12-23 22:02:24] INFO: [DeepRetrieval] Starting bounded retrieval for phase build132-phase1-enable-coverage (priority=medium)
+[2025-12-23 22:02:25] INFO: [DeepRetrieval] Retrieved 0 run artifacts (0 bytes), 1 SOT files (15360 bytes), 0 memory entries (0 bytes)
+[2025-12-23 22:02:25] WARNING: [build132-phase1-enable-coverage] Attempt 1/5 failed, will escalate model for next retry
+[2025-12-23 22:02:25] WARNING: Phase build132-phase1-enable-coverage finished with status: DELIVERABLES_VALIDATION_FAILED
+[2025-12-23 22:02:25] INFO: Waiting 10s before next phase...
+[2025-12-23 22:02:35] INFO: Iteration 6: Fetching run status...
+[2025-12-23 22:02:35] INFO: [BUILD-041] Next phase: build132-phase1-enable-coverage
+[2025-12-23 22:02:35] INFO: [BUILD-123v2] Phase 'build132-phase1-enable-coverage' has no scope - generating manifest...
+[2025-12-23 22:02:35] INFO: Generating manifest for run: build132-coverage-delta-integration
+[2025-12-23 22:02:35] INFO: Repo structure scanned successfully
+[2025-12-23 22:02:35] INFO: [BUILD-128] Phase 'build132-phase1-enable-coverage' has deliverables - inferring scope from deliverables
+[2025-12-23 22:02:35] INFO: [BUILD-128] Inferred category 'unknown' from deliverables (confidence=0.0%)
+[2025-12-23 22:02:35] INFO: [BUILD-128] Generated scope: 2 paths, 0 context files
+[2025-12-23 22:02:35] INFO: [BUILD-129] Added token estimate to phase: 462 output tokens (2 deliverables, confidence=0.80)
+[2025-12-23 22:02:35] INFO: [BUILD-123v2] Generated scope for 'build132-phase1-enable-coverage': category=unknown, confidence=0.0%, files=2
+[2025-12-23 22:02:35] WARNING: [BUILD-123v2] Low confidence (0.0%) for phase 'build132-phase1-enable-coverage' - scope may be incomplete. Builder may need to request expansion.
+[2025-12-23 22:02:35] WARNING: [Scope] Could not determine workspace from scope paths, using default: .
+[2025-12-23 22:02:35] INFO: [build132-phase1-enable-coverage] Step 1/4: Generating code with Builder (via LlmService)...
+[2025-12-23 22:02:35] WARNING: [Scope] Could not determine workspace from scope paths, using default: .
+[2025-12-23 22:02:35] INFO: [Scope] Loaded 2 files from scope configuration
+[2025-12-23 22:02:35] INFO: [Scope] Scope paths: ['pytest.ini', '.gitignore']
+[2025-12-23 22:02:35] INFO: [Scope] Loaded paths: ['pytest.ini', '.gitignore']...
+[2025-12-23 22:02:35] INFO: [build132-phase1-enable-coverage] Loaded 2 files for context
+[2025-12-23 22:02:35] WARNING: [Scope] Could not determine workspace from scope paths, using default: .
+[2025-12-23 22:02:35] INFO: [Scope] Validation passed: 2 files match scope configuration
+[2025-12-23 22:02:35] INFO: [build132-phase1-enable-coverage] Built deliverables contract: 2 required paths, 0 forbidden patterns
+[2025-12-23 22:02:35] ERROR: [build132-phase1-enable-coverage] Deliverables manifest gate FAILED: Expected paths include entries outside allowed_roots. outside_count=2 sample=['.gitignore', 'pytest.ini'] roots=['.gitignore/', 'pytest.ini/'] (run_id=build132-coverage-delta-integration, phase_id=build132-phase1-enable-coverage, attempt=0)
+[2025-12-23 22:02:47] INFO: [RetrievalTrigger] Phase build132-phase1-enable-coverage attempt 1: Error messages lack context - triggering deep retrieval
+[2025-12-23 22:02:47] INFO: [DeepRetrieval] Starting bounded retrieval for phase build132-phase1-enable-coverage (priority=medium)
+[2025-12-23 22:02:48] INFO: [DeepRetrieval] Retrieved 0 run artifacts (0 bytes), 1 SOT files (15360 bytes), 0 memory entries (0 bytes)
+[2025-12-23 22:02:48] WARNING: [build132-phase1-enable-coverage] Attempt 1/5 failed, will escalate model for next retry
+[2025-12-23 22:02:48] WARNING: Phase build132-phase1-enable-coverage finished with status: DELIVERABLES_VALIDATION_FAILED
+[2025-12-23 22:02:48] INFO: Waiting 10s before next phase...
+[2025-12-23 22:02:58] INFO: Iteration 7: Fetching run status...
+[2025-12-23 22:02:58] INFO: [BUILD-041] Next phase: build132-phase1-enable-coverage
+[2025-12-23 22:02:58] INFO: [BUILD-123v2] Phase 'build132-phase1-enable-coverage' has no scope - generating manifest...
+[2025-12-23 22:02:58] INFO: Generating manifest for run: build132-coverage-delta-integration
+[2025-12-23 22:02:58] INFO: Repo structure scanned successfully
+[2025-12-23 22:02:58] INFO: [BUILD-128] Phase 'build132-phase1-enable-coverage' has deliverables - inferring scope from deliverables
+[2025-12-23 22:02:58] INFO: [BUILD-128] Inferred category 'unknown' from deliverables (confidence=0.0%)
+[2025-12-23 22:02:58] INFO: [BUILD-128] Generated scope: 2 paths, 0 context files
+[2025-12-23 22:02:58] INFO: [BUILD-129] Added token estimate to phase: 462 output tokens (2 deliverables, confidence=0.80)
+[2025-12-23 22:02:58] INFO: [BUILD-123v2] Generated scope for 'build132-phase1-enable-coverage': category=unknown, confidence=0.0%, files=2
+[2025-12-23 22:02:58] WARNING: [BUILD-123v2] Low confidence (0.0%) for phase 'build132-phase1-enable-coverage' - scope may be incomplete. Builder may need to request expansion.
+[2025-12-23 22:02:58] WARNING: [Scope] Could not determine workspace from scope paths, using default: .
+[2025-12-23 22:02:58] INFO: [build132-phase1-enable-coverage] Step 1/4: Generating code with Builder (via LlmService)...
+[2025-12-23 22:02:58] WARNING: [Scope] Could not determine workspace from scope paths, using default: .
+[2025-12-23 22:02:58] INFO: [Scope] Loaded 2 files from scope configuration
+[2025-12-23 22:02:58] INFO: [Scope] Scope paths: ['pytest.ini', '.gitignore']
+[2025-12-23 22:02:58] INFO: [Scope] Loaded paths: ['pytest.ini', '.gitignore']...
+[2025-12-23 22:02:58] INFO: [build132-phase1-enable-coverage] Loaded 2 files for context
+[2025-12-23 22:02:58] WARNING: [Scope] Could not determine workspace from scope paths, using default: .
+[2025-12-23 22:02:58] INFO: [Scope] Validation passed: 2 files match scope configuration
+[2025-12-23 22:02:58] INFO: [build132-phase1-enable-coverage] Built deliverables contract: 2 required paths, 0 forbidden patterns
+[2025-12-23 22:02:58] ERROR: [build132-phase1-enable-coverage] Deliverables manifest gate FAILED: Expected paths include entries outside allowed_roots. outside_count=2 sample=['.gitignore', 'pytest.ini'] roots=['.gitignore/', 'pytest.ini/'] (run_id=build132-coverage-delta-integration, phase_id=build132-phase1-enable-coverage, attempt=0)
+[2025-12-23 22:02:58] INFO: [RetrievalTrigger] Phase build132-phase1-enable-coverage attempt 1: Handoff bundle insufficient - triggering deep retrieval
+[2025-12-23 22:02:58] INFO: [DeepRetrieval] Starting bounded retrieval for phase build132-phase1-enable-coverage (priority=high)
+[2025-12-23 22:02:58] INFO: [DeepRetrieval] Retrieved 0 run artifacts (0 bytes), 1 SOT files (15360 bytes), 0 memory entries (0 bytes)
+[2025-12-23 22:02:58] WARNING: [build132-phase1-enable-coverage] Attempt 1/5 failed, will escalate model for next retry
+[2025-12-23 22:02:58] WARNING: Phase build132-phase1-enable-coverage finished with status: DELIVERABLES_VALIDATION_FAILED
+[2025-12-23 22:02:58] INFO: Waiting 10s before next phase...
+[2025-12-23 22:03:08] INFO: Iteration 8: Fetching run status...
+[2025-12-23 22:03:08] INFO: [BUILD-041] Next phase: build132-phase1-enable-coverage
+[2025-12-23 22:03:08] INFO: [BUILD-123v2] Phase 'build132-phase1-enable-coverage' has no scope - generating manifest...
+[2025-12-23 22:03:08] INFO: Generating manifest for run: build132-coverage-delta-integration
+[2025-12-23 22:03:08] INFO: Repo structure scanned successfully
+[2025-12-23 22:03:08] INFO: [BUILD-128] Phase 'build132-phase1-enable-coverage' has deliverables - inferring scope from deliverables
+[2025-12-23 22:03:08] INFO: [BUILD-128] Inferred category 'unknown' from deliverables (confidence=0.0%)
+[2025-12-23 22:03:08] INFO: [BUILD-128] Generated scope: 2 paths, 0 context files
+[2025-12-23 22:03:08] INFO: [BUILD-129] Added token estimate to phase: 462 output tokens (2 deliverables, confidence=0.80)
+[2025-12-23 22:03:08] INFO: [BUILD-123v2] Generated scope for 'build132-phase1-enable-coverage': category=unknown, confidence=0.0%, files=2
+[2025-12-23 22:03:08] WARNING: [BUILD-123v2] Low confidence (0.0%) for phase 'build132-phase1-enable-coverage' - scope may be incomplete. Builder may need to request expansion.
+[2025-12-23 22:03:08] WARNING: [Scope] Could not determine workspace from scope paths, using default: .
+[2025-12-23 22:03:08] INFO: [build132-phase1-enable-coverage] Step 1/4: Generating code with Builder (via LlmService)...
+[2025-12-23 22:03:08] WARNING: [Scope] Could not determine workspace from scope paths, using default: .
+[2025-12-23 22:03:08] INFO: [Scope] Loaded 2 files from scope configuration
+[2025-12-23 22:03:08] INFO: [Scope] Scope paths: ['pytest.ini', '.gitignore']
+[2025-12-23 22:03:08] INFO: [Scope] Loaded paths: ['pytest.ini', '.gitignore']...
+[2025-12-23 22:03:08] INFO: [build132-phase1-enable-coverage] Loaded 2 files for context
+[2025-12-23 22:03:08] WARNING: [Scope] Could not determine workspace from scope paths, using default: .
+[2025-12-23 22:03:08] INFO: [Scope] Validation passed: 2 files match scope configuration
+[2025-12-23 22:03:08] INFO: [build132-phase1-enable-coverage] Built deliverables contract: 2 required paths, 0 forbidden patterns
+[2025-12-23 22:03:08] ERROR: [build132-phase1-enable-coverage] Deliverables manifest gate FAILED: Expected paths include entries outside allowed_roots. outside_count=2 sample=['.gitignore', 'pytest.ini'] roots=['.gitignore/', 'pytest.ini/'] (run_id=build132-coverage-delta-integration, phase_id=build132-phase1-enable-coverage, attempt=0)
+[2025-12-23 22:03:08] INFO: [RetrievalTrigger] Phase build132-phase1-enable-coverage attempt 1: Handoff bundle insufficient - triggering deep retrieval
+[2025-12-23 22:03:08] INFO: [DeepRetrieval] Starting bounded retrieval for phase build132-phase1-enable-coverage (priority=high)
+[2025-12-23 22:03:09] INFO: [DeepRetrieval] Retrieved 0 run artifacts (0 bytes), 1 SOT files (15360 bytes), 0 memory entries (0 bytes)
+[2025-12-23 22:03:09] WARNING: [build132-phase1-enable-coverage] Attempt 1/5 failed, will escalate model for next retry
+[2025-12-23 22:03:09] WARNING: Phase build132-phase1-enable-coverage finished with status: DELIVERABLES_VALIDATION_FAILED
+[2025-12-23 22:03:09] INFO: Waiting 10s before next phase...
+[2025-12-23 22:03:19] INFO: Iteration 9: Fetching run status...
+[2025-12-23 22:03:19] INFO: [BUILD-041] Next phase: build132-phase1-enable-coverage
+[2025-12-23 22:03:19] INFO: [BUILD-123v2] Phase 'build132-phase1-enable-coverage' has no scope - generating manifest...
+[2025-12-23 22:03:19] INFO: Generating manifest for run: build132-coverage-delta-integration
+[2025-12-23 22:03:19] INFO: Repo structure scanned successfully
+[2025-12-23 22:03:19] INFO: [BUILD-128] Phase 'build132-phase1-enable-coverage' has deliverables - inferring scope from deliverables
+[2025-12-23 22:03:19] INFO: [BUILD-128] Inferred category 'unknown' from deliverables (confidence=0.0%)
+[2025-12-23 22:03:19] INFO: [BUILD-128] Generated scope: 2 paths, 0 context files
+[2025-12-23 22:03:19] INFO: [BUILD-129] Added token estimate to phase: 462 output tokens (2 deliverables, confidence=0.80)
+[2025-12-23 22:03:19] INFO: [BUILD-123v2] Generated scope for 'build132-phase1-enable-coverage': category=unknown, confidence=0.0%, files=2
+[2025-12-23 22:03:19] WARNING: [BUILD-123v2] Low confidence (0.0%) for phase 'build132-phase1-enable-coverage' - scope may be incomplete. Builder may need to request expansion.
+[2025-12-23 22:03:19] WARNING: [Scope] Could not determine workspace from scope paths, using default: .
+[2025-12-23 22:03:19] INFO: [build132-phase1-enable-coverage] Step 1/4: Generating code with Builder (via LlmService)...
+[2025-12-23 22:03:19] WARNING: [Scope] Could not determine workspace from scope paths, using default: .
+[2025-12-23 22:03:19] INFO: [Scope] Loaded 2 files from scope configuration
+[2025-12-23 22:03:19] INFO: [Scope] Scope paths: ['pytest.ini', '.gitignore']
+[2025-12-23 22:03:19] INFO: [Scope] Loaded paths: ['pytest.ini', '.gitignore']...
+[2025-12-23 22:03:19] INFO: [build132-phase1-enable-coverage] Loaded 2 files for context
+[2025-12-23 22:03:19] WARNING: [Scope] Could not determine workspace from scope paths, using default: .
+[2025-12-23 22:03:19] INFO: [Scope] Validation passed: 2 files match scope configuration
+[2025-12-23 22:03:19] INFO: [build132-phase1-enable-coverage] Built deliverables contract: 2 required paths, 0 forbidden patterns
+[2025-12-23 22:03:19] ERROR: [build132-phase1-enable-coverage] Deliverables manifest gate FAILED: Expected paths include entries outside allowed_roots. outside_count=2 sample=['.gitignore', 'pytest.ini'] roots=['.gitignore/', 'pytest.ini/'] (run_id=build132-coverage-delta-integration, phase_id=build132-phase1-enable-coverage, attempt=0)
+[2025-12-23 22:03:19] INFO: [RetrievalTrigger] Phase build132-phase1-enable-coverage attempt 1: Handoff bundle insufficient - triggering deep retrieval
+[2025-12-23 22:03:19] INFO: [DeepRetrieval] Starting bounded retrieval for phase build132-phase1-enable-coverage (priority=high)
+[2025-12-23 22:03:20] INFO: [DeepRetrieval] Retrieved 0 run artifacts (0 bytes), 1 SOT files (15360 bytes), 0 memory entries (0 bytes)
+[2025-12-23 22:03:20] WARNING: [build132-phase1-enable-coverage] Attempt 1/5 failed, will escalate model for next retry
+[2025-12-23 22:03:20] WARNING: Phase build132-phase1-enable-coverage finished with status: DELIVERABLES_VALIDATION_FAILED
+[2025-12-23 22:03:20] INFO: Waiting 10s before next phase...
+[2025-12-23 22:03:30] INFO: Iteration 10: Fetching run status...
+[2025-12-23 22:03:30] INFO: [BUILD-041] Next phase: build132-phase1-enable-coverage
+[2025-12-23 22:03:30] INFO: [BUILD-123v2] Phase 'build132-phase1-enable-coverage' has no scope - generating manifest...
+[2025-12-23 22:03:30] INFO: Generating manifest for run: build132-coverage-delta-integration
+[2025-12-23 22:03:30] INFO: Repo structure scanned successfully
+[2025-12-23 22:03:30] INFO: [BUILD-128] Phase 'build132-phase1-enable-coverage' has deliverables - inferring scope from deliverables
+[2025-12-23 22:03:30] INFO: [BUILD-128] Inferred category 'unknown' from deliverables (confidence=0.0%)
+[2025-12-23 22:03:30] INFO: [BUILD-128] Generated scope: 2 paths, 0 context files
+[2025-12-23 22:03:30] INFO: [BUILD-129] Added token estimate to phase: 462 output tokens (2 deliverables, confidence=0.80)
+[2025-12-23 22:03:30] INFO: [BUILD-123v2] Generated scope for 'build132-phase1-enable-coverage': category=unknown, confidence=0.0%, files=2
+[2025-12-23 22:03:30] WARNING: [BUILD-123v2] Low confidence (0.0%) for phase 'build132-phase1-enable-coverage' - scope may be incomplete. Builder may need to request expansion.
+[2025-12-23 22:03:30] WARNING: [Scope] Could not determine workspace from scope paths, using default: .
+[2025-12-23 22:03:30] INFO: [build132-phase1-enable-coverage] Step 1/4: Generating code with Builder (via LlmService)...
+[2025-12-23 22:03:30] WARNING: [Scope] Could not determine workspace from scope paths, using default: .
+[2025-12-23 22:03:30] INFO: [Scope] Loaded 2 files from scope configuration
+[2025-12-23 22:03:30] INFO: [Scope] Scope paths: ['pytest.ini', '.gitignore']
+[2025-12-23 22:03:30] INFO: [Scope] Loaded paths: ['pytest.ini', '.gitignore']...
+[2025-12-23 22:03:30] INFO: [build132-phase1-enable-coverage] Loaded 2 files for context
+[2025-12-23 22:03:30] WARNING: [Scope] Could not determine workspace from scope paths, using default: .
+[2025-12-23 22:03:30] INFO: [Scope] Validation passed: 2 files match scope configuration
+[2025-12-23 22:03:30] INFO: [build132-phase1-enable-coverage] Built deliverables contract: 2 required paths, 0 forbidden patterns
+[2025-12-23 22:03:30] ERROR: [build132-phase1-enable-coverage] Deliverables manifest gate FAILED: Expected paths include entries outside allowed_roots. outside_count=2 sample=['.gitignore', 'pytest.ini'] roots=['.gitignore/', 'pytest.ini/'] (run_id=build132-coverage-delta-integration, phase_id=build132-phase1-enable-coverage, attempt=0)
+[2025-12-23 22:03:30] INFO: [RetrievalTrigger] Phase build132-phase1-enable-coverage attempt 1: Handoff bundle insufficient - triggering deep retrieval
+[2025-12-23 22:03:30] INFO: [DeepRetrieval] Starting bounded retrieval for phase build132-phase1-enable-coverage (priority=high)
+[2025-12-23 22:03:31] INFO: [DeepRetrieval] Retrieved 0 run artifacts (0 bytes), 1 SOT files (15360 bytes), 0 memory entries (0 bytes)
+[2025-12-23 22:03:31] WARNING: [build132-phase1-enable-coverage] Attempt 1/5 failed, will escalate model for next retry
+[2025-12-23 22:03:31] WARNING: Phase build132-phase1-enable-coverage finished with status: DELIVERABLES_VALIDATION_FAILED
+[2025-12-23 22:03:31] INFO: Waiting 10s before next phase...
+[2025-12-23 22:03:41] INFO: Iteration 11: Fetching run status...
+[2025-12-23 22:03:41] INFO: [BUILD-041] Next phase: build132-phase1-enable-coverage
+[2025-12-23 22:03:41] INFO: [BUILD-123v2] Phase 'build132-phase1-enable-coverage' has no scope - generating manifest...
+[2025-12-23 22:03:41] INFO: Generating manifest for run: build132-coverage-delta-integration
+[2025-12-23 22:03:41] INFO: Repo structure scanned successfully
+[2025-12-23 22:03:41] INFO: [BUILD-128] Phase 'build132-phase1-enable-coverage' has deliverables - inferring scope from deliverables
+[2025-12-23 22:03:41] INFO: [BUILD-128] Inferred category 'unknown' from deliverables (confidence=0.0%)
+[2025-12-23 22:03:41] INFO: [BUILD-128] Generated scope: 2 paths, 0 context files
+[2025-12-23 22:03:41] INFO: [BUILD-129] Added token estimate to phase: 462 output tokens (2 deliverables, confidence=0.80)
+[2025-12-23 22:03:41] INFO: [BUILD-123v2] Generated scope for 'build132-phase1-enable-coverage': category=unknown, confidence=0.0%, files=2
+[2025-12-23 22:03:41] WARNING: [BUILD-123v2] Low confidence (0.0%) for phase 'build132-phase1-enable-coverage' - scope may be incomplete. Builder may need to request expansion.
+[2025-12-23 22:03:41] WARNING: [Scope] Could not determine workspace from scope paths, using default: .
+[2025-12-23 22:03:41] INFO: [build132-phase1-enable-coverage] Step 1/4: Generating code with Builder (via LlmService)...
+[2025-12-23 22:03:41] WARNING: [Scope] Could not determine workspace from scope paths, using default: .
+[2025-12-23 22:03:41] INFO: [Scope] Loaded 2 files from scope configuration
+[2025-12-23 22:03:41] INFO: [Scope] Scope paths: ['pytest.ini', '.gitignore']
+[2025-12-23 22:03:41] INFO: [Scope] Loaded paths: ['pytest.ini', '.gitignore']...
+[2025-12-23 22:03:41] INFO: [build132-phase1-enable-coverage] Loaded 2 files for context
+[2025-12-23 22:03:41] WARNING: [Scope] Could not determine workspace from scope paths, using default: .
+[2025-12-23 22:03:41] INFO: [Scope] Validation passed: 2 files match scope configuration
+[2025-12-23 22:03:41] INFO: [build132-phase1-enable-coverage] Built deliverables contract: 2 required paths, 0 forbidden patterns
+[2025-12-23 22:03:41] ERROR: [build132-phase1-enable-coverage] Deliverables manifest gate FAILED: Expected paths include entries outside allowed_roots. outside_count=2 sample=['.gitignore', 'pytest.ini'] roots=['.gitignore/', 'pytest.ini/'] (run_id=build132-coverage-delta-integration, phase_id=build132-phase1-enable-coverage, attempt=0)
+[2025-12-23 22:03:41] INFO: [RetrievalTrigger] Phase build132-phase1-enable-coverage attempt 1: Handoff bundle insufficient - triggering deep retrieval
+[2025-12-23 22:03:41] INFO: [DeepRetrieval] Starting bounded retrieval for phase build132-phase1-enable-coverage (priority=high)
+[2025-12-23 22:03:41] INFO: [DeepRetrieval] Retrieved 0 run artifacts (0 bytes), 1 SOT files (15360 bytes), 0 memory entries (0 bytes)
+[2025-12-23 22:03:41] WARNING: [build132-phase1-enable-coverage] Attempt 1/5 failed, will escalate model for next retry
+[2025-12-23 22:03:41] WARNING: Phase build132-phase1-enable-coverage finished with status: DELIVERABLES_VALIDATION_FAILED
+[2025-12-23 22:03:41] INFO: Waiting 10s before next phase...
+[2025-12-23 22:03:51] INFO: Iteration 12: Fetching run status...
+[2025-12-23 22:03:51] INFO: [BUILD-041] Next phase: build132-phase1-enable-coverage
+[2025-12-23 22:03:51] INFO: [BUILD-123v2] Phase 'build132-phase1-enable-coverage' has no scope - generating manifest...
+[2025-12-23 22:03:51] INFO: Generating manifest for run: build132-coverage-delta-integration
+[2025-12-23 22:03:51] INFO: Repo structure scanned successfully
+[2025-12-23 22:03:51] INFO: [BUILD-128] Phase 'build132-phase1-enable-coverage' has deliverables - inferring scope from deliverables
+[2025-12-23 22:03:51] INFO: [BUILD-128] Inferred category 'unknown' from deliverables (confidence=0.0%)
+[2025-12-23 22:03:51] INFO: [BUILD-128] Generated scope: 2 paths, 0 context files
+[2025-12-23 22:03:51] INFO: [BUILD-129] Added token estimate to phase: 462 output tokens (2 deliverables, confidence=0.80)
+[2025-12-23 22:03:51] INFO: [BUILD-123v2] Generated scope for 'build132-phase1-enable-coverage': category=unknown, confidence=0.0%, files=2
+[2025-12-23 22:03:51] WARNING: [BUILD-123v2] Low confidence (0.0%) for phase 'build132-phase1-enable-coverage' - scope may be incomplete. Builder may need to request expansion.
+[2025-12-23 22:03:51] WARNING: [Scope] Could not determine workspace from scope paths, using default: .
+[2025-12-23 22:03:51] INFO: [build132-phase1-enable-coverage] Step 1/4: Generating code with Builder (via LlmService)...
+[2025-12-23 22:03:51] WARNING: [Scope] Could not determine workspace from scope paths, using default: .
+[2025-12-23 22:03:51] INFO: [Scope] Loaded 2 files from scope configuration
+[2025-12-23 22:03:51] INFO: [Scope] Scope paths: ['pytest.ini', '.gitignore']
+[2025-12-23 22:03:51] INFO: [Scope] Loaded paths: ['pytest.ini', '.gitignore']...
+[2025-12-23 22:03:51] INFO: [build132-phase1-enable-coverage] Loaded 2 files for context
+[2025-12-23 22:03:51] WARNING: [Scope] Could not determine workspace from scope paths, using default: .
+[2025-12-23 22:03:51] INFO: [Scope] Validation passed: 2 files match scope configuration
+[2025-12-23 22:03:51] INFO: [build132-phase1-enable-coverage] Built deliverables contract: 2 required paths, 0 forbidden patterns
+[2025-12-23 22:03:51] ERROR: [build132-phase1-enable-coverage] Deliverables manifest gate FAILED: Expected paths include entries outside allowed_roots. outside_count=2 sample=['.gitignore', 'pytest.ini'] roots=['.gitignore/', 'pytest.ini/'] (run_id=build132-coverage-delta-integration, phase_id=build132-phase1-enable-coverage, attempt=0)
+[2025-12-23 22:03:51] INFO: [RetrievalTrigger] Phase build132-phase1-enable-coverage attempt 1: Handoff bundle insufficient - triggering deep retrieval
+[2025-12-23 22:03:51] INFO: [DeepRetrieval] Starting bounded retrieval for phase build132-phase1-enable-coverage (priority=high)
+[2025-12-23 22:03:52] INFO: [DeepRetrieval] Retrieved 0 run artifacts (0 bytes), 1 SOT files (15360 bytes), 0 memory entries (0 bytes)
+[2025-12-23 22:03:52] WARNING: [build132-phase1-enable-coverage] Attempt 1/5 failed, will escalate model for next retry
+[2025-12-23 22:03:52] WARNING: Phase build132-phase1-enable-coverage finished with status: DELIVERABLES_VALIDATION_FAILED
+[2025-12-23 22:03:52] INFO: Waiting 10s before next phase...
+[2025-12-23 22:04:02] INFO: Iteration 13: Fetching run status...
+[2025-12-23 22:04:02] INFO: [BUILD-041] Next phase: build132-phase1-enable-coverage
+[2025-12-23 22:04:02] INFO: [BUILD-123v2] Phase 'build132-phase1-enable-coverage' has no scope - generating manifest...
+[2025-12-23 22:04:02] INFO: Generating manifest for run: build132-coverage-delta-integration
+[2025-12-23 22:04:02] INFO: Repo structure scanned successfully
+[2025-12-23 22:04:02] INFO: [BUILD-128] Phase 'build132-phase1-enable-coverage' has deliverables - inferring scope from deliverables
+[2025-12-23 22:04:02] INFO: [BUILD-128] Inferred category 'unknown' from deliverables (confidence=0.0%)
+[2025-12-23 22:04:02] INFO: [BUILD-128] Generated scope: 2 paths, 0 context files
+[2025-12-23 22:04:02] INFO: [BUILD-129] Added token estimate to phase: 462 output tokens (2 deliverables, confidence=0.80)
+[2025-12-23 22:04:02] INFO: [BUILD-123v2] Generated scope for 'build132-phase1-enable-coverage': category=unknown, confidence=0.0%, files=2
+[2025-12-23 22:04:02] WARNING: [BUILD-123v2] Low confidence (0.0%) for phase 'build132-phase1-enable-coverage' - scope may be incomplete. Builder may need to request expansion.
+[2025-12-23 22:04:02] WARNING: [Scope] Could not determine workspace from scope paths, using default: .
+[2025-12-23 22:04:02] INFO: [build132-phase1-enable-coverage] Step 1/4: Generating code with Builder (via LlmService)...
+[2025-12-23 22:04:02] WARNING: [Scope] Could not determine workspace from scope paths, using default: .
+[2025-12-23 22:04:02] INFO: [Scope] Loaded 2 files from scope configuration
+[2025-12-23 22:04:02] INFO: [Scope] Scope paths: ['pytest.ini', '.gitignore']
+[2025-12-23 22:04:02] INFO: [Scope] Loaded paths: ['pytest.ini', '.gitignore']...
+[2025-12-23 22:04:02] INFO: [build132-phase1-enable-coverage] Loaded 2 files for context
+[2025-12-23 22:04:02] WARNING: [Scope] Could not determine workspace from scope paths, using default: .
+[2025-12-23 22:04:02] INFO: [Scope] Validation passed: 2 files match scope configuration
+[2025-12-23 22:04:02] INFO: [build132-phase1-enable-coverage] Built deliverables contract: 2 required paths, 0 forbidden patterns
+[2025-12-23 22:04:02] ERROR: [build132-phase1-enable-coverage] Deliverables manifest gate FAILED: Expected paths include entries outside allowed_roots. outside_count=2 sample=['.gitignore', 'pytest.ini'] roots=['.gitignore/', 'pytest.ini/'] (run_id=build132-coverage-delta-integration, phase_id=build132-phase1-enable-coverage, attempt=0)
+[2025-12-23 22:04:02] INFO: [RetrievalTrigger] Phase build132-phase1-enable-coverage attempt 1: Handoff bundle insufficient - triggering deep retrieval
+[2025-12-23 22:04:02] INFO: [DeepRetrieval] Starting bounded retrieval for phase build132-phase1-enable-coverage (priority=high)
+[2025-12-23 22:04:03] INFO: [DeepRetrieval] Retrieved 0 run artifacts (0 bytes), 1 SOT files (15360 bytes), 0 memory entries (0 bytes)
+[2025-12-23 22:04:03] WARNING: [build132-phase1-enable-coverage] Attempt 1/5 failed, will escalate model for next retry
+[2025-12-23 22:04:03] WARNING: Phase build132-phase1-enable-coverage finished with status: DELIVERABLES_VALIDATION_FAILED
+[2025-12-23 22:04:03] INFO: Waiting 10s before next phase...
+[2025-12-23 22:04:13] INFO: Iteration 14: Fetching run status...
+[2025-12-23 22:04:13] INFO: [BUILD-041] Next phase: build132-phase1-enable-coverage
+[2025-12-23 22:04:13] INFO: [BUILD-123v2] Phase 'build132-phase1-enable-coverage' has no scope - generating manifest...
+[2025-12-23 22:04:13] INFO: Generating manifest for run: build132-coverage-delta-integration
+[2025-12-23 22:04:13] INFO: Repo structure scanned successfully
+[2025-12-23 22:04:13] INFO: [BUILD-128] Phase 'build132-phase1-enable-coverage' has deliverables - inferring scope from deliverables
+[2025-12-23 22:04:13] INFO: [BUILD-128] Inferred category 'unknown' from deliverables (confidence=0.0%)
+[2025-12-23 22:04:13] INFO: [BUILD-128] Generated scope: 2 paths, 0 context files
+[2025-12-23 22:04:13] INFO: [BUILD-129] Added token estimate to phase: 462 output tokens (2 deliverables, confidence=0.80)
+[2025-12-23 22:04:13] INFO: [BUILD-123v2] Generated scope for 'build132-phase1-enable-coverage': category=unknown, confidence=0.0%, files=2
+[2025-12-23 22:04:13] WARNING: [BUILD-123v2] Low confidence (0.0%) for phase 'build132-phase1-enable-coverage' - scope may be incomplete. Builder may need to request expansion.
+[2025-12-23 22:04:13] WARNING: [Scope] Could not determine workspace from scope paths, using default: .
+[2025-12-23 22:04:13] INFO: [build132-phase1-enable-coverage] Step 1/4: Generating code with Builder (via LlmService)...
+[2025-12-23 22:04:13] WARNING: [Scope] Could not determine workspace from scope paths, using default: .
+[2025-12-23 22:04:13] INFO: [Scope] Loaded 2 files from scope configuration
+[2025-12-23 22:04:13] INFO: [Scope] Scope paths: ['pytest.ini', '.gitignore']
+[2025-12-23 22:04:13] INFO: [Scope] Loaded paths: ['pytest.ini', '.gitignore']...
+[2025-12-23 22:04:13] INFO: [build132-phase1-enable-coverage] Loaded 2 files for context
+[2025-12-23 22:04:13] WARNING: [Scope] Could not determine workspace from scope paths, using default: .
+[2025-12-23 22:04:13] INFO: [Scope] Validation passed: 2 files match scope configuration
+[2025-12-23 22:04:13] INFO: [build132-phase1-enable-coverage] Built deliverables contract: 2 required paths, 0 forbidden patterns
+[2025-12-23 22:04:13] ERROR: [build132-phase1-enable-coverage] Deliverables manifest gate FAILED: Expected paths include entries outside allowed_roots. outside_count=2 sample=['.gitignore', 'pytest.ini'] roots=['.gitignore/', 'pytest.ini/'] (run_id=build132-coverage-delta-integration, phase_id=build132-phase1-enable-coverage, attempt=0)
+[2025-12-23 22:04:13] INFO: [RetrievalTrigger] Phase build132-phase1-enable-coverage attempt 1: Handoff bundle insufficient - triggering deep retrieval
+[2025-12-23 22:04:13] INFO: [DeepRetrieval] Starting bounded retrieval for phase build132-phase1-enable-coverage (priority=high)
+[2025-12-23 22:04:13] INFO: [DeepRetrieval] Retrieved 0 run artifacts (0 bytes), 1 SOT files (15360 bytes), 0 memory entries (0 bytes)
+[2025-12-23 22:04:13] WARNING: [build132-phase1-enable-coverage] Attempt 1/5 failed, will escalate model for next retry
+[2025-12-23 22:04:13] WARNING: Phase build132-phase1-enable-coverage finished with status: DELIVERABLES_VALIDATION_FAILED
+[2025-12-23 22:04:13] INFO: Waiting 10s before next phase...

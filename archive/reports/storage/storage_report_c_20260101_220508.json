@@ -1,0 +1,45 @@
+{
+  "scan_date": "2026-01-01T22:05:08.496979",
+  "drive_letter": "c",
+  "disk_usage": {
+    "total_gb": 871.9873008728027,
+    "used_gb": 780.936164855957,
+    "free_gb": 91.0511360168457,
+    "used_percentage": 89.55820389520474
+  },
+  "scan_summary": {
+    "files_scanned": 203,
+    "folders_scanned": 75
+  },
+  "protected": {
+    "paths_count": 25,
+    "size_gb": 0.01012420654296875,
+    "sample_paths": [
+      "c:/dev\\Autopack\\autopack.db",
+      "c:/dev\\Autopack\\autopack_legacy.db",
+      "c:/dev\\Autopack\\autopack_telemetry_seed.db",
+      "c:/dev\\Autopack\\autopack_telemetry_seed_v2.db",
+      "c:/dev\\Autopack\\autopack_telemetry_seed_v3.db",
+      "c:/dev\\Autopack\\mismatch_api.db",
+      "c:/dev\\Autopack\\mismatch_executor.db",
+      "c:/dev\\Autopack\\telemetry_seed_debug.db",
+      "c:/dev\\Autopack\\telemetry_seed_debug_A.db",
+      "c:/dev\\Autopack\\telemetry_seed_debug_B.db",
+      "c:/dev\\Autopack\\telemetry_seed_final_green.db",
+      "c:/dev\\Autopack\\telemetry_seed_final_green2.db",
+      "c:/dev\\Autopack\\telemetry_seed_final_green3.db",
+      "c:/dev\\Autopack\\telemetry_seed_final_green4.db",
+      "c:/dev\\Autopack\\telemetry_seed_final_green5.db",
+      "c:/dev\\Autopack\\telemetry_seed_final_green6.db",
+      "c:/dev\\Autopack\\telemetry_seed_final_green7.db",
+      "c:/dev\\Autopack\\telemetry_seed_fullrun.db",
+      "c:/dev\\Autopack\\telemetry_seed_v5.db",
+      "c:/dev\\Autopack\\telemetry_seed_v6_pilot.db"
+    ]
+  },
+  "cleanup_plan": {
+    "total_savings_gb": 0.0,
+    "total_candidates": 0,
+    "by_category": {}
+  }
+}

@@ -1,0 +1,375 @@
+faiss library not installed; FaissStore will use in-memory fallback
+[2025-12-23 23:19:41] INFO: [LOCK] Acquired executor lock for run_id=lovable-p1-core-precision (PID=130812, host=Harry)
+[2025-12-23 23:19:41] INFO: Applying pre-emptive encoding fix...
+[2025-12-23 23:19:41] INFO: [Recovery] Fixing Unicode encoding error...
+[2025-12-23 23:19:41] INFO: [Recovery] SUCCESS: Encoding fixed (UTF-8 enabled)
+[2025-12-23 23:19:41] INFO: Database tables initialized
+[2025-12-23 23:19:41] INFO: Loaded BuilderOutputConfig: max_lines_for_full_file=1000, max_lines_hard_limit=1000
+[2025-12-23 23:19:41] INFO: Doctor execute_fix enabled: True
+[2025-12-23 23:19:41] INFO: FileSizeTelemetry initialized: .autonomous_runs\autopack\file_size_telemetry.jsonl
+[2025-12-23 23:19:47] INFO: [Qdrant] Connected to localhost:6333
+[2025-12-23 23:19:47] INFO: [MemoryService] Using Qdrant backend
+[2025-12-23 23:19:51] ERROR: [Qdrant] Failed to ensure collection 'code_docs': [WinError 10061] No connection could be made because the target machine actively refused it
+[2025-12-23 23:19:51] WARNING: MemoryService initialization failed, running without memory: [WinError 10061] No connection could be made because the target machine actively refused it
+[2025-12-23 23:19:51] INFO: [FileLayout] Project: autopack, Family: lovable-p1-core-precision, Base: .autonomous_runs\autopack\runs\lovable-p1-core-precision
+[2025-12-23 23:19:51] INFO: Initialized autonomous executor for run: lovable-p1-core-precision
+[2025-12-23 23:19:51] INFO: API URL: http://localhost:8000
+[2025-12-23 23:19:51] INFO: Workspace: .
+[2025-12-23 23:19:51] INFO: Running proactive startup checks from DEBUG_JOURNAL.md...
+[2025-12-23 23:19:51] INFO: [HIGH] Checking: Windows Unicode Fix (PYTHONUTF8)
+[2025-12-23 23:19:51] INFO:   Reason: Prevents UnicodeEncodeError with emoji characters in logs (Issue #3)
+[2025-12-23 23:19:51] INFO:   Check PASSED
+[2025-12-23 23:19:51] INFO: [SchemaValidator] Starting database schema validation...
+[2025-12-23 23:19:51] INFO: [SchemaValidator] ✅ Database schema validation PASSED
+[2025-12-23 23:19:51] INFO: Startup checks complete
+[2025-12-23 23:19:52] INFO: [BUILD-123v2] Manifest generator initialized (deterministic scope generation)
+[2025-12-23 23:19:52] INFO: [HealthCheck:T0] API Keys: PASSED (0ms) - All required API keys present
+[2025-12-23 23:19:52] INFO: [HealthCheck:T0] Database: PASSED (0ms) - Database accessible: C:\dev\Autopack\autopack.db
+[2025-12-23 23:19:52] INFO: [HealthCheck:T0] Workspace: PASSED (0ms) - Workspace valid: C:\dev\Autopack
+[2025-12-23 23:19:52] INFO: [HealthCheck:T0] Config: PASSED (21ms) - Configuration files valid
+[2025-12-23 23:19:52] INFO: [BUILD-127] Completion authority initialized (PhaseFinalizer + TestBaselineTracker)
+[2025-12-23 23:19:52] INFO: [BUILD-127] Capturing T0 baseline at commit 76165c5e...
+[2025-12-23 23:19:52] INFO: [Baseline] Using cached baseline for commit 76165c5e
+[2025-12-23 23:19:52] INFO: [BUILD-127] T0 baseline: 0 tests, 0 passing, 0 failing, 0 errors
+[2025-12-23 23:19:52] INFO: Starting autonomous execution loop...
+[2025-12-23 23:19:52] INFO: Poll interval: 10s
+[2025-12-23 23:19:52] INFO: API server is already running
+[2025-12-23 23:19:52] INFO: Initializing infrastructure...
+[2025-12-23 23:19:56] INFO: LlmService: Initialized with ModelRouter and UsageRecorder
+[2025-12-23 23:19:56] INFO: Quality Gate: Initialized
+[2025-12-23 23:19:56] INFO: Iteration 1: Fetching run status...
+[2025-12-23 23:19:56] INFO: [BUILD-041] Next phase: lovable-p1.1-agentic-file-search
+[2025-12-23 23:19:56] INFO: [BUILD-123v2] Phase 'lovable-p1.1-agentic-file-search' has no scope - generating manifest...
+[2025-12-23 23:19:56] INFO: Generating manifest for run: lovable-p1-core-precision
+[2025-12-23 23:19:56] INFO: Repo structure scanned successfully
+[2025-12-23 23:19:56] INFO: [BUILD-128] Phase 'lovable-p1.1-agentic-file-search' has deliverables - inferring scope from deliverables
+[2025-12-23 23:19:56] INFO: [BUILD-128] Inferred category 'backend' from deliverables (confidence=50.0%)
+[2025-12-23 23:19:56] INFO: [BUILD-128] Generated scope: 2 paths, 1 context files
+[2025-12-23 23:19:56] INFO: [BUILD-129] Added token estimate to phase: 858 output tokens (2 deliverables, confidence=0.80)
+[2025-12-23 23:19:56] ERROR: Plan validation failed: Phase 'lovable-p1.1-agentic-file-search' validation failed: Protected paths in scope: src/autopack/file_manifest/agentic_search.py...
+[2025-12-23 23:19:56] WARNING: [BUILD-123v2] Manifest generation failed for 'lovable-p1.1-agentic-file-search': Phase 'lovable-p1.1-agentic-file-search' validation failed: Protected paths in scope: src/autopack/file_manifest/agentic_search.py...
+[2025-12-23 23:19:56] INFO: [lovable-p1.1-agentic-file-search] Step 1/4: Generating code with Builder (via LlmService)...
+[2025-12-23 23:19:56] INFO: [Context] Loaded 7 recently modified files for fresh context
+[2025-12-23 23:19:56] INFO: [Context] Total: 22 files loaded for Builder context (modified=7, mentioned=0)
+[2025-12-23 23:19:56] INFO: [TOKEN_BUDGET] Context loading: ~19999 tokens (99% of 20000 budget)
+[2025-12-23 23:19:56] INFO: [lovable-p1.1-agentic-file-search] Loaded 22 files for context
+[2025-12-23 23:19:56] INFO: [ModelSelector] Selected claude-sonnet-4-5 for builder (complexity=high, attempt=0, intra_tier=0)
+[2025-12-23 23:19:56] INFO: [MODEL-SELECT] Builder: model=claude-sonnet-4-5, complexity=high->high, attempt=0, category=implementation
+[2025-12-23 23:19:56] INFO: [TokenEstimator] Budget selection: base=16384, estimated=822, with_buffer=986, selected=16384, confidence=80.0%
+[2025-12-23 23:19:56] INFO: [BUILD-129] Token estimate: 822 output tokens (2 deliverables, confidence=0.80), selected budget: 16384
+[2025-12-23 23:19:56] WARNING: CONSOLIDATED_DEBUG.md not found at C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\CONSOLIDATED_DEBUG.md
+[2025-12-23 23:20:02] INFO: Retrying request to /v1/messages in 0.471273 seconds
+[2025-12-23 23:20:07] INFO: Retrying request to /v1/messages in 0.902526 seconds
+[2025-12-23 23:20:13] ERROR: [Builder] Unhandled exception during execute_phase: Request timed out or interrupted. This could be due to a network timeout, dropped connection, or request cancellation. See https://docs.anthropic.com/en/api/errors#long-requests for more details.
+Traceback:
+Traceback (most recent call last):
+  File "C:\Python\Lib\site-packages\httpx\_transports\default.py", line 66, in map_httpcore_exceptions
+    yield
+  File "C:\Python\Lib\site-packages\httpx\_transports\default.py", line 228, in handle_request
+    resp = self._pool.handle_request(req)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python\Lib\site-packages\httpcore\_sync\connection_pool.py", line 216, in handle_request
+    raise exc from None
+  File "C:\Python\Lib\site-packages\httpcore\_sync\connection_pool.py", line 196, in handle_request
+    response = connection.handle_request(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python\Lib\site-packages\httpcore\_sync\connection.py", line 99, in handle_request
+    raise exc
+  File "C:\Python\Lib\site-packages\httpcore\_sync\connection.py", line 76, in handle_request
+    stream = self._connect(request)
+             ^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python\Lib\site-packages\httpcore\_sync\connection.py", line 122, in _connect
+    stream = self._network_backend.connect_tcp(**kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python\Lib\site-packages\httpcore\_backends\sync.py", line 205, in connect_tcp
+    with map_exceptions(exc_map):
+  File "C:\Python\Lib\contextlib.py", line 158, in __exit__
+    self.gen.throw(value)
+  File "C:\Python\Lib\site-packages\httpcore\_exceptions.py", line 14, in map_exceptions
+    raise to_exc(exc) from exc
+httpcore.ConnectTimeout: timed out
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Python\Lib\site-packages\anthropic\_base_client.py", line 1049, in request
+    response = self._client.send(
+               ^^^^^^^^^^^^^^^^^^
+  File "C:\Python\Lib\site-packages\httpx\_client.py", line 901, in send
+    response = self._send_handling_auth(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python\Lib\site-packages\httpx\_client.py", line 929, in _send_handling_auth
+    response = self._send_handling_redirects(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python\Lib\site-packages\httpx\_client.py", line 966, in _send_handling_redirects
+    response = self._send_single_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python\Lib\site-packages\httpx\_client.py", line 1002, in _send_single_request
+    response = transport.handle_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python\Lib\site-packages\httpx\_transports\default.py", line 227, in handle_request
+    with map_httpcore_exceptions():
+  File "C:\Python\Lib\contextlib.py", line 158, in __exit__
+    self.gen.throw(value)
+  File "C:\Python\Lib\site-packages\httpx\_transports\default.py", line 83, in map_httpcore_exceptions
+    raise mapped_exc(message) from exc
+httpx.ConnectTimeout: timed out
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\dev\Autopack\src\autopack\anthropic_clients.py", line 471, in execute_phase
+    with self.client.messages.stream(
+  File "C:\Python\Lib\site-packages\anthropic\lib\streaming\_messages.py", line 154, in __enter__
+    raw_stream = self.__api_request()
+                 ^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python\Lib\site-packages\anthropic\_base_client.py", line 1326, in post
+    return cast(ResponseT, self.request(cast_to, opts, stream=stream, stream_cls=stream_cls))
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python\Lib\site-packages\anthropic\_base_client.py", line 1067, in request
+    raise APITimeoutError(request=request) from err
+anthropic.APITimeoutError: Request timed out or interrupted. This could be due to a network timeout, dropped connection, or request cancellation. See https://docs.anthropic.com/en/api/errors#long-requests for more details.
+
+[2025-12-23 23:20:13] WARNING: [ModelRouter] Disabling provider anthropic: infra_error for model claude-sonnet-4-5 in phase lovable-p1.1-agentic-file-search (Request timed out or interrupted. This could be due to a network timeout, dropped connection, or request cancellation. See https://docs.anthropic.com/en/api/errors#long-requests for more details.)
+[2025-12-23 23:20:13] WARNING: [lovable-p1.1-agentic-file-search] Infra error detected (retryable): Request timed out or interrupted. This could be due to a network timeout, dropped connection, or request cancellation. See https://docs.anthropic.com/en/api/errors#long-requests for more details.. Backing off 5s before retry.
+[2025-12-23 23:20:30] INFO: [RetrievalTrigger] Phase lovable-p1.1-agentic-file-search attempt 1: Error messages lack context - triggering deep retrieval
+[2025-12-23 23:20:30] INFO: [DeepRetrieval] Starting bounded retrieval for phase lovable-p1.1-agentic-file-search (priority=medium)
+[2025-12-23 23:20:31] INFO: [DeepRetrieval] Retrieved 0 run artifacts (0 bytes), 1 SOT files (15360 bytes), 0 memory entries (0 bytes)
+[2025-12-23 23:20:31] WARNING: [lovable-p1.1-agentic-file-search] Attempt 1/5 failed, will escalate model for next retry
+[2025-12-23 23:20:31] WARNING: Phase lovable-p1.1-agentic-file-search finished with status: INFRA_RETRY
+[2025-12-23 23:20:31] INFO: Waiting 10s before next phase...
+[2025-12-23 23:20:41] INFO: Iteration 2: Fetching run status...
+[2025-12-23 23:20:41] INFO: [BUILD-041] Next phase: lovable-p1.1-agentic-file-search
+[2025-12-23 23:20:41] INFO: [BUILD-123v2] Phase 'lovable-p1.1-agentic-file-search' has no scope - generating manifest...
+[2025-12-23 23:20:41] INFO: Generating manifest for run: lovable-p1-core-precision
+[2025-12-23 23:20:41] INFO: Repo structure scanned successfully
+[2025-12-23 23:20:41] INFO: [BUILD-128] Phase 'lovable-p1.1-agentic-file-search' has deliverables - inferring scope from deliverables
+[2025-12-23 23:20:41] INFO: [BUILD-128] Inferred category 'backend' from deliverables (confidence=50.0%)
+[2025-12-23 23:20:41] INFO: [BUILD-128] Generated scope: 2 paths, 1 context files
+[2025-12-23 23:20:41] INFO: [BUILD-129] Added token estimate to phase: 858 output tokens (2 deliverables, confidence=0.80)
+[2025-12-23 23:20:41] ERROR: Plan validation failed: Phase 'lovable-p1.1-agentic-file-search' validation failed: Protected paths in scope: src/autopack/file_manifest/agentic_search.py...
+[2025-12-23 23:20:41] WARNING: [BUILD-123v2] Manifest generation failed for 'lovable-p1.1-agentic-file-search': Phase 'lovable-p1.1-agentic-file-search' validation failed: Protected paths in scope: src/autopack/file_manifest/agentic_search.py...
+[2025-12-23 23:20:41] INFO: [lovable-p1.1-agentic-file-search] Step 1/4: Generating code with Builder (via LlmService)...
+[2025-12-23 23:20:41] INFO: [Context] Loaded 7 recently modified files for fresh context
+[2025-12-23 23:20:41] INFO: [Context] Total: 22 files loaded for Builder context (modified=7, mentioned=0)
+[2025-12-23 23:20:41] INFO: [TOKEN_BUDGET] Context loading: ~19999 tokens (99% of 20000 budget)
+[2025-12-23 23:20:41] INFO: [lovable-p1.1-agentic-file-search] Loaded 22 files for context
+[2025-12-23 23:20:41] INFO: [ModelSelector] Selected claude-sonnet-4-5 for builder (complexity=high, attempt=0, intra_tier=0)
+[2025-12-23 23:20:41] WARNING: [ModelRouter] Provider anthropic disabled, using fallback model claude-sonnet-4-5 for role=builder, category=implementation, complexity=high
+[2025-12-23 23:20:41] INFO: [MODEL-SELECT] Builder: model=claude-sonnet-4-5, complexity=high->high, attempt=0, category=implementation
+[2025-12-23 23:20:41] INFO: [TokenEstimator] Budget selection: base=16384, estimated=822, with_buffer=986, selected=16384, confidence=80.0%
+[2025-12-23 23:20:41] INFO: [BUILD-129] Token estimate: 822 output tokens (2 deliverables, confidence=0.80), selected budget: 16384
+[2025-12-23 23:20:41] WARNING: CONSOLIDATED_DEBUG.md not found at C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\CONSOLIDATED_DEBUG.md
+[2025-12-23 23:20:44] INFO: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+[2025-12-23 23:22:03] INFO: [TOKEN_BUDGET] phase=lovable-p1.1-agentic-file-search complexity=high input=36040 output=6742/16384 total=42782 utilization=41.1% model=claude-sonnet-4-5
+[2025-12-23 23:22:03] INFO: [Builder] Generated 2 file diffs locally from full-file content
+[2025-12-23 23:22:03] INFO: [TokenEstimationV2] predicted_output=822 actual_output=6742 smape=156.5% selected_budget=16384 category=implementation complexity=high deliverables=2 success=True stop_reason=end_turn truncated=False model=claude-sonnet-4-5
+[2025-12-23 23:22:03] INFO: [lovable-p1.1-agentic-file-search] Builder succeeded (42782 tokens)
+[2025-12-23 23:22:03] INFO: [lovable-p1.1-agentic-file-search] No deliverables specified in scope, skipping validation
+[2025-12-23 23:22:03] INFO: [lovable-p1.1-agentic-file-search] Step 2/5: Applying patch...
+[2025-12-23 23:22:03] WARNING: [Isolation] BLOCKED: Patch attempts to modify protected path: src/autopack/file_manifest/agentic_search.py
+[2025-12-23 23:22:03] ERROR: [Isolation] Patch rejected - 1 violations (protected paths + scope)
+[2025-12-23 23:22:03] WARNING: [Governance] Protected path violation: 1 paths
+[2025-12-23 23:22:03] INFO: [Governance:lovable-p1.1-agentic-file-search] Protected path violation detected: 1 paths
+[2025-12-23 23:22:03] ERROR: [lovable-p1.1-agentic-file-search] Execution failed: 'AutonomousExecutor' object has no attribute 'db'
+Traceback:
+Traceback (most recent call last):
+  File "C:\dev\Autopack\src\autopack\autonomous_executor.py", line 4505, in _execute_phase_with_recovery
+    governance_handled = self._try_handle_governance_request(
+                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\dev\Autopack\src\autopack\autonomous_executor.py", line 7373, in _try_handle_governance_request
+    db_session=self.db,
+               ^^^^^^^
+AttributeError: 'AutonomousExecutor' object has no attribute 'db'
+
+[2025-12-23 23:22:03] INFO: [ARCHIVE_CONSOLIDATOR] Logged new error: Phase lovable-p1.1-agentic-file-search inner execution failure
+[2025-12-23 23:22:03] INFO: Updated phase lovable-p1.1-agentic-file-search status to FAILED
+[2025-12-23 23:22:03] WARNING: Failed to write run_summary from executor: name 'models' is not defined
+[2025-12-23 23:22:15] INFO: [RetrievalTrigger] Phase lovable-p1.1-agentic-file-search attempt 1: Error messages lack context - triggering deep retrieval
+[2025-12-23 23:22:15] INFO: [DeepRetrieval] Starting bounded retrieval for phase lovable-p1.1-agentic-file-search (priority=medium)
+[2025-12-23 23:22:16] INFO: [DeepRetrieval] Retrieved 0 run artifacts (0 bytes), 1 SOT files (15360 bytes), 0 memory entries (0 bytes)
+[2025-12-23 23:22:16] INFO: [REPLAN-TRIGGER] reason=repeated_error_short_msg type=auditor_reject phase=lovable-p1.1-agentic-file-search attempt=2 count=2
+[2025-12-23 23:22:16] INFO: [lovable-p1.1-agentic-file-search] Triggering mid-run re-planning due to auditor_reject
+[2025-12-23 23:22:16] INFO: [Re-Plan] Revising approach for lovable-p1.1-agentic-file-search due to auditor_reject (attempt 1)
+[2025-12-23 23:22:16] INFO: [GoalAnchor] Original intent: Semantic file search with confidence scoring for 95% hallucination reduction...
+[2025-12-23 23:22:16] INFO: [Re-Plan] Skipping re-planning because provider 'anthropic' is disabled for this run/process
+[2025-12-23 23:22:16] WARNING: [lovable-p1.1-agentic-file-search] Re-planning failed, continuing with original approach
+[2025-12-23 23:22:16] WARNING: [lovable-p1.1-agentic-file-search] Attempt 1/5 failed, will escalate model for next retry
+[2025-12-23 23:22:16] WARNING: Phase lovable-p1.1-agentic-file-search finished with status: FAILED
+[2025-12-23 23:22:16] INFO: Waiting 10s before next phase...
+[2025-12-23 23:22:26] INFO: Iteration 3: Fetching run status...
+[2025-12-23 23:22:26] INFO: [BUILD-041] Next phase: lovable-p1.2-intelligent-file-selection
+[2025-12-23 23:22:26] INFO: [BUILD-123v2] Phase 'lovable-p1.2-intelligent-file-selection' has no scope - generating manifest...
+[2025-12-23 23:22:26] INFO: Generating manifest for run: lovable-p1-core-precision
+[2025-12-23 23:22:26] INFO: Repo structure scanned successfully
+[2025-12-23 23:22:26] INFO: [BUILD-128] Phase 'lovable-p1.2-intelligent-file-selection' has deliverables - inferring scope from deliverables
+[2025-12-23 23:22:26] INFO: [BUILD-128] Inferred category 'backend' from deliverables (confidence=50.0%)
+[2025-12-23 23:22:26] INFO: [BUILD-128] Generated scope: 2 paths, 1 context files
+[2025-12-23 23:22:26] INFO: [BUILD-129] Added token estimate to phase: 858 output tokens (2 deliverables, confidence=0.80)
+[2025-12-23 23:22:26] ERROR: Plan validation failed: Phase 'lovable-p1.2-intelligent-file-selection' validation failed: Protected paths in scope: src/autopack/file_manifest/intelligent_selector.py...
+[2025-12-23 23:22:26] WARNING: [BUILD-123v2] Manifest generation failed for 'lovable-p1.2-intelligent-file-selection': Phase 'lovable-p1.2-intelligent-file-selection' validation failed: Protected paths in scope: src/autopack/file_manifest/intelligent_selector.py...
+[2025-12-23 23:22:26] INFO: [lovable-p1.2-intelligent-file-selection] Step 1/4: Generating code with Builder (via LlmService)...
+[2025-12-23 23:22:26] INFO: [Context] Loaded 9 recently modified files for fresh context
+[2025-12-23 23:22:26] INFO: [Context] Total: 25 files loaded for Builder context (modified=9, mentioned=0)
+[2025-12-23 23:22:26] INFO: [TOKEN_BUDGET] Context loading: ~19988 tokens (99% of 20000 budget)
+[2025-12-23 23:22:26] INFO: [lovable-p1.2-intelligent-file-selection] Loaded 25 files for context
+[2025-12-23 23:22:26] INFO: [lovable-p1.2-intelligent-file-selection] Learning context: 0 rules, 2 hints
+[2025-12-23 23:22:26] INFO: [ModelSelector] Selected claude-sonnet-4-5 for builder (complexity=medium, attempt=0, intra_tier=0)
+[2025-12-23 23:22:26] WARNING: [ModelRouter] Provider anthropic disabled, using fallback model claude-sonnet-4-5 for role=builder, category=implementation, complexity=medium
+[2025-12-23 23:22:26] INFO: [MODEL-SELECT] Builder: model=claude-sonnet-4-5, complexity=medium->medium, attempt=0, category=implementation
+[2025-12-23 23:22:26] INFO: [TokenEstimator] Budget selection: base=12288, estimated=822, with_buffer=986, selected=12288, confidence=80.0%
+[2025-12-23 23:22:26] INFO: [BUILD-129] Token estimate: 822 output tokens (2 deliverables, confidence=0.80), selected budget: 12288
+[2025-12-23 23:22:26] WARNING: CONSOLIDATED_DEBUG.md not found at C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\CONSOLIDATED_DEBUG.md
+[2025-12-23 23:22:26] WARNING: [TOKEN_SOFT_CAP] run_id=unknown phase_id=lovable-p1.2-intelligent-file-selection est_total=36080 soft_cap=32000 (prompt=24612 completion=11468 complexity=medium)
+[2025-12-23 23:22:29] INFO: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+[2025-12-23 23:24:06] INFO: [TOKEN_BUDGET] phase=lovable-p1.2-intelligent-file-selection complexity=medium input=32832 output=8449/16384 total=41281 utilization=51.6% model=claude-sonnet-4-5
+[2025-12-23 23:24:06] INFO: [Builder] Generated 2 file diffs locally from full-file content
+[2025-12-23 23:24:06] INFO: [TokenEstimationV2] predicted_output=822 actual_output=8449 smape=164.5% selected_budget=12288 category=implementation complexity=medium deliverables=2 success=True stop_reason=end_turn truncated=False model=claude-sonnet-4-5
+[2025-12-23 23:24:06] INFO: [lovable-p1.2-intelligent-file-selection] Builder succeeded (41281 tokens)
+[2025-12-23 23:24:06] INFO: [lovable-p1.2-intelligent-file-selection] No deliverables specified in scope, skipping validation
+[2025-12-23 23:24:06] INFO: [lovable-p1.2-intelligent-file-selection] Step 2/5: Applying patch...
+[2025-12-23 23:24:06] WARNING: [Isolation] BLOCKED: Patch attempts to modify protected path: src/autopack/file_manifest/intelligent_selector.py
+[2025-12-23 23:24:06] ERROR: [Isolation] Patch rejected - 1 violations (protected paths + scope)
+[2025-12-23 23:24:06] WARNING: [Governance] Protected path violation: 1 paths
+[2025-12-23 23:24:06] INFO: [Governance:lovable-p1.2-intelligent-file-selection] Protected path violation detected: 1 paths
+[2025-12-23 23:24:06] ERROR: [lovable-p1.2-intelligent-file-selection] Execution failed: 'AutonomousExecutor' object has no attribute 'db'
+Traceback:
+Traceback (most recent call last):
+  File "C:\dev\Autopack\src\autopack\autonomous_executor.py", line 4505, in _execute_phase_with_recovery
+    governance_handled = self._try_handle_governance_request(
+                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\dev\Autopack\src\autopack\autonomous_executor.py", line 7373, in _try_handle_governance_request
+    db_session=self.db,
+               ^^^^^^^
+AttributeError: 'AutonomousExecutor' object has no attribute 'db'
+
+[2025-12-23 23:24:06] INFO: [ARCHIVE_CONSOLIDATOR] Logged new error: Phase lovable-p1.2-intelligent-file-selection inner execution failure
+[2025-12-23 23:24:06] INFO: Updated phase lovable-p1.2-intelligent-file-selection status to FAILED
+[2025-12-23 23:24:06] WARNING: Failed to write run_summary from executor: name 'models' is not defined
+[2025-12-23 23:24:18] INFO: [RetrievalTrigger] Phase lovable-p1.2-intelligent-file-selection attempt 1: Error messages lack context - triggering deep retrieval
+[2025-12-23 23:24:18] INFO: [DeepRetrieval] Starting bounded retrieval for phase lovable-p1.2-intelligent-file-selection (priority=medium)
+[2025-12-23 23:24:19] INFO: [DeepRetrieval] Retrieved 0 run artifacts (0 bytes), 1 SOT files (15360 bytes), 0 memory entries (0 bytes)
+[2025-12-23 23:24:19] WARNING: [lovable-p1.2-intelligent-file-selection] Attempt 1/5 failed, will escalate model for next retry
+[2025-12-23 23:24:19] WARNING: Phase lovable-p1.2-intelligent-file-selection finished with status: FAILED
+[2025-12-23 23:24:19] INFO: Waiting 10s before next phase...
+[2025-12-23 23:24:29] INFO: Iteration 4: Fetching run status...
+[2025-12-23 23:24:29] INFO: [BUILD-041] Next phase: lovable-p1.3-build-validation
+[2025-12-23 23:24:29] INFO: [BUILD-123v2] Phase 'lovable-p1.3-build-validation' has no scope - generating manifest...
+[2025-12-23 23:24:29] INFO: Generating manifest for run: lovable-p1-core-precision
+[2025-12-23 23:24:29] INFO: Repo structure scanned successfully
+[2025-12-23 23:24:29] INFO: [BUILD-128] Phase 'lovable-p1.3-build-validation' has deliverables - inferring scope from deliverables
+[2025-12-23 23:24:29] INFO: [BUILD-128] Inferred category 'backend' from deliverables (confidence=50.0%)
+[2025-12-23 23:24:29] INFO: [BUILD-128] Generated scope: 2 paths, 1 context files
+[2025-12-23 23:24:29] INFO: [BUILD-129] Added token estimate to phase: 858 output tokens (2 deliverables, confidence=0.80)
+[2025-12-23 23:24:29] ERROR: Plan validation failed: Phase 'lovable-p1.3-build-validation' validation failed: Protected paths in scope: src/autopack/validation/build_validator.py...
+[2025-12-23 23:24:29] WARNING: [BUILD-123v2] Manifest generation failed for 'lovable-p1.3-build-validation': Phase 'lovable-p1.3-build-validation' validation failed: Protected paths in scope: src/autopack/validation/build_validator.py...
+[2025-12-23 23:24:29] INFO: [lovable-p1.3-build-validation] Step 1/4: Generating code with Builder (via LlmService)...
+[2025-12-23 23:24:29] INFO: [Context] Loaded 9 recently modified files for fresh context
+[2025-12-23 23:24:29] INFO: [Context] Total: 25 files loaded for Builder context (modified=9, mentioned=0)
+[2025-12-23 23:24:29] INFO: [TOKEN_BUDGET] Context loading: ~19988 tokens (99% of 20000 budget)
+[2025-12-23 23:24:29] INFO: [lovable-p1.3-build-validation] Loaded 25 files for context
+[2025-12-23 23:24:29] INFO: [lovable-p1.3-build-validation] Learning context: 0 rules, 3 hints
+[2025-12-23 23:24:29] INFO: [ModelSelector] Selected claude-sonnet-4-5 for builder (complexity=medium, attempt=0, intra_tier=0)
+[2025-12-23 23:24:29] WARNING: [ModelRouter] Provider anthropic disabled, using fallback model claude-sonnet-4-5 for role=builder, category=implementation, complexity=medium
+[2025-12-23 23:24:29] INFO: [MODEL-SELECT] Builder: model=claude-sonnet-4-5, complexity=medium->medium, attempt=0, category=implementation
+[2025-12-23 23:24:29] INFO: [TokenEstimator] Budget selection: base=12288, estimated=822, with_buffer=986, selected=12288, confidence=80.0%
+[2025-12-23 23:24:29] INFO: [BUILD-129] Token estimate: 822 output tokens (2 deliverables, confidence=0.80), selected budget: 12288
+[2025-12-23 23:24:29] WARNING: CONSOLIDATED_DEBUG.md not found at C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\CONSOLIDATED_DEBUG.md
+[2025-12-23 23:24:29] WARNING: [TOKEN_SOFT_CAP] run_id=unknown phase_id=lovable-p1.3-build-validation est_total=36113 soft_cap=32000 (prompt=24645 completion=11468 complexity=medium)
+[2025-12-23 23:24:32] INFO: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+[2025-12-23 23:25:47] INFO: [TOKEN_BUDGET] phase=lovable-p1.3-build-validation complexity=medium input=32860 output=7302/16384 total=40162 utilization=44.6% model=claude-sonnet-4-5
+[2025-12-23 23:25:47] INFO: [Builder] Generated 4 file diffs locally from full-file content
+[2025-12-23 23:25:47] INFO: [TokenEstimationV2] predicted_output=822 actual_output=7302 smape=159.5% selected_budget=12288 category=implementation complexity=medium deliverables=2 success=True stop_reason=end_turn truncated=False model=claude-sonnet-4-5
+[2025-12-23 23:25:47] INFO: [lovable-p1.3-build-validation] Builder succeeded (40162 tokens)
+[2025-12-23 23:25:47] INFO: [lovable-p1.3-build-validation] No deliverables specified in scope, skipping validation
+[2025-12-23 23:25:47] INFO: [lovable-p1.3-build-validation] Step 2/5: Applying patch...
+[2025-12-23 23:25:47] WARNING: [Isolation] BLOCKED: Patch attempts to modify protected path: src/autopack/validation/__init__.py
+[2025-12-23 23:25:47] WARNING: [Isolation] BLOCKED: Patch attempts to modify protected path: src/autopack/validation/build_validator.py
+[2025-12-23 23:25:47] ERROR: [Isolation] Patch rejected - 2 violations (protected paths + scope)
+[2025-12-23 23:25:47] WARNING: [Governance] Protected path violation: 2 paths
+[2025-12-23 23:25:47] INFO: [Governance:lovable-p1.3-build-validation] Protected path violation detected: 2 paths
+[2025-12-23 23:25:47] ERROR: [lovable-p1.3-build-validation] Execution failed: 'AutonomousExecutor' object has no attribute 'db'
+Traceback:
+Traceback (most recent call last):
+  File "C:\dev\Autopack\src\autopack\autonomous_executor.py", line 4505, in _execute_phase_with_recovery
+    governance_handled = self._try_handle_governance_request(
+                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\dev\Autopack\src\autopack\autonomous_executor.py", line 7373, in _try_handle_governance_request
+    db_session=self.db,
+               ^^^^^^^
+AttributeError: 'AutonomousExecutor' object has no attribute 'db'
+
+[2025-12-23 23:25:47] INFO: [ARCHIVE_CONSOLIDATOR] Logged new error: Phase lovable-p1.3-build-validation inner execution failure
+[2025-12-23 23:25:47] INFO: Updated phase lovable-p1.3-build-validation status to FAILED
+[2025-12-23 23:25:47] WARNING: Failed to write run_summary from executor: name 'models' is not defined
+[2025-12-23 23:26:00] INFO: [RetrievalTrigger] Phase lovable-p1.3-build-validation attempt 1: Error messages lack context - triggering deep retrieval
+[2025-12-23 23:26:00] INFO: [DeepRetrieval] Starting bounded retrieval for phase lovable-p1.3-build-validation (priority=medium)
+[2025-12-23 23:26:01] INFO: [DeepRetrieval] Retrieved 0 run artifacts (0 bytes), 1 SOT files (15360 bytes), 0 memory entries (0 bytes)
+[2025-12-23 23:26:01] WARNING: [lovable-p1.3-build-validation] Attempt 1/5 failed, will escalate model for next retry
+[2025-12-23 23:26:01] WARNING: Phase lovable-p1.3-build-validation finished with status: FAILED
+[2025-12-23 23:26:01] INFO: Waiting 10s before next phase...
+[2025-12-23 23:26:11] INFO: Iteration 5: Fetching run status...
+[2025-12-23 23:26:11] INFO: [BUILD-041] Next phase: lovable-p1.4-dynamic-retry-delays
+[2025-12-23 23:26:11] INFO: [BUILD-123v2] Phase 'lovable-p1.4-dynamic-retry-delays' has no scope - generating manifest...
+[2025-12-23 23:26:11] INFO: Generating manifest for run: lovable-p1-core-precision
+[2025-12-23 23:26:11] INFO: Repo structure scanned successfully
+[2025-12-23 23:26:11] INFO: [BUILD-128] Phase 'lovable-p1.4-dynamic-retry-delays' has deliverables - inferring scope from deliverables
+[2025-12-23 23:26:11] INFO: [BUILD-128] Inferred category 'backend' from deliverables (confidence=50.0%)
+[2025-12-23 23:26:11] INFO: [BUILD-128] Generated scope: 2 paths, 1 context files
+[2025-12-23 23:26:11] INFO: [BUILD-129] Added token estimate to phase: 858 output tokens (2 deliverables, confidence=0.80)
+[2025-12-23 23:26:11] ERROR: Plan validation failed: Phase 'lovable-p1.4-dynamic-retry-delays' validation failed: Protected paths in scope: src/autopack/error_handling/dynamic_retry.py...
+[2025-12-23 23:26:11] WARNING: [BUILD-123v2] Manifest generation failed for 'lovable-p1.4-dynamic-retry-delays': Phase 'lovable-p1.4-dynamic-retry-delays' validation failed: Protected paths in scope: src/autopack/error_handling/dynamic_retry.py...
+[2025-12-23 23:26:11] INFO: [lovable-p1.4-dynamic-retry-delays] Step 1/4: Generating code with Builder (via LlmService)...
+[2025-12-23 23:26:11] INFO: [Context] Loaded 9 recently modified files for fresh context
+[2025-12-23 23:26:11] INFO: [Context] Total: 25 files loaded for Builder context (modified=9, mentioned=0)
+[2025-12-23 23:26:11] INFO: [TOKEN_BUDGET] Context loading: ~19988 tokens (99% of 20000 budget)
+[2025-12-23 23:26:11] INFO: [lovable-p1.4-dynamic-retry-delays] Loaded 25 files for context
+[2025-12-23 23:26:11] INFO: [lovable-p1.4-dynamic-retry-delays] Learning context: 0 rules, 4 hints
+[2025-12-23 23:26:11] INFO: [ModelSelector] Selected claude-sonnet-4-5 for builder (complexity=low, attempt=0, intra_tier=0)
+[2025-12-23 23:26:11] WARNING: [ModelRouter] Provider anthropic disabled, using fallback model claude-sonnet-4-5 for role=builder, category=implementation, complexity=low
+[2025-12-23 23:26:11] INFO: [MODEL-SELECT] Builder: model=claude-sonnet-4-5, complexity=low->low, attempt=0, category=implementation
+[2025-12-23 23:26:11] INFO: [TokenEstimator] Budget selection: base=8192, estimated=822, with_buffer=986, selected=8192, confidence=80.0%
+[2025-12-23 23:26:11] INFO: [BUILD-129] Token estimate: 822 output tokens (2 deliverables, confidence=0.80), selected budget: 8192
+[2025-12-23 23:26:11] WARNING: CONSOLIDATED_DEBUG.md not found at C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\CONSOLIDATED_DEBUG.md
+[2025-12-23 23:26:11] WARNING: [TOKEN_SOFT_CAP] run_id=unknown phase_id=lovable-p1.4-dynamic-retry-delays est_total=36148 soft_cap=12000 (prompt=24680 completion=11468 complexity=low)
+[2025-12-23 23:26:16] INFO: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+[2025-12-23 23:27:22] INFO: [TOKEN_BUDGET] phase=lovable-p1.4-dynamic-retry-delays complexity=low input=32894 output=6399/16384 total=39293 utilization=39.1% model=claude-sonnet-4-5
+[2025-12-23 23:27:22] INFO: [Builder] Generated 4 file diffs locally from full-file content
+[2025-12-23 23:27:22] INFO: [TokenEstimationV2] predicted_output=822 actual_output=6399 smape=154.5% selected_budget=8192 category=implementation complexity=low deliverables=2 success=True stop_reason=end_turn truncated=False model=claude-sonnet-4-5
+[2025-12-23 23:27:22] INFO: [lovable-p1.4-dynamic-retry-delays] Builder succeeded (39293 tokens)
+[2025-12-23 23:27:22] INFO: [lovable-p1.4-dynamic-retry-delays] No deliverables specified in scope, skipping validation
+[2025-12-23 23:27:22] INFO: [lovable-p1.4-dynamic-retry-delays] Step 2/5: Applying patch...
+[2025-12-23 23:27:22] WARNING: [Isolation] BLOCKED: Patch attempts to modify protected path: src/autopack/error_handling/__init__.py
+[2025-12-23 23:27:22] WARNING: [Isolation] BLOCKED: Patch attempts to modify protected path: src/autopack/error_handling/dynamic_retry.py
+[2025-12-23 23:27:22] ERROR: [Isolation] Patch rejected - 2 violations (protected paths + scope)
+[2025-12-23 23:27:22] WARNING: [Governance] Protected path violation: 2 paths
+[2025-12-23 23:27:22] INFO: [Governance:lovable-p1.4-dynamic-retry-delays] Protected path violation detected: 2 paths
+[2025-12-23 23:27:22] ERROR: [lovable-p1.4-dynamic-retry-delays] Execution failed: 'AutonomousExecutor' object has no attribute 'db'
+Traceback:
+Traceback (most recent call last):
+  File "C:\dev\Autopack\src\autopack\autonomous_executor.py", line 4505, in _execute_phase_with_recovery
+    governance_handled = self._try_handle_governance_request(
+                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\dev\Autopack\src\autopack\autonomous_executor.py", line 7373, in _try_handle_governance_request
+    db_session=self.db,
+               ^^^^^^^
+AttributeError: 'AutonomousExecutor' object has no attribute 'db'
+
+[2025-12-23 23:27:22] INFO: [ARCHIVE_CONSOLIDATOR] Logged new error: Phase lovable-p1.4-dynamic-retry-delays inner execution failure
+[2025-12-23 23:27:22] INFO: Updated phase lovable-p1.4-dynamic-retry-delays status to FAILED
+[2025-12-23 23:27:22] WARNING: Failed to write run_summary from executor: name 'models' is not defined
+[2025-12-23 23:27:34] INFO: [RetrievalTrigger] Phase lovable-p1.4-dynamic-retry-delays attempt 1: Error messages lack context - triggering deep retrieval
+[2025-12-23 23:27:34] INFO: [DeepRetrieval] Starting bounded retrieval for phase lovable-p1.4-dynamic-retry-delays (priority=medium)
+[2025-12-23 23:27:34] INFO: [DeepRetrieval] Retrieved 0 run artifacts (0 bytes), 1 SOT files (15360 bytes), 0 memory entries (0 bytes)
+[2025-12-23 23:27:35] WARNING: [lovable-p1.4-dynamic-retry-delays] Attempt 1/5 failed, will escalate model for next retry
+[2025-12-23 23:27:35] WARNING: Phase lovable-p1.4-dynamic-retry-delays finished with status: FAILED
+[2025-12-23 23:27:35] INFO: Waiting 10s before next phase...
+[2025-12-23 23:27:45] INFO: Iteration 6: Fetching run status...
+[2025-12-23 23:27:45] INFO: No more executable phases, execution complete
+[2025-12-23 23:27:45] INFO: Autonomous execution loop finished
+[2025-12-23 23:27:45] INFO: [ARCHIVE_CONSOLIDATOR] Logged build event: RUN_COMPLETE
+[2025-12-23 23:27:45] WARNING: Failed to write run_summary from executor: name 'models' is not defined
+[2025-12-23 23:27:45] INFO: Learning Pipeline: Promoted 5 hints to persistent project rules
+[2025-12-23 23:27:45] INFO: Learning Pipeline: Marked rules updated (total: 84 rules)
+[2025-12-23 23:27:45] INFO: [PLANNING NOTICE] 5 new rules promoted. Future planning should incorporate 84 total project rules.
+[2025-12-23 23:27:45] INFO: [LOCK] Released executor lock for run_id=lovable-p1-core-precision (PID=130812)

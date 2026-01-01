@@ -1,0 +1,436 @@
+faiss library not installed; FaissStore will use in-memory fallback
+[2025-12-24 15:13:59] INFO: Applying pre-emptive encoding fix...
+[2025-12-24 15:13:59] INFO: [Recovery] Fixing Unicode encoding error...
+[drain] run_id=research-system-v8 queued=7 complete=0 failed=1
+[drain] Starting batch 1 (max-iterations=3)...
+[2025-12-24 15:13:59] INFO: [Recovery] SUCCESS: Encoding fixed (UTF-8 enabled)
+[2025-12-24 15:13:59] INFO: Database tables initialized
+[2025-12-24 15:13:59] INFO: Loaded BuilderOutputConfig: max_lines_for_full_file=1000, max_lines_hard_limit=1000
+[2025-12-24 15:13:59] INFO: Doctor execute_fix enabled: True
+[2025-12-24 15:13:59] INFO: FileSizeTelemetry initialized: .autonomous_runs\autopack\file_size_telemetry.jsonl
+[2025-12-24 15:14:09] WARNING: [Qdrant] Connection check failed for localhost:6333: [WinError 10061] No connection could be made because the target machine actively refused it
+[2025-12-24 15:14:10] WARNING: [MemoryService] Qdrant unavailable at localhost:6333; falling back to FAISS ([WinError 10061] No connection could be made because the target machine actively refused it)
+[2025-12-24 15:14:10] INFO: [FAISS] Created collection 'code_docs' with dim=1536
+[2025-12-24 15:14:10] INFO: [FAISS] Created collection 'run_summaries' with dim=1536
+[2025-12-24 15:14:10] INFO: [FAISS] Created collection 'errors_ci' with dim=1536
+[2025-12-24 15:14:10] INFO: [FAISS] Created collection 'doctor_hints' with dim=1536
+[2025-12-24 15:14:10] INFO: [FAISS] Created collection 'planning' with dim=1536
+[2025-12-24 15:14:10] INFO: [MemoryService] Initialized (backend=faiss, enabled=True, top_k=5)
+[2025-12-24 15:14:10] INFO: MemoryService initialized (enabled=True)
+[2025-12-24 15:14:10] INFO: [FileLayout] Project: autopack, Family: research-system-v8, Base: .autonomous_runs\autopack\runs\research-system-v8
+[2025-12-24 15:14:10] INFO: Initialized autonomous executor for run: research-system-v8
+[2025-12-24 15:14:10] INFO: API URL: http://localhost:8000
+[2025-12-24 15:14:10] INFO: Workspace: .
+[2025-12-24 15:14:10] INFO: Running proactive startup checks from DEBUG_JOURNAL.md...
+[2025-12-24 15:14:10] INFO: [HIGH] Checking: Windows Unicode Fix (PYTHONUTF8)
+[2025-12-24 15:14:10] INFO:   Reason: Prevents UnicodeEncodeError with emoji characters in logs (Issue #3)
+[2025-12-24 15:14:10] INFO:   Check PASSED
+[2025-12-24 15:14:10] INFO: [SchemaValidator] Starting database schema validation...
+[2025-12-24 15:14:10] INFO: [SchemaValidator] ✅ Database schema validation PASSED
+[2025-12-24 15:14:10] INFO: Startup checks complete
+[2025-12-24 15:14:12] INFO: [BUILD-123v2] Manifest generator initialized (deterministic scope generation)
+[2025-12-24 15:14:13] INFO: [HealthCheck:T0] API Keys: PASSED (0ms) - All required API keys present
+[2025-12-24 15:14:13] INFO: [HealthCheck:T0] Database: PASSED (0ms) - Database accessible: c:\dev\Autopack\autopack.db
+[2025-12-24 15:14:13] INFO: [HealthCheck:T0] Workspace: PASSED (1ms) - Workspace valid: c:\dev\Autopack
+[2025-12-24 15:14:13] INFO: [HealthCheck:T0] Config: PASSED (30ms) - Configuration files valid
+[2025-12-24 15:14:13] INFO: [HealthCheck:T0] Vector Memory: PASSED (1247ms) - Qdrant unreachable at localhost:6333; autostart attempted or unavailable. Falling back to FAISS.
+[2025-12-24 15:14:13] INFO: [BUILD-127] Completion authority initialized (PhaseFinalizer + TestBaselineTracker)
+[2025-12-24 15:14:13] INFO: [BUILD-127] Capturing T0 baseline at commit 1dc6756e...
+[2025-12-24 15:14:13] INFO: [Baseline] Capturing baseline for commit 1dc6756e
+[2025-12-24 15:14:49] INFO: [Baseline] Captured: 0/0 passing, 0 failing, 0 errors
+[2025-12-24 15:14:49] INFO: [BUILD-127] T0 baseline: 0 tests, 0 passing, 0 failing, 0 errors
+[2025-12-24 15:14:49] INFO: Starting autonomous execution loop...
+[2025-12-24 15:14:49] INFO: Poll interval: 10s
+[2025-12-24 15:14:49] INFO: Max iterations: 3
+[2025-12-24 15:14:49] INFO: API server is already running
+[2025-12-24 15:14:49] INFO: Initializing infrastructure...
+[2025-12-24 15:14:53] INFO: LlmService: Initialized with ModelRouter and UsageRecorder
+[2025-12-24 15:14:53] INFO: Quality Gate: Initialized
+[2025-12-24 15:14:53] INFO: Iteration 1: Fetching run status...
+[2025-12-24 15:14:53] INFO: [BUILD-041] Next phase: research-foundation-orchestrator
+[2025-12-24 15:14:53] INFO: [BUILD-123v2] Phase 'research-foundation-orchestrator' has no scope - generating manifest...
+[2025-12-24 15:14:53] INFO: Generating manifest for run: research-system-v8
+[2025-12-24 15:14:53] INFO: Repo structure scanned successfully
+[2025-12-24 15:14:53] INFO: [BUILD-128] Phase 'research-foundation-orchestrator' has deliverables - inferring scope from deliverables
+[2025-12-24 15:14:53] INFO: [BUILD-128] Inferred category 'unknown' from deliverables (confidence=0.0%)
+[2025-12-24 15:14:53] INFO: [BUILD-128] Generated scope: 3 paths, 0 context files
+[2025-12-24 15:14:53] INFO: [BUILD-129] Added token estimate to phase: 7020 output tokens (3 deliverables, confidence=0.50)
+[2025-12-24 15:14:53] INFO: [BUILD-123v2] Generated scope for 'research-foundation-orchestrator': category=unknown, confidence=0.0%, files=3
+[2025-12-24 15:14:53] WARNING: [BUILD-123v2] Low confidence (0.0%) for phase 'research-foundation-orchestrator' - scope may be incomplete. Builder may need to request expansion.
+[2025-12-24 15:14:53] WARNING: [Scope] Could not determine workspace from scope paths, using default: .
+[2025-12-24 15:14:53] INFO: [research-foundation-orchestrator] Step 1/4: Generating code with Builder (via LlmService)...
+[2025-12-24 15:14:53] INFO: [research-foundation-orchestrator] Using scope-aware context (overrides targeted context)
+[2025-12-24 15:14:53] WARNING: [Scope] Could not determine workspace from scope paths, using default: .
+[2025-12-24 15:14:53] WARNING: [Scope] Missing scope files: ['code']
+[2025-12-24 15:14:53] INFO: [Scope] Loaded 251 files from scope configuration
+[2025-12-24 15:14:53] INFO: [Scope] Scope paths: ['code', 'tests', 'docs']
+[2025-12-24 15:14:53] INFO: [Scope] Loaded paths: ['code', 'tests/conftest.py', 'tests/test_api.py', 'tests/test_autonomous_executor.py', 'tests/test_backlog_maintenance.py', 'tests/test_baseline_tracker.py', 'tests/test_build112_phase3_deep_retrieval_validation.py', 'tests/test_circuit_breaker.py', 'tests/test_circuit_breaker_registry.py', 'tests/test_classification_regression.py']...
+[2025-12-24 15:14:53] INFO: [research-foundation-orchestrator] Loaded 251 files for context
+[2025-12-24 15:14:53] WARNING: [Scope] Could not determine workspace from scope paths, using default: .
+[2025-12-24 15:14:53] INFO: [Scope] Validation passed: 251 files match scope configuration
+[2025-12-24 15:14:53] WARNING: [research-foundation-orchestrator] Large files in context (read-only, >1000 lines): docs/BUILD_HISTORY.md, docs/DEBUG_LOG.md, docs/LEARNED_RULES.json, docs/RESEARCH_CITATION_FIX_PLAN.md
+[2025-12-24 15:14:53] INFO: [research-foundation-orchestrator] Built deliverables contract: 20 required paths, 0 forbidden patterns
+[2025-12-24 15:14:53] INFO: [research-foundation-orchestrator] Deliverables manifest gate PASSED (20 paths)
+[2025-12-24 15:14:53] INFO: [ModelSelector] Selected claude-sonnet-4-5 for builder (complexity=high, attempt=0, intra_tier=0)
+[2025-12-24 15:14:53] INFO: [MODEL-SELECT] Builder: model=claude-sonnet-4-5, complexity=high->high, attempt=0, category=IMPLEMENT_FEATURE
+[2025-12-24 15:14:53] INFO: [TokenEstimator] Budget selection: base=16384, estimated=7020, with_buffer=8424, selected=16384, confidence=50.0%
+[2025-12-24 15:14:53] INFO: [BUILD-129] Token estimate: 7020 output tokens (3 deliverables, confidence=0.50), selected budget: 16384
+[2025-12-24 15:14:53] INFO: [Builder] File docs/BUILD_HISTORY.md (1631 lines) exceeds hard limit; enabling structured edit mode
+[2025-12-24 15:14:53] WARNING: CONSOLIDATED_DEBUG.md not found at c:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\CONSOLIDATED_DEBUG.md
+[2025-12-24 15:14:53] WARNING: [TOKEN_SOFT_CAP] run_id=unknown phase_id=research-foundation-orchestrator est_total=410078 soft_cap=80000 (prompt=398610 completion=11468 complexity=high)
+[2025-12-24 15:14:55] INFO: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 400 Bad Request"
+[2025-12-24 15:14:55] ERROR: [Builder] Unhandled exception during execute_phase: Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'prompt is too long: 203472 tokens > 200000 maximum'}, 'request_id': 'req_011CWQs2GyGJGEcZE8yQ1igu'}
+Traceback:
+Traceback (most recent call last):
+  File "c:\dev\Autopack\src\autopack\anthropic_clients.py", line 572, in execute_phase
+    with self.client.messages.stream(
+  File "C:\Python\Lib\site-packages\anthropic\lib\streaming\_messages.py", line 154, in __enter__
+    raw_stream = self.__api_request()
+                 ^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python\Lib\site-packages\anthropic\_base_client.py", line 1326, in post
+    return cast(ResponseT, self.request(cast_to, opts, stream=stream, stream_cls=stream_cls))
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python\Lib\site-packages\anthropic\_base_client.py", line 1114, in request
+    raise self._make_status_error_from_response(err.response) from None
+anthropic.BadRequestError: Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'prompt is too long: 203472 tokens > 200000 maximum'}, 'request_id': 'req_011CWQs2GyGJGEcZE8yQ1igu'}
+
+[2025-12-24 15:14:55] ERROR: [research-foundation-orchestrator] Builder failed: Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'prompt is too long: 203472 tokens > 200000 maximum'}, 'request_id': 'req_011CWQs2GyGJGEcZE8yQ1igu'}
+[2025-12-24 15:14:55] INFO: Updated phase research-foundation-orchestrator status to FAILED
+[2025-12-24 15:15:35] INFO: [MemoryService] Stored decision log
+[2025-12-24 15:15:35] INFO: [RetrievalTrigger] Phase research-foundation-orchestrator attempt 1: Error messages lack context - triggering deep retrieval
+[2025-12-24 15:15:35] INFO: [DeepRetrieval] Starting bounded retrieval for phase research-foundation-orchestrator (priority=medium)
+[2025-12-24 15:15:39] INFO: [DeepRetrieval] Retrieved 0 run artifacts (0 bytes), 1 SOT files (15360 bytes), 0 memory entries (0 bytes)
+[2025-12-24 15:15:39] WARNING: [research-foundation-orchestrator] Attempt 1/5 failed, will escalate model for next retry
+[2025-12-24 15:15:39] WARNING: Phase research-foundation-orchestrator finished with status: FAILED
+[2025-12-24 15:15:39] INFO: Waiting 10s before next phase...
+[2025-12-24 15:15:49] INFO: Iteration 2: Fetching run status...
+[2025-12-24 15:15:49] INFO: [BUILD-041] Next phase: research-foundation-intent-discovery
+[2025-12-24 15:15:49] INFO: [BUILD-123v2] Phase 'research-foundation-intent-discovery' has no scope - generating manifest...
+[2025-12-24 15:15:49] INFO: Generating manifest for run: research-system-v8
+[2025-12-24 15:15:49] INFO: Repo structure scanned successfully
+[2025-12-24 15:15:49] INFO: [BUILD-128] Phase 'research-foundation-intent-discovery' has deliverables - inferring scope from deliverables
+[2025-12-24 15:15:49] INFO: [BUILD-128] Inferred category 'unknown' from deliverables (confidence=0.0%)
+[2025-12-24 15:15:49] INFO: [BUILD-128] Generated scope: 3 paths, 0 context files
+[2025-12-24 15:15:49] INFO: [BUILD-129] Added token estimate to phase: 7020 output tokens (3 deliverables, confidence=0.50)
+[2025-12-24 15:15:49] INFO: [BUILD-123v2] Generated scope for 'research-foundation-intent-discovery': category=unknown, confidence=0.0%, files=3
+[2025-12-24 15:15:49] WARNING: [BUILD-123v2] Low confidence (0.0%) for phase 'research-foundation-intent-discovery' - scope may be incomplete. Builder may need to request expansion.
+[2025-12-24 15:15:49] WARNING: [Scope] Could not determine workspace from scope paths, using default: .
+[2025-12-24 15:15:49] INFO: [research-foundation-intent-discovery] Step 1/4: Generating code with Builder (via LlmService)...
+[2025-12-24 15:15:49] INFO: [research-foundation-intent-discovery] Using scope-aware context (overrides targeted context)
+[2025-12-24 15:15:49] WARNING: [Scope] Could not determine workspace from scope paths, using default: .
+[2025-12-24 15:15:49] WARNING: [Scope] Missing scope files: ['code']
+[2025-12-24 15:15:49] INFO: [Scope] Loaded 251 files from scope configuration
+[2025-12-24 15:15:49] INFO: [Scope] Scope paths: ['code', 'tests', 'docs']
+[2025-12-24 15:15:49] INFO: [Scope] Loaded paths: ['code', 'tests/conftest.py', 'tests/test_api.py', 'tests/test_autonomous_executor.py', 'tests/test_backlog_maintenance.py', 'tests/test_baseline_tracker.py', 'tests/test_build112_phase3_deep_retrieval_validation.py', 'tests/test_circuit_breaker.py', 'tests/test_circuit_breaker_registry.py', 'tests/test_classification_regression.py']...
+[2025-12-24 15:15:49] INFO: [research-foundation-intent-discovery] Loaded 251 files for context
+[2025-12-24 15:15:49] WARNING: [Scope] Could not determine workspace from scope paths, using default: .
+[2025-12-24 15:15:49] INFO: [Scope] Validation passed: 251 files match scope configuration
+[2025-12-24 15:15:49] WARNING: [research-foundation-intent-discovery] Large files in context (read-only, >1000 lines): docs/BUILD_HISTORY.md, docs/DEBUG_LOG.md, docs/LEARNED_RULES.json, docs/RESEARCH_CITATION_FIX_PLAN.md
+[2025-12-24 15:15:49] INFO: [research-foundation-intent-discovery] Retrieved 284 chars of context from memory
+[2025-12-24 15:15:49] INFO: [research-foundation-intent-discovery] Built deliverables contract: 19 required paths, 0 forbidden patterns
+[2025-12-24 15:15:49] INFO: [research-foundation-intent-discovery] Deliverables manifest gate PASSED (19 paths)
+[2025-12-24 15:15:49] INFO: [ModelSelector] Selected claude-sonnet-4-5 for builder (complexity=medium, attempt=0, intra_tier=0)
+[2025-12-24 15:15:49] INFO: [MODEL-SELECT] Builder: model=claude-sonnet-4-5, complexity=medium->medium, attempt=0, category=IMPLEMENT_FEATURE
+[2025-12-24 15:15:49] INFO: [TokenEstimator] Budget selection: base=12288, estimated=7020, with_buffer=8424, selected=12288, confidence=50.0%
+[2025-12-24 15:15:49] INFO: [BUILD-129] Token estimate: 7020 output tokens (3 deliverables, confidence=0.50), selected budget: 12288
+[2025-12-24 15:15:49] INFO: [Builder] File docs/BUILD_HISTORY.md (1631 lines) exceeds hard limit; enabling structured edit mode
+[2025-12-24 15:15:49] WARNING: CONSOLIDATED_DEBUG.md not found at c:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\CONSOLIDATED_DEBUG.md
+[2025-12-24 15:15:49] WARNING: [TOKEN_SOFT_CAP] run_id=unknown phase_id=research-foundation-intent-discovery est_total=407295 soft_cap=32000 (prompt=398694 completion=8601 complexity=medium)
+[2025-12-24 15:15:51] INFO: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 400 Bad Request"
+[2025-12-24 15:15:51] ERROR: [Builder] Unhandled exception during execute_phase: Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'prompt is too long: 203460 tokens > 200000 maximum'}, 'request_id': 'req_011CWQs6Q8yhVhsRF3DGJHPX'}
+Traceback:
+Traceback (most recent call last):
+  File "c:\dev\Autopack\src\autopack\anthropic_clients.py", line 572, in execute_phase
+    with self.client.messages.stream(
+  File "C:\Python\Lib\site-packages\anthropic\lib\streaming\_messages.py", line 154, in __enter__
+    raw_stream = self.__api_request()
+                 ^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python\Lib\site-packages\anthropic\_base_client.py", line 1326, in post
+    return cast(ResponseT, self.request(cast_to, opts, stream=stream, stream_cls=stream_cls))
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python\Lib\site-packages\anthropic\_base_client.py", line 1114, in request
+    raise self._make_status_error_from_response(err.response) from None
+anthropic.BadRequestError: Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'prompt is too long: 203460 tokens > 200000 maximum'}, 'request_id': 'req_011CWQs6Q8yhVhsRF3DGJHPX'}
+
+[2025-12-24 15:15:51] ERROR: [research-foundation-intent-discovery] Builder failed: Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'prompt is too long: 203460 tokens > 200000 maximum'}, 'request_id': 'req_011CWQs6Q8yhVhsRF3DGJHPX'}
+[2025-12-24 15:15:51] INFO: Updated phase research-foundation-intent-discovery status to FAILED
+[2025-12-24 15:16:32] INFO: [MemoryService] Stored decision log
+[2025-12-24 15:16:32] INFO: [RetrievalTrigger] Phase research-foundation-intent-discovery attempt 1: Error messages lack context - triggering deep retrieval
+[2025-12-24 15:16:32] INFO: [DeepRetrieval] Starting bounded retrieval for phase research-foundation-intent-discovery (priority=medium)
+[2025-12-24 15:16:32] INFO: [DeepRetrieval] Retrieved 0 run artifacts (0 bytes), 1 SOT files (15360 bytes), 0 memory entries (0 bytes)
+[2025-12-24 15:16:32] WARNING: [research-foundation-intent-discovery] Attempt 1/5 failed, will escalate model for next retry
+[2025-12-24 15:16:32] WARNING: Phase research-foundation-intent-discovery finished with status: FAILED
+[2025-12-24 15:16:32] INFO: Waiting 10s before next phase...
+[2025-12-24 15:16:42] INFO: Iteration 3: Fetching run status...
+[2025-12-24 15:16:42] INFO: [BUILD-041] Next phase: research-gatherers-social
+[2025-12-24 15:16:42] INFO: [BUILD-123v2] Phase 'research-gatherers-social' has no scope - generating manifest...
+[2025-12-24 15:16:42] INFO: Generating manifest for run: research-system-v8
+[2025-12-24 15:16:42] INFO: Repo structure scanned successfully
+[2025-12-24 15:16:42] INFO: [BUILD-128] Phase 'research-gatherers-social' has deliverables - inferring scope from deliverables
+[2025-12-24 15:16:42] INFO: [BUILD-128] Inferred category 'unknown' from deliverables (confidence=0.0%)
+[2025-12-24 15:16:42] INFO: [BUILD-128] Generated scope: 3 paths, 0 context files
+[2025-12-24 15:16:42] INFO: [BUILD-129] Added token estimate to phase: 7020 output tokens (3 deliverables, confidence=0.50)
+[2025-12-24 15:16:42] INFO: [BUILD-123v2] Generated scope for 'research-gatherers-social': category=unknown, confidence=0.0%, files=3
+[2025-12-24 15:16:42] WARNING: [BUILD-123v2] Low confidence (0.0%) for phase 'research-gatherers-social' - scope may be incomplete. Builder may need to request expansion.
+[2025-12-24 15:16:42] WARNING: [Scope] Could not determine workspace from scope paths, using default: .
+[2025-12-24 15:16:42] INFO: [research-gatherers-social] Step 1/4: Generating code with Builder (via LlmService)...
+[2025-12-24 15:16:42] INFO: [research-gatherers-social] Using scope-aware context (overrides targeted context)
+[2025-12-24 15:16:42] WARNING: [Scope] Could not determine workspace from scope paths, using default: .
+[2025-12-24 15:16:42] WARNING: [Scope] Missing scope files: ['code']
+[2025-12-24 15:16:42] INFO: [Scope] Loaded 251 files from scope configuration
+[2025-12-24 15:16:42] INFO: [Scope] Scope paths: ['code', 'tests', 'docs']
+[2025-12-24 15:16:42] INFO: [Scope] Loaded paths: ['code', 'tests/conftest.py', 'tests/test_api.py', 'tests/test_autonomous_executor.py', 'tests/test_backlog_maintenance.py', 'tests/test_baseline_tracker.py', 'tests/test_build112_phase3_deep_retrieval_validation.py', 'tests/test_circuit_breaker.py', 'tests/test_circuit_breaker_registry.py', 'tests/test_classification_regression.py']...
+[2025-12-24 15:16:42] INFO: [research-gatherers-social] Loaded 251 files for context
+[2025-12-24 15:16:42] WARNING: [Scope] Could not determine workspace from scope paths, using default: .
+[2025-12-24 15:16:42] INFO: [Scope] Validation passed: 251 files match scope configuration
+[2025-12-24 15:16:42] WARNING: [research-gatherers-social] Large files in context (read-only, >1000 lines): docs/BUILD_HISTORY.md, docs/DEBUG_LOG.md, docs/LEARNED_RULES.json, docs/RESEARCH_CITATION_FIX_PLAN.md
+[2025-12-24 15:16:42] INFO: [research-gatherers-social] Retrieved 556 chars of context from memory
+[2025-12-24 15:16:42] INFO: [research-gatherers-social] Built deliverables contract: 16 required paths, 0 forbidden patterns
+[2025-12-24 15:16:42] INFO: [research-gatherers-social] Deliverables manifest gate PASSED (16 paths)
+[2025-12-24 15:16:42] INFO: [ModelSelector] Selected claude-sonnet-4-5 for builder (complexity=medium, attempt=0, intra_tier=0)
+[2025-12-24 15:16:42] INFO: [MODEL-SELECT] Builder: model=claude-sonnet-4-5, complexity=medium->medium, attempt=0, category=IMPLEMENT_FEATURE
+[2025-12-24 15:16:42] INFO: [TokenEstimator] Budget selection: base=12288, estimated=7020, with_buffer=8424, selected=12288, confidence=50.0%
+[2025-12-24 15:16:42] INFO: [BUILD-129] Token estimate: 7020 output tokens (3 deliverables, confidence=0.50), selected budget: 12288
+[2025-12-24 15:16:42] INFO: [Builder] File docs/BUILD_HISTORY.md (1631 lines) exceeds hard limit; enabling structured edit mode
+[2025-12-24 15:16:42] WARNING: CONSOLIDATED_DEBUG.md not found at c:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\CONSOLIDATED_DEBUG.md
+[2025-12-24 15:16:43] WARNING: [TOKEN_SOFT_CAP] run_id=unknown phase_id=research-gatherers-social est_total=407365 soft_cap=32000 (prompt=398764 completion=8601 complexity=medium)
+[2025-12-24 15:16:48] INFO: Retrying request to /v1/messages in 0.399023 seconds
+[2025-12-24 15:16:53] INFO: Retrying request to /v1/messages in 0.951242 seconds
+[2025-12-24 15:16:55] INFO: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 400 Bad Request"
+[2025-12-24 15:16:55] ERROR: [Builder] Unhandled exception during execute_phase: Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'prompt is too long: 203457 tokens > 200000 maximum'}, 'request_id': 'req_011CWQsBAnwd7SzsVNBh6y3n'}
+Traceback:
+Traceback (most recent call last):
+  File "c:\dev\Autopack\src\autopack\anthropic_clients.py", line 572, in execute_phase
+    with self.client.messages.stream(
+  File "C:\Python\Lib\site-packages\anthropic\lib\streaming\_messages.py", line 154, in __enter__
+    raw_stream = self.__api_request()
+                 ^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python\Lib\site-packages\anthropic\_base_client.py", line 1326, in post
+    return cast(ResponseT, self.request(cast_to, opts, stream=stream, stream_cls=stream_cls))
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python\Lib\site-packages\anthropic\_base_client.py", line 1114, in request
+    raise self._make_status_error_from_response(err.response) from None
+anthropic.BadRequestError: Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'prompt is too long: 203457 tokens > 200000 maximum'}, 'request_id': 'req_011CWQsBAnwd7SzsVNBh6y3n'}
+
+[2025-12-24 15:16:55] ERROR: [research-gatherers-social] Builder failed: Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'prompt is too long: 203457 tokens > 200000 maximum'}, 'request_id': 'req_011CWQsBAnwd7SzsVNBh6y3n'}
+[2025-12-24 15:16:56] INFO: Updated phase research-gatherers-social status to FAILED
+[2025-12-24 15:17:36] INFO: [MemoryService] Stored decision log
+[2025-12-24 15:17:36] INFO: [RetrievalTrigger] Phase research-gatherers-social attempt 1: Error messages lack context - triggering deep retrieval
+[2025-12-24 15:17:36] INFO: [DeepRetrieval] Starting bounded retrieval for phase research-gatherers-social (priority=medium)
+[2025-12-24 15:17:37] INFO: [DeepRetrieval] Retrieved 0 run artifacts (0 bytes), 1 SOT files (15360 bytes), 0 memory entries (0 bytes)
+[2025-12-24 15:17:37] WARNING: [research-gatherers-social] Attempt 1/5 failed, will escalate model for next retry
+[2025-12-24 15:17:37] WARNING: Phase research-gatherers-social finished with status: FAILED
+[2025-12-24 15:17:37] INFO: Reached max iterations (3), stopping
+[2025-12-24 15:17:37] INFO: Autonomous execution loop finished
+[2025-12-24 15:17:37] INFO: [ARCHIVE_CONSOLIDATOR] Logged build event: RUN_PAUSED
+[2025-12-24 15:17:39] INFO: Applying pre-emptive encoding fix...
+[2025-12-24 15:17:39] INFO: [Recovery] Fixing Unicode encoding error...
+[drain] run_id=research-system-v8 queued=4 complete=0 failed=4
+[drain] Starting batch 2 (max-iterations=3)...
+[2025-12-24 15:17:39] INFO: [Recovery] SUCCESS: Encoding fixed (UTF-8 enabled)
+[2025-12-24 15:17:39] INFO: Database tables initialized
+[2025-12-24 15:17:39] INFO: Loaded BuilderOutputConfig: max_lines_for_full_file=1000, max_lines_hard_limit=1000
+[2025-12-24 15:17:39] INFO: Doctor execute_fix enabled: True
+[2025-12-24 15:17:39] INFO: FileSizeTelemetry initialized: .autonomous_runs\autopack\file_size_telemetry.jsonl
+[2025-12-24 15:17:48] WARNING: [Qdrant] Connection check failed for localhost:6333: [WinError 10061] No connection could be made because the target machine actively refused it
+[2025-12-24 15:17:49] WARNING: [MemoryService] Qdrant unavailable at localhost:6333; falling back to FAISS ([WinError 10061] No connection could be made because the target machine actively refused it)
+[2025-12-24 15:17:49] INFO: [FAISS] Created collection 'code_docs' with dim=1536
+[2025-12-24 15:17:49] INFO: [FAISS] Created collection 'run_summaries' with dim=1536
+[2025-12-24 15:17:49] INFO: [FAISS] Created collection 'errors_ci' with dim=1536
+[2025-12-24 15:17:49] INFO: [FAISS] Created collection 'doctor_hints' with dim=1536
+[2025-12-24 15:17:49] INFO: [FAISS] Created collection 'planning' with dim=1536
+[2025-12-24 15:17:49] INFO: [MemoryService] Initialized (backend=faiss, enabled=True, top_k=5)
+[2025-12-24 15:17:49] INFO: MemoryService initialized (enabled=True)
+[2025-12-24 15:17:49] INFO: [FileLayout] Project: autopack, Family: research-system-v8, Base: .autonomous_runs\autopack\runs\research-system-v8
+[2025-12-24 15:17:49] INFO: Initialized autonomous executor for run: research-system-v8
+[2025-12-24 15:17:49] INFO: API URL: http://localhost:8000
+[2025-12-24 15:17:49] INFO: Workspace: .
+[2025-12-24 15:17:49] INFO: Running proactive startup checks from DEBUG_JOURNAL.md...
+[2025-12-24 15:17:49] INFO: [HIGH] Checking: Windows Unicode Fix (PYTHONUTF8)
+[2025-12-24 15:17:49] INFO:   Reason: Prevents UnicodeEncodeError with emoji characters in logs (Issue #3)
+[2025-12-24 15:17:49] INFO:   Check PASSED
+[2025-12-24 15:17:49] INFO: [SchemaValidator] Starting database schema validation...
+[2025-12-24 15:17:49] INFO: [SchemaValidator] ✅ Database schema validation PASSED
+[2025-12-24 15:17:49] INFO: Startup checks complete
+[2025-12-24 15:17:50] INFO: [BUILD-123v2] Manifest generator initialized (deterministic scope generation)
+[2025-12-24 15:17:52] INFO: [HealthCheck:T0] API Keys: PASSED (0ms) - All required API keys present
+[2025-12-24 15:17:52] INFO: [HealthCheck:T0] Database: PASSED (0ms) - Database accessible: c:\dev\Autopack\autopack.db
+[2025-12-24 15:17:52] INFO: [HealthCheck:T0] Workspace: PASSED (0ms) - Workspace valid: c:\dev\Autopack
+[2025-12-24 15:17:52] INFO: [HealthCheck:T0] Config: PASSED (21ms) - Configuration files valid
+[2025-12-24 15:17:52] INFO: [HealthCheck:T0] Vector Memory: PASSED (1208ms) - Qdrant unreachable at localhost:6333; autostart attempted or unavailable. Falling back to FAISS.
+[2025-12-24 15:17:52] INFO: [BUILD-127] Completion authority initialized (PhaseFinalizer + TestBaselineTracker)
+[2025-12-24 15:17:52] INFO: [BUILD-127] Capturing T0 baseline at commit 1dc6756e...
+[2025-12-24 15:17:52] INFO: [Baseline] Using cached baseline for commit 1dc6756e
+[2025-12-24 15:17:52] INFO: [BUILD-127] T0 baseline: 0 tests, 0 passing, 0 failing, 0 errors
+[2025-12-24 15:17:52] INFO: Starting autonomous execution loop...
+[2025-12-24 15:17:52] INFO: Poll interval: 10s
+[2025-12-24 15:17:52] INFO: Max iterations: 3
+[2025-12-24 15:17:52] INFO: API server is already running
+[2025-12-24 15:17:52] INFO: Initializing infrastructure...
+[2025-12-24 15:17:55] INFO: LlmService: Initialized with ModelRouter and UsageRecorder
+[2025-12-24 15:17:55] INFO: Quality Gate: Initialized
+[2025-12-24 15:17:55] INFO: Iteration 1: Fetching run status...
+[2025-12-24 15:17:55] INFO: [BUILD-041] Next phase: research-gatherers-web-compilation
+[2025-12-24 15:17:55] INFO: [BUILD-123v2] Phase 'research-gatherers-web-compilation' has no scope - generating manifest...
+[2025-12-24 15:17:55] INFO: Generating manifest for run: research-system-v8
+[2025-12-24 15:17:55] INFO: Repo structure scanned successfully
+[2025-12-24 15:17:55] INFO: [BUILD-128] Phase 'research-gatherers-web-compilation' has deliverables - inferring scope from deliverables
+[2025-12-24 15:17:55] INFO: [BUILD-128] Inferred category 'unknown' from deliverables (confidence=0.0%)
+[2025-12-24 15:17:55] INFO: [BUILD-128] Generated scope: 3 paths, 0 context files
+[2025-12-24 15:17:55] INFO: [BUILD-129] Added token estimate to phase: 7020 output tokens (3 deliverables, confidence=0.50)
+[2025-12-24 15:17:55] INFO: [BUILD-123v2] Generated scope for 'research-gatherers-web-compilation': category=unknown, confidence=0.0%, files=3
+[2025-12-24 15:17:55] WARNING: [BUILD-123v2] Low confidence (0.0%) for phase 'research-gatherers-web-compilation' - scope may be incomplete. Builder may need to request expansion.
+[2025-12-24 15:17:55] WARNING: [Scope] Could not determine workspace from scope paths, using default: .
+[2025-12-24 15:17:55] INFO: [research-gatherers-web-compilation] Using scope-aware context (overrides targeted context)
+[2025-12-24 15:17:55] WARNING: [Scope] Could not determine workspace from scope paths, using default: .
+[2025-12-24 15:17:55] WARNING: [Scope] Missing scope files: ['code']
+[2025-12-24 15:17:55] INFO: [Scope] Loaded 251 files from scope configuration
+[2025-12-24 15:17:55] INFO: [Scope] Scope paths: ['code', 'tests', 'docs']
+[2025-12-24 15:17:55] INFO: [Scope] Loaded paths: ['code', 'tests/conftest.py', 'tests/test_api.py', 'tests/test_autonomous_executor.py', 'tests/test_backlog_maintenance.py', 'tests/test_baseline_tracker.py', 'tests/test_build112_phase3_deep_retrieval_validation.py', 'tests/test_circuit_breaker.py', 'tests/test_circuit_breaker_registry.py', 'tests/test_classification_regression.py']...
+[2025-12-24 15:17:55] INFO: [research-gatherers-web-compilation] Loaded 251 files for context
+[2025-12-24 15:17:55] INFO: [research-gatherers-web-compilation] Chunk2B batching enabled: 4 batches (2, 2, 4, 3 files)
+[2025-12-24 15:17:55] INFO: [research-gatherers-web-compilation] Batch 1/4: 2 deliverables
+[2025-12-24 15:17:55] INFO: [research-gatherers-web-compilation] Built deliverables contract: 2 required paths, 0 forbidden patterns
+[2025-12-24 15:17:55] INFO: [research-gatherers-web-compilation] Deliverables manifest gate PASSED (batch 1, 2 paths)
+[2025-12-24 15:17:55] INFO: [ModelSelector] Selected claude-sonnet-4-5 for builder (complexity=medium, attempt=0, intra_tier=0)
+[2025-12-24 15:17:55] INFO: [MODEL-SELECT] Builder: model=claude-sonnet-4-5, complexity=medium->medium, attempt=0, category=IMPLEMENT_FEATURE
+[2025-12-24 15:17:55] WARNING: CONSOLIDATED_DEBUG.md not found at c:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\CONSOLIDATED_DEBUG.md
+[2025-12-24 15:17:57] INFO: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+[2025-12-24 15:19:32] INFO: [TOKEN_BUDGET] phase=research-gatherers-web-compilation complexity=medium input=1730 output=8604/16384 total=10334 utilization=52.5% model=claude-sonnet-4-5
+[2025-12-24 15:19:32] ERROR: LLM output invalid format - no git diff markers found. Output must start with 'diff --git'
+First 500 chars: ```json
+{
+  "files": [
+    {
+      "path": "src/research/gatherers/content_extractor.py",
+      "mode": "create",
+      "new_content": "\"\"\"Content extraction and processing utilities for web scraping.\n\nThis module provides functionality to extract and clean content from HTML,\nidentify content types, and prepare text for further processing.\n\"\"\"\n\nimport re\nfrom typing import Dict, List, Optional, Set\nfrom urllib.parse import urljoin, urlparse\n\nfrom bs4 import BeautifulSoup, Tag\n\n
+[2025-12-24 15:19:32] ERROR: [research-gatherers-web-compilation] Builder failed (batch 1): LLM output invalid format - no git diff markers found. Output must start with 'diff --git'
+[2025-12-24 15:19:32] INFO: Updated phase research-gatherers-web-compilation status to FAILED
+[2025-12-24 15:20:13] INFO: [MemoryService] Stored decision log
+[2025-12-24 15:20:13] INFO: [RetrievalTrigger] Phase research-gatherers-web-compilation attempt 1: Error messages lack context - triggering deep retrieval
+[2025-12-24 15:20:13] INFO: [DeepRetrieval] Starting bounded retrieval for phase research-gatherers-web-compilation (priority=medium)
+[2025-12-24 15:20:13] INFO: [DeepRetrieval] Retrieved 0 run artifacts (0 bytes), 1 SOT files (15360 bytes), 0 memory entries (0 bytes)
+[2025-12-24 15:20:13] WARNING: [research-gatherers-web-compilation] Attempt 1/5 failed, will escalate model for next retry
+[2025-12-24 15:20:13] WARNING: Phase research-gatherers-web-compilation finished with status: FAILED
+[2025-12-24 15:20:13] INFO: Waiting 10s before next phase...
+[2025-12-24 15:20:23] INFO: Iteration 2: Fetching run status...
+[2025-12-24 15:20:23] INFO: [BUILD-041] Next phase: research-meta-analysis
+[2025-12-24 15:20:23] INFO: [BUILD-123v2] Phase 'research-meta-analysis' has no scope - generating manifest...
+[2025-12-24 15:20:23] INFO: Generating manifest for run: research-system-v8
+[2025-12-24 15:20:23] INFO: Repo structure scanned successfully
+[2025-12-24 15:20:23] INFO: [BUILD-128] Phase 'research-meta-analysis' has deliverables - inferring scope from deliverables
+[2025-12-24 15:20:23] INFO: [BUILD-128] Inferred category 'unknown' from deliverables (confidence=0.0%)
+[2025-12-24 15:20:23] INFO: [BUILD-128] Generated scope: 3 paths, 0 context files
+[2025-12-24 15:20:23] INFO: [BUILD-129] Added token estimate to phase: 7020 output tokens (3 deliverables, confidence=0.50)
+[2025-12-24 15:20:23] INFO: [BUILD-123v2] Generated scope for 'research-meta-analysis': category=unknown, confidence=0.0%, files=3
+[2025-12-24 15:20:23] WARNING: [BUILD-123v2] Low confidence (0.0%) for phase 'research-meta-analysis' - scope may be incomplete. Builder may need to request expansion.
+[2025-12-24 15:20:23] WARNING: [Scope] Could not determine workspace from scope paths, using default: .
+[2025-12-24 15:20:23] INFO: [research-meta-analysis] Step 1/4: Generating code with Builder (via LlmService)...
+[2025-12-24 15:20:23] INFO: [research-meta-analysis] Using scope-aware context (overrides targeted context)
+[2025-12-24 15:20:23] WARNING: [Scope] Could not determine workspace from scope paths, using default: .
+[2025-12-24 15:20:23] WARNING: [Scope] Missing scope files: ['code']
+[2025-12-24 15:20:23] INFO: [Scope] Loaded 251 files from scope configuration
+[2025-12-24 15:20:23] INFO: [Scope] Scope paths: ['code', 'tests', 'docs']
+[2025-12-24 15:20:23] INFO: [Scope] Loaded paths: ['code', 'tests/conftest.py', 'tests/test_api.py', 'tests/test_autonomous_executor.py', 'tests/test_backlog_maintenance.py', 'tests/test_baseline_tracker.py', 'tests/test_build112_phase3_deep_retrieval_validation.py', 'tests/test_circuit_breaker.py', 'tests/test_circuit_breaker_registry.py', 'tests/test_classification_regression.py']...
+[2025-12-24 15:20:23] INFO: [research-meta-analysis] Loaded 251 files for context
+[2025-12-24 15:20:23] WARNING: [Scope] Could not determine workspace from scope paths, using default: .
+[2025-12-24 15:20:23] INFO: [Scope] Validation passed: 251 files match scope configuration
+[2025-12-24 15:20:23] WARNING: [research-meta-analysis] Large files in context (read-only, >1000 lines): docs/BUILD_HISTORY.md, docs/DEBUG_LOG.md, docs/LEARNED_RULES.json, docs/RESEARCH_CITATION_FIX_PLAN.md
+[2025-12-24 15:20:23] INFO: [research-meta-analysis] Retrieved 284 chars of context from memory
+[2025-12-24 15:20:23] INFO: [research-meta-analysis] Built deliverables contract: 20 required paths, 0 forbidden patterns
+[2025-12-24 15:20:23] INFO: [research-meta-analysis] Deliverables manifest gate PASSED (20 paths)
+[2025-12-24 15:20:23] INFO: [ModelSelector] Selected claude-sonnet-4-5 for builder (complexity=medium, attempt=0, intra_tier=0)
+[2025-12-24 15:20:23] INFO: [MODEL-SELECT] Builder: model=claude-sonnet-4-5, complexity=medium->medium, attempt=0, category=IMPLEMENT_FEATURE
+[2025-12-24 15:20:23] INFO: [TokenEstimator] Budget selection: base=12288, estimated=7020, with_buffer=8424, selected=12288, confidence=50.0%
+[2025-12-24 15:20:23] INFO: [BUILD-129] Token estimate: 7020 output tokens (3 deliverables, confidence=0.50), selected budget: 12288
+[2025-12-24 15:20:23] INFO: [Builder] File docs/BUILD_HISTORY.md (1631 lines) exceeds hard limit; enabling structured edit mode
+[2025-12-24 15:20:23] WARNING: CONSOLIDATED_DEBUG.md not found at c:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\CONSOLIDATED_DEBUG.md
+[2025-12-24 15:20:24] WARNING: [TOKEN_SOFT_CAP] run_id=unknown phase_id=research-meta-analysis est_total=407296 soft_cap=32000 (prompt=398695 completion=8601 complexity=medium)
+[2025-12-24 15:20:26] INFO: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 400 Bad Request"
+[2025-12-24 15:20:26] ERROR: [Builder] Unhandled exception during execute_phase: Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'prompt is too long: 203459 tokens > 200000 maximum'}, 'request_id': 'req_011CWQsSfBR2ZEBoiFrbRwWw'}
+Traceback:
+Traceback (most recent call last):
+  File "c:\dev\Autopack\src\autopack\anthropic_clients.py", line 572, in execute_phase
+    with self.client.messages.stream(
+  File "C:\Python\Lib\site-packages\anthropic\lib\streaming\_messages.py", line 154, in __enter__
+    raw_stream = self.__api_request()
+                 ^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python\Lib\site-packages\anthropic\_base_client.py", line 1326, in post
+    return cast(ResponseT, self.request(cast_to, opts, stream=stream, stream_cls=stream_cls))
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python\Lib\site-packages\anthropic\_base_client.py", line 1114, in request
+    raise self._make_status_error_from_response(err.response) from None
+anthropic.BadRequestError: Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'prompt is too long: 203459 tokens > 200000 maximum'}, 'request_id': 'req_011CWQsSfBR2ZEBoiFrbRwWw'}
+
+[2025-12-24 15:20:26] ERROR: [research-meta-analysis] Builder failed: Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'prompt is too long: 203459 tokens > 200000 maximum'}, 'request_id': 'req_011CWQsSfBR2ZEBoiFrbRwWw'}
+[2025-12-24 15:20:26] INFO: Updated phase research-meta-analysis status to FAILED
+[2025-12-24 15:21:06] INFO: [MemoryService] Stored decision log
+[2025-12-24 15:21:06] INFO: [RetrievalTrigger] Phase research-meta-analysis attempt 1: Error messages lack context - triggering deep retrieval
+[2025-12-24 15:21:06] INFO: [DeepRetrieval] Starting bounded retrieval for phase research-meta-analysis (priority=medium)
+[2025-12-24 15:21:07] INFO: [DeepRetrieval] Retrieved 0 run artifacts (0 bytes), 1 SOT files (15360 bytes), 0 memory entries (0 bytes)
+[2025-12-24 15:21:07] WARNING: [research-meta-analysis] Attempt 1/5 failed, will escalate model for next retry
+[2025-12-24 15:21:07] WARNING: Phase research-meta-analysis finished with status: FAILED
+[2025-12-24 15:21:07] INFO: Waiting 10s before next phase...
+[2025-12-24 15:21:17] INFO: Iteration 3: Fetching run status...
+[2025-12-24 15:21:17] INFO: [BUILD-041] Next phase: research-integration
+[2025-12-24 15:21:17] INFO: [BUILD-123v2] Phase 'research-integration' has no scope - generating manifest...
+[2025-12-24 15:21:17] INFO: Generating manifest for run: research-system-v8
+[2025-12-24 15:21:17] INFO: Repo structure scanned successfully
+[2025-12-24 15:21:17] INFO: [BUILD-128] Phase 'research-integration' has deliverables - inferring scope from deliverables
+[2025-12-24 15:21:17] INFO: [BUILD-128] Inferred category 'unknown' from deliverables (confidence=0.0%)
+[2025-12-24 15:21:17] INFO: [BUILD-128] Generated scope: 3 paths, 0 context files
+[2025-12-24 15:21:17] INFO: [BUILD-129] Added token estimate to phase: 7020 output tokens (3 deliverables, confidence=0.50)
+[2025-12-24 15:21:17] INFO: [BUILD-123v2] Generated scope for 'research-integration': category=unknown, confidence=0.0%, files=3
+[2025-12-24 15:21:17] WARNING: [BUILD-123v2] Low confidence (0.0%) for phase 'research-integration' - scope may be incomplete. Builder may need to request expansion.
+[2025-12-24 15:21:17] WARNING: [Scope] Could not determine workspace from scope paths, using default: .
+[2025-12-24 15:21:17] INFO: [research-integration] Step 1/4: Generating code with Builder (via LlmService)...
+[2025-12-24 15:21:17] INFO: [research-integration] Using scope-aware context (overrides targeted context)
+[2025-12-24 15:21:17] WARNING: [Scope] Could not determine workspace from scope paths, using default: .
+[2025-12-24 15:21:17] WARNING: [Scope] Missing scope files: ['code']
+[2025-12-24 15:21:17] INFO: [Scope] Loaded 251 files from scope configuration
+[2025-12-24 15:21:17] INFO: [Scope] Scope paths: ['code', 'tests', 'docs']
+[2025-12-24 15:21:17] INFO: [Scope] Loaded paths: ['code', 'tests/conftest.py', 'tests/test_api.py', 'tests/test_autonomous_executor.py', 'tests/test_backlog_maintenance.py', 'tests/test_baseline_tracker.py', 'tests/test_build112_phase3_deep_retrieval_validation.py', 'tests/test_circuit_breaker.py', 'tests/test_circuit_breaker_registry.py', 'tests/test_classification_regression.py']...
+[2025-12-24 15:21:17] INFO: [research-integration] Loaded 251 files for context
+[2025-12-24 15:21:17] WARNING: [Scope] Could not determine workspace from scope paths, using default: .
+[2025-12-24 15:21:17] INFO: [Scope] Validation passed: 251 files match scope configuration
+[2025-12-24 15:21:17] WARNING: [research-integration] Large files in context (read-only, >1000 lines): docs/BUILD_HISTORY.md, docs/DEBUG_LOG.md, docs/LEARNED_RULES.json, docs/RESEARCH_CITATION_FIX_PLAN.md
+[2025-12-24 15:21:17] INFO: [research-integration] Retrieved 556 chars of context from memory
+[2025-12-24 15:21:17] INFO: [research-integration] Built deliverables contract: 17 required paths, 0 forbidden patterns
+[2025-12-24 15:21:17] INFO: [research-integration] Deliverables manifest gate PASSED (17 paths)
+[2025-12-24 15:21:17] INFO: [ModelSelector] Selected claude-sonnet-4-5 for builder (complexity=medium, attempt=0, intra_tier=0)
+[2025-12-24 15:21:17] INFO: [MODEL-SELECT] Builder: model=claude-sonnet-4-5, complexity=medium->medium, attempt=0, category=IMPLEMENT_FEATURE
+[2025-12-24 15:21:17] INFO: [TokenEstimator] Budget selection: base=12288, estimated=7020, with_buffer=8424, selected=12288, confidence=50.0%
+[2025-12-24 15:21:17] INFO: [BUILD-129] Token estimate: 7020 output tokens (3 deliverables, confidence=0.50), selected budget: 12288
+[2025-12-24 15:21:17] INFO: [Builder] File docs/BUILD_HISTORY.md (1631 lines) exceeds hard limit; enabling structured edit mode
+[2025-12-24 15:21:17] WARNING: CONSOLIDATED_DEBUG.md not found at c:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\CONSOLIDATED_DEBUG.md
+[2025-12-24 15:21:17] WARNING: [TOKEN_SOFT_CAP] run_id=unknown phase_id=research-integration est_total=407358 soft_cap=32000 (prompt=398757 completion=8601 complexity=medium)
+[2025-12-24 15:21:19] INFO: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 400 Bad Request"
+[2025-12-24 15:21:19] ERROR: [Builder] Unhandled exception during execute_phase: Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'prompt is too long: 203461 tokens > 200000 maximum'}, 'request_id': 'req_011CWQsWap6FkvygWaBi7UxB'}
+Traceback:
+Traceback (most recent call last):
+  File "c:\dev\Autopack\src\autopack\anthropic_clients.py", line 572, in execute_phase
+    with self.client.messages.stream(
+  File "C:\Python\Lib\site-packages\anthropic\lib\streaming\_messages.py", line 154, in __enter__
+    raw_stream = self.__api_request()
+                 ^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python\Lib\site-packages\anthropic\_base_client.py", line 1326, in post
+    return cast(ResponseT, self.request(cast_to, opts, stream=stream, stream_cls=stream_cls))
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python\Lib\site-packages\anthropic\_base_client.py", line 1114, in request
+    raise self._make_status_error_from_response(err.response) from None
+anthropic.BadRequestError: Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'prompt is too long: 203461 tokens > 200000 maximum'}, 'request_id': 'req_011CWQsWap6FkvygWaBi7UxB'}
+
+[2025-12-24 15:21:19] ERROR: [research-integration] Builder failed: Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'prompt is too long: 203461 tokens > 200000 maximum'}, 'request_id': 'req_011CWQsWap6FkvygWaBi7UxB'}
+[2025-12-24 15:21:19] INFO: Updated phase research-integration status to FAILED
+[2025-12-24 15:22:00] INFO: [MemoryService] Stored decision log
+[2025-12-24 15:22:00] INFO: [RetrievalTrigger] Phase research-integration attempt 1: Error messages lack context - triggering deep retrieval
+[2025-12-24 15:22:00] INFO: [DeepRetrieval] Starting bounded retrieval for phase research-integration (priority=medium)
+[2025-12-24 15:22:00] INFO: [DeepRetrieval] Retrieved 0 run artifacts (0 bytes), 1 SOT files (15360 bytes), 0 memory entries (0 bytes)
+[2025-12-24 15:22:00] WARNING: [research-integration] Attempt 1/5 failed, will escalate model for next retry
+[2025-12-24 15:22:00] WARNING: Phase research-integration finished with status: FAILED
+[2025-12-24 15:22:00] INFO: Reached max iterations (3), stopping
+[2025-12-24 15:22:00] INFO: Autonomous execution loop finished
+[2025-12-24 15:22:00] INFO: [ARCHIVE_CONSOLIDATOR] Logged build event: RUN_PAUSED
+[drain] run_id=research-system-v8 queued=1 complete=0 failed=7
+[drain] Reached max-batches=2. Exiting.

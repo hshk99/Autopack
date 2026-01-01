@@ -1,0 +1,1397 @@
+========================================
+Draining: telemetry-p2-number-util
+========================================
+faiss library not installed; FaissStore will use in-memory fallback
+[2025-12-29 19:03:48] INFO: Applying pre-emptive encoding fix...
+[2025-12-29 19:03:48] INFO: [Recovery] Fixing Unicode encoding error...
+======================================================================
+DATABASE IDENTITY
+======================================================================
+DATABASE_URL: sqlite:///C:/dev/Autopack/telemetry_seed_fullrun.db
+SQLite file: C:\dev\Autopack\telemetry_seed_fullrun.db
+Last modified: 2025-12-29T08:00:21.237241+00:00
+
+Row counts:
+  Runs: 1
+  Phases: 10
+  LLM usage events: 2
+======================================================================
+
+[drain_one_phase] ===== ENVIRONMENT IDENTITY =====
+[drain_one_phase] DATABASE_URL: sqlite:///C:/dev/Autopack/telemetry_seed_fullrun.db
+[drain_one_phase] AUTOPACK_API_URL: http://127.0.0.1:8123
+[drain_one_phase] ================================
+[drain_one_phase] Draining: telemetry-collection-v4 / telemetry-p2-number-util
+
+[2025-12-29 19:03:48] INFO: [Recovery] SUCCESS: Encoding fixed (UTF-8 enabled)
+[2025-12-29 19:03:48] INFO: Database tables initialized
+[2025-12-29 19:03:48] INFO: Loaded BuilderOutputConfig: max_lines_for_full_file=1000, max_lines_hard_limit=1000
+[2025-12-29 19:03:48] INFO: Doctor execute_fix enabled: True
+[2025-12-29 19:03:48] INFO: FileSizeTelemetry initialized: C:\dev\Autopack\.autonomous_runs\autopack\file_size_telemetry.jsonl
+[2025-12-29 19:03:57] WARNING: [Qdrant] Connection check failed for localhost:6333: [WinError 10061] No connection could be made because the target machine actively refused it
+[2025-12-29 19:03:59] WARNING: [MemoryService] Qdrant unavailable at localhost:6333; falling back to FAISS ([WinError 10061] No connection could be made because the target machine actively refused it)
+[2025-12-29 19:03:59] INFO: [FAISS] Created collection 'code_docs' with dim=1536
+[2025-12-29 19:03:59] INFO: [FAISS] Created collection 'run_summaries' with dim=1536
+[2025-12-29 19:03:59] INFO: [FAISS] Created collection 'errors_ci' with dim=1536
+[2025-12-29 19:03:59] INFO: [FAISS] Created collection 'doctor_hints' with dim=1536
+[2025-12-29 19:03:59] INFO: [FAISS] Created collection 'planning' with dim=1536
+[2025-12-29 19:03:59] INFO: [MemoryService] Initialized (backend=faiss, enabled=True, top_k=5)
+[2025-12-29 19:03:59] INFO: MemoryService initialized (enabled=True)
+[2025-12-29 19:03:59] INFO: [FileLayout] Project: autopack, Family: telemetry-collection-v4, Base: .autonomous_runs\autopack\runs\telemetry-collection-v4
+[2025-12-29 19:03:59] INFO: Initialized autonomous executor for run: telemetry-collection-v4
+[2025-12-29 19:03:59] INFO: API URL: http://127.0.0.1:8123
+[2025-12-29 19:03:59] INFO: Workspace: C:\dev\Autopack
+[2025-12-29 19:03:59] INFO: Running proactive startup checks from DEBUG_JOURNAL.md...
+[2025-12-29 19:03:59] INFO: [HIGH] Checking: Windows Unicode Fix (PYTHONUTF8)
+[2025-12-29 19:03:59] INFO:   Reason: Prevents UnicodeEncodeError with emoji characters in logs (Issue #3)
+[2025-12-29 19:03:59] INFO:   Check PASSED
+[2025-12-29 19:03:59] INFO: [SchemaValidator] Starting database schema validation...
+[2025-12-29 19:03:59] INFO: [SchemaValidator] ✅ Database schema validation PASSED
+[2025-12-29 19:03:59] INFO: Startup checks complete
+[2025-12-29 19:04:01] INFO: [BUILD-123v2] Manifest generator initialized (deterministic scope generation)
+[2025-12-29 19:04:02] INFO: [HealthCheck:T0] API Keys: PASSED (0ms) - All required API keys present
+[2025-12-29 19:04:02] INFO: [HealthCheck:T0] Database: PASSED (0ms) - Database accessible: C:\dev\Autopack\autopack.db
+[2025-12-29 19:04:02] INFO: [HealthCheck:T0] Workspace: PASSED (0ms) - Workspace valid: C:\dev\Autopack
+[2025-12-29 19:04:02] INFO: [HealthCheck:T0] Config: PASSED (25ms) - Configuration files valid
+[2025-12-29 19:04:02] INFO: [HealthCheck:T0] Vector Memory: PASSED (1610ms) - Qdrant unreachable at localhost:6333; autostart attempted or unavailable. Falling back to FAISS.
+[2025-12-29 19:04:02] INFO: [BUILD-127] Completion authority initialized (PhaseFinalizer + TestBaselineTracker)
+[2025-12-29 19:04:02] INFO: [BUILD-127] Capturing T0 baseline at commit c5835e0d...
+[2025-12-29 19:04:02] INFO: [Baseline] Using cached baseline for commit c5835e0d
+[2025-12-29 19:04:02] INFO: [BUILD-127] T0 baseline: 0 tests, 0 passing, 0 failing, 16 errors
+[2025-12-29 19:04:02] INFO: Starting autonomous execution loop...
+[2025-12-29 19:04:02] INFO: Poll interval: 10s
+[2025-12-29 19:04:02] INFO: Max iterations: 1
+[2025-12-29 19:04:02] INFO: API server is already running
+[2025-12-29 19:04:02] INFO: ✅ Run 'telemetry-collection-v4' verified in API database
+[2025-12-29 19:04:02] INFO: Initializing infrastructure...
+[2025-12-29 19:04:06] INFO: LlmService: Initialized with ModelRouter and UsageRecorder
+[2025-12-29 19:04:06] INFO: Quality Gate: Initialized
+[2025-12-29 19:04:06] INFO: Iteration 1: Fetching run status...
+[2025-12-29 19:04:06] INFO: [GoalAnchor] Initialized: Create a string utility module with capitalize_words and reverse_string functions...
+[2025-12-29 19:04:06] INFO: [BUILD-041] Next phase: telemetry-p2-number-util
+[2025-12-29 19:04:06] INFO: [Scope] Workspace root determined as repo root for bucket 'examples': C:\dev\Autopack
+[2025-12-29 19:04:06] INFO: [telemetry-p2-number-util] Step 1/4: Generating code with Builder (via LlmService)...
+[2025-12-29 19:04:06] INFO: [telemetry-p2-number-util] Using scope-aware context (overrides targeted context)
+[2025-12-29 19:04:06] INFO: [Scope] Workspace root determined as repo root for bucket 'examples': C:\dev\Autopack
+[2025-12-29 19:04:06] INFO: [Scope] Loaded 4 files from scope configuration
+[2025-12-29 19:04:06] INFO: [Scope] Scope paths: ['examples/telemetry_utils/']
+[2025-12-29 19:04:06] INFO: [Scope] Loaded paths: ['examples/telemetry_utils/number_utils.py', 'examples/telemetry_utils/string_helper.py', 'examples/telemetry_utils/string_utils.py', 'examples/telemetry_utils/__init__.py']...
+[2025-12-29 19:04:06] INFO: [telemetry-p2-number-util] Loaded 4 files for context
+[2025-12-29 19:04:06] INFO: [Scope] Workspace root determined as repo root for bucket 'examples': C:\dev\Autopack
+[2025-12-29 19:04:06] INFO: [Scope] Validation passed: 4 files match scope configuration
+[2025-12-29 19:04:06] INFO: [telemetry-p2-number-util] Learning context: 0 rules, 5 hints
+[2025-12-29 19:04:06] INFO: [telemetry-p2-number-util] Built deliverables contract: 1 required paths, 0 forbidden patterns
+[2025-12-29 19:04:06] INFO: [telemetry-p2-number-util] Deliverables manifest gate PASSED (1 paths)
+[2025-12-29 19:04:06] INFO: [ModelSelector] Selected claude-sonnet-4-5 for builder (complexity=low, attempt=0, intra_tier=0)
+[2025-12-29 19:04:06] INFO: [MODEL-SELECT] Builder: model=claude-sonnet-4-5, complexity=low->low, attempt=0, category=implementation
+[2025-12-29 19:04:06] INFO: [TokenEstimator] Budget selection: base=8192, estimated=5200, with_buffer=6240, selected=8192, confidence=80.0%, buffer_margin=1.20x
+[2025-12-29 19:04:06] INFO: [BUILD-129] Token estimate: 5200 output tokens (1 deliverables, confidence=0.80), selected budget: 8192 (P4 enforcement applied before API call)
+[2025-12-29 19:04:06] WARNING: CONSOLIDATED_DEBUG.md not found at C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\CONSOLIDATED_DEBUG.md
+[2025-12-29 19:04:06] WARNING: [TOKEN_SOFT_CAP] run_id=telemetry-collection-v4 phase_id=telemetry-p2-number-util est_total=15885 soft_cap=12000 (prompt=4417 completion=11468 complexity=low)
+[2025-12-29 19:04:06] INFO: [BUILD-129:P4] Final max_tokens enforcement: 16384 (token_selected_budget=8192)
+[2025-12-29 19:04:08] INFO: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+[2025-12-29 19:04:18] INFO: [TOKEN_BUDGET] phase=telemetry-p2-number-util complexity=low input=5056 output=1157/16384 total=6213 utilization=7.1% model=claude-sonnet-4-5
+[2025-12-29 19:04:18] INFO: [Builder] Generated 1 file diffs locally from full-file content
+[2025-12-29 19:04:18] INFO: [TokenEstimationV2] predicted_output=5200 actual_output=1157 smape=127.2% selected_budget=8192 category=implementation complexity=low deliverables=1 success=True stop_reason=end_turn truncated=False model=claude-sonnet-4-5
+[2025-12-29 19:04:18] INFO: [telemetry-p2-number-util] Builder succeeded (6213 tokens)
+[2025-12-29 19:04:18] INFO: [telemetry-p2-number-util] Deliverables validation:
+[2025-12-29 19:04:18] INFO:   Expected: 1 files
+[2025-12-29 19:04:18] INFO:   Found in patch: 1 files (+0 existing files in workspace)
+[2025-12-29 19:04:18] INFO: [telemetry-p2-number-util] ✅ Deliverables validation PASSED
+[2025-12-29 19:04:18] INFO: [telemetry-p2-number-util] Step 2/5: Applying patch...
+[2025-12-29 19:04:18] WARNING: [GoalDrift] Potential goal drift detected (similarity=-0.01 < 0.7)
+[2025-12-29 19:04:18] WARNING: [GoalDrift] Goal: Create a string utility module with capitalize_words and reverse_string functions...
+[2025-12-29 19:04:18] WARNING: [GoalDrift] Intent: Create a number utility module with is_even, is_prime, and factorial functions...
+[2025-12-29 19:04:18] INFO: [GoalDrift:Advisory] Potential goal drift detected (similarity=-0.01 < 0.7)
+[2025-12-29 19:04:18] WARNING: [telemetry-p2-number-util] ADVISORY: Potential goal drift detected (similarity=-0.01 < 0.7)
+[2025-12-29 19:04:18] INFO: Writing patch to C:\dev\Autopack\temp_patch.diff
+[2025-12-29 19:04:18] INFO: Checking if patch can be applied (dry run)...
+[2025-12-29 19:04:18] INFO: Applying patch to filesystem...
+[2025-12-29 19:04:18] INFO: Patch applied successfully - 1 files modified
+[2025-12-29 19:04:18] INFO:   - examples/telemetry_utils/number_helper.py
+[2025-12-29 19:04:18] INFO: [Validation] All 1 modified files validated successfully
+[2025-12-29 19:04:18] INFO: [telemetry-p2-number-util] Patch applied successfully to filesystem
+[2025-12-29 19:04:18] INFO: [telemetry-p2-number-util] Step 3/5: Running CI checks...
+[2025-12-29 19:04:18] INFO: [telemetry-p2-number-util] CI skipped (AUTOPACK_SKIP_CI=1 - telemetry seeding mode)
+[2025-12-29 19:04:18] INFO: [telemetry-p2-number-util] Step 4/5: Reviewing patch with Auditor (via LlmService)...
+[2025-12-29 19:04:18] INFO: [ModelSelector] Selected claude-sonnet-4-5 for auditor (complexity=low, attempt=0, intra_tier=0)
+[2025-12-29 19:04:18] INFO: [MODEL-SELECT] Auditor: model=claude-sonnet-4-5, complexity=low->low, attempt=0, category=implementation
+[2025-12-29 19:04:18] WARNING: CONSOLIDATED_DEBUG.md not found at C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\CONSOLIDATED_DEBUG.md
+[2025-12-29 19:04:28] INFO: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+[2025-12-29 19:04:28] INFO: [telemetry-p2-number-util] Auditor completed: approved=False, issues=1
+[2025-12-29 19:04:28] INFO: [telemetry-p2-number-util] Step 5/5: Applying Quality Gate...
+[2025-12-29 19:04:28] INFO: [telemetry-p2-number-util] Quality Gate: BLOCKED
+[2025-12-29 19:04:28] WARNING: [telemetry-p2-number-util] Phase BLOCKED by quality gate
+[2025-12-29 19:04:28] WARNING:   - Auditor rejected changes
+[2025-12-29 19:04:28] INFO: [telemetry-p2-number-util] Requesting human approval via Telegram...
+[2025-12-29 19:04:28] INFO: [telemetry-p2-number-util] ✅ Approval GRANTED (auto-approved)
+[2025-12-29 19:04:28] INFO: [telemetry-p2-number-util] Human approval GRANTED - proceeding with phase
+[2025-12-29 19:04:28] INFO: [telemetry-p2-number-util] Applied files: ['examples/telemetry_utils/number_helper.py']
+[2025-12-29 19:04:28] INFO: [PhaseFinalizer] Assessing completion for phase telemetry-p2-number-util
+[2025-12-29 19:04:28] WARNING: [PhaseFinalizer] WARN: Quality gate blocked (BLOCKED) but human-approved override present
+[2025-12-29 19:04:28] INFO: [PhaseFinalizer] ✅ Phase telemetry-p2-number-util can complete
+[2025-12-29 19:04:28] WARNING: [PhaseFinalizer]   ⚠️  Quality gate blocked but overridden by human approval: BLOCKED
+[2025-12-29 19:04:28] INFO: [telemetry-p2-number-util] Phase finalization PASSED: All gates passed
+[2025-12-29 19:04:28] WARNING:   ⚠️  Quality gate blocked but overridden by human approval: BLOCKED
+[2025-12-29 19:04:28] INFO: Updated phase telemetry-p2-number-util status to COMPLETE
+[2025-12-29 19:04:28] INFO: [telemetry-p2-number-util] Phase completed successfully
+[2025-12-29 19:04:28] INFO: [ARCHIVE_CONSOLIDATOR] Logged build event: PHASE_COMPLETE
+[2025-12-29 19:04:28] INFO: [MemoryService] Wrote phase summary: telemetry-p2-number-util
+[2025-12-29 19:04:28] INFO: [telemetry-p2-number-util] Marked COMPLETE in database
+[2025-12-29 19:04:28] INFO: [telemetry-p2-number-util] Phase completed successfully on attempt 1
+[2025-12-29 19:04:28] INFO: Phase telemetry-p2-number-util completed successfully
+[2025-12-29 19:04:28] INFO: Reached max iterations (1), stopping
+[2025-12-29 19:04:28] INFO: Autonomous execution loop finished
+[2025-12-29 19:04:28] INFO: [ARCHIVE_CONSOLIDATOR] Logged build event: RUN_PAUSED
+Quality Gate: PASS
+Blocking: False
+
+Risk Assessment:
+  auditor_approved: False
+  ci_passed: False
+  coverage_delta: 0.0
+  files_changed_count: 0
+
+[drain_one_phase] Final state: COMPLETE
+
+========================================
+Draining: telemetry-p3-list-util
+========================================
+faiss library not installed; FaissStore will use in-memory fallback
+[2025-12-29 19:04:39] INFO: Applying pre-emptive encoding fix...
+[2025-12-29 19:04:39] INFO: [Recovery] Fixing Unicode encoding error...
+======================================================================
+DATABASE IDENTITY
+======================================================================
+DATABASE_URL: sqlite:///C:/dev/Autopack/telemetry_seed_fullrun.db
+SQLite file: C:\dev\Autopack\telemetry_seed_fullrun.db
+Last modified: 2025-12-29T08:04:28.877053+00:00
+
+Row counts:
+  Runs: 1
+  Phases: 10
+  LLM usage events: 4
+======================================================================
+
+[drain_one_phase] ===== ENVIRONMENT IDENTITY =====
+[drain_one_phase] DATABASE_URL: sqlite:///C:/dev/Autopack/telemetry_seed_fullrun.db
+[drain_one_phase] AUTOPACK_API_URL: http://127.0.0.1:8123
+[drain_one_phase] ================================
+[drain_one_phase] Draining: telemetry-collection-v4 / telemetry-p3-list-util
+
+[2025-12-29 19:04:39] INFO: [Recovery] SUCCESS: Encoding fixed (UTF-8 enabled)
+[2025-12-29 19:04:39] INFO: Database tables initialized
+[2025-12-29 19:04:40] INFO: Loaded BuilderOutputConfig: max_lines_for_full_file=1000, max_lines_hard_limit=1000
+[2025-12-29 19:04:40] INFO: Doctor execute_fix enabled: True
+[2025-12-29 19:04:40] INFO: FileSizeTelemetry initialized: C:\dev\Autopack\.autonomous_runs\autopack\file_size_telemetry.jsonl
+[2025-12-29 19:04:49] WARNING: [Qdrant] Connection check failed for localhost:6333: [WinError 10061] No connection could be made because the target machine actively refused it
+[2025-12-29 19:04:51] WARNING: [MemoryService] Qdrant unavailable at localhost:6333; falling back to FAISS ([WinError 10061] No connection could be made because the target machine actively refused it)
+[2025-12-29 19:04:51] INFO: [FAISS] Created collection 'code_docs' with dim=1536
+[2025-12-29 19:04:51] INFO: [FAISS] Created collection 'run_summaries' with dim=1536
+[2025-12-29 19:04:51] INFO: [FAISS] Created collection 'errors_ci' with dim=1536
+[2025-12-29 19:04:51] INFO: [FAISS] Created collection 'doctor_hints' with dim=1536
+[2025-12-29 19:04:51] INFO: [FAISS] Created collection 'planning' with dim=1536
+[2025-12-29 19:04:51] INFO: [MemoryService] Initialized (backend=faiss, enabled=True, top_k=5)
+[2025-12-29 19:04:51] INFO: MemoryService initialized (enabled=True)
+[2025-12-29 19:04:51] INFO: [FileLayout] Project: autopack, Family: telemetry-collection-v4, Base: .autonomous_runs\autopack\runs\telemetry-collection-v4
+[2025-12-29 19:04:51] INFO: Initialized autonomous executor for run: telemetry-collection-v4
+[2025-12-29 19:04:51] INFO: API URL: http://127.0.0.1:8123
+[2025-12-29 19:04:51] INFO: Workspace: C:\dev\Autopack
+[2025-12-29 19:04:51] INFO: Running proactive startup checks from DEBUG_JOURNAL.md...
+[2025-12-29 19:04:51] INFO: [HIGH] Checking: Windows Unicode Fix (PYTHONUTF8)
+[2025-12-29 19:04:51] INFO:   Reason: Prevents UnicodeEncodeError with emoji characters in logs (Issue #3)
+[2025-12-29 19:04:51] INFO:   Check PASSED
+[2025-12-29 19:04:51] INFO: [SchemaValidator] Starting database schema validation...
+[2025-12-29 19:04:51] INFO: [SchemaValidator] ✅ Database schema validation PASSED
+[2025-12-29 19:04:51] INFO: Startup checks complete
+[2025-12-29 19:04:53] INFO: [BUILD-123v2] Manifest generator initialized (deterministic scope generation)
+[2025-12-29 19:04:55] INFO: [HealthCheck:T0] API Keys: PASSED (0ms) - All required API keys present
+[2025-12-29 19:04:55] INFO: [HealthCheck:T0] Database: PASSED (0ms) - Database accessible: C:\dev\Autopack\autopack.db
+[2025-12-29 19:04:55] INFO: [HealthCheck:T0] Workspace: PASSED (0ms) - Workspace valid: C:\dev\Autopack
+[2025-12-29 19:04:55] INFO: [HealthCheck:T0] Config: PASSED (24ms) - Configuration files valid
+[2025-12-29 19:04:55] INFO: [HealthCheck:T0] Vector Memory: PASSED (1621ms) - Qdrant unreachable at localhost:6333; autostart attempted or unavailable. Falling back to FAISS.
+[2025-12-29 19:04:55] INFO: [BUILD-127] Completion authority initialized (PhaseFinalizer + TestBaselineTracker)
+[2025-12-29 19:04:55] INFO: [BUILD-127] Capturing T0 baseline at commit c5835e0d...
+[2025-12-29 19:04:55] INFO: [Baseline] Using cached baseline for commit c5835e0d
+[2025-12-29 19:04:55] INFO: [BUILD-127] T0 baseline: 0 tests, 0 passing, 0 failing, 16 errors
+[2025-12-29 19:04:55] INFO: Starting autonomous execution loop...
+[2025-12-29 19:04:55] INFO: Poll interval: 10s
+[2025-12-29 19:04:55] INFO: Max iterations: 1
+[2025-12-29 19:04:55] INFO: API server is already running
+[2025-12-29 19:04:55] INFO: ✅ Run 'telemetry-collection-v4' verified in API database
+[2025-12-29 19:04:55] INFO: Initializing infrastructure...
+[2025-12-29 19:04:58] INFO: LlmService: Initialized with ModelRouter and UsageRecorder
+[2025-12-29 19:04:58] INFO: Quality Gate: Initialized
+[2025-12-29 19:04:58] INFO: Iteration 1: Fetching run status...
+[2025-12-29 19:04:58] INFO: [GoalAnchor] Initialized: Create a string utility module with capitalize_words and reverse_string functions...
+[2025-12-29 19:04:58] INFO: [BUILD-041] Next phase: telemetry-p3-list-util
+[2025-12-29 19:04:58] INFO: [Scope] Workspace root determined as repo root for bucket 'examples': C:\dev\Autopack
+[2025-12-29 19:04:58] INFO: [telemetry-p3-list-util] Step 1/4: Generating code with Builder (via LlmService)...
+[2025-12-29 19:04:58] INFO: [telemetry-p3-list-util] Using scope-aware context (overrides targeted context)
+[2025-12-29 19:04:58] INFO: [Scope] Workspace root determined as repo root for bucket 'examples': C:\dev\Autopack
+[2025-12-29 19:04:58] INFO: [Scope] Loaded 5 files from scope configuration
+[2025-12-29 19:04:58] INFO: [Scope] Scope paths: ['examples/telemetry_utils/']
+[2025-12-29 19:04:58] INFO: [Scope] Loaded paths: ['examples/telemetry_utils/number_helper.py', 'examples/telemetry_utils/number_utils.py', 'examples/telemetry_utils/string_helper.py', 'examples/telemetry_utils/string_utils.py', 'examples/telemetry_utils/__init__.py']...
+[2025-12-29 19:04:58] INFO: [telemetry-p3-list-util] Loaded 5 files for context
+[2025-12-29 19:04:58] INFO: [Scope] Workspace root determined as repo root for bucket 'examples': C:\dev\Autopack
+[2025-12-29 19:04:58] INFO: [Scope] Validation passed: 5 files match scope configuration
+[2025-12-29 19:04:58] INFO: [telemetry-p3-list-util] Learning context: 0 rules, 5 hints
+[2025-12-29 19:04:58] INFO: [telemetry-p3-list-util] Built deliverables contract: 1 required paths, 0 forbidden patterns
+[2025-12-29 19:04:58] INFO: [telemetry-p3-list-util] Deliverables manifest gate PASSED (1 paths)
+[2025-12-29 19:04:58] INFO: [ModelSelector] Selected claude-sonnet-4-5 for builder (complexity=medium, attempt=0, intra_tier=0)
+[2025-12-29 19:04:58] INFO: [MODEL-SELECT] Builder: model=claude-sonnet-4-5, complexity=medium->medium, attempt=0, category=implementation
+[2025-12-29 19:04:58] INFO: [TokenEstimator] Budget selection: base=12288, estimated=6500, with_buffer=7800, selected=12288, confidence=80.0%, buffer_margin=1.20x
+[2025-12-29 19:04:58] INFO: [BUILD-129] Token estimate: 6500 output tokens (1 deliverables, confidence=0.80), selected budget: 12288 (P4 enforcement applied before API call)
+[2025-12-29 19:04:58] WARNING: CONSOLIDATED_DEBUG.md not found at C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\CONSOLIDATED_DEBUG.md
+[2025-12-29 19:04:58] INFO: [BUILD-129:P4] Final max_tokens enforcement: 16384 (token_selected_budget=12288)
+[2025-12-29 19:05:00] INFO: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+[2025-12-29 19:05:21] INFO: [TOKEN_BUDGET] phase=telemetry-p3-list-util complexity=medium input=6480 output=2033/16384 total=8513 utilization=12.4% model=claude-sonnet-4-5
+[2025-12-29 19:05:21] INFO: [Builder] Generated 1 file diffs locally from full-file content
+[2025-12-29 19:05:21] INFO: [TokenEstimationV2] predicted_output=6500 actual_output=2033 smape=104.7% selected_budget=12288 category=implementation complexity=medium deliverables=1 success=True stop_reason=end_turn truncated=False model=claude-sonnet-4-5
+[2025-12-29 19:05:21] INFO: [telemetry-p3-list-util] Builder succeeded (8513 tokens)
+[2025-12-29 19:05:21] INFO: [telemetry-p3-list-util] Deliverables validation:
+[2025-12-29 19:05:21] INFO:   Expected: 1 files
+[2025-12-29 19:05:21] INFO:   Found in patch: 1 files (+0 existing files in workspace)
+[2025-12-29 19:05:21] INFO: [telemetry-p3-list-util] ✅ Deliverables validation PASSED
+[2025-12-29 19:05:21] INFO: [telemetry-p3-list-util] Step 2/5: Applying patch...
+[2025-12-29 19:05:21] WARNING: [GoalDrift] Potential goal drift detected (similarity=0.02 < 0.7)
+[2025-12-29 19:05:21] WARNING: [GoalDrift] Goal: Create a string utility module with capitalize_words and reverse_string functions...
+[2025-12-29 19:05:21] WARNING: [GoalDrift] Intent: Create a list utility module with chunk, flatten, unique, and group_by functions...
+[2025-12-29 19:05:21] INFO: [GoalDrift:Advisory] Potential goal drift detected (similarity=0.02 < 0.7)
+[2025-12-29 19:05:21] WARNING: [telemetry-p3-list-util] ADVISORY: Potential goal drift detected (similarity=0.02 < 0.7)
+[2025-12-29 19:05:21] INFO: Writing patch to C:\dev\Autopack\temp_patch.diff
+[2025-12-29 19:05:21] INFO: Checking if patch can be applied (dry run)...
+[2025-12-29 19:05:21] INFO: Applying patch to filesystem...
+[2025-12-29 19:05:21] INFO: Patch applied successfully - 1 files modified
+[2025-12-29 19:05:21] INFO:   - examples/telemetry_utils/list_helper.py
+[2025-12-29 19:05:21] INFO: [Validation] All 1 modified files validated successfully
+[2025-12-29 19:05:21] INFO: [telemetry-p3-list-util] Patch applied successfully to filesystem
+[2025-12-29 19:05:21] INFO: [telemetry-p3-list-util] Step 3/5: Running CI checks...
+[2025-12-29 19:05:21] INFO: [telemetry-p3-list-util] CI skipped (AUTOPACK_SKIP_CI=1 - telemetry seeding mode)
+[2025-12-29 19:05:21] INFO: [telemetry-p3-list-util] Step 4/5: Reviewing patch with Auditor (via LlmService)...
+[2025-12-29 19:05:21] INFO: [ModelSelector] Selected claude-sonnet-4-5 for auditor (complexity=medium, attempt=0, intra_tier=0)
+[2025-12-29 19:05:22] INFO: [MODEL-SELECT] Auditor: model=claude-sonnet-4-5, complexity=medium->medium, attempt=0, category=implementation
+[2025-12-29 19:05:22] WARNING: CONSOLIDATED_DEBUG.md not found at C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\CONSOLIDATED_DEBUG.md
+[2025-12-29 19:05:36] INFO: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+[2025-12-29 19:05:36] INFO: [telemetry-p3-list-util] Auditor completed: approved=False, issues=1
+[2025-12-29 19:05:36] INFO: [telemetry-p3-list-util] Step 5/5: Applying Quality Gate...
+[2025-12-29 19:05:36] INFO: [telemetry-p3-list-util] Quality Gate: BLOCKED
+[2025-12-29 19:05:36] WARNING: [telemetry-p3-list-util] Phase BLOCKED by quality gate
+[2025-12-29 19:05:36] WARNING:   - Auditor rejected changes
+[2025-12-29 19:05:36] INFO: [telemetry-p3-list-util] Requesting human approval via Telegram...
+[2025-12-29 19:05:36] INFO: [telemetry-p3-list-util] ✅ Approval GRANTED (auto-approved)
+[2025-12-29 19:05:36] INFO: [telemetry-p3-list-util] Human approval GRANTED - proceeding with phase
+[2025-12-29 19:05:36] INFO: [telemetry-p3-list-util] Applied files: ['examples/telemetry_utils/list_helper.py']
+[2025-12-29 19:05:36] INFO: [PhaseFinalizer] Assessing completion for phase telemetry-p3-list-util
+[2025-12-29 19:05:36] WARNING: [PhaseFinalizer] WARN: Quality gate blocked (BLOCKED) but human-approved override present
+[2025-12-29 19:05:36] INFO: [PhaseFinalizer] ✅ Phase telemetry-p3-list-util can complete
+[2025-12-29 19:05:36] WARNING: [PhaseFinalizer]   ⚠️  Quality gate blocked but overridden by human approval: BLOCKED
+[2025-12-29 19:05:36] INFO: [telemetry-p3-list-util] Phase finalization PASSED: All gates passed
+[2025-12-29 19:05:36] WARNING:   ⚠️  Quality gate blocked but overridden by human approval: BLOCKED
+[2025-12-29 19:05:36] INFO: Updated phase telemetry-p3-list-util status to COMPLETE
+[2025-12-29 19:05:36] INFO: [telemetry-p3-list-util] Phase completed successfully
+[2025-12-29 19:05:36] INFO: [ARCHIVE_CONSOLIDATOR] Logged build event: PHASE_COMPLETE
+[2025-12-29 19:05:36] INFO: [MemoryService] Wrote phase summary: telemetry-p3-list-util
+[2025-12-29 19:05:36] INFO: [telemetry-p3-list-util] Marked COMPLETE in database
+[2025-12-29 19:05:36] INFO: [telemetry-p3-list-util] Phase completed successfully on attempt 1
+[2025-12-29 19:05:36] INFO: Phase telemetry-p3-list-util completed successfully
+[2025-12-29 19:05:36] INFO: Reached max iterations (1), stopping
+[2025-12-29 19:05:36] INFO: Autonomous execution loop finished
+[2025-12-29 19:05:36] INFO: [ARCHIVE_CONSOLIDATOR] Logged build event: RUN_PAUSED
+Quality Gate: PASS
+Blocking: False
+
+Risk Assessment:
+  auditor_approved: False
+  ci_passed: False
+  coverage_delta: 0.0
+  files_changed_count: 0
+
+[drain_one_phase] Final state: COMPLETE
+
+========================================
+Draining: telemetry-p4-date-util
+========================================
+faiss library not installed; FaissStore will use in-memory fallback
+[2025-12-29 19:05:47] INFO: Applying pre-emptive encoding fix...
+[2025-12-29 19:05:47] INFO: [Recovery] Fixing Unicode encoding error...
+======================================================================
+DATABASE IDENTITY
+======================================================================
+DATABASE_URL: sqlite:///C:/dev/Autopack/telemetry_seed_fullrun.db
+SQLite file: C:\dev\Autopack\telemetry_seed_fullrun.db
+Last modified: 2025-12-29T08:05:36.388819+00:00
+
+Row counts:
+  Runs: 1
+  Phases: 10
+  LLM usage events: 6
+======================================================================
+
+[drain_one_phase] ===== ENVIRONMENT IDENTITY =====
+[drain_one_phase] DATABASE_URL: sqlite:///C:/dev/Autopack/telemetry_seed_fullrun.db
+[drain_one_phase] AUTOPACK_API_URL: http://127.0.0.1:8123
+[drain_one_phase] ================================
+[drain_one_phase] Draining: telemetry-collection-v4 / telemetry-p4-date-util
+
+[2025-12-29 19:05:47] INFO: [Recovery] SUCCESS: Encoding fixed (UTF-8 enabled)
+[2025-12-29 19:05:47] INFO: Database tables initialized
+[2025-12-29 19:05:47] INFO: Loaded BuilderOutputConfig: max_lines_for_full_file=1000, max_lines_hard_limit=1000
+[2025-12-29 19:05:47] INFO: Doctor execute_fix enabled: True
+[2025-12-29 19:05:47] INFO: FileSizeTelemetry initialized: C:\dev\Autopack\.autonomous_runs\autopack\file_size_telemetry.jsonl
+[2025-12-29 19:05:57] WARNING: [Qdrant] Connection check failed for localhost:6333: [WinError 10061] No connection could be made because the target machine actively refused it
+[2025-12-29 19:05:58] WARNING: [MemoryService] Qdrant unavailable at localhost:6333; falling back to FAISS ([WinError 10061] No connection could be made because the target machine actively refused it)
+[2025-12-29 19:05:58] INFO: [FAISS] Created collection 'code_docs' with dim=1536
+[2025-12-29 19:05:58] INFO: [FAISS] Created collection 'run_summaries' with dim=1536
+[2025-12-29 19:05:58] INFO: [FAISS] Created collection 'errors_ci' with dim=1536
+[2025-12-29 19:05:58] INFO: [FAISS] Created collection 'doctor_hints' with dim=1536
+[2025-12-29 19:05:58] INFO: [FAISS] Created collection 'planning' with dim=1536
+[2025-12-29 19:05:58] INFO: [MemoryService] Initialized (backend=faiss, enabled=True, top_k=5)
+[2025-12-29 19:05:58] INFO: MemoryService initialized (enabled=True)
+[2025-12-29 19:05:58] INFO: [FileLayout] Project: autopack, Family: telemetry-collection-v4, Base: .autonomous_runs\autopack\runs\telemetry-collection-v4
+[2025-12-29 19:05:58] INFO: Initialized autonomous executor for run: telemetry-collection-v4
+[2025-12-29 19:05:58] INFO: API URL: http://127.0.0.1:8123
+[2025-12-29 19:05:58] INFO: Workspace: C:\dev\Autopack
+[2025-12-29 19:05:58] INFO: Running proactive startup checks from DEBUG_JOURNAL.md...
+[2025-12-29 19:05:58] INFO: [HIGH] Checking: Windows Unicode Fix (PYTHONUTF8)
+[2025-12-29 19:05:58] INFO:   Reason: Prevents UnicodeEncodeError with emoji characters in logs (Issue #3)
+[2025-12-29 19:05:58] INFO:   Check PASSED
+[2025-12-29 19:05:58] INFO: [SchemaValidator] Starting database schema validation...
+[2025-12-29 19:05:58] INFO: [SchemaValidator] ✅ Database schema validation PASSED
+[2025-12-29 19:05:58] INFO: Startup checks complete
+[2025-12-29 19:06:00] INFO: [BUILD-123v2] Manifest generator initialized (deterministic scope generation)
+[2025-12-29 19:06:02] INFO: [HealthCheck:T0] API Keys: PASSED (0ms) - All required API keys present
+[2025-12-29 19:06:02] INFO: [HealthCheck:T0] Database: PASSED (1ms) - Database accessible: C:\dev\Autopack\autopack.db
+[2025-12-29 19:06:02] INFO: [HealthCheck:T0] Workspace: PASSED (0ms) - Workspace valid: C:\dev\Autopack
+[2025-12-29 19:06:02] INFO: [HealthCheck:T0] Config: PASSED (26ms) - Configuration files valid
+[2025-12-29 19:06:02] INFO: [HealthCheck:T0] Vector Memory: PASSED (1610ms) - Qdrant unreachable at localhost:6333; autostart attempted or unavailable. Falling back to FAISS.
+[2025-12-29 19:06:02] INFO: [BUILD-127] Completion authority initialized (PhaseFinalizer + TestBaselineTracker)
+[2025-12-29 19:06:02] INFO: [BUILD-127] Capturing T0 baseline at commit c5835e0d...
+[2025-12-29 19:06:02] INFO: [Baseline] Using cached baseline for commit c5835e0d
+[2025-12-29 19:06:02] INFO: [BUILD-127] T0 baseline: 0 tests, 0 passing, 0 failing, 16 errors
+[2025-12-29 19:06:02] INFO: Starting autonomous execution loop...
+[2025-12-29 19:06:02] INFO: Poll interval: 10s
+[2025-12-29 19:06:02] INFO: Max iterations: 1
+[2025-12-29 19:06:02] INFO: API server is already running
+[2025-12-29 19:06:02] INFO: ✅ Run 'telemetry-collection-v4' verified in API database
+[2025-12-29 19:06:02] INFO: Initializing infrastructure...
+[2025-12-29 19:06:05] INFO: LlmService: Initialized with ModelRouter and UsageRecorder
+[2025-12-29 19:06:05] INFO: Quality Gate: Initialized
+[2025-12-29 19:06:05] INFO: Iteration 1: Fetching run status...
+[2025-12-29 19:06:05] INFO: [GoalAnchor] Initialized: Create a string utility module with capitalize_words and reverse_string functions...
+[2025-12-29 19:06:05] INFO: [BUILD-041] Next phase: telemetry-p4-date-util
+[2025-12-29 19:06:05] INFO: [Scope] Workspace root determined as repo root for bucket 'examples': C:\dev\Autopack
+[2025-12-29 19:06:05] INFO: [telemetry-p4-date-util] Step 1/4: Generating code with Builder (via LlmService)...
+[2025-12-29 19:06:05] INFO: [telemetry-p4-date-util] Using scope-aware context (overrides targeted context)
+[2025-12-29 19:06:05] INFO: [Scope] Workspace root determined as repo root for bucket 'examples': C:\dev\Autopack
+[2025-12-29 19:06:05] INFO: [Scope] Loaded 6 files from scope configuration
+[2025-12-29 19:06:05] INFO: [Scope] Scope paths: ['examples/telemetry_utils/']
+[2025-12-29 19:06:05] INFO: [Scope] Loaded paths: ['examples/telemetry_utils/list_helper.py', 'examples/telemetry_utils/number_helper.py', 'examples/telemetry_utils/number_utils.py', 'examples/telemetry_utils/string_helper.py', 'examples/telemetry_utils/string_utils.py', 'examples/telemetry_utils/__init__.py']...
+[2025-12-29 19:06:05] INFO: [telemetry-p4-date-util] Loaded 6 files for context
+[2025-12-29 19:06:05] INFO: [Scope] Workspace root determined as repo root for bucket 'examples': C:\dev\Autopack
+[2025-12-29 19:06:05] INFO: [Scope] Validation passed: 6 files match scope configuration
+[2025-12-29 19:06:05] INFO: [telemetry-p4-date-util] Learning context: 0 rules, 5 hints
+[2025-12-29 19:06:05] INFO: [telemetry-p4-date-util] Built deliverables contract: 1 required paths, 0 forbidden patterns
+[2025-12-29 19:06:05] INFO: [telemetry-p4-date-util] Deliverables manifest gate PASSED (1 paths)
+[2025-12-29 19:06:05] INFO: [ModelSelector] Selected claude-sonnet-4-5 for builder (complexity=medium, attempt=0, intra_tier=0)
+[2025-12-29 19:06:05] INFO: [MODEL-SELECT] Builder: model=claude-sonnet-4-5, complexity=medium->medium, attempt=0, category=implementation
+[2025-12-29 19:06:05] INFO: [TokenEstimator] Budget selection: base=12288, estimated=6500, with_buffer=7800, selected=12288, confidence=80.0%, buffer_margin=1.20x
+[2025-12-29 19:06:05] INFO: [BUILD-129] Token estimate: 6500 output tokens (1 deliverables, confidence=0.80), selected budget: 12288 (P4 enforcement applied before API call)
+[2025-12-29 19:06:05] WARNING: CONSOLIDATED_DEBUG.md not found at C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\CONSOLIDATED_DEBUG.md
+[2025-12-29 19:06:05] INFO: [BUILD-129:P4] Final max_tokens enforcement: 16384 (token_selected_budget=12288)
+[2025-12-29 19:06:08] INFO: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+[2025-12-29 19:06:28] INFO: [TOKEN_BUDGET] phase=telemetry-p4-date-util complexity=medium input=8972 output=2033/16384 total=11005 utilization=12.4% model=claude-sonnet-4-5
+[2025-12-29 19:06:29] INFO: [Builder] Generated 1 file diffs locally from full-file content
+[2025-12-29 19:06:29] INFO: [TokenEstimationV2] predicted_output=6500 actual_output=2033 smape=104.7% selected_budget=12288 category=implementation complexity=medium deliverables=1 success=True stop_reason=end_turn truncated=False model=claude-sonnet-4-5
+[2025-12-29 19:06:29] INFO: [telemetry-p4-date-util] Builder succeeded (11005 tokens)
+[2025-12-29 19:06:29] INFO: [telemetry-p4-date-util] Deliverables validation:
+[2025-12-29 19:06:29] INFO:   Expected: 1 files
+[2025-12-29 19:06:29] INFO:   Found in patch: 1 files (+0 existing files in workspace)
+[2025-12-29 19:06:29] INFO: [telemetry-p4-date-util] ✅ Deliverables validation PASSED
+[2025-12-29 19:06:29] INFO: [telemetry-p4-date-util] Step 2/5: Applying patch...
+[2025-12-29 19:06:29] WARNING: [GoalDrift] Potential goal drift detected (similarity=0.01 < 0.7)
+[2025-12-29 19:06:29] WARNING: [GoalDrift] Goal: Create a string utility module with capitalize_words and reverse_string functions...
+[2025-12-29 19:06:29] WARNING: [GoalDrift] Intent: Create a date utility module with format_date, parse_date, add_days, and diff_days functions using P...
+[2025-12-29 19:06:29] INFO: [GoalDrift:Advisory] Potential goal drift detected (similarity=0.01 < 0.7)
+[2025-12-29 19:06:29] WARNING: [telemetry-p4-date-util] ADVISORY: Potential goal drift detected (similarity=0.01 < 0.7)
+[2025-12-29 19:06:29] INFO: Writing patch to C:\dev\Autopack\temp_patch.diff
+[2025-12-29 19:06:29] INFO: Checking if patch can be applied (dry run)...
+[2025-12-29 19:06:29] INFO: Applying patch to filesystem...
+[2025-12-29 19:06:29] INFO: Patch applied successfully - 1 files modified
+[2025-12-29 19:06:29] INFO:   - examples/telemetry_utils/date_helper.py
+[2025-12-29 19:06:29] INFO: [Validation] All 1 modified files validated successfully
+[2025-12-29 19:06:29] INFO: [telemetry-p4-date-util] Patch applied successfully to filesystem
+[2025-12-29 19:06:29] INFO: [telemetry-p4-date-util] Step 3/5: Running CI checks...
+[2025-12-29 19:06:29] INFO: [telemetry-p4-date-util] CI skipped (AUTOPACK_SKIP_CI=1 - telemetry seeding mode)
+[2025-12-29 19:06:29] INFO: [telemetry-p4-date-util] Step 4/5: Reviewing patch with Auditor (via LlmService)...
+[2025-12-29 19:06:29] INFO: [ModelSelector] Selected claude-sonnet-4-5 for auditor (complexity=medium, attempt=0, intra_tier=0)
+[2025-12-29 19:06:29] INFO: [MODEL-SELECT] Auditor: model=claude-sonnet-4-5, complexity=medium->medium, attempt=0, category=implementation
+[2025-12-29 19:06:29] WARNING: CONSOLIDATED_DEBUG.md not found at C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\CONSOLIDATED_DEBUG.md
+[2025-12-29 19:06:40] INFO: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+[2025-12-29 19:06:40] INFO: [telemetry-p4-date-util] Auditor completed: approved=False, issues=1
+[2025-12-29 19:06:40] INFO: [telemetry-p4-date-util] Step 5/5: Applying Quality Gate...
+[2025-12-29 19:06:40] INFO: [telemetry-p4-date-util] Quality Gate: BLOCKED
+[2025-12-29 19:06:40] WARNING: [telemetry-p4-date-util] Phase BLOCKED by quality gate
+[2025-12-29 19:06:40] WARNING:   - Auditor rejected changes
+[2025-12-29 19:06:40] INFO: [telemetry-p4-date-util] Requesting human approval via Telegram...
+[2025-12-29 19:06:40] INFO: [telemetry-p4-date-util] ✅ Approval GRANTED (auto-approved)
+[2025-12-29 19:06:40] INFO: [telemetry-p4-date-util] Human approval GRANTED - proceeding with phase
+[2025-12-29 19:06:40] INFO: [telemetry-p4-date-util] Applied files: ['examples/telemetry_utils/date_helper.py']
+[2025-12-29 19:06:40] INFO: [PhaseFinalizer] Assessing completion for phase telemetry-p4-date-util
+[2025-12-29 19:06:40] WARNING: [PhaseFinalizer] WARN: Quality gate blocked (BLOCKED) but human-approved override present
+[2025-12-29 19:06:40] INFO: [PhaseFinalizer] ✅ Phase telemetry-p4-date-util can complete
+[2025-12-29 19:06:40] WARNING: [PhaseFinalizer]   ⚠️  Quality gate blocked but overridden by human approval: BLOCKED
+[2025-12-29 19:06:40] INFO: [telemetry-p4-date-util] Phase finalization PASSED: All gates passed
+[2025-12-29 19:06:40] WARNING:   ⚠️  Quality gate blocked but overridden by human approval: BLOCKED
+[2025-12-29 19:06:40] INFO: Updated phase telemetry-p4-date-util status to COMPLETE
+[2025-12-29 19:06:40] INFO: [telemetry-p4-date-util] Phase completed successfully
+[2025-12-29 19:06:40] INFO: [ARCHIVE_CONSOLIDATOR] Logged build event: PHASE_COMPLETE
+[2025-12-29 19:06:40] INFO: [MemoryService] Wrote phase summary: telemetry-p4-date-util
+[2025-12-29 19:06:40] INFO: [telemetry-p4-date-util] Marked COMPLETE in database
+[2025-12-29 19:06:40] INFO: [telemetry-p4-date-util] Phase completed successfully on attempt 1
+[2025-12-29 19:06:40] INFO: Phase telemetry-p4-date-util completed successfully
+[2025-12-29 19:06:40] INFO: Reached max iterations (1), stopping
+[2025-12-29 19:06:40] INFO: Autonomous execution loop finished
+[2025-12-29 19:06:40] INFO: [ARCHIVE_CONSOLIDATOR] Logged build event: RUN_PAUSED
+Quality Gate: PASS
+Blocking: False
+
+Risk Assessment:
+  auditor_approved: False
+  ci_passed: False
+  coverage_delta: 0.0
+  files_changed_count: 0
+
+[drain_one_phase] Final state: COMPLETE
+
+========================================
+Draining: telemetry-p5-dict-util
+========================================
+faiss library not installed; FaissStore will use in-memory fallback
+[2025-12-29 19:06:51] INFO: Applying pre-emptive encoding fix...
+[2025-12-29 19:06:51] INFO: [Recovery] Fixing Unicode encoding error...
+======================================================================
+DATABASE IDENTITY
+======================================================================
+DATABASE_URL: sqlite:///C:/dev/Autopack/telemetry_seed_fullrun.db
+SQLite file: C:\dev\Autopack\telemetry_seed_fullrun.db
+Last modified: 2025-12-29T08:06:40.567190+00:00
+
+Row counts:
+  Runs: 1
+  Phases: 10
+  LLM usage events: 8
+======================================================================
+
+[drain_one_phase] ===== ENVIRONMENT IDENTITY =====
+[drain_one_phase] DATABASE_URL: sqlite:///C:/dev/Autopack/telemetry_seed_fullrun.db
+[drain_one_phase] AUTOPACK_API_URL: http://127.0.0.1:8123
+[drain_one_phase] ================================
+[drain_one_phase] Draining: telemetry-collection-v4 / telemetry-p5-dict-util
+
+[2025-12-29 19:06:51] INFO: [Recovery] SUCCESS: Encoding fixed (UTF-8 enabled)
+[2025-12-29 19:06:51] INFO: Database tables initialized
+[2025-12-29 19:06:51] INFO: Loaded BuilderOutputConfig: max_lines_for_full_file=1000, max_lines_hard_limit=1000
+[2025-12-29 19:06:51] INFO: Doctor execute_fix enabled: True
+[2025-12-29 19:06:51] INFO: FileSizeTelemetry initialized: C:\dev\Autopack\.autonomous_runs\autopack\file_size_telemetry.jsonl
+[2025-12-29 19:07:02] WARNING: [Qdrant] Connection check failed for localhost:6333: [WinError 10061] No connection could be made because the target machine actively refused it
+[2025-12-29 19:07:03] WARNING: [MemoryService] Qdrant unavailable at localhost:6333; falling back to FAISS ([WinError 10061] No connection could be made because the target machine actively refused it)
+[2025-12-29 19:07:03] INFO: [FAISS] Created collection 'code_docs' with dim=1536
+[2025-12-29 19:07:03] INFO: [FAISS] Created collection 'run_summaries' with dim=1536
+[2025-12-29 19:07:03] INFO: [FAISS] Created collection 'errors_ci' with dim=1536
+[2025-12-29 19:07:03] INFO: [FAISS] Created collection 'doctor_hints' with dim=1536
+[2025-12-29 19:07:03] INFO: [FAISS] Created collection 'planning' with dim=1536
+[2025-12-29 19:07:03] INFO: [MemoryService] Initialized (backend=faiss, enabled=True, top_k=5)
+[2025-12-29 19:07:03] INFO: MemoryService initialized (enabled=True)
+[2025-12-29 19:07:03] INFO: [FileLayout] Project: autopack, Family: telemetry-collection-v4, Base: .autonomous_runs\autopack\runs\telemetry-collection-v4
+[2025-12-29 19:07:03] INFO: Initialized autonomous executor for run: telemetry-collection-v4
+[2025-12-29 19:07:03] INFO: API URL: http://127.0.0.1:8123
+[2025-12-29 19:07:03] INFO: Workspace: C:\dev\Autopack
+[2025-12-29 19:07:03] INFO: Running proactive startup checks from DEBUG_JOURNAL.md...
+[2025-12-29 19:07:03] INFO: [HIGH] Checking: Windows Unicode Fix (PYTHONUTF8)
+[2025-12-29 19:07:03] INFO:   Reason: Prevents UnicodeEncodeError with emoji characters in logs (Issue #3)
+[2025-12-29 19:07:03] INFO:   Check PASSED
+[2025-12-29 19:07:03] INFO: [SchemaValidator] Starting database schema validation...
+[2025-12-29 19:07:03] INFO: [SchemaValidator] ✅ Database schema validation PASSED
+[2025-12-29 19:07:03] INFO: Startup checks complete
+[2025-12-29 19:07:05] INFO: [BUILD-123v2] Manifest generator initialized (deterministic scope generation)
+[2025-12-29 19:07:06] INFO: [HealthCheck:T0] API Keys: PASSED (0ms) - All required API keys present
+[2025-12-29 19:07:06] INFO: [HealthCheck:T0] Database: PASSED (0ms) - Database accessible: C:\dev\Autopack\autopack.db
+[2025-12-29 19:07:06] INFO: [HealthCheck:T0] Workspace: PASSED (0ms) - Workspace valid: C:\dev\Autopack
+[2025-12-29 19:07:06] INFO: [HealthCheck:T0] Config: PASSED (23ms) - Configuration files valid
+[2025-12-29 19:07:06] INFO: [HealthCheck:T0] Vector Memory: PASSED (1617ms) - Qdrant unreachable at localhost:6333; autostart attempted or unavailable. Falling back to FAISS.
+[2025-12-29 19:07:06] INFO: [BUILD-127] Completion authority initialized (PhaseFinalizer + TestBaselineTracker)
+[2025-12-29 19:07:06] INFO: [BUILD-127] Capturing T0 baseline at commit c5835e0d...
+[2025-12-29 19:07:06] INFO: [Baseline] Using cached baseline for commit c5835e0d
+[2025-12-29 19:07:06] INFO: [BUILD-127] T0 baseline: 0 tests, 0 passing, 0 failing, 16 errors
+[2025-12-29 19:07:06] INFO: Starting autonomous execution loop...
+[2025-12-29 19:07:06] INFO: Poll interval: 10s
+[2025-12-29 19:07:06] INFO: Max iterations: 1
+[2025-12-29 19:07:06] INFO: API server is already running
+[2025-12-29 19:07:06] INFO: ✅ Run 'telemetry-collection-v4' verified in API database
+[2025-12-29 19:07:06] INFO: Initializing infrastructure...
+[2025-12-29 19:07:10] INFO: LlmService: Initialized with ModelRouter and UsageRecorder
+[2025-12-29 19:07:10] INFO: Quality Gate: Initialized
+[2025-12-29 19:07:10] INFO: Iteration 1: Fetching run status...
+[2025-12-29 19:07:10] INFO: [GoalAnchor] Initialized: Create a string utility module with capitalize_words and reverse_string functions...
+[2025-12-29 19:07:10] INFO: [BUILD-041] Next phase: telemetry-p5-dict-util
+[2025-12-29 19:07:10] INFO: [Scope] Workspace root determined as repo root for bucket 'examples': C:\dev\Autopack
+[2025-12-29 19:07:10] INFO: [telemetry-p5-dict-util] Step 1/4: Generating code with Builder (via LlmService)...
+[2025-12-29 19:07:10] INFO: [telemetry-p5-dict-util] Using scope-aware context (overrides targeted context)
+[2025-12-29 19:07:10] INFO: [Scope] Workspace root determined as repo root for bucket 'examples': C:\dev\Autopack
+[2025-12-29 19:07:10] INFO: [Scope] Loaded 7 files from scope configuration
+[2025-12-29 19:07:10] INFO: [Scope] Scope paths: ['examples/telemetry_utils/']
+[2025-12-29 19:07:10] INFO: [Scope] Loaded paths: ['examples/telemetry_utils/date_helper.py', 'examples/telemetry_utils/list_helper.py', 'examples/telemetry_utils/number_helper.py', 'examples/telemetry_utils/number_utils.py', 'examples/telemetry_utils/string_helper.py', 'examples/telemetry_utils/string_utils.py', 'examples/telemetry_utils/__init__.py']...
+[2025-12-29 19:07:10] INFO: [telemetry-p5-dict-util] Loaded 7 files for context
+[2025-12-29 19:07:10] INFO: [Scope] Workspace root determined as repo root for bucket 'examples': C:\dev\Autopack
+[2025-12-29 19:07:10] INFO: [Scope] Validation passed: 7 files match scope configuration
+[2025-12-29 19:07:10] INFO: [telemetry-p5-dict-util] Learning context: 0 rules, 5 hints
+[2025-12-29 19:07:10] INFO: [telemetry-p5-dict-util] Built deliverables contract: 1 required paths, 0 forbidden patterns
+[2025-12-29 19:07:10] INFO: [telemetry-p5-dict-util] Deliverables manifest gate PASSED (1 paths)
+[2025-12-29 19:07:10] INFO: [ModelSelector] Selected claude-sonnet-4-5 for builder (complexity=medium, attempt=0, intra_tier=0)
+[2025-12-29 19:07:10] INFO: [MODEL-SELECT] Builder: model=claude-sonnet-4-5, complexity=medium->medium, attempt=0, category=implementation
+[2025-12-29 19:07:10] INFO: [TokenEstimator] Budget selection: base=12288, estimated=6500, with_buffer=7800, selected=12288, confidence=80.0%, buffer_margin=1.20x
+[2025-12-29 19:07:10] INFO: [BUILD-129] Token estimate: 6500 output tokens (1 deliverables, confidence=0.80), selected budget: 12288 (P4 enforcement applied before API call)
+[2025-12-29 19:07:10] WARNING: CONSOLIDATED_DEBUG.md not found at C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\CONSOLIDATED_DEBUG.md
+[2025-12-29 19:07:10] INFO: [BUILD-129:P4] Final max_tokens enforcement: 16384 (token_selected_budget=12288)
+[2025-12-29 19:07:12] INFO: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+[2025-12-29 19:07:40] INFO: [TOKEN_BUDGET] phase=telemetry-p5-dict-util complexity=medium input=11435 output=2733/16384 total=14168 utilization=16.7% model=claude-sonnet-4-5
+[2025-12-29 19:07:40] INFO: [Builder] Generated 1 file diffs locally from full-file content
+[2025-12-29 19:07:40] INFO: [TokenEstimationV2] predicted_output=6500 actual_output=2733 smape=81.6% selected_budget=12288 category=implementation complexity=medium deliverables=1 success=True stop_reason=end_turn truncated=False model=claude-sonnet-4-5
+[2025-12-29 19:07:40] INFO: [telemetry-p5-dict-util] Builder succeeded (14168 tokens)
+[2025-12-29 19:07:40] INFO: [telemetry-p5-dict-util] Deliverables validation:
+[2025-12-29 19:07:40] INFO:   Expected: 1 files
+[2025-12-29 19:07:40] INFO:   Found in patch: 1 files (+0 existing files in workspace)
+[2025-12-29 19:07:40] INFO: [telemetry-p5-dict-util] ✅ Deliverables validation PASSED
+[2025-12-29 19:07:40] INFO: [telemetry-p5-dict-util] Step 2/5: Applying patch...
+[2025-12-29 19:07:40] WARNING: [GoalDrift] Potential goal drift detected (similarity=-0.00 < 0.7)
+[2025-12-29 19:07:40] WARNING: [GoalDrift] Goal: Create a string utility module with capitalize_words and reverse_string functions...
+[2025-12-29 19:07:40] WARNING: [GoalDrift] Intent: Create a dict utility module with deep_merge, get_nested, set_nested, and filter_keys functions...
+[2025-12-29 19:07:40] INFO: [GoalDrift:Advisory] Potential goal drift detected (similarity=-0.00 < 0.7)
+[2025-12-29 19:07:40] WARNING: [telemetry-p5-dict-util] ADVISORY: Potential goal drift detected (similarity=-0.00 < 0.7)
+[2025-12-29 19:07:40] INFO: Writing patch to C:\dev\Autopack\temp_patch.diff
+[2025-12-29 19:07:40] INFO: Checking if patch can be applied (dry run)...
+[2025-12-29 19:07:40] INFO: Applying patch to filesystem...
+[2025-12-29 19:07:40] INFO: Patch applied successfully - 1 files modified
+[2025-12-29 19:07:40] INFO:   - examples/telemetry_utils/dict_helper.py
+[2025-12-29 19:07:40] INFO: [Validation] All 1 modified files validated successfully
+[2025-12-29 19:07:40] INFO: [telemetry-p5-dict-util] Patch applied successfully to filesystem
+[2025-12-29 19:07:40] INFO: [telemetry-p5-dict-util] Step 3/5: Running CI checks...
+[2025-12-29 19:07:40] INFO: [telemetry-p5-dict-util] CI skipped (AUTOPACK_SKIP_CI=1 - telemetry seeding mode)
+[2025-12-29 19:07:40] INFO: [telemetry-p5-dict-util] Step 4/5: Reviewing patch with Auditor (via LlmService)...
+[2025-12-29 19:07:40] INFO: [ModelSelector] Selected claude-sonnet-4-5 for auditor (complexity=medium, attempt=0, intra_tier=0)
+[2025-12-29 19:07:40] INFO: [MODEL-SELECT] Auditor: model=claude-sonnet-4-5, complexity=medium->medium, attempt=0, category=implementation
+[2025-12-29 19:07:40] WARNING: CONSOLIDATED_DEBUG.md not found at C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\CONSOLIDATED_DEBUG.md
+[2025-12-29 19:07:54] INFO: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+[2025-12-29 19:07:54] INFO: [telemetry-p5-dict-util] Auditor completed: approved=False, issues=1
+[2025-12-29 19:07:55] INFO: [telemetry-p5-dict-util] Step 5/5: Applying Quality Gate...
+[2025-12-29 19:07:55] INFO: [telemetry-p5-dict-util] Quality Gate: BLOCKED
+[2025-12-29 19:07:55] WARNING: [telemetry-p5-dict-util] Phase BLOCKED by quality gate
+[2025-12-29 19:07:55] WARNING:   - Auditor rejected changes
+[2025-12-29 19:07:55] INFO: [telemetry-p5-dict-util] Requesting human approval via Telegram...
+[2025-12-29 19:07:55] INFO: [telemetry-p5-dict-util] ✅ Approval GRANTED (auto-approved)
+[2025-12-29 19:07:55] INFO: [telemetry-p5-dict-util] Human approval GRANTED - proceeding with phase
+[2025-12-29 19:07:55] INFO: [telemetry-p5-dict-util] Applied files: ['examples/telemetry_utils/dict_helper.py']
+[2025-12-29 19:07:55] INFO: [PhaseFinalizer] Assessing completion for phase telemetry-p5-dict-util
+[2025-12-29 19:07:55] WARNING: [PhaseFinalizer] WARN: Quality gate blocked (BLOCKED) but human-approved override present
+[2025-12-29 19:07:55] INFO: [PhaseFinalizer] ✅ Phase telemetry-p5-dict-util can complete
+[2025-12-29 19:07:55] WARNING: [PhaseFinalizer]   ⚠️  Quality gate blocked but overridden by human approval: BLOCKED
+[2025-12-29 19:07:55] INFO: [telemetry-p5-dict-util] Phase finalization PASSED: All gates passed
+[2025-12-29 19:07:55] WARNING:   ⚠️  Quality gate blocked but overridden by human approval: BLOCKED
+[2025-12-29 19:07:55] INFO: Updated phase telemetry-p5-dict-util status to COMPLETE
+[2025-12-29 19:07:55] INFO: [telemetry-p5-dict-util] Phase completed successfully
+[2025-12-29 19:07:55] INFO: [ARCHIVE_CONSOLIDATOR] Logged build event: PHASE_COMPLETE
+[2025-12-29 19:07:55] INFO: [MemoryService] Wrote phase summary: telemetry-p5-dict-util
+[2025-12-29 19:07:55] INFO: [telemetry-p5-dict-util] Marked COMPLETE in database
+[2025-12-29 19:07:55] INFO: [telemetry-p5-dict-util] Phase completed successfully on attempt 1
+[2025-12-29 19:07:55] INFO: Phase telemetry-p5-dict-util completed successfully
+[2025-12-29 19:07:55] INFO: Reached max iterations (1), stopping
+[2025-12-29 19:07:55] INFO: Autonomous execution loop finished
+[2025-12-29 19:07:55] INFO: [ARCHIVE_CONSOLIDATOR] Logged build event: RUN_PAUSED
+Quality Gate: PASS
+Blocking: False
+
+Risk Assessment:
+  auditor_approved: False
+  ci_passed: False
+  coverage_delta: 0.0
+  files_changed_count: 0
+
+[drain_one_phase] Final state: COMPLETE
+
+========================================
+Draining: telemetry-p6-string-tests
+========================================
+faiss library not installed; FaissStore will use in-memory fallback
+[2025-12-29 19:08:06] INFO: Applying pre-emptive encoding fix...
+[2025-12-29 19:08:06] INFO: [Recovery] Fixing Unicode encoding error...
+======================================================================
+DATABASE IDENTITY
+======================================================================
+DATABASE_URL: sqlite:///C:/dev/Autopack/telemetry_seed_fullrun.db
+SQLite file: C:\dev\Autopack\telemetry_seed_fullrun.db
+Last modified: 2025-12-29T08:07:55.099193+00:00
+
+Row counts:
+  Runs: 1
+  Phases: 10
+  LLM usage events: 10
+======================================================================
+
+[drain_one_phase] ===== ENVIRONMENT IDENTITY =====
+[drain_one_phase] DATABASE_URL: sqlite:///C:/dev/Autopack/telemetry_seed_fullrun.db
+[drain_one_phase] AUTOPACK_API_URL: http://127.0.0.1:8123
+[drain_one_phase] ================================
+[drain_one_phase] Draining: telemetry-collection-v4 / telemetry-p6-string-tests
+
+[2025-12-29 19:08:06] INFO: [Recovery] SUCCESS: Encoding fixed (UTF-8 enabled)
+[2025-12-29 19:08:06] INFO: Database tables initialized
+[2025-12-29 19:08:06] INFO: Loaded BuilderOutputConfig: max_lines_for_full_file=1000, max_lines_hard_limit=1000
+[2025-12-29 19:08:06] INFO: Doctor execute_fix enabled: True
+[2025-12-29 19:08:06] INFO: FileSizeTelemetry initialized: C:\dev\Autopack\.autonomous_runs\autopack\file_size_telemetry.jsonl
+[2025-12-29 19:08:15] WARNING: [Qdrant] Connection check failed for localhost:6333: [WinError 10061] No connection could be made because the target machine actively refused it
+[2025-12-29 19:08:17] WARNING: [MemoryService] Qdrant unavailable at localhost:6333; falling back to FAISS ([WinError 10061] No connection could be made because the target machine actively refused it)
+[2025-12-29 19:08:17] INFO: [FAISS] Created collection 'code_docs' with dim=1536
+[2025-12-29 19:08:17] INFO: [FAISS] Created collection 'run_summaries' with dim=1536
+[2025-12-29 19:08:17] INFO: [FAISS] Created collection 'errors_ci' with dim=1536
+[2025-12-29 19:08:17] INFO: [FAISS] Created collection 'doctor_hints' with dim=1536
+[2025-12-29 19:08:17] INFO: [FAISS] Created collection 'planning' with dim=1536
+[2025-12-29 19:08:17] INFO: [MemoryService] Initialized (backend=faiss, enabled=True, top_k=5)
+[2025-12-29 19:08:17] INFO: MemoryService initialized (enabled=True)
+[2025-12-29 19:08:17] INFO: [FileLayout] Project: autopack, Family: telemetry-collection-v4, Base: .autonomous_runs\autopack\runs\telemetry-collection-v4
+[2025-12-29 19:08:17] INFO: Initialized autonomous executor for run: telemetry-collection-v4
+[2025-12-29 19:08:17] INFO: API URL: http://127.0.0.1:8123
+[2025-12-29 19:08:17] INFO: Workspace: C:\dev\Autopack
+[2025-12-29 19:08:17] INFO: Running proactive startup checks from DEBUG_JOURNAL.md...
+[2025-12-29 19:08:17] INFO: [HIGH] Checking: Windows Unicode Fix (PYTHONUTF8)
+[2025-12-29 19:08:17] INFO:   Reason: Prevents UnicodeEncodeError with emoji characters in logs (Issue #3)
+[2025-12-29 19:08:17] INFO:   Check PASSED
+[2025-12-29 19:08:17] INFO: [SchemaValidator] Starting database schema validation...
+[2025-12-29 19:08:17] INFO: [SchemaValidator] ✅ Database schema validation PASSED
+[2025-12-29 19:08:17] INFO: Startup checks complete
+[2025-12-29 19:08:18] INFO: [BUILD-123v2] Manifest generator initialized (deterministic scope generation)
+[2025-12-29 19:08:20] INFO: [HealthCheck:T0] API Keys: PASSED (0ms) - All required API keys present
+[2025-12-29 19:08:20] INFO: [HealthCheck:T0] Database: PASSED (0ms) - Database accessible: C:\dev\Autopack\autopack.db
+[2025-12-29 19:08:20] INFO: [HealthCheck:T0] Workspace: PASSED (1ms) - Workspace valid: C:\dev\Autopack
+[2025-12-29 19:08:20] INFO: [HealthCheck:T0] Config: PASSED (24ms) - Configuration files valid
+[2025-12-29 19:08:20] INFO: [HealthCheck:T0] Vector Memory: PASSED (1601ms) - Qdrant unreachable at localhost:6333; autostart attempted or unavailable. Falling back to FAISS.
+[2025-12-29 19:08:20] INFO: [BUILD-127] Completion authority initialized (PhaseFinalizer + TestBaselineTracker)
+[2025-12-29 19:08:20] INFO: [BUILD-127] Capturing T0 baseline at commit c5835e0d...
+[2025-12-29 19:08:20] INFO: [Baseline] Using cached baseline for commit c5835e0d
+[2025-12-29 19:08:20] INFO: [BUILD-127] T0 baseline: 0 tests, 0 passing, 0 failing, 16 errors
+[2025-12-29 19:08:20] INFO: Starting autonomous execution loop...
+[2025-12-29 19:08:20] INFO: Poll interval: 10s
+[2025-12-29 19:08:20] INFO: Max iterations: 1
+[2025-12-29 19:08:20] INFO: API server is already running
+[2025-12-29 19:08:20] INFO: ✅ Run 'telemetry-collection-v4' verified in API database
+[2025-12-29 19:08:20] INFO: Initializing infrastructure...
+[2025-12-29 19:08:23] INFO: LlmService: Initialized with ModelRouter and UsageRecorder
+[2025-12-29 19:08:23] INFO: Quality Gate: Initialized
+[2025-12-29 19:08:23] INFO: Iteration 1: Fetching run status...
+[2025-12-29 19:08:23] INFO: [GoalAnchor] Initialized: Create a string utility module with capitalize_words and reverse_string functions...
+[2025-12-29 19:08:23] INFO: [BUILD-041] Next phase: telemetry-p6-string-tests
+[2025-12-29 19:08:23] INFO: [Scope] Workspace root determined as repo root for bucket 'examples': C:\dev\Autopack
+[2025-12-29 19:08:23] INFO: [telemetry-p6-string-tests] Step 1/4: Generating code with Builder (via LlmService)...
+[2025-12-29 19:08:23] INFO: [telemetry-p6-string-tests] Using scope-aware context (overrides targeted context)
+[2025-12-29 19:08:23] INFO: [Scope] Workspace root determined as repo root for bucket 'examples': C:\dev\Autopack
+[2025-12-29 19:08:23] INFO: [Scope] Loaded 8 files from scope configuration
+[2025-12-29 19:08:23] INFO: [Scope] Scope paths: ['examples/telemetry_utils/']
+[2025-12-29 19:08:23] INFO: [Scope] Loaded paths: ['examples/telemetry_utils/date_helper.py', 'examples/telemetry_utils/dict_helper.py', 'examples/telemetry_utils/list_helper.py', 'examples/telemetry_utils/number_helper.py', 'examples/telemetry_utils/number_utils.py', 'examples/telemetry_utils/string_helper.py', 'examples/telemetry_utils/string_utils.py', 'examples/telemetry_utils/__init__.py']...
+[2025-12-29 19:08:23] INFO: [telemetry-p6-string-tests] Loaded 8 files for context
+[2025-12-29 19:08:23] INFO: [Scope] Workspace root determined as repo root for bucket 'examples': C:\dev\Autopack
+[2025-12-29 19:08:23] INFO: [Scope] Validation passed: 8 files match scope configuration
+[2025-12-29 19:08:23] INFO: [telemetry-p6-string-tests] Built deliverables contract: 1 required paths, 0 forbidden patterns
+[2025-12-29 19:08:23] INFO: [telemetry-p6-string-tests] Deliverables manifest gate PASSED (1 paths)
+[2025-12-29 19:08:23] INFO: [MODEL-SELECT] Builder: model=claude-sonnet-4-5, complexity=medium->medium, attempt=0, category=tests
+[2025-12-29 19:08:23] INFO: [MODEL] Builder using claude-sonnet-4-5 due to: routing_policy:tests
+[2025-12-29 19:08:23] INFO: [TokenEstimator] Budget selection: base=12288, estimated=7020, with_buffer=8424, selected=12288, confidence=80.0%, buffer_margin=1.20x
+[2025-12-29 19:08:23] INFO: [BUILD-129] Token estimate: 7020 output tokens (2 deliverables, confidence=0.80), selected budget: 12288 (P4 enforcement applied before API call)
+[2025-12-29 19:08:23] WARNING: CONSOLIDATED_DEBUG.md not found at C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\CONSOLIDATED_DEBUG.md
+[2025-12-29 19:08:23] INFO: [BUILD-129:P4] Final max_tokens enforcement: 16384 (token_selected_budget=12288)
+[2025-12-29 19:08:26] INFO: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+[2025-12-29 19:09:16] INFO: [TOKEN_BUDGET] phase=telemetry-p6-string-tests complexity=medium input=14247 output=4492/16384 total=18739 utilization=27.4% model=claude-sonnet-4-5
+[2025-12-29 19:09:16] INFO: [Builder] Generated 2 file diffs locally from full-file content
+[2025-12-29 19:09:16] INFO: [TokenEstimationV2] predicted_output=7020 actual_output=4492 smape=43.9% selected_budget=12288 category=tests complexity=medium deliverables=2 success=True stop_reason=end_turn truncated=False model=claude-sonnet-4-5
+[2025-12-29 19:09:16] INFO: [telemetry-p6-string-tests] Builder succeeded (18739 tokens)
+[2025-12-29 19:09:16] INFO: [telemetry-p6-string-tests] Deliverables validation:
+[2025-12-29 19:09:16] INFO:   Expected: 1 files
+[2025-12-29 19:09:16] INFO:   Found in patch: 2 files (+0 existing files in workspace)
+[2025-12-29 19:09:16] INFO: [telemetry-p6-string-tests] ✅ Deliverables validation PASSED
+[2025-12-29 19:09:16] INFO: [telemetry-p6-string-tests] Step 2/5: Applying patch...
+[2025-12-29 19:09:16] WARNING: [GoalDrift] Potential goal drift detected (similarity=-0.00 < 0.7)
+[2025-12-29 19:09:16] WARNING: [GoalDrift] Goal: Create a string utility module with capitalize_words and reverse_string functions...
+[2025-12-29 19:09:16] WARNING: [GoalDrift] Intent: Create comprehensive tests for string_helper module with fixtures...
+[2025-12-29 19:09:16] INFO: [GoalDrift:Advisory] Potential goal drift detected (similarity=-0.00 < 0.7)
+[2025-12-29 19:09:16] WARNING: [telemetry-p6-string-tests] ADVISORY: Potential goal drift detected (similarity=-0.00 < 0.7)
+[2025-12-29 19:09:16] INFO: Writing patch to C:\dev\Autopack\temp_patch.diff
+[2025-12-29 19:09:16] INFO: Checking if patch can be applied (dry run)...
+[2025-12-29 19:09:16] INFO: Applying patch to filesystem...
+[2025-12-29 19:09:16] INFO: Patch applied successfully - 2 files modified
+[2025-12-29 19:09:16] INFO:   - examples/telemetry_utils/test_string_helper.py
+[2025-12-29 19:09:16] INFO:   - examples/telemetry_utils/conftest.py
+[2025-12-29 19:09:16] INFO: [Validation] All 2 modified files validated successfully
+[2025-12-29 19:09:16] INFO: [telemetry-p6-string-tests] Patch applied successfully to filesystem
+[2025-12-29 19:09:16] INFO: [telemetry-p6-string-tests] Step 3/5: Running CI checks...
+[2025-12-29 19:09:16] INFO: [telemetry-p6-string-tests] CI skipped (AUTOPACK_SKIP_CI=1 - telemetry seeding mode)
+[2025-12-29 19:09:16] INFO: [telemetry-p6-string-tests] Step 4/5: Reviewing patch with Auditor (via LlmService)...
+[2025-12-29 19:09:16] INFO: [MODEL-SELECT] Auditor: model=claude-sonnet-4-5, complexity=medium->medium, attempt=0, category=tests
+[2025-12-29 19:09:16] INFO: [MODEL] Auditor using claude-sonnet-4-5 due to: routing_policy:tests
+[2025-12-29 19:09:16] WARNING: CONSOLIDATED_DEBUG.md not found at C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\CONSOLIDATED_DEBUG.md
+[2025-12-29 19:09:37] INFO: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+[2025-12-29 19:09:37] INFO: [telemetry-p6-string-tests] Auditor completed: approved=False, issues=1
+[2025-12-29 19:09:37] INFO: [telemetry-p6-string-tests] Step 5/5: Applying Quality Gate...
+[2025-12-29 19:09:37] INFO: [telemetry-p6-string-tests] Quality Gate: BLOCKED
+[2025-12-29 19:09:37] WARNING: [telemetry-p6-string-tests] Phase BLOCKED by quality gate
+[2025-12-29 19:09:37] WARNING:   - Auditor rejected changes
+[2025-12-29 19:09:37] INFO: [telemetry-p6-string-tests] Requesting human approval via Telegram...
+[2025-12-29 19:09:37] INFO: [telemetry-p6-string-tests] ✅ Approval GRANTED (auto-approved)
+[2025-12-29 19:09:37] INFO: [telemetry-p6-string-tests] Human approval GRANTED - proceeding with phase
+[2025-12-29 19:09:37] INFO: [telemetry-p6-string-tests] Applied files: ['examples/telemetry_utils/test_string_helper.py', 'examples/telemetry_utils/conftest.py']
+[2025-12-29 19:09:37] INFO: [PhaseFinalizer] Assessing completion for phase telemetry-p6-string-tests
+[2025-12-29 19:09:37] WARNING: [PhaseFinalizer] WARN: Quality gate blocked (BLOCKED) but human-approved override present
+[2025-12-29 19:09:37] INFO: [PhaseFinalizer] ✅ Phase telemetry-p6-string-tests can complete
+[2025-12-29 19:09:37] WARNING: [PhaseFinalizer]   ⚠️  Quality gate blocked but overridden by human approval: BLOCKED
+[2025-12-29 19:09:37] INFO: [telemetry-p6-string-tests] Phase finalization PASSED: All gates passed
+[2025-12-29 19:09:37] WARNING:   ⚠️  Quality gate blocked but overridden by human approval: BLOCKED
+[2025-12-29 19:09:37] INFO: Updated phase telemetry-p6-string-tests status to COMPLETE
+[2025-12-29 19:09:37] INFO: [telemetry-p6-string-tests] Phase completed successfully
+[2025-12-29 19:09:37] INFO: [ARCHIVE_CONSOLIDATOR] Logged build event: PHASE_COMPLETE
+[2025-12-29 19:09:37] INFO: [MemoryService] Wrote phase summary: telemetry-p6-string-tests
+[2025-12-29 19:09:37] INFO: [telemetry-p6-string-tests] Marked COMPLETE in database
+[2025-12-29 19:09:37] INFO: [telemetry-p6-string-tests] Phase completed successfully on attempt 1
+[2025-12-29 19:09:37] INFO: Phase telemetry-p6-string-tests completed successfully
+[2025-12-29 19:09:37] INFO: Reached max iterations (1), stopping
+[2025-12-29 19:09:37] INFO: Autonomous execution loop finished
+[2025-12-29 19:09:37] INFO: [ARCHIVE_CONSOLIDATOR] Logged build event: RUN_PAUSED
+Quality Gate: PASS
+Blocking: False
+
+Risk Assessment:
+  auditor_approved: False
+  ci_passed: False
+  coverage_delta: 0.0
+  files_changed_count: 0
+
+[drain_one_phase] Final state: COMPLETE
+
+========================================
+Draining: telemetry-p7-number-tests
+========================================
+faiss library not installed; FaissStore will use in-memory fallback
+[2025-12-29 19:09:48] INFO: Applying pre-emptive encoding fix...
+[2025-12-29 19:09:48] INFO: [Recovery] Fixing Unicode encoding error...
+======================================================================
+DATABASE IDENTITY
+======================================================================
+DATABASE_URL: sqlite:///C:/dev/Autopack/telemetry_seed_fullrun.db
+SQLite file: C:\dev\Autopack\telemetry_seed_fullrun.db
+Last modified: 2025-12-29T08:09:37.295398+00:00
+
+Row counts:
+  Runs: 1
+  Phases: 10
+  LLM usage events: 12
+======================================================================
+
+[drain_one_phase] ===== ENVIRONMENT IDENTITY =====
+[drain_one_phase] DATABASE_URL: sqlite:///C:/dev/Autopack/telemetry_seed_fullrun.db
+[drain_one_phase] AUTOPACK_API_URL: http://127.0.0.1:8123
+[drain_one_phase] ================================
+[drain_one_phase] Draining: telemetry-collection-v4 / telemetry-p7-number-tests
+
+[2025-12-29 19:09:48] INFO: [Recovery] SUCCESS: Encoding fixed (UTF-8 enabled)
+[2025-12-29 19:09:48] INFO: Database tables initialized
+[2025-12-29 19:09:48] INFO: Loaded BuilderOutputConfig: max_lines_for_full_file=1000, max_lines_hard_limit=1000
+[2025-12-29 19:09:48] INFO: Doctor execute_fix enabled: True
+[2025-12-29 19:09:48] INFO: FileSizeTelemetry initialized: C:\dev\Autopack\.autonomous_runs\autopack\file_size_telemetry.jsonl
+[2025-12-29 19:09:58] WARNING: [Qdrant] Connection check failed for localhost:6333: [WinError 10061] No connection could be made because the target machine actively refused it
+[2025-12-29 19:09:59] WARNING: [MemoryService] Qdrant unavailable at localhost:6333; falling back to FAISS ([WinError 10061] No connection could be made because the target machine actively refused it)
+[2025-12-29 19:09:59] INFO: [FAISS] Created collection 'code_docs' with dim=1536
+[2025-12-29 19:09:59] INFO: [FAISS] Created collection 'run_summaries' with dim=1536
+[2025-12-29 19:09:59] INFO: [FAISS] Created collection 'errors_ci' with dim=1536
+[2025-12-29 19:09:59] INFO: [FAISS] Created collection 'doctor_hints' with dim=1536
+[2025-12-29 19:09:59] INFO: [FAISS] Created collection 'planning' with dim=1536
+[2025-12-29 19:09:59] INFO: [MemoryService] Initialized (backend=faiss, enabled=True, top_k=5)
+[2025-12-29 19:09:59] INFO: MemoryService initialized (enabled=True)
+[2025-12-29 19:09:59] INFO: [FileLayout] Project: autopack, Family: telemetry-collection-v4, Base: .autonomous_runs\autopack\runs\telemetry-collection-v4
+[2025-12-29 19:09:59] INFO: Initialized autonomous executor for run: telemetry-collection-v4
+[2025-12-29 19:09:59] INFO: API URL: http://127.0.0.1:8123
+[2025-12-29 19:09:59] INFO: Workspace: C:\dev\Autopack
+[2025-12-29 19:09:59] INFO: Running proactive startup checks from DEBUG_JOURNAL.md...
+[2025-12-29 19:09:59] INFO: [HIGH] Checking: Windows Unicode Fix (PYTHONUTF8)
+[2025-12-29 19:09:59] INFO:   Reason: Prevents UnicodeEncodeError with emoji characters in logs (Issue #3)
+[2025-12-29 19:09:59] INFO:   Check PASSED
+[2025-12-29 19:09:59] INFO: [SchemaValidator] Starting database schema validation...
+[2025-12-29 19:09:59] INFO: [SchemaValidator] ✅ Database schema validation PASSED
+[2025-12-29 19:09:59] INFO: Startup checks complete
+[2025-12-29 19:10:01] INFO: [BUILD-123v2] Manifest generator initialized (deterministic scope generation)
+[2025-12-29 19:10:02] INFO: [HealthCheck:T0] API Keys: PASSED (0ms) - All required API keys present
+[2025-12-29 19:10:02] INFO: [HealthCheck:T0] Database: PASSED (0ms) - Database accessible: C:\dev\Autopack\autopack.db
+[2025-12-29 19:10:02] INFO: [HealthCheck:T0] Workspace: PASSED (0ms) - Workspace valid: C:\dev\Autopack
+[2025-12-29 19:10:02] INFO: [HealthCheck:T0] Config: PASSED (23ms) - Configuration files valid
+[2025-12-29 19:10:02] INFO: [HealthCheck:T0] Vector Memory: PASSED (1629ms) - Qdrant unreachable at localhost:6333; autostart attempted or unavailable. Falling back to FAISS.
+[2025-12-29 19:10:02] INFO: [BUILD-127] Completion authority initialized (PhaseFinalizer + TestBaselineTracker)
+[2025-12-29 19:10:02] INFO: [BUILD-127] Capturing T0 baseline at commit c5835e0d...
+[2025-12-29 19:10:02] INFO: [Baseline] Using cached baseline for commit c5835e0d
+[2025-12-29 19:10:02] INFO: [BUILD-127] T0 baseline: 0 tests, 0 passing, 0 failing, 16 errors
+[2025-12-29 19:10:02] INFO: Starting autonomous execution loop...
+[2025-12-29 19:10:02] INFO: Poll interval: 10s
+[2025-12-29 19:10:02] INFO: Max iterations: 1
+[2025-12-29 19:10:02] INFO: API server is already running
+[2025-12-29 19:10:03] INFO: ✅ Run 'telemetry-collection-v4' verified in API database
+[2025-12-29 19:10:03] INFO: Initializing infrastructure...
+[2025-12-29 19:10:06] INFO: LlmService: Initialized with ModelRouter and UsageRecorder
+[2025-12-29 19:10:06] INFO: Quality Gate: Initialized
+[2025-12-29 19:10:06] INFO: Iteration 1: Fetching run status...
+[2025-12-29 19:10:06] INFO: [GoalAnchor] Initialized: Create a string utility module with capitalize_words and reverse_string functions...
+[2025-12-29 19:10:06] INFO: [BUILD-041] Next phase: telemetry-p7-number-tests
+[2025-12-29 19:10:06] INFO: [Scope] Workspace root determined as repo root for bucket 'examples': C:\dev\Autopack
+[2025-12-29 19:10:06] INFO: [telemetry-p7-number-tests] Step 1/4: Generating code with Builder (via LlmService)...
+[2025-12-29 19:10:06] INFO: [telemetry-p7-number-tests] Using scope-aware context (overrides targeted context)
+[2025-12-29 19:10:06] INFO: [Scope] Workspace root determined as repo root for bucket 'examples': C:\dev\Autopack
+[2025-12-29 19:10:06] INFO: [Scope] Loaded 10 files from scope configuration
+[2025-12-29 19:10:06] INFO: [Scope] Scope paths: ['examples/telemetry_utils/']
+[2025-12-29 19:10:06] INFO: [Scope] Loaded paths: ['examples/telemetry_utils/conftest.py', 'examples/telemetry_utils/date_helper.py', 'examples/telemetry_utils/dict_helper.py', 'examples/telemetry_utils/list_helper.py', 'examples/telemetry_utils/number_helper.py', 'examples/telemetry_utils/number_utils.py', 'examples/telemetry_utils/string_helper.py', 'examples/telemetry_utils/string_utils.py', 'examples/telemetry_utils/test_string_helper.py', 'examples/telemetry_utils/__init__.py']...
+[2025-12-29 19:10:06] INFO: [telemetry-p7-number-tests] Loaded 10 files for context
+[2025-12-29 19:10:06] INFO: [Scope] Workspace root determined as repo root for bucket 'examples': C:\dev\Autopack
+[2025-12-29 19:10:06] INFO: [Scope] Validation passed: 10 files match scope configuration
+[2025-12-29 19:10:06] INFO: [telemetry-p7-number-tests] Built deliverables contract: 1 required paths, 0 forbidden patterns
+[2025-12-29 19:10:06] INFO: [telemetry-p7-number-tests] Deliverables manifest gate PASSED (1 paths)
+[2025-12-29 19:10:06] INFO: [MODEL-SELECT] Builder: model=claude-sonnet-4-5, complexity=low->low, attempt=0, category=tests
+[2025-12-29 19:10:06] INFO: [MODEL] Builder using claude-sonnet-4-5 due to: routing_policy:tests
+[2025-12-29 19:10:06] INFO: [TokenEstimator] Budget selection: base=8192, estimated=4420, with_buffer=5304, selected=8192, confidence=80.0%, buffer_margin=1.20x
+[2025-12-29 19:10:06] INFO: [BUILD-129] Token estimate: 4420 output tokens (1 deliverables, confidence=0.80), selected budget: 8192 (P4 enforcement applied before API call)
+[2025-12-29 19:10:06] WARNING: CONSOLIDATED_DEBUG.md not found at C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\CONSOLIDATED_DEBUG.md
+[2025-12-29 19:10:06] WARNING: [TOKEN_SOFT_CAP] run_id=telemetry-collection-v4 phase_id=telemetry-p7-number-tests est_total=26321 soft_cap=12000 (prompt=14853 completion=11468 complexity=low)
+[2025-12-29 19:10:06] INFO: [BUILD-129:P4] Final max_tokens enforcement: 16384 (token_selected_budget=8192)
+[2025-12-29 19:10:09] INFO: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+[2025-12-29 19:10:48] INFO: [TOKEN_BUDGET] phase=telemetry-p7-number-tests complexity=low input=18470 output=3713/16384 total=22183 utilization=22.7% model=claude-sonnet-4-5
+[2025-12-29 19:10:48] INFO: [Builder] Generated 1 file diffs locally from full-file content
+[2025-12-29 19:10:48] INFO: [TokenEstimationV2] predicted_output=4420 actual_output=3713 smape=17.4% selected_budget=8192 category=tests complexity=low deliverables=1 success=True stop_reason=end_turn truncated=False model=claude-sonnet-4-5
+[2025-12-29 19:10:48] INFO: [telemetry-p7-number-tests] Builder succeeded (22183 tokens)
+[2025-12-29 19:10:48] INFO: [telemetry-p7-number-tests] Deliverables validation:
+[2025-12-29 19:10:48] INFO:   Expected: 1 files
+[2025-12-29 19:10:48] INFO:   Found in patch: 1 files (+0 existing files in workspace)
+[2025-12-29 19:10:48] INFO: [telemetry-p7-number-tests] ✅ Deliverables validation PASSED
+[2025-12-29 19:10:48] INFO: [telemetry-p7-number-tests] Step 2/5: Applying patch...
+[2025-12-29 19:10:48] WARNING: [GoalDrift] Potential goal drift detected (similarity=-0.00 < 0.7)
+[2025-12-29 19:10:48] WARNING: [GoalDrift] Goal: Create a string utility module with capitalize_words and reverse_string functions...
+[2025-12-29 19:10:48] WARNING: [GoalDrift] Intent: Create comprehensive tests for number_helper module...
+[2025-12-29 19:10:48] INFO: [GoalDrift:Advisory] Potential goal drift detected (similarity=-0.00 < 0.7)
+[2025-12-29 19:10:48] WARNING: [telemetry-p7-number-tests] ADVISORY: Potential goal drift detected (similarity=-0.00 < 0.7)
+[2025-12-29 19:10:48] INFO: Writing patch to C:\dev\Autopack\temp_patch.diff
+[2025-12-29 19:10:48] INFO: Checking if patch can be applied (dry run)...
+[2025-12-29 19:10:48] INFO: Applying patch to filesystem...
+[2025-12-29 19:10:48] INFO: Patch applied successfully - 1 files modified
+[2025-12-29 19:10:48] INFO:   - examples/telemetry_utils/test_number_helper.py
+[2025-12-29 19:10:48] INFO: [Validation] All 1 modified files validated successfully
+[2025-12-29 19:10:48] INFO: [telemetry-p7-number-tests] Patch applied successfully to filesystem
+[2025-12-29 19:10:48] INFO: [telemetry-p7-number-tests] Step 3/5: Running CI checks...
+[2025-12-29 19:10:48] INFO: [telemetry-p7-number-tests] CI skipped (AUTOPACK_SKIP_CI=1 - telemetry seeding mode)
+[2025-12-29 19:10:48] INFO: [telemetry-p7-number-tests] Step 4/5: Reviewing patch with Auditor (via LlmService)...
+[2025-12-29 19:10:48] INFO: [MODEL-SELECT] Auditor: model=claude-sonnet-4-5, complexity=low->low, attempt=0, category=tests
+[2025-12-29 19:10:48] INFO: [MODEL] Auditor using claude-sonnet-4-5 due to: routing_policy:tests
+[2025-12-29 19:10:48] WARNING: CONSOLIDATED_DEBUG.md not found at C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\CONSOLIDATED_DEBUG.md
+[2025-12-29 19:10:59] INFO: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+[2025-12-29 19:10:59] INFO: [telemetry-p7-number-tests] Auditor completed: approved=False, issues=1
+[2025-12-29 19:10:59] INFO: [telemetry-p7-number-tests] Step 5/5: Applying Quality Gate...
+[2025-12-29 19:10:59] INFO: [telemetry-p7-number-tests] Quality Gate: BLOCKED
+[2025-12-29 19:10:59] WARNING: [telemetry-p7-number-tests] Phase BLOCKED by quality gate
+[2025-12-29 19:10:59] WARNING:   - Auditor rejected changes
+[2025-12-29 19:10:59] INFO: [telemetry-p7-number-tests] Requesting human approval via Telegram...
+[2025-12-29 19:10:59] INFO: [telemetry-p7-number-tests] ✅ Approval GRANTED (auto-approved)
+[2025-12-29 19:10:59] INFO: [telemetry-p7-number-tests] Human approval GRANTED - proceeding with phase
+[2025-12-29 19:10:59] INFO: [telemetry-p7-number-tests] Applied files: ['examples/telemetry_utils/test_number_helper.py']
+[2025-12-29 19:10:59] INFO: [PhaseFinalizer] Assessing completion for phase telemetry-p7-number-tests
+[2025-12-29 19:10:59] WARNING: [PhaseFinalizer] WARN: Quality gate blocked (BLOCKED) but human-approved override present
+[2025-12-29 19:10:59] INFO: [PhaseFinalizer] ✅ Phase telemetry-p7-number-tests can complete
+[2025-12-29 19:10:59] WARNING: [PhaseFinalizer]   ⚠️  Quality gate blocked but overridden by human approval: BLOCKED
+[2025-12-29 19:10:59] INFO: [telemetry-p7-number-tests] Phase finalization PASSED: All gates passed
+[2025-12-29 19:10:59] WARNING:   ⚠️  Quality gate blocked but overridden by human approval: BLOCKED
+[2025-12-29 19:10:59] INFO: Updated phase telemetry-p7-number-tests status to COMPLETE
+[2025-12-29 19:10:59] INFO: [telemetry-p7-number-tests] Phase completed successfully
+[2025-12-29 19:10:59] INFO: [ARCHIVE_CONSOLIDATOR] Logged build event: PHASE_COMPLETE
+[2025-12-29 19:10:59] INFO: [MemoryService] Wrote phase summary: telemetry-p7-number-tests
+[2025-12-29 19:10:59] INFO: [telemetry-p7-number-tests] Marked COMPLETE in database
+[2025-12-29 19:10:59] INFO: [telemetry-p7-number-tests] Phase completed successfully on attempt 1
+[2025-12-29 19:10:59] INFO: Phase telemetry-p7-number-tests completed successfully
+[2025-12-29 19:10:59] INFO: Reached max iterations (1), stopping
+[2025-12-29 19:10:59] INFO: Autonomous execution loop finished
+[2025-12-29 19:10:59] INFO: [ARCHIVE_CONSOLIDATOR] Logged build event: RUN_PAUSED
+Quality Gate: PASS
+Blocking: False
+
+Risk Assessment:
+  auditor_approved: False
+  ci_passed: False
+  coverage_delta: 0.0
+  files_changed_count: 0
+
+[drain_one_phase] Final state: COMPLETE
+
+========================================
+Draining: telemetry-p8-list-tests
+========================================
+faiss library not installed; FaissStore will use in-memory fallback
+[2025-12-29 19:11:10] INFO: Applying pre-emptive encoding fix...
+[2025-12-29 19:11:10] INFO: [Recovery] Fixing Unicode encoding error...
+======================================================================
+DATABASE IDENTITY
+======================================================================
+DATABASE_URL: sqlite:///C:/dev/Autopack/telemetry_seed_fullrun.db
+SQLite file: C:\dev\Autopack\telemetry_seed_fullrun.db
+Last modified: 2025-12-29T08:10:59.278362+00:00
+
+Row counts:
+  Runs: 1
+  Phases: 10
+  LLM usage events: 14
+======================================================================
+
+[drain_one_phase] ===== ENVIRONMENT IDENTITY =====
+[drain_one_phase] DATABASE_URL: sqlite:///C:/dev/Autopack/telemetry_seed_fullrun.db
+[drain_one_phase] AUTOPACK_API_URL: http://127.0.0.1:8123
+[drain_one_phase] ================================
+[drain_one_phase] Draining: telemetry-collection-v4 / telemetry-p8-list-tests
+
+[2025-12-29 19:11:10] INFO: [Recovery] SUCCESS: Encoding fixed (UTF-8 enabled)
+[2025-12-29 19:11:10] INFO: Database tables initialized
+[2025-12-29 19:11:10] INFO: Loaded BuilderOutputConfig: max_lines_for_full_file=1000, max_lines_hard_limit=1000
+[2025-12-29 19:11:10] INFO: Doctor execute_fix enabled: True
+[2025-12-29 19:11:10] INFO: FileSizeTelemetry initialized: C:\dev\Autopack\.autonomous_runs\autopack\file_size_telemetry.jsonl
+[2025-12-29 19:11:20] WARNING: [Qdrant] Connection check failed for localhost:6333: [WinError 10061] No connection could be made because the target machine actively refused it
+[2025-12-29 19:11:21] WARNING: [MemoryService] Qdrant unavailable at localhost:6333; falling back to FAISS ([WinError 10061] No connection could be made because the target machine actively refused it)
+[2025-12-29 19:11:21] INFO: [FAISS] Created collection 'code_docs' with dim=1536
+[2025-12-29 19:11:21] INFO: [FAISS] Created collection 'run_summaries' with dim=1536
+[2025-12-29 19:11:21] INFO: [FAISS] Created collection 'errors_ci' with dim=1536
+[2025-12-29 19:11:21] INFO: [FAISS] Created collection 'doctor_hints' with dim=1536
+[2025-12-29 19:11:21] INFO: [FAISS] Created collection 'planning' with dim=1536
+[2025-12-29 19:11:21] INFO: [MemoryService] Initialized (backend=faiss, enabled=True, top_k=5)
+[2025-12-29 19:11:21] INFO: MemoryService initialized (enabled=True)
+[2025-12-29 19:11:21] INFO: [FileLayout] Project: autopack, Family: telemetry-collection-v4, Base: .autonomous_runs\autopack\runs\telemetry-collection-v4
+[2025-12-29 19:11:21] INFO: Initialized autonomous executor for run: telemetry-collection-v4
+[2025-12-29 19:11:21] INFO: API URL: http://127.0.0.1:8123
+[2025-12-29 19:11:21] INFO: Workspace: C:\dev\Autopack
+[2025-12-29 19:11:21] INFO: Running proactive startup checks from DEBUG_JOURNAL.md...
+[2025-12-29 19:11:21] INFO: [HIGH] Checking: Windows Unicode Fix (PYTHONUTF8)
+[2025-12-29 19:11:21] INFO:   Reason: Prevents UnicodeEncodeError with emoji characters in logs (Issue #3)
+[2025-12-29 19:11:21] INFO:   Check PASSED
+[2025-12-29 19:11:21] INFO: [SchemaValidator] Starting database schema validation...
+[2025-12-29 19:11:21] INFO: [SchemaValidator] ✅ Database schema validation PASSED
+[2025-12-29 19:11:21] INFO: Startup checks complete
+[2025-12-29 19:11:23] INFO: [BUILD-123v2] Manifest generator initialized (deterministic scope generation)
+[2025-12-29 19:11:24] INFO: [HealthCheck:T0] API Keys: PASSED (0ms) - All required API keys present
+[2025-12-29 19:11:24] INFO: [HealthCheck:T0] Database: PASSED (0ms) - Database accessible: C:\dev\Autopack\autopack.db
+[2025-12-29 19:11:24] INFO: [HealthCheck:T0] Workspace: PASSED (0ms) - Workspace valid: C:\dev\Autopack
+[2025-12-29 19:11:24] INFO: [HealthCheck:T0] Config: PASSED (22ms) - Configuration files valid
+[2025-12-29 19:11:24] INFO: [HealthCheck:T0] Vector Memory: PASSED (1633ms) - Qdrant unreachable at localhost:6333; autostart attempted or unavailable. Falling back to FAISS.
+[2025-12-29 19:11:24] INFO: [BUILD-127] Completion authority initialized (PhaseFinalizer + TestBaselineTracker)
+[2025-12-29 19:11:25] INFO: [BUILD-127] Capturing T0 baseline at commit c5835e0d...
+[2025-12-29 19:11:25] INFO: [Baseline] Using cached baseline for commit c5835e0d
+[2025-12-29 19:11:25] INFO: [BUILD-127] T0 baseline: 0 tests, 0 passing, 0 failing, 16 errors
+[2025-12-29 19:11:25] INFO: Starting autonomous execution loop...
+[2025-12-29 19:11:25] INFO: Poll interval: 10s
+[2025-12-29 19:11:25] INFO: Max iterations: 1
+[2025-12-29 19:11:25] INFO: API server is already running
+[2025-12-29 19:11:25] INFO: ✅ Run 'telemetry-collection-v4' verified in API database
+[2025-12-29 19:11:25] INFO: Initializing infrastructure...
+[2025-12-29 19:11:28] INFO: LlmService: Initialized with ModelRouter and UsageRecorder
+[2025-12-29 19:11:28] INFO: Quality Gate: Initialized
+[2025-12-29 19:11:28] INFO: Iteration 1: Fetching run status...
+[2025-12-29 19:11:28] INFO: [GoalAnchor] Initialized: Create a string utility module with capitalize_words and reverse_string functions...
+[2025-12-29 19:11:28] INFO: [BUILD-041] Next phase: telemetry-p8-list-tests
+[2025-12-29 19:11:28] INFO: [Scope] Workspace root determined as repo root for bucket 'examples': C:\dev\Autopack
+[2025-12-29 19:11:28] INFO: [telemetry-p8-list-tests] Step 1/4: Generating code with Builder (via LlmService)...
+[2025-12-29 19:11:28] INFO: [telemetry-p8-list-tests] Using scope-aware context (overrides targeted context)
+[2025-12-29 19:11:28] INFO: [Scope] Workspace root determined as repo root for bucket 'examples': C:\dev\Autopack
+[2025-12-29 19:11:28] INFO: [Scope] Loaded 11 files from scope configuration
+[2025-12-29 19:11:28] INFO: [Scope] Scope paths: ['examples/telemetry_utils/']
+[2025-12-29 19:11:28] INFO: [Scope] Loaded paths: ['examples/telemetry_utils/conftest.py', 'examples/telemetry_utils/date_helper.py', 'examples/telemetry_utils/dict_helper.py', 'examples/telemetry_utils/list_helper.py', 'examples/telemetry_utils/number_helper.py', 'examples/telemetry_utils/number_utils.py', 'examples/telemetry_utils/string_helper.py', 'examples/telemetry_utils/string_utils.py', 'examples/telemetry_utils/test_number_helper.py', 'examples/telemetry_utils/test_string_helper.py']...
+[2025-12-29 19:11:28] INFO: [telemetry-p8-list-tests] Loaded 11 files for context
+[2025-12-29 19:11:28] INFO: [Scope] Workspace root determined as repo root for bucket 'examples': C:\dev\Autopack
+[2025-12-29 19:11:28] INFO: [Scope] Validation passed: 11 files match scope configuration
+[2025-12-29 19:11:28] INFO: [telemetry-p8-list-tests] Built deliverables contract: 1 required paths, 0 forbidden patterns
+[2025-12-29 19:11:28] INFO: [telemetry-p8-list-tests] Deliverables manifest gate PASSED (1 paths)
+[2025-12-29 19:11:28] INFO: [MODEL-SELECT] Builder: model=claude-sonnet-4-5, complexity=medium->medium, attempt=0, category=tests
+[2025-12-29 19:11:28] INFO: [MODEL] Builder using claude-sonnet-4-5 due to: routing_policy:tests
+[2025-12-29 19:11:28] INFO: [TokenEstimator] Budget selection: base=12288, estimated=4420, with_buffer=5304, selected=12288, confidence=80.0%, buffer_margin=1.20x
+[2025-12-29 19:11:28] INFO: [BUILD-129] Token estimate: 4420 output tokens (1 deliverables, confidence=0.80), selected budget: 12288 (P4 enforcement applied before API call)
+[2025-12-29 19:11:28] WARNING: CONSOLIDATED_DEBUG.md not found at C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\CONSOLIDATED_DEBUG.md
+[2025-12-29 19:11:28] INFO: [BUILD-129:P4] Final max_tokens enforcement: 16384 (token_selected_budget=12288)
+[2025-12-29 19:11:30] INFO: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+[2025-12-29 19:12:37] INFO: [TOKEN_BUDGET] phase=telemetry-p8-list-tests complexity=medium input=20837 output=6472/16384 total=27309 utilization=39.5% model=claude-sonnet-4-5
+[2025-12-29 19:12:37] INFO: [Builder] Generated 1 file diffs locally from full-file content
+[2025-12-29 19:12:37] INFO: [TokenEstimationV2] predicted_output=4420 actual_output=6472 smape=37.7% selected_budget=12288 category=tests complexity=medium deliverables=1 success=True stop_reason=end_turn truncated=False model=claude-sonnet-4-5
+[2025-12-29 19:12:37] INFO: [telemetry-p8-list-tests] Builder succeeded (27309 tokens)
+[2025-12-29 19:12:37] INFO: [telemetry-p8-list-tests] Deliverables validation:
+[2025-12-29 19:12:37] INFO:   Expected: 1 files
+[2025-12-29 19:12:37] INFO:   Found in patch: 1 files (+0 existing files in workspace)
+[2025-12-29 19:12:37] INFO: [telemetry-p8-list-tests] ✅ Deliverables validation PASSED
+[2025-12-29 19:12:37] INFO: [telemetry-p8-list-tests] Step 2/5: Applying patch...
+[2025-12-29 19:12:37] WARNING: [GoalDrift] Potential goal drift detected (similarity=-0.00 < 0.7)
+[2025-12-29 19:12:37] WARNING: [GoalDrift] Goal: Create a string utility module with capitalize_words and reverse_string functions...
+[2025-12-29 19:12:37] WARNING: [GoalDrift] Intent: Create comprehensive tests for list_helper module...
+[2025-12-29 19:12:37] INFO: [GoalDrift:Advisory] Potential goal drift detected (similarity=-0.00 < 0.7)
+[2025-12-29 19:12:37] WARNING: [telemetry-p8-list-tests] ADVISORY: Potential goal drift detected (similarity=-0.00 < 0.7)
+[2025-12-29 19:12:37] INFO: Writing patch to C:\dev\Autopack\temp_patch.diff
+[2025-12-29 19:12:37] INFO: Checking if patch can be applied (dry run)...
+[2025-12-29 19:12:37] INFO: Applying patch to filesystem...
+[2025-12-29 19:12:37] INFO: Patch applied successfully - 1 files modified
+[2025-12-29 19:12:37] INFO:   - examples/telemetry_utils/test_list_helper.py
+[2025-12-29 19:12:38] INFO: [Validation] All 1 modified files validated successfully
+[2025-12-29 19:12:38] INFO: [telemetry-p8-list-tests] Patch applied successfully to filesystem
+[2025-12-29 19:12:38] INFO: [telemetry-p8-list-tests] Step 3/5: Running CI checks...
+[2025-12-29 19:12:38] INFO: [telemetry-p8-list-tests] CI skipped (AUTOPACK_SKIP_CI=1 - telemetry seeding mode)
+[2025-12-29 19:12:38] INFO: [telemetry-p8-list-tests] Step 4/5: Reviewing patch with Auditor (via LlmService)...
+[2025-12-29 19:12:38] INFO: [MODEL-SELECT] Auditor: model=claude-sonnet-4-5, complexity=medium->medium, attempt=0, category=tests
+[2025-12-29 19:12:38] INFO: [MODEL] Auditor using claude-sonnet-4-5 due to: routing_policy:tests
+[2025-12-29 19:12:38] WARNING: CONSOLIDATED_DEBUG.md not found at C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\CONSOLIDATED_DEBUG.md
+[2025-12-29 19:12:58] INFO: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+[2025-12-29 19:12:58] INFO: [telemetry-p8-list-tests] Auditor completed: approved=False, issues=1
+[2025-12-29 19:12:58] INFO: [telemetry-p8-list-tests] Step 5/5: Applying Quality Gate...
+[2025-12-29 19:12:58] INFO: [telemetry-p8-list-tests] Quality Gate: BLOCKED
+[2025-12-29 19:12:58] WARNING: [telemetry-p8-list-tests] Phase BLOCKED by quality gate
+[2025-12-29 19:12:58] WARNING:   - Auditor rejected changes
+[2025-12-29 19:12:58] INFO: [telemetry-p8-list-tests] Requesting human approval via Telegram...
+[2025-12-29 19:12:58] INFO: [telemetry-p8-list-tests] ✅ Approval GRANTED (auto-approved)
+[2025-12-29 19:12:58] INFO: [telemetry-p8-list-tests] Human approval GRANTED - proceeding with phase
+[2025-12-29 19:12:58] INFO: [telemetry-p8-list-tests] Applied files: ['examples/telemetry_utils/test_list_helper.py']
+[2025-12-29 19:12:58] INFO: [PhaseFinalizer] Assessing completion for phase telemetry-p8-list-tests
+[2025-12-29 19:12:58] WARNING: [PhaseFinalizer] WARN: Quality gate blocked (BLOCKED) but human-approved override present
+[2025-12-29 19:12:58] INFO: [PhaseFinalizer] ✅ Phase telemetry-p8-list-tests can complete
+[2025-12-29 19:12:58] WARNING: [PhaseFinalizer]   ⚠️  Quality gate blocked but overridden by human approval: BLOCKED
+[2025-12-29 19:12:58] INFO: [telemetry-p8-list-tests] Phase finalization PASSED: All gates passed
+[2025-12-29 19:12:58] WARNING:   ⚠️  Quality gate blocked but overridden by human approval: BLOCKED
+[2025-12-29 19:12:58] INFO: Updated phase telemetry-p8-list-tests status to COMPLETE
+[2025-12-29 19:12:58] INFO: [telemetry-p8-list-tests] Phase completed successfully
+[2025-12-29 19:12:58] INFO: [ARCHIVE_CONSOLIDATOR] Logged build event: PHASE_COMPLETE
+[2025-12-29 19:12:58] INFO: [MemoryService] Wrote phase summary: telemetry-p8-list-tests
+[2025-12-29 19:12:58] INFO: [telemetry-p8-list-tests] Marked COMPLETE in database
+[2025-12-29 19:12:58] INFO: [telemetry-p8-list-tests] Phase completed successfully on attempt 1
+[2025-12-29 19:12:58] INFO: Phase telemetry-p8-list-tests completed successfully
+[2025-12-29 19:12:58] INFO: Reached max iterations (1), stopping
+[2025-12-29 19:12:58] INFO: Autonomous execution loop finished
+[2025-12-29 19:12:58] INFO: [ARCHIVE_CONSOLIDATOR] Logged build event: RUN_PAUSED
+Quality Gate: PASS
+Blocking: False
+
+Risk Assessment:
+  auditor_approved: False
+  ci_passed: False
+  coverage_delta: 0.0
+  files_changed_count: 0
+
+[drain_one_phase] Final state: COMPLETE
+
+========================================
+Draining: telemetry-p9-readme
+========================================
+faiss library not installed; FaissStore will use in-memory fallback
+[2025-12-29 19:13:09] INFO: Applying pre-emptive encoding fix...
+[2025-12-29 19:13:09] INFO: [Recovery] Fixing Unicode encoding error...
+======================================================================
+DATABASE IDENTITY
+======================================================================
+DATABASE_URL: sqlite:///C:/dev/Autopack/telemetry_seed_fullrun.db
+SQLite file: C:\dev\Autopack\telemetry_seed_fullrun.db
+Last modified: 2025-12-29T08:12:58.520211+00:00
+
+Row counts:
+  Runs: 1
+  Phases: 10
+  LLM usage events: 16
+======================================================================
+
+[drain_one_phase] ===== ENVIRONMENT IDENTITY =====
+[drain_one_phase] DATABASE_URL: sqlite:///C:/dev/Autopack/telemetry_seed_fullrun.db
+[drain_one_phase] AUTOPACK_API_URL: http://127.0.0.1:8123
+[drain_one_phase] ================================
+[drain_one_phase] Draining: telemetry-collection-v4 / telemetry-p9-readme
+
+[2025-12-29 19:13:09] INFO: [Recovery] SUCCESS: Encoding fixed (UTF-8 enabled)
+[2025-12-29 19:13:09] INFO: Database tables initialized
+[2025-12-29 19:13:09] INFO: Loaded BuilderOutputConfig: max_lines_for_full_file=1000, max_lines_hard_limit=1000
+[2025-12-29 19:13:09] INFO: Doctor execute_fix enabled: True
+[2025-12-29 19:13:09] INFO: FileSizeTelemetry initialized: C:\dev\Autopack\.autonomous_runs\autopack\file_size_telemetry.jsonl
+[2025-12-29 19:13:19] WARNING: [Qdrant] Connection check failed for localhost:6333: [WinError 10061] No connection could be made because the target machine actively refused it
+[2025-12-29 19:13:21] WARNING: [MemoryService] Qdrant unavailable at localhost:6333; falling back to FAISS ([WinError 10061] No connection could be made because the target machine actively refused it)
+[2025-12-29 19:13:21] INFO: [FAISS] Created collection 'code_docs' with dim=1536
+[2025-12-29 19:13:21] INFO: [FAISS] Created collection 'run_summaries' with dim=1536
+[2025-12-29 19:13:21] INFO: [FAISS] Created collection 'errors_ci' with dim=1536
+[2025-12-29 19:13:21] INFO: [FAISS] Created collection 'doctor_hints' with dim=1536
+[2025-12-29 19:13:21] INFO: [FAISS] Created collection 'planning' with dim=1536
+[2025-12-29 19:13:21] INFO: [MemoryService] Initialized (backend=faiss, enabled=True, top_k=5)
+[2025-12-29 19:13:21] INFO: MemoryService initialized (enabled=True)
+[2025-12-29 19:13:21] INFO: [FileLayout] Project: autopack, Family: telemetry-collection-v4, Base: .autonomous_runs\autopack\runs\telemetry-collection-v4
+[2025-12-29 19:13:21] INFO: Initialized autonomous executor for run: telemetry-collection-v4
+[2025-12-29 19:13:21] INFO: API URL: http://127.0.0.1:8123
+[2025-12-29 19:13:21] INFO: Workspace: C:\dev\Autopack
+[2025-12-29 19:13:21] INFO: Running proactive startup checks from DEBUG_JOURNAL.md...
+[2025-12-29 19:13:21] INFO: [HIGH] Checking: Windows Unicode Fix (PYTHONUTF8)
+[2025-12-29 19:13:21] INFO:   Reason: Prevents UnicodeEncodeError with emoji characters in logs (Issue #3)
+[2025-12-29 19:13:21] INFO:   Check PASSED
+[2025-12-29 19:13:21] INFO: [SchemaValidator] Starting database schema validation...
+[2025-12-29 19:13:21] INFO: [SchemaValidator] ✅ Database schema validation PASSED
+[2025-12-29 19:13:21] INFO: Startup checks complete
+[2025-12-29 19:13:22] INFO: [BUILD-123v2] Manifest generator initialized (deterministic scope generation)
+[2025-12-29 19:13:24] INFO: [HealthCheck:T0] API Keys: PASSED (0ms) - All required API keys present
+[2025-12-29 19:13:24] INFO: [HealthCheck:T0] Database: PASSED (0ms) - Database accessible: C:\dev\Autopack\autopack.db
+[2025-12-29 19:13:24] INFO: [HealthCheck:T0] Workspace: PASSED (0ms) - Workspace valid: C:\dev\Autopack
+[2025-12-29 19:13:24] INFO: [HealthCheck:T0] Config: PASSED (27ms) - Configuration files valid
+[2025-12-29 19:13:24] INFO: [HealthCheck:T0] Vector Memory: PASSED (1621ms) - Qdrant unreachable at localhost:6333; autostart attempted or unavailable. Falling back to FAISS.
+[2025-12-29 19:13:24] INFO: [BUILD-127] Completion authority initialized (PhaseFinalizer + TestBaselineTracker)
+[2025-12-29 19:13:24] INFO: [BUILD-127] Capturing T0 baseline at commit c5835e0d...
+[2025-12-29 19:13:24] INFO: [Baseline] Using cached baseline for commit c5835e0d
+[2025-12-29 19:13:24] INFO: [BUILD-127] T0 baseline: 0 tests, 0 passing, 0 failing, 16 errors
+[2025-12-29 19:13:24] INFO: Starting autonomous execution loop...
+[2025-12-29 19:13:24] INFO: Poll interval: 10s
+[2025-12-29 19:13:24] INFO: Max iterations: 1
+[2025-12-29 19:13:24] INFO: API server is already running
+[2025-12-29 19:13:24] INFO: ✅ Run 'telemetry-collection-v4' verified in API database
+[2025-12-29 19:13:24] INFO: Initializing infrastructure...
+[2025-12-29 19:13:27] INFO: LlmService: Initialized with ModelRouter and UsageRecorder
+[2025-12-29 19:13:27] INFO: Quality Gate: Initialized
+[2025-12-29 19:13:27] INFO: Iteration 1: Fetching run status...
+[2025-12-29 19:13:27] INFO: [GoalAnchor] Initialized: Create a string utility module with capitalize_words and reverse_string functions...
+[2025-12-29 19:13:27] INFO: [BUILD-041] Next phase: telemetry-p9-readme
+[2025-12-29 19:13:27] INFO: [Scope] Workspace root determined as repo root for bucket 'examples': C:\dev\Autopack
+[2025-12-29 19:13:27] INFO: [telemetry-p9-readme] Step 1/4: Generating code with Builder (via LlmService)...
+[2025-12-29 19:13:27] INFO: [telemetry-p9-readme] Using scope-aware context (overrides targeted context)
+[2025-12-29 19:13:27] INFO: [Scope] Workspace root determined as repo root for bucket 'examples': C:\dev\Autopack
+[2025-12-29 19:13:27] INFO: [Scope] Loaded 12 files from scope configuration
+[2025-12-29 19:13:27] INFO: [Scope] Scope paths: ['examples/telemetry_utils/']
+[2025-12-29 19:13:27] INFO: [Scope] Loaded paths: ['examples/telemetry_utils/conftest.py', 'examples/telemetry_utils/date_helper.py', 'examples/telemetry_utils/dict_helper.py', 'examples/telemetry_utils/list_helper.py', 'examples/telemetry_utils/number_helper.py', 'examples/telemetry_utils/number_utils.py', 'examples/telemetry_utils/string_helper.py', 'examples/telemetry_utils/string_utils.py', 'examples/telemetry_utils/test_list_helper.py', 'examples/telemetry_utils/test_number_helper.py']...
+[2025-12-29 19:13:27] INFO: [telemetry-p9-readme] Loaded 12 files for context
+[2025-12-29 19:13:27] INFO: [Scope] Workspace root determined as repo root for bucket 'examples': C:\dev\Autopack
+[2025-12-29 19:13:27] INFO: [Scope] Validation passed: 12 files match scope configuration
+[2025-12-29 19:13:27] INFO: [telemetry-p9-readme] Built deliverables contract: 1 required paths, 0 forbidden patterns
+[2025-12-29 19:13:27] INFO: [telemetry-p9-readme] Deliverables manifest gate PASSED (1 paths)
+[2025-12-29 19:13:28] INFO: [MODEL-SELECT] Builder: model=claude-sonnet-4-5, complexity=low->low, attempt=0, category=docs
+[2025-12-29 19:13:28] INFO: [MODEL] Builder using claude-sonnet-4-5 due to: routing_policy:docs
+[2025-12-29 19:13:28] INFO: [TokenEstimator] Budget selection: base=8192, estimated=2600, with_buffer=3120, selected=8192, confidence=80.0%, buffer_margin=1.20x
+[2025-12-29 19:13:28] INFO: [BUILD-129] Token estimate: 2600 output tokens (1 deliverables, confidence=0.80), selected budget: 8192 (P4 enforcement applied before API call)
+[2025-12-29 19:13:28] WARNING: CONSOLIDATED_DEBUG.md not found at C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\CONSOLIDATED_DEBUG.md
+[2025-12-29 19:13:28] WARNING: [TOKEN_SOFT_CAP] run_id=telemetry-collection-v4 phase_id=telemetry-p9-readme est_total=30876 soft_cap=12000 (prompt=19408 completion=11468 complexity=low)
+[2025-12-29 19:13:28] INFO: [BUILD-129:P4] Final max_tokens enforcement: 16384 (token_selected_budget=8192)
+[2025-12-29 19:13:30] INFO: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+[2025-12-29 19:14:25] INFO: [TOKEN_BUDGET] phase=telemetry-p9-readme complexity=low input=24257 output=5157/16384 total=29414 utilization=31.5% model=claude-sonnet-4-5
+[2025-12-29 19:14:25] INFO: [Builder] Generated 1 file diffs locally from full-file content
+[2025-12-29 19:14:25] INFO: [TokenEstimationV2] predicted_output=2600 actual_output=5157 smape=65.9% selected_budget=8192 category=docs complexity=low deliverables=1 success=True stop_reason=end_turn truncated=False model=claude-sonnet-4-5
+[2025-12-29 19:14:25] INFO: [telemetry-p9-readme] Builder succeeded (29414 tokens)
+[2025-12-29 19:14:25] INFO: [telemetry-p9-readme] Deliverables validation:
+[2025-12-29 19:14:25] INFO:   Expected: 1 files
+[2025-12-29 19:14:25] INFO:   Found in patch: 1 files (+0 existing files in workspace)
+[2025-12-29 19:14:25] INFO: [telemetry-p9-readme] ✅ Deliverables validation PASSED
+[2025-12-29 19:14:25] INFO: [telemetry-p9-readme] Step 2/5: Applying patch...
+[2025-12-29 19:14:25] WARNING: [GoalDrift] Potential goal drift detected (similarity=-0.03 < 0.7)
+[2025-12-29 19:14:25] WARNING: [GoalDrift] Goal: Create a string utility module with capitalize_words and reverse_string functions...
+[2025-12-29 19:14:25] WARNING: [GoalDrift] Intent: Create README.md for telemetry_utils with usage examples...
+[2025-12-29 19:14:25] INFO: [GoalDrift:Advisory] Potential goal drift detected (similarity=-0.03 < 0.7)
+[2025-12-29 19:14:25] WARNING: [telemetry-p9-readme] ADVISORY: Potential goal drift detected (similarity=-0.03 < 0.7)
+[2025-12-29 19:14:25] INFO: Writing patch to C:\dev\Autopack\temp_patch.diff
+[2025-12-29 19:14:25] INFO: Checking if patch can be applied (dry run)...
+[2025-12-29 19:14:25] INFO: Applying patch to filesystem...
+[2025-12-29 19:14:25] INFO: Patch applied successfully - 1 files modified
+[2025-12-29 19:14:25] INFO:   - examples/telemetry_utils/README.md
+[2025-12-29 19:14:25] INFO: [Validation] All 1 modified files validated successfully
+[2025-12-29 19:14:25] INFO: [telemetry-p9-readme] Patch applied successfully to filesystem
+[2025-12-29 19:14:25] INFO: [telemetry-p9-readme] Step 3/5: Running CI checks...
+[2025-12-29 19:14:25] INFO: [telemetry-p9-readme] CI skipped (AUTOPACK_SKIP_CI=1 - telemetry seeding mode)
+[2025-12-29 19:14:25] INFO: [telemetry-p9-readme] Step 4/5: Reviewing patch with Auditor (via LlmService)...
+[2025-12-29 19:14:25] INFO: [MODEL-SELECT] Auditor: model=claude-sonnet-4-5, complexity=low->low, attempt=0, category=docs
+[2025-12-29 19:14:25] INFO: [MODEL] Auditor using claude-sonnet-4-5 due to: routing_policy:docs
+[2025-12-29 19:14:25] WARNING: CONSOLIDATED_DEBUG.md not found at C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\CONSOLIDATED_DEBUG.md
+[2025-12-29 19:14:36] INFO: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+[2025-12-29 19:14:36] INFO: [telemetry-p9-readme] Auditor completed: approved=False, issues=1
+[2025-12-29 19:14:36] INFO: [telemetry-p9-readme] Step 5/5: Applying Quality Gate...
+[2025-12-29 19:14:36] INFO: [telemetry-p9-readme] Quality Gate: BLOCKED
+[2025-12-29 19:14:36] WARNING: [telemetry-p9-readme] Phase BLOCKED by quality gate
+[2025-12-29 19:14:36] WARNING:   - Auditor rejected changes
+[2025-12-29 19:14:36] INFO: [telemetry-p9-readme] Requesting human approval via Telegram...
+[2025-12-29 19:14:36] INFO: [telemetry-p9-readme] ✅ Approval GRANTED (auto-approved)
+[2025-12-29 19:14:36] INFO: [telemetry-p9-readme] Human approval GRANTED - proceeding with phase
+[2025-12-29 19:14:36] INFO: [telemetry-p9-readme] Applied files: ['examples/telemetry_utils/README.md']
+[2025-12-29 19:14:36] INFO: [PhaseFinalizer] Assessing completion for phase telemetry-p9-readme
+[2025-12-29 19:14:36] WARNING: [PhaseFinalizer] WARN: Quality gate blocked (BLOCKED) but human-approved override present
+[2025-12-29 19:14:36] INFO: [PhaseFinalizer] ✅ Phase telemetry-p9-readme can complete
+[2025-12-29 19:14:36] WARNING: [PhaseFinalizer]   ⚠️  Quality gate blocked but overridden by human approval: BLOCKED
+[2025-12-29 19:14:36] INFO: [telemetry-p9-readme] Phase finalization PASSED: All gates passed
+[2025-12-29 19:14:36] WARNING:   ⚠️  Quality gate blocked but overridden by human approval: BLOCKED
+[2025-12-29 19:14:36] INFO: Updated phase telemetry-p9-readme status to COMPLETE
+[2025-12-29 19:14:36] INFO: [telemetry-p9-readme] Phase completed successfully
+[2025-12-29 19:14:36] INFO: [ARCHIVE_CONSOLIDATOR] Logged build event: PHASE_COMPLETE
+[2025-12-29 19:14:36] INFO: [MemoryService] Wrote phase summary: telemetry-p9-readme
+[2025-12-29 19:14:36] INFO: [telemetry-p9-readme] Marked COMPLETE in database
+[2025-12-29 19:14:36] INFO: [telemetry-p9-readme] Phase completed successfully on attempt 1
+[2025-12-29 19:14:36] INFO: Phase telemetry-p9-readme completed successfully
+[2025-12-29 19:14:36] INFO: Reached max iterations (1), stopping
+[2025-12-29 19:14:36] INFO: Autonomous execution loop finished
+[2025-12-29 19:14:36] INFO: [ARCHIVE_CONSOLIDATOR] Logged build event: RUN_PAUSED
+Quality Gate: PASS
+Blocking: False
+
+Risk Assessment:
+  auditor_approved: False
+  ci_passed: False
+  coverage_delta: 0.0
+  files_changed_count: 0
+
+[drain_one_phase] Final state: COMPLETE
+
+========================================
+Draining: telemetry-p10-file-util
+========================================
+faiss library not installed; FaissStore will use in-memory fallback
+[2025-12-29 19:14:47] INFO: Applying pre-emptive encoding fix...
+[2025-12-29 19:14:47] INFO: [Recovery] Fixing Unicode encoding error...
+======================================================================
+DATABASE IDENTITY
+======================================================================
+DATABASE_URL: sqlite:///C:/dev/Autopack/telemetry_seed_fullrun.db
+SQLite file: C:\dev\Autopack\telemetry_seed_fullrun.db
+Last modified: 2025-12-29T08:14:36.362222+00:00
+
+Row counts:
+  Runs: 1
+  Phases: 10
+  LLM usage events: 18
+======================================================================
+
+[drain_one_phase] ===== ENVIRONMENT IDENTITY =====
+[drain_one_phase] DATABASE_URL: sqlite:///C:/dev/Autopack/telemetry_seed_fullrun.db
+[drain_one_phase] AUTOPACK_API_URL: http://127.0.0.1:8123
+[drain_one_phase] ================================
+[drain_one_phase] Draining: telemetry-collection-v4 / telemetry-p10-file-util
+
+[2025-12-29 19:14:47] INFO: [Recovery] SUCCESS: Encoding fixed (UTF-8 enabled)
+[2025-12-29 19:14:47] INFO: Database tables initialized
+[2025-12-29 19:14:47] INFO: Loaded BuilderOutputConfig: max_lines_for_full_file=1000, max_lines_hard_limit=1000
+[2025-12-29 19:14:47] INFO: Doctor execute_fix enabled: True
+[2025-12-29 19:14:47] INFO: FileSizeTelemetry initialized: C:\dev\Autopack\.autonomous_runs\autopack\file_size_telemetry.jsonl
+[2025-12-29 19:14:57] WARNING: [Qdrant] Connection check failed for localhost:6333: [WinError 10061] No connection could be made because the target machine actively refused it
+[2025-12-29 19:14:58] WARNING: [MemoryService] Qdrant unavailable at localhost:6333; falling back to FAISS ([WinError 10061] No connection could be made because the target machine actively refused it)
+[2025-12-29 19:14:58] INFO: [FAISS] Created collection 'code_docs' with dim=1536
+[2025-12-29 19:14:58] INFO: [FAISS] Created collection 'run_summaries' with dim=1536
+[2025-12-29 19:14:58] INFO: [FAISS] Created collection 'errors_ci' with dim=1536
+[2025-12-29 19:14:58] INFO: [FAISS] Created collection 'doctor_hints' with dim=1536
+[2025-12-29 19:14:58] INFO: [FAISS] Created collection 'planning' with dim=1536
+[2025-12-29 19:14:58] INFO: [MemoryService] Initialized (backend=faiss, enabled=True, top_k=5)
+[2025-12-29 19:14:58] INFO: MemoryService initialized (enabled=True)
+[2025-12-29 19:14:58] INFO: [FileLayout] Project: autopack, Family: telemetry-collection-v4, Base: .autonomous_runs\autopack\runs\telemetry-collection-v4
+[2025-12-29 19:14:58] INFO: Initialized autonomous executor for run: telemetry-collection-v4
+[2025-12-29 19:14:58] INFO: API URL: http://127.0.0.1:8123
+[2025-12-29 19:14:58] INFO: Workspace: C:\dev\Autopack
+[2025-12-29 19:14:58] INFO: Running proactive startup checks from DEBUG_JOURNAL.md...
+[2025-12-29 19:14:58] INFO: [HIGH] Checking: Windows Unicode Fix (PYTHONUTF8)
+[2025-12-29 19:14:58] INFO:   Reason: Prevents UnicodeEncodeError with emoji characters in logs (Issue #3)
+[2025-12-29 19:14:58] INFO:   Check PASSED
+[2025-12-29 19:14:58] INFO: [SchemaValidator] Starting database schema validation...
+[2025-12-29 19:14:58] INFO: [SchemaValidator] ✅ Database schema validation PASSED
+[2025-12-29 19:14:58] INFO: Startup checks complete
+[2025-12-29 19:15:00] INFO: [BUILD-123v2] Manifest generator initialized (deterministic scope generation)
+[2025-12-29 19:15:02] INFO: [HealthCheck:T0] API Keys: PASSED (0ms) - All required API keys present
+[2025-12-29 19:15:02] INFO: [HealthCheck:T0] Database: PASSED (0ms) - Database accessible: C:\dev\Autopack\autopack.db
+[2025-12-29 19:15:02] INFO: [HealthCheck:T0] Workspace: PASSED (0ms) - Workspace valid: C:\dev\Autopack
+[2025-12-29 19:15:02] INFO: [HealthCheck:T0] Config: PASSED (25ms) - Configuration files valid
+[2025-12-29 19:15:02] INFO: [HealthCheck:T0] Vector Memory: PASSED (1599ms) - Qdrant unreachable at localhost:6333; autostart attempted or unavailable. Falling back to FAISS.
+[2025-12-29 19:15:02] INFO: [BUILD-127] Completion authority initialized (PhaseFinalizer + TestBaselineTracker)
+[2025-12-29 19:15:02] INFO: [BUILD-127] Capturing T0 baseline at commit c5835e0d...
+[2025-12-29 19:15:02] INFO: [Baseline] Using cached baseline for commit c5835e0d
+[2025-12-29 19:15:02] INFO: [BUILD-127] T0 baseline: 0 tests, 0 passing, 0 failing, 16 errors
+[2025-12-29 19:15:02] INFO: Starting autonomous execution loop...
+[2025-12-29 19:15:02] INFO: Poll interval: 10s
+[2025-12-29 19:15:02] INFO: Max iterations: 1
+[2025-12-29 19:15:02] INFO: API server is already running
+[2025-12-29 19:15:02] INFO: ✅ Run 'telemetry-collection-v4' verified in API database
+[2025-12-29 19:15:02] INFO: Initializing infrastructure...
+[2025-12-29 19:15:05] INFO: LlmService: Initialized with ModelRouter and UsageRecorder
+[2025-12-29 19:15:05] INFO: Quality Gate: Initialized
+[2025-12-29 19:15:05] INFO: Iteration 1: Fetching run status...
+[2025-12-29 19:15:05] INFO: [GoalAnchor] Initialized: Create a string utility module with capitalize_words and reverse_string functions...
+[2025-12-29 19:15:05] INFO: [BUILD-041] Next phase: telemetry-p10-file-util
+[2025-12-29 19:15:05] INFO: [Scope] Workspace root determined as repo root for bucket 'examples': C:\dev\Autopack
+[2025-12-29 19:15:05] INFO: [telemetry-p10-file-util] Step 1/4: Generating code with Builder (via LlmService)...
+[2025-12-29 19:15:05] INFO: [telemetry-p10-file-util] Using scope-aware context (overrides targeted context)
+[2025-12-29 19:15:05] INFO: [Scope] Workspace root determined as repo root for bucket 'examples': C:\dev\Autopack
+[2025-12-29 19:15:05] INFO: [Scope] Loaded 13 files from scope configuration
+[2025-12-29 19:15:05] INFO: [Scope] Scope paths: ['examples/telemetry_utils/']
+[2025-12-29 19:15:05] INFO: [Scope] Loaded paths: ['examples/telemetry_utils/conftest.py', 'examples/telemetry_utils/date_helper.py', 'examples/telemetry_utils/dict_helper.py', 'examples/telemetry_utils/list_helper.py', 'examples/telemetry_utils/number_helper.py', 'examples/telemetry_utils/number_utils.py', 'examples/telemetry_utils/README.md', 'examples/telemetry_utils/string_helper.py', 'examples/telemetry_utils/string_utils.py', 'examples/telemetry_utils/test_list_helper.py']...
+[2025-12-29 19:15:05] INFO: [telemetry-p10-file-util] Loaded 13 files for context
+[2025-12-29 19:15:05] INFO: [Scope] Workspace root determined as repo root for bucket 'examples': C:\dev\Autopack
+[2025-12-29 19:15:05] INFO: [Scope] Validation passed: 13 files match scope configuration
+[2025-12-29 19:15:05] INFO: [telemetry-p10-file-util] Learning context: 0 rules, 5 hints
+[2025-12-29 19:15:05] INFO: [telemetry-p10-file-util] Built deliverables contract: 1 required paths, 0 forbidden patterns
+[2025-12-29 19:15:05] INFO: [telemetry-p10-file-util] Deliverables manifest gate PASSED (1 paths)
+[2025-12-29 19:15:05] INFO: [ModelSelector] Selected claude-sonnet-4-5 for builder (complexity=medium, attempt=0, intra_tier=0)
+[2025-12-29 19:15:05] INFO: [MODEL-SELECT] Builder: model=claude-sonnet-4-5, complexity=medium->medium, attempt=0, category=implementation
+[2025-12-29 19:15:05] INFO: [TokenEstimator] Budget selection: base=12288, estimated=6500, with_buffer=7800, selected=12288, confidence=80.0%, buffer_margin=1.20x
+[2025-12-29 19:15:05] INFO: [BUILD-129] Token estimate: 6500 output tokens (1 deliverables, confidence=0.80), selected budget: 12288 (P4 enforcement applied before API call)
+[2025-12-29 19:15:05] WARNING: CONSOLIDATED_DEBUG.md not found at C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\CONSOLIDATED_DEBUG.md
+[2025-12-29 19:15:05] WARNING: [TOKEN_SOFT_CAP] run_id=telemetry-collection-v4 phase_id=telemetry-p10-file-util est_total=32665 soft_cap=32000 (prompt=21197 completion=11468 complexity=medium)
+[2025-12-29 19:15:05] INFO: [BUILD-129:P4] Final max_tokens enforcement: 16384 (token_selected_budget=12288)
+[2025-12-29 19:15:09] INFO: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+[2025-12-29 19:15:39] INFO: [TOKEN_BUDGET] phase=telemetry-p10-file-util complexity=medium input=26425 output=2767/16384 total=29192 utilization=16.9% model=claude-sonnet-4-5
+[2025-12-29 19:15:39] INFO: [Builder] Generated 1 file diffs locally from full-file content
+[2025-12-29 19:15:39] INFO: [TokenEstimationV2] predicted_output=6500 actual_output=2767 smape=80.6% selected_budget=12288 category=implementation complexity=medium deliverables=1 success=True stop_reason=end_turn truncated=False model=claude-sonnet-4-5
+[2025-12-29 19:15:39] INFO: [telemetry-p10-file-util] Builder succeeded (29192 tokens)
+[2025-12-29 19:15:39] INFO: [telemetry-p10-file-util] Deliverables validation:
+[2025-12-29 19:15:39] INFO:   Expected: 1 files
+[2025-12-29 19:15:39] INFO:   Found in patch: 1 files (+0 existing files in workspace)
+[2025-12-29 19:15:39] INFO: [telemetry-p10-file-util] ✅ Deliverables validation PASSED
+[2025-12-29 19:15:39] INFO: [telemetry-p10-file-util] Step 2/5: Applying patch...
+[2025-12-29 19:15:39] WARNING: [GoalDrift] Potential goal drift detected (similarity=0.03 < 0.7)
+[2025-12-29 19:15:39] WARNING: [GoalDrift] Goal: Create a string utility module with capitalize_words and reverse_string functions...
+[2025-12-29 19:15:39] WARNING: [GoalDrift] Intent: Create a file utility module with read_json, write_json, read_lines, and write_lines functions...
+[2025-12-29 19:15:39] INFO: [GoalDrift:Advisory] Potential goal drift detected (similarity=0.03 < 0.7)
+[2025-12-29 19:15:39] WARNING: [telemetry-p10-file-util] ADVISORY: Potential goal drift detected (similarity=0.03 < 0.7)
+[2025-12-29 19:15:39] INFO: Writing patch to C:\dev\Autopack\temp_patch.diff
+[2025-12-29 19:15:39] INFO: Checking if patch can be applied (dry run)...
+[2025-12-29 19:15:39] INFO: Applying patch to filesystem...
+[2025-12-29 19:15:39] INFO: Patch applied successfully - 1 files modified
+[2025-12-29 19:15:39] INFO:   - examples/telemetry_utils/file_helper.py
+[2025-12-29 19:15:39] INFO: [Validation] All 1 modified files validated successfully
+[2025-12-29 19:15:39] INFO: [telemetry-p10-file-util] Patch applied successfully to filesystem
+[2025-12-29 19:15:39] INFO: [telemetry-p10-file-util] Step 3/5: Running CI checks...
+[2025-12-29 19:15:39] INFO: [telemetry-p10-file-util] CI skipped (AUTOPACK_SKIP_CI=1 - telemetry seeding mode)
+[2025-12-29 19:15:39] INFO: [telemetry-p10-file-util] Step 4/5: Reviewing patch with Auditor (via LlmService)...
+[2025-12-29 19:15:39] INFO: [ModelSelector] Selected claude-sonnet-4-5 for auditor (complexity=medium, attempt=0, intra_tier=0)
+[2025-12-29 19:15:39] INFO: [MODEL-SELECT] Auditor: model=claude-sonnet-4-5, complexity=medium->medium, attempt=0, category=implementation
+[2025-12-29 19:15:39] WARNING: CONSOLIDATED_DEBUG.md not found at C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\CONSOLIDATED_DEBUG.md
+[2025-12-29 19:15:54] INFO: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+[2025-12-29 19:15:54] INFO: [telemetry-p10-file-util] Auditor completed: approved=False, issues=1
+[2025-12-29 19:15:54] INFO: [telemetry-p10-file-util] Step 5/5: Applying Quality Gate...
+[2025-12-29 19:15:54] INFO: [telemetry-p10-file-util] Quality Gate: BLOCKED
+[2025-12-29 19:15:54] WARNING: [telemetry-p10-file-util] Phase BLOCKED by quality gate
+[2025-12-29 19:15:54] WARNING:   - Auditor rejected changes
+[2025-12-29 19:15:54] INFO: [telemetry-p10-file-util] Requesting human approval via Telegram...
+[2025-12-29 19:15:54] INFO: [telemetry-p10-file-util] ✅ Approval GRANTED (auto-approved)
+[2025-12-29 19:15:54] INFO: [telemetry-p10-file-util] Human approval GRANTED - proceeding with phase
+[2025-12-29 19:15:54] INFO: [telemetry-p10-file-util] Applied files: ['examples/telemetry_utils/file_helper.py']
+[2025-12-29 19:15:54] INFO: [PhaseFinalizer] Assessing completion for phase telemetry-p10-file-util
+[2025-12-29 19:15:54] WARNING: [PhaseFinalizer] WARN: Quality gate blocked (BLOCKED) but human-approved override present
+[2025-12-29 19:15:54] INFO: [PhaseFinalizer] ✅ Phase telemetry-p10-file-util can complete
+[2025-12-29 19:15:54] WARNING: [PhaseFinalizer]   ⚠️  Quality gate blocked but overridden by human approval: BLOCKED
+[2025-12-29 19:15:54] INFO: [telemetry-p10-file-util] Phase finalization PASSED: All gates passed
+[2025-12-29 19:15:54] WARNING:   ⚠️  Quality gate blocked but overridden by human approval: BLOCKED
+[2025-12-29 19:15:54] INFO: Updated phase telemetry-p10-file-util status to COMPLETE
+[2025-12-29 19:15:54] INFO: [telemetry-p10-file-util] Phase completed successfully
+[2025-12-29 19:15:54] INFO: [ARCHIVE_CONSOLIDATOR] Logged build event: PHASE_COMPLETE
+[2025-12-29 19:15:54] INFO: [MemoryService] Wrote phase summary: telemetry-p10-file-util
+[2025-12-29 19:15:54] INFO: [telemetry-p10-file-util] Marked COMPLETE in database
+[2025-12-29 19:15:54] INFO: [telemetry-p10-file-util] Phase completed successfully on attempt 1
+[2025-12-29 19:15:54] INFO: Phase telemetry-p10-file-util completed successfully
+[2025-12-29 19:15:54] INFO: Reached max iterations (1), stopping
+[2025-12-29 19:15:54] INFO: Autonomous execution loop finished
+[2025-12-29 19:15:54] INFO: [ARCHIVE_CONSOLIDATOR] Logged build event: RUN_PAUSED
+Quality Gate: PASS
+Blocking: False
+
+Risk Assessment:
+  auditor_approved: False
+  ci_passed: False
+  coverage_delta: 0.0
+  files_changed_count: 0
+
+[drain_one_phase] Final state: COMPLETE
+
+All phases drained!

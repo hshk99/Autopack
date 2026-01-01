@@ -440,11 +440,24 @@ def apply_truth_merges(suggestions: list[dict], repo_root: Path, run_id: str, lo
             continue
         target_path = (repo_root / target).resolve() if not Path(target).is_absolute() else Path(target)
         target_path.parent.mkdir(parents=True, exist_ok=True)
+
+        # Compute source SHA for idempotency check
+        src_sha = compute_sha256(path) if path.is_file() else None
+
+        # Check if this content is already merged (idempotency)
+        if target_path.exists() and src_sha:
+            existing_content = target_path.read_text(encoding="utf-8")
+            # Check for existing merge marker with same SHA
+            marker_pattern = f"sha={src_sha}"
+            if marker_pattern in existing_content:
+                logger.log(run_id, "merge_skip", str(path), str(target_path), f"already merged (sha={src_sha[:8]}...)", src_sha=src_sha)
+                continue
+
         heading_hint = path.stem
-        marker = f"<!-- merged-from:{path} run:{run_id} reason:{reason} -->\n"
-        block = marker + content + "\n<!-- end-merged-from -->\n"
+        # Enhanced marker with SHA for deduplication
+        marker = f"<!-- tidy-merged-from: path={path} sha={src_sha} run={run_id} reason={reason} -->\n"
+        block = marker + content + "\n<!-- end-tidy-merged-from -->\n"
         try:
-            src_sha = compute_sha256(path) if path.is_file() else None
             dest_sha_before = compute_sha256(target_path) if target_path.exists() and target_path.is_file() else None
             _insert_into_markdown(target_path, block, heading_hint)
             dest_sha_after = compute_sha256(target_path) if target_path.is_file() else None

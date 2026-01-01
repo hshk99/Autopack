@@ -42,6 +42,30 @@ In practice, “autonomous” requires that each phase has:
 
 ## Recent Updates
 
+### 2026-01-01: BUILD-146 Phase A P17.x Complete - DB Idempotency Hardening ✅
+**Race-Safe Telemetry Under Concurrency**
+- **Achievement**:
+  - DB-level uniqueness enforcement for token efficiency telemetry
+  - Race-safe IntegrityError handling in record_token_efficiency_metrics()
+  - Production smoke test validates index presence
+- **Problem Solved**:
+  - App-level idempotency guard (P17.1) prevents most duplicates but fails under concurrent writers
+  - Classic "check then insert" race: two writers can both see no existing row, both insert
+  - No operator visibility into missing DB schema (index) until runtime failures
+- **Solution Implemented**:
+  - **Migration**: [add_token_efficiency_idempotency_index_build146_p17x.py](scripts/migrations/add_token_efficiency_idempotency_index_build146_p17x.py) - Partial unique index on (run_id, phase_id, phase_outcome) WHERE phase_outcome IS NOT NULL
+  - **PostgreSQL**: CREATE INDEX CONCURRENTLY (non-transactional, autocommit mode)
+  - **SQLite**: Best-effort partial index support (requires SQLite 3.8+)
+  - **Race-Safe Handler**: Try commit → catch IntegrityError → rollback → re-query → return existing record
+  - **Test Coverage**: test_integrity_error_fallback() validates concurrent writer race condition recovery
+  - **Smoke Test**: check_idempotency_index() detects missing index, reports NO-GO with migration command
+- **End State**:
+  - DB enforces uniqueness: at most one row per (run_id, phase_id, terminal_outcome) ✅
+  - Backward compatible: NULL phase_outcome not enforced (legacy paths safe) ✅
+  - Concurrent safe: IntegrityError caught, rollback, existing record returned ✅
+  - Operator safe: Smoke test blocks deployment when index missing ✅
+- **Status**: Production-ready concurrency hardening - see [BUILD_HISTORY.md](BUILD_HISTORY.md#build-146-phase-a-p17x-db-idempotency-hardening-2026-01-01)
+
 ### 2025-12-31: BUILD-146 Phase A P16+ Complete - Windows/Test Hardening ✅
 **Production Reliability: UTF-8 + In-Memory DB Safety**
 - **Achievement**:
@@ -828,15 +852,15 @@ In practice, “autonomous” requires that each phase has:
   7. **History Pack Aggregation** ([artifact_loader.py:245-282](src/autopack/artifact_loader.py#L245-L282)):
      - build_history_pack() aggregates recent run/tier/phase summaries for compact context inclusion
      - Configurable limits (default: 5 phases, 3 tiers) with size cap (10k chars)
-     - Opt-in via AUTOPACK_ARTIFACT_HISTORY_PACK environment variable
+     - Opt-in via `ARTIFACT_HISTORY_PACK_ENABLED=true` (legacy alias supported: `AUTOPACK_ARTIFACT_HISTORY_PACK=true`)
   8. **SOT Doc Substitution** ([artifact_loader.py:284-320](src/autopack/artifact_loader.py#L284-L320)):
      - should_substitute_sot_doc() identifies large BUILD_HISTORY/BUILD_LOG files
      - get_sot_doc_summary() provides concise summaries instead of full content
-     - Opt-in via AUTOPACK_ARTIFACT_SUBSTITUTE_SOT_DOCS environment variable
+     - Opt-in via `ARTIFACT_SUBSTITUTE_SOT_DOCS=true` (legacy alias supported: `AUTOPACK_ARTIFACT_SUBSTITUTE_SOT_DOCS=true`)
   9. **Extended Contexts** ([artifact_loader.py:322-365](src/autopack/artifact_loader.py#L322-L365)):
      - load_with_extended_contexts() applies artifact-first to phase descriptions, tier summaries
      - Conservative: only when artifact exists and is smaller, always falls back to full content
-     - Opt-in via AUTOPACK_ARTIFACT_EXTENDED_CONTEXTS environment variable
+     - Opt-in via `ARTIFACT_EXTENDED_CONTEXTS_ENABLED=true` (legacy alias supported: `AUTOPACK_ARTIFACT_EXTENDED_CONTEXTS=true`)
 
 - **Configuration** ([config.py:34-68](src/autopack/config.py#L34-L68)):
   - All features disabled by default (opt-in design for safety)
@@ -846,10 +870,10 @@ In practice, “autonomous” requires that each phase has:
   - artifact_substitute_sot_docs: bool = False (opt-in)
   - artifact_extended_contexts_enabled: bool = False (opt-in)
 
-- **Test Coverage**: 20/21 tests passing (95%)
-  - P1.1: 12 tests (11 passing, 1 skipped) - metrics, aggregation, dashboard
-  - P1.2: 9 tests (all passing) - cache, invalidation, cap enforcement
-  - P1.3: No dedicated tests (methods verified via code review)
+- **Test Coverage**: ✅ Complete (BUILD-146 P17)
+  - Token efficiency + telemetry invariants: 22 tests
+  - Artifact history pack: 31 tests
+  - Total: 53 tests (covers safety rules, caps enforcement, fallback behavior, and idempotency)
 
 - **Impact**:
   - ✅ **Observability** - Track token savings from artifact substitution and context budgeting
@@ -858,13 +882,13 @@ In practice, “autonomous” requires that each phase has:
   - ✅ **Production safety** - All features opt-in, conservative fallbacks, graceful degradation
   - ✅ **Comprehensive testing** - 20 tests ensure regression protection
 
-- **Success Criteria**: 20/21 PASS ✅
+- **Success Criteria**: PASS ✅ (see BUILD-146 P17 summary below)
   - ✅ TokenEfficiencyMetrics schema exists and records per-phase data
   - ✅ Embedding cache working with content-hash invalidation and cap enforcement
   - ✅ History pack aggregation implemented with size/count limits
   - ✅ SOT doc substitution ready for opt-in use
   - ✅ Extended context loading implemented with conservative rules
-  - ⚠️ One test skipped (RunFileLayout setup - non-blocking)
+  - ✅ Test coverage complete for P1.3 behaviors (safety rules, caps, fallback)
 
 - **Known Limitations**:
   - Dashboard integration: token_efficiency field optional for backwards compatibility (non-blocking)

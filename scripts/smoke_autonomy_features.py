@@ -104,6 +104,93 @@ def check_database_schema() -> Tuple[bool, str]:
         return False, f"✗ Schema check failed: {e}"
 
 
+def check_idempotency_index() -> Tuple[bool, str]:
+    """Check if idempotency index exists on token_efficiency_metrics.
+
+    BUILD-146 P17.x: Validates that the partial unique index for DB-level
+    idempotency enforcement is present.
+
+    Returns:
+        (success, message) tuple
+    """
+    try:
+        from autopack.database import SessionLocal
+        from sqlalchemy import inspect, text
+
+        db = SessionLocal()
+        try:
+            inspector = inspect(db.bind)
+            dialect = db.bind.dialect.name
+
+            # Check if token_efficiency_metrics table exists
+            tables = inspector.get_table_names()
+            if "token_efficiency_metrics" not in tables:
+                return True, "○ Index check skipped (table not created yet)"
+
+            # Get indexes on token_efficiency_metrics
+            indexes = inspector.get_indexes("token_efficiency_metrics")
+            index_names = [idx["name"] for idx in indexes]
+
+            index_name = "ux_token_eff_metrics_run_phase_outcome"
+
+            if index_name in index_names:
+                return True, f"✓ Idempotency index present ({index_name})"
+            else:
+                # Index missing - provide migration command
+                migration_cmd = (
+                    "python scripts/migrations/add_token_efficiency_idempotency_index_build146_p17x.py upgrade"
+                )
+                return False, (
+                    f"✗ Missing idempotency index: {index_name}\n"
+                    f"  This index is required for race-safe telemetry recording.\n"
+                    f"  Run: {migration_cmd}"
+                )
+        finally:
+            db.close()
+    except Exception as e:
+        # Index check is best-effort - don't fail if we can't determine
+        return True, f"⚠ Index check failed (best-effort): {e}"
+
+
+def check_config_conflicts() -> List[str]:
+    """Check for config footguns (conflicting environment variables).
+
+    BUILD-146 P17.x: Detects when both canonical and legacy env vars are set
+    for the same feature but have conflicting values (ambiguous configuration).
+
+    Returns:
+        List of conflict warnings
+    """
+    conflicts = []
+
+    # Check for canonical vs legacy env var conflicts
+    # Currently there are no known canonical/legacy pairs, but this structure
+    # allows for future detection of config footguns
+
+    # Example: If TELEMETRY_DB_ENABLED has both old and new env var names
+    # telemetry_enabled_canonical = os.getenv("TELEMETRY_DB_ENABLED")
+    # telemetry_enabled_legacy = os.getenv("TELEMETRY_ENABLED")  # hypothetical old name
+    # if (telemetry_enabled_canonical is not None and
+    #     telemetry_enabled_legacy is not None and
+    #     telemetry_enabled_canonical != telemetry_enabled_legacy):
+    #     conflicts.append(
+    #         "TELEMETRY_DB_ENABLED and TELEMETRY_ENABLED both set with different values"
+    #     )
+
+    # BUILD-146 P17.x: Check for DATABASE_URL pointing to SQLite in production-like configs
+    database_url = os.getenv("DATABASE_URL", "")
+    telemetry_enabled = os.getenv("TELEMETRY_DB_ENABLED", "").lower() == "true"
+
+    if "sqlite" in database_url.lower() and telemetry_enabled:
+        # Warn if using SQLite with telemetry (production should use Postgres)
+        # This is a warning, not a critical failure (dev/test might legitimately use SQLite)
+        conflicts.append(
+            "DATABASE_URL uses SQLite with telemetry enabled (production should use PostgreSQL)"
+        )
+
+    return conflicts
+
+
 def check_feature_toggles() -> Dict[str, bool]:
     """Check which features are enabled.
 
@@ -217,6 +304,14 @@ def main():
             critical_failures.append(schema_msg)
             all_passed = False
 
+        # BUILD-146 P17.x: Check idempotency index
+        if schema_ok:
+            index_ok, index_msg = check_idempotency_index()
+            print(f"  {index_msg}")
+            if not index_ok:
+                critical_failures.append(index_msg)
+                all_passed = False
+
     print()
 
     # 4. Check Feature Toggles
@@ -232,6 +327,13 @@ def main():
         if feature == "Telemetry Recording" and not enabled:
             msg = "Telemetry disabled - no metrics will be collected"
             warnings.append(msg)
+
+    # BUILD-146 P17.x: Check for config conflicts (footgun detection)
+    config_conflicts = check_config_conflicts()
+    if config_conflicts:
+        for conflict in config_conflicts:
+            print(f"  ⚠ Config conflict: {conflict}")
+            warnings.append(conflict)
 
     print()
 

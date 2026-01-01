@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 from typing import Dict, Optional
 
 from sqlalchemy import Column, DateTime, Integer, String, Text, Boolean, JSON
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from .database import Base
@@ -316,6 +317,10 @@ def record_token_efficiency_metrics(
     BUILD-146 P17.1: Idempotency guard ensures exactly one metrics record per
     (run_id, phase_id, outcome) even across retries/replans/crashes.
 
+    BUILD-146 P17.x: Race-safe under concurrency via DB-level unique index enforcement.
+    If a concurrent writer beats us to inserting the same terminal outcome, we catch
+    IntegrityError, rollback, and return the existing record.
+
     Args:
         db: Database session
         run_id: Run identifier
@@ -339,7 +344,7 @@ def record_token_efficiency_metrics(
     Returns:
         Created or existing TokenEfficiencyMetrics record
     """
-    # BUILD-146 P17.1: Idempotency check - prevent duplicate metrics for same outcome
+    # BUILD-146 P17.1: Fast-path idempotency check (avoids insert attempt when already exists)
     # If phase_outcome is specified, check for existing record with that outcome
     if phase_outcome:
         existing = db.query(TokenEfficiencyMetrics).filter(
@@ -352,6 +357,7 @@ def record_token_efficiency_metrics(
             # Already recorded for this outcome - return existing record without duplication
             return existing
 
+    # BUILD-146 P17.x: Create new record
     metrics = TokenEfficiencyMetrics(
         run_id=run_id,
         phase_id=phase_id,
@@ -374,10 +380,33 @@ def record_token_efficiency_metrics(
     )
 
     db.add(metrics)
-    db.commit()
-    db.refresh(metrics)
 
-    return metrics
+    try:
+        # BUILD-146 P17.x: Attempt commit
+        db.commit()
+        db.refresh(metrics)
+        return metrics
+    except IntegrityError:
+        # BUILD-146 P17.x: Race condition - another writer inserted same terminal outcome
+        # This happens when DB unique index (run_id, phase_id, phase_outcome) is violated
+        # Rollback failed transaction, then re-query for existing record
+        db.rollback()
+
+        # Re-query for existing record (must exist if IntegrityError was raised)
+        if phase_outcome:
+            existing = db.query(TokenEfficiencyMetrics).filter(
+                TokenEfficiencyMetrics.run_id == run_id,
+                TokenEfficiencyMetrics.phase_id == phase_id,
+                TokenEfficiencyMetrics.phase_outcome == phase_outcome,
+            ).first()
+
+            if existing:
+                # Found existing record created by concurrent writer
+                return existing
+
+        # If we get here, something unexpected happened (shouldn't be possible)
+        # Re-raise to make the error visible
+        raise
 
 
 def get_token_efficiency_stats(db: Session, run_id: str) -> Dict:

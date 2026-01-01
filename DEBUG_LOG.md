@@ -4,6 +4,101 @@ Developer journal for tracking implementation progress, debugging sessions, and 
 
 ---
 
+## 2026-01-01: BUILD-146 P17.x DB Idempotency Hardening (COMPLETE)
+
+**Session Goal**: Implement DB-level idempotency enforcement for token efficiency telemetry to prevent race conditions under concurrent writers.
+
+**Context**:
+- BUILD-146 P17.1 added app-level idempotency guard (check-then-insert pattern)
+- This prevents most duplicates but fails under concurrent writers
+- Classic race condition: Writer A queries (no row), Writer B queries (no row), both insert → duplicate
+- Need DB-level enforcement + graceful fallback when race occurs
+
+**Implementation Plan** (from docs/DB_IDEMPOTENCY_HARDENING_PLAN.md):
+1. Add partial unique index: `(run_id, phase_id, phase_outcome) WHERE phase_outcome IS NOT NULL`
+2. Update `record_token_efficiency_metrics()` with IntegrityError handling
+3. Add unit test simulating concurrent writer race
+4. Enhance smoke test to detect missing index
+
+**Key Design Decisions**:
+
+1. **Partial Index (NOT Full Unique Constraint)**
+   - **Why**: Backward compatibility with NULL phase_outcome (legacy paths)
+   - **Predicate**: `WHERE phase_outcome IS NOT NULL`
+   - **Impact**: Only terminal outcomes enforced (COMPLETE, FAILED, BLOCKED)
+   - **Benefit**: Older code paths with NULL outcome continue working unchanged
+
+2. **PostgreSQL: CREATE INDEX CONCURRENTLY**
+   - **Why**: Avoid table locks in production during migration
+   - **Constraint**: Cannot run inside transaction (requires autocommit mode)
+   - **Implementation**: `conn.execution_options(isolation_level="AUTOCOMMIT")`
+   - **Trade-off**: More complex migration code, but production-safe
+
+3. **IntegrityError Handling Pattern**
+   - **Fast Path**: Query first (app-level guard, avoids insert when exists)
+   - **Slow Path**: Try commit → catch IntegrityError → rollback → re-query
+   - **Why Not**: Optimistic locking / version fields (overkill for write-once telemetry)
+   - **Correctness**: DB unique index is source of truth, app recovers gracefully
+
+**Implementation Details**:
+
+**File 1: Migration Script** (277 lines)
+- Path: `scripts/migrations/add_token_efficiency_idempotency_index_build146_p17x.py`
+- PostgreSQL: `CREATE UNIQUE INDEX CONCURRENTLY` with autocommit
+- SQLite: Best-effort partial index (requires SQLite 3.8+)
+- Includes duplicate detection on upgrade (reports existing duplicates if any)
+- Idempotent: Safe to run multiple times
+
+**File 2: Race-Safe Handler** (src/autopack/usage_recorder.py)
+- Import: Added `from sqlalchemy.exc import IntegrityError` (line 8)
+- Logic: Lines 378-403 (try/except/rollback/re-query)
+- **Critical**: Must rollback before re-query (transaction is dead after IntegrityError)
+- **Edge Case**: If re-query finds nothing after IntegrityError → re-raise (should never happen)
+
+**File 3: Test Coverage** (tests/autopack/test_token_efficiency_observability.py)
+- Test: `test_integrity_error_fallback()` (lines 782-858)
+- Approach: Mock `db.commit()` to raise IntegrityError on first call
+- Validates: Existing record returned, no duplicate created
+- **Key Insight**: Using mock allows deterministic test without real concurrency
+
+**File 4: Smoke Test** (scripts/smoke_autonomy_features.py)
+- Added: `check_idempotency_index()` (lines 107-152)
+- Added: `check_config_conflicts()` (lines 155-191)
+- Integration: Lines 220-249 (calls checks, reports NO-GO if index missing)
+- **Operator Safety**: Blocks deployment with clear migration command
+
+**Testing Results**:
+
+```bash
+# Unit test (race condition simulation)
+PYTHONUTF8=1 PYTHONPATH=src DATABASE_URL="sqlite:///:memory:" pytest tests/autopack/test_token_efficiency_observability.py::TestTelemetryInvariants::test_integrity_error_fallback -v
+# Result: PASSED ✅
+
+# Full telemetry invariants suite
+PYTHONUTF8=1 PYTHONPATH=src DATABASE_URL="sqlite:///:memory:" pytest tests/autopack/test_token_efficiency_observability.py::TestTelemetryInvariants -v
+# Result: 8/8 passed ✅
+
+# Smoke test (detects missing index)
+PYTHONUTF8=1 PYTHONPATH=src DATABASE_URL="sqlite:///autopack.db" python scripts/smoke_autonomy_features.py
+# Result: NO-GO - Missing idempotency index (expected before migration) ✅
+```
+
+**Watch-Outs Addressed**:
+- ✅ PostgreSQL CREATE INDEX CONCURRENTLY uses autocommit (no transaction)
+- ✅ Predicate exactly `WHERE phase_outcome IS NOT NULL` (backward compatible)
+- ✅ IntegrityError handler calls `rollback()` before re-query
+- ✅ Re-query uses same `(run_id, phase_id, phase_outcome)` key
+
+**Deployment Checklist**:
+1. Run migration: `DATABASE_URL="..." python scripts/migrations/add_token_efficiency_idempotency_index_build146_p17x.py upgrade`
+2. Verify smoke test: `python scripts/smoke_autonomy_features.py` → should show "✓ Idempotency index present"
+3. Restart executors (code changes in usage_recorder.py)
+4. Monitor telemetry: No duplicates per `(run_id, phase_id, outcome)` in production
+
+**Impact**: Telemetry recording is now provably correct under concurrency (DB-enforced uniqueness + graceful fallback).
+
+---
+
 ## 2025-12-31: BUILD-146 P12 Critical Fixes + Test Stabilization (COMPLETE)
 
 **Session Goal**: Fix critical blocking issues after Phase 5 completion and stabilize test suite

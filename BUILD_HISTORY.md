@@ -16,6 +16,80 @@ Each entry includes:
 
 ## Chronological Index
 
+### BUILD-146 Phase A P17.x: DB Idempotency Hardening (2026-01-01)
+
+**Status**: ✅ COMPLETE
+
+**Summary**: Database-level idempotency enforcement for token efficiency telemetry to prevent duplicate records under concurrent writers.
+
+**Problem**:
+- BUILD-146 P17.1 added app-level idempotency guard (check-then-insert pattern)
+- This prevents most duplicates but fails under concurrent writers (classic race condition)
+- Two writers can both query (no existing row), both insert (duplicate created)
+- No operator visibility into missing DB schema until runtime failures
+
+**Solution**:
+
+1. **Migration Script** (new file)
+   - [scripts/migrations/add_token_efficiency_idempotency_index_build146_p17x.py](scripts/migrations/add_token_efficiency_idempotency_index_build146_p17x.py)
+   - Creates partial unique index: `ux_token_eff_metrics_run_phase_outcome`
+   - Columns: `(run_id, phase_id, phase_outcome)`
+   - Predicate: `WHERE phase_outcome IS NOT NULL` (backward compatible)
+   - PostgreSQL: `CREATE INDEX CONCURRENTLY` (non-transactional, autocommit mode)
+   - SQLite: Best-effort partial index (requires SQLite 3.8+)
+   - Idempotent: Safe to run multiple times
+
+2. **Race-Safe IntegrityError Handling** (src/autopack/usage_recorder.py)
+   - Fast-path: Query for existing record before insert (app-level guard)
+   - Slow-path: Try commit → catch IntegrityError → rollback → re-query → return existing
+   - Handles concurrent writer race: another writer beats us to insert, we recover gracefully
+   - No duplicates created, existing record returned
+
+3. **Test Coverage** (tests/autopack/test_token_efficiency_observability.py)
+   - New test: `test_integrity_error_fallback()`
+   - Simulates concurrent writer race condition via mock
+   - Validates: IntegrityError caught, rollback executed, existing record returned
+   - Verifies: Only one DB record exists after race
+
+4. **Production Smoke Test** (scripts/smoke_autonomy_features.py)
+   - New check: `check_idempotency_index()`
+   - Detects missing index via SQLAlchemy inspector
+   - Reports NO-GO with migration command when index missing
+   - New check: `check_config_conflicts()` - warns if SQLite used with telemetry in production
+
+**Files Modified**:
+- `scripts/migrations/add_token_efficiency_idempotency_index_build146_p17x.py` - NEW migration (277 lines)
+- `src/autopack/usage_recorder.py` - Added IntegrityError import, try/except/rollback/re-query (lines 8, 378-403)
+- `tests/autopack/test_token_efficiency_observability.py` - Added test_integrity_error_fallback() (lines 17, 782-858)
+- `scripts/smoke_autonomy_features.py` - Added check_idempotency_index() + check_config_conflicts() (lines 107-191, 220-249)
+
+**Test Results**:
+- test_token_efficiency_observability.py::TestTelemetryInvariants: 8/8 passed ✅
+- Includes new test_integrity_error_fallback() ✅
+- Smoke test correctly detects missing index (NO-GO) ✅
+
+**End State**:
+- DB enforces uniqueness: at most one row per (run_id, phase_id, terminal_outcome) ✅
+- Backward compatible: NULL phase_outcome not enforced (legacy paths safe) ✅
+- Concurrent safe: IntegrityError caught, rollback, existing record returned ✅
+- Operator safe: Smoke test blocks deployment when index missing ✅
+
+**Deployment**:
+```bash
+# PostgreSQL (production)
+DATABASE_URL="postgresql://..." python scripts/migrations/add_token_efficiency_idempotency_index_build146_p17x.py upgrade
+
+# SQLite (dev/test)
+DATABASE_URL="sqlite:///autopack.db" python scripts/migrations/add_token_efficiency_idempotency_index_build146_p17x.py upgrade
+
+# Verify
+PYTHONUTF8=1 PYTHONPATH=src python scripts/smoke_autonomy_features.py
+```
+
+**Impact**: Production-ready concurrency hardening. Telemetry recording is now race-safe under parallel executors.
+
+---
+
 ### BUILD-146 Phase A P16+: Windows/Test Hardening - UTF-8 + In-Memory DB Safety (2025-12-31)
 
 **Status**: ✅ COMPLETE

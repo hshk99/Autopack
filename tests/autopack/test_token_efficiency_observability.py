@@ -14,6 +14,7 @@ from autopack.artifact_loader import ArtifactLoader, get_artifact_substitution_s
 from autopack.context_budgeter import BudgetSelection
 from autopack.database import Base, get_db
 from sqlalchemy import create_engine
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import sessionmaker
 
 
@@ -778,3 +779,81 @@ class TestTelemetryInvariants:
         assert metrics2.embedding_cache_hits == 45
         assert metrics2.embedding_cache_misses == 5
         assert metrics2.embedding_calls_made == 50
+
+    def test_integrity_error_fallback(self, test_db):
+        """BUILD-146 P17.x: Should handle IntegrityError by returning existing record.
+
+        This test simulates a race condition where:
+        1. First insert succeeds (creates initial record)
+        2. Second insert attempt raises IntegrityError (duplicate terminal outcome)
+        3. Function should rollback and return the existing record
+
+        This validates the race-safe fallback path added in P17.x.
+        """
+        # Step 1: Insert initial record for (run_id, phase_id, outcome)
+        initial_metrics = record_token_efficiency_metrics(
+            db=test_db,
+            run_id="test-run",
+            phase_id="phase-001",
+            artifact_substitutions=5,
+            tokens_saved_artifacts=2500,
+            budget_mode="semantic",
+            budget_used=8000,
+            budget_cap=10000,
+            files_kept=15,
+            files_omitted=3,
+            phase_outcome="COMPLETE",
+        )
+        assert initial_metrics.id is not None
+        initial_id = initial_metrics.id
+
+        # Step 2: Mock db.commit() to raise IntegrityError on next call
+        # This simulates a concurrent writer beating us to the insert
+        original_commit = test_db.commit
+        call_count = [0]
+
+        def mock_commit_with_integrity_error():
+            call_count[0] += 1
+            if call_count[0] == 1:
+                # First call after our test setup - raise IntegrityError
+                raise IntegrityError(
+                    statement="INSERT INTO token_efficiency_metrics",
+                    params={},
+                    orig=Exception("UNIQUE constraint failed: token_efficiency_metrics.ux_token_eff_metrics_run_phase_outcome"),
+                )
+            else:
+                # Subsequent calls - use original commit
+                return original_commit()
+
+        # Step 3: Patch commit to simulate race condition
+        with patch.object(test_db, 'commit', side_effect=mock_commit_with_integrity_error):
+            # Attempt to record again with different values (simulating concurrent writer)
+            # This should trigger IntegrityError, rollback, and return existing record
+            recovered_metrics = record_token_efficiency_metrics(
+                db=test_db,
+                run_id="test-run",
+                phase_id="phase-001",
+                artifact_substitutions=10,  # Different values
+                tokens_saved_artifacts=5000,
+                budget_mode="lexical",
+                budget_used=9000,
+                budget_cap=12000,
+                files_kept=20,
+                files_omitted=5,
+                phase_outcome="COMPLETE",  # Same outcome
+            )
+
+        # Step 4: Verify we got the original record back (not a new one)
+        assert recovered_metrics.id == initial_id
+        assert recovered_metrics.artifact_substitutions == 5  # Original values preserved
+        assert recovered_metrics.tokens_saved_artifacts == 2500
+        assert recovered_metrics.budget_mode == "semantic"
+
+        # Step 5: Verify only one record exists in DB (no duplicate created)
+        all_metrics = test_db.query(TokenEfficiencyMetrics).filter(
+            TokenEfficiencyMetrics.run_id == "test-run",
+            TokenEfficiencyMetrics.phase_id == "phase-001",
+            TokenEfficiencyMetrics.phase_outcome == "COMPLETE",
+        ).all()
+        assert len(all_metrics) == 1
+        assert all_metrics[0].id == initial_id

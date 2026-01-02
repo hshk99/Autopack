@@ -18,6 +18,7 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import StaticPool
 
 from autopack.database import Base, get_db
 from autopack.main import app
@@ -39,29 +40,36 @@ def temp_dir():
 
 @pytest.fixture
 def test_db():
-    """Create an in-memory test database."""
-    engine = create_engine("sqlite:///:memory:")
-    Base.metadata.create_all(engine)
-    TestingSessionLocal = sessionmaker(bind=engine)
-
-    def override_get_db():
-        db = TestingSessionLocal()
-        try:
-            yield db
-        finally:
-            db.close()
-
-    app.dependency_overrides[get_db] = override_get_db
-    yield
-    app.dependency_overrides.clear()
+    """Create in-memory test database"""
+    engine = create_engine(
+        "sqlite:///:memory:",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool
+    )
+    Base.metadata.create_all(bind=engine)
+    yield engine
+    Base.metadata.drop_all(bind=engine)
+    engine.dispose()
 
 
 @pytest.fixture
 def client(test_db):
-    """Create a test client for API requests."""
+    """Create test client for API"""
+    SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=test_db)
+
+    def override_get_db():
+        try:
+            db = SessionLocal()
+            yield db
+        finally:
+            db.close()
+
     # Disable API key auth for testing
     os.environ["TESTING"] = "1"
-    return TestClient(app)
+    app.dependency_overrides[get_db] = override_get_db
+    with TestClient(app) as test_client:
+        yield test_client
+    app.dependency_overrides.clear()
 
 
 # ==============================================================================

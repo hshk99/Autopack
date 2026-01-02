@@ -133,7 +133,7 @@ class StorageScanner:
 
         return results
 
-    def scan_high_value_directories(self, drive_letter: str = "C") -> List[ScanResult]:
+    def scan_high_value_directories(self, drive_letter: str = "C", max_items: int = 10000) -> List[ScanResult]:
         """
         Scan specific high-value directories known to accumulate large files.
 
@@ -145,11 +145,13 @@ class StorageScanner:
 
         Args:
             drive_letter: Drive letter to scan
+            max_items: Maximum number of items to return (to avoid memory issues)
 
         Returns:
             Combined list of ScanResult objects from all scanned directories
         """
         results = []
+        total_scanned = 0
 
         # Determine user home directory
         user_home = Path.home()
@@ -177,10 +179,14 @@ class StorageScanner:
 
         # Scan each directory
         for target_dir in target_dirs:
+            if total_scanned >= max_items:
+                break
             if target_dir.exists():
                 print(f"Scanning: {target_dir}")
-                dir_results = self.scan_directory(str(target_dir))
+                remaining = max_items - total_scanned
+                dir_results = self.scan_directory(str(target_dir), max_items=remaining)
                 results.extend(dir_results)
+                total_scanned += len(dir_results)
             else:
                 print(f"Skipping (not found): {target_dir}")
 

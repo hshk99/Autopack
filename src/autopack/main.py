@@ -1784,12 +1784,12 @@ def trigger_storage_scan(
     policy = load_policy()
 
     # Execute scan
-    scanner = StorageScanner(max_depth=request.max_depth, max_items=request.max_items)
+    scanner = StorageScanner(max_depth=request.max_depth)
 
     if request.scan_type == 'drive':
-        results = scanner.scan_high_value_directories(request.scan_target)
+        results = scanner.scan_high_value_directories(request.scan_target, max_items=request.max_items)
     elif request.scan_type == 'directory':
-        results = scanner.scan_directory(request.scan_target)
+        results = scanner.scan_directory(request.scan_target, max_items=request.max_items)
     else:
         raise HTTPException(status_code=400, detail=f"Invalid scan_type: {request.scan_type}")
 

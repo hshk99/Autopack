@@ -302,6 +302,94 @@ def find_empty_directories(autonomous_runs: Path) -> List[Path]:
     return empty_dirs
 
 
+def archive_old_autopack_runs(
+    repo_root: Path,
+    autonomous_runs: Path,
+    keep_last_n: int = 10,
+    dry_run: bool = True
+) -> int:
+    """
+    Archive old Autopack run directories to archive/runs/.
+
+    Keeps the last N runs at .autonomous_runs/ root, moves older runs to archive/runs/.
+
+    Args:
+        repo_root: Repository root path
+        autonomous_runs: Path to .autonomous_runs directory
+        keep_last_n: Number of runs to keep (default: 10)
+        dry_run: If True, only preview changes (default: True)
+
+    Returns:
+        Number of runs archived
+    """
+    autopack_archive_runs = repo_root / "archive" / "runs"
+    archived_count = 0
+
+    # Known project workspace directories (these should NOT be archived)
+    known_project_workspaces = {
+        "file-organizer-app-v1",
+        "storage-optimizer",
+    }
+
+    # Find all Autopack run directories at .autonomous_runs/ root
+    autopack_run_dirs = []
+    for item in autonomous_runs.iterdir():
+        if not item.is_dir():
+            continue
+
+        # Skip runtime workspaces
+        if is_runtime_workspace(item):
+            continue
+
+        # Skip known project workspaces (explicit whitelist)
+        if item.name in known_project_workspaces:
+            continue
+
+        # CRITICAL: Prioritize name-based run detection over structure detection
+        # Run directories may have docs/archive from SOT repair, but should still be archived
+        if is_run_directory(item):
+            autopack_run_dirs.append(item)
+
+    if not autopack_run_dirs:
+        return 0
+
+    # Sort by modification time (newest first) to keep last N
+    autopack_run_dirs.sort(key=lambda p: p.stat().st_mtime, reverse=True)
+
+    # Determine which runs to archive (beyond keep_last_n)
+    runs_to_archive = autopack_run_dirs[keep_last_n:]
+
+    if not runs_to_archive:
+        return 0
+
+    print(f"[RUN-ARCHIVAL] Found {len(runs_to_archive)} old Autopack run directories to archive (keeping last {keep_last_n}):")
+    print()
+
+    for run_dir in sorted(runs_to_archive, key=lambda p: p.name):
+        dest_dir = autopack_archive_runs / run_dir.name
+        rel_src = run_dir.relative_to(repo_root)
+        rel_dest = dest_dir.relative_to(repo_root)
+
+        print(f"  MOVE {rel_src}/ → {rel_dest}/")
+
+        if not dry_run:
+            try:
+                # Create destination parent directory
+                autopack_archive_runs.mkdir(parents=True, exist_ok=True)
+
+                # Move the run directory
+                shutil.move(str(run_dir), str(dest_dir))
+                archived_count += 1
+            except Exception as e:
+                logger.warning(f"[RUN-ARCHIVAL] Failed to archive {run_dir}: {e}")
+
+    print()
+    print(f"[RUN-ARCHIVAL-SUMMARY] Archived {archived_count}/{len(runs_to_archive)} run directories to archive/runs/")
+    print()
+
+    return archived_count
+
+
 def cleanup_autonomous_runs(
     repo_root: Path,
     dry_run: bool = True,
@@ -339,6 +427,9 @@ def cleanup_autonomous_runs(
 
     files_deleted = 0
     dirs_deleted = 0
+
+    # Step 0: Archive old Autopack runs to archive/runs/ (keeps last 10 at .autonomous_runs/ root)
+    archive_old_autopack_runs(repo_root, autonomous_runs, keep_last_n=keep_last_n_runs, dry_run=dry_run)
 
     # Step 1: Orphaned files (logs, JSON, etc.)
     orphaned_files = find_orphaned_files(autonomous_runs)
@@ -393,20 +484,7 @@ def cleanup_autonomous_runs(
                 files_deleted += 1
         print()
 
-    # Step 3: Old run directories
-    old_runs = find_old_run_directories(autonomous_runs, keep_last_n_runs, min_age_days)
-    if old_runs:
-        print(f"[OLD-RUNS] Found {len(old_runs)} old run directories:")
-        for run_dir in old_runs:
-            rel_path = run_dir.relative_to(repo_root)
-            age = get_directory_age(run_dir)
-            print(f"  DELETE {rel_path}/ (age: {age.days} days)")
-            if not dry_run:
-                shutil.rmtree(run_dir)
-                dirs_deleted += 1
-        print()
-
-    # Step 4: Empty directories (run after deleting runs)
+    # Step 3: Empty directories (run after archiving runs)
     empty_dirs = find_empty_directories(autonomous_runs)
     if empty_dirs:
         print(f"[EMPTY-DIRS] Found {len(empty_dirs)} empty directories:")

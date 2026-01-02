@@ -318,11 +318,13 @@ The tidy system automatically cleans up `.autonomous_runs/` to prevent clutter:
 - Only the most recent baseline archive is kept
 - Older `baselines_*.zip` files are deleted
 
-**Old Run Directories**:
-- Keeps last **10 runs per project** by default
-- Only deletes runs older than **7 days** by default
-- Run directories are grouped by prefix (e.g., `build-*`, `telemetry-collection-*`)
-- Runtime workspaces (`.autonomous_runs/autopack/`) and project directories are never deleted
+**Old Run Directories** (ARCHIVED, not deleted):
+- Keeps last **10 runs per project** at `.autonomous_runs/` root
+- Old runs are **archived** to respective `archive/runs/` directories:
+  - Autopack runs → `C:\dev\Autopack\archive\runs\`
+  - Project runs → `.autonomous_runs\{project}\archive\runs\`
+- Run directories are identified by patterns (build*, autopack-*, diagnostics-*, research-*, retry-*, lovable-*, telemetry-*, p10-*, etc.)
+- Runtime workspaces and project SOT structures are never touched
 
 **Empty Directories**:
 - Empty directories are deleted after run cleanup

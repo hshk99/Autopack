@@ -116,6 +116,43 @@ The tidy + SOT system exists to ensure **Autopack remains maintainable and self-
 - **Machine-Usable Ledgers**: SOT docs have stable structure with low drift
 - **Dual Retrieval**: Supports both linear reuse (explicit links, history packs) and semantic reuse (vector memory)
 
+**`.autonomous_runs/` & Run Archival Policy** (CRITICAL):
+
+**`.autonomous_runs/` should ONLY contain**:
+1. **Runtime Workspaces**: System directories (_shared, baselines, checkpoints, .locks, batch_drain_sessions, tidy_checkpoints, autopack)
+2. **Project Workspaces**: Individual projects with SOT structure (file-organizer-app-v1/, storage-optimizer/, etc.)
+
+**Old run directories are ARCHIVED, NOT kept in `.autonomous_runs/`**:
+- **Autopack runs** → `C:\dev\Autopack\archive\runs\` (build*, autopack-*, diagnostics-*, research-*, retry-*, lovable-*, telemetry-*, p10-*, etc.)
+- **Project runs** → `C:\dev\Autopack\.autonomous_runs\<project>\archive\runs\`
+- **Tidy behavior**: Keeps last 10 runs per prefix at `.autonomous_runs/` root, moves older runs to respective `archive/runs/` directories
+- **Active runs** may temporarily exist at `.autonomous_runs/<run-id>/` but should be archived when complete
+
+**Correct Structure**:
+```
+C:\dev\Autopack\
+  archive\
+    runs\                           # OLD Autopack run directories (archived by tidy)
+      build112-completion\
+      build126-e2-through-i\
+      autopack-diagnostics-parity-v3\
+      ...
+  .autonomous_runs\
+    _shared\                        # Runtime workspace
+    baselines\                      # Runtime workspace
+    checkpoints\                    # Runtime workspace
+    autopack\                       # Autopack runtime workspace (active runs ONLY)
+    build145-structure-fix\         # ACTIVE Autopack run (will be archived when old)
+    file-organizer-app-v1\         # Project workspace
+      docs\, src\
+      archive\
+        runs\                       # OLD file-organizer runs (archived by tidy)
+    storage-optimizer\             # Project workspace
+      docs\, src\
+      archive\
+        runs\                       # OLD storage-optimizer runs (archived by tidy)
+```
+
 **Current State & Gaps (BUILD-145, 2026-01-02)**:
 ✅ **Implemented**:
 - Workspace tidy system (`scripts/tidy/tidy_up.py`) handles root cleanup, database archival, directory routing

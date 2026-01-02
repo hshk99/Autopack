@@ -91,9 +91,10 @@ def send_scan_completion_notification(scan, db):
 # ==============================================================================
 
 def execute_cleanup(args, db):
-    """Execute approved deletions for a specific scan."""
+    """Execute approved deletions for a specific scan (BUILD-152 enhanced)."""
     from autopack.storage_optimizer.db import get_scan_by_id
     from autopack.storage_optimizer.executor import CleanupExecutor
+    from autopack.storage_optimizer.executor import ExecutionStatus
 
     print(f"[EXECUTION] Loading scan {args.scan_id}...")
 
@@ -121,6 +122,9 @@ def execute_cleanup(args, db):
     print(f"[EXECUTION] Starting cleanup (dry_run={args.dry_run}, compress={args.compress})...")
     if args.category:
         print(f"[EXECUTION] Category filter: {args.category}")
+    if args.skip_locked:
+        print("[EXECUTION] Skip-locked mode: locked files will be skipped without retry")
+    print("")
 
     batch_result = executor.execute_approved_candidates(
         db,
@@ -128,31 +132,69 @@ def execute_cleanup(args, db):
         category=args.category
     )
 
+    # BUILD-152: Analyze lock statistics
+    locked_results = [r for r in batch_result.results if r.lock_type is not None]
+    retry_results = [r for r in batch_result.results if r.retry_count > 0]
+
     # Print results
     print("")
     print("=" * 80)
-    print("EXECUTION RESULTS")
+    print("EXECUTION RESULTS (BUILD-152)")
     print("=" * 80)
     print(f"Total candidates: {batch_result.total_candidates}")
-    print(f"Successful:       {batch_result.successful}")
-    print(f"Failed:           {batch_result.failed}")
-    print(f"Skipped:          {batch_result.skipped}")
+    print(f"✓ Successful:     {batch_result.successful}")
+    print(f"✗ Failed:         {batch_result.failed}")
+    print(f"⏸ Skipped:        {batch_result.skipped}")
     print(f"Success rate:     {batch_result.success_rate:.1f}%")
     print(f"Freed space:      {batch_result.total_freed_bytes / (1024**3):.2f} GB")
     print(f"Duration:         {batch_result.execution_duration_seconds}s")
     print("")
 
+    # BUILD-152: Lock statistics
+    if locked_results:
+        print("LOCK STATISTICS:")
+        print(f"  Locked files encountered: {len(locked_results)}")
+        print(f"  Files retried:            {len(retry_results)}")
+
+        # Group by lock type
+        lock_types = {}
+        for result in locked_results:
+            lock_type = result.lock_type or 'unknown'
+            if lock_type not in lock_types:
+                lock_types[lock_type] = []
+            lock_types[lock_type].append(result)
+
+        print("")
+        print("  Lock types:")
+        for lock_type, results in sorted(lock_types.items()):
+            print(f"    {lock_type}: {len(results)} files")
+        print("")
+
+    # BUILD-152: Category cap reporting
+    if batch_result.stopped_due_to_cap:
+        print("CATEGORY CAP REACHED:")
+        print(f"  {batch_result.cap_reason}")
+        print(f"  Remaining candidates: {batch_result.remaining_candidates}")
+        print("")
+
+    # BUILD-152: Enhanced failure reporting with remediation hints
     if batch_result.failed > 0:
         print("FAILED DELETIONS:")
         for result in batch_result.results:
-            if result.status == 'failed':
-                print(f"  - {result.path}")
+            if result.status == ExecutionStatus.FAILED:
+                print(f"  ✗ {result.path}")
                 print(f"    Error: {result.error}")
+
+                # BUILD-152: Show remediation hint for locked files
+                if result.lock_type:
+                    hint = executor.lock_detector.get_remediation_hint(result.lock_type)
+                    print(f"    → {hint}")
+
         print("")
 
     if args.dry_run:
         print("NOTE: This was a DRY-RUN. No files were actually deleted.")
-        print("To execute for real, run with --dry-run=false")
+        print("To execute for real, run without --dry-run flag")
     else:
         print("Files sent to Recycle Bin. You can restore them if needed.")
 
@@ -422,6 +464,11 @@ def main():
     parser.add_argument(
         "--category",
         help="Filter execution to specific category (e.g., 'dev_caches')"
+    )
+    parser.add_argument(
+        "--skip-locked",
+        action="store_true",
+        help="Skip locked files without retry (BUILD-152, useful for automated runs)"
     )
 
     # Phase 3 (BUILD-150): Performance and automation

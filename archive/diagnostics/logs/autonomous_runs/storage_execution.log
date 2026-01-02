@@ -1,0 +1,1 @@
+{"run_id": "test-run-001", "candidate_id": 42, "action": "delete", "path": "C:/temp/test.log", "size_bytes": 1024, "sha256": "abc123def456", "status": "completed", "error": null, "lock_type": null, "retry_count": 0, "timestamp": "2026-01-02T03:46:25.187389+00:00"}

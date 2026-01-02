@@ -1307,7 +1307,7 @@ def main():
         repo_root=repo_root,
         dry_run=dry_run,
         verbose=args.verbose,
-        keep_last_n_runs=10,
+        keep_last_n_runs=3,  # Keep only last 3 runs (archive older telemetry runs)
         min_age_days=0  # Allow cleanup based on "keep last N" policy only
     )
 

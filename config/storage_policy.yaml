@@ -83,6 +83,12 @@ categories:
       delete: { enabled: true, requires_approval: true }
       compress: { enabled: false, requires_approval: false }
       move_to_archive: { enabled: false, requires_approval: false }
+    # BUILD-152: Execution safety caps (prevent runaway deletion)
+    execution_limits:
+      max_gb_per_run: 50              # Max GB to delete in single execution
+      max_files_per_run: 1000         # Max files to delete in single execution
+      max_retries: 3                  # Max retry attempts for locked files
+      retry_backoff_seconds: [2, 5, 10]  # Exponential backoff timing
 
   diagnostics_logs:
     match_globs:
@@ -93,6 +99,11 @@ categories:
     allowed_actions:
       compress: { enabled: true, requires_approval: false }
       delete: { enabled: true, requires_approval: true }
+    execution_limits:
+      max_gb_per_run: 20              # Diagnostics typically smaller
+      max_files_per_run: 500
+      max_retries: 3
+      retry_backoff_seconds: [2, 5, 10]
 
   runs:
     match_globs:
@@ -100,6 +111,11 @@ categories:
     allowed_actions:
       compress: { enabled: true, requires_approval: false }
       delete: { enabled: true, requires_approval: true }
+    execution_limits:
+      max_gb_per_run: 30              # Runs can be larger
+      max_files_per_run: 800
+      max_retries: 3
+      retry_backoff_seconds: [2, 5, 10]
 
   archive_buckets:
     match_globs:
@@ -111,6 +127,11 @@ categories:
     allowed_actions:
       compress: { enabled: true, requires_approval: false }
       delete: { enabled: true, requires_approval: true }
+    execution_limits:
+      max_gb_per_run: 10              # Archive content usually text
+      max_files_per_run: 300
+      max_retries: 3
+      retry_backoff_seconds: [2, 5, 10]
 
   temp_files:
     match_globs:
@@ -123,6 +144,11 @@ categories:
     allowed_actions:
       delete: { enabled: true, requires_approval: true }
       compress: { enabled: false, requires_approval: false }
+    execution_limits:
+      max_gb_per_run: 15              # Temp files can accumulate quickly
+      max_files_per_run: 600
+      max_retries: 3
+      retry_backoff_seconds: [2, 5, 10]
 
   # Catch-all: unknown content should not be auto-deleted.
   unknown:
@@ -130,6 +156,11 @@ categories:
     allowed_actions:
       report: { enabled: true, requires_approval: false }
       delete: { enabled: false, requires_approval: true }
+    execution_limits:
+      max_gb_per_run: 5               # Very conservative for unknowns
+      max_files_per_run: 100
+      max_retries: 2                  # Fewer retries for unknowns
+      retry_backoff_seconds: [3, 8]
 
 coordination:
   # Ordering guidance for tooling (not enforced unless a tool chooses to).

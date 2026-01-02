@@ -158,7 +158,8 @@
       "Bash(PYTHONUTF8=1 PYTHONPATH=src DATABASE_URL=\"sqlite:///autopack.db\" python scripts/storage/scan_and_report.py:*)",
       "Bash(PYTHONUTF8=1 PYTHONPATH=src DATABASE_URL=\"sqlite:///autopack.db\" python scripts/storage/learn_patterns.py:*)",
       "Bash(for dir in */)",
-      "Bash(do mv \"$dir\" \"../../$dir\")"
+      "Bash(do mv \"$dir\" \"../../$dir\")",
+      "Bash(PYTHONUTF8=1 DATABASE_URL=\"sqlite:///autopack.db\" python scripts/migrations/add_execution_checkpoints.py:*)"
     ],
     "deny": [],
     "ask": []

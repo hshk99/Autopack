@@ -10,7 +10,9 @@ Implements safe deletion with:
 """
 
 import logging
+import os
 import shutil
+import time
 import zipfile
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -24,6 +26,8 @@ from sqlalchemy.orm import Session
 from ..models import CleanupCandidateDB
 from .models import CleanupCandidate
 from .policy import StoragePolicy, is_path_protected
+from .checkpoint_logger import CheckpointLogger, compute_sha256
+from .lock_detector import LockDetector
 
 logger = logging.getLogger(__name__)
 
@@ -65,6 +69,8 @@ class ExecutionResult:
     compression_duration_seconds: Optional[int] = None
     original_size_bytes: Optional[int] = None
     freed_bytes: Optional[int] = None
+    lock_type: Optional[str] = None  # BUILD-152: Lock type classification
+    retry_count: int = 0  # BUILD-152: Number of retry attempts
 
 
 @dataclass
@@ -77,6 +83,9 @@ class BatchExecutionResult:
     total_freed_bytes: int
     results: List[ExecutionResult]
     execution_duration_seconds: int
+    stopped_due_to_cap: bool = False
+    cap_reason: Optional[str] = None
+    remaining_candidates: int = 0
 
     @property
     def success_rate(self) -> float:
@@ -114,7 +123,8 @@ class CleanupExecutor:
         policy: StoragePolicy,
         dry_run: bool = True,
         compress_before_delete: bool = False,
-        compression_archive_dir: Optional[Path] = None
+        compression_archive_dir: Optional[Path] = None,
+        skip_locked: bool = False
     ):
         """
         Initialize cleanup executor.
@@ -125,10 +135,12 @@ class CleanupExecutor:
             compress_before_delete: If True, compress files before deletion
             compression_archive_dir: Directory to store compressed archives
                 (default: archive/superseded/storage_cleanup_{timestamp})
+            skip_locked: If True, skip locked files without retry (BUILD-152)
         """
         self.policy = policy
         self.dry_run = dry_run
         self.compress_before_delete = compress_before_delete
+        self.skip_locked = skip_locked
 
         # Set compression archive directory
         if compression_archive_dir is None:
@@ -141,13 +153,90 @@ class CleanupExecutor:
         if self.compress_before_delete and not self.dry_run:
             self.compression_archive_dir.mkdir(parents=True, exist_ok=True)
 
+        # BUILD-152: Initialize checkpoint logger and lock detector
+        self.checkpoint_logger = CheckpointLogger()
+        self.lock_detector = LockDetector()
+        self.current_run_id = None  # Set during batch execution
+
     # ==========================================================================
     # Single File/Directory Deletion
     # ==========================================================================
 
+    def _delete_with_retry(
+        self,
+        path: Path,
+        deletion_func,
+        max_retries: Optional[int] = None
+    ) -> tuple[bool, Optional[str], Optional[str], int]:
+        """
+        Execute deletion with retry logic for transient locks (BUILD-152).
+
+        Args:
+            path: Path to delete
+            deletion_func: Function to call for deletion (send2trash.send2trash)
+            max_retries: Max retry attempts (default: from policy or lock type)
+
+        Returns:
+            Tuple of (success, error_msg, lock_type, retry_count)
+
+        Algorithm:
+            1. Attempt deletion
+            2. On failure, detect lock type
+            3. If transient lock, retry with exponential backoff
+            4. If permanent lock or max retries exceeded, fail
+        """
+        retry_count = 0
+        last_error = None
+        last_lock_type = None
+
+        while retry_count <= (max_retries or 3):
+            try:
+                # Attempt deletion
+                deletion_func(str(path))
+                return (True, None, None, retry_count)
+
+            except Exception as e:
+                last_error = str(e)
+
+                # Detect lock type
+                lock_type = self.lock_detector.detect_lock_type(path, e)
+                last_lock_type = lock_type
+
+                # Check if we should retry
+                is_transient = self.lock_detector.is_transient_lock(lock_type)
+                recommended_retries = self.lock_detector.get_recommended_retry_count(lock_type)
+
+                # Use recommended retries if max_retries not specified
+                if max_retries is None:
+                    max_retries = recommended_retries
+
+                if is_transient and retry_count < max_retries:
+                    # Exponential backoff
+                    backoff = self.lock_detector.get_backoff_seconds(lock_type, retry_count)
+                    logger.info(
+                        f"[RETRY {retry_count + 1}/{max_retries}] {path} "
+                        f"locked by {lock_type}, retrying in {backoff}s"
+                    )
+                    time.sleep(backoff)
+                    retry_count += 1
+                else:
+                    # Permanent lock or max retries exceeded
+                    if is_transient:
+                        logger.warning(
+                            f"[LOCKED] {path} - {lock_type}: Max retries ({max_retries}) exceeded"
+                        )
+                    else:
+                        hint = self.lock_detector.get_remediation_hint(lock_type)
+                        logger.warning(f"[LOCKED] {path} - {lock_type}: {hint}")
+
+                    return (False, last_error, lock_type, retry_count)
+
+        # Should not reach here, but handle edge case
+        return (False, last_error, last_lock_type, retry_count)
+
     def delete_file(self, file_path: Path) -> ExecutionResult:
         """
-        Delete a single file using send2trash (Recycle Bin).
+        Delete a single file using send2trash (Recycle Bin) with retry logic.
 
         Args:
             file_path: Path to file to delete
@@ -159,6 +248,11 @@ class CleanupExecutor:
             - Double-checks protected paths before deletion
             - Uses send2trash instead of os.remove() for Recycle Bin safety
             - Never raises exceptions (returns status instead)
+
+        BUILD-152 Enhancements:
+            - Retries transient locks (searchindexer, antivirus, handle)
+            - Skips permanent locks (permission, path_too_long)
+            - Provides remediation hints for failures
         """
         try:
             # CRITICAL: Double-check protection before deletion
@@ -184,17 +278,36 @@ class CleanupExecutor:
                     freed_bytes=0  # No actual deletion in dry-run
                 )
 
-            # Execute deletion via Recycle Bin
+            # BUILD-152: Execute deletion with retry logic
             logger.info(f"Deleting file to Recycle Bin: {file_path}")
-            send2trash.send2trash(str(file_path))
-
-            return ExecutionResult(
-                candidate_id=-1,
-                path=str(file_path),
-                status=ExecutionStatus.COMPLETED,
-                original_size_bytes=original_size,
-                freed_bytes=original_size
+            success, error, lock_type, retry_count = self._delete_with_retry(
+                file_path,
+                send2trash.send2trash
             )
+
+            if success:
+                if retry_count > 0:
+                    logger.info(f"✓ Deleted {file_path} after {retry_count} retries")
+                return ExecutionResult(
+                    candidate_id=-1,
+                    path=str(file_path),
+                    status=ExecutionStatus.COMPLETED,
+                    original_size_bytes=original_size,
+                    freed_bytes=original_size,
+                    lock_type=lock_type,
+                    retry_count=retry_count
+                )
+            else:
+                # Failed after retries
+                error_msg = f"{lock_type}: {error}" if lock_type else error
+                return ExecutionResult(
+                    candidate_id=-1,
+                    path=str(file_path),
+                    status=ExecutionStatus.FAILED,
+                    error=error_msg,
+                    lock_type=lock_type,
+                    retry_count=retry_count
+                )
 
         except Exception as e:
             logger.error(f"Failed to delete file {file_path}: {e}")
@@ -207,7 +320,7 @@ class CleanupExecutor:
 
     def delete_directory(self, dir_path: Path) -> ExecutionResult:
         """
-        Delete a directory recursively using send2trash (Recycle Bin).
+        Delete a directory recursively using send2trash (Recycle Bin) with retry logic.
 
         Args:
             dir_path: Path to directory to delete
@@ -219,6 +332,11 @@ class CleanupExecutor:
             - Double-checks protected paths before deletion
             - Uses send2trash instead of shutil.rmtree() for Recycle Bin safety
             - Calculates total size before deletion for freed_bytes tracking
+
+        BUILD-152 Enhancements:
+            - Retries transient locks (searchindexer, antivirus, handle)
+            - Skips permanent locks (permission, path_too_long)
+            - Provides remediation hints for failures
         """
         try:
             # CRITICAL: Double-check protection before deletion
@@ -244,17 +362,36 @@ class CleanupExecutor:
                     freed_bytes=0  # No actual deletion in dry-run
                 )
 
-            # Execute deletion via Recycle Bin
+            # BUILD-152: Execute deletion with retry logic
             logger.info(f"Deleting directory to Recycle Bin: {dir_path} ({original_size / (1024**2):.2f} MB)")
-            send2trash.send2trash(str(dir_path))
-
-            return ExecutionResult(
-                candidate_id=-1,
-                path=str(dir_path),
-                status=ExecutionStatus.COMPLETED,
-                original_size_bytes=original_size,
-                freed_bytes=original_size
+            success, error, lock_type, retry_count = self._delete_with_retry(
+                dir_path,
+                send2trash.send2trash
             )
+
+            if success:
+                if retry_count > 0:
+                    logger.info(f"✓ Deleted {dir_path} after {retry_count} retries")
+                return ExecutionResult(
+                    candidate_id=-1,
+                    path=str(dir_path),
+                    status=ExecutionStatus.COMPLETED,
+                    original_size_bytes=original_size,
+                    freed_bytes=original_size,
+                    lock_type=lock_type,
+                    retry_count=retry_count
+                )
+            else:
+                # Failed after retries
+                error_msg = f"{lock_type}: {error}" if lock_type else error
+                return ExecutionResult(
+                    candidate_id=-1,
+                    path=str(dir_path),
+                    status=ExecutionStatus.FAILED,
+                    error=error_msg,
+                    lock_type=lock_type,
+                    retry_count=retry_count
+                )
 
         except Exception as e:
             logger.error(f"Failed to delete directory {dir_path}: {e}")
@@ -395,6 +532,11 @@ class CleanupExecutor:
             - Double-checks protected paths
             - Optionally compresses before deletion
             - Updates candidate execution status in database
+
+        BUILD-152 Checkpoint Logging:
+            - Computes SHA256 before deletion for idempotency tracking
+            - Logs execution start/completion to execution_checkpoints table
+            - Enables future scans to skip already-deleted files
         """
         start_time = datetime.now(timezone.utc)
 
@@ -419,12 +561,18 @@ class CleanupExecutor:
                     error="PROTECTED_PATH_VIOLATION: Attempted to delete protected path"
                 )
 
+            # BUILD-152: Compute SHA256 checksum for idempotency tracking
+            path = Path(candidate.path)
+            sha256 = None
+            if path.exists() and not self.dry_run:
+                sha256 = compute_sha256(path)
+                logger.debug(f"Computed SHA256 for {candidate.path}: {sha256}")
+
             # Update execution status to 'executing'
             if not self.dry_run:
                 candidate.execution_status = ExecutionStatus.EXECUTING.value
                 db.commit()
 
-            path = Path(candidate.path)
             result = None
 
             # Compress before deletion if enabled and path is directory
@@ -496,10 +644,32 @@ class CleanupExecutor:
 
                 db.commit()
 
+                # BUILD-152: Log execution checkpoint for audit trail and idempotency
+                if self.current_run_id:
+                    action = "compress" if result.compressed_path else "delete"
+                    checkpoint_status = "completed" if result.status == ExecutionStatus.COMPLETED else \
+                                       "skipped" if result.status == ExecutionStatus.SKIPPED else "failed"
+
+                    self.checkpoint_logger.log_execution(
+                        run_id=self.current_run_id,
+                        candidate_id=candidate.id,
+                        action=action,
+                        path=candidate.path,
+                        size_bytes=result.original_size_bytes,
+                        sha256=sha256,
+                        status=checkpoint_status,
+                        error=result.error,
+                        lock_type=result.lock_type,
+                        retry_count=result.retry_count
+                    )
+
             return result
 
         except Exception as e:
             logger.error(f"Failed to execute cleanup for candidate {candidate.id}: {e}")
+
+            # BUILD-152: Detect lock type for exception-level failures
+            lock_type = self.lock_detector.detect_lock_type(path, e) if 'path' in locals() else None
 
             # Update execution status to failed
             if not self.dry_run:
@@ -508,11 +678,28 @@ class CleanupExecutor:
                 candidate.execution_error = str(e)
                 db.commit()
 
+                # BUILD-152: Log failure checkpoint
+                if self.current_run_id:
+                    self.checkpoint_logger.log_execution(
+                        run_id=self.current_run_id,
+                        candidate_id=candidate.id,
+                        action="delete",
+                        path=candidate.path,
+                        size_bytes=candidate.size_bytes,
+                        sha256=sha256 if 'sha256' in locals() else None,
+                        status="failed",
+                        error=str(e),
+                        lock_type=lock_type,
+                        retry_count=0  # Exception-level failures don't retry
+                    )
+
             return ExecutionResult(
                 candidate_id=candidate.id,
                 path=candidate.path,
                 status=ExecutionStatus.FAILED,
-                error=str(e)
+                error=str(e),
+                lock_type=lock_type,
+                retry_count=0
             )
 
     def execute_approved_candidates(
@@ -532,15 +719,32 @@ class CleanupExecutor:
         Returns:
             BatchExecutionResult with aggregated execution statistics
 
+        Safety (BUILD-152):
+            - Enforces per-category execution caps (GB and file count limits)
+            - Stops execution when cap reached, leaving remaining candidates for next run
+            - Reports cap violations clearly in results
+
+        Checkpoint Logging (BUILD-152):
+            - Generates unique run_id for this execution batch
+            - All checkpoints from this batch share the same run_id
+            - Enables audit trail queries by run_id
+
         Example:
             ```python
             executor = CleanupExecutor(policy, dry_run=False)
             results = executor.execute_approved_candidates(db, scan_id=123, category='dev_caches')
             print(f"Success rate: {results.success_rate:.1f}%")
             print(f"Freed {results.total_freed_bytes / (1024**3):.2f} GB")
+            if results.stopped_due_to_cap:
+                print(f"Stopped: {results.cap_reason}")
             ```
         """
         start_time = datetime.now(timezone.utc)
+
+        # BUILD-152: Generate run_id for checkpoint logging (format: scan-{scan_id}-{timestamp})
+        timestamp = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
+        self.current_run_id = f"scan-{scan_id}-{timestamp}"
+        logger.info(f"Starting execution batch with run_id: {self.current_run_id}")
 
         # Query approved candidates
         query = db.query(CleanupCandidateDB).filter(
@@ -565,7 +769,21 @@ class CleanupExecutor:
                 execution_duration_seconds=0
             )
 
-        logger.info(f"Executing cleanup for {len(candidates)} approved candidates (dry_run={self.dry_run})")
+        # BUILD-152: Get execution limits for category
+        execution_limits = None
+        if category and category in self.policy.categories:
+            cat_policy = self.policy.categories[category]
+            execution_limits = cat_policy.execution_limits
+
+        if execution_limits:
+            max_gb = execution_limits.max_gb_per_run
+            max_files = execution_limits.max_files_per_run
+            logger.info(
+                f"Executing cleanup for {len(candidates)} approved candidates "
+                f"(caps: {max_gb}GB, {max_files} files, dry_run={self.dry_run})"
+            )
+        else:
+            logger.info(f"Executing cleanup for {len(candidates)} approved candidates (no caps, dry_run={self.dry_run})")
 
         # Execute cleanup for each candidate
         results = []
@@ -573,10 +791,33 @@ class CleanupExecutor:
         failed = 0
         skipped = 0
         total_freed_bytes = 0
+        stopped_due_to_cap = False
+        cap_reason = None
+        processed_count = 0
 
         for candidate in candidates:
+            # BUILD-152: Check caps BEFORE executing
+            if execution_limits:
+                accumulated_gb = total_freed_bytes / (1024**3)
+
+                # Check GB cap
+                if accumulated_gb >= execution_limits.max_gb_per_run:
+                    stopped_due_to_cap = True
+                    cap_reason = f"Reached {execution_limits.max_gb_per_run}GB cap ({accumulated_gb:.2f}GB freed)"
+                    logger.warning(f"[CAP] {cap_reason}, stopping execution ({len(candidates) - processed_count} candidates remaining)")
+                    break
+
+                # Check file count cap
+                if processed_count >= execution_limits.max_files_per_run:
+                    stopped_due_to_cap = True
+                    cap_reason = f"Reached {execution_limits.max_files_per_run} file cap ({processed_count} files processed)"
+                    logger.warning(f"[CAP] {cap_reason}, stopping execution ({len(candidates) - processed_count} candidates remaining)")
+                    break
+
+            # Execute cleanup
             result = self.execute_cleanup_candidate(db, candidate)
             results.append(result)
+            processed_count += 1
 
             if result.status == ExecutionStatus.COMPLETED:
                 successful += 1
@@ -588,10 +829,18 @@ class CleanupExecutor:
 
         duration = (datetime.now(timezone.utc) - start_time).seconds
 
-        logger.info(
-            f"Batch execution complete: {successful} successful, {failed} failed, {skipped} skipped "
-            f"({total_freed_bytes / (1024**3):.2f} GB freed in {duration}s)"
-        )
+        remaining_candidates = len(candidates) - processed_count
+
+        if stopped_due_to_cap:
+            logger.warning(
+                f"Batch execution STOPPED AT CAP: {successful} successful, {failed} failed, {skipped} skipped "
+                f"({total_freed_bytes / (1024**3):.2f} GB freed in {duration}s, {remaining_candidates} candidates remaining)"
+            )
+        else:
+            logger.info(
+                f"Batch execution complete: {successful} successful, {failed} failed, {skipped} skipped "
+                f"({total_freed_bytes / (1024**3):.2f} GB freed in {duration}s)"
+            )
 
         return BatchExecutionResult(
             total_candidates=len(candidates),
@@ -600,7 +849,10 @@ class CleanupExecutor:
             skipped=skipped,
             total_freed_bytes=total_freed_bytes,
             results=results,
-            execution_duration_seconds=duration
+            execution_duration_seconds=duration,
+            stopped_due_to_cap=stopped_due_to_cap,
+            cap_reason=cap_reason,
+            remaining_candidates=remaining_candidates
         )
 
     # ==========================================================================

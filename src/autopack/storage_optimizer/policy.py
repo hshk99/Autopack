@@ -15,6 +15,15 @@ import fnmatch
 
 
 @dataclass
+class ExecutionLimits:
+    """Execution safety caps for a category (BUILD-152)."""
+    max_gb_per_run: float
+    max_files_per_run: int
+    max_retries: int
+    retry_backoff_seconds: List[int]
+
+
+@dataclass
 class CategoryPolicy:
     """Policy for a storage category."""
     name: str
@@ -23,6 +32,7 @@ class CategoryPolicy:
     delete_requires_approval: bool
     compress_enabled: bool
     compress_requires_approval: bool
+    execution_limits: Optional['ExecutionLimits'] = None
 
 
 @dataclass
@@ -82,13 +92,25 @@ def load_policy(policy_path: Optional[Path] = None) -> StoragePolicy:
         delete_action = actions.get('delete', {})
         compress_action = actions.get('compress', {})
 
+        # Parse execution limits (BUILD-152)
+        execution_limits = None
+        if 'execution_limits' in cat_data:
+            limits_data = cat_data['execution_limits']
+            execution_limits = ExecutionLimits(
+                max_gb_per_run=limits_data.get('max_gb_per_run', 10.0),
+                max_files_per_run=limits_data.get('max_files_per_run', 100),
+                max_retries=limits_data.get('max_retries', 3),
+                retry_backoff_seconds=limits_data.get('retry_backoff_seconds', [2, 5, 10])
+            )
+
         categories[cat_name] = CategoryPolicy(
             name=cat_name,
             match_globs=match_globs,
             delete_enabled=delete_action.get('enabled', False),
             delete_requires_approval=delete_action.get('requires_approval', True),
             compress_enabled=compress_action.get('enabled', False),
-            compress_requires_approval=compress_action.get('requires_approval', False)
+            compress_requires_approval=compress_action.get('requires_approval', False),
+            execution_limits=execution_limits
         )
 
     # Parse retention

@@ -203,9 +203,16 @@ ls .autonomous_runs/*.log .autonomous_runs/*.json 2>&1 | grep "cannot access"  #
 python scripts/tidy/verify_workspace_structure.py  # Should report 0 errors or only locked DB warnings
 ```
 
-**Windows File Locks**: If tidy reports locked databases, see [docs/TIDY_LOCKED_FILES_HOWTO.md](docs/TIDY_LOCKED_FILES_HOWTO.md) for solutions (prevention, admin commands, reboot strategies).
+**Windows File Locks & Automatic Retry**: Tidy now **queues locked files for automatic retry**:
+- Locked moves are saved to `.autonomous_runs/tidy_pending_moves.json`
+- Next tidy run automatically retries pending items (after reboot/lock release)
+- Uses exponential backoff (5min → 24hr) with bounded attempts (max 10, abandon after 30 days)
+- **Automation**: Set up Windows Task Scheduler to run tidy at logon/daily (see [docs/guides/WINDOWS_TASK_SCHEDULER_TIDY.md](docs/guides/WINDOWS_TASK_SCHEDULER_TIDY.md))
+- **Manual handling**: See [docs/TIDY_LOCKED_FILES_HOWTO.md](docs/TIDY_LOCKED_FILES_HOWTO.md) for immediate unlock strategies
 
-**Latest Updates (BUILD-145)**: ✅ .autonomous_runs/ cleanup operational (45 orphaned files archived, 910 empty dirs cleaned), ✅ Windows lock handling (graceful skip + prevention), ✅ Database routing logic implemented. See [docs/BUILD-145-TIDY-SYSTEM-REVISION-COMPLETE.md](docs/BUILD-145-TIDY-SYSTEM-REVISION-COMPLETE.md) for details.
+**Latest Updates**:
+- **BUILD-145 Follow-up (2026-01-02)**: ✅ Persistent queue system for locked files, ✅ Automatic retry on next run, ✅ Windows Task Scheduler automation guide
+- **BUILD-145 (2026-01-02)**: ✅ .autonomous_runs/ cleanup operational (46 orphaned files archived, 910 empty dirs cleaned), ✅ Windows lock handling (graceful skip + prevention), ✅ Database routing logic implemented, ✅ Run archival policy (archive/runs/, keep-last-N configurable). See [docs/BUILD-145-TIDY-SYSTEM-REVISION-COMPLETE.md](docs/BUILD-145-TIDY-SYSTEM-REVISION-COMPLETE.md) for details.
 
 **Autonomous Tidy Workflow**:
 Automatically consolidates archive files into SOT documentation using AI-powered classification:

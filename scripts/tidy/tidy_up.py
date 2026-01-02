@@ -49,8 +49,9 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 REPO_ROOT = SCRIPT_DIR.parent.parent
 sys.path.insert(0, str(SCRIPT_DIR))
 
-# Import autonomous_runs cleaner
+# Import autonomous_runs cleaner and pending queue
 from autonomous_runs_cleaner import cleanup_autonomous_runs
+from pending_moves import PendingMovesQueue, retry_pending_moves
 sys.path.insert(0, str(REPO_ROOT / "src"))
 
 # ---------------------------------------------------------------------------
@@ -1055,28 +1056,87 @@ def verify_structure(repo_root: Path, docs_dir: Path) -> Tuple[bool, List[str]]:
 # Main Orchestration
 # ---------------------------------------------------------------------------
 
-def execute_moves(moves: List[Tuple[Path, Path]], dry_run: bool = True) -> None:
-    """Execute file moves, skipping locked files."""
-    if not moves:
-        return
+def execute_moves(
+    moves: List[Tuple[Path, Path]],
+    dry_run: bool = True,
+    pending_queue: Optional[PendingMovesQueue] = None
+) -> Tuple[int, int]:
+    """
+    Execute file moves, queueing locked files for retry.
 
+    Args:
+        moves: List of (src, dest) tuples
+        dry_run: If True, only simulate moves
+        pending_queue: Optional queue for recording failed moves
+
+    Returns:
+        Tuple of (succeeded_count, failed_count)
+    """
+    if not moves:
+        return 0, 0
+
+    succeeded = 0
+    failed = 0
     failed_moves = []
+
     for src, dest in moves:
         if dry_run:
             print(f"[DRY-RUN] Would move: {src} -> {dest}")
+            succeeded += 1
         else:
             try:
                 dest.parent.mkdir(parents=True, exist_ok=True)
                 shutil.move(str(src), str(dest))
                 print(f"[MOVED] {src} -> {dest}")
+                succeeded += 1
             except PermissionError as e:
                 print(f"[SKIPPED] {src} (locked by another process)")
-                failed_moves.append((src, str(e)))
+                failed += 1
+                failed_moves.append((src, dest, e))
+
+                # Queue for retry if queue is available
+                if pending_queue:
+                    try:
+                        size = src.stat().st_size if src.exists() else None
+                    except Exception:
+                        size = None
+
+                    pending_queue.enqueue(
+                        src=src,
+                        dest=dest,
+                        action="move",
+                        reason="locked",
+                        error_info=e,
+                        bytes_estimate=size,
+                        tags=["tidy_move"]
+                    )
+            except Exception as e:
+                # Other errors (not permission-related)
+                print(f"[ERROR] Failed to move {src}: {e}")
+                failed += 1
+                failed_moves.append((src, dest, e))
+
+                # Queue for retry (might be transient)
+                if pending_queue:
+                    pending_queue.enqueue(
+                        src=src,
+                        dest=dest,
+                        action="move",
+                        reason="unknown",
+                        error_info=e,
+                        tags=["tidy_move"]
+                    )
 
     if failed_moves and not dry_run:
-        print(f"\n[WARNING] {len(failed_moves)} files could not be moved (locked by other processes):")
-        for src, err in failed_moves:
-            print(f"  {src}")
+        print(f"\n[WARNING] {len(failed_moves)} files could not be moved:")
+        for src, dest, err in failed_moves:
+            print(f"  {src} -> {dest}")
+            print(f"    Error: {err}")
+
+        if pending_queue:
+            print(f"\n[QUEUE] Failed moves have been queued for retry on next tidy run")
+
+    return succeeded, failed
 
 
 def main():
@@ -1171,6 +1231,38 @@ def main():
     print(f"Repair: {args.repair}")
     print(f"Report root SOT duplicates: {args.report_root_sot_duplicates}")
     print("=" * 70)
+
+    # Initialize pending moves queue
+    queue_file = repo_root / ".autonomous_runs" / "tidy_pending_moves.json"
+    pending_queue = PendingMovesQueue(
+        queue_file=queue_file,
+        workspace_root=repo_root,
+        queue_id="autopack-root"
+    )
+    pending_queue.load()
+
+    # Phase -1: Retry pending moves from previous runs
+    print("\n" + "=" * 70)
+    print("Phase -1: Retry Pending Moves from Previous Runs")
+    print("=" * 70)
+
+    retried, retry_succeeded, retry_failed = retry_pending_moves(
+        queue=pending_queue,
+        dry_run=dry_run,
+        verbose=args.verbose
+    )
+
+    if retried > 0:
+        print(f"[QUEUE-RETRY] Retried: {retried}, Succeeded: {retry_succeeded}, Failed: {retry_failed}")
+        if retry_succeeded > 0:
+            print(f"[QUEUE-RETRY] Successfully completed {retry_succeeded} previously locked moves")
+
+        # Save updated queue
+        if not dry_run:
+            pending_queue.save()
+    else:
+        print("[QUEUE-RETRY] No pending moves to retry")
+    print()
 
     # Optional report step (safe)
     if args.report_root_sot_duplicates:
@@ -1295,9 +1387,11 @@ def main():
 
     # Execute moves from Phase 1 & 2
     all_moves = root_moves + docs_moves
+    move_succeeded = 0
+    move_failed = 0
     if all_moves:
         print(f"\n[SUMMARY] Total files to move: {len(all_moves)}")
-        execute_moves(all_moves, dry_run)
+        move_succeeded, move_failed = execute_moves(all_moves, dry_run, pending_queue)
 
     # Phase 2.5: .autonomous_runs cleanup
     print("\n" + "=" * 70)
@@ -1373,6 +1467,35 @@ def main():
         )
 
     # Final summary
+    # Save queue and print summary
+    if not dry_run:
+        # Clean up succeeded items
+        pending_queue.cleanup_succeeded()
+
+        # Save final state
+        pending_queue.save()
+
+    # Print queue summary
+    queue_summary = pending_queue.get_summary()
+    if queue_summary["total"] > 0:
+        print("\n" + "=" * 70)
+        print("PENDING MOVES QUEUE SUMMARY")
+        print("=" * 70)
+        print(f"Total items in queue: {queue_summary['total']}")
+        print(f"  Pending (awaiting retry): {queue_summary['pending']}")
+        print(f"  Succeeded (this run): {queue_summary['succeeded']}")
+        print(f"  Abandoned (max attempts): {queue_summary['abandoned']}")
+        print(f"  Eligible for next run: {queue_summary['eligible_now']}")
+        print()
+        print(f"Queue file: {queue_file}")
+        print()
+
+        if queue_summary["pending"] > 0 and not dry_run:
+            print("[INFO] Locked files will be retried automatically on next tidy run")
+            print("[INFO] After reboot or closing locking processes, run:")
+            print("       python scripts/tidy/tidy_up.py --execute")
+            print()
+
     print("\n" + "=" * 70)
     print("TIDY UP COMPLETE")
     print("=" * 70)
@@ -1386,6 +1509,8 @@ def main():
         print("   Run with --execute to apply changes")
     else:
         print("\nChanges applied successfully")
+        if move_failed > 0:
+            print(f"Note: {move_failed} files were queued for retry due to locks")
 
     return 0 if is_valid else 1
 

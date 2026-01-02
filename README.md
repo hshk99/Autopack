@@ -58,6 +58,13 @@ In practice, “autonomous” requires that each phase has:
 
 ### Latest Highlights (Last 3 Builds)
 
+#### 2026-01-02: CI Drift Enforcement - Dependency & Version Hygiene Lock-In ✅
+**Prevent Future Drift: pip-compile Validation + Version Consistency + Hash Security**
+- Three-layer CI enforcement: version consistency (`__version__.py` / pyproject.toml / PROJECT_INDEX.json), deterministic pip-compile with hash verification, platform-conditional dependency handling
+- requirements.txt regenerated with full SHA256 hashes (1900+ lines) for supply chain security + reproducibility
+- CI fails early (before pytest) if manual edits to requirements.txt, version drift, or missing dependency regeneration
+- See [docs/BUILD_HISTORY.md](docs/BUILD_HISTORY.md) for implementation details (Option B completion)
+
 #### 2026-01-02: BUILD-155 - SOT Budget-Aware Retrieval Telemetry + Tests ✅
 **Token Efficiency Observability: Budget Gating + Per-Phase Telemetry**
 - Implemented comprehensive telemetry for SOT retrieval (prevents silent prompt bloat, enables cost/quality optimization)
@@ -192,9 +199,9 @@ C:\dev\Autopack\
    - **Fix Needed**: Reorder phases OR run Phase 2.5 before Phase 1 OR make Phase 1 continue on errors
 
 2. **Database file locks block cleanup**:
-   - 11 historical databases remain locked by background processes (Windows Search Indexer, antivirus, etc.)
-   - Current workaround: `execute_moves()` skips locked files and continues
-   - **Ideal Fix**: Add retry logic OR move database cleanup to separate phase after .autonomous_runs cleanup
+   - ✅ RESOLVED (BUILD-145 Follow-up): Persistent queue system with automatic retry
+   - Locked files are queued in `.autonomous_runs/tidy_pending_moves.json` and retried on next tidy run
+   - See "Windows File Locks & Automatic Retry" section below for details
 
 3. **SOT → Semantic Indexing (runtime) hardening**:
    - ✅ SOT indexing + retrieval is implemented (opt-in) via `MemoryService.index_sot_docs()` and `retrieve_context(..., include_sot=True)`
@@ -202,30 +209,19 @@ C:\dev\Autopack\
    - See `docs/SOT_MEMORY_INTEGRATION_EXAMPLE.md` and `docs/TIDY_SOT_RETRIEVAL_INTEGRATION_PLAN.md`
 
 4. **Dependency sync enforcement (pyproject.toml ↔ requirements.txt)**:
-   - ✅ `pyproject.toml` is the canonical dependency source (BUILD-154)
-   - ⚠️ Remaining work: add CI guardrails to prevent `requirements*.txt` drift (or generate them in CI)
+   - ✅ RESOLVED (BUILD-155): CI drift enforcement via `scripts/check_dependency_sync.py`
+   - CI now fails if requirements.txt drifts from pyproject.toml (deterministic pip-compile check)
 
 5. **Version consistency enforcement**:
-   - ✅ Version is unified at `autopack.__version__` (see `src/autopack/__version__.py` and `src/autopack/version.py`)
-   - ⚠️ Remaining work: add CI check that `pyproject.toml`, `docs/PROJECT_INDEX.json`, and `README.md` match
+   - ✅ RESOLVED (BUILD-155): CI version consistency check via `scripts/check_version_consistency.py`
+   - CI now fails if version mismatches detected across pyproject.toml, PROJECT_INDEX.json, and __version__
 
-**Next High-Leverage Improvements** (recommended priority order):
+**Next High-Leverage Improvements**:
 1. **SOT Budget-Aware Retrieval Telemetry + Tests** (highest ROI):
    - Add per-phase telemetry fields: `include_sot`, `sot_chunks_retrieved`, `sot_chars_raw`, `total_context_chars`, `budget_utilization_pct`
    - Test coverage: budget gating, `format_retrieved_context()` char caps, opt-in defaults
    - **Why important**: Prevents silent token bloat, enables cost/quality optimization, validates BUILD-154 SOT documentation
    - Files: `src/autopack/autonomous_executor.py`, `tests/test_sot_budget_gating.py`, `tests/test_format_retrieved_context_caps.py`
-
-2. **CI Dependency Sync Enforcement** (locks in packaging hygiene):
-   - Add `scripts/check_dependency_sync.py` (deterministic checker for pyproject.toml ↔ requirements.txt drift)
-   - Update `.github/workflows/ci.yml` with dependency sync check step
-   - **Why important**: Prevents future BUILD-154 style drift, enforces single source of truth
-   - Files: `scripts/check_dependency_sync.py` (new), `.github/workflows/ci.yml`
-
-3. **Version Consistency CI Check** (completes BUILD-154 trilogy):
-   - Add script to verify `pyproject.toml`, `docs/PROJECT_INDEX.json`, `README.md` version match
-   - **Why important**: Prevents version drift across documentation/config files
-   - Files: `scripts/check_version_consistency.py` (new), `.github/workflows/ci.yml`
 
 **Intended Tidy Behavior** (for future AI agents to achieve):
 ```bash
@@ -261,6 +257,7 @@ python scripts/tidy/verify_workspace_structure.py  # Should report 0 errors or o
 - **Manual handling**: See [docs/TIDY_LOCKED_FILES_HOWTO.md](docs/TIDY_LOCKED_FILES_HOWTO.md) for immediate unlock strategies
 
 **Latest Updates**:
+- **BUILD-155 (2026-01-02)**: ✅ CI drift enforcement (dependency sync + version consistency), ✅ Telemetry schema fields added (`include_sot`, `sot_chunks_retrieved`, etc.), ✅ Packaging hygiene locked in. See [docs/BUILD_HISTORY.md](docs/BUILD_HISTORY.md#build-155) for details.
 - **BUILD-145 Follow-up (2026-01-02)**: ✅ Persistent queue system for locked files, ✅ Automatic retry on next run, ✅ Windows Task Scheduler automation guide
 - **BUILD-145 (2026-01-02)**: ✅ .autonomous_runs/ cleanup operational (46 orphaned files archived, 910 empty dirs cleaned), ✅ Windows lock handling (graceful skip + prevention), ✅ Database routing logic implemented, ✅ Run archival policy (archive/runs/, keep-last-N configurable). See [docs/BUILD-145-TIDY-SYSTEM-REVISION-COMPLETE.md](docs/BUILD-145-TIDY-SYSTEM-REVISION-COMPLETE.md) for details.
 

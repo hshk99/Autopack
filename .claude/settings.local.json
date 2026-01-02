@@ -160,7 +160,10 @@
       "Bash(for dir in */)",
       "Bash(do mv \"$dir\" \"../../$dir\")",
       "Bash(PYTHONUTF8=1 DATABASE_URL=\"sqlite:///autopack.db\" python scripts/migrations/add_execution_checkpoints.py:*)",
-      "Bash(PYTHONUTF8=1 PYTHONPATH=src DATABASE_URL=\"sqlite:///autopack.db\" python scripts/migrations/add_sot_retrieval_telemetry_build155.py:*)"
+      "Bash(PYTHONUTF8=1 PYTHONPATH=src DATABASE_URL=\"sqlite:///autopack.db\" python scripts/migrations/add_sot_retrieval_telemetry_build155.py:*)",
+      "Bash(PYTHONUTF8=1 cd:*)",
+      "Bash(pip-compile:*)",
+      "Bash(PYTHONUTF8=1 pip-compile:*)"
     ],
     "deny": [],
     "ask": []

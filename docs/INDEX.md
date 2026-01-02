@@ -48,8 +48,15 @@ These are the canonical references that should stay current and are designed to 
   - See `docs/SOT_MEMORY_INTEGRATION_EXAMPLE.md` for integration examples
 - **BUILD-145 Tidy Improvements**:
   - Implementation: `docs/BUILD-145-TIDY-SYSTEM-REVISION-COMPLETE.md`
+  - Follow-up (Persistent Queue): `docs/BUILD-145-FOLLOWUP-QUEUE-SYSTEM.md`
   - Windows file locks: `docs/TIDY_LOCKED_FILES_HOWTO.md` (4 solution strategies)
-  - Workspace cleanup: .autonomous_runs/ cleanup, database routing, locked file handling
+  - Windows Task Scheduler: `docs/guides/WINDOWS_TASK_SCHEDULER_TIDY.md` (automation setup)
+  - Workspace cleanup: .autonomous_runs/ cleanup, database routing, locked file handling, automatic retry
+- **BUILD-155 CI Drift Enforcement**:
+  - CI guardrails for dependency sync (pyproject.toml ↔ requirements.txt)
+  - CI guardrails for version consistency (pyproject.toml, PROJECT_INDEX.json, __version__)
+  - Scripts: `scripts/check_dependency_sync.py`, `scripts/check_version_consistency.py`
+  - Telemetry schema additions: `include_sot`, `sot_chunks_retrieved`, `sot_chars_raw`, etc.
 
 ---
 

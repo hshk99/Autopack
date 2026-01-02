@@ -421,9 +421,9 @@ def retry_pending_moves(
         print(f"  RETRY [{item['attempt_count']} attempts] {item['src']} -> {item['dest']}")
 
         if dry_run:
-            # In dry-run, assume it would succeed (for testing)
+            # In dry-run, only report what would happen without mutating the queue
+            print(f"    [DRY-RUN] Would retry move")
             succeeded += 1
-            queue.mark_succeeded(item["id"])
             continue
 
         retried += 1

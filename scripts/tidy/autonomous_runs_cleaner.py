@@ -125,19 +125,28 @@ def get_directory_age(dirpath: Path) -> timedelta:
     """
     Get age of directory based on most recent file modification time.
 
+    Uses os.walk for memory efficiency instead of rglob.
+
     Args:
         dirpath: Directory path
 
     Returns:
         Age as timedelta
     """
+    import os
+
     try:
-        # Find most recent file in directory tree
+        # Find most recent file in directory tree using os.walk (memory-efficient)
         most_recent = 0.0
-        for item in dirpath.rglob("*"):
-            if item.is_file():
-                mtime = item.stat().st_mtime
-                most_recent = max(most_recent, mtime)
+        for root, _, files in os.walk(dirpath):
+            for filename in files:
+                filepath = os.path.join(root, filename)
+                try:
+                    mtime = os.path.getmtime(filepath)
+                    most_recent = max(most_recent, mtime)
+                except (OSError, PermissionError):
+                    # Skip files we can't access
+                    continue
 
         if most_recent == 0.0:
             # Empty directory - use directory mtime
@@ -279,24 +288,30 @@ def find_empty_directories(autonomous_runs: Path) -> List[Path]:
     """
     Find empty directories (no files, no subdirectories).
 
+    Uses bottom-up os.walk for memory efficiency instead of rglob which builds
+    large in-memory lists. This prevents memory blowups on large directory trees.
+
     Args:
         autonomous_runs: Path to .autonomous_runs directory
 
     Returns:
         List of empty directory paths
     """
+    import os
+
     empty_dirs = []
 
-    for item in autonomous_runs.rglob("*"):
-        if not item.is_dir():
-            continue
+    # Use bottom-up walk (topdown=False) to find empties efficiently
+    # This processes leaf directories first, which is what we want for empties
+    for root, dirs, files in os.walk(autonomous_runs, topdown=False):
+        root_path = Path(root)
 
-        # Check if directory is empty
+        # Check if this directory is empty (no files and no subdirectories)
         try:
-            if not any(item.iterdir()):
-                empty_dirs.append(item)
+            if not files and not dirs:
+                empty_dirs.append(root_path)
         except PermissionError:
-            logger.warning(f"[CLEANUP] Permission denied: {item}")
+            logger.warning(f"[CLEANUP] Permission denied: {root_path}")
             continue
 
     return empty_dirs
@@ -394,6 +409,7 @@ def cleanup_autonomous_runs(
     repo_root: Path,
     dry_run: bool = True,
     verbose: bool = False,
+    profile: bool = False,
     keep_last_n_runs: int = 10,
     min_age_days: int = 7
 ) -> Tuple[int, int]:
@@ -404,12 +420,15 @@ def cleanup_autonomous_runs(
         repo_root: Repository root path
         dry_run: If True, only preview changes (default: True)
         verbose: If True, show detailed output (default: False)
+        profile: If True, show timing for each step (default: False)
         keep_last_n_runs: Number of runs to keep per project (default: 10)
         min_age_days: Minimum age in days before cleanup (default: 7)
 
     Returns:
         Tuple of (files_deleted, dirs_deleted)
     """
+    import time
+
     autonomous_runs = repo_root / ".autonomous_runs"
 
     if not autonomous_runs.exists():
@@ -429,10 +448,16 @@ def cleanup_autonomous_runs(
     dirs_deleted = 0
 
     # Step 0: Archive old Autopack runs to archive/runs/ (keeps last 10 at .autonomous_runs/ root)
+    step_start = time.perf_counter()
     archive_old_autopack_runs(repo_root, autonomous_runs, keep_last_n=keep_last_n_runs, dry_run=dry_run)
+    if profile:
+        print(f"[PROFILE] Step 0 (archive old runs): {time.perf_counter() - step_start:.2f}s")
 
     # Step 1: Orphaned files (logs, JSON, etc.)
+    step_start = time.perf_counter()
     orphaned_files = find_orphaned_files(autonomous_runs)
+    if profile:
+        print(f"[PROFILE] Step 1 (find orphaned files): {time.perf_counter() - step_start:.2f}s")
     if orphaned_files:
         print(f"[ORPHANED-FILES] Found {len(orphaned_files)} orphaned files:")
 
@@ -472,7 +497,10 @@ def cleanup_autonomous_runs(
         print()
 
     # Step 2: Duplicate baseline archives
+    step_start = time.perf_counter()
     duplicate_archives = find_duplicate_baseline_archives(autonomous_runs)
+    if profile:
+        print(f"[PROFILE] Step 2 (find duplicate archives): {time.perf_counter() - step_start:.2f}s")
     if duplicate_archives:
         print(f"[DUPLICATE-ARCHIVES] Found {len(duplicate_archives)} duplicate baseline archives:")
         for archive in duplicate_archives:
@@ -485,7 +513,10 @@ def cleanup_autonomous_runs(
         print()
 
     # Step 3: Empty directories (run after archiving runs)
+    step_start = time.perf_counter()
     empty_dirs = find_empty_directories(autonomous_runs)
+    if profile:
+        print(f"[PROFILE] Step 3 (find empty directories): {time.perf_counter() - step_start:.2f}s")
     if empty_dirs:
         print(f"[EMPTY-DIRS] Found {len(empty_dirs)} empty directories:")
         for empty_dir in empty_dirs:

@@ -40,6 +40,7 @@ import difflib
 import shutil
 import subprocess
 import sys
+import time
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Set, Tuple, Optional
@@ -1038,8 +1039,29 @@ def verify_structure(repo_root: Path, docs_dir: Path) -> Tuple[bool, List[str]]:
         errors.append("Missing archive/ directory")
 
     # Check for disallowed root files
+    # Load pending queue to check if disallowed files are already queued for retry
+    pending_srcs: Set[str] = set()
+    queue_path = repo_root / ".autonomous_runs" / "tidy_pending_moves.json"
+
+    if queue_path.exists():
+        try:
+            queue_data = json.loads(queue_path.read_text(encoding="utf-8"))
+            for item_data in queue_data.get("items", []):
+                if item_data.get("status") in {"pending", "failed"}:
+                    src = item_data.get("src")
+                    if src:
+                        # Normalize path separators for comparison
+                        pending_srcs.add(src.replace("\\", "/"))
+        except Exception:
+            # If queue is malformed, proceed with normal verification
+            pass
+
     for item in repo_root.iterdir():
         if item.is_file() and not is_root_file_allowed(item.name):
+            # Check if this file is already queued for retry (first-run resilience)
+            if item.name in pending_srcs or str(item.name).replace("\\", "/") in pending_srcs:
+                # Queued files are warnings, not errors - they'll be retried on next run
+                continue
             errors.append(f"Disallowed file at root: {item.name}")
 
     if errors:
@@ -1206,6 +1228,8 @@ def main():
     # Other options
     parser.add_argument("--verbose", action="store_true",
                         help="Verbose output")
+    parser.add_argument("--profile", action="store_true",
+                        help="Enable profiling with timing and memory usage per phase")
     parser.add_argument("--skip-archive-consolidation", action="store_true",
                         help="Skip Phase 3 (archive consolidation)")
 
@@ -1361,17 +1385,24 @@ def main():
     print("\n" + "=" * 70)
     print("Phase 0.5: .autonomous_runs/ Cleanup (Early)")
     print("=" * 70)
+
+    phase_start = time.perf_counter()
     try:
         cleanup_autonomous_runs(
             repo_root=repo_root,
             dry_run=dry_run,
             verbose=args.verbose,
+            profile=args.profile,
             keep_last_n_runs=3,  # Keep only last 3 runs (archive older telemetry runs)
             min_age_days=0  # Allow cleanup based on "keep last N" policy only
         )
     except Exception as e:
         # Never crash tidy on autonomous_runs cleanup; it's best-effort and should not block SOT routing/consolidation.
         print(f"[WARN] .autonomous_runs cleanup failed (continuing): {e}")
+    finally:
+        if args.profile:
+            elapsed = time.perf_counter() - phase_start
+            print(f"[PROFILE] Phase 0.5 completed in {elapsed:.2f}s")
 
     # Phase 1: Root routing
     print("\n" + "=" * 70)

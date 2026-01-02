@@ -177,15 +177,39 @@ def verify_root_structure(repo_root: Path) -> Tuple[bool, List[str], List[str]]:
     """
     Verify repo root structure.
     Returns (is_valid, errors, warnings).
+
+    Files that are disallowed but already queued in tidy_pending_moves.json
+    are treated as warnings (not errors) to support first-run resilience.
     """
     errors = []
     warnings = []
+
+    # Load pending queue to check if disallowed files are already queued for retry
+    pending_srcs: Set[str] = set()
+    queue_path = repo_root / ".autonomous_runs" / "tidy_pending_moves.json"
+
+    if queue_path.exists():
+        try:
+            queue_data = json.loads(queue_path.read_text(encoding="utf-8"))
+            for item in queue_data.get("items", []):
+                if item.get("status") in {"pending", "failed"}:
+                    src = item.get("src")
+                    if src:
+                        # Normalize path separators for comparison
+                        pending_srcs.add(src.replace("\\", "/"))
+        except Exception:
+            # If queue is malformed, proceed with normal verification
+            pass
 
     # Check for disallowed files
     for item in repo_root.iterdir():
         if item.is_file():
             if not is_root_file_allowed(item.name):
-                errors.append(f"Disallowed file at root: {item.name}")
+                # Check if this file is already queued for retry
+                if item.name in pending_srcs or str(item.name).replace("\\", "/") in pending_srcs:
+                    warnings.append(f"Queued for retry (locked): {item.name}")
+                else:
+                    errors.append(f"Disallowed file at root: {item.name}")
         elif item.is_dir():
             if item.name not in ROOT_ALLOWED_DIRS and not item.name.startswith("."):
                 warnings.append(f"Unexpected directory at root: {item.name}")

@@ -58,6 +58,16 @@ In practice, “autonomous” requires that each phase has:
 
 ### Latest Highlights (Last 3 Builds)
 
+#### 2026-01-02: BUILD-155 - SOT Budget-Aware Retrieval Telemetry + Tests ✅
+**Token Efficiency Observability: Budget Gating + Per-Phase Telemetry**
+- Implemented comprehensive telemetry for SOT retrieval (prevents silent prompt bloat, enables cost/quality optimization)
+- Budget gating logic: requires `max_context_chars >= sot_budget + 2000` with 2000-char reserve for non-SOT context
+- Database schema: `sot_retrieval_events` table tracks budget decisions, retrieval metrics, utilization, truncation
+- Integration: 4 retrieval sites updated with budget gating → retrieve → format → record telemetry pattern
+- Test coverage: 16 tests, 93.75% pass rate (7 budget gating, 9 format caps, 6 telemetry fields)
+- Production-ready: idempotent migration, opt-in by default, SQLite + PostgreSQL dual support
+- See [docs/BUILD_155_SOT_TELEMETRY_COMPLETION.md](docs/BUILD_155_SOT_TELEMETRY_COMPLETION.md) for full details
+
 #### 2026-01-02: BUILD-153 - Storage Optimizer Automation & Production Hardening ✅
 **Production-Ready Automation: Weekly Scans + Delta Reporting + Unified Protection Policy**
 - **Task Scheduler automation**: Weekly scans via Windows Task Scheduler/cron with delta reporting (what changed since last scan)
@@ -417,7 +427,7 @@ python scripts/storage/scan_and_report.py --dir c:/dev
 ```
 
 **Key Features:**
-- Policy-driven classification from `config/storage_policy.yaml`
+- Policy-driven classification from `config/protection_and_retention_policy.yaml`
 - Protected path enforcement (never flags SOT files, src/, tests/, .git/, databases)
 - Retention window compliance (90/180/365 day windows)
 - Category-based analysis (dev_caches, diagnostics_logs, runs, archive_buckets)
@@ -426,7 +436,7 @@ python scripts/storage/scan_and_report.py --dir c:/dev
 **Documentation:**
 - **Module**: [src/autopack/storage_optimizer/](src/autopack/storage_optimizer/)
 - **Completion Report**: [docs/STORAGE_OPTIMIZER_MVP_COMPLETION.md](docs/STORAGE_OPTIMIZER_MVP_COMPLETION.md)
-- **Policy**: [config/storage_policy.yaml](config/storage_policy.yaml) + [docs/DATA_RETENTION_AND_STORAGE_POLICY.md](docs/DATA_RETENTION_AND_STORAGE_POLICY.md)
+- **Policy**: [config/protection_and_retention_policy.yaml](config/protection_and_retention_policy.yaml) + [docs/DATA_RETENTION_AND_STORAGE_POLICY.md](docs/DATA_RETENTION_AND_STORAGE_POLICY.md)
 
 Future phases will add execution capabilities (send2trash), automation (Windows Task Scheduler), and WizTree integration for faster scanning.
 

@@ -1,0 +1,117 @@
+================================================================================
+ERROR REPORT - 2025-12-28T11:17:38.855774+00:00
+================================================================================
+Error Type: OperationalError
+Error Message: (sqlite3.OperationalError) no such table: phases
+[SQL: SELECT phases.id AS phases_id, phases.phase_id AS phases_phase_id, phases.run_id AS phases_run_id, phases.tier_id AS phases_tier_id, phases.phase_index AS phases_phase_index, phases.name AS phases_name, phases.description AS phases_description, phases.state AS phases_state, phases.task_category AS phases_task_category, phases.complexity AS phases_complexity, phases.builder_mode AS phases_builder_mode, phases.scope AS phases_scope, phases.max_builder_attempts AS phases_max_builder_attempts, phases.max_auditor_attempts AS phases_max_auditor_attempts, phases.incident_token_cap AS phases_incident_token_cap, phases.builder_attempts AS phases_builder_attempts, phases.auditor_attempts AS phases_auditor_attempts, phases.tokens_used AS phases_tokens_used, phases.minor_issues_count AS phases_minor_issues_count, phases.major_issues_count AS phases_major_issues_count, phases.issue_state AS phases_issue_state, phases.quality_level AS phases_quality_level, phases.quality_blocked AS phases_quality_blocked, phases.retry_attempt AS phases_retry_attempt, phases.revision_epoch AS phases_revision_epoch, phases.escalation_level AS phases_escalation_level, phases.last_attempt_timestamp AS phases_last_attempt_timestamp, phases.last_failure_reason AS phases_last_failure_reason, phases.created_at AS phases_created_at, phases.updated_at AS phases_updated_at, phases.started_at AS phases_started_at, phases.completed_at AS phases_completed_at 
+FROM phases 
+WHERE phases.run_id = ? AND phases.phase_id = ?
+ LIMIT ? OFFSET ?]
+[parameters: ('telemetry-collection-v4', 'telemetry-p2-number-util', 1, 0)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+Run ID: telemetry-collection-v4
+Phase ID: telemetry-p2-number-util
+Component: api
+Operation: POST /runs/telemetry-collection-v4/phases/telemetry-p2-number-util/builder_result
+
+Stack Trace:
+--------------------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Python\Lib\site-packages\sqlalchemy\engine\base.py", line 1967, in _exec_single_context
+    self.dialect.do_execute(
+  File "C:\Python\Lib\site-packages\sqlalchemy\engine\default.py", line 951, in do_execute
+    cursor.execute(statement, parameters)
+sqlite3.OperationalError: no such table: phases
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Python\Lib\site-packages\starlette\middleware\errors.py", line 162, in __call__
+    await self.app(scope, receive, _send)
+  File "C:\Python\Lib\site-packages\starlette\middleware\exceptions.py", line 79, in __call__
+    raise exc
+  File "C:\Python\Lib\site-packages\starlette\middleware\exceptions.py", line 68, in __call__
+    await self.app(scope, receive, sender)
+  File "C:\Python\Lib\site-packages\fastapi\middleware\asyncexitstack.py", line 20, in __call__
+    raise e
+  File "C:\Python\Lib\site-packages\fastapi\middleware\asyncexitstack.py", line 17, in __call__
+    await self.app(scope, receive, send)
+  File "C:\Python\Lib\site-packages\starlette\routing.py", line 718, in __call__
+    await route.handle(scope, receive, send)
+  File "C:\Python\Lib\site-packages\starlette\routing.py", line 276, in handle
+    await self.app(scope, receive, send)
+  File "C:\Python\Lib\site-packages\starlette\routing.py", line 66, in app
+    response = await func(request)
+               ^^^^^^^^^^^^^^^^^^^
+  File "C:\Python\Lib\site-packages\fastapi\routing.py", line 274, in app
+    raw_response = await run_endpoint_function(
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python\Lib\site-packages\fastapi\routing.py", line 193, in run_endpoint_function
+    return await run_in_threadpool(dependant.call, **values)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python\Lib\site-packages\starlette\concurrency.py", line 41, in run_in_threadpool
+    return await anyio.to_thread.run_sync(func, *args)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python\Lib\site-packages\anyio\to_thread.py", line 33, in run_sync
+    return await get_asynclib().run_sync_in_worker_thread(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python\Lib\site-packages\anyio\_backends\_asyncio.py", line 877, in run_sync_in_worker_thread
+    return await future
+           ^^^^^^^^^^^^
+  File "C:\Python\Lib\site-packages\anyio\_backends\_asyncio.py", line 807, in run
+    result = context.run(func, *args)
+             ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\dev\Autopack\src\autopack\main.py", line 613, in submit_builder_result
+    .first()
+     ^^^^^^^
+  File "C:\Python\Lib\site-packages\sqlalchemy\orm\query.py", line 2759, in first
+    return self.limit(1)._iter().first()  # type: ignore
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python\Lib\site-packages\sqlalchemy\orm\query.py", line 2857, in _iter
+    result: Union[ScalarResult[_T], Result[_T]] = self.session.execute(
+                                                  ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python\Lib\site-packages\sqlalchemy\orm\session.py", line 2351, in execute
+    return self._execute_internal(
+           ^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python\Lib\site-packages\sqlalchemy\orm\session.py", line 2249, in _execute_internal
+    result: Result[Any] = compile_state_cls.orm_execute_statement(
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python\Lib\site-packages\sqlalchemy\orm\context.py", line 306, in orm_execute_statement
+    result = conn.execute(
+             ^^^^^^^^^^^^^
+  File "C:\Python\Lib\site-packages\sqlalchemy\engine\base.py", line 1419, in execute
+    return meth(
+           ^^^^^
+  File "C:\Python\Lib\site-packages\sqlalchemy\sql\elements.py", line 526, in _execute_on_connection
+    return connection._execute_clauseelement(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python\Lib\site-packages\sqlalchemy\engine\base.py", line 1641, in _execute_clauseelement
+    ret = self._execute_context(
+          ^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python\Lib\site-packages\sqlalchemy\engine\base.py", line 1846, in _execute_context
+    return self._exec_single_context(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python\Lib\site-packages\sqlalchemy\engine\base.py", line 1986, in _exec_single_context
+    self._handle_dbapi_exception(
+  File "C:\Python\Lib\site-packages\sqlalchemy\engine\base.py", line 2355, in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+  File "C:\Python\Lib\site-packages\sqlalchemy\engine\base.py", line 1967, in _exec_single_context
+    self.dialect.do_execute(
+  File "C:\Python\Lib\site-packages\sqlalchemy\engine\default.py", line 951, in do_execute
+    cursor.execute(statement, parameters)
+sqlalchemy.exc.OperationalError: (sqlite3.OperationalError) no such table: phases
+[SQL: SELECT phases.id AS phases_id, phases.phase_id AS phases_phase_id, phases.run_id AS phases_run_id, phases.tier_id AS phases_tier_id, phases.phase_index AS phases_phase_index, phases.name AS phases_name, phases.description AS phases_description, phases.state AS phases_state, phases.task_category AS phases_task_category, phases.complexity AS phases_complexity, phases.builder_mode AS phases_builder_mode, phases.scope AS phases_scope, phases.max_builder_attempts AS phases_max_builder_attempts, phases.max_auditor_attempts AS phases_max_auditor_attempts, phases.incident_token_cap AS phases_incident_token_cap, phases.builder_attempts AS phases_builder_attempts, phases.auditor_attempts AS phases_auditor_attempts, phases.tokens_used AS phases_tokens_used, phases.minor_issues_count AS phases_minor_issues_count, phases.major_issues_count AS phases_major_issues_count, phases.issue_state AS phases_issue_state, phases.quality_level AS phases_quality_level, phases.quality_blocked AS phases_quality_blocked, phases.retry_attempt AS phases_retry_attempt, phases.revision_epoch AS phases_revision_epoch, phases.escalation_level AS phases_escalation_level, phases.last_attempt_timestamp AS phases_last_attempt_timestamp, phases.last_failure_reason AS phases_last_failure_reason, phases.created_at AS phases_created_at, phases.updated_at AS phases_updated_at, phases.started_at AS phases_started_at, phases.completed_at AS phases_completed_at 
+FROM phases 
+WHERE phases.run_id = ? AND phases.phase_id = ?
+ LIMIT ? OFFSET ?]
+[parameters: ('telemetry-collection-v4', 'telemetry-p2-number-util', 1, 0)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+
+
+Context Data:
+--------------------------------------------------------------------------------
+method: POST
+url: http://localhost:57714/runs/telemetry-collection-v4/phases/telemetry-p2-number-util/builder_result
+headers: {'host': 'localhost:57714', 'user-agent': 'python-requests/2.32.3', 'accept-encoding': 'gzip, deflate', 'accept': '*/*', 'connection': 'keep-alive', 'content-type': 'application/json', 'content-length': '4703'}
+query_params: {}
+================================================================================

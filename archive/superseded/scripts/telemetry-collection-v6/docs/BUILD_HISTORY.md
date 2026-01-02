@@ -1,0 +1,10 @@
+# telemetry-collection-v6 — BUILD_HISTORY
+
+**Project**: telemetry-collection-v6
+**Purpose**: Append-only build/implementation ledger for this project’s SOT.
+
+---
+
+## Notes
+- Created by `tidy_up.py --repair` to satisfy the 6-file SOT structure.
+- Tidy may append summaries here during consolidation.

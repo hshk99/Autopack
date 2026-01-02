@@ -102,6 +102,209 @@ Proceed with implementation...
         # Continue with phase execution...
 ```
 
+## Budget-Aware Retrieval (Preventing Prompt Bloat)
+
+SOT retrieval is **strictly capped** to prevent context overflow. Understanding how budget enforcement works is critical for token efficiency.
+
+### Configuration Limits
+
+```bash
+# Default caps (override via environment)
+AUTOPACK_SOT_RETRIEVAL_MAX_CHARS=4000  # Max total chars from SOT
+AUTOPACK_SOT_RETRIEVAL_TOP_K=3         # Max chunks retrieved
+AUTOPACK_SOT_CHUNK_MAX_CHARS=1200      # Chunk size for indexing
+AUTOPACK_SOT_CHUNK_OVERLAP_CHARS=150   # Overlap between chunks
+```
+
+### How Budget Enforcement Works
+
+**⚠️ Critical Understanding**: Budget caps are enforced in **`format_retrieved_context()`**, not `retrieve_context()`.
+
+1. **Gating (input)**: `include_sot` flag controls whether SOT is retrieved at all
+2. **Retrieval (unbounded)**: `retrieve_context()` returns raw results (not capped yet)
+3. **Formatting (output cap)**: `format_retrieved_context(max_chars=...)` enforces total output size
+4. **Prioritization**: If total context exceeds `max_chars`, sections are truncated proportionally
+
+### Integration Pattern
+
+```python
+from autopack.memory.memory_service import MemoryService
+from autopack.config import settings
+import logging
+
+logger = logging.getLogger(__name__)
+
+def execute_phase_with_budget(
+    memory: MemoryService,
+    task_description: str,
+    project_id: str,
+    max_context_chars: int = 8000
+):
+    """Execute phase with budget-aware context retrieval.
+
+    Args:
+        memory: MemoryService instance
+        task_description: Phase task description (used as query)
+        project_id: Project identifier
+        max_context_chars: Maximum total context chars allowed
+
+    Returns:
+        Formatted context string (capped at max_context_chars)
+    """
+
+    # Step 1: Decide whether to retrieve SOT based on budget
+    sot_budget = settings.autopack_sot_retrieval_max_chars  # 4000 default
+    include_sot = (
+        settings.autopack_sot_retrieval_enabled
+        and max_context_chars >= (sot_budget + 2000)  # Reserve 2K for other context
+    )
+
+    if not include_sot:
+        logger.info(
+            f"Skipping SOT retrieval - insufficient budget "
+            f"(available: {max_context_chars}, SOT needs: {sot_budget + 2000})"
+        )
+    else:
+        logger.info(
+            f"Including SOT retrieval (budget: {max_context_chars} chars, "
+            f"SOT cap: {sot_budget} chars)"
+        )
+
+    # Step 2: Retrieve context (unbounded at this stage)
+    context = memory.retrieve_context(
+        query=task_description,
+        project_id=project_id,
+        include_code=True,
+        include_summaries=True,
+        include_errors=True,
+        include_sot=include_sot,  # ← Gated by budget check above
+    )
+
+    # Step 3: Format with strict char limit (THIS enforces the cap)
+    formatted_context = memory.format_retrieved_context(
+        context,
+        max_chars=max_context_chars,  # ← Budget enforced here, not in retrieve_context()
+    )
+
+    actual_chars = len(formatted_context)
+    logger.info(
+        f"Context formatted: {actual_chars} chars "
+        f"(limit: {max_context_chars}, "
+        f"utilization: {actual_chars/max_context_chars*100:.1f}%)"
+    )
+
+    return formatted_context
+
+
+# Example usage
+if __name__ == "__main__":
+    memory = MemoryService(enabled=True, use_qdrant=True)
+
+    # Low budget scenario - SOT will be skipped
+    context_low = execute_phase_with_budget(
+        memory,
+        task_description="Fix authentication bug",
+        project_id="autopack",
+        max_context_chars=3000  # Too low for SOT (needs 6000+)
+    )
+
+    # High budget scenario - SOT will be included
+    context_high = execute_phase_with_budget(
+        memory,
+        task_description="Implement new feature",
+        project_id="autopack",
+        max_context_chars=10000  # Sufficient for SOT + other context
+    )
+```
+
+### Understanding Context Structure
+
+The `retrieve_context()` method returns a dictionary with these sections:
+
+```python
+{
+    "code": [...],         # Code snippets from memory
+    "summaries": [...],    # Artifact summaries
+    "errors": [...],       # Error history
+    "hints": [...],        # Learned rules/hints
+    "planning": [...],     # Planning artifacts
+    "plan_changes": [...], # Plan modifications
+    "decisions": [...],    # Architecture decisions
+    "sot": [...]          # SOT chunks (only if include_sot=True)
+}
+```
+
+When `format_retrieved_context()` applies the `max_chars` limit, it:
+1. Reserves space for section headers
+2. Allocates remaining space proportionally across non-empty sections
+3. Truncates each section if needed
+4. Ensures total output ≤ `max_chars`
+
+### Telemetry Recommendations (Future Enhancement)
+
+To track SOT retrieval impact and optimize budget allocation, consider logging:
+
+```python
+# After formatting context
+telemetry = {
+    "sot_retrieval_enabled": include_sot,
+    "sot_chunks_retrieved": len(context.get("sot", [])),
+    "sot_chars_raw": sum(len(chunk["content"]) for chunk in context.get("sot", [])),
+    "total_context_chars": len(formatted_context),
+    "context_budget": max_context_chars,
+    "budget_utilization_pct": len(formatted_context) / max_context_chars * 100,
+    "sections_included": [k for k, v in context.items() if v],
+}
+logger.info(f"Context telemetry: {telemetry}")
+```
+
+**Key metrics to track**:
+- `sot_retrieval_hit_rate`: % of phases where SOT was included
+- `avg_sot_chars_per_retrieval`: Average SOT contribution to context
+- `context_budget_saved`: Chars saved by budget gating
+- `sot_truncation_rate`: % of times SOT was truncated in formatting
+
+### Common Pitfalls
+
+❌ **Wrong**: Trying to cap in `retrieve_context()`
+```python
+# This does NOT work - retrieve_context() has no max_chars parameter
+context = memory.retrieve_context(
+    query="...",
+    include_sot=True,
+    max_chars=4000  # ❌ No such parameter!
+)
+```
+
+✅ **Correct**: Cap in `format_retrieved_context()`
+```python
+# Step 1: Retrieve (unbounded)
+context = memory.retrieve_context(query="...", include_sot=True)
+
+# Step 2: Format with cap
+formatted = memory.format_retrieved_context(
+    context,
+    max_chars=8000  # ✅ Budget enforced here
+)
+```
+
+❌ **Wrong**: Assuming `include_sot=True` guarantees SOT content
+```python
+# If AUTOPACK_SOT_RETRIEVAL_ENABLED=false, include_sot is ignored
+context = memory.retrieve_context(query="...", include_sot=True)
+# context["sot"] might be empty!
+```
+
+✅ **Correct**: Check configuration first
+```python
+from autopack.config import settings
+
+if not settings.autopack_sot_retrieval_enabled:
+    logger.warning("SOT retrieval disabled in config - include_sot ignored")
+
+context = memory.retrieve_context(query="...", include_sot=True)
+```
+
 ## Integration Example: Custom Script
 
 For standalone scripts that want to use SOT retrieval:

@@ -1,6 +1,12 @@
+# Dependency Management Strategy:
+# - pyproject.toml is the SINGLE SOURCE OF TRUTH for dependencies
+# - requirements*.txt files exist for pip compatibility but should be regenerated from pyproject.toml
+# - To regenerate: pip-compile pyproject.toml -o requirements.txt
+# - Manual edits to requirements*.txt will be overwritten - always update pyproject.toml first
+
 [project]
 name = "autopack"
-version = "0.1.0"
+version = "0.5.1"
 description = "Supervisor/orchestrator implementing the v7 autonomous build playbook"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -17,6 +23,13 @@ dependencies = [
     "requests>=2.31.0",
     "rich>=13.0.0",
     "praw>=7.7.0",
+    # Vector store and memory features
+    "qdrant-client>=1.7.0",
+    # JWT authentication
+    "python-jose[cryptography]>=3.3.0",
+    # File type detection (platform-conditional)
+    "python-magic>=0.4.27; sys_platform != 'win32'",
+    "python-magic-bin>=0.4.14; sys_platform == 'win32'",
 ]
 
 [project.optional-dependencies]

@@ -2,9 +2,9 @@
   "project_id": "autopack",
   "project_name": "Autopack",
   "description": "Autonomous build system with multi-LLM orchestration, learned rules, and self-improving intelligence",
-  "status": "production",
-  "last_updated": "2026-01-01T22:15:00Z",
-  "version": "1.0.0",
+  "status": "beta",
+  "last_updated": "2026-01-02T18:00:00Z",
+  "version": "0.5.1",
 
   "quick_reference": {
     "setup": "See setup section below for quick start commands",

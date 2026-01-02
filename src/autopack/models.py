@@ -502,6 +502,73 @@ class TokenBudgetEscalationEvent(Base):
     tokens_used = Column(Integer, nullable=True)
 
 
+class SOTRetrievalEvent(Base):
+    """
+    SOT (Source of Truth) retrieval telemetry - BUILD-155.
+
+    Tracks per-phase SOT retrieval metrics to prevent silent prompt bloat
+    and enable budget optimization. Records both gating decisions and
+    actual retrieval/formatting outcomes.
+
+    Why a separate table:
+    - SOT retrieval happens in autonomous_executor.py during context assembly
+    - Need to track both budget gating decisions AND actual char usage
+    - Enables post-hoc analysis of SOT impact on token costs
+    """
+
+    __tablename__ = "sot_retrieval_events"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["run_id", "phase_id"],
+            ["phases.run_id", "phases.phase_id"],
+            ondelete="CASCADE",
+            name="fk_sot_retrieval_run_phase",
+        ),
+    )
+
+    id = Column(Integer, primary_key=True, index=True, name="event_id")
+    run_id = Column(String, ForeignKey("runs.id"), nullable=False, index=True)
+    phase_id = Column(String, nullable=False, index=True)
+
+    timestamp = Column(
+        DateTime,
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc),
+        index=True,
+    )
+
+    # Budget gating (input decision)
+    include_sot = Column(Boolean, nullable=False, index=True)  # Was SOT retrieval attempted?
+    max_context_chars = Column(Integer, nullable=False)  # Budget allocated for total context
+    sot_budget_chars = Column(Integer, nullable=False)  # Budget allocated specifically for SOT
+
+    # Retrieval outcome (raw results before formatting)
+    sot_chunks_retrieved = Column(Integer, nullable=False, default=0)  # Number of chunks returned
+    sot_chars_raw = Column(Integer, nullable=False, default=0)  # Total chars in raw SOT chunks
+
+    # Formatting outcome (after format_retrieved_context cap enforcement)
+    total_context_chars = Column(Integer, nullable=False)  # Final formatted context length
+    sot_chars_formatted = Column(Integer, nullable=True)  # SOT contribution after formatting (NULL if not included)
+
+    # Utilization metrics
+    budget_utilization_pct = Column(Float, nullable=False)  # total_context_chars / max_context_chars * 100
+    sot_truncated = Column(Boolean, nullable=False, default=False)  # Was SOT section truncated during formatting?
+
+    # Context composition (JSON list of section names included)
+    sections_included = Column(JSON, nullable=True)  # e.g., ["code", "summaries", "errors", "sot"]
+
+    # Retrieval configuration
+    retrieval_enabled = Column(Boolean, nullable=False)  # AUTOPACK_SOT_RETRIEVAL_ENABLED setting
+    top_k = Column(Integer, nullable=True)  # Number of chunks requested (from settings)
+
+    created_at = Column(
+        DateTime,
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc),
+        index=True,
+    )
+
+
 class ABTestResult(Base):
     """A/B test comparison results - BUILD-146 P12.
 

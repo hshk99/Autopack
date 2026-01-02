@@ -4322,6 +4322,11 @@ Just the new description that should replace the current one while preserving th
                     query = f"{phase_description[:500]}"
                     project_id = self._get_project_slug() or self.run_id
 
+                    # BUILD-154: Make SOT budget gating + telemetry explicit and non-silent
+                    from autopack.config import settings
+                    max_context_chars = max(4000, settings.autopack_sot_retrieval_max_chars + 2000)
+                    include_sot = self._should_include_sot_retrieval(max_context_chars, phase_id=phase_id)
+
                     retrieved = self.memory_service.retrieve_context(
                         query=query,
                         project_id=project_id,
@@ -4333,9 +4338,19 @@ Just the new description that should replace the current one while preserving th
                         include_planning=True,
                         include_plan_changes=True,
                         include_decisions=True,
-                        include_sot=bool(settings.autopack_sot_retrieval_enabled),
+                        include_sot=include_sot,
                     )
-                    retrieved_context = self.memory_service.format_retrieved_context(retrieved, max_chars=4000)
+                    retrieved_context = self.memory_service.format_retrieved_context(retrieved, max_chars=max_context_chars)
+
+                    # BUILD-155: Record SOT retrieval telemetry
+                    self._record_sot_retrieval_telemetry(
+                        phase_id=phase_id,
+                        include_sot=include_sot,
+                        max_context_chars=max_context_chars,
+                        retrieved_context=retrieved,
+                        formatted_context=retrieved_context,
+                    )
+
                     if retrieved_context:
                         logger.info(f"[{phase_id}] Retrieved {len(retrieved_context)} chars of context from memory")
                 except Exception as e:
@@ -5753,6 +5768,12 @@ Just the new description that should replace the current one while preserving th
                 phase_description = phase.get("description", "")
                 query = f"{phase_description[:500]}"
                 project_id = self._get_project_slug() or self.run_id
+
+                # BUILD-154: Make SOT budget gating + telemetry explicit and non-silent
+                from autopack.config import settings
+                max_context_chars = max(4000, settings.autopack_sot_retrieval_max_chars + 2000)
+                include_sot = self._should_include_sot_retrieval(max_context_chars, phase_id=phase_id)
+
                 retrieved = self.memory_service.retrieve_context(
                     query=query,
                     project_id=project_id,
@@ -5764,9 +5785,19 @@ Just the new description that should replace the current one while preserving th
                     include_planning=True,
                     include_plan_changes=True,
                     include_decisions=True,
-                    include_sot=bool(settings.autopack_sot_retrieval_enabled),
+                    include_sot=include_sot,
                 )
-                retrieved_context = self.memory_service.format_retrieved_context(retrieved, max_chars=4000)
+                retrieved_context = self.memory_service.format_retrieved_context(retrieved, max_chars=max_context_chars)
+
+                # BUILD-155: Record SOT retrieval telemetry
+                self._record_sot_retrieval_telemetry(
+                    phase_id=phase_id,
+                    include_sot=include_sot,
+                    max_context_chars=max_context_chars,
+                    retrieved_context=retrieved,
+                    formatted_context=retrieved_context,
+                )
+
                 if retrieved_context:
                     logger.info(f"[{phase_id}] Retrieved {len(retrieved_context)} chars of context from memory")
             except Exception as e:
@@ -6364,6 +6395,12 @@ Just the new description that should replace the current one while preserving th
                 phase_description = phase.get("description", "")
                 query = f"{phase_description[:500]}"
                 project_id = self._get_project_slug() or self.run_id
+
+                # BUILD-154: Make SOT budget gating + telemetry explicit and non-silent
+                from autopack.config import settings
+                max_context_chars = max(4000, settings.autopack_sot_retrieval_max_chars + 2000)
+                include_sot = self._should_include_sot_retrieval(max_context_chars, phase_id=phase_id)
+
                 retrieved = self.memory_service.retrieve_context(
                     query=query,
                     project_id=project_id,
@@ -6375,9 +6412,19 @@ Just the new description that should replace the current one while preserving th
                     include_planning=True,
                     include_plan_changes=True,
                     include_decisions=True,
-                    include_sot=bool(settings.autopack_sot_retrieval_enabled),
+                    include_sot=include_sot,
                 )
-                retrieved_context = self.memory_service.format_retrieved_context(retrieved, max_chars=4000)
+                retrieved_context = self.memory_service.format_retrieved_context(retrieved, max_chars=max_context_chars)
+
+                # BUILD-155: Record SOT retrieval telemetry
+                self._record_sot_retrieval_telemetry(
+                    phase_id=phase_id,
+                    include_sot=include_sot,
+                    max_context_chars=max_context_chars,
+                    retrieved_context=retrieved,
+                    formatted_context=retrieved_context,
+                )
+
                 if retrieved_context:
                     logger.info(f"[{phase_id}] Retrieved {len(retrieved_context)} chars of context from memory")
             except Exception as e:
@@ -6753,6 +6800,12 @@ Just the new description that should replace the current one while preserving th
                 phase_description = phase.get("description", "")
                 query = f"{phase_description[:500]}"
                 project_id = self._get_project_slug() or self.run_id
+
+                # BUILD-154: Make SOT budget gating + telemetry explicit and non-silent
+                from autopack.config import settings
+                max_context_chars = max(4000, settings.autopack_sot_retrieval_max_chars + 2000)
+                include_sot = self._should_include_sot_retrieval(max_context_chars, phase_id=phase_id)
+
                 retrieved = self.memory_service.retrieve_context(
                     query=query,
                     project_id=project_id,
@@ -6764,9 +6817,19 @@ Just the new description that should replace the current one while preserving th
                     include_planning=True,
                     include_plan_changes=True,
                     include_decisions=True,
-                    include_sot=bool(settings.autopack_sot_retrieval_enabled),
+                    include_sot=include_sot,
                 )
-                retrieved_context = self.memory_service.format_retrieved_context(retrieved, max_chars=4000)
+                retrieved_context = self.memory_service.format_retrieved_context(retrieved, max_chars=max_context_chars)
+
+                # BUILD-155: Record SOT retrieval telemetry
+                self._record_sot_retrieval_telemetry(
+                    phase_id=phase_id,
+                    include_sot=include_sot,
+                    max_context_chars=max_context_chars,
+                    retrieved_context=retrieved,
+                    formatted_context=retrieved_context,
+                )
+
                 if retrieved_context:
                     logger.info(f"[{phase_id}] Retrieved {len(retrieved_context)} chars of context from memory")
             except Exception as e:
@@ -8100,6 +8163,161 @@ Just the new description that should replace the current one while preserving th
 
         # Default to Autopack framework
         return "autopack"
+
+    def _should_include_sot_retrieval(self, max_context_chars: int, phase_id: Optional[str] = None) -> bool:
+        """Budget-aware gating for SOT retrieval.
+
+        Args:
+            max_context_chars: Total context budget allocated for this retrieval
+
+        Returns:
+            True if SOT retrieval should be included based on budget availability
+
+        Notes:
+            - SOT retrieval is only included if globally enabled AND budget allows
+            - Budget check: max_context_chars >= (sot_budget + 2000)
+            - The 2000-char reserve ensures room for other context sections
+            - See docs/SOT_MEMORY_INTEGRATION_EXAMPLE.md for integration pattern
+        """
+        from autopack.config import settings
+
+        phase_prefix = f"[{phase_id}] " if phase_id else ""
+
+        # Global kill switch
+        if not settings.autopack_sot_retrieval_enabled:
+            logger.info(f"{phase_prefix}[SOT] Retrieval disabled by config (autopack_sot_retrieval_enabled=false)")
+            return False
+
+        # Budget gating: ensure we have enough headroom for SOT + other context
+        sot_budget = settings.autopack_sot_retrieval_max_chars  # Default: 4000
+        min_required_budget = sot_budget + 2000  # Reserve 2K for non-SOT context
+
+        if max_context_chars < min_required_budget:
+            logger.info(
+                f"{phase_prefix}[SOT] Skipping retrieval - insufficient budget "
+                f"(available: {max_context_chars}, needs: {min_required_budget}, "
+                f"sot_cap={sot_budget}, reserve=2000)"
+            )
+            return False
+
+        logger.info(
+            f"{phase_prefix}[SOT] Including retrieval (budget: {max_context_chars}, "
+            f"sot_cap={sot_budget}, top_k={settings.autopack_sot_retrieval_top_k})"
+        )
+        return True
+
+    def _record_sot_retrieval_telemetry(
+        self,
+        phase_id: str,
+        include_sot: bool,
+        max_context_chars: int,
+        retrieved_context: dict,
+        formatted_context: str,
+    ) -> None:
+        """Record SOT retrieval telemetry to database.
+
+        Args:
+            phase_id: Phase identifier
+            include_sot: Whether SOT retrieval was attempted
+            max_context_chars: Total context budget allocated
+            retrieved_context: Raw context dict from retrieve_context()
+            formatted_context: Final formatted string from format_retrieved_context()
+
+        Notes:
+            - Only records when TELEMETRY_DB_ENABLED=1
+            - Failures are logged as warnings and do not crash execution
+            - See docs/SOT_MEMORY_INTEGRATION_EXAMPLE.md for metrics explanation
+        """
+        # Always emit an operator-visible log line so this can never be "silent bloat".
+        # DB persistence remains opt-in (TELEMETRY_DB_ENABLED=1).
+        try:
+            from autopack.config import settings
+            sot_chunks = retrieved_context.get("sot", []) or []
+            sot_chunks_retrieved = len(sot_chunks)
+            sot_chars_raw = sum(len(chunk.get("content", "")) for chunk in sot_chunks)
+            total_context_chars = len(formatted_context)
+            budget_utilization_pct = (total_context_chars / max_context_chars * 100) if max_context_chars > 0 else 0.0
+            logger.info(
+                f"[{phase_id}] [SOT] Context telemetry: include_sot={include_sot}, "
+                f"sot_chunks={sot_chunks_retrieved}, sot_chars_raw={sot_chars_raw}, "
+                f"total_chars={total_context_chars}/{max_context_chars} ({budget_utilization_pct:.1f}%), "
+                f"sot_cap={settings.autopack_sot_retrieval_max_chars}, top_k={settings.autopack_sot_retrieval_top_k}"
+            )
+        except Exception:
+            # Never block execution if telemetry formatting fails.
+            pass
+
+        # Skip DB persistence if telemetry disabled
+        if not os.getenv("TELEMETRY_DB_ENABLED") == "1":
+            return
+
+        try:
+            from autopack.config import settings
+            from autopack.database import SessionLocal
+            from autopack.models import SOTRetrievalEvent
+            from datetime import datetime, timezone
+
+            # Calculate metrics
+            sot_chunks = retrieved_context.get("sot", [])
+            sot_chunks_retrieved = len(sot_chunks)
+            sot_chars_raw = sum(len(chunk.get("content", "")) for chunk in sot_chunks)
+
+            total_context_chars = len(formatted_context)
+            budget_utilization_pct = (total_context_chars / max_context_chars * 100) if max_context_chars > 0 else 0.0
+
+            # Determine sections included
+            sections_included = [k for k, v in retrieved_context.items() if v]
+
+            # Estimate SOT contribution in formatted output (approximate)
+            # Since format_retrieved_context() doesn't expose per-section breakdowns,
+            # we can't measure exact SOT chars after formatting.
+            # For now, set to None if SOT wasn't included, or sot_chars_raw if it was
+            # (this is an upper bound - actual may be lower if truncated).
+            sot_chars_formatted = sot_chars_raw if include_sot and sot_chunks else None
+
+            # Detect if SOT was truncated (heuristic: raw > formatted and formatted < max)
+            sot_truncated = False
+            if include_sot and sot_chars_raw > 0:
+                # If total context hit the cap, SOT might have been truncated
+                sot_truncated = (total_context_chars >= max_context_chars * 0.95)  # Within 5% of cap
+
+            # Create telemetry event
+            session = SessionLocal()
+            try:
+                event = SOTRetrievalEvent(
+                    run_id=self.run_id,
+                    phase_id=phase_id,
+                    timestamp=datetime.now(timezone.utc),
+                    include_sot=include_sot,
+                    max_context_chars=max_context_chars,
+                    sot_budget_chars=settings.autopack_sot_retrieval_max_chars,
+                    sot_chunks_retrieved=sot_chunks_retrieved,
+                    sot_chars_raw=sot_chars_raw,
+                    total_context_chars=total_context_chars,
+                    sot_chars_formatted=sot_chars_formatted,
+                    budget_utilization_pct=budget_utilization_pct,
+                    sot_truncated=sot_truncated,
+                    sections_included=sections_included,
+                    retrieval_enabled=settings.autopack_sot_retrieval_enabled,
+                    top_k=settings.autopack_sot_retrieval_top_k,
+                    created_at=datetime.now(timezone.utc),
+                )
+                session.add(event)
+                session.commit()
+
+                logger.debug(
+                    f"[{phase_id}] SOT telemetry recorded: "
+                    f"include_sot={include_sot}, "
+                    f"chunks={sot_chunks_retrieved}, "
+                    f"chars_raw={sot_chars_raw}, "
+                    f"total={total_context_chars}/{max_context_chars} "
+                    f"({budget_utilization_pct:.1f}%)"
+                )
+            finally:
+                session.close()
+
+        except Exception as e:
+            logger.warning(f"[{phase_id}] Failed to record SOT retrieval telemetry: {e}")
 
     def _resolve_project_docs_dir(self, project_id: str) -> Path:
         """Resolve the correct docs directory for a project.

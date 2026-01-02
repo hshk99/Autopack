@@ -2213,6 +2213,173 @@ def get_steam_games(
 
 
 
+@app.post("/storage/patterns/analyze", response_model=List[schemas.PatternResponse])
+def analyze_approval_patterns(
+    category: Optional[str] = None,
+    max_patterns: int = 10,
+    db: Session = Depends(get_db)
+):
+    """
+    Analyze approval history to detect patterns for learned rules.
+
+    Args:
+        category: Filter by category (optional)
+        max_patterns: Maximum patterns to return (default 10)
+
+    Returns:
+        List of detected patterns sorted by confidence
+    """
+    from .storage_optimizer.approval_pattern_analyzer import ApprovalPatternAnalyzer
+    from .storage_optimizer import load_policy
+
+    policy = load_policy()
+    analyzer = ApprovalPatternAnalyzer(db, policy)
+
+    patterns = analyzer.analyze_approval_patterns(category=category, max_patterns=max_patterns)
+
+    return [
+        schemas.PatternResponse(
+            pattern_type=p.pattern_type,
+            pattern_value=p.pattern_value,
+            category=p.category,
+            approvals=p.approvals,
+            rejections=p.rejections,
+            confidence=p.confidence,
+            sample_paths=p.sample_paths,
+            description=p.description
+        )
+        for p in patterns
+    ]
+
+
+@app.get("/storage/learned-rules", response_model=List[schemas.LearnedRuleResponse])
+def get_learned_rules(
+    status: Optional[str] = None,
+    db: Session = Depends(get_db)
+):
+    """
+    Get learned policy rules.
+
+    Args:
+        status: Filter by status (pending, approved, rejected, applied)
+
+    Returns:
+        List of learned rules
+    """
+    from autopack.models import LearnedRule
+
+    query = db.query(LearnedRule)
+
+    if status:
+        query = query.filter(LearnedRule.status == status)
+
+    rules = query.order_by(
+        LearnedRule.confidence_score.desc(),
+        LearnedRule.created_at.desc()
+    ).all()
+
+    return [
+        schemas.LearnedRuleResponse(
+            id=r.id,
+            created_at=r.created_at.isoformat(),
+            pattern_type=r.pattern_type,
+            pattern_value=r.pattern_value,
+            suggested_category=r.suggested_category,
+            confidence_score=float(r.confidence_score),
+            based_on_approvals=r.based_on_approvals,
+            based_on_rejections=r.based_on_rejections,
+            sample_paths=r.sample_paths,
+            status=r.status,
+            reviewed_by=r.reviewed_by,
+            reviewed_at=r.reviewed_at.isoformat() if r.reviewed_at else None,
+            description=r.description,
+            notes=r.notes
+        )
+        for r in rules
+    ]
+
+
+@app.post("/storage/learned-rules/{rule_id}/approve", response_model=schemas.LearnedRuleResponse)
+def approve_learned_rule(
+    rule_id: int,
+    approved_by: str,
+    db: Session = Depends(get_db)
+):
+    """Approve a learned rule for application to policy."""
+    from .storage_optimizer.approval_pattern_analyzer import ApprovalPatternAnalyzer
+    from .storage_optimizer import load_policy
+
+    policy = load_policy()
+    analyzer = ApprovalPatternAnalyzer(db, policy)
+
+    rule = analyzer.approve_rule(rule_id, approved_by)
+
+    return schemas.LearnedRuleResponse(
+        id=rule.id,
+        created_at=rule.created_at.isoformat(),
+        pattern_type=rule.pattern_type,
+        pattern_value=rule.pattern_value,
+        suggested_category=rule.suggested_category,
+        confidence_score=float(rule.confidence_score),
+        based_on_approvals=rule.based_on_approvals,
+        based_on_rejections=rule.based_on_rejections,
+        sample_paths=rule.sample_paths,
+        status=rule.status,
+        reviewed_by=rule.reviewed_by,
+        reviewed_at=rule.reviewed_at.isoformat() if rule.reviewed_at else None,
+        description=rule.description,
+        notes=rule.notes
+    )
+
+
+@app.get("/storage/recommendations", response_model=schemas.RecommendationsListResponse)
+def get_storage_recommendations(
+    max_recommendations: int = 10,
+    lookback_days: int = 90,
+    db: Session = Depends(get_db)
+):
+    """
+    Get strategic storage optimization recommendations based on scan history.
+
+    Args:
+        max_recommendations: Maximum recommendations to return (default 10)
+        lookback_days: Days of history to analyze (default 90)
+
+    Returns:
+        List of recommendations with scan statistics
+    """
+    from .storage_optimizer.recommendation_engine import RecommendationEngine
+    from .storage_optimizer import load_policy
+
+    policy = load_policy()
+    engine = RecommendationEngine(db, policy)
+
+    recommendations = engine.generate_recommendations(
+        max_recommendations=max_recommendations,
+        lookback_days=lookback_days
+    )
+
+    scan_stats = engine.get_scan_statistics(lookback_days=lookback_days)
+
+    return schemas.RecommendationsListResponse(
+        recommendations=[
+            schemas.RecommendationResponse(
+                type=r.type,
+                priority=r.priority,
+                title=r.title,
+                description=r.description,
+                evidence=r.evidence,
+                action=r.action,
+                potential_savings_bytes=r.potential_savings_bytes,
+                potential_savings_gb=round(r.potential_savings_bytes / (1024**3), 2) if r.potential_savings_bytes else None
+            )
+            for r in recommendations
+        ],
+        scan_statistics=scan_stats
+    )
+
+
+
 @app.get("/health")
 def health_check(db: Session = Depends(get_db)):
     """

@@ -316,3 +316,63 @@ class SteamGamesListResponse(BaseModel):
     games: List[SteamGameResponse]
     steam_available: bool
     steam_path: Optional[str] = None
+
+
+# Storage Optimizer Intelligence Features (BUILD-151 Phase 4)
+
+class PatternResponse(BaseModel):
+    """Detected approval pattern"""
+    pattern_type: str
+    pattern_value: str
+    category: str
+    approvals: int
+    rejections: int
+    confidence: float
+    sample_paths: List[str]
+    description: str
+
+
+class LearnedRuleResponse(BaseModel):
+    """Learned policy rule"""
+    id: int
+    created_at: str  # ISO format
+    pattern_type: str
+    pattern_value: str
+    suggested_category: str
+    confidence_score: float
+    based_on_approvals: int
+    based_on_rejections: int
+    sample_paths: Optional[str] = None  # JSON string
+    status: str
+    reviewed_by: Optional[str] = None
+    reviewed_at: Optional[str] = None
+    description: Optional[str] = None
+    notes: Optional[str] = None
+
+
+class SmartCategorizationResponse(BaseModel):
+    """Result of smart categorization"""
+    path: str
+    category: str
+    reason: str
+    confidence: float
+    llm_used: bool
+    tokens_used: int
+
+
+class RecommendationResponse(BaseModel):
+    """Strategic storage recommendation"""
+    type: str
+    priority: str
+    title: str
+    description: str
+    evidence: Dict[str, Any]
+    action: str
+    potential_savings_bytes: Optional[int] = None
+    potential_savings_gb: Optional[float] = None
+
+
+class RecommendationsListResponse(BaseModel):
+    """List of recommendations with statistics"""
+    recommendations: List[RecommendationResponse]
+    scan_statistics: Dict[str, Any]

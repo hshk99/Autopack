@@ -1,0 +1,45 @@
+{
+  "scan_date": "2026-01-02T13:32:36.944295",
+  "drive_letter": "a",
+  "disk_usage": {
+    "total_gb": 0.0,
+    "used_gb": 0.0,
+    "free_gb": 0.0,
+    "used_percentage": 0.0
+  },
+  "scan_summary": {
+    "files_scanned": 79,
+    "folders_scanned": 21
+  },
+  "protected": {
+    "paths_count": 100,
+    "size_gb": 0.008631919510662556,
+    "sample_paths": [
+      "archive/superseded\\analysis",
+      "archive/superseded\\diagnostics",
+      "archive/superseded\\patches",
+      "archive/superseded\\phases",
+      "archive/superseded\\plans",
+      "archive/superseded\\prompts",
+      "archive/superseded\\reports",
+      "archive/superseded\\research",
+      "archive/superseded\\root_sot_duplicates",
+      "archive/superseded\\scripts",
+      "archive/superseded\\analysis\\unsorted",
+      "archive/superseded\\analysis\\unsorted\\QUALITY_GATE_ANALYSIS.md",
+      "archive/superseded\\analysis\\unsorted\\SECOND_OPINION_MANUAL_INTERVENTION_ANALYSIS.md",
+      "archive/superseded\\analysis\\unsorted\\TASK_14_CI_FAILURE_REVIEW_REPORT.md",
+      "archive/superseded\\analysis\\unsorted\\UNSORTED_REVIEW.md",
+      "archive/superseded\\diagnostics\\data",
+      "archive/superseded\\diagnostics\\errors",
+      "archive/superseded\\diagnostics\\logs",
+      "archive/superseded\\diagnostics\\root_sot_duplicates",
+      "archive/superseded\\diagnostics\\second_opinion_pack_2025-12-28"
+    ]
+  },
+  "cleanup_plan": {
+    "total_savings_gb": 0.0,
+    "total_candidates": 0,
+    "by_category": {}
+  }
+}

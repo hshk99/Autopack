@@ -1,0 +1,58 @@
+================================================================================
+STORAGE OPTIMIZATION REPORT
+================================================================================
+Date: 2026-01-02 13:32:36
+Drive: a:\
+
+DISK USAGE:
+  Total Space: 0.00 GB
+  Used Space:  0.00 GB (0.0%)
+  Free Space:  0.00 GB
+
+SCAN SUMMARY:
+  Files scanned:   79
+  Folders scanned: 21
+
+POLICY PROTECTIONS (items excluded from cleanup):
+  Protected paths: 100
+  Protected size:  0.01 GB
+
+  Sample protected paths:
+    - archive/superseded\analysis
+    - archive/superseded\diagnostics
+    - archive/superseded\patches
+    - archive/superseded\phases
+    - archive/superseded\plans
+    - archive/superseded\prompts
+    - archive/superseded\reports
+    - archive/superseded\research
+    - archive/superseded\root_sot_duplicates
+    - archive/superseded\scripts
+    ... and 90 more
+
+TOP 10 SPACE CONSUMERS:
+   1.         2 MB [DIR]  - archive/superseded\reports
+   2.         1 MB [DIR]  - archive/superseded\diagnostics\second_opinion_pack_2025-12-28
+   3.         1 MB [DIR]  - archive/superseded\diagnostics
+   4.         1 MB [DIR]  - archive/superseded\diagnostics\second_opinion_pack_2025-12-28\CONSOLIDATED
+   5.         0 MB [DIR]  - archive/superseded\diagnostics\data
+   6.         0 MB [DIR]  - archive/superseded\research
+   7.         0 MB [DIR]  - archive/superseded\prompts
+   8.         0 MB [FILE] - archive/superseded\diagnostics\data\model_selections_20251201.jsonl
+   9.         0 MB [FILE] - archive/superseded\diagnostics\root_sot_duplicates_report.json
+  10.         0 MB [FILE] - archive/superseded\diagnostics\root_sot_duplicates_report.md
+
+CLEANUP OPPORTUNITIES:
+  Total Potential Savings: 0.00 GB
+  Total Candidates: 0
+
+  Approval Requirements:
+    Requires manual approval: 0 items
+    Can auto-delete:          0 items
+
+  Sample Cleanup Candidates:
+
+================================================================================
+This is a DRY-RUN report. No files have been deleted.
+Review the cleanup candidates before executing any deletions.
+================================================================================

@@ -112,6 +112,18 @@ categories:
       compress: { enabled: true, requires_approval: false }
       delete: { enabled: true, requires_approval: true }
 
+  temp_files:
+    match_globs:
+      - "**/*.node"  # Cursor/VSCode temp native modules
+      - "**/Temp/vscode-stable-user-*/**"
+      - "**/Temp/cursor-browser-extension-session-*/**"
+      - "**/Temp/Diagnostics/**"
+      - "**/AppData/Local/Temp/**/*.tmp"
+      - "**/AppData/Local/Temp/**/*.temp"
+    allowed_actions:
+      delete: { enabled: true, requires_approval: true }
+      compress: { enabled: false, requires_approval: false }
+
   # Catch-all: unknown content should not be auto-deleted.
   unknown:
     match_globs: ["**"]

@@ -251,6 +251,10 @@ def save_scan_to_database(db, scan_target, scan_type, policy, scan_results, cand
     db.add(scan)
     db.flush()  # Get scan.id
 
+    # Verify scan.id is populated
+    if not scan.id:
+        raise ValueError("Scan ID not generated after flush - database may not support auto-increment")
+
     # Save candidates
     for candidate in candidates:
         candidate_db = CleanupCandidateDB(
@@ -258,7 +262,7 @@ def save_scan_to_database(db, scan_target, scan_type, policy, scan_results, cand
             path=candidate.path,
             size_bytes=candidate.size_bytes,
             age_days=candidate.age_days,
-            last_modified=candidate.last_modified,
+            last_modified=candidate.modified,  # CleanupCandidate uses 'modified' field
             category=candidate.category,
             reason=candidate.reason,
             requires_approval=candidate.requires_approval,
@@ -266,13 +270,22 @@ def save_scan_to_database(db, scan_target, scan_type, policy, scan_results, cand
         )
         db.add(candidate_db)
 
-    db.commit()
-    db.refresh(scan)
+    # Store timestamp before commit (scan object will be detached after commit)
+    scan_timestamp = scan.timestamp
+    scan_id = scan.id
 
-    print(f"[DB] Saved scan ID: {scan.id}")
+    db.commit()
+
+    # Query back the scan to get fresh instance (avoid detached object issues)
+    saved_scan = db.query(StorageScan).filter(StorageScan.id == scan_id).first()
+
+    if saved_scan:
+        print(f"[DB] Saved scan ID: {saved_scan.id}")
+    else:
+        print(f"[DB] Scan saved successfully (ID: {scan_id})")
     print("")
 
-    return scan
+    return saved_scan
 
 
 def compare_scans(db, current_scan_id, previous_scan_id):
@@ -504,7 +517,7 @@ def main():
 
     if args.dir:
         print(f"      Directory: {args.dir}")
-        scan_results = scanner.scan_directory(args.dir, max_depth=args.max_depth, max_items=args.max_items)
+        scan_results = scanner.scan_directory(args.dir, max_items=args.max_items)
         drive_letter = args.dir[0] if len(args.dir) > 0 else "C"
     else:
         # Phase 3: Use full drive scan with WizTree (much faster than selective scanning)

@@ -177,29 +177,36 @@ All phases from [TIDY_SYSTEM_REVISION_PLAN_2026-01-01.md](./TIDY_SYSTEM_REVISION
 
 Tidy system executed with comprehensive .autonomous_runs/ cleanup and locked file handling.
 
-**Commit**: `88e48606` - "chore: BUILD-145 tidy system - workspace cleanup execution complete"
+**Initial Commit**: `88e48606` - "chore: BUILD-145 tidy system - workspace cleanup execution complete"
+**Final Commit**: `d2257746` - "chore: Lower keep-last-N to 3 for run archival, archive orphaned storage_execution.log"
 
 ### Actual Cleanup Achieved
 
 **Root Directory**:
 - ✅ autopack.db remains (active database)
-- ⚠️ 13 telemetry databases still at root (locked by Windows processes - documented in README Gap #2)
+- ⚠️ 13 telemetry databases still at root (locked by Windows processes - documented in TIDY_LOCKED_FILES_HOWTO.md)
 - ✅ requirements/research_followup/ moved to archive/misc/
 
 **.autonomous_runs/**:
-- ✅ 45 orphaned files archived → `archive/diagnostics/logs/autonomous_runs/`
+- ✅ 46 orphaned files archived → `archive/diagnostics/logs/autonomous_runs/`
   - 30+ build/retry/diagnostics logs (*.log)
   - 4 JSON reports (baseline.json, retry.json, verify_report_*.json)
   - 1 JSONL telemetry file
+  - 1 storage_execution.log (archived in final pass)
 - ✅ 910 empty directories removed (908 standalone + 2 in full tidy)
 - ✅ 0 orphaned files remain at root
 - ✅ Runtime workspaces protected (autopack, _shared, baselines, checkpoints, etc.)
+- ✅ Run archival policy lowered from keep-last-10 to keep-last-3
+- ⚠️ 4 telemetry runs pending archival (v5, v7, v7b, v8-budget-floors) - blocked by file locks on api_server logs
+- ✅ 3 newest telemetry runs remain at root (v4, v6, v8b-override-fix)
 
 **Overall**:
 - ✅ Tidy system completes successfully despite locked files (resilient)
 - ✅ Locked files skipped gracefully without crashing
 - ✅ .autonomous_runs/ cleanup works end-to-end
+- ✅ Run archival policy correctly routes to archive/runs/ (not .autonomous_runs/autopack/runs/)
 - ⚠️ 13 database violations reported by verifier (expected until locks resolved)
+- ⚠️ 4 runs pending archival (will auto-archive after locks release)
 
 ## Design Decisions
 
@@ -241,22 +248,29 @@ Cleanup logic is complex enough to deserve its own module:
 ## Success Metrics
 
 - ✅ Database routing logic implemented and tested
-- ⚠️ 13 databases couldn't be moved (locked by Windows processes - expected)
+- ⚠️ 13 databases couldn't be moved (locked by Windows processes - documented in TIDY_LOCKED_FILES_HOWTO.md)
 - ✅ requirements/research_followup/ routed to archive
 - ✅ 910 empty directories cleaned from .autonomous_runs/
-- ✅ 45 orphaned files archived from .autonomous_runs/
+- ✅ 46 orphaned files archived from .autonomous_runs/
 - ✅ Verifier aligned with tidy allowlists
-- ✅ Documentation updated (README + BUILD-145 doc)
+- ✅ Documentation updated (README + BUILD-145 doc + TIDY_LOCKED_FILES_HOWTO.md)
 - ✅ No manual intervention required for cleanup
 - ✅ System resilient to locked files (skips gracefully)
 - ✅ Locked file handling prevents crashes
 - ✅ .autonomous_runs/ cleanup works end-to-end
+- ✅ Run archival policy correctly implemented (archive/runs/, not .autonomous_runs/autopack/runs/)
+- ✅ Keep-last-N policy tunable (lowered from 10 to 3)
+- ⚠️ 4 runs pending archival (will auto-archive after locks release)
 
 ---
 
 **Build Status**: ✅ Complete & Executed
 **Execution Date**: 2026-01-02
-**Commit**: 88e48606
-**Files Archived**: 45 orphaned files
+**Initial Commit**: 88e48606 - "chore: BUILD-145 tidy system - workspace cleanup execution complete"
+**Final Commit**: d2257746 - "chore: Lower keep-last-N to 3 for run archival, archive orphaned storage_execution.log"
+**Files Archived**: 46 orphaned files
 **Directories Cleaned**: 910 empty directories
-**Known Issue**: 13 databases locked (documented in README Gap #2)
+**Runs Pending Archival**: 4 telemetry runs (locked by api_server log files)
+**Known Issues**:
+  - 13 databases locked (documented in TIDY_LOCKED_FILES_HOWTO.md)
+  - 4 runs pending archival (will auto-archive after locks release)

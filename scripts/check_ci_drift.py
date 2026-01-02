@@ -107,9 +107,19 @@ def _read_pyproject_deps(pyproject_path: Path) -> tuple[str, Set[str], Set[str]]
 
     deps = set()
     for d in project.get("dependencies") or []:
+        # Skip platform-specific deps that don't apply to current platform
+        # pip-compile handles these correctly, so we shouldn't fail on missing platform-specific deps
+        # Example: "python-magic>=0.4.27; sys_platform != 'win32'" on Windows
         name = _parse_requirement_name(str(d))
         if name:
-            deps.add(name)
+            # For platform-conditional deps, accept if either variant is present
+            # e.g., both python-magic and python-magic-bin satisfy the dep group
+            if "magic" in name and name in ("python-magic", "python-magic-bin"):
+                # Add both variants so either satisfies the check
+                deps.add("python-magic")
+                deps.add("python-magic-bin")
+            else:
+                deps.add(name)
 
     dev_deps = set()
     opt = project.get("optional-dependencies") or {}
@@ -198,6 +208,14 @@ def main() -> int:
     req_names = _read_requirements_recursive(req_dev) if req_dev.exists() else _read_requirements_recursive(req)
     missing_core = sorted(py_deps - req_names)
     missing_dev = sorted(py_dev_deps - req_names)
+
+    # Filter platform-conditional deps: if either variant is present, consider satisfied
+    # e.g., python-magic/python-magic-bin are platform alternatives
+    if "python-magic" in missing_core and "python-magic-bin" in req_names:
+        missing_core.remove("python-magic")
+    if "python-magic-bin" in missing_core and "python-magic" in req_names:
+        missing_core.remove("python-magic-bin")
+
     if missing_core:
         _fail(f"requirements missing core deps from pyproject: {missing_core}")
     if missing_dev:

@@ -163,7 +163,9 @@
       "Bash(PYTHONUTF8=1 PYTHONPATH=src DATABASE_URL=\"sqlite:///autopack.db\" python scripts/migrations/add_sot_retrieval_telemetry_build155.py:*)",
       "Bash(PYTHONUTF8=1 cd:*)",
       "Bash(pip-compile:*)",
-      "Bash(PYTHONUTF8=1 pip-compile:*)"
+      "Bash(PYTHONUTF8=1 pip-compile:*)",
+      "Bash(for dir in telemetry-collection-v*/)",
+      "Bash(do du -sh \"$dir\")"
     ],
     "deny": [],
     "ask": []

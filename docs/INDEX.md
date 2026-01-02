@@ -30,7 +30,8 @@ These are the canonical references that should stay current and are designed to 
 - **Project status & latest updates**: `README.md` (quickstart + current status), `docs/CHANGELOG.md` (full historical ledger)
 - **Running Autopack / using the API**: `docs/QUICKSTART.md`, `docs/API_BASICS.md`, `docs/CANONICAL_API_CONTRACT.md`
 - **True Autonomy implementation details**: `docs/IMPLEMENTATION_PLAN_TRUE_AUTONOMY.md`, `docs/TRUE_AUTONOMY_COMPLETE_IMPLEMENTATION_REPORT.md`
-- **Storage Optimizer**: `docs/STORAGE_OPTIMIZER_MVP_COMPLETION.md`, `docs/STORAGE_OPTIMIZER_INTELLIGENCE_COMPLETE.md`, `docs/DATA_RETENTION_AND_STORAGE_POLICY.md`
+- **Storage Optimizer**: `docs/STORAGE_OPTIMIZER_MVP_COMPLETION.md`, `docs/STORAGE_OPTIMIZER_INTELLIGENCE_COMPLETE.md`, `docs/STORAGE_OPTIMIZER_AUTOMATION.md`
+- **Protection & Retention Policy**: `docs/PROTECTION_AND_RETENTION_POLICY.md` (unified policy for Tidy + Storage Optimizer)
 - **Testing**: `docs/TESTING_GUIDE.md`
 - **Troubleshooting**: `docs/TROUBLESHOOTING.md`
 

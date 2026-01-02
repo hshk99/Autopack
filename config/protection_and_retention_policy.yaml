@@ -1,0 +1,212 @@
+# Unified Protection and Retention Policy
+# Shared by: Tidy System + Storage Optimizer
+# Version: 1.0
+# Last Updated: 2026-01-02
+
+version: "1.0"
+date: "2026-01-02"
+
+# ==============================================================================
+# Absolute Protections (NEVER delete/move/modify)
+# ==============================================================================
+
+protected_paths:
+  description: "Paths that MUST NEVER be deleted, moved, or modified by any automation"
+
+  # Source code and tests
+  source_code:
+    - "src/**"
+    - "tests/**"
+    - "**/*.py"  # Python source files (anywhere)
+    - "**/*.js"  # JavaScript source files
+    - "**/*.ts"  # TypeScript source files
+
+  # Version control and CI/CD
+  vcs_and_ci:
+    - ".git/**"
+    - ".github/**"
+    - ".gitignore"
+    - ".gitattributes"
+
+  # SOT (Source of Truth) Core Documents
+  sot_core:
+    - "docs/PROJECT_INDEX.json"
+    - "docs/BUILD_HISTORY.md"
+    - "docs/DEBUG_LOG.md"
+    - "docs/ARCHITECTURE_DECISIONS.md"
+    - "docs/FUTURE_PLAN.md"
+    - "docs/LEARNED_RULES.json"
+    - "docs/CHANGELOG.md"
+
+  # Configuration files
+  config:
+    - "config/**"
+    - "*.yaml"
+    - "*.yml"
+    - "*.json"  # Config JSONs (excluding node_modules)
+    - "*.toml"
+    - "pyproject.toml"
+    - "package.json"
+    - "requirements.txt"
+
+  # Databases
+  databases:
+    - "*.db"
+    - "*.sqlite"
+    - "*.sqlite3"
+    - "autopack.db"
+    - "fileorganizer.db"
+    - "telemetry_*.db"
+
+  # Audit trails (managed by tidy)
+  audit_trails:
+    - "archive/superseded/**"  # Consolidated docs moved here
+    - ".autonomous_runs/*/checkpoints/**"  # Phase checkpoints
+    - ".autonomous_runs/*/execution.log"   # Execution logs
+
+  # Active runs and current state
+  active_state:
+    - ".autonomous_runs/active/**"
+    - ".autonomous_runs/current_run.json"
+    - "venv/**"  # Python virtual environment
+    - "node_modules/**"  # Exclude from tidy (but Storage Optimizer can analyze)
+
+# ==============================================================================
+# Retention Policies (Age-based cleanup eligibility)
+# ==============================================================================
+
+retention:
+  description: "Age-based policies for cleanup eligibility (does NOT apply to protected_paths)"
+
+  # Short retention (30 days)
+  short_term:
+    age_days: 30
+    paths:
+      - "C:/Users/*/AppData/Local/Temp/**"
+      - "C:/Windows/Temp/**"
+      - "/tmp/**"
+      - "*.tmp"
+      - "*.temp"
+
+  # Medium retention (90 days)
+  medium_term:
+    age_days: 90
+    paths:
+      - ".autonomous_runs/*/errors/**"  # Error diagnostics
+      - "archive/diagnostics/**"         # Diagnostic snapshots
+      - "**/node_modules/**"             # Development caches (analyzable by Storage Optimizer)
+      - "**/__pycache__/**"              # Python bytecode
+      - "**/dist/**"                     # Build outputs
+      - "**/build/**"                    # Build outputs
+      - "**/.pytest_cache/**"            # Test caches
+
+  # Long retention (180 days)
+  long_term:
+    age_days: 180
+    paths:
+      - "archive/runs/**"                # Archived run data
+      - "C:/Users/*/Downloads/**"        # User downloads (suggest cleanup)
+      - "C:/Users/*/AppData/Local/Microsoft/Windows/INetCache/**"  # Browser cache
+
+  # Permanent retention (keep indefinitely)
+  permanent:
+    description: "Never age out, but can be manually cleaned"
+    paths:
+      - "archive/superseded/**"          # SOT consolidation history
+      - "docs/**"                        # All documentation
+      - ".autonomous_runs/*/checkpoints/**"  # Execution checkpoints
+      - "*.db"                           # Databases (covered by protected_paths too)
+
+# ==============================================================================
+# Category-Specific Policies (Storage Optimizer)
+# ==============================================================================
+
+categories:
+  dev_caches:
+    description: "Development tool caches and dependencies"
+    patterns:
+      - "**/node_modules/**"
+      - "**/__pycache__/**"
+      - "**/dist/**"
+      - "**/build/**"
+      - "**/.pytest_cache/**"
+      - "**/target/**"  # Rust
+      - "**/.gradle/**"  # Gradle
+    retention_days: 90
+    execution_limits:
+      max_gb_per_run: 50
+      max_files_per_run: 1000
+      max_retries: 3
+      retry_backoff_seconds: [2, 5, 10]
+
+  diagnostics_logs:
+    description: "Diagnostic logs and error snapshots"
+    patterns:
+      - "archive/diagnostics/**"
+      - ".autonomous_runs/*/errors/**"
+      - "*.log"
+    retention_days: 90
+    execution_limits:
+      max_gb_per_run: 10
+      max_files_per_run: 500
+      max_retries: 2
+      retry_backoff_seconds: [2, 5]
+
+  runs:
+    description: "Archived autonomous run data"
+    patterns:
+      - "archive/runs/**"
+      - ".autonomous_runs/*/output/**"
+    retention_days: 180
+    execution_limits:
+      max_gb_per_run: 20
+      max_files_per_run: 1000
+      max_retries: 3
+      retry_backoff_seconds: [2, 5, 10]
+
+  archive_buckets:
+    description: "Superseded/archived documents"
+    patterns:
+      - "archive/superseded/**"
+    retention_days: null  # Never auto-delete (permanent retention)
+    execution_limits:
+      max_gb_per_run: 0  # Disabled (protected)
+      max_files_per_run: 0
+
+# ==============================================================================
+# System-Specific Overrides
+# ==============================================================================
+
+overrides:
+  tidy_system:
+    # Tidy follows retention but also has SOT summary markers
+    respect_sot_markers: true  # Don't consolidate content within <!-- SOT_SUMMARY_START/END -->
+    skip_readme: true          # README.md has SOT markers, don't consolidate
+
+  storage_optimizer:
+    # Storage Optimizer can analyze but not delete protected paths
+    analyze_protected: true    # Can scan protected paths for size reporting
+    delete_protected: false    # NEVER delete protected paths
+    respect_retention: true    # Age-based filtering before suggesting cleanup
+
+# ==============================================================================
+# Database Retention (Future - BUILD-154+)
+# ==============================================================================
+
+database_retention:
+  description: "Retention policies for database tables (future enhancement)"
+
+  execution_checkpoints:
+    enabled: false  # Not yet implemented
+    retention_days: 90
+    cleanup_sql: "DELETE FROM execution_checkpoints WHERE timestamp < NOW() - INTERVAL '90 days'"
+
+  telemetry_events:
+    enabled: false
+    retention_days: 180
+    cleanup_sql: "DELETE FROM llm_usage_events WHERE timestamp < NOW() - INTERVAL '180 days'"
+
+  scan_history:
+    enabled: false
+    retention_days: 365
+    cleanup_sql: "DELETE FROM storage_scans WHERE timestamp < NOW() - INTERVAL '365 days'"

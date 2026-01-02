@@ -1,0 +1,75 @@
+================================================================================
+STORAGE OPTIMIZATION REPORT
+================================================================================
+Date: 2026-01-02 13:45:55
+Drive: c:\
+
+DISK USAGE:
+  Total Space: 871.99 GB
+  Used Space:  782.83 GB (89.8%)
+  Free Space:  89.16 GB
+
+SCAN SUMMARY:
+  Files scanned:   24
+  Folders scanned: 26
+
+TOP 10 SPACE CONSUMERS:
+   1.       139 MB [DIR]  - c:/Users/hshk9/AppData/Local/Temp\vscode-stable-user-x64-5rk8j1o795
+   2.        32 MB [DIR]  - c:/Users/hshk9/AppData/Local/Temp\Diagnostics
+   3.        10 MB [DIR]  - c:/Users/hshk9/AppData/Local/Temp\cursor-browser-extension-session-1766802604878
+   4.         7 MB [FILE] - c:/Users/hshk9/AppData/Local/Temp\.78952fdf7bee3bae-00000001.node
+   5.         7 MB [FILE] - c:/Users/hshk9/AppData/Local/Temp\.789537d37afefa8e-00000001.node
+   6.         7 MB [FILE] - c:/Users/hshk9/AppData/Local/Temp\.789537f313fefefe-00000001.node
+   7.         7 MB [FILE] - c:/Users/hshk9/AppData/Local/Temp\.789537f33aee3f3e-00000001.node
+   8.         7 MB [FILE] - c:/Users/hshk9/AppData/Local/Temp\.789537f3fe7fff2e-00000001.node
+   9.         7 MB [FILE] - c:/Users/hshk9/AppData/Local/Temp\.789537fb376f3fee-00000001.node
+  10.         7 MB [FILE] - c:/Users/hshk9/AppData/Local/Temp\.789537ff77fe3e4e-00000001.node
+
+CLEANUP OPPORTUNITIES:
+  Total Potential Savings: 0.16 GB
+  Total Candidates: 24
+
+  By Category:
+    temp_files          :     0.16 GB (24 items)
+
+  Approval Requirements:
+    Requires manual approval: 24 items
+    Can auto-delete:          0 items
+
+  Sample Cleanup Candidates:
+    -         7 MB [APPROVAL REQUIRED]  temp_files     
+      c:/Users/hshk9/AppData/Local/Temp\.78952fdf7bee3bae-00000001.node
+      Reason: Matched category 'temp_files'
+    -         7 MB [APPROVAL REQUIRED]  temp_files     
+      c:/Users/hshk9/AppData/Local/Temp\.789537d37afefa8e-00000001.node
+      Reason: Matched category 'temp_files'
+    -         7 MB [APPROVAL REQUIRED]  temp_files     
+      c:/Users/hshk9/AppData/Local/Temp\.789537f313fefefe-00000001.node
+      Reason: Matched category 'temp_files'
+    -         7 MB [APPROVAL REQUIRED]  temp_files     
+      c:/Users/hshk9/AppData/Local/Temp\.789537f33aee3f3e-00000001.node
+      Reason: Matched category 'temp_files'
+    -         7 MB [APPROVAL REQUIRED]  temp_files     
+      c:/Users/hshk9/AppData/Local/Temp\.789537f3fe7fff2e-00000001.node
+      Reason: Matched category 'temp_files'
+    -         7 MB [APPROVAL REQUIRED]  temp_files     
+      c:/Users/hshk9/AppData/Local/Temp\.789537fb376f3fee-00000001.node
+      Reason: Matched category 'temp_files'
+    -         7 MB [APPROVAL REQUIRED]  temp_files     
+      c:/Users/hshk9/AppData/Local/Temp\.789537ff77fe3e4e-00000001.node
+      Reason: Matched category 'temp_files'
+    -         7 MB [APPROVAL REQUIRED]  temp_files     
+      c:/Users/hshk9/AppData/Local/Temp\.789537ff77ff7eee-00000001.node
+      Reason: Matched category 'temp_files'
+    -         7 MB [APPROVAL REQUIRED]  temp_files     
+      c:/Users/hshk9/AppData/Local/Temp\.78953fd31effbbee-00000001.node
+      Reason: Matched category 'temp_files'
+    -         7 MB [APPROVAL REQUIRED]  temp_files     
+      c:/Users/hshk9/AppData/Local/Temp\.78953ff3bbffff7e-00000001.node
+      Reason: Matched category 'temp_files'
+    ... and 14 more candidates
+
+================================================================================
+This is a DRY-RUN report. No files have been deleted.
+Review the cleanup candidates before executing any deletions.
+================================================================================

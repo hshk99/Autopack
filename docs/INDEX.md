@@ -45,6 +45,10 @@ These are the canonical references that should stay current and are designed to 
 - **SOT Memory Integration**: SOT ledgers can be indexed into `MemoryService` for runtime retrieval
   - See `docs/TIDY_SOT_RETRIEVAL_INTEGRATION_PLAN.md` for implementation details
   - See `docs/SOT_MEMORY_INTEGRATION_EXAMPLE.md` for integration examples
+- **BUILD-145 Tidy Improvements**:
+  - Implementation: `docs/BUILD-145-TIDY-SYSTEM-REVISION-COMPLETE.md`
+  - Windows file locks: `docs/TIDY_LOCKED_FILES_HOWTO.md` (4 solution strategies)
+  - Workspace cleanup: .autonomous_runs/ cleanup, database routing, locked file handling
 
 ---
 

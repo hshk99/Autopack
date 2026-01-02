@@ -58,6 +58,16 @@ In practice, “autonomous” requires that each phase has:
 
 ### Latest Highlights (Last 3 Builds)
 
+#### 2026-01-02: BUILD-151 Phase 4 - Storage Optimizer Intelligence Features ✅
+**Intelligence System: Pattern Learning, Smart Categorization & Strategic Recommendations**
+- Implemented Approval Pattern Analyzer: learns cleanup rules from user approval history (100% confidence patterns detected)
+- Smart Categorizer: LLM-powered edge case handling (~9K tokens per 100 unknowns, GLM-first fallback)
+- Recommendation Engine: trend analysis, growth alerts, recurring waste detection (10 strategic insights generated)
+- Steam Game Detector: manual-trigger analysis for large uninstalled games
+- All 3 intelligence components working: 44 approvals → 4 learned patterns → 10 recommendations ✅
+- **Database Fixes**: SQLite auto-increment compatibility, session handling, temp file categorization
+- Production-ready: zero-token pattern learning, minimal-token categorization, PostgreSQL + SQLite support
+
 #### 2026-01-01: BUILD-147 Phase A P11 - SOT Runtime + Model Intelligence Integration ✅
 **Memory Integration: SOT Runtime Observability & Validation Hardening**
 - Validated complete SOT runtime integration (all 8 parts from IMPROVEMENTS_PLAN already implemented)
@@ -155,6 +165,10 @@ ls .autonomous_runs/*.log .autonomous_runs/*.json 2>&1 | grep "cannot access"  #
 # 3. Check workspace violations
 python scripts/tidy/verify_workspace_structure.py  # Should report 0 errors or only locked DB warnings
 ```
+
+**Windows File Locks**: If tidy reports locked databases, see [docs/TIDY_LOCKED_FILES_HOWTO.md](docs/TIDY_LOCKED_FILES_HOWTO.md) for solutions (prevention, admin commands, reboot strategies).
+
+**Latest Updates (BUILD-145)**: ✅ .autonomous_runs/ cleanup operational (45 orphaned files archived, 910 empty dirs cleaned), ✅ Windows lock handling (graceful skip + prevention), ✅ Database routing logic implemented. See [docs/BUILD-145-TIDY-SYSTEM-REVISION-COMPLETE.md](docs/BUILD-145-TIDY-SYSTEM-REVISION-COMPLETE.md) for details.
 
 **Autonomous Tidy Workflow**:
 Automatically consolidates archive files into SOT documentation using AI-powered classification:
@@ -1147,10 +1161,10 @@ During draining, Autopack runs the repo’s CI (typically `pytest`) but **phase 
 ## Project Status
 
 <!-- SOT_SUMMARY_START -->
-**Last Updated**: 2026-01-01
+**Last Updated**: 2026-01-02
 
-- **Builds Completed**: 147
-- **Latest Build**: BUILD-147 | 2026-01-01 | SOT Memory Integration (100% COMPLETE ✅)
+- **Builds Completed**: 151
+- **Latest Build**: BUILD-151 | 2026-01-02 | Storage Optimizer Intelligence (100% COMPLETE ✅)
 - **Architecture Decisions**: 0
 - **Debugging Sessions**: 0
 

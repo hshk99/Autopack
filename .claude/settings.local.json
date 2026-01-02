@@ -155,7 +155,8 @@
       "Bash(PYTHONUTF8=1 PYTHONPATH=src DATABASE_URL=\"sqlite:///:memory:\" timeout 60 python -m pytest:*)",
       "Bash(PYTHONUTF8=1 powershell:*)",
       "Bash(PYTHONUTF8=1 PYTHONPATH=src DATABASE_URL=\"sqlite:///autopack.db\" timeout 60 python:*)",
-      "Bash(PYTHONUTF8=1 PYTHONPATH=src DATABASE_URL=\"sqlite:///autopack.db\" python scripts/storage/scan_and_report.py:*)"
+      "Bash(PYTHONUTF8=1 PYTHONPATH=src DATABASE_URL=\"sqlite:///autopack.db\" python scripts/storage/scan_and_report.py:*)",
+      "Bash(PYTHONUTF8=1 PYTHONPATH=src DATABASE_URL=\"sqlite:///autopack.db\" python scripts/storage/learn_patterns.py:*)"
     ],
     "deny": [],
     "ask": []

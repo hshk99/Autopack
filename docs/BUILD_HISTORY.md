@@ -1952,3 +1952,52 @@ On 2026-01-01, a divergent root-level `BUILD_HISTORY.md` existed alongside this 
 To preserve auditability, the exact root duplicate was snapshotted before removal:
 - Snapshot: `archive/superseded/root_sot_duplicates/BUILD_HISTORY_ROOT_DUPLICATE_20260101.md`
 - SHA256: `5e0e91775ad4704961f2bebabbaa61a920ad11bffcc8215d848ab67fe96d9b84`| 2026-01-02 | BUILD-151 | Storage Optimizer Phase 4 - Intelligence Foundation (30% COMPLETE 🔄) | **Database Schema + Implementation Plan**: Established foundation for intelligent storage optimization features including approval pattern learning, LLM-powered categorization, and Steam game detection. **Part 1 - Database Migration**: Created add_storage_intelligence_features.py migration script (165 lines) supporting both SQLite and PostgreSQL. Added learned_rules table (13 columns) tracking pattern-based learning with fields: id, created_at, pattern_type (path_pattern/file_type/age_threshold/size_threshold), pattern_value, suggested_category, confidence_score (0.00-1.00), based_on_approvals/rejections counters, sample_paths (JSON for SQLite, array for PostgreSQL), status (pending/approved/rejected/applied), reviewed_by, reviewed_at, applied_to_policy_version, description, notes. Extended cleanup_candidates table with user_feedback TEXT and learned_rule_id foreign key. Created 3 indexes on learned_rules (status, confidence DESC, created_at DESC) plus 1 on cleanup_candidates.learned_rule_id. Migration runs idempotently (checks table existence first), handles SQLite vs PostgreSQL differences (AUTOINCREMENT vs SERIAL, TEXT vs TEXT[], separate ALTER TABLE statements for SQLite), includes rollback function for testing. **Part 2 - Implementation Plan**: Created comprehensive STORAGE_OPTIMIZER_PHASE4_PLAN.md (850+ lines) designing 4 intelligence components: (1) ApprovalPatternAnalyzer (400 lines planned) - learns from 90-day approval history, detects patterns in paths/types/ages/sizes, suggests policy rules with ≥80% confidence, targets 20% reduction in manual approvals; (2) SmartCategorizer (350 lines planned) - LLM-powered categorization for edge cases, token budget ≤2K per 100 files, uses Claude Sonnet for intelligent classification when rules fail, compact file representation to minimize cost; (3) SteamGameDetector (300 lines planned) - **addresses user's original request**, detects Steam installation via Windows registry, parses libraryfolders.vdf and .acf manifests, identifies unplayed games (180+ days, ≥10GB), calculates potential savings (typical 100-250GB recoverable), suggests safe uninstall (games can be reinstalled from library); (4) RecommendationEngine (250 lines planned) - integrates all analyzers, provides strategic recommendations ranked by impact, supports policy improvement suggestions and trend analysis. **API Design**: Specified 4 new endpoints - GET /storage/recommendations/{scan_id} (intelligent cleanup suggestions), GET /storage/learned-rules (review pending rules), POST /storage/learned-rules/{rule_id}/approve (apply learned rules to policy), GET /storage/steam/games (Steam game inventory with filters). **Part 3 - Status Documentation**: Created STORAGE_OPTIMIZER_PHASE4_STATUS.md (current state summary) documenting completed foundation (database + plan), next steps (implement 4 core components), estimated timeline (22-24 hours), and 3 rollout options: (A) Complete Phase 4 implementation, (B) Ship Phase 3 + document Phase 4 as future work, (C) Implement Steam Detector only (MVP++ addressing user's original request). **Testing Strategy**: Designed 18 unit tests (approval_analyzer 6, smart_categorizer 4, steam_detector 6, recommendations 2) plus 4 integration tests. Test files planned but not yet implemented: test_approval_analyzer.py (200 lines), test_smart_categorizer.py (150 lines), test_steam_detector.py (180 lines), test_recommendations.py (120 lines). **Success Metrics**: Rule learning accuracy ≥80%, LLM token efficiency ≤2K/100 files, Steam detection accuracy ≥95%, manual approval reduction 20%. **Impact**: Foundation enables intelligent storage optimization that learns from user behavior (reducing manual work over time), handles edge cases via LLM (when rules insufficient), provides high-value specialized detection (Steam games = huge space savings), addresses user's original request for game detection. Migration tested successfully on SQLite (autopack.db). **Next Actions**: Recommended to implement Steam Detector first (6-8 hours) as MVP++ fulfilling user's original request, then evaluate demand for remaining intelligence features. Files: scripts/migrations/add_storage_intelligence_features.py (NEW, 165 lines), docs/STORAGE_OPTIMIZER_PHASE4_PLAN.md (NEW, 850+ lines), docs/STORAGE_OPTIMIZER_PHASE4_STATUS.md (NEW, 400+ lines) | 3 |
+---
+
+## BUILD-145: Tidy System Revision + Windows File Lock Handling (2026-01-02) ✅ COMPLETE
+
+**Summary**: Revised Autopack tidy system to handle all workspace cleanup scenarios automatically, including .autonomous_runs/ cleanup and Windows file lock handling.
+
+**Core Changes**:
+1. **Database Classification System** (scripts/tidy/tidy_up.py:323-367): Intelligent routing for telemetry seeds, debug snapshots, test artifacts, legacy databases, backups. Only autopack.db allowed at root.
+2. **Directory Classification System** (scripts/tidy/tidy_up.py:294-359): Content-aware routing for backend/, code/, logs/, migrations/, reports/, research_tracer/, tracer_bullet/, examples/.
+3. **.autonomous_runs/ Cleanup Module** (scripts/tidy/autonomous_runs_cleaner.py, 445 lines): Cleans orphaned files (logs, JSON, JSONL), duplicate baseline archives, old run directories (keeps last 10 per prefix), empty directories. Protects runtime workspaces (autopack, _shared, baselines, checkpoints, etc.).
+4. **Windows File Lock Handling** (scripts/tidy/exclude_db_from_indexing.py): Uses attrib +N to exclude .db files from Windows Search indexing, preventing future locks by SearchIndexer.exe.
+
+**Execution Results**:
+- ✅ 45 orphaned files archived from .autonomous_runs/ → archive/diagnostics/logs/autonomous_runs/
+- ✅ 910 empty directories removed
+- ✅ 0 orphaned files remain at .autonomous_runs/ root
+- ✅ requirements/research_followup/ moved to archive/misc/
+- ⚠️ 13 telemetry databases still at root (locked by Windows Search Indexer - documented workaround)
+
+**Windows Lock Solution**: Implemented Option B (Accept Partial Tidy) - tidy skips locked files gracefully and continues. Created comprehensive HOWTO guide (docs/TIDY_LOCKED_FILES_HOWTO.md) with 4 options for handling locks: (A) exclude from indexing (prevention), (B) accept partial tidy (daily use), (C) stop locking processes (complete cleanup), (D) reboot + early tidy (stubborn locks).
+
+**Design Decisions**:
+- Only autopack.db at root: Active database stays for convenience, historical databases archived
+- Content inspection for directories: backend/ routing based on actual contents (tests vs scripts)
+- Keep last 10 runs policy: Balances disk usage with debugging needs
+- Separate cleanup module: Standalone execution, configurable retention, reusable
+
+**Files Modified**:
+- scripts/tidy/tidy_up.py (database/directory classification, locked file handling)
+- scripts/tidy/autonomous_runs_cleaner.py (NEW, 445 lines)
+- scripts/tidy/verify_workspace_structure.py (allowlist alignment)
+- scripts/tidy/exclude_db_from_indexing.py (NEW, Windows lock prevention)
+- docs/WORKSPACE_ORGANIZATION_SPEC.md (database routing, cleanup policies)
+- README.md (intentions and known gaps for future AI agents)
+
+**Documentation**:
+- docs/BUILD-145-TIDY-SYSTEM-REVISION-COMPLETE.md (implementation details)
+- docs/TIDY_LOCKED_FILES_HOWTO.md (Windows lock handling guide)
+- README.md updated with intentions and 3 known gaps
+
+**Success Metrics**: ✅ 910 empty directories cleaned, ✅ 45 orphaned files archived, ✅ System resilient to locked files, ✅ No manual intervention required, ⚠️ 13 databases remain locked (expected - Windows Search Indexer)
+
+**Commits**: 88e48606 (tidy execution), ab65e508 (docs update), 9feafc45 (lock handling)
+
+**Dependencies**: None
+**Related**: BUILD-150 (archive nesting fixes), PRE_TIDY_GAP_ANALYSIS_2026-01-01.md
+**See Also**: docs/TIDY_SYSTEM_REVISION_PLAN_2026-01-01.md (original plan), docs/WORKSPACE_ORGANIZATION_SPEC.md (canonical spec)
+
+---

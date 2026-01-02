@@ -1,7 +1,13 @@
 """
 Policy loader for storage retention and safety rules.
 
-Loads and enforces policies from config/storage_policy.yaml to ensure:
+Loads and enforces policies from the canonical unified policy file:
+- config/protection_and_retention_policy.yaml
+
+Backward compatibility:
+- Legacy config/storage_policy.yaml is still supported.
+
+This policy ensures:
 - Protected paths are never deleted
 - Retention windows are respected
 - Coordination with Tidy system
@@ -53,13 +59,24 @@ class StoragePolicy:
     retention: Dict[str, RetentionPolicy]
 
 
+@dataclass
+class CategoryDefinition:
+    """
+    Lightweight category definition used by optional intelligence features
+    (e.g., SmartCategorizer) for prompt construction.
+    """
+    name: str
+    patterns: List[str]
+    description: str = ""
+
+
 def load_policy(policy_path: Optional[Path] = None) -> StoragePolicy:
     """
     Load storage policy from YAML.
 
     Args:
         policy_path: Path to policy YAML file. If None, loads from
-                     config/storage_policy.yaml relative to repo root.
+                     config/protection_and_retention_policy.yaml relative to repo root.
 
     Returns:
         StoragePolicy object with all parsed policy data.
@@ -70,7 +87,7 @@ def load_policy(policy_path: Optional[Path] = None) -> StoragePolicy:
     """
     if policy_path is None:
         # Default to repo config
-        policy_path = Path(__file__).parent.parent.parent.parent / "config" / "storage_policy.yaml"
+        policy_path = Path(__file__).parent.parent.parent.parent / "config" / "protection_and_retention_policy.yaml"
 
     if not policy_path.exists():
         raise FileNotFoundError(f"Policy file not found: {policy_path}")
@@ -78,13 +95,27 @@ def load_policy(policy_path: Optional[Path] = None) -> StoragePolicy:
     with open(policy_path, 'r', encoding='utf-8') as f:
         data = yaml.safe_load(f)
 
+    if not isinstance(data, dict):
+        raise ValueError(f"Invalid policy format (expected YAML mapping) in {policy_path}")
+
+    # Dispatch based on schema
+    if "protected_paths" in data:
+        return _parse_unified_policy(data)
+    if "paths" in data:
+        return _parse_legacy_policy(data)
+
+    raise ValueError(f"Unrecognized policy schema in {policy_path}")
+
+
+def _parse_legacy_policy(data: Dict) -> StoragePolicy:
+    """Parse legacy config/storage_policy.yaml schema."""
     # Parse protected paths
     paths_section = data.get('paths', {})
     protected_globs = paths_section.get('protected_globs', [])
     pinned_globs = paths_section.get('pinned_globs', [])
 
     # Parse categories
-    categories = {}
+    categories: Dict[str, CategoryPolicy] = {}
     for cat_name, cat_data in data.get('categories', {}).items():
         match_globs = cat_data.get('match_globs', [])
         actions = cat_data.get('allowed_actions', {})
@@ -114,7 +145,7 @@ def load_policy(policy_path: Optional[Path] = None) -> StoragePolicy:
         )
 
     # Parse retention
-    retention = {}
+    retention: Dict[str, RetentionPolicy] = {}
     for ret_name, ret_data in data.get('retention_days', {}).items():
         retention[ret_name] = RetentionPolicy(
             compress_after_days=ret_data.get('compress_after'),
@@ -124,6 +155,65 @@ def load_policy(policy_path: Optional[Path] = None) -> StoragePolicy:
 
     return StoragePolicy(
         version=data.get('version', '1.0'),
+        protected_globs=protected_globs,
+        pinned_globs=pinned_globs,
+        categories=categories,
+        retention=retention
+    )
+
+
+def _parse_unified_policy(data: Dict) -> StoragePolicy:
+    """Parse unified config/protection_and_retention_policy.yaml schema."""
+    protected_globs: List[str] = []
+    pinned_globs: List[str] = []
+
+    protected_paths = data.get("protected_paths", {}) or {}
+    for k, v in protected_paths.items():
+        if k == "description":
+            continue
+        if isinstance(v, list):
+            protected_globs.extend(v)
+
+    categories: Dict[str, CategoryPolicy] = {}
+    retention: Dict[str, RetentionPolicy] = {}
+
+    for cat_name, cat_data in (data.get("categories", {}) or {}).items():
+        match_globs = cat_data.get("patterns", []) or []
+        actions = cat_data.get("allowed_actions", {}) or {}
+
+        delete_action = actions.get("delete", {}) or {}
+        compress_action = actions.get("compress", {}) or {}
+
+        execution_limits = None
+        if "execution_limits" in cat_data:
+            limits_data = cat_data.get("execution_limits") or {}
+            execution_limits = ExecutionLimits(
+                max_gb_per_run=limits_data.get("max_gb_per_run", 10.0),
+                max_files_per_run=limits_data.get("max_files_per_run", 100),
+                max_retries=limits_data.get("max_retries", 3),
+                retry_backoff_seconds=limits_data.get("retry_backoff_seconds", [2, 5, 10])
+            )
+
+        delete_requires_approval = bool(delete_action.get("requires_approval", True))
+        retention_days = cat_data.get("retention_days", None)
+        retention[cat_name] = RetentionPolicy(
+            compress_after_days=None,
+            delete_after_days=retention_days if isinstance(retention_days, int) else None,
+            delete_requires_approval=delete_requires_approval
+        )
+
+        categories[cat_name] = CategoryPolicy(
+            name=cat_name,
+            match_globs=match_globs,
+            delete_enabled=bool(delete_action.get("enabled", False)),
+            delete_requires_approval=delete_requires_approval,
+            compress_enabled=bool(compress_action.get("enabled", False)),
+            compress_requires_approval=bool(compress_action.get("requires_approval", False)),
+            execution_limits=execution_limits
+        )
+
+    return StoragePolicy(
+        version=data.get("version", "1.0"),
         protected_globs=protected_globs,
         pinned_globs=pinned_globs,
         categories=categories,

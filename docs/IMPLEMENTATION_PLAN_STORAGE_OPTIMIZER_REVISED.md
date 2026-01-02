@@ -12,7 +12,7 @@
 
 The original plan has been updated to integrate with:
 - **[DATA_RETENTION_AND_STORAGE_POLICY.md](DATA_RETENTION_AND_STORAGE_POLICY.md)** - Canonical policy
-- **[config/storage_policy.yaml](../config/storage_policy.yaml)** - Machine-readable policy ✅ **Already exists!**
+- **[config/protection_and_retention_policy.yaml](../config/protection_and_retention_policy.yaml)** - Machine-readable policy (canonical)
 
 ### Critical Policy Requirements
 
@@ -37,7 +37,7 @@ Given token constraints and the policy complexity, here's a streamlined approach
    - Prototype scanner working
 
 2. ✅ Policy infrastructure created
-   - `config/storage_policy.yaml` exists
+   - `config/protection_and_retention_policy.yaml` exists
    - `docs/DATA_RETENTION_AND_STORAGE_POLICY.md` canonical
 
 ### What Needs to Be Built
@@ -128,7 +128,7 @@ def load_policy(policy_path: Optional[Path] = None) -> StoragePolicy:
     """Load storage policy from YAML."""
     if policy_path is None:
         # Default to repo config
-        policy_path = Path(__file__).parent.parent.parent.parent / "config" / "storage_policy.yaml"
+        policy_path = Path(__file__).parent.parent.parent.parent / "config" / "protection_and_retention_policy.yaml"
 
     with open(policy_path, 'r') as f:
         data = yaml.safe_load(f)
@@ -418,7 +418,7 @@ Start with reports and policy validation. Once you see the value and trust the p
 If choosing **MVP** (recommended):
 
 1. Review this plan
-2. Confirm policy file (`config/storage_policy.yaml`) is correct
+2. Confirm policy file (`config/protection_and_retention_policy.yaml`) is correct
 3. Decide: Who builds it?
    - Option 1: I build it now (fast, low token cost)
    - Option 2: Autopack builds it (autonomous, higher token cost)

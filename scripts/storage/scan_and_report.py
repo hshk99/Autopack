@@ -115,7 +115,8 @@ def execute_cleanup(args, db):
     executor = CleanupExecutor(
         policy=policy,
         dry_run=args.dry_run,
-        compress_before_delete=args.compress
+        compress_before_delete=args.compress,
+        skip_locked=args.skip_locked
     )
 
     # Execute

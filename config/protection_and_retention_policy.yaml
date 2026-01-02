@@ -69,7 +69,8 @@ protected_paths:
     - ".autonomous_runs/active/**"
     - ".autonomous_runs/current_run.json"
     - "venv/**"  # Python virtual environment
-    - "node_modules/**"  # Exclude from tidy (but Storage Optimizer can analyze)
+    # NOTE: node_modules is NOT an absolute protection (Storage Optimizer may clean it with approval).
+    # Tidy should still avoid touching it via its own directory exclusions.
 
 # ==============================================================================
 # Retention Policies (Age-based cleanup eligibility)
@@ -133,6 +134,9 @@ categories:
       - "**/target/**"  # Rust
       - "**/.gradle/**"  # Gradle
     retention_days: 90
+    allowed_actions:
+      delete: { enabled: true, requires_approval: true }
+      compress: { enabled: false, requires_approval: false }
     execution_limits:
       max_gb_per_run: 50
       max_files_per_run: 1000
@@ -146,6 +150,9 @@ categories:
       - ".autonomous_runs/*/errors/**"
       - "*.log"
     retention_days: 90
+    allowed_actions:
+      delete: { enabled: true, requires_approval: true }
+      compress: { enabled: true, requires_approval: false }
     execution_limits:
       max_gb_per_run: 10
       max_files_per_run: 500
@@ -158,6 +165,9 @@ categories:
       - "archive/runs/**"
       - ".autonomous_runs/*/output/**"
     retention_days: 180
+    allowed_actions:
+      delete: { enabled: true, requires_approval: true }
+      compress: { enabled: true, requires_approval: false }
     execution_limits:
       max_gb_per_run: 20
       max_files_per_run: 1000
@@ -169,6 +179,9 @@ categories:
     patterns:
       - "archive/superseded/**"
     retention_days: null  # Never auto-delete (permanent retention)
+    allowed_actions:
+      delete: { enabled: false, requires_approval: true }
+      compress: { enabled: false, requires_approval: false }
     execution_limits:
       max_gb_per_run: 0  # Disabled (protected)
       max_files_per_run: 0

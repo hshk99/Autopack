@@ -56,7 +56,7 @@ Protected paths are **NEVER** deleted, moved, or modified by Tidy or Storage Opt
 - `.autonomous_runs/active/**` - Currently running
 - `.autonomous_runs/current_run.json` - Run metadata
 - `venv/**` - Python virtual environment
-- `node_modules/**` - Excluded from Tidy (but Storage Optimizer can analyze)
+- `node_modules/**` - Excluded from Tidy scanning/routing by convention; **not** an absolute protection (Storage Optimizer may recommend cleanup with approval)
 
 ### Why These Protections?
 

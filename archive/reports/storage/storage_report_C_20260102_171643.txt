@@ -1,0 +1,75 @@
+================================================================================
+STORAGE OPTIMIZATION REPORT
+================================================================================
+Date: 2026-01-02 17:16:43
+Drive: C:\
+
+DISK USAGE:
+  Total Space: 871.99 GB
+  Used Space:  783.36 GB (89.8%)
+  Free Space:  88.63 GB
+
+SCAN SUMMARY:
+  Files scanned:   1,560
+  Folders scanned: 3
+
+TOP 10 SPACE CONSUMERS:
+   1.         0 MB [DIR]  - C:/temp/storage_canary_test\temp
+   2.         0 MB [DIR]  - C:/temp/storage_canary_test\project1
+   3.         0 MB [DIR]  - C:/temp/storage_canary_test\project1\node_modules
+   4.         0 MB [FILE] - C:/temp/storage_canary_test\project1\node_modules\package_10_1GB.tmp
+   5.         0 MB [FILE] - C:/temp/storage_canary_test\project1\node_modules\package_11_1GB.tmp
+   6.         0 MB [FILE] - C:/temp/storage_canary_test\project1\node_modules\package_12_1GB.tmp
+   7.         0 MB [FILE] - C:/temp/storage_canary_test\project1\node_modules\package_13_1GB.tmp
+   8.         0 MB [FILE] - C:/temp/storage_canary_test\project1\node_modules\package_14_1GB.tmp
+   9.         0 MB [FILE] - C:/temp/storage_canary_test\project1\node_modules\package_15_1GB.tmp
+  10.         0 MB [FILE] - C:/temp/storage_canary_test\project1\node_modules\package_16_1GB.tmp
+
+CLEANUP OPPORTUNITIES:
+  Total Potential Savings: 0.00 GB
+  Total Candidates: 60
+
+  By Category:
+    dev_caches          :     0.00 GB (60 items)
+
+  Approval Requirements:
+    Requires manual approval: 60 items
+    Can auto-delete:          0 items
+
+  Sample Cleanup Candidates:
+    -         0 MB [APPROVAL REQUIRED]  dev_caches     
+      C:/temp/storage_canary_test\project1\node_modules\package_0_1GB.tmp
+      Reason: Matched category 'dev_caches'; node_modules can be regenerated via npm install
+    -         0 MB [APPROVAL REQUIRED]  dev_caches     
+      C:/temp/storage_canary_test\project1\node_modules\package_10_1GB.tmp
+      Reason: Matched category 'dev_caches'; node_modules can be regenerated via npm install
+    -         0 MB [APPROVAL REQUIRED]  dev_caches     
+      C:/temp/storage_canary_test\project1\node_modules\package_11_1GB.tmp
+      Reason: Matched category 'dev_caches'; node_modules can be regenerated via npm install
+    -         0 MB [APPROVAL REQUIRED]  dev_caches     
+      C:/temp/storage_canary_test\project1\node_modules\package_12_1GB.tmp
+      Reason: Matched category 'dev_caches'; node_modules can be regenerated via npm install
+    -         0 MB [APPROVAL REQUIRED]  dev_caches     
+      C:/temp/storage_canary_test\project1\node_modules\package_13_1GB.tmp
+      Reason: Matched category 'dev_caches'; node_modules can be regenerated via npm install
+    -         0 MB [APPROVAL REQUIRED]  dev_caches     
+      C:/temp/storage_canary_test\project1\node_modules\package_14_1GB.tmp
+      Reason: Matched category 'dev_caches'; node_modules can be regenerated via npm install
+    -         0 MB [APPROVAL REQUIRED]  dev_caches     
+      C:/temp/storage_canary_test\project1\node_modules\package_15_1GB.tmp
+      Reason: Matched category 'dev_caches'; node_modules can be regenerated via npm install
+    -         0 MB [APPROVAL REQUIRED]  dev_caches     
+      C:/temp/storage_canary_test\project1\node_modules\package_16_1GB.tmp
+      Reason: Matched category 'dev_caches'; node_modules can be regenerated via npm install
+    -         0 MB [APPROVAL REQUIRED]  dev_caches     
+      C:/temp/storage_canary_test\project1\node_modules\package_17_1GB.tmp
+      Reason: Matched category 'dev_caches'; node_modules can be regenerated via npm install
+    -         0 MB [APPROVAL REQUIRED]  dev_caches     
+      C:/temp/storage_canary_test\project1\node_modules\package_18_1GB.tmp
+      Reason: Matched category 'dev_caches'; node_modules can be regenerated via npm install
+    ... and 50 more candidates
+
+================================================================================
+This is a DRY-RUN report. No files have been deleted.
+Review the cleanup candidates before executing any deletions.
+================================================================================

@@ -46,7 +46,7 @@ from autopack.storage_optimizer import (
 )
 
 # Load policy
-policy = load_policy()  # Loads config/storage_policy.yaml
+policy = load_policy()  # Loads config/protection_and_retention_policy.yaml
 
 # Scan
 scanner = StorageScanner(max_depth=3)
@@ -64,7 +64,7 @@ reporter = StorageReporter()
 ## Policy Integration
 
 This module enforces policies from:
-- **Machine-readable**: `config/storage_policy.yaml`
+- **Machine-readable**: `config/protection_and_retention_policy.yaml`
 - **Human-readable**: `docs/DATA_RETENTION_AND_STORAGE_POLICY.md`
 
 ### Protected Paths (Never Flagged)

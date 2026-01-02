@@ -100,7 +100,7 @@
       "scripts/storage/": "Storage scanning and reporting scripts",
       "tests/": "Test files",
       "docs/": "SOT files and active documentation",
-      "config/": "Configuration files (models.yaml, pricing.yaml, storage_policy.yaml, etc.)",
+      "config/": "Configuration files (models.yaml, pricing.yaml, protection_and_retention_policy.yaml, etc.)",
       "archive/": "Historical files organized by category",
       ".autonomous_runs/": "Project-specific autonomous run data",
       "integrations/": "External integrations (supervisor, etc.)"

@@ -1,0 +1,21 @@
+{
+  "timestamp": "2026-01-02T06:54:15.577912+00:00",
+  "current_scan_id": 8,
+  "previous_scan_id": 7,
+  "delta": {
+    "is_first_scan": false,
+    "previous_scan_id": 7,
+    "new_candidates": 0,
+    "removed_candidates": 0,
+    "size_change_gb": 0.0,
+    "category_changes": {},
+    "new_paths_sample": [],
+    "removed_paths_sample": []
+  },
+  "current_scan_summary": {
+    "total_candidates": 0,
+    "total_size_gb": 0.0,
+    "scan_target": "C:/temp/storage_canary_test",
+    "scan_time": "2026-01-02T06:54:15.543701"
+  }
+}

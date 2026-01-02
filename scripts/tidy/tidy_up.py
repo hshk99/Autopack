@@ -1356,6 +1356,23 @@ def main():
     print("=" * 70)
     migrate_fileorganizer_to_project(repo_root, dry_run=dry_run, verbose=args.verbose)
 
+    # Phase 0.5: .autonomous_runs cleanup (run early so it can't be blocked by unrelated routing issues)
+    # BUILD-154: Ensure first tidy execution always cleans .autonomous_runs even if later phases encounter errors/locks.
+    print("\n" + "=" * 70)
+    print("Phase 0.5: .autonomous_runs/ Cleanup (Early)")
+    print("=" * 70)
+    try:
+        cleanup_autonomous_runs(
+            repo_root=repo_root,
+            dry_run=dry_run,
+            verbose=args.verbose,
+            keep_last_n_runs=3,  # Keep only last 3 runs (archive older telemetry runs)
+            min_age_days=0  # Allow cleanup based on "keep last N" policy only
+        )
+    except Exception as e:
+        # Never crash tidy on autonomous_runs cleanup; it's best-effort and should not block SOT routing/consolidation.
+        print(f"[WARN] .autonomous_runs cleanup failed (continuing): {e}")
+
     # Phase 1: Root routing
     print("\n" + "=" * 70)
     print("Phase 1: Root Directory Cleanup")
@@ -1393,17 +1410,10 @@ def main():
         print(f"\n[SUMMARY] Total files to move: {len(all_moves)}")
         move_succeeded, move_failed = execute_moves(all_moves, dry_run, pending_queue)
 
-    # Phase 2.5: .autonomous_runs cleanup
+    # Phase 2.5 retained for readability, but work is performed in Phase 0.5 (early) for lock resilience.
     print("\n" + "=" * 70)
-    print("Phase 2.5: .autonomous_runs/ Cleanup")
+    print("Phase 2.5: .autonomous_runs/ Cleanup (Already Performed Early)")
     print("=" * 70)
-    cleanup_autonomous_runs(
-        repo_root=repo_root,
-        dry_run=dry_run,
-        verbose=args.verbose,
-        keep_last_n_runs=3,  # Keep only last 3 runs (archive older telemetry runs)
-        min_age_days=0  # Allow cleanup based on "keep last N" policy only
-    )
 
     # Phase 3: Archive consolidation
     # Task C: Capture SOT file hashes BEFORE consolidation

@@ -494,7 +494,7 @@ git config --unset core.hooksPath
 
 ### Integration with Storage Policy
 
-Tidy works in coordination with the Storage Optimizer according to `config/storage_policy.yaml`:
+Tidy works in coordination with the Storage Optimizer according to `config/protection_and_retention_policy.yaml`:
 
 **Recommended Order**:
 1. **Tidy runs first** - consolidates docs, routes files, marks SOT dirty
@@ -504,9 +504,9 @@ Tidy works in coordination with the Storage Optimizer according to `config/stora
 **Protection Guarantees**:
 - **Tidy never deletes protected paths** (src/, tests/, .git/, docs/ SOT, archive/superseded/)
 - **Storage Optimizer respects tidy's audit trail** (archive/superseded/ within retention)
-- **Both tools consult storage_policy.yaml** before any destructive actions
-
-**Absolute Protections** (defined in `config/storage_policy.yaml`):
+- **Both tools consult the unified policy** before any destructive actions
+  
+**Absolute Protections** (defined in `config/protection_and_retention_policy.yaml`):
 ```yaml
 protected_globs:
   - "src/**"                    # Source code

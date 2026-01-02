@@ -1,6 +1,6 @@
 """Evaluator module for the tracer bullet pipeline."""
 
-from tracer_bullet.orchestrator import run_pipeline
+from autopack.research.tracer_bullet.orchestrator import run_pipeline
 
 def evaluate_pipeline(url: str, expression: str, prompt: str) -> dict:
     """

@@ -1,8 +1,8 @@
 """Orchestrator module for the tracer bullet pipeline."""
 
-from compiler import compile_expression
-from gatherer import fetch_web_content, parse_html_content
-from meta_auditor import detect_prompt_injection
+from .compiler import compile_expression
+from .gatherer import fetch_web_content, parse_html_content
+from .meta_auditor import detect_prompt_injection
 
 def run_pipeline(url: str, expression: str, prompt: str):
     """

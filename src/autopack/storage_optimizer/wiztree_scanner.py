@@ -1,4 +1,4 @@
-"""
+r"""
 WizTree CLI wrapper for high-performance disk scanning.
 
 WizTree provides 30-50x faster scanning by reading the NTFS Master File Table (MFT)
@@ -39,7 +39,7 @@ class WizTreeScanner:
         self.fallback_scanner = StorageScanner()
 
     def _find_wiztree(self) -> Optional[Path]:
-        """
+        r"""
         Auto-detect WizTree installation.
 
         Searches common installation paths:

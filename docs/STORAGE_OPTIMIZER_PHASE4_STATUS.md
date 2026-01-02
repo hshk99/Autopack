@@ -385,4 +385,4 @@ Phase 4 transforms Storage Optimizer from a **rule-based tool** into an **intell
 - [Phase 3 Completion Report](STORAGE_OPTIMIZER_PHASE3_COMPLETION.md)
 - [Phase 4 Implementation Plan](STORAGE_OPTIMIZER_PHASE4_PLAN.md)
 - [Phase 2 Completion Report](STORAGE_OPTIMIZER_PHASE2_COMPLETION.md)
-- [Storage Policy Configuration](../config/storage_policy.yaml)
+- [Storage Policy Configuration](../config/protection_and_retention_policy.yaml)

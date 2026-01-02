@@ -18,6 +18,9 @@ jobs:
       - name: Install dependencies
         run: |
           pip install -r requirements-dev.txt
+      - name: Drift checks (versions/deps/policy)
+        run: |
+          python scripts/check_ci_drift.py
       - name: Lint with ruff
         run: |
           ruff check src/ tests/

@@ -185,6 +185,10 @@ class CleanupExecutor:
             3. If transient lock, retry with exponential backoff
             4. If permanent lock or max retries exceeded, fail
         """
+        # BUILD-152: Override max_retries to 0 if skip_locked is enabled
+        if self.skip_locked and max_retries is None:
+            max_retries = 0
+
         retry_count = 0
         last_error = None
         last_lock_type = None

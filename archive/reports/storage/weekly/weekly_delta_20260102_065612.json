@@ -1,0 +1,41 @@
+{
+  "timestamp": "2026-01-02T06:56:12.561285+00:00",
+  "current_scan_id": 9,
+  "previous_scan_id": 8,
+  "delta": {
+    "is_first_scan": false,
+    "previous_scan_id": 8,
+    "new_candidates": 10,
+    "removed_candidates": 0,
+    "size_change_gb": 1.4994293451309204e-07,
+    "category_changes": {
+      "dev_caches": {
+        "current_count": 10,
+        "previous_count": 0,
+        "delta_count": 10,
+        "current_size_gb": 1.4994293451309204e-07,
+        "previous_size_gb": 0.0,
+        "delta_size_gb": 1.4994293451309204e-07
+      }
+    },
+    "new_paths_sample": [
+      "C:/temp/storage_canary_test\\project2\\node_modules\\pkg_6.tmp",
+      "C:/temp/storage_canary_test\\project2\\node_modules\\pkg_2.tmp",
+      "C:/temp/storage_canary_test\\project2\\node_modules\\pkg_3.tmp",
+      "C:/temp/storage_canary_test\\project2\\node_modules\\pkg_8.tmp",
+      "C:/temp/storage_canary_test\\project2\\node_modules\\pkg_1.tmp",
+      "C:/temp/storage_canary_test\\project2\\node_modules\\pkg_4.tmp",
+      "C:/temp/storage_canary_test\\project2\\node_modules\\pkg_7.tmp",
+      "C:/temp/storage_canary_test\\project2\\node_modules\\pkg_5.tmp",
+      "C:/temp/storage_canary_test\\project2\\node_modules\\pkg_9.tmp",
+      "C:/temp/storage_canary_test\\project2\\node_modules\\pkg_10.tmp"
+    ],
+    "removed_paths_sample": []
+  },
+  "current_scan_summary": {
+    "total_candidates": 10,
+    "total_size_gb": 1.4994293451309204e-07,
+    "scan_target": "C:/temp/storage_canary_test",
+    "scan_time": "2026-01-02T06:56:12.522683"
+  }
+}

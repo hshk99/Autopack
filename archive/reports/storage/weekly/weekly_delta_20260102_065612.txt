@@ -1,0 +1,40 @@
+================================================================================
+STORAGE OPTIMIZER - WEEKLY SCAN DELTA REPORT
+================================================================================
+Scan Date: 2026-01-02 06:56 UTC
+Current Scan ID: 9
+Previous Scan ID: 8
+Previous Scan Date: 2026-01-02 06:54 UTC
+
+--------------------------------------------------------------------------------
+CHANGES SINCE LAST SCAN
+--------------------------------------------------------------------------------
+New cleanup opportunities:     10 files/folders
+Removed opportunities:         0 files/folders
+Net size change:               +0.00 GB
+
+Per-Category Changes:
+  dev_caches:
+    Count: 0 → 10 (+10)
+    Size:  0.00 GB → 0.00 GB (+0.00 GB)
+
+Sample New Cleanup Opportunities (first 10):
+  + C:/temp/storage_canary_test\project2\node_modules\pkg_6.tmp
+  + C:/temp/storage_canary_test\project2\node_modules\pkg_2.tmp
+  + C:/temp/storage_canary_test\project2\node_modules\pkg_3.tmp
+  + C:/temp/storage_canary_test\project2\node_modules\pkg_8.tmp
+  + C:/temp/storage_canary_test\project2\node_modules\pkg_1.tmp
+  + C:/temp/storage_canary_test\project2\node_modules\pkg_4.tmp
+  + C:/temp/storage_canary_test\project2\node_modules\pkg_7.tmp
+  + C:/temp/storage_canary_test\project2\node_modules\pkg_5.tmp
+  + C:/temp/storage_canary_test\project2\node_modules\pkg_9.tmp
+  + C:/temp/storage_canary_test\project2\node_modules\pkg_10.tmp
+
+================================================================================
+NEXT STEPS
+================================================================================
+1. Review candidates: http://localhost:8000/storage/scans/9
+2. Approve via API or interactive mode:
+   python scripts/storage/scan_and_report.py --scan-id 9 --interactive
+3. Execute approved deletions:
+   python scripts/storage/scan_and_report.py --scan-id 9 --execute --category dev_caches

@@ -329,6 +329,370 @@ python scripts/batch_drain_controller.py \
 
 ---
 
+## Storage Optimizer: Locked Files
+
+**BUILD-152**: Advanced lock handling for Windows file deletion
+
+### Overview
+
+Storage Optimizer execution may encounter locked files on Windows. BUILD-152 introduces:
+
+- **Lock type detection**: Identify specific lock types (searchindexer, antivirus, handle, permission)
+- **Intelligent retry**: Automatic retry with exponential backoff for transient locks
+- **Remediation hints**: Inline guidance in CLI output for manual fixes
+
+See [STORAGE_OPTIMIZER_EXECUTION_GUIDE.md](STORAGE_OPTIMIZER_EXECUTION_GUIDE.md#lock-handling) for detailed configuration.
+
+---
+
+### Lock Types and Detection
+
+| Lock Type       | Detection Patterns                          | Classification | Default Retry |
+|-----------------|---------------------------------------------|----------------|---------------|
+| `searchindexer` | "searchindexer", "windows search"           | Transient      | 3 times       |
+| `antivirus`     | "virus", "defender", "malware"              | Transient      | 2 times       |
+| `handle`        | "being used by another process"             | Transient      | 3 times       |
+| `permission`    | "access is denied", "permission denied"     | Permanent      | 0 (skip)      |
+| `path_too_long` | "path too long", "exceeds maximum path"     | Permanent      | 0 (skip)      |
+| `unknown`       | (no match)                                  | Permanent      | 0 (skip)      |
+
+**Transient locks** are retried automatically with exponential backoff ([2s, 5s, 10s]).
+
+**Permanent locks** require manual intervention (see remediation workflows below).
+
+---
+
+### Identifying Lock Type
+
+When execution fails due to a lock, check CLI output for lock classification:
+
+```
+FAILED DELETIONS:
+  ✗ C:/dev/project/node_modules/package/file.cmd
+    Error: permission: Access is denied
+    → Insufficient permissions. Options: (1) Run PowerShell/CLI as Administrator...
+
+  ✗ C:/temp/logs/app.log
+    Error: searchindexer: Windows Search is indexing this file
+    → Windows Search is indexing this file. Options: (1) Wait 30-60s and retry...
+```
+
+Lock type appears after "Error:" prefix (e.g., `permission:`, `searchindexer:`).
+
+---
+
+### Remediation Workflows
+
+#### 1. SearchIndexer Locks
+
+**Symptom**: Files locked by Windows Search indexing service
+
+**Temporary Fix** (Quick):
+- Wait 30-60 seconds for indexing to complete
+- Re-run execution (automatic retry if within max_retries)
+
+**Permanent Fix** (Disable indexing):
+
+```powershell
+# Option 1: Exclude folder from Windows Search (GUI)
+# 1. Open "Indexing Options" (search in Start menu)
+# 2. Click "Modify" → Uncheck the problematic folder
+# 3. Click OK
+
+# Option 2: Disable indexing via folder properties
+# 1. Right-click folder → Properties
+# 2. Advanced → Uncheck "Allow files in this folder to have contents indexed"
+# 3. Apply to folder and subfolders
+
+# Option 3: PowerShell (disable indexing for specific drive)
+Get-WmiObject -Class Win32_Volume -Filter "DriveLetter='C:'" |
+  Set-WmiInstance -Arguments @{IndexingEnabled=$false}
+```
+
+**Verify**:
+```bash
+# Re-run execution after fix
+python scripts/storage/scan_and_report.py --scan-id 123 --execute --dry-run=false
+```
+
+---
+
+#### 2. Antivirus Locks
+
+**Symptom**: Files locked by Windows Defender or third-party antivirus
+
+**Temporary Fix** (Wait for scan):
+- Antivirus scans typically complete in 5-15 minutes
+- Automatic retry will attempt 2 times with [10s, 30s, 60s] backoff
+
+**Permanent Fix** (Add exclusion):
+
+```powershell
+# Windows Defender: Add folder exclusion
+Add-MpPreference -ExclusionPath "C:\dev\project\logs"
+
+# Verify exclusions
+Get-MpPreference | Select-Object -ExpandProperty ExclusionPath
+```
+
+**⚠️ Warning**: Only exclude trusted folders. Remove exclusion after cleanup:
+
+```powershell
+# Remove exclusion after cleanup
+Remove-MpPreference -ExclusionPath "C:\dev\project\logs"
+```
+
+---
+
+#### 3. Open Handle Locks
+
+**Symptom**: File is open in another process (editor, IDE, application)
+
+**Quick Fix** (Resource Monitor):
+
+1. **Open Resource Monitor**:
+   - Press `Win+R`, type `resmon.exe`, press Enter
+   - Navigate to **CPU** tab
+   - Expand **Associated Handles** section
+
+2. **Search for file**:
+   - Type filename in search box (e.g., "app.log")
+   - Identify process holding handle (e.g., "notepad.exe", "chrome.exe")
+
+3. **Close process**:
+   - Close application gracefully (File → Exit)
+   - Or right-click process in Resource Monitor → End Process
+
+**Advanced: Sysinternals Handle.exe**
+
+Download from [Microsoft Sysinternals](https://docs.microsoft.com/en-us/sysinternals/downloads/handle):
+
+```powershell
+# Find all handles for a file
+handle.exe "C:\dev\project\logs\app.log"
+
+# Output example:
+# notepad.exe       pid: 12345   type: File   C:\dev\project\logs\app.log
+
+# Close specific handle (use with caution!)
+handle.exe -c <handle_id> -p <process_id> -y
+```
+
+**Verify**:
+```bash
+# Re-run execution after closing handles
+python scripts/storage/scan_and_report.py --scan-id 123 --execute --dry-run=false
+```
+
+---
+
+#### 4. Permission Locks
+
+**Symptom**: "Access is denied" or "Permission denied"
+
+**Cause**: Insufficient permissions or file ownership issues
+
+**Fix 1: Run as Administrator**
+
+```powershell
+# Right-click PowerShell → "Run as Administrator"
+# Then re-run execution command
+cd C:\dev\Autopack
+python scripts/storage/scan_and_report.py --scan-id 123 --execute --dry-run=false
+```
+
+**Fix 2: Check File Ownership**
+
+```powershell
+# Check ownership
+icacls "C:\dev\project\logs\app.log"
+
+# Take ownership (if needed)
+takeown /f "C:\dev\project\logs\app.log" /r /d y
+
+# Grant full control to current user
+icacls "C:\dev\project\logs\app.log" /grant %USERNAME%:F
+```
+
+**Fix 3: Check Parent Directory Permissions**
+
+```powershell
+# Verify write access to parent directory
+icacls "C:\dev\project\logs"
+
+# Grant permissions if needed
+icacls "C:\dev\project\logs" /grant %USERNAME%:(OI)(CI)F /t
+```
+
+---
+
+#### 5. Path Too Long Locks
+
+**Symptom**: "Path too long" or "File name too long" (Windows MAX_PATH = 260 chars)
+
+**Fix 1: Enable Long Path Support** (Windows 10 1607+)
+
+```powershell
+# Enable via Registry (requires admin)
+New-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem" `
+  -Name "LongPathsEnabled" -Value 1 -PropertyType DWORD -Force
+
+# Restart required
+```
+
+**Fix 2: Move to Shorter Path**
+
+```powershell
+# Move folder to shorter path
+Move-Item "C:\very\long\path\to\project" "C:\prj"
+```
+
+**Fix 3: Use Robocopy to Delete**
+
+```powershell
+# Create empty directory
+mkdir C:\temp\empty
+
+# Mirror (delete) long-path directory
+robocopy C:\temp\empty "C:\very\long\path\to\delete" /mir /r:0 /w:0
+
+# Remove both directories
+rmdir C:\temp\empty
+rmdir "C:\very\long\path\to\delete"
+```
+
+---
+
+### Skip-Locked Mode (Automation)
+
+For **automated/scheduled runs** where you don't want blocking on locks, use `--skip-locked`:
+
+```bash
+# Skip locked files without retry (non-blocking)
+python scripts/storage/scan_and_report.py \
+  --scan-id 123 \
+  --execute \
+  --dry-run=false \
+  --skip-locked
+```
+
+**Behavior**:
+- Locked files are skipped immediately (max_retries = 0)
+- Execution completes without blocking
+- Failed candidates logged in checkpoint with lock_type
+
+**Use Cases**:
+- Weekly scheduled cleanups
+- Task Scheduler / cron jobs
+- CI/CD integration
+
+---
+
+### Monitoring Lock Failures
+
+#### Query Checkpoint Logs for Lock Statistics
+
+```sql
+-- Most common lock types (last 30 days)
+SELECT lock_type, COUNT(*) as count,
+       AVG(retry_count) as avg_retries
+FROM execution_checkpoints
+WHERE status = 'failed'
+  AND lock_type IS NOT NULL
+  AND timestamp >= NOW() - INTERVAL '30 days'
+GROUP BY lock_type
+ORDER BY count DESC;
+```
+
+#### Check Recent Lock Failures (Python)
+
+```python
+from autopack.storage_optimizer.checkpoint_logger import CheckpointLogger
+
+logger = CheckpointLogger()
+failures = logger.get_recent_failures(lookback_days=7)
+
+# Group by lock type
+lock_counts = {}
+for f in failures:
+    lock_type = f['lock_type'] or 'unknown'
+    lock_counts[lock_type] = lock_counts.get(lock_type, 0) + 1
+
+print("Recent lock failures by type:")
+for lock_type, count in sorted(lock_counts.items(), key=lambda x: x[1], reverse=True):
+    print(f"  {lock_type}: {count}")
+```
+
+---
+
+### Common Scenarios
+
+#### Scenario 1: Node.js Project with Many Handle Locks
+
+**Problem**: Deleting `node_modules` fails with "file is in use" for `.bin/*.cmd` files
+
+**Cause**: VS Code, IDE, or terminal holding handles to executables
+
+**Solution**:
+1. Close all instances of VS Code / IDE
+2. Close PowerShell/CMD windows in project directory
+3. Wait 30 seconds for handles to release
+4. Re-run execution (automatic retry will succeed)
+
+#### Scenario 2: Persistent SearchIndexer Locks
+
+**Problem**: SearchIndexer repeatedly locks same files despite retries
+
+**Cause**: Windows Search aggressively re-indexing after each unlock
+
+**Solution**:
+- Disable indexing for target folder (see remediation above)
+- Use `--skip-locked` to bypass and address individually later
+
+#### Scenario 3: Mixed Lock Types
+
+**Problem**: Execution shows multiple lock types (searchindexer, handle, permission)
+
+**Cause**: Different files locked by different services
+
+**Solution**:
+1. Review lock statistics in CLI output
+2. Address most common lock type first (highest count)
+3. Re-run execution to handle remaining locks
+4. Use `--category` filter to isolate problematic categories
+
+---
+
+### Best Practices
+
+1. **Run as Administrator**: Reduces permission locks
+
+2. **Close Applications**: Close IDEs, editors, terminals before execution
+
+3. **Disable Indexing**: For folders with frequent cleanup (logs, caches)
+
+4. **Use --skip-locked**: For automated runs (don't block on locks)
+
+5. **Monitor Checkpoint Logs**: Identify systematic lock issues
+
+6. **Category Isolation**: Execute high-risk categories separately
+
+---
+
+### Troubleshooting Checklist
+
+When encountering locked files:
+
+- [ ] Check lock type in CLI output (searchindexer, antivirus, handle, permission)
+- [ ] For transient locks: Wait for automatic retry (max 3 attempts)
+- [ ] For permanent locks: Follow remediation workflow for lock type
+- [ ] If persistent: Use Resource Monitor (resmon.exe) to identify locking process
+- [ ] For automation: Use `--skip-locked` flag to prevent blocking
+- [ ] If still failing: Check checkpoint logs for patterns (`get_recent_failures()`)
+- [ ] Last resort: Address manually using robocopy or administrative tools
+
+---
+
 ## Emergency Recovery
 
 ### Reset Phase for Retry

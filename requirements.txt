@@ -32,3 +32,14 @@ python-jose[cryptography]>=3.3.0
 
 # Vector store (Qdrant is default; FAISS optional for dev/offline)
 qdrant-client>=1.7.0
+
+# CLI / UX helpers
+click>=8.1.0
+requests>=2.31.0
+rich>=13.0.0
+
+# YAML parsing (policy files, config)
+pyyaml>=6.0
+
+# Reddit (research subsystem)
+praw>=7.7.0

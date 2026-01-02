@@ -46,14 +46,16 @@ class TestExecutorCaps:
             candidate.reasoning = "Test candidate"
             mock_candidates.append(candidate)
 
-        # Mock database session
+        # Mock database session (execute_approved_candidates uses query(...).filter(...).filter(...).all())
         mock_session = Mock()
-        mock_session.query.return_value.filter_by.return_value.all.return_value = mock_candidates
+        mock_query = mock_session.query.return_value
+        mock_query.filter.return_value.filter.return_value.all.return_value = mock_candidates
 
         # Execute with cap enforcement
-        with patch.object(executor, '_execute_single_candidate') as mock_execute:
+        with patch.object(executor, 'execute_cleanup_candidate') as mock_execute:
             # Mock successful execution
             mock_execute.return_value = ExecutionResult(
+                candidate_id=1,
                 path=f"C:/test/file.txt",
                 status=ExecutionStatus.COMPLETED,
                 original_size_bytes=1 * 1024 ** 3,
@@ -64,8 +66,10 @@ class TestExecutorCaps:
 
             # Should stop at 50 GB cap (50 files processed out of 60)
             # Note: Exact count depends on cap enforcement logic
-            assert result.total_processed < 60, "Should not process all candidates due to GB cap"
-            assert result.completed > 0, "Should process some candidates before cap"
+            assert result.total_candidates == 60
+            assert result.successful < 60, "Should not process all candidates due to GB cap"
+            assert result.successful > 0, "Should process some candidates before cap"
+            assert result.stopped_due_to_cap is True
 
     def test_category_file_count_cap(self):
         """Test that execution stops when file count cap is reached."""
@@ -89,10 +93,12 @@ class TestExecutorCaps:
             mock_candidates.append(candidate)
 
         mock_session = Mock()
-        mock_session.query.return_value.filter_by.return_value.all.return_value = mock_candidates
+        mock_query = mock_session.query.return_value
+        mock_query.filter.return_value.filter.return_value.all.return_value = mock_candidates
 
-        with patch.object(executor, '_execute_single_candidate') as mock_execute:
+        with patch.object(executor, 'execute_cleanup_candidate') as mock_execute:
             mock_execute.return_value = ExecutionResult(
+                candidate_id=1,
                 path=f"C:/test/file.txt",
                 status=ExecutionStatus.COMPLETED,
                 original_size_bytes=1024,
@@ -102,7 +108,9 @@ class TestExecutorCaps:
             result = executor.execute_approved_candidates(mock_session, scan_id=1, category="dev_caches")
 
             # Should stop at 1000 file cap
-            assert result.total_processed <= 1000, "Should not exceed file count cap"
+            assert result.total_candidates == 1500
+            assert result.successful <= 1000, "Should not exceed file count cap"
+            assert result.stopped_due_to_cap is True
 
     # ========================================================================
     # Retry with Exponential Backoff Tests
@@ -286,10 +294,12 @@ class TestExecutorCaps:
             mock_candidates.append(candidate)
 
         mock_session = Mock()
-        mock_session.query.return_value.filter_by.return_value.all.return_value = mock_candidates
+        mock_query = mock_session.query.return_value
+        mock_query.filter.return_value.filter.return_value.all.return_value = mock_candidates
 
-        with patch.object(executor, '_execute_single_candidate') as mock_execute:
+        with patch.object(executor, 'execute_cleanup_candidate') as mock_execute:
             mock_execute.return_value = ExecutionResult(
+                candidate_id=1,
                 path=f"C:/test/file.txt",
                 status=ExecutionStatus.COMPLETED,
                 original_size_bytes=1 * 1024 ** 3,
@@ -299,9 +309,9 @@ class TestExecutorCaps:
             result = executor.execute_approved_candidates(mock_session, scan_id=1, category="dev_caches")
 
             # Result should indicate cap was hit
-            assert result.total_processed < len(mock_candidates), "Should not process all candidates"
-            # Note: stopped_due_to_cap flag would need to be added to BatchExecutionResult
-            # This is a validation test for expected behavior
+            assert result.total_candidates == len(mock_candidates)
+            assert result.successful < len(mock_candidates), "Should not process all candidates"
+            assert result.stopped_due_to_cap is True
 
     # ========================================================================
     # Checkpoint Logging Integration Tests
@@ -311,12 +321,13 @@ class TestExecutorCaps:
         """Test that checkpoint logger is called during execution."""
         executor = CleanupExecutor(
             policy=self.policy,
-            dry_run=True,
+            dry_run=False,
             skip_locked=False
         )
 
-        # Mock checkpoint logger
+        # Mock checkpoint logger + db session
         executor.checkpoint_logger = Mock()
+        mock_db = Mock()
 
         with tempfile.NamedTemporaryFile(mode='w', delete=False) as f:
             f.write("test content")
@@ -328,14 +339,15 @@ class TestExecutorCaps:
             candidate.path = str(temp_path)
             candidate.category = "dev_caches"
             candidate.size_bytes = 1024
-            candidate.confidence = 0.9
-            candidate.reasoning = "Test candidate"
+            candidate.requires_approval = False
+            candidate.approval_status = "approved"
 
             # Set run_id
             executor.current_run_id = "test-run-001"
 
-            # Execute (dry run)
-            result = executor._execute_single_candidate(candidate)
+            # Execute (no actual deletion)
+            with patch('send2trash.send2trash'):
+                result = executor.execute_cleanup_candidate(mock_db, candidate)
 
             # Verify checkpoint logger was called
             assert executor.checkpoint_logger.log_execution.called
@@ -359,6 +371,7 @@ class TestExecutorCaps:
 
         # Mock checkpoint logger to capture SHA256
         executor.checkpoint_logger = Mock()
+        mock_db = Mock()
 
         with tempfile.NamedTemporaryFile(mode='w', delete=False) as f:
             f.write("test content for sha256")
@@ -370,14 +383,14 @@ class TestExecutorCaps:
             candidate.path = str(temp_path)
             candidate.category = "dev_caches"
             candidate.size_bytes = len("test content for sha256")
-            candidate.confidence = 0.9
-            candidate.reasoning = "Test candidate"
+            candidate.requires_approval = False
+            candidate.approval_status = "approved"
 
             executor.current_run_id = "test-run-002"
 
             # Execute (will actually delete with send2trash)
             with patch('send2trash.send2trash'):  # Mock to avoid actual deletion
-                result = executor._execute_single_candidate(candidate)
+                result = executor.execute_cleanup_candidate(mock_db, candidate)
 
             # Verify SHA256 was logged
             assert executor.checkpoint_logger.log_execution.called

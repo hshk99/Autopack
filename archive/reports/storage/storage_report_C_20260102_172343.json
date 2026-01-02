@@ -1,0 +1,29 @@
+{
+  "scan_date": "2026-01-02T17:23:43.359134",
+  "drive_letter": "C",
+  "disk_usage": {
+    "total_gb": 871.9873008728027,
+    "used_gb": 783.6911430358887,
+    "free_gb": 88.29615783691406,
+    "used_percentage": 89.87414636101519
+  },
+  "scan_summary": {
+    "files_scanned": 1560,
+    "folders_scanned": 3
+  },
+  "protected": {
+    "paths_count": 0,
+    "size_gb": 0.0,
+    "sample_paths": []
+  },
+  "cleanup_plan": {
+    "total_savings_gb": 0.0002169981598854065,
+    "total_candidates": 60,
+    "by_category": {
+      "dev_caches": {
+        "size_gb": 0.0002169981598854065,
+        "count": 60
+      }
+    }
+  }
+}

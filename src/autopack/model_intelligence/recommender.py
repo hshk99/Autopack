@@ -33,6 +33,36 @@ WEIGHT_RUNTIME = 0.20
 WEIGHT_SENTIMENT = 0.05  # Low weight: supporting evidence only
 
 
+def parse_provider_and_family(model_id: str) -> Tuple[str, str]:
+    """Infer provider and family from a model_id.
+
+    This is a lightweight helper used by ingestion/tests to keep model identifiers consistent.
+
+    Examples:
+        claude-sonnet-4-5 -> ("anthropic", "claude")
+        gpt-4o            -> ("openai", "gpt")
+        glm-4.7           -> ("zhipu_glm", "glm")
+        gemini-2.5-flash  -> ("google", "gemini")
+
+    Notes:
+        - Prefer explicit catalog metadata when available; this is a best-effort heuristic.
+        - Kept for backward compatibility with earlier BUILD-146/BUILD-147 tests/docs.
+    """
+    mid = (model_id or "").lower().strip()
+
+    if mid.startswith("claude-"):
+        return ("anthropic", "claude")
+    if mid.startswith("gpt-") or mid.startswith("o1") or mid.startswith("o3"):
+        return ("openai", "gpt")
+    if mid.startswith("glm-"):
+        return ("zhipu_glm", "glm")
+    if mid.startswith("gemini-"):
+        return ("google", "gemini")
+
+    # Conservative fallback: unknown provider/family
+    return ("unknown", "unknown")
+
+
 def generate_recommendations(
     session: Session,
     use_case: str,

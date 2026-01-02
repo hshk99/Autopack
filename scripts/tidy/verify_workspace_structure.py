@@ -105,6 +105,8 @@ DOCS_ALLOWED_FILES = {
     "PARALLEL_RUNS.md",
     "PHASE_LIFECYCLE.md",
     "MODEL_INTELLIGENCE_SYSTEM.md",
+    # Completed plan stub (kept for AI navigation; points to archived plan)
+    "TIDY_SOT_RETRIEVAL_INTEGRATION_PLAN.md",
     # Additional specific files that are canonical
     "API_BASICS.md",
     "DOCKER_DEPLOYMENT_GUIDE.md",

@@ -1056,17 +1056,27 @@ def verify_structure(repo_root: Path, docs_dir: Path) -> Tuple[bool, List[str]]:
 # ---------------------------------------------------------------------------
 
 def execute_moves(moves: List[Tuple[Path, Path]], dry_run: bool = True) -> None:
-    """Execute file moves."""
+    """Execute file moves, skipping locked files."""
     if not moves:
         return
 
+    failed_moves = []
     for src, dest in moves:
         if dry_run:
             print(f"[DRY-RUN] Would move: {src} -> {dest}")
         else:
-            dest.parent.mkdir(parents=True, exist_ok=True)
-            shutil.move(str(src), str(dest))
-            print(f"[MOVED] {src} -> {dest}")
+            try:
+                dest.parent.mkdir(parents=True, exist_ok=True)
+                shutil.move(str(src), str(dest))
+                print(f"[MOVED] {src} -> {dest}")
+            except PermissionError as e:
+                print(f"[SKIPPED] {src} (locked by another process)")
+                failed_moves.append((src, str(e)))
+
+    if failed_moves and not dry_run:
+        print(f"\n[WARNING] {len(failed_moves)} files could not be moved (locked by other processes):")
+        for src, err in failed_moves:
+            print(f"  {src}")
 
 
 def main():

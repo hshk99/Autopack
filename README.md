@@ -88,7 +88,7 @@ In practice, “autonomous” requires that each phase has:
 - Additional projects stay under `.autonomous_runs/<project>/` within this repo (not separate repos).
 - Use branches per project/maintenance effort when applying automated fixes to keep histories clean; checkpoints are recommended for maintenance/apply flows.
 
-### Multi-Project Documentation & Tidy System (2025-12-13)
+### Multi-Project Documentation & Tidy System
 
 **Standardized 6-File SOT Structure**:
 All projects follow a consistent documentation structure for AI navigation:
@@ -99,20 +99,62 @@ All projects follow a consistent documentation structure for AI navigation:
 5. **FUTURE_PLAN.md** - Roadmap and backlog (manual)
 6. **LEARNED_RULES.json** - Auto-updated learned rules (auto-updated)
 
-**Intention (critical)**:
-The tidy + SOT system is not just for “cleaning up docs”. Its purpose is to ensure that:
-- Autopack and Cursor can **retrieve relevant project knowledge when needed** (not re-read entire archives).
-- The authoritative ledgers remain **machine-usable** (stable structure, low drift).
-- The system supports both:
-  - **Linear reuse** (explicit links, SOT doc substitution/history pack for token efficiency)
-  - **Semantic reuse** (vector memory retrieval when enabled)
+**Intention (CRITICAL for AI agents)**:
+The tidy + SOT system exists to ensure **Autopack remains maintainable and self-improving**:
+- **Workspace Organization**: Root stays clean, archives are organized, `.autonomous_runs/` cleanup is automatic
+- **Knowledge Retrieval**: Autopack/Cursor can retrieve relevant project knowledge without re-reading entire archives
+- **Machine-Usable Ledgers**: SOT docs have stable structure with low drift
+- **Dual Retrieval**: Supports both linear reuse (explicit links, history packs) and semantic reuse (vector memory)
 
-**Current state**:
-- Tidy consolidates backlog markdown into the SOT ledgers for humans and AI navigation.
-- Autopack runtime retrieval today primarily uses **run artifacts** (history pack / summaries) and **MemoryService collections** (planning, errors, hints, etc.).
-- A planned improvement is to make the statement fully true end-to-end:
-  **“tidy backlog → SOT ledgers → semantic indexing → Autopack uses it when it needs it”**
-  by chunking + indexing SOT ledgers into MemoryService (opt-in) and retrieving them via an `include_sot` flag.
+**Current State & Gaps (BUILD-145, 2026-01-02)**:
+✅ **Implemented**:
+- Workspace tidy system (`scripts/tidy/tidy_up.py`) handles root cleanup, database archival, directory routing
+- `.autonomous_runs/` cleanup removes orphaned files (logs, JSON), old run directories (keeps last 10/prefix), empty dirs
+- Project migration (e.g., `fileorganizer/` → `.autonomous_runs/file-organizer-app-v1/`)
+- SOT consolidation from archive backlog → SOT ledgers
+- File lock handling (skips locked databases, continues cleanup)
+
+⚠️ **Known Gaps** (to address in future builds):
+1. **Incomplete .autonomous_runs cleanup on first execution**:
+   - Orphaned files: ✅ Fixed (45 files archived successfully)
+   - Old run directories: ⚠️ Partial (21 dirs detected but may fail if database locks block Phase 1)
+   - **Root Cause**: Phase 1 database routing fails on locked files → Phase 2.5 cleanup never runs
+   - **Fix Needed**: Reorder phases OR run Phase 2.5 before Phase 1 OR make Phase 1 continue on errors
+
+2. **Database file locks block cleanup**:
+   - 11 historical databases remain locked by background processes (Windows Search Indexer, antivirus, etc.)
+   - Current workaround: `execute_moves()` skips locked files and continues
+   - **Ideal Fix**: Add retry logic OR move database cleanup to separate phase after .autonomous_runs cleanup
+
+3. **SOT → Semantic Indexing not yet connected**:
+   - SOT ledgers exist but aren't automatically indexed into MemoryService
+   - **Future**: Add `include_sot` flag to retrieve SOT chunks via vector memory during execution
+
+**Intended Tidy Behavior** (for future AI agents to achieve):
+```bash
+# When user runs tidy, it should ALWAYS succeed at cleaning workspace, even if some files are locked
+python scripts/tidy/tidy_up.py --execute
+
+# Expected results (every time):
+# ✅ Root directory: only autopack.db + allowed files/dirs remain
+# ✅ All orphaned files archived to archive/diagnostics/logs/
+# ✅ Old run directories cleaned (keep last 10 per prefix, age > 0 days)
+# ✅ Empty directories removed
+# ✅ Locked files reported but don't block cleanup of other items
+# ✅ .autonomous_runs/ is CLEAN (no strayed files/folders)
+```
+
+**How to Verify Tidy is Working**:
+```bash
+# 1. Check .autonomous_runs is clean (should have ~8-15 items: runtime workspaces + active projects)
+ls -la .autonomous_runs/ | wc -l
+
+# 2. Verify no orphaned files at .autonomous_runs root
+ls .autonomous_runs/*.log .autonomous_runs/*.json 2>&1 | grep "cannot access"  # Should show "No such file"
+
+# 3. Check workspace violations
+python scripts/tidy/verify_workspace_structure.py  # Should report 0 errors or only locked DB warnings
+```
 
 **Autonomous Tidy Workflow**:
 Automatically consolidates archive files into SOT documentation using AI-powered classification:

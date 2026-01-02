@@ -58,16 +58,16 @@ In practice, “autonomous” requires that each phase has:
 
 ### Latest Highlights (Last 3 Builds)
 
-#### 2026-01-02: BUILD-153 - Storage Optimizer Canary Test ✅
-**End-to-End Validation: 100% Success Rate on Production-Ready Execution Pipeline**
-- **Canary test**: 60 files deleted successfully (100% success rate, 8 seconds, 0 failures)
-- **Checkpoint logging**: 60 audit entries with SHA256 checksums, timestamps, status tracking (JSONL fallback)
-- **Idempotency validated**: Re-scan after deletion found 0 candidates (deleted files not re-suggested)
-- **Recycle Bin safety**: All deletions reversible via Windows Recycle Bin (send2trash)
+#### 2026-01-02: BUILD-153 - Storage Optimizer Automation & Production Hardening ✅
+**Production-Ready Automation: Weekly Scans + Delta Reporting + Unified Protection Policy**
+- **Task Scheduler automation**: Weekly scans via Windows Task Scheduler/cron with delta reporting (what changed since last scan)
+- **Delta reporting**: New/removed cleanup opportunities, per-category breakdown, size change tracking, JSON + text reports
+- **Telegram notifications**: Optional mobile alerts with scan summary, delta statistics, review links
+- **Protection policy unification**: Shared Tidy + Storage Optimizer policy (single source of truth, no policy drift)
+- **Canary test**: 60 files deleted successfully (100% success rate, 8 seconds, 0 failures, full audit trail)
 - **Test pack**: 26 unit tests (100% passing) - lock detector, checkpoint logger, executor retry logic
-- **Full report**: [docs/BUILD-153_CANARY_TEST_REPORT.md](docs/BUILD-153_CANARY_TEST_REPORT.md)
-- **Next**: Task Scheduler integration + Tidy system unification
-- See [BUILD_HISTORY.md](docs/BUILD_HISTORY.md#build-153) for complete test results
+- **Safety features**: Scan-only automation (no auto-deletion), Recycle Bin safety, category execution caps, lock-aware retry
+- See [docs/BUILD-153_COMPLETION_SUMMARY.md](docs/BUILD-153_COMPLETION_SUMMARY.md) for full details
 
 #### 2026-01-02: BUILD-151 Phase 4 - Storage Optimizer Intelligence Features ✅
 **Intelligence System: Pattern Learning, Smart Categorization & Strategic Recommendations**

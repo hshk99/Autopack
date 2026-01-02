@@ -1298,7 +1298,7 @@ def main():
         dry_run=dry_run,
         verbose=args.verbose,
         keep_last_n_runs=10,
-        min_age_days=7
+        min_age_days=0  # Allow cleanup based on "keep last N" policy only
     )
 
     # Phase 3: Archive consolidation

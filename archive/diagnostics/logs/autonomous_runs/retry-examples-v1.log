@@ -1,0 +1,173 @@
+[2025-12-20 17:25:17] INFO: [LOCK] Acquired executor lock for run_id=retry-examples-v1 (PID=4704, host=Harry)
+[2025-12-20 17:25:17] INFO: Applying pre-emptive encoding fix...
+[2025-12-20 17:25:17] INFO: [Recovery] Fixing Unicode encoding error...
+[2025-12-20 17:25:17] INFO: [Recovery] SUCCESS: Encoding fixed (UTF-8 enabled)
+[2025-12-20 17:25:17] INFO: Database tables initialized
+[2025-12-20 17:25:17] INFO: Loaded BuilderOutputConfig: max_lines_for_full_file=1000, max_lines_hard_limit=1000
+[2025-12-20 17:25:17] INFO: Doctor execute_fix enabled: True
+[2025-12-20 17:25:17] INFO: FileSizeTelemetry initialized: .autonomous_runs\autopack\file_size_telemetry.jsonl
+[2025-12-20 17:25:27] INFO: [MemoryService] Qdrant unavailable ([WinError 10061] No connection could be made because the target machine actively refused it); using FAISS fallback
+[2025-12-20 17:25:27] INFO: [FAISS] Created collection 'code_docs' with dim=1536
+[2025-12-20 17:25:27] INFO: [FAISS] Created collection 'run_summaries' with dim=1536
+[2025-12-20 17:25:27] INFO: [FAISS] Created collection 'errors_ci' with dim=1536
+[2025-12-20 17:25:27] INFO: [FAISS] Created collection 'doctor_hints' with dim=1536
+[2025-12-20 17:25:27] INFO: [FAISS] Created collection 'planning' with dim=1536
+[2025-12-20 17:25:27] INFO: [MemoryService] Initialized (backend=faiss, enabled=True, top_k=5)
+[2025-12-20 17:25:27] INFO: MemoryService initialized (enabled=True)
+[2025-12-20 17:25:27] INFO: [FileLayout] Project: autopack, Family: retry-examples-v1, Base: .autonomous_runs\autopack\runs\retry-examples-v1
+[2025-12-20 17:25:27] INFO: Initialized autonomous executor for run: retry-examples-v1
+[2025-12-20 17:25:27] INFO: API URL: http://localhost:8001
+[2025-12-20 17:25:27] INFO: Workspace: .
+[2025-12-20 17:25:27] INFO: Running proactive startup checks from DEBUG_JOURNAL.md...
+[2025-12-20 17:25:27] INFO: [HIGH] Checking: Windows Unicode Fix (PYTHONUTF8)
+[2025-12-20 17:25:27] INFO:   Reason: Prevents UnicodeEncodeError with emoji characters in logs (Issue #3)
+[2025-12-20 17:25:27] INFO:   Check PASSED
+[2025-12-20 17:25:27] INFO: Startup checks complete
+[2025-12-20 17:25:28] INFO: [HealthCheck:T0] API Keys: PASSED (0ms) - All required API keys present
+[2025-12-20 17:25:28] INFO: [HealthCheck:T0] Database: PASSED (0ms) - Database accessible: c:\dev\Autopack\autopack.db
+[2025-12-20 17:25:28] INFO: [HealthCheck:T0] Workspace: PASSED (0ms) - Workspace valid: c:\dev\Autopack
+[2025-12-20 17:25:28] INFO: [HealthCheck:T0] Config: PASSED (24ms) - Configuration files valid
+[2025-12-20 17:25:28] INFO: [HealthCheck:T0] Vector Memory: PASSED (1039ms) - Qdrant not reachable at localhost:6333; Autopack will fall back to FAISS. To enable Qdrant: run `docker compose up -d qdrant` (docker-compose.yml includes it).
+[2025-12-20 17:25:28] INFO: Starting autonomous execution loop...
+[2025-12-20 17:25:28] INFO: Poll interval: 10s
+[2025-12-20 17:25:30] INFO: API server is already running
+[2025-12-20 17:25:30] INFO: Initializing infrastructure...
+[2025-12-20 17:25:33] INFO: LlmService: Initialized with ModelRouter and UsageRecorder
+[2025-12-20 17:25:33] INFO: Quality Gate: Initialized
+[2025-12-20 17:25:33] INFO: Iteration 1: Fetching run status...
+[2025-12-20 17:25:35] INFO: [GoalAnchor] Initialized: Unified Research Plan gap: add concrete example sessions and align docs paths....
+[2025-12-20 17:25:35] INFO: [research-examples-and-docs] Found executable phase: state=PhaseState.QUEUED, attempts=0/None
+[2025-12-20 17:25:35] INFO: [BUILD-041] Next phase: research-examples-and-docs
+[2025-12-20 17:25:35] INFO: [research-examples-and-docs] Step 1/4: Generating code with Builder (via LlmService)...
+[2025-12-20 17:25:35] INFO: [Context] Loaded 7 recently modified files for fresh context
+[2025-12-20 17:25:36] INFO: [Context] Total: 21 files loaded for Builder context (modified=7, mentioned=0)
+[2025-12-20 17:25:36] INFO: [TOKEN_BUDGET] Context loading: ~19998 tokens (99% of 20000 budget)
+[2025-12-20 17:25:36] INFO: [research-examples-and-docs] Loaded 21 files for context
+[2025-12-20 17:25:36] INFO: [research-examples-and-docs] Built deliverables contract: 4 required paths, 0 forbidden patterns
+[2025-12-20 17:25:36] INFO: [ModelSelector] Selected claude-sonnet-4-5 for builder (complexity=low, attempt=0, intra_tier=0)
+[2025-12-20 17:25:36] INFO: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 400 Bad Request"
+[2025-12-20 17:25:36] WARNING: [ModelRouter] Disabling provider anthropic: credit balance too low (manifest gate)
+[2025-12-20 17:25:36] WARNING: [ModelRouter] Disabled provider anthropic due to low credits (manifest gate)
+[2025-12-20 17:25:36] INFO: [ModelSelector] Selected claude-sonnet-4-5 for builder (complexity=low, attempt=0, intra_tier=0)
+[2025-12-20 17:25:36] WARNING: [ModelRouter] Provider anthropic disabled, using fallback model claude-sonnet-4-5 for role=builder, category=deliverables_manifest, complexity=low
+[2025-12-20 17:25:37] INFO: HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-12-20 17:25:37] ERROR: [research-examples-and-docs] Deliverables manifest gate FAILED: Manifest mismatch: Included 3 paths outside allowed roots (e.g. ['examples/app_research_example.md', 'examples/autopack_research_example.md', 'examples/market_research_example.md'])
+[2025-12-20 17:25:38] INFO: [MemoryService] Stored decision log
+[2025-12-20 17:25:38] INFO: [research-examples-and-docs] Updated counters in DB: retry=1, epoch=0, escalation=0 (reason: DELIVERABLES_VALIDATION_FAILED)
+[2025-12-20 17:25:38] WARNING: [research-examples-and-docs] Attempt 1/5 failed, will escalate model for next retry
+[2025-12-20 17:25:38] WARNING: Phase research-examples-and-docs finished with status: DELIVERABLES_VALIDATION_FAILED
+[2025-12-20 17:25:38] INFO: Waiting 10s before next phase...
+[2025-12-20 17:25:48] INFO: Iteration 2: Fetching run status...
+[2025-12-20 17:25:50] INFO: [research-examples-and-docs] Found executable phase: state=PhaseState.QUEUED, attempts=0/None
+[2025-12-20 17:25:50] INFO: [BUILD-041] Next phase: research-examples-and-docs
+[2025-12-20 17:25:50] INFO: [research-examples-and-docs] Step 1/4: Generating code with Builder (via LlmService)...
+[2025-12-20 17:25:50] INFO: [Context] Loaded 7 recently modified files for fresh context
+[2025-12-20 17:25:50] INFO: [Context] Total: 21 files loaded for Builder context (modified=7, mentioned=0)
+[2025-12-20 17:25:50] INFO: [TOKEN_BUDGET] Context loading: ~19998 tokens (99% of 20000 budget)
+[2025-12-20 17:25:50] INFO: [research-examples-and-docs] Loaded 21 files for context
+[2025-12-20 17:25:50] INFO: [research-examples-and-docs] Retrieved 300 chars of context from memory
+[2025-12-20 17:25:50] INFO: [research-examples-and-docs] Built deliverables contract: 4 required paths, 0 forbidden patterns
+[2025-12-20 17:25:50] INFO: [ModelSelector] Selected claude-opus-4-5 for builder (complexity=low, attempt=1, intra_tier=1)
+[2025-12-20 17:25:50] WARNING: [ModelRouter] Provider anthropic disabled, using fallback model claude-sonnet-4-5 for role=builder, category=deliverables_manifest, complexity=low
+[2025-12-20 17:25:51] INFO: HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-12-20 17:25:51] ERROR: [research-examples-and-docs] Deliverables manifest gate FAILED: Manifest mismatch: Included 3 paths outside allowed roots (e.g. ['examples/app_research_example.md', 'examples/autopack_research_example.md', 'examples/market_research_example.md'])
+[2025-12-20 17:25:51] INFO: [MemoryService] Stored decision log
+[2025-12-20 17:25:51] INFO: [Doctor] Routine failure detected -> using cheap model
+[2025-12-20 17:25:54] INFO: HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-12-20 17:25:54] INFO: [Doctor] Diagnosis complete: action=retry_with_fix, confidence=0.75, phase=research-examples-and-docs, model=claude-sonnet-4-5, is_complex=False, escalated=False, health_ratio=0.08
+[2025-12-20 17:25:54] INFO: [Doctor] Diagnosis complete: action=retry_with_fix, confidence=0.75, phase_calls=1, run_calls=1
+[2025-12-20 17:25:54] INFO: [Doctor] Action: retry_with_fix - hint stored for next attempt
+[2025-12-20 17:25:54] INFO: [MemoryService] Stored decision log
+[2025-12-20 17:25:54] INFO: [research-examples-and-docs] Updated counters in DB: retry=2, epoch=0, escalation=0 (reason: DELIVERABLES_VALIDATION_FAILED)
+[2025-12-20 17:25:54] WARNING: [research-examples-and-docs] Attempt 2/5 failed, will escalate model for next retry
+[2025-12-20 17:25:54] WARNING: Phase research-examples-and-docs finished with status: DELIVERABLES_VALIDATION_FAILED
+[2025-12-20 17:25:54] INFO: Waiting 10s before next phase...
+[2025-12-20 17:26:04] INFO: Iteration 3: Fetching run status...
+[2025-12-20 17:26:06] INFO: [research-examples-and-docs] Found executable phase: state=PhaseState.QUEUED, attempts=0/None
+[2025-12-20 17:26:06] INFO: [BUILD-041] Next phase: research-examples-and-docs
+[2025-12-20 17:26:06] INFO: [research-examples-and-docs] Step 1/4: Generating code with Builder (via LlmService)...
+[2025-12-20 17:26:06] INFO: [Context] Loaded 7 recently modified files for fresh context
+[2025-12-20 17:26:07] INFO: [Context] Total: 21 files loaded for Builder context (modified=7, mentioned=0)
+[2025-12-20 17:26:07] INFO: [TOKEN_BUDGET] Context loading: ~19998 tokens (99% of 20000 budget)
+[2025-12-20 17:26:07] INFO: [research-examples-and-docs] Loaded 21 files for context
+[2025-12-20 17:26:07] INFO: [research-examples-and-docs] Retrieved 555 chars of context from memory
+[2025-12-20 17:26:07] INFO: [research-examples-and-docs] Built deliverables contract: 4 required paths, 0 forbidden patterns
+[2025-12-20 17:26:07] INFO: [ModelSelector] Complexity escalated: low -> medium for phase research-examples-and-docs:deliverables_manifest
+[2025-12-20 17:26:07] INFO: [ModelSelector] Selected claude-sonnet-4-5 for builder (complexity=medium, attempt=2, intra_tier=0)
+[2025-12-20 17:26:07] WARNING: [ModelRouter] Provider anthropic disabled, using fallback model claude-sonnet-4-5 for role=builder, category=deliverables_manifest, complexity=medium
+[2025-12-20 17:26:08] INFO: HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-12-20 17:26:08] ERROR: [research-examples-and-docs] Deliverables manifest gate FAILED: Manifest mismatch: Included 3 paths outside allowed roots (e.g. ['examples/app_research_example.md', 'examples/autopack_research_example.md', 'examples/market_research_example.md'])
+[2025-12-20 17:26:08] INFO: [MemoryService] Stored decision log
+[2025-12-20 17:26:08] INFO: [Doctor] Routine failure detected -> using cheap model
+[2025-12-20 17:26:10] INFO: HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-12-20 17:26:10] INFO: [Doctor] Diagnosis complete: action=replan, confidence=0.75, phase=research-examples-and-docs, model=claude-sonnet-4-5, is_complex=False, escalated=False, health_ratio=0.12
+[2025-12-20 17:26:10] INFO: [Doctor] Diagnosis complete: action=replan, confidence=0.75, phase_calls=2, run_calls=2
+[2025-12-20 17:26:10] INFO: [Doctor] Action: replan - triggering approach revision
+[2025-12-20 17:26:10] INFO: [Re-Plan] Revising approach for research-examples-and-docs due to doctor_replan:The phase has failed three times with deliverables (attempt 1)
+[2025-12-20 17:26:10] INFO: [GoalAnchor] Original intent: Unified Research Plan gap: add concrete example sessions and align docs paths....
+[2025-12-20 17:26:10] INFO: [Re-Plan] Skipping re-planning because provider 'anthropic' is disabled for this run/process
+[2025-12-20 17:26:10] WARNING: [Doctor] Replan failed, continuing with original approach
+[2025-12-20 17:26:10] INFO: [MemoryService] Stored decision log
+[2025-12-20 17:26:10] INFO: [research-examples-and-docs] Updated counters in DB: retry=3, epoch=0, escalation=0 (reason: DELIVERABLES_VALIDATION_FAILED)
+[2025-12-20 17:26:10] WARNING: [research-examples-and-docs] Attempt 3/5 failed, will escalate model for next retry
+[2025-12-20 17:26:10] WARNING: Phase research-examples-and-docs finished with status: DELIVERABLES_VALIDATION_FAILED
+[2025-12-20 17:26:10] INFO: Waiting 10s before next phase...
+[2025-12-20 17:26:20] INFO: Iteration 4: Fetching run status...
+[2025-12-20 17:26:22] INFO: [research-examples-and-docs] Found executable phase: state=PhaseState.QUEUED, attempts=0/None
+[2025-12-20 17:26:22] INFO: [BUILD-041] Next phase: research-examples-and-docs
+[2025-12-20 17:26:22] INFO: [research-examples-and-docs] Step 1/4: Generating code with Builder (via LlmService)...
+[2025-12-20 17:26:22] INFO: [Context] Loaded 7 recently modified files for fresh context
+[2025-12-20 17:26:23] INFO: [Context] Total: 21 files loaded for Builder context (modified=7, mentioned=0)
+[2025-12-20 17:26:23] INFO: [TOKEN_BUDGET] Context loading: ~19998 tokens (99% of 20000 budget)
+[2025-12-20 17:26:23] INFO: [research-examples-and-docs] Loaded 21 files for context
+[2025-12-20 17:26:23] INFO: [research-examples-and-docs] Retrieved 555 chars of context from memory
+[2025-12-20 17:26:23] INFO: [research-examples-and-docs] Built deliverables contract: 4 required paths, 0 forbidden patterns
+[2025-12-20 17:26:23] INFO: [ModelSelector] Complexity escalated: low -> medium for phase research-examples-and-docs:deliverables_manifest
+[2025-12-20 17:26:23] INFO: [ModelSelector] Selected claude-opus-4-5 for builder (complexity=medium, attempt=3, intra_tier=1)
+[2025-12-20 17:26:23] WARNING: [ModelRouter] Provider anthropic disabled, using fallback model claude-sonnet-4-5 for role=builder, category=deliverables_manifest, complexity=medium
+[2025-12-20 17:26:23] INFO: HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-12-20 17:26:23] ERROR: [research-examples-and-docs] Deliverables manifest gate FAILED: Manifest mismatch: Included 3 paths outside allowed roots (e.g. ['examples/app_research_example.md', 'examples/autopack_research_example.md', 'examples/market_research_example.md'])
+[2025-12-20 17:26:24] INFO: [MemoryService] Stored decision log
+[2025-12-20 17:26:24] INFO: [Doctor] Not invoking: per-phase limit reached (2/2)
+[2025-12-20 17:26:24] INFO: [research-examples-and-docs] Updated counters in DB: retry=4, epoch=0, escalation=0 (reason: DELIVERABLES_VALIDATION_FAILED)
+[2025-12-20 17:26:24] WARNING: [research-examples-and-docs] Attempt 4/5 failed, will escalate model for next retry
+[2025-12-20 17:26:24] WARNING: Phase research-examples-and-docs finished with status: DELIVERABLES_VALIDATION_FAILED
+[2025-12-20 17:26:24] INFO: Waiting 10s before next phase...
+[2025-12-20 17:26:34] INFO: Iteration 5: Fetching run status...
+[2025-12-20 17:26:36] INFO: [research-examples-and-docs] Found executable phase: state=PhaseState.QUEUED, attempts=0/None
+[2025-12-20 17:26:36] INFO: [BUILD-041] Next phase: research-examples-and-docs
+[2025-12-20 17:26:36] INFO: [research-examples-and-docs] Step 1/4: Generating code with Builder (via LlmService)...
+[2025-12-20 17:26:36] INFO: [Context] Loaded 7 recently modified files for fresh context
+[2025-12-20 17:26:36] INFO: [Context] Total: 21 files loaded for Builder context (modified=7, mentioned=0)
+[2025-12-20 17:26:36] INFO: [TOKEN_BUDGET] Context loading: ~19998 tokens (99% of 20000 budget)
+[2025-12-20 17:26:36] INFO: [research-examples-and-docs] Loaded 21 files for context
+[2025-12-20 17:26:36] INFO: [research-examples-and-docs] Retrieved 555 chars of context from memory
+[2025-12-20 17:26:36] INFO: [research-examples-and-docs] Built deliverables contract: 4 required paths, 0 forbidden patterns
+[2025-12-20 17:26:36] INFO: [ModelSelector] Complexity escalated: low -> high for phase research-examples-and-docs:deliverables_manifest
+[2025-12-20 17:26:36] INFO: [ModelSelector] Selected claude-sonnet-4-5 for builder (complexity=high, attempt=4, intra_tier=0)
+[2025-12-20 17:26:36] WARNING: [ModelRouter] Provider anthropic disabled, using fallback model claude-sonnet-4-5 for role=builder, category=deliverables_manifest, complexity=high
+[2025-12-20 17:26:37] INFO: HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-12-20 17:26:37] ERROR: [research-examples-and-docs] Deliverables manifest gate FAILED: Manifest mismatch: Included 3 paths outside allowed roots (e.g. ['examples/app_research_example.md', 'examples/autopack_research_example.md', 'examples/market_research_example.md'])
+[2025-12-20 17:26:38] INFO: [MemoryService] Stored decision log
+[2025-12-20 17:26:38] INFO: [Doctor] Not invoking: per-phase limit reached (2/2)
+[2025-12-20 17:26:38] INFO: [research-examples-and-docs] Updated counters in DB: retry=5, epoch=0, escalation=0 (reason: DELIVERABLES_VALIDATION_FAILED)
+[2025-12-20 17:26:38] ERROR: [research-examples-and-docs] All 5 attempts exhausted. Marking phase as FAILED.
+[2025-12-20 17:26:38] INFO: [ARCHIVE_CONSOLIDATOR] Logged new error: Phase research-examples-and-docs max attempts exhausted
+[2025-12-20 17:26:38] INFO: [research-examples-and-docs] Marked FAILED in database (reason: MAX_ATTEMPTS_EXHAUSTED)
+[2025-12-20 17:26:38] WARNING: Phase research-examples-and-docs finished with status: FAILED
+[2025-12-20 17:26:38] INFO: Waiting 10s before next phase...
+[2025-12-20 17:26:48] INFO: Iteration 6: Fetching run status...
+[2025-12-20 17:26:50] INFO: No more executable phases, execution complete
+[2025-12-20 17:26:50] INFO: Autonomous execution loop finished
+[2025-12-20 17:26:50] INFO: [ARCHIVE_CONSOLIDATOR] Logged build event: RUN_COMPLETE
+[2025-12-20 17:26:50] INFO: Learning Pipeline: Promoted 10 hints to persistent project rules
+[2025-12-20 17:26:50] INFO: Learning Pipeline: Marked rules updated (total: 102 rules)
+[2025-12-20 17:26:50] INFO: [PLANNING NOTICE] 10 new rules promoted. Future planning should incorporate 102 total project rules.
+[2025-12-20 17:26:50] INFO: [LOCK] Released executor lock for run_id=retry-examples-v1 (PID=4704)
+Warning: Requested model claude-sonnet-4-5 but its provider is disabled. Falling back to OpenAI (gpt-4o).
+Warning: Requested model claude-sonnet-4-5 but its provider is disabled. Falling back to OpenAI (gpt-4o).
+Warning: Requested model claude-sonnet-4-5 but its provider is disabled. Falling back to OpenAI (gpt-4o).
+Warning: Requested model claude-sonnet-4-5 but its provider is disabled. Falling back to OpenAI (gpt-4o).
+Warning: Requested model claude-sonnet-4-5 but its provider is disabled. Falling back to OpenAI (gpt-4o).
+Warning: Requested model claude-sonnet-4-5 but its provider is disabled. Falling back to OpenAI (gpt-4o).
+Warning: Requested model claude-sonnet-4-5 but its provider is disabled. Falling back to OpenAI (gpt-4o).

@@ -1,0 +1,19 @@
+faiss library not installed; FaissStore will use in-memory fallback
+usage: autonomous_executor.py [-h] --run-id RUN_ID
+                              [--maintenance-plan MAINTENANCE_PLAN]
+                              [--maintenance-patch-dir MAINTENANCE_PATCH_DIR]
+                              [--maintenance-apply]
+                              [--maintenance-auto-apply-low-risk]
+                              [--maintenance-checkpoint] [--api-url API_URL]
+                              [--api-key API_KEY] [--glm-key GLM_KEY]
+                              [--anthropic-key ANTHROPIC_KEY]
+                              [--openai-key OPENAI_KEY]
+                              [--workspace WORKSPACE]
+                              [--poll-interval POLL_INTERVAL]
+                              [--max-iterations MAX_ITERATIONS]
+                              [--no-dual-auditor]
+                              [--run-type {project_build,autopack_maintenance,autopack_upgrade,self_repair}]
+                              [--enable-second-opinion]
+                              [--enable-autonomous-fixes] [--verbose]
+                              [--stop-on-first-failure]
+autonomous_executor.py: error: the following arguments are required: --run-id

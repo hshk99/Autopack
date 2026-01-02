@@ -1,0 +1,121 @@
+[2025-12-20 17:31:40] INFO: [LOCK] Acquired executor lock for run_id=retry-examples-v1 (PID=51844, host=Harry)
+[2025-12-20 17:31:40] INFO: Applying pre-emptive encoding fix...
+[2025-12-20 17:31:40] INFO: [Recovery] Fixing Unicode encoding error...
+[2025-12-20 17:31:40] INFO: [Recovery] SUCCESS: Encoding fixed (UTF-8 enabled)
+[2025-12-20 17:31:40] INFO: Database tables initialized
+[2025-12-20 17:31:40] INFO: Loaded BuilderOutputConfig: max_lines_for_full_file=1000, max_lines_hard_limit=1000
+[2025-12-20 17:31:40] INFO: Doctor execute_fix enabled: True
+[2025-12-20 17:31:40] INFO: FileSizeTelemetry initialized: .autonomous_runs\autopack\file_size_telemetry.jsonl
+[2025-12-20 17:31:50] INFO: [MemoryService] Qdrant unavailable ([WinError 10061] No connection could be made because the target machine actively refused it); using FAISS fallback
+[2025-12-20 17:31:50] INFO: [FAISS] Created collection 'code_docs' with dim=1536
+[2025-12-20 17:31:50] INFO: [FAISS] Created collection 'run_summaries' with dim=1536
+[2025-12-20 17:31:50] INFO: [FAISS] Created collection 'errors_ci' with dim=1536
+[2025-12-20 17:31:50] INFO: [FAISS] Created collection 'doctor_hints' with dim=1536
+[2025-12-20 17:31:50] INFO: [FAISS] Created collection 'planning' with dim=1536
+[2025-12-20 17:31:50] INFO: [MemoryService] Initialized (backend=faiss, enabled=True, top_k=5)
+[2025-12-20 17:31:50] INFO: MemoryService initialized (enabled=True)
+[2025-12-20 17:31:50] INFO: [FileLayout] Project: autopack, Family: retry-examples-v1, Base: .autonomous_runs\autopack\runs\retry-examples-v1
+[2025-12-20 17:31:50] INFO: Initialized autonomous executor for run: retry-examples-v1
+[2025-12-20 17:31:50] INFO: API URL: http://localhost:8001
+[2025-12-20 17:31:50] INFO: Workspace: .
+[2025-12-20 17:31:50] INFO: Running proactive startup checks from DEBUG_JOURNAL.md...
+[2025-12-20 17:31:50] INFO: [HIGH] Checking: Windows Unicode Fix (PYTHONUTF8)
+[2025-12-20 17:31:50] INFO:   Reason: Prevents UnicodeEncodeError with emoji characters in logs (Issue #3)
+[2025-12-20 17:31:50] INFO:   Check PASSED
+[2025-12-20 17:31:50] INFO: Startup checks complete
+[2025-12-20 17:31:51] INFO: [HealthCheck:T0] API Keys: PASSED (0ms) - All required API keys present
+[2025-12-20 17:31:51] INFO: [HealthCheck:T0] Database: PASSED (0ms) - Database accessible: c:\dev\Autopack\autopack.db
+[2025-12-20 17:31:51] INFO: [HealthCheck:T0] Workspace: PASSED (0ms) - Workspace valid: c:\dev\Autopack
+[2025-12-20 17:31:51] INFO: [HealthCheck:T0] Config: PASSED (21ms) - Configuration files valid
+[2025-12-20 17:31:51] INFO: [HealthCheck:T0] Vector Memory: PASSED (1033ms) - Qdrant not reachable at localhost:6333; Autopack will fall back to FAISS. To enable Qdrant: run `docker compose up -d qdrant` (docker-compose.yml includes it).
+[2025-12-20 17:31:51] INFO: Starting autonomous execution loop...
+[2025-12-20 17:31:51] INFO: Poll interval: 10s
+[2025-12-20 17:31:53] INFO: API server is already running
+[2025-12-20 17:31:53] INFO: Initializing infrastructure...
+[2025-12-20 17:31:56] INFO: LlmService: Initialized with ModelRouter and UsageRecorder
+[2025-12-20 17:31:56] INFO: Quality Gate: Initialized
+[2025-12-20 17:31:56] INFO: Iteration 1: Fetching run status...
+[2025-12-20 17:31:58] INFO: [GoalAnchor] Initialized: Unified Research Plan gap: add concrete example sessions and align docs paths....
+[2025-12-20 17:31:58] INFO: [research-examples-and-docs] Found executable phase: state=PhaseState.QUEUED, attempts=0/None
+[2025-12-20 17:31:58] INFO: [BUILD-041] Next phase: research-examples-and-docs
+[2025-12-20 17:31:58] INFO: [research-examples-and-docs] Step 1/4: Generating code with Builder (via LlmService)...
+[2025-12-20 17:31:58] INFO: [Context] Loaded 7 recently modified files for fresh context
+[2025-12-20 17:31:58] INFO: [Context] Total: 21 files loaded for Builder context (modified=7, mentioned=0)
+[2025-12-20 17:31:58] INFO: [TOKEN_BUDGET] Context loading: ~19998 tokens (99% of 20000 budget)
+[2025-12-20 17:31:58] INFO: [research-examples-and-docs] Loaded 21 files for context
+[2025-12-20 17:31:59] INFO: [research-examples-and-docs] Built deliverables contract: 4 required paths, 0 forbidden patterns
+[2025-12-20 17:31:59] INFO: [ModelSelector] Selected claude-sonnet-4-5 for builder (complexity=low, attempt=0, intra_tier=0)
+[2025-12-20 17:31:59] INFO: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 400 Bad Request"
+[2025-12-20 17:31:59] WARNING: [ModelRouter] Disabling provider anthropic: credit balance too low (manifest gate)
+[2025-12-20 17:31:59] WARNING: [ModelRouter] Disabled provider anthropic due to low credits (manifest gate)
+[2025-12-20 17:31:59] INFO: [ModelSelector] Selected claude-sonnet-4-5 for builder (complexity=low, attempt=0, intra_tier=0)
+[2025-12-20 17:31:59] WARNING: [ModelRouter] Provider anthropic disabled, using fallback model claude-sonnet-4-5 for role=builder, category=deliverables_manifest, complexity=low
+[2025-12-20 17:32:00] INFO: HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-12-20 17:32:00] INFO: [research-examples-and-docs] Deliverables manifest gate PASSED (4 paths)
+[2025-12-20 17:32:00] INFO: [ModelSelector] Complexity escalated: MEDIUM -> high for phase research-examples-and-docs
+[2025-12-20 17:32:00] INFO: [ModelSelector] Selected claude-sonnet-4-5 for builder (complexity=high, attempt=0, intra_tier=0)
+[2025-12-20 17:32:00] WARNING: [ModelRouter] Provider anthropic disabled, using fallback model claude-sonnet-4-5 for role=builder, category=IMPLEMENT_FEATURE, complexity=high
+[2025-12-20 17:32:00] INFO: [MODEL-SELECT] Builder: model=claude-sonnet-4-5, complexity=MEDIUM->high, attempt=0, category=IMPLEMENT_FEATURE
+[2025-12-20 17:32:14] INFO: HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-12-20 17:32:14] INFO: [research-examples-and-docs] Builder succeeded (25499 tokens)
+[2025-12-20 17:32:14] INFO: [research-examples-and-docs] Deliverables validation:
+[2025-12-20 17:32:14] INFO:   Expected: 4 files
+[2025-12-20 17:32:14] INFO:   Found in patch: 4 files
+[2025-12-20 17:32:14] INFO: [research-examples-and-docs] ✅ Deliverables validation PASSED
+[2025-12-20 17:32:17] INFO: [research-examples-and-docs] Step 2/5: Applying patch...
+[2025-12-20 17:32:17] WARNING: [GoalDrift] Potential goal drift detected (similarity=0.01 < 0.7)
+[2025-12-20 17:32:17] WARNING: [GoalDrift] Goal: Unified Research Plan gap: add concrete example sessions and align docs paths....
+[2025-12-20 17:32:17] WARNING: [GoalDrift] Intent: Unified Research Plan gap: add concrete example sessions and align docs paths.
+
+The unified plan ref...
+[2025-12-20 17:32:17] INFO: [GoalDrift:Advisory] Potential goal drift detected (similarity=0.01 < 0.7)
+[2025-12-20 17:32:17] WARNING: [research-examples-and-docs] ADVISORY: Potential goal drift detected (similarity=0.01 < 0.7)
+[2025-12-20 17:32:17] INFO: Removing existing file for new file patch: docs/research/EXAMPLES.md
+[2025-12-20 17:32:17] INFO: Writing patch to temp_patch.diff
+[2025-12-20 17:32:17] INFO: Checking if patch can be applied (dry run)...
+[2025-12-20 17:32:17] INFO: Applying patch to filesystem...
+[2025-12-20 17:32:17] INFO: Patch applied successfully - 4 files modified
+[2025-12-20 17:32:17] INFO:   - docs/research/EXAMPLES.md
+[2025-12-20 17:32:17] INFO:   - examples/app_research_example.md
+[2025-12-20 17:32:17] INFO:   - examples/autopack_research_example.md
+[2025-12-20 17:32:17] INFO:   - examples/market_research_example.md
+[2025-12-20 17:32:17] INFO: [Validation] All 4 modified files validated successfully
+[2025-12-20 17:32:17] INFO: [research-examples-and-docs] Patch applied successfully to filesystem
+[2025-12-20 17:32:17] INFO: [research-examples-and-docs] Step 3/5: Running CI checks...
+[2025-12-20 17:32:17] INFO: [research-examples-and-docs] Running CI checks (pytest)...
+[2025-12-20 17:32:32] INFO: [research-examples-and-docs] CI output written to: .autonomous_runs\retry-examples-v1\ci\pytest_research-examples-and-docs.log
+[2025-12-20 17:32:32] WARNING: [research-examples-and-docs] CI checks FAILED: return code 2
+[2025-12-20 17:32:32] INFO: [research-examples-and-docs] Step 4/5: Reviewing patch with Auditor (via LlmService)...
+[2025-12-20 17:32:32] INFO: [ModelSelector] Complexity escalated: MEDIUM -> high for phase research-examples-and-docs
+[2025-12-20 17:32:32] INFO: [ModelSelector] Selected claude-sonnet-4-5 for auditor (complexity=high, attempt=0, intra_tier=0)
+[2025-12-20 17:32:32] WARNING: [ModelRouter] Provider anthropic disabled, using fallback model claude-sonnet-4-5 for role=auditor, category=IMPLEMENT_FEATURE, complexity=high
+[2025-12-20 17:32:32] INFO: [MODEL-SELECT] Auditor: model=claude-sonnet-4-5, complexity=MEDIUM->high, attempt=0, category=IMPLEMENT_FEATURE
+[2025-12-20 17:32:34] INFO: HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-12-20 17:32:34] INFO: [research-examples-and-docs] Auditor completed: approved=True, issues=0
+[2025-12-20 17:32:36] INFO: [research-examples-and-docs] Step 5/5: Applying Quality Gate...
+[2025-12-20 17:32:36] INFO: [research-examples-and-docs] Quality Gate: needs_review
+[2025-12-20 17:32:38] INFO: Updated phase research-examples-and-docs status to COMPLETE
+[2025-12-20 17:32:38] INFO: [research-examples-and-docs] Phase completed successfully
+[2025-12-20 17:32:38] INFO: [ARCHIVE_CONSOLIDATOR] Logged build event: PHASE_COMPLETE
+[2025-12-20 17:32:38] INFO: [MemoryService] Wrote phase summary: research-examples-and-docs
+[2025-12-20 17:32:38] INFO: [research-examples-and-docs] Marked COMPLETE in database
+[2025-12-20 17:32:38] INFO: [research-examples-and-docs] Phase completed successfully on attempt 1
+[2025-12-20 17:32:38] INFO: Phase research-examples-and-docs completed successfully
+[2025-12-20 17:32:38] INFO: Waiting 10s before next phase...
+[2025-12-20 17:32:48] INFO: Iteration 2: Fetching run status...
+[2025-12-20 17:32:50] INFO: No more executable phases, execution complete
+[2025-12-20 17:32:50] INFO: Autonomous execution loop finished
+[2025-12-20 17:32:50] INFO: [ARCHIVE_CONSOLIDATOR] Logged build event: RUN_COMPLETE
+[2025-12-20 17:32:50] INFO: Learning Pipeline: Promoted 10 hints to persistent project rules
+[2025-12-20 17:32:50] INFO: Learning Pipeline: Marked rules updated (total: 102 rules)
+[2025-12-20 17:32:50] INFO: [PLANNING NOTICE] 10 new rules promoted. Future planning should incorporate 102 total project rules.
+[2025-12-20 17:32:50] INFO: [LOCK] Released executor lock for run_id=retry-examples-v1 (PID=51844)
+Warning: Requested model claude-sonnet-4-5 but its provider is disabled. Falling back to OpenAI (gpt-4o).
+Warning: Requested model claude-sonnet-4-5 but its provider is disabled. Falling back to OpenAI (gpt-4o).
+Warning: Requested model claude-sonnet-4-5 but its provider is disabled. Falling back to OpenAI (gpt-4o).
+[Quality Gate] Phase research-examples-and-docs
+Category: IMPLEMENT_FEATURE
+Quality Level: NEEDS_REVIEW
+
+Issues (blocking):
+  ✗ CI tests failed: pytest exited with code 2

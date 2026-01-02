@@ -1,0 +1,107 @@
+faiss library not installed; FaissStore will use in-memory fallback
+[2025-12-23 14:55:37] INFO: [LOCK] Acquired executor lock for run_id=build130-schema-validation-prevention (PID=121708, host=Harry)
+[2025-12-23 14:55:37] INFO: Applying pre-emptive encoding fix...
+[2025-12-23 14:55:37] INFO: [Recovery] Fixing Unicode encoding error...
+[2025-12-23 14:55:37] INFO: [Recovery] SUCCESS: Encoding fixed (UTF-8 enabled)
+[2025-12-23 14:55:37] INFO: Database tables initialized
+[2025-12-23 14:55:37] INFO: Loaded BuilderOutputConfig: max_lines_for_full_file=1000, max_lines_hard_limit=1000
+[2025-12-23 14:55:37] INFO: Doctor execute_fix enabled: True
+[2025-12-23 14:55:37] INFO: FileSizeTelemetry initialized: .autonomous_runs\autopack\file_size_telemetry.jsonl
+[2025-12-23 14:55:43] INFO: [Qdrant] Connected to localhost:6333
+[2025-12-23 14:55:43] INFO: [MemoryService] Using Qdrant backend
+[2025-12-23 14:55:47] ERROR: [Qdrant] Failed to ensure collection 'code_docs': [WinError 10061] No connection could be made because the target machine actively refused it
+[2025-12-23 14:55:47] WARNING: MemoryService initialization failed, running without memory: [WinError 10061] No connection could be made because the target machine actively refused it
+[2025-12-23 14:55:47] INFO: [FileLayout] Project: autopack, Family: build130-schema-validation-prevention, Base: .autonomous_runs\autopack\runs\build130-schema-validation-prevention
+[2025-12-23 14:55:47] INFO: Initialized autonomous executor for run: build130-schema-validation-prevention
+[2025-12-23 14:55:47] INFO: API URL: http://localhost:8000
+[2025-12-23 14:55:47] INFO: Workspace: .
+[2025-12-23 14:55:47] INFO: Running proactive startup checks from DEBUG_JOURNAL.md...
+[2025-12-23 14:55:47] INFO: [HIGH] Checking: Windows Unicode Fix (PYTHONUTF8)
+[2025-12-23 14:55:47] INFO:   Reason: Prevents UnicodeEncodeError with emoji characters in logs (Issue #3)
+[2025-12-23 14:55:47] INFO:   Check PASSED
+[2025-12-23 14:55:47] INFO: Startup checks complete
+[2025-12-23 14:55:48] INFO: [BUILD-123v2] Manifest generator initialized (deterministic scope generation)
+[2025-12-23 14:55:48] INFO: [HealthCheck:T0] API Keys: PASSED (0ms) - All required API keys present
+[2025-12-23 14:55:48] INFO: [HealthCheck:T0] Database: PASSED (0ms) - Database accessible: C:\dev\Autopack\autopack.db
+[2025-12-23 14:55:48] INFO: [HealthCheck:T0] Workspace: PASSED (0ms) - Workspace valid: C:\dev\Autopack
+[2025-12-23 14:55:48] INFO: [HealthCheck:T0] Config: PASSED (85ms) - Configuration files valid
+[2025-12-23 14:55:48] INFO: Starting autonomous execution loop...
+[2025-12-23 14:55:48] INFO: Poll interval: 10s
+[2025-12-23 14:55:50] INFO: API server is already running
+[2025-12-23 14:55:50] INFO: Initializing infrastructure...
+[2025-12-23 14:55:54] INFO: LlmService: Initialized with ModelRouter and UsageRecorder
+[2025-12-23 14:55:54] INFO: Quality Gate: Initialized
+[2025-12-23 14:55:54] INFO: Iteration 1: Fetching run status...
+[2025-12-23 14:55:56] INFO: [GoalAnchor] Initialized: Implement error classification system to prevent infinite retry loops on deterministic failures....
+[2025-12-23 14:55:56] INFO: [BUILD-041] Next phase: build130-phase0-circuit-breaker
+[2025-12-23 14:55:56] INFO: [BUILD-123v2] Phase 'build130-phase0-circuit-breaker' has no scope - generating manifest...
+[2025-12-23 14:55:56] INFO: Generating manifest for run: build130-schema-validation-prevention
+[2025-12-23 14:55:56] INFO: Repo structure scanned successfully
+[2025-12-23 14:55:56] INFO: [BUILD-128] Phase 'build130-phase0-circuit-breaker' has deliverables - inferring scope from deliverables
+[2025-12-23 14:55:56] INFO: [BUILD-128] Inferred category 'backend' from deliverables (confidence=50.0%)
+[2025-12-23 14:55:56] INFO: [BUILD-128] Generated scope: 4 paths, 1 context files
+[2025-12-23 14:55:56] INFO: [Isolation] autopack_internal_mode enabled - unlocking src/autopack/ for maintenance
+[2025-12-23 14:55:56] INFO: [BUILD-123v2] Generated scope for 'build130-phase0-circuit-breaker': category=backend, confidence=50.0%, files=4
+[2025-12-23 14:55:56] INFO: [build130-phase0-circuit-breaker] Step 1/4: Generating code with Builder (via LlmService)...
+[2025-12-23 14:55:56] WARNING: [Scope] Missing scope files: ['src/autopack/error_classifier.py', 'tests/test_circuit_breaker.py', 'docs/DEBUG_JOURNAL.md']
+[2025-12-23 14:55:56] INFO: [Scope] Loaded 5 files from scope configuration
+[2025-12-23 14:55:56] INFO: [Scope] Scope paths: ['src/autopack/error_classifier.py', 'src/autopack/autonomous_executor.py', 'tests/test_circuit_breaker.py', 'docs/DEBUG_JOURNAL.md']
+[2025-12-23 14:55:56] INFO: [Scope] Loaded paths: ['src/autopack/error_classifier.py', 'src/autopack/autonomous_executor.py', 'tests/test_circuit_breaker.py', 'docs/DEBUG_JOURNAL.md', 'src/autopack/models.py']...
+[2025-12-23 14:55:56] INFO: [build130-phase0-circuit-breaker] Loaded 5 files for context
+[2025-12-23 14:55:56] INFO: [Scope] Validation passed: 5 files match scope configuration
+[2025-12-23 14:55:56] WARNING: [build130-phase0-circuit-breaker] Large files in context (read-only, >1000 lines): src/autopack/autonomous_executor.py
+[2025-12-23 14:55:56] INFO: [build130-phase0-circuit-breaker] Built deliverables contract: 4 required paths, 0 forbidden patterns
+[2025-12-23 14:55:56] INFO: [build130-phase0-circuit-breaker] Deliverables manifest gate PASSED (4 paths)
+[2025-12-23 14:55:56] INFO: [ModelSelector] Selected claude-sonnet-4-5 for builder (complexity=medium, attempt=0, intra_tier=0)
+[2025-12-23 14:55:56] INFO: [MODEL-SELECT] Builder: model=claude-sonnet-4-5, complexity=medium->medium, attempt=0, category=backend
+[2025-12-23 14:55:56] INFO: [Builder] File src/autopack/autonomous_executor.py (8308 lines) exceeds hard limit; enabling structured edit mode
+[2025-12-23 14:55:56] WARNING: CONSOLIDATED_DEBUG.md not found at C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\CONSOLIDATED_DEBUG.md
+[2025-12-23 14:56:01] INFO: Retrying request to /v1/messages in 0.493926 seconds
+[2025-12-23 14:56:09] INFO: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+[2025-12-23 14:57:56] INFO: [TOKEN_BUDGET] phase=build130-phase0-circuit-breaker complexity=medium input=7249 output=7867/12288 total=15116 utilization=64.0% model=claude-sonnet-4-5
+[2025-12-23 14:57:56] INFO: [Builder] Attempting JSON repair on malformed structured_edit output...
+[2025-12-23 14:57:56] INFO: [JsonRepair] Rule-based repair succeeded: strip_prefix+strip_suffix+balance_brackets+fix_trailing_commas
+[2025-12-23 14:57:56] INFO: [Builder] Structured edit JSON repair succeeded via rule_based:strip_prefix+strip_suffix+balance_brackets+fix_trailing_commas
+[2025-12-23 14:57:56] INFO: [Builder] Detected full-file format in structured_edit mode - auto-converting to operations
+[2025-12-23 14:57:56] INFO: [Builder] Converted create file 'src/autopack/error_classifier.py' to prepend operation
+[2025-12-23 14:57:56] INFO: [Builder] Converted modify file 'src/autopack/autonomous_executor.py' to replace operation (lines 1-8308)
+[2025-12-23 14:57:56] INFO: [Builder] Converted create file 'tests/test_circuit_breaker.py' to prepend operation
+[2025-12-23 14:57:56] INFO: [Builder] Converted create file 'docs/DEBUG_JOURNAL.md' to prepend operation
+[2025-12-23 14:57:56] INFO: [Builder] Format conversion successful: 4 operations generated
+[2025-12-23 14:57:56] INFO: [Builder] Generated structured edit plan with 4 operations
+[2025-12-23 14:57:56] ERROR: [build130-phase0-circuit-breaker] Builder failed: empty_patch: builder produced no changes
+[2025-12-23 14:57:56] INFO: [Isolation] autopack_internal_mode enabled - unlocking src/autopack/ for maintenance
+[2025-12-23 14:58:00] INFO: Updated phase build130-phase0-circuit-breaker status to FAILED
+[2025-12-23 14:58:00] WARNING: Failed to write run_summary from executor: name 'models' is not defined
+[2025-12-23 14:58:41] INFO: [RetrievalTrigger] Phase build130-phase0-circuit-breaker attempt 1: Error messages lack context - triggering deep retrieval
+[2025-12-23 14:58:41] INFO: [DeepRetrieval] Starting bounded retrieval for phase build130-phase0-circuit-breaker (priority=medium)
+[2025-12-23 14:58:42] INFO: [DeepRetrieval] Retrieved 0 run artifacts (0 bytes), 1 SOT files (15360 bytes), 0 memory entries (0 bytes)
+[2025-12-23 14:58:42] WARNING: [build130-phase0-circuit-breaker] Attempt 1/5 failed, will escalate model for next retry
+[2025-12-23 14:58:42] WARNING: Phase build130-phase0-circuit-breaker finished with status: FAILED
+[2025-12-23 14:58:42] INFO: Waiting 10s before next phase...
+[2025-12-23 14:58:52] INFO: Iteration 2: Fetching run status...
+[2025-12-23 14:58:54] INFO: [BUILD-041] Next phase: build130-phase1-schema-validator
+[2025-12-23 14:58:54] INFO: [BUILD-123v2] Phase 'build130-phase1-schema-validator' has no scope - generating manifest...
+[2025-12-23 14:58:54] INFO: Generating manifest for run: build130-schema-validation-prevention
+[2025-12-23 14:58:54] INFO: Repo structure scanned successfully
+[2025-12-23 14:58:54] INFO: [BUILD-128] Phase 'build130-phase1-schema-validator' has deliverables - inferring scope from deliverables
+[2025-12-23 14:58:54] INFO: [BUILD-128] Inferred category 'backend' from deliverables (confidence=50.0%)
+[2025-12-23 14:58:54] INFO: [BUILD-128] Generated scope: 6 paths, 1 context files
+[2025-12-23 14:58:54] INFO: [Isolation] autopack_internal_mode enabled - unlocking src/autopack/ for maintenance
+[2025-12-23 14:58:54] INFO: [BUILD-123v2] Generated scope for 'build130-phase1-schema-validator': category=backend, confidence=50.0%, files=6
+[2025-12-23 14:58:54] INFO: [build130-phase1-schema-validator] Step 1/4: Generating code with Builder (via LlmService)...
+[2025-12-23 14:58:54] WARNING: [Scope] Missing scope files: ['src/autopack/schema_validator.py', 'src/autopack/break_glass_repair.py', 'scripts/break_glass_repair.py', 'tests/test_schema_validator.py', 'tests/test_break_glass_repair.py']
+[2025-12-23 14:58:54] INFO: [Scope] Loaded 7 files from scope configuration
+[2025-12-23 14:58:54] INFO: [Scope] Scope paths: ['src/autopack/schema_validator.py', 'src/autopack/break_glass_repair.py', 'scripts/break_glass_repair.py', 'src/autopack/autonomous_executor.py', 'tests/test_schema_validator.py', 'tests/test_break_glass_repair.py']
+[2025-12-23 14:58:54] INFO: [Scope] Loaded paths: ['src/autopack/schema_validator.py', 'src/autopack/break_glass_repair.py', 'scripts/break_glass_repair.py', 'src/autopack/autonomous_executor.py', 'tests/test_schema_validator.py', 'tests/test_break_glass_repair.py', 'src/autopack/models.py']...
+[2025-12-23 14:58:54] INFO: [build130-phase1-schema-validator] Loaded 7 files for context
+[2025-12-23 14:58:54] INFO: [Scope] Validation passed: 7 files match scope configuration
+[2025-12-23 14:58:54] WARNING: [build130-phase1-schema-validator] Large files in context (read-only, >1000 lines): src/autopack/autonomous_executor.py
+[2025-12-23 14:58:54] INFO: [build130-phase1-schema-validator] Learning context: 0 rules, 5 hints
+[2025-12-23 14:58:54] INFO: [build130-phase1-schema-validator] Built deliverables contract: 6 required paths, 0 forbidden patterns
+[2025-12-23 14:58:54] INFO: [build130-phase1-schema-validator] Deliverables manifest gate PASSED (6 paths)
+[2025-12-23 14:58:54] INFO: [ModelSelector] Selected claude-sonnet-4-5 for builder (complexity=high, attempt=0, intra_tier=0)
+[2025-12-23 14:58:54] INFO: [MODEL-SELECT] Builder: model=claude-sonnet-4-5, complexity=high->high, attempt=0, category=backend
+[2025-12-23 14:58:54] INFO: [Builder] File src/autopack/autonomous_executor.py (8308 lines) exceeds hard limit; enabling structured edit mode
+[2025-12-23 14:58:54] WARNING: CONSOLIDATED_DEBUG.md not found at C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\CONSOLIDATED_DEBUG.md
+[2025-12-23 14:59:07] INFO: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"

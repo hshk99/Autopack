@@ -1,0 +1,120 @@
+[2025-12-20 18:18:10] INFO: [LOCK] Acquired executor lock for run_id=retry-api-router-v4 (PID=46692, host=Harry)
+[2025-12-20 18:18:10] INFO: Applying pre-emptive encoding fix...
+[2025-12-20 18:18:10] INFO: [Recovery] Fixing Unicode encoding error...
+[2025-12-20 18:18:10] INFO: [Recovery] SUCCESS: Encoding fixed (UTF-8 enabled)
+[2025-12-20 18:18:10] INFO: Database tables initialized
+[2025-12-20 18:18:10] INFO: Loaded BuilderOutputConfig: max_lines_for_full_file=1000, max_lines_hard_limit=1000
+[2025-12-20 18:18:10] INFO: Doctor execute_fix enabled: True
+[2025-12-20 18:18:10] INFO: FileSizeTelemetry initialized: .autonomous_runs\autopack\file_size_telemetry.jsonl
+[2025-12-20 18:18:20] INFO: [MemoryService] Qdrant unavailable ([WinError 10061] No connection could be made because the target machine actively refused it); using FAISS fallback
+[2025-12-20 18:18:20] INFO: [FAISS] Created collection 'code_docs' with dim=1536
+[2025-12-20 18:18:20] INFO: [FAISS] Created collection 'run_summaries' with dim=1536
+[2025-12-20 18:18:20] INFO: [FAISS] Created collection 'errors_ci' with dim=1536
+[2025-12-20 18:18:20] INFO: [FAISS] Created collection 'doctor_hints' with dim=1536
+[2025-12-20 18:18:20] INFO: [FAISS] Created collection 'planning' with dim=1536
+[2025-12-20 18:18:20] INFO: [MemoryService] Initialized (backend=faiss, enabled=True, top_k=5)
+[2025-12-20 18:18:20] INFO: MemoryService initialized (enabled=True)
+[2025-12-20 18:18:20] INFO: [FileLayout] Project: autopack, Family: retry-api-router-v4, Base: .autonomous_runs\autopack\runs\retry-api-router-v4
+[2025-12-20 18:18:20] INFO: Initialized autonomous executor for run: retry-api-router-v4
+[2025-12-20 18:18:20] INFO: API URL: http://localhost:8001
+[2025-12-20 18:18:20] INFO: Workspace: .
+[2025-12-20 18:18:20] INFO: Running proactive startup checks from DEBUG_JOURNAL.md...
+[2025-12-20 18:18:20] INFO: [HIGH] Checking: Windows Unicode Fix (PYTHONUTF8)
+[2025-12-20 18:18:20] INFO:   Reason: Prevents UnicodeEncodeError with emoji characters in logs (Issue #3)
+[2025-12-20 18:18:20] INFO:   Check PASSED
+[2025-12-20 18:18:20] INFO: Startup checks complete
+[2025-12-20 18:18:21] INFO: [HealthCheck:T0] API Keys: PASSED (0ms) - All required API keys present
+[2025-12-20 18:18:21] INFO: [HealthCheck:T0] Database: PASSED (0ms) - Database accessible: C:\dev\Autopack\autopack.db
+[2025-12-20 18:18:21] INFO: [HealthCheck:T0] Workspace: PASSED (0ms) - Workspace valid: C:\dev\Autopack
+[2025-12-20 18:18:21] INFO: [HealthCheck:T0] Config: PASSED (22ms) - Configuration files valid
+[2025-12-20 18:18:21] INFO: [HealthCheck:T0] Vector Memory: PASSED (1016ms) - Qdrant not reachable at localhost:6333; Autopack will fall back to FAISS. To enable Qdrant: run `docker compose up -d qdrant` (docker-compose.yml includes it).
+[2025-12-20 18:18:21] INFO: Starting autonomous execution loop...
+[2025-12-20 18:18:21] INFO: Poll interval: 10s
+[2025-12-20 18:18:23] INFO: API server is already running
+[2025-12-20 18:18:23] INFO: Initializing infrastructure...
+[2025-12-20 18:18:26] INFO: LlmService: Initialized with ModelRouter and UsageRecorder
+[2025-12-20 18:18:26] INFO: Quality Gate: Initialized
+[2025-12-20 18:18:26] INFO: Iteration 1: Fetching run status...
+[2025-12-20 18:18:28] INFO: [GoalAnchor] Initialized: Unified Research Plan gap: expose research system via FastAPI router....
+[2025-12-20 18:18:28] INFO: [research-api-router] Found executable phase: state=PhaseState.QUEUED, attempts=0/None
+[2025-12-20 18:18:28] INFO: [BUILD-041] Next phase: research-api-router
+[2025-12-20 18:18:28] INFO: [research-api-router] Step 1/4: Generating code with Builder (via LlmService)...
+[2025-12-20 18:18:28] INFO: [Context] Loaded 7 recently modified files for fresh context
+[2025-12-20 18:18:29] INFO: [Context] Total: 21 files loaded for Builder context (modified=7, mentioned=0)
+[2025-12-20 18:18:29] INFO: [TOKEN_BUDGET] Context loading: ~19998 tokens (99% of 20000 budget)
+[2025-12-20 18:18:29] INFO: [research-api-router] Loaded 21 files for context
+[2025-12-20 18:18:29] INFO: [research-api-router] Built deliverables contract: 5 required paths, 0 forbidden patterns
+[2025-12-20 18:18:29] INFO: [ModelSelector] Selected claude-sonnet-4-5 for builder (complexity=low, attempt=0, intra_tier=0)
+[2025-12-20 18:18:32] INFO: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+[2025-12-20 18:18:32] INFO: [research-api-router] Deliverables manifest gate PASSED (5 paths)
+[2025-12-20 18:18:32] INFO: [ModelSelector] Complexity escalated: MEDIUM -> high for phase research-api-router
+[2025-12-20 18:18:32] INFO: [ModelSelector] Selected claude-sonnet-4-5 for builder (complexity=high, attempt=0, intra_tier=0)
+[2025-12-20 18:18:32] INFO: [MODEL-SELECT] Builder: model=claude-sonnet-4-5, complexity=MEDIUM->high, attempt=0, category=IMPLEMENT_FEATURE
+[2025-12-20 18:18:32] WARNING: [TOKEN_SOFT_CAP] run_id=retry-api-router-v4 phase_id=research-api-router est_total=33402 soft_cap=32000 (prompt=21934 completion=11468 complexity=medium)
+[2025-12-20 18:18:35] INFO: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+[2025-12-20 18:20:34] INFO: [TOKEN_BUDGET] phase=research-api-router complexity=medium input=29148 output=11174/16384 total=40322 utilization=68.2% model=claude-sonnet-4-5
+[2025-12-20 18:20:34] INFO: [Builder] Generated 7 file diffs locally from full-file content
+[2025-12-20 18:20:34] INFO: [research-api-router] Builder succeeded (40322 tokens)
+[2025-12-20 18:20:34] INFO: [research-api-router] Deliverables validation:
+[2025-12-20 18:20:34] INFO:   Expected: 5 files
+[2025-12-20 18:20:34] INFO:   Found in patch: 7 files
+[2025-12-20 18:20:34] INFO: [research-api-router] ✅ Deliverables validation PASSED
+[2025-12-20 18:20:34] INFO: [research-api-router]    Note: 2 additional files created (not required)
+[2025-12-20 18:20:36] INFO: [research-api-router] Step 2/5: Applying patch...
+[2025-12-20 18:20:36] WARNING: [GoalDrift] Potential goal drift detected (similarity=-0.02 < 0.7)
+[2025-12-20 18:20:36] WARNING: [GoalDrift] Goal: Unified Research Plan gap: expose research system via FastAPI router....
+[2025-12-20 18:20:36] WARNING: [GoalDrift] Intent: Unified Research Plan gap: expose research system via FastAPI router.
+
+The unified plan references m...
+[2025-12-20 18:20:36] INFO: [GoalDrift:Advisory] Potential goal drift detected (similarity=-0.02 < 0.7)
+[2025-12-20 18:20:36] WARNING: [research-api-router] ADVISORY: Potential goal drift detected (similarity=-0.02 < 0.7)
+[2025-12-20 18:20:36] INFO: Removing existing file for new file patch: src/autopack/research/api/schemas.py
+[2025-12-20 18:20:36] INFO: Removing existing file for new file patch: src/autopack/research/api/router.py
+[2025-12-20 18:20:36] INFO: Removing existing file for new file patch: src/autopack/main.py
+[2025-12-20 18:20:36] INFO: Removing existing file for new file patch: tests/autopack/research/api/test_research_router.py
+[2025-12-20 18:20:36] INFO: Removing existing file for new file patch: docs/research/API_REFERENCE.md
+[2025-12-20 18:20:36] INFO: Writing patch to temp_patch.diff
+[2025-12-20 18:20:36] INFO: Checking if patch can be applied (dry run)...
+[2025-12-20 18:20:36] INFO: Applying patch to filesystem...
+[2025-12-20 18:20:36] INFO: Patch applied successfully - 7 files modified
+[2025-12-20 18:20:36] INFO:   - src/autopack/research/api/__init__.py
+[2025-12-20 18:20:36] INFO:   - src/autopack/research/api/schemas.py
+[2025-12-20 18:20:36] INFO:   - src/autopack/research/api/router.py
+[2025-12-20 18:20:36] INFO:   - src/autopack/main.py
+[2025-12-20 18:20:36] INFO:   - tests/autopack/research/api/__init__.py
+[2025-12-20 18:20:36] INFO:   - tests/autopack/research/api/test_research_router.py
+[2025-12-20 18:20:36] INFO:   - docs/research/API_REFERENCE.md
+[2025-12-20 18:20:36] INFO: [Validation] All 7 modified files validated successfully
+[2025-12-20 18:20:36] INFO: [research-api-router] Patch applied successfully to filesystem
+[2025-12-20 18:20:36] INFO: [research-api-router] Step 3/5: Running CI checks...
+[2025-12-20 18:20:36] INFO: [research-api-router] Running CI checks (pytest)...
+[2025-12-20 18:20:55] INFO: [research-api-router] CI output written to: .autonomous_runs\retry-api-router-v4\ci\pytest_research-api-router.log
+[2025-12-20 18:20:55] WARNING: [research-api-router] CI checks FAILED: return code 2
+[2025-12-20 18:20:55] INFO: [research-api-router] Step 4/5: Reviewing patch with Auditor (via LlmService)...
+[2025-12-20 18:20:55] INFO: [ModelSelector] Complexity escalated: MEDIUM -> high for phase research-api-router
+[2025-12-20 18:20:55] INFO: [ModelSelector] Selected claude-sonnet-4-5 for auditor (complexity=high, attempt=0, intra_tier=0)
+[2025-12-20 18:20:55] INFO: [MODEL-SELECT] Auditor: model=claude-sonnet-4-5, complexity=MEDIUM->high, attempt=0, category=IMPLEMENT_FEATURE
+[2025-12-20 18:21:18] INFO: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+[2025-12-20 18:21:18] INFO: [research-api-router] Auditor completed: approved=False, issues=1
+[2025-12-20 18:21:20] INFO: [research-api-router] Step 5/5: Applying Quality Gate...
+[2025-12-20 18:21:20] INFO: [research-api-router] Quality Gate: needs_review
+[2025-12-20 18:21:22] INFO: Updated phase research-api-router status to COMPLETE
+[2025-12-20 18:21:22] INFO: [research-api-router] Phase completed successfully
+[2025-12-20 18:21:22] INFO: [ARCHIVE_CONSOLIDATOR] Logged build event: PHASE_COMPLETE
+[2025-12-20 18:21:22] INFO: [MemoryService] Wrote phase summary: research-api-router
+[2025-12-20 18:21:22] INFO: [research-api-router] Marked COMPLETE in database
+[2025-12-20 18:21:22] INFO: [research-api-router] Phase completed successfully on attempt 1
+[2025-12-20 18:21:22] INFO: Phase research-api-router completed successfully
+[2025-12-20 18:21:22] INFO: Waiting 10s before next phase...
+[2025-12-20 18:21:32] INFO: Iteration 2: Fetching run status...
+[2025-12-20 18:21:34] INFO: No more executable phases, execution complete
+[2025-12-20 18:21:34] INFO: Autonomous execution loop finished
+[2025-12-20 18:21:34] INFO: [ARCHIVE_CONSOLIDATOR] Logged build event: RUN_COMPLETE
+[2025-12-20 18:21:34] INFO: Learning Pipeline: No hints qualified for promotion (need 2+ occurrences)
+[2025-12-20 18:21:34] INFO: [LOCK] Released executor lock for run_id=retry-api-router-v4 (PID=46692)
+[Quality Gate] Phase research-api-router
+Category: IMPLEMENT_FEATURE
+Quality Level: NEEDS_REVIEW
+
+Issues (blocking):
+  ✗ CI tests failed: pytest exited with code 2

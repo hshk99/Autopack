@@ -1,0 +1,3 @@
+faiss library not installed; FaissStore will use in-memory fallback
+[2025-12-23 15:00:29] ERROR: [LOCK] Another executor is already running for run_id=build130-schema-validation-prevention (could not read lock file: [Errno 13] Permission denied)
+[2025-12-23 15:00:29] ERROR: Another executor is already running for run_id=build130-schema-validation-prevention. Exiting to prevent duplicate work and token waste.

@@ -1,0 +1,294 @@
+faiss library not installed; FaissStore will use in-memory fallback
+[2025-12-23 21:16:09] INFO: [LOCK] Acquired executor lock for run_id=build132-coverage-delta-integration (PID=122792, host=Harry)
+[2025-12-23 21:16:09] INFO: Applying pre-emptive encoding fix...
+[2025-12-23 21:16:09] INFO: [Recovery] Fixing Unicode encoding error...
+[2025-12-23 21:16:09] INFO: [Recovery] SUCCESS: Encoding fixed (UTF-8 enabled)
+[2025-12-23 21:16:09] INFO: Database tables initialized
+[2025-12-23 21:16:09] INFO: Loaded BuilderOutputConfig: max_lines_for_full_file=1000, max_lines_hard_limit=1000
+[2025-12-23 21:16:09] INFO: Doctor execute_fix enabled: True
+[2025-12-23 21:16:09] INFO: FileSizeTelemetry initialized: .autonomous_runs\autopack\file_size_telemetry.jsonl
+[2025-12-23 21:16:14] INFO: [Qdrant] Connected to localhost:6333
+[2025-12-23 21:16:14] INFO: [MemoryService] Using Qdrant backend
+[2025-12-23 21:16:19] ERROR: [Qdrant] Failed to ensure collection 'code_docs': [WinError 10061] No connection could be made because the target machine actively refused it
+[2025-12-23 21:16:19] WARNING: MemoryService initialization failed, running without memory: [WinError 10061] No connection could be made because the target machine actively refused it
+[2025-12-23 21:16:19] INFO: [FileLayout] Project: autopack, Family: build132-coverage-delta-integration, Base: .autonomous_runs\autopack\runs\build132-coverage-delta-integration
+[2025-12-23 21:16:19] INFO: Initialized autonomous executor for run: build132-coverage-delta-integration
+[2025-12-23 21:16:19] INFO: API URL: http://localhost:8000
+[2025-12-23 21:16:19] INFO: Workspace: .
+[2025-12-23 21:16:19] INFO: Running proactive startup checks from DEBUG_JOURNAL.md...
+[2025-12-23 21:16:19] INFO: [HIGH] Checking: Windows Unicode Fix (PYTHONUTF8)
+[2025-12-23 21:16:19] INFO:   Reason: Prevents UnicodeEncodeError with emoji characters in logs (Issue #3)
+[2025-12-23 21:16:19] INFO:   Check PASSED
+[2025-12-23 21:16:19] INFO: [SchemaValidator] Starting database schema validation...
+[2025-12-23 21:16:19] INFO: [SchemaValidator] ✅ Database schema validation PASSED
+[2025-12-23 21:16:19] INFO: Startup checks complete
+[2025-12-23 21:16:19] INFO: [BUILD-123v2] Manifest generator initialized (deterministic scope generation)
+[2025-12-23 21:16:19] INFO: [HealthCheck:T0] API Keys: PASSED (0ms) - All required API keys present
+[2025-12-23 21:16:19] INFO: [HealthCheck:T0] Database: PASSED (0ms) - Database accessible: C:\dev\Autopack\autopack.db
+[2025-12-23 21:16:19] INFO: [HealthCheck:T0] Workspace: PASSED (1ms) - Workspace valid: C:\dev\Autopack
+[2025-12-23 21:16:19] INFO: [HealthCheck:T0] Config: PASSED (20ms) - Configuration files valid
+[2025-12-23 21:16:19] INFO: [BUILD-127] Completion authority initialized (PhaseFinalizer + TestBaselineTracker)
+[2025-12-23 21:16:19] INFO: [BUILD-127] Capturing T0 baseline at commit 2df5efe3...
+[2025-12-23 21:16:19] INFO: [Baseline] Using cached baseline for commit 2df5efe3
+[2025-12-23 21:16:19] INFO: [BUILD-127] T0 baseline: 0 tests, 0 passing, 0 failing, 0 errors
+[2025-12-23 21:16:19] INFO: Starting autonomous execution loop...
+[2025-12-23 21:16:19] INFO: Poll interval: 10s
+[2025-12-23 21:16:21] INFO: API server is already running
+[2025-12-23 21:16:21] INFO: Initializing infrastructure...
+[2025-12-23 21:16:24] INFO: LlmService: Initialized with ModelRouter and UsageRecorder
+[2025-12-23 21:16:24] INFO: Quality Gate: Initialized
+[2025-12-23 21:16:24] INFO: Iteration 1: Fetching run status...
+[2025-12-23 21:16:26] INFO: [BUILD-041] Next phase: build132-phase1-enable-coverage
+[2025-12-23 21:16:26] INFO: [BUILD-123v2] Phase 'build132-phase1-enable-coverage' has no scope - generating manifest...
+[2025-12-23 21:16:26] INFO: Generating manifest for run: build132-coverage-delta-integration
+[2025-12-23 21:16:26] INFO: Repo structure scanned successfully
+[2025-12-23 21:16:26] ERROR: [BUILD-123v2] Failed to generate manifest for 'build132-phase1-enable-coverage': 'NoneType' object has no attribute 'get'
+Traceback (most recent call last):
+  File "C:\dev\Autopack\src\autopack\autonomous_executor.py", line 1682, in execute_phase
+    result = self.manifest_generator.generate_manifest(
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\dev\Autopack\src\autopack\manifest_generator.py", line 205, in generate_manifest
+    enhanced_phase, phase_confidence, phase_warnings = self._enhance_phase(phase)
+                                                       ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\dev\Autopack\src\autopack\manifest_generator.py", line 508, in _enhance_phase
+    if existing_scope.get("paths"):
+       ^^^^^^^^^^^^^^^^^^
+AttributeError: 'NoneType' object has no attribute 'get'
+[2025-12-23 21:16:26] INFO: [build132-phase1-enable-coverage] Step 1/4: Generating code with Builder (via LlmService)...
+[2025-12-23 21:16:27] INFO: [Context] Loaded 7 recently modified files for fresh context
+[2025-12-23 21:16:27] INFO: [Context] Total: 19 files loaded for Builder context (modified=7, mentioned=0)
+[2025-12-23 21:16:27] INFO: [TOKEN_BUDGET] Context loading: ~19995 tokens (99% of 20000 budget)
+[2025-12-23 21:16:27] INFO: [build132-phase1-enable-coverage] Loaded 19 files for context
+[2025-12-23 21:16:27] INFO: [ModelSelector] Selected claude-sonnet-4-5 for builder (complexity=low, attempt=0, intra_tier=0)
+[2025-12-23 21:16:27] INFO: [MODEL-SELECT] Builder: model=claude-sonnet-4-5, complexity=low->low, attempt=0, category=configuration
+[2025-12-23 21:16:27] WARNING: CONSOLIDATED_DEBUG.md not found at C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\CONSOLIDATED_DEBUG.md
+[2025-12-23 21:16:27] WARNING: [TOKEN_SOFT_CAP] run_id=unknown phase_id=build132-phase1-enable-coverage est_total=34460 soft_cap=12000 (prompt=22992 completion=11468 complexity=low)
+[2025-12-23 21:16:30] INFO: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+[2025-12-23 21:16:40] INFO: [TOKEN_BUDGET] phase=build132-phase1-enable-coverage complexity=low input=31382 output=738/16384 total=32120 utilization=4.5% model=claude-sonnet-4-5
+[2025-12-23 21:16:40] INFO: [Builder] Generated 2 file diffs locally from full-file content
+[2025-12-23 21:16:40] INFO: [build132-phase1-enable-coverage] Builder succeeded (32120 tokens)
+[2025-12-23 21:16:40] INFO: [build132-phase1-enable-coverage] No deliverables specified in scope, skipping validation
+[2025-12-23 21:16:42] INFO: [build132-phase1-enable-coverage] Step 2/5: Applying patch...
+[2025-12-23 21:16:42] INFO: Removing existing file for new file patch: .gitignore
+[2025-12-23 21:16:42] INFO: Writing patch to temp_patch.diff
+[2025-12-23 21:16:42] INFO: Checking if patch can be applied (dry run)...
+[2025-12-23 21:16:42] INFO: Applying patch to filesystem...
+[2025-12-23 21:16:42] INFO: Patch applied successfully - 2 files modified
+[2025-12-23 21:16:42] INFO:   - pytest.ini
+[2025-12-23 21:16:42] INFO:   - .gitignore
+[2025-12-23 21:16:42] INFO: [Validation] All 2 modified files validated successfully
+[2025-12-23 21:16:42] INFO: [build132-phase1-enable-coverage] Patch applied successfully to filesystem
+[2025-12-23 21:16:42] INFO: [build132-phase1-enable-coverage] Step 3/5: Running CI checks...
+[2025-12-23 21:16:42] INFO: [build132-phase1-enable-coverage] Running CI checks (pytest)...
+[2025-12-23 21:17:08] INFO: [build132-phase1-enable-coverage] CI output written to: .autonomous_runs\build132-coverage-delta-integration\ci\pytest_build132-phase1-enable-coverage.log
+[2025-12-23 21:17:08] WARNING: [build132-phase1-enable-coverage] CI checks FAILED: return code 2
+[2025-12-23 21:17:08] INFO: [build132-phase1-enable-coverage] Step 4/5: Reviewing patch with Auditor (via LlmService)...
+[2025-12-23 21:17:08] INFO: [ModelSelector] Selected claude-sonnet-4-5 for auditor (complexity=low, attempt=0, intra_tier=0)
+[2025-12-23 21:17:08] INFO: [MODEL-SELECT] Auditor: model=claude-sonnet-4-5, complexity=low->low, attempt=0, category=configuration
+[2025-12-23 21:17:08] WARNING: CONSOLIDATED_DEBUG.md not found at C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\CONSOLIDATED_DEBUG.md
+[2025-12-23 21:17:20] INFO: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+[2025-12-23 21:17:20] ERROR: [build132-phase1-enable-coverage] Execution failed: QualityGate.assess_phase() missing 1 required positional argument: 'patch_content'
+Traceback:
+Traceback (most recent call last):
+  File "C:\dev\Autopack\src\autopack\autonomous_executor.py", line 4526, in _execute_phase_with_recovery
+    auditor_result = self.llm_service.execute_auditor_review(
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\dev\Autopack\src\autopack\llm_service.py", line 534, in execute_auditor_review
+    quality_report = self.quality_gate.assess_phase(
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+TypeError: QualityGate.assess_phase() missing 1 required positional argument: 'patch_content'
+
+[2025-12-23 21:17:20] INFO: [ARCHIVE_CONSOLIDATOR] Logged new error: Phase build132-phase1-enable-coverage inner execution failure
+[2025-12-23 21:17:22] INFO: Updated phase build132-phase1-enable-coverage status to FAILED
+[2025-12-23 21:17:22] WARNING: Failed to write run_summary from executor: name 'models' is not defined
+[2025-12-23 21:18:02] INFO: [RetrievalTrigger] Phase build132-phase1-enable-coverage attempt 1: Error messages lack context - triggering deep retrieval
+[2025-12-23 21:18:02] INFO: [DeepRetrieval] Starting bounded retrieval for phase build132-phase1-enable-coverage (priority=medium)
+[2025-12-23 21:18:03] INFO: [DeepRetrieval] Retrieved 0 run artifacts (0 bytes), 1 SOT files (15360 bytes), 0 memory entries (0 bytes)
+[2025-12-23 21:18:03] WARNING: [build132-phase1-enable-coverage] Attempt 1/5 failed, will escalate model for next retry
+[2025-12-23 21:18:03] WARNING: Phase build132-phase1-enable-coverage finished with status: FAILED
+[2025-12-23 21:18:03] INFO: Waiting 10s before next phase...
+[2025-12-23 21:18:13] INFO: Iteration 2: Fetching run status...
+[2025-12-23 21:18:15] INFO: [BUILD-041] Next phase: build132-phase2-coverage-tracker
+[2025-12-23 21:18:15] INFO: [BUILD-123v2] Phase 'build132-phase2-coverage-tracker' has no scope - generating manifest...
+[2025-12-23 21:18:15] INFO: Generating manifest for run: build132-coverage-delta-integration
+[2025-12-23 21:18:15] INFO: Repo structure scanned successfully
+[2025-12-23 21:18:15] ERROR: [BUILD-123v2] Failed to generate manifest for 'build132-phase2-coverage-tracker': 'NoneType' object has no attribute 'get'
+Traceback (most recent call last):
+  File "C:\dev\Autopack\src\autopack\autonomous_executor.py", line 1682, in execute_phase
+    result = self.manifest_generator.generate_manifest(
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\dev\Autopack\src\autopack\manifest_generator.py", line 205, in generate_manifest
+    enhanced_phase, phase_confidence, phase_warnings = self._enhance_phase(phase)
+                                                       ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\dev\Autopack\src\autopack\manifest_generator.py", line 508, in _enhance_phase
+    if existing_scope.get("paths"):
+       ^^^^^^^^^^^^^^^^^^
+AttributeError: 'NoneType' object has no attribute 'get'
+[2025-12-23 21:18:15] INFO: [build132-phase2-coverage-tracker] Step 1/4: Generating code with Builder (via LlmService)...
+[2025-12-23 21:18:15] INFO: [Context] Loaded 10 recently modified files for fresh context
+[2025-12-23 21:18:15] INFO: [Context] Total: 24 files loaded for Builder context (modified=10, mentioned=0)
+[2025-12-23 21:18:15] INFO: [TOKEN_BUDGET] Context loading: ~19999 tokens (99% of 20000 budget)
+[2025-12-23 21:18:15] INFO: [build132-phase2-coverage-tracker] Loaded 24 files for context
+[2025-12-23 21:18:15] INFO: [ModelSelector] Selected claude-sonnet-4-5 for builder (complexity=medium, attempt=0, intra_tier=0)
+[2025-12-23 21:18:15] INFO: [MODEL-SELECT] Builder: model=claude-sonnet-4-5, complexity=medium->medium, attempt=0, category=implementation
+[2025-12-23 21:18:15] WARNING: CONSOLIDATED_DEBUG.md not found at C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\CONSOLIDATED_DEBUG.md
+[2025-12-23 21:18:15] WARNING: [TOKEN_SOFT_CAP] run_id=unknown phase_id=build132-phase2-coverage-tracker est_total=34817 soft_cap=32000 (prompt=23349 completion=11468 complexity=medium)
+[2025-12-23 21:18:18] INFO: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+[2025-12-23 21:19:20] INFO: [TOKEN_BUDGET] phase=build132-phase2-coverage-tracker complexity=medium input=32378 output=5690/16384 total=38068 utilization=34.7% model=claude-sonnet-4-5
+[2025-12-23 21:19:20] INFO: [Builder] Generated 2 file diffs locally from full-file content
+[2025-12-23 21:19:20] INFO: [build132-phase2-coverage-tracker] Builder succeeded (38068 tokens)
+[2025-12-23 21:19:20] INFO: [build132-phase2-coverage-tracker] No deliverables specified in scope, skipping validation
+[2025-12-23 21:19:22] INFO: [build132-phase2-coverage-tracker] Step 2/5: Applying patch...
+[2025-12-23 21:19:22] WARNING: [Isolation] BLOCKED: Patch attempts to modify protected path: src/autopack/coverage_tracker.py
+[2025-12-23 21:19:22] ERROR: [Isolation] Patch rejected - 1 violations (protected paths + scope)
+[2025-12-23 21:19:22] WARNING: [Governance] Protected path violation: 1 paths
+[2025-12-23 21:19:22] INFO: [Governance:build132-phase2-coverage-tracker] Protected path violation detected: 1 paths
+[2025-12-23 21:19:22] ERROR: [build132-phase2-coverage-tracker] Execution failed: 'AutonomousExecutor' object has no attribute 'db'
+Traceback:
+Traceback (most recent call last):
+  File "C:\dev\Autopack\src\autopack\autonomous_executor.py", line 4502, in _execute_phase_with_recovery
+    governance_handled = self._try_handle_governance_request(
+                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\dev\Autopack\src\autopack\autonomous_executor.py", line 7361, in _try_handle_governance_request
+    db_session=self.db,
+               ^^^^^^^
+AttributeError: 'AutonomousExecutor' object has no attribute 'db'
+
+[2025-12-23 21:19:22] INFO: [ARCHIVE_CONSOLIDATOR] Logged new error: Phase build132-phase2-coverage-tracker inner execution failure
+[2025-12-23 21:19:24] INFO: Updated phase build132-phase2-coverage-tracker status to FAILED
+[2025-12-23 21:19:24] WARNING: Failed to write run_summary from executor: name 'models' is not defined
+[2025-12-23 21:20:04] INFO: [RetrievalTrigger] Phase build132-phase2-coverage-tracker attempt 1: Error messages lack context - triggering deep retrieval
+[2025-12-23 21:20:04] INFO: [DeepRetrieval] Starting bounded retrieval for phase build132-phase2-coverage-tracker (priority=medium)
+[2025-12-23 21:20:05] INFO: [DeepRetrieval] Retrieved 0 run artifacts (0 bytes), 1 SOT files (15360 bytes), 0 memory entries (0 bytes)
+[2025-12-23 21:20:05] WARNING: [build132-phase2-coverage-tracker] Attempt 1/5 failed, will escalate model for next retry
+[2025-12-23 21:20:05] WARNING: Phase build132-phase2-coverage-tracker finished with status: FAILED
+[2025-12-23 21:20:05] INFO: Waiting 10s before next phase...
+[2025-12-23 21:20:15] INFO: Iteration 3: Fetching run status...
+[2025-12-23 21:20:17] INFO: [BUILD-041] Next phase: build132-phase3-executor-integration
+[2025-12-23 21:20:17] INFO: [BUILD-123v2] Phase 'build132-phase3-executor-integration' has no scope - generating manifest...
+[2025-12-23 21:20:17] INFO: Generating manifest for run: build132-coverage-delta-integration
+[2025-12-23 21:20:17] INFO: Repo structure scanned successfully
+[2025-12-23 21:20:17] ERROR: [BUILD-123v2] Failed to generate manifest for 'build132-phase3-executor-integration': 'NoneType' object has no attribute 'get'
+Traceback (most recent call last):
+  File "C:\dev\Autopack\src\autopack\autonomous_executor.py", line 1682, in execute_phase
+    result = self.manifest_generator.generate_manifest(
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\dev\Autopack\src\autopack\manifest_generator.py", line 205, in generate_manifest
+    enhanced_phase, phase_confidence, phase_warnings = self._enhance_phase(phase)
+                                                       ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\dev\Autopack\src\autopack\manifest_generator.py", line 508, in _enhance_phase
+    if existing_scope.get("paths"):
+       ^^^^^^^^^^^^^^^^^^
+AttributeError: 'NoneType' object has no attribute 'get'
+[2025-12-23 21:20:17] INFO: [build132-phase3-executor-integration] Step 1/4: Generating code with Builder (via LlmService)...
+[2025-12-23 21:20:17] INFO: [Context] Loaded 10 recently modified files for fresh context
+[2025-12-23 21:20:17] INFO: [Context] Total: 23 files loaded for Builder context (modified=10, mentioned=0)
+[2025-12-23 21:20:17] INFO: [TOKEN_BUDGET] Context loading: ~19989 tokens (99% of 20000 budget)
+[2025-12-23 21:20:17] INFO: [build132-phase3-executor-integration] Loaded 23 files for context
+[2025-12-23 21:20:17] INFO: [ModelSelector] Selected claude-sonnet-4-5 for builder (complexity=medium, attempt=0, intra_tier=0)
+[2025-12-23 21:20:17] INFO: [MODEL-SELECT] Builder: model=claude-sonnet-4-5, complexity=medium->medium, attempt=0, category=integration
+[2025-12-23 21:20:17] WARNING: CONSOLIDATED_DEBUG.md not found at C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\CONSOLIDATED_DEBUG.md
+[2025-12-23 21:20:17] WARNING: [TOKEN_SOFT_CAP] run_id=unknown phase_id=build132-phase3-executor-integration est_total=34657 soft_cap=32000 (prompt=23189 completion=11468 complexity=medium)
+[2025-12-23 21:20:20] INFO: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+[2025-12-23 21:22:20] INFO: [TOKEN_BUDGET] phase=build132-phase3-executor-integration complexity=medium input=32289 output=8975/16384 total=41264 utilization=54.8% model=claude-sonnet-4-5
+[2025-12-23 21:22:20] INFO: [Builder] Generated 1 file diffs locally from full-file content
+[2025-12-23 21:22:20] INFO: [build132-phase3-executor-integration] Builder succeeded (41264 tokens)
+[2025-12-23 21:22:20] INFO: [build132-phase3-executor-integration] No deliverables specified in scope, skipping validation
+[2025-12-23 21:22:22] INFO: [build132-phase3-executor-integration] Step 2/5: Applying patch...
+[2025-12-23 21:22:22] INFO: Removing existing file for new file patch: src/autopack/autonomous_executor.py
+[2025-12-23 21:22:22] WARNING: [Isolation] BLOCKED: Patch attempts to modify protected path: src/autopack/autonomous_executor.py
+[2025-12-23 21:22:22] ERROR: [Isolation] Patch rejected - 1 violations (protected paths + scope)
+[2025-12-23 21:22:22] WARNING: [Governance] Protected path violation: 1 paths
+[2025-12-23 21:22:22] INFO: [Governance:build132-phase3-executor-integration] Protected path violation detected: 1 paths
+[2025-12-23 21:22:22] ERROR: [build132-phase3-executor-integration] Execution failed: 'AutonomousExecutor' object has no attribute 'db'
+Traceback:
+Traceback (most recent call last):
+  File "C:\dev\Autopack\src\autopack\autonomous_executor.py", line 4502, in _execute_phase_with_recovery
+  File "C:\dev\Autopack\src\autopack\autonomous_executor.py", line 7361, in _try_handle_governance_request
+AttributeError: 'AutonomousExecutor' object has no attribute 'db'
+
+[2025-12-23 21:22:22] INFO: [ARCHIVE_CONSOLIDATOR] Logged new error: Phase build132-phase3-executor-integration inner execution failure
+[2025-12-23 21:22:24] INFO: Updated phase build132-phase3-executor-integration status to FAILED
+[2025-12-23 21:22:24] WARNING: Failed to write run_summary from executor: name 'models' is not defined
+[2025-12-23 21:23:05] INFO: [RetrievalTrigger] Phase build132-phase3-executor-integration attempt 1: Error messages lack context - triggering deep retrieval
+[2025-12-23 21:23:05] INFO: [DeepRetrieval] Starting bounded retrieval for phase build132-phase3-executor-integration (priority=medium)
+[2025-12-23 21:23:05] INFO: [DeepRetrieval] Retrieved 0 run artifacts (0 bytes), 1 SOT files (15360 bytes), 0 memory entries (0 bytes)
+[2025-12-23 21:23:05] WARNING: [build132-phase3-executor-integration] Attempt 1/5 failed, will escalate model for next retry
+[2025-12-23 21:23:05] WARNING: Phase build132-phase3-executor-integration finished with status: FAILED
+[2025-12-23 21:23:05] INFO: Waiting 10s before next phase...
+[2025-12-23 21:23:15] INFO: Iteration 4: Fetching run status...
+[2025-12-23 21:23:17] INFO: [BUILD-041] Next phase: build132-phase4-documentation
+[2025-12-23 21:23:17] INFO: [BUILD-123v2] Phase 'build132-phase4-documentation' has no scope - generating manifest...
+[2025-12-23 21:23:17] INFO: Generating manifest for run: build132-coverage-delta-integration
+[2025-12-23 21:23:17] INFO: Repo structure scanned successfully
+[2025-12-23 21:23:17] ERROR: [BUILD-123v2] Failed to generate manifest for 'build132-phase4-documentation': 'NoneType' object has no attribute 'get'
+Traceback (most recent call last):
+  File "C:\dev\Autopack\src\autopack\autonomous_executor.py", line 1682, in execute_phase
+  File "C:\dev\Autopack\src\autopack\manifest_generator.py", line 205, in generate_manifest
+    enhanced_phase, phase_confidence, phase_warnings = self._enhance_phase(phase)
+                                                       ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\dev\Autopack\src\autopack\manifest_generator.py", line 508, in _enhance_phase
+    if existing_scope.get("paths"):
+       ^^^^^^^^^^^^^^^^^^
+AttributeError: 'NoneType' object has no attribute 'get'
+[2025-12-23 21:23:17] INFO: [build132-phase4-documentation] Step 1/4: Generating code with Builder (via LlmService)...
+[2025-12-23 21:23:17] INFO: [Context] Loaded 10 recently modified files for fresh context
+[2025-12-23 21:23:18] INFO: [Context] Total: 26 files loaded for Builder context (modified=10, mentioned=0)
+[2025-12-23 21:23:18] INFO: [TOKEN_BUDGET] Context loading: ~19996 tokens (99% of 20000 budget)
+[2025-12-23 21:23:18] INFO: [build132-phase4-documentation] Loaded 26 files for context
+[2025-12-23 21:23:18] INFO: [MODEL-SELECT] Builder: model=claude-sonnet-4-5, complexity=low->low, attempt=0, category=docs
+[2025-12-23 21:23:18] INFO: [MODEL] Builder using claude-sonnet-4-5 due to: routing_policy:docs
+[2025-12-23 21:23:18] WARNING: CONSOLIDATED_DEBUG.md not found at C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\CONSOLIDATED_DEBUG.md
+[2025-12-23 21:23:18] WARNING: [TOKEN_SOFT_CAP] run_id=unknown phase_id=build132-phase4-documentation est_total=37413 soft_cap=12000 (prompt=25945 completion=11468 complexity=low)
+[2025-12-23 21:23:20] INFO: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+[2025-12-23 21:24:47] INFO: [TOKEN_BUDGET] phase=build132-phase4-documentation complexity=low input=35847 output=5277/16384 total=41124 utilization=32.2% model=claude-sonnet-4-5
+[2025-12-23 21:24:48] INFO: [Builder] Generated 3 file diffs locally from full-file content
+[2025-12-23 21:24:48] INFO: [build132-phase4-documentation] Builder succeeded (41124 tokens)
+[2025-12-23 21:24:48] INFO: [build132-phase4-documentation] No deliverables specified in scope, skipping validation
+[2025-12-23 21:24:50] INFO: [build132-phase4-documentation] Step 2/5: Applying patch...
+[2025-12-23 21:24:50] INFO: Removing existing file for new file patch: BUILD_LOG.md
+[2025-12-23 21:24:50] INFO: Writing patch to temp_patch.diff
+[2025-12-23 21:24:50] INFO: Checking if patch can be applied (dry run)...
+[2025-12-23 21:24:50] INFO: Applying patch to filesystem...
+[2025-12-23 21:24:50] INFO: Patch applied successfully - 3 files modified
+[2025-12-23 21:24:50] INFO:   - BUILD_HISTORY.md
+[2025-12-23 21:24:50] INFO:   - BUILD_LOG.md
+[2025-12-23 21:24:50] INFO:   - docs/BUILD-132_IMPLEMENTATION_STATUS.md
+[2025-12-23 21:24:50] INFO: [Validation] All 3 modified files validated successfully
+[2025-12-23 21:24:50] INFO: [build132-phase4-documentation] Patch applied successfully to filesystem
+[2025-12-23 21:24:50] INFO: [build132-phase4-documentation] Step 3/5: Running CI checks...
+[2025-12-23 21:24:50] INFO: [build132-phase4-documentation] Running CI checks (pytest)...
+[2025-12-23 21:25:15] INFO: [build132-phase4-documentation] CI output written to: .autonomous_runs\build132-coverage-delta-integration\ci\pytest_build132-phase4-documentation.log
+[2025-12-23 21:25:15] WARNING: [build132-phase4-documentation] CI checks FAILED: return code 2
+[2025-12-23 21:25:15] INFO: [build132-phase4-documentation] Step 4/5: Reviewing patch with Auditor (via LlmService)...
+[2025-12-23 21:25:15] INFO: [MODEL-SELECT] Auditor: model=claude-sonnet-4-5, complexity=low->low, attempt=0, category=docs
+[2025-12-23 21:25:15] INFO: [MODEL] Auditor using claude-sonnet-4-5 due to: routing_policy:docs
+[2025-12-23 21:25:15] WARNING: CONSOLIDATED_DEBUG.md not found at C:\dev\Autopack\.autonomous_runs\file-organizer-app-v1\archive\CONSOLIDATED_DEBUG.md
+[2025-12-23 21:25:27] INFO: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+[2025-12-23 21:25:27] ERROR: [build132-phase4-documentation] Execution failed: QualityGate.assess_phase() missing 1 required positional argument: 'patch_content'
+Traceback:
+Traceback (most recent call last):
+  File "C:\dev\Autopack\src\autopack\autonomous_executor.py", line 4526, in _execute_phase_with_recovery
+  File "C:\dev\Autopack\src\autopack\llm_service.py", line 534, in execute_auditor_review
+    quality_report = self.quality_gate.assess_phase(
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+TypeError: QualityGate.assess_phase() missing 1 required positional argument: 'patch_content'
+
+[2025-12-23 21:25:27] INFO: [ARCHIVE_CONSOLIDATOR] Logged new error: Phase build132-phase4-documentation inner execution failure
+[2025-12-23 21:25:29] INFO: Updated phase build132-phase4-documentation status to FAILED
+[2025-12-23 21:25:29] WARNING: Failed to write run_summary from executor: name 'models' is not defined
+[2025-12-23 21:26:09] INFO: [RetrievalTrigger] Phase build132-phase4-documentation attempt 1: Error messages lack context - triggering deep retrieval
+[2025-12-23 21:26:09] INFO: [DeepRetrieval] Starting bounded retrieval for phase build132-phase4-documentation (priority=medium)
+[2025-12-23 21:26:10] INFO: [DeepRetrieval] Retrieved 0 run artifacts (0 bytes), 1 SOT files (15360 bytes), 0 memory entries (0 bytes)
+[2025-12-23 21:26:10] WARNING: [build132-phase4-documentation] Attempt 1/5 failed, will escalate model for next retry
+[2025-12-23 21:26:10] WARNING: Phase build132-phase4-documentation finished with status: FAILED
+[2025-12-23 21:26:10] INFO: Waiting 10s before next phase...
+[2025-12-23 21:26:20] INFO: Iteration 5: Fetching run status...
+[2025-12-23 21:26:22] INFO: No more executable phases, execution complete
+[2025-12-23 21:26:22] INFO: Autonomous execution loop finished
+[2025-12-23 21:26:22] INFO: [ARCHIVE_CONSOLIDATOR] Logged build event: RUN_COMPLETE
+[2025-12-23 21:26:22] WARNING: Failed to write run_summary from executor: name 'models' is not defined
+[2025-12-23 21:26:22] INFO: Learning Pipeline: Promoted 8 hints to persistent project rules
+[2025-12-23 21:26:22] INFO: Learning Pipeline: Marked rules updated (total: 83 rules)
+[2025-12-23 21:26:22] INFO: [PLANNING NOTICE] 8 new rules promoted. Future planning should incorporate 83 total project rules.
+[2025-12-23 21:26:22] INFO: [LOCK] Released executor lock for run_id=build132-coverage-delta-integration (PID=122792)

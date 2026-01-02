@@ -1,0 +1,657 @@
+{
+  "timestamp": "2026-01-01T22:09:07.781410",
+  "repo_root": "C:\\dev\\Autopack",
+  "project": "autopack",
+  "overall_valid": false,
+  "summary": {
+    "total_errors": 84,
+    "total_warnings": 142
+  },
+  "results": {
+    "root": {
+      "valid": false,
+      "errors": [
+        "Disallowed file at root: .build129_test_config.yaml",
+        "Disallowed file at root: api_server_fullrun.log",
+        "Disallowed file at root: backend.log",
+        "Disallowed file at root: backend_new.log",
+        "Disallowed file at root: batch_drain.log",
+        "Disallowed file at root: batch_drain_fullrun.log",
+        "Disallowed file at root: BATCH_DRAIN_QUICKSTART.md",
+        "Disallowed file at root: benchmark_runs.txt",
+        "Disallowed file at root: build-046-token-escalation.patch",
+        "Disallowed file at root: build129-p3-batch.log",
+        "Disallowed file at root: build129_phase2_validation.log",
+        "Disallowed file at root: build130_telemetry_run.log",
+        "Disallowed file at root: build132_execution.log",
+        "Disallowed file at root: build132_final_attempt.log",
+        "Disallowed file at root: build132_fresh_start.log",
+        "Disallowed file at root: build132_telemetry_export.ndjson",
+        "Disallowed file at root: build132_telemetry_samples.txt",
+        "Disallowed file at root: build132_with_fix.log",
+        "Disallowed file at root: builder_fullfile_failure_latest.json",
+        "Disallowed file at root: BUILD_146_P6_BENCHMARK_REPORT.md",
+        "Disallowed file at root: BUILD_HISTORY.md",
+        "Disallowed file at root: BUILD_LOG.md",
+        "Disallowed file at root: DEBUG_LOG.md",
+        "Disallowed file at root: devAutopackworkspace_verification.json",
+        "Disallowed file at root: drain_all_output.log",
+        "Disallowed file at root: drain_all_telemetry.sh",
+        "Disallowed file at root: fileorg-backend-batch.log",
+        "Disallowed file at root: fileorg-backend-semantic.log",
+        "Disallowed file at root: fileorg-p2-collection.log",
+        "Disallowed file at root: full_test_run.log",
+        "Disallowed file at root: last_patch_debug.diff",
+        "Disallowed file at root: launch_build113_test.sh",
+        "Disallowed file at root: launch_research_build113_test.sh",
+        "Disallowed file at root: lovable_p2_telemetry.log",
+        "Disallowed file at root: lovable_phase0_execution.log",
+        "Disallowed file at root: lovable_phase1_execution.log",
+        "Disallowed file at root: lovable_phase2_execution.log",
+        "Disallowed file at root: NEXT_SESSION_TECHNICAL_PROMPT.md",
+        "Disallowed file at root: NEXT_SESSION_USER_PROMPT.md",
+        "Disallowed file at root: ngrok.exe",
+        "Disallowed file at root: p10_validation_attempt2.log",
+        "Disallowed file at root: p10_validation_attempt3.log",
+        "Disallowed file at root: p10_validation_execution.log",
+        "Disallowed file at root: p10_validation_final.log",
+        "Disallowed file at root: p10_validation_final_truncator.log",
+        "Disallowed file at root: phase_a_p11_observability.json",
+        "Disallowed file at root: phase_b_p12_embedding_cache.json",
+        "Disallowed file at root: phase_c_p13_expand_artifacts.json",
+        "Disallowed file at root: phase_d_research_imports.json",
+        "Disallowed file at root: phase_e_initdb_completeness.json",
+        "Disallowed file at root: phase_true_autonomy_p0_p1_intention_and_plan_normalization.json",
+        "Disallowed file at root: probe_debug_output.txt",
+        "Disallowed file at root: probe_final_output.txt",
+        "Disallowed file at root: probe_final_test2.txt",
+        "Disallowed file at root: probe_success.txt",
+        "Disallowed file at root: project_ruleset_Autopack.json",
+        "Disallowed file at root: README_BACKUP.md",
+        "Disallowed file at root: research-v10-batch.log",
+        "Disallowed file at root: research-v8-collection.log",
+        "Disallowed file at root: research-v8-semantic.log",
+        "Disallowed file at root: run_A_probe_output.txt",
+        "Disallowed file at root: run_B_probe_output.txt",
+        "Disallowed file at root: run_C_probe_output.txt",
+        "Disallowed file at root: run_request.json",
+        "Disallowed file at root: telemetry_collection.log",
+        "Disallowed file at root: telemetry_collection_v2.log",
+        "Disallowed file at root: telemetry_collection_v3.log",
+        "Disallowed file at root: telemetry_progress_12samples.ndjson",
+        "Disallowed file at root: telemetry_test.log",
+        "Disallowed file at root: telemetry_v5_drain.log",
+        "Disallowed file at root: test_build113.py",
+        "Disallowed file at root: test_build113_integration.py",
+        "Disallowed file at root: test_build113_proactive.py",
+        "Disallowed file at root: test_build113_real_world.py",
+        "Disallowed file at root: test_telemetry_output.log",
+        "Disallowed file at root: token_estimator_calibration_20251229_140313.json",
+        "Disallowed file at root: token_estimator_calibration_20251229_140313.md",
+        "Disallowed file at root: token_estimator_calibration_20251229_140340.json",
+        "Disallowed file at root: token_estimator_calibration_20251229_140340.md",
+        "Disallowed file at root: token_estimator_calibration_20251229_141347.json",
+        "Disallowed file at root: token_estimator_calibration_20251229_141347.md",
+        "Disallowed file at root: validation_settings.json",
+        "Disallowed file at root: verify_files.sh",
+        "Disallowed file at root: _tmp_db_active_tier.py"
+      ],
+      "warnings": [
+        "Unexpected directory at root: code",
+        "Unexpected directory at root: examples",
+        "Unexpected directory at root: fileorganizer",
+        "Unexpected directory at root: logs",
+        "Unexpected directory at root: migrations",
+        "Unexpected directory at root: reports",
+        "Unexpected directory at root: requirements",
+        "Unexpected directory at root: research_tracer",
+        "Unexpected directory at root: tracer_bullet"
+      ]
+    },
+    "docs": {
+      "valid": true,
+      "errors": [],
+      "warnings": [
+        "Non-SOT file in docs/: API_CONSOLIDATION_COMPLETION_SUMMARY.md",
+        "Non-SOT file in docs/: AUTOPACK_ISSUE_TIMELINE_FOR_AI_ANALYSIS.json",
+        "Non-SOT file in docs/: AUTOPACK_ISSUE_TIMELINE_FOR_AI_ANALYSIS_REVISED.json",
+        "Non-SOT file in docs/: AUTOPACK_ISSUE_TIMELINE_READABLE.md",
+        "Non-SOT file in docs/: AUTOPACK_ISSUE_TIMELINE_READABLE_REVISED.md",
+        "Non-SOT file in docs/: AUTOPACK_PROMPT_STORAGE_OPTIMIZER.md",
+        "Non-SOT file in docs/: BUILD-041_EXECUTOR_STATE_PERSISTENCE.md",
+        "Non-SOT file in docs/: BUILD-042_MAX_TOKENS_FIX.md",
+        "Non-SOT file in docs/: BUILD-043_TOKEN_EFFICIENCY_OPTIMIZATION.md",
+        "Non-SOT file in docs/: BUILD-044_PROTECTED_PATH_ISOLATION.md",
+        "Non-SOT file in docs/: BUILD-045_PATCH_CONTEXT_VALIDATION.md",
+        "Non-SOT file in docs/: BUILD-046_DYNAMIC_TOKEN_ESCALATION.md",
+        "Non-SOT file in docs/: BUILD-047_CLASSIFICATION_THRESHOLD_CALIBRATION.md",
+        "Non-SOT file in docs/: BUILD-047_VALIDATION_SUMMARY.md",
+        "Non-SOT file in docs/: BUILD-048_EXECUTOR_INSTANCE_MANAGEMENT.md",
+        "Non-SOT file in docs/: BUILD-048_LINUX_TESTING_REQUIREMENTS.md",
+        "Non-SOT file in docs/: BUILD-048_TEST_COVERAGE_REPORT.md",
+        "Non-SOT file in docs/: BUILD-049_DELIVERABLES_VALIDATION.md",
+        "Non-SOT file in docs/: BUILD-107-108_SAFEGUARDS_SUMMARY.md",
+        "Non-SOT file in docs/: BUILD-112-113-114_OBSERVATIONS.md",
+        "Non-SOT file in docs/: BUILD-112_DIAGNOSTICS_PARITY_CURSOR.md",
+        "Non-SOT file in docs/: BUILD-112_PHASE3_VALIDATION.md",
+        "Non-SOT file in docs/: BUILD-113_IMPLEMENTATION_STATUS.md",
+        "Non-SOT file in docs/: BUILD-113_INTEGRATION_COMPLETE.md",
+        "Non-SOT file in docs/: BUILD-113_INTEGRATION_GAP_ANALYSIS.md",
+        "Non-SOT file in docs/: BUILD-113_ITERATIVE_AUTONOMOUS_INVESTIGATION.md",
+        "Non-SOT file in docs/: BUILD-113_TEST_COMPLETION_SUMMARY.md",
+        "Non-SOT file in docs/: BUILD-114-115-COMPLETION-SUMMARY.md",
+        "Non-SOT file in docs/: BUILD-117-ENHANCEMENTS.md",
+        "Non-SOT file in docs/: BUILD-123v2_ANALYSIS_AND_GAPS.md",
+        "Non-SOT file in docs/: BUILD-123v2_COMPLETION.md",
+        "Non-SOT file in docs/: BUILD-123v2_COMPLETION_SUMMARY.md",
+        "Non-SOT file in docs/: BUILD-123v2_MANIFEST_GENERATOR.md",
+        "Non-SOT file in docs/: BUILD-123v2_PATTERN_REFINEMENT.md",
+        "Non-SOT file in docs/: BUILD-123_PLAN_ANALYZER.md",
+        "Non-SOT file in docs/: BUILD-124_PHASE_C_COMPLETION_AND_PHASE_D_DISCOVERY.md",
+        "Non-SOT file in docs/: BUILD-124_PHASE_D_REQUIREMENTS.md",
+        "Non-SOT file in docs/: BUILD-125_PHASE_E_LARGE_FILE_SUPPORT.md",
+        "Non-SOT file in docs/: BUILD-127-128-129_GAPS_AND_IMPROVEMENTS.md",
+        "Non-SOT file in docs/: BUILD-127-129-130_MANUAL_IMPLEMENTATION_PLAN.md",
+        "Non-SOT file in docs/: BUILD-127-129_EXECUTIVE_SUMMARY.md",
+        "Non-SOT file in docs/: BUILD-127-129_IMPLEMENTATION_STATUS.md",
+        "Non-SOT file in docs/: BUILD-127-129_ROOT_CAUSE_ANALYSIS_FOR_GPT52.md",
+        "Non-SOT file in docs/: BUILD-127_FINAL_PLAN.md",
+        "Non-SOT file in docs/: BUILD-127_REVISED_PLAN.md",
+        "Non-SOT file in docs/: BUILD-127_SELF_HEALING_GOVERNANCE.md",
+        "Non-SOT file in docs/: BUILD-128_DELIVERABLES_AWARE_MANIFEST.md",
+        "Non-SOT file in docs/: BUILD-128_ROOT_CAUSE_AND_PREVENTION.md",
+        "Non-SOT file in docs/: BUILD-129_PHASE1_VALIDATION_COMPLETE.md",
+        "Non-SOT file in docs/: BUILD-129_PHASE2_COMPLETION_SUMMARY.md",
+        "Non-SOT file in docs/: BUILD-129_PHASE3_ADDITIONAL_FIXES.md",
+        "Non-SOT file in docs/: BUILD-129_PHASE3_BLOCKERS_RESOLVED.md",
+        "Non-SOT file in docs/: BUILD-129_PHASE3_DOC_SYNTHESIS_TEST_RESULTS.md",
+        "Non-SOT file in docs/: BUILD-129_PHASE3_DRAIN_SYSTEMIC_BLOCKERS_RCA.md",
+        "Non-SOT file in docs/: BUILD-129_PHASE3_EXECUTION_SUMMARY.md",
+        "Non-SOT file in docs/: BUILD-129_PHASE3_FINAL_SUMMARY.md",
+        "Non-SOT file in docs/: BUILD-129_PHASE3_P0_FIXES_COMPLETE.md",
+        "Non-SOT file in docs/: BUILD-129_PHASE3_P0_TELEMETRY_IMPLEMENTATION_COMPLETE.md",
+        "Non-SOT file in docs/: BUILD-129_PHASE3_QDRANT_AND_AUTOFIX_COMPLETE.md",
+        "Non-SOT file in docs/: BUILD-129_PHASE3_SAMPLE_COLLECTION_PLAN.md",
+        "Non-SOT file in docs/: BUILD-129_PHASE3_SCOPE_FIX_VERIFICATION.md",
+        "Non-SOT file in docs/: BUILD-129_PHASE3_TELEMETRY_COLLECTION_STATUS.md",
+        "Non-SOT file in docs/: BUILD-129_PHASE3_VALIDATION_RESULTS.md",
+        "Non-SOT file in docs/: BUILD-129_PHASE3_WEEK1_EXECUTION_STATUS.md",
+        "Non-SOT file in docs/: BUILD-129_SELF_IMPROVEMENT_PLAN.md",
+        "Non-SOT file in docs/: BUILD-132_COVERAGE_DELTA_INTEGRATION.md",
+        "Non-SOT file in docs/: BUILD-132_IMPLEMENTATION_STATUS.md",
+        "Non-SOT file in docs/: BUILD-142-COMPLETION-SUMMARY.md",
+        "Non-SOT file in docs/: BUILD-142-PROVIDER-PARITY-REPORT.md",
+        "Non-SOT file in docs/: COMPREHENSIVE_FIX_PLAN.md",
+        "Non-SOT file in docs/: CONSOLIDATED_BUILD.md",
+        "Non-SOT file in docs/: CONSOLIDATED_DEBUG.md",
+        "Non-SOT file in docs/: CONSOLIDATED_STRATEGY.md",
+        "Non-SOT file in docs/: CURSOR_TO_AUTOPACK_HANDOFF_STORAGE_OPTIMIZER.md",
+        "Non-SOT file in docs/: database_schema_autopack.json",
+        "Non-SOT file in docs/: database_stats_autopack.json",
+        "Non-SOT file in docs/: DATA_RETENTION_AND_STORAGE_POLICY.md",
+        "Non-SOT file in docs/: DBG-007_DYNAMIC_TOKEN_ESCALATION.md",
+        "Non-SOT file in docs/: DBG-008_API_CONTRACT_MISMATCH.md",
+        "Non-SOT file in docs/: DBG-009_MULTIPLE_EXECUTOR_INSTANCES.md",
+        "Non-SOT file in docs/: DBG-014_REPLAN_INTERFERENCE_ANALYSIS.md",
+        "Non-SOT file in docs/: DB_IDEMPOTENCY_HARDENING_PLAN.md",
+        "Non-SOT file in docs/: DRAIN_REPORT_2025-12-28.md",
+        "Non-SOT file in docs/: DRAIN_SECOND_OPINION_ACTIONS_2025-12-28.md",
+        "Non-SOT file in docs/: EXECUTOR_STATE_PERSISTENCE_ARCHITECTURE.md",
+        "Non-SOT file in docs/: FAILED_PHASES_ASSESSMENT.md",
+        "Non-SOT file in docs/: FILEORG_PHASE2_ANALYSIS_REPORT.md",
+        "Non-SOT file in docs/: FILEORG_PHASE2_COMPLETION_SUMMARY.md",
+        "Non-SOT file in docs/: IMPLEMENTATION_STATUS_REPORT.md",
+        "Non-SOT file in docs/: ISSUES_AND_RECOMMENDATIONS.md",
+        "Non-SOT file in docs/: MODEL_RECOMMENDER_SYSTEM_PLAN.md",
+        "Non-SOT file in docs/: NEXT_CURSOR_TAKEOVER_PROMPT.md",
+        "Non-SOT file in docs/: P17X_PROD_POLISH_FOLLOWUPS.md",
+        "Non-SOT file in docs/: PARALLEL_RUNS_AUDIT.md",
+        "Non-SOT file in docs/: PARALLEL_RUNS_HARDENING_STATUS.md",
+        "Non-SOT file in docs/: PARALLEL_RUNS_SUMMARY.md",
+        "Non-SOT file in docs/: PHASE_0_1_IMPLEMENTATION_SUMMARY.md",
+        "Non-SOT file in docs/: PHASE_0_1_USAGE_EXAMPLE.md",
+        "Non-SOT file in docs/: PHASE_D_IMPLEMENTATION_GUIDANCE.md",
+        "Non-SOT file in docs/: PHASE_D_IMPLEMENTATION_PATCH.md",
+        "Non-SOT file in docs/: PLAN_ANALYZER.md",
+        "Non-SOT file in docs/: project_issue_backlog.json",
+        "Non-SOT file in docs/: PROMPT_FOR_OTHER_CURSOR_PHASE_D.md",
+        "Non-SOT file in docs/: PROMPT_OTHER_CURSOR_TIDY_FIXES.md",
+        "Non-SOT file in docs/: PROMPT_OTHER_CURSOR_TIDY_PHASE_E.md",
+        "Non-SOT file in docs/: QUALITY_GATE_ANALYSIS.md",
+        "Non-SOT file in docs/: RECOMMENDATION_LARGE_DELETION_SAFEGUARD.md",
+        "Non-SOT file in docs/: RESEARCH_CITATION_FIX_PLAN.md",
+        "Non-SOT file in docs/: RESEARCH_ORCHESTRATOR_PRODUCTION.md",
+        "Non-SOT file in docs/: RESEARCH_QUARANTINE.md",
+        "Non-SOT file in docs/: RESEARCH_SYSTEM_CAPABILITY_GAP_ANALYSIS.md",
+        "Non-SOT file in docs/: ROOT_CAUSE_ANALYSIS_WORKSPACE_VIOLATIONS.md",
+        "Non-SOT file in docs/: SECOND_OPINION_MANUAL_INTERVENTION_ANALYSIS.md",
+        "Non-SOT file in docs/: SECOND_OPINION_RESPONSE_2025-12-24.md",
+        "Non-SOT file in docs/: SELF_HEALING_IMPROVEMENTS_2025-12-24.md",
+        "Non-SOT file in docs/: STAGING_ROLLOUT.md",
+        "Non-SOT file in docs/: STORAGE_OPTIMIZER_HANDOFF_SUMMARY.md",
+        "Non-SOT file in docs/: STORAGE_OPTIMIZER_MVP_COMPLETION.md",
+        "Non-SOT file in docs/: TASK_14_CI_FAILURE_REVIEW_REPORT.md",
+        "Non-SOT file in docs/: TELEGRAM_APPROVAL_SETUP.md",
+        "Non-SOT file in docs/: TEST_SUITE_STABILIZATION_PLAN.md",
+        "Non-SOT file in docs/: TIDY_SOT_RETRIEVAL_INTEGRATION_PLAN.md",
+        "Non-SOT file in docs/: TOKEN_BUDGET_ANALYSIS_GPT52_REQUEST.md",
+        "Non-SOT file in docs/: TOKEN_BUDGET_ANALYSIS_REVISED.md",
+        "Non-SOT file in docs/: TOKEN_ESTIMATION_V3_ENHANCEMENTS.md",
+        "Non-SOT file in docs/: TOKEN_ESTIMATION_VALIDATION_LEARNINGS.md",
+        "Non-SOT file in docs/: TRUE_AUTONOMY_COMPLETE_IMPLEMENTATION_REPORT.md",
+        "Non-SOT file in docs/: TRUE_AUTONOMY_IMPLEMENTATION_REPORT.md",
+        "Non-SOT file in docs/: TRUE_AUTONOMY_PHASES_0_1_COMPLETION_REPORT.md",
+        "Non-SOT file in docs/: UNIFIED_RESEARCH_SYSTEM_IMPLEMENTATION_V2_REVISED.md",
+        "Non-SOT file in docs/: UNSORTED_REVIEW.md"
+      ]
+    },
+    "archive": {
+      "valid": true,
+      "errors": [],
+      "warnings": []
+    },
+    "project:autopack-diagnostics-parity-v2": {
+      "valid": true,
+      "errors": [],
+      "warnings": []
+    },
+    "project:autopack-diagnostics-parity-v3": {
+      "valid": true,
+      "errors": [],
+      "warnings": []
+    },
+    "project:autopack-diagnostics-parity-v4": {
+      "valid": true,
+      "errors": [],
+      "warnings": []
+    },
+    "project:autopack-diagnostics-parity-v5": {
+      "valid": true,
+      "errors": [],
+      "warnings": []
+    },
+    "project:autopack-followups-v1": {
+      "valid": true,
+      "errors": [],
+      "warnings": []
+    },
+    "project:autopack-onephase-build144-runbook-and-executor-rollback": {
+      "valid": true,
+      "errors": [],
+      "warnings": []
+    },
+    "project:autopack-onephase-initdb-completeness-drift-test": {
+      "valid": true,
+      "errors": [],
+      "warnings": []
+    },
+    "project:autopack-onephase-p11-observability-artifact-first": {
+      "valid": true,
+      "errors": [],
+      "warnings": []
+    },
+    "project:autopack-onephase-p12-embedding-cache-and-cap": {
+      "valid": true,
+      "errors": [],
+      "warnings": []
+    },
+    "project:autopack-onephase-p13-expand-artifact-substitution": {
+      "valid": true,
+      "errors": [],
+      "warnings": []
+    },
+    "project:autopack-onephase-research-import-errors": {
+      "valid": true,
+      "errors": [],
+      "warnings": []
+    },
+    "project:baselines": {
+      "valid": true,
+      "errors": [],
+      "warnings": []
+    },
+    "project:batch_drain_sessions": {
+      "valid": true,
+      "errors": [],
+      "warnings": []
+    },
+    "project:build112-completion": {
+      "valid": true,
+      "errors": [],
+      "warnings": []
+    },
+    "project:build126-e2-through-i": {
+      "valid": true,
+      "errors": [],
+      "warnings": []
+    },
+    "project:build127-phase1": {
+      "valid": true,
+      "errors": [],
+      "warnings": []
+    },
+    "project:build127-phase1-self-healing-governance": {
+      "valid": true,
+      "errors": [],
+      "warnings": []
+    },
+    "project:build129-p2-validation": {
+      "valid": true,
+      "errors": [],
+      "warnings": []
+    },
+    "project:build129-p3-week1-telemetry": {
+      "valid": true,
+      "errors": [],
+      "warnings": []
+    },
+    "project:build129-token-budget-intelligence": {
+      "valid": true,
+      "errors": [],
+      "warnings": []
+    },
+    "project:build130-schema-validation-prevention": {
+      "valid": true,
+      "errors": [],
+      "warnings": []
+    },
+    "project:build132-coverage-delta-integration": {
+      "valid": true,
+      "errors": [],
+      "warnings": []
+    },
+    "project:checkpoints": {
+      "valid": true,
+      "errors": [],
+      "warnings": []
+    },
+    "project:diagnostics-parity-phases-124": {
+      "valid": true,
+      "errors": [],
+      "warnings": []
+    },
+    "project:errors": {
+      "valid": true,
+      "errors": [],
+      "warnings": []
+    },
+    "project:file-organizer-app-v1": {
+      "valid": true,
+      "errors": [],
+      "warnings": [
+        "[file-organizer-app-v1] Non-SOT file in docs/: PHASE_PLAN.json",
+        "[file-organizer-app-v1] Non-SOT file in docs/: RUN_CONFIG.json"
+      ]
+    },
+    "project:logs": {
+      "valid": true,
+      "errors": [],
+      "warnings": []
+    },
+    "project:lovable-integration-v1": {
+      "valid": true,
+      "errors": [],
+      "warnings": []
+    },
+    "project:lovable-p0-foundation": {
+      "valid": true,
+      "errors": [],
+      "warnings": []
+    },
+    "project:lovable-p1-core-precision": {
+      "valid": true,
+      "errors": [],
+      "warnings": []
+    },
+    "project:lovable-p2-quality-ux": {
+      "valid": true,
+      "errors": [],
+      "warnings": []
+    },
+    "project:p10-validation-test": {
+      "valid": true,
+      "errors": [],
+      "warnings": []
+    },
+    "project:research-build113-test": {
+      "valid": true,
+      "errors": [],
+      "warnings": []
+    },
+    "project:research-system-v1": {
+      "valid": true,
+      "errors": [],
+      "warnings": []
+    },
+    "project:research-system-v10": {
+      "valid": true,
+      "errors": [],
+      "warnings": []
+    },
+    "project:research-system-v11": {
+      "valid": true,
+      "errors": [],
+      "warnings": []
+    },
+    "project:research-system-v12": {
+      "valid": true,
+      "errors": [],
+      "warnings": []
+    },
+    "project:research-system-v13": {
+      "valid": true,
+      "errors": [],
+      "warnings": []
+    },
+    "project:research-system-v14": {
+      "valid": true,
+      "errors": [],
+      "warnings": []
+    },
+    "project:research-system-v15": {
+      "valid": true,
+      "errors": [],
+      "warnings": []
+    },
+    "project:research-system-v16": {
+      "valid": true,
+      "errors": [],
+      "warnings": []
+    },
+    "project:research-system-v17": {
+      "valid": true,
+      "errors": [],
+      "warnings": []
+    },
+    "project:research-system-v18": {
+      "valid": true,
+      "errors": [],
+      "warnings": []
+    },
+    "project:research-system-v19": {
+      "valid": true,
+      "errors": [],
+      "warnings": []
+    },
+    "project:research-system-v2": {
+      "valid": true,
+      "errors": [],
+      "warnings": []
+    },
+    "project:research-system-v20": {
+      "valid": true,
+      "errors": [],
+      "warnings": []
+    },
+    "project:research-system-v21": {
+      "valid": true,
+      "errors": [],
+      "warnings": []
+    },
+    "project:research-system-v22": {
+      "valid": true,
+      "errors": [],
+      "warnings": []
+    },
+    "project:research-system-v23": {
+      "valid": true,
+      "errors": [],
+      "warnings": []
+    },
+    "project:research-system-v24": {
+      "valid": true,
+      "errors": [],
+      "warnings": []
+    },
+    "project:research-system-v25": {
+      "valid": true,
+      "errors": [],
+      "warnings": []
+    },
+    "project:research-system-v26": {
+      "valid": true,
+      "errors": [],
+      "warnings": []
+    },
+    "project:research-system-v27": {
+      "valid": true,
+      "errors": [],
+      "warnings": []
+    },
+    "project:research-system-v28": {
+      "valid": true,
+      "errors": [],
+      "warnings": []
+    },
+    "project:research-system-v29": {
+      "valid": true,
+      "errors": [],
+      "warnings": []
+    },
+    "project:research-system-v3": {
+      "valid": true,
+      "errors": [],
+      "warnings": []
+    },
+    "project:research-system-v4": {
+      "valid": true,
+      "errors": [],
+      "warnings": []
+    },
+    "project:research-system-v5": {
+      "valid": true,
+      "errors": [],
+      "warnings": []
+    },
+    "project:research-system-v6": {
+      "valid": true,
+      "errors": [],
+      "warnings": []
+    },
+    "project:research-system-v7": {
+      "valid": true,
+      "errors": [],
+      "warnings": []
+    },
+    "project:research-system-v8": {
+      "valid": true,
+      "errors": [],
+      "warnings": []
+    },
+    "project:research-system-v9": {
+      "valid": true,
+      "errors": [],
+      "warnings": []
+    },
+    "project:retry-api-router-v1": {
+      "valid": true,
+      "errors": [],
+      "warnings": []
+    },
+    "project:retry-api-router-v3": {
+      "valid": true,
+      "errors": [],
+      "warnings": []
+    },
+    "project:retry-api-router-v4": {
+      "valid": true,
+      "errors": [],
+      "warnings": []
+    },
+    "project:retry-examples-v1": {
+      "valid": true,
+      "errors": [],
+      "warnings": []
+    },
+    "project:start": {
+      "valid": true,
+      "errors": [],
+      "warnings": []
+    },
+    "project:telemetry-collection-v4": {
+      "valid": true,
+      "errors": [],
+      "warnings": []
+    },
+    "project:telemetry-collection-v5": {
+      "valid": true,
+      "errors": [],
+      "warnings": []
+    },
+    "project:telemetry-collection-v6": {
+      "valid": true,
+      "errors": [],
+      "warnings": []
+    },
+    "project:telemetry-collection-v7": {
+      "valid": true,
+      "errors": [],
+      "warnings": []
+    },
+    "project:telemetry-collection-v7b": {
+      "valid": true,
+      "errors": [],
+      "warnings": []
+    },
+    "project:telemetry-collection-v8-budget-floors": {
+      "valid": true,
+      "errors": [],
+      "warnings": []
+    },
+    "project:telemetry-collection-v8b-override-fix": {
+      "valid": true,
+      "errors": [],
+      "warnings": []
+    },
+    "project:telemetry-test-single": {
+      "valid": true,
+      "errors": [],
+      "warnings": []
+    },
+    "project:test-build113": {
+      "valid": true,
+      "errors": [],
+      "warnings": []
+    },
+    "project:test-run": {
+      "valid": true,
+      "errors": [],
+      "warnings": []
+    },
+    "project:test-run-empty": {
+      "valid": true,
+      "errors": [],
+      "warnings": []
+    },
+    "project:tidy_checkpoints": {
+      "valid": true,
+      "errors": [],
+      "warnings": []
+    },
+    "project:_shared": {
+      "valid": true,
+      "errors": [],
+      "warnings": []
+    }
+  }
+}

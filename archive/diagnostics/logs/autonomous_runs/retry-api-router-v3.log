@@ -1,0 +1,424 @@
+[2025-12-20 18:14:03] INFO: [LOCK] Acquired executor lock for run_id=retry-api-router-v3 (PID=27788, host=Harry)
+[2025-12-20 18:14:03] INFO: Applying pre-emptive encoding fix...
+[2025-12-20 18:14:03] INFO: [Recovery] Fixing Unicode encoding error...
+[2025-12-20 18:14:03] INFO: [Recovery] SUCCESS: Encoding fixed (UTF-8 enabled)
+[2025-12-20 18:14:03] INFO: Database tables initialized
+[2025-12-20 18:14:03] INFO: Loaded BuilderOutputConfig: max_lines_for_full_file=1000, max_lines_hard_limit=1000
+[2025-12-20 18:14:03] INFO: Doctor execute_fix enabled: True
+[2025-12-20 18:14:03] INFO: FileSizeTelemetry initialized: .autonomous_runs\autopack\file_size_telemetry.jsonl
+[2025-12-20 18:14:13] INFO: [MemoryService] Qdrant unavailable ([WinError 10061] No connection could be made because the target machine actively refused it); using FAISS fallback
+[2025-12-20 18:14:13] INFO: [FAISS] Created collection 'code_docs' with dim=1536
+[2025-12-20 18:14:13] INFO: [FAISS] Created collection 'run_summaries' with dim=1536
+[2025-12-20 18:14:13] INFO: [FAISS] Created collection 'errors_ci' with dim=1536
+[2025-12-20 18:14:13] INFO: [FAISS] Created collection 'doctor_hints' with dim=1536
+[2025-12-20 18:14:13] INFO: [FAISS] Created collection 'planning' with dim=1536
+[2025-12-20 18:14:13] INFO: [MemoryService] Initialized (backend=faiss, enabled=True, top_k=5)
+[2025-12-20 18:14:13] INFO: MemoryService initialized (enabled=True)
+[2025-12-20 18:14:13] INFO: [FileLayout] Project: autopack, Family: retry-api-router-v3, Base: .autonomous_runs\autopack\runs\retry-api-router-v3
+[2025-12-20 18:14:13] INFO: Initialized autonomous executor for run: retry-api-router-v3
+[2025-12-20 18:14:13] INFO: API URL: http://localhost:8001
+[2025-12-20 18:14:13] INFO: Workspace: .
+[2025-12-20 18:14:13] INFO: Running proactive startup checks from DEBUG_JOURNAL.md...
+[2025-12-20 18:14:13] INFO: [HIGH] Checking: Windows Unicode Fix (PYTHONUTF8)
+[2025-12-20 18:14:13] INFO:   Reason: Prevents UnicodeEncodeError with emoji characters in logs (Issue #3)
+[2025-12-20 18:14:13] INFO:   Check PASSED
+[2025-12-20 18:14:13] INFO: Startup checks complete
+[2025-12-20 18:14:14] INFO: [HealthCheck:T0] API Keys: PASSED (0ms) - All required API keys present
+[2025-12-20 18:14:14] INFO: [HealthCheck:T0] Database: PASSED (0ms) - Database accessible: C:\dev\Autopack\autopack.db
+[2025-12-20 18:14:14] INFO: [HealthCheck:T0] Workspace: PASSED (0ms) - Workspace valid: C:\dev\Autopack
+[2025-12-20 18:14:14] INFO: [HealthCheck:T0] Config: PASSED (24ms) - Configuration files valid
+[2025-12-20 18:14:14] INFO: [HealthCheck:T0] Vector Memory: PASSED (1027ms) - Qdrant not reachable at localhost:6333; Autopack will fall back to FAISS. To enable Qdrant: run `docker compose up -d qdrant` (docker-compose.yml includes it).
+[2025-12-20 18:14:14] INFO: Starting autonomous execution loop...
+[2025-12-20 18:14:14] INFO: Poll interval: 10s
+[2025-12-20 18:14:16] INFO: API server is already running
+[2025-12-20 18:14:16] INFO: Initializing infrastructure...
+[2025-12-20 18:14:19] INFO: LlmService: Initialized with ModelRouter and UsageRecorder
+[2025-12-20 18:14:19] INFO: Quality Gate: Initialized
+[2025-12-20 18:14:19] INFO: Iteration 1: Fetching run status...
+[2025-12-20 18:14:21] INFO: [GoalAnchor] Initialized: Unified Research Plan gap: expose research system via FastAPI router....
+[2025-12-20 18:14:21] INFO: [research-api-router] Found executable phase: state=PhaseState.QUEUED, attempts=0/None
+[2025-12-20 18:14:21] INFO: [BUILD-041] Next phase: research-api-router
+[2025-12-20 18:14:21] INFO: [research-api-router] Step 1/4: Generating code with Builder (via LlmService)...
+[2025-12-20 18:14:21] INFO: [Context] Loaded 7 recently modified files for fresh context
+[2025-12-20 18:14:22] INFO: [Context] Total: 21 files loaded for Builder context (modified=7, mentioned=0)
+[2025-12-20 18:14:22] INFO: [TOKEN_BUDGET] Context loading: ~19998 tokens (99% of 20000 budget)
+[2025-12-20 18:14:22] INFO: [research-api-router] Loaded 21 files for context
+[2025-12-20 18:14:22] INFO: [research-api-router] Built deliverables contract: 5 required paths, 0 forbidden patterns
+[2025-12-20 18:14:22] INFO: [ModelSelector] Selected claude-sonnet-4-5 for builder (complexity=low, attempt=0, intra_tier=0)
+[2025-12-20 18:14:22] INFO: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 400 Bad Request"
+[2025-12-20 18:14:22] WARNING: [ModelRouter] Disabling provider anthropic: credit balance too low (manifest gate)
+[2025-12-20 18:14:22] WARNING: [ModelRouter] Disabled provider anthropic due to low credits (manifest gate)
+[2025-12-20 18:14:22] INFO: [ModelSelector] Selected claude-sonnet-4-5 for builder (complexity=low, attempt=0, intra_tier=0)
+[2025-12-20 18:14:22] WARNING: [ModelRouter] Provider anthropic disabled, using fallback model claude-sonnet-4-5 for role=builder, category=deliverables_manifest, complexity=low
+[2025-12-20 18:14:23] INFO: HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-12-20 18:14:23] INFO: [research-api-router] Deliverables manifest gate PASSED (5 paths)
+[2025-12-20 18:14:23] INFO: [ModelSelector] Complexity escalated: MEDIUM -> high for phase research-api-router
+[2025-12-20 18:14:23] INFO: [ModelSelector] Selected claude-sonnet-4-5 for builder (complexity=high, attempt=0, intra_tier=0)
+[2025-12-20 18:14:23] WARNING: [ModelRouter] Provider anthropic disabled, using fallback model claude-sonnet-4-5 for role=builder, category=IMPLEMENT_FEATURE, complexity=high
+[2025-12-20 18:14:23] INFO: [MODEL-SELECT] Builder: model=claude-sonnet-4-5, complexity=MEDIUM->high, attempt=0, category=IMPLEMENT_FEATURE
+[2025-12-20 18:14:38] INFO: HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-12-20 18:14:38] INFO: [research-api-router] Builder succeeded (26274 tokens)
+[2025-12-20 18:14:38] INFO: [research-api-router] Deliverables validation:
+[2025-12-20 18:14:38] INFO:   Expected: 5 files
+[2025-12-20 18:14:38] INFO:   Found in patch: 5 files
+[2025-12-20 18:14:38] INFO: [research-api-router] ✅ Deliverables validation PASSED
+[2025-12-20 18:14:40] INFO: [research-api-router] Step 2/5: Applying patch...
+[2025-12-20 18:14:40] WARNING: [GoalDrift] Potential goal drift detected (similarity=-0.02 < 0.7)
+[2025-12-20 18:14:40] WARNING: [GoalDrift] Goal: Unified Research Plan gap: expose research system via FastAPI router....
+[2025-12-20 18:14:40] WARNING: [GoalDrift] Intent: Unified Research Plan gap: expose research system via FastAPI router.
+
+The unified plan references m...
+[2025-12-20 18:14:40] INFO: [GoalDrift:Advisory] Potential goal drift detected (similarity=-0.02 < 0.7)
+[2025-12-20 18:14:40] WARNING: [research-api-router] ADVISORY: Potential goal drift detected (similarity=-0.02 < 0.7)
+[2025-12-20 18:14:40] INFO: Writing patch to temp_patch.diff
+[2025-12-20 18:14:40] ERROR: [BUILD-045] Patch context validation failed - hunks don't match actual file state:
+  - src/autopack/main.py:771: Context mismatch - expected '' but found 'from src.autopack.research.api.router import research_router'
+  - src/autopack/main.py:1: Context mismatch - expected 'async def root():' but found '<<<<<<< ours'
+[2025-12-20 18:14:40] WARNING: [BUILD-045] This typically indicates goal drift - LLM generated patch for wrong file state
+[2025-12-20 18:14:40] INFO: [BUILD-045] Proceeding with git apply - 3-way merge may resolve context differences
+[2025-12-20 18:14:40] INFO: Checking if patch can be applied (dry run)...
+[2025-12-20 18:14:40] WARNING: Strict patch check failed: error: patch fragment without header at line 84: @@ -1,3 +1,5 @@?
+[2025-12-20 18:14:40] INFO: Retrying with lenient mode (--ignore-whitespace -C1)...
+[2025-12-20 18:14:40] WARNING: Lenient mode also failed: error: patch fragment without header at line 84: @@ -1,3 +1,5 @@?
+[2025-12-20 18:14:40] INFO: Retrying with 3-way merge mode (-3)...
+[2025-12-20 18:14:41] ERROR: [Integrity] Patch modifies existing files. Skipping direct-write fallback to avoid partial apply.
+[2025-12-20 18:14:41] ERROR: [research-api-router] Failed to apply patch to filesystem: git_apply_failed_existing_files_no_fallback
+[2025-12-20 18:14:43] INFO: Updated phase research-api-router status to FAILED
+[2025-12-20 18:14:43] INFO: [MemoryService] Stored decision log
+[2025-12-20 18:14:43] INFO: [research-api-router] Updated counters in DB: retry=1, epoch=0, escalation=0 (reason: PATCH_FAILED)
+[2025-12-20 18:14:43] WARNING: [research-api-router] Attempt 1/5 failed, will escalate model for next retry
+[2025-12-20 18:14:43] WARNING: Phase research-api-router finished with status: PATCH_FAILED
+[2025-12-20 18:14:43] INFO: Waiting 10s before next phase...
+[2025-12-20 18:14:53] INFO: Iteration 2: Fetching run status...
+[2025-12-20 18:14:55] INFO: [AUTO-RESET] Found 1 FAILED phases with retries remaining
+[2025-12-20 18:14:55] INFO: [AUTO-RESET] Resetting research-api-router to QUEUED (retry_attempt: 1/5)
+[2025-12-20 18:14:55] INFO: [research-api-router] Found executable phase: state=PhaseState.QUEUED, attempts=1/None
+[2025-12-20 18:14:55] INFO: [BUILD-041] Next phase: research-api-router
+[2025-12-20 18:14:55] INFO: [research-api-router] Step 1/4: Generating code with Builder (via LlmService)...
+[2025-12-20 18:14:55] INFO: [Context] Loaded 7 recently modified files for fresh context
+[2025-12-20 18:14:55] INFO: [Context] Total: 21 files loaded for Builder context (modified=7, mentioned=0)
+[2025-12-20 18:14:55] INFO: [TOKEN_BUDGET] Context loading: ~19998 tokens (99% of 20000 budget)
+[2025-12-20 18:14:55] INFO: [research-api-router] Loaded 21 files for context
+[2025-12-20 18:14:56] INFO: [research-api-router] Retrieved 287 chars of context from memory
+[2025-12-20 18:14:56] INFO: [research-api-router] Built deliverables contract: 5 required paths, 0 forbidden patterns
+[2025-12-20 18:14:56] INFO: [ModelSelector] Selected claude-opus-4-5 for builder (complexity=low, attempt=1, intra_tier=1)
+[2025-12-20 18:14:56] WARNING: [ModelRouter] Provider anthropic disabled, using fallback model claude-sonnet-4-5 for role=builder, category=deliverables_manifest, complexity=low
+[2025-12-20 18:14:56] INFO: HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-12-20 18:14:56] INFO: [research-api-router] Deliverables manifest gate PASSED (5 paths)
+[2025-12-20 18:14:56] INFO: [ModelSelector] Complexity escalated: MEDIUM -> high for phase research-api-router
+[2025-12-20 18:14:56] INFO: [ModelSelector] Selected claude-opus-4-5 for builder (complexity=high, attempt=1, intra_tier=1)
+[2025-12-20 18:14:56] WARNING: [ModelRouter] Provider anthropic disabled, using fallback model claude-sonnet-4-5 for role=builder, category=IMPLEMENT_FEATURE, complexity=high
+[2025-12-20 18:14:56] INFO: [MODEL-SELECT] Builder: model=claude-sonnet-4-5, complexity=MEDIUM->high, attempt=1, category=IMPLEMENT_FEATURE
+[2025-12-20 18:15:10] INFO: HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-12-20 18:15:11] INFO: [research-api-router] Builder succeeded (26085 tokens)
+[2025-12-20 18:15:11] INFO: [research-api-router] Deliverables validation:
+[2025-12-20 18:15:11] INFO:   Expected: 5 files
+[2025-12-20 18:15:11] INFO:   Found in patch: 5 files
+[2025-12-20 18:15:11] INFO: [research-api-router] ✅ Deliverables validation PASSED
+[2025-12-20 18:15:13] INFO: [research-api-router] Step 2/5: Applying patch...
+[2025-12-20 18:15:13] WARNING: [GoalDrift] Potential goal drift detected (similarity=-0.02 < 0.7)
+[2025-12-20 18:15:13] WARNING: [GoalDrift] Goal: Unified Research Plan gap: expose research system via FastAPI router....
+[2025-12-20 18:15:13] WARNING: [GoalDrift] Intent: Unified Research Plan gap: expose research system via FastAPI router.
+
+The unified plan references m...
+[2025-12-20 18:15:13] INFO: [GoalDrift:Advisory] Potential goal drift detected (similarity=-0.02 < 0.7)
+[2025-12-20 18:15:13] WARNING: [research-api-router] ADVISORY: Potential goal drift detected (similarity=-0.02 < 0.7)
+[2025-12-20 18:15:13] INFO: Writing patch to temp_patch.diff
+[2025-12-20 18:15:13] INFO: Checking if patch can be applied (dry run)...
+[2025-12-20 18:15:13] WARNING: Strict patch check failed: error: patch failed: src/autopack/main.py:1
+error: src/autopack/main.py: patch does not apply
+[2025-12-20 18:15:13] INFO: Retrying with lenient mode (--ignore-whitespace -C1)...
+[2025-12-20 18:15:13] WARNING: Lenient mode also failed: error: patch failed: src/autopack/main.py:1
+error: src/autopack/main.py: patch does not apply
+[2025-12-20 18:15:13] INFO: Retrying with 3-way merge mode (-3)...
+[2025-12-20 18:15:13] ERROR: [Integrity] Patch modifies existing files. Skipping direct-write fallback to avoid partial apply.
+[2025-12-20 18:15:13] ERROR: [research-api-router] Failed to apply patch to filesystem: git_apply_failed_existing_files_no_fallback
+[2025-12-20 18:15:15] INFO: Updated phase research-api-router status to FAILED
+[2025-12-20 18:15:15] INFO: [MemoryService] Stored decision log
+[2025-12-20 18:15:15] INFO: [Doctor] Routine failure detected -> using cheap model
+[2025-12-20 18:15:17] INFO: HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-12-20 18:15:17] INFO: [Doctor] Diagnosis complete: action=retry_with_fix, confidence=0.75, phase=research-api-router, model=claude-sonnet-4-5, is_complex=False, escalated=False, health_ratio=0.08
+[2025-12-20 18:15:17] INFO: [Doctor] Diagnosis complete: action=retry_with_fix, confidence=0.75, phase_calls=1, run_calls=1
+[2025-12-20 18:15:17] INFO: [Doctor] Action: retry_with_fix - hint stored for next attempt
+[2025-12-20 18:15:17] INFO: [MemoryService] Stored decision log
+[2025-12-20 18:15:17] INFO: [REPLAN-TRIGGER] reason=repeated_error_short_msg type=patch_apply_error phase=research-api-router attempt=2 count=2
+[2025-12-20 18:15:17] INFO: [research-api-router] Triggering mid-run re-planning due to patch_apply_error
+[2025-12-20 18:15:17] INFO: [Re-Plan] Revising approach for research-api-router due to patch_apply_error (attempt 1)
+[2025-12-20 18:15:17] INFO: [GoalAnchor] Original intent: Unified Research Plan gap: expose research system via FastAPI router....
+[2025-12-20 18:15:17] INFO: [Re-Plan] Skipping re-planning because provider 'anthropic' is disabled for this run/process
+[2025-12-20 18:15:17] WARNING: [research-api-router] Re-planning failed, continuing with original approach
+[2025-12-20 18:15:17] INFO: [research-api-router] Updated counters in DB: retry=2, epoch=0, escalation=0 (reason: PATCH_FAILED)
+[2025-12-20 18:15:17] WARNING: [research-api-router] Attempt 2/5 failed, will escalate model for next retry
+[2025-12-20 18:15:17] WARNING: Phase research-api-router finished with status: PATCH_FAILED
+[2025-12-20 18:15:17] INFO: Waiting 10s before next phase...
+[2025-12-20 18:15:27] INFO: Iteration 3: Fetching run status...
+[2025-12-20 18:15:29] INFO: [AUTO-RESET] Found 1 FAILED phases with retries remaining
+[2025-12-20 18:15:29] INFO: [AUTO-RESET] Resetting research-api-router to QUEUED (retry_attempt: 2/5)
+[2025-12-20 18:15:29] INFO: [research-api-router] Found executable phase: state=PhaseState.QUEUED, attempts=2/None
+[2025-12-20 18:15:29] INFO: [BUILD-041] Next phase: research-api-router
+[2025-12-20 18:15:29] INFO: [research-api-router] Step 1/4: Generating code with Builder (via LlmService)...
+[2025-12-20 18:15:29] INFO: [Context] Loaded 7 recently modified files for fresh context
+[2025-12-20 18:15:29] INFO: [Context] Total: 21 files loaded for Builder context (modified=7, mentioned=0)
+[2025-12-20 18:15:29] INFO: [TOKEN_BUDGET] Context loading: ~19998 tokens (99% of 20000 budget)
+[2025-12-20 18:15:29] INFO: [research-api-router] Loaded 21 files for context
+[2025-12-20 18:15:29] INFO: [research-api-router] Retrieved 562 chars of context from memory
+[2025-12-20 18:15:29] INFO: [research-api-router] Built deliverables contract: 5 required paths, 0 forbidden patterns
+[2025-12-20 18:15:29] INFO: [ModelSelector] Complexity escalated: low -> medium for phase research-api-router:deliverables_manifest
+[2025-12-20 18:15:29] INFO: [ModelSelector] Selected claude-sonnet-4-5 for builder (complexity=medium, attempt=2, intra_tier=0)
+[2025-12-20 18:15:29] WARNING: [ModelRouter] Provider anthropic disabled, using fallback model claude-sonnet-4-5 for role=builder, category=deliverables_manifest, complexity=medium
+[2025-12-20 18:15:30] INFO: HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-12-20 18:15:30] INFO: [research-api-router] Deliverables manifest gate PASSED (5 paths)
+[2025-12-20 18:15:30] INFO: [ModelSelector] Complexity escalated: MEDIUM -> high for phase research-api-router
+[2025-12-20 18:15:30] INFO: [ModelSelector] Selected claude-opus-4-5 for builder (complexity=high, attempt=2, intra_tier=2)
+[2025-12-20 18:15:30] WARNING: [ModelRouter] Provider anthropic disabled, using fallback model claude-sonnet-4-5 for role=builder, category=IMPLEMENT_FEATURE, complexity=high
+[2025-12-20 18:15:30] INFO: [MODEL-SELECT] Builder: model=claude-sonnet-4-5, complexity=MEDIUM->high, attempt=2, category=IMPLEMENT_FEATURE
+[2025-12-20 18:15:47] INFO: HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-12-20 18:15:47] INFO: [research-api-router] Builder succeeded (26487 tokens)
+[2025-12-20 18:15:47] INFO: [research-api-router] Deliverables validation:
+[2025-12-20 18:15:47] INFO:   Expected: 5 files
+[2025-12-20 18:15:47] INFO:   Found in patch: 5 files
+[2025-12-20 18:15:47] INFO: [research-api-router] ✅ Deliverables validation PASSED
+[2025-12-20 18:15:49] INFO: [research-api-router] Step 2/5: Applying patch...
+[2025-12-20 18:15:49] WARNING: [GoalDrift] Potential goal drift detected (similarity=-0.02 < 0.7)
+[2025-12-20 18:15:49] WARNING: [GoalDrift] Goal: Unified Research Plan gap: expose research system via FastAPI router....
+[2025-12-20 18:15:49] WARNING: [GoalDrift] Intent: Unified Research Plan gap: expose research system via FastAPI router.
+
+The unified plan references m...
+[2025-12-20 18:15:49] INFO: [GoalDrift:Advisory] Potential goal drift detected (similarity=-0.02 < 0.7)
+[2025-12-20 18:15:49] WARNING: [research-api-router] ADVISORY: Potential goal drift detected (similarity=-0.02 < 0.7)
+[2025-12-20 18:15:49] INFO: Removing existing file for new file patch: docs/research/API_REFERENCE.md
+[2025-12-20 18:15:49] INFO: Removing existing file for new file patch: src/autopack/research/api/router.py
+[2025-12-20 18:15:49] INFO: Removing existing file for new file patch: src/autopack/research/api/schemas.py
+[2025-12-20 18:15:49] INFO: Removing existing file for new file patch: tests/autopack/research/api/test_research_router.py
+[2025-12-20 18:15:49] INFO: Writing patch to temp_patch.diff
+[2025-12-20 18:15:49] INFO: Checking if patch can be applied (dry run)...
+[2025-12-20 18:15:49] WARNING: Strict patch check failed: error: patch failed: src/autopack/main.py:1
+error: src/autopack/main.py: patch does not apply
+[2025-12-20 18:15:49] INFO: Retrying with lenient mode (--ignore-whitespace -C1)...
+[2025-12-20 18:15:50] WARNING: Lenient mode also failed: error: patch failed: src/autopack/main.py:1
+error: src/autopack/main.py: patch does not apply
+[2025-12-20 18:15:50] INFO: Retrying with 3-way merge mode (-3)...
+[2025-12-20 18:15:50] ERROR: [Integrity] Patch modifies existing files. Skipping direct-write fallback to avoid partial apply.
+[2025-12-20 18:15:50] ERROR: [research-api-router] Failed to apply patch to filesystem: git_apply_failed_existing_files_no_fallback
+[2025-12-20 18:15:52] INFO: Updated phase research-api-router status to FAILED
+[2025-12-20 18:15:52] INFO: [MemoryService] Stored decision log
+[2025-12-20 18:15:52] INFO: [Doctor] Routine failure detected -> using cheap model
+[2025-12-20 18:15:55] INFO: HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-12-20 18:15:55] INFO: [Doctor] Diagnosis complete: action=replan, confidence=0.75, phase=research-api-router, model=claude-sonnet-4-5, is_complex=False, escalated=False, health_ratio=0.12
+[2025-12-20 18:15:55] INFO: [Doctor] Diagnosis complete: action=replan, confidence=0.75, phase_calls=2, run_calls=2
+[2025-12-20 18:15:55] INFO: [Doctor] Action: replan - triggering approach revision
+[2025-12-20 18:15:55] INFO: [Re-Plan] Revising approach for research-api-router due to doctor_replan:The phase has experienced 3 consecutive patch appl (attempt 1)
+[2025-12-20 18:15:55] INFO: [GoalAnchor] Original intent: Unified Research Plan gap: expose research system via FastAPI router....
+[2025-12-20 18:15:55] INFO: [Re-Plan] Skipping re-planning because provider 'anthropic' is disabled for this run/process
+[2025-12-20 18:15:55] WARNING: [Doctor] Replan failed, continuing with original approach
+[2025-12-20 18:15:55] INFO: [MemoryService] Stored decision log
+[2025-12-20 18:15:55] INFO: [REPLAN-TRIGGER] reason=repeated_error_short_msg type=patch_apply_error phase=research-api-router attempt=3 count=2
+[2025-12-20 18:15:55] INFO: [research-api-router] Triggering mid-run re-planning due to patch_apply_error
+[2025-12-20 18:15:55] INFO: [Re-Plan] Revising approach for research-api-router due to patch_apply_error (attempt 1)
+[2025-12-20 18:15:55] INFO: [GoalAnchor] Original intent: Unified Research Plan gap: expose research system via FastAPI router....
+[2025-12-20 18:15:55] INFO: [Re-Plan] Skipping re-planning because provider 'anthropic' is disabled for this run/process
+[2025-12-20 18:15:55] WARNING: [research-api-router] Re-planning failed, continuing with original approach
+[2025-12-20 18:15:55] INFO: [research-api-router] Updated counters in DB: retry=3, epoch=0, escalation=0 (reason: PATCH_FAILED)
+[2025-12-20 18:15:55] WARNING: [research-api-router] Attempt 3/5 failed, will escalate model for next retry
+[2025-12-20 18:15:55] WARNING: Phase research-api-router finished with status: PATCH_FAILED
+[2025-12-20 18:15:55] INFO: Waiting 10s before next phase...
+[2025-12-20 18:16:05] INFO: Iteration 4: Fetching run status...
+[2025-12-20 18:16:07] INFO: [AUTO-RESET] Found 1 FAILED phases with retries remaining
+[2025-12-20 18:16:07] INFO: [AUTO-RESET] Resetting research-api-router to QUEUED (retry_attempt: 3/5)
+[2025-12-20 18:16:07] INFO: [research-api-router] Found executable phase: state=PhaseState.QUEUED, attempts=3/None
+[2025-12-20 18:16:07] INFO: [BUILD-041] Next phase: research-api-router
+[2025-12-20 18:16:07] INFO: [research-api-router] Step 1/4: Generating code with Builder (via LlmService)...
+[2025-12-20 18:16:07] INFO: [Context] Loaded 7 recently modified files for fresh context
+[2025-12-20 18:16:07] INFO: [Context] Total: 21 files loaded for Builder context (modified=7, mentioned=0)
+[2025-12-20 18:16:07] INFO: [TOKEN_BUDGET] Context loading: ~19998 tokens (99% of 20000 budget)
+[2025-12-20 18:16:07] INFO: [research-api-router] Loaded 21 files for context
+[2025-12-20 18:16:07] INFO: [research-api-router] Retrieved 537 chars of context from memory
+[2025-12-20 18:16:07] INFO: [research-api-router] Built deliverables contract: 5 required paths, 0 forbidden patterns
+[2025-12-20 18:16:07] INFO: [ModelSelector] Complexity escalated: low -> medium for phase research-api-router:deliverables_manifest
+[2025-12-20 18:16:07] INFO: [ModelSelector] Selected claude-opus-4-5 for builder (complexity=medium, attempt=3, intra_tier=1)
+[2025-12-20 18:16:07] WARNING: [ModelRouter] Provider anthropic disabled, using fallback model claude-sonnet-4-5 for role=builder, category=deliverables_manifest, complexity=medium
+[2025-12-20 18:16:08] INFO: HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-12-20 18:16:08] INFO: [research-api-router] Deliverables manifest gate PASSED (5 paths)
+[2025-12-20 18:16:08] INFO: [ModelSelector] Complexity escalated: MEDIUM -> high for phase research-api-router
+[2025-12-20 18:16:08] INFO: [ModelSelector] Selected claude-opus-4-5 for builder (complexity=high, attempt=3, intra_tier=3)
+[2025-12-20 18:16:08] WARNING: [ModelRouter] Provider anthropic disabled, using fallback model claude-sonnet-4-5 for role=builder, category=IMPLEMENT_FEATURE, complexity=high
+[2025-12-20 18:16:08] INFO: [MODEL-SELECT] Builder: model=claude-sonnet-4-5, complexity=MEDIUM->high, attempt=3, category=IMPLEMENT_FEATURE
+[2025-12-20 18:16:21] INFO: HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-12-20 18:16:21] INFO: [research-api-router] Builder succeeded (26490 tokens)
+[2025-12-20 18:16:21] INFO: [research-api-router] Deliverables validation:
+[2025-12-20 18:16:21] INFO:   Expected: 5 files
+[2025-12-20 18:16:21] INFO:   Found in patch: 5 files
+[2025-12-20 18:16:21] INFO: [research-api-router] ✅ Deliverables validation PASSED
+[2025-12-20 18:16:23] INFO: [research-api-router] Step 2/5: Applying patch...
+[2025-12-20 18:16:23] WARNING: [GoalDrift] Potential goal drift detected (similarity=-0.02 < 0.7)
+[2025-12-20 18:16:23] WARNING: [GoalDrift] Goal: Unified Research Plan gap: expose research system via FastAPI router....
+[2025-12-20 18:16:23] WARNING: [GoalDrift] Intent: Unified Research Plan gap: expose research system via FastAPI router.
+
+The unified plan references m...
+[2025-12-20 18:16:23] INFO: [GoalDrift:Advisory] Potential goal drift detected (similarity=-0.02 < 0.7)
+[2025-12-20 18:16:23] WARNING: [research-api-router] ADVISORY: Potential goal drift detected (similarity=-0.02 < 0.7)
+[2025-12-20 18:16:23] INFO: Removing existing file for new file patch: docs/research/API_REFERENCE.md
+[2025-12-20 18:16:23] INFO: Removing existing file for new file patch: src/autopack/research/api/router.py
+[2025-12-20 18:16:23] INFO: Removing existing file for new file patch: src/autopack/research/api/schemas.py
+[2025-12-20 18:16:23] INFO: Removing existing file for new file patch: tests/autopack/research/api/test_research_router.py
+[2025-12-20 18:16:23] INFO: Writing patch to temp_patch.diff
+[2025-12-20 18:16:23] INFO: Checking if patch can be applied (dry run)...
+[2025-12-20 18:16:23] WARNING: Strict patch check failed: error: patch failed: src/autopack/main.py:1
+error: src/autopack/main.py: patch does not apply
+[2025-12-20 18:16:23] INFO: Retrying with lenient mode (--ignore-whitespace -C1)...
+[2025-12-20 18:16:23] WARNING: Lenient mode also failed: error: patch failed: src/autopack/main.py:1
+error: src/autopack/main.py: patch does not apply
+[2025-12-20 18:16:23] INFO: Retrying with 3-way merge mode (-3)...
+[2025-12-20 18:16:23] ERROR: [Integrity] Patch modifies existing files. Skipping direct-write fallback to avoid partial apply.
+[2025-12-20 18:16:23] ERROR: [research-api-router] Failed to apply patch to filesystem: git_apply_failed_existing_files_no_fallback
+[2025-12-20 18:16:25] INFO: Updated phase research-api-router status to FAILED
+[2025-12-20 18:16:26] INFO: [MemoryService] Stored decision log
+[2025-12-20 18:16:26] INFO: [Doctor] Not invoking: per-phase limit reached (2/2)
+[2025-12-20 18:16:26] INFO: [REPLAN-TRIGGER] reason=repeated_error_short_msg type=patch_apply_error phase=research-api-router attempt=4 count=2
+[2025-12-20 18:16:26] INFO: [research-api-router] Triggering mid-run re-planning due to patch_apply_error
+[2025-12-20 18:16:26] INFO: [Re-Plan] Revising approach for research-api-router due to patch_apply_error (attempt 1)
+[2025-12-20 18:16:26] INFO: [GoalAnchor] Original intent: Unified Research Plan gap: expose research system via FastAPI router....
+[2025-12-20 18:16:26] INFO: [Re-Plan] Skipping re-planning because provider 'anthropic' is disabled for this run/process
+[2025-12-20 18:16:26] WARNING: [research-api-router] Re-planning failed, continuing with original approach
+[2025-12-20 18:16:26] INFO: [research-api-router] Updated counters in DB: retry=4, epoch=0, escalation=0 (reason: PATCH_FAILED)
+[2025-12-20 18:16:26] WARNING: [research-api-router] Attempt 4/5 failed, will escalate model for next retry
+[2025-12-20 18:16:26] WARNING: Phase research-api-router finished with status: PATCH_FAILED
+[2025-12-20 18:16:26] INFO: Waiting 10s before next phase...
+[2025-12-20 18:16:36] INFO: Iteration 5: Fetching run status...
+[2025-12-20 18:16:38] INFO: [AUTO-RESET] Found 1 FAILED phases with retries remaining
+[2025-12-20 18:16:38] INFO: [AUTO-RESET] Resetting research-api-router to QUEUED (retry_attempt: 4/5)
+[2025-12-20 18:16:38] INFO: [research-api-router] Found executable phase: state=PhaseState.QUEUED, attempts=4/None
+[2025-12-20 18:16:38] INFO: [BUILD-041] Next phase: research-api-router
+[2025-12-20 18:16:38] INFO: [research-api-router] Step 1/4: Generating code with Builder (via LlmService)...
+[2025-12-20 18:16:38] INFO: [Context] Loaded 7 recently modified files for fresh context
+[2025-12-20 18:16:38] INFO: [Context] Total: 21 files loaded for Builder context (modified=7, mentioned=0)
+[2025-12-20 18:16:38] INFO: [TOKEN_BUDGET] Context loading: ~19998 tokens (99% of 20000 budget)
+[2025-12-20 18:16:38] INFO: [research-api-router] Loaded 21 files for context
+[2025-12-20 18:16:38] INFO: [research-api-router] Retrieved 537 chars of context from memory
+[2025-12-20 18:16:38] INFO: [research-api-router] Built deliverables contract: 5 required paths, 0 forbidden patterns
+[2025-12-20 18:16:38] INFO: [ModelSelector] Complexity escalated: low -> high for phase research-api-router:deliverables_manifest
+[2025-12-20 18:16:38] INFO: [ModelSelector] Selected claude-sonnet-4-5 for builder (complexity=high, attempt=4, intra_tier=0)
+[2025-12-20 18:16:38] WARNING: [ModelRouter] Provider anthropic disabled, using fallback model claude-sonnet-4-5 for role=builder, category=deliverables_manifest, complexity=high
+[2025-12-20 18:16:39] INFO: HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-12-20 18:16:39] INFO: [research-api-router] Deliverables manifest gate PASSED (5 paths)
+[2025-12-20 18:16:39] INFO: [ModelSelector] Complexity escalated: MEDIUM -> high for phase research-api-router
+[2025-12-20 18:16:39] INFO: [ModelSelector] Selected claude-opus-4-5 for builder (complexity=high, attempt=4, intra_tier=4)
+[2025-12-20 18:16:39] WARNING: [ModelRouter] Provider anthropic disabled, using fallback model claude-sonnet-4-5 for role=builder, category=IMPLEMENT_FEATURE, complexity=high
+[2025-12-20 18:16:39] INFO: [MODEL-SELECT] Builder: model=claude-sonnet-4-5, complexity=MEDIUM->high, attempt=4, category=IMPLEMENT_FEATURE
+[2025-12-20 18:16:53] INFO: HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-12-20 18:16:53] INFO: [research-api-router] Builder succeeded (26414 tokens)
+[2025-12-20 18:16:53] INFO: [research-api-router] Deliverables validation:
+[2025-12-20 18:16:53] INFO:   Expected: 5 files
+[2025-12-20 18:16:53] INFO:   Found in patch: 5 files
+[2025-12-20 18:16:53] INFO: [research-api-router] ✅ Deliverables validation PASSED
+[2025-12-20 18:16:55] INFO: [research-api-router] Step 2/5: Applying patch...
+[2025-12-20 18:16:55] WARNING: [GoalDrift] Potential goal drift detected (similarity=-0.02 < 0.7)
+[2025-12-20 18:16:55] WARNING: [GoalDrift] Goal: Unified Research Plan gap: expose research system via FastAPI router....
+[2025-12-20 18:16:55] WARNING: [GoalDrift] Intent: Unified Research Plan gap: expose research system via FastAPI router.
+
+The unified plan references m...
+[2025-12-20 18:16:55] INFO: [GoalDrift:Advisory] Potential goal drift detected (similarity=-0.02 < 0.7)
+[2025-12-20 18:16:55] WARNING: [research-api-router] ADVISORY: Potential goal drift detected (similarity=-0.02 < 0.7)
+[2025-12-20 18:16:55] INFO: Removing existing file for new file patch: docs/research/API_REFERENCE.md
+[2025-12-20 18:16:55] INFO: Removing existing file for new file patch: src/autopack/research/api/router.py
+[2025-12-20 18:16:55] INFO: Removing existing file for new file patch: src/autopack/research/api/schemas.py
+[2025-12-20 18:16:55] INFO: Removing existing file for new file patch: tests/autopack/research/api/test_research_router.py
+[2025-12-20 18:16:55] INFO: Writing patch to temp_patch.diff
+[2025-12-20 18:16:55] INFO: Checking if patch can be applied (dry run)...
+[2025-12-20 18:16:55] WARNING: Strict patch check failed: error: patch failed: src/autopack/main.py:1
+error: src/autopack/main.py: patch does not apply
+[2025-12-20 18:16:55] INFO: Retrying with lenient mode (--ignore-whitespace -C1)...
+[2025-12-20 18:16:55] WARNING: Lenient mode also failed: error: patch failed: src/autopack/main.py:1
+error: src/autopack/main.py: patch does not apply
+[2025-12-20 18:16:55] INFO: Retrying with 3-way merge mode (-3)...
+[2025-12-20 18:16:55] INFO: 3-way merge mode check passed
+[2025-12-20 18:16:55] INFO: Applying patch to filesystem...
+[2025-12-20 18:16:55] ERROR: Failed to apply patch: temp_patch.diff:7: trailing whitespace.
+# Research API Reference
+temp_patch.diff:8: trailing whitespace.
+
+temp_patch.diff:9: trailing whitespace.
+This document provides the API reference for the Research module in the Autopack framework. The Research API is exposed via a FastAPI router and allows for managing research sessions.
+temp_patch.diff:10: trailing whitespace.
+
+temp_patch.diff:11: trailing whitespace.
+## Endpoints
+Performing three-way merge...
+error: docs/research/API_REFERENCE.md: does not match index
+error: cannot read the current contents of 'docs/research/API_REFERENCE.md'
+error: docs/research/API_REFERENCE.md: patch does not apply
+Applied patch to 'src/autopack/main.py' with conflicts.
+Performing three-way merge...
+error: src/autopack/research/api/router.py: does not match index
+error: cannot read the current contents of 'src/autopack/research/api/router.py'
+error: src/autopack/research/api/router.py: patch does not apply
+Performing three-way merge...
+error: src/autopack/research/api/schemas.py: does not match index
+error: cannot read the current contents of 'src/autopack/research/api/schemas.py'
+error: src/autopack/research/api/schemas.py: patch does not apply
+Performing three-way merge...
+error: tests/autopack/research/api/test_research_router.py: does not match index
+error: cannot read the current contents of 'tests/autopack/research/api/test_research_router.py'
+error: tests/autopack/research/api/test_research_router.py: patch does not apply
+[2025-12-20 18:16:55] ERROR: [research-api-router] Failed to apply patch to filesystem: temp_patch.diff:7: trailing whitespace.
+# Research API Reference
+temp_patch.diff:8: trailing whitespace.
+
+temp_patch.diff:9: trailing whitespace.
+This document provides the API reference for the Research module in the Autopack framework. The Research API is exposed via a FastAPI router and allows for managing research sessions.
+temp_patch.diff:10: trailing whitespace.
+
+temp_patch.diff:11: trailing whitespace.
+## Endpoints
+Performing three-way merge...
+error: docs/research/API_REFERENCE.md: does not match index
+error: cannot read the current contents of 'docs/research/API_REFERENCE.md'
+error: docs/research/API_REFERENCE.md: patch does not apply
+Applied patch to 'src/autopack/main.py' with conflicts.
+Performing three-way merge...
+error: src/autopack/research/api/router.py: does not match index
+error: cannot read the current contents of 'src/autopack/research/api/router.py'
+error: src/autopack/research/api/router.py: patch does not apply
+Performing three-way merge...
+error: src/autopack/research/api/schemas.py: does not match index
+error: cannot read the current contents of 'src/autopack/research/api/schemas.py'
+error: src/autopack/research/api/schemas.py: patch does not apply
+Performing three-way merge...
+error: tests/autopack/research/api/test_research_router.py: does not match index
+error: cannot read the current contents of 'tests/autopack/research/api/test_research_router.py'
+error: tests/autopack/research/api/test_research_router.py: patch does not apply
+[2025-12-20 18:16:57] INFO: Updated phase research-api-router status to FAILED
+[2025-12-20 18:16:58] INFO: [MemoryService] Stored decision log
+[2025-12-20 18:16:58] INFO: [Doctor] Not invoking: per-phase limit reached (2/2)
+[2025-12-20 18:16:58] INFO: [REPLAN-TRIGGER] reason=repeated_error_short_msg type=patch_apply_error phase=research-api-router attempt=5 count=2
+[2025-12-20 18:16:58] INFO: [research-api-router] Triggering mid-run re-planning due to patch_apply_error
+[2025-12-20 18:16:58] INFO: [Re-Plan] Revising approach for research-api-router due to patch_apply_error (attempt 1)
+[2025-12-20 18:16:58] INFO: [GoalAnchor] Original intent: Unified Research Plan gap: expose research system via FastAPI router....
+[2025-12-20 18:16:58] INFO: [Re-Plan] Skipping re-planning because provider 'anthropic' is disabled for this run/process
+[2025-12-20 18:16:58] WARNING: [research-api-router] Re-planning failed, continuing with original approach
+[2025-12-20 18:16:58] INFO: [research-api-router] Updated counters in DB: retry=5, epoch=0, escalation=0 (reason: PATCH_FAILED)
+[2025-12-20 18:16:58] ERROR: [research-api-router] All 5 attempts exhausted. Marking phase as FAILED.
+[2025-12-20 18:16:58] INFO: [ARCHIVE_CONSOLIDATOR] Logged new error: Phase research-api-router max attempts exhausted
+[2025-12-20 18:16:58] INFO: [research-api-router] Marked FAILED in database (reason: MAX_ATTEMPTS_EXHAUSTED)
+[2025-12-20 18:16:58] WARNING: Phase research-api-router finished with status: FAILED
+[2025-12-20 18:16:58] INFO: Waiting 10s before next phase...
+[2025-12-20 18:17:08] INFO: Iteration 6: Fetching run status...
+[2025-12-20 18:17:10] INFO: No more executable phases, execution complete
+[2025-12-20 18:17:10] INFO: Autonomous execution loop finished
+[2025-12-20 18:17:10] INFO: [ARCHIVE_CONSOLIDATOR] Logged build event: RUN_COMPLETE
+[2025-12-20 18:17:10] INFO: Learning Pipeline: Promoted 5 hints to persistent project rules
+[2025-12-20 18:17:10] INFO: Learning Pipeline: Marked rules updated (total: 102 rules)
+[2025-12-20 18:17:10] INFO: [PLANNING NOTICE] 5 new rules promoted. Future planning should incorporate 102 total project rules.
+[2025-12-20 18:17:10] INFO: [LOCK] Released executor lock for run_id=retry-api-router-v3 (PID=27788)
+Warning: Requested model claude-sonnet-4-5 but its provider is disabled. Falling back to OpenAI (gpt-4o).
+Warning: Requested model claude-sonnet-4-5 but its provider is disabled. Falling back to OpenAI (gpt-4o).
+Warning: Requested model claude-sonnet-4-5 but its provider is disabled. Falling back to OpenAI (gpt-4o).
+Warning: Requested model claude-sonnet-4-5 but its provider is disabled. Falling back to OpenAI (gpt-4o).
+Warning: Requested model claude-sonnet-4-5 but its provider is disabled. Falling back to OpenAI (gpt-4o).
+Warning: Requested model claude-sonnet-4-5 but its provider is disabled. Falling back to OpenAI (gpt-4o).
+Warning: Requested model claude-sonnet-4-5 but its provider is disabled. Falling back to OpenAI (gpt-4o).
+Warning: Requested model claude-sonnet-4-5 but its provider is disabled. Falling back to OpenAI (gpt-4o).
+Warning: Requested model claude-sonnet-4-5 but its provider is disabled. Falling back to OpenAI (gpt-4o).
+Warning: Requested model claude-sonnet-4-5 but its provider is disabled. Falling back to OpenAI (gpt-4o).
+Warning: Requested model claude-sonnet-4-5 but its provider is disabled. Falling back to OpenAI (gpt-4o).
+Warning: Requested model claude-sonnet-4-5 but its provider is disabled. Falling back to OpenAI (gpt-4o).

@@ -1,0 +1,187 @@
+[2025-12-20 18:53:40] INFO: [LOCK] Acquired executor lock for run_id=autopack-diagnostics-parity-v2 (PID=92772, host=Harry)
+[2025-12-20 18:53:40] INFO: Applying pre-emptive encoding fix...
+[2025-12-20 18:53:40] INFO: [Recovery] Fixing Unicode encoding error...
+[2025-12-20 18:53:40] INFO: [Recovery] SUCCESS: Encoding fixed (UTF-8 enabled)
+[2025-12-20 18:53:40] INFO: Database tables initialized
+[2025-12-20 18:53:40] INFO: Loaded BuilderOutputConfig: max_lines_for_full_file=1000, max_lines_hard_limit=1000
+[2025-12-20 18:53:40] INFO: Doctor execute_fix enabled: True
+[2025-12-20 18:53:40] INFO: FileSizeTelemetry initialized: .autonomous_runs\autopack\file_size_telemetry.jsonl
+[2025-12-20 18:53:50] INFO: [MemoryService] Qdrant unavailable ([WinError 10061] No connection could be made because the target machine actively refused it); using FAISS fallback
+[2025-12-20 18:53:50] INFO: [FAISS] Created collection 'code_docs' with dim=1536
+[2025-12-20 18:53:50] INFO: [FAISS] Created collection 'run_summaries' with dim=1536
+[2025-12-20 18:53:50] INFO: [FAISS] Created collection 'errors_ci' with dim=1536
+[2025-12-20 18:53:50] INFO: [FAISS] Created collection 'doctor_hints' with dim=1536
+[2025-12-20 18:53:50] INFO: [FAISS] Created collection 'planning' with dim=1536
+[2025-12-20 18:53:50] INFO: [MemoryService] Initialized (backend=faiss, enabled=True, top_k=5)
+[2025-12-20 18:53:50] INFO: MemoryService initialized (enabled=True)
+[2025-12-20 18:53:50] INFO: [FileLayout] Project: autopack, Family: autopack-diagnostics-parity-v2, Base: .autonomous_runs\autopack\runs\autopack-diagnostics-parity-v2
+[2025-12-20 18:53:50] INFO: Initialized autonomous executor for run: autopack-diagnostics-parity-v2
+[2025-12-20 18:53:50] INFO: API URL: http://127.0.0.1:8001
+[2025-12-20 18:53:50] INFO: Workspace: .
+[2025-12-20 18:53:50] INFO: Running proactive startup checks from DEBUG_JOURNAL.md...
+[2025-12-20 18:53:50] INFO: [HIGH] Checking: Windows Unicode Fix (PYTHONUTF8)
+[2025-12-20 18:53:50] INFO:   Reason: Prevents UnicodeEncodeError with emoji characters in logs (Issue #3)
+[2025-12-20 18:53:50] INFO:   Check PASSED
+[2025-12-20 18:53:50] INFO: Startup checks complete
+[2025-12-20 18:53:51] INFO: [HealthCheck:T0] API Keys: PASSED (0ms) - All required API keys present
+[2025-12-20 18:53:51] INFO: [HealthCheck:T0] Database: PASSED (0ms) - Database accessible: c:\dev\Autopack\autopack.db
+[2025-12-20 18:53:51] INFO: [HealthCheck:T0] Workspace: PASSED (1ms) - Workspace valid: c:\dev\Autopack
+[2025-12-20 18:53:51] INFO: [HealthCheck:T0] Config: PASSED (24ms) - Configuration files valid
+[2025-12-20 18:53:51] INFO: [HealthCheck:T0] Vector Memory: PASSED (1021ms) - Qdrant not reachable at localhost:6333; Autopack will fall back to FAISS. To enable Qdrant: run `docker compose up -d qdrant` (docker-compose.yml includes it).
+[2025-12-20 18:53:51] INFO: Starting autonomous execution loop...
+[2025-12-20 18:53:51] INFO: Poll interval: 10s
+[2025-12-20 18:53:51] INFO: Max iterations: 200
+[2025-12-20 18:53:51] INFO: API server is already running
+[2025-12-20 18:53:51] INFO: Initializing infrastructure...
+[2025-12-20 18:53:54] INFO: LlmService: Initialized with ModelRouter and UsageRecorder
+[2025-12-20 18:53:54] INFO: Quality Gate: Initialized
+[2025-12-20 18:53:54] INFO: Iteration 1: Fetching run status...
+[2025-12-20 18:53:54] INFO: [GoalAnchor] Initialized: Diagnostics Parity (Stage 2A): Bounded deep retrieval escalation....
+[2025-12-20 18:53:54] INFO: [diagnostics-deep-retrieval] Found executable phase: state=PhaseState.QUEUED, attempts=0/None
+[2025-12-20 18:53:54] INFO: [BUILD-041] Next phase: diagnostics-deep-retrieval
+[2025-12-20 18:53:54] INFO: [diagnostics-deep-retrieval] Step 1/4: Generating code with Builder (via LlmService)...
+[2025-12-20 18:53:54] INFO: [Context] Loaded 7 recently modified files for fresh context
+[2025-12-20 18:53:55] INFO: [Context] Total: 21 files loaded for Builder context (modified=7, mentioned=0)
+[2025-12-20 18:53:55] INFO: [TOKEN_BUDGET] Context loading: ~19998 tokens (99% of 20000 budget)
+[2025-12-20 18:53:55] INFO: [diagnostics-deep-retrieval] Loaded 21 files for context
+[2025-12-20 18:53:55] INFO: [diagnostics-deep-retrieval] Built deliverables contract: 5 required paths, 0 forbidden patterns
+[2025-12-20 18:53:55] INFO: [ModelSelector] Selected claude-sonnet-4-5 for builder (complexity=low, attempt=0, intra_tier=0)
+[2025-12-20 18:53:58] INFO: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+[2025-12-20 18:53:58] INFO: [diagnostics-deep-retrieval] Deliverables manifest gate PASSED (5 paths)
+[2025-12-20 18:53:58] INFO: [ModelSelector] Complexity escalated: MEDIUM -> high for phase diagnostics-deep-retrieval
+[2025-12-20 18:53:58] INFO: [ModelSelector] Selected claude-sonnet-4-5 for builder (complexity=high, attempt=0, intra_tier=0)
+[2025-12-20 18:53:58] INFO: [MODEL-SELECT] Builder: model=claude-sonnet-4-5, complexity=MEDIUM->high, attempt=0, category=IMPLEMENT_FEATURE
+[2025-12-20 18:53:58] WARNING: [TOKEN_SOFT_CAP] run_id=autopack-diagnostics-parity-v2 phase_id=diagnostics-deep-retrieval est_total=33376 soft_cap=32000 (prompt=21908 completion=11468 complexity=medium)
+[2025-12-20 18:54:01] INFO: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+[2025-12-20 18:57:18] INFO: [TOKEN_BUDGET] phase=diagnostics-deep-retrieval complexity=medium input=29132 output=16384/16384 total=45516 utilization=100.0% model=claude-sonnet-4-5
+[2025-12-20 18:57:18] WARNING: [Builder] Output was truncated (stop_reason=max_tokens)
+[2025-12-20 18:57:18] WARNING: [TOKEN_BUDGET] TRUNCATION: phase=diagnostics-deep-retrieval used 16384/16384 tokens (100% utilization) - consider increasing max_tokens for this complexity level
+[2025-12-20 18:57:18] WARNING: [Builder] WARNING: Full-file JSON parse failed; requesting regeneration (no legacy diff fallback)
+[2025-12-20 18:57:18] WARNING: [Builder] Wrote failing full-file output to builder_fullfile_failure_latest.json
+[2025-12-20 18:57:18] INFO: [Builder] Attempting JSON repair on malformed output...
+[2025-12-20 18:57:18] WARNING: [JsonRepair] All repair strategies failed for error: Failed to parse JSON with 'files' array
+[2025-12-20 18:57:18] ERROR: LLM output invalid format - expected JSON with 'files' array (repair also failed) (stop_reason=max_tokens)
+First 500 chars: ```json
+{
+  "summary": "Implement Stage 2A diagnostics deep retrieval with bounded escalation, recency awareness, and strict per-category caps to prevent context noise when Stage 1 handoff bundles lack sufficient signal.",
+  "files": [
+    {
+      "path": "src/autopack/diagnostics/deep_retrieval.py",
+      "mode": "create",
+      "new_content": "\"\"\"Deep Retrieval Module for Diagnostics Stage 2A.\n\nProvides bounded, recency-aware retrieval from run-local artifacts, SOT files,\nand optional me
+[2025-12-20 18:57:18] WARNING: [diagnostics-deep-retrieval] Falling back to structured_edit after full-file parse/truncation failure
+[2025-12-20 18:57:18] INFO: [ModelSelector] Complexity escalated: MEDIUM -> high for phase diagnostics-deep-retrieval
+[2025-12-20 18:57:18] INFO: [ModelSelector] Selected claude-sonnet-4-5 for builder (complexity=high, attempt=0, intra_tier=0)
+[2025-12-20 18:57:18] INFO: [MODEL-SELECT] Builder: model=claude-sonnet-4-5, complexity=MEDIUM->high, attempt=0, category=IMPLEMENT_FEATURE
+[2025-12-20 18:57:20] INFO: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+[2025-12-20 19:00:19] INFO: [TOKEN_BUDGET] phase=diagnostics-deep-retrieval complexity=medium input=1992 output=16384/16384 total=18376 utilization=100.0% model=claude-sonnet-4-5
+[2025-12-20 19:00:19] WARNING: [Builder] Output was truncated (stop_reason=max_tokens)
+[2025-12-20 19:00:19] WARNING: [TOKEN_BUDGET] TRUNCATION: phase=diagnostics-deep-retrieval used 16384/16384 tokens (100% utilization) - consider increasing max_tokens for this complexity level
+[2025-12-20 19:00:19] INFO: [Builder] Attempting JSON repair on malformed structured_edit output...
+[2025-12-20 19:00:19] WARNING: [JsonRepair] All repair strategies failed for error: Expecting value: line 1 column 1 (char 0)
+[2025-12-20 19:00:19] ERROR: LLM output invalid format - expected JSON with 'operations' array (stop_reason=max_tokens)
+First 500 chars: ```json
+{
+  "files": [
+    {
+      "path": "src/autopack/diagnostics/deep_retrieval.py",
+      "mode": "create",
+      "new_content": "\"\"\"Deep retrieval module for diagnostics escalation.\n\nProvides bounded, category-aware retrieval from run-local artifacts,\nSOT (Source of Truth), and optional memory when Stage 1 evidence\nis insufficient.\n\"\"\"\n\nimport logging\nfrom dataclasses import dataclass, field\nfrom datetime import datetime, timedelta\nfrom enum import Enum\nfrom pathlib import
+[2025-12-20 19:00:19] ERROR: [diagnostics-deep-retrieval] Builder failed: LLM output invalid format - expected JSON with 'operations' array (stop_reason=max_tokens)
+[2025-12-20 19:00:19] ERROR: [diagnostics-deep-retrieval] Execution failed: unsupported operand type(s) for -: 'NoneType' and 'int'
+Traceback:
+Traceback (most recent call last):
+  File "c:\dev\Autopack\src\autopack\autonomous_executor.py", line 3617, in _execute_phase_with_recovery
+    if getattr(builder_result, 'was_truncated', False) and attempt_index < (phase.get("max_builder_attempts", 5) - 1):
+                                                                            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^~~
+TypeError: unsupported operand type(s) for -: 'NoneType' and 'int'
+
+[2025-12-20 19:00:19] INFO: [ARCHIVE_CONSOLIDATOR] Logged new error: Phase diagnostics-deep-retrieval inner execution failure
+[2025-12-20 19:00:19] INFO: [MemoryService] Wrote error: TypeError in diagnostics-deep-retrieval
+[2025-12-20 19:00:19] INFO: Updated phase diagnostics-deep-retrieval status to FAILED
+[2025-12-20 19:00:19] INFO: [MemoryService] Stored decision log
+[2025-12-20 19:00:19] INFO: [diagnostics-deep-retrieval] Updated counters in DB: retry=1, epoch=0, escalation=0 (reason: FAILED)
+[2025-12-20 19:00:19] WARNING: [diagnostics-deep-retrieval] Attempt 1/5 failed, will escalate model for next retry
+[2025-12-20 19:00:19] WARNING: Phase diagnostics-deep-retrieval finished with status: FAILED
+[2025-12-20 19:00:19] INFO: Waiting 10s before next phase...
+[2025-12-20 19:00:29] INFO: Iteration 2: Fetching run status...
+[2025-12-20 19:00:29] INFO: [AUTO-RESET] Found 1 FAILED phases with retries remaining
+[2025-12-20 19:00:29] INFO: [AUTO-RESET] Resetting diagnostics-deep-retrieval to QUEUED (retry_attempt: 1/5)
+[2025-12-20 19:00:29] INFO: [diagnostics-deep-retrieval] Found executable phase: state=PhaseState.QUEUED, attempts=0/None
+[2025-12-20 19:00:29] INFO: [BUILD-041] Next phase: diagnostics-deep-retrieval
+[2025-12-20 19:00:29] INFO: [diagnostics-deep-retrieval] Step 1/4: Generating code with Builder (via LlmService)...
+[2025-12-20 19:00:29] INFO: [Context] Loaded 7 recently modified files for fresh context
+[2025-12-20 19:00:29] INFO: [Context] Total: 21 files loaded for Builder context (modified=7, mentioned=0)
+[2025-12-20 19:00:29] INFO: [TOKEN_BUDGET] Context loading: ~19998 tokens (99% of 20000 budget)
+[2025-12-20 19:00:29] INFO: [diagnostics-deep-retrieval] Loaded 21 files for context
+[2025-12-20 19:00:29] INFO: [diagnostics-deep-retrieval] Retrieved 622 chars of context from memory
+[2025-12-20 19:00:29] INFO: [diagnostics-deep-retrieval] Built deliverables contract: 5 required paths, 0 forbidden patterns
+[2025-12-20 19:00:29] INFO: [ModelSelector] Selected claude-opus-4-5 for builder (complexity=low, attempt=1, intra_tier=1)
+[2025-12-20 19:00:32] INFO: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+[2025-12-20 19:00:32] INFO: [diagnostics-deep-retrieval] Deliverables manifest gate PASSED (5 paths)
+[2025-12-20 19:00:32] INFO: [ModelSelector] Complexity escalated: MEDIUM -> high for phase diagnostics-deep-retrieval
+[2025-12-20 19:00:32] INFO: [ModelSelector] Selected claude-opus-4-5 for builder (complexity=high, attempt=1, intra_tier=1)
+[2025-12-20 19:00:32] INFO: [MODEL-SELECT] Builder: model=claude-opus-4-5, complexity=MEDIUM->high, attempt=1, category=IMPLEMENT_FEATURE
+[2025-12-20 19:00:32] WARNING: [TOKEN_SOFT_CAP] run_id=autopack-diagnostics-parity-v2 phase_id=diagnostics-deep-retrieval est_total=33545 soft_cap=32000 (prompt=22077 completion=11468 complexity=medium)
+[2025-12-20 19:00:34] INFO: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+[2025-12-20 19:04:18] INFO: [TOKEN_BUDGET] phase=diagnostics-deep-retrieval complexity=medium input=29352 output=16384/16384 total=45736 utilization=100.0% model=claude-opus-4-5
+[2025-12-20 19:04:18] WARNING: [Builder] Output was truncated (stop_reason=max_tokens)
+[2025-12-20 19:04:18] WARNING: [TOKEN_BUDGET] TRUNCATION: phase=diagnostics-deep-retrieval used 16384/16384 tokens (100% utilization) - consider increasing max_tokens for this complexity level
+[2025-12-20 19:04:18] INFO: [Builder] Generated 6 file diffs locally from full-file content
+[2025-12-20 19:04:18] INFO: [diagnostics-deep-retrieval] Builder succeeded (45736 tokens)
+[2025-12-20 19:04:18] INFO: [diagnostics-deep-retrieval] Deliverables validation:
+[2025-12-20 19:04:18] INFO:   Expected: 5 files
+[2025-12-20 19:04:18] INFO:   Found in patch: 6 files
+[2025-12-20 19:04:18] ERROR: [diagnostics-deep-retrieval] ❌ Deliverables validation FAILED
+[2025-12-20 19:04:18] ERROR: [diagnostics-deep-retrieval]    Missing 1 required deliverables:
+[2025-12-20 19:04:18] ERROR: [diagnostics-deep-retrieval]      - docs/autopack/diagnostics_deep_retrieval.md
+[2025-12-20 19:04:18] ERROR: [diagnostics-deep-retrieval]    
+🚫 Files created OUTSIDE the approved manifest (hard violation):
+[2025-12-20 19:04:18] ERROR: [diagnostics-deep-retrieval]      - src/autopack/diagnostics/__init__.py
+[2025-12-20 19:04:18] ERROR: [diagnostics-deep-retrieval]      - tests/autopack/diagnostics/__init__.py
+[2025-12-20 19:04:18] ERROR: [diagnostics-deep-retrieval] Deliverables validation failed
+[2025-12-20 19:04:18] ERROR: [diagnostics-deep-retrieval] ❌ DELIVERABLES VALIDATION FAILED
+
+Your patch does not create the required deliverable files.
+
+📋 REQUIRED DELIVERABLES:
+  ✓ docs/autopack/diagnostics_deep_retrieval.md
+  ✓ src/autopack/diagnostics/deep_retrieval.py
+  ✓ src/autopack/diagnostics/retrieval_triggers.py
+  ✓ tests/autopack/diagnostics/test_deep_retrieval.py
+  ✓ tests/autopack/diagnostics/test_retrieval_triggers.py
+
+📄 FILES IN YOUR PATCH:
+  • src/autopack/diagnostics/__init__.py
+  • src/autopack/diagnostics/deep_retrieval.py
+  • src/autopack/diagnostics/retrieval_triggers.py
+  • tests/autopack/diagnostics/__init__.py
+  • tests/autopack/diagnostics/test_deep_retrieval.py
+  • tests/autopack/diagnostics/test_retrieval_triggers.py
+
+✅ ALLOWED ROOTS (you may ONLY create files under these prefixes):
+  - docs/autopack/
+  - src/autopack/
+  - tests/autopack/
+
+🚫 OUTSIDE-MANIFEST FILES (hard violation):
+  - src/autopack/diagnostics/__init__.py
+  - tests/autopack/diagnostics/__init__.py
+
+❌ MISSING FILES:
+  - docs/autopack/diagnostics_deep_retrieval.md
+
+🔧 ACTION REQUIRED:
+Please regenerate the patch with files in the correct locations.
+Ensure all file paths match the deliverables specification exactly.
+[2025-12-20 19:04:18] INFO: [MemoryService] Stored decision log
+[2025-12-20 19:04:18] INFO: [Doctor] Routine failure detected -> using cheap model
+[2025-12-20 19:04:26] INFO: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+[2025-12-20 19:04:26] INFO: [Doctor] Diagnosis complete: action=retry_with_fix, confidence=0.75, phase=diagnostics-deep-retrieval, model=claude-sonnet-4-5, is_complex=False, escalated=False, health_ratio=0.08
+[2025-12-20 19:04:26] INFO: [Doctor] Diagnosis complete: action=retry_with_fix, confidence=0.75, phase_calls=1, run_calls=1
+[2025-12-20 19:04:26] INFO: [Doctor] Action: retry_with_fix - hint stored for next attempt
+[2025-12-20 19:04:26] INFO: [MemoryService] Stored decision log
+[2025-12-20 19:04:26] INFO: [diagnostics-deep-retrieval] Updated counters in DB: retry=2, epoch=0, escalation=0 (reason: DELIVERABLES_VALIDATION_FAILED)
+[2025-12-20 19:04:26] WARNING: [diagnostics-deep-retrieval] Attempt 2/5 failed, will escalate model for next retry
+[2025-12-20 19:04:26] WARNING: Phase diagnostics-deep-retrieval finished with status: DELIVERABLES_VALIDATION_FAILED
+[2025-12-20 19:04:26] INFO: Waiting 10s before next phase...

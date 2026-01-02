@@ -33,12 +33,18 @@ def is_runtime_workspace(dirpath: Path) -> bool:
     Returns:
         True if directory is a runtime workspace
     """
-    # .autonomous_runs/autopack is the main runtime workspace
-    if dirpath.name == "autopack":
-        return True
+    # Protected runtime workspace directories
+    runtime_workspaces = {
+        "autopack",              # Main runtime workspace
+        "_shared",               # Shared runtime resources
+        "baselines",             # Test baseline cache
+        "batch_drain_sessions",  # Batch drain runtime workspace
+        "checkpoints",           # Git checkpoint storage
+        ".locks",                # Lock files
+        "tidy_checkpoints",      # Tidy checkpoint storage
+    }
 
-    # Add other runtime workspace patterns here if needed
-    return False
+    return dirpath.name in runtime_workspaces
 
 
 def is_project_directory(dirpath: Path) -> bool:
@@ -73,14 +79,17 @@ def is_run_directory(dirpath: Path) -> bool:
     - {run_id}-{timestamp}
     - Contains run artifacts (rollback.log, executor.log, etc.)
 
+    NOTE: Run directories may ALSO have docs/archive structure (from SOT repair),
+    but name-based patterns take priority over structure detection.
+
     Args:
         dirpath: Directory path to check
 
     Returns:
         True if directory is a run directory
     """
-    # Skip runtime workspaces and project directories
-    if is_runtime_workspace(dirpath) or is_project_directory(dirpath):
+    # Skip runtime workspaces (these are never runs)
+    if is_runtime_workspace(dirpath):
         return False
 
     # Check for run artifact markers
@@ -88,7 +97,7 @@ def is_run_directory(dirpath: Path) -> bool:
     has_executor_log = (dirpath / "executor.log").exists()
     has_errors_dir = (dirpath / "errors").exists()
 
-    # Matches run directory patterns
+    # Matches run directory patterns (prioritize name patterns)
     name_lower = dirpath.name.lower()
     looks_like_run = (
         has_rollback_log or
@@ -96,7 +105,17 @@ def is_run_directory(dirpath: Path) -> bool:
         has_errors_dir or
         "build" in name_lower or
         "telemetry" in name_lower or
-        "test-" in name_lower
+        "test-" in name_lower or
+        "autopack-" in name_lower or       # autopack-diagnostics-parity-*, autopack-onephase-*, etc.
+        "research-" in name_lower or       # research-system-v*, research-build113-test
+        "retry-" in name_lower or          # retry-api-router-*, retry-examples-*
+        "diagnostics-" in name_lower or    # diagnostics-parity-phases-*
+        "lovable-" in name_lower or        # lovable-integration-*, lovable-p0-*, etc.
+        "p10-" in name_lower or            # p10-validation-test
+        name_lower == "start" or           # start/
+        name_lower == "errors" or          # errors/
+        name_lower == "logs" or            # logs/
+        name_lower.startswith("run-")      # run-001, run-002
     )
 
     return looks_like_run
@@ -131,24 +150,40 @@ def get_directory_age(dirpath: Path) -> timedelta:
         return timedelta(days=0)
 
 
-def find_orphaned_logs(autonomous_runs: Path) -> List[Path]:
+def find_orphaned_files(autonomous_runs: Path) -> List[Path]:
     """
-    Find orphaned executor.log files (not in run directories).
+    Find orphaned files (not in run/project directories).
+
+    Includes:
+    - Log files (*.log)
+    - JSON files (*.json, *.jsonl)
+    - Other orphaned artifacts at .autonomous_runs/ root
+
+    Excludes:
+    - Files in subdirectories (they belong to run/project directories)
 
     Args:
         autonomous_runs: Path to .autonomous_runs directory
 
     Returns:
-        List of orphaned log file paths
+        List of orphaned file paths
     """
-    orphaned_logs = []
+    orphaned_files = []
 
-    # Find all executor.log files directly under .autonomous_runs/
-    for log_file in autonomous_runs.glob("executor.log*"):
-        if log_file.is_file():
-            orphaned_logs.append(log_file)
+    # Patterns for orphaned files at root
+    orphaned_patterns = [
+        "*.log",           # All log files (api_server.log, build*.log, tidy_*.log, etc.)
+        "*.json",          # All JSON files (baseline.json, retry.json, verify_report_*.json)
+        "*.jsonl",         # JSONL files (telemetry_counts.jsonl)
+    ]
 
-    return orphaned_logs
+    # Find all orphaned files directly under .autonomous_runs/ (not in subdirectories)
+    for pattern in orphaned_patterns:
+        for filepath in autonomous_runs.glob(pattern):
+            if filepath.is_file():
+                orphaned_files.append(filepath)
+
+    return orphaned_files
 
 
 def find_duplicate_baseline_archives(autonomous_runs: Path) -> List[Path]:
@@ -205,8 +240,8 @@ def find_old_run_directories(
         if not item.is_dir():
             continue
 
-        # Skip runtime workspaces and project directories
-        if is_runtime_workspace(item) or is_project_directory(item):
+        # Skip runtime workspaces (but NOT project directories, since runs can have docs/archive)
+        if is_runtime_workspace(item):
             continue
 
         # Check if it's a run directory
@@ -305,15 +340,43 @@ def cleanup_autonomous_runs(
     files_deleted = 0
     dirs_deleted = 0
 
-    # Step 1: Orphaned logs
-    orphaned_logs = find_orphaned_logs(autonomous_runs)
-    if orphaned_logs:
-        print(f"[ORPHANED-LOGS] Found {len(orphaned_logs)} orphaned log files:")
-        for log_file in orphaned_logs:
-            rel_path = log_file.relative_to(repo_root)
-            print(f"  DELETE {rel_path}")
+    # Step 1: Orphaned files (logs, JSON, etc.)
+    orphaned_files = find_orphaned_files(autonomous_runs)
+    if orphaned_files:
+        print(f"[ORPHANED-FILES] Found {len(orphaned_files)} orphaned files:")
+
+        # Route to archive/diagnostics/logs/autonomous_runs/
+        archive_dest = repo_root / "archive" / "diagnostics" / "logs" / "autonomous_runs"
+
+        for filepath in orphaned_files:
+            rel_path = filepath.relative_to(repo_root)
+            size_kb = filepath.stat().st_size / 1024
+
+            # Determine destination based on file type
+            if filepath.suffix in ['.log', '.jsonl']:
+                dest_subdir = archive_dest
+            elif filepath.suffix == '.json':
+                # JSON reports/metadata go to diagnostics
+                dest_subdir = archive_dest
+            else:
+                dest_subdir = archive_dest
+
+            dest_file = dest_subdir / filepath.name
+
+            print(f"  MOVE {rel_path} → archive/diagnostics/logs/autonomous_runs/{filepath.name} ({size_kb:.1f} KB)")
+
             if not dry_run:
-                log_file.unlink()
+                dest_subdir.mkdir(parents=True, exist_ok=True)
+
+                # Handle duplicates with timestamp
+                if dest_file.exists():
+                    from datetime import datetime
+                    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                    stem = dest_file.stem
+                    suffix = dest_file.suffix
+                    dest_file = dest_subdir / f"{stem}_{timestamp}{suffix}"
+
+                filepath.rename(dest_file)
                 files_deleted += 1
         print()
 

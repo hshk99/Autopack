@@ -1,0 +1,24 @@
+faiss library not installed; FaissStore will use in-memory fallback
+[2025-12-23 21:12:04] ERROR: [LOCK] Unexpected error acquiring lock: [Errno 13] Permission denied
+Traceback (most recent call last):
+  File "C:\dev\Autopack\src\autopack\executor_lock.py", line 83, in acquire
+    self.lock_file.flush()
+PermissionError: [Errno 13] Permission denied
+
+During handling of the above exception, another exception occurred:
+
+PermissionError: [Errno 13] Permission denied
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "<frozen runpy>", line 198, in _run_module_as_main
+  File "<frozen runpy>", line 88, in _run_code
+  File "C:\dev\Autopack\src\autopack\autonomous_executor.py", line 8612, in <module>
+    main()
+  File "C:\dev\Autopack\src\autopack\autonomous_executor.py", line 8554, in main
+    if not lock_manager.acquire():
+           ^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\dev\Autopack\src\autopack\executor_lock.py", line 122, in acquire
+    self.lock_file.close()
+PermissionError: [Errno 13] Permission denied

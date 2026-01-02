@@ -58,12 +58,15 @@ In practice, “autonomous” requires that each phase has:
 
 ### Latest Highlights (Last 3 Builds)
 
-#### 2026-01-02: CI Drift Enforcement - Dependency & Version Hygiene Lock-In ✅
-**Prevent Future Drift: pip-compile Validation + Version Consistency + Hash Security**
-- Three-layer CI enforcement: version consistency (`__version__.py` / pyproject.toml / PROJECT_INDEX.json), deterministic pip-compile with hash verification, platform-conditional dependency handling
-- requirements.txt regenerated with full SHA256 hashes (1900+ lines) for supply chain security + reproducibility
-- CI fails early (before pytest) if manual edits to requirements.txt, version drift, or missing dependency regeneration
-- See [docs/BUILD_HISTORY.md](docs/BUILD_HISTORY.md) for implementation details (Option B completion)
+#### 2026-01-03: BUILD-156 - Queue Improvements & First-Run Ergonomics ✅
+**Actionable Queue Reporting + Reason Taxonomy + Resource Caps + UX Shortcuts**
+- P0: Queue actionable reporting (top N items by priority, suggested next actions, JSON/Markdown reports)
+- P1: Reason taxonomy (locked/permission/dest_exists/unknown) enables smart retry logic
+- P1: Queue caps/guardrails (max 1000 items, 10 GB total) prevent unbounded growth
+- P1: Verification --strict flag for CI enforcement (treat warnings as errors)
+- P2: --first-run flag as one-command bootstrap (execute + repair + docs-reduce-to-sot)
+- **Result**: Users get concrete next actions instead of "figure it out yourself"
+- See [archive/diagnostics/BUILD-156_QUEUE_IMPROVEMENTS_SUMMARY.md](archive/diagnostics/BUILD-156_QUEUE_IMPROVEMENTS_SUMMARY.md) for full details
 
 #### 2026-01-03: BUILD-155 - Tidy First-Run Resilience (P0-P1 Complete) ✅
 **Tidy Always Succeeds: Profiling + Locked-File Resilience**
@@ -72,7 +75,6 @@ In practice, “autonomous” requires that each phase has:
 - Dry-run non-mutation guarantee (strict read-only, queue hash unchanged)
 - Queued-items-as-warnings verification (exit code 0 with locked files, first-run success)
 - **Result**: "Tidy always succeeds" README promise now delivered
-- Production-ready: idempotent migration, opt-in by default, SQLite + PostgreSQL dual support
 - See [docs/BUILD_155_SOT_TELEMETRY_COMPLETION.md](docs/BUILD_155_SOT_TELEMETRY_COMPLETION.md) for full details
 
 #### 2026-01-02: BUILD-153 - Storage Optimizer Automation & Production Hardening ✅

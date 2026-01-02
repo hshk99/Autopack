@@ -2460,3 +2460,167 @@ WARNING: Queued for retry (locked): telemetry_seed_v5.db
 - Validation script (validate_tidy_p0_p1_fixes.ps1)
 - Implementation summary (BUILD-155_P0_P1_IMPLEMENTATION_SUMMARY.md)
 
+
+---
+
+## BUILD-156: Queue Improvements & First-Run Ergonomics
+
+**Date**: 2026-01-03 04:40
+**Status**: ✅ Complete
+**Scope**: P0-P2 improvements to tidy pending queue system and verification strictness
+**Branch**: main (direct commit)
+
+### Problem
+
+The tidy pending moves queue lacked actionability and enforceability:
+- Users had no visibility into what was stuck or what actions to take
+- All failures classified generically as "locked" (no distinction between permission errors, collisions, etc.)
+- Queue could grow unbounded (no caps on items or bytes)
+- Verification had no strict mode for CI enforcement
+- First-run bootstrap required memorizing complex flag combinations
+
+### Solution
+
+Implemented comprehensive queue reporting, reason taxonomy, caps/guardrails, and UX improvements:
+
+**P0: Queue Actionable Reporting**
+- Added `get_actionable_report()` method with priority scoring (attempts × 10 + age_days)
+- Implemented `format_actionable_report_markdown()` helper for human-readable reports
+- Integrated auto-reporting into tidy_up.py (shows top items + suggested actions)
+- Added `--queue-report` flag with JSON/Markdown output options
+
+**P1: Queue Reason Taxonomy**
+- Distinguished between `locked` (WinError 32), `permission` (WinError 5/EACCES), `dest_exists` (collisions), and `unknown`
+- Enhanced execute_moves() to classify errors precisely
+- Enables future smart retry logic (different backoff per reason)
+
+**P1: Queue Caps/Guardrails**
+- Added hard limits: max 1000 items, max 10 GB total bytes
+- Enforced in enqueue() with clear warnings
+- Updates to existing items exempt (prevents data loss)
+
+**P1: Verification --strict Flag**
+- Added `--strict` flag to treat warnings as errors (exit code 1)
+- Perfect for CI enforcement and pre-release validation
+
+**P2: First-Run Ergonomics**
+- Added `--first-run` flag as shortcut for `--execute --repair --docs-reduce-to-sot`
+- One command for bootstrap/migration scenarios
+
+### Architecture Decisions
+
+**AD-22: Priority-Based Queue Reporting**
+- Use simple linear priority score (attempts × 10 + age_days)
+- Attempts weighted higher than age (stuck files more urgent than old files)
+
+**AD-23: Queue Caps as Hard Limits**
+- Reject new items when caps exceeded (log warning, don't crash)
+- Prevents unbounded resource consumption
+- Fails gracefully with actionable message
+
+**AD-24: Reason Taxonomy Granularity**
+- Four reasons: locked, permission, dest_exists, unknown
+- `locked` vs `permission` critical for Windows (WinError 32 vs 5)
+- `dest_exists` enables future collision policy implementation
+
+**AD-25: `--first-run` as Opinionated Bootstrap**
+- Opinionated but safe (dry-run still available)
+- New users want "one command to fix everything"
+
+### Files Modified
+
+1. `scripts/tidy/pending_moves.py` (+150 lines)
+   - Added `get_actionable_report()` method (lines 365-452)
+   - Added `format_actionable_report_markdown()` helper (lines 563-624)
+   - Added queue caps constants and enforcement (lines 37-39, 190-265)
+   - Updated docstrings for reason taxonomy
+
+2. `scripts/tidy/tidy_up.py` (+100 lines)
+   - Imported `format_actionable_report_markdown` (line 55)
+   - Added queue reporting argparse flags (lines 1237-1245)
+   - Enhanced execute_moves with reason taxonomy (lines 1114-1185)
+   - Added --first-run flag and logic (lines 1211, 1287-1291)
+   - Integrated auto-reporting in final summary (lines 1551-1597)
+
+3. `scripts/tidy/verify_workspace_structure.py` (+10 lines)
+   - Added --strict argparse flag (lines 402-403)
+   - Added strict mode enforcement logic (lines 468-477)
+
+4. `archive/diagnostics/BUILD-156_QUEUE_IMPROVEMENTS_SUMMARY.md` (NEW, ~650 lines)
+   - Comprehensive implementation details, acceptance criteria, architecture decisions
+
+### Testing & Validation
+
+**Manual Tests**:
+1. Queue reporting: Confirmed JSON/Markdown reports with top items, priorities, suggested actions
+2. Reason taxonomy: Verified locked (WinError 32) vs permission (WinError 5) vs dest_exists classification
+3. Queue caps: Confirmed warnings logged when limits exceeded
+4. Verification --strict: Confirmed exit code 1 when warnings present
+5. --first-run flag: Confirmed sets execute + repair + docs-reduce-to-sot
+
+**Sample Output**:
+```
+======================================================================
+QUEUE ACTIONABLE REPORT
+======================================================================
+Total pending: 13 items
+Total size estimate: 3.77 MB
+Eligible now: 13 items
+
+Top 5 items by priority:
+  [20] autopack_telemetry_seed.db (2 attempts, 0 days old)
+  [20] telemetry_seed_debug.db (2 attempts, 0 days old)
+  ...
+
+Suggested next actions:
+  [HIGH] Close processes that may be locking files (database browsers, file explorers, IDEs)
+  [MED] Reboot the system to release all file locks
+  [HIGH] Run 'python scripts/tidy/tidy_up.py --execute' to retry pending moves
+```
+
+### Impact
+
+**Before BUILD-156**:
+- Queue was opaque (no visibility into what's stuck)
+- All failures classified as "locked"
+- Queue could grow unbounded
+- Verification always treated warnings as non-fatal
+- First run required complex flag memorization
+
+**After BUILD-156**:
+- ✅ Actionable reports with priority scoring + suggested actions
+- ✅ Four-tier reason taxonomy (locked/permission/dest_exists/unknown)
+- ✅ Hard caps prevent resource exhaustion (1000 items, 10 GB)
+- ✅ Verification --strict flag for CI enforcement
+- ✅ --first-run flag for one-shot bootstrap
+
+**User Experience**: Users now get concrete next actions instead of "figure it out yourself".
+
+### Deferred Work (P2-P3)
+
+**P2: Deterministic Collision Policy**
+- Queue now marks collisions as `dest_exists`, but does not auto-resolve
+- Future: Codify behavior (rename with timestamp vs skip vs user-configurable)
+
+**P3: Storage Optimizer Integration**
+- Queue reporting provides foundation for:
+  - Auto-close locking processes
+  - Schedule retries during low-activity windows
+  - Escalate permission errors to admin
+
+**P3: Smart Backoff**
+- Different backoff strategies per reason type (locked vs permission)
+
+### Related Builds
+- BUILD-155: P0-P1 first-run resilience (profiling, dry-run fixes, queued-items-as-warnings)
+- BUILD-154: First-run resilience foundations (verification, pending queue)
+- BUILD-145: Tidy system implementation (Phase 0.5 cleanup, SOT routing)
+
+**Deliverables**:
+- Queue actionable reporting with priority scoring (pending_moves.py)
+- Reason taxonomy for smart retry (locked/permission/dest_exists/unknown)
+- Queue caps/guardrails enforcement (max 1000 items, 10 GB)
+- Verification --strict flag for CI (verify_workspace_structure.py)
+- --first-run bootstrap shortcut (tidy_up.py)
+- Implementation summary (BUILD-156_QUEUE_IMPROVEMENTS_SUMMARY.md)
+

@@ -164,13 +164,15 @@ C:\dev\Autopack\
         runs\                       # OLD storage-optimizer runs (archived by tidy)
 ```
 
-**Current State & Gaps (BUILD-145, 2026-01-02)**:
+**Current State & Gaps (BUILD-154, 2026-01-02)**:
 ✅ **Implemented**:
 - Workspace tidy system (`scripts/tidy/tidy_up.py`) handles root cleanup, database archival, directory routing
 - `.autonomous_runs/` cleanup removes orphaned files (logs, JSON), old run directories (keeps last 10/prefix), empty dirs
 - Project migration (e.g., `fileorganizer/` → `.autonomous_runs/file-organizer-app-v1/`)
 - SOT consolidation from archive backlog → SOT ledgers
 - File lock handling (skips locked databases, continues cleanup)
+- Documentation drift fixes: version alignment (0.5.1), dependency reconciliation (BUILD-154)
+- Dependency management strategy: `pyproject.toml` as canonical source (BUILD-154)
 
 ⚠️ **Known Gaps** (to address in future builds):
 1. **Incomplete .autonomous_runs cleanup on first execution**:
@@ -184,9 +186,36 @@ C:\dev\Autopack\
    - Current workaround: `execute_moves()` skips locked files and continues
    - **Ideal Fix**: Add retry logic OR move database cleanup to separate phase after .autonomous_runs cleanup
 
-3. **SOT → Semantic Indexing not yet connected**:
-   - SOT ledgers exist but aren't automatically indexed into MemoryService
-   - **Future**: Add `include_sot` flag to retrieve SOT chunks via vector memory during execution
+3. **SOT → Semantic Indexing (runtime) hardening**:
+   - ✅ SOT indexing + retrieval is implemented (opt-in) via `MemoryService.index_sot_docs()` and `retrieve_context(..., include_sot=True)`
+   - ⚠️ Remaining work: strengthen budget-aware gating + add telemetry so SOT context can never bloat prompts silently
+   - See `docs/SOT_MEMORY_INTEGRATION_EXAMPLE.md` and `docs/TIDY_SOT_RETRIEVAL_INTEGRATION_PLAN.md`
+
+4. **Dependency sync enforcement (pyproject.toml ↔ requirements.txt)**:
+   - ✅ `pyproject.toml` is the canonical dependency source (BUILD-154)
+   - ⚠️ Remaining work: add CI guardrails to prevent `requirements*.txt` drift (or generate them in CI)
+
+5. **Version consistency enforcement**:
+   - ✅ Version is unified at `autopack.__version__` (see `src/autopack/__version__.py` and `src/autopack/version.py`)
+   - ⚠️ Remaining work: add CI check that `pyproject.toml`, `docs/PROJECT_INDEX.json`, and `README.md` match
+
+**Next High-Leverage Improvements** (recommended priority order):
+1. **SOT Budget-Aware Retrieval Telemetry + Tests** (highest ROI):
+   - Add per-phase telemetry fields: `include_sot`, `sot_chunks_retrieved`, `sot_chars_raw`, `total_context_chars`, `budget_utilization_pct`
+   - Test coverage: budget gating, `format_retrieved_context()` char caps, opt-in defaults
+   - **Why important**: Prevents silent token bloat, enables cost/quality optimization, validates BUILD-154 SOT documentation
+   - Files: `src/autopack/autonomous_executor.py`, `tests/test_sot_budget_gating.py`, `tests/test_format_retrieved_context_caps.py`
+
+2. **CI Dependency Sync Enforcement** (locks in packaging hygiene):
+   - Add `scripts/check_dependency_sync.py` (deterministic checker for pyproject.toml ↔ requirements.txt drift)
+   - Update `.github/workflows/ci.yml` with dependency sync check step
+   - **Why important**: Prevents future BUILD-154 style drift, enforces single source of truth
+   - Files: `scripts/check_dependency_sync.py` (new), `.github/workflows/ci.yml`
+
+3. **Version Consistency CI Check** (completes BUILD-154 trilogy):
+   - Add script to verify `pyproject.toml`, `docs/PROJECT_INDEX.json`, `README.md` version match
+   - **Why important**: Prevents version drift across documentation/config files
+   - Files: `scripts/check_version_consistency.py` (new), `.github/workflows/ci.yml`
 
 **Intended Tidy Behavior** (for future AI agents to achieve):
 ```bash

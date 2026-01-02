@@ -399,6 +399,8 @@ def main():
                         help="Write JSON report to file")
     parser.add_argument("--markdown-output", type=Path,
                         help="Write markdown report to file")
+    parser.add_argument("--strict", action="store_true",
+                        help="Treat warnings as errors (fail verification if any warnings present)")
 
     args = parser.parse_args()
 
@@ -462,6 +464,17 @@ def main():
 
     # Print report
     print_report(report)
+
+    # Apply --strict mode: treat warnings as errors
+    if args.strict:
+        total_warnings = report["summary"]["total_warnings"]
+        if total_warnings > 0:
+            print("\n" + "=" * 70)
+            print("STRICT MODE: Warnings treated as errors")
+            print("=" * 70)
+            print(f"Found {total_warnings} warnings (treated as errors in strict mode)")
+            print()
+            report["overall_valid"] = False  # Override validity
 
     # Write JSON output
     if args.json_output:

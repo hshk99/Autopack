@@ -52,7 +52,7 @@ sys.path.insert(0, str(SCRIPT_DIR))
 
 # Import autonomous_runs cleaner and pending queue
 from autonomous_runs_cleaner import cleanup_autonomous_runs
-from pending_moves import PendingMovesQueue, retry_pending_moves
+from pending_moves import PendingMovesQueue, retry_pending_moves, format_actionable_report_markdown
 sys.path.insert(0, str(REPO_ROOT / "src"))
 
 # ---------------------------------------------------------------------------
@@ -1112,7 +1112,21 @@ def execute_moves(
                 print(f"[MOVED] {src} -> {dest}")
                 succeeded += 1
             except PermissionError as e:
-                print(f"[SKIPPED] {src} (locked by another process)")
+                # Classify permission errors more precisely
+                reason = "locked"
+                if hasattr(e, 'winerror'):
+                    # WinError 32 = file locked by another process
+                    # WinError 5 = access denied (permissions)
+                    if e.winerror == 5:
+                        reason = "permission"
+                elif hasattr(e, 'errno'):
+                    # EACCES = permission denied
+                    # EPERM = operation not permitted
+                    import errno
+                    if e.errno in (errno.EACCES, errno.EPERM):
+                        reason = "permission"
+
+                print(f"[SKIPPED] {src} ({reason})")
                 failed += 1
                 failed_moves.append((src, dest, e))
 
@@ -1127,7 +1141,28 @@ def execute_moves(
                         src=src,
                         dest=dest,
                         action="move",
-                        reason="locked",
+                        reason=reason,
+                        error_info=e,
+                        bytes_estimate=size,
+                        tags=["tidy_move"]
+                    )
+            except FileExistsError as e:
+                # Destination already exists (collision)
+                print(f"[SKIPPED] {src} (destination exists: {dest})")
+                failed += 1
+                failed_moves.append((src, dest, e))
+
+                if pending_queue:
+                    try:
+                        size = src.stat().st_size if src.exists() else None
+                    except Exception:
+                        size = None
+
+                    pending_queue.enqueue(
+                        src=src,
+                        dest=dest,
+                        action="move",
+                        reason="dest_exists",
                         error_info=e,
                         bytes_estimate=size,
                         tags=["tidy_move"]
@@ -1173,6 +1208,8 @@ def main():
                         help="Dry run only (default)")
     parser.add_argument("--execute", action="store_true",
                         help="Execute moves/consolidation (overrides --dry-run)")
+    parser.add_argument("--first-run", action="store_true",
+                        help="First-run bootstrap mode (equivalent to --execute --repair --docs-reduce-to-sot)")
 
     # Scope
     parser.add_argument("--project", default="autopack",
@@ -1233,7 +1270,25 @@ def main():
     parser.add_argument("--skip-archive-consolidation", action="store_true",
                         help="Skip Phase 3 (archive consolidation)")
 
+    # Queue reporting
+    parser.add_argument("--queue-report", action="store_true",
+                        help="Generate actionable report for pending queue (top items + next actions)")
+    parser.add_argument("--queue-report-top-n", type=int, default=10,
+                        help="Number of top items to show in queue report (default: 10)")
+    parser.add_argument("--queue-report-format", choices=["json", "markdown", "both"], default="both",
+                        help="Output format for queue report (default: both)")
+    parser.add_argument("--queue-report-output", type=Path,
+                        default=Path("archive/diagnostics/queue_report"),
+                        help="Output path (without extension) for queue report (default: archive/diagnostics/queue_report)")
+
     args = parser.parse_args()
+
+    # Apply --first-run shortcuts
+    if args.first_run:
+        args.execute = True
+        args.repair = True
+        args.docs_reduce_to_sot = True
+        print("[FIRST-RUN] Bootstrap mode enabled (execute + repair + docs-reduce-to-sot)")
 
     # Resolve execution mode
     dry_run = not args.execute
@@ -1535,6 +1590,54 @@ def main():
             print("[INFO] Locked files will be retried automatically on next tidy run")
             print("[INFO] After reboot or closing locking processes, run:")
             print("       python scripts/tidy/tidy_up.py --execute")
+            print()
+
+    # Generate actionable queue report if requested or if there are pending items
+    if (args.queue_report or queue_summary["pending"] > 0) and queue_summary["total"] > 0:
+        print("\n" + "=" * 70)
+        print("QUEUE ACTIONABLE REPORT")
+        print("=" * 70)
+
+        # Generate report
+        actionable_report = pending_queue.get_actionable_report(top_n=args.queue_report_top_n)
+
+        # Print summary to console
+        print(f"Total pending: {actionable_report['summary']['total_pending']} items")
+        print(f"Total size estimate: {actionable_report['summary']['total_bytes_estimate'] / 1024 / 1024:.2f} MB")
+        print(f"Eligible now: {actionable_report['summary']['eligible_now']} items")
+        print()
+
+        if actionable_report["top_items"]:
+            print(f"Top {len(actionable_report['top_items'])} items by priority:")
+            for item in actionable_report["top_items"][:5]:  # Show top 5 in console
+                print(f"  [{item['priority_score']}] {item['src']} ({item['attempt_count']} attempts, {item['age_days']} days old)")
+            if len(actionable_report["top_items"]) > 5:
+                print(f"  ... and {len(actionable_report['top_items']) - 5} more")
+            print()
+
+        if actionable_report["suggested_actions"]:
+            print("Suggested next actions:")
+            for action in actionable_report["suggested_actions"]:
+                priority_marker = "[HIGH]" if action["priority"] == "high" else "[MED]"
+                print(f"  {priority_marker} {action['description']}")
+            print()
+
+        # Save reports if requested
+        if args.queue_report:
+            output_base = repo_root / args.queue_report_output
+            output_base.parent.mkdir(parents=True, exist_ok=True)
+
+            if args.queue_report_format in ["json", "both"]:
+                json_path = output_base.with_suffix(".json")
+                json_path.write_text(json.dumps(actionable_report, indent=2), encoding="utf-8")
+                print(f"[QUEUE-REPORT] JSON report written to: {json_path}")
+
+            if args.queue_report_format in ["markdown", "both"]:
+                md_path = output_base.with_suffix(".md")
+                md_content = format_actionable_report_markdown(actionable_report)
+                md_path.write_text(md_content, encoding="utf-8")
+                print(f"[QUEUE-REPORT] Markdown report written to: {md_path}")
+
             print()
 
     print("\n" + "=" * 70)

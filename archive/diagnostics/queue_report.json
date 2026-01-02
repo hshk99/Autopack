@@ -1,0 +1,83 @@
+{
+  "timestamp": "2026-01-02T17:33:34.205527Z",
+  "summary": {
+    "total_pending": 13,
+    "total_bytes_estimate": 3956736,
+    "eligible_now": 13,
+    "top_n_shown": 5
+  },
+  "top_items": [
+    {
+      "src": "autopack_telemetry_seed.db",
+      "dest": "archive\\data\\databases\\telemetry_seeds\\autopack_telemetry_seed_20260102_225539.db",
+      "reason": "locked",
+      "attempt_count": 2,
+      "age_days": 0,
+      "priority_score": 20,
+      "last_error": "[WinError 32] The process cannot access the file because it is being used by another process: 'C:\\\\dev\\\\Autopack\\\\autopack_telemetry_seed.db'",
+      "next_eligible_at": "2026-01-02T15:39:22.992023Z",
+      "bytes_estimate": 294912
+    },
+    {
+      "src": "autopack_telemetry_seed_v2.db",
+      "dest": "archive\\data\\databases\\telemetry_seeds\\autopack_telemetry_seed_v2_20260102_225539.db",
+      "reason": "locked",
+      "attempt_count": 2,
+      "age_days": 0,
+      "priority_score": 20,
+      "last_error": "[WinError 32] The process cannot access the file because it is being used by another process: 'C:\\\\dev\\\\Autopack\\\\autopack_telemetry_seed_v2.db'",
+      "next_eligible_at": "2026-01-02T15:39:22.994529Z",
+      "bytes_estimate": 294912
+    },
+    {
+      "src": "telemetry_seed_debug.db",
+      "dest": "archive\\data\\databases\\telemetry_seeds\\debug\\telemetry_seed_debug_20260102_225539.db",
+      "reason": "locked",
+      "attempt_count": 2,
+      "age_days": 0,
+      "priority_score": 20,
+      "last_error": "[WinError 32] The process cannot access the file because it is being used by another process: 'C:\\\\dev\\\\Autopack\\\\telemetry_seed_debug.db'",
+      "next_eligible_at": "2026-01-02T15:39:22.996034Z",
+      "bytes_estimate": 294912
+    },
+    {
+      "src": "telemetry_seed_final_green.db",
+      "dest": "archive\\data\\databases\\telemetry_seeds\\final\\telemetry_seed_final_green_20260102_225539.db",
+      "reason": "locked",
+      "attempt_count": 2,
+      "age_days": 0,
+      "priority_score": 20,
+      "last_error": "[WinError 32] The process cannot access the file because it is being used by another process: 'C:\\\\dev\\\\Autopack\\\\telemetry_seed_final_green.db'",
+      "next_eligible_at": "2026-01-02T15:39:22.998548Z",
+      "bytes_estimate": 294912
+    },
+    {
+      "src": "telemetry_seed_final_green2.db",
+      "dest": "archive\\data\\databases\\telemetry_seeds\\final\\telemetry_seed_final_green2_20260102_225539.db",
+      "reason": "locked",
+      "attempt_count": 2,
+      "age_days": 0,
+      "priority_score": 20,
+      "last_error": "[WinError 32] The process cannot access the file because it is being used by another process: 'C:\\\\dev\\\\Autopack\\\\telemetry_seed_final_green2.db'",
+      "next_eligible_at": "2026-01-02T15:39:23.000551Z",
+      "bytes_estimate": 294912
+    }
+  ],
+  "suggested_actions": [
+    {
+      "action": "close_locking_processes",
+      "description": "Close processes that may be locking files (database browsers, file explorers, IDEs)",
+      "priority": "high"
+    },
+    {
+      "action": "reboot",
+      "description": "Reboot the system to release all file locks",
+      "priority": "medium"
+    },
+    {
+      "action": "rerun_tidy",
+      "description": "Run 'python scripts/tidy/tidy_up.py --execute' to retry pending moves",
+      "priority": "high"
+    }
+  ]
+}

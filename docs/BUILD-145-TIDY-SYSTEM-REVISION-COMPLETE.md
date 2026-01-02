@@ -171,47 +171,35 @@ All phases from [TIDY_SYSTEM_REVISION_PLAN_2026-01-01.md](./TIDY_SYSTEM_REVISION
 - ✅ **Phase 6**: Update Workspace Organization Spec
 - ✅ **Phase 7**: Integration and Testing Plan
 
-## Next Steps
+## Execution Results (2026-01-02)
 
-### Ready to Execute
+### ✅ Execution Completed Successfully
 
-The tidy system is now ready to execute cleanup:
+Tidy system executed with comprehensive .autonomous_runs/ cleanup and locked file handling.
 
-```bash
-# 1. Review dry-run output
-python scripts/tidy/tidy_up.py --dry-run --verbose
+**Commit**: `88e48606` - "chore: BUILD-145 tidy system - workspace cleanup execution complete"
 
-# 2. Execute with git checkpoint
-python scripts/tidy/tidy_up.py --execute --git-checkpoint
-
-# 3. Verify results
-python scripts/tidy/verify_workspace_structure.py
-
-# 4. Commit if clean
-git add -A
-git commit -m "chore: workspace cleanup via revised tidy system"
-```
-
-### Expected Cleanup
-
-After execution, the workspace will be clean:
+### Actual Cleanup Achieved
 
 **Root Directory**:
-- Only `autopack.db` remains (active database)
-- 24 historical databases moved to `archive/data/databases/`
-- 9 directories routed to proper locations
-- `fileorganizer/` migrated to `.autonomous_runs/file-organizer-app-v1/`
+- ✅ autopack.db remains (active database)
+- ⚠️ 13 telemetry databases still at root (locked by Windows processes - documented in README Gap #2)
+- ✅ requirements/research_followup/ moved to archive/misc/
 
 **.autonomous_runs/**:
-- 905 empty directories removed
-- Run history cleaned (keeps last 10 per project)
-- Orphaned logs removed
-- Duplicate archives removed
+- ✅ 45 orphaned files archived → `archive/diagnostics/logs/autonomous_runs/`
+  - 30+ build/retry/diagnostics logs (*.log)
+  - 4 JSON reports (baseline.json, retry.json, verify_report_*.json)
+  - 1 JSONL telemetry file
+- ✅ 910 empty directories removed (908 standalone + 2 in full tidy)
+- ✅ 0 orphaned files remain at root
+- ✅ Runtime workspaces protected (autopack, _shared, baselines, checkpoints, etc.)
 
 **Overall**:
-- Workspace matches [WORKSPACE_ORGANIZATION_SPEC.md](./WORKSPACE_ORGANIZATION_SPEC.md)
-- Verifier reports 0 structural errors
-- All files in proper locations
+- ✅ Tidy system completes successfully despite locked files (resilient)
+- ✅ Locked files skipped gracefully without crashing
+- ✅ .autonomous_runs/ cleanup works end-to-end
+- ⚠️ 13 database violations reported by verifier (expected until locks resolved)
 
 ## Design Decisions
 
@@ -252,17 +240,23 @@ Cleanup logic is complex enough to deserve its own module:
 
 ## Success Metrics
 
-- ✅ All 24 database files automatically routed
-- ✅ All 9 directories automatically routed
-- ✅ fileorganizer/ migrated to proper project structure
-- ✅ 905 empty directories identified for cleanup
+- ✅ Database routing logic implemented and tested
+- ⚠️ 13 databases couldn't be moved (locked by Windows processes - expected)
+- ✅ requirements/research_followup/ routed to archive
+- ✅ 910 empty directories cleaned from .autonomous_runs/
+- ✅ 45 orphaned files archived from .autonomous_runs/
 - ✅ Verifier aligned with tidy allowlists
-- ✅ Documentation updated to reflect new policies
+- ✅ Documentation updated (README + BUILD-145 doc)
 - ✅ No manual intervention required for cleanup
-- ✅ Dry-run shows correct routing for all items
+- ✅ System resilient to locked files (skips gracefully)
+- ✅ Locked file handling prevents crashes
+- ✅ .autonomous_runs/ cleanup works end-to-end
 
 ---
 
-**Build Status**: ✅ Complete
-**Ready for Execution**: Yes
-**Estimated Cleanup**: 33 root items + 905 empty directories + fileorganizer migration
+**Build Status**: ✅ Complete & Executed
+**Execution Date**: 2026-01-02
+**Commit**: 88e48606
+**Files Archived**: 45 orphaned files
+**Directories Cleaned**: 910 empty directories
+**Known Issue**: 13 databases locked (documented in README Gap #2)

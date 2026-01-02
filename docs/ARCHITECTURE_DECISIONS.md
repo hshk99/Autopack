@@ -450,4 +450,119 @@ except PermissionError:
 - scripts/tidy/exclude_db_from_indexing.py (NEW - prevention script)
 - docs/TIDY_LOCKED_FILES_HOWTO.md (NEW - escalation guide)
 
-**See Also**: DEC-003 (Manual Tidy Function), DBG-080 (BUILD-145 debug log)
+**See Also**: DEC-003 (Manual Tidy Function), DEC-014 (Persistent Queue for Locked Files), DBG-080 (BUILD-145 debug log)
+
+---
+
+### DEC-014 | 2026-01-02 | Persistent Queue System for Locked File Retry
+**Status**: ✅ Implemented
+**Build**: BUILD-145 Follow-up
+**Context**: DEC-013 implemented graceful skip for locked files, but required manual rerun after locks released. Need automated retry mechanism that survives reboots and requires zero operator intervention.
+
+**Decision**: Implement persistent JSON-based queue with exponential backoff, bounded attempts, and Windows Task Scheduler integration for automatic retry.
+
+**Chosen Approach**:
+- **Persistent Queue** (`.autonomous_runs/tidy_pending_moves.json`):
+  - JSON format (human-readable, survives crashes)
+  - Atomic writes (temp file + rename pattern)
+  - Stable item IDs: SHA256(src+dest+action) prevents duplicates
+  - Full error context: exception type, errno, winerror, truncated message
+  - Status tracking: `pending`, `succeeded`, `abandoned`
+- **Exponential Backoff**:
+  - Base: 5 minutes (responsive for transient locks)
+  - Formula: `base * (2 ^ (attempt - 1))`
+  - Cap: 24 hours (prevents excessive delays)
+  - Example: 5min → 10min → 20min → 40min → ... → 24hr (capped)
+- **Bounded Attempts**:
+  - Max 10 retries OR 30 days (whichever comes first)
+  - Status becomes `abandoned` after limit reached
+  - Operator can inspect/manually retry abandoned items
+- **Automatic Retry**:
+  - Phase -1 (new): Load queue and retry eligible items at tidy startup
+  - Windows Task Scheduler integration: Run tidy at logon + daily 3am
+  - Idempotent: Safe to run multiple times, won't re-move already-moved files
+
+**Alternatives Considered**:
+1. **In-Memory Queue**: Simple, no persistence needed
+   - Rejected: Lost on crash/reboot, defeats purpose of "automatic retry after reboot"
+2. **Database Queue**: More structured, query support
+   - Rejected: Overkill for small queue (~10-50 items), adds DB dependency
+3. **No Backoff (immediate retry)**: Simpler logic
+   - Rejected: Wastes CPU/disk if locks persist for hours/days
+4. **Unlimited Retries**: Never give up
+   - Rejected: Queue bloat for permanently locked files (e.g., open in editor indefinitely)
+
+**Rationale**:
+- **Operational truth**: "Auto-archive after locks release" only true if retry happens automatically
+- **Windows reality**: Locks clear on reboot/logon, perfect trigger for retry
+- **Zero-touch automation**: Task Scheduler + persistent queue = no operator action needed
+- **Graceful degradation**: Queue prevents infinite retries via bounded attempts
+- **Debugging-friendly**: JSON format allows manual inspection/editing
+
+**Implementation**:
+```python
+# Phase -1: Retry pending moves from previous runs
+pending_queue = PendingMovesQueue(
+    queue_file=repo_root / ".autonomous_runs" / "tidy_pending_moves.json",
+    workspace_root=repo_root,
+    queue_id="autopack-root"
+)
+pending_queue.load()
+retried, retry_succeeded, retry_failed = retry_pending_moves(
+    queue=pending_queue, dry_run=dry_run
+)
+
+# On move failure: enqueue for retry
+if pending_queue:
+    pending_queue.enqueue(
+        src=src, dest=dest, action="move", reason="locked",
+        error_info=e, bytes_estimate=size, tags=["tidy_move"]
+    )
+```
+
+**Queue File Schema**:
+```json
+{
+  "schema_version": 1,
+  "queue_id": "autopack-root",
+  "items": [
+    {
+      "id": "a1b2c3d4e5f6g7h8",
+      "src": "telemetry_seed_v5.db",
+      "dest": "archive/data/databases/telemetry_seeds/telemetry_seed_v5.db",
+      "status": "pending",
+      "reason": "locked",
+      "attempt_count": 2,
+      "next_eligible_at": "2026-01-02T15:40:00Z",
+      "last_error": "[WinError 32] The process cannot access the file..."
+    }
+  ]
+}
+```
+
+**Constraints Satisfied**:
+- ✅ **Survives reboots**: Queue persisted to JSON file
+- ✅ **No manual intervention**: Task Scheduler automates retry
+- ✅ **Bounded resource usage**: Max 10 attempts prevents queue bloat
+- ✅ **Transparent**: Queue summary printed at tidy end, JSON is human-readable
+- ✅ **Safe**: Exponential backoff prevents CPU/disk waste on persistent locks
+
+**Impact**:
+- **Before**: Locked files skipped, operator must manually rerun tidy after reboot
+- **After**: Locked files queued, automatically retried at logon/daily, operator sees completion without action
+- **Task Scheduler**: Opt-in automation (documented setup, not auto-installed)
+- **Queue Growth**: Bounded by max_attempts (10) and abandon_after_days (30)
+
+**Validation**:
+- ✅ Dry-run test passes (Phase -1 handles empty queue correctly)
+- ✅ Module imports successfully, no syntax errors
+- ✅ Integration validated (queue lifecycle: load → retry → enqueue → save)
+- ⏳ Real lock test pending (needs actual locked files for end-to-end validation)
+
+**Files Modified**:
+- scripts/tidy/pending_moves.py (NEW, 570 lines - queue implementation)
+- scripts/tidy/tidy_up.py (Phase -1 retry, queue-aware execute_moves, queue summary)
+- docs/guides/WINDOWS_TASK_SCHEDULER_TIDY.md (NEW, 280 lines - automation guide)
+- README.md (queue behavior documentation)
+
+**See Also**: DEC-013 (Windows File Lock Handling), docs/BUILD-145-FOLLOWUP-QUEUE-SYSTEM.md

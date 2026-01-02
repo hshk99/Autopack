@@ -165,7 +165,9 @@
       "Bash(pip-compile:*)",
       "Bash(PYTHONUTF8=1 pip-compile:*)",
       "Bash(for dir in telemetry-collection-v*/)",
-      "Bash(do du -sh \"$dir\")"
+      "Bash(do du -sh \"$dir\")",
+      "Bash(PYTHONUTF8=1 timeout 300 python:*)",
+      "Bash(powershell:*)"
     ],
     "deny": [],
     "ask": []

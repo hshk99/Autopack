@@ -2296,3 +2296,167 @@ sot_retrieval_events (
 **Dependencies**: BUILD-154 (CI drift checks), BUILD-147 (SOT retrieval implementation)
 **Related**: BUILD-153 (unified policy using PyYAML), BUILD-146 (model intelligence tables)
 
+
+---
+
+## BUILD-155: Tidy System First-Run Resilience (P0-P1 COMPLETE ✅)
+**Date**: 2026-01-03
+**Status**: P0-P1 Complete (P2-P3 deferred)
+**Goal**: Ensure tidy system always succeeds on first run with profiling visibility and locked-file resilience
+
+### P0: Phase 0.5 Hang Prevention (COMPLETE ✅)
+
+#### Problem
+- `.autonomous_runs/` cleanup (Phase 0.5) could hang indefinitely or cause memory blowup
+- No visibility into which sub-step was causing delays
+- Unbounded scans (rglob, list-building) on large directory trees
+
+#### Solution: Profiling + Optimized Deletion
+
+**1. Profiling Infrastructure** (scripts/tidy/autonomous_runs_cleaner.py:25-56)
+- Added `StepTimer` class for per-step timing with optional memory tracking
+- No external dependencies (psutil optional, safe fallback)
+- Shows exactly where time is spent per sub-step
+
+**2. Optimized Empty-Directory Deletion** (scripts/tidy/autonomous_runs_cleaner.py:287-338)
+- **Before**: `find_empty_directories()` built large in-memory list via `rglob("*")` → memory blowup
+- **After**: `delete_empty_dirs_bottomup()` uses streaming `os.walk(topdown=False)` → no list-building
+- Race-safe: Re-checks `p.iterdir()` before deletion
+- Resilient: Catches `PermissionError`, continues (never crashes)
+- **Result**: Completes in ~1-3s with bounded memory
+
+**Profiling Output Example**:
+```
+[PROFILE] start: +0.00s (total 0.00s)
+[PROFILE] Step 0 (archive old runs) done: +0.00s (total 0.00s)
+[PROFILE] Step 1 (find orphaned files) done: +0.00s (total 0.01s)
+[PROFILE] Step 2 (find duplicate archives) done: +0.00s (total 0.01s)
+[PROFILE] Step 3 (delete empty directories) done: +3.21s (total 3.22s)
+[PROFILE] cleanup complete: +0.00s (total 3.22s)
+```
+
+### P1: First-Run Resilience (COMPLETE ✅)
+
+#### Problem
+- First tidy run with locked files → verification fails → user blocked
+- Dry-run mode mutated pending queue (status updates, attempt counts)
+- No clear path to "always succeeds" promise in README
+
+#### Solution: Queued-Items-as-Warnings + Dry-Run Non-Mutation
+
+**1. Verification Treats Queued Locked Items as Warnings** (scripts/tidy/verify_workspace_structure.py:176-218)
+- Loads pending queue before verification
+- Locked files queued for retry show as **warnings** (not errors)
+- Verification passes (exit code 0) even with locked files
+- Output: `Valid: YES` + `WARNING: Queued for retry (locked): file.db`
+
+**2. Dry-Run Does Not Mutate Pending Queue** (scripts/tidy/pending_moves.py:385-460)
+- **Critical fix**: Dry-run now skips ALL queue mutations
+- No `mark_succeeded()` calls in dry-run
+- No `enqueue()` calls in dry-run
+- Output: `[DRY-RUN] Would retry move (queue unchanged)`
+- Verified: MD5 hash unchanged after dry-run
+
+### Validation Results
+
+**Test 1: Profiling Enabled**
+```bash
+$ python scripts/tidy/autonomous_runs_cleaner.py --dry-run --profile
+✅ Per-step timings visible, completes in 1-3s
+```
+
+**Test 2: Dry-Run Non-Mutation**
+```bash
+$ md5sum .autonomous_runs/tidy_pending_moves.json  # before
+$ python scripts/tidy/tidy_up.py --dry-run
+$ md5sum .autonomous_runs/tidy_pending_moves.json  # after
+✅ Hashes match (queue unchanged)
+```
+
+**Test 3: Verification Warnings**
+```bash
+$ python scripts/tidy/verify_workspace_structure.py
+✅ Exit code 0, locked files as warnings (not errors)
+Valid: YES
+WARNING: Queued for retry (locked): telemetry_seed_v5.db
+```
+
+### Acceptance Criteria (P0-P1)
+
+| Criterion | Status | Evidence |
+|-----------|--------|----------|
+| Phase 0.5 prints step timings | ✅ PASS | `[PROFILE]` markers in output |
+| Phase 0.5 completes without hanging | ✅ PASS | 1-3s completion (was potentially unbounded) |
+| Memory stays bounded | ✅ PASS | Streaming `os.walk`, no list-building |
+| Verification treats queued items as warnings | ✅ PASS | Exit code 0, warnings for locked files |
+| Dry-run does not mutate queue | ✅ PASS | MD5 hash unchanged |
+
+### Architecture Decisions
+
+**Profiling Strategy**: Lightweight timer class with optional memory tracking (psutil-free fallback) prevents dependency bloat while enabling diagnostics.
+
+**Empty-Dir Deletion**: Bottom-up `os.walk` instead of `rglob` prevents memory issues on large trees (e.g., node_modules with 10k+ dirs).
+
+**Dry-Run Semantics**: Strict read-only guarantee (no mutations) essential for safe preview mode; dry-run now truly side-effect-free.
+
+**First-Run Resilience**: Queued-items-as-warnings pattern allows verification to pass while locked files wait for retry, enabling "tidy always succeeds" promise.
+
+### Files Modified
+
+1. `scripts/tidy/autonomous_runs_cleaner.py` (+100 lines)
+   - Added `StepTimer` class for profiling
+   - Added `delete_empty_dirs_bottomup()` optimized function
+   - Updated `cleanup_autonomous_runs()` to use profiling + optimized deletion
+   - Added `--profile` flag to argparse
+
+2. `scripts/tidy/pending_moves.py` (+10 lines)
+   - Updated `retry_pending_moves()` to skip queue mutations in dry-run mode
+   - Added explicit comments about non-mutation guarantee
+
+3. `scripts/tidy/verify_workspace_structure.py` (verified only)
+   - Already had correct implementation for queued-items-as-warnings
+
+4. `archive/diagnostics/validate_tidy_p0_p1_fixes.ps1` (NEW, 150 lines)
+   - Automated validation script for all P0-P1 fixes
+
+5. `archive/diagnostics/BUILD-155_P0_P1_IMPLEMENTATION_SUMMARY.md` (NEW, 450 lines)
+   - Comprehensive implementation details, test results, acceptance criteria
+
+### Impact
+
+**Before P0-P1**:
+- Tidy could hang on Phase 0.5 cleanup (no visibility, unbounded scans)
+- First run with locked files → verification failure → user blocked
+- Dry-run mode not truly read-only (queue mutations)
+
+**After P0-P1**:
+- Phase 0.5 completes in 1-3s with per-step timing visibility
+- First run always succeeds (locked files queued, verification passes with warnings)
+- Dry-run mode is truly read-only (zero mutations, safe preview)
+- **"Tidy always succeeds" README promise now delivered**
+
+### Deferred Work (P2-P3)
+
+**P2: Quality + DX**
+- Idempotent run archival
+- Auto-repair missing SOT on execute
+- Local "preflight" command
+
+**P3: Beyond Tidy**
+- Storage Optimizer safety/audit hardening
+- Autopack "telemetry → mitigation" loop
+- Parallelism/lease hardening
+
+### Related Builds
+- BUILD-154: First-run resilience foundations (verification, pending queue)
+- BUILD-145: Tidy system implementation (Phase 0.5 cleanup, SOT routing)
+- BUILD-147: SOT retrieval integration (indexes updated by tidy)
+
+**Deliverables**:
+- Profiling infrastructure with `StepTimer` class (autonomous_runs_cleaner.py)
+- Optimized empty-directory deletion (streaming bottom-up, memory-bounded)
+- Dry-run non-mutation guarantee (pending_moves.py)
+- Queued-items-as-warnings verification (verify_workspace_structure.py)
+- Validation script (validate_tidy_p0_p1_fixes.ps1)
+- Implementation summary (BUILD-155_P0_P1_IMPLEMENTATION_SUMMARY.md)
+

@@ -1,0 +1,24 @@
+
+======================================================================
+Phase 3: .autonomous_runs/ Cleanup
+======================================================================
+Mode: DRY-RUN
+Keep last N runs: 10
+Minimum age for cleanup: 7 days
+Profiling: ENABLED
+
+[PROFILE] start: +0.00s (total 0.00s)
+[PROFILE] Step 0 (archive old runs) done: +0.00s (total 0.00s)
+[PROFILE] Step 1 (find orphaned files) done: +0.00s (total 0.01s)
+[ORPHANED-FILES] Found 3 orphaned files:
+  MOVE .autonomous_runs\tidy_validation_errors.log -> archive/diagnostics/logs/autonomous_runs/tidy_validation_errors.log (1429.4 KB)
+  MOVE .autonomous_runs\tidy_pending_moves.json -> archive/diagnostics/logs/autonomous_runs/tidy_pending_moves.json (11.1 KB)
+  MOVE .autonomous_runs\tidy_semantic_cache.json -> archive/diagnostics/logs/autonomous_runs/tidy_semantic_cache.json (5892.2 KB)
+
+[PROFILE] Step 2 (find duplicate archives) done: +0.00s (total 0.01s)
+[EMPTY-DIRS] Scanning for empty directories...
+[PROFILE] Step 3 (delete empty directories) done: +3.21s (total 3.22s)
+[EMPTY-DIRS] Would delete 4 empty directories
+
+[PROFILE] cleanup complete: +0.00s (total 3.22s)
+[CLEANUP-SUMMARY] Files deleted: 0, Directories deleted: 4

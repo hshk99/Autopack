@@ -13,12 +13,47 @@ Preserves:
 """
 
 import shutil
+import time
 from pathlib import Path
 from datetime import datetime, timedelta
-from typing import List, Tuple, Set
+from typing import List, Tuple, Set, Optional
 import logging
 
 logger = logging.getLogger(__name__)
+
+
+class StepTimer:
+    """Simple profiler helper for tracking step timings without external dependencies."""
+
+    def __init__(self, enabled: bool):
+        self.enabled = enabled
+        self._t0 = time.perf_counter()
+        self._last = self._t0
+
+    def mark(self, label: str):
+        """Mark a step and print timing if enabled."""
+        if not self.enabled:
+            return
+        now = time.perf_counter()
+        elapsed_step = now - self._last
+        elapsed_total = now - self._t0
+
+        # Try to get memory info (optional, safe fallback)
+        mem_info = self._get_memory_mb()
+        mem_str = f", mem={mem_info}MB" if mem_info is not None else ""
+
+        print(f"[PROFILE] {label}: +{elapsed_step:.2f}s (total {elapsed_total:.2f}s{mem_str})")
+        self._last = now
+
+    @staticmethod
+    def _get_memory_mb() -> Optional[int]:
+        """Get current process memory in MB (safe fallback if psutil unavailable)."""
+        try:
+            import os
+            import psutil
+            return int(psutil.Process(os.getpid()).memory_info().rss / (1024 * 1024))
+        except Exception:
+            return None
 
 
 def is_runtime_workspace(dirpath: Path) -> bool:
@@ -284,37 +319,58 @@ def find_old_run_directories(
     return old_runs
 
 
-def find_empty_directories(autonomous_runs: Path) -> List[Path]:
+def delete_empty_dirs_bottomup(root: Path, dry_run: bool, verbose: bool = False) -> int:
     """
-    Find empty directories (no files, no subdirectories).
+    Delete empty directories using bottom-up traversal (no list-building).
 
-    Uses bottom-up os.walk for memory efficiency instead of rglob which builds
-    large in-memory lists. This prevents memory blowups on large directory trees.
+    This is optimized to avoid memory blowups from rglob or building large lists.
+    Processes directories bottom-up and deletes empties incrementally.
 
     Args:
-        autonomous_runs: Path to .autonomous_runs directory
+        root: Root directory to scan
+        dry_run: If True, only preview deletions
+        verbose: If True, show detailed output
 
     Returns:
-        List of empty directory paths
+        Number of directories deleted (or would be deleted in dry-run)
     """
     import os
 
-    empty_dirs = []
+    deleted = 0
 
-    # Use bottom-up walk (topdown=False) to find empties efficiently
-    # This processes leaf directories first, which is what we want for empties
-    for root, dirs, files in os.walk(autonomous_runs, topdown=False):
-        root_path = Path(root)
-
-        # Check if this directory is empty (no files and no subdirectories)
-        try:
-            if not files and not dirs:
-                empty_dirs.append(root_path)
-        except PermissionError:
-            logger.warning(f"[CLEANUP] Permission denied: {root_path}")
+    # Bottom-up walk (topdown=False) processes leaf directories first
+    for dirpath, dirnames, filenames in os.walk(root, topdown=False):
+        # Skip if any files remain
+        if filenames:
             continue
 
-    return empty_dirs
+        p = Path(dirpath)
+
+        # Don't delete the root itself
+        if p == root:
+            continue
+
+        try:
+            # Re-check if any children exist (race-safe, handles concurrent changes)
+            if any(p.iterdir()):
+                continue
+
+            if dry_run:
+                if verbose:
+                    print(f"  DELETE {p.relative_to(root.parent)}/")
+                deleted += 1
+            else:
+                p.rmdir()
+                if verbose:
+                    print(f"  DELETED {p.relative_to(root.parent)}/")
+                deleted += 1
+        except (PermissionError, OSError) as e:
+            # Warn and continue (never hang/crash on permission issues)
+            if verbose:
+                logger.warning(f"[CLEANUP] Failed to delete {p}: {e}")
+            continue
+
+    return deleted
 
 
 def archive_old_autopack_runs(
@@ -427,8 +483,6 @@ def cleanup_autonomous_runs(
     Returns:
         Tuple of (files_deleted, dirs_deleted)
     """
-    import time
-
     autonomous_runs = repo_root / ".autonomous_runs"
 
     if not autonomous_runs.exists():
@@ -442,22 +496,24 @@ def cleanup_autonomous_runs(
     print(f"Mode: {'DRY-RUN' if dry_run else 'EXECUTE'}")
     print(f"Keep last N runs: {keep_last_n_runs}")
     print(f"Minimum age for cleanup: {min_age_days} days")
+    if profile:
+        print("Profiling: ENABLED")
     print()
+
+    # Initialize profiler
+    timer = StepTimer(enabled=profile)
+    timer.mark("start")
 
     files_deleted = 0
     dirs_deleted = 0
 
     # Step 0: Archive old Autopack runs to archive/runs/ (keeps last 10 at .autonomous_runs/ root)
-    step_start = time.perf_counter()
     archive_old_autopack_runs(repo_root, autonomous_runs, keep_last_n=keep_last_n_runs, dry_run=dry_run)
-    if profile:
-        print(f"[PROFILE] Step 0 (archive old runs): {time.perf_counter() - step_start:.2f}s")
+    timer.mark("Step 0 (archive old runs) done")
 
     # Step 1: Orphaned files (logs, JSON, etc.)
-    step_start = time.perf_counter()
     orphaned_files = find_orphaned_files(autonomous_runs)
-    if profile:
-        print(f"[PROFILE] Step 1 (find orphaned files): {time.perf_counter() - step_start:.2f}s")
+    timer.mark("Step 1 (find orphaned files) done")
     if orphaned_files:
         print(f"[ORPHANED-FILES] Found {len(orphaned_files)} orphaned files:")
 
@@ -479,7 +535,7 @@ def cleanup_autonomous_runs(
 
             dest_file = dest_subdir / filepath.name
 
-            print(f"  MOVE {rel_path} → archive/diagnostics/logs/autonomous_runs/{filepath.name} ({size_kb:.1f} KB)")
+            print(f"  MOVE {rel_path} -> archive/diagnostics/logs/autonomous_runs/{filepath.name} ({size_kb:.1f} KB)")
 
             if not dry_run:
                 dest_subdir.mkdir(parents=True, exist_ok=True)
@@ -497,10 +553,8 @@ def cleanup_autonomous_runs(
         print()
 
     # Step 2: Duplicate baseline archives
-    step_start = time.perf_counter()
     duplicate_archives = find_duplicate_baseline_archives(autonomous_runs)
-    if profile:
-        print(f"[PROFILE] Step 2 (find duplicate archives): {time.perf_counter() - step_start:.2f}s")
+    timer.mark("Step 2 (find duplicate archives) done")
     if duplicate_archives:
         print(f"[DUPLICATE-ARCHIVES] Found {len(duplicate_archives)} duplicate baseline archives:")
         for archive in duplicate_archives:
@@ -512,25 +566,16 @@ def cleanup_autonomous_runs(
                 files_deleted += 1
         print()
 
-    # Step 3: Empty directories (run after archiving runs)
-    step_start = time.perf_counter()
-    empty_dirs = find_empty_directories(autonomous_runs)
-    if profile:
-        print(f"[PROFILE] Step 3 (find empty directories): {time.perf_counter() - step_start:.2f}s")
-    if empty_dirs:
-        print(f"[EMPTY-DIRS] Found {len(empty_dirs)} empty directories:")
-        for empty_dir in empty_dirs:
-            rel_path = empty_dir.relative_to(repo_root)
-            print(f"  DELETE {rel_path}/")
-            if not dry_run:
-                try:
-                    empty_dir.rmdir()
-                    dirs_deleted += 1
-                except OSError as e:
-                    logger.warning(f"[CLEANUP] Failed to delete {empty_dir}: {e}")
+    # Step 3: Empty directories (optimized bottom-up deletion)
+    print(f"[EMPTY-DIRS] Scanning for empty directories...")
+    dirs_deleted = delete_empty_dirs_bottomup(autonomous_runs, dry_run=dry_run, verbose=verbose)
+    timer.mark("Step 3 (delete empty directories) done")
+    if dirs_deleted > 0:
+        print(f"[EMPTY-DIRS] {'Would delete' if dry_run else 'Deleted'} {dirs_deleted} empty directories")
         print()
 
     # Summary
+    timer.mark("cleanup complete")
     print(f"[CLEANUP-SUMMARY] Files deleted: {files_deleted}, Directories deleted: {dirs_deleted}")
 
     return files_deleted, dirs_deleted
@@ -548,6 +593,8 @@ if __name__ == "__main__":
                         help="Execute cleanup (overrides --dry-run)")
     parser.add_argument("--verbose", action="store_true",
                         help="Verbose output")
+    parser.add_argument("--profile", action="store_true",
+                        help="Enable profiling with timing and memory usage per step")
     parser.add_argument("--keep-last-n-runs", type=int, default=10,
                         help="Number of runs to keep per project (default: 10)")
     parser.add_argument("--min-age-days", type=int, default=7,
@@ -565,6 +612,7 @@ if __name__ == "__main__":
         repo_root=repo_root,
         dry_run=dry_run,
         verbose=args.verbose,
+        profile=args.profile,
         keep_last_n_runs=args.keep_last_n_runs,
         min_age_days=args.min_age_days
     )

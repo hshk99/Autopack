@@ -390,9 +390,12 @@ def retry_pending_moves(
     """
     Retry eligible pending moves.
 
+    IMPORTANT: In dry-run mode, this function does NOT mutate the queue
+    (no status updates, no attempts incremented, no queue saves).
+
     Args:
         queue: Pending moves queue
-        dry_run: If True, only simulate retries
+        dry_run: If True, only simulate retries (NO queue mutation)
         verbose: If True, show detailed output
 
     Returns:
@@ -407,7 +410,7 @@ def retry_pending_moves(
 
     print(f"[QUEUE-RETRY] Found {len(eligible)} eligible items to retry")
     if dry_run:
-        print("[QUEUE-RETRY] DRY-RUN mode - no actual moves will be performed")
+        print("[QUEUE-RETRY] DRY-RUN mode - no actual moves or queue updates will be performed")
     print()
 
     retried = 0
@@ -421,9 +424,10 @@ def retry_pending_moves(
         print(f"  RETRY [{item['attempt_count']} attempts] {item['src']} -> {item['dest']}")
 
         if dry_run:
-            # In dry-run, only report what would happen without mutating the queue
-            print(f"    [DRY-RUN] Would retry move")
-            succeeded += 1
+            # CRITICAL: In dry-run, do NOT mutate the queue at all
+            # Just report what would happen
+            print(f"    [DRY-RUN] Would retry move (queue unchanged)")
+            # Don't count as succeeded in dry-run to avoid confusion
             continue
 
         retried += 1
@@ -436,12 +440,12 @@ def retry_pending_moves(
             import shutil
             shutil.move(str(src), str(dest))
 
-            # Mark succeeded
+            # Mark succeeded (only in execute mode)
             queue.mark_succeeded(item["id"])
             succeeded += 1
             print(f"    SUCCESS")
         except Exception as e:
-            # Re-queue with updated error info
+            # Re-queue with updated error info (only in execute mode)
             queue.enqueue(
                 src=src,
                 dest=dest,

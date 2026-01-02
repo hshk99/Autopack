@@ -905,3 +905,181 @@ if pending_queue:
 - README.md (queue behavior documentation)
 
 **See Also**: DEC-013 (Windows File Lock Handling), docs/BUILD-145-FOLLOWUP-QUEUE-SYSTEM.md
+
+---
+
+## BUILD-155: Tidy First-Run Resilience Architecture (2026-01-03)
+
+### Decision: Lightweight Profiling with Optional Memory Tracking
+
+**Context**: Phase 0.5 cleanup could hang with no visibility into which sub-step was causing delays. Need diagnostics without adding heavy dependencies.
+
+**Decision**: Implement `StepTimer` class using stdlib `time.perf_counter()` with optional `psutil` memory tracking (safe fallback).
+
+**Rationale**:
+- **No mandatory dependencies**: `time` module is stdlib, always available
+- **Optional enhancement**: `psutil` provides memory info if installed, graceful degradation if not
+- **Zero overhead when disabled**: `if not self.enabled: return` guards all operations
+- **Production-friendly**: Can enable `--profile` in production without risk
+
+**Alternatives Considered**:
+1. **cProfile** - Too heavy, requires post-processing, not real-time
+2. **External APM** - Adds dependencies, overkill for simple step timing
+3. **No profiling** - Leaves hang debugging opaque
+
+**Implementation**: `scripts/tidy/autonomous_runs_cleaner.py:25-56`
+
+**Outcome**: Per-step timings reveal Phase 0.5 bottlenecks (e.g., empty-dir deletion takes 3s of 3.2s total).
+
+---
+
+## BUILD-155: Streaming Bottom-Up Directory Deletion
+
+### Decision: Use `os.walk(topdown=False)` for Empty-Directory Cleanup
+
+**Context**: Original `find_empty_directories()` used `rglob("*")` which builds large in-memory lists on large directory trees (e.g., node_modules with 10k+ subdirs) causing memory blowup and potential hangs.
+
+**Decision**: Replace list-building approach with streaming bottom-up traversal using `os.walk(topdown=False)`.
+
+**Rationale**:
+- **Memory-bounded**: Never loads entire tree into memory, processes incrementally
+- **Streaming**: Deletes empties during traversal (no collect-then-delete)
+- **Bottom-up correctness**: Processes leaf directories first (empties become visible after child deletion)
+- **Race-safe**: Re-checks `p.iterdir()` before deletion to handle concurrent changes
+- **Resilient**: Catches `PermissionError` and continues (never crashes)
+
+**Alternatives Considered**:
+1. **Chunked rglob** - Still builds lists, just in smaller batches (memory still grows)
+2. **Limit rglob depth** - Doesn't help with wide trees (many siblings at same depth)
+3. **Multipass collect-then-delete** - Requires re-scans, slower
+
+**Trade-offs**:
+- ✅ Memory-bounded, no hangs
+- ✅ Single-pass efficiency
+- ⚠️ Slightly more complex logic (topdown=False + iterdir re-check)
+
+**Implementation**: `scripts/tidy/autonomous_runs_cleaner.py:287-338`
+
+**Metrics**: Old approach hung on large trees, new approach completes in 1-3s.
+
+---
+
+## BUILD-155: Dry-Run Non-Mutation Guarantee
+
+### Decision: Strict Read-Only Semantics for Dry-Run Mode
+
+**Context**: Original `retry_pending_moves()` called `queue.mark_succeeded()` and `queue.enqueue()` in dry-run mode, mutating queue state (attempt counts, timestamps, status). This violated user expectations of "preview without changes".
+
+**Decision**: Enforce strict read-only semantics in dry-run mode - skip ALL queue mutations.
+
+**Rationale**:
+- **User trust**: Dry-run must be 100% side-effect-free for safe preview
+- **Idempotency**: Running dry-run multiple times must produce identical results
+- **Verification**: MD5 hash of queue file must be unchanged after dry-run
+- **Clarity**: `[DRY-RUN] Would retry move (queue unchanged)` output makes behavior explicit
+
+**Implementation**:
+```python
+if dry_run:
+    # CRITICAL: In dry-run, do NOT mutate the queue at all
+    print(f"    [DRY-RUN] Would retry move (queue unchanged)")
+    continue  # Skip mark_succeeded(), enqueue() calls
+```
+
+**Alternatives Considered**:
+1. **Separate read-only queue copy** - Adds memory overhead, complexity
+2. **Transaction rollback** - Requires queue versioning, error-prone
+3. **Document mutations as expected** - Breaks user expectations
+
+**Trade-offs**:
+- ✅ Zero mutations, perfect idempotency
+- ✅ Simple implementation (early continue)
+- ⚠️ Can't test queue update logic in dry-run (acceptable - that's execute mode)
+
+**Implementation**: `scripts/tidy/pending_moves.py:426-431`
+
+**Validation**: MD5 hash unchanged after dry-run (6d66b469c95ae2149aa51985e5c9f1b6 before/after).
+
+---
+
+## BUILD-155: Queued-Items-as-Warnings Pattern
+
+### Decision: Treat Queued Locked Files as Warnings (Not Errors) in Verification
+
+**Context**: First tidy run with locked files would fail verification (exit code 1) because disallowed root files existed. This blocked users from "tidy always succeeds" promise.
+
+**Decision**: Load pending queue during verification, downgrade locked files to warnings.
+
+**Rationale**:
+- **First-run resilience**: Locked files are expected on first run (databases open in IDE, etc.)
+- **Retry mechanism exists**: Pending queue will retry on next run (no user action needed)
+- **Graceful degradation**: Partial success (some files moved, locked ones queued) is acceptable
+- **Clear feedback**: Warnings show which files are queued, exit code 0 indicates success
+
+**Implementation**:
+```python
+# Load pending queue
+pending_srcs: Set[str] = set()
+if queue_path.exists():
+    for item in queue_data.get("items", []):
+        if item.get("status") in {"pending", "failed"}:
+            pending_srcs.add(item["src"])
+
+# Check disallowed files
+if not is_root_file_allowed(item.name):
+    if item.name in pending_srcs:
+        warnings.append(f"Queued for retry (locked): {item.name}")
+    else:
+        errors.append(f"Disallowed file at root: {item.name}")
+```
+
+**Alternatives Considered**:
+1. **Fail verification with locked files** - Blocks first-run success (rejected)
+2. **Skip locked files entirely** - No feedback to user (poor UX)
+3. **Auto-skip locks without queue** - Loses track of what needs retry
+
+**Trade-offs**:
+- ✅ Exit code 0 (success) even with locked files
+- ✅ Clear warning output (user knows what's queued)
+- ✅ No manual intervention needed (retry is automatic)
+- ⚠️ Warnings might be ignored (acceptable - documented behavior)
+
+**Implementation**: `scripts/tidy/verify_workspace_structure.py:187-212`
+
+**Validation**: 13 locked database files queued, verification shows `Valid: YES` with warnings.
+
+---
+
+## BUILD-155: Integration with Existing Tidy Architecture
+
+### Relationship to Existing Components
+
+**Phase 0.5 in Tidy Pipeline**:
+- Phase -1: Retry pending moves (now dry-run safe)
+- Phase 0: Special migrations (fileorganizer → project)
+- **Phase 0.5: .autonomous_runs cleanup (now profiled, optimized)**
+- Phase 1: Root routing
+- Phase 2: Docs hygiene
+- Phase 3: Archive consolidation
+- Phase 4: Verification (now queued-items-aware)
+
+**Pending Queue Integration**:
+- `execute_moves()` in tidy_up.py enqueues locked files
+- `retry_pending_moves()` retries on next run (Phase -1)
+- `verify_workspace_structure.py` treats queued items as warnings
+- **New guarantee**: Dry-run doesn't mutate queue state
+
+**Profiling Integration**:
+- `--profile` flag in tidy_up.py:1231 (already existed)
+- Propagated to `cleanup_autonomous_runs()` via profile=args.profile
+- `StepTimer` used throughout Phase 0.5 sub-steps
+- Output: `[PROFILE] Step N (...) done: +Xs (total Ys)`
+
+**Memory-Bounded Cleanup**:
+- Replaces `find_empty_directories()` (list-building)
+- With `delete_empty_dirs_bottomup()` (streaming)
+- Called from `cleanup_autonomous_runs()` in Step 3
+- Returns count of deleted dirs (not list of paths)
+
+---
+

@@ -58,6 +58,16 @@ In practice, “autonomous” requires that each phase has:
 
 ### Latest Highlights (Last 3 Builds)
 
+#### 2026-01-02: BUILD-153 - Storage Optimizer Test Pack ✅
+**Minimal Unit Test Pack: Lock Detector, Checkpoint Logger & Retry Logic Validation**
+- Created 26 unit tests validating BUILD-152 lock-aware execution components (100% pass rate)
+- Lock detector: All 5 lock types correctly classified (searchindexer, antivirus, handle, permission, path_too_long)
+- Checkpoint logger: SHA256 checksumming + dual-write (PostgreSQL/JSONL) + idempotency tracking validated
+- Retry logic: Exponential backoff timing confirmed ([2s, 5s, 10s] for transient locks)
+- Skip-locked behavior: Flag correctly disables retry for automation scenarios
+- **Next**: Canary execution test (cap enforcement, real deletion, idempotency verification)
+- See [BUILD_HISTORY.md](docs/BUILD_HISTORY.md#build-153) for test coverage details
+
 #### 2026-01-02: BUILD-151 Phase 4 - Storage Optimizer Intelligence Features ✅
 **Intelligence System: Pattern Learning, Smart Categorization & Strategic Recommendations**
 - Implemented Approval Pattern Analyzer: learns cleanup rules from user approval history (100% confidence patterns detected)

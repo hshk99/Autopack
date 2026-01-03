@@ -293,9 +293,10 @@ class TestBaselineTracker:
         baseline_errors = set(baseline.error_signatures.keys())
 
         # Compute deltas
-        newly_failing = list(current_failed_or_error - baseline_failing)
-        newly_passing = list(current_passing & baseline_failing)  # Was failing, now passing
-        new_collection_errors = list(current_collection_errors - baseline_errors)
+        # P0.1: Sort for deterministic output (prevents replay variability)
+        newly_failing = sorted(list(current_failed_or_error - baseline_failing))
+        newly_passing = sorted(list(current_passing & baseline_failing))  # Was failing, now passing
+        new_collection_errors = sorted(list(current_collection_errors - baseline_errors))
 
         delta = TestDelta(
             newly_failing=newly_failing,

@@ -451,9 +451,10 @@ class AutonomousExecutor:
             )
 
         # BUILD-127 Phase 1: Initialize completion authority components
-        self.baseline_tracker = TestBaselineTracker(workspace=self.workspace)
+        # P0.1: Pass run_id for run-scoped baseline artifacts (prevents parallel-run collisions)
+        self.baseline_tracker = TestBaselineTracker(workspace=self.workspace, run_id=self.run_id)
         self.phase_finalizer = PhaseFinalizer(baseline_tracker=self.baseline_tracker)
-        logger.info("[BUILD-127] Completion authority initialized (PhaseFinalizer + TestBaselineTracker)")
+        logger.info(f"[BUILD-127] Completion authority initialized (PhaseFinalizer + TestBaselineTracker, run_id={self.run_id})")
 
         # BUILD-127 Phase 1: Capture T0 test baseline (for regression detection)
         try:

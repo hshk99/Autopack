@@ -122,3 +122,22 @@ jobs:
           if [ ${#disallowed_files[@]} -gt 0 ]; then
             echo "::notice::Run 'python scripts/tidy/tidy_up.py --execute' to clean up root clutter"
           fi
+
+      - name: Check for stray backup files in src/
+        id: check-stray-backups
+        run: |
+          # P0.3 Reliability: Prevent stray .backup/.bak/.broken files under src/
+          # These cause import confusion, packaging issues, and debugging hazards
+
+          stray_files=$(find src/ -type f \( -name "*.backup" -o -name "*.bak" -o -name "*.broken" \) 2>/dev/null || true)
+
+          if [ -n "$stray_files" ]; then
+            echo "::error::Found stray backup files under src/ (reliability hazard - P0.3)"
+            echo "$stray_files"
+            echo ""
+            echo "These files cause import/packaging confusion and must be removed."
+            echo "Action: Delete these files or move unique logic to canonical files, then delete."
+            exit 1
+          else
+            echo "::notice::No stray backup files found under src/ (P0.3 check passed)"
+          fi

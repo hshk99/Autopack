@@ -173,7 +173,8 @@
       "Bash(PYTHONUTF8=1 PYTHONPATH=src timeout 60 python -m pytest:*)",
       "Bash(git check-ignore:*)",
       "Bash(PYTHONUTF8=1 tee:*)",
-      "Bash(rg:*)"
+      "Bash(rg:*)",
+      "Bash(wc:*)"
     ],
     "deny": [],
     "ask": []

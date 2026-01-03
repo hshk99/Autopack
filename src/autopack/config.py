@@ -48,6 +48,16 @@ class Settings(BaseSettings):
         validation_alias=AliasChoices("ARTIFACT_HISTORY_PACK_ENABLED", "AUTOPACK_ARTIFACT_HISTORY_PACK"),
     )
 
+    # P0.4: DB safety guardrails - explicit opt-in for schema bootstrap
+    # When enabled, allows create_all() to run (creates missing tables)
+    # When disabled (default), app fails fast if schema is missing/outdated
+    # This prevents accidental schema drift between SQLite/Postgres
+    db_bootstrap_enabled: bool = Field(
+        default=False,
+        validation_alias=AliasChoices("AUTOPACK_DB_BOOTSTRAP", "DB_BOOTSTRAP_ENABLED"),
+        description="Allow automatic DB schema creation (disable in production)"
+    )
+
     # Maximum number of recent phase summaries to include in history pack
     artifact_history_pack_max_phases: int = 5
 

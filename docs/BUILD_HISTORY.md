@@ -17,6 +17,7 @@ Sources: CONSOLIDATED files, archive/, manual updates, BUILD-158 Tidy Lock/Lease
 
 | Timestamp | BUILD-ID | Phase | Summary | Files Changed |
 |-----------|----------|-------|---------|---------------|
+| 2026-01-04 | P0 Reliability Track + Beyond-P0 | Reliability Hardening (100% COMPLETE ✅) | **P0 Reliability Track - Determinism, Isolation, Contract Enforcement**: Completed 4-phase reliability hardening (P0.3 stray file removal + CI, P0.1 baseline tracker run-scoping + determinism, P0.2 protocol contract tests, P0.4 DB guardrails) with 31 new tests (100% pass). **Beyond-P0 Polish**: Fixed 5 doc link paper-cuts, reshaped contract tests to permanent deferred guards (xfail until P1 fixes executor), confirmed auditor schema-compliant. Result: Production-safe DB init, parallel-run isolation, permanent API contract enforcement. See [docs/P0_RELIABILITY_DECISIONS.md](docs/P0_RELIABILITY_DECISIONS.md). | 6 |
 | 2026-01-03 | BUILD-170.9 | CI Enforcement - GitHub Actions Pinning Policy Guardrail (100% COMPLETE ✅) | **Mechanical enforcement of supply-chain security via CI-blocking policy checker following SOT canonical truth + CI enforcement pattern**: Created guardrail to prevent supply-chain regressions from landing in main. **Policy Enforced (PR-blocking)**: Third-party actions MUST use full 40-char SHA pins, first-party (actions/*) MAY use version tags (@v4), mutable refs (@master, @main, @vX for third-party) are BLOCKED. **Implementation**: scripts/ci/check_github_actions_pinning.py (88 lines CLI policy checker), tests/ci/test_github_actions_pinning_policy.py (211 lines, 6 tests, 100% pass), ci.yml lint job integration (PR-blocking). **Benefits**: Prevents accidental revert to @master/@vX for third-party actions, mechanically checkable invariant (same philosophy as SOT drift detection), actionable error messages with file:line references. **Acceptance Criteria Met**: (1) Policy checker exits 0 on current workflows ✅, (2) Policy blocks third-party @master/@vX refs ✅, (3) Policy allows first-party version tags ✅, (4) Policy allows third-party SHA pins ✅, (5) 6/6 tests pass ✅, (6) CI integration in lint job ✅. Files: check_github_actions_pinning.py, test_github_actions_pinning_policy.py, ci.yml | 3 |
 | 2026-01-03 | BUILD-170.8 | Supply-Chain Hardening - Third-Party Action SHA Pinning (100% COMPLETE ✅) | **Eliminated mutable tag attack vector via immutable SHA pinning for all third-party GitHub Actions**: Pinned 11 third-party action instances to commit SHAs (aquasecurity/trivy-action: @master→@b6643a2 v0.33.1 2x, github/codeql-action: @v2→@c43362b v2.23.8 5x, gitleaks/gitleaks-action: @v2→@ff98106 v2.3.9 1x, docker/setup-buildx-action: @v2→@8d2750c v3.12.0 1x, peter-evans/create-pull-request: @v5→@98357b1 v8.0.0 1x, codecov/codecov-action: @v3→@0561704 v5.5.2 1x). **Security Rationale**: Mutable tags can be hijacked to point to malicious code; SHA pins provide immutable references. **Maintenance**: Dependabot already configured for github-actions (weekly Monday updates). **Breaking Change**: codecov v5 requires files parameter (was file in v3). **Acceptance Criteria Met**: (1) rg "@master" .github/workflows/ = 0 matches ✅, (2) All 11 third-party actions use SHA@comment format ✅, (3) Dependabot github-actions config verified ✅. Files: security.yml (8 pins), promotion.yml (1 pin), ci.yml (1 pin + parameter fix) | 3 |
 | 2026-01-03 | BUILD-170.7 | Final SOT Hardening - CI Standardization + Stub Policy Enforcement (100% COMPLETE ✅) | **Completed "Beyond README Ideal State" Hardening via GitHub Actions Modernization + DEBUG_LOG Stub Policy**: Standardized all CI workflows on latest GitHub Actions versions with minimal permissions and established canonical stub policy for DEBUG_LOG. **Task 1 - CI Workflow Modernization**: Upgraded ALL workflows to actions/checkout@v4 (from v3, 13 instances across 3 files: ci.yml 7x, security.yml 4x, promotion.yml 2x), verified no upload-artifact@v3 instances remain (doc-link-deep-scan.yml already @v4 from BUILD-170.6), added explicit `permissions:` blocks to all 5 workflows (ci.yml: contents read, security.yml: contents read + security-events write for SARIF uploads, promotion.yml: contents read + pull-requests write for PR creation, doc-link-deep-scan.yml: contents read, verify-workspace-structure.yml: contents read). All upgrades additive (no breaking changes), security hardening via minimal permissions (read-only default, write only when necessary). **Task 2 - DEBUG_LOG Stub Policy Definition + Enforcement**: Added "Stub Section Policy (Canonical Truth)" section to docs/DEBUG_LOG.md (31 lines, Policy A: stubs are canonical placeholders satisfying INDEX/section contract, required marker: "This is a stub section generated from INDEX table entry. Full details to be added in future documentation updates.", clear when-to-use guidance, validation reference, future evolution path). Created tests/docs/test_debug_log_stub_policy.py (67 lines, enforces exact stub marker presence in all stub sections, detects stubs via "stub section generated from INDEX table entry" signal, prevents ambiguity via canonical marker requirement). **Acceptance Criteria Met**: (1) `rg "actions/checkout@v3" .github/workflows` = 0 matches ✅, (2) `rg "actions/upload-artifact@v3" .github/workflows` = 0 matches ✅, (3) All 5 workflows have explicit `permissions:` blocks ✅, (4) `pytest -q tests/docs/` = 5/5 passing (including new stub policy test) ✅, (5) `sot_summary_refresh.py --check` = exit 0 (no drift) ✅. **Impact**: CI infrastructure fully modernized (v4 actions + minimal permissions across ALL workflows, not just new ones), GitHub Actions security hardening complete (explicit permissions prevent privilege escalation), DEBUG_LOG stub policy unambiguous (canonical marker required, Policy A documented, contract test enforces), "beyond README ideal state" achieved (all BUILD-170.x polish complete, zero technical debt). Files: .github/workflows/ci.yml (7 checkout v3→v4, +permissions block), .github/workflows/security.yml (4 checkout v3→v4, +permissions block), .github/workflows/promotion.yml (2 checkout v3→v4, +permissions block), .github/workflows/verify-workspace-structure.yml (+permissions block), docs/DEBUG_LOG.md (+Stub Section Policy, 31 lines), tests/docs/test_debug_log_stub_policy.py (NEW, 67 lines) | 6 |
@@ -196,6 +197,119 @@ Sources: CONSOLIDATED files, archive/, manual updates, BUILD-158 Tidy Lock/Lease
 | 2025-11-26 | BUILD-016 | N/A | Consolidated Research Reference |  |
 
 ## BUILDS (Reverse Chronological)
+
+### P0 Reliability Track + Beyond-P0 Contract Test Reshaping | 2026-01-04 | Reliability Hardening | 100% COMPLETE ✅
+
+**Title**: P0 Reliability Track - Determinism, Isolation, Contract Enforcement + Beyond-P0 Polish
+**Status**: ✅ COMPLETE
+**Completed**: 2026-01-04
+**Focus**: Prevent cascading failures through determinism, isolation, and contract enforcement
+
+#### Problem Statement
+
+System reliability identified as current bottleneck requiring fail-fast behavior, deterministic outputs, and clear API contracts to prevent runtime surprises.
+
+#### P0 Reliability Track (4 Items Completed)
+
+**P0.3: Workspace Hygiene - Stray Executor Copies**
+- Deleted stray files: `autonomous_executor.py.{backup,bak,broken}` (verified canonical file newer/more complete)
+- Added CI enforcement in `.github/workflows/verify-workspace-structure.yml:126-143`
+- PR-blocking check for `.backup/.bak/.broken` files in `src/` directory
+- Files: Deleted 3 stray files, modified 1 workflow
+
+**P0.1: Baseline Tracker Run-Scoping and Determinism**
+- Fixed parallel-run collisions: Pass `run_id` to `TestBaselineTracker` for isolated artifacts
+- Fixed non-deterministic delta output: Sort delta lists (newly_failing, newly_passing, new_collection_errors)
+- Created 13 tests validating: JSON determinism, sorted deltas, run-scoped artifacts, legacy mode compatibility, collection error detection
+- Files: [autonomous_executor.py:453-457](../src/autopack/autonomous_executor.py#L453-L457), [test_baseline_tracker.py:295-305](../src/autopack/test_baseline_tracker.py#L295-L305), tests/autopack/test_baseline_tracker_replay.py (NEW 9 tests), tests/autopack/test_collection_error_blocking.py (NEW 4 tests)
+
+**P0.2: Protocol Contract Tests (Executor ↔ FastAPI)**
+- Created 13 contract tests exposing schema drift between executor payloads and FastAPI schemas
+- **Builder Endpoint**: Confirmed drift (executor sends `output`/`files_modified`/`metadata` wrapper vs schema expects `patch_content`/`files_changed`/top-level fields)
+- **Auditor Endpoint**: Confirmed already schema-compliant ✅
+- Files: tests/autopack/test_api_contract_builder.py (NEW 6 tests), tests/autopack/test_api_contract_auditor_422.py (NEW 7 tests)
+
+**P0.4: DB Safety Guardrails**
+- Added explicit opt-in flag (`AUTOPACK_DB_BOOTSTRAP=1`) required for schema creation
+- Default behavior: Fail-fast if schema missing (prevents SQLite/Postgres drift)
+- Created 5 tests validating: fail-fast on missing schema, bootstrap mode creates tables, validates existing schema, env variable aliases, missing runs table triggers error
+- Files: [config.py:51-59](../src/autopack/config.py#L51-L59), [database.py:29-76](../src/autopack/database.py#L29-L76), tests/autopack/test_db_init_guardrails.py (NEW 5 tests)
+
+#### Beyond-P0 Polish (Highest-Signal Improvements)
+
+**Doc Link Paper-Cuts Fix**
+- Fixed 5 relative links in `docs/P0_RELIABILITY_DECISIONS.md` to resolve correctly from GitHub
+- Changed `.github/...` → `../.github/...`, `src/autopack/...` → `../src/autopack/...`, `README.md` → `../README.md`
+- Files: docs/P0_RELIABILITY_DECISIONS.md (5 link fixes)
+
+**Contract Test Reshaping (Permanent Guards vs Broken Behavior Assertions)**
+
+Problem: Initial contract tests "passed by asserting broken behavior exists" - not ideal state where they "go green when fixed"
+
+Solution: Reshaped to permanent deferred contracts:
+
+1. **Permanent Deferred Test** (`test_builder_result_correct_payload_preserves_fields__contract_deferred`):
+   - Exercises REAL executor code via monkeypatching
+   - Instantiates `AutonomousExecutor` via `__new__` (bypasses __init__)
+   - Patches `requests.post` to capture actual payload
+   - Calls `executor._post_builder_result()` with realistic inputs
+   - Parses captured payload with `BuilderResult` schema
+   - Asserts critical fields preserved (patch_content, files_changed, tokens_used)
+   - Marked `@pytest.mark.xfail(strict=True)` - will XPASS when P1 fixes executor, forcing xfail removal
+
+2. **Legacy Optional Test** (`test_executor_legacy_payload_data_loss__legacy_optional`):
+   - Documents current drift (data loss when executor sends legacy format)
+   - Marked `@pytest.mark.legacy_contract` - excluded from default CI
+   - Run explicitly via `pytest -m legacy_contract`
+   - To be deleted after P1 payload migration complete
+
+3. **Auditor Test Cleanup**:
+   - Removed xfail marker from auditor test (already schema-compliant)
+   - Updated docstring to confirm compliance
+
+4. **pytest.ini Update**:
+   - Registered `legacy_contract` marker
+   - Updated default selection: `-m "not research and not legacy_contract"`
+
+Files: tests/autopack/test_api_contract_builder.py (reshaped 2 tests), tests/autopack/test_api_contract_auditor_422.py (removed xfail), pytest.ini (added marker)
+
+#### Test Coverage Summary
+
+| P0 Item | Tests | Status |
+|---------|-------|--------|
+| P0.3: Stray executor copies | CI enforcement | ✅ Enforced |
+| P0.1: Baseline tracker | 13 tests | ✅ All pass |
+| P0.2: Protocol contracts | 13 tests | ✅ All pass (1 xfail deferred, 1 legacy excluded) |
+| P0.4: DB guardrails | 5 tests | ✅ All pass |
+| **Total** | **31 tests** | **✅ 100% pass** |
+
+#### Policy Decisions
+
+1. **Stray File Prevention**: CI enforces zero tolerance for .backup/.bak/.broken files in src/
+2. **Run Isolation**: All artifacts must be scoped by run_id to prevent parallel-run collisions
+3. **Deterministic Outputs**: All lists/sets used in CI decisions must be sorted
+4. **Schema Safety**: Schema creation requires explicit opt-in (`AUTOPACK_DB_BOOTSTRAP=1`)
+5. **Contract Testing**: Protocol boundaries require Pydantic schema validation tests
+6. **Permanent Contract Guards**: Tests encode desired contract (xfail until fixed), not memorialize drift
+7. **Fail-Fast Philosophy**: Detect problems at initialization time, not runtime
+
+#### Deferred to P1
+
+**P0.2 Schema Mismatch Fix**: Contract tests expose drift but don't fix it. Actual fix requires:
+- Updating `autonomous_executor.py:7977-7996` (builder payload)
+- Changing field names/structure to match Pydantic schemas
+- Recommended: Create adapter layer to prevent future drift
+
+**P1 Backlog** (not currently requested):
+- P1.1: Deterministic changed-files extraction and persistence
+- P1.2: Wire in worktree isolation (workspace_manager.py integration)
+- P1.3: DB migration discipline (introduce Alembic)
+
+#### References
+
+- [docs/P0_RELIABILITY_DECISIONS.md](docs/P0_RELIABILITY_DECISIONS.md) - Complete P0 implementation details
+- [README.md](../README.md) - North Star architecture and terminology
+
 
 ### BUILD-138 | 2025-12-28T18:30 | Tooling | Telemetry Collection Validation & Token-Safe Triage
 **Status**: ✅ Implemented (manual)

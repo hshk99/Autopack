@@ -27,7 +27,19 @@ def get_db():
 
 
 def init_db():
-    """Initialize database tables"""
+    """Initialize database tables with P0.4 safety guardrails.
+
+    Behavior:
+    - If AUTOPACK_DB_BOOTSTRAP=1: Creates missing tables (dev/test mode)
+    - If AUTOPACK_DB_BOOTSTRAP=0 (default): Fails fast if schema missing (production safe)
+
+    This prevents silent schema drift between SQLite/Postgres environments.
+    """
+    from .config import settings
+    import logging
+
+    logger = logging.getLogger(__name__)
+
     # Import models to register them with Base.metadata
     from . import models  # noqa: F401
     from .usage_recorder import (  # noqa: F401
@@ -37,4 +49,28 @@ def init_db():
     )
     from .auth.models import User  # noqa: F401  # BUILD-146 P12 Phase 5
 
-    Base.metadata.create_all(bind=engine)
+    # P0.4: Guard against accidental schema creation in production
+    if not settings.db_bootstrap_enabled:
+        # Verify schema exists (check for a known core table)
+        from sqlalchemy import inspect
+        inspector = inspect(engine)
+        existing_tables = inspector.get_table_names()
+
+        if not existing_tables or "runs" not in existing_tables:
+            error_msg = (
+                "DATABASE SCHEMA MISSING: No tables found (or 'runs' table missing).\n"
+                "To bootstrap schema, set environment variable: AUTOPACK_DB_BOOTSTRAP=1\n"
+                "For production, run migrations instead of using create_all()."
+            )
+            logger.error(error_msg)
+            raise RuntimeError(error_msg)
+
+        logger.info(f"[DB] Schema validation passed: {len(existing_tables)} tables found")
+    else:
+        # Bootstrap mode: create missing tables
+        logger.warning(
+            "[DB] Bootstrap mode enabled (AUTOPACK_DB_BOOTSTRAP=1). "
+            "This should ONLY be used in dev/test environments."
+        )
+        Base.metadata.create_all(bind=engine)
+        logger.info("[DB] Schema created/updated via create_all()")

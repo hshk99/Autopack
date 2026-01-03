@@ -2,12 +2,12 @@
 
 
 <!-- AUTO-GENERATED SUMMARY - DO NOT EDIT MANUALLY -->
-**Summary**: 35 decision(s) documented | Last updated: 2026-01-03 22:01:54
+**Summary**: 36 decision(s) documented | Last updated: 2026-01-04 01:53:16
 <!-- END AUTO-GENERATED SUMMARY -->
 
 <!-- META
-Last_Updated: 2026-01-03T22:01:54.660073Z
-Total_Decisions: 35
+Last_Updated: 2026-01-04T01:53:16.914073Z
+Total_Decisions: 36
 Format_Version: 2.0
 Auto_Generated: True
 Sources: CONSOLIDATED_STRATEGY, CONSOLIDATED_REFERENCE, archive/, BUILD-153, BUILD-155
@@ -17,6 +17,7 @@ Sources: CONSOLIDATED_STRATEGY, CONSOLIDATED_REFERENCE, archive/, BUILD-153, BUI
 
 | Timestamp | DEC-ID | Decision | Status | Impact |
 |-----------|--------|----------|--------|--------|
+| 2026-01-04 | DEC-039 | Permanent Deferred Contract Tests vs Broken Behavior Assertions | ✅ Implemented | Contract tests encode desired behavior (xfail until fixed) instead of memorializing drift, mechanical enforcement via strict xfail |
 | 2026-01-03 | DEC-038 | Doc Link Triage - Two-Tier Ignore Architecture ... | ✅ Implemented |  |
 | 2026-01-03 | DEC-033 | Standalone SOT Refresh Script (Not Tidy Flag) | ✅ Implemented | SOT summaries can be refres... |
 | 2026-01-03 | DEC-032 | SOT Summary Counts Derived from Content (Not ME... | ✅ Implemented | SOT summaries always accura... |
@@ -54,6 +55,202 @@ Sources: CONSOLIDATED_STRATEGY, CONSOLIDATED_REFERENCE, archive/, BUILD-153, BUI
 | 2025-12-09 | DEC-007 | Documentation Consolidation Implementation Plan | ✅ Implemented |  |
 
 ## DECISIONS (Reverse Chronological)
+
+### DEC-039 | 2026-01-04 | Permanent Deferred Contract Tests vs Broken Behavior Assertions
+
+**Status**: ✅ Implemented
+**Build**: P0 Reliability Track + Beyond-P0
+**Context**: After implementing P0.2 protocol contract tests exposing schema drift between executor payloads and FastAPI schemas, needed to decide between (1) permanent tests that "pass by asserting broken behavior exists" vs (2) permanent deferred tests that "go green when fixed" via xfail markers.
+
+#### Problem Statement
+
+Initial P0.2 contract tests validated that executor sends broken payloads and data loss occurs:
+
+```python
+def test_executor_legacy_payload_data_loss(self):
+    """Test that ACTUAL executor payload causes data loss."""
+    executor_payload = {
+        "status": "SUCCESS",
+        "output": "diff ...",
+        "files_modified": ["foo.py"],
+        "metadata": {...}
+    }
+
+    result = BuilderResult(**executor_payload)
+
+    # Assert data loss occurs
+    assert result.patch_content is None  # ✅ Passes because data is lost
+    assert result.files_changed == []     # ✅ Passes because data is lost
+    assert result.tokens_used == 0        # ✅ Passes because data is lost
+```
+
+**Issue**: Test passes by confirming broken behavior exists. When P1 fixes executor, test would FAIL (because data loss no longer occurs), requiring manual cleanup. No mechanical enforcement to ensure xfail is removed when fixed.
+
+**Ideal State** (from README): Tests should encode desired contract, not memorialize drift. Should "go green when fixed" with mechanical enforcement.
+
+#### Decision: Permanent Deferred Contracts with Strict xfail
+
+**Chosen Approach**: Use `@pytest.mark.xfail(strict=True)` on tests that exercise real executor code and validate desired contract.
+
+**Implementation**:
+
+1. **Permanent Deferred Test** (exercises real code, asserts desired behavior):
+   ```python
+   @pytest.mark.xfail(
+       strict=True,
+       reason=(
+           "Deferred until P1: executor _post_builder_result still sends legacy payload "
+           "(output/files_modified/metadata/status=SUCCESS). Remove xfail once executor posts "
+           "schema-compliant BuilderResult payload."
+       ),
+   )
+   def test_builder_result_correct_payload_preserves_fields__contract_deferred(self, tmp_path, monkeypatch):
+       """
+       Permanent contract: schema-compliant payload must preserve critical fields.
+
+       This is the intended BuilderResult contract at the Executor ↔ FastAPI boundary.
+       """
+       # Instantiate executor and capture REAL payload via monkeypatching
+       executor = AutonomousExecutor.__new__(AutonomousExecutor)
+       # ... setup executor instance ...
+
+       captured = {}
+
+       def _fake_post(url, headers=None, json=None, timeout=None):
+           captured["payload"] = json
+           return _FakeResponse()
+
+       monkeypatch.setattr(ae.requests, "post", _fake_post)
+
+       # Call REAL executor method
+       executor._post_builder_result("test-phase", llm_result, allowed_paths=["src/"])
+
+       # Assert on DESIRED contract (currently fails because executor sends legacy format)
+       parsed = BuilderResult(**captured["payload"])
+       assert parsed.patch_content is not None and parsed.patch_content.strip()
+       assert parsed.files_changed  # Must be top-level and non-empty
+       assert parsed.tokens_used == 1500  # Must be top-level
+   ```
+
+   **Behavior**:
+   - Today: Test xfails (expected failure) because executor sends legacy format
+   - After P1: Test XPASSes (unexpected pass) because executor now sends compliant format
+   - Pytest fails with strict mode error, forcing developer to remove xfail marker
+   - Test becomes permanent guard (no longer deferred)
+
+2. **Legacy Optional Test** (documents current drift, excluded from CI):
+   ```python
+   @pytest.mark.legacy_contract
+   def test_executor_legacy_payload_data_loss__legacy_optional(self):
+       """
+       Test that ACTUAL executor payload causes data loss.
+
+       This test is OPTIONAL and excluded from default CI runs.
+       Run it explicitly via: pytest -m legacy_contract
+       Remove it after the P1 payload migration is complete.
+       """
+       # ... same as before, documents data loss ...
+   ```
+
+   **Behavior**:
+   - Excluded from default CI via `pytest.ini`: `-m "not research and not legacy_contract"`
+   - Available for explicit runs: `pytest -m legacy_contract`
+   - To be deleted after P1 payload migration complete
+
+#### Alternatives Considered
+
+**Option A: Permanent Broken Behavior Assertions** (rejected)
+```python
+def test_executor_payload_has_data_loss(self):
+    # Assert data loss occurs
+    assert result.patch_content is None
+```
+- ❌ Test passes when behavior is broken, fails when fixed
+- ❌ No mechanical enforcement to update test when P1 lands
+- ❌ Permanent assertion of broken state (not ideal contract)
+
+**Option B: Skip Marker Until Fixed** (rejected)
+```python
+@pytest.mark.skip(reason="Deferred until P1")
+def test_executor_payload_preserves_fields(self):
+    # Assert desired behavior
+```
+- ❌ Test doesn't run, so regressions not detected
+- ❌ No mechanical signal when P1 lands (skip could stay forever)
+- ❌ Doesn't validate current behavior at all
+
+**Option C: Conditional Skip Based on Runtime Check** (rejected)
+```python
+@pytest.mark.skipif(executor_sends_legacy_format(), reason="...")
+def test_executor_payload_preserves_fields(self):
+    # Assert desired behavior
+```
+- ❌ Runtime detection adds complexity
+- ❌ Skip could silently persist if detection logic breaks
+- ❌ Harder to audit what's deferred vs permanent
+
+#### Chosen Approach Benefits
+
+1. **Mechanical Enforcement**: `xfail(strict=True)` forces cleanup when P1 lands (XPASS error blocks CI)
+2. **Exercises Real Code**: Monkeypatching captures actual executor behavior, not synthetic examples
+3. **Encodes Desired Contract**: Test asserts what SHOULD be true, not what IS broken
+4. **Clear Intent**: xfail reason documents what needs to be fixed and when to remove marker
+5. **Visible Tracking**: Test runs in CI (shows as "xfailed" in reports), not hidden via skip
+6. **Legacy Preservation**: Optional legacy test available for reference without blocking CI
+
+#### Implementation Details
+
+**pytest.ini Configuration**:
+```ini
+markers =
+    legacy_contract: Tests documenting legacy payload drift (excluded from default runs)
+
+# Default test selection excludes legacy_contract
+addopts = -m "not research and not legacy_contract"
+```
+
+**Test Organization**:
+- **Permanent Deferred**: `test_*__contract_deferred` suffix, `@pytest.mark.xfail(strict=True)`
+- **Legacy Optional**: `test_*__legacy_optional` suffix, `@pytest.mark.legacy_contract`
+- **Regular Passing**: No special markers (e.g., auditor tests that are already compliant)
+
+#### Migration Path
+
+**Phase 1 (Current)**: P0.2 contract tests expose drift
+- Permanent deferred test: xfails in CI ✅
+- Legacy optional test: excluded from CI ✅
+- Both tests documented and available
+
+**Phase 2 (P1 Payload Migration)**: Fix `autonomous_executor.py:7977-7996`
+- Update executor to send schema-compliant payload
+- Permanent deferred test: XPASSes (unexpected pass)
+- CI fails with strict xfail error
+- Developer removes xfail marker
+
+**Phase 3 (Post-Migration)**: Cleanup legacy artifacts
+- Permanent test now passing (permanent guard) ✅
+- Delete legacy optional test (no longer needed)
+- Update pytest.ini to remove legacy_contract marker (if no other uses)
+
+#### Impact
+
+- **Prevents Future Drift**: Permanent guard ensures executor payload compliance
+- **Mechanical Fix Detection**: Will XPASS when P1 lands, forcing xfail removal
+- **Clear Intent**: Test name + xfail reason document desired behavior
+- **Legacy Reference**: Optional test preserves historical drift documentation
+- **Aligned with README Ideal State**: Tests encode desired contract, not broken behavior
+
+#### Policy Decision
+
+**All future protocol contract tests should follow this pattern**:
+1. Test exercises REAL code path (monkeypatching, actual method calls)
+2. Asserts on DESIRED contract, not broken behavior
+3. Uses `@pytest.mark.xfail(strict=True)` if contract not yet met
+4. Includes clear reason documenting what needs to be fixed
+5. Optional legacy test with marker for historical reference
+
+This ensures contract tests are permanent guards that mechanically enforce compliance, not temporary documentation of drift.
+
 
 ### DEC-038 | 2026-01-03T21:00 | Doc Link Triage - Two-Tier Ignore Architecture (Pattern-Based vs File+Target Specific)
 **Status**: ✅ Implemented

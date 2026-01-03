@@ -2,12 +2,12 @@
 
 
 <!-- AUTO-GENERATED SUMMARY - DO NOT EDIT MANUALLY -->
-**Summary**: 85 debug session(s) documented | Last updated: 2026-01-03 22:01:54
+**Summary**: 86 debug session(s) documented | Last updated: 2026-01-04 01:53:16
 <!-- END AUTO-GENERATED SUMMARY -->
 
 <!-- META
-Last_Updated: 2026-01-03T22:01:54.655952Z
-Total_Issues: 85
+Last_Updated: 2026-01-04T01:53:16.909447Z
+Total_Issues: 86
 Format_Version: 2.0
 Auto_Generated: True
 Sources: CONSOLIDATED_DEBUG, archive/, fileorg-phase2-beta-release, BUILD-144, BUILD-145, BUILD-146-P6, BUILD-146-P12, BUILD-146-Phase-A-P13, BUILD-146-P17, BUILD-155
@@ -49,6 +49,7 @@ Stub sections can be expanded into full detailed sections by replacing the stub 
 
 | Timestamp | DBG-ID | Severity | Summary | Status |
 |-----------|--------|----------|---------|--------|
+| 2026-01-04 | DBG-085 | LOW | P0 Reliability Track Contract Test Reshaping - Initial XPASS Error (100% Success After Fix): Implemented P0 protocol contract tests + beyond-P0 reshaping to permanent deferred guards with one initial error requiring test rewrite. **Problem**: Initial contract test `test_executor_payload_matches_schema` created handcrafted correct payload and validated it, causing XPASS (unexpected pass) with `@pytest.mark.xfail(strict=True)` marker. Test was meant to verify executor's actual payload but instead tested a desired payload structure. **Root Cause**: Test validated desired schema compliance instead of executor's actual output - didn't exercise real executor code, just Pydantic validation of manually constructed dict. **Fix**: Completely rewrote test to capture REAL executor payload: (1) Instantiate `AutonomousExecutor` via `__new__` (bypasses __init__ avoiding API key checks + DB init), (2) Monkeypatch `requests.post` to capture actual payload, (3) Call `executor._post_builder_result()` with realistic inputs (SimpleNamespace with patch_content/success/tokens_used/builder_messages/error), (4) Parse captured payload with `BuilderResult` schema and assert on it. **Result**: Test now correctly fails (xfail) because executor sends legacy format (`output`/`files_modified`/`metadata` wrapper). Will XPASS when P1 fixes executor, forcing xfail marker removal (mechanical enforcement). **Implementation Quality**: One test rewrite required (from handcrafted payload to monkeypatching real code), all other contract tests passed on first run, zero production code bugs, achievement validates test-driven approach. Files: tests/autopack/test_api_contract_builder.py (complete test rewrite, 124-180 lines), pytest.ini (added legacy_contract marker) | ✅ Complete (Clean Fix - Test Now Exercises Real Executor Code) |
 | 2026-01-03 | DBG-084 | MEDIUM | BUILD-168 Doc Link Triage Tool Mismatch - Ignored Patterns Not Applied (100% Fix Success): Discovered critical tool integration gap where `apply_triage.py` was generating ignore entries that `check_doc_links.py` wasn't reading, causing triage rules to have zero effect on violation counts. **Problem**: After applying 60+ triage rules targeting historical references, temp files, runtime artifacts, and API endpoints using `apply_triage.py`, deep scan still showed baseline 746 `missing_file` count (expected ~600s). Inspection revealed `apply_triage.py` writes file+target specific ignores to `ignore_patterns` key in `doc_link_check_ignore.yaml` (300 entries generated), but `check_doc_links.py:validate_references()` only checked pattern-based ignores (`pattern_ignores`, `runtime_endpoints`, `historical_refs`), completely bypassing `ignore_patterns`. **Root Cause**: Two-tier ignore architecture not fully wired - triage tool and check script used different keys. Triage tool correctly generated file+target pairs (most precise ignore type), but check script never read them. **Fix**: Added 12-line patch in `check_doc_links.py:validate_references()` (lines 421-432) to check `ignore_patterns` before calling `classify_link_target()`. Loop iterates over `ignore_patterns` list, matches on both `file` (source doc relative path) and `target` (broken link), sets `is_ignored_pattern=True` and skips validation if matched. **Result**: Immediate 20.6% reduction (746 → 592 `missing_file`), exceeding 10% target by 2x. All 300 triage entries now effective. Zero side effects, nav-mode maintained at 0 throughout. **Impact**: Tool integration gap prevented entire triage workflow from functioning until patch. Fix unlocked full value of file+target specific ignores (most precise, least error-prone ignore type). Validates importance of end-to-end testing when integrating multi-tool workflows. Files: scripts/check_doc_links.py (+12 lines, validate_references function), config/doc_link_check_ignore.yaml (300 ignore_patterns entries now active), config/doc_link_triage_overrides.yaml (60+ rules effective after patch). | ✅ Complete (Tool Integration Fix - 20.6% Reduction Achieved) |
 | 2026-01-03 | DBG-083 | LOW | BUILD-167 Doc Link Burndown - Post-Review Corrections (Zero Bugs, 3 Issues Fixed): Implemented BUILD-167 doc link improvements with post-review corrections fixing 3 critical issues. **Issue 1 - Regression Fix**: BUILD-167_DOC_LINK_BURNDOWN_PLAN.md contained example paths (Top 20 missing targets table, Priority 2/3 checklists) being counted as broken links, causing +3 missing_file regression (746 → 749). Fixed by wrapping analysis sections in fenced code blocks (lines 50-133), result: regression eliminated, baseline maintained (746 missing_file). **Issue 2 - Exit Code Clarification**: EXIT_CODE_STANDARDS.md stated "no entries found = exit 0" without distinguishing repo-context (CI) from generic workspace behavior. Fixed by adding "Repo-context invariant (IMPORTANT)" section (lines 83-87) clarifying that in Autopack repo, "no entries found" should be treated as regression signal (bad cwd, parse bug), not success case. **Issue 3 - Stub Validation**: No validation for redirect stubs risking silent rot if targets move. Fixed by creating test_redirect_stubs.py (111 lines, 2 tests) validating (1) stubs point to existing files using regex link extraction + path resolution, (2) stub format includes required elements (status marker, move explanation, provenance). Result: all 4 stubs validated successfully. **Implementation Quality**: Zero production code bugs, all issues in planning docs (fenced blocks) and documentation (context clarification) and test coverage (new validation). Validates BUILD-167 acceptance criteria: non-increasing missing_file count, nav mode CI clean, redirect stub validation, exit code standards compliance. Files: docs/reports/BUILD-167_DOC_LINK_BURNDOWN_PLAN.md (wrapped 3 sections in fenced blocks), docs/EXIT_CODE_STANDARDS.md (added repo-context section), tests/doc_links/test_redirect_stubs.py (NEW 111 lines, 2 tests), docs/BUILD-167_COMPLETION_REPORT.md (added post-review section). | ✅ Complete (Post-Review Corrections - 100% Success, Zero Regression) |
 | 2026-01-03 | DBG-082 | LOW | BUILD-158 Tidy Lock/Lease + Doc Link Checker - Clean Implementation (100% Success): Implemented cross-process lease primitive and doc link drift checker with zero debugging required. All 16 lease tests passed on first run (100% success). **Lease Implementation**: Created filesystem-based lock using atomic file creation (os.O_CREAT | os.O_EXCL for Windows/Unix safety), TTL-based stale lock detection (30 min default, 2 min grace period), heartbeat renewal at phase boundaries, ownership verification via UUID token, automatic stale/malformed lock breaking (fail-open policy). Features: acquire(timeout_seconds) with polling, renew() for extending TTL, release() for cleanup (idempotent), ownership verification prevents stolen renewal. **Tidy Integration**: Added CLI flags (--lease-timeout, --lease-ttl, --no-lease), wrapped execution in try/finally for guaranteed release, heartbeat at 3 phase boundaries (queue load, scan, moves), lease acquired before all operations including dry-run. **Atomic Write Unification**: Created io_utils.py with atomic_write() and atomic_write_json() helpers, temp-file + replace pattern with retry logic (3 attempts, exponential backoff 100ms/200ms/300ms) for Windows antivirus tolerance, refactored PendingMovesQueue.save() to use unified helper. **Doc Link Checker**: Created scripts/check_doc_links.py detecting broken file references in navigation docs (README.md, INDEX.md, BUILD_HISTORY.md), extracts markdown links/backtick paths, validates paths exist, exits code 1 for CI integration, found 43 broken links requiring cleanup. **Testing**: 16 comprehensive tests (430 lines) covering acquire/release, timeouts, stale locks, malformed locks, renewal, ownership, concurrency, edge cases. **One Test Fix**: Malformed lock handling initially checked file age before breaking (prevented fresh malformed locks from being broken), fixed to treat all unreadable/malformed locks as immediately stale (fail-open policy aligns with user guidance). **Implementation Quality**: Clean first-pass implementation, 16/16 tests passing, one logical fix (malformed lock policy), zero runtime errors, zero architectural rework, validates mature codebase design. Files: scripts/tidy/lease.py (NEW 310 lines), scripts/tidy/io_utils.py (NEW 122 lines), scripts/tidy/tidy_up.py (+50 lines), scripts/tidy/pending_moves.py (+5/-12 lines), scripts/check_doc_links.py (NEW 220 lines), tests/tidy/test_lease.py (NEW 430 lines, 16 tests) | ✅ Complete (Clean Implementation - 100% Test Success) |
@@ -139,6 +140,168 @@ Stub sections can be expanded into full detailed sections by replacing the stub 
 ### DBG-084 | 2026-01-03 | BUILD-168 Doc Link Triage Tool Mismatch - Ignored Patterns Not Applied
 **Severity**: MEDIUM
 **Status**: ✅ Complete (Tool Integration Fix - 20.6% Reduction Achieved)
+
+### DBG-085 | 2026-01-04 | P0 Contract Test Reshaping - Initial XPASS Error
+
+**Severity**: LOW
+**Status**: ✅ Complete (Clean Fix - Test Now Exercises Real Executor Code)
+**Build**: P0 Reliability Track + Beyond-P0
+
+#### Problem
+
+Implemented P0 protocol contract tests exposing schema drift between executor payloads and FastAPI schemas. When reshaping tests to be permanent deferred guards (xfail until P1 fixes executor), initial test implementation caused XPASS (unexpected pass) with `@pytest.mark.xfail(strict=True)`.
+
+**Symptoms**:
+- Test `test_executor_payload_matches_schema` marked with `xfail(strict=True)`
+- Test unexpectedly PASSED instead of failing
+- Pytest failed with: "XPASS (unexpected pass) - test should fail but passed"
+
+**Investigation**:
+Test created handcrafted correct payload and validated it:
+```python
+@pytest.mark.xfail(strict=True, reason="...")
+def test_executor_payload_matches_schema(self):
+    # Manually constructed correct payload
+    executor_payload = {
+        "phase_id": "test-phase",
+        "run_id": "test-run",
+        "status": "success",  # Correct format
+        "patch_content": "diff ...",  # Correct field name
+        "files_changed": ["foo.py"],  # Correct field name
+        # ... other correct fields
+    }
+
+    # Validation passes because payload is correct
+    result = BuilderResult(**executor_payload)
+    assert result.phase_id == "test-phase"  # ✅ Passes
+```
+
+Test was meant to verify executor's actual payload but instead tested a desired payload structure.
+
+#### Root Cause
+
+**Design Error**: Test validated desired schema compliance instead of executor's actual output. Didn't exercise real executor code (`autonomous_executor.py:_post_builder_result()`), just Pydantic validation of manually constructed dict.
+
+**Why This Caused XPASS**: When test creates correct payload and validates it, validation succeeds → test passes → but test is marked `xfail(strict=True)` expecting failure → pytest reports XPASS error.
+
+**What Test Should Do**: Exercise actual executor code to capture real payload (which has drift), then validate it. Real payload should fail validation → test xfails as expected → when P1 fixes executor, test will XPASS (forcing xfail removal).
+
+#### Solution
+
+**Complete Test Rewrite** to capture REAL executor payload via monkeypatching:
+
+```python
+@pytest.mark.xfail(
+    strict=True,
+    reason=(
+        "Deferred until P1: executor _post_builder_result still sends legacy payload "
+        "(output/files_modified/metadata/status=SUCCESS). Remove xfail once executor posts "
+        "schema-compliant BuilderResult payload."
+    ),
+)
+def test_builder_result_correct_payload_preserves_fields__contract_deferred(self, tmp_path, monkeypatch):
+    """
+    Permanent contract: schema-compliant payload must preserve critical fields.
+
+    This is the intended BuilderResult contract at the Executor ↔ FastAPI boundary.
+    """
+    # Create an executor instance WITHOUT running __init__ (avoids API key checks + DB init).
+    executor = AutonomousExecutor.__new__(AutonomousExecutor)
+    executor.run_id = "test-run"
+    executor.api_url = "http://example.invalid"
+    executor.api_key = None
+    executor.run_type = "project_build"
+    executor.workspace = Path(tmp_path)
+    executor._run_http_500_count = 0
+    executor.MAX_HTTP_500_PER_RUN = 10
+
+    captured = {}
+
+    class _FakeResponse:
+        status_code = 200
+
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return {}
+
+    def _fake_post(url, headers=None, json=None, timeout=None):
+        captured["url"] = url
+        captured["payload"] = json
+        return _FakeResponse()
+
+    # Patch the requests module used inside autopack.autonomous_executor
+    import autopack.autonomous_executor as ae
+    monkeypatch.setattr(ae.requests, "post", _fake_post)
+
+    # Minimal llm_client.BuilderResult-like object (only the fields _post_builder_result uses)
+    llm_result = SimpleNamespace(
+        patch_content="diff --git a/foo.py b/foo.py\n--- a/foo.py\n+++ b/foo.py\n",
+        success=True,
+        tokens_used=1500,
+        builder_messages=["Build completed"],
+        error=None,
+    )
+
+    executor._post_builder_result("test-phase", llm_result, allowed_paths=["src/"])
+
+    # Contract: the payload produced by _post_builder_result must parse as BuilderResult
+    # AND preserve critical fields at top level (no metadata burying, no silent data loss).
+    parsed = BuilderResult(**captured["payload"])
+    assert parsed.phase_id == "test-phase"
+    assert parsed.run_id == "test-run"
+    assert parsed.status == "success"
+    assert parsed.patch_content is not None and parsed.patch_content.strip()
+    assert parsed.files_changed, "files_changed must be top-level and non-empty when patch modifies files"
+    assert parsed.tokens_used == 1500
+```
+
+**Key Changes**:
+1. **Instantiate Executor**: Use `AutonomousExecutor.__new__(AutonomousExecutor)` to bypass `__init__` (avoids API key checks, DB init)
+2. **Monkeypatch requests.post**: Capture actual payload sent to API
+3. **Call Real Method**: `executor._post_builder_result()` with realistic llm_result
+4. **Parse Captured Payload**: Validate what executor ACTUALLY sends, not what we want it to send
+5. **Result**: Test now correctly xfails because executor sends legacy format
+
+**Additional Changes**:
+- Kept existing data-loss test as `test_executor_legacy_payload_data_loss__legacy_optional`
+- Marked legacy test with `@pytest.mark.legacy_contract` (excluded from default CI)
+- Updated `pytest.ini` to register marker and exclude from default runs: `-m "not research and not legacy_contract"`
+
+#### Validation
+
+**Test Results**:
+- Permanent contract test: ✅ xfailed (deferred) as expected
+- Legacy optional test: ✅ deselected (excluded from default CI)
+- All other contract tests: ✅ passed
+
+**Expected Future Behavior**:
+When P1 fixes `autonomous_executor.py:_post_builder_result()` to send schema-compliant payload:
+1. Test will XPASS (unexpected pass)
+2. Pytest will fail with strict mode error
+3. Forces developer to remove `xfail` marker
+4. Test becomes permanent guard (no longer deferred)
+
+#### Lessons Learned
+
+1. **Test Real Code, Not Desires**: Contract tests must exercise actual implementation, not validate handcrafted examples
+2. **Monkeypatching for Boundary Tests**: Capture actual payloads at integration boundaries instead of testing Pydantic schemas in isolation
+3. **Strict xfail Enforces Cleanup**: `xfail(strict=True)` mechanically forces test fixup when code is fixed (prevents abandoned xfail markers)
+4. **Legacy Tests Need Markers**: Tests documenting broken behavior should be excluded from default CI but available for explicit runs
+
+#### Files Changed
+
+- `tests/autopack/test_api_contract_builder.py`: Complete rewrite of permanent contract test (lines 124-180)
+- `pytest.ini`: Added `legacy_contract` marker registration
+- `pytest.ini`: Updated default selection to `-m "not research and not legacy_contract"`
+
+#### Impact
+
+- **Contract Enforcement**: Permanent guard ensures executor payload compliance (xfails until P1)
+- **Mechanical Fix Detection**: Will XPASS when P1 lands, forcing xfail removal
+- **Legacy Test Preservation**: Optional test documents drift without blocking CI
+- **Test Quality**: All contract tests now exercise real code paths, not synthetic examples
 
 **Summary**:
 BUILD-168 Doc Link Triage Tool Mismatch - Ignored Patterns Not Applied (100% Fix Success): Discovered critical tool integration gap where `apply_triage.py` was generating ignore entries that `check_doc_links.py` wasn't reading, causing triage rules to have zero effect on violation counts. **Problem**: After applying 60+ triage rules targeting historical references, temp files, runtime artifacts, and API endpoints using `apply_triage.py`, deep scan still showed baseline 746 `missing_file` count (expected ~600s). Inspection revealed `apply_triage.py` writes file+target specific ignores to `ignore_patterns` key in `doc_link_check_ignore.yaml` (300 entries generated), but `check_doc_links.py:validate_references()` only checked pattern-based ignores (`pattern_ignores`, `runtime_endpoints`, `historical_refs`), completely bypassing `ignore_patterns`. **Root Cause**: Two-tier ignore architecture not fully wired - triage tool and check script used different keys. Triage tool correctly generated file+target pairs (most precise ignore type), but check script never read them. **Fix**: Added 12-line patch in `check_doc_links.py:validate_references()` (lines 421-432) to check `ignore_patterns` before calling `classify_link_target()`. Loop iterates over `ignore_patterns` list, matches on both `file` (source doc relative path) and `target` (broken link), sets `is_ignored_pattern=True` and skips validation if matched. **Result**: Immediate 20.6% reduction (746 → 592 `missing_file`), exceeding 10% target by 2x. All 300 triage entries now effective. Zero side effects, nav-mode maintained at 0 throughout. **Impact**: Tool integration gap prevented entire triage workflow from functioning until patch. Fix unlocked full value of file+target specific ignores (most precise, least error-prone ignore type). Validates importance of end-to-end testing when integrating multi-tool workflows. Files: scripts/check_doc_links.py (+12 lines, validate_references function), config/doc_link_check_ignore.yaml (300 ignore_patterns entries now active), config/doc_link_triage_overrides.yaml (60+ rules effective after patch).

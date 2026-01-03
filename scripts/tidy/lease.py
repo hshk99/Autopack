@@ -22,6 +22,255 @@ from typing import Optional
 logger = logging.getLogger(__name__)
 
 
+# ---------------------------------------------------------------------------
+# BUILD-161: Lock Status UX and Safe Stale Lock Breaking
+# ---------------------------------------------------------------------------
+
+def pid_running(pid: int) -> bool | None:
+    """
+    Check if a process with given PID is running.
+
+    Returns:
+        True: Process is running
+        False: Process is not running (or PID is invalid)
+        None: Cannot determine (permission denied)
+
+    Platform: Windows and Unix compatible
+    """
+    try:
+        import os
+        os.kill(pid, 0)
+        return True
+    except PermissionError:
+        # Cannot determine - process may be running with different permissions
+        return None
+    except (OSError, ProcessLookupError):
+        # Process is not running
+        return False
+
+
+@dataclass
+class LockStatus:
+    """
+    Lock status information for diagnostics and safe breaking.
+
+    Used by --lock-status and --break-stale-lock commands.
+    """
+    path: Path
+    exists: bool
+    owner: str | None = None
+    pid: int | None = None
+    token: str | None = None
+    created_at: str | None = None
+    last_renewed_at: str | None = None
+    expires_at: str | None = None
+    expired: bool | None = None
+    pid_running: bool | None = None
+    malformed: bool = False
+    error: str | None = None
+
+
+def read_lock_status(lock_path: Path, grace_seconds: int = 120) -> LockStatus:
+    """
+    Read lock file and compute status for diagnostics.
+
+    Args:
+        lock_path: Path to lock file
+        grace_seconds: Grace period before treating expired lock as truly stale
+
+    Returns:
+        LockStatus with all available metadata and computed fields
+    """
+    if not lock_path.exists():
+        return LockStatus(path=lock_path, exists=False)
+
+    try:
+        content = lock_path.read_text(encoding="utf-8")
+        data = json.loads(content)
+
+        # Extract fields
+        owner = data.get("owner")
+        pid = data.get("pid")
+        token = data.get("token")
+        created_at = data.get("created_at")
+        last_renewed_at = data.get("last_renewed_at")
+        expires_at = data.get("expires_at")
+
+        # Compute expiry status
+        expired = None
+        if expires_at:
+            try:
+                expires_dt = datetime.fromisoformat(expires_at.rstrip("Z"))
+                now = datetime.utcnow()
+                grace_expires = expires_dt + timedelta(seconds=grace_seconds)
+                expired = now > grace_expires
+            except (ValueError, TypeError):
+                expired = None  # Cannot parse timestamp
+
+        # Check PID status
+        pid_status = None
+        if pid is not None:
+            try:
+                pid_status = pid_running(int(pid))
+            except (ValueError, TypeError):
+                pass  # Invalid PID format
+
+        return LockStatus(
+            path=lock_path,
+            exists=True,
+            owner=owner,
+            pid=pid,
+            token=token,
+            created_at=created_at,
+            last_renewed_at=last_renewed_at,
+            expires_at=expires_at,
+            expired=expired,
+            pid_running=pid_status,
+            malformed=False
+        )
+
+    except json.JSONDecodeError as e:
+        return LockStatus(
+            path=lock_path,
+            exists=True,
+            malformed=True,
+            error=f"Invalid JSON: {e}"
+        )
+
+    except OSError as e:
+        return LockStatus(
+            path=lock_path,
+            exists=True,
+            malformed=True,
+            error=f"Read error: {e}"
+        )
+
+
+def break_stale_lock(lock_path: Path, grace_seconds: int, force: bool) -> tuple[bool, str]:
+    """
+    Safely break a stale lock using conservative policy.
+
+    Policy:
+    - Lock must be expired (past TTL + grace period)
+    - Process must NOT be running (or --force to override unknown PID status)
+    - Malformed locks require --force to break
+
+    Args:
+        lock_path: Path to lock file
+        grace_seconds: Grace period for expiry (default: 120s)
+        force: Allow breaking when PID status is unknown or lock is malformed
+
+    Returns:
+        (did_break, message) tuple
+    """
+    status = read_lock_status(lock_path, grace_seconds=grace_seconds)
+
+    if not status.exists:
+        return False, f"Lock does not exist: {lock_path}"
+
+    # Check malformed
+    if status.malformed:
+        if not force:
+            return False, f"Lock is malformed (use --force to break): {status.error}"
+        logger.warning(f"[LOCK-BREAK] Breaking malformed lock with --force: {lock_path}")
+        lock_path.unlink(missing_ok=True)
+        return True, f"Broke malformed lock (forced): {lock_path}"
+
+    # Check expiry
+    if status.expired is None:
+        return False, f"Cannot determine if lock is expired (missing/invalid timestamp)"
+
+    if not status.expired:
+        return False, f"Lock is not expired (expires at: {status.expires_at}, grace: {grace_seconds}s)"
+
+    # Check PID status
+    if status.pid_running is True:
+        return False, f"Process is still running (PID {status.pid}, owner: {status.owner})"
+
+    if status.pid_running is None:
+        if not force:
+            return False, f"Cannot verify if process is running (PID {status.pid}, use --force to break anyway)"
+        logger.warning(f"[LOCK-BREAK] Breaking lock with unknown PID status (--force): PID {status.pid}")
+
+    # Safe to break
+    logger.info(f"[LOCK-BREAK] Breaking stale lock: expired={status.expired}, pid_running={status.pid_running}, owner={status.owner}")
+    lock_path.unlink(missing_ok=True)
+
+    return True, f"Broke stale lock: {lock_path} (owner: {status.owner}, PID: {status.pid})"
+
+
+def lock_path_for_name(repo_root: Path, lock_name: str) -> Path:
+    """
+    Get lock path for a named lock.
+
+    Args:
+        repo_root: Repository root directory
+        lock_name: Lock name (e.g., "tidy", "archive", "executor")
+
+    Returns:
+        Path to lock file
+    """
+    return repo_root / ".autonomous_runs" / ".locks" / f"{lock_name}.lock"
+
+
+def print_lock_status(status: LockStatus) -> None:
+    """
+    Print formatted lock status for --lock-status command.
+
+    Args:
+        status: LockStatus to display
+    """
+    print("=" * 70)
+    print("LOCK STATUS")
+    print("=" * 70)
+    print(f"Lock path:        {status.path}")
+    print(f"Exists:           {status.exists}")
+
+    if not status.exists:
+        print("\nNo lock file found.")
+        return
+
+    if status.malformed:
+        print(f"Malformed:        YES")
+        print(f"Error:            {status.error}")
+        print("\nLock file is corrupted or unreadable.")
+        print("Use --break-stale-lock --force to remove it.")
+        return
+
+    print(f"Owner:            {status.owner}")
+    print(f"PID:              {status.pid}")
+    print(f"Token:            {status.token[:16] + '...' if status.token else 'N/A'}")
+    print(f"Created at:       {status.created_at}")
+    print(f"Last renewed:     {status.last_renewed_at}")
+    print(f"Expires at:       {status.expires_at}")
+
+    print()
+    print(f"Expired:          {_format_tristate(status.expired)}")
+    print(f"PID running:      {_format_tristate(status.pid_running)}")
+
+    print()
+    if status.expired and not status.pid_running:
+        print("✅ Lock is stale and can be safely broken with --break-stale-lock")
+    elif status.expired and status.pid_running is None:
+        print("⚠️  Lock is expired but PID status is unknown (use --break-stale-lock --force)")
+    elif status.expired and status.pid_running:
+        print("❌ Lock is expired but process is still running (cannot break)")
+    elif not status.expired:
+        print("🔒 Lock is active and valid")
+    else:
+        print("⚠️  Lock status unclear (check timestamps)")
+
+
+def _format_tristate(value: bool | None) -> str:
+    """Format bool|None for display."""
+    if value is True:
+        return "YES"
+    elif value is False:
+        return "NO"
+    else:
+        return "UNKNOWN"
+
+
 @dataclass
 class Lease:
     """

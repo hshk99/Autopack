@@ -1297,6 +1297,18 @@ def main():
     parser.add_argument("--no-lease", action="store_true",
                         help="Skip lease acquisition (unsafe: allows concurrent tidy runs)")
 
+    # BUILD-161: Lock status and safe breaking
+    parser.add_argument("--lock-status", action="store_true",
+                        help="Print lock status and exit (diagnostics)")
+    parser.add_argument("--break-stale-lock", action="store_true",
+                        help="Safely break stale lock (expired + PID not running) and exit")
+    parser.add_argument("--lock-name", type=str, default="tidy",
+                        help="Lock name to check/break (default: tidy)")
+    parser.add_argument("--lock-grace-seconds", type=int, default=120,
+                        help="Grace period in seconds before breaking expired lock (default: 120)")
+    parser.add_argument("--force", action="store_true",
+                        help="Force lock breaking even when PID status is unknown (use with caution)")
+
     args = parser.parse_args()
 
     # Apply --first-run shortcuts
@@ -1322,6 +1334,26 @@ def main():
         docs_dir = repo_root / "docs"
     else:
         docs_dir = repo_root / ".autonomous_runs" / args.project / "docs"
+
+    # BUILD-161: Early exit for lock status/break commands (before lease acquisition)
+    if args.lock_status or args.break_stale_lock:
+        from lease import read_lock_status, break_stale_lock, print_lock_status, lock_path_for_name
+
+        lock_path = lock_path_for_name(repo_root, args.lock_name)
+
+        if args.lock_status:
+            status = read_lock_status(lock_path, grace_seconds=args.lock_grace_seconds)
+            print_lock_status(status)
+            return 0
+
+        if args.break_stale_lock:
+            did_break, msg = break_stale_lock(
+                lock_path=lock_path,
+                grace_seconds=args.lock_grace_seconds,
+                force=args.force
+            )
+            print(msg)
+            return 0 if did_break else 1
 
     # Acquire lease (BUILD-158: cross-process safety)
     # Lease is acquired even for dry-run to prevent concurrent read/write conflicts

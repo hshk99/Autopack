@@ -1,13 +1,17 @@
 """
 Tests for BUILD-161: Lock Status UX and Safe Stale Lock Breaking.
+BUILD-162: ASCII-safe lock output and comprehensive lock listing.
 
 Tests cover:
 - Lock status reading and parsing
 - PID running detection
 - Safe lock breaking policy
 - CLI integration (--lock-status, --break-stale-lock)
+- ASCII-safe output (--ascii, --unicode)
+- All lock listing (--all)
 """
 
+import io
 import json
 import os
 import sys
@@ -28,7 +32,9 @@ from lease import (
     read_lock_status,
     break_stale_lock,
     lock_path_for_name,
-    print_lock_status
+    print_lock_status,
+    should_use_ascii,
+    print_all_lock_status
 )
 
 
@@ -411,6 +417,303 @@ class TestCLIIntegration:
 
         finally:
             lock_path.unlink(missing_ok=True)
+
+
+class TestASCIIMode:
+    """Test BUILD-162: ASCII-safe output mode."""
+
+    def test_should_use_ascii_force_ascii(self):
+        """Test that force_ascii=True always returns ASCII mode."""
+        assert should_use_ascii(force_ascii=True, force_unicode=False) is True
+        assert should_use_ascii(force_ascii=True, force_unicode=True) is True  # ASCII wins
+
+    def test_should_use_ascii_force_unicode(self):
+        """Test that force_unicode=True returns Unicode mode when not forced ASCII."""
+        assert should_use_ascii(force_ascii=False, force_unicode=True) is False
+
+    def test_should_use_ascii_auto_detect(self):
+        """Test auto-detection based on sys.stdout.encoding."""
+        # Auto-detect should return bool based on current environment
+        result = should_use_ascii(force_ascii=False, force_unicode=False)
+        assert isinstance(result, bool)
+
+        # With UTF-8 encoding, should prefer Unicode
+        if sys.stdout.encoding and "utf" in sys.stdout.encoding.lower():
+            assert result is False
+        # Otherwise, should use ASCII for safety
+        else:
+            assert result is True
+
+    def test_print_lock_status_ascii_mode(self, tmp_path, capsys):
+        """Test that ASCII mode produces no Unicode emojis."""
+        lock_path = tmp_path / "test.lock"
+        now = datetime.utcnow()
+        expires = now + timedelta(seconds=1800)
+
+        lock_data = {
+            "owner": "test_owner",
+            "pid": os.getpid(),
+            "token": "test-token",
+            "created_at": now.isoformat() + "Z",
+            "last_renewed_at": now.isoformat() + "Z",
+            "expires_at": expires.isoformat() + "Z"
+        }
+
+        lock_path.write_text(json.dumps(lock_data), encoding="utf-8")
+        status = read_lock_status(lock_path)
+
+        # Print in ASCII mode
+        print_lock_status(status, ascii_mode=True)
+        captured = capsys.readouterr()
+
+        # Should contain ASCII markers, no Unicode emojis
+        assert "[LOCK]" in captured.out
+        assert "🔒" not in captured.out
+        assert "✅" not in captured.out
+        assert "❌" not in captured.out
+        assert "⚠️" not in captured.out
+
+    def test_print_lock_status_unicode_mode(self, tmp_path, capsys):
+        """Test that Unicode mode produces emojis."""
+        lock_path = tmp_path / "test.lock"
+        now = datetime.utcnow()
+        expires = now + timedelta(seconds=1800)
+
+        lock_data = {
+            "owner": "test_owner",
+            "pid": os.getpid(),
+            "token": "test-token",
+            "created_at": now.isoformat() + "Z",
+            "last_renewed_at": now.isoformat() + "Z",
+            "expires_at": expires.isoformat() + "Z"
+        }
+
+        lock_path.write_text(json.dumps(lock_data), encoding="utf-8")
+        status = read_lock_status(lock_path)
+
+        # Print in Unicode mode
+        print_lock_status(status, ascii_mode=False)
+        captured = capsys.readouterr()
+
+        # Should contain Unicode emoji
+        assert "🔒" in captured.out
+        assert "[LOCK]" not in captured.out
+
+    def test_stale_lock_ascii_indicators(self, tmp_path, capsys):
+        """Test all status indicators in ASCII mode."""
+        now = datetime.utcnow()
+
+        # Test 1: Stale lock (OK to break)
+        lock_path = tmp_path / "stale.lock"
+        expires = now - timedelta(seconds=600)
+        lock_data = {
+            "owner": "stale_owner",
+            "pid": 999999,  # Not running
+            "token": "stale-token",
+            "created_at": (now - timedelta(seconds=2400)).isoformat() + "Z",
+            "last_renewed_at": expires.isoformat() + "Z",
+            "expires_at": expires.isoformat() + "Z"
+        }
+        lock_path.write_text(json.dumps(lock_data), encoding="utf-8")
+        status = read_lock_status(lock_path, grace_seconds=120)
+
+        print_lock_status(status, ascii_mode=True)
+        captured = capsys.readouterr()
+        assert "[OK]" in captured.out
+        assert "✅" not in captured.out
+
+
+class TestAllLockStatus:
+    """Test BUILD-162: --all lock listing."""
+
+    def test_print_all_lock_status_no_locks_dir(self, tmp_path, capsys):
+        """Test --all when locks directory doesn't exist."""
+        print_all_lock_status(tmp_path, grace_seconds=120, ascii_mode=True)
+        captured = capsys.readouterr()
+
+        assert "ALL LOCK STATUS" in captured.out
+        assert "does not exist" in captured.out
+
+    def test_print_all_lock_status_empty_dir(self, tmp_path, capsys):
+        """Test --all when locks directory is empty."""
+        locks_dir = tmp_path / ".autonomous_runs" / ".locks"
+        locks_dir.mkdir(parents=True, exist_ok=True)
+
+        print_all_lock_status(tmp_path, grace_seconds=120, ascii_mode=True)
+        captured = capsys.readouterr()
+
+        assert "ALL LOCK STATUS" in captured.out
+        assert "No lock files found" in captured.out
+
+    def test_print_all_lock_status_multiple_locks(self, tmp_path, capsys):
+        """Test --all with multiple lock files."""
+        locks_dir = tmp_path / ".autonomous_runs" / ".locks"
+        locks_dir.mkdir(parents=True, exist_ok=True)
+
+        now = datetime.utcnow()
+
+        # Create active lock
+        active_lock = locks_dir / "tidy.lock"
+        active_lock.write_text(json.dumps({
+            "owner": "tidy",
+            "pid": os.getpid(),
+            "token": "tidy-token",
+            "created_at": now.isoformat() + "Z",
+            "last_renewed_at": now.isoformat() + "Z",
+            "expires_at": (now + timedelta(seconds=1800)).isoformat() + "Z"
+        }), encoding="utf-8")
+
+        # Create stale lock
+        stale_lock = locks_dir / "archive.lock"
+        stale_lock.write_text(json.dumps({
+            "owner": "archive",
+            "pid": 999999,
+            "token": "archive-token",
+            "created_at": (now - timedelta(seconds=2400)).isoformat() + "Z",
+            "last_renewed_at": (now - timedelta(seconds=600)).isoformat() + "Z",
+            "expires_at": (now - timedelta(seconds=600)).isoformat() + "Z"
+        }), encoding="utf-8")
+
+        # Create malformed lock
+        malformed_lock = locks_dir / "malformed.lock"
+        malformed_lock.write_text("{invalid json", encoding="utf-8")
+
+        print_all_lock_status(tmp_path, grace_seconds=120, ascii_mode=True)
+        captured = capsys.readouterr()
+
+        assert "ALL LOCK STATUS" in captured.out
+        assert "Lock files found: 3" in captured.out
+
+        # Check all locks are listed
+        assert "Lock: tidy.lock" in captured.out
+        assert "Lock: archive.lock" in captured.out
+        assert "Lock: malformed.lock" in captured.out
+
+        # Check status indicators (ASCII mode)
+        assert "[LOCK]" in captured.out  # Active lock
+        assert "[OK]" in captured.out  # Stale lock
+        assert "[ERROR]" in captured.out  # Malformed lock
+
+    def test_print_all_lock_status_unicode_mode(self, tmp_path, capsys):
+        """Test --all with Unicode mode."""
+        locks_dir = tmp_path / ".autonomous_runs" / ".locks"
+        locks_dir.mkdir(parents=True, exist_ok=True)
+
+        now = datetime.utcnow()
+
+        active_lock = locks_dir / "test.lock"
+        active_lock.write_text(json.dumps({
+            "owner": "test",
+            "pid": os.getpid(),
+            "token": "test-token",
+            "created_at": now.isoformat() + "Z",
+            "last_renewed_at": now.isoformat() + "Z",
+            "expires_at": (now + timedelta(seconds=1800)).isoformat() + "Z"
+        }), encoding="utf-8")
+
+        print_all_lock_status(tmp_path, grace_seconds=120, ascii_mode=False)
+        captured = capsys.readouterr()
+
+        # Should use Unicode emoji
+        assert "🔒" in captured.out
+        assert "[LOCK]" not in captured.out
+
+
+class TestBUILD162CLIIntegration:
+    """Test BUILD-162 CLI integration."""
+
+    def test_lock_status_ascii_flag(self):
+        """Test --lock-status --ascii produces ASCII-only output."""
+        import subprocess
+
+        result = subprocess.run(
+            [
+                sys.executable,
+                str(REPO_ROOT / "scripts" / "tidy" / "tidy_up.py"),
+                "--lock-status",
+                "--lock-name", "test_ascii",
+                "--ascii"
+            ],
+            cwd=str(REPO_ROOT),
+            capture_output=True,
+            text=True,
+            encoding="utf-8"
+        )
+
+        assert result.returncode == 0
+        assert "LOCK STATUS" in result.stdout
+        # No Unicode emojis in output
+        assert "🔒" not in result.stdout
+        assert "✅" not in result.stdout
+        assert "❌" not in result.stdout
+        assert "⚠️" not in result.stdout
+
+    def test_lock_status_all_flag(self):
+        """Test --lock-status --all lists all locks."""
+        import subprocess
+
+        # Create a test lock
+        lock_path = REPO_ROOT / ".autonomous_runs" / ".locks" / "test_all_1.lock"
+        lock_path.parent.mkdir(parents=True, exist_ok=True)
+
+        now = datetime.utcnow()
+        lock_data = {
+            "owner": "test_all",
+            "pid": os.getpid(),
+            "token": "test-token",
+            "created_at": now.isoformat() + "Z",
+            "last_renewed_at": now.isoformat() + "Z",
+            "expires_at": (now + timedelta(seconds=1800)).isoformat() + "Z"
+        }
+
+        try:
+            lock_path.write_text(json.dumps(lock_data, indent=2), encoding="utf-8")
+
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    str(REPO_ROOT / "scripts" / "tidy" / "tidy_up.py"),
+                    "--lock-status",
+                    "--all",
+                    "--ascii"
+                ],
+                cwd=str(REPO_ROOT),
+                capture_output=True,
+                text=True,
+                encoding="utf-8"
+            )
+
+            assert result.returncode == 0
+            assert "ALL LOCK STATUS" in result.stdout
+            # Should list the test lock we created
+            assert "Lock: test_all_1.lock" in result.stdout or "Lock files found:" in result.stdout
+
+        finally:
+            lock_path.unlink(missing_ok=True)
+
+    def test_lock_status_all_ascii_combined(self):
+        """Test --lock-status --all --ascii combination."""
+        import subprocess
+
+        result = subprocess.run(
+            [
+                sys.executable,
+                str(REPO_ROOT / "scripts" / "tidy" / "tidy_up.py"),
+                "--lock-status",
+                "--all",
+                "--ascii"
+            ],
+            cwd=str(REPO_ROOT),
+            capture_output=True,
+            text=True,
+            encoding="utf-8"
+        )
+
+        assert result.returncode == 0
+        assert "ALL LOCK STATUS" in result.stdout
+        # No Unicode emojis in output
+        assert "🔒" not in result.stdout
+        assert "✅" not in result.stdout
 
 
 if __name__ == "__main__":

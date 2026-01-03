@@ -1309,6 +1309,14 @@ def main():
     parser.add_argument("--force", action="store_true",
                         help="Force lock breaking even when PID status is unknown (use with caution)")
 
+    # BUILD-162: ASCII-safe lock output and comprehensive lock listing
+    parser.add_argument("--ascii", action="store_true",
+                        help="Use ASCII-only output (no Unicode emojis) for lock status")
+    parser.add_argument("--unicode", action="store_true",
+                        help="Force Unicode output for lock status (default: auto-detect)")
+    parser.add_argument("--all", action="store_true", dest="lock_all",
+                        help="List all locks under .autonomous_runs/.locks/ (use with --lock-status)")
+
     args = parser.parse_args()
 
     # Apply --first-run shortcuts
@@ -1336,17 +1344,30 @@ def main():
         docs_dir = repo_root / ".autonomous_runs" / args.project / "docs"
 
     # BUILD-161: Early exit for lock status/break commands (before lease acquisition)
+    # BUILD-162: Added --ascii/--unicode and --all support
     if args.lock_status or args.break_stale_lock:
-        from lease import read_lock_status, break_stale_lock, print_lock_status, lock_path_for_name
+        from lease import read_lock_status, break_stale_lock, print_lock_status, lock_path_for_name, should_use_ascii, print_all_lock_status
 
-        lock_path = lock_path_for_name(repo_root, args.lock_name)
+        # Determine ASCII mode
+        ascii_mode = should_use_ascii(force_ascii=args.ascii, force_unicode=args.unicode)
 
         if args.lock_status:
-            status = read_lock_status(lock_path, grace_seconds=args.lock_grace_seconds)
-            print_lock_status(status)
+            if args.lock_all:
+                # List all locks under .autonomous_runs/.locks/
+                print_all_lock_status(
+                    repo_root=repo_root,
+                    grace_seconds=args.lock_grace_seconds,
+                    ascii_mode=ascii_mode
+                )
+            else:
+                # Single lock status
+                lock_path = lock_path_for_name(repo_root, args.lock_name)
+                status = read_lock_status(lock_path, grace_seconds=args.lock_grace_seconds)
+                print_lock_status(status, ascii_mode=ascii_mode)
             return 0
 
         if args.break_stale_lock:
+            lock_path = lock_path_for_name(repo_root, args.lock_name)
             did_break, msg = break_stale_lock(
                 lock_path=lock_path,
                 grace_seconds=args.lock_grace_seconds,

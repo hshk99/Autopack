@@ -24,7 +24,37 @@ logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
 # BUILD-161: Lock Status UX and Safe Stale Lock Breaking
+# BUILD-162: ASCII-safe lock output and comprehensive lock listing
 # ---------------------------------------------------------------------------
+
+def should_use_ascii(force_ascii: bool, force_unicode: bool) -> bool:
+    """
+    Determine whether to use ASCII-only output for lock status.
+
+    Policy:
+    - If force_ascii=True: always use ASCII
+    - If force_unicode=True: always use Unicode
+    - Otherwise: auto-detect from sys.stdout.encoding
+      - Use ASCII if encoding doesn't support UTF-8
+      - Use Unicode if encoding supports UTF-8
+
+    Args:
+        force_ascii: Force ASCII output
+        force_unicode: Force Unicode output
+
+    Returns:
+        True to use ASCII, False to use Unicode
+    """
+    if force_ascii:
+        return True
+    if force_unicode:
+        return False
+
+    # Auto-detect from stdout encoding
+    import sys
+    enc = (sys.stdout.encoding or "").lower()
+    return "utf" not in enc
+
 
 def pid_running(pid: int) -> bool | None:
     """
@@ -213,12 +243,13 @@ def lock_path_for_name(repo_root: Path, lock_name: str) -> Path:
     return repo_root / ".autonomous_runs" / ".locks" / f"{lock_name}.lock"
 
 
-def print_lock_status(status: LockStatus) -> None:
+def print_lock_status(status: LockStatus, ascii_mode: bool = False) -> None:
     """
     Print formatted lock status for --lock-status command.
 
     Args:
         status: LockStatus to display
+        ascii_mode: If True, use ASCII-only output (no Unicode emojis)
     """
     print("=" * 70)
     print("LOCK STATUS")
@@ -250,15 +281,108 @@ def print_lock_status(status: LockStatus) -> None:
 
     print()
     if status.expired and not status.pid_running:
-        print("✅ Lock is stale and can be safely broken with --break-stale-lock")
+        if ascii_mode:
+            print("[OK] Lock is stale and can be safely broken with --break-stale-lock")
+        else:
+            print("✅ Lock is stale and can be safely broken with --break-stale-lock")
     elif status.expired and status.pid_running is None:
-        print("⚠️  Lock is expired but PID status is unknown (use --break-stale-lock --force)")
+        if ascii_mode:
+            print("[WARN] Lock is expired but PID status is unknown (use --break-stale-lock --force)")
+        else:
+            print("⚠️  Lock is expired but PID status is unknown (use --break-stale-lock --force)")
     elif status.expired and status.pid_running:
-        print("❌ Lock is expired but process is still running (cannot break)")
+        if ascii_mode:
+            print("[ERROR] Lock is expired but process is still running (cannot break)")
+        else:
+            print("❌ Lock is expired but process is still running (cannot break)")
     elif not status.expired:
-        print("🔒 Lock is active and valid")
+        if ascii_mode:
+            print("[LOCK] Lock is active and valid")
+        else:
+            print("🔒 Lock is active and valid")
     else:
-        print("⚠️  Lock status unclear (check timestamps)")
+        if ascii_mode:
+            print("[WARN] Lock status unclear (check timestamps)")
+        else:
+            print("⚠️  Lock status unclear (check timestamps)")
+
+
+def print_all_lock_status(
+    repo_root: Path,
+    grace_seconds: int = 120,
+    ascii_mode: bool = False
+) -> None:
+    """
+    Print status of all locks under .autonomous_runs/.locks/.
+
+    Args:
+        repo_root: Repository root directory
+        grace_seconds: Grace period for expiry checking
+        ascii_mode: If True, use ASCII-only output (no Unicode emojis)
+    """
+    locks_dir = repo_root / ".autonomous_runs" / ".locks"
+
+    if not locks_dir.exists():
+        print("=" * 70)
+        print("ALL LOCK STATUS")
+        print("=" * 70)
+        print(f"Locks directory does not exist: {locks_dir}")
+        return
+
+    lock_files = sorted(locks_dir.glob("*.lock"))
+
+    if not lock_files:
+        print("=" * 70)
+        print("ALL LOCK STATUS")
+        print("=" * 70)
+        print(f"No lock files found in: {locks_dir}")
+        return
+
+    print("=" * 70)
+    print("ALL LOCK STATUS")
+    print("=" * 70)
+    print(f"Locks directory: {locks_dir}")
+    print(f"Lock files found: {len(lock_files)}")
+    print()
+
+    for lock_path in lock_files:
+        status = read_lock_status(lock_path, grace_seconds=grace_seconds)
+
+        # One-line summary for each lock
+        print(f"Lock: {lock_path.name}")
+        print(f"  Path: {lock_path}")
+
+        if not status.exists:
+            print(f"  Status: Not found")
+        elif status.malformed:
+            if ascii_mode:
+                print(f"  Status: [ERROR] Malformed - {status.error}")
+            else:
+                print(f"  Status: ❌ Malformed - {status.error}")
+        else:
+            # Determine status indicator
+            if status.expired and not status.pid_running:
+                indicator = "[OK]" if ascii_mode else "✅"
+                status_text = "Stale (can break)"
+            elif status.expired and status.pid_running is None:
+                indicator = "[WARN]" if ascii_mode else "⚠️"
+                status_text = "Expired (PID unknown)"
+            elif status.expired and status.pid_running:
+                indicator = "[ERROR]" if ascii_mode else "❌"
+                status_text = "Expired (process running)"
+            elif not status.expired:
+                indicator = "[LOCK]" if ascii_mode else "🔒"
+                status_text = "Active"
+            else:
+                indicator = "[WARN]" if ascii_mode else "⚠️"
+                status_text = "Unclear"
+
+            print(f"  Status: {indicator} {status_text}")
+            print(f"  Owner: {status.owner}")
+            print(f"  PID: {status.pid} ({'running' if status.pid_running else 'not running' if status.pid_running is False else 'unknown'})")
+            print(f"  Expires: {status.expires_at}")
+
+        print()
 
 
 def _format_tristate(value: bool | None) -> str:

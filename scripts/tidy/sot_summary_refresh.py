@@ -62,25 +62,28 @@ def parse_meta_count(content: str, key: str) -> int | None:
     return int(match.group(1)) if match else None
 
 
-def derive_build_count(content: str) -> int:
+def derive_build_count(content: str) -> tuple[int, int]:
     """
-    Derive BUILD-### count from content (index table rows).
+    Derive BUILD-### count from content (index table rows + unique IDs).
 
-    Counts total build entries in the index table. Note that some BUILD IDs
-    may appear multiple times (representing different phases/milestones), and
-    we count each entry separately as a distinct deliverable.
+    Returns both:
+    - Total build entries (table rows - can have multiple entries per BUILD ID)
+    - Unique build IDs (distinct BUILD-### identifiers)
 
-    Falls back to unique BUILD-### ID count if no index table found.
+    Returns:
+        Tuple of (total_entries, unique_build_ids)
     """
     # Count index table rows: | YYYY-MM-DD | BUILD-### | ...
     table_rows = re.findall(r'^\|\s*\d{4}-\d{2}-\d{2}\s*\|\s*BUILD-\d+', content, re.MULTILINE)
 
-    if table_rows:
-        return len(table_rows)
+    # Count unique BUILD IDs
+    unique_ids = set(re.findall(r'\bBUILD-\d+\b', content))
 
-    # Fallback: count unique BUILD IDs if no table found
-    ids = set(re.findall(r'\bBUILD-\d+\b', content))
-    return len(ids)
+    if table_rows:
+        return len(table_rows), len(unique_ids)
+    else:
+        # Fallback: if no table, both counts are the same (unique IDs)
+        return len(unique_ids), len(unique_ids)
 
 
 def derive_decision_count(content: str) -> int:
@@ -177,16 +180,23 @@ def latest_build_id(content: str) -> str | None:
 # High-Level Counting Functions (Using Dual-Source Strategy)
 # ---------------------------------------------------------------------------
 
-def count_build_history_entries(content: str, verbose: bool = False) -> int:
+def count_build_history_entries(content: str, verbose: bool = False) -> tuple[int, int]:
     """
     Count BUILD-### entries using dual-source strategy (META + derived).
 
-    Prefers META count (Total_Builds:) but cross-checks with derived count
-    from all BUILD-### occurrences in content. Warns on mismatch.
+    Returns both total entries and unique build IDs for clarity.
+
+    Returns:
+        Tuple of (total_entries, unique_build_ids)
     """
     meta = parse_meta_count(content, "Builds")
-    derived = derive_build_count(content)
-    return pick_count("BUILD_HISTORY builds", meta, derived, verbose)
+    derived_entries, derived_unique = derive_build_count(content)
+
+    # Use dual-source validation for total entries
+    total_entries = pick_count("BUILD_HISTORY build entries", meta, derived_entries, verbose)
+
+    # Unique IDs are always derived (no META equivalent)
+    return total_entries, derived_unique
 
 
 def count_debug_log_entries(content: str, verbose: bool = False) -> int:
@@ -220,7 +230,8 @@ def count_architecture_decisions(content: str, verbose: bool = False) -> int:
 def update_summary_section(
     content: str,
     entry_count: int,
-    file_type: str
+    file_type: str,
+    unique_count: int | None = None
 ) -> Tuple[str, bool]:
     """
     Update or insert summary section in SOT file.
@@ -229,6 +240,7 @@ def update_summary_section(
         content: File content
         entry_count: Number of entries counted
         file_type: One of 'build_history', 'debug_log', 'architecture_decisions'
+        unique_count: For build_history, the count of unique BUILD IDs (optional)
 
     Returns:
         Tuple of (updated_content, changed)
@@ -237,7 +249,15 @@ def update_summary_section(
 
     # Create summary text
     if file_type == 'build_history':
-        summary = f"""<!-- AUTO-GENERATED SUMMARY - DO NOT EDIT MANUALLY -->
+        if unique_count is not None and unique_count != entry_count:
+            # Show both counts when they differ
+            summary = f"""<!-- AUTO-GENERATED SUMMARY - DO NOT EDIT MANUALLY -->
+**Summary**: {entry_count} build entries ({unique_count} unique builds) documented | Last updated: {timestamp}
+<!-- END AUTO-GENERATED SUMMARY -->
+"""
+        else:
+            # Show single count when they're the same
+            summary = f"""<!-- AUTO-GENERATED SUMMARY - DO NOT EDIT MANUALLY -->
 **Summary**: {entry_count} build(s) documented | Last updated: {timestamp}
 <!-- END AUTO-GENERATED SUMMARY -->
 """
@@ -318,14 +338,19 @@ def refresh_sot_summaries(
     build_history_path = docs_dir / "BUILD_HISTORY.md"
     if build_history_path.exists():
         content = build_history_path.read_text(encoding='utf-8')
-        count = count_build_history_entries(content, verbose=verbose)
-        results['BUILD_HISTORY.md'] = count
+        total_entries, unique_builds = count_build_history_entries(content, verbose=verbose)
+        results['BUILD_HISTORY.md'] = (total_entries, unique_builds)
 
-        new_content, changed = update_summary_section(content, count, 'build_history')
+        new_content, changed = update_summary_section(
+            content, total_entries, 'build_history', unique_count=unique_builds
+        )
 
         if changed:
             if dry_run:
-                print(f"[DRY-RUN] Would update BUILD_HISTORY.md summary: {count} build(s)")
+                if unique_builds != total_entries:
+                    print(f"[DRY-RUN] Would update BUILD_HISTORY.md summary: {total_entries} entries ({unique_builds} unique builds)")
+                else:
+                    print(f"[DRY-RUN] Would update BUILD_HISTORY.md summary: {total_entries} build(s)")
                 if verbose:
                     print(f"  Preview of new summary section:")
                     summary_match = re.search(
@@ -337,10 +362,16 @@ def refresh_sot_summaries(
                         print(f"  {summary_match.group()}")
             else:
                 atomic_write(build_history_path, new_content)
-                print(f"[UPDATED] BUILD_HISTORY.md: {count} build(s)")
+                if unique_builds != total_entries:
+                    print(f"[UPDATED] BUILD_HISTORY.md: {total_entries} entries ({unique_builds} unique builds)")
+                else:
+                    print(f"[UPDATED] BUILD_HISTORY.md: {total_entries} build(s)")
         else:
             if verbose:
-                print(f"[NO-CHANGE] BUILD_HISTORY.md: {count} build(s) (already up to date)")
+                if unique_builds != total_entries:
+                    print(f"[NO-CHANGE] BUILD_HISTORY.md: {total_entries} entries ({unique_builds} unique builds) (already up to date)")
+                else:
+                    print(f"[NO-CHANGE] BUILD_HISTORY.md: {total_entries} build(s) (already up to date)")
     else:
         print(f"[SKIP] BUILD_HISTORY.md not found: {build_history_path}")
 
@@ -435,7 +466,16 @@ def main():
     print("SUMMARY")
     print("=" * 70)
     for file_name, count in results.items():
-        print(f"{file_name}: {count} entries")
+        if isinstance(count, tuple):
+            # BUILD_HISTORY.md returns (total_entries, unique_builds)
+            total, unique = count
+            if total != unique:
+                print(f"{file_name}: {total} entries ({unique} unique builds)")
+            else:
+                print(f"{file_name}: {total} entries")
+        else:
+            # Other files return single int
+            print(f"{file_name}: {count} entries")
 
     if dry_run:
         print("\nDRY-RUN MODE - No changes were made")

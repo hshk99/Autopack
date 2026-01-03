@@ -1272,6 +1272,12 @@ def main():
     parser.add_argument("--skip-archive-consolidation", action="store_true",
                         help="Skip Phase 3 (archive consolidation)")
 
+    # BUILD-160: Performance modes
+    parser.add_argument("--quick", action="store_true",
+                        help="Quick mode - skip archive consolidation, keep SOT sync")
+    parser.add_argument("--timing", action="store_true",
+                        help="Print timing instrumentation for each phase")
+
     # Queue reporting
     parser.add_argument("--queue-report", action="store_true",
                         help="Generate actionable report for pending queue (top items + next actions)")
@@ -1299,6 +1305,13 @@ def main():
         args.repair = True
         args.docs_reduce_to_sot = True
         print("[FIRST-RUN] Bootstrap mode enabled (execute + repair + docs-reduce-to-sot)")
+
+    # BUILD-160: Apply --quick shortcuts
+    if args.quick:
+        args.skip_archive_consolidation = True
+        if not args.timing:
+            args.timing = True  # Enable timing by default in quick mode
+        print("[QUICK] Quick mode enabled (skip archive consolidation)")
 
     # Resolve execution mode
     dry_run = not args.execute
@@ -1344,6 +1357,9 @@ def main():
 
     # Wrap execution in try/finally to ensure lease is released
     try:
+        # BUILD-160: Track overall timing
+        overall_start = time.perf_counter() if args.timing else None
+
         # Initialize pending moves queue
         queue_file = repo_root / ".autonomous_runs" / "tidy_pending_moves.json"
         pending_queue = PendingMovesQueue(
@@ -1358,6 +1374,7 @@ def main():
         print("Phase -1: Retry Pending Moves from Previous Runs")
         print("=" * 70)
 
+        phase_start = time.perf_counter() if args.timing else None
         retried, retry_succeeded, retry_failed = retry_pending_moves(
             queue=pending_queue,
             dry_run=dry_run,
@@ -1376,9 +1393,14 @@ def main():
             print("[QUEUE-RETRY] No pending moves to retry")
         print()
 
+        if args.timing and phase_start is not None:
+            elapsed = time.perf_counter() - phase_start
+            print(f"[TIMING] Phase -1 completed in {elapsed:.2f}s\n")
+
         # Optional report step (safe)
         if args.report_root_sot_duplicates:
             print("\n=== Report: Root SOT duplicates (root vs docs/) ===")
+            phase_start = time.perf_counter() if args.timing else None
             output_base = repo_root / args.report_root_sot_duplicates_out
             generate_root_sot_duplicate_report(
                 repo_root=repo_root,
@@ -1386,12 +1408,16 @@ def main():
                 output_path=output_base,
                 dry_run=dry_run,
             )
+            if args.timing and phase_start is not None:
+                elapsed = time.perf_counter() - phase_start
+                print(f"[TIMING] SOT duplicate report completed in {elapsed:.2f}s\n")
             if args.report_root_sot_duplicates_only:
                 print("\n[SOT-DUPS] Done (report-only mode).")
                 return 0
 
         # Optional repair step (safe)
         if args.repair:
+            phase_start = time.perf_counter() if args.timing else None
             print("\n=== Repair: Ensure required SOT + archive structure ===")
             changed_any = False
 
@@ -1422,6 +1448,10 @@ def main():
 
             if not changed_any:
                 print("[REPAIR] No missing required structure detected")
+
+            if args.timing and phase_start is not None:
+                elapsed = time.perf_counter() - phase_start
+                print(f"[TIMING] Repair phase completed in {elapsed:.2f}s\n")
 
             if args.repair_only:
                 print("\n[REPAIR] Done (repair-only mode).")
@@ -1466,7 +1496,11 @@ def main():
         print("\n" + "=" * 70)
         print("Phase 0: Special Project Migrations")
         print("=" * 70)
+        phase_start = time.perf_counter() if args.timing else None
         migrate_fileorganizer_to_project(repo_root, dry_run=dry_run, verbose=args.verbose)
+        if args.timing and phase_start is not None:
+            elapsed = time.perf_counter() - phase_start
+            print(f"[TIMING] Phase 0 completed in {elapsed:.2f}s\n")
 
         # Phase 0.5: .autonomous_runs cleanup (run early so it can't be blocked by unrelated routing issues)
         # BUILD-154: Ensure first tidy execution always cleans .autonomous_runs even if later phases encounter errors/locks.
@@ -1500,7 +1534,11 @@ def main():
         print("\n" + "=" * 70)
         print("Phase 1: Root Directory Cleanup")
         print("=" * 70)
+        phase_start = time.perf_counter() if args.timing else None
         root_moves, blocked_sot_files = route_root_files(repo_root, dry_run, args.verbose)
+        if args.timing and phase_start is not None:
+            elapsed = time.perf_counter() - phase_start
+            print(f"[TIMING] Phase 1 completed in {elapsed:.2f}s\n")
 
         # Task B: Fail fast in execute mode if blocked SOT files exist
         if blocked_sot_files and not dry_run:
@@ -1525,9 +1563,13 @@ def main():
         if lease is not None:
             lease.renew()
 
+        phase_start = time.perf_counter() if args.timing else None
         docs_moves, docs_violations = check_docs_hygiene(
             docs_dir, args.docs_reduce_to_sot, dry_run, args.verbose
         )
+        if args.timing and phase_start is not None:
+            elapsed = time.perf_counter() - phase_start
+            print(f"[TIMING] Phase 2 (docs hygiene) completed in {elapsed:.2f}s\n")
 
         # Execute moves from Phase 1 & 2
         all_moves = root_moves + docs_moves
@@ -1535,7 +1577,11 @@ def main():
         move_failed = 0
         if all_moves:
             print(f"\n[SUMMARY] Total files to move: {len(all_moves)}")
+            phase_start = time.perf_counter() if args.timing else None
             move_succeeded, move_failed = execute_moves(all_moves, dry_run, pending_queue)
+            if args.timing and phase_start is not None:
+                elapsed = time.perf_counter() - phase_start
+                print(f"[TIMING] Execute moves completed in {elapsed:.2f}s\n")
 
         # Phase 2.5 retained for readability, but work is performed in Phase 0.5 (early) for lock resilience.
         print("\n" + "=" * 70)
@@ -1558,9 +1604,13 @@ def main():
         ran_archive_consolidation = False
         if not args.skip_archive_consolidation:
             ran_archive_consolidation = True
+            phase_start = time.perf_counter() if args.timing else None
             success = consolidate_archive(
                 repo_root, roots, semantic_model, db_overrides, purge, dry_run, args.verbose
             )
+            if args.timing and phase_start is not None:
+                elapsed = time.perf_counter() - phase_start
+                print(f"[TIMING] Phase 3 (archive consolidation) completed in {elapsed:.2f}s\n")
             if not success and not dry_run:
                 print("[ERROR] Archive consolidation failed, aborting")
                 return 1
@@ -1568,7 +1618,11 @@ def main():
             print("\n=== Phase 3: Archive Consolidation (SKIPPED) ===")
 
         # Phase 4: Verification
+        phase_start = time.perf_counter() if args.timing else None
         is_valid, verify_errors = verify_structure(repo_root, docs_dir)
+        if args.timing and phase_start is not None:
+            elapsed = time.perf_counter() - phase_start
+            print(f"[TIMING] Phase 4 (verification) completed in {elapsed:.2f}s\n")
 
         # Phase 5: SOT re-index handoff (Phase 1.5)
         # If we performed any action that could change SOT content, mark it dirty so the executor can refresh indexing.
@@ -1704,6 +1758,10 @@ def main():
         print(f"Docs files moved: {len(docs_moves)}")
         print(f"Docs violations: {len(docs_violations)}")
         print(f"Structure valid: {is_valid}")
+
+        if args.timing and overall_start is not None:
+            total_elapsed = time.perf_counter() - overall_start
+            print(f"\n[TIMING] Total tidy execution time: {total_elapsed:.2f}s")
 
         if dry_run:
             print("\nDRY-RUN MODE - No changes were made")

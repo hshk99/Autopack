@@ -46,6 +46,13 @@ These are the canonical references that should stay current and are designed to 
 - **SOT Memory Integration**: SOT ledgers can be indexed into `MemoryService` for runtime retrieval
   - See `docs/TIDY_SOT_RETRIEVAL_INTEGRATION_PLAN.md` for implementation details
   - See `docs/SOT_MEMORY_INTEGRATION_EXAMPLE.md` for integration examples
+- **BUILD-170.9 CI Enforcement - GitHub Actions Pinning Policy Guardrail**:
+  - Mechanical enforcement of supply-chain security via CI-blocking policy checker
+  - Policy: third-party actions MUST use SHA pins, first-party (actions/*) MAY use version tags
+  - Implementation: check_github_actions_pinning.py + 6 contract tests (100% pass)
+  - CI integration in lint job (PR-blocking)
+  - Prevents accidental revert to @master/@vX for third-party actions
+  - See [docs/BUILD_HISTORY.md#build-1709](BUILD_HISTORY.md#build-1709) for details
 - **BUILD-170.8 Supply-Chain Hardening - Third-Party Action SHA Pinning**:
   - Eliminated mutable tag attack vector via immutable SHA pinning for all third-party GitHub Actions
   - Pinned 11 third-party action instances to commit SHAs (aquasecurity/trivy-action 2x, github/codeql-action 5x, gitleaks/gitleaks-action 1x, docker/setup-buildx-action 1x, peter-evans/create-pull-request 1x, codecov/codecov-action 1x)

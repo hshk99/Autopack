@@ -21,6 +21,40 @@ from typing import Dict, List, Optional, Tuple
 logger = logging.getLogger(__name__)
 
 
+# Per-reason retry policies
+# Each failure reason has its own retry behavior optimized for that failure mode
+RETRY_POLICIES = {
+    "locked": {
+        "max_attempts": 10,
+        "base_backoff_seconds": 300,  # 5 min
+        "max_backoff_seconds": 86400,  # 24 hours
+        "escalate_to_manual": False,  # Retries with backoff
+        "description": "File locked by another process - retry with exponential backoff",
+    },
+    "permission": {
+        "max_attempts": 3,  # Fast escalation - permission issues unlikely to self-resolve
+        "base_backoff_seconds": 60,  # 1 min
+        "max_backoff_seconds": 300,  # 5 min
+        "escalate_to_manual": True,  # Needs user intervention (chmod, chown, etc.)
+        "description": "Permission denied - escalate to manual after 3 attempts",
+    },
+    "dest_exists": {
+        "max_attempts": 1,  # Never retry - deterministic collision
+        "base_backoff_seconds": 0,
+        "max_backoff_seconds": 0,
+        "escalate_to_manual": True,  # Requires collision resolution strategy
+        "description": "Destination exists - deterministic failure, needs manual resolution",
+    },
+    "unknown": {
+        "max_attempts": 5,  # Bounded retries for unknown errors
+        "base_backoff_seconds": 600,  # 10 min
+        "max_backoff_seconds": 7200,  # 2 hours
+        "escalate_to_manual": True,  # Escalate after bounded attempts
+        "description": "Unknown error - bounded retries then manual escalation",
+    },
+}
+
+
 class PendingMovesQueue:
     """
     Manages a persistent queue of pending move operations.
@@ -48,7 +82,8 @@ class PendingMovesQueue:
         base_backoff_seconds: int = DEFAULT_BASE_BACKOFF_SECONDS,
         max_backoff_seconds: int = DEFAULT_MAX_BACKOFF_SECONDS,
         max_queue_items: int = DEFAULT_MAX_QUEUE_ITEMS,
-        max_queue_bytes: int = DEFAULT_MAX_QUEUE_BYTES
+        max_queue_bytes: int = DEFAULT_MAX_QUEUE_BYTES,
+        use_smart_policies: bool = True
     ):
         """
         Initialize pending moves queue.
@@ -57,12 +92,13 @@ class PendingMovesQueue:
             queue_file: Path to JSON queue file
             workspace_root: Workspace root for path normalization
             queue_id: Stable identifier for this queue
-            max_attempts: Maximum retry attempts before abandoning
+            max_attempts: Maximum retry attempts before abandoning (fallback)
             abandon_after_days: Days before abandoning regardless of attempts
-            base_backoff_seconds: Initial backoff interval
-            max_backoff_seconds: Maximum backoff interval
+            base_backoff_seconds: Initial backoff interval (fallback)
+            max_backoff_seconds: Maximum backoff interval (fallback)
             max_queue_items: Maximum number of items allowed in queue
             max_queue_bytes: Maximum total bytes of pending items
+            use_smart_policies: Use per-reason retry policies (default: True)
         """
         self.queue_file = queue_file
         self.workspace_root = workspace_root
@@ -73,6 +109,7 @@ class PendingMovesQueue:
         self.max_backoff_seconds = max_backoff_seconds
         self.max_queue_items = max_queue_items
         self.max_queue_bytes = max_queue_bytes
+        self.use_smart_policies = use_smart_policies
 
         self.data: Dict = self._init_data()
 
@@ -170,12 +207,35 @@ class PendingMovesQueue:
         key = f"{src_norm}|{dest_norm}|{action}"
         return hashlib.sha256(key.encode('utf-8')).hexdigest()[:16]
 
-    def _calculate_backoff(self, attempt_count: int) -> int:
+    def _get_policy(self, reason: str) -> Dict:
         """
-        Calculate exponential backoff delay.
+        Get retry policy for a failure reason.
+
+        Args:
+            reason: Failure reason (locked, permission, dest_exists, unknown)
+
+        Returns:
+            Policy dict with max_attempts, backoff settings, escalation behavior
+        """
+        if self.use_smart_policies and reason in RETRY_POLICIES:
+            return RETRY_POLICIES[reason]
+
+        # Fallback to instance defaults
+        return {
+            "max_attempts": self.max_attempts,
+            "base_backoff_seconds": self.base_backoff_seconds,
+            "max_backoff_seconds": self.max_backoff_seconds,
+            "escalate_to_manual": False,
+            "description": "Default retry policy",
+        }
+
+    def _calculate_backoff(self, attempt_count: int, policy: Dict) -> int:
+        """
+        Calculate exponential backoff delay using policy settings.
 
         Args:
             attempt_count: Number of previous attempts
+            policy: Retry policy dict
 
         Returns:
             Backoff seconds
@@ -183,9 +243,12 @@ class PendingMovesQueue:
         if attempt_count <= 0:
             return 0
 
+        base = policy.get("base_backoff_seconds", self.base_backoff_seconds)
+        max_backoff = policy.get("max_backoff_seconds", self.max_backoff_seconds)
+
         # Exponential: base * (2 ^ (attempt - 1))
-        backoff = self.base_backoff_seconds * (2 ** (attempt_count - 1))
-        return min(backoff, self.max_backoff_seconds)
+        backoff = base * (2 ** (attempt_count - 1))
+        return min(backoff, max_backoff)
 
     def enqueue(
         self,
@@ -270,6 +333,9 @@ class PendingMovesQueue:
             item["last_attempt_at"] = now_iso
             item["attempt_count"] += 1
 
+            # Get retry policy for this failure reason
+            policy = self._get_policy(reason)
+
             # Update error info
             if error_info:
                 item["last_error"] = str(error_info)[:2000]
@@ -279,32 +345,60 @@ class PendingMovesQueue:
                 if hasattr(error_info, 'winerror'):
                     item["last_error_winerror"] = error_info.winerror
 
-            # Calculate next eligible time with backoff
-            backoff = self._calculate_backoff(item["attempt_count"])
+            # Calculate next eligible time with backoff using policy
+            backoff = self._calculate_backoff(item["attempt_count"], policy)
             next_eligible = now + timedelta(seconds=backoff)
             item["next_eligible_at"] = next_eligible.isoformat() + "Z"
 
-            # Check if should abandon
+            # Check if should abandon or escalate to manual
             first_seen = datetime.fromisoformat(item["first_seen_at"].rstrip('Z'))
             age_days = (now - first_seen).days
+            max_attempts = policy.get("max_attempts", self.max_attempts)
 
-            if item["attempt_count"] >= self.max_attempts or age_days >= self.abandon_after_days:
+            if item["attempt_count"] >= max_attempts:
+                if policy.get("escalate_to_manual", False):
+                    item["status"] = "needs_manual"
+                    item["manual_reason"] = f"Max attempts ({max_attempts}) reached for {reason}: {policy.get('description', 'No description')}"
+                    logger.warning(f"[QUEUE] Escalating item {item_id} to needs_manual (attempts={item['attempt_count']}, reason={reason})")
+                else:
+                    item["status"] = "abandoned"
+                    logger.warning(f"[QUEUE] Abandoning item {item_id} (attempts={item['attempt_count']}, age={age_days}d)")
+            elif age_days >= self.abandon_after_days:
                 item["status"] = "abandoned"
                 logger.warning(f"[QUEUE] Abandoning item {item_id} (attempts={item['attempt_count']}, age={age_days}d)")
         else:
             # Create new item
+            # Get retry policy for this failure reason
+            policy = self._get_policy(reason)
+
+            # Determine initial status based on policy
+            # dest_exists should immediately escalate to needs_manual
+            if reason == "dest_exists" and policy.get("escalate_to_manual", False):
+                initial_status = "needs_manual"
+                manual_reason = f"Destination already exists - requires collision resolution: {policy.get('description', '')}"
+            else:
+                initial_status = "pending"
+                manual_reason = None
+
+            # Calculate initial backoff using policy
+            initial_backoff = policy.get("base_backoff_seconds", self.base_backoff_seconds)
+
             item = {
                 "id": item_id,
                 "src": str(src_rel),
                 "dest": str(dest_rel),
                 "action": action,
-                "status": "pending",
+                "status": initial_status,
                 "reason": reason,
                 "first_seen_at": now_iso,
                 "last_attempt_at": now_iso,
                 "attempt_count": 1,
-                "next_eligible_at": (now + timedelta(seconds=self.base_backoff_seconds)).isoformat() + "Z",
+                "next_eligible_at": (now + timedelta(seconds=initial_backoff)).isoformat() + "Z",
             }
+
+            if manual_reason:
+                item["manual_reason"] = manual_reason
+                logger.info(f"[QUEUE] Item {item_id} escalated to needs_manual immediately (reason: {reason})")
 
             if error_info:
                 item["last_error"] = str(error_info)[:2000]
@@ -382,6 +476,7 @@ class PendingMovesQueue:
             "pending": 0,
             "succeeded": 0,
             "abandoned": 0,
+            "needs_manual": 0,
             "eligible_now": 0,
         }
 
@@ -390,7 +485,7 @@ class PendingMovesQueue:
             status = item["status"]
             summary[status] = summary.get(status, 0) + 1
 
-            # Count eligible
+            # Count eligible (only pending items can be eligible)
             if status == "pending":
                 if "next_eligible_at" not in item:
                     summary["eligible_now"] += 1
@@ -517,6 +612,47 @@ class PendingMovesQueue:
 
         if removed > 0:
             logger.info(f"[QUEUE] Removed {removed} succeeded items from queue")
+
+        return removed
+
+    def cleanup_old_items(
+        self,
+        max_age_days: int = 30,
+        cleanup_statuses: Optional[set] = None
+    ) -> int:
+        """
+        Remove old items from queue based on age to prevent unbounded growth.
+
+        This implements queue hygiene lifecycle - automatically removing:
+        - Succeeded items older than max_age_days
+        - Abandoned items older than max_age_days
+        - Optionally other statuses (e.g., needs_manual if resolved externally)
+
+        Args:
+            max_age_days: Maximum age in days before removal (default: 30)
+            cleanup_statuses: Statuses to clean (default: {"succeeded", "abandoned"})
+
+        Returns:
+            Number of items removed
+        """
+        if cleanup_statuses is None:
+            cleanup_statuses = {"succeeded", "abandoned"}
+
+        now = datetime.utcnow()
+        cutoff_date = now - timedelta(days=max_age_days)
+
+        before_count = len(self.data["items"])
+        self.data["items"] = [
+            item for item in self.data["items"]
+            if not (
+                item["status"] in cleanup_statuses
+                and datetime.fromisoformat(item["first_seen_at"].rstrip('Z')) < cutoff_date
+            )
+        ]
+        removed = before_count - len(self.data["items"])
+
+        if removed > 0:
+            logger.info(f"[QUEUE-CLEANUP] Removed {removed} old items (>{max_age_days}d, statuses: {cleanup_statuses})")
 
         return removed
 

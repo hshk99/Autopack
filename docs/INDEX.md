@@ -52,6 +52,11 @@ These are the canonical references that should stay current and are designed to 
   - Windows file locks: `docs/TIDY_LOCKED_FILES_HOWTO.md` (4 solution strategies)
   - Windows Task Scheduler: `docs/guides/WINDOWS_TASK_SCHEDULER_TIDY.md` (automation setup)
   - Workspace cleanup: .autonomous_runs/ cleanup, database routing, locked file handling, automatic retry
+- **BUILD-157 Smart Retry + Queue Hygiene**:
+  - Implementation: `docs/BUILD-157_SMART_RETRY_QUEUE_HYGIENE.md`
+  - Per-reason retry policies (locked/permission/dest_exists/unknown)
+  - Queue lifecycle with 30-day retention (prevents unbounded growth)
+  - New `needs_manual` status for actionable user intervention
 - **BUILD-155 CI Drift Enforcement**:
   - CI guardrails for dependency sync (pyproject.toml ↔ requirements.txt)
   - CI guardrails for version consistency (pyproject.toml, PROJECT_INDEX.json, __version__)

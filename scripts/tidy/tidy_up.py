@@ -1565,7 +1565,11 @@ def main():
     # Final summary
     # Save queue and print summary
     if not dry_run:
-        # Clean up succeeded items
+        # Clean up old succeeded/abandoned items (30-day retention)
+        # This prevents unbounded queue growth
+        pending_queue.cleanup_old_items(max_age_days=30)
+
+        # Clean up succeeded items from this run
         pending_queue.cleanup_succeeded()
 
         # Save final state
@@ -1581,10 +1585,18 @@ def main():
         print(f"  Pending (awaiting retry): {queue_summary['pending']}")
         print(f"  Succeeded (this run): {queue_summary['succeeded']}")
         print(f"  Abandoned (max attempts): {queue_summary['abandoned']}")
+        print(f"  Needs manual (escalated): {queue_summary.get('needs_manual', 0)}")
         print(f"  Eligible for next run: {queue_summary['eligible_now']}")
         print()
         print(f"Queue file: {queue_file}")
         print()
+
+        if queue_summary.get("needs_manual", 0) > 0:
+            print(f"[ACTION REQUIRED] {queue_summary['needs_manual']} items need manual resolution:")
+            print("  - dest_exists: Destination file collision - requires manual decision")
+            print("  - permission: Access denied - check file/folder permissions")
+            print("  - See queue report for details")
+            print()
 
         if queue_summary["pending"] > 0 and not dry_run:
             print("[INFO] Locked files will be retried automatically on next tidy run")

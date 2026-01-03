@@ -46,6 +46,13 @@ These are the canonical references that should stay current and are designed to 
 - **SOT Memory Integration**: SOT ledgers can be indexed into `MemoryService` for runtime retrieval
   - See `docs/TIDY_SOT_RETRIEVAL_INTEGRATION_PLAN.md` for implementation details
   - See `docs/SOT_MEMORY_INTEGRATION_EXAMPLE.md` for integration examples
+- **BUILD-163 Standalone SOT → DB/Qdrant Sync**:
+  - Implementation: [docs/BUILD-163_SOT_DB_SYNC.md](BUILD-163_SOT_DB_SYNC.md)
+  - Standalone sync tool decoupled from full tidy runs (30-50x faster)
+  - Four mutually exclusive modes: docs-only, db-only, qdrant-only, full
+  - Bounded execution with explicit write control (--execute flag required)
+  - Idempotent upserts with content hash-based change detection
+  - Result: SOT→DB sync in < 5s without 5-10 min full tidy
 - **BUILD-159 Deep Doc Link Checker + Mechanical Fixer**:
   - Implementation: [docs/BUILD-159_DEEP_DOC_LINK_CHECKER_MECHANICAL_FIXER.md](BUILD-159_DEEP_DOC_LINK_CHECKER_MECHANICAL_FIXER.md)
   - Layered heuristic matching for broken link suggestions

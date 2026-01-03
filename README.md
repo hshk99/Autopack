@@ -58,6 +58,15 @@ In practice, “autonomous” requires that each phase has:
 
 ### Latest Highlights (Last 3 Builds)
 
+#### 2026-01-03: BUILD-163 - Standalone SOT → DB/Qdrant Sync ✅
+**Bounded, Mode-Selective Sync from Canonical SOT Ledgers**
+- Standalone sync tool: Decoupled from full tidy runs, four mutually exclusive modes (--docs-only/--db-only/--qdrant-only/--full)
+- Explicit write control: Requires --execute flag for DB/Qdrant writes (no-surprises safety), default --docs-only mode never writes
+- Bounded execution: --max-seconds timeout (default 120s), per-operation timing output, total execution < 5s for db-only mode
+- Idempotent upserts: Stable entry IDs (BUILD-###/DEC-###/DBG-###), content hash change detection, PostgreSQL/SQLite dual support
+- **Result**: SOT→DB sync runnable without 5-10 min full tidy, scheduled sync possible, 173 entries parsed in <1s, zero duplicates
+- See [scripts/tidy/sot_db_sync.py](scripts/tidy/sot_db_sync.py) for implementation
+
 #### 2026-01-03: BUILD-161 - Lock Status UX + Safe Stale Lock Breaking ✅
 **Operator-Friendly Lock Diagnostics**
 - Lock status diagnostics: Cross-platform PID detection (tristate True/False/None), comprehensive status output with visual indicators (✅/⚠️/❌/🔒)

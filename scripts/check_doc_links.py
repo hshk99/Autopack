@@ -27,6 +27,7 @@ import difflib
 import json
 import re
 import sys
+import yaml
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Set, Tuple, Optional
@@ -42,6 +43,80 @@ FENCED_CODE_BLOCK_PATTERN = re.compile(r'^```.*?^```', re.MULTILINE | re.DOTALL)
 # Confidence thresholds
 CONFIDENCE_HIGH = 0.90
 CONFIDENCE_MEDIUM = 0.85
+
+
+def load_ignore_config(repo_root: Path) -> Dict:
+    """
+    Load ignore configuration from config/doc_link_check_ignore.yaml.
+
+    Returns:
+        Ignore config dictionary, or empty dict if file not found
+    """
+    config_path = repo_root / "config" / "doc_link_check_ignore.yaml"
+    if not config_path.exists():
+        return {}
+
+    try:
+        with open(config_path, 'r', encoding='utf-8') as f:
+            return yaml.safe_load(f) or {}
+    except Exception as e:
+        print(f"⚠️  Failed to load ignore config: {e}", file=sys.stderr)
+        return {}
+
+
+def classify_link_target(target: str, repo_root: Path, ignore_config: Dict) -> str:
+    """
+    Classify a link target into categories for policy-driven handling.
+
+    Categories:
+    - 'runtime_endpoint': API endpoints, localhost URLs (exist at runtime)
+    - 'external_url': HTTP/HTTPS external URLs
+    - 'historical_ref': archive/superseded/* (informational only)
+    - 'anchor_only': Fragment-only link (#section)
+    - 'ignored': Matches pattern_ignores
+    - 'missing_file': File reference that doesn't exist (default)
+
+    Args:
+        target: Link target to classify
+        repo_root: Repository root
+        ignore_config: Loaded ignore configuration
+
+    Returns:
+        Category string
+    """
+    normalized = normalize_path(target)
+
+    # Check pattern ignores first (complete skip)
+    pattern_ignores = ignore_config.get('pattern_ignores', [])
+    for ignore_entry in pattern_ignores:
+        pattern = ignore_entry.get('pattern', '')
+        if pattern and pattern in normalized:
+            return 'ignored'
+
+    # Check for anchor-only links
+    if normalized.startswith('#'):
+        return 'anchor_only'
+
+    # Check runtime endpoints
+    runtime_endpoints = ignore_config.get('runtime_endpoints', [])
+    for endpoint_entry in runtime_endpoints:
+        pattern = endpoint_entry.get('pattern', '')
+        if pattern and pattern in normalized:
+            return 'runtime_endpoint'
+
+    # Check external URLs
+    if normalized.startswith('http://') or normalized.startswith('https://'):
+        return 'external_url'
+
+    # Check historical references
+    historical_refs = ignore_config.get('historical_refs', [])
+    for hist_entry in historical_refs:
+        pattern = hist_entry.get('pattern', '')
+        if pattern and pattern in normalized:
+            return 'historical_ref'
+
+    # Default to missing_file
+    return 'missing_file'
 
 
 def normalize_path(path: str) -> str:
@@ -258,7 +333,8 @@ def validate_references(
     refs: Dict[str, List[Dict]],
     source_file: Path,
     repo_root: Path,
-    search_paths: Optional[List[Path]] = None
+    search_paths: Optional[List[Path]] = None,
+    ignore_config: Optional[Dict] = None
 ) -> Tuple[List[Dict], List[Dict]]:
     """
     Validate that referenced paths exist and suggest fixes for broken ones.
@@ -268,12 +344,14 @@ def validate_references(
         source_file: Source markdown file doing the referencing
         repo_root: Repository root directory
         search_paths: List of all markdown files in scope (for suggestions)
+        ignore_config: Ignore configuration for classification
 
     Returns:
         (valid_refs, broken_refs_with_suggestions) tuple
     """
     valid = []
     broken = []
+    ignore_config = ignore_config or {}
 
     for ref, occurrences in refs.items():
         # Try as absolute path from repo root
@@ -308,13 +386,20 @@ def validate_references(
                 # Path exists but is outside repo - treat as broken
                 pass
 
-        # Path not found - find suggestions
+        # Path not found - classify the broken link
+        category = classify_link_target(ref, repo_root, ignore_config)
+
+        # Skip if ignored
+        if category == 'ignored':
+            continue
+
+        # Find suggestions for missing_file category
         suggestions = []
         suggested_fix = None
         confidence = "low"
         fix_type = "manual_review"
 
-        if search_paths:
+        if category == 'missing_file' and search_paths:
             matches = find_closest_matches(ref, source_file, repo_root, search_paths)
             if matches:
                 suggestions = [{"path": path, "score": round(score, 3)} for path, score in matches]
@@ -341,7 +426,7 @@ def validate_references(
                 'source_link': occ['source_link'],
                 'broken_target': occ['original_target'],
                 'normalized_target': ref,
-                'reason': 'missing_file',
+                'reason': category,
                 'suggested_fix': suggested_fix,
                 'suggestions': suggestions,
                 'confidence': confidence,
@@ -355,7 +440,8 @@ def check_file(
     file_path: Path,
     repo_root: Path,
     search_paths: Optional[List[Path]] = None,
-    skip_code_blocks: bool = True
+    skip_code_blocks: bool = True,
+    ignore_config: Optional[Dict] = None
 ) -> Dict:
     """
     Check a single file for broken links.
@@ -365,6 +451,7 @@ def check_file(
         repo_root: Repository root
         search_paths: List of all markdown files in scope (for suggestions)
         skip_code_blocks: If True, skip fenced code blocks
+        ignore_config: Ignore configuration for classification
 
     Returns:
         Dict with check results
@@ -380,7 +467,7 @@ def check_file(
 
     content = file_path.read_text(encoding='utf-8')
     refs = extract_file_references(content, file_path, skip_code_blocks=skip_code_blocks)
-    valid, broken = validate_references(refs, file_path, repo_root, search_paths=search_paths)
+    valid, broken = validate_references(refs, file_path, repo_root, search_paths=search_paths, ignore_config=ignore_config)
 
     return {
         "file": str(file_path.relative_to(repo_root)),
@@ -565,6 +652,9 @@ def main():
     repo_root = args.repo_root.resolve()
     skip_code_blocks = not args.no_skip_code_blocks
 
+    # Load ignore configuration
+    ignore_config = load_ignore_config(repo_root)
+
     # Determine files to check
     if args.deep or args.include_globs:
         # Deep mode or custom globs
@@ -613,7 +703,7 @@ def main():
     results = []
 
     for file_path in files_to_check:
-        result = check_file(file_path, repo_root, search_paths=all_markdown_files, skip_code_blocks=skip_code_blocks)
+        result = check_file(file_path, repo_root, search_paths=all_markdown_files, skip_code_blocks=skip_code_blocks, ignore_config=ignore_config)
         results.append(result)
 
         if not result["exists"]:
@@ -680,18 +770,43 @@ def main():
     print(f"Broken references: {total_broken}")
 
     if total_broken > 0:
-        high_conf = sum(1 for b in all_broken_links if b['confidence'] == 'high')
-        med_conf = sum(1 for b in all_broken_links if b['confidence'] == 'medium')
-        low_conf = sum(1 for b in all_broken_links if b['confidence'] == 'low')
+        # Category breakdown
+        categories = {}
+        for b in all_broken_links:
+            cat = b['reason']
+            categories[cat] = categories.get(cat, 0) + 1
 
         print()
-        print(f"  Auto-fixable (high confidence): {high_conf}")
-        print(f"  Auto-fixable (medium confidence): {med_conf}")
-        print(f"  Manual review required: {low_conf}")
+        print("Broken links by category:")
+        for cat, count in sorted(categories.items(), key=lambda x: -x[1]):
+            print(f"  {cat}: {count}")
+
+        # Confidence breakdown (for missing_file category)
+        missing_file_links = [b for b in all_broken_links if b['reason'] == 'missing_file']
+        if missing_file_links:
+            high_conf = sum(1 for b in missing_file_links if b['confidence'] == 'high')
+            med_conf = sum(1 for b in missing_file_links if b['confidence'] == 'medium')
+            low_conf = sum(1 for b in missing_file_links if b['confidence'] == 'low')
+
+            print()
+            print(f"Missing files auto-fix confidence:")
+            print(f"  Auto-fixable (high confidence): {high_conf}")
+            print(f"  Auto-fixable (medium confidence): {med_conf}")
+            print(f"  Manual review required: {low_conf}")
+
+        # CI enforcement check (only fail on missing_file)
+        ci_fail_categories = ignore_config.get('ci_enforcement', {}).get('fail_on', ['missing_file'])
+        ci_failures = sum(1 for b in all_broken_links if b['reason'] in ci_fail_categories)
+
         print()
-        print("❌ FAILED: Broken links detected")
-        print("   Run with --deep to generate fix plan, or use scripts/fix_doc_links.py to apply fixes")
-        return 1
+        if ci_failures > 0:
+            print(f"❌ FAILED: {ci_failures} broken link(s) in fail_on categories: {ci_fail_categories}")
+            print("   Run with --deep to generate fix plan, or use scripts/fix_doc_links.py to apply fixes")
+            return 1
+        else:
+            print(f"⚠️  WARNING: {total_broken} broken link(s) found, but not in fail_on categories")
+            print("   These are informational only and don't fail CI")
+            return 0
     else:
         print()
         print("✅ PASSED: All documentation links are valid")

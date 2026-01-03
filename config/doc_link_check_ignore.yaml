@@ -1,0 +1,75 @@
+# Documentation Link Checker - Ignore Patterns
+#
+# This configuration defines patterns for links that should be ignored
+# or classified differently during documentation link validation.
+#
+# Categories:
+# - runtime_endpoints: API endpoints, localhost URLs that exist at runtime
+# - historical_refs: References to archived/superseded content (informational only)
+# - external_deps: External URLs that may be temporarily unavailable
+# - pattern_ignores: Glob patterns to completely skip
+
+version: 1
+
+# Runtime endpoints (exist at runtime, not as files)
+runtime_endpoints:
+  - pattern: "/api/"
+    reason: "API endpoint - exists at runtime"
+  - pattern: "localhost:"
+    reason: "Localhost endpoint - runtime only"
+  - pattern: "127.0.0.1:"
+    reason: "Localhost IP - runtime only"
+  - pattern: "http://localhost"
+    reason: "Localhost URL - runtime only"
+  - pattern: "https://localhost"
+    reason: "Localhost HTTPS - runtime only"
+
+# Historical references (archived content, may not exist but documented for history)
+historical_refs:
+  - pattern: "archive/superseded/"
+    reason: "Superseded content - historical reference only"
+  - pattern: "archive/old/"
+    reason: "Old content - historical reference only"
+
+# External dependencies (external URLs - out of our control)
+external_deps:
+  - pattern: "github.com/"
+    reason: "External GitHub URL"
+  - pattern: "http://"
+    reason: "External HTTP URL"
+  - pattern: "https://"
+    reason: "External HTTPS URL"
+
+# Pattern ignores (completely skip these patterns)
+pattern_ignores:
+  - pattern: "*.tmp"
+    reason: "Temporary files"
+  - pattern: "*.bak"
+    reason: "Backup files"
+  - pattern: ".git/"
+    reason: "Git internal files"
+  - pattern: "__pycache__/"
+    reason: "Python cache"
+  - pattern: "venv/"
+    reason: "Virtual environment"
+  - pattern: "node_modules/"
+    reason: "Node dependencies"
+
+# Anchor-only links (allow missing anchor targets for now)
+allow_missing_anchors: true
+
+# CI enforcement policy
+ci_enforcement:
+  # Only fail CI on missing_file category
+  fail_on:
+    - missing_file
+
+  # Warn but don't fail on these
+  warn_on:
+    - historical_ref
+
+  # Report but don't warn
+  report_only:
+    - runtime_endpoint
+    - external_url
+    - anchor_only

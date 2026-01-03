@@ -25,6 +25,11 @@ Usage:
     # Scope to specific project
     python scripts/tidy/tidy_up.py --execute --project autopack
 
+Exit codes:
+    0 - Success (workspace is clean)
+    1 - Validation errors or structural issues detected
+    5 - Lock acquisition failure (another tidy operation in progress)
+
 Category: MANUAL ONLY
 Triggers: Explicit user command
 Excludes: Automatic maintenance, test runs
@@ -54,6 +59,7 @@ sys.path.insert(0, str(SCRIPT_DIR))
 from autonomous_runs_cleaner import cleanup_autonomous_runs
 from pending_moves import PendingMovesQueue, retry_pending_moves, format_actionable_report_markdown
 from lease import Lease
+from locks import MultiLock, LOCK_ORDER
 from io_utils import atomic_write_json
 sys.path.insert(0, str(REPO_ROOT / "src"))
 
@@ -1317,6 +1323,10 @@ def main():
     parser.add_argument("--all", action="store_true", dest="lock_all",
                         help="List all locks under .autonomous_runs/.locks/ (use with --lock-status)")
 
+    # BUILD-165: Per-subsystem locks
+    parser.add_argument("--no-subsystem-locks", action="store_true",
+                        help="Disable subsystem locks (escape hatch; uses only umbrella lock)")
+
     args = parser.parse_args()
 
     # Apply --first-run shortcuts
@@ -1391,10 +1401,19 @@ def main():
         except TimeoutError as e:
             print(f"\n[LEASE] ERROR: {e}")
             print("[LEASE] Another tidy process may be running. Wait for it to complete or use --no-lease (unsafe).")
-            return 1
+            return 5  # Standardized exit code for lock acquisition failure (BUILD-166)
         except Exception as e:
             print(f"\n[LEASE] ERROR: Failed to acquire lease: {e}")
-            return 1
+            return 5  # Standardized exit code for lock acquisition failure (BUILD-166)
+
+    # BUILD-165: Initialize subsystem locks (kept disabled until proven stable)
+    multi_lock = MultiLock(
+        repo_root=repo_root,
+        owner="tidy_up",
+        ttl_seconds=args.lease_ttl,
+        timeout_seconds=args.lease_timeout,
+        enabled=not args.no_subsystem_locks
+    )
 
     print("=" * 70)
     print("UNIFIED TIDY UP - Complete Workspace Organization")
@@ -1403,6 +1422,7 @@ def main():
     print(f"Docs dir: {docs_dir}")
     print(f"Mode: {'DRY-RUN' if dry_run else 'EXECUTE'}")
     print(f"Lease acquired: {lease is not None}")
+    print(f"Subsystem locks: {'enabled' if multi_lock.enabled else 'disabled (using umbrella only)'}")
     print(f"Docs reduce to SOT: {args.docs_reduce_to_sot}")
     print(f"Repair: {args.repair}")
     print(f"Report root SOT duplicates: {args.report_root_sot_duplicates}")
@@ -1427,6 +1447,9 @@ def main():
         print("Phase -1: Retry Pending Moves from Previous Runs")
         print("=" * 70)
 
+        # BUILD-165: Acquire queue lock for pending move retry
+        multi_lock.acquire(["queue"])
+
         phase_start = time.perf_counter() if args.timing else None
         retried, retry_succeeded, retry_failed = retry_pending_moves(
             queue=pending_queue,
@@ -1449,6 +1472,9 @@ def main():
         if args.timing and phase_start is not None:
             elapsed = time.perf_counter() - phase_start
             print(f"[TIMING] Phase -1 completed in {elapsed:.2f}s\n")
+
+        # BUILD-165: Release queue lock after retry
+        multi_lock.release()
 
         # Optional report step (safe)
         if args.report_root_sot_duplicates:
@@ -1561,6 +1587,9 @@ def main():
         print("Phase 0.5: .autonomous_runs/ Cleanup (Early)")
         print("=" * 70)
 
+        # BUILD-165: Acquire runs + archive locks for .autonomous_runs cleanup
+        multi_lock.acquire(["runs", "archive"])
+
         phase_start = time.perf_counter()
         try:
             cleanup_autonomous_runs(
@@ -1578,6 +1607,9 @@ def main():
             if args.profile:
                 elapsed = time.perf_counter() - phase_start
                 print(f"[PROFILE] Phase 0.5 completed in {elapsed:.2f}s")
+
+            # BUILD-165: Release runs + archive locks
+            multi_lock.release()
 
         # Phase 1: Root routing
         # Renew lease heartbeat before long phase
@@ -1630,11 +1662,18 @@ def main():
         move_failed = 0
         if all_moves:
             print(f"\n[SUMMARY] Total files to move: {len(all_moves)}")
+
+            # BUILD-165: Acquire locks for file moves (queue + archive + docs)
+            multi_lock.acquire(["queue", "archive", "docs"])
+
             phase_start = time.perf_counter() if args.timing else None
             move_succeeded, move_failed = execute_moves(all_moves, dry_run, pending_queue)
             if args.timing and phase_start is not None:
                 elapsed = time.perf_counter() - phase_start
                 print(f"[TIMING] Execute moves completed in {elapsed:.2f}s\n")
+
+            # BUILD-165: Release locks after moves
+            multi_lock.release()
 
         # Phase 2.5 retained for readability, but work is performed in Phase 0.5 (early) for lock resilience.
         print("\n" + "=" * 70)
@@ -1657,6 +1696,10 @@ def main():
         ran_archive_consolidation = False
         if not args.skip_archive_consolidation:
             ran_archive_consolidation = True
+
+            # BUILD-165: Acquire archive + docs locks for consolidation
+            multi_lock.acquire(["archive", "docs"])
+
             phase_start = time.perf_counter() if args.timing else None
             success = consolidate_archive(
                 repo_root, roots, semantic_model, db_overrides, purge, dry_run, args.verbose
@@ -1664,6 +1707,10 @@ def main():
             if args.timing and phase_start is not None:
                 elapsed = time.perf_counter() - phase_start
                 print(f"[TIMING] Phase 3 (archive consolidation) completed in {elapsed:.2f}s\n")
+
+            # BUILD-165: Release archive + docs locks
+            multi_lock.release()
+
             if not success and not dry_run:
                 print("[ERROR] Archive consolidation failed, aborting")
                 return 1

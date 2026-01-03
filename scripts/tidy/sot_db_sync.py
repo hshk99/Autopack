@@ -40,6 +40,7 @@ Exit codes:
     2 - Database connection errors
     3 - Timeout exceeded
     4 - Mode-specific requirements not met (e.g., --full but Qdrant unavailable)
+    5 - Lock acquisition failure (another operation in progress)
 """
 
 import argparse
@@ -57,6 +58,15 @@ from typing import Dict, List, Optional, Tuple
 # Add project root to path
 REPO_ROOT = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(REPO_ROOT / "src"))
+
+# Import lock infrastructure
+try:
+    from locks import MultiLock
+    LOCKS_AVAILABLE = True
+except ImportError:
+    print("[WARN] locks.py not found - running without subsystem locks")
+    MultiLock = None
+    LOCKS_AVAILABLE = False
 
 
 class TimeoutError(Exception):
@@ -123,6 +133,17 @@ class SOTDBSync:
             "qdrant_upserts": 0,
             "errors": [],
         }
+
+        # Subsystem locks (for write operations)
+        self.multi_lock = None
+        if LOCKS_AVAILABLE and self.execute:
+            # Only acquire locks for write operations
+            self.multi_lock = MultiLock(
+                repo_root=self.repo_root,
+                owner=f"sot_db_sync:{self.mode}",
+                ttl_seconds=self.max_seconds + 60,  # Lock TTL > max execution time
+                timeout_seconds=30
+            )
 
     def _resolve_database_url(self, provided_url: Optional[str]) -> str:
         """
@@ -350,6 +371,29 @@ class SOTDBSync:
             except Exception as e:
                 raise RuntimeError(f"Qdrant connection failed: {e}")
 
+    def _validate_read_path(self, file_path: Path) -> None:
+        """
+        Validate that file path is within allowed read scope (docs/ only).
+
+        Raises RuntimeError if path is outside allowed scope.
+        This prevents scope creep where tool accidentally reads from
+        tidy-managed areas (.autonomous_runs/, archive/, etc).
+        """
+        # Resolve to absolute path for comparison
+        abs_path = file_path.resolve()
+        allowed_base = self.docs_dir.resolve()
+
+        # Check if path is under docs/
+        try:
+            abs_path.relative_to(allowed_base)
+        except ValueError:
+            raise RuntimeError(
+                f"Path validation failed: {file_path} is outside allowed read scope.\n"
+                f"sot_db_sync may only read from: {allowed_base}\n"
+                f"Attempted to read from: {abs_path}\n"
+                f"This is a safety check to prevent scope creep (BUILD-166)."
+            )
+
     def parse_sot_files(self) -> Dict[str, List[Dict]]:
         """
         Parse SOT markdown ledgers.
@@ -365,6 +409,10 @@ class SOTDBSync:
                 "architecture": self.docs_dir / "ARCHITECTURE_DECISIONS.md",
                 "debug_log": self.docs_dir / "DEBUG_LOG.md",
             }
+
+            # Validate all paths are within docs/ (scope safety)
+            for file_type, file_path in sot_files.items():
+                self._validate_read_path(file_path)
 
             for file_type, file_path in sot_files.items():
                 self._check_timeout()
@@ -721,7 +769,31 @@ class SOTDBSync:
             print(f"Mode: {self.mode}")
             print(f"Execute: {self.execute}")
             print(f"Max seconds: {self.max_seconds}")
+
+            # Path scope transparency (BUILD-166 guardrail)
+            if self.execute:
+                print(f"\n[SCOPE] Read from: {self.docs_dir.resolve()}")
+                print(f"[SCOPE] Write to: {self.database_url}")
+                if self.qdrant_host:
+                    print(f"[SCOPE] Write to: {self.qdrant_host}")
+                print("[SCOPE] No writes to filesystem (DB/Qdrant only)")
+
             print(f"{'='*80}\n")
+
+            # Acquire subsystem locks for write operations
+            if self.multi_lock:
+                print("[LOCKS] Acquiring subsystem locks: docs, archive")
+                try:
+                    self.multi_lock.acquire(["docs", "archive"])
+                    print("[LOCKS] ✓ Locks acquired")
+                except TimeoutError as e:
+                    print(f"[LOCKS] ✗ Failed to acquire locks: {e}")
+                    print("[LOCKS] Another tidy operation may be in progress")
+                    return 5
+            elif self.execute and LOCKS_AVAILABLE:
+                print("[LOCKS] Skipped (read-only mode)")
+            elif self.execute and not LOCKS_AVAILABLE:
+                print("[WARN] Running without subsystem locks (locks.py not found)")
 
             # Parse SOT files (always required)
             parsed_entries = self.parse_sot_files()
@@ -780,7 +852,12 @@ class SOTDBSync:
             return 1
 
         finally:
-            # Cleanup
+            # Release subsystem locks
+            if self.multi_lock:
+                self.multi_lock.release()
+                print("[LOCKS] ✓ Locks released")
+
+            # Cleanup database connection
             if self.db_conn:
                 self.db_conn.close()
 

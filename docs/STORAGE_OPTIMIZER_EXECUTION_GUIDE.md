@@ -15,7 +15,7 @@ This guide covers **Storage Optimizer execution mode** with advanced safeguards 
 
 ## Quick Start
 
-### Basic Execution Workflow
+### Basic Execution Workflow (Database-Based)
 
 ```bash
 # Step 1: Scan for cleanup candidates
@@ -41,6 +41,38 @@ PYTHONUTF8=1 PYTHONPATH=src DATABASE_URL="sqlite:///autopack.db" python scripts/
   --execute \
   --dry-run=false
 ```
+
+### Approval Artifact Workflow (File-Based - BUILD-166)
+
+**New in BUILD-166**: Generate approval artifacts from scan reports for safer execution.
+
+```bash
+# Step 1: Scan and generate report
+python scripts/storage/scan_and_report.py \
+  --dir C:/target \
+  --report-out report.json
+
+# Step 2: Review report.json manually (human approval step)
+# Open report.json and verify cleanup candidates are safe to delete
+
+# Step 3: Generate approval artifacts
+python scripts/storage/generate_approval.py \
+  --report report.json \
+  --operator "Your Name" \
+  --out approval.json
+
+# Step 4: Execute cleanup with approval validation
+python scripts/storage/scan_and_report.py \
+  --dir C:/target \
+  --execute \
+  --approval-file approval.json
+```
+
+**Why use approval artifacts?**
+- **Audit trail**: Operator name + timestamp in approval_audit.log
+- **Safety**: Execution validates approval file exists before deletion
+- **Expiry**: Approvals expire after 7 days (configurable with --expiry-days)
+- **Binding**: Approval tied to specific scan report via content hash
 
 ### Automated Workflow (Skip Locked Files)
 
@@ -612,7 +644,7 @@ PYTHONUTF8=1 PYTHONPATH=src DATABASE_URL="sqlite:///autopack.db" \
 - [TROUBLESHOOTING.md](TROUBLESHOOTING.md#storage-optimizer-locked-files) - Lock remediation runbook
 - [config/protection_and_retention_policy.yaml](../config/protection_and_retention_policy.yaml) - Policy configuration (canonical)
 - [BUILD-152 Plan](../docs/plans/BUILD-152.md) - Implementation details
-- [Storage Optimizer API](../docs/API.md#storage-optimizer) - API endpoints
+- [Storage Optimizer API](.autonomous_runs/file-organizer-app-v1/src/frontend/node_modules/postcss-selector-parser/API.md#storage-optimizer) - API endpoints
 
 ## Changelog
 

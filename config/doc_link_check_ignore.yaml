@@ -13,7 +13,7 @@ version: 1
 
 # Runtime endpoints (exist at runtime, not as files)
 runtime_endpoints:
-  - pattern: "/api/"
+  - pattern: "api/"
     reason: "API endpoint - exists at runtime"
   - pattern: "localhost:"
     reason: "Localhost endpoint - runtime only"
@@ -23,6 +23,18 @@ runtime_endpoints:
     reason: "Localhost URL - runtime only"
   - pattern: "https://localhost"
     reason: "Localhost HTTPS - runtime only"
+  - pattern: "autonomous_runs/"
+    reason: "Runtime workspace files"
+  - pattern: "autopack/"
+    reason: "Runtime temp files"
+  - pattern: "pytest_cache/"
+    reason: "Test cache directory"
+  - pattern: "tidy_activity.log"
+    reason: "Runtime log file"
+  - pattern: "tidy_pending_moves.json"
+    reason: "Runtime queue file"
+  - pattern: "storage_execution.log"
+    reason: "Runtime log file"
 
 # Historical references (archived content, may not exist but documented for history)
 historical_refs:
@@ -30,6 +42,18 @@ historical_refs:
     reason: "Superseded content - historical reference only"
   - pattern: "archive/old/"
     reason: "Old content - historical reference only"
+  - pattern: "PROPOSED_CLEANUP"
+    reason: "Historical planning doc"
+  - pattern: "src/backend/"
+    reason: "Historical backend code (removed)"
+  - pattern: "tracer_bullet"
+    reason: "Historical module (removed)"
+  - pattern: ":"
+    reason: "Source code line reference (file.py:123-456) or module path (package.module.Class)"
+  - pattern: "autopack."
+    reason: "Python module reference (autopack.module.Class)"
+  - pattern: "archive/diagnostics/"
+    reason: "Historical diagnostics (many moved to superseded)"
 
 # External dependencies (external URLs - out of our control)
 external_deps:

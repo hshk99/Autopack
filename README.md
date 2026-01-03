@@ -762,30 +762,18 @@ doctor:
 - `file`: `rm`, `mkdir`, `cp`, `mv` (workspace only)
 - `python`: `pip install`, `pytest` (planned)
 
-See [IMPLEMENTATION_PLAN.md](archive/IMPLEMENTATION_PLAN.md) for full design details.
-
 ---
 
 ## Documentation
 
-### Core Documentation
+For comprehensive documentation, see **[docs/INDEX.md](docs/INDEX.md)** - the authoritative navigation hub for all project documentation.
+
+### Quick Links
 - **[Phase Spec Schema](docs/phase_spec_schema.md)**: Phase specification format, safety flags, and file size limits
-- **[Stage 2: Structured Edits](docs/stage2_structured_edits.md)**: Guide to structured edit mode for large files
-- **[IMPLEMENTATION_PLAN2.md](IMPLEMENTATION_PLAN2.md)**: File truncation bug fix and safety improvements
-- **[IMPLEMENTATION_PLAN3.md](IMPLEMENTATION_PLAN3.md)**: Structured edits implementation plan
-- **Planner Prompt (Autopack-ready)**: `archive/superseded/prompts/planner_prompt.md` now enforces non-empty descriptions, explicit scope (modifiable paths + read-only context), acceptance criteria, and token/attempt caps for every phase.
-
-### Archive Documentation
-Detailed historical documentation is available in the `archive/` directory:
-
-- **[Archive Index](.autonomous_runs/file-organizer-app-v1/archive/superseded/archive/ARCHIVE_INDEX.md)**: Master index of all archived documentation
-- **[Claude-GPT Consultation](archive/CONSOLIDATED_CORRESPONDENCE.md)**: Index of all Claude-GPT consultation exchanges
-- **[Consultation Summary](archive/GPT_CLAUDE_CONSULTATION_SUMMARY.md)**: Executive summary of all Phase 1 implementation decisions
-- **[Autonomous Executor](archive/CONSOLIDATED_REFERENCE.md#autonomous-executor-readme)**: Guide to the orchestration system
-- **[Learned Rules](LEARNED_RULES_README.md)**: System for preventing recurring errors
-- **[Implementation Plan](archive/IMPLEMENTATION_PLAN.md)**: Historical roadmap and Phase 3+ planning
-
-For detailed decision history, see the `archive/correspondence/` directory (52 individual exchanges).
+- **[Structured Edits Guide](docs/stage2_structured_edits.md)**: Guide to structured edit mode for large files
+- **[Build History](docs/BUILD_HISTORY.md)**: Authoritative completion ledger (what was built, when, and the completion status)
+- **[Architecture Decisions](docs/ARCHITECTURE_DECISIONS.md)**: Design rationale and key decisions (the "why")
+- **[Debug Log](docs/DEBUG_LOG.md)**: Failures, debugging sessions, and fixes (root-cause trail)
 
 ## Project Structure
 
@@ -1173,7 +1161,7 @@ python scripts/tidy_workspace.py --root .autonomous_runs/file-organizer-app-v1 -
 - Target structure: `archive/` buckets (plans, reports, analysis, research, prompts, diagnostics/logs, scripts, refs) and project-scoped `.../.autonomous_runs/<project>/archive/superseded/` buckets (same + runs/<family>/<run-id>). Truth sources live in `C:\dev\Autopack\docs` (Autopack) and `.../<project>/docs` (projects).
 - Routing: use `route_new_doc` / `route_run_output` (or CLI helpers `run_output_paths.py` / `create_run_with_routing.py`) so new docs/runs land in the right project/bucket up front; `archive\unsorted` is last-resort inbox only.
 - Diagnostics truth: treat `CONSOLIDATED_DEBUG.md` and similar diagnostics (e.g., `ENHANCED_ERROR_LOGGING.md`) as truth candidates—review/merge into the active `docs` copy, then archive or discard if superseded.
-- For the full, step-by-step cleanup, see **[Comprehensive Tidy Execution Plan](COMPREHENSIVE_TIDY_EXECUTION_PLAN.md)** and the architecture guide **[Autopack Tidy System Guide](docs/AUTOPACK_TIDY_SYSTEM_COMPREHENSIVE_GUIDE.md)**.
+- For tidy system documentation, see **[scripts/tidy/README.md](scripts/tidy/README.md)**.
 
 #### Tidy vs Storage Optimizer: Responsibilities + Shared Retention Policy
 

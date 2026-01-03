@@ -1,0 +1,592 @@
+{
+  "generated_at": "2026-01-03T12:53:25.679772",
+  "broken_links": [
+    {
+      "source_file": "README.md",
+      "line_number": 757,
+      "link_text": "IMPLEMENTATION_PLAN.md",
+      "source_link": "[IMPLEMENTATION_PLAN.md](archive/IMPLEMENTATION_PLAN.md)",
+      "broken_target": "archive/IMPLEMENTATION_PLAN.md",
+      "normalized_target": "archive/IMPLEMENTATION_PLAN.md",
+      "reason": "missing_file",
+      "suggested_fix": null,
+      "suggestions": [],
+      "confidence": "low",
+      "fix_type": "manual_review"
+    },
+    {
+      "source_file": "README.md",
+      "line_number": 778,
+      "link_text": "Implementation Plan",
+      "source_link": "[Implementation Plan](archive/IMPLEMENTATION_PLAN.md)",
+      "broken_target": "archive/IMPLEMENTATION_PLAN.md",
+      "normalized_target": "archive/IMPLEMENTATION_PLAN.md",
+      "reason": "missing_file",
+      "suggested_fix": null,
+      "suggestions": [],
+      "confidence": "low",
+      "fix_type": "manual_review"
+    },
+    {
+      "source_file": "README.md",
+      "line_number": 766,
+      "link_text": "IMPLEMENTATION_PLAN2.md",
+      "source_link": "[IMPLEMENTATION_PLAN2.md](IMPLEMENTATION_PLAN2.md)",
+      "broken_target": "IMPLEMENTATION_PLAN2.md",
+      "normalized_target": "IMPLEMENTATION_PLAN2.md",
+      "reason": "missing_file",
+      "suggested_fix": null,
+      "suggestions": [],
+      "confidence": "low",
+      "fix_type": "manual_review"
+    },
+    {
+      "source_file": "README.md",
+      "line_number": 767,
+      "link_text": "IMPLEMENTATION_PLAN3.md",
+      "source_link": "[IMPLEMENTATION_PLAN3.md](IMPLEMENTATION_PLAN3.md)",
+      "broken_target": "IMPLEMENTATION_PLAN3.md",
+      "normalized_target": "IMPLEMENTATION_PLAN3.md",
+      "reason": "missing_file",
+      "suggested_fix": null,
+      "suggestions": [],
+      "confidence": "low",
+      "fix_type": "manual_review"
+    },
+    {
+      "source_file": "README.md",
+      "line_number": 773,
+      "link_text": "Archive Index",
+      "source_link": "[Archive Index](archive/ARCHIVE_INDEX.md)",
+      "broken_target": "archive/ARCHIVE_INDEX.md",
+      "normalized_target": "archive/ARCHIVE_INDEX.md",
+      "reason": "missing_file",
+      "suggested_fix": ".autonomous_runs\\file-organizer-app-v1\\archive\\superseded\\archive\\ARCHIVE_INDEX.md",
+      "suggestions": [
+        {
+          "path": ".autonomous_runs\\file-organizer-app-v1\\archive\\superseded\\archive\\ARCHIVE_INDEX.md",
+          "score": 0.87
+        },
+        {
+          "path": "archive\\superseded\\reports\\ARCHIVE_INDEX.md",
+          "score": 0.87
+        }
+      ],
+      "confidence": "medium",
+      "fix_type": "update_reference"
+    },
+    {
+      "source_file": "README.md",
+      "line_number": 774,
+      "link_text": "Claude-GPT Consultation",
+      "source_link": "[Claude-GPT Consultation](archive/CONSOLIDATED_CORRESPONDENCE.md)",
+      "broken_target": "archive/CONSOLIDATED_CORRESPONDENCE.md",
+      "normalized_target": "archive/CONSOLIDATED_CORRESPONDENCE.md",
+      "reason": "missing_file",
+      "suggested_fix": null,
+      "suggestions": [],
+      "confidence": "low",
+      "fix_type": "manual_review"
+    },
+    {
+      "source_file": "README.md",
+      "line_number": 775,
+      "link_text": "Consultation Summary",
+      "source_link": "[Consultation Summary](archive/GPT_CLAUDE_CONSULTATION_SUMMARY.md)",
+      "broken_target": "archive/GPT_CLAUDE_CONSULTATION_SUMMARY.md",
+      "normalized_target": "archive/GPT_CLAUDE_CONSULTATION_SUMMARY.md",
+      "reason": "missing_file",
+      "suggested_fix": null,
+      "suggestions": [],
+      "confidence": "low",
+      "fix_type": "manual_review"
+    },
+    {
+      "source_file": "README.md",
+      "line_number": 776,
+      "link_text": "Autonomous Executor",
+      "source_link": "[Autonomous Executor](archive/CONSOLIDATED_REFERENCE.md#autonomous-executor-readme)",
+      "broken_target": "archive/CONSOLIDATED_REFERENCE.md",
+      "normalized_target": "archive/CONSOLIDATED_REFERENCE.md",
+      "reason": "missing_file",
+      "suggested_fix": null,
+      "suggestions": [],
+      "confidence": "low",
+      "fix_type": "manual_review"
+    },
+    {
+      "source_file": "README.md",
+      "line_number": 777,
+      "link_text": "Learned Rules",
+      "source_link": "[Learned Rules](LEARNED_RULES_README.md)",
+      "broken_target": "LEARNED_RULES_README.md",
+      "normalized_target": "LEARNED_RULES_README.md",
+      "reason": "missing_file",
+      "suggested_fix": null,
+      "suggestions": [],
+      "confidence": "low",
+      "fix_type": "manual_review"
+    },
+    {
+      "source_file": "README.md",
+      "line_number": 1168,
+      "link_text": "Comprehensive Tidy Execution Plan",
+      "source_link": "[Comprehensive Tidy Execution Plan](COMPREHENSIVE_TIDY_EXECUTION_PLAN.md)",
+      "broken_target": "COMPREHENSIVE_TIDY_EXECUTION_PLAN.md",
+      "normalized_target": "COMPREHENSIVE_TIDY_EXECUTION_PLAN.md",
+      "reason": "missing_file",
+      "suggested_fix": null,
+      "suggestions": [],
+      "confidence": "low",
+      "fix_type": "manual_review"
+    },
+    {
+      "source_file": "README.md",
+      "line_number": 1168,
+      "link_text": "Autopack Tidy System Guide",
+      "source_link": "[Autopack Tidy System Guide](docs/AUTOPACK_TIDY_SYSTEM_COMPREHENSIVE_GUIDE.md)",
+      "broken_target": "docs/AUTOPACK_TIDY_SYSTEM_COMPREHENSIVE_GUIDE.md",
+      "normalized_target": "docs/AUTOPACK_TIDY_SYSTEM_COMPREHENSIVE_GUIDE.md",
+      "reason": "missing_file",
+      "suggested_fix": null,
+      "suggestions": [],
+      "confidence": "low",
+      "fix_type": "manual_review"
+    },
+    {
+      "source_file": "README.md",
+      "line_number": 222,
+      "link_text": ".autonomous_runs/tidy_pending_moves.json",
+      "source_link": "`.autonomous_runs/tidy_pending_moves.json`",
+      "broken_target": ".autonomous_runs/tidy_pending_moves.json",
+      "normalized_target": "autonomous_runs/tidy_pending_moves.json",
+      "reason": "missing_file",
+      "suggested_fix": null,
+      "suggestions": [],
+      "confidence": "low",
+      "fix_type": "manual_review"
+    },
+    {
+      "source_file": "README.md",
+      "line_number": 272,
+      "link_text": ".autonomous_runs/tidy_pending_moves.json",
+      "source_link": "`.autonomous_runs/tidy_pending_moves.json`",
+      "broken_target": ".autonomous_runs/tidy_pending_moves.json",
+      "normalized_target": "autonomous_runs/tidy_pending_moves.json",
+      "reason": "missing_file",
+      "suggested_fix": null,
+      "suggestions": [],
+      "confidence": "low",
+      "fix_type": "manual_review"
+    },
+    {
+      "source_file": "README.md",
+      "line_number": 700,
+      "link_text": "/api/auth/.well-known/jwks.json",
+      "source_link": "`/api/auth/.well-known/jwks.json`",
+      "broken_target": "/api/auth/.well-known/jwks.json",
+      "normalized_target": "api/auth/.well-known/jwks.json",
+      "reason": "missing_file",
+      "suggested_fix": null,
+      "suggestions": [],
+      "confidence": "low",
+      "fix_type": "manual_review"
+    },
+    {
+      "source_file": "README.md",
+      "line_number": 768,
+      "link_text": "prompts/claude/planner_prompt.md",
+      "source_link": "`prompts/claude/planner_prompt.md`",
+      "broken_target": "prompts/claude/planner_prompt.md",
+      "normalized_target": "prompts/claude/planner_prompt.md",
+      "reason": "missing_file",
+      "suggested_fix": "archive\\superseded\\prompts\\planner_prompt.md",
+      "suggestions": [
+        {
+          "path": "archive\\superseded\\prompts\\planner_prompt.md",
+          "score": 0.87
+        },
+        {
+          "path": "archive\\superseded\\prompts\\claude\\planner_prompt.md",
+          "score": 0.87
+        }
+      ],
+      "confidence": "medium",
+      "fix_type": "update_reference"
+    },
+    {
+      "source_file": "README.md",
+      "line_number": 1148,
+      "link_text": ".autonomous_runs/tidy_activity.log",
+      "source_link": "`.autonomous_runs/tidy_activity.log`",
+      "broken_target": ".autonomous_runs/tidy_activity.log",
+      "normalized_target": "autonomous_runs/tidy_activity.log",
+      "reason": "missing_file",
+      "suggested_fix": null,
+      "suggestions": [],
+      "confidence": "low",
+      "fix_type": "manual_review"
+    },
+    {
+      "source_file": "docs\\BUILD_HISTORY.md",
+      "line_number": 1261,
+      "link_text": "anthropic_clients.py",
+      "source_link": "[anthropic_clients.py](src/autopack/anthropic_clients.py:1556-1584)",
+      "broken_target": "src/autopack/anthropic_clients.py:1556-1584",
+      "normalized_target": "src/autopack/anthropic_clients.py:1556-1584",
+      "reason": "missing_file",
+      "suggested_fix": null,
+      "suggestions": [],
+      "confidence": "low",
+      "fix_type": "manual_review"
+    },
+    {
+      "source_file": "docs\\BUILD_HISTORY.md",
+      "line_number": 1266,
+      "link_text": "anthropic_clients.py",
+      "source_link": "[anthropic_clients.py](src/autopack/anthropic_clients.py:1576-1610)",
+      "broken_target": "src/autopack/anthropic_clients.py:1576-1610",
+      "normalized_target": "src/autopack/anthropic_clients.py:1576-1610",
+      "reason": "missing_file",
+      "suggested_fix": null,
+      "suggestions": [],
+      "confidence": "low",
+      "fix_type": "manual_review"
+    },
+    {
+      "source_file": "docs\\BUILD_HISTORY.md",
+      "line_number": 1359,
+      "link_text": "autonomous_executor.py",
+      "source_link": "[autonomous_executor.py](src/autopack/autonomous_executor.py:2822-2830)",
+      "broken_target": "src/autopack/autonomous_executor.py:2822-2830",
+      "normalized_target": "src/autopack/autonomous_executor.py:2822-2830",
+      "reason": "missing_file",
+      "suggested_fix": null,
+      "suggestions": [],
+      "confidence": "low",
+      "fix_type": "manual_review"
+    },
+    {
+      "source_file": "docs\\BUILD_HISTORY.md",
+      "line_number": 1363,
+      "link_text": "autonomous_executor.py",
+      "source_link": "[autonomous_executor.py](src/autopack/autonomous_executor.py:2820-2840)",
+      "broken_target": "src/autopack/autonomous_executor.py:2820-2840",
+      "normalized_target": "src/autopack/autonomous_executor.py:2820-2840",
+      "reason": "missing_file",
+      "suggested_fix": null,
+      "suggestions": [],
+      "confidence": "low",
+      "fix_type": "manual_review"
+    },
+    {
+      "source_file": "docs\\BUILD_HISTORY.md",
+      "line_number": 1685,
+      "link_text": "PROPOSED_CLEANUP_STRUCTURE_V2.md",
+      "source_link": "[PROPOSED_CLEANUP_STRUCTURE_V2.md](PROPOSED_CLEANUP_STRUCTURE_V2.md)",
+      "broken_target": "PROPOSED_CLEANUP_STRUCTURE_V2.md",
+      "normalized_target": "PROPOSED_CLEANUP_STRUCTURE_V2.md",
+      "reason": "missing_file",
+      "suggested_fix": null,
+      "suggestions": [],
+      "confidence": "low",
+      "fix_type": "manual_review"
+    },
+    {
+      "source_file": "docs\\BUILD_HISTORY.md",
+      "line_number": 27,
+      "link_text": "src/backend/main.py",
+      "source_link": "`src/backend/main.py`",
+      "broken_target": "src/backend/main.py",
+      "normalized_target": "src/backend/main.py",
+      "reason": "missing_file",
+      "suggested_fix": null,
+      "suggestions": [],
+      "confidence": "low",
+      "fix_type": "manual_review"
+    },
+    {
+      "source_file": "docs\\BUILD_HISTORY.md",
+      "line_number": 1062,
+      "link_text": "src/backend/main.py",
+      "source_link": "`src/backend/main.py`",
+      "broken_target": "src/backend/main.py",
+      "normalized_target": "src/backend/main.py",
+      "reason": "missing_file",
+      "suggested_fix": null,
+      "suggestions": [],
+      "confidence": "low",
+      "fix_type": "manual_review"
+    },
+    {
+      "source_file": "docs\\BUILD_HISTORY.md",
+      "line_number": 1069,
+      "link_text": "src/backend/main.py",
+      "source_link": "`src/backend/main.py`",
+      "broken_target": "src/backend/main.py",
+      "normalized_target": "src/backend/main.py",
+      "reason": "missing_file",
+      "suggested_fix": null,
+      "suggestions": [],
+      "confidence": "low",
+      "fix_type": "manual_review"
+    },
+    {
+      "source_file": "docs\\BUILD_HISTORY.md",
+      "line_number": 1083,
+      "link_text": "src/backend/main.py",
+      "source_link": "`src/backend/main.py`",
+      "broken_target": "src/backend/main.py",
+      "normalized_target": "src/backend/main.py",
+      "reason": "missing_file",
+      "suggested_fix": null,
+      "suggestions": [],
+      "confidence": "low",
+      "fix_type": "manual_review"
+    },
+    {
+      "source_file": "docs\\BUILD_HISTORY.md",
+      "line_number": 226,
+      "link_text": ".autopack/prompt_for_other_cursor.md",
+      "source_link": "`.autopack/prompt_for_other_cursor.md`",
+      "broken_target": ".autopack/prompt_for_other_cursor.md",
+      "normalized_target": "autopack/prompt_for_other_cursor.md",
+      "reason": "missing_file",
+      "suggested_fix": ".autopack\\prompt_for_other_cursor.md",
+      "suggestions": [
+        {
+          "path": ".autopack\\prompt_for_other_cursor.md",
+          "score": 0.95
+        }
+      ],
+      "confidence": "high",
+      "fix_type": "update_reference"
+    },
+    {
+      "source_file": "docs\\BUILD_HISTORY.md",
+      "line_number": 400,
+      "link_text": ".autonomous_runs/file-organizer-app-v1/archive/research/active/requirements/chunk1b-foundation-intent-discovery.yaml",
+      "source_link": "`.autonomous_runs/file-organizer-app-v1/archive/research/active/requirements/chunk1b-foundation-intent-discovery.yaml`",
+      "broken_target": ".autonomous_runs/file-organizer-app-v1/archive/research/active/requirements/chunk1b-foundation-intent-discovery.yaml",
+      "normalized_target": "autonomous_runs/file-organizer-app-v1/archive/research/active/requirements/chunk1b-foundation-intent-discovery.yaml",
+      "reason": "missing_file",
+      "suggested_fix": null,
+      "suggestions": [],
+      "confidence": "low",
+      "fix_type": "manual_review"
+    },
+    {
+      "source_file": "docs\\BUILD_HISTORY.md",
+      "line_number": 401,
+      "link_text": ".autonomous_runs/file-organizer-app-v1/archive/research/active/requirements/chunk2a-gatherers-social.yaml",
+      "source_link": "`.autonomous_runs/file-organizer-app-v1/archive/research/active/requirements/chunk2a-gatherers-social.yaml`",
+      "broken_target": ".autonomous_runs/file-organizer-app-v1/archive/research/active/requirements/chunk2a-gatherers-social.yaml",
+      "normalized_target": "autonomous_runs/file-organizer-app-v1/archive/research/active/requirements/chunk2a-gatherers-social.yaml",
+      "reason": "missing_file",
+      "suggested_fix": null,
+      "suggestions": [],
+      "confidence": "low",
+      "fix_type": "manual_review"
+    },
+    {
+      "source_file": "docs\\BUILD_HISTORY.md",
+      "line_number": 402,
+      "link_text": ".autonomous_runs/file-organizer-app-v1/archive/research/active/requirements/chunk2b-gatherers-web-compilation.yaml",
+      "source_link": "`.autonomous_runs/file-organizer-app-v1/archive/research/active/requirements/chunk2b-gatherers-web-compilation.yaml`",
+      "broken_target": ".autonomous_runs/file-organizer-app-v1/archive/research/active/requirements/chunk2b-gatherers-web-compilation.yaml",
+      "normalized_target": "autonomous_runs/file-organizer-app-v1/archive/research/active/requirements/chunk2b-gatherers-web-compilation.yaml",
+      "reason": "missing_file",
+      "suggested_fix": null,
+      "suggestions": [],
+      "confidence": "low",
+      "fix_type": "manual_review"
+    },
+    {
+      "source_file": "docs\\BUILD_HISTORY.md",
+      "line_number": 403,
+      "link_text": ".autonomous_runs/file-organizer-app-v1/archive/research/active/requirements/chunk3-meta-analysis.yaml",
+      "source_link": "`.autonomous_runs/file-organizer-app-v1/archive/research/active/requirements/chunk3-meta-analysis.yaml`",
+      "broken_target": ".autonomous_runs/file-organizer-app-v1/archive/research/active/requirements/chunk3-meta-analysis.yaml",
+      "normalized_target": "autonomous_runs/file-organizer-app-v1/archive/research/active/requirements/chunk3-meta-analysis.yaml",
+      "reason": "missing_file",
+      "suggested_fix": null,
+      "suggestions": [],
+      "confidence": "low",
+      "fix_type": "manual_review"
+    },
+    {
+      "source_file": "docs\\BUILD_HISTORY.md",
+      "line_number": 1101,
+      "link_text": ".autonomous_runs/file-organizer-app-v1/archive/research/active/requirements/chunk3-meta-analysis.yaml",
+      "source_link": "`.autonomous_runs/file-organizer-app-v1/archive/research/active/requirements/chunk3-meta-analysis.yaml`",
+      "broken_target": ".autonomous_runs/file-organizer-app-v1/archive/research/active/requirements/chunk3-meta-analysis.yaml",
+      "normalized_target": "autonomous_runs/file-organizer-app-v1/archive/research/active/requirements/chunk3-meta-analysis.yaml",
+      "reason": "missing_file",
+      "suggested_fix": null,
+      "suggestions": [],
+      "confidence": "low",
+      "fix_type": "manual_review"
+    },
+    {
+      "source_file": "docs\\BUILD_HISTORY.md",
+      "line_number": 710,
+      "link_text": "src/backend/api/runs.py",
+      "source_link": "`src/backend/api/runs.py`",
+      "broken_target": "src/backend/api/runs.py",
+      "normalized_target": "src/backend/api/runs.py",
+      "reason": "missing_file",
+      "suggested_fix": null,
+      "suggestions": [],
+      "confidence": "low",
+      "fix_type": "manual_review"
+    },
+    {
+      "source_file": "docs\\BUILD_HISTORY.md",
+      "line_number": 1044,
+      "link_text": "src/backend/api/runs.py",
+      "source_link": "`src/backend/api/runs.py`",
+      "broken_target": "src/backend/api/runs.py",
+      "normalized_target": "src/backend/api/runs.py",
+      "reason": "missing_file",
+      "suggested_fix": null,
+      "suggestions": [],
+      "confidence": "low",
+      "fix_type": "manual_review"
+    },
+    {
+      "source_file": "docs\\BUILD_HISTORY.md",
+      "line_number": 1087,
+      "link_text": "src/backend/api/runs.py",
+      "source_link": "`src/backend/api/runs.py`",
+      "broken_target": "src/backend/api/runs.py",
+      "normalized_target": "src/backend/api/runs.py",
+      "reason": "missing_file",
+      "suggested_fix": null,
+      "suggestions": [],
+      "confidence": "low",
+      "fix_type": "manual_review"
+    },
+    {
+      "source_file": "docs\\BUILD_HISTORY.md",
+      "line_number": 1090,
+      "link_text": "src/backend/api/runs.py",
+      "source_link": "`src/backend/api/runs.py`",
+      "broken_target": "src/backend/api/runs.py",
+      "normalized_target": "src/backend/api/runs.py",
+      "reason": "missing_file",
+      "suggested_fix": null,
+      "suggestions": [],
+      "confidence": "low",
+      "fix_type": "manual_review"
+    },
+    {
+      "source_file": "docs\\BUILD_HISTORY.md",
+      "line_number": 843,
+      "link_text": "src/autopack/tracer_bullet.py",
+      "source_link": "`src/autopack/tracer_bullet.py`",
+      "broken_target": "src/autopack/tracer_bullet.py",
+      "normalized_target": "src/autopack/tracer_bullet.py",
+      "reason": "missing_file",
+      "suggested_fix": null,
+      "suggestions": [],
+      "confidence": "low",
+      "fix_type": "manual_review"
+    },
+    {
+      "source_file": "docs\\BUILD_HISTORY.md",
+      "line_number": 1336,
+      "link_text": "autopack.repair_helpers.JsonRepairHelper",
+      "source_link": "`autopack.repair_helpers.JsonRepairHelper`",
+      "broken_target": "autopack.repair_helpers.JsonRepairHelper",
+      "normalized_target": "autopack.repair_helpers.JsonRepairHelper",
+      "reason": "missing_file",
+      "suggested_fix": null,
+      "suggestions": [],
+      "confidence": "low",
+      "fix_type": "manual_review"
+    },
+    {
+      "source_file": "docs\\BUILD_HISTORY.md",
+      "line_number": 1706,
+      "link_text": ".pytest_cache/README.md",
+      "source_link": "`.pytest_cache/README.md`",
+      "broken_target": ".pytest_cache/README.md",
+      "normalized_target": "pytest_cache/README.md",
+      "reason": "missing_file",
+      "suggested_fix": ".pytest_cache\\README.md",
+      "suggestions": [
+        {
+          "path": ".pytest_cache\\README.md",
+          "score": 0.95
+        },
+        {
+          "path": "README.md",
+          "score": 0.87
+        },
+        {
+          "path": ".autonomous_runs\\file-organizer-app-v1\\README.md",
+          "score": 0.87
+        },
+        {
+          "path": ".autonomous_runs\\autopack\\runs\\lovable-integration-v1\\README.md",
+          "score": 0.87
+        },
+        {
+          "path": ".autonomous_runs\\file-organizer-app-v1\\src\\backend\\.pytest_cache\\README.md",
+          "score": 0.87
+        }
+      ],
+      "confidence": "high",
+      "fix_type": "update_reference"
+    },
+    {
+      "source_file": "docs\\BUILD_HISTORY.md",
+      "line_number": 2014,
+      "link_text": ".autonomous_runs/tidy_pending_moves.json",
+      "source_link": "`.autonomous_runs/tidy_pending_moves.json`",
+      "broken_target": ".autonomous_runs/tidy_pending_moves.json",
+      "normalized_target": "autonomous_runs/tidy_pending_moves.json",
+      "reason": "missing_file",
+      "suggested_fix": null,
+      "suggestions": [],
+      "confidence": "low",
+      "fix_type": "manual_review"
+    },
+    {
+      "source_file": "docs\\BUILD_HISTORY.md",
+      "line_number": 2207,
+      "link_text": ".autonomous_runs/storage_execution.log",
+      "source_link": "`.autonomous_runs/storage_execution.log`",
+      "broken_target": ".autonomous_runs/storage_execution.log",
+      "normalized_target": "autonomous_runs/storage_execution.log",
+      "reason": "missing_file",
+      "suggested_fix": null,
+      "suggestions": [],
+      "confidence": "low",
+      "fix_type": "manual_review"
+    },
+    {
+      "source_file": "docs\\BUILD_HISTORY.md",
+      "line_number": 2421,
+      "link_text": "archive/diagnostics/validate_tidy_p0_p1_fixes.ps1",
+      "source_link": "`archive/diagnostics/validate_tidy_p0_p1_fixes.ps1`",
+      "broken_target": "archive/diagnostics/validate_tidy_p0_p1_fixes.ps1",
+      "normalized_target": "archive/diagnostics/validate_tidy_p0_p1_fixes.ps1",
+      "reason": "missing_file",
+      "suggested_fix": null,
+      "suggestions": [],
+      "confidence": "low",
+      "fix_type": "manual_review"
+    }
+  ],
+  "summary": {
+    "total_broken": 41,
+    "auto_fixable": 4,
+    "manual_review": 37,
+    "by_confidence": {
+      "high": 2,
+      "medium": 2,
+      "low": 37
+    }
+  }
+}

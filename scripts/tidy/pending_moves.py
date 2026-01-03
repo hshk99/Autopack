@@ -18,7 +18,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
-from .io_utils import atomic_write_json
+from io_utils import atomic_write_json
 
 logger = logging.getLogger(__name__)
 

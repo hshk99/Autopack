@@ -46,6 +46,19 @@ These are the canonical references that should stay current and are designed to 
 - **SOT Memory Integration**: SOT ledgers can be indexed into `MemoryService` for runtime retrieval
   - See `docs/TIDY_SOT_RETRIEVAL_INTEGRATION_PLAN.md` for implementation details
   - See `docs/SOT_MEMORY_INTEGRATION_EXAMPLE.md` for integration examples
+- **BUILD-170.7 Final SOT Hardening - CI Standardization + Stub Policy Enforcement**:
+  - Completed "beyond README ideal state" hardening
+  - Standardized ALL CI workflows on GitHub Actions v4 (13 checkout upgrades across 3 files)
+  - Added explicit permissions blocks to all 5 workflows (minimal read-only default)
+  - Established DEBUG_LOG stub policy (Policy A: stubs are canonical placeholders)
+  - Created test_debug_log_stub_policy.py (enforces canonical stub marker)
+  - All acceptance criteria met: 5/5 doc tests pass, 0 v3 actions remain, no drift
+  - See [docs/BUILD_HISTORY.md#build-1707](BUILD_HISTORY.md#build-1707) for details
+- **BUILD-170.6 SOT Ideal State Polish - Recent Window Enforcement + Actions Upgrade**:
+  - DEBUG_LOG recent window enforcement (top 50 INDEX rows strict, historical loose)
+  - Added 30 missing DEBUG_LOG stub sections (DBG-084 through DBG-050)
+  - Upgraded doc-link-deep-scan.yml to actions v4 + permissions hardening
+  - See [docs/BUILD_HISTORY.md#build-1706](BUILD_HISTORY.md#build-1706) for details
 - **BUILD-170.5 SOT Ideal State - Workflow Consolidation + DEBUG_LOG Contract Test**:
   - Closed last "two truths" gaps: workflow deduplication + DEBUG_LOG validation
   - Deleted .github/workflows/doc-link-check.yml (fully redundant)

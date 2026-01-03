@@ -3372,7 +3372,7 @@ Based on BUILD-169 implementation, all future burndown builds must meet:
 **Title**: SOT Ledgers as Canonical Truth - CI Enforcement & Competing Generator Removal
 **Status**: ✅ COMPLETE
 **Completed**: 2026-01-03
-**Commits**: [pending]
+**Commits**: 2a679e13
 
 ### Problem Statement
 

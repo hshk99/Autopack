@@ -1,0 +1,922 @@
+{
+  "generated_at": "2026-01-03T12:50:54.568268",
+  "broken_links": [
+    {
+      "source_file": "README.md",
+      "line_number": 86,
+      "link_text": "archive/diagnostics/BUILD-156_QUEUE_IMPROVEMENTS_SUMMARY.md",
+      "source_link": "[archive/diagnostics/BUILD-156_QUEUE_IMPROVEMENTS_SUMMARY.md](archive/diagnostics/BUILD-156_QUEUE_IMPROVEMENTS_SUMMARY.md)",
+      "broken_target": "archive/diagnostics/BUILD-156_QUEUE_IMPROVEMENTS_SUMMARY.md",
+      "normalized_target": "archive/diagnostics/BUILD-156_QUEUE_IMPROVEMENTS_SUMMARY.md",
+      "reason": "missing_file",
+      "suggested_fix": "archive\\superseded\\diagnostics\\BUILD-156_QUEUE_IMPROVEMENTS_SUMMARY.md",
+      "suggestions": [
+        {
+          "path": "archive\\superseded\\diagnostics\\BUILD-156_QUEUE_IMPROVEMENTS_SUMMARY.md",
+          "score": 0.92
+        }
+      ],
+      "confidence": "high",
+      "fix_type": "update_reference"
+    },
+    {
+      "source_file": "README.md",
+      "line_number": 454,
+      "link_text": "docs/STORAGE_OPTIMIZER_MVP_COMPLETION.md",
+      "source_link": "[docs/STORAGE_OPTIMIZER_MVP_COMPLETION.md](docs/STORAGE_OPTIMIZER_MVP_COMPLETION.md)",
+      "broken_target": "docs/STORAGE_OPTIMIZER_MVP_COMPLETION.md",
+      "normalized_target": "docs/STORAGE_OPTIMIZER_MVP_COMPLETION.md",
+      "reason": "missing_file",
+      "suggested_fix": "archive\\superseded\\reports\\unsorted\\STORAGE_OPTIMIZER_MVP_COMPLETION.md",
+      "suggestions": [
+        {
+          "path": "archive\\superseded\\reports\\unsorted\\STORAGE_OPTIMIZER_MVP_COMPLETION.md",
+          "score": 0.92
+        },
+        {
+          "path": "docs\\STORAGE_OPTIMIZER_PHASE4_COMPLETION.md",
+          "score": 0.892
+        },
+        {
+          "path": "docs\\STORAGE_OPTIMIZER_PHASE3_COMPLETION.md",
+          "score": 0.892
+        },
+        {
+          "path": "docs\\STORAGE_OPTIMIZER_PHASE2_COMPLETION.md",
+          "score": 0.892
+        }
+      ],
+      "confidence": "high",
+      "fix_type": "update_reference"
+    },
+    {
+      "source_file": "README.md",
+      "line_number": 455,
+      "link_text": "docs/DATA_RETENTION_AND_STORAGE_POLICY.md",
+      "source_link": "[docs/DATA_RETENTION_AND_STORAGE_POLICY.md](docs/DATA_RETENTION_AND_STORAGE_POLICY.md)",
+      "broken_target": "docs/DATA_RETENTION_AND_STORAGE_POLICY.md",
+      "normalized_target": "docs/DATA_RETENTION_AND_STORAGE_POLICY.md",
+      "reason": "missing_file",
+      "suggested_fix": "archive\\superseded\\reports\\unsorted\\DATA_RETENTION_AND_STORAGE_POLICY.md",
+      "suggestions": [
+        {
+          "path": "archive\\superseded\\reports\\unsorted\\DATA_RETENTION_AND_STORAGE_POLICY.md",
+          "score": 0.92
+        }
+      ],
+      "confidence": "high",
+      "fix_type": "update_reference"
+    },
+    {
+      "source_file": "README.md",
+      "line_number": 1185,
+      "link_text": "docs/DATA_RETENTION_AND_STORAGE_POLICY.md",
+      "source_link": "`docs/DATA_RETENTION_AND_STORAGE_POLICY.md`",
+      "broken_target": "docs/DATA_RETENTION_AND_STORAGE_POLICY.md",
+      "normalized_target": "docs/DATA_RETENTION_AND_STORAGE_POLICY.md",
+      "reason": "missing_file",
+      "suggested_fix": "archive\\superseded\\reports\\unsorted\\DATA_RETENTION_AND_STORAGE_POLICY.md",
+      "suggestions": [
+        {
+          "path": "archive\\superseded\\reports\\unsorted\\DATA_RETENTION_AND_STORAGE_POLICY.md",
+          "score": 0.92
+        }
+      ],
+      "confidence": "high",
+      "fix_type": "update_reference"
+    },
+    {
+      "source_file": "README.md",
+      "line_number": 560,
+      "link_text": "docs/BUILD-107-108_SAFEGUARDS_SUMMARY.md",
+      "source_link": "[docs/BUILD-107-108_SAFEGUARDS_SUMMARY.md](docs/BUILD-107-108_SAFEGUARDS_SUMMARY.md)",
+      "broken_target": "docs/BUILD-107-108_SAFEGUARDS_SUMMARY.md",
+      "normalized_target": "docs/BUILD-107-108_SAFEGUARDS_SUMMARY.md",
+      "reason": "missing_file",
+      "suggested_fix": "archive\\superseded\\reports\\BUILD-107-108_SAFEGUARDS_SUMMARY.md",
+      "suggestions": [
+        {
+          "path": "archive\\superseded\\reports\\BUILD-107-108_SAFEGUARDS_SUMMARY.md",
+          "score": 0.92
+        }
+      ],
+      "confidence": "high",
+      "fix_type": "update_reference"
+    },
+    {
+      "source_file": "README.md",
+      "line_number": 629,
+      "link_text": "docs/BUILD-113_ITERATIVE_AUTONOMOUS_INVESTIGATION.md",
+      "source_link": "[docs/BUILD-113_ITERATIVE_AUTONOMOUS_INVESTIGATION.md](docs/BUILD-113_ITERATIVE_AUTONOMOUS_INVESTIGATION.md)",
+      "broken_target": "docs/BUILD-113_ITERATIVE_AUTONOMOUS_INVESTIGATION.md",
+      "normalized_target": "docs/BUILD-113_ITERATIVE_AUTONOMOUS_INVESTIGATION.md",
+      "reason": "missing_file",
+      "suggested_fix": "archive\\superseded\\reports\\BUILD-113_ITERATIVE_AUTONOMOUS_INVESTIGATION.md",
+      "suggestions": [
+        {
+          "path": "archive\\superseded\\reports\\BUILD-113_ITERATIVE_AUTONOMOUS_INVESTIGATION.md",
+          "score": 0.92
+        }
+      ],
+      "confidence": "high",
+      "fix_type": "update_reference"
+    },
+    {
+      "source_file": "README.md",
+      "line_number": 757,
+      "link_text": "IMPLEMENTATION_PLAN.md",
+      "source_link": "[IMPLEMENTATION_PLAN.md](archive/IMPLEMENTATION_PLAN.md)",
+      "broken_target": "archive/IMPLEMENTATION_PLAN.md",
+      "normalized_target": "archive/IMPLEMENTATION_PLAN.md",
+      "reason": "missing_file",
+      "suggested_fix": null,
+      "suggestions": [],
+      "confidence": "low",
+      "fix_type": "manual_review"
+    },
+    {
+      "source_file": "README.md",
+      "line_number": 778,
+      "link_text": "Implementation Plan",
+      "source_link": "[Implementation Plan](archive/IMPLEMENTATION_PLAN.md)",
+      "broken_target": "archive/IMPLEMENTATION_PLAN.md",
+      "normalized_target": "archive/IMPLEMENTATION_PLAN.md",
+      "reason": "missing_file",
+      "suggested_fix": null,
+      "suggestions": [],
+      "confidence": "low",
+      "fix_type": "manual_review"
+    },
+    {
+      "source_file": "README.md",
+      "line_number": 766,
+      "link_text": "IMPLEMENTATION_PLAN2.md",
+      "source_link": "[IMPLEMENTATION_PLAN2.md](IMPLEMENTATION_PLAN2.md)",
+      "broken_target": "IMPLEMENTATION_PLAN2.md",
+      "normalized_target": "IMPLEMENTATION_PLAN2.md",
+      "reason": "missing_file",
+      "suggested_fix": null,
+      "suggestions": [],
+      "confidence": "low",
+      "fix_type": "manual_review"
+    },
+    {
+      "source_file": "README.md",
+      "line_number": 767,
+      "link_text": "IMPLEMENTATION_PLAN3.md",
+      "source_link": "[IMPLEMENTATION_PLAN3.md](IMPLEMENTATION_PLAN3.md)",
+      "broken_target": "IMPLEMENTATION_PLAN3.md",
+      "normalized_target": "IMPLEMENTATION_PLAN3.md",
+      "reason": "missing_file",
+      "suggested_fix": null,
+      "suggestions": [],
+      "confidence": "low",
+      "fix_type": "manual_review"
+    },
+    {
+      "source_file": "README.md",
+      "line_number": 773,
+      "link_text": "Archive Index",
+      "source_link": "[Archive Index](archive/ARCHIVE_INDEX.md)",
+      "broken_target": "archive/ARCHIVE_INDEX.md",
+      "normalized_target": "archive/ARCHIVE_INDEX.md",
+      "reason": "missing_file",
+      "suggested_fix": ".autonomous_runs\\file-organizer-app-v1\\archive\\superseded\\archive\\ARCHIVE_INDEX.md",
+      "suggestions": [
+        {
+          "path": ".autonomous_runs\\file-organizer-app-v1\\archive\\superseded\\archive\\ARCHIVE_INDEX.md",
+          "score": 0.87
+        },
+        {
+          "path": "archive\\superseded\\reports\\ARCHIVE_INDEX.md",
+          "score": 0.87
+        }
+      ],
+      "confidence": "medium",
+      "fix_type": "update_reference"
+    },
+    {
+      "source_file": "README.md",
+      "line_number": 774,
+      "link_text": "Claude-GPT Consultation",
+      "source_link": "[Claude-GPT Consultation](archive/CONSOLIDATED_CORRESPONDENCE.md)",
+      "broken_target": "archive/CONSOLIDATED_CORRESPONDENCE.md",
+      "normalized_target": "archive/CONSOLIDATED_CORRESPONDENCE.md",
+      "reason": "missing_file",
+      "suggested_fix": null,
+      "suggestions": [],
+      "confidence": "low",
+      "fix_type": "manual_review"
+    },
+    {
+      "source_file": "README.md",
+      "line_number": 775,
+      "link_text": "Consultation Summary",
+      "source_link": "[Consultation Summary](archive/GPT_CLAUDE_CONSULTATION_SUMMARY.md)",
+      "broken_target": "archive/GPT_CLAUDE_CONSULTATION_SUMMARY.md",
+      "normalized_target": "archive/GPT_CLAUDE_CONSULTATION_SUMMARY.md",
+      "reason": "missing_file",
+      "suggested_fix": null,
+      "suggestions": [],
+      "confidence": "low",
+      "fix_type": "manual_review"
+    },
+    {
+      "source_file": "README.md",
+      "line_number": 776,
+      "link_text": "Autonomous Executor",
+      "source_link": "[Autonomous Executor](archive/CONSOLIDATED_REFERENCE.md#autonomous-executor-readme)",
+      "broken_target": "archive/CONSOLIDATED_REFERENCE.md",
+      "normalized_target": "archive/CONSOLIDATED_REFERENCE.md",
+      "reason": "missing_file",
+      "suggested_fix": null,
+      "suggestions": [],
+      "confidence": "low",
+      "fix_type": "manual_review"
+    },
+    {
+      "source_file": "README.md",
+      "line_number": 777,
+      "link_text": "Learned Rules",
+      "source_link": "[Learned Rules](LEARNED_RULES_README.md)",
+      "broken_target": "LEARNED_RULES_README.md",
+      "normalized_target": "LEARNED_RULES_README.md",
+      "reason": "missing_file",
+      "suggested_fix": null,
+      "suggestions": [],
+      "confidence": "low",
+      "fix_type": "manual_review"
+    },
+    {
+      "source_file": "README.md",
+      "line_number": 1168,
+      "link_text": "Comprehensive Tidy Execution Plan",
+      "source_link": "[Comprehensive Tidy Execution Plan](COMPREHENSIVE_TIDY_EXECUTION_PLAN.md)",
+      "broken_target": "COMPREHENSIVE_TIDY_EXECUTION_PLAN.md",
+      "normalized_target": "COMPREHENSIVE_TIDY_EXECUTION_PLAN.md",
+      "reason": "missing_file",
+      "suggested_fix": null,
+      "suggestions": [],
+      "confidence": "low",
+      "fix_type": "manual_review"
+    },
+    {
+      "source_file": "README.md",
+      "line_number": 1168,
+      "link_text": "Autopack Tidy System Guide",
+      "source_link": "[Autopack Tidy System Guide](docs/AUTOPACK_TIDY_SYSTEM_COMPREHENSIVE_GUIDE.md)",
+      "broken_target": "docs/AUTOPACK_TIDY_SYSTEM_COMPREHENSIVE_GUIDE.md",
+      "normalized_target": "docs/AUTOPACK_TIDY_SYSTEM_COMPREHENSIVE_GUIDE.md",
+      "reason": "missing_file",
+      "suggested_fix": null,
+      "suggestions": [],
+      "confidence": "low",
+      "fix_type": "manual_review"
+    },
+    {
+      "source_file": "README.md",
+      "line_number": 222,
+      "link_text": ".autonomous_runs/tidy_pending_moves.json",
+      "source_link": "`.autonomous_runs/tidy_pending_moves.json`",
+      "broken_target": ".autonomous_runs/tidy_pending_moves.json",
+      "normalized_target": "autonomous_runs/tidy_pending_moves.json",
+      "reason": "missing_file",
+      "suggested_fix": null,
+      "suggestions": [],
+      "confidence": "low",
+      "fix_type": "manual_review"
+    },
+    {
+      "source_file": "README.md",
+      "line_number": 272,
+      "link_text": ".autonomous_runs/tidy_pending_moves.json",
+      "source_link": "`.autonomous_runs/tidy_pending_moves.json`",
+      "broken_target": ".autonomous_runs/tidy_pending_moves.json",
+      "normalized_target": "autonomous_runs/tidy_pending_moves.json",
+      "reason": "missing_file",
+      "suggested_fix": null,
+      "suggestions": [],
+      "confidence": "low",
+      "fix_type": "manual_review"
+    },
+    {
+      "source_file": "README.md",
+      "line_number": 700,
+      "link_text": "/api/auth/.well-known/jwks.json",
+      "source_link": "`/api/auth/.well-known/jwks.json`",
+      "broken_target": "/api/auth/.well-known/jwks.json",
+      "normalized_target": "api/auth/.well-known/jwks.json",
+      "reason": "missing_file",
+      "suggested_fix": null,
+      "suggestions": [],
+      "confidence": "low",
+      "fix_type": "manual_review"
+    },
+    {
+      "source_file": "README.md",
+      "line_number": 768,
+      "link_text": "prompts/claude/planner_prompt.md",
+      "source_link": "`prompts/claude/planner_prompt.md`",
+      "broken_target": "prompts/claude/planner_prompt.md",
+      "normalized_target": "prompts/claude/planner_prompt.md",
+      "reason": "missing_file",
+      "suggested_fix": "archive\\superseded\\prompts\\planner_prompt.md",
+      "suggestions": [
+        {
+          "path": "archive\\superseded\\prompts\\planner_prompt.md",
+          "score": 0.87
+        },
+        {
+          "path": "archive\\superseded\\prompts\\claude\\planner_prompt.md",
+          "score": 0.87
+        }
+      ],
+      "confidence": "medium",
+      "fix_type": "update_reference"
+    },
+    {
+      "source_file": "README.md",
+      "line_number": 1148,
+      "link_text": ".autonomous_runs/tidy_activity.log",
+      "source_link": "`.autonomous_runs/tidy_activity.log`",
+      "broken_target": ".autonomous_runs/tidy_activity.log",
+      "normalized_target": "autonomous_runs/tidy_activity.log",
+      "reason": "missing_file",
+      "suggested_fix": null,
+      "suggestions": [],
+      "confidence": "low",
+      "fix_type": "manual_review"
+    },
+    {
+      "source_file": "docs\\INDEX.md",
+      "line_number": 32,
+      "link_text": "docs/TRUE_AUTONOMY_COMPLETE_IMPLEMENTATION_REPORT.md",
+      "source_link": "`docs/TRUE_AUTONOMY_COMPLETE_IMPLEMENTATION_REPORT.md`",
+      "broken_target": "docs/TRUE_AUTONOMY_COMPLETE_IMPLEMENTATION_REPORT.md",
+      "normalized_target": "docs/TRUE_AUTONOMY_COMPLETE_IMPLEMENTATION_REPORT.md",
+      "reason": "missing_file",
+      "suggested_fix": "archive\\superseded\\reports\\unsorted\\TRUE_AUTONOMY_COMPLETE_IMPLEMENTATION_REPORT.md",
+      "suggestions": [
+        {
+          "path": "archive\\superseded\\reports\\unsorted\\TRUE_AUTONOMY_COMPLETE_IMPLEMENTATION_REPORT.md",
+          "score": 0.92
+        }
+      ],
+      "confidence": "high",
+      "fix_type": "update_reference"
+    },
+    {
+      "source_file": "docs\\INDEX.md",
+      "line_number": 33,
+      "link_text": "docs/STORAGE_OPTIMIZER_MVP_COMPLETION.md",
+      "source_link": "`docs/STORAGE_OPTIMIZER_MVP_COMPLETION.md`",
+      "broken_target": "docs/STORAGE_OPTIMIZER_MVP_COMPLETION.md",
+      "normalized_target": "docs/STORAGE_OPTIMIZER_MVP_COMPLETION.md",
+      "reason": "missing_file",
+      "suggested_fix": "archive\\superseded\\reports\\unsorted\\STORAGE_OPTIMIZER_MVP_COMPLETION.md",
+      "suggestions": [
+        {
+          "path": "archive\\superseded\\reports\\unsorted\\STORAGE_OPTIMIZER_MVP_COMPLETION.md",
+          "score": 0.92
+        },
+        {
+          "path": "docs\\STORAGE_OPTIMIZER_PHASE4_COMPLETION.md",
+          "score": 0.892
+        },
+        {
+          "path": "docs\\STORAGE_OPTIMIZER_PHASE3_COMPLETION.md",
+          "score": 0.892
+        },
+        {
+          "path": "docs\\STORAGE_OPTIMIZER_PHASE2_COMPLETION.md",
+          "score": 0.892
+        }
+      ],
+      "confidence": "high",
+      "fix_type": "update_reference"
+    },
+    {
+      "source_file": "docs\\BUILD_HISTORY.md",
+      "line_number": 1261,
+      "link_text": "anthropic_clients.py",
+      "source_link": "[anthropic_clients.py](src/autopack/anthropic_clients.py:1556-1584)",
+      "broken_target": "src/autopack/anthropic_clients.py:1556-1584",
+      "normalized_target": "src/autopack/anthropic_clients.py:1556-1584",
+      "reason": "missing_file",
+      "suggested_fix": null,
+      "suggestions": [],
+      "confidence": "low",
+      "fix_type": "manual_review"
+    },
+    {
+      "source_file": "docs\\BUILD_HISTORY.md",
+      "line_number": 1266,
+      "link_text": "anthropic_clients.py",
+      "source_link": "[anthropic_clients.py](src/autopack/anthropic_clients.py:1576-1610)",
+      "broken_target": "src/autopack/anthropic_clients.py:1576-1610",
+      "normalized_target": "src/autopack/anthropic_clients.py:1576-1610",
+      "reason": "missing_file",
+      "suggested_fix": null,
+      "suggestions": [],
+      "confidence": "low",
+      "fix_type": "manual_review"
+    },
+    {
+      "source_file": "docs\\BUILD_HISTORY.md",
+      "line_number": 1359,
+      "link_text": "autonomous_executor.py",
+      "source_link": "[autonomous_executor.py](src/autopack/autonomous_executor.py:2822-2830)",
+      "broken_target": "src/autopack/autonomous_executor.py:2822-2830",
+      "normalized_target": "src/autopack/autonomous_executor.py:2822-2830",
+      "reason": "missing_file",
+      "suggested_fix": null,
+      "suggestions": [],
+      "confidence": "low",
+      "fix_type": "manual_review"
+    },
+    {
+      "source_file": "docs\\BUILD_HISTORY.md",
+      "line_number": 1363,
+      "link_text": "autonomous_executor.py",
+      "source_link": "[autonomous_executor.py](src/autopack/autonomous_executor.py:2820-2840)",
+      "broken_target": "src/autopack/autonomous_executor.py:2820-2840",
+      "normalized_target": "src/autopack/autonomous_executor.py:2820-2840",
+      "reason": "missing_file",
+      "suggested_fix": null,
+      "suggestions": [],
+      "confidence": "low",
+      "fix_type": "manual_review"
+    },
+    {
+      "source_file": "docs\\BUILD_HISTORY.md",
+      "line_number": 1685,
+      "link_text": "PROPOSED_CLEANUP_STRUCTURE_V2.md",
+      "source_link": "[PROPOSED_CLEANUP_STRUCTURE_V2.md](PROPOSED_CLEANUP_STRUCTURE_V2.md)",
+      "broken_target": "PROPOSED_CLEANUP_STRUCTURE_V2.md",
+      "normalized_target": "PROPOSED_CLEANUP_STRUCTURE_V2.md",
+      "reason": "missing_file",
+      "suggested_fix": null,
+      "suggestions": [],
+      "confidence": "low",
+      "fix_type": "manual_review"
+    },
+    {
+      "source_file": "docs\\BUILD_HISTORY.md",
+      "line_number": 22,
+      "link_text": "docs/DATA_RETENTION_AND_STORAGE_POLICY.md",
+      "source_link": "`docs/DATA_RETENTION_AND_STORAGE_POLICY.md`",
+      "broken_target": "docs/DATA_RETENTION_AND_STORAGE_POLICY.md",
+      "normalized_target": "docs/DATA_RETENTION_AND_STORAGE_POLICY.md",
+      "reason": "missing_file",
+      "suggested_fix": "archive\\superseded\\reports\\unsorted\\DATA_RETENTION_AND_STORAGE_POLICY.md",
+      "suggestions": [
+        {
+          "path": "archive\\superseded\\reports\\unsorted\\DATA_RETENTION_AND_STORAGE_POLICY.md",
+          "score": 0.92
+        }
+      ],
+      "confidence": "high",
+      "fix_type": "update_reference"
+    },
+    {
+      "source_file": "docs\\BUILD_HISTORY.md",
+      "line_number": 27,
+      "link_text": "src/backend/main.py",
+      "source_link": "`src/backend/main.py`",
+      "broken_target": "src/backend/main.py",
+      "normalized_target": "src/backend/main.py",
+      "reason": "missing_file",
+      "suggested_fix": null,
+      "suggestions": [],
+      "confidence": "low",
+      "fix_type": "manual_review"
+    },
+    {
+      "source_file": "docs\\BUILD_HISTORY.md",
+      "line_number": 1062,
+      "link_text": "src/backend/main.py",
+      "source_link": "`src/backend/main.py`",
+      "broken_target": "src/backend/main.py",
+      "normalized_target": "src/backend/main.py",
+      "reason": "missing_file",
+      "suggested_fix": null,
+      "suggestions": [],
+      "confidence": "low",
+      "fix_type": "manual_review"
+    },
+    {
+      "source_file": "docs\\BUILD_HISTORY.md",
+      "line_number": 1069,
+      "link_text": "src/backend/main.py",
+      "source_link": "`src/backend/main.py`",
+      "broken_target": "src/backend/main.py",
+      "normalized_target": "src/backend/main.py",
+      "reason": "missing_file",
+      "suggested_fix": null,
+      "suggestions": [],
+      "confidence": "low",
+      "fix_type": "manual_review"
+    },
+    {
+      "source_file": "docs\\BUILD_HISTORY.md",
+      "line_number": 1083,
+      "link_text": "src/backend/main.py",
+      "source_link": "`src/backend/main.py`",
+      "broken_target": "src/backend/main.py",
+      "normalized_target": "src/backend/main.py",
+      "reason": "missing_file",
+      "suggested_fix": null,
+      "suggestions": [],
+      "confidence": "low",
+      "fix_type": "manual_review"
+    },
+    {
+      "source_file": "docs\\BUILD_HISTORY.md",
+      "line_number": 226,
+      "link_text": ".autopack/prompt_for_other_cursor.md",
+      "source_link": "`.autopack/prompt_for_other_cursor.md`",
+      "broken_target": ".autopack/prompt_for_other_cursor.md",
+      "normalized_target": "autopack/prompt_for_other_cursor.md",
+      "reason": "missing_file",
+      "suggested_fix": ".autopack\\prompt_for_other_cursor.md",
+      "suggestions": [
+        {
+          "path": ".autopack\\prompt_for_other_cursor.md",
+          "score": 0.95
+        }
+      ],
+      "confidence": "high",
+      "fix_type": "update_reference"
+    },
+    {
+      "source_file": "docs\\BUILD_HISTORY.md",
+      "line_number": 400,
+      "link_text": ".autonomous_runs/file-organizer-app-v1/archive/research/active/requirements/chunk1b-foundation-intent-discovery.yaml",
+      "source_link": "`.autonomous_runs/file-organizer-app-v1/archive/research/active/requirements/chunk1b-foundation-intent-discovery.yaml`",
+      "broken_target": ".autonomous_runs/file-organizer-app-v1/archive/research/active/requirements/chunk1b-foundation-intent-discovery.yaml",
+      "normalized_target": "autonomous_runs/file-organizer-app-v1/archive/research/active/requirements/chunk1b-foundation-intent-discovery.yaml",
+      "reason": "missing_file",
+      "suggested_fix": null,
+      "suggestions": [],
+      "confidence": "low",
+      "fix_type": "manual_review"
+    },
+    {
+      "source_file": "docs\\BUILD_HISTORY.md",
+      "line_number": 401,
+      "link_text": ".autonomous_runs/file-organizer-app-v1/archive/research/active/requirements/chunk2a-gatherers-social.yaml",
+      "source_link": "`.autonomous_runs/file-organizer-app-v1/archive/research/active/requirements/chunk2a-gatherers-social.yaml`",
+      "broken_target": ".autonomous_runs/file-organizer-app-v1/archive/research/active/requirements/chunk2a-gatherers-social.yaml",
+      "normalized_target": "autonomous_runs/file-organizer-app-v1/archive/research/active/requirements/chunk2a-gatherers-social.yaml",
+      "reason": "missing_file",
+      "suggested_fix": null,
+      "suggestions": [],
+      "confidence": "low",
+      "fix_type": "manual_review"
+    },
+    {
+      "source_file": "docs\\BUILD_HISTORY.md",
+      "line_number": 402,
+      "link_text": ".autonomous_runs/file-organizer-app-v1/archive/research/active/requirements/chunk2b-gatherers-web-compilation.yaml",
+      "source_link": "`.autonomous_runs/file-organizer-app-v1/archive/research/active/requirements/chunk2b-gatherers-web-compilation.yaml`",
+      "broken_target": ".autonomous_runs/file-organizer-app-v1/archive/research/active/requirements/chunk2b-gatherers-web-compilation.yaml",
+      "normalized_target": "autonomous_runs/file-organizer-app-v1/archive/research/active/requirements/chunk2b-gatherers-web-compilation.yaml",
+      "reason": "missing_file",
+      "suggested_fix": null,
+      "suggestions": [],
+      "confidence": "low",
+      "fix_type": "manual_review"
+    },
+    {
+      "source_file": "docs\\BUILD_HISTORY.md",
+      "line_number": 403,
+      "link_text": ".autonomous_runs/file-organizer-app-v1/archive/research/active/requirements/chunk3-meta-analysis.yaml",
+      "source_link": "`.autonomous_runs/file-organizer-app-v1/archive/research/active/requirements/chunk3-meta-analysis.yaml`",
+      "broken_target": ".autonomous_runs/file-organizer-app-v1/archive/research/active/requirements/chunk3-meta-analysis.yaml",
+      "normalized_target": "autonomous_runs/file-organizer-app-v1/archive/research/active/requirements/chunk3-meta-analysis.yaml",
+      "reason": "missing_file",
+      "suggested_fix": null,
+      "suggestions": [],
+      "confidence": "low",
+      "fix_type": "manual_review"
+    },
+    {
+      "source_file": "docs\\BUILD_HISTORY.md",
+      "line_number": 1101,
+      "link_text": ".autonomous_runs/file-organizer-app-v1/archive/research/active/requirements/chunk3-meta-analysis.yaml",
+      "source_link": "`.autonomous_runs/file-organizer-app-v1/archive/research/active/requirements/chunk3-meta-analysis.yaml`",
+      "broken_target": ".autonomous_runs/file-organizer-app-v1/archive/research/active/requirements/chunk3-meta-analysis.yaml",
+      "normalized_target": "autonomous_runs/file-organizer-app-v1/archive/research/active/requirements/chunk3-meta-analysis.yaml",
+      "reason": "missing_file",
+      "suggested_fix": null,
+      "suggestions": [],
+      "confidence": "low",
+      "fix_type": "manual_review"
+    },
+    {
+      "source_file": "docs\\BUILD_HISTORY.md",
+      "line_number": 424,
+      "link_text": "docs/RESEARCH_SYSTEM_CAPABILITY_GAP_ANALYSIS.md",
+      "source_link": "`docs/RESEARCH_SYSTEM_CAPABILITY_GAP_ANALYSIS.md`",
+      "broken_target": "docs/RESEARCH_SYSTEM_CAPABILITY_GAP_ANALYSIS.md",
+      "normalized_target": "docs/RESEARCH_SYSTEM_CAPABILITY_GAP_ANALYSIS.md",
+      "reason": "missing_file",
+      "suggested_fix": "archive\\superseded\\research\\unsorted\\RESEARCH_SYSTEM_CAPABILITY_GAP_ANALYSIS.md",
+      "suggestions": [
+        {
+          "path": "archive\\superseded\\research\\unsorted\\RESEARCH_SYSTEM_CAPABILITY_GAP_ANALYSIS.md",
+          "score": 0.92
+        }
+      ],
+      "confidence": "high",
+      "fix_type": "update_reference"
+    },
+    {
+      "source_file": "docs\\BUILD_HISTORY.md",
+      "line_number": 426,
+      "link_text": "docs/NEXT_CURSOR_TAKEOVER_PROMPT.md",
+      "source_link": "`docs/NEXT_CURSOR_TAKEOVER_PROMPT.md`",
+      "broken_target": "docs/NEXT_CURSOR_TAKEOVER_PROMPT.md",
+      "normalized_target": "docs/NEXT_CURSOR_TAKEOVER_PROMPT.md",
+      "reason": "missing_file",
+      "suggested_fix": "archive\\superseded\\prompts\\unsorted\\NEXT_CURSOR_TAKEOVER_PROMPT.md",
+      "suggestions": [
+        {
+          "path": "archive\\superseded\\prompts\\unsorted\\NEXT_CURSOR_TAKEOVER_PROMPT.md",
+          "score": 0.92
+        }
+      ],
+      "confidence": "high",
+      "fix_type": "update_reference"
+    },
+    {
+      "source_file": "docs\\BUILD_HISTORY.md",
+      "line_number": 710,
+      "link_text": "src/backend/api/runs.py",
+      "source_link": "`src/backend/api/runs.py`",
+      "broken_target": "src/backend/api/runs.py",
+      "normalized_target": "src/backend/api/runs.py",
+      "reason": "missing_file",
+      "suggested_fix": null,
+      "suggestions": [],
+      "confidence": "low",
+      "fix_type": "manual_review"
+    },
+    {
+      "source_file": "docs\\BUILD_HISTORY.md",
+      "line_number": 1044,
+      "link_text": "src/backend/api/runs.py",
+      "source_link": "`src/backend/api/runs.py`",
+      "broken_target": "src/backend/api/runs.py",
+      "normalized_target": "src/backend/api/runs.py",
+      "reason": "missing_file",
+      "suggested_fix": null,
+      "suggestions": [],
+      "confidence": "low",
+      "fix_type": "manual_review"
+    },
+    {
+      "source_file": "docs\\BUILD_HISTORY.md",
+      "line_number": 1087,
+      "link_text": "src/backend/api/runs.py",
+      "source_link": "`src/backend/api/runs.py`",
+      "broken_target": "src/backend/api/runs.py",
+      "normalized_target": "src/backend/api/runs.py",
+      "reason": "missing_file",
+      "suggested_fix": null,
+      "suggestions": [],
+      "confidence": "low",
+      "fix_type": "manual_review"
+    },
+    {
+      "source_file": "docs\\BUILD_HISTORY.md",
+      "line_number": 1090,
+      "link_text": "src/backend/api/runs.py",
+      "source_link": "`src/backend/api/runs.py`",
+      "broken_target": "src/backend/api/runs.py",
+      "normalized_target": "src/backend/api/runs.py",
+      "reason": "missing_file",
+      "suggested_fix": null,
+      "suggestions": [],
+      "confidence": "low",
+      "fix_type": "manual_review"
+    },
+    {
+      "source_file": "docs\\BUILD_HISTORY.md",
+      "line_number": 843,
+      "link_text": "src/autopack/tracer_bullet.py",
+      "source_link": "`src/autopack/tracer_bullet.py`",
+      "broken_target": "src/autopack/tracer_bullet.py",
+      "normalized_target": "src/autopack/tracer_bullet.py",
+      "reason": "missing_file",
+      "suggested_fix": null,
+      "suggestions": [],
+      "confidence": "low",
+      "fix_type": "manual_review"
+    },
+    {
+      "source_file": "docs\\BUILD_HISTORY.md",
+      "line_number": 1113,
+      "link_text": "docs/DBG-014_REPLAN_INTERFERENCE_ANALYSIS.md",
+      "source_link": "`docs/DBG-014_REPLAN_INTERFERENCE_ANALYSIS.md`",
+      "broken_target": "docs/DBG-014_REPLAN_INTERFERENCE_ANALYSIS.md",
+      "normalized_target": "docs/DBG-014_REPLAN_INTERFERENCE_ANALYSIS.md",
+      "reason": "missing_file",
+      "suggested_fix": "archive\\superseded\\diagnostics\\DBG-014_REPLAN_INTERFERENCE_ANALYSIS.md",
+      "suggestions": [
+        {
+          "path": "archive\\superseded\\diagnostics\\DBG-014_REPLAN_INTERFERENCE_ANALYSIS.md",
+          "score": 0.92
+        }
+      ],
+      "confidence": "high",
+      "fix_type": "update_reference"
+    },
+    {
+      "source_file": "docs\\BUILD_HISTORY.md",
+      "line_number": 1336,
+      "link_text": "autopack.repair_helpers.JsonRepairHelper",
+      "source_link": "`autopack.repair_helpers.JsonRepairHelper`",
+      "broken_target": "autopack.repair_helpers.JsonRepairHelper",
+      "normalized_target": "autopack.repair_helpers.JsonRepairHelper",
+      "reason": "missing_file",
+      "suggested_fix": null,
+      "suggestions": [],
+      "confidence": "low",
+      "fix_type": "manual_review"
+    },
+    {
+      "source_file": "docs\\BUILD_HISTORY.md",
+      "line_number": 1706,
+      "link_text": "docs/README.md",
+      "source_link": "`docs/README.md`",
+      "broken_target": "docs/README.md",
+      "normalized_target": "docs/README.md",
+      "reason": "missing_file",
+      "suggested_fix": ".pytest_cache\\README.md",
+      "suggestions": [
+        {
+          "path": ".pytest_cache\\README.md",
+          "score": 0.95
+        },
+        {
+          "path": "README.md",
+          "score": 0.87
+        },
+        {
+          "path": ".autonomous_runs\\file-organizer-app-v1\\README.md",
+          "score": 0.87
+        },
+        {
+          "path": ".autonomous_runs\\autopack\\runs\\lovable-integration-v1\\README.md",
+          "score": 0.87
+        },
+        {
+          "path": ".autonomous_runs\\file-organizer-app-v1\\src\\backend\\.pytest_cache\\README.md",
+          "score": 0.87
+        }
+      ],
+      "confidence": "high",
+      "fix_type": "update_reference"
+    },
+    {
+      "source_file": "docs\\BUILD_HISTORY.md",
+      "line_number": 1810,
+      "link_text": "docs/P17X_PROD_POLISH_FOLLOWUPS.md",
+      "source_link": "`docs/P17X_PROD_POLISH_FOLLOWUPS.md`",
+      "broken_target": "docs/P17X_PROD_POLISH_FOLLOWUPS.md",
+      "normalized_target": "docs/P17X_PROD_POLISH_FOLLOWUPS.md",
+      "reason": "missing_file",
+      "suggested_fix": "archive\\superseded\\phases\\unsorted\\P17X_PROD_POLISH_FOLLOWUPS.md",
+      "suggestions": [
+        {
+          "path": "archive\\superseded\\phases\\unsorted\\P17X_PROD_POLISH_FOLLOWUPS.md",
+          "score": 0.92
+        }
+      ],
+      "confidence": "high",
+      "fix_type": "update_reference"
+    },
+    {
+      "source_file": "docs\\BUILD_HISTORY.md",
+      "line_number": 1811,
+      "link_text": "docs/DB_IDEMPOTENCY_HARDENING_PLAN.md",
+      "source_link": "`docs/DB_IDEMPOTENCY_HARDENING_PLAN.md`",
+      "broken_target": "docs/DB_IDEMPOTENCY_HARDENING_PLAN.md",
+      "normalized_target": "docs/DB_IDEMPOTENCY_HARDENING_PLAN.md",
+      "reason": "missing_file",
+      "suggested_fix": "archive\\superseded\\plans\\DB_IDEMPOTENCY_HARDENING_PLAN.md",
+      "suggestions": [
+        {
+          "path": "archive\\superseded\\plans\\DB_IDEMPOTENCY_HARDENING_PLAN.md",
+          "score": 0.92
+        }
+      ],
+      "confidence": "high",
+      "fix_type": "update_reference"
+    },
+    {
+      "source_file": "docs\\BUILD_HISTORY.md",
+      "line_number": 1957,
+      "link_text": "archive/superseded/root_sot_duplicates/BUILD_HISTORY_ROOT_DUPLICATE_20260101.md",
+      "source_link": "`archive/superseded/root_sot_duplicates/BUILD_HISTORY_ROOT_DUPLICATE_20260101.md`",
+      "broken_target": "archive/superseded/root_sot_duplicates/BUILD_HISTORY_ROOT_DUPLICATE_20260101.md",
+      "normalized_target": "archive/superseded/root_sot_duplicates/BUILD_HISTORY_ROOT_DUPLICATE_20260101.md",
+      "reason": "missing_file",
+      "suggested_fix": "archive\\superseded\\scripts\\root_sot_duplicates\\BUILD_HISTORY_ROOT_DUPLICATE_20260101.md",
+      "suggestions": [
+        {
+          "path": "archive\\superseded\\scripts\\root_sot_duplicates\\BUILD_HISTORY_ROOT_DUPLICATE_20260101.md",
+          "score": 0.92
+        }
+      ],
+      "confidence": "high",
+      "fix_type": "update_reference"
+    },
+    {
+      "source_file": "docs\\BUILD_HISTORY.md",
+      "line_number": 2014,
+      "link_text": ".autonomous_runs/tidy_pending_moves.json",
+      "source_link": "`.autonomous_runs/tidy_pending_moves.json`",
+      "broken_target": ".autonomous_runs/tidy_pending_moves.json",
+      "normalized_target": "autonomous_runs/tidy_pending_moves.json",
+      "reason": "missing_file",
+      "suggested_fix": null,
+      "suggestions": [],
+      "confidence": "low",
+      "fix_type": "manual_review"
+    },
+    {
+      "source_file": "docs\\BUILD_HISTORY.md",
+      "line_number": 2207,
+      "link_text": ".autonomous_runs/storage_execution.log",
+      "source_link": "`.autonomous_runs/storage_execution.log`",
+      "broken_target": ".autonomous_runs/storage_execution.log",
+      "normalized_target": "autonomous_runs/storage_execution.log",
+      "reason": "missing_file",
+      "suggested_fix": null,
+      "suggestions": [],
+      "confidence": "low",
+      "fix_type": "manual_review"
+    },
+    {
+      "source_file": "docs\\BUILD_HISTORY.md",
+      "line_number": 2421,
+      "link_text": "archive/diagnostics/validate_tidy_p0_p1_fixes.ps1",
+      "source_link": "`archive/diagnostics/validate_tidy_p0_p1_fixes.ps1`",
+      "broken_target": "archive/diagnostics/validate_tidy_p0_p1_fixes.ps1",
+      "normalized_target": "archive/diagnostics/validate_tidy_p0_p1_fixes.ps1",
+      "reason": "missing_file",
+      "suggested_fix": null,
+      "suggestions": [],
+      "confidence": "low",
+      "fix_type": "manual_review"
+    },
+    {
+      "source_file": "docs\\BUILD_HISTORY.md",
+      "line_number": 2424,
+      "link_text": "archive/diagnostics/BUILD-155_P0_P1_IMPLEMENTATION_SUMMARY.md",
+      "source_link": "`archive/diagnostics/BUILD-155_P0_P1_IMPLEMENTATION_SUMMARY.md`",
+      "broken_target": "archive/diagnostics/BUILD-155_P0_P1_IMPLEMENTATION_SUMMARY.md",
+      "normalized_target": "archive/diagnostics/BUILD-155_P0_P1_IMPLEMENTATION_SUMMARY.md",
+      "reason": "missing_file",
+      "suggested_fix": "archive\\superseded\\diagnostics\\BUILD-155_P0_P1_IMPLEMENTATION_SUMMARY.md",
+      "suggestions": [
+        {
+          "path": "archive\\superseded\\diagnostics\\BUILD-155_P0_P1_IMPLEMENTATION_SUMMARY.md",
+          "score": 0.92
+        }
+      ],
+      "confidence": "high",
+      "fix_type": "update_reference"
+    },
+    {
+      "source_file": "docs\\BUILD_HISTORY.md",
+      "line_number": 2551,
+      "link_text": "archive/diagnostics/BUILD-156_QUEUE_IMPROVEMENTS_SUMMARY.md",
+      "source_link": "`archive/diagnostics/BUILD-156_QUEUE_IMPROVEMENTS_SUMMARY.md`",
+      "broken_target": "archive/diagnostics/BUILD-156_QUEUE_IMPROVEMENTS_SUMMARY.md",
+      "normalized_target": "archive/diagnostics/BUILD-156_QUEUE_IMPROVEMENTS_SUMMARY.md",
+      "reason": "missing_file",
+      "suggested_fix": "archive\\superseded\\diagnostics\\BUILD-156_QUEUE_IMPROVEMENTS_SUMMARY.md",
+      "suggestions": [
+        {
+          "path": "archive\\superseded\\diagnostics\\BUILD-156_QUEUE_IMPROVEMENTS_SUMMARY.md",
+          "score": 0.92
+        }
+      ],
+      "confidence": "high",
+      "fix_type": "update_reference"
+    }
+  ],
+  "summary": {
+    "total_broken": 58,
+    "auto_fixable": 21,
+    "manual_review": 37,
+    "by_confidence": {
+      "high": 19,
+      "medium": 2,
+      "low": 37
+    }
+  }
+}

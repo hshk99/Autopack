@@ -83,7 +83,7 @@ In practice, “autonomous” requires that each phase has:
 - P1: Verification --strict flag for CI enforcement (treat warnings as errors)
 - P2: --first-run flag as one-command bootstrap (execute + repair + docs-reduce-to-sot)
 - **Result**: Users get concrete next actions instead of "figure it out yourself"
-- See [archive/diagnostics/BUILD-156_QUEUE_IMPROVEMENTS_SUMMARY.md](archive/diagnostics/BUILD-156_QUEUE_IMPROVEMENTS_SUMMARY.md) for full details
+- See [archive/diagnostics/BUILD-156_QUEUE_IMPROVEMENTS_SUMMARY.md](archive/superseded/diagnostics/BUILD-156_QUEUE_IMPROVEMENTS_SUMMARY.md) for full details
 
 #### 2026-01-03: BUILD-155 - Tidy First-Run Resilience (P0-P1 Complete) ✅
 **Tidy Always Succeeds: Profiling + Locked-File Resilience**
@@ -451,8 +451,8 @@ python scripts/storage/scan_and_report.py --dir c:/dev
 
 **Documentation:**
 - **Module**: [src/autopack/storage_optimizer/](src/autopack/storage_optimizer/)
-- **Completion Report**: [docs/STORAGE_OPTIMIZER_MVP_COMPLETION.md](docs/STORAGE_OPTIMIZER_MVP_COMPLETION.md)
-- **Policy**: [config/protection_and_retention_policy.yaml](config/protection_and_retention_policy.yaml) + [docs/DATA_RETENTION_AND_STORAGE_POLICY.md](docs/DATA_RETENTION_AND_STORAGE_POLICY.md)
+- **Completion Report**: [docs/STORAGE_OPTIMIZER_MVP_COMPLETION.md](archive/superseded/reports/unsorted/STORAGE_OPTIMIZER_MVP_COMPLETION.md)
+- **Policy**: [config/protection_and_retention_policy.yaml](config/protection_and_retention_policy.yaml) + [docs/DATA_RETENTION_AND_STORAGE_POLICY.md](archive/superseded/reports/unsorted/DATA_RETENTION_AND_STORAGE_POLICY.md)
 
 Future phases will add execution capabilities (send2trash), automation (Windows Task Scheduler), and WizTree integration for faster scanning.
 
@@ -557,7 +557,7 @@ git tag | grep save-before-deletion
 git reset --hard save-before-deletion-{phase_id}-{timestamp}
 ```
 
-See [docs/BUILD-107-108_SAFEGUARDS_SUMMARY.md](docs/BUILD-107-108_SAFEGUARDS_SUMMARY.md) for complete documentation.
+See [docs/BUILD-107-108_SAFEGUARDS_SUMMARY.md](archive/superseded/reports/BUILD-107-108_SAFEGUARDS_SUMMARY.md) for complete documentation.
 
 ### Iterative Autonomous Investigation (NEW - BUILD-113)
 Multi-round autonomous debugging that resolves failures without human intervention when safe, plus **proactive decision-making** for fresh feature implementations:
@@ -626,7 +626,7 @@ Decision: CLEAR_FIX (auto-applied)
 - Save point: git tag save-before-fix-research-tracer-bullet-20251221
 ```
 
-See [docs/BUILD-113_ITERATIVE_AUTONOMOUS_INVESTIGATION.md](docs/BUILD-113_ITERATIVE_AUTONOMOUS_INVESTIGATION.md) for complete documentation.
+See [docs/BUILD-113_ITERATIVE_AUTONOMOUS_INVESTIGATION.md](archive/superseded/reports/BUILD-113_ITERATIVE_AUTONOMOUS_INVESTIGATION.md) for complete documentation.
 
 ### Autopack Doctor
 LLM-based diagnostic system for intelligent failure recovery:
@@ -765,12 +765,12 @@ See [IMPLEMENTATION_PLAN.md](archive/IMPLEMENTATION_PLAN.md) for full design det
 - **[Stage 2: Structured Edits](docs/stage2_structured_edits.md)**: Guide to structured edit mode for large files
 - **[IMPLEMENTATION_PLAN2.md](IMPLEMENTATION_PLAN2.md)**: File truncation bug fix and safety improvements
 - **[IMPLEMENTATION_PLAN3.md](IMPLEMENTATION_PLAN3.md)**: Structured edits implementation plan
-- **Planner Prompt (Autopack-ready)**: `prompts/claude/planner_prompt.md` now enforces non-empty descriptions, explicit scope (modifiable paths + read-only context), acceptance criteria, and token/attempt caps for every phase.
+- **Planner Prompt (Autopack-ready)**: `archive/superseded/prompts/planner_prompt.md` now enforces non-empty descriptions, explicit scope (modifiable paths + read-only context), acceptance criteria, and token/attempt caps for every phase.
 
 ### Archive Documentation
 Detailed historical documentation is available in the `archive/` directory:
 
-- **[Archive Index](archive/ARCHIVE_INDEX.md)**: Master index of all archived documentation
+- **[Archive Index](.autonomous_runs/file-organizer-app-v1/archive/superseded/archive/ARCHIVE_INDEX.md)**: Master index of all archived documentation
 - **[Claude-GPT Consultation](archive/CONSOLIDATED_CORRESPONDENCE.md)**: Index of all Claude-GPT consultation exchanges
 - **[Consultation Summary](archive/GPT_CLAUDE_CONSULTATION_SUMMARY.md)**: Executive summary of all Phase 1 implementation decisions
 - **[Autonomous Executor](archive/CONSOLIDATED_REFERENCE.md#autonomous-executor-readme)**: Guide to the orchestration system
@@ -1182,7 +1182,7 @@ Autopack has **two** related systems that touch files on disk:
   - Safety: must never delete SOT, source code, or required run artifacts without explicit approval.
 
 **Single source of truth for retention and deletion safety**:
-- See `docs/DATA_RETENTION_AND_STORAGE_POLICY.md` for:
+- See `archive/superseded/reports/unsorted/DATA_RETENTION_AND_STORAGE_POLICY.md` for:
   - protected paths (never delete),
   - retention windows for logs/runs/superseded,
   - allowed cleanup actions by category,

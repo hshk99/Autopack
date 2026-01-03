@@ -1083,3 +1083,109 @@ if not is_root_file_allowed(item.name):
 
 ---
 
+
+
+### DEC-022 | 2026-01-03T04:40 | Tidy Queue - Priority-Based Reporting Over Age-Only Sorting
+**Status**: ✅ Implemented
+**Build**: BUILD-156 (Queue Improvements)
+**Context**: When implementing actionable queue reporting (P0 requirement), needed to decide how to rank pending items to show users the most urgent items first. Options were: (1) age-only sorting (oldest first), (2) attempts-only sorting (highest retry count first), (3) priority formula combining both factors.
+
+**Decision**: Use simple linear priority score combining attempts and age (`priority = attempts × 10 + age_days`) rather than single-factor sorting.
+
+**Rationale**:
+- **Attempts weighted higher than age**: A file stuck for 10 attempts is higher priority than one stuck for 9 days but only 1 attempt (10×10+0=100 vs 1×10+9=19)
+- **Simple formula is explainable**: Users can understand the ranking logic without complex documentation
+- **Debuggable**: Priority scores are visible in reports making it easy to verify correctness
+- **Future-proof**: Can easily adjust weighting if needed (e.g., `attempts × 20 + age_days × 2`) based on user feedback
+- **Avoids edge cases**: Age-only would ignore retry count (misleading), attempts-only would ignore staleness (files stuck once but ancient would not surface)
+
+**Alternatives Considered**:
+1. **Age-only sorting**: Rejected - ignores retry count, file stuck for 1 attempt but 30 days old would rank higher than file stuck for 10 attempts but 1 day old (counterintuitive)
+2. **Attempts-only sorting**: Rejected - ignores staleness, ancient files with single failure would never surface
+3. **Complex multi-factor scoring**: Rejected as over-engineering - could include file size, reason type, etc. but adds complexity without clear user benefit
+
+**Implementation**: Priority score calculated in `get_actionable_report()` method ([pending_moves.py:388-393](scripts/tidy/pending_moves.py#L388-L393)), sorted descending, top N items returned.
+
+**Impact**: Users see genuinely problematic items first (high retry count indicates systemic lock), age provides tiebreaker, no false urgency from stale single-attempt failures.
+
+---
+
+### DEC-023 | 2026-01-03T04:40 | Tidy Queue - Hard Caps with Graceful Rejection Over Soft Limits
+**Status**: ✅ Implemented
+**Build**: BUILD-156 (Queue Improvements)
+**Context**: When implementing queue caps/guardrails (P1 requirement), needed to decide how to handle queue size limits. Options were: (1) soft limits with warnings only, (2) hard limits with exception throwing, (3) hard limits with graceful rejection and logging.
+
+**Decision**: Implement hard limits (max 1000 items, max 10 GB) with graceful rejection (log warning, return ID without enqueuing) rather than soft limits or exception throwing.
+
+**Rationale**:
+- **Prevents unbounded resource consumption**: Queue cannot exceed caps regardless of user behavior (safety guarantee)
+- **Fails gracefully**: Logs warning with actionable message ("User should resolve pending items") instead of crashing with exception
+- **Preserves tidy execution**: Tidy does not crash mid-run if queue is full, continues with other operations
+- **Updates exempt**: Updates to existing items do not count against caps, prevents stuck items from being lost if queue is full
+- **Clear user feedback**: Warning logs provide immediate visibility that queue is at capacity
+
+**Alternatives Considered**:
+1. **Soft limits with warnings**: Rejected - not enforceable, queue could still grow unbounded if warnings ignored
+2. **Exception throwing**: Rejected - would crash tidy execution on cap breach, worse UX than graceful degradation
+3. **Auto-abandon oldest items**: Rejected - data loss risk, users might lose legitimate pending moves without notice
+4. **No caps**: Rejected - allows unbounded memory/disk consumption, unacceptable for production
+
+**Implementation**: Caps enforced in `enqueue()` method ([pending_moves.py:240-255](scripts/tidy/pending_moves.py#L240-L255)), check `current_count >= max_queue_items` and `current_bytes + bytes_estimate > max_queue_bytes` before adding new items, log warning with `[QUEUE-CAP]` prefix for visibility.
+
+**Impact**: Queue resource consumption guaranteed bounded (1000 items = ~300 KB JSON file assuming 300 bytes/item, 10 GB = maximum disk usage for pending file sizes), tidy execution resilient (does not crash on cap breach), users get clear feedback when caps hit.
+
+**Observability**: Caps visible in queue summary output, warnings logged to console and tidy output, queue report shows total bytes estimate.
+
+---
+
+### DEC-024 | 2026-01-03T04:40 | Tidy Queue - Four-Tier Reason Taxonomy for Smart Retry
+**Status**: ✅ Implemented
+**Build**: BUILD-156 (Queue Improvements)
+**Context**: When implementing queue reason taxonomy (P1 requirement), needed to decide granularity of failure classification. Options were: (1) single "failed" reason, (2) binary locked/not-locked, (3) four-tier taxonomy (locked/permission/dest_exists/unknown), (4) detailed multi-tier taxonomy with network/disk_full/etc.
+
+**Decision**: Implement four-tier reason taxonomy (`locked`, `permission`, `dest_exists`, `unknown`) rather than binary or more granular classification.
+
+**Rationale**:
+- **Critical Windows distinction**: `locked` (WinError 32) vs `permission` (WinError 5) have different solutions - locked means file open in another process (close process, reboot), permission means insufficient rights (escalate, fix perms)
+- **Collision policy foundation**: `dest_exists` enables future deterministic collision handling (rename with timestamp, skip, user-configurable) - essential for P2/P3 work
+- **Catch-all for unknowns**: `unknown` reason prevents data loss from unclassified errors, can analyze patterns later to add new categories
+- **Future extensible**: Can add `network`, `disk_full`, `transient` as needed based on real-world failure patterns without changing core logic
+- **Actionable granularity**: Each reason maps to specific user actions - not so broad as to be useless, not so granular as to overwhelm users
+
+**Alternatives Considered**:
+1. **Single "failed" reason**: Rejected - no actionable guidance, users do not know what to do
+2. **Binary locked/not-locked**: Rejected - misses permission vs collision distinction, insufficient for smart retry
+3. **Detailed multi-tier**: Rejected - over-engineering before seeing real-world patterns, adds complexity without validated user benefit
+
+**Implementation**: Reason classification in `execute_moves()` ([tidy_up.py:1114-1169](scripts/tidy/tidy_up.py#L1114-L1169)), Windows-specific WinError code detection (32 vs 5), POSIX errno fallback (EACCES/EPERM), FileExistsError mapped to dest_exists, all others mapped to unknown.
+
+**Impact**: Enables future smart retry logic (e.g., locked files get exponential backoff, permission errors escalate to admin, collisions invoke policy), queue reports show reason distribution, suggested actions tailored to reason types.
+
+**Future Work**: Different backoff strategies per reason (locked: exponential, permission: no retry without intervention, dest_exists: invoke collision policy), telemetry on reason distribution to identify systemic issues.
+
+---
+
+### DEC-025 | 2026-01-03T04:40 | Tidy First-Run - Opinionated Bootstrap Over Granular Flags
+**Status**: ✅ Implemented
+**Build**: BUILD-156 (Queue Improvements)
+**Context**: When implementing first-run ergonomics (P2 requirement), needed to decide flag design philosophy. Options were: (1) individual flags only (status quo), (2) opinionated preset flag (`--first-run`), (3) multiple preset flags (--bootstrap, --migrate, --cleanup).
+
+**Decision**: Implement single opinionated `--first-run` flag that sets `--execute --repair --docs-reduce-to-sot` rather than multiple presets or granular-only approach.
+
+**Rationale**:
+- **New users want "one command to fix everything"**: First-run users do not know which flags to use, opinionated default guides them to success
+- **Safe for first run**: Dry-run still available for preview (`--dry-run` overrides, or run without `--first-run` first), users can verify before committing
+- **Experienced users retain control**: Granular flags still available, power users can use custom combinations
+- **Clear semantics**: `--first-run` clearly signals "bootstrap mode" vs ambiguous `--aggressive` or `--full-cleanup`
+- **Maintenance burden**: One preset easier to maintain than multiple (`--bootstrap` vs `--migrate` vs `--cleanup` would need distinct semantics)
+
+**Alternatives Considered**:
+1. **Granular flags only**: Rejected - high friction for new users, requires memorizing complex flag combinations
+2. **Multiple presets**: Rejected - adds complexity, users confused about which preset to use, maintenance burden
+3. **Different flag name**: Considered `--bootstrap`, `--init`, `--setup` - rejected as less clear than `--first-run` which explicitly signals use case
+
+**Implementation**: Flag added to argparse ([tidy_up.py:1176-1177](scripts/tidy/tidy_up.py#L1176-L1177)), shortcuts applied at parse time ([tidy_up.py:1250-1254](scripts/tidy/tidy_up.py#L1250-L1254)) before execution, logs clear message showing enabled flags.
+
+**Impact**: First-run success rate improves (users do not need to know about `--repair` or `--docs-reduce-to-sot`), documentation simpler (one command in README), experienced users unaffected (granular flags still work).
+
+**User Guidance**: README shows `--first-run` as recommended first step, advanced section documents granular flags for power users.

@@ -29,6 +29,9 @@ jobs:
           python scripts/check_ci_drift.py
           python scripts/check_version_consistency.py
           python scripts/check_dependency_sync.py
+      - name: Enforce GitHub Actions pinning policy
+        run: |
+          python scripts/ci/check_github_actions_pinning.py
       - name: Lint with ruff
         run: |
           ruff check src/ tests/

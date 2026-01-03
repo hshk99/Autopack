@@ -2945,3 +2945,196 @@ ARCHITECTURE_DECISIONS.md: 28 entries
 - 120x performance improvement for docs-only sync (120s+ → 1.07s)
 - Per-phase timing visibility for debugging
 
+---
+
+## BUILD-167
+
+**Title**: Doc Link Burndown + High-ROI Improvements (Exit Code Standards, Redirect Stubs, Backtick Heuristics)
+**Status**: ✅ COMPLETE
+**Completed**: 2026-01-03
+**Commits**: d8467771, d88e1bcc (post-review corrections)
+
+### Problem Statement
+
+After BUILD-166 improved backtick filtering, needed focused high-ROI improvements:
+- Missing exit code documentation for CI integration
+- 27 triage rules to add for historical code paths + file extensions
+- 4 redirect stubs needed for moved docs (SOT_BUNDLE.md, CONSOLIDATED_DEBUG.md)
+- Backtick heuristics hardcoded in functions (maintainability)
+- Risk: New planning docs could inflate missing_file count
+
+### Solution
+
+Implemented 5 targeted improvements with zero regression:
+
+**1. Exit Code Standards Documentation** ([docs/EXIT_CODE_STANDARDS.md](EXIT_CODE_STANDARDS.md), NEW)
+- Standardized exit codes for CI integration (0=success, 1=failure, 2=partial)
+- Tool-specific behavior (check_doc_links.py, sot_db_sync.py)
+- Repo-context vs generic workspace distinction
+- Key principle: Informational refs never fail CI
+
+**2. Triage Rules Expansion** ([config/doc_link_triage_overrides.yaml](../config/doc_link_triage_overrides.yaml))
+- Phase 9: Historical code paths (fileorganizer/, research_tracer/, backend/)
+- Phase 10: Redirect stubs (SOT_BUNDLE.md → BUILD-163, CONSOLIDATED_DEBUG.md → DEBUG_LOG.md)
+- 27 new rules total
+- Result: 363 matches in dry-run
+
+**3. Redirect Stub Creation** (4 files)
+- Root: SOT_BUNDLE.md, CONSOLIDATED_DEBUG.md
+- Docs: docs/SOT_BUNDLE.md, docs/CONSOLIDATED_DEBUG.md
+- Format: Status marker + move explanation + provenance
+- Resolves ~32-40 broken link violations
+
+**4. Backtick Heuristics Extraction** ([scripts/check_doc_links.py](../scripts/check_doc_links.py))
+- Extracted KNOWN_EXTENSIONS (20+ file types) to module level
+- Extracted KNOWN_FILENAMES (Makefile, Dockerfile, etc.)
+- Improved maintainability and testability
+
+**5. Redirect Stub Validation** ([tests/doc_links/test_redirect_stubs.py](../tests/doc_links/test_redirect_stubs.py), NEW)
+- Validates stubs point to existing files
+- Validates stub format (status marker, move explanation, provenance)
+- Prevents silent stub rot
+
+### Post-Review Corrections
+
+User identified 3 critical issues after initial implementation:
+
+**Issue 1: Regression in missing_file Count** (746 → 749)
+- Problem: BUILD-167_DOC_LINK_BURNDOWN_PLAN.md contained example paths being counted
+- Fix: Wrapped analysis sections in fenced code blocks
+- Result: Regression eliminated, baseline maintained (746 missing_file)
+
+**Issue 2: Exit Code Standards Ambiguity**
+- Problem: "no entries found = exit 0" unclear for repo-context vs generic workspace
+- Fix: Added "Repo-context invariant (IMPORTANT)" section clarifying CI behavior
+- Result: Standards now clearly separate CI requirements from generic tool usage
+
+**Issue 3: No Validation for Redirect Stubs**
+- Problem: Redirect stubs could rot silently if target files move
+- Fix: Created test_redirect_stubs.py with 2 validation tests
+- Result: All 4 stubs validated successfully, tests passing
+
+### Architecture Decisions
+
+**Why Prefer Redirect Stubs Over Broad Ignores?**
+- Better UX: Working link vs 404
+- Self-documenting: Clear provenance and intent
+- Resolves violations: Reduces broken link count
+- Maintains history: Doesn't delete references
+
+**Why Repo-Context vs Generic Workspace Distinction?**
+- In Autopack repo: "no entries found" = regression (bad cwd, parse bug)
+- In generic workspace: "no entries found" = success (idempotent no-op)
+- CI smoke tests must require entries found in this repo
+
+**Why Extract Backtick Heuristics to Module Level?**
+- Maintainability: Single source of truth for file type detection
+- Testability: Can test patterns independently
+- Extensibility: Easy to add new patterns
+
+### Acceptance Criteria for Future Doc Hygiene Builds
+
+Based on BUILD-167 review, all future builds must meet:
+
+1. **Non-increasing missing_file count** (deep scan)
+   - Exception: Documented justification required
+   - New planning docs must use fenced code blocks for example paths
+
+2. **Nav mode CI must remain clean** (0 missing_file violations)
+   - README.md, docs/INDEX.md, docs/BUILD_HISTORY.md
+   - All violations must be informational categories only
+
+3. **Redirect stub validation**
+   - All stubs must point to existing files
+   - Tests must validate stub format and targets
+   - Prevents silent rot
+
+4. **Exit code standards compliance**
+   - Repo-context invariants enforced
+   - CI behavior documented and tested
+   - Informational refs never fail CI
+
+### Files Modified/Created
+
+**New Files**:
+- docs/EXIT_CODE_STANDARDS.md (224 lines)
+- docs/BUILD-167_COMPLETION_REPORT.md (435 lines)
+- docs/reports/BUILD-167_DOC_LINK_BURNDOWN_PLAN.md (248 lines)
+- tests/doc_links/test_redirect_stubs.py (111 lines)
+- SOT_BUNDLE.md, docs/SOT_BUNDLE.md (redirect stubs)
+- CONSOLIDATED_DEBUG.md, docs/CONSOLIDATED_DEBUG.md (redirect stubs)
+- 4 diagnostic files in archive/diagnostics/
+
+**Modified Files**:
+- config/doc_link_triage_overrides.yaml (+141 lines, 27 new rules)
+- scripts/check_doc_links.py (extracted constants to module level)
+- docs/ARCHITECTURE_DECISIONS.md (9 path fixes)
+
+### Validation
+
+**Metrics** (Post-Corrections):
+- Nav mode: 0 violations ✅ (CI clean)
+- Deep mode: 746 missing_file (baseline maintained, zero regression ✅)
+- Triage coverage: 27 new rules (363 matches)
+- Redirect stubs: 4 created, all validated ✅
+
+**Tests**:
+- test_redirect_stubs.py: 2/2 passing ✅
+- All existing tests: passing ✅
+
+**Documentation**:
+- Exit code standards: 224 lines with tool-specific sections
+- Completion report: 435 lines with post-review section
+- Burndown plan: 248 lines with 5-phase strategy
+
+### Impact
+
+**Before BUILD-167**:
+- ❌ No exit code documentation for CI integration
+- ❌ Historical code paths flagged as missing_file
+- ❌ Moved docs causing broken link violations
+- ❌ Backtick heuristics hardcoded and unmaintainable
+- ❌ No validation for redirect stubs
+
+**After BUILD-167**:
+- ✅ Exit code standards documented (CI-ready)
+- ✅ 27 triage rules added (historical refs properly classified)
+- ✅ 4 redirect stubs resolve ~32-40 violations
+- ✅ Backtick heuristics extracted (maintainable)
+- ✅ Redirect stub validation prevents rot
+- ✅ Zero regression (746 baseline maintained)
+
+**User Experience**: Operators have clear CI integration guidance, historical references don't clutter broken link reports, moved docs have helpful redirects, and future builds have acceptance criteria to prevent regression.
+
+### Lessons Learned
+
+**Planning Docs and Link Checker Interaction**:
+- Analysis documents containing example paths get counted as broken links
+- Solution: Wrap analysis sections in fenced code blocks
+- Prevents planning docs from inflating violation counts
+
+**Exit Code Context Matters**:
+- "No entries found" means different things in different contexts
+- Repo-context (CI): Must find entries (regression signal)
+- Generic workspace: Can be idempotent success
+- Documentation must clearly separate these cases
+
+**Redirect Stubs Need Validation**:
+- Stubs can rot silently if targets move
+- Validation tests prevent this
+- Format checks ensure consistent provenance
+
+### Related Builds
+- BUILD-166: Critical Improvements + Follow-Up Refinements (backtick filtering foundation)
+- BUILD-159: Deep Doc Link Checker + Mechanical Fixer (deep mode foundation)
+- BUILD-158: Tidy Lock/Lease + Doc Link Checker (nav mode foundation)
+
+**Deliverables**:
+- Exit code standards documentation (EXIT_CODE_STANDARDS.md, 224 lines)
+- 27 triage rules for historical refs + file extensions
+- 4 redirect stubs for moved docs (validated)
+- Backtick heuristics extracted to module level
+- Redirect stub validation tests (2 tests passing)
+- Zero regression achieved (746 baseline maintained)
+- Acceptance criteria established for future builds
+

@@ -46,6 +46,12 @@ These are the canonical references that should stay current and are designed to 
 - **SOT Memory Integration**: SOT ledgers can be indexed into `MemoryService` for runtime retrieval
   - See `docs/TIDY_SOT_RETRIEVAL_INTEGRATION_PLAN.md` for implementation details
   - See `docs/SOT_MEMORY_INTEGRATION_EXAMPLE.md` for integration examples
+- **BUILD-167 Doc Link Burndown + High-ROI Improvements**:
+  - Implementation: [docs/BUILD-167_COMPLETION_REPORT.md](BUILD-167_COMPLETION_REPORT.md)
+  - Exit code standards: [docs/EXIT_CODE_STANDARDS.md](EXIT_CODE_STANDARDS.md)
+  - 27 triage rules + 4 redirect stubs + backtick heuristics extraction
+  - Zero regression (746 baseline maintained)
+  - Acceptance criteria for future doc hygiene builds
 - **BUILD-163 Standalone SOT → DB/Qdrant Sync**:
   - Implementation: [docs/BUILD-163_SOT_DB_SYNC.md](BUILD-163_SOT_DB_SYNC.md)
   - Standalone sync tool decoupled from full tidy runs (30-50x faster)

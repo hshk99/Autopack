@@ -17,6 +17,7 @@ Sources: CONSOLIDATED_STRATEGY, CONSOLIDATED_REFERENCE, archive/, BUILD-153, BUI
 
 | Timestamp | DEC-ID | Decision | Status | Impact |
 |-----------|--------|----------|--------|--------|
+| 2026-01-03 | DEC-021 | Doc Link Hygiene - Acceptance Criteria for Non-Increasing Violation Counts | ✅ Implemented | Documentation Quality |
 | 2026-01-03 | DEC-020 | SOT Sync Lock Scope - Minimal Subsystem Locking | ✅ Implemented | Safe Concurrency |
 | 2026-01-03 | DEC-019 | Standalone SOT Sync - Mode-Selective Architecture with Bounded Execution | ✅ Implemented | Operational Efficiency |
 | 2026-01-02 | DEC-017 | SOT Retrieval - Two-Stage Budget Enforcement (Gating + Capping) | ✅ Implemented | Token Efficiency & Observability |
@@ -37,6 +38,81 @@ Sources: CONSOLIDATED_STRATEGY, CONSOLIDATED_REFERENCE, archive/, BUILD-153, BUI
 | 2025-12-09 | DEC-007 | Documentation Consolidation Implementation Plan | ✅ Implemented |  |
 
 ## DECISIONS (Reverse Chronological)
+
+### DEC-021 | 2026-01-03T20:00 | Doc Link Hygiene - Acceptance Criteria for Non-Increasing Violation Counts
+**Status**: ✅ Implemented
+**Build**: BUILD-167
+**Context**: After BUILD-167 post-review corrections fixed regression (746 → 749 → 746), needed permanent guardrails to prevent future doc hygiene builds from inflating violation counts. Required deciding between (1) informal guidance in completion reports, (2) acceptance criteria in dedicated policy doc, or (3) acceptance criteria embedded in existing standards docs.
+
+**Decision**: Establish formal acceptance criteria in BUILD-167_COMPLETION_REPORT.md and replicate in BUILD_HISTORY.md as binding constraints for all future doc hygiene builds, rather than creating separate policy document or relying on informal guidance.
+
+**Chosen Approach**:
+- **Four Binding Acceptance Criteria**:
+  1. **Non-increasing missing_file count** (deep scan) - Exception requires documented justification, new planning docs must use fenced code blocks for example paths
+  2. **Nav mode CI must remain clean** (0 missing_file violations) - README.md, docs/INDEX.md, docs/BUILD_HISTORY.md enforced, all violations must be informational categories only
+  3. **Redirect stub validation** - All stubs must point to existing files, tests validate format and targets, prevents silent rot
+  4. **Exit code standards compliance** - Repo-context invariants enforced, CI behavior documented and tested, informational refs never fail CI
+- **Enforcement Mechanisms**:
+  - Planning doc hygiene: Fenced code blocks for example paths prevent link checker from counting analysis tables/checklists
+  - Redirect stub tests: test_redirect_stubs.py validates all 4 stubs (format + target existence)
+  - Exit code documentation: EXIT_CODE_STANDARDS.md clarifies repo-context vs generic workspace behavior
+  - Baseline tracking: Each build must report before/after counts with explicit regression justification
+- **Pattern for Future Builds**:
+  - Run baseline scan BEFORE any changes
+  - Track counts throughout implementation
+  - Wrap any example paths/analysis in fenced code blocks
+  - Re-run scan AFTER changes to confirm non-regression
+  - Document any justified increases with clear rationale
+
+**Alternatives Considered**:
+1. **Separate Policy Document**: Create DOC_LINK_HYGIENE_POLICY.md with comprehensive rules
+   - ❌ Rejected: Another doc to maintain, policy drift risk, harder to discover than acceptance criteria in completion reports
+2. **Informal Guidance in Completion Reports**: Lessons learned only, no binding criteria
+   - ❌ Rejected: Too weak, future builds could regress without violating explicit constraints
+3. **CI Enforcement Only**: Add pre-commit hook blocking missing_file increases
+   - ❌ Rejected for v1: Too strict (blocks legitimate documented increases), better as future enhancement after criteria proven
+
+**Why Acceptance Criteria Better Than Policy Doc**:
+- **Proximity**: Criteria live in completion reports where implementers already look
+- **Context**: Each build's report shows why criteria matter (real examples from BUILD-167)
+- **Discoverability**: BUILD_HISTORY.md links to criteria, INDEX.md points to BUILD_HISTORY.md
+- **Binding**: Explicit "must meet" language creates clear obligation
+- **Flexibility**: Can document justified exceptions (unlike hard CI blocks)
+
+**Implementation Details**:
+- **docs/BUILD-167_COMPLETION_REPORT.md** (lines 357-403): Primary criteria definition with rationale
+- **docs/BUILD_HISTORY.md** (BUILD-167 section): Replicated criteria for visibility
+- **tests/doc_links/test_redirect_stubs.py**: Enforces criterion 3 (stub validation)
+- **docs/EXIT_CODE_STANDARDS.md** (lines 83-87): Enforces criterion 4 (repo-context invariant)
+
+**Impact**:
+- **Prevents Regression**: Future builds cannot inflate counts without explicit justification
+- **Self-Documenting**: Each build must track before/after counts (transparency)
+- **Test Coverage**: Stub validation automated, exit code behavior documented
+- **Operator Confidence**: Clear expectations for what "completion" means
+
+**Tradeoffs**:
+- ✅ **Pro - Binding Constraints**: Criteria create clear obligation (not suggestions)
+- ✅ **Pro - Contextual**: Completion reports show real examples motivating criteria
+- ✅ **Pro - Discoverable**: BUILD_HISTORY.md is primary navigation entry point
+- ⚠️ **Con - Duplication**: Criteria appear in both completion report and BUILD_HISTORY (intentional for visibility)
+- ⚠️ **Con - Manual Enforcement**: No pre-commit hook (yet) - relies on build discipline
+
+**Validation**:
+- ✅ BUILD-167 met all 4 criteria (746 baseline maintained, nav mode clean, stubs validated, exit codes documented)
+- ✅ Criteria documented in 3 locations (completion report, BUILD_HISTORY, acceptance section)
+- ✅ Tests enforce criterion 3 (redirect stubs)
+- ✅ Documentation enforces criterion 4 (exit codes)
+
+**Related Decisions**:
+- DEC-020: SOT Sync Lock Scope (BUILD-163)
+- BUILD-166: Critical Improvements + Follow-Up Refinements (backtick filtering foundation)
+- BUILD-159: Deep Doc Link Checker + Mechanical Fixer (deep mode foundation)
+
+**Future Considerations**:
+- Could add pre-commit hook blocking missing_file increases (defer until criteria proven in practice)
+- Could create DOC_LINK_HYGIENE_POLICY.md consolidating all criteria (defer until multiple builds validate pattern)
+- Could add CI assertion validating baseline counts in reports match actual scan output (defer - manual verification sufficient for now)
 
 ### DEC-019 | 2026-01-03T15:30 | Standalone SOT Sync - Mode-Selective Architecture with Bounded Execution
 **Status**: ✅ Implemented

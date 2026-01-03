@@ -58,6 +58,16 @@ In practice, “autonomous” requires that each phase has:
 
 ### Latest Highlights (Last 3 Builds)
 
+#### 2026-01-03: BUILD-167 - Doc Link Burndown + High-ROI Improvements ✅
+**Exit Code Standards, Redirect Stubs, Acceptance Criteria**
+- Exit code standards documented: CI integration behavior for check_doc_links.py + sot_db_sync.py
+- 27 triage rules added: Historical code paths + file extensions properly classified
+- 4 redirect stubs created: SOT_BUNDLE.md, CONSOLIDATED_DEBUG.md (with validation tests)
+- Backtick heuristics extracted: Module-level constants for maintainability
+- Zero regression: 746 baseline maintained after post-review corrections
+- Acceptance criteria established: Non-increasing counts + nav mode clean + stub validation + exit code compliance
+- See [docs/BUILD-167_COMPLETION_REPORT.md](docs/BUILD-167_COMPLETION_REPORT.md) and [docs/EXIT_CODE_STANDARDS.md](docs/EXIT_CODE_STANDARDS.md)
+
 #### 2026-01-03: BUILD-163 - Standalone SOT → DB/Qdrant Sync ✅
 **Bounded, Mode-Selective Sync from Canonical SOT Ledgers**
 - Standalone sync tool: Decoupled from full tidy runs, four mutually exclusive modes (--docs-only/--db-only/--qdrant-only/--full)

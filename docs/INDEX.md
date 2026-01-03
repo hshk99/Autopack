@@ -46,6 +46,13 @@ These are the canonical references that should stay current and are designed to 
 - **SOT Memory Integration**: SOT ledgers can be indexed into `MemoryService` for runtime retrieval
   - See `docs/TIDY_SOT_RETRIEVAL_INTEGRATION_PLAN.md` for implementation details
   - See `docs/SOT_MEMORY_INTEGRATION_EXAMPLE.md` for integration examples
+- **BUILD-170.8 Supply-Chain Hardening - Third-Party Action SHA Pinning**:
+  - Eliminated mutable tag attack vector via immutable SHA pinning for all third-party GitHub Actions
+  - Pinned 11 third-party action instances to commit SHAs (aquasecurity/trivy-action 2x, github/codeql-action 5x, gitleaks/gitleaks-action 1x, docker/setup-buildx-action 1x, peter-evans/create-pull-request 1x, codecov/codecov-action 1x)
+  - Security benefit: Immutable SHAs prevent supply-chain attacks where compromised tags point to malicious code
+  - Maintenance: Dependabot already configured for github-actions ecosystem (weekly updates)
+  - Fixed codecov-action v5 breaking change (files parameter vs file)
+  - See [docs/BUILD_HISTORY.md#build-1708](BUILD_HISTORY.md#build-1708) for details
 - **BUILD-170.7 Final SOT Hardening - CI Standardization + Stub Policy Enforcement**:
   - Completed "beyond README ideal state" hardening
   - Standardized ALL CI workflows on GitHub Actions v4 (13 checkout upgrades across 3 files)

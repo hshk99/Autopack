@@ -18,7 +18,7 @@ jobs:
     outputs:
       eligible: ${{ steps.check.outputs.eligible }}
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v6
         with:
           ref: ${{ inputs.integration_branch }}
 
@@ -54,7 +54,7 @@ jobs:
     if: needs.check-eligibility.outputs.eligible == 'true'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v6
         with:
           ref: ${{ inputs.integration_branch }}
 

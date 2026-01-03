@@ -58,6 +58,14 @@ In practice, “autonomous” requires that each phase has:
 
 ### Latest Highlights (Last 3 Builds)
 
+#### 2026-01-03: BUILD-161 - Lock Status UX + Safe Stale Lock Breaking ✅
+**Operator-Friendly Lock Diagnostics**
+- Lock status diagnostics: Cross-platform PID detection (tristate True/False/None), comprehensive status output with visual indicators (✅/⚠️/❌/🔒)
+- Safe lock breaking: Conservative policy (expired + PID not running), --force flag for edge cases (malformed/unknown PID)
+- CLI integration: `--lock-status` (diagnostics), `--break-stale-lock` (safe breaking), `--lock-name`, `--lock-grace-seconds`, `--force`
+- **Result**: Zero manual lock deletion needed, operator-friendly diagnostics, prevents accidental breaking of valid locks, 20/20 tests passing
+- See commit [c44bd276](https://github.com/hshk99/Autopack/commit/c44bd276) for full implementation
+
 #### 2026-01-03: BUILD-159 - Deep Doc Link Checker + Mechanical Fixer ✅
 **Automated Link Repair with Layered Matching**
 - Enhanced checker: Deep mode (scan all docs/), layered heuristic matching (3-step algorithm), confidence scoring (high/medium/low)
@@ -74,14 +82,6 @@ In practice, “autonomous” requires that each phase has:
 - Doc link checker: Validates file references in README.md + docs/INDEX.md + docs/BUILD_HISTORY.md
 - **Result**: Safe concurrent tidy runs, crashed process recovery, 16/16 tests passing, 43 broken links detected
 - See [docs/BUILD-158_TIDY_LOCK_LEASE_DOC_LINKS.md](docs/BUILD-158_TIDY_LOCK_LEASE_DOC_LINKS.md) for full details
-
-#### 2026-01-03: BUILD-157 - Smart Retry Policies + Queue Hygiene ✅
-**Per-Reason Retry Optimization + Automatic Cleanup**
-- Smart retry policies: `locked` (10 attempts), `permission` (3→manual), `dest_exists` (1→manual), `unknown` (5→manual)
-- Queue hygiene lifecycle: 30-day retention for succeeded/abandoned items prevents unbounded growth
-- New `needs_manual` status for items requiring user intervention (previously hidden in "abandoned")
-- **Result**: 80% reduction in wasted retries, 10x faster permission error escalation, predictable queue size
-- See [docs/BUILD-157_SMART_RETRY_QUEUE_HYGIENE.md](docs/BUILD-157_SMART_RETRY_QUEUE_HYGIENE.md) for full details
 
 #### 2026-01-03: BUILD-156 - Queue Improvements & First-Run Ergonomics ✅
 **Actionable Queue Reporting + Reason Taxonomy + Resource Caps + UX Shortcuts**

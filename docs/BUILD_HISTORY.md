@@ -2678,26 +2678,26 @@ Extended BUILD-158's checker with layered heuristic matching + mechanical fixer 
 
 ### Architecture Decisions
 
-**AD-31: Layered Heuristic vs Full Levenshtein**
+**DEC-026: Layered Heuristic vs Full Levenshtein**
 - Rationale: Levenshtein O(n²) prohibitive for 2000+ markdown files; layered approach fast (~2-5s) and semantically meaningful
 - Tradeoff: May miss edge cases but avoids false positives
 
-**AD-32: Confidence Thresholds (0.90/0.85)**
+**DEC-027: Confidence Thresholds (0.90/0.85)**
 - High ≥0.90: Safe for unattended automation (same basename, high similarity)
 - Medium 0.85-0.90: User opt-in with `--apply-medium`
 - Low <0.85: Always manual review
 
-**AD-33: Default Mode = Navigation Files Only**
+**DEC-028: Default Mode = Navigation Files Only**
 - Fast iteration (~2s vs ~5s for deep mode)
 - High signal (user-facing navigation files)
 - Deep mode opt-in for quarterly hygiene sprints
 
-**AD-34: Backup Before Apply (Opt-Out)**
+**DEC-029: Backup Before Apply (Opt-Out)**
 - Safety first: Mechanical fixes can go wrong (regex edge cases)
 - Low cost: <1 second, ~50 KB zip files
 - Rollback capability
 
-**AD-35: Path Normalization (Backslash → Forward Slash)**
+**DEC-030: Path Normalization (Backslash → Forward Slash)**
 - Markdown standard: Forward slashes universal (Windows/Mac/Linux)
 - Consistency: Existing files use forward slashes
 

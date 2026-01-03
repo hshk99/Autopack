@@ -280,7 +280,7 @@ Links fixed: 18
 
 ## Architecture Decisions
 
-### AD-31: Layered Matching vs Full Levenshtein
+### DEC-026: Layered Matching vs Full Levenshtein
 
 **Decision**: Use layered heuristic (same-dir → basename → difflib fuzzy) instead of full Levenshtein distance.
 
@@ -293,7 +293,7 @@ Links fixed: 18
 - Layered approach is fast (~2-5 seconds) vs Levenshtein (~30+ seconds for full repo)
 - May miss edge cases where edit distance would find a match, but these are likely false positives
 
-### AD-32: Confidence Thresholds (0.90 / 0.85)
+### DEC-027: Confidence Thresholds (0.90 / 0.85)
 
 **Decision**: High ≥0.90, medium ≥0.85, low <0.85.
 
@@ -309,7 +309,7 @@ Links fixed: 18
 - Lower thresholds (0.80) → rejected (too many false positives observed in testing)
 - Single threshold → rejected (doesn't allow graduated automation)
 
-### AD-33: Default Mode (Navigation Files Only)
+### DEC-028: Default Mode (Navigation Files Only)
 
 **Decision**: Default mode scans README/INDEX/BUILD_HISTORY only, deep mode opt-in.
 
@@ -323,7 +323,7 @@ Links fixed: 18
 - Major documentation refactors
 - Quarterly link hygiene sprints
 
-### AD-34: Backup Before Apply (Opt-Out)
+### DEC-029: Backup Before Apply (Opt-Out)
 
 **Decision**: Create atomic backup by default, require `--no-backup` to skip.
 
@@ -336,7 +336,7 @@ Links fixed: 18
 - Git-only (no backup) → rejected (users may have uncommitted changes, backup provides extra safety)
 - Opt-in backup → rejected (easy to forget, defeats safety purpose)
 
-### AD-35: Path Normalization (Backslash → Forward Slash)
+### DEC-030: Path Normalization (Backslash → Forward Slash)
 
 **Decision**: Always convert Windows backslashes to forward slashes in markdown links.
 
@@ -440,7 +440,7 @@ $ python scripts/fix_doc_links.py --execute --apply-medium --fix-plan plan_v2.js
 - [ ] **Scheduled Deep Checks**: Weekly cron job for deep mode + auto-PR with fixes
 - [ ] **URL Validation**: HTTP HEAD requests for external URLs (requires network)
 - [ ] **Link Graph Analysis**: Detect circular refs, orphaned files, dead-end navigation
-- [ ] **Redirect Stubs**: Auto-create stub files pointing to new canonical location (AD-32 optional redirect_doc)
+- [ ] **Redirect Stubs**: Auto-create stub files pointing to new canonical location (DEC-027 optional redirect_doc)
 
 ---
 

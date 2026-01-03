@@ -7,8 +7,9 @@ Keeps PostgreSQL and Qdrant in sync with SOT files after tidy runs.
 Features:
 1. Indexes SOT file content in Qdrant (vector search)
 2. Stores structured data in PostgreSQL
-3. Updates README.md with latest changes
-4. Cross-validates data across all sources
+3. Cross-validates data across all sources
+
+Note: For README.md SOT summary updates, use scripts/tidy/sot_summary_refresh.py
 
 Usage:
     python scripts/tidy/db_sync.py --project autopack
@@ -165,10 +166,7 @@ class DatabaseSync:
         if self.qdrant:
             results["qdrant"] = self._sync_to_qdrant()
 
-        # 3. Update README.md
-        results["readme"] = self._update_readme()
-
-        # 4. Cross-validate
+        # 3. Cross-validate
         validation_errors = self._cross_validate()
         results["validation_errors"] = validation_errors
 
@@ -302,120 +300,6 @@ class DatabaseSync:
         print(f"   [OK] Synced {synced_count} documents to Qdrant")
 
         return synced_count
-
-    def _update_readme(self) -> bool:
-        """Update README.md with latest SOT summary"""
-        print("Updating README.md...")
-
-        readme_path = self.project_dir / "README.md"
-
-        if not readme_path.exists():
-            print(f"   [WARN] README.md not found at {readme_path}")
-            return False
-
-        # Read current README
-        content = readme_path.read_text(encoding="utf-8")
-
-        # Generate summary from SOT files
-        summary = self._generate_sot_summary()
-
-        # Find or create "Project Status" section
-        marker_start = "<!-- SOT_SUMMARY_START -->"
-        marker_end = "<!-- SOT_SUMMARY_END -->"
-
-        if marker_start in content and marker_end in content:
-            # Replace existing section
-            before = content.split(marker_start)[0]
-            after = content.split(marker_end)[1]
-            new_content = f"{before}{marker_start}\n{summary}\n{marker_end}{after}"
-        else:
-            # Append new section
-            new_content = f"{content}\n\n## Project Status\n\n{marker_start}\n{summary}\n{marker_end}\n"
-
-        # Write updated README
-        if not self.dry_run:
-            readme_path.write_text(new_content, encoding="utf-8")
-
-            # Log to PostgreSQL
-            if self.pg_conn:
-                cur = self.pg_conn.cursor()
-                content_hash = hashlib.md5(new_content.encode()).hexdigest()
-                cur.execute("""
-                    INSERT INTO readme_sync (project_id, last_synced_at, last_update_summary, content_hash)
-                    VALUES (%s, NOW(), %s, %s)
-                    ON CONFLICT (project_id)
-                    DO UPDATE SET
-                        last_synced_at = NOW(),
-                        last_update_summary = EXCLUDED.last_update_summary,
-                        content_hash = EXCLUDED.content_hash
-                """, (self.project_id, summary[:200], content_hash))
-                self.pg_conn.commit()
-                cur.close()
-
-        print("   [OK] Updated README.md")
-
-        return True
-
-    def _generate_sot_summary(self) -> str:
-        """Generate summary from SOT files"""
-        summary_lines = [
-            f"**Last Updated**: {datetime.now().strftime('%Y-%m-%d %H:%M')}",
-            ""
-        ]
-
-        # BUILD_HISTORY summary
-        build_history = self.docs_dir / "BUILD_HISTORY.md"
-        if build_history.exists():
-            entries = self._parse_sot_file(build_history, "build_history")
-            build_numbers = []
-            by_id = {}
-            for e in entries:
-                bid = (e.get("id") or "").strip()
-                by_id.setdefault(bid, []).append(e)
-                m = re.match(r"^BUILD-(\d+)$", bid)
-                if m:
-                    build_numbers.append(int(m.group(1)))
-
-            builds_completed = max(build_numbers) if build_numbers else len(entries)
-            summary_lines.append(f"- **Builds Completed**: {builds_completed}")
-
-            latest_build = None
-            if build_numbers:
-                latest_id = f"BUILD-{max(build_numbers)}"
-                candidates = by_id.get(latest_id, [])
-                # Prefer an entry whose title/content suggests completion
-                def _score(ent: Dict) -> int:
-                    text = f"{ent.get('title','')}\n{ent.get('content','')}".lower()
-                    return 2 if "100% complete" in text or "✅" in text else 0
-                candidates_sorted = sorted(candidates, key=_score, reverse=True)
-                latest_build = candidates_sorted[0] if candidates_sorted else None
-
-            if latest_build:
-                title = latest_build.get('title', 'N/A')
-                title = re.sub(r"^#+\s*", "", title).strip()
-                summary_lines.append(f"- **Latest Build**: {title}")
-            elif entries:
-                title = entries[0].get('title', 'N/A')
-                title = re.sub(r"^#+\s*", "", title).strip()
-                summary_lines.append(f"- **Latest Build**: {title}")
-
-        # ARCHITECTURE_DECISIONS summary
-        arch_decisions = self.docs_dir / "ARCHITECTURE_DECISIONS.md"
-        if arch_decisions.exists():
-            entries = self._parse_sot_file(arch_decisions, "architecture")
-            unique = {e.get("id") for e in entries if e.get("id")}
-            summary_lines.append(f"- **Architecture Decisions**: {len(unique) if unique else len(entries)}")
-
-        # DEBUG_LOG summary
-        debug_log = self.docs_dir / "DEBUG_LOG.md"
-        if debug_log.exists():
-            entries = self._parse_sot_file(debug_log, "debug_log")
-            unique = {e.get("id") for e in entries if e.get("id")}
-            summary_lines.append(f"- **Debugging Sessions**: {len(unique) if unique else len(entries)}")
-
-        summary_lines.append(f"\n*Auto-generated by Autopack Tidy System*")
-
-        return "\n".join(summary_lines)
 
     def _parse_sot_file(self, file_path: Path, file_type: str) -> List[Dict]:
         """Parse SOT file and extract entries"""

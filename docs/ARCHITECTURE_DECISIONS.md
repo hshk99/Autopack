@@ -2,12 +2,12 @@
 
 
 <!-- AUTO-GENERATED SUMMARY - DO NOT EDIT MANUALLY -->
-**Summary**: 32 decision(s) documented | Last updated: 2026-01-03 17:47:35
+**Summary**: 35 decision(s) documented | Last updated: 2026-01-03 22:01:54
 <!-- END AUTO-GENERATED SUMMARY -->
 
 <!-- META
-Last_Updated: 2026-01-02T18:30:00.000000Z
-Total_Decisions: 16
+Last_Updated: 2026-01-03T22:01:54.660073Z
+Total_Decisions: 35
 Format_Version: 2.0
 Auto_Generated: True
 Sources: CONSOLIDATED_STRATEGY, CONSOLIDATED_REFERENCE, archive/, BUILD-153, BUILD-155
@@ -17,30 +17,45 @@ Sources: CONSOLIDATED_STRATEGY, CONSOLIDATED_REFERENCE, archive/, BUILD-153, BUI
 
 | Timestamp | DEC-ID | Decision | Status | Impact |
 |-----------|--------|----------|--------|--------|
-| 2026-01-03 | DEC-022 | Doc Link Triage - Two-Tier Ignore Architecture (Pattern-Based vs File+Target Specific) | ✅ Implemented | Precision & Maintainability |
-| 2026-01-03 | DEC-021 | Doc Link Hygiene - Acceptance Criteria for Non-Increasing Violation Counts | ✅ Implemented | Documentation Quality |
-| 2026-01-03 | DEC-020 | SOT Sync Lock Scope - Minimal Subsystem Locking | ✅ Implemented | Safe Concurrency |
-| 2026-01-03 | DEC-019 | Standalone SOT Sync - Mode-Selective Architecture with Bounded Execution | ✅ Implemented | Operational Efficiency |
-| 2026-01-02 | DEC-017 | SOT Retrieval - Two-Stage Budget Enforcement (Gating + Capping) | ✅ Implemented | Token Efficiency & Observability |
-| 2026-01-02 | DEC-016 | Storage Optimizer - Protection Policy Unification | ✅ Implemented | Safety & Maintainability |
-| 2026-01-02 | DEC-015 | Storage Optimizer - Delta Reporting Architecture | ✅ Implemented | Performance & Usability |
-| 2026-01-02 | DEC-013 | Storage Optimizer Intelligence - Zero-Token Pattern Learning | ✅ Implemented | Automation & Cost |
-| 2026-01-01 | DEC-012 | Storage Optimizer - Policy-First Architecture | ✅ Implemented | Safety & Efficiency |
-| 2026-01-01 | DEC-011 | SOT Memory Integration - Field-Selective JSON Embedding | ✅ Implemented | Memory Cost |
-| 2025-12-13 | DEC-003 | Manual Tidy Function - Complete Guide | ✅ Implemented |  |
-| 2025-12-13 | DEC-001 | Archive Directory Cleanup Plan | ✅ Implemented |  |
-| 2025-12-13 | DEC-002 | Automated Research Workflow - Implementation Compl | ✅ Implemented |  |
+| 2026-01-03 | DEC-038 | Doc Link Triage - Two-Tier Ignore Architecture ... | ✅ Implemented |  |
+| 2026-01-03 | DEC-033 | Standalone SOT Refresh Script (Not Tidy Flag) | ✅ Implemented | SOT summaries can be refres... |
+| 2026-01-03 | DEC-032 | SOT Summary Counts Derived from Content (Not ME... | ✅ Implemented | SOT summaries always accura... |
+| 2026-01-03 | DEC-031 | Quick Mode Skips Archive Consolidation But Keep... | ✅ Implemented | Quick mode completes in 1.0... |
+| 2026-01-03 | DEC-030 | Forward Slash Normalization for Markdown Links | ✅ Implemented | All fixed links cross-platf... |
+| 2026-01-03 | DEC-029 | Backup Opt-Out vs Mandatory Backup | ✅ Implemented | Zero data loss incidents du... |
+| 2026-01-03 | DEC-028 | Default Mode: Navigation-Only vs Full-Repo Scan | ✅ Implemented | Daily usage fast and focuse... |
+| 2026-01-03 | DEC-027 | Confidence Thresholds: 0.90 (High) / 0.85 (Medium) | ✅ Implemented | Safe default automation (hi... |
+| 2026-01-03 | DEC-026 | Layered Heuristic Matching vs Levenshtein Distance | ✅ Implemented | 31% broken link reduction (... |
+| 2026-01-03 | DEC-025 | Tidy First-Run - Opinionated Bootstrap Over Gra... | ✅ Implemented | First-run success rate impr... |
+| 2026-01-03 | DEC-024 | Tidy Queue - Four-Tier Reason Taxonomy for Smar... | ✅ Implemented | Enables future smart retry ... |
+| 2026-01-03 | DEC-023 | Tidy Queue - Hard Caps with Graceful Rejection ... | ✅ Implemented | Queue resource consumption ... |
+| 2026-01-03 | DEC-022 | Tidy Queue - Priority-Based Reporting Over Age-... | ✅ Implemented | Users see genuinely problem... |
+| 2026-01-03 | DEC-021 | Doc Link Hygiene - Acceptance Criteria for Non-... | ✅ Implemented | - **Prevents Regression**: ... |
+| 2026-01-03 | DEC-020 | SOT Sync Lock Scope - Minimal Subsystem Locking | ✅ Implemented | - **Safe Concurrency**: Pre... |
+| 2026-01-03 | DEC-019 | Standalone SOT Sync - Mode-Selective Architectu... | ✅ Implemented | - **Operational Efficiency*... |
+| 2026-01-02 | DEC-037 | Storage Optimizer Intelligence - Zero-Token Pat... | ✅ Implemented | - **Automation**: Learned r... |
+| 2026-01-02 | DEC-018 | CI Drift Enforcement - Defense-in-Depth with Th... | ✅ Implemented | - **Hygiene Lock-In**: Prev... |
+| 2026-01-02 | DEC-017 | SOT Retrieval - Two-Stage Budget Enforcement (G... | ✅ Implemented | - **Token Efficiency**: Pre... |
+| 2026-01-02 | DEC-016 | Storage Optimizer - Protection Policy Unification | ✅ Implemented | - **Safety**: Clear boundar... |
+| 2026-01-02 | DEC-015 | Storage Optimizer - Delta Reporting Architecture | ✅ Implemented | - **Storage Trends**: Weekl... |
+| 2026-01-02 | DEC-014 | Persistent Queue System for Locked File Retry | ✅ Implemented | - **Before**: Locked files ... |
+| 2026-01-02 | DEC-013 | Tidy System - Windows File Lock Handling Strategy | ✅ Implemented | - **Before**: Tidy crashed ... |
+| 2026-01-01 | DEC-012 | Storage Optimizer - Policy-First Architecture | ✅ Implemented | - **Safety**: Zero risk of ... |
+| 2026-01-01 | DEC-011 | SOT Memory Integration - Field-Selective JSON E... | ✅ Implemented | - **Memory cost**: ~50-100 ... |
 | 2025-12-13 | DEC-005 | Automated Research → Auditor → SOT Workflow | ✅ Implemented |  |
+| 2025-12-13 | DEC-003 | Manual Tidy Function - Complete Guide | ✅ Implemented |  |
+| 2025-12-13 | DEC-002 | Automated Research Workflow - Implementation Co... | ✅ Implemented |  |
+| 2025-12-13 | DEC-001 | Archive Directory Cleanup Plan | ✅ Implemented |  |
 | 2025-12-12 | DEC-010 | StatusAuditor - Quick Reference | ✅ Implemented |  |
-| 2025-12-12 | DEC-006 | Documentation Consolidation V2 - Implementation Su | ✅ Implemented |  |
 | 2025-12-12 | DEC-009 | Status Auditor - Implementation Summary | ✅ Implemented |  |
+| 2025-12-12 | DEC-006 | Documentation Consolidation V2 - Implementation... | ✅ Implemented |  |
 | 2025-12-11 | DEC-008 | Implementation Plan: Workspace Cleanup V2 | ✅ Implemented |  |
 | 2025-12-11 | DEC-004 | Autopack Setup Guide | ✅ Implemented |  |
 | 2025-12-09 | DEC-007 | Documentation Consolidation Implementation Plan | ✅ Implemented |  |
 
 ## DECISIONS (Reverse Chronological)
 
-### DEC-022 | 2026-01-03T21:00 | Doc Link Triage - Two-Tier Ignore Architecture (Pattern-Based vs File+Target Specific)
+### DEC-038 | 2026-01-03T21:00 | Doc Link Triage - Two-Tier Ignore Architecture (Pattern-Based vs File+Target Specific)
 **Status**: ✅ Implemented
 **Build**: BUILD-168
 **Context**: After BUILD-168 discovered critical tool integration gap (triage tool generated ignores that check script wasn't reading), needed to document the two-tier ignore architecture and design rationale for why both pattern-based and file+target specific ignores exist. Required deciding between (1) single ignore type (pattern-based only), (2) single ignore type (file+target only), or (3) two-tier system with both types serving different use cases.
@@ -618,7 +633,7 @@ Sources: CONSOLIDATED_STRATEGY, CONSOLIDATED_REFERENCE, archive/, BUILD-153, BUI
 
 ---
 
-### DEC-013 | 2026-01-02T13:45 | Storage Optimizer Intelligence - Zero-Token Pattern Learning
+### DEC-037 | 2026-01-02T13:45 | Storage Optimizer Intelligence - Zero-Token Pattern Learning
 **Status**: ✅ Implemented
 **Build**: BUILD-151 Phase 4
 **Context**: After BUILD-148 MVP (dry-run scanning) and BUILD-150 Phase 2 (execution engine), user needed intelligence features to reduce manual approval burden. Goal: learn cleanup patterns from approval history without LLM costs.
@@ -1776,7 +1791,7 @@ if not is_root_file_allowed(item.name):
 
 ---
 
-## DEC-025: Doc Link Checker - Fenced Code Blocks Bypass Deep-Scan Validation
+## DEC-034: Doc Link Checker - Fenced Code Blocks Bypass Deep-Scan Validation
 
 **Date**: 2026-01-03
 **Status**: ✅ Implemented (BUILD-169)
@@ -1839,13 +1854,13 @@ This inflated violation counts with false positives that didn't represent broken
 - Track fix ratio: Fencing should be minority of fixes (not majority)
 
 ### Related Decisions
-- DEC-026: File-Scoped Ignores Over Pattern-Based (precision vs coverage tradeoff)
-- DEC-027: High Fix Ratio Requirement (signal quality metric)
+- DEC-035: File-Scoped Ignores Over Pattern-Based (precision vs coverage tradeoff)
+- DEC-036: High Fix Ratio Requirement (signal quality metric)
 - DEC-024: Deep-Scan vs Nav-Mode Policy Separation (BUILD-166)
 
 ---
 
-## DEC-026: Doc Link Checker - File-Scoped Ignores Over Pattern-Based
+## DEC-035: Doc Link Checker - File-Scoped Ignores Over Pattern-Based
 
 **Date**: 2026-01-03
 **Status**: ✅ Implemented (BUILD-169)
@@ -1908,13 +1923,13 @@ Pattern-based ignores (e.g., "ignore all `backend/` references") are too broad:
 - Remove ignores when obsolete (e.g., doc deleted, historical period ended)
 
 ### Related Decisions
-- DEC-025: Fenced Code Blocks Bypass Deep-Scan (alternative to ignoring)
-- DEC-027: High Fix Ratio Requirement (minimizes ignore growth)
+- DEC-034: Fenced Code Blocks Bypass Deep-Scan (alternative to ignoring)
+- DEC-036: High Fix Ratio Requirement (minimizes ignore growth)
 - DEC-024: Deep-Scan vs Nav-Mode Policy Separation (BUILD-166)
 
 ---
 
-## DEC-027: Doc Link Checker - High Fix Ratio Requirement (≥70% Real Fixes)
+## DEC-036: Doc Link Checker - High Fix Ratio Requirement (≥70% Real Fixes)
 
 **Date**: 2026-01-03
 **Status**: ✅ Implemented (BUILD-169)
@@ -2004,6 +2019,6 @@ Fix Ratio = 47 / (47 + 10) = 82.5% ✅ (exceeds 70% threshold)
 4. Infrastructure: No regressions (reliability)
 
 ### Related Decisions
-- DEC-025: Fenced Code Blocks Bypass Deep-Scan (alternative to ignoring)
-- DEC-026: File-Scoped Ignores Over Pattern-Based (minimize false negatives)
+- DEC-034: Fenced Code Blocks Bypass Deep-Scan (alternative to ignoring)
+- DEC-035: File-Scoped Ignores Over Pattern-Based (minimize false negatives)
 - DEC-024: Deep-Scan vs Nav-Mode Policy Separation (BUILD-166)

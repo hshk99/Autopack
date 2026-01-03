@@ -1,0 +1,69 @@
+name: Deep Doc Link Scan (Report-Only)
+
+on:
+  schedule:
+    # Run every Monday at 00:00 UTC (weekly)
+    - cron: '0 0 * * 1'
+  workflow_dispatch:  # Allow manual trigger
+
+jobs:
+  deep-scan:
+    name: Deep Doc Link Scan
+    runs-on: ubuntu-latest
+    # Never fail the workflow - report-only
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements-dev.txt
+
+      - name: Run deep doc link scan
+        id: scan
+        run: |
+          python scripts/check_doc_links.py --deep --export-json deep_scan_results.json --export-md deep_scan_results.md
+          echo "scan_completed=true" >> $GITHUB_OUTPUT
+        continue-on-error: true
+
+      - name: Upload scan results (JSON)
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: doc-link-scan-json
+          path: deep_scan_results.json
+          retention-days: 90
+
+      - name: Upload scan results (Markdown)
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: doc-link-scan-markdown
+          path: deep_scan_results.md
+          retention-days: 90
+
+      - name: Generate summary
+        if: always()
+        run: |
+          echo "## Deep Doc Link Scan Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Scan Date**: $(date -u '+%Y-%m-%d %H:%M UTC')" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ -f deep_scan_results.md ]; then
+            echo "### Summary" >> $GITHUB_STEP_SUMMARY
+            # Extract key metrics from the markdown report
+            head -50 deep_scan_results.md >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⚠️ Scan results not available" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Artifacts**:" >> $GITHUB_STEP_SUMMARY
+          echo "- 📊 JSON report (downloadable from artifacts)" >> $GITHUB_STEP_SUMMARY
+          echo "- 📄 Markdown report (downloadable from artifacts)" >> $GITHUB_STEP_SUMMARY

@@ -165,7 +165,14 @@ class TriageApplicator:
         source_file = broken_link.get("source_file", "")
         pattern = override.get("pattern", "**/*.md")
 
-        if not fnmatch.fnmatch(source_file, pattern):
+        # Use Path.match for glob pattern matching
+        # Special case: **/*.md should match both root and nested .md files
+        from pathlib import Path
+        if pattern == "**/*.md":
+            # Match any .md file at any depth including root
+            if not source_file.endswith(".md"):
+                return False
+        elif not Path(source_file).match(pattern):
             return False
 
         # Match broken target (exact or glob)

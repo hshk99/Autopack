@@ -48,6 +48,7 @@ jobs:
         run: |
           python scripts/check_doc_links.py
         continue-on-error: false
+        # BUILD-166: Nav mode ignores backticks by default (only checks markdown links)
 
       - name: Upload failure report
         if: failure()
@@ -79,8 +80,9 @@ jobs:
 
       - name: Deep scan all docs
         run: |
-          python scripts/check_doc_links.py --deep --verbose
+          python scripts/check_doc_links.py --deep --include-backticks --verbose
         continue-on-error: true
+        # BUILD-166: Deep mode includes backticks for comprehensive coverage
 
       - name: Upload deep scan report
         uses: actions/upload-artifact@v3

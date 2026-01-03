@@ -7,13 +7,16 @@ Prevents "two truths" problem where docs reference non-existent files.
 
 Scope:
 - Default (BUILD-158): README.md, docs/INDEX.md, docs/BUILD_HISTORY.md
+  * Nav mode (default): Only markdown links [text](path), backticks ignored
 - Deep mode (BUILD-159): docs/**/*.md (excludes archive/** by default)
+  * Can include backticks with --include-backticks flag
 
 Features:
 - Layered heuristic matching for broken links (same-dir → basename → fuzzy)
 - Confidence scoring for suggested fixes (high/medium/low)
 - Fix plan generation (JSON + Markdown)
 - Fenced code block skipping to reduce false positives
+- Backtick filtering (BUILD-166): Nav mode ignores code-formatted paths by default
 
 Exit codes:
 - 0: All links valid
@@ -149,7 +152,7 @@ def strip_fenced_code_blocks(content: str) -> str:
     return FENCED_CODE_BLOCK_PATTERN.sub(replace_with_newlines, content)
 
 
-def extract_file_references(content: str, file_path: Path, skip_code_blocks: bool = True) -> Dict[str, List[Dict]]:
+def extract_file_references(content: str, file_path: Path, skip_code_blocks: bool = True, include_backticks: bool = False) -> Dict[str, List[Dict]]:
     """
     Extract potential file references from markdown content.
 
@@ -157,6 +160,7 @@ def extract_file_references(content: str, file_path: Path, skip_code_blocks: boo
         content: Markdown file content
         file_path: Path to the markdown file (for relative resolution)
         skip_code_blocks: If True, skip fenced code blocks
+        include_backticks: If True, extract backtick-wrapped paths (default: False for nav mode)
 
     Returns:
         Dict mapping reference paths to list of occurrence details (link_text, line_number, source_link)
@@ -198,21 +202,22 @@ def extract_file_references(content: str, file_path: Path, skip_code_blocks: boo
                     'original_target': link
                 })
 
-    # Extract backtick-wrapped paths: `path/to/file.ext`
-    for line_num, line in enumerate(lines, start=1):
-        for match in BACKTICK_PATH_PATTERN.finditer(line):
-            path_ref = match.group(1)
-            # Only include if it looks like a file path (has slash or dots)
-            if '/' in path_ref or path_ref.count('.') >= 2:
-                normalized = normalize_path(path_ref)
-                if normalized not in refs:
-                    refs[normalized] = []
-                refs[normalized].append({
-                    'link_text': path_ref,
-                    'line_number': line_num,
-                    'source_link': f'`{path_ref}`',
-                    'original_target': path_ref
-                })
+    # Extract backtick-wrapped paths: `path/to/file.ext` (BUILD-166: optional)
+    if include_backticks:
+        for line_num, line in enumerate(lines, start=1):
+            for match in BACKTICK_PATH_PATTERN.finditer(line):
+                path_ref = match.group(1)
+                # Only include if it looks like a file path (has slash or dots)
+                if '/' in path_ref or path_ref.count('.') >= 2:
+                    normalized = normalize_path(path_ref)
+                    if normalized not in refs:
+                        refs[normalized] = []
+                    refs[normalized].append({
+                        'link_text': path_ref,
+                        'line_number': line_num,
+                        'source_link': f'`{path_ref}`',
+                        'original_target': path_ref
+                    })
 
     return refs
 
@@ -441,6 +446,7 @@ def check_file(
     repo_root: Path,
     search_paths: Optional[List[Path]] = None,
     skip_code_blocks: bool = True,
+    include_backticks: bool = False,
     ignore_config: Optional[Dict] = None
 ) -> Dict:
     """
@@ -466,7 +472,7 @@ def check_file(
         }
 
     content = file_path.read_text(encoding='utf-8')
-    refs = extract_file_references(content, file_path, skip_code_blocks=skip_code_blocks)
+    refs = extract_file_references(content, file_path, skip_code_blocks=skip_code_blocks, include_backticks=include_backticks)
     valid, broken = validate_references(refs, file_path, repo_root, search_paths=search_paths, ignore_config=ignore_config)
 
     return {
@@ -647,10 +653,16 @@ def main():
         action="store_true",
         help="Don't skip fenced code blocks (may increase false positives)"
     )
+    parser.add_argument(
+        "--include-backticks",
+        action="store_true",
+        help="Include backtick-wrapped paths (default: false for nav mode, true for deep mode if specified)"
+    )
 
     args = parser.parse_args()
     repo_root = args.repo_root.resolve()
     skip_code_blocks = not args.no_skip_code_blocks
+    include_backticks = args.include_backticks
 
     # Load ignore configuration
     ignore_config = load_ignore_config(repo_root)
@@ -703,7 +715,7 @@ def main():
     results = []
 
     for file_path in files_to_check:
-        result = check_file(file_path, repo_root, search_paths=all_markdown_files, skip_code_blocks=skip_code_blocks, ignore_config=ignore_config)
+        result = check_file(file_path, repo_root, search_paths=all_markdown_files, skip_code_blocks=skip_code_blocks, include_backticks=include_backticks, ignore_config=ignore_config)
         results.append(result)
 
         if not result["exists"]:

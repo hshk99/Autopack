@@ -13,6 +13,38 @@ Auto_Generated: True
 Sources: CONSOLIDATED_DEBUG, archive/, fileorg-phase2-beta-release, BUILD-144, BUILD-145, BUILD-146-P6, BUILD-146-P12, BUILD-146-Phase-A-P13, BUILD-146-P17, BUILD-155
 -->
 
+## Stub Section Policy (Canonical Truth)
+
+**What is a stub section?**
+A stub section is a placeholder generated when an INDEX table entry exists but the full debug session details have not yet been documented. Stubs preserve the essential information from the INDEX (timestamp, severity, summary, status) while clearly marking that detailed analysis is pending.
+
+**Policy A - Stubs as Canonical Placeholders (CURRENT POLICY)**:
+- Stubs are **valid canonical sections** that satisfy the INDEX/section contract
+- Contract tests (test_debug_log_index_matches_sections.py) **accept stubs** as fulfilling section requirements
+- Stubs contain:
+  1. Full INDEX table summary (no information loss)
+  2. Standard marker line (see below) indicating stub status
+  3. Standard heading format: `### DBG-### | YYYY-MM-DD | <title>`
+  4. Severity, Status, and Summary fields matching INDEX data
+
+**Stub Marker (Required)**:
+All stub sections MUST include this exact marker line:
+
+```
+**Note**: This is a stub section generated from INDEX table entry. Full details to be added in future documentation updates.
+```
+
+**When to use stubs**:
+- Recent INDEX entries (top 50 rows enforced strictly by contract test)
+- Historical INDEX entries where full details are unavailable
+- Temporary placeholders until detailed analysis is completed
+
+**Validation**:
+The test `test_debug_log_stub_policy.py` enforces that all stub sections include the standard marker line, preventing ambiguity about stub vs non-stub status.
+
+**Future Evolution**:
+Stub sections can be expanded into full detailed sections by replacing the stub marker with comprehensive analysis (root cause, solution, validation results, etc.). The stub marker's presence/absence is the unambiguous signal.
+
 ## INDEX (Chronological - Most Recent First)
 
 | Timestamp | DBG-ID | Severity | Summary | Status |

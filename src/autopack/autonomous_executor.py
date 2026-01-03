@@ -7973,26 +7973,31 @@ Just the new description that should replace the current one while preserving th
         )
         files_changed, lines_added, lines_removed = governed_apply.parse_patch_stats(result.patch_content or "")
 
-        # DBG-008 FIX: Match API schema (BuilderResultRequest expects phase_id, run_id, status at top level)
+        # P1.2: Emit canonical BuilderResult payload matching builder_schemas.py
+        # Use lowercase status vocabulary and top-level fields (no metadata wrapper)
         payload = {
-            "phase_id": phase_id,  # Required at top level for API
-            "run_id": self.run_id,  # Required at top level for API
-            "status": "SUCCESS" if result.success else "FAILED",  # Required at top level for API
-            "success": result.success,  # Also include success for backward compat
-            "output": result.patch_content,  # Map patch_content to output field
-            "files_modified": files_changed,  # Map files_changed to files_modified
-            "metadata": {  # Pack extended telemetry into metadata dict
-                "run_type": self.run_type,
-                "lines_added": lines_added,
-                "lines_removed": lines_removed,
-                "builder_attempts": 1,
-                "tokens_used": result.tokens_used,
-                "duration_minutes": 0.0,
-                "probe_results": [],
-                "suggested_issues": [],
-                "notes": "\n".join(result.builder_messages) if result.builder_messages else (result.error or ""),
-                "allowed_paths": allowed_paths or [],
-            }
+            "phase_id": phase_id,
+            "run_id": self.run_id,
+            "run_type": self.run_type,
+            "allowed_paths": allowed_paths or [],
+
+            # Patch/diff information
+            "patch_content": result.patch_content,  # Canonical field name
+            "files_changed": files_changed,  # Canonical field name
+            "lines_added": lines_added,
+            "lines_removed": lines_removed,
+
+            # Execution details (top-level, not in metadata)
+            "builder_attempts": 1,
+            "tokens_used": result.tokens_used,
+            "duration_minutes": 0.0,
+
+            "probe_results": [],
+            "suggested_issues": [],
+
+            # Status (lowercase canonical vocabulary)
+            "status": "success" if result.success else "failed",
+            "notes": "\n".join(result.builder_messages) if result.builder_messages else (result.error or ""),
         }
 
         try:

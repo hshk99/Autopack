@@ -799,36 +799,13 @@ def submit_builder_result(
             status_code=500,
             detail="Database error during commit"
         )
-    # Calculate token efficiency metrics (BUILD-145)
-    token_efficiency = None
-    try:
-        token_efficiency = get_token_efficiency_stats(db, run_id)
-    except Exception as e:
-        logger.warning(f"Failed to get token efficiency stats: {e}")
-    
-    return dashboard_schemas.DashboardRunStatus(
-        run_id=run.id,
-        state=run.state,
-        current_tier_name=current_tier_name,
-        current_phase_name=current_phase_name,
-        current_tier_index=current_tier_index,
-        current_phase_index=current_phase_index,
-        total_tiers=total_tiers,
-        total_phases=total_phases,
-        completed_tiers=completed_tiers,
-        completed_phases=completed_phases,
-        percent_complete=percent_complete,
-        tiers_percent_complete=tiers_percent_complete,
-        tokens_used=tokens_used,
-        token_cap=token_cap,
-        token_utilization=token_utilization,
-        minor_issues_count=minor_issues_count,
-        major_issues_count=major_issues_count,
-        quality_level=quality_level,
-        quality_blocked=quality_blocked,
-        quality_warnings=quality_warnings,
-        token_efficiency=token_efficiency,
-    )
+
+    return {
+        "message": "Builder result submitted successfully",
+        "phase_id": phase_id,
+        "run_id": run_id,
+        "phase_state": phase.state.value if hasattr(phase.state, 'value') else str(phase.state),
+    }
     phase.tokens_used = max(phase.tokens_used or 0, auditor_result.tokens_used or 0)
 
     logger.info(

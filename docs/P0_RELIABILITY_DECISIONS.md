@@ -188,15 +188,39 @@ db_bootstrap_enabled: bool = Field(
 
 ---
 
-## Deferred to P1
+## P1 FastAPI Boundary Contract Enforcement (COMPLETED 2026-01-04)
 
-**P0.2 Schema Mismatch Fix**: Contract tests expose schema drift but don't fix it. Actual fix requires:
-- Updating `autonomous_executor.py` lines 7977-7996 (builder payload)
-- Updating `autonomous_executor.py` lines 8093-8103 (auditor payload)
-- Changing field names and structure to match Pydantic schemas
-- Recommended: Create adapter layer to prevent future drift
+**P0.2 Schema Mismatch → RESOLVED**:
 
-**P1 Backlog** (not currently requested):
+**P1.1 - FastAPI Boundary Tests** ✅:
+- Created [tests/autopack/test_api_boundary_builder_result.py](../tests/autopack/test_api_boundary_builder_result.py)
+- 5 tests using TestClient to validate real HTTP boundary behavior
+- Tests canonical payload (200), legacy payload (422 after strictness), missing fields (422), invalid types (422)
+- Used mechanical enforcement: xfail(strict=True) forced test fixup when code was fixed (XPASS error)
+
+**P1.2 - Executor Canonical Payload** ✅:
+- Updated `autonomous_executor.py` lines 7976-8001 to emit canonical BuilderResult
+- Changed `status: "SUCCESS"` → `status: "success"` (lowercase)
+- Changed `output:` → `patch_content:` (canonical field name)
+- Changed `files_modified:` → `files_changed:` (canonical field name)
+- Removed `metadata: {...}` wrapper - all fields now top-level
+- Aligned with [src/autopack/builder_schemas.py](../src/autopack/builder_schemas.py) canonical schema
+
+**P1.3 - Strict Schema Enforcement** ✅:
+- Added `model_config = ConfigDict(extra="forbid")` to BuilderResult in [builder_schemas.py](../src/autopack/builder_schemas.py:39)
+- Extra fields now return 422 instead of silent data loss
+- Protocol drift fails loudly at the FastAPI boundary
+
+**P1.4 - Test Cleanup** ✅:
+- Removed xfail marker from strictness test (now passes permanently)
+- Deleted legacy behavior test (no longer needed after executor fix)
+
+**Production Bug Fix (Bonus)** ✅:
+- Fixed `/runs/{run_id}/phases/{phase_id}/builder_result` endpoint crash
+- Endpoint tried to return DashboardRunStatus with undefined variables
+- Changed to return simple success response (phase_id, run_id, phase_state)
+
+**Remaining P1 Backlog** (not in this build):
 - P1.1: Deterministic changed-files extraction and persistence
 - P1.2: Wire in worktree isolation (workspace_manager.py integration)
 - P1.3: DB migration discipline (introduce Alembic)
@@ -222,4 +246,4 @@ db_bootstrap_enabled: bool = Field(
 
 ---
 
-**Next Steps**: See P1 backlog in main README for deterministic file extraction, worktree isolation, and migration discipline.
+**Next Steps**: P1 FastAPI boundary contract enforcement complete (2026-01-04). Remaining P1 backlog items (deterministic file extraction, worktree isolation, migration discipline) moved to future builds.

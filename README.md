@@ -68,11 +68,21 @@ In practice, “autonomous” requires that each phase has:
 
 ### Latest Highlights (Last 4 Builds)
 
+#### 2026-01-04: P1 FastAPI Boundary Contract Enforcement ✅
+**Addressed P0 Deferral: Protocol Drift Prevention**
+- **P1.1**: Added FastAPI boundary tests using TestClient (5 tests) - validates real HTTP boundary, not just Pydantic parsing
+- **P1.2**: Fixed executor `_post_builder_result` to emit canonical payload (lowercase status, `patch_content`, `files_changed`, top-level fields)
+- **P1.3**: Enabled strict schemas (`extra="forbid"`) on BuilderResult - extra fields now return 422 instead of silent data loss
+- **P1.4**: Removed xfail markers and legacy test after mechanical enforcement (xfail → XPASS → forced cleanup)
+- **P1 Production Bug Fix**: Fixed `/runs/{run_id}/phases/{phase_id}/builder_result` endpoint crash (undefined variables in DashboardRunStatus construction)
+- **Total**: Silent data loss eliminated, protocol drift fails loudly at boundary, 5 tests enforce canonical contract
+- See [tests/autopack/test_api_boundary_builder_result.py](tests/autopack/test_api_boundary_builder_result.py) for contract enforcement tests
+
 #### 2026-01-04: P0 Reliability Track - Determinism, Isolation, Contract Enforcement ✅ (UPDATED)
 **Addressed Current Bottleneck: System Reliability**
 - **P0.3**: Removed stray executor copies (.backup/.bak/.broken) + CI enforcement to prevent recurrence
 - **P0.1**: Fixed baseline tracker run-scoping (parallel-run collisions prevented) + deterministic delta output (sorted lists)
-- **P0.2**: Added protocol contract tests exposing schema drift between executor payloads and FastAPI schemas (13 tests) → **RESHAPED** to permanent guards (xfail until P1 fixes executor)
+- **P0.2**: Added protocol contract tests exposing schema drift between executor payloads and FastAPI schemas (13 tests) → **RESOLVED in P1**
 - **P0.4**: Added DB safety guardrails - explicit opt-in required for schema creation (`AUTOPACK_DB_BOOTSTRAP=1`)
 - **Beyond P0**: Fixed doc link paper-cuts (5 relative paths in P0_RELIABILITY_DECISIONS.md), reshaped contract tests to be permanent deferred guards instead of asserting broken behavior forever
 - **Total**: 31 new tests (100% pass), production-safe DB initialization, CI enforcement for workspace hygiene, permanent API contract enforcement

@@ -7,7 +7,7 @@ Per §2.2 and §2.3 of v7 playbook:
 
 from typing import List, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class BuilderProbeResult(BaseModel):
@@ -32,7 +32,11 @@ class BuilderSuggestedIssue(BaseModel):
 
 
 class BuilderResult(BaseModel):
-    """Builder result submitted after phase execution"""
+    """Builder result submitted after phase execution
+
+    P1.3: Strict schema enforcement - extra fields forbidden to prevent protocol drift.
+    """
+    model_config = ConfigDict(extra="forbid")
 
     phase_id: str
     run_id: str

@@ -2,7 +2,7 @@
 
 
 <!-- AUTO-GENERATED SUMMARY - DO NOT EDIT MANUALLY -->
-**Summary**: 170 build(s) documented | Last updated: 2026-01-03 14:48:11
+**Summary**: 170 build entries (150 unique builds) documented | Last updated: 2026-01-03 15:00:34
 <!-- END AUTO-GENERATED SUMMARY -->
 
 <!-- META

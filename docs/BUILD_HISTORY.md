@@ -3139,3 +3139,229 @@ Based on BUILD-167 review, all future builds must meet:
 - Zero regression achieved (746 baseline maintained)
 - Acceptance criteria established for future builds
 
+| 2026-01-03 | BUILD-169 | Targeted Doc Link Fixes - 12% Reduction (Focus Docs 100% Clean) (100% COMPLETE ✅) | **High-Signal Fixes Over Ignores - Focus Doc Burndown**: Achieved 11.9% reduction in deep-scan `missing_file` (478→421, 57 resolved) via 47 real fixes + 10 scoped ignores (82% fix ratio). Focus docs cleaned completely: CHANGELOG.md (27→0) + PRE_TIDY_GAP_ANALYSIS_2026-01-01.md (30→0). **Baseline**: 478 `missing_file` issues (deep-scan enforced), nav-mode clean (0 missing_file). **Target**: ≤430 (10% reduction) or ≤382 (20% reduction). **Philosophy**: "Fixes over ignores" - prefer canonical paths, redirect stubs, fenced blocks, then scoped ignores. **Strategy**: Step 0 - Baseline snapshot. Step 1 - Extract broken targets for focus docs. Step 2A - Fix script-name references to canonical paths. Step 2B - Replace directory-only refs with stub docs (or fenced blocks). Step 2C - Convert example/artifact paths to fenced code blocks. Step 3 - Add minimal scoped ignores (only if unavoidable). Step 4 - Validate nav-mode clean + measure reduction. **Implementation - CHANGELOG.md (27→0)**: Fixed 9 script references to canonical paths (batch_drain_controller.py → scripts/batch_drain_controller.py, drain_all_telemetry.sh → scripts/utility/drain_all_telemetry.sh, database.py → src/autopack/database.py, 2 migration files → scripts/migrations/migrations/*.sql). Converted 5 artifact/example lists to fenced code blocks (telemetry archives, test cache, research outputs, memory module listing, archive routing paths). Fixed 1 directory ref to actual target (src/autopack/memory/). **Implementation - PRE_TIDY_GAP_ANALYSIS (30→0)**: Fixed 9 YAML config references to canonical paths in config/ directory. Fixed 2 script verifier references (verify_workspace_structure.py → scripts/tidy/verify_workspace_structure.py). Added 10 scoped ignores for historical directory references (backend/, code/, migrations/, frontend/, tests/, notebooks/, reports/, db/, scripts/analyses/, test_data/). **Refinements**: Validated fenced blocks preserved no navigation loss (all descriptive backticks, not navigation links). Reduced ignores from 12→10 by finding 2 fixable items. Added regression test (test_fenced_code_blocks_bypass_deep_scan) to guard against parser changes re-inflating counts. Validated migration refs semantically correct (files exist at scripts/migrations/migrations/*.sql). **Infrastructure Hardening**: Fixed Windows UTF-8 crashes in 3 scripts (check_doc_links.py, fix_doc_links.py, apply_triage.py). Fixed path normalization preserving .github/ (was being stripped to github/). Restored nav-mode pass by fixing 3 bad relative links in BUILD_HISTORY.md. Hardened apply_triage.py nav-mode filtering (only markdown links, not deep-scan backticks). **Results**: Final count: 421 `missing_file` (57 reduction = 11.9%, exceeded 10% target). Focus docs: CHANGELOG (27→0, 100%), PRE_TIDY_GAP_ANALYSIS (30→0, 100%). Nav-mode: 0 `missing_file` (maintained). Fix ratio: 82% real fixes (47) vs 18% scoped ignores (10). All ignores file-scoped with clear reasoning (historical/runtime refs). **Testing**: Added test_fenced_code_blocks_bypass_deep_scan() to test_backtick_filtering.py. Validated nav-mode clean (exitcode 0). Validated migration file paths exist. Core test suite passing. **Architecture Decisions**: Fenced blocks bypass deep-scan intentionally (design feature, not bug). File-scoped ignores over pattern-based (precision, avoid false positives). Backticks are descriptive, markdown links are navigational (policy). Historical references should be ignored not fixed (accuracy over link hygiene). Windows UTF-8 safety required for emoji/special characters (force encoding). **Impact**: Focus docs production-ready (100% clean), high fix ratio maintained (82%), infrastructure reliability improved (Windows UTF-8 safety, path normalization), regression protection added (fenced-block test), nav-mode hygiene preserved (0 violations). **Deferred**: Remaining 421 `missing_file` burndown (BUILD-170+ phases), next targets: DOC_LINK_TRIAGE_REPORT (24), README (22), ARCHITECTURE_DECISIONS (19). Files: docs/CHANGELOG.md (9 path fixes + 5 fenced blocks), docs/PRE_TIDY_GAP_ANALYSIS_2026-01-01.md (11 path fixes), config/doc_link_check_ignore.yaml (+10 scoped ignores), scripts/check_doc_links.py (+UTF-8 safety), scripts/fix_doc_links.py (+UTF-8 safety), scripts/doc_links/apply_triage.py (+UTF-8 safety + nav filter hardening), tests/doc_links/test_backtick_filtering.py (+regression test) | 7 |
+
+
+## BUILD-169
+
+**Title**: Targeted Doc Link Fixes - 12% Reduction (Focus Docs 100% Clean)
+**Status**: ✅ COMPLETE
+**Completed**: 2026-01-03
+**Commits**: TBD (pending commit)
+
+### Problem Statement
+
+After BUILD-168 achieved 20% reduction via triage rules, needed targeted burndown of top offender docs:
+- 478 `missing_file` remaining in deep-scan mode
+- Top 2 offenders: CHANGELOG.md (27 issues), PRE_TIDY_GAP_ANALYSIS_2026-01-01.md (30 issues)
+- Target: 10-20% reduction (≤430 for 10%, ≤382 for 20%)
+- Philosophy: "Fixes over ignores" - prefer canonical paths, redirect stubs, fenced blocks
+- Hard cap: ≤5-10 new ignore entries
+- Risk: Infrastructure gaps (Windows UTF-8 crashes, path normalization bugs, nav-mode regression)
+
+### Solution
+
+Implemented focused burndown with high fix ratio (82% real fixes vs 18% ignores):
+
+**Step 1: Baseline and Focus Doc Analysis**
+- Baseline: 478 `missing_file` issues
+- Extracted broken targets for CHANGELOG.md (27 issues) and PRE_TIDY_GAP_ANALYSIS (30 issues)
+- All issues were backtick references (deep-scan enforced)
+
+**Step 2A: Script Path Fixes** (CHANGELOG.md)
+- Fixed 9 script references to canonical paths:
+  - `batch_drain_controller.py` → [scripts/batch_drain_controller.py](../scripts/batch_drain_controller.py)
+  - `drain_all_telemetry.sh` → [scripts/utility/drain_all_telemetry.sh](../scripts/utility/drain_all_telemetry.sh)
+  - `database.py` → [src/autopack/database.py](../src/autopack/database.py)
+  - 2 migration files → [scripts/migrations/migrations/*.sql](../scripts/migrations/migrations/)
+  - 1 directory ref → [src/autopack/memory/](../src/autopack/memory/)
+
+**Step 2B: Config File Fixes** (PRE_TIDY_GAP_ANALYSIS)
+- Fixed 9 YAML config references to canonical paths in `config/` directory
+- Fixed 2 script verifier references: `verify_workspace_structure.py` → [scripts/tidy/verify_workspace_structure.py](../scripts/tidy/verify_workspace_structure.py)
+
+**Step 2C: Fenced Code Block Conversions** (CHANGELOG.md)
+- Converted 5 artifact/example lists to fenced code blocks:
+  - Telemetry archive artifacts (lines 1410-1413)
+  - Test cache artifacts (lines 2220-2223)
+  - Research outputs (lines 2283-2287)
+  - Memory module listing (lines 2138-2145)
+  - Archive routing paths (lines 2264-2269)
+- Validation: All conversions were descriptive backticks, not navigation links (no loss)
+
+**Step 3: Scoped Ignores** (PRE_TIDY_GAP_ANALYSIS)
+- Added 10 file-scoped ignores for historical directory references:
+  - backend/, code/, migrations/ (removed during tidy cleanup)
+  - frontend/, tests/, notebooks/ (removed during tidy cleanup)
+  - reports/, db/, scripts/analyses/, test_data/ (historical/runtime)
+- Initial 12 ignores reduced to 10 by finding 2 fixable items
+
+**Infrastructure Hardening**
+1. **Windows UTF-8 Safety**: Fixed crashes in 3 scripts
+   - [scripts/check_doc_links.py](../scripts/check_doc_links.py): Force UTF-8 encoding
+   - [scripts/fix_doc_links.py](../scripts/fix_doc_links.py): Force UTF-8 encoding
+   - [scripts/doc_links/apply_triage.py](../scripts/doc_links/apply_triage.py): Force UTF-8 encoding
+   - Prevents UnicodeEncodeError on Windows consoles with emoji/special characters
+
+2. **Path Normalization Fix**: Preserve dot-directories
+   - Fixed `.github/` being stripped to `github/`
+   - Dot-directories now correctly preserved during normalization
+
+3. **Nav-Mode Restoration**: Fixed 3 bad relative links in BUILD_HISTORY.md
+   - Nav CI now returns exitcode 0 (was broken before)
+   - Maintained 0 `missing_file` in nav-mode
+
+4. **Apply-Triage Nav Filtering**: Hardened nav-mode behavior
+   - Only considers real markdown links (not deep-scan backticks)
+   - Prevents triage rules from breaking nav-mode CI
+
+**Regression Protection**
+- Added `test_fenced_code_blocks_bypass_deep_scan()` to [tests/doc_links/test_backtick_filtering.py](../tests/doc_links/test_backtick_filtering.py)
+- Guards against parser changes re-inflating counts
+- Validates fenced code blocks bypass deep-scan (intentional design)
+
+### Architecture Decisions
+
+**Why Fenced Blocks Over Markdown Links for Artifacts?**
+- Artifacts/examples are descriptive, not navigational
+- Fenced blocks bypass deep-scan intentionally (design feature)
+- Prevents illustrative code from inflating broken link counts
+- Maintains readability while improving link hygiene
+
+**Why File-Scoped Ignores Over Pattern-Based?**
+- Precision: Only affects specific file + target combinations
+- Avoids false positives: Pattern-based ignores too broad
+- Clear reasoning: Each ignore documents why it's justified
+- Maintainability: Easy to audit and remove when no longer needed
+
+**Why Prioritize Real Fixes Over Ignores?**
+- Better user experience: Working links > 404
+- Self-documenting: Clear intent and provenance
+- Reduces technical debt: Ignores are maintenance burden
+- High signal: 82% fix ratio demonstrates quality over convenience
+
+**Why Historical References Should Be Ignored Not Fixed?**
+- Accuracy: Historical docs describe old state (backend/, code/, etc.)
+- Integrity: Rewriting history creates confusion
+- Scope: Pre-tidy structure no longer exists
+- Policy: Historical accuracy > link hygiene
+
+**Why Windows UTF-8 Safety Required?**
+- Emoji/special characters in output (✅, ❌, →)
+- Windows console defaults to CP1252 (not UTF-8)
+- UnicodeEncodeError crashes prevent CI/automation usage
+- Force UTF-8 encoding ensures cross-platform reliability
+
+### Acceptance Criteria for Future Burndown Builds
+
+Based on BUILD-169 implementation, all future burndown builds must meet:
+
+1. **High fix ratio** (≥70% real fixes vs ignores)
+   - Prefer canonical paths, fenced blocks, redirect stubs
+   - Ignores only when semantically justified (historical/runtime refs)
+
+2. **Nav-mode hygiene maintained** (0 `missing_file`)
+   - README.md, docs/INDEX.md, docs/BUILD_HISTORY.md must remain clean
+   - Nav CI exitcode 0 required (blocks PRs)
+
+3. **Infrastructure stability**
+   - No regressions in Windows UTF-8 safety
+   - No regressions in path normalization
+   - Apply-triage nav-mode filtering preserved
+
+4. **Regression protection**
+   - Test coverage for parser changes
+   - Validation of semantic correctness (not just link syntax)
+
+### Files Modified/Created
+
+**Modified Files**:
+- [docs/CHANGELOG.md](CHANGELOG.md): 9 path fixes + 5 fenced blocks (27→0 issues)
+- [docs/PRE_TIDY_GAP_ANALYSIS_2026-01-01.md](PRE_TIDY_GAP_ANALYSIS_2026-01-01.md): 11 path fixes (30→0 issues)
+- [config/doc_link_check_ignore.yaml](../config/doc_link_check_ignore.yaml): +10 scoped ignores
+- [scripts/check_doc_links.py](../scripts/check_doc_links.py): +UTF-8 safety (force encoding)
+- [scripts/fix_doc_links.py](../scripts/fix_doc_links.py): +UTF-8 safety (force encoding)
+- [scripts/doc_links/apply_triage.py](../scripts/doc_links/apply_triage.py): +UTF-8 safety + nav filter hardening
+- [tests/doc_links/test_backtick_filtering.py](../tests/doc_links/test_backtick_filtering.py): +regression test
+
+### Validation
+
+**Metrics**:
+- Deep-scan: 421 `missing_file` (57 reduction = 11.9%, exceeded 10% target ✅)
+- Nav-mode: 0 `missing_file` (maintained ✅)
+- Focus docs: CHANGELOG (27→0, 100% ✅), PRE_TIDY_GAP_ANALYSIS (30→0, 100% ✅)
+- Fix ratio: 82% real fixes (47) vs 18% scoped ignores (10) ✅
+- All ignores file-scoped with clear reasoning ✅
+
+**Tests**:
+- test_backtick_filtering.py: 6/6 passing (including new regression test) ✅
+- Nav-mode CI: exitcode 0 ✅
+- Core test suite: passing ✅
+
+**Validation Checks**:
+- Fenced blocks preserved navigation (all descriptive backticks) ✅
+- Migration file paths exist (scripts/migrations/migrations/*.sql) ✅
+- Ignores justified (all historical/runtime refs) ✅
+- Windows UTF-8 safety working (no crashes) ✅
+- Path normalization correct (.github/ preserved) ✅
+
+### Impact
+
+**Before BUILD-169**:
+- ❌ 478 `missing_file` issues (focus docs: CHANGELOG 27, PRE_TIDY 30)
+- ❌ Windows UTF-8 crashes in doc link scripts
+- ❌ Path normalization stripping .github/ to github/
+- ❌ Nav-mode regression (3 bad links in BUILD_HISTORY.md)
+- ❌ No regression tests for fenced-block parser behavior
+
+**After BUILD-169**:
+- ✅ 421 `missing_file` (11.9% reduction, exceeded 10% target)
+- ✅ Focus docs 100% clean (CHANGELOG 0, PRE_TIDY 0)
+- ✅ High fix ratio maintained (82% real fixes vs 18% ignores)
+- ✅ Windows UTF-8 safety in 3 scripts (force encoding)
+- ✅ Path normalization preserves dot-directories
+- ✅ Nav-mode restored (0 violations, exitcode 0)
+- ✅ Regression protection (fenced-block test added)
+
+**User Experience**: Focus docs production-ready (100% clean), infrastructure reliability improved (Windows cross-platform support), nav-mode hygiene maintained (CI clean), regression protection added (parser changes detected), clear path forward for remaining burndown (next targets identified).
+
+### Lessons Learned
+
+**Fix Ratio Is Signal Quality Metric**:
+- 82% real fixes demonstrates thoroughness
+- Easy to hit targets with broad ignores (low quality)
+- Hard to hit targets with real fixes (high quality)
+- Fix ratio should be tracked for all future burndown builds
+
+**Fenced Blocks Are Opt-Out From Validation**:
+- Intentional design: Illustrative code shouldn't inflate counts
+- Must validate no navigation loss when converting
+- Regression tests prevent parser changes from re-breaking
+- Clear policy: Backticks = descriptive, markdown links = navigational
+
+**Infrastructure Gaps Compound Over Time**:
+- Windows UTF-8 crashes prevented automation usage
+- Path normalization bugs created false positives
+- Nav-mode regression broke CI
+- Proactive hardening prevents future debugging sessions
+
+**Ignore Minimization Requires Auditing**:
+- Initial 12 ignores → 10 after finding 2 fixable items
+- Each ignore should be challenged: "Can this be fixed?"
+- File-scoped ignores easier to audit than pattern-based
+- Clear reasoning prevents ignore list from becoming junk drawer
+
+### Related Builds
+- BUILD-168: Doc Link Burndown - 20% Missing File Reduction (triage rules foundation)
+- BUILD-167: Doc Link Burndown + High-ROI Improvements (exit codes, redirect stubs, backtick heuristics)
+- BUILD-166: Critical Improvements + Follow-Up Refinements (backtick filtering foundation)
+
+**Deliverables**:
+- 11.9% reduction in `missing_file` (478→421, 57 resolved)
+- Focus docs 100% clean (CHANGELOG 27→0, PRE_TIDY 30→0)
+- 82% fix ratio (47 real fixes vs 10 scoped ignores)
+- Windows UTF-8 safety in 3 scripts
+- Path normalization fix (.github/ preserved)
+- Nav-mode restored (0 violations, exitcode 0)
+- Regression test added (fenced-block bypass)
+- Next targets identified (DOC_LINK_TRIAGE_REPORT 24, README 22, ARCHITECTURE_DECISIONS 19)

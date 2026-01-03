@@ -980,6 +980,36 @@ ignore_patterns:
 - file: docs\PRE_TIDY_GAP_ANALYSIS_2026-01-01.md
   target: tidy_scope.yaml
   reason: Runtime config file - created on demand
+- file: docs\PRE_TIDY_GAP_ANALYSIS_2026-01-01.md
+  target: backend/
+  reason: Historical directory - removed during tidy cleanup, refs describe old state
+- file: docs\PRE_TIDY_GAP_ANALYSIS_2026-01-01.md
+  target: code/
+  reason: Historical directory - removed during tidy cleanup, refs describe old state
+- file: docs\PRE_TIDY_GAP_ANALYSIS_2026-01-01.md
+  target: migrations/
+  reason: Historical directory at root - moved to scripts/migrations/, refs describe old state
+- file: docs\PRE_TIDY_GAP_ANALYSIS_2026-01-01.md
+  target: _shared/
+  reason: Runtime directory under .autonomous_runs/ - intentional reference
+- file: docs\PRE_TIDY_GAP_ANALYSIS_2026-01-01.md
+  target: baselines/
+  reason: Runtime directory under .autonomous_runs/ - intentional reference
+- file: docs\PRE_TIDY_GAP_ANALYSIS_2026-01-01.md
+  target: checkpoints/
+  reason: Runtime directory under .autonomous_runs/ - intentional reference
+- file: docs\PRE_TIDY_GAP_ANALYSIS_2026-01-01.md
+  target: test_api.py
+  reason: Historical file - may have been removed during cleanup
+- file: docs\PRE_TIDY_GAP_ANALYSIS_2026-01-01.md
+  target: tests/backend/
+  reason: Historical test directory - may have been removed with backend code
+- file: docs\PRE_TIDY_GAP_ANALYSIS_2026-01-01.md
+  target: research_orchestrator.py
+  reason: Historical file - moved or refactored
+- file: docs\PRE_TIDY_GAP_ANALYSIS_2026-01-01.md
+  target: file-organizer-app-v1/
+  reason: Historical project location - moved to .autonomous_runs/ during cleanup
 - file: docs\WORKSPACE_ORGANIZATION_SPEC.md
   target: .py
   reason: File extension example - informational code reference

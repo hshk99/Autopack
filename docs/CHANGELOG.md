@@ -1387,7 +1387,7 @@ python scripts/run_parallel.py --run-ids-file benchmark_runs.txt \
   - **SMAPE Spread**: 3.7% to 36.9% (healthy variance for docs/low group)
 - **3 Critical Issues Fixed**:
   1. **Wrong Runner Issue** ([scripts/batch_drain_controller.py:597](scripts/batch_drain_controller.py#L597)):
-     - **Problem**: `batch_drain_controller.py` only processes `FAILED` phases, but v6 creates `QUEUED` phases
+     - **Problem**: [scripts/batch_drain_controller.py](scripts/batch_drain_controller.py) only processes `FAILED` phases, but v6 creates `QUEUED` phases
      - **Fix**: Updated v6 seed script instructions to use [scripts/drain_queued_phases.py](scripts/drain_queued_phases.py) instead
      - **Validation**: Confirmed via static code check + successful 3-phase drain
   2. **DB Misconfiguration Risk** ([scripts/create_telemetry_v6_targeted_run.py:25-39](scripts/create_telemetry_v6_targeted_run.py#L25-L39)):
@@ -1406,9 +1406,11 @@ python scripts/run_parallel.py --run-ids-file benchmark_runs.txt \
   - Run model: `run_id`→`id`, `status`→`state` (enum), `goal`→`goal_anchor` (JSON)
   - Phase model: `phase_number`→`phase_index`, added `tier_id` FK, added `name`, `goal`→`description`
   - Added Tier creation: `tier_id="telemetry-v6-T1"` (required parent for phases)
-- **Documentation**: [.autopack/telemetry_archives/20251229_222812/](/.autopack/telemetry_archives/20251229_222812/)
-  - `sanity_check_v5.txt`: V5 data quality analysis (22% outlier rate, 3/5 groups inadequate)
-  - `calibration_proposal_v5.txt`: V5-only recommendations (not applied - awaiting v6)
+- **Documentation**: `.autopack/telemetry_archives/20251229_222812/` (archived runtime artifacts)
+  ```
+  sanity_check_v5.txt        - V5 data quality analysis (22% outlier rate, 3/5 groups inadequate)
+  calibration_proposal_v5.txt - V5-only recommendations (not applied - awaiting v6)
+  ```
 - **Impact**:
   - ✅ **V6 Pipeline Validated**: End-to-end workflow proven (seed→drain→telemetry) with 100% success
   - ✅ **Doc Categorization Fixed**: Trigger word removal prevents doc_synthesis misclassification
@@ -1509,13 +1511,13 @@ python scripts/run_parallel.py --run-ids-file benchmark_runs.txt \
   - `src/autopack/autonomous_executor.py` (+6 lines)
   - `scripts/probe_telemetry_phase.py` (+8 lines)
   - `tests/autopack/test_skip_ci_flag.py` (NEW, 94 lines)
-  - `drain_all_telemetry.sh` (NEW, rollout automation script)
+  - [scripts/utility/drain_all_telemetry.sh](scripts/utility/drain_all_telemetry.sh) (NEW, rollout automation script)
 
 ### 2025-12-28 (Part 6): Database Identity Drift Resolution - ✅ COMPLETE
 **CRITICAL FIX: Executor and API Server DB Alignment** - Eliminated systematic database clearing/404 errors
 - **Problem Solved**: Executor and API server using different databases → 404 errors → database appearing "cleared" after execution
 - **Root Cause**: NOT database clearing, but **DB identity drift** from 3 sources:
-  1. `database.py` import-time binding used `settings.database_url` instead of runtime `get_database_url()`
+  1. [src/autopack/database.py](src/autopack/database.py) import-time binding used `settings.database_url` instead of runtime `get_database_url()`
   2. `autonomous_executor.py` partial schema creation (only `llm_usage_events` table, missing `runs`, `phases`, `token_estimation_v2_events`)
   3. API server `load_dotenv()` overriding DATABASE_URL from parent executor process
 - **Solution**: Complete DB identity unification
@@ -1838,7 +1840,7 @@ python scripts/run_parallel.py --run-ids-file benchmark_runs.txt \
   - `src/autopack/autonomous_executor.py`: requires `service=="autopack"` and refuses incompatible/non-JSON `/health`.
   - Fixed API auto-start target to `autopack.main:app` (correct under `PYTHONPATH=src`).
 - **DB-backed P10 events**:
-  - New table `token_budget_escalation_events` (migration: `migrations/005_add_p10_escalation_events.sql`).
+  - New table `token_budget_escalation_events` (migration: [scripts/migrations/migrations/005_add_p10_escalation_events.sql](scripts/migrations/migrations/005_add_p10_escalation_events.sql)).
   - Executor writes an escalation event when P10 triggers (base/source/retry tokens), making validation deterministic.
 - **P10-first draining**:
   - New ranked plan generator: `scripts/create_p10_first_drain_plan.py` (prioritizes queued phases likely to hit truncation/≥95% utilization).
@@ -1846,7 +1848,7 @@ python scripts/run_parallel.py --run-ids-file benchmark_runs.txt \
   - Updated validator: `scripts/check_p10_validation_status.py` now checks escalation events table.
 - **SQLite migration runner hardened**:
   - `scripts/run_migrations.py` now runs **root** migrations by default (use `--include-scripts` to also run legacy `scripts/migrations/*.sql`).
-  - Fixed broken telemetry view `v_truncation_analysis` to match `phases.name` (migration: `migrations/006_fix_v_truncation_analysis_view.sql`).
+  - Fixed broken telemetry view `v_truncation_analysis` to match `phases.name` (migration: [scripts/migrations/migrations/006_fix_v_truncation_analysis_view.sql](scripts/migrations/migrations/006_fix_v_truncation_analysis_view.sql)).
 
 **Stability confirmation (draining)**:
 - **Stateful retries are working**: `retry_attempt`/`revision_epoch` persist in SQLite (`phases` table), so repeated drain batches no longer “forget” attempt counters.
@@ -1867,7 +1869,7 @@ python scripts/run_parallel.py --run-ids-file benchmark_runs.txt \
 **Root-cause fixes to ensure phases can converge across attempts** under NDJSON + truncation, without workspace drift or destructive “fixes”.
 - **Deliverables validation is now cumulative**: required deliverables already present on disk satisfy validation (enables multi-attempt convergence under NDJSON truncation).
 - **Scope/workspace root correctness**:
-  - Fixed deliverables-aware scope inference to **flatten bucketed deliverables dicts** (`{"code/tests/docs":[...]}`) into real paths (no more accidental `code/tests/docs` as scope roots).
+  - Fixed deliverables-aware scope inference to **flatten bucketed deliverables dicts** (e.g., `{"code/tests/docs":[...]}`) into real paths (no more accidental directory keys as scope roots).
   - `project_build` workspace root now correctly resolves to the **repo root** for standard buckets (`src/`, `docs/`, `tests/`, etc.), preventing false “outside scope” rejections.
 - **NDJSON apply correctness**: `governed_apply` treats the synthetic “NDJSON Operations Applied …” header as **already-applied** (skips `git apply` while still enforcing path restrictions).
 - **Safety / traceability**:
@@ -2067,7 +2069,7 @@ python scripts/run_parallel.py --run-ids-file benchmark_runs.txt \
   - Quality gates checklist: [AUTONOMOUS_IMPLEMENTATION_CHECKLIST.md](.autonomous_runs/lovable-integration-v1/AUTONOMOUS_IMPLEMENTATION_CHECKLIST.md)
 - **Critical Corrections Made**:
   - SSE Streaming RESTORED (was incorrectly removed - serves different consumers than Claude Chrome)
-  - Architecture rebased onto actual Autopack modules (not Lovable's `file_manifest/`)
+  - Architecture rebased onto actual Autopack modules (not Lovable's file manifest structure)
   - Semantic embeddings enforced (hash embeddings blocked for Lovable features)
   - Protected-path strategy defined (`src/autopack/lovable/` subtree + narrow allowlist)
 - **Expected Impact**: **60% token reduction** (50k→20k), **95% patch success** (+20pp), **75% hallucination reduction**, **50% faster execution**
@@ -2119,8 +2121,8 @@ See [`archive/superseded/reports/BUILD-114-115-COMPLETION-SUMMARY.md`](archive/s
 - Builder now auto-falls back to structured_edit when full-file outputs truncate or fail JSON parsing on large, multi-path phases (e.g., search, batch-upload).
 - Phases can opt into structured_edit via `builder_mode` in the phase spec; large scopes (many files) default to structured_edit to avoid token-cap truncation.
 - CI logs can be captured on success per phase (`ci.log_on_success: true`) to aid “needs_review” follow-up.
-- Workspace prep: ensure scoped directories exist in the run workspace (e.g., `models/`, `migrations/`) to avoid missing-path scope warnings.
-- Reusable hardening templates: see `templates/hardening_phases.json` and `templates/phase_defaults.json` plus `scripts/plan_hardening.py` to assemble project plans; kickoff multi-agent planning with `archive/superseded/prompts/kickoff_prompt.md`.
+- Workspace prep: ensure scoped directories exist in the run workspace (e.g., models/, migrations/) to avoid missing-path scope warnings.
+- Reusable hardening templates: template JSON files for phase definitions (historical reference); see [scripts/plan_hardening.py](scripts/plan_hardening.py) to assemble project plans.
 
 ### Memory & Context System (IMPLEMENTED & VERIFIED 2025-12-09)
 Vector memory for context retrieval and goal-drift detection:
@@ -2134,13 +2136,15 @@ Vector memory for context retrieval and goal-drift detection:
   - Migration: Use `scripts/migrate_sqlite_to_postgres.py` to transfer data from SQLite to PostgreSQL
   - **Status**: ✅ PostgreSQL and Qdrant integration verified with decision logs, phase summaries, and smoke tests passing
 
-- **Vector Memory** (`src/autopack/memory/`):
-  - `embeddings.py` - OpenAI + local fallback embeddings
-  - `qdrant_store.py` - **Qdrant backend (default)** - Production vector store with deterministic UUID conversion (MD5-based)
-  - `faiss_store.py` - FAISS backend (dev/offline fallback)
-  - `memory_service.py` - Collections: code_docs, run_summaries, decision_logs, task_outcomes, error_patterns
-  - `maintenance.py` - TTL pruning (30 days default)
-  - `goal_drift.py` - Detects semantic drift from run goals
+- **Vector Memory** ([src/autopack/memory/](src/autopack/memory/)):
+  ```
+  embeddings.py       - OpenAI + local fallback embeddings
+  qdrant_store.py     - Qdrant backend (default) - Production vector store with deterministic UUID conversion (MD5-based)
+  faiss_store.py      - FAISS backend (dev/offline fallback)
+  memory_service.py   - Collections: code_docs, run_summaries, decision_logs, task_outcomes, error_patterns
+  maintenance.py      - TTL pruning (30 days default)
+  goal_drift.py       - Detects semantic drift from run goals
+  ```
 
 - **YAML Validation** (`src/autopack/validators/yaml_validator.py`):
   - Pre-apply syntax validation for YAML/docker-compose files
@@ -2167,7 +2171,7 @@ Vector memory for context retrieval and goal-drift detection:
     threshold: 0.7
   ```
 
-See `docs/IMPLEMENTATION_PLAN_MEMORY_AND_CONTEXT.md` for full details.
+See [src/autopack/memory/](src/autopack/memory/) for implementation details.
 
 ### Intent Router (2025-12-09)
 Natural-language entrypoint that maps user intents to safe Autopack actions (no raw commands):
@@ -2213,8 +2217,10 @@ Autonomous maintenance system for processing backlog items with propose-first di
 
 **Observability**:
 - Artifacts: `.autonomous_runs/<run_id>/diagnostics/` with command logs, summaries, and test cache
-- Test Cache: `test_output_cache.json` stores unique test outputs by hash reference
-- Summaries: `backlog_diagnostics_summary.json` with `test_hashes` field for efficient lookups
+  ```
+  test_output_cache.json          - Unique test outputs by hash reference
+  backlog_diagnostics_summary.json - Summary with test_hashes field for efficient lookups
+  ```
 - DecisionLog + dashboard diagnostics card surface latest run
 
 **Maintenance Auditor** (FIXED 2025-12-10):
@@ -2255,10 +2261,12 @@ Strategic decision-making system that analyzes research files against project st
    - Outputs: IMPLEMENT_NOW, IMPLEMENT_LATER, REVIEW, or REJECT
 
 4. **Decision Routing** - Routes decisions to appropriate locations:
-   - IMPLEMENT_NOW → `archive/research/active/`
-   - IMPLEMENT_LATER → `docs/FUTURE_PLAN.md`
-   - REVIEW → `archive/research/reviewed/deferred/`
-   - REJECT → `archive/research/reviewed/rejected/`
+   ```
+   IMPLEMENT_NOW   → archive/research/active/
+   IMPLEMENT_LATER → docs/FUTURE_PLAN.md
+   REVIEW          → archive/research/reviewed/deferred/
+   REJECT          → archive/research/reviewed/rejected/
+   ```
 
 **Universal Design**: Works for ANY project (Autopack, file-organizer-app-v1, or future projects).
 
@@ -2273,10 +2281,12 @@ python scripts/research/research_analyzer.py file-organizer-app-v1
 python scripts/research/decision_engine.py file-organizer-app-v1
 ```
 
-**Outputs**:
-- `context.json` - Assembled project context
-- `opportunity_analysis.json` - Gap analysis with prioritized opportunities
-- `decision_report.json` - Strategic decisions with rationale
+**Outputs** (runtime artifacts):
+```
+context.json              - Assembled project context
+opportunity_analysis.json - Gap analysis with prioritized opportunities
+decision_report.json      - Strategic decisions with rationale
+```
 - Updated `docs/FUTURE_PLAN.md` - IMPLEMENT_LATER items appended
 - Routed research files in appropriate directories
 

@@ -118,22 +118,22 @@ if project_id == "autopack":
     return False
 ```
 
-**Action Required**: Update verifier (`verify_workspace_structure.py`) to match tidy's semantics (skip SOT validation for `autopack`).
+**Action Required**: Update verifier ([scripts/tidy/verify_workspace_structure.py](scripts/tidy/verify_workspace_structure.py)) to match tidy's semantics (skip SOT validation for `autopack`).
 
 ### 3. `config/` Directory Decision Point 🤔
 
 **Current State**: 11 YAML configuration files at `c:/dev/Autopack/config/`:
-- `diagnostics.yaml`
-- `feature_catalog.yaml`
-- `memory.yaml`
-- `models.yaml` (model intelligence catalog)
-- `pricing.yaml`
-- `project_types.yaml`
-- `stack_profiles.yaml`
-- `storage_policy.yaml`
-- `tidy_scope.yaml`
-- `tools.yaml`
-- `templates/` subdirectory
+- [config/diagnostics.yaml](config/diagnostics.yaml)
+- [config/feature_catalog.yaml](config/feature_catalog.yaml)
+- [config/memory.yaml](config/memory.yaml)
+- [config/models.yaml](config/models.yaml) (model intelligence catalog)
+- [config/pricing.yaml](config/pricing.yaml)
+- [config/project_types.yaml](config/project_types.yaml)
+- [config/stack_profiles.yaml](config/stack_profiles.yaml)
+- [config/storage_policy.yaml](config/storage_policy.yaml)
+- [config/tidy_scope.yaml](config/tidy_scope.yaml)
+- [config/tools.yaml](config/tools.yaml)
+- [config/templates/](config/templates/) subdirectory
 
 **Question**: Should these live at repo root `config/` or be moved?
 
@@ -193,7 +193,7 @@ Based on [docs/IMPLEMENTATION_PLAN_TIDY_IDEAL_STATE_PHASE_E.md](IMPLEMENTATION_P
    - This prevents tidy from ignoring 24 databases that should be archived
 
 2. **Update Verifier for `autopack` Workspace** (MEDIUM PRIORITY)
-   - Update `scripts/tidy/verify_workspace_structure.py`
+   - Update [scripts/tidy/verify_workspace_structure.py](scripts/tidy/verify_workspace_structure.py)
    - Skip SOT validation for `.autonomous_runs/autopack` (match tidy behavior)
 
 3. **Document `config/` Directory** (LOW PRIORITY)

@@ -147,12 +147,47 @@ The API endpoint `/api/auth/.well-known/jwks.json` provides JWKS.
     print("✅ test_nav_mode_realistic_scenario passed")
 
 
+def test_fenced_code_blocks_bypass_deep_scan():
+    """Test that fenced code blocks don't trigger missing_file in deep mode (BUILD-169 regression guard)."""
+    content = """
+# Vector Memory Module
+
+The memory system ([src/autopack/memory/](src/autopack/memory/)) includes:
+
+```
+embeddings.py       - OpenAI + local fallback embeddings
+qdrant_store.py     - Qdrant backend (default)
+faiss_store.py      - FAISS backend (dev/offline)
+memory_service.py   - Collections management
+```
+
+See [src/autopack/memory/README.md](src/autopack/memory/README.md) for details.
+"""
+
+    # Deep mode with backticks enabled
+    refs = extract_file_references(content, Path("test.md"), skip_code_blocks=True, include_backticks=True)
+
+    # Should extract markdown links but NOT fenced block contents
+    assert len(refs) == 2
+    assert "src/autopack/memory/" in refs
+    assert "src/autopack/memory/README.md" in refs
+
+    # Fenced block contents should be skipped
+    assert "embeddings.py" not in refs
+    assert "qdrant_store.py" not in refs
+    assert "faiss_store.py" not in refs
+    assert "memory_service.py" not in refs
+
+    print("✅ test_fenced_code_blocks_bypass_deep_scan passed")
+
+
 if __name__ == "__main__":
     test_backtick_filtering_disabled_by_default()
     test_backtick_filtering_enabled()
     test_markdown_links_always_extracted()
     test_backtick_path_heuristics()
     test_nav_mode_realistic_scenario()
+    test_fenced_code_blocks_bypass_deep_scan()
 
     print("\n" + "=" * 70)
     print("ALL BACKTICK FILTERING TESTS PASSED ✅")

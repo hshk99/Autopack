@@ -46,6 +46,18 @@ These are the canonical references that should stay current and are designed to 
 - **SOT Memory Integration**: SOT ledgers can be indexed into `MemoryService` for runtime retrieval
   - See `docs/TIDY_SOT_RETRIEVAL_INTEGRATION_PLAN.md` for implementation details
   - See `docs/SOT_MEMORY_INTEGRATION_EXAMPLE.md` for integration examples
+- **BUILD-169 Targeted Doc Link Fixes - 12% Reduction (Focus Docs 100% Clean)**:
+  - 11.9% reduction: 478 → 421 missing_file (57 resolved)
+  - Focus docs cleaned: CHANGELOG.md (27→0) + PRE_TIDY_GAP_ANALYSIS (30→0) = 100%
+  - High fix ratio: 82% real fixes (47) vs 18% scoped ignores (10)
+  - Infrastructure hardening: Windows UTF-8 safety, path normalization fixes
+  - Regression protection: Added test_fenced_code_blocks_bypass_deep_scan()
+  - See [docs/BUILD_HISTORY.md](BUILD_HISTORY.md) BUILD-169 entry for details
+- **BUILD-168 Doc Link Burndown - 20% Missing File Reduction**:
+  - 20.6% reduction: 746 → 592 missing_file (154 resolved)
+  - 60+ triage rules + 300 file+target specific ignores
+  - Fixed scripts/check_doc_links.py to use ignore_patterns (fundamental mismatch)
+  - See [docs/BUILD_HISTORY.md](BUILD_HISTORY.md) BUILD-168 entry for details
 - **BUILD-167 Doc Link Burndown + High-ROI Improvements**:
   - Implementation: [docs/BUILD-167_COMPLETION_REPORT.md](BUILD-167_COMPLETION_REPORT.md)
   - Exit code standards: [docs/EXIT_CODE_STANDARDS.md](EXIT_CODE_STANDARDS.md)

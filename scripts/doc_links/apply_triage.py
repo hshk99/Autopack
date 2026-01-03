@@ -42,6 +42,7 @@ import sys
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 import fnmatch
+from pathlib import PurePosixPath
 
 try:
     import yaml
@@ -63,6 +64,23 @@ NAV_DOCS = {
     "docs/INDEX.md",
     "docs/BUILD_HISTORY.md",
 }
+
+def _norm_relpath(p: str) -> str:
+    """Normalize repo-relative paths for consistent matching across OSes."""
+    return str(p).replace("\\", "/").strip()
+
+def _configure_utf8_stdio() -> None:
+    """
+    Make CLI output resilient on Windows terminals that default to legacy encodings (e.g. cp1252).
+
+    This script prints Unicode glyphs (e.g. "→"). Prefer UTF-8 with replacement.
+    """
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            if hasattr(stream, "reconfigure"):
+                stream.reconfigure(encoding="utf-8", errors="replace")
+        except Exception:
+            pass
 
 
 class TriageApplicator:
@@ -107,10 +125,14 @@ class TriageApplicator:
 
         # Filter by mode
         if self.mode == "nav":
-            # Nav mode: only navigation docs
+            # Nav mode: only navigation docs, and only *real markdown links*.
+            # Deep scans can include backticks; nav-mode hygiene (CI policy) intentionally does not.
             filtered = [
                 link for link in all_links
-                if link.get("source_file", "") in NAV_DOCS
+                if (
+                    _norm_relpath(link.get("source_file", "")) in NAV_DOCS
+                    and str(link.get("source_link", "")).lstrip().startswith("[")
+                )
             ]
             print(f"[MODE] Nav mode: filtered {len(all_links)} → {len(filtered)} links (nav docs only)")
             return filtered
@@ -162,17 +184,16 @@ class TriageApplicator:
             True if the link matches the override rule
         """
         # Match source file pattern
-        source_file = broken_link.get("source_file", "")
+        source_file = _norm_relpath(broken_link.get("source_file", ""))
         pattern = override.get("pattern", "**/*.md")
 
         # Use Path.match for glob pattern matching
         # Special case: **/*.md should match both root and nested .md files
-        from pathlib import Path
         if pattern == "**/*.md":
             # Match any .md file at any depth including root
             if not source_file.endswith(".md"):
                 return False
-        elif not Path(source_file).match(pattern):
+        elif not PurePosixPath(source_file).match(pattern):
             return False
 
         # Match broken target (exact or glob)
@@ -201,7 +222,7 @@ class TriageApplicator:
         ignore_config: Dict[str, Any]
     ) -> None:
         """Add broken link to ignore configuration."""
-        source_file = broken_link.get("source_file", "")
+        source_file = _norm_relpath(broken_link.get("source_file", ""))
         broken_target = broken_link.get("broken_target", "")
         reason = broken_link.get("reason", "")
         note = override.get("note", "Triaged as ignore")
@@ -225,7 +246,7 @@ class TriageApplicator:
         ignore_patterns = ignore_config.setdefault("ignore_patterns", [])
 
         for pattern in ignore_patterns:
-            if (pattern.get("file") == source_file and
+            if (_norm_relpath(pattern.get("file", "")) == source_file and
                 pattern.get("target") == broken_target):
                 print(f"[SKIP] Already ignored: {source_file} → {broken_target}")
                 return
@@ -461,6 +482,7 @@ This document has been moved. See [{stub_title}]({stub_target}).
 
 
 def main():
+    _configure_utf8_stdio()
     parser = argparse.ArgumentParser(
         description="Apply doc link triage decisions"
     )

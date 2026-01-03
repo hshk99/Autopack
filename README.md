@@ -58,6 +58,15 @@ In practice, “autonomous” requires that each phase has:
 
 ### Latest Highlights (Last 3 Builds)
 
+#### 2026-01-03: BUILD-169 - Targeted Doc Link Fixes: 12% Reduction (Focus Docs 100% Clean) ✅
+**High-Signal Fixes Over Ignores**
+- 11.9% reduction: 478 → 421 missing_file issues (57 resolved via 47 real fixes + 10 scoped ignores)
+- Focus docs cleaned: CHANGELOG.md (27→0) + PRE_TIDY_GAP_ANALYSIS (30→0) = 100% reduction
+- Infrastructure hardening: Windows UTF-8 safety, path normalization fixes (.github/ preserved), nav-mode restored
+- Regression guard: Added test_fenced_code_blocks_bypass_deep_scan() to prevent parser changes re-inflating counts
+- Fix ratio: 82% real fixes (canonical paths, fenced blocks, config links) vs 18% scoped ignores
+- See [docs/BUILD_HISTORY.md](docs/BUILD_HISTORY.md) BUILD-169 entry for details
+
 #### 2026-01-03: BUILD-168 - Doc Link Burndown: 20% Missing File Reduction ✅
 **Material Reduction via Triage Rules + Check Script Patch**
 - 20.6% reduction achieved: 746 → 592 missing_file issues (154 resolved, exceeded 10% target by 2x)

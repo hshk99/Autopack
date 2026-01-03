@@ -171,7 +171,8 @@
       "Bash(PYTHONUTF8=0 python:*)",
       "Bash(PYTHONUTF8=1 PYTHONPATH=src DATABASE_URL=\"sqlite:///test_sot_sync.db\" python:*)",
       "Bash(PYTHONUTF8=1 PYTHONPATH=src timeout 60 python -m pytest:*)",
-      "Bash(git check-ignore:*)"
+      "Bash(git check-ignore:*)",
+      "Bash(PYTHONUTF8=1 tee:*)"
     ],
     "deny": [],
     "ask": []

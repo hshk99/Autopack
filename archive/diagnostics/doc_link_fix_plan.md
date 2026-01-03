@@ -1,13 +1,13 @@
 # Documentation Link Fix Plan
 
-**Generated**: 2026-01-03 19:26:31
-**Total Broken Links**: 1099
+**Generated**: 2026-01-03 20:26:09
+**Total Broken Links**: 864
 
 ## Summary by Confidence
 
 - **High** (≥90%): 8 links (auto-fixable)
 - **Medium** (85%-90%): 6 links (auto-fixable with --apply-medium)
-- **Low** (<85%): 1085 links (manual review required)
+- **Low** (<85%): 850 links (manual review required)
 
 ## Broken Links
 
@@ -15,84 +15,62 @@
 
 | Line | Broken Target | Suggested Fix | Confidence | Score |
 |------|---------------|---------------|------------|-------|
-| 178 | `.autonomous_runs/` | `(none)` | low | N/A |
-| 183 | `.autonomous_runs/` | `(none)` | low | N/A |
-| 185 | `.autonomous_runs/` | `(none)` | low | N/A |
-| 189 | `.autonomous_runs/` | `(none)` | low | N/A |
-| 192 | `.autonomous_runs/` | `(none)` | low | N/A |
-| 223 | `.autonomous_runs/` | `(none)` | low | N/A |
-| 224 | `fileorganizer/` | `(none)` | low | N/A |
-| 224 | `.autonomous_runs/file-organizer-app-v1/` | `(none)` | low | N/A |
-| 239 | `.autonomous_runs/tidy_pending_moves.json` | `(none)` | low | N/A |
-| 289 | `.autonomous_runs/tidy_pending_moves.json` | `(none)` | low | N/A |
-| 314 | `superseded/` | `(none)` | low | N/A |
-| 315 | `.git/` | `(none)` | low | N/A |
-| 316 | `.autonomous_runs/` | `(none)` | low | N/A |
-| 351 | `.autonomous_runs/` | `(none)` | low | N/A |
-| 364 | `probe_script.py` | `(none)` | low | N/A |
-| 364 | `test_auditor_400.py` | `(none)` | low | N/A |
-| 364 | `run_full_probe_suite.sh` | `(none)` | low | N/A |
-| 368 | `REPORT_TIDY_V7.md` | `(none)` | low | N/A |
-| 368 | `ANALYSIS_PHASE_PLAN.md` | `(none)` | low | N/A |
-| 372 | `tidy_execution.log` | `(none)` | low | N/A |
-| 376 | `tidy_scope.yaml` | `(none)` | low | N/A |
-| 376 | `models.yaml` | `(none)` | low | N/A |
-| 379 | `examples/` | `(none)` | low | N/A |
-| 380 | `multi_project_example.py` | `(none)` | low | N/A |
-| 384 | `tidy_consolidation.yaml` | `(none)` | low | N/A |
-| 393 | `setup.py` | `(none)` | low | N/A |
-| 393 | `manage.py` | `(none)` | low | N/A |
-| 394 | `conftest.py` | `(none)` | low | N/A |
-| 395 | `wsgi.py` | `(none)` | low | N/A |
-| 395 | `asgi.py` | `(none)` | low | N/A |
-| 396 | `__init__.py` | `(none)` | low | N/A |
-| 405 | `.autonomous_runs/` | `(none)` | low | N/A |
-| 407 | `.git/` | `(none)` | low | N/A |
-| 422 | `.autonomous_runs/` | `(none)` | low | N/A |
-| 539 | `.env` | `(none)` | low | N/A |
-| 717 | `/api/auth/.well-known/jwks.json` | `(none)` | low | N/A |
-| 718 | `/api/auth/key-status` | `(none)` | low | N/A |
-| 867 | `.autonomous_runs/file-organizer-app-v1/` | `(none)` | low | N/A |
-| 925 | `.md` | `(none)` | low | N/A |
-| 926 | `plans/` | `(none)` | low | N/A |
-| 927 | `analysis/` | `(none)` | low | N/A |
-| 928 | `prompts/` | `(none)` | low | N/A |
-| 929 | `reports/` | `(none)` | low | N/A |
-| 930 | `diagnostics/` | `(none)` | low | N/A |
-| 932 | `.py` | `(none)` | low | N/A |
-| 934 | `scripts/frontend/` | `(none)` | low | N/A |
-| 939 | `.log` | `(none)` | low | N/A |
-| 940 | `logs/` | `(none)` | low | N/A |
-| 942 | `.json` | `(none)` | low | N/A |
-| 943 | `plans/` | `(none)` | low | N/A |
-| 944 | `logs/` | `(none)` | low | N/A |
-| 945 | `unsorted/` | `(none)` | low | N/A |
-| 947 | `.sql` | `(none)` | low | N/A |
-| 950 | `.yaml` | `(none)` | low | N/A |
-| 950 | `.yml` | `(none)` | low | N/A |
-| 950 | `.toml` | `(none)` | low | N/A |
-| 951 | `plans/` | `(none)` | low | N/A |
-| 952 | `unsorted/` | `(none)` | low | N/A |
-| 954 | `.sh` | `(none)` | low | N/A |
-| 954 | `.txt` | `(none)` | low | N/A |
-| 965 | `project_learned_rules.json` | `(none)` | low | N/A |
-| 1007 | `.log` | `(none)` | low | N/A |
-| 1025 | `init_file_routing_patterns.py` | `(none)` | low | N/A |
-| 1122 | `tidy_scope.yaml` | `(none)` | low | N/A |
-| 1123 | `.autonomous_runs/file-organizer-app-v1` | `(none)` | low | N/A |
-| 1134 | `.md` | `(none)` | low | N/A |
-| 1134 | `.py` | `(none)` | low | N/A |
-| 1134 | `.log` | `(none)` | low | N/A |
-| 1134 | `.json` | `(none)` | low | N/A |
-| 1134 | `.sql` | `(none)` | low | N/A |
-| 1142 | `project_learned_rules.json` | `(none)` | low | N/A |
-| 1153 | `.autonomous_runs/tidy_activity.log` | `(none)` | low | N/A |
-| 1160 | `sentence-transformers/all-MiniLM-L6-v2` | `(none)` | low | N/A |
-| 1171 | `run_output_paths.py` | `(none)` | low | N/A |
-| 1171 | `create_run_with_routing.py` | `(none)` | low | N/A |
-| 1172 | `ENHANCED_ERROR_LOGGING.md` | `(none)` | low | N/A |
-| 1207 | `.../file-organizer-app-v1/docs` | `(none)` | low | N/A |
-| 1208 | `superseded/` | `(none)` | low | N/A |
+| 188 | `.autonomous_runs/` | `(none)` | low | N/A |
+| 193 | `.autonomous_runs/` | `(none)` | low | N/A |
+| 195 | `.autonomous_runs/` | `(none)` | low | N/A |
+| 199 | `.autonomous_runs/` | `(none)` | low | N/A |
+| 202 | `.autonomous_runs/` | `(none)` | low | N/A |
+| 233 | `.autonomous_runs/` | `(none)` | low | N/A |
+| 234 | `.autonomous_runs/file-organizer-app-v1/` | `(none)` | low | N/A |
+| 249 | `.autonomous_runs/tidy_pending_moves.json` | `(none)` | low | N/A |
+| 299 | `.autonomous_runs/tidy_pending_moves.json` | `(none)` | low | N/A |
+| 325 | `.git/` | `(none)` | low | N/A |
+| 326 | `.autonomous_runs/` | `(none)` | low | N/A |
+| 361 | `.autonomous_runs/` | `(none)` | low | N/A |
+| 389 | `examples/` | `(none)` | low | N/A |
+| 390 | `multi_project_example.py` | `(none)` | low | N/A |
+| 394 | `tidy_consolidation.yaml` | `(none)` | low | N/A |
+| 403 | `setup.py` | `(none)` | low | N/A |
+| 403 | `manage.py` | `(none)` | low | N/A |
+| 404 | `conftest.py` | `(none)` | low | N/A |
+| 405 | `wsgi.py` | `(none)` | low | N/A |
+| 405 | `asgi.py` | `(none)` | low | N/A |
+| 415 | `.autonomous_runs/` | `(none)` | low | N/A |
+| 417 | `.git/` | `(none)` | low | N/A |
+| 432 | `.autonomous_runs/` | `(none)` | low | N/A |
+| 549 | `.env` | `(none)` | low | N/A |
+| 727 | `/api/auth/.well-known/jwks.json` | `(none)` | low | N/A |
+| 728 | `/api/auth/key-status` | `(none)` | low | N/A |
+| 877 | `.autonomous_runs/file-organizer-app-v1/` | `(none)` | low | N/A |
+| 935 | `.md` | `(none)` | low | N/A |
+| 937 | `analysis/` | `(none)` | low | N/A |
+| 938 | `prompts/` | `(none)` | low | N/A |
+| 939 | `reports/` | `(none)` | low | N/A |
+| 940 | `diagnostics/` | `(none)` | low | N/A |
+| 942 | `.py` | `(none)` | low | N/A |
+| 944 | `scripts/frontend/` | `(none)` | low | N/A |
+| 949 | `.log` | `(none)` | low | N/A |
+| 952 | `.json` | `(none)` | low | N/A |
+| 957 | `.sql` | `(none)` | low | N/A |
+| 960 | `.yaml` | `(none)` | low | N/A |
+| 960 | `.yml` | `(none)` | low | N/A |
+| 960 | `.toml` | `(none)` | low | N/A |
+| 964 | `.sh` | `(none)` | low | N/A |
+| 964 | `.txt` | `(none)` | low | N/A |
+| 1017 | `.log` | `(none)` | low | N/A |
+| 1035 | `init_file_routing_patterns.py` | `(none)` | low | N/A |
+| 1133 | `.autonomous_runs/file-organizer-app-v1` | `(none)` | low | N/A |
+| 1144 | `.md` | `(none)` | low | N/A |
+| 1144 | `.py` | `(none)` | low | N/A |
+| 1144 | `.log` | `(none)` | low | N/A |
+| 1144 | `.json` | `(none)` | low | N/A |
+| 1144 | `.sql` | `(none)` | low | N/A |
+| 1163 | `.autonomous_runs/tidy_activity.log` | `(none)` | low | N/A |
+| 1170 | `sentence-transformers/all-MiniLM-L6-v2` | `(none)` | low | N/A |
+| 1181 | `run_output_paths.py` | `(none)` | low | N/A |
+| 1181 | `create_run_with_routing.py` | `(none)` | low | N/A |
+| 1182 | `ENHANCED_ERROR_LOGGING.md` | `(none)` | low | N/A |
+| 1217 | `.../file-organizer-app-v1/docs` | `(none)` | low | N/A |
 
 ### docs\API_BASICS.md
 
@@ -115,30 +93,17 @@
 
 | Line | Broken Target | Suggested Fix | Confidence | Score |
 |------|---------------|---------------|------------|-------|
-| 64 | `sync_to_db.py` | `(none)` | low | N/A |
-| 64 | `sync_to_qdrant.py` | `(none)` | low | N/A |
-| 780 | `.env` | `(none)` | low | N/A |
-| 785 | `STATUS_AUDITOR_IMPLEMENTATION.md` | `(none)` | low | N/A |
-| 1148 | `verify_workspace_structure.py` | `(none)` | low | N/A |
+| 140 | `sync_to_db.py` | `(none)` | low | N/A |
+| 140 | `sync_to_qdrant.py` | `(none)` | low | N/A |
+| 856 | `.env` | `(none)` | low | N/A |
+| 861 | `STATUS_AUDITOR_IMPLEMENTATION.md` | `(none)` | low | N/A |
+| 1224 | `verify_workspace_structure.py` | `(none)` | low | N/A |
 
 ### docs\AUTHENTICATION.md
 
 | Line | Broken Target | Suggested Fix | Confidence | Score |
 |------|---------------|---------------|------------|-------|
-| 11 | `src/backend/models/user.py` | `(none)` | low | N/A |
-| 16 | `src/backend/core/security.py` | `(none)` | low | N/A |
-| 22 | `src/backend/api/auth.py` | `(none)` | low | N/A |
-| 29 | `src/backend/schemas/user.py` | `(none)` | low | N/A |
 | 405 | `/api/auth/key-status` | `(none)` | low | N/A |
-| 440 | `src/backend/models/user.py` | `(none)` | low | N/A |
-| 441 | `src/backend/schemas/user.py` | `(none)` | low | N/A |
-| 442 | `src/backend/api/auth.py` | `(none)` | low | N/A |
-| 443 | `src/backend/core/security.py` | `(none)` | low | N/A |
-| 444 | `src/backend/core/config.py` | `(none)` | low | N/A |
-| 445 | `src/backend/database.py` | `(none)` | low | N/A |
-| 446 | `src/backend/tests/test_auth.py` | `(none)` | low | N/A |
-| 466 | `src/backend/tests/test_auth.py` | `(none)` | low | N/A |
-| 467 | `src/backend/api/auth.py` | `(none)` | low | N/A |
 
 ### docs\BUILD-145-FOLLOWUP-QUEUE-SYSTEM.md
 
@@ -158,13 +123,10 @@
 | 26 | `archive/data/databases/misc/` | `(none)` | low | N/A |
 | 36 | `tests/backend/` | `(none)` | low | N/A |
 | 43 | `.autonomous_runs/examples/` | `(none)` | low | N/A |
-| 50 | `fileorganizer/` | `(none)` | low | N/A |
-| 52 | `fileorganizer/` | `(none)` | low | N/A |
 | 52 | `.autonomous_runs/file-organizer-app-v1/src/fileorganizer/` | `(none)` | low | N/A |
 | 62 | `.autonomous_runs/` | `(none)` | low | N/A |
 | 71 | `.autonomous_runs/autopack/` | `(none)` | low | N/A |
 | 86 | `.autonomous_runs/autopack/` | `(none)` | low | N/A |
-| 105 | `fileorganizer/` | `(none)` | low | N/A |
 | 106 | `.autonomous_runs/file-organizer-app-v1/` | `(none)` | low | N/A |
 | 115 | `telemetry_seeds/` | `(none)` | low | N/A |
 | 116 | `telemetry_seeds/final/` | `(none)` | low | N/A |
@@ -197,7 +159,6 @@
 | Line | Broken Target | Suggested Fix | Confidence | Score |
 |------|---------------|---------------|------------|-------|
 | 24 | `pending_moves.py` | `(none)` | low | N/A |
-| 96 | `tidy_up.py` | `(none)` | low | N/A |
 
 ### docs\BUILD-158_TIDY_LOCK_LEASE_DOC_LINKS.md
 
@@ -205,27 +166,18 @@
 |------|---------------|---------------|------------|-------|
 | 13 | `.autonomous_runs/` | `(none)` | low | N/A |
 | 82 | `try/finally` | `(none)` | low | N/A |
-| 135 | `path/to/file.md` | `(none)` | low | N/A |
-| 136 | `path/to/file.txt` | `(none)` | low | N/A |
-| 137 | `file.md` | `(none)` | low | N/A |
 
 ### docs\BUILD-159_DEEP_DOC_LINK_CHECKER_MECHANICAL_FIXER.md
 
 | Line | Broken Target | Suggested Fix | Confidence | Score |
 |------|---------------|---------------|------------|-------|
-| 125 | `target` | `(none)` | low | N/A |
-| 125 | `new_target` | `(none)` | low | N/A |
-| 126 | `file.md` | `(none)` | low | N/A |
 | 126 | `new_file.md` | `(none)` | low | N/A |
 | 129 | `check_doc_links.py` | `(none)` | low | N/A |
 | 274 | `.autonomous_runs/` | `(none)` | low | N/A |
 | 275 | `/api/auth/.well-known/jwks.json` | `(none)` | low | N/A |
 | 302 | `docs/BUILD-107.md` | `(none)` | low | N/A |
-| 302 | `archive/superseded/reports/BUILD-107.md` | `(none)` | low | N/A |
 | 304 | `.autonomous_runs/.../ARCHIVE_INDEX.md` | `(none)` | low | N/A |
 | 306 | `archive/IMPLEMENTATION_PLAN.md` | `(none)` | low | N/A |
-| 397 | `file.md` | `(none)` | low | N/A |
-| 398 | `file.md` | `(none)` | low | N/A |
 | 434 | `.autonomous_runs/` | `(none)` | low | N/A |
 | 439 | `check_doc_links.py` | `(none)` | low | N/A |
 
@@ -246,12 +198,6 @@
 |------|---------------|---------------|------------|-------|
 | 77 | `.autonomous_runs/` | `(none)` | low | N/A |
 
-### docs\BUILD-165_SUBSYSTEM_LOCKS.md
-
-| Line | Broken Target | Suggested Fix | Confidence | Score |
-|------|---------------|---------------|------------|-------|
-| 5 | `archive/superseded/reports/BUILD-162_LOCK_STATUS_UX.md` | `(none)` | low | N/A |
-
 ### docs\BUILD-166_COMPLETION_REPORT.md
 
 | Line | Broken Target | Suggested Fix | Confidence | Score |
@@ -261,8 +207,6 @@
 | 31 | `approval_audit.log` | `(none)` | low | N/A |
 | 54 | `test_sot_db_sync.py` | `(none)` | low | N/A |
 | 117 | `sot_db_sync.py` | `(none)` | low | N/A |
-| 117 | `tidy_up.py` | `(none)` | low | N/A |
-| 118 | `tidy_up.py` | `(none)` | low | N/A |
 | 130 | `.github/workflows/doc-link-check.yml` | `(none)` | low | N/A |
 | 204 | `test_sot_db_sync.py` | `(none)` | low | N/A |
 | 205 | `test_approval_enforcement.py` | `(none)` | low | N/A |
@@ -287,18 +231,14 @@
 | 78 | `.log` | `(none)` | low | N/A |
 | 78 | `.md` | `(none)` | low | N/A |
 | 78 | `.json` | `(none)` | low | N/A |
-| 78 | `fileorganizer/` | `(none)` | low | N/A |
-| 78 | `research_tracer/` | `(none)` | low | N/A |
 | 92 | `.log` | `(none)` | low | N/A |
 | 92 | `.md` | `(none)` | low | N/A |
 | 92 | `.json` | `(none)` | low | N/A |
 | 92 | `.yaml` | `(none)` | low | N/A |
 | 92 | `.txt` | `(none)` | low | N/A |
-| 93 | `__init__.py` | `(none)` | low | N/A |
 | 93 | `.gitignore` | `(none)` | low | N/A |
 | 93 | `.env` | `(none)` | low | N/A |
 | 94 | `.git/` | `(none)` | low | N/A |
-| 94 | `logs/` | `(none)` | low | N/A |
 | 95 | `/health` | `(none)` | low | N/A |
 | 177 | `check_doc_links.py` | `(none)` | low | N/A |
 | 177 | `sot_db_sync.py` | `(none)` | low | N/A |
@@ -307,31 +247,21 @@
 
 | Line | Broken Target | Suggested Fix | Confidence | Score |
 |------|---------------|---------------|------------|-------|
-| 72 | `autonomous_executor.py` | `(none)` | low | N/A |
-| 145 | `autonomous_executor.py` | `(none)` | low | N/A |
 | 231 | `.github/workflows/ci.yml` | `(none)` | low | N/A |
 
 ### docs\BUILD_HISTORY.md
 
 | Line | Broken Target | Suggested Fix | Confidence | Score |
 |------|---------------|---------------|------------|-------|
-| 29 | `add_storage_optimizer_tables.py` | `(none)` | low | N/A |
-| 34 | `test_artifact_history_pack.py` | `(none)` | low | N/A |
-| 34 | `autonomous_executor.py` | `(none)` | low | N/A |
 | 35 | `/health` | `(none)` | low | N/A |
-| 35 | `src/backend/main.py` | `(none)` | low | N/A |
 | 46 | `/dashboard` | `(none)` | low | N/A |
-| 55 | `examples/telemetry_utils/` | `(none)` | low | N/A |
 | 55 | `path/` | `(none)` | low | N/A |
 | 56 | `.gitignore` | `(none)` | low | N/A |
 | 94 | `autopack.diagnostics.diagnostics_agent` | `(none)` | low | N/A |
-| 137 | `tracer_bullet/` | `(none)` | low | N/A |
 | 141 | `/update_status` | `(none)` | low | N/A |
 | 198 | `batch_drain_controller.py` | `(none)` | low | N/A |
 | 199 | `anthropic_clients.py` | `(none)` | low | N/A |
 | 234 | `.autopack/prompt_for_other_cursor.md` | `(none)` | low | N/A |
-| 275 | `__init__.py` | `(none)` | low | N/A |
-| 300 | `__init__.py` | `(none)` | low | N/A |
 | 356 | `autopack.research.gatherers.web_scraper` | `(none)` | low | N/A |
 | 357 | `autopack.research.gatherers.content_extractor` | `(none)` | low | N/A |
 | 358 | `autopack.research.agents.compilation_agent` | `(none)` | low | N/A |
@@ -341,33 +271,19 @@
 | 410 | `.autonomous_runs/file-organizer-app-v1/archive/research/active/requirements/chunk2b-gatherers-web-compilation.yaml` | `(none)` | low | N/A |
 | 411 | `.autonomous_runs/file-organizer-app-v1/archive/research/active/requirements/chunk3-meta-analysis.yaml` | `(none)` | low | N/A |
 | 433 | `PROMPT_FOR_OTHER_CURSOR_FILEORG.md` | `docs\cursor\PROMPT_FOR_OTHER_CURSOR_FILEORG.md` | high | 0.92 |
-| 663 | `gold_set.json` | `(none)` | low | N/A |
 | 666 | `.json` | `(none)` | low | N/A |
-| 683 | `gold_set.json` | `(none)` | low | N/A |
-| 718 | `src/backend/api/runs.py` | `(none)` | low | N/A |
-| 745 | `gold_set.json` | `(none)` | low | N/A |
 | 748 | `.json` | `(none)` | low | N/A |
 | 798 | `.autonomous_runs/` | `(none)` | low | N/A |
 | 798 | `.git/` | `(none)` | low | N/A |
 | 851 | `src/autopack/tracer_bullet.py` | `(none)` | low | N/A |
-| 957 | `tracer_bullet/` | `(none)` | low | N/A |
 | 957 | `src/tracer_bullet/` | `(none)` | low | N/A |
 | 957 | `tests/tracer_bullet/` | `(none)` | low | N/A |
-| 987 | `tracer_bullet/` | `(none)` | low | N/A |
-| 996 | `tracer_bullet/` | `(none)` | low | N/A |
-| 1001 | `tracer_bullet/` | `(none)` | low | N/A |
 | 1001 | `src/tracer_bullet/` | `(none)` | low | N/A |
 | 1001 | `tests/tracer_bullet/` | `(none)` | low | N/A |
 | 1043 | `CONSOLIDATED_BUILD.md` | `.autonomous_runs\autopack\docs\CONSOLIDATED_BUILD.md` | medium | 0.87 |
 | 1043 | `CONSOLIDATED_STRATEGY.md` | `.autonomous_runs\autopack\docs\CONSOLIDATED_STRATEGY.md` | medium | 0.87 |
-| 1052 | `src/backend/api/runs.py` | `(none)` | low | N/A |
 | 1063 | `/health` | `(none)` | low | N/A |
-| 1070 | `src/backend/main.py` | `(none)` | low | N/A |
-| 1077 | `src/backend/main.py` | `(none)` | low | N/A |
 | 1084 | `/update_status` | `(none)` | low | N/A |
-| 1091 | `src/backend/main.py` | `(none)` | low | N/A |
-| 1095 | `src/backend/api/runs.py` | `(none)` | low | N/A |
-| 1098 | `src/backend/api/runs.py` | `(none)` | low | N/A |
 | 1106 | `chunk3-meta-analysis.yaml` | `(none)` | low | N/A |
 | 1109 | `.autonomous_runs/file-organizer-app-v1/archive/research/active/requirements/chunk3-meta-analysis.yaml` | `(none)` | low | N/A |
 | 1127 | `autopack.debug_journal.log_error` | `(none)` | low | N/A |
@@ -397,11 +313,9 @@
 | 1588 | `.md` | `(none)` | low | N/A |
 | 1588 | `.txt` | `(none)` | low | N/A |
 | 1588 | `.yaml` | `(none)` | low | N/A |
-| 1616 | `archive/analysis/` | `(none)` | low | N/A |
 | 1665 | `QUICK_START_NEW_PROJECT.md` | `(none)` | low | N/A |
 | 1665 | `DOC_ORGANIZATION_README.md` | `(none)` | low | N/A |
 | 1672 | `.md` | `(none)` | low | N/A |
-| 1672 | `archive/analysis/` | `(none)` | low | N/A |
 | 1686 | `consolidate_docs_v2.py` | `(none)` | low | N/A |
 | 1693 | `PROPOSED_CLEANUP_STRUCTURE_V2.md` | `(none)` | low | N/A |
 | 1714 | `.pytest_cache/README.md` | `(none)` | low | N/A |
@@ -424,20 +338,12 @@
 | 16 | `/runs/start` | `(none)` | low | N/A |
 | 17 | `/dashboard/usage` | `(none)` | low | N/A |
 | 17 | `/dashboard/models` | `(none)` | low | N/A |
-| 18 | `src/backend/main.py` | `(none)` | low | N/A |
 | 19 | `/health` | `(none)` | low | N/A |
-| 46 | `src/backend/main.py` | `(none)` | low | N/A |
-| 50 | `src/backend/main.py` | `(none)` | low | N/A |
-| 58 | `src/backend/main.py` | `(none)` | low | N/A |
 | 69 | `backend.api.auth` | `(none)` | low | N/A |
-| 79 | `src/backend/` | `(none)` | low | N/A |
 | 116 | `/health` | `(none)` | low | N/A |
 | 134 | `/health` | `(none)` | low | N/A |
-| 165 | `src/backend/main.py` | `(none)` | low | N/A |
-| 171 | `src/backend/main.py` | `(none)` | low | N/A |
 | 206 | `/api/auth/.well-known/jwks.json` | `(none)` | low | N/A |
 | 207 | `autopack.database.Base` | `(none)` | low | N/A |
-| 212 | `src/backend/` | `(none)` | low | N/A |
 | 212 | `tests/backend/` | `(none)` | low | N/A |
 | 214 | `autopack.config.Settings` | `(none)` | low | N/A |
 
@@ -454,36 +360,12 @@
 
 | Line | Broken Target | Suggested Fix | Confidence | Score |
 |------|---------------|---------------|------------|-------|
-| 140 | `req1.txt` | `(none)` | low | N/A |
-| 140 | `req2.txt` | `(none)` | low | N/A |
-| 140 | `requirements-1.txt` | `(none)` | low | N/A |
-| 140 | `requirements-2.txt` | `(none)` | low | N/A |
-| 164 | `src/backend/` | `(none)` | low | N/A |
-| 263 | `autonomous_executor.py` | `(none)` | low | N/A |
 | 269 | `/tmp` | `(none)` | low | N/A |
-| 452 | `src/backend/api/dashboard.py` | `(none)` | low | N/A |
 | 460 | `/token-efficiency` | `(none)` | low | N/A |
 | 460 | `/phase6-stats` | `(none)` | low | N/A |
 | 471 | `.github/workflows/ci.yml` | `(none)` | low | N/A |
-| 478 | `src/backend/api/dashboard.py` | `(none)` | low | N/A |
-| 483 | `src/backend/main.py` | `(none)` | low | N/A |
 | 484 | `.github/workflows/ci.yml` | `(none)` | low | N/A |
-| 519 | `src/backend/main.py` | `(none)` | low | N/A |
-| 521 | `autonomous_executor.py` | `(none)` | low | N/A |
-| 521 | `run_parallel.py` | `(none)` | low | N/A |
-| 525 | `src/backend/api/runs.py` | `(none)` | low | N/A |
-| 526 | `autonomous_executor.py` | `(none)` | low | N/A |
-| 536 | `src/backend/api/api_key_auth.py` | `(none)` | low | N/A |
-| 538 | `autonomous_executor.py` | `(none)` | low | N/A |
-| 539 | `run_parallel.py` | `(none)` | low | N/A |
-| 550 | `src/backend/api/runs.py` | `(none)` | low | N/A |
-| 551 | `src/backend/api/api_key_auth.py` | `(none)` | low | N/A |
-| 556 | `src/backend/main.py` | `(none)` | low | N/A |
-| 613 | `archive/replay_results/` | `(none)` | low | N/A |
-| 654 | `src/backend/api/health.py` | `(none)` | low | N/A |
 | 655 | `/health` | `(none)` | low | N/A |
-| 670 | `src/backend/api/health.py` | `(none)` | low | N/A |
-| 671 | `src/backend/main.py` | `(none)` | low | N/A |
 | 678 | `/health` | `(none)` | low | N/A |
 | 1180 | `tests/autopack/test_token_telemetry_parity.py` | `(none)` | low | N/A |
 | 1237 | `/dashboard` | `(none)` | low | N/A |
@@ -495,23 +377,16 @@
 | 1484 | `/health` | `(none)` | low | N/A |
 | 1512 | `drain_all_telemetry.sh` | `(none)` | low | N/A |
 | 1518 | `database.py` | `(none)` | low | N/A |
-| 1519 | `autonomous_executor.py` | `(none)` | low | N/A |
 | 1536 | `.autopack/TELEMETRY_DB_ROOT_CAUSE.md` | `(none)` | low | N/A |
 | 1572 | `.autopack/prompt_for_other_cursor_TELEMETRY_UNBLOCK.md` | `(none)` | low | N/A |
 | 1581 | `.gitignore` | `(none)` | low | N/A |
-| 1644 | `__init__.py` | `(none)` | low | N/A |
 | 1644 | `tests/backend/api/` | `(none)` | low | N/A |
-| 1661 | `fileorganizer/fileorganizer/...` | `(none)` | low | N/A |
 | 1837 | `/health` | `(none)` | low | N/A |
 | 1838 | `/health` | `(none)` | low | N/A |
 | 1841 | `migrations/005_add_p10_escalation_events.sql` | `(none)` | low | N/A |
 | 1849 | `migrations/006_fix_v_truncation_analysis_view.sql` | `(none)` | low | N/A |
 | 1870 | `code/tests/docs` | `(none)` | low | N/A |
-| 1913 | `fileorganizer/frontend/...` | `(none)` | low | N/A |
 | 1943 | `.autonomous_runs/break_glass_repairs.jsonl` | `(none)` | low | N/A |
-| 1994 | `docs/BUILD-129_TOKEN_ESTIMATOR.md` | `(none)` | low | N/A |
-| 1994 | `docs/BUILD-129_CONTINUATION_RECOVERY.md` | `(none)` | low | N/A |
-| 1994 | `docs/BUILD-129_NDJSON_FORMAT.md` | `(none)` | low | N/A |
 | 2061 | `.autonomous_runs/lovable-integration-v1/` | `(none)` | low | N/A |
 | 2061 | `.autonomous_runs/lovable-integration-v1/` | `(none)` | low | N/A |
 | 2062 | `.autonomous_runs/lovable-integration-v1/VALIDATION_COMPLETE.md` | `(none)` | low | N/A |
@@ -575,52 +450,34 @@
 
 | Line | Broken Target | Suggested Fix | Confidence | Score |
 |------|---------------|---------------|------------|-------|
-| 24 | `smoke_autonomy_features.py` | `(none)` | low | N/A |
-| 25 | `req1.txt` | `(none)` | low | N/A |
-| 25 | `req2.txt` | `(none)` | low | N/A |
-| 25 | `requirements-1.txt` | `(none)` | low | N/A |
-| 25 | `requirements-2.txt` | `(none)` | low | N/A |
-| 49 | `examples/market_research_example.md/` | `docs\examples\examples\market_research_example.md` | high | 0.92 |
-| 90 | `/update_status` | `(none)` | low | N/A |
-| 209 | `/dashboard/usage` | `(none)` | low | N/A |
-| 216 | `/dashboard/usage` | `(none)` | low | N/A |
-| 349 | `__init__.py` | `(none)` | low | N/A |
-| 349 | `diagnostics_agent.py` | `(none)` | low | N/A |
-| 372 | `__init__.py` | `(none)` | low | N/A |
-| 466 | `.autonomous_runs/file-organizer-app-v1/archive/research/active/requirements/chunk1b-foundation-intent-discovery.yaml` | `(none)` | low | N/A |
-| 467 | `.autonomous_runs/file-organizer-app-v1/archive/research/active/requirements/chunk2a-gatherers-social.yaml` | `(none)` | low | N/A |
-| 468 | `.autonomous_runs/file-organizer-app-v1/archive/research/active/requirements/chunk2b-gatherers-web-compilation.yaml` | `(none)` | low | N/A |
-| 469 | `.autonomous_runs/file-organizer-app-v1/archive/research/active/requirements/chunk3-meta-analysis.yaml` | `(none)` | low | N/A |
-| 486 | `PROMPT_FOR_OTHER_CURSOR_FILEORG.md` | `docs\cursor\PROMPT_FOR_OTHER_CURSOR_FILEORG.md` | high | 0.92 |
-| 710 | `gold_set.json` | `(none)` | low | N/A |
-| 766 | `gold_set.json` | `(none)` | low | N/A |
-| 828 | `.json` | `(none)` | low | N/A |
-| 892 | `.autonomous_runs/` | `(none)` | low | N/A |
-| 892 | `.git/` | `(none)` | low | N/A |
-| 955 | `src/autopack/tracer_bullet.py` | `(none)` | low | N/A |
-| 1080 | `deliverables_validator.py` | `(none)` | low | N/A |
-| 1083 | `tracer_bullet/` | `(none)` | low | N/A |
-| 1083 | `src/tracer_bullet/` | `(none)` | low | N/A |
-| 1083 | `tests/tracer_bullet/` | `(none)` | low | N/A |
-| 1123 | `tracer_bullet/` | `(none)` | low | N/A |
-| 1182 | `src/backend/api/runs.py` | `(none)` | low | N/A |
-| 1194 | `executor_lock.py` | `(none)` | low | N/A |
-| 1206 | `/health` | `(none)` | low | N/A |
-| 1211 | `src/backend/main.py` | `(none)` | low | N/A |
-| 1212 | `du/df` | `(none)` | low | N/A |
-| 1217 | `src/backend/main.py` | `(none)` | low | N/A |
-| 1225 | `/update_status` | `(none)` | low | N/A |
-| 1235 | `src/backend/api/runs.py` | `(none)` | low | N/A |
-| 1235 | `src/backend/main.py` | `(none)` | low | N/A |
-| 1238 | `src/backend/api/runs.py` | `(none)` | low | N/A |
-| 1242 | `src/backend/api/runs.py` | `(none)` | low | N/A |
-| 1253 | `tracer_bullet/` | `(none)` | low | N/A |
-| 1266 | `autopack.debug_journal.log_error` | `(none)` | low | N/A |
-| 1318 | `../src/backend/packs/canada_documents.py` | `(none)` | low | N/A |
-| 1365 | `anthropic_clients.py` | `(none)` | low | N/A |
-| 1495 | `archive/superseded/root_sot_duplicates/DEBUG_LOG_ROOT_DUPLICATE_20260101.md` | `(none)` | low | N/A |
-| 1496 | `autonomous_runs_cleaner.py` | `(none)` | low | N/A |
-| 1496 | `exclude_db_from_indexing.py` | `(none)` | low | N/A |
+| 25 | `smoke_autonomy_features.py` | `(none)` | low | N/A |
+| 50 | `examples/market_research_example.md/` | `docs\examples\examples\market_research_example.md` | high | 0.92 |
+| 91 | `/update_status` | `(none)` | low | N/A |
+| 210 | `/dashboard/usage` | `(none)` | low | N/A |
+| 217 | `/dashboard/usage` | `(none)` | low | N/A |
+| 350 | `diagnostics_agent.py` | `(none)` | low | N/A |
+| 467 | `.autonomous_runs/file-organizer-app-v1/archive/research/active/requirements/chunk1b-foundation-intent-discovery.yaml` | `(none)` | low | N/A |
+| 468 | `.autonomous_runs/file-organizer-app-v1/archive/research/active/requirements/chunk2a-gatherers-social.yaml` | `(none)` | low | N/A |
+| 469 | `.autonomous_runs/file-organizer-app-v1/archive/research/active/requirements/chunk2b-gatherers-web-compilation.yaml` | `(none)` | low | N/A |
+| 470 | `.autonomous_runs/file-organizer-app-v1/archive/research/active/requirements/chunk3-meta-analysis.yaml` | `(none)` | low | N/A |
+| 487 | `PROMPT_FOR_OTHER_CURSOR_FILEORG.md` | `docs\cursor\PROMPT_FOR_OTHER_CURSOR_FILEORG.md` | high | 0.92 |
+| 829 | `.json` | `(none)` | low | N/A |
+| 893 | `.autonomous_runs/` | `(none)` | low | N/A |
+| 893 | `.git/` | `(none)` | low | N/A |
+| 956 | `src/autopack/tracer_bullet.py` | `(none)` | low | N/A |
+| 1081 | `deliverables_validator.py` | `(none)` | low | N/A |
+| 1084 | `src/tracer_bullet/` | `(none)` | low | N/A |
+| 1084 | `tests/tracer_bullet/` | `(none)` | low | N/A |
+| 1195 | `executor_lock.py` | `(none)` | low | N/A |
+| 1207 | `/health` | `(none)` | low | N/A |
+| 1213 | `du/df` | `(none)` | low | N/A |
+| 1226 | `/update_status` | `(none)` | low | N/A |
+| 1267 | `autopack.debug_journal.log_error` | `(none)` | low | N/A |
+| 1319 | `../src/backend/packs/canada_documents.py` | `(none)` | low | N/A |
+| 1366 | `anthropic_clients.py` | `(none)` | low | N/A |
+| 1496 | `archive/superseded/root_sot_duplicates/DEBUG_LOG_ROOT_DUPLICATE_20260101.md` | `(none)` | low | N/A |
+| 1497 | `autonomous_runs_cleaner.py` | `(none)` | low | N/A |
+| 1497 | `exclude_db_from_indexing.py` | `(none)` | low | N/A |
 
 ### docs\DEPLOYMENT.md
 
@@ -663,12 +520,8 @@
 
 | Line | Broken Target | Suggested Fix | Confidence | Score |
 |------|---------------|---------------|------------|-------|
-| 15 | `path/to/file.md` | `(none)` | low | N/A |
 | 21 | `.github/workflows/ci.yml` | `(none)` | low | N/A |
 | 36 | `scripts/doc_link_checker_config.yaml` | `(none)` | low | N/A |
-| 82 | `path/to/file.md` | `(none)` | low | N/A |
-| 83 | `path/to/file.txt` | `(none)` | low | N/A |
-| 86 | `file.md` | `(none)` | low | N/A |
 | 108 | `storage_optimizer/approval_pattern_analyzer.py` | `(none)` | low | N/A |
 | 109 | `storage_optimizer/smart_categorizer.py` | `(none)` | low | N/A |
 | 110 | `storage_optimizer/recommendation_engine.py` | `(none)` | low | N/A |
@@ -694,21 +547,17 @@
 | 236 | `STATUS_AUDITOR_IMPLEMENTATION.md` | `(none)` | low | N/A |
 | 237 | `diagnostics_overview.md` | `(none)` | low | N/A |
 | 238 | `handoff_bundle.md` | `(none)` | low | N/A |
-| 254 | `excerpts/log_tail.txt` | `(none)` | low | N/A |
 | 256 | `./autonomous_runs.md` | `(none)` | low | N/A |
-| 258 | `archive/superseded/reports/BUILD-162_LOCK_STATUS_UX.md` | `(none)` | low | N/A |
 | 326 | `scripts/doc_link_checker_config.yaml` | `(none)` | low | N/A |
 
 ### docs\ERROR_HANDLING.md
 
 | Line | Broken Target | Suggested Fix | Confidence | Score |
 |------|---------------|---------------|------------|-------|
-| 25 | `tracer_bullet/file.py` | `(none)` | low | N/A |
 | 25 | `src/autopack/research/tracer_bullet/file.py` | `(none)` | low | N/A |
 | 27 | `.git/` | `(none)` | low | N/A |
 | 27 | `.autonomous_runs/` | `(none)` | low | N/A |
 | 65 | `phase.scope.deliverables` | `(none)` | low | N/A |
-| 214 | `__init__.py` | `(none)` | low | N/A |
 
 ### docs\FUTURE_PLAN.md
 
@@ -720,8 +569,6 @@
 | 521 | `templates/` | `(none)` | low | N/A |
 | 534 | `prompts/` | `(none)` | low | N/A |
 | 541 | `packs/` | `(none)` | low | N/A |
-| 541 | `src/backend/packs/` | `(none)` | low | N/A |
-| 548 | `src/backend/` | `(none)` | low | N/A |
 | 555 | `README` | `(none)` | low | N/A |
 | 562 | `README` | `(none)` | low | N/A |
 | 573 | `sentence-transformers/all-mpnet-base-v2` | `(none)` | low | N/A |
@@ -775,7 +622,6 @@
 |------|---------------|---------------|------------|-------|
 | 51 | `index.json` | `(none)` | low | N/A |
 | 54 | `summary.md` | `(none)` | low | N/A |
-| 56 | `excerpts/` | `(none)` | low | N/A |
 | 57 | `run.log` | `(none)` | low | N/A |
 | 77 | `second_opinion.json` | `(none)` | low | N/A |
 | 77 | `second_opinion.md` | `(none)` | low | N/A |
@@ -826,7 +672,6 @@
 | 54 | `.github/workflows/ci.yml` | `(none)` | low | N/A |
 | 55 | `.githooks/pre-commit` | `(none)` | low | N/A |
 | 74 | `docs/BUILD-129_...md` | `(none)` | low | N/A |
-| 78 | `tidy_up.py` | `(none)` | low | N/A |
 | 93 | `.autonomous_runs/autopack` | `(none)` | low | N/A |
 | 96 | `.autonomous_runs/autopack` | `(none)` | low | N/A |
 | 100 | `.autonomous_runs/autopack` | `(none)` | low | N/A |
@@ -879,9 +724,9 @@
 
 | Line | Broken Target | Suggested Fix | Confidence | Score |
 |------|---------------|---------------|------------|-------|
-| 110 | `.json` | `(none)` | low | N/A |
-| 110 | `.yaml` | `(none)` | low | N/A |
-| 114 | `consolidate_docs_v2.py` | `(none)` | low | N/A |
+| 116 | `.json` | `(none)` | low | N/A |
+| 116 | `.yaml` | `(none)` | low | N/A |
+| 120 | `consolidate_docs_v2.py` | `(none)` | low | N/A |
 
 ### docs\MODEL_INTELLIGENCE_SYSTEM.md
 
@@ -908,13 +753,8 @@
 | 11 | `.autonomous_runs/` | `(none)` | low | N/A |
 | 15 | `backend/` | `(none)` | low | N/A |
 | 15 | `code/` | `(none)` | low | N/A |
-| 15 | `fileorganizer/` | `(none)` | low | N/A |
-| 15 | `logs/` | `(none)` | low | N/A |
 | 15 | `migrations/` | `(none)` | low | N/A |
-| 15 | `research_tracer/` | `(none)` | low | N/A |
-| 15 | `tracer_bullet/` | `(none)` | low | N/A |
 | 16 | `.autonomous_runs/` | `(none)` | low | N/A |
-| 17 | `fileorganizer/` | `(none)` | low | N/A |
 | 17 | `.autonomous_runs/file-organizer-app-v1/` | `(none)` | low | N/A |
 | 42 | `.gitignore` | `(none)` | low | N/A |
 | 59 | `backend/` | `(none)` | low | N/A |
@@ -922,18 +762,11 @@
 | 59 | `tests/backend/` | `(none)` | low | N/A |
 | 60 | `code/` | `(none)` | low | N/A |
 | 60 | `research_orchestrator.py` | `(none)` | low | N/A |
-| 60 | `__init__.py` | `(none)` | low | N/A |
 | 61 | `src/autopack/config/` | `(none)` | low | N/A |
-| 62 | `fileorganizer/` | `(none)` | low | N/A |
 | 62 | `.autonomous_runs/file-organizer-app-v1/` | `(none)` | low | N/A |
-| 63 | `logs/` | `(none)` | low | N/A |
 | 64 | `migrations/` | `(none)` | low | N/A |
-| 66 | `research_tracer/` | `(none)` | low | N/A |
-| 67 | `tracer_bullet/` | `(none)` | low | N/A |
 | 68 | `.autonomous_runs/examples/` | `(none)` | low | N/A |
-| 70 | `fileorganizer/` | `(none)` | low | N/A |
 | 71 | `.autonomous_runs/file-organizer-app-v1/` | `(none)` | low | N/A |
-| 74 | `fileorganizer/` | `(none)` | low | N/A |
 | 74 | `.autonomous_runs/file-organizer-app-v1/src/` | `(none)` | low | N/A |
 | 75 | `.autonomous_runs/file-organizer-app-v1/docs/` | `(none)` | low | N/A |
 | 78 | `.autonomous_runs/` | `(none)` | low | N/A |
@@ -948,28 +781,21 @@
 | 126 | `diagnostics.yaml` | `(none)` | low | N/A |
 | 127 | `feature_catalog.yaml` | `(none)` | low | N/A |
 | 128 | `memory.yaml` | `(none)` | low | N/A |
-| 129 | `models.yaml` | `(none)` | low | N/A |
 | 130 | `pricing.yaml` | `(none)` | low | N/A |
 | 131 | `project_types.yaml` | `(none)` | low | N/A |
 | 132 | `stack_profiles.yaml` | `(none)` | low | N/A |
 | 133 | `storage_policy.yaml` | `(none)` | low | N/A |
-| 134 | `tidy_scope.yaml` | `(none)` | low | N/A |
 | 135 | `tools.yaml` | `(none)` | low | N/A |
 | 136 | `templates/` | `(none)` | low | N/A |
 | 145 | `src/autopack/config/` | `(none)` | low | N/A |
 | 164 | `.autonomous_runs/autopack` | `(none)` | low | N/A |
 | 197 | `.autonomous_runs/autopack` | `(none)` | low | N/A |
 | 243 | `.github/workflows/ci.yml` | `(none)` | low | N/A |
-| 295 | `fileorganizer/` | `(none)` | low | N/A |
 | 297 | `.autonomous_runs/` | `(none)` | low | N/A |
 | 312 | `.log` | `(none)` | low | N/A |
 | 314 | `backend/` | `(none)` | low | N/A |
 | 314 | `code/` | `(none)` | low | N/A |
-| 314 | `fileorganizer/` | `(none)` | low | N/A |
-| 314 | `logs/` | `(none)` | low | N/A |
 | 314 | `migrations/` | `(none)` | low | N/A |
-| 314 | `research_tracer/` | `(none)` | low | N/A |
-| 314 | `tracer_bullet/` | `(none)` | low | N/A |
 | 316 | `.autonomous_runs/` | `(none)` | low | N/A |
 | 317 | `_shared/` | `(none)` | low | N/A |
 | 317 | `baselines/` | `(none)` | low | N/A |
@@ -1004,7 +830,6 @@
 |------|---------------|---------------|------------|-------|
 | 41 | `/api/...` | `(none)` | low | N/A |
 | 85 | `sot_summary_refresh.py` | `(none)` | low | N/A |
-| 86 | `tidy_up.py` | `(none)` | low | N/A |
 | 87 | `db_sync.py` | `(none)` | low | N/A |
 | 177 | `docs/OLD.md` | `(none)` | low | N/A |
 | 177 | `docs/NEW.md` | `(none)` | low | N/A |
@@ -1106,38 +931,28 @@
 
 | Line | Broken Target | Suggested Fix | Confidence | Score |
 |------|---------------|---------------|------------|-------|
-| 14 | `fileorganizer/` | `(none)` | low | N/A |
 | 15 | `.autonomous_runs/` | `(none)` | low | N/A |
 | 22 | `scripts/tidy/database_organizer.py` | `(none)` | low | N/A |
 | 23 | `.autonomous_runs/` | `(none)` | low | N/A |
 | 296 | `.autonomous_runs/` | `(none)` | low | N/A |
 | 736 | `.autonomous_runs/autopack` | `(none)` | low | N/A |
-| 803 | `fileorganizer/` | `(none)` | low | N/A |
 | 803 | `.autonomous_runs/file-organizer-app-v1/src/fileorganizer/` | `(none)` | low | N/A |
 | 804 | `.autonomous_runs/file-organizer-app-v1/docs/` | `(none)` | low | N/A |
 | 805 | `backend/` | `(none)` | low | N/A |
 | 805 | `tests/backend/` | `(none)` | low | N/A |
 | 806 | `code/` | `(none)` | low | N/A |
-| 807 | `logs/` | `(none)` | low | N/A |
 | 808 | `migrations/` | `(none)` | low | N/A |
-| 810 | `research_tracer/` | `(none)` | low | N/A |
-| 811 | `tracer_bullet/` | `(none)` | low | N/A |
 | 812 | `.autonomous_runs/examples/` | `(none)` | low | N/A |
 | 813 | `.autonomous_runs/` | `(none)` | low | N/A |
 | 814 | `archive/autonomous_runs/` | `(none)` | low | N/A |
-| 875 | `fileorganizer/` | `(none)` | low | N/A |
 | 875 | `backend/` | `(none)` | low | N/A |
 | 875 | `code/` | `(none)` | low | N/A |
-| 875 | `logs/` | `(none)` | low | N/A |
 | 875 | `migrations/` | `(none)` | low | N/A |
-| 875 | `research_tracer/` | `(none)` | low | N/A |
-| 875 | `tracer_bullet/` | `(none)` | low | N/A |
 | 877 | `.autonomous_runs/file-organizer-app-v1/` | `(none)` | low | N/A |
 | 878 | `.autonomous_runs/` | `(none)` | low | N/A |
 | 878 | `.log` | `(none)` | low | N/A |
 | 975 | `.github/workflows/ci.yml` | `(none)` | low | N/A |
 | 999 | `scripts/git-hooks/pre-commit-workspace-check` | `(none)` | low | N/A |
-| 1045 | `fileorganizer/` | `(none)` | low | N/A |
 | 1045 | `.autonomous_runs/file-organizer-app-v1/` | `(none)` | low | N/A |
 | 1046 | `.autonomous_runs/` | `(none)` | low | N/A |
 
@@ -1146,29 +961,23 @@
 | Line | Broken Target | Suggested Fix | Confidence | Score |
 |------|---------------|---------------|------------|-------|
 | 38 | `.autonomous_runs/autopack` | `(none)` | low | N/A |
-| 73 | `tidy_up.py` | `(none)` | low | N/A |
 | 111 | `.autonomous_runs/sot_index_dirty_autopack.json` | `(none)` | low | N/A |
 | 129 | `.autonomous_runs/sot_index_dirty_autopack.json` | `(none)` | low | N/A |
 | 304 | `.log` | `(none)` | low | N/A |
 | 304 | `.txt` | `(none)` | low | N/A |
 | 352 | `run_tidy_all.py` | `(none)` | low | N/A |
-| 359 | `tidy_up.py` | `(none)` | low | N/A |
 | 452 | `.github/workflows/verify-workspace-structure.yml` | `(none)` | low | N/A |
 | 465 | `.github/workflows/verify-workspace-structure.yml` | `(none)` | low | N/A |
 | 529 | `run_tidy_all.py` | `(none)` | low | N/A |
-| 536 | `tidy_up.py` | `(none)` | low | N/A |
 | 536 | `run_tidy_all.py` | `(none)` | low | N/A |
 
 ### docs\TROUBLESHOOTING.md
 
 | Line | Broken Target | Suggested Fix | Confidence | Score |
 |------|---------------|---------------|------------|-------|
-| 147 | `tracer_bullet/file.py` | `(none)` | low | N/A |
 | 147 | `src/autopack/research/tracer_bullet/file.py` | `(none)` | low | N/A |
 | 172 | `.git/` | `(none)` | low | N/A |
 | 172 | `.autonomous_runs/` | `(none)` | low | N/A |
-| 327 | `fileorganizer/frontend/` | `(none)` | low | N/A |
-| 327 | `fileorganizer/` | `(none)` | low | N/A |
 
 ### docs\WORKSPACE_ORGANIZATION_SPEC.md
 
@@ -1212,9 +1021,7 @@
 |------|---------------|---------------|------------|-------|
 | 37 | `index.json` | `(none)` | low | N/A |
 | 37 | `summary.md` | `(none)` | low | N/A |
-| 37 | `excerpts/log_tail.txt` | `(none)` | low | N/A |
 | 38 | `summary.md` | `(none)` | low | N/A |
-| 39 | `excerpts/log_tail.txt` | `(none)` | low | N/A |
 
 ### docs\autopack\diagnostics_iteration_loop.md
 
@@ -1240,16 +1047,7 @@
 | 63 | `.autonomous_runs/research-system-v1/executor_BUILD050_test.log` | `(none)` | low | N/A |
 | 64 | `.autonomous_runs/research-system-v1/executor_attempt9_v2.log` | `(none)` | low | N/A |
 | 65 | `.autonomous_runs/research-system-v1/executor_attempt8.log` | `(none)` | low | N/A |
-| 69 | `src/backend/main.py` | `(none)` | low | N/A |
-| 70 | `src/backend/database.py` | `(none)` | low | N/A |
-| 136 | `src/backend/database.py` | `(none)` | low | N/A |
 | 137 | `config.py` | `(none)` | low | N/A |
-| 141 | `src/backend/database.py` | `(none)` | low | N/A |
-| 143 | `src/backend/main.py` | `(none)` | low | N/A |
-| 155 | `src/backend/api/runs.py` | `(none)` | low | N/A |
-| 221 | `src/backend/database.py` | `(none)` | low | N/A |
-| 222 | `src/backend/main.py` | `(none)` | low | N/A |
-| 223 | `src/backend/api/runs.py` | `(none)` | low | N/A |
 
 ### docs\cursor\CURSOR_PROMPT_RESEARCH_SYSTEM.md
 
@@ -1265,7 +1063,6 @@
 | 21 | `chunk5-testing-polish.yaml` | `(none)` | low | N/A |
 | 23 | `.autonomous_runs/file-organizer-app-v1/archive/research/active/requirements/ALL_CHUNKS_SUMMARY.md` | `(none)` | low | N/A |
 | 25 | `.autonomous_runs/file-organizer-app-v1/archive/research/active/UNIFIED_RESEARCH_SYSTEM_IMPLEMENTATION_V2_REVISED.md` | `(none)` | low | N/A |
-| 405 | `__init__.py` | `(none)` | low | N/A |
 | 464 | `chunk1a-foundation-orchestrator.yaml` | `(none)` | low | N/A |
 | 470 | `.autonomous_runs/research-system-v1/chunk0-issues.md` | `(none)` | low | N/A |
 | 517 | `.autonomous_runs/research-system-v1/` | `(none)` | low | N/A |
@@ -1294,18 +1091,11 @@
 
 | Line | Broken Target | Suggested Fix | Confidence | Score |
 |------|---------------|---------------|------------|-------|
-| 42 | `research_tracer/scraper.py` | `(none)` | low | N/A |
-| 43 | `research_tracer/extractor.py` | `(none)` | low | N/A |
-| 44 | `research_tracer/calculator.py` | `(none)` | low | N/A |
-| 45 | `research_tracer/pipeline.py` | `(none)` | low | N/A |
-| 53 | `research_tracer/` | `(none)` | low | N/A |
 | 72 | `synthesis/` | `(none)` | low | N/A |
 | 72 | `decision_frameworks/` | `(none)` | low | N/A |
 | 72 | `models/` | `(none)` | low | N/A |
 | 72 | `evaluation/` | `(none)` | low | N/A |
 | 72 | `gatherers/` | `(none)` | low | N/A |
-| 126 | `research_tracer/` | `(none)` | low | N/A |
-| 191 | `research_tracer/` | `(none)` | low | N/A |
 
 ### docs\examples\ADVANCED_EXAMPLE.md
 
@@ -1389,17 +1179,10 @@
 | 28 | `.autonomous_runs/batch_drain_sessions/` | `(none)` | low | N/A |
 | 232 | `.autonomous_runs/batch_drain_sessions/` | `(none)` | low | N/A |
 
-### docs\guides\BATCH_DRAIN_POST_REMEDIATION_REPORT.md
-
-| Line | Broken Target | Suggested Fix | Confidence | Score |
-|------|---------------|---------------|------------|-------|
-| 269 | `fileorganizer/fileorganizer/package-lock.json` | `(none)` | low | N/A |
-
 ### docs\guides\BATCH_DRAIN_RELIABILITY_AND_EFFICIENCY_PLAN.md
 
 | Line | Broken Target | Suggested Fix | Confidence | Score |
 |------|---------------|---------------|------------|-------|
-| 85 | `drain_one_phase.py` | `(none)` | low | N/A |
 | 151 | `api_server.log` | `(none)` | low | N/A |
 | 198 | `queued/failed/complete` | `(none)` | low | N/A |
 
@@ -1407,21 +1190,14 @@
 
 | Line | Broken Target | Suggested Fix | Confidence | Score |
 |------|---------------|---------------|------------|-------|
-| 38 | `fileorganizer/frontend/package-lock.json` | `(none)` | low | N/A |
-| 42 | `fileorganizer/frontend/package-lock.json` | `(none)` | low | N/A |
-| 44 | `fileorganizer/` | `(none)` | low | N/A |
 | 50 | `.../fileorganizer` | `(none)` | low | N/A |
-| 51 | `fileorganizer/frontend/...` | `(none)` | low | N/A |
 | 67 | `autopack.workflow.research_review` | `(none)` | low | N/A |
 | 71 | `.APPROVED/.REJECTED/.NEEDS_MORE_RESEARCH` | `(none)` | low | N/A |
 | 119 | `src.autopack.autonomous_executor` | `(none)` | low | N/A |
-| 135 | `fileorganizer/frontend/package-lock.json` | `(none)` | low | N/A |
 | 135 | `.../fileorganizer` | `(none)` | low | N/A |
 | 148 | `package-lock.json` | `(none)` | low | N/A |
-| 153 | `fileorganizer/frontend/package-lock.json` | `(none)` | low | N/A |
 | 164 | `autopack.workflow.research_review` | `(none)` | low | N/A |
 | 239 | `batch_drain_controller.py` | `(none)` | low | N/A |
-| 303 | `autonomous_executor.py` | `(none)` | low | N/A |
 | 305 | `workflow/research_review.py` | `(none)` | low | N/A |
 
 ### docs\guides\BUILD-139_T1-T5_HANDOFF.md
@@ -1451,11 +1227,6 @@
 | Line | Broken Target | Suggested Fix | Confidence | Score |
 |------|---------------|---------------|------------|-------|
 | 14 | `.gitignore` | `(none)` | low | N/A |
-| 89 | `examples/telemetry_utils/` | `(none)` | low | N/A |
-| 117 | `examples/telemetry_utils/` | `(none)` | low | N/A |
-| 263 | `drain_one_phase.py` | `(none)` | low | N/A |
-| 263 | `autonomous_executor.py` | `(none)` | low | N/A |
-| 275 | `scripts/propose_estimator_calibration.py` | `(none)` | low | N/A |
 | 280 | `token_estimator.py` | `(none)` | low | N/A |
 | 290 | `estimator_calibration_proposal_YYYYMMDD_HHMMSS.md` | `(none)` | low | N/A |
 | 291 | `estimator_calibration_proposal_YYYYMMDD_HHMMSS.json` | `(none)` | low | N/A |
@@ -1465,22 +1236,14 @@
 | Line | Broken Target | Suggested Fix | Confidence | Score |
 |------|---------------|---------------|------------|-------|
 | 14 | `.gitignore` | `(none)` | low | N/A |
-| 53 | `drain_one_phase.py` | `(none)` | low | N/A |
-| 66 | `drain_one_phase.py` | `(none)` | low | N/A |
-| 67 | `drain_one_phase.py` | `(none)` | low | N/A |
 | 76 | `batch_drain_controller.py` | `(none)` | low | N/A |
-| 92 | `drain_one_phase.py` | `(none)` | low | N/A |
-| 150 | `scripts/propose_estimator_calibration.py` | `(none)` | low | N/A |
 | 159 | `estimator_calibration_proposal_YYYYMMDD_HHMMSS.md` | `(none)` | low | N/A |
 | 160 | `estimator_calibration_proposal_YYYYMMDD_HHMMSS.json` | `(none)` | low | N/A |
-| 169 | `drain_one_phase.py` | `(none)` | low | N/A |
-| 226 | `scripts/propose_estimator_calibration.py` | `(none)` | low | N/A |
 
 ### docs\guides\DB_HYGIENE_README.md
 
 | Line | Broken Target | Suggested Fix | Confidence | Score |
 |------|---------------|---------------|------------|-------|
-| 91 | `examples/telemetry_utils/` | `(none)` | low | N/A |
 | 119 | `.gitignore` | `(none)` | low | N/A |
 | 224 | `db_identity_check.py` | `(none)` | low | N/A |
 | 225 | `analyze_token_telemetry_v3.py` | `(none)` | low | N/A |
@@ -1491,12 +1254,6 @@
 |------|---------------|---------------|------------|-------|
 | 18 | `harrybot.ngrok.app` | `(none)` | low | N/A |
 | 21 | `2abc...xyz` | `(none)` | low | N/A |
-
-### docs\guides\RESEARCH_CI_FIX_CHECKLIST.md
-
-| Line | Broken Target | Suggested Fix | Confidence | Score |
-|------|---------------|---------------|------------|-------|
-| 209 | `tests/autopack/autonomous/test_research_hooks.py` | `(none)` | low | N/A |
 
 ### docs\guides\RESEARCH_CI_FIX_COMPLETION_REPORT.md
 
@@ -1514,9 +1271,7 @@
 |------|---------------|---------------|------------|-------|
 | 24 | `.autonomous_runs/research-system-v4/ci/pytest_research-foundation-intent-discovery.log` | `(none)` | low | N/A |
 | 67 | `autopack.workflow.research_review` | `(none)` | low | N/A |
-| 83 | `tests/autopack/autonomous/test_research_hooks.py` | `(none)` | low | N/A |
 | 270 | `research_review.py` | `(none)` | low | N/A |
-| 348 | `tests/autopack/autonomous/test_research_hooks.py` | `(none)` | low | N/A |
 | 479 | `.autonomous_runs/batch_drain_sessions/batch-drain-YYYYMMDD-HHMMSS.json` | `(none)` | low | N/A |
 
 ### docs\guides\RESEARCH_SYSTEM_CI_COLLECTION_REMEDIATION_PLAN.md
@@ -1534,11 +1289,8 @@
 | 46 | `autopack.phases.research_phase` | `(none)` | low | N/A |
 | 47 | `autopack.workflow.research_review` | `(none)` | low | N/A |
 | 48 | `research.frameworks.product_feasibility` | `(none)` | low | N/A |
-| 54 | `__init__.py` | `(none)` | low | N/A |
 | 56 | `test_reddit_gatherer.py` | `(none)` | low | N/A |
-| 95 | `__init__.py` | `(none)` | low | N/A |
 | 97 | `tests/backend/api/` | `(none)` | low | N/A |
-| 111 | `__init__.py` | `(none)` | low | N/A |
 | 113 | `autopack.cli.research_commands` | `(none)` | low | N/A |
 | 123 | `-q/--query` | `(none)` | low | N/A |
 | 124 | `-c/--category` | `(none)` | low | N/A |
@@ -1601,8 +1353,6 @@
 | 83 | `.log` | `(none)` | low | N/A |
 | 83 | `.md` | `(none)` | low | N/A |
 | 83 | `.json` | `(none)` | low | N/A |
-| 88 | `fileorganizer/` | `(none)` | low | N/A |
-| 88 | `research_tracer/` | `(none)` | low | N/A |
 | 88 | `backend/` | `(none)` | low | N/A |
 | 97 | `.github/workflows/ci.yml` | `(none)` | low | N/A |
 | 133 | `apply_triage.py` | `(none)` | low | N/A |
@@ -1636,7 +1386,6 @@
 
 | Line | Broken Target | Suggested Fix | Confidence | Score |
 |------|---------------|---------------|------------|-------|
-| 194 | `tests/autopack/autonomous/test_research_hooks.py` | `(none)` | low | N/A |
 | 311 | `build_history_integrator.py` | `(none)` | low | N/A |
 | 312 | `research_phase.py` | `(none)` | low | N/A |
 | 313 | `research_hooks.py` | `(none)` | low | N/A |
@@ -1679,3 +1428,9 @@
 | Line | Broken Target | Suggested Fix | Confidence | Score |
 |------|---------------|---------------|------------|-------|
 | 3 | `src.autopack.telemetry_utils` | `(none)` | low | N/A |
+
+### docs\test_labeling.md
+
+| Line | Broken Target | Suggested Fix | Confidence | Score |
+|------|---------------|---------------|------------|-------|
+| 3 | `/api/test_auth/test_endpoint` | `(none)` | low | N/A |

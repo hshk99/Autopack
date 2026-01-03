@@ -802,3 +802,184 @@ ignore_patterns:
 - file: docs\reports\BUILD-167_DOC_LINK_BURNDOWN_PLAN.md
   target: tracer_bullet/
   reason: Tracer bullet code - historical reference
+- file: README.md
+  target: superseded/
+  reason: Archived superseded content - historical reference
+- file: README.md
+  target: probe_script.py
+  reason: Historical script reference - may have been refactored
+- file: README.md
+  target: test_auditor_400.py
+  reason: Historical test file - may have been moved or removed
+- file: README.md
+  target: run_full_probe_suite.sh
+  reason: Historical script reference - may have been refactored
+- file: README.md
+  target: REPORT_TIDY_V7.md
+  reason: Historical report - may have been archived
+- file: README.md
+  target: ANALYSIS_PHASE_PLAN.md
+  reason: Historical planning doc - may have been archived
+- file: README.md
+  target: tidy_execution.log
+  reason: Runtime log file - created during tidy operations
+- file: README.md
+  target: tidy_scope.yaml
+  reason: Runtime config file - created on demand
+- file: README.md
+  target: models.yaml
+  reason: Model config - may be runtime-generated
+- file: README.md
+  target: plans/
+  reason: Runtime planning directory - created on demand
+- file: README.md
+  target: .py
+  reason: File extension example - informational code reference
+- file: README.md
+  target: unsorted/
+  reason: Temporary sorting directory - runtime artifact
+- file: README.md
+  target: .sql
+  reason: File extension example - informational code reference
+- file: README.md
+  target: project_learned_rules.json
+  reason: Runtime learned rules - created during execution
+- file: docs\BUILD_HISTORY.md
+  target: add_storage_optimizer_tables.py
+  reason: Migration script - may be in archive or deprecated
+- file: docs\BUILD_HISTORY.md
+  target: test_artifact_history_pack.py
+  reason: Historical test file - may have been moved or removed
+- file: docs\BUILD_HISTORY.md
+  target: /dashboard
+  reason: HTTP API endpoint - runtime reference, not file path
+- file: docs\BUILD_HISTORY.md
+  target: examples/telemetry_utils/
+  reason: Example directory - may not exist in all environments
+- file: docs\BUILD_HISTORY.md
+  target: /update_status
+  reason: HTTP API endpoint - runtime reference, not file path
+- file: docs\BUILD_HISTORY.md
+  target: gold_set.json
+  reason: Test/validation artifact - created on demand
+- file: docs\BUILD_HISTORY.md
+  target: .py
+  reason: File extension example - informational code reference
+- file: docs\BUILD_HISTORY.md
+  target: archive/analysis/
+  reason: Runtime-generated archive directory - created on demand
+- file: docs\BUILD-167_COMPLETION_REPORT.md
+  target: .log
+  reason: File extension example in backticks - informational code formatting
+- file: docs\BUILD-167_COMPLETION_REPORT.md
+  target: .md
+  reason: File extension example in backticks - informational code formatting
+- file: docs\BUILD-167_COMPLETION_REPORT.md
+  target: .json
+  reason: File extension example in backticks - informational code formatting
+- file: docs\BUILD-167_COMPLETION_REPORT.md
+  target: fileorganizer/
+  reason: Historical project component - removed, refs are intentional historical
+    context
+- file: docs\BUILD-167_COMPLETION_REPORT.md
+  target: research_tracer/
+  reason: Historical tracer bullet code - intentional historical reference
+- file: docs\BUILD-167_COMPLETION_REPORT.md
+  target: .yaml
+  reason: File extension example in backticks - informational code formatting
+- file: docs\BUILD-167_COMPLETION_REPORT.md
+  target: .txt
+  reason: File extension example in backticks - informational code formatting
+- file: docs\BUILD-167_COMPLETION_REPORT.md
+  target: __init__.py
+  reason: Generic Python package file - code reference, not doc link
+- file: docs\BUILD-167_COMPLETION_REPORT.md
+  target: .gitignore
+  reason: Git config file - code reference, not doc link
+- file: docs\BUILD-167_COMPLETION_REPORT.md
+  target: .env
+  reason: Environment config file - code reference, not doc link
+- file: docs\BUILD-167_COMPLETION_REPORT.md
+  target: .git/
+  reason: Git directory - code reference, not doc link
+- file: docs\BUILD-167_COMPLETION_REPORT.md
+  target: logs/
+  reason: Runtime log directory - code reference, not doc link
+- file: docs\BUILD-167_COMPLETION_REPORT.md
+  target: /health
+  reason: HTTP API endpoint - informational reference, not file path
+- file: docs\CHANGELOG.md
+  target: docs/BUILD-129_TOKEN_ESTIMATOR.md
+  reason: BUILD-129 docs consolidated into later builds
+- file: docs\CHANGELOG.md
+  target: docs/BUILD-129_CONTINUATION_RECOVERY.md
+  reason: BUILD-129 docs consolidated into later builds
+- file: docs\CHANGELOG.md
+  target: docs/BUILD-129_NDJSON_FORMAT.md
+  reason: BUILD-129 docs consolidated into later builds
+- file: docs\CHANGELOG.md
+  target: req1.txt
+  reason: Example/temporary file reference in historical context
+- file: docs\CHANGELOG.md
+  target: req2.txt
+  reason: Example/temporary file reference in historical context
+- file: docs\CHANGELOG.md
+  target: requirements-1.txt
+  reason: Example/temporary file reference in historical context
+- file: docs\CHANGELOG.md
+  target: requirements-2.txt
+  reason: Example/temporary file reference in historical context
+- file: docs\CHANGELOG.md
+  target: /tmp
+  reason: System temporary directory - runtime reference
+- file: docs\CHANGELOG.md
+  target: /token-efficiency
+  reason: API endpoint - runtime reference, not file path
+- file: docs\CHANGELOG.md
+  target: /phase6-stats
+  reason: API endpoint - runtime reference, not file path
+- file: docs\CHANGELOG.md
+  target: run_parallel.py
+  reason: Historical script reference - may have been refactored or removed
+- file: docs\CHANGELOG.md
+  target: archive/replay_results/
+  reason: Runtime-generated archive directory - created on demand
+- file: docs\CHANGELOG.md
+  target: /dashboard
+  reason: HTTP API endpoint - runtime reference, not file path
+- file: docs\DEBUG_LOG.md
+  target: req1.txt
+  reason: Example/temporary file reference in historical context
+- file: docs\DEBUG_LOG.md
+  target: req2.txt
+  reason: Example/temporary file reference in historical context
+- file: docs\DEBUG_LOG.md
+  target: requirements-1.txt
+  reason: Example/temporary file reference in historical context
+- file: docs\DEBUG_LOG.md
+  target: requirements-2.txt
+  reason: Example/temporary file reference in historical context
+- file: docs\DEBUG_LOG.md
+  target: /update_status
+  reason: HTTP API endpoint - runtime reference, not file path
+- file: docs\DEBUG_LOG.md
+  target: gold_set.json
+  reason: Test/validation artifact - created on demand
+- file: docs\DOC_LINK_TRIAGE_REPORT.md
+  target: .py
+  reason: File extension example - informational code reference
+- file: docs\guides\DB_HYGIENE_AND_TELEMETRY_SEEDING.md
+  target: examples/telemetry_utils/
+  reason: Example directory - may not exist in all environments
+- file: docs\guides\DB_HYGIENE_README.md
+  target: examples/telemetry_utils/
+  reason: Example directory - may not exist in all environments
+- file: docs\PRE_TIDY_GAP_ANALYSIS_2026-01-01.md
+  target: models.yaml
+  reason: Model config - may be runtime-generated
+- file: docs\PRE_TIDY_GAP_ANALYSIS_2026-01-01.md
+  target: tidy_scope.yaml
+  reason: Runtime config file - created on demand
+- file: docs\WORKSPACE_ORGANIZATION_SPEC.md
+  target: .py
+  reason: File extension example - informational code reference

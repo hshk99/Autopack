@@ -418,6 +418,19 @@ def validate_references(
                 # Path exists but is outside repo - treat as broken
                 pass
 
+        # Check ignore_patterns first (file+target specific ignores)
+        ignore_patterns = ignore_config.get('ignore_patterns', [])
+        source_file_rel = str(source_file.relative_to(repo_root))
+        is_ignored_pattern = False
+        for ignore_entry in ignore_patterns:
+            if (ignore_entry.get('file') == source_file_rel and
+                ignore_entry.get('target') == ref):
+                is_ignored_pattern = True
+                break
+
+        if is_ignored_pattern:
+            continue
+
         # Path not found - classify the broken link
         category = classify_link_target(ref, repo_root, ignore_config)
 

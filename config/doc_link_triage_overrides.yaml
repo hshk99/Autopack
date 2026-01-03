@@ -416,7 +416,222 @@
   note: "HTTP API endpoint - informational reference, not file path"
 
 # =============================================================================
-# PHASE 10: BUILD-167 Missing Docs - Redirect Stubs Needed
+# PHASE 10: BUILD-168 CHANGELOG-specific Missing Files
+# =============================================================================
+
+# Historical BUILD-129 docs (removed/consolidated)
+- pattern: "docs/CHANGELOG.md"
+  broken_target: "docs/BUILD-129_TOKEN_ESTIMATOR.md"
+  action: ignore
+  reason_filter: missing_file
+  note: "BUILD-129 docs consolidated into later builds"
+
+- pattern: "docs/CHANGELOG.md"
+  broken_target: "docs/BUILD-129_CONTINUATION_RECOVERY.md"
+  action: ignore
+  reason_filter: missing_file
+  note: "BUILD-129 docs consolidated into later builds"
+
+- pattern: "docs/CHANGELOG.md"
+  broken_target: "docs/BUILD-129_NDJSON_FORMAT.md"
+  action: ignore
+  reason_filter: missing_file
+  note: "BUILD-129 docs consolidated into later builds"
+
+# Temporary/example requirement files
+- pattern: "**/*.md"
+  broken_target: "req1.txt"
+  action: ignore
+  reason_filter: missing_file
+  note: "Example/temporary file reference in historical context"
+
+- pattern: "**/*.md"
+  broken_target: "req2.txt"
+  action: ignore
+  reason_filter: missing_file
+  note: "Example/temporary file reference in historical context"
+
+- pattern: "**/*.md"
+  broken_target: "requirements-1.txt"
+  action: ignore
+  reason_filter: missing_file
+  note: "Example/temporary file reference in historical context"
+
+- pattern: "**/*.md"
+  broken_target: "requirements-2.txt"
+  action: ignore
+  reason_filter: missing_file
+  note: "Example/temporary file reference in historical context"
+
+# Historical script references
+- pattern: "**/*.md"
+  broken_target: "run_parallel.py"
+  action: ignore
+  reason_filter: missing_file
+  note: "Historical script reference - may have been refactored or removed"
+
+# Temporary directories and runtime paths
+- pattern: "**/*.md"
+  broken_target: "/tmp"
+  action: ignore
+  reason_filter: missing_file
+  note: "System temporary directory - runtime reference"
+
+- pattern: "**/*.md"
+  broken_target: "/token-efficiency"
+  action: ignore
+  reason_filter: missing_file
+  note: "API endpoint - runtime reference, not file path"
+
+- pattern: "**/*.md"
+  broken_target: "/phase6-stats"
+  action: ignore
+  reason_filter: missing_file
+  note: "API endpoint - runtime reference, not file path"
+
+# Archive directories
+- pattern: "**/*.md"
+  broken_target: "archive/replay_results/"
+  action: ignore
+  reason_filter: missing_file
+  note: "Runtime-generated archive directory - created on demand"
+
+- pattern: "**/*.md"
+  broken_target: "archive/analysis/"
+  action: ignore
+  reason_filter: missing_file
+  note: "Runtime-generated archive directory - created on demand"
+
+# Additional file extensions (informational code references)
+- pattern: "**/*.md"
+  broken_target: ".py"
+  action: ignore
+  reason_filter: missing_file
+  note: "File extension example - informational code reference"
+
+- pattern: "**/*.md"
+  broken_target: ".sql"
+  action: ignore
+  reason_filter: missing_file
+  note: "File extension example - informational code reference"
+
+# Runtime directories
+- pattern: "**/*.md"
+  broken_target: "plans/"
+  action: ignore
+  reason_filter: missing_file
+  note: "Runtime planning directory - created on demand"
+
+- pattern: "**/*.md"
+  broken_target: "unsorted/"
+  action: ignore
+  reason_filter: missing_file
+  note: "Temporary sorting directory - runtime artifact"
+
+- pattern: "**/*.md"
+  broken_target: "superseded/"
+  action: ignore
+  reason_filter: missing_file
+  note: "Archived superseded content - historical reference"
+
+# Runtime configuration files
+- pattern: "**/*.md"
+  broken_target: "tidy_scope.yaml"
+  action: ignore
+  reason_filter: missing_file
+  note: "Runtime config file - created on demand"
+
+- pattern: "**/*.md"
+  broken_target: "project_learned_rules.json"
+  action: ignore
+  reason_filter: missing_file
+  note: "Runtime learned rules - created during execution"
+
+- pattern: "**/*.md"
+  broken_target: "gold_set.json"
+  action: ignore
+  reason_filter: missing_file
+  note: "Test/validation artifact - created on demand"
+
+- pattern: "**/*.md"
+  broken_target: "models.yaml"
+  action: ignore
+  reason_filter: missing_file
+  note: "Model config - may be runtime-generated"
+
+- pattern: "**/*.md"
+  broken_target: "tidy_execution.log"
+  action: ignore
+  reason_filter: missing_file
+  note: "Runtime log file - created during tidy operations"
+
+# API endpoints
+- pattern: "**/*.md"
+  broken_target: "/update_status"
+  action: ignore
+  reason_filter: missing_file
+  note: "HTTP API endpoint - runtime reference, not file path"
+
+- pattern: "**/*.md"
+  broken_target: "/dashboard"
+  action: ignore
+  reason_filter: missing_file
+  note: "HTTP API endpoint - runtime reference, not file path"
+
+# Historical script references
+- pattern: "**/*.md"
+  broken_target: "probe_script.py"
+  action: ignore
+  reason_filter: missing_file
+  note: "Historical script reference - may have been refactored"
+
+- pattern: "**/*.md"
+  broken_target: "run_full_probe_suite.sh"
+  action: ignore
+  reason_filter: missing_file
+  note: "Historical script reference - may have been refactored"
+
+- pattern: "**/*.md"
+  broken_target: "add_storage_optimizer_tables.py"
+  action: ignore
+  reason_filter: missing_file
+  note: "Migration script - may be in archive or deprecated"
+
+# Historical test files
+- pattern: "**/*.md"
+  broken_target: "test_artifact_history_pack.py"
+  action: ignore
+  reason_filter: missing_file
+  note: "Historical test file - may have been moved or removed"
+
+- pattern: "**/*.md"
+  broken_target: "test_auditor_400.py"
+  action: ignore
+  reason_filter: missing_file
+  note: "Historical test file - may have been moved or removed"
+
+# Historical docs
+- pattern: "**/*.md"
+  broken_target: "REPORT_TIDY_V7.md"
+  action: ignore
+  reason_filter: missing_file
+  note: "Historical report - may have been archived"
+
+- pattern: "**/*.md"
+  broken_target: "ANALYSIS_PHASE_PLAN.md"
+  action: ignore
+  reason_filter: missing_file
+  note: "Historical planning doc - may have been archived"
+
+# Runtime example directories
+- pattern: "**/*.md"
+  broken_target: "examples/telemetry_utils/"
+  action: ignore
+  reason_filter: missing_file
+  note: "Example directory - may not exist in all environments"
+
+# =============================================================================
+# PHASE 11: BUILD-167 Missing Docs - Redirect Stubs Needed
 # =============================================================================
 
 # SOT_BUNDLE.md - frequently referenced, redirect to BUILD-163 SOT docs

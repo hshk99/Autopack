@@ -47,6 +47,9 @@ Deep scan baseline shows **746 `missing_file` violations** across 163 docs. Nav 
 
 ## Top 20 Missing Targets by Frequency
 
+**Note**: This section contains many path-like tokens intended as analysis examples. It is wrapped in a fenced code block so the doc-link checker (deep mode) does not treat them as actionable references.
+
+```
 | Rank | Target | Count | Classification |
 |------|--------|-------|----------------|
 | 1 | `fileorganizer/` | 17 | Code path (historical) |
@@ -69,6 +72,7 @@ Deep scan baseline shows **746 `missing_file` violations** across 163 docs. Nav 
 | 18 | `.yaml` | 6 | File extension (backtick) |
 | 19 | `CONSOLIDATED_DEBUG.md` | 6 | Missing doc |
 | 20 | `backend/` | 6 | Removed code |
+```
 
 ---
 
@@ -104,17 +108,25 @@ Deep scan baseline shows **746 `missing_file` violations** across 163 docs. Nav 
 #### Priority 2: Historical Code Path Markers
 **Action**: Add triage rules for historical code references
 **Targets**:
+**Note**: This is an analysis checklist; wrap in a fenced code block to avoid being counted as path references in deep scans.
+
+```
 - `fileorganizer/` → historical_ref
 - `research_tracer/` → historical_ref
 - `backend/` → historical_ref (already partially covered)
 - `tracer_bullet/` → historical_ref (already covered)
+```
 
 #### Priority 3: Create Redirect Stubs for Renamed/Moved Docs
 **Action**: Create minimal redirect stubs with canonical links
 **Candidates**:
+**Note**: Analysis checklist; wrap in a fenced code block to avoid being counted as path references in deep scans.
+
+```
 - `SOT_BUNDLE.md` → Investigate if this should point to BUILD-163 docs
 - `CONSOLIDATED_DEBUG.md` → Point to DEBUG_LOG.md or archive
 - Renamed workflow files → Point to current workflows
+```
 
 #### Priority 4: Update Direct References in Top Offenders
 **Action**: Fix real broken markdown links in top 5 files

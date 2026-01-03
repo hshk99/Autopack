@@ -21,20 +21,21 @@ BUILD-167 focused on high-ROI improvements to the doc link infrastructure after 
 
 ### Deep Scan Results
 
-| Metric | Baseline (BUILD-166) | After BUILD-167 | Change |
-|--------|---------------------|-----------------|--------|
-| Total broken links | 1,099 | 1,103 | +4 |
-| CI-blocking (missing_file) | 746 | 749 | +3 |
-| Informational (runtime_endpoint) | 249 | 249 | 0 |
-| Informational (historical_ref) | 104 | 105 | +1 |
-| Auto-fixable (high confidence) | 18 | 8 | -10 (applied fixes) |
-| Files checked | 163 | 166 | +3 (new docs added) |
+| Metric | Baseline (BUILD-166) | After BUILD-167 | After Corrections | Final Change |
+|--------|---------------------|-----------------|-------------------|--------------|
+| Total broken links | 1,099 | 1,103 | 1,099 | 0 |
+| CI-blocking (missing_file) | 746 | 749 | 746 | 0 |
+| Informational (runtime_endpoint) | 249 | 249 | 249 | 0 |
+| Informational (historical_ref) | 104 | 105 | 104 | 0 |
+| Auto-fixable (high confidence) | 18 | 8 | 8 | -10 (applied fixes) |
+| Files checked | 163 | 166 | 168 | +5 (new docs added) |
 
-**Analysis**: The slight increase in missing_file count (+3) is due to:
-1. New BUILD-167 planning doc itself referencing example paths (+39 violations)
-2. New redirect stubs and exit code standards doc added to corpus (+2 files)
-3. 9 storage_optimizer path fixes applied (removed 9 violations)
-4. Net: +39 from new doc, -9 from fixes, -27 from redirect stubs = +3
+**Analysis**:
+- **Initial implementation** showed +3 missing_file regression due to BUILD-167 planning doc example paths
+- **Post-review corrections** (fenced code blocks for analysis sections): Regression eliminated ✅
+- **Final result**: Zero net increase in missing_file violations (746 baseline maintained)
+- **Fixes applied**: 9 storage_optimizer path corrections
+- **Redirect stubs**: 4 stubs created, resolving ~32-40 broken references
 
 ### Nav Mode Results (CI-Blocking)
 
@@ -354,6 +355,53 @@ The following items were identified but deferred for future builds:
 | Exit code standards documented | Yes | Yes | ✅ |
 | Unit tests pass | 100% | 100% | ✅ |
 
+## Post-Review Corrections & Improvements
+
+### Issue 1: Regression in missing_file Count ✅ Fixed
+**Problem**: Initial implementation showed +3 missing_file regression (746 → 749)
+- New BUILD-167 planning doc contained example paths being counted as missing references
+
+**Solution**: Wrapped analysis sections in fenced code blocks
+- Top 20 missing targets table
+- Priority 2 & 3 checklists with path examples
+- Result: Regression eliminated, baseline maintained (746 missing_file)
+
+### Issue 2: Exit Code Standards Ambiguity ✅ Fixed
+**Problem**: Original text stated "no entries found = exit 0" without distinguishing repo context vs generic tool usage
+
+**Solution**: Updated [EXIT_CODE_STANDARDS.md](EXIT_CODE_STANDARDS.md) to clarify:
+- **Repo-context invariant** (Autopack CI): "no entries found" is a regression signal (bad cwd, parse bug, missing ledgers)
+- **Generic workspace**: "no entries found" can be idempotent success
+- CI smoke tests must enforce repo-context invariant (exit 0 with entries found)
+
+### Issue 3: Redirect Stub Validation ✅ Added
+**Problem**: Redirect stubs could rot if target files move/rename
+
+**Solution**: Created [tests/doc_links/test_redirect_stubs.py](../tests/doc_links/test_redirect_stubs.py)
+- Validates all redirect stubs point to existing files
+- Checks stub format (status marker, move explanation, provenance)
+- Prevents silent stub rot
+
+## Acceptance Criteria for Future Doc Hygiene Builds
+
+Based on BUILD-167 review, all future doc link/hygiene builds must meet:
+
+1. **Non-increasing missing_file count** (deep scan)
+   - Exception: Documented justification required
+   - New planning docs must use fenced code blocks for example paths
+
+2. **Nav mode CI must remain clean** (0 missing_file violations)
+   - README.md, docs/INDEX.md, docs/BUILD_HISTORY.md
+   - All violations must be informational categories only
+
+3. **Exit code standards must distinguish context**
+   - Repo-context invariants for CI smoke tests
+   - Generic tool behavior for arbitrary workspaces
+
+4. **Redirect stubs must be validated**
+   - Point to existing files
+   - Include move explanation and provenance
+
 ## Conclusion
 
 BUILD-167 successfully delivered high-ROI improvements to the doc link infrastructure:
@@ -361,20 +409,23 @@ BUILD-167 successfully delivered high-ROI improvements to the doc link infrastru
 2. ✅ Improved UX for moved docs via redirect stubs
 3. ✅ Enhanced maintainability via constant extraction
 4. ✅ Clarified CI integration via exit code standards
+5. ✅ **Zero net increase in missing_file violations** (746 baseline maintained)
 
 **Nav mode remains CI-clean** (0 violations), ensuring broken markdown links in core navigation docs still block PRs.
 
-**Deep mode provides comprehensive visibility** (1,103 total broken links reported) without creating false positive CI failures.
+**Deep mode provides comprehensive visibility** (1,099 total broken links reported) without creating false positive CI failures.
 
 The foundation is now in place for incremental burndown of remaining missing_file violations in future builds, should that become a priority.
 
 ---
 
-**Next Steps**:
-1. Commit BUILD-167 changes
-2. Update BUILD_HISTORY.md with BUILD-167 entry
-3. Consider BUILD-168: Deep scan burndown (Phases 4-5) if prioritized
-4. Consider telemetry → guidance loop when telemetry data available
+**Next Steps** (Prioritized based on review):
+1. ✅ Fix regression where new docs add missing_file noise (COMPLETE)
+2. ✅ Correct exit code standards for repo-context reliability (COMPLETE)
+3. ✅ Add redirect stub validation (COMPLETE)
+4. Continue incremental deep scan burndown (semi-nav docs: CHANGELOG, TROUBLESHOOTING, QUICKSTART)
+5. Consider telemetry → guidance loop when telemetry data available
+6. Storage optimizer approval workflow documentation
 
 **Related Documentation**:
 - [BUILD-166 Completion Report](BUILD-166_COMPLETION_REPORT.md) - Backtick filtering

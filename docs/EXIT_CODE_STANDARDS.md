@@ -54,8 +54,8 @@ python scripts/check_doc_links.py --deep
 **Exit Codes**:
 - **0 (Success)**: Sync completed successfully
   - Documents were updated
-  - OR: No entries found to sync (when using `--docs-only`)
-  - Rationale: "No entries found" is not a regression - it means SOT is clean
+  - OR: No entries found to sync *in a generic workspace context* (when using `--docs-only`)
+  - Rationale: In an arbitrary folder, “no entries found” can be an idempotent no-op.
 - **1 (Failure)**: Sync failed due to errors
   - Database errors
   - File write errors
@@ -76,9 +76,14 @@ python scripts/tidy/sot_db_sync.py
 
 # Docs-only mode (no database writes)
 python scripts/tidy/sot_db_sync.py --docs-only
-# Exit 0: Docs updated OR no entries found (both are success)
+# Exit 0: Docs parsed successfully (and optionally indexed in dry-run)
 # Exit 1: Doc write errors
 ```
+
+**Repo-context invariant (IMPORTANT)**:
+- In the **Autopack repo**, `--docs-only` is expected to find and parse SOT entries because the repository contains populated SOT ledgers.
+- Therefore, in CI (repo context), “no entries found” should be treated as a **regression signal** (bad cwd, parse bug, missing ledgers), not a success case.
+- CI smoke tests should require **exit code 0** for `python scripts/tidy/sot_db_sync.py --docs-only` in this repo.
 
 **CI Integration**: Exit code 2 can be treated as success or warning depending on context:
 - **Strict CI**: Fail on exit 2 (require all entries to sync cleanly)

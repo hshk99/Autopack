@@ -11,7 +11,14 @@
 Following BUILD-166 completion (15 improvements across 4 waves), received additional recommendations from cursor. This document tracks implementation of those recommendations, prioritizing nav docs cleanup and preparing for deeper doc link triage work.
 
 **Completed**: Nav docs cleanup (0 missing_file violations)
-**Next**: Deep scan top offenders, telemetry loop improvements, approval workflow documentation
+**Next**: Deep scan top offenders, incremental triage of unmatched links, approval workflow documentation
+
+**Playbook**: For step-by-step execution (commands + guardrails), see:
+- `docs/DOC_LINK_TRIAGE_PLAYBOOK_NEXT_STEPS.md`
+
+**Stricter nav-policy (recommended)**:
+- Nav-only CI should enforce *real markdown links* (`[text](path)`) and treat backticks (`` `path` ``) as informational code formatting by default.
+- This reduces ignore-list inflation while preserving navigation trust.
 
 ---
 
@@ -33,7 +40,7 @@ Following BUILD-166 completion (15 improvements across 4 waves), received additi
      - `.autonomous_runs/tidy_pending_moves.json` (2 occurrences)
      - `/api/auth/.well-known/jwks.json` (1 occurrence)
      - `.autonomous_runs/tidy_activity.log` (1 occurrence)
-   - **Action**: Added to ignore list (already in backtick format)
+   - **Action**: Added narrow ignore patterns for nav-only link checking.
    - **Result**: 0 missing_file violations in nav docs
 
 3. **Deep Mode Analysis** ✅ COMPLETE
@@ -56,6 +63,10 @@ Following BUILD-166 completion (15 improvements across 4 waves), received additi
 - Tackle top 3 offenders (CHANGELOG, FUTURE_PLAN, DEBUG_LOG) with targeted patterns
 - Consider redirect stubs for moved/reorganized content
 - Manual review of ambiguous cases (151 unmatched links)
+
+**Important policy note (avoid future drift)**:
+- Backticks in markdown (`` `path` ``) are typically code formatting, not hyperlinks. This repo’s link checker currently treats backticks as “path references” by design, which can inflate the broken-link count.
+- For **nav-only CI enforcement**, prefer enforcing *only true markdown links* (`[text](path)`) and treat backticks as informational unless explicitly opted in. This reduces the need to “ignore” code-formatted references in README/ledgers.
 
 ### Priority 2: Telemetry Loop Improvements (Deferred)
 **Recommendation**: "Next highest-ROI 'autonomy' item is that **telemetry→mitigations** loop. If you see patterns of repeated failures/high token cost, guidance-only rules (not enforcing) can be a stepping stone."
@@ -159,6 +170,11 @@ python scripts/doc_links/apply_triage.py --mode deep --dry-run --report
 - Unmatched: 151 (49.7%)
 - **Ready to add**: 89 new ignores
 
+**Caution**: Don’t blindly add “ignore” rules to hide `missing_file`. For deep mode, use ignore rules mainly for:
+- runtime endpoints (e.g. `/api/...`, `localhost`)
+- intentionally historical/archive refs
+For missing files that are genuinely intended docs, prefer **redirect stubs** or **manual update**.
+
 **Top Matched Patterns**:
 1. `src/backend/**` → 32+ matches (backend removed in BUILD-146)
 2. `.autonomous_runs/**` → 35+ matches (runtime artifacts)
@@ -245,12 +261,12 @@ python scripts/doc_links/apply_triage.py --mode deep --dry-run --report
 1. Convert runtime_endpoint references to backticks (code references)
 2. Add to ignore list
 
-**Decision**: Add to ignore list
+**Decision**: Add to ignore list (nav-only enforcement)
 
 **Rationale**:
 - References are already in backtick format
-- Doc link checker treats backticks as links (by design)
-- Ignore list is the correct mechanism for intentional references
+- Doc link checker treats backticks as path references (by design); nav-only CI should remain strict about real links while keeping code refs informational
+- Ignore list is acceptable for true runtime endpoints that are intentionally non-file references
 - runtime_endpoint is already in report_only mode (not blocking CI)
 
 ---

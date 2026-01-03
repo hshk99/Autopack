@@ -46,6 +46,13 @@ These are the canonical references that should stay current and are designed to 
 - **SOT Memory Integration**: SOT ledgers can be indexed into `MemoryService` for runtime retrieval
   - See `docs/TIDY_SOT_RETRIEVAL_INTEGRATION_PLAN.md` for implementation details
   - See `docs/SOT_MEMORY_INTEGRATION_EXAMPLE.md` for integration examples
+- **BUILD-170.5 SOT Ideal State - Workflow Consolidation + DEBUG_LOG Contract Test**:
+  - Closed last "two truths" gaps: workflow deduplication + DEBUG_LOG validation
+  - Deleted .github/workflows/doc-link-check.yml (fully redundant)
+  - Kept doc-link-deep-scan.yml as ONLY scheduled deep scan (Monday weekly)
+  - Created test_debug_log_index_matches_sections.py (DEBUG_LOG contract test)
+  - All acceptance criteria met: 4/4 doc tests pass, no drift, zero duplication
+  - See [docs/BUILD_HISTORY.md#build-1705](BUILD_HISTORY.md#build-1705) for details
 - **BUILD-170 SOT Ledgers as Canonical Truth - CI Enforcement**:
   - Established SOT ledgers as single source of truth with automated drift detection
   - Added --check mode to sot_summary_refresh.py (exit 0 clean, exit 1 drift)

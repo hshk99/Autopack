@@ -1315,9 +1315,9 @@ During draining, Autopack runs the repo’s CI (typically `pytest`) but **phase 
 ## Project Status
 
 <!-- SOT_SUMMARY_START -->
-**Last Updated**: 2026-01-03 22:27
+**Last Updated**: 2026-01-03 23:07
 
-- **Builds Completed**: 175 (includes multi-phase builds, 157 unique)
+- **Builds Completed**: 176 (includes multi-phase builds, 157 unique)
 - **Latest Build**: BUILD-170: SOT Ledgers as Canonical Truth - CI Enforcement & Competing Generator Removal ✅
 - **Architecture Decisions**: 35
 - **Debugging Sessions**: 85

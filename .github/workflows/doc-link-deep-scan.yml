@@ -6,6 +6,9 @@ on:
     - cron: '0 0 * * 1'
   workflow_dispatch:  # Allow manual trigger
 
+permissions:
+  contents: read
+
 jobs:
   deep-scan:
     name: Deep Doc Link Scan
@@ -13,7 +16,7 @@ jobs:
     # Never fail the workflow - report-only
     continue-on-error: true
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Set up Python
         uses: actions/setup-python@v4
@@ -33,7 +36,7 @@ jobs:
 
       - name: Upload scan results (JSON)
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: doc-link-scan-json
           path: deep_scan_results.json
@@ -41,7 +44,7 @@ jobs:
 
       - name: Upload scan results (Markdown)
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: doc-link-scan-markdown
           path: deep_scan_results.md

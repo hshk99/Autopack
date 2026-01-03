@@ -1,0 +1,44 @@
+======================================================================
+TOP 10 OFFENDERS BY missing_file COUNT
+======================================================================
+  62 - README.md
+  58 - docs\BUILD_HISTORY.md
+  58 - docs\CHANGELOG.md
+  51 - docs\PRE_TIDY_GAP_ANALYSIS_2026-01-01.md
+  34 - docs\DOC_LINK_TRIAGE_REPORT.md
+  29 - docs\reports\AUTOPACK_DRAIN_SECOND_OPINION_REVIEW.md
+  26 - docs\DEBUG_LOG.md
+  19 - docs\TIDY_SYSTEM_REVISION_PLAN_2026-01-01.md
+  16 - docs\BUILD-145-TIDY-SYSTEM-REVISION-COMPLETE.md
+  15 - docs\guides\RESEARCH_SYSTEM_CI_COLLECTION_REMEDIATION_PLAN.md
+
+======================================================================
+TOP 20 MISSING TARGETS BY FREQUENCY
+======================================================================
+  17 - fileorganizer/
+  14 - .log
+  14 - /health
+  13 - .md
+  12 - __init__.py
+  11 - .git/
+  11 - .json
+  10 - autonomous_executor.py
+  10 - .github/workflows/ci.yml
+  10 - SOT_BUNDLE.md
+   9 - .gitignore
+   8 - tidy_up.py
+   8 - research_tracer/
+   7 - .env
+   7 - logs/
+   7 - .txt
+   7 - drain_one_phase.py
+   6 - .yaml
+   6 - CONSOLIDATED_DEBUG.md
+   6 - backend/
+
+======================================================================
+SUMMARY
+======================================================================
+Total broken links: 1099
+missing_file violations: 746
+Other (runtime_endpoint + historical_ref): 353

@@ -307,3 +307,144 @@
   broken_target: "docs/BUILD-107.md"
   action: manual
   note: "Needs review - check if this was moved to archive or deleted"
+
+# =============================================================================
+# PHASE 9: BUILD-167 Burndown - Historical Code Paths (2026-01-03)
+# =============================================================================
+
+# fileorganizer/ - removed project component
+- pattern: "**/*.md"
+  broken_target_glob: "fileorganizer/**"
+  action: ignore
+  reason_filter: missing_file
+  note: "Historical project component - removed, refs are intentional historical context"
+
+# research_tracer/ - historical code
+- pattern: "**/*.md"
+  broken_target_glob: "research_tracer/**"
+  action: ignore
+  reason_filter: missing_file
+  note: "Historical tracer bullet code - intentional historical reference"
+
+# Specific historical code files frequently referenced
+- pattern: "**/*.md"
+  broken_target: "autonomous_executor.py"
+  action: ignore
+  reason_filter: missing_file
+  note: "Historical code file reference - may have been moved/refactored"
+
+- pattern: "**/*.md"
+  broken_target: "tidy_up.py"
+  action: ignore
+  reason_filter: missing_file
+  note: "Code file reference - may have been moved to scripts/"
+
+- pattern: "**/*.md"
+  broken_target: "drain_one_phase.py"
+  action: ignore
+  reason_filter: missing_file
+  note: "Historical script - may have been refactored or removed"
+
+# Common file extensions referenced in backticks (informational, not links)
+# These are code formatting examples, not broken links
+- pattern: "**/*.md"
+  broken_target: ".log"
+  action: ignore
+  reason_filter: missing_file
+  note: "File extension example in backticks - informational code formatting"
+
+- pattern: "**/*.md"
+  broken_target: ".md"
+  action: ignore
+  reason_filter: missing_file
+  note: "File extension example in backticks - informational code formatting"
+
+- pattern: "**/*.md"
+  broken_target: ".json"
+  action: ignore
+  reason_filter: missing_file
+  note: "File extension example in backticks - informational code formatting"
+
+- pattern: "**/*.md"
+  broken_target: ".yaml"
+  action: ignore
+  reason_filter: missing_file
+  note: "File extension example in backticks - informational code formatting"
+
+- pattern: "**/*.md"
+  broken_target: ".txt"
+  action: ignore
+  reason_filter: missing_file
+  note: "File extension example in backticks - informational code formatting"
+
+- pattern: "**/*.md"
+  broken_target: "__init__.py"
+  action: ignore
+  reason_filter: missing_file
+  note: "Generic Python package file - code reference, not doc link"
+
+- pattern: "**/*.md"
+  broken_target: ".gitignore"
+  action: ignore
+  reason_filter: missing_file
+  note: "Git config file - code reference, not doc link"
+
+- pattern: "**/*.md"
+  broken_target: ".env"
+  action: ignore
+  reason_filter: missing_file
+  note: "Environment config file - code reference, not doc link"
+
+# VCS/runtime directories (code references)
+- pattern: "**/*.md"
+  broken_target: ".git/"
+  action: ignore
+  reason_filter: missing_file
+  note: "Git directory - code reference, not doc link"
+
+- pattern: "**/*.md"
+  broken_target: "logs/"
+  action: ignore
+  reason_filter: missing_file
+  note: "Runtime log directory - code reference, not doc link"
+
+# API endpoints in backticks (informational, not file paths)
+- pattern: "**/*.md"
+  broken_target: "/health"
+  action: ignore
+  reason_filter: missing_file
+  note: "HTTP API endpoint - informational reference, not file path"
+
+# =============================================================================
+# PHASE 10: BUILD-167 Missing Docs - Redirect Stubs Needed
+# =============================================================================
+
+# SOT_BUNDLE.md - frequently referenced, redirect to BUILD-163 SOT docs
+- pattern: "**/*.md"
+  broken_target: "SOT_BUNDLE.md"
+  action: create_stub
+  stub_target: "docs/BUILD-163_SOT_DB_SYNC.md"
+  stub_title: "SOT Bundle Documentation"
+  note: "Redirect stub pointing to BUILD-163 SOT DB Sync documentation"
+
+- pattern: "**/*.md"
+  broken_target: "docs/SOT_BUNDLE.md"
+  action: create_stub
+  stub_target: "BUILD-163_SOT_DB_SYNC.md"
+  stub_title: "SOT Bundle Documentation"
+  note: "Redirect stub pointing to BUILD-163 SOT DB Sync documentation"
+
+# CONSOLIDATED_DEBUG.md - redirect to DEBUG_LOG.md
+- pattern: "**/*.md"
+  broken_target: "CONSOLIDATED_DEBUG.md"
+  action: create_stub
+  stub_target: "docs/DEBUG_LOG.md"
+  stub_title: "Consolidated Debug Log"
+  note: "Redirect stub pointing to DEBUG_LOG.md (consolidated debug information)"
+
+- pattern: "**/*.md"
+  broken_target: "docs/CONSOLIDATED_DEBUG.md"
+  action: create_stub
+  stub_target: "DEBUG_LOG.md"
+  stub_title: "Consolidated Debug Log"
+  note: "Redirect stub pointing to DEBUG_LOG.md (consolidated debug information)"

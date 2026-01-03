@@ -1,0 +1,360 @@
+======================================================================
+DOCUMENTATION LINK DRIFT CHECK
+======================================================================
+Repository root: C:\dev\Autopack
+Mode: deep
+Files to check: 163
+Search space for suggestions: 2038 markdown files
+Backtick extraction: enabled
+======================================================================
+
+❌ README.md: 80 broken link(s)
+
+❌ docs\INDEX.md: 3 broken link(s)
+
+❌ docs\BUILD_HISTORY.md: 104 broken link(s)
+
+❌ docs\API_BASICS.md: 3 broken link(s)
+
+❌ docs\ARCHITECTURE.md: 4 broken link(s)
+
+❌ docs\ARCHITECTURE_DECISIONS.md: 14 broken link(s)
+
+❌ docs\AUTHENTICATION.md: 14 broken link(s)
+
+✅ docs\autopack\diagnostics_cursor_prompt.md: all 0 link(s) valid
+
+❌ docs\autopack\diagnostics_deep_retrieval.md: 4 broken link(s)
+
+❌ docs\autopack\diagnostics_handoff_bundle.md: 5 broken link(s)
+
+❌ docs\autopack\diagnostics_iteration_loop.md: 3 broken link(s)
+
+❌ docs\autopack\diagnostics_second_opinion.md: 4 broken link(s)
+
+✅ docs\autopack\research_integration.md: all 4 link(s) valid
+
+✅ docs\autopack\research_workflow.md: all 0 link(s) valid
+
+❌ docs\BUILD-145-FOLLOWUP-QUEUE-SYSTEM.md: 3 broken link(s)
+
+❌ docs\BUILD-145-TIDY-SYSTEM-REVISION-COMPLETE.md: 23 broken link(s)
+
+❌ docs\BUILD-153_CANARY_TEST_REPORT.md: 2 broken link(s)
+
+❌ docs\BUILD-153_COMPLETION_SUMMARY.md: 4 broken link(s)
+
+❌ docs\BUILD-157_SMART_RETRY_QUEUE_HYGIENE.md: 2 broken link(s)
+
+❌ docs\BUILD-158_TIDY_LOCK_LEASE_DOC_LINKS.md: 5 broken link(s)
+
+❌ docs\BUILD-159_DEEP_DOC_LINK_CHECKER_MECHANICAL_FIXER.md: 15 broken link(s)
+
+❌ docs\BUILD-163_CI_COVERAGE.md: 6 broken link(s)
+
+❌ docs\BUILD-163_SOT_DB_SYNC.md: 1 broken link(s)
+
+❌ docs\BUILD-165_SUBSYSTEM_LOCKS.md: 1 broken link(s)
+
+❌ docs\BUILD-166_COMPLETION_REPORT.md: 11 broken link(s)
+
+❌ docs\BUILD-166_CURSOR_ADVICE_FOLLOWUP.md: 7 broken link(s)
+
+❌ docs\BUILD_155_SOT_TELEMETRY_COMPLETION.md: 3 broken link(s)
+
+❌ docs\CANONICAL_API_CONSOLIDATION_PLAN.md: 19 broken link(s)
+
+❌ docs\CANONICAL_API_CONTRACT.md: 4 broken link(s)
+
+❌ docs\CHANGELOG.md: 88 broken link(s)
+
+✅ docs\circuit_breaker_usage.md: all 0 link(s) valid
+
+✅ docs\cli\research_commands.md: all 0 link(s) valid
+
+✅ docs\COMPLETION_REPORT_2026-01-03.md: all 45 link(s) valid
+
+✅ docs\CONFIG_GUIDE.md: all 4 link(s) valid
+
+❌ docs\CONTRIBUTING.md: 2 broken link(s)
+
+❌ docs\cursor\CURSOR_HELP_EXECUTOR_API_ISSUE.md: 13 broken link(s)
+
+❌ docs\cursor\CURSOR_PROMPT_RESEARCH_SYSTEM.md: 16 broken link(s)
+
+❌ docs\cursor\HANDOFF_REPORT_TO_CURSOR.md: 13 broken link(s)
+
+❌ docs\cursor\PROMPT_FOR_OTHER_CURSOR_FILEORG.md: 12 broken link(s)
+
+❌ docs\CURSOR_PROMPT_RUN_AUTOPACK.md: 7 broken link(s)
+
+❌ docs\CURSOR_PROMPT_TIDY.md: 5 broken link(s)
+
+❌ docs\DEBUG_LOG.md: 47 broken link(s)
+
+❌ docs\DEPLOYMENT.md: 2 broken link(s)
+
+❌ docs\DOC_LINK_TRIAGE_PLAYBOOK_NEXT_STEPS.md: 4 broken link(s)
+
+❌ docs\DOC_LINK_TRIAGE_REPORT.md: 35 broken link(s)
+
+❌ docs\DOCKER_DEPLOYMENT_GUIDE.md: 16 broken link(s)
+
+❌ docs\ERROR_HANDLING.md: 6 broken link(s)
+
+❌ docs\examples\ADVANCED_EXAMPLE.md: 1 broken link(s)
+
+✅ docs\examples\examples\app_research_example.md: all 0 link(s) valid
+
+✅ docs\examples\examples\autopack_research_example.md: all 0 link(s) valid
+
+✅ docs\examples\examples\market_research_example.md: all 0 link(s) valid
+
+✅ docs\examples\examples\telemetry_utils\README.md: all 5 link(s) valid
+
+❌ docs\examples\examples\telemetry_utils_v5\DESIGN.md: 2 broken link(s)
+
+✅ docs\examples\examples\telemetry_utils_v5\README.md: all 14 link(s) valid
+
+✅ docs\examples\examples\telemetry_utils_v5\USAGE.md: all 15 link(s) valid
+
+✅ docs\examples\examples\telemetry_v7_docs\api_reference.md: all 0 link(s) valid
+
+✅ docs\examples\examples\telemetry_v7_docs\error_recovery_guide.md: all 0 link(s) valid
+
+✅ docs\examples\examples\telemetry_v7_docs\model_selection_guide.md: all 0 link(s) valid
+
+✅ docs\examples\examples\telemetry_v7_docs\token_estimation_guide.md: all 0 link(s) valid
+
+❌ docs\examples\examples\telemetry_v8_docs\faq_brief.md: 2 broken link(s)
+
+❌ docs\examples\examples\telemetry_v8_docs\glossary.md: 1 broken link(s)
+
+❌ docs\examples\examples\telemetry_v8_docs\quickstart_simple.md: 4 broken link(s)
+
+✅ docs\examples\examples\telemetry_v8b_docs\configuration_basics.md: all 2 link(s) valid
+
+❌ docs\examples\examples\telemetry_v8b_docs\installation_steps.md: 2 broken link(s)
+
+❌ docs\examples\examples\telemetry_v8b_docs\troubleshooting_tips.md: 2 broken link(s)
+
+❌ docs\examples\FAQ.md: 4 broken link(s)
+
+❌ docs\examples\SIMPLE_EXAMPLE.md: 2 broken link(s)
+
+❌ docs\FUTURE_PLAN.md: 43 broken link(s)
+
+❌ docs\GOVERNANCE.md: 7 broken link(s)
+
+❌ docs\guides\BATCH_DRAIN_ACCEPTANCE_REPORT.md: 5 broken link(s)
+
+✅ docs\guides\BATCH_DRAIN_ADAPTIVE_CONTROLS.md: all 4 link(s) valid
+
+❌ docs\guides\BATCH_DRAIN_GUIDE.md: 2 broken link(s)
+
+❌ docs\guides\BATCH_DRAIN_POST_REMEDIATION_REPORT.md: 1 broken link(s)
+
+❌ docs\guides\BATCH_DRAIN_RELIABILITY_AND_EFFICIENCY_PLAN.md: 3 broken link(s)
+
+❌ docs\guides\BATCH_DRAIN_SYSTEMIC_BLOCKERS_REMEDIATION_PLAN.md: 16 broken link(s)
+
+✅ docs\guides\BATCH_DRAIN_TRIAGE_COMMAND.md: all 4 link(s) valid
+
+❌ docs\guides\BUILD-139_T1-T5_HANDOFF.md: 3 broken link(s)
+
+✅ docs\guides\BUILD-142_MIGRATION_RUNBOOK.md: all 2 link(s) valid
+
+❌ docs\guides\BUILD-144_USAGE_TOTAL_TOKENS_MIGRATION_RUNBOOK.md: 2 broken link(s)
+
+❌ docs\guides\CI_FIX_HANDOFF_REPORT.md: 2 broken link(s)
+
+❌ docs\guides\DB_HYGIENE_AND_TELEMETRY_SEEDING.md: 9 broken link(s)
+
+❌ docs\guides\DB_HYGIENE_IMPLEMENTATION_SUMMARY.md: 11 broken link(s)
+
+❌ docs\guides\DB_HYGIENE_README.md: 4 broken link(s)
+
+❌ docs\guides\NGROK_SETUP_GUIDE.md: 2 broken link(s)
+
+❌ docs\guides\RESEARCH_CI_FIX_CHECKLIST.md: 1 broken link(s)
+
+❌ docs\guides\RESEARCH_CI_FIX_COMPLETION_REPORT.md: 5 broken link(s)
+
+❌ docs\guides\RESEARCH_CI_IMPORT_FIX.md: 6 broken link(s)
+
+❌ docs\guides\RESEARCH_SYSTEM_CI_COLLECTION_REMEDIATION_PLAN.md: 26 broken link(s)
+
+❌ docs\guides\TELEMETRY_COLLECTION_UNIFIED_WORKFLOW.md: 3 broken link(s)
+
+❌ docs\guides\WINDOWS_TASK_SCHEDULER_TIDY.md: 1 broken link(s)
+
+❌ docs\IMPLEMENTATION_PLAN_DIAGNOSTICS_PARITY_WITH_CURSOR.md: 12 broken link(s)
+
+❌ docs\IMPLEMENTATION_PLAN_STORAGE_OPTIMIZER.md: 2 broken link(s)
+
+❌ docs\IMPLEMENTATION_PLAN_STORAGE_OPTIMIZER_REVISED.md: 1 broken link(s)
+
+❌ docs\IMPLEMENTATION_PLAN_TIDY_GAP_CLOSURE.md: 11 broken link(s)
+
+❌ docs\IMPLEMENTATION_PLAN_TIDY_IDEAL_STATE_PHASE_E.md: 19 broken link(s)
+
+❌ docs\IMPLEMENTATION_PLAN_TRUE_AUTONOMY.md: 1 broken link(s)
+
+❌ docs\IMPLEMENTATION_STATUS_2026-01-03.md: 9 broken link(s)
+
+❌ docs\IMPLEMENTATION_SUMMARY_SOT_RUNTIME_MODEL_INTEL.md: 1 broken link(s)
+
+❌ docs\IMPROVEMENTS_PLAN_SOT_RUNTIME_AND_MODEL_INTEL.md: 5 broken link(s)
+
+❌ docs\MODEL_INTELLIGENCE_SYSTEM.md: 1 broken link(s)
+
+❌ docs\PARALLEL_RUNS.md: 7 broken link(s)
+
+✅ docs\PHASE_LIFECYCLE.md: all 5 link(s) valid
+
+❌ docs\phase_spec_schema.md: 1 broken link(s)
+
+❌ docs\PRE_TIDY_GAP_ANALYSIS_2026-01-01.md: 73 broken link(s)
+
+❌ docs\PRODUCTION_ROLLOUT_CHECKLIST.md: 1 broken link(s)
+
+❌ docs\PROTECTION_AND_RETENTION_POLICY.md: 2 broken link(s)
+
+❌ docs\QUICKSTART.md: 1 broken link(s)
+
+❌ docs\REMAINING_IMPROVEMENTS_AFTER_BUILD_162.md: 9 broken link(s)
+
+❌ docs\REMAINING_IMPROVEMENTS_COMPLETION_REPORT.md: 1 broken link(s)
+
+❌ docs\reports\AUTOPACK_DRAIN_SECOND_OPINION_REVIEW.md: 29 broken link(s)
+
+✅ docs\reports\BUILD129_P7P9_VALIDATION_STATUS.md: all 8 link(s) valid
+
+❌ docs\reports\POST_TIDY_VERIFICATION_REPORT.md: 3 broken link(s)
+
+❌ docs\reports\PRE_TIDY_AUDIT_REPORT.md: 5 broken link(s)
+
+❌ docs\research\API_REFERENCE.md: 1 broken link(s)
+
+✅ docs\research\compilation.md: all 0 link(s) valid
+
+✅ docs\research\CONFIGURATION.md: all 0 link(s) valid
+
+✅ docs\research\decision_frameworks.md: all 0 link(s) valid
+
+✅ docs\research\EVIDENCE_MODEL.md: all 0 link(s) valid
+
+✅ docs\research\EXAMPLES.md: all 3 link(s) valid
+
+✅ docs\research\gap_analysis.md: all 0 link(s) valid
+
+✅ docs\research\github_gatherer.md: all 0 link(s) valid
+
+❌ docs\research\IMPLEMENTATION_GAP_ANALYSIS.md: 6 broken link(s)
+
+✅ docs\research\intent_clarification.md: all 0 link(s) valid
+
+✅ docs\research\meta_analysis.md: all 0 link(s) valid
+
+❌ docs\research\rate_limiting.md: 1 broken link(s)
+
+✅ docs\research\reddit_gatherer.md: all 0 link(s) valid
+
+✅ docs\research\report_format.md: all 0 link(s) valid
+
+✅ docs\research\RESEARCH_ORCHESTRATOR.md: all 0 link(s) valid
+
+✅ docs\research\source_discovery.md: all 0 link(s) valid
+
+❌ docs\research\STORAGE_SCANNER_COMPARISON.md: 2 broken link(s)
+
+❌ docs\research\TRACER_BULLET_LEARNINGS.md: 1 broken link(s)
+
+❌ docs\research\TRACER_BULLET_RESULTS.md: 1 broken link(s)
+
+✅ docs\research\TROUBLESHOOTING.md: all 0 link(s) valid
+
+✅ docs\research\trust_tiers.md: all 0 link(s) valid
+
+✅ docs\research\USER_GUIDE.md: all 0 link(s) valid
+
+✅ docs\research\VALIDATION_FRAMEWORK.md: all 0 link(s) valid
+
+✅ docs\research\web_scraping.md: all 0 link(s) valid
+
+✅ docs\research\WINDOWS_CLEANUP_APIS.md: all 1 link(s) valid
+
+✅ docs\research\WIZTREE_CLI_INTEGRATION_RESEARCH.md: all 2 link(s) valid
+
+✅ docs\RUNBOOK_QDRANT_AND_TELEMETRY_DRAIN.md: all 2 link(s) valid
+
+✅ docs\SOT_MEMORY_INTEGRATION_EXAMPLE.md: all 5 link(s) valid
+
+❌ docs\stage2_structured_edits.md: 1 broken link(s)
+
+❌ docs\STORAGE_OPTIMIZER_AUTOMATION.md: 2 broken link(s)
+
+❌ docs\STORAGE_OPTIMIZER_EXECUTION_GUIDE.md: 2 broken link(s)
+
+✅ docs\STORAGE_OPTIMIZER_INTELLIGENCE_COMPLETE.md: all 13 link(s) valid
+
+❌ docs\STORAGE_OPTIMIZER_PHASE2_COMPLETION.md: 4 broken link(s)
+
+❌ docs\STORAGE_OPTIMIZER_PHASE3_COMPLETION.md: 5 broken link(s)
+
+✅ docs\STORAGE_OPTIMIZER_PHASE3_PLAN.md: all 6 link(s) valid
+
+✅ docs\STORAGE_OPTIMIZER_PHASE4_COMPLETION.md: all 9 link(s) valid
+
+❌ docs\STORAGE_OPTIMIZER_PHASE4_PLAN.md: 7 broken link(s)
+
+❌ docs\STORAGE_OPTIMIZER_PHASE4_STATUS.md: 7 broken link(s)
+
+✅ docs\TELEMETRY_ANALYSIS_20251224.md: all 1 link(s) valid
+
+❌ docs\TELEMETRY_COLLECTION_GUIDE.md: 2 broken link(s)
+
+✅ docs\TELEMETRY_DB_IMPLEMENTATION_PLAN.md: all 2 link(s) valid
+
+❌ docs\TELEMETRY_GUIDE.md: 2 broken link(s)
+
+❌ docs\telemetry_utils_api.md: 1 broken link(s)
+
+❌ docs\TESTING_GUIDE.md: 2 broken link(s)
+
+❌ docs\TIDY_LOCKED_FILES_HOWTO.md: 1 broken link(s)
+
+✅ docs\TIDY_SOT_RETRIEVAL_INTEGRATION_PLAN.md: all 7 link(s) valid
+
+❌ docs\TIDY_SYSTEM_REVISION_PLAN_2026-01-01.md: 34 broken link(s)
+
+❌ docs\TIDY_SYSTEM_USAGE.md: 13 broken link(s)
+
+❌ docs\TROUBLESHOOTING.md: 6 broken link(s)
+
+❌ docs\WORKSPACE_ORGANIZATION_SPEC.md: 22 broken link(s)
+
+📄 Fix plan exported to: archive\diagnostics\doc_link_fix_plan.json
+📄 Fix plan exported to: archive\diagnostics\doc_link_fix_plan.md
+
+======================================================================
+SUMMARY
+======================================================================
+Total files checked: 163
+Total references found: 2440
+Broken references: 1099
+
+❌ Enforced broken links (CI-blocking): 746
+  missing_file: 746
+
+ℹ️  Informational references (report-only): 353
+  runtime_endpoint: 249
+  historical_ref: 104
+
+Missing files auto-fix confidence:
+  Auto-fixable (high confidence): 18
+  Auto-fixable (medium confidence): 12
+  Manual review required: 716
+
+❌ FAILED: 746 broken link(s) in fail_on categories: ['missing_file']
+   Run with --deep to generate fix plan, or use scripts/fix_doc_links.py to apply fixes

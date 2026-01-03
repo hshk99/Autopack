@@ -1,0 +1,680 @@
+======================================================================
+DOC LINK TRIAGE APPLICATOR
+======================================================================
+Dry-run: True
+Apply fixes: False
+
+Loaded 1099 broken links
+Loaded 60 triage override rules
+
+[IGNORE] README.md:224 → fileorganizer/
+         Note: Historical project component - removed, refs are intentional historical context
+[IGNORE] README.md:224 → .autonomous_runs/file-organizer-app-v1/
+         Note: Autonomous run artifacts - created at runtime
+[SKIP] Already ignored: README.md → .autonomous_runs/file-organizer-app-v1/
+[SKIP] Already ignored: README.md → .autonomous_runs/tidy_pending_moves.json
+[SKIP] Already ignored: README.md → .autonomous_runs/tidy_pending_moves.json
+[IGNORE] README.md:315 → .git/
+         Note: Git directory - code reference, not doc link
+[SKIP] Already ignored: README.md → .git/
+[IGNORE] README.md:396 → __init__.py
+         Note: Generic Python package file - code reference, not doc link
+[IGNORE] README.md:539 → .env
+         Note: Environment config file - code reference, not doc link
+[SKIP] Already ignored: README.md → /api/auth/.well-known/jwks.json
+[IGNORE] README.md:925 → .md
+         Note: File extension example in backticks - informational code formatting
+[SKIP] Already ignored: README.md → .md
+[IGNORE] README.md:939 → .log
+         Note: File extension example in backticks - informational code formatting
+[SKIP] Already ignored: README.md → .log
+[SKIP] Already ignored: README.md → .log
+[IGNORE] README.md:940 → logs/
+         Note: Runtime log directory - code reference, not doc link
+[SKIP] Already ignored: README.md → logs/
+[IGNORE] README.md:942 → .json
+         Note: File extension example in backticks - informational code formatting
+[SKIP] Already ignored: README.md → .json
+[IGNORE] README.md:950 → .yaml
+         Note: File extension example in backticks - informational code formatting
+[IGNORE] README.md:954 → .txt
+         Note: File extension example in backticks - informational code formatting
+[SKIP] Already ignored: README.md → .autonomous_runs/tidy_activity.log
+[MANUAL] README.md:1172 → CONSOLIDATED_DEBUG.md
+         Note: Frequently referenced (6x) - may need redirect to docs/DEBUG_LOG.md or archive
+[MANUAL] README.md:1207 → CONSOLIDATED_DEBUG.md
+         Note: Frequently referenced (6x) - may need redirect to docs/DEBUG_LOG.md or archive
+[IGNORE] docs\INDEX.md:110 → .json
+         Note: File extension example in backticks - informational code formatting
+[IGNORE] docs\INDEX.md:110 → .yaml
+         Note: File extension example in backticks - informational code formatting
+[IGNORE] docs\BUILD_HISTORY.md:34 → autonomous_executor.py
+         Note: Historical code file reference - may have been moved/refactored
+[IGNORE] docs\BUILD_HISTORY.md:35 → /health
+         Note: HTTP API endpoint - informational reference, not file path
+[SKIP] Already ignored: docs\BUILD_HISTORY.md → /health
+[IGNORE] docs\BUILD_HISTORY.md:35 → src/backend/main.py
+         Note: Backend removed in BUILD-146, historical refs intentional
+[SKIP] Already ignored: docs\BUILD_HISTORY.md → src/backend/main.py
+[SKIP] Already ignored: docs\BUILD_HISTORY.md → src/backend/main.py
+[SKIP] Already ignored: docs\BUILD_HISTORY.md → src/backend/main.py
+[IGNORE] docs\BUILD_HISTORY.md:56 → .gitignore
+         Note: Git config file - code reference, not doc link
+[IGNORE] docs\BUILD_HISTORY.md:137 → tracer_bullet/
+         Note: Tracer bullet code - historical reference
+[SKIP] Already ignored: docs\BUILD_HISTORY.md → tracer_bullet/
+[SKIP] Already ignored: docs\BUILD_HISTORY.md → tracer_bullet/
+[SKIP] Already ignored: docs\BUILD_HISTORY.md → tracer_bullet/
+[SKIP] Already ignored: docs\BUILD_HISTORY.md → tracer_bullet/
+[IGNORE] docs\BUILD_HISTORY.md:275 → __init__.py
+         Note: Generic Python package file - code reference, not doc link
+[SKIP] Already ignored: docs\BUILD_HISTORY.md → __init__.py
+[IGNORE] docs\BUILD_HISTORY.md:408 → .autonomous_runs/file-organizer-app-v1/archive/research/active/requirements/chunk1b-foundation-intent-discovery.yaml
+         Note: Autonomous run artifacts - created at runtime
+[IGNORE] docs\BUILD_HISTORY.md:409 → .autonomous_runs/file-organizer-app-v1/archive/research/active/requirements/chunk2a-gatherers-social.yaml
+         Note: Autonomous run artifacts - created at runtime
+[IGNORE] docs\BUILD_HISTORY.md:410 → .autonomous_runs/file-organizer-app-v1/archive/research/active/requirements/chunk2b-gatherers-web-compilation.yaml
+         Note: Autonomous run artifacts - created at runtime
+[IGNORE] docs\BUILD_HISTORY.md:411 → .autonomous_runs/file-organizer-app-v1/archive/research/active/requirements/chunk3-meta-analysis.yaml
+         Note: Autonomous run artifacts - created at runtime
+[SKIP] Already ignored: docs\BUILD_HISTORY.md → .autonomous_runs/file-organizer-app-v1/archive/research/active/requirements/chunk3-meta-analysis.yaml
+[IGNORE] docs\BUILD_HISTORY.md:666 → .json
+         Note: File extension example in backticks - informational code formatting
+[SKIP] Already ignored: docs\BUILD_HISTORY.md → .json
+[SKIP] Already ignored: docs\BUILD_HISTORY.md → .json
+[SKIP] Already ignored: docs\BUILD_HISTORY.md → .json
+[SKIP] Already ignored: docs\BUILD_HISTORY.md → .json
+[SKIP] Already ignored: docs\BUILD_HISTORY.md → .json
+[IGNORE] docs\BUILD_HISTORY.md:718 → src/backend/api/runs.py
+         Note: Backend removed in BUILD-146, historical refs intentional
+[SKIP] Already ignored: docs\BUILD_HISTORY.md → src/backend/api/runs.py
+[SKIP] Already ignored: docs\BUILD_HISTORY.md → src/backend/api/runs.py
+[SKIP] Already ignored: docs\BUILD_HISTORY.md → src/backend/api/runs.py
+[IGNORE] docs\BUILD_HISTORY.md:798 → .git/
+         Note: Git directory - code reference, not doc link
+[MANUAL] docs\BUILD_HISTORY.md:1043 → CONSOLIDATED_DEBUG.md
+         Note: Frequently referenced (6x) - may need redirect to docs/DEBUG_LOG.md or archive
+[MANUAL] docs\BUILD_HISTORY.md:1065 → CONSOLIDATED_DEBUG.md
+         Note: Frequently referenced (6x) - may need redirect to docs/DEBUG_LOG.md or archive
+[MANUAL] docs\BUILD_HISTORY.md:1072 → CONSOLIDATED_DEBUG.md
+         Note: Frequently referenced (6x) - may need redirect to docs/DEBUG_LOG.md or archive
+[IGNORE] docs\BUILD_HISTORY.md:1525 → .log
+         Note: File extension example in backticks - informational code formatting
+[SKIP] Already ignored: docs\BUILD_HISTORY.md → .log
+[SKIP] Already ignored: docs\BUILD_HISTORY.md → .log
+[SKIP] Already ignored: docs\BUILD_HISTORY.md → .log
+[IGNORE] docs\BUILD_HISTORY.md:1525 → .md
+         Note: File extension example in backticks - informational code formatting
+[SKIP] Already ignored: docs\BUILD_HISTORY.md → .md
+[SKIP] Already ignored: docs\BUILD_HISTORY.md → .md
+[SKIP] Already ignored: docs\BUILD_HISTORY.md → .md
+[SKIP] Already ignored: docs\BUILD_HISTORY.md → .md
+[IGNORE] docs\BUILD_HISTORY.md:1525 → .txt
+         Note: File extension example in backticks - informational code formatting
+[SKIP] Already ignored: docs\BUILD_HISTORY.md → .txt
+[SKIP] Already ignored: docs\BUILD_HISTORY.md → .txt
+[SKIP] Already ignored: docs\BUILD_HISTORY.md → .txt
+[IGNORE] docs\BUILD_HISTORY.md:1574 → .yaml
+         Note: File extension example in backticks - informational code formatting
+[SKIP] Already ignored: docs\BUILD_HISTORY.md → .yaml
+[SKIP] Already ignored: docs\BUILD_HISTORY.md → .yaml
+[IGNORE] docs\BUILD_HISTORY.md:2022 → .autonomous_runs/tidy_pending_moves.json
+         Note: Runtime artifact - created during tidy operations
+[IGNORE] docs\BUILD_HISTORY.md:2215 → .autonomous_runs/storage_execution.log
+         Note: Runtime log file - created during storage operations
+[IGNORE] docs\API_BASICS.md:276 → /health
+         Note: HTTP API endpoint - informational reference, not file path
+[IGNORE] docs\ARCHITECTURE.md:52 → .git/
+         Note: Git directory - code reference, not doc link
+[SKIP] Already ignored: docs\ARCHITECTURE.md → .git/
+[MANUAL] docs\ARCHITECTURE_DECISIONS.md:785 → STATUS_AUDITOR_IMPLEMENTATION.md
+         Note: Needs review - may need to be created or reference may be obsolete
+[DRY-RUN] Would fix: C:\dev\Autopack\docs\ARCHITECTURE_DECISIONS.md:508
+          - - `storage_optimizer/approval_pattern_analyzer.py` (520 lines): Pattern detection + learned rule creation
+          + - `src/autopack/storage_optimizer/approval_pattern_analyzer.py` (520 lines): Pattern detection + learned rule creation
+[DRY-RUN] Would fix: C:\dev\Autopack\docs\ARCHITECTURE_DECISIONS.md:509
+          - - `storage_optimizer/smart_categorizer.py` (350 lines): LLM-powered edge case handling
+          + - `src/autopack/storage_optimizer/smart_categorizer.py` (350 lines): LLM-powered edge case handling
+[DRY-RUN] Would fix: C:\dev\Autopack\docs\ARCHITECTURE_DECISIONS.md:510
+          - - `storage_optimizer/recommendation_engine.py` (420 lines): Strategic recommendations from scan history
+          + - `src/autopack/storage_optimizer/recommendation_engine.py` (420 lines): Strategic recommendations from scan history
+[DRY-RUN] Would fix: C:\dev\Autopack\docs\ARCHITECTURE_DECISIONS.md:511
+          - - `storage_optimizer/steam_detector.py` (360 lines): Manual-trigger game analysis
+          + - `src/autopack/storage_optimizer/steam_detector.py` (360 lines): Manual-trigger game analysis
+[DRY-RUN] Would fix: C:\dev\Autopack\docs\ARCHITECTURE_DECISIONS.md:616
+          - - `storage_optimizer/policy.py` (185 lines): Policy loading, protected path checking, category matching
+          + - `src/autopack/storage_optimizer/policy.py` (185 lines): Policy loading, protected path checking, category matching
+[DRY-RUN] Would fix: C:\dev\Autopack\docs\ARCHITECTURE_DECISIONS.md:617
+          - - `storage_optimizer/models.py` (125 lines): ScanResult, CleanupCandidate, CleanupPlan, StorageReport
+          + - `src/autopack/storage_optimizer/models.py` (125 lines): ScanResult, CleanupCandidate, CleanupPlan, StorageReport
+[DRY-RUN] Would fix: C:\dev\Autopack\docs\ARCHITECTURE_DECISIONS.md:618
+          - - `storage_optimizer/scanner.py` (193 lines): Python os.walk scanner focusing on high-value directories
+          + - `src/autopack/storage_optimizer/scanner.py` (193 lines): Python os.walk scanner focusing on high-value directories
+[DRY-RUN] Would fix: C:\dev\Autopack\docs\ARCHITECTURE_DECISIONS.md:619
+          - - `storage_optimizer/classifier.py` (168 lines): Policy-aware classification with protected path enforcement
+          + - `src/autopack/storage_optimizer/classifier.py` (168 lines): Policy-aware classification with protected path enforcement
+[DRY-RUN] Would fix: C:\dev\Autopack\docs\ARCHITECTURE_DECISIONS.md:620
+          - - `storage_optimizer/reporter.py` (272 lines): Human-readable and JSON report generation
+          + - `src/autopack/storage_optimizer/reporter.py` (272 lines): Human-readable and JSON report generation
+[IGNORE] docs\ARCHITECTURE_DECISIONS.md:780 → .env
+         Note: Environment config file - code reference, not doc link
+[IGNORE] docs\AUTHENTICATION.md:11 → src/backend/models/user.py
+         Note: Backend removed in BUILD-146, historical refs intentional
+[SKIP] Already ignored: docs\AUTHENTICATION.md → src/backend/models/user.py
+[IGNORE] docs\AUTHENTICATION.md:16 → src/backend/core/security.py
+         Note: Backend removed in BUILD-146, historical refs intentional
+[SKIP] Already ignored: docs\AUTHENTICATION.md → src/backend/core/security.py
+[IGNORE] docs\AUTHENTICATION.md:22 → src/backend/api/auth.py
+         Note: Backend removed in BUILD-146, historical refs intentional
+[SKIP] Already ignored: docs\AUTHENTICATION.md → src/backend/api/auth.py
+[SKIP] Already ignored: docs\AUTHENTICATION.md → src/backend/api/auth.py
+[IGNORE] docs\AUTHENTICATION.md:29 → src/backend/schemas/user.py
+         Note: Backend removed in BUILD-146, historical refs intentional
+[SKIP] Already ignored: docs\AUTHENTICATION.md → src/backend/schemas/user.py
+[IGNORE] docs\AUTHENTICATION.md:444 → src/backend/core/config.py
+         Note: Backend removed in BUILD-146, historical refs intentional
+[IGNORE] docs\AUTHENTICATION.md:445 → src/backend/database.py
+         Note: Backend removed in BUILD-146, historical refs intentional
+[IGNORE] docs\AUTHENTICATION.md:446 → src/backend/tests/test_auth.py
+         Note: Backend removed in BUILD-146, historical refs intentional
+[SKIP] Already ignored: docs\AUTHENTICATION.md → src/backend/tests/test_auth.py
+[IGNORE] docs\autopack\diagnostics_deep_retrieval.md:412 → .git/
+         Note: Git directory - code reference, not doc link
+[IGNORE] docs\autopack\diagnostics_handoff_bundle.md:37 → excerpts/log_tail.txt
+         Note: Sample data or excerpts - not committed to repository
+[SKIP] Already ignored: docs\autopack\diagnostics_handoff_bundle.md → excerpts/log_tail.txt
+[IGNORE] docs\BUILD-145-FOLLOWUP-QUEUE-SYSTEM.md:24 → .autonomous_runs/tidy_pending_moves.json
+         Note: Runtime artifact - created during tidy operations
+[SKIP] Already ignored: docs\BUILD-145-FOLLOWUP-QUEUE-SYSTEM.md → .autonomous_runs/tidy_pending_moves.json
+[SKIP] Already ignored: docs\BUILD-145-FOLLOWUP-QUEUE-SYSTEM.md → .autonomous_runs/tidy_pending_moves.json
+[IGNORE] docs\BUILD-145-TIDY-SYSTEM-REVISION-COMPLETE.md:50 → fileorganizer/
+         Note: Historical project component - removed, refs are intentional historical context
+[SKIP] Already ignored: docs\BUILD-145-TIDY-SYSTEM-REVISION-COMPLETE.md → fileorganizer/
+[SKIP] Already ignored: docs\BUILD-145-TIDY-SYSTEM-REVISION-COMPLETE.md → fileorganizer/
+[IGNORE] docs\BUILD-145-TIDY-SYSTEM-REVISION-COMPLETE.md:52 → .autonomous_runs/file-organizer-app-v1/src/fileorganizer/
+         Note: Autonomous run artifacts - created at runtime
+[IGNORE] docs\BUILD-145-TIDY-SYSTEM-REVISION-COMPLETE.md:106 → .autonomous_runs/file-organizer-app-v1/
+         Note: Autonomous run artifacts - created at runtime
+[IGNORE] docs\BUILD-153_CANARY_TEST_REPORT.md:85 → .autonomous_runs/storage_execution.log
+         Note: Runtime log file - created during storage operations
+[IGNORE] docs\BUILD-157_SMART_RETRY_QUEUE_HYGIENE.md:96 → tidy_up.py
+         Note: Code file reference - may have been moved to scripts/
+[IGNORE] docs\BUILD-158_TIDY_LOCK_LEASE_DOC_LINKS.md:135 → path/to/file.md
+         Note: Example placeholder path
+[IGNORE] docs\BUILD-158_TIDY_LOCK_LEASE_DOC_LINKS.md:136 → path/to/file.txt
+         Note: Example placeholder path
+[IGNORE] docs\BUILD-158_TIDY_LOCK_LEASE_DOC_LINKS.md:137 → file.md
+         Note: Generic example path
+[IGNORE] docs\BUILD-159_DEEP_DOC_LINK_CHECKER_MECHANICAL_FIXER.md:125 → target
+         Note: Generic placeholder
+[IGNORE] docs\BUILD-159_DEEP_DOC_LINK_CHECKER_MECHANICAL_FIXER.md:125 → new_target
+         Note: Generic placeholder
+[IGNORE] docs\BUILD-159_DEEP_DOC_LINK_CHECKER_MECHANICAL_FIXER.md:397 → file.md
+         Note: Generic example path
+[SKIP] Already ignored: docs\BUILD-159_DEEP_DOC_LINK_CHECKER_MECHANICAL_FIXER.md → file.md
+[SKIP] Already ignored: docs\BUILD-159_DEEP_DOC_LINK_CHECKER_MECHANICAL_FIXER.md → file.md
+[IGNORE] docs\BUILD-159_DEEP_DOC_LINK_CHECKER_MECHANICAL_FIXER.md:275 → /api/auth/.well-known/jwks.json
+         Note: HTTP API endpoint, not a file path
+[MANUAL] docs\BUILD-159_DEEP_DOC_LINK_CHECKER_MECHANICAL_FIXER.md:302 → docs/BUILD-107.md
+         Note: Needs review - check if this was moved to archive or deleted
+[IGNORE] docs\BUILD-159_DEEP_DOC_LINK_CHECKER_MECHANICAL_FIXER.md:302 → archive/superseded/reports/BUILD-107.md
+         Note: Reference to superseded document
+[IGNORE] docs\BUILD-159_DEEP_DOC_LINK_CHECKER_MECHANICAL_FIXER.md:304 → .autonomous_runs/.../ARCHIVE_INDEX.md
+         Note: Runtime index - created during archive operations
+[IGNORE] docs\BUILD-165_SUBSYSTEM_LOCKS.md:5 → archive/superseded/reports/BUILD-162_LOCK_STATUS_UX.md
+         Note: Reference to superseded document - content rolled into BUILD-161
+[IGNORE] docs\BUILD-166_COMPLETION_REPORT.md:117 → tidy_up.py
+         Note: Code file reference - may have been moved to scripts/
+[SKIP] Already ignored: docs\BUILD-166_COMPLETION_REPORT.md → tidy_up.py
+[IGNORE] docs\BUILD-166_CURSOR_ADVICE_FOLLOWUP.md:40 → .autonomous_runs/tidy_pending_moves.json
+         Note: Runtime artifact - created during tidy operations
+[IGNORE] docs\BUILD-166_CURSOR_ADVICE_FOLLOWUP.md:41 → /api/auth/.well-known/jwks.json
+         Note: HTTP API endpoint, not a file path
+[IGNORE] docs\BUILD-166_CURSOR_ADVICE_FOLLOWUP.md:42 → .autonomous_runs/tidy_activity.log
+         Note: Runtime log file - created during tidy operations
+[IGNORE] docs\BUILD-166_CURSOR_ADVICE_FOLLOWUP.md:181 → .github/workflows/ci.yml
+         Note: CI workflow may have been renamed or restructured
+[IGNORE] docs\BUILD_155_SOT_TELEMETRY_COMPLETION.md:72 → autonomous_executor.py
+         Note: Historical code file reference - may have been moved/refactored
+[SKIP] Already ignored: docs\BUILD_155_SOT_TELEMETRY_COMPLETION.md → autonomous_executor.py
+[IGNORE] docs\BUILD_155_SOT_TELEMETRY_COMPLETION.md:231 → .github/workflows/ci.yml
+         Note: CI workflow may have been renamed or restructured
+[IGNORE] docs\CANONICAL_API_CONSOLIDATION_PLAN.md:18 → src/backend/main.py
+         Note: Backend removed in BUILD-146, historical refs intentional
+[SKIP] Already ignored: docs\CANONICAL_API_CONSOLIDATION_PLAN.md → src/backend/main.py
+[SKIP] Already ignored: docs\CANONICAL_API_CONSOLIDATION_PLAN.md → src/backend/main.py
+[SKIP] Already ignored: docs\CANONICAL_API_CONSOLIDATION_PLAN.md → src/backend/main.py
+[SKIP] Already ignored: docs\CANONICAL_API_CONSOLIDATION_PLAN.md → src/backend/main.py
+[SKIP] Already ignored: docs\CANONICAL_API_CONSOLIDATION_PLAN.md → src/backend/main.py
+[IGNORE] docs\CANONICAL_API_CONSOLIDATION_PLAN.md:19 → /health
+         Note: HTTP API endpoint - informational reference, not file path
+[SKIP] Already ignored: docs\CANONICAL_API_CONSOLIDATION_PLAN.md → /health
+[SKIP] Already ignored: docs\CANONICAL_API_CONSOLIDATION_PLAN.md → /health
+[IGNORE] docs\CANONICAL_API_CONSOLIDATION_PLAN.md:79 → src/backend/
+         Note: Backend removed in BUILD-146, historical refs intentional
+[SKIP] Already ignored: docs\CANONICAL_API_CONSOLIDATION_PLAN.md → src/backend/
+[IGNORE] docs\CANONICAL_API_CONSOLIDATION_PLAN.md:206 → /api/auth/.well-known/jwks.json
+         Note: HTTP API endpoint, not a file path
+[IGNORE] docs\CHANGELOG.md:452 → src/backend/api/dashboard.py
+         Note: Backend removed in BUILD-146, historical refs intentional
+[SKIP] Already ignored: docs\CHANGELOG.md → src/backend/api/dashboard.py
+[IGNORE] docs\CHANGELOG.md:471 → .github/workflows/ci.yml
+         Note: CI workflow may have been renamed or restructured
+[SKIP] Already ignored: docs\CHANGELOG.md → .github/workflows/ci.yml
+[IGNORE] docs\CHANGELOG.md:483 → src/backend/main.py
+         Note: Backend removed in BUILD-146, historical refs intentional
+[SKIP] Already ignored: docs\CHANGELOG.md → src/backend/main.py
+[SKIP] Already ignored: docs\CHANGELOG.md → src/backend/main.py
+[SKIP] Already ignored: docs\CHANGELOG.md → src/backend/main.py
+[IGNORE] docs\CHANGELOG.md:525 → src/backend/api/runs.py
+         Note: Backend removed in BUILD-146, historical refs intentional
+[SKIP] Already ignored: docs\CHANGELOG.md → src/backend/api/runs.py
+[IGNORE] docs\CHANGELOG.md:536 → src/backend/api/api_key_auth.py
+         Note: Backend removed in BUILD-146, historical refs intentional
+[SKIP] Already ignored: docs\CHANGELOG.md → src/backend/api/api_key_auth.py
+[IGNORE] docs\CHANGELOG.md:654 → src/backend/api/health.py
+         Note: Backend removed in BUILD-146, historical refs intentional
+[SKIP] Already ignored: docs\CHANGELOG.md → src/backend/api/health.py
+[IGNORE] docs\CHANGELOG.md:2061 → .autonomous_runs/lovable-integration-v1/
+         Note: Autonomous run artifacts - created at runtime
+[SKIP] Already ignored: docs\CHANGELOG.md → .autonomous_runs/lovable-integration-v1/
+[IGNORE] docs\CHANGELOG.md:2062 → .autonomous_runs/lovable-integration-v1/VALIDATION_COMPLETE.md
+         Note: Autonomous run artifacts - created at runtime
+[IGNORE] docs\CHANGELOG.md:2063 → .autonomous_runs/lovable-integration-v1/PHASE0_EXECUTION_READY.md
+         Note: Autonomous run artifacts - created at runtime
+[IGNORE] docs\CHANGELOG.md:2064 → .autonomous_runs/lovable-integration-v1/run_config_phase0.json
+         Note: Autonomous run artifacts - created at runtime
+[IGNORE] docs\CHANGELOG.md:2066 → .autonomous_runs/lovable-integration-v1/AUTONOMOUS_IMPLEMENTATION_FEASIBILITY.md
+         Note: Autonomous run artifacts - created at runtime
+[IGNORE] docs\CHANGELOG.md:2067 → .autonomous_runs/lovable-integration-v1/AUTONOMOUS_IMPLEMENTATION_CHECKLIST.md
+         Note: Autonomous run artifacts - created at runtime
+[IGNORE] docs\CHANGELOG.md:2095 → .autonomous_runs/lovable-integration-v1/REVISED_IMPLEMENTATION_PLAN.md
+         Note: Autonomous run artifacts - created at runtime
+[IGNORE] docs\CHANGELOG.md:164 → src/backend/
+         Note: Backend removed in BUILD-146, historical refs intentional
+[IGNORE] docs\CHANGELOG.md:263 → autonomous_executor.py
+         Note: Historical code file reference - may have been moved/refactored
+[SKIP] Already ignored: docs\CHANGELOG.md → autonomous_executor.py
+[SKIP] Already ignored: docs\CHANGELOG.md → autonomous_executor.py
+[SKIP] Already ignored: docs\CHANGELOG.md → autonomous_executor.py
+[SKIP] Already ignored: docs\CHANGELOG.md → autonomous_executor.py
+[IGNORE] docs\CHANGELOG.md:655 → /health
+         Note: HTTP API endpoint - informational reference, not file path
+[SKIP] Already ignored: docs\CHANGELOG.md → /health
+[SKIP] Already ignored: docs\CHANGELOG.md → /health
+[SKIP] Already ignored: docs\CHANGELOG.md → /health
+[SKIP] Already ignored: docs\CHANGELOG.md → /health
+[IGNORE] docs\CHANGELOG.md:1581 → .gitignore
+         Note: Git config file - code reference, not doc link
+[IGNORE] docs\CHANGELOG.md:1644 → __init__.py
+         Note: Generic Python package file - code reference, not doc link
+[IGNORE] docs\CHANGELOG.md:1661 → fileorganizer/fileorganizer/...
+         Note: Historical project component - removed, refs are intentional historical context
+[IGNORE] docs\CHANGELOG.md:1913 → fileorganizer/frontend/...
+         Note: Historical project component - removed, refs are intentional historical context
+[IGNORE] docs\CONTRIBUTING.md:44 → .env
+         Note: Environment config file - code reference, not doc link
+[IGNORE] docs\CONTRIBUTING.md:251 → .md
+         Note: File extension example in backticks - informational code formatting
+[IGNORE] docs\cursor\CURSOR_HELP_EXECUTOR_API_ISSUE.md:69 → src/backend/main.py
+         Note: Backend removed in BUILD-146, historical refs intentional
+[SKIP] Already ignored: docs\cursor\CURSOR_HELP_EXECUTOR_API_ISSUE.md → src/backend/main.py
+[SKIP] Already ignored: docs\cursor\CURSOR_HELP_EXECUTOR_API_ISSUE.md → src/backend/main.py
+[IGNORE] docs\cursor\CURSOR_HELP_EXECUTOR_API_ISSUE.md:70 → src/backend/database.py
+         Note: Backend removed in BUILD-146, historical refs intentional
+[SKIP] Already ignored: docs\cursor\CURSOR_HELP_EXECUTOR_API_ISSUE.md → src/backend/database.py
+[SKIP] Already ignored: docs\cursor\CURSOR_HELP_EXECUTOR_API_ISSUE.md → src/backend/database.py
+[SKIP] Already ignored: docs\cursor\CURSOR_HELP_EXECUTOR_API_ISSUE.md → src/backend/database.py
+[IGNORE] docs\cursor\CURSOR_HELP_EXECUTOR_API_ISSUE.md:155 → src/backend/api/runs.py
+         Note: Backend removed in BUILD-146, historical refs intentional
+[SKIP] Already ignored: docs\cursor\CURSOR_HELP_EXECUTOR_API_ISSUE.md → src/backend/api/runs.py
+[IGNORE] docs\cursor\CURSOR_PROMPT_RESEARCH_SYSTEM.md:23 → .autonomous_runs/file-organizer-app-v1/archive/research/active/requirements/ALL_CHUNKS_SUMMARY.md
+         Note: Autonomous run artifacts - created at runtime
+[SKIP] Already ignored: docs\cursor\CURSOR_PROMPT_RESEARCH_SYSTEM.md → .autonomous_runs/file-organizer-app-v1/archive/research/active/requirements/ALL_CHUNKS_SUMMARY.md
+[IGNORE] docs\cursor\CURSOR_PROMPT_RESEARCH_SYSTEM.md:25 → .autonomous_runs/file-organizer-app-v1/archive/research/active/UNIFIED_RESEARCH_SYSTEM_IMPLEMENTATION_V2_REVISED.md
+         Note: Autonomous run artifacts - created at runtime
+[SKIP] Already ignored: docs\cursor\CURSOR_PROMPT_RESEARCH_SYSTEM.md → .autonomous_runs/file-organizer-app-v1/archive/research/active/UNIFIED_RESEARCH_SYSTEM_IMPLEMENTATION_V2_REVISED.md
+[IGNORE] docs\cursor\CURSOR_PROMPT_RESEARCH_SYSTEM.md:405 → __init__.py
+         Note: Generic Python package file - code reference, not doc link
+[IGNORE] docs\cursor\CURSOR_PROMPT_RESEARCH_SYSTEM.md:470 → .autonomous_runs/research-system-v1/chunk0-issues.md
+         Note: Runtime markdown artifacts - created during autonomous operations
+[IGNORE] docs\cursor\PROMPT_FOR_OTHER_CURSOR_FILEORG.md:42 → research_tracer/scraper.py
+         Note: Historical tracer bullet code - intentional historical reference
+[IGNORE] docs\cursor\PROMPT_FOR_OTHER_CURSOR_FILEORG.md:43 → research_tracer/extractor.py
+         Note: Historical tracer bullet code - intentional historical reference
+[IGNORE] docs\cursor\PROMPT_FOR_OTHER_CURSOR_FILEORG.md:44 → research_tracer/calculator.py
+         Note: Historical tracer bullet code - intentional historical reference
+[IGNORE] docs\cursor\PROMPT_FOR_OTHER_CURSOR_FILEORG.md:45 → research_tracer/pipeline.py
+         Note: Historical tracer bullet code - intentional historical reference
+[IGNORE] docs\cursor\PROMPT_FOR_OTHER_CURSOR_FILEORG.md:53 → research_tracer/
+         Note: Historical tracer bullet code - intentional historical reference
+[SKIP] Already ignored: docs\cursor\PROMPT_FOR_OTHER_CURSOR_FILEORG.md → research_tracer/
+[SKIP] Already ignored: docs\cursor\PROMPT_FOR_OTHER_CURSOR_FILEORG.md → research_tracer/
+[IGNORE] docs\CURSOR_PROMPT_TIDY.md:120 → .md
+         Note: File extension example in backticks - informational code formatting
+[SKIP] Already ignored: docs\CURSOR_PROMPT_TIDY.md → .md
+[IGNORE] docs\DEBUG_LOG.md:349 → __init__.py
+         Note: Generic Python package file - code reference, not doc link
+[SKIP] Already ignored: docs\DEBUG_LOG.md → __init__.py
+[IGNORE] docs\DEBUG_LOG.md:466 → .autonomous_runs/file-organizer-app-v1/archive/research/active/requirements/chunk1b-foundation-intent-discovery.yaml
+         Note: Autonomous run artifacts - created at runtime
+[IGNORE] docs\DEBUG_LOG.md:467 → .autonomous_runs/file-organizer-app-v1/archive/research/active/requirements/chunk2a-gatherers-social.yaml
+         Note: Autonomous run artifacts - created at runtime
+[IGNORE] docs\DEBUG_LOG.md:468 → .autonomous_runs/file-organizer-app-v1/archive/research/active/requirements/chunk2b-gatherers-web-compilation.yaml
+         Note: Autonomous run artifacts - created at runtime
+[IGNORE] docs\DEBUG_LOG.md:469 → .autonomous_runs/file-organizer-app-v1/archive/research/active/requirements/chunk3-meta-analysis.yaml
+         Note: Autonomous run artifacts - created at runtime
+[IGNORE] docs\DEBUG_LOG.md:828 → .json
+         Note: File extension example in backticks - informational code formatting
+[IGNORE] docs\DEBUG_LOG.md:892 → .git/
+         Note: Git directory - code reference, not doc link
+[IGNORE] docs\DEBUG_LOG.md:1083 → tracer_bullet/
+         Note: Tracer bullet code - historical reference
+[SKIP] Already ignored: docs\DEBUG_LOG.md → tracer_bullet/
+[SKIP] Already ignored: docs\DEBUG_LOG.md → tracer_bullet/
+[MANUAL] docs\DEBUG_LOG.md:1122 → CONSOLIDATED_DEBUG.md
+         Note: Frequently referenced (6x) - may need redirect to docs/DEBUG_LOG.md or archive
+[IGNORE] docs\DEBUG_LOG.md:1182 → src/backend/api/runs.py
+         Note: Backend removed in BUILD-146, historical refs intentional
+[SKIP] Already ignored: docs\DEBUG_LOG.md → src/backend/api/runs.py
+[SKIP] Already ignored: docs\DEBUG_LOG.md → src/backend/api/runs.py
+[SKIP] Already ignored: docs\DEBUG_LOG.md → src/backend/api/runs.py
+[IGNORE] docs\DEBUG_LOG.md:1206 → /health
+         Note: HTTP API endpoint - informational reference, not file path
+[IGNORE] docs\DEBUG_LOG.md:1211 → src/backend/main.py
+         Note: Backend removed in BUILD-146, historical refs intentional
+[SKIP] Already ignored: docs\DEBUG_LOG.md → src/backend/main.py
+[SKIP] Already ignored: docs\DEBUG_LOG.md → src/backend/main.py
+[IGNORE] docs\DEPLOYMENT.md:280 → /health
+         Note: HTTP API endpoint - informational reference, not file path
+[SKIP] Already ignored: docs\DEPLOYMENT.md → /health
+[IGNORE] docs\DOC_LINK_TRIAGE_REPORT.md:15 → path/to/file.md
+         Note: Example placeholder path
+[SKIP] Already ignored: docs\DOC_LINK_TRIAGE_REPORT.md → path/to/file.md
+[IGNORE] docs\DOC_LINK_TRIAGE_REPORT.md:21 → .github/workflows/ci.yml
+         Note: CI workflow may have been renamed or restructured
+[SKIP] Already ignored: docs\DOC_LINK_TRIAGE_REPORT.md → .github/workflows/ci.yml
+[SKIP] Already ignored: docs\DOC_LINK_TRIAGE_REPORT.md → .github/workflows/ci.yml
+[IGNORE] docs\DOC_LINK_TRIAGE_REPORT.md:83 → path/to/file.txt
+         Note: Example placeholder path
+[IGNORE] docs\DOC_LINK_TRIAGE_REPORT.md:86 → file.md
+         Note: Generic example path
+[IGNORE] docs\DOC_LINK_TRIAGE_REPORT.md:233 → .md
+         Note: File extension example in backticks - informational code formatting
+[MANUAL] docs\DOC_LINK_TRIAGE_REPORT.md:236 → STATUS_AUDITOR_IMPLEMENTATION.md
+         Note: Needs review - may need to be created or reference may be obsolete
+[IGNORE] docs\DOC_LINK_TRIAGE_REPORT.md:254 → excerpts/log_tail.txt
+         Note: Sample data or excerpts - not committed to repository
+[IGNORE] docs\DOC_LINK_TRIAGE_REPORT.md:258 → archive/superseded/reports/BUILD-162_LOCK_STATUS_UX.md
+         Note: Reference to superseded document - content rolled into BUILD-161
+[IGNORE] docs\DOCKER_DEPLOYMENT_GUIDE.md:336 → .env
+         Note: Environment config file - code reference, not doc link
+[SKIP] Already ignored: docs\DOCKER_DEPLOYMENT_GUIDE.md → .env
+[IGNORE] docs\ERROR_HANDLING.md:25 → tracer_bullet/file.py
+         Note: Tracer bullet code - historical reference
+[IGNORE] docs\ERROR_HANDLING.md:27 → .git/
+         Note: Git directory - code reference, not doc link
+[IGNORE] docs\ERROR_HANDLING.md:214 → __init__.py
+         Note: Generic Python package file - code reference, not doc link
+[IGNORE] docs\examples\ADVANCED_EXAMPLE.md:19 → .autopack.yaml
+         Note: Historical config file format - may have migrated to new format
+[IGNORE] docs\examples\FAQ.md:73 → .autopack.yaml
+         Note: Historical config file format - may have migrated to new format
+[SKIP] Already ignored: docs\examples\FAQ.md → .autopack.yaml
+[SKIP] Already ignored: docs\examples\FAQ.md → .autopack.yaml
+[IGNORE] docs\examples\FAQ.md:304 → .gitignore
+         Note: Git config file - code reference, not doc link
+[IGNORE] docs\FUTURE_PLAN.md:630 → .autonomous_runs/file-organizer-app-v1/archive/research/active/UNIFIED_RESEARCH_SYSTEM_IMPLEMENTATION_V2_REVISED.md
+         Note: Autonomous run artifacts - created at runtime
+[IGNORE] docs\FUTURE_PLAN.md:654 → .autonomous_runs/file-organizer-app-v1/archive/research/active/requirements/chunk0-tracer-bullet.yaml
+         Note: Autonomous run artifacts - created at runtime
+[IGNORE] docs\FUTURE_PLAN.md:678 → .autonomous_runs/file-organizer-app-v1/archive/research/active/requirements/chunk1a-foundation-orchestrator.yaml
+         Note: Autonomous run artifacts - created at runtime
+[IGNORE] docs\FUTURE_PLAN.md:684 → .autonomous_runs/file-organizer-app-v1/archive/research/active/requirements/chunk1b-foundation-intent-discovery.yaml
+         Note: Autonomous run artifacts - created at runtime
+[IGNORE] docs\FUTURE_PLAN.md:690 → .autonomous_runs/file-organizer-app-v1/archive/research/active/requirements/chunk2a-gatherers-social.yaml
+         Note: Autonomous run artifacts - created at runtime
+[IGNORE] docs\FUTURE_PLAN.md:696 → .autonomous_runs/file-organizer-app-v1/archive/research/active/requirements/chunk2b-gatherers-web-compilation.yaml
+         Note: Autonomous run artifacts - created at runtime
+[IGNORE] docs\FUTURE_PLAN.md:702 → .autonomous_runs/file-organizer-app-v1/archive/research/active/requirements/chunk3-meta-analysis.yaml
+         Note: Autonomous run artifacts - created at runtime
+[IGNORE] docs\FUTURE_PLAN.md:708 → .autonomous_runs/file-organizer-app-v1/archive/research/active/requirements/chunk4-integration.yaml
+         Note: Autonomous run artifacts - created at runtime
+[IGNORE] docs\FUTURE_PLAN.md:714 → .autonomous_runs/file-organizer-app-v1/archive/research/active/requirements/chunk5-testing-polish.yaml
+         Note: Autonomous run artifacts - created at runtime
+[IGNORE] docs\FUTURE_PLAN.md:720 → .autonomous_runs/file-organizer-app-v1/archive/research/active/README.md
+         Note: Autonomous run artifacts - created at runtime
+[IGNORE] docs\FUTURE_PLAN.md:721 → .autonomous_runs/file-organizer-app-v1/archive/research/active/requirements/ALL_CHUNKS_SUMMARY.md
+         Note: Autonomous run artifacts - created at runtime
+[IGNORE] docs\FUTURE_PLAN.md:722 → .autonomous_runs/file-organizer-app-v1/archive/research/active/INDEX.md
+         Note: Autonomous run artifacts - created at runtime
+[IGNORE] docs\FUTURE_PLAN.md:752 → .autonomous_runs/lovable-integration-v1/
+         Note: Autonomous run artifacts - created at runtime
+[IGNORE] docs\FUTURE_PLAN.md:886 → .autonomous_runs/file-organizer-app-v1/archive/research/EXECUTIVE_SUMMARY.md
+         Note: Autonomous run artifacts - created at runtime
+[IGNORE] docs\FUTURE_PLAN.md:887 → .autonomous_runs/file-organizer-app-v1/archive/research/LOVABLE_DEEP_DIVE_INCORPORATION_PLAN.md
+         Note: Autonomous run artifacts - created at runtime
+[IGNORE] docs\FUTURE_PLAN.md:888 → .autonomous_runs/file-organizer-app-v1/archive/research/IMPLEMENTATION_PLAN_LOVABLE_INTEGRATION.md
+         Note: Autonomous run artifacts - created at runtime
+[IGNORE] docs\FUTURE_PLAN.md:891 → .autonomous_runs/file-organizer-app-v1/archive/research/CLAUDE_CODE_CHROME_LOVABLE_PHASE5_ANALYSIS.md
+         Note: Autonomous run artifacts - created at runtime
+[IGNORE] docs\FUTURE_PLAN.md:894 → .autonomous_runs/lovable-integration-v1/README.md
+         Note: Autonomous run artifacts - created at runtime
+[IGNORE] docs\FUTURE_PLAN.md:895 → .autonomous_runs/lovable-integration-v1/run_config.json
+         Note: Autonomous run artifacts - created at runtime
+[IGNORE] docs\FUTURE_PLAN.md:507 → .git/
+         Note: Git directory - code reference, not doc link
+[IGNORE] docs\FUTURE_PLAN.md:541 → src/backend/packs/
+         Note: Backend removed in BUILD-146, historical refs intentional
+[IGNORE] docs\FUTURE_PLAN.md:548 → src/backend/
+         Note: Backend removed in BUILD-146, historical refs intentional
+[IGNORE] docs\FUTURE_PLAN.md:629 → .autonomous_runs/file-organizer-app-v1/archive/research/active/
+         Note: Autonomous run artifacts - created at runtime
+[IGNORE] docs\GOVERNANCE.md:127 → .env
+         Note: Environment config file - code reference, not doc link
+[IGNORE] docs\GOVERNANCE.md:226 → .git/
+         Note: Git directory - code reference, not doc link
+[IGNORE] docs\guides\BATCH_DRAIN_POST_REMEDIATION_REPORT.md:269 → fileorganizer/fileorganizer/package-lock.json
+         Note: Historical project component - removed, refs are intentional historical context
+[IGNORE] docs\guides\BATCH_DRAIN_RELIABILITY_AND_EFFICIENCY_PLAN.md:85 → drain_one_phase.py
+         Note: Historical script - may have been refactored or removed
+[IGNORE] docs\guides\BATCH_DRAIN_SYSTEMIC_BLOCKERS_REMEDIATION_PLAN.md:38 → fileorganizer/frontend/package-lock.json
+         Note: Package lock not tracked in git or project removed
+[SKIP] Already ignored: docs\guides\BATCH_DRAIN_SYSTEMIC_BLOCKERS_REMEDIATION_PLAN.md → fileorganizer/frontend/package-lock.json
+[SKIP] Already ignored: docs\guides\BATCH_DRAIN_SYSTEMIC_BLOCKERS_REMEDIATION_PLAN.md → fileorganizer/frontend/package-lock.json
+[SKIP] Already ignored: docs\guides\BATCH_DRAIN_SYSTEMIC_BLOCKERS_REMEDIATION_PLAN.md → fileorganizer/frontend/package-lock.json
+[IGNORE] docs\guides\BATCH_DRAIN_SYSTEMIC_BLOCKERS_REMEDIATION_PLAN.md:44 → fileorganizer/
+         Note: Historical project component - removed, refs are intentional historical context
+[IGNORE] docs\guides\BATCH_DRAIN_SYSTEMIC_BLOCKERS_REMEDIATION_PLAN.md:51 → fileorganizer/frontend/...
+         Note: Historical project component - removed, refs are intentional historical context
+[IGNORE] docs\guides\BATCH_DRAIN_SYSTEMIC_BLOCKERS_REMEDIATION_PLAN.md:303 → autonomous_executor.py
+         Note: Historical code file reference - may have been moved/refactored
+[IGNORE] docs\guides\DB_HYGIENE_AND_TELEMETRY_SEEDING.md:14 → .gitignore
+         Note: Git config file - code reference, not doc link
+[IGNORE] docs\guides\DB_HYGIENE_AND_TELEMETRY_SEEDING.md:263 → drain_one_phase.py
+         Note: Historical script - may have been refactored or removed
+[IGNORE] docs\guides\DB_HYGIENE_AND_TELEMETRY_SEEDING.md:263 → autonomous_executor.py
+         Note: Historical code file reference - may have been moved/refactored
+[IGNORE] docs\guides\DB_HYGIENE_AND_TELEMETRY_SEEDING.md:275 → scripts/propose_estimator_calibration.py
+         Note: Proposed script - may not have been implemented
+[IGNORE] docs\guides\DB_HYGIENE_IMPLEMENTATION_SUMMARY.md:14 → .gitignore
+         Note: Git config file - code reference, not doc link
+[IGNORE] docs\guides\DB_HYGIENE_IMPLEMENTATION_SUMMARY.md:53 → drain_one_phase.py
+         Note: Historical script - may have been refactored or removed
+[SKIP] Already ignored: docs\guides\DB_HYGIENE_IMPLEMENTATION_SUMMARY.md → drain_one_phase.py
+[SKIP] Already ignored: docs\guides\DB_HYGIENE_IMPLEMENTATION_SUMMARY.md → drain_one_phase.py
+[SKIP] Already ignored: docs\guides\DB_HYGIENE_IMPLEMENTATION_SUMMARY.md → drain_one_phase.py
+[SKIP] Already ignored: docs\guides\DB_HYGIENE_IMPLEMENTATION_SUMMARY.md → drain_one_phase.py
+[IGNORE] docs\guides\DB_HYGIENE_IMPLEMENTATION_SUMMARY.md:150 → scripts/propose_estimator_calibration.py
+         Note: Proposed script - may not have been implemented
+[SKIP] Already ignored: docs\guides\DB_HYGIENE_IMPLEMENTATION_SUMMARY.md → scripts/propose_estimator_calibration.py
+[IGNORE] docs\guides\DB_HYGIENE_README.md:119 → .gitignore
+         Note: Git config file - code reference, not doc link
+[IGNORE] docs\guides\RESEARCH_CI_FIX_CHECKLIST.md:209 → tests/autopack/autonomous/test_research_hooks.py
+         Note: Test paths - may not exist in all environments
+[IGNORE] docs\guides\RESEARCH_CI_IMPORT_FIX.md:83 → tests/autopack/autonomous/test_research_hooks.py
+         Note: Test paths - may not exist in all environments
+[SKIP] Already ignored: docs\guides\RESEARCH_CI_IMPORT_FIX.md → tests/autopack/autonomous/test_research_hooks.py
+[IGNORE] docs\guides\RESEARCH_SYSTEM_CI_COLLECTION_REMEDIATION_PLAN.md:54 → __init__.py
+         Note: Generic Python package file - code reference, not doc link
+[SKIP] Already ignored: docs\guides\RESEARCH_SYSTEM_CI_COLLECTION_REMEDIATION_PLAN.md → __init__.py
+[SKIP] Already ignored: docs\guides\RESEARCH_SYSTEM_CI_COLLECTION_REMEDIATION_PLAN.md → __init__.py
+[IGNORE] docs\guides\WINDOWS_TASK_SCHEDULER_TIDY.md:164 → .autonomous_runs/tidy_pending_moves.json
+         Note: Runtime artifact - created during tidy operations
+[IGNORE] docs\IMPLEMENTATION_PLAN_DIAGNOSTICS_PARITY_WITH_CURSOR.md:56 → excerpts/
+         Note: Sample data or excerpts - not committed to repository
+[IGNORE] docs\IMPLEMENTATION_PLAN_TIDY_IDEAL_STATE_PHASE_E.md:54 → .github/workflows/ci.yml
+         Note: CI workflow may have been renamed or restructured
+[IGNORE] docs\IMPLEMENTATION_PLAN_TIDY_IDEAL_STATE_PHASE_E.md:78 → tidy_up.py
+         Note: Code file reference - may have been moved to scripts/
+[IGNORE] docs\IMPLEMENTATION_PLAN_TIDY_IDEAL_STATE_PHASE_E.md:136 → .log
+         Note: File extension example in backticks - informational code formatting
+[IGNORE] docs\PRE_TIDY_GAP_ANALYSIS_2026-01-01.md:15 → fileorganizer/
+         Note: Historical project component - removed, refs are intentional historical context
+[SKIP] Already ignored: docs\PRE_TIDY_GAP_ANALYSIS_2026-01-01.md → fileorganizer/
+[SKIP] Already ignored: docs\PRE_TIDY_GAP_ANALYSIS_2026-01-01.md → fileorganizer/
+[SKIP] Already ignored: docs\PRE_TIDY_GAP_ANALYSIS_2026-01-01.md → fileorganizer/
+[SKIP] Already ignored: docs\PRE_TIDY_GAP_ANALYSIS_2026-01-01.md → fileorganizer/
+[SKIP] Already ignored: docs\PRE_TIDY_GAP_ANALYSIS_2026-01-01.md → fileorganizer/
+[SKIP] Already ignored: docs\PRE_TIDY_GAP_ANALYSIS_2026-01-01.md → fileorganizer/
+[IGNORE] docs\PRE_TIDY_GAP_ANALYSIS_2026-01-01.md:15 → logs/
+         Note: Runtime log directory - code reference, not doc link
+[SKIP] Already ignored: docs\PRE_TIDY_GAP_ANALYSIS_2026-01-01.md → logs/
+[SKIP] Already ignored: docs\PRE_TIDY_GAP_ANALYSIS_2026-01-01.md → logs/
+[IGNORE] docs\PRE_TIDY_GAP_ANALYSIS_2026-01-01.md:15 → research_tracer/
+         Note: Historical tracer bullet code - intentional historical reference
+[SKIP] Already ignored: docs\PRE_TIDY_GAP_ANALYSIS_2026-01-01.md → research_tracer/
+[SKIP] Already ignored: docs\PRE_TIDY_GAP_ANALYSIS_2026-01-01.md → research_tracer/
+[IGNORE] docs\PRE_TIDY_GAP_ANALYSIS_2026-01-01.md:15 → tracer_bullet/
+         Note: Tracer bullet code - historical reference
+[SKIP] Already ignored: docs\PRE_TIDY_GAP_ANALYSIS_2026-01-01.md → tracer_bullet/
+[SKIP] Already ignored: docs\PRE_TIDY_GAP_ANALYSIS_2026-01-01.md → tracer_bullet/
+[IGNORE] docs\PRE_TIDY_GAP_ANALYSIS_2026-01-01.md:17 → .autonomous_runs/file-organizer-app-v1/
+         Note: Autonomous run artifacts - created at runtime
+[SKIP] Already ignored: docs\PRE_TIDY_GAP_ANALYSIS_2026-01-01.md → .autonomous_runs/file-organizer-app-v1/
+[SKIP] Already ignored: docs\PRE_TIDY_GAP_ANALYSIS_2026-01-01.md → .autonomous_runs/file-organizer-app-v1/
+[IGNORE] docs\PRE_TIDY_GAP_ANALYSIS_2026-01-01.md:42 → .gitignore
+         Note: Git config file - code reference, not doc link
+[IGNORE] docs\PRE_TIDY_GAP_ANALYSIS_2026-01-01.md:60 → __init__.py
+         Note: Generic Python package file - code reference, not doc link
+[IGNORE] docs\PRE_TIDY_GAP_ANALYSIS_2026-01-01.md:74 → .autonomous_runs/file-organizer-app-v1/src/
+         Note: Autonomous run artifacts - created at runtime
+[IGNORE] docs\PRE_TIDY_GAP_ANALYSIS_2026-01-01.md:75 → .autonomous_runs/file-organizer-app-v1/docs/
+         Note: Autonomous run artifacts - created at runtime
+[IGNORE] docs\PRE_TIDY_GAP_ANALYSIS_2026-01-01.md:98 → .log
+         Note: File extension example in backticks - informational code formatting
+[SKIP] Already ignored: docs\PRE_TIDY_GAP_ANALYSIS_2026-01-01.md → .log
+[SKIP] Already ignored: docs\PRE_TIDY_GAP_ANALYSIS_2026-01-01.md → .log
+[IGNORE] docs\PRE_TIDY_GAP_ANALYSIS_2026-01-01.md:243 → .github/workflows/ci.yml
+         Note: CI workflow may have been renamed or restructured
+[IGNORE] docs\PROTECTION_AND_RETENTION_POLICY.md:30 → .gitignore
+         Note: Git config file - code reference, not doc link
+[IGNORE] docs\REMAINING_IMPROVEMENTS_AFTER_BUILD_162.md:86 → tidy_up.py
+         Note: Code file reference - may have been moved to scripts/
+[MANUAL] docs\reports\AUTOPACK_DRAIN_SECOND_OPINION_REVIEW.md:7 → SOT_BUNDLE.md
+         Note: Frequently referenced (10x) - investigate if should point to BUILD-163 SOT docs or be created
+[MANUAL] docs\reports\AUTOPACK_DRAIN_SECOND_OPINION_REVIEW.md:43 → SOT_BUNDLE.md
+         Note: Frequently referenced (10x) - investigate if should point to BUILD-163 SOT docs or be created
+[MANUAL] docs\reports\AUTOPACK_DRAIN_SECOND_OPINION_REVIEW.md:45 → SOT_BUNDLE.md
+         Note: Frequently referenced (10x) - investigate if should point to BUILD-163 SOT docs or be created
+[MANUAL] docs\reports\AUTOPACK_DRAIN_SECOND_OPINION_REVIEW.md:46 → SOT_BUNDLE.md
+         Note: Frequently referenced (10x) - investigate if should point to BUILD-163 SOT docs or be created
+[MANUAL] docs\reports\AUTOPACK_DRAIN_SECOND_OPINION_REVIEW.md:107 → SOT_BUNDLE.md
+         Note: Frequently referenced (10x) - investigate if should point to BUILD-163 SOT docs or be created
+[MANUAL] docs\reports\AUTOPACK_DRAIN_SECOND_OPINION_REVIEW.md:134 → SOT_BUNDLE.md
+         Note: Frequently referenced (10x) - investigate if should point to BUILD-163 SOT docs or be created
+[MANUAL] docs\reports\AUTOPACK_DRAIN_SECOND_OPINION_REVIEW.md:162 → SOT_BUNDLE.md
+         Note: Frequently referenced (10x) - investigate if should point to BUILD-163 SOT docs or be created
+[MANUAL] docs\reports\AUTOPACK_DRAIN_SECOND_OPINION_REVIEW.md:164 → SOT_BUNDLE.md
+         Note: Frequently referenced (10x) - investigate if should point to BUILD-163 SOT docs or be created
+[MANUAL] docs\reports\AUTOPACK_DRAIN_SECOND_OPINION_REVIEW.md:166 → SOT_BUNDLE.md
+         Note: Frequently referenced (10x) - investigate if should point to BUILD-163 SOT docs or be created
+[MANUAL] docs\reports\AUTOPACK_DRAIN_SECOND_OPINION_REVIEW.md:265 → SOT_BUNDLE.md
+         Note: Frequently referenced (10x) - investigate if should point to BUILD-163 SOT docs or be created
+[IGNORE] docs\reports\PRE_TIDY_AUDIT_REPORT.md:11 → .log
+         Note: File extension example in backticks - informational code formatting
+[IGNORE] docs\reports\PRE_TIDY_AUDIT_REPORT.md:12 → .md
+         Note: File extension example in backticks - informational code formatting
+[IGNORE] docs\reports\PRE_TIDY_AUDIT_REPORT.md:14 → .json
+         Note: File extension example in backticks - informational code formatting
+[IGNORE] docs\reports\PRE_TIDY_AUDIT_REPORT.md:15 → .txt
+         Note: File extension example in backticks - informational code formatting
+[IGNORE] docs\reports\PRE_TIDY_AUDIT_REPORT.md:20 → .yaml
+         Note: File extension example in backticks - informational code formatting
+[IGNORE] docs\research\IMPLEMENTATION_GAP_ANALYSIS.md:194 → tests/autopack/autonomous/test_research_hooks.py
+         Note: Test paths - may not exist in all environments
+[IGNORE] docs\STORAGE_OPTIMIZER_EXECUTION_GUIDE.md:252 → .autonomous_runs/storage_execution.log
+         Note: Runtime log file - created during storage operations
+[IGNORE] docs\TIDY_SYSTEM_REVISION_PLAN_2026-01-01.md:14 → fileorganizer/
+         Note: Historical project component - removed, refs are intentional historical context
+[SKIP] Already ignored: docs\TIDY_SYSTEM_REVISION_PLAN_2026-01-01.md → fileorganizer/
+[SKIP] Already ignored: docs\TIDY_SYSTEM_REVISION_PLAN_2026-01-01.md → fileorganizer/
+[SKIP] Already ignored: docs\TIDY_SYSTEM_REVISION_PLAN_2026-01-01.md → fileorganizer/
+[IGNORE] docs\TIDY_SYSTEM_REVISION_PLAN_2026-01-01.md:803 → .autonomous_runs/file-organizer-app-v1/src/fileorganizer/
+         Note: Autonomous run artifacts - created at runtime
+[IGNORE] docs\TIDY_SYSTEM_REVISION_PLAN_2026-01-01.md:804 → .autonomous_runs/file-organizer-app-v1/docs/
+         Note: Autonomous run artifacts - created at runtime
+[IGNORE] docs\TIDY_SYSTEM_REVISION_PLAN_2026-01-01.md:807 → logs/
+         Note: Runtime log directory - code reference, not doc link
+[SKIP] Already ignored: docs\TIDY_SYSTEM_REVISION_PLAN_2026-01-01.md → logs/
+[IGNORE] docs\TIDY_SYSTEM_REVISION_PLAN_2026-01-01.md:810 → research_tracer/
+         Note: Historical tracer bullet code - intentional historical reference
+[SKIP] Already ignored: docs\TIDY_SYSTEM_REVISION_PLAN_2026-01-01.md → research_tracer/
+[IGNORE] docs\TIDY_SYSTEM_REVISION_PLAN_2026-01-01.md:811 → tracer_bullet/
+         Note: Tracer bullet code - historical reference
+[SKIP] Already ignored: docs\TIDY_SYSTEM_REVISION_PLAN_2026-01-01.md → tracer_bullet/
+[IGNORE] docs\TIDY_SYSTEM_REVISION_PLAN_2026-01-01.md:877 → .autonomous_runs/file-organizer-app-v1/
+         Note: Autonomous run artifacts - created at runtime
+[SKIP] Already ignored: docs\TIDY_SYSTEM_REVISION_PLAN_2026-01-01.md → .autonomous_runs/file-organizer-app-v1/
+[IGNORE] docs\TIDY_SYSTEM_REVISION_PLAN_2026-01-01.md:878 → .log
+         Note: File extension example in backticks - informational code formatting
+[IGNORE] docs\TIDY_SYSTEM_REVISION_PLAN_2026-01-01.md:975 → .github/workflows/ci.yml
+         Note: CI workflow may have been renamed or restructured
+[IGNORE] docs\TIDY_SYSTEM_USAGE.md:73 → tidy_up.py
+         Note: Code file reference - may have been moved to scripts/
+[SKIP] Already ignored: docs\TIDY_SYSTEM_USAGE.md → tidy_up.py
+[SKIP] Already ignored: docs\TIDY_SYSTEM_USAGE.md → tidy_up.py
+[IGNORE] docs\TIDY_SYSTEM_USAGE.md:304 → .log
+         Note: File extension example in backticks - informational code formatting
+[IGNORE] docs\TIDY_SYSTEM_USAGE.md:304 → .txt
+         Note: File extension example in backticks - informational code formatting
+[IGNORE] docs\TROUBLESHOOTING.md:147 → tracer_bullet/file.py
+         Note: Tracer bullet code - historical reference
+[IGNORE] docs\TROUBLESHOOTING.md:172 → .git/
+         Note: Git directory - code reference, not doc link
+[IGNORE] docs\TROUBLESHOOTING.md:327 → fileorganizer/frontend/
+         Note: Historical project component - removed, refs are intentional historical context
+[IGNORE] docs\TROUBLESHOOTING.md:327 → fileorganizer/
+         Note: Historical project component - removed, refs are intentional historical context
+[IGNORE] docs\WORKSPACE_ORGANIZATION_SPEC.md:21 → .gitignore
+         Note: Git config file - code reference, not doc link
+[IGNORE] docs\WORKSPACE_ORGANIZATION_SPEC.md:24 → .env
+         Note: Environment config file - code reference, not doc link
+[IGNORE] docs\WORKSPACE_ORGANIZATION_SPEC.md:269 → .autonomous_runs/file-organizer-app-v1/
+         Note: Autonomous run artifacts - created at runtime
+[IGNORE] docs\WORKSPACE_ORGANIZATION_SPEC.md:354 → .md
+         Note: File extension example in backticks - informational code formatting
+[DRY-RUN] Would save ignore config: C:\dev\Autopack\config\doc_link_check_ignore.yaml
+
+======================================================================
+SUMMARY
+======================================================================
+Mode:                   deep
+Total broken links:     1099
+Matched (ignore):       363
+Matched (fix):          9
+Matched (stub):         0
+Matched (manual):       19
+Unmatched:              708
+
+Ignores added:          219
+Fixes applied:          0
+Stubs created:          0
+
+======================================================================
+RULE HIT COUNTS
+======================================================================
+  **/*.md                                              382 hits
+  docs/ARCHITECTURE_DECISIONS.md                         9 hits
+
+DRY-RUN MODE - No changes were made

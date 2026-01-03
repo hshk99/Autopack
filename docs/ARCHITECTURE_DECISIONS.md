@@ -505,10 +505,10 @@ Sources: CONSOLIDATED_STRATEGY, CONSOLIDATED_REFERENCE, archive/, BUILD-153, BUI
 - **Approval Workflow**: Learned rules require review before application (safety-first design)
 
 **Implementation**:
-- `storage_optimizer/approval_pattern_analyzer.py` (520 lines): Pattern detection + learned rule creation
-- `storage_optimizer/smart_categorizer.py` (350 lines): LLM-powered edge case handling
-- `storage_optimizer/recommendation_engine.py` (420 lines): Strategic recommendations from scan history
-- `storage_optimizer/steam_detector.py` (360 lines): Manual-trigger game analysis
+- `src/autopack/storage_optimizer/approval_pattern_analyzer.py` (520 lines): Pattern detection + learned rule creation
+- `src/autopack/storage_optimizer/smart_categorizer.py` (350 lines): LLM-powered edge case handling
+- `src/autopack/storage_optimizer/recommendation_engine.py` (420 lines): Strategic recommendations from scan history
+- `src/autopack/storage_optimizer/steam_detector.py` (360 lines): Manual-trigger game analysis
 - `scripts/storage/learn_patterns.py` (280 lines): CLI for pattern analysis, rule approval, recommendations
 - `scripts/storage/analyze_steam_games.py` (280 lines): Manual Steam analysis CLI
 - `scripts/migrations/add_storage_intelligence_features.py` (165 lines): Database migration
@@ -613,11 +613,11 @@ Sources: CONSOLIDATED_STRATEGY, CONSOLIDATED_REFERENCE, archive/, BUILD-153, BUI
 - **Token Efficiency**: Building directly saved ~75K tokens vs autonomous execution approach
 
 **Implementation**:
-- `storage_optimizer/policy.py` (185 lines): Policy loading, protected path checking, category matching
-- `storage_optimizer/models.py` (125 lines): ScanResult, CleanupCandidate, CleanupPlan, StorageReport
-- `storage_optimizer/scanner.py` (193 lines): Python os.walk scanner focusing on high-value directories
-- `storage_optimizer/classifier.py` (168 lines): Policy-aware classification with protected path enforcement
-- `storage_optimizer/reporter.py` (272 lines): Human-readable and JSON report generation
+- `src/autopack/storage_optimizer/policy.py` (185 lines): Policy loading, protected path checking, category matching
+- `src/autopack/storage_optimizer/models.py` (125 lines): ScanResult, CleanupCandidate, CleanupPlan, StorageReport
+- `src/autopack/storage_optimizer/scanner.py` (193 lines): Python os.walk scanner focusing on high-value directories
+- `src/autopack/storage_optimizer/classifier.py` (168 lines): Policy-aware classification with protected path enforcement
+- `src/autopack/storage_optimizer/reporter.py` (272 lines): Human-readable and JSON report generation
 - `scripts/storage/scan_and_report.py` (185 lines): CLI tool for manual scanning
 - Total: 1,128 lines of implementation + 117 lines of module docs
 

@@ -47,6 +47,20 @@ FENCED_CODE_BLOCK_PATTERN = re.compile(r'^```.*?^```', re.MULTILINE | re.DOTALL)
 CONFIDENCE_HIGH = 0.90
 CONFIDENCE_MEDIUM = 0.85
 
+# Backtick path heuristics (BUILD-167: extracted for maintainability)
+# Common file extensions that indicate a file path when in backticks
+KNOWN_EXTENSIONS = {
+    '.md', '.py', '.js', '.ts', '.jsx', '.tsx', '.json', '.yaml', '.yml',
+    '.toml', '.txt', '.sh', '.bash', '.sql', '.env', '.gitignore',
+    '.dockerignore', '.csv', '.log', '.xml', '.html', '.css', '.scss'
+}
+
+# Common filenames (without extension) that indicate a file path
+KNOWN_FILENAMES = {
+    'Makefile', 'Dockerfile', 'README', 'LICENSE', 'CHANGELOG',
+    'TODO', 'AUTHORS', 'CONTRIBUTING', 'Pipfile', 'Procfile'
+}
+
 
 def load_ignore_config(repo_root: Path) -> Dict:
     """
@@ -204,17 +218,7 @@ def extract_file_references(content: str, file_path: Path, skip_code_blocks: boo
 
     # Extract backtick-wrapped paths: `path/to/file.ext` (BUILD-166: optional)
     if include_backticks:
-        # Known file extensions and filenames that should be treated as paths
-        KNOWN_EXTENSIONS = {
-            '.md', '.py', '.js', '.ts', '.jsx', '.tsx', '.json', '.yaml', '.yml',
-            '.toml', '.txt', '.sh', '.bash', '.sql', '.env', '.gitignore',
-            '.dockerignore', '.csv', '.log', '.xml', '.html', '.css', '.scss'
-        }
-        KNOWN_FILENAMES = {
-            'Makefile', 'Dockerfile', 'README', 'LICENSE', 'CHANGELOG',
-            'TODO', 'AUTHORS', 'CONTRIBUTING', 'Pipfile', 'Procfile'
-        }
-
+        # Use module-level constants (BUILD-167: extracted for maintainability)
         for line_num, line in enumerate(lines, start=1):
             for match in BACKTICK_PATH_PATTERN.finditer(line):
                 path_ref = match.group(1)

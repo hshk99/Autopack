@@ -1,0 +1,309 @@
+# Doc Link Triage Overrides
+#
+# This file specifies manual triage decisions for broken doc links.
+# Used by scripts/doc_links/apply_triage.py to apply bulk fixes.
+#
+# Format:
+#   - pattern: Glob pattern or specific path to match
+#     action: ignore | fix | manual
+#     reason_filter: Optional - only apply to specific reason codes
+#     fix_target: Required if action=fix - target path to fix to
+#     note: Optional human-readable note
+#
+# Example:
+#   - pattern: "**/*.md"
+#     broken_target: ".autonomous_runs/tidy_pending_moves.json"
+#     action: ignore
+#     reason_filter: runtime_endpoint
+#     note: "Runtime artifact, not a static file"
+
+# =============================================================================
+# PHASE 1: Quick Wins - Runtime Endpoints (ignore these)
+# =============================================================================
+
+# .autonomous_runs runtime artifacts (these are created at runtime)
+- pattern: "**/*.md"
+  broken_target: ".autonomous_runs/tidy_pending_moves.json"
+  action: ignore
+  reason_filter: runtime_endpoint
+  note: "Runtime artifact - created during tidy operations"
+
+- pattern: "**/*.md"
+  broken_target: ".autonomous_runs/tidy_activity.log"
+  action: ignore
+  reason_filter: runtime_endpoint
+  note: "Runtime log file - created during tidy operations"
+
+- pattern: "**/*.md"
+  broken_target: ".autonomous_runs/storage_execution.log"
+  action: ignore
+  reason_filter: runtime_endpoint
+  note: "Runtime log file - created during storage operations"
+
+- pattern: "**/*.md"
+  broken_target: ".autonomous_runs/.../ARCHIVE_INDEX.md"
+  action: ignore
+  reason_filter: runtime_endpoint
+  note: "Runtime index - created during archive operations"
+
+# API endpoints (these are HTTP endpoints, not files)
+- pattern: "**/*.md"
+  broken_target: "/api/auth/.well-known/jwks.json"
+  action: ignore
+  reason_filter: runtime_endpoint
+  note: "HTTP API endpoint, not a file path"
+
+# Runtime file patterns
+- pattern: "**/*.md"
+  broken_target_glob: "archive/reports/storage/weekly/weekly_delta_*.txt"
+  action: ignore
+  reason_filter: runtime_endpoint
+  note: "Runtime report pattern - files created on demand"
+
+# =============================================================================
+# PHASE 2: Historical References (can be ignored or moved to archive)
+# =============================================================================
+
+# Superseded documents that were intentionally removed
+- pattern: "**/*.md"
+  broken_target: "archive/superseded/reports/BUILD-162_LOCK_STATUS_UX.md"
+  action: ignore
+  reason_filter: historical_ref
+  note: "Reference to superseded document - content rolled into BUILD-161"
+
+- pattern: "**/*.md"
+  broken_target: "archive/superseded/reports/BUILD-107.md"
+  action: ignore
+  reason_filter: historical_ref
+  note: "Reference to superseded document"
+
+- pattern: "**/*.md"
+  broken_target: "archive/IMPLEMENTATION_PLAN.md"
+  action: ignore
+  reason_filter: historical_ref
+  note: "Historical planning document"
+
+# =============================================================================
+# PHASE 3: Missing Files (src/backend/** paths that don't exist)
+# =============================================================================
+
+# Backend paths that don't exist (project may not have backend anymore)
+- pattern: "docs/AUTHENTICATION.md"
+  broken_target_glob: "src/backend/**"
+  action: ignore
+  reason_filter: missing_file
+  note: "Backend directory structure may have changed or been removed"
+
+# =============================================================================
+# PHASE 4: Storage Optimizer Paths (need to check if src/ prefix is missing)
+# =============================================================================
+
+# Storage optimizer modules (may need src/ prefix)
+- pattern: "docs/ARCHITECTURE_DECISIONS.md"
+  broken_target: "storage_optimizer/approval_pattern_analyzer.py"
+  action: fix
+  fix_target: "src/autopack/storage_optimizer/approval_pattern_analyzer.py"
+  reason_filter: missing_file
+  note: "Missing src/autopack prefix"
+
+- pattern: "docs/ARCHITECTURE_DECISIONS.md"
+  broken_target: "storage_optimizer/smart_categorizer.py"
+  action: fix
+  fix_target: "src/autopack/storage_optimizer/smart_categorizer.py"
+  reason_filter: missing_file
+  note: "Missing src/autopack prefix"
+
+- pattern: "docs/ARCHITECTURE_DECISIONS.md"
+  broken_target: "storage_optimizer/recommendation_engine.py"
+  action: fix
+  fix_target: "src/autopack/storage_optimizer/recommendation_engine.py"
+  reason_filter: missing_file
+  note: "Missing src/autopack prefix"
+
+- pattern: "docs/ARCHITECTURE_DECISIONS.md"
+  broken_target: "storage_optimizer/steam_detector.py"
+  action: fix
+  fix_target: "src/autopack/storage_optimizer/steam_detector.py"
+  reason_filter: missing_file
+  note: "Missing src/autopack prefix"
+
+- pattern: "docs/ARCHITECTURE_DECISIONS.md"
+  broken_target: "storage_optimizer/policy.py"
+  action: fix
+  fix_target: "src/autopack/storage_optimizer/policy.py"
+  reason_filter: missing_file
+  note: "Missing src/autopack prefix"
+
+- pattern: "docs/ARCHITECTURE_DECISIONS.md"
+  broken_target: "storage_optimizer/models.py"
+  action: fix
+  fix_target: "src/autopack/storage_optimizer/models.py"
+  reason_filter: missing_file
+  note: "Missing src/autopack prefix"
+
+- pattern: "docs/ARCHITECTURE_DECISIONS.md"
+  broken_target: "storage_optimizer/scanner.py"
+  action: fix
+  fix_target: "src/autopack/storage_optimizer/scanner.py"
+  reason_filter: missing_file
+  note: "Missing src/autopack prefix"
+
+- pattern: "docs/ARCHITECTURE_DECISIONS.md"
+  broken_target: "storage_optimizer/classifier.py"
+  action: fix
+  fix_target: "src/autopack/storage_optimizer/classifier.py"
+  reason_filter: missing_file
+  note: "Missing src/autopack prefix"
+
+- pattern: "docs/ARCHITECTURE_DECISIONS.md"
+  broken_target: "storage_optimizer/reporter.py"
+  action: fix
+  fix_target: "src/autopack/storage_optimizer/reporter.py"
+  reason_filter: missing_file
+  note: "Missing src/autopack prefix"
+
+# =============================================================================
+# PHASE 5: Example/Placeholder Paths (safe to ignore)
+# =============================================================================
+
+# Generic placeholders used in documentation
+- pattern: "**/*.md"
+  broken_target: "path/to/file.md"
+  action: ignore
+  note: "Example placeholder path"
+
+- pattern: "**/*.md"
+  broken_target: "path/to/file.txt"
+  action: ignore
+  note: "Example placeholder path"
+
+- pattern: "**/*.md"
+  broken_target: "file.md"
+  action: ignore
+  note: "Generic example path"
+
+- pattern: "**/*.md"
+  broken_target: "target"
+  action: ignore
+  note: "Generic placeholder"
+
+- pattern: "**/*.md"
+  broken_target: "new_target"
+  action: ignore
+  note: "Generic placeholder"
+
+# =============================================================================
+# PHASE 6: Pattern Expansion - High-Confidence Runtime Endpoints (BUILD-166)
+# =============================================================================
+
+# Backend paths - all references to src/backend/** are historical (backend removed in BUILD-146)
+- pattern: "**/*.md"
+  broken_target_glob: "src/backend/**"
+  action: ignore
+  reason_filter: runtime_endpoint
+  note: "Backend removed in BUILD-146, historical refs intentional"
+
+- pattern: "**/*.md"
+  broken_target_glob: "src/backend/**"
+  action: ignore
+  reason_filter: historical_ref
+  note: "Backend removed in BUILD-146, historical refs intentional"
+
+# .autonomous_runs runtime artifacts (glob patterns for dynamic content)
+- pattern: "**/*.md"
+  broken_target_glob: ".autonomous_runs/file-organizer-app-v1/**"
+  action: ignore
+  reason_filter: runtime_endpoint
+  note: "Autonomous run artifacts - created at runtime"
+
+- pattern: "**/*.md"
+  broken_target_glob: ".autonomous_runs/lovable-integration-v1/**"
+  action: ignore
+  reason_filter: runtime_endpoint
+  note: "Autonomous run artifacts - created at runtime"
+
+- pattern: "**/*.md"
+  broken_target_glob: ".autonomous_runs/**/*.yaml"
+  action: ignore
+  reason_filter: runtime_endpoint
+  note: "Runtime YAML artifacts - created during autonomous operations"
+
+- pattern: "**/*.md"
+  broken_target_glob: ".autonomous_runs/**/*.md"
+  action: ignore
+  reason_filter: runtime_endpoint
+  note: "Runtime markdown artifacts - created during autonomous operations"
+
+# Test paths that are runtime-generated
+- pattern: "**/*.md"
+  broken_target_glob: "tests/autopack/autonomous/**"
+  action: ignore
+  reason_filter: runtime_endpoint
+  note: "Test paths - may not exist in all environments"
+
+# Tracer bullet paths (historical - project evolved past tracer bullets)
+- pattern: "**/*.md"
+  broken_target_glob: "src/autopack/tracer_bullet/**"
+  action: ignore
+  reason_filter: runtime_endpoint
+  note: "Tracer bullet code - historical reference"
+
+- pattern: "**/*.md"
+  broken_target_glob: "tracer_bullet/**"
+  action: ignore
+  reason_filter: historical_ref
+  note: "Tracer bullet code - historical reference"
+
+# =============================================================================
+# PHASE 7: Pattern Expansion - Missing Files (BUILD-166)
+# =============================================================================
+
+# CI workflow references (may have been renamed or moved)
+- pattern: "**/*.md"
+  broken_target: ".github/workflows/ci.yml"
+  action: ignore
+  reason_filter: missing_file
+  note: "CI workflow may have been renamed or restructured"
+
+# Frontend package lock (not tracked in git or removed)
+- pattern: "**/*.md"
+  broken_target: "fileorganizer/frontend/package-lock.json"
+  action: ignore
+  reason_filter: missing_file
+  note: "Package lock not tracked in git or project removed"
+
+# Proposed scripts (may not have been implemented)
+- pattern: "**/*.md"
+  broken_target: "scripts/propose_estimator_calibration.py"
+  action: ignore
+  reason_filter: missing_file
+  note: "Proposed script - may not have been implemented"
+
+# Excerpt files (sample data, not committed)
+- pattern: "**/*.md"
+  broken_target_glob: "excerpts/**"
+  action: ignore
+  reason_filter: missing_file
+  note: "Sample data or excerpts - not committed to repository"
+
+# Historical config files
+- pattern: "**/*.md"
+  broken_target: ".autopack.yaml"
+  action: ignore
+  reason_filter: historical_ref
+  note: "Historical config file format - may have migrated to new format"
+
+# =============================================================================
+# PHASE 8: Missing Documents (need manual investigation)
+# =============================================================================
+
+# These require manual review to determine if they should be created or ignored
+- pattern: "**/*.md"
+  broken_target: "STATUS_AUDITOR_IMPLEMENTATION.md"
+  action: manual
+  note: "Needs review - may need to be created or reference may be obsolete"
+
+- pattern: "**/*.md"
+  broken_target: "docs/BUILD-107.md"
+  action: manual
+  note: "Needs review - check if this was moved to archive or deleted"

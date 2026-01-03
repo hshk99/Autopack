@@ -18,6 +18,8 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
+from .io_utils import atomic_write_json
+
 logger = logging.getLogger(__name__)
 
 
@@ -162,7 +164,9 @@ class PendingMovesQueue:
 
     def save(self) -> bool:
         """
-        Save queue to file.
+        Save queue to file atomically.
+
+        Uses atomic write helper for consistency and retry tolerance.
 
         Returns:
             True if saved successfully, False otherwise
@@ -171,15 +175,9 @@ class PendingMovesQueue:
             # Update timestamp
             self.data["updated_at"] = datetime.utcnow().isoformat() + "Z"
 
-            # Ensure parent directory exists
-            self.queue_file.parent.mkdir(parents=True, exist_ok=True)
+            # Write atomically with retry tolerance
+            atomic_write_json(self.queue_file, self.data, indent=2)
 
-            # Write atomically (write to temp, then rename)
-            temp_file = self.queue_file.with_suffix('.tmp')
-            with open(temp_file, 'w', encoding='utf-8') as f:
-                json.dump(self.data, f, indent=2, ensure_ascii=False)
-
-            temp_file.replace(self.queue_file)
             logger.debug(f"[QUEUE] Saved {len(self.data['items'])} pending items to {self.queue_file}")
             return True
         except Exception as e:

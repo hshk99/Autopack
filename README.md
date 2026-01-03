@@ -58,6 +58,15 @@ In practice, “autonomous” requires that each phase has:
 
 ### Latest Highlights (Last 3 Builds)
 
+#### 2026-01-03: BUILD-158 - Tidy Lock/Lease + Doc Link Checker ✅
+**Cross-Process Safety + Documentation Hygiene**
+- Lease primitive: Atomic acquisition, TTL-based expiry, heartbeat renewal, stale lock auto-breaking
+- Tidy integration: Lease acquired even for dry-run, released in finally block, heartbeat at phase boundaries
+- Atomic write helper: Unified temp+replace pattern with retry tolerance (antivirus/indexing locks)
+- Doc link checker: Validates file references in README.md + docs/INDEX.md + docs/BUILD_HISTORY.md
+- **Result**: Safe concurrent tidy runs, crashed process recovery, 16/16 tests passing, 43 broken links detected
+- See [docs/BUILD-158_TIDY_LOCK_LEASE_DOC_LINKS.md](docs/BUILD-158_TIDY_LOCK_LEASE_DOC_LINKS.md) for full details
+
 #### 2026-01-03: BUILD-157 - Smart Retry Policies + Queue Hygiene ✅
 **Per-Reason Retry Optimization + Automatic Cleanup**
 - Smart retry policies: `locked` (10 attempts), `permission` (3→manual), `dest_exists` (1→manual), `unknown` (5→manual)
@@ -1262,9 +1271,9 @@ During draining, Autopack runs the repo’s CI (typically `pytest`) but **phase 
 ## Project Status
 
 <!-- SOT_SUMMARY_START -->
-**Last Updated**: 2026-01-03 18:00
+**Last Updated**: 2026-01-03 20:30
 
-- **Builds Completed**: 157
+- **Builds Completed**: 158
 - **Latest Build**: BUILD-155: Tidy First-Run Resilience (P0-P1 Complete) ✅
 - **Architecture Decisions**: 21
 - **Debugging Sessions**: 50

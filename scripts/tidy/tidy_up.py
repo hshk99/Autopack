@@ -53,6 +53,8 @@ sys.path.insert(0, str(SCRIPT_DIR))
 # Import autonomous_runs cleaner and pending queue
 from autonomous_runs_cleaner import cleanup_autonomous_runs
 from pending_moves import PendingMovesQueue, retry_pending_moves, format_actionable_report_markdown
+from lease import Lease
+from io_utils import atomic_write_json
 sys.path.insert(0, str(REPO_ROOT / "src"))
 
 # ---------------------------------------------------------------------------
@@ -1281,6 +1283,14 @@ def main():
                         default=Path("archive/diagnostics/queue_report"),
                         help="Output path (without extension) for queue report (default: archive/diagnostics/queue_report)")
 
+    # Lease configuration (BUILD-158)
+    parser.add_argument("--lease-timeout", type=int, default=30,
+                        help="Maximum seconds to wait for lease acquisition (default: 30)")
+    parser.add_argument("--lease-ttl", type=int, default=1800,
+                        help="Lease time-to-live in seconds before considered stale (default: 1800 = 30 min)")
+    parser.add_argument("--no-lease", action="store_true",
+                        help="Skip lease acquisition (unsafe: allows concurrent tidy runs)")
+
     args = parser.parse_args()
 
     # Apply --first-run shortcuts
@@ -1300,375 +1310,415 @@ def main():
     else:
         docs_dir = repo_root / ".autonomous_runs" / args.project / "docs"
 
+    # Acquire lease (BUILD-158: cross-process safety)
+    # Lease is acquired even for dry-run to prevent concurrent read/write conflicts
+    lease = None
+    if not args.no_lease:
+        lock_path = repo_root / ".autonomous_runs" / ".locks" / "tidy.lock"
+        lease = Lease(
+            lock_path=lock_path,
+            owner="tidy_up",
+            ttl_seconds=args.lease_ttl,
+        )
+        try:
+            lease.acquire(timeout_seconds=args.lease_timeout)
+        except TimeoutError as e:
+            print(f"\n[LEASE] ERROR: {e}")
+            print("[LEASE] Another tidy process may be running. Wait for it to complete or use --no-lease (unsafe).")
+            return 1
+        except Exception as e:
+            print(f"\n[LEASE] ERROR: Failed to acquire lease: {e}")
+            return 1
+
     print("=" * 70)
     print("UNIFIED TIDY UP - Complete Workspace Organization")
     print("=" * 70)
     print(f"Project: {args.project}")
     print(f"Docs dir: {docs_dir}")
     print(f"Mode: {'DRY-RUN' if dry_run else 'EXECUTE'}")
+    print(f"Lease acquired: {lease is not None}")
     print(f"Docs reduce to SOT: {args.docs_reduce_to_sot}")
     print(f"Repair: {args.repair}")
     print(f"Report root SOT duplicates: {args.report_root_sot_duplicates}")
     print("=" * 70)
 
-    # Initialize pending moves queue
-    queue_file = repo_root / ".autonomous_runs" / "tidy_pending_moves.json"
-    pending_queue = PendingMovesQueue(
-        queue_file=queue_file,
-        workspace_root=repo_root,
-        queue_id="autopack-root"
-    )
-    pending_queue.load()
-
-    # Phase -1: Retry pending moves from previous runs
-    print("\n" + "=" * 70)
-    print("Phase -1: Retry Pending Moves from Previous Runs")
-    print("=" * 70)
-
-    retried, retry_succeeded, retry_failed = retry_pending_moves(
-        queue=pending_queue,
-        dry_run=dry_run,
-        verbose=args.verbose
-    )
-
-    if retried > 0:
-        print(f"[QUEUE-RETRY] Retried: {retried}, Succeeded: {retry_succeeded}, Failed: {retry_failed}")
-        if retry_succeeded > 0:
-            print(f"[QUEUE-RETRY] Successfully completed {retry_succeeded} previously locked moves")
-
-        # Save updated queue
-        if not dry_run:
-            pending_queue.save()
-    else:
-        print("[QUEUE-RETRY] No pending moves to retry")
-    print()
-
-    # Optional report step (safe)
-    if args.report_root_sot_duplicates:
-        print("\n=== Report: Root SOT duplicates (root vs docs/) ===")
-        output_base = repo_root / args.report_root_sot_duplicates_out
-        generate_root_sot_duplicate_report(
-            repo_root=repo_root,
-            docs_dir=docs_dir,
-            output_path=output_base,
-            dry_run=dry_run,
-        )
-        if args.report_root_sot_duplicates_only:
-            print("\n[SOT-DUPS] Done (report-only mode).")
-            return 0
-
-    # Optional repair step (safe)
-    if args.repair:
-        print("\n=== Repair: Ensure required SOT + archive structure ===")
-        changed_any = False
-
-        # Autopack root project: ensure archive buckets exist (docs SOT should already exist)
-        changed_any |= _ensure_dirs_exist(
-            [repo_root / "archive" / bucket for bucket in ARCHIVE_REQUIRED_BUCKETS],
-            dry_run=dry_run,
-            verbose=args.verbose,
-        )
-
-        # Project workspaces
-        projects_root = repo_root / ".autonomous_runs"
-        if projects_root.exists():
-            if args.repair_projects is not None and len(args.repair_projects) > 0:
-                project_ids = args.repair_projects
-            else:
-                # Conservative default: treat as "project" only if it already looks like one
-                # (has docs/ or archive/). This avoids creating SOT skeletons for run/caches.
-                known_projects = {"file-organizer-app-v1"}
-                project_ids = []
-                for p in projects_root.iterdir():
-                    if not p.is_dir() or p.name.startswith(".") or p.name == "autopack":
-                        continue
-                    if p.name in known_projects or (p / "docs").exists() or (p / "archive").exists():
-                        project_ids.append(p.name)
-            for pid in project_ids:
-                changed_any |= repair_project_workspace(repo_root, pid, dry_run=dry_run, verbose=args.verbose)
-
-        if not changed_any:
-            print("[REPAIR] No missing required structure detected")
-
-        if args.repair_only:
-            print("\n[REPAIR] Done (repair-only mode).")
-            return 0
-
-    # Load tidy scope
-    scope_file = repo_root / "tidy_scope.yaml"
-    if scope_file.exists() and not args.scope:
-        try:
-            import yaml  # type: ignore
-        except ImportError:
-            print("[WARN] tidy_scope.yaml exists but PyYAML is not installed; using default roots. Install with: pip install pyyaml")
-            data = {}
-        else:
-            data = yaml.safe_load(scope_file.read_text(encoding="utf-8")) or {}
-
-        roots = data.get("roots") or [".autonomous_runs/file-organizer-app-v1", ".autonomous_runs", "archive"]
-        db_overrides = data.get("db_overrides") or {}
-        purge = data.get("purge", False)
-    else:
-        roots = args.scope or [".autonomous_runs/file-organizer-app-v1", ".autonomous_runs", "archive"]
-        db_overrides = {}
-        purge = False
-
-    # Resolve semantic model
+    # Wrap execution in try/finally to ensure lease is released
     try:
-        from autopack.model_registry import get_tool_model
-        semantic_model = get_tool_model("tidy_semantic", default="glm-4.7") or "glm-4.7"
-    except Exception:
-        semantic_model = "glm-4.7"
-
-    # Git checkpoint before
-    if args.git_checkpoint and not dry_run:
-        print("\n[GIT-CHECKPOINT] Creating pre-tidy commit...")
-        subprocess.run(["git", "add", "-A"], cwd=repo_root)
-        subprocess.run(
-            ["git", "commit", "-m", f"chore: pre-tidy checkpoint ({datetime.now().isoformat()})"],
-            cwd=repo_root
+        # Initialize pending moves queue
+        queue_file = repo_root / ".autonomous_runs" / "tidy_pending_moves.json"
+        pending_queue = PendingMovesQueue(
+            queue_file=queue_file,
+            workspace_root=repo_root,
+            queue_id="autopack-root"
         )
+        pending_queue.load()
 
-    # Phase 0: Special migrations (fileorganizer → file-organizer-app-v1)
-    print("\n" + "=" * 70)
-    print("Phase 0: Special Project Migrations")
-    print("=" * 70)
-    migrate_fileorganizer_to_project(repo_root, dry_run=dry_run, verbose=args.verbose)
-
-    # Phase 0.5: .autonomous_runs cleanup (run early so it can't be blocked by unrelated routing issues)
-    # BUILD-154: Ensure first tidy execution always cleans .autonomous_runs even if later phases encounter errors/locks.
-    print("\n" + "=" * 70)
-    print("Phase 0.5: .autonomous_runs/ Cleanup (Early)")
-    print("=" * 70)
-
-    phase_start = time.perf_counter()
-    try:
-        cleanup_autonomous_runs(
-            repo_root=repo_root,
-            dry_run=dry_run,
-            verbose=args.verbose,
-            profile=args.profile,
-            keep_last_n_runs=3,  # Keep only last 3 runs (archive older telemetry runs)
-            min_age_days=0  # Allow cleanup based on "keep last N" policy only
-        )
-    except Exception as e:
-        # Never crash tidy on autonomous_runs cleanup; it's best-effort and should not block SOT routing/consolidation.
-        print(f"[WARN] .autonomous_runs cleanup failed (continuing): {e}")
-    finally:
-        if args.profile:
-            elapsed = time.perf_counter() - phase_start
-            print(f"[PROFILE] Phase 0.5 completed in {elapsed:.2f}s")
-
-    # Phase 1: Root routing
-    print("\n" + "=" * 70)
-    print("Phase 1: Root Directory Cleanup")
-    print("=" * 70)
-    root_moves, blocked_sot_files = route_root_files(repo_root, dry_run, args.verbose)
-
-    # Task B: Fail fast in execute mode if blocked SOT files exist
-    if blocked_sot_files and not dry_run:
+        # Phase -1: Retry pending moves from previous runs
         print("\n" + "=" * 70)
-        print("ERROR: Cannot proceed - divergent SOT files require manual resolution")
+        print("Phase -1: Retry Pending Moves from Previous Runs")
         print("=" * 70)
-        print("\nThe following SOT files exist at both root and docs/ with different content:")
-        for blocked_file in blocked_sot_files:
-            print(f"  - {blocked_file.name}")
-        print("\nTo resolve:")
-        print("  1. Compare: diff {0} docs/{0}".format(blocked_sot_files[0].name if blocked_sot_files else "FILE"))
-        print("  2. Merge unique content from root into docs/ version")
-        print("  3. Delete root version")
-        print("  4. Commit: git add -A && git commit -m 'fix: merge duplicate SOT files'")
-        print("  5. Re-run: python scripts/tidy/tidy_up.py --execute")
-        print("\nTidy execution ABORTED to prevent data loss.")
-        print("=" * 70)
-        return 1
 
-    # Phase 2: Docs hygiene
-    docs_moves, docs_violations = check_docs_hygiene(
-        docs_dir, args.docs_reduce_to_sot, dry_run, args.verbose
-    )
-
-    # Execute moves from Phase 1 & 2
-    all_moves = root_moves + docs_moves
-    move_succeeded = 0
-    move_failed = 0
-    if all_moves:
-        print(f"\n[SUMMARY] Total files to move: {len(all_moves)}")
-        move_succeeded, move_failed = execute_moves(all_moves, dry_run, pending_queue)
-
-    # Phase 2.5 retained for readability, but work is performed in Phase 0.5 (early) for lock resilience.
-    print("\n" + "=" * 70)
-    print("Phase 2.5: .autonomous_runs/ Cleanup (Already Performed Early)")
-    print("=" * 70)
-
-    # Phase 3: Archive consolidation
-    # Task C: Capture SOT file hashes BEFORE consolidation
-    sot_files_before = {}
-    if not args.skip_archive_consolidation and not dry_run:
-        for sot_file_name in DOCS_SOT_FILES:
-            sot_path = docs_dir / sot_file_name
-            if sot_path.exists():
-                sot_files_before[sot_file_name] = sot_path.read_bytes()
-
-    ran_archive_consolidation = False
-    if not args.skip_archive_consolidation:
-        ran_archive_consolidation = True
-        success = consolidate_archive(
-            repo_root, roots, semantic_model, db_overrides, purge, dry_run, args.verbose
+        retried, retry_succeeded, retry_failed = retry_pending_moves(
+            queue=pending_queue,
+            dry_run=dry_run,
+            verbose=args.verbose
         )
-        if not success and not dry_run:
-            print("[ERROR] Archive consolidation failed, aborting")
+
+        if retried > 0:
+            print(f"[QUEUE-RETRY] Retried: {retried}, Succeeded: {retry_succeeded}, Failed: {retry_failed}")
+            if retry_succeeded > 0:
+                print(f"[QUEUE-RETRY] Successfully completed {retry_succeeded} previously locked moves")
+
+            # Save updated queue
+            if not dry_run:
+                pending_queue.save()
+        else:
+            print("[QUEUE-RETRY] No pending moves to retry")
+        print()
+
+        # Optional report step (safe)
+        if args.report_root_sot_duplicates:
+            print("\n=== Report: Root SOT duplicates (root vs docs/) ===")
+            output_base = repo_root / args.report_root_sot_duplicates_out
+            generate_root_sot_duplicate_report(
+                repo_root=repo_root,
+                docs_dir=docs_dir,
+                output_path=output_base,
+                dry_run=dry_run,
+            )
+            if args.report_root_sot_duplicates_only:
+                print("\n[SOT-DUPS] Done (report-only mode).")
+                return 0
+
+        # Optional repair step (safe)
+        if args.repair:
+            print("\n=== Repair: Ensure required SOT + archive structure ===")
+            changed_any = False
+
+            # Autopack root project: ensure archive buckets exist (docs SOT should already exist)
+            changed_any |= _ensure_dirs_exist(
+                [repo_root / "archive" / bucket for bucket in ARCHIVE_REQUIRED_BUCKETS],
+                dry_run=dry_run,
+                verbose=args.verbose,
+            )
+
+            # Project workspaces
+            projects_root = repo_root / ".autonomous_runs"
+            if projects_root.exists():
+                if args.repair_projects is not None and len(args.repair_projects) > 0:
+                    project_ids = args.repair_projects
+                else:
+                    # Conservative default: treat as "project" only if it already looks like one
+                    # (has docs/ or archive/). This avoids creating SOT skeletons for run/caches.
+                    known_projects = {"file-organizer-app-v1"}
+                    project_ids = []
+                    for p in projects_root.iterdir():
+                        if not p.is_dir() or p.name.startswith(".") or p.name == "autopack":
+                            continue
+                        if p.name in known_projects or (p / "docs").exists() or (p / "archive").exists():
+                            project_ids.append(p.name)
+                for pid in project_ids:
+                    changed_any |= repair_project_workspace(repo_root, pid, dry_run=dry_run, verbose=args.verbose)
+
+            if not changed_any:
+                print("[REPAIR] No missing required structure detected")
+
+            if args.repair_only:
+                print("\n[REPAIR] Done (repair-only mode).")
+                return 0
+
+        # Load tidy scope
+        scope_file = repo_root / "tidy_scope.yaml"
+        if scope_file.exists() and not args.scope:
+            try:
+                import yaml  # type: ignore
+            except ImportError:
+                print("[WARN] tidy_scope.yaml exists but PyYAML is not installed; using default roots. Install with: pip install pyyaml")
+                data = {}
+            else:
+                data = yaml.safe_load(scope_file.read_text(encoding="utf-8")) or {}
+
+            roots = data.get("roots") or [".autonomous_runs/file-organizer-app-v1", ".autonomous_runs", "archive"]
+            db_overrides = data.get("db_overrides") or {}
+            purge = data.get("purge", False)
+        else:
+            roots = args.scope or [".autonomous_runs/file-organizer-app-v1", ".autonomous_runs", "archive"]
+            db_overrides = {}
+            purge = False
+
+        # Resolve semantic model
+        try:
+            from autopack.model_registry import get_tool_model
+            semantic_model = get_tool_model("tidy_semantic", default="glm-4.7") or "glm-4.7"
+        except Exception:
+            semantic_model = "glm-4.7"
+
+        # Git checkpoint before
+        if args.git_checkpoint and not dry_run:
+            print("\n[GIT-CHECKPOINT] Creating pre-tidy commit...")
+            subprocess.run(["git", "add", "-A"], cwd=repo_root)
+            subprocess.run(
+                ["git", "commit", "-m", f"chore: pre-tidy checkpoint ({datetime.now().isoformat()})"],
+                cwd=repo_root
+            )
+
+        # Phase 0: Special migrations (fileorganizer → file-organizer-app-v1)
+        print("\n" + "=" * 70)
+        print("Phase 0: Special Project Migrations")
+        print("=" * 70)
+        migrate_fileorganizer_to_project(repo_root, dry_run=dry_run, verbose=args.verbose)
+
+        # Phase 0.5: .autonomous_runs cleanup (run early so it can't be blocked by unrelated routing issues)
+        # BUILD-154: Ensure first tidy execution always cleans .autonomous_runs even if later phases encounter errors/locks.
+        print("\n" + "=" * 70)
+        print("Phase 0.5: .autonomous_runs/ Cleanup (Early)")
+        print("=" * 70)
+
+        phase_start = time.perf_counter()
+        try:
+            cleanup_autonomous_runs(
+                repo_root=repo_root,
+                dry_run=dry_run,
+                verbose=args.verbose,
+                profile=args.profile,
+                keep_last_n_runs=3,  # Keep only last 3 runs (archive older telemetry runs)
+                min_age_days=0  # Allow cleanup based on "keep last N" policy only
+            )
+        except Exception as e:
+            # Never crash tidy on autonomous_runs cleanup; it's best-effort and should not block SOT routing/consolidation.
+            print(f"[WARN] .autonomous_runs cleanup failed (continuing): {e}")
+        finally:
+            if args.profile:
+                elapsed = time.perf_counter() - phase_start
+                print(f"[PROFILE] Phase 0.5 completed in {elapsed:.2f}s")
+
+        # Phase 1: Root routing
+        # Renew lease heartbeat before long phase
+        if lease is not None:
+            lease.renew()
+
+        print("\n" + "=" * 70)
+        print("Phase 1: Root Directory Cleanup")
+        print("=" * 70)
+        root_moves, blocked_sot_files = route_root_files(repo_root, dry_run, args.verbose)
+
+        # Task B: Fail fast in execute mode if blocked SOT files exist
+        if blocked_sot_files and not dry_run:
+            print("\n" + "=" * 70)
+            print("ERROR: Cannot proceed - divergent SOT files require manual resolution")
+            print("=" * 70)
+            print("\nThe following SOT files exist at both root and docs/ with different content:")
+            for blocked_file in blocked_sot_files:
+                print(f"  - {blocked_file.name}")
+            print("\nTo resolve:")
+            print("  1. Compare: diff {0} docs/{0}".format(blocked_sot_files[0].name if blocked_sot_files else "FILE"))
+            print("  2. Merge unique content from root into docs/ version")
+            print("  3. Delete root version")
+            print("  4. Commit: git add -A && git commit -m 'fix: merge duplicate SOT files'")
+            print("  5. Re-run: python scripts/tidy/tidy_up.py --execute")
+            print("\nTidy execution ABORTED to prevent data loss.")
+            print("=" * 70)
             return 1
-    else:
-        print("\n=== Phase 3: Archive Consolidation (SKIPPED) ===")
 
-    # Phase 4: Verification
-    is_valid, verify_errors = verify_structure(repo_root, docs_dir)
+        # Phase 2: Docs hygiene
+        # Renew lease heartbeat before docs processing
+        if lease is not None:
+            lease.renew()
 
-    # Phase 5: SOT re-index handoff (Phase 1.5)
-    # If we performed any action that could change SOT content, mark it dirty so the executor can refresh indexing.
-    if not dry_run:
-        sot_modified_by_move = any(
-            str(dest).startswith(str(docs_dir)) and dest.name in DOCS_SOT_FILES
-            for _, dest in all_moves
+        docs_moves, docs_violations = check_docs_hygiene(
+            docs_dir, args.docs_reduce_to_sot, dry_run, args.verbose
         )
 
-        # Task C: Check if archive consolidation actually changed SOT files
-        sot_modified_by_consolidation = False
-        if ran_archive_consolidation and sot_files_before:
+        # Execute moves from Phase 1 & 2
+        all_moves = root_moves + docs_moves
+        move_succeeded = 0
+        move_failed = 0
+        if all_moves:
+            print(f"\n[SUMMARY] Total files to move: {len(all_moves)}")
+            move_succeeded, move_failed = execute_moves(all_moves, dry_run, pending_queue)
+
+        # Phase 2.5 retained for readability, but work is performed in Phase 0.5 (early) for lock resilience.
+        print("\n" + "=" * 70)
+        print("Phase 2.5: .autonomous_runs/ Cleanup (Already Performed Early)")
+        print("=" * 70)
+
+        # Phase 3: Archive consolidation
+        # Renew lease heartbeat before archive processing
+        if lease is not None:
+            lease.renew()
+
+        # Task C: Capture SOT file hashes BEFORE consolidation
+        sot_files_before = {}
+        if not args.skip_archive_consolidation and not dry_run:
             for sot_file_name in DOCS_SOT_FILES:
                 sot_path = docs_dir / sot_file_name
                 if sot_path.exists():
-                    current_content = sot_path.read_bytes()
-                    previous_content = sot_files_before.get(sot_file_name)
-                    if previous_content != current_content:
+                    sot_files_before[sot_file_name] = sot_path.read_bytes()
+
+        ran_archive_consolidation = False
+        if not args.skip_archive_consolidation:
+            ran_archive_consolidation = True
+            success = consolidate_archive(
+                repo_root, roots, semantic_model, db_overrides, purge, dry_run, args.verbose
+            )
+            if not success and not dry_run:
+                print("[ERROR] Archive consolidation failed, aborting")
+                return 1
+        else:
+            print("\n=== Phase 3: Archive Consolidation (SKIPPED) ===")
+
+        # Phase 4: Verification
+        is_valid, verify_errors = verify_structure(repo_root, docs_dir)
+
+        # Phase 5: SOT re-index handoff (Phase 1.5)
+        # If we performed any action that could change SOT content, mark it dirty so the executor can refresh indexing.
+        if not dry_run:
+            sot_modified_by_move = any(
+                str(dest).startswith(str(docs_dir)) and dest.name in DOCS_SOT_FILES
+                for _, dest in all_moves
+            )
+
+            # Task C: Check if archive consolidation actually changed SOT files
+            sot_modified_by_consolidation = False
+            if ran_archive_consolidation and sot_files_before:
+                for sot_file_name in DOCS_SOT_FILES:
+                    sot_path = docs_dir / sot_file_name
+                    if sot_path.exists():
+                        current_content = sot_path.read_bytes()
+                        previous_content = sot_files_before.get(sot_file_name)
+                        if previous_content != current_content:
+                            sot_modified_by_consolidation = True
+                            break
+                    elif sot_file_name in sot_files_before:
+                        # File was deleted
                         sot_modified_by_consolidation = True
                         break
-                elif sot_file_name in sot_files_before:
-                    # File was deleted
-                    sot_modified_by_consolidation = True
-                    break
 
-        # Only mark dirty if SOT actually changed
-        if sot_modified_by_move or docs_moves or sot_modified_by_consolidation:
-            mark_sot_dirty(args.project, repo_root, dry_run=False)
+            # Only mark dirty if SOT actually changed
+            if sot_modified_by_move or docs_moves or sot_modified_by_consolidation:
+                mark_sot_dirty(args.project, repo_root, dry_run=False)
 
-    # Git checkpoint after
-    if args.git_checkpoint and not dry_run:
-        print("\n[GIT-CHECKPOINT] Creating post-tidy commit...")
-        subprocess.run(["git", "add", "-A"], cwd=repo_root)
-        subprocess.run(
-            ["git", "commit", "-m", f"chore: post-tidy checkpoint ({datetime.now().isoformat()})"],
-            cwd=repo_root
-        )
+        # Git checkpoint after
+        if args.git_checkpoint and not dry_run:
+            print("\n[GIT-CHECKPOINT] Creating post-tidy commit...")
+            subprocess.run(["git", "add", "-A"], cwd=repo_root)
+            subprocess.run(
+                ["git", "commit", "-m", f"chore: post-tidy checkpoint ({datetime.now().isoformat()})"],
+                cwd=repo_root
+            )
 
-    # Final summary
-    # Save queue and print summary
-    if not dry_run:
-        # Clean up old succeeded/abandoned items (30-day retention)
-        # This prevents unbounded queue growth
-        pending_queue.cleanup_old_items(max_age_days=30)
+        # Final summary
+        # Save queue and print summary
+        if not dry_run:
+            # Clean up old succeeded/abandoned items (30-day retention)
+            # This prevents unbounded queue growth
+            pending_queue.cleanup_old_items(max_age_days=30)
 
-        # Clean up succeeded items from this run
-        pending_queue.cleanup_succeeded()
+            # Clean up succeeded items from this run
+            pending_queue.cleanup_succeeded()
 
-        # Save final state
-        pending_queue.save()
+            # Save final state
+            pending_queue.save()
 
-    # Print queue summary
-    queue_summary = pending_queue.get_summary()
-    if queue_summary["total"] > 0:
+        # Print queue summary
+        queue_summary = pending_queue.get_summary()
+        if queue_summary["total"] > 0:
+            print("\n" + "=" * 70)
+            print("PENDING MOVES QUEUE SUMMARY")
+            print("=" * 70)
+            print(f"Total items in queue: {queue_summary['total']}")
+            print(f"  Pending (awaiting retry): {queue_summary['pending']}")
+            print(f"  Succeeded (this run): {queue_summary['succeeded']}")
+            print(f"  Abandoned (max attempts): {queue_summary['abandoned']}")
+            print(f"  Needs manual (escalated): {queue_summary.get('needs_manual', 0)}")
+            print(f"  Eligible for next run: {queue_summary['eligible_now']}")
+            print()
+            print(f"Queue file: {queue_file}")
+            print()
+
+            if queue_summary.get("needs_manual", 0) > 0:
+                print(f"[ACTION REQUIRED] {queue_summary['needs_manual']} items need manual resolution:")
+                print("  - dest_exists: Destination file collision - requires manual decision")
+                print("  - permission: Access denied - check file/folder permissions")
+                print("  - See queue report for details")
+                print()
+
+            if queue_summary["pending"] > 0 and not dry_run:
+                print("[INFO] Locked files will be retried automatically on next tidy run")
+                print("[INFO] After reboot or closing locking processes, run:")
+                print("       python scripts/tidy/tidy_up.py --execute")
+                print()
+
+        # Generate actionable queue report if requested or if there are pending items
+        if (args.queue_report or queue_summary["pending"] > 0) and queue_summary["total"] > 0:
+            print("\n" + "=" * 70)
+            print("QUEUE ACTIONABLE REPORT")
+            print("=" * 70)
+
+            # Generate report
+            actionable_report = pending_queue.get_actionable_report(top_n=args.queue_report_top_n)
+
+            # Print summary to console
+            print(f"Total pending: {actionable_report['summary']['total_pending']} items")
+            print(f"Total size estimate: {actionable_report['summary']['total_bytes_estimate'] / 1024 / 1024:.2f} MB")
+            print(f"Eligible now: {actionable_report['summary']['eligible_now']} items")
+            print()
+
+            if actionable_report["top_items"]:
+                print(f"Top {len(actionable_report['top_items'])} items by priority:")
+                for item in actionable_report["top_items"][:5]:  # Show top 5 in console
+                    print(f"  [{item['priority_score']}] {item['src']} ({item['attempt_count']} attempts, {item['age_days']} days old)")
+                if len(actionable_report["top_items"]) > 5:
+                    print(f"  ... and {len(actionable_report['top_items']) - 5} more")
+                print()
+
+            if actionable_report["suggested_actions"]:
+                print("Suggested next actions:")
+                for action in actionable_report["suggested_actions"]:
+                    priority_marker = "[HIGH]" if action["priority"] == "high" else "[MED]"
+                    print(f"  {priority_marker} {action['description']}")
+                print()
+
+            # Save reports if requested
+            if args.queue_report:
+                output_base = repo_root / args.queue_report_output
+                output_base.parent.mkdir(parents=True, exist_ok=True)
+
+                if args.queue_report_format in ["json", "both"]:
+                    json_path = output_base.with_suffix(".json")
+                    json_path.write_text(json.dumps(actionable_report, indent=2), encoding="utf-8")
+                    print(f"[QUEUE-REPORT] JSON report written to: {json_path}")
+
+                if args.queue_report_format in ["markdown", "both"]:
+                    md_path = output_base.with_suffix(".md")
+                    md_content = format_actionable_report_markdown(actionable_report)
+                    md_path.write_text(md_content, encoding="utf-8")
+                    print(f"[QUEUE-REPORT] Markdown report written to: {md_path}")
+
+                print()
+
         print("\n" + "=" * 70)
-        print("PENDING MOVES QUEUE SUMMARY")
+        print("TIDY UP COMPLETE")
         print("=" * 70)
-        print(f"Total items in queue: {queue_summary['total']}")
-        print(f"  Pending (awaiting retry): {queue_summary['pending']}")
-        print(f"  Succeeded (this run): {queue_summary['succeeded']}")
-        print(f"  Abandoned (max attempts): {queue_summary['abandoned']}")
-        print(f"  Needs manual (escalated): {queue_summary.get('needs_manual', 0)}")
-        print(f"  Eligible for next run: {queue_summary['eligible_now']}")
-        print()
-        print(f"Queue file: {queue_file}")
-        print()
+        print(f"Root files routed: {len(root_moves)}")
+        print(f"Docs files moved: {len(docs_moves)}")
+        print(f"Docs violations: {len(docs_violations)}")
+        print(f"Structure valid: {is_valid}")
 
-        if queue_summary.get("needs_manual", 0) > 0:
-            print(f"[ACTION REQUIRED] {queue_summary['needs_manual']} items need manual resolution:")
-            print("  - dest_exists: Destination file collision - requires manual decision")
-            print("  - permission: Access denied - check file/folder permissions")
-            print("  - See queue report for details")
-            print()
+        if dry_run:
+            print("\nDRY-RUN MODE - No changes were made")
+            print("   Run with --execute to apply changes")
+        else:
+            print("\nChanges applied successfully")
+            if move_failed > 0:
+                print(f"Note: {move_failed} files were queued for retry due to locks")
 
-        if queue_summary["pending"] > 0 and not dry_run:
-            print("[INFO] Locked files will be retried automatically on next tidy run")
-            print("[INFO] After reboot or closing locking processes, run:")
-            print("       python scripts/tidy/tidy_up.py --execute")
-            print()
+        return 0 if is_valid else 1
 
-    # Generate actionable queue report if requested or if there are pending items
-    if (args.queue_report or queue_summary["pending"] > 0) and queue_summary["total"] > 0:
-        print("\n" + "=" * 70)
-        print("QUEUE ACTIONABLE REPORT")
-        print("=" * 70)
-
-        # Generate report
-        actionable_report = pending_queue.get_actionable_report(top_n=args.queue_report_top_n)
-
-        # Print summary to console
-        print(f"Total pending: {actionable_report['summary']['total_pending']} items")
-        print(f"Total size estimate: {actionable_report['summary']['total_bytes_estimate'] / 1024 / 1024:.2f} MB")
-        print(f"Eligible now: {actionable_report['summary']['eligible_now']} items")
-        print()
-
-        if actionable_report["top_items"]:
-            print(f"Top {len(actionable_report['top_items'])} items by priority:")
-            for item in actionable_report["top_items"][:5]:  # Show top 5 in console
-                print(f"  [{item['priority_score']}] {item['src']} ({item['attempt_count']} attempts, {item['age_days']} days old)")
-            if len(actionable_report["top_items"]) > 5:
-                print(f"  ... and {len(actionable_report['top_items']) - 5} more")
-            print()
-
-        if actionable_report["suggested_actions"]:
-            print("Suggested next actions:")
-            for action in actionable_report["suggested_actions"]:
-                priority_marker = "[HIGH]" if action["priority"] == "high" else "[MED]"
-                print(f"  {priority_marker} {action['description']}")
-            print()
-
-        # Save reports if requested
-        if args.queue_report:
-            output_base = repo_root / args.queue_report_output
-            output_base.parent.mkdir(parents=True, exist_ok=True)
-
-            if args.queue_report_format in ["json", "both"]:
-                json_path = output_base.with_suffix(".json")
-                json_path.write_text(json.dumps(actionable_report, indent=2), encoding="utf-8")
-                print(f"[QUEUE-REPORT] JSON report written to: {json_path}")
-
-            if args.queue_report_format in ["markdown", "both"]:
-                md_path = output_base.with_suffix(".md")
-                md_content = format_actionable_report_markdown(actionable_report)
-                md_path.write_text(md_content, encoding="utf-8")
-                print(f"[QUEUE-REPORT] Markdown report written to: {md_path}")
-
-            print()
-
-    print("\n" + "=" * 70)
-    print("TIDY UP COMPLETE")
-    print("=" * 70)
-    print(f"Root files routed: {len(root_moves)}")
-    print(f"Docs files moved: {len(docs_moves)}")
-    print(f"Docs violations: {len(docs_violations)}")
-    print(f"Structure valid: {is_valid}")
-
-    if dry_run:
-        print("\nDRY-RUN MODE - No changes were made")
-        print("   Run with --execute to apply changes")
-    else:
-        print("\nChanges applied successfully")
-        if move_failed > 0:
-            print(f"Note: {move_failed} files were queued for retry due to locks")
-
-    return 0 if is_valid else 1
+    finally:
+        # Release lease (BUILD-158)
+        if lease is not None:
+            lease.release()
 
 
 if __name__ == "__main__":

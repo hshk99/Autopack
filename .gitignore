@@ -96,3 +96,6 @@ Thumbs.db
 # Project specific
 last_patch_debug.diff
 backend.log
+
+# Diagnostic archives (BUILD-167+)
+archive/diagnostics/doc_link_fix_backup_*.zip

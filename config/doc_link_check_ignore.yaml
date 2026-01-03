@@ -79,3 +79,726 @@ ignore_patterns:
 - file: README.md
   target: .autonomous_runs/tidy_activity.log
   reason: Runtime log file - created during tidy operations
+- file: README.md
+  target: fileorganizer/
+  reason: Historical project component - removed, refs are intentional historical
+    context
+- file: README.md
+  target: .autonomous_runs/file-organizer-app-v1/
+  reason: Autonomous run artifacts - created at runtime
+- file: README.md
+  target: .git/
+  reason: Git directory - code reference, not doc link
+- file: README.md
+  target: __init__.py
+  reason: Generic Python package file - code reference, not doc link
+- file: README.md
+  target: .env
+  reason: Environment config file - code reference, not doc link
+- file: README.md
+  target: .md
+  reason: File extension example in backticks - informational code formatting
+- file: README.md
+  target: .log
+  reason: File extension example in backticks - informational code formatting
+- file: README.md
+  target: logs/
+  reason: Runtime log directory - code reference, not doc link
+- file: README.md
+  target: .json
+  reason: File extension example in backticks - informational code formatting
+- file: README.md
+  target: .yaml
+  reason: File extension example in backticks - informational code formatting
+- file: README.md
+  target: .txt
+  reason: File extension example in backticks - informational code formatting
+- file: docs\INDEX.md
+  target: .json
+  reason: File extension example in backticks - informational code formatting
+- file: docs\INDEX.md
+  target: .yaml
+  reason: File extension example in backticks - informational code formatting
+- file: docs\BUILD_HISTORY.md
+  target: autonomous_executor.py
+  reason: Historical code file reference - may have been moved/refactored
+- file: docs\BUILD_HISTORY.md
+  target: /health
+  reason: HTTP API endpoint - informational reference, not file path
+- file: docs\BUILD_HISTORY.md
+  target: src/backend/main.py
+  reason: Backend removed in BUILD-146, historical refs intentional
+- file: docs\BUILD_HISTORY.md
+  target: .gitignore
+  reason: Git config file - code reference, not doc link
+- file: docs\BUILD_HISTORY.md
+  target: tracer_bullet/
+  reason: Tracer bullet code - historical reference
+- file: docs\BUILD_HISTORY.md
+  target: __init__.py
+  reason: Generic Python package file - code reference, not doc link
+- file: docs\BUILD_HISTORY.md
+  target: .autonomous_runs/file-organizer-app-v1/archive/research/active/requirements/chunk1b-foundation-intent-discovery.yaml
+  reason: Autonomous run artifacts - created at runtime
+- file: docs\BUILD_HISTORY.md
+  target: .autonomous_runs/file-organizer-app-v1/archive/research/active/requirements/chunk2a-gatherers-social.yaml
+  reason: Autonomous run artifacts - created at runtime
+- file: docs\BUILD_HISTORY.md
+  target: .autonomous_runs/file-organizer-app-v1/archive/research/active/requirements/chunk2b-gatherers-web-compilation.yaml
+  reason: Autonomous run artifacts - created at runtime
+- file: docs\BUILD_HISTORY.md
+  target: .autonomous_runs/file-organizer-app-v1/archive/research/active/requirements/chunk3-meta-analysis.yaml
+  reason: Autonomous run artifacts - created at runtime
+- file: docs\BUILD_HISTORY.md
+  target: .json
+  reason: File extension example in backticks - informational code formatting
+- file: docs\BUILD_HISTORY.md
+  target: src/backend/api/runs.py
+  reason: Backend removed in BUILD-146, historical refs intentional
+- file: docs\BUILD_HISTORY.md
+  target: .git/
+  reason: Git directory - code reference, not doc link
+- file: docs\BUILD_HISTORY.md
+  target: .log
+  reason: File extension example in backticks - informational code formatting
+- file: docs\BUILD_HISTORY.md
+  target: .md
+  reason: File extension example in backticks - informational code formatting
+- file: docs\BUILD_HISTORY.md
+  target: .txt
+  reason: File extension example in backticks - informational code formatting
+- file: docs\BUILD_HISTORY.md
+  target: .yaml
+  reason: File extension example in backticks - informational code formatting
+- file: docs\BUILD_HISTORY.md
+  target: .autonomous_runs/tidy_pending_moves.json
+  reason: Runtime artifact - created during tidy operations
+- file: docs\BUILD_HISTORY.md
+  target: .autonomous_runs/storage_execution.log
+  reason: Runtime log file - created during storage operations
+- file: docs\API_BASICS.md
+  target: /health
+  reason: HTTP API endpoint - informational reference, not file path
+- file: docs\ARCHITECTURE.md
+  target: .git/
+  reason: Git directory - code reference, not doc link
+- file: docs\ARCHITECTURE_DECISIONS.md
+  target: .env
+  reason: Environment config file - code reference, not doc link
+- file: docs\AUTHENTICATION.md
+  target: src/backend/models/user.py
+  reason: Backend removed in BUILD-146, historical refs intentional
+- file: docs\AUTHENTICATION.md
+  target: src/backend/core/security.py
+  reason: Backend removed in BUILD-146, historical refs intentional
+- file: docs\AUTHENTICATION.md
+  target: src/backend/api/auth.py
+  reason: Backend removed in BUILD-146, historical refs intentional
+- file: docs\AUTHENTICATION.md
+  target: src/backend/schemas/user.py
+  reason: Backend removed in BUILD-146, historical refs intentional
+- file: docs\AUTHENTICATION.md
+  target: src/backend/core/config.py
+  reason: Backend removed in BUILD-146, historical refs intentional
+- file: docs\AUTHENTICATION.md
+  target: src/backend/database.py
+  reason: Backend removed in BUILD-146, historical refs intentional
+- file: docs\AUTHENTICATION.md
+  target: src/backend/tests/test_auth.py
+  reason: Backend removed in BUILD-146, historical refs intentional
+- file: docs\autopack\diagnostics_deep_retrieval.md
+  target: .git/
+  reason: Git directory - code reference, not doc link
+- file: docs\autopack\diagnostics_handoff_bundle.md
+  target: excerpts/log_tail.txt
+  reason: Sample data or excerpts - not committed to repository
+- file: docs\BUILD-145-FOLLOWUP-QUEUE-SYSTEM.md
+  target: .autonomous_runs/tidy_pending_moves.json
+  reason: Runtime artifact - created during tidy operations
+- file: docs\BUILD-145-TIDY-SYSTEM-REVISION-COMPLETE.md
+  target: fileorganizer/
+  reason: Historical project component - removed, refs are intentional historical
+    context
+- file: docs\BUILD-145-TIDY-SYSTEM-REVISION-COMPLETE.md
+  target: .autonomous_runs/file-organizer-app-v1/src/fileorganizer/
+  reason: Autonomous run artifacts - created at runtime
+- file: docs\BUILD-145-TIDY-SYSTEM-REVISION-COMPLETE.md
+  target: .autonomous_runs/file-organizer-app-v1/
+  reason: Autonomous run artifacts - created at runtime
+- file: docs\BUILD-153_CANARY_TEST_REPORT.md
+  target: .autonomous_runs/storage_execution.log
+  reason: Runtime log file - created during storage operations
+- file: docs\BUILD-157_SMART_RETRY_QUEUE_HYGIENE.md
+  target: tidy_up.py
+  reason: Code file reference - may have been moved to scripts/
+- file: docs\BUILD-158_TIDY_LOCK_LEASE_DOC_LINKS.md
+  target: path/to/file.md
+  reason: Example placeholder path
+- file: docs\BUILD-158_TIDY_LOCK_LEASE_DOC_LINKS.md
+  target: path/to/file.txt
+  reason: Example placeholder path
+- file: docs\BUILD-158_TIDY_LOCK_LEASE_DOC_LINKS.md
+  target: file.md
+  reason: Generic example path
+- file: docs\BUILD-159_DEEP_DOC_LINK_CHECKER_MECHANICAL_FIXER.md
+  target: target
+  reason: Generic placeholder
+- file: docs\BUILD-159_DEEP_DOC_LINK_CHECKER_MECHANICAL_FIXER.md
+  target: new_target
+  reason: Generic placeholder
+- file: docs\BUILD-159_DEEP_DOC_LINK_CHECKER_MECHANICAL_FIXER.md
+  target: file.md
+  reason: Generic example path
+- file: docs\BUILD-159_DEEP_DOC_LINK_CHECKER_MECHANICAL_FIXER.md
+  target: /api/auth/.well-known/jwks.json
+  reason: HTTP API endpoint, not a file path
+- file: docs\BUILD-159_DEEP_DOC_LINK_CHECKER_MECHANICAL_FIXER.md
+  target: archive/superseded/reports/BUILD-107.md
+  reason: Reference to superseded document
+- file: docs\BUILD-159_DEEP_DOC_LINK_CHECKER_MECHANICAL_FIXER.md
+  target: .autonomous_runs/.../ARCHIVE_INDEX.md
+  reason: Runtime index - created during archive operations
+- file: docs\BUILD-165_SUBSYSTEM_LOCKS.md
+  target: archive/superseded/reports/BUILD-162_LOCK_STATUS_UX.md
+  reason: Reference to superseded document - content rolled into BUILD-161
+- file: docs\BUILD-166_COMPLETION_REPORT.md
+  target: tidy_up.py
+  reason: Code file reference - may have been moved to scripts/
+- file: docs\BUILD-166_CURSOR_ADVICE_FOLLOWUP.md
+  target: .autonomous_runs/tidy_pending_moves.json
+  reason: Runtime artifact - created during tidy operations
+- file: docs\BUILD-166_CURSOR_ADVICE_FOLLOWUP.md
+  target: /api/auth/.well-known/jwks.json
+  reason: HTTP API endpoint, not a file path
+- file: docs\BUILD-166_CURSOR_ADVICE_FOLLOWUP.md
+  target: .autonomous_runs/tidy_activity.log
+  reason: Runtime log file - created during tidy operations
+- file: docs\BUILD-166_CURSOR_ADVICE_FOLLOWUP.md
+  target: .github/workflows/ci.yml
+  reason: CI workflow may have been renamed or restructured
+- file: docs\BUILD_155_SOT_TELEMETRY_COMPLETION.md
+  target: autonomous_executor.py
+  reason: Historical code file reference - may have been moved/refactored
+- file: docs\BUILD_155_SOT_TELEMETRY_COMPLETION.md
+  target: .github/workflows/ci.yml
+  reason: CI workflow may have been renamed or restructured
+- file: docs\CANONICAL_API_CONSOLIDATION_PLAN.md
+  target: src/backend/main.py
+  reason: Backend removed in BUILD-146, historical refs intentional
+- file: docs\CANONICAL_API_CONSOLIDATION_PLAN.md
+  target: /health
+  reason: HTTP API endpoint - informational reference, not file path
+- file: docs\CANONICAL_API_CONSOLIDATION_PLAN.md
+  target: src/backend/
+  reason: Backend removed in BUILD-146, historical refs intentional
+- file: docs\CANONICAL_API_CONSOLIDATION_PLAN.md
+  target: /api/auth/.well-known/jwks.json
+  reason: HTTP API endpoint, not a file path
+- file: docs\CHANGELOG.md
+  target: src/backend/api/dashboard.py
+  reason: Backend removed in BUILD-146, historical refs intentional
+- file: docs\CHANGELOG.md
+  target: .github/workflows/ci.yml
+  reason: CI workflow may have been renamed or restructured
+- file: docs\CHANGELOG.md
+  target: src/backend/main.py
+  reason: Backend removed in BUILD-146, historical refs intentional
+- file: docs\CHANGELOG.md
+  target: src/backend/api/runs.py
+  reason: Backend removed in BUILD-146, historical refs intentional
+- file: docs\CHANGELOG.md
+  target: src/backend/api/api_key_auth.py
+  reason: Backend removed in BUILD-146, historical refs intentional
+- file: docs\CHANGELOG.md
+  target: src/backend/api/health.py
+  reason: Backend removed in BUILD-146, historical refs intentional
+- file: docs\CHANGELOG.md
+  target: .autonomous_runs/lovable-integration-v1/
+  reason: Autonomous run artifacts - created at runtime
+- file: docs\CHANGELOG.md
+  target: .autonomous_runs/lovable-integration-v1/VALIDATION_COMPLETE.md
+  reason: Autonomous run artifacts - created at runtime
+- file: docs\CHANGELOG.md
+  target: .autonomous_runs/lovable-integration-v1/PHASE0_EXECUTION_READY.md
+  reason: Autonomous run artifacts - created at runtime
+- file: docs\CHANGELOG.md
+  target: .autonomous_runs/lovable-integration-v1/run_config_phase0.json
+  reason: Autonomous run artifacts - created at runtime
+- file: docs\CHANGELOG.md
+  target: .autonomous_runs/lovable-integration-v1/AUTONOMOUS_IMPLEMENTATION_FEASIBILITY.md
+  reason: Autonomous run artifacts - created at runtime
+- file: docs\CHANGELOG.md
+  target: .autonomous_runs/lovable-integration-v1/AUTONOMOUS_IMPLEMENTATION_CHECKLIST.md
+  reason: Autonomous run artifacts - created at runtime
+- file: docs\CHANGELOG.md
+  target: .autonomous_runs/lovable-integration-v1/REVISED_IMPLEMENTATION_PLAN.md
+  reason: Autonomous run artifacts - created at runtime
+- file: docs\CHANGELOG.md
+  target: src/backend/
+  reason: Backend removed in BUILD-146, historical refs intentional
+- file: docs\CHANGELOG.md
+  target: autonomous_executor.py
+  reason: Historical code file reference - may have been moved/refactored
+- file: docs\CHANGELOG.md
+  target: /health
+  reason: HTTP API endpoint - informational reference, not file path
+- file: docs\CHANGELOG.md
+  target: .gitignore
+  reason: Git config file - code reference, not doc link
+- file: docs\CHANGELOG.md
+  target: __init__.py
+  reason: Generic Python package file - code reference, not doc link
+- file: docs\CHANGELOG.md
+  target: fileorganizer/fileorganizer/...
+  reason: Historical project component - removed, refs are intentional historical
+    context
+- file: docs\CHANGELOG.md
+  target: fileorganizer/frontend/...
+  reason: Historical project component - removed, refs are intentional historical
+    context
+- file: docs\CONTRIBUTING.md
+  target: .env
+  reason: Environment config file - code reference, not doc link
+- file: docs\CONTRIBUTING.md
+  target: .md
+  reason: File extension example in backticks - informational code formatting
+- file: docs\cursor\CURSOR_HELP_EXECUTOR_API_ISSUE.md
+  target: src/backend/main.py
+  reason: Backend removed in BUILD-146, historical refs intentional
+- file: docs\cursor\CURSOR_HELP_EXECUTOR_API_ISSUE.md
+  target: src/backend/database.py
+  reason: Backend removed in BUILD-146, historical refs intentional
+- file: docs\cursor\CURSOR_HELP_EXECUTOR_API_ISSUE.md
+  target: src/backend/api/runs.py
+  reason: Backend removed in BUILD-146, historical refs intentional
+- file: docs\cursor\CURSOR_PROMPT_RESEARCH_SYSTEM.md
+  target: .autonomous_runs/file-organizer-app-v1/archive/research/active/requirements/ALL_CHUNKS_SUMMARY.md
+  reason: Autonomous run artifacts - created at runtime
+- file: docs\cursor\CURSOR_PROMPT_RESEARCH_SYSTEM.md
+  target: .autonomous_runs/file-organizer-app-v1/archive/research/active/UNIFIED_RESEARCH_SYSTEM_IMPLEMENTATION_V2_REVISED.md
+  reason: Autonomous run artifacts - created at runtime
+- file: docs\cursor\CURSOR_PROMPT_RESEARCH_SYSTEM.md
+  target: __init__.py
+  reason: Generic Python package file - code reference, not doc link
+- file: docs\cursor\CURSOR_PROMPT_RESEARCH_SYSTEM.md
+  target: .autonomous_runs/research-system-v1/chunk0-issues.md
+  reason: Runtime markdown artifacts - created during autonomous operations
+- file: docs\cursor\PROMPT_FOR_OTHER_CURSOR_FILEORG.md
+  target: research_tracer/scraper.py
+  reason: Historical tracer bullet code - intentional historical reference
+- file: docs\cursor\PROMPT_FOR_OTHER_CURSOR_FILEORG.md
+  target: research_tracer/extractor.py
+  reason: Historical tracer bullet code - intentional historical reference
+- file: docs\cursor\PROMPT_FOR_OTHER_CURSOR_FILEORG.md
+  target: research_tracer/calculator.py
+  reason: Historical tracer bullet code - intentional historical reference
+- file: docs\cursor\PROMPT_FOR_OTHER_CURSOR_FILEORG.md
+  target: research_tracer/pipeline.py
+  reason: Historical tracer bullet code - intentional historical reference
+- file: docs\cursor\PROMPT_FOR_OTHER_CURSOR_FILEORG.md
+  target: research_tracer/
+  reason: Historical tracer bullet code - intentional historical reference
+- file: docs\CURSOR_PROMPT_TIDY.md
+  target: .md
+  reason: File extension example in backticks - informational code formatting
+- file: docs\DEBUG_LOG.md
+  target: __init__.py
+  reason: Generic Python package file - code reference, not doc link
+- file: docs\DEBUG_LOG.md
+  target: .autonomous_runs/file-organizer-app-v1/archive/research/active/requirements/chunk1b-foundation-intent-discovery.yaml
+  reason: Autonomous run artifacts - created at runtime
+- file: docs\DEBUG_LOG.md
+  target: .autonomous_runs/file-organizer-app-v1/archive/research/active/requirements/chunk2a-gatherers-social.yaml
+  reason: Autonomous run artifacts - created at runtime
+- file: docs\DEBUG_LOG.md
+  target: .autonomous_runs/file-organizer-app-v1/archive/research/active/requirements/chunk2b-gatherers-web-compilation.yaml
+  reason: Autonomous run artifacts - created at runtime
+- file: docs\DEBUG_LOG.md
+  target: .autonomous_runs/file-organizer-app-v1/archive/research/active/requirements/chunk3-meta-analysis.yaml
+  reason: Autonomous run artifacts - created at runtime
+- file: docs\DEBUG_LOG.md
+  target: .json
+  reason: File extension example in backticks - informational code formatting
+- file: docs\DEBUG_LOG.md
+  target: .git/
+  reason: Git directory - code reference, not doc link
+- file: docs\DEBUG_LOG.md
+  target: tracer_bullet/
+  reason: Tracer bullet code - historical reference
+- file: docs\DEBUG_LOG.md
+  target: src/backend/api/runs.py
+  reason: Backend removed in BUILD-146, historical refs intentional
+- file: docs\DEBUG_LOG.md
+  target: /health
+  reason: HTTP API endpoint - informational reference, not file path
+- file: docs\DEBUG_LOG.md
+  target: src/backend/main.py
+  reason: Backend removed in BUILD-146, historical refs intentional
+- file: docs\DEPLOYMENT.md
+  target: /health
+  reason: HTTP API endpoint - informational reference, not file path
+- file: docs\DOC_LINK_TRIAGE_REPORT.md
+  target: path/to/file.md
+  reason: Example placeholder path
+- file: docs\DOC_LINK_TRIAGE_REPORT.md
+  target: .github/workflows/ci.yml
+  reason: CI workflow may have been renamed or restructured
+- file: docs\DOC_LINK_TRIAGE_REPORT.md
+  target: path/to/file.txt
+  reason: Example placeholder path
+- file: docs\DOC_LINK_TRIAGE_REPORT.md
+  target: file.md
+  reason: Generic example path
+- file: docs\DOC_LINK_TRIAGE_REPORT.md
+  target: .md
+  reason: File extension example in backticks - informational code formatting
+- file: docs\DOC_LINK_TRIAGE_REPORT.md
+  target: excerpts/log_tail.txt
+  reason: Sample data or excerpts - not committed to repository
+- file: docs\DOC_LINK_TRIAGE_REPORT.md
+  target: archive/superseded/reports/BUILD-162_LOCK_STATUS_UX.md
+  reason: Reference to superseded document - content rolled into BUILD-161
+- file: docs\DOCKER_DEPLOYMENT_GUIDE.md
+  target: .env
+  reason: Environment config file - code reference, not doc link
+- file: docs\ERROR_HANDLING.md
+  target: tracer_bullet/file.py
+  reason: Tracer bullet code - historical reference
+- file: docs\ERROR_HANDLING.md
+  target: .git/
+  reason: Git directory - code reference, not doc link
+- file: docs\ERROR_HANDLING.md
+  target: __init__.py
+  reason: Generic Python package file - code reference, not doc link
+- file: docs\examples\ADVANCED_EXAMPLE.md
+  target: .autopack.yaml
+  reason: Historical config file format - may have migrated to new format
+- file: docs\examples\FAQ.md
+  target: .autopack.yaml
+  reason: Historical config file format - may have migrated to new format
+- file: docs\examples\FAQ.md
+  target: .gitignore
+  reason: Git config file - code reference, not doc link
+- file: docs\FUTURE_PLAN.md
+  target: .autonomous_runs/file-organizer-app-v1/archive/research/active/UNIFIED_RESEARCH_SYSTEM_IMPLEMENTATION_V2_REVISED.md
+  reason: Autonomous run artifacts - created at runtime
+- file: docs\FUTURE_PLAN.md
+  target: .autonomous_runs/file-organizer-app-v1/archive/research/active/requirements/chunk0-tracer-bullet.yaml
+  reason: Autonomous run artifacts - created at runtime
+- file: docs\FUTURE_PLAN.md
+  target: .autonomous_runs/file-organizer-app-v1/archive/research/active/requirements/chunk1a-foundation-orchestrator.yaml
+  reason: Autonomous run artifacts - created at runtime
+- file: docs\FUTURE_PLAN.md
+  target: .autonomous_runs/file-organizer-app-v1/archive/research/active/requirements/chunk1b-foundation-intent-discovery.yaml
+  reason: Autonomous run artifacts - created at runtime
+- file: docs\FUTURE_PLAN.md
+  target: .autonomous_runs/file-organizer-app-v1/archive/research/active/requirements/chunk2a-gatherers-social.yaml
+  reason: Autonomous run artifacts - created at runtime
+- file: docs\FUTURE_PLAN.md
+  target: .autonomous_runs/file-organizer-app-v1/archive/research/active/requirements/chunk2b-gatherers-web-compilation.yaml
+  reason: Autonomous run artifacts - created at runtime
+- file: docs\FUTURE_PLAN.md
+  target: .autonomous_runs/file-organizer-app-v1/archive/research/active/requirements/chunk3-meta-analysis.yaml
+  reason: Autonomous run artifacts - created at runtime
+- file: docs\FUTURE_PLAN.md
+  target: .autonomous_runs/file-organizer-app-v1/archive/research/active/requirements/chunk4-integration.yaml
+  reason: Autonomous run artifacts - created at runtime
+- file: docs\FUTURE_PLAN.md
+  target: .autonomous_runs/file-organizer-app-v1/archive/research/active/requirements/chunk5-testing-polish.yaml
+  reason: Autonomous run artifacts - created at runtime
+- file: docs\FUTURE_PLAN.md
+  target: .autonomous_runs/file-organizer-app-v1/archive/research/active/README.md
+  reason: Autonomous run artifacts - created at runtime
+- file: docs\FUTURE_PLAN.md
+  target: .autonomous_runs/file-organizer-app-v1/archive/research/active/requirements/ALL_CHUNKS_SUMMARY.md
+  reason: Autonomous run artifacts - created at runtime
+- file: docs\FUTURE_PLAN.md
+  target: .autonomous_runs/file-organizer-app-v1/archive/research/active/INDEX.md
+  reason: Autonomous run artifacts - created at runtime
+- file: docs\FUTURE_PLAN.md
+  target: .autonomous_runs/lovable-integration-v1/
+  reason: Autonomous run artifacts - created at runtime
+- file: docs\FUTURE_PLAN.md
+  target: .autonomous_runs/file-organizer-app-v1/archive/research/EXECUTIVE_SUMMARY.md
+  reason: Autonomous run artifacts - created at runtime
+- file: docs\FUTURE_PLAN.md
+  target: .autonomous_runs/file-organizer-app-v1/archive/research/LOVABLE_DEEP_DIVE_INCORPORATION_PLAN.md
+  reason: Autonomous run artifacts - created at runtime
+- file: docs\FUTURE_PLAN.md
+  target: .autonomous_runs/file-organizer-app-v1/archive/research/IMPLEMENTATION_PLAN_LOVABLE_INTEGRATION.md
+  reason: Autonomous run artifacts - created at runtime
+- file: docs\FUTURE_PLAN.md
+  target: .autonomous_runs/file-organizer-app-v1/archive/research/CLAUDE_CODE_CHROME_LOVABLE_PHASE5_ANALYSIS.md
+  reason: Autonomous run artifacts - created at runtime
+- file: docs\FUTURE_PLAN.md
+  target: .autonomous_runs/lovable-integration-v1/README.md
+  reason: Autonomous run artifacts - created at runtime
+- file: docs\FUTURE_PLAN.md
+  target: .autonomous_runs/lovable-integration-v1/run_config.json
+  reason: Autonomous run artifacts - created at runtime
+- file: docs\FUTURE_PLAN.md
+  target: .git/
+  reason: Git directory - code reference, not doc link
+- file: docs\FUTURE_PLAN.md
+  target: src/backend/packs/
+  reason: Backend removed in BUILD-146, historical refs intentional
+- file: docs\FUTURE_PLAN.md
+  target: src/backend/
+  reason: Backend removed in BUILD-146, historical refs intentional
+- file: docs\FUTURE_PLAN.md
+  target: .autonomous_runs/file-organizer-app-v1/archive/research/active/
+  reason: Autonomous run artifacts - created at runtime
+- file: docs\GOVERNANCE.md
+  target: .env
+  reason: Environment config file - code reference, not doc link
+- file: docs\GOVERNANCE.md
+  target: .git/
+  reason: Git directory - code reference, not doc link
+- file: docs\guides\BATCH_DRAIN_POST_REMEDIATION_REPORT.md
+  target: fileorganizer/fileorganizer/package-lock.json
+  reason: Historical project component - removed, refs are intentional historical
+    context
+- file: docs\guides\BATCH_DRAIN_RELIABILITY_AND_EFFICIENCY_PLAN.md
+  target: drain_one_phase.py
+  reason: Historical script - may have been refactored or removed
+- file: docs\guides\BATCH_DRAIN_SYSTEMIC_BLOCKERS_REMEDIATION_PLAN.md
+  target: fileorganizer/frontend/package-lock.json
+  reason: Package lock not tracked in git or project removed
+- file: docs\guides\BATCH_DRAIN_SYSTEMIC_BLOCKERS_REMEDIATION_PLAN.md
+  target: fileorganizer/
+  reason: Historical project component - removed, refs are intentional historical
+    context
+- file: docs\guides\BATCH_DRAIN_SYSTEMIC_BLOCKERS_REMEDIATION_PLAN.md
+  target: fileorganizer/frontend/...
+  reason: Historical project component - removed, refs are intentional historical
+    context
+- file: docs\guides\BATCH_DRAIN_SYSTEMIC_BLOCKERS_REMEDIATION_PLAN.md
+  target: autonomous_executor.py
+  reason: Historical code file reference - may have been moved/refactored
+- file: docs\guides\DB_HYGIENE_AND_TELEMETRY_SEEDING.md
+  target: .gitignore
+  reason: Git config file - code reference, not doc link
+- file: docs\guides\DB_HYGIENE_AND_TELEMETRY_SEEDING.md
+  target: drain_one_phase.py
+  reason: Historical script - may have been refactored or removed
+- file: docs\guides\DB_HYGIENE_AND_TELEMETRY_SEEDING.md
+  target: autonomous_executor.py
+  reason: Historical code file reference - may have been moved/refactored
+- file: docs\guides\DB_HYGIENE_AND_TELEMETRY_SEEDING.md
+  target: scripts/propose_estimator_calibration.py
+  reason: Proposed script - may not have been implemented
+- file: docs\guides\DB_HYGIENE_IMPLEMENTATION_SUMMARY.md
+  target: .gitignore
+  reason: Git config file - code reference, not doc link
+- file: docs\guides\DB_HYGIENE_IMPLEMENTATION_SUMMARY.md
+  target: drain_one_phase.py
+  reason: Historical script - may have been refactored or removed
+- file: docs\guides\DB_HYGIENE_IMPLEMENTATION_SUMMARY.md
+  target: scripts/propose_estimator_calibration.py
+  reason: Proposed script - may not have been implemented
+- file: docs\guides\DB_HYGIENE_README.md
+  target: .gitignore
+  reason: Git config file - code reference, not doc link
+- file: docs\guides\RESEARCH_CI_FIX_CHECKLIST.md
+  target: tests/autopack/autonomous/test_research_hooks.py
+  reason: Test paths - may not exist in all environments
+- file: docs\guides\RESEARCH_CI_IMPORT_FIX.md
+  target: tests/autopack/autonomous/test_research_hooks.py
+  reason: Test paths - may not exist in all environments
+- file: docs\guides\RESEARCH_SYSTEM_CI_COLLECTION_REMEDIATION_PLAN.md
+  target: __init__.py
+  reason: Generic Python package file - code reference, not doc link
+- file: docs\guides\WINDOWS_TASK_SCHEDULER_TIDY.md
+  target: .autonomous_runs/tidy_pending_moves.json
+  reason: Runtime artifact - created during tidy operations
+- file: docs\IMPLEMENTATION_PLAN_DIAGNOSTICS_PARITY_WITH_CURSOR.md
+  target: excerpts/
+  reason: Sample data or excerpts - not committed to repository
+- file: docs\IMPLEMENTATION_PLAN_TIDY_IDEAL_STATE_PHASE_E.md
+  target: .github/workflows/ci.yml
+  reason: CI workflow may have been renamed or restructured
+- file: docs\IMPLEMENTATION_PLAN_TIDY_IDEAL_STATE_PHASE_E.md
+  target: tidy_up.py
+  reason: Code file reference - may have been moved to scripts/
+- file: docs\IMPLEMENTATION_PLAN_TIDY_IDEAL_STATE_PHASE_E.md
+  target: .log
+  reason: File extension example in backticks - informational code formatting
+- file: docs\PRE_TIDY_GAP_ANALYSIS_2026-01-01.md
+  target: fileorganizer/
+  reason: Historical project component - removed, refs are intentional historical
+    context
+- file: docs\PRE_TIDY_GAP_ANALYSIS_2026-01-01.md
+  target: logs/
+  reason: Runtime log directory - code reference, not doc link
+- file: docs\PRE_TIDY_GAP_ANALYSIS_2026-01-01.md
+  target: research_tracer/
+  reason: Historical tracer bullet code - intentional historical reference
+- file: docs\PRE_TIDY_GAP_ANALYSIS_2026-01-01.md
+  target: tracer_bullet/
+  reason: Tracer bullet code - historical reference
+- file: docs\PRE_TIDY_GAP_ANALYSIS_2026-01-01.md
+  target: .autonomous_runs/file-organizer-app-v1/
+  reason: Autonomous run artifacts - created at runtime
+- file: docs\PRE_TIDY_GAP_ANALYSIS_2026-01-01.md
+  target: .gitignore
+  reason: Git config file - code reference, not doc link
+- file: docs\PRE_TIDY_GAP_ANALYSIS_2026-01-01.md
+  target: __init__.py
+  reason: Generic Python package file - code reference, not doc link
+- file: docs\PRE_TIDY_GAP_ANALYSIS_2026-01-01.md
+  target: .autonomous_runs/file-organizer-app-v1/src/
+  reason: Autonomous run artifacts - created at runtime
+- file: docs\PRE_TIDY_GAP_ANALYSIS_2026-01-01.md
+  target: .autonomous_runs/file-organizer-app-v1/docs/
+  reason: Autonomous run artifacts - created at runtime
+- file: docs\PRE_TIDY_GAP_ANALYSIS_2026-01-01.md
+  target: .log
+  reason: File extension example in backticks - informational code formatting
+- file: docs\PRE_TIDY_GAP_ANALYSIS_2026-01-01.md
+  target: .github/workflows/ci.yml
+  reason: CI workflow may have been renamed or restructured
+- file: docs\PROTECTION_AND_RETENTION_POLICY.md
+  target: .gitignore
+  reason: Git config file - code reference, not doc link
+- file: docs\REMAINING_IMPROVEMENTS_AFTER_BUILD_162.md
+  target: tidy_up.py
+  reason: Code file reference - may have been moved to scripts/
+- file: docs\reports\PRE_TIDY_AUDIT_REPORT.md
+  target: .log
+  reason: File extension example in backticks - informational code formatting
+- file: docs\reports\PRE_TIDY_AUDIT_REPORT.md
+  target: .md
+  reason: File extension example in backticks - informational code formatting
+- file: docs\reports\PRE_TIDY_AUDIT_REPORT.md
+  target: .json
+  reason: File extension example in backticks - informational code formatting
+- file: docs\reports\PRE_TIDY_AUDIT_REPORT.md
+  target: .txt
+  reason: File extension example in backticks - informational code formatting
+- file: docs\reports\PRE_TIDY_AUDIT_REPORT.md
+  target: .yaml
+  reason: File extension example in backticks - informational code formatting
+- file: docs\research\IMPLEMENTATION_GAP_ANALYSIS.md
+  target: tests/autopack/autonomous/test_research_hooks.py
+  reason: Test paths - may not exist in all environments
+- file: docs\STORAGE_OPTIMIZER_EXECUTION_GUIDE.md
+  target: .autonomous_runs/storage_execution.log
+  reason: Runtime log file - created during storage operations
+- file: docs\TIDY_SYSTEM_REVISION_PLAN_2026-01-01.md
+  target: fileorganizer/
+  reason: Historical project component - removed, refs are intentional historical
+    context
+- file: docs\TIDY_SYSTEM_REVISION_PLAN_2026-01-01.md
+  target: .autonomous_runs/file-organizer-app-v1/src/fileorganizer/
+  reason: Autonomous run artifacts - created at runtime
+- file: docs\TIDY_SYSTEM_REVISION_PLAN_2026-01-01.md
+  target: .autonomous_runs/file-organizer-app-v1/docs/
+  reason: Autonomous run artifacts - created at runtime
+- file: docs\TIDY_SYSTEM_REVISION_PLAN_2026-01-01.md
+  target: logs/
+  reason: Runtime log directory - code reference, not doc link
+- file: docs\TIDY_SYSTEM_REVISION_PLAN_2026-01-01.md
+  target: research_tracer/
+  reason: Historical tracer bullet code - intentional historical reference
+- file: docs\TIDY_SYSTEM_REVISION_PLAN_2026-01-01.md
+  target: tracer_bullet/
+  reason: Tracer bullet code - historical reference
+- file: docs\TIDY_SYSTEM_REVISION_PLAN_2026-01-01.md
+  target: .autonomous_runs/file-organizer-app-v1/
+  reason: Autonomous run artifacts - created at runtime
+- file: docs\TIDY_SYSTEM_REVISION_PLAN_2026-01-01.md
+  target: .log
+  reason: File extension example in backticks - informational code formatting
+- file: docs\TIDY_SYSTEM_REVISION_PLAN_2026-01-01.md
+  target: .github/workflows/ci.yml
+  reason: CI workflow may have been renamed or restructured
+- file: docs\TIDY_SYSTEM_USAGE.md
+  target: tidy_up.py
+  reason: Code file reference - may have been moved to scripts/
+- file: docs\TIDY_SYSTEM_USAGE.md
+  target: .log
+  reason: File extension example in backticks - informational code formatting
+- file: docs\TIDY_SYSTEM_USAGE.md
+  target: .txt
+  reason: File extension example in backticks - informational code formatting
+- file: docs\TROUBLESHOOTING.md
+  target: tracer_bullet/file.py
+  reason: Tracer bullet code - historical reference
+- file: docs\TROUBLESHOOTING.md
+  target: .git/
+  reason: Git directory - code reference, not doc link
+- file: docs\TROUBLESHOOTING.md
+  target: fileorganizer/frontend/
+  reason: Historical project component - removed, refs are intentional historical
+    context
+- file: docs\TROUBLESHOOTING.md
+  target: fileorganizer/
+  reason: Historical project component - removed, refs are intentional historical
+    context
+- file: docs\WORKSPACE_ORGANIZATION_SPEC.md
+  target: .gitignore
+  reason: Git config file - code reference, not doc link
+- file: docs\WORKSPACE_ORGANIZATION_SPEC.md
+  target: .env
+  reason: Environment config file - code reference, not doc link
+- file: docs\WORKSPACE_ORGANIZATION_SPEC.md
+  target: .autonomous_runs/file-organizer-app-v1/
+  reason: Autonomous run artifacts - created at runtime
+- file: docs\WORKSPACE_ORGANIZATION_SPEC.md
+  target: .md
+  reason: File extension example in backticks - informational code formatting
+- file: docs\reports\BUILD-167_DOC_LINK_BURNDOWN_PLAN.md
+  target: fileorganizer/
+  reason: Historical project component - removed, refs are intentional historical
+    context
+- file: docs\reports\BUILD-167_DOC_LINK_BURNDOWN_PLAN.md
+  target: .log
+  reason: File extension example in backticks - informational code formatting
+- file: docs\reports\BUILD-167_DOC_LINK_BURNDOWN_PLAN.md
+  target: /health
+  reason: HTTP API endpoint - informational reference, not file path
+- file: docs\reports\BUILD-167_DOC_LINK_BURNDOWN_PLAN.md
+  target: .md
+  reason: File extension example in backticks - informational code formatting
+- file: docs\reports\BUILD-167_DOC_LINK_BURNDOWN_PLAN.md
+  target: __init__.py
+  reason: Generic Python package file - code reference, not doc link
+- file: docs\reports\BUILD-167_DOC_LINK_BURNDOWN_PLAN.md
+  target: .git/
+  reason: Git directory - code reference, not doc link
+- file: docs\reports\BUILD-167_DOC_LINK_BURNDOWN_PLAN.md
+  target: .json
+  reason: File extension example in backticks - informational code formatting
+- file: docs\reports\BUILD-167_DOC_LINK_BURNDOWN_PLAN.md
+  target: autonomous_executor.py
+  reason: Historical code file reference - may have been moved/refactored
+- file: docs\reports\BUILD-167_DOC_LINK_BURNDOWN_PLAN.md
+  target: .github/workflows/ci.yml
+  reason: CI workflow may have been renamed or restructured
+- file: docs\reports\BUILD-167_DOC_LINK_BURNDOWN_PLAN.md
+  target: .gitignore
+  reason: Git config file - code reference, not doc link
+- file: docs\reports\BUILD-167_DOC_LINK_BURNDOWN_PLAN.md
+  target: tidy_up.py
+  reason: Code file reference - may have been moved to scripts/
+- file: docs\reports\BUILD-167_DOC_LINK_BURNDOWN_PLAN.md
+  target: research_tracer/
+  reason: Historical tracer bullet code - intentional historical reference
+- file: docs\reports\BUILD-167_DOC_LINK_BURNDOWN_PLAN.md
+  target: .env
+  reason: Environment config file - code reference, not doc link
+- file: docs\reports\BUILD-167_DOC_LINK_BURNDOWN_PLAN.md
+  target: logs/
+  reason: Runtime log directory - code reference, not doc link
+- file: docs\reports\BUILD-167_DOC_LINK_BURNDOWN_PLAN.md
+  target: .txt
+  reason: File extension example in backticks - informational code formatting
+- file: docs\reports\BUILD-167_DOC_LINK_BURNDOWN_PLAN.md
+  target: drain_one_phase.py
+  reason: Historical script - may have been refactored or removed
+- file: docs\reports\BUILD-167_DOC_LINK_BURNDOWN_PLAN.md
+  target: .yaml
+  reason: File extension example in backticks - informational code formatting
+- file: docs\reports\BUILD-167_DOC_LINK_BURNDOWN_PLAN.md
+  target: tracer_bullet/
+  reason: Tracer bullet code - historical reference

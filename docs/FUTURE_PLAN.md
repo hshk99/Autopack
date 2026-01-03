@@ -27,7 +27,7 @@ This file contains tasks in Autopack format for autonomous execution.
 **Current Status**: Phase 0 ✅ | Phase 1 ✅ | Phase 2 ✅ | PROJECT COMPLETE
 **Citation Validity**: 77.8% (was 59.3% baseline, +18.5% improvement)
 **Plan Version**: v2.3
-**Reference**: [docs/RESEARCH_CITATION_FIX_PLAN.md](RESEARCH_CITATION_FIX_PLAN.md)
+**Reference**: [docs/RESEARCH_CITATION_FIX_PLAN.md](archive/superseded/plans/RESEARCH_CITATION_FIX_PLAN.md)
 **Completion Date**: 2025-12-16
 
 ### Context
@@ -184,7 +184,7 @@ The research system citation validity improvement project implemented fixes to i
   - ⏳ Phase 4: Update get_next_executable_phase() method
   - ⏳ Phase 5: Feature flag and testing
   - ⏳ Phase 6: Rollout and monitoring
-- **Reference**: [BUILD-041_EXECUTOR_STATE_PERSISTENCE.md](BUILD-041_EXECUTOR_STATE_PERSISTENCE.md)
+- **Reference**: [BUILD-041_EXECUTOR_STATE_PERSISTENCE.md](archive/superseded/reports/BUILD-041_EXECUTOR_STATE_PERSISTENCE.md)
 - **Blocked**: FileOrganizer Phase 2 Beta Release (infinite loop prevents execution)
 
 **BUILD-049** (2025-12-18T04:00) - ✅ COMPLETE: Deliverables Validation & Self-Correction
@@ -204,7 +204,7 @@ The research system citation validity improvement project implemented fixes to i
   - Bug #5: ➡️ Escalated to BUILD-050 (architectural fix required)
 - **Impact**: Enables autonomous self-correction - Builder now receives validation feedback on retry attempts
 - **Verification**: Executor attempt 7 confirmed Builder receiving 5 hints (0 before fix), attempt 8 showed partial success with improved hints
-- **Reference**: [BUILD-049_DELIVERABLES_VALIDATION.md](BUILD-049_DELIVERABLES_VALIDATION.md), [DEBUG_LOG.md](DEBUG_LOG.md)
+- **Reference**: [BUILD-049_DELIVERABLES_VALIDATION.md](archive/superseded/reports/BUILD-049_DELIVERABLES_VALIDATION.md), [DEBUG_LOG.md](DEBUG_LOG.md)
 
 **BUILD-050** (2025-12-18) - ✅ COMPLETE (Phases 1 & 2): Self-Correction Architecture Improvements
 - **Status**: Phase 1 ✅ Complete | Phase 2 ✅ Complete | Phase 3 Future Work
@@ -232,7 +232,7 @@ The research system citation validity improvement project implemented fixes to i
     - Added `MAX_RETRY_ATTEMPTS = 5` constant
   - ⏳ **Phase 3**: Generalize tactical vs strategic error handling (future enhancement)
 - **Impact**: Enables consistent, reliable autonomous self-correction with non-destructive replanning
-- **Reference**: [DBG-014_REPLAN_INTERFERENCE_ANALYSIS.md](DBG-014_REPLAN_INTERFERENCE_ANALYSIS.md), [DEBUG_LOG.md](DEBUG_LOG.md#dbg-014)
+- **Reference**: [DBG-014_REPLAN_INTERFERENCE_ANALYSIS.md](archive/superseded/diagnostics/DBG-014_REPLAN_INTERFERENCE_ANALYSIS.md), [DEBUG_LOG.md](DEBUG_LOG.md#dbg-014)
 - **Commits**: da261695, 9d24aa73
 
 ---

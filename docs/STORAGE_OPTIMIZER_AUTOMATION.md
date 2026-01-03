@@ -356,7 +356,7 @@ curl https://api.telegram.org/bot<YOUR_TOKEN>/getMe
 
 - Keep delta reports for **90 days**
 - Archive older reports to compressed storage
-- Database scans: retain indefinitely (or apply custom retention via `docs/DATA_RETENTION_AND_STORAGE_POLICY.md`)
+- Database scans: retain indefinitely (or apply custom retention via `archive/superseded/reports/unsorted/DATA_RETENTION_AND_STORAGE_POLICY.md`)
 
 ## Next Steps
 
@@ -368,7 +368,7 @@ curl https://api.telegram.org/bot<YOUR_TOKEN>/getMe
 
 ## See Also
 
-- [Storage Optimizer MVP Completion](STORAGE_OPTIMIZER_MVP_COMPLETION.md) - Core execution features
+- [Storage Optimizer MVP Completion](archive/superseded/reports/unsorted/STORAGE_OPTIMIZER_MVP_COMPLETION.md) - Core execution features
 - [Storage Optimizer Intelligence](STORAGE_OPTIMIZER_INTELLIGENCE_COMPLETE.md) - Pattern learning and smart categorization
-- [Data Retention and Storage Policy](DATA_RETENTION_AND_STORAGE_POLICY.md) - Retention configuration
+- [Data Retention and Storage Policy](archive/superseded/reports/unsorted/DATA_RETENTION_AND_STORAGE_POLICY.md) - Retention configuration
 - [Troubleshooting Guide](TROUBLESHOOTING.md) - Windows lock handling, permission issues

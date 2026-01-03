@@ -399,7 +399,7 @@ PYTHONPATH=src pytest -vv tests/test_file.py
 
 - [CONTRIBUTING.md](CONTRIBUTING.md) - Development setup and guidelines
 - [pytest.ini](../pytest.ini) - Test configuration
-- [BUILD-132_IMPLEMENTATION_STATUS.md](BUILD-132_IMPLEMENTATION_STATUS.md) - Coverage delta integration
+- [BUILD-132_IMPLEMENTATION_STATUS.md](archive/superseded/reports/BUILD-132_IMPLEMENTATION_STATUS.md) - Coverage delta integration
 - [pytest documentation](https://docs.pytest.org/) - Official pytest docs
 
 ---

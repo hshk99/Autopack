@@ -277,11 +277,11 @@ TELEMETRY_DB_ENABLED=1            # Enable telemetry persistence
 - [DEBUG_LOG.md](DEBUG_LOG.md) - Issue tracking
 
 **Implementation Guides**:
-- [BUILD-112: Diagnostics Parity](BUILD-112_DIAGNOSTICS_PARITY_CURSOR.md)
-- [BUILD-113: Autonomous Investigation](BUILD-113_ITERATIVE_AUTONOMOUS_INVESTIGATION.md)
-- [BUILD-127: Self-Healing Governance](BUILD-127_REVISED_PLAN.md)
-- [BUILD-128: Deliverables-Aware Manifest](BUILD-128_ROOT_CAUSE_AND_PREVENTION.md)
-- [BUILD-129: Token Budget Intelligence](BUILD-129_PHASE1_VALIDATION_COMPLETE.md)
+- [BUILD-112: Diagnostics Parity](archive/superseded/reports/BUILD-112_DIAGNOSTICS_PARITY_CURSOR.md)
+- [BUILD-113: Autonomous Investigation](archive/superseded/reports/BUILD-113_ITERATIVE_AUTONOMOUS_INVESTIGATION.md)
+- [BUILD-127: Self-Healing Governance](archive/superseded/reports/BUILD-127_REVISED_PLAN.md)
+- [BUILD-128: Deliverables-Aware Manifest](archive/superseded/reports/BUILD-128_ROOT_CAUSE_AND_PREVENTION.md)
+- [BUILD-129: Token Budget Intelligence](archive/superseded/reports/BUILD-129_PHASE1_VALIDATION_COMPLETE.md)
 
 ---
 

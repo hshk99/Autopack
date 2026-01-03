@@ -1,0 +1,144 @@
+{
+  "metadata": {
+    "version": "1.0",
+    "description": "Learned rules for deterministic error mitigation (Track 2: Telemetry → Rules)",
+    "created_at": "2026-01-03T16:00:00Z",
+    "last_updated": "2026-01-03T16:00:00Z",
+    "enforcement_mode": "guidance",
+    "note": "Guidance-only rules to inform future error handling. Use scripts/analyze_failures_to_rules.py to append new rules."
+  },
+  "rules": [
+    {
+      "id": "rule_bootstrap_001",
+      "created_at": "2026-01-03T16:00:00Z",
+      "signature": "PermissionError: [Errno 13] Permission denied",
+      "recommendation": "Skip file/directory and log warning; do not retry. Verify file permissions or add to exclusion list.",
+      "confidence": "high",
+      "evidence": [
+        "Example: .autonomous_runs cleanup encountering locked database files",
+        "Example: Storage optimizer hitting system-protected directories"
+      ],
+      "frequency": 0,
+      "scope": "tidy",
+      "enforcement": "guidance",
+      "notes": "Common in Windows when files are locked by running processes or system protection"
+    },
+    {
+      "id": "rule_bootstrap_002",
+      "created_at": "2026-01-03T16:00:00Z",
+      "signature": "FileNotFoundError: [Errno 2] No such file or directory",
+      "recommendation": "Skip missing file; verify upstream source exists. If recurring, update path references or add to ignore list.",
+      "confidence": "medium",
+      "evidence": [
+        "Example: Stale references in pending queue after files were moved/deleted",
+        "Example: Broken symbolic links in cleanup operations"
+      ],
+      "frequency": 0,
+      "scope": "tidy",
+      "enforcement": "guidance",
+      "notes": "Often indicates TOCTOU (time-of-check-time-of-use) race condition or stale references"
+    },
+    {
+      "id": "rule_bootstrap_003",
+      "created_at": "2026-01-03T16:00:00Z",
+      "signature": "TimeoutError: Operation timed out after <N> seconds",
+      "recommendation": "Retry with exponential backoff (max 3 attempts). If persistent, increase timeout or investigate network/service health.",
+      "confidence": "high",
+      "evidence": [
+        "Example: API calls during high load",
+        "Example: Lock acquisition during concurrent operations"
+      ],
+      "frequency": 0,
+      "scope": "api",
+      "enforcement": "guidance",
+      "notes": "Distinguish between network timeouts (retry) and application hangs (investigate)"
+    },
+    {
+      "id": "rule_bootstrap_004",
+      "created_at": "2026-01-03T16:00:00Z",
+      "signature": "HTTP_429: Too Many Requests",
+      "recommendation": "Respect rate limit headers (Retry-After). Wait specified duration before retry. Consider implementing client-side rate limiting.",
+      "confidence": "high",
+      "evidence": [
+        "Example: Anthropic API rate limits during batch operations",
+        "Example: GitHub API rate limits during intensive repository scanning"
+      ],
+      "frequency": 0,
+      "scope": "api",
+      "enforcement": "guidance",
+      "notes": "Critical for API reliability; always honor Retry-After header"
+    },
+    {
+      "id": "rule_bootstrap_005",
+      "created_at": "2026-01-03T16:00:00Z",
+      "signature": "sqlite3.OperationalError: database is locked",
+      "recommendation": "Retry with exponential backoff (max 5 attempts). If persistent after 30s, verify no long-running transactions or stale locks.",
+      "confidence": "high",
+      "evidence": [
+        "Example: Concurrent tidy + API server accessing same SQLite DB",
+        "Example: Long-running autonomous execution holding transaction open"
+      ],
+      "frequency": 0,
+      "scope": "database",
+      "enforcement": "guidance",
+      "notes": "Consider connection pooling with busy_timeout or migration to PostgreSQL for high-concurrency scenarios"
+    },
+    {
+      "id": "rule_bootstrap_006",
+      "created_at": "2026-01-03T16:00:00Z",
+      "signature": "JSONDecodeError: Expecting value: line <N> column <N>",
+      "recommendation": "Log corrupted file path and skip. If configuration file, alert user. If telemetry/cache, delete and regenerate.",
+      "confidence": "medium",
+      "evidence": [
+        "Example: Partially written JSON files from interrupted processes",
+        "Example: Corrupted cache files after system crash"
+      ],
+      "frequency": 0,
+      "scope": "general",
+      "enforcement": "guidance",
+      "notes": "Distinguish between user config (alert) vs system cache (safe to delete)"
+    },
+    {
+      "id": "rule_bootstrap_007",
+      "created_at": "2026-01-03T16:00:00Z",
+      "signature": "ConnectionError: Failed to establish connection",
+      "recommendation": "Retry with exponential backoff (max 3 attempts). Verify network connectivity and service availability. Check firewall/proxy settings.",
+      "confidence": "medium",
+      "evidence": [
+        "Example: Transient network issues",
+        "Example: Service restarts or deployments"
+      ],
+      "frequency": 0,
+      "scope": "api",
+      "enforcement": "guidance",
+      "notes": "Log full error details for network diagnostics"
+    },
+    {
+      "id": "rule_bootstrap_008",
+      "created_at": "2026-01-03T16:00:00Z",
+      "signature": "UnicodeDecodeError: 'utf-8' codec can't decode byte",
+      "recommendation": "Try fallback encodings (latin-1, cp1252). If persistent, skip file and log as binary or corrupted. Consider encoding detection library.",
+      "confidence": "low",
+      "evidence": [
+        "Example: Legacy files with mixed encodings",
+        "Example: Binary files misidentified as text"
+      ],
+      "frequency": 0,
+      "scope": "general",
+      "enforcement": "guidance",
+      "notes": "Common with Windows files created in different locales"
+    }
+  ],
+  "schema_notes": {
+    "id": "Unique identifier for rule (rule_<hash>)",
+    "created_at": "ISO 8601 timestamp when rule was created",
+    "signature": "Normalized error signature (paths/numbers removed)",
+    "recommendation": "Deterministic mitigation steps",
+    "confidence": "low | medium | high (based on frequency and specificity)",
+    "evidence": "List of run IDs or example scenarios where this occurred",
+    "frequency": "Number of times this signature appeared in analysis",
+    "scope": "Subsystem where rule applies (tidy, api, database, general, etc.)",
+    "enforcement": "guidance | warning | strict (guidance = log only, no runtime enforcement)",
+    "notes": "Optional human-readable context or special considerations"
+  }
+}

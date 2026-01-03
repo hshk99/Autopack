@@ -284,4 +284,4 @@ Potential improvements for future versions:
 - [drain_queued_phases.py](../../scripts/drain_queued_phases.py) - For processing queued phases
 - [pick_next_run.py](../../scripts/pick_next_run.py) - For selecting next priority run
 - [list_run_counts.py](../../scripts/list_run_counts.py) - For viewing run status
-- [BUILD_LOG.md](../../BUILD_LOG.md) - Development history and systemic improvements
+- [BUILD_LOG.md](archive/superseded/reports/BUILD_LOG.md) - Development history and systemic improvements

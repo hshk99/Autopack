@@ -117,7 +117,7 @@ For the latest status, see:
   - **Marker-Based Quarantine**: Replaced 6 `--ignore` entries with `-m "not research"` (deselects but keeps visible)
   - **XFAIL Budget Guard**: Created `tests/test_xfail_budget.py` enforcing EXPECTED_XFAIL_COUNT (121) ± 5 tolerance
   - **Auto-Marking**: Research tests auto-marked via `pytest_collection_modifyitems` in conftest.py
-  - **Documentation**: Updated [RESEARCH_QUARANTINE.md](docs/RESEARCH_QUARANTINE.md) with marker-based approach
+  - **Documentation**: Updated [RESEARCH_QUARANTINE.md](archive/superseded/research/unsorted/RESEARCH_QUARANTINE.md) with marker-based approach
 - **End State**:
   - Core CI: ✅ GREEN (1358 passing, 0 failing)
   - Research tests: Deselected but visible (348 tests, 24 collection errors expected)
@@ -163,7 +163,7 @@ For the latest status, see:
 - **Solution Implemented**:
   - **Phase 5 (API Consolidation)**: Migrated auth to `autopack.auth` namespace, deleted `src/backend/` (56 files)
   - **SyntaxError Fix**: Changed invalid `continue` to `return (False, "FAILED")` in executor retry logic
-  - **Test Quarantine**: Documented 360+ research tests in [RESEARCH_QUARANTINE.md](docs/RESEARCH_QUARANTINE.md)
+  - **Test Quarantine**: Documented 360+ research tests in [RESEARCH_QUARANTINE.md](archive/superseded/research/unsorted/RESEARCH_QUARANTINE.md)
   - **Circuit Breaker Fix**: Corrected logger to use `self.config` instead of `config` parameter
   - **CI Guard**: Added [scripts/check_syntax.py](scripts/check_syntax.py) to prevent SyntaxErrors
 - **End State**:
@@ -238,7 +238,7 @@ For the latest status, see:
 
 - **Documentation**:
   - [IMPLEMENTATION_PLAN_TRUE_AUTONOMY.md](docs/IMPLEMENTATION_PLAN_TRUE_AUTONOMY.md) - Full roadmap
-  - [TRUE_AUTONOMY_COMPLETE_IMPLEMENTATION_REPORT.md](docs/TRUE_AUTONOMY_COMPLETE_IMPLEMENTATION_REPORT.md) - Detailed report
+  - [TRUE_AUTONOMY_COMPLETE_IMPLEMENTATION_REPORT.md](archive/superseded/reports/unsorted/TRUE_AUTONOMY_COMPLETE_IMPLEMENTATION_REPORT.md) - Detailed report
 
 ---
 
@@ -582,7 +582,7 @@ For the latest status, see:
 - **Planned Tasks** (5 components):
 
   **1. Rollout Playbook + Safety Rails**
-  - Create `docs/STAGING_ROLLOUT.md` with production readiness checklist
+  - Create `archive/superseded/reports/unsorted/STAGING_ROLLOUT.md` with production readiness checklist
   - Add kill switches: `AUTOPACK_ENABLE_PHASE6_METRICS`, `AUTOPACK_ENABLE_CONSOLIDATED_METRICS` (default OFF)
   - Create health check endpoint with dependency validation
   - Document rollback procedures and performance baselines
@@ -613,8 +613,8 @@ For the latest status, see:
   - Generate comparison reports in `archive/replay_results/`
 
 - **Implementation Prompts**:
-  - [NEXT_SESSION_TECHNICAL_PROMPT.md](NEXT_SESSION_TECHNICAL_PROMPT.md) - Complete technical specification (500+ lines)
-  - [NEXT_SESSION_USER_PROMPT.md](NEXT_SESSION_USER_PROMPT.md) - User-facing prompt for next session
+  - [NEXT_SESSION_TECHNICAL_PROMPT.md](archive/superseded/prompts/unsorted/NEXT_SESSION_TECHNICAL_PROMPT.md) - Complete technical specification (500+ lines)
+  - [NEXT_SESSION_USER_PROMPT.md](archive/superseded/prompts/unsorted/NEXT_SESSION_USER_PROMPT.md) - User-facing prompt for next session
 
 - **Critical Constraints**:
   - All features opt-in (kill switches OFF by default)
@@ -1313,7 +1313,7 @@ python scripts/run_parallel.py --run-ids-file benchmark_runs.txt \
   - ✅ Non-docs categories protected (unit tests confirm)
   - ✅ Telemetry accuracy (selected_budget reflects estimator intent)
   - ✅ Comprehensive test coverage (26 tests, all passing)
-- **Documentation**: [BUILD-142-COMPLETION-SUMMARY.md](docs/BUILD-142-COMPLETION-SUMMARY.md) (comprehensive 298-line summary)
+- **Documentation**: [BUILD-142-COMPLETION-SUMMARY.md](archive/superseded/reports/BUILD-142-COMPLETION-SUMMARY.md) (comprehensive 298-line summary)
 - **Files Changed**: 14 files
   - Core implementation: [src/autopack/anthropic_clients.py](src/autopack/anthropic_clients.py) (4 fix locations)
   - Tests (NEW): [test_anthropic_clients_category_aware_override.py](tests/autopack/test_anthropic_clients_category_aware_override.py) (15 tests), [test_token_estimator_base_budgets.py](tests/autopack/test_token_estimator_base_budgets.py) (11 tests)
@@ -1351,7 +1351,7 @@ python scripts/run_parallel.py --run-ids-file benchmark_runs.txt \
   - 11 tests: [test_token_estimator_base_budgets.py](tests/autopack/test_token_estimator_base_budgets.py)
   - 4 tests (NEW): [test_token_estimation_v2_schema_drift.py](tests/autopack/test_token_estimation_v2_schema_drift.py) (CI drift prevention)
 - **Documentation**:
-  - [docs/BUILD-142-PROVIDER-PARITY-REPORT.md](docs/BUILD-142-PROVIDER-PARITY-REPORT.md) (560+ lines implementation report)
+  - [docs/BUILD-142-PROVIDER-PARITY-REPORT.md](archive/superseded/reports/BUILD-142-PROVIDER-PARITY-REPORT.md) (560+ lines implementation report)
   - [docs/guides/BUILD-142_MIGRATION_RUNBOOK.md](docs/guides/BUILD-142_MIGRATION_RUNBOOK.md) (migration instructions with verification)
   - [docs/guides/TELEMETRY_COLLECTION_UNIFIED_WORKFLOW.md](docs/guides/TELEMETRY_COLLECTION_UNIFIED_WORKFLOW.md) (updated with BUILD-142 semantics)
 - **Migration Support**:
@@ -1370,7 +1370,7 @@ python scripts/run_parallel.py --run-ids-file benchmark_runs.txt \
   - Calibration: [calibrate_token_estimator.py](scripts/calibrate_token_estimator.py)
   - Migration: [add_actual_max_tokens_to_token_estimation_v2.py](scripts/migrations/add_actual_max_tokens_to_token_estimation_v2.py)
   - Tests (NEW): [test_token_estimation_v2_schema_drift.py](tests/autopack/test_token_estimation_v2_schema_drift.py)
-  - Docs: [BUILD-142_MIGRATION_RUNBOOK.md](docs/guides/BUILD-142_MIGRATION_RUNBOOK.md), [TELEMETRY_COLLECTION_UNIFIED_WORKFLOW.md](docs/guides/TELEMETRY_COLLECTION_UNIFIED_WORKFLOW.md), [BUILD-142-PROVIDER-PARITY-REPORT.md](docs/BUILD-142-PROVIDER-PARITY-REPORT.md)
+  - Docs: [BUILD-142_MIGRATION_RUNBOOK.md](docs/guides/BUILD-142_MIGRATION_RUNBOOK.md), [TELEMETRY_COLLECTION_UNIFIED_WORKFLOW.md](docs/guides/TELEMETRY_COLLECTION_UNIFIED_WORKFLOW.md), [BUILD-142-PROVIDER-PARITY-REPORT.md](archive/superseded/reports/BUILD-142-PROVIDER-PARITY-REPORT.md)
 
 ---
 
@@ -1931,7 +1931,7 @@ python scripts/run_parallel.py --run-ids-file benchmark_runs.txt \
   - [src/autopack/memory/memory_service.py](src/autopack/memory/memory_service.py) - Qdrant auto-start + FAISS fallback
   - [scripts/drain_queued_phases.py](scripts/drain_queued_phases.py) - NEW: Batch processing
   - [docker-compose.yml](docker-compose.yml) - Added Qdrant service
-- **Docs**: [BUILD-129_PHASE3_FINAL_SUMMARY.md](docs/BUILD-129_PHASE3_FINAL_SUMMARY.md), [RUNBOOK_QDRANT_AND_TELEMETRY_DRAIN.md](docs/RUNBOOK_QDRANT_AND_TELEMETRY_DRAIN.md)
+- **Docs**: [BUILD-129_PHASE3_FINAL_SUMMARY.md](archive/superseded/reports/BUILD-129_PHASE3_FINAL_SUMMARY.md), [RUNBOOK_QDRANT_AND_TELEMETRY_DRAIN.md](docs/RUNBOOK_QDRANT_AND_TELEMETRY_DRAIN.md)
 
 ### BUILD-130 Schema Validation & Circuit Breaker (2025-12-23) - ✅ COMPLETE
 **Prevention Infrastructure** - Eliminates infinite retry loops and schema drift errors
@@ -1977,7 +1977,7 @@ python scripts/run_parallel.py --run-ids-file benchmark_runs.txt \
   - **Impact**: 60% truncation rate reduction, saves retries and API costs, enables data-driven coefficient tuning
   - **Status**: Production-ready, awaiting 20+ successful samples for validation
   - **Files**: [token_estimator.py](src/autopack/token_estimator.py) (135 lines), [anthropic_clients.py:652-699](src/autopack/anthropic_clients.py#L652-L699) (V2 telemetry), [analyze_token_telemetry_v3.py](scripts/analyze_token_telemetry_v3.py) (505 lines), [tests/test_token_estimator.py](tests/test_token_estimator.py) (8 tests)
-  - **Docs**: [BUILD-129_PHASE1_VALIDATION_COMPLETE.md](docs/BUILD-129_PHASE1_VALIDATION_COMPLETE.md), [TOKEN_ESTIMATION_VALIDATION_LEARNINGS.md](docs/TOKEN_ESTIMATION_VALIDATION_LEARNINGS.md), [TOKEN_ESTIMATION_V3_ENHANCEMENTS.md](docs/TOKEN_ESTIMATION_V3_ENHANCEMENTS.md)
+  - **Docs**: [BUILD-129_PHASE1_VALIDATION_COMPLETE.md](archive/superseded/reports/BUILD-129_PHASE1_VALIDATION_COMPLETE.md), [TOKEN_ESTIMATION_VALIDATION_LEARNINGS.md](archive/superseded/reports/unsorted/TOKEN_ESTIMATION_VALIDATION_LEARNINGS.md), [TOKEN_ESTIMATION_V3_ENHANCEMENTS.md](archive/superseded/reports/unsorted/TOKEN_ESTIMATION_V3_ENHANCEMENTS.md)
 - **Phase 2: Continuation-Based Recovery**
   - Robust continuation recovery for truncated Builder responses using structured continuation plans
   - Builder emits continuation plan when output exceeds token budget, executor resumes from last completed file
@@ -1999,7 +1999,7 @@ python scripts/run_parallel.py --run-ids-file benchmark_runs.txt \
 - **Solution**: Category inference from deliverable paths via regex patterns (backend/frontend/tests/database/docs/config), path sanitization for human annotations, scope expansion with category-specific context files
 - **Impact**: Prevents incorrect phase categorization, fixes BUILD-127 governance rejection, emphasizes future reusability - NOT a one-off fix
 - **Files**: [manifest_generator.py](src/autopack/manifest_generator.py) (+270 lines), [deliverables_validator.py](src/autopack/deliverables_validator.py) (sanitize_deliverable_path +48 lines), [tests/test_manifest_deliverables_aware.py](tests/test_manifest_deliverables_aware.py) (19 tests)
-- **Docs**: [BUILD-128_DELIVERABLES_AWARE_MANIFEST.md](docs/BUILD-128_DELIVERABLES_AWARE_MANIFEST.md)
+- **Docs**: [BUILD-128_DELIVERABLES_AWARE_MANIFEST.md](archive/superseded/reports/BUILD-128_DELIVERABLES_AWARE_MANIFEST.md)
 
 ### BUILD-127 Self-Healing Governance Foundation (2025-12-23) - ✅ COMPLETE
 **All 3 Phases Complete** - Authoritative completion gates and self-negotiation for protected paths
@@ -2021,7 +2021,7 @@ python scripts/run_parallel.py --run-ids-file benchmark_runs.txt \
   - **Impact**: Catches missing test files and symbols (BUILD-126 Phase E2 scenario), improves deliverable enforcement beyond file existence
   - **Files**: [anthropic_clients.py:2331-2360](src/autopack/anthropic_clients.py#L2331-L2360), [deliverables_validator.py:942-1079](src/autopack/deliverables_validator.py#L942-L1079), [phase_finalizer.py:177-197](src/autopack/phase_finalizer.py#L177-L197), [tests/test_manifest_validation.py](tests/test_manifest_validation.py) (15 tests, 237 lines)
 - **Total**: 33 unit tests passing across Phase 2 & 3 (Phase 1 tests included in earlier builds)
-- **Docs**: [BUILD-127-129_IMPLEMENTATION_STATUS.md](docs/BUILD-127-129_IMPLEMENTATION_STATUS.md) (comprehensive implementation status)
+- **Docs**: [BUILD-127-129_IMPLEMENTATION_STATUS.md](archive/superseded/reports/BUILD-127-129_IMPLEMENTATION_STATUS.md) (comprehensive implementation status)
 
 ### BUILD-123v2 Manifest Generator - Deterministic Scope Generation (2025-12-22) - ✅ COMPLETE
 **Meta-Layer Enhancement** - Automatic scope generation from unorganized implementation plans
@@ -2046,7 +2046,7 @@ python scripts/run_parallel.py --run-ids-file benchmark_runs.txt \
   - [src/autopack/preflight_validator.py](src/autopack/preflight_validator.py) - Validation (reuses governed_apply logic)
   - [src/autopack/scope_expander.py](src/autopack/scope_expander.py) - Controlled scope expansion (deterministic-first)
   - [src/autopack/manifest_generator.py](src/autopack/manifest_generator.py) - Main orchestrator
-  - Docs: [docs/BUILD-123v2_MANIFEST_GENERATOR.md](docs/BUILD-123v2_MANIFEST_GENERATOR.md)
+  - Docs: [docs/BUILD-123v2_MANIFEST_GENERATOR.md](archive/superseded/reports/BUILD-123v2_MANIFEST_GENERATOR.md)
 - **Critical Design Decisions** (per GPT-5.2 validation):
   - ✅ Compile globs → explicit list (not glob patterns for enforcement)
   - ✅ Preflight validation (not governed_apply modification)
@@ -2113,14 +2113,14 @@ python scripts/run_parallel.py --run-ids-file benchmark_runs.txt \
 - Database methods: All `_mark_phase_*_in_db()` methods return None (no-ops)
 - Result: No more ImportError crashes, executor fully functional with API-only mode
 
-See [`docs/BUILD-114-115-COMPLETION-SUMMARY.md`](docs/BUILD-114-115-COMPLETION-SUMMARY.md) for full details.
+See [`archive/superseded/reports/BUILD-114-115-COMPLETION-SUMMARY.md`](archive/superseded/reports/BUILD-114-115-COMPLETION-SUMMARY.md) for full details.
 
 ### Adaptive structured edits for large scopes (2025-12-09)
 - Builder now auto-falls back to structured_edit when full-file outputs truncate or fail JSON parsing on large, multi-path phases (e.g., search, batch-upload).
 - Phases can opt into structured_edit via `builder_mode` in the phase spec; large scopes (many files) default to structured_edit to avoid token-cap truncation.
 - CI logs can be captured on success per phase (`ci.log_on_success: true`) to aid “needs_review” follow-up.
 - Workspace prep: ensure scoped directories exist in the run workspace (e.g., `models/`, `migrations/`) to avoid missing-path scope warnings.
-- Reusable hardening templates: see `templates/hardening_phases.json` and `templates/phase_defaults.json` plus `scripts/plan_hardening.py` to assemble project plans; kickoff multi-agent planning with `planning/kickoff_prompt.md`.
+- Reusable hardening templates: see `templates/hardening_phases.json` and `templates/phase_defaults.json` plus `scripts/plan_hardening.py` to assemble project plans; kickoff multi-agent planning with `archive/superseded/prompts/kickoff_prompt.md`.
 
 ### Memory & Context System (IMPLEMENTED & VERIFIED 2025-12-09)
 Vector memory for context retrieval and goal-drift detection:
@@ -2286,5 +2286,5 @@ python scripts/research/decision_engine.py file-organizer-app-v1
 - **Strategic decisions** based on full context awareness
 - **Transparent reasoning** (every decision includes rationale, alignment, impact, ROI)
 
-See `archive/reports/BUILD_universal_research_analysis_system.md` for full documentation.
+See `archive/superseded/reports/BUILD_universal_research_analysis_system.md` for full documentation.
 

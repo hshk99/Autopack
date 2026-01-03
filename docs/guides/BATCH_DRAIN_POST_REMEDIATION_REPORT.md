@@ -366,7 +366,7 @@ Total: 8 phases
 
 ## Build Artifacts
 
-- [BUILD_LOG.md](../../BUILD_LOG.md): Detailed entry for 2025-12-28 (Part 2)
+- [BUILD_LOG.md](archive/superseded/reports/BUILD_LOG.md): Detailed entry for 2025-12-28 (Part 2)
 - [BATCH_DRAIN_SYSTEMIC_BLOCKERS_REMEDIATION_PLAN.md](BATCH_DRAIN_SYSTEMIC_BLOCKERS_REMEDIATION_PLAN.md): Original remediation plan
 - Test files: `tests/test_autonomous_executor_import.py`, `tests/test_fileorg_stub_path.py`
 - Modified source: `src/autopack/autonomous_executor.py`, `src/autopack/workflow/research_review.py`, `src/autopack/phases/research_phase.py`

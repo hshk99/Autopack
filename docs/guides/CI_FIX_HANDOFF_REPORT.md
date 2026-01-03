@@ -146,4 +146,4 @@ The research system is now unblocked and ready for autonomous execution through 
 If you have questions about any implementation detail, check:
 - [RESEARCH_CI_FIX_COMPLETION_REPORT.md](RESEARCH_CI_FIX_COMPLETION_REPORT.md) - Full validation evidence
 - [RESEARCH_CI_IMPORT_FIX.md](RESEARCH_CI_IMPORT_FIX.md) - Technical specification
-- [BUILD_LOG.md](../../BUILD_LOG.md#research-phase-ci-import-fix--complete) - Build log entry
+- [BUILD_LOG.md](archive/superseded/reports/BUILD_LOG.md#research-phase-ci-import-fix--complete) - Build log entry

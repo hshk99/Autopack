@@ -398,7 +398,7 @@ Confidence is reduced when runtime telemetry is unavailable. To improve:
 
 ## References
 
-- **Plan Document:** `docs/MODEL_RECOMMENDER_SYSTEM_PLAN.md`
+- **Plan Document:** `archive/superseded/plans/MODEL_RECOMMENDER_SYSTEM_PLAN.md`
 - **Migration Script:** `scripts/migrations/add_model_intelligence_tables_build146_p18.py`
 - **CLI Tool:** `scripts/model_intel.py`
 - **Module:** `src/autopack/model_intelligence/`

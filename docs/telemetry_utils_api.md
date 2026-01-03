@@ -423,7 +423,7 @@ print(f"Found {len(problematic)} underestimated samples")
 
 - [TELEMETRY_GUIDE.md](TELEMETRY_GUIDE.md) - Telemetry collection and analysis guide
 - [TELEMETRY_COLLECTION_GUIDE.md](TELEMETRY_COLLECTION_GUIDE.md) - Detailed collection workflow
-- [TOKEN_ESTIMATION_VALIDATION_LEARNINGS.md](TOKEN_ESTIMATION_VALIDATION_LEARNINGS.md) - Methodology and learnings
+- [TOKEN_ESTIMATION_VALIDATION_LEARNINGS.md](archive/superseded/reports/unsorted/TOKEN_ESTIMATION_VALIDATION_LEARNINGS.md) - Methodology and learnings
 - [src/autopack/token_estimator.py](../src/autopack/token_estimator.py) - Token estimator implementation
 
 ---

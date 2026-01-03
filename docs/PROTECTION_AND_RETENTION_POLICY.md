@@ -350,7 +350,7 @@ grep -C 5 "SOT_SUMMARY_START" docs/BUILD_HISTORY.md
 
 ## See Also
 
-- [Storage Optimizer MVP Completion](STORAGE_OPTIMIZER_MVP_COMPLETION.md) - Core features
+- [Storage Optimizer MVP Completion](archive/superseded/reports/unsorted/STORAGE_OPTIMIZER_MVP_COMPLETION.md) - Core features
 - [Storage Optimizer Automation](STORAGE_OPTIMIZER_AUTOMATION.md) - Scheduled scans + delta reporting
 - [Tidy System Usage](TIDY_SYSTEM_USAGE.md) - Tidy consolidation workflow
 - [BUILD-153 Canary Test Report](BUILD-153_CANARY_TEST_REPORT.md) - Execution validation

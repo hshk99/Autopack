@@ -439,5 +439,5 @@ After successful migration:
 
 For questions or implementation details, see:
 - [README.md](../../README.md) - BUILD-144 P0+P0.1+P0.2+P0.3+P0.4 achievements
-- [BUILD_HISTORY.md](../BUILD_HISTORY.md) - BUILD-144 historical context
-- [DEBUG_LOG.md](../DEBUG_LOG.md) - DBG-069 troubleshooting reference
+- [BUILD_HISTORY.md](docs/BUILD_HISTORY.md) - BUILD-144 historical context
+- [DEBUG_LOG.md](docs/DEBUG_LOG.md) - DBG-069 troubleshooting reference

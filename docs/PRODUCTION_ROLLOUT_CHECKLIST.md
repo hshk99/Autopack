@@ -3,7 +3,7 @@
 **BUILD-146 Phase A P17**: Safe staged rollout guide for Autopack autonomy features.
 
 > **Optional (Post-P17) hardening**: For DB-enforced idempotency under concurrency (PostgreSQL-first),
-> see `docs/DB_IDEMPOTENCY_HARDENING_PLAN.md`. This adds a partial unique index for
+> see `archive/superseded/plans/DB_IDEMPOTENCY_HARDENING_PLAN.md`. This adds a partial unique index for
 > `token_efficiency_metrics` and a race-safe fallback on `IntegrityError`.
 
 ## Overview

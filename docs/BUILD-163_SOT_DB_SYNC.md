@@ -65,6 +65,46 @@ Four exit codes:
 
 Clear error messages with actionable guidance.
 
+### 9. Concurrency Safety via Subsystem Locks (BUILD-165 Integration)
+
+**Lock Acquisition Behavior**:
+- `--execute` modes (`--db-only`, `--qdrant-only`, `--full`): Acquire subsystem locks `["docs", "archive"]`
+- `--docs-only` (default): No locks acquired (read-only operation, fast)
+
+**Why This is Sufficient**:
+- Tool reads SOT ledgers from `docs/` directory only
+- Tool writes to DB/Qdrant derived indexes only
+- No mutations to `.autonomous_runs/` or other tidy-managed areas
+- Lock scope prevents concurrent writes to docs while this tool is indexing them
+
+**Lock Lifecycle**:
+```python
+# Acquisition (before any writes)
+multi_lock.acquire(["docs", "archive"])  # Canonical order: docs → archive
+
+# Usage (during sync operations)
+sync_to_db()
+sync_to_qdrant()
+
+# Release (in finally block - guaranteed cleanup)
+multi_lock.release()  # Reverse order: archive → docs
+```
+
+**Exit Code for Lock Failure**:
+- Exit code 5: Failed to acquire subsystem locks (another operation in progress)
+
+**Scheduled/Concurrent Execution Recommendation**:
+- Safe to run `--docs-only` concurrently with tidy (no lock contention)
+- For `--execute` modes scheduled alongside tidy:
+  - Subsystem locks ensure safe coordination
+  - Consider staggering execution windows to avoid lock waits
+  - Typical lock timeout: 30 seconds
+
+**Future Enhancement** (not implemented):
+- Optional `--lock-reads` flag for paranoid/scheduled environments
+  - Would acquire read lock even in `--docs-only` mode
+  - Use if you need guaranteed isolation during docs writes
+
 ## Implementation
 
 ### Core Components

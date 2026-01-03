@@ -584,8 +584,8 @@ The implementation is **production-ready** and can be deployed immediately for s
 
 ## Related Documentation
 
-- **Phase 1 (MVP)**: [STORAGE_OPTIMIZER_MVP_COMPLETION.md](STORAGE_OPTIMIZER_MVP_COMPLETION.md)
-- **Policy Specification**: [DATA_RETENTION_AND_STORAGE_POLICY.md](DATA_RETENTION_AND_STORAGE_POLICY.md)
+- **Phase 1 (MVP)**: [STORAGE_OPTIMIZER_MVP_COMPLETION.md](archive/superseded/reports/unsorted/STORAGE_OPTIMIZER_MVP_COMPLETION.md)
+- **Policy Specification**: [DATA_RETENTION_AND_STORAGE_POLICY.md](archive/superseded/reports/unsorted/DATA_RETENTION_AND_STORAGE_POLICY.md)
 - **Implementation Plan**: C:\Users\hshk9\.claude\plans\swift-mixing-dongarra.md
 - **Module README**: [src/autopack/storage_optimizer/README.md](../src/autopack/storage_optimizer/README.md)
 

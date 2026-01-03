@@ -207,7 +207,7 @@ grep "T0 baseline" .autonomous_runs/<project>/runs/<run-id>/run.log
 **Coverage regression**:
 - Check `coverage_delta` in phase summary
 - Target: ≥80% coverage for new code
-- Review [BUILD-132](BUILD-132_COVERAGE_DELTA_INTEGRATION.md)
+- Review [BUILD-132](archive/superseded/reports/BUILD-132_COVERAGE_DELTA_INTEGRATION.md)
 
 **Common fixes**:
 - Fix import errors in test files
@@ -347,14 +347,14 @@ cat .autonomous_runs/<project>/runs/<run-id>/diagnostics/second_opinion.md
 - Symptom: Non-deterministic behavior across retry attempts
 - Root cause: Re-planning resets attempt counter, triggers model de-escalation
 - Workaround: Disable re-planning for deliverables validation failures
-- Review [DBG-014_REPLAN_INTERFERENCE_ANALYSIS.md](DBG-014_REPLAN_INTERFERENCE_ANALYSIS.md)
+- Review [DBG-014_REPLAN_INTERFERENCE_ANALYSIS.md](archive/superseded/diagnostics/DBG-014_REPLAN_INTERFERENCE_ANALYSIS.md)
 
 **Common fixes**:
 - Enable deep retrieval: `--enable-deep-retrieval`
 - Enable second opinion: `--enable-second-opinion`
 - Review learning hints in retry attempts
 - Check governance approval status (Telegram notifications)
-- Review [BUILD-112_DIAGNOSTICS_PARITY_CURSOR.md](BUILD-112_DIAGNOSTICS_PARITY_CURSOR.md)
+- Review [BUILD-112_DIAGNOSTICS_PARITY_CURSOR.md](archive/superseded/reports/BUILD-112_DIAGNOSTICS_PARITY_CURSOR.md)
 
 ---
 

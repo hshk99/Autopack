@@ -80,7 +80,7 @@ def format_hints_for_prompt(hints: List[RunRuleHint]) -> str:
 - **Impact**: Enabled successful retry, both phases completed
 
 #### 4. **Deliverables Validator Root Computation Bug** (BUILD-094 / DBG-053)
-- **Problem**: research-examples-and-docs phase failed with "deliverables outside allowed roots" for `examples/market_research_example.md`
+- **Problem**: research-examples-and-docs phase failed with "deliverables outside allowed roots" for `docs/examples/examples/market_research_example.md`
 - **Root Cause**: deliverables_validator.py "first-2-segments" fallback incorrectly produced root `examples/market_research_example.md/` instead of `examples/` for file deliverables
 - **Fix**:
   - Added "examples/" to preferred_roots in deliverables_validator.py
@@ -170,7 +170,7 @@ Based on executor logs and phase completion:
 - `docs/cli/research_commands.md`
 
 **research-examples-and-docs** (Phase 6):
-- `examples/market_research_example.md`
+- `docs/examples/examples/market_research_example.md`
 - `examples/tutorials/getting_started.md`
 - `docs/research/EXAMPLES.md`
 

@@ -254,8 +254,8 @@ capped at max_backoff
 
 ## Related Documentation
 
-- [TIDY_LOCKED_FILES_HOWTO.md](../TIDY_LOCKED_FILES_HOWTO.md) - General guidance on handling locked files
-- [BUILD-145-TIDY-SYSTEM-REVISION-COMPLETE.md](../BUILD-145-TIDY-SYSTEM-REVISION-COMPLETE.md) - Tidy system implementation
+- [TIDY_LOCKED_FILES_HOWTO.md](docs/TIDY_LOCKED_FILES_HOWTO.md) - General guidance on handling locked files
+- [BUILD-145-TIDY-SYSTEM-REVISION-COMPLETE.md](docs/BUILD-145-TIDY-SYSTEM-REVISION-COMPLETE.md) - Tidy system implementation
 - [scripts/tidy/pending_moves.py](../../scripts/tidy/pending_moves.py) - Queue implementation
 - [scripts/tidy/tidy_up.py](../../scripts/tidy/tidy_up.py) - Main tidy entrypoint
 

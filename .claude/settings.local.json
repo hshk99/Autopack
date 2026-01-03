@@ -167,7 +167,11 @@
       "Bash(for dir in telemetry-collection-v*/)",
       "Bash(do du -sh \"$dir\")",
       "Bash(PYTHONUTF8=1 timeout 300 python:*)",
-      "Bash(powershell:*)"
+      "Bash(powershell:*)",
+      "Bash(PYTHONUTF8=0 python:*)",
+      "Bash(PYTHONUTF8=1 PYTHONPATH=src DATABASE_URL=\"sqlite:///test_sot_sync.db\" python:*)",
+      "Bash(PYTHONUTF8=1 PYTHONPATH=src timeout 60 python -m pytest:*)",
+      "Bash(git check-ignore:*)"
     ],
     "deny": [],
     "ask": []

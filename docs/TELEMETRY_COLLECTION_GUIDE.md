@@ -21,9 +21,9 @@
    - Underestimation tolerance (--under-multiplier)
 
 3. **Comprehensive Documentation**:
-   - [BUILD-129_PHASE1_VALIDATION_COMPLETE.md](BUILD-129_PHASE1_VALIDATION_COMPLETE.md) - Implementation summary
-   - [TOKEN_ESTIMATION_VALIDATION_LEARNINGS.md](TOKEN_ESTIMATION_VALIDATION_LEARNINGS.md) - Methodology and learnings
-   - [TOKEN_ESTIMATION_V3_ENHANCEMENTS.md](TOKEN_ESTIMATION_V3_ENHANCEMENTS.md) - V3 analyzer details
+   - [BUILD-129_PHASE1_VALIDATION_COMPLETE.md](archive/superseded/reports/BUILD-129_PHASE1_VALIDATION_COMPLETE.md) - Implementation summary
+   - [TOKEN_ESTIMATION_VALIDATION_LEARNINGS.md](archive/superseded/reports/unsorted/TOKEN_ESTIMATION_VALIDATION_LEARNINGS.md) - Methodology and learnings
+   - [TOKEN_ESTIMATION_V3_ENHANCEMENTS.md](archive/superseded/reports/unsorted/TOKEN_ESTIMATION_V3_ENHANCEMENTS.md) - V3 analyzer details
 
 ### What We Need ⏳
 
@@ -175,7 +175,7 @@ This will generate a report with:
 
 **If Tier 1 targets are exceeded**:
 - Proceed with category-specific coefficient tuning
-- See [TOKEN_ESTIMATION_VALIDATION_LEARNINGS.md Phase 4](TOKEN_ESTIMATION_VALIDATION_LEARNINGS.md#phase-4-coefficient-tuning--deferred)
+- See [TOKEN_ESTIMATION_VALIDATION_LEARNINGS.md Phase 4](archive/superseded/reports/unsorted/TOKEN_ESTIMATION_VALIDATION_LEARNINGS.md#phase-4-coefficient-tuning--deferred)
 
 **If Tier 1 targets are met**:
 - ✅ No tuning needed
@@ -277,9 +277,9 @@ This will generate a report with:
 
 - **V2 Telemetry**: [anthropic_clients.py:652-699](../src/autopack/anthropic_clients.py#L652-L699)
 - **V3 Analyzer**: [scripts/analyze_token_telemetry_v3.py](../scripts/analyze_token_telemetry_v3.py)
-- **Implementation Summary**: [BUILD-129_PHASE1_VALIDATION_COMPLETE.md](BUILD-129_PHASE1_VALIDATION_COMPLETE.md)
-- **Methodology Learnings**: [TOKEN_ESTIMATION_VALIDATION_LEARNINGS.md](TOKEN_ESTIMATION_VALIDATION_LEARNINGS.md)
-- **V3 Enhancements**: [TOKEN_ESTIMATION_V3_ENHANCEMENTS.md](TOKEN_ESTIMATION_V3_ENHANCEMENTS.md)
+- **Implementation Summary**: [BUILD-129_PHASE1_VALIDATION_COMPLETE.md](archive/superseded/reports/BUILD-129_PHASE1_VALIDATION_COMPLETE.md)
+- **Methodology Learnings**: [TOKEN_ESTIMATION_VALIDATION_LEARNINGS.md](archive/superseded/reports/unsorted/TOKEN_ESTIMATION_VALIDATION_LEARNINGS.md)
+- **V3 Enhancements**: [TOKEN_ESTIMATION_V3_ENHANCEMENTS.md](archive/superseded/reports/unsorted/TOKEN_ESTIMATION_V3_ENHANCEMENTS.md)
 - **Token Estimator**: [src/autopack/token_estimator.py](../src/autopack/token_estimator.py)
 
 ---
@@ -287,8 +287,8 @@ This will generate a report with:
 ## Contact / Questions
 
 If you have questions about telemetry collection, coefficient tuning, or analysis:
-1. Review [TOKEN_ESTIMATION_VALIDATION_LEARNINGS.md](TOKEN_ESTIMATION_VALIDATION_LEARNINGS.md) for methodology
-2. Check [BUILD-129_PHASE1_VALIDATION_COMPLETE.md](BUILD-129_PHASE1_VALIDATION_COMPLETE.md) for implementation details
+1. Review [TOKEN_ESTIMATION_VALIDATION_LEARNINGS.md](archive/superseded/reports/unsorted/TOKEN_ESTIMATION_VALIDATION_LEARNINGS.md) for methodology
+2. Check [BUILD-129_PHASE1_VALIDATION_COMPLETE.md](archive/superseded/reports/BUILD-129_PHASE1_VALIDATION_COMPLETE.md) for implementation details
 3. Run `python scripts/analyze_token_telemetry_v3.py --help` for usage
 
 **The infrastructure is ready - we just need successful production runs!** 🚀

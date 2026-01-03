@@ -165,8 +165,8 @@ Need to create `scripts/analyze_p7p9_validation.py` to:
 **P9 Implementation**:
 - [src/autopack/token_estimator.py](src/autopack/token_estimator.py) - Narrowed 2.2x buffer to doc_synthesis/doc_sot_update
 - [scripts/test_confidence_buffering.py](scripts/test_confidence_buffering.py) - Updated with DOC_SYNTHESIS/SOT test cases
-- [BUILD_LOG.md](BUILD_LOG.md) - P9 documentation
-- [BUILD_HISTORY.md](BUILD_HISTORY.md) - P9 entry
+- [BUILD_LOG.md](archive/superseded/reports/BUILD_LOG.md) - P9 documentation
+- [BUILD_HISTORY.md](docs/BUILD_HISTORY.md) - P9 entry
 - [README.md](README.md) - P9 summary
 
 **Validation Scripts**:

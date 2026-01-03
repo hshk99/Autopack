@@ -405,8 +405,8 @@ BUILD-153 delivered **production-ready Storage Optimizer automation** with:
 
 ## See Also
 
-- [BUILD-152 Completion (Lock-Aware Execution)](BUILD-152_COMPLETION_SUMMARY.md)
+- [BUILD-152 Completion (Lock-Aware Execution)](docs/BUILD-153_COMPLETION_SUMMARY.md)
 - [BUILD-153 Canary Test Report](BUILD-153_CANARY_TEST_REPORT.md)
 - [Storage Optimizer Automation Guide](STORAGE_OPTIMIZER_AUTOMATION.md)
 - [Protection and Retention Policy](PROTECTION_AND_RETENTION_POLICY.md)
-- [Storage Optimizer MVP Completion](STORAGE_OPTIMIZER_MVP_COMPLETION.md)
+- [Storage Optimizer MVP Completion](archive/superseded/reports/unsorted/STORAGE_OPTIMIZER_MVP_COMPLETION.md)

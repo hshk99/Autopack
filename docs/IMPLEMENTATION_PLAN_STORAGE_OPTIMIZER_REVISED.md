@@ -11,7 +11,7 @@
 ### Policy Integration Added
 
 The original plan has been updated to integrate with:
-- **[DATA_RETENTION_AND_STORAGE_POLICY.md](DATA_RETENTION_AND_STORAGE_POLICY.md)** - Canonical policy
+- **[DATA_RETENTION_AND_STORAGE_POLICY.md](archive/superseded/reports/unsorted/DATA_RETENTION_AND_STORAGE_POLICY.md)** - Canonical policy
 - **[config/protection_and_retention_policy.yaml](../config/protection_and_retention_policy.yaml)** - Machine-readable policy (canonical)
 
 ### Critical Policy Requirements
@@ -38,7 +38,7 @@ Given token constraints and the policy complexity, here's a streamlined approach
 
 2. ✅ Policy infrastructure created
    - `config/protection_and_retention_policy.yaml` exists
-   - `docs/DATA_RETENTION_AND_STORAGE_POLICY.md` canonical
+   - `archive/superseded/reports/unsorted/DATA_RETENTION_AND_STORAGE_POLICY.md` canonical
 
 ### What Needs to Be Built
 

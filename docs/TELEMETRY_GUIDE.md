@@ -344,9 +344,9 @@ PYTHONPATH=src python scripts/export_token_estimation_telemetry.py
 
 - [TELEMETRY_COLLECTION_GUIDE.md](TELEMETRY_COLLECTION_GUIDE.md) - Detailed collection workflow
 - [TELEMETRY_COLLECTION_UNIFIED_WORKFLOW.md](guides/TELEMETRY_COLLECTION_UNIFIED_WORKFLOW.md) - Unified workflow guide
-- [TOKEN_ESTIMATION_VALIDATION_LEARNINGS.md](TOKEN_ESTIMATION_VALIDATION_LEARNINGS.md) - Methodology and learnings
-- [TOKEN_ESTIMATION_V3_ENHANCEMENTS.md](TOKEN_ESTIMATION_V3_ENHANCEMENTS.md) - V3 analyzer details
-- [BUILD-129_PHASE1_VALIDATION_COMPLETE.md](BUILD-129_PHASE1_VALIDATION_COMPLETE.md) - Implementation summary
+- [TOKEN_ESTIMATION_VALIDATION_LEARNINGS.md](archive/superseded/reports/unsorted/TOKEN_ESTIMATION_VALIDATION_LEARNINGS.md) - Methodology and learnings
+- [TOKEN_ESTIMATION_V3_ENHANCEMENTS.md](archive/superseded/reports/unsorted/TOKEN_ESTIMATION_V3_ENHANCEMENTS.md) - V3 analyzer details
+- [BUILD-129_PHASE1_VALIDATION_COMPLETE.md](archive/superseded/reports/BUILD-129_PHASE1_VALIDATION_COMPLETE.md) - Implementation summary
 
 ---
 

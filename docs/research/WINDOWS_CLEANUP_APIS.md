@@ -525,4 +525,4 @@ dependencies = [
 
 **Status**: Research Complete
 **Next**: Implement CleanupExecutor with send2trash + fallback
-**Related**: [IMPLEMENTATION_PLAN_STORAGE_OPTIMIZER.md](../IMPLEMENTATION_PLAN_STORAGE_OPTIMIZER.md)
+**Related**: [IMPLEMENTATION_PLAN_STORAGE_OPTIMIZER.md](docs/IMPLEMENTATION_PLAN_STORAGE_OPTIMIZER.md)

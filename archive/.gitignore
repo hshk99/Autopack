@@ -43,3 +43,6 @@
 !/scripts/**
 !/superseded/**
 !/reports/**
+
+# But exclude diagnostic backup zips (build artifacts)
+/diagnostics/doc_link_fix_backup_*.zip

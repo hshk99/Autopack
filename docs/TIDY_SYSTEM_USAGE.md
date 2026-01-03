@@ -522,7 +522,7 @@ protected_globs:
   - "*.db"                      # Databases
 ```
 
-See [DATA_RETENTION_AND_STORAGE_POLICY.md](DATA_RETENTION_AND_STORAGE_POLICY.md) for complete policy details.
+See [DATA_RETENTION_AND_STORAGE_POLICY.md](archive/superseded/reports/unsorted/DATA_RETENTION_AND_STORAGE_POLICY.md) for complete policy details.
 
 ## Migration from Old Tidy
 

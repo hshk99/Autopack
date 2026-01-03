@@ -245,7 +245,7 @@ queue = PendingMovesQueue(
 - **Implementation**: [pending_moves.py](../scripts/tidy/pending_moves.py)
 - **Integration**: [tidy_up.py:1568-1605](../scripts/tidy/tidy_up.py#L1568-L1605)
 - **Tests**: [test_smart_retry_policies.py](../tests/tidy/test_smart_retry_policies.py)
-- **Related**: [BUILD-156 Queue Improvements](./BUILD-156_QUEUE_IMPROVEMENTS_SUMMARY.md)
+- **Related**: [BUILD-156 Queue Improvements](archive/superseded/diagnostics/BUILD-156_QUEUE_IMPROVEMENTS_SUMMARY.md)
 
 ---
 

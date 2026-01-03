@@ -308,4 +308,4 @@ After successful migration:
 
 ---
 
-For questions or issues, see [BUILD-142-PROVIDER-PARITY-REPORT.md](../BUILD-142-PROVIDER-PARITY-REPORT.md) for full implementation details.
+For questions or issues, see [BUILD-142-PROVIDER-PARITY-REPORT.md](archive/superseded/reports/BUILD-142-PROVIDER-PARITY-REPORT.md) for full implementation details.

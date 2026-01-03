@@ -2626,3 +2626,167 @@ Suggested next actions:
 - --first-run bootstrap shortcut (tidy_up.py)
 - Implementation summary (BUILD-156_QUEUE_IMPROVEMENTS_SUMMARY.md)
 
+
+---
+
+## BUILD-159: Deep Doc Link Checker + Mechanical Fixer (2026-01-03)
+
+**Status**: ✅ COMPLETE  
+**Parent**: BUILD-158 (Tidy Lock/Lease + Doc Link Checker)
+
+### Problem
+
+BUILD-158 introduced basic doc link checking for navigation files (README/INDEX/BUILD_HISTORY), but lacked:
+1. **No fix suggestions** - Users had to manually detective work broken links
+2. **No automation** - Manual editing error-prone and time-consuming
+3. **Limited scope** - Only 3 files checked, not comprehensive
+4. **No confidence scoring** - Couldn't distinguish safe vs risky fixes
+
+This resulted in 58 broken links in navigation docs, with docs/INDEX.md (the navigation hub) having broken references.
+
+### Solution
+
+Extended BUILD-158's checker with layered heuristic matching + mechanical fixer with confidence-based auto-apply:
+
+**Phase 1: Enhanced Checker** (scripts/check_doc_links.py)
+- **Deep mode**: `--deep` scans docs/**/*.md (150+ files) with custom globs
+- **Layered matching**: 3-step algorithm (same-dir → basename → fuzzy) with confidence scores
+- **Fix plan export**: JSON + Markdown with suggestions array, scores, reasons
+- **Code block skipping**: Strips fenced code blocks to reduce false positives
+
+**Phase 2: Mechanical Fixer** (scripts/fix_doc_links.py, NEW)
+- **Confidence-based auto-apply**: High ≥0.90 (default), Medium ≥0.85 (opt-in), Low <0.85 (manual)
+- **Dry-run mode**: Preview fixes before applying
+- **Atomic backup**: Creates zip before modifying files (archive/diagnostics/doc_link_fix_backup_*.zip)
+- **Path normalization**: Converts Windows backslashes to forward slashes (markdown standard)
+
+### Results
+
+**Broken Link Reduction**: 58 → 40 (31% reduction)
+- **docs/INDEX.md**: 2 → 0 broken links ✅ (100% clean)
+- **README.md**: 22 → 15 broken links (-7)
+- **docs/BUILD_HISTORY.md**: 34 → 25 broken links (-9)
+
+**Mechanical Fixes Applied**: 20 total
+- Round 1 (high confidence ≥0.90): 18 fixes
+- Round 2 (medium confidence ≥0.85): 2 fixes
+
+**Remaining 40 Broken Links**: Mostly low-confidence (manual review required)
+- **High**: 2 (will be fixed in next round)
+- **Medium**: 1 (will be fixed in next round)  
+- **Low**: 37 (runtime files, API endpoints, historical refs, source line numbers)
+
+### Architecture Decisions
+
+**AD-31: Layered Heuristic vs Full Levenshtein**
+- Rationale: Levenshtein O(n²) prohibitive for 2000+ markdown files; layered approach fast (~2-5s) and semantically meaningful
+- Tradeoff: May miss edge cases but avoids false positives
+
+**AD-32: Confidence Thresholds (0.90/0.85)**
+- High ≥0.90: Safe for unattended automation (same basename, high similarity)
+- Medium 0.85-0.90: User opt-in with `--apply-medium`
+- Low <0.85: Always manual review
+
+**AD-33: Default Mode = Navigation Files Only**
+- Fast iteration (~2s vs ~5s for deep mode)
+- High signal (user-facing navigation files)
+- Deep mode opt-in for quarterly hygiene sprints
+
+**AD-34: Backup Before Apply (Opt-Out)**
+- Safety first: Mechanical fixes can go wrong (regex edge cases)
+- Low cost: <1 second, ~50 KB zip files
+- Rollback capability
+
+**AD-35: Path Normalization (Backslash → Forward Slash)**
+- Markdown standard: Forward slashes universal (Windows/Mac/Linux)
+- Consistency: Existing files use forward slashes
+
+### Files Modified
+
+1. **scripts/check_doc_links.py** (+471 lines)
+   - Deep mode scanning (lines 520-589)
+   - Layered matching algorithm (lines 145-254)
+   - Fix plan export (JSON: lines 427-459, Markdown: lines 462-507)
+   - Code block skipping (lines 62-74)
+
+2. **scripts/fix_doc_links.py** (+334 lines, NEW)
+   - Confidence-based auto-apply with dry-run mode
+   - Atomic backup creation
+   - Path normalization for markdown compliance
+   - Regex-safe replacement (handles Windows paths)
+
+3. **README.md** (-7 broken links)
+   - Fixed references to archived diagnostics
+   - Fixed references to superseded reports
+
+4. **docs/INDEX.md** (-2 broken links, now 100% clean)
+
+5. **docs/BUILD_HISTORY.md** (-9 broken links)
+   - Fixed references to archived plans, phases, diagnostics
+
+6. **docs/BUILD-159_DEEP_DOC_LINK_CHECKER_MECHANICAL_FIXER.md** (NEW, ~650 lines)
+   - Comprehensive implementation details, acceptance criteria, architecture decisions
+
+### Usage Examples
+
+```bash
+# Check navigation files (default)
+python scripts/check_doc_links.py
+
+# Deep mode with export
+python scripts/check_doc_links.py --deep --export-json plan.json --export-md plan.md
+
+# Preview fixes (dry-run)
+python scripts/fix_doc_links.py
+
+# Apply high-confidence fixes
+python scripts/fix_doc_links.py --execute
+
+# Apply high + medium confidence fixes
+python scripts/fix_doc_links.py --execute --apply-medium
+```
+
+### Impact
+
+**Before BUILD-159**:
+- ❌ No suggestions for broken links (manual detective work)
+- ❌ No automated fixing (error-prone manual edits)
+- ❌ Deep mode limited to 3 navigation files
+- ❌ No confidence scoring (can't distinguish safe vs risky fixes)
+
+**After BUILD-159**:
+- ✅ Layered matching with confidence scores (same-dir → basename → fuzzy)
+- ✅ Mechanical fixing: 20 broken links fixed automatically (31% reduction)
+- ✅ Deep mode: Scan 150+ docs files for comprehensive hygiene
+- ✅ Fix plan export: JSON + Markdown for review and automation
+- ✅ Atomic backup: Rollback safety for all fixes
+- ✅ docs/INDEX.md clean: 0 broken links in navigation hub ✨
+
+**User Experience**: Users get actionable fix suggestions with confidence levels instead of hunting manually. Navigation hub (INDEX.md) now 100% reliable.
+
+### Deferred Work (P2-P3)
+
+**P2: Manual Review of 37 Low-Confidence Links**
+- Remove obsolete runtime file references (`.autonomous_runs/` paths)
+- Update/remove API endpoint references if applicable
+- Verify or remove historical file references in BUILD_HISTORY.md
+
+**P3: CI Integration**
+- Pre-commit hook for default mode (<2s runtime)
+- Scheduled deep checks with auto-PR
+
+**P3: Advanced Features**
+- URL validation (HTTP HEAD requests for external links)
+- Link graph analysis (circular refs, orphaned files, dead-end navigation)
+- Redirect stubs (auto-create stub files pointing to new canonical location)
+
+### Related Builds
+- BUILD-158: Tidy Lock/Lease + Doc Link Checker (basic link checking foundation)
+- BUILD-145: Tidy System Revision (workspace organization foundation)
+
+**Deliverables**:
+- Enhanced doc link checker with deep mode + layered matching (scripts/check_doc_links.py)
+- Mechanical fixer with confidence-based auto-apply (scripts/fix_doc_links.py, NEW)
+- 31% broken link reduction (58 → 40), docs/INDEX.md 100% clean
+- Fix plan export (JSON + Markdown)
+- Implementation summary (docs/BUILD-159_DEEP_DOC_LINK_CHECKER_MECHANICAL_FIXER.md)

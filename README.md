@@ -58,6 +58,14 @@ In practice, “autonomous” requires that each phase has:
 
 ### Latest Highlights (Last 3 Builds)
 
+#### 2026-01-03: BUILD-159 - Deep Doc Link Checker + Mechanical Fixer ✅
+**Automated Link Repair with Layered Matching**
+- Enhanced checker: Deep mode (scan all docs/), layered heuristic matching (3-step algorithm), confidence scoring (high/medium/low)
+- Mechanical fixer: Confidence-based auto-apply (high ≥0.90 default), atomic backup, dry-run mode, regex-safe path handling
+- Fix plan export: JSON + Markdown formats with actionable suggestions
+- **Result**: 31% broken link reduction (58 → 40), docs/INDEX.md now 100% clean, 20 mechanical fixes applied
+- See [docs/BUILD-159_DEEP_DOC_LINK_CHECKER_MECHANICAL_FIXER.md](docs/BUILD-159_DEEP_DOC_LINK_CHECKER_MECHANICAL_FIXER.md) for full details
+
 #### 2026-01-03: BUILD-158 - Tidy Lock/Lease + Doc Link Checker ✅
 **Cross-Process Safety + Documentation Hygiene**
 - Lease primitive: Atomic acquisition, TTL-based expiry, heartbeat renewal, stale lock auto-breaking

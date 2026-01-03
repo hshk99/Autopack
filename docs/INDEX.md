@@ -46,8 +46,13 @@ These are the canonical references that should stay current and are designed to 
 - **SOT Memory Integration**: SOT ledgers can be indexed into `MemoryService` for runtime retrieval
   - See `docs/TIDY_SOT_RETRIEVAL_INTEGRATION_PLAN.md` for implementation details
   - See `docs/SOT_MEMORY_INTEGRATION_EXAMPLE.md` for integration examples
+- **BUILD-159 Deep Doc Link Checker + Mechanical Fixer**:
+  - Implementation: [docs/BUILD-159_DEEP_DOC_LINK_CHECKER_MECHANICAL_FIXER.md](BUILD-159_DEEP_DOC_LINK_CHECKER_MECHANICAL_FIXER.md)
+  - Layered heuristic matching for broken link suggestions
+  - Mechanical fixer with confidence-based auto-apply
+  - Result: 31% broken link reduction (58 → 40), INDEX.md now 100% clean
 - **BUILD-158 Tidy Lock/Lease + Doc Link Checker**:
-  - Implementation: `docs/BUILD-158_TIDY_LOCK_LEASE_DOC_LINKS.md`
+  - Implementation: [docs/BUILD-158_TIDY_LOCK_LEASE_DOC_LINKS.md](BUILD-158_TIDY_LOCK_LEASE_DOC_LINKS.md)
   - Cross-process safety via filesystem-based lease primitive
   - Automated doc link drift detection for CI
 - - **BUILD-145 Tidy Improvements**:

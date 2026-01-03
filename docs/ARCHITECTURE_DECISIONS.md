@@ -2,7 +2,7 @@
 
 
 <!-- AUTO-GENERATED SUMMARY - DO NOT EDIT MANUALLY -->
-**Summary**: 31 decision(s) documented | Last updated: 2026-01-03 15:44:15
+**Summary**: 32 decision(s) documented | Last updated: 2026-01-03 17:20:50
 <!-- END AUTO-GENERATED SUMMARY -->
 
 <!-- META
@@ -17,6 +17,7 @@ Sources: CONSOLIDATED_STRATEGY, CONSOLIDATED_REFERENCE, archive/, BUILD-153, BUI
 
 | Timestamp | DEC-ID | Decision | Status | Impact |
 |-----------|--------|----------|--------|--------|
+| 2026-01-03 | DEC-020 | SOT Sync Lock Scope - Minimal Subsystem Locking | ✅ Implemented | Safe Concurrency |
 | 2026-01-03 | DEC-019 | Standalone SOT Sync - Mode-Selective Architecture with Bounded Execution | ✅ Implemented | Operational Efficiency |
 | 2026-01-02 | DEC-017 | SOT Retrieval - Two-Stage Budget Enforcement (Gating + Capping) | ✅ Implemented | Token Efficiency & Observability |
 | 2026-01-02 | DEC-016 | Storage Optimizer - Protection Policy Unification | ✅ Implemented | Safety & Maintainability |
@@ -651,8 +652,8 @@ Sources: CONSOLIDATED_STRATEGY, CONSOLIDATED_REFERENCE, archive/, BUILD-153, BUI
 **References**:
 - Implementation: `src/autopack/storage_optimizer/` (6 modules, 1,128 lines)
 - Configuration: `config/storage_policy.yaml` (15 protected globs, 5 categories, 3 retention policies)
-- Documentation: `docs/STORAGE_OPTIMIZER_MVP_COMPLETION.md`
-- Policy: `docs/DATA_RETENTION_AND_STORAGE_POLICY.md`
+- Documentation: `archive/superseded/reports/unsorted/STORAGE_OPTIMIZER_MVP_COMPLETION.md`
+- Policy: `archive/superseded/reports/unsorted/DATA_RETENTION_AND_STORAGE_POLICY.md`
 - Build Log: `docs/BUILD_HISTORY.md` → BUILD-148
 
 ### DEC-011 | 2026-01-01T00:00 | SOT Memory Integration - Field-Selective JSON Embedding
@@ -1475,3 +1476,128 @@ if not is_root_file_allowed(item.name):
 
 ---
 
+
+
+### DEC-020 | 2026-01-03T20:00 | SOT Sync Lock Scope - Minimal Subsystem Locking
+**Status**: ✅ Implemented
+**Build**: BUILD-166
+**Context**: After implementing standalone sot_db_sync tool (BUILD-163), needed to decide lock acquisition strategy for safe concurrent execution. Three key questions: (1) Which subsystems to lock? (2) When to acquire locks? (3) What exit code for lock failures?
+
+**Decision**: Acquire minimal subsystem locks ["docs", "archive"] only on write operations (--execute modes), not on read-only docs-only mode.
+
+**Chosen Approach**:
+- **Minimal Lock Scope**: Only lock ["docs", "archive"] subsystems
+  - Sufficient because sot_db_sync reads from docs/ and writes to DB/Qdrant only
+  - Does NOT touch .autonomous_runs/, queue files, or other tidy-managed areas
+  - Prevents concurrent writes to docs/ while indexing them
+- **Lazy Initialization**: Create MultiLock only when execute=True
+  - docs-only mode (default) never creates lock objects (performance)
+  - Write modes (--db-only, --qdrant-only, --full) with --execute acquire locks
+- **Lock TTL Management**: Set TTL to max_seconds + 60 (exceeds max execution time)
+  - Prevents lock expiry during legitimate long-running operations
+  - Grace period accommodates occasional slowness
+- **Error Handling**: Return exit code 5 for lock acquisition failures
+  - Distinct from parsing errors (1), DB errors (2), timeouts (3), mode errors (4)
+  - Clear signal to operators that another process holds locks
+- **Release Guarantee**: Release locks in finally block
+  - Ensures cleanup even on errors or Ctrl+C
+  - Prevents stale locks from normal interruptions
+
+**Alternatives Considered**:
+1. **Lock All Subsystems (queue + runs + archive + docs)**: Full tidy lock scope
+   - ❌ Rejected: Over-locking, tool doesn't touch queue or runs
+   - Would serialize sot_db_sync with queue processing unnecessarily
+   - Reduces concurrency without safety benefit
+2. **Lock docs Only (Not archive)**: Minimal single subsystem
+   - ❌ Rejected: Future enhancement may need archive/ for historical index
+   - Archive lock is low-cost (rarely contended)
+   - Conservative for future extension
+3. **Always Acquire Locks (Even docs-only)**: Paranoid consistency
+   - ❌ Rejected: Read-only operations don't need write locks
+   - Would slow down common dry-run/validation use case
+   - Violates principle of least locking
+4. **No Locks (Trust Filesystem Atomicity)**: Zero locking overhead
+   - ❌ Rejected: Concurrent writes to same SOT file could cause corruption
+   - Markdown files don't have atomic multi-writer semantics
+   - Risk not worth performance gain
+
+**Why Minimal Scope Better Than Full Lock**:
+- **Concurrency**: Allows queue processing to run concurrently with SOT sync
+- **Performance**: docs-only mode stays fast (no lock acquisition overhead)
+- **Clarity**: Lock scope matches actual touched files (docs/ + potential archive/)
+- **Safety**: Still prevents most dangerous race (concurrent doc writes)
+- **Future-Proof**: Easy to expand scope if archive reading becomes needed
+
+**Implementation Details**:
+- **File**: scripts/tidy/sot_db_sync.py (lines 136-145, 746-760, 817-821)
+- **Lock Acquisition**:
+  ```python
+  if LOCKS_AVAILABLE and self.execute:
+      self.multi_lock = MultiLock(
+          repo_root=self.repo_root,
+          owner=f"sot_db_sync:{self.mode}",
+          ttl_seconds=self.max_seconds + 60,
+          timeout_seconds=30
+      )
+  ```
+- **Acquisition in run()**:
+  ```python
+  if self.multi_lock:
+      try:
+          self.multi_lock.acquire(["docs", "archive"])
+          print("[LOCKS] ✓ Locks acquired")
+      except TimeoutError as e:
+          print(f"[LOCKS] ✗ Failed: {e}")
+          return 5  # Exit code for lock failure
+  ```
+- **Release in finally**:
+  ```python
+  finally:
+      if self.multi_lock:
+          self.multi_lock.release()
+          print("[LOCKS] ✓ Locks released")
+  ```
+
+**Testing**:
+- **Unit Tests**: 3 comprehensive tests in tests/tidy/test_sot_db_sync.py (lines 576-651)
+  - test_lock_acquisition_docs_only_no_locks: Verifies docs-only doesn't create locks
+  - test_lock_acquisition_execute_mode_acquires_locks: Verifies execute acquires ["docs", "archive"]
+  - test_lock_acquisition_failure_returns_exit_code_5: Verifies lock timeout returns code 5
+- **Mock-Based**: Uses patch('sot_db_sync.MultiLock') with MagicMock for unit testing
+  - Validates lock behavior without actual file system locks
+  - Asserts on acquire.assert_called_once_with(["docs", "archive"])
+- **All Tests Passing**: 100% success rate (30/30 tests in BUILD-166)
+
+**Documentation**:
+- **BUILD-163 Section 9**: "Concurrency Safety via Subsystem Locks (BUILD-165 Integration)"
+- **Lock Behavior**: Documents when locks are acquired (execute only)
+- **Rationale**: Explains why ["docs", "archive"] is sufficient
+- **Exit Code 5**: Documented for operator troubleshooting
+- **Scheduled Execution**: Recommends avoiding concurrent scheduled runs
+
+**Impact**:
+- **Safe Concurrency**: Prevents data corruption during concurrent tidy + sync operations
+- **Performance**: docs-only mode stays fast (no lock overhead for common case)
+- **Operator Experience**: Clear error messages when locks unavailable (exit code 5)
+- **Reliability**: finally block ensures locks always released (no stale locks)
+- **Future-Proof**: Lock scope can expand if tool evolves to touch more subsystems
+
+**Tradeoffs**:
+- ✅ **Pro - Minimal Locking**: Only locks what's needed, maximizes concurrency
+- ✅ **Pro - Lazy Init**: Zero overhead for read-only operations
+- ✅ **Pro - Clear Errors**: Exit code 5 distinct from other failures
+- ✅ **Pro - Safe Release**: finally block guarantees cleanup
+- ⚠️ **Con - Potential Race**: If future enhancement reads archive/, need to verify lock scope
+- ⚠️ **Con - Lock Ordering**: Must follow canonical order (queue → runs → archive → docs) to avoid deadlock
+
+**Future Enhancements**:
+- **--lock-reads Flag**: Optional locking for paranoid/scheduled environments
+- **Lock Metrics**: Track acquisition time, hold duration, contention
+- **Archive Index**: If tool starts reading archive/, verify lock scope still sufficient
+- **Stale Lock Breaking**: Auto-break stale locks if PID not running (BUILD-161 pattern)
+
+**Related Builds**:
+- BUILD-163: Standalone SOT sync tool (this decision applies to)
+- BUILD-165: Subsystem lock infrastructure (MultiLock implementation)
+- BUILD-161: Lock status UX + stale lock breaking (PID detection pattern)
+- BUILD-166: Lock integration testing + documentation (this build)

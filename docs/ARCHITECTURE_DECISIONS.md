@@ -17,6 +17,7 @@ Sources: CONSOLIDATED_STRATEGY, CONSOLIDATED_REFERENCE, archive/, BUILD-153, BUI
 
 | Timestamp | DEC-ID | Decision | Status | Impact |
 |-----------|--------|----------|--------|--------|
+| 2026-01-03 | DEC-022 | Doc Link Triage - Two-Tier Ignore Architecture (Pattern-Based vs File+Target Specific) | ✅ Implemented | Precision & Maintainability |
 | 2026-01-03 | DEC-021 | Doc Link Hygiene - Acceptance Criteria for Non-Increasing Violation Counts | ✅ Implemented | Documentation Quality |
 | 2026-01-03 | DEC-020 | SOT Sync Lock Scope - Minimal Subsystem Locking | ✅ Implemented | Safe Concurrency |
 | 2026-01-03 | DEC-019 | Standalone SOT Sync - Mode-Selective Architecture with Bounded Execution | ✅ Implemented | Operational Efficiency |
@@ -38,6 +39,101 @@ Sources: CONSOLIDATED_STRATEGY, CONSOLIDATED_REFERENCE, archive/, BUILD-153, BUI
 | 2025-12-09 | DEC-007 | Documentation Consolidation Implementation Plan | ✅ Implemented |  |
 
 ## DECISIONS (Reverse Chronological)
+
+### DEC-022 | 2026-01-03T21:00 | Doc Link Triage - Two-Tier Ignore Architecture (Pattern-Based vs File+Target Specific)
+**Status**: ✅ Implemented
+**Build**: BUILD-168
+**Context**: After BUILD-168 discovered critical tool integration gap (triage tool generated ignores that check script wasn't reading), needed to document the two-tier ignore architecture and design rationale for why both pattern-based and file+target specific ignores exist. Required deciding between (1) single ignore type (pattern-based only), (2) single ignore type (file+target only), or (3) two-tier system with both types serving different use cases.
+
+**Decision**: Maintain two-tier ignore architecture where pattern-based ignores handle broad categories (all API endpoints, all historical BUILD-129 docs) and file+target specific ignores handle precise exceptions (specific broken link in specific source doc), rather than forcing all ignores into single type.
+
+**Chosen Approach**:
+- **Two Ignore Types in `doc_link_check_ignore.yaml`**:
+  1. **Pattern-Based Ignores** (3 subtypes with different semantics):
+     - `pattern_ignores`: Glob patterns for file paths (e.g., `archive/**/*.md`) or target patterns (e.g., `**/BUILD-129*.md`)
+     - `runtime_endpoints`: Known runtime-only targets (e.g., `/tmp`, `/update_status`, `/dashboard`)
+     - `historical_refs`: Historical file references no longer expected to exist (e.g., `.autonomous_runs/`, `models.yaml`)
+  2. **File+Target Specific Ignores** (`ignore_patterns`):
+     - Each entry is `{file: "docs/CHANGELOG.md", target: "docs/BUILD-129_TOKEN_ESTIMATOR.md", reason: "..."}`
+     - Most precise ignore type - only ignores exact broken link in exact source doc
+     - Generated automatically by `apply_triage.py` from triage rules in `doc_link_triage_overrides.yaml`
+
+- **Triage Workflow Architecture**:
+  1. **Human creates triage rules** in `config/doc_link_triage_overrides.yaml` (pattern + broken_target + action + reason_filter + note)
+  2. **`apply_triage.py` scans reports** matching rules against actual broken links, generates file+target pairs
+  3. **Writes to `ignore_patterns`** in `doc_link_check_ignore.yaml` (300 entries in BUILD-168)
+  4. **`check_doc_links.py` reads both** pattern-based and file+target ignores, applies during validation
+
+- **Why Two Tiers Better Than Single Type**:
+  - **Pattern-based ignores**: Efficient for broad categories (1 rule ignores all `/tmp` references across all docs)
+  - **File+target specific ignores**: Safe for precise exceptions (ignore specific historical reference without overbroad pattern)
+  - **Complementary strengths**: Patterns reduce config size, file+target pairs minimize false negatives
+  - **Auditability**: File+target pairs auto-generated with provenance (which triage rule created them)
+
+**Implementation Details**:
+- **`config/doc_link_check_ignore.yaml`**:
+  - Pattern-based: `pattern_ignores`, `runtime_endpoints`, `historical_refs` keys
+  - File+target: `ignore_patterns` key (list of {file, target, reason} dicts)
+- **`config/doc_link_triage_overrides.yaml`**:
+  - Human-maintained triage rules (BUILD-168: 60+ rules)
+  - Each rule has pattern, broken_target, action, reason_filter, note
+- **`scripts/apply_triage.py`**:
+  - Reads triage rules, scans JSON reports for matches
+  - Writes file+target pairs to `ignore_patterns` in ignore config
+- **`scripts/check_doc_links.py:validate_references()`**:
+  - Lines 421-432: Checks `ignore_patterns` (file+target specific) FIRST
+  - Then checks pattern-based ignores via `classify_link_target()`
+  - Precedence: file+target > pattern-based (most specific wins)
+
+**Critical Bug Fixed**:
+- **Problem**: `apply_triage.py` wrote to `ignore_patterns` but `check_doc_links.py` only read pattern-based keys
+- **Impact**: 60+ triage rules, 300 generated ignore entries had ZERO effect (746 missing_file unchanged)
+- **Fix**: Added 12-line patch in `check_doc_links.py:validate_references()` to check `ignore_patterns` before classification
+- **Result**: Immediate 20.6% reduction (746 → 592 missing_file), all 300 entries now active
+
+**Alternatives Considered**:
+1. **Pattern-Based Only**: Force all ignores into glob patterns
+   - ❌ Rejected: Requires overbroad patterns (e.g., ignore ALL references to BUILD-129* even where valid), high false negative risk
+2. **File+Target Only**: Force all ignores into specific pairs
+   - ❌ Rejected: Config explosion for broad categories (need 100s of entries for `/tmp` references), hard to maintain
+3. **Single Config File**: Merge triage rules into ignore config
+   - ❌ Rejected: Triage rules are human intent (what to ignore), ignore config is machine output (actual ignores), separation improves auditability
+
+**Why Two-Tier Better Than Pattern-Only**:
+- **Precision**: File+target pairs can't accidentally ignore valid links in other docs
+- **Safety**: Auto-generated from explicit triage rules with documented rationale
+- **Auditability**: Each ignore entry traces back to specific triage rule
+- **Efficiency**: Triage tool generates 300 entries from 60 rules (amplification via scanning)
+
+**Why Two-Tier Better Than File+Target-Only**:
+- **Maintainability**: Pattern ignores handle broad categories with 1 rule instead of 100s of entries
+- **Intent Expression**: Pattern `**/BUILD-129*.md` clearly means "all BUILD-129 docs", file+target pairs are implicit
+- **Config Size**: Pattern-based keeps config compact (critical for readability)
+
+**Tradeoffs**:
+- ✅ **Pro - Precision**: File+target pairs minimize false negatives (most specific ignore type)
+- ✅ **Pro - Efficiency**: Pattern-based handles broad categories with minimal config
+- ✅ **Pro - Auditability**: Triage workflow creates audit trail (rule → generated entries)
+- ✅ **Pro - Safety**: File+target pairs can't accidentally overbroad-ignore
+- ⚠️ **Con - Complexity**: Two ignore systems require understanding precedence (file+target > pattern)
+- ⚠️ **Con - Tool Wiring**: Both triage tool and check script must stay in sync (BUILD-168 gap fixed)
+
+**Validation**:
+- ✅ BUILD-168 generated 300 file+target entries from 60 triage rules (5x amplification)
+- ✅ After tool integration fix, 20.6% reduction achieved (746 → 592 missing_file)
+- ✅ Nav-mode maintained 0 missing_file throughout (no overbroad ignoring)
+- ✅ All 300 entries have documented reason field (auditability)
+
+**Related Decisions**:
+- DEC-021: Doc Link Hygiene Acceptance Criteria (BUILD-167)
+- BUILD-167: Doc Link Burndown foundation (baseline 746, nav-mode hygiene)
+- BUILD-159: Deep Doc Link Checker (deep scan mode, classification system)
+
+**Future Considerations**:
+- Could add triage rule validation (detect overbroad patterns before applying)
+- Could add ignore entry deduplication (pattern-based rule makes file+target entry redundant)
+- Could add triage impact preview (show how many violations each rule would ignore before committing)
+- Could add ignore config linting (detect stale entries where target now exists)
 
 ### DEC-021 | 2026-01-03T20:00 | Doc Link Hygiene - Acceptance Criteria for Non-Increasing Violation Counts
 **Status**: ✅ Implemented

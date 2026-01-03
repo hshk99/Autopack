@@ -28,6 +28,21 @@ from pathlib import Path
 from typing import Dict, List, Optional
 
 
+def _configure_utf8_stdio() -> None:
+    """
+    Make CLI output resilient on Windows terminals that default to legacy encodings (e.g. cp1252).
+
+    This script prints Unicode symbols (⚠️/✅/❌). On some Windows shells, that can raise
+    UnicodeEncodeError and crash the fixer. Prefer UTF-8 with replacement.
+    """
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            if hasattr(stream, "reconfigure"):
+                stream.reconfigure(encoding="utf-8", errors="replace")
+        except Exception:
+            pass
+
+
 def create_backup(repo_root: Path, files_to_backup: List[Path]) -> Path:
     """
     Create atomic backup of files before applying fixes.
@@ -215,6 +230,7 @@ def apply_fixes(
 
 
 def main():
+    _configure_utf8_stdio()
     parser = argparse.ArgumentParser(
         description="Apply mechanical fixes for broken documentation links"
     )

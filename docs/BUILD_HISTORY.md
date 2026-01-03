@@ -1649,7 +1649,7 @@ Re-run research-citation-fix plan to verify truncation recovery triggers structu
 **Phase ID**: N/A
 **Status**: ✅ Implemented
 **Category**: Feature
-**Implementation Summary**: **Date**: 2025-12-12 **Status**: ✅ Successfully Executed **Script**: `scripts/tidy/consolidate_docs_v2.py` Successfully consolidated scattered documentation from 6 old CONSOLIDATED_*.md files and 200+ archive files into 3 AI-optimized documentation files with intelligent status inference. 1. **[BUILD_HISTORY.md](../../docs/BUILD_HISTORY.md)** (86K) - 112 implementation entries - Chronologically sorted (most recent first) - Includes metadata: phase, status, files changed - Comprehensive index tab...
+**Implementation Summary**: **Date**: 2025-12-12 **Status**: ✅ Successfully Executed **Script**: `scripts/tidy/consolidate_docs_v2.py` Successfully consolidated scattered documentation from 6 old CONSOLIDATED_*.md files and 200+ archive files into 3 AI-optimized documentation files with intelligent status inference. 1. **[BUILD_HISTORY.md](BUILD_HISTORY.md)** (86K) - 112 implementation entries - Chronologically sorted (most recent first) - Includes metadata: phase, status, files changed - Comprehensive index tab...
 **Source**: `archive\tidy_v7\CONSOLIDATION_EXECUTION_COMPLETE.md`
 
 ### BUILD-026 | 2025-12-12T00:00 | Critical Fixes and Integration Plan
@@ -1677,7 +1677,7 @@ Re-run research-citation-fix plan to verify truncation recovery triggers structu
 **Phase ID**: N/A
 **Status**: ✅ Implemented
 **Category**: Feature
-**Implementation Summary**: **Date**: 2025-12-12 **Status**: ✅ READY TO EXECUTE --- **File**: [scripts/tidy/consolidate_docs_v2.py](../../scripts/tidy/consolidate_docs_v2.py) (lines 595-597) **Before**: ```python if hasattr(self, 'directory_specific_mode') and self.directory_specific_mode: md_files = list(self.archive_dir.glob("*.md"))  # ❌ Non-recursive else: md_files = list(self.archive_dir.rglob("*.md")) ``` **After**: ```python md_files = list(self.archive_dir.rglob("*.md"))  # ✅ Always recursive ``` **Impact**: Now co...
+**Implementation Summary**: **Date**: 2025-12-12 **Status**: ✅ READY TO EXECUTE --- **File**: [scripts/tidy/consolidate_docs_v2.py](../scripts/tidy/consolidate_docs_v2.py) (lines 595-597) **Before**: ```python if hasattr(self, 'directory_specific_mode') and self.directory_specific_mode: md_files = list(self.archive_dir.glob("*.md"))  # ❌ Non-recursive else: md_files = list(self.archive_dir.rglob("*.md")) ``` **After**: ```python md_files = list(self.archive_dir.rglob("*.md"))  # ✅ Always recursive ``` **Impact**: Now co...
 **Source**: `archive\tidy_v7\IMPLEMENTATION_SUMMARY.md`
 
 ### BUILD-033 | 2025-12-12T00:00 | Response to User's Critical Feedback
@@ -1691,7 +1691,7 @@ Re-run research-citation-fix plan to verify truncation recovery triggers structu
 **Phase ID**: N/A
 **Status**: ✅ Implemented
 **Category**: Feature
-**Implementation Summary**: **Date:** 2025-12-11 **Status:** ✅ ALL UPDATES COMPLETE - READY FOR EXECUTION --- Successfully updated all specifications, scripts, and documentation to consolidate ALL truth source files into project `docs/` folders instead of having them scattered at root or in `config/`. --- - **[PROPOSED_CLEANUP_STRUCTURE_V2.md](PROPOSED_CLEANUP_STRUCTURE_V2.md)** - Complete restructure - Root structure: Only README.md (quick-start) stays at root - docs/ structure: ALL truth sources now in docs/ (not config/...
+**Implementation Summary**: **Date:** 2025-12-11 **Status:** ✅ ALL UPDATES COMPLETE - READY FOR EXECUTION --- Successfully updated all specifications, scripts, and documentation to consolidate ALL truth source files into project `docs/` folders instead of having them scattered at root or in `config/`. --- - **[PROPOSED_CLEANUP_STRUCTURE_V2.md](../archive/tidy_v7/PROPOSED_CLEANUP_STRUCTURE_V2.md)** - Complete restructure - Root structure: Only README.md (quick-start) stays at root - docs/ structure: ALL truth sources now in docs/ (not config/...
 **Source**: `archive\tidy_v7\DOCS_CONSOLIDATION_COMPLETE.md`
 
 ### BUILD-023 | 2025-12-11T22:04 | Cleanup V2 - Reusable Solution Summary

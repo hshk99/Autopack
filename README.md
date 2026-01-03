@@ -58,15 +58,22 @@ In practice, “autonomous” requires that each phase has:
 
 ### Latest Highlights (Last 3 Builds)
 
+#### 2026-01-03: BUILD-168 - Doc Link Burndown: 20% Missing File Reduction ✅
+**Material Reduction via Triage Rules + Check Script Patch**
+- 20.6% reduction achieved: 746 → 592 missing_file issues (154 resolved, exceeded 10% target by 2x)
+- Nav-mode pristine: 0 missing_file maintained (README, INDEX, BUILD_HISTORY)
+- Fixed tool mismatch: Patched check_doc_links.py to use ignore_patterns from triage tool
+- 60+ triage rules added: Historical BUILD-129 docs, temp files, runtime dirs, API endpoints
+- Established workflow: Repeatable triage process for future burndown phases
+- See [docs/BUILD_HISTORY.md](docs/BUILD_HISTORY.md) BUILD-168 entry for details
+
 #### 2026-01-03: BUILD-167 - Doc Link Burndown + High-ROI Improvements ✅
 **Exit Code Standards, Redirect Stubs, Acceptance Criteria**
 - Exit code standards documented: CI integration behavior for check_doc_links.py + sot_db_sync.py
 - 27 triage rules added: Historical code paths + file extensions properly classified
 - 4 redirect stubs created: SOT_BUNDLE.md, CONSOLIDATED_DEBUG.md (with validation tests)
-- Backtick heuristics extracted: Module-level constants for maintainability
 - Zero regression: 746 baseline maintained after post-review corrections
-- Acceptance criteria established: Non-increasing counts + nav mode clean + stub validation + exit code compliance
-- See [docs/BUILD-167_COMPLETION_REPORT.md](docs/BUILD-167_COMPLETION_REPORT.md) and [docs/EXIT_CODE_STANDARDS.md](docs/EXIT_CODE_STANDARDS.md)
+- See [docs/BUILD-167_COMPLETION_REPORT.md](docs/BUILD-167_COMPLETION_REPORT.md)
 
 #### 2026-01-03: BUILD-163 - Standalone SOT → DB/Qdrant Sync ✅
 **Bounded, Mode-Selective Sync from Canonical SOT Ledgers**

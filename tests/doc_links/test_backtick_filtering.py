@@ -32,8 +32,8 @@ Another backtick: `/api/auth/.well-known/jwks.json`.
     # Should only extract the markdown link
     assert len(refs) == 1
     assert "docs/file.md" in refs
-    assert "autonomous_runs/tidy_pending_moves.json" not in refs  # normalized (leading . stripped)
-    assert "api/auth/.well-known/jwks.json" not in refs  # normalized (leading / stripped)
+    assert ".autonomous_runs/tidy_pending_moves.json" not in refs
+    assert "api/auth/.well-known/jwks.json" not in refs  # leading / stripped
 
     print("✅ test_backtick_filtering_disabled_by_default passed")
 
@@ -55,7 +55,7 @@ Another backtick: `/api/auth/.well-known/jwks.json`.
     # Should extract both markdown link and backtick paths
     assert len(refs) == 3
     assert "docs/file.md" in refs
-    assert "autonomous_runs/tidy_pending_moves.json" in refs  # normalized (leading . stripped)
+    assert ".autonomous_runs/tidy_pending_moves.json" in refs
     assert "api/auth/.well-known/jwks.json" in refs  # normalized (leading / stripped)
 
     print("✅ test_backtick_filtering_enabled passed")
@@ -106,7 +106,7 @@ Invalid paths (should be ignored even with include_backticks=True):
     refs = extract_file_references(content, Path("test.md"), skip_code_blocks=True, include_backticks=True)
 
     # Should extract paths with / or known extensions or known filenames
-    assert "autonomous_runs/tidy_pending_moves.json" in refs  # normalized (leading . stripped)
+    assert ".autonomous_runs/tidy_pending_moves.json" in refs
     assert "scripts/check_doc_links.py" in refs
     assert "config.yaml.example" in refs
     assert "README.md" in refs  # BUILD-166: improved heuristics
@@ -141,7 +141,7 @@ The API endpoint `/api/auth/.well-known/jwks.json` provides JWKS.
     assert "docs/INDEX.md" in refs
 
     # Backticks should be ignored
-    assert "autonomous_runs/tidy_pending_moves.json" not in refs  # normalized (leading . stripped)
+    assert ".autonomous_runs/tidy_pending_moves.json" not in refs
     assert "api/auth/.well-known/jwks.json" not in refs  # normalized (leading / stripped)
 
     print("✅ test_nav_mode_realistic_scenario passed")

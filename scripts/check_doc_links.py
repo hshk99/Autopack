@@ -35,6 +35,23 @@ from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Set, Tuple, Optional
 from urllib.parse import unquote
+import fnmatch
+
+
+def _configure_utf8_stdio() -> None:
+    """
+    Make CLI output resilient on Windows terminals that default to legacy encodings (e.g. cp1252).
+
+    This script prints Unicode symbols (✅/❌/⚠️). On some Windows shells, that can raise
+    UnicodeEncodeError and crash the checker. We prefer UTF-8, and fall back to replacement.
+    """
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            if hasattr(stream, "reconfigure"):
+                stream.reconfigure(encoding="utf-8", errors="replace")
+        except Exception:
+            # Best-effort only; never block execution.
+            pass
 
 # File reference patterns
 # Matches: [text](path/to/file.md) and `path/to/file.txt` or `Makefile`
@@ -103,11 +120,24 @@ def classify_link_target(target: str, repo_root: Path, ignore_config: Dict) -> s
     """
     normalized = normalize_path(target)
 
+    def pattern_matches(value: str, pattern: str) -> bool:
+        """
+        Match patterns from config.
+
+        - If pattern contains glob metacharacters, use fnmatch.
+        - Otherwise, use substring containment (backwards-compatible with existing config).
+        """
+        if not pattern:
+            return False
+        if any(ch in pattern for ch in ("*", "?", "[")):
+            return fnmatch.fnmatch(value, pattern)
+        return pattern in value
+
     # Check pattern ignores first (complete skip)
     pattern_ignores = ignore_config.get('pattern_ignores', [])
     for ignore_entry in pattern_ignores:
         pattern = ignore_entry.get('pattern', '')
-        if pattern and pattern in normalized:
+        if pattern_matches(normalized, pattern):
             return 'ignored'
 
     # Check for anchor-only links
@@ -118,7 +148,7 @@ def classify_link_target(target: str, repo_root: Path, ignore_config: Dict) -> s
     runtime_endpoints = ignore_config.get('runtime_endpoints', [])
     for endpoint_entry in runtime_endpoints:
         pattern = endpoint_entry.get('pattern', '')
-        if pattern and pattern in normalized:
+        if pattern_matches(normalized, pattern):
             return 'runtime_endpoint'
 
     # Check external URLs
@@ -129,7 +159,7 @@ def classify_link_target(target: str, repo_root: Path, ignore_config: Dict) -> s
     historical_refs = ignore_config.get('historical_refs', [])
     for hist_entry in historical_refs:
         pattern = hist_entry.get('pattern', '')
-        if pattern and pattern in normalized:
+        if pattern_matches(normalized, pattern):
             return 'historical_ref'
 
     # Default to missing_file
@@ -141,14 +171,22 @@ def normalize_path(path: str) -> str:
     Normalize a path for matching.
 
     - Convert backslashes to forward slashes
-    - Remove leading './'
+    - Remove leading './' (but preserve '../' and leading '.' for dot-directories like '.github/')
+    - Remove leading '/' to treat repo-root-relative paths as relative
     - Decode URL encoding (%20 → space)
     - Strip trailing whitespace
     """
-    normalized = path.replace('\\', '/')
-    normalized = normalized.lstrip('./')
-    normalized = unquote(normalized)
-    return normalized.strip()
+    normalized = unquote(path.replace('\\', '/')).strip()
+
+    # Remove one-or-more leading "./" segments (but do NOT collapse "../")
+    while normalized.startswith("./"):
+        normalized = normalized[2:]
+
+    # Treat "/foo/bar" as repo-root-relative; strip leading "/" (but keep other leading dots)
+    while normalized.startswith("/"):
+        normalized = normalized[1:]
+
+    return normalized
 
 
 def strip_fenced_code_blocks(content: str) -> str:
@@ -420,11 +458,12 @@ def validate_references(
 
         # Check ignore_patterns first (file+target specific ignores)
         ignore_patterns = ignore_config.get('ignore_patterns', [])
-        source_file_rel = str(source_file.relative_to(repo_root))
+        source_file_rel = normalize_path(str(source_file.relative_to(repo_root)))
         is_ignored_pattern = False
         for ignore_entry in ignore_patterns:
-            if (ignore_entry.get('file') == source_file_rel and
-                ignore_entry.get('target') == ref):
+            ignore_file = normalize_path(str(ignore_entry.get('file', '')))
+            ignore_target = normalize_path(str(ignore_entry.get('target', '')))
+            if ignore_file == source_file_rel and ignore_target == ref:
                 is_ignored_pattern = True
                 break
 
@@ -647,6 +686,7 @@ def export_fix_plan_markdown(broken_links: List[Dict], output_path: Path) -> Non
 
 
 def main():
+    _configure_utf8_stdio()
     parser = argparse.ArgumentParser(
         description="Check documentation links for drift (broken file references)"
     )

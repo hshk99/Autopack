@@ -43,41 +43,174 @@ from io_utils import atomic_write
 
 
 # ---------------------------------------------------------------------------
-# Entry Counting Logic
+# Entry Counting Logic - Dual-Source Strategy (META + Derived)
 # ---------------------------------------------------------------------------
 
-def count_build_history_entries(content: str) -> int:
+def parse_meta_count(content: str, key: str) -> int | None:
     """
-    Count BUILD-### entries in BUILD_HISTORY.md.
+    Parse count from META header (e.g., "Total_Builds: 169").
 
-    Entries start with "## BUILD-" or "### BUILD-" headers.
+    Args:
+        content: File content
+        key: META key to search for (e.g., "Builds", "Decisions", "Issues")
+
+    Returns:
+        Count from META header, or None if not found
     """
-    pattern = r'^#{2,3}\s+BUILD-\d+'
-    matches = re.findall(pattern, content, re.MULTILINE)
-    return len(matches)
+    pattern = rf'^Total_{key}:\s*(\d+)\s*$'
+    match = re.search(pattern, content, re.MULTILINE)
+    return int(match.group(1)) if match else None
 
 
-def count_debug_log_entries(content: str) -> int:
+def derive_build_count(content: str) -> int:
     """
-    Count debug log entries in DEBUG_LOG.md.
+    Derive BUILD-### count from content (index table rows).
 
-    Entries start with "## DBG-" or "### DBG-" or "## [date]" headers.
+    Counts total build entries in the index table. Note that some BUILD IDs
+    may appear multiple times (representing different phases/milestones), and
+    we count each entry separately as a distinct deliverable.
+
+    Falls back to unique BUILD-### ID count if no index table found.
     """
-    # Match "## DBG-###" or "### DBG-###" or "## [YYYY-MM-DD]" or "## YYYY-MM-DD"
-    pattern = r'^#{2,3}\s+(DBG-\d+|\[?\d{4}-\d{2}-\d{2}\]?)'
-    matches = re.findall(pattern, content, re.MULTILINE)
-    return len(matches)
+    # Count index table rows: | YYYY-MM-DD | BUILD-### | ...
+    table_rows = re.findall(r'^\|\s*\d{4}-\d{2}-\d{2}\s*\|\s*BUILD-\d+', content, re.MULTILINE)
+
+    if table_rows:
+        return len(table_rows)
+
+    # Fallback: count unique BUILD IDs if no table found
+    ids = set(re.findall(r'\bBUILD-\d+\b', content))
+    return len(ids)
 
 
-def count_architecture_decisions(content: str) -> int:
+def derive_decision_count(content: str) -> int:
     """
-    Count architecture decision entries in ARCHITECTURE_DECISIONS.md.
+    Derive DEC-### / AD-### count from content.
 
-    Entries start with "## DEC-" or "### DEC-" or "## AD-" headers.
+    Counts unique decision IDs anywhere in the document, as decisions may be
+    referenced multiple times (in decision entry, in BUILD entries, etc.).
+    Unlike builds which can have multiple milestones per BUILD-###, each
+    DEC-### represents a single architectural decision.
     """
-    pattern = r'^#{2,3}\s+(DEC-\d+|AD-\d+)'
-    matches = re.findall(pattern, content, re.MULTILINE)
-    return len(matches)
+    # Count unique IDs (decisions may be referenced many times but each ID = one decision)
+    dec_ids = set(re.findall(r'\bDEC-\d+\b', content))
+    ad_ids = set(re.findall(r'\bAD-\d+\b', content))
+    return len(dec_ids | ad_ids)  # Union of both ID sets
+
+
+def derive_debug_count(content: str) -> int:
+    """
+    Derive debug session count from content.
+
+    First tries to count index table rows, falls back to unique IDs and headers.
+    """
+    # Try counting table rows first: | YYYY-MM-DD | DBG-### | or date-based rows
+    table_rows = re.findall(r'^\|\s*(\d{4}-\d{2}-\d{2})\s*\|\s*(DBG-\d+|\[?\d{4}-\d{2}-\d{2}\]?|[^|]+)', content, re.MULTILINE)
+
+    if table_rows:
+        # Filter to only count rows with DBG-### or date patterns in second column
+        valid_rows = [row for row in table_rows if 'DBG-' in row[1] or re.match(r'\[?\d{4}-\d{2}-\d{2}\]?', row[1].strip())]
+        if valid_rows:
+            return len(valid_rows)
+
+    # Fallback: count unique IDs and date headers
+    dbg_ids = set(re.findall(r'\bDBG-\d+\b', content))
+    date_headers = set(re.findall(r'^#{2,3}\s+\[?(\d{4}-\d{2}-\d{2})\]?', content, re.MULTILINE))
+    return len(dbg_ids | date_headers)
+
+
+def pick_count(name: str, meta: int | None, derived: int, verbose: bool = False, trust_meta_on_mismatch: bool = False) -> int:
+    """
+    Select canonical count using dual-source validation.
+
+    Strategy:
+    - If META matches derived: use META (authoritative)
+    - If META missing: use derived (only source)
+    - If META conflicts with derived:
+      * Default: use derived + warn (assume META outdated, derived from actual content)
+      * With trust_meta_on_mismatch=True: use META + warn (conservative)
+
+    Args:
+        name: Name of count for logging (e.g., "BUILD_HISTORY builds")
+        meta: Count from META header (or None)
+        derived: Count derived from content (table rows)
+        verbose: If True, print diagnostic info
+        trust_meta_on_mismatch: If True, use META even on mismatch (default: use derived)
+
+    Returns:
+        Canonical count
+    """
+    if meta is None:
+        if verbose:
+            print(f"  [{name}] No META count found, using derived: {derived}")
+        return derived
+
+    if meta != derived:
+        if trust_meta_on_mismatch:
+            print(f"  [WARN] {name} count mismatch: META={meta} derived={derived} (using META - trust mode)")
+            return meta
+        else:
+            print(f"  [WARN] {name} count mismatch: META={meta} derived={derived} (using derived - META may be outdated)")
+            return derived
+
+    if verbose and meta == derived:
+        print(f"  [{name}] META and derived agree: {meta}")
+
+    return meta
+
+
+def latest_build_id(content: str) -> str | None:
+    """
+    Extract latest BUILD-### ID from content (highest number).
+
+    Returns:
+        Latest BUILD ID (e.g., "BUILD-160"), or None if none found
+    """
+    ids = re.findall(r'\bBUILD-(\d+)\b', content)
+    if not ids:
+        return None
+    max_num = max(int(id_num) for id_num in ids)
+    return f"BUILD-{max_num}"
+
+
+# ---------------------------------------------------------------------------
+# High-Level Counting Functions (Using Dual-Source Strategy)
+# ---------------------------------------------------------------------------
+
+def count_build_history_entries(content: str, verbose: bool = False) -> int:
+    """
+    Count BUILD-### entries using dual-source strategy (META + derived).
+
+    Prefers META count (Total_Builds:) but cross-checks with derived count
+    from all BUILD-### occurrences in content. Warns on mismatch.
+    """
+    meta = parse_meta_count(content, "Builds")
+    derived = derive_build_count(content)
+    return pick_count("BUILD_HISTORY builds", meta, derived, verbose)
+
+
+def count_debug_log_entries(content: str, verbose: bool = False) -> int:
+    """
+    Count debug session entries using dual-source strategy (META + derived).
+
+    Prefers META count (Total_Issues:) but cross-checks with derived count
+    from DBG-### IDs and date headers. Warns on mismatch.
+    """
+    meta = parse_meta_count(content, "Issues")
+    derived = derive_debug_count(content)
+    return pick_count("DEBUG_LOG sessions", meta, derived, verbose)
+
+
+def count_architecture_decisions(content: str, verbose: bool = False) -> int:
+    """
+    Count decision entries using dual-source strategy (META + derived).
+
+    Prefers META count (Total_Decisions:) but cross-checks with derived count
+    from DEC-### and AD-### IDs. Warns on mismatch.
+    """
+    meta = parse_meta_count(content, "Decisions")
+    derived = derive_decision_count(content)
+    return pick_count("ARCHITECTURE_DECISIONS decisions", meta, derived, verbose)
 
 
 # ---------------------------------------------------------------------------
@@ -185,7 +318,7 @@ def refresh_sot_summaries(
     build_history_path = docs_dir / "BUILD_HISTORY.md"
     if build_history_path.exists():
         content = build_history_path.read_text(encoding='utf-8')
-        count = count_build_history_entries(content)
+        count = count_build_history_entries(content, verbose=verbose)
         results['BUILD_HISTORY.md'] = count
 
         new_content, changed = update_summary_section(content, count, 'build_history')
@@ -215,7 +348,7 @@ def refresh_sot_summaries(
     debug_log_path = docs_dir / "DEBUG_LOG.md"
     if debug_log_path.exists():
         content = debug_log_path.read_text(encoding='utf-8')
-        count = count_debug_log_entries(content)
+        count = count_debug_log_entries(content, verbose=verbose)
         results['DEBUG_LOG.md'] = count
 
         new_content, changed = update_summary_section(content, count, 'debug_log')
@@ -236,7 +369,7 @@ def refresh_sot_summaries(
     arch_decisions_path = docs_dir / "ARCHITECTURE_DECISIONS.md"
     if arch_decisions_path.exists():
         content = arch_decisions_path.read_text(encoding='utf-8')
-        count = count_architecture_decisions(content)
+        count = count_architecture_decisions(content, verbose=verbose)
         results['ARCHITECTURE_DECISIONS.md'] = count
 
         new_content, changed = update_summary_section(content, count, 'architecture_decisions')

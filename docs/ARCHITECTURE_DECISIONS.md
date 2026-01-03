@@ -1,5 +1,10 @@
 # Architecture Decisions - Design Rationale
 
+
+<!-- AUTO-GENERATED SUMMARY - DO NOT EDIT MANUALLY -->
+**Summary**: 30 decision(s) documented | Last updated: 2026-01-03 14:29:44
+<!-- END AUTO-GENERATED SUMMARY -->
+
 <!-- META
 Last_Updated: 2026-01-02T18:30:00.000000Z
 Total_Decisions: 16

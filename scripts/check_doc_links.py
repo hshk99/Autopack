@@ -37,9 +37,9 @@ from typing import Dict, List, Set, Tuple, Optional
 from urllib.parse import unquote
 
 # File reference patterns
-# Matches: [text](path/to/file.md) and `path/to/file.txt`
+# Matches: [text](path/to/file.md) and `path/to/file.txt` or `Makefile`
 MARKDOWN_LINK_PATTERN = re.compile(r'\[([^\]]+)\]\(([^)]+)\)')  # [text](link)
-BACKTICK_PATH_PATTERN = re.compile(r'`([a-zA-Z0-9_\-./]+\.[a-zA-Z0-9]+)`')  # `file.ext`
+BACKTICK_PATH_PATTERN = re.compile(r'`([a-zA-Z0-9_\-./]+(?:\.[a-zA-Z0-9]+)?)`')  # `file.ext` or `Makefile` (BUILD-166: extension optional)
 DIRECT_PATH_PATTERN = re.compile(r'(?:^|[ \t])([a-zA-Z0-9_\-./]+\.md)(?:[ \t:]|$)')  # file.md
 FENCED_CODE_BLOCK_PATTERN = re.compile(r'^```.*?^```', re.MULTILINE | re.DOTALL)  # ```...```
 
@@ -204,11 +204,34 @@ def extract_file_references(content: str, file_path: Path, skip_code_blocks: boo
 
     # Extract backtick-wrapped paths: `path/to/file.ext` (BUILD-166: optional)
     if include_backticks:
+        # Known file extensions and filenames that should be treated as paths
+        KNOWN_EXTENSIONS = {
+            '.md', '.py', '.js', '.ts', '.jsx', '.tsx', '.json', '.yaml', '.yml',
+            '.toml', '.txt', '.sh', '.bash', '.sql', '.env', '.gitignore',
+            '.dockerignore', '.csv', '.log', '.xml', '.html', '.css', '.scss'
+        }
+        KNOWN_FILENAMES = {
+            'Makefile', 'Dockerfile', 'README', 'LICENSE', 'CHANGELOG',
+            'TODO', 'AUTHORS', 'CONTRIBUTING', 'Pipfile', 'Procfile'
+        }
+
         for line_num, line in enumerate(lines, start=1):
             for match in BACKTICK_PATH_PATTERN.finditer(line):
                 path_ref = match.group(1)
-                # Only include if it looks like a file path (has slash or dots)
-                if '/' in path_ref or path_ref.count('.') >= 2:
+
+                # Heuristics for identifying file paths (BUILD-166: improved for deep mode)
+                # 1. Contains path separator (/)
+                # 2. Has known file extension
+                # 3. Is a known filename (e.g., Makefile, README)
+                # 4. Has multiple dots (e.g., config.yaml.example)
+                is_path = (
+                    '/' in path_ref or
+                    any(path_ref.endswith(ext) for ext in KNOWN_EXTENSIONS) or
+                    any(path_ref.startswith(name) for name in KNOWN_FILENAMES) or
+                    path_ref.count('.') >= 2
+                )
+
+                if is_path:
                     normalized = normalize_path(path_ref)
                     if normalized not in refs:
                         refs[normalized] = []
@@ -662,7 +685,13 @@ def main():
     args = parser.parse_args()
     repo_root = args.repo_root.resolve()
     skip_code_blocks = not args.no_skip_code_blocks
-    include_backticks = args.include_backticks
+
+    # BUILD-166: Deep mode defaults to include backticks for comprehensive coverage
+    # Nav mode defaults to exclude backticks to reduce false positives
+    if args.deep and not args.include_backticks:
+        include_backticks = True
+    else:
+        include_backticks = args.include_backticks
 
     # Load ignore configuration
     ignore_config = load_ignore_config(repo_root)
@@ -706,6 +735,7 @@ def main():
     print(f"Mode: {mode}")
     print(f"Files to check: {len(files_to_check)}")
     print(f"Search space for suggestions: {len(all_markdown_files)} markdown files")
+    print(f"Backtick extraction: {'enabled' if include_backticks else 'disabled (nav mode)'}")
     print("=" * 70)
     print()
 
@@ -788,10 +818,30 @@ def main():
             cat = b['reason']
             categories[cat] = categories.get(cat, 0) + 1
 
+        # Separate enforced vs informational categories
+        ci_fail_categories = ignore_config.get('ci_enforcement', {}).get('fail_on', ['missing_file'])
+        enforced_links = [b for b in all_broken_links if b['reason'] in ci_fail_categories]
+        informational_links = [b for b in all_broken_links if b['reason'] not in ci_fail_categories]
+
         print()
-        print("Broken links by category:")
-        for cat, count in sorted(categories.items(), key=lambda x: -x[1]):
-            print(f"  {cat}: {count}")
+        if enforced_links:
+            print(f"❌ Enforced broken links (CI-blocking): {len(enforced_links)}")
+            enforced_cats = {}
+            for b in enforced_links:
+                cat = b['reason']
+                enforced_cats[cat] = enforced_cats.get(cat, 0) + 1
+            for cat, count in sorted(enforced_cats.items(), key=lambda x: -x[1]):
+                print(f"  {cat}: {count}")
+
+        if informational_links:
+            print()
+            print(f"ℹ️  Informational references (report-only): {len(informational_links)}")
+            info_cats = {}
+            for b in informational_links:
+                cat = b['reason']
+                info_cats[cat] = info_cats.get(cat, 0) + 1
+            for cat, count in sorted(info_cats.items(), key=lambda x: -x[1]):
+                print(f"  {cat}: {count}")
 
         # Confidence breakdown (for missing_file category)
         missing_file_links = [b for b in all_broken_links if b['reason'] == 'missing_file']
@@ -807,8 +857,7 @@ def main():
             print(f"  Manual review required: {low_conf}")
 
         # CI enforcement check (only fail on missing_file)
-        ci_fail_categories = ignore_config.get('ci_enforcement', {}).get('fail_on', ['missing_file'])
-        ci_failures = sum(1 for b in all_broken_links if b['reason'] in ci_fail_categories)
+        ci_failures = len(enforced_links)
 
         print()
         if ci_failures > 0:

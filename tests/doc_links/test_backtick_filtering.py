@@ -85,32 +85,38 @@ def test_markdown_links_always_extracted():
 
 
 def test_backtick_path_heuristics():
-    """Test that backtick extraction uses path heuristics (requires / or multiple dots)."""
+    """Test that backtick extraction uses improved path heuristics (BUILD-166)."""
     content = """
 # Test Document
 
 Valid paths (should be extracted when include_backticks=True):
-- `.autonomous_runs/tidy_pending_moves.json`
-- `scripts/check_doc_links.py`
-- `config.yaml.example`
+- `.autonomous_runs/tidy_pending_moves.json` (has /)
+- `scripts/check_doc_links.py` (has / and .py extension)
+- `config.yaml.example` (multiple dots)
+- `README.md` (known extension)
+- `Makefile` (known filename)
+- `pyproject.toml` (known extension)
 
 Invalid paths (should be ignored even with include_backticks=True):
-- `filename.md` (no slash, only one dot)
-- `variable_name` (no slash, no dots)
-- `class.method` (no slash, only one dot)
+- `variable_name` (no path indicators)
+- `class.method` (single dot, not a file extension)
+- `foo` (no path indicators)
 """
 
     refs = extract_file_references(content, Path("test.md"), skip_code_blocks=True, include_backticks=True)
 
-    # Should only extract paths with / or multiple dots
+    # Should extract paths with / or known extensions or known filenames
     assert "autonomous_runs/tidy_pending_moves.json" in refs  # normalized (leading . stripped)
     assert "scripts/check_doc_links.py" in refs
     assert "config.yaml.example" in refs
+    assert "README.md" in refs  # BUILD-166: improved heuristics
+    assert "Makefile" in refs, f"Expected Makefile in refs, got: {sorted(refs.keys())}"  # BUILD-166: improved heuristics
+    assert "pyproject.toml" in refs  # BUILD-166: improved heuristics
 
     # Should not extract simple identifiers
-    assert "filename.md" not in refs
     assert "variable_name" not in refs
     assert "class.method" not in refs
+    assert "foo" not in refs
 
     print("✅ test_backtick_path_heuristics passed")
 

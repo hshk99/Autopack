@@ -1321,3 +1321,79 @@ if not is_root_file_allowed(item.name):
 
 ---
 
+
+### DEC-031 | 2026-01-03T14:14 | Quick Mode Skips Archive Consolidation But Keeps Routing
+**Status**: ✅ Implemented
+**Build**: BUILD-160
+**Context**: When implementing --quick flag for fast tidy execution, needed to decide which phases to skip. Options were: (1) skip all phases except SOT sync, (2) skip archive consolidation only, (3) skip routing + consolidation.
+
+**Decision**: Quick mode skips archive consolidation (Phase 3) but keeps root routing (Phase 1) and docs hygiene (Phase 2).
+
+**Rationale**:
+- **Performance**: Archive consolidation is the slowest phase (semantic model processing, 100+ files)
+- **SOT integrity**: Root routing + docs hygiene needed to maintain docs/ as truth source
+- **Fast enough**: Phase 1 + 2 complete in <1s, no need to skip
+- **Safety**: Routing violations caught immediately, not deferred to slow full tidy
+- **Composable**: --quick suitable for frequent use (pre-commit, CI), full tidy for deep hygiene
+
+**Alternatives Considered**:
+1. **Skip all routing + consolidation**: Rejected - SOT violations accumulate, docs/ becomes stale
+2. **Skip routing only**: Rejected - routing is fast (<1s), no performance benefit
+3. **Skip routing + cleanup**: Rejected - .autonomous_runs cleanup is safety-critical
+
+**Implementation**: --quick flag sets --skip-archive-consolidation + --timing automatically (tidy_up.py:1310-1314).
+
+**Impact**: Quick mode completes in 1.07s (was timing out at 120s+), SOT routing still enforced, suitable for frequent use.
+
+---
+
+### DEC-032 | 2026-01-03T14:14 | SOT Summary Counts Derived from Content (Not META Headers)
+**Status**: ✅ Implemented
+**Build**: BUILD-160
+**Context**: When implementing sot_summary_refresh.py, needed source for entry counts. Options were: (1) parse META headers in SOT files, (2) count actual entries from content, (3) maintain separate index file.
+
+**Decision**: Derive counts from actual content (BUILD-### headers, DBG-### headers, DEC-### headers) instead of META headers.
+
+**Rationale**:
+- **Single source of truth**: Actual entries in docs are canonical, not metadata
+- **Self-healing**: Count always matches reality, no drift between META and content
+- **Append-only ledger**: Entries never deleted, count monotonically increases
+- **Simple implementation**: Regex pattern matching, no schema migration needed
+- **No manual sync**: Counts automatically update when entries added/removed
+
+**Alternatives Considered**:
+1. **Parse META headers**: Rejected - requires manual sync, drift risk, no recovery if META wrong
+2. **Separate index file**: Rejected - additional sync point, can diverge from actual content
+3. **Database tracking**: Rejected - over-engineered for simple counting task
+
+**Implementation**: count_build_history_entries(), count_debug_log_entries(), count_architecture_decisions() (sot_summary_refresh.py:40-70).
+
+**Impact**: SOT summaries always accurate, no manual maintenance, self-healing after any edit.
+
+---
+
+### DEC-033 | 2026-01-03T14:14 | Standalone SOT Refresh Script (Not Tidy Flag)
+**Status**: ✅ Implemented
+**Build**: BUILD-160
+**Context**: When implementing docs-only SOT summary refresh, needed integration point. Options were: (1) add --refresh-sot flag to tidy_up.py, (2) create standalone script, (3) integrate into archive consolidation.
+
+**Decision**: Create standalone sot_summary_refresh.py script instead of tidy flag.
+
+**Rationale**:
+- **Decoupling**: Can refresh SOT summaries without running tidy (no lease, no routing, no verification)
+- **Faster**: No lease acquisition overhead (~1s), just summary update (~100ms)
+- **Composable**: Can integrate into other workflows (CI, pre-commit hooks, manual ad-hoc updates)
+- **Clear responsibility**: Single-purpose tool easier to understand/maintain than multi-flag tidy
+- **Testability**: Standalone script easier to test in isolation
+
+**Alternatives Considered**:
+1. **Tidy flag (--refresh-sot)**: Rejected - adds complexity to tidy, requires lease even for read-only operation
+2. **Archive consolidation integration**: Rejected - couples summary refresh to slow consolidation phase
+3. **Database-driven**: Rejected - SOT is file-based, no need for database dependency
+
+**Implementation**: sot_summary_refresh.py as standalone script with same --dry-run/--execute pattern as tidy (336 lines).
+
+**Impact**: SOT summaries can be refreshed in <100ms without tidy overhead, suitable for frequent/automated updates.
+
+---
+

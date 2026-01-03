@@ -2790,3 +2790,150 @@ python scripts/fix_doc_links.py --execute --apply-medium
 - 31% broken link reduction (58 → 40), docs/INDEX.md 100% clean
 - Fix plan export (JSON + Markdown)
 - Implementation summary (docs/BUILD-159_DEEP_DOC_LINK_CHECKER_MECHANICAL_FIXER.md)
+
+---
+
+## BUILD-160
+
+**Title**: Tidy Performance — Quick Mode + Timing Instrumentation + Docs-Only SOT Sync  
+**Status**: ✅ COMPLETE  
+**Completed**: 2026-01-03  
+**Commit**: c0b44035
+
+### Problem Statement
+
+Tidy system had timeout issues blocking SOT sync:
+- Full tidy dry-run timing out (>120s)
+- Archive consolidation slow/unnecessary for docs-only updates
+- No visibility into which phases were slow
+- SOT summary refresh coupled to full tidy consolidation
+
+### Solution
+
+Added three performance improvements:
+
+**1. `--quick` Flag**
+- Skip archive consolidation (Phase 3)
+- Keep SOT sync, routing, verification
+- Enable timing by default
+- **Result**: 1.07s total (was timing out at 120s+)
+
+**2. `--timing` Flag**
+- Per-phase timing instrumentation
+- Tracks: Phase -1 (retry), 0 (migrations), 0.5 (cleanup), 1 (routing), 2 (docs), 3 (archive), 4 (verification)
+- Shows total execution time
+- **Result**: Easy identification of slow phases
+
+**3. `sot_summary_refresh.py`** (standalone)
+- Docs-only SOT summary update
+- Counts actual entries (BUILD-###, DBG-###, DEC-###)
+- Updates auto-generated summary sections
+- Uses atomic_write() from io_utils.py
+- **Result**: Fast SOT sync without full consolidation
+
+### Architecture Decisions
+
+**Why `--quick` skips archive consolidation but keeps routing?**
+- Archive consolidation is slow (semantic model processing)
+- Root routing + docs hygiene are fast (<1s) and needed for SOT integrity
+- SOT sync only needs routing + verification, not deep archive processing
+
+**Why derive counts from content instead of META headers?**
+- Single source of truth: actual entries in docs
+- Self-healing: Count always matches reality
+- No drift between META and content
+
+**Why standalone script instead of tidy flag?**
+- Decoupling: Can refresh SOT summaries without running tidy
+- Faster: No lease acquisition, no routing, just summary update
+- Composable: Can integrate into other workflows (CI, hooks)
+
+### Files Modified
+
+1. **[scripts/tidy/tidy_up.py](scripts/tidy/tidy_up.py)** (+45 lines)
+   - Added `--quick` and `--timing` flags
+   - Added timing instrumentation to all phases
+   - Quick mode sets `--skip-archive-consolidation` + timing
+
+2. **[scripts/tidy/sot_summary_refresh.py](scripts/tidy/sot_summary_refresh.py)** (+336 lines, NEW)
+   - Entry counting for BUILD_HISTORY.md, DEBUG_LOG.md, ARCHITECTURE_DECISIONS.md
+   - Auto-generated summary section management
+   - Atomic write with dry-run support
+
+### Usage Examples
+
+```bash
+# Quick mode - fast docs-only sync
+PYTHONUTF8=1 python scripts/tidy/tidy_up.py --dry-run --quick
+
+# Quick mode with execute
+PYTHONUTF8=1 python scripts/tidy/tidy_up.py --execute --quick
+
+# Timing only (no quick mode)
+PYTHONUTF8=1 python scripts/tidy/tidy_up.py --dry-run --timing
+
+# SOT summary refresh (standalone)
+PYTHONUTF8=1 python scripts/tidy/sot_summary_refresh.py --dry-run
+PYTHONUTF8=1 python scripts/tidy/sot_summary_refresh.py --execute
+```
+
+### Validation
+
+**Quick Mode**:
+```
+[TIMING] Total tidy execution time: 1.07s
+- Phase -1: 0.00s
+- Phase 0: 0.00s
+- Phase 0.5: (included in total)
+- Phase 1: 0.01s
+- Phase 2: 0.01s
+- Phase 3: SKIPPED
+- Phase 4: 0.00s
+```
+
+**SOT Summary Refresh**:
+```
+BUILD_HISTORY.md: 91 entries
+DEBUG_LOG.md: 50 entries
+ARCHITECTURE_DECISIONS.md: 28 entries
+```
+
+### Impact
+
+**Before BUILD-160**:
+- ❌ Tidy dry-run timing out (>120s) blocking SOT sync
+- ❌ No visibility into slow phases
+- ❌ SOT summary update coupled to full tidy
+- ❌ Manual counting of entries for summary updates
+
+**After BUILD-160**:
+- ✅ Quick mode: 1.07s total (120x faster)
+- ✅ Timing instrumentation: Clear visibility into phase performance
+- ✅ Standalone SOT refresh: Decoupled from full tidy
+- ✅ Auto-counted summaries: Derived from actual entries
+
+**User Experience**: Developers can now run tidy --quick for fast docs-only sync without waiting for archive consolidation. SOT summaries stay up-to-date automatically.
+
+### Deferred Work
+
+**P2: Lock Status UX** (BUILD-161)
+- `--lock-status` command for diagnostics
+- Auto-detection of stale locks (PID check)
+- `--break-stale-lock` with safety checks
+
+**P3: Phase-Level Skip Flags**
+- `--skip-routing`, `--skip-cleanup`, etc.
+- Fine-grained performance tuning
+- Composable with `--quick`
+
+### Related Builds
+- BUILD-158: Tidy Lock/Lease (lease foundation)
+- BUILD-154: Tidy First-Run Resilience (queue retry foundation)
+- BUILD-145: Tidy System Revision (phase structure foundation)
+
+**Deliverables**:
+- Quick mode flag + timing instrumentation (tidy_up.py)
+- Standalone SOT summary refresh (sot_summary_refresh.py, NEW)
+- 120x performance improvement for docs-only sync (120s+ → 1.07s)
+- Per-phase timing visibility for debugging
+

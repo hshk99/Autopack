@@ -8,7 +8,7 @@ import os
 import logging
 import requests
 from typing import Dict, Optional
-from datetime import datetime
+from datetime import datetime, timezone
 
 logger = logging.getLogger(__name__)
 
@@ -146,6 +146,92 @@ class TelegramNotifier:
             logger.error(f"[Telegram] Failed to send completion notice: {e}")
             return False
 
+    def send_pr_approval_request(
+        self,
+        approval_id: int,
+        run_id: str,
+        branch: str,
+        summary_md: str,
+        risk_score: int = 0,
+        files_changed: int = 0,
+        loc_added: int = 0,
+        loc_removed: int = 0,
+    ) -> bool:
+        """Send PR creation approval request to Telegram.
+
+        Uses inline keyboard buttons with callback_data based on approval_id,
+        not phase_id, to avoid collisions and ensure idempotence.
+
+        Args:
+            approval_id: Unique approval request ID
+            run_id: Run identifier
+            branch: Branch name for PR
+            summary_md: PR summary (first 200 chars shown)
+            risk_score: Risk score 0-100
+            files_changed: Number of files changed
+            loc_added: Lines added
+            loc_removed: Lines removed
+
+        Returns:
+            True if notification sent successfully
+        """
+        if not self.is_configured():
+            logger.error("Telegram not configured - cannot send PR approval")
+            return False
+
+        # Format message
+        risk_emoji = "🔴" if risk_score >= 70 else "⚠️" if risk_score >= 40 else "✅"
+
+        # Truncate summary for Telegram
+        summary_preview = summary_md[:200] + "..." if len(summary_md) > 200 else summary_md
+
+        message = (
+            f"🔀 *PR Creation Approval Needed*\n\n"
+            f"*Run*: `{run_id}`\n"
+            f"*Branch*: `{branch}`\n"
+            f"*Risk*: {risk_emoji} {risk_score}/100\n"
+            f"*Changes*: {files_changed} files (+{loc_added}/-{loc_removed} lines)\n\n"
+            f"*Summary*:\n{summary_preview}\n\n"
+            f"_Sent: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')} UTC_"
+        )
+
+        # Create inline keyboard with Approve/Reject buttons
+        # IMPORTANT: Use approval_id, not phase_id or run_id
+        keyboard = {
+            "inline_keyboard": [[
+                {
+                    "text": "✅ Approve",
+                    "callback_data": f"pr_approve:{approval_id}"
+                },
+                {
+                    "text": "❌ Reject",
+                    "callback_data": f"pr_reject:{approval_id}"
+                }
+            ]]
+        }
+
+        try:
+            # Send message via Telegram API
+            url = f"https://api.telegram.org/bot{self.bot_token}/sendMessage"
+
+            response = requests.post(url, json={
+                "chat_id": self.chat_id,
+                "text": message,
+                "parse_mode": "Markdown",
+                "reply_markup": keyboard
+            }, timeout=10)
+
+            if response.status_code == 200:
+                logger.info(f"[Telegram] PR approval request sent for approval_id={approval_id}")
+                return True
+            else:
+                logger.error(f"[Telegram] API error: {response.status_code} {response.text}")
+                return False
+
+        except Exception as e:
+            logger.error(f"[Telegram] Failed to send PR approval: {e}")
+            return False
+
     def _format_approval_message(
         self,
         phase_id: str,
@@ -242,6 +328,41 @@ def setup_telegram_webhook(bot_token: str, ngrok_url: str) -> bool:
 
     except Exception as e:
         logger.error(f"[Telegram] Failed to set webhook: {e}")
+        return False
+
+
+def answer_telegram_callback(
+    bot_token: str,
+    callback_id: str,
+    text: str,
+    show_alert: bool = False,
+) -> bool:
+    """
+    Answer Telegram callback query (removes loading state from inline button).
+
+    Args:
+        bot_token: Telegram bot token
+        callback_id: callback_query.id from webhook payload
+        text: Message to show user (toast or alert)
+        show_alert: If True, show as popup alert instead of toast
+
+    Returns:
+        True if callback answered successfully
+    """
+    try:
+        url = f"https://api.telegram.org/bot{bot_token}/answerCallbackQuery"
+        response = requests.post(
+            url,
+            json={
+                "callback_query_id": callback_id,
+                "text": text,
+                "show_alert": show_alert,
+            },
+            timeout=5,
+        )
+        return response.status_code == 200
+    except Exception as e:
+        logger.error(f"[Telegram] Failed to answer callback: {e}")
         return False
 
 

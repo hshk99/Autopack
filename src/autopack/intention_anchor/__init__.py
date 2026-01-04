@@ -8,6 +8,7 @@ Public API exports:
     - render_for_prompt, render_compact: prompt renderers
     - render_for_builder, render_for_auditor, render_for_doctor: agent-specific renderers
     - load_and_render_for_builder, load_and_render_for_auditor, load_and_render_for_doctor: prompt injection helpers
+    - load_and_render_for_builder_with_telemetry, load_and_render_for_auditor_with_telemetry, load_and_render_for_doctor_with_telemetry: telemetry-aware helpers
     - get_canonical_path: path resolver
 """
 
@@ -35,6 +36,11 @@ from .storage import (
     save_anchor,
     update_anchor,
 )
+from .telemetry import (
+    load_and_render_for_auditor_with_telemetry,
+    load_and_render_for_builder_with_telemetry,
+    load_and_render_for_doctor_with_telemetry,
+)
 
 __all__ = [
     # Models
@@ -60,4 +66,8 @@ __all__ = [
     "load_and_render_for_builder",
     "load_and_render_for_auditor",
     "load_and_render_for_doctor",
+    # Telemetry-aware prompt injection helpers
+    "load_and_render_for_builder_with_telemetry",
+    "load_and_render_for_auditor_with_telemetry",
+    "load_and_render_for_doctor_with_telemetry",
 ]

@@ -3468,6 +3468,19 @@ Instead: Use their APIs via imports, create new files elsewhere.
                 if text:
                     prompt_parts.append(f"- {text}")
 
+        # Milestone 2: Inject intention anchor (canonical project goal)
+        if run_id := phase_spec.get('run_id'):
+            from .intention_anchor import load_and_render_for_builder
+
+            anchor_section = load_and_render_for_builder(
+                run_id=run_id,
+                phase_id=phase_spec.get('phase_id', 'unknown'),
+                base_dir='.',  # Use current directory (.autonomous_runs/<run_id>/)
+            )
+            if anchor_section:
+                prompt_parts.append("\n")
+                prompt_parts.append(anchor_section)
+
         # NEW: Include retrieved context from vector memory (per IMPLEMENTATION_PLAN_MEMORY_AND_CONTEXT.md)
         if retrieved_context:
             prompt_parts.append("\n# Retrieved Context (from previous runs/phases):")
@@ -3835,6 +3848,18 @@ Approval Criteria:
             prompt_parts.append("\n# Recent Run Hints:")
             for hint in run_hints[:5]:
                 prompt_parts.append(f"- {hint}")
+
+        # Milestone 2: Inject intention anchor (for validation context)
+        if run_id := phase_spec.get('run_id'):
+            from .intention_anchor import load_and_render_for_auditor
+
+            anchor_section = load_and_render_for_auditor(
+                run_id=run_id,
+                base_dir='.',  # Use current directory (.autonomous_runs/<run_id>/)
+            )
+            if anchor_section:
+                prompt_parts.append("\n")
+                prompt_parts.append(anchor_section)
 
         prompt_parts.append("\nProvide your review as a JSON response.")
 

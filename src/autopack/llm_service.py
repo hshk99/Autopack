@@ -930,6 +930,18 @@ IMPORTANT: execute_fix is for INFRASTRUCTURE fixes only. Code logic issues shoul
             f"- Total cap: {request.health_budget.get('total_cap', 25)}",
         ]
 
+        # Milestone 2: Inject intention anchor (original goal context for error recovery)
+        if request.run_id:
+            from .intention_anchor import load_and_render_for_doctor
+
+            anchor_section = load_and_render_for_doctor(
+                run_id=request.run_id,
+                base_dir='.',  # Use current directory (.autonomous_runs/<run_id>/)
+            )
+            if anchor_section:
+                message_parts.append("")
+                message_parts.append(anchor_section)
+
         if request.patch_errors:
             message_parts.append("")
             message_parts.append("### Patch Validation Errors")

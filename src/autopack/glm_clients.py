@@ -277,6 +277,19 @@ Guidelines:
                     prompt_parts.append(hints_section)
                     prompt_parts.append("\n")
 
+        # Milestone 2: Inject intention anchor (canonical project goal)
+        if run_id := phase_spec.get('run_id'):
+            from .intention_anchor import load_and_render_for_builder
+
+            anchor_section = load_and_render_for_builder(
+                run_id=run_id,
+                phase_id=phase_spec.get('phase_id', 'unknown'),
+                base_dir='.',  # Use current directory (.autonomous_runs/<run_id>/)
+            )
+            if anchor_section:
+                prompt_parts.append(anchor_section)
+                prompt_parts.append("\n")
+
         # Add phase details
         prompt_parts.append(f"## Phase Specification\n")
         prompt_parts.append(f"**Phase ID:** {phase_spec.get('phase_id')}\n")
@@ -454,6 +467,18 @@ Be thorough but fair. Approve patches that work correctly even if they have mino
                 if hints_section:
                     prompt_parts.append(hints_section)
                     prompt_parts.append("\n")
+
+        # Milestone 2: Inject intention anchor (for validation context)
+        if run_id := phase_spec.get('run_id'):
+            from .intention_anchor import load_and_render_for_auditor
+
+            anchor_section = load_and_render_for_auditor(
+                run_id=run_id,
+                base_dir='.',  # Use current directory (.autonomous_runs/<run_id>/)
+            )
+            if anchor_section:
+                prompt_parts.append(anchor_section)
+                prompt_parts.append("\n")
 
         prompt_parts.append(f"## Phase Context\n")
         prompt_parts.append(f"**Task Category:** {phase_spec.get('task_category')}\n")

@@ -1,6 +1,5 @@
 """Unit tests for research result aggregation."""
 import pytest
-from unittest.mock import Mock, patch
 
 
 class TestResultAggregator:

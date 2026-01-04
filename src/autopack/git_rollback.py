@@ -118,7 +118,7 @@ class GitRollback:
         
         # Check for uncommitted changes
         if self._has_uncommitted_changes():
-            logger.warning(f"Uncommitted changes detected, stashing before creating rollback point")
+            logger.warning("Uncommitted changes detected, stashing before creating rollback point")
             if self._stash_changes():
                 logger.info("Changes stashed successfully")
 

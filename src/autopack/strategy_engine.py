@@ -6,12 +6,10 @@ Per §7 of v7 playbook:
 - Maps task categories to budgets and thresholds
 """
 
-import json
 from pathlib import Path
 from typing import Dict, List, Optional
 
 from .config import settings
-from .issue_tracker import IssueTracker
 from .strategy_schemas import (
     CategoryDefaults,
     PhaseStrategySlice,

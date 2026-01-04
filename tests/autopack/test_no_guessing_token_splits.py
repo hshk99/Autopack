@@ -10,7 +10,7 @@ This prevents regression of the "no guessing" policy established in BUILD-144 P0
 """
 
 import pytest
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import Mock, patch
 import re
 from sqlalchemy.orm import Session
 
@@ -178,7 +178,6 @@ class TestNoGuessingTokenSplits:
 
     def test_no_heuristic_constants_in_source(self):
         """Static code check: llm_service.py should not contain heuristic split constants"""
-        import os
         from pathlib import Path
 
         # Read llm_service.py source
@@ -205,7 +204,7 @@ class TestNoGuessingTokenSplits:
 
         if violations:
             pytest.fail(
-                f"Found forbidden heuristic token split patterns in llm_service.py:\n" +
+                "Found forbidden heuristic token split patterns in llm_service.py:\n" +
                 "\n".join(violations) +
                 "\n\nBUILD-144 P0: Token splits must use exact counts from provider, not heuristic guessing."
             )

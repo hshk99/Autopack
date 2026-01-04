@@ -21,7 +21,7 @@ import subprocess
 import sys
 import tempfile
 from pathlib import Path
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import patch
 
 # Skip all tests on non-Windows platforms
 pytestmark = pytest.mark.skipif(
@@ -163,7 +163,7 @@ def test_symlink_not_followed(temp_dir):
         # Hash both - should handle symlink without following
         try:
             real_hash = hash_file(real_file)
-            symlink_hash = hash_file(symlink_file)
+            hash_file(symlink_file)
 
             # If symlink followed, hashes would match
             # Proper handling should either:
@@ -202,7 +202,7 @@ def test_permission_denied_handling(temp_dir):
 
     # Verify audit log handles permission errors gracefully
     audit_path = temp_dir / "audit.jsonl"
-    audit_log = AuditLog(audit_path)
+    AuditLog(audit_path)
 
     # Should not crash on permission error during audit
     try:
@@ -230,7 +230,7 @@ def test_path_normalization_bypass_prevention():
 
         # Resolve and verify path stays within expected bounds
         try:
-            resolved = path.resolve()
+            path.resolve()
 
             # Should either:
             # 1. Resolve to safe location
@@ -444,7 +444,7 @@ def test_invalid_filename_characters():
         # 3. Be automatically sanitized
 
         try:
-            path = Path(filename)
+            Path(filename)
             # Just verifying path creation doesn't crash
             # Actual file creation would fail
         except Exception:

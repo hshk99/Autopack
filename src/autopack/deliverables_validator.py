@@ -894,9 +894,9 @@ def validate_deliverables(
             errors.append(f"  ... and {len(missing) - 5} more")
 
     if details["misplaced_paths"]:
-        errors.append(f"\n⚠️  File placement issue detected:")
-        errors.append(f"   Builder created files in wrong locations.")
-        errors.append(f"   Please verify file paths match the deliverables specification.")
+        errors.append("\n⚠️  File placement issue detected:")
+        errors.append("   Builder created files in wrong locations.")
+        errors.append("   Please verify file paths match the deliverables specification.")
 
     if outside_allowed:
         errors.append("\n🚫 Files created OUTSIDE allowed roots (hard violation):")

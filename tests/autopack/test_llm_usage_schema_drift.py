@@ -69,7 +69,7 @@ class TestLlmUsageSchemadrift:
         assert total_tokens_col is not None, "total_tokens column not found"
 
         # total_tokens should be non-nullable (False means NOT NULL)
-        assert total_tokens_col["nullable"] == False, (
+        assert not total_tokens_col["nullable"], (
             f"total_tokens column must be non-nullable, got nullable={total_tokens_col['nullable']}"
         )
 

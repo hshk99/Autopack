@@ -5,9 +5,9 @@ to ensure data quality and consistency.
 """
 
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any, List, Optional
 from urllib.parse import urlparse
 
 from autopack.research.models import Evidence, Citation, EvidenceQuality, ResearchReport

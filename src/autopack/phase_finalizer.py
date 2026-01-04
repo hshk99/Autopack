@@ -105,7 +105,7 @@ class PhaseFinalizer:
             if is_noop:
                 noop_detected = True
                 if allow_noop:
-                    logger.info(f"[PhaseFinalizer] No-op detected but allowed by phase spec")
+                    logger.info("[PhaseFinalizer] No-op detected but allowed by phase spec")
                     warnings.append("Phase completed with no changes (allow_noop=true)")
                 else:
                     # Check if deliverables exist - if they do, this might be legitimately idempotent
@@ -121,7 +121,7 @@ class PhaseFinalizer:
                     else:
                         # Deliverables exist, so phase is legitimately idempotent
                         logger.info(
-                            f"[PhaseFinalizer] No-op detected but all deliverables exist "
+                            "[PhaseFinalizer] No-op detected but all deliverables exist "
                             "(phase is idempotent)"
                         )
                         warnings.append("Phase completed with no changes (all deliverables already exist)")
@@ -220,7 +220,7 @@ class PhaseFinalizer:
         if builder_output and deliverables:
             manifest = deliverables_validator_module.extract_manifest_from_output(builder_output)
             if manifest:
-                logger.info(f"[PhaseFinalizer] Validating structured deliverables manifest")
+                logger.info("[PhaseFinalizer] Validating structured deliverables manifest")
                 passed, issues = deliverables_validator_module.validate_structured_manifest(
                     manifest=manifest,
                     workspace=workspace,
@@ -233,10 +233,10 @@ class PhaseFinalizer:
                     for issue in issues:
                         logger.error(f"[PhaseFinalizer]   - {issue}")
                 else:
-                    logger.info(f"[PhaseFinalizer] ✅ Structured manifest validated successfully")
+                    logger.info("[PhaseFinalizer] ✅ Structured manifest validated successfully")
             else:
                 # Manifest not found - log as warning but don't block (optional feature)
-                logger.info(f"[PhaseFinalizer] No structured manifest found in builder output (optional)")
+                logger.info("[PhaseFinalizer] No structured manifest found in builder output (optional)")
 
         # Decision
         if blocking_issues:

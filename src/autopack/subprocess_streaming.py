@@ -21,7 +21,7 @@ import logging
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
-from typing import List, Optional, Union
+from typing import List, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -111,7 +111,7 @@ def run_with_streaming(
             )
             returncode = process.returncode
 
-    except subprocess.TimeoutExpired as e:
+    except subprocess.TimeoutExpired:
         logger.warning(
             f"[StreamingSubprocess] Command timed out after {timeout}s: {command}"
         )

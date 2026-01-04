@@ -1,7 +1,7 @@
 """Tests for GitHubGatherer module."""
 
 import pytest
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import Mock, patch
 from autopack.research.gatherers.github_gatherer import GitHubGatherer
 
 

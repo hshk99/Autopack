@@ -14,9 +14,8 @@ import logging
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional
 import json
-import math
 
 logger = logging.getLogger(__name__)
 

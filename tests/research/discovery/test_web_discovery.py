@@ -1,6 +1,5 @@
 """Tests for Web Discovery."""
 
-import pytest
 from unittest.mock import Mock, patch
 from autopack.research.discovery.web_discovery import WebDiscovery, WebResult
 

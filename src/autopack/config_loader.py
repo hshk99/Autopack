@@ -8,7 +8,7 @@ Per GPT_RESPONSE26: Adds startup validation for token_soft_caps.
 import logging
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict
+from typing import Dict
 
 import yaml
 

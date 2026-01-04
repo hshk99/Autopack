@@ -25,7 +25,7 @@ from typing import Any, Dict, List, Optional
 import hashlib
 import yaml
 
-from .embeddings import sync_embed_text, async_embed_text, EMBEDDING_SIZE, MAX_EMBEDDING_CHARS
+from .embeddings import sync_embed_text, EMBEDDING_SIZE, MAX_EMBEDDING_CHARS
 from .faiss_store import FaissStore
 from .qdrant_store import QdrantStore, QDRANT_AVAILABLE
 
@@ -890,7 +890,7 @@ class MemoryService:
 
             # Upsert to store
             if points:
-                upserted = self._safe_store_call(
+                self._safe_store_call(
                     f"index_sot_docs/{sot_file}/upsert",
                     lambda: self.store.upsert(COLLECTION_SOT_DOCS, points),
                     0,
@@ -946,7 +946,7 @@ class MemoryService:
 
             # Upsert to store
             if points:
-                upserted = self._safe_store_call(
+                self._safe_store_call(
                     f"index_sot_docs/{sot_file}/upsert",
                     lambda: self.store.upsert(COLLECTION_SOT_DOCS, points),
                     0,

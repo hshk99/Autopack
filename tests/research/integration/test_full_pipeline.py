@@ -1,6 +1,6 @@
 """Integration tests for full research pipeline."""
 import pytest
-from unittest.mock import Mock, AsyncMock, patch
+from unittest.mock import patch
 
 from autopack.research.orchestrator import ResearchOrchestrator
 from autopack.research.models import ResearchQuery

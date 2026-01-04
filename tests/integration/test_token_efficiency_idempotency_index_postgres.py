@@ -26,7 +26,7 @@ Usage:
 import os
 import pytest
 from pathlib import Path
-from sqlalchemy import create_engine, text, inspect
+from sqlalchemy import create_engine, inspect
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import sessionmaker
 

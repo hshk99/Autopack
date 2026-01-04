@@ -7,7 +7,6 @@ Verifies:
 - Max 1 escalation per phase enforced at loop layer
 """
 
-import pytest
 
 from autopack.autonomous.intention_first_loop import (
     IntentionFirstLoop,

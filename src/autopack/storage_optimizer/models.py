@@ -8,7 +8,6 @@ and storage reports.
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import List, Optional
-from pathlib import Path
 
 
 @dataclass

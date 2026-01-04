@@ -329,7 +329,7 @@ def chunk_sot_json(
         # Normalize line endings for Windows-safe hashing
         content = content.replace("\r\n", "\n")
         obj = json.loads(content)
-    except (json.JSONDecodeError, UnicodeDecodeError) as e:
+    except (json.JSONDecodeError, UnicodeDecodeError):
         # Log error but don't crash indexing
         return []
 

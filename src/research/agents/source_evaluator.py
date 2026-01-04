@@ -6,7 +6,6 @@ and trustworthiness of research sources.
 
 from typing import Dict, List, Optional
 from dataclasses import dataclass
-from datetime import datetime
 import re
 from urllib.parse import urlparse
 

@@ -2,7 +2,6 @@
 
 from pathlib import Path
 
-import pytest
 
 from autopack.plan_analyzer_grounding import GroundedContextBuilder, MAX_CONTEXT_CHARS
 from autopack.pattern_matcher import PatternMatcher

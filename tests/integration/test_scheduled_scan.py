@@ -6,7 +6,7 @@ Tests Windows Task Scheduler integration and automated scan workflows.
 
 import pytest
 import subprocess
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import Mock, patch
 from pathlib import Path
 
 
@@ -56,7 +56,7 @@ class TestScheduledScanSetup:
 
         mock_run.return_value = Mock(returncode=0, stdout='SUCCESS', stderr='')
 
-        success = create_scheduled_task(
+        create_scheduled_task(
             task_name='Test_Task',
             frequency_days=7,
             start_time='03:00',
@@ -190,14 +190,12 @@ class TestScheduledScanWorkflow:
         # This would be tested by actually creating and running a task
         # For now, verify the command structure
         from scripts.setup_scheduled_scan import create_scheduled_task
-        from pathlib import Path
-        import sys
 
         with patch('sys.executable', 'C:\\Python\\python.exe'):
             with patch('pathlib.Path.exists', return_value=True):
                 mock_run.return_value = Mock(returncode=0, stdout='SUCCESS', stderr='')
 
-                success = create_scheduled_task(
+                create_scheduled_task(
                     task_name='Test_Workflow',
                     frequency_days=14,
                     start_time='02:00',
@@ -217,17 +215,8 @@ class TestScheduledScanWorkflow:
         """Test scan_and_report.py accepts --wiztree and --notify flags."""
         # This would require actually running the script
         # For now, verify argument parser accepts flags
-        from scripts.storage.scan_and_report import main
-        import sys
 
         # Mock sys.argv
-        test_args = [
-            'scan_and_report.py',
-            '--save-to-db',
-            '--wiztree',
-            '--notify',
-            '--max-items', '100'
-        ]
 
         # This would need database connection, so just verify args parse
         # In real integration test, would verify full workflow
@@ -280,13 +269,13 @@ class TestWizTreePerformance:
             pytest.skip("WizTree not available")
 
         start = time.time()
-        wiztree_results = wiztree_scanner.scan_directory(test_dir, max_depth=2, max_items=5000)
+        wiztree_scanner.scan_directory(test_dir, max_depth=2, max_items=5000)
         wiztree_duration = time.time() - start
 
         # Python scan
         python_scanner = StorageScanner()
         start = time.time()
-        python_results = python_scanner.scan_directory(test_dir, max_depth=2, max_items=5000)
+        python_scanner.scan_directory(test_dir, max_depth=2, max_items=5000)
         python_duration = time.time() - start
 
         # WizTree should be at least 2x faster (conservative)

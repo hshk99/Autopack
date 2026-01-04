@@ -20,10 +20,8 @@ from datetime import datetime
 from pathlib import Path
 
 from .evidence_requests import (
-    StructuredEvidenceRequest,
     EvidenceRequestBatch,
     EvidenceType,
-    EvidencePriority,
 )
 
 

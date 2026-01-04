@@ -6,8 +6,6 @@ Tests:
 - validate_structured_manifest()
 """
 
-import pytest
-import json
 from pathlib import Path
 from tempfile import TemporaryDirectory
 

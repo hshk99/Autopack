@@ -12,14 +12,12 @@ from autopack.model_intelligence.recommender import (
     generate_candidates,
     compute_price_score,
     compute_benchmark_score,
-    parse_provider_and_family,
     infer_role_from_use_case,
 )
 from autopack.model_intelligence.models import (
     ModelCatalog,
     ModelPricing,
     ModelBenchmark,
-    ModelRuntimeStats,
 )
 
 

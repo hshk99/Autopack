@@ -1,7 +1,5 @@
 """Performance tests for result aggregation."""
-import pytest
 import time
-from unittest.mock import Mock
 
 
 class TestAggregationPerformance:

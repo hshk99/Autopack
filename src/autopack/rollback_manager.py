@@ -28,7 +28,7 @@ import subprocess
 import logging
 from pathlib import Path
 from datetime import datetime
-from typing import Optional, Tuple, List, Set
+from typing import Optional, Tuple, List
 
 logger = logging.getLogger(__name__)
 
@@ -235,7 +235,7 @@ class RollbackManager:
                 logger.info("[Rollback] Skipped git clean due to protected files")
 
             logger.info(f"[Rollback] Successfully rolled back to savepoint {self.savepoint_tag}")
-            logger.info(f"[Rollback] Working tree restored to pre-patch state")
+            logger.info("[Rollback] Working tree restored to pre-patch state")
 
             # Log rollback action for audit trail
             self._log_rollback_action(reason)

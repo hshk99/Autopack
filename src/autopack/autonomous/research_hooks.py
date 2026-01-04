@@ -15,7 +15,6 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass, field
 from datetime import datetime
-from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
@@ -252,7 +251,6 @@ class ResearchHooks:
             from autopack.phases.research_phase import (
                 ResearchPhase,
                 ResearchPhaseConfig,
-                ResearchQuery,
             )
             
             # Build research queries from task context

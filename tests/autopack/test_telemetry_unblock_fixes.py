@@ -11,7 +11,7 @@ T2 retry logic still aspirational (3 tests have function-level xfail markers).
 """
 
 import pytest
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import Mock, patch
 from pathlib import Path
 
 # PARTIAL GRADUATION: Module-level xfail removed - T1 tests graduated (BUILD-146 Phase A P15)

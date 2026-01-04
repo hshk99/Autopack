@@ -13,7 +13,7 @@ Validates:
 
 import pytest
 import os
-from unittest.mock import patch, MagicMock, Mock
+from unittest.mock import patch, Mock
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from autopack.models import Base, Run, Tier, Phase, SOTRetrievalEvent

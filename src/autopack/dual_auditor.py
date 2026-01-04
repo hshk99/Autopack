@@ -18,7 +18,6 @@ Usage:
 
 from typing import List, Dict, Optional
 from dataclasses import dataclass
-from collections import defaultdict
 
 from .llm_client import AuditorResult
 
@@ -122,7 +121,7 @@ class DualAuditor:
         use_dual = force_dual or self.should_use_dual_audit(phase_spec)
 
         # Debug logging
-        print(f"[DualAuditor] review_patch called with:")
+        print("[DualAuditor] review_patch called with:")
         print(f"[DualAuditor]   phase_spec: {phase_spec.get('phase_id', 'unknown')}")
         print(f"[DualAuditor]   max_tokens: {max_tokens}")
         print(f"[DualAuditor]   model: {model}")
@@ -131,7 +130,7 @@ class DualAuditor:
 
         if not use_dual:
             # Single audit (standard path)
-            print(f"[DualAuditor] Using single audit (primary only)")
+            print("[DualAuditor] Using single audit (primary only)")
             return self.primary.review_patch(
                 patch_content=patch_content,
                 phase_spec=phase_spec,
@@ -143,7 +142,7 @@ class DualAuditor:
 
         # Dual audit for high-risk category
         print(f"[DualAuditor] 🔍 High-risk category detected: {phase_spec.get('task_category')}")
-        print(f"[DualAuditor] Running dual audit (OpenAI + Claude)")
+        print("[DualAuditor] Running dual audit (OpenAI + Claude)")
 
         # Run both auditors in parallel (conceptually; sequential for now)
         primary_result = self.primary.review_patch(
@@ -203,7 +202,7 @@ class DualAuditor:
         Returns:
             Merged AuditorResult
         """
-        print(f"\n[DualAuditor] Merging audit results:")
+        print("\n[DualAuditor] Merging audit results:")
         print(f"[DualAuditor]    OpenAI: {len(primary.issues_found)} issues, approved={primary.approved}")
         print(f"[DualAuditor]    Claude: {len(secondary.issues_found)} issues, approved={secondary.approved}")
 

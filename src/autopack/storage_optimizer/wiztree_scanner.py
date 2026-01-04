@@ -314,7 +314,7 @@ class WizTreeScanner:
             logger.info(f"[WizTree] Scanning directory: {directory_path}")
             start_time = datetime.now()
 
-            result = subprocess.run(
+            subprocess.run(
                 cmd,
                 capture_output=True,
                 text=True,

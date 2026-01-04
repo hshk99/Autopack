@@ -88,7 +88,7 @@ class BreakGlassRepair:
 
             # Ask for confirmation unless auto-approve
             if not auto_approve:
-                confirm = input(f"\n  Apply this repair? [y/N]: ").strip().lower()
+                confirm = input("\n  Apply this repair? [y/N]: ").strip().lower()
                 if confirm != 'y':
                     logger.info("[BreakGlass]   Skipped")
                     continue
@@ -139,7 +139,7 @@ class BreakGlassRepair:
             print(f"   Invalid value: '{error.invalid_value}'")
             print(f"   Suggested fix: '{error.suggested_fix}'")
             print(f"   Affected rows: {len(error.affected_rows)} ({', '.join(error.affected_rows[:5])}{'...' if len(error.affected_rows) > 5 else ''})")
-            print(f"   Repair SQL:")
+            print("   Repair SQL:")
             print(f"      {error.repair_sql}")
 
         for warning in result.warnings:

@@ -44,7 +44,7 @@ def test_debug_log_index_recent_rows_match_sections_and_no_duplicate_dbg_ids():
     # 2) Fail on duplicate DBG IDs in sections (ID-level uniqueness)
     dup_ids = sorted({x for x in section_ids if section_ids.count(x) > 1})
     assert not dup_ids, (
-        f"Duplicate DBG IDs in DEBUG_LOG sections:\n"
+        "Duplicate DBG IDs in DEBUG_LOG sections:\n"
         + "\n".join([f"  - {d}" for d in dup_ids])
         + "\nEach DBG-### section must be unique."
     )
@@ -62,8 +62,8 @@ def test_debug_log_index_recent_rows_match_sections_and_no_duplicate_dbg_ids():
     assert not missing_sections, (
         f"DEBUG_LOG INDEX (top {RECENT_INDEX_WINDOW}) references DBG IDs with no corresponding section:\n"
         + "\n".join([f"  - {dbg}" for dbg in missing_sections])
-        + f"\n\nFix: add the missing DBG-### sections or remove/fix the INDEX rows."
-        + f"\nRecent window enforces strict INDEX/section sync to prevent 'two truths' drift."
+        + "\n\nFix: add the missing DBG-### sections or remove/fix the INDEX rows."
+        + "\nRecent window enforces strict INDEX/section sync to prevent 'two truths' drift."
     )
 
     # 5) Optional: informational note for older rows (allowed historical looseness)

@@ -1,6 +1,5 @@
 """Unit tests for intent clarification agent."""
 import pytest
-from unittest.mock import Mock, AsyncMock, patch
 
 from autopack.research.intent_clarification import IntentClarificationAgent, ClarifiedIntent
 from autopack.research.models import ResearchQuery

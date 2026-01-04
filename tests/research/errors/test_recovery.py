@@ -1,7 +1,5 @@
 """Recovery and resilience tests for research system."""
-import pytest
 from unittest.mock import Mock, patch
-import time
 
 
 class TestRecovery:

@@ -1,5 +1,4 @@
 """Scalability tests for research system."""
-import pytest
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
@@ -95,7 +94,7 @@ class TestScalability:
         operations = 0
         
         while time.time() - start_time < duration:
-            session_id = manager.create_session(query=f"sustained {operations}")
+            manager.create_session(query=f"sustained {operations}")
             processor.process(f"sustained {operations}")
             operations += 1
         

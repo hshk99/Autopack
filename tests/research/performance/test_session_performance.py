@@ -1,5 +1,4 @@
 """Performance tests for research session management."""
-import pytest
 import time
 from datetime import datetime
 

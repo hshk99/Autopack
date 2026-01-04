@@ -3,7 +3,7 @@
 This module generates formatted research reports from meta-auditor synthesis.
 """
 
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, Optional
 from datetime import datetime
 
 
@@ -256,7 +256,7 @@ The overall score is calculated from four key frameworks:
         # Market concentration
         concentration = analysis.get('market_concentration', {})
         if concentration:
-            section += f"\n**Market Concentration:**\n"
+            section += "\n**Market Concentration:**\n"
             section += f"- Level: {concentration.get('concentration_level', 'Unknown')}\n"
             section += f"- HHI: {concentration.get('herfindahl_index', 0)}\n"
         

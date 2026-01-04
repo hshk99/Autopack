@@ -13,8 +13,6 @@ Tests are marked xfail until the enhanced API is implemented.
 
 import pytest
 import time
-from unittest.mock import Mock, patch, MagicMock
-from datetime import datetime, timedelta
 
 pytestmark = [
     pytest.mark.xfail(strict=False, reason="Extended ErrorRecovery API not implemented - aspirational test suite"),
@@ -235,7 +233,7 @@ class TestCircuitBreaker:
         for _ in range(2):
             try:
                 if breaker.can_attempt():
-                    result = flaky_function()
+                    flaky_function()
                     breaker.record_success()
             except ValueError:
                 breaker.record_failure()

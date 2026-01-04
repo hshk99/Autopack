@@ -17,7 +17,7 @@ import logging
 import re
 from dataclasses import dataclass
 from pathlib import Path
-from typing import List, Optional, Dict, Tuple
+from typing import List, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -193,7 +193,7 @@ class ContextChunker:
             return self._chunk_heuristic(file_path, content, None)
 
         chunks = []
-        lines = content.split('\n')
+        content.split('\n')
 
         for node in ast.walk(tree):
             # Only top-level classes and functions

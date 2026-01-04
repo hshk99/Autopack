@@ -11,11 +11,9 @@ Tests cover:
 - All lock listing (--all)
 """
 
-import io
 import json
 import os
 import sys
-import tempfile
 from datetime import datetime, timedelta
 from pathlib import Path
 
@@ -27,7 +25,6 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO_ROOT / "scripts" / "tidy"))
 
 from lease import (
-    LockStatus,
     pid_running,
     read_lock_status,
     break_stale_lock,

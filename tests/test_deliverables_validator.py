@@ -1,6 +1,5 @@
 """Tests for deliverables_validator module"""
 
-import pytest
 from pathlib import Path
 
 from autopack.deliverables_validator import (

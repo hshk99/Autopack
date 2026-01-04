@@ -1,10 +1,8 @@
 """Tests for package detection and validation."""
 
-import tempfile
 from pathlib import Path
 from textwrap import dedent
 
-import pytest
 
 from autopack.diagnostics.package_detector import (
     PackageDetector,

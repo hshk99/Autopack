@@ -3,10 +3,8 @@
 Verifies that database indexes are created correctly for dashboard query optimization.
 """
 
-import os
 import pytest
-from sqlalchemy import create_engine, text, inspect
-from sqlalchemy.exc import OperationalError
+from sqlalchemy import create_engine, text
 
 
 @pytest.fixture

@@ -344,10 +344,10 @@ def choose_doctor_model(
     complex_failure = is_complex_failure(req, ctx_summary)
 
     if complex_failure:
-        logger.info(f"[Doctor] Complex failure detected -> using strong model")
+        logger.info("[Doctor] Complex failure detected -> using strong model")
         return DOCTOR_STRONG_MODEL, True
     else:
-        logger.info(f"[Doctor] Routine failure detected -> using cheap model")
+        logger.info("[Doctor] Routine failure detected -> using cheap model")
         return DOCTOR_CHEAP_MODEL, False
 
 

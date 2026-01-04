@@ -12,8 +12,6 @@ Tests are marked xfail until the enhanced API is implemented.
 """
 
 import pytest
-from pathlib import Path
-from unittest.mock import Mock, patch
 
 pytestmark = [
     pytest.mark.xfail(strict=False, reason="Extended ContextBudgeter API not implemented - aspirational test suite"),

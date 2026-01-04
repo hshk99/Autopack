@@ -1,8 +1,6 @@
 """Tests for WorkspaceLease (P2.4 workspace locking)."""
 
 import pytest
-from pathlib import Path
-import tempfile
 import threading
 import time
 

@@ -1,7 +1,5 @@
 """Integration tests for research source integration."""
 import pytest
-from unittest.mock import Mock, patch, MagicMock
-import asyncio
 
 
 class TestSourceIntegration:
@@ -36,7 +34,6 @@ class TestSourceIntegration:
 
     def test_multi_source_query(self, mock_sources):
         """Test querying multiple sources simultaneously."""
-        query = "AI market research"
         results = []
         
         for source in mock_sources:

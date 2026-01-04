@@ -10,7 +10,6 @@ from sqlalchemy.pool import StaticPool
 
 from autopack.database import Base, get_db
 from autopack.main import app
-from src.autopack import models
 from autopack.usage_recorder import LlmUsageEvent
 
 

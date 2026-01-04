@@ -8,7 +8,7 @@ correctly in warn-first mode, with proper range validation and backwards compati
 import pytest
 from pydantic import ValidationError
 
-from autopack.intention_anchor import IntentionAnchor, IntentionConstraints, create_anchor
+from autopack.intention_anchor import IntentionConstraints, create_anchor
 from autopack.plan_utils import validate_intention_refs
 from autopack.schemas import IntentionRefs, PhaseCreate, PhaseResponse
 

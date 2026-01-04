@@ -142,7 +142,7 @@ class ResearchReviewWorkflow:
         # Extract metrics
         quality_score = session_data.get("quality_score", 0.0)
         evidence = session_data.get("evidence", [])
-        insights = session_data.get("insights", [])
+        session_data.get("insights", [])
         goals = session_data.get("goals", [])
 
         # Calculate metrics

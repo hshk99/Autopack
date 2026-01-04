@@ -10,7 +10,6 @@ BUILD-145 P2: Extended artifact-first substitution support:
 - Artifact-first loading in additional safe contexts (phase descriptions, tier summaries)
 """
 
-import os
 from pathlib import Path
 from typing import Optional, List, Sequence
 

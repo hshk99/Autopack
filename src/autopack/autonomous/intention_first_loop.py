@@ -12,7 +12,7 @@ All routing decisions are deterministic and reproducible.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
 from autopack.model_routing_snapshot import (

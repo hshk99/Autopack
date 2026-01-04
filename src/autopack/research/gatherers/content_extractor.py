@@ -51,7 +51,7 @@ class ContentExtractor:
         soup = self._bs4_soup(html)
 
         # Preserve code blocks first (before stripping everything)
-        code_blocks = [c.get_text("\n") for c in soup.find_all("code")]
+        [c.get_text("\n") for c in soup.find_all("code")]
         # Remove scripts/styles/navigation-ish
         for tag in soup(["script", "style", "noscript"]):
             tag.decompose()

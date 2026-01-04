@@ -7,9 +7,8 @@ have tables but fresh DBs are missing them due to incomplete imports.
 BUILD-145 P0: Ensures init_db() imports all usage_recorder ORM classes.
 """
 
-import pytest
 from sqlalchemy import create_engine, inspect
-from autopack.database import Base, init_db
+from autopack.database import init_db
 
 
 def test_init_db_registers_all_usage_recorder_tables():

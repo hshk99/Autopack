@@ -9,9 +9,8 @@ Tests:
 """
 import pytest
 import json
-from pathlib import Path
 from datetime import datetime, timezone
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import Mock, patch
 
 from autopack.test_baseline_tracker import (
     TestBaseline,

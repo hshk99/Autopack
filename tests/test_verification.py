@@ -1,6 +1,5 @@
 """Tests for the verification module."""
 
-import pytest
 
 from autopack.verification import (
     extract_numbers,

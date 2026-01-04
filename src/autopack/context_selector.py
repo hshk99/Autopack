@@ -10,7 +10,7 @@ Phase 1 Enhancement: Added ranking heuristics from chatbot_project
 """
 
 from pathlib import Path
-from typing import Dict, List, Optional, Set, Tuple
+from typing import Dict, List, Optional
 import re
 import subprocess
 from datetime import datetime

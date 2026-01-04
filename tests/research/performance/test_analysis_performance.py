@@ -1,5 +1,4 @@
 """Performance tests for result analysis."""
-import pytest
 import time
 from unittest.mock import Mock
 

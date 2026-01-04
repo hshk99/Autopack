@@ -33,8 +33,6 @@ Changes in P15:
 - Net reduction: 121 → 115 xfailed tests
 """
 import pytest
-import subprocess
-import sys
 
 # Expected xfail count as of 2025-12-31 BUILD-146 Phase A P15
 # Update this number when adding new xfails, with documentation in commit message

@@ -14,7 +14,6 @@ from typing import List, Optional
 
 from .faiss_store import FaissStore
 from .memory_service import (
-    ALL_COLLECTIONS,
     COLLECTION_RUN_SUMMARIES,
     COLLECTION_ERRORS_CI,
     COLLECTION_DOCTOR_HINTS,

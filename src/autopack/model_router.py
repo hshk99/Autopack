@@ -9,7 +9,6 @@ from sqlalchemy.orm import Session
 
 from .usage_service import UsageService
 from .model_selection import (
-    ModelSelector,
     PhaseHistory,
     get_model_selector,
     HIGH_RISK_CATEGORIES,

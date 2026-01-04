@@ -12,7 +12,6 @@ Tests critical safety features:
 BUILD-149 Phase 2
 """
 
-import os
 import shutil
 import tempfile
 from datetime import datetime, timezone
@@ -20,13 +19,12 @@ from pathlib import Path
 
 import pytest
 from sqlalchemy import create_engine
-from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy.orm import sessionmaker
 
 from autopack.database import Base
 from autopack.models import StorageScan, CleanupCandidateDB
 from autopack.storage_optimizer.executor import CleanupExecutor, ExecutionStatus
 from autopack.storage_optimizer.policy import StoragePolicy, CategoryPolicy
-from autopack.storage_optimizer.db import create_approval_decision
 
 
 # ==============================================================================

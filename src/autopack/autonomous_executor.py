@@ -30,7 +30,6 @@ import json
 import argparse
 import logging
 import subprocess
-import shlex
 import re
 from datetime import datetime, timezone
 from pathlib import Path
@@ -46,14 +45,13 @@ from autopack.config import settings
 from autopack.llm_client import BuilderResult, AuditorResult
 from autopack.executor_lock import ExecutorLockManager  # BUILD-048-T1
 from autopack.error_recovery import (
-    ErrorRecoverySystem, get_error_recovery, safe_execute,
-    DoctorRequest, DoctorResponse, DoctorContextSummary,
+    ErrorRecoverySystem, DoctorRequest, DoctorResponse, DoctorContextSummary,
     DOCTOR_MIN_BUILDER_ATTEMPTS, DOCTOR_HEALTH_BUDGET_NEAR_LIMIT_RATIO,
 )
 from autopack.llm_service import LlmService
-from autopack.debug_journal import log_error, log_fix, mark_resolved
+from autopack.debug_journal import log_error, log_fix
 from autopack.error_reporter import report_error
-from autopack.archive_consolidator import log_build_event, log_feature
+from autopack.archive_consolidator import log_build_event
 from autopack.learned_rules import (
     load_project_rules,
     get_active_rules_for_phase,
@@ -61,8 +59,7 @@ from autopack.learned_rules import (
     promote_hints_to_rules,
     save_run_hint,
 )
-from autopack.journal_reader import get_recent_prevention_rules
-from autopack.health_checks import run_health_checks, HealthCheckResult
+from autopack.health_checks import run_health_checks
 from autopack.file_layout import RunFileLayout
 from autopack.maintenance_auditor import AuditorInput, DiffStats, TestResult, evaluate as audit_evaluate
 from autopack.backlog_maintenance import parse_patch_stats, create_git_checkpoint
@@ -76,16 +73,15 @@ from autopack.deliverables_validator import (
 # from autopack import models
 from autopack.diagnostics.diagnostics_agent import DiagnosticsAgent
 from autopack.memory import MemoryService, should_block_on_drift, extract_goal_from_description
-from autopack.validators import validate_yaml_syntax, validate_docker_compose, ValidationResult
+from autopack.validators import validate_yaml_syntax, validate_docker_compose
 
 # BUILD-123v2: Manifest Generator imports
 from autopack.manifest_generator import ManifestGenerator
-from autopack.repo_scanner import RepoScanner
 # from autopack.scope_expander import ScopeExpander  # BUILD-126: Temporarily disabled
 
 # BUILD-127 Phase 1: Completion authority with baseline tracking
-from autopack.phase_finalizer import PhaseFinalizer, PhaseFinalizationDecision
-from autopack.test_baseline_tracker import TestBaseline, TestBaselineTracker
+from autopack.phase_finalizer import PhaseFinalizer
+from autopack.test_baseline_tracker import TestBaselineTracker
 from autopack.phase_auto_fixer import auto_fix_phase_scope
 
 
@@ -231,7 +227,7 @@ class AutonomousExecutor:
 
         # Initialize database for usage tracking (share DB config with API server)
         from autopack.config import get_database_url
-        from autopack.database import SessionLocal, init_db
+        from autopack.database import init_db
 
         # Use get_database_url() for runtime binding (respects DATABASE_URL env var)
         db_url = get_database_url()
@@ -334,7 +330,7 @@ class AutonomousExecutor:
                     max_rounds=5,
                     max_probes_per_round=3,
                 )
-                logger.info(f"[BUILD-113] Iterative Autonomous Investigation enabled")
+                logger.info("[BUILD-113] Iterative Autonomous Investigation enabled")
             except Exception as e:
                 logger.warning(f"[BUILD-113] Iterative Investigation init failed; autonomous fixes disabled: {e}")
                 self.iterative_investigator = None
@@ -602,7 +598,7 @@ class AutonomousExecutor:
                         logger.info(f"[Backlog][Apply] Skipping apply (auto-apply low risk) due to size: files={len(diff_stats.files_changed)}, lines={diff_stats.lines_added + diff_stats.lines_deleted}")
                         apply_result = {"success": False, "error": "auto_apply_low_risk_size_guard"}
                     elif any(t.status != "passed" for t in test_results):
-                        logger.info(f"[Backlog][Apply] Skipping apply (auto-apply low risk) due to tests not all passing")
+                        logger.info("[Backlog][Apply] Skipping apply (auto-apply low risk) due to tests not all passing")
                         apply_result = {"success": False, "error": "auto_apply_low_risk_tests_guard"}
                     else:
                         gap = GovernedApplyPath(
@@ -618,7 +614,7 @@ class AutonomousExecutor:
                         else:
                             logger.warning(f"[Backlog][Apply] Failed for {phase_id}: {err}")
                             if checkpoint_hash:
-                                logger.info(f"[Backlog][Apply] Reverting to checkpoint due to failure")
+                                logger.info("[Backlog][Apply] Reverting to checkpoint due to failure")
                                 from autopack.backlog_maintenance import revert_to_checkpoint
                                 revert_to_checkpoint(Path(self.workspace), checkpoint_hash)
                 else:
@@ -635,7 +631,7 @@ class AutonomousExecutor:
                     else:
                         logger.warning(f"[Backlog][Apply] Failed for {phase_id}: {err}")
                         if checkpoint_hash:
-                            logger.info(f"[Backlog][Apply] Reverting to checkpoint due to failure")
+                            logger.info("[Backlog][Apply] Reverting to checkpoint due to failure")
                             from autopack.backlog_maintenance import revert_to_checkpoint
                             revert_to_checkpoint(Path(self.workspace), checkpoint_hash)
             elif apply and patch_path is None:
@@ -707,14 +703,14 @@ class AutonomousExecutor:
                         continue
 
                     if not passed:
-                        logger.warning(f"  Check FAILED - applying proactive fix...")
+                        logger.warning("  Check FAILED - applying proactive fix...")
                         if callable(fix_fn):
                             fix_fn()
-                            logger.info(f"  Fix applied successfully")
+                            logger.info("  Fix applied successfully")
                         else:
-                            logger.warning(f"  No fix function available")
+                            logger.warning("  No fix function available")
                     else:
-                        logger.info(f"  Check PASSED")
+                        logger.info("  Check PASSED")
 
                 except Exception as e:
                     logger.warning(f"  Startup check failed with error: {e}")
@@ -1131,7 +1127,7 @@ class AutonomousExecutor:
         Returns:
             Run data with phases and status
         """
-        from autopack.error_classifier import ErrorClassifier, ErrorClass
+        from autopack.error_classifier import ErrorClassifier
 
         classifier = ErrorClassifier()
         url = f"{self.api_url}/runs/{self.run_id}"
@@ -1162,7 +1158,7 @@ class AutonomousExecutor:
 
             # Fail-fast on deterministic errors
             if not should_retry:
-                logger.error(f"[CircuitBreaker] Deterministic error detected - stopping execution")
+                logger.error("[CircuitBreaker] Deterministic error detected - stopping execution")
                 logger.error(f"[CircuitBreaker] Error: HTTP {status_code} - {response_body[:500]}")
                 raise RuntimeError(f"Deterministic API error: {remediation}") from e
 
@@ -1179,10 +1175,10 @@ class AutonomousExecutor:
                     response.raise_for_status()
                     logger.info(f"[CircuitBreaker] Retry successful on attempt {attempt+1}")
                     return response.json()
-                except requests.exceptions.HTTPError as retry_error:
+                except requests.exceptions.HTTPError:
                     if attempt == max_retries - 1:
                         # Last retry failed
-                        logger.error(f"[CircuitBreaker] All retries exhausted for transient error")
+                        logger.error("[CircuitBreaker] All retries exhausted for transient error")
                         raise
                     continue
 
@@ -1204,7 +1200,6 @@ class AutonomousExecutor:
         failed infrastructure issues (network timeouts, API errors, etc.)
         """
         from datetime import datetime, timedelta
-        import requests
 
         tiers = run_data.get("tiers", [])
         stale_threshold = timedelta(minutes=10)
@@ -1239,10 +1234,10 @@ class AutonomousExecutor:
 
                     if time_stale > stale_threshold:
                         logger.warning(f"[{phase_id}] STALE PHASE DETECTED")
-                        logger.warning(f"  State: EXECUTING")
+                        logger.warning("  State: EXECUTING")
                         logger.warning(f"  Last Updated: {last_updated_str}")
                         logger.warning(f"  Time Stale: {time_stale.total_seconds():.0f} seconds")
-                        logger.warning(f"  Auto-resetting to QUEUED...")
+                        logger.warning("  Auto-resetting to QUEUED...")
 
                         # Phase 1.7: Auto-reset EXECUTING → QUEUED
                         try:
@@ -2426,7 +2421,7 @@ class AutonomousExecutor:
         """
         try:
             phase_id = phase.get("phase_id", "unknown")
-            task_category = phase.get("task_category", "general")
+            phase.get("task_category", "general")
             phase_name = phase.get("name", phase_id)
 
             # Generate descriptive hint text based on type
@@ -2867,11 +2862,10 @@ class AutonomousExecutor:
         """Persist plan change to DB and vector memory."""
         project_id = self._get_project_slug() or self.run_id
         timestamp = datetime.now(timezone.utc)
-        vector_id = ""
 
         if self.memory_service:
             try:
-                vector_id = self.memory_service.write_plan_change(
+                self.memory_service.write_plan_change(
                     summary=summary,
                     rationale=rationale,
                     project_id=project_id,
@@ -2902,7 +2896,7 @@ class AutonomousExecutor:
         # except Exception as e:
         #     logger.warning(f"[PlanChange] DB write failed: {e}")
         #     self.db_session.rollback()
-        logger.debug(f"[PlanChange] Skipped DB write (models.py removed)")
+        logger.debug("[PlanChange] Skipped DB write (models.py removed)")
 
     def _record_decision_entry(
         self,
@@ -2915,11 +2909,10 @@ class AutonomousExecutor:
         """Persist decision log with memory embedding."""
         project_id = self._get_project_slug() or self.run_id
         timestamp = datetime.now(timezone.utc)
-        vector_id = ""
 
         if self.memory_service:
             try:
-                vector_id = self.memory_service.write_decision_log(
+                self.memory_service.write_decision_log(
                     trigger=trigger,
                     choice=choice,
                     rationale=rationale,
@@ -2950,7 +2943,7 @@ class AutonomousExecutor:
         # except Exception as e:
         #     logger.warning(f"[DecisionLog] DB write failed: {e}")
         #     self.db_session.rollback()
-        logger.debug(f"[DecisionLog] Skipped DB write (models.py removed)")
+        logger.debug("[DecisionLog] Skipped DB write (models.py removed)")
 
     def _should_trigger_replan(self, phase: Dict) -> Tuple[bool, Optional[str]]:
         """
@@ -3598,7 +3591,7 @@ Just the new description that should replace the current one while preserving th
             # Doctor has a hint for the next Builder attempt
             hint = response.builder_hint or "Review previous errors and try a different approach"
             self._builder_hint_by_phase[phase_id] = hint
-            logger.info(f"[Doctor] Action: retry_with_fix - hint stored for next attempt")
+            logger.info("[Doctor] Action: retry_with_fix - hint stored for next attempt")
             self._record_decision_entry(
                 trigger="doctor",
                 choice="retry_with_fix",
@@ -3610,7 +3603,7 @@ Just the new description that should replace the current one while preserving th
 
         elif action == "replan":
             # Trigger mid-run re-planning
-            logger.info(f"[Doctor] Action: replan - triggering approach revision")
+            logger.info("[Doctor] Action: replan - triggering approach revision")
             # Get error history for context
             error_history = self._phase_error_history.get(phase_id, [])
             revised_phase = self._revise_phase_approach(
@@ -3620,10 +3613,10 @@ Just the new description that should replace the current one while preserving th
             )
             if revised_phase:
                 self._run_replan_count += 1
-                logger.info(f"[Doctor] Replan successful, phase revised")
+                logger.info("[Doctor] Replan successful, phase revised")
                 return "replan", True  # Continue with revised approach
             else:
-                logger.warning(f"[Doctor] Replan failed, continuing with original approach")
+                logger.warning("[Doctor] Replan failed, continuing with original approach")
                 self._record_decision_entry(
                     trigger="doctor",
                     choice="replan_failed",
@@ -3635,7 +3628,7 @@ Just the new description that should replace the current one while preserving th
 
         elif action == "skip_phase":
             # Skip this phase and continue to next
-            logger.info(f"[Doctor] Action: skip_phase - marking phase as FAILED and continuing")
+            logger.info("[Doctor] Action: skip_phase - marking phase as FAILED and continuing")
             self._skipped_phases.add(phase_id)
             self._update_phase_status(phase_id, "FAILED")
             self._record_decision_entry(
@@ -3694,10 +3687,10 @@ Just the new description that should replace the current one while preserving th
             )
 
             if rollback_success:
-                logger.info(f"[Doctor] Successfully rolled back run to pre-run state")
+                logger.info("[Doctor] Successfully rolled back run to pre-run state")
             else:
                 logger.error(f"[Doctor] Failed to rollback run: {rollback_error}")
-                logger.error(f"[Doctor] Working tree may be in inconsistent state - manual intervention required")
+                logger.error("[Doctor] Working tree may be in inconsistent state - manual intervention required")
 
             # Mark phase as failed and let run terminate
             self._update_phase_status(phase_id, "FAILED")
@@ -3790,7 +3783,7 @@ Just the new description that should replace the current one while preserving th
             # Validate against whitelist using shlex + regex
             try:
                 # Use shlex to properly tokenize (handles quoted arguments)
-                tokens = shlex.split(cmd)
+                shlex.split(cmd)
             except ValueError as e:
                 errors.append(f"Command '{cmd}' failed shlex parsing: {e}")
                 continue
@@ -3836,8 +3829,8 @@ Just the new description that should replace the current one while preserving th
         # Check if execute_fix is enabled (user opt-in)
         if not self._allow_execute_fix:
             logger.warning(
-                f"[Doctor] execute_fix requested but disabled. "
-                f"Enable via models.yaml: doctor.allow_execute_fix_global: true"
+                "[Doctor] execute_fix requested but disabled. "
+                "Enable via models.yaml: doctor.allow_execute_fix_global: true"
             )
             log_error(
                 error_signature=f"execute_fix disabled: {phase_id}",
@@ -3900,7 +3893,7 @@ Just the new description that should replace the current one while preserving th
             return "execute_fix_blocked_git_project_build", True
 
         if not fix_commands:
-            logger.warning(f"[Doctor] execute_fix requested but no fix_commands provided")
+            logger.warning("[Doctor] execute_fix requested but no fix_commands provided")
             return "execute_fix_no_commands", True
 
         # Validate commands
@@ -3923,7 +3916,7 @@ Just the new description that should replace the current one while preserving th
             return "execute_fix_invalid", True
 
         # Create git checkpoint (commit) before executing
-        logger.info(f"[Doctor] Creating git checkpoint before execute_fix...")
+        logger.info("[Doctor] Creating git checkpoint before execute_fix...")
         try:
             checkpoint_result = subprocess.run(
                 ["git", "add", "-A"],
@@ -3941,10 +3934,10 @@ Just the new description that should replace the current one while preserving th
                     timeout=30
                 )
                 if checkpoint_result.returncode == 0:
-                    logger.info(f"[Doctor] Git checkpoint created successfully")
+                    logger.info("[Doctor] Git checkpoint created successfully")
                 else:
                     # No changes to commit - that's OK
-                    logger.info(f"[Doctor] No changes to checkpoint (clean state)")
+                    logger.info("[Doctor] No changes to checkpoint (clean state)")
         except Exception as e:
             logger.warning(f"[Doctor] Failed to create git checkpoint: {e}")
 
@@ -4002,13 +3995,13 @@ Just the new description that should replace the current one while preserving th
                     )
                     all_succeeded = False
                 else:
-                    logger.info(f"[Doctor] Verify command passed")
+                    logger.info("[Doctor] Verify command passed")
             except Exception as e:
                 logger.warning(f"[Doctor] Verify command error: {e}")
                 all_succeeded = False
 
         if all_succeeded:
-            logger.info(f"[Doctor] execute_fix succeeded - continuing retry loop")
+            logger.info("[Doctor] execute_fix succeeded - continuing retry loop")
             log_fix(
                 error_signature=f"execute_fix success: {phase_id}",
                 fix_description=f"Executed {len(fix_commands)} commands: {fix_commands}",
@@ -4018,7 +4011,7 @@ Just the new description that should replace the current one while preserving th
             )
             return "execute_fix_success", True  # Continue retry loop
         else:
-            logger.warning(f"[Doctor] execute_fix failed - marking phase as failed")
+            logger.warning("[Doctor] execute_fix failed - marking phase as failed")
             self._update_phase_status(phase_id, "FAILED")
             return "execute_fix_failed", False
 
@@ -4187,7 +4180,7 @@ Just the new description that should replace the current one while preserving th
                     logger.warning(f"[RunCheckpoint] Could not return to branch {self._run_checkpoint_branch}")
                     # Non-fatal - we're at the right commit
 
-            logger.info(f"[RunCheckpoint] Successfully rolled back run to pre-run state")
+            logger.info("[RunCheckpoint] Successfully rolled back run to pre-run state")
 
             # Log rollback action for audit trail
             self._log_run_rollback_action(reason)
@@ -5286,7 +5279,7 @@ Just the new description that should replace the current one while preserving th
 
                     if decision.type == DecisionType.CLEAR_FIX:
                         # Auto-apply low/medium risk patch with high confidence
-                        logger.info(f"[BUILD-113] CLEAR_FIX decision - auto-applying patch via DecisionExecutor")
+                        logger.info("[BUILD-113] CLEAR_FIX decision - auto-applying patch via DecisionExecutor")
 
                         execution_result = self.decision_executor.execute_decision(
                             decision=decision,
@@ -5313,7 +5306,7 @@ Just the new description that should replace the current one while preserving th
 
                     elif decision.type == DecisionType.RISKY:
                         # High-risk patch - request approval BEFORE applying
-                        logger.info(f"[BUILD-113] RISKY decision - requesting human approval before applying patch")
+                        logger.info("[BUILD-113] RISKY decision - requesting human approval before applying patch")
 
                         approval_granted = self._request_build113_approval(
                             phase_id=phase_id,
@@ -5323,16 +5316,16 @@ Just the new description that should replace the current one while preserving th
                         )
 
                         if not approval_granted:
-                            logger.error(f"[BUILD-113] High-risk patch denied or timed out - blocking phase")
+                            logger.error("[BUILD-113] High-risk patch denied or timed out - blocking phase")
                             self._update_phase_status(phase_id, "BLOCKED")
                             return False, "BUILD113_APPROVAL_DENIED"
 
-                        logger.info(f"[BUILD-113] High-risk patch approved - continuing with standard flow")
+                        logger.info("[BUILD-113] High-risk patch approved - continuing with standard flow")
                         # Continue to standard patch application below
 
                     elif decision.type == DecisionType.AMBIGUOUS:
                         # Ambiguous - ask clarifying questions
-                        logger.info(f"[BUILD-113] AMBIGUOUS decision - requesting human clarification")
+                        logger.info("[BUILD-113] AMBIGUOUS decision - requesting human clarification")
 
                         clarification = self._request_build113_clarification(
                             phase_id=phase_id,
@@ -5341,16 +5334,16 @@ Just the new description that should replace the current one while preserving th
                         )
 
                         if not clarification:
-                            logger.error(f"[BUILD-113] Clarification timed out - blocking phase")
+                            logger.error("[BUILD-113] Clarification timed out - blocking phase")
                             self._update_phase_status(phase_id, "BLOCKED")
                             return False, "BUILD113_CLARIFICATION_TIMEOUT"
 
-                        logger.info(f"[BUILD-113] Human clarification received - continuing with standard flow")
+                        logger.info("[BUILD-113] Human clarification received - continuing with standard flow")
                         # Continue to standard patch application below
 
                 except Exception as e:
                     logger.exception(f"[BUILD-113] Proactive decision analysis failed: {e}")
-                    logger.warning(f"[BUILD-113] Continuing with standard flow after error")
+                    logger.warning("[BUILD-113] Continuing with standard flow after error")
                     # Continue to standard patch application
 
             # Step 2: Apply patch first (so we can run CI on it)
@@ -5398,7 +5391,7 @@ Just the new description that should replace the current one while preserving th
                     "touched_paths": touched_paths[:50],  # cap for logs/summaries
                 }
                 apply_stats_lines = [
-                    f"Apply mode: structured_edit",
+                    "Apply mode: structured_edit",
                     f"Operations planned: {apply_stats['operations_planned']}",
                     f"Operations applied: {apply_stats['operations_applied']}",
                     f"Operations failed: {apply_stats['operations_failed']}",
@@ -6533,7 +6526,6 @@ Just the new description that should replace the current one while preserving th
         logger.info(f"[{phase_id}] Chunk0 batching enabled: {len(batches)} batches ({', '.join(str(len(b)) for b in batches)} files)")
 
         # Baseline diff for combined patch generation
-        baseline_diff = ""
         try:
             proc = subprocess.run(
                 ["git", "diff", "--no-color"],
@@ -6541,7 +6533,6 @@ Just the new description that should replace the current one while preserving th
                 capture_output=True,
                 text=True,
             )
-            baseline_diff = proc.stdout or ""
         except Exception as e:
             logger.warning(f"[{phase_id}] Failed to capture baseline git diff: {e}")
 
@@ -7860,7 +7851,7 @@ Just the new description that should replace the current one while preserving th
                     logger.info(f"[Scope] Created stub for missing file: {missing}")
                     _add_file(missing_path, missing.replace("\\", "/"))
                     scope_metadata.setdefault(missing.replace("\\", "/"), {"category": "modifiable", "missing": False})
-                    existing_files_keys = set(existing_files.keys())
+                    set(existing_files.keys())
                     if missing in missing_files:
                         missing_files.remove(missing)
 
@@ -7939,7 +7930,7 @@ Just the new description that should replace the current one while preserving th
         Raises:
             RuntimeError: If validation fails
         """
-        phase_id = phase.get("phase_id")
+        phase.get("phase_id")
         scope_paths = scope_config.get("paths", [])
         loaded_files = set(file_context.get("existing_files", {}).keys())
 
@@ -8022,7 +8013,7 @@ Just the new description that should replace the current one while preserving th
                     f"  Files outside scope: {list(truly_outside)[:10]}"
                 )
                 logger.error(error_msg)
-                raise RuntimeError(f"Scope validation failed: loaded files outside scope.paths")
+                raise RuntimeError("Scope validation failed: loaded files outside scope.paths")
 
         logger.info(f"[Scope] Validation passed: {len(loaded_files)} files match scope configuration")
 
@@ -8085,7 +8076,6 @@ Just the new description that should replace the current one while preserving th
         }
 
         try:
-            last_exc = None
             for attempt in range(3):
                 try:
                     response = requests.post(url, headers=headers, json=payload, timeout=10)
@@ -8098,7 +8088,7 @@ Just the new description that should replace the current one while preserving th
 
                         # Log validation failures to debug journal
                         log_error(
-                            error_signature=f"Patch validation failure (422)",
+                            error_signature="Patch validation failure (422)",
                             symptom=f"Phase {phase_id}: {error_detail}",
                             run_id=self.run_id,
                             phase_id=phase_id,
@@ -8113,7 +8103,6 @@ Just the new description that should replace the current one while preserving th
                     logger.debug(f"Posted builder result for phase {phase_id}")
                     break
                 except requests.exceptions.RequestException as e_inner:
-                    last_exc = e_inner
                     status_code = getattr(getattr(e_inner, "response", None), "status_code", None)
                     if status_code and status_code >= 500:
                         self._run_http_500_count += 1
@@ -8991,9 +8980,7 @@ Just the new description that should replace the current one while preserving th
         """
         import json
         from autopack.governance_requests import (
-            create_governance_request,
-            approve_request,
-            get_pending_requests
+            create_governance_request
         )
 
         # Try to parse as structured error
@@ -9303,13 +9290,13 @@ Just the new description that should replace the current one while preserving th
 
             # Check if immediately approved (auto-approve mode)
             if result.get("status") == "approved":
-                logger.info(f"[BUILD-113] ✅ RISKY patch APPROVED (auto-approved)")
+                logger.info("[BUILD-113] ✅ RISKY patch APPROVED (auto-approved)")
                 return True
 
             # Extract approval_id for polling
             approval_id = result.get("approval_id")
             if not approval_id:
-                logger.error(f"[BUILD-113] No approval_id in response - cannot poll for status")
+                logger.error("[BUILD-113] No approval_id in response - cannot poll for status")
                 return False
 
             logger.info(f"[BUILD-113] Approval request sent (approval_id={approval_id}), waiting for user decision...")
@@ -9317,7 +9304,7 @@ Just the new description that should replace the current one while preserving th
         except Exception as e:
             logger.error(f"[BUILD-113] Failed to send approval request: {e}")
             # If Telegram is not configured, auto-reject high-risk patches
-            logger.warning(f"[BUILD-113] Defaulting to REJECT for RISKY decision without approval system")
+            logger.warning("[BUILD-113] Defaulting to REJECT for RISKY decision without approval system")
             return False
 
         # Poll for approval status (reuse same polling logic as regular approval)
@@ -9338,11 +9325,11 @@ Just the new description that should replace the current one while preserving th
                 status = status_data.get("status")
 
                 if status == "approved":
-                    logger.info(f"[BUILD-113] ✅ RISKY patch APPROVED by user")
+                    logger.info("[BUILD-113] ✅ RISKY patch APPROVED by user")
                     return True
 
                 if status == "rejected":
-                    logger.warning(f"[BUILD-113] ❌ RISKY patch REJECTED by user")
+                    logger.warning("[BUILD-113] ❌ RISKY patch REJECTED by user")
                     return False
 
                 # Still pending, wait and check again
@@ -9418,12 +9405,12 @@ Just the new description that should replace the current one while preserving th
                 logger.error(f"[BUILD-113] Clarification request rejected: {result.get('reason', 'Unknown')}")
                 return None
 
-            logger.info(f"[BUILD-113] Clarification request sent, waiting for user response...")
+            logger.info("[BUILD-113] Clarification request sent, waiting for user response...")
 
         except Exception as e:
             logger.error(f"[BUILD-113] Failed to send clarification request: {e}")
             # If Telegram is not configured, cannot get clarification
-            logger.warning(f"[BUILD-113] No clarification system available - cannot resolve AMBIGUOUS decision")
+            logger.warning("[BUILD-113] No clarification system available - cannot resolve AMBIGUOUS decision")
             return None
 
         # Poll for clarification response
@@ -9449,7 +9436,7 @@ Just the new description that should replace the current one while preserving th
                     return clarification_text
 
                 if status == "rejected":
-                    logger.warning(f"[BUILD-113] ❌ Clarification request rejected by user")
+                    logger.warning("[BUILD-113] ❌ Clarification request rejected by user")
                     return None
 
                 # Still pending, wait and check again
@@ -9927,15 +9914,15 @@ Just the new description that should replace the current one while preserving th
                 logger.error("[DB_MISMATCH] RUN NOT FOUND IN API DATABASE")
                 logger.error("=" * 70)
                 logger.error(f"API server is healthy but run '{self.run_id}' not found")
-                logger.error(f"This indicates database identity mismatch:")
+                logger.error("This indicates database identity mismatch:")
                 logger.error(f"  - Executor DATABASE_URL: {os.environ.get('DATABASE_URL', 'NOT SET')}")
-                logger.error(f"  - API server may be using different database")
-                logger.error(f"")
-                logger.error(f"Recommended fixes:")
-                logger.error(f"  1. Verify DATABASE_URL is set correctly before starting executor")
-                logger.error(f"  2. Verify run was seeded in the correct database")
-                logger.error(f"  3. Check API server logs for actual DATABASE_URL used")
-                logger.error(f"  4. Use absolute paths for SQLite (not relative)")
+                logger.error("  - API server may be using different database")
+                logger.error("")
+                logger.error("Recommended fixes:")
+                logger.error("  1. Verify DATABASE_URL is set correctly before starting executor")
+                logger.error("  2. Verify run was seeded in the correct database")
+                logger.error("  3. Check API server logs for actual DATABASE_URL used")
+                logger.error("  4. Use absolute paths for SQLite (not relative)")
                 logger.error("=" * 70)
                 raise RuntimeError(
                     f"Run '{self.run_id}' not found in API database. "

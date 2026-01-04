@@ -5,7 +5,6 @@ Verifies that routing snapshot entries are applied as model overrides
 and consumed by ModelRouter during execution.
 """
 
-import pytest
 
 from autopack.autonomous.executor_wiring import (
     TIER_TO_COMPLEXITY,
@@ -16,7 +15,6 @@ from autopack.intention_anchor.models import (
     IntentionBudgets,
     IntentionConstraints,
 )
-from autopack.model_routing_snapshot import ModelRoutingEntry, ModelRoutingSnapshot
 from datetime import datetime, timezone
 
 

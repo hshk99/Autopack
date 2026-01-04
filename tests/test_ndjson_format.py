@@ -4,8 +4,6 @@ Tests for NDJSON Format (BUILD-129 Phase 3).
 Tests truncation-tolerant NDJSON parsing and application.
 """
 import pytest
-import json
-from pathlib import Path
 
 from autopack.ndjson_format import (
     NDJSONParser,

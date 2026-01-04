@@ -11,7 +11,7 @@ from datetime import datetime, timezone
 
 import pytest
 
-from autopack.test_baseline_tracker import TestBaseline, TestBaselineTracker, TestDelta
+from autopack.test_baseline_tracker import TestBaseline, TestBaselineTracker
 
 
 class TestBaselineReplayDeterminism:

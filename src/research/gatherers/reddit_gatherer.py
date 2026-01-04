@@ -5,7 +5,7 @@ This module provides functionality to gather data from Reddit communities.
 
 import praw
 import logging
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Any
 from datetime import datetime
 from .rate_limiter import RateLimiter
 from .error_handler import ErrorHandler

@@ -8,7 +8,6 @@ Tests the P0 safety enhancements:
 
 import pytest
 import subprocess
-from pathlib import Path
 
 from autopack.rollback_manager import RollbackManager, PROTECTED_PATTERNS
 

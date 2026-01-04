@@ -53,7 +53,7 @@ def test_build_history_index_matches_sections_and_no_duplicates():
 
     exact_duplicates = [heading for heading, count in heading_counts.items() if count > 1]
     assert not exact_duplicates, (
-        f"Exact duplicate BUILD section headings found:\n"
+        "Exact duplicate BUILD section headings found:\n"
         + "\n".join([f"  - {h}" for h in exact_duplicates])
         + "\nEach section heading should be unique (even multi-phase builds should have distinct headings like 'BUILD-145' vs 'BUILD-145 Follow-up')."
     )

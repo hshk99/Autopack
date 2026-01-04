@@ -1,9 +1,7 @@
 """Integration tests for research workflow."""
 
 import pytest
-import asyncio
 from datetime import datetime, timezone
-from unittest.mock import Mock, patch, AsyncMock
 
 
 class TestResearchWorkflowIntegration:

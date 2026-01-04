@@ -1,5 +1,4 @@
 """Performance tests for research data storage operations."""
-import pytest
 import time
 from unittest.mock import Mock
 

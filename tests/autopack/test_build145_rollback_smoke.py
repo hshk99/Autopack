@@ -67,7 +67,6 @@ class TestRollbackSmoke:
     def test_rollback_manager_requires_workspace_and_ids(self):
         """RollbackManager should require workspace, run_id, and phase_id"""
         from autopack.rollback_manager import RollbackManager
-        from pathlib import Path
 
         with pytest.raises(TypeError):
             # Should fail without required args
@@ -111,7 +110,7 @@ class TestRollbackSmoke:
 
         # Reload settings to pick up env var
         from autopack.config import Settings
-        settings = Settings()
+        Settings()
 
         # Pydantic should parse "true" string as boolean
         # Note: Pydantic accepts "true", "1", "yes", "on" as truthy values

@@ -1,5 +1,5 @@
 """Doctor metrics display for dashboard."""
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 from dataclasses import dataclass
 
 

@@ -1,9 +1,6 @@
 """Tests for research phase implementation."""
 
 import pytest
-import json
-from datetime import datetime
-from pathlib import Path
 
 from autopack.phases.research_phase import (
     ResearchPhase,

@@ -7,8 +7,7 @@ Per TOKEN_BUDGET_ANALYSIS_REVISED.md: "Continuation is cheaper and faster than r
 GPT-5.2 Priority: HIGHEST - recovers 95% of truncation failures.
 """
 from dataclasses import dataclass
-from typing import Optional, List, Tuple
-from pathlib import Path
+from typing import Optional, List
 import re
 import logging
 
@@ -116,7 +115,7 @@ class ContinuationRecovery:
         Finds last complete "diff --git" block to determine what was successfully completed.
         """
         # Find all complete diff blocks
-        diff_blocks = re.findall(
+        re.findall(
             r'diff --git a/(.*?) b/\1.*?(?=diff --git|$)',
             output,
             re.DOTALL

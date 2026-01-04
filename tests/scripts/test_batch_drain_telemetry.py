@@ -7,11 +7,8 @@ Tests that the controller correctly:
 - Computes yield (events/minute)
 """
 
-import json
-import os
 import subprocess
 import sys
-import tempfile
 from pathlib import Path
 from unittest.mock import patch, MagicMock
 
@@ -85,7 +82,7 @@ class TestTelemetryDeltaTracking:
     def test_drain_result_computes_telemetry_yield(self):
         """DrainResult should compute telemetry yield correctly."""
         # 10 events collected in 120 seconds = 5 events/minute
-        result = DrainResult(
+        DrainResult(
             run_id="test-run",
             phase_id="test-phase",
             phase_index=0,

@@ -13,8 +13,6 @@ Tests are marked xfail until the enhanced API is implemented.
 
 import pytest
 from datetime import datetime, timedelta
-from unittest.mock import Mock, patch, MagicMock
-from pathlib import Path
 
 pytestmark = [
     pytest.mark.xfail(strict=False, reason="Extended Governance API not implemented - aspirational test suite"),

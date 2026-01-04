@@ -2,13 +2,11 @@
 
 Detects missing packages through static analysis and runtime validation.
 """
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 from typing import List, Set, Dict, Optional, Tuple, Iterable
 import ast
-import sys
 import logging
-import subprocess
 import re
 import tomllib
 

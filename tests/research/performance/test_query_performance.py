@@ -1,7 +1,5 @@
 """Performance tests for research query processing."""
-import pytest
 import time
-from unittest.mock import Mock, patch
 
 
 class TestQueryPerformance:

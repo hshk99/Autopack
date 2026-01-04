@@ -5,7 +5,7 @@ Tests Steam installation detection, game discovery, and filtering logic.
 """
 
 import pytest
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import patch, MagicMock
 from pathlib import Path
 from datetime import datetime, timedelta
 

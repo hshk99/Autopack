@@ -13,9 +13,8 @@ from __future__ import annotations
 
 import pytest
 import tempfile
-import time
 from pathlib import Path
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
 # Add scripts/tidy to path
 import sys

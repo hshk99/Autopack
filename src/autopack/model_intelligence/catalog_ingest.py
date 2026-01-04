@@ -4,14 +4,12 @@ This module ingests model definitions and pricing from YAML configuration files
 into the Postgres-backed model catalog.
 """
 
-import os
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, Any, List
 
 import yaml
 from sqlalchemy.orm import Session
-from sqlalchemy import text
 
 from .models import ModelCatalog, ModelPricing
 
@@ -222,7 +220,7 @@ def ingest_pricing(session: Session, pricing_yaml_path: str, effective_at: datet
                     currency="USD",
                     effective_at=effective_at,
                     source=f"{provider}_pricing_yaml",
-                    source_url=f"config/pricing.yaml",
+                    source_url="config/pricing.yaml",
                 )
                 session.add(pricing_record)
                 ingested_count += 1

@@ -1,7 +1,6 @@
 """Error handling tests for research system."""
 
 import pytest
-from datetime import datetime, timezone
 
 
 class TestSessionErrors:

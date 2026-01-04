@@ -6,12 +6,10 @@ Validates that init_db() enforces schema safety:
 - Prevents accidental schema drift between SQLite/Postgres
 """
 import os
-import tempfile
-from pathlib import Path
 from unittest.mock import patch
 
 import pytest
-from sqlalchemy import create_engine, inspect, MetaData, Table, Column, Integer, String
+from sqlalchemy import create_engine, MetaData, Table, Column, Integer, String
 
 from autopack.config import Settings
 
@@ -80,7 +78,7 @@ class TestDBInitGuardrails:
 
         # Create a minimal schema with 'runs' table
         metadata = MetaData()
-        runs_table = Table(
+        Table(
             'runs', metadata,
             Column('id', String, primary_key=True),
             Column('status', String)

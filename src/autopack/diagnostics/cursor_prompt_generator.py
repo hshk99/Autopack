@@ -292,7 +292,7 @@ Autopack uses **"vibe-coding-first"** builder mode with autonomous execution. Th
         # Add quality requirements
         test_threshold = constraints.get("test_threshold")
         if test_threshold:
-            lines.append(f"### Quality Requirements")
+            lines.append("### Quality Requirements")
             lines.append(f"- Must pass ≥{test_threshold}% of tests")
             lines.append("")
 
@@ -317,17 +317,17 @@ Autopack uses **"vibe-coding-first"** builder mode with autonomous execution. Th
         lines.append("2. **Investigate**: Answer the explicit questions and examine failure symptoms")
         lines.append("3. **Fix**: Make targeted changes to resolve the issue")
         lines.append("4. **Verify**: Run relevant tests to confirm the fix")
-        lines.append(f"5. **Resume**: Notify Autopack to continue execution")
+        lines.append("5. **Resume**: Notify Autopack to continue execution")
         lines.append("")
         lines.append("### Resume Commands")
         lines.append("```bash")
-        lines.append(f"# If fix is complete, resume executor")
+        lines.append("# If fix is complete, resume executor")
         lines.append(f"autopack resume {run_id}")
         lines.append("")
-        lines.append(f"# Or mark phase as complete and proceed")
+        lines.append("# Or mark phase as complete and proceed")
         lines.append(f"autopack complete-phase {run_id} {phase_id}")
         lines.append("")
-        lines.append(f"# Or mark phase as failed (skip and continue)")
+        lines.append("# Or mark phase as failed (skip and continue)")
         lines.append(f"autopack skip-phase {run_id} {phase_id} --reason 'Manual intervention required'")
         lines.append("```")
 

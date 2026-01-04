@@ -5,7 +5,7 @@ Tests mobile approval workflow via Telegram bot.
 """
 
 import pytest
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import Mock, patch
 from datetime import datetime, timezone
 
 from autopack.storage_optimizer.telegram_notifications import StorageTelegramNotifier

@@ -4,7 +4,6 @@ These models implement the schema defined in docs/MODEL_RECOMMENDER_SYSTEM_PLAN.
 """
 
 from datetime import datetime, timezone
-from typing import Optional
 
 from sqlalchemy import (
     Column,

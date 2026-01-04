@@ -5,7 +5,7 @@ extracting key concepts, generating sub-questions, and defining scope.
 """
 
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any, List, Optional
 
 
 @dataclass
@@ -156,15 +156,15 @@ class IntentClarificationAgent:
         # Generate questions based on aspects
         for aspect in aspects:
             if "best practices" in aspect.lower():
-                questions.append(f"What are the established best practices?")
+                questions.append("What are the established best practices?")
             elif "design" in aspect.lower():
-                questions.append(f"What are the common design patterns?")
+                questions.append("What are the common design patterns?")
             elif "performance" in aspect.lower():
-                questions.append(f"What are the key performance considerations?")
+                questions.append("What are the key performance considerations?")
             elif "security" in aspect.lower():
-                questions.append(f"What are the security implications?")
+                questions.append("What are the security implications?")
             elif "implementation" in aspect.lower():
-                questions.append(f"How is this typically implemented?")
+                questions.append("How is this typically implemented?")
             else:
                 questions.append(f"What are the key aspects of {aspect}?")
 

@@ -1,6 +1,5 @@
 """Tests for Reddit Discovery."""
 
-import pytest
 from unittest.mock import Mock, patch
 from autopack.research.discovery.reddit_discovery import RedditDiscovery, RedditPost, RedditComment
 

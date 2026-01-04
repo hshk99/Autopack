@@ -7,13 +7,12 @@ roundtrip preservation work correctly.
 
 import json
 import tempfile
-from datetime import datetime, timezone
+from datetime import datetime
 from pathlib import Path
 
 import pytest
 
 from autopack.intention_anchor import (
-    IntentionAnchor,
     create_anchor,
     get_canonical_path,
     load_anchor,

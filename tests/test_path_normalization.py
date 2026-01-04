@@ -89,7 +89,7 @@ def test_collapse_consecutive_duplicates():
                 ".autonomous_runs", "fileorg-p2-20251208h", "ci", "pytest_fileorg-p2-docker.log"]
     result = collapse_consecutive_duplicates(parts)
     assert result == expected, f"Expected {expected}, got {result}"
-    print(f"✓ Test 7 passed: Real-world example normalized correctly")
+    print("✓ Test 7 passed: Real-world example normalized correctly")
 
     # Test case 8: Non-consecutive duplicates (should NOT be removed)
     parts = ["archive", "test", "archive", "file"]

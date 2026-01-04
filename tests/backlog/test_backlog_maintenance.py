@@ -8,7 +8,6 @@ Verifies the backlog maintenance helpers work correctly:
 """
 
 import json
-import tempfile
 from pathlib import Path
 from unittest.mock import patch, MagicMock
 
@@ -23,7 +22,6 @@ from autopack.backlog_maintenance import (
     revert_to_checkpoint,
     parse_patch_stats,
 )
-from autopack.maintenance_auditor import DiffStats
 
 
 class TestBacklogItemParsing:

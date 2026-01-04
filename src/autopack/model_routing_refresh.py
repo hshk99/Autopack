@@ -16,7 +16,6 @@ import logging
 from dataclasses import dataclass
 from typing import Literal
 
-from autopack.model_registry import load_models_config
 from autopack.model_routing_snapshot import (
     ModelRoutingEntry,
     ModelRoutingSnapshot,

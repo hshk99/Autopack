@@ -5,7 +5,6 @@ reproducible handoff/ folders from run directories.
 """
 
 import json
-import os
 import tempfile
 from pathlib import Path
 from typing import Generator
@@ -290,7 +289,7 @@ class TestHandoffBundler:
 
         # Generate initial bundle
         handoff_dir = generate_handoff_bundle(temp_run_dir)
-        initial_index = (handoff_dir / "index.json").read_text()
+        (handoff_dir / "index.json").read_text()
 
         # Add new artifact
         (temp_run_dir / "new_artifact.txt").write_text("new content")

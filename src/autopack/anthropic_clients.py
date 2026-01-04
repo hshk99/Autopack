@@ -32,7 +32,7 @@ from .token_estimator import TokenEstimator
 # BUILD-129 Phase 2: Continuation-based recovery
 from .continuation_recovery import ContinuationRecovery
 # BUILD-129 Phase 3: NDJSON truncation-tolerant format
-from .ndjson_format import NDJSONParser, NDJSONApplier, detect_ndjson_format
+from .ndjson_format import NDJSONParser, NDJSONApplier
 
 logger = logging.getLogger(__name__)
 
@@ -78,7 +78,7 @@ def _write_token_estimation_v2_telemetry(
     separately from selected_budget (estimator intent) for accurate waste calculation.
     """
     # Feature flag check
-    if not os.environ.get("TELEMETRY_DB_ENABLED", "").lower() in ["1", "true", "yes"]:
+    if os.environ.get("TELEMETRY_DB_ENABLED", "").lower() not in ["1", "true", "yes"]:
         return
 
     # BUILD-129 Phase 3: Telemetry validity guard
@@ -530,7 +530,7 @@ class AnthropicBuilderClient:
                     # Override to full_file mode for better token efficiency
                     use_full_file_mode_flag = True
                     use_structured_edit = False
-                    logger.info(f"[Builder] Using full_file mode for multi-file creation phase (BUILD-043 optimization)")
+                    logger.info("[Builder] Using full_file mode for multi-file creation phase (BUILD-043 optimization)")
 
             # BUILD-129 Phase 3: NDJSON format selection for truncation tolerance
             # Per TOKEN_BUDGET_ANALYSIS_REVISED.md Layer 3: Use NDJSON for multi-file scopes (≥5 deliverables)
@@ -760,7 +760,7 @@ class AnthropicBuilderClient:
             token_budget_metadata["actual_output_tokens"] = actual_output_tokens  # For P10 base calculation
 
             if was_truncated:
-                logger.warning(f"[Builder] Output was truncated (stop_reason=max_tokens)")
+                logger.warning("[Builder] Output was truncated (stop_reason=max_tokens)")
                 logger.warning(
                     f"[TOKEN_BUDGET] TRUNCATION: phase={phase_id} used {actual_output_tokens}/{max_tokens} tokens "
                     f"(100% utilization) - consider increasing max_tokens for this complexity level"
@@ -1212,12 +1212,6 @@ class AnthropicBuilderClient:
         if config is None:
             from autopack.builder_config import BuilderOutputConfig
             config = BuilderOutputConfig()
-        import subprocess
-        import tempfile
-        import tempfile
-        import subprocess
-        import tempfile
-        import re
 
         def _escape_newlines_in_json_strings(raw: str) -> str:
             """
@@ -3834,7 +3828,7 @@ Approval Criteria:
         prompt_parts = [
             "# Patch to Review",
             f"```diff\n{patch_content}\n```",
-            f"\n# Phase Context",
+            "\n# Phase Context",
             f"Category: {phase_spec.get('task_category', 'general')}",
             f"Description: {phase_spec.get('description', '')}",
         ]

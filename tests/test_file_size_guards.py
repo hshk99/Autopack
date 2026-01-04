@@ -10,12 +10,11 @@ import pytest
 import json
 import tempfile
 from pathlib import Path
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import Mock
 
 from autopack.builder_config import BuilderOutputConfig
 from autopack.file_size_telemetry import FileSizeTelemetry
 from autopack.anthropic_clients import AnthropicBuilderClient
-from autopack.llm_client import BuilderResult
 
 
 class TestBuilderOutputConfig:
@@ -277,7 +276,7 @@ class TestParserGuards:
         # Phase spec allows mass deletion
         phase_spec = {"allow_mass_deletion": True}
         
-        result = client._parse_full_file_output(
+        client._parse_full_file_output(
             llm_output,
             file_context,
             mock_response,
@@ -350,7 +349,7 @@ class TestParserGuards:
         # Phase spec allows mass addition
         phase_spec = {"allow_mass_addition": True}
         
-        result = client._parse_full_file_output(
+        client._parse_full_file_output(
             llm_output,
             file_context,
             mock_response,

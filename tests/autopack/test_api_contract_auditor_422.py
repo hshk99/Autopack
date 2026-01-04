@@ -4,13 +4,11 @@ P0.2 Reliability Test: Auditor result API contract + 422 fallback validation.
 Validates that auditor_result payloads match schemas and that the 422 fallback
 logic (lines 8107-8138 in autonomous_executor.py) works correctly.
 """
-import json
-from typing import Dict, Any
 
 import pytest
 from pydantic import ValidationError
 
-from autopack.builder_schemas import AuditorResult, BuilderSuggestedIssue, AuditorSuggestedPatch
+from autopack.builder_schemas import AuditorResult, AuditorSuggestedPatch
 
 
 class TestAuditorResultContract:

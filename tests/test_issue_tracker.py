@@ -1,7 +1,5 @@
 """Unit tests for issue tracking system (Chunk B)"""
 
-import json
-from pathlib import Path
 
 import pytest
 

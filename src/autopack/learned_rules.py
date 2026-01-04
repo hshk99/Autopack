@@ -7,11 +7,10 @@ Per GPT architect + user consensus on learned rules design.
 """
 
 import json
-import os
 from dataclasses import dataclass, asdict
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import List, Optional, Dict, Set, Tuple
+from typing import List, Optional, Dict, Tuple
 from collections import defaultdict
 from enum import Enum
 

@@ -1,7 +1,6 @@
 """End-to-end integration tests for research system."""
 
 import pytest
-from pathlib import Path
 from unittest.mock import Mock, patch
 
 from autopack.autonomous.research_hooks import ResearchHooks, ResearchTriggerConfig
@@ -240,7 +239,6 @@ def test_error_handling_integration(integration_setup):
 
 def test_disabled_research_integration(integration_setup):
     """Test that system works when research is disabled."""
-    setup = integration_setup
 
     # Disable research
     trigger_config = ResearchTriggerConfig(

@@ -254,7 +254,7 @@ def select_files_for_context(
                 scored.sort(key=lambda t: (t[0], t[1], t[2]))
                 ranked = [(prio, tok, path, content) for prio, _, tok, path, content in scored]
         
-        except Exception as e:
+        except Exception:
             # API failure - fall back to lexical
             mode = "lexical"
             scored = []

@@ -1,14 +1,11 @@
 """Tests for research review workflow."""
 
 import pytest
-from pathlib import Path
-from datetime import datetime
 
 from autopack.workflow.research_review import (
     ResearchReviewWorkflow,
     ReviewConfig,
-    ReviewDecision,
-    ReviewResult
+    ReviewDecision
 )
 from autopack.phases.research_phase import ResearchPhaseResult
 
@@ -86,7 +83,7 @@ def test_require_human_review(review_config, high_confidence_research):
 def test_store_review(review_config, high_confidence_research):
     """Test review storage."""
     workflow = ResearchReviewWorkflow(config=review_config)
-    review = workflow.review_research(high_confidence_research, {})
+    workflow.review_research(high_confidence_research, {})
 
     # Check that review was stored
     review_file = (

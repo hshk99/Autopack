@@ -396,7 +396,6 @@ class TestPhaseCreateReadOnlyContextNormalization:
     def test_non_dict_scope_raises_validation_error(self):
         """Non-dict scope value should raise Pydantic validation error"""
         # This tests that Pydantic's type checking catches invalid scope types
-        import pytest
         from pydantic import ValidationError
 
         with pytest.raises(ValidationError) as exc_info:

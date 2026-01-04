@@ -12,17 +12,14 @@ Validates:
 
 import tempfile
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
-import pytest
 
 from autopack.plan_normalizer import (
     PlanNormalizer,
-    NormalizationResult,
     normalize_plan,
     DEFAULT_TOKEN_CAP,
 )
-from autopack.repo_scanner import RepoScanner
 
 
 class TestDeliverableExtraction:

@@ -2,7 +2,6 @@
 
 import os
 import sys
-import tempfile
 from pathlib import Path
 
 import pytest
@@ -26,7 +25,6 @@ from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from src.autopack import models
 from autopack.database import Base, get_db
 from autopack.main import app
 from autopack.usage_recorder import LlmUsageEvent  # noqa: F401 - ensure model registered

@@ -12,7 +12,7 @@ import logging
 import os
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
 
 from sqlalchemy.orm import Session
 
@@ -46,7 +46,6 @@ from .error_recovery import (
     DoctorContextSummary,
     choose_doctor_model,
     should_escalate_doctor_model,
-    DOCTOR_MIN_BUILDER_ATTEMPTS,
 )
 
 # Import OpenAI clients with graceful fallback
@@ -863,7 +862,6 @@ IMPORTANT: execute_fix is for INFRASTRUCTURE fixes only. Code logic issues shoul
         Returns:
             DoctorResponse with action, confidence, rationale, and optional hints
         """
-        import json
         import logging
         from .config_loader import load_doctor_config
         logger = logging.getLogger(__name__)
@@ -916,14 +914,14 @@ IMPORTANT: execute_fix is for INFRASTRUCTURE fixes only. Code logic issues shoul
     def _build_doctor_user_message(self, request: DoctorRequest) -> str:
         """Build user message for Doctor LLM call."""
         message_parts = [
-            f"## Phase Failure Diagnosis Request",
-            f"",
+            "## Phase Failure Diagnosis Request",
+            "",
             f"**Phase ID**: {request.phase_id}",
             f"**Error Category**: {request.error_category}",
             f"**Builder Attempts**: {request.builder_attempts}",
             f"**Run ID**: {request.run_id or 'unknown'}",
-            f"",
-            f"### Health Budget",
+            "",
+            "### Health Budget",
             f"- HTTP 500 errors: {request.health_budget.get('http_500', 0)}",
             f"- Patch failures: {request.health_budget.get('patch_failures', 0)}",
             f"- Total failures: {request.health_budget.get('total_failures', 0)}",
@@ -986,7 +984,6 @@ IMPORTANT: execute_fix is for INFRASTRUCTURE fixes only. Code logic issues shoul
         Returns:
             DoctorResponse parsed from LLM output
         """
-        import json
         import logging
         logger = logging.getLogger(__name__)
 

@@ -8,7 +8,6 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any, Dict, List, Optional, Set
 from datetime import datetime
-from urllib.parse import urlparse
 
 
 class SourceType(Enum):

@@ -7,7 +7,6 @@ approval artifact before destructive actions.
 
 import pytest
 from pathlib import Path
-import json
 import subprocess
 import sys
 

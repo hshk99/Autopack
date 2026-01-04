@@ -345,7 +345,7 @@ class FailureHardeningRegistry:
 
         if found_test_dir:
             suggestions.append(f"pytest {found_test_dir}/ -v")
-            suggestions.append(f"Check test file naming: test_*.py or *_test.py")
+            suggestions.append("Check test file naming: test_*.py or *_test.py")
         else:
             suggestions.append("Create tests/ directory")
             suggestions.append("Add test files: test_*.py")

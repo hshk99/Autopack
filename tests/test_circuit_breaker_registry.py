@@ -3,13 +3,11 @@ import pytest
 from unittest.mock import Mock
 
 from autopack.circuit_breaker import (
-    CircuitBreaker,
     CircuitBreakerConfig,
     CircuitState
 )
 from autopack.circuit_breaker_registry import (
     CircuitBreakerRegistry,
-    CircuitBreakerStatus,
     get_global_registry
 )
 
@@ -148,7 +146,7 @@ class TestCircuitBreakerRegistry:
     def test_get_status(self, registry):
         """Test getting status of a circuit breaker."""
         config = CircuitBreakerConfig(failure_threshold=3)
-        breaker = registry.register("test", config)
+        registry.register("test", config)
         
         status = registry.get_status("test")
         

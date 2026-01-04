@@ -53,25 +53,50 @@ def _scan_file(path: Path) -> list[str]:
 
 def main() -> int:
     repo_root = Path(__file__).resolve().parent.parent
-    executor_path = repo_root / "src" / "autopack" / "autonomous_executor.py"
 
-    if not executor_path.exists():
-        print(f"ERROR: expected executor at {executor_path} but file does not exist", file=sys.stderr)
-        return 2
+    # Phase F: Expanded set of runtime modules to scan
+    runtime_modules = [
+        "src/autopack/autonomous_executor.py",
+        "src/autopack/llm_service.py",
+        "src/autopack/archive_consolidator.py",
+        "src/autopack/debug_journal.py",
+        "src/autopack/intention_wiring.py",
+        "src/autopack/autonomous/intention_first_loop.py",
+        "src/autopack/autonomous/executor_wiring.py",
+    ]
 
-    findings = _scan_file(executor_path)
-    if not findings:
-        print("✅ SOT write protection check passed (no direct executor writes detected)")
+    all_findings = []
+    missing_modules = []
+
+    for module_rel_path in runtime_modules:
+        module_path = repo_root / module_rel_path
+        if not module_path.exists():
+            missing_modules.append(module_rel_path)
+            continue
+
+        findings = _scan_file(module_path)
+        all_findings.extend(findings)
+
+    # Report missing modules as warnings (not failures)
+    if missing_modules:
+        print(f"⚠️  Warning: {len(missing_modules)} expected module(s) not found (may not exist yet):", file=sys.stderr)
+        for m in missing_modules[:5]:
+            print(f"  - {m}", file=sys.stderr)
+        if len(missing_modules) > 5:
+            print(f"  ... and {len(missing_modules) - 5} more", file=sys.stderr)
+
+    if not all_findings:
+        print(f"✅ SOT write protection check passed (no direct writes detected in {len(runtime_modules) - len(missing_modules)} runtime modules)")
         return 0
 
     print("❌ SOT write protection check failed.", file=sys.stderr)
-    print("Executor appears to reference protected SOT paths alongside write APIs:", file=sys.stderr)
-    for f in findings[:50]:
+    print("Runtime modules appear to reference protected SOT paths alongside write APIs:", file=sys.stderr)
+    for f in all_findings[:50]:
         print(f"- {f}", file=sys.stderr)
-    if len(findings) > 50:
-        print(f"... and {len(findings) - 50} more", file=sys.stderr)
+    if len(all_findings) > 50:
+        print(f"... and {len(all_findings) - 50} more", file=sys.stderr)
     print("", file=sys.stderr)
-    print("Fix: remove direct writes to SOT ledgers from executor; write run-local artifacts instead.", file=sys.stderr)
+    print("Fix: remove direct writes to SOT ledgers from runtime code; write run-local artifacts instead.", file=sys.stderr)
     return 1
 
 

@@ -1793,6 +1793,16 @@ class AutonomousExecutor:
         """
         phase_id = phase.get("phase_id")
 
+        # INSERTION POINT 2: Track phase state for intention-first loop (BUILD-161 Phase A)
+        if hasattr(self, '_intention_wiring') and self._intention_wiring is not None:
+            from autopack.autonomous.executor_wiring import get_or_create_phase_state
+            phase_state = get_or_create_phase_state(self._intention_wiring, phase_id)
+            # Increment iterations_used at phase start
+            phase_state.iterations_used += 1
+            logger.debug(f"[IntentionFirst] Phase {phase_id}: iteration {phase_state.iterations_used}")
+        else:
+            phase_state = None
+
         # BUILD-123v2: Generate scope manifest if missing or incomplete
         scope_config = phase.get("scope") or {}
         if not scope_config.get("paths"):
@@ -2121,6 +2131,74 @@ class AutonomousExecutor:
                             last_failure_reason="DOCTOR_REPLAN"
                         )
                     return False, "REPLAN_REQUESTED"
+
+            # INSERTION POINT 3: Intention-first stuck handling dispatch (BUILD-161 Phase A)
+            if hasattr(self, '_intention_wiring') and self._intention_wiring is not None and self._intention_anchor is not None:
+                from autopack.autonomous.executor_wiring import decide_stuck_action
+                from autopack.stuck_handling import StuckReason
+
+                # Map failure status to stuck reason
+                stuck_reason = StuckReason.REPEATED_FAILURES  # Default
+                if "BUDGET" in status.upper():
+                    stuck_reason = StuckReason.BUDGET_EXCEEDED
+                elif "TRUNCAT" in status.upper():
+                    stuck_reason = StuckReason.OUTPUT_TRUNCATION
+
+                # Compute usage metrics (simplified for now - would ideally track accurately)
+                # TODO: Track actual usage in llm_service execution
+                tokens_used = getattr(self, '_run_tokens_used', 0)
+                context_chars_used = getattr(self, '_run_context_chars_used', 0)
+                sot_chars_used = getattr(self, '_run_sot_chars_used', 0)
+
+                try:
+                    decision, decision_msg = decide_stuck_action(
+                        wiring=self._intention_wiring,
+                        phase_id=phase_id,
+                        phase_spec=phase,
+                        anchor=self._intention_anchor,
+                        reason=stuck_reason,
+                        tokens_used=tokens_used,
+                        context_chars_used=context_chars_used,
+                        sot_chars_used=sot_chars_used,
+                    )
+                    logger.info(f"[IntentionFirst] {decision_msg}")
+
+                    # Dispatch based on decision
+                    from autopack.stuck_handling import StuckResolutionDecision
+                    if decision == StuckResolutionDecision.REPLAN:
+                        # Use existing replan logic
+                        logger.info(f"[IntentionFirst] Policy decided REPLAN for {phase_id}")
+                        # Fall through to existing replan code below
+                    elif decision == StuckResolutionDecision.ESCALATE_MODEL:
+                        # Apply model escalation via routing snapshot
+                        from autopack.autonomous.executor_wiring import apply_model_escalation
+                        current_tier = phase.get("_current_tier", "haiku")  # Default to haiku if not set
+                        safety_profile = "normal"  # TODO: derive from intention anchor risk profile
+                        escalated_entry = apply_model_escalation(
+                            wiring=self._intention_wiring,
+                            phase_id=phase_id,
+                            phase_spec=phase,
+                            current_tier=current_tier,
+                            safety_profile=safety_profile,
+                        )
+                        if escalated_entry:
+                            logger.info(f"[IntentionFirst] Escalated {phase_id} to tier {escalated_entry.tier} (model: {escalated_entry.model_id})")
+                            phase["_current_tier"] = escalated_entry.tier
+                            # The run_context overrides are now set, llm_service will use them
+                        else:
+                            logger.warning(f"[IntentionFirst] Escalation failed for {phase_id}, falling back to existing logic")
+                        # Don't return - let existing retry logic continue
+                    elif decision == StuckResolutionDecision.REDUCE_SCOPE:
+                        logger.warning(f"[IntentionFirst] Policy decided REDUCE_SCOPE for {phase_id} - not yet implemented, falling back")
+                        # TODO: Implement scope reduction prompt generation + validation
+                    elif decision == StuckResolutionDecision.NEEDS_HUMAN:
+                        logger.critical(f"[IntentionFirst] Policy decided NEEDS_HUMAN for {phase_id} - blocking")
+                        return False, "BLOCKED_NEEDS_HUMAN"
+                    elif decision == StuckResolutionDecision.STOP:
+                        logger.critical(f"[IntentionFirst] Policy decided STOP for {phase_id} - budget exhausted or max retries")
+                        return False, "FAILED"
+                except Exception as e:
+                    logger.warning(f"[IntentionFirst] Stuck decision failed: {e}, falling back to existing logic")
 
             # Check if we should trigger re-planning before next retry
             should_replan, flaw_type = self._should_trigger_replan(phase)
@@ -3948,10 +4026,16 @@ Just the new description that should replace the current one while preserving th
         """Build run context with model overrides if specified.
 
         [Phase C3] Centralized run context builder for consistency across all LLM calls.
+        [Phase E] Use intention-first loop routing overrides when available.
 
         Returns:
             Dict with model_overrides if they exist, otherwise empty dict
         """
+        # Phase E: Use intention-first loop routing context if available
+        if hasattr(self, '_intention_wiring') and self._intention_wiring is not None:
+            return self._intention_wiring.run_context
+
+        # Fallback: legacy model_overrides attribute
         run_context = {}
         if hasattr(self, 'model_overrides') and self.model_overrides:
             run_context['model_overrides'] = self.model_overrides
@@ -9871,6 +9955,50 @@ Just the new description that should replace the current one while preserving th
 
         # Initialize infrastructure
         self._init_infrastructure()
+
+        # INSERTION POINT 1: Initialize intention-first loop (BUILD-161 Phase A)
+        from autopack.autonomous.executor_wiring import initialize_intention_first_loop
+        from autopack.intention_anchor.storage import IntentionAnchorStorage
+
+        # Load intention anchor for this run
+        try:
+            intention_anchor = IntentionAnchorStorage.load_anchor(self.run_id)
+            if intention_anchor is None:
+                logger.warning(f"[IntentionFirst] No intention anchor found for run {self.run_id}, using defaults")
+                # Create minimal default anchor if none exists
+                from autopack.intention_anchor.models import IntentionAnchor, IntentionConstraints, IntentionBudgets
+                from datetime import datetime, timezone
+                intention_anchor = IntentionAnchor(
+                    anchor_id=f"default-{self.run_id}",
+                    run_id=self.run_id,
+                    project_id="default",
+                    created_at=datetime.now(timezone.utc),
+                    updated_at=datetime.now(timezone.utc),
+                    version=1,
+                    north_star="Execute run according to phase specifications",
+                    success_criteria=["All phases complete successfully"],
+                    constraints=IntentionConstraints(must=[], must_not=[], preferences=[]),
+                    budgets=IntentionBudgets(
+                        max_context_chars=settings.run_token_cap * 4,  # Rough char estimate
+                        max_sot_chars=500_000,
+                    ),
+                )
+            logger.info(f"[IntentionFirst] Loaded intention anchor: {intention_anchor.anchor_id} (v{intention_anchor.version})")
+
+            # Initialize the intention-first loop with routing snapshot + state tracking
+            wiring = initialize_intention_first_loop(
+                run_id=self.run_id,
+                project_id=intention_anchor.project_id,
+                intention_anchor=intention_anchor,
+            )
+            logger.info(f"[IntentionFirst] Initialized loop with routing snapshot: {wiring.run_state.routing_snapshot.snapshot_id}")
+            # Store wiring state as instance variable for phase execution
+            self._intention_wiring = wiring
+            self._intention_anchor = intention_anchor
+        except Exception as e:
+            logger.warning(f"[IntentionFirst] Failed to initialize intention-first loop: {e}, continuing without it")
+            self._intention_wiring = None
+            self._intention_anchor = None
 
         iteration = 0
         phases_executed = 0

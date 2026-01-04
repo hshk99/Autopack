@@ -213,7 +213,7 @@ class TestValidateScopeReduction:
                 rationale=ScopeReductionRationale(
                     success_criteria_preserved=["User login works"],
                     success_criteria_deferred=["Password reset works", "Two-factor auth works"],
-                    constraints_still_met=["No plaintext passwords"],
+                    constraints_still_met=["No plaintext passwords", "HTTPS only"],  # ALL must constraints
                     reason="Budget constraints require focusing on core login",
                 ),
             ),
@@ -261,7 +261,7 @@ class TestValidateScopeReduction:
                 rationale=ScopeReductionRationale(
                     success_criteria_preserved=["User login works"],
                     success_criteria_deferred=[],
-                    constraints_still_met=["No plaintext passwords"],
+                    constraints_still_met=["No plaintext passwords", "HTTPS only"],  # ALL must constraints
                     reason="Test",
                 ),
             ),
@@ -285,7 +285,7 @@ class TestValidateScopeReduction:
                 rationale=ScopeReductionRationale(
                     success_criteria_preserved=["User login works"],
                     success_criteria_deferred=[],
-                    constraints_still_met=["No plaintext passwords"],
+                    constraints_still_met=["No plaintext passwords", "HTTPS only"],  # ALL must constraints
                     reason="Test",
                 ),
             ),

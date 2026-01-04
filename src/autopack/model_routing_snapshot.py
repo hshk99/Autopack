@@ -38,7 +38,7 @@ class ModelRoutingEntry(BaseModel):
     Represents "best available model" for a given tier under budget+safety constraints.
     """
 
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="forbid", protected_namespaces=())
 
     tier: str  # e.g., "haiku", "sonnet", "opus"
     model_id: str  # e.g., "claude-3-5-haiku-20241022"
@@ -251,29 +251,47 @@ def create_default_snapshot(run_id: str) -> ModelRoutingSnapshot:
 
 
 def refresh_or_load_snapshot(
-    run_id: str, force_refresh: bool = False
+    run_id: str,
+    force_refresh: bool = False,
+    safety_profile: Literal["normal", "strict"] = "normal",
 ) -> ModelRoutingSnapshot:
     """
-    Refresh or load routing snapshot.
+    Refresh or load routing snapshot (unified entrypoint).
+
+    Delegates to catalog-backed implementation with graceful fallback to default.
 
     Logic:
-    1. If force_refresh or no snapshot exists: create default and save
-    2. If snapshot exists and fresh: load it
-    3. If snapshot exists but expired: create default and save
+    1. Try catalog-backed refresh (via model_routing_refresh module)
+    2. If catalog unavailable, fall back to default snapshot
+    3. Always persist snapshot to run-local artifact
 
     Args:
         run_id: Run ID
         force_refresh: Force snapshot refresh
+        safety_profile: Safety profile for filtering ("normal" or "strict")
 
     Returns:
-        Fresh routing snapshot
+        Fresh routing snapshot (catalog-backed or default)
     """
-    if not force_refresh:
-        existing = RoutingSnapshotStorage.load_snapshot(run_id)
-        if existing and RoutingSnapshotStorage.is_snapshot_fresh(existing):
-            return existing
+    try:
+        # Lazy import to avoid circular dependencies
+        from autopack.model_routing_refresh import (
+            refresh_or_load_snapshot_with_catalog,
+        )
 
-    # Create default snapshot and save
-    snapshot = create_default_snapshot(run_id)
-    RoutingSnapshotStorage.save_snapshot(snapshot)
-    return snapshot
+        return refresh_or_load_snapshot_with_catalog(
+            run_id=run_id,
+            force_refresh=force_refresh,
+            safety_profile=safety_profile,
+        )
+    except Exception:
+        # Fallback: load if fresh, otherwise create default
+        if not force_refresh:
+            existing = RoutingSnapshotStorage.load_snapshot(run_id)
+            if existing and RoutingSnapshotStorage.is_snapshot_fresh(existing):
+                return existing
+
+        # Create default snapshot and save
+        snapshot = create_default_snapshot(run_id)
+        RoutingSnapshotStorage.save_snapshot(snapshot)
+        return snapshot

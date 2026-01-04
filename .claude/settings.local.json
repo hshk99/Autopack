@@ -175,7 +175,12 @@
       "Bash(PYTHONUTF8=1 tee:*)",
       "Bash(rg:*)",
       "Bash(wc:*)",
-      "Bash(git merge:*)"
+      "Bash(git merge:*)",
+      "Bash($env:PYTHONUTF8='1')",
+      "Bash($env:PYTHONPATH='src')",
+      "Bash($env:DATABASE_URL='sqlite:///:memory:')",
+      "Bash(PYTHONUTF8=1 PYTHONPATH=src timeout 60 pytest:*)",
+      "Bash(PYTHONUTF8=1 PYTHONPATH=src DATABASE_URL=\"sqlite:///:memory:\" timeout 300 pytest:*)"
     ],
     "deny": [],
     "ask": []

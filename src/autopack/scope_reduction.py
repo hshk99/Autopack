@@ -173,15 +173,17 @@ def validate_scope_reduction(
     if not proposal.diff.rationale.success_criteria_preserved:
         return False, "Scope reduction must preserve at least one success criterion"
 
-    # Check that all "must" constraints are explicitly acknowledged
+    # Check that ALL "must" constraints are explicitly acknowledged
+    # Per Phase C.1: require set(must) ⊆ set(constraints_still_met)
     must_constraints = set(anchor.constraints.must)
     acknowledged = set(proposal.diff.rationale.constraints_still_met)
 
-    # If there are "must" constraints, at least some should be acknowledged
-    if must_constraints and not acknowledged.intersection(must_constraints):
+    # If there are "must" constraints, ALL must be acknowledged
+    if must_constraints and not must_constraints.issubset(acknowledged):
+        missing = must_constraints - acknowledged
         return (
             False,
-            "Scope reduction must explicitly acknowledge which 'must' constraints are still met",
+            f"Scope reduction must acknowledge ALL 'must' constraints. Missing: {sorted(missing)}",
         )
 
     # Check that at least one deliverable is kept

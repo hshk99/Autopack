@@ -61,10 +61,13 @@ jobs:
           PYTHONUTF8=1 PYTHONPATH=src DATABASE_URL="sqlite:///:memory:" pytest -q \
             tests/autopack/test_stuck_handling.py \
             tests/autopack/test_intention_first_loop.py \
+            tests/autopack/test_budgeting.py \
+            tests/autopack/test_intention_first_loop_budget_policy.py \
             tests/autopack/test_model_routing_refresh.py \
             tests/autopack/test_model_routing_snapshot.py \
             tests/autopack/test_scope_reduction.py \
-            tests/autopack/test_phase_proof.py
+            tests/autopack/test_phase_proof.py \
+            tests/autopack/test_routing_override_consumption.py
         env:
           PYTHONUNBUFFERED: 1
 

@@ -346,7 +346,8 @@ class TestRefreshOrLoadSnapshot:
         )
         RoutingSnapshotStorage.save_snapshot(expired)
 
-        # Load should refresh
+        # Load should refresh (now delegates to catalog-backed refresh)
         loaded = refresh_or_load_snapshot("test-run", force_refresh=False)
         assert loaded.snapshot_id != "expired-snap"
-        assert loaded.snapshot_id.startswith("default-")
+        # After Phase D, refresh delegates to catalog (or falls back to default)
+        assert loaded.snapshot_id.startswith("catalog-") or loaded.snapshot_id.startswith("default-")

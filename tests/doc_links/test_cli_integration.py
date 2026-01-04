@@ -74,9 +74,9 @@ And here is a backtick reference: `.autonomous_runs/test_deep_fake_file.json`.
 
         # Output should mention both the markdown link AND the backtick reference
         # Note: paths may be normalized (leading . and / stripped)
-        assert "TEST_DEEP_NONEXISTENT_FILE" in result.stdout, f"Expected TEST_DEEP_NONEXISTENT_FILE in output"
+        assert "TEST_DEEP_NONEXISTENT_FILE" in result.stdout, "Expected TEST_DEEP_NONEXISTENT_FILE in output"
         # Backtick may appear as normalized path (without leading .)
-        assert "test_deep_fake_file" in result.stdout, f"Expected test_deep_fake_file (backtick) in output"
+        assert "test_deep_fake_file" in result.stdout, "Expected test_deep_fake_file (backtick) in output"
 
         print("✅ test_deep_mode_includes_backticks passed")
     finally:

@@ -1,10 +1,9 @@
 """Unit tests for research orchestrator."""
 import pytest
-from unittest.mock import Mock, AsyncMock, patch
-from datetime import datetime
+from unittest.mock import AsyncMock, patch
 
 from autopack.research.orchestrator import ResearchOrchestrator, ResearchSession
-from autopack.research.models import ResearchQuery, ResearchStage, Evidence
+from autopack.research.models import ResearchQuery, ResearchStage
 
 
 class TestResearchOrchestrator:

@@ -364,7 +364,7 @@ class YamlRepairHelper:
 
         # Strategy 3: Suggest using the old YAML with minimal edits
         # This is a fallback that preserves safety
-        logger.warning(f"[YamlRepair] All repair strategies failed, suggesting original")
+        logger.warning("[YamlRepair] All repair strategies failed, suggesting original")
         return None, "failed"
 
     def _rule_based_repair(

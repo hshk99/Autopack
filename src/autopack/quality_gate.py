@@ -29,7 +29,6 @@ Usage:
 
 import logging
 import subprocess
-import json
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Any
 from pathlib import Path
@@ -259,7 +258,7 @@ class QualityGate:
                                 pass
             tests_run = tests_passed + tests_failed
 
-            validation_result = ValidationResult(
+            ValidationResult(
                 success=success,
                 tests_run=tests_run,
                 tests_passed=tests_passed,

@@ -1,6 +1,4 @@
 """Unit tests for research source management."""
-import pytest
-from unittest.mock import Mock, patch, MagicMock
 
 
 class TestSourceManager:

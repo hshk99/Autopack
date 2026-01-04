@@ -5,7 +5,7 @@ Tests the deliverables inference logic that prevents category mismatches.
 
 import pytest
 from pathlib import Path
-from unittest.mock import Mock, MagicMock
+from unittest.mock import Mock
 
 from autopack.manifest_generator import ManifestGenerator
 from autopack.repo_scanner import RepoScanner

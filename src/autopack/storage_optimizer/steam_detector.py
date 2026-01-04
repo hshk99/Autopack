@@ -5,7 +5,6 @@ Detects installed Steam games and identifies cleanup opportunities.
 Addresses user's original request: "detect and suggest moving large uninstalled games"
 """
 
-import os
 import winreg
 from typing import List, Dict, Optional
 from pathlib import Path

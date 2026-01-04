@@ -8,8 +8,6 @@ Tests the conditional override logic directly using the actual code flow to ensu
 4. Telemetry records estimator intent separately from final ceiling
 """
 
-import pytest
-from autopack.anthropic_clients import AnthropicBuilderClient
 
 
 class TestCategoryAwareOverrideLogic:
@@ -18,7 +16,6 @@ class TestCategoryAwareOverrideLogic:
     def test_category_normalization_docs(self):
         """Test that 'documentation' normalizes to 'docs' for override check."""
         task_category = "documentation"
-        token_selected_budget = 4096
 
         # Simulate the normalization logic from anthropic_clients.py lines 572-573
         normalized_category = task_category.lower() if task_category else ""
@@ -29,7 +26,6 @@ class TestCategoryAwareOverrideLogic:
     def test_category_normalization_docs_exact(self):
         """Test that 'docs' is recognized as docs-like."""
         task_category = "docs"
-        token_selected_budget = 4096
 
         normalized_category = task_category.lower() if task_category else ""
         is_docs_like = normalized_category in ["docs", "documentation", "doc_synthesis", "doc_sot_update"]
@@ -39,7 +35,6 @@ class TestCategoryAwareOverrideLogic:
     def test_category_normalization_doc_synthesis(self):
         """Test that 'doc_synthesis' is recognized as docs-like."""
         task_category = "doc_synthesis"
-        token_selected_budget = 8192
 
         normalized_category = task_category.lower() if task_category else ""
         is_docs_like = normalized_category in ["docs", "documentation", "doc_synthesis", "doc_sot_update"]
@@ -49,7 +44,6 @@ class TestCategoryAwareOverrideLogic:
     def test_category_normalization_doc_sot_update(self):
         """Test that 'doc_sot_update' is recognized as docs-like."""
         task_category = "doc_sot_update"
-        token_selected_budget = 8192
 
         normalized_category = task_category.lower() if task_category else ""
         is_docs_like = normalized_category in ["docs", "documentation", "doc_synthesis", "doc_sot_update"]
@@ -59,7 +53,6 @@ class TestCategoryAwareOverrideLogic:
     def test_category_normalization_implementation(self):
         """Test that 'implementation' is NOT docs-like."""
         task_category = "implementation"
-        token_selected_budget = 12288
 
         normalized_category = task_category.lower() if task_category else ""
         is_docs_like = normalized_category in ["docs", "documentation", "doc_synthesis", "doc_sot_update"]
@@ -69,7 +62,6 @@ class TestCategoryAwareOverrideLogic:
     def test_category_normalization_tests(self):
         """Test that 'tests' is NOT docs-like (has its own reduced base, but not docs)."""
         task_category = "tests"
-        token_selected_budget = 6144
 
         normalized_category = task_category.lower() if task_category else ""
         is_docs_like = normalized_category in ["docs", "documentation", "doc_synthesis", "doc_sot_update"]

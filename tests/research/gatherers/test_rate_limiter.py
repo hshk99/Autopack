@@ -1,6 +1,5 @@
 """Tests for RateLimiter module."""
 
-import pytest
 import time
 from datetime import datetime, timedelta
 from autopack.research.gatherers.rate_limiter import RateLimiter

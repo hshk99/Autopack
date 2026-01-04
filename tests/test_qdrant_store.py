@@ -10,7 +10,6 @@ Tests will be skipped if Qdrant is not available.
 
 import os
 import pytest
-from typing import List
 
 # Check if Qdrant should be tested
 QDRANT_TEST_ENABLED = os.getenv("QDRANT_TEST_ENABLED", "false").lower() in ("true", "1", "yes")

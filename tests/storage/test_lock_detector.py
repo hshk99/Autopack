@@ -4,7 +4,6 @@ Unit tests for LockDetector (BUILD-152).
 Tests lock classification, transient/permanent detection, and remediation hints.
 """
 
-import pytest
 from pathlib import Path
 from autopack.storage_optimizer.lock_detector import LockDetector
 

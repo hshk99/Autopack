@@ -1,14 +1,12 @@
 """Unit tests for validation framework."""
 import pytest
-from unittest.mock import Mock
 from datetime import datetime
 
 from autopack.research.validation import (
     ValidationFramework,
     EvidenceValidator,
     CitationValidator,
-    QualityValidator,
-    ValidationResult
+    QualityValidator
 )
 from autopack.research.models import Evidence, Citation, EvidenceQuality, ResearchReport
 

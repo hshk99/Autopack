@@ -210,7 +210,7 @@ class TestLLMIntegration:
                 "description": "JWT-based auth"
             }
 
-            analysis = await analyzer.analyze_phase(
+            await analyzer.analyze_phase(
                 phase_spec,
                 context=context.to_prompt_section()
             )
@@ -395,7 +395,7 @@ class TestMetadataAttachment:
         phase = result.enhanced_plan["phases"][0]
         if "scope" in phase and len(phase["scope"]["paths"]) > 0:
             # Should contain auth files, not the mocked different scope
-            scope_str = " ".join(phase["scope"]["paths"])
+            " ".join(phase["scope"]["paths"])
             # Deterministic scope from pattern matcher should be present
             # (Phase D implementation will ensure LLM suggestions don't override)
 

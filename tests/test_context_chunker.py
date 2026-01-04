@@ -5,13 +5,9 @@ Tests file profiling, chunking, and integration with grounded context.
 """
 
 import pytest
-from pathlib import Path
 from autopack.context_chunker import (
     ContextChunker,
-    FileProfile,
-    ChunkRef,
-    LARGE_FILE_THRESHOLD_LINES,
-    MINIFIED_LINE_LENGTH
+    ChunkRef
 )
 
 
@@ -193,7 +189,7 @@ def test_chunk_limit_enforcement(chunker, tmp_workspace):
     content = []
     for i in range(MAX_CHUNKS_PER_FILE + 20):
         content.append(f"def func_{i}():")
-        content.append(f"    pass")
+        content.append("    pass")
         content.append("")
 
     many_funcs.write_text('\n'.join(content))

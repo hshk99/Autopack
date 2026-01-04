@@ -59,10 +59,10 @@ def test_debug_log_stub_sections_have_standard_marker():
             violations.append(block['id'])
 
     assert not violations, (
-        f"DEBUG_LOG stub sections missing canonical marker line:\n"
+        "DEBUG_LOG stub sections missing canonical marker line:\n"
         + "\n".join([f"  - {bid}" for bid in violations])
         + f"\n\nExpected marker:\n  {STUB_MARKER}"
-        + f"\n\nFix: Ensure all stub sections include the exact marker from 'Stub Section Policy'."
+        + "\n\nFix: Ensure all stub sections include the exact marker from 'Stub Section Policy'."
         + f"\n\nStub sections are detected by presence of '{stub_signal}' in section text."
     )
 

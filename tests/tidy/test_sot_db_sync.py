@@ -14,14 +14,12 @@ External dependency tests (PostgreSQL, Qdrant) are in test_sot_db_sync_integrati
 
 from __future__ import annotations
 
-import json
 import pytest
 import sqlite3
 import tempfile
 import time
-from datetime import datetime
 from pathlib import Path
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import patch, MagicMock
 
 import sys
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
@@ -619,7 +617,7 @@ def test_lock_acquisition_execute_mode_acquires_locks(mock_repo_structure, temp_
                 assert syncer.multi_lock is not None
 
                 # Run should acquire locks with correct subsystems
-                exit_code = syncer.run()
+                syncer.run()
 
                 # Verify acquire was called with ["docs", "archive"]
                 mock_multi_lock.acquire.assert_called_once_with(["docs", "archive"])

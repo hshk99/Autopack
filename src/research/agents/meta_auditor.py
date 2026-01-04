@@ -9,10 +9,6 @@ from dataclasses import dataclass, field
 from enum import Enum
 
 # NOTE: repo uses PYTHONPATH=src, so modules under src/research are imported as `research.*`
-from research.frameworks.market_attractiveness import MarketAttractiveness, AttractivenessLevel
-from research.frameworks.product_feasibility import ProductFeasibility, FeasibilityLevel
-from research.frameworks.competitive_intensity import CompetitiveIntensity, IntensityLevel
-from research.frameworks.adoption_readiness import AdoptionReadiness, ReadinessLevel
 
 
 class StrategicRecommendation(Enum):

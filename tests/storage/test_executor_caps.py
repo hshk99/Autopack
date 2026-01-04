@@ -4,10 +4,9 @@ Unit tests for CleanupExecutor caps and retry logic (BUILD-152).
 Tests GB caps, file count caps, retry backoff, and skip_locked behavior.
 """
 
-import pytest
 import tempfile
 from pathlib import Path
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import Mock, patch
 from autopack.storage_optimizer.executor import CleanupExecutor, ExecutionResult, ExecutionStatus
 from autopack.storage_optimizer.policy import load_policy
 
@@ -56,7 +55,7 @@ class TestExecutorCaps:
             # Mock successful execution
             mock_execute.return_value = ExecutionResult(
                 candidate_id=1,
-                path=f"C:/test/file.txt",
+                path="C:/test/file.txt",
                 status=ExecutionStatus.COMPLETED,
                 original_size_bytes=1 * 1024 ** 3,
                 freed_bytes=1 * 1024 ** 3,
@@ -99,7 +98,7 @@ class TestExecutorCaps:
         with patch.object(executor, 'execute_cleanup_candidate') as mock_execute:
             mock_execute.return_value = ExecutionResult(
                 candidate_id=1,
-                path=f"C:/test/file.txt",
+                path="C:/test/file.txt",
                 status=ExecutionStatus.COMPLETED,
                 original_size_bytes=1024,
                 freed_bytes=1024,
@@ -300,7 +299,7 @@ class TestExecutorCaps:
         with patch.object(executor, 'execute_cleanup_candidate') as mock_execute:
             mock_execute.return_value = ExecutionResult(
                 candidate_id=1,
-                path=f"C:/test/file.txt",
+                path="C:/test/file.txt",
                 status=ExecutionStatus.COMPLETED,
                 original_size_bytes=1 * 1024 ** 3,
                 freed_bytes=1 * 1024 ** 3,
@@ -347,7 +346,7 @@ class TestExecutorCaps:
 
             # Execute (no actual deletion)
             with patch('send2trash.send2trash'):
-                result = executor.execute_cleanup_candidate(mock_db, candidate)
+                executor.execute_cleanup_candidate(mock_db, candidate)
 
             # Verify checkpoint logger was called
             assert executor.checkpoint_logger.log_execution.called
@@ -390,7 +389,7 @@ class TestExecutorCaps:
 
             # Execute (will actually delete with send2trash)
             with patch('send2trash.send2trash'):  # Mock to avoid actual deletion
-                result = executor.execute_cleanup_candidate(mock_db, candidate)
+                executor.execute_cleanup_candidate(mock_db, candidate)
 
             # Verify SHA256 was logged
             assert executor.checkpoint_logger.log_execution.called

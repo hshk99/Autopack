@@ -78,7 +78,7 @@ class GoalAwareDecisionMaker:
 
         # Extract key information from evidence
         failure_class = evidence.get("failure_context", {}).get("failure_class", "unknown")
-        error_message = evidence.get("failure_context", {}).get("error_message", "")
+        evidence.get("failure_context", {}).get("error_message", "")
 
         # Check if we have sufficient evidence
         if not self._has_sufficient_evidence(evidence):
@@ -356,7 +356,7 @@ class GoalAwareDecisionMaker:
 
         # Check side effects
         if fix_strategy.side_effects:
-            logger.info(f"[GoalAwareDecisionMaker] MEDIUM RISK: has side effects")
+            logger.info("[GoalAwareDecisionMaker] MEDIUM RISK: has side effects")
             return RiskLevel.MEDIUM
 
         # Low risk
@@ -802,28 +802,28 @@ class GoalAwareDecisionMaker:
                 f"Auto-apply patch (SELECTED: {risk_level.value} risk, {confidence:.0%} confidence)"
             )
             alternatives.append(
-                f"Request human approval (rejected: low risk and high confidence)"
+                "Request human approval (rejected: low risk and high confidence)"
             )
         elif risk_level == RiskLevel.HIGH:
             alternatives.append(
-                f"Request human approval (SELECTED: HIGH risk requires review)"
+                "Request human approval (SELECTED: HIGH risk requires review)"
             )
             alternatives.append(
-                f"Auto-apply anyway (rejected: safety first)"
+                "Auto-apply anyway (rejected: safety first)"
             )
         elif confidence < 0.7:
             alternatives.append(
                 f"Request human clarification (SELECTED: {confidence:.0%} confidence too low)"
             )
             alternatives.append(
-                f"Auto-apply anyway (rejected: insufficient confidence)"
+                "Auto-apply anyway (rejected: insufficient confidence)"
             )
         else:
             alternatives.append(
                 f"Request human approval (SELECTED: {risk_level.value} risk or missing deliverables)"
             )
             alternatives.append(
-                f"Auto-apply anyway (rejected: needs verification)"
+                "Auto-apply anyway (rejected: needs verification)"
             )
 
         return alternatives

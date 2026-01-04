@@ -1,4 +1,3 @@
-import os
 
 
 def test_memory_service_falls_back_to_faiss_when_qdrant_unreachable(monkeypatch):

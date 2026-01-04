@@ -3,7 +3,6 @@
 import pytest
 import json
 import os
-from pathlib import Path
 
 from autopack.diagnostics.second_opinion import (
     SecondOpinionConfig,

@@ -15,7 +15,6 @@ Key Features:
 
 import logging
 from dataclasses import dataclass
-from pathlib import Path
 from typing import Dict, List, Optional
 
 from autopack.repo_scanner import RepoScanner
@@ -371,7 +370,7 @@ class GroundedContextBuilder:
                 )
             except Exception as e:
                 logger.debug(f"Pattern match failed for {phase_id}: {e}")
-                lines.append(f"   Category: unknown")
+                lines.append("   Category: unknown")
 
             lines.append("")
 

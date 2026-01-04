@@ -6,7 +6,6 @@ missing evidence from humans without token blowups.
 
 import json
 import pytest
-from pathlib import Path
 from autopack.diagnostics.evidence_requests import (
     EvidenceRequest,
     EvidenceRequestType,

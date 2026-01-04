@@ -6,7 +6,6 @@ to reduce budget waste while maintaining safety.
 """
 
 import pytest
-from pathlib import Path
 from autopack.token_estimator import TokenEstimator, TokenEstimate
 
 
@@ -186,4 +185,4 @@ class TestCategoryAwareBaseBudgets:
         old_waste = 8192 / typical_actual
         assert new_waste < 1.5, f"New waste {new_waste:.2f}x should be <1.5x"
         assert old_waste > 2.0, f"Old waste {old_waste:.2f}x should be >2.0x"
-        assert new_waste < old_waste / 1.8, f"Should reduce waste by >45%"
+        assert new_waste < old_waste / 1.8, "Should reduce waste by >45%"

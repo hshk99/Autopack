@@ -143,7 +143,7 @@ def create_git_checkpoint(repo_path: Path, message: str = "[Autopack] Backlog ch
     repo_path = repo_path.resolve()
     try:
         subprocess.run(["git", "add", "-A"], cwd=repo_path, check=True, capture_output=True, text=True, timeout=30)
-        commit = subprocess.run(
+        subprocess.run(
             ["git", "commit", "-m", message],
             cwd=repo_path,
             check=True,

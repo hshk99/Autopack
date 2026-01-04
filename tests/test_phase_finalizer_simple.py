@@ -2,13 +2,10 @@
 Simplified unit tests for PhaseFinalizer (BUILD-127 Phase 1).
 """
 import json
-import pytest
-from pathlib import Path
-from unittest.mock import Mock, patch
-from datetime import datetime, timezone
+from unittest.mock import Mock
 
 from autopack.phase_finalizer import PhaseFinalizer, PhaseFinalizationDecision
-from autopack.test_baseline_tracker import TestBaseline, TestDelta
+from autopack.test_baseline_tracker import TestDelta
 
 
 def test_finalization_decision_can_complete():

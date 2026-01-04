@@ -228,5 +228,5 @@ def test_all_current_workflows_use_compliant_refs():
                 violations.append(f"{workflow.name}: non-SHA ref {uses}")
 
     assert not violations, (
-        f"Workflow pinning violations found:\n" + "\n".join(violations)
+        "Workflow pinning violations found:\n" + "\n".join(violations)
     )

@@ -26,7 +26,6 @@ from typing import List, Optional, Dict, Any, Callable
 from datetime import datetime
 
 from .workspace_manager import WorkspaceManager
-from .workspace_lease import WorkspaceLease
 from .executor_lock import ExecutorLockManager
 
 logger = logging.getLogger(__name__)

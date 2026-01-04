@@ -7,7 +7,6 @@ Per BUILD-130 Phase 0: Circuit Breaker implementation.
 """
 from enum import Enum
 from typing import Tuple, Optional
-import re
 import logging
 
 logger = logging.getLogger(__name__)

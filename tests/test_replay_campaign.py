@@ -161,7 +161,7 @@ def test_clone_run_with_tiers_and_phases(test_session):
 def test_find_failed_runs(test_session):
     """Test finding failed runs by state."""
     # Create multiple runs with different states
-    failed_run = create_failed_run(test_session, "failed-run-1")
+    create_failed_run(test_session, "failed-run-1")
 
     success_run = Run(
         id="success-run",

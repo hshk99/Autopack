@@ -1,8 +1,5 @@
 """Tests for failure hardening system (Phase 4 of True Autonomy)."""
 
-import pytest
-from pathlib import Path
-from unittest.mock import MagicMock, patch
 from autopack.failure_hardening import (
     FailurePattern,
     MitigationResult,

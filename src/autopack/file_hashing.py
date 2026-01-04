@@ -4,7 +4,6 @@ Provides deterministic content hashing for embedding cache keys.
 """
 
 import hashlib
-from typing import Optional
 
 
 def compute_content_hash(content: str) -> str:

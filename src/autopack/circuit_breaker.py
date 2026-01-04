@@ -9,7 +9,7 @@ import threading
 from enum import Enum
 from typing import Callable, Any, Optional, Dict
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import datetime
 import logging
 
 logger = logging.getLogger(__name__)
@@ -150,7 +150,7 @@ class CircuitBreaker:
                 result = func(*args, **kwargs)
                 self._on_success()
                 return result
-            except self.config.expected_exception as e:
+            except self.config.expected_exception:
                 self._on_failure()
                 raise
 

@@ -1,7 +1,6 @@
 """Tests for dashboard token efficiency integration (BUILD-145 deployment hardening)"""
 
 import pytest
-from datetime import datetime, timezone
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool

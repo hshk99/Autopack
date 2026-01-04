@@ -48,7 +48,7 @@ class RedditDiscovery:
 
 
 # Backward compatibility shims
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Optional, List
 from datetime import datetime
 

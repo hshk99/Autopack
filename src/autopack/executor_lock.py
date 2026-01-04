@@ -102,7 +102,7 @@ class ExecutorLockManager:
                         f"(PID={self.pid}, host={self.hostname})"
                     )
                     return True
-                except OSError as e:
+                except OSError:
                     # Lock already held
                     self._log_existing_lock()
                     self.lock_file.close()
@@ -118,7 +118,7 @@ class ExecutorLockManager:
                         f"(PID={self.pid}, host={self.hostname})"
                     )
                     return True
-                except (IOError, OSError) as e:
+                except (IOError, OSError):
                     # Lock already held
                     self._log_existing_lock()
                     self.lock_file.close()

@@ -5,7 +5,7 @@ Deliverable-based output token estimation to reduce truncation from 50% → 30%.
 Per TOKEN_BUDGET_ANALYSIS_REVISED.md (GPT-5.2 reviewed).
 """
 from dataclasses import dataclass, field
-from typing import List, Dict, Optional, Any, Iterable
+from typing import List, Dict, Optional, Any
 from pathlib import Path
 import re
 import logging

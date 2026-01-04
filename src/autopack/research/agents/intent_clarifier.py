@@ -45,7 +45,7 @@ class IntentClarifier:
 
 # Backward compatibility - ResearchIntent not in original implementation
 from dataclasses import dataclass, field
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any
 
 @dataclass
 class ResearchIntent:

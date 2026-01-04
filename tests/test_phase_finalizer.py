@@ -8,8 +8,7 @@ Tests:
 - Warning vs blocking thresholds
 """
 import pytest
-from pathlib import Path
-from unittest.mock import Mock, patch
+from unittest.mock import Mock
 from datetime import datetime, timezone
 
 from autopack.phase_finalizer import PhaseFinalizer, PhaseFinalizationDecision

@@ -14,7 +14,6 @@ print(f"[API_SERVER_STARTUP] DATABASE_URL from environment: {os.getenv('DATABASE
 from fastapi import Depends, FastAPI, HTTPException, Request, Security
 from contextlib import asynccontextmanager
 from fastapi.security import APIKeyHeader
-from fastapi.staticfiles import StaticFiles
 from sqlalchemy import text
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session, joinedload
@@ -23,14 +22,14 @@ from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 
 from . import dashboard_schemas, models, schemas
-from .builder_schemas import AuditorRequest, AuditorResult, BuilderResult
+from .builder_schemas import BuilderResult
 from .config import settings
 from .database import get_db, init_db
 from .file_layout import RunFileLayout
 from .governed_apply import GovernedApplyPath, PatchApplyError
 from .issue_tracker import IssueTracker
 from .strategy_engine import StrategyEngine
-from .usage_recorder import get_doctor_stats, get_token_efficiency_stats
+from .usage_recorder import get_token_efficiency_stats
 logger = logging.getLogger(__name__)
 
 # Security: API Key authentication
@@ -322,7 +321,7 @@ def start_run(request_data: schemas.RunStartRequest, request: Request, db: Sessi
 
     # Compile strategy
     strategy_engine = StrategyEngine(project_id="Autopack")
-    strategy = strategy_engine.compile_strategy(
+    strategy_engine.compile_strategy(
         run_id=run.id,
         phases=[
             {
@@ -1006,7 +1005,7 @@ async def _handle_storage_callback(
             candidate_ids = [c.id for c in candidates]
             total_size = sum(c.size_bytes for c in candidates)
 
-            approval = create_approval_decision(
+            create_approval_decision(
                 db,
                 scan_id=scan_id,
                 candidate_ids=candidate_ids,
@@ -1090,7 +1089,7 @@ async def telegram_webhook(request: Request, db: Session = Depends(get_db)):
         callback_data = callback_query.get("data")
         callback_id = callback_query.get("id")
         message_id = callback_query.get("message", {}).get("message_id")
-        chat_id = callback_query.get("message", {}).get("chat", {}).get("id")
+        callback_query.get("message", {}).get("chat", {}).get("id")
         user_id = callback_query.get("from", {}).get("id")
         username = callback_query.get("from", {}).get("username", "unknown")
 
@@ -1599,7 +1598,6 @@ def get_dashboard_consolidated_metrics(
         raise HTTPException(status_code=404, detail=f"Run not found: {run_id}")
 
     # Category 1: Actual spend from llm_usage_events
-    from autopack.usage_recorder import LlmUsageEvent
     actual_spend = db.query(
         text("""
             SELECT

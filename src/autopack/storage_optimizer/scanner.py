@@ -100,7 +100,7 @@ class StorageScanner:
                             attributes='d'
                         ))
                         scanned_count += 1
-                    except (OSError, PermissionError) as e:
+                    except (OSError, PermissionError):
                         # Skip inaccessible directories
                         continue
 

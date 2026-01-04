@@ -6,7 +6,6 @@ Ensures that telemetry events can be written to the database with correct metric
 import os
 import json
 import tempfile
-from pathlib import Path
 from unittest.mock import patch
 
 import pytest

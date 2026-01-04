@@ -7,7 +7,6 @@ model escalation, and proof persistence.
 
 import shutil
 from datetime import datetime
-from pathlib import Path
 
 import pytest
 
@@ -22,7 +21,6 @@ from autopack.intention_anchor.models import (
     IntentionConstraints,
     IntentionRiskProfile,
 )
-from autopack.model_routing_snapshot import ModelRoutingEntry
 from autopack.phase_proof import PhaseChange, PhaseProof, PhaseVerification
 from autopack.scope_reduction import (
     ScopeReductionDiff,
@@ -132,7 +130,7 @@ class TestIntentionFirstLoop:
     def test_on_run_start_persists_snapshot(self, temp_run_dir):
         """on_run_start persists routing snapshot to disk."""
         loop = IntentionFirstLoop()
-        run_state = loop.on_run_start("test-run", "test-project")
+        loop.on_run_start("test-run", "test-project")
 
         # Verify snapshot file exists
         from autopack.model_routing_snapshot import RoutingSnapshotStorage

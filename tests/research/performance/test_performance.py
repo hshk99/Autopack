@@ -5,7 +5,6 @@ import time
 import statistics
 from datetime import datetime, timezone
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from unittest.mock import Mock
 
 
 class TestSessionPerformance:
@@ -180,11 +179,10 @@ class TestMemoryPerformance:
     def test_session_memory_usage(self):
         """Test memory usage with many sessions."""
         # Arrange
-        import sys
         session_manager = MockSessionManager()
         
         # Act - Create many sessions
-        initial_sessions = session_manager.list_sessions()
+        session_manager.list_sessions()
         for i in range(10000):
             session_manager.create_session(metadata={"index": i, "data": "x" * 100})
         

@@ -7,7 +7,6 @@ Ensures all tidy modules can be imported as tidy_up.py does.
 
 import sys
 from pathlib import Path
-import pytest
 
 
 def test_tidy_imports():

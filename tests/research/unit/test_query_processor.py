@@ -1,6 +1,4 @@
 """Unit tests for query processing functionality."""
-import pytest
-from unittest.mock import Mock, patch
 
 
 class TestQueryProcessor:

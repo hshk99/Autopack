@@ -1121,7 +1121,6 @@ class GovernedApplyPath:
             List of validation error messages (empty if context matches)
         """
         import re
-        from pathlib import Path
 
         errors = []
 
@@ -1254,7 +1253,6 @@ class GovernedApplyPath:
         If the patch touches pack YAML files, validate them against the pack schema.
         """
         errors: List[str] = []
-        import re
 
         # Find files in patch
         file_paths = []
@@ -1415,14 +1413,14 @@ class GovernedApplyPath:
     def _check_file_truncation(self, file_path: str, content_lines: List[str]) -> List[str]:
         """Check a single file's content for truncation indicators."""
         errors = []
-        content = '\n'.join(content_lines)
+        '\n'.join(content_lines)
 
         # Check for unclosed quotes at end of file
         last_lines = content_lines[-3:] if len(content_lines) >= 3 else content_lines
-        last_content = '\n'.join(last_lines)
+        '\n'.join(last_lines)
 
         # Pattern: line ending with unclosed quote (started " but not closed)
-        unclosed_quote_pattern = re.compile(r'^\s*-?\s*"[^"]*$', re.MULTILINE)
+        re.compile(r'^\s*-?\s*"[^"]*$', re.MULTILINE)
         if content_lines:
             last_line = content_lines[-1].rstrip()
             # Check if last line has unclosed double quote
@@ -1619,7 +1617,6 @@ class GovernedApplyPath:
         """Replace the content of a specific file in a patch with repaired content."""
         lines = patch_content.split('\n')
         result = []
-        in_target_file = False
         skip_until_next_diff = False
 
         i = 0
@@ -1629,7 +1626,6 @@ class GovernedApplyPath:
             if line.startswith('diff --git'):
                 # Check if this is our target file
                 if f'b/{file_path}' in line or line.endswith(f' b/{file_path}'):
-                    in_target_file = True
                     skip_until_next_diff = False
                     result.append(line)
                     i += 1
@@ -1650,7 +1646,6 @@ class GovernedApplyPath:
                             i += 1
                     continue
                 else:
-                    in_target_file = False
                     skip_until_next_diff = False
 
             if not skip_until_next_diff:

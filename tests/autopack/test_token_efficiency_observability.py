@@ -1,9 +1,7 @@
 """Tests for token efficiency observability (BUILD-145)"""
 
 import pytest
-from datetime import datetime, timezone
-from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 from autopack.usage_recorder import (
     record_token_efficiency_metrics,
@@ -12,7 +10,7 @@ from autopack.usage_recorder import (
 )
 from autopack.artifact_loader import ArtifactLoader, get_artifact_substitution_stats
 from autopack.context_budgeter import BudgetSelection
-from autopack.database import Base, get_db
+from autopack.database import Base
 from sqlalchemy import create_engine
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import sessionmaker

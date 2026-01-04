@@ -1,7 +1,5 @@
 """Unit tests for research session management."""
-import pytest
 from datetime import datetime
-from unittest.mock import Mock, patch, MagicMock
 
 
 class TestResearchSession:
@@ -74,7 +72,6 @@ class TestResearchSession:
     def test_session_timestamp_format(self):
         """Test that timestamps are in ISO format."""
         timestamp = datetime.now().isoformat()
-        session = {"created_at": timestamp}
         
         # Verify ISO format can be parsed back
         parsed = datetime.fromisoformat(timestamp.replace('Z', '+00:00') if timestamp.endswith('Z') else timestamp)

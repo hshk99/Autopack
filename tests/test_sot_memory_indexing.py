@@ -9,13 +9,10 @@ Ensures that:
 """
 
 import os
-from datetime import datetime
-from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 
-from autopack.config import Settings
 from autopack.memory.memory_service import MemoryService
 from autopack.memory.sot_indexing import (
     chunk_sot_file,
@@ -561,7 +558,7 @@ Test content for skip test.
 
             # First index
             result1 = service.index_sot_docs("autopack", tmp_path)
-            indexed_first = result1["indexed"]
+            result1["indexed"]
 
             # Second index (should skip existing)
             result2 = service.index_sot_docs("autopack", tmp_path)

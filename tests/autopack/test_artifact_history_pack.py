@@ -4,10 +4,8 @@ Tests history pack generation and SOT doc substitution.
 """
 
 import pytest
-from pathlib import Path
-import json
 
-from autopack.artifact_loader import ArtifactLoader, estimate_tokens
+from autopack.artifact_loader import ArtifactLoader
 from autopack.file_layout import RunFileLayout
 from autopack.config import settings
 

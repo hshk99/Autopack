@@ -15,7 +15,6 @@ import pytest
 from pathlib import Path
 import tempfile
 import shutil
-from unittest.mock import Mock, patch
 
 pytestmark = [
     pytest.mark.xfail(strict=False, reason="Token estimator calibration API not implemented - aspirational test suite"),
@@ -101,7 +100,6 @@ class TestPhaseOverheadCalibration:
 
     def test_phase_overhead_persists_across_phases(self, estimator):
         """Test that PHASE_OVERHEAD changes persist across different phases."""
-        initial_overhead = estimator.PHASE_OVERHEAD
 
         # Record usage for phase 1
         estimator.record_actual_usage(

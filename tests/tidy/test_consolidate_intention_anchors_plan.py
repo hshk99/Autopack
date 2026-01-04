@@ -9,7 +9,6 @@ import json
 import tempfile
 from pathlib import Path
 
-import pytest
 
 # Import the script functions directly
 import sys
@@ -26,7 +25,7 @@ from consolidate_intention_anchors import (
 # Import intention anchor utilities
 sys.path.insert(0, str(project_root / "src"))
 
-from autopack.intention_anchor import create_anchor, log_anchor_event, save_anchor
+from autopack.intention_anchor import create_anchor, save_anchor
 
 
 # =============================================================================

@@ -9,11 +9,10 @@ Per BUILD-127 Final Plan design.
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import List, Dict, Set, Optional
+from typing import List, Dict, Optional
 import json
 import subprocess
 import logging
-import hashlib
 
 logger = logging.getLogger(__name__)
 
@@ -155,7 +154,7 @@ class TestBaselineTracker:
             report_file = self.workspace / ".autonomous_runs" / "baseline.json"
 
         try:
-            result = subprocess.run(
+            subprocess.run(
                 [
                     "pytest",
                     "--json-report",
@@ -337,7 +336,7 @@ class TestBaselineTracker:
             report_file = workspace / ".autonomous_runs" / "retry.json"
 
         try:
-            result = subprocess.run(
+            subprocess.run(
                 [
                     "pytest",
                     *newly_failing,

@@ -395,25 +395,25 @@ Guidelines:
                 prompt_parts.append("\n")
 
         # Add phase details
-        prompt_parts.append(f"## Phase Specification\n")
+        prompt_parts.append("## Phase Specification\n")
         prompt_parts.append(f"**Phase ID:** {phase_spec.get('phase_id')}\n")
         prompt_parts.append(f"**Task Category:** {phase_spec.get('task_category')}\n")
         prompt_parts.append(f"**Complexity:** {phase_spec.get('complexity')}\n")
         prompt_parts.append(f"**Description:** {phase_spec.get('description')}\n")
 
         if acceptance_criteria := phase_spec.get('acceptance_criteria'):
-            prompt_parts.append(f"\n**Acceptance Criteria:**\n")
+            prompt_parts.append("\n**Acceptance Criteria:**\n")
             for idx, criterion in enumerate(acceptance_criteria, 1):
                 prompt_parts.append(f"{idx}. {criterion}\n")
 
         if file_context:
-            prompt_parts.append(f"\n## Repository Context\n")
+            prompt_parts.append("\n## Repository Context\n")
             if existing_files := file_context.get('existing_files'):
-                prompt_parts.append(f"**Existing Files:**\n")
+                prompt_parts.append("**Existing Files:**\n")
                 for file_path, content in existing_files.items():
                     prompt_parts.append(f"\n### {file_path}\n```\n{content}\n```\n")
 
-        prompt_parts.append(f"\n## Instructions\n")
+        prompt_parts.append("\n## Instructions\n")
         prompt_parts.append("Generate a complete implementation as a unified git diff/patch.")
 
         return "\n".join(prompt_parts)
@@ -596,14 +596,14 @@ Be thorough but fair. Approve patches that work correctly even if they have mino
                 prompt_parts.append(anchor_section)
                 prompt_parts.append("\n")
 
-        prompt_parts.append(f"## Phase Context\n")
+        prompt_parts.append("## Phase Context\n")
         prompt_parts.append(f"**Task Category:** {phase_spec.get('task_category')}\n")
         prompt_parts.append(f"**Complexity:** {phase_spec.get('complexity')}\n")
         prompt_parts.append(f"**Description:** {phase_spec.get('description')}\n")
 
         prompt_parts.append(f"\n## Patch to Review\n```diff\n{patch_content}\n```\n")
 
-        prompt_parts.append(f"\n## Review Instructions\n")
+        prompt_parts.append("\n## Review Instructions\n")
         prompt_parts.append("Review this patch carefully for:")
         prompt_parts.append("1. Security vulnerabilities (SQL injection, XSS, etc.)")
         prompt_parts.append("2. Bugs and logic errors")

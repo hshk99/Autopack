@@ -1,6 +1,4 @@
 """Tests for input validation errors."""
-import pytest
-from unittest.mock import Mock
 
 
 class TestValidationErrors:
@@ -65,7 +63,7 @@ class TestValidationErrors:
     def test_parameter_range_validation(self):
         """Test validation of parameter ranges."""
         depth_min, depth_max = 1, 10
-        timeout_min, timeout_max = 1, 300
+        _timeout_min, _timeout_max = 1, 300
         
         valid_depth = 5
         invalid_depth_low = 0

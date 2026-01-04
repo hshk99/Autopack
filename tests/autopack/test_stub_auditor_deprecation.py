@@ -1,7 +1,6 @@
 """Test that StubClaudeAuditor emits proper deprecation warnings."""
 
 import warnings
-import pytest
 
 
 def test_stub_claude_auditor_emits_deprecation_warning():

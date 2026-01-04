@@ -8,10 +8,9 @@ Tests:
 - Structured error generation
 """
 
-import pytest
 import json
 from datetime import datetime, timezone
-from unittest.mock import Mock, MagicMock
+from unittest.mock import Mock
 
 from autopack.governance_requests import (
     can_auto_approve,

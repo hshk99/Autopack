@@ -8,11 +8,7 @@ and gracefully degrade when anchor is missing.
 """
 
 import tempfile
-from pathlib import Path
-from typing import Dict, List, Optional
-from unittest.mock import MagicMock
 
-import pytest
 
 from autopack.intention_anchor import IntentionConstraints, create_anchor, save_anchor
 from autopack.llm_service import LlmService

@@ -10,10 +10,9 @@ This module monitors archive files and automatically updates the consolidated
 documents when relevant information changes.
 """
 
-import os
 from datetime import datetime
 from pathlib import Path
-from typing import Optional, Dict, List, Any
+from typing import Optional, Dict, List
 import logging
 
 logger = logging.getLogger(__name__)
@@ -104,7 +103,7 @@ class ArchiveConsolidator:
 
         This automatically appends to the "Open Issues" section.
         """
-        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
         entry = f"""
 ### {error_signature}
@@ -320,7 +319,7 @@ class ArchiveConsolidator:
                                if f.name != "ARCHIVE_INDEX.md" and not f.name.startswith("CONSOLIDATED_")])
 
         # Update the "Remaining Archive Files" section
-        remaining_section = f"""
+        remaining_section = """
 ### Still Relevant (Not Consolidated)
 These files contain unique information not yet merged:
 

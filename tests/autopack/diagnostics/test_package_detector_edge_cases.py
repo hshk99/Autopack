@@ -1,14 +1,11 @@
 """Edge case tests for package detector"""
 
 import pytest
-from pathlib import Path
 
 from autopack.diagnostics.package_detector import PackageDetector
 from tests.autopack.diagnostics.fixtures.package_scenarios import (
     EDGE_CASE_SCENARIOS,
     NO_PACKAGES_SCENARIOS,
-    create_scenario,
-    temp_project_dir,
 )
 
 

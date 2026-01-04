@@ -1,6 +1,5 @@
 """Tests for embedding cache implementation."""
 
-import pytest
 from autopack.file_hashing import compute_content_hash, compute_cache_key
 
 
@@ -119,7 +118,7 @@ class TestEmbeddingCachePerPhaseReset:
 
     def test_per_phase_reset_counter(self):
         """Test that embedding cache counter resets per phase."""
-        from autopack.context_budgeter import reset_embedding_cache, _PHASE_CALL_COUNT
+        from autopack.context_budgeter import reset_embedding_cache
 
         # Reset should clear the counter
         reset_embedding_cache()

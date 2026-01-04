@@ -36,8 +36,6 @@ import os
 import pytest
 import tempfile
 from pathlib import Path
-import time
-import subprocess
 import sys
 
 from autopack.executor_lock import ExecutorLockManager

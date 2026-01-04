@@ -5,9 +5,8 @@ content from external sources to prevent security issues.
 """
 
 import re
-from typing import Dict, List, Optional, Set
+from typing import Dict, List, Optional
 from urllib.parse import urlparse
-import html
 
 
 class ContentSanitizer:

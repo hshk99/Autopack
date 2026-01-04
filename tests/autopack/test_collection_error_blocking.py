@@ -14,7 +14,7 @@ from datetime import datetime, timezone
 import pytest
 
 from autopack.test_baseline_tracker import TestBaseline, TestBaselineTracker
-from autopack.phase_finalizer import PhaseFinalizer, PhaseFinalizationDecision
+from autopack.phase_finalizer import PhaseFinalizer
 
 
 class TestCollectionErrorBlocking:

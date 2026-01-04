@@ -2,13 +2,10 @@
 
 import json
 import logging
-import os
 from pathlib import Path
 from typing import Optional, Tuple, Protocol
 
 from fastapi import FastAPI
-from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
 
 from autopack.config import settings
 

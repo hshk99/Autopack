@@ -9,11 +9,9 @@ This module generates model upgrade recommendations using:
 Recommendations are persisted to DB with full evidence references.
 """
 
-from datetime import datetime, timezone
-from decimal import Decimal
 from typing import Dict, List, Optional, Tuple
 
-from sqlalchemy import func, and_
+from sqlalchemy import and_
 from sqlalchemy.orm import Session
 
 from .models import (
@@ -133,7 +131,7 @@ def generate_candidates(
                 ModelCatalog.provider == current_model.provider,
                 ModelCatalog.family == current_model.family,
                 ModelCatalog.model_id != current_model.model_id,
-                ModelCatalog.is_deprecated == False,
+                not ModelCatalog.is_deprecated,
             )
         )
         .all()
@@ -148,7 +146,7 @@ def generate_candidates(
             .filter(
                 and_(
                     ModelCatalog.provider != current_model.provider,
-                    ModelCatalog.is_deprecated == False,
+                    not ModelCatalog.is_deprecated,
                 )
             )
             .limit(5)  # Bounded search

@@ -17,7 +17,6 @@ import json
 from pathlib import Path
 from typing import List, Dict, Optional, Tuple
 from dataclasses import dataclass
-from datetime import datetime
 
 from autopack.storage_optimizer.policy import StoragePolicy, CategoryDefinition
 from autopack.storage_optimizer.models import ScanResult
@@ -174,7 +173,7 @@ Files to categorize:
 """
 
         for i, item in enumerate(items):
-            path = Path(item.path)
+            Path(item.path)
             prompt += f"""
 {i + 1}. Path: {item.path}
    Size: {item.size_bytes / (1024**2):.2f} MB
@@ -310,7 +309,7 @@ Respond with ONLY the JSON array, no other text.
 
             return validated
 
-        except Exception as e:
+        except Exception:
             # Return empty list on parse error
             return []
 

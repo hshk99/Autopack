@@ -4,8 +4,7 @@ BUILD-146: Ensure stubs for missing files land in correct workspace root,
 not duplicated paths like fileorganizer/fileorganizer/package-lock.json.
 """
 import pytest
-from pathlib import Path
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import Mock
 from autopack.autonomous_executor import AutonomousExecutor
 
 

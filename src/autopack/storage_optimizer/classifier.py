@@ -6,7 +6,6 @@ ensuring protected paths are never flagged for cleanup.
 """
 
 from typing import List, Optional
-from datetime import datetime, timedelta
 
 from .models import ScanResult, CleanupCandidate
 from .policy import StoragePolicy, is_path_protected, get_category_for_path

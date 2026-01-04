@@ -12,7 +12,7 @@ import pytest
 import tempfile
 import os
 from pathlib import Path
-from sqlalchemy import create_engine, text, inspect
+from sqlalchemy import create_engine
 
 # Import migration functions
 import sys
@@ -58,7 +58,7 @@ def test_migration_idempotence():
 
 def test_phase6_stats_endpoint_fresh_db():
     """Test that phase6-stats endpoint works on fresh DB"""
-    from autopack.database import SessionLocal, engine, Base
+    from autopack.database import Base
     from autopack.models import Run
     from autopack.usage_recorder import get_phase6_metrics_summary
 
@@ -94,7 +94,7 @@ def test_phase6_stats_endpoint_fresh_db():
 
 def test_median_estimation_function():
     """Test that estimate_doctor_tokens_avoided returns valid results"""
-    from autopack.database import SessionLocal, engine, Base
+    from autopack.database import Base
     from autopack.models import Run
     from autopack.usage_recorder import (
         estimate_doctor_tokens_avoided,
@@ -159,7 +159,7 @@ def test_median_estimation_function():
 
 def test_coverage_fields_populated():
     """Test that coverage fields are populated when recording metrics"""
-    from autopack.database import SessionLocal, engine, Base
+    from autopack.database import Base
     from autopack.models import Run
     from autopack.usage_recorder import (
         record_phase6_metrics,

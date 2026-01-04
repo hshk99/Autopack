@@ -1,13 +1,10 @@
 """Integration tests for package detector with complex scenarios"""
 
 import pytest
-from pathlib import Path
 
 from autopack.diagnostics.package_detector import PackageDetector
 from tests.autopack.diagnostics.fixtures.package_scenarios import (
     INTEGRATION_SCENARIOS,
-    create_scenario,
-    temp_project_dir,
 )
 
 

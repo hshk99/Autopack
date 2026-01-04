@@ -15,7 +15,7 @@ by collecting initial approvals, then learning from them).
 
 import re
 from pathlib import Path
-from typing import List, Dict, Optional, Tuple
+from typing import List, Optional
 from dataclasses import dataclass
 from collections import defaultdict
 from datetime import datetime, timezone
@@ -23,7 +23,7 @@ from datetime import datetime, timezone
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 
-from autopack.models import CleanupCandidateDB, ApprovalDecision, LearnedRule
+from autopack.models import CleanupCandidateDB, LearnedRule
 from autopack.storage_optimizer.policy import StoragePolicy
 
 

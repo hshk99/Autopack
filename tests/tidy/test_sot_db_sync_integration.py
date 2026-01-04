@@ -17,7 +17,6 @@ Skip in default CI (external dependencies not available):
 
 from __future__ import annotations
 
-import json
 import os
 import pytest
 import tempfile

@@ -8,7 +8,6 @@ Phase6Metrics when telemetry-aware render functions are used.
 import tempfile
 from unittest.mock import MagicMock
 
-import pytest
 
 from autopack.intention_anchor import (
     IntentionConstraints,

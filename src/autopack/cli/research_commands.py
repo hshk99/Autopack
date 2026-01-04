@@ -13,12 +13,11 @@ import json
 import logging
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 import click
 
 # Import for test compatibility (allows monkeypatching)
-from autopack.phases.research_phase import ResearchPhaseExecutor
 
 try:
     from rich.console import Console
@@ -54,10 +53,10 @@ def start_research(query: str, phase_id: Optional[str], max_results: int, timeou
     console = Console() if RICH_AVAILABLE else None
     
     if console:
-        console.print(f"[bold blue]Starting research session...[/bold blue]")
+        console.print("[bold blue]Starting research session...[/bold blue]")
         console.print(f"Query: {query}")
     else:
-        click.echo(f"Starting research session...")
+        click.echo("Starting research session...")
         click.echo(f"Query: {query}")
     
     # Generate phase ID if not provided
@@ -208,24 +207,24 @@ def _display_results_rich(console: Console, result: Any) -> None:
     ))
     
     # Summary
-    console.print(f"\n[bold]Summary:[/bold]")
+    console.print("\n[bold]Summary:[/bold]")
     console.print(result.summary)
     
     # Recommendations
     if result.recommendations:
-        console.print(f"\n[bold green]Recommendations:[/bold green]")
+        console.print("\n[bold green]Recommendations:[/bold green]")
         for rec in result.recommendations:
             console.print(f"  • {rec}")
     
     # Warnings
     if result.warnings:
-        console.print(f"\n[bold yellow]Warnings:[/bold yellow]")
+        console.print("\n[bold yellow]Warnings:[/bold yellow]")
         for warning in result.warnings:
             console.print(f"  ⚠ {warning}")
     
     # Results table
     if result.results:
-        console.print(f"\n[bold]Results:[/bold]")
+        console.print("\n[bold]Results:[/bold]")
         table = Table()
         table.add_column("Query", style="cyan")
         table.add_column("Findings", style="green")
@@ -247,21 +246,21 @@ def _display_results_plain(result: Any) -> None:
     click.echo(f"Duration: {result.duration_seconds:.1f}s")
     click.echo(f"Confidence: {result.average_confidence:.1%}")
     
-    click.echo(f"\nSummary:")
+    click.echo("\nSummary:")
     click.echo(result.summary)
     
     if result.recommendations:
-        click.echo(f"\nRecommendations:")
+        click.echo("\nRecommendations:")
         for rec in result.recommendations:
             click.echo(f"  • {rec}")
     
     if result.warnings:
-        click.echo(f"\nWarnings:")
+        click.echo("\nWarnings:")
         for warning in result.warnings:
             click.echo(f"  ⚠ {warning}")
     
     if result.results:
-        click.echo(f"\nResults:")
+        click.echo("\nResults:")
         for r in result.results:
             click.echo(f"  Query: {r.query}")
             click.echo(f"  Findings: {len(r.findings)}")

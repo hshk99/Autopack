@@ -8,9 +8,7 @@ Verifies that per-reason retry policies correctly control:
 - Escalation to needs_manual status
 """
 
-import json
 import tempfile
-from datetime import datetime, timedelta
 from pathlib import Path
 
 import pytest
@@ -37,7 +35,7 @@ class TestSmartRetryPolicies:
             dest = workspace / "archive" / "locked_file.txt"
 
             # Enqueue with 'locked' reason
-            item_id = queue.enqueue(
+            queue.enqueue(
                 src=src,
                 dest=dest,
                 reason="locked",
@@ -88,7 +86,7 @@ class TestSmartRetryPolicies:
             dest = workspace / "archive" / "duplicate.txt"
 
             # Enqueue with 'dest_exists' reason
-            item_id = queue.enqueue(
+            queue.enqueue(
                 src=src,
                 dest=dest,
                 reason="dest_exists",
@@ -272,7 +270,7 @@ class TestSmartRetryPolicies:
             policy = queue._get_policy("dest_exists")
             assert policy["max_attempts"] == 10
             assert policy["base_backoff_seconds"] == 120
-            assert policy["escalate_to_manual"] == False
+            assert not policy["escalate_to_manual"]
 
 
 if __name__ == "__main__":

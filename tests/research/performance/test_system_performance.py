@@ -34,7 +34,7 @@ class TestSystemPerformance:
         system.process.return_value = {"processed": len(large_data)}
         
         initial_memory = system.get_memory_usage()
-        result = system.process(large_data)
+        system.process(large_data)
         final_memory = system.get_memory_usage()
         
         # Memory usage should be reasonable
@@ -76,7 +76,7 @@ class TestSystemPerformance:
                 cache.get.return_value = None
                 misses += 1
             
-            result = cache.get(f"key_{i}")
+            cache.get(f"key_{i}")
         
         hit_rate = hits / (hits + misses)
         # Cache should provide reasonable hit rate

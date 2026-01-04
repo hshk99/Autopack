@@ -9,11 +9,9 @@ Intention behind these tests: Verify that apply mode:
 - Inserts stable markers for tracking
 """
 
-import json
 import tempfile
 from pathlib import Path
 
-import pytest
 
 # Import the script functions directly
 import sys

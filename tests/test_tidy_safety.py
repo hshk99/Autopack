@@ -9,10 +9,8 @@ Covers:
 """
 
 import json
-import shutil
 import sys
 from pathlib import Path
-from tempfile import TemporaryDirectory
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -303,7 +301,7 @@ class TestExecutorClearsMarker:
 
         # Mock MemoryService to avoid actual indexing
         with patch("autopack.autonomous_executor.MemoryService") as mock_memory_service:
-            mock_store = MagicMock()
+            MagicMock()
             mock_memory_service.return_value = MagicMock(
                 index_sot_docs=MagicMock(return_value=None)
             )
@@ -373,7 +371,6 @@ class TestDirtyMarkerTightening:
         (docs_dir / "DEBUG_LOG.md").write_text("# Debug Log\n\nOriginal content", encoding="utf-8")
 
         # Capture content before (simulating what main() does)
-        from tidy_up import DOCS_SOT_FILES
         sot_files_before = {}
         for sot_file_name in DOCS_SOT_FILES:
             sot_path = docs_dir / sot_file_name
@@ -408,7 +405,6 @@ class TestDirtyMarkerTightening:
         (docs_dir / "BUILD_HISTORY.md").write_text("# Build History\n\nOriginal content", encoding="utf-8")
 
         # Capture content before
-        from tidy_up import DOCS_SOT_FILES
         sot_files_before = {}
         for sot_file_name in DOCS_SOT_FILES:
             sot_path = docs_dir / sot_file_name

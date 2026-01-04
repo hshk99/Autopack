@@ -1,6 +1,6 @@
 """Unit tests for data collection functionality."""
 import pytest
-from unittest.mock import Mock, patch, AsyncMock
+from unittest.mock import Mock, AsyncMock
 
 
 class TestDataCollector:

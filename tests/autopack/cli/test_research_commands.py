@@ -1,7 +1,6 @@
 """Tests for research CLI commands."""
 
 import pytest
-from pathlib import Path
 from click.testing import CliRunner
 
 from autopack.cli.research_commands import research_cli

@@ -10,8 +10,6 @@ Implements safe deletion with:
 """
 
 import logging
-import os
-import shutil
 import time
 import zipfile
 from dataclasses import dataclass
@@ -24,7 +22,6 @@ import send2trash
 from sqlalchemy.orm import Session
 
 from ..models import CleanupCandidateDB
-from .models import CleanupCandidate
 from .policy import StoragePolicy, is_path_protected
 from .checkpoint_logger import CheckpointLogger, compute_sha256
 from .lock_detector import LockDetector

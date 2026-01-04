@@ -6,10 +6,6 @@ All tests are isolated (no network, no real repo modifications).
 
 import pytest
 import subprocess
-import tempfile
-import shutil
-from pathlib import Path
-from datetime import datetime
 
 from autopack.rollback_manager import RollbackManager
 

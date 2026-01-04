@@ -7,8 +7,6 @@ next probes, and minimal patch strategies.
 
 import json
 import pytest
-from pathlib import Path
-from unittest.mock import Mock, patch, MagicMock
 
 from autopack.diagnostics.second_opinion import (
     SecondOpinionConfig,

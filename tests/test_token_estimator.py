@@ -4,8 +4,6 @@ Tests for TokenEstimator (BUILD-129 Phase 1).
 Tests deliverable-based token estimation for reducing truncation.
 """
 import pytest
-from pathlib import Path
-from unittest.mock import Mock, patch
 
 from autopack.token_estimator import TokenEstimator, TokenEstimate
 

@@ -6,7 +6,6 @@ Anchor system with phase binding and prompt rendering.
 """
 
 import tempfile
-from pathlib import Path
 
 from autopack.intention_anchor import (
     IntentionConstraints,

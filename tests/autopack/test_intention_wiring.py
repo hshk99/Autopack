@@ -8,17 +8,13 @@ Validates:
 - Graceful degradation when intention unavailable
 """
 
-import tempfile
-from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-import pytest
 
 from autopack.intention_wiring import (
     IntentionContextInjector,
     IntentionGoalDriftDetector,
     inject_intention_into_prompt,
-    MAX_INTENTION_CONTEXT_CHARS,
 )
 
 

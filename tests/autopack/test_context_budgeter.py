@@ -1,14 +1,12 @@
 """Tests for context_budgeter with embedding cache."""
 
-import pytest
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 from autopack.context_budgeter import (
     select_files_for_context,
     reset_embedding_cache,
     get_embedding_stats,
     _lexical_score,
 )
-from autopack.file_hashing import compute_cache_key
 
 
 class TestContextBudgeter:
@@ -104,7 +102,7 @@ class TestContextBudgeter:
         files2 = {"src/b.py": "content b"}  # Different file
         
         # First call
-        result1 = select_files_for_context(
+        select_files_for_context(
             files=files1,
             scope_metadata=None,
             deliverables=None,
@@ -116,7 +114,7 @@ class TestContextBudgeter:
         assert mock_embed.call_count == 1
         
         # Second call with different file - cache miss
-        result2 = select_files_for_context(
+        select_files_for_context(
             files=files2,
             scope_metadata=None,
             deliverables=None,
@@ -159,7 +157,7 @@ class TestContextBudgeter:
         
         # First call with original content
         files1 = {"src/a.py": "original content"}
-        result1 = select_files_for_context(
+        select_files_for_context(
             files=files1,
             scope_metadata=None,
             deliverables=None,
@@ -172,7 +170,7 @@ class TestContextBudgeter:
         
         # Second call with modified content - should trigger new API call
         files2 = {"src/a.py": "modified content"}
-        result2 = select_files_for_context(
+        select_files_for_context(
             files=files2,
             scope_metadata=None,
             deliverables=None,

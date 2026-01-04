@@ -1,6 +1,5 @@
 """Tests for text normalization module."""
 
-import pytest
 from autopack.text_normalization import (
     decode_html_entities,
     normalize_unicode,

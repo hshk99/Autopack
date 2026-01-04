@@ -24,7 +24,7 @@ from pathlib import Path
 from typing import Dict, List, Optional, Any, Tuple
 
 from .repo_scanner import RepoScanner
-from .pattern_matcher import PatternMatcher, MatchResult
+from .pattern_matcher import PatternMatcher
 from .preflight_validator import PreflightValidator
 from .project_intention import ProjectIntentionManager
 from .memory.memory_service import MemoryService
@@ -527,7 +527,7 @@ class PlanNormalizer:
                 status="active",
             )
 
-            logger.debug(f"[PlanNormalizer] Stored normalization decisions in memory")
+            logger.debug("[PlanNormalizer] Stored normalization decisions in memory")
         except Exception as exc:
             logger.warning(f"[PlanNormalizer] Failed to store decisions: {exc}")
 

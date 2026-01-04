@@ -5,7 +5,7 @@ This module provides error handling utilities for the gatherers.
 
 import logging
 import time
-from typing import Callable, Any, Optional, Type, Tuple
+from typing import Callable, Any, Optional
 import requests
 
 logger = logging.getLogger(__name__)

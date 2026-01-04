@@ -1,4 +1,3 @@
-import tempfile
 from pathlib import Path
 
 from autopack.diagnostics.command_runner import CommandResult, GovernedCommandRunner

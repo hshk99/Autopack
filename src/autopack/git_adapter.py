@@ -9,7 +9,6 @@ This enables governed apply path while keeping implementation flexible.
 
 from typing import Protocol, Dict, Optional
 import subprocess
-import os
 from pathlib import Path
 
 
@@ -159,7 +158,7 @@ class LocalGitCliAdapter:
         """
         try:
             # Ensure we're on the right branch
-            branch = self.ensure_integration_branch(repo_path, run_id)
+            self.ensure_integration_branch(repo_path, run_id)
 
             # Write patch to temp file
             patch_file = Path(repo_path) / ".autopack_patch.tmp"

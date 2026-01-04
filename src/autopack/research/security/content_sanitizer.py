@@ -5,7 +5,6 @@ This module defines the ContentSanitizer class, which is responsible for sanitiz
 content retrieved from various sources to ensure it is safe and appropriate for use.
 """
 
-from typing import List
 import re
 
 class ContentSanitizer:

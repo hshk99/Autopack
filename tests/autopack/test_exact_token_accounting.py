@@ -5,7 +5,7 @@ from provider SDK responses, replacing heuristic 40/60 and 60/40 splits.
 """
 
 import pytest
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import Mock, patch
 from sqlalchemy.orm import Session
 
 from autopack.llm_service import LlmService
@@ -220,7 +220,7 @@ class TestExactTokenAccounting:
         # Execute phase with logging capture
         import logging
         with patch.object(logging.getLogger('autopack.llm_service'), 'warning') as mock_warning:
-            result = llm_service.execute_builder_phase(
+            llm_service.execute_builder_phase(
                 phase_spec={"task_category": "backend", "complexity": "medium"},
                 run_id="test-run",
                 phase_id="test-phase"
@@ -253,7 +253,7 @@ class TestExactTokenAccounting:
         llm_service.openai_builder = mock_builder
 
         # Execute phase
-        result = llm_service.execute_builder_phase(
+        llm_service.execute_builder_phase(
             phase_spec={"task_category": "backend", "complexity": "medium"},
             run_id="test-run",
             phase_id="test-phase"
@@ -298,8 +298,6 @@ class TestExactTokenAccounting:
         mock_db.query = Mock(return_value=mock_query)
 
         # Import and test dashboard endpoint logic
-        from autopack.main import app
-        from fastapi.testclient import TestClient
 
         # Note: This test verifies the data flow but doesn't test the endpoint directly
         # The key assertion is that LlmUsageEvent has exact prompt_tokens/completion_tokens

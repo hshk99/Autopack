@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Dict, Optional
 
-from sqlalchemy import Column, DateTime, Integer, String, Text, Boolean, JSON
+from sqlalchemy import Column, DateTime, Integer, String, Boolean, JSON
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -237,7 +237,7 @@ def update_doctor_stats(db: Session, event: UsageEventData) -> None:
         prev_call = db.query(LlmUsageEvent).filter(
             LlmUsageEvent.run_id == event.run_id,
             LlmUsageEvent.phase_id == event.phase_id,
-            LlmUsageEvent.is_doctor_call == True,
+            LlmUsageEvent.is_doctor_call,
             LlmUsageEvent.doctor_model == "cheap",
         ).order_by(LlmUsageEvent.created_at.desc()).first()
         
@@ -503,12 +503,11 @@ def estimate_doctor_tokens_avoided(
         - sample_size: Number of samples in baseline
         - source: "run_local", "global", or "fallback"
     """
-    from sqlalchemy import func
 
     # Try run-local baseline first (same run, same doctor_model if specified)
     query = db.query(LlmUsageEvent.total_tokens).filter(
         LlmUsageEvent.run_id == run_id,
-        LlmUsageEvent.is_doctor_call == True,
+        LlmUsageEvent.is_doctor_call,
     )
     if doctor_model:
         query = query.filter(LlmUsageEvent.doctor_model == doctor_model)
@@ -523,7 +522,7 @@ def estimate_doctor_tokens_avoided(
 
     # Fallback to global baseline (last 100 Doctor calls, any run)
     query = db.query(LlmUsageEvent.total_tokens).filter(
-        LlmUsageEvent.is_doctor_call == True,
+        LlmUsageEvent.is_doctor_call,
     )
     if doctor_model:
         query = query.filter(LlmUsageEvent.doctor_model == doctor_model)

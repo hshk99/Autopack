@@ -78,7 +78,7 @@ def generate_anchor_summary(anchor: IntentionAnchor) -> str:
         Markdown-formatted summary string.
     """
     lines = [
-        f"# Intention Anchor Summary",
+        "# Intention Anchor Summary",
         "",
         f"**Anchor ID**: `{anchor.anchor_id}`",
         f"**Run ID**: `{anchor.run_id}`",

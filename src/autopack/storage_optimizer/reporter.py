@@ -243,7 +243,7 @@ class StorageReporter:
         with open(json_filepath, 'w', encoding='utf-8') as f:
             json.dump(report_dict, f, indent=2)
 
-        print(f"\nReport saved to:")
+        print("\nReport saved to:")
         print(f"  Text: {filepath}")
         print(f"  JSON: {json_filepath}")
 

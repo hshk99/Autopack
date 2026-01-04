@@ -4,7 +4,6 @@ This module formats citations and references for research reports.
 """
 
 from typing import Dict, Any, List, Optional
-from datetime import datetime
 
 
 class CitationFormatter:

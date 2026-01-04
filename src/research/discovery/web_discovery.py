@@ -7,7 +7,7 @@ information on the web through search engines and web scraping.
 import requests
 from typing import Dict, List, Optional
 from dataclasses import dataclass
-from urllib.parse import urlencode, urlparse, quote_plus
+from urllib.parse import urlparse
 import time
 import re
 

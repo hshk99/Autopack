@@ -1,7 +1,5 @@
 """Performance tests for research source operations."""
-import pytest
 import time
-from unittest.mock import Mock, patch
 
 
 class TestSourcePerformance:
@@ -60,7 +58,6 @@ class TestSourcePerformance:
             if pool["available"] > 0:
                 pool["available"] -= 1
                 # Simulate request
-                result = {"request_id": i}
                 pool["available"] += 1
         
         pooled_time = time.time() - start_time

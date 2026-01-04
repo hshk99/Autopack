@@ -17,8 +17,7 @@ Usage:
 
 import logging
 import requests
-from typing import Dict, Optional
-from datetime import datetime
+from typing import Dict
 from autopack.notifications.telegram_notifier import TelegramNotifier
 from autopack.models import StorageScan
 

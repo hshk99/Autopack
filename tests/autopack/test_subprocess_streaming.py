@@ -1,15 +1,11 @@
 """Tests for subprocess streaming utilities (Phase A2)."""
 
-import pytest
-import subprocess
 import sys
-from pathlib import Path
 
 from autopack.subprocess_streaming import (
     run_with_streaming,
     run_with_streaming_legacy_compat,
     read_last_n_lines,
-    StreamedProcessResult,
 )
 
 

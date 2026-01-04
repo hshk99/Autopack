@@ -52,7 +52,7 @@ from typing import Dict, List, Optional, Any, Tuple
 
 from autopack.repo_scanner import RepoScanner
 from autopack.pattern_matcher import PatternMatcher, MatchResult
-from autopack.preflight_validator import PreflightValidator, ValidationResult
+from autopack.preflight_validator import PreflightValidator
 
 
 logger = logging.getLogger(__name__)
@@ -74,7 +74,7 @@ def run_async_safe(coro):
     """
     try:
         # Try to get running loop
-        loop = asyncio.get_running_loop()
+        asyncio.get_running_loop()
         # Loop exists - run in a thread to avoid RuntimeError
         with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
             future = executor.submit(lambda: asyncio.run(coro))

@@ -19,7 +19,7 @@ os.environ["DATABASE_URL"] = "sqlite:///:memory:"
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
 
-from autopack.database import SessionLocal, init_db, engine
+from autopack.database import SessionLocal, engine
 from autopack.models import Phase, PhaseState, Base, Run, Tier
 from scripts.batch_drain_controller import BatchDrainController
 

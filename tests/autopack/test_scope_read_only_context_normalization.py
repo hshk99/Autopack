@@ -7,8 +7,6 @@ Verifies that the normalization logic in autonomous_executor accepts both:
 Tests the normalization logic without requiring full executor instantiation.
 """
 
-import pytest
-from pathlib import Path
 
 
 def normalize_readonly_entry(readonly_entry):

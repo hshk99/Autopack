@@ -17,7 +17,6 @@ Error reports are written to:
 import traceback
 import json
 import sys
-import os
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional, Dict, Any, List

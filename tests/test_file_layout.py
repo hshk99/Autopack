@@ -1,6 +1,5 @@
 """Unit tests for file layout utilities"""
 
-from pathlib import Path
 
 import pytest
 

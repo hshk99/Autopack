@@ -11,7 +11,6 @@ Tests the full parallel runs workflow including:
 import pytest
 from pathlib import Path
 import subprocess
-import tempfile
 import shutil
 import sys
 

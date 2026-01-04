@@ -10,7 +10,6 @@ Tests cover:
 
 import pytest
 import json
-from pathlib import Path
 from autopack.calibration_reporter import (
     CalibrationReporter,
     CalibrationReport,

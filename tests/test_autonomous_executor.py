@@ -7,7 +7,6 @@ exercising the full runtime loop.
 
 from pathlib import Path
 
-import pytest
 
 from autopack.autonomous_executor import AutonomousExecutor
 

@@ -6,10 +6,8 @@ into the autonomous_executor hot-path and work end-to-end.
 
 import pytest
 import os
-import json
 from pathlib import Path
 from unittest.mock import Mock, patch, MagicMock
-from datetime import datetime
 
 
 class TestFailureHardeningIntegration:
@@ -175,7 +173,6 @@ class TestPlanNormalizationIntegration:
     def test_plan_normalizer_cli_arguments_registered(self):
         """Test that CLI arguments for plan normalization are registered."""
         import sys
-        import argparse
 
         # Mock sys.argv to avoid pytest interference
         original_argv = sys.argv
@@ -264,7 +261,6 @@ class TestParallelExecutionIntegration:
     async def test_parallel_orchestrator_isolated_workspaces(self, tmp_path):
         """Test that parallel orchestrator creates isolated workspaces."""
         from autopack.parallel_orchestrator import execute_parallel_runs
-        from unittest.mock import AsyncMock, MagicMock
 
         # Mock executor function
         executed_runs = []
@@ -321,7 +317,6 @@ class TestEndToEndIntegration:
             from autopack.intention_wiring import IntentionContextInjector
             from autopack.failure_hardening import FailureHardeningRegistry
             from autopack.plan_normalizer import PlanNormalizer
-            from autopack.parallel_orchestrator import ParallelRunOrchestrator
 
             # Verify all instantiate without errors
             injector = IntentionContextInjector("test-run", "test-project", None)

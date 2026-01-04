@@ -6,7 +6,6 @@ Verifies phase proof persistence, bounded fields, and rendering.
 
 import shutil
 from datetime import datetime
-from pathlib import Path
 
 import pytest
 

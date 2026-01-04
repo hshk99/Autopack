@@ -1,7 +1,7 @@
 """Tests for Reddit Gatherer Module"""
 
 import pytest
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import Mock, patch
 
 # BUILD-146: Skip tests if praw is not installed
 pytest.importorskip("praw")

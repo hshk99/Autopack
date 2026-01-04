@@ -6,7 +6,6 @@ material, with special handling for numeric values and text normalization.
 
 import logging
 import re
-from typing import Optional, Tuple
 
 from autopack.text_normalization import normalize_text
 

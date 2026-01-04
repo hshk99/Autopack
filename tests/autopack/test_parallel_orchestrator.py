@@ -3,7 +3,7 @@
 import pytest
 import asyncio
 from pathlib import Path
-from unittest.mock import MagicMock, patch, AsyncMock
+from unittest.mock import MagicMock, patch
 from datetime import datetime
 
 from autopack.parallel_orchestrator import (
@@ -180,12 +180,11 @@ class TestParallelRunOrchestrator:
     async def test_execute_single_run_workspace_acquisition_failure(self, orchestrator):
         """Test handling of workspace acquisition failure."""
         with patch("autopack.parallel_orchestrator.WorkspaceManager") as MockWM, \
-             patch("autopack.parallel_orchestrator.ExecutorLockManager") as MockLM:
+             patch("autopack.parallel_orchestrator.ExecutorLockManager"):
 
             mock_wm = MockWM.return_value
             mock_wm.create_worktree.side_effect = RuntimeError("Git error")
 
-            mock_lm = MockLM.return_value
 
             async def executor(run_id, workspace):
                 return True
@@ -555,13 +554,12 @@ class TestResourceCleanup:
         orchestrator = ParallelRunOrchestrator(config)
 
         with patch("autopack.parallel_orchestrator.WorkspaceManager") as MockWM, \
-             patch("autopack.parallel_orchestrator.ExecutorLockManager") as MockLM:
+             patch("autopack.parallel_orchestrator.ExecutorLockManager"):
 
             # Simulate workspace acquisition failure
             mock_wm = MockWM.return_value
             mock_wm.create_worktree.side_effect = RuntimeError("Workspace failed")
 
-            mock_lm = MockLM.return_value
 
             async def executor(run_id, workspace):
                 return True

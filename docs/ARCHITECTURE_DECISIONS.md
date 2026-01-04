@@ -2,12 +2,12 @@
 
 
 <!-- AUTO-GENERATED SUMMARY - DO NOT EDIT MANUALLY -->
-**Summary**: 36 decision(s) documented | Last updated: 2026-01-04 01:53:16
+**Summary**: 39 decision(s) documented | Last updated: 2026-01-04 17:08:33
 <!-- END AUTO-GENERATED SUMMARY -->
 
 <!-- META
-Last_Updated: 2026-01-04T01:53:16.914073Z
-Total_Decisions: 36
+Last_Updated: 2026-01-04T17:08:33.893937Z
+Total_Decisions: 39
 Format_Version: 2.0
 Auto_Generated: True
 Sources: CONSOLIDATED_STRATEGY, CONSOLIDATED_REFERENCE, archive/, BUILD-153, BUILD-155
@@ -17,6 +17,9 @@ Sources: CONSOLIDATED_STRATEGY, CONSOLIDATED_REFERENCE, archive/, BUILD-153, BUI
 
 | Timestamp | DEC-ID | Decision | Status | Impact |
 |-----------|--------|----------|--------|--------|
+| 2026-01-04 | DEC-042 | Consolidation Pattern: Execution Writes Run-Local; Tidy Consolidates | ✅ Implemented | Prevents "two truths" + enables safe mechanical SOT updates via explicit gating |
+| 2026-01-04 | DEC-041 | Intention Anchor Lifecycle as First-Class Artifact (Plan → Build → Audit → SOT → Retrieve) | ✅ Implemented | Forces intention continuity and reduces goal drift; makes autonomy evidence-backed and budget-bounded |
+| 2026-01-04 | DEC-040 | Boundary Contract Tests Must Hit Real FastAPI Routes (No Endpoint Monkeypatching) | ✅ Implemented | Prevents “false-green” contract tests; standardizes in-memory DB setup for threaded TestClient via StaticPool |
 | 2026-01-04 | DEC-039 | Permanent Deferred Contract Tests vs Broken Behavior Assertions | ✅ Implemented | Contract tests encode desired behavior (xfail until fixed) instead of memorializing drift, mechanical enforcement via strict xfail |
 | 2026-01-03 | DEC-038 | Doc Link Triage - Two-Tier Ignore Architecture ... | ✅ Implemented |  |
 | 2026-01-03 | DEC-033 | Standalone SOT Refresh Script (Not Tidy Flag) | ✅ Implemented | SOT summaries can be refres... |
@@ -55,6 +58,74 @@ Sources: CONSOLIDATED_STRATEGY, CONSOLIDATED_REFERENCE, archive/, BUILD-153, BUI
 | 2025-12-09 | DEC-007 | Documentation Consolidation Implementation Plan | ✅ Implemented |  |
 
 ## DECISIONS (Reverse Chronological)
+
+### DEC-041 | 2026-01-04 | Intention Anchor Lifecycle as First-Class Artifact (Plan → Build → Audit → SOT → Retrieve)
+
+**Status**: ✅ Implemented
+**Build**: BUILD-171
+
+#### Decision
+
+Treat “user intention” as a **first-class, versioned artifact** that is created once, threaded through the system, and reused deterministically:
+
+- **Create** an `Intention Anchor` during ingestion/planning (compact, explicit constraints, success criteria).
+- **Thread** it through plan specs, builder prompts, auditor checks, and quality gates.
+- **Persist** durable outcomes into SOT ledgers (append-only) with references back to the anchor.
+- **Retrieve** it at runtime under strict budgets (vector memory retrieval with telemetry), so “essential memory” can influence decisions without prompt bloat.
+
+#### Why (Rationale)
+
+- Autonomy fails via **goal drift** and **silent mismatches** between what the user meant and what the system optimizes.
+- A single canonical anchor reduces branching variance: many possible “AI suggestions” collapse into a few stable outcomes when evaluated against explicit constraints.
+- Making this lifecycle explicit turns philosophy into enforceable direction: contracts can be added around it (format, presence, budget gating, telemetry).
+
+#### Enforceable Invariants
+
+- **Single source of intent**: there is exactly one canonical anchor per run (versioned; updated only via explicit “intent update” steps).
+- **Anchor must be present** in builder/auditor decision contexts (unless explicitly disabled).
+- **Budget-bounded retrieval**: SOT retrieval is capped and telemetry-recorded (no silent prompt bloat).
+- **Append-only durability**: learnings survive via SOT ledgers; derived indexes are rebuildable.
+
+#### Consequences
+
+- Clear separation between:
+  - **Durable memory** (SOT ledgers)
+  - **Derived indexes** (DB `sot_entries`, vector index)
+  - **Ephemeral run artifacts** (logs, local scratch)
+- Future work becomes “technicalities”: implement the anchor artifact + thread it, then enforce with contracts.
+
+#### Implementation Pointer
+
+See `docs/IMPLEMENTATION_PLAN_INTENTION_ANCHOR_LIFECYCLE.md`.
+
+### DEC-040 | 2026-01-04 | Boundary Contract Tests Must Hit Real FastAPI Routes (No Endpoint Monkeypatching)
+
+**Status**: ✅ Implemented
+**Build**: BUILD-171
+
+#### Decision
+
+- Boundary contract tests for protocol enforcement MUST exercise **real FastAPI routes** using `TestClient(app)` and dependency overrides.
+- Do NOT monkeypatch endpoint handler functions (it can create false-green tests that only validate Pydantic parsing, not routing/DI/DB behavior).
+
+#### Rationale
+
+- FastAPI boundary failures frequently happen due to request binding, dependency injection, and DB/session behavior — not just model parsing.
+- Monkeypatching endpoint functions hides real regressions (missing routes, unreachable code paths, wrong response shape).
+
+#### Standard pattern (SQLite in-memory + threaded TestClient)
+
+When tests require an in-memory SQLite DB, use a shared connection pool so schema exists across threaded requests:
+
+- `create_engine("sqlite://", poolclass=StaticPool, connect_args={"check_same_thread": False})`
+- Create tables via `Base.metadata.create_all(bind=engine)`
+- Seed minimal rows needed by the endpoint (Run/Tier/Phase)
+- Override `get_db` to yield a fresh session per request
+
+#### Consequences
+
+- Boundary tests become higher signal (detect missing routes and real runtime failures).
+- Slightly more setup code, but much more reliable enforcement.
 
 ### DEC-039 | 2026-01-04 | Permanent Deferred Contract Tests vs Broken Behavior Assertions
 
@@ -2219,3 +2290,94 @@ Fix Ratio = 47 / (47 + 10) = 82.5% ✅ (exceeds 70% threshold)
 - DEC-034: Fenced Code Blocks Bypass Deep-Scan (alternative to ignoring)
 - DEC-035: File-Scoped Ignores Over Pattern-Based (minimize false negatives)
 - DEC-024: Deep-Scan vs Nav-Mode Policy Separation (BUILD-166)
+
+---
+
+### DEC-042 | 2026-01-04 | Consolidation Pattern: Execution Writes Run-Local; Tidy Consolidates
+
+**Status**: ✅ Implemented (BUILD-159)
+
+**Context**:
+The Intention Anchor system needed a way to safely consolidate run-local artifacts (stored in `.autonomous_runs/<run_id>/`) into canonical SOT ledgers (`docs/BUILD_HISTORY.md`, etc.) without creating "two truths" problems or risking SOT corruption through autonomous writes.
+
+**Decision**:
+Establish a clear separation of concerns for SOT updates:
+1. **Autonomous execution writes run-local**: All runtime artifact generation (intention anchors, summaries, events) writes ONLY to `.autonomous_runs/<run_id>/` directories
+2. **Tidy consolidates to SOT**: Consolidation into SOT ledgers happens through explicit tidy operations with multiple safety gates
+3. **Never autonomous SOT writes**: Autonomous execution never directly modifies `docs/BUILD_HISTORY.md` or other SOT ledgers
+
+**Implementation** (BUILD-159):
+
+### Three-Mode Pipeline
+1. **Report Mode** (read-only):
+   - Analyzes run artifacts
+   - Generates deterministic reports (markdown + JSON)
+   - Zero mutation, safe to run anytime
+   - CLI: `consolidate_intention_anchors.py report`
+
+2. **Plan Mode** (generates patches):
+   - Creates SOT-ready consolidation plans
+   - Includes stable idempotency hashes
+   - Still zero mutation
+   - CLI: `consolidate_intention_anchors.py plan --project-id <project>`
+
+3. **Apply Mode** (gated writes):
+   - Actually writes to SOT ledgers
+   - Requires double opt-in: `apply` command + `--execute` flag
+   - Idempotent via HTML comment markers
+   - Atomic temp→replace writes
+   - CLI: `consolidate_intention_anchors.py apply --project-id <project> --execute`
+
+### Safety Mechanisms
+- **Double opt-in**: Apply mode fails without explicit `--execute` flag
+- **Idempotency**: HTML comment markers prevent duplicate consolidations
+- **Atomic writes**: Temp file → replace pattern ensures crash safety
+- **Project isolation**: autopack → `./docs/`, others → `.autonomous_runs/<project>/docs/`
+- **Contract tests**: Verify report/plan modes never write to SOT
+- **Target enforcement**: Only BUILD_HISTORY.md can be written
+
+**Rationale**:
+1. **Prevents "two truths"**: Single source of truth in SOT ledgers, run artifacts are ephemeral
+2. **Enables safe automation**: Multiple safety checkpoints allow mechanical consolidation
+3. **Preserves audit trail**: Run-local artifacts never deleted, full history preserved
+4. **Supports review workflow**: Report → Plan → Apply allows human review at each stage
+5. **Crash-safe operations**: Atomic writes prevent partial updates during failures
+
+**Consequences**:
+
+### Positive
+- ✅ Zero risk of autonomous corruption of SOT ledgers
+- ✅ Complete audit trail in run-local artifacts
+- ✅ Mechanical consolidation possible with high confidence
+- ✅ Clear separation between execution and documentation
+- ✅ Idempotent operations support retry-safe workflows
+
+### Negative
+- ⚠️ Manual step required for SOT consolidation (intentional trade-off for safety)
+- ⚠️ Run artifacts remain in `.autonomous_runs/` until explicitly consolidated
+- ⚠️ Additional tooling complexity (three modes vs single operation)
+
+### Mitigation
+- Report mode provides visibility into pending consolidations
+- Plan mode allows batch review before applying
+- Future automation can invoke apply mode programmatically once confidence is established
+
+**Standard Pattern**:
+This pattern should be used for ANY autonomous artifact that needs SOT consolidation:
+1. Execution generates run-local artifacts (append-only, immutable IDs)
+2. Consolidation tool provides report → plan → apply pipeline
+3. Apply mode requires explicit gating (double opt-in or similar)
+4. All consolidation operations are idempotent
+5. Contract tests enforce no SOT writes during execution
+
+**Related**:
+- BUILD-159: Intention Anchor Consolidation System implementation
+- DEC-041: Intention Anchor Lifecycle as First-Class Artifact
+- docs/IMPLEMENTATION_PLAN_INTENTION_ANCHOR_CONSOLIDATION.md
+
+**Test Coverage**:
+- 43 consolidation tests enforce this pattern
+- Contract tests verify no SOT writes during execution (filesystem-level)
+- Idempotency tests verify safe retry behavior
+- Safety tests verify double opt-in enforcement
+

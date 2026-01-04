@@ -2,12 +2,12 @@
 
 
 <!-- AUTO-GENERATED SUMMARY - DO NOT EDIT MANUALLY -->
-**Summary**: 180 build entries (157 unique builds) documented | Last updated: 2026-01-04 00:05:16
+**Summary**: 182 build entries (158 unique builds) documented | Last updated: 2026-01-04 17:00:36
 <!-- END AUTO-GENERATED SUMMARY -->
 
 <!-- META
-Last_Updated: 2026-01-04T00:05:16.945357Z
-Total_Builds: 180
+Last_Updated: 2026-01-04T17:00:36.434400Z
+Total_Builds: 182
 Format_Version: 2.0
 Auto_Generated: False
 Sources: CONSOLIDATED files, archive/, manual updates, BUILD-158 Tidy Lock/Lease + Doc Link Checker
@@ -17,6 +17,8 @@ Sources: CONSOLIDATED files, archive/, manual updates, BUILD-158 Tidy Lock/Lease
 
 | Timestamp | BUILD-ID | Phase | Summary | Files Changed |
 |-----------|----------|-------|---------|---------------|
+| 2026-01-04 | BUILD-159 | Intention Anchor Consolidation System (100% COMPLETE ✅) | **Full consolidation pipeline: report → plan → apply with comprehensive safety**: Completed Parts A+B1+B2+B3 of Intention Anchor consolidation system enabling safe SOT ledger writes from run-local artifacts. **Part A (Artifact Hardening)**: Versioned summary snapshots (closes "overwrite gap"), event schema versioning (format_version: 1), filesystem-level SOT write protection tests. **Part B1 (Report Mode)**: Deterministic markdown/JSON reports, zero mutation, 13 tests. **Part B2 (Plan Mode)**: SOT-ready consolidation plans with stable idempotency hashes, project-specific targeting, 14 tests including "no SOT writes" contract. **Part B3 (Gated Apply Mode)**: Double opt-in safety (apply + --execute flag required), idempotent HTML comment markers, atomic temp→replace writes, project-aware docs targeting (autopack→./docs/, others→.autonomous_runs/<project>/docs/), 16 tests. **CLI**: Three modes with clear boundaries (report read-only, plan generates patches, apply requires --execute). **Architecture Decision DEC-042**: Consolidation pattern establishes "execution writes run-local; tidy consolidates" principle. **Test Results**: 43/43 consolidation tests passing (13 report + 14 plan + 16 apply), all safety contracts enforced. **Impact**: Production-ready consolidation system, complete audit trail preservation, mechanical SOT sync capability with multiple safety checkpoints. Files: scripts/tidy/consolidate_intention_anchors.py (~650 lines, B1+B2+B3), tests/tidy/test_consolidate_intention_anchors_{report,plan,apply}.py (3 files, 43 tests), src/autopack/intention_anchor/artifacts.py (versioned snapshots), docs/IMPLEMENTATION_PLAN_INTENTION_ANCHOR_CONSOLIDATION.md (full spec) | 7 |
+| 2026-01-04 | BUILD-171 | P1 Contract Enforcement Polish (100% COMPLETE ✅) | **Boundary enforcement + hygiene polish (no silent failures)**: Restored missing `/runs/{run_id}/phases/{phase_id}/auditor_result` endpoint (auditor handler had accidentally fallen after a `return`), upgraded boundary tests to hit **real FastAPI endpoints** (no endpoint monkeypatching) using an isolated in-memory DB with `StaticPool` (prevents `no such table: phases` in threaded TestClient), added auditor boundary tests, removed obsolete legacy/xfail contract scaffolding, pinned pytest-asyncio loop scope to prevent future behavior drift, and slimmed root `README.md` (historical content preserved at `docs/README_FULL.md`). | 10 |
 | 2026-01-04 | P0 Reliability Track + Beyond-P0 | Reliability Hardening (100% COMPLETE ✅) | **P0 Reliability Track - Determinism, Isolation, Contract Enforcement**: Completed 4-phase reliability hardening (P0.3 stray file removal + CI, P0.1 baseline tracker run-scoping + determinism, P0.2 protocol contract tests, P0.4 DB guardrails) with 31 new tests (100% pass). **Beyond-P0 Polish**: Fixed 5 doc link paper-cuts, reshaped contract tests to permanent deferred guards (xfail until P1 fixes executor), confirmed auditor schema-compliant. Result: Production-safe DB init, parallel-run isolation, permanent API contract enforcement. See [docs/P0_RELIABILITY_DECISIONS.md](docs/P0_RELIABILITY_DECISIONS.md). | 6 |
 | 2026-01-03 | BUILD-170.9 | CI Enforcement - GitHub Actions Pinning Policy Guardrail (100% COMPLETE ✅) | **Mechanical enforcement of supply-chain security via CI-blocking policy checker following SOT canonical truth + CI enforcement pattern**: Created guardrail to prevent supply-chain regressions from landing in main. **Policy Enforced (PR-blocking)**: Third-party actions MUST use full 40-char SHA pins, first-party (actions/*) MAY use version tags (@v4), mutable refs (@master, @main, @vX for third-party) are BLOCKED. **Implementation**: scripts/ci/check_github_actions_pinning.py (88 lines CLI policy checker), tests/ci/test_github_actions_pinning_policy.py (211 lines, 6 tests, 100% pass), ci.yml lint job integration (PR-blocking). **Benefits**: Prevents accidental revert to @master/@vX for third-party actions, mechanically checkable invariant (same philosophy as SOT drift detection), actionable error messages with file:line references. **Acceptance Criteria Met**: (1) Policy checker exits 0 on current workflows ✅, (2) Policy blocks third-party @master/@vX refs ✅, (3) Policy allows first-party version tags ✅, (4) Policy allows third-party SHA pins ✅, (5) 6/6 tests pass ✅, (6) CI integration in lint job ✅. Files: check_github_actions_pinning.py, test_github_actions_pinning_policy.py, ci.yml | 3 |
 | 2026-01-03 | BUILD-170.8 | Supply-Chain Hardening - Third-Party Action SHA Pinning (100% COMPLETE ✅) | **Eliminated mutable tag attack vector via immutable SHA pinning for all third-party GitHub Actions**: Pinned 11 third-party action instances to commit SHAs (aquasecurity/trivy-action: @master→@b6643a2 v0.33.1 2x, github/codeql-action: @v2→@c43362b v2.23.8 5x, gitleaks/gitleaks-action: @v2→@ff98106 v2.3.9 1x, docker/setup-buildx-action: @v2→@8d2750c v3.12.0 1x, peter-evans/create-pull-request: @v5→@98357b1 v8.0.0 1x, codecov/codecov-action: @v3→@0561704 v5.5.2 1x). **Security Rationale**: Mutable tags can be hijacked to point to malicious code; SHA pins provide immutable references. **Maintenance**: Dependabot already configured for github-actions (weekly Monday updates). **Breaking Change**: codecov v5 requires files parameter (was file in v3). **Acceptance Criteria Met**: (1) rg "@master" .github/workflows/ = 0 matches ✅, (2) All 11 third-party actions use SHA@comment format ✅, (3) Dependabot github-actions config verified ✅. Files: security.yml (8 pins), promotion.yml (1 pin), ci.yml (1 pin + parameter fix) | 3 |
@@ -3486,6 +3488,31 @@ Based on BUILD-169 implementation, all future burndown builds must meet:
 - Regression test added (fenced-block bypass)
 - Next targets identified (DOC_LINK_TRIAGE_REPORT 24, README 22, ARCHITECTURE_DECISIONS 19)
 
+## BUILD-171
+
+**Title**: P1 Contract Enforcement Polish - Real Boundary Tests + Endpoint Restore + README Slimming
+**Status**: ✅ COMPLETE
+**Completed**: 2026-01-04
+
+### Summary
+
+- **API correctness**: Restored the `/runs/{run_id}/phases/{phase_id}/auditor_result` endpoint as a proper FastAPI route (previously unreachable code after a `return` in `submit_builder_result`).
+- **Real boundary tests**: Builder boundary tests now hit the **real** FastAPI endpoint using dependency overrides + a shared in-memory SQLite DB (`StaticPool` + `sqlite://`) so threaded TestClient requests see the same schema.
+- **Coverage expansion**: Added auditor boundary tests mirroring builder boundary tests.
+- **Contract hygiene**: Removed obsolete legacy/xfail builder contract scaffolding now that P1 contract enforcement is canonical and strict.
+- **Test stability**: Pinned pytest-asyncio loop scope (`asyncio_default_fixture_loop_scope=function`) to prevent future default behavior drift.
+- **Docs policy alignment**: Root `README.md` is now intentionally short (quickstart + links + status). The previous long-form README is preserved as `docs/README_FULL.md` and discoverable from `docs/INDEX.md`.
+
+### Files Changed (high-signal)
+
+- `src/autopack/main.py` (restore auditor endpoint; remove unreachable code)
+- `tests/autopack/test_api_boundary_builder_result.py` (real endpoint tests with shared in-memory DB)
+- `tests/autopack/test_api_boundary_auditor_result.py` (new auditor boundary tests)
+- `pytest.ini` (pin pytest-asyncio loop scope)
+- `README.md` + `docs/README_FULL.md` + `docs/INDEX.md` (README slimming + preserved history pointer)
+
+---
+
 ## BUILD-170
 
 **Title**: SOT Ledgers as Canonical Truth - CI Enforcement & Competing Generator Removal
@@ -3742,3 +3769,111 @@ Created `tests/docs/test_debug_log_index_matches_sections.py` (77 lines) followi
 - `tests/docs/test_debug_log_index_matches_sections.py`: DEBUG_LOG contract test (NEW, 77 lines)
 - Zero duplicate workflows remaining (1 scheduled deep scan, 1 PR-blocking nav check)
 - All CI checks passing (4/4 doc tests, no drift detected)
+
+---
+
+## BUILD-159
+
+**Title**: Intention Anchor Consolidation System - Full Implementation (Parts A + B1 + B2 + B3)
+
+**Status**: 100% COMPLETE ✅
+
+**Completed**: 2026-01-04
+
+**High-Signal Changes**:
+
+### Summary
+Completed full implementation of the Intention Anchor Consolidation system, delivering a production-ready pipeline for safely consolidating run-local intention anchor artifacts into SOT ledgers. Implemented all four phases: artifact hardening (Part A), report mode (B1), plan mode (B2), and gated apply mode (B3).
+
+### Architecture Decision DEC-042
+Established canonical consolidation pattern: **execution writes run-local; tidy consolidates**. This architectural principle prevents "two truths" problems while enabling safe, mechanical SOT updates through explicit gating and deterministic operations.
+
+### Part A: Artifact Hardening
+- **Versioned summary snapshots**: Closes the "overwrite gap" by preserving historical snapshots alongside latest view
+  - `anchor_summary.md` (latest view, overwrite OK)
+  - `anchor_summaries/anchor_summary_v{version:04d}.md` (append-only historical snapshots)
+  - `anchor_diffs/anchor_diff_v{version:04d}.md` (human-readable version diffs)
+- **Event schema versioning**: All NDJSON events include `format_version: 1` for future-proofing
+- **Filesystem-level SOT protection**: Contract test verifies no SOT writes during execution (mtime + content checks)
+
+### Part B1: Report Mode (13 tests passing)
+- **Deterministic reporting**: Generates stable markdown + JSON reports from run artifacts
+- **Zero mutation**: Pure read-only analysis, never modifies any files
+- **Run discovery**: Finds all runs with intention anchors, analyzes completeness
+- **Event analysis**: Counts event types, detects malformed NDJSON, tracks injection activity
+- **CLI**: `python scripts/tidy/consolidate_intention_anchors.py report --output-json report.json`
+
+### Part B2: Plan Mode (14 tests passing)
+- **SOT-ready consolidation plans**: Generates patch fragments with stable idempotency hashes
+- **Project-specific targeting**: Resolves correct docs directory (autopack → `./docs/`, others → `.autonomous_runs/<project>/docs/`)
+- **Deterministic plan generation**: Stable hashes enable idempotency detection, sorting ensures reproducibility
+- **Contract enforcement**: "No SOT writes" test verifies plan mode never modifies ledgers
+- **CLI**: `python scripts/tidy/consolidate_intention_anchors.py plan --project-id autopack --out plan.json`
+
+### Part B3: Gated Apply Mode (16 tests passing)
+- **Double opt-in safety**: Requires both `apply` command AND `--execute` flag (fails without `--execute`)
+- **Idempotent operations**: HTML comment markers (`<!-- IA_CONSOLIDATION: anchor_id=... version=... hash=... -->`) prevent duplicate consolidations
+- **Atomic writes**: Temp file → replace pattern ensures crash-safe operations (Windows-compatible)
+- **Project-aware targeting**: Only writes to correct BUILD_HISTORY.md based on project_id
+- **Safety contracts**: Tests verify no unintended SOT writes, only BUILD_HISTORY.md targeted
+- **CLI**: `python scripts/tidy/consolidate_intention_anchors.py apply --project-id autopack --execute --max-runs 10`
+
+### Test Coverage
+- **43/43 consolidation tests passing** (100% success rate):
+  - 13 report mode tests (discovery, analysis, report generation, no SOT writes contract)
+  - 14 plan mode tests (hash stability, block generation, project targeting, no SOT writes contract)
+  - 16 apply mode tests (marker checking, idempotency, double opt-in, atomic writes, safety contracts)
+
+### Files Modified/Created
+1. **Implementation**:
+   - `scripts/tidy/consolidate_intention_anchors.py`: ~650 lines implementing all three modes (B1+B2+B3)
+   - `src/autopack/intention_anchor/artifacts.py`: Added versioned snapshot support (Part A)
+
+2. **Tests** (3 new files, 43 tests):
+   - `tests/tidy/test_consolidate_intention_anchors_report.py`: 13 tests (report mode)
+   - `tests/tidy/test_consolidate_intention_anchors_plan.py`: 14 tests (plan mode)
+   - `tests/tidy/test_consolidate_intention_anchors_apply.py`: 16 tests (apply mode)
+   - `tests/autopack/test_intention_anchor_artifacts.py`: Extended with Part A tests
+
+3. **Documentation**:
+   - `docs/IMPLEMENTATION_PLAN_INTENTION_ANCHOR_CONSOLIDATION.md`: Full specification with status updates
+
+### Verification Commands
+```bash
+# Run all consolidation tests
+PYTHONUTF8=1 PYTHONPATH=src DATABASE_URL="sqlite:///:memory:" pytest tests/tidy/test_consolidate_intention_anchors*.py -v
+
+# Result: 43/43 passed in 17.41s
+
+# Test report mode
+python scripts/tidy/consolidate_intention_anchors.py report --output-json /tmp/report.json
+
+# Test plan mode  
+python scripts/tidy/consolidate_intention_anchors.py plan --project-id autopack --out /tmp/plan.json
+
+# Test apply mode (requires --execute)
+python scripts/tidy/consolidate_intention_anchors.py apply --project-id autopack
+# ^ Fails with error (double opt-in required) ✅
+```
+
+### Impact
+- **Production-ready consolidation**: Full pipeline from run-local artifacts to SOT ledgers with multiple safety checkpoints
+- **Complete audit trail**: All intention anchor activity preserved in append-only artifacts
+- **Mechanical SOT sync**: Enables automated consolidation while preventing accidental corruption
+- **Safety by design**: Double opt-in, idempotency, atomic writes, project isolation all enforced by tests
+
+### Related Documentation
+- Implementation Plan: [docs/IMPLEMENTATION_PLAN_INTENTION_ANCHOR_CONSOLIDATION.md](docs/IMPLEMENTATION_PLAN_INTENTION_ANCHOR_CONSOLIDATION.md)
+- Intention Anchor Lifecycle: [docs/IMPLEMENTATION_PLAN_INTENTION_ANCHOR_LIFECYCLE.md](docs/IMPLEMENTATION_PLAN_INTENTION_ANCHOR_LIFECYCLE.md)
+- Architecture Decision: DEC-042 (Consolidation Pattern)
+
+### Deliverables
+- ✅ Part A: Artifact hardening complete (versioned snapshots + schema versioning + SOT protection)
+- ✅ Part B1: Report mode complete (13 tests passing)
+- ✅ Part B2: Plan mode complete (14 tests passing)
+- ✅ Part B3: Gated apply mode complete (16 tests passing)
+- ✅ Full test coverage: 43/43 tests passing
+- ✅ Documentation complete and updated
+- ✅ CLI integration with all three modes
+- ✅ Safety contracts enforced mechanically
+

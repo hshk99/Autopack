@@ -1,6 +1,9 @@
 # Autopack Docs Index (Start Here)
 
-This repo contains **a lot** of documentation. This file is the **navigation hub** (especially for AI agents) so you don’t need to scan a 3K+ line `README.md`.
+This repo contains **a lot** of documentation. This file is the **navigation hub** (especially for AI agents).
+
+- `README.md` is intentionally short (quickstart + links + project status).
+- The older long-form README is preserved at `docs/README_FULL.md`.
 
 ---
 
@@ -30,6 +33,8 @@ These are the canonical references that should stay current and are designed to 
 - **Project status & latest updates**: `README.md` (quickstart + current status), `docs/CHANGELOG.md` (full historical ledger)
 - **Running Autopack / using the API**: `docs/QUICKSTART.md`, `docs/API_BASICS.md`, `docs/CANONICAL_API_CONTRACT.md`
 - **True Autonomy implementation details**: `docs/IMPLEMENTATION_PLAN_TRUE_AUTONOMY.md`, `archive/superseded/reports/unsorted/TRUE_AUTONOMY_COMPLETE_IMPLEMENTATION_REPORT.md`
+- **Intention Anchor lifecycle (plan → build → audit → SOT → retrieve)**: `docs/IMPLEMENTATION_PLAN_INTENTION_ANCHOR_LIFECYCLE.md`
+- **Intention Anchor consolidation (placeholder → report-only → gated apply)**: `docs/IMPLEMENTATION_PLAN_INTENTION_ANCHOR_CONSOLIDATION.md` (**BUILD-159 COMPLETE**: Full pipeline with report/plan/apply modes, 43 tests passing, see [DEC-042](#dec-042) for consolidation pattern)
 - **Storage Optimizer**: `archive/superseded/reports/unsorted/STORAGE_OPTIMIZER_MVP_COMPLETION.md`, `docs/STORAGE_OPTIMIZER_INTELLIGENCE_COMPLETE.md`, `docs/STORAGE_OPTIMIZER_AUTOMATION.md`
 - **Protection & Retention Policy**: `docs/PROTECTION_AND_RETENTION_POLICY.md` (unified policy for Tidy + Storage Optimizer)
 - **Testing**: `docs/TESTING_GUIDE.md`
@@ -46,6 +51,13 @@ These are the canonical references that should stay current and are designed to 
 - **SOT Memory Integration**: SOT ledgers can be indexed into `MemoryService` for runtime retrieval
   - See `docs/TIDY_SOT_RETRIEVAL_INTEGRATION_PLAN.md` for implementation details
   - See `docs/SOT_MEMORY_INTEGRATION_EXAMPLE.md` for integration examples
+- **BUILD-159 Intention Anchor Consolidation System - COMPLETE** ✅:
+  - Full consolidation pipeline: report → plan → apply with comprehensive safety
+  - Parts A+B1+B2+B3 complete (artifact hardening + report + plan + gated apply)
+  - 43/43 tests passing (13 report + 14 plan + 16 apply mode tests)
+  - Double opt-in safety, idempotent operations, atomic writes, project isolation
+  - Architecture Decision DEC-042: "execution writes run-local; tidy consolidates"
+  - See [docs/BUILD_HISTORY.md#build-159](BUILD_HISTORY.md#build-159) and [docs/ARCHITECTURE_DECISIONS.md#dec-042](ARCHITECTURE_DECISIONS.md#dec-042)
 - **BUILD-170.9 CI Enforcement - GitHub Actions Pinning Policy Guardrail**:
   - Mechanical enforcement of supply-chain security via CI-blocking policy checker
   - Policy: third-party actions MUST use SHA pins, first-party (actions/*) MAY use version tags

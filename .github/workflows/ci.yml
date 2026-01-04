@@ -21,7 +21,7 @@ jobs:
       - name: Install dependencies
         run: |
           pip install -r requirements.txt
-          pip install -e ".[dev]"
+          pip install --no-deps -e ".[dev]"
       - name: Install pip-tools for drift checks
         run: |
           pip install pip-tools
@@ -52,7 +52,7 @@ jobs:
       - name: Install dependencies
         run: |
           pip install -r requirements.txt
-          pip install -e ".[dev]"
+          pip install --no-deps -e ".[dev]"
       - name: Run doc-contract tests
         run: |
           pytest -q tests/docs/
@@ -95,7 +95,7 @@ jobs:
       - name: Install dependencies
         run: |
           pip install -r requirements.txt
-          pip install -e ".[dev]"
+          pip install --no-deps -e ".[dev]"
       - name: Run core tests (excluding research and aspirational)
         env:
           # BUILD-146 P11 Ops: Explicitly set DATABASE_URL to prevent footguns
@@ -147,7 +147,7 @@ jobs:
       - name: Install dependencies
         run: |
           pip install -r requirements.txt
-          pip install -e ".[dev]"
+          pip install --no-deps -e ".[dev]"
       - name: Run aspirational tests
         env:
           DATABASE_URL: postgresql://autopack:autopack@localhost:5432/autopack
@@ -176,7 +176,7 @@ jobs:
       - name: Install dependencies
         run: |
           pip install -r requirements.txt
-          pip install -e ".[dev]"
+          pip install --no-deps -e ".[dev]"
       - name: Run research tests
         env:
           # Research tests use in-memory DB (faster, isolated)
@@ -202,7 +202,7 @@ jobs:
       - name: Install dependencies
         run: |
           pip install -r requirements.txt
-          pip install -e ".[dev]"
+          pip install --no-deps -e ".[dev]"
       - name: Run preflight gate (normal profile)
         env:
           CI_PROFILE: normal
@@ -223,7 +223,7 @@ jobs:
       - name: Install dependencies
         run: |
           pip install -r requirements.txt
-          pip install -e ".[dev]"
+          pip install --no-deps -e ".[dev]"
       - name: Run preflight gate (strict profile)
         env:
           CI_PROFILE: strict

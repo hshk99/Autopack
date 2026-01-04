@@ -5,11 +5,20 @@ Intention behind these tests: ensure rendered output is stable, deterministic,
 and respects budget constraints (max bullets).
 """
 
+import tempfile
+
 from autopack.intention_anchor import (
     IntentionConstraints,
     create_anchor,
+    load_and_render_for_auditor,
+    load_and_render_for_builder,
+    load_and_render_for_doctor,
     render_compact,
+    render_for_auditor,
+    render_for_builder,
+    render_for_doctor,
     render_for_prompt,
+    save_anchor,
 )
 
 
@@ -311,3 +320,201 @@ def test_render_for_prompt_max_bullets_per_section():
     assert "- P1" in output
     assert "- P3" in output
     assert "- P4" not in output
+
+
+# =============================================================================
+# Agent-Specific Rendering Tests (Milestone 2)
+# =============================================================================
+
+
+def test_render_for_builder_includes_header():
+    """render_for_builder should include phase-specific header."""
+    anchor = create_anchor(
+        run_id="builder-test-001",
+        project_id="test-project",
+        north_star="Test Builder rendering.",
+        success_criteria=["SC1", "SC2"],
+    )
+
+    output = render_for_builder(anchor, phase_id="F2.1")
+
+    assert "# Project Intent (Phase: F2.1)" in output
+    assert "## Intention Anchor (canonical)" in output
+    assert "North star: Test Builder rendering." in output
+    assert "Success criteria:" in output
+
+
+def test_render_for_builder_respects_max_bullets():
+    """render_for_builder should default to max_bullets=5."""
+    anchor = create_anchor(
+        run_id="builder-bullets-test",
+        project_id="test-project",
+        north_star="Test bullet capping for Builder.",
+        success_criteria=[f"SC{i}" for i in range(1, 11)],  # 10 items
+    )
+
+    output = render_for_builder(anchor, phase_id="F1.1")
+
+    # Should include first 5, not 6+
+    assert "- SC1" in output
+    assert "- SC5" in output
+    assert "- SC6" not in output
+
+
+def test_render_for_auditor_includes_header():
+    """render_for_auditor should include validation-specific header."""
+    anchor = create_anchor(
+        run_id="auditor-test-001",
+        project_id="test-project",
+        north_star="Test Auditor rendering.",
+        constraints=IntentionConstraints(must=["M1"], must_not=["MN1"]),
+    )
+
+    output = render_for_auditor(anchor)
+
+    assert "# Project Intent (for validation)" in output
+    assert "## Intention Anchor (canonical)" in output
+    assert "Must:" in output
+    assert "Must not:" in output
+
+
+def test_render_for_auditor_respects_max_bullets():
+    """render_for_auditor should default to max_bullets=5."""
+    anchor = create_anchor(
+        run_id="auditor-bullets-test",
+        project_id="test-project",
+        north_star="Test bullet capping for Auditor.",
+        constraints=IntentionConstraints(
+            must=[f"M{i}" for i in range(1, 11)],
+        ),
+    )
+
+    output = render_for_auditor(anchor)
+
+    assert "- M1" in output
+    assert "- M5" in output
+    assert "- M6" not in output
+
+
+def test_render_for_doctor_includes_header():
+    """render_for_doctor should include recovery-specific header."""
+    anchor = create_anchor(
+        run_id="doctor-test-001",
+        project_id="test-project",
+        north_star="Test Doctor rendering.",
+    )
+
+    output = render_for_doctor(anchor)
+
+    assert "# Project Intent (original goal)" in output
+    assert "## Intention Anchor (canonical)" in output
+
+
+def test_render_for_doctor_respects_max_bullets():
+    """render_for_doctor should default to max_bullets=3 (most compact)."""
+    anchor = create_anchor(
+        run_id="doctor-bullets-test",
+        project_id="test-project",
+        north_star="Test bullet capping for Doctor.",
+        success_criteria=[f"SC{i}" for i in range(1, 11)],
+    )
+
+    output = render_for_doctor(anchor)
+
+    # Should include first 3, not 4+
+    assert "- SC1" in output
+    assert "- SC3" in output
+    assert "- SC4" not in output
+
+
+def test_load_and_render_for_builder_success():
+    """load_and_render_for_builder should load anchor and render."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        anchor = create_anchor(
+            run_id="load-builder-test",
+            project_id="test-project",
+            north_star="Test load and render for Builder.",
+        )
+        save_anchor(anchor, base_dir=tmpdir)
+
+        output = load_and_render_for_builder(
+            run_id="load-builder-test",
+            phase_id="F3.2",
+            base_dir=tmpdir,
+        )
+
+        assert output is not None
+        assert "# Project Intent (Phase: F3.2)" in output
+        assert "North star: Test load and render for Builder." in output
+
+
+def test_load_and_render_for_builder_missing_anchor():
+    """load_and_render_for_builder should return None if anchor missing."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        output = load_and_render_for_builder(
+            run_id="nonexistent-run",
+            phase_id="F1.1",
+            base_dir=tmpdir,
+        )
+
+        assert output is None
+
+
+def test_load_and_render_for_auditor_success():
+    """load_and_render_for_auditor should load anchor and render."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        anchor = create_anchor(
+            run_id="load-auditor-test",
+            project_id="test-project",
+            north_star="Test load and render for Auditor.",
+        )
+        save_anchor(anchor, base_dir=tmpdir)
+
+        output = load_and_render_for_auditor(
+            run_id="load-auditor-test",
+            base_dir=tmpdir,
+        )
+
+        assert output is not None
+        assert "# Project Intent (for validation)" in output
+
+
+def test_load_and_render_for_auditor_missing_anchor():
+    """load_and_render_for_auditor should return None if anchor missing."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        output = load_and_render_for_auditor(
+            run_id="nonexistent-run",
+            base_dir=tmpdir,
+        )
+
+        assert output is None
+
+
+def test_load_and_render_for_doctor_success():
+    """load_and_render_for_doctor should load anchor and render."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        anchor = create_anchor(
+            run_id="load-doctor-test",
+            project_id="test-project",
+            north_star="Test load and render for Doctor.",
+        )
+        save_anchor(anchor, base_dir=tmpdir)
+
+        output = load_and_render_for_doctor(
+            run_id="load-doctor-test",
+            base_dir=tmpdir,
+        )
+
+        assert output is not None
+        assert "# Project Intent (original goal)" in output
+
+
+def test_load_and_render_for_doctor_missing_anchor():
+    """load_and_render_for_doctor should return None if anchor missing."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        output = load_and_render_for_doctor(
+            run_id="nonexistent-run",
+            base_dir=tmpdir,
+        )
+
+        assert output is None

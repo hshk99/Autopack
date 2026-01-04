@@ -6,7 +6,11 @@ Intention behind it: keep the anchor always-present in prompts without bloat.
 
 from __future__ import annotations
 
+from pathlib import Path
+from typing import Optional
+
 from .models import IntentionAnchor
+from .storage import load_anchor
 
 
 def render_for_prompt(
@@ -75,3 +79,151 @@ def render_compact(anchor: IntentionAnchor) -> str:
         A single-line summary.
     """
     return f"[{anchor.anchor_id} v{anchor.version}] {anchor.north_star[:80]}"
+
+
+def render_for_builder(
+    anchor: IntentionAnchor,
+    phase_id: str,
+    *,
+    max_bullets: int = 5,
+) -> str:
+    """
+    Render anchor for Builder agent prompts.
+
+    Intention behind it: Builder needs clear intent context to prevent goal drift
+    during code generation.
+
+    Args:
+        anchor: The IntentionAnchor to render.
+        phase_id: Current phase identifier for context.
+        max_bullets: Maximum bullets per section (default: 5 for Builder).
+
+    Returns:
+        Formatted string for Builder prompt injection.
+    """
+    base = render_for_prompt(anchor, max_bullets=max_bullets)
+    header = f"# Project Intent (Phase: {phase_id})\n\n"
+    return header + base
+
+
+def render_for_auditor(
+    anchor: IntentionAnchor,
+    *,
+    max_bullets: int = 5,
+) -> str:
+    """
+    Render anchor for Auditor agent prompts.
+
+    Intention behind it: Auditor needs intent context to validate that changes
+    align with project goals.
+
+    Args:
+        anchor: The IntentionAnchor to render.
+        max_bullets: Maximum bullets per section (default: 5 for Auditor).
+
+    Returns:
+        Formatted string for Auditor prompt injection.
+    """
+    base = render_for_prompt(anchor, max_bullets=max_bullets)
+    header = "# Project Intent (for validation)\n\n"
+    return header + base
+
+
+def render_for_doctor(
+    anchor: IntentionAnchor,
+    *,
+    max_bullets: int = 3,
+) -> str:
+    """
+    Render anchor for Doctor agent prompts.
+
+    Intention behind it: Doctor needs compact intent reminder to guide error
+    recovery without overwhelming the prompt.
+
+    Args:
+        anchor: The IntentionAnchor to render.
+        max_bullets: Maximum bullets per section (default: 3 for Doctor).
+
+    Returns:
+        Formatted string for Doctor prompt injection.
+    """
+    base = render_for_prompt(anchor, max_bullets=max_bullets)
+    header = "# Project Intent (original goal)\n\n"
+    return header + base
+
+
+def load_and_render_for_builder(
+    run_id: str,
+    phase_id: str,
+    *,
+    base_dir: str | Path = ".",
+) -> Optional[str]:
+    """
+    Load anchor from disk and render for Builder.
+
+    Intention behind it: Convenience helper for prompt injection - returns None
+    if anchor doesn't exist (graceful degradation).
+
+    Args:
+        run_id: Run identifier.
+        phase_id: Current phase identifier.
+        base_dir: Base directory for anchor storage (default: ".").
+
+    Returns:
+        Rendered prompt section or None if anchor doesn't exist.
+    """
+    try:
+        anchor = load_anchor(run_id, base_dir=base_dir)
+        return render_for_builder(anchor, phase_id=phase_id)
+    except FileNotFoundError:
+        return None
+
+
+def load_and_render_for_auditor(
+    run_id: str,
+    *,
+    base_dir: str | Path = ".",
+) -> Optional[str]:
+    """
+    Load anchor from disk and render for Auditor.
+
+    Intention behind it: Convenience helper for prompt injection - returns None
+    if anchor doesn't exist (graceful degradation).
+
+    Args:
+        run_id: Run identifier.
+        base_dir: Base directory for anchor storage (default: ".").
+
+    Returns:
+        Rendered prompt section or None if anchor doesn't exist.
+    """
+    try:
+        anchor = load_anchor(run_id, base_dir=base_dir)
+        return render_for_auditor(anchor)
+    except FileNotFoundError:
+        return None
+
+
+def load_and_render_for_doctor(
+    run_id: str,
+    *,
+    base_dir: str | Path = ".",
+) -> Optional[str]:
+    """
+    Load anchor from disk and render for Doctor.
+
+    Intention behind it: Convenience helper for prompt injection - returns None
+    if anchor doesn't exist (graceful degradation).
+
+    Args:
+        run_id: Run identifier.
+        base_dir: Base directory for anchor storage (default: ".").
+
+    Returns:
+        Rendered prompt section or None if anchor doesn't exist.
+    """
+    try:
+        anchor = load_anchor(run_id, base_dir=base_dir)
+        return render_for_doctor(anchor)
+    except FileNotFoundError:
+        return None

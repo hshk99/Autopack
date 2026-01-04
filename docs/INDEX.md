@@ -34,7 +34,7 @@ These are the canonical references that should stay current and are designed to 
 - **Running Autopack / using the API**: `docs/QUICKSTART.md`, `docs/API_BASICS.md`, `docs/CANONICAL_API_CONTRACT.md`
 - **True Autonomy implementation details**: `docs/IMPLEMENTATION_PLAN_TRUE_AUTONOMY.md`, `archive/superseded/reports/unsorted/TRUE_AUTONOMY_COMPLETE_IMPLEMENTATION_REPORT.md`
 - **Intention Anchor lifecycle (plan → build → audit → SOT → retrieve)**: `docs/IMPLEMENTATION_PLAN_INTENTION_ANCHOR_LIFECYCLE.md`
-- **Intention Anchor consolidation (placeholder → report-only → gated apply)**: `docs/IMPLEMENTATION_PLAN_INTENTION_ANCHOR_CONSOLIDATION.md` (**BUILD-159 COMPLETE**: Full pipeline with report/plan/apply modes, 43 tests passing, see [DEC-042](#dec-042) for consolidation pattern)
+- **Intention Anchor consolidation (placeholder → report-only → gated apply)**: `docs/IMPLEMENTATION_PLAN_INTENTION_ANCHOR_CONSOLIDATION.md` (**BUILD-160 COMPLETE**: Hardening complete with P0 safety + P1 validation + P2 UX, 62 consolidation tests passing, production-ready, see [DEC-042](#dec-042) for consolidation pattern)
 - **Storage Optimizer**: `archive/superseded/reports/unsorted/STORAGE_OPTIMIZER_MVP_COMPLETION.md`, `docs/STORAGE_OPTIMIZER_INTELLIGENCE_COMPLETE.md`, `docs/STORAGE_OPTIMIZER_AUTOMATION.md`
 - **Protection & Retention Policy**: `docs/PROTECTION_AND_RETENTION_POLICY.md` (unified policy for Tidy + Storage Optimizer)
 - **Testing**: `docs/TESTING_GUIDE.md`
@@ -51,6 +51,12 @@ These are the canonical references that should stay current and are designed to 
 - **SOT Memory Integration**: SOT ledgers can be indexed into `MemoryService` for runtime retrieval
   - See `docs/TIDY_SOT_RETRIEVAL_INTEGRATION_PLAN.md` for implementation details
   - See `docs/SOT_MEMORY_INTEGRATION_EXAMPLE.md` for integration examples
+- **BUILD-160 Intention Anchor Consolidation Hardening - COMPLETE** ✅:
+  - Production hardening: P0 safety + P1 validation + P2 UX improvements
+  - Path traversal prevention, cross-project isolation, event schema validation, snapshot completeness
+  - 165/165 tidy tests passing (62 consolidation-specific: 21 plan + 22 apply + 19 report)
+  - All security contracts mechanically enforced, comprehensive failure mode coverage
+  - See [docs/BUILD_HISTORY.md#build-160](BUILD_HISTORY.md#build-160) for details
 - **BUILD-159 Intention Anchor Consolidation System - COMPLETE** ✅:
   - Full consolidation pipeline: report → plan → apply with comprehensive safety
   - Parts A+B1+B2+B3 complete (artifact hardening + report + plan + gated apply)

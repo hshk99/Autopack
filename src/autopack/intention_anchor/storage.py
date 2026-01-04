@@ -7,6 +7,7 @@ Intention behind it: canonical path resolver + atomic writes + versioning.
 from __future__ import annotations
 
 import json
+import logging
 import os
 import uuid
 from datetime import datetime, timezone
@@ -14,6 +15,8 @@ from pathlib import Path
 from typing import Any
 
 from .models import IntentionAnchor
+
+logger = logging.getLogger(__name__)
 
 
 def get_canonical_path(run_id: str, base_dir: str | Path = ".") -> Path:
@@ -72,15 +75,22 @@ def create_anchor(
     )
 
 
-def save_anchor(anchor: IntentionAnchor, base_dir: str | Path = ".") -> Path:
+def save_anchor(
+    anchor: IntentionAnchor,
+    base_dir: str | Path = ".",
+    *,
+    generate_artifacts: bool = True,
+) -> Path:
     """
     Saves an IntentionAnchor to its canonical path (atomic write).
 
     Intention behind it: atomic writes (temp → replace) to be Windows-safe.
+    Also generates run-local SOT-ready artifacts (anchor_summary.md + event log).
 
     Args:
         anchor: The IntentionAnchor to save.
         base_dir: The base directory (defaults to current directory).
+        generate_artifacts: If True, generate SOT-ready artifacts (default: True).
 
     Returns:
         The path where the anchor was saved.
@@ -94,6 +104,29 @@ def save_anchor(anchor: IntentionAnchor, base_dir: str | Path = ".") -> Path:
         anchor.model_dump_json(indent=2, exclude_none=False), encoding="utf-8"
     )
     temp_path.replace(canonical_path)
+
+    # Generate run-local SOT-ready artifacts
+    if generate_artifacts:
+        try:
+            from .artifacts import log_anchor_event, save_anchor_summary
+
+            # Save human-readable summary
+            save_anchor_summary(anchor, base_dir=base_dir)
+
+            # Log creation/update event
+            event_type = "anchor_created" if anchor.version == 1 else "anchor_updated"
+            log_anchor_event(
+                run_id=anchor.run_id,
+                event_type=event_type,
+                anchor_id=anchor.anchor_id,
+                version=anchor.version,
+                message=f"Anchor saved (version {anchor.version})",
+                base_dir=base_dir,
+            )
+        except Exception as e:
+            logger.warning(
+                f"[{anchor.run_id}] Failed to generate SOT artifacts: {e}"
+            )
 
     return canonical_path
 

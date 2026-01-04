@@ -10,8 +10,18 @@ Public API exports:
     - load_and_render_for_builder, load_and_render_for_auditor, load_and_render_for_doctor: prompt injection helpers
     - load_and_render_for_builder_with_telemetry, load_and_render_for_auditor_with_telemetry, load_and_render_for_doctor_with_telemetry: telemetry-aware helpers
     - get_canonical_path: path resolver
+    - generate_anchor_summary, save_anchor_summary, log_anchor_event, read_anchor_events: SOT artifact helpers
 """
 
+from .artifacts import (
+    generate_anchor_diff_summary,
+    generate_anchor_summary,
+    get_anchor_events_path,
+    get_anchor_summary_path,
+    log_anchor_event,
+    read_anchor_events,
+    save_anchor_summary,
+)
 from .models import (
     IntentionAnchor,
     IntentionBudgets,
@@ -70,4 +80,12 @@ __all__ = [
     "load_and_render_for_builder_with_telemetry",
     "load_and_render_for_auditor_with_telemetry",
     "load_and_render_for_doctor_with_telemetry",
+    # SOT artifact helpers
+    "generate_anchor_summary",
+    "save_anchor_summary",
+    "log_anchor_event",
+    "read_anchor_events",
+    "get_anchor_summary_path",
+    "get_anchor_events_path",
+    "generate_anchor_diff_summary",
 ]

@@ -167,6 +167,124 @@ This preserves the schema field name and removes warning spam in tests/CI.
 
 ---
 
+## Follow-up D — Make the “catalog refresh” the only routing entrypoint (no bypass)
+
+### Objective
+Ensure callers cannot accidentally bypass catalog-backed routing by calling the legacy
+`model_routing_snapshot.refresh_or_load_snapshot()` code path.
+
+### Direction
+`src/autopack/model_routing_snapshot.refresh_or_load_snapshot()` must delegate internally to the
+catalog-backed implementation (with a safe fallback to `create_default_snapshot()`).
+
+### Deliverables
+- Update `src/autopack/model_routing_snapshot.py`:
+  - `refresh_or_load_snapshot(...)` becomes the canonical entrypoint and delegates to
+    `autopack.model_routing_refresh.refresh_or_load_snapshot_with_catalog(...)`.
+  - Use a lazy import inside the function to avoid circular imports.
+  - Preserve the current “load if fresh else create default + save” behavior as a fallback
+    if the catalog module fails for any reason.
+
+### Acceptance criteria
+- Any call to `refresh_or_load_snapshot()` results in a snapshot that is:
+  - catalog-backed when available,
+  - otherwise default-backed,
+  - and always persisted run-locally.
+
+### Tests
+- Add/extend tests to ensure `refresh_or_load_snapshot()` uses the catalog path (mock the catalog function).
+
+---
+
+## Follow-up E — Ensure routing snapshot decisions are consumed by real model selection
+
+### Objective
+Avoid “unused artifact” risk: a routing snapshot must actually influence which model is used.
+
+### Direction
+Use the existing per-run override plumbing in `ModelRouter` (via `run_context["model_overrides"]`)
+as the minimal integration mechanism. This avoids a refactor of `LlmService` and keeps wiring localized.
+
+### Chosen mapping (deterministic)
+Map snapshot tier → existing complexity lanes:
+- `haiku` → `low`
+- `sonnet` → `medium`
+- `opus` → `high`
+
+### Deliverables
+- In the executor wiring (Phase A), when a snapshot is created/loaded:
+  - Build a `run_context` that can carry overrides.
+  - Apply overrides for builder and auditor using the key format already used by `ModelRouter`:
+    - `"{task_category}:{complexity}"`
+  - On a tier escalation decision, update overrides for the phase’s next attempt.
+
+### Acceptance criteria
+- A tier escalation decision results in a different `resolved_model` being used on the next attempt.
+- Max 1 escalation per phase remains enforced.
+
+### Tests
+- Add a small integration-style unit test that:
+  - sets `run_context` overrides,
+  - calls `LlmService.execute_builder_phase(..., run_context=...)` with a stubbed router/client,
+  - asserts that the chosen model matches the override.
+
+---
+
+## Follow-up F — Strengthen SOT write protection (static/read-only)
+
+### Objective
+Prevent accidental runtime writes to SOT ledgers (`README.md`, `docs/*`) from *any* runtime-reachable code path,
+not just the executor file itself.
+
+### Direction
+Expand the static SOT write protection script (read-only) to scan a curated set of runtime modules
+that are commonly imported during execution.
+
+### Deliverables
+- Update `scripts/check_sot_write_protection.py` to scan:
+  - `src/autopack/autonomous_executor.py`
+  - `src/autopack/llm_service.py`
+  - `src/autopack/archive_consolidator.py`
+  - `src/autopack/debug_journal.py`
+  - `src/autopack/intention_wiring.py`
+  - `src/autopack/autonomous/intention_first_loop.py`
+- Extend pattern matching to catch common write APIs even when paths are constructed.
+
+### Acceptance criteria
+- CI fails if any of those modules contain likely write calls targeting protected SOT paths.
+- Script remains conservative (low false positives) and does not execute code.
+
+---
+
+## Follow-up G — Deterministic budget semantics + policy enforcement tests
+
+### Objective
+Make `budget_remaining` a deterministic, intention-anchored input to stuck handling (no guessing),
+and enforce “replan-before-escalate” and “max 1 escalation per phase” under budget pressure.
+
+### Direction (chosen)
+Compute `budget_remaining` as a deterministic fraction `0..1` derived from:
+- Intention Anchor budgets (`anchor.budgets.max_context_chars`, `anchor.budgets.max_sot_chars`)
+- deterministic run token cap (`settings.run_token_cap`)
+- measured usage (usage events already recorded by `LlmService`)
+
+Then take the minimum of token/context/SOT remaining fractions and clamp to `[0,1]`.
+
+### Deliverables
+- New helper module: `src/autopack/autonomous/budgeting.py`
+  - `compute_budget_remaining(...) -> float`
+  - inputs must be explicit and testable (no implicit global state)
+- Executor wiring uses this helper to feed `IntentionFirstLoop.decide_when_stuck(...)`.
+
+### Tests
+- `tests/autopack/test_budgeting.py` (pure function tests: clamping, determinism, edge cases)
+- `tests/autopack/test_intention_first_loop_budget_policy.py`:
+  - verifies “replan before escalate”
+  - verifies “max 1 escalation per phase”
+  - verifies low budget drives `REDUCE_SCOPE` rather than escalation
+
+---
+
 ## CI / Read-only posture (must remain true)
 
 The following must remain mechanically enforced:

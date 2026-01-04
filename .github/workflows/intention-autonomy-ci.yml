@@ -60,6 +60,8 @@ jobs:
         run: |
           PYTHONUTF8=1 PYTHONPATH=src DATABASE_URL="sqlite:///:memory:" pytest -q \
             tests/autopack/test_stuck_handling.py \
+            tests/autopack/test_intention_first_loop.py \
+            tests/autopack/test_model_routing_refresh.py \
             tests/autopack/test_model_routing_snapshot.py \
             tests/autopack/test_scope_reduction.py \
             tests/autopack/test_phase_proof.py

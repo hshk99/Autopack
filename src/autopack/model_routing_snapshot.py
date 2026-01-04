@@ -13,11 +13,13 @@ All routing decisions are reproducible via persisted snapshot.
 from __future__ import annotations
 
 import json
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
+
+from autopack.file_layout import RunFileLayout
 
 
 class ModelTier(str):
@@ -116,9 +118,15 @@ class RoutingSnapshotStorage:
     """
 
     @staticmethod
-    def get_snapshot_path(run_id: str) -> Path:
-        """Get canonical path for routing snapshot."""
-        return Path(f".autonomous_runs/{run_id}/model_routing_snapshot.json")
+    def get_snapshot_path(run_id: str, project_id: str | None = None) -> Path:
+        """
+        Get canonical path for routing snapshot.
+
+        Uses the repo-standard run layout:
+        `.autonomous_runs/<project>/runs/<family>/<run_id>/model_routing_snapshot.json`
+        """
+        layout = RunFileLayout(run_id=run_id, project_id=project_id)
+        return layout.base_dir / "model_routing_snapshot.json"
 
     @staticmethod
     def save_snapshot(snapshot: ModelRoutingSnapshot) -> None:
@@ -170,9 +178,23 @@ class RoutingSnapshotStorage:
         Returns:
             True if fresh, False if expired
         """
-        if snapshot.expires_at is None:
-            return True
-        return datetime.now() < snapshot.expires_at
+        # Important: this codebase uses a mix of naive and timezone-aware datetimes.
+        # For determinism (esp. in tests), compare naive-with-naive and aware-with-aware.
+
+        # If expires_at is provided, treat it as authoritative.
+        if snapshot.expires_at is not None:
+            expires_at = snapshot.expires_at
+            if expires_at.tzinfo is None:
+                return datetime.now() < expires_at
+            return datetime.now(timezone.utc) < expires_at.astimezone(timezone.utc)
+
+        # Otherwise, fall back to created_at age (bounded freshness).
+        created_at = snapshot.created_at
+        if created_at.tzinfo is None:
+            return datetime.now() < (created_at + timedelta(hours=max_age_hours))
+        return datetime.now(timezone.utc) < (
+            created_at.astimezone(timezone.utc) + timedelta(hours=max_age_hours)
+        )
 
 
 def create_default_snapshot(run_id: str) -> ModelRoutingSnapshot:
@@ -187,7 +209,7 @@ def create_default_snapshot(run_id: str) -> ModelRoutingSnapshot:
     Returns:
         Default routing snapshot
     """
-    now = datetime.now()
+    now = datetime.now(timezone.utc)
     return ModelRoutingSnapshot(
         snapshot_id=f"default-{run_id}",
         run_id=run_id,

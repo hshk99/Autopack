@@ -17,7 +17,9 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
+
+from autopack.file_layout import RunFileLayout
 
 
 class PhaseVerification(BaseModel):
@@ -67,6 +69,14 @@ class PhaseChange(BaseModel):
         ..., max_length=500, description="Short summary of changes"
     )
 
+    @field_validator("key_changes")
+    @classmethod
+    def _validate_key_changes_item_length(cls, v: list[str]) -> list[str]:
+        for item in v:
+            if len(item) > 200:
+                raise ValueError("Each key_changes item must be <= 200 characters")
+        return v
+
 
 class PhaseProof(BaseModel):
     """
@@ -101,14 +111,24 @@ class PhaseProofStorage:
     """
 
     @staticmethod
-    def get_proof_path(run_id: str, phase_id: str) -> Path:
-        """Get canonical path for phase proof artifact."""
-        return Path(f".autonomous_runs/{run_id}/proofs/{phase_id}.json")
+    def get_proof_path(
+        run_id: str, phase_id: str, project_id: str | None = None
+    ) -> Path:
+        """
+        Get canonical path for phase proof artifact.
+
+        Uses the repo-standard run layout:
+        `.autonomous_runs/<project>/runs/<family>/<run_id>/proofs/<phase_id>.json`
+        """
+        layout = RunFileLayout(run_id=run_id, project_id=project_id)
+        safe_phase_id = phase_id.replace(" ", "_").replace("/", "_")
+        return layout.base_dir / "proofs" / f"{safe_phase_id}.json"
 
     @staticmethod
-    def get_proof_dir(run_id: str) -> Path:
+    def get_proof_dir(run_id: str, project_id: str | None = None) -> Path:
         """Get directory for all proof artifacts in this run."""
-        return Path(f".autonomous_runs/{run_id}/proofs")
+        layout = RunFileLayout(run_id=run_id, project_id=project_id)
+        return layout.base_dir / "proofs"
 
     @staticmethod
     def save_proof(proof: PhaseProof) -> None:

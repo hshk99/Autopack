@@ -17,16 +17,21 @@ from autopack.phase_proof import (
     PhaseVerification,
     render_proof_as_markdown,
 )
+from autopack.config import settings
 
 
 @pytest.fixture
 def temp_run_dir(tmp_path):
-    """Create temporary run directory."""
-    run_dir = tmp_path / ".autonomous_runs" / "test-run"
-    run_dir.mkdir(parents=True, exist_ok=True)
-    yield run_dir
-    # Cleanup
-    shutil.rmtree(tmp_path / ".autonomous_runs", ignore_errors=True)
+    """Create temporary autonomous_runs root dir and point Settings at it."""
+    runs_root = tmp_path / ".autonomous_runs"
+    runs_root.mkdir(parents=True, exist_ok=True)
+    old = settings.autonomous_runs_dir
+    settings.autonomous_runs_dir = str(runs_root)
+    try:
+        yield runs_root
+    finally:
+        settings.autonomous_runs_dir = old
+        shutil.rmtree(runs_root, ignore_errors=True)
 
 
 class TestPhaseVerification:
@@ -205,8 +210,6 @@ class TestPhaseProofStorage:
 
     def test_save_and_load_proof(self, temp_run_dir, monkeypatch):
         """Roundtrip: save → load preserves all fields."""
-        monkeypatch.chdir(temp_run_dir.parent.parent)
-
         now = datetime.now()
         proof = PhaseProof(
             proof_id="proof-1",
@@ -250,8 +253,6 @@ class TestPhaseProofStorage:
 
     def test_list_proofs(self, temp_run_dir, monkeypatch):
         """List all proofs in a run."""
-        monkeypatch.chdir(temp_run_dir.parent.parent)
-
         now = datetime.now()
         for i in range(3):
             proof = PhaseProof(

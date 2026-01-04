@@ -2,7 +2,7 @@ name: Intention-First Autonomy CI (Read-Only)
 
 on:
   push:
-    branches: [main, feat/intention-first-autonomy-loop]
+    branches: [main]
   pull_request:
     branches: [main]
 
@@ -10,6 +10,8 @@ jobs:
   docs-integrity:
     name: Documentation Integrity Checks
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
 
     steps:
       - uses: actions/checkout@v4
@@ -38,6 +40,8 @@ jobs:
   intention-autonomy-tests:
     name: Intention-First Autonomy Tests
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
 
     steps:
       - uses: actions/checkout@v4
@@ -66,6 +70,8 @@ jobs:
   sot-write-protection:
     name: SOT Write Protection Check
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
 
     steps:
       - uses: actions/checkout@v4
@@ -82,13 +88,4 @@ jobs:
 
       - name: Check executor doesn't modify SOT files
         run: |
-          # This is a static check - in a real implementation, we'd verify that
-          # autonomous_executor.py doesn't directly write to SOT files
-          echo "✅ SOT write protection enforced by design"
-          echo "Protected files:"
-          echo "  - README.md"
-          echo "  - docs/BUILD_HISTORY.md"
-          echo "  - docs/DEBUG_LOG.md"
-          echo "  - docs/ARCHITECTURE_DECISIONS.md"
-          echo ""
-          echo "All writes go through run-local artifacts only"
+          PYTHONUTF8=1 PYTHONPATH=src python scripts/check_sot_write_protection.py

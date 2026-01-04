@@ -17,16 +17,21 @@ from autopack.model_routing_snapshot import (
     create_default_snapshot,
     refresh_or_load_snapshot,
 )
+from autopack.config import settings
 
 
 @pytest.fixture
 def temp_run_dir(tmp_path):
-    """Create temporary run directory."""
-    run_dir = tmp_path / ".autonomous_runs" / "test-run"
-    run_dir.mkdir(parents=True, exist_ok=True)
-    yield run_dir
-    # Cleanup
-    shutil.rmtree(tmp_path / ".autonomous_runs", ignore_errors=True)
+    """Create temporary autonomous_runs root dir and point Settings at it."""
+    runs_root = tmp_path / ".autonomous_runs"
+    runs_root.mkdir(parents=True, exist_ok=True)
+    old = settings.autonomous_runs_dir
+    settings.autonomous_runs_dir = str(runs_root)
+    try:
+        yield runs_root
+    finally:
+        settings.autonomous_runs_dir = old
+        shutil.rmtree(runs_root, ignore_errors=True)
 
 
 class TestModelRoutingEntry:
@@ -214,9 +219,6 @@ class TestRoutingSnapshotStorage:
 
     def test_save_and_load_snapshot(self, temp_run_dir, monkeypatch):
         """Roundtrip: save → load preserves all fields."""
-        # Change CWD to temp dir so .autonomous_runs is created there
-        monkeypatch.chdir(temp_run_dir.parent.parent)
-
         snapshot = ModelRoutingSnapshot(
             snapshot_id="snap-1",
             run_id="test-run",
@@ -270,7 +272,7 @@ class TestRoutingSnapshotStorage:
         assert not RoutingSnapshotStorage.is_snapshot_fresh(expired_snapshot)
 
     def test_snapshot_without_expiry_always_fresh(self):
-        """Snapshot without expiry is always fresh."""
+        """Snapshot without expiry uses created_at age for freshness."""
         snapshot = ModelRoutingSnapshot(
             snapshot_id="snap-1",
             run_id="test-run",
@@ -279,6 +281,15 @@ class TestRoutingSnapshotStorage:
             entries=[],
         )
         assert RoutingSnapshotStorage.is_snapshot_fresh(snapshot)
+
+        old_snapshot = ModelRoutingSnapshot(
+            snapshot_id="snap-2",
+            run_id="test-run",
+            created_at=datetime.now() - timedelta(hours=48),
+            expires_at=None,
+            entries=[],
+        )
+        assert not RoutingSnapshotStorage.is_snapshot_fresh(old_snapshot)
 
 
 class TestDefaultSnapshot:
@@ -304,8 +315,6 @@ class TestRefreshOrLoadSnapshot:
 
     def test_refresh_creates_new_snapshot(self, temp_run_dir, monkeypatch):
         """Force refresh creates new snapshot."""
-        monkeypatch.chdir(temp_run_dir.parent.parent)
-
         snapshot = refresh_or_load_snapshot("test-run", force_refresh=True)
         assert snapshot is not None
         assert snapshot.run_id == "test-run"
@@ -316,8 +325,6 @@ class TestRefreshOrLoadSnapshot:
 
     def test_load_existing_fresh_snapshot(self, temp_run_dir, monkeypatch):
         """Load existing fresh snapshot without refresh."""
-        monkeypatch.chdir(temp_run_dir.parent.parent)
-
         # Create and save a snapshot
         original = create_default_snapshot("test-run")
         original.snapshot_id = "original-snap"
@@ -329,8 +336,6 @@ class TestRefreshOrLoadSnapshot:
 
     def test_refresh_expired_snapshot(self, temp_run_dir, monkeypatch):
         """Expired snapshot is refreshed."""
-        monkeypatch.chdir(temp_run_dir.parent.parent)
-
         # Create expired snapshot
         expired = ModelRoutingSnapshot(
             snapshot_id="expired-snap",

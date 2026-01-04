@@ -7,6 +7,37 @@ from typing import Any, Dict, List, Optional
 from pydantic import BaseModel, Field, ConfigDict, field_validator
 
 
+class IntentionRefs(BaseModel):
+    """
+    References from a phase to specific Intention Anchor fields.
+
+    Intention behind it: make every phase traceable to user intent, enabling
+    explainable autonomy and preventing goal drift.
+
+    Schema uses index-based references (e.g., success_criteria: [0, 2])
+    pointing to specific bullets in the anchor's lists.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    success_criteria: List[int] = Field(
+        default_factory=list,
+        description="Indices of anchor.success_criteria this phase serves",
+    )
+    constraints_must: List[int] = Field(
+        default_factory=list,
+        description="Indices of anchor.constraints.must this phase must satisfy",
+    )
+    constraints_must_not: List[int] = Field(
+        default_factory=list,
+        description="Indices of anchor.constraints.must_not this phase must avoid",
+    )
+    constraints_preferences: List[int] = Field(
+        default_factory=list,
+        description="Indices of anchor.constraints.preferences this phase should prefer",
+    )
+
+
 class RunCreate(BaseModel):
     """Request to create a new run"""
 
@@ -39,6 +70,10 @@ class PhaseCreate(BaseModel):
     complexity: Optional[str] = Field(None, description="Complexity: low, medium, or high")
     builder_mode: Optional[str] = Field(None, description="Builder mode (e.g. tweak_light)")
     scope: Optional[Dict[str, Any]] = Field(None, description="Scope configuration: paths and read_only_context")
+    intention_refs: Optional[IntentionRefs] = Field(
+        None,
+        description="Optional references to Intention Anchor fields this phase serves (Milestone 1: warn-first mode)",
+    )
 
     @field_validator("scope", mode="before")
     @classmethod
@@ -121,6 +156,7 @@ class PhaseResponse(BaseModel):
     builder_mode: Optional[str]
     phase_index: int
     scope: Optional[Dict[str, Any]] = None
+    intention_refs: Optional[IntentionRefs] = None
 
     @field_validator("scope", mode="before")
     @classmethod

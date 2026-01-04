@@ -44,6 +44,8 @@ Note: SOT→DB sync (`scripts/tidy/sot_db_sync.py`) exists as a derived index (`
 
 ## Project Status
 
+**Version**: 0.5.1
+
 <!-- SOT_SUMMARY_START -->
 **Last Updated**: 2026-01-04 20:59
 

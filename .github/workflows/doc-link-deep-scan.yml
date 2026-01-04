@@ -25,7 +25,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install -r requirements-dev.txt
+          pip install -e ".[dev]"
 
       - name: Run deep doc link scan
         id: scan

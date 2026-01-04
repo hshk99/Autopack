@@ -34,6 +34,7 @@ These are the canonical references that should stay current and are designed to 
 - **Running Autopack / using the API**: `docs/QUICKSTART.md`, `docs/API_BASICS.md`, `docs/CANONICAL_API_CONTRACT.md`
 - **True Autonomy implementation details**: `docs/IMPLEMENTATION_PLAN_TRUE_AUTONOMY.md`, `archive/superseded/reports/unsorted/TRUE_AUTONOMY_COMPLETE_IMPLEMENTATION_REPORT.md`
 - **Intention Anchor lifecycle (plan → build → audit → SOT → retrieve)**: `docs/IMPLEMENTATION_PLAN_INTENTION_ANCHOR_LIFECYCLE.md`
+- **Intention-first autonomy loop (remaining improvements: executor wiring + catalog refresh + contracts)**: `docs/IMPLEMENTATION_PLAN_INTENTION_FIRST_AUTONOMY_LOOP_REMAINING_IMPROVEMENTS.md`
 - **Intention Anchor consolidation (placeholder → report-only → gated apply)**: `docs/IMPLEMENTATION_PLAN_INTENTION_ANCHOR_CONSOLIDATION.md` (**BUILD-160 COMPLETE**: Hardening complete with P0 safety + P1 validation + P2 UX, 62 consolidation tests passing, production-ready, see [DEC-042](#dec-042) for consolidation pattern)
 - **Storage Optimizer**: `archive/superseded/reports/unsorted/STORAGE_OPTIMIZER_MVP_COMPLETION.md`, `docs/STORAGE_OPTIMIZER_INTELLIGENCE_COMPLETE.md`, `docs/STORAGE_OPTIMIZER_AUTOMATION.md`
 - **Protection & Retention Policy**: `docs/PROTECTION_AND_RETENTION_POLICY.md` (unified policy for Tidy + Storage Optimizer)

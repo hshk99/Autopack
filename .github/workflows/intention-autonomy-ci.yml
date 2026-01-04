@@ -1,0 +1,91 @@
+name: Intention-First Autonomy CI (Read-Only)
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  docs-integrity:
+    name: Documentation Integrity Checks
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run docs contract tests
+        run: |
+          PYTHONUTF8=1 PYTHONPATH=src DATABASE_URL="sqlite:///:memory:" pytest -q tests/docs
+        env:
+          PYTHONUNBUFFERED: 1
+
+      - name: Check SOT summary sync
+        run: |
+          PYTHONUTF8=1 python scripts/tidy/sot_summary_refresh.py --check
+        continue-on-error: false
+
+  intention-autonomy-tests:
+    name: Intention-First Autonomy Tests
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run autonomy module tests
+        run: |
+          PYTHONUTF8=1 PYTHONPATH=src DATABASE_URL="sqlite:///:memory:" pytest -q \
+            tests/autopack/test_stuck_handling.py \
+            tests/autopack/test_model_routing_snapshot.py \
+            tests/autopack/test_scope_reduction.py \
+            tests/autopack/test_phase_proof.py
+        env:
+          PYTHONUNBUFFERED: 1
+
+  # Phase 6: Ensure executor never writes to SOT
+  sot-write-protection:
+    name: SOT Write Protection Check
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Check executor doesn't modify SOT files
+        run: |
+          PYTHONUTF8=1 PYTHONPATH=src python scripts/check_sot_write_protection.py

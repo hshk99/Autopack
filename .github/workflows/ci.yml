@@ -20,8 +20,7 @@ jobs:
           python-version: '3.11'
       - name: Install dependencies
         run: |
-          pip install -r requirements.txt
-          pip install --no-deps -e ".[dev]"
+          pip install -e ".[dev]"
       - name: Install pip-tools for drift checks
         run: |
           pip install pip-tools
@@ -51,8 +50,7 @@ jobs:
           python-version: '3.11'
       - name: Install dependencies
         run: |
-          pip install -r requirements.txt
-          pip install --no-deps -e ".[dev]"
+          pip install -e ".[dev]"
       - name: Run doc-contract tests
         run: |
           pytest -q tests/docs/
@@ -94,8 +92,7 @@ jobs:
           python-version: '3.11'
       - name: Install dependencies
         run: |
-          pip install -r requirements.txt
-          pip install --no-deps -e ".[dev]"
+          pip install -e ".[dev]"
       - name: Run core tests (excluding research and aspirational)
         env:
           # BUILD-146 P11 Ops: Explicitly set DATABASE_URL to prevent footguns
@@ -146,8 +143,7 @@ jobs:
           python-version: '3.11'
       - name: Install dependencies
         run: |
-          pip install -r requirements.txt
-          pip install --no-deps -e ".[dev]"
+          pip install -e ".[dev]"
       - name: Run aspirational tests
         env:
           DATABASE_URL: postgresql://autopack:autopack@localhost:5432/autopack
@@ -175,8 +171,7 @@ jobs:
           python-version: '3.11'
       - name: Install dependencies
         run: |
-          pip install -r requirements.txt
-          pip install --no-deps -e ".[dev]"
+          pip install -e ".[dev]"
       - name: Run research tests
         env:
           # Research tests use in-memory DB (faster, isolated)
@@ -201,8 +196,7 @@ jobs:
           python-version: '3.11'
       - name: Install dependencies
         run: |
-          pip install -r requirements.txt
-          pip install --no-deps -e ".[dev]"
+          pip install -e ".[dev]"
       - name: Run preflight gate (normal profile)
         env:
           CI_PROFILE: normal
@@ -222,8 +216,7 @@ jobs:
           python-version: '3.11'
       - name: Install dependencies
         run: |
-          pip install -r requirements.txt
-          pip install --no-deps -e ".[dev]"
+          pip install -e ".[dev]"
       - name: Run preflight gate (strict profile)
         env:
           CI_PROFILE: strict

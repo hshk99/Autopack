@@ -214,7 +214,7 @@ def test_pr_callback_already_processed(client, db_session, approval_request):
         }
     }
 
-    with patch("autopack.main.answer_telegram_callback") as mock_answer:
+    with patch("autopack.main.answer_telegram_callback"):
         with patch("autopack.main.os.getenv", return_value="fake-token"):
             response = client.post("/telegram/webhook", json=callback_payload)
 

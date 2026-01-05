@@ -9,9 +9,6 @@ Per IMPLEMENTATION_PLAN_PR_APPROVAL_PIPELINE.md minimal test coverage:
 from __future__ import annotations
 
 import json
-from pathlib import Path
-
-import pytest
 
 from autopack.pr.proposal_artifacts import (
     PrProposal,
@@ -74,7 +71,6 @@ def test_proposal_storage_save_load(tmp_path):
 
     # Actually, let's test the internal methods directly
     # First, save
-    import os
     from unittest.mock import patch
 
     with patch("autopack.pr.proposal_artifacts.RunFileLayout") as mock_layout:

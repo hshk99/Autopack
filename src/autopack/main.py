@@ -1018,8 +1018,6 @@ async def _handle_pr_callback(
     Updates ApprovalRequest by approval_id (not phase_id) to avoid collisions.
     """
     try:
-        from autopack.notifications.telegram_notifier import TelegramNotifier
-
         # Parse callback: "pr_approve:123" or "pr_reject:123"
         action, approval_id_str = callback_data.split(":", 1)
         approval_id = int(approval_id_str)

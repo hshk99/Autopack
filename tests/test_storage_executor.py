@@ -60,10 +60,12 @@ def test_policy():
         protected_globs=["src/**", "tests/**", "docs/**", "*.db"],
         categories={
             "test_category": CategoryPolicy(
+                name="test_category",
                 match_globs=["**/test_data/**"],
-                delete_allowed=True,
+                delete_enabled=True,
                 delete_requires_approval=True,
-                compress_allowed=True,
+                compress_enabled=True,
+                compress_requires_approval=False,
             )
         },
         retention_days={},

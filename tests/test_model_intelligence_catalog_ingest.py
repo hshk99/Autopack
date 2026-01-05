@@ -141,7 +141,9 @@ def test_ingest_catalog_idempotent(in_memory_session, sample_models_yaml):
     assert len(models) == count1
 
 
-@pytest.mark.skip(reason="Implementation bug: ingest_pricing is creating duplicate records instead of updating existing ones (assert 3 == 0). Needs implementation fix in separate PR.")
+@pytest.mark.skip(
+    reason="Implementation bug: ingest_pricing is creating duplicate records instead of updating existing ones (assert 3 == 0). Needs implementation fix in separate PR."
+)
 def test_ingest_pricing_updates_existing(in_memory_session, sample_pricing_yaml):
     """Test that pricing ingestion updates existing records."""
     # First ingestion

@@ -51,8 +51,15 @@ def test_checkpoint_and_revert(tmp_path: Path):
     import subprocess
 
     subprocess.run(["git", "init"], cwd=repo, check=True, capture_output=True)
-    subprocess.run(["git", "config", "user.name", "Test User"], cwd=repo, check=True, capture_output=True)
-    subprocess.run(["git", "config", "user.email", "test@example.com"], cwd=repo, check=True, capture_output=True)
+    subprocess.run(
+        ["git", "config", "user.name", "Test User"], cwd=repo, check=True, capture_output=True
+    )
+    subprocess.run(
+        ["git", "config", "user.email", "test@example.com"],
+        cwd=repo,
+        check=True,
+        capture_output=True,
+    )
     subprocess.run(["git", "add", "file.txt"], cwd=repo, check=True, capture_output=True)
     subprocess.run(["git", "commit", "-m", "init"], cwd=repo, check=True, capture_output=True)
 

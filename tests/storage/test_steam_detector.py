@@ -12,8 +12,7 @@ from datetime import datetime, timedelta
 
 # Skip all tests on non-Windows platforms (winreg is Windows-only)
 pytestmark = pytest.mark.skipif(
-    sys.platform != "win32",
-    reason="Steam detector tests require Windows (winreg module)"
+    sys.platform != "win32", reason="Steam detector tests require Windows (winreg module)"
 )
 
 

@@ -115,7 +115,8 @@ jobs:
         if: steps.check-changes.outputs.changed == 'true'
         run: |
           DATESTAMP=$(date +%Y%m%d)
-          BRANCH="security/baseline-refresh-${DATESTAMP}"
+          RUN_ID="${{ github.run_id }}"
+          BRANCH="security/baseline-refresh-${DATESTAMP}-${RUN_ID}"
 
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
@@ -142,7 +143,8 @@ jobs:
         id: check-pr
         run: |
           DATESTAMP=$(date +%Y%m%d)
-          BRANCH="security/baseline-refresh-${DATESTAMP}"
+          RUN_ID="${{ github.run_id }}"
+          BRANCH="security/baseline-refresh-${DATESTAMP}-${RUN_ID}"
 
           EXISTING_PR=$(gh pr list --head "${BRANCH}" --state open --json number --jq '.[0].number' || echo "")
 
@@ -159,7 +161,8 @@ jobs:
         if: steps.check-changes.outputs.changed == 'true' && steps.check-pr.outputs.pr_exists == 'false'
         run: |
           DATESTAMP=$(date +%Y%m%d)
-          BRANCH="security/baseline-refresh-${DATESTAMP}"
+          RUN_ID="${{ github.run_id }}"
+          BRANCH="security/baseline-refresh-${DATESTAMP}-${RUN_ID}"
 
           gh pr create \
             --title "security: Refresh baselines (SECBASE-${DATESTAMP} - STUB)" \

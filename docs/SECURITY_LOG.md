@@ -130,6 +130,85 @@ Baselines may ONLY be updated via the following explicit process (never automati
 
 ---
 
+## Phase B Automation (Operational Checklist)
+
+**Status**: ✅ Operational (validated as of SECBASE-20260106)
+
+**What It Does**: Phase B workflow (`.github/workflows/security-baseline-refresh.yml`) automates steps 2-6 of the manual baseline update process above. It runs on-demand (not scheduled) and creates a PR with stub SECBASE entry for human completion.
+
+**Manual Trigger** (recommended until weekly schedule validated):
+```bash
+# From local machine or GitHub UI
+gh workflow run security-baseline-refresh.yml --ref main
+
+# Watch progress
+gh run list --workflow=security-baseline-refresh.yml --limit 1
+gh run watch <run-id>
+```
+
+**Expected Outcomes**:
+
+1. **No Changes Path** (baselines up-to-date):
+   - Workflow step: "Skip PR creation (no changes)" executes
+   - No PR created
+   - No manual action required
+
+2. **Changes Path** (baselines drifted):
+   - PR created: `security/baseline-refresh-YYYYMMDD-<run-id>`
+   - Label: `security-baseline-update`
+   - SECBASE entry: **STUB with TODO markers** (not ready to merge)
+   - CI blocks merge until SECBASE entry completed
+
+**Completing SECBASE Entry** (changes path only):
+
+1. **Checkout the PR branch**:
+   ```bash
+   gh pr checkout <pr-number>
+   ```
+
+2. **Review baseline diff**:
+   ```bash
+   git diff origin/main...HEAD security/baselines/
+   ```
+
+3. **Complete SECBASE entry in docs/SECURITY_LOG.md**:
+   - Replace `## SECBASE-TODO-REPLACE-WITH-REAL-CONTENT` with `## SECBASE-YYYYMMDD: <descriptive title>`
+   - Replace all `TODO` markers with actual content:
+     - Before/after finding counts (extract from workflow logs or run `diff_gate.py --report`)
+     - Rationale for baseline changes (e.g., "dependency upgrade: requests 2.28→2.31", "CVE-2024-XXXX remediation")
+     - Security team reviewer name
+   - Include workflow run URL and commit SHA (already in stub)
+
+4. **Update SECURITY_BURNDOWN.md narrative** (if needed):
+   - If findings categories changed, update "Notes" section to match new baseline
+   - Run `python scripts/security/generate_security_burndown_counts.py` to refresh auto-counts
+
+5. **Commit and push**:
+   ```bash
+   git add docs/SECURITY_LOG.md docs/SECURITY_BURNDOWN.md
+   git commit -m "Complete SECBASE-YYYYMMDD entry (manual review)"
+   git push
+   ```
+
+6. **Verify CI green** and merge PR
+
+**Validation Checklist** (before enabling weekly schedule):
+
+- [x] No-change path validated (run ID: 20732762649, no PR created)
+- [x] Change path validated (PR #31, SECBASE-20260106 completed, merged)
+- [x] CI blocks incomplete SECBASE entries (tested in PR #31)
+- [x] Timestamp stability confirmed (SECBASE-anchored, not git commit dates)
+- [ ] Monitor Phase A weekly runs (2-3 cycles) before enabling Phase B schedule
+- [ ] Document Phase C (auto-merge exempted changes) after observing patterns
+
+**Troubleshooting**:
+
+- **PR created despite no changes**: Check SECURITY_BURNDOWN.md timestamp (should be SECBASE-anchored, not git date). See PR #34 fix.
+- **Workflow fails with "artifacts not found"**: Phase A (security-artifacts.yml) must run successfully first. Trigger manually if needed.
+- **CI blocks merge despite completed SECBASE entry**: Check for lingering `TODO` markers in SECBASE section via `grep -A20 "## SECBASE-YYYYMMDD" docs/SECURITY_LOG.md`
+
+---
+
 ## 2026-01-05: CodeQL Query Suite Change + Normalization Stability Fix
 
 **Event**: Changed CodeQL query suite from `security-and-quality` to `security-extended` and improved SARIF normalization to be shift-tolerant.

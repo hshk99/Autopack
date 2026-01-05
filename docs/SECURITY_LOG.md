@@ -6,6 +6,46 @@
 
 ---
 
+## 2026-01-05: CodeQL Query Suite Change + Normalization Stability Fix
+
+**Event**: Changed CodeQL query suite from `security-and-quality` to `security-extended` and improved SARIF normalization to be shift-tolerant.
+
+**Motivation**:
+- CodeQL diff gate was detecting 29 "new findings" on PR #27, all of which were quality/maintainability issues (not security regressions):
+  - `py/commented-out-code`, `py/repeated-import`, `py/empty-except`, `py/unreachable-statement`, `py/unused-local-variable`, `py/multiple-definition`
+- These findings caused baseline drift on benign refactors and code motion (line number changes)
+- Goal: Make CodeQL diff gate **high-signal for security**, stable across refactors, and mechanically enforceable
+
+**Changes Made**:
+
+1. **Query Suite Change** (`.github/codeql/codeql-config.yml`):
+   - Changed `queries: security-and-quality` → `queries: security-extended`
+   - Excludes quality/maintainability queries that are not security-relevant
+   - Aligns with README intent: "mechanically enforceable security gates"
+
+2. **Normalization Stability** (`scripts/security/normalize_sarif.py`):
+   - **Prefer SARIF fingerprints** (`partialFingerprints`/`fingerprints`) for stable finding keys
+   - **CodeQL shift-tolerance**: Exclude `startLine`/`startColumn` from keys when fingerprint exists or for CodeQL without fingerprint
+   - **Trivy precision**: Still include `startLine`/`startColumn` for non-CodeQL tools (CVEs are file-specific)
+   - Updated schema contract test to allow new `fingerprint` key
+
+3. **Baseline Refresh**:
+   - Refreshed `security/baselines/codeql.python.json` with security-extended findings (140 → 141 findings)
+   - Baseline now contains only security-relevant alerts, stable across code motion
+
+**Verification**:
+- All 15 security contract tests passing
+- CodeQL baseline deterministic and shift-tolerant
+- Next CI run should report 0 new findings (no quality noise)
+
+**Next Steps**:
+- Monitor CI on PR #27 to confirm diff gate stability
+- After 1-2 stable runs, consider removing `continue-on-error: true` from CodeQL diff gate
+
+**Owner**: Security team (via PR #27)
+
+---
+
 ## 2026-01-05: Policy Correction — Diff Gates Remain Non-Blocking Until Stable
 
 **Event**: Corrected rollout policy for security diff gates to avoid blocking PRs while baselines and query noise are being stabilized.

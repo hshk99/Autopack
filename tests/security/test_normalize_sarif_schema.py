@@ -91,7 +91,7 @@ def test_normalized_findings_no_unexpected_keys():
     """
     Guardrail: Normalized findings should only have expected keys.
 
-    Allowed keys: tool, ruleId, artifactUri, messageHash, startLine, startColumn
+    Allowed keys: tool, ruleId, artifactUri, messageHash, startLine, startColumn, fingerprint
 
     Unexpected keys → schema drift → potential baseline corruption.
     """
@@ -100,7 +100,7 @@ def test_normalized_findings_no_unexpected_keys():
 
     findings = normalize_sarif_file(fixture_path, tool_name="trivy")
 
-    allowed_keys = {"tool", "ruleId", "artifactUri", "messageHash", "startLine", "startColumn"}
+    allowed_keys = {"tool", "ruleId", "artifactUri", "messageHash", "startLine", "startColumn", "fingerprint"}
 
     for finding in findings:
         unexpected_keys = set(finding.keys()) - allowed_keys

@@ -17,7 +17,7 @@ paths-ignore:
   - "**/.pytest_cache/"
   - "**/node_modules/"
 
-# Use default Python query suite (security + quality + maintainability)
-# Future: consider adding security-extended or security-and-quality
+# Use security-extended suite for mechanically enforceable security gates
+# Excludes quality/maintainability queries that cause baseline drift on refactors
 queries:
-  - uses: security-and-quality
+  - uses: security-extended

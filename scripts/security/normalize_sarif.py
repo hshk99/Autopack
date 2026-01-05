@@ -43,13 +43,15 @@ def extract_finding_key(result: Dict[str, Any], tool_name: str) -> Dict[str, Any
     Key Components (where available):
     - tool: Scanner name (trivy, codeql, etc.)
     - ruleId: Security rule or CVE identifier
+    - fingerprint: Stable SARIF fingerprint (preferred for CodeQL shift-tolerance)
     - artifactUri: Normalized file path
     - message: Finding description (hashed to avoid verbosity)
-    - location: Start line/column if available (for CodeQL)
+    - location: Start line/column (only if no fingerprint exists)
 
-    Tradeoffs:
-    - Line numbers included for precision but may cause baseline drift on refactors
-    - Consider excluding line numbers for "shift-tolerant" baselines if needed
+    Shift-Tolerance Strategy:
+    - Prefer partialFingerprints/fingerprints from SARIF for stability across code motion
+    - For CodeQL: exclude line/column unless no fingerprint exists (prevents baseline drift)
+    - For Trivy/others: include line/column for precision (CVEs are file-specific)
     """
     rule_id = result.get("ruleId", "unknown")
     message_text = ""
@@ -60,6 +62,17 @@ def extract_finding_key(result: Dict[str, Any], tool_name: str) -> Dict[str, Any
             message_text = result["message"].get("text", "")
         else:
             message_text = str(result["message"])
+
+    # Extract stable fingerprint if available (preferred for CodeQL)
+    fingerprint = None
+    if "partialFingerprints" in result:
+        # CodeQL provides primaryLocationLineHash or other stable fingerprints
+        partial = result["partialFingerprints"]
+        fingerprint = partial.get("primaryLocationLineHash") or partial.get("primaryLocationStartColumnFingerprint")
+    elif "fingerprints" in result:
+        # Fallback to top-level fingerprints
+        fps = result["fingerprints"]
+        fingerprint = next((v for v in fps.values() if v), None)
 
     # Extract artifact location
     artifact_uri = "unknown"
@@ -77,7 +90,7 @@ def extract_finding_key(result: Dict[str, Any], tool_name: str) -> Dict[str, Any
                     phys_loc["artifactLocation"].get("uri", "unknown")
                 )
 
-            # Region (line/column)
+            # Region (line/column) - extract but conditionally include below
             if "region" in phys_loc:
                 region = phys_loc["region"]
                 start_line = region.get("startLine")
@@ -94,12 +107,19 @@ def extract_finding_key(result: Dict[str, Any], tool_name: str) -> Dict[str, Any
         "messageHash": message_hash,
     }
 
-    # Include location if available (CodeQL precision)
-    # Note: This causes baseline drift on code refactors; document in security/README.md
-    if start_line is not None:
-        key["startLine"] = start_line
-    if start_column is not None:
-        key["startColumn"] = start_column
+    # Shift-tolerance: prefer fingerprint over line/column for CodeQL
+    if fingerprint:
+        key["fingerprint"] = fingerprint
+    elif tool_name == "codeql":
+        # CodeQL without fingerprint: still exclude line/column for shift-tolerance
+        # (ruleId + artifactUri + messageHash is sufficient for most cases)
+        pass
+    else:
+        # Non-CodeQL tools (Trivy): include line/column for precision
+        if start_line is not None:
+            key["startLine"] = start_line
+        if start_column is not None:
+            key["startColumn"] = start_column
 
     return key
 

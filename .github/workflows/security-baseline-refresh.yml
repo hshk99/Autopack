@@ -124,7 +124,7 @@ jobs:
 
           git commit -F /tmp/commit-msg.txt
 
-          git push origin "${BRANCH}"
+          git push -f origin "${BRANCH}"
 
       - name: Check for existing PR
         if: steps.check-changes.outputs.changed == 'true'

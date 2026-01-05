@@ -18,11 +18,6 @@ import re
 from pathlib import Path
 
 
-def _normalize_title(s: str) -> str:
-    """Normalize spacing and casing for stable comparisons (INDEX titles may be truncated)."""
-    return re.sub(r"\s+", " ", s).strip().lower()
-
-
 def test_build_history_ids_are_unique_and_index_matches_sections():
     """
     Guardrail: docs/BUILD_HISTORY.md must not define duplicate BUILD-### IDs,
@@ -41,14 +36,7 @@ def test_build_history_ids_are_unique_and_index_matches_sections():
     # Match BUILD section headings: "## BUILD-### | ..." or "## BUILD-###.# | ..."
     section_re = re.compile(r"^##\s+(BUILD-\d+(?:\.\d+)?)\s*[|:]", re.MULTILINE)
 
-    # Match INDEX table rows: "| YYYY-MM-DD | BUILD-### | <title> | ..."
-    index_row_re = re.compile(
-        r"^\|\s*\d{4}-\d{2}-\d{2}\s*\|\s*(BUILD-\d+(?:\.\d+)?)\s*\|\s*([^|]+?)\s*\|",
-        re.MULTILINE
-    )
-
     section_ids = {}
-    index_ids = {}
 
     # Extract section headings
     for match in section_re.finditer(content):

@@ -107,6 +107,10 @@ class TestSOTTelemetryFields:
         """All required telemetry fields should be populated correctly"""
         run, phase = test_run_and_phase
 
+        # Store run.id before it becomes detached
+        run_id = run.id
+        phase_id = phase.phase_id
+
         # Enable telemetry
         with patch.dict(os.environ, {"TELEMETRY_DB_ENABLED": "1"}, clear=False):
             with patch("autopack.database.SessionLocal", return_value=test_db):
@@ -125,7 +129,7 @@ class TestSOTTelemetryFields:
                     }
 
                     executor._record_sot_retrieval_telemetry(
-                        phase_id=phase.phase_id,
+                        phase_id=phase_id,
                         include_sot=True,
                         max_context_chars=8000,
                         retrieved_context=retrieved_context,
@@ -137,10 +141,8 @@ class TestSOTTelemetryFields:
         assert len(events) == 1, "Exactly one telemetry event should be recorded"
 
         event = events[0]
-        # Refresh run to avoid DetachedInstanceError
-        test_db.refresh(run)
-        assert event.run_id == run.id
-        assert event.phase_id == phase.phase_id
+        assert event.run_id == run_id
+        assert event.phase_id == phase_id
         assert event.include_sot is True
         assert event.max_context_chars == 8000
         assert event.sot_budget_chars == 4000

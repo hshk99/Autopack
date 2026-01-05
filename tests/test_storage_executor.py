@@ -56,8 +56,8 @@ def test_policy():
     """Create a test policy with protected paths."""
     return StoragePolicy(
         version="test-1.0",
-        date="2026-01-01",
         protected_globs=["src/**", "tests/**", "docs/**", "*.db"],
+        pinned_globs=[],
         categories={
             "test_category": CategoryPolicy(
                 name="test_category",
@@ -68,7 +68,7 @@ def test_policy():
                 compress_requires_approval=False,
             )
         },
-        retention_days={},
+        retention={},
     )
 
 

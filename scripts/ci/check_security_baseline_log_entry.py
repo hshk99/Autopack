@@ -118,7 +118,9 @@ def _extract_secbase_ids(text: str) -> Set[str]:
         # Extract the "SECBASE-YYYYMMDD" token
         tokens = match.group(0).strip().split()
         if len(tokens) >= 2:
-            ids.add(tokens[1])  # "SECBASE-YYYYMMDD"
+            # Strip trailing punctuation (e.g., "SECBASE-20260105:" -> "SECBASE-20260105")
+            secbase_id = tokens[1].rstrip(":,;.")
+            ids.add(secbase_id)
     return ids
 
 

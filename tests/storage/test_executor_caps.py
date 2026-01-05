@@ -16,7 +16,8 @@ class TestExecutorCaps:
 
     def setup_method(self):
         """Load policy for each test."""
-        policy_path = Path("c:/dev/Autopack/config/storage_policy.yaml")
+        # Use relative path from repository root
+        policy_path = Path(__file__).parent.parent.parent / "config" / "storage_policy.yaml"
         self.policy = load_policy(policy_path)
 
     # ========================================================================

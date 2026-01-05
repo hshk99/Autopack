@@ -33,6 +33,9 @@ from .usage_recorder import get_token_efficiency_stats
 
 logger = logging.getLogger(__name__)
 
+# Telegram inline callback helper (used by /telegram/webhook handlers)
+from autopack.notifications.telegram_notifier import answer_telegram_callback
+
 # Security: API Key authentication
 API_KEY_HEADER = APIKeyHeader(name="X-API-Key", auto_error=False)
 
@@ -997,6 +1000,82 @@ async def request_approval(request: Request, db: Session = Depends(get_db)):
 
 
 # ==============================================================================
+# PR Approval Telegram Callback Handler (IMPLEMENTATION_PLAN_PR_APPROVAL_PIPELINE)
+# ==============================================================================
+
+
+async def _handle_pr_callback(
+    callback_data: str, callback_id: str, username: str, db: Session
+) -> dict:
+    """Handle PR approval Telegram callbacks.
+
+    Callback formats:
+    - pr_approve:{approval_id}
+    - pr_reject:{approval_id}
+
+    Updates ApprovalRequest by approval_id (not phase_id) to avoid collisions.
+    """
+    try:
+        # Parse callback: "pr_approve:123" or "pr_reject:123"
+        action, approval_id_str = callback_data.split(":", 1)
+        approval_id = int(approval_id_str)
+
+        action_verb = "approve" if action == "pr_approve" else "reject"
+
+        logger.info(f"[TELEGRAM-PR] User @{username} {action_verb}d approval_id={approval_id}")
+
+        # Find approval request by id (not phase_id!)
+        approval_request = (
+            db.query(models.ApprovalRequest)
+            .filter(
+                models.ApprovalRequest.id == approval_id, models.ApprovalRequest.status == "pending"
+            )
+            .first()
+        )
+
+        if not approval_request:
+            logger.warning(f"[TELEGRAM-PR] No pending approval_id={approval_id}")
+            bot_token = os.getenv("TELEGRAM_BOT_TOKEN")
+            if bot_token:
+                answer_telegram_callback(
+                    bot_token,
+                    callback_id,
+                    "⚠️ Approval request not found or already processed",
+                    show_alert=True,
+                )
+            return {"ok": True, "error": "approval_not_found"}
+
+        # Update approval request
+        # NOTE: Avoid "approveed" typo; store canonical terminal statuses.
+        approval_request.status = "approved" if action == "pr_approve" else "rejected"
+        approval_request.response_method = "telegram"
+        approval_request.responded_at = datetime.now(timezone.utc)
+
+        if action == "pr_approve":
+            approval_request.approval_reason = f"Approved by Telegram user @{username}"
+        else:
+            approval_request.rejected_reason = f"Rejected by Telegram user @{username}"
+
+        db.commit()
+
+        logger.info(f"[TELEGRAM-PR] Approval {approval_id} {action_verb}ed by @{username}")
+
+        # Answer callback to remove loading state
+        bot_token = os.getenv("TELEGRAM_BOT_TOKEN")
+        if bot_token:
+            answer_telegram_callback(bot_token, callback_id, f"✅ PR creation {action_verb}ed")
+
+        return {"ok": True, "action": action_verb, "approval_id": approval_id}
+
+    except Exception as e:
+        logger.error(f"[TELEGRAM-PR] Callback error: {e}", exc_info=True)
+        bot_token = os.getenv("TELEGRAM_BOT_TOKEN")
+        if bot_token:
+            answer_telegram_callback(bot_token, callback_id, f"❌ Error: {str(e)}", show_alert=True)
+        return {"ok": False, "error": str(e)}
+
+
+# ==============================================================================
 # Storage Optimizer Telegram Callback Handler (BUILD-150 Phase 3)
 # ==============================================================================
 
@@ -1137,6 +1216,10 @@ async def telegram_webhook(request: Request, db: Session = Depends(get_db)):
         # BUILD-150 Phase 3: Handle storage optimizer callbacks
         if callback_data.startswith("storage_"):
             return await _handle_storage_callback(callback_data, callback_id, username, db)
+
+        # PR approval callbacks: "pr_approve:{approval_id}" or "pr_reject:{approval_id}"
+        if callback_data.startswith("pr_approve:") or callback_data.startswith("pr_reject:"):
+            return await _handle_pr_callback(callback_data, callback_id, username, db)
 
         # Parse callback data: "approve:{phase_id}" or "reject:{phase_id}"
         action, phase_id = callback_data.split(":", 1)

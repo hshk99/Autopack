@@ -4,10 +4,17 @@ Tests for Steam Game Detector (BUILD-151 Phase 4)
 Tests Steam installation detection, game discovery, and filtering logic.
 """
 
+import sys
 import pytest
 from unittest.mock import patch, MagicMock
 from pathlib import Path
 from datetime import datetime, timedelta
+
+# Skip all tests on non-Windows platforms (winreg is Windows-only)
+pytestmark = pytest.mark.skipif(
+    sys.platform != "win32",
+    reason="Steam detector tests require Windows (winreg module)"
+)
 
 
 class TestSteamDetection:

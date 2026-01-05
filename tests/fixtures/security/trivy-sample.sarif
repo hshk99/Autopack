@@ -1,0 +1,36 @@
+{
+  "$schema": "https://raw.githubusercontent.com/oasis-tcs/sarif-spec/master/Schemata/sarif-schema-2.1.0.json",
+  "version": "2.1.0",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "name": "Trivy",
+          "version": "0.33.1",
+          "informationUri": "https://github.com/aquasecurity/trivy"
+        }
+      },
+      "results": [
+        {
+          "ruleId": "CVE-2024-12345",
+          "level": "error",
+          "message": {
+            "text": "Test vulnerability in test-package"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "requirements.txt"
+                },
+                "region": {
+                  "startLine": 42
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

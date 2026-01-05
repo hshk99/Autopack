@@ -1,0 +1,132 @@
+name: Security SARIF Artifacts
+
+on:
+  workflow_dispatch:  # Manual trigger only - run explicitly for baseline refresh
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  export-sarif:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      # Trivy filesystem scan
+      - name: Run Trivy filesystem scan
+        uses: aquasecurity/trivy-action@b6643a29fecd7f34b3597bc6acb0a98b03d33ff8  # v0.33.1
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+          severity: 'CRITICAL,HIGH'
+          exit-code: '0'
+          ignore-unfixed: true
+          skip-dirs: '.autonomous_runs,archive'
+
+      # Trivy container scan
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f  # v3.12.0
+
+      - name: Build backend image (scan target)
+        run: |
+          docker build --target backend --tag autopack-backend:scan .
+
+      - name: Run Trivy container scan
+        uses: aquasecurity/trivy-action@b6643a29fecd7f34b3597bc6acb0a98b03d33ff8  # v0.33.1
+        with:
+          image-ref: 'autopack-backend:scan'
+          format: 'sarif'
+          output: 'trivy-container.sarif'
+          severity: 'CRITICAL,HIGH'
+          exit-code: '0'
+          ignore-unfixed: true
+
+      # CodeQL scan
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@c43362b91a940600cde2ebae39ec7a35ad66bdc0  # codeql-bundle-v2.23.8
+        with:
+          languages: 'python'
+          config-file: ./.github/codeql/codeql-config.yml
+
+      - name: Autobuild
+        uses: github/codeql-action/autobuild@c43362b91a940600cde2ebae39ec7a35ad66bdc0  # codeql-bundle-v2.23.8
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@c43362b91a940600cde2ebae39ec7a35ad66bdc0  # codeql-bundle-v2.23.8
+        with:
+          upload: false  # Don't upload to Security tab from this workflow
+          output: 'codeql-results'
+
+      # Upload SARIF artifacts with stable names
+      - name: Upload SARIF artifacts
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: security-sarif-artifacts
+          path: |
+            trivy-results.sarif
+            trivy-container.sarif
+            codeql-results/python.sarif
+          retention-days: 90
+
+      # Generate normalized baselines for comparison
+      - name: Generate normalized outputs
+        if: always()
+        run: |
+          python scripts/security/normalize_sarif.py trivy-results.sarif > trivy-fs-current.json
+          python scripts/security/normalize_sarif.py trivy-container.sarif > trivy-image-current.json
+          python scripts/security/normalize_sarif.py codeql-results/python.sarif > codeql-current.json
+
+      - name: Upload normalized artifacts
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: security-normalized-outputs
+          path: |
+            trivy-fs-current.json
+            trivy-image-current.json
+            codeql-current.json
+          retention-days: 90
+
+      # Informational only: show baseline drift (non-blocking)
+      - name: Compare against current baselines
+        if: always()
+        continue-on-error: true
+        run: |
+          echo "=== Baseline Drift Check (Informational) ==="
+          echo ""
+          echo "To update baselines from these artifacts:"
+          echo "  1. Download artifacts from this run"
+          echo "  2. Run: python scripts/security/update_baseline.py --trivy-fs trivy-results.sarif --trivy-image trivy-container.sarif --codeql codeql-results/python.sarif --write"
+          echo "  3. Document in docs/SECURITY_LOG.md"
+          echo "  4. Commit to baseline-refresh PR"
+          echo ""
+
+          if [ -f security/baselines/trivy-fs.high.json ]; then
+            python scripts/security/diff_gate.py \
+              --baseline security/baselines/trivy-fs.high.json \
+              --current trivy-fs-current.json \
+              --name "Trivy Filesystem (CRITICAL/HIGH)" || true
+          fi
+
+          if [ -f security/baselines/trivy-image.high.json ]; then
+            python scripts/security/diff_gate.py \
+              --baseline security/baselines/trivy-image.high.json \
+              --current trivy-image-current.json \
+              --name "Trivy Container Image (CRITICAL/HIGH)" || true
+          fi
+
+          if [ -f security/baselines/codeql.python.json ]; then
+            python scripts/security/diff_gate.py \
+              --baseline security/baselines/codeql.python.json \
+              --current codeql-current.json \
+              --name "CodeQL Python Analysis" || true
+          fi

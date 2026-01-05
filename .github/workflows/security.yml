@@ -19,7 +19,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: '3.11'
 
@@ -28,8 +28,18 @@ jobs:
 
       - name: Run Safety check
         run: |
-          safety check --json -r requirements.txt || true
-          safety check --json -r requirements-dev.txt || true
+          safety check --json -r requirements.txt > safety-runtime.json || true
+          safety check --json -r requirements-dev.txt > safety-dev.json || true
+
+      - name: Upload Safety artifacts
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: safety-scan-results
+          path: |
+            safety-runtime.json
+            safety-dev.json
+          retention-days: 14
 
       - name: Run Trivy vulnerability scanner (filesystem)
         uses: aquasecurity/trivy-action@b6643a29fecd7f34b3597bc6acb0a98b03d33ff8  # v0.33.1
@@ -39,12 +49,42 @@ jobs:
           format: 'sarif'
           output: 'trivy-results.sarif'
           severity: 'CRITICAL,HIGH'
+          # Keep CI green while still surfacing findings in the GitHub Security tab.
+          # If/when you want enforcement, flip to '1' (and optionally add a baseline diff gate).
+          exit-code: '0'
+          ignore-unfixed: true
+          skip-dirs: '.autonomous_runs,archive'
 
       - name: Upload Trivy results to GitHub Security tab
         uses: github/codeql-action/upload-sarif@c43362b91a940600cde2ebae39ec7a35ad66bdc0  # codeql-bundle-v2.23.8
         if: always()
         with:
           sarif_file: 'trivy-results.sarif'
+
+      - name: Normalize Trivy filesystem results
+        if: always()
+        run: |
+          python scripts/security/normalize_sarif.py trivy-results.sarif > trivy-fs-current.json
+
+      - name: Run diff gate (Trivy filesystem)
+        if: always()
+        continue-on-error: true  # Rollout mode: report regressions without blocking PRs
+        run: |
+          python scripts/security/diff_gate.py \
+            --baseline security/baselines/trivy-fs.high.json \
+            --current trivy-fs-current.json \
+            --name "Trivy Filesystem (CRITICAL/HIGH)" \
+            --allow-empty-baseline
+
+      - name: Upload Trivy filesystem artifacts (SARIF + normalized)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: trivy-fs-sarif-and-normalized
+          path: |
+            trivy-results.sarif
+            trivy-fs-current.json
+          retention-days: 14
 
   container-scan:
     runs-on: ubuntu-latest
@@ -54,22 +94,58 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f  # v3.12.0
 
-      - name: Build Docker image
-        run: docker-compose build api
+      # Build only the backend image for scanning.
+      # Note: docker-compose.yml defines service "backend" (not "api"), and its default tag is not stable for scanning.
+      - name: Build backend image (scan target)
+        run: |
+          docker build --target backend --tag autopack-backend:scan .
 
       - name: Run Trivy container scan
         uses: aquasecurity/trivy-action@b6643a29fecd7f34b3597bc6acb0a98b03d33ff8  # v0.33.1
         with:
-          image-ref: 'autopack-api:latest'
+          image-ref: 'autopack-backend:scan'
           format: 'sarif'
           output: 'trivy-container.sarif'
           severity: 'CRITICAL,HIGH'
+          exit-code: '0'
+          ignore-unfixed: true
 
       - name: Upload container scan results
         uses: github/codeql-action/upload-sarif@c43362b91a940600cde2ebae39ec7a35ad66bdc0  # codeql-bundle-v2.23.8
         if: always()
         with:
           sarif_file: 'trivy-container.sarif'
+
+      - name: Set up Python
+        if: always()
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Normalize Trivy container results
+        if: always()
+        run: |
+          python scripts/security/normalize_sarif.py trivy-container.sarif > trivy-image-current.json
+
+      - name: Run diff gate (Trivy container)
+        if: always()
+        continue-on-error: true  # Rollout mode: report regressions without blocking PRs
+        run: |
+          python scripts/security/diff_gate.py \
+            --baseline security/baselines/trivy-image.high.json \
+            --current trivy-image-current.json \
+            --name "Trivy Container Image (CRITICAL/HIGH)" \
+            --allow-empty-baseline
+
+      - name: Upload Trivy container artifacts (SARIF + normalized)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: trivy-container-sarif-and-normalized
+          path: |
+            trivy-container.sarif
+            trivy-image-current.json
+          retention-days: 14
 
   secret-scan:
     runs-on: ubuntu-latest
@@ -98,9 +174,44 @@ jobs:
         uses: github/codeql-action/init@c43362b91a940600cde2ebae39ec7a35ad66bdc0  # codeql-bundle-v2.23.8
         with:
           languages: 'python'
+          config-file: ./.github/codeql/codeql-config.yml
 
       - name: Autobuild
         uses: github/codeql-action/autobuild@c43362b91a940600cde2ebae39ec7a35ad66bdc0  # codeql-bundle-v2.23.8
 
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@c43362b91a940600cde2ebae39ec7a35ad66bdc0  # codeql-bundle-v2.23.8
+        with:
+          upload: true
+          output: 'codeql-results'
+
+      - name: Set up Python
+        if: always()
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Normalize CodeQL results
+        if: always()
+        run: |
+          # CodeQL outputs SARIF to codeql-results/python.sarif
+          python scripts/security/normalize_sarif.py codeql-results/python.sarif > codeql-current.json
+
+      - name: Run diff gate (CodeQL)
+        if: always()
+        continue-on-error: true  # Rollout mode: report regressions without blocking PRs
+        run: |
+          python scripts/security/diff_gate.py \
+            --baseline security/baselines/codeql.python.json \
+            --current codeql-current.json \
+            --name "CodeQL Python Analysis"
+
+      - name: Upload CodeQL artifacts (SARIF + normalized)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: codeql-sarif-and-normalized
+          path: |
+            codeql-results/python.sarif
+            codeql-current.json
+          retention-days: 14

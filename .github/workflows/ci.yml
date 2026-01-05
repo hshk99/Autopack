@@ -30,6 +30,9 @@ jobs:
           python scripts/check_version_consistency.py
           # Temporarily disabled: cross-platform pip-compile drift (pywin32 hashes differ)
           # python scripts/check_dependency_sync.py
+      - name: Check requirements portability (Linux/CI canonical)
+        run: |
+          python scripts/check_requirements_portability.py
       - name: Enforce GitHub Actions pinning policy
         run: |
           python scripts/ci/check_github_actions_pinning.py
@@ -45,6 +48,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Need full history for SECBASE check (git diff origin/main...HEAD)
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
@@ -61,6 +66,9 @@ jobs:
       - name: Check nav-mode doc links (README, INDEX, BUILD_HISTORY)
         run: |
           python scripts/check_doc_links.py
+      - name: Enforce security baseline logging (SECBASE required when baselines change)
+        run: |
+          python scripts/ci/check_security_baseline_log_entry.py
 
   # BUILD-146 Phase A P15: 3-gate test strategy
   # Gate 1: Core tests (must pass) - no xfail markers, production-critical

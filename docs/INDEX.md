@@ -16,6 +16,8 @@ These are the canonical references that should stay current and are designed to 
 - **`docs/DEBUG_LOG.md`**: Failures, debugging sessions, and fixes (root-cause trail).
 - **`docs/ARCHITECTURE_DECISIONS.md`**: Design rationale and key decisions (the "why").
 - **`docs/CHANGELOG.md`**: Full historical update ledger (moved from README Recent Updates on 2026-01-01).
+- **`docs/SECURITY_LOG.md`**: Security policy changes, baseline events, and verification milestones (append-only).
+- **`docs/SECURITY_EXCEPTIONS.md`**: Accepted risks with rationale and compensating controls (append-only).
 
 ### Living SOT Docs (Updated as Needed)
 - **`docs/DEPLOYMENT.md`**: Production deployment and database configuration (PostgreSQL is production).
@@ -23,6 +25,7 @@ These are the canonical references that should stay current and are designed to 
 - **`docs/MODEL_INTELLIGENCE_SYSTEM.md`**: Model catalog + recommendation system (evidence-based model upgrades).
 - **`docs/PROJECT_INDEX.json`**: Machine-friendly index for quick project orientation.
 - **`docs/LEARNED_RULES.json`**: Accumulated prevention rules / heuristics.
+- **`docs/SECURITY_BURNDOWN.md`**: Current open vulnerabilities and security debt (living tracker).
 
 **Note**: SOT docs are also used by Autopack features like artifact substitution (history pack / SOT doc summaries).
 
@@ -36,6 +39,7 @@ These are the canonical references that should stay current and are designed to 
 - **Intention Anchor lifecycle (plan → build → audit → SOT → retrieve)**: `docs/IMPLEMENTATION_PLAN_INTENTION_ANCHOR_LIFECYCLE.md`
 - **Intention-first autonomy loop (remaining improvements: executor wiring + catalog refresh + contracts)**: `docs/IMPLEMENTATION_PLAN_INTENTION_FIRST_AUTONOMY_LOOP_REMAINING_IMPROVEMENTS.md`
 - **Intention Anchor consolidation (placeholder → report-only → gated apply)**: `docs/IMPLEMENTATION_PLAN_INTENTION_ANCHOR_CONSOLIDATION.md` (**BUILD-160 COMPLETE**: Hardening complete with P0 safety + P1 validation + P2 UX, 62 consolidation tests passing, production-ready, see [DEC-042](#dec-042) for consolidation pattern)
+- **Security baseline + requirements regeneration**: `docs/IMPLEMENTATION_PLAN_INTENTION_FIRST_AUTONOMY_LOOP_REMAINING_IMPROVEMENTS.md` (**BUILD-157 COMPLETE**: CI SARIF artifacts canonical for baselines, Linux/CI canonical for requirements, mechanical enforcement via CI checks, see [DEC-043](#dec-043) + [DEC-044](#dec-044))
 - **Storage Optimizer**: `archive/superseded/reports/unsorted/STORAGE_OPTIMIZER_MVP_COMPLETION.md`, `docs/STORAGE_OPTIMIZER_INTELLIGENCE_COMPLETE.md`, `docs/STORAGE_OPTIMIZER_AUTOMATION.md`
 - **Protection & Retention Policy**: `docs/PROTECTION_AND_RETENTION_POLICY.md` (unified policy for Tidy + Storage Optimizer)
 - **Testing**: `docs/TESTING_GUIDE.md`

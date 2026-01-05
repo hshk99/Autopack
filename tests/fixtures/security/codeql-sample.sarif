@@ -1,0 +1,37 @@
+{
+  "$schema": "https://raw.githubusercontent.com/oasis-tcs/sarif-spec/master/Schemata/sarif-schema-2.1.0.json",
+  "version": "2.1.0",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "name": "CodeQL",
+          "version": "2.23.8",
+          "informationUri": "https://codeql.github.com"
+        }
+      },
+      "results": [
+        {
+          "ruleId": "py/empty-except",
+          "level": "warning",
+          "message": {
+            "text": "Empty except block"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/test/example.py"
+                },
+                "region": {
+                  "startLine": 10,
+                  "startColumn": 5
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

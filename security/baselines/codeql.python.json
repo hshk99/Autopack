@@ -1,0 +1,989 @@
+[
+  {
+    "artifactUri": "src/autopack/anthropic_clients.py",
+    "fingerprint": "387d1882fca85838:1",
+    "messageHash": "34cc9a3873b80cfa",
+    "ruleId": "py/cyclic-import",
+    "tool": "codeql"
+  },
+  {
+    "artifactUri": "src/autopack/anthropic_clients.py",
+    "fingerprint": "4ab4af7fd82487e2:1",
+    "messageHash": "514b9440bba514fb",
+    "ruleId": "py/repeated-import",
+    "tool": "codeql"
+  },
+  {
+    "artifactUri": "src/autopack/anthropic_clients.py",
+    "fingerprint": "4ab4af7fd82487e2:1",
+    "messageHash": "eb29b0b4b2557268",
+    "ruleId": "py/import-and-import-from",
+    "tool": "codeql"
+  },
+  {
+    "artifactUri": "src/autopack/anthropic_clients.py",
+    "fingerprint": "57de30a4e8377b00:1",
+    "messageHash": "ebe2c6be082bfb99",
+    "ruleId": "py/multiple-definition",
+    "tool": "codeql"
+  },
+  {
+    "artifactUri": "src/autopack/anthropic_clients.py",
+    "fingerprint": "667b169bcf840bf7:1",
+    "messageHash": "881bab6f06238381",
+    "ruleId": "py/empty-except",
+    "tool": "codeql"
+  },
+  {
+    "artifactUri": "src/autopack/anthropic_clients.py",
+    "fingerprint": "6bb0a2de734bfc6f:1",
+    "messageHash": "881bab6f06238381",
+    "ruleId": "py/empty-except",
+    "tool": "codeql"
+  },
+  {
+    "artifactUri": "src/autopack/anthropic_clients.py",
+    "fingerprint": "799876c441d0d99c:1",
+    "messageHash": "eb29b0b4b2557268",
+    "ruleId": "py/import-and-import-from",
+    "tool": "codeql"
+  },
+  {
+    "artifactUri": "src/autopack/anthropic_clients.py",
+    "fingerprint": "8f3490bb5fe1807a:1",
+    "messageHash": "881bab6f06238381",
+    "ruleId": "py/empty-except",
+    "tool": "codeql"
+  },
+  {
+    "artifactUri": "src/autopack/anthropic_clients.py",
+    "fingerprint": "9ec92d78f099ef94:1",
+    "messageHash": "eb29b0b4b2557268",
+    "ruleId": "py/import-and-import-from",
+    "tool": "codeql"
+  },
+  {
+    "artifactUri": "src/autopack/anthropic_clients.py",
+    "fingerprint": "bcc54b52e5a471c1:1",
+    "messageHash": "70cf413ca9347dac",
+    "ruleId": "py/unused-local-variable",
+    "tool": "codeql"
+  },
+  {
+    "artifactUri": "src/autopack/anthropic_clients.py",
+    "fingerprint": "c228897e7e3c2c49:1",
+    "messageHash": "34980b21fb971bcd",
+    "ruleId": "py/unreachable-statement",
+    "tool": "codeql"
+  },
+  {
+    "artifactUri": "src/autopack/anthropic_clients.py",
+    "fingerprint": "d8a56615f464ee83:1",
+    "messageHash": "881bab6f06238381",
+    "ruleId": "py/empty-except",
+    "tool": "codeql"
+  },
+  {
+    "artifactUri": "src/autopack/anthropic_clients.py",
+    "fingerprint": "e0da9237806f98da:1",
+    "messageHash": "eb29b0b4b2557268",
+    "ruleId": "py/import-and-import-from",
+    "tool": "codeql"
+  },
+  {
+    "artifactUri": "src/autopack/anthropic_clients.py",
+    "fingerprint": "e6cc76dc3f02d30f:1",
+    "messageHash": "65f714e3808b2739",
+    "ruleId": "py/redundant-comparison",
+    "tool": "codeql"
+  },
+  {
+    "artifactUri": "src/autopack/anthropic_clients.py",
+    "fingerprint": "f924ec584af15772:1",
+    "messageHash": "881bab6f06238381",
+    "ruleId": "py/empty-except",
+    "tool": "codeql"
+  },
+  {
+    "artifactUri": "src/autopack/anthropic_clients.py",
+    "fingerprint": "f94ade7e0b1b3eda:1",
+    "messageHash": "eb29b0b4b2557268",
+    "ruleId": "py/import-and-import-from",
+    "tool": "codeql"
+  },
+  {
+    "artifactUri": "src/autopack/artifact_loader.py",
+    "fingerprint": "d6bbfed51a762636:1",
+    "messageHash": "34980b21fb971bcd",
+    "ruleId": "py/unreachable-statement",
+    "tool": "codeql"
+  },
+  {
+    "artifactUri": "src/autopack/artifact_loader.py",
+    "fingerprint": "fc8d02c5c1269f5a:1",
+    "messageHash": "a385806e7f6f6bfb",
+    "ruleId": "py/mixed-returns",
+    "tool": "codeql"
+  },
+  {
+    "artifactUri": "src/autopack/autonomous/research_hooks.py",
+    "fingerprint": "226adc903143088b:1",
+    "messageHash": "9b73dc0f511b3b38",
+    "ruleId": "py/unnecessary-lambda",
+    "tool": "codeql"
+  },
+  {
+    "artifactUri": "src/autopack/autonomous/research_hooks.py",
+    "fingerprint": "850d84cd1de5a949:1",
+    "messageHash": "9b73dc0f511b3b38",
+    "ruleId": "py/unnecessary-lambda",
+    "tool": "codeql"
+  },
+  {
+    "artifactUri": "src/autopack/autonomous/research_hooks.py",
+    "fingerprint": "a8f5e9eaec1ed6a0:1",
+    "messageHash": "9b73dc0f511b3b38",
+    "ruleId": "py/unnecessary-lambda",
+    "tool": "codeql"
+  },
+  {
+    "artifactUri": "src/autopack/autonomous_executor.py",
+    "fingerprint": "1d7e56f260056bb1:1",
+    "messageHash": "3bd313f0004edc5b",
+    "ruleId": "py/commented-out-code",
+    "tool": "codeql"
+  },
+  {
+    "artifactUri": "src/autopack/autonomous_executor.py",
+    "fingerprint": "2e654fd5145257c2:1",
+    "messageHash": "881bab6f06238381",
+    "ruleId": "py/empty-except",
+    "tool": "codeql"
+  },
+  {
+    "artifactUri": "src/autopack/autonomous_executor.py",
+    "fingerprint": "3d94f0a84049bfc0:1",
+    "messageHash": "881bab6f06238381",
+    "ruleId": "py/empty-except",
+    "tool": "codeql"
+  },
+  {
+    "artifactUri": "src/autopack/autonomous_executor.py",
+    "fingerprint": "473fa20af3285751:1",
+    "messageHash": "881bab6f06238381",
+    "ruleId": "py/empty-except",
+    "tool": "codeql"
+  },
+  {
+    "artifactUri": "src/autopack/autonomous_executor.py",
+    "fingerprint": "5415b824e15000e9:1",
+    "messageHash": "a02e37064d74ecf7",
+    "ruleId": "py/file-not-closed",
+    "tool": "codeql"
+  },
+  {
+    "artifactUri": "src/autopack/autonomous_executor.py",
+    "fingerprint": "54ad37c63ddc53d:1",
+    "messageHash": "3bd313f0004edc5b",
+    "ruleId": "py/commented-out-code",
+    "tool": "codeql"
+  },
+  {
+    "artifactUri": "src/autopack/autonomous_executor.py",
+    "fingerprint": "58ec7c43b5ac68f2:1",
+    "messageHash": "34980b21fb971bcd",
+    "ruleId": "py/unreachable-statement",
+    "tool": "codeql"
+  },
+  {
+    "artifactUri": "src/autopack/autonomous_executor.py",
+    "fingerprint": "59d44330c7abadc4:1",
+    "messageHash": "3e7590e1ac21d2ee",
+    "ruleId": "py/repeated-import",
+    "tool": "codeql"
+  },
+  {
+    "artifactUri": "src/autopack/autonomous_executor.py",
+    "fingerprint": "5b601745d9a26eb1:1",
+    "messageHash": "881bab6f06238381",
+    "ruleId": "py/empty-except",
+    "tool": "codeql"
+  },
+  {
+    "artifactUri": "src/autopack/autonomous_executor.py",
+    "fingerprint": "5fdce4c2e2bff1d:1",
+    "messageHash": "72c40dac8c26be27",
+    "ruleId": "py/unused-local-variable",
+    "tool": "codeql"
+  },
+  {
+    "artifactUri": "src/autopack/autonomous_executor.py",
+    "fingerprint": "60aa858a8565a0f2:1",
+    "messageHash": "881bab6f06238381",
+    "ruleId": "py/empty-except",
+    "tool": "codeql"
+  },
+  {
+    "artifactUri": "src/autopack/autonomous_executor.py",
+    "fingerprint": "7e2fdafb4cd737db:1",
+    "messageHash": "755f8150414d86ae",
+    "ruleId": "py/repeated-import",
+    "tool": "codeql"
+  },
+  {
+    "artifactUri": "src/autopack/autonomous_executor.py",
+    "fingerprint": "8027d23d90730abb:1",
+    "messageHash": "0af52f0e67335fc5",
+    "ruleId": "py/multiple-definition",
+    "tool": "codeql"
+  },
+  {
+    "artifactUri": "src/autopack/autonomous_executor.py",
+    "fingerprint": "864591bf43b1a306:1",
+    "messageHash": "881bab6f06238381",
+    "ruleId": "py/empty-except",
+    "tool": "codeql"
+  },
+  {
+    "artifactUri": "src/autopack/autonomous_executor.py",
+    "fingerprint": "9b72280f7422d959:1",
+    "messageHash": "881bab6f06238381",
+    "ruleId": "py/empty-except",
+    "tool": "codeql"
+  },
+  {
+    "artifactUri": "src/autopack/autonomous_executor.py",
+    "fingerprint": "a18536b868a60400:1",
+    "messageHash": "881bab6f06238381",
+    "ruleId": "py/empty-except",
+    "tool": "codeql"
+  },
+  {
+    "artifactUri": "src/autopack/autonomous_executor.py",
+    "fingerprint": "b2cf690a410ea47a:1",
+    "messageHash": "34980b21fb971bcd",
+    "ruleId": "py/unreachable-statement",
+    "tool": "codeql"
+  },
+  {
+    "artifactUri": "src/autopack/autonomous_executor.py",
+    "fingerprint": "b3d09c3c3457a530:1",
+    "messageHash": "3bd313f0004edc5b",
+    "ruleId": "py/commented-out-code",
+    "tool": "codeql"
+  },
+  {
+    "artifactUri": "src/autopack/autonomous_executor.py",
+    "fingerprint": "ba495117255d892:1",
+    "messageHash": "881bab6f06238381",
+    "ruleId": "py/empty-except",
+    "tool": "codeql"
+  },
+  {
+    "artifactUri": "src/autopack/autonomous_executor.py",
+    "fingerprint": "c149dbcf10cf0922:1",
+    "messageHash": "881bab6f06238381",
+    "ruleId": "py/empty-except",
+    "tool": "codeql"
+  },
+  {
+    "artifactUri": "src/autopack/autonomous_executor.py",
+    "fingerprint": "c40c6cebc5e7c975:1",
+    "messageHash": "881bab6f06238381",
+    "ruleId": "py/empty-except",
+    "tool": "codeql"
+  },
+  {
+    "artifactUri": "src/autopack/autonomous_executor.py",
+    "fingerprint": "d07c3ccc971e513c:1",
+    "messageHash": "881bab6f06238381",
+    "ruleId": "py/empty-except",
+    "tool": "codeql"
+  },
+  {
+    "artifactUri": "src/autopack/autonomous_executor.py",
+    "fingerprint": "d376acaf354b1497:1",
+    "messageHash": "881bab6f06238381",
+    "ruleId": "py/empty-except",
+    "tool": "codeql"
+  },
+  {
+    "artifactUri": "src/autopack/autonomous_executor.py",
+    "fingerprint": "dc8dc3fab037c092:1",
+    "messageHash": "3bd313f0004edc5b",
+    "ruleId": "py/commented-out-code",
+    "tool": "codeql"
+  },
+  {
+    "artifactUri": "src/autopack/autonomous_executor.py",
+    "fingerprint": "e0074c7b3f57a668:1",
+    "messageHash": "881bab6f06238381",
+    "ruleId": "py/empty-except",
+    "tool": "codeql"
+  },
+  {
+    "artifactUri": "src/autopack/autonomous_executor.py",
+    "fingerprint": "e219b1cae75c9878:1",
+    "messageHash": "881bab6f06238381",
+    "ruleId": "py/empty-except",
+    "tool": "codeql"
+  },
+  {
+    "artifactUri": "src/autopack/autonomous_executor.py",
+    "fingerprint": "e219b1cae75c9878:2",
+    "messageHash": "881bab6f06238381",
+    "ruleId": "py/empty-except",
+    "tool": "codeql"
+  },
+  {
+    "artifactUri": "src/autopack/autonomous_executor.py",
+    "fingerprint": "e99fc3bb8a71462d:1",
+    "messageHash": "755f8150414d86ae",
+    "ruleId": "py/repeated-import",
+    "tool": "codeql"
+  },
+  {
+    "artifactUri": "src/autopack/autonomous_executor.py",
+    "fingerprint": "eb0c7dd2c6281972:1",
+    "messageHash": "881bab6f06238381",
+    "ruleId": "py/empty-except",
+    "tool": "codeql"
+  },
+  {
+    "artifactUri": "src/autopack/autonomous_executor.py",
+    "fingerprint": "f229c98d4c74024e:1",
+    "messageHash": "881bab6f06238381",
+    "ruleId": "py/empty-except",
+    "tool": "codeql"
+  },
+  {
+    "artifactUri": "src/autopack/autonomous_executor.py",
+    "fingerprint": "f74fb8b0e45d8945:1",
+    "messageHash": "34980b21fb971bcd",
+    "ruleId": "py/unreachable-statement",
+    "tool": "codeql"
+  },
+  {
+    "artifactUri": "src/autopack/autonomous_executor.py",
+    "fingerprint": "fe1051859d7962ec:1",
+    "messageHash": "755f8150414d86ae",
+    "ruleId": "py/repeated-import",
+    "tool": "codeql"
+  },
+  {
+    "artifactUri": "src/autopack/cli/commands/research.py",
+    "fingerprint": "e79783cad1e6ca27:1",
+    "messageHash": "97fd73a2c04c6193",
+    "ruleId": "py/call/wrong-arguments",
+    "tool": "codeql"
+  },
+  {
+    "artifactUri": "src/autopack/cli/research_commands.py",
+    "fingerprint": "419f088170afd5df:1",
+    "messageHash": "c7068443dcdfcb50",
+    "ruleId": "py/unused-import",
+    "tool": "codeql"
+  },
+  {
+    "artifactUri": "src/autopack/context_selector.py",
+    "fingerprint": "4f46543cd053621f:1",
+    "messageHash": "881bab6f06238381",
+    "ruleId": "py/empty-except",
+    "tool": "codeql"
+  },
+  {
+    "artifactUri": "src/autopack/context_selector.py",
+    "fingerprint": "62122137065c217d:1",
+    "messageHash": "881bab6f06238381",
+    "ruleId": "py/empty-except",
+    "tool": "codeql"
+  },
+  {
+    "artifactUri": "src/autopack/context_selector.py",
+    "fingerprint": "bb03b8b239909464:1",
+    "messageHash": "881bab6f06238381",
+    "ruleId": "py/empty-except",
+    "tool": "codeql"
+  },
+  {
+    "artifactUri": "src/autopack/context_selector.py",
+    "fingerprint": "d4650a4f463eee60:1",
+    "messageHash": "881bab6f06238381",
+    "ruleId": "py/empty-except",
+    "tool": "codeql"
+  },
+  {
+    "artifactUri": "src/autopack/continuation_recovery.py",
+    "fingerprint": "7415e9df8d268815:1",
+    "messageHash": "881bab6f06238381",
+    "ruleId": "py/empty-except",
+    "tool": "codeql"
+  },
+  {
+    "artifactUri": "src/autopack/dashboard/server.py",
+    "fingerprint": "efef51664e54ae8a:1",
+    "messageHash": "6ca29becb1f94f51",
+    "ruleId": "py/ineffectual-statement",
+    "tool": "codeql"
+  },
+  {
+    "artifactUri": "src/autopack/database.py",
+    "fingerprint": "1d1ab482c1911f58:1",
+    "messageHash": "6245330eadf4e05c",
+    "ruleId": "py/cyclic-import",
+    "tool": "codeql"
+  },
+  {
+    "artifactUri": "src/autopack/database.py",
+    "fingerprint": "68ef436ff4dc2d2d:1",
+    "messageHash": "50d3e257d3b9500f",
+    "ruleId": "py/cyclic-import",
+    "tool": "codeql"
+  },
+  {
+    "artifactUri": "src/autopack/deliverables_validator.py",
+    "fingerprint": "1a01e91c23e704f2:1",
+    "messageHash": "2cc3565d9824b565",
+    "ruleId": "py/repeated-import",
+    "tool": "codeql"
+  },
+  {
+    "artifactUri": "src/autopack/deliverables_validator.py",
+    "fingerprint": "2c7d43d6a76fe58d:1",
+    "messageHash": "881bab6f06238381",
+    "ruleId": "py/empty-except",
+    "tool": "codeql"
+  },
+  {
+    "artifactUri": "src/autopack/deliverables_validator.py",
+    "fingerprint": "69084fff16834182:1",
+    "messageHash": "881bab6f06238381",
+    "ruleId": "py/empty-except",
+    "tool": "codeql"
+  },
+  {
+    "artifactUri": "src/autopack/deliverables_validator.py",
+    "fingerprint": "917380b1bfd90f17:1",
+    "messageHash": "881bab6f06238381",
+    "ruleId": "py/empty-except",
+    "tool": "codeql"
+  },
+  {
+    "artifactUri": "src/autopack/diagnostics/human_response_parser.py",
+    "fingerprint": "3e6ba5ceab6950d2:1",
+    "messageHash": "881bab6f06238381",
+    "ruleId": "py/empty-except",
+    "tool": "codeql"
+  },
+  {
+    "artifactUri": "src/autopack/error_recovery.py",
+    "fingerprint": "84eb0f7539ab75a5:1",
+    "messageHash": "65f714e3808b2739",
+    "ruleId": "py/redundant-comparison",
+    "tool": "codeql"
+  },
+  {
+    "artifactUri": "src/autopack/gemini_clients.py",
+    "fingerprint": "a8c5870e0f9a7656:1",
+    "messageHash": "723e2bd2a1722138",
+    "ruleId": "py/unused-local-variable",
+    "tool": "codeql"
+  },
+  {
+    "artifactUri": "src/autopack/git_adapter.py",
+    "fingerprint": "72152ba1850781f5:1",
+    "messageHash": "6ca29becb1f94f51",
+    "ruleId": "py/ineffectual-statement",
+    "tool": "codeql"
+  },
+  {
+    "artifactUri": "src/autopack/git_adapter.py",
+    "fingerprint": "841e8b954b3afd9:1",
+    "messageHash": "6ca29becb1f94f51",
+    "ruleId": "py/ineffectual-statement",
+    "tool": "codeql"
+  },
+  {
+    "artifactUri": "src/autopack/git_adapter.py",
+    "fingerprint": "be10105376f695e7:1",
+    "messageHash": "6ca29becb1f94f51",
+    "ruleId": "py/ineffectual-statement",
+    "tool": "codeql"
+  },
+  {
+    "artifactUri": "src/autopack/governed_apply.py",
+    "fingerprint": "7a61cd87c135c6da:1",
+    "messageHash": "cf69161f45da1f95",
+    "ruleId": "py/repeated-import",
+    "tool": "codeql"
+  },
+  {
+    "artifactUri": "src/autopack/governed_apply.py",
+    "fingerprint": "e4f18a8ff0e90462:1",
+    "messageHash": "cf69161f45da1f95",
+    "ruleId": "py/repeated-import",
+    "tool": "codeql"
+  },
+  {
+    "artifactUri": "src/autopack/health_checks.py",
+    "fingerprint": "452ff5f72b2d4500:1",
+    "messageHash": "881bab6f06238381",
+    "ruleId": "py/empty-except",
+    "tool": "codeql"
+  },
+  {
+    "artifactUri": "src/autopack/health_checks.py",
+    "fingerprint": "5b750252003dff50:1",
+    "messageHash": "881bab6f06238381",
+    "ruleId": "py/empty-except",
+    "tool": "codeql"
+  },
+  {
+    "artifactUri": "src/autopack/health_checks.py",
+    "fingerprint": "85856dfcbd2ce5e:1",
+    "messageHash": "881bab6f06238381",
+    "ruleId": "py/empty-except",
+    "tool": "codeql"
+  },
+  {
+    "artifactUri": "src/autopack/integrations/build_history_integrator.py",
+    "fingerprint": "d9ebd24fce30bc54:1",
+    "messageHash": "0979905dc83ce16f",
+    "ruleId": "py/unnecessary-pass",
+    "tool": "codeql"
+  },
+  {
+    "artifactUri": "src/autopack/llm_client.py",
+    "fingerprint": "b35d9b343b176c28:1",
+    "messageHash": "6ca29becb1f94f51",
+    "ruleId": "py/ineffectual-statement",
+    "tool": "codeql"
+  },
+  {
+    "artifactUri": "src/autopack/llm_client.py",
+    "fingerprint": "dc01c5c012c92c19:1",
+    "messageHash": "6ca29becb1f94f51",
+    "ruleId": "py/ineffectual-statement",
+    "tool": "codeql"
+  },
+  {
+    "artifactUri": "src/autopack/llm_service.py",
+    "fingerprint": "82db623fb9759b36:1",
+    "messageHash": "281d3f0e03739b8a",
+    "ruleId": "py/repeated-import",
+    "tool": "codeql"
+  },
+  {
+    "artifactUri": "src/autopack/llm_service.py",
+    "fingerprint": "950194f16b7324b2:1",
+    "messageHash": "f2bcff691f7ed08c",
+    "ruleId": "py/unsafe-cyclic-import",
+    "tool": "codeql"
+  },
+  {
+    "artifactUri": "src/autopack/llm_service.py",
+    "fingerprint": "950194f16b7324b2:1",
+    "messageHash": "f8c726d40b0499e6",
+    "ruleId": "py/unsafe-cyclic-import",
+    "tool": "codeql"
+  },
+  {
+    "artifactUri": "src/autopack/llm_service.py",
+    "fingerprint": "a9d02118a5e78a09:1",
+    "messageHash": "281d3f0e03739b8a",
+    "ruleId": "py/repeated-import",
+    "tool": "codeql"
+  },
+  {
+    "artifactUri": "src/autopack/llm_service.py",
+    "fingerprint": "c8946a0ef1318ed4:1",
+    "messageHash": "281d3f0e03739b8a",
+    "ruleId": "py/repeated-import",
+    "tool": "codeql"
+  },
+  {
+    "artifactUri": "src/autopack/llm_service.py",
+    "fingerprint": "dd5358e24cbec0ab:1",
+    "messageHash": "281d3f0e03739b8a",
+    "ruleId": "py/repeated-import",
+    "tool": "codeql"
+  },
+  {
+    "artifactUri": "src/autopack/main.py",
+    "fingerprint": "5a85f4b2c0423af5:1",
+    "messageHash": "881bab6f06238381",
+    "ruleId": "py/empty-except",
+    "tool": "codeql"
+  },
+  {
+    "artifactUri": "src/autopack/main.py",
+    "fingerprint": "9cef26aef6bcf5b1:1",
+    "messageHash": "34980b21fb971bcd",
+    "ruleId": "py/unreachable-statement",
+    "tool": "codeql"
+  },
+  {
+    "artifactUri": "src/autopack/main.py",
+    "fingerprint": "ce2fc9618e7d76cc:1",
+    "messageHash": "881bab6f06238381",
+    "ruleId": "py/empty-except",
+    "tool": "codeql"
+  },
+  {
+    "artifactUri": "src/autopack/main.py",
+    "fingerprint": "fee64e8608b4583d:1",
+    "messageHash": "364c9665207fa554",
+    "ruleId": "py/repeated-import",
+    "tool": "codeql"
+  },
+  {
+    "artifactUri": "src/autopack/manifest_generator.py",
+    "fingerprint": "127a587a2ad143b4:1",
+    "messageHash": "881bab6f06238381",
+    "ruleId": "py/empty-except",
+    "tool": "codeql"
+  },
+  {
+    "artifactUri": "src/autopack/memory/memory_service.py",
+    "fingerprint": "337b2021b65ba73e:1",
+    "messageHash": "881bab6f06238381",
+    "ruleId": "py/empty-except",
+    "tool": "codeql"
+  },
+  {
+    "artifactUri": "src/autopack/memory/memory_service.py",
+    "fingerprint": "6496e5d87dc4a0fa:1",
+    "messageHash": "881bab6f06238381",
+    "ruleId": "py/empty-except",
+    "tool": "codeql"
+  },
+  {
+    "artifactUri": "src/autopack/memory/memory_service.py",
+    "fingerprint": "d38e4a4ea7c37a9c:1",
+    "messageHash": "bb45a50385f7d7d8",
+    "ruleId": "py/redundant-assignment",
+    "tool": "codeql"
+  },
+  {
+    "artifactUri": "src/autopack/memory/qdrant_store.py",
+    "fingerprint": "f2715165c19f7f9b:1",
+    "messageHash": "6afd9195700d9d64",
+    "ruleId": "py/unused-import",
+    "tool": "codeql"
+  },
+  {
+    "artifactUri": "src/autopack/model_routing_snapshot.py",
+    "fingerprint": "e36cb412e00d5174:1",
+    "messageHash": "881bab6f06238381",
+    "ruleId": "py/empty-except",
+    "tool": "codeql"
+  },
+  {
+    "artifactUri": "src/autopack/models.py",
+    "fingerprint": "f283f7cbec6b1cc4:1",
+    "messageHash": "4af51475202c88b5",
+    "ruleId": "py/cyclic-import",
+    "tool": "codeql"
+  },
+  {
+    "artifactUri": "src/autopack/ndjson_format.py",
+    "fingerprint": "2410b1e0148cfa3c:1",
+    "messageHash": "881bab6f06238381",
+    "ruleId": "py/empty-except",
+    "tool": "codeql"
+  },
+  {
+    "artifactUri": "src/autopack/ndjson_format.py",
+    "fingerprint": "7c8870d25bf7deb9:1",
+    "messageHash": "881bab6f06238381",
+    "ruleId": "py/empty-except",
+    "tool": "codeql"
+  },
+  {
+    "artifactUri": "src/autopack/ndjson_format.py",
+    "fingerprint": "dfa3b5fa0804e333:1",
+    "messageHash": "881bab6f06238381",
+    "ruleId": "py/empty-except",
+    "tool": "codeql"
+  },
+  {
+    "artifactUri": "src/autopack/parallel_orchestrator.py",
+    "fingerprint": "f95c666ba61c5b0e:1",
+    "messageHash": "0979905dc83ce16f",
+    "ruleId": "py/unnecessary-pass",
+    "tool": "codeql"
+  },
+  {
+    "artifactUri": "src/autopack/phase_proof_writer.py",
+    "fingerprint": "940e8833ad0b0c56:1",
+    "messageHash": "9f911dd11aeb155e",
+    "ruleId": "py/unused-import",
+    "tool": "codeql"
+  },
+  {
+    "artifactUri": "src/autopack/quality_gate.py",
+    "fingerprint": "20b4230fa0c03ae5:1",
+    "messageHash": "881bab6f06238381",
+    "ruleId": "py/empty-except",
+    "tool": "codeql"
+  },
+  {
+    "artifactUri": "src/autopack/quality_gate.py",
+    "fingerprint": "349271adb07f8b69:1",
+    "messageHash": "881bab6f06238381",
+    "ruleId": "py/empty-except",
+    "tool": "codeql"
+  },
+  {
+    "artifactUri": "src/autopack/quality_gate.py",
+    "fingerprint": "9561be99e984fa7e:1",
+    "messageHash": "9e7f3a6c777655c0",
+    "ruleId": "py/multiple-definition",
+    "tool": "codeql"
+  },
+  {
+    "artifactUri": "src/autopack/repair_helpers.py",
+    "fingerprint": "6d6090737511e5ec:1",
+    "messageHash": "881bab6f06238381",
+    "ruleId": "py/empty-except",
+    "tool": "codeql"
+  },
+  {
+    "artifactUri": "src/autopack/repair_helpers.py",
+    "fingerprint": "a453ad0fa30457b4:1",
+    "messageHash": "881bab6f06238381",
+    "ruleId": "py/empty-except",
+    "tool": "codeql"
+  },
+  {
+    "artifactUri": "src/autopack/research/gatherers/content_extractor.py",
+    "fingerprint": "fea3876ba5542685:1",
+    "messageHash": "516b275d99916c21",
+    "ruleId": "py/unused-global-variable",
+    "tool": "codeql"
+  },
+  {
+    "artifactUri": "src/autopack/research/gatherers/linkedin_gatherer.py",
+    "fingerprint": "def51e9a2ec1aa68:1",
+    "messageHash": "881bab6f06238381",
+    "ruleId": "py/empty-except",
+    "tool": "codeql"
+  },
+  {
+    "artifactUri": "src/autopack/research/gatherers/twitter_gatherer.py",
+    "fingerprint": "609e2d91d8d797e2:1",
+    "messageHash": "881bab6f06238381",
+    "ruleId": "py/empty-except",
+    "tool": "codeql"
+  },
+  {
+    "artifactUri": "src/autopack/research/reporting/citation_formatter.py",
+    "fingerprint": "b369b6de72a9a333:1",
+    "messageHash": "a385806e7f6f6bfb",
+    "ruleId": "py/mixed-returns",
+    "tool": "codeql"
+  },
+  {
+    "artifactUri": "src/autopack/research/validation.py",
+    "fingerprint": "214992e1710d952b:1",
+    "messageHash": "7eeebf9341b04680",
+    "ruleId": "py/catch-base-exception",
+    "tool": "codeql"
+  },
+  {
+    "artifactUri": "src/autopack/research/validation.py",
+    "fingerprint": "214992e1710d952b:1",
+    "messageHash": "881bab6f06238381",
+    "ruleId": "py/empty-except",
+    "tool": "codeql"
+  },
+  {
+    "artifactUri": "src/autopack/storage_optimizer/scanner.py",
+    "fingerprint": "1efcd2aa273544e1:1",
+    "messageHash": "bc1d67680882cdf6",
+    "ruleId": "py/cyclic-import",
+    "tool": "codeql"
+  },
+  {
+    "artifactUri": "src/autopack/storage_optimizer/scanner.py",
+    "fingerprint": "36d67180657462fb:1",
+    "messageHash": "881bab6f06238381",
+    "ruleId": "py/empty-except",
+    "tool": "codeql"
+  },
+  {
+    "artifactUri": "src/autopack/storage_optimizer/steam_detector.py",
+    "fingerprint": "744f2430b5d33640:1",
+    "messageHash": "881bab6f06238381",
+    "ruleId": "py/empty-except",
+    "tool": "codeql"
+  },
+  {
+    "artifactUri": "src/autopack/storage_optimizer/steam_detector.py",
+    "fingerprint": "cd701a8481cddf72:1",
+    "messageHash": "881bab6f06238381",
+    "ruleId": "py/empty-except",
+    "tool": "codeql"
+  },
+  {
+    "artifactUri": "src/autopack/storage_optimizer/wiztree_scanner.py",
+    "fingerprint": "5ffd49e99e402df4:1",
+    "messageHash": "7eeebf9341b04680",
+    "ruleId": "py/catch-base-exception",
+    "tool": "codeql"
+  },
+  {
+    "artifactUri": "src/autopack/storage_optimizer/wiztree_scanner.py",
+    "fingerprint": "c66198a82b7bdcb9:1",
+    "messageHash": "11ac6aff7002e39f",
+    "ruleId": "py/cyclic-import",
+    "tool": "codeql"
+  },
+  {
+    "artifactUri": "src/autopack/storage_optimizer/wiztree_scanner.py",
+    "fingerprint": "ebc88e82b2adc51e:1",
+    "messageHash": "7eeebf9341b04680",
+    "ruleId": "py/catch-base-exception",
+    "tool": "codeql"
+  },
+  {
+    "artifactUri": "src/autopack/storage_optimizer/wiztree_scanner.py",
+    "fingerprint": "ebc88e82b2adc51e:1",
+    "messageHash": "881bab6f06238381",
+    "ruleId": "py/empty-except",
+    "tool": "codeql"
+  },
+  {
+    "artifactUri": "src/autopack/subprocess_streaming.py",
+    "fingerprint": "daf1510aa432a9bc:1",
+    "messageHash": "9eb53ce336fc1f40",
+    "ruleId": "py/multiple-definition",
+    "tool": "codeql"
+  },
+  {
+    "artifactUri": "src/autopack/token_estimator.py",
+    "fingerprint": "53b0567871740ab3:1",
+    "messageHash": "881bab6f06238381",
+    "ruleId": "py/empty-except",
+    "tool": "codeql"
+  },
+  {
+    "artifactUri": "src/autopack/token_estimator.py",
+    "fingerprint": "8020f4218107fe7:1",
+    "messageHash": "881bab6f06238381",
+    "ruleId": "py/empty-except",
+    "tool": "codeql"
+  },
+  {
+    "artifactUri": "src/autopack/toolchain/adapter.py",
+    "fingerprint": "1516e2ff44dbd92a:1",
+    "messageHash": "502a4a18b712617a",
+    "ruleId": "py/cyclic-import",
+    "tool": "codeql"
+  },
+  {
+    "artifactUri": "src/autopack/toolchain/adapter.py",
+    "fingerprint": "30d9252fca25450b:1",
+    "messageHash": "0483f22a324d3105",
+    "ruleId": "py/cyclic-import",
+    "tool": "codeql"
+  },
+  {
+    "artifactUri": "src/autopack/toolchain/adapter.py",
+    "fingerprint": "31b02bbbe51ba172:1",
+    "messageHash": "0284f7436fd41557",
+    "ruleId": "py/cyclic-import",
+    "tool": "codeql"
+  },
+  {
+    "artifactUri": "src/autopack/toolchain/adapter.py",
+    "fingerprint": "84e864357528fa8a:1",
+    "messageHash": "8f67c1d96aba2e30",
+    "ruleId": "py/cyclic-import",
+    "tool": "codeql"
+  },
+  {
+    "artifactUri": "src/autopack/toolchain/adapter.py",
+    "fingerprint": "de1359e2bc445cc:1",
+    "messageHash": "19d6bb0c92a61789",
+    "ruleId": "py/cyclic-import",
+    "tool": "codeql"
+  },
+  {
+    "artifactUri": "src/autopack/toolchain/go_adapter.py",
+    "fingerprint": "6a526b6f279dad24:1",
+    "messageHash": "bbeb7aa05f7f6f5a",
+    "ruleId": "py/cyclic-import",
+    "tool": "codeql"
+  },
+  {
+    "artifactUri": "src/autopack/toolchain/java_adapter.py",
+    "fingerprint": "6a526b6f279dad24:1",
+    "messageHash": "bbeb7aa05f7f6f5a",
+    "ruleId": "py/cyclic-import",
+    "tool": "codeql"
+  },
+  {
+    "artifactUri": "src/autopack/toolchain/node_adapter.py",
+    "fingerprint": "6a526b6f279dad24:1",
+    "messageHash": "bbeb7aa05f7f6f5a",
+    "ruleId": "py/cyclic-import",
+    "tool": "codeql"
+  },
+  {
+    "artifactUri": "src/autopack/toolchain/python_adapter.py",
+    "fingerprint": "6a526b6f279dad24:1",
+    "messageHash": "bbeb7aa05f7f6f5a",
+    "ruleId": "py/cyclic-import",
+    "tool": "codeql"
+  },
+  {
+    "artifactUri": "src/autopack/toolchain/rust_adapter.py",
+    "fingerprint": "6a526b6f279dad24:1",
+    "messageHash": "bbeb7aa05f7f6f5a",
+    "ruleId": "py/cyclic-import",
+    "tool": "codeql"
+  },
+  {
+    "artifactUri": "src/autopack/usage_recorder.py",
+    "fingerprint": "368f39d0703c31be:1",
+    "messageHash": "4af51475202c88b5",
+    "ruleId": "py/cyclic-import",
+    "tool": "codeql"
+  },
+  {
+    "artifactUri": "src/research/discovery/web_discovery.py",
+    "fingerprint": "bb7da198809f6306:1",
+    "messageHash": "691e1e0a78fa8574",
+    "ruleId": "py/bad-tag-filter",
+    "tool": "codeql"
+  },
+  {
+    "artifactUri": "src/research/gatherers/error_handler.py",
+    "fingerprint": "2e57a9ec7dcdba36:1",
+    "messageHash": "9d13a7e2607f857d",
+    "ruleId": "py/unused-local-variable",
+    "tool": "codeql"
+  },
+  {
+    "artifactUri": "src/research/gatherers/error_handler.py",
+    "fingerprint": "3b8a50d261ed5bff:1",
+    "messageHash": "65f714e3808b2739",
+    "ruleId": "py/redundant-comparison",
+    "tool": "codeql"
+  },
+  {
+    "artifactUri": "src/research/gatherers/error_handler.py",
+    "fingerprint": "68339ee0a1e4f2e6:1",
+    "messageHash": "b654205ef46c4fb0",
+    "ruleId": "py/illegal-raise",
+    "tool": "codeql"
+  },
+  {
+    "artifactUri": "src/research/gatherers/rate_limiter.py",
+    "fingerprint": "d8f49494a01ffba:1",
+    "messageHash": "a385806e7f6f6bfb",
+    "ruleId": "py/mixed-returns",
+    "tool": "codeql"
+  }
+]

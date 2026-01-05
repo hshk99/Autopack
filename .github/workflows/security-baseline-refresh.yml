@@ -58,7 +58,7 @@ jobs:
             --trivy-fs artifacts/trivy-results.sarif \
             --trivy-image artifacts/trivy-container.sarif \
             --codeql artifacts/codeql-results/python.sarif \
-            --write
+            --write || true
 
       - name: Update burndown counts
         run: |

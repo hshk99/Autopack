@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import os
 
-from pydantic import AliasChoices, Field
+from pydantic import AliasChoices, Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -121,10 +121,29 @@ class Settings(BaseSettings):
     # RS256 key pair for signing/verifying access tokens
     jwt_private_key: str = ""  # RSA private key in PEM format (env: JWT_PRIVATE_KEY)
     jwt_public_key: str = ""  # RSA public key in PEM format (env: JWT_PUBLIC_KEY)
-    jwt_algorithm: str = "RS256"  # JWT signing algorithm
+    jwt_algorithm: str = "RS256"  # JWT signing algorithm (MUST be RS256; see CVE-2024-23342)
     jwt_issuer: str = "autopack"  # Token issuer
     jwt_audience: str = "autopack-api"  # Token audience
     access_token_expire_minutes: int = 1440  # Token expiration (24 hours)
+
+    @model_validator(mode='after')
+    def validate_jwt_algorithm(self) -> 'Settings':
+        """
+        Validate security-critical configuration after initialization.
+
+        CVE-2024-23342 Guardrail:
+        - ECDSA signature malleability vulnerability in python-jose dependency (via ecdsa package)
+        - Autopack exclusively uses RS256 (RSA-based) JWT signing
+        - This validation enforces RS256-only and fails fast on any other algorithm
+        - See docs/SECURITY_EXCEPTIONS.md for full CVE-2024-23342 rationale
+        """
+        if self.jwt_algorithm != "RS256":
+            raise ValueError(
+                f"FATAL: jwt_algorithm must be 'RS256' (got '{self.jwt_algorithm}'). "
+                f"ECDSA algorithms (ES256/ES384/ES512) are not supported due to CVE-2024-23342. "
+                f"See docs/SECURITY_EXCEPTIONS.md for details."
+            )
+        return self
 
 
 settings = Settings()

@@ -23,8 +23,11 @@
 3. **Configuration**: JWT algorithm is hardcoded to `RS256` in [src/autopack/auth/security.py](../src/autopack/auth/security.py)
 
 **Compensating Controls**:
-1. **Allowlist Enforcement**: Auth module validates `jwt_algorithm == "RS256"` and fails fast on any other algorithm
-2. **Contract Test**: `tests/autopack/test_auth_algorithm_guardrail.py` asserts RS256-only enforcement
+1. **Allowlist Enforcement**: Config validator (`src/autopack/config.py`) enforces `jwt_algorithm == "RS256"` at startup and fails fast on any other algorithm
+2. **Contract Test**: `tests/autopack/test_auth_algorithm_guardrail.py` (3 tests, 100% pass) validates:
+   - Default RS256 enforcement
+   - Environment variable override rejection
+   - Error message references this security exception doc
 3. **Code Review**: Any changes to JWT configuration require security review
 
 **Remediation Options Considered**:

@@ -49,8 +49,12 @@ def canonical_client(tmp_path):
 
     # Initialize database with tables
     from autopack.database import init_db
+    from unittest.mock import patch
 
-    init_db()
+    # Enable bootstrap mode to allow table creation on empty DB
+    with patch("autopack.config.settings") as mock_settings:
+        mock_settings.db_bootstrap_enabled = True
+        init_db()
 
     from autopack.main import app
 

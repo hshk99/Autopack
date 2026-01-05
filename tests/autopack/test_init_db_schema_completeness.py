@@ -7,6 +7,7 @@ have tables but fresh DBs are missing them due to incomplete imports.
 BUILD-145 P0: Ensures init_db() imports all usage_recorder ORM classes.
 """
 
+from unittest.mock import patch
 from sqlalchemy import create_engine, inspect
 from autopack.database import init_db
 
@@ -28,8 +29,12 @@ def test_init_db_registers_all_usage_recorder_tables():
     db_module.engine = engine
 
     try:
-        # Call init_db() to register and create all tables
-        init_db()
+        # Enable bootstrap mode to allow table creation on empty DB
+        with patch("autopack.config.settings") as mock_settings:
+            mock_settings.db_bootstrap_enabled = True
+
+            # Call init_db() to register and create all tables
+            init_db()
 
         # Inspect the created tables
         inspector = inspect(engine)
@@ -73,7 +78,11 @@ def test_usage_recorder_tables_have_expected_columns():
     db_module.engine = engine
 
     try:
-        init_db()
+        # Enable bootstrap mode to allow table creation on empty DB
+        with patch("autopack.config.settings") as mock_settings:
+            mock_settings.db_bootstrap_enabled = True
+            init_db()
+
         inspector = inspect(engine)
 
         # Check LlmUsageEvent columns

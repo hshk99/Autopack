@@ -116,6 +116,7 @@ class TestBuilderResultContract:
             result.tokens_used == 0
         ), "Data lost: executor packs 'tokens_used' in 'metadata' not top-level"
 
+    @pytest.mark.legacy_contract
     @pytest.mark.xfail(
         strict=True,
         reason=(

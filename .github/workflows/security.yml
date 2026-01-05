@@ -51,6 +51,20 @@ jobs:
         with:
           sarif_file: 'trivy-results.sarif'
 
+      - name: Normalize Trivy filesystem results
+        if: always()
+        run: |
+          python scripts/security/normalize_sarif.py trivy-results.sarif > trivy-fs-current.json
+
+      - name: Run diff gate (Trivy filesystem)
+        if: always()
+        continue-on-error: true  # Non-blocking for initial rollout; flip to false when stable
+        run: |
+          python scripts/security/diff_gate.py \
+            --baseline security/baselines/trivy-fs.high.json \
+            --current trivy-fs-current.json \
+            --name "Trivy Filesystem (CRITICAL/HIGH)"
+
   container-scan:
     runs-on: ubuntu-latest
     steps:
@@ -80,6 +94,26 @@ jobs:
         if: always()
         with:
           sarif_file: 'trivy-container.sarif'
+
+      - name: Set up Python
+        if: always()
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Normalize Trivy container results
+        if: always()
+        run: |
+          python scripts/security/normalize_sarif.py trivy-container.sarif > trivy-image-current.json
+
+      - name: Run diff gate (Trivy container)
+        if: always()
+        continue-on-error: true  # Non-blocking for initial rollout; flip to false when stable
+        run: |
+          python scripts/security/diff_gate.py \
+            --baseline security/baselines/trivy-image.high.json \
+            --current trivy-image-current.json \
+            --name "Trivy Container Image (CRITICAL/HIGH)"
 
   secret-scan:
     runs-on: ubuntu-latest
@@ -115,3 +149,27 @@ jobs:
 
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@c43362b91a940600cde2ebae39ec7a35ad66bdc0  # codeql-bundle-v2.23.8
+        with:
+          upload: true
+          output: 'codeql-results'
+
+      - name: Set up Python
+        if: always()
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Normalize CodeQL results
+        if: always()
+        run: |
+          # CodeQL outputs SARIF to codeql-results/python.sarif
+          python scripts/security/normalize_sarif.py codeql-results/python.sarif > codeql-current.json
+
+      - name: Run diff gate (CodeQL)
+        if: always()
+        continue-on-error: true  # Non-blocking for initial rollout; flip to false when stable
+        run: |
+          python scripts/security/diff_gate.py \
+            --baseline security/baselines/codeql.python.json \
+            --current codeql-current.json \
+            --name "CodeQL Python Analysis"

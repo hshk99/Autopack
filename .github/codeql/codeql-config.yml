@@ -1,0 +1,23 @@
+name: "Autopack CodeQL Config"
+
+# Scope CodeQL to production code only (exclude historical, test, and generated artifacts)
+paths:
+  - src/
+
+paths-ignore:
+  - archive/
+  - .autonomous_runs/
+  - docs/
+  - tests/
+  - "**/__pycache__/"
+  - "**/*.db"
+  - "**/*.db-journal"
+  - src/autopack.egg-info/
+  - "**/telemetry_*.db"
+  - "**/.pytest_cache/"
+  - "**/node_modules/"
+
+# Use default Python query suite (security + quality + maintainability)
+# Future: consider adding security-extended or security-and-quality
+queries:
+  - uses: security-and-quality

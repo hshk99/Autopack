@@ -189,28 +189,28 @@ class TelegramNotifier:
         # Create inline keyboard with Approve/Reject buttons
         # IMPORTANT: Use approval_id, not phase_id or run_id
         keyboard = {
-            "inline_keyboard": [[
-                {
-                    "text": "✅ Approve",
-                    "callback_data": f"pr_approve:{approval_id}"
-                },
-                {
-                    "text": "❌ Reject",
-                    "callback_data": f"pr_reject:{approval_id}"
-                }
-            ]]
+            "inline_keyboard": [
+                [
+                    {"text": "✅ Approve", "callback_data": f"pr_approve:{approval_id}"},
+                    {"text": "❌ Reject", "callback_data": f"pr_reject:{approval_id}"},
+                ]
+            ]
         }
 
         try:
             # Send message via Telegram API
             url = f"https://api.telegram.org/bot{self.bot_token}/sendMessage"
 
-            response = requests.post(url, json={
-                "chat_id": self.chat_id,
-                "text": message,
-                "parse_mode": "Markdown",
-                "reply_markup": keyboard
-            }, timeout=10)
+            response = requests.post(
+                url,
+                json={
+                    "chat_id": self.chat_id,
+                    "text": message,
+                    "parse_mode": "Markdown",
+                    "reply_markup": keyboard,
+                },
+                timeout=10,
+            )
 
             if response.status_code == 200:
                 logger.info(f"[Telegram] PR approval request sent for approval_id={approval_id}")

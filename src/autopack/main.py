@@ -1003,11 +1003,9 @@ async def request_approval(request: Request, db: Session = Depends(get_db)):
 # PR Approval Telegram Callback Handler (IMPLEMENTATION_PLAN_PR_APPROVAL_PIPELINE)
 # ==============================================================================
 
+
 async def _handle_pr_callback(
-    callback_data: str,
-    callback_id: str,
-    username: str,
-    db: Session
+    callback_data: str, callback_id: str, username: str, db: Session
 ) -> dict:
     """Handle PR approval Telegram callbacks.
 
@@ -1027,19 +1025,23 @@ async def _handle_pr_callback(
         logger.info(f"[TELEGRAM-PR] User @{username} {action_verb}d approval_id={approval_id}")
 
         # Find approval request by id (not phase_id!)
-        approval_request = db.query(models.ApprovalRequest).filter(
-            models.ApprovalRequest.id == approval_id,
-            models.ApprovalRequest.status == "pending"
-        ).first()
+        approval_request = (
+            db.query(models.ApprovalRequest)
+            .filter(
+                models.ApprovalRequest.id == approval_id, models.ApprovalRequest.status == "pending"
+            )
+            .first()
+        )
 
         if not approval_request:
             logger.warning(f"[TELEGRAM-PR] No pending approval_id={approval_id}")
             bot_token = os.getenv("TELEGRAM_BOT_TOKEN")
             if bot_token:
                 answer_telegram_callback(
-                    bot_token, callback_id,
+                    bot_token,
+                    callback_id,
                     "⚠️ Approval request not found or already processed",
-                    show_alert=True
+                    show_alert=True,
                 )
             return {"ok": True, "error": "approval_not_found"}
 
@@ -1061,10 +1063,7 @@ async def _handle_pr_callback(
         # Answer callback to remove loading state
         bot_token = os.getenv("TELEGRAM_BOT_TOKEN")
         if bot_token:
-            answer_telegram_callback(
-                bot_token, callback_id,
-                f"✅ PR creation {action_verb}ed"
-            )
+            answer_telegram_callback(bot_token, callback_id, f"✅ PR creation {action_verb}ed")
 
         return {"ok": True, "action": action_verb, "approval_id": approval_id}
 
@@ -1072,11 +1071,7 @@ async def _handle_pr_callback(
         logger.error(f"[TELEGRAM-PR] Callback error: {e}", exc_info=True)
         bot_token = os.getenv("TELEGRAM_BOT_TOKEN")
         if bot_token:
-            answer_telegram_callback(
-                bot_token, callback_id,
-                f"❌ Error: {str(e)}",
-                show_alert=True
-            )
+            answer_telegram_callback(bot_token, callback_id, f"❌ Error: {str(e)}", show_alert=True)
         return {"ok": False, "error": str(e)}
 
 
@@ -1224,9 +1219,7 @@ async def telegram_webhook(request: Request, db: Session = Depends(get_db)):
 
         # PR approval callbacks: "pr_approve:{approval_id}" or "pr_reject:{approval_id}"
         if callback_data.startswith("pr_approve:") or callback_data.startswith("pr_reject:"):
-            return await _handle_pr_callback(
-                callback_data, callback_id, username, db
-            )
+            return await _handle_pr_callback(callback_data, callback_id, username, db)
 
         # Parse callback data: "approve:{phase_id}" or "reject:{phase_id}"
         action, phase_id = callback_data.split(":", 1)

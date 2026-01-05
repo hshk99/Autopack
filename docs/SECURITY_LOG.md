@@ -21,7 +21,24 @@
 - **Trivy (container)**: 0 → 0 (no change)
 
 **Rationale**:
-This baseline refresh reflects the latest CodeQL scan results after BUILD-173 through BUILD-176 development work. The large reduction in findings (-84) is due to code removed during refactoring, while new findings (+56) are concentrated in recently added modules (`governance_requests.py`, `governed_apply.py`, `storage_optimizer/*`). All new findings are informational code quality alerts (log-injection, path-injection) that represent pre-existing technical debt patterns, not regressions. No CRITICAL or HIGH severity vulnerabilities introduced.
+This baseline change is due to a **CodeQL query suite shift** from `default` (code quality) to `security-extended` (security-focused), as configured in `.github/codeql/codeql-config.yml` line 23.
+
+**NOT a code cleanup or remediation** - this is a tooling configuration change:
+- **Removed 140 findings**: Code quality patterns (empty-except: 57, cyclic-import: 17, repeated-import: 13, etc.) no longer scanned by `security-extended` suite
+- **Added 56 findings**: Security patterns now detected:
+  - 42 log-injection (CWE-117)
+  - 7 path-injection (CWE-73)
+  - 6 stack-trace-exposure (CWE-209)
+  - 1 polynomial-redos (CWE-1333)
+
+**Security assessment**: All 57 new findings reviewed and categorized (see SECURITY_BURNDOWN.md):
+- **Log-injection (42)**: Low risk - no user-controlled data in logs, internal identifiers only
+- **Path-injection (7)**: False positives - paths constructed from config/database IDs, not user input
+- **Stack-trace-exposure (6)**: Accepted with exception - gated by DEBUG flag, production must not set DEBUG=1
+- **Polynomial-redos (1)**: Low risk - patch validation only, bounded input
+- **Bad-tag-filter (1)**: Not used - quarantined research code (`src/research/discovery/web_discovery.py` not imported)
+
+No exploitable vulnerabilities introduced. Query suite change intentional per commit `5a9e1323` (security-extended for mechanically enforceable security gates).
 
 **Context**: This is the first production run of Phase B (automated baseline refresh workflow) as part of three-phase security baseline automation validation. The workflow successfully:
 1. Downloaded latest SARIF artifacts from Phase A

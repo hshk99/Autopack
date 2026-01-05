@@ -7,12 +7,22 @@ Intention behind these tests: Ensure prompts contain anchor content when run_id 
 and gracefully degrade when anchor is missing.
 """
 
+import os
 import tempfile
+import pytest
 
 
 from autopack.intention_anchor import IntentionConstraints, create_anchor, save_anchor
 from autopack.llm_service import LlmService
 from autopack.error_recovery import DoctorRequest
+
+
+@pytest.fixture(autouse=True)
+def mock_llm_api_keys(monkeypatch):
+    """Set dummy API keys for all LLM provider tests."""
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-test-dummy-key-for-testing-only")
+    monkeypatch.setenv("GOOGLE_API_KEY", "test-dummy-google-key")
+    monkeypatch.setenv("GLM_API_KEY", "test-dummy-glm-key")
 
 
 # =============================================================================

@@ -123,9 +123,11 @@ def test_phase_proof_written_on_failure_when_wiring_active(mock_executor, temp_r
     mock_executor._intention_wiring = Mock()
     mock_executor.project_id = "test-project"
 
-    with patch("autopack.database.SessionLocal", return_value=mock_db), patch.object(
-        mock_executor, "_record_token_efficiency_telemetry"
-    ), patch.object(mock_executor, "_send_phase_failure_notification"):
+    with (
+        patch("autopack.database.SessionLocal", return_value=mock_db),
+        patch.object(mock_executor, "_record_token_efficiency_telemetry"),
+        patch.object(mock_executor, "_send_phase_failure_notification"),
+    ):
         # Call the method under test
         result = mock_executor._mark_phase_failed_in_db(phase_id, failure_reason)
 
@@ -248,9 +250,12 @@ def test_phase_proof_failure_is_non_fatal(mock_executor, temp_run_dir, caplog):
     mock_executor.project_id = "test-project"
 
     # Patch write_minimal_phase_proof to raise an exception
-    with patch("autopack.database.SessionLocal", return_value=mock_db), patch(
-        "autopack.phase_proof_writer.write_minimal_phase_proof",
-        side_effect=Exception("Simulated disk full error"),
+    with (
+        patch("autopack.database.SessionLocal", return_value=mock_db),
+        patch(
+            "autopack.phase_proof_writer.write_minimal_phase_proof",
+            side_effect=Exception("Simulated disk full error"),
+        ),
     ):
         # Call the method under test - should NOT raise exception
         result = mock_executor._mark_phase_complete_in_db(phase_id)
@@ -287,9 +292,11 @@ def test_phase_proof_error_summary_truncation(mock_executor, temp_run_dir):
     mock_executor._intention_wiring = Mock()
     mock_executor.project_id = "test-project"
 
-    with patch("autopack.database.SessionLocal", return_value=mock_db), patch.object(
-        mock_executor, "_record_token_efficiency_telemetry"
-    ), patch.object(mock_executor, "_send_phase_failure_notification"):
+    with (
+        patch("autopack.database.SessionLocal", return_value=mock_db),
+        patch.object(mock_executor, "_record_token_efficiency_telemetry"),
+        patch.object(mock_executor, "_send_phase_failure_notification"),
+    ):
         # Call the method under test
         result = mock_executor._mark_phase_failed_in_db(phase_id, long_error)
 

@@ -4,7 +4,7 @@ Helper for writing phase proofs from autonomous_executor.
 BUILD-161 Phase A: Intention-first loop integration.
 """
 
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Optional
 import logging
 

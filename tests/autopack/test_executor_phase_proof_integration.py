@@ -9,7 +9,6 @@ to ensure phase proofs are written correctly when intention-first loop is active
 
 import shutil
 from datetime import datetime, timezone
-from pathlib import Path
 from unittest.mock import Mock, patch
 
 import pytest

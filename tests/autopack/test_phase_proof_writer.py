@@ -6,7 +6,6 @@ BUILD-161 Phase A: Intention-first loop integration.
 
 import shutil
 from datetime import datetime, timezone
-from pathlib import Path
 
 import pytest
 

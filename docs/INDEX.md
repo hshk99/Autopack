@@ -16,6 +16,8 @@ These are the canonical references that should stay current and are designed to 
 - **`docs/DEBUG_LOG.md`**: Failures, debugging sessions, and fixes (root-cause trail).
 - **`docs/ARCHITECTURE_DECISIONS.md`**: Design rationale and key decisions (the "why").
 - **`docs/CHANGELOG.md`**: Full historical update ledger (moved from README Recent Updates on 2026-01-01).
+- **`docs/SECURITY_LOG.md`**: Security policy changes, baseline events, and verification milestones (append-only).
+- **`docs/SECURITY_EXCEPTIONS.md`**: Accepted risks with rationale and compensating controls (append-only).
 
 ### Living SOT Docs (Updated as Needed)
 - **`docs/DEPLOYMENT.md`**: Production deployment and database configuration (PostgreSQL is production).
@@ -23,6 +25,7 @@ These are the canonical references that should stay current and are designed to 
 - **`docs/MODEL_INTELLIGENCE_SYSTEM.md`**: Model catalog + recommendation system (evidence-based model upgrades).
 - **`docs/PROJECT_INDEX.json`**: Machine-friendly index for quick project orientation.
 - **`docs/LEARNED_RULES.json`**: Accumulated prevention rules / heuristics.
+- **`docs/SECURITY_BURNDOWN.md`**: Current open vulnerabilities and security debt (living tracker).
 
 **Note**: SOT docs are also used by Autopack features like artifact substitution (history pack / SOT doc summaries).
 

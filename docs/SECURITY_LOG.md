@@ -5,6 +5,22 @@
 **Audience**: Future maintainers, auditors, incident responders.
 
 ---
+## SECBASE-TODO-REPLACE-WITH-REAL-CONTENT
+
+**Event**: Automated baseline refresh (STUB - requires human completion)
+
+**Workflow Run**: [Security SARIF Artifacts](https://github.com/hshk99/Autopack/actions/runs/20719077627)
+
+**Commit SHA**: fa1f784d46c401b2b1f3b332fd4986951aa855e1
+
+**Delta Summary**: TODO - add before/after counts and rationale
+
+**Rationale**: TODO - explain why baselines changed (e.g., dependency upgrade, CVE remediation, tool version upgrade)
+
+**Reviewed By**: TODO - security team member
+
+---
+
 
 ## 2026-01-05: Security Baseline Governance Policy (Process Contract)
 

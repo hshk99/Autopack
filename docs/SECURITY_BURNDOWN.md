@@ -13,8 +13,8 @@
 |----------|----------|------|--------|-----|-------|
 | **Trivy (filesystem)** | 0 | 0 | - | - | 0 |
 | **Trivy (container)** | 0 | 0 | - | - | 0 |
-| **CodeQL** | 0 | 141 | - | - | 141 |
-| **Total** | **0** | **141** | **-** | **-** | **141** |
+| **CodeQL** | 0 | 57 | - | - | 57 |
+| **Total** | **0** | **57** | **-** | **-** | **57** |
 
 _Last Updated: 2026-01-05 (auto-generated from security/baselines/)_
 <!-- AUTO_COUNTS_END -->

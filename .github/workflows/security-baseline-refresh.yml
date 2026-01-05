@@ -111,14 +111,18 @@ jobs:
 
           git checkout -b "${BRANCH}"
           git add security/baselines/ docs/SECURITY_BURNDOWN.md docs/SECURITY_LOG.md
-          git commit -m "security: Refresh baselines (SECBASE-${DATESTAMP} - STUB)
+          cat > /tmp/commit-msg.txt <<EOF
+          security: Refresh baselines (SECBASE-${DATESTAMP} - STUB)
 
-Automated baseline refresh from security-artifacts workflow.
+          Automated baseline refresh from security-artifacts workflow.
 
-⚠️ SECBASE entry is a STUB - requires human completion before merge.
+          ⚠️ SECBASE entry is a STUB - requires human completion before merge.
 
-Workflow: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-Commit: ${{ github.sha }}"
+          Workflow: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          Commit: ${{ github.sha }}
+          EOF
+
+          git commit -F /tmp/commit-msg.txt
 
           git push origin "${BRANCH}"
 

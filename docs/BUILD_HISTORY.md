@@ -2,12 +2,12 @@
 
 
 <!-- AUTO-GENERATED SUMMARY - DO NOT EDIT MANUALLY -->
-**Summary**: 183 build entries (158 unique builds) documented | Last updated: 2026-01-04 17:34:53
+**Summary**: 184 build entries (158 unique builds) documented | Last updated: 2026-01-05 20:37:58
 <!-- END AUTO-GENERATED SUMMARY -->
 
 <!-- META
-Last_Updated: 2026-01-04T17:34:53.928710Z
-Total_Builds: 183
+Last_Updated: 2026-01-05T20:37:58.730429Z
+Total_Builds: 184
 Format_Version: 2.0
 Auto_Generated: False
 Sources: CONSOLIDATED files, archive/, manual updates, BUILD-158 Tidy Lock/Lease + Doc Link Checker
@@ -17,6 +17,7 @@ Sources: CONSOLIDATED files, archive/, manual updates, BUILD-158 Tidy Lock/Lease
 
 | Timestamp | BUILD-ID | Phase | Summary | Files Changed |
 |-----------|----------|-------|---------|---------------|
+| 2026-01-05 | BUILD-157 | Security Baseline + Requirements Regeneration Policy (100% COMPLETE ✅) | **Mechanically Enforceable Contracts with SOT Narration**: Implemented three intention-first security contracts following "safe, deterministic, mechanically enforceable via CI" principle. **1) Baseline Refresh Framework (CI SARIF Artifacts Canonical)**: Created \ for SARIF export (90-day retention), documented 10-step baseline refresh procedure in \ (CI artifacts only, never local runs, explicit PRs only with \ label), added SECBASE-YYYYMMDD log template to \ for audit trail. Policy: Baselines are derived truth from canonical CI environment, prevents platform drift, append-only log for accountability. **2) Requirements Regeneration Policy (Linux/CI Canonical)**: Created \ (mechanical checker for platform marker enforcement), documented policy in \, wired into \ lint job (PR-blocking). Checks: \ must have \, \ must have \, \ must have \. Policy: Requirements must be regenerated on Linux/WSL only (never Windows PowerShell/CMD), prevents dependency resolution drift. **3) Doc Hook Warnings (Signal Only)**: Recorded dashboard drift detection in \ as acknowledged but not enforced (README intentionally slim, dashboard not production-critical, no new doc contracts added). **Verification**: \ = OK (current requirements portable), security artifacts workflow ready for first main branch run, all policies documented with clear enforcement mechanisms. **Impact**: Baselines ready for population from CI, requirements protected from platform drift, documentation debt tracked as signal (not blocking). Aligns with DEC-010 (baseline refresh policy) + DEC-011 (requirements regeneration policy). Files: \ (NEW), \ (NEW, 257 lines), \ (+baseline refresh procedure +requirements policy), \ (+3 policy entries +SECBASE template), \ (+portability check) | 5 |
 | 2026-01-04 | BUILD-160 | Intention Anchor Consolidation Hardening (100% COMPLETE ✅) | **P0 Safety + P1 Validation + P2 UX Hardening for Production**: Completed comprehensive safety hardening of BUILD-159 consolidation system with 62 consolidation-specific tests (all passing). **P0 Safety Hardening**: Project ID validation (regex `^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$` rejecting path traversal, separators, invalid patterns), resolved-path containment checks (prevents symlink escapes), strict project filtering by default (--include-unknown-project explicit opt-in), 22 safety tests across plan/apply modes. **P1 Validation Improvements**: Event schema validation (format_version==1 enforcement, event type allowlist, malformed event detection), snapshot completeness validation (detects missing versioned summaries), report JSON includes all validation metrics, 6 validation tests. **P2 UX & Resilience**: Apply preview mode (shows candidates without --execute, actionable output), unique temp file naming (PID+timestamp+random to prevent collisions), stricter marker matching (full comment structure regex), docstring cleanup (removed "FUTURE" claim for apply mode). **Test Coverage**: 165/165 tidy tests passing (62 consolidation tests: 21 plan + 22 apply + 19 report), 8 skipped integration tests (require external services). **Impact**: Production-ready consolidation with mechanical safety enforcement, prevents path traversal attacks, prevents cross-project contamination, validates artifact integrity, comprehensive failure mode coverage. Files: scripts/tidy/consolidate_intention_anchors.py (P0/P1/P2 implementation), tests/tidy/test_consolidate_intention_anchors_{plan,apply,report}.py (+28 tests), docs/IMPLEMENTATION_PLAN_INTENTION_ANCHOR_CONSOLIDATION.md (+completion summary) | 5 |
 | 2026-01-04 | BUILD-159 | Intention Anchor Consolidation System (100% COMPLETE ✅) | **Full consolidation pipeline: report → plan → apply with comprehensive safety**: Completed Parts A+B1+B2+B3 of Intention Anchor consolidation system enabling safe SOT ledger writes from run-local artifacts. **Part A (Artifact Hardening)**: Versioned summary snapshots (closes "overwrite gap"), event schema versioning (format_version: 1), filesystem-level SOT write protection tests. **Part B1 (Report Mode)**: Deterministic markdown/JSON reports, zero mutation, 13 tests. **Part B2 (Plan Mode)**: SOT-ready consolidation plans with stable idempotency hashes, project-specific targeting, 14 tests including "no SOT writes" contract. **Part B3 (Gated Apply Mode)**: Double opt-in safety (apply + --execute flag required), idempotent HTML comment markers, atomic temp→replace writes, project-aware docs targeting (autopack→./docs/, others→.autonomous_runs/<project>/docs/), 16 tests. **CLI**: Three modes with clear boundaries (report read-only, plan generates patches, apply requires --execute). **Architecture Decision DEC-042**: Consolidation pattern establishes "execution writes run-local; tidy consolidates" principle. **Test Results**: 43/43 consolidation tests passing (13 report + 14 plan + 16 apply), all safety contracts enforced. **Impact**: Production-ready consolidation system, complete audit trail preservation, mechanical SOT sync capability with multiple safety checkpoints. Files: scripts/tidy/consolidate_intention_anchors.py (~650 lines, B1+B2+B3), tests/tidy/test_consolidate_intention_anchors_{report,plan,apply}.py (3 files, 43 tests), src/autopack/intention_anchor/artifacts.py (versioned snapshots), docs/IMPLEMENTATION_PLAN_INTENTION_ANCHOR_CONSOLIDATION.md (full spec) | 7 |
 | 2026-01-04 | BUILD-171 | P1 Contract Enforcement Polish (100% COMPLETE ✅) | **Boundary enforcement + hygiene polish (no silent failures)**: Restored missing `/runs/{run_id}/phases/{phase_id}/auditor_result` endpoint (auditor handler had accidentally fallen after a `return`), upgraded boundary tests to hit **real FastAPI endpoints** (no endpoint monkeypatching) using an isolated in-memory DB with `StaticPool` (prevents `no such table: phases` in threaded TestClient), added auditor boundary tests, removed obsolete legacy/xfail contract scaffolding, pinned pytest-asyncio loop scope to prevent future behavior drift, and slimmed root `README.md` (historical content preserved at `docs/README_FULL.md`). | 10 |
@@ -2758,6 +2759,152 @@ Suggested next actions:
 - --first-run bootstrap shortcut (tidy_up.py)
 - Implementation summary (BUILD-156_QUEUE_IMPROVEMENTS_SUMMARY.md)
 
+
+---
+
+## BUILD-157: Security Baseline + Requirements Regeneration Policy (2026-01-05) ✅ COMPLETE
+
+**Status**: 100% Complete
+**Date**: 2026-01-05  
+**Decision IDs**: DEC-043 (Baseline Refresh Policy), DEC-044 (Requirements Regeneration Policy)
+
+### Summary
+
+Implemented three mechanically enforceable security contracts with SOT narration following README principle: "safe, deterministic, mechanically enforceable via CI contracts."
+
+### Implementation
+
+**1. Baseline Refresh Framework (CI SARIF Artifacts Canonical)**
+
+Created infrastructure for reproducible security baseline updates:
+- **New workflow**: `.github/workflows/security-artifacts.yml`
+  - Exports Trivy + CodeQL SARIF files as downloadable artifacts
+  - Triggers: workflow_dispatch (manual), push/PR to main
+  - Artifacts retained for 90 days
+  - Includes normalized JSON outputs for comparison
+- **Documented procedure**: 10-step baseline refresh in `security/README.md`
+  - Download CI artifacts → run update_baseline.py → log in SECURITY_LOG.md
+  - CI artifacts are canonical (never local runs) → prevents platform drift
+  - Explicit PRs only with `security-baseline-update` label
+  - Enforcement flip: after 1-2 stable runs, change `continue-on-error: true` → `false`
+- **Audit trail template**: SECBASE-YYYYMMDD format in `docs/SECURITY_LOG.md`
+  - Records workflow run URL, commit SHA, delta summary
+  - Verification checklist (deterministic normalization, diff gate behavior)
+  - Links to SECURITY_BURNDOWN.md and SECURITY_EXCEPTIONS.md
+
+**2. Requirements Regeneration Policy (Linux/CI Canonical)**
+
+Established mechanical enforcement for cross-platform dependency portability:
+- **New tool**: `scripts/check_requirements_portability.py` (257 lines)
+  - Validates platform-specific markers for pywin32, python-magic, python-magic-bin
+  - Exit codes: 0=portable, 1=violations, 2=runtime error
+  - Prints remediation guidance on failure
+- **CI integration**: `.github/workflows/ci.yml` lint job (PR-blocking)
+- **Documented policy**: `security/README.md` Requirements Regeneration Policy section
+  - Canonical platform: Linux (CI runner) or WSL
+  - Forbidden: Windows PowerShell/CMD (drops non-Windows deps)
+  - Required markers:
+    - `pywin32==... ; sys_platform == "win32"`
+    - `python-magic==... ; sys_platform != "win32"`
+    - `python-magic-bin==... ; sys_platform == "win32"`
+
+**3. Doc Hook Warnings (Signal Only, Non-Blocking)**
+
+Addressed documentation drift detection without creating new enforcement contracts:
+- Ran `python scripts/update_docs.py --check` (detected dashboard drift)
+- Recorded findings in `docs/SECURITY_LOG.md` as **signal only**
+- Decision: README intentionally slim, dashboard not production-critical, no new doc contracts
+- Follow-up trigger: user feedback or production promotion of dashboard
+
+### Verification Commands
+
+```bash
+# Requirements portability check (passes)
+python scripts/check_requirements_portability.py
+
+# Security artifacts workflow
+# (ready for first main branch run, will populate baselines)
+
+# Doc contract tests (all passing)
+pytest -q tests/docs/
+
+# SOT drift check (passes)
+python scripts/tidy/sot_summary_refresh.py --check
+```
+
+### Files Changed
+
+1. `.github/workflows/security-artifacts.yml` (NEW, 130 lines) - SARIF artifact export workflow
+2. `scripts/check_requirements_portability.py` (NEW, 257 lines) - portability enforcement tool
+3. `security/README.md` (+baseline refresh procedure +requirements policy, ~80 lines added)
+4. `docs/SECURITY_LOG.md` (+3 policy entries +SECBASE template, ~160 lines added)
+5. `.github/workflows/ci.yml` (+portability check step in lint job)
+
+### Architecture Decisions
+
+**DEC-010: Baseline Refresh Policy (CI SARIF Artifacts Canonical)**
+
+**Decision**: Security baselines must be generated from CI SARIF artifacts only, never local runs.
+
+**Rationale**:
+- Baselines are derived truth → must come from canonical CI environment
+- Ensures exact scanner versions/config match CI enforcement
+- Prevents platform drift (Windows/Linux path separators, etc.)
+- Reproducible: anyone can download same artifacts and verify
+
+**Consequences**:
+- Baseline refresh requires manual workflow trigger + artifact download
+- Explicit procedure (10 steps) ensures accountability
+- Append-only SECURITY_LOG.md entry for audit trail
+- Enforcement flipped after baseline stability confirmed
+
+**DEC-011: Requirements Regeneration Policy (Linux/CI Canonical)**
+
+**Decision**: Committed requirements.txt must be generated on Linux/WSL, enforced mechanically via CI.
+
+**Rationale**:
+- Platform-specific dependencies (pywin32, python-magic) require environment markers
+- Regenerating on Windows PowerShell/CMD drops non-Windows dependencies
+- Docker/CI uses Linux → must match Linux dependency resolution
+- WSL acceptable (same pip resolution behavior as Linux)
+
+**Consequences**:
+- PR-blocking check in CI lint job
+- Clear remediation guidance ("use WSL: wsl bash scripts/regenerate_requirements.sh")
+- Tool is executable documentation (enforces policy mechanically)
+- Exit code 1 blocks PR merge if markers missing
+
+### Test Results
+
+```
+# Requirements portability check
+$ python scripts/check_requirements_portability.py
+OK: requirements portability check passed (requirements.txt, requirements-dev.txt)
+
+# Doc contract tests
+$ pytest -q tests/docs/
+....  [100%]
+4 passed in 0.12s
+
+# SOT drift check
+$ python scripts/tidy/sot_summary_refresh.py --check
+OK: No drift detected
+```
+
+### Impact
+
+- **Baseline realism**: Infrastructure ready for first CI baseline population (empty baselines → real baselines after CI run)
+- **Requirements safety**: Mechanical prevention of cross-platform dependency drift (PR-blocking)
+- **Documentation debt**: Tracked as signal in SECURITY_LOG.md (not enforced, avoiding doc bloat)
+- **Audit trail**: SECBASE-YYYYMMDD template provides repeatable baseline refresh procedure
+- **SOT narration**: All policies documented with clear "why" rationale + enforcement mechanisms
+
+### Related Documentation
+
+- Implementation plan: `docs/IMPLEMENTATION_PLAN_INTENTION_FIRST_AUTONOMY_LOOP_REMAINING_IMPROVEMENTS.md`
+- Security policy log: `docs/SECURITY_LOG.md` (entries: baseline framework, requirements policy, doc drift)
+- Baseline refresh procedure: `security/README.md` (step-by-step guide)
+- Requirements regeneration policy: `security/README.md` (platform policy section)
 
 ---
 

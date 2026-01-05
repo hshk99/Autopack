@@ -2,12 +2,12 @@
 
 
 <!-- AUTO-GENERATED SUMMARY - DO NOT EDIT MANUALLY -->
-**Summary**: 39 decision(s) documented | Last updated: 2026-01-04 17:08:33
+**Summary**: 41 decision(s) documented | Last updated: 2026-01-05 20:37:58
 <!-- END AUTO-GENERATED SUMMARY -->
 
 <!-- META
-Last_Updated: 2026-01-04T17:08:33.893937Z
-Total_Decisions: 39
+Last_Updated: 2026-01-05T20:37:58.763586Z
+Total_Decisions: 41
 Format_Version: 2.0
 Auto_Generated: True
 Sources: CONSOLIDATED_STRATEGY, CONSOLIDATED_REFERENCE, archive/, BUILD-153, BUILD-155
@@ -17,6 +17,8 @@ Sources: CONSOLIDATED_STRATEGY, CONSOLIDATED_REFERENCE, archive/, BUILD-153, BUI
 
 | Timestamp | DEC-ID | Decision | Status | Impact |
 |-----------|--------|----------|--------|--------|
+| 2026-01-05 | DEC-044 | Requirements Regeneration Policy (Linux/CI Canonical) | ✅ Implemented | Mechanical prevention of cross-platform dependency drift via PR-blocking CI check |
+| 2026-01-05 | DEC-043 | Security Baseline Refresh (CI SARIF Artifacts Canonical) | ✅ Implemented | Ensures reproducible security baselines from canonical CI environment, prevents platform drift |
 | 2026-01-04 | DEC-042 | Consolidation Pattern: Execution Writes Run-Local; Tidy Consolidates | ✅ Implemented | Prevents "two truths" + enables safe mechanical SOT updates via explicit gating |
 | 2026-01-04 | DEC-041 | Intention Anchor Lifecycle as First-Class Artifact (Plan → Build → Audit → SOT → Retrieve) | ✅ Implemented | Forces intention continuity and reduces goal drift; makes autonomy evidence-backed and budget-bounded |
 | 2026-01-04 | DEC-040 | Boundary Contract Tests Must Hit Real FastAPI Routes (No Endpoint Monkeypatching) | ✅ Implemented | Prevents “false-green” contract tests; standardizes in-memory DB setup for threaded TestClient via StaticPool |
@@ -2380,4 +2382,116 @@ This pattern should be used for ANY autonomous artifact that needs SOT consolida
 - Contract tests verify no SOT writes during execution (filesystem-level)
 - Idempotency tests verify safe retry behavior
 - Safety tests verify double opt-in enforcement
+
+
+### DEC-044 | 2026-01-05 | Requirements Regeneration Policy (Linux/CI Canonical)
+
+**Decision**: Committed `requirements*.txt` must be generated on Linux (CI runner or WSL), enforced mechanically via CI check.
+
+**Context**:
+- Platform-specific dependencies (e.g., `pywin32`, `python-magic`) require environment markers for cross-platform compatibility
+- Regenerating requirements on Windows PowerShell/CMD causes pip-compile to drop non-Windows dependencies from output
+- Docker containers and CI run on Linux → requirements must match Linux dependency resolution behavior
+- Existing requirements were already portable, but no mechanical enforcement existed to prevent regressions
+
+**Decision**:
+1. **Policy**: Requirements must be regenerated on Linux or WSL only (never Windows native shell)
+2. **Enforcement**: PR-blocking check in `.github/workflows/ci.yml` lint job via `scripts/check_requirements_portability.py`
+3. **Required markers**:
+   - `pywin32==... ; sys_platform == "win32"` (Windows-only)
+   - `python-magic==... ; sys_platform != "win32"` (Linux/macOS)
+   - `python-magic-bin==... ; sys_platform == "win32"` (Windows binary)
+
+**Rationale**:
+- **Platform drift prevention**: Windows pip-compile drops `python-magic` (Linux-only) from requirements → breaks Docker/CI
+- **WSL acceptable**: WSL uses Linux pip resolver, produces same output as CI
+- **Mechanical enforcement**: Exit code 1 blocks PR merge if markers missing → no manual review required
+- **Executable documentation**: Tool itself documents policy via error messages and remediation guidance
+
+**Implementation**:
+- **Tool**: `scripts/check_requirements_portability.py` (257 lines)
+  - Validates presence of platform markers via regex matching
+  - Exit codes: 0=portable, 1=violations, 2=runtime error
+  - Prints clear remediation guidance ("use WSL: wsl bash scripts/regenerate_requirements.sh")
+- **CI integration**: Added step in lint job (runs on every PR)
+- **Documentation**: `security/README.md` Requirements Regeneration Policy section
+
+**Consequences**:
+- ✅ **Prevents silent breakage**: PR-blocking check catches regeneration on wrong platform
+- ✅ **Clear remediation**: Error messages point to exact fix ("use WSL")
+- ✅ **Zero maintenance**: Check runs automatically, no manual review needed
+- ⚠️ **Windows developer friction**: Must use WSL for requirements regeneration (acceptable tradeoff for correctness)
+- ⚠️ **CI dependency**: Policy only enforced when CI runs (local dev could miss violations without running check manually)
+
+**Alternatives Considered**:
+1. **Manual review** - Rejected: error-prone, no guarantee of catching violations
+2. **Pre-commit hook** - Deferred: would require hook installation, CI enforcement sufficient for now
+3. **Docker-based regeneration** - Deferred: WSL already provides Linux environment, Docker adds complexity
+
+**Related Decisions**:
+- DEC-043: Security Baseline Refresh (CI SARIF Artifacts Canonical) - same principle of "CI as canonical truth"
+- DEC-018: CI Drift Enforcement - same pattern of mechanical policy enforcement via CI checks
+
+**Status**: ✅ Implemented (BUILD-157, 2026-01-05)
+
+---
+
+### DEC-043 | 2026-01-05 | Security Baseline Refresh (CI SARIF Artifacts Canonical)
+
+**Decision**: Security baselines must be generated from CI SARIF artifacts only, never from local runs.
+
+**Context**:
+- Security diff gates (Trivy, CodeQL) require committed baseline files for regression detection
+- Baselines are derived state that must be reproducible and auditable
+- Local scans may use different scanner versions, configs, or platform-specific behaviors
+- Empty baselines existed but no procedure for populating them reproducibly
+
+**Decision**:
+1. **Artifact source**: CI SARIF files are canonical (from `.github/workflows/security-artifacts.yml`)
+2. **Refresh procedure**: Explicit 10-step process documented in `security/README.md`
+   - Download artifacts from CI workflow run
+   - Run `scripts/security/update_baseline.py --write` with CI artifacts
+   - Document change in `docs/SECURITY_LOG.md` using SECBASE-YYYYMMDD template
+   - Commit to PR labeled `security-baseline-update`
+3. **Enforcement**: After 1-2 stable baseline updates, flip `continue-on-error: true` → `false` in diff gates
+
+**Rationale**:
+- **Reproducibility**: CI artifacts use exact scanner versions/configs that CI enforcement uses
+- **Platform consistency**: Avoids Windows/Linux path separator drift (e.g., `src\autopack\main.py` vs `src/autopack/main.py`)
+- **Auditability**: SECURITY_LOG.md records workflow run URL + commit SHA for each baseline refresh
+- **Prevents "baseline drift"**: Manual refresh with documented log entry prevents silent acceptance of regressions
+
+**Implementation**:
+- **New workflow**: `.github/workflows/security-artifacts.yml`
+  - Exports SARIF files as downloadable artifacts (90-day retention)
+  - Triggers: `workflow_dispatch` (manual), push/PR to main
+  - Includes normalized JSON outputs for diff comparison
+- **Documented procedure**: `security/README.md` Baseline Refresh Procedure section
+  - 10 steps from trigger to enforcement flip
+  - Verification checklist (deterministic normalization, diff gate behavior)
+- **Audit trail template**: `docs/SECURITY_LOG.md` SECBASE-YYYYMMDD format
+  - Records source (workflow run URL, commit SHA, artifacts used)
+  - Records delta summary (previous count → new count, net change, why changed)
+  - Links to SECURITY_BURNDOWN.md and SECURITY_EXCEPTIONS.md
+
+**Consequences**:
+- ✅ **Reproducible baselines**: Anyone can download same CI artifacts and verify baseline generation
+- ✅ **Platform-independent**: Baselines generated on Linux CI work correctly for all contributors
+- ✅ **Audit trail**: Full provenance from CI run to baseline commit
+- ✅ **Explicit accountability**: Baseline changes require documented log entry (not automatic/silent)
+- ⚠️ **Manual procedure**: Baseline refresh requires 10 steps (acceptable for low-frequency operation)
+- ⚠️ **CI dependency**: Must wait for CI run to complete before downloading artifacts
+
+**Alternatives Considered**:
+1. **Local baseline generation** - Rejected: platform drift, non-reproducible
+2. **Automatic baseline updates** - Rejected: silent acceptance of regressions, no accountability
+3. **Baseline-less enforcement** - Rejected: would block all PRs with pre-existing findings
+
+**Related Decisions**:
+- DEC-044: Requirements Regeneration Policy (Linux/CI Canonical) - same principle of "CI as canonical truth"
+- DEC-018: CI Drift Enforcement - same pattern of mechanical policy enforcement
+
+**Status**: ✅ Implemented (BUILD-157, 2026-01-05)
+
+---
 

@@ -190,7 +190,8 @@
       "Bash(git cherry-pick:*)",
       "Bash(gh pr close:*)",
       "Bash(ruff check:*)",
-      "Bash(black:*)"
+      "Bash(black:*)",
+      "Bash(PYTHONUTF8=1 pytest:*)"
     ],
     "deny": [],
     "ask": []

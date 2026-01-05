@@ -36,6 +36,30 @@
 
 ---
 
+## 2026-01-05: Docker Compose Image Pinning (Supply-Chain Determinism)
+
+**Event**: Pinned moving image tags in docker-compose.yml to specific versions.
+
+**Changes**:
+- `postgres:15` → `postgres:15.10-alpine` (pinned patch version)
+- `qdrant/qdrant:latest` → `qdrant/qdrant:v1.12.5` (pinned release version)
+
+**Rationale**:
+- Prevents supply-chain drift (images changing under same tag)
+- Deterministic builds (same compose file → same images)
+- Reduces risk of breaking changes from upstream image updates
+- Aligns with README principle: "safe, deterministic, mechanically enforceable"
+
+**Maintenance**:
+- Review pinned versions quarterly or on major upstream releases
+- Test upgrades in dev environment before updating compose file
+- Document upgrades in this log
+
+**Owner**: Infrastructure team
+**Next Review**: Q2 2026 or on upstream security advisories
+
+---
+
 ## Template for Future Entries
 
 ```

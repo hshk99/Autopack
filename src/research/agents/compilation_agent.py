@@ -39,12 +39,7 @@ class CompilationAgent:
         :param content: A list of content strings.
         :return: A dictionary with categories as keys and lists of content strings as values.
         """
-        categories = {
-            "news": [],
-            "blog": [],
-            "advertisement": [],
-            "other": []
-        }
+        categories = {"news": [], "blog": [], "advertisement": [], "other": []}
         for item in content:
             if "news" in item.lower():
                 categories["news"].append(item)
@@ -69,4 +64,3 @@ class CompilationAgent:
         if not categorized_content["blog"]:
             gaps.append("Missing blog content")
         return gaps
-

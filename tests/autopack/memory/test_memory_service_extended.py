@@ -14,13 +14,15 @@ and enhanced MemoryService methods).
 import pytest
 import tempfile
 import shutil
-from pathlib import Path
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import Mock, patch
 import numpy as np
 
 pytestmark = [
-    pytest.mark.xfail(strict=False, reason="Extended MemoryService API not fully implemented - aspirational test suite"),
-    pytest.mark.aspirational
+    pytest.mark.xfail(
+        strict=False,
+        reason="Extended MemoryService API not fully implemented - aspirational test suite",
+    ),
+    pytest.mark.aspirational,
 ]
 
 try:
@@ -56,7 +58,9 @@ def mock_embedding_model():
 @pytest.fixture
 def memory_service(temp_storage_dir, mock_embedding_model):
     """Create a MemoryService instance for testing."""
-    with patch('src.autopack.memory.memory_service.EmbeddingModel', return_value=mock_embedding_model):
+    with patch(
+        "src.autopack.memory.memory_service.EmbeddingModel", return_value=mock_embedding_model
+    ):
         service = MemoryService(storage_path=temp_storage_dir)
         yield service
         service.close()
@@ -69,28 +73,20 @@ class TestEmbeddingStorage:
         """Test storing a single embedding."""
         text = "This is a test document"
         metadata = {"source": "test", "type": "document"}
-        
+
         doc_id = memory_service.store(text, metadata=metadata)
-        
+
         assert doc_id is not None
         assert isinstance(doc_id, str)
         mock_embedding_model.embed.assert_called_once_with(text)
 
     def test_store_multiple_embeddings(self, memory_service, mock_embedding_model):
         """Test storing multiple embeddings in batch."""
-        texts = [
-            "First document",
-            "Second document",
-            "Third document"
-        ]
-        metadata_list = [
-            {"index": 0},
-            {"index": 1},
-            {"index": 2}
-        ]
-        
+        texts = ["First document", "Second document", "Third document"]
+        metadata_list = [{"index": 0}, {"index": 1}, {"index": 2}]
+
         doc_ids = memory_service.store_batch(texts, metadata_list=metadata_list)
-        
+
         assert len(doc_ids) == 3
         assert all(isinstance(doc_id, str) for doc_id in doc_ids)
         mock_embedding_model.embed_batch.assert_called_once()
@@ -99,9 +95,9 @@ class TestEmbeddingStorage:
         """Test storing embedding with custom document ID."""
         text = "Custom ID document"
         custom_id = "custom-doc-123"
-        
+
         doc_id = memory_service.store(text, doc_id=custom_id)
-        
+
         assert doc_id == custom_id
 
     def test_store_empty_text_raises_error(self, memory_service):
@@ -116,11 +112,11 @@ class TestEmbeddingStorage:
             "title": "Test Document",
             "content": "A" * 1000,  # Large content
             "tags": [f"tag{i}" for i in range(50)],
-            "nested": {"level1": {"level2": {"level3": "deep"}}}
+            "nested": {"level1": {"level2": {"level3": "deep"}}},
         }
-        
+
         doc_id = memory_service.store(text, metadata=metadata)
-        
+
         assert doc_id is not None
 
 
@@ -131,10 +127,10 @@ class TestEmbeddingRetrieval:
         """Test retrieving a stored embedding by ID."""
         text = "Retrievable document"
         metadata = {"key": "value"}
-        
+
         doc_id = memory_service.store(text, metadata=metadata)
         retrieved = memory_service.retrieve(doc_id)
-        
+
         assert retrieved is not None
         assert retrieved.get("id") == doc_id
         assert retrieved.get("metadata", {}).get("key") == "value"
@@ -142,16 +138,16 @@ class TestEmbeddingRetrieval:
     def test_retrieve_nonexistent_id(self, memory_service):
         """Test retrieving a non-existent document returns None."""
         result = memory_service.retrieve("nonexistent-id-12345")
-        
+
         assert result is None
 
     def test_retrieve_multiple_by_ids(self, memory_service):
         """Test retrieving multiple documents by their IDs."""
         texts = ["Doc 1", "Doc 2", "Doc 3"]
         doc_ids = [memory_service.store(text) for text in texts]
-        
+
         retrieved = memory_service.retrieve_batch(doc_ids)
-        
+
         assert len(retrieved) == 3
         assert all(doc is not None for doc in retrieved)
 
@@ -159,10 +155,10 @@ class TestEmbeddingRetrieval:
         """Test retrieving batch with some missing IDs."""
         text = "Existing document"
         doc_id = memory_service.store(text)
-        
+
         ids_to_retrieve = [doc_id, "missing-1", "missing-2"]
         retrieved = memory_service.retrieve_batch(ids_to_retrieve)
-        
+
         assert len(retrieved) == 3
         assert retrieved[0] is not None
         assert retrieved[1] is None
@@ -178,15 +174,15 @@ class TestSimilaritySearch:
         texts = [
             "Python programming language",
             "JavaScript web development",
-            "Machine learning algorithms"
+            "Machine learning algorithms",
         ]
         for text in texts:
             memory_service.store(text)
-        
+
         # Search for similar documents
         query = "Python coding"
         results = memory_service.search(query, limit=2)
-        
+
         assert len(results) <= 2
         mock_embedding_model.embed.assert_called()
 
@@ -196,12 +192,12 @@ class TestSimilaritySearch:
         memory_service.store("Python tutorial", metadata={"category": "programming"})
         memory_service.store("Cooking recipe", metadata={"category": "food"})
         memory_service.store("Java guide", metadata={"category": "programming"})
-        
+
         # Search with filter
         query = "tutorial"
         filters = {"category": "programming"}
         results = memory_service.search(query, filters=filters, limit=5)
-        
+
         # All results should match the filter
         for result in results:
             assert result.get("metadata", {}).get("category") == "programming"
@@ -211,10 +207,10 @@ class TestSimilaritySearch:
         texts = ["Document one", "Document two", "Document three"]
         for text in texts:
             memory_service.store(text)
-        
+
         query = "Document"
         results = memory_service.search(query, limit=10, min_score=0.5)
-        
+
         # All results should have score >= threshold
         for result in results:
             score = result.get("score", 0)
@@ -224,7 +220,7 @@ class TestSimilaritySearch:
         """Test similarity search on empty store returns empty results."""
         query = "test query"
         results = memory_service.search(query)
-        
+
         assert isinstance(results, list)
         assert len(results) == 0
 
@@ -233,11 +229,11 @@ class TestSimilaritySearch:
         # Store many documents
         for i in range(20):
             memory_service.store(f"Document number {i}")
-        
+
         query = "Document"
         limit = 5
         results = memory_service.search(query, limit=limit)
-        
+
         assert len(results) <= limit
 
 
@@ -254,23 +250,23 @@ class TestErrorHandling:
     def test_concurrent_access_safety(self, memory_service):
         """Test that concurrent operations don't corrupt data."""
         import threading
-        
+
         results = []
         errors = []
-        
+
         def store_document(index):
             try:
                 doc_id = memory_service.store(f"Document {index}")
                 results.append(doc_id)
             except Exception as e:
                 errors.append(e)
-        
+
         threads = [threading.Thread(target=store_document, args=(i,)) for i in range(10)]
         for thread in threads:
             thread.start()
         for thread in threads:
             thread.join()
-        
+
         # Should have stored all documents without errors
         assert len(errors) == 0
         assert len(results) == 10
@@ -279,30 +275,32 @@ class TestErrorHandling:
     def test_service_close_and_reopen(self, temp_storage_dir, mock_embedding_model):
         """Test closing and reopening service preserves data."""
         # Create service and store data
-        with patch('src.autopack.memory.memory_service.EmbeddingModel', return_value=mock_embedding_model):
+        with patch(
+            "src.autopack.memory.memory_service.EmbeddingModel", return_value=mock_embedding_model
+        ):
             service1 = MemoryService(storage_path=temp_storage_dir)
             doc_id = service1.store("Persistent document")
             service1.close()
-            
+
             # Reopen service
             service2 = MemoryService(storage_path=temp_storage_dir)
             retrieved = service2.retrieve(doc_id)
             service2.close()
-            
+
             assert retrieved is not None
             assert retrieved.get("id") == doc_id
 
     def test_search_with_malformed_query(self, memory_service):
         """Test search with malformed or unusual query."""
         memory_service.store("Normal document")
-        
+
         # Try various edge case queries
         edge_cases = [
             "",  # Empty string
             " " * 100,  # Only whitespace
             "\n\t\r",  # Only special characters
         ]
-        
+
         for query in edge_cases:
             try:
                 results = memory_service.search(query)

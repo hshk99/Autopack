@@ -10,10 +10,9 @@ This module monitors archive files and automatically updates the consolidated
 documents when relevant information changes.
 """
 
-import os
 from datetime import datetime
 from pathlib import Path
-from typing import Optional, Dict, List, Any
+from typing import Optional, Dict, List
 import logging
 
 logger = logging.getLogger(__name__)
@@ -27,7 +26,9 @@ class ArchiveConsolidator:
     Similar to DebugJournal but for historical/strategic documentation.
     """
 
-    def __init__(self, project_slug: str = "file-organizer-app-v1", workspace_root: Optional[Path] = None):
+    def __init__(
+        self, project_slug: str = "file-organizer-app-v1", workspace_root: Optional[Path] = None
+    ):
         """
         Initialize the archive consolidator.
 
@@ -71,20 +72,20 @@ class ArchiveConsolidator:
             "DEBUG_JOURNAL.md",
             "ERROR_RECOVERY_INTEGRATION_SUMMARY.md",
             "BUILD_PROGRESS.md",
-            "AUTOPACK_DEBUG_HISTORY_AND_PROMPT.md"
+            "AUTOPACK_DEBUG_HISTORY_AND_PROMPT.md",
         ]
 
         self.build_sources = [
             "BUILD_PROGRESS.md",
             "FINAL_BUILD_REPORT.md",
             "IMPLEMENTATION_SUMMARY.md",
-            "DELEGATION_TO_GPT4O.md"
+            "DELEGATION_TO_GPT4O.md",
         ]
 
         self.strategy_sources = [
             "fileorganizer_final_strategic_review.md",
             "fileorganizer_product_intent_and_features.md",
-            "GPT_STRATEGIC_ANALYSIS_PROMPT_V2.md"
+            "GPT_STRATEGIC_ANALYSIS_PROMPT_V2.md",
         ]
 
         # Ensure directory exists
@@ -97,14 +98,14 @@ class ArchiveConsolidator:
         run_id: Optional[str] = None,
         phase_id: Optional[str] = None,
         suspected_cause: Optional[str] = None,
-        priority: str = "MEDIUM"
+        priority: str = "MEDIUM",
     ):
         """
         Log a new error to CONSOLIDATED_DEBUG_AND_ERRORS.md.
 
         This automatically appends to the "Open Issues" section.
         """
-        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
         entry = f"""
 ### {error_signature}
@@ -133,11 +134,7 @@ class ArchiveConsolidator:
 ---
 """
 
-        self._append_to_section(
-            self.debug_errors_file,
-            "Open Issues",
-            entry
-        )
+        self._append_to_section(self.debug_errors_file, "Open Issues", entry)
         logger.info(f"[ARCHIVE_CONSOLIDATOR] Logged new error: {error_signature}")
 
     def log_fix_applied(
@@ -173,11 +170,7 @@ class ArchiveConsolidator:
 **Result**: {result}
 """
 
-        self._append_to_issue(
-            self.debug_errors_file,
-            error_signature,
-            fix_entry
-        )
+        self._append_to_issue(self.debug_errors_file, error_signature, fix_entry)
         logger.info(f"[ARCHIVE_CONSOLIDATOR] Logged fix for: {error_signature}")
 
     def mark_issue_resolved(
@@ -185,7 +178,7 @@ class ArchiveConsolidator:
         error_signature: str,
         resolution_summary: str,
         verified_run_id: Optional[str] = None,
-        prevention_rule: Optional[str] = None
+        prevention_rule: Optional[str] = None,
     ):
         """
         Mark an issue as resolved in CONSOLIDATED_DEBUG_AND_ERRORS.md.
@@ -200,11 +193,7 @@ class ArchiveConsolidator:
 **Status**: ✅ RESOLVED
 """
 
-        self._append_to_issue(
-            self.debug_errors_file,
-            error_signature,
-            resolution
-        )
+        self._append_to_issue(self.debug_errors_file, error_signature, resolution)
 
         # If prevention rule provided, add to Prevention Rules section
         if prevention_rule:
@@ -218,7 +207,7 @@ class ArchiveConsolidator:
         week_number: Optional[int] = None,
         description: str = "",
         deliverables: Optional[List[str]] = None,
-        token_usage: Optional[Dict[str, int]] = None
+        token_usage: Optional[Dict[str, int]] = None,
     ):
         """
         Log a build event to CONSOLIDATED_BUILD_HISTORY.md.
@@ -253,22 +242,14 @@ class ArchiveConsolidator:
             "week_complete": "Week-by-Week Build Timeline",
             "intervention": "Manual Interventions Log",
             "escalation": "Auditor Escalations",
-            "incident": "Critical Incidents and Resolutions"
+            "incident": "Critical Incidents and Resolutions",
         }
 
         section = section_map.get(event_type, "Run History")
-        self._append_to_section(
-            self.build_history_file,
-            section,
-            entry
-        )
+        self._append_to_section(self.build_history_file, section, entry)
         logger.info(f"[ARCHIVE_CONSOLIDATOR] Logged build event: {event_type}")
 
-    def log_strategic_update(
-        self,
-        update_type: str,
-        content: str
-    ):
+    def log_strategic_update(self, update_type: str, content: str):
         """
         Log a strategic update to CONSOLIDATED_STRATEGIC_ANALYSIS.md.
 
@@ -293,15 +274,11 @@ class ArchiveConsolidator:
             "competitive_landscape": "Competitive Landscape",
             "go_no_go": "GO/NO-GO Decision Framework",
             "pricing": "Pricing Strategy",
-            "risk": "Risk Analysis and Mitigation"
+            "risk": "Risk Analysis and Mitigation",
         }
 
         section = section_map.get(update_type, "Strategic Updates")
-        self._append_to_section(
-            self.strategic_analysis_file,
-            section,
-            entry
-        )
+        self._append_to_section(self.strategic_analysis_file, section, entry)
         logger.info(f"[ARCHIVE_CONSOLIDATOR] Logged strategic update: {update_type}")
 
     def update_archive_index(self):
@@ -316,11 +293,16 @@ class ArchiveConsolidator:
             return
 
         # Get list of all archive files
-        archive_files = sorted([f.name for f in self.archive_dir.glob("*.md")
-                               if f.name != "ARCHIVE_INDEX.md" and not f.name.startswith("CONSOLIDATED_")])
+        archive_files = sorted(
+            [
+                f.name
+                for f in self.archive_dir.glob("*.md")
+                if f.name != "ARCHIVE_INDEX.md" and not f.name.startswith("CONSOLIDATED_")
+            ]
+        )
 
         # Update the "Remaining Archive Files" section
-        remaining_section = f"""
+        remaining_section = """
 ### Still Relevant (Not Consolidated)
 These files contain unique information not yet merged:
 
@@ -336,27 +318,23 @@ These files contain unique information not yet merged:
 
         # Replace the section in ARCHIVE_INDEX.md
         if self.archive_index_file.exists():
-            content = self.archive_index_file.read_text(encoding='utf-8')
+            content = self.archive_index_file.read_text(encoding="utf-8")
 
             # Find and replace "Remaining Archive Files" section
             section_pattern = r"## Remaining Archive Files\n(.*?)(?=\n##|$)"
             import re
+
             if re.search(section_pattern, content, re.DOTALL):
                 updated = re.sub(
                     section_pattern,
                     f"## Remaining Archive Files\n{remaining_section}",
                     content,
-                    flags=re.DOTALL
+                    flags=re.DOTALL,
                 )
-                self.archive_index_file.write_text(updated, encoding='utf-8')
+                self.archive_index_file.write_text(updated, encoding="utf-8")
                 logger.info("[ARCHIVE_CONSOLIDATOR] Updated ARCHIVE_INDEX.md")
 
-    def add_learned_rule(
-        self,
-        rule: str,
-        category: str = "General",
-        context: Optional[str] = None
-    ):
+    def add_learned_rule(self, rule: str, category: str = "General", context: Optional[str] = None):
         """
         Add a learned rule/best practice to LEARNED_RULES_README.md.
 
@@ -387,19 +365,10 @@ These files contain unique information not yet merged:
         entry += "---\n"
 
         # Add to the appropriate category section
-        self._append_to_section(
-            self.learned_rules_file,
-            f"{category} Rules",
-            entry
-        )
+        self._append_to_section(self.learned_rules_file, f"{category} Rules", entry)
         logger.info(f"[ARCHIVE_CONSOLIDATOR] Added learned rule: {rule[:50]}...")
 
-    def update_readme_section(
-        self,
-        section_name: str,
-        content: str,
-        mode: str = "append"
-    ):
+    def update_readme_section(self, section_name: str, content: str, mode: str = "append"):
         """
         Update a section in README.md.
 
@@ -415,25 +384,14 @@ These files contain unique information not yet merged:
             return
 
         if mode == "append":
-            self._append_to_section(
-                self.readme_file,
-                section_name,
-                content
-            )
+            self._append_to_section(self.readme_file, section_name, content)
         elif mode == "replace":
-            self._replace_section(
-                self.readme_file,
-                section_name,
-                content
-            )
+            self._replace_section(self.readme_file, section_name, content)
 
         logger.info(f"[ARCHIVE_CONSOLIDATOR] Updated README.md section: {section_name}")
 
     def log_feature_completion(
-        self,
-        feature_name: str,
-        description: str,
-        files_added: Optional[List[str]] = None
+        self, feature_name: str, description: str, files_added: Optional[List[str]] = None
     ):
         """
         Log a completed feature to README.md (Features section).
@@ -452,11 +410,7 @@ These files contain unique information not yet merged:
         if files_added:
             entry += f"  (Files: {', '.join(files_added)})\n"
 
-        self._append_to_section(
-            self.readme_file,
-            "Features",
-            entry
-        )
+        self._append_to_section(self.readme_file, "Features", entry)
         logger.info(f"[ARCHIVE_CONSOLIDATOR] Logged feature: {feature_name}")
 
     def _add_prevention_rule(self, rule: str):
@@ -464,14 +418,15 @@ These files contain unique information not yet merged:
         if not self.debug_errors_file.exists():
             return
 
-        content = self.debug_errors_file.read_text(encoding='utf-8')
+        content = self.debug_errors_file.read_text(encoding="utf-8")
 
         # Find Prevention Rules section
         section_marker = "## Prevention Rules"
         if section_marker in content:
             # Count existing rules
             import re
-            existing_rules = re.findall(r'^\d+\.', content, re.MULTILINE)
+
+            existing_rules = re.findall(r"^\d+\.", content, re.MULTILINE)
             next_number = len(existing_rules) + 1
 
             new_rule = f"{next_number}. {rule}\n"
@@ -480,15 +435,15 @@ These files contain unique information not yet merged:
             parts = content.split(section_marker)
             if len(parts) >= 2:
                 # Find the first line after section header
-                lines = parts[1].split('\n')
+                lines = parts[1].split("\n")
                 # Insert after first blank line
                 for i, line in enumerate(lines):
                     if line.strip() == "" and i > 0:
                         lines.insert(i + 1, new_rule)
                         break
 
-                updated = parts[0] + section_marker + '\n'.join(lines)
-                self.debug_errors_file.write_text(updated, encoding='utf-8')
+                updated = parts[0] + section_marker + "\n".join(lines)
+                self.debug_errors_file.write_text(updated, encoding="utf-8")
                 logger.info(f"[ARCHIVE_CONSOLIDATOR] Added prevention rule #{next_number}")
 
     def _append_to_section(self, file_path: Path, section_name: str, content: str):
@@ -497,7 +452,7 @@ These files contain unique information not yet merged:
             logger.warning(f"File not found: {file_path}")
             return
 
-        file_content = file_path.read_text(encoding='utf-8')
+        file_content = file_path.read_text(encoding="utf-8")
 
         # Find the section and append
         section_marker = f"## {section_name}"
@@ -510,15 +465,18 @@ These files contain unique information not yet merged:
                 if next_section_idx != -1:
                     # Insert before next section
                     updated = (
-                        parts[0] + section_marker +
-                        parts[1][:next_section_idx] + "\n" + content +
-                        parts[1][next_section_idx:]
+                        parts[0]
+                        + section_marker
+                        + parts[1][:next_section_idx]
+                        + "\n"
+                        + content
+                        + parts[1][next_section_idx:]
                     )
                 else:
                     # Append at end
                     updated = parts[0] + section_marker + parts[1] + "\n" + content
 
-                file_path.write_text(updated, encoding='utf-8')
+                file_path.write_text(updated, encoding="utf-8")
                 logger.debug(f"Appended to section '{section_name}' in {file_path.name}")
 
     def _append_to_issue(self, file_path: Path, error_signature: str, content: str):
@@ -527,7 +485,7 @@ These files contain unique information not yet merged:
             logger.warning(f"File not found: {file_path}")
             return
 
-        file_content = file_path.read_text(encoding='utf-8')
+        file_content = file_path.read_text(encoding="utf-8")
 
         # Find the issue header
         issue_marker = f"### {error_signature}"
@@ -541,7 +499,7 @@ These files contain unique information not yet merged:
                 suspected_cause=None,
                 priority="MEDIUM",
             )
-            file_content = file_path.read_text(encoding='utf-8')
+            file_content = file_path.read_text(encoding="utf-8")
 
         # Find the next issue or section
         parts = file_content.split(issue_marker)
@@ -553,14 +511,17 @@ These files contain unique information not yet merged:
 
             if next_marker_idx != -1:
                 updated = (
-                    parts[0] + issue_marker +
-                    parts[1][:next_marker_idx] + "\n" + content +
-                    parts[1][next_marker_idx:]
+                    parts[0]
+                    + issue_marker
+                    + parts[1][:next_marker_idx]
+                    + "\n"
+                    + content
+                    + parts[1][next_marker_idx:]
                 )
             else:
                 updated = parts[0] + issue_marker + parts[1] + "\n" + content
 
-            file_path.write_text(updated, encoding='utf-8')
+            file_path.write_text(updated, encoding="utf-8")
             logger.debug(f"Appended to issue '{error_signature}' in {file_path.name}")
 
     def _replace_section(self, file_path: Path, section_name: str, content: str):
@@ -569,7 +530,7 @@ These files contain unique information not yet merged:
             logger.warning(f"File not found: {file_path}")
             return
 
-        file_content = file_path.read_text(encoding='utf-8')
+        file_content = file_path.read_text(encoding="utf-8")
 
         # Find and replace the section
         section_marker = f"## {section_name}"
@@ -581,14 +542,13 @@ These files contain unique information not yet merged:
                 if next_section_idx != -1:
                     # Replace section content, keep next section
                     updated = (
-                        parts[0] + section_marker + "\n" + content +
-                        parts[1][next_section_idx:]
+                        parts[0] + section_marker + "\n" + content + parts[1][next_section_idx:]
                     )
                 else:
                     # Replace section content to end of file
                     updated = parts[0] + section_marker + "\n" + content
 
-                file_path.write_text(updated, encoding='utf-8')
+                file_path.write_text(updated, encoding="utf-8")
                 logger.debug(f"Replaced section '{section_name}' in {file_path.name}")
 
     def _initialize_learned_rules(self):
@@ -649,8 +609,10 @@ _(Cross-cutting rules that don't fit other categories)_
 **Maintained by**: Autopack Archive Consolidator
 """
 
-        self.learned_rules_file.write_text(header, encoding='utf-8')
-        logger.info(f"[ARCHIVE_CONSOLIDATOR] Created LEARNED_RULES_README.md at {self.learned_rules_file}")
+        self.learned_rules_file.write_text(header, encoding="utf-8")
+        logger.info(
+            f"[ARCHIVE_CONSOLIDATOR] Created LEARNED_RULES_README.md at {self.learned_rules_file}"
+        )
 
 
 # Global singleton for easy access
@@ -673,7 +635,7 @@ def log_error(
     phase_id: Optional[str] = None,
     suspected_cause: Optional[str] = None,
     priority: str = "MEDIUM",
-    project_slug: str = "file-organizer-app-v1"
+    project_slug: str = "file-organizer-app-v1",
 ):
     """Log a new error to consolidated debug file"""
     consolidator = get_consolidator(project_slug)
@@ -683,7 +645,7 @@ def log_error(
         run_id=run_id,
         phase_id=phase_id,
         suspected_cause=suspected_cause,
-        priority=priority
+        priority=priority,
     )
 
 
@@ -717,7 +679,7 @@ def mark_resolved(
     resolution_summary: str,
     verified_run_id: Optional[str] = None,
     prevention_rule: Optional[str] = None,
-    project_slug: str = "file-organizer-app-v1"
+    project_slug: str = "file-organizer-app-v1",
 ):
     """Mark an issue as resolved"""
     consolidator = get_consolidator(project_slug)
@@ -725,7 +687,7 @@ def mark_resolved(
         error_signature=error_signature,
         resolution_summary=resolution_summary,
         verified_run_id=verified_run_id,
-        prevention_rule=prevention_rule
+        prevention_rule=prevention_rule,
     )
 
 
@@ -735,7 +697,7 @@ def log_build_event(
     description: str = "",
     deliverables: Optional[List[str]] = None,
     token_usage: Optional[Dict[str, int]] = None,
-    project_slug: str = "file-organizer-app-v1"
+    project_slug: str = "file-organizer-app-v1",
 ):
     """Log a build event to consolidated build history"""
     consolidator = get_consolidator(project_slug)
@@ -744,21 +706,16 @@ def log_build_event(
         week_number=week_number,
         description=description,
         deliverables=deliverables,
-        token_usage=token_usage
+        token_usage=token_usage,
     )
 
 
 def log_strategic_update(
-    update_type: str,
-    content: str,
-    project_slug: str = "file-organizer-app-v1"
+    update_type: str, content: str, project_slug: str = "file-organizer-app-v1"
 ):
     """Log a strategic update"""
     consolidator = get_consolidator(project_slug)
-    consolidator.log_strategic_update(
-        update_type=update_type,
-        content=content
-    )
+    consolidator.log_strategic_update(update_type=update_type, content=content)
 
 
 def update_archive_index(project_slug: str = "file-organizer-app-v1"):
@@ -771,42 +728,32 @@ def add_learned_rule(
     rule: str,
     category: str = "General",
     context: Optional[str] = None,
-    project_slug: str = "file-organizer-app-v1"
+    project_slug: str = "file-organizer-app-v1",
 ):
     """Add a learned rule/best practice to LEARNED_RULES_README.md"""
     consolidator = get_consolidator(project_slug)
-    consolidator.add_learned_rule(
-        rule=rule,
-        category=category,
-        context=context
-    )
+    consolidator.add_learned_rule(rule=rule, category=category, context=context)
 
 
 def update_readme(
     section_name: str,
     content: str,
     mode: str = "append",
-    project_slug: str = "file-organizer-app-v1"
+    project_slug: str = "file-organizer-app-v1",
 ):
     """Update a section in README.md"""
     consolidator = get_consolidator(project_slug)
-    consolidator.update_readme_section(
-        section_name=section_name,
-        content=content,
-        mode=mode
-    )
+    consolidator.update_readme_section(section_name=section_name, content=content, mode=mode)
 
 
 def log_feature(
     feature_name: str,
     description: str,
     files_added: Optional[List[str]] = None,
-    project_slug: str = "file-organizer-app-v1"
+    project_slug: str = "file-organizer-app-v1",
 ):
     """Log a completed feature to README.md"""
     consolidator = get_consolidator(project_slug)
     consolidator.log_feature_completion(
-        feature_name=feature_name,
-        description=description,
-        files_added=files_added
+        feature_name=feature_name, description=description, files_added=files_added
     )

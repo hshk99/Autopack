@@ -1,14 +1,15 @@
 """Tests for circuit breaker implementation."""
+
 import pytest
 import time
-from unittest.mock import Mock, patch
+from unittest.mock import Mock
 
 from autopack.circuit_breaker import (
     CircuitBreaker,
     CircuitBreakerConfig,
     CircuitState,
     CircuitBreakerOpenError,
-    CircuitBreakerMetrics
+    CircuitBreakerMetrics,
 )
 
 
@@ -27,10 +28,7 @@ class TestCircuitBreakerConfig:
     def test_custom_config(self):
         """Test custom configuration values."""
         config = CircuitBreakerConfig(
-            failure_threshold=3,
-            success_threshold=1,
-            timeout=30.0,
-            half_open_timeout=15.0
+            failure_threshold=3, success_threshold=1, timeout=30.0, half_open_timeout=15.0
         )
         assert config.failure_threshold == 3
         assert config.success_threshold == 1
@@ -88,7 +86,7 @@ class TestCircuitBreaker:
         """Test circuit breaker initialization."""
         config = CircuitBreakerConfig(failure_threshold=3)
         breaker = CircuitBreaker(name="test", config=config)
-        
+
         assert breaker.name == "test"
         assert breaker.state == CircuitState.CLOSED
         assert breaker.failure_count == 0
@@ -98,9 +96,9 @@ class TestCircuitBreaker:
         """Test successful call when circuit is closed."""
         breaker = CircuitBreaker(name="test")
         mock_func = Mock(return_value="success")
-        
+
         result = breaker.call(mock_func)
-        
+
         assert result == "success"
         assert breaker.state == CircuitState.CLOSED
         assert breaker.metrics.successful_calls == 1
@@ -111,10 +109,10 @@ class TestCircuitBreaker:
         config = CircuitBreakerConfig(failure_threshold=3)
         breaker = CircuitBreaker(name="test", config=config)
         mock_func = Mock(side_effect=Exception("error"))
-        
+
         with pytest.raises(Exception, match="error"):
             breaker.call(mock_func)
-        
+
         assert breaker.state == CircuitState.CLOSED
         assert breaker.failure_count == 1
         assert breaker.metrics.failed_calls == 1
@@ -124,12 +122,12 @@ class TestCircuitBreaker:
         config = CircuitBreakerConfig(failure_threshold=3)
         breaker = CircuitBreaker(name="test", config=config)
         mock_func = Mock(side_effect=Exception("error"))
-        
+
         # Fail 3 times to reach threshold
         for _ in range(3):
             with pytest.raises(Exception):
                 breaker.call(mock_func)
-        
+
         assert breaker.state == CircuitState.OPEN
         assert breaker.metrics.failed_calls == 3
 
@@ -138,16 +136,16 @@ class TestCircuitBreaker:
         config = CircuitBreakerConfig(failure_threshold=2)
         breaker = CircuitBreaker(name="test", config=config)
         mock_func = Mock(side_effect=Exception("error"))
-        
+
         # Open the circuit
         for _ in range(2):
             with pytest.raises(Exception):
                 breaker.call(mock_func)
-        
+
         # Next call should be rejected
         with pytest.raises(CircuitBreakerOpenError):
             breaker.call(mock_func)
-        
+
         assert breaker.metrics.rejected_calls == 1
 
     def test_transition_to_half_open_after_timeout(self):
@@ -155,50 +153,46 @@ class TestCircuitBreaker:
         config = CircuitBreakerConfig(failure_threshold=2, timeout=0.1)
         breaker = CircuitBreaker(name="test", config=config)
         mock_func = Mock(side_effect=Exception("error"))
-        
+
         # Open the circuit
         for _ in range(2):
             with pytest.raises(Exception):
                 breaker.call(mock_func)
-        
+
         assert breaker.state == CircuitState.OPEN
-        
+
         # Wait for timeout
         time.sleep(0.15)
-        
+
         # Next call should trigger state update to HALF_OPEN
         mock_func.side_effect = None
         mock_func.return_value = "success"
         result = breaker.call(mock_func)
-        
+
         assert result == "success"
         assert breaker.state == CircuitState.HALF_OPEN
 
     def test_recovery_in_half_open_state(self):
         """Test recovery to CLOSED state from HALF_OPEN."""
-        config = CircuitBreakerConfig(
-            failure_threshold=2,
-            success_threshold=2,
-            timeout=0.1
-        )
+        config = CircuitBreakerConfig(failure_threshold=2, success_threshold=2, timeout=0.1)
         breaker = CircuitBreaker(name="test", config=config)
         mock_func = Mock(side_effect=Exception("error"))
-        
+
         # Open the circuit
         for _ in range(2):
             with pytest.raises(Exception):
                 breaker.call(mock_func)
-        
+
         # Wait for timeout
         time.sleep(0.15)
-        
+
         # Succeed twice in HALF_OPEN to recover
         mock_func.side_effect = None
         mock_func.return_value = "success"
-        
+
         breaker.call(mock_func)
         assert breaker.state == CircuitState.HALF_OPEN
-        
+
         breaker.call(mock_func)
         assert breaker.state == CircuitState.CLOSED
 
@@ -207,19 +201,19 @@ class TestCircuitBreaker:
         config = CircuitBreakerConfig(failure_threshold=2, timeout=0.1)
         breaker = CircuitBreaker(name="test", config=config)
         mock_func = Mock(side_effect=Exception("error"))
-        
+
         # Open the circuit
         for _ in range(2):
             with pytest.raises(Exception):
                 breaker.call(mock_func)
-        
+
         # Wait for timeout to enter HALF_OPEN
         time.sleep(0.15)
-        
+
         # Fail in HALF_OPEN
         with pytest.raises(Exception):
             breaker.call(mock_func)
-        
+
         assert breaker.state == CircuitState.OPEN
 
     def test_manual_reset(self):
@@ -227,17 +221,17 @@ class TestCircuitBreaker:
         config = CircuitBreakerConfig(failure_threshold=2)
         breaker = CircuitBreaker(name="test", config=config)
         mock_func = Mock(side_effect=Exception("error"))
-        
+
         # Open the circuit
         for _ in range(2):
             with pytest.raises(Exception):
                 breaker.call(mock_func)
-        
+
         assert breaker.state == CircuitState.OPEN
-        
+
         # Manual reset
         breaker.reset()
-        
+
         assert breaker.state == CircuitState.CLOSED
         assert breaker.failure_count == 0
 
@@ -245,15 +239,15 @@ class TestCircuitBreaker:
         """Test is_available method."""
         config = CircuitBreakerConfig(failure_threshold=2)
         breaker = CircuitBreaker(name="test", config=config)
-        
+
         assert breaker.is_available() is True
-        
+
         # Open the circuit
         mock_func = Mock(side_effect=Exception("error"))
         for _ in range(2):
             with pytest.raises(Exception):
                 breaker.call(mock_func)
-        
+
         assert breaker.is_available() is False
 
     def test_get_state(self):
@@ -265,9 +259,9 @@ class TestCircuitBreaker:
         """Test get_metrics method."""
         breaker = CircuitBreaker(name="test")
         mock_func = Mock(return_value="success")
-        
+
         breaker.call(mock_func)
-        
+
         metrics = breaker.get_metrics()
         assert metrics.total_calls == 1
         assert metrics.successful_calls == 1
@@ -275,24 +269,24 @@ class TestCircuitBreaker:
     def test_thread_safety(self):
         """Test thread safety of circuit breaker."""
         import threading
-        
+
         breaker = CircuitBreaker(name="test")
         results = []
         errors = []
-        
+
         def worker():
             try:
                 result = breaker.call(lambda: "success")
                 results.append(result)
             except Exception as e:
                 errors.append(e)
-        
+
         threads = [threading.Thread(target=worker) for _ in range(10)]
         for t in threads:
             t.start()
         for t in threads:
             t.join()
-        
+
         assert len(results) == 10
         assert len(errors) == 0
         assert breaker.metrics.successful_calls == 10

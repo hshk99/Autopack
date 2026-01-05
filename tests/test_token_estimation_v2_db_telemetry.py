@@ -22,12 +22,14 @@ def test_token_estimation_v2_db_write_stores_ratio_semantics(monkeypatch):
         connect_args={"check_same_thread": False},
         poolclass=StaticPool,
     )
+
     # Ensure FK constraints are enforced in SQLite
     @event.listens_for(engine, "connect")
     def _set_sqlite_pragma(dbapi_connection, connection_record):
         cursor = dbapi_connection.cursor()
         cursor.execute("PRAGMA foreign_keys=ON")
         cursor.close()
+
     TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
     # Import Base + models after engine created
@@ -93,5 +95,3 @@ def test_token_estimation_v2_db_write_stores_ratio_semantics(monkeypatch):
         assert 85.0 < e.smape_percent < 90.0  # smape between 250 and 100 is 85.714...
     finally:
         session.close()
-
-

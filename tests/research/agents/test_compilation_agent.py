@@ -70,11 +70,15 @@ class TestCompilationAgent(unittest.TestCase):
         self.assertEqual(len(buckets["market"]), 1)
         self.assertEqual(len(buckets["competition"]), 1)
 
-    @patch("autopack.research.agents.compilation_agent.WebScraper.fetch_content", return_value="Some page")
+    @patch(
+        "autopack.research.agents.compilation_agent.WebScraper.fetch_content",
+        return_value="Some page",
+    )
     def test_compile_content_uses_scraper(self, _mock_fetch):
         result = self.agent.compile_content(["https://example.com/a"])
         self.assertIn("findings", result)
         self.assertEqual(result["findings"][0]["source_url"], "https://example.com/a")
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     unittest.main()

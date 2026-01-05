@@ -24,7 +24,7 @@ from pathlib import Path
 from typing import Dict, List, Optional, Any, Tuple
 
 from .repo_scanner import RepoScanner
-from .pattern_matcher import PatternMatcher, MatchResult
+from .pattern_matcher import PatternMatcher
 from .preflight_validator import PreflightValidator
 from .project_intention import ProjectIntentionManager
 from .memory.memory_service import MemoryService
@@ -112,7 +112,7 @@ class PlanNormalizer:
             return NormalizationResult(
                 success=False,
                 error="No deliverables detected in plan. Please specify explicit deliverables "
-                      "(files, features, behaviors) to implement.",
+                "(files, features, behaviors) to implement.",
             )
 
         # Step 2: Infer task category (deterministic)
@@ -131,7 +131,7 @@ class PlanNormalizer:
             return NormalizationResult(
                 success=False,
                 error="Cannot safely infer validation steps (tests/build/probe). "
-                      "Please specify test commands or acceptance criteria explicitly.",
+                "Please specify test commands or acceptance criteria explicitly.",
             )
 
         # Step 5: Apply conservative budgets
@@ -251,7 +251,9 @@ class PlanNormalizer:
             deliverables.append(match.group(1).strip())
 
         # Pattern 3: "Implement X", "Add Y", "Create Z" imperatives
-        imperative_pattern = r"\b(implement|add|create|build|write|update|fix|refactor)\s+([^\n.;]+)"
+        imperative_pattern = (
+            r"\b(implement|add|create|build|write|update|fix|refactor)\s+([^\n.;]+)"
+        )
         for match in re.finditer(imperative_pattern, raw_plan, re.IGNORECASE):
             deliverable = match.group(2).strip()
             if len(deliverable) > 10 and len(deliverable) < 200:
@@ -479,9 +481,7 @@ class PlanNormalizer:
         try:
             context = self.intention_manager.get_intention_context(max_chars=1024)
             if context:
-                logger.debug(
-                    f"[PlanNormalizer] Retrieved intention context: {len(context)} chars"
-                )
+                logger.debug(f"[PlanNormalizer] Retrieved intention context: {len(context)} chars")
             return context
         except Exception as exc:
             logger.warning(f"[PlanNormalizer] Failed to retrieve intention: {exc}")
@@ -527,7 +527,7 @@ class PlanNormalizer:
                 status="active",
             )
 
-            logger.debug(f"[PlanNormalizer] Stored normalization decisions in memory")
+            logger.debug("[PlanNormalizer] Stored normalization decisions in memory")
         except Exception as exc:
             logger.warning(f"[PlanNormalizer] Failed to store decisions: {exc}")
 

@@ -134,7 +134,9 @@ def write_plan(plan: Dict[str, List[Dict]], out_path: Path) -> Path:
 # --------------------------------------------------------------------------- #
 
 
-def create_git_checkpoint(repo_path: Path, message: str = "[Autopack] Backlog checkpoint") -> Tuple[bool, Optional[str]]:
+def create_git_checkpoint(
+    repo_path: Path, message: str = "[Autopack] Backlog checkpoint"
+) -> Tuple[bool, Optional[str]]:
     """
     Create a lightweight git checkpoint (add + commit) to allow rollback.
 
@@ -142,8 +144,15 @@ def create_git_checkpoint(repo_path: Path, message: str = "[Autopack] Backlog ch
     """
     repo_path = repo_path.resolve()
     try:
-        subprocess.run(["git", "add", "-A"], cwd=repo_path, check=True, capture_output=True, text=True, timeout=30)
-        commit = subprocess.run(
+        subprocess.run(
+            ["git", "add", "-A"],
+            cwd=repo_path,
+            check=True,
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+        subprocess.run(
             ["git", "commit", "-m", message],
             cwd=repo_path,
             check=True,
@@ -152,7 +161,9 @@ def create_git_checkpoint(repo_path: Path, message: str = "[Autopack] Backlog ch
             timeout=30,
         )
         # Extract last commit hash
-        show = subprocess.run(["git", "rev-parse", "HEAD"], cwd=repo_path, check=True, capture_output=True, text=True)
+        show = subprocess.run(
+            ["git", "rev-parse", "HEAD"], cwd=repo_path, check=True, capture_output=True, text=True
+        )
         return True, show.stdout.strip()
     except subprocess.CalledProcessError as e:
         return False, e.stderr.strip() if e.stderr else str(e)
@@ -168,7 +179,14 @@ def revert_to_checkpoint(repo_path: Path, commit_hash: str) -> Tuple[bool, Optio
     """
     repo_path = repo_path.resolve()
     try:
-        subprocess.run(["git", "reset", "--hard", commit_hash], cwd=repo_path, check=True, capture_output=True, text=True, timeout=30)
+        subprocess.run(
+            ["git", "reset", "--hard", commit_hash],
+            cwd=repo_path,
+            check=True,
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
         return True, None
     except subprocess.CalledProcessError as e:
         return False, e.stderr.strip() if e.stderr else str(e)
@@ -192,4 +210,3 @@ def parse_patch_stats(patch_content: str) -> DiffStats:
         elif line.startswith("-") and not line.startswith("---"):
             deleted += 1
     return DiffStats(files_changed=sorted(files), lines_added=added, lines_deleted=deleted)
-

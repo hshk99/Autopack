@@ -17,7 +17,6 @@ Skip in default CI (external dependencies not available):
 
 from __future__ import annotations
 
-import json
 import os
 import pytest
 import tempfile
@@ -26,6 +25,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 import sys
+
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "scripts" / "tidy"))
 
@@ -35,12 +35,12 @@ from sot_db_sync import SOTDBSync, SyncMode
 # Skip all tests in this file if external dependencies not configured
 requires_postgres = pytest.mark.skipif(
     not os.getenv("DATABASE_URL", "").startswith("postgresql://"),
-    reason="PostgreSQL not configured (set DATABASE_URL=postgresql://...)"
+    reason="PostgreSQL not configured (set DATABASE_URL=postgresql://...)",
 )
 
 requires_qdrant = pytest.mark.skipif(
     not os.getenv("QDRANT_HOST"),
-    reason="Qdrant not configured (set QDRANT_HOST=http://localhost:6333)"
+    reason="Qdrant not configured (set QDRANT_HOST=http://localhost:6333)",
 )
 
 
@@ -59,7 +59,8 @@ def mock_repo_structure(temp_dir):
 
     # BUILD_HISTORY.md
     build_history = docs_dir / "BUILD_HISTORY.md"
-    build_history.write_text("""# Build History
+    build_history.write_text(
+        """# Build History
 
 ## BUILD-163: SOT DB Sync
 
@@ -69,11 +70,13 @@ This is a test build for integration testing.
 - PostgreSQL sync
 - Qdrant sync
 - Full sync mode
-""")
+"""
+    )
 
     # ARCHITECTURE_DECISIONS.md
     arch_decisions = docs_dir / "ARCHITECTURE_DECISIONS.md"
-    arch_decisions.write_text("""# Architecture Decisions
+    arch_decisions.write_text(
+        """# Architecture Decisions
 
 ## DEC-100: Integration Test Decision
 
@@ -81,11 +84,13 @@ Test decision for integration testing.
 
 **Status**: Active
 **Impact**: Medium
-""")
+"""
+    )
 
     # DEBUG_LOG.md
     debug_log = docs_dir / "DEBUG_LOG.md"
-    debug_log.write_text("""# Debug Log
+    debug_log.write_text(
+        """# Debug Log
 
 ## DBG-100: Integration Test Debug
 
@@ -93,7 +98,8 @@ Test debug entry for integration testing.
 
 **Severity**: LOW
 **Status**: Open
-""")
+"""
+    )
 
     return temp_dir
 
@@ -101,12 +107,12 @@ Test debug entry for integration testing.
 @requires_postgres
 def test_postgres_sync(mock_repo_structure):
     """Test PostgreSQL database sync with real connection"""
-    with patch('sot_db_sync.REPO_ROOT', mock_repo_structure):
+    with patch("sot_db_sync.REPO_ROOT", mock_repo_structure):
         syncer = SOTDBSync(
             mode=SyncMode.DB_ONLY,
             execute=True,
             database_url=os.getenv("DATABASE_URL"),
-            max_seconds=60
+            max_seconds=60,
         )
 
         exit_code = syncer.run()
@@ -121,22 +127,24 @@ def test_postgres_sync(mock_repo_structure):
         # Cleanup: Remove test entries
         if syncer.db_conn:
             cursor = syncer.db_conn.cursor()
-            cursor.execute("""
+            cursor.execute(
+                """
                 DELETE FROM sot_entries
                 WHERE entry_id IN ('BUILD-163', 'DEC-100', 'DBG-100')
-            """)
+            """
+            )
             syncer.db_conn.commit()
 
 
 @requires_qdrant
 def test_qdrant_sync(mock_repo_structure):
     """Test Qdrant vector store sync with real connection"""
-    with patch('sot_db_sync.REPO_ROOT', mock_repo_structure):
+    with patch("sot_db_sync.REPO_ROOT", mock_repo_structure):
         syncer = SOTDBSync(
             mode=SyncMode.QDRANT_ONLY,
             execute=True,
             qdrant_host=os.getenv("QDRANT_HOST"),
-            max_seconds=120  # Embedding can be slow
+            max_seconds=120,  # Embedding can be slow
         )
 
         exit_code = syncer.run()
@@ -154,13 +162,13 @@ def test_qdrant_sync(mock_repo_structure):
 @requires_qdrant
 def test_full_sync_mode(mock_repo_structure):
     """Test full sync mode (PostgreSQL + Qdrant) with real connections"""
-    with patch('sot_db_sync.REPO_ROOT', mock_repo_structure):
+    with patch("sot_db_sync.REPO_ROOT", mock_repo_structure):
         syncer = SOTDBSync(
             mode=SyncMode.FULL,
             execute=True,
             database_url=os.getenv("DATABASE_URL"),
             qdrant_host=os.getenv("QDRANT_HOST"),
-            max_seconds=120
+            max_seconds=120,
         )
 
         exit_code = syncer.run()
@@ -177,23 +185,25 @@ def test_full_sync_mode(mock_repo_structure):
         # Cleanup PostgreSQL
         if syncer.db_conn:
             cursor = syncer.db_conn.cursor()
-            cursor.execute("""
+            cursor.execute(
+                """
                 DELETE FROM sot_entries
                 WHERE entry_id IN ('BUILD-163', 'DEC-100', 'DBG-100')
-            """)
+            """
+            )
             syncer.db_conn.commit()
 
 
 @requires_postgres
 def test_postgres_idempotent_upsert(mock_repo_structure):
     """Test PostgreSQL idempotent upserts with real database"""
-    with patch('sot_db_sync.REPO_ROOT', mock_repo_structure):
+    with patch("sot_db_sync.REPO_ROOT", mock_repo_structure):
         # First sync
         syncer1 = SOTDBSync(
             mode=SyncMode.DB_ONLY,
             execute=True,
             database_url=os.getenv("DATABASE_URL"),
-            max_seconds=60
+            max_seconds=60,
         )
         syncer1.run()
 
@@ -202,7 +212,7 @@ def test_postgres_idempotent_upsert(mock_repo_structure):
             mode=SyncMode.DB_ONLY,
             execute=True,
             database_url=os.getenv("DATABASE_URL"),
-            max_seconds=60
+            max_seconds=60,
         )
         syncer2.run()
 
@@ -213,23 +223,25 @@ def test_postgres_idempotent_upsert(mock_repo_structure):
         # Cleanup
         if syncer2.db_conn:
             cursor = syncer2.db_conn.cursor()
-            cursor.execute("""
+            cursor.execute(
+                """
                 DELETE FROM sot_entries
                 WHERE entry_id IN ('BUILD-163', 'DEC-100', 'DBG-100')
-            """)
+            """
+            )
             syncer2.db_conn.commit()
 
 
 @requires_postgres
 def test_postgres_content_update(mock_repo_structure):
     """Test PostgreSQL content update detection with real database"""
-    with patch('sot_db_sync.REPO_ROOT', mock_repo_structure):
+    with patch("sot_db_sync.REPO_ROOT", mock_repo_structure):
         # First sync
         syncer1 = SOTDBSync(
             mode=SyncMode.DB_ONLY,
             execute=True,
             database_url=os.getenv("DATABASE_URL"),
-            max_seconds=60
+            max_seconds=60,
         )
         syncer1.run()
 
@@ -244,7 +256,7 @@ def test_postgres_content_update(mock_repo_structure):
             mode=SyncMode.DB_ONLY,
             execute=True,
             database_url=os.getenv("DATABASE_URL"),
-            max_seconds=60
+            max_seconds=60,
         )
         syncer2.run()
 
@@ -253,19 +265,18 @@ def test_postgres_content_update(mock_repo_structure):
 
         # Verify updated content
         cursor = syncer2.db_conn.cursor()
-        cursor.execute(
-            "SELECT content FROM sot_entries WHERE entry_id = %s",
-            ("BUILD-163",)
-        )
+        cursor.execute("SELECT content FROM sot_entries WHERE entry_id = %s", ("BUILD-163",))
         row = cursor.fetchone()
         if row:
             assert "MODIFIED" in row[0]
 
         # Cleanup
-        cursor.execute("""
+        cursor.execute(
+            """
             DELETE FROM sot_entries
             WHERE entry_id IN ('BUILD-163', 'DEC-100', 'DBG-100')
-        """)
+        """
+        )
         syncer2.db_conn.commit()
 
 
@@ -277,7 +288,7 @@ def test_postgres_connection_error_handling():
             mode=SyncMode.DB_ONLY,
             execute=True,
             database_url="postgresql://invalid:invalid@nonexistent:5432/invalid",
-            max_seconds=10
+            max_seconds=10,
         )
 
         syncer.run()
@@ -294,7 +305,7 @@ def test_qdrant_connection_error_handling():
             mode=SyncMode.QDRANT_ONLY,
             execute=True,
             qdrant_host="http://nonexistent:9999",
-            max_seconds=10
+            max_seconds=10,
         )
 
         syncer.run()
@@ -307,14 +318,14 @@ def test_qdrant_connection_error_handling():
 @requires_qdrant
 def test_performance_large_sync(mock_repo_structure):
     """Test performance of syncing with timing enabled"""
-    with patch('sot_db_sync.REPO_ROOT', mock_repo_structure):
+    with patch("sot_db_sync.REPO_ROOT", mock_repo_structure):
         syncer = SOTDBSync(
             mode=SyncMode.FULL,
             execute=True,
             database_url=os.getenv("DATABASE_URL"),
             qdrant_host=os.getenv("QDRANT_HOST"),
             max_seconds=180,
-            timing=True
+            timing=True,
         )
 
         start = time.time()
@@ -332,10 +343,12 @@ def test_performance_large_sync(mock_repo_structure):
         # Cleanup
         if syncer.db_conn:
             cursor = syncer.db_conn.cursor()
-            cursor.execute("""
+            cursor.execute(
+                """
                 DELETE FROM sot_entries
                 WHERE entry_id IN ('BUILD-163', 'DEC-100', 'DBG-100')
-            """)
+            """
+            )
             syncer.db_conn.commit()
 
 

@@ -6,8 +6,6 @@ Tests:
 - validate_structured_manifest()
 """
 
-import pytest
-import json
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
@@ -90,12 +88,8 @@ class TestManifestValidation:
             (workspace / "src/main.py").write_text("from src.example import ExampleClass\n")
 
             manifest = {
-                "created": [
-                    {"path": "src/example.py", "symbols": ["ExampleClass"]}
-                ],
-                "modified": [
-                    {"path": "src/main.py", "changes": "Added import"}
-                ]
+                "created": [{"path": "src/example.py", "symbols": ["ExampleClass"]}],
+                "modified": [{"path": "src/main.py", "changes": "Added import"}],
             }
 
             passed, issues = validate_structured_manifest(manifest, workspace)
@@ -109,10 +103,8 @@ class TestManifestValidation:
             workspace = Path(tmpdir)
 
             manifest = {
-                "created": [
-                    {"path": "src/missing.py", "symbols": ["MissingClass"]}
-                ],
-                "modified": []
+                "created": [{"path": "src/missing.py", "symbols": ["MissingClass"]}],
+                "modified": [],
             }
 
             passed, issues = validate_structured_manifest(manifest, workspace)
@@ -133,7 +125,7 @@ class TestManifestValidation:
                 "created": [
                     {"path": "src/example.py", "symbols": ["ExampleClass", "example_function"]}
                 ],
-                "modified": []
+                "modified": [],
             }
 
             passed, issues = validate_structured_manifest(manifest, workspace)
@@ -149,9 +141,7 @@ class TestManifestValidation:
 
             manifest = {
                 "created": [],
-                "modified": [
-                    {"path": "src/missing.py", "changes": "Some changes"}
-                ]
+                "modified": [{"path": "src/missing.py", "changes": "Some changes"}],
             }
 
             passed, issues = validate_structured_manifest(manifest, workspace)
@@ -189,15 +179,12 @@ class TestManifestValidation:
             manifest = {
                 "created": [
                     {"path": "src/example.py", "symbols": ["ExampleClass"]},
-                    {"path": "tests/test_example.py", "symbols": ["test_example"]}
+                    {"path": "tests/test_example.py", "symbols": ["test_example"]},
                 ],
-                "modified": []
+                "modified": [],
             }
 
-            expected_deliverables = [
-                "src/example.py",
-                "tests/test_example.py"
-            ]
+            expected_deliverables = ["src/example.py", "tests/test_example.py"]
 
             passed, issues = validate_structured_manifest(
                 manifest, workspace, expected_deliverables
@@ -216,15 +203,13 @@ class TestManifestValidation:
             (workspace / "src/example.py").write_text("class ExampleClass:\n    pass\n")
 
             manifest = {
-                "created": [
-                    {"path": "src/example.py", "symbols": ["ExampleClass"]}
-                ],
-                "modified": []
+                "created": [{"path": "src/example.py", "symbols": ["ExampleClass"]}],
+                "modified": [],
             }
 
             expected_deliverables = [
                 "src/example.py",
-                "tests/test_example.py"  # This is missing from manifest
+                "tests/test_example.py",  # This is missing from manifest
             ]
 
             passed, issues = validate_structured_manifest(
@@ -247,9 +232,9 @@ class TestManifestValidation:
             manifest = {
                 "created": [
                     {"path": "tests/test_foo.py", "symbols": ["test_foo"]},
-                    {"path": "tests/test_bar.py", "symbols": ["test_bar"]}
+                    {"path": "tests/test_bar.py", "symbols": ["test_bar"]},
                 ],
-                "modified": []
+                "modified": [],
             }
 
             # Deliverable specified as directory
@@ -272,10 +257,8 @@ class TestManifestValidation:
             (workspace / "src/example.py").write_text("# Empty file\n")
 
             manifest = {
-                "created": [
-                    {"path": "src/example.py", "symbols": []}  # No symbols to validate
-                ],
-                "modified": []
+                "created": [{"path": "src/example.py", "symbols": []}],  # No symbols to validate
+                "modified": [],
             }
 
             passed, issues = validate_structured_manifest(manifest, workspace)
@@ -289,10 +272,8 @@ class TestManifestValidation:
             workspace = Path(tmpdir)
 
             manifest = {
-                "created": [
-                    {"symbols": ["ExampleClass"]}  # Missing 'path' field
-                ],
-                "modified": []
+                "created": [{"symbols": ["ExampleClass"]}],  # Missing 'path' field
+                "modified": [],
             }
 
             passed, issues = validate_structured_manifest(manifest, workspace)
@@ -305,12 +286,7 @@ class TestManifestValidation:
         with TemporaryDirectory() as tmpdir:
             workspace = Path(tmpdir)
 
-            manifest = {
-                "created": [
-                    "not a dictionary"  # Should be dict
-                ],
-                "modified": []
-            }
+            manifest = {"created": ["not a dictionary"], "modified": []}  # Should be dict
 
             passed, issues = validate_structured_manifest(manifest, workspace)
 
@@ -331,10 +307,8 @@ class TestManifestValidation:
             )
 
             manifest = {
-                "created": [
-                    {"path": "src/example.py", "symbols": ["ExampleClass"]}
-                ],
-                "modified": []
+                "created": [{"path": "src/example.py", "symbols": ["ExampleClass"]}],
+                "modified": [],
             }
 
             passed, issues = validate_structured_manifest(manifest, workspace)

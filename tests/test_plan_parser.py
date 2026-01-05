@@ -43,4 +43,3 @@ def test_merge_plans_allows_update(tmp_path: Path):
 
     merged_no_update = merge_plans(base, new, allow_update=False)
     assert merged_no_update["phases"][0]["description"] == "old"
-

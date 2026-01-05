@@ -42,4 +42,3 @@ def test_auditor_approves_safe_small_change():
     )
     decision = evaluate(inp)
     assert decision.verdict == "approve"
-

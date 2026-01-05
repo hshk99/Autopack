@@ -30,4 +30,3 @@ def test_preflight_validator_rejects_missing_dependency(tmp_path: Path):
     assert res.valid is False
     assert res.error
     assert "non-existent phase" in res.error
-

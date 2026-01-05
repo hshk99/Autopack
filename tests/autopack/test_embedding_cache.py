@@ -1,6 +1,5 @@
 """Tests for embedding cache implementation."""
 
-import pytest
 from autopack.file_hashing import compute_content_hash, compute_cache_key
 
 
@@ -12,7 +11,7 @@ class TestFileHashing:
         content = "def hello(): return 'world'"
         hash1 = compute_content_hash(content)
         hash2 = compute_content_hash(content)
-        
+
         assert hash1 == hash2
         assert len(hash1) == 64  # SHA256 hex digest length
 
@@ -20,17 +19,17 @@ class TestFileHashing:
         """Test that different content produces different hashes."""
         content1 = "def hello(): return 'world'"
         content2 = "def hello(): return 'universe'"
-        
+
         hash1 = compute_content_hash(content1)
         hash2 = compute_content_hash(content2)
-        
+
         assert hash1 != hash2
 
     def test_compute_content_hash_handles_unicode(self):
         """Test that hash computation handles unicode correctly."""
         content = "def greet(): return '你好世界'"
         hash_result = compute_content_hash(content)
-        
+
         assert isinstance(hash_result, str)
         assert len(hash_result) == 64
 
@@ -39,9 +38,9 @@ class TestFileHashing:
         path = "src/example.py"
         content = "def test(): pass"
         model = "text-embedding-3-small"
-        
+
         key = compute_cache_key(path, content, model)
-        
+
         # Should be in format: path|hash|model
         parts = key.split("|")
         assert len(parts) == 3
@@ -52,44 +51,44 @@ class TestFileHashing:
     def test_compute_cache_key_different_paths(self):
         """Test that different paths produce different cache keys."""
         content = "def test(): pass"
-        
+
         key1 = compute_cache_key("src/a.py", content)
         key2 = compute_cache_key("src/b.py", content)
-        
+
         assert key1 != key2
 
     def test_compute_cache_key_different_content(self):
         """Test that different content produces different cache keys."""
         path = "src/example.py"
-        
+
         key1 = compute_cache_key(path, "content1")
         key2 = compute_cache_key(path, "content2")
-        
+
         assert key1 != key2
 
     def test_compute_cache_key_different_models(self):
         """Test that different models produce different cache keys."""
         path = "src/example.py"
         content = "def test(): pass"
-        
+
         key1 = compute_cache_key(path, content, "text-embedding-3-small")
         key2 = compute_cache_key(path, content, "text-embedding-3-large")
-        
+
         assert key1 != key2
 
     def test_compute_cache_key_default_model(self):
         """Test that default model is used when not specified."""
         path = "src/example.py"
         content = "def test(): pass"
-        
+
         key1 = compute_cache_key(path, content)
         key2 = compute_cache_key(path, content, "text-embedding-3-small")
-        
+
         assert key1 == key2
 
     def test_compute_content_hash_empty_string(self):
         """Test that empty string produces valid hash."""
-        hash_result = compute_content_hash("")        
+        hash_result = compute_content_hash("")
         assert isinstance(hash_result, str)
         assert len(hash_result) == 64
 
@@ -97,10 +96,10 @@ class TestFileHashing:
         """Test that whitespace differences produce different hashes."""
         content1 = "def test(): pass"
         content2 = "def test():  pass"  # Extra space
-        
+
         hash1 = compute_content_hash(content1)
         hash2 = compute_content_hash(content2)
-        
+
         assert hash1 != hash2
 
     def test_compute_content_hash_newline_sensitive(self):
@@ -119,12 +118,13 @@ class TestEmbeddingCachePerPhaseReset:
 
     def test_per_phase_reset_counter(self):
         """Test that embedding cache counter resets per phase."""
-        from autopack.context_budgeter import reset_embedding_cache, _PHASE_CALL_COUNT
+        from autopack.context_budgeter import reset_embedding_cache
 
         # Reset should clear the counter
         reset_embedding_cache()
         # Import after reset to get current value
         from autopack import context_budgeter
+
         assert context_budgeter._PHASE_CALL_COUNT == 0
 
         # Simulate phase 1 making calls (we'll just increment directly for testing)

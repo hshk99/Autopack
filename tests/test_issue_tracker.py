@@ -1,8 +1,5 @@
 """Unit tests for issue tracking system (Chunk B)"""
 
-import json
-from pathlib import Path
-
 import pytest
 
 from autopack.issue_tracker import IssueTracker
@@ -185,7 +182,9 @@ def test_aging_triggers_needs_cleanup(tmp_path):
 
     # Simulate 3 runs with same minor issue (threshold is 3)
     for run_num in range(1, 4):
-        tracker = IssueTracker(run_id=f"test-run-{run_num:03d}", project_id="TestProject", base_dir=tmp_path)
+        tracker = IssueTracker(
+            run_id=f"test-run-{run_num:03d}", project_id="TestProject", base_dir=tmp_path
+        )
         _, _, backlog = tracker.record_issue(
             phase_index=0,
             phase_id="F1.1",

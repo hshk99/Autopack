@@ -6,7 +6,6 @@ ensuring protected paths are never flagged for cleanup.
 """
 
 from typing import List, Optional
-from datetime import datetime, timedelta
 
 from .models import ScanResult, CleanupCandidate
 from .policy import StoragePolicy, is_path_protected, get_category_for_path
@@ -74,7 +73,7 @@ class FileClassifier:
             reason=reason,
             can_auto_delete=not cat_policy.delete_requires_approval,
             requires_approval=cat_policy.delete_requires_approval,
-            modified=scan_result.modified
+            modified=scan_result.modified,
         )
 
     def classify_batch(self, scan_results: List[ScanResult]) -> List[CleanupCandidate]:
@@ -176,26 +175,26 @@ class FileClassifier:
             Dictionary with statistics by category
         """
         stats = {
-            'total_candidates': len(candidates),
-            'total_size_bytes': sum(c.size_bytes for c in candidates),
-            'requires_approval': sum(1 for c in candidates if c.requires_approval),
-            'can_auto_delete': sum(1 for c in candidates if c.can_auto_delete),
-            'by_category': {}
+            "total_candidates": len(candidates),
+            "total_size_bytes": sum(c.size_bytes for c in candidates),
+            "requires_approval": sum(1 for c in candidates if c.requires_approval),
+            "can_auto_delete": sum(1 for c in candidates if c.can_auto_delete),
+            "by_category": {},
         }
 
         # Group by category
         for candidate in candidates:
             cat = candidate.category
-            if cat not in stats['by_category']:
-                stats['by_category'][cat] = {
-                    'count': 0,
-                    'total_size_bytes': 0,
-                    'requires_approval': 0
+            if cat not in stats["by_category"]:
+                stats["by_category"][cat] = {
+                    "count": 0,
+                    "total_size_bytes": 0,
+                    "requires_approval": 0,
                 }
 
-            stats['by_category'][cat]['count'] += 1
-            stats['by_category'][cat]['total_size_bytes'] += candidate.size_bytes
+            stats["by_category"][cat]["count"] += 1
+            stats["by_category"][cat]["total_size_bytes"] += candidate.size_bytes
             if candidate.requires_approval:
-                stats['by_category'][cat]['requires_approval'] += 1
+                stats["by_category"][cat]["requires_approval"] += 1
 
         return stats

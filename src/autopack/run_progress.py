@@ -59,7 +59,9 @@ def calculate_run_progress(db: Session, run_id: str) -> RunProgress:
 
     # Count completed
     completed_tiers = sum(
-        1 for tier in run.tiers if tier.state in [models.TierState.COMPLETE, models.TierState.SKIPPED]
+        1
+        for tier in run.tiers
+        if tier.state in [models.TierState.COMPLETE, models.TierState.SKIPPED]
     )
 
     completed_phases = sum(

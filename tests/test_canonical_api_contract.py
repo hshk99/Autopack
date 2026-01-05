@@ -41,19 +41,23 @@ def canonical_client(tmp_path):
         f"sqlite:///{test_db}",
         pool_pre_ping=True,
         pool_recycle=1800,
-        connect_args={"check_same_thread": False}  # Allow multi-threading for tests
+        connect_args={"check_same_thread": False},  # Allow multi-threading for tests
     )
     autopack.database.SessionLocal = sessionmaker(
-        autocommit=False,
-        autoflush=False,
-        bind=autopack.database.engine
+        autocommit=False, autoflush=False, bind=autopack.database.engine
     )
 
     # Initialize database with tables
     from autopack.database import init_db
-    init_db()
+    from unittest.mock import patch
+
+    # Enable bootstrap mode to allow table creation on empty DB
+    with patch("autopack.config.settings") as mock_settings:
+        mock_settings.db_bootstrap_enabled = True
+        init_db()
 
     from autopack.main import app
+
     client = TestClient(app)
 
     yield client
@@ -104,11 +108,9 @@ class TestCanonicalServerContract:
         assert response.status_code in [404, 503]  # 404 or 503 (DB issue)
 
         # POST /runs/start - should return 400 (missing auth) or work
-        response = canonical_client.post("/runs/start", json={
-            "run": {"run_id": "test"},
-            "tiers": [],
-            "phases": []
-        })
+        response = canonical_client.post(
+            "/runs/start", json={"run": {"run_id": "test"}, "tiers": [], "phases": []}
+        )
         # Should either work (201) or require validation (400/422)
         assert response.status_code in [201, 400, 422]
 
@@ -145,6 +147,7 @@ class TestCanonicalServerContract:
 
         # Reload app to pick up env change
         from autopack.main import app
+
         client = TestClient(app)
 
         response = client.get("/dashboard/runs/test-run/consolidated-metrics")
@@ -163,6 +166,7 @@ class TestCanonicalServerContract:
 
         # Reload app
         from autopack.main import app
+
         client = TestClient(app)
 
         # Test limit validation (max 10000)
@@ -215,6 +219,7 @@ class TestKillSwitchDefaults:
 
         # Import fresh to pick up env state
         from autopack.main import app
+
         client = TestClient(app)
 
         response = client.get("/health")
@@ -229,6 +234,7 @@ class TestKillSwitchDefaults:
         os.environ.pop("AUTOPACK_ENABLE_CONSOLIDATED_METRICS", None)
 
         from autopack.main import app
+
         client = TestClient(app)
 
         response = client.get("/health")
@@ -260,6 +266,7 @@ class TestDatabaseIdentityHash:
         os.environ["DATABASE_URL"] = "postgresql://user:password@localhost/testdb"
 
         from autopack.main import app
+
         client = TestClient(app)
 
         response = client.get("/health")

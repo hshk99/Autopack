@@ -6,6 +6,7 @@ ALWAYS cause phase failure, regardless of baseline state.
 
 This prevents silent acceptance of broken test suites.
 """
+
 import json
 import tempfile
 from pathlib import Path
@@ -14,7 +15,7 @@ from datetime import datetime, timezone
 import pytest
 
 from autopack.test_baseline_tracker import TestBaseline, TestBaselineTracker
-from autopack.phase_finalizer import PhaseFinalizer, PhaseFinalizationDecision
+from autopack.phase_finalizer import PhaseFinalizer
 
 
 class TestCollectionErrorBlocking:
@@ -36,18 +37,18 @@ class TestCollectionErrorBlocking:
                     {
                         "nodeid": "tests/test_broken.py",
                         "outcome": "failed",
-                        "longrepr": "ImportError: No module named 'broken_dep'"
+                        "longrepr": "ImportError: No module named 'broken_dep'",
                     }
-                ]
+                ],
             }
 
             report_path = workspace / "ci_result.json"
-            report_path.write_text(json.dumps(ci_report), encoding='utf-8')
+            report_path.write_text(json.dumps(ci_report), encoding="utf-8")
 
             ci_result = {
                 "report_path": str(report_path),
                 "passed": False,
-                "suspicious_zero_tests": True
+                "suspicious_zero_tests": True,
             }
 
             # Assess completion without baseline (simulates first run)
@@ -60,15 +61,16 @@ class TestCollectionErrorBlocking:
                 auditor_result=None,
                 deliverables=[],
                 applied_files=[],
-                workspace=workspace
+                workspace=workspace,
             )
 
             # Should be blocked
             assert not decision.can_complete
             assert decision.status == "FAILED"
-            assert any("collection" in issue.lower() or "import" in issue.lower()
-                      for issue in decision.blocking_issues), \
-                f"Expected collection/import error in blocking_issues, got: {decision.blocking_issues}"
+            assert any(
+                "collection" in issue.lower() or "import" in issue.lower()
+                for issue in decision.blocking_issues
+            ), f"Expected collection/import error in blocking_issues, got: {decision.blocking_issues}"
 
     def test_persistent_collection_error_blocks_after_retry(self):
         """Persistent collection errors (failed twice) should block completion."""
@@ -88,7 +90,7 @@ class TestCollectionErrorBlocking:
                 error_tests=0,
                 skipped_tests=0,
                 failing_test_ids=[],
-                error_signatures={}
+                error_signatures={},
             )
 
             # Create current report with NEW collection error
@@ -100,13 +102,13 @@ class TestCollectionErrorBlocking:
                     {
                         "nodeid": "tests/test_new_broken.py",
                         "outcome": "failed",
-                        "longrepr": "SyntaxError: invalid syntax"
+                        "longrepr": "SyntaxError: invalid syntax",
                     }
-                ]
+                ],
             }
 
             report_path = workspace / "ci_result.json"
-            report_path.write_text(json.dumps(ci_report), encoding='utf-8')
+            report_path.write_text(json.dumps(ci_report), encoding="utf-8")
 
             # Create retry report (collection error persists)
             retry_report = {
@@ -117,19 +119,19 @@ class TestCollectionErrorBlocking:
                     {
                         "nodeid": "tests/test_new_broken.py",
                         "outcome": "failed",
-                        "longrepr": "SyntaxError: invalid syntax"
+                        "longrepr": "SyntaxError: invalid syntax",
                     }
-                ]
+                ],
             }
 
             retry_path = workspace / ".autonomous_runs" / "test-run" / "ci" / "retry.json"
             retry_path.parent.mkdir(parents=True, exist_ok=True)
-            retry_path.write_text(json.dumps(retry_report), encoding='utf-8')
+            retry_path.write_text(json.dumps(retry_report), encoding="utf-8")
 
             ci_result = {
                 "report_path": str(report_path),
                 "passed": False,
-                "suspicious_zero_tests": True
+                "suspicious_zero_tests": True,
             }
 
             # Assess completion
@@ -142,14 +144,15 @@ class TestCollectionErrorBlocking:
                 auditor_result=None,
                 deliverables=[],
                 applied_files=[],
-                workspace=workspace
+                workspace=workspace,
             )
 
             # Should be blocked due to persistent collection error
             assert not decision.can_complete
             assert decision.status == "FAILED"
-            assert any("collection" in issue.lower() for issue in decision.blocking_issues), \
-                f"Expected collection error in blocking_issues, got: {decision.blocking_issues}"
+            assert any(
+                "collection" in issue.lower() for issue in decision.blocking_issues
+            ), f"Expected collection error in blocking_issues, got: {decision.blocking_issues}"
 
     def test_zero_tests_blocks_when_suspicious(self):
         """Zero tests detected with non-zero exitcode should block (collection failure)."""
@@ -163,16 +166,16 @@ class TestCollectionErrorBlocking:
                 "exitcode": 2,
                 "summary": {"total": 0},
                 "tests": [],
-                "collectors": []  # Empty collectors but exitcode indicates failure
+                "collectors": [],  # Empty collectors but exitcode indicates failure
             }
 
             report_path = workspace / "ci_result.json"
-            report_path.write_text(json.dumps(ci_report), encoding='utf-8')
+            report_path.write_text(json.dumps(ci_report), encoding="utf-8")
 
             ci_result = {
                 "report_path": str(report_path),
                 "passed": False,
-                "suspicious_zero_tests": True  # Executor flagged this as suspicious
+                "suspicious_zero_tests": True,  # Executor flagged this as suspicious
             }
 
             # Assess completion
@@ -185,16 +188,18 @@ class TestCollectionErrorBlocking:
                 auditor_result=None,
                 deliverables=[],
                 applied_files=[],
-                workspace=workspace
+                workspace=workspace,
             )
 
             # Should be blocked
             assert not decision.can_complete
             assert decision.status == "FAILED"
-            assert any("0 tests" in issue or "collection" in issue.lower() or
-                      ("total_tests=0" in issue and "exitcode" in issue)
-                      for issue in decision.blocking_issues), \
-                f"Expected zero-test blocking issue, got: {decision.blocking_issues}"
+            assert any(
+                "0 tests" in issue
+                or "collection" in issue.lower()
+                or ("total_tests=0" in issue and "exitcode" in issue)
+                for issue in decision.blocking_issues
+            ), f"Expected zero-test blocking issue, got: {decision.blocking_issues}"
 
     def test_legitimate_zero_tests_allowed(self):
         """Zero tests with exitcode=0 and no suspicious flag should be allowed."""
@@ -204,20 +209,15 @@ class TestCollectionErrorBlocking:
             finalizer = PhaseFinalizer(baseline_tracker=tracker)
 
             # Create report with zero tests but successful run (e.g., no tests matched filter)
-            ci_report = {
-                "exitcode": 0,
-                "summary": {"total": 0},
-                "tests": [],
-                "collectors": []
-            }
+            ci_report = {"exitcode": 0, "summary": {"total": 0}, "tests": [], "collectors": []}
 
             report_path = workspace / "ci_result.json"
-            report_path.write_text(json.dumps(ci_report), encoding='utf-8')
+            report_path.write_text(json.dumps(ci_report), encoding="utf-8")
 
             ci_result = {
                 "report_path": str(report_path),
                 "passed": True,
-                "suspicious_zero_tests": False  # Not flagged as suspicious
+                "suspicious_zero_tests": False,  # Not flagged as suspicious
             }
 
             # Assess completion
@@ -230,7 +230,7 @@ class TestCollectionErrorBlocking:
                 auditor_result=None,
                 deliverables=[],
                 applied_files=[],
-                workspace=workspace
+                workspace=workspace,
             )
 
             # Should NOT be blocked (legitimate empty test run)

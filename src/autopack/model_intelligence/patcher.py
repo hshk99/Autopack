@@ -29,9 +29,7 @@ def generate_patch_for_recommendation(
         YAML patch as string.
     """
     # Get recommendation
-    recommendation = (
-        session.query(ModelRecommendation).filter_by(id=recommendation_id).first()
-    )
+    recommendation = session.query(ModelRecommendation).filter_by(id=recommendation_id).first()
     if not recommendation:
         raise ValueError(f"Recommendation {recommendation_id} not found")
 
@@ -60,7 +58,7 @@ def generate_patch_for_recommendation(
         # tool_models section
         tool_key = use_case.replace("_", "_")
         if "tool_models" in models_config and tool_key in models_config["tool_models"]:
-            patch_lines.append(f"tool_models:")
+            patch_lines.append("tool_models:")
             patch_lines.append(f"  {tool_key}: {recommended_model}")
     elif use_case.startswith("builder_") or use_case.startswith("auditor_"):
         # complexity_models section
@@ -69,7 +67,7 @@ def generate_patch_for_recommendation(
         tier = parts[1] if len(parts) > 1 else "low"  # low, medium, high
 
         if "complexity_models" in models_config and tier in models_config["complexity_models"]:
-            patch_lines.append(f"complexity_models:")
+            patch_lines.append("complexity_models:")
             patch_lines.append(f"  {tier}:")
             patch_lines.append(f"    {role}: {recommended_model}")
     elif use_case.startswith("doctor_"):
@@ -77,7 +75,7 @@ def generate_patch_for_recommendation(
         doctor_tier = use_case.replace("doctor_", "")  # cheap or strong
 
         if "doctor_models" in models_config:
-            patch_lines.append(f"doctor_models:")
+            patch_lines.append("doctor_models:")
             patch_lines.append(f"  {doctor_tier}: {recommended_model}")
     else:
         # Generic replacement - find and replace
@@ -114,23 +112,22 @@ def apply_recommendations_batch(
     changes = []
 
     for rec_id in recommendation_ids:
-        recommendation = (
-            session.query(ModelRecommendation).filter_by(id=rec_id).first()
-        )
+        recommendation = session.query(ModelRecommendation).filter_by(id=rec_id).first()
         if not recommendation:
             continue
 
-        changes.append({
-            "recommendation_id": rec_id,
-            "use_case": recommendation.use_case,
-            "current_model": recommendation.current_model,
-            "recommended_model": recommendation.recommended_model,
-            "reasoning": recommendation.reasoning,
-        })
+        changes.append(
+            {
+                "recommendation_id": rec_id,
+                "use_case": recommendation.use_case,
+                "current_model": recommendation.current_model,
+                "recommended_model": recommendation.recommended_model,
+                "reasoning": recommendation.reasoning,
+            }
+        )
 
         # Apply change to models_config
         use_case = recommendation.use_case
-        current_model = recommendation.current_model
         recommended_model = recommendation.recommended_model
 
         if use_case.startswith("tidy_"):
@@ -173,9 +170,7 @@ def format_recommendation_report(
     Returns:
         Formatted report string.
     """
-    recommendation = (
-        session.query(ModelRecommendation).filter_by(id=recommendation_id).first()
-    )
+    recommendation = session.query(ModelRecommendation).filter_by(id=recommendation_id).first()
     if not recommendation:
         raise ValueError(f"Recommendation {recommendation_id} not found")
 

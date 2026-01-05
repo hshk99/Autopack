@@ -13,10 +13,10 @@ from __future__ import annotations
 import json
 import pytest
 import tempfile
-from datetime import datetime
 from pathlib import Path
 
 import sys
+
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
 
 from autopack.storage_optimizer.approval import (
@@ -26,7 +26,7 @@ from autopack.storage_optimizer.approval import (
     AuditLog,
     AuditEntry,
     generate_approval_template,
-    hash_file
+    hash_file,
 )
 
 
@@ -45,26 +45,18 @@ def sample_report():
             "generated_at": "2026-01-03T16:00:00Z",
             "scan_root": "/path/to/scan",
             "total_files": 1000,
-            "runtime_seconds": 5.42
+            "runtime_seconds": 5.42,
         },
         "recommendations": [
             {
                 "action": "delete",
                 "path": "/path/to/duplicate.txt",
                 "reason": "duplicate",
-                "bytes": 1024
+                "bytes": 1024,
             },
-            {
-                "action": "archive",
-                "path": "/path/to/old.log",
-                "reason": "stale",
-                "bytes": 2048
-            }
+            {"action": "archive", "path": "/path/to/old.log", "reason": "stale", "bytes": 2048},
         ],
-        "summary": {
-            "total_space_reclaimable": 3072,
-            "total_recommendations": 2
-        }
+        "summary": {"total_space_reclaimable": 3072, "total_recommendations": 2},
     }
 
 
@@ -113,7 +105,7 @@ def test_execution_approval_roundtrip(temp_dir):
         report_id="abc123",
         timestamp="2026-01-03T16:00:00Z",
         operator="test@example.com",
-        notes="Test approval"
+        notes="Test approval",
     )
 
     approval_path = temp_dir / "approval.json"
@@ -133,9 +125,7 @@ def test_verify_approval_success(sample_report):
     report_id = compute_report_id(sample_report)
 
     approval = ExecutionApproval(
-        report_id=report_id,
-        timestamp="2026-01-03T16:00:00Z",
-        operator="test@example.com"
+        report_id=report_id, timestamp="2026-01-03T16:00:00Z", operator="test@example.com"
     )
 
     is_valid, error = verify_approval(sample_report, approval)
@@ -147,9 +137,7 @@ def test_verify_approval_success(sample_report):
 def test_verify_approval_failure_mismatched_id(sample_report):
     """Test approval verification fails for mismatched report ID."""
     approval = ExecutionApproval(
-        report_id="wrong_id_12345",
-        timestamp="2026-01-03T16:00:00Z",
-        operator="test@example.com"
+        report_id="wrong_id_12345", timestamp="2026-01-03T16:00:00Z", operator="test@example.com"
     )
 
     is_valid, error = verify_approval(sample_report, approval)
@@ -170,21 +158,21 @@ def test_audit_log_delete_entry(temp_dir):
         policy_reason="duplicate",
         sha256_before="abc123",
         report_id="report_001",
-        operator="test@example.com"
+        operator="test@example.com",
     )
 
     # Read back
-    with open(audit_path, 'r') as f:
+    with open(audit_path, "r") as f:
         line = f.readline()
 
     entry = json.loads(line)
-    assert entry['action'] == 'delete'
-    assert entry['src'] == str(Path("/path/to/file.txt"))
-    assert entry['bytes'] == 1024
-    assert entry['policy_reason'] == 'duplicate'
-    assert entry['sha256_before'] == 'abc123'
-    assert entry['report_id'] == 'report_001'
-    assert entry['operator'] == 'test@example.com'
+    assert entry["action"] == "delete"
+    assert entry["src"] == str(Path("/path/to/file.txt"))
+    assert entry["bytes"] == 1024
+    assert entry["policy_reason"] == "duplicate"
+    assert entry["sha256_before"] == "abc123"
+    assert entry["report_id"] == "report_001"
+    assert entry["operator"] == "test@example.com"
 
 
 def test_audit_log_move_entry(temp_dir):
@@ -200,19 +188,19 @@ def test_audit_log_move_entry(temp_dir):
         sha256_before="abc123",
         sha256_after="def456",
         report_id="report_002",
-        operator="test@example.com"
+        operator="test@example.com",
     )
 
     # Read back
-    with open(audit_path, 'r') as f:
+    with open(audit_path, "r") as f:
         line = f.readline()
 
     entry = json.loads(line)
-    assert entry['action'] == 'move'
-    assert entry['src'] == str(Path("/path/to/file.txt"))
-    assert entry['dest'] == str(Path("/archive/file.txt"))
-    assert entry['sha256_before'] == 'abc123'
-    assert entry['sha256_after'] == 'def456'
+    assert entry["action"] == "move"
+    assert entry["src"] == str(Path("/path/to/file.txt"))
+    assert entry["dest"] == str(Path("/archive/file.txt"))
+    assert entry["sha256_before"] == "abc123"
+    assert entry["sha256_after"] == "def456"
 
 
 def test_audit_log_multiple_entries(temp_dir):
@@ -227,7 +215,7 @@ def test_audit_log_multiple_entries(temp_dir):
         policy_reason="duplicate",
         sha256_before="hash1",
         report_id="report_001",
-        operator="user@example.com"
+        operator="user@example.com",
     )
 
     audit_log.log_move(
@@ -238,19 +226,19 @@ def test_audit_log_multiple_entries(temp_dir):
         sha256_before="hash2",
         sha256_after="hash2",
         report_id="report_001",
-        operator="user@example.com"
+        operator="user@example.com",
     )
 
     # Read back all entries
-    with open(audit_path, 'r') as f:
+    with open(audit_path, "r") as f:
         lines = f.readlines()
 
     assert len(lines) == 2
     entry1 = json.loads(lines[0])
     entry2 = json.loads(lines[1])
 
-    assert entry1['action'] == 'delete'
-    assert entry2['action'] == 'move'
+    assert entry1["action"] == "delete"
+    assert entry2["action"] == "move"
 
 
 def test_generate_approval_template(temp_dir, sample_report, capsys):
@@ -263,17 +251,17 @@ def test_generate_approval_template(temp_dir, sample_report, capsys):
     assert output_path.exists()
 
     # Load and verify template
-    with open(output_path, 'r') as f:
+    with open(output_path, "r") as f:
         template = json.load(f)
 
     report_id = compute_report_id(sample_report)
-    assert template['report_id'] == report_id
-    assert '<' in template['timestamp']  # Placeholder
-    assert '<' in template['operator']  # Placeholder
+    assert template["report_id"] == report_id
+    assert "<" in template["timestamp"]  # Placeholder
+    assert "<" in template["operator"]  # Placeholder
 
     # Check output guidance
     captured = capsys.readouterr()
-    assert 'approval template generated' in captured.out.lower()
+    assert "approval template generated" in captured.out.lower()
     assert str(output_path) in captured.out
 
 
@@ -307,18 +295,18 @@ def test_audit_entry_jsonl_format():
         sha256_before="abc123",
         sha256_after=None,
         report_id="report_001",
-        operator="test@example.com"
+        operator="test@example.com",
     )
 
     jsonl_line = entry.to_jsonl_line()
 
     # Should be valid JSON
     parsed = json.loads(jsonl_line)
-    assert parsed['action'] == 'delete'
-    assert parsed['bytes'] == 1024
+    assert parsed["action"] == "delete"
+    assert parsed["bytes"] == 1024
 
     # Should not have newline (JSONL adds it separately)
-    assert '\n' not in jsonl_line
+    assert "\n" not in jsonl_line
 
 
 if __name__ == "__main__":

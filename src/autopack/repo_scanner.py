@@ -13,7 +13,7 @@ Key Features:
 
 import os
 from pathlib import Path
-from typing import Dict, List, Set, Optional
+from typing import Dict, List, Optional
 import fnmatch
 
 
@@ -63,10 +63,7 @@ class RepoScanner:
                 continue
 
             rel_root_str = rel_root.as_posix()
-            tree[rel_root_str] = {
-                "dirs": dirs,
-                "files": files
-            }
+            tree[rel_root_str] = {"dirs": dirs, "files": files}
 
             for f in files:
                 if rel_root_str in {"", "."}:
@@ -85,7 +82,7 @@ class RepoScanner:
             "anchor_files": anchor_files,
             "file_count": len(all_files),
             "all_files": all_files,
-            "directory_map": directory_map
+            "directory_map": directory_map,
         }
 
         self._scan_cache = result
@@ -122,9 +119,18 @@ class RepoScanner:
 
         # Default ignores
         default_ignores = {
-            ".git", "venv", ".venv", "node_modules",
-            "__pycache__", ".pytest_cache", "build", "dist",
-            ".egg-info", ".tox", "coverage", ".coverage"
+            ".git",
+            "venv",
+            ".venv",
+            "node_modules",
+            "__pycache__",
+            ".pytest_cache",
+            "build",
+            "dist",
+            ".egg-info",
+            ".tox",
+            "coverage",
+            ".coverage",
         }
 
         # Check if any part of path matches default ignores
@@ -170,37 +176,31 @@ class RepoScanner:
         anchors = {}
 
         # Authentication anchors
-        auth_dirs = [
-            "src/auth", "src/authentication",
-            "backend/auth", "api/auth"
-        ]
+        auth_dirs = ["src/auth", "src/authentication", "backend/auth", "api/auth"]
         for dir_path in auth_dirs:
             if dir_path in tree:
                 anchors.setdefault("authentication", []).append(dir_path + "/")
 
         # API endpoint anchors
         api_dirs = [
-            "src/api/endpoints", "src/api/routes", "src/api/routers",
-            "backend/api", "api/endpoints"
+            "src/api/endpoints",
+            "src/api/routes",
+            "src/api/routers",
+            "backend/api",
+            "api/endpoints",
         ]
         for dir_path in api_dirs:
             if dir_path in tree:
                 anchors.setdefault("api_endpoint", []).append(dir_path + "/")
 
         # Frontend anchors
-        frontend_dirs = [
-            "src/frontend", "frontend", "src/ui", "ui",
-            "src/components", "components"
-        ]
+        frontend_dirs = ["src/frontend", "frontend", "src/ui", "ui", "src/components", "components"]
         for dir_path in frontend_dirs:
             if dir_path in tree:
                 anchors.setdefault("frontend", []).append(dir_path + "/")
 
         # Database anchors
-        db_dirs = [
-            "src/database", "src/db", "src/models",
-            "backend/database", "api/models"
-        ]
+        db_dirs = ["src/database", "src/db", "src/models", "backend/database", "api/models"]
         for dir_path in db_dirs:
             if dir_path in tree:
                 anchors.setdefault("database", []).append(dir_path + "/")
@@ -222,9 +222,7 @@ class RepoScanner:
         return anchors
 
     def _build_directory_map(
-        self,
-        tree: Dict,
-        anchor_files: Dict[str, List[str]]
+        self, tree: Dict, anchor_files: Dict[str, List[str]]
     ) -> Dict[str, List[str]]:
         """
         Build directory → category hints map.

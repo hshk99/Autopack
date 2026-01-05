@@ -4,6 +4,7 @@ P0.2 Reliability Test: Builder result API contract validation.
 Validates that executor payloads match FastAPI endpoint schemas.
 Prevents runtime 422 errors due to schema drift.
 """
+
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -18,11 +19,7 @@ class TestBuilderResultContract:
 
     def test_minimal_builder_result_schema(self):
         """Minimal valid BuilderResult should validate."""
-        payload = {
-            "phase_id": "test-phase",
-            "run_id": "test-run",
-            "status": "success"
-        }
+        payload = {"phase_id": "test-phase", "run_id": "test-run", "status": "success"}
 
         # Should validate without errors
         result = BuilderResult(**payload)
@@ -50,7 +47,7 @@ class TestBuilderResultContract:
                     "exit_code": 0,
                     "stdout": "All tests passed",
                     "stderr": "",
-                    "duration_seconds": 5.2
+                    "duration_seconds": 5.2,
                 }
             ],
             "suggested_issues": [
@@ -60,11 +57,11 @@ class TestBuilderResultContract:
                     "source": "builder",
                     "category": "quality",
                     "evidence_refs": ["tests/test_foo.py"],
-                    "description": "Test coverage below 80%"
+                    "description": "Test coverage below 80%",
                 }
             ],
             "status": "success",
-            "notes": "Build completed successfully"
+            "notes": "Build completed successfully",
         }
 
         result = BuilderResult(**payload)
@@ -101,18 +98,25 @@ class TestBuilderResultContract:
                 "probe_results": [],
                 "suggested_issues": [],
                 "notes": "Build completed",
-                "allowed_paths": ["src/"]
-            }
+                "allowed_paths": ["src/"],
+            },
         }
 
         # Pydantic allows extra fields by default, so validation succeeds but data is lost
         result = BuilderResult(**executor_payload)
 
         # Verify data loss occurs
-        assert result.patch_content is None, "Data lost: executor sends 'output' not 'patch_content'"
-        assert result.files_changed == [], "Data lost: executor sends 'files_modified' not 'files_changed'"
-        assert result.tokens_used == 0, "Data lost: executor packs 'tokens_used' in 'metadata' not top-level"
+        assert (
+            result.patch_content is None
+        ), "Data lost: executor sends 'output' not 'patch_content'"
+        assert (
+            result.files_changed == []
+        ), "Data lost: executor sends 'files_modified' not 'files_changed'"
+        assert (
+            result.tokens_used == 0
+        ), "Data lost: executor packs 'tokens_used' in 'metadata' not top-level"
 
+    @pytest.mark.legacy_contract
     @pytest.mark.xfail(
         strict=True,
         reason=(
@@ -121,7 +125,9 @@ class TestBuilderResultContract:
             "schema-compliant BuilderResult payload."
         ),
     )
-    def test_builder_result_correct_payload_preserves_fields__contract_deferred(self, tmp_path, monkeypatch):
+    def test_builder_result_correct_payload_preserves_fields__contract_deferred(
+        self, tmp_path, monkeypatch
+    ):
         """
         Permanent contract: schema-compliant payload must preserve critical fields.
 
@@ -155,6 +161,7 @@ class TestBuilderResultContract:
 
         # Patch the requests module used inside autopack.autonomous_executor
         import autopack.autonomous_executor as ae
+
         monkeypatch.setattr(ae.requests, "post", _fake_post)
 
         # Minimal llm_client.BuilderResult-like object (only the fields _post_builder_result uses)
@@ -175,7 +182,9 @@ class TestBuilderResultContract:
         assert parsed.run_id == "test-run"
         assert parsed.status == "success"
         assert parsed.patch_content is not None and parsed.patch_content.strip()
-        assert parsed.files_changed, "files_changed must be top-level and non-empty when patch modifies files"
+        assert (
+            parsed.files_changed
+        ), "files_changed must be top-level and non-empty when patch modifies files"
         assert parsed.tokens_used == 1500
 
     def test_probe_result_schema(self):
@@ -185,7 +194,7 @@ class TestBuilderResultContract:
             "exit_code": 0,
             "stdout": "All tests passed",
             "stderr": "",
-            "duration_seconds": 5.2
+            "duration_seconds": 5.2,
         }
 
         probe = BuilderProbeResult(**payload)
@@ -200,7 +209,7 @@ class TestBuilderResultContract:
             "source": "builder",
             "category": "quality",
             "evidence_refs": ["tests/test_foo.py"],
-            "description": "Test coverage below 80%"
+            "description": "Test coverage below 80%",
         }
 
         issue = BuilderSuggestedIssue(**payload)

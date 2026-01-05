@@ -74,6 +74,4 @@ class IntentionAnchor(BaseModel):
     constraints: IntentionConstraints = Field(default_factory=IntentionConstraints)
     scope: IntentionScope = Field(default_factory=IntentionScope)
     budgets: IntentionBudgets = Field(default_factory=IntentionBudgets)
-    risk_profile: IntentionRiskProfile = Field(
-        default_factory=IntentionRiskProfile
-    )
+    risk_profile: IntentionRiskProfile = Field(default_factory=IntentionRiskProfile)

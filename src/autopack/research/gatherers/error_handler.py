@@ -25,4 +25,5 @@ class ErrorHandler:
         print("Max retries reached. Operation failed.")
         return None
 
+
 error_handler = ErrorHandler()

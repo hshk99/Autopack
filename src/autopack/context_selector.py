@@ -10,7 +10,7 @@ Phase 1 Enhancement: Added ranking heuristics from chatbot_project
 """
 
 from pathlib import Path
-from typing import Dict, List, Optional, Set, Tuple
+from typing import Dict, List, Optional
 import re
 import subprocess
 from datetime import datetime
@@ -68,7 +68,9 @@ class ContextSelector:
 
         # If scope is defined, use scoped context loading
         if scope_paths:
-            return self._build_scoped_context(scope_paths, readonly_context, token_budget, phase_spec)
+            return self._build_scoped_context(
+                scope_paths, readonly_context, token_budget, phase_spec
+            )
 
         # Fallback: Original heuristic-based loading for backward compatibility
         context = {}
@@ -140,7 +142,7 @@ class ContextSelector:
             path = self.root / path_str
             if path.exists() and path.is_file():
                 try:
-                    content = path.read_text(encoding='utf-8')
+                    content = path.read_text(encoding="utf-8")
                     files[str(path.relative_to(self.root))] = content
                 except Exception:
                     # Skip files that can't be read
@@ -157,7 +159,7 @@ class ContextSelector:
             for path in self.root.glob(pattern):
                 if path.is_file() and count < max_files:
                     try:
-                        content = path.read_text(encoding='utf-8')
+                        content = path.read_text(encoding="utf-8")
                         files[str(path.relative_to(self.root))] = content
                         count += 1
                     except Exception:
@@ -304,7 +306,7 @@ class ContextSelector:
         task_category = phase_spec.get("task_category", "general")
 
         # Keyword matching in description
-        keywords = re.findall(r'\b\w+\b', description)
+        keywords = re.findall(r"\b\w+\b", description)
         for keyword in keywords:
             if keyword in file_path.lower():
                 score += 5.0
@@ -415,7 +417,7 @@ class ContextSelector:
         normalized = []
         for path_str in paths:
             # Handle both Unix and Windows paths
-            path_str = path_str.replace('\\', '/')
+            path_str = path_str.replace("\\", "/")
             path = self.root / path_str
             normalized.append(path)
         return normalized
@@ -425,7 +427,7 @@ class ContextSelector:
         scope_paths: List[str],
         readonly_context: List[str],
         token_budget: Optional[int],
-        phase_spec: Dict
+        phase_spec: Dict,
     ) -> Dict[str, str]:
         """Build context using explicit scope configuration.
 
@@ -448,7 +450,7 @@ class ContextSelector:
         for path in normalized_scope:
             if path.exists() and path.is_file():
                 try:
-                    content = path.read_text(encoding='utf-8')
+                    content = path.read_text(encoding="utf-8")
                     relative_path = str(path.relative_to(self.root))
                     context[relative_path] = content
                 except Exception as e:
@@ -459,7 +461,7 @@ class ContextSelector:
                 try:
                     for file_path in path.rglob("*"):
                         if file_path.is_file():
-                            content = file_path.read_text(encoding='utf-8')
+                            content = file_path.read_text(encoding="utf-8")
                             relative_path = str(file_path.relative_to(self.root))
                             context[relative_path] = content
                 except Exception as e:
@@ -471,7 +473,7 @@ class ContextSelector:
             for path in normalized_readonly:
                 if path.exists() and path.is_file():
                     try:
-                        content = path.read_text(encoding='utf-8')
+                        content = path.read_text(encoding="utf-8")
                         relative_path = str(path.relative_to(self.root))
                         # Don't overwrite modifiable files
                         if relative_path not in context:
@@ -483,7 +485,7 @@ class ContextSelector:
                     try:
                         for file_path in path.rglob("*"):
                             if file_path.is_file():
-                                content = file_path.read_text(encoding='utf-8')
+                                content = file_path.read_text(encoding="utf-8")
                                 relative_path = str(file_path.relative_to(self.root))
                                 if relative_path not in context:
                                     context[relative_path] = content

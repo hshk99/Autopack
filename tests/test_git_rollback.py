@@ -31,7 +31,9 @@ def _fake_result(stdout: str = "", returncode: int = 0) -> SimpleNamespace:
     return SimpleNamespace(stdout=stdout, returncode=returncode)
 
 
-def test_create_rollback_point_creates_branch(monkeypatch: pytest.MonkeyPatch, rollback: GitRollback):
+def test_create_rollback_point_creates_branch(
+    monkeypatch: pytest.MonkeyPatch, rollback: GitRollback
+):
     calls: List[list[str]] = []
 
     def fake_run(args: list[str], check: bool = True, capture_output: bool = True):
@@ -48,7 +50,9 @@ def test_create_rollback_point_creates_branch(monkeypatch: pytest.MonkeyPatch, r
     assert ["branch", branch] in calls
 
 
-def test_create_rollback_point_overwrites_existing(monkeypatch: pytest.MonkeyPatch, rollback: GitRollback):
+def test_create_rollback_point_overwrites_existing(
+    monkeypatch: pytest.MonkeyPatch, rollback: GitRollback
+):
     calls: List[list[str]] = []
 
     def fake_run(args: list[str], check: bool = True, capture_output: bool = True):
@@ -66,7 +70,9 @@ def test_create_rollback_point_overwrites_existing(monkeypatch: pytest.MonkeyPat
     assert ["branch", branch] in calls
 
 
-def test_create_rollback_point_stashes_changes(monkeypatch: pytest.MonkeyPatch, rollback: GitRollback):
+def test_create_rollback_point_stashes_changes(
+    monkeypatch: pytest.MonkeyPatch, rollback: GitRollback
+):
     calls: List[list[str]] = []
     stash_called = {"called": False}
 
@@ -126,7 +132,9 @@ def test_cleanup_rollback_point_success(monkeypatch: pytest.MonkeyPatch, rollbac
     assert ["branch", "-D", branch_name] in calls
 
 
-def test_cleanup_rollback_point_noop_when_missing(monkeypatch: pytest.MonkeyPatch, rollback: GitRollback):
+def test_cleanup_rollback_point_noop_when_missing(
+    monkeypatch: pytest.MonkeyPatch, rollback: GitRollback
+):
     monkeypatch.setattr(rollback, "_branch_exists", lambda name: False)
 
     assert rollback.cleanup_rollback_point("run-123") is True

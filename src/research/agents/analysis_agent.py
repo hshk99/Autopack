@@ -22,7 +22,7 @@ class AnalysisAgent:
         analysis_results = {
             "trends": self.identify_trends(aggregated_data),
             "patterns": self.identify_patterns(aggregated_data),
-            "insights": self.generate_insights(aggregated_data)
+            "insights": self.generate_insights(aggregated_data),
         }
         return analysis_results
 
@@ -64,4 +64,3 @@ class AnalysisAgent:
         if not aggregated_data.get("gaps"):
             insights.append("Content coverage is comprehensive")
         return insights
-

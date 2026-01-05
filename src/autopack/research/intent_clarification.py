@@ -5,12 +5,13 @@ extracting key concepts, generating sub-questions, and defining scope.
 """
 
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any, List, Optional
 
 
 @dataclass
 class ResearchScope:
     """Research scope definition."""
+
     domain: str = ""
     time_period: str = ""
     geographical_focus: str = ""
@@ -29,6 +30,7 @@ class ClarifiedIntent:
         scope: Research scope definition
         dimensions: Research dimensions (technical, historical, practical, etc.)
     """
+
     original_query: str
     clarified_aspects: List[str] = field(default_factory=list)
     key_concepts: List[str] = field(default_factory=list)
@@ -78,7 +80,7 @@ class IntentClarificationAgent:
             domain=context.get("domain", ""),
             time_period=self._extract_time_period(query_str),
             geographical_focus="",
-            constraints=[]
+            constraints=[],
         )
 
         return ClarifiedIntent(
@@ -87,7 +89,7 @@ class IntentClarificationAgent:
             key_concepts=key_concepts,
             key_questions=key_questions,
             scope=scope,
-            dimensions=dimensions
+            dimensions=dimensions,
         )
 
     def _extract_concepts(self, query: str) -> List[str]:
@@ -100,11 +102,27 @@ class IntentClarificationAgent:
             List of key concepts
         """
         # Simple heuristic: extract important words (> 3 chars, not common words)
-        stop_words = {"the", "and", "for", "are", "what", "how", "why", "when", "where",
-                     "who", "which", "that", "this", "with", "from", "about", "tell"}
+        stop_words = {
+            "the",
+            "and",
+            "for",
+            "are",
+            "what",
+            "how",
+            "why",
+            "when",
+            "where",
+            "who",
+            "which",
+            "that",
+            "this",
+            "with",
+            "from",
+            "about",
+            "tell",
+        }
         words = query.lower().split()
-        concepts = [w.strip("?.,!") for w in words
-                   if len(w) > 3 and w.lower() not in stop_words]
+        concepts = [w.strip("?.,!") for w in words if len(w) > 3 and w.lower() not in stop_words]
         return concepts[:10]  # Limit to top 10
 
     def _identify_aspects(self, query: str, concepts: List[str]) -> List[str]:
@@ -156,15 +174,15 @@ class IntentClarificationAgent:
         # Generate questions based on aspects
         for aspect in aspects:
             if "best practices" in aspect.lower():
-                questions.append(f"What are the established best practices?")
+                questions.append("What are the established best practices?")
             elif "design" in aspect.lower():
-                questions.append(f"What are the common design patterns?")
+                questions.append("What are the common design patterns?")
             elif "performance" in aspect.lower():
-                questions.append(f"What are the key performance considerations?")
+                questions.append("What are the key performance considerations?")
             elif "security" in aspect.lower():
-                questions.append(f"What are the security implications?")
+                questions.append("What are the security implications?")
             elif "implementation" in aspect.lower():
-                questions.append(f"How is this typically implemented?")
+                questions.append("How is this typically implemented?")
             else:
                 questions.append(f"What are the key aspects of {aspect}?")
 
@@ -215,8 +233,9 @@ class IntentClarificationAgent:
             Time period string or empty
         """
         import re
+
         # Look for years
-        year_match = re.search(r'\b(20\d{2})\b', query)
+        year_match = re.search(r"\b(20\d{2})\b", query)
         if year_match:
             return year_match.group(1)
 

@@ -7,6 +7,7 @@ class QualityValidator:
         print("Validating quality...")
         return True
 
+
 # Example usage:
 # validator = QualityValidator()
 # is_valid = validator.validate(session)

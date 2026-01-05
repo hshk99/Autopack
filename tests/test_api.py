@@ -1,12 +1,5 @@
 """Unit tests for API endpoints"""
 
-import os
-from pathlib import Path
-
-import pytest
-
-from autopack.models import PhaseState, RunState
-
 
 def test_root_endpoint(client):
     """Test root endpoint returns service information"""
@@ -170,7 +163,7 @@ def test_max_minor_issues_computed(client, sample_run_request):
 
     data = response.json()
     # sample_run_request has 2 phases, so max should be 6
-    run_response = client.get("/runs/test-run-001")
+    client.get("/runs/test-run-001")
     # Note: This would need to be checked in the DB or added to the response schema
     # For now we just verify the run was created
     assert data["id"] == "test-run-001"

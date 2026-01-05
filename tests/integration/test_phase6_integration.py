@@ -6,10 +6,8 @@ into the autonomous_executor hot-path and work end-to-end.
 
 import pytest
 import os
-import json
 from pathlib import Path
 from unittest.mock import Mock, patch, MagicMock
-from datetime import datetime
 
 
 class TestFailureHardeningIntegration:
@@ -111,7 +109,7 @@ class TestIntentionContextIntegration:
             injector = IntentionContextInjector(
                 run_id="test-run",
                 project_id="test-project",
-                memory_service=None  # Will fall back to empty context
+                memory_service=None,  # Will fall back to empty context
             )
 
             # Get intention context (should not crash even with no memory)
@@ -137,9 +135,7 @@ class TestIntentionContextIntegration:
         ]
 
         injector = IntentionContextInjector(
-            run_id="test-run",
-            project_id="test-project",
-            memory_service=mock_memory
+            run_id="test-run", project_id="test-project", memory_service=mock_memory
         )
 
         # Request limited context
@@ -158,9 +154,7 @@ class TestIntentionContextIntegration:
         mock_memory.search_planning.side_effect = RuntimeError("Memory unavailable")
 
         injector = IntentionContextInjector(
-            run_id="test-run",
-            project_id="test-project",
-            memory_service=mock_memory
+            run_id="test-run", project_id="test-project", memory_service=mock_memory
         )
 
         # Should not crash, return empty context
@@ -175,7 +169,6 @@ class TestPlanNormalizationIntegration:
     def test_plan_normalizer_cli_arguments_registered(self):
         """Test that CLI arguments for plan normalization are registered."""
         import sys
-        import argparse
 
         # Mock sys.argv to avoid pytest interference
         original_argv = sys.argv
@@ -225,9 +218,7 @@ class TestPlanNormalizationIntegration:
 
         # Normalize
         normalizer = PlanNormalizer(
-            workspace=tmp_path,
-            run_id="test-run",
-            project_id="test-project"
+            workspace=tmp_path, run_id="test-run", project_id="test-project"
         )
         result = normalizer.normalize(raw_plan=raw_plan)
 
@@ -264,7 +255,6 @@ class TestParallelExecutionIntegration:
     async def test_parallel_orchestrator_isolated_workspaces(self, tmp_path):
         """Test that parallel orchestrator creates isolated workspaces."""
         from autopack.parallel_orchestrator import execute_parallel_runs
-        from unittest.mock import AsyncMock, MagicMock
 
         # Mock executor function
         executed_runs = []
@@ -274,8 +264,10 @@ class TestParallelExecutionIntegration:
             return True
 
         # Mock WorkspaceManager and ExecutorLockManager
-        with patch("autopack.parallel_orchestrator.WorkspaceManager") as MockWM, \
-             patch("autopack.parallel_orchestrator.ExecutorLockManager") as MockLM:
+        with (
+            patch("autopack.parallel_orchestrator.WorkspaceManager") as MockWM,
+            patch("autopack.parallel_orchestrator.ExecutorLockManager") as MockLM,
+        ):
 
             # Setup mocks
             def create_workspace_mock(run_id, **kwargs):
@@ -321,15 +313,12 @@ class TestEndToEndIntegration:
             from autopack.intention_wiring import IntentionContextInjector
             from autopack.failure_hardening import FailureHardeningRegistry
             from autopack.plan_normalizer import PlanNormalizer
-            from autopack.parallel_orchestrator import ParallelRunOrchestrator
 
             # Verify all instantiate without errors
             injector = IntentionContextInjector("test-run", "test-project", None)
             registry = FailureHardeningRegistry()
             normalizer = PlanNormalizer(
-                workspace=tmp_path,
-                run_id="test-run",
-                project_id="test-project"
+                workspace=tmp_path, run_id="test-run", project_id="test-project"
             )
 
             # All should be instantiated

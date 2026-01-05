@@ -16,7 +16,6 @@ import logging
 from dataclasses import dataclass
 from typing import Literal
 
-from autopack.model_registry import load_models_config
 from autopack.model_routing_snapshot import (
     ModelRoutingEntry,
     ModelRoutingSnapshot,
@@ -151,8 +150,7 @@ def select_best_model_for_tier(
     candidates = [
         entry
         for entry in catalog
-        if entry.tier == tier
-        and (safety_profile != "strict" or entry.safety_compatible)
+        if entry.tier == tier and (safety_profile != "strict" or entry.safety_compatible)
     ]
 
     if not candidates:
@@ -202,9 +200,7 @@ def create_catalog_backed_snapshot(
     try:
         catalog = load_model_catalog()
         if not catalog:
-            logger.warning(
-                "[ModelRoutingRefresh] Catalog empty, falling back to default"
-            )
+            logger.warning("[ModelRoutingRefresh] Catalog empty, falling back to default")
             return None
 
         # Required tiers per the system's canonical tier set
@@ -233,8 +229,7 @@ def create_catalog_backed_snapshot(
 
     except Exception as e:
         logger.error(
-            f"[ModelRoutingRefresh] Catalog source unavailable: {e}, "
-            f"falling back to default"
+            f"[ModelRoutingRefresh] Catalog source unavailable: {e}, " f"falling back to default"
         )
         return None
 
@@ -262,14 +257,10 @@ def refresh_routing_snapshot(
 
     # Fall back to default if catalog unavailable
     if snapshot is None:
-        logger.info(
-            f"[ModelRoutingRefresh] Using default snapshot for run {run_id}"
-        )
+        logger.info(f"[ModelRoutingRefresh] Using default snapshot for run {run_id}")
         snapshot = create_default_snapshot(run_id)
     else:
-        logger.info(
-            f"[ModelRoutingRefresh] Created catalog-backed snapshot for run {run_id}"
-        )
+        logger.info(f"[ModelRoutingRefresh] Created catalog-backed snapshot for run {run_id}")
 
     # Persist snapshot
     RoutingSnapshotStorage.save_snapshot(snapshot)
@@ -304,9 +295,7 @@ def refresh_or_load_snapshot_with_catalog(
     if not force_refresh:
         existing = RoutingSnapshotStorage.load_snapshot(run_id)
         if existing and RoutingSnapshotStorage.is_snapshot_fresh(existing):
-            logger.info(
-                f"[ModelRoutingRefresh] Using existing fresh snapshot for run {run_id}"
-            )
+            logger.info(f"[ModelRoutingRefresh] Using existing fresh snapshot for run {run_id}")
             return existing
 
     # Refresh snapshot (catalog-backed or default fallback)

@@ -2,7 +2,6 @@
 
 from datetime import datetime, timezone
 from enum import Enum
-from typing import Optional
 
 from sqlalchemy import (
     BigInteger,
@@ -105,7 +104,9 @@ class Run(Base):
 
     # Status flags
     promotion_eligible_to_main = Column(String, nullable=False, default="false")  # true/false
-    debt_status = Column(String, nullable=True)  # e.g. "clean", "has_minor_issues", "excess_minor_issues"
+    debt_status = Column(
+        String, nullable=True
+    )  # e.g. "clean", "has_minor_issues", "excess_minor_issues"
     failure_reason = Column(Text, nullable=True)
 
     # Goal anchor for drift detection (per IMPLEMENTATION_PLAN_MEMORY_AND_CONTEXT.md)
@@ -209,16 +210,24 @@ class Phase(Base):
     # Issue tracking
     minor_issues_count = Column(Integer, nullable=False, default=0)
     major_issues_count = Column(Integer, nullable=False, default=0)
-    issue_state = Column(String, nullable=False, default="no_issues")  # no_issues, has_minor_issues, has_major_issues
+    issue_state = Column(
+        String, nullable=False, default="no_issues"
+    )  # no_issues, has_minor_issues, has_major_issues
 
     # Quality gate (Phase 2)
     quality_level = Column(String, nullable=True)  # "ok" | "needs_review" | "blocked"
     quality_blocked = Column(Boolean, nullable=False, default=False)
 
     # BUILD-050 Phase 2: Decoupled attempt counters for non-destructive replanning
-    retry_attempt = Column(Integer, nullable=False, default=0)  # Monotonic retry counter (for hints accumulation and model escalation)
-    revision_epoch = Column(Integer, nullable=False, default=0)  # Replan counter (increments when Doctor revises approach)
-    escalation_level = Column(Integer, nullable=False, default=0)  # Model escalation level (0=base, 1=escalated, etc.)
+    retry_attempt = Column(
+        Integer, nullable=False, default=0
+    )  # Monotonic retry counter (for hints accumulation and model escalation)
+    revision_epoch = Column(
+        Integer, nullable=False, default=0
+    )  # Replan counter (increments when Doctor revises approach)
+    escalation_level = Column(
+        Integer, nullable=False, default=0
+    )  # Model escalation level (0=base, 1=escalated, etc.)
 
     # Attempt tracking metadata
     last_attempt_timestamp = Column(DateTime, nullable=True)  # When last attempt occurred
@@ -323,22 +332,23 @@ class ApprovalRequest(Base):
     id = Column(Integer, primary_key=True, index=True)
     run_id = Column(String, nullable=False, index=True)
     phase_id = Column(String, nullable=False, index=True)
-    context = Column(String, nullable=False)  # "build113_risky_decision", "build113_ambiguous_decision", "troubleshoot"
+    context = Column(
+        String, nullable=False
+    )  # "build113_risky_decision", "build113_ambiguous_decision", "troubleshoot"
     decision_info = Column(JSON, nullable=True)  # Decision metadata
     deletion_info = Column(JSON, nullable=True)  # Deletion details if applicable
 
     # Timestamps
     requested_at = Column(
-        DateTime,
-        nullable=False,
-        default=lambda: datetime.now(timezone.utc),
-        index=True
+        DateTime, nullable=False, default=lambda: datetime.now(timezone.utc), index=True
     )
     responded_at = Column(DateTime, nullable=True)
     timeout_at = Column(DateTime, nullable=True)  # When request expires
 
     # Status and response
-    status = Column(String, nullable=False, default="pending")  # pending, approved, rejected, timeout, error
+    status = Column(
+        String, nullable=False, default="pending"
+    )  # pending, approved, rejected, timeout, error
     response_method = Column(String, nullable=True)  # "telegram", "dashboard", "auto", "timeout"
     approval_reason = Column(Text, nullable=True)
     rejected_reason = Column(Text, nullable=True)
@@ -371,10 +381,7 @@ class GovernanceRequest(Base):
 
     # Timestamps
     created_at = Column(
-        DateTime,
-        nullable=False,
-        default=lambda: datetime.now(timezone.utc),
-        index=True
+        DateTime, nullable=False, default=lambda: datetime.now(timezone.utc), index=True
     )
 
 
@@ -399,10 +406,7 @@ class TokenEstimationV2Event(Base):
 
     # Timestamp
     timestamp = Column(
-        DateTime,
-        nullable=False,
-        default=lambda: datetime.now(timezone.utc),
-        index=True
+        DateTime, nullable=False, default=lambda: datetime.now(timezone.utc), index=True
     )
 
     # Estimation inputs
@@ -426,7 +430,7 @@ class TokenEstimationV2Event(Base):
 
     # Calculated metrics
     smape_percent = Column(Float, nullable=True)  # 200 * |pred - actual| / (|pred| + |actual|)
-    waste_ratio = Column(Float, nullable=True)    # pred / actual
+    waste_ratio = Column(Float, nullable=True)  # pred / actual
     underestimated = Column(Boolean, nullable=True, index=True)  # actual > pred
 
     # BUILD-129 Phase 3: Truncation awareness and feature tracking
@@ -435,23 +439,20 @@ class TokenEstimationV2Event(Base):
 
     # Documentation synthesis features (for DOC_SYNTHESIS tasks)
     api_reference_required = Column(Boolean, nullable=True)  # API docs needed
-    examples_required = Column(Boolean, nullable=True)       # Code examples needed
-    research_required = Column(Boolean, nullable=True)       # Investigation needed
-    usage_guide_required = Column(Boolean, nullable=True)    # Usage docs needed
-    context_quality = Column(String, nullable=True)          # "none", "some", "strong"
+    examples_required = Column(Boolean, nullable=True)  # Code examples needed
+    research_required = Column(Boolean, nullable=True)  # Investigation needed
+    usage_guide_required = Column(Boolean, nullable=True)  # Usage docs needed
+    context_quality = Column(String, nullable=True)  # "none", "some", "strong"
 
     # BUILD-129 Phase 3 P3: SOT (Source of Truth) file tracking
     # SOT files (BUILD_LOG.md, BUILD_HISTORY.md, etc.) require different estimation
     is_sot_file = Column(Boolean, nullable=True, default=False)  # Is this an SOT file update?
-    sot_file_name = Column(String, nullable=True)                # SOT file basename (e.g., "build_log.md")
-    sot_entry_count_hint = Column(Integer, nullable=True)        # Number of entries to write (proxy)
+    sot_file_name = Column(String, nullable=True)  # SOT file basename (e.g., "build_log.md")
+    sot_entry_count_hint = Column(Integer, nullable=True)  # Number of entries to write (proxy)
 
     # Timestamp
     created_at = Column(
-        DateTime,
-        nullable=False,
-        default=lambda: datetime.now(timezone.utc),
-        index=True
+        DateTime, nullable=False, default=lambda: datetime.now(timezone.utc), index=True
     )
 
 
@@ -548,11 +549,17 @@ class SOTRetrievalEvent(Base):
 
     # Formatting outcome (after format_retrieved_context cap enforcement)
     total_context_chars = Column(Integer, nullable=False)  # Final formatted context length
-    sot_chars_formatted = Column(Integer, nullable=True)  # SOT contribution after formatting (NULL if not included)
+    sot_chars_formatted = Column(
+        Integer, nullable=True
+    )  # SOT contribution after formatting (NULL if not included)
 
     # Utilization metrics
-    budget_utilization_pct = Column(Float, nullable=False)  # total_context_chars / max_context_chars * 100
-    sot_truncated = Column(Boolean, nullable=False, default=False)  # Was SOT section truncated during formatting?
+    budget_utilization_pct = Column(
+        Float, nullable=False
+    )  # total_context_chars / max_context_chars * 100
+    sot_truncated = Column(
+        Boolean, nullable=False, default=False
+    )  # Was SOT section truncated during formatting?
 
     # Context composition (JSON list of section names included)
     sections_included = Column(JSON, nullable=True)  # e.g., ["code", "summaries", "errors", "sot"]
@@ -598,7 +605,9 @@ class ABTestResult(Base):
     # Metrics deltas (treatment - control)
     token_delta = Column(Integer)  # Positive = treatment used more tokens
     time_delta_seconds = Column(Float)  # Positive = treatment took longer
-    success_rate_delta = Column(Float)  # Positive = treatment had better success rate (percentage points)
+    success_rate_delta = Column(
+        Float
+    )  # Positive = treatment had better success rate (percentage points)
 
     # Aggregated results from control run
     control_total_tokens = Column(Integer)
@@ -630,10 +639,13 @@ class StorageScan(Base):
 
     Tracks scan history, allowing trend analysis and comparison over time.
     """
-    __tablename__ = 'storage_scans'
+
+    __tablename__ = "storage_scans"
 
     id = Column(Integer, primary_key=True, index=True)
-    timestamp = Column(DateTime, nullable=False, default=lambda: datetime.now(timezone.utc), index=True)
+    timestamp = Column(
+        DateTime, nullable=False, default=lambda: datetime.now(timezone.utc), index=True
+    )
     scan_type = Column(String(20), nullable=False)  # 'drive' or 'directory'
     scan_target = Column(String(500), nullable=False)  # 'C:' or 'c:/dev/Autopack'
     max_depth = Column(Integer, nullable=True)
@@ -660,10 +672,13 @@ class CleanupCandidateDB(Base):
 
     Tracks files/folders eligible for cleanup, approval status, and execution state.
     """
-    __tablename__ = 'cleanup_candidates'
+
+    __tablename__ = "cleanup_candidates"
 
     id = Column(Integer, primary_key=True, index=True)
-    scan_id = Column(Integer, ForeignKey('storage_scans.id', ondelete='CASCADE'), nullable=False, index=True)
+    scan_id = Column(
+        Integer, ForeignKey("storage_scans.id", ondelete="CASCADE"), nullable=False, index=True
+    )
 
     # File info
     path = Column(Text, nullable=False)
@@ -677,13 +692,15 @@ class CleanupCandidateDB(Base):
     requires_approval = Column(Boolean, nullable=False)
 
     # Approval state
-    approval_status = Column(String(20), nullable=False, default='pending', index=True)
+    approval_status = Column(String(20), nullable=False, default="pending", index=True)
     approved_by = Column(String(100), nullable=True)
     approved_at = Column(DateTime, nullable=True)
     rejection_reason = Column(Text, nullable=True)
 
     # Execution state
-    execution_status = Column(String(20), nullable=True)  # 'executing', 'completed', 'failed', 'skipped'
+    execution_status = Column(
+        String(20), nullable=True
+    )  # 'executing', 'completed', 'failed', 'skipped'
     executed_at = Column(DateTime, nullable=True)
     execution_error = Column(Text, nullable=True)
 
@@ -700,15 +717,22 @@ class ApprovalDecision(Base):
 
     Records who approved what, when, and via which method.
     """
-    __tablename__ = 'approval_decisions'
+
+    __tablename__ = "approval_decisions"
 
     id = Column(Integer, primary_key=True, index=True)
-    scan_id = Column(Integer, ForeignKey('storage_scans.id', ondelete='CASCADE'), nullable=False, index=True)
+    scan_id = Column(
+        Integer, ForeignKey("storage_scans.id", ondelete="CASCADE"), nullable=False, index=True
+    )
 
     # Approval metadata
     approved_by = Column(String(100), nullable=False)
-    approved_at = Column(DateTime, nullable=False, default=lambda: datetime.now(timezone.utc), index=True)
-    approval_method = Column(String(50), nullable=True)  # 'cli_interactive', 'api', 'telegram', 'automated'
+    approved_at = Column(
+        DateTime, nullable=False, default=lambda: datetime.now(timezone.utc), index=True
+    )
+    approval_method = Column(
+        String(50), nullable=True
+    )  # 'cli_interactive', 'api', 'telegram', 'automated'
 
     # Batch approval
     total_candidates = Column(Integer, nullable=False)
@@ -726,13 +750,18 @@ class LearnedRule(Base):
     Tracks patterns detected from user approval/rejection history,
     suggests new policy rules to reduce manual approval burden.
     """
-    __tablename__ = 'learned_rules'
+
+    __tablename__ = "learned_rules"
 
     id = Column(Integer, primary_key=True, index=True)
-    created_at = Column(DateTime, nullable=False, default=lambda: datetime.now(timezone.utc), index=True)
+    created_at = Column(
+        DateTime, nullable=False, default=lambda: datetime.now(timezone.utc), index=True
+    )
 
     # Pattern
-    pattern_type = Column(String(50), nullable=False)  # 'path_pattern', 'file_type', 'age_threshold', 'size_threshold'
+    pattern_type = Column(
+        String(50), nullable=False
+    )  # 'path_pattern', 'file_type', 'age_threshold', 'size_threshold'
     pattern_value = Column(Text, nullable=False)
 
     # Classification
@@ -745,7 +774,9 @@ class LearnedRule(Base):
     sample_paths = Column(Text, nullable=True)  # JSON array for SQLite, TEXT[] for PostgreSQL
 
     # Lifecycle
-    status = Column(String(20), nullable=False, default='pending', index=True)  # 'pending', 'approved', 'rejected', 'applied'
+    status = Column(
+        String(20), nullable=False, default="pending", index=True
+    )  # 'pending', 'approved', 'rejected', 'applied'
     reviewed_by = Column(String(100), nullable=True)
     reviewed_at = Column(DateTime, nullable=True)
     applied_to_policy_version = Column(String(50), nullable=True)

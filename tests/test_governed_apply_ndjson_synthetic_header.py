@@ -1,4 +1,3 @@
-import pytest
 from pathlib import Path
 
 
@@ -28,5 +27,3 @@ diff --git a/tests/test_foo.py b/tests/test_foo.py
     ok, err = ga.apply_patch(patch, full_file_mode=True)
     assert ok is True
     assert err is None
-
-

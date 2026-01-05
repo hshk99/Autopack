@@ -9,8 +9,7 @@ Tests that SOT retrieval is correctly gated based on available budget:
 """
 
 import pytest
-import os
-from unittest.mock import patch, Mock, MagicMock
+from unittest.mock import patch, Mock
 
 
 class TestSOTBudgetGating:
@@ -27,7 +26,9 @@ class TestSOTBudgetGating:
         executor.run_id = "test-build155-gating"
 
         # Bind the actual method to the mock
-        executor._should_include_sot_retrieval = AutonomousExecutor._should_include_sot_retrieval.__get__(executor, AutonomousExecutor)
+        executor._should_include_sot_retrieval = (
+            AutonomousExecutor._should_include_sot_retrieval.__get__(executor, AutonomousExecutor)
+        )
 
         return executor
 

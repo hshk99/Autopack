@@ -38,9 +38,10 @@ class TestLlmUsageSchemadrift:
         # Column should be nullable (True or None means nullable in SQLAlchemy inspector)
         # In SQLite, nullable is returned as True/False
         # In other databases, it might be None for nullable
-        assert prompt_tokens_col["nullable"] in (True, None), (
-            f"prompt_tokens column must be nullable, got nullable={prompt_tokens_col['nullable']}"
-        )
+        assert prompt_tokens_col["nullable"] in (
+            True,
+            None,
+        ), f"prompt_tokens column must be nullable, got nullable={prompt_tokens_col['nullable']}"
 
     def test_completion_tokens_column_is_nullable(self, test_db: Session):
         """Verify completion_tokens column is defined as nullable=True"""
@@ -50,12 +51,15 @@ class TestLlmUsageSchemadrift:
         inspector = inspect(engine)
         columns = inspector.get_columns("llm_usage_events")
 
-        completion_tokens_col = next((col for col in columns if col["name"] == "completion_tokens"), None)
+        completion_tokens_col = next(
+            (col for col in columns if col["name"] == "completion_tokens"), None
+        )
         assert completion_tokens_col is not None, "completion_tokens column not found"
 
-        assert completion_tokens_col["nullable"] in (True, None), (
-            f"completion_tokens column must be nullable, got nullable={completion_tokens_col['nullable']}"
-        )
+        assert completion_tokens_col["nullable"] in (
+            True,
+            None,
+        ), f"completion_tokens column must be nullable, got nullable={completion_tokens_col['nullable']}"
 
     def test_total_tokens_column_exists_and_not_nullable(self, test_db: Session):
         """BUILD-144 P0.4: Verify total_tokens column exists and is NOT nullable"""
@@ -69,9 +73,9 @@ class TestLlmUsageSchemadrift:
         assert total_tokens_col is not None, "total_tokens column not found"
 
         # total_tokens should be non-nullable (False means NOT NULL)
-        assert total_tokens_col["nullable"] == False, (
-            f"total_tokens column must be non-nullable, got nullable={total_tokens_col['nullable']}"
-        )
+        assert not total_tokens_col[
+            "nullable"
+        ], f"total_tokens column must be non-nullable, got nullable={total_tokens_col['nullable']}"
 
     def test_insert_null_prompt_tokens_succeeds(self, test_db: Session):
         """Test that inserting NULL prompt_tokens succeeds"""
@@ -177,10 +181,11 @@ class TestLlmUsageSchemadrift:
             test_db.commit()
 
             # Query it back
-            queried_event = test_db.query(LlmUsageEvent).filter(
-                LlmUsageEvent.run_id == "test-run",
-                LlmUsageEvent.phase_id == "test-phase"
-            ).first()
+            queried_event = (
+                test_db.query(LlmUsageEvent)
+                .filter(LlmUsageEvent.run_id == "test-run", LlmUsageEvent.phase_id == "test-phase")
+                .first()
+            )
 
             assert queried_event is not None
             assert queried_event.total_tokens == 800
@@ -226,17 +231,17 @@ class TestLlmUsageSchemadrift:
             test_db.commit()
 
             # Filter for events with NULL prompt_tokens
-            null_events = test_db.query(LlmUsageEvent).filter(
-                LlmUsageEvent.prompt_tokens.is_(None)
-            ).all()
+            null_events = (
+                test_db.query(LlmUsageEvent).filter(LlmUsageEvent.prompt_tokens.is_(None)).all()
+            )
 
             assert len(null_events) >= 1
             assert any(e.run_id == "null-test-run" for e in null_events)
 
             # Filter for events with non-NULL prompt_tokens
-            exact_events = test_db.query(LlmUsageEvent).filter(
-                LlmUsageEvent.prompt_tokens.isnot(None)
-            ).all()
+            exact_events = (
+                test_db.query(LlmUsageEvent).filter(LlmUsageEvent.prompt_tokens.isnot(None)).all()
+            )
 
             assert len(exact_events) >= 1
             assert any(e.run_id == "exact-test-run" for e in exact_events)

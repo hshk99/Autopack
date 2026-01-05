@@ -5,7 +5,7 @@ from provider SDK responses, replacing heuristic 40/60 and 60/40 splits.
 """
 
 import pytest
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import Mock, patch
 from sqlalchemy.orm import Session
 
 from autopack.llm_service import LlmService
@@ -28,7 +28,7 @@ class TestExactTokenAccounting:
     @pytest.fixture
     def llm_service(self, mock_db):
         """Create LlmService instance with mocked dependencies"""
-        with patch('autopack.llm_service.ModelRouter'):
+        with patch("autopack.llm_service.ModelRouter"):
             service = LlmService(db=mock_db)
             # Ensure model router returns a simple model
             service.model_router.select_model_with_escalation = Mock(
@@ -47,7 +47,7 @@ class TestExactTokenAccounting:
             tokens_used=1000,
             model_used="gpt-4o",
             prompt_tokens=400,  # Exact from response.usage
-            completion_tokens=600  # Exact from response.usage
+            completion_tokens=600,  # Exact from response.usage
         )
         mock_builder.execute_phase = Mock(return_value=mock_result)
         llm_service.openai_builder = mock_builder
@@ -56,7 +56,7 @@ class TestExactTokenAccounting:
         result = llm_service.execute_builder_phase(
             phase_spec={"task_category": "backend", "complexity": "medium"},
             run_id="test-run",
-            phase_id="test-phase"
+            phase_id="test-phase",
         )
 
         # Verify exact tokens were returned
@@ -85,7 +85,7 @@ class TestExactTokenAccounting:
             tokens_used=800,
             model_used="gpt-4o",
             prompt_tokens=600,  # Exact from response.usage
-            completion_tokens=200  # Exact from response.usage
+            completion_tokens=200,  # Exact from response.usage
         )
         mock_auditor.review_patch = Mock(return_value=mock_result)
         llm_service.openai_auditor = mock_auditor
@@ -99,7 +99,7 @@ class TestExactTokenAccounting:
             patch_content="diff --git a/test.py",
             phase_spec={"task_category": "backend", "complexity": "medium"},
             run_id="test-run",
-            phase_id="test-phase"
+            phase_id="test-phase",
         )
 
         # Verify exact tokens were returned
@@ -133,7 +133,7 @@ class TestExactTokenAccounting:
             tokens_used=1200,
             model_used="gemini-2.5-pro",
             prompt_tokens=500,  # Exact from usage_metadata.prompt_token_count
-            completion_tokens=700  # Exact from usage_metadata.candidates_token_count
+            completion_tokens=700,  # Exact from usage_metadata.candidates_token_count
         )
         mock_builder.execute_phase = Mock(return_value=mock_result)
         llm_service.gemini_builder = mock_builder
@@ -142,7 +142,7 @@ class TestExactTokenAccounting:
         result = llm_service.execute_builder_phase(
             phase_spec={"task_category": "backend", "complexity": "medium"},
             run_id="test-run",
-            phase_id="test-phase"
+            phase_id="test-phase",
         )
 
         # Verify exact tokens were returned
@@ -175,7 +175,7 @@ class TestExactTokenAccounting:
             tokens_used=1500,
             model_used="claude-sonnet-4-5",
             prompt_tokens=600,  # Exact from response.usage.input_tokens
-            completion_tokens=900  # Exact from response.usage.output_tokens
+            completion_tokens=900,  # Exact from response.usage.output_tokens
         )
         mock_builder.execute_phase = Mock(return_value=mock_result)
         llm_service.anthropic_builder = mock_builder
@@ -184,7 +184,7 @@ class TestExactTokenAccounting:
         result = llm_service.execute_builder_phase(
             phase_spec={"task_category": "backend", "complexity": "medium"},
             run_id="test-run",
-            phase_id="test-phase"
+            phase_id="test-phase",
         )
 
         # Verify exact tokens were returned
@@ -212,18 +212,19 @@ class TestExactTokenAccounting:
             tokens_used=1000,
             model_used="gpt-4o",
             prompt_tokens=None,  # Missing - should trigger fallback
-            completion_tokens=None  # Missing - should trigger fallback
+            completion_tokens=None,  # Missing - should trigger fallback
         )
         mock_builder.execute_phase = Mock(return_value=mock_result)
         llm_service.openai_builder = mock_builder
 
         # Execute phase with logging capture
         import logging
-        with patch.object(logging.getLogger('autopack.llm_service'), 'warning') as mock_warning:
-            result = llm_service.execute_builder_phase(
+
+        with patch.object(logging.getLogger("autopack.llm_service"), "warning") as mock_warning:
+            llm_service.execute_builder_phase(
                 phase_spec={"task_category": "backend", "complexity": "medium"},
                 run_id="test-run",
-                phase_id="test-phase"
+                phase_id="test-phase",
             )
 
             # Verify warning was logged
@@ -247,16 +248,16 @@ class TestExactTokenAccounting:
             tokens_used=1000,
             model_used="gpt-4o",
             prompt_tokens=300,  # NOT 40% (would be 400)
-            completion_tokens=700  # NOT 60% (would be 600)
+            completion_tokens=700,  # NOT 60% (would be 600)
         )
         mock_builder.execute_phase = Mock(return_value=mock_result)
         llm_service.openai_builder = mock_builder
 
         # Execute phase
-        result = llm_service.execute_builder_phase(
+        llm_service.execute_builder_phase(
             phase_spec={"task_category": "backend", "complexity": "medium"},
             run_id="test-run",
-            phase_id="test-phase"
+            phase_id="test-phase",
         )
 
         # Verify EXACT tokens were used (not heuristic)
@@ -279,7 +280,7 @@ class TestExactTokenAccounting:
                 prompt_tokens=400,
                 completion_tokens=600,
                 run_id="test-run",
-                phase_id="phase-1"
+                phase_id="phase-1",
             ),
             LlmUsageEvent(
                 provider="anthropic",
@@ -288,8 +289,8 @@ class TestExactTokenAccounting:
                 prompt_tokens=800,
                 completion_tokens=200,
                 run_id="test-run",
-                phase_id="phase-2"
-            )
+                phase_id="phase-2",
+            ),
         ]
 
         mock_query = Mock()
@@ -298,8 +299,6 @@ class TestExactTokenAccounting:
         mock_db.query = Mock(return_value=mock_query)
 
         # Import and test dashboard endpoint logic
-        from autopack.main import app
-        from fastapi.testclient import TestClient
 
         # Note: This test verifies the data flow but doesn't test the endpoint directly
         # The key assertion is that LlmUsageEvent has exact prompt_tokens/completion_tokens

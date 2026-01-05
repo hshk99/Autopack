@@ -69,9 +69,7 @@ jobs:
             capture_output=True,
             text=True,
         )
-        assert result.returncode == 0, (
-            f"Policy should allow actions/*@vX:\n{result.stdout}"
-        )
+        assert result.returncode == 0, f"Policy should allow actions/*@vX:\n{result.stdout}"
 
 
 def test_pinning_policy_blocks_third_party_mutable_refs():
@@ -107,9 +105,7 @@ jobs:
             capture_output=True,
             text=True,
         )
-        assert result.returncode == 1, (
-            f"Policy should block third-party @master:\n{result.stdout}"
-        )
+        assert result.returncode == 1, f"Policy should block third-party @master:\n{result.stdout}"
         assert "mutable ref not allowed" in result.stdout
         assert "trivy-action@master" in result.stdout
 
@@ -147,9 +143,7 @@ jobs:
             capture_output=True,
             text=True,
         )
-        assert result.returncode == 1, (
-            f"Policy should block third-party @v2:\n{result.stdout}"
-        )
+        assert result.returncode == 1, f"Policy should block third-party @v2:\n{result.stdout}"
         assert "mutable ref not allowed" in result.stdout
         assert "gitleaks-action@v2" in result.stdout
 
@@ -187,9 +181,7 @@ jobs:
             capture_output=True,
             text=True,
         )
-        assert result.returncode == 0, (
-            f"Policy should allow third-party SHA pins:\n{result.stdout}"
-        )
+        assert result.returncode == 0, f"Policy should allow third-party SHA pins:\n{result.stdout}"
 
 
 def test_all_current_workflows_use_compliant_refs():
@@ -227,6 +219,4 @@ def test_all_current_workflows_use_compliant_refs():
             if not sha_re.search(uses):
                 violations.append(f"{workflow.name}: non-SHA ref {uses}")
 
-    assert not violations, (
-        f"Workflow pinning violations found:\n" + "\n".join(violations)
-    )
+    assert not violations, "Workflow pinning violations found:\n" + "\n".join(violations)

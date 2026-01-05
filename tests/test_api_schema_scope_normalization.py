@@ -35,9 +35,7 @@ def test_phase_response_normalizes_json_string_scope() -> None:
             "complexity": None,
             "builder_mode": None,
             "phase_index": 0,
-            "scope": "{\"paths\": [\"README.md\"]}",
+            "scope": '{"paths": ["README.md"]}',
         }
     )
     assert phase.scope == {"paths": ["README.md"]}
-
-

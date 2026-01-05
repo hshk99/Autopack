@@ -1,6 +1,7 @@
 import time
 from threading import Lock
 
+
 class RateLimiter:
     """Rate limiter using token bucket algorithm."""
 
@@ -27,10 +28,13 @@ class RateLimiter:
             else:
                 self.tokens -= 1
 
+
 rate_limiter = RateLimiter()
+
 
 def limited_function():
     rate_limiter.wait()
     print("Function executed")
+
 
 limited_function()

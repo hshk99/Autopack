@@ -15,7 +15,6 @@ Key principles:
 """
 
 import logging
-from pathlib import Path
 from typing import Dict, List, Optional, Any
 
 from .project_intention import ProjectIntentionManager
@@ -276,10 +275,7 @@ class IntentionGoalDriftDetector:
         )
 
         # Combined drift: flag if EITHER base or intention drift exceeds threshold
-        has_drift = (
-            base_result["has_drift"] or
-            intention_drift_score > threshold
-        )
+        has_drift = base_result["has_drift"] or intention_drift_score > threshold
 
         warnings = list(base_result["warnings"])
         if intention_drift_score > threshold:
@@ -326,15 +322,11 @@ class IntentionGoalDriftDetector:
 
         # Extract key terms from intention (simple approach)
         intention_terms = set(
-            word for word in intention_lower.split()
-            if len(word) > 4 and word.isalpha()
+            word for word in intention_lower.split() if len(word) > 4 and word.isalpha()
         )
 
         # Extract key terms from phase
-        phase_terms = set(
-            word for word in phase_lower.split()
-            if len(word) > 4 and word.isalpha()
-        )
+        phase_terms = set(word for word in phase_lower.split() if len(word) > 4 and word.isalpha())
 
         if not intention_terms or not phase_terms:
             return 0.0  # No drift if no terms

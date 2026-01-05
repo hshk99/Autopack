@@ -12,7 +12,7 @@ All routing decisions are deterministic and reproducible.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
 from autopack.model_routing_snapshot import (
@@ -80,9 +80,7 @@ class IntentionFirstLoop:
         """
         self.policy = policy or StuckHandlingPolicy()
 
-    def on_run_start(
-        self, run_id: str, project_id: str | None = None
-    ) -> RunLoopState:
+    def on_run_start(self, run_id: str, project_id: str | None = None) -> RunLoopState:
         """
         Initialize run-level state at run start.
 
@@ -96,9 +94,7 @@ class IntentionFirstLoop:
             RunLoopState with routing snapshot
         """
         snapshot = refresh_or_load_snapshot(run_id, force_refresh=False)
-        return RunLoopState(
-            run_id=run_id, project_id=project_id, routing_snapshot=snapshot
-        )
+        return RunLoopState(run_id=run_id, project_id=project_id, routing_snapshot=snapshot)
 
     def decide_when_stuck(
         self,

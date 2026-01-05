@@ -9,7 +9,6 @@ This enables governed apply path while keeping implementation flexible.
 
 from typing import Protocol, Dict, Optional
 import subprocess
-import os
 from pathlib import Path
 
 
@@ -36,11 +35,7 @@ class GitAdapter(Protocol):
         ...
 
     def apply_patch(
-        self,
-        repo_path: str,
-        run_id: str,
-        phase_id: str,
-        patch_content: str
+        self, repo_path: str, run_id: str, phase_id: str, patch_content: str
     ) -> tuple[bool, Optional[str]]:
         """
         Apply patch to integration branch.
@@ -90,11 +85,7 @@ class LocalGitCliAdapter:
         self.default_repo_path = default_repo_path or "/workspace"
 
     def _run_git(
-        self,
-        args: list[str],
-        cwd: str,
-        check: bool = True,
-        capture_output: bool = True
+        self, args: list[str], cwd: str, check: bool = True, capture_output: bool = True
     ) -> subprocess.CompletedProcess:
         """
         Run git command.
@@ -109,13 +100,7 @@ class LocalGitCliAdapter:
             CompletedProcess result
         """
         cmd = ["git"] + args
-        return subprocess.run(
-            cmd,
-            cwd=cwd,
-            check=check,
-            capture_output=capture_output,
-            text=True
-        )
+        return subprocess.run(cmd, cwd=cwd, check=check, capture_output=capture_output, text=True)
 
     def ensure_integration_branch(self, repo_path: str, run_id: str) -> str:
         """
@@ -127,11 +112,7 @@ class LocalGitCliAdapter:
         branch_name = f"autonomous/{run_id}"
 
         # Check if branch exists
-        result = self._run_git(
-            ["rev-parse", "--verify", branch_name],
-            cwd=repo_path,
-            check=False
-        )
+        result = self._run_git(["rev-parse", "--verify", branch_name], cwd=repo_path, check=False)
 
         if result.returncode == 0:
             # Branch exists, switch to it
@@ -143,11 +124,7 @@ class LocalGitCliAdapter:
         return branch_name
 
     def apply_patch(
-        self,
-        repo_path: str,
-        run_id: str,
-        phase_id: str,
-        patch_content: str
+        self, repo_path: str, run_id: str, phase_id: str, patch_content: str
     ) -> tuple[bool, Optional[str]]:
         """
         Apply patch to integration branch.
@@ -159,7 +136,7 @@ class LocalGitCliAdapter:
         """
         try:
             # Ensure we're on the right branch
-            branch = self.ensure_integration_branch(repo_path, run_id)
+            self.ensure_integration_branch(repo_path, run_id)
 
             # Write patch to temp file
             patch_file = Path(repo_path) / ".autopack_patch.tmp"
@@ -167,34 +144,23 @@ class LocalGitCliAdapter:
 
             try:
                 # Apply patch
-                self._run_git(
-                    ["apply", "--verbose", str(patch_file)],
-                    cwd=repo_path
-                )
+                self._run_git(["apply", "--verbose", str(patch_file)], cwd=repo_path)
 
                 # Stage changes
                 self._run_git(["add", "-A"], cwd=repo_path)
 
                 # Commit with phase tag
                 commit_msg = f"[Autopack] Phase {phase_id} for run {run_id}\n\nAutonomous build phase completion."
-                self._run_git(
-                    ["commit", "-m", commit_msg],
-                    cwd=repo_path
-                )
+                self._run_git(["commit", "-m", commit_msg], cwd=repo_path)
 
                 # Get commit SHA
-                result = self._run_git(
-                    ["rev-parse", "HEAD"],
-                    cwd=repo_path
-                )
+                result = self._run_git(["rev-parse", "HEAD"], cwd=repo_path)
                 commit_sha = result.stdout.strip()
 
                 # Tag commit
                 tag_name = f"{run_id}_{phase_id}"
                 self._run_git(
-                    ["tag", "-f", tag_name],
-                    cwd=repo_path,
-                    check=False  # Don't fail if tag exists
+                    ["tag", "-f", tag_name], cwd=repo_path, check=False  # Don't fail if tag exists
                 )
 
                 return (True, commit_sha)
@@ -221,37 +187,29 @@ class LocalGitCliAdapter:
         try:
             # Check if branch exists
             result = self._run_git(
-                ["rev-parse", "--verify", branch_name],
-                cwd=repo_path,
-                check=False
+                ["rev-parse", "--verify", branch_name], cwd=repo_path, check=False
             )
 
             if result.returncode != 0:
                 return {
                     "branch": branch_name,
                     "exists": False,
-                    "message": "Integration branch not yet created"
+                    "message": "Integration branch not yet created",
                 }
 
             # Get commit count
-            result = self._run_git(
-                ["rev-list", "--count", branch_name],
-                cwd=repo_path
-            )
+            result = self._run_git(["rev-list", "--count", branch_name], cwd=repo_path)
             commit_count = int(result.stdout.strip())
 
             # Get latest commit
-            result = self._run_git(
-                ["log", "-1", "--format=%H %s", branch_name],
-                cwd=repo_path
-            )
+            result = self._run_git(["log", "-1", "--format=%H %s", branch_name], cwd=repo_path)
             latest_commit = result.stdout.strip()
 
             # Get branch status (ahead/behind)
             result = self._run_git(
                 ["rev-list", "--left-right", "--count", f"main...{branch_name}"],
                 cwd=repo_path,
-                check=False
+                check=False,
             )
 
             if result.returncode == 0:
@@ -268,15 +226,11 @@ class LocalGitCliAdapter:
                 "commit_count": commit_count,
                 "latest_commit": latest_commit,
                 "ahead_of_main": ahead_count,
-                "behind_main": behind_count
+                "behind_main": behind_count,
             }
 
         except subprocess.CalledProcessError as e:
-            return {
-                "branch": branch_name,
-                "exists": False,
-                "error": str(e)
-            }
+            return {"branch": branch_name, "exists": False, "error": str(e)}
 
 
 # Factory function to get adapter instance

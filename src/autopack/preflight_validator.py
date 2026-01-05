@@ -36,13 +36,14 @@ logger = logging.getLogger(__name__)
 
 # Validation limits
 MAX_FILES_PER_PHASE = 100  # Maximum files in scope per phase
-MAX_TOTAL_FILES = 500      # Maximum files across all phases
-MAX_SCOPE_SIZE_MB = 50     # Maximum total file size in scope (MB)
+MAX_TOTAL_FILES = 500  # Maximum files across all phases
+MAX_SCOPE_SIZE_MB = 50  # Maximum total file size in scope (MB)
 
 
 @dataclass
 class ValidationResult:
     """Result of preflight validation"""
+
     valid: bool
     error: Optional[str] = None
     warnings: List[str] = None
@@ -67,10 +68,7 @@ class PreflightValidator:
     """
 
     def __init__(
-        self,
-        workspace: Path,
-        autopack_internal_mode: bool = False,
-        run_type: str = "project_build"
+        self, workspace: Path, autopack_internal_mode: bool = False, run_type: str = "project_build"
     ):
         """
         Initialize validator.
@@ -101,10 +99,7 @@ class PreflightValidator:
 
         phases = plan.get("phases", [])
         if not phases:
-            return ValidationResult(
-                valid=False,
-                error="Plan has no phases"
-            )
+            return ValidationResult(valid=False, error="Plan has no phases")
 
         # Dependency DAG validation (fail-fast)
         dep_result = self.validate_dependencies(plan)
@@ -131,7 +126,7 @@ class PreflightValidator:
                 return ValidationResult(
                     valid=False,
                     error=f"Phase '{phase_id}' validation failed: {phase_result.error}",
-                    warnings=warnings + phase_result.warnings
+                    warnings=warnings + phase_result.warnings,
                 )
 
             # Accumulate warnings
@@ -146,7 +141,7 @@ class PreflightValidator:
             return ValidationResult(
                 valid=False,
                 error=f"Total file count exceeds limit: {all_files_count} > {MAX_TOTAL_FILES}",
-                warnings=warnings
+                warnings=warnings,
             )
 
         max_size_bytes = MAX_SCOPE_SIZE_MB * 1024 * 1024
@@ -155,7 +150,7 @@ class PreflightValidator:
             return ValidationResult(
                 valid=False,
                 error=f"Total file size exceeds limit: {size_mb:.1f}MB > {MAX_SCOPE_SIZE_MB}MB",
-                warnings=warnings
+                warnings=warnings,
             )
 
         return ValidationResult(
@@ -164,8 +159,8 @@ class PreflightValidator:
             stats={
                 "total_phases": len(phases),
                 "total_files": all_files_count,
-                "total_size_mb": all_files_size / (1024 * 1024)
-            }
+                "total_size_mb": all_files_size / (1024 * 1024),
+            },
         )
 
     def validate_phase(self, phase: Dict, phase_id: str) -> ValidationResult:
@@ -190,7 +185,9 @@ class PreflightValidator:
 
         # Check 1: Scope not empty
         if not scope_paths:
-            warnings.append(f"Phase '{phase_id}' has empty scope - Builder will need to request expansion")
+            warnings.append(
+                f"Phase '{phase_id}' has empty scope - Builder will need to request expansion"
+            )
 
         # Check 2: Path existence
         missing_paths = []
@@ -223,8 +220,7 @@ class PreflightValidator:
         if missing_paths and len(missing_paths) == len(scope_paths):
             # All paths missing - likely error
             return ValidationResult(
-                valid=False,
-                error=f"All scope paths not found: {', '.join(missing_paths[:3])}..."
+                valid=False, error=f"All scope paths not found: {', '.join(missing_paths[:3])}..."
             )
 
         # Check 3: Governance validation
@@ -237,13 +233,15 @@ class PreflightValidator:
         if file_count > MAX_FILES_PER_PHASE:
             return ValidationResult(
                 valid=False,
-                error=f"Scope too large: {file_count} files > {MAX_FILES_PER_PHASE} limit"
+                error=f"Scope too large: {file_count} files > {MAX_FILES_PER_PHASE} limit",
             )
 
         # Check 5: Quality gates (optional)
         success_criteria = phase.get("success_criteria", [])
         if not success_criteria:
-            warnings.append(f"Phase '{phase_id}' has no success criteria - harder to validate completion")
+            warnings.append(
+                f"Phase '{phase_id}' has no success criteria - harder to validate completion"
+            )
 
         return ValidationResult(
             valid=True,
@@ -251,15 +249,12 @@ class PreflightValidator:
             stats={
                 "file_count": file_count,
                 "total_size_bytes": total_size,
-                "missing_paths": len(missing_paths)
-            }
+                "missing_paths": len(missing_paths),
+            },
         )
 
     def _check_governance(
-        self,
-        scope_paths: List[str],
-        readonly_context: List[str],
-        allowed_paths: List[str] = None
+        self, scope_paths: List[str], readonly_context: List[str], allowed_paths: List[str] = None
     ) -> ValidationResult:
         """
         Check governance rules using governed_apply logic.
@@ -278,7 +273,7 @@ class PreflightValidator:
             autopack_internal_mode=self.autopack_internal_mode,
             run_type=self.run_type,
             scope_paths=scope_paths,
-            allowed_paths=allowed_paths or []
+            allowed_paths=allowed_paths or [],
         )
 
         protected_violations = []
@@ -308,16 +303,12 @@ class PreflightValidator:
         if protected_violations:
             return ValidationResult(
                 valid=False,
-                error=f"Protected paths in scope: {', '.join(protected_violations[:3])}..."
+                error=f"Protected paths in scope: {', '.join(protected_violations[:3])}...",
             )
 
         return ValidationResult(valid=True)
 
-    def validate_success_criteria(
-        self,
-        phase: Dict,
-        phase_id: str
-    ) -> ValidationResult:
+    def validate_success_criteria(self, phase: Dict, phase_id: str) -> ValidationResult:
         """
         Validate success criteria are well-formed.
 
@@ -346,11 +337,7 @@ class PreflightValidator:
 
         return ValidationResult(valid=True, warnings=warnings)
 
-    def validate_validation_tests(
-        self,
-        phase: Dict,
-        phase_id: str
-    ) -> ValidationResult:
+    def validate_validation_tests(self, phase: Dict, phase_id: str) -> ValidationResult:
         """
         Validate validation tests are executable.
 
@@ -383,10 +370,7 @@ class PreflightValidator:
 
         return ValidationResult(valid=True, warnings=warnings)
 
-    def validate_dependencies(
-        self,
-        plan: Dict
-    ) -> ValidationResult:
+    def validate_dependencies(self, plan: Dict) -> ValidationResult:
         """
         Validate phase dependencies form valid DAG (no cycles).
 
@@ -413,7 +397,7 @@ class PreflightValidator:
                 if dep not in phase_ids:
                     return ValidationResult(
                         valid=False,
-                        error=f"Phase '{phase_id}' depends on non-existent phase '{dep}'"
+                        error=f"Phase '{phase_id}' depends on non-existent phase '{dep}'",
                     )
 
         # Detect cycles using DFS
@@ -439,15 +423,12 @@ class PreflightValidator:
                 if has_cycle(phase_id):
                     return ValidationResult(
                         valid=False,
-                        error=f"Circular dependency detected involving phase '{phase_id}'"
+                        error=f"Circular dependency detected involving phase '{phase_id}'",
                     )
 
         return ValidationResult(valid=True)
 
-    def get_execution_order(
-        self,
-        plan: Dict
-    ) -> Tuple[bool, List[str], Optional[str]]:
+    def get_execution_order(self, plan: Dict) -> Tuple[bool, List[str], Optional[str]]:
         """
         Get topologically sorted execution order.
 

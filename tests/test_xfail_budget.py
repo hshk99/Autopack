@@ -32,9 +32,8 @@ Changes in P15:
 - Added 1 function-level xfail for T2 retry logic test
 - Net reduction: 121 → 115 xfailed tests
 """
+
 import pytest
-import subprocess
-import sys
 
 # Expected xfail count as of 2025-12-31 BUILD-146 Phase A P15
 # Update this number when adding new xfails, with documentation in commit message
@@ -96,8 +95,12 @@ def test_xfail_budget_not_exceeded():
         )
 
     # Log the current count for visibility
-    print(f"✓ XFAIL budget check passed: {total_estimated_xfails} estimated xfails (max allowed: {max_allowed})")
-    print(f"  - {len(module_xfail_files)} module-level xfail files (est. {estimated_module_xfails} tests)")
+    print(
+        f"✓ XFAIL budget check passed: {total_estimated_xfails} estimated xfails (max allowed: {max_allowed})"
+    )
+    print(
+        f"  - {len(module_xfail_files)} module-level xfail files (est. {estimated_module_xfails} tests)"
+    )
     print(f"  - {function_xfail_count} function-level xfails")
 
 

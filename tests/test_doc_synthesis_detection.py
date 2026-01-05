@@ -4,6 +4,7 @@ Tests for DOC_SYNTHESIS detection and phase-based estimation.
 BUILD-129 Phase 3: Verify that documentation tasks requiring code investigation
 are correctly classified as DOC_SYNTHESIS vs DOC_WRITE.
 """
+
 import pytest
 from pathlib import Path
 from autopack.token_estimator import TokenEstimator
@@ -236,19 +237,23 @@ class TestDocSynthesisDetection:
         task_description = "Create comprehensive documentation from scratch"
 
         estimate = self.estimator.estimate(
-            deliverables=deliverables,          # dict, not list
-            category="implementation",          # missing/incorrect category like production
+            deliverables=deliverables,  # dict, not list
+            category="implementation",  # missing/incorrect category like production
             complexity="low",
-            scope_paths=[],                    # no context
+            scope_paths=[],  # no context
             task_description=task_description,
         )
 
         assert estimate.deliverable_count == 5
         assert estimate.category == "doc_synthesis"
         old_smape = abs(5200 - 16384) / ((5200 + 16384) / 2) * 100
-        new_smape = abs(estimate.estimated_tokens - 16384) / ((estimate.estimated_tokens + 16384) / 2) * 100
+        new_smape = (
+            abs(estimate.estimated_tokens - 16384) / ((estimate.estimated_tokens + 16384) / 2) * 100
+        )
 
-        assert new_smape < old_smape, f"New SMAPE ({new_smape:.1f}%) should be < old SMAPE ({old_smape:.1f}%)"
+        assert (
+            new_smape < old_smape
+        ), f"New SMAPE ({new_smape:.1f}%) should be < old SMAPE ({old_smape:.1f}%)"
         assert new_smape < 50, f"New SMAPE ({new_smape:.1f}%) should be <50% (target accuracy)"
 
 

@@ -9,13 +9,11 @@ Verifies:
 """
 
 import shutil
-from pathlib import Path
 
 import pytest
 
 from autopack.config import settings
 from autopack.model_routing_refresh import (
-    SEED_CATALOG,
     ModelCatalogEntry,
     create_catalog_backed_snapshot,
     load_model_catalog,

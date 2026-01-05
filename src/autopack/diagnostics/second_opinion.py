@@ -176,7 +176,9 @@ class SecondOpinionTriageSystem:
             logger.error(f"[SecondOpinion] Triage generation failed: {e}", exc_info=True)
             return None
 
-    def _build_triage_prompt(self, handoff_bundle: Dict[str, Any], phase_context: Optional[Dict[str, Any]]) -> str:
+    def _build_triage_prompt(
+        self, handoff_bundle: Dict[str, Any], phase_context: Optional[Dict[str, Any]]
+    ) -> str:
         """Build triage prompt from handoff bundle.
 
         Args:
@@ -202,78 +204,88 @@ class SecondOpinionTriageSystem:
         # Add phase information
         if "phase" in handoff_bundle:
             phase = handoff_bundle["phase"]
-            prompt_parts.extend([
-                f"## Phase: {phase.get('name', 'Unknown')}",
-                f"Description: {phase.get('description', 'N/A')}",
-                f"State: {phase.get('state', 'N/A')}",
-                f"Attempts: {phase.get('builder_attempts', 0)}/{phase.get('max_builder_attempts', 5)}",
-                "",
-            ])
+            prompt_parts.extend(
+                [
+                    f"## Phase: {phase.get('name', 'Unknown')}",
+                    f"Description: {phase.get('description', 'N/A')}",
+                    f"State: {phase.get('state', 'N/A')}",
+                    f"Attempts: {phase.get('builder_attempts', 0)}/{phase.get('max_builder_attempts', 5)}",
+                    "",
+                ]
+            )
 
         # Add failure information
         if "failure_reason" in handoff_bundle:
-            prompt_parts.extend([
-                "## Failure Reason",
-                handoff_bundle["failure_reason"],
-                "",
-            ])
+            prompt_parts.extend(
+                [
+                    "## Failure Reason",
+                    handoff_bundle["failure_reason"],
+                    "",
+                ]
+            )
 
         # Add diagnostics
         if "diagnostics" in handoff_bundle:
             diagnostics = handoff_bundle["diagnostics"]
-            prompt_parts.extend([
-                "## Diagnostics",
-                json.dumps(diagnostics, indent=2),
-                "",
-            ])
+            prompt_parts.extend(
+                [
+                    "## Diagnostics",
+                    json.dumps(diagnostics, indent=2),
+                    "",
+                ]
+            )
 
         # Add phase context if available
         if phase_context:
-            prompt_parts.extend([
-                "## Phase Context",
-                json.dumps(phase_context, indent=2),
-                "",
-            ])
+            prompt_parts.extend(
+                [
+                    "## Phase Context",
+                    json.dumps(phase_context, indent=2),
+                    "",
+                ]
+            )
 
         # Add output format instructions
-        prompt_parts.extend([
-            "# Output Format",
-            "",
-            "Provide your triage as a JSON object with this structure:",
-            "",
-            "```json",
-            "{",
-            '  "hypotheses": [',
-            '    {',
-            '      "description": "Root cause hypothesis",',
-            '      "likelihood": 0.8,',
-            '      "evidence_for": ["Supporting evidence"],',
-            '      "evidence_against": ["Contradicting evidence"]',
-            '    }',
-            '  ],',
-            '  "missing_evidence": [',
-            '    "Specific evidence item needed"',
-            '  ],',
-            '  "next_probes": [',
-            '    {',
-            '      "type": "command|check|inspection",',
-            '      "description": "What to probe",',
-            '      "command": "Specific command to run (if applicable)"',
-            '    }',
-            '  ],',
-            '  "minimal_patch_strategy": {',
-            '    "approach": "High-level strategy",',
-            '    "files_to_modify": ["file1.py", "file2.py"],',
-            '    "key_changes": ["Change 1", "Change 2"],',
-            '    "risks": ["Risk 1", "Risk 2"]',
-            '  },',
-            '  "confidence": 0.75,',
-            '  "reasoning": "Detailed reasoning for triage conclusions"',
-            "}",
-            "```",
-            "",
-            "Focus on actionable insights and specific next steps.",
-        ])
+        prompt_parts.extend(
+            [
+                "# Output Format",
+                "",
+                "Provide your triage as a JSON object with this structure:",
+                "",
+                "```json",
+                "{",
+                '  "hypotheses": [',
+                "    {",
+                '      "description": "Root cause hypothesis",',
+                '      "likelihood": 0.8,',
+                '      "evidence_for": ["Supporting evidence"],',
+                '      "evidence_against": ["Contradicting evidence"]',
+                "    }",
+                "  ],",
+                '  "missing_evidence": [',
+                '    "Specific evidence item needed"',
+                "  ],",
+                '  "next_probes": [',
+                "    {",
+                '      "type": "command|check|inspection",',
+                '      "description": "What to probe",',
+                '      "command": "Specific command to run (if applicable)"',
+                "    }",
+                "  ],",
+                '  "minimal_patch_strategy": {',
+                '    "approach": "High-level strategy",',
+                '    "files_to_modify": ["file1.py", "file2.py"],',
+                '    "key_changes": ["Change 1", "Change 2"],',
+                '    "risks": ["Risk 1", "Risk 2"]',
+                "  },",
+                '  "confidence": 0.75,',
+                '  "reasoning": "Detailed reasoning for triage conclusions"',
+                "}",
+                "```",
+                "",
+                "Focus on actionable insights and specific next steps.",
+            ]
+        )
 
         return "\n".join(prompt_parts)
 
@@ -361,62 +373,64 @@ class SecondOpinionTriageSystem:
             Mock response in expected format
         """
         mock_response = {
-            "content": json.dumps({
-                "hypotheses": [
-                    {
-                        "description": "Token budget exceeded during code generation",
-                        "likelihood": 0.9,
-                        "evidence_for": [
-                            "max_tokens truncation in logs",
-                            "Incomplete file generation",
+            "content": json.dumps(
+                {
+                    "hypotheses": [
+                        {
+                            "description": "Token budget exceeded during code generation",
+                            "likelihood": 0.9,
+                            "evidence_for": [
+                                "max_tokens truncation in logs",
+                                "Incomplete file generation",
+                            ],
+                            "evidence_against": [],
+                        },
+                        {
+                            "description": "Protected path violation",
+                            "likelihood": 0.3,
+                            "evidence_for": ["Isolation warnings in logs"],
+                            "evidence_against": ["No explicit rejection messages"],
+                        },
+                    ],
+                    "missing_evidence": [
+                        "Actual token counts from failed attempt",
+                        "Full LLM response before truncation",
+                        "Context size at time of generation",
+                    ],
+                    "next_probes": [
+                        {
+                            "type": "check",
+                            "description": "Check token usage in phase logs",
+                            "command": "grep 'TOKEN_BUDGET' phase.log",
+                        },
+                        {
+                            "type": "inspection",
+                            "description": "Inspect phase complexity vs token allocation",
+                            "command": None,
+                        },
+                    ],
+                    "minimal_patch_strategy": {
+                        "approach": "Increase token budget for this complexity level",
+                        "files_to_modify": ["src/autopack/anthropic_clients.py"],
+                        "key_changes": [
+                            "Increase max_tokens from 8192 to 12288 for medium complexity",
+                            "Add token usage logging",
                         ],
-                        "evidence_against": [],
+                        "risks": [
+                            "Higher API costs",
+                            "May not fully resolve if context is too large",
+                        ],
                     },
-                    {
-                        "description": "Protected path violation",
-                        "likelihood": 0.3,
-                        "evidence_for": ["Isolation warnings in logs"],
-                        "evidence_against": ["No explicit rejection messages"],
-                    },
-                ],
-                "missing_evidence": [
-                    "Actual token counts from failed attempt",
-                    "Full LLM response before truncation",
-                    "Context size at time of generation",
-                ],
-                "next_probes": [
-                    {
-                        "type": "check",
-                        "description": "Check token usage in phase logs",
-                        "command": "grep 'TOKEN_BUDGET' phase.log",
-                    },
-                    {
-                        "type": "inspection",
-                        "description": "Inspect phase complexity vs token allocation",
-                        "command": None,
-                    },
-                ],
-                "minimal_patch_strategy": {
-                    "approach": "Increase token budget for this complexity level",
-                    "files_to_modify": ["src/autopack/anthropic_clients.py"],
-                    "key_changes": [
-                        "Increase max_tokens from 8192 to 12288 for medium complexity",
-                        "Add token usage logging",
-                    ],
-                    "risks": [
-                        "Higher API costs",
-                        "May not fully resolve if context is too large",
-                    ],
-                },
-                "confidence": 0.85,
-                "reasoning": "Token truncation is the most likely cause based on log patterns. "
-                "The phase attempted to generate multiple files but was cut off mid-generation. "
-                "Increasing token budget should resolve this, but we should also verify context size.",
-            }),
+                    "confidence": 0.85,
+                    "reasoning": "Token truncation is the most likely cause based on log patterns. "
+                    "The phase attempted to generate multiple files but was cut off mid-generation. "
+                    "Increasing token budget should resolve this, but we should also verify context size.",
+                }
+            ),
             "usage": {
-                "prompt_tokens": 0,  # Mock has no real usage
-                "completion_tokens": 0,
-                "total_tokens": 0,
+                "prompt_tokens": 1500,  # Mock realistic token usage
+                "completion_tokens": 800,
+                "total_tokens": 2300,
             },
         }
 

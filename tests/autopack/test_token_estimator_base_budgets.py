@@ -6,7 +6,6 @@ to reduce budget waste while maintaining safety.
 """
 
 import pytest
-from pathlib import Path
 from autopack.token_estimator import TokenEstimator, TokenEstimate
 
 
@@ -26,7 +25,7 @@ class TestCategoryAwareBaseBudgets:
             category="docs",
             complexity="low",
             breakdown={},
-            confidence=0.8
+            confidence=0.8,
         )
         budget = estimator.select_budget(estimate, "low")
         # With 2000 * 1.2 buffer = 2400, base floor of 4096 should apply
@@ -40,7 +39,7 @@ class TestCategoryAwareBaseBudgets:
             category="docs",
             complexity="medium",
             breakdown={},
-            confidence=0.8
+            confidence=0.8,
         )
         budget = estimator.select_budget(estimate, "medium")
         # With 3000 * 1.2 buffer = 3600, base floor of 8192 should apply
@@ -54,7 +53,7 @@ class TestCategoryAwareBaseBudgets:
             category="tests",
             complexity="low",
             breakdown={},
-            confidence=0.8
+            confidence=0.8,
         )
         budget = estimator.select_budget(estimate, "low")
         # With 2500 * 1.2 buffer = 3000, base floor of 6144 should apply
@@ -68,7 +67,7 @@ class TestCategoryAwareBaseBudgets:
             category="doc_synthesis",
             complexity="low",
             breakdown={},
-            confidence=0.8
+            confidence=0.8,
         )
         budget = estimator.select_budget(estimate, "low")
         # doc_synthesis gets 2.2x buffer: 2000 * 2.2 = 4400
@@ -83,7 +82,7 @@ class TestCategoryAwareBaseBudgets:
             category="doc_sot_update",
             complexity="low",
             breakdown={},
-            confidence=0.8
+            confidence=0.8,
         )
         budget = estimator.select_budget(estimate, "low")
         # doc_sot_update gets 2.2x buffer: 2000 * 2.2 = 4400
@@ -98,7 +97,7 @@ class TestCategoryAwareBaseBudgets:
             category="implementation",
             complexity="low",
             breakdown={},
-            confidence=0.8
+            confidence=0.8,
         )
         budget = estimator.select_budget(estimate, "low")
         # With 3000 * 1.2 buffer = 3600, base floor of 8192 should apply
@@ -112,7 +111,7 @@ class TestCategoryAwareBaseBudgets:
             category="unknown_category",
             complexity="low",
             breakdown={},
-            confidence=0.8
+            confidence=0.8,
         )
         budget = estimator.select_budget(estimate, "low")
         # Should fall back to universal low=8192
@@ -126,7 +125,7 @@ class TestCategoryAwareBaseBudgets:
             category="documentation",  # Should normalize to "docs"
             complexity="low",
             breakdown={},
-            confidence=0.8
+            confidence=0.8,
         )
         budget = estimator.select_budget(estimate, "low")
         # Should use docs/low base=4096
@@ -140,7 +139,7 @@ class TestCategoryAwareBaseBudgets:
             category="testing",  # Should normalize to "tests"
             complexity="low",
             breakdown={},
-            confidence=0.8
+            confidence=0.8,
         )
         budget = estimator.select_budget(estimate, "low")
         # Should use tests/low base=6144
@@ -154,7 +153,7 @@ class TestCategoryAwareBaseBudgets:
             category="docs",
             complexity="low",
             breakdown={},
-            confidence=0.8
+            confidence=0.8,
         )
         budget = estimator.select_budget(estimate, "low")
         # Should use estimated_with_buffer (6000) instead of base (4096)
@@ -174,7 +173,7 @@ class TestCategoryAwareBaseBudgets:
             category="docs",
             complexity="low",
             breakdown={},
-            confidence=0.8
+            confidence=0.8,
         )
         budget = estimator.select_budget(estimate, "low")
         # 2600 * 1.2 = 3120 < 4096, so should use base=4096
@@ -186,4 +185,4 @@ class TestCategoryAwareBaseBudgets:
         old_waste = 8192 / typical_actual
         assert new_waste < 1.5, f"New waste {new_waste:.2f}x should be <1.5x"
         assert old_waste > 2.0, f"Old waste {old_waste:.2f}x should be >2.0x"
-        assert new_waste < old_waste / 1.8, f"Should reduce waste by >45%"
+        assert new_waste < old_waste / 1.8, "Should reduce waste by >45%"

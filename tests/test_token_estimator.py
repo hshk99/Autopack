@@ -3,9 +3,8 @@ Tests for TokenEstimator (BUILD-129 Phase 1).
 
 Tests deliverable-based token estimation for reducing truncation.
 """
+
 import pytest
-from pathlib import Path
-from unittest.mock import Mock, patch
 
 from autopack.token_estimator import TokenEstimator, TokenEstimate
 
@@ -21,7 +20,7 @@ class TestTokenEstimate:
             category="backend",
             complexity="high",
             breakdown={"backend_new": 8000, "backend_modify": 5000, "test_new": 2000},
-            confidence=0.8
+            confidence=0.8,
         )
 
         assert estimate.estimated_tokens == 15000
@@ -48,10 +47,7 @@ class TestTokenEstimator:
     def test_estimate_no_deliverables(self, estimator):
         """Test estimate with no deliverables returns complexity default."""
         estimate = estimator.estimate(
-            deliverables=[],
-            category="backend",
-            complexity="medium",
-            scope_paths=None
+            deliverables=[], category="backend", complexity="medium", scope_paths=None
         )
 
         assert estimate.estimated_tokens == 12288  # Medium default
@@ -62,9 +58,7 @@ class TestTokenEstimator:
         """Test estimate for single new backend file."""
         deliverables = ["Create src/autopack/new_module.py"]
         estimate = estimator.estimate(
-            deliverables=deliverables,
-            category="backend",
-            complexity="medium"
+            deliverables=deliverables, category="backend", complexity="medium"
         )
 
         # Overhead model:
@@ -84,15 +78,13 @@ class TestTokenEstimator:
         (estimator.workspace / "docs" / "README.md").write_text("# existing\n")
 
         deliverables = [
-            "Create src/autopack/foo.py",      # new_backend: 800
-            "Modify src/autopack/bar.py",      # modify_backend: 300
-            "Create tests/test_foo.py",        # new_test: 600
-            "Modify docs/README.md",           # modify_doc: 150
+            "Create src/autopack/foo.py",  # new_backend: 800
+            "Modify src/autopack/bar.py",  # modify_backend: 300
+            "Create tests/test_foo.py",  # new_test: 600
+            "Modify docs/README.md",  # modify_doc: 150
         ]
         estimate = estimator.estimate(
-            deliverables=deliverables,
-            category="backend",
-            complexity="high"
+            deliverables=deliverables, category="backend", complexity="high"
         )
 
         # Expected via overhead model + per-deliverable estimation (includes file complexity adjustment
@@ -107,9 +99,7 @@ class TestTokenEstimator:
         """Test frontend category gets higher multiplier."""
         deliverables = ["Create components/Button.tsx"]
         estimate = estimator.estimate(
-            deliverables=deliverables,
-            category="frontend",
-            complexity="medium"
+            deliverables=deliverables, category="frontend", complexity="medium"
         )
 
         # Overhead model:
@@ -126,7 +116,7 @@ class TestTokenEstimator:
             deliverable_count=10,
             category="backend",
             complexity="medium",
-            confidence=0.8
+            confidence=0.8,
         )
         budget = estimator.select_budget(estimate, "medium")
         # BUILD-129 Phase 3 P7: deliverable_count>=8 => buffer_margin=1.6
@@ -139,7 +129,7 @@ class TestTokenEstimator:
             deliverable_count=2,
             category="backend",
             complexity="high",
-            confidence=0.7
+            confidence=0.7,
         )
         budget2 = estimator.select_budget(estimate2, "high")
         # max(16384, 5000 * 1.2) = max(16384, 6000) = 16384
@@ -152,7 +142,7 @@ class TestTokenEstimator:
             deliverable_count=50,
             category="backend",
             complexity="high",
-            confidence=0.9
+            confidence=0.9,
         )
         budget = estimator.select_budget(estimate, "high")
         # max(16384, 60000 * 1.2) = max(16384, 72000) = 72000 → capped at 64000
@@ -174,28 +164,19 @@ class TestTokenEstimator:
 
     def test_classify_deliverable_backend_new(self, estimator):
         """Test deliverable classification for backend new files."""
-        classification = estimator._classify_deliverable(
-            "Create src/autopack/module.py",
-            "backend"
-        )
+        classification = estimator._classify_deliverable("Create src/autopack/module.py", "backend")
         assert classification == "backend_new"
 
     def test_classify_deliverable_test_modify(self, estimator):
         """Test deliverable classification for test modifications."""
         (estimator.workspace / "tests").mkdir(parents=True, exist_ok=True)
         (estimator.workspace / "tests" / "test_foo.py").write_text("# existing\n")
-        classification = estimator._classify_deliverable(
-            "Modify tests/test_foo.py",
-            "backend"
-        )
+        classification = estimator._classify_deliverable("Modify tests/test_foo.py", "backend")
         assert classification == "test_modify"
 
     def test_classify_deliverable_frontend_new(self, estimator):
         """Test deliverable classification for frontend new files."""
-        classification = estimator._classify_deliverable(
-            "Create components/Button.tsx",
-            "frontend"
-        )
+        classification = estimator._classify_deliverable("Create components/Button.tsx", "frontend")
         assert classification == "frontend_new"
 
     def test_classify_deliverable_doc_modify(self, estimator):
@@ -203,17 +184,13 @@ class TestTokenEstimator:
         (estimator.workspace / "docs").mkdir(parents=True, exist_ok=True)
         (estimator.workspace / "docs" / "BUILD_HISTORY.md").write_text("# existing\n")
         classification = estimator._classify_deliverable(
-            "Update docs/BUILD_HISTORY.md",
-            "documentation"
+            "Update docs/BUILD_HISTORY.md", "documentation"
         )
         assert classification == "doc_modify"
 
     def test_classify_deliverable_config_new(self, estimator):
         """Test deliverable classification for config new files."""
-        classification = estimator._classify_deliverable(
-            "Create config/settings.yaml",
-            "backend"
-        )
+        classification = estimator._classify_deliverable("Create config/settings.yaml", "backend")
         assert classification == "config_new"
 
     def test_analyze_file_complexity_small_file(self, tmp_path):
@@ -222,13 +199,18 @@ class TestTokenEstimator:
 
         # Create small file (30 lines)
         test_file = tmp_path / "small.py"
-        test_file.write_text("\n".join([
-            "import os",
-            "",
-            "def foo():",
-            "    return 42",
-            "",
-        ] * 6))  # 30 lines total
+        test_file.write_text(
+            "\n".join(
+                [
+                    "import os",
+                    "",
+                    "def foo():",
+                    "    return 42",
+                    "",
+                ]
+                * 6
+            )
+        )  # 30 lines total
 
         multiplier = estimator._analyze_file_complexity(test_file)
         # Small file (<50 LOC) → loc_factor=0.7
@@ -244,10 +226,13 @@ class TestTokenEstimator:
         # Create large file (600 lines)
         test_file = tmp_path / "large.py"
         imports = "\n".join([f"import module{i}" for i in range(20)])
-        code = "\n".join([
-            "                def deeply_nested():",  # 16 spaces = deep nesting
-            "                    return 42",
-        ] * 290)
+        code = "\n".join(
+            [
+                "                def deeply_nested():",  # 16 spaces = deep nesting
+                "                    return 42",
+            ]
+            * 290
+        )
         test_file.write_text(imports + "\n\n" + code)
 
         multiplier = estimator._analyze_file_complexity(test_file)
@@ -299,16 +284,21 @@ class TestTokenEstimator:
         (estimator.workspace / "config.yaml").write_text("# existing\n")
 
         cases = [
-            ("Create src/backend.py", "backend", 2000, None),              # new_file_backend
-            ("Modify src/backend.py", "backend", 700, "src/backend.py"),   # modify_backend
-            ("Create components/App.tsx", "frontend", 2800, None),         # new_file_frontend
-            ("Modify components/App.tsx", "frontend", 1100, "components/App.tsx"),  # modify_frontend
-            ("Create tests/test.py", "testing", 1400, None),               # new_file_test
-            ("Modify tests/test.py", "testing", 600, "tests/test.py"),     # modify_test
-            ("Create docs/README.md", "documentation", 500, None),         # new_file_doc
+            ("Create src/backend.py", "backend", 2000, None),  # new_file_backend
+            ("Modify src/backend.py", "backend", 700, "src/backend.py"),  # modify_backend
+            ("Create components/App.tsx", "frontend", 2800, None),  # new_file_frontend
+            (
+                "Modify components/App.tsx",
+                "frontend",
+                1100,
+                "components/App.tsx",
+            ),  # modify_frontend
+            ("Create tests/test.py", "testing", 1400, None),  # new_file_test
+            ("Modify tests/test.py", "testing", 600, "tests/test.py"),  # modify_test
+            ("Create docs/README.md", "documentation", 500, None),  # new_file_doc
             ("Modify docs/README.md", "documentation", 400, "docs/README.md"),  # modify_doc
-            ("Create config.yaml", "backend", 1000, None),                 # new_file_config
-            ("Modify config.yaml", "backend", 500, "config.yaml"),         # modify_config
+            ("Create config.yaml", "backend", 1000, None),  # new_file_config
+            ("Modify config.yaml", "backend", 500, "config.yaml"),  # modify_config
         ]
 
         for deliverable, category, expected_base, existing_path in cases:
@@ -326,7 +316,9 @@ class TestTokenEstimator:
         # Create files that are explicitly modified so filesystem inference treats them as modifications.
         (estimator.workspace / "src" / "autopack").mkdir(parents=True, exist_ok=True)
         (estimator.workspace / "docs").mkdir(parents=True, exist_ok=True)
-        (estimator.workspace / "src" / "autopack" / "autonomous_executor.py").write_text("# existing\n")
+        (estimator.workspace / "src" / "autopack" / "autonomous_executor.py").write_text(
+            "# existing\n"
+        )
         (estimator.workspace / "src" / "autopack" / "main.py").write_text("# existing\n")
         (estimator.workspace / "src" / "autopack" / "quality_gate.py").write_text("# existing\n")
         (estimator.workspace / "docs" / "BUILD_HISTORY.md").write_text("# existing\n")
@@ -346,9 +338,7 @@ class TestTokenEstimator:
             "Create alembic/versions/xxx_add_governance.py",
         ]
         estimate = estimator.estimate(
-            deliverables=deliverables,
-            category="backend",
-            complexity="high"
+            deliverables=deliverables, category="backend", complexity="high"
         )
 
         # Expected via overhead model + per-deliverable estimation (includes file complexity adjustment
@@ -379,9 +369,7 @@ class TestTokenEstimatorIntegration:
 
         # Estimate
         estimate = estimator.estimate(
-            deliverables=deliverables,
-            category="backend",
-            complexity="medium"
+            deliverables=deliverables, category="backend", complexity="medium"
         )
 
         assert estimate.estimated_tokens > 0
@@ -401,9 +389,7 @@ class TestTokenEstimatorIntegration:
 
         for complexity, expected_base in [("low", 8192), ("medium", 12288), ("high", 16384)]:
             estimate = estimator.estimate(
-                deliverables=[],
-                category="backend",
-                complexity=complexity
+                deliverables=[], category="backend", complexity=complexity
             )
             assert estimate.estimated_tokens == expected_base
 

@@ -4,8 +4,9 @@ Token Budget Estimator for BUILD-129 Phase 1.
 Deliverable-based output token estimation to reduce truncation from 50% → 30%.
 Per TOKEN_BUDGET_ANALYSIS_REVISED.md (GPT-5.2 reviewed).
 """
+
 from dataclasses import dataclass, field
-from typing import List, Dict, Optional, Any, Iterable
+from typing import List, Dict, Optional, Any
 from pathlib import Path
 import re
 import logging
@@ -47,16 +48,16 @@ class TokenEstimator:
     # Base coefficients represent marginal cost per deliverable (not total phase cost)
     # Overhead is added separately based on category/complexity to capture fixed costs
     TOKEN_WEIGHTS = {
-        "new_file_backend": 2000,    # Marginal cost for new backend file
-        "new_file_frontend": 2800,   # Marginal cost for new frontend file (JSX/TSX verbose)
-        "new_file_test": 1400,       # Marginal cost for new test file
-        "new_file_doc": 500,         # Marginal cost for new documentation
-        "new_file_config": 1000,     # Marginal cost for new config/migration
-        "modify_backend": 700,       # Marginal cost for modifying backend
-        "modify_frontend": 1100,     # Marginal cost for modifying frontend
-        "modify_test": 600,          # Marginal cost for modifying test
-        "modify_doc": 400,           # Marginal cost for modifying doc
-        "modify_config": 500,        # Marginal cost for modifying config
+        "new_file_backend": 2000,  # Marginal cost for new backend file
+        "new_file_frontend": 2800,  # Marginal cost for new frontend file (JSX/TSX verbose)
+        "new_file_test": 1400,  # Marginal cost for new test file
+        "new_file_doc": 500,  # Marginal cost for new documentation
+        "new_file_config": 1000,  # Marginal cost for new config/migration
+        "modify_backend": 700,  # Marginal cost for modifying backend
+        "modify_frontend": 1100,  # Marginal cost for modifying frontend
+        "modify_test": 600,  # Marginal cost for modifying test
+        "modify_doc": 400,  # Marginal cost for modifying doc
+        "modify_config": 500,  # Marginal cost for modifying config
     }
 
     # Phase overhead: fixed cost based on category and complexity
@@ -73,8 +74,14 @@ class TokenEstimator:
     # Docs coefficients unchanged (need ±50% reduction cap safety margin first)
     PHASE_OVERHEAD = {
         # (category, complexity) → base overhead tokens
-        ("implementation", "low"): 634,       # BUILD-141-C: v5+v6 combined (45 samples), sqrt-damped (was 1120, -43.4%)
-        ("implementation", "medium"): 1176,   # BUILD-141-C: v5+v6 combined (45 samples), sqrt-damped (was 1860, -36.8%)
+        (
+            "implementation",
+            "low",
+        ): 634,  # BUILD-141-C: v5+v6 combined (45 samples), sqrt-damped (was 1120, -43.4%)
+        (
+            "implementation",
+            "medium",
+        ): 1176,  # BUILD-141-C: v5+v6 combined (45 samples), sqrt-damped (was 1860, -36.8%)
         ("implementation", "high"): 5000,
         ("refactoring", "low"): 2500,
         ("refactoring", "medium"): 3500,
@@ -85,7 +92,7 @@ class TokenEstimator:
         ("integration", "low"): 3000,
         ("integration", "medium"): 4000,
         ("integration", "high"): 6000,
-        ("testing", "low"): 915,              # BUILD-141: v5 calibration (was 1500, -39%)
+        ("testing", "low"): 915,  # BUILD-141: v5 calibration (was 1500, -39%)
         ("testing", "medium"): 2500,
         ("testing", "high"): 4000,
         ("documentation", "low"): 1500,
@@ -176,7 +183,9 @@ class TokenEstimator:
     def _all_doc_deliverables(cls, deliverables: List[str]) -> bool:
         return bool(deliverables) and all(cls._is_doc_deliverable(d) for d in deliverables)
 
-    def _extract_doc_features(self, deliverables: List[str], task_description: str = "") -> Dict[str, bool]:
+    def _extract_doc_features(
+        self, deliverables: List[str], task_description: str = ""
+    ) -> Dict[str, bool]:
         """
         Extract features that signal documentation synthesis vs pure writing.
 
@@ -312,7 +321,7 @@ class TokenEstimator:
         deliverables: List[str],
         complexity: str,
         scope_paths: Optional[List[str]] = None,
-        task_description: str = ""
+        task_description: str = "",
     ) -> TokenEstimate:
         """
         Estimate tokens for Source of Truth (SOT) file updates.
@@ -340,7 +349,9 @@ class TokenEstimator:
 
         # Component 1: Context reconstruction (fixed cost)
         # Depends on scope_paths (proxy for context quality)
-        context_quality = "none" if not scope_paths else ("strong" if len(scope_paths) > 10 else "some")
+        context_quality = (
+            "none" if not scope_paths else ("strong" if len(scope_paths) > 10 else "some")
+        )
         if context_quality == "none":
             context_tokens = 3000  # Must reconstruct from entire repo
         elif context_quality == "some":
@@ -394,7 +405,7 @@ class TokenEstimator:
             category="doc_sot_update",  # New category for telemetry tracking
             complexity=complexity,
             breakdown=breakdown,
-            confidence=0.70  # Slightly lower than DOC_SYNTHESIS (less data)
+            confidence=0.70,  # Slightly lower than DOC_SYNTHESIS (less data)
         )
 
     def _estimate_doc_synthesis(
@@ -402,7 +413,7 @@ class TokenEstimator:
         deliverables: List[str],
         complexity: str,
         scope_paths: Optional[List[str]] = None,
-        task_description: str = ""
+        task_description: str = "",
     ) -> TokenEstimate:
         """
         Phase-based estimation for DOC_SYNTHESIS tasks.
@@ -430,7 +441,9 @@ class TokenEstimator:
 
         # Phase 1: Investigation (depends on context quality)
         # Context quality proxy: scope_paths count
-        context_quality = "none" if not scope_paths else ("strong" if len(scope_paths) > 10 else "some")
+        context_quality = (
+            "none" if not scope_paths else ("strong" if len(scope_paths) > 10 else "some")
+        )
         if context_quality == "none":
             investigate_tokens = 2500  # Must read entire codebase
         elif context_quality == "some":
@@ -485,7 +498,7 @@ class TokenEstimator:
             category="doc_synthesis",  # Override category for telemetry tracking
             complexity=complexity,
             breakdown=breakdown,
-            confidence=0.75  # Higher confidence with explicit phase model
+            confidence=0.75,  # Higher confidence with explicit phase model
         )
 
     def estimate(
@@ -494,7 +507,7 @@ class TokenEstimator:
         category: str,
         complexity: str,
         scope_paths: Optional[List[str]] = None,
-        task_description: str = ""
+        task_description: str = "",
     ) -> TokenEstimate:
         """
         Estimate output tokens required for phase.
@@ -519,7 +532,7 @@ class TokenEstimator:
                 deliverable_count=0,
                 category=category,
                 complexity=complexity,
-                confidence=0.5  # Low confidence without deliverables
+                confidence=0.5,  # Low confidence without deliverables
             )
 
         # BUILD-129 Phase 3: DOC_SYNTHESIS detection and phase-based estimation
@@ -527,7 +540,12 @@ class TokenEstimator:
         # for pure-doc phases so DOC_SYNTHESIS can activate.
         is_pure_doc = self._all_doc_deliverables(deliverables)
         effective_category = category
-        if is_pure_doc and category not in ["documentation", "docs", "doc_synthesis", "doc_sot_update"]:
+        if is_pure_doc and category not in [
+            "documentation",
+            "docs",
+            "doc_synthesis",
+            "doc_sot_update",
+        ]:
             effective_category = "documentation"
 
         # BUILD-129 Phase 3 P3: SOT file detection (highest priority)
@@ -588,7 +606,7 @@ class TokenEstimator:
             category=effective_category,
             complexity=complexity,
             breakdown=breakdown,
-            confidence=confidence
+            confidence=confidence,
         )
 
     @staticmethod
@@ -628,11 +646,7 @@ class TokenEstimator:
         # Default: return lowercase original
         return category_lower
 
-    def select_budget(
-        self,
-        estimate: TokenEstimate,
-        complexity: str
-    ) -> int:
+    def select_budget(self, estimate: TokenEstimate, complexity: str) -> int:
         """
         Select final token budget from estimate.
 
@@ -663,13 +677,13 @@ class TokenEstimator:
         # Define base budgets by (category, complexity)
         # Falls back to universal base if not specified
         BASE_BUDGET_BY_CATEGORY = {
-            ("docs", "low"): 4096,      # BUILD-142: down from 8192 (84.6% base dominance, 2.41x waste)
-            ("docs", "medium"): 8192,   # Keep current
-            ("docs", "high"): 12288,    # Keep current
-            ("tests", "low"): 6144,     # BUILD-142: down from 8192 (10.11x waste)
+            ("docs", "low"): 4096,  # BUILD-142: down from 8192 (84.6% base dominance, 2.41x waste)
+            ("docs", "medium"): 8192,  # Keep current
+            ("docs", "high"): 12288,  # Keep current
+            ("tests", "low"): 6144,  # BUILD-142: down from 8192 (10.11x waste)
             ("tests", "medium"): 8192,  # Keep current
-            ("tests", "high"): 12288,   # Keep current
-            ("implementation", "low"): 8192,    # Keep current (high variance)
+            ("tests", "high"): 12288,  # Keep current
+            ("implementation", "low"): 8192,  # Keep current (high variance)
             ("implementation", "medium"): 12288,
             ("implementation", "high"): 16384,
             # Special categories keep higher floors for safety
@@ -686,8 +700,7 @@ class TokenEstimator:
 
         # Try category-specific lookup first, fall back to universal
         base = BASE_BUDGET_BY_CATEGORY.get(
-            (normalized_category, complexity),
-            UNIVERSAL_BASE_BUDGETS.get(complexity, 8192)
+            (normalized_category, complexity), UNIVERSAL_BASE_BUDGETS.get(complexity, 8192)
         )
 
         # BUILD-129 Phase 3 P7: Adaptive buffer margin based on risk factors
@@ -773,7 +786,9 @@ class TokenEstimator:
         )
 
         is_doc = lower_norm.startswith("docs/") or lower_norm.endswith(".md")
-        is_config = any(lower_norm.endswith(ext) for ext in [".yml", ".yaml", ".json", ".toml", ".txt", ".ini"])
+        is_config = any(
+            lower_norm.endswith(ext) for ext in [".yml", ".yaml", ".json", ".toml", ".txt", ".ini"]
+        )
         is_migration = "alembic/versions" in lower_norm or "migration" in lower_norm
         is_frontend = any(lower_norm.endswith(ext) for ext in [".tsx", ".jsx", ".vue", ".svelte"])
 
@@ -843,7 +858,9 @@ class TokenEstimator:
             return "test_new" if is_new else "test_modify"
         elif lower_norm.endswith(".md") or lower_norm.startswith("docs/"):
             return "doc_new" if is_new else "doc_modify"
-        elif any(lower_norm.endswith(ext) for ext in [".yml", ".yaml", ".json", ".toml", ".txt", ".ini"]):
+        elif any(
+            lower_norm.endswith(ext) for ext in [".yml", ".yaml", ".json", ".toml", ".txt", ".ini"]
+        ):
             return "config_new" if is_new else "config_modify"
         elif any(lower_norm.endswith(ext) for ext in [".tsx", ".jsx", ".vue"]):
             return "frontend_new" if is_new else "frontend_modify"
@@ -867,7 +884,7 @@ class TokenEstimator:
         # - "src/foo.py (new file)"
 
         # Try to extract path from description
-        path_match = re.search(r'([a-zA-Z0-9_\-./]+\.[a-zA-Z0-9]+)', deliverable)
+        path_match = re.search(r"([a-zA-Z0-9_\-./]+\.[a-zA-Z0-9]+)", deliverable)
         if path_match:
             return path_match.group(1)
 
@@ -875,10 +892,10 @@ class TokenEstimator:
         path = deliverable.lower()
         for prefix in ["create ", "modify ", "update ", "add ", "new file: ", "new: "]:
             if path.startswith(prefix):
-                path = path[len(prefix):]
+                path = path[len(prefix) :]
 
         # Remove trailing descriptions in parentheses
-        path = re.sub(r'\s*\([^)]*\)\s*$', '', path)
+        path = re.sub(r"\s*\([^)]*\)\s*$", "", path)
 
         return path.strip()
 
@@ -898,13 +915,12 @@ class TokenEstimator:
             Complexity multiplier (0.5-2.0)
         """
         try:
-            content = file_path.read_text(encoding='utf-8', errors='ignore')
-            lines = content.split('\n')
+            content = file_path.read_text(encoding="utf-8", errors="ignore")
+            lines = content.split("\n")
 
             # Count non-empty, non-comment lines
             code_lines = [
-                line for line in lines
-                if line.strip() and not line.strip().startswith('#')
+                line for line in lines if line.strip() and not line.strip().startswith("#")
             ]
 
             # LOC factor (more code → higher estimate)
@@ -918,7 +934,7 @@ class TokenEstimator:
                 loc_factor = 1.5  # Very large file
 
             # Import count (more dependencies → more context)
-            import_lines = [line for line in code_lines if 'import ' in line]
+            import_lines = [line for line in code_lines if "import " in line]
             if len(import_lines) < 5:
                 import_factor = 0.9
             elif len(import_lines) < 15:
@@ -966,16 +982,14 @@ class TokenEstimator:
         confidence = 0.5  # Base confidence
 
         # Specificity: Do deliverables contain file extensions?
-        has_extension = sum(
-            1 for d in deliverables
-            if re.search(r'\.[a-zA-Z0-9]{2,4}', d)
-        )
+        has_extension = sum(1 for d in deliverables if re.search(r"\.[a-zA-Z0-9]{2,4}", d))
         specificity = has_extension / len(deliverables)
         confidence += specificity * 0.3  # +0.0 to +0.3
 
         # Clarity: Do deliverables have action verbs?
         has_verb = sum(
-            1 for d in deliverables
+            1
+            for d in deliverables
             if any(verb in d.lower() for verb in ["create", "modify", "update", "add", "new"])
         )
         clarity = has_verb / len(deliverables)

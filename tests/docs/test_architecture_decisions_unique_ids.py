@@ -45,8 +45,12 @@ def test_architecture_decision_ids_are_unique_and_index_matches_sections():
             index_titles[dec_id] = title
             continue
 
-    assert section_titles, "No DEC section headings found; expected at least one '### DEC-### | ...'."
-    assert index_titles, "No INDEX table rows found; expected at least one '| YYYY-MM-DD | DEC-### | ... |'."
+    assert (
+        section_titles
+    ), "No DEC section headings found; expected at least one '### DEC-### | ...'."
+    assert (
+        index_titles
+    ), "No INDEX table rows found; expected at least one '| YYYY-MM-DD | DEC-### | ... |'."
 
     # INDEX should not reference unknown decisions.
     unknown = sorted(set(index_titles) - set(section_titles))
@@ -60,8 +64,8 @@ def test_architecture_decision_ids_are_unique_and_index_matches_sections():
         idx = _normalize_title(index_titles[dec_id].rstrip("."))
         sec = _normalize_title(section_titles[dec_id])
         if not (sec.startswith(idx) or idx.startswith(sec)):
-            collisions.append(f"DEC-{dec_id}: INDEX='{index_titles[dec_id]}' vs SECTION='{section_titles[dec_id]}'")
+            collisions.append(
+                f"DEC-{dec_id}: INDEX='{index_titles[dec_id]}' vs SECTION='{section_titles[dec_id]}'"
+            )
 
     assert not collisions, "DEC ID/title collisions found:\n" + "\n".join(collisions)
-
-

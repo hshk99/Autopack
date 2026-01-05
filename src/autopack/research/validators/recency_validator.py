@@ -7,6 +7,7 @@ class RecencyValidator:
         print("Validating recency...")
         return True
 
+
 # Example usage:
 # validator = RecencyValidator()
 # is_valid = validator.validate(session)

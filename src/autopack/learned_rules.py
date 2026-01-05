@@ -7,23 +7,23 @@ Per GPT architect + user consensus on learned rules design.
 """
 
 import json
-import os
 from dataclasses import dataclass, asdict
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import List, Optional, Dict, Set, Tuple
+from typing import List, Optional, Dict, Tuple
 from collections import defaultdict
 from enum import Enum
 
 
 class DiscoveryStage(Enum):
     """Promotion stages for learned rules
-    
+
     NEW: Fix discovered during troubleshooting
     APPLIED: Fix was attempted in a run
     CANDIDATE_RULE: Same pattern seen in >= 3 runs within 30 days
     RULE: Confirmed via recurrence, no regressions, human approved
     """
+
     NEW = "new"
     APPLIED = "applied"
     CANDIDATE_RULE = "candidate_rule"
@@ -37,6 +37,7 @@ class RunRuleHint:
     Stored in: .autonomous_runs/{run_id}/run_rule_hints.json
     Used for: Later phases in same run
     """
+
     run_id: str
     phase_index: int
     phase_id: str
@@ -51,7 +52,7 @@ class RunRuleHint:
         return asdict(self)
 
     @classmethod
-    def from_dict(cls, data: Dict) -> 'RunRuleHint':
+    def from_dict(cls, data: Dict) -> "RunRuleHint":
         return cls(**data)
 
 
@@ -62,6 +63,7 @@ class LearnedRule:
     Stored in: .autonomous_runs/{project_id}/project_learned_rules.json
     Used for: All phases in all future runs
     """
+
     rule_id: str  # e.g., "python.type_hints_required"
     task_category: str
     scope_pattern: Optional[str]  # e.g., "*.py", "auth/*.py", None for global
@@ -77,10 +79,10 @@ class LearnedRule:
         return asdict(self)
 
     @classmethod
-    def from_dict(cls, data: Dict) -> 'LearnedRule':
+    def from_dict(cls, data: Dict) -> "LearnedRule":
         # Handle legacy rules without stage field
-        if 'stage' not in data:
-            data['stage'] = DiscoveryStage.RULE.value
+        if "stage" not in data:
+            data["stage"] = DiscoveryStage.RULE.value
         return cls(**data)
 
 
@@ -88,12 +90,13 @@ class LearnedRule:
 # Stage 0A: Run-Local Hints
 # ============================================================================
 
+
 def record_run_rule_hint(
     run_id: str,
     phase: Dict,
     issues_before: List,
     issues_after: List,
-    context: Optional[Dict] = None
+    context: Optional[Dict] = None,
 ) -> Optional[RunRuleHint]:
     """Record a hint when phase resolves issues
 
@@ -133,7 +136,7 @@ def record_run_rule_hint(
         scope_paths=scope_paths[:5],  # Limit to 5 paths
         source_issue_keys=[issue.get("issue_key", "") for issue in resolved],
         hint_text=hint_text,
-        created_at=datetime.now(timezone.utc).isoformat()
+        created_at=datetime.now(timezone.utc).isoformat(),
     )
 
     # Save to file
@@ -156,18 +159,14 @@ def load_run_rule_hints(run_id: str) -> List[RunRuleHint]:
         return []
 
     try:
-        with open(hints_file, 'r') as f:
+        with open(hints_file, "r") as f:
             data = json.load(f)
         return [RunRuleHint.from_dict(h) for h in data.get("hints", [])]
     except (json.JSONDecodeError, KeyError, TypeError):
         return []
 
 
-def get_relevant_hints_for_phase(
-    run_id: str,
-    phase: Dict,
-    max_hints: int = 5
-) -> List[RunRuleHint]:
+def get_relevant_hints_for_phase(run_id: str, phase: Dict, max_hints: int = 5) -> List[RunRuleHint]:
     """Get hints relevant to this phase
 
     Filters by:
@@ -215,6 +214,7 @@ def get_relevant_hints_for_phase(
 # Stage 0B: Cross-Run Persistent Rules
 # ============================================================================
 
+
 def promote_hints_to_rules(run_id: str, project_id: str) -> int:
     """Promote frequent hints to persistent project rules
 
@@ -261,7 +261,7 @@ def promote_hints_to_rules(run_id: str, project_id: str) -> int:
                 first_seen=hint.created_at,
                 last_seen=datetime.now(timezone.utc).isoformat(),
                 status="active",
-                stage=DiscoveryStage.NEW.value
+                stage=DiscoveryStage.NEW.value,
             )
             rules.append(new_rule)
             promoted_count += 1
@@ -286,7 +286,7 @@ def load_project_rules(project_id: str) -> List[LearnedRule]:
         return []
 
     try:
-        with open(rules_file, 'r', encoding='utf-8') as f:
+        with open(rules_file, "r", encoding="utf-8") as f:
             data = json.load(f)
         return [LearnedRule.from_dict(r) for r in data.get("rules", [])]
     except (json.JSONDecodeError, KeyError, TypeError):
@@ -294,9 +294,7 @@ def load_project_rules(project_id: str) -> List[LearnedRule]:
 
 
 def get_active_rules_for_phase(
-    project_id: str,
-    phase: Dict,
-    max_rules: int = 10
+    project_id: str, phase: Dict, max_rules: int = 10
 ) -> List[LearnedRule]:
     """Get active rules relevant to this phase
 
@@ -345,72 +343,73 @@ def get_active_rules_for_phase(
 # Promotion Pipeline Functions
 # ============================================================================
 
+
 def promote_rule(rule_id: str, project_id: str) -> bool:
     """Move rule to next stage in promotion pipeline
-    
+
     Stages: NEW → APPLIED → CANDIDATE_RULE → RULE
-    
+
     Args:
         rule_id: Rule identifier
         project_id: Project identifier
-        
+
     Returns:
         True if promoted, False if already at final stage or not found
     """
     rules = load_project_rules(project_id)
     rule = next((r for r in rules if r.rule_id == rule_id), None)
-    
+
     if not rule:
         return False
-    
+
     # Define stage progression
     stage_order = [
         DiscoveryStage.NEW,
         DiscoveryStage.APPLIED,
         DiscoveryStage.CANDIDATE_RULE,
-        DiscoveryStage.RULE
+        DiscoveryStage.RULE,
     ]
-    
+
     current_stage = DiscoveryStage(rule.stage)
     current_index = stage_order.index(current_stage)
-    
+
     # Already at final stage
     if current_index >= len(stage_order) - 1:
         return False
-    
+
     # Promote to next stage
     next_stage = stage_order[current_index + 1]
     rule.stage = next_stage.value
     rule.last_seen = datetime.now(timezone.utc).isoformat()
-    
+
     # Save updated rules
     _save_project_rules(project_id, rules)
-    
+
     return True
 
 
 def get_candidates_for_promotion(project_id: str) -> List[LearnedRule]:
     """Get rules ready for human review and promotion
-    
+
     Returns rules at CANDIDATE_RULE stage that meet promotion criteria.
-    
+
     Args:
         project_id: Project identifier
-        
+
     Returns:
         List of rules ready for promotion to RULE stage
     """
     rules = load_project_rules(project_id)
     candidates = []
-    
+
     for rule in rules:
         if rule.stage != DiscoveryStage.CANDIDATE_RULE.value:
             continue
-            
+
         eligible, reason = is_promotion_eligible(rule, project_id)
         if eligible:
             candidates.append(rule)
-    
+
     # Sort by promotion_count (most frequent first)
     candidates.sort(key=lambda r: r.promotion_count, reverse=True)
     return candidates
@@ -418,26 +417,26 @@ def get_candidates_for_promotion(project_id: str) -> List[LearnedRule]:
 
 def count_rule_applications(rule_id: str, project_id: str, days: int = 30) -> int:
     """Count how many times a rule pattern was applied in recent runs
-    
+
     Args:
         rule_id: Rule identifier
         project_id: Project identifier
         days: Time window in days
-        
+
     Returns:
         Number of applications within time window
     """
     rules = load_project_rules(project_id)
     rule = next((r for r in rules if r.rule_id == rule_id), None)
-    
+
     if not rule:
         return 0
-    
+
     # Parse last_seen timestamp
     try:
         last_seen = datetime.fromisoformat(rule.last_seen)
         cutoff = datetime.now(timezone.utc) - timedelta(days=days)
-        
+
         # Count source hints within window
         # This is a simplified implementation - in production, you'd track
         # individual application timestamps
@@ -451,11 +450,11 @@ def count_rule_applications(rule_id: str, project_id: str, days: int = 30) -> in
 
 def check_rule_regressions(rule_id: str, project_id: str) -> bool:
     """Check if rule has caused any regressions
-    
+
     Args:
         rule_id: Rule identifier
         project_id: Project identifier
-        
+
     Returns:
         True if regressions detected, False otherwise
     """
@@ -463,7 +462,7 @@ def check_rule_regressions(rule_id: str, project_id: str) -> bool:
     # - Phases that failed after applying this rule
     # - CI failures correlated with rule application
     # - Manual regression reports
-    
+
     # For now, assume no regressions (optimistic)
     # Real implementation would query run history and failure logs
     return False
@@ -471,49 +470,49 @@ def check_rule_regressions(rule_id: str, project_id: str) -> bool:
 
 def is_promotion_eligible(rule: LearnedRule, project_id: str) -> Tuple[bool, str]:
     """Check if rule meets criteria for promotion to next stage
-    
+
     Args:
         rule: LearnedRule to check
         project_id: Project identifier
-        
+
     Returns:
         Tuple of (eligible: bool, reason: str)
     """
     # Load config
     config = _load_promotion_config()
-    
+
     current_stage = DiscoveryStage(rule.stage)
-    
+
     # NEW → APPLIED: Just needs to be attempted once
     if current_stage == DiscoveryStage.NEW:
         if rule.promotion_count >= 1:
             return True, "Rule has been applied at least once"
         return False, "Rule has not been applied yet"
-    
+
     # APPLIED → CANDIDATE_RULE: Needs min_runs_for_candidate within window
     elif current_stage == DiscoveryStage.APPLIED:
         min_runs = config.get("min_runs_for_candidate", 3)
         window_days = config.get("window_days", 30)
-        
+
         applications = count_rule_applications(rule.rule_id, project_id, window_days)
-        
+
         if applications >= min_runs:
             return True, f"Rule applied {applications} times in {window_days} days"
         return False, f"Rule only applied {applications} times (need {min_runs})"
-    
+
     # CANDIDATE_RULE → RULE: Needs no regressions + human approval
     elif current_stage == DiscoveryStage.CANDIDATE_RULE:
         has_regressions = check_rule_regressions(rule.rule_id, project_id)
-        
+
         if has_regressions:
             return False, "Rule has caused regressions"
-        
+
         require_approval = config.get("require_human_approval", True)
         if require_approval:
             return False, "Awaiting human approval (use promote_rule() after review)"
-        
+
         return True, "No regressions detected, ready for promotion"
-    
+
     # Already at RULE stage
     else:
         return False, "Rule already at final stage"
@@ -521,14 +520,15 @@ def is_promotion_eligible(rule: LearnedRule, project_id: str) -> Tuple[bool, str
 
 def _load_promotion_config() -> Dict:
     """Load promotion configuration from models.yaml
-    
+
     Returns:
         Dict with promotion settings
     """
     try:
         import yaml
+
         config_path = Path("config/models.yaml")
-        
+
         if not config_path.exists():
             # Return defaults if config not found
             return {
@@ -536,19 +536,22 @@ def _load_promotion_config() -> Dict:
                 "min_runs_for_candidate": 3,
                 "window_days": 30,
                 "min_severity_for_candidate": "medium",
-                "require_human_approval": True
+                "require_human_approval": True,
             }
-        
-        with open(config_path, 'r') as f:
+
+        with open(config_path, "r") as f:
             config = yaml.safe_load(f)
-        
-        return config.get("discovery_promotion", {
-            "enabled": False,
-            "min_runs_for_candidate": 3,
-            "window_days": 30,
-            "min_severity_for_candidate": "medium",
-            "require_human_approval": True
-        })
+
+        return config.get(
+            "discovery_promotion",
+            {
+                "enabled": False,
+                "min_runs_for_candidate": 3,
+                "window_days": 30,
+                "min_severity_for_candidate": "medium",
+                "require_human_approval": True,
+            },
+        )
     except Exception:
         # Return defaults on any error
         return {
@@ -556,13 +559,14 @@ def _load_promotion_config() -> Dict:
             "min_runs_for_candidate": 3,
             "window_days": 30,
             "min_severity_for_candidate": "medium",
-            "require_human_approval": True
+            "require_human_approval": True,
         }
 
 
 # ============================================================================
 # Helper Functions
 # ============================================================================
+
 
 def _detect_resolved_issues(issues_before: List, issues_after: List) -> List:
     """Detect issues that were resolved"""
@@ -660,6 +664,7 @@ def _generate_rule_id(hint: RunRuleHint) -> str:
 def _get_run_hints_file(run_id: str) -> Path:
     """Get path to run hints file (P2.2: respects autonomous_runs_dir)"""
     from .config import settings
+
     return Path(settings.autonomous_runs_dir) / run_id / "run_rule_hints.json"
 
 
@@ -674,6 +679,7 @@ def _get_project_rules_file(project_id: str) -> Path:
         return Path("docs") / "LEARNED_RULES.json"
     else:
         from .config import settings
+
         return Path(settings.autonomous_runs_dir) / project_id / "docs" / "LEARNED_RULES.json"
 
 
@@ -687,12 +693,8 @@ def _save_run_rule_hint(run_id: str, hint: RunRuleHint):
     hints.append(hint)
 
     # Save
-    with open(hints_file, 'w', encoding='utf-8') as f:
-        json.dump(
-            {"hints": [h.to_dict() for h in hints]},
-            f,
-            indent=2
-        )
+    with open(hints_file, "w", encoding="utf-8") as f:
+        json.dump({"hints": [h.to_dict() for h in hints]}, f, indent=2)
 
 
 def _save_project_rules(project_id: str, rules: List[LearnedRule]):
@@ -700,28 +702,25 @@ def _save_project_rules(project_id: str, rules: List[LearnedRule]):
     rules_file = _get_project_rules_file(project_id)
     rules_file.parent.mkdir(parents=True, exist_ok=True)
 
-    with open(rules_file, 'w', encoding='utf-8') as f:
-        json.dump(
-            {"rules": [r.to_dict() for r in rules]},
-            f,
-            indent=2
-        )
+    with open(rules_file, "w", encoding="utf-8") as f:
+        json.dump({"rules": [r.to_dict() for r in rules]}, f, indent=2)
 
 
 # ============================================================================
 # Debug Journal Integration
 # ============================================================================
 
+
 def _generate_debug_rule_id(rule_text: str) -> str:
     """Generate rule ID for debug journal rules
-    
+
     Uses semantic prefixes based on rule content.
     """
     import hashlib
-    
+
     rule_lower = rule_text.lower()
     text_hash = hashlib.md5(rule_text.encode()).hexdigest()[:8]
-    
+
     # Semantic prefix detection
     if "import" in rule_lower or "module" in rule_lower:
         prefix = "import"
@@ -737,7 +736,7 @@ def _generate_debug_rule_id(rule_text: str) -> str:
         prefix = "database"
     else:
         prefix = "rule"
-    
+
     return f"debug_journal.{prefix}_{text_hash}"
 
 
@@ -746,7 +745,7 @@ def save_run_hint(
     phase: Dict,
     hint_text: str,
     scope_paths: Optional[List[str]] = None,
-    source_issue_keys: Optional[List[str]] = None
+    source_issue_keys: Optional[List[str]] = None,
 ) -> RunRuleHint:
     """
     Save a run hint directly (convenience function for autonomous_executor).
@@ -773,7 +772,7 @@ def save_run_hint(
         scope_paths=scope_paths or [],
         source_issue_keys=source_issue_keys or [],
         hint_text=hint_text,
-        created_at=datetime.now(timezone.utc).isoformat()
+        created_at=datetime.now(timezone.utc).isoformat(),
     )
 
     _save_run_rule_hint(run_id, hint)
@@ -783,6 +782,7 @@ def save_run_hint(
 # ============================================================================
 # Formatting Helpers (for LLM clients)
 # ============================================================================
+
 
 def format_rules_for_prompt(rules: List[LearnedRule]) -> str:
     """Format learned rules for inclusion in LLM prompts.

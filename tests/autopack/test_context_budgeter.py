@@ -1,14 +1,12 @@
 """Tests for context_budgeter with embedding cache."""
 
-import pytest
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 from autopack.context_budgeter import (
     select_files_for_context,
     reset_embedding_cache,
     get_embedding_stats,
     _lexical_score,
 )
-from autopack.file_hashing import compute_cache_key
 
 
 class TestContextBudgeter:
@@ -25,7 +23,7 @@ class TestContextBudgeter:
             "src/db.py": "def connect(): pass",
             "src/user.py": "class User: pass",
         }
-        
+
         result = select_files_for_context(
             files=files,
             scope_metadata=None,
@@ -34,7 +32,7 @@ class TestContextBudgeter:
             budget_tokens=1000,
             semantic=False,
         )
-        
+
         assert result.mode == "lexical"
         assert "src/auth.py" in result.kept
         assert "src/user.py" in result.kept
@@ -43,7 +41,7 @@ class TestContextBudgeter:
         """Test that path matches get higher scores than content matches."""
         score_path = _lexical_score("auth", "src/auth.py", "def connect(): pass")
         score_content = _lexical_score("auth", "src/db.py", "def authenticate(): pass")
-        
+
         # Path match should score higher due to 3x weight
         assert score_path > score_content
 
@@ -57,12 +55,12 @@ class TestContextBudgeter:
             [0.2] * 1536,  # file1
             [0.3] * 1536,  # file2
         ]
-        
+
         files = {
             "src/a.py": "content a",
             "src/b.py": "content b",
         }
-        
+
         # First call - should hit API
         result1 = select_files_for_context(
             files=files,
@@ -72,10 +70,10 @@ class TestContextBudgeter:
             budget_tokens=1000,
             semantic=True,
         )
-        
+
         assert result1.mode == "semantic"
         assert mock_embed.call_count == 1
-        
+
         # Second call with same files - should use cache
         result2 = select_files_for_context(
             files=files,
@@ -85,10 +83,10 @@ class TestContextBudgeter:
             budget_tokens=1000,
             semantic=True,
         )
-        
+
         assert result2.mode == "semantic"
         assert mock_embed.call_count == 2  # One more for query only
-        
+
         stats = get_embedding_stats()
         assert stats["cache_size"] > 0
         assert stats["call_count"] == 2
@@ -99,12 +97,12 @@ class TestContextBudgeter:
         """Test that cache misses trigger API calls."""
         mock_enabled.return_value = True
         mock_embed.return_value = [[0.1] * 1536, [0.2] * 1536]
-        
+
         files1 = {"src/a.py": "content a"}
         files2 = {"src/b.py": "content b"}  # Different file
-        
+
         # First call
-        result1 = select_files_for_context(
+        select_files_for_context(
             files=files1,
             scope_metadata=None,
             deliverables=None,
@@ -112,11 +110,11 @@ class TestContextBudgeter:
             budget_tokens=1000,
             semantic=True,
         )
-        
+
         assert mock_embed.call_count == 1
-        
+
         # Second call with different file - cache miss
-        result2 = select_files_for_context(
+        select_files_for_context(
             files=files2,
             scope_metadata=None,
             deliverables=None,
@@ -124,7 +122,7 @@ class TestContextBudgeter:
             budget_tokens=1000,
             semantic=True,
         )
-        
+
         assert mock_embed.call_count == 2  # Additional call for cache miss
 
     @patch("autopack.context_budgeter.semantic_embeddings_enabled")
@@ -134,9 +132,9 @@ class TestContextBudgeter:
         """Test that exceeding call cap falls back to lexical ranking."""
         mock_enabled.return_value = True
         mock_cap.return_value = 0  # Set cap to 0
-        
+
         files = {f"src/file{i}.py": f"content {i}" for i in range(10)}
-        
+
         result = select_files_for_context(
             files=files,
             scope_metadata=None,
@@ -145,7 +143,7 @@ class TestContextBudgeter:
             budget_tokens=10000,
             semantic=True,
         )
-        
+
         # Should fall back to lexical due to cap
         assert result.mode == "lexical"
         assert mock_embed.call_count == 0
@@ -156,10 +154,10 @@ class TestContextBudgeter:
         """Test that changing file content invalidates cache."""
         mock_enabled.return_value = True
         mock_embed.return_value = [[0.1] * 1536, [0.2] * 1536]
-        
+
         # First call with original content
         files1 = {"src/a.py": "original content"}
-        result1 = select_files_for_context(
+        select_files_for_context(
             files=files1,
             scope_metadata=None,
             deliverables=None,
@@ -167,12 +165,12 @@ class TestContextBudgeter:
             budget_tokens=1000,
             semantic=True,
         )
-        
+
         assert mock_embed.call_count == 1
-        
+
         # Second call with modified content - should trigger new API call
         files2 = {"src/a.py": "modified content"}
-        result2 = select_files_for_context(
+        select_files_for_context(
             files=files2,
             scope_metadata=None,
             deliverables=None,
@@ -180,7 +178,7 @@ class TestContextBudgeter:
             budget_tokens=1000,
             semantic=True,
         )
-        
+
         assert mock_embed.call_count == 2  # Cache invalidated, new call made
 
     @patch("autopack.context_budgeter.semantic_embeddings_enabled")
@@ -193,12 +191,12 @@ class TestContextBudgeter:
             [0.9] * 1536,  # high relevance
             [0.1] * 1536,  # low relevance (deliverable)
         ]
-        
+
         files = {
             "src/relevant.py": "x" * 100,
             "src/deliverable.py": "x" * 100,
         }
-        
+
         result = select_files_for_context(
             files=files,
             scope_metadata=None,
@@ -207,7 +205,7 @@ class TestContextBudgeter:
             budget_tokens=150,  # Only enough for one file
             semantic=True,
         )
-        
+
         # Deliverable should be included even with low relevance
         assert "src/deliverable.py" in result.kept
 
@@ -215,7 +213,10 @@ class TestContextBudgeter:
         """Test that reset_embedding_cache clears all state."""
         # Populate cache
         with patch("autopack.context_budgeter.semantic_embeddings_enabled", return_value=True):
-            with patch("autopack.context_budgeter.sync_embed_texts", return_value=[[0.1] * 1536, [0.2] * 1536]):
+            with patch(
+                "autopack.context_budgeter.sync_embed_texts",
+                return_value=[[0.1] * 1536, [0.2] * 1536],
+            ):
                 select_files_for_context(
                     files={"src/a.py": "content"},
                     scope_metadata=None,
@@ -224,14 +225,14 @@ class TestContextBudgeter:
                     budget_tokens=1000,
                     semantic=True,
                 )
-        
+
         stats_before = get_embedding_stats()
         assert stats_before["cache_size"] > 0
         assert stats_before["call_count"] > 0
-        
+
         # Reset
         reset_embedding_cache()
-        
+
         stats_after = get_embedding_stats()
         assert stats_after["cache_size"] == 0
         assert stats_after["call_count"] == 0
@@ -242,9 +243,9 @@ class TestContextBudgeter:
         """Test that API failures gracefully fall back to lexical ranking."""
         mock_enabled.return_value = True
         mock_embed.side_effect = Exception("API error")
-        
+
         files = {"src/a.py": "content"}
-        
+
         result = select_files_for_context(
             files=files,
             scope_metadata=None,
@@ -253,7 +254,7 @@ class TestContextBudgeter:
             budget_tokens=1000,
             semantic=True,
         )
-        
+
         # Should fall back to lexical on API failure
         assert result.mode == "lexical"
         assert "src/a.py" in result.kept

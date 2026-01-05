@@ -90,7 +90,9 @@ class ArtifactLoader:
 
         # Fall back to legacy path if it exists
         if self._legacy_artifacts_dir.exists():
-            logger.debug(f"[ArtifactLoader] Using legacy path for {self.run_id}: {self._legacy_artifacts_dir}")
+            logger.debug(
+                f"[ArtifactLoader] Using legacy path for {self.run_id}: {self._legacy_artifacts_dir}"
+            )
             self._artifacts_dir_cache = self._legacy_artifacts_dir
             return self._artifacts_dir_cache
 
@@ -242,10 +244,7 @@ class ArtifactLoader:
             return None
 
     def load_with_artifacts(
-        self,
-        file_path: str,
-        full_content: str,
-        prefer_artifacts: bool = True
+        self, file_path: str, full_content: str, prefer_artifacts: bool = True
     ) -> Tuple[str, int, str]:
         """Load content with artifact substitution if available.
 
@@ -313,7 +312,7 @@ class ArtifactLoader:
         tiers_dir = self.artifacts_dir / "tiers"
         if tiers_dir.exists():
             tier_files = sorted(tiers_dir.glob("tier_*.md"), reverse=True)
-            tier_files = tier_files[:settings.artifact_history_pack_max_tiers]
+            tier_files = tier_files[: settings.artifact_history_pack_max_tiers]
             for tier_file in tier_files:
                 try:
                     content = tier_file.read_text(encoding="utf-8", errors="ignore")
@@ -325,7 +324,7 @@ class ArtifactLoader:
         phases_dir = self.artifacts_dir / "phases"
         if phases_dir.exists():
             phase_files = sorted(phases_dir.glob("phase_*.md"), reverse=True)
-            phase_files = phase_files[:settings.artifact_history_pack_max_phases]
+            phase_files = phase_files[: settings.artifact_history_pack_max_phases]
             for phase_file in phase_files:
                 try:
                     content = phase_file.read_text(encoding="utf-8", errors="ignore")
@@ -388,7 +387,6 @@ class ArtifactLoader:
             )
             return f"# Summary of {file_path}\n\n{history_pack}"
 
-
     def load_with_extended_contexts(self, content: str, context_type: str) -> Tuple[str, int, str]:
         """Load content with artifact substitution in extended safe contexts.
 
@@ -408,7 +406,7 @@ class ArtifactLoader:
             return content, 0, "original"
 
         # Only apply to safe, read-only contexts
-        safe_contexts = {'phase_description', 'tier_summary', 'historical'}
+        safe_contexts = {"phase_description", "tier_summary", "historical"}
         if context_type not in safe_contexts:
             return content, 0, "original"
 
@@ -416,7 +414,7 @@ class ArtifactLoader:
         original_tokens = estimate_tokens(content)
 
         # For historical context, use history pack if available
-        if context_type == 'historical':
+        if context_type == "historical":
             history_pack = self.build_history_pack()
             if history_pack:
                 tokens_saved = original_tokens - estimate_tokens(history_pack)
@@ -428,11 +426,12 @@ class ArtifactLoader:
                     return history_pack, tokens_saved, "artifact:history_pack"
 
         # For phase/tier descriptions, check if we have more recent summaries
-        if context_type in {'phase_description', 'tier_summary'}:
+        if context_type in {"phase_description", "tier_summary"}:
             # Extract phase/tier references from content
             import re
-            phase_refs = re.findall(r'phase[_\s]+(\d+)', content.lower())
-            tier_refs = re.findall(r'tier[_\s]+(\d+)', content.lower())
+
+            phase_refs = re.findall(r"phase[_\s]+(\d+)", content.lower())
+            tier_refs = re.findall(r"tier[_\s]+(\d+)", content.lower())
 
             if phase_refs or tier_refs:
                 # Build consolidated summary from referenced artifacts
@@ -444,10 +443,16 @@ class ArtifactLoader:
                         phase_files = sorted(phases_dir.glob(f"phase_{int(phase_num):02d}_*.md"))
                         if phase_files:
                             try:
-                                phase_content = phase_files[0].read_text(encoding="utf-8", errors="ignore")
-                                summary_parts.append(f"## Phase {phase_num}\n{phase_content[:500]}...")
+                                phase_content = phase_files[0].read_text(
+                                    encoding="utf-8", errors="ignore"
+                                )
+                                summary_parts.append(
+                                    f"## Phase {phase_num}\n{phase_content[:500]}..."
+                                )
                             except Exception as e:
-                                logger.debug(f"[ArtifactLoader] Could not read phase {phase_num}: {e}")
+                                logger.debug(
+                                    f"[ArtifactLoader] Could not read phase {phase_num}: {e}"
+                                )
 
                 for tier_num in tier_refs[:2]:  # Limit to 2 most recent
                     tiers_dir = self.artifacts_dir / "tiers"
@@ -455,10 +460,14 @@ class ArtifactLoader:
                         tier_files = sorted(tiers_dir.glob(f"tier_{int(tier_num):02d}_*.md"))
                         if tier_files:
                             try:
-                                tier_content = tier_files[0].read_text(encoding="utf-8", errors="ignore")
+                                tier_content = tier_files[0].read_text(
+                                    encoding="utf-8", errors="ignore"
+                                )
                                 summary_parts.append(f"## Tier {tier_num}\n{tier_content[:500]}...")
                             except Exception as e:
-                                logger.debug(f"[ArtifactLoader] Could not read tier {tier_num}: {e}")
+                                logger.debug(
+                                    f"[ArtifactLoader] Could not read tier {tier_num}: {e}"
+                                )
 
                 if summary_parts:
                     consolidated = "\n\n".join(summary_parts)
@@ -474,19 +483,21 @@ class ArtifactLoader:
         return None
 
 
-def get_artifact_substitution_stats(loader: ArtifactLoader, files: Dict[str, str]) -> Tuple[int, int]:
+def get_artifact_substitution_stats(
+    loader: ArtifactLoader, files: Dict[str, str]
+) -> Tuple[int, int]:
     """Calculate artifact substitution statistics for a set of files.
-    
+
     Args:
         loader: ArtifactLoader instance
         files: Dictionary of file_path -> content
-    
+
     Returns:
         Tuple of (substitution_count, total_tokens_saved)
     """
     substitution_count = 0
     total_tokens_saved = 0
-    
+
     for file_path, content in files.items():
         _, tokens_saved, source_type = loader.load_with_artifacts(
             file_path, content, prefer_artifacts=True
@@ -494,5 +505,5 @@ def get_artifact_substitution_stats(loader: ArtifactLoader, files: Dict[str, str
         if source_type.startswith("artifact:"):
             substitution_count += 1
             total_tokens_saved += tokens_saved
-    
+
     return substitution_count, total_tokens_saved

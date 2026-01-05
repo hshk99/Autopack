@@ -7,7 +7,6 @@ exercising the full runtime loop.
 
 from pathlib import Path
 
-import pytest
 
 from autopack.autonomous_executor import AutonomousExecutor
 
@@ -64,7 +63,9 @@ def test_record_phase_error_appends_history(tmp_path: Path):
     executor = make_executor(tmp_path)
     phase = {"phase_id": "phase-1"}
 
-    executor._record_phase_error(phase, error_type="ci_fail", error_details="details", attempt_index=0)
+    executor._record_phase_error(
+        phase, error_type="ci_fail", error_details="details", attempt_index=0
+    )
 
     history = executor._phase_error_history["phase-1"]
     assert len(history) == 1

@@ -1,7 +1,5 @@
 """Unit tests for file layout utilities"""
 
-from pathlib import Path
-
 import pytest
 
 from autopack.file_layout import RunFileLayout
@@ -36,13 +34,18 @@ def test_get_run_summary_path(file_layout, tmp_path):
 def test_get_tier_summary_path(file_layout, tmp_path):
     """Test getting tier summary path"""
     path = file_layout.get_tier_summary_path(0, "Foundation")
-    assert path == tmp_path / "autopack" / "runs" / "test-run-001" / "tiers" / "tier_00_Foundation.md"
+    assert (
+        path == tmp_path / "autopack" / "runs" / "test-run-001" / "tiers" / "tier_00_Foundation.md"
+    )
 
 
 def test_get_tier_summary_path_with_spaces(file_layout, tmp_path):
     """Test tier summary path with spaces in name"""
     path = file_layout.get_tier_summary_path(1, "Auth & Security")
-    assert path == tmp_path / "autopack" / "runs" / "test-run-001" / "tiers" / "tier_01_Auth_&_Security.md"
+    assert (
+        path
+        == tmp_path / "autopack" / "runs" / "test-run-001" / "tiers" / "tier_01_Auth_&_Security.md"
+    )
 
 
 def test_get_phase_summary_path(file_layout, tmp_path):

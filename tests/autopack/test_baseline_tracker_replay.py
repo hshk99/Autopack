@@ -4,6 +4,7 @@ P0.1 Reliability Test: Baseline tracker replay determinism.
 Validates that given identical inputs, baseline tracker produces bit-for-bit identical outputs.
 This prevents parallel-run collisions and ensures reproducible CI decisions.
 """
+
 import json
 import tempfile
 from pathlib import Path
@@ -11,7 +12,7 @@ from datetime import datetime, timezone
 
 import pytest
 
-from autopack.test_baseline_tracker import TestBaseline, TestBaselineTracker, TestDelta
+from autopack.test_baseline_tracker import TestBaseline, TestBaselineTracker
 
 
 class TestBaselineReplayDeterminism:
@@ -32,8 +33,8 @@ class TestBaselineReplayDeterminism:
             failing_test_ids=["test_c.py::test_3", "test_a.py::test_1", "test_b.py::test_2"],
             error_signatures={
                 "test_z.py::test_error": "AssertionError: Something failed",
-                "test_a.py::test_import": "ImportError: No module named 'foo'"
-            }
+                "test_a.py::test_import": "ImportError: No module named 'foo'",
+            },
         )
 
         # Serialize twice
@@ -65,7 +66,7 @@ class TestBaselineReplayDeterminism:
                 error_tests=0,
                 skipped_tests=0,
                 failing_test_ids=["test_a.py::test_1", "test_b.py::test_2"],
-                error_signatures={}
+                error_signatures={},
             )
 
             # Create current report with new failures (intentionally unsorted order)
@@ -73,27 +74,33 @@ class TestBaselineReplayDeterminism:
                 "summary": {"total": 5, "passed": 1, "failed": 4},
                 "tests": [
                     {"nodeid": "test_a.py::test_1", "outcome": "failed"},  # Pre-existing
-                    {"nodeid": "test_z.py::test_9", "outcome": "failed"},  # New (should be last alphabetically)
+                    {
+                        "nodeid": "test_z.py::test_9",
+                        "outcome": "failed",
+                    },  # New (should be last alphabetically)
                     {"nodeid": "test_c.py::test_3", "outcome": "failed"},  # New (middle)
                     {"nodeid": "test_b.py::test_2", "outcome": "passed"},  # Newly passing
                     {"nodeid": "test_d.py::test_4", "outcome": "passed"},
                 ],
-                "collectors": []
+                "collectors": [],
             }
 
             report_path = workspace / "current.json"
-            report_path.write_text(json.dumps(current_report), encoding='utf-8')
+            report_path.write_text(json.dumps(current_report), encoding="utf-8")
 
             # Compute delta
             delta = tracker.diff(baseline, report_path)
 
             # Verify lists are sorted
-            assert delta.newly_failing == sorted(delta.newly_failing), \
-                f"newly_failing should be sorted, got: {delta.newly_failing}"
-            assert delta.newly_passing == sorted(delta.newly_passing), \
-                f"newly_passing should be sorted, got: {delta.newly_passing}"
-            assert delta.new_collection_errors == sorted(delta.new_collection_errors), \
-                f"new_collection_errors should be sorted, got: {delta.new_collection_errors}"
+            assert delta.newly_failing == sorted(
+                delta.newly_failing
+            ), f"newly_failing should be sorted, got: {delta.newly_failing}"
+            assert delta.newly_passing == sorted(
+                delta.newly_passing
+            ), f"newly_passing should be sorted, got: {delta.newly_passing}"
+            assert delta.new_collection_errors == sorted(
+                delta.new_collection_errors
+            ), f"new_collection_errors should be sorted, got: {delta.new_collection_errors}"
 
             # Verify exact expected values (sorted)
             assert delta.newly_failing == ["test_c.py::test_3", "test_z.py::test_9"]
@@ -146,13 +153,13 @@ class TestBaselineReplayDeterminism:
                     {
                         "nodeid": "tests/test_broken.py",
                         "outcome": "failed",
-                        "longrepr": "ImportError: No module named 'nonexistent_module'\nCannot import test module"
+                        "longrepr": "ImportError: No module named 'nonexistent_module'\nCannot import test module",
                     }
-                ]
+                ],
             }
 
             report_path = workspace / "collection_error.json"
-            report_path.write_text(json.dumps(current_report), encoding='utf-8')
+            report_path.write_text(json.dumps(current_report), encoding="utf-8")
 
             # Create minimal baseline (empty)
             baseline = TestBaseline(
@@ -165,7 +172,7 @@ class TestBaselineReplayDeterminism:
                 error_tests=0,
                 skipped_tests=0,
                 failing_test_ids=[],
-                error_signatures={}
+                error_signatures={},
             )
 
             # Compute delta - should detect new collection error

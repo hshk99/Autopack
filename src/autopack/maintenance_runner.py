@@ -20,7 +20,9 @@ class TestExecResult:
     stderr: str
 
 
-def run_tests(test_commands: List[str], workspace: Path, timeout: int = 600) -> List[TestExecResult]:
+def run_tests(
+    test_commands: List[str], workspace: Path, timeout: int = 600
+) -> List[TestExecResult]:
     results: List[TestExecResult] = []
     for cmd in test_commands:
         try:
@@ -60,4 +62,3 @@ def run_tests(test_commands: List[str], workspace: Path, timeout: int = 600) -> 
                 )
             )
     return results
-

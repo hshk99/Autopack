@@ -29,19 +29,19 @@ def test_build_history_index_matches_sections_and_no_duplicates():
     # Find all section headings: ## BUILD-###
     # Note: Some builds have multi-phase sections (e.g., "## BUILD-145" and "## BUILD-145 Follow-up")
     # This is allowed as long as they're distinct (different full headings)
-    section_re = re.compile(r'^##\s+(BUILD-\d+[^\n]*)', re.MULTILINE)
+    section_re = re.compile(r"^##\s+(BUILD-\d+[^\n]*)", re.MULTILINE)
     section_headings = []
     section_ids = []
     for m in section_re.finditer(content):
         full_heading = m.group(1).strip()
         section_headings.append(full_heading)
         # Extract just the BUILD-### part
-        build_id_match = re.match(r'BUILD-(\d+)', full_heading)
+        build_id_match = re.match(r"BUILD-(\d+)", full_heading)
         if build_id_match:
             section_ids.append(build_id_match.group(1))
 
     # Find all INDEX table rows: | YYYY-MM-DD | BUILD-### | ...
-    index_re = re.compile(r'^\|\s*\d{4}-\d{2}-\d{2}\s*\|\s*BUILD-(\d+)\b', re.MULTILINE)
+    index_re = re.compile(r"^\|\s*\d{4}-\d{2}-\d{2}\s*\|\s*BUILD-(\d+)\b", re.MULTILINE)
     index_ids = []
     for m in index_re.finditer(content):
         index_ids.append(m.group(1))
@@ -53,7 +53,7 @@ def test_build_history_index_matches_sections_and_no_duplicates():
 
     exact_duplicates = [heading for heading, count in heading_counts.items() if count > 1]
     assert not exact_duplicates, (
-        f"Exact duplicate BUILD section headings found:\n"
+        "Exact duplicate BUILD section headings found:\n"
         + "\n".join([f"  - {h}" for h in exact_duplicates])
         + "\nEach section heading should be unique (even multi-phase builds should have distinct headings like 'BUILD-145' vs 'BUILD-145 Follow-up')."
     )

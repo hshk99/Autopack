@@ -2,7 +2,6 @@
 
 from pathlib import Path
 
-import pytest
 
 from autopack.plan_analyzer_grounding import GroundedContextBuilder, MAX_CONTEXT_CHARS
 from autopack.pattern_matcher import PatternMatcher
@@ -27,22 +26,15 @@ def test_grounded_context_builder_basic(tmp_path: Path):
     scanner = RepoScanner(tmp_path)
     scanner.scan(use_cache=False)
 
-    matcher = PatternMatcher(
-        scanner,
-        autopack_internal_mode=False,
-        run_type="project_build"
-    )
+    matcher = PatternMatcher(scanner, autopack_internal_mode=False, run_type="project_build")
 
-    builder = GroundedContextBuilder(
-        repo_scanner=scanner,
-        pattern_matcher=matcher
-    )
+    builder = GroundedContextBuilder(repo_scanner=scanner, pattern_matcher=matcher)
 
     # Build context for auth-related phase
     context = builder.build_context(
         goal="Add JWT authentication to login endpoint",
         phase_id="auth-backend",
-        description="Implement JWT token generation and validation"
+        description="Implement JWT token generation and validation",
     )
 
     # Verify context structure
@@ -78,19 +70,13 @@ def test_grounded_context_with_match_result(tmp_path: Path):
     matcher = PatternMatcher(scanner, autopack_internal_mode=False, run_type="project_build")
 
     # Pre-compute match result
-    match_result = matcher.match(
-        goal="Add authentication",
-        phase_id="auth-phase",
-        description=""
-    )
+    match_result = matcher.match(goal="Add authentication", phase_id="auth-phase", description="")
 
     builder = GroundedContextBuilder(scanner, matcher)
 
     # Build context with pre-computed result
     context = builder.build_context(
-        goal="Add authentication",
-        phase_id="auth-phase",
-        match_result=match_result
+        goal="Add authentication", phase_id="auth-phase", match_result=match_result
     )
 
     # Verify match result info is included
@@ -118,7 +104,7 @@ def test_grounded_context_truncation(tmp_path: Path):
     context = builder.build_context(
         goal="Refactor all modules to improve code quality and maintainability across the entire codebase",
         phase_id="refactor-phase-with-very-long-identifier-name",
-        description="This is a comprehensive refactoring effort that will touch multiple modules and requires careful analysis of the entire codebase structure"
+        description="This is a comprehensive refactoring effort that will touch multiple modules and requires careful analysis of the entire codebase structure",
     )
 
     # Verify truncation occurred
@@ -139,10 +125,7 @@ def test_grounded_context_empty_repo(tmp_path: Path):
     matcher = PatternMatcher(scanner, autopack_internal_mode=False, run_type="project_build")
     builder = GroundedContextBuilder(scanner, matcher)
 
-    context = builder.build_context(
-        goal="Add feature",
-        phase_id="test-phase"
-    )
+    context = builder.build_context(goal="Add feature", phase_id="test-phase")
 
     # Should still generate valid context
     assert context.repo_summary
@@ -193,10 +176,7 @@ def test_multi_phase_context_truncation(tmp_path: Path):
     builder = GroundedContextBuilder(scanner, matcher, max_chars=1000)
 
     # Create 20 phases
-    phases = [
-        {"phase_id": f"phase-{i}", "goal": f"Implement feature {i}"}
-        for i in range(20)
-    ]
+    phases = [{"phase_id": f"phase-{i}", "goal": f"Implement feature {i}"} for i in range(20)]
 
     context_text = builder.build_multi_phase_context(phases, max_phases_shown=10)
 

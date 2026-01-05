@@ -6,6 +6,7 @@ This tool uses raw SQL to diagnose and repair schema violations.
 
 Per BUILD-130 Phase 1: Break-Glass Repair implementation.
 """
+
 from sqlalchemy import text, create_engine
 from autopack.schema_validator import SchemaValidator, SchemaValidationResult
 from datetime import datetime
@@ -37,6 +38,7 @@ class BreakGlassRepair:
         self.validator = SchemaValidator(database_url)
         # P2.2: Use configured autonomous_runs_dir
         from .config import settings
+
         self.repair_log_path = f"{settings.autonomous_runs_dir}/break_glass_repairs.jsonl"
 
     def diagnose(self) -> SchemaValidationResult:
@@ -81,15 +83,19 @@ class BreakGlassRepair:
         failed_count = 0
 
         for i, error in enumerate(result.errors, 1):
-            logger.info(f"[BreakGlass] Repair {i}/{len(result.errors)}: {error.table}.{error.column}")
-            logger.info(f"[BreakGlass]   Invalid value: '{error.invalid_value}' → '{error.suggested_fix}'")
+            logger.info(
+                f"[BreakGlass] Repair {i}/{len(result.errors)}: {error.table}.{error.column}"
+            )
+            logger.info(
+                f"[BreakGlass]   Invalid value: '{error.invalid_value}' → '{error.suggested_fix}'"
+            )
             logger.info(f"[BreakGlass]   Affected rows: {error.affected_rows}")
             logger.info(f"[BreakGlass]   SQL: {error.repair_sql}")
 
             # Ask for confirmation unless auto-approve
             if not auto_approve:
-                confirm = input(f"\n  Apply this repair? [y/N]: ").strip().lower()
-                if confirm != 'y':
+                confirm = input("\n  Apply this repair? [y/N]: ").strip().lower()
+                if confirm != "y":
                     logger.info("[BreakGlass]   Skipped")
                     continue
 
@@ -106,7 +112,7 @@ class BreakGlassRepair:
                         timestamp_sql = f"UPDATE {error.table} SET updated_at=:ts WHERE {error.column}=:new_value"
                         conn.execute(
                             text(timestamp_sql),
-                            {"ts": datetime.now().isoformat(), "new_value": error.suggested_fix}
+                            {"ts": datetime.now().isoformat(), "new_value": error.suggested_fix},
                         )
 
                         trans.commit()
@@ -125,33 +131,38 @@ class BreakGlassRepair:
                 logger.error(f"[BreakGlass]   ❌ Failed to connect: {e}")
                 failed_count += 1
 
-        logger.info(f"[BreakGlass] Repairs complete: {success_count} succeeded, {failed_count} failed")
+        logger.info(
+            f"[BreakGlass] Repairs complete: {success_count} succeeded, {failed_count} failed"
+        )
         return failed_count == 0
 
     def _print_diagnosis_summary(self, result: SchemaValidationResult):
         """Print human-readable summary of diagnosis"""
-        print("\n" + "="*80)
+        print("\n" + "=" * 80)
         print("DATABASE SCHEMA DIAGNOSIS")
-        print("="*80)
+        print("=" * 80)
 
         for error in result.errors:
             print(f"\n❌ {error.table}.{error.column}")
             print(f"   Invalid value: '{error.invalid_value}'")
             print(f"   Suggested fix: '{error.suggested_fix}'")
-            print(f"   Affected rows: {len(error.affected_rows)} ({', '.join(error.affected_rows[:5])}{'...' if len(error.affected_rows) > 5 else ''})")
-            print(f"   Repair SQL:")
+            print(
+                f"   Affected rows: {len(error.affected_rows)} ({', '.join(error.affected_rows[:5])}{'...' if len(error.affected_rows) > 5 else ''})"
+            )
+            print("   Repair SQL:")
             print(f"      {error.repair_sql}")
 
         for warning in result.warnings:
             print(f"\n⚠️  {warning}")
 
-        print("\n" + "="*80)
+        print("\n" + "=" * 80)
         print(f"SUMMARY: {len(result.errors)} errors, {len(result.warnings)} warnings")
-        print("="*80 + "\n")
+        print("=" * 80 + "\n")
 
     def _log_repair(self, error):
         """Log repair to JSONL file for audit trail"""
         import os
+
         os.makedirs(os.path.dirname(self.repair_log_path), exist_ok=True)
 
         log_entry = {
@@ -161,10 +172,10 @@ class BreakGlassRepair:
             "invalid_value": error.invalid_value,
             "new_value": error.suggested_fix,
             "affected_rows": error.affected_rows,
-            "repair_sql": error.repair_sql
+            "repair_sql": error.repair_sql,
         }
 
-        with open(self.repair_log_path, 'a', encoding='utf-8') as f:
-            f.write(json.dumps(log_entry) + '\n')
+        with open(self.repair_log_path, "a", encoding="utf-8") as f:
+            f.write(json.dumps(log_entry) + "\n")
 
         logger.info(f"[BreakGlass] Repair logged to {self.repair_log_path}")

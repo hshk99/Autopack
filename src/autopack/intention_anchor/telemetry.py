@@ -65,9 +65,7 @@ def load_and_render_for_builder_with_telemetry(
                 intention_context_source="anchor",
             )
         except Exception as e:
-            logger.warning(
-                f"[{phase_id}] Failed to record intention anchor telemetry: {e}"
-            )
+            logger.warning(f"[{phase_id}] Failed to record intention anchor telemetry: {e}")
 
     # Log prompt injection event to SOT-ready artifacts
     if rendered and log_artifacts:
@@ -87,9 +85,7 @@ def load_and_render_for_builder_with_telemetry(
                 base_dir=base_dir,
             )
         except Exception as e:
-            logger.debug(
-                f"[{phase_id}] Failed to log artifact event (non-critical): {e}"
-            )
+            logger.debug(f"[{phase_id}] Failed to log artifact event (non-critical): {e}")
 
     return rendered
 
@@ -136,9 +132,7 @@ def load_and_render_for_auditor_with_telemetry(
                 intention_context_source="anchor",
             )
         except Exception as e:
-            logger.warning(
-                f"[{phase_id}] Failed to record intention anchor telemetry: {e}"
-            )
+            logger.warning(f"[{phase_id}] Failed to record intention anchor telemetry: {e}")
 
     # Log prompt injection event to SOT-ready artifacts
     if rendered and log_artifacts:
@@ -158,9 +152,7 @@ def load_and_render_for_auditor_with_telemetry(
                 base_dir=base_dir,
             )
         except Exception as e:
-            logger.debug(
-                f"[{phase_id}] Failed to log artifact event (non-critical): {e}"
-            )
+            logger.debug(f"[{phase_id}] Failed to log artifact event (non-critical): {e}")
 
     return rendered
 
@@ -207,9 +199,7 @@ def load_and_render_for_doctor_with_telemetry(
                 intention_context_source="anchor",
             )
         except Exception as e:
-            logger.warning(
-                f"[{phase_id}] Failed to record intention anchor telemetry: {e}"
-            )
+            logger.warning(f"[{phase_id}] Failed to record intention anchor telemetry: {e}")
 
     # Log prompt injection event to SOT-ready artifacts
     if rendered and log_artifacts:
@@ -229,8 +219,6 @@ def load_and_render_for_doctor_with_telemetry(
                 base_dir=base_dir,
             )
         except Exception as e:
-            logger.debug(
-                f"[{phase_id}] Failed to log artifact event (non-critical): {e}"
-            )
+            logger.debug(f"[{phase_id}] Failed to log artifact event (non-critical): {e}")
 
     return rendered

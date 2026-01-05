@@ -25,7 +25,7 @@ class AdoptionReadiness:
         return {
             "framework": "Adoption Readiness",
             "score": score,
-            "details": f"Evaluated against {len(self.criteria)} criteria"
+            "details": f"Evaluated against {len(self.criteria)} criteria",
         }
 
     # Additional methods for specific evaluation logic can be added here

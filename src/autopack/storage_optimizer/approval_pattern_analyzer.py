@@ -15,7 +15,7 @@ by collecting initial approvals, then learning from them).
 
 import re
 from pathlib import Path
-from typing import List, Dict, Optional, Tuple
+from typing import List, Optional
 from dataclasses import dataclass
 from collections import defaultdict
 from datetime import datetime, timezone
@@ -23,13 +23,14 @@ from datetime import datetime, timezone
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 
-from autopack.models import CleanupCandidateDB, ApprovalDecision, LearnedRule
+from autopack.models import CleanupCandidateDB, LearnedRule
 from autopack.storage_optimizer.policy import StoragePolicy
 
 
 @dataclass
 class Pattern:
     """Detected pattern from approval history."""
+
     pattern_type: str  # 'path_pattern', 'file_type', 'age_threshold', 'size_threshold'
     pattern_value: str
     category: str
@@ -53,11 +54,7 @@ class ApprovalPatternAnalyzer:
     """
 
     def __init__(
-        self,
-        db: Session,
-        policy: StoragePolicy,
-        min_samples: int = 5,
-        min_confidence: float = 0.75
+        self, db: Session, policy: StoragePolicy, min_samples: int = 5, min_confidence: float = 0.75
     ):
         """
         Initialize analyzer.
@@ -74,9 +71,7 @@ class ApprovalPatternAnalyzer:
         self.min_confidence = min_confidence
 
     def analyze_approval_patterns(
-        self,
-        category: Optional[str] = None,
-        max_patterns: int = 10
+        self, category: Optional[str] = None, max_patterns: int = 10
     ) -> List[Pattern]:
         """
         Analyze approval history and detect patterns.
@@ -113,7 +108,7 @@ class ApprovalPatternAnalyzer:
 
         # Get approved candidates
         query = self.db.query(CleanupCandidateDB).filter(
-            CleanupCandidateDB.approval_status == 'approved'
+            CleanupCandidateDB.approval_status == "approved"
         )
         if category:
             query = query.filter(CleanupCandidateDB.category == category)
@@ -141,7 +136,7 @@ class ApprovalPatternAnalyzer:
 
             # Pattern 3: directory name contains keyword
             for part in path.parts:
-                for keyword in ['node_modules', 'cache', 'temp', 'tmp', 'build', 'dist']:
+                for keyword in ["node_modules", "cache", "temp", "tmp", "build", "dist"]:
                     if keyword in part.lower():
                         path_groups[f"contains:{keyword}"].append(candidate)
 
@@ -151,7 +146,7 @@ class ApprovalPatternAnalyzer:
                 continue
 
             # Check rejection rate for same pattern
-            pattern_type, pattern_value = pattern_key.split(':', 1)
+            pattern_type, pattern_value = pattern_key.split(":", 1)
             rejections = self._count_rejections_matching_path_pattern(
                 pattern_type, pattern_value, category
             )
@@ -168,16 +163,18 @@ class ApprovalPatternAnalyzer:
                 # Extract category from candidates (should be same)
                 candidate_category = candidates[0].category
 
-                patterns.append(Pattern(
-                    pattern_type='path_pattern',
-                    pattern_value=f"{pattern_type}:{pattern_value}",
-                    category=candidate_category,
-                    approvals=approvals,
-                    rejections=rejections,
-                    confidence=confidence,
-                    sample_paths=[c.path for c in candidates[:5]],
-                    description=f"Approve items in directories matching '{pattern_value}'"
-                ))
+                patterns.append(
+                    Pattern(
+                        pattern_type="path_pattern",
+                        pattern_value=f"{pattern_type}:{pattern_value}",
+                        category=candidate_category,
+                        approvals=approvals,
+                        rejections=rejections,
+                        confidence=confidence,
+                        sample_paths=[c.path for c in candidates[:5]],
+                        description=f"Approve items in directories matching '{pattern_value}'",
+                    )
+                )
 
         return patterns
 
@@ -186,15 +183,21 @@ class ApprovalPatternAnalyzer:
         patterns = []
 
         # Get approved candidates grouped by extension
-        query = self.db.query(
-            func.lower(func.substr(CleanupCandidateDB.path, func.length(CleanupCandidateDB.path) - 4)),
-            CleanupCandidateDB.category,
-            func.count().label('count')
-        ).filter(
-            CleanupCandidateDB.approval_status == 'approved'
-        ).group_by(
-            func.lower(func.substr(CleanupCandidateDB.path, func.length(CleanupCandidateDB.path) - 4)),
-            CleanupCandidateDB.category
+        query = (
+            self.db.query(
+                func.lower(
+                    func.substr(CleanupCandidateDB.path, func.length(CleanupCandidateDB.path) - 4)
+                ),
+                CleanupCandidateDB.category,
+                func.count().label("count"),
+            )
+            .filter(CleanupCandidateDB.approval_status == "approved")
+            .group_by(
+                func.lower(
+                    func.substr(CleanupCandidateDB.path, func.length(CleanupCandidateDB.path) - 4)
+                ),
+                CleanupCandidateDB.category,
+            )
         )
 
         if category:
@@ -207,18 +210,23 @@ class ApprovalPatternAnalyzer:
                 continue
 
             # Extract extension
-            ext_match = re.search(r'\.(\w+)$', ext_suffix)
+            ext_match = re.search(r"\.(\w+)$", ext_suffix)
             if not ext_match:
                 continue
 
             extension = ext_match.group(1)
 
             # Count rejections for same extension
-            rejections = self.db.query(func.count()).filter(
-                CleanupCandidateDB.approval_status == 'rejected',
-                CleanupCandidateDB.path.like(f'%.{extension}'),
-                CleanupCandidateDB.category == cat
-            ).scalar() or 0
+            rejections = (
+                self.db.query(func.count())
+                .filter(
+                    CleanupCandidateDB.approval_status == "rejected",
+                    CleanupCandidateDB.path.like(f"%.{extension}"),
+                    CleanupCandidateDB.category == cat,
+                )
+                .scalar()
+                or 0
+            )
 
             total = count + rejections
 
@@ -229,22 +237,29 @@ class ApprovalPatternAnalyzer:
 
             if confidence >= self.min_confidence:
                 # Get sample paths
-                samples = self.db.query(CleanupCandidateDB.path).filter(
-                    CleanupCandidateDB.approval_status == 'approved',
-                    CleanupCandidateDB.path.like(f'%.{extension}'),
-                    CleanupCandidateDB.category == cat
-                ).limit(5).all()
+                samples = (
+                    self.db.query(CleanupCandidateDB.path)
+                    .filter(
+                        CleanupCandidateDB.approval_status == "approved",
+                        CleanupCandidateDB.path.like(f"%.{extension}"),
+                        CleanupCandidateDB.category == cat,
+                    )
+                    .limit(5)
+                    .all()
+                )
 
-                patterns.append(Pattern(
-                    pattern_type='file_type',
-                    pattern_value=f'.{extension}',
-                    category=cat,
-                    approvals=count,
-                    rejections=rejections,
-                    confidence=confidence,
-                    sample_paths=[s[0] for s in samples],
-                    description=f"Approve .{extension} files in {cat} category"
-                ))
+                patterns.append(
+                    Pattern(
+                        pattern_type="file_type",
+                        pattern_value=f".{extension}",
+                        category=cat,
+                        approvals=count,
+                        rejections=rejections,
+                        confidence=confidence,
+                        sample_paths=[s[0] for s in samples],
+                        description=f"Approve .{extension} files in {cat} category",
+                    )
+                )
 
         return patterns
 
@@ -254,8 +269,8 @@ class ApprovalPatternAnalyzer:
 
         # Get approved candidates with age data
         query = self.db.query(CleanupCandidateDB).filter(
-            CleanupCandidateDB.approval_status == 'approved',
-            CleanupCandidateDB.age_days.isnot(None)
+            CleanupCandidateDB.approval_status == "approved",
+            CleanupCandidateDB.age_days.isnot(None),
         )
         if category:
             query = query.filter(CleanupCandidateDB.category == category)
@@ -285,11 +300,16 @@ class ApprovalPatternAnalyzer:
                 continue
 
             # Count rejections below this threshold
-            rejections = self.db.query(func.count()).filter(
-                CleanupCandidateDB.approval_status == 'rejected',
-                CleanupCandidateDB.category == cat,
-                CleanupCandidateDB.age_days < min_age_rounded
-            ).scalar() or 0
+            rejections = (
+                self.db.query(func.count())
+                .filter(
+                    CleanupCandidateDB.approval_status == "rejected",
+                    CleanupCandidateDB.category == cat,
+                    CleanupCandidateDB.age_days < min_age_rounded,
+                )
+                .scalar()
+                or 0
+            )
 
             approvals = len([a for a in ages if a >= min_age_rounded])
             total = approvals + rejections
@@ -301,22 +321,29 @@ class ApprovalPatternAnalyzer:
 
             if confidence >= self.min_confidence:
                 # Get sample paths
-                samples = self.db.query(CleanupCandidateDB.path).filter(
-                    CleanupCandidateDB.approval_status == 'approved',
-                    CleanupCandidateDB.category == cat,
-                    CleanupCandidateDB.age_days >= min_age_rounded
-                ).limit(5).all()
+                samples = (
+                    self.db.query(CleanupCandidateDB.path)
+                    .filter(
+                        CleanupCandidateDB.approval_status == "approved",
+                        CleanupCandidateDB.category == cat,
+                        CleanupCandidateDB.age_days >= min_age_rounded,
+                    )
+                    .limit(5)
+                    .all()
+                )
 
-                patterns.append(Pattern(
-                    pattern_type='age_threshold',
-                    pattern_value=str(min_age_rounded),
-                    category=cat,
-                    approvals=approvals,
-                    rejections=rejections,
-                    confidence=confidence,
-                    sample_paths=[s[0] for s in samples],
-                    description=f"Approve {cat} items older than {min_age_rounded} days ({min_age_rounded // 30} months)"
-                ))
+                patterns.append(
+                    Pattern(
+                        pattern_type="age_threshold",
+                        pattern_value=str(min_age_rounded),
+                        category=cat,
+                        approvals=approvals,
+                        rejections=rejections,
+                        confidence=confidence,
+                        sample_paths=[s[0] for s in samples],
+                        description=f"Approve {cat} items older than {min_age_rounded} days ({min_age_rounded // 30} months)",
+                    )
+                )
 
         return patterns
 
@@ -326,8 +353,7 @@ class ApprovalPatternAnalyzer:
 
         # Get approved candidates with size data
         query = self.db.query(CleanupCandidateDB).filter(
-            CleanupCandidateDB.approval_status == 'approved',
-            CleanupCandidateDB.size_bytes > 0
+            CleanupCandidateDB.approval_status == "approved", CleanupCandidateDB.size_bytes > 0
         )
         if category:
             query = query.filter(CleanupCandidateDB.category == category)
@@ -359,11 +385,16 @@ class ApprovalPatternAnalyzer:
             min_size_bytes = min_size_mb * 1024**2
 
             # Count rejections below this threshold
-            rejections = self.db.query(func.count()).filter(
-                CleanupCandidateDB.approval_status == 'rejected',
-                CleanupCandidateDB.category == cat,
-                CleanupCandidateDB.size_bytes < min_size_bytes
-            ).scalar() or 0
+            rejections = (
+                self.db.query(func.count())
+                .filter(
+                    CleanupCandidateDB.approval_status == "rejected",
+                    CleanupCandidateDB.category == cat,
+                    CleanupCandidateDB.size_bytes < min_size_bytes,
+                )
+                .scalar()
+                or 0
+            )
 
             approvals = len([s for s in sizes if s >= min_size_bytes])
             total = approvals + rejections
@@ -375,59 +406,60 @@ class ApprovalPatternAnalyzer:
 
             if confidence >= self.min_confidence:
                 # Get sample paths
-                samples = self.db.query(CleanupCandidateDB.path).filter(
-                    CleanupCandidateDB.approval_status == 'approved',
-                    CleanupCandidateDB.category == cat,
-                    CleanupCandidateDB.size_bytes >= min_size_bytes
-                ).limit(5).all()
+                samples = (
+                    self.db.query(CleanupCandidateDB.path)
+                    .filter(
+                        CleanupCandidateDB.approval_status == "approved",
+                        CleanupCandidateDB.category == cat,
+                        CleanupCandidateDB.size_bytes >= min_size_bytes,
+                    )
+                    .limit(5)
+                    .all()
+                )
 
-                size_display = f"{min_size_mb}MB" if min_size_mb < 1024 else f"{min_size_mb / 1024:.1f}GB"
+                size_display = (
+                    f"{min_size_mb}MB" if min_size_mb < 1024 else f"{min_size_mb / 1024:.1f}GB"
+                )
 
-                patterns.append(Pattern(
-                    pattern_type='size_threshold',
-                    pattern_value=str(min_size_bytes),
-                    category=cat,
-                    approvals=approvals,
-                    rejections=rejections,
-                    confidence=confidence,
-                    sample_paths=[s[0] for s in samples],
-                    description=f"Approve {cat} items larger than {size_display}"
-                ))
+                patterns.append(
+                    Pattern(
+                        pattern_type="size_threshold",
+                        pattern_value=str(min_size_bytes),
+                        category=cat,
+                        approvals=approvals,
+                        rejections=rejections,
+                        confidence=confidence,
+                        sample_paths=[s[0] for s in samples],
+                        description=f"Approve {cat} items larger than {size_display}",
+                    )
+                )
 
         return patterns
 
     def _count_rejections_matching_path_pattern(
-        self,
-        pattern_type: str,
-        pattern_value: str,
-        category: Optional[str]
+        self, pattern_type: str, pattern_value: str, category: Optional[str]
     ) -> int:
         """Count rejections matching a path pattern."""
-        query = self.db.query(func.count()).filter(
-            CleanupCandidateDB.approval_status == 'rejected'
-        )
+        query = self.db.query(func.count()).filter(CleanupCandidateDB.approval_status == "rejected")
 
         if category:
             query = query.filter(CleanupCandidateDB.category == category)
 
         # Apply pattern matching
-        if pattern_type == 'parent':
+        if pattern_type == "parent":
             # Path ends with /pattern_value/filename
-            query = query.filter(CleanupCandidateDB.path.like(f'%/{pattern_value}/%'))
-        elif pattern_type == 'grandparent':
+            query = query.filter(CleanupCandidateDB.path.like(f"%/{pattern_value}/%"))
+        elif pattern_type == "grandparent":
             # Path contains grandparent/parent pattern
-            query = query.filter(CleanupCandidateDB.path.like(f'%{pattern_value}%'))
-        elif pattern_type == 'contains':
+            query = query.filter(CleanupCandidateDB.path.like(f"%{pattern_value}%"))
+        elif pattern_type == "contains":
             # Path contains keyword
-            query = query.filter(CleanupCandidateDB.path.like(f'%{pattern_value}%'))
+            query = query.filter(CleanupCandidateDB.path.like(f"%{pattern_value}%"))
 
         return query.scalar() or 0
 
     def create_learned_rule(
-        self,
-        pattern: Pattern,
-        reviewed_by: str,
-        notes: Optional[str] = None
+        self, pattern: Pattern, reviewed_by: str, notes: Optional[str] = None
     ) -> LearnedRule:
         """
         Create a learned rule from a detected pattern.
@@ -442,6 +474,7 @@ class ApprovalPatternAnalyzer:
         """
         # Convert sample paths to JSON string for SQLite compatibility
         import json
+
         sample_paths_json = json.dumps(pattern.sample_paths)
 
         rule = LearnedRule(
@@ -453,11 +486,11 @@ class ApprovalPatternAnalyzer:
             based_on_approvals=pattern.approvals,
             based_on_rejections=pattern.rejections,
             sample_paths=sample_paths_json,
-            status='pending',
+            status="pending",
             reviewed_by=reviewed_by,
             reviewed_at=datetime.now(timezone.utc),
             description=pattern.description,
-            notes=notes
+            notes=notes,
         )
 
         self.db.add(rule)
@@ -468,12 +501,12 @@ class ApprovalPatternAnalyzer:
 
     def get_pending_rules(self) -> List[LearnedRule]:
         """Get all pending learned rules awaiting review."""
-        return self.db.query(LearnedRule).filter(
-            LearnedRule.status == 'pending'
-        ).order_by(
-            LearnedRule.confidence_score.desc(),
-            LearnedRule.created_at.desc()
-        ).all()
+        return (
+            self.db.query(LearnedRule)
+            .filter(LearnedRule.status == "pending")
+            .order_by(LearnedRule.confidence_score.desc(), LearnedRule.created_at.desc())
+            .all()
+        )
 
     def approve_rule(self, rule_id: int, approved_by: str) -> LearnedRule:
         """Approve a learned rule for application to policy."""
@@ -482,7 +515,7 @@ class ApprovalPatternAnalyzer:
         if not rule:
             raise ValueError(f"Learned rule {rule_id} not found")
 
-        rule.status = 'approved'
+        rule.status = "approved"
         rule.reviewed_by = approved_by
         rule.reviewed_at = datetime.now(timezone.utc)
 
@@ -498,7 +531,7 @@ class ApprovalPatternAnalyzer:
         if not rule:
             raise ValueError(f"Learned rule {rule_id} not found")
 
-        rule.status = 'rejected'
+        rule.status = "rejected"
         rule.reviewed_by = rejected_by
         rule.reviewed_at = datetime.now(timezone.utc)
         rule.notes = reason

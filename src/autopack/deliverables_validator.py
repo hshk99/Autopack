@@ -19,6 +19,7 @@ from typing import Dict, List, Set, Tuple, Optional, Any
 
 logger = logging.getLogger(__name__)
 
+
 def sanitize_deliverable_path(raw: str) -> str:
     """
     Normalize deliverable strings that include human annotations.
@@ -47,7 +48,7 @@ def sanitize_deliverable_path(raw: str) -> str:
 
     # BUILD-128: Handle "Documentation in docs/..." format
     if s.startswith("Documentation in "):
-        s = s[len("Documentation in "):].strip()
+        s = s[len("Documentation in ") :].strip()
 
     # BUILD-128: Remove " with " annotations like "requirements.txt updated with pytest-json-report"
     # First split on " with " to remove the description part
@@ -64,7 +65,7 @@ def sanitize_deliverable_path(raw: str) -> str:
     action_verbs = [" updated", " modifications", " modified", " changes", " additions"]
     for verb in action_verbs:
         if s.endswith(verb):
-            s = s[:-len(verb)].rstrip()
+            s = s[: -len(verb)].rstrip()
             break
 
     # Heuristic: if this still doesn't look like a filesystem path, drop it.
@@ -81,6 +82,7 @@ def sanitize_deliverable_path(raw: str) -> str:
         if "." not in basename and basename not in allow_extensionless:
             return ""
     return s_norm
+
 
 def _extract_new_file_contents_from_unified_diff(patch_content: str) -> Dict[str, str]:
     """
@@ -108,7 +110,7 @@ def _extract_new_file_contents_from_unified_diff(patch_content: str) -> Dict[str
             continue
 
         if line.startswith("+++ b/"):
-            current_path = line[len("+++ b/"):].strip()
+            current_path = line[len("+++ b/") :].strip()
             if current_path and in_new_file_block:
                 contents.setdefault(current_path, [])
             continue
@@ -160,7 +162,9 @@ def validate_new_json_deliverables_in_patch(
                         try:
                             json.loads(str(new_content))
                         except Exception as e:
-                            details["invalid_json_files"].append({"path": path, "reason": f"invalid_json: {str(e)[:120]}"})
+                            details["invalid_json_files"].append(
+                                {"path": path, "reason": f"invalid_json: {str(e)[:120]}"}
+                            )
                             errors.append(f"Invalid JSON deliverable ({str(e)[:120]}): {path}")
             return (len(errors) == 0), errors, details
     except Exception:
@@ -179,7 +183,9 @@ def validate_new_json_deliverables_in_patch(
         try:
             json.loads(content)
         except Exception as e:
-            details["invalid_json_files"].append({"path": path, "reason": f"invalid_json: {str(e)[:120]}"})
+            details["invalid_json_files"].append(
+                {"path": path, "reason": f"invalid_json: {str(e)[:120]}"}
+            )
             errors.append(f"Invalid JSON deliverable ({str(e)[:120]}): {path}")
 
     return (len(errors) == 0), errors, details
@@ -240,7 +246,9 @@ def repair_empty_required_json_deliverables_in_patch(
                 if needs_repair:
                     f["new_content"] = minimal_json
                     changed = True
-                    repairs.append({"path": path, "reason": reason, "applied": minimal_json.strip()})
+                    repairs.append(
+                        {"path": path, "reason": reason, "applied": minimal_json.strip()}
+                    )
 
             if changed:
                 return True, json.dumps(data, indent=2), repairs
@@ -259,7 +267,11 @@ def repair_empty_required_json_deliverables_in_patch(
 
     def _flush_block():
         nonlocal block_lines, current_path, in_new_file, saw_content_plus
-        if current_path and in_new_file and normalize_path(current_path, workspace) in expected_json:
+        if (
+            current_path
+            and in_new_file
+            and normalize_path(current_path, workspace) in expected_json
+        ):
             # Determine if the new file content is empty/invalid JSON by collecting '+' lines (excluding headers)
             content_lines: List[str] = []
             for bl in block_lines:
@@ -311,7 +323,11 @@ def repair_empty_required_json_deliverables_in_patch(
                             inserted = True
                     new_block = final_block
                 repairs.append(
-                    {"path": normalize_path(current_path, workspace), "reason": reason, "applied": minimal_json.strip()}
+                    {
+                        "path": normalize_path(current_path, workspace),
+                        "reason": reason,
+                        "applied": minimal_json.strip(),
+                    }
                 )
                 block_lines = new_block
         out.extend(block_lines)
@@ -343,7 +359,7 @@ def repair_empty_required_json_deliverables_in_patch(
         if line.startswith("new file mode") or line.startswith("--- /dev/null"):
             in_new_file = True
         if line.startswith("+++ b/"):
-            current_path = line[len("+++ b/"):].strip()
+            current_path = line[len("+++ b/") :].strip()
 
         if line.startswith("+") and not line.startswith("+++"):
             saw_content_plus = True
@@ -387,9 +403,9 @@ def extract_paths_from_patch(patch_content: str) -> Set[str]:
     # Parse diff format
     # Look for: +++ b/path/to/file.py or diff --git a/path b/path
     diff_patterns = [
-        r'\+\+\+ b/(.+?)(?:\s|$)',  # +++ b/path/to/file.py
-        r'diff --git a/.+ b/(.+?)(?:\s|$)',  # diff --git a/old b/new
-        r'--- /dev/null\s+\+\+\+ b/(.+?)(?:\s|$)',  # New file
+        r"\+\+\+ b/(.+?)(?:\s|$)",  # +++ b/path/to/file.py
+        r"diff --git a/.+ b/(.+?)(?:\s|$)",  # diff --git a/old b/new
+        r"--- /dev/null\s+\+\+\+ b/(.+?)(?:\s|$)",  # New file
     ]
 
     for pattern in diff_patterns:
@@ -549,7 +565,9 @@ def validate_new_file_diffs_have_complete_structure(
                     new_content = f.get("content")
                 if new_content is None:
                     new_content = f.get("contents")
-                if not str(new_content or "").strip() and not any(path.endswith(s) for s in allow_empty_suffixes):
+                if not str(new_content or "").strip() and not any(
+                    path.endswith(s) for s in allow_empty_suffixes
+                ):
                     details["empty_content"].append(path)
                     errors.append(f"New file content empty/missing in structured patch: {path}")
             return (len(errors) == 0), errors, details
@@ -575,26 +593,30 @@ def validate_new_file_diffs_have_complete_structure(
             return
 
         is_new = any(
-            (l.startswith("new file mode") or l.strip() == "--- /dev/null")
-            for l in block_lines
+            (line.startswith("new file mode") or line.strip() == "--- /dev/null")
+            for line in block_lines
         )
         if not is_new:
             return
 
-        has_minus = any(l.startswith("--- ") for l in block_lines)
-        has_plus = any(l.startswith("+++ ") for l in block_lines)
+        has_minus = any(line.startswith("--- ") for line in block_lines)
+        has_plus = any(line.startswith("+++ ") for line in block_lines)
         if not (has_minus and has_plus):
             details["missing_headers"].append(path)
             errors.append(f"New file diff missing ---/+++ headers: {path}")
 
-        has_hunk = any(l.startswith("@@") for l in block_lines)
+        has_hunk = any(line.startswith("@@") for line in block_lines)
         if not has_hunk and not any(path.endswith(s) for s in allow_empty_suffixes):
             details["missing_hunks"].append(path)
-            errors.append(f"New file diff missing @@ hunk header (cannot reconstruct content): {path}")
+            errors.append(
+                f"New file diff missing @@ hunk header (cannot reconstruct content): {path}"
+            )
             return
 
         if has_hunk:
-            has_added = any(l.startswith("+") and not l.startswith("+++") for l in block_lines)
+            has_added = any(
+                line.startswith("+") and not line.startswith("+++") for line in block_lines
+            )
             if not has_added and not any(path.endswith(s) for s in allow_empty_suffixes):
                 details["empty_content"].append(path)
                 errors.append(f"New file diff has hunks but no added content: {path}")
@@ -608,7 +630,7 @@ def validate_new_file_diffs_have_complete_structure(
                 # Prefer b/ path.
                 b_path = parts[3]
                 if b_path.startswith("b/"):
-                    current_path = b_path[len("b/"):]
+                    current_path = b_path[len("b/") :]
                 else:
                     # Fallback: strip leading prefixes if present.
                     current_path = b_path.lstrip("b/").lstrip("a/")
@@ -718,7 +740,9 @@ def validate_deliverables(
     details["allowed_roots"] = allowed_roots
 
     # Optional: strict manifest (if provided by executor for this attempt).
-    manifest_paths_raw = phase_scope.get("deliverables_manifest") if isinstance(phase_scope, dict) else None
+    manifest_paths_raw = (
+        phase_scope.get("deliverables_manifest") if isinstance(phase_scope, dict) else None
+    )
     manifest_set: Set[str] = set()
     manifest_prefixes: List[str] = []
     if isinstance(manifest_paths_raw, list):
@@ -740,7 +764,11 @@ def validate_deliverables(
     details["actual_paths"] = sorted(actual_normalized)
     if touched_paths:
         details["touched_paths"] = sorted(
-            {normalize_path(p, workspace) for p in touched_paths if isinstance(p, str) and p.strip()}
+            {
+                normalize_path(p, workspace)
+                for p in touched_paths
+                if isinstance(p, str) and p.strip()
+            }
         )
 
     # NDJSON + truncation convergence: allow multi-attempt completion.
@@ -789,7 +817,9 @@ def validate_deliverables(
 
     # Detect common "wrong root" patterns and record them for feedback.
     forbidden_roots = ("tracer_bullet/", "src/tracer_bullet/", "tests/tracer_bullet/")
-    detected_forbidden = sorted({r for r in forbidden_roots if any(p.startswith(r) for p in actual_normalized)})
+    detected_forbidden = sorted(
+        {r for r in forbidden_roots if any(p.startswith(r) for p in actual_normalized)}
+    )
     details["forbidden_roots_detected"] = detected_forbidden
 
     logger.info(f"[{phase_id}] Deliverables validation:")
@@ -807,7 +837,10 @@ def validate_deliverables(
     missing_exact = expected_exact - satisfied_exact
     missing_prefixes = []
     for prefix in expected_prefixes:
-        if not any(a.startswith(prefix) for a in actual_normalized) and prefix not in workspace_present_prefixes:
+        if (
+            not any(a.startswith(prefix) for a in actual_normalized)
+            and prefix not in workspace_present_prefixes
+        ):
             missing_prefixes.append(prefix)
     missing = set(missing_exact).union(set(missing_prefixes))
     details["missing_paths"] = sorted(missing)
@@ -825,7 +858,8 @@ def validate_deliverables(
 
     # Hard enforcement: any files outside the allowed roots is a hard deliverables violation.
     outside_allowed = sorted(
-        p for p in actual_normalized
+        p
+        for p in actual_normalized
         if allowed_roots and not any(p.startswith(r) for r in allowed_roots)
     )
     details["paths_outside_allowed_roots"] = outside_allowed
@@ -840,7 +874,9 @@ def validate_deliverables(
             return True
         return any(path.startswith(prefix) for prefix in manifest_prefixes)
 
-    outside_manifest = sorted([p for p in actual_normalized if manifest_set and not _in_manifest(p)])
+    outside_manifest = sorted(
+        [p for p in actual_normalized if manifest_set and not _in_manifest(p)]
+    )
     details["paths_outside_manifest"] = outside_manifest
 
     # Check for potential misplacements (similar filenames in wrong locations)
@@ -859,18 +895,19 @@ def validate_deliverables(
     # - tests/research/tracer_bullet/*
     # then add explicit root-mapping examples into misplaced_paths to drive self-correction.
     if detected_forbidden and missing:
+
         def _map_root(actual: str) -> Optional[str]:
             if actual.startswith("tracer_bullet/"):
-                rel = actual[len("tracer_bullet/"):]
+                rel = actual[len("tracer_bullet/") :]
                 if rel.startswith("tests/"):
-                    rel2 = rel[len("tests/"):]
+                    rel2 = rel[len("tests/") :]
                     return f"tests/research/tracer_bullet/{rel2}"
                 return f"src/autopack/research/tracer_bullet/{rel}"
             if actual.startswith("src/tracer_bullet/"):
-                rel = actual[len("src/tracer_bullet/"):]
+                rel = actual[len("src/tracer_bullet/") :]
                 return f"src/autopack/research/tracer_bullet/{rel}"
             if actual.startswith("tests/tracer_bullet/"):
-                rel = actual[len("tests/tracer_bullet/"):]
+                rel = actual[len("tests/tracer_bullet/") :]
                 return f"tests/research/tracer_bullet/{rel}"
             return None
 
@@ -894,9 +931,9 @@ def validate_deliverables(
             errors.append(f"  ... and {len(missing) - 5} more")
 
     if details["misplaced_paths"]:
-        errors.append(f"\n⚠️  File placement issue detected:")
-        errors.append(f"   Builder created files in wrong locations.")
-        errors.append(f"   Please verify file paths match the deliverables specification.")
+        errors.append("\n⚠️  File placement issue detected:")
+        errors.append("   Builder created files in wrong locations.")
+        errors.append("   Please verify file paths match the deliverables specification.")
 
     if outside_allowed:
         errors.append("\n🚫 Files created OUTSIDE allowed roots (hard violation):")
@@ -922,7 +959,9 @@ def validate_deliverables(
     if is_valid:
         logger.info(f"[{phase_id}] ✅ Deliverables validation PASSED")
         if extra:
-            logger.info(f"[{phase_id}]    Note: {len(extra)} additional files created (not required)")
+            logger.info(
+                f"[{phase_id}]    Note: {len(extra)} additional files created (not required)"
+            )
     else:
         logger.error(f"[{phase_id}] ❌ Deliverables validation FAILED")
         for error in errors:
@@ -932,9 +971,7 @@ def validate_deliverables(
 
 
 def format_validation_feedback_for_builder(
-    errors: List[str],
-    details: Dict[str, Any],
-    phase_description: str
+    errors: List[str], details: Dict[str, Any], phase_description: str
 ) -> str:
     """Format validation errors as feedback for Builder to self-correct
 
@@ -1024,7 +1061,9 @@ def format_validation_feedback_for_builder(
     if invalid_json_files:
         feedback.append("🧾 JSON DELIVERABLE CONTENT REQUIREMENTS:")
         feedback.append("- JSON deliverable files must be non-empty valid JSON.")
-        feedback.append("- Minimal acceptable placeholder is `[]` (empty array) or `{}` (empty object).")
+        feedback.append(
+            "- Minimal acceptable placeholder is `[]` (empty array) or `{}` (empty object)."
+        )
         feedback.append("- Do NOT leave JSON files blank.")
         for item in invalid_json_files[:5]:
             p = item.get("path")
@@ -1067,7 +1106,7 @@ def _validate_python_symbols(file_path: Path, expected_symbols: List[str], path:
     issues = []
 
     try:
-        content = file_path.read_text(encoding='utf-8')
+        content = file_path.read_text(encoding="utf-8")
 
         # Try AST parsing first (most robust)
         try:
@@ -1087,7 +1126,9 @@ def _validate_python_symbols(file_path: Path, expected_symbols: List[str], path:
         except SyntaxError:
             # Fallback to substring search if AST parsing fails (syntax errors)
             # This is acceptable because syntax errors will be caught by CI anyway
-            logger.warning(f"[ManifestValidator] AST parsing failed for {path}, falling back to substring search")
+            logger.warning(
+                f"[ManifestValidator] AST parsing failed for {path}, falling back to substring search"
+            )
             for symbol in expected_symbols:
                 if symbol not in content:
                     issues.append(f"{path} missing expected symbol: {symbol}")
@@ -1117,7 +1158,7 @@ def extract_manifest_from_output(output: str) -> Optional[Dict]:
     import re
 
     # Look for DELIVERABLES_MANIFEST marker
-    pattern = r'DELIVERABLES_MANIFEST:\s*```json\s*(\{.*?\})\s*```'
+    pattern = r"DELIVERABLES_MANIFEST:\s*```json\s*(\{.*?\})\s*```"
     match = re.search(pattern, output, re.DOTALL | re.IGNORECASE)
 
     if not match:
@@ -1132,9 +1173,7 @@ def extract_manifest_from_output(output: str) -> Optional[Dict]:
 
 
 def validate_structured_manifest(
-    manifest: Dict,
-    workspace: Path,
-    expected_deliverables: Optional[List[str]] = None
+    manifest: Dict, workspace: Path, expected_deliverables: Optional[List[str]] = None
 ) -> Tuple[bool, List[str]]:
     """Validate Builder's deliverables manifest (BUILD-127 Phase 3).
 
@@ -1223,10 +1262,7 @@ def validate_structured_manifest(
         # Check for missing deliverables
         for expected in expected_normalized:
             # Allow partial matches (e.g., tests/ directory matches test_foo.py)
-            if not any(
-                path == expected or path.startswith(expected)
-                for path in manifest_paths
-            ):
+            if not any(path == expected or path.startswith(expected) for path in manifest_paths):
                 issues.append(f"Expected deliverable not in manifest: {expected}")
 
     passed = len(issues) == 0

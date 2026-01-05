@@ -8,15 +8,20 @@ and gracefully degrade when anchor is missing.
 """
 
 import tempfile
-from pathlib import Path
-from typing import Dict, List, Optional
-from unittest.mock import MagicMock
-
 import pytest
+
 
 from autopack.intention_anchor import IntentionConstraints, create_anchor, save_anchor
 from autopack.llm_service import LlmService
 from autopack.error_recovery import DoctorRequest
+
+
+@pytest.fixture(autouse=True)
+def mock_llm_api_keys(monkeypatch):
+    """Set dummy API keys for all LLM provider tests."""
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-test-dummy-key-for-testing-only")
+    monkeypatch.setenv("GOOGLE_API_KEY", "test-dummy-google-key")
+    monkeypatch.setenv("GLM_API_KEY", "test-dummy-glm-key")
 
 
 # =============================================================================
@@ -53,6 +58,7 @@ def test_openai_builder_prompt_includes_anchor():
 
         # Temporarily change working directory to tmpdir
         import os
+
         original_cwd = os.getcwd()
         try:
             os.chdir(tmpdir)
@@ -96,6 +102,7 @@ def test_gemini_builder_prompt_includes_anchor():
 
         # Temporarily change working directory to tmpdir
         import os
+
         original_cwd = os.getcwd()
         try:
             os.chdir(tmpdir)
@@ -138,6 +145,7 @@ def test_glm_builder_prompt_includes_anchor():
 
         # Temporarily change working directory to tmpdir
         import os
+
         original_cwd = os.getcwd()
         try:
             os.chdir(tmpdir)
@@ -161,9 +169,7 @@ def test_anthropic_builder_prompt_includes_anchor():
             project_id="test-project",
             north_star="Refactor authentication system.",
             success_criteria=["Use JWT tokens", "Add refresh mechanism"],
-            constraints=IntentionConstraints(
-                must_not=["Break existing integrations"]
-            ),
+            constraints=IntentionConstraints(must_not=["Break existing integrations"]),
         )
         save_anchor(anchor, base_dir=tmpdir)
 
@@ -184,6 +190,7 @@ def test_anthropic_builder_prompt_includes_anchor():
 
         # Temporarily change working directory to tmpdir
         import os
+
         original_cwd = os.getcwd()
         try:
             os.chdir(tmpdir)
@@ -235,6 +242,7 @@ def test_openai_auditor_prompt_includes_anchor():
 
         # Temporarily change working directory to tmpdir
         import os
+
         original_cwd = os.getcwd()
         try:
             os.chdir(tmpdir)
@@ -278,6 +286,7 @@ def test_gemini_auditor_prompt_includes_anchor():
 
         # Temporarily change working directory to tmpdir
         import os
+
         original_cwd = os.getcwd()
         try:
             os.chdir(tmpdir)
@@ -321,6 +330,7 @@ def test_glm_auditor_prompt_includes_anchor():
 
         # Temporarily change working directory to tmpdir
         import os
+
         original_cwd = os.getcwd()
         try:
             os.chdir(tmpdir)
@@ -345,9 +355,7 @@ def test_anthropic_auditor_prompt_includes_anchor():
             run_id="test-anthropic-auditor",
             project_id="test-project",
             north_star="Maintain API backwards compatibility.",
-            constraints=IntentionConstraints(
-                must_not=["Change existing API response formats"]
-            ),
+            constraints=IntentionConstraints(must_not=["Change existing API response formats"]),
         )
         save_anchor(anchor, base_dir=tmpdir)
 
@@ -366,6 +374,7 @@ def test_anthropic_auditor_prompt_includes_anchor():
 
         # Temporarily change working directory to tmpdir
         import os
+
         original_cwd = os.getcwd()
         try:
             os.chdir(tmpdir)
@@ -403,6 +412,7 @@ def test_doctor_prompt_includes_anchor():
 
         # Create LlmService with mock db
         from unittest.mock import MagicMock
+
         mock_db = MagicMock()
         service = LlmService(db=mock_db)
 
@@ -418,14 +428,13 @@ def test_doctor_prompt_includes_anchor():
                 "total_failures": 2,
                 "total_cap": 25,
             },
-            patch_errors=[
-                {"error_type": "syntax_error", "message": "Invalid syntax at line 42"}
-            ],
+            patch_errors=[{"error_type": "syntax_error", "message": "Invalid syntax at line 42"}],
             last_patch="diff --git a/test.py b/test.py\n+invalid syntax here",
         )
 
         # Temporarily change working directory to tmpdir
         import os
+
         original_cwd = os.getcwd()
         try:
             os.chdir(tmpdir)
@@ -463,6 +472,7 @@ def test_builder_prompt_without_anchor_degrades_gracefully():
 
         # Temporarily change working directory to tmpdir
         import os
+
         original_cwd = os.getcwd()
         try:
             os.chdir(tmpdir)
@@ -495,6 +505,7 @@ def test_auditor_prompt_without_anchor_degrades_gracefully():
 
         # Temporarily change working directory to tmpdir
         import os
+
         original_cwd = os.getcwd()
         try:
             os.chdir(tmpdir)
@@ -518,6 +529,7 @@ def test_doctor_prompt_without_anchor_degrades_gracefully():
         # Don't create anchor
 
         from unittest.mock import MagicMock
+
         mock_db = MagicMock()
         service = LlmService(db=mock_db)
 
@@ -536,6 +548,7 @@ def test_doctor_prompt_without_anchor_degrades_gracefully():
 
         # Temporarily change working directory to tmpdir
         import os
+
         original_cwd = os.getcwd()
         try:
             os.chdir(tmpdir)
@@ -566,6 +579,7 @@ def test_prompt_without_run_id_degrades_gracefully():
 
         # Temporarily change working directory to tmpdir
         import os
+
         original_cwd = os.getcwd()
         try:
             os.chdir(tmpdir)

@@ -44,7 +44,7 @@ class TestRetrievalTriggerInsufficientBundle:
         minimal_bundle = {
             "error_message": "Error",  # Too short (<20 chars)
             "stack_trace": "",
-            "recent_changes": []
+            "recent_changes": [],
         }
         result = trigger.should_escalate(minimal_bundle, "phase_001", 1)
         assert result is True
@@ -55,7 +55,7 @@ class TestRetrievalTriggerInsufficientBundle:
             "error_message": "Detailed error message with context and information",
             "stack_trace": "Traceback (most recent call last):\n  File test.py line 10\n" * 3,
             "recent_changes": ["file1.py", "file2.py"],
-            "root_cause": "Specific root cause identified in module X"
+            "root_cause": "Specific root cause identified in module X",
         }
         result = trigger.should_escalate(sufficient_bundle, "phase_001", 1)
         assert result is False
@@ -65,7 +65,7 @@ class TestRetrievalTriggerInsufficientBundle:
         bundle = {
             "error_message": "Detailed error message with sufficient context",
             "stack_trace": "",
-            "recent_changes": []
+            "recent_changes": [],
         }
         # Should not trigger if error message is detailed enough
         result = trigger.should_escalate(bundle, "phase_001", 1)
@@ -77,7 +77,7 @@ class TestRetrievalTriggerInsufficientBundle:
         bundle = {
             "error_message": "",
             "stack_trace": "",
-            "recent_changes": ["file1.py", "file2.py", "file3.py"]
+            "recent_changes": ["file1.py", "file2.py", "file3.py"],
         }
         # Should not trigger if changes are present
         result = trigger.should_escalate(bundle, "phase_001", 1)
@@ -105,7 +105,7 @@ class TestRetrievalTriggerActionableContext:
         bundle = {
             "error_message": "An unknown error occurred",
             "stack_trace": "Some trace",
-            "root_cause": "Unknown"
+            "root_cause": "Unknown",
         }
         result = trigger.should_escalate(bundle, "phase_001", 1)
         assert result is True
@@ -115,7 +115,7 @@ class TestRetrievalTriggerActionableContext:
         bundle = {
             "error_message": "Internal error occurred",
             "stack_trace": "Some trace",
-            "root_cause": "Internal"
+            "root_cause": "Internal",
         }
         result = trigger.should_escalate(bundle, "phase_001", 1)
         assert result is True
@@ -125,7 +125,7 @@ class TestRetrievalTriggerActionableContext:
         bundle = {
             "error_message": "Something went wrong during execution",
             "stack_trace": "Some trace",
-            "root_cause": "Something went wrong"
+            "root_cause": "Something went wrong",
         }
         result = trigger.should_escalate(bundle, "phase_001", 1)
         assert result is True
@@ -135,7 +135,7 @@ class TestRetrievalTriggerActionableContext:
         bundle = {
             "error_message": "Error",  # Only 5 chars
             "stack_trace": "Some trace",
-            "root_cause": "Specific cause"
+            "root_cause": "Specific cause",
         }
         result = trigger.should_escalate(bundle, "phase_001", 1)
         assert result is True
@@ -145,7 +145,7 @@ class TestRetrievalTriggerActionableContext:
         bundle = {
             "error_message": "FileNotFoundError: Could not find config.yaml in /path/to/dir",
             "stack_trace": "Traceback..." * 10,
-            "root_cause": "Missing configuration file config.yaml"
+            "root_cause": "Missing configuration file config.yaml",
         }
         result = trigger.should_escalate(bundle, "phase_001", 1)
         assert result is False
@@ -176,7 +176,7 @@ class TestRetrievalTriggerRepeatedFailures:
 
         bundle = {
             "error_message": "Detailed error message with context",
-            "root_cause": "Specific root cause identified"
+            "root_cause": "Specific root cause identified",
         }
         result = trigger.should_escalate(bundle, "phase_001", 2)
         assert result is True
@@ -185,7 +185,7 @@ class TestRetrievalTriggerRepeatedFailures:
         """Test that first attempt does not trigger repeated failure check."""
         bundle = {
             "error_message": "Detailed error message with context",
-            "root_cause": "Specific root cause identified"
+            "root_cause": "Specific root cause identified",
         }
         result = trigger.should_escalate(bundle, "phase_001", 1)
         # Should not trigger on attempt 1 (no repeated failures yet)
@@ -200,7 +200,7 @@ class TestRetrievalTriggerRepeatedFailures:
 
         bundle = {
             "error_message": "Detailed error message with context",
-            "root_cause": "Specific root cause identified"
+            "root_cause": "Specific root cause identified",
         }
         result = trigger.should_escalate(bundle, "phase_001", 2)
         # Should not trigger if no failure markers in logs
@@ -227,7 +227,7 @@ class TestRetrievalTriggerRootCause:
         bundle = {
             "error_message": "Detailed error message with context",
             "stack_trace": "Traceback..." * 10,
-            "root_cause": ""  # Missing
+            "root_cause": "",  # Missing
         }
         result = trigger.should_escalate(bundle, "phase_001", 1)
         assert result is True
@@ -237,7 +237,7 @@ class TestRetrievalTriggerRootCause:
         bundle = {
             "error_message": "Detailed error message with context",
             "stack_trace": "Traceback..." * 10,
-            "root_cause": "Unknown cause"
+            "root_cause": "Unknown cause",
         }
         result = trigger.should_escalate(bundle, "phase_001", 1)
         assert result is True
@@ -247,7 +247,7 @@ class TestRetrievalTriggerRootCause:
         bundle = {
             "error_message": "Detailed error message with context",
             "stack_trace": "Traceback..." * 10,
-            "root_cause": "Needs further investigation"
+            "root_cause": "Needs further investigation",
         }
         result = trigger.should_escalate(bundle, "phase_001", 1)
         assert result is True
@@ -257,7 +257,7 @@ class TestRetrievalTriggerRootCause:
         bundle = {
             "error_message": "Detailed error message with context",
             "stack_trace": "Traceback..." * 10,
-            "root_cause": "Error"  # Only 5 chars
+            "root_cause": "Error",  # Only 5 chars
         }
         result = trigger.should_escalate(bundle, "phase_001", 1)
         assert result is True
@@ -267,7 +267,7 @@ class TestRetrievalTriggerRootCause:
         bundle = {
             "error_message": "FileNotFoundError: config.yaml not found",
             "stack_trace": "Traceback..." * 10,
-            "root_cause": "Missing configuration file config.yaml in expected directory /etc/app"
+            "root_cause": "Missing configuration file config.yaml in expected directory /etc/app",
         }
         result = trigger.should_escalate(bundle, "phase_001", 1)
         assert result is False
@@ -293,7 +293,7 @@ class TestRetrievalTriggerPriority:
         bundle = {
             "error_message": "Error",  # Too short (trigger 1)
             "stack_trace": "",
-            "root_cause": "Unknown"  # Unclear (trigger 2)
+            "root_cause": "Unknown",  # Unclear (trigger 2)
         }
         priority = trigger.get_retrieval_priority(bundle)
         assert priority == "high"
@@ -303,7 +303,7 @@ class TestRetrievalTriggerPriority:
         bundle = {
             "error_message": "Detailed error message with sufficient context",
             "stack_trace": "Traceback..." * 10,
-            "root_cause": "Unknown"  # Only this triggers
+            "root_cause": "Unknown",  # Only this triggers
         }
         priority = trigger.get_retrieval_priority(bundle)
         assert priority == "medium"
@@ -313,7 +313,7 @@ class TestRetrievalTriggerPriority:
         bundle = {
             "error_message": "FileNotFoundError: config.yaml not found in /path",
             "stack_trace": "Traceback..." * 10,
-            "root_cause": "Missing configuration file config.yaml in expected directory"
+            "root_cause": "Missing configuration file config.yaml in expected directory",
         }
         priority = trigger.get_retrieval_priority(bundle)
         assert priority == "low"
@@ -323,7 +323,7 @@ class TestRetrievalTriggerPriority:
         bundle = {
             "error_message": "",  # Empty (trigger 1)
             "stack_trace": "",
-            "root_cause": ""  # Empty (trigger 2)
+            "root_cause": "",  # Empty (trigger 2)
         }
         priority = trigger.get_retrieval_priority(bundle)
         assert priority == "high"
@@ -401,7 +401,7 @@ class TestRetrievalTriggerEdgeCases:
         """Test that unicode characters in error messages are handled."""
         bundle = {
             "error_message": "Error: File 'café.txt' not found 🔍",
-            "root_cause": "Missing file with unicode name"
+            "root_cause": "Missing file with unicode name",
         }
         result = trigger.should_escalate(bundle, "phase_001", 1)
         assert isinstance(result, bool)
@@ -410,17 +410,14 @@ class TestRetrievalTriggerEdgeCases:
         """Test that very long error messages are handled."""
         bundle = {
             "error_message": "Error: " + "X" * 10000,  # 10KB error message
-            "root_cause": "Specific cause"
+            "root_cause": "Specific cause",
         }
         result = trigger.should_escalate(bundle, "phase_001", 1)
         assert isinstance(result, bool)
 
     def test_handles_missing_log_files(self, trigger):
         """Test that missing log files don't cause errors."""
-        bundle = {
-            "error_message": "Detailed error message",
-            "root_cause": "Specific cause"
-        }
+        bundle = {"error_message": "Detailed error message", "root_cause": "Specific cause"}
         # No log files exist
         result = trigger.should_escalate(bundle, "phase_001", 2)
         assert isinstance(result, bool)
@@ -431,10 +428,7 @@ class TestRetrievalTriggerEdgeCases:
         log = temp_run_dir / "phase_001.log"
         log.write_bytes(b"\x80\x81\x82\x83")  # Invalid UTF-8
 
-        bundle = {
-            "error_message": "Detailed error message",
-            "root_cause": "Specific cause"
-        }
+        bundle = {"error_message": "Detailed error message", "root_cause": "Specific cause"}
         result = trigger.should_escalate(bundle, "phase_001", 2)
         # Should handle read errors gracefully
         assert isinstance(result, bool)

@@ -42,9 +42,7 @@ class TestRollbackSmoke:
 
             # Should not raise exception with rollback params
             governed_apply = GovernedApplyPath(
-                workspace=workspace,
-                run_id="test-run",
-                phase_id="test-phase"
+                workspace=workspace, run_id="test-run", phase_id="test-phase"
             )
 
             assert governed_apply is not None
@@ -67,7 +65,6 @@ class TestRollbackSmoke:
     def test_rollback_manager_requires_workspace_and_ids(self):
         """RollbackManager should require workspace, run_id, and phase_id"""
         from autopack.rollback_manager import RollbackManager
-        from pathlib import Path
 
         with pytest.raises(TypeError):
             # Should fail without required args
@@ -81,9 +78,7 @@ class TestRollbackSmoke:
 
         with tempfile.TemporaryDirectory() as tmpdir:
             manager = RollbackManager(
-                workspace=Path(tmpdir),
-                run_id="test-run",
-                phase_id="test-phase"
+                workspace=Path(tmpdir), run_id="test-run", phase_id="test-phase"
             )
 
             assert manager.workspace == Path(tmpdir)
@@ -99,7 +94,7 @@ class TestRollbackSmoke:
             "create_savepoint",
             "rollback_to_savepoint",
             "cleanup_savepoint",
-            "cleanup_old_savepoints"
+            "cleanup_old_savepoints",
         ]
 
         for method_name in required_methods:
@@ -111,7 +106,8 @@ class TestRollbackSmoke:
 
         # Reload settings to pick up env var
         from autopack.config import Settings
-        settings = Settings()
+
+        Settings()
 
         # Pydantic should parse "true" string as boolean
         # Note: Pydantic accepts "true", "1", "yes", "on" as truthy values
@@ -128,7 +124,7 @@ class TestRollbackSmoke:
         build_history = Path("docs/BUILD_HISTORY.md")
         assert build_history.exists()
 
-        content = build_history.read_text(encoding='utf-8')
+        content = build_history.read_text(encoding="utf-8")
         assert "BUILD-145" in content
 
     def test_rollback_protected_paths_not_touched(self):

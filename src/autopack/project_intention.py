@@ -67,9 +67,17 @@ class ProjectIntention:
         """Create from dictionary."""
         # Filter to known fields to avoid TypeErrors
         known_fields = {
-            "project_id", "created_at", "raw_input_digest", "intent_anchor",
-            "intent_facts", "non_goals", "acceptance_criteria", "constraints",
-            "toolchain_hypotheses", "open_questions", "schema_version"
+            "project_id",
+            "created_at",
+            "raw_input_digest",
+            "intent_anchor",
+            "intent_facts",
+            "non_goals",
+            "acceptance_criteria",
+            "constraints",
+            "toolchain_hypotheses",
+            "open_questions",
+            "schema_version",
         }
         filtered = {k: v for k, v in data.items() if k in known_fields}
         return cls(**filtered)
@@ -137,7 +145,7 @@ class ProjectIntentionManager:
 
         # Add truncated raw input
         if raw_input:
-            truncated_input = raw_input[:max_chars // 2].strip()
+            truncated_input = raw_input[: max_chars // 2].strip()
             lines.append("## Original Input")
             lines.append(truncated_input)
             lines.append("")
@@ -152,7 +160,7 @@ class ProjectIntentionManager:
         # Join and enforce cap
         anchor = "\n".join(lines)
         if len(anchor) > max_chars:
-            anchor = anchor[:max_chars - 20] + "\n\n[truncated...]"
+            anchor = anchor[: max_chars - 20] + "\n\n[truncated...]"
 
         return anchor
 
@@ -250,8 +258,7 @@ class ProjectIntentionManager:
         # Write JSON artifact
         json_path = self._get_intention_json_path()
         json_path.write_text(
-            json.dumps(intention.to_dict(), indent=2, ensure_ascii=False),
-            encoding="utf-8"
+            json.dumps(intention.to_dict(), indent=2, ensure_ascii=False), encoding="utf-8"
         )
         paths["json"] = json_path
         logger.debug(f"[ProjectIntention] Wrote JSON: {json_path}")
@@ -291,7 +298,7 @@ class ProjectIntentionManager:
             author="ProjectIntentionManager",
             reason="Initial project intention capture",
             summary=f"Project intention: {len(intention.intent_facts)} facts, "
-                    f"{len(intention.acceptance_criteria)} criteria",
+            f"{len(intention.acceptance_criteria)} criteria",
             status="active",
             timestamp=intention.created_at,
         )
@@ -393,7 +400,7 @@ class ProjectIntentionManager:
             anchor = intention.intent_anchor
             if len(anchor) <= max_chars:
                 return anchor
-            return anchor[:max_chars - 20] + "\n\n[truncated...]"
+            return anchor[: max_chars - 20] + "\n\n[truncated...]"
 
         # Try memory fallback
         result = self.retrieve_intention_from_memory()
@@ -403,7 +410,7 @@ class ProjectIntentionManager:
             if content_preview:
                 if len(content_preview) <= max_chars:
                     return content_preview
-                return content_preview[:max_chars - 20] + "\n\n[truncated...]"
+                return content_preview[: max_chars - 20] + "\n\n[truncated...]"
 
         logger.debug("[ProjectIntention] No intention context available")
         return ""

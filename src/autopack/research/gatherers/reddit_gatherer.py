@@ -2,14 +2,13 @@ import praw
 from autopack.research.gatherers.rate_limiter import RateLimiter
 from autopack.research.gatherers.error_handler import error_handler
 
+
 class RedditGatherer:
     """Gathers data from Reddit communities."""
 
     def __init__(self, client_id, client_secret, user_agent):
         self.reddit = praw.Reddit(
-            client_id=client_id,
-            client_secret=client_secret,
-            user_agent=user_agent
+            client_id=client_id, client_secret=client_secret, user_agent=user_agent
         )
         self.rate_limiter = RateLimiter()
 
@@ -36,6 +35,7 @@ class RedditGatherer:
         self.rate_limiter.wait()
         subreddit = self.reddit.subreddit(subreddit_name)
         return [post for post in subreddit.hot(limit=10)]
+
 
 if __name__ == "__main__":
     # Example usage (guarded to avoid side effects on import / during pytest collection)

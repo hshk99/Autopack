@@ -12,17 +12,14 @@ Validates:
 
 import tempfile
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
-import pytest
 
 from autopack.plan_normalizer import (
     PlanNormalizer,
-    NormalizationResult,
     normalize_plan,
     DEFAULT_TOKEN_CAP,
 )
-from autopack.repo_scanner import RepoScanner
 
 
 class TestDeliverableExtraction:
@@ -211,6 +208,7 @@ class TestScopeGrounding:
     def teardown_method(self):
         """Clean up test workspace."""
         import shutil
+
         shutil.rmtree(self.tmpdir, ignore_errors=True)
 
     def test_ground_scope_uses_repo_scanner(self):
@@ -259,10 +257,7 @@ class TestScopeGrounding:
         default_scope = normalizer._get_default_scope_for_category("frontend", repo_structure)
 
         assert len(default_scope) > 0
-        assert all(
-            f.endswith((".tsx", ".jsx", ".ts", ".js", ".css"))
-            for f in default_scope
-        )
+        assert all(f.endswith((".tsx", ".jsx", ".ts", ".js", ".css")) for f in default_scope)
 
     def test_get_default_scope_for_testing(self):
         """Test default scope for testing category."""
@@ -286,6 +281,7 @@ class TestValidationStepInference:
     def teardown_method(self):
         """Clean up test workspace."""
         import shutil
+
         shutil.rmtree(self.tmpdir, ignore_errors=True)
 
     def test_infer_pytest_for_python(self):
@@ -358,6 +354,7 @@ class TestPlanNormalization:
     def teardown_method(self):
         """Clean up test workspace."""
         import shutil
+
         shutil.rmtree(self.tmpdir, ignore_errors=True)
 
     def test_normalize_success(self):
@@ -520,6 +517,7 @@ class TestConvenienceFunction:
     def teardown_method(self):
         """Clean up test workspace."""
         import shutil
+
         shutil.rmtree(self.tmpdir, ignore_errors=True)
 
     def test_normalize_plan_convenience_function(self):

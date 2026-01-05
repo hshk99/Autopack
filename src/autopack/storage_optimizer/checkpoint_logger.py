@@ -26,6 +26,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class ExecutionCheckpoint:
     """Single execution checkpoint record."""
+
     run_id: str
     candidate_id: Optional[int]
     action: str  # 'delete' | 'compress' | 'skip'
@@ -108,10 +109,13 @@ class CheckpointLogger:
         """
         try:
             import psycopg2
+
             self.pg = psycopg2.connect(self.dsn)
             logger.info("✓ CheckpointLogger: Connected to PostgreSQL")
         except Exception as e:
-            logger.warning(f"CheckpointLogger: PostgreSQL unavailable, using JSONL fallback only: {e}")
+            logger.warning(
+                f"CheckpointLogger: PostgreSQL unavailable, using JSONL fallback only: {e}"
+            )
             self.pg = None
 
     def log_execution(
@@ -125,7 +129,7 @@ class CheckpointLogger:
         status: str,
         error: Optional[str] = None,
         lock_type: Optional[str] = None,
-        retry_count: int = 0
+        retry_count: int = 0,
     ):
         """
         Log an execution checkpoint.
@@ -152,7 +156,7 @@ class CheckpointLogger:
             status=status,
             error=error,
             lock_type=lock_type,
-            retry_count=retry_count
+            retry_count=retry_count,
         )
 
         # Try PostgreSQL first
@@ -190,8 +194,8 @@ class CheckpointLogger:
                 checkpoint.error,
                 checkpoint.lock_type,
                 checkpoint.retry_count,
-                checkpoint.timestamp
-            )
+                checkpoint.timestamp,
+            ),
         )
 
         self.pg.commit()
@@ -227,7 +231,7 @@ class CheckpointLogger:
                       AND sha256 IS NOT NULL
                       AND timestamp >= NOW() - INTERVAL '%s days'
                     """,
-                    (lookback_days,)
+                    (lookback_days,),
                 )
 
                 for row in cursor.fetchall():
@@ -237,7 +241,9 @@ class CheckpointLogger:
                 return deleted_checksums
 
             except Exception as e:
-                logger.warning(f"Failed to query PostgreSQL for deleted checksums: {e}, falling back to JSONL")
+                logger.warning(
+                    f"Failed to query PostgreSQL for deleted checksums: {e}, falling back to JSONL"
+                )
                 # Fall through to JSONL fallback
 
         # Fallback to JSONL parsing
@@ -256,7 +262,10 @@ class CheckpointLogger:
                                 continue  # Too old
 
                             # Check if deleted
-                            if record.get("action") == "delete" and record.get("status") == "completed":
+                            if (
+                                record.get("action") == "delete"
+                                and record.get("status") == "completed"
+                            ):
                                 sha256 = record.get("sha256")
                                 if sha256:
                                     deleted_checksums.add(sha256)
@@ -294,23 +303,27 @@ class CheckpointLogger:
                     ORDER BY timestamp DESC
                     LIMIT 100
                     """,
-                    (lookback_days,)
+                    (lookback_days,),
                 )
 
                 for row in cursor.fetchall():
-                    failures.append({
-                        "path": row[0],
-                        "error": row[1],
-                        "lock_type": row[2],
-                        "retry_count": row[3],
-                        "timestamp": row[4].isoformat() if row[4] else None
-                    })
+                    failures.append(
+                        {
+                            "path": row[0],
+                            "error": row[1],
+                            "lock_type": row[2],
+                            "retry_count": row[3],
+                            "timestamp": row[4].isoformat() if row[4] else None,
+                        }
+                    )
 
                 cursor.close()
                 return failures
 
             except Exception as e:
-                logger.warning(f"Failed to query PostgreSQL for failures: {e}, falling back to JSONL")
+                logger.warning(
+                    f"Failed to query PostgreSQL for failures: {e}, falling back to JSONL"
+                )
                 # Fall through to JSONL fallback
 
         # Fallback to JSONL parsing
@@ -330,13 +343,15 @@ class CheckpointLogger:
 
                             # Check if failed
                             if record.get("status") == "failed":
-                                failures.append({
-                                    "path": record.get("path"),
-                                    "error": record.get("error"),
-                                    "lock_type": record.get("lock_type"),
-                                    "retry_count": record.get("retry_count", 0),
-                                    "timestamp": record.get("timestamp")
-                                })
+                                failures.append(
+                                    {
+                                        "path": record.get("path"),
+                                        "error": record.get("error"),
+                                        "lock_type": record.get("lock_type"),
+                                        "retry_count": record.get("retry_count", 0),
+                                        "timestamp": record.get("timestamp"),
+                                    }
+                                )
 
                         except (json.JSONDecodeError, ValueError):
                             continue  # Skip malformed lines
@@ -359,6 +374,7 @@ class CheckpointLogger:
 # SHA256 Utility
 # ==============================================================================
 
+
 def compute_sha256(file_path: Path) -> Optional[str]:
     """
     Compute SHA256 checksum for a file.
@@ -377,13 +393,13 @@ def compute_sha256(file_path: Path) -> Optional[str]:
         # This gives a content-addressable identifier for directory state
         try:
             file_list = []
-            for f in sorted(file_path.rglob('*')):
+            for f in sorted(file_path.rglob("*")):
                 if f.is_file():
                     rel_path = f.relative_to(file_path)
                     size = f.stat().st_size
                     file_list.append(f"{rel_path}:{size}")
 
-            content = "\n".join(file_list).encode('utf-8')
+            content = "\n".join(file_list).encode("utf-8")
             return hashlib.sha256(content).hexdigest()
 
         except Exception:

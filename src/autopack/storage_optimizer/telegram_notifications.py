@@ -17,8 +17,7 @@ Usage:
 
 import logging
 import requests
-from typing import Dict, Optional
-from datetime import datetime
+from typing import Dict
 from autopack.notifications.telegram_notifier import TelegramNotifier
 from autopack.models import StorageScan
 
@@ -28,11 +27,7 @@ logger = logging.getLogger(__name__)
 class StorageTelegramNotifier(TelegramNotifier):
     """Telegram notifications for storage scans."""
 
-    def send_scan_completion(
-        self,
-        scan: StorageScan,
-        category_stats: Dict[str, Dict]
-    ) -> bool:
+    def send_scan_completion(self, scan: StorageScan, category_stats: Dict[str, Dict]) -> bool:
         """
         Send scan completion notification with approval buttons.
 
@@ -58,33 +53,26 @@ class StorageTelegramNotifier(TelegramNotifier):
         keyboard = {
             "inline_keyboard": [
                 [
-                    {
-                        "text": "✅ Approve All",
-                        "callback_data": f"storage_approve_all:{scan.id}"
-                    },
-                    {
-                        "text": "👀 View Details",
-                        "callback_data": f"storage_details:{scan.id}"
-                    }
+                    {"text": "✅ Approve All", "callback_data": f"storage_approve_all:{scan.id}"},
+                    {"text": "👀 View Details", "callback_data": f"storage_details:{scan.id}"},
                 ],
-                [
-                    {
-                        "text": "⏭️ Skip This Scan",
-                        "callback_data": f"storage_skip:{scan.id}"
-                    }
-                ]
+                [{"text": "⏭️ Skip This Scan", "callback_data": f"storage_skip:{scan.id}"}],
             ]
         }
 
         try:
             url = f"https://api.telegram.org/bot{self.bot_token}/sendMessage"
 
-            response = requests.post(url, json={
-                "chat_id": self.chat_id,
-                "text": message,
-                "parse_mode": "Markdown",
-                "reply_markup": keyboard
-            }, timeout=10)
+            response = requests.post(
+                url,
+                json={
+                    "chat_id": self.chat_id,
+                    "text": message,
+                    "parse_mode": "Markdown",
+                    "reply_markup": keyboard,
+                },
+                timeout=10,
+            )
 
             if response.status_code == 200:
                 logger.info(f"[Telegram] Scan notification sent for scan {scan.id}")
@@ -98,12 +86,7 @@ class StorageTelegramNotifier(TelegramNotifier):
             return False
 
     def send_execution_complete(
-        self,
-        scan_id: int,
-        total_freed_bytes: int,
-        successful: int,
-        failed: int,
-        skipped: int
+        self, scan_id: int, total_freed_bytes: int, successful: int, failed: int, skipped: int
     ) -> bool:
         """
         Send execution completion notification.
@@ -143,11 +126,11 @@ class StorageTelegramNotifier(TelegramNotifier):
 
         try:
             url = f"https://api.telegram.org/bot{self.bot_token}/sendMessage"
-            response = requests.post(url, json={
-                "chat_id": self.chat_id,
-                "text": message,
-                "parse_mode": "Markdown"
-            }, timeout=10)
+            response = requests.post(
+                url,
+                json={"chat_id": self.chat_id, "text": message, "parse_mode": "Markdown"},
+                timeout=10,
+            )
 
             if response.status_code == 200:
                 logger.info(f"[Telegram] Execution notification sent for scan {scan_id}")
@@ -161,10 +144,7 @@ class StorageTelegramNotifier(TelegramNotifier):
             return False
 
     def send_approval_confirmation(
-        self,
-        scan_id: int,
-        approved_count: int,
-        approved_size_gb: float
+        self, scan_id: int, approved_count: int, approved_size_gb: float
     ) -> bool:
         """Send confirmation after user approves candidates."""
         if not self.is_configured():
@@ -181,11 +161,11 @@ class StorageTelegramNotifier(TelegramNotifier):
 
         try:
             url = f"https://api.telegram.org/bot{self.bot_token}/sendMessage"
-            response = requests.post(url, json={
-                "chat_id": self.chat_id,
-                "text": message,
-                "parse_mode": "Markdown"
-            }, timeout=10)
+            response = requests.post(
+                url,
+                json={"chat_id": self.chat_id, "text": message, "parse_mode": "Markdown"},
+                timeout=10,
+            )
 
             return response.status_code == 200
 
@@ -193,11 +173,7 @@ class StorageTelegramNotifier(TelegramNotifier):
             logger.error(f"[Telegram] Failed to send approval confirmation: {e}")
             return False
 
-    def _format_scan_summary(
-        self,
-        scan: StorageScan,
-        category_stats: Dict[str, Dict]
-    ) -> str:
+    def _format_scan_summary(self, scan: StorageScan, category_stats: Dict[str, Dict]) -> str:
         """
         Format scan summary message.
 
@@ -213,24 +189,24 @@ class StorageTelegramNotifier(TelegramNotifier):
         # Category breakdown (limit to top 5)
         category_lines = []
         sorted_categories = sorted(
-            category_stats.items(),
-            key=lambda x: x[1]['total_size_bytes'],
-            reverse=True
+            category_stats.items(), key=lambda x: x[1]["total_size_bytes"], reverse=True
         )
 
         for category, stats in sorted_categories[:5]:
-            count = stats['count']
-            size_gb = stats['total_size_bytes'] / (1024**3)
+            count = stats["count"]
+            size_gb = stats["total_size_bytes"] / (1024**3)
             category_lines.append(f"  • {category}: {count} items ({size_gb:.1f} GB)")
 
         if len(sorted_categories) > 5:
             remaining = len(sorted_categories) - 5
             category_lines.append(f"  _...and {remaining} more categories_")
 
-        category_summary = "\n".join(category_lines) if category_lines else "  _No cleanup candidates_"
+        category_summary = (
+            "\n".join(category_lines) if category_lines else "  _No cleanup candidates_"
+        )
 
         # Format timestamp
-        timestamp_str = scan.timestamp.strftime('%Y-%m-%d %H:%M')
+        timestamp_str = scan.timestamp.strftime("%Y-%m-%d %H:%M")
 
         message = (
             f"📊 *Storage Scan Complete*\n\n"
@@ -247,7 +223,9 @@ class StorageTelegramNotifier(TelegramNotifier):
         return message
 
 
-def answer_telegram_callback(bot_token: str, callback_id: str, text: str, show_alert: bool = False) -> bool:
+def answer_telegram_callback(
+    bot_token: str, callback_id: str, text: str, show_alert: bool = False
+) -> bool:
     """
     Answer Telegram callback query (removes loading state from button).
 
@@ -262,11 +240,11 @@ def answer_telegram_callback(bot_token: str, callback_id: str, text: str, show_a
     """
     try:
         url = f"https://api.telegram.org/bot{bot_token}/answerCallbackQuery"
-        response = requests.post(url, json={
-            "callback_query_id": callback_id,
-            "text": text,
-            "show_alert": show_alert
-        }, timeout=5)
+        response = requests.post(
+            url,
+            json={"callback_query_id": callback_id, "text": text, "show_alert": show_alert},
+            timeout=5,
+        )
 
         return response.status_code == 200
 

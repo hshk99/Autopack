@@ -10,7 +10,7 @@ This prevents regression of the "no guessing" policy established in BUILD-144 P0
 """
 
 import pytest
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import Mock, patch
 import re
 from sqlalchemy.orm import Session
 
@@ -34,7 +34,7 @@ class TestNoGuessingTokenSplits:
     @pytest.fixture
     def llm_service(self, mock_db):
         """Create LlmService instance"""
-        with patch('autopack.llm_service.ModelRouter'):
+        with patch("autopack.llm_service.ModelRouter"):
             service = LlmService(db=mock_db)
             service.model_router.select_model_with_escalation = Mock(
                 return_value=("gpt-4o", "medium", {})
@@ -51,24 +51,24 @@ class TestNoGuessingTokenSplits:
             tokens_used=1000,
             model_used="gpt-4o",
             prompt_tokens=None,  # Missing
-            completion_tokens=None  # Missing
+            completion_tokens=None,  # Missing
         )
         mock_builder.execute_phase = Mock(return_value=mock_result)
         llm_service.openai_builder = mock_builder
 
         # Execute and verify
-        with patch.object(llm_service, '_record_usage_total_only') as mock_total_only:
+        with patch.object(llm_service, "_record_usage_total_only") as mock_total_only:
             llm_service.execute_builder_phase(
                 phase_spec={"task_category": "backend", "complexity": "medium"},
                 run_id="test-run",
-                phase_id="test-phase"
+                phase_id="test-phase",
             )
 
             # Should call total-only recording, NOT regular _record_usage
             mock_total_only.assert_called_once()
             call_kwargs = mock_total_only.call_args[1]
-            assert call_kwargs['total_tokens'] == 1000
-            assert call_kwargs['role'] == "builder"
+            assert call_kwargs["total_tokens"] == 1000
+            assert call_kwargs["role"] == "builder"
 
     def test_auditor_no_guessing_when_splits_missing(self, llm_service, mock_db):
         """When Auditor result lacks exact splits, do NOT guess - record None"""
@@ -80,7 +80,7 @@ class TestNoGuessingTokenSplits:
             tokens_used=800,
             model_used="gpt-4o",
             prompt_tokens=None,  # Missing
-            completion_tokens=None  # Missing
+            completion_tokens=None,  # Missing
         )
         mock_auditor.review_patch = Mock(return_value=mock_result)
         llm_service.openai_auditor = mock_auditor
@@ -88,19 +88,19 @@ class TestNoGuessingTokenSplits:
         llm_service.quality_gate.assess_phase = Mock(return_value={"status": "pass"})
 
         # Execute and verify
-        with patch.object(llm_service, '_record_usage_total_only') as mock_total_only:
+        with patch.object(llm_service, "_record_usage_total_only") as mock_total_only:
             llm_service.execute_auditor_review(
                 patch_content="diff --git a/test.py",
                 phase_spec={"task_category": "backend", "complexity": "medium"},
                 run_id="test-run",
-                phase_id="test-phase"
+                phase_id="test-phase",
             )
 
             # Should call total-only recording
             mock_total_only.assert_called_once()
             call_kwargs = mock_total_only.call_args[1]
-            assert call_kwargs['total_tokens'] == 800
-            assert call_kwargs['role'] == "auditor"
+            assert call_kwargs["total_tokens"] == 800
+            assert call_kwargs["role"] == "auditor"
 
     def test_doctor_no_guessing_anthropic(self, llm_service, mock_db):
         """Doctor with Anthropic should use exact token counts, not 70/30 guess"""
@@ -114,22 +114,29 @@ class TestNoGuessingTokenSplits:
             confidence=0.8,
             rationale="test diagnosis",
             builder_hint=None,
-            suggested_patch=None
+            suggested_patch=None,
         )
 
         # Patch _call_doctor_llm to verify it's called but return our mock response
-        with patch.object(llm_service, '_call_doctor_llm', return_value=mock_response) as mock_call_doctor:
-            with patch('autopack.llm_service.choose_doctor_model', return_value=("claude-sonnet-4-5", False)):
-                with patch('autopack.llm_service.should_escalate_doctor_model', return_value=False):
+        with patch.object(
+            llm_service, "_call_doctor_llm", return_value=mock_response
+        ) as mock_call_doctor:
+            with patch(
+                "autopack.llm_service.choose_doctor_model",
+                return_value=("claude-sonnet-4-5", False),
+            ):
+                with patch("autopack.llm_service.should_escalate_doctor_model", return_value=False):
                     request = DoctorRequest(
                         phase_id="test-phase",
                         error_category="patch_apply_error",
                         builder_attempts=2,
                         health_budget={"total_failures": 5, "total_cap": 25},
-                        run_id="test-run"
+                        run_id="test-run",
                     )
 
-                    result = llm_service.execute_doctor(request, run_id="test-run", phase_id="test-phase")
+                    result = llm_service.execute_doctor(
+                        request, run_id="test-run", phase_id="test-phase"
+                    )
 
                     # Verify _call_doctor_llm was called with correct model
                     mock_call_doctor.assert_called_once()
@@ -146,7 +153,13 @@ class TestNoGuessingTokenSplits:
         # Mock OpenAI client
         mock_openai = Mock()
         mock_completion = Mock()
-        mock_completion.choices = [Mock(message=Mock(content='{"action": "retry_with_fix", "confidence": 0.8, "rationale": "test"}'))]
+        mock_completion.choices = [
+            Mock(
+                message=Mock(
+                    content='{"action": "retry_with_fix", "confidence": 0.8, "rationale": "test"}'
+                )
+            )
+        ]
         mock_completion.usage = Mock(prompt_tokens=600, completion_tokens=300, total_tokens=900)
         mock_openai.client = Mock()
         mock_openai.client.chat = Mock()
@@ -160,12 +173,12 @@ class TestNoGuessingTokenSplits:
             error_category="patch_apply_error",
             builder_attempts=2,
             health_budget={"total_failures": 5, "total_cap": 25},
-            run_id="test-run"
+            run_id="test-run",
         )
 
         # Execute Doctor call
-        with patch('autopack.llm_service.choose_doctor_model', return_value=("gpt-4o", False)):
-            with patch('autopack.llm_service.should_escalate_doctor_model', return_value=False):
+        with patch("autopack.llm_service.choose_doctor_model", return_value=("gpt-4o", False)):
+            with patch("autopack.llm_service.should_escalate_doctor_model", return_value=False):
                 llm_service.execute_doctor(request, run_id="test-run", phase_id="test-phase")
 
         # Verify exact token counts were recorded
@@ -178,20 +191,19 @@ class TestNoGuessingTokenSplits:
 
     def test_no_heuristic_constants_in_source(self):
         """Static code check: llm_service.py should not contain heuristic split constants"""
-        import os
         from pathlib import Path
 
         # Read llm_service.py source
         service_path = Path(__file__).parent.parent.parent / "src" / "autopack" / "llm_service.py"
-        with open(service_path, 'r', encoding='utf-8') as f:
+        with open(service_path, "r", encoding="utf-8") as f:
             source = f.read()
 
         # Check for forbidden patterns (heuristic multipliers near token keywords)
         forbidden_patterns = [
-            r'tokens_used\s*\*\s*0\.[34567]',  # tokens_used * 0.4, 0.6, 0.7, etc.
-            r'0\.[34567]\s*\*\s*tokens_used',  # 0.4 * tokens_used
-            r'int\s*\(\s*tokens[_\w]*\s*\*\s*0\.[34567]',  # int(tokens * 0.4)
-            r'int\s*\(\s*0\.[34567]\s*\*\s*tokens',  # int(0.4 * tokens)
+            r"tokens_used\s*\*\s*0\.[34567]",  # tokens_used * 0.4, 0.6, 0.7, etc.
+            r"0\.[34567]\s*\*\s*tokens_used",  # 0.4 * tokens_used
+            r"int\s*\(\s*tokens[_\w]*\s*\*\s*0\.[34567]",  # int(tokens * 0.4)
+            r"int\s*\(\s*0\.[34567]\s*\*\s*tokens",  # int(0.4 * tokens)
         ]
 
         violations = []
@@ -200,14 +212,14 @@ class TestNoGuessingTokenSplits:
             if matches:
                 for match in matches:
                     # Get line number
-                    line_num = source[:match.start()].count('\n') + 1
+                    line_num = source[: match.start()].count("\n") + 1
                     violations.append(f"Line {line_num}: {match.group()}")
 
         if violations:
             pytest.fail(
-                f"Found forbidden heuristic token split patterns in llm_service.py:\n" +
-                "\n".join(violations) +
-                "\n\nBUILD-144 P0: Token splits must use exact counts from provider, not heuristic guessing."
+                "Found forbidden heuristic token split patterns in llm_service.py:\n"
+                + "\n".join(violations)
+                + "\n\nBUILD-144 P0: Token splits must use exact counts from provider, not heuristic guessing."
             )
 
     def test_record_usage_total_only_uses_none_splits(self, llm_service, mock_db):
@@ -218,7 +230,7 @@ class TestNoGuessingTokenSplits:
             role="builder",
             total_tokens=1000,
             run_id="test-run",
-            phase_id="test-phase"
+            phase_id="test-phase",
         )
 
         # Verify None was recorded (not a heuristic split)
@@ -242,17 +254,17 @@ class TestNoGuessingTokenSplits:
             tokens_used=1000,
             model_used="gpt-4o",
             prompt_tokens=None,
-            completion_tokens=None
+            completion_tokens=None,
         )
         mock_builder.execute_phase = Mock(return_value=mock_result)
         llm_service.openai_builder = mock_builder
 
         # Capture warning log
-        with patch.object(logging.getLogger('autopack.llm_service'), 'warning') as mock_warning:
+        with patch.object(logging.getLogger("autopack.llm_service"), "warning") as mock_warning:
             llm_service.execute_builder_phase(
                 phase_spec={"task_category": "backend", "complexity": "medium"},
                 run_id="test-run",
-                phase_id="test-phase"
+                phase_id="test-phase",
             )
 
             # Verify warning was logged

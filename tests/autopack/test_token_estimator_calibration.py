@@ -15,11 +15,13 @@ import pytest
 from pathlib import Path
 import tempfile
 import shutil
-from unittest.mock import Mock, patch
 
 pytestmark = [
-    pytest.mark.xfail(strict=False, reason="Token estimator calibration API not implemented - aspirational test suite"),
-    pytest.mark.aspirational
+    pytest.mark.xfail(
+        strict=False,
+        reason="Token estimator calibration API not implemented - aspirational test suite",
+    ),
+    pytest.mark.aspirational,
 ]
 
 from autopack.token_estimator import TokenEstimator
@@ -48,7 +50,7 @@ class TestPhaseOverheadCalibration:
                 phase_id="test_phase",
                 estimated_tokens=1000,
                 actual_tokens=1600,  # 60% over estimate
-                model="claude-sonnet-4"
+                model="claude-sonnet-4",
             )
 
         # PHASE_OVERHEAD should increase
@@ -66,7 +68,7 @@ class TestPhaseOverheadCalibration:
                 phase_id="test_phase",
                 estimated_tokens=2000,
                 actual_tokens=1200,  # 40% under actual
-                model="claude-sonnet-4"
+                model="claude-sonnet-4",
             )
 
         # PHASE_OVERHEAD should decrease
@@ -80,7 +82,7 @@ class TestPhaseOverheadCalibration:
                 phase_id="test_phase",
                 estimated_tokens=1000,
                 actual_tokens=5000,  # Extreme underestimation
-                model="claude-sonnet-4"
+                model="claude-sonnet-4",
             )
 
         # Should have upper bound (e.g., 2000 tokens)
@@ -93,7 +95,7 @@ class TestPhaseOverheadCalibration:
                 phase_id="test_phase",
                 estimated_tokens=2000,
                 actual_tokens=1100,  # Extreme overestimation
-                model="claude-sonnet-4"
+                model="claude-sonnet-4",
             )
 
         # Should have lower bound (e.g., 200 tokens)
@@ -101,24 +103,17 @@ class TestPhaseOverheadCalibration:
 
     def test_phase_overhead_persists_across_phases(self, estimator):
         """Test that PHASE_OVERHEAD changes persist across different phases."""
-        initial_overhead = estimator.PHASE_OVERHEAD
 
         # Record usage for phase 1
         estimator.record_actual_usage(
-            phase_id="phase_001",
-            estimated_tokens=1000,
-            actual_tokens=1600,
-            model="claude-sonnet-4"
+            phase_id="phase_001", estimated_tokens=1000, actual_tokens=1600, model="claude-sonnet-4"
         )
 
         overhead_after_phase1 = estimator.PHASE_OVERHEAD
 
         # Record usage for phase 2
         estimator.record_actual_usage(
-            phase_id="phase_002",
-            estimated_tokens=1000,
-            actual_tokens=1600,
-            model="claude-sonnet-4"
+            phase_id="phase_002", estimated_tokens=1000, actual_tokens=1600, model="claude-sonnet-4"
         )
 
         # Overhead should continue to adjust
@@ -137,10 +132,7 @@ class TestDampedUpdates:
         """Test that damping prevents wild swings in estimates."""
         # Record normal usage
         estimator.record_actual_usage(
-            phase_id="phase_001",
-            estimated_tokens=1000,
-            actual_tokens=1100,
-            model="claude-sonnet-4"
+            phase_id="phase_001", estimated_tokens=1000, actual_tokens=1100, model="claude-sonnet-4"
         )
 
         overhead_after_normal = estimator.PHASE_OVERHEAD
@@ -150,7 +142,7 @@ class TestDampedUpdates:
             phase_id="phase_002",
             estimated_tokens=1000,
             actual_tokens=10000,  # Extreme outlier
-            model="claude-sonnet-4"
+            model="claude-sonnet-4",
         )
 
         overhead_after_outlier = estimator.PHASE_OVERHEAD
@@ -165,10 +157,7 @@ class TestDampedUpdates:
 
         # Record single underestimation
         estimator.record_actual_usage(
-            phase_id="phase_001",
-            estimated_tokens=1000,
-            actual_tokens=1500,
-            model="claude-sonnet-4"
+            phase_id="phase_001", estimated_tokens=1000, actual_tokens=1500, model="claude-sonnet-4"
         )
 
         # Change should be less than full error amount
@@ -190,7 +179,7 @@ class TestDampedUpdates:
                 phase_id="test_phase",
                 estimated_tokens=1000,
                 actual_tokens=1500,  # Consistently 500 over
-                model="claude-sonnet-4"
+                model="claude-sonnet-4",
             )
 
         # Should converge toward 500 overhead
@@ -221,7 +210,7 @@ class TestConfidenceScoring:
                 phase_id=f"phase_{i:03d}",
                 estimated_tokens=1000,
                 actual_tokens=1050,  # Within 5% accuracy
-                model="claude-sonnet-4"
+                model="claude-sonnet-4",
             )
 
         final_confidence = estimator.get_confidence()
@@ -235,7 +224,7 @@ class TestConfidenceScoring:
                 phase_id=f"phase_{i:03d}",
                 estimated_tokens=1000,
                 actual_tokens=1020,  # Within 2% accuracy
-                model="claude-sonnet-4"
+                model="claude-sonnet-4",
             )
 
         confidence = estimator.get_confidence()
@@ -249,7 +238,7 @@ class TestConfidenceScoring:
                 phase_id=f"phase_{i:03d}",
                 estimated_tokens=1000,
                 actual_tokens=2000 if i % 2 == 0 else 500,  # Wildly varying
-                model="claude-sonnet-4"
+                model="claude-sonnet-4",
             )
 
         confidence = estimator.get_confidence()
@@ -263,16 +252,13 @@ class TestConfidenceScoring:
                 phase_id=f"phase_{i:03d}",
                 estimated_tokens=1000,
                 actual_tokens=1020,
-                model="claude-sonnet-4"
+                model="claude-sonnet-4",
             )
 
         # Record inaccurate estimates for another model
         for i in range(10):
             estimator.record_actual_usage(
-                phase_id=f"phase_{i:03d}",
-                estimated_tokens=1000,
-                actual_tokens=2000,
-                model="gpt-4"
+                phase_id=f"phase_{i:03d}", estimated_tokens=1000, actual_tokens=2000, model="gpt-4"
             )
 
         # Confidence should differ by model
@@ -303,7 +289,7 @@ class TestCalibrationLifecycle:
                 phase_id=f"phase_{i:03d}",
                 estimated_tokens=1000,
                 actual_tokens=1100,
-                model="claude-sonnet-4"
+                model="claude-sonnet-4",
             )
         overhead1 = estimator1.PHASE_OVERHEAD
 
@@ -325,7 +311,7 @@ class TestCalibrationLifecycle:
                 phase_id=f"phase_{i:03d}",
                 estimated_tokens=1000,
                 actual_tokens=1500,
-                model="claude-sonnet-4"
+                model="claude-sonnet-4",
             )
 
         overhead_before = estimator.PHASE_OVERHEAD
@@ -348,7 +334,7 @@ class TestCalibrationLifecycle:
                 phase_id=f"phase_{i:03d}",
                 estimated_tokens=1000,
                 actual_tokens=1200,
-                model="claude-sonnet-4"
+                model="claude-sonnet-4",
             )
 
         # Export calibration
@@ -374,10 +360,7 @@ class TestEdgeCases:
         """Test handling of zero token usage."""
         # Should not crash or cause division by zero
         estimator.record_actual_usage(
-            phase_id="phase_001",
-            estimated_tokens=1000,
-            actual_tokens=0,
-            model="claude-sonnet-4"
+            phase_id="phase_001", estimated_tokens=1000, actual_tokens=0, model="claude-sonnet-4"
         )
 
         # Should still have valid overhead
@@ -390,7 +373,7 @@ class TestEdgeCases:
                 phase_id="phase_001",
                 estimated_tokens=-100,
                 actual_tokens=1000,
-                model="claude-sonnet-4"
+                model="claude-sonnet-4",
             )
 
         with pytest.raises(ValueError):
@@ -398,7 +381,7 @@ class TestEdgeCases:
                 phase_id="phase_001",
                 estimated_tokens=1000,
                 actual_tokens=-100,
-                model="claude-sonnet-4"
+                model="claude-sonnet-4",
             )
 
     def test_extreme_token_values(self, estimator):
@@ -408,7 +391,7 @@ class TestEdgeCases:
             phase_id="phase_001",
             estimated_tokens=1000000,
             actual_tokens=1100000,
-            model="claude-sonnet-4"
+            model="claude-sonnet-4",
         )
 
         # Should still produce reasonable overhead
@@ -418,9 +401,7 @@ class TestEdgeCases:
         """Test handling when model parameter is not provided."""
         # Should use default model or handle gracefully
         estimator.record_actual_usage(
-            phase_id="phase_001",
-            estimated_tokens=1000,
-            actual_tokens=1100
+            phase_id="phase_001", estimated_tokens=1000, actual_tokens=1100
         )
 
         # Should not crash
@@ -436,7 +417,7 @@ class TestEdgeCases:
                     phase_id=f"phase_{i:03d}",
                     estimated_tokens=1000,
                     actual_tokens=1100,
-                    model="claude-sonnet-4"
+                    model="claude-sonnet-4",
                 )
 
         # Run multiple threads

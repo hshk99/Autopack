@@ -1,21 +1,24 @@
 import click
 from src.autopack.research.orchestrator import ResearchOrchestrator
 
+
 @click.group()
 def research():
     """Research-related commands."""
     pass
 
+
 @research.command()
-@click.argument('intent')
+@click.argument("intent")
 def start(intent):
     """Start a new research session with the given intent."""
     orchestrator = ResearchOrchestrator()
     session_id = orchestrator.start_session(intent)
     click.echo(f"Research session started with ID: {session_id}")
 
+
 @research.command()
-@click.argument('session_id')
+@click.argument("session_id")
 def validate(session_id):
     """Validate the research session with the given ID."""
     orchestrator = ResearchOrchestrator()
@@ -23,8 +26,9 @@ def validate(session_id):
     click.echo(f"Validation report for session {session_id}:")
     click.echo(validation_report)
 
+
 @research.command()
-@click.argument('session_id')
+@click.argument("session_id")
 def publish(session_id):
     """Publish the research findings for the session with the given ID."""
     orchestrator = ResearchOrchestrator()
@@ -34,7 +38,8 @@ def publish(session_id):
     else:
         click.echo(f"Failed to publish research findings for session {session_id}.")
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     research()
 
 # To use this CLI, run the following commands:

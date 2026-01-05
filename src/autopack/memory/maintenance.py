@@ -14,7 +14,6 @@ from typing import List, Optional
 
 from .faiss_store import FaissStore
 from .memory_service import (
-    ALL_COLLECTIONS,
     COLLECTION_RUN_SUMMARIES,
     COLLECTION_ERRORS_CI,
     COLLECTION_DOCTOR_HINTS,
@@ -218,7 +217,12 @@ def run_maintenance(
             store,
             project_id,
             ttl_days,
-            collections=[COLLECTION_RUN_SUMMARIES, COLLECTION_ERRORS_CI, COLLECTION_DOCTOR_HINTS, COLLECTION_PLANNING],
+            collections=[
+                COLLECTION_RUN_SUMMARIES,
+                COLLECTION_ERRORS_CI,
+                COLLECTION_DOCTOR_HINTS,
+                COLLECTION_PLANNING,
+            ],
         )
     except Exception as e:
         stats["errors"].append(f"Prune failed: {e}")
@@ -245,10 +249,17 @@ def main():
     default_ttl = cfg.get("ttl_days", DEFAULT_TTL_DAYS)
     keep_versions = cfg.get("planning_keep_versions", cfg.get("keep_versions", 3))
 
-    parser = argparse.ArgumentParser(description="Run vector memory maintenance (TTL prune + tombstones)")
+    parser = argparse.ArgumentParser(
+        description="Run vector memory maintenance (TTL prune + tombstones)"
+    )
     parser.add_argument("--project-id", default="autopack", help="Project ID to prune")
     parser.add_argument("--ttl-days", type=int, default=default_ttl, help="TTL in days for pruning")
-    parser.add_argument("--keep-versions", type=int, default=keep_versions, help="Planning artifact versions to retain")
+    parser.add_argument(
+        "--keep-versions",
+        type=int,
+        default=keep_versions,
+        help="Planning artifact versions to retain",
+    )
     args = parser.parse_args()
 
     try:

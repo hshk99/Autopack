@@ -7,6 +7,7 @@ This module contains unit tests for the SourceEvaluator class.
 import unittest
 from autopack.research.agents.source_evaluator import SourceEvaluator
 
+
 class TestSourceEvaluator(unittest.TestCase):
 
     def setUp(self):
@@ -40,5 +41,6 @@ class TestSourceEvaluator(unittest.TestCase):
 
     # Additional tests for more complex scenarios can be added here
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     unittest.main()

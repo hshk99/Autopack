@@ -2,6 +2,7 @@
 
 import re
 
+
 def detect_prompt_injection(prompt: str) -> bool:
     """
     Detects potential prompt injection in a given prompt.
@@ -25,13 +26,14 @@ def detect_prompt_injection(prompt: str) -> bool:
             return True
     return False
 
+
 if __name__ == "__main__":
     # Example usage
     prompts = [
         "SELECT * FROM users WHERE username = 'admin';",
         "DROP TABLE students;",
         "echo 'Hello, world!'",
-        "Normal prompt without injection."
+        "Normal prompt without injection.",
     ]
 
     for prompt in prompts:

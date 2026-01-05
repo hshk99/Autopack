@@ -22,11 +22,7 @@ def queue_files_for_processing(file: UploadFile) -> str:
         A job ID for tracking the processing task.
     """
     job_id = str(uuid.uuid4())
-    task = {
-        "job_id": job_id,
-        "file_name": file.filename,
-        "status": "queued"
-    }
+    task = {"job_id": job_id, "file_name": file.filename, "status": "queued"}
     task_queue.append(task)
 
     # Simulate background processing

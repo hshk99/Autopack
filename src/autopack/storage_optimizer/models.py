@@ -8,17 +8,17 @@ and storage reports.
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import List, Optional
-from pathlib import Path
 
 
 @dataclass
 class ScanResult:
     """Result of scanning a single file or directory."""
+
     path: str
     size_bytes: int
     modified: datetime
     is_folder: bool
-    attributes: str = '-'
+    attributes: str = "-"
 
     @property
     def size_mb(self) -> float:
@@ -39,6 +39,7 @@ class ScanResult:
 @dataclass
 class CleanupCandidate:
     """A file or directory that could potentially be cleaned up."""
+
     path: str
     category: str
     size_bytes: int
@@ -62,6 +63,7 @@ class CleanupCandidate:
 @dataclass
 class CleanupPlan:
     """Collection of cleanup candidates organized by category."""
+
     candidates: List[CleanupCandidate] = field(default_factory=list)
     total_size_bytes: int = 0
     created_at: datetime = field(default_factory=datetime.now)
@@ -105,6 +107,7 @@ class StorageReport:
     Includes disk usage, top space consumers, cleanup opportunities,
     and policy enforcement summary.
     """
+
     scan_date: datetime
     drive_letter: str
     total_space_bytes: int

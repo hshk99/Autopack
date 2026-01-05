@@ -6,7 +6,9 @@ from autopack.research.models.enums import EvidenceType
 
 
 class Evidence:
-    def __init__(self, source: str, evidence_type: EvidenceType, relevance: float, publication_date: datetime):
+    def __init__(
+        self, source: str, evidence_type: EvidenceType, relevance: float, publication_date: datetime
+    ):
         self.source = source
         self.evidence_type = evidence_type
         self.relevance = relevance
@@ -21,8 +23,11 @@ class Evidence:
         return self.evidence_type in EvidenceType and self.relevance > 0.5
 
     def __repr__(self):
-        return (f"Evidence(source={self.source}, type={self.evidence_type}, "
-                f"relevance={self.relevance}, publication_date={self.publication_date})")
+        return (
+            f"Evidence(source={self.source}, type={self.evidence_type}, "
+            f"relevance={self.relevance}, publication_date={self.publication_date})"
+        )
+
 
 # Example usage:
 # evidence = Evidence(
@@ -42,6 +47,7 @@ class Evidence:
 @dataclass
 class Citation:
     """Citation model for research sources."""
+
     source: str
     title: str = ""
     authors: List[str] = field(default_factory=list)

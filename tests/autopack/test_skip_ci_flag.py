@@ -7,9 +7,8 @@ for telemetry runs, preventing PhaseFinalizer from running collection error dete
 Also verifies that the guardrail prevents CI skip for non-telemetry runs.
 """
 
-import os
 import pytest
-from unittest.mock import Mock, patch
+from unittest.mock import Mock
 
 
 @pytest.fixture
@@ -25,7 +24,10 @@ def mock_executor():
 
     # Bind the real _run_ci_checks method
     from autopack.autonomous_executor import AutonomousExecutor
-    executor._run_ci_checks = AutonomousExecutor._run_ci_checks.__get__(executor, AutonomousExecutor)
+
+    executor._run_ci_checks = AutonomousExecutor._run_ci_checks.__get__(
+        executor, AutonomousExecutor
+    )
 
     return executor
 
@@ -43,7 +45,10 @@ def mock_executor_non_telemetry():
 
     # Bind the real _run_ci_checks method
     from autopack.autonomous_executor import AutonomousExecutor
-    executor._run_ci_checks = AutonomousExecutor._run_ci_checks.__get__(executor, AutonomousExecutor)
+
+    executor._run_ci_checks = AutonomousExecutor._run_ci_checks.__get__(
+        executor, AutonomousExecutor
+    )
 
     return executor
 
@@ -54,10 +59,7 @@ def test_skip_ci_flag_returns_none(mock_executor, monkeypatch):
     monkeypatch.setenv("AUTOPACK_SKIP_CI", "1")
 
     # Create a dummy phase
-    phase = {
-        "phase_id": "test-phase",
-        "scope": {}
-    }
+    phase = {"phase_id": "test-phase", "scope": {}}
 
     # Call _run_ci_checks
     result = mock_executor._run_ci_checks("test-phase", phase)
@@ -72,14 +74,7 @@ def test_skip_ci_flag_not_set(mock_executor, monkeypatch):
     monkeypatch.delenv("AUTOPACK_SKIP_CI", raising=False)
 
     # Create a phase with CI skip set in ci_spec (should still skip)
-    phase = {
-        "phase_id": "test-phase",
-        "scope": {},
-        "ci": {
-            "skip": True,
-            "reason": "Test skip"
-        }
-    }
+    phase = {"phase_id": "test-phase", "scope": {}, "ci": {"skip": True, "reason": "Test skip"}}
 
     # Call _run_ci_checks
     result = mock_executor._run_ci_checks("test-phase", phase)
@@ -96,14 +91,7 @@ def test_skip_ci_flag_zero_string(mock_executor, monkeypatch):
     monkeypatch.setenv("AUTOPACK_SKIP_CI", "0")
 
     # Create a phase with CI skip set in ci_spec
-    phase = {
-        "phase_id": "test-phase",
-        "scope": {},
-        "ci": {
-            "skip": True,
-            "reason": "Test skip"
-        }
-    }
+    phase = {"phase_id": "test-phase", "scope": {}, "ci": {"skip": True, "reason": "Test skip"}}
 
     # Call _run_ci_checks
     result = mock_executor._run_ci_checks("test-phase", phase)
@@ -119,14 +107,7 @@ def test_skip_ci_flag_non_telemetry_run_ignores_flag(mock_executor_non_telemetry
     monkeypatch.setenv("AUTOPACK_SKIP_CI", "1")
 
     # Create a phase with CI skip set in ci_spec
-    phase = {
-        "phase_id": "test-phase",
-        "scope": {},
-        "ci": {
-            "skip": True,
-            "reason": "Test skip"
-        }
-    }
+    phase = {"phase_id": "test-phase", "scope": {}, "ci": {"skip": True, "reason": "Test skip"}}
 
     # Call _run_ci_checks
     result = mock_executor_non_telemetry._run_ci_checks("test-phase", phase)
@@ -143,10 +124,7 @@ def test_skip_ci_flag_telemetry_run_honors_flag(mock_executor, monkeypatch):
     monkeypatch.setenv("AUTOPACK_SKIP_CI", "1")
 
     # Create a phase WITHOUT ci.skip (normal phase)
-    phase = {
-        "phase_id": "telemetry-p1-test",
-        "scope": {}
-    }
+    phase = {"phase_id": "telemetry-p1-test", "scope": {}}
 
     # Call _run_ci_checks
     result = mock_executor._run_ci_checks("telemetry-p1-test", phase)

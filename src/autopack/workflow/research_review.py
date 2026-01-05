@@ -24,6 +24,7 @@ logger = logging.getLogger(__name__)
 
 class ReviewDecision(Enum):
     """Decision from a review."""
+
     APPROVED = "approved"
     REJECTED = "rejected"
     NEEDS_MORE_RESEARCH = "needs_more_research"
@@ -128,8 +129,10 @@ class ResearchReviewWorkflow:
         # Determine decision
         if confidence >= self.criteria.auto_approve_confidence:
             # High confidence - approve
-            if (len(findings) >= self.criteria.min_findings_required and
-                    len(recommendations) >= self.criteria.min_recommendations_required):
+            if (
+                len(findings) >= self.criteria.min_findings_required
+                and len(recommendations) >= self.criteria.min_recommendations_required
+            ):
                 return ReviewResult(
                     decision=ReviewDecision.APPROVED,
                     reviewer="auto",

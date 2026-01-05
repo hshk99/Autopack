@@ -8,7 +8,6 @@ Tests the P0 safety enhancements:
 
 import pytest
 import subprocess
-from pathlib import Path
 
 from autopack.rollback_manager import RollbackManager, PROTECTED_PATTERNS
 
@@ -25,7 +24,9 @@ class TestRollbackSafetyGuardrails:
         # Initialize git repo
         subprocess.run(["git", "init"], cwd=repo_path, check=True, capture_output=True)
         subprocess.run(["git", "config", "user.name", "Test User"], cwd=repo_path, check=True)
-        subprocess.run(["git", "config", "user.email", "test@example.com"], cwd=repo_path, check=True)
+        subprocess.run(
+            ["git", "config", "user.email", "test@example.com"], cwd=repo_path, check=True
+        )
 
         # Create initial commit
         test_file = repo_path / "test.txt"
@@ -42,7 +43,7 @@ class TestRollbackSafetyGuardrails:
             workspace=temp_git_repo,
             run_id="test-run-123",
             phase_id="test-phase-456",
-            max_savepoints_per_run=3
+            max_savepoints_per_run=3,
         )
 
     def test_protected_patterns_defined(self):
@@ -171,7 +172,7 @@ class TestRollbackSafetyGuardrails:
                 workspace=temp_git_repo,
                 run_id="test-run-123",
                 phase_id=f"phase-{i}",
-                max_savepoints_per_run=3
+                max_savepoints_per_run=3,
             )
             manager.create_savepoint()
             managers.append(manager)
@@ -181,7 +182,7 @@ class TestRollbackSafetyGuardrails:
             ["git", "tag", "-l", "save-before-test-run-123-*"],
             cwd=temp_git_repo,
             capture_output=True,
-            text=True
+            text=True,
         )
         tags_before = [tag.strip() for tag in result.stdout.split("\n") if tag.strip()]
         assert len(tags_before) == 5
@@ -194,7 +195,7 @@ class TestRollbackSafetyGuardrails:
             ["git", "tag", "-l", "save-before-test-run-123-*"],
             cwd=temp_git_repo,
             capture_output=True,
-            text=True
+            text=True,
         )
         tags_after = [tag.strip() for tag in result.stdout.split("\n") if tag.strip()]
         assert len(tags_after) == 3
@@ -206,10 +207,7 @@ class TestRollbackSafetyGuardrails:
 
         # Verify tag exists
         result = subprocess.run(
-            ["git", "tag", "-l", tag_name],
-            cwd=temp_git_repo,
-            capture_output=True,
-            text=True
+            ["git", "tag", "-l", tag_name], cwd=temp_git_repo, capture_output=True, text=True
         )
         assert tag_name in result.stdout
 
@@ -218,10 +216,7 @@ class TestRollbackSafetyGuardrails:
 
         # Tag should be deleted
         result = subprocess.run(
-            ["git", "tag", "-l", tag_name],
-            cwd=temp_git_repo,
-            capture_output=True,
-            text=True
+            ["git", "tag", "-l", tag_name], cwd=temp_git_repo, capture_output=True, text=True
         )
         assert tag_name not in result.stdout
 
@@ -292,7 +287,7 @@ class TestRollbackSafetyGuardrails:
             workspace=temp_git_repo,
             run_id="test-run",
             phase_id="test-phase",
-            max_savepoints_per_run=5
+            max_savepoints_per_run=5,
         )
 
         assert manager.max_savepoints_per_run == 5
@@ -309,10 +304,7 @@ class TestRollbackSafetyGuardrails:
 
         # Verify tag is deleted
         result = subprocess.run(
-            ["git", "tag", "-l", tag_name],
-            cwd=temp_git_repo,
-            capture_output=True,
-            text=True
+            ["git", "tag", "-l", tag_name], cwd=temp_git_repo, capture_output=True, text=True
         )
         assert tag_name not in result.stdout
 

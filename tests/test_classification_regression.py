@@ -7,7 +7,6 @@ to ensure 98%+ accuracy is maintained across updates.
 """
 
 import sys
-import os
 from pathlib import Path
 
 # Add src to path
@@ -29,7 +28,7 @@ class TestClassificationRegression:
         result = classifier.classify(
             file_path=Path("test_file.md"),
             content_sample="Test content",
-            default_project_id="autopack"
+            default_project_id="autopack",
         )
 
         # Should return valid result without exceptions
@@ -68,7 +67,7 @@ class TestClassificationRegression:
             filename="autopack_tidy_workspace.py",
             content="This is about autopack autonomous executor and tidy workspace classification.\nimport sys\ndef main():\n    pass\nif __name__ == '__main__':\n    main()",
             suffix=".py",
-            default_project="autopack"
+            default_project="autopack",
         )
 
         project, file_type, dest, confidence = result
@@ -86,9 +85,11 @@ class TestClassificationRegression:
     def test_qdrant_api_compatibility(self):
         """Ensure Qdrant query_points API is used (not deprecated search)."""
         # Read the classifier source and ensure it uses query_points
-        classifier_path = Path(__file__).parent.parent / "scripts" / "file_classifier_with_memory.py"
+        classifier_path = (
+            Path(__file__).parent.parent / "scripts" / "file_classifier_with_memory.py"
+        )
 
-        with open(classifier_path, 'r', encoding='utf-8') as f:
+        with open(classifier_path, "r", encoding="utf-8") as f:
             content = f.read()
 
         # Should use query_points, not search
@@ -111,7 +112,7 @@ class TestClassificationRegression:
         result = classifier.classify(
             file_path=Path("IMPLEMENTATION_PLAN_TEST.md"),
             content_sample="# Implementation Plan\n\n## Goal\nTest the file classification system",
-            default_project_id="autopack"
+            default_project_id="autopack",
         )
 
         project, file_type, dest, confidence = result
@@ -147,9 +148,7 @@ class TestEdgeCases:
         classifier = ProjectMemoryClassifier()
 
         result = classifier.classify(
-            file_path=Path("empty.txt"),
-            content_sample="",
-            default_project_id="autopack"
+            file_path=Path("empty.txt"), content_sample="", default_project_id="autopack"
         )
 
         project, file_type, dest, confidence = result
@@ -169,9 +168,7 @@ class TestEdgeCases:
         long_name = "a" * 300 + ".md"
 
         result = classifier.classify(
-            file_path=Path(long_name),
-            content_sample="Test content",
-            default_project_id="autopack"
+            file_path=Path(long_name), content_sample="Test content", default_project_id="autopack"
         )
 
         project, file_type, dest, confidence = result
@@ -190,7 +187,7 @@ class TestEdgeCases:
         result = classifier.classify(
             file_path=Path("file with spaces & special (chars).md"),
             content_sample="Test content",
-            default_project_id="autopack"
+            default_project_id="autopack",
         )
 
         project, file_type, dest, confidence = result
@@ -210,7 +207,7 @@ class TestEdgeCases:
         result = classifier.classify(
             file_path=Path("binary_file.bin"),
             content_sample="\x00\x01\x02\xff",
-            default_project_id="autopack"
+            default_project_id="autopack",
         )
 
         project, file_type, dest, confidence = result
@@ -233,7 +230,7 @@ class TestAccuracyCritical:
         result = classifier.classify(
             file_path=Path("FILEORG_COUNTRY_PACK_PLAN.md"),
             content_sample="# File Organizer Country Pack\n\nImplementation plan for UK folder structure",
-            default_project_id="autopack"
+            default_project_id="autopack",
         )
 
         project, file_type, dest, confidence = result
@@ -253,7 +250,7 @@ class TestAccuracyCritical:
         result = classifier.classify(
             file_path=Path("tidy_workspace.py"),
             content_sample="# Autopack Tidy Workspace\n\nfrom autopack.autonomous_executor import run",
-            default_project_id="autopack"
+            default_project_id="autopack",
         )
 
         project, file_type, dest, confidence = result
@@ -273,7 +270,7 @@ class TestAccuracyCritical:
         result = classifier.classify(
             file_path=Path("api_test_run.log"),
             content_sample="[2025-12-11] INFO: API request started\n[2025-12-11] INFO: Response 200",
-            default_project_id="autopack"
+            default_project_id="autopack",
         )
 
         project, file_type, dest, confidence = result

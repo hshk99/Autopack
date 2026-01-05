@@ -64,6 +64,30 @@ def get_anchor_events_path(run_id: str, base_dir: str | Path = ".") -> Path:
     return Path(base_dir) / ".autonomous_runs" / run_id / "anchor_events.ndjson"
 
 
+def get_anchor_summary_version_path(run_id: str, version: int, base_dir: str | Path = ".") -> Path:
+    """
+    Get canonical path for versioned anchor summary snapshot.
+
+    Intention behind it: Support append-only versioned snapshots to preserve
+    historical anchor states for audit trail.
+
+    Args:
+        run_id: Run identifier.
+        version: Anchor version number.
+        base_dir: Base directory (default: ".").
+
+    Returns:
+        Path to anchor_summary_v{version:04d}.md file.
+    """
+    return (
+        Path(base_dir)
+        / ".autonomous_runs"
+        / run_id
+        / "anchor_summaries"
+        / f"anchor_summary_v{version:04d}.md"
+    )
+
+
 def generate_anchor_summary(anchor: IntentionAnchor) -> str:
     """
     Generate human-readable markdown summary of anchor.
@@ -78,7 +102,7 @@ def generate_anchor_summary(anchor: IntentionAnchor) -> str:
         Markdown-formatted summary string.
     """
     lines = [
-        f"# Intention Anchor Summary",
+        "# Intention Anchor Summary",
         "",
         f"**Anchor ID**: `{anchor.anchor_id}`",
         f"**Run ID**: `{anchor.run_id}`",
@@ -186,6 +210,40 @@ def save_anchor_summary(anchor: IntentionAnchor, base_dir: str | Path = ".") -> 
     )
 
     return summary_path
+
+
+def save_anchor_summary_snapshot(anchor: IntentionAnchor, base_dir: str | Path = ".") -> Path:
+    """
+    Save versioned anchor summary snapshot.
+
+    Intention behind it: Create append-only versioned snapshots to preserve
+    historical anchor states for audit trail. Each version gets its own file.
+
+    Args:
+        anchor: IntentionAnchor to save.
+        base_dir: Base directory (default: ".").
+
+    Returns:
+        Path to written snapshot file.
+    """
+    snapshot_path = get_anchor_summary_version_path(anchor.run_id, anchor.version, base_dir)
+    snapshot_path.parent.mkdir(parents=True, exist_ok=True)
+
+    summary_content = generate_anchor_summary(anchor)
+
+    # Append-only: write snapshot only if it doesn't exist
+    if not snapshot_path.exists():
+        snapshot_path.write_text(summary_content, encoding="utf-8")
+        logger.info(
+            f"[{anchor.run_id}] Saved versioned snapshot to {snapshot_path} "
+            f"(anchor_id={anchor.anchor_id}, version={anchor.version})"
+        )
+    else:
+        logger.debug(
+            f"[{anchor.run_id}] Snapshot v{anchor.version} already exists at {snapshot_path}, skipping"
+        )
+
+    return snapshot_path
 
 
 def log_anchor_event(
@@ -311,7 +369,9 @@ def generate_anchor_diff_summary(old_anchor: IntentionAnchor, new_anchor: Intent
 
     # North star change
     if new_anchor.north_star != old_anchor.north_star:
-        changes.append(f"**North star changed:**\n  - Old: {old_anchor.north_star}\n  - New: {new_anchor.north_star}")
+        changes.append(
+            f"**North star changed:**\n  - Old: {old_anchor.north_star}\n  - New: {new_anchor.north_star}"
+        )
 
     # Success criteria changes
     old_sc = set(old_anchor.success_criteria)
@@ -349,7 +409,9 @@ def generate_anchor_diff_summary(old_anchor: IntentionAnchor, new_anchor: Intent
 
     # Risk profile changes
     if new_anchor.risk_profile != old_anchor.risk_profile:
-        changes.append(f"**Risk profile changed:** {old_anchor.risk_profile.safety_profile} → {new_anchor.risk_profile.safety_profile}")
+        changes.append(
+            f"**Risk profile changed:** {old_anchor.risk_profile.safety_profile} → {new_anchor.risk_profile.safety_profile}"
+        )
 
     if not changes:
         return "No changes detected (metadata-only update?)"

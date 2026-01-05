@@ -14,6 +14,7 @@ logger = logging.getLogger(__name__)
 
 class GitRollbackError(Exception):
     """Base exception for git rollback operations."""
+
     pass
 
 
@@ -37,10 +38,7 @@ class GitRollback:
             raise GitRollbackError(f"Not a git repository: {self.repo_path}")
 
     def _run_git_command(
-        self, 
-        args: list[str], 
-        check: bool = True,
-        capture_output: bool = True
+        self, args: list[str], check: bool = True, capture_output: bool = True
     ) -> subprocess.CompletedProcess:
         """
         Run a git command in the repository.
@@ -62,7 +60,7 @@ class GitRollback:
                 cwd=self.repo_path,
                 check=check,
                 capture_output=capture_output,
-                text=True
+                text=True,
             )
             return result
         except subprocess.CalledProcessError as e:
@@ -92,10 +90,7 @@ class GitRollback:
 
     def _branch_exists(self, branch_name: str) -> bool:
         """Check if a branch exists."""
-        result = self._run_git_command(
-            ["rev-parse", "--verify", branch_name],
-            check=False
-        )
+        result = self._run_git_command(["rev-parse", "--verify", branch_name], check=False)
         return result.returncode == 0
 
     def create_rollback_point(self, run_id: str) -> str:
@@ -115,10 +110,10 @@ class GitRollback:
             GitRollbackError: If rollback point creation fails
         """
         branch_name = self._get_branch_name(run_id)
-        
+
         # Check for uncommitted changes
         if self._has_uncommitted_changes():
-            logger.warning(f"Uncommitted changes detected, stashing before creating rollback point")
+            logger.warning("Uncommitted changes detected, stashing before creating rollback point")
             if self._stash_changes():
                 logger.info("Changes stashed successfully")
 
@@ -130,7 +125,7 @@ class GitRollback:
         # Create the rollback branch
         self._run_git_command(["branch", branch_name])
         logger.info(f"Created rollback point: {branch_name}")
-        
+
         return branch_name
 
     def rollback_to_point(self, run_id: str) -> bool:
@@ -147,7 +142,7 @@ class GitRollback:
             True if rollback succeeded, False otherwise
         """
         branch_name = self._get_branch_name(run_id)
-        
+
         if not self._branch_exists(branch_name):
             logger.error(f"Rollback branch {branch_name} not found")
             return False
@@ -172,7 +167,7 @@ class GitRollback:
             True if cleanup succeeded, False otherwise
         """
         branch_name = self._get_branch_name(run_id)
-        
+
         if not self._branch_exists(branch_name):
             logger.warning(f"Rollback branch {branch_name} not found, nothing to clean up")
             return True

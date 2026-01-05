@@ -8,11 +8,11 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any, Dict, List, Optional, Set
 from datetime import datetime
-from urllib.parse import urlparse
 
 
 class SourceType(Enum):
     """Source type enumeration."""
+
     WEB = "web"
     GITHUB = "github"
     REDDIT = "reddit"
@@ -35,6 +35,7 @@ class DiscoveredSource:
         source_type: Type of source
         metadata: Additional metadata
     """
+
     url: str
     title: str = ""
     description: str = ""
@@ -46,6 +47,7 @@ class DiscoveredSource:
 @dataclass
 class Source:
     """Legacy Source model for backward compatibility."""
+
     url: str
     source_type: SourceType
     title: str = ""
@@ -58,6 +60,7 @@ class Source:
 @dataclass
 class DiscoveryQuery:
     """Discovery query configuration."""
+
     query: str
     source_types: List[SourceType] = field(default_factory=list)
     max_results: int = 10
@@ -180,7 +183,7 @@ class WebSearchStrategy(SourceDiscoveryStrategy):
                 title=result.get("title", ""),
                 description=result.get("snippet", ""),
                 relevance_score=relevance,
-                source_type=SourceType.WEB
+                source_type=SourceType.WEB,
             )
             sources.append(source)
 
@@ -218,7 +221,7 @@ class AcademicSearchStrategy(SourceDiscoveryStrategy):
                 title=result.get("title", ""),
                 description=result.get("snippet", ""),
                 relevance_score=relevance,
-                source_type=SourceType.ACADEMIC
+                source_type=SourceType.ACADEMIC,
             )
             sources.append(source)
 
@@ -254,7 +257,7 @@ class DocumentationSearchStrategy(SourceDiscoveryStrategy):
                 title=result.get("title", ""),
                 description=result.get("snippet", ""),
                 relevance_score=relevance,
-                source_type=SourceType.DOCUMENTATION
+                source_type=SourceType.DOCUMENTATION,
             )
             sources.append(source)
 
@@ -295,4 +298,3 @@ __all__ = [
     "SourceDiscoveryStrategy",
     "WebSearchStrategy",
 ]
-

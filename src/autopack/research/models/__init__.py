@@ -16,11 +16,14 @@ from autopack.research.models.enums import EvidenceType, ResearchStage, Validati
 # Import ResearchQuery from research_phase module
 try:
     from autopack.phases.research_phase import ResearchQuery as _ResearchQuery
+
     ResearchQuery = _ResearchQuery
 except ImportError:
+
     @dataclass
     class ResearchQuery:
         """Research query model."""
+
         query: str
         priority: int = 1
         required: bool = False
@@ -29,6 +32,7 @@ except ImportError:
 
 class EvidenceQuality(Enum):
     """Evidence quality levels."""
+
     HIGH = "high"
     MEDIUM = "medium"
     LOW = "low"
@@ -48,6 +52,7 @@ class Citation:
     Raises:
         ValueError: If source_url is not a valid URL
     """
+
     source_url: str
     title: str = ""
     author: str = ""
@@ -76,6 +81,7 @@ class Evidence:
     Raises:
         ValueError: If citations list is empty
     """
+
     content: str
     citations: List[Citation]
     quality: EvidenceQuality = EvidenceQuality.UNKNOWN
@@ -96,6 +102,7 @@ class ResearchReport:
         evidence: List of evidence items
         conclusions: List of conclusion statements
     """
+
     query: str
     summary: str = ""
     evidence: List[Evidence] = field(default_factory=list)
@@ -113,4 +120,3 @@ __all__ = [
     "ResearchQuery",
     "ResearchReport",
 ]
-

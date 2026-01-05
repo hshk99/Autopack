@@ -11,11 +11,9 @@ Tests cover:
 - All lock listing (--all)
 """
 
-import io
 import json
 import os
 import sys
-import tempfile
 from datetime import datetime, timedelta
 from pathlib import Path
 
@@ -27,14 +25,13 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO_ROOT / "scripts" / "tidy"))
 
 from lease import (
-    LockStatus,
     pid_running,
     read_lock_status,
     break_stale_lock,
     lock_path_for_name,
     print_lock_status,
     should_use_ascii,
-    print_all_lock_status
+    print_all_lock_status,
 )
 
 
@@ -84,7 +81,7 @@ class TestReadLockStatus:
             "token": "test-token-uuid",
             "created_at": now.isoformat() + "Z",
             "last_renewed_at": now.isoformat() + "Z",
-            "expires_at": expires.isoformat() + "Z"
+            "expires_at": expires.isoformat() + "Z",
         }
 
         lock_path.write_text(json.dumps(lock_data), encoding="utf-8")
@@ -112,7 +109,7 @@ class TestReadLockStatus:
             "token": "old-token",
             "created_at": (now - timedelta(seconds=1800)).isoformat() + "Z",
             "last_renewed_at": (now - timedelta(seconds=600)).isoformat() + "Z",
-            "expires_at": expires.isoformat() + "Z"
+            "expires_at": expires.isoformat() + "Z",
         }
 
         lock_path.write_text(json.dumps(lock_data), encoding="utf-8")
@@ -133,7 +130,7 @@ class TestReadLockStatus:
             "token": "recent-token",
             "created_at": (now - timedelta(seconds=1800)).isoformat() + "Z",
             "last_renewed_at": expires.isoformat() + "Z",
-            "expires_at": expires.isoformat() + "Z"
+            "expires_at": expires.isoformat() + "Z",
         }
 
         lock_path.write_text(json.dumps(lock_data), encoding="utf-8")
@@ -190,7 +187,7 @@ class TestBreakStaleLock:
             "token": "active-token",
             "created_at": now.isoformat() + "Z",
             "last_renewed_at": now.isoformat() + "Z",
-            "expires_at": expires.isoformat() + "Z"
+            "expires_at": expires.isoformat() + "Z",
         }
 
         lock_path.write_text(json.dumps(lock_data), encoding="utf-8")
@@ -212,7 +209,7 @@ class TestBreakStaleLock:
             "token": "dead-token",
             "created_at": (now - timedelta(seconds=2400)).isoformat() + "Z",
             "last_renewed_at": expires.isoformat() + "Z",
-            "expires_at": expires.isoformat() + "Z"
+            "expires_at": expires.isoformat() + "Z",
         }
 
         lock_path.write_text(json.dumps(lock_data), encoding="utf-8")
@@ -234,7 +231,7 @@ class TestBreakStaleLock:
             "token": "running-token",
             "created_at": (now - timedelta(seconds=2400)).isoformat() + "Z",
             "last_renewed_at": expires.isoformat() + "Z",
-            "expires_at": expires.isoformat() + "Z"
+            "expires_at": expires.isoformat() + "Z",
         }
 
         lock_path.write_text(json.dumps(lock_data), encoding="utf-8")
@@ -275,7 +272,7 @@ class TestBreakStaleLock:
             "token": "unknown-token",
             "created_at": (now - timedelta(seconds=2400)).isoformat() + "Z",
             "last_renewed_at": expires.isoformat() + "Z",
-            "expires_at": expires.isoformat() + "Z"
+            "expires_at": expires.isoformat() + "Z",
         }
 
         lock_path.write_text(json.dumps(lock_data), encoding="utf-8")
@@ -323,11 +320,12 @@ class TestCLIIntegration:
                 sys.executable,
                 str(REPO_ROOT / "scripts" / "tidy" / "tidy_up.py"),
                 "--lock-status",
-                "--lock-name", "test_no_lock"
+                "--lock-name",
+                "test_no_lock",
             ],
             cwd=str(REPO_ROOT),
             capture_output=True,
-            text=True
+            text=True,
         )
 
         assert result.returncode == 0
@@ -349,23 +347,25 @@ class TestCLIIntegration:
             "token": "test-cli-token",
             "created_at": now.isoformat() + "Z",
             "last_renewed_at": now.isoformat() + "Z",
-            "expires_at": expires.isoformat() + "Z"
+            "expires_at": expires.isoformat() + "Z",
         }
 
         try:
             lock_path.write_text(json.dumps(lock_data, indent=2), encoding="utf-8")
 
             import subprocess
+
             result = subprocess.run(
                 [
                     sys.executable,
                     str(REPO_ROOT / "scripts" / "tidy" / "tidy_up.py"),
                     "--lock-status",
-                    "--lock-name", "test_active"
+                    "--lock-name",
+                    "test_active",
                 ],
                 cwd=str(REPO_ROOT),
                 capture_output=True,
-                text=True
+                text=True,
             )
 
             assert result.returncode == 0
@@ -392,23 +392,25 @@ class TestCLIIntegration:
             "token": "stale-cli-token",
             "created_at": (now - timedelta(seconds=2400)).isoformat() + "Z",
             "last_renewed_at": expires.isoformat() + "Z",
-            "expires_at": expires.isoformat() + "Z"
+            "expires_at": expires.isoformat() + "Z",
         }
 
         try:
             lock_path.write_text(json.dumps(lock_data, indent=2), encoding="utf-8")
 
             import subprocess
+
             result = subprocess.run(
                 [
                     sys.executable,
                     str(REPO_ROOT / "scripts" / "tidy" / "tidy_up.py"),
                     "--break-stale-lock",
-                    "--lock-name", "test_stale"
+                    "--lock-name",
+                    "test_stale",
                 ],
                 cwd=str(REPO_ROOT),
                 capture_output=True,
-                text=True
+                text=True,
             )
 
             assert result.returncode == 0
@@ -456,7 +458,7 @@ class TestASCIIMode:
             "token": "test-token",
             "created_at": now.isoformat() + "Z",
             "last_renewed_at": now.isoformat() + "Z",
-            "expires_at": expires.isoformat() + "Z"
+            "expires_at": expires.isoformat() + "Z",
         }
 
         lock_path.write_text(json.dumps(lock_data), encoding="utf-8")
@@ -485,7 +487,7 @@ class TestASCIIMode:
             "token": "test-token",
             "created_at": now.isoformat() + "Z",
             "last_renewed_at": now.isoformat() + "Z",
-            "expires_at": expires.isoformat() + "Z"
+            "expires_at": expires.isoformat() + "Z",
         }
 
         lock_path.write_text(json.dumps(lock_data), encoding="utf-8")
@@ -512,7 +514,7 @@ class TestASCIIMode:
             "token": "stale-token",
             "created_at": (now - timedelta(seconds=2400)).isoformat() + "Z",
             "last_renewed_at": expires.isoformat() + "Z",
-            "expires_at": expires.isoformat() + "Z"
+            "expires_at": expires.isoformat() + "Z",
         }
         lock_path.write_text(json.dumps(lock_data), encoding="utf-8")
         status = read_lock_status(lock_path, grace_seconds=120)
@@ -554,25 +556,35 @@ class TestAllLockStatus:
 
         # Create active lock
         active_lock = locks_dir / "tidy.lock"
-        active_lock.write_text(json.dumps({
-            "owner": "tidy",
-            "pid": os.getpid(),
-            "token": "tidy-token",
-            "created_at": now.isoformat() + "Z",
-            "last_renewed_at": now.isoformat() + "Z",
-            "expires_at": (now + timedelta(seconds=1800)).isoformat() + "Z"
-        }), encoding="utf-8")
+        active_lock.write_text(
+            json.dumps(
+                {
+                    "owner": "tidy",
+                    "pid": os.getpid(),
+                    "token": "tidy-token",
+                    "created_at": now.isoformat() + "Z",
+                    "last_renewed_at": now.isoformat() + "Z",
+                    "expires_at": (now + timedelta(seconds=1800)).isoformat() + "Z",
+                }
+            ),
+            encoding="utf-8",
+        )
 
         # Create stale lock
         stale_lock = locks_dir / "archive.lock"
-        stale_lock.write_text(json.dumps({
-            "owner": "archive",
-            "pid": 999999,
-            "token": "archive-token",
-            "created_at": (now - timedelta(seconds=2400)).isoformat() + "Z",
-            "last_renewed_at": (now - timedelta(seconds=600)).isoformat() + "Z",
-            "expires_at": (now - timedelta(seconds=600)).isoformat() + "Z"
-        }), encoding="utf-8")
+        stale_lock.write_text(
+            json.dumps(
+                {
+                    "owner": "archive",
+                    "pid": 999999,
+                    "token": "archive-token",
+                    "created_at": (now - timedelta(seconds=2400)).isoformat() + "Z",
+                    "last_renewed_at": (now - timedelta(seconds=600)).isoformat() + "Z",
+                    "expires_at": (now - timedelta(seconds=600)).isoformat() + "Z",
+                }
+            ),
+            encoding="utf-8",
+        )
 
         # Create malformed lock
         malformed_lock = locks_dir / "malformed.lock"
@@ -602,14 +614,19 @@ class TestAllLockStatus:
         now = datetime.utcnow()
 
         active_lock = locks_dir / "test.lock"
-        active_lock.write_text(json.dumps({
-            "owner": "test",
-            "pid": os.getpid(),
-            "token": "test-token",
-            "created_at": now.isoformat() + "Z",
-            "last_renewed_at": now.isoformat() + "Z",
-            "expires_at": (now + timedelta(seconds=1800)).isoformat() + "Z"
-        }), encoding="utf-8")
+        active_lock.write_text(
+            json.dumps(
+                {
+                    "owner": "test",
+                    "pid": os.getpid(),
+                    "token": "test-token",
+                    "created_at": now.isoformat() + "Z",
+                    "last_renewed_at": now.isoformat() + "Z",
+                    "expires_at": (now + timedelta(seconds=1800)).isoformat() + "Z",
+                }
+            ),
+            encoding="utf-8",
+        )
 
         print_all_lock_status(tmp_path, grace_seconds=120, ascii_mode=False)
         captured = capsys.readouterr()
@@ -631,13 +648,14 @@ class TestBUILD162CLIIntegration:
                 sys.executable,
                 str(REPO_ROOT / "scripts" / "tidy" / "tidy_up.py"),
                 "--lock-status",
-                "--lock-name", "test_ascii",
-                "--ascii"
+                "--lock-name",
+                "test_ascii",
+                "--ascii",
             ],
             cwd=str(REPO_ROOT),
             capture_output=True,
             text=True,
-            encoding="utf-8"
+            encoding="utf-8",
         )
 
         assert result.returncode == 0
@@ -663,7 +681,7 @@ class TestBUILD162CLIIntegration:
             "token": "test-token",
             "created_at": now.isoformat() + "Z",
             "last_renewed_at": now.isoformat() + "Z",
-            "expires_at": (now + timedelta(seconds=1800)).isoformat() + "Z"
+            "expires_at": (now + timedelta(seconds=1800)).isoformat() + "Z",
         }
 
         try:
@@ -675,12 +693,12 @@ class TestBUILD162CLIIntegration:
                     str(REPO_ROOT / "scripts" / "tidy" / "tidy_up.py"),
                     "--lock-status",
                     "--all",
-                    "--ascii"
+                    "--ascii",
                 ],
                 cwd=str(REPO_ROOT),
                 capture_output=True,
                 text=True,
-                encoding="utf-8"
+                encoding="utf-8",
             )
 
             assert result.returncode == 0
@@ -701,12 +719,12 @@ class TestBUILD162CLIIntegration:
                 str(REPO_ROOT / "scripts" / "tidy" / "tidy_up.py"),
                 "--lock-status",
                 "--all",
-                "--ascii"
+                "--ascii",
             ],
             cwd=str(REPO_ROOT),
             capture_output=True,
             text=True,
-            encoding="utf-8"
+            encoding="utf-8",
         )
 
         assert result.returncode == 0

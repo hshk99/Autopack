@@ -5,14 +5,7 @@ Tests file profiling, chunking, and integration with grounded context.
 """
 
 import pytest
-from pathlib import Path
-from autopack.context_chunker import (
-    ContextChunker,
-    FileProfile,
-    ChunkRef,
-    LARGE_FILE_THRESHOLD_LINES,
-    MINIFIED_LINE_LENGTH
-)
+from autopack.context_chunker import ContextChunker, ChunkRef
 
 
 @pytest.fixture
@@ -33,7 +26,7 @@ def test_profile_small_file_no_chunking(chunker, tmp_workspace):
     """Small files (<1000 lines) should not be chunked"""
     # Create small Python file
     small_file = tmp_workspace / "small.py"
-    small_file.write_text('\n'.join([f"# Line {i}" for i in range(500)]))
+    small_file.write_text("\n".join([f"# Line {i}" for i in range(500)]))
 
     profile = chunker.profile_file("small.py")
 
@@ -52,7 +45,7 @@ def test_profile_large_file_should_chunk(chunker, tmp_workspace):
     for i in range(1500):
         content.append(f"# Line {i}")
 
-    large_file.write_text('\n'.join(content))
+    large_file.write_text("\n".join(content))
 
     profile = chunker.profile_file("large.py")
 
@@ -66,7 +59,7 @@ def test_profile_minified_file(chunker, tmp_workspace):
     # Create minified file (long lines)
     minified_file = tmp_workspace / "bundle.js"
     long_line = "a" * 1000
-    content = '\n'.join([long_line] * 10)
+    content = "\n".join([long_line] * 10)
     minified_file.write_text(content)
 
     profile = chunker.profile_file("bundle.js")
@@ -113,7 +106,7 @@ def standalone_function():
     pass
 '''
     # Make it large enough to chunk
-    content += '\n'.join([f"# Padding line {i}" for i in range(1000)])
+    content += "\n".join([f"# Padding line {i}" for i in range(1000)])
     python_file.write_text(content)
 
     chunks = chunker.chunk_file("module.py")
@@ -135,13 +128,13 @@ def standalone_function():
 def test_chunk_python_file_syntax_error(chunker, tmp_workspace):
     """Files with syntax errors fall back to heuristic chunking"""
     bad_python = tmp_workspace / "bad.py"
-    content = '''class Foo
+    content = """class Foo
     # Missing colon - syntax error
     def method(self):
         pass
-'''
+"""
     # Make it large enough
-    content += '\n'.join([f"# Line {i}" for i in range(1000)])
+    content += "\n".join([f"# Line {i}" for i in range(1000)])
     bad_python.write_text(content)
 
     chunks = chunker.chunk_file("bad.py")
@@ -153,7 +146,7 @@ def test_chunk_python_file_syntax_error(chunker, tmp_workspace):
 def test_chunk_javascript_file_heuristic(chunker, tmp_workspace):
     """JavaScript files use heuristic chunking"""
     js_file = tmp_workspace / "app.js"
-    content = '''class AppController {
+    content = """class AppController {
     constructor() {
         // ...
     }
@@ -166,9 +159,9 @@ function handleRequest(req, res) {
 const helper = (data) => {
     // ...
 }
-'''
+"""
     # Make it large enough
-    content += '\n'.join([f"// Comment {i}" for i in range(1000)])
+    content += "\n".join([f"// Comment {i}" for i in range(1000)])
     js_file.write_text(content)
 
     chunks = chunker.chunk_file("app.js")
@@ -193,10 +186,10 @@ def test_chunk_limit_enforcement(chunker, tmp_workspace):
     content = []
     for i in range(MAX_CHUNKS_PER_FILE + 20):
         content.append(f"def func_{i}():")
-        content.append(f"    pass")
+        content.append("    pass")
         content.append("")
 
-    many_funcs.write_text('\n'.join(content))
+    many_funcs.write_text("\n".join(content))
 
     chunks = chunker.chunk_file("many.py")
 
@@ -213,7 +206,7 @@ def test_chunk_summary_formatting(chunker):
             end_line=10,
             symbol_name="Foo",
             kind="class",
-            docstring="Foo class documentation"
+            docstring="Foo class documentation",
         ),
         ChunkRef(
             file_path="test.py",
@@ -221,7 +214,7 @@ def test_chunk_summary_formatting(chunker):
             end_line=20,
             symbol_name="bar",
             kind="function",
-            docstring=None
+            docstring=None,
         ),
     ]
 
@@ -243,7 +236,7 @@ def test_chunk_summary_truncation(chunker):
             start_line=i * 10,
             end_line=(i + 1) * 10,
             symbol_name=f"func_{i}",
-            kind="function"
+            kind="function",
         )
         for i in range(100)
     ]
@@ -276,15 +269,15 @@ def test_language_detection(chunker, tmp_workspace):
 def test_stable_chunk_boundaries(chunker, tmp_workspace):
     """Chunk boundaries should be deterministic"""
     python_file = tmp_workspace / "stable.py"
-    content = '''class Foo:
+    content = """class Foo:
     def method1(self):
         pass
 
 class Bar:
     def method2(self):
         pass
-'''
-    content += '\n'.join([f"# Line {i}" for i in range(1000)])
+"""
+    content += "\n".join([f"# Line {i}" for i in range(1000)])
     python_file.write_text(content)
 
     # Run chunking twice

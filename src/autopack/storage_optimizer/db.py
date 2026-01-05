@@ -18,13 +18,14 @@ from ..models import ApprovalDecision, CleanupCandidateDB, StorageScan
 # Query Helpers - Scan History
 # ==============================================================================
 
+
 def get_scan_history(
     db: Session,
     limit: int = 50,
     offset: int = 0,
     since_days: Optional[int] = None,
     scan_type: Optional[str] = None,
-    scan_target: Optional[str] = None
+    scan_target: Optional[str] = None,
 ) -> List[StorageScan]:
     """
     Get scan history with pagination and optional filters.
@@ -70,9 +71,7 @@ def get_scan_history(
 
 
 def get_latest_scan_by_target(
-    db: Session,
-    scan_target: str,
-    scan_type: Optional[str] = None
+    db: Session, scan_target: str, scan_type: Optional[str] = None
 ) -> Optional[StorageScan]:
     """
     Get the most recent scan for a specific target.
@@ -151,13 +150,14 @@ def get_scan_count(db: Session, since_days: Optional[int] = None) -> int:
 # Query Helpers - Cleanup Candidates
 # ==============================================================================
 
+
 def get_cleanup_candidates_by_scan(
     db: Session,
     scan_id: int,
     category: Optional[str] = None,
     approval_status: Optional[str] = None,
     requires_approval: Optional[bool] = None,
-    min_size_bytes: Optional[int] = None
+    min_size_bytes: Optional[int] = None,
 ) -> List[CleanupCandidateDB]:
     """
     Get cleanup candidates for a specific scan.
@@ -276,18 +276,18 @@ def get_candidate_stats_by_category(db: Session, scan_id: int) -> dict:
     for candidate in candidates:
         if candidate.category not in stats:
             stats[candidate.category] = {
-                'count': 0,
-                'total_size_bytes': 0,
-                'approved_count': 0,
-                'approved_size_bytes': 0
+                "count": 0,
+                "total_size_bytes": 0,
+                "approved_count": 0,
+                "approved_size_bytes": 0,
             }
 
-        stats[candidate.category]['count'] += 1
-        stats[candidate.category]['total_size_bytes'] += candidate.size_bytes
+        stats[candidate.category]["count"] += 1
+        stats[candidate.category]["total_size_bytes"] += candidate.size_bytes
 
-        if candidate.approval_status == 'approved':
-            stats[candidate.category]['approved_count'] += 1
-            stats[candidate.category]['approved_size_bytes'] += candidate.size_bytes
+        if candidate.approval_status == "approved":
+            stats[candidate.category]["approved_count"] += 1
+            stats[candidate.category]["approved_size_bytes"] += candidate.size_bytes
 
     return stats
 
@@ -296,10 +296,8 @@ def get_candidate_stats_by_category(db: Session, scan_id: int) -> dict:
 # Query Helpers - Approval Decisions
 # ==============================================================================
 
-def get_approval_decisions_by_scan(
-    db: Session,
-    scan_id: int
-) -> List[ApprovalDecision]:
+
+def get_approval_decisions_by_scan(db: Session, scan_id: int) -> List[ApprovalDecision]:
     """
     Get all approval decisions for a specific scan.
 
@@ -333,8 +331,8 @@ def create_approval_decision(
     candidate_ids: List[int],
     approved_by: str,
     decision: str,
-    approval_method: str = 'api',
-    notes: Optional[str] = None
+    approval_method: str = "api",
+    notes: Optional[str] = None,
 ) -> ApprovalDecision:
     """
     Create a new approval decision and update candidate approval status.
@@ -387,17 +385,17 @@ def create_approval_decision(
         total_candidates=len(candidates),
         total_size_bytes=total_size_bytes,
         decision=decision,
-        notes=notes
+        notes=notes,
     )
     db.add(approval)
 
     # Update candidate approval status
-    approval_status = 'approved' if decision == 'approve' else 'rejected'
+    approval_status = "approved" if decision == "approve" else "rejected"
     for candidate in candidates:
         candidate.approval_status = approval_status
         candidate.approved_by = approved_by
         candidate.approved_at = datetime.now(timezone.utc)
-        if decision == 'reject' and notes:
+        if decision == "reject" and notes:
             candidate.rejection_reason = notes
 
     return approval
@@ -407,11 +405,8 @@ def create_approval_decision(
 # Trend Analysis Helpers
 # ==============================================================================
 
-def compare_scans(
-    db: Session,
-    scan_id_current: int,
-    scan_id_previous: int
-) -> dict:
+
+def compare_scans(db: Session, scan_id_current: int, scan_id_previous: int) -> dict:
     """
     Compare two scans to analyze storage trends.
 
@@ -454,13 +449,13 @@ def compare_scans(
     previous_categories = set(previous_stats.keys())
 
     return {
-        'total_size_change_bytes': total_size_change,
-        'cleanup_candidates_change': candidates_change,
-        'potential_savings_change_bytes': savings_change,
-        'categories_added': list(current_categories - previous_categories),
-        'categories_removed': list(previous_categories - current_categories),
-        'category_stats_current': current_stats,
-        'category_stats_previous': previous_stats,
-        'scan_current': current,
-        'scan_previous': previous
+        "total_size_change_bytes": total_size_change,
+        "cleanup_candidates_change": candidates_change,
+        "potential_savings_change_bytes": savings_change,
+        "categories_added": list(current_categories - previous_categories),
+        "categories_removed": list(previous_categories - current_categories),
+        "category_stats_current": current_stats,
+        "category_stats_previous": previous_stats,
+        "scan_current": current,
+        "scan_previous": previous,
     }

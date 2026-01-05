@@ -14,7 +14,6 @@ import tempfile
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-import pytest
 
 from autopack.project_intention import (
     ProjectIntention,
@@ -457,7 +456,9 @@ class TestConvenienceFunctions:
                 assert intention.acceptance_criteria == ["Tests pass"]
 
                 # Verify artifacts were written
-                json_path = mock_layout.base_dir / "intention" / f"intent_{INTENTION_SCHEMA_VERSION}.json"
+                json_path = (
+                    mock_layout.base_dir / "intention" / f"intent_{INTENTION_SCHEMA_VERSION}.json"
+                )
                 assert json_path.exists()
 
                 # Verify memory was called

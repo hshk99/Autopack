@@ -9,7 +9,7 @@ import threading
 import time
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional
 
 import yaml
 
@@ -50,7 +50,9 @@ class DiagnosticsAgent:
         embedding_model: Optional[Any] = None,
         memory_service: Optional[MemoryService] = None,
         enable_second_opinion: bool = False,
-        decision_logger: Optional[Callable[[str, str, str, Optional[str], Optional[str]], None]] = None,
+        decision_logger: Optional[
+            Callable[[str, str, str, Optional[str], Optional[str]], None]
+        ] = None,
         diagnostics_dir: Optional[Path] = None,
         max_probes: int = 8,
         max_seconds: int = 300,
@@ -92,9 +94,13 @@ class DiagnosticsAgent:
 
         # Compatibility: Stage-2 engine hooks expected by BUILD-112 tests.
         self.trigger_detector = RetrievalTriggerDetector()
-        self.deep_retrieval_engine = DeepRetrievalEngine(embedding_model=embedding_model) if embedding_model else None
+        self.deep_retrieval_engine = (
+            DeepRetrievalEngine(embedding_model=embedding_model) if embedding_model else None
+        )
 
-    def retrieve_deep_context_if_needed(self, error_context: Dict[str, Any], query: str) -> Optional[Dict[str, List[Dict[str, Any]]]]:
+    def retrieve_deep_context_if_needed(
+        self, error_context: Dict[str, Any], query: str
+    ) -> Optional[Dict[str, List[Dict[str, Any]]]]:
         """Test-facing helper: return deep context when trigger detector says to escalate."""
         if not self.deep_retrieval_engine:
             return None
@@ -161,7 +167,9 @@ class DiagnosticsAgent:
                     break
                 result = self._run_probe(probe)
                 probe_results.append(result)
-                artifacts.extend([r.artifact_path or "" for r in result.command_results if r.artifact_path])
+                artifacts.extend(
+                    [r.artifact_path or "" for r in result.command_results if r.artifact_path]
+                )
                 evidence_line = self._summarize_probe_result(result)
                 ledger.items[0].add_evidence(evidence_line)
                 if result.resolved and probe.stop_on_success:
@@ -188,27 +196,28 @@ class DiagnosticsAgent:
             # Check if deep retrieval should be triggered
             try:
                 retrieval_trigger = RetrievalTrigger(self.diagnostics_dir.parent)
-                if retrieval_trigger.should_escalate(handoff_bundle, phase_id or "unknown", attempt_number):
+                if retrieval_trigger.should_escalate(
+                    handoff_bundle, phase_id or "unknown", attempt_number
+                ):
                     priority = retrieval_trigger.get_retrieval_priority(handoff_bundle)
                     deep_retrieval = DeepRetrieval(
-                        run_dir=self.diagnostics_dir.parent,
-                        repo_root=self.workspace
+                        run_dir=self.diagnostics_dir.parent, repo_root=self.workspace
                     )
                     deep_retrieval_results = deep_retrieval.retrieve(
                         phase_id=phase_id or "unknown",
                         handoff_bundle=handoff_bundle,
-                        priority=priority
+                        priority=priority,
                     )
                     deep_retrieval_triggered = True
 
                     # Persist deep retrieval results
                     deep_retrieval_path = self.diagnostics_dir / "deep_retrieval.json"
                     deep_retrieval_path.write_text(
-                        json.dumps(deep_retrieval_results, indent=2),
-                        encoding="utf-8"
+                        json.dumps(deep_retrieval_results, indent=2), encoding="utf-8"
                     )
             except Exception as e:
                 import logging
+
                 logger = logging.getLogger(__name__)
                 logger.warning(f"[DiagnosticsAgent] Deep retrieval failed: {e}")
 
@@ -307,7 +316,12 @@ class DiagnosticsAgent:
                 sandbox=cmd.sandbox,
             )
             results.append(res)
-            if not res.skipped and not res.timed_out and res.exit_code == 0 and probe.stop_on_success:
+            if (
+                not res.skipped
+                and not res.timed_out
+                and res.exit_code == 0
+                and probe.stop_on_success
+            ):
                 resolved = True
                 break
         return ProbeRunResult(probe=probe, command_results=results, resolved=resolved)
@@ -380,4 +394,3 @@ class DiagnosticsAgent:
             except Exception:
                 return {}
         return {}
-

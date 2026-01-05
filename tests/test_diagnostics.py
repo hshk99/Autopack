@@ -1,4 +1,3 @@
-import tempfile
 from pathlib import Path
 
 from autopack.diagnostics.command_runner import CommandResult, GovernedCommandRunner
@@ -112,4 +111,3 @@ def test_diagnostics_agent_with_stub_runner(tmp_path: Path):
     assert outcome.probe_results, "Diagnostics should run probes"
     assert "Investigate" in outcome.ledger_summary
     assert runner.command_count > 0
-

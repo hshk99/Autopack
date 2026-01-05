@@ -15,7 +15,6 @@ from __future__ import annotations
 import json
 from datetime import datetime
 from pathlib import Path
-from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
@@ -65,9 +64,7 @@ class PhaseChange(BaseModel):
         max_length=10,
         description="List of key changes (max 10 items, each max 200 chars)",
     )
-    change_summary: str = Field(
-        ..., max_length=500, description="Short summary of changes"
-    )
+    change_summary: str = Field(..., max_length=500, description="Short summary of changes")
 
     @field_validator("key_changes")
     @classmethod
@@ -111,9 +108,7 @@ class PhaseProofStorage:
     """
 
     @staticmethod
-    def get_proof_path(
-        run_id: str, phase_id: str, project_id: str | None = None
-    ) -> Path:
+    def get_proof_path(run_id: str, phase_id: str, project_id: str | None = None) -> Path:
         """
         Get canonical path for phase proof artifact.
 
@@ -143,9 +138,7 @@ class PhaseProofStorage:
 
         # Atomic write (temp → replace)
         temp_path = path.with_suffix(".tmp")
-        temp_path.write_text(
-            proof.model_dump_json(indent=2, exclude_none=True), encoding="utf-8"
-        )
+        temp_path.write_text(proof.model_dump_json(indent=2, exclude_none=True), encoding="utf-8")
         temp_path.replace(path)
 
     @staticmethod

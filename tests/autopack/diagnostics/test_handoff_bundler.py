@@ -5,7 +5,6 @@ reproducible handoff/ folders from run directories.
 """
 
 import json
-import os
 import tempfile
 from pathlib import Path
 from typing import Generator
@@ -63,9 +62,7 @@ class TestHandoffBundler:
                     "status": "completed",
                     "duration_seconds": 1.0 + i * 0.5,
                 }
-                (phase_dir / "metadata.json").write_text(
-                    json.dumps(phase_meta, indent=2)
-                )
+                (phase_dir / "metadata.json").write_text(json.dumps(phase_meta, indent=2))
                 (phase_dir / "output.txt").write_text(f"Output from phase {i}\n" * 10)
 
             # Create artifacts directory
@@ -290,7 +287,7 @@ class TestHandoffBundler:
 
         # Generate initial bundle
         handoff_dir = generate_handoff_bundle(temp_run_dir)
-        initial_index = (handoff_dir / "index.json").read_text()
+        (handoff_dir / "index.json").read_text()
 
         # Add new artifact
         (temp_run_dir / "new_artifact.txt").write_text("new content")
@@ -319,9 +316,7 @@ class TestHandoffBundlerEdgeCases:
             (run_dir / "unicode.txt").write_text(unicode_content, encoding="utf-8")
 
             # Create minimal metadata
-            (run_dir / "run_metadata.json").write_text(
-                json.dumps({"run_id": "unicode-run"})
-            )
+            (run_dir / "run_metadata.json").write_text(json.dumps({"run_id": "unicode-run"}))
 
             handoff_dir = generate_handoff_bundle(run_dir)
             assert handoff_dir.exists()
@@ -336,18 +331,14 @@ class TestHandoffBundlerEdgeCases:
 
             # Create empty file
             (run_dir / "empty.txt").write_text("")
-            (run_dir / "run_metadata.json").write_text(
-                json.dumps({"run_id": "empty-files-run"})
-            )
+            (run_dir / "run_metadata.json").write_text(json.dumps({"run_id": "empty-files-run"}))
 
             handoff_dir = generate_handoff_bundle(run_dir)
             assert handoff_dir.exists()
 
             # Empty file should be in index with size 0
             index = json.loads((handoff_dir / "index.json").read_text())
-            empty_artifacts = [
-                a for a in index["artifacts"] if "empty.txt" in a["path"]
-            ]
+            empty_artifacts = [a for a in index["artifacts"] if "empty.txt" in a["path"]]
             if empty_artifacts:
                 assert empty_artifacts[0]["size_bytes"] == 0
 

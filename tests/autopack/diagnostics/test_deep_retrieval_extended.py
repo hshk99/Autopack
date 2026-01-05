@@ -18,7 +18,6 @@ import pytest
 from pathlib import Path
 
 # GRADUATED: Removed xfail marker - enhancements have been implemented (BUILD-146 Phase A P15)
-from datetime import datetime, timedelta
 import json
 import tempfile
 import shutil
@@ -56,10 +55,7 @@ class TestDeepRetrievalTriggers:
 
     def test_triggers_on_minimal_error_context(self, retrieval):
         """Test that minimal error context triggers deeper search."""
-        minimal_bundle = {
-            "error_message": "Error",  # Very short
-            "stack_trace": ""
-        }
+        minimal_bundle = {"error_message": "Error", "stack_trace": ""}  # Very short
         result = retrieval.retrieve("phase_001", minimal_bundle)
 
         # Should attempt to gather more context
@@ -205,14 +201,10 @@ class TestDeepRetrievalRanking:
         docs_dir.mkdir()
 
         # High relevance - matches error keywords
-        (docs_dir / "error_handling.md").write_text(
-            "# Error Handling\nerror test failure\n" * 10
-        )
+        (docs_dir / "error_handling.md").write_text("# Error Handling\nerror test failure\n" * 10)
 
         # Low relevance - no keyword matches
-        (docs_dir / "unrelated.md").write_text(
-            "# Unrelated Topic\nsome other content\n" * 10
-        )
+        (docs_dir / "unrelated.md").write_text("# Unrelated Topic\nsome other content\n" * 10)
 
         bundle = {"error_message": "error test failure"}
         result = retrieval.retrieve("phase_001", bundle)

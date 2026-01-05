@@ -4,6 +4,7 @@ Phase Finalizer for BUILD-127 Phase 1.
 Single completion authority - prevents bypassing quality/CI/deliverables gates.
 Per BUILD-127 Final Plan: peer-reviewed comprehensive completion check.
 """
+
 from dataclasses import dataclass, field
 from typing import List, Dict, Optional, Set
 from pathlib import Path
@@ -12,6 +13,7 @@ import json
 import os
 
 from autopack.test_baseline_tracker import TestBaseline, TestDelta, TestBaselineTracker
+
 # Note: deliverables_validator is a module with standalone functions, not a class
 import autopack.deliverables_validator as deliverables_validator_module
 
@@ -45,10 +47,7 @@ class PhaseFinalizer:
     3. Deliverables validation
     """
 
-    def __init__(
-        self,
-        baseline_tracker: TestBaselineTracker
-    ):
+    def __init__(self, baseline_tracker: TestBaselineTracker):
         """
         Initialize finalizer.
 
@@ -69,7 +68,7 @@ class PhaseFinalizer:
         applied_files: List[str],
         workspace: Path,
         builder_output: Optional[str] = None,
-        apply_stats: Optional[Dict] = None
+        apply_stats: Optional[Dict] = None,
     ) -> PhaseFinalizationDecision:
         """
         Comprehensive completion check.
@@ -105,7 +104,7 @@ class PhaseFinalizer:
             if is_noop:
                 noop_detected = True
                 if allow_noop:
-                    logger.info(f"[PhaseFinalizer] No-op detected but allowed by phase spec")
+                    logger.info("[PhaseFinalizer] No-op detected but allowed by phase spec")
                     warnings.append("Phase completed with no changes (allow_noop=true)")
                 else:
                     # Check if deliverables exist - if they do, this might be legitimately idempotent
@@ -121,10 +120,12 @@ class PhaseFinalizer:
                     else:
                         # Deliverables exist, so phase is legitimately idempotent
                         logger.info(
-                            f"[PhaseFinalizer] No-op detected but all deliverables exist "
+                            "[PhaseFinalizer] No-op detected but all deliverables exist "
                             "(phase is idempotent)"
                         )
-                        warnings.append("Phase completed with no changes (all deliverables already exist)")
+                        warnings.append(
+                            "Phase completed with no changes (all deliverables already exist)"
+                        )
 
         # Gate 0: Always block on CI collection/import errors (even when baseline missing).
         # pytest-json-report represents these as failed collectors and often produces:
@@ -171,13 +172,13 @@ class PhaseFinalizer:
                     f"{delta.regression_severity.upper()} regression: "
                     f"{len(delta.newly_failing_persistent)} persistent failures"
                 )
-                logger.error(f"[PhaseFinalizer] BLOCK: {delta.regression_severity.upper()} regression")
+                logger.error(
+                    f"[PhaseFinalizer] BLOCK: {delta.regression_severity.upper()} regression"
+                )
 
             # Log flaky suspects
             if delta.flaky_suspects:
-                warnings.append(
-                    f"Flaky tests detected (passed on retry): {delta.flaky_suspects}"
-                )
+                warnings.append(f"Flaky tests detected (passed on retry): {delta.flaky_suspects}")
                 logger.warning(f"[PhaseFinalizer] Flaky suspects: {delta.flaky_suspects}")
 
             # Log newly passing tests (good sign)
@@ -195,7 +196,9 @@ class PhaseFinalizer:
 
             if is_blocked:
                 if human_approved:
-                    warnings.append(f"Quality gate blocked but overridden by human approval: {quality_level}")
+                    warnings.append(
+                        f"Quality gate blocked but overridden by human approval: {quality_level}"
+                    )
                     logger.warning(
                         f"[PhaseFinalizer] WARN: Quality gate blocked ({quality_level}) but human-approved override present"
                     )
@@ -220,23 +223,25 @@ class PhaseFinalizer:
         if builder_output and deliverables:
             manifest = deliverables_validator_module.extract_manifest_from_output(builder_output)
             if manifest:
-                logger.info(f"[PhaseFinalizer] Validating structured deliverables manifest")
+                logger.info("[PhaseFinalizer] Validating structured deliverables manifest")
                 passed, issues = deliverables_validator_module.validate_structured_manifest(
-                    manifest=manifest,
-                    workspace=workspace,
-                    expected_deliverables=deliverables
+                    manifest=manifest, workspace=workspace, expected_deliverables=deliverables
                 )
 
                 if not passed:
                     blocking_issues.append(f"Manifest validation failed: {'; '.join(issues)}")
-                    logger.error(f"[PhaseFinalizer] BLOCK: Manifest validation failed with {len(issues)} issues")
+                    logger.error(
+                        f"[PhaseFinalizer] BLOCK: Manifest validation failed with {len(issues)} issues"
+                    )
                     for issue in issues:
                         logger.error(f"[PhaseFinalizer]   - {issue}")
                 else:
-                    logger.info(f"[PhaseFinalizer] ✅ Structured manifest validated successfully")
+                    logger.info("[PhaseFinalizer] ✅ Structured manifest validated successfully")
             else:
                 # Manifest not found - log as warning but don't block (optional feature)
-                logger.info(f"[PhaseFinalizer] No structured manifest found in builder output (optional)")
+                logger.info(
+                    "[PhaseFinalizer] No structured manifest found in builder output (optional)"
+                )
 
         # Decision
         if blocking_issues:
@@ -245,7 +250,7 @@ class PhaseFinalizer:
                 status="FAILED",
                 reason="; ".join(blocking_issues),
                 blocking_issues=blocking_issues,
-                warnings=warnings
+                warnings=warnings,
             )
             logger.error(f"[PhaseFinalizer] ❌ Phase {phase_id} BLOCKED: {decision.reason}")
             return decision
@@ -255,7 +260,7 @@ class PhaseFinalizer:
             status="COMPLETE",
             reason="All gates passed",
             blocking_issues=[],
-            warnings=warnings
+            warnings=warnings,
         )
 
         logger.info(f"[PhaseFinalizer] ✅ Phase {phase_id} can complete")
@@ -265,7 +270,9 @@ class PhaseFinalizer:
 
         return decision
 
-    def _missing_deliverables_in_workspace(self, deliverables: List[str], workspace: Path) -> List[str]:
+    def _missing_deliverables_in_workspace(
+        self, deliverables: List[str], workspace: Path
+    ) -> List[str]:
         """
         Workspace-based deliverables validation.
 
@@ -307,7 +314,9 @@ class PhaseFinalizer:
 
         return sorted(set(missing))
 
-    def _extract_collection_error_digest(self, ci_result: Dict, workspace: Path, max_errors: int = 5) -> Optional[List[str]]:
+    def _extract_collection_error_digest(
+        self, ci_result: Dict, workspace: Path, max_errors: int = 5
+    ) -> Optional[List[str]]:
         """
         Extract a digest of collection/import errors from the pytest report.
 
@@ -358,13 +367,17 @@ class PhaseFinalizer:
             p = Path(report_path)
             if not p.exists():
                 # If we don't have a structured report, fall back to the executor's signal.
-                if bool(ci_result.get("suspicious_zero_tests")) and not bool(ci_result.get("passed", False)):
+                if bool(ci_result.get("suspicious_zero_tests")) and not bool(
+                    ci_result.get("passed", False)
+                ):
                     return "CI collection/import error suspected (0 tests detected)"
                 return None
 
             # Only parse JSON reports; log files are handled by 'suspicious_zero_tests' above.
             if p.suffix.lower() != ".json":
-                if bool(ci_result.get("suspicious_zero_tests")) and not bool(ci_result.get("passed", False)):
+                if bool(ci_result.get("suspicious_zero_tests")) and not bool(
+                    ci_result.get("passed", False)
+                ):
                     return "CI collection/import error suspected (0 tests detected)"
                 return None
 
@@ -383,20 +396,24 @@ class PhaseFinalizer:
                 detail = longrepr[0] if longrepr else "collector failed"
                 return f"CI collection/import error: {nodeid} ({detail})"
 
-            if exitcode and exitcode != 0 and int(total) == 0 and bool(ci_result.get("suspicious_zero_tests")):
+            if (
+                exitcode
+                and exitcode != 0
+                and int(total) == 0
+                and bool(ci_result.get("suspicious_zero_tests"))
+            ):
                 return f"CI failed before running tests (exitcode={exitcode}, total_tests=0)"
 
         except Exception as e:
-            logger.warning(f"[PhaseFinalizer] Failed to detect collection errors from CI report: {e}")
+            logger.warning(
+                f"[PhaseFinalizer] Failed to detect collection errors from CI report: {e}"
+            )
             return None
 
         return None
 
     def _compute_ci_delta(
-        self,
-        baseline: TestBaseline,
-        ci_result: Dict,
-        workspace: Path
+        self, baseline: TestBaseline, ci_result: Dict, workspace: Path
     ) -> TestDelta:
         """
         Compute CI delta from baseline.
@@ -423,9 +440,7 @@ class PhaseFinalizer:
         # some CI adapters may only provide a text log, or JSON may be truncated/empty.
         try:
             delta = self.baseline_tracker.compute_full_delta(
-                baseline=baseline,
-                current_report_path=report_path,
-                workspace=workspace
+                baseline=baseline, current_report_path=report_path, workspace=workspace
             )
         except Exception as e:
             logger.error(f"[PhaseFinalizer] Failed to compute CI delta from {report_path}: {e}")
@@ -441,11 +456,7 @@ class PhaseFinalizer:
 
         return delta
 
-    def should_block_on_ci(
-        self,
-        delta: TestDelta,
-        phase_validation_tests: Set[str]
-    ) -> bool:
+    def should_block_on_ci(self, delta: TestDelta, phase_validation_tests: Set[str]) -> bool:
         """
         Determine if CI results should block completion.
 

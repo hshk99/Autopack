@@ -6,7 +6,6 @@ Per §5 of v7 playbook:
 - Project-level issue backlog with aging
 """
 
-import json
 import logging
 from datetime import datetime, timezone
 from pathlib import Path

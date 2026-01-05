@@ -17,7 +17,7 @@ import logging
 import re
 from dataclasses import dataclass
 from pathlib import Path
-from typing import List, Optional, Dict, Tuple
+from typing import List, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -34,6 +34,7 @@ MINIFIED_LINE_LENGTH = 500  # Lines > 500 chars suggest minification
 @dataclass
 class ChunkRef:
     """Reference to a code chunk within a file"""
+
     file_path: str
     start_line: int
     end_line: int
@@ -49,6 +50,7 @@ class ChunkRef:
 @dataclass
 class FileProfile:
     """Metadata about a file for chunking decisions"""
+
     file_path: str
     size_bytes: int
     line_count: int
@@ -105,7 +107,7 @@ class ContextChunker:
 
         # Read file to analyze
         try:
-            with open(abs_path, 'r', encoding='utf-8') as f:
+            with open(abs_path, "r", encoding="utf-8") as f:
                 lines = f.readlines()
         except (UnicodeDecodeError, PermissionError) as e:
             logger.warning(f"Could not read {file_path}: {e}")
@@ -117,7 +119,7 @@ class ContextChunker:
                 language="unknown",
                 is_generated=False,
                 is_minified=True,  # Treat unreadable as minified
-                avg_line_length=0
+                avg_line_length=0,
             )
 
         line_count = len(lines)
@@ -139,14 +141,10 @@ class ContextChunker:
             language=language,
             is_generated=is_generated,
             is_minified=is_minified,
-            avg_line_length=avg_line_length
+            avg_line_length=avg_line_length,
         )
 
-    def chunk_file(
-        self,
-        file_path: str,
-        profile: Optional[FileProfile] = None
-    ) -> List[ChunkRef]:
+    def chunk_file(self, file_path: str, profile: Optional[FileProfile] = None) -> List[ChunkRef]:
         """
         Chunk file into logical sections.
 
@@ -168,7 +166,7 @@ class ContextChunker:
 
         # Read file content
         try:
-            with open(abs_path, 'r', encoding='utf-8') as f:
+            with open(abs_path, "r", encoding="utf-8") as f:
                 content = f.read()
         except Exception as e:
             logger.error(f"Failed to read {file_path} for chunking: {e}")
@@ -193,7 +191,7 @@ class ContextChunker:
             return self._chunk_heuristic(file_path, content, None)
 
         chunks = []
-        lines = content.split('\n')
+        content.split("\n")
 
         for node in ast.walk(tree):
             # Only top-level classes and functions
@@ -212,14 +210,16 @@ class ContextChunker:
                     else:
                         kind = "function"
 
-                    chunks.append(ChunkRef(
-                        file_path=file_path,
-                        start_line=start_line,
-                        end_line=end_line,
-                        symbol_name=node.name,
-                        kind=kind,
-                        docstring=docstring
-                    ))
+                    chunks.append(
+                        ChunkRef(
+                            file_path=file_path,
+                            start_line=start_line,
+                            end_line=end_line,
+                            symbol_name=node.name,
+                            kind=kind,
+                            docstring=docstring,
+                        )
+                    )
 
         # Sort by start line
         chunks.sort(key=lambda c: c.start_line)
@@ -238,10 +238,7 @@ class ContextChunker:
         return chunks
 
     def _chunk_heuristic(
-        self,
-        file_path: str,
-        content: str,
-        profile: Optional[FileProfile]
+        self, file_path: str, content: str, profile: Optional[FileProfile]
     ) -> List[ChunkRef]:
         """
         Chunk non-Python files using heuristics.
@@ -251,12 +248,14 @@ class ContextChunker:
         - Blank line boundaries
         - Comment blocks
         """
-        lines = content.split('\n')
+        lines = content.split("\n")
         chunks = []
 
         # Regex patterns for common declarations
-        class_pattern = re.compile(r'^\s*(class|interface|struct|enum)\s+(\w+)')
-        function_pattern = re.compile(r'^\s*(function|def|async\s+function|export\s+function|const\s+\w+\s*=\s*\(.*\)\s*=>)\s*(\w+)?')
+        class_pattern = re.compile(r"^\s*(class|interface|struct|enum)\s+(\w+)")
+        function_pattern = re.compile(
+            r"^\s*(function|def|async\s+function|export\s+function|const\s+\w+\s*=\s*\(.*\)\s*=>)\s*(\w+)?"
+        )
 
         current_chunk_start = None
         current_symbol = None
@@ -268,13 +267,15 @@ class ContextChunker:
             if class_match:
                 # Save previous chunk if any
                 if current_chunk_start is not None:
-                    chunks.append(ChunkRef(
-                        file_path=file_path,
-                        start_line=current_chunk_start,
-                        end_line=i - 1,
-                        symbol_name=current_symbol or "unnamed",
-                        kind=current_kind
-                    ))
+                    chunks.append(
+                        ChunkRef(
+                            file_path=file_path,
+                            start_line=current_chunk_start,
+                            end_line=i - 1,
+                            symbol_name=current_symbol or "unnamed",
+                            kind=current_kind,
+                        )
+                    )
 
                 # Start new chunk
                 current_chunk_start = i
@@ -287,13 +288,15 @@ class ContextChunker:
             if func_match:
                 # Save previous chunk if any
                 if current_chunk_start is not None:
-                    chunks.append(ChunkRef(
-                        file_path=file_path,
-                        start_line=current_chunk_start,
-                        end_line=i - 1,
-                        symbol_name=current_symbol or "unnamed",
-                        kind=current_kind
-                    ))
+                    chunks.append(
+                        ChunkRef(
+                            file_path=file_path,
+                            start_line=current_chunk_start,
+                            end_line=i - 1,
+                            symbol_name=current_symbol or "unnamed",
+                            kind=current_kind,
+                        )
+                    )
 
                 # Start new chunk
                 current_chunk_start = i
@@ -303,13 +306,15 @@ class ContextChunker:
 
         # Save last chunk
         if current_chunk_start is not None:
-            chunks.append(ChunkRef(
-                file_path=file_path,
-                start_line=current_chunk_start,
-                end_line=len(lines),
-                symbol_name=current_symbol or "unnamed",
-                kind=current_kind
-            ))
+            chunks.append(
+                ChunkRef(
+                    file_path=file_path,
+                    start_line=current_chunk_start,
+                    end_line=len(lines),
+                    symbol_name=current_symbol or "unnamed",
+                    kind=current_kind,
+                )
+            )
 
         # If no chunks found, mark as low confidence
         if not chunks:
@@ -329,22 +334,22 @@ class ContextChunker:
         suffix = Path(file_path).suffix.lower()
 
         lang_map = {
-            '.py': 'python',
-            '.js': 'javascript',
-            '.jsx': 'javascript',
-            '.ts': 'typescript',
-            '.tsx': 'typescript',
-            '.java': 'java',
-            '.cpp': 'cpp',
-            '.c': 'c',
-            '.go': 'go',
-            '.rs': 'rust',
-            '.rb': 'ruby',
-            '.php': 'php',
-            '.cs': 'csharp',
+            ".py": "python",
+            ".js": "javascript",
+            ".jsx": "javascript",
+            ".ts": "typescript",
+            ".tsx": "typescript",
+            ".java": "java",
+            ".cpp": "cpp",
+            ".c": "c",
+            ".go": "go",
+            ".rs": "rust",
+            ".rb": "ruby",
+            ".php": "php",
+            ".cs": "csharp",
         }
 
-        return lang_map.get(suffix, 'unknown')
+        return lang_map.get(suffix, "unknown")
 
     def _is_generated(self, lines: List[str], file_path: str) -> bool:
         """
@@ -357,10 +362,10 @@ class ContextChunker:
         # Check file name patterns
         name_lower = file_path.lower()
         generated_patterns = [
-            '_pb2.py',  # Protocol buffers
-            '.generated.',
-            'autogenerated',
-            '-generated',
+            "_pb2.py",  # Protocol buffers
+            ".generated.",
+            "autogenerated",
+            "-generated",
         ]
 
         for pattern in generated_patterns:
@@ -368,15 +373,15 @@ class ContextChunker:
                 return True
 
         # Check file content (first 20 lines)
-        header = '\n'.join(lines[:20]).lower()
+        header = "\n".join(lines[:20]).lower()
 
         generated_markers = [
-            'auto-generated',
-            'autogenerated',
-            'do not edit',
-            'generated by',
-            'code generator',
-            '@generated',
+            "auto-generated",
+            "autogenerated",
+            "do not edit",
+            "generated by",
+            "code generator",
+            "@generated",
         ]
 
         for marker in generated_markers:
@@ -403,11 +408,7 @@ class ContextChunker:
 
         return False
 
-    def build_chunk_summary(
-        self,
-        chunks: List[ChunkRef],
-        max_chars: int = 1000
-    ) -> str:
+    def build_chunk_summary(self, chunks: List[ChunkRef], max_chars: int = 1000) -> str:
         """
         Build a summary of chunks for grounded context.
 
@@ -426,11 +427,13 @@ class ContextChunker:
 
         for chunk in chunks:
             # Format chunk entry
-            entry = f"- {chunk.kind} `{chunk.symbol_name}` (lines {chunk.start_line}-{chunk.end_line})"
+            entry = (
+                f"- {chunk.kind} `{chunk.symbol_name}` (lines {chunk.start_line}-{chunk.end_line})"
+            )
 
             if chunk.docstring:
                 # Truncate long docstrings
-                doc_preview = chunk.docstring.split('\n')[0][:80]
+                doc_preview = chunk.docstring.split("\n")[0][:80]
                 entry += f": {doc_preview}"
 
             entry_len = len(entry) + 1  # +1 for newline
@@ -442,4 +445,4 @@ class ContextChunker:
             lines.append(entry)
             current_chars += entry_len
 
-        return '\n'.join(lines)
+        return "\n".join(lines)

@@ -13,12 +13,12 @@ from __future__ import annotations
 
 import pytest
 import tempfile
-import time
 from pathlib import Path
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
 # Add scripts/tidy to path
 import sys
+
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "scripts" / "tidy"))
 
 from locks import MultiLock, LOCK_ORDER, lock_path
@@ -44,12 +44,7 @@ def test_lock_path_generation(temp_repo):
 
 def test_canonical_order_enforcement(temp_repo):
     """Test that locks are acquired in canonical order regardless of request order."""
-    multi_lock = MultiLock(
-        repo_root=temp_repo,
-        owner="test",
-        ttl_seconds=60,
-        timeout_seconds=5
-    )
+    multi_lock = MultiLock(repo_root=temp_repo, owner="test", ttl_seconds=60, timeout_seconds=5)
 
     # Request locks out of order
     requested = ["docs", "queue", "archive"]
@@ -58,10 +53,7 @@ def test_canonical_order_enforcement(temp_repo):
     try:
         # Verify locks were acquired in canonical order: queue, archive, docs
         assert len(multi_lock.leases) == 3
-        acquired_names = [
-            lease.lock_path.stem.replace('.lock', '')
-            for lease in multi_lock.leases
-        ]
+        acquired_names = [lease.lock_path.stem.replace(".lock", "") for lease in multi_lock.leases]
 
         # Should match canonical order from LOCK_ORDER
         expected_order = ["queue", "archive", "docs"]
@@ -73,12 +65,7 @@ def test_canonical_order_enforcement(temp_repo):
 
 def test_reverse_release_order(temp_repo):
     """Test that locks are released in reverse order (LIFO)."""
-    multi_lock = MultiLock(
-        repo_root=temp_repo,
-        owner="test",
-        ttl_seconds=60,
-        timeout_seconds=5
-    )
+    multi_lock = MultiLock(repo_root=temp_repo, owner="test", ttl_seconds=60, timeout_seconds=5)
 
     multi_lock.acquire(["queue", "archive", "docs"])
 
@@ -88,10 +75,10 @@ def test_reverse_release_order(temp_repo):
     original_release = Lease.release
 
     def tracked_release(self):
-        release_order.append(self.lock_path.stem.replace('.lock', ''))
+        release_order.append(self.lock_path.stem.replace(".lock", ""))
         original_release(self)
 
-    with patch.object(Lease, 'release', tracked_release):
+    with patch.object(Lease, "release", tracked_release):
         multi_lock.release()
 
     # Should release in reverse: docs, archive, queue
@@ -103,19 +90,12 @@ def test_lock_contention_timeout(temp_repo):
     """Test that MultiLock times out correctly when locks are held."""
     # Acquire a lock manually to block MultiLock
     queue_lock_path = lock_path(temp_repo, "queue")
-    blocking_lease = Lease(
-        lock_path=queue_lock_path,
-        owner="blocker",
-        ttl_seconds=60
-    )
+    blocking_lease = Lease(lock_path=queue_lock_path, owner="blocker", ttl_seconds=60)
     blocking_lease.acquire(timeout_seconds=5)
 
     try:
         multi_lock = MultiLock(
-            repo_root=temp_repo,
-            owner="test",
-            ttl_seconds=60,
-            timeout_seconds=1  # Short timeout
+            repo_root=temp_repo, owner="test", ttl_seconds=60, timeout_seconds=1  # Short timeout
         )
 
         # Should timeout when trying to acquire queue lock
@@ -131,11 +111,7 @@ def test_lock_contention_timeout(temp_repo):
 def test_disabled_mode(temp_repo):
     """Test that MultiLock is a no-op when disabled."""
     multi_lock = MultiLock(
-        repo_root=temp_repo,
-        owner="test",
-        ttl_seconds=60,
-        timeout_seconds=5,
-        enabled=False
+        repo_root=temp_repo, owner="test", ttl_seconds=60, timeout_seconds=5, enabled=False
     )
 
     # All operations should be no-ops
@@ -149,12 +125,7 @@ def test_disabled_mode(temp_repo):
 
 def test_renew_all_locks(temp_repo):
     """Test that renew extends TTL for all held locks."""
-    multi_lock = MultiLock(
-        repo_root=temp_repo,
-        owner="test",
-        ttl_seconds=60,
-        timeout_seconds=5
-    )
+    multi_lock = MultiLock(repo_root=temp_repo, owner="test", ttl_seconds=60, timeout_seconds=5)
 
     multi_lock.acquire(["queue", "archive"])
 
@@ -175,20 +146,11 @@ def test_partial_acquisition_cleanup(temp_repo):
     """Test that partially acquired locks are cleaned up on failure."""
     # Manually create a blocking lock for "archive"
     archive_lock_path = lock_path(temp_repo, "archive")
-    blocking_lease = Lease(
-        lock_path=archive_lock_path,
-        owner="blocker",
-        ttl_seconds=60
-    )
+    blocking_lease = Lease(lock_path=archive_lock_path, owner="blocker", ttl_seconds=60)
     blocking_lease.acquire(timeout_seconds=5)
 
     try:
-        multi_lock = MultiLock(
-            repo_root=temp_repo,
-            owner="test",
-            ttl_seconds=60,
-            timeout_seconds=1
-        )
+        multi_lock = MultiLock(repo_root=temp_repo, owner="test", ttl_seconds=60, timeout_seconds=1)
 
         # Try to acquire queue and archive (queue should succeed, archive should fail)
         with pytest.raises(TimeoutError):
@@ -200,9 +162,7 @@ def test_partial_acquisition_cleanup(temp_repo):
 
         # Verify queue lock is actually free (can be acquired)
         queue_lease = Lease(
-            lock_path=lock_path(temp_repo, "queue"),
-            owner="test_after_cleanup",
-            ttl_seconds=60
+            lock_path=lock_path(temp_repo, "queue"), owner="test_after_cleanup", ttl_seconds=60
         )
         queue_lease.acquire(timeout_seconds=2)  # Should succeed
         queue_lease.release()
@@ -213,12 +173,7 @@ def test_partial_acquisition_cleanup(temp_repo):
 
 def test_held_locks_reporting(temp_repo):
     """Test that held_locks() returns correct lock names."""
-    multi_lock = MultiLock(
-        repo_root=temp_repo,
-        owner="test",
-        ttl_seconds=60,
-        timeout_seconds=5
-    )
+    multi_lock = MultiLock(repo_root=temp_repo, owner="test", ttl_seconds=60, timeout_seconds=5)
 
     # Initially no locks
     assert multi_lock.held_locks() == []
@@ -239,12 +194,7 @@ def test_held_locks_reporting(temp_repo):
 
 def test_double_acquire_raises(temp_repo):
     """Test that acquiring locks twice raises an error."""
-    multi_lock = MultiLock(
-        repo_root=temp_repo,
-        owner="test",
-        ttl_seconds=60,
-        timeout_seconds=5
-    )
+    multi_lock = MultiLock(repo_root=temp_repo, owner="test", ttl_seconds=60, timeout_seconds=5)
 
     multi_lock.acquire(["queue"])
 
@@ -261,14 +211,10 @@ def test_double_acquire_raises(temp_repo):
 def test_unknown_lock_names_warning(temp_repo, caplog):
     """Test that unknown lock names generate a warning."""
     import logging
+
     caplog.set_level(logging.WARNING)
 
-    multi_lock = MultiLock(
-        repo_root=temp_repo,
-        owner="test",
-        ttl_seconds=60,
-        timeout_seconds=5
-    )
+    multi_lock = MultiLock(repo_root=temp_repo, owner="test", ttl_seconds=60, timeout_seconds=5)
 
     # Request a lock with unknown name
     multi_lock.acquire(["queue", "unknown_subsystem"])
@@ -287,17 +233,14 @@ def test_integration_with_umbrella_lock(temp_repo):
     umbrella = Lease(
         lock_path=temp_repo / ".autonomous_runs" / ".locks" / "tidy.lock",
         owner="tidy_up",
-        ttl_seconds=1800
+        ttl_seconds=1800,
     )
     umbrella.acquire(timeout_seconds=5)
 
     try:
         # Acquire subsystem locks (should not conflict)
         multi_lock = MultiLock(
-            repo_root=temp_repo,
-            owner="tidy_up:phase1",
-            ttl_seconds=60,
-            timeout_seconds=5
+            repo_root=temp_repo, owner="tidy_up:phase1", ttl_seconds=60, timeout_seconds=5
         )
 
         multi_lock.acquire(["queue", "archive"])

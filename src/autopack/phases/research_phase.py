@@ -19,7 +19,7 @@ Design Principles:
 from __future__ import annotations
 
 import logging
-from dataclasses import asdict, dataclass, field
+from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
@@ -30,6 +30,7 @@ logger = logging.getLogger(__name__)
 
 class ResearchStatus(Enum):
     """Status of a research phase."""
+
     PENDING = "pending"
     IN_PROGRESS = "in_progress"
     COMPLETED = "completed"
@@ -299,6 +300,7 @@ class ResearchPhaseResult:
 
     This is a simpler interface for tests that expect a flat result structure.
     """
+
     status: ResearchStatus
     query: str
     findings: List[Any] = field(default_factory=list)
@@ -319,10 +321,7 @@ def create_research_phase(phase_id: str, queries: List[str], **kwargs) -> Resear
     Returns:
         Configured ResearchPhase instance
     """
-    research_queries = [
-        ResearchQuery(query=q, priority=i+1)
-        for i, q in enumerate(queries)
-    ]
+    research_queries = [ResearchQuery(query=q, priority=i + 1) for i, q in enumerate(queries)]
 
     config = ResearchPhaseConfig(queries=research_queries)
 
@@ -336,9 +335,11 @@ def create_research_phase(phase_id: str, queries: List[str], **kwargs) -> Resear
 # Backward compatibility alias for tests
 ResearchPhaseManager = ResearchPhaseExecutor
 
+
 # Backward compatibility - ResearchPriority not in original implementation
 class ResearchPriority:
     """Compat shim for ResearchPriority (missing from original)."""
+
     LOW = 1
     MEDIUM = 2
     HIGH = 3
@@ -351,5 +352,5 @@ def create_research_phase_from_task(task_description: str, **kwargs) -> Research
     return create_research_phase(
         phase_id=f"research_{kwargs.get('task_id', 'default')}",
         queries=[task_description],
-        **kwargs
+        **kwargs,
     )

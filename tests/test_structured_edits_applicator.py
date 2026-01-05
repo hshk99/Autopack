@@ -19,7 +19,7 @@ def test_structured_edits_allows_creating_new_file_without_context(tmp_path: Pat
                 file_path="docs/new_file.md",
                 content="hello\nworld\n",
             )
-        ]
+        ],
     )
 
     result = applicator.apply_edit_plan(plan=plan, file_contents={}, dry_run=False)
@@ -29,7 +29,9 @@ def test_structured_edits_allows_creating_new_file_without_context(tmp_path: Pat
     assert (tmp_path / "docs" / "new_file.md").read_text(encoding="utf-8") == "hello\nworld\n"
 
 
-def test_structured_edits_reads_existing_file_from_disk_when_missing_from_context(tmp_path: Path) -> None:
+def test_structured_edits_reads_existing_file_from_disk_when_missing_from_context(
+    tmp_path: Path,
+) -> None:
     (tmp_path / "src").mkdir()
     target = tmp_path / "src" / "example.txt"
     target.write_text("a\nb", encoding="utf-8")
@@ -43,12 +45,10 @@ def test_structured_edits_reads_existing_file_from_disk_when_missing_from_contex
                 file_path="src/example.txt",
                 content="c\n",
             )
-        ]
+        ],
     )
 
     result = applicator.apply_edit_plan(plan=plan, file_contents={}, dry_run=False)
 
     assert result.success is True
     assert target.read_text(encoding="utf-8") == "a\nb\nc"
-
-

@@ -87,6 +87,7 @@ def print_db_identity(session: Session):
     # Try to count llm_usage_events (may not exist in all DBs)
     try:
         from .usage_recorder import LlmUsageEvent
+
         event_count = session.query(LlmUsageEvent).count()
     except (ImportError, AttributeError, Exception):
         event_count = None
@@ -113,11 +114,7 @@ def print_db_identity(session: Session):
     print()
 
 
-def check_empty_db_warning(
-    session: Session,
-    script_name: str,
-    allow_empty: bool = False
-) -> bool:
+def check_empty_db_warning(session: Session, script_name: str, allow_empty: bool = False) -> bool:
     """Check if database is empty and warn/exit if not allowed.
 
     Args:
@@ -131,7 +128,7 @@ def check_empty_db_warning(
     run_count = session.query(Run).count()
     phase_count = session.query(Phase).count()
 
-    is_empty = (run_count == 0 and phase_count == 0)
+    is_empty = run_count == 0 and phase_count == 0
 
     if is_empty:
         print("⚠️  WARNING: DATABASE IS EMPTY")
@@ -176,5 +173,5 @@ def add_empty_db_arg(parser):
     parser.add_argument(
         "--allow-empty-db",
         action="store_true",
-        help="Allow operation on empty database (bypass safety check)"
+        help="Allow operation on empty database (bypass safety check)",
     )

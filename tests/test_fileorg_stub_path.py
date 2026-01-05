@@ -3,9 +3,9 @@
 BUILD-146: Ensure stubs for missing files land in correct workspace root,
 not duplicated paths like fileorganizer/fileorganizer/package-lock.json.
 """
+
 import pytest
-from pathlib import Path
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import Mock
 from autopack.autonomous_executor import AutonomousExecutor
 
 
@@ -29,7 +29,7 @@ def mock_executor(tmp_path):
         memory_service=mock_memory,
         quality_gate=mock_quality_gate,
         workspace=str(workspace),
-        run_id="test-run"
+        run_id="test-run",
     )
 
     return executor, workspace
@@ -47,7 +47,7 @@ def test_load_scoped_context_missing_file_stub_path(mock_executor):
     phase = {"phase_id": "test-phase"}
     scope_config = {
         "workspace_root": "fileorganizer",
-        "paths": ["package-lock.json"]  # Missing file
+        "paths": ["package-lock.json"],  # Missing file
     }
 
     # Call _load_scoped_context
@@ -59,10 +59,10 @@ def test_load_scoped_context_missing_file_stub_path(mock_executor):
 
     # The key should be "fileorganizer/package-lock.json", NOT "fileorganizer/fileorganizer/package-lock.json"
     for missing in missing_files:
-        assert "fileorganizer/fileorganizer" not in missing, \
-            f"Duplicate path detected: {missing}"
-        assert missing.startswith("fileorganizer/") or missing == "package-lock.json", \
-            f"Unexpected path format: {missing}"
+        assert "fileorganizer/fileorganizer" not in missing, f"Duplicate path detected: {missing}"
+        assert (
+            missing.startswith("fileorganizer/") or missing == "package-lock.json"
+        ), f"Unexpected path format: {missing}"
 
 
 def test_load_scoped_context_stub_creation_path(mock_executor, tmp_path):
@@ -74,10 +74,7 @@ def test_load_scoped_context_stub_creation_path(mock_executor, tmp_path):
     fileorg_dir.mkdir()
 
     phase = {"phase_id": "test-phase"}
-    scope_config = {
-        "workspace_root": "fileorganizer",
-        "paths": ["package-lock.json"]
-    }
+    scope_config = {"workspace_root": "fileorganizer", "paths": ["package-lock.json"]}
 
     # Call _load_scoped_context (this should create stub for package-lock.json)
     result = executor._load_scoped_context(phase, scope_config)
@@ -94,8 +91,7 @@ def test_load_scoped_context_stub_creation_path(mock_executor, tmp_path):
     # Verify existing_files has correct key
     existing_files = result.get("existing_files", {})
     for key in existing_files.keys():
-        assert "fileorganizer/fileorganizer" not in key, \
-            f"Duplicate path in existing_files: {key}"
+        assert "fileorganizer/fileorganizer" not in key, f"Duplicate path in existing_files: {key}"
 
 
 def test_resolve_scope_target_relative_path(mock_executor):

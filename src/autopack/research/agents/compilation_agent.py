@@ -32,7 +32,9 @@ class CompilationAgent:
     def compile_report(self, findings: List[Mapping[str, Any]]) -> str:
         return "\n".join([str(f.get("content", "")) for f in findings if f.get("content")])
 
-    def categorize_by_type(self, findings: List[Mapping[str, Any]]) -> Dict[str, List[Mapping[str, Any]]]:
+    def categorize_by_type(
+        self, findings: List[Mapping[str, Any]]
+    ) -> Dict[str, List[Mapping[str, Any]]]:
         categorized: Dict[str, List[Mapping[str, Any]]] = {}
         for f in findings:
             t = str(f.get("type", "unknown"))
@@ -50,7 +52,9 @@ class CompilationAgent:
             texts.append({"type": "web", "content": text, "source_url": u})
         return {"findings": texts}
 
-    def deduplicate_findings(self, findings: Iterable[Mapping[str, Any]], *, threshold: int = 80) -> List[Mapping[str, Any]]:
+    def deduplicate_findings(
+        self, findings: Iterable[Mapping[str, Any]], *, threshold: int = 80
+    ) -> List[Mapping[str, Any]]:
         """
         Best-effort fuzzy deduplication. If fuzzywuzzy isn't available, falls back to exact match.
         Keeps the first occurrence.
@@ -89,21 +93,27 @@ class CompilationAgent:
                 kept.append(f)
         return kept
 
-    def categorize(self, findings: Iterable[Mapping[str, Any]]) -> Dict[str, List[Mapping[str, Any]]]:
+    def categorize(
+        self, findings: Iterable[Mapping[str, Any]]
+    ) -> Dict[str, List[Mapping[str, Any]]]:
         """
         Categorize into the 4 required buckets via keyword heuristics.
         """
         buckets = {"technical": [], "ux": [], "market": [], "competition": []}
         for f in findings:
             content = str(f.get("content", "")).lower()
-            if any(k in content for k in ["latency", "architecture", "api", "database", "scalability"]):
+            if any(
+                k in content for k in ["latency", "architecture", "api", "database", "scalability"]
+            ):
                 buckets["technical"].append(f)
-            elif any(k in content for k in ["ux", "user experience", "onboarding", "ui", "workflow"]):
+            elif any(
+                k in content for k in ["ux", "user experience", "onboarding", "ui", "workflow"]
+            ):
                 buckets["ux"].append(f)
-            elif any(k in content for k in ["market", "pricing", "tamagotchi", "demand", "segment"]):
+            elif any(
+                k in content for k in ["market", "pricing", "tamagotchi", "demand", "segment"]
+            ):
                 buckets["market"].append(f)
             else:
                 buckets["competition"].append(f)
         return buckets
-
-

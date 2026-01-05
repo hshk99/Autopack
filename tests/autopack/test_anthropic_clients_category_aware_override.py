@@ -8,9 +8,6 @@ Tests the conditional override logic directly using the actual code flow to ensu
 4. Telemetry records estimator intent separately from final ceiling
 """
 
-import pytest
-from autopack.anthropic_clients import AnthropicBuilderClient
-
 
 class TestCategoryAwareOverrideLogic:
     """Tests for category-aware conditional override logic in BUILD-142."""
@@ -18,61 +15,85 @@ class TestCategoryAwareOverrideLogic:
     def test_category_normalization_docs(self):
         """Test that 'documentation' normalizes to 'docs' for override check."""
         task_category = "documentation"
-        token_selected_budget = 4096
 
         # Simulate the normalization logic from anthropic_clients.py lines 572-573
         normalized_category = task_category.lower() if task_category else ""
-        is_docs_like = normalized_category in ["docs", "documentation", "doc_synthesis", "doc_sot_update"]
+        is_docs_like = normalized_category in [
+            "docs",
+            "documentation",
+            "doc_synthesis",
+            "doc_sot_update",
+        ]
 
         assert is_docs_like, "documentation should be recognized as docs-like"
 
     def test_category_normalization_docs_exact(self):
         """Test that 'docs' is recognized as docs-like."""
         task_category = "docs"
-        token_selected_budget = 4096
 
         normalized_category = task_category.lower() if task_category else ""
-        is_docs_like = normalized_category in ["docs", "documentation", "doc_synthesis", "doc_sot_update"]
+        is_docs_like = normalized_category in [
+            "docs",
+            "documentation",
+            "doc_synthesis",
+            "doc_sot_update",
+        ]
 
         assert is_docs_like, "docs should be recognized as docs-like"
 
     def test_category_normalization_doc_synthesis(self):
         """Test that 'doc_synthesis' is recognized as docs-like."""
         task_category = "doc_synthesis"
-        token_selected_budget = 8192
 
         normalized_category = task_category.lower() if task_category else ""
-        is_docs_like = normalized_category in ["docs", "documentation", "doc_synthesis", "doc_sot_update"]
+        is_docs_like = normalized_category in [
+            "docs",
+            "documentation",
+            "doc_synthesis",
+            "doc_sot_update",
+        ]
 
         assert is_docs_like, "doc_synthesis should be recognized as docs-like"
 
     def test_category_normalization_doc_sot_update(self):
         """Test that 'doc_sot_update' is recognized as docs-like."""
         task_category = "doc_sot_update"
-        token_selected_budget = 8192
 
         normalized_category = task_category.lower() if task_category else ""
-        is_docs_like = normalized_category in ["docs", "documentation", "doc_synthesis", "doc_sot_update"]
+        is_docs_like = normalized_category in [
+            "docs",
+            "documentation",
+            "doc_synthesis",
+            "doc_sot_update",
+        ]
 
         assert is_docs_like, "doc_sot_update should be recognized as docs-like"
 
     def test_category_normalization_implementation(self):
         """Test that 'implementation' is NOT docs-like."""
         task_category = "implementation"
-        token_selected_budget = 12288
 
         normalized_category = task_category.lower() if task_category else ""
-        is_docs_like = normalized_category in ["docs", "documentation", "doc_synthesis", "doc_sot_update"]
+        is_docs_like = normalized_category in [
+            "docs",
+            "documentation",
+            "doc_synthesis",
+            "doc_sot_update",
+        ]
 
         assert not is_docs_like, "implementation should NOT be docs-like"
 
     def test_category_normalization_tests(self):
         """Test that 'tests' is NOT docs-like (has its own reduced base, but not docs)."""
         task_category = "tests"
-        token_selected_budget = 6144
 
         normalized_category = task_category.lower() if task_category else ""
-        is_docs_like = normalized_category in ["docs", "documentation", "doc_synthesis", "doc_sot_update"]
+        is_docs_like = normalized_category in [
+            "docs",
+            "documentation",
+            "doc_synthesis",
+            "doc_sot_update",
+        ]
 
         assert not is_docs_like, "tests should NOT be docs-like"
 
@@ -86,12 +107,15 @@ class TestCategoryAwareOverrideLogic:
         token_selected_budget = None
 
         normalized_category = task_category.lower() if task_category else ""
-        is_docs_like = normalized_category in ["docs", "documentation", "doc_synthesis", "doc_sot_update"]
+        is_docs_like = normalized_category in [
+            "docs",
+            "documentation",
+            "doc_synthesis",
+            "doc_sot_update",
+        ]
 
         should_apply_floor = (
-            not token_selected_budget or
-            token_selected_budget >= 16384 or
-            not is_docs_like
+            not token_selected_budget or token_selected_budget >= 16384 or not is_docs_like
         )
 
         assert should_apply_floor, "Should apply floor when budget is None (no estimator decision)"
@@ -106,15 +130,20 @@ class TestCategoryAwareOverrideLogic:
         token_selected_budget = 4096  # Category-aware reduction
 
         normalized_category = task_category.lower() if task_category else ""
-        is_docs_like = normalized_category in ["docs", "documentation", "doc_synthesis", "doc_sot_update"]
+        is_docs_like = normalized_category in [
+            "docs",
+            "documentation",
+            "doc_synthesis",
+            "doc_sot_update",
+        ]
 
         should_apply_floor = (
-            not token_selected_budget or
-            token_selected_budget >= 16384 or
-            not is_docs_like
+            not token_selected_budget or token_selected_budget >= 16384 or not is_docs_like
         )
 
-        assert not should_apply_floor, "Should NOT apply floor for docs with intentionally low budget"
+        assert (
+            not should_apply_floor
+        ), "Should NOT apply floor for docs with intentionally low budget"
 
     def test_should_apply_floor_docs_high_budget(self):
         """
@@ -126,12 +155,15 @@ class TestCategoryAwareOverrideLogic:
         token_selected_budget = 16384  # High budget, no reduction
 
         normalized_category = task_category.lower() if task_category else ""
-        is_docs_like = normalized_category in ["docs", "documentation", "doc_synthesis", "doc_sot_update"]
+        is_docs_like = normalized_category in [
+            "docs",
+            "documentation",
+            "doc_synthesis",
+            "doc_sot_update",
+        ]
 
         should_apply_floor = (
-            not token_selected_budget or
-            token_selected_budget >= 16384 or
-            not is_docs_like
+            not token_selected_budget or token_selected_budget >= 16384 or not is_docs_like
         )
 
         assert should_apply_floor, "Should apply floor for docs when budget is already >=16384"
@@ -146,12 +178,15 @@ class TestCategoryAwareOverrideLogic:
         token_selected_budget = 12288  # implementation/medium base
 
         normalized_category = task_category.lower() if task_category else ""
-        is_docs_like = normalized_category in ["docs", "documentation", "doc_synthesis", "doc_sot_update"]
+        is_docs_like = normalized_category in [
+            "docs",
+            "documentation",
+            "doc_synthesis",
+            "doc_sot_update",
+        ]
 
         should_apply_floor = (
-            not token_selected_budget or
-            token_selected_budget >= 16384 or
-            not is_docs_like
+            not token_selected_budget or token_selected_budget >= 16384 or not is_docs_like
         )
 
         assert should_apply_floor, "Should apply floor for implementation (not docs-like)"
@@ -164,12 +199,15 @@ class TestCategoryAwareOverrideLogic:
         token_selected_budget = 8192  # doc_synthesis/low base
 
         normalized_category = task_category.lower() if task_category else ""
-        is_docs_like = normalized_category in ["docs", "documentation", "doc_synthesis", "doc_sot_update"]
+        is_docs_like = normalized_category in [
+            "docs",
+            "documentation",
+            "doc_synthesis",
+            "doc_sot_update",
+        ]
 
         should_apply_floor = (
-            not token_selected_budget or
-            token_selected_budget >= 16384 or
-            not is_docs_like
+            not token_selected_budget or token_selected_budget >= 16384 or not is_docs_like
         )
 
         assert not should_apply_floor, "Should NOT apply floor for doc_synthesis with budget <16384"
@@ -192,12 +230,15 @@ class TestCategoryAwareOverrideLogic:
         # Simulate BUILD-142 conditional override logic (lines 570-597)
         if builder_mode == "full_file":
             normalized_category = task_category.lower() if task_category else ""
-            is_docs_like = normalized_category in ["docs", "documentation", "doc_synthesis", "doc_sot_update"]
+            is_docs_like = normalized_category in [
+                "docs",
+                "documentation",
+                "doc_synthesis",
+                "doc_sot_update",
+            ]
 
             should_apply_floor = (
-                not token_selected_budget or
-                token_selected_budget >= 16384 or
-                not is_docs_like
+                not token_selected_budget or token_selected_budget >= 16384 or not is_docs_like
             )
 
             if should_apply_floor:
@@ -208,9 +249,9 @@ class TestCategoryAwareOverrideLogic:
         if token_selected_budget:
             max_tokens = max(max_tokens or 0, token_selected_budget)
 
-        assert max_tokens == 4096, (
-            f"docs/low should preserve category-aware budget 4096, got {max_tokens}"
-        )
+        assert (
+            max_tokens == 4096
+        ), f"docs/low should preserve category-aware budget 4096, got {max_tokens}"
 
     def test_conditional_override_implementation_scenario(self):
         """
@@ -230,12 +271,15 @@ class TestCategoryAwareOverrideLogic:
         # Simulate BUILD-142 conditional override logic
         if builder_mode == "full_file":
             normalized_category = task_category.lower() if task_category else ""
-            is_docs_like = normalized_category in ["docs", "documentation", "doc_synthesis", "doc_sot_update"]
+            is_docs_like = normalized_category in [
+                "docs",
+                "documentation",
+                "doc_synthesis",
+                "doc_sot_update",
+            ]
 
             should_apply_floor = (
-                not token_selected_budget or
-                token_selected_budget >= 16384 or
-                not is_docs_like
+                not token_selected_budget or token_selected_budget >= 16384 or not is_docs_like
             )
 
             if should_apply_floor:
@@ -245,9 +289,7 @@ class TestCategoryAwareOverrideLogic:
         if token_selected_budget:
             max_tokens = max(max_tokens or 0, token_selected_budget)
 
-        assert max_tokens == 16384, (
-            f"implementation should get 16384 floor, got {max_tokens}"
-        )
+        assert max_tokens == 16384, f"implementation should get 16384 floor, got {max_tokens}"
 
     def test_conditional_override_docs_no_budget_scenario(self):
         """
@@ -267,12 +309,15 @@ class TestCategoryAwareOverrideLogic:
         # Simulate BUILD-142 conditional override logic
         if builder_mode == "full_file":
             normalized_category = task_category.lower() if task_category else ""
-            is_docs_like = normalized_category in ["docs", "documentation", "doc_synthesis", "doc_sot_update"]
+            is_docs_like = normalized_category in [
+                "docs",
+                "documentation",
+                "doc_synthesis",
+                "doc_sot_update",
+            ]
 
             should_apply_floor = (
-                not token_selected_budget or
-                token_selected_budget >= 16384 or
-                not is_docs_like
+                not token_selected_budget or token_selected_budget >= 16384 or not is_docs_like
             )
 
             if should_apply_floor:
@@ -282,9 +327,9 @@ class TestCategoryAwareOverrideLogic:
         if token_selected_budget:
             max_tokens = max(max_tokens or 0, token_selected_budget)
 
-        assert max_tokens == 16384, (
-            f"docs without estimator should get 16384 floor for safety, got {max_tokens}"
-        )
+        assert (
+            max_tokens == 16384
+        ), f"docs without estimator should get 16384 floor for safety, got {max_tokens}"
 
     def test_telemetry_semantics_separation(self):
         """
@@ -300,17 +345,25 @@ class TestCategoryAwareOverrideLogic:
         # Simulate BUILD-142 telemetry storage (lines 699-700, 706-707)
         # Store selected_budget BEFORE P4 enforcement
         if token_selected_budget:
-            phase_spec.setdefault("metadata", {}).setdefault("token_prediction", {})["selected_budget"] = token_selected_budget
+            phase_spec.setdefault("metadata", {}).setdefault("token_prediction", {})[
+                "selected_budget"
+            ] = token_selected_budget
 
         # P4 enforcement (line 705)
         if token_selected_budget:
             max_tokens = max(max_tokens or 0, token_selected_budget)
             # Store actual_max_tokens AFTER P4 enforcement
-            phase_spec.setdefault("metadata", {}).setdefault("token_prediction", {})["actual_max_tokens"] = max_tokens
+            phase_spec.setdefault("metadata", {}).setdefault("token_prediction", {})[
+                "actual_max_tokens"
+            ] = max_tokens
 
         # Verify both values are recorded
         token_pred = phase_spec.get("metadata", {}).get("token_prediction", {})
         assert "selected_budget" in token_pred, "selected_budget should be recorded"
         assert "actual_max_tokens" in token_pred, "actual_max_tokens should be recorded"
-        assert token_pred["selected_budget"] == 4096, "selected_budget should reflect estimator intent"
-        assert token_pred["actual_max_tokens"] == 4096, "actual_max_tokens should reflect final ceiling"
+        assert (
+            token_pred["selected_budget"] == 4096
+        ), "selected_budget should reflect estimator intent"
+        assert (
+            token_pred["actual_max_tokens"] == 4096
+        ), "actual_max_tokens should reflect final ceiling"

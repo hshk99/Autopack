@@ -13,9 +13,7 @@ from .models import IntentionAnchor
 from .storage import load_anchor
 
 
-def render_for_prompt(
-    anchor: IntentionAnchor, *, max_bullets: int = 7
-) -> str:
+def render_for_prompt(anchor: IntentionAnchor, *, max_bullets: int = 7) -> str:
     """
     Renders an IntentionAnchor as a deterministic prompt section.
 

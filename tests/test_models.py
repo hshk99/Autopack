@@ -1,7 +1,5 @@
 """Unit tests for database models"""
 
-import pytest
-
 from autopack.models import Phase, PhaseState, Run, RunState, Tier, TierState
 
 

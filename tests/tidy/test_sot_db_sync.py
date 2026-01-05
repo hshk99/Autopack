@@ -14,16 +14,15 @@ External dependency tests (PostgreSQL, Qdrant) are in test_sot_db_sync_integrati
 
 from __future__ import annotations
 
-import json
 import pytest
 import sqlite3
 import tempfile
 import time
-from datetime import datetime
 from pathlib import Path
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import patch, MagicMock
 
 import sys
+
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "scripts" / "tidy"))
 
@@ -45,7 +44,8 @@ def mock_repo_structure(temp_dir):
 
     # BUILD_HISTORY.md
     build_history = docs_dir / "BUILD_HISTORY.md"
-    build_history.write_text("""# Build History
+    build_history.write_text(
+        """# Build History
 
 ## INDEX
 
@@ -65,11 +65,13 @@ This is the detailed content for BUILD-001.
 ## BUILD-002: Second Build
 
 This is BUILD-002 detailed content.
-""")
+"""
+    )
 
     # ARCHITECTURE_DECISIONS.md
     arch_decisions = docs_dir / "ARCHITECTURE_DECISIONS.md"
-    arch_decisions.write_text("""# Architecture Decisions
+    arch_decisions.write_text(
+        """# Architecture Decisions
 
 ## INDEX
 
@@ -87,11 +89,13 @@ Decision to use SQLite as default database.
 ## DEC-002: Add Qdrant
 
 Proposal to add vector search with Qdrant.
-""")
+"""
+    )
 
     # DEBUG_LOG.md
     debug_log = docs_dir / "DEBUG_LOG.md"
-    debug_log.write_text("""# Debug Log
+    debug_log.write_text(
+        """# Debug Log
 
 ## INDEX
 
@@ -109,19 +113,16 @@ High severity test error.
 ## DBG-002: Warning Test
 
 Low severity warning for testing.
-""")
+"""
+    )
 
     return temp_dir
 
 
 def test_docs_only_mode_no_writes(mock_repo_structure):
     """Test docs-only mode parses files without writes"""
-    with patch('sot_db_sync.REPO_ROOT', mock_repo_structure):
-        syncer = SOTDBSync(
-            mode=SyncMode.DOCS_ONLY,
-            execute=False,
-            max_seconds=30
-        )
+    with patch("sot_db_sync.REPO_ROOT", mock_repo_structure):
+        syncer = SOTDBSync(mode=SyncMode.DOCS_ONLY, execute=False, max_seconds=30)
 
         exit_code = syncer.run()
 
@@ -136,12 +137,9 @@ def test_sqlite_db_sync(mock_repo_structure, temp_dir):
     """Test SQLite database sync with idempotent upserts"""
     db_path = temp_dir / "test.db"
 
-    with patch('sot_db_sync.REPO_ROOT', mock_repo_structure):
+    with patch("sot_db_sync.REPO_ROOT", mock_repo_structure):
         syncer = SOTDBSync(
-            mode=SyncMode.DB_ONLY,
-            execute=True,
-            database_url=f"sqlite:///{db_path}",
-            max_seconds=30
+            mode=SyncMode.DB_ONLY, execute=True, database_url=f"sqlite:///{db_path}", max_seconds=30
         )
 
         exit_code = syncer.run()
@@ -160,13 +158,15 @@ def test_sqlite_db_sync(mock_repo_structure, temp_dir):
         assert cursor.fetchone() is not None
 
         # Check entries
-        cursor.execute("SELECT file_type, entry_id, title FROM sot_entries ORDER BY file_type, entry_id")
+        cursor.execute(
+            "SELECT file_type, entry_id, title FROM sot_entries ORDER BY file_type, entry_id"
+        )
         rows = cursor.fetchall()
 
         assert len(rows) == 6
         assert rows[0][0] == "architecture"  # file_type
-        assert rows[0][1] == "DEC-001"       # entry_id
-        assert "DEC-001" in rows[0][2]       # title contains ID
+        assert rows[0][1] == "DEC-001"  # entry_id
+        assert "DEC-001" in rows[0][2]  # title contains ID
 
         conn.close()
 
@@ -175,22 +175,16 @@ def test_idempotent_upsert(mock_repo_structure, temp_dir):
     """Test that re-syncing same content doesn't create duplicates"""
     db_path = temp_dir / "test.db"
 
-    with patch('sot_db_sync.REPO_ROOT', mock_repo_structure):
+    with patch("sot_db_sync.REPO_ROOT", mock_repo_structure):
         # First sync
         syncer1 = SOTDBSync(
-            mode=SyncMode.DB_ONLY,
-            execute=True,
-            database_url=f"sqlite:///{db_path}",
-            max_seconds=30
+            mode=SyncMode.DB_ONLY, execute=True, database_url=f"sqlite:///{db_path}", max_seconds=30
         )
         syncer1.run()
 
         # Second sync (no changes)
         syncer2 = SOTDBSync(
-            mode=SyncMode.DB_ONLY,
-            execute=True,
-            database_url=f"sqlite:///{db_path}",
-            max_seconds=30
+            mode=SyncMode.DB_ONLY, execute=True, database_url=f"sqlite:///{db_path}", max_seconds=30
         )
         syncer2.run()
 
@@ -211,13 +205,10 @@ def test_content_update_detection(mock_repo_structure, temp_dir):
     """Test that content changes trigger updates"""
     db_path = temp_dir / "test.db"
 
-    with patch('sot_db_sync.REPO_ROOT', mock_repo_structure):
+    with patch("sot_db_sync.REPO_ROOT", mock_repo_structure):
         # First sync
         syncer1 = SOTDBSync(
-            mode=SyncMode.DB_ONLY,
-            execute=True,
-            database_url=f"sqlite:///{db_path}",
-            max_seconds=30
+            mode=SyncMode.DB_ONLY, execute=True, database_url=f"sqlite:///{db_path}", max_seconds=30
         )
         syncer1.run()
 
@@ -229,10 +220,7 @@ def test_content_update_detection(mock_repo_structure, temp_dir):
 
         # Second sync
         syncer2 = SOTDBSync(
-            mode=SyncMode.DB_ONLY,
-            execute=True,
-            database_url=f"sqlite:///{db_path}",
-            max_seconds=30
+            mode=SyncMode.DB_ONLY, execute=True, database_url=f"sqlite:///{db_path}", max_seconds=30
         )
         syncer2.run()
 
@@ -250,7 +238,7 @@ def test_content_update_detection(mock_repo_structure, temp_dir):
 
 def test_parse_build_history_detailed(mock_repo_structure):
     """Test BUILD_HISTORY.md detailed section parsing"""
-    with patch('sot_db_sync.REPO_ROOT', mock_repo_structure):
+    with patch("sot_db_sync.REPO_ROOT", mock_repo_structure):
         syncer = SOTDBSync(mode=SyncMode.DOCS_ONLY, execute=False)
 
         build_history_path = mock_repo_structure / "docs" / "BUILD_HISTORY.md"
@@ -268,7 +256,7 @@ def test_parse_build_history_detailed(mock_repo_structure):
 
 def test_parse_architecture_decisions_index(mock_repo_structure):
     """Test ARCHITECTURE_DECISIONS.md INDEX table parsing"""
-    with patch('sot_db_sync.REPO_ROOT', mock_repo_structure):
+    with patch("sot_db_sync.REPO_ROOT", mock_repo_structure):
         syncer = SOTDBSync(mode=SyncMode.DOCS_ONLY, execute=False)
 
         arch_path = mock_repo_structure / "docs" / "ARCHITECTURE_DECISIONS.md"
@@ -285,7 +273,7 @@ def test_parse_architecture_decisions_index(mock_repo_structure):
 
 def test_parse_debug_log_index(mock_repo_structure):
     """Test DEBUG_LOG.md INDEX table parsing"""
-    with patch('sot_db_sync.REPO_ROOT', mock_repo_structure):
+    with patch("sot_db_sync.REPO_ROOT", mock_repo_structure):
         syncer = SOTDBSync(mode=SyncMode.DOCS_ONLY, execute=False)
 
         debug_path = mock_repo_structure / "docs" / "DEBUG_LOG.md"
@@ -298,9 +286,11 @@ def test_parse_debug_log_index(mock_repo_structure):
         assert dbg_001 is not None
         assert "DBG-001" in dbg_001["title"]
         # Content should contain severity or error details
-        assert ("HIGH" in dbg_001["content"].upper() or
-                "Test error" in dbg_001["content"] or
-                "severity" in dbg_001["content"].lower())
+        assert (
+            "HIGH" in dbg_001["content"].upper()
+            or "Test error" in dbg_001["content"]
+            or "severity" in dbg_001["content"].lower()
+        )
 
 
 def test_missing_sot_files_handled(temp_dir):
@@ -309,7 +299,7 @@ def test_missing_sot_files_handled(temp_dir):
     docs_dir = temp_dir / "docs"
     docs_dir.mkdir()
 
-    with patch('sot_db_sync.REPO_ROOT', temp_dir):
+    with patch("sot_db_sync.REPO_ROOT", temp_dir):
         syncer = SOTDBSync(mode=SyncMode.DOCS_ONLY, execute=False)
         exit_code = syncer.run()
 
@@ -320,11 +310,11 @@ def test_missing_sot_files_handled(temp_dir):
 
 def test_timeout_handling(mock_repo_structure):
     """Test that timeout is enforced"""
-    with patch('sot_db_sync.REPO_ROOT', mock_repo_structure):
+    with patch("sot_db_sync.REPO_ROOT", mock_repo_structure):
         syncer = SOTDBSync(
             mode=SyncMode.DOCS_ONLY,
             execute=False,
-            max_seconds=0.001  # 1ms timeout (will definitely exceed)
+            max_seconds=0.001,  # 1ms timeout (will definitely exceed)
         )
 
         # Mock sleep to trigger timeout
@@ -337,7 +327,7 @@ def test_timeout_handling(mock_repo_structure):
                 return original_time() + 10
             return original_time()
 
-        with patch('time.time', side_effect=mock_time):
+        with patch("time.time", side_effect=mock_time):
             exit_code = syncer.run()
 
             # Should return timeout error code
@@ -346,39 +336,29 @@ def test_timeout_handling(mock_repo_structure):
 
 def test_database_url_resolution_priority(temp_dir):
     """Test database URL resolution priority order"""
-    with patch('sot_db_sync.REPO_ROOT', temp_dir):
+    with patch("sot_db_sync.REPO_ROOT", temp_dir):
         # Priority 1: --database-url argument
         syncer1 = SOTDBSync(
-            mode=SyncMode.DOCS_ONLY,
-            execute=False,
-            database_url="sqlite:///custom.db"
+            mode=SyncMode.DOCS_ONLY, execute=False, database_url="sqlite:///custom.db"
         )
         assert "custom.db" in syncer1.database_url
 
         # Priority 2: DATABASE_URL env var
-        with patch.dict('os.environ', {'DATABASE_URL': 'sqlite:///env.db'}):
-            syncer2 = SOTDBSync(
-                mode=SyncMode.DOCS_ONLY,
-                execute=False
-            )
+        with patch.dict("os.environ", {"DATABASE_URL": "sqlite:///env.db"}):
+            syncer2 = SOTDBSync(mode=SyncMode.DOCS_ONLY, execute=False)
             assert "env.db" in syncer2.database_url
 
         # Priority 3: Default
-        with patch.dict('os.environ', {}, clear=True):
-            syncer3 = SOTDBSync(
-                mode=SyncMode.DOCS_ONLY,
-                execute=False
-            )
+        with patch.dict("os.environ", {}, clear=True):
+            syncer3 = SOTDBSync(mode=SyncMode.DOCS_ONLY, execute=False)
             assert "autopack.db" in syncer3.database_url
 
 
 def test_qdrant_mode_requires_host(mock_repo_structure):
     """Test that qdrant-only mode requires QDRANT_HOST"""
-    with patch('sot_db_sync.REPO_ROOT', mock_repo_structure):
+    with patch("sot_db_sync.REPO_ROOT", mock_repo_structure):
         syncer = SOTDBSync(
-            mode=SyncMode.QDRANT_ONLY,
-            execute=True,
-            qdrant_host=None  # No Qdrant configured
+            mode=SyncMode.QDRANT_ONLY, execute=True, qdrant_host=None  # No Qdrant configured
         )
 
         exit_code = syncer.run()
@@ -389,11 +369,9 @@ def test_qdrant_mode_requires_host(mock_repo_structure):
 
 def test_full_mode_requires_qdrant(mock_repo_structure):
     """Test that full mode requires Qdrant configuration"""
-    with patch('sot_db_sync.REPO_ROOT', mock_repo_structure):
+    with patch("sot_db_sync.REPO_ROOT", mock_repo_structure):
         syncer = SOTDBSync(
-            mode=SyncMode.FULL,
-            execute=True,
-            qdrant_host=None  # No Qdrant configured
+            mode=SyncMode.FULL, execute=True, qdrant_host=None  # No Qdrant configured
         )
 
         exit_code = syncer.run()
@@ -406,11 +384,11 @@ def test_dry_run_mode_no_execute_flag(mock_repo_structure, temp_dir):
     """Test that db-only without --execute is rejected"""
     db_path = temp_dir / "test.db"
 
-    with patch('sot_db_sync.REPO_ROOT', mock_repo_structure):
+    with patch("sot_db_sync.REPO_ROOT", mock_repo_structure):
         syncer = SOTDBSync(
             mode=SyncMode.DB_ONLY,
             execute=False,  # Missing --execute flag
-            database_url=f"sqlite:///{db_path}"
+            database_url=f"sqlite:///{db_path}",
         )
 
         exit_code = syncer.run()
@@ -423,7 +401,7 @@ def test_dry_run_mode_no_execute_flag(mock_repo_structure, temp_dir):
 
 def test_content_hash_idempotency(mock_repo_structure):
     """Test that content hash is deterministic"""
-    with patch('sot_db_sync.REPO_ROOT', mock_repo_structure):
+    with patch("sot_db_sync.REPO_ROOT", mock_repo_structure):
         syncer = SOTDBSync(mode=SyncMode.DOCS_ONLY, execute=False)
 
         build_history_path = mock_repo_structure / "docs" / "BUILD_HISTORY.md"
@@ -441,12 +419,8 @@ def test_content_hash_idempotency(mock_repo_structure):
 
 def test_timing_output(mock_repo_structure, capsys):
     """Test that timing information is printed when enabled"""
-    with patch('sot_db_sync.REPO_ROOT', mock_repo_structure):
-        syncer = SOTDBSync(
-            mode=SyncMode.DOCS_ONLY,
-            execute=False,
-            timing=True
-        )
+    with patch("sot_db_sync.REPO_ROOT", mock_repo_structure):
+        syncer = SOTDBSync(mode=SyncMode.DOCS_ONLY, execute=False, timing=True)
 
         syncer.run()
 
@@ -457,12 +431,8 @@ def test_timing_output(mock_repo_structure, capsys):
 
 def test_no_timing_output(mock_repo_structure, capsys):
     """Test that timing can be disabled"""
-    with patch('sot_db_sync.REPO_ROOT', mock_repo_structure):
-        syncer = SOTDBSync(
-            mode=SyncMode.DOCS_ONLY,
-            execute=False,
-            timing=False
-        )
+    with patch("sot_db_sync.REPO_ROOT", mock_repo_structure):
+        syncer = SOTDBSync(mode=SyncMode.DOCS_ONLY, execute=False, timing=False)
 
         syncer.run()
 
@@ -472,11 +442,9 @@ def test_no_timing_output(mock_repo_structure, capsys):
 
 def test_relative_sqlite_path_normalization(temp_dir):
     """Test that relative SQLite paths are normalized to absolute"""
-    with patch('sot_db_sync.REPO_ROOT', temp_dir):
+    with patch("sot_db_sync.REPO_ROOT", temp_dir):
         syncer = SOTDBSync(
-            mode=SyncMode.DOCS_ONLY,
-            execute=False,
-            database_url="sqlite:///relative/path/test.db"
+            mode=SyncMode.DOCS_ONLY, execute=False, database_url="sqlite:///relative/path/test.db"
         )
 
         # Should be normalized to absolute path
@@ -489,11 +457,9 @@ def test_relative_sqlite_path_normalization(temp_dir):
 
 def test_windows_absolute_path_detection(temp_dir):
     """Test Windows absolute path detection (C:/ prefix)"""
-    with patch('sot_db_sync.REPO_ROOT', temp_dir):
+    with patch("sot_db_sync.REPO_ROOT", temp_dir):
         syncer = SOTDBSync(
-            mode=SyncMode.DOCS_ONLY,
-            execute=False,
-            database_url="sqlite:///C:/dev/test.db"
+            mode=SyncMode.DOCS_ONLY, execute=False, database_url="sqlite:///C:/dev/test.db"
         )
 
         # Should NOT be modified (already absolute)
@@ -509,7 +475,7 @@ def test_error_collection(mock_repo_structure):
     # Overwrite with content that will cause issues
     malformed.write_text("Not a valid markdown structure")
 
-    with patch('sot_db_sync.REPO_ROOT', mock_repo_structure):
+    with patch("sot_db_sync.REPO_ROOT", mock_repo_structure):
         syncer = SOTDBSync(mode=SyncMode.DOCS_ONLY, execute=False)
         syncer.run()
 
@@ -520,11 +486,11 @@ def test_error_collection(mock_repo_structure):
 
 def test_keyboard_interrupt_handling(mock_repo_structure):
     """Test graceful handling of KeyboardInterrupt"""
-    with patch('sot_db_sync.REPO_ROOT', mock_repo_structure):
+    with patch("sot_db_sync.REPO_ROOT", mock_repo_structure):
         syncer = SOTDBSync(mode=SyncMode.DOCS_ONLY, execute=False)
 
         # Mock parse_sot_files to raise KeyboardInterrupt
-        with patch.object(syncer, 'parse_sot_files', side_effect=KeyboardInterrupt):
+        with patch.object(syncer, "parse_sot_files", side_effect=KeyboardInterrupt):
             exit_code = syncer.run()
 
             # Should return 130 (standard for SIGINT)
@@ -547,15 +513,11 @@ def test_cli_smoke_docs_only():
     repo_root = Path(__file__).parent.parent.parent
 
     result = subprocess.run(
-        [
-            sys.executable,
-            "scripts/tidy/sot_db_sync.py",
-            "--docs-only"
-        ],
+        [sys.executable, "scripts/tidy/sot_db_sync.py", "--docs-only"],
         capture_output=True,
         text=True,
         cwd=repo_root,
-        timeout=30
+        timeout=30,
     )
 
     # Repo context: MUST succeed (strict check)
@@ -575,17 +537,13 @@ def test_cli_smoke_docs_only():
 
 def test_lock_acquisition_docs_only_no_locks(mock_repo_structure):
     """Test that docs-only mode does not acquire locks"""
-    with patch('sot_db_sync.REPO_ROOT', mock_repo_structure):
-        with patch('sot_db_sync.LOCKS_AVAILABLE', True):
+    with patch("sot_db_sync.REPO_ROOT", mock_repo_structure):
+        with patch("sot_db_sync.LOCKS_AVAILABLE", True):
             # Mock MultiLock to track calls
             mock_multi_lock = MagicMock()
 
-            with patch('sot_db_sync.MultiLock', return_value=mock_multi_lock):
-                syncer = SOTDBSync(
-                    mode=SyncMode.DOCS_ONLY,
-                    execute=False,
-                    max_seconds=30
-                )
+            with patch("sot_db_sync.MultiLock", return_value=mock_multi_lock):
+                syncer = SOTDBSync(mode=SyncMode.DOCS_ONLY, execute=False, max_seconds=30)
 
                 # Docs-only should not create MultiLock instance
                 assert syncer.multi_lock is None
@@ -602,24 +560,24 @@ def test_lock_acquisition_execute_mode_acquires_locks(mock_repo_structure, temp_
     """Test that execute modes acquire subsystem locks"""
     db_path = temp_dir / "test.db"
 
-    with patch('sot_db_sync.REPO_ROOT', mock_repo_structure):
-        with patch('sot_db_sync.LOCKS_AVAILABLE', True):
+    with patch("sot_db_sync.REPO_ROOT", mock_repo_structure):
+        with patch("sot_db_sync.LOCKS_AVAILABLE", True):
             # Mock MultiLock to track calls
             mock_multi_lock = MagicMock()
 
-            with patch('sot_db_sync.MultiLock', return_value=mock_multi_lock):
+            with patch("sot_db_sync.MultiLock", return_value=mock_multi_lock):
                 syncer = SOTDBSync(
                     mode=SyncMode.DB_ONLY,
                     execute=True,
                     database_url=f"sqlite:///{db_path}",
-                    max_seconds=30
+                    max_seconds=30,
                 )
 
                 # Execute mode should create MultiLock instance
                 assert syncer.multi_lock is not None
 
                 # Run should acquire locks with correct subsystems
-                exit_code = syncer.run()
+                syncer.run()
 
                 # Verify acquire was called with ["docs", "archive"]
                 mock_multi_lock.acquire.assert_called_once_with(["docs", "archive"])
@@ -632,18 +590,18 @@ def test_lock_acquisition_failure_returns_exit_code_5(mock_repo_structure, temp_
     """Test that lock acquisition failure returns exit code 5"""
     db_path = temp_dir / "test.db"
 
-    with patch('sot_db_sync.REPO_ROOT', mock_repo_structure):
-        with patch('sot_db_sync.LOCKS_AVAILABLE', True):
+    with patch("sot_db_sync.REPO_ROOT", mock_repo_structure):
+        with patch("sot_db_sync.LOCKS_AVAILABLE", True):
             # Mock MultiLock to simulate lock acquisition failure
             mock_multi_lock = MagicMock()
             mock_multi_lock.acquire.side_effect = TimeoutError("Lock timeout")
 
-            with patch('sot_db_sync.MultiLock', return_value=mock_multi_lock):
+            with patch("sot_db_sync.MultiLock", return_value=mock_multi_lock):
                 syncer = SOTDBSync(
                     mode=SyncMode.DB_ONLY,
                     execute=True,
                     database_url=f"sqlite:///{db_path}",
-                    max_seconds=30
+                    max_seconds=30,
                 )
 
                 # Run should return exit code 5 for lock failure

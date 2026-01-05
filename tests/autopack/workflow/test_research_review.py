@@ -1,15 +1,8 @@
 """Tests for research review workflow."""
 
 import pytest
-from pathlib import Path
-from datetime import datetime
 
-from autopack.workflow.research_review import (
-    ResearchReviewWorkflow,
-    ReviewConfig,
-    ReviewDecision,
-    ReviewResult
-)
+from autopack.workflow.research_review import ResearchReviewWorkflow, ReviewConfig, ReviewDecision
 from autopack.phases.research_phase import ResearchPhaseResult
 
 
@@ -21,7 +14,7 @@ def review_config(tmp_path):
         require_human_review=False,
         review_timeout_seconds=60,
         store_reviews=True,
-        review_storage_dir=tmp_path / "reviews"
+        review_storage_dir=tmp_path / "reviews",
     )
 
 
@@ -36,7 +29,7 @@ def high_confidence_research():
         recommendations=["Rec 1"],
         confidence_score=0.95,
         iterations_used=3,
-        duration_seconds=10.0
+        duration_seconds=10.0,
     )
 
 
@@ -51,7 +44,7 @@ def low_confidence_research():
         recommendations=[],
         confidence_score=0.5,
         iterations_used=2,
-        duration_seconds=5.0
+        duration_seconds=5.0,
     )
 
 
@@ -86,12 +79,11 @@ def test_require_human_review(review_config, high_confidence_research):
 def test_store_review(review_config, high_confidence_research):
     """Test review storage."""
     workflow = ResearchReviewWorkflow(config=review_config)
-    review = workflow.review_research(high_confidence_research, {})
+    workflow.review_research(high_confidence_research, {})
 
     # Check that review was stored
     review_file = (
-        review_config.review_storage_dir /
-        f"{high_confidence_research.session_id}_review.json"
+        review_config.review_storage_dir / f"{high_confidence_research.session_id}_review.json"
     )
     assert review_file.exists()
 
@@ -120,7 +112,7 @@ def test_submit_review(review_config):
         decision=ReviewDecision.APPROVED,
         reviewer="john_doe",
         comments="Looks good to me",
-        approved_findings=["Finding 1", "Finding 2"]
+        approved_findings=["Finding 1", "Finding 2"],
     )
 
     assert review.decision == ReviewDecision.APPROVED
@@ -150,7 +142,7 @@ def test_should_auto_approve_criteria(review_config):
         recommendations=[],
         confidence_score=0.95,
         iterations_used=3,
-        duration_seconds=10.0
+        duration_seconds=10.0,
     )
     assert workflow._should_auto_approve(good_result)
 
@@ -163,7 +155,7 @@ def test_should_auto_approve_criteria(review_config):
         recommendations=[],
         confidence_score=0.6,
         iterations_used=3,
-        duration_seconds=10.0
+        duration_seconds=10.0,
     )
     assert not workflow._should_auto_approve(low_conf_result)
 
@@ -176,7 +168,7 @@ def test_should_auto_approve_criteria(review_config):
         recommendations=[],
         confidence_score=0.95,
         iterations_used=3,
-        duration_seconds=10.0
+        duration_seconds=10.0,
     )
     assert not workflow._should_auto_approve(few_findings_result)
 
@@ -189,6 +181,6 @@ def test_should_auto_approve_criteria(review_config):
         recommendations=[],
         confidence_score=0.95,
         iterations_used=3,
-        duration_seconds=10.0
+        duration_seconds=10.0,
     )
     assert not workflow._should_auto_approve(failed_result)

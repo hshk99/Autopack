@@ -3,6 +3,7 @@
 import requests
 from bs4 import BeautifulSoup
 
+
 def fetch_web_content(url: str) -> str:
     """
     Fetches the content of a web page.
@@ -23,6 +24,7 @@ def fetch_web_content(url: str) -> str:
     except requests.RequestException as e:
         raise requests.HTTPError(f"Failed to fetch {url}: {e}")
 
+
 def parse_html_content(html_content: str) -> list:
     """
     Parses HTML content and extracts structured data.
@@ -33,11 +35,12 @@ def parse_html_content(html_content: str) -> list:
     Returns:
         list: A list of extracted data.
     """
-    soup = BeautifulSoup(html_content, 'html.parser')
+    soup = BeautifulSoup(html_content, "html.parser")
     data = []
-    for item in soup.find_all('p'):  # Example: Extract all paragraphs
+    for item in soup.find_all("p"):  # Example: Extract all paragraphs
         data.append(item.get_text())
     return data
+
 
 if __name__ == "__main__":
     # Example usage

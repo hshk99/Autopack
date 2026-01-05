@@ -14,7 +14,6 @@ print(f"[API_SERVER_STARTUP] DATABASE_URL from environment: {os.getenv('DATABASE
 from fastapi import Depends, FastAPI, HTTPException, Request, Security
 from contextlib import asynccontextmanager
 from fastapi.security import APIKeyHeader
-from fastapi.staticfiles import StaticFiles
 from sqlalchemy import text
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session, joinedload
@@ -23,18 +22,20 @@ from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 
 from . import dashboard_schemas, models, schemas
-from .builder_schemas import AuditorRequest, AuditorResult, BuilderResult
+from .builder_schemas import BuilderResult
 from .config import settings
 from .database import get_db, init_db
 from .file_layout import RunFileLayout
 from .governed_apply import GovernedApplyPath, PatchApplyError
 from .issue_tracker import IssueTracker
 from .strategy_engine import StrategyEngine
-from .usage_recorder import get_doctor_stats, get_token_efficiency_stats
+from .usage_recorder import get_token_efficiency_stats
+
 logger = logging.getLogger(__name__)
 
 # Security: API Key authentication
 API_KEY_HEADER = APIKeyHeader(name="X-API-Key", auto_error=False)
+
 
 async def verify_api_key(api_key: str = Security(API_KEY_HEADER)):
     """Verify API key for protected endpoints"""
@@ -50,10 +51,10 @@ async def verify_api_key(api_key: str = Security(API_KEY_HEADER)):
 
     if not api_key or api_key != expected_key:
         raise HTTPException(
-            status_code=403,
-            detail="Invalid or missing API key. Set X-API-Key header."
+            status_code=403, detail="Invalid or missing API key. Set X-API-Key header."
         )
     return api_key
+
 
 # Rate limiting
 limiter = Limiter(key_func=get_remote_address)
@@ -61,10 +62,13 @@ limiter = Limiter(key_func=get_remote_address)
 # Load .env but DON'T override existing env vars (e.g., DATABASE_URL from executor)
 # This ensures subprocess API server inherits DATABASE_URL from parent process
 load_dotenv(override=False)
-print(f"[API_SERVER_STARTUP] DATABASE_URL after load_dotenv(): {os.getenv('DATABASE_URL', 'NOT SET')}")
+print(
+    f"[API_SERVER_STARTUP] DATABASE_URL after load_dotenv(): {os.getenv('DATABASE_URL', 'NOT SET')}"
+)
 
 # P0 diagnostic: Log actual resolved database URL after normalization
 from autopack.config import get_database_url
+
 resolved_url = get_database_url()
 print(f"[API_SERVER_STARTUP] Resolved DATABASE_URL (after normalization): {resolved_url}")
 
@@ -90,13 +94,19 @@ async def approval_timeout_cleanup():
             try:
                 # Find expired pending requests
                 now = datetime.now(timezone.utc)
-                expired_requests = db.query(models.ApprovalRequest).filter(
-                    models.ApprovalRequest.status == "pending",
-                    models.ApprovalRequest.timeout_at <= now
-                ).all()
+                expired_requests = (
+                    db.query(models.ApprovalRequest)
+                    .filter(
+                        models.ApprovalRequest.status == "pending",
+                        models.ApprovalRequest.timeout_at <= now,
+                    )
+                    .all()
+                )
 
                 if expired_requests:
-                    logger.info(f"[APPROVAL-TIMEOUT] Found {len(expired_requests)} expired requests")
+                    logger.info(
+                        f"[APPROVAL-TIMEOUT] Found {len(expired_requests)} expired requests"
+                    )
 
                     default_action = os.getenv("APPROVAL_DEFAULT_ON_TIMEOUT", "reject")
 
@@ -123,7 +133,7 @@ async def approval_timeout_cleanup():
                             notifier.send_completion_notice(
                                 phase_id=req.phase_id,
                                 status="timeout",
-                                message=f"⏱️ Approval timed out. Default action: {final_status}"
+                                message=f"⏱️ Approval timed out. Default action: {final_status}",
                             )
 
                     db.commit()
@@ -145,6 +155,7 @@ async def lifespan(app: FastAPI):
 
     # Start background task for approval timeout cleanup
     import asyncio
+
     timeout_task = asyncio.create_task(approval_timeout_cleanup())
 
     yield
@@ -170,10 +181,12 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 # Mount authentication router (BUILD-146 P12 Phase 5: migrated to autopack.auth)
 from autopack.auth import router as auth_router
+
 app.include_router(auth_router, tags=["authentication"])
 
 # Mount research router
 from autopack.research.api.router import research_router
+
 app.include_router(research_router, prefix="/research", tags=["research"])
 
 # Global exception handler for debugging
@@ -183,27 +196,29 @@ from fastapi import status
 
 logger = logging.getLogger(__name__)
 
+
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
     logger.error(f"Unhandled exception: {exc}", exc_info=True)
     import traceback
+
     tb = traceback.format_exc()
 
     # Use error reporter to capture detailed context
     from .error_reporter import report_error
 
     # Extract run_id and phase_id from request path if available
-    path_parts = request.url.path.split('/')
+    path_parts = request.url.path.split("/")
     run_id = None
     phase_id = None
 
     try:
-        if 'runs' in path_parts:
-            run_idx = path_parts.index('runs')
+        if "runs" in path_parts:
+            run_idx = path_parts.index("runs")
             if len(path_parts) > run_idx + 1:
                 run_id = path_parts[run_idx + 1]
-        if 'phases' in path_parts:
-            phase_idx = path_parts.index('phases')
+        if "phases" in path_parts:
+            phase_idx = path_parts.index("phases")
             if len(path_parts) > phase_idx + 1:
                 phase_id = path_parts[phase_idx + 1]
     except (ValueError, IndexError):
@@ -221,7 +236,7 @@ async def global_exception_handler(request: Request, exc: Exception):
             "url": str(request.url),
             "headers": dict(request.headers),
             "query_params": dict(request.query_params),
-        }
+        },
     )
 
     return JSONResponse(
@@ -230,7 +245,11 @@ async def global_exception_handler(request: Request, exc: Exception):
             "detail": str(exc),
             "type": type(exc).__name__,
             "traceback": tb if os.getenv("DEBUG") == "1" else None,
-            "error_report": f"Error report saved to .autonomous_runs/{run_id or 'errors'}/errors/" if run_id else "Error report saved"
+            "error_report": (
+                f"Error report saved to .autonomous_runs/{run_id or 'errors'}/errors/"
+                if run_id
+                else "Error report saved"
+            ),
         },
     )
 
@@ -245,9 +264,16 @@ def read_root():
     }
 
 
-@app.post("/runs/start", response_model=schemas.RunResponse, status_code=201, dependencies=[Depends(verify_api_key)])
+@app.post(
+    "/runs/start",
+    response_model=schemas.RunResponse,
+    status_code=201,
+    dependencies=[Depends(verify_api_key)],
+)
 @limiter.limit("10/minute")  # Max 10 runs per minute per IP
-def start_run(request_data: schemas.RunStartRequest, request: Request, db: Session = Depends(get_db)):
+def start_run(
+    request_data: schemas.RunStartRequest, request: Request, db: Session = Depends(get_db)
+):
     """Start a new autonomous build run with tiers and phases."""
     # Check if run already exists
     try:
@@ -322,7 +348,7 @@ def start_run(request_data: schemas.RunStartRequest, request: Request, db: Sessi
 
     # Compile strategy
     strategy_engine = StrategyEngine(project_id="Autopack")
-    strategy = strategy_engine.compile_strategy(
+    strategy_engine.compile_strategy(
         run_id=run.id,
         phases=[
             {
@@ -377,7 +403,7 @@ def start_run(request_data: schemas.RunStartRequest, request: Request, db: Sessi
         .filter(models.Run.id == run.id)
         .options(
             joinedload(models.Run.tiers).joinedload(models.Tier.phases),
-            joinedload(models.Run.phases)
+            joinedload(models.Run.phases),
         )
         .first()
     )
@@ -465,7 +491,8 @@ def update_phase_status(
     if run:
         all_phases = db.query(models.Phase).filter(models.Phase.run_id == run_id).all()
         if all_phases and all(
-            p.state in (models.PhaseState.COMPLETE, models.PhaseState.FAILED, models.PhaseState.SKIPPED)
+            p.state
+            in (models.PhaseState.COMPLETE, models.PhaseState.FAILED, models.PhaseState.SKIPPED)
             for p in all_phases
         ):
             # Choose a conservative terminal run state: failed if any phase failed, otherwise success.
@@ -479,7 +506,9 @@ def update_phase_status(
             # Rewrite run_summary.md with final state
             try:
                 layout = file_layout or RunFileLayout(run_id)
-                phases_complete = sum(1 for p in all_phases if p.state == models.PhaseState.COMPLETE)
+                phases_complete = sum(
+                    1 for p in all_phases if p.state == models.PhaseState.COMPLETE
+                )
                 phases_failed = sum(1 for p in all_phases if p.state == models.PhaseState.FAILED)
                 layout.write_run_summary(
                     run_id=run.id,
@@ -592,6 +621,7 @@ def get_project_backlog():
 def get_run_errors(run_id: str):
     """Get all error reports for a run."""
     from .error_reporter import get_error_reporter
+
     reporter = get_error_reporter()
     errors = reporter.get_run_errors(run_id)
     return {"run_id": run_id, "error_count": len(errors), "errors": errors}
@@ -601,6 +631,7 @@ def get_run_errors(run_id: str):
 def get_run_error_summary(run_id: str):
     """Get error summary for a run."""
     from .error_reporter import get_error_reporter
+
     reporter = get_error_reporter()
     summary = reporter.generate_run_error_summary(run_id)
     return {"run_id": run_id, "summary": summary}
@@ -650,13 +681,15 @@ def submit_builder_result(
     # Apply patch via governed apply path
     if builder_result.patch_content:
         patch_size = len(builder_result.patch_content)
-        logger.info(f"[API] builder_result: run_id={run_id}, phase_id={phase_id}, patch_size={patch_size}")
-        
+        logger.info(
+            f"[API] builder_result: run_id={run_id}, phase_id={phase_id}, patch_size={patch_size}"
+        )
+
         # Get workspace and run_type per GPT_RESPONSE18 Q2/C1 (hybrid approach)
         workspace = Path(settings.repo_path)
         run = db.query(models.Run).filter(models.Run.id == run_id).first()
         payload_run_type = getattr(builder_result, "run_type", None)
-        
+
         if not run:
             # Data integrity warning, but safe default behavior per GPT_RESPONSE19 Q1/C1
             logger.error(
@@ -664,12 +697,12 @@ def submit_builder_result(
                 "defaulting run_type='project_build' (autopack_internal_mode disabled). "
                 "This indicates a data integrity issue - Run should exist if Phase exists."
             )
-            
+
             # Record DATA_INTEGRITY issue via IssueTracker per GPT_RESPONSE19 Q1/C1
             try:
                 tracker = IssueTracker(run_id=run_id)
                 tier = db.query(models.Tier).filter(models.Tier.id == phase.tier_id).first()
-                
+
                 issue_key = "run_missing_for_phase"  # Per GPT1: descriptive key for de-duplication
                 tracker.record_issue(
                     phase_index=phase.phase_index,
@@ -679,8 +712,8 @@ def submit_builder_result(
                     severity="major",  # Per GPT2: matches existing severity levels
                     source="api_server",  # Per GPT2: more specific than "system"
                     category="data_integrity",  # New category
-                    task_category=getattr(phase, 'task_category', None),
-                    complexity=getattr(phase, 'complexity', None),
+                    task_category=getattr(phase, "task_category", None),
+                    complexity=getattr(phase, "complexity", None),
                     evidence_refs=[
                         "main.py: submit_builder_result",
                         f"Run {run_id} missing when applying patch for phase {phase_id}",
@@ -693,7 +726,7 @@ def submit_builder_result(
                     "[IssueTracker] Failed to record DATA_INTEGRITY issue "
                     f"for run_id={run_id}, phase_id={phase_id}"
                 )
-            
+
             run_type = payload_run_type or "project_build"
         else:
             run_type_from_db = getattr(run, "run_type", None)
@@ -703,12 +736,12 @@ def submit_builder_result(
                 logger.error(
                     f"[API] Run {run_id} has no run_type; defaulting run_type='project_build'"
                 )
-                
+
                 # Record DATA_INTEGRITY issue per GPT_RESPONSE20 Q2
                 try:
                     tracker = IssueTracker(run_id=run_id)
                     tier = db.query(models.Tier).filter(models.Tier.id == phase.tier_id).first()
-                    
+
                     issue_key = "run_type_missing_for_run"  # Per GPT1/GPT2: descriptive key
                     tracker.record_issue(
                         phase_index=phase.phase_index,
@@ -718,11 +751,11 @@ def submit_builder_result(
                         severity="major",
                         source="api_server",
                         category="data_integrity",
-                        task_category=getattr(phase, 'task_category', None),
-                        complexity=getattr(phase, 'complexity', None),
+                        task_category=getattr(phase, "task_category", None),
+                        complexity=getattr(phase, "complexity", None),
                         evidence_refs=[
                             "main.py: submit_builder_result",
-                                f"Run {run_id} missing run_type in DB and payload when applying patch for phase {phase_id}",
+                            f"Run {run_id} missing run_type in DB and payload when applying patch for phase {phase_id}",
                         ],
                     )
                 except Exception:
@@ -731,7 +764,7 @@ def submit_builder_result(
                         "[IssueTracker] Failed to record DATA_INTEGRITY issue for missing run_type "
                         f"on run_id={run_id}, phase_id={phase_id}"
                     )
-            
+
             run_type = run_type or "project_build"
 
         apply_on_server = run_type in GovernedApplyPath.MAINTENANCE_RUN_TYPES
@@ -750,24 +783,26 @@ def submit_builder_result(
                 autopack_internal_mode=run_type in GovernedApplyPath.MAINTENANCE_RUN_TYPES,
                 allowed_paths=builder_result.allowed_paths or None,
             )
-            
+
             # Patch application with exception handling per GPT_RESPONSE16 Q2
             try:
                 patch_success, error_msg = apply_path.apply_patch(
                     builder_result.patch_content or "",
                     full_file_mode=True,  # Per GPT_RESPONSE15: all patches are full-file mode now
                 )
-                
+
                 if not patch_success:
-                    logger.error(f"[API] [{run_id}/{phase_id}] Patch application failed: {error_msg}")
+                    logger.error(
+                        f"[API] [{run_id}/{phase_id}] Patch application failed: {error_msg}"
+                    )
                     phase.state = models.PhaseState.FAILED
                     raise HTTPException(
                         status_code=422,  # Per GPT_RESPONSE16: validation errors should be 422
-                        detail=f"Failed to apply patch: {error_msg or 'unknown error'}"
+                        detail=f"Failed to apply patch: {error_msg or 'unknown error'}",
                     )
                 else:
                     phase.state = models.PhaseState.GATE
-                    
+
             except PatchApplyError as e:
                 # Per GPT_RESPONSE17 C2: Don't log full traceback for expected PatchApplyError
                 logger.warning(
@@ -775,17 +810,16 @@ def submit_builder_result(
                     # No exc_info=True - expected validation errors don't need full traceback
                 )
                 phase.state = models.PhaseState.FAILED
-                raise HTTPException(
-                    status_code=422,
-                    detail=f"Patch application failed: {str(e)}"
-                )
+                raise HTTPException(status_code=422, detail=f"Patch application failed: {str(e)}")
             except Exception as e:
-                logger.error(f"[API] [{run_id}/{phase_id}] Unexpected error applying patch: {e}", exc_info=True)
+                logger.error(
+                    f"[API] [{run_id}/{phase_id}] Unexpected error applying patch: {e}",
+                    exc_info=True,
+                )
                 phase.state = models.PhaseState.FAILED
                 # Convert unexpected patch/apply errors to 422 so executor does not keep 5xx retrying
                 raise HTTPException(
-                    status_code=422,
-                    detail=f"Patch application failed unexpectedly: {e}"
+                    status_code=422, detail=f"Patch application failed unexpectedly: {e}"
                 )
 
     # DB commit with exception handling per GPT_RESPONSE16 Q2
@@ -795,16 +829,13 @@ def submit_builder_result(
     except Exception as e:
         logger.error(f"[API] [{run_id}/{phase_id}] Database commit failed: {e}", exc_info=True)
         db.rollback()
-        raise HTTPException(
-            status_code=500,
-            detail="Database error during commit"
-        )
+        raise HTTPException(status_code=500, detail="Database error during commit")
 
     return {
         "message": "Builder result submitted successfully",
         "phase_id": phase_id,
         "run_id": run_id,
-        "phase_state": phase.state.value if hasattr(phase.state, 'value') else str(phase.state),
+        "phase_state": phase.state.value if hasattr(phase.state, "value") else str(phase.state),
     }
     phase.tokens_used = max(phase.tokens_used or 0, auditor_result.tokens_used or 0)
 
@@ -816,7 +847,9 @@ def submit_builder_result(
     try:
         db.commit()
     except Exception as e:
-        logger.error(f"[API] [{run_id}/{phase_id}] Failed to store auditor result: {e}", exc_info=True)
+        logger.error(
+            f"[API] [{run_id}/{phase_id}] Failed to store auditor result: {e}", exc_info=True
+        )
         db.rollback()
         raise HTTPException(status_code=500, detail="Database error during auditor_result commit")
 
@@ -868,7 +901,9 @@ async def request_approval(request: Request, db: Session = Depends(get_db)):
         # Configuration
         auto_approve = os.getenv("AUTO_APPROVE_BUILD113", "true").lower() == "true"
         timeout_minutes = int(os.getenv("APPROVAL_TIMEOUT_MINUTES", "15"))
-        default_on_timeout = os.getenv("APPROVAL_DEFAULT_ON_TIMEOUT", "reject")  # "approve" or "reject"
+        default_on_timeout = os.getenv(
+            "APPROVAL_DEFAULT_ON_TIMEOUT", "reject"
+        )  # "approve" or "reject"
 
         # Calculate timeout
         timeout_at = datetime.now(timezone.utc) + timedelta(minutes=timeout_minutes)
@@ -881,7 +916,7 @@ async def request_approval(request: Request, db: Session = Depends(get_db)):
             decision_info=decision_info,
             deletion_info=deletion_info,
             timeout_at=timeout_at,
-            status="pending"
+            status="pending",
         )
         db.add(approval_request)
         db.commit()
@@ -903,7 +938,7 @@ async def request_approval(request: Request, db: Session = Depends(get_db)):
             return {
                 "status": "approved",
                 "reason": "Auto-approved (BUILD-117 - auto-approve mode enabled)",
-                "approval_id": approval_request.id
+                "approval_id": approval_request.id,
             }
 
         # Send Telegram notification
@@ -912,30 +947,34 @@ async def request_approval(request: Request, db: Session = Depends(get_db)):
         telegram_error = None
 
         if notifier.is_configured():
-            logger.info(f"[APPROVAL] Sending Telegram notification for request #{approval_request.id}")
+            logger.info(
+                f"[APPROVAL] Sending Telegram notification for request #{approval_request.id}"
+            )
 
             # Prepare deletion info for notification
             telegram_deletion_info = deletion_info or {
-                'net_deletion': 0,
-                'loc_removed': 0,
-                'loc_added': 0,
-                'files': [],
-                'risk_level': decision_info.get('risk_level', 'medium'),
-                'risk_score': decision_info.get('risk_score', 50)
+                "net_deletion": 0,
+                "loc_removed": 0,
+                "loc_added": 0,
+                "files": [],
+                "risk_level": decision_info.get("risk_level", "medium"),
+                "risk_score": decision_info.get("risk_score", 50),
             }
 
             telegram_sent = notifier.send_approval_request(
                 phase_id=phase_id,
                 deletion_info=telegram_deletion_info,
                 run_id=run_id,
-                context=context
+                context=context,
             )
 
             if not telegram_sent:
                 telegram_error = "Failed to send Telegram notification (check bot configuration)"
                 logger.error(f"[APPROVAL] {telegram_error}")
         else:
-            telegram_error = "Telegram not configured (missing TELEGRAM_BOT_TOKEN or TELEGRAM_CHAT_ID)"
+            telegram_error = (
+                "Telegram not configured (missing TELEGRAM_BOT_TOKEN or TELEGRAM_CHAT_ID)"
+            )
             logger.warning(f"[APPROVAL] {telegram_error}")
 
         # Update approval request with Telegram status
@@ -949,7 +988,7 @@ async def request_approval(request: Request, db: Session = Depends(get_db)):
             "reason": f"Awaiting human approval (timeout in {timeout_minutes} minutes, default: {default_on_timeout})",
             "approval_id": approval_request.id,
             "telegram_sent": telegram_sent,
-            "timeout_at": timeout_at.isoformat()
+            "timeout_at": timeout_at.isoformat(),
         }
 
     except Exception as e:
@@ -961,11 +1000,9 @@ async def request_approval(request: Request, db: Session = Depends(get_db)):
 # Storage Optimizer Telegram Callback Handler (BUILD-150 Phase 3)
 # ==============================================================================
 
+
 async def _handle_storage_callback(
-    callback_data: str,
-    callback_id: str,
-    username: str,
-    db: Session
+    callback_data: str, callback_id: str, username: str, db: Session
 ) -> dict:
     """
     Handle storage optimizer Telegram callbacks.
@@ -977,11 +1014,11 @@ async def _handle_storage_callback(
     """
     from autopack.storage_optimizer.db import (
         get_cleanup_candidates_by_scan,
-        create_approval_decision
+        create_approval_decision,
     )
     from autopack.storage_optimizer.telegram_notifications import (
         StorageTelegramNotifier,
-        answer_telegram_callback
+        answer_telegram_callback,
     )
 
     import os
@@ -999,21 +1036,23 @@ async def _handle_storage_callback(
             candidates = get_cleanup_candidates_by_scan(db, scan_id)
 
             if not candidates:
-                answer_telegram_callback(bot_token, callback_id, "❌ No candidates found for this scan")
+                answer_telegram_callback(
+                    bot_token, callback_id, "❌ No candidates found for this scan"
+                )
                 return {"ok": True}
 
             # Approve all
             candidate_ids = [c.id for c in candidates]
             total_size = sum(c.size_bytes for c in candidates)
 
-            approval = create_approval_decision(
+            create_approval_decision(
                 db,
                 scan_id=scan_id,
                 candidate_ids=candidate_ids,
                 approved_by=f"telegram_@{username}",
                 decision="approve",
                 approval_method="telegram",
-                notes="Approved all via Telegram inline button"
+                notes="Approved all via Telegram inline button",
             )
             db.commit()
 
@@ -1021,14 +1060,14 @@ async def _handle_storage_callback(
             answer_telegram_callback(
                 bot_token,
                 callback_id,
-                f"✅ Approved {len(candidate_ids)} items ({total_size / (1024**3):.2f} GB)"
+                f"✅ Approved {len(candidate_ids)} items ({total_size / (1024**3):.2f} GB)",
             )
 
             # Send confirmation message
             notifier.send_approval_confirmation(
                 scan_id=scan_id,
                 approved_count=len(candidate_ids),
-                approved_size_gb=total_size / (1024**3)
+                approved_size_gb=total_size / (1024**3),
             )
 
             logger.info(f"[TELEGRAM] Approved {len(candidate_ids)} candidates for scan {scan_id}")
@@ -1043,10 +1082,7 @@ async def _handle_storage_callback(
             details_url = f"{api_url}/storage/scans/{scan_id}"
 
             answer_telegram_callback(
-                bot_token,
-                callback_id,
-                f"View details: {details_url}",
-                show_alert=True
+                bot_token, callback_id, f"View details: {details_url}", show_alert=True
             )
 
         elif callback_data.startswith("storage_skip:"):
@@ -1090,7 +1126,7 @@ async def telegram_webhook(request: Request, db: Session = Depends(get_db)):
         callback_data = callback_query.get("data")
         callback_id = callback_query.get("id")
         message_id = callback_query.get("message", {}).get("message_id")
-        chat_id = callback_query.get("message", {}).get("chat", {}).get("id")
+        callback_query.get("message", {}).get("chat", {}).get("id")
         user_id = callback_query.get("from", {}).get("id")
         username = callback_query.get("from", {}).get("username", "unknown")
 
@@ -1100,9 +1136,7 @@ async def telegram_webhook(request: Request, db: Session = Depends(get_db)):
 
         # BUILD-150 Phase 3: Handle storage optimizer callbacks
         if callback_data.startswith("storage_"):
-            return await _handle_storage_callback(
-                callback_data, callback_id, username, db
-            )
+            return await _handle_storage_callback(callback_data, callback_id, username, db)
 
         # Parse callback data: "approve:{phase_id}" or "reject:{phase_id}"
         action, phase_id = callback_data.split(":", 1)
@@ -1110,10 +1144,15 @@ async def telegram_webhook(request: Request, db: Session = Depends(get_db)):
         logger.info(f"[TELEGRAM] User @{username} ({user_id}) {action}d phase {phase_id}")
 
         # Find the approval request
-        approval_request = db.query(models.ApprovalRequest).filter(
-            models.ApprovalRequest.phase_id == phase_id,
-            models.ApprovalRequest.status == "pending"
-        ).order_by(models.ApprovalRequest.requested_at.desc()).first()
+        approval_request = (
+            db.query(models.ApprovalRequest)
+            .filter(
+                models.ApprovalRequest.phase_id == phase_id,
+                models.ApprovalRequest.status == "pending",
+            )
+            .order_by(models.ApprovalRequest.requested_at.desc())
+            .first()
+        )
 
         if not approval_request:
             logger.warning(f"[TELEGRAM] No pending approval request found for {phase_id}")
@@ -1123,7 +1162,7 @@ async def telegram_webhook(request: Request, db: Session = Depends(get_db)):
                 notifier.send_completion_notice(
                     phase_id=phase_id,
                     status="error",
-                    message="⚠️ Approval request not found or already processed"
+                    message="⚠️ Approval request not found or already processed",
                 )
             return {"ok": True}
 
@@ -1140,9 +1179,7 @@ async def telegram_webhook(request: Request, db: Session = Depends(get_db)):
 
         db.commit()
 
-        logger.info(
-            f"[TELEGRAM] Approval request #{approval_request.id} {action}ed by @{username}"
-        )
+        logger.info(f"[TELEGRAM] Approval request #{approval_request.id} {action}ed by @{username}")
 
         # Send confirmation message
         notifier = TelegramNotifier()
@@ -1150,7 +1187,7 @@ async def telegram_webhook(request: Request, db: Session = Depends(get_db)):
             notifier.send_completion_notice(
                 phase_id=phase_id,
                 status=action + "ed",
-                message=f"Phase `{phase_id}` has been {action}ed."
+                message=f"Phase `{phase_id}` has been {action}ed.",
             )
 
         return {"ok": True}
@@ -1178,12 +1215,16 @@ async def get_approval_status(approval_id: int, db: Session = Depends(get_db)):
     }
     """
     try:
-        approval_request = db.query(models.ApprovalRequest).filter(
-            models.ApprovalRequest.id == approval_id
-        ).first()
+        approval_request = (
+            db.query(models.ApprovalRequest)
+            .filter(models.ApprovalRequest.id == approval_id)
+            .first()
+        )
 
         if not approval_request:
-            raise HTTPException(status_code=404, detail=f"Approval request #{approval_id} not found")
+            raise HTTPException(
+                status_code=404, detail=f"Approval request #{approval_id} not found"
+            )
 
         return {
             "approval_id": approval_request.id,
@@ -1191,11 +1232,15 @@ async def get_approval_status(approval_id: int, db: Session = Depends(get_db)):
             "phase_id": approval_request.phase_id,
             "status": approval_request.status,
             "requested_at": approval_request.requested_at.isoformat(),
-            "responded_at": approval_request.responded_at.isoformat() if approval_request.responded_at else None,
-            "timeout_at": approval_request.timeout_at.isoformat() if approval_request.timeout_at else None,
+            "responded_at": (
+                approval_request.responded_at.isoformat() if approval_request.responded_at else None
+            ),
+            "timeout_at": (
+                approval_request.timeout_at.isoformat() if approval_request.timeout_at else None
+            ),
             "approval_reason": approval_request.approval_reason,
             "rejected_reason": approval_request.rejected_reason,
-            "response_method": approval_request.response_method
+            "response_method": approval_request.response_method,
         }
 
     except HTTPException:
@@ -1216,9 +1261,12 @@ async def get_pending_approvals(db: Session = Depends(get_db)):
     }
     """
     try:
-        pending_requests = db.query(models.ApprovalRequest).filter(
-            models.ApprovalRequest.status == "pending"
-        ).order_by(models.ApprovalRequest.requested_at.desc()).all()
+        pending_requests = (
+            db.query(models.ApprovalRequest)
+            .filter(models.ApprovalRequest.status == "pending")
+            .order_by(models.ApprovalRequest.requested_at.desc())
+            .all()
+        )
 
         return {
             "count": len(pending_requests),
@@ -1232,10 +1280,10 @@ async def get_pending_approvals(db: Session = Depends(get_db)):
                     "timeout_at": req.timeout_at.isoformat() if req.timeout_at else None,
                     "decision_info": req.decision_info,
                     "deletion_info": req.deletion_info,
-                    "telegram_sent": req.telegram_sent
+                    "telegram_sent": req.telegram_sent,
                 }
                 for req in pending_requests
-            ]
+            ],
         }
 
     except Exception as e:
@@ -1246,6 +1294,7 @@ async def get_pending_approvals(db: Session = Depends(get_db)):
 # =============================================================================
 # BUILD-127 Phase 2: Governance Request Endpoints
 # =============================================================================
+
 
 @app.get("/governance/pending")
 async def get_pending_governance_requests(db: Session = Depends(get_db)):
@@ -1259,10 +1308,7 @@ async def get_pending_governance_requests(db: Session = Depends(get_db)):
 
         pending = get_pending_requests(db)
 
-        return {
-            "count": len(pending),
-            "pending_requests": [req.to_dict() for req in pending]
-        }
+        return {"count": len(pending), "pending_requests": [req.to_dict() for req in pending]}
 
     except Exception as e:
         logger.error(f"[GOVERNANCE] Error fetching pending requests: {e}", exc_info=True)
@@ -1271,10 +1317,7 @@ async def get_pending_governance_requests(db: Session = Depends(get_db)):
 
 @app.post("/governance/approve/{request_id}")
 async def approve_governance_request(
-    request_id: str,
-    approved: bool = True,
-    user_id: str = "human",
-    db: Session = Depends(get_db)
+    request_id: str, approved: bool = True, user_id: str = "human", db: Session = Depends(get_db)
 ):
     """Approve or deny a governance request (BUILD-127 Phase 2).
 
@@ -1300,7 +1343,7 @@ async def approve_governance_request(
             return {
                 "status": status,
                 "request_id": request_id,
-                "message": f"Governance request {status}"
+                "message": f"Governance request {status}",
             }
         else:
             raise HTTPException(status_code=404, detail="Governance request not found")
@@ -1315,6 +1358,7 @@ async def approve_governance_request(
 # =============================================================================
 # Dashboard Endpoints
 # =============================================================================
+
 
 @app.get("/dashboard/runs/{run_id}/status", response_model=dashboard_schemas.DashboardRunStatus)
 def get_dashboard_run_status(run_id: str, db: Session = Depends(get_db)):
@@ -1341,6 +1385,7 @@ def get_dashboard_run_status(run_id: str, db: Session = Depends(get_db)):
     token_efficiency = None
     try:
         from .usage_recorder import get_token_efficiency_stats
+
         efficiency_stats = get_token_efficiency_stats(db, run_id)
         if efficiency_stats and efficiency_stats.get("total_phases", 0) > 0:
             token_efficiency = efficiency_stats
@@ -1387,9 +1432,7 @@ def get_dashboard_usage(period: str = "week", db: Session = Depends(get_db)):
         start_time = now - timedelta(weeks=1)  # Default to week
 
     # Query usage events in time range
-    usage_events = db.query(LlmUsageEvent).filter(
-        LlmUsageEvent.created_at >= start_time
-    ).all()
+    usage_events = db.query(LlmUsageEvent).filter(LlmUsageEvent.created_at >= start_time).all()
 
     if not usage_events:
         return dashboard_schemas.UsageResponse(providers=[], models=[])
@@ -1402,12 +1445,12 @@ def get_dashboard_usage(period: str = "week", db: Session = Depends(get_db)):
             provider_stats[event.provider] = {
                 "prompt_tokens": 0,
                 "completion_tokens": 0,
-                "total_tokens": 0
+                "total_tokens": 0,
             }
         # Use total_tokens for totals (always populated), COALESCE NULL->0 for split subtotals
         provider_stats[event.provider]["total_tokens"] += event.total_tokens
-        provider_stats[event.provider]["prompt_tokens"] += (event.prompt_tokens or 0)
-        provider_stats[event.provider]["completion_tokens"] += (event.completion_tokens or 0)
+        provider_stats[event.provider]["prompt_tokens"] += event.prompt_tokens or 0
+        provider_stats[event.provider]["completion_tokens"] += event.completion_tokens or 0
 
     # Aggregate by model
     # BUILD-144 P0.4: Use total_tokens for totals, COALESCE NULL->0 for splits
@@ -1420,12 +1463,12 @@ def get_dashboard_usage(period: str = "week", db: Session = Depends(get_db)):
                 "model": event.model,
                 "prompt_tokens": 0,
                 "completion_tokens": 0,
-                "total_tokens": 0
+                "total_tokens": 0,
             }
         # Use total_tokens for totals (always populated), COALESCE NULL->0 for split subtotals
         model_stats[key]["total_tokens"] += event.total_tokens
-        model_stats[key]["prompt_tokens"] += (event.prompt_tokens or 0)
-        model_stats[key]["completion_tokens"] += (event.completion_tokens or 0)
+        model_stats[key]["prompt_tokens"] += event.prompt_tokens or 0
+        model_stats[key]["completion_tokens"] += event.completion_tokens or 0
 
     # Convert to response models
     providers = [
@@ -1436,15 +1479,12 @@ def get_dashboard_usage(period: str = "week", db: Session = Depends(get_db)):
             completion_tokens=stats["completion_tokens"],
             total_tokens=stats["total_tokens"],
             cap_tokens=0,  # TODO: Get from config
-            percent_of_cap=0.0
+            percent_of_cap=0.0,
         )
         for provider, stats in provider_stats.items()
     ]
 
-    models_list = [
-        dashboard_schemas.ModelUsage(**stats)
-        for stats in model_stats.values()
-    ]
+    models_list = [dashboard_schemas.ModelUsage(**stats) for stats in model_stats.values()]
 
     return dashboard_schemas.UsageResponse(providers=providers, models=models_list)
 
@@ -1467,11 +1507,7 @@ def get_dashboard_models(db: Session = Depends(get_db)):
             category, complexity = key.split(":")
             result.append(
                 dashboard_schemas.ModelMapping(
-                    role=role,
-                    category=category,
-                    complexity=complexity,
-                    model=model,
-                    scope="global"
+                    role=role, category=category, complexity=complexity, model=model, scope="global"
                 )
             )
 
@@ -1479,7 +1515,9 @@ def get_dashboard_models(db: Session = Depends(get_db)):
 
 
 @app.post("/dashboard/human-notes")
-def add_dashboard_human_note(note_request: dashboard_schemas.HumanNoteRequest, db: Session = Depends(get_db)):
+def add_dashboard_human_note(
+    note_request: dashboard_schemas.HumanNoteRequest, db: Session = Depends(get_db)
+):
     """Add a human note to the notes file"""
     from .config import settings
 
@@ -1499,15 +1537,16 @@ def add_dashboard_human_note(note_request: dashboard_schemas.HumanNoteRequest, d
     return {
         "message": "Note added successfully",
         "timestamp": timestamp,
-        "notes_file": ".autopack/human_notes.md"
+        "notes_file": ".autopack/human_notes.md",
     }
 
 
-@app.get("/dashboard/runs/{run_id}/token-efficiency", response_model=dashboard_schemas.TokenEfficiencyStats)
+@app.get(
+    "/dashboard/runs/{run_id}/token-efficiency",
+    response_model=dashboard_schemas.TokenEfficiencyStats,
+)
 def get_run_token_efficiency(
-    run_id: str,
-    db: Session = Depends(get_db),
-    api_key: str = Depends(verify_api_key)
+    run_id: str, db: Session = Depends(get_db), api_key: str = Depends(verify_api_key)
 ):
     """Get token efficiency metrics for a run (BUILD-145)
 
@@ -1527,9 +1566,7 @@ def get_run_token_efficiency(
 
 @app.get("/dashboard/runs/{run_id}/phase6-stats", response_model=dashboard_schemas.Phase6Stats)
 def get_run_phase6_stats(
-    run_id: str,
-    db: Session = Depends(get_db),
-    api_key: str = Depends(verify_api_key)
+    run_id: str, db: Session = Depends(get_db), api_key: str = Depends(verify_api_key)
 ):
     """Get Phase 6 True Autonomy feature effectiveness metrics (BUILD-146)
 
@@ -1552,10 +1589,7 @@ def get_run_phase6_stats(
 
 @app.get("/dashboard/runs/{run_id}/consolidated-metrics")
 def get_dashboard_consolidated_metrics(
-    run_id: str,
-    limit: int = 1000,
-    offset: int = 0,
-    db: Session = Depends(get_db)
+    run_id: str, limit: int = 1000, offset: int = 0, db: Session = Depends(get_db)
 ):
     """Get consolidated token metrics for a run (no double-counting).
 
@@ -1584,7 +1618,7 @@ def get_dashboard_consolidated_metrics(
     if os.getenv("AUTOPACK_ENABLE_CONSOLIDATED_METRICS") != "1":
         raise HTTPException(
             status_code=503,
-            detail="Consolidated metrics disabled. Set AUTOPACK_ENABLE_CONSOLIDATED_METRICS=1 to enable."
+            detail="Consolidated metrics disabled. Set AUTOPACK_ENABLE_CONSOLIDATED_METRICS=1 to enable.",
         )
 
     # Validate pagination parameters
@@ -1599,9 +1633,10 @@ def get_dashboard_consolidated_metrics(
         raise HTTPException(status_code=404, detail=f"Run not found: {run_id}")
 
     # Category 1: Actual spend from llm_usage_events
-    from autopack.usage_recorder import LlmUsageEvent
-    actual_spend = db.query(
-        text("""
+    actual_spend = (
+        db.query(
+            text(
+                """
             SELECT
                 COALESCE(SUM(total_tokens), 0) as total_tokens,
                 COALESCE(SUM(prompt_tokens), 0) as prompt_tokens,
@@ -1609,8 +1644,12 @@ def get_dashboard_consolidated_metrics(
                 COALESCE(SUM(CASE WHEN is_doctor_call = 1 THEN total_tokens ELSE 0 END), 0) as doctor_tokens
             FROM llm_usage_events
             WHERE run_id = :run_id
-        """)
-    ).params(run_id=run_id).first()
+        """
+            )
+        )
+        .params(run_id=run_id)
+        .first()
+    )
 
     total_tokens_spent = actual_spend[0] if actual_spend else 0
     total_prompt_tokens = actual_spend[1] if actual_spend else 0
@@ -1618,22 +1657,30 @@ def get_dashboard_consolidated_metrics(
     doctor_tokens_spent = actual_spend[3] if actual_spend else 0
 
     # Category 2: Artifact efficiency from token_efficiency_metrics
-    artifact_efficiency = db.query(
-        text("""
+    artifact_efficiency = (
+        db.query(
+            text(
+                """
             SELECT
                 COALESCE(SUM(tokens_saved_artifacts), 0) as tokens_saved,
                 COALESCE(SUM(artifact_substitutions), 0) as substitutions
             FROM token_efficiency_metrics
             WHERE run_id = :run_id
-        """)
-    ).params(run_id=run_id).first()
+        """
+            )
+        )
+        .params(run_id=run_id)
+        .first()
+    )
 
     artifact_tokens_avoided = artifact_efficiency[0] if artifact_efficiency else 0
     artifact_substitutions_count = artifact_efficiency[1] if artifact_efficiency else 0
 
     # Category 3: Doctor counterfactual from phase6_metrics
-    doctor_counterfactual = db.query(
-        text("""
+    doctor_counterfactual = (
+        db.query(
+            text(
+                """
             SELECT
                 COALESCE(SUM(doctor_tokens_avoided_estimate), 0) as total_estimate,
                 COALESCE(SUM(CASE WHEN doctor_call_skipped = 1 THEN 1 ELSE 0 END), 0) as skipped_count,
@@ -1641,8 +1688,12 @@ def get_dashboard_consolidated_metrics(
                 MAX(estimate_source) as last_source
             FROM phase6_metrics
             WHERE run_id = :run_id
-        """)
-    ).params(run_id=run_id).first()
+        """
+            )
+        )
+        .params(run_id=run_id)
+        .first()
+    )
 
     doctor_tokens_avoided_estimate = doctor_counterfactual[0] if doctor_counterfactual else 0
     doctor_calls_skipped_count = doctor_counterfactual[1] if doctor_counterfactual else 0
@@ -1655,15 +1706,21 @@ def get_dashboard_consolidated_metrics(
     ab_treatment_run_id = None
 
     # Metadata: Phase counts
-    phase_counts = db.query(
-        text("""
+    phase_counts = (
+        db.query(
+            text(
+                """
             SELECT
                 COUNT(*) as total_phases,
                 COALESCE(SUM(CASE WHEN state = 'COMPLETE' THEN 1 ELSE 0 END), 0) as completed_phases
             FROM phases
             WHERE run_id = :run_id
-        """)
-    ).params(run_id=run_id).first()
+        """
+            )
+        )
+        .params(run_id=run_id)
+        .first()
+    )
 
     total_phases = phase_counts[0] if phase_counts else 0
     completed_phases = phase_counts[1] if phase_counts else 0
@@ -1690,7 +1747,9 @@ def get_dashboard_consolidated_metrics(
 
 
 @app.post("/dashboard/models/override")
-def add_dashboard_model_override(override_request: dashboard_schemas.ModelOverrideRequest, db: Session = Depends(get_db)):
+def add_dashboard_model_override(
+    override_request: dashboard_schemas.ModelOverrideRequest, db: Session = Depends(get_db)
+):
     """Add a model override (global or per-run)"""
     if override_request.scope == "global":
         # For global scope, we would update config file
@@ -1701,7 +1760,7 @@ def add_dashboard_model_override(override_request: dashboard_schemas.ModelOverri
             "role": override_request.role,
             "category": override_request.category,
             "complexity": override_request.complexity,
-            "model": override_request.model
+            "model": override_request.model,
         }
     elif override_request.scope == "run":
         # For run scope, we would update run context
@@ -1709,7 +1768,7 @@ def add_dashboard_model_override(override_request: dashboard_schemas.ModelOverri
         return {
             "message": "Run-scoped model overrides coming soon",
             "scope": "run",
-            "run_id": override_request.run_id
+            "run_id": override_request.run_id,
         }
     else:
         raise HTTPException(status_code=400, detail="Invalid scope. Must be 'global' or 'run'")
@@ -1719,11 +1778,13 @@ def add_dashboard_model_override(override_request: dashboard_schemas.ModelOverri
 # Storage Optimizer API Endpoints (BUILD-149 Phase 2)
 # ==============================================================================
 
-@app.post("/storage/scan", response_model=schemas.StorageScanResponse, dependencies=[Depends(verify_api_key)])
-def trigger_storage_scan(
-    request: schemas.StorageScanRequest,
-    db: Session = Depends(get_db)
-):
+
+@app.post(
+    "/storage/scan",
+    response_model=schemas.StorageScanResponse,
+    dependencies=[Depends(verify_api_key)],
+)
+def trigger_storage_scan(request: schemas.StorageScanRequest, db: Session = Depends(get_db)):
     """
     Trigger a new storage scan and optionally save results to database.
 
@@ -1749,11 +1810,7 @@ def trigger_storage_scan(
         ```
     """
     from datetime import datetime, timezone
-    from .storage_optimizer import (
-        StorageScanner,
-        FileClassifier,
-        load_policy
-    )
+    from .storage_optimizer import StorageScanner, FileClassifier, load_policy
 
     start_time = datetime.now(timezone.utc)
 
@@ -1763,9 +1820,11 @@ def trigger_storage_scan(
     # Execute scan
     scanner = StorageScanner(max_depth=request.max_depth)
 
-    if request.scan_type == 'drive':
-        results = scanner.scan_high_value_directories(request.scan_target, max_items=request.max_items)
-    elif request.scan_type == 'directory':
+    if request.scan_type == "drive":
+        results = scanner.scan_high_value_directories(
+            request.scan_target, max_items=request.max_items
+        )
+    elif request.scan_type == "directory":
         results = scanner.scan_directory(request.scan_target, max_items=request.max_items)
     else:
         raise HTTPException(status_code=400, detail=f"Invalid scan_type: {request.scan_type}")
@@ -1795,7 +1854,7 @@ def trigger_storage_scan(
             cleanup_candidates_count=len(candidates),
             potential_savings_bytes=potential_savings_bytes,
             scan_duration_seconds=scan_duration_seconds,
-            created_by=request.created_by
+            created_by=request.created_by,
         )
         db.add(scan)
         db.flush()  # Get scan.id before adding candidates
@@ -1811,7 +1870,7 @@ def trigger_storage_scan(
                 category=candidate.category,
                 reason=candidate.reason,
                 requires_approval=candidate.requires_approval,
-                approval_status='pending'
+                approval_status="pending",
             )
             db.add(candidate_db)
 
@@ -1831,7 +1890,7 @@ def trigger_storage_scan(
             cleanup_candidates_count=len(candidates),
             potential_savings_bytes=potential_savings_bytes,
             scan_duration_seconds=scan_duration_seconds,
-            created_by=request.created_by
+            created_by=request.created_by,
         )
 
 
@@ -1842,7 +1901,7 @@ def list_storage_scans(
     since_days: Optional[int] = None,
     scan_type: Optional[str] = None,
     scan_target: Optional[str] = None,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     """
     List storage scan history with pagination and optional filters.
@@ -1885,17 +1944,14 @@ def list_storage_scans(
         offset=offset,
         since_days=since_days,
         scan_type=scan_type,
-        scan_target=scan_target
+        scan_target=scan_target,
     )
 
     return scans
 
 
 @app.get("/storage/scans/{scan_id}", response_model=schemas.StorageScanDetailResponse)
-def get_storage_scan_detail(
-    scan_id: int,
-    db: Session = Depends(get_db)
-):
+def get_storage_scan_detail(scan_id: int, db: Session = Depends(get_db)):
     """
     Get detailed scan results including all cleanup candidates.
 
@@ -1914,7 +1970,7 @@ def get_storage_scan_detail(
     from .storage_optimizer.db import (
         get_scan_by_id,
         get_cleanup_candidates_by_scan,
-        get_candidate_stats_by_category
+        get_candidate_stats_by_category,
     )
 
     scan = get_scan_by_id(db, scan_id)
@@ -1925,17 +1981,13 @@ def get_storage_scan_detail(
     stats = get_candidate_stats_by_category(db, scan_id)
 
     return schemas.StorageScanDetailResponse(
-        scan=scan,
-        candidates=candidates,
-        stats_by_category=stats
+        scan=scan, candidates=candidates, stats_by_category=stats
     )
 
 
 @app.post("/storage/scans/{scan_id}/approve", dependencies=[Depends(verify_api_key)])
 def approve_cleanup_candidates(
-    scan_id: int,
-    request: schemas.ApprovalRequest,
-    db: Session = Depends(get_db)
+    scan_id: int, request: schemas.ApprovalRequest, db: Session = Depends(get_db)
 ):
     """
     Approve or reject cleanup candidates for a specific scan.
@@ -1961,10 +2013,7 @@ def approve_cleanup_candidates(
           }'
         ```
     """
-    from .storage_optimizer.db import (
-        get_scan_by_id,
-        create_approval_decision
-    )
+    from .storage_optimizer.db import get_scan_by_id, create_approval_decision
 
     # Verify scan exists
     scan = get_scan_by_id(db, scan_id)
@@ -1972,10 +2021,10 @@ def approve_cleanup_candidates(
         raise HTTPException(status_code=404, detail=f"Scan {scan_id} not found")
 
     # Validate decision
-    if request.decision not in ['approve', 'reject', 'defer']:
+    if request.decision not in ["approve", "reject", "defer"]:
         raise HTTPException(
             status_code=400,
-            detail=f"Invalid decision: {request.decision}. Must be 'approve', 'reject', or 'defer'"
+            detail=f"Invalid decision: {request.decision}. Must be 'approve', 'reject', or 'defer'",
         )
 
     # Create approval decision
@@ -1987,7 +2036,7 @@ def approve_cleanup_candidates(
             approved_by=request.approved_by,
             decision=request.decision,
             approval_method=request.approval_method,
-            notes=request.notes
+            notes=request.notes,
         )
         db.commit()
         db.refresh(approval)
@@ -1999,7 +2048,7 @@ def approve_cleanup_candidates(
             "total_candidates": approval.total_candidates,
             "total_size_bytes": approval.total_size_bytes,
             "approved_by": request.approved_by,
-            "approved_at": approval.approved_at
+            "approved_at": approval.approved_at,
         }
 
     except ValueError as e:
@@ -2011,11 +2060,13 @@ def approve_cleanup_candidates(
         raise HTTPException(status_code=500, detail=f"Failed to create approval decision: {str(e)}")
 
 
-@app.post("/storage/scans/{scan_id}/execute", response_model=schemas.BatchExecutionResponse, dependencies=[Depends(verify_api_key)])
+@app.post(
+    "/storage/scans/{scan_id}/execute",
+    response_model=schemas.BatchExecutionResponse,
+    dependencies=[Depends(verify_api_key)],
+)
 def execute_approved_cleanup(
-    scan_id: int,
-    request: schemas.ExecutionRequest,
-    db: Session = Depends(get_db)
+    scan_id: int, request: schemas.ExecutionRequest, db: Session = Depends(get_db)
 ):
     """
     Execute approved cleanup candidates (deletion or dry-run preview).
@@ -2070,28 +2121,28 @@ def execute_approved_cleanup(
     executor = CleanupExecutor(
         policy=policy,
         dry_run=request.dry_run,
-        compress_before_delete=request.compress_before_delete
+        compress_before_delete=request.compress_before_delete,
     )
 
     # Execute cleanup
     try:
         batch_result = executor.execute_approved_candidates(
-            db,
-            scan_id=scan_id,
-            category=request.category
+            db, scan_id=scan_id, category=request.category
         )
 
         # Convert to response format
         results = []
         for result in batch_result.results:
-            results.append(schemas.ExecutionResultResponse(
-                candidate_id=result.candidate_id,
-                path=result.path,
-                status=result.status.value,
-                error=result.error,
-                freed_bytes=result.freed_bytes,
-                compressed_path=result.compressed_path
-            ))
+            results.append(
+                schemas.ExecutionResultResponse(
+                    candidate_id=result.candidate_id,
+                    path=result.path,
+                    status=result.status.value,
+                    error=result.error,
+                    freed_bytes=result.freed_bytes,
+                    compressed_path=result.compressed_path,
+                )
+            )
 
         return schemas.BatchExecutionResponse(
             total_candidates=batch_result.total_candidates,
@@ -2101,7 +2152,7 @@ def execute_approved_cleanup(
             total_freed_bytes=batch_result.total_freed_bytes,
             success_rate=batch_result.success_rate,
             execution_duration_seconds=batch_result.execution_duration_seconds,
-            results=results
+            results=results,
         )
 
     except Exception as e:
@@ -2110,11 +2161,7 @@ def execute_approved_cleanup(
 
 
 @app.get("/storage/steam/games", response_model=schemas.SteamGamesListResponse)
-def get_steam_games(
-    min_size_gb: float = 10.0,
-    min_age_days: int = 180,
-    include_all: bool = False
-):
+def get_steam_games(min_size_gb: float = 10.0, min_age_days: int = 180, include_all: bool = False):
     """
     Detect Steam games and find large unplayed/unused games.
 
@@ -2151,32 +2198,31 @@ def get_steam_games(
             total_size_gb=0.0,
             games=[],
             steam_available=False,
-            steam_path=None
+            steam_path=None,
         )
 
     # Get games
     if include_all:
         games = detector.detect_installed_games()
     else:
-        games = detector.find_unplayed_games(
-            min_size_gb=min_size_gb,
-            min_age_days=min_age_days
-        )
+        games = detector.find_unplayed_games(min_size_gb=min_size_gb, min_age_days=min_age_days)
 
     # Convert to response format
     game_responses = []
     total_size = 0
     for game in games:
         total_size += game.size_bytes
-        game_responses.append(schemas.SteamGameResponse(
-            app_id=game.app_id,
-            name=game.name,
-            install_path=str(game.install_path),
-            size_bytes=game.size_bytes,
-            size_gb=round(game.size_bytes / (1024**3), 2),
-            last_updated=game.last_updated.isoformat() if game.last_updated else None,
-            age_days=game.age_days
-        ))
+        game_responses.append(
+            schemas.SteamGameResponse(
+                app_id=game.app_id,
+                name=game.name,
+                install_path=str(game.install_path),
+                size_bytes=game.size_bytes,
+                size_gb=round(game.size_bytes / (1024**3), 2),
+                last_updated=game.last_updated.isoformat() if game.last_updated else None,
+                age_days=game.age_days,
+            )
+        )
 
     return schemas.SteamGamesListResponse(
         total_games=len(game_responses),
@@ -2184,17 +2230,13 @@ def get_steam_games(
         total_size_gb=round(total_size / (1024**3), 2),
         games=game_responses,
         steam_available=True,
-        steam_path=str(detector.steam_path) if detector.steam_path else None
+        steam_path=str(detector.steam_path) if detector.steam_path else None,
     )
-
-
 
 
 @app.post("/storage/patterns/analyze", response_model=List[schemas.PatternResponse])
 def analyze_approval_patterns(
-    category: Optional[str] = None,
-    max_patterns: int = 10,
-    db: Session = Depends(get_db)
+    category: Optional[str] = None, max_patterns: int = 10, db: Session = Depends(get_db)
 ):
     """
     Analyze approval history to detect patterns for learned rules.
@@ -2223,17 +2265,14 @@ def analyze_approval_patterns(
             rejections=p.rejections,
             confidence=p.confidence,
             sample_paths=p.sample_paths,
-            description=p.description
+            description=p.description,
         )
         for p in patterns
     ]
 
 
 @app.get("/storage/learned-rules", response_model=List[schemas.LearnedRuleResponse])
-def get_learned_rules(
-    status: Optional[str] = None,
-    db: Session = Depends(get_db)
-):
+def get_learned_rules(status: Optional[str] = None, db: Session = Depends(get_db)):
     """
     Get learned policy rules.
 
@@ -2250,10 +2289,7 @@ def get_learned_rules(
     if status:
         query = query.filter(LearnedRule.status == status)
 
-    rules = query.order_by(
-        LearnedRule.confidence_score.desc(),
-        LearnedRule.created_at.desc()
-    ).all()
+    rules = query.order_by(LearnedRule.confidence_score.desc(), LearnedRule.created_at.desc()).all()
 
     return [
         schemas.LearnedRuleResponse(
@@ -2270,18 +2306,14 @@ def get_learned_rules(
             reviewed_by=r.reviewed_by,
             reviewed_at=r.reviewed_at.isoformat() if r.reviewed_at else None,
             description=r.description,
-            notes=r.notes
+            notes=r.notes,
         )
         for r in rules
     ]
 
 
 @app.post("/storage/learned-rules/{rule_id}/approve", response_model=schemas.LearnedRuleResponse)
-def approve_learned_rule(
-    rule_id: int,
-    approved_by: str,
-    db: Session = Depends(get_db)
-):
+def approve_learned_rule(rule_id: int, approved_by: str, db: Session = Depends(get_db)):
     """Approve a learned rule for application to policy."""
     from .storage_optimizer.approval_pattern_analyzer import ApprovalPatternAnalyzer
     from .storage_optimizer import load_policy
@@ -2305,15 +2337,13 @@ def approve_learned_rule(
         reviewed_by=rule.reviewed_by,
         reviewed_at=rule.reviewed_at.isoformat() if rule.reviewed_at else None,
         description=rule.description,
-        notes=rule.notes
+        notes=rule.notes,
     )
 
 
 @app.get("/storage/recommendations", response_model=schemas.RecommendationsListResponse)
 def get_storage_recommendations(
-    max_recommendations: int = 10,
-    lookback_days: int = 90,
-    db: Session = Depends(get_db)
+    max_recommendations: int = 10, lookback_days: int = 90, db: Session = Depends(get_db)
 ):
     """
     Get strategic storage optimization recommendations based on scan history.
@@ -2332,8 +2362,7 @@ def get_storage_recommendations(
     engine = RecommendationEngine(db, policy)
 
     recommendations = engine.generate_recommendations(
-        max_recommendations=max_recommendations,
-        lookback_days=lookback_days
+        max_recommendations=max_recommendations, lookback_days=lookback_days
     )
 
     scan_stats = engine.get_scan_statistics(lookback_days=lookback_days)
@@ -2348,13 +2377,16 @@ def get_storage_recommendations(
                 evidence=r.evidence,
                 action=r.action,
                 potential_savings_bytes=r.potential_savings_bytes,
-                potential_savings_gb=round(r.potential_savings_bytes / (1024**3), 2) if r.potential_savings_bytes else None
+                potential_savings_gb=(
+                    round(r.potential_savings_bytes / (1024**3), 2)
+                    if r.potential_savings_bytes
+                    else None
+                ),
             )
             for r in recommendations
         ],
-        scan_statistics=scan_stats
+        scan_statistics=scan_stats,
     )
-
 
 
 @app.get("/health")
@@ -2379,7 +2411,7 @@ def health_check(db: Session = Depends(get_db)):
         """Get database identity hash for drift detection."""
         db_url = os.getenv("DATABASE_URL", "sqlite:///./autopack.db")
         # Mask credentials for security
-        masked_url = re.sub(r'://([^:]+):([^@]+)@', r'://***:***@', db_url)
+        masked_url = re.sub(r"://([^:]+):([^@]+)@", r"://***:***@", db_url)
         # Normalize path separators for cross-platform consistency
         normalized_url = masked_url.replace("\\", "/")
         # Hash and take first 12 chars
@@ -2392,8 +2424,13 @@ def health_check(db: Session = Depends(get_db)):
             return "disabled"
         try:
             import requests
+
             response = requests.get(f"{qdrant_host}/healthz", timeout=2)
-            return "connected" if response.status_code == 200 else f"unhealthy (status {response.status_code})"
+            return (
+                "connected"
+                if response.status_code == 200
+                else f"unhealthy (status {response.status_code})"
+            )
         except ImportError:
             return "client_not_installed"
         except Exception as e:
@@ -2441,7 +2478,10 @@ def health_check(db: Session = Depends(get_db)):
     if os.getenv("DEBUG_DB_IDENTITY") == "1":
         try:
             from autopack.db_identity import _get_sqlite_db_path  # type: ignore
-            run_ids = [r[0] for r in db.query(models.Run.id).order_by(models.Run.id.asc()).limit(5).all()]
+
+            run_ids = [
+                r[0] for r in db.query(models.Run.id).order_by(models.Run.id.asc()).limit(5).all()
+            ]
             payload["db_identity_detail"] = {
                 "database_url": os.getenv("DATABASE_URL"),
                 "sqlite_file": str(_get_sqlite_db_path() or ""),
@@ -2454,9 +2494,6 @@ def health_check(db: Session = Depends(get_db)):
 
     # Return 503 if unhealthy, 200 if healthy or degraded
     if overall_status == "unhealthy":
-        return JSONResponse(
-            status_code=503,
-            content=payload
-        )
+        return JSONResponse(status_code=503, content=payload)
 
     return payload

@@ -3,7 +3,7 @@
 import pytest
 import asyncio
 from pathlib import Path
-from unittest.mock import MagicMock, patch, AsyncMock
+from unittest.mock import MagicMock, patch
 from datetime import datetime
 
 from autopack.parallel_orchestrator import (
@@ -108,12 +108,17 @@ class TestParallelRunOrchestrator:
         assert orchestrator.active_locks == {}
 
     @pytest.mark.asyncio
-    @pytest.mark.xfail(strict=False, reason="Aspirational test - WorkspaceManager/ExecutorLockManager integration not fully implemented")
+    @pytest.mark.xfail(
+        strict=False,
+        reason="Aspirational test - WorkspaceManager/ExecutorLockManager integration not fully implemented",
+    )
     async def test_execute_single_run_success(self, orchestrator, tmp_path):
         """Test successful single run execution."""
         # Mock WorkspaceManager and ExecutorLockManager at class level
-        with patch("autopack.parallel_orchestrator.WorkspaceManager") as MockWM, \
-             patch("autopack.parallel_orchestrator.ExecutorLockManager") as MockLM:
+        with (
+            patch("autopack.parallel_orchestrator.WorkspaceManager") as MockWM,
+            patch("autopack.parallel_orchestrator.ExecutorLockManager") as MockLM,
+        ):
 
             # Mock workspace manager instance
             mock_wm = MockWM.return_value
@@ -145,11 +150,16 @@ class TestParallelRunOrchestrator:
             mock_wm.remove_worktree.assert_called_once()
 
     @pytest.mark.asyncio
-    @pytest.mark.xfail(strict=False, reason="Aspirational test - WorkspaceManager/ExecutorLockManager integration not fully implemented")
+    @pytest.mark.xfail(
+        strict=False,
+        reason="Aspirational test - WorkspaceManager/ExecutorLockManager integration not fully implemented",
+    )
     async def test_execute_single_run_failure(self, orchestrator, tmp_path):
         """Test failed single run execution."""
-        with patch("autopack.parallel_orchestrator.WorkspaceManager") as MockWM, \
-             patch("autopack.parallel_orchestrator.ExecutorLockManager") as MockLM:
+        with (
+            patch("autopack.parallel_orchestrator.WorkspaceManager") as MockWM,
+            patch("autopack.parallel_orchestrator.ExecutorLockManager") as MockLM,
+        ):
 
             mock_wm = MockWM.return_value
             mock_wm.create_worktree.return_value = tmp_path
@@ -179,13 +189,13 @@ class TestParallelRunOrchestrator:
     @pytest.mark.asyncio
     async def test_execute_single_run_workspace_acquisition_failure(self, orchestrator):
         """Test handling of workspace acquisition failure."""
-        with patch("autopack.parallel_orchestrator.WorkspaceManager") as MockWM, \
-             patch("autopack.parallel_orchestrator.ExecutorLockManager") as MockLM:
+        with (
+            patch("autopack.parallel_orchestrator.WorkspaceManager") as MockWM,
+            patch("autopack.parallel_orchestrator.ExecutorLockManager"),
+        ):
 
             mock_wm = MockWM.return_value
             mock_wm.create_worktree.side_effect = RuntimeError("Git error")
-
-            mock_lm = MockLM.return_value
 
             async def executor(run_id, workspace):
                 return True
@@ -201,8 +211,10 @@ class TestParallelRunOrchestrator:
     @pytest.mark.asyncio
     async def test_execute_single_run_lock_acquisition_failure(self, orchestrator, tmp_path):
         """Test handling of lock acquisition failure."""
-        with patch("autopack.parallel_orchestrator.WorkspaceManager") as MockWM, \
-             patch("autopack.parallel_orchestrator.ExecutorLockManager") as MockLM:
+        with (
+            patch("autopack.parallel_orchestrator.WorkspaceManager") as MockWM,
+            patch("autopack.parallel_orchestrator.ExecutorLockManager") as MockLM,
+        ):
 
             mock_wm = MockWM.return_value
             mock_wm.create_worktree.return_value = tmp_path
@@ -228,15 +240,19 @@ class TestParallelRunOrchestrator:
     @pytest.mark.asyncio
     async def test_execute_parallel_multiple_runs(self, orchestrator):
         """Test parallel execution of multiple runs."""
-        with patch("autopack.parallel_orchestrator.WorkspaceManager") as MockWM, \
-             patch("autopack.parallel_orchestrator.ExecutorLockManager") as MockLM:
+        with (
+            patch("autopack.parallel_orchestrator.WorkspaceManager") as MockWM,
+            patch("autopack.parallel_orchestrator.ExecutorLockManager") as MockLM,
+        ):
 
             # Track calls for cleanup verification
             mock_wm_instances = {}
 
             def create_wm_instance(*args, **kwargs):
                 instance = MagicMock()
-                instance.create_worktree.return_value = Path(f"/tmp/workspace-{len(mock_wm_instances)}")
+                instance.create_worktree.return_value = Path(
+                    f"/tmp/workspace-{len(mock_wm_instances)}"
+                )
                 instance.worktree_path = Path(f"/tmp/workspace-{len(mock_wm_instances)}")
                 mock_wm_instances[len(mock_wm_instances)] = instance
                 return instance
@@ -273,8 +289,10 @@ class TestParallelRunOrchestrator:
         orchestrator.config.max_concurrent_runs = 2
         orchestrator.semaphore = asyncio.Semaphore(2)
 
-        with patch("autopack.parallel_orchestrator.WorkspaceManager") as MockWM, \
-             patch("autopack.parallel_orchestrator.ExecutorLockManager") as MockLM:
+        with (
+            patch("autopack.parallel_orchestrator.WorkspaceManager") as MockWM,
+            patch("autopack.parallel_orchestrator.ExecutorLockManager") as MockLM,
+        ):
 
             # Track workspace manager instances
             def create_wm_instance(*args, **kwargs):
@@ -323,8 +341,10 @@ class TestParallelRunOrchestrator:
     @pytest.mark.asyncio
     async def test_execute_parallel_mixed_success_failure(self, orchestrator):
         """Test parallel execution with mixed success/failure."""
-        with patch("autopack.parallel_orchestrator.WorkspaceManager") as MockWM, \
-             patch("autopack.parallel_orchestrator.ExecutorLockManager") as MockLM:
+        with (
+            patch("autopack.parallel_orchestrator.WorkspaceManager") as MockWM,
+            patch("autopack.parallel_orchestrator.ExecutorLockManager") as MockLM,
+        ):
 
             def create_wm_instance(*args, **kwargs):
                 instance = MagicMock()
@@ -364,8 +384,10 @@ class TestParallelRunOrchestrator:
     @pytest.mark.asyncio
     async def test_execute_sync_function(self, orchestrator):
         """Test executing a synchronous function."""
-        with patch("autopack.parallel_orchestrator.WorkspaceManager") as MockWM, \
-             patch("autopack.parallel_orchestrator.ExecutorLockManager") as MockLM:
+        with (
+            patch("autopack.parallel_orchestrator.WorkspaceManager") as MockWM,
+            patch("autopack.parallel_orchestrator.ExecutorLockManager") as MockLM,
+        ):
 
             mock_wm = MockWM.return_value
             mock_wm.create_worktree.return_value = Path("/tmp/test-workspace")
@@ -388,8 +410,10 @@ class TestParallelRunOrchestrator:
     @pytest.mark.asyncio
     async def test_executor_kwargs(self, orchestrator):
         """Test passing kwargs to executor function."""
-        with patch("autopack.parallel_orchestrator.WorkspaceManager") as MockWM, \
-             patch("autopack.parallel_orchestrator.ExecutorLockManager") as MockLM:
+        with (
+            patch("autopack.parallel_orchestrator.WorkspaceManager") as MockWM,
+            patch("autopack.parallel_orchestrator.ExecutorLockManager") as MockLM,
+        ):
 
             mock_wm = MockWM.return_value
             mock_wm.create_worktree.return_value = Path("/tmp/test-workspace")
@@ -421,8 +445,10 @@ class TestParallelRunOrchestrator:
         )
         orchestrator = ParallelRunOrchestrator(config)
 
-        with patch("autopack.parallel_orchestrator.WorkspaceManager") as MockWM, \
-             patch("autopack.parallel_orchestrator.ExecutorLockManager") as MockLM:
+        with (
+            patch("autopack.parallel_orchestrator.WorkspaceManager") as MockWM,
+            patch("autopack.parallel_orchestrator.ExecutorLockManager") as MockLM,
+        ):
 
             mock_wm = MockWM.return_value
             mock_wm.create_worktree.return_value = Path("/tmp/test-workspace")
@@ -458,8 +484,10 @@ class TestConvenienceFunctions:
     @pytest.mark.asyncio
     async def test_execute_parallel_runs(self, tmp_path):
         """Test execute_parallel_runs convenience function."""
-        with patch("autopack.parallel_orchestrator.WorkspaceManager") as MockWM, \
-             patch("autopack.parallel_orchestrator.ExecutorLockManager") as MockLM:
+        with (
+            patch("autopack.parallel_orchestrator.WorkspaceManager") as MockWM,
+            patch("autopack.parallel_orchestrator.ExecutorLockManager") as MockLM,
+        ):
 
             # Mock workspace manager
             def create_wm_instance(*args, **kwargs):
@@ -490,8 +518,10 @@ class TestConvenienceFunctions:
     @pytest.mark.asyncio
     async def test_execute_single_run(self, tmp_path):
         """Test execute_single_run convenience function."""
-        with patch("autopack.parallel_orchestrator.WorkspaceManager") as MockWM, \
-             patch("autopack.parallel_orchestrator.ExecutorLockManager") as MockLM:
+        with (
+            patch("autopack.parallel_orchestrator.WorkspaceManager") as MockWM,
+            patch("autopack.parallel_orchestrator.ExecutorLockManager") as MockLM,
+        ):
 
             mock_wm = MockWM.return_value
             mock_wm.create_worktree.return_value = tmp_path
@@ -517,14 +547,19 @@ class TestResourceCleanup:
     """Test resource cleanup scenarios."""
 
     @pytest.mark.asyncio
-    @pytest.mark.xfail(strict=False, reason="Aspirational test - WorkspaceManager/ExecutorLockManager integration not fully implemented")
+    @pytest.mark.xfail(
+        strict=False,
+        reason="Aspirational test - WorkspaceManager/ExecutorLockManager integration not fully implemented",
+    )
     async def test_cleanup_on_exception_during_execution(self, tmp_path):
         """Test that resources are cleaned up even when executor fails."""
         config = ParallelRunConfig(worktree_base=tmp_path)
         orchestrator = ParallelRunOrchestrator(config)
 
-        with patch("autopack.parallel_orchestrator.WorkspaceManager") as MockWM, \
-             patch("autopack.parallel_orchestrator.ExecutorLockManager") as MockLM:
+        with (
+            patch("autopack.parallel_orchestrator.WorkspaceManager") as MockWM,
+            patch("autopack.parallel_orchestrator.ExecutorLockManager") as MockLM,
+        ):
 
             mock_wm = MockWM.return_value
             mock_wm.create_worktree.return_value = Path("/tmp/test-workspace")
@@ -554,14 +589,14 @@ class TestResourceCleanup:
         config = ParallelRunConfig(worktree_base=tmp_path)
         orchestrator = ParallelRunOrchestrator(config)
 
-        with patch("autopack.parallel_orchestrator.WorkspaceManager") as MockWM, \
-             patch("autopack.parallel_orchestrator.ExecutorLockManager") as MockLM:
+        with (
+            patch("autopack.parallel_orchestrator.WorkspaceManager") as MockWM,
+            patch("autopack.parallel_orchestrator.ExecutorLockManager"),
+        ):
 
             # Simulate workspace acquisition failure
             mock_wm = MockWM.return_value
             mock_wm.create_worktree.side_effect = RuntimeError("Workspace failed")
-
-            mock_lm = MockLM.return_value
 
             async def executor(run_id, workspace):
                 return True

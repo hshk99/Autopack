@@ -9,10 +9,10 @@ import json
 import tempfile
 from pathlib import Path
 
-import pytest
 
 # Import the script functions directly
 import sys
+
 project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root / "scripts" / "tidy"))
 
@@ -396,13 +396,15 @@ def test_run_report_mode_no_sot_writes():
 
             # Check content unchanged
             current_content = file_path.read_text(encoding="utf-8")
-            assert current_content == original_state["content"], \
-                f"{file_path} content was modified!"
+            assert (
+                current_content == original_state["content"]
+            ), f"{file_path} content was modified!"
 
             # Check mtime unchanged
             current_mtime = file_path.stat().st_mtime
-            assert current_mtime == original_state["mtime"], \
-                f"{file_path} mtime changed (file was written to)!"
+            assert (
+                current_mtime == original_state["mtime"]
+            ), f"{file_path} mtime changed (file was written to)!"
 
 
 # =============================================================================
@@ -425,23 +427,30 @@ def test_analyze_anchor_artifacts_invalid_format_version():
 
         # Manually add event with invalid format_version
         from autopack.intention_anchor.artifacts import get_anchor_events_path
+
         events_path = get_anchor_events_path("test-run-format", base_dir=tmpdir_path)
 
         with events_path.open("a", encoding="utf-8") as f:
             # Add event with format_version=2 (invalid, should be 1)
             f.write(
-                json.dumps({
-                    "format_version": 2,
-                    "event_type": "anchor_created",
-                    "timestamp": "2024-01-01T00:00:00Z",
-                }) + "\n"
+                json.dumps(
+                    {
+                        "format_version": 2,
+                        "event_type": "anchor_created",
+                        "timestamp": "2024-01-01T00:00:00Z",
+                    }
+                )
+                + "\n"
             )
             # Add event with missing format_version
             f.write(
-                json.dumps({
-                    "event_type": "anchor_updated",
-                    "timestamp": "2024-01-01T00:00:00Z",
-                }) + "\n"
+                json.dumps(
+                    {
+                        "event_type": "anchor_updated",
+                        "timestamp": "2024-01-01T00:00:00Z",
+                    }
+                )
+                + "\n"
             )
 
         # Analyze
@@ -466,23 +475,30 @@ def test_analyze_anchor_artifacts_unknown_event_types():
 
         # Manually add events with unknown types
         from autopack.intention_anchor.artifacts import get_anchor_events_path
+
         events_path = get_anchor_events_path("test-run-events", base_dir=tmpdir_path)
 
         with events_path.open("a", encoding="utf-8") as f:
             # Add event with unknown type
             f.write(
-                json.dumps({
-                    "format_version": 1,
-                    "event_type": "unknown_event_type",
-                    "timestamp": "2024-01-01T00:00:00Z",
-                }) + "\n"
+                json.dumps(
+                    {
+                        "format_version": 1,
+                        "event_type": "unknown_event_type",
+                        "timestamp": "2024-01-01T00:00:00Z",
+                    }
+                )
+                + "\n"
             )
             # Add event with missing event_type
             f.write(
-                json.dumps({
-                    "format_version": 1,
-                    "timestamp": "2024-01-01T00:00:00Z",
-                }) + "\n"
+                json.dumps(
+                    {
+                        "format_version": 1,
+                        "timestamp": "2024-01-01T00:00:00Z",
+                    }
+                )
+                + "\n"
             )
 
         # Analyze
@@ -508,6 +524,7 @@ def test_analyze_anchor_artifacts_malformed_events():
 
         # Manually add malformed events
         from autopack.intention_anchor.artifacts import get_anchor_events_path
+
         events_path = get_anchor_events_path("test-run-malformed", base_dir=tmpdir_path)
 
         with events_path.open("a", encoding="utf-8") as f:
@@ -537,6 +554,7 @@ def test_analyze_anchor_artifacts_missing_snapshots():
 
         # Update to version 2
         from autopack.intention_anchor import update_anchor
+
         anchor = update_anchor(anchor)
         anchor = anchor.model_copy(update={"north_star": "Updated north star v2."})
         save_anchor(anchor, base_dir=tmpdir_path, generate_artifacts=True)
@@ -548,7 +566,10 @@ def test_analyze_anchor_artifacts_missing_snapshots():
 
         # Manually delete snapshot v2
         from autopack.intention_anchor.artifacts import get_anchor_summary_version_path
-        snapshot_v2_path = get_anchor_summary_version_path("test-run-snapshots", 2, base_dir=tmpdir_path)
+
+        snapshot_v2_path = get_anchor_summary_version_path(
+            "test-run-snapshots", 2, base_dir=tmpdir_path
+        )
         if snapshot_v2_path.exists():
             snapshot_v2_path.unlink()
 
@@ -575,6 +596,7 @@ def test_analyze_anchor_artifacts_all_snapshots_present():
 
         # Update to version 2
         from autopack.intention_anchor import update_anchor
+
         anchor = update_anchor(anchor)
         anchor = anchor.model_copy(update={"north_star": "Updated north star v2."})
         save_anchor(anchor, base_dir=tmpdir_path, generate_artifacts=True)

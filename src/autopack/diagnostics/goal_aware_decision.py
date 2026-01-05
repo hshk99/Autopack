@@ -59,11 +59,7 @@ class GoalAwareDecisionMaker:
         self.medium_risk_threshold = medium_risk_threshold
         self.min_confidence_for_auto_fix = min_confidence_for_auto_fix
 
-    def make_decision(
-        self,
-        evidence: Dict[str, Any],
-        phase_spec: PhaseSpec
-    ) -> Decision:
+    def make_decision(self, evidence: Dict[str, Any], phase_spec: PhaseSpec) -> Decision:
         """
         Make goal-aware decision based on evidence and constraints.
 
@@ -78,7 +74,7 @@ class GoalAwareDecisionMaker:
 
         # Extract key information from evidence
         failure_class = evidence.get("failure_context", {}).get("failure_class", "unknown")
-        error_message = evidence.get("failure_context", {}).get("error_message", "")
+        evidence.get("failure_context", {}).get("error_message", "")
 
         # Check if we have sufficient evidence
         if not self._has_sufficient_evidence(evidence):
@@ -104,10 +100,10 @@ class GoalAwareDecisionMaker:
                 type=DecisionType.AMBIGUOUS,
                 fix_strategy="",
                 rationale=f"No clear fix strategy identified for {failure_class}. "
-                          f"Evidence collected but root cause unclear.",
+                f"Evidence collected but root cause unclear.",
                 alternatives_considered=[
                     "Continue investigation (rejected: already collected standard evidence)",
-                    "Escalate to human (selected: requires human judgment)"
+                    "Escalate to human (selected: requires human judgment)",
                 ],
                 risk_level=RiskLevel.UNKNOWN.value,
                 deliverables_met=[],
@@ -116,7 +112,7 @@ class GoalAwareDecisionMaker:
                 questions_for_human=[
                     f"What is the root cause of this {failure_class}?",
                     "What approach should be taken to fix it?",
-                ]
+                ],
             )
 
         # Rank strategies by confidence and risk
@@ -127,9 +123,7 @@ class GoalAwareDecisionMaker:
 
         # Check goal alignment
         goal_alignment = self._check_goal_alignment(
-            best_strategy,
-            phase_spec.deliverables,
-            phase_spec.acceptance_criteria
+            best_strategy, phase_spec.deliverables, phase_spec.acceptance_criteria
         )
 
         # Generate alternatives list
@@ -154,13 +148,15 @@ class GoalAwareDecisionMaker:
                 questions_for_human=[
                     "Approve high-risk fix?",
                     f"Fix will modify {len(best_strategy.files_to_modify)} files "
-                    f"({best_strategy.estimated_lines_changed} lines)"
-                ]
+                    f"({best_strategy.estimated_lines_changed} lines)",
+                ],
             )
 
         if best_strategy.confidence < self.min_confidence_for_auto_fix:
             # Low confidence - escalate
-            logger.info(f"[GoalAwareDecisionMaker] Low confidence ({best_strategy.confidence:.2f}), escalating")
+            logger.info(
+                f"[GoalAwareDecisionMaker] Low confidence ({best_strategy.confidence:.2f}), escalating"
+            )
             return Decision(
                 type=DecisionType.AMBIGUOUS,
                 fix_strategy=best_strategy.description,
@@ -175,8 +171,8 @@ class GoalAwareDecisionMaker:
                 confidence=best_strategy.confidence,
                 questions_for_human=[
                     f"Is this the correct approach? (confidence: {best_strategy.confidence:.0%})",
-                    "Are there alternative solutions?"
-                ]
+                    "Are there alternative solutions?",
+                ],
             )
 
         if not goal_alignment["meets_deliverables"]:
@@ -196,18 +192,18 @@ class GoalAwareDecisionMaker:
                 confidence=best_strategy.confidence,
                 questions_for_human=[
                     "Fix does not create all required deliverables - proceed anyway?",
-                    f"Missing: {goal_alignment['missing_deliverables']}"
-                ]
+                    f"Missing: {goal_alignment['missing_deliverables']}",
+                ],
             )
 
         # Low/Medium risk, high confidence, meets deliverables - CLEAR_FIX
-        logger.info(f"[GoalAwareDecisionMaker] CLEAR_FIX - {risk_level.value} risk, {best_strategy.confidence:.0%} confidence")
+        logger.info(
+            f"[GoalAwareDecisionMaker] CLEAR_FIX - {risk_level.value} risk, {best_strategy.confidence:.0%} confidence"
+        )
         return Decision(
             type=DecisionType.CLEAR_FIX,
             fix_strategy=best_strategy.description,
-            rationale=self._generate_rationale(
-                best_strategy, risk_level, goal_alignment, "CLEAR"
-            ),
+            rationale=self._generate_rationale(best_strategy, risk_level, goal_alignment, "CLEAR"),
             alternatives_considered=alternatives,
             risk_level=risk_level.value,
             deliverables_met=best_strategy.meets_deliverables,
@@ -247,9 +243,7 @@ class GoalAwareDecisionMaker:
         return False
 
     def _generate_fix_strategies(
-        self,
-        evidence: Dict[str, Any],
-        phase_spec: PhaseSpec
+        self, evidence: Dict[str, Any], phase_spec: PhaseSpec
     ) -> List[FixStrategy]:
         """
         Generate potential fix strategies based on evidence.
@@ -261,71 +255,83 @@ class GoalAwareDecisionMaker:
         error_message = evidence.get("failure_context", {}).get("error_message", "")
 
         # Strategy 1: Import error -> add missing import
-        if "import" in failure_class or "ImportError" in error_message or "ModuleNotFoundError" in error_message:
+        if (
+            "import" in failure_class
+            or "ImportError" in error_message
+            or "ModuleNotFoundError" in error_message
+        ):
             # Extract module name from error message
             module_match = re.search(r"cannot import name '(\w+)'", error_message)
             if module_match:
                 module_name = module_match.group(1)
 
                 # Find __init__.py file from deliverables (most common case)
-                target_files = [d for d in phase_spec.deliverables if d.endswith('__init__.py')]
+                target_files = [d for d in phase_spec.deliverables if d.endswith("__init__.py")]
 
                 if not target_files:
                     # Fallback: derive from phase_id
-                    target_files = [f"src/autopack/{phase_spec.phase_id.replace('-', '/')}/__init__.py"]
+                    target_files = [
+                        f"src/autopack/{phase_spec.phase_id.replace('-', '/')}/__init__.py"
+                    ]
 
                 # Use the first __init__.py file as the target
                 target_file = target_files[0]
 
                 # Match all deliverables that are __init__.py files
                 # (since adding import satisfies the requirement to create/update __init__.py)
-                met_deliverables = [d for d in phase_spec.deliverables if d.endswith('__init__.py')]
+                met_deliverables = [d for d in phase_spec.deliverables if d.endswith("__init__.py")]
 
-                strategies.append(FixStrategy(
-                    description=f"Add missing import for '{module_name}' to __init__.py",
-                    files_to_modify=[target_file],
-                    estimated_lines_changed=1,
-                    touches_protected_paths=False,
-                    meets_deliverables=met_deliverables,
-                    passes_acceptance_criteria=[c for c in phase_spec.acceptance_criteria if "import" in c.lower()],
-                    side_effects=[],
-                    confidence=0.85,
-                ))
+                strategies.append(
+                    FixStrategy(
+                        description=f"Add missing import for '{module_name}' to __init__.py",
+                        files_to_modify=[target_file],
+                        estimated_lines_changed=1,
+                        touches_protected_paths=False,
+                        meets_deliverables=met_deliverables,
+                        passes_acceptance_criteria=[
+                            c for c in phase_spec.acceptance_criteria if "import" in c.lower()
+                        ],
+                        side_effects=[],
+                        confidence=0.85,
+                    )
+                )
 
         # Strategy 2: Test failure -> fix test or implementation
         if "test" in failure_class or "ci_fail" in failure_class:
-            strategies.append(FixStrategy(
-                description="Fix failing tests by correcting implementation",
-                files_to_modify=[],  # Will be determined from test output
-                estimated_lines_changed=10,
-                touches_protected_paths=False,
-                meets_deliverables=phase_spec.deliverables,
-                passes_acceptance_criteria=[c for c in phase_spec.acceptance_criteria if "test" in c.lower()],
-                side_effects=["May affect existing functionality"],
-                confidence=0.6,
-            ))
+            strategies.append(
+                FixStrategy(
+                    description="Fix failing tests by correcting implementation",
+                    files_to_modify=[],  # Will be determined from test output
+                    estimated_lines_changed=10,
+                    touches_protected_paths=False,
+                    meets_deliverables=phase_spec.deliverables,
+                    passes_acceptance_criteria=[
+                        c for c in phase_spec.acceptance_criteria if "test" in c.lower()
+                    ],
+                    side_effects=["May affect existing functionality"],
+                    confidence=0.6,
+                )
+            )
 
         # Strategy 3: Patch failure -> resolve conflicts
         if "patch" in failure_class:
-            strategies.append(FixStrategy(
-                description="Resolve git conflicts and reapply patch",
-                files_to_modify=[],
-                estimated_lines_changed=5,
-                touches_protected_paths=False,
-                meets_deliverables=phase_spec.deliverables,
-                passes_acceptance_criteria=[],
-                side_effects=[],
-                confidence=0.7,
-            ))
+            strategies.append(
+                FixStrategy(
+                    description="Resolve git conflicts and reapply patch",
+                    files_to_modify=[],
+                    estimated_lines_changed=5,
+                    touches_protected_paths=False,
+                    meets_deliverables=phase_spec.deliverables,
+                    passes_acceptance_criteria=[],
+                    side_effects=[],
+                    confidence=0.7,
+                )
+            )
 
         logger.info(f"[GoalAwareDecisionMaker] Generated {len(strategies)} fix strategies")
         return strategies
 
-    def _assess_risk(
-        self,
-        fix_strategy: FixStrategy,
-        phase_spec: PhaseSpec
-    ) -> RiskLevel:
+    def _assess_risk(self, fix_strategy: FixStrategy, phase_spec: PhaseSpec) -> RiskLevel:
         """
         Assess risk level of a fix strategy.
 
@@ -342,32 +348,37 @@ class GoalAwareDecisionMaker:
         for file_path in fix_strategy.files_to_modify:
             for protected in phase_spec.protected_paths:
                 if file_path.startswith(protected):
-                    logger.info(f"[GoalAwareDecisionMaker] HIGH RISK: {file_path} in protected path {protected}")
+                    logger.info(
+                        f"[GoalAwareDecisionMaker] HIGH RISK: {file_path} in protected path {protected}"
+                    )
                     return RiskLevel.HIGH
 
         # Check line count
         if fix_strategy.estimated_lines_changed > self.medium_risk_threshold:
-            logger.info(f"[GoalAwareDecisionMaker] HIGH RISK: {fix_strategy.estimated_lines_changed} lines (>{self.medium_risk_threshold})")
+            logger.info(
+                f"[GoalAwareDecisionMaker] HIGH RISK: {fix_strategy.estimated_lines_changed} lines (>{self.medium_risk_threshold})"
+            )
             return RiskLevel.HIGH
 
         if fix_strategy.estimated_lines_changed > self.low_risk_threshold:
-            logger.info(f"[GoalAwareDecisionMaker] MEDIUM RISK: {fix_strategy.estimated_lines_changed} lines")
+            logger.info(
+                f"[GoalAwareDecisionMaker] MEDIUM RISK: {fix_strategy.estimated_lines_changed} lines"
+            )
             return RiskLevel.MEDIUM
 
         # Check side effects
         if fix_strategy.side_effects:
-            logger.info(f"[GoalAwareDecisionMaker] MEDIUM RISK: has side effects")
+            logger.info("[GoalAwareDecisionMaker] MEDIUM RISK: has side effects")
             return RiskLevel.MEDIUM
 
         # Low risk
-        logger.info(f"[GoalAwareDecisionMaker] LOW RISK: {fix_strategy.estimated_lines_changed} lines, no side effects")
+        logger.info(
+            f"[GoalAwareDecisionMaker] LOW RISK: {fix_strategy.estimated_lines_changed} lines, no side effects"
+        )
         return RiskLevel.LOW
 
     def _check_goal_alignment(
-        self,
-        fix_strategy: FixStrategy,
-        deliverables: List[str],
-        acceptance_criteria: List[str]
+        self, fix_strategy: FixStrategy, deliverables: List[str], acceptance_criteria: List[str]
     ) -> Dict[str, Any]:
         """
         Verify fix advances toward goals.
@@ -401,7 +412,7 @@ class GoalAwareDecisionMaker:
         strategy: FixStrategy,
         risk_level: RiskLevel,
         goal_alignment: Dict[str, Any],
-        reason: str
+        reason: str,
     ) -> str:
         """Generate detailed rationale for the decision."""
         parts = []
@@ -413,10 +424,7 @@ class GoalAwareDecisionMaker:
                 f"Strategy: {strategy.description}"
             )
         elif reason == "HIGH_RISK":
-            parts.append(
-                f"High-risk fix requiring approval. "
-                f"Strategy: {strategy.description}"
-            )
+            parts.append(f"High-risk fix requiring approval. " f"Strategy: {strategy.description}")
         elif reason == "LOW_CONFIDENCE":
             parts.append(
                 f"Low confidence ({strategy.confidence:.0%}) in fix strategy. "
@@ -424,15 +432,12 @@ class GoalAwareDecisionMaker:
             )
         elif reason == "MISSING_DELIVERABLES":
             parts.append(
-                f"Fix does not meet all deliverables. "
-                f"Strategy: {strategy.description}"
+                f"Fix does not meet all deliverables. " f"Strategy: {strategy.description}"
             )
 
         # Add goal alignment
         if goal_alignment["meets_deliverables"]:
-            parts.append(
-                f"Meets deliverables: {', '.join(strategy.meets_deliverables)}"
-            )
+            parts.append(f"Meets deliverables: {', '.join(strategy.meets_deliverables)}")
         else:
             parts.append(
                 f"Missing deliverables: {', '.join(goal_alignment['missing_deliverables'])}"
@@ -454,9 +459,7 @@ class GoalAwareDecisionMaker:
         return ". ".join(parts) + "."
 
     def _generate_alternatives(
-        self,
-        all_strategies: List[FixStrategy],
-        selected: FixStrategy
+        self, all_strategies: List[FixStrategy], selected: FixStrategy
     ) -> List[str]:
         """Generate list of alternatives considered."""
         alternatives = []
@@ -494,7 +497,7 @@ class GoalAwareDecisionMaker:
         self,
         patch_content: Optional[str] = None,
         edit_plan: Optional[Any] = None,
-        phase_spec: PhaseSpec = None
+        phase_spec: PhaseSpec = None,
     ) -> Decision:
         """
         Make proactive decision about a freshly generated patch for feature implementation.
@@ -514,7 +517,9 @@ class GoalAwareDecisionMaker:
 
         # BUILD-114: Convert edit_plan to patch_content if needed
         if not patch_content and edit_plan:
-            logger.info("[GoalAwareDecisionMaker] Converting edit_plan to unified diff for risk assessment")
+            logger.info(
+                "[GoalAwareDecisionMaker] Converting edit_plan to unified diff for risk assessment"
+            )
             patch_content = self._convert_edit_plan_to_patch(edit_plan)
 
         # Parse patch to extract metadata
@@ -557,43 +562,47 @@ class GoalAwareDecisionMaker:
         # Decide based on risk, confidence, and goal alignment
         if risk_level == RiskLevel.HIGH:
             # High risk - always require approval
-            logger.info(f"[GoalAwareDecisionMaker] RISKY decision: HIGH risk ({patch_metadata['total_lines_changed']} lines)")
+            logger.info(
+                f"[GoalAwareDecisionMaker] RISKY decision: HIGH risk ({patch_metadata['total_lines_changed']} lines)"
+            )
             return Decision(
                 type=DecisionType.RISKY,
                 fix_strategy=f"Implement {phase_spec.phase_id}",
                 rationale=rationale,
                 alternatives_considered=alternatives,
                 risk_level=risk_level.value,
-                deliverables_met=patch_metadata['deliverables_met'],
-                files_modified=patch_metadata['files_modified'],
-                net_deletion=patch_metadata['net_deletion'],
+                deliverables_met=patch_metadata["deliverables_met"],
+                files_modified=patch_metadata["files_modified"],
+                net_deletion=patch_metadata["net_deletion"],
                 confidence=confidence,
                 patch=patch_content,
                 questions_for_human=[
                     f"Approve high-risk implementation? ({patch_metadata['total_lines_changed']} lines, "
                     f"{len(patch_metadata['files_modified'])} files)",
                     f"Deliverables: {', '.join(patch_metadata['deliverables_met']) if patch_metadata['deliverables_met'] else 'None'}",
-                ]
+                ],
             )
 
         if confidence < self.min_confidence_for_auto_fix:
             # Low confidence - escalate
-            logger.info(f"[GoalAwareDecisionMaker] AMBIGUOUS decision: Low confidence ({confidence:.0%})")
+            logger.info(
+                f"[GoalAwareDecisionMaker] AMBIGUOUS decision: Low confidence ({confidence:.0%})"
+            )
             return Decision(
                 type=DecisionType.AMBIGUOUS,
                 fix_strategy=f"Implement {phase_spec.phase_id}",
                 rationale=rationale,
                 alternatives_considered=alternatives,
                 risk_level=risk_level.value,
-                deliverables_met=patch_metadata['deliverables_met'],
-                files_modified=patch_metadata['files_modified'],
-                net_deletion=patch_metadata['net_deletion'],
+                deliverables_met=patch_metadata["deliverables_met"],
+                files_modified=patch_metadata["files_modified"],
+                net_deletion=patch_metadata["net_deletion"],
                 confidence=confidence,
                 patch=patch_content,
                 questions_for_human=[
                     f"Is this implementation correct? (confidence: {confidence:.0%})",
                     "Should any additional checks or tests be added?",
-                ]
+                ],
             )
 
         if not goal_alignment["meets_deliverables"]:
@@ -605,28 +614,30 @@ class GoalAwareDecisionMaker:
                 rationale=rationale,
                 alternatives_considered=alternatives,
                 risk_level=risk_level.value,
-                deliverables_met=patch_metadata['deliverables_met'],
-                files_modified=patch_metadata['files_modified'],
-                net_deletion=patch_metadata['net_deletion'],
+                deliverables_met=patch_metadata["deliverables_met"],
+                files_modified=patch_metadata["files_modified"],
+                net_deletion=patch_metadata["net_deletion"],
                 confidence=confidence,
                 patch=patch_content,
                 questions_for_human=[
                     "Patch does not create all required deliverables - proceed anyway?",
                     f"Missing: {', '.join(goal_alignment['missing_deliverables'])}",
-                ]
+                ],
             )
 
         # Low/Medium risk, high confidence, meets deliverables - CLEAR_FIX
-        logger.info(f"[GoalAwareDecisionMaker] CLEAR_FIX decision: {risk_level.value} risk, {confidence:.0%} confidence")
+        logger.info(
+            f"[GoalAwareDecisionMaker] CLEAR_FIX decision: {risk_level.value} risk, {confidence:.0%} confidence"
+        )
         return Decision(
             type=DecisionType.CLEAR_FIX,
             fix_strategy=f"Implement {phase_spec.phase_id}",
             rationale=rationale,
             alternatives_considered=alternatives,
             risk_level=risk_level.value,
-            deliverables_met=patch_metadata['deliverables_met'],
-            files_modified=patch_metadata['files_modified'],
-            net_deletion=patch_metadata['net_deletion'],
+            deliverables_met=patch_metadata["deliverables_met"],
+            files_modified=patch_metadata["files_modified"],
+            net_deletion=patch_metadata["net_deletion"],
             confidence=confidence,
             patch=patch_content,
         )
@@ -646,10 +657,10 @@ class GoalAwareDecisionMaker:
 
         # Parse unified diff format
         current_file = None
-        for line in patch_content.split('\n'):
+        for line in patch_content.split("\n"):
             # File header: diff --git a/path b/path
-            if line.startswith('diff --git'):
-                match = re.search(r'b/(.+)$', line)
+            if line.startswith("diff --git"):
+                match = re.search(r"b/(.+)$", line)
                 if match:
                     current_file = match.group(1)
                     files_modified.append(current_file)
@@ -660,9 +671,9 @@ class GoalAwareDecisionMaker:
                             touches_protected_paths = True
 
             # Count added/deleted lines
-            elif line.startswith('+') and not line.startswith('+++'):
+            elif line.startswith("+") and not line.startswith("+++"):
                 lines_added += 1
-            elif line.startswith('-') and not line.startswith('---'):
+            elif line.startswith("-") and not line.startswith("---"):
                 lines_deleted += 1
 
         total_lines_changed = lines_added + lines_deleted
@@ -691,9 +702,7 @@ class GoalAwareDecisionMaker:
         }
 
     def _assess_patch_risk(
-        self,
-        patch_metadata: Dict[str, Any],
-        phase_spec: PhaseSpec
+        self, patch_metadata: Dict[str, Any], phase_spec: PhaseSpec
     ) -> RiskLevel:
         """
         Assess risk level of a patch based on metadata.
@@ -712,28 +721,41 @@ class GoalAwareDecisionMaker:
         for file_path in patch_metadata["files_modified"]:
             file_lower = file_path.lower()
             # Check for database-related patterns
-            db_patterns = ['database', 'migration', 'schema', '/models.py', '\\models.py', 'models.py']
+            db_patterns = [
+                "database",
+                "migration",
+                "schema",
+                "/models.py",
+                "\\models.py",
+                "models.py",
+            ]
             if any(pattern in file_lower for pattern in db_patterns):
-                logger.info(f"[GoalAwareDecisionMaker] HIGH RISK: database-related file {file_path}")
+                logger.info(
+                    f"[GoalAwareDecisionMaker] HIGH RISK: database-related file {file_path}"
+                )
                 return RiskLevel.HIGH
 
         # Check line count
         if patch_metadata["total_lines_changed"] > self.medium_risk_threshold:
-            logger.info(f"[GoalAwareDecisionMaker] HIGH RISK: {patch_metadata['total_lines_changed']} lines")
+            logger.info(
+                f"[GoalAwareDecisionMaker] HIGH RISK: {patch_metadata['total_lines_changed']} lines"
+            )
             return RiskLevel.HIGH
 
         if patch_metadata["total_lines_changed"] > self.low_risk_threshold:
-            logger.info(f"[GoalAwareDecisionMaker] MEDIUM RISK: {patch_metadata['total_lines_changed']} lines")
+            logger.info(
+                f"[GoalAwareDecisionMaker] MEDIUM RISK: {patch_metadata['total_lines_changed']} lines"
+            )
             return RiskLevel.MEDIUM
 
         # Low risk
-        logger.info(f"[GoalAwareDecisionMaker] LOW RISK: {patch_metadata['total_lines_changed']} lines, no red flags")
+        logger.info(
+            f"[GoalAwareDecisionMaker] LOW RISK: {patch_metadata['total_lines_changed']} lines, no red flags"
+        )
         return RiskLevel.LOW
 
     def _check_patch_goal_alignment(
-        self,
-        patch_metadata: Dict[str, Any],
-        phase_spec: PhaseSpec
+        self, patch_metadata: Dict[str, Any], phase_spec: PhaseSpec
     ) -> Dict[str, Any]:
         """
         Check if patch meets phase goals (deliverables).
@@ -751,9 +773,7 @@ class GoalAwareDecisionMaker:
         }
 
     def _estimate_patch_confidence(
-        self,
-        patch_metadata: Dict[str, Any],
-        goal_alignment: Dict[str, Any]
+        self, patch_metadata: Dict[str, Any], goal_alignment: Dict[str, Any]
     ) -> float:
         """
         Estimate confidence in patch correctness.
@@ -789,42 +809,33 @@ class GoalAwareDecisionMaker:
         return confidence
 
     def _generate_proactive_alternatives(
-        self,
-        risk_level: RiskLevel,
-        confidence: float,
-        goal_alignment: Dict[str, Any]
+        self, risk_level: RiskLevel, confidence: float, goal_alignment: Dict[str, Any]
     ) -> List[str]:
         """Generate list of alternatives considered for proactive decision."""
         alternatives = []
 
-        if risk_level == RiskLevel.LOW and confidence >= 0.7 and goal_alignment["meets_deliverables"]:
+        if (
+            risk_level == RiskLevel.LOW
+            and confidence >= 0.7
+            and goal_alignment["meets_deliverables"]
+        ):
             alternatives.append(
                 f"Auto-apply patch (SELECTED: {risk_level.value} risk, {confidence:.0%} confidence)"
             )
-            alternatives.append(
-                f"Request human approval (rejected: low risk and high confidence)"
-            )
+            alternatives.append("Request human approval (rejected: low risk and high confidence)")
         elif risk_level == RiskLevel.HIGH:
-            alternatives.append(
-                f"Request human approval (SELECTED: HIGH risk requires review)"
-            )
-            alternatives.append(
-                f"Auto-apply anyway (rejected: safety first)"
-            )
+            alternatives.append("Request human approval (SELECTED: HIGH risk requires review)")
+            alternatives.append("Auto-apply anyway (rejected: safety first)")
         elif confidence < 0.7:
             alternatives.append(
                 f"Request human clarification (SELECTED: {confidence:.0%} confidence too low)"
             )
-            alternatives.append(
-                f"Auto-apply anyway (rejected: insufficient confidence)"
-            )
+            alternatives.append("Auto-apply anyway (rejected: insufficient confidence)")
         else:
             alternatives.append(
                 f"Request human approval (SELECTED: {risk_level.value} risk or missing deliverables)"
             )
-            alternatives.append(
-                f"Auto-apply anyway (rejected: needs verification)"
-            )
+            alternatives.append("Auto-apply anyway (rejected: needs verification)")
 
         return alternatives
 
@@ -844,11 +855,12 @@ class GoalAwareDecisionMaker:
 
                 # Read current file content (if exists)
                 from pathlib import Path
+
                 full_path = Path(file_path)
 
                 if full_path.exists():
                     try:
-                        with open(full_path, 'r', encoding='utf-8') as f:
+                        with open(full_path, "r", encoding="utf-8") as f:
                             current_content = f.read()
                     except Exception as e:
                         logger.warning(f"[GoalAwareDecisionMaker] Could not read {file_path}: {e}")
@@ -862,12 +874,12 @@ class GoalAwareDecisionMaker:
 
                 if current_content:
                     # Add import at the beginning (after any existing imports)
-                    lines = current_content.split('\n')
+                    lines = current_content.split("\n")
 
                     # Find last import line
                     last_import_idx = -1
                     for i, line in enumerate(lines):
-                        if line.strip().startswith(('from ', 'import ')):
+                        if line.strip().startswith(("from ", "import ")):
                             last_import_idx = i
 
                     # Insert after last import, or at beginning
@@ -876,13 +888,14 @@ class GoalAwareDecisionMaker:
                     else:
                         lines.insert(0, import_line.rstrip())
 
-                    new_content = '\n'.join(lines)
+                    new_content = "\n".join(lines)
                 else:
                     # Empty file - just add the import
                     new_content = import_line
 
                 # Generate unified diff
                 import difflib
+
                 current_lines = current_content.splitlines(keepends=True)
                 new_lines = new_content.splitlines(keepends=True)
 
@@ -891,10 +904,10 @@ class GoalAwareDecisionMaker:
                     new_lines,
                     fromfile=f"a/{file_path}",
                     tofile=f"b/{file_path}",
-                    lineterm=''
+                    lineterm="",
                 )
 
-                patch_content = ''.join(diff)
+                patch_content = "".join(diff)
                 if patch_content:
                     return patch_content
                 else:
@@ -932,7 +945,9 @@ class GoalAwareDecisionMaker:
         elif hasattr(edit_plan, "edits"):
             edits = edit_plan.edits
         else:
-            logger.warning(f"[GoalAwareDecisionMaker] Unknown edit_plan structure: {type(edit_plan)}")
+            logger.warning(
+                f"[GoalAwareDecisionMaker] Unknown edit_plan structure: {type(edit_plan)}"
+            )
             return ""
 
         for edit in edits:
@@ -954,7 +969,7 @@ class GoalAwareDecisionMaker:
             full_path = Path(file_path)
             if full_path.exists():
                 try:
-                    with open(full_path, 'r', encoding='utf-8') as f:
+                    with open(full_path, "r", encoding="utf-8") as f:
                         current_content = f.read()
                 except Exception as e:
                     logger.warning(f"[GoalAwareDecisionMaker] Could not read {file_path}: {e}")
@@ -972,20 +987,22 @@ class GoalAwareDecisionMaker:
                 new_lines,
                 fromfile=f"a/{file_path}",
                 tofile=f"b/{file_path}",
-                lineterm=''
+                lineterm="",
             )
 
-            diff_content = ''.join(diff)
+            diff_content = "".join(diff)
             if diff_content:
                 all_diffs.append(diff_content)
 
         # Combine all diffs
-        patch_content = '\n'.join(all_diffs)
+        patch_content = "\n".join(all_diffs)
 
         if not patch_content:
             logger.warning("[GoalAwareDecisionMaker] Generated patch from edit_plan is empty")
             # Return minimal valid patch to avoid breaking downstream logic
             return ""
 
-        logger.info(f"[GoalAwareDecisionMaker] Converted edit_plan to {len(patch_content)} char patch")
+        logger.info(
+            f"[GoalAwareDecisionMaker] Converted edit_plan to {len(patch_content)} char patch"
+        )
         return patch_content

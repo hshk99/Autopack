@@ -14,6 +14,7 @@ from typing import Dict, List, Optional
 
 try:
     import google.generativeai as genai
+
     GENAI_AVAILABLE = True
 except ImportError:
     GENAI_AVAILABLE = False
@@ -56,7 +57,9 @@ class GeminiBuilderClient:
             api_key: Google API key (defaults to GOOGLE_API_KEY env var)
         """
         if not GENAI_AVAILABLE:
-            raise ImportError("google-generativeai package is required for Gemini client. Install with: pip install google-generativeai")
+            raise ImportError(
+                "google-generativeai package is required for Gemini client. Install with: pip install google-generativeai"
+            )
 
         self.api_key = api_key or os.getenv("GOOGLE_API_KEY")
 
@@ -74,8 +77,8 @@ class GeminiBuilderClient:
         project_rules: Optional[List] = None,
         run_hints: Optional[List] = None,
         use_full_file_mode: bool = True,
-        config = None,
-        retrieved_context: Optional[str] = None
+        config=None,
+        retrieved_context: Optional[str] = None,
     ) -> BuilderResult:
         """Execute a phase and generate code patch
 
@@ -123,7 +126,9 @@ class GeminiBuilderClient:
                 try:
                     estimator = TokenEstimator(workspace=Path.cwd())
                     effective_category = task_category or (
-                        "documentation" if estimator._all_doc_deliverables(deliverables) else "implementation"
+                        "documentation"
+                        if estimator._all_doc_deliverables(deliverables)
+                        else "implementation"
                     )
                     token_estimate = estimator.estimate(
                         deliverables=deliverables,
@@ -136,13 +141,15 @@ class GeminiBuilderClient:
 
                     # Persist estimator output for telemetry
                     phase_spec["_estimated_output_tokens"] = token_estimate.estimated_tokens
-                    phase_spec.setdefault("metadata", {}).setdefault("token_prediction", {}).update({
-                        "predicted_output_tokens": token_estimate.estimated_tokens,
-                        "selected_budget": token_selected_budget,
-                        "confidence": token_estimate.confidence,
-                        "source": "token_estimator",
-                        "estimated_category": token_estimate.category,
-                    })
+                    phase_spec.setdefault("metadata", {}).setdefault("token_prediction", {}).update(
+                        {
+                            "predicted_output_tokens": token_estimate.estimated_tokens,
+                            "selected_budget": token_selected_budget,
+                            "confidence": token_estimate.confidence,
+                            "source": "token_estimator",
+                            "estimated_category": token_estimate.category,
+                        }
+                    )
 
                     logger.info(
                         f"[BUILD-142:Gemini] Token estimate: {token_estimate.estimated_tokens} output tokens "
@@ -150,7 +157,9 @@ class GeminiBuilderClient:
                         f"selected budget: {token_selected_budget}"
                     )
                 except Exception as e:
-                    logger.warning(f"[BUILD-142:Gemini] Token estimation failed, using fallback: {e}")
+                    logger.warning(
+                        f"[BUILD-142:Gemini] Token estimation failed, using fallback: {e}"
+                    )
                     token_estimate = None
                     token_selected_budget = None
 
@@ -170,15 +179,20 @@ class GeminiBuilderClient:
             # BUILD-142 PARITY: Conditional override for special modes (preserve category-aware budgets)
             # Gemini uses 8192 default, but we apply same logic as OpenAI for consistency
             normalized_category = task_category.lower() if task_category else ""
-            is_docs_like = normalized_category in ["docs", "documentation", "doc_synthesis", "doc_sot_update"]
+            is_docs_like = normalized_category in [
+                "docs",
+                "documentation",
+                "doc_synthesis",
+                "doc_sot_update",
+            ]
 
             # Apply 8192 floor conditionally (skip for docs-like with intentionally low budgets)
             # Note: Using 8192 instead of 16384 to match Gemini's typical budget
             gemini_floor = 8192
             should_apply_floor = (
-                not token_selected_budget or
-                token_selected_budget >= gemini_floor or
-                not is_docs_like
+                not token_selected_budget
+                or token_selected_budget >= gemini_floor
+                or not is_docs_like
             )
 
             if should_apply_floor:
@@ -195,14 +209,20 @@ class GeminiBuilderClient:
 
             # BUILD-142 PARITY: Store selected_budget (estimator intent) BEFORE P4 enforcement
             if token_selected_budget:
-                phase_spec.setdefault("metadata", {}).setdefault("token_prediction", {})["selected_budget"] = token_selected_budget
+                phase_spec.setdefault("metadata", {}).setdefault("token_prediction", {})[
+                    "selected_budget"
+                ] = token_selected_budget
 
             # BUILD-142 PARITY: P4 enforcement (final max_tokens >= selected_budget)
             if token_selected_budget:
                 max_tokens = max(max_tokens or 0, token_selected_budget)
                 # Store actual_max_tokens (final ceiling) AFTER P4 enforcement
-                phase_spec.setdefault("metadata", {}).setdefault("token_prediction", {})["actual_max_tokens"] = max_tokens
-                logger.info(f"[BUILD-142:Gemini:P4] Final max_tokens enforcement: {max_tokens} (token_selected_budget={token_selected_budget})")
+                phase_spec.setdefault("metadata", {}).setdefault("token_prediction", {})[
+                    "actual_max_tokens"
+                ] = max_tokens
+                logger.info(
+                    f"[BUILD-142:Gemini:P4] Final max_tokens enforcement: {max_tokens} (token_selected_budget={token_selected_budget})"
+                )
 
             # Build system prompt for Builder
             system_prompt = self._build_system_prompt()
@@ -217,9 +237,8 @@ class GeminiBuilderClient:
                 model_name=model,
                 system_instruction=system_prompt,
                 generation_config=genai.GenerationConfig(
-                    max_output_tokens=max_tokens,  # Use category-aware budget
-                    temperature=0.2
-                )
+                    max_output_tokens=max_tokens, temperature=0.2  # Use category-aware budget
+                ),
             )
 
             # Call Gemini API
@@ -232,9 +251,9 @@ class GeminiBuilderClient:
             tokens_used = 0
             prompt_tokens = 0
             completion_tokens = 0
-            if hasattr(response, 'usage_metadata'):
-                prompt_tokens = getattr(response.usage_metadata, 'prompt_token_count', 0)
-                completion_tokens = getattr(response.usage_metadata, 'candidates_token_count', 0)
+            if hasattr(response, "usage_metadata"):
+                prompt_tokens = getattr(response.usage_metadata, "prompt_token_count", 0)
+                completion_tokens = getattr(response.usage_metadata, "candidates_token_count", 0)
                 tokens_used = prompt_tokens + completion_tokens
 
             # Extract patch from raw text
@@ -251,10 +270,12 @@ class GeminiBuilderClient:
                     model_used=model,
                     error=error_msg,
                     prompt_tokens=prompt_tokens,
-                    completion_tokens=completion_tokens
+                    completion_tokens=completion_tokens,
                 )
 
-            logger.debug(f"Gemini Builder completed: {tokens_used} tokens (prompt={prompt_tokens}, completion={completion_tokens}), patch length: {len(patch_content)}")
+            logger.debug(
+                f"Gemini Builder completed: {tokens_used} tokens (prompt={prompt_tokens}, completion={completion_tokens}), patch length: {len(patch_content)}"
+            )
 
             return BuilderResult(
                 success=True,
@@ -263,7 +284,7 @@ class GeminiBuilderClient:
                 tokens_used=tokens_used,
                 model_used=model,
                 prompt_tokens=prompt_tokens,
-                completion_tokens=completion_tokens
+                completion_tokens=completion_tokens,
             )
 
         except Exception as e:
@@ -274,26 +295,26 @@ class GeminiBuilderClient:
                 builder_messages=[f"Gemini Builder error: {str(e)}"],
                 tokens_used=0,
                 model_used=model,
-                error=str(e)
+                error=str(e),
             )
 
     def _extract_diff_from_text(self, text: str) -> str:
         """Extract git diff content from text that may contain explanations."""
         import re
 
-        lines = text.split('\n')
+        lines = text.split("\n")
         diff_lines = []
         in_diff = False
 
         for line in lines:
-            if line.startswith('diff --git'):
+            if line.startswith("diff --git"):
                 in_diff = True
                 diff_lines.append(line)
             elif in_diff:
                 # Clean up malformed hunk headers (remove trailing context)
-                if line.startswith('@@'):
+                if line.startswith("@@"):
                     # Extract the valid hunk header part only
-                    match = re.match(r'^(@@\s+-\d+,\d+\s+\+\d+,\d+\s+@@)', line)
+                    match = re.match(r"^(@@\s+-\d+,\d+\s+\+\d+,\d+\s+@@)", line)
                     if match:
                         # Use only the valid hunk header, discard anything after
                         clean_line = match.group(1)
@@ -302,21 +323,23 @@ class GeminiBuilderClient:
                         # Malformed hunk header, skip it
                         logger.warning(f"Skipping malformed hunk header: {line[:80]}")
                         continue
-                elif (line.startswith(('index ', '---', '+++', '+', '-', ' ')) or
-                    line.startswith('new file mode') or
-                    line.startswith('deleted file mode') or
-                    line.startswith('similarity index') or
-                    line.startswith('rename from') or
-                    line.startswith('rename to') or
-                    line == ''):
+                elif (
+                    line.startswith(("index ", "---", "+++", "+", "-", " "))
+                    or line.startswith("new file mode")
+                    or line.startswith("deleted file mode")
+                    or line.startswith("similarity index")
+                    or line.startswith("rename from")
+                    or line.startswith("rename to")
+                    or line == ""
+                ):
                     diff_lines.append(line)
-                elif line.startswith('diff --git'):
+                elif line.startswith("diff --git"):
                     diff_lines.append(line)
                 else:
-                    if line.startswith('```') or line.startswith('#'):
+                    if line.startswith("```") or line.startswith("#"):
                         break
 
-        return '\n'.join(diff_lines) if diff_lines else ""
+        return "\n".join(diff_lines) if diff_lines else ""
 
     def _build_system_prompt(self) -> str:
         """Build system prompt for Builder"""
@@ -360,7 +383,7 @@ Guidelines:
         phase_spec: Dict,
         file_context: Optional[Dict],
         project_rules: Optional[List] = None,
-        run_hints: Optional[List] = None
+        run_hints: Optional[List] = None,
     ) -> str:
         """Build user prompt with phase details"""
         prompt_parts = []
@@ -382,38 +405,38 @@ Guidelines:
                     prompt_parts.append("\n")
 
         # Milestone 2: Inject intention anchor (canonical project goal)
-        if run_id := phase_spec.get('run_id'):
+        if run_id := phase_spec.get("run_id"):
             from .intention_anchor import load_and_render_for_builder
 
             anchor_section = load_and_render_for_builder(
                 run_id=run_id,
-                phase_id=phase_spec.get('phase_id', 'unknown'),
-                base_dir='.',  # Use current directory (.autonomous_runs/<run_id>/)
+                phase_id=phase_spec.get("phase_id", "unknown"),
+                base_dir=".",  # Use current directory (.autonomous_runs/<run_id>/)
             )
             if anchor_section:
                 prompt_parts.append(anchor_section)
                 prompt_parts.append("\n")
 
         # Add phase details
-        prompt_parts.append(f"## Phase Specification\n")
+        prompt_parts.append("## Phase Specification\n")
         prompt_parts.append(f"**Phase ID:** {phase_spec.get('phase_id')}\n")
         prompt_parts.append(f"**Task Category:** {phase_spec.get('task_category')}\n")
         prompt_parts.append(f"**Complexity:** {phase_spec.get('complexity')}\n")
         prompt_parts.append(f"**Description:** {phase_spec.get('description')}\n")
 
-        if acceptance_criteria := phase_spec.get('acceptance_criteria'):
-            prompt_parts.append(f"\n**Acceptance Criteria:**\n")
+        if acceptance_criteria := phase_spec.get("acceptance_criteria"):
+            prompt_parts.append("\n**Acceptance Criteria:**\n")
             for idx, criterion in enumerate(acceptance_criteria, 1):
                 prompt_parts.append(f"{idx}. {criterion}\n")
 
         if file_context:
-            prompt_parts.append(f"\n## Repository Context\n")
-            if existing_files := file_context.get('existing_files'):
-                prompt_parts.append(f"**Existing Files:**\n")
+            prompt_parts.append("\n## Repository Context\n")
+            if existing_files := file_context.get("existing_files"):
+                prompt_parts.append("**Existing Files:**\n")
                 for file_path, content in existing_files.items():
                     prompt_parts.append(f"\n### {file_path}\n```\n{content}\n```\n")
 
-        prompt_parts.append(f"\n## Instructions\n")
+        prompt_parts.append("\n## Instructions\n")
         prompt_parts.append("Generate a complete implementation as a unified git diff/patch.")
 
         return "\n".join(prompt_parts)
@@ -433,7 +456,9 @@ class GeminiAuditorClient:
             api_key: Google API key (defaults to GOOGLE_API_KEY env var)
         """
         if not GENAI_AVAILABLE:
-            raise ImportError("google-generativeai package is required for Gemini client. Install with: pip install google-generativeai")
+            raise ImportError(
+                "google-generativeai package is required for Gemini client. Install with: pip install google-generativeai"
+            )
 
         self.api_key = api_key or os.getenv("GOOGLE_API_KEY")
 
@@ -449,7 +474,7 @@ class GeminiAuditorClient:
         max_tokens: Optional[int] = None,
         model: str = "gemini-2.5-pro",
         project_rules: Optional[List] = None,
-        run_hints: Optional[List] = None
+        run_hints: Optional[List] = None,
     ) -> AuditorResult:
         """Review a patch and find issues
 
@@ -477,8 +502,8 @@ class GeminiAuditorClient:
                 generation_config=genai.GenerationConfig(
                     max_output_tokens=max_tokens or 8192,  # Higher limit for complex reviews
                     temperature=0.1,
-                    response_mime_type="application/json"
-                )
+                    response_mime_type="application/json",
+                ),
             )
 
             # Call Gemini API
@@ -491,15 +516,13 @@ class GeminiAuditorClient:
             tokens_used = 0
             prompt_tokens = 0
             completion_tokens = 0
-            if hasattr(response, 'usage_metadata'):
-                prompt_tokens = getattr(response.usage_metadata, 'prompt_token_count', 0)
-                completion_tokens = getattr(response.usage_metadata, 'candidates_token_count', 0)
+            if hasattr(response, "usage_metadata"):
+                prompt_tokens = getattr(response.usage_metadata, "prompt_token_count", 0)
+                completion_tokens = getattr(response.usage_metadata, "candidates_token_count", 0)
                 tokens_used = prompt_tokens + completion_tokens
 
             issues = result_json.get("issues", [])
-            has_major_issues = any(
-                issue.get("severity") == "major" for issue in issues
-            )
+            has_major_issues = any(issue.get("severity") == "major" for issue in issues)
             approved = not has_major_issues
 
             return AuditorResult(
@@ -509,22 +532,24 @@ class GeminiAuditorClient:
                 tokens_used=tokens_used,
                 model_used=model,
                 prompt_tokens=prompt_tokens,
-                completion_tokens=completion_tokens
+                completion_tokens=completion_tokens,
             )
 
         except Exception as e:
             return AuditorResult(
                 approved=False,
-                issues_found=[{
-                    "severity": "major",
-                    "category": "auditor_error",
-                    "description": f"Gemini Auditor error: {str(e)}",
-                    "location": "unknown"
-                }],
+                issues_found=[
+                    {
+                        "severity": "major",
+                        "category": "auditor_error",
+                        "description": f"Gemini Auditor error: {str(e)}",
+                        "location": "unknown",
+                    }
+                ],
                 auditor_messages=[f"Gemini Auditor error: {str(e)}"],
                 tokens_used=0,
                 model_used=model,
-                error=str(e)
+                error=str(e),
             )
 
     def _build_system_prompt(self) -> str:
@@ -564,7 +589,7 @@ Be thorough but fair. Approve patches that work correctly even if they have mino
         patch_content: str,
         phase_spec: Dict,
         project_rules: Optional[List] = None,
-        run_hints: Optional[List] = None
+        run_hints: Optional[List] = None,
     ) -> str:
         """Build user prompt with patch and context"""
         prompt_parts = []
@@ -585,25 +610,25 @@ Be thorough but fair. Approve patches that work correctly even if they have mino
                     prompt_parts.append("\n")
 
         # Milestone 2: Inject intention anchor (for validation context)
-        if run_id := phase_spec.get('run_id'):
+        if run_id := phase_spec.get("run_id"):
             from .intention_anchor import load_and_render_for_auditor
 
             anchor_section = load_and_render_for_auditor(
                 run_id=run_id,
-                base_dir='.',  # Use current directory (.autonomous_runs/<run_id>/)
+                base_dir=".",  # Use current directory (.autonomous_runs/<run_id>/)
             )
             if anchor_section:
                 prompt_parts.append(anchor_section)
                 prompt_parts.append("\n")
 
-        prompt_parts.append(f"## Phase Context\n")
+        prompt_parts.append("## Phase Context\n")
         prompt_parts.append(f"**Task Category:** {phase_spec.get('task_category')}\n")
         prompt_parts.append(f"**Complexity:** {phase_spec.get('complexity')}\n")
         prompt_parts.append(f"**Description:** {phase_spec.get('description')}\n")
 
         prompt_parts.append(f"\n## Patch to Review\n```diff\n{patch_content}\n```\n")
 
-        prompt_parts.append(f"\n## Review Instructions\n")
+        prompt_parts.append("\n## Review Instructions\n")
         prompt_parts.append("Review this patch carefully for:")
         prompt_parts.append("1. Security vulnerabilities (SQL injection, XSS, etc.)")
         prompt_parts.append("2. Bugs and logic errors")

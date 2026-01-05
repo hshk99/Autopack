@@ -5,9 +5,9 @@ to ensure data quality and consistency.
 """
 
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any, List, Optional
 from urllib.parse import urlparse
 
 from autopack.research.models import Evidence, Citation, EvidenceQuality, ResearchReport
@@ -15,6 +15,7 @@ from autopack.research.models import Evidence, Citation, EvidenceQuality, Resear
 
 class ValidationLevel(Enum):
     """Validation strictness levels."""
+
     STRICT = "strict"
     MODERATE = "moderate"
     LENIENT = "lenient"
@@ -23,6 +24,7 @@ class ValidationLevel(Enum):
 @dataclass
 class ValidationRule:
     """Validation rule definition."""
+
     name: str
     description: str = ""
     enabled: bool = True
@@ -39,6 +41,7 @@ class ValidationResult:
         warnings: List of warning messages (potential issues)
         quality_score: Optional quality score (0.0-1.0)
     """
+
     is_valid: bool
     errors: List[str] = field(default_factory=list)
     warnings: List[str] = field(default_factory=list)
@@ -77,7 +80,7 @@ class EvidenceValidator(Validator):
         evidence: Evidence,
         min_quality: Optional[EvidenceQuality] = None,
         min_content_length: int = 0,
-        **kwargs
+        **kwargs,
     ) -> ValidationResult:
         """Validate evidence quality and completeness.
 
@@ -102,20 +105,20 @@ class EvidenceValidator(Validator):
                 EvidenceQuality.LOW: 0,
                 EvidenceQuality.MEDIUM: 1,
                 EvidenceQuality.HIGH: 2,
-                EvidenceQuality.UNKNOWN: -1
+                EvidenceQuality.UNKNOWN: -1,
             }
             if quality_order.get(evidence.quality, -1) < quality_order.get(min_quality, 0):
-                errors.append(f"Evidence quality {evidence.quality.value} below minimum {min_quality.value}")
+                errors.append(
+                    f"Evidence quality {evidence.quality.value} below minimum {min_quality.value}"
+                )
 
         # Check content length
         if len(evidence.content) < min_content_length:
-            errors.append(f"Evidence content length {len(evidence.content)} below minimum {min_content_length}")
+            errors.append(
+                f"Evidence content length {len(evidence.content)} below minimum {min_content_length}"
+            )
 
-        return ValidationResult(
-            is_valid=len(errors) == 0,
-            errors=errors,
-            warnings=warnings
-        )
+        return ValidationResult(is_valid=len(errors) == 0, errors=errors, warnings=warnings)
 
 
 class CitationValidator(Validator):
@@ -126,7 +129,7 @@ class CitationValidator(Validator):
         citation: Citation,
         check_accessibility: bool = False,
         max_age_days: Optional[int] = None,
-        **kwargs
+        **kwargs,
     ) -> ValidationResult:
         """Validate citation completeness and freshness.
 
@@ -151,11 +154,7 @@ class CitationValidator(Validator):
 
         # Note: check_accessibility not implemented (would require network calls)
 
-        return ValidationResult(
-            is_valid=len(errors) == 0,
-            errors=errors,
-            warnings=warnings
-        )
+        return ValidationResult(is_valid=len(errors) == 0, errors=errors, warnings=warnings)
 
 
 class QualityValidator(Validator):
@@ -167,7 +166,7 @@ class QualityValidator(Validator):
         min_evidence_count: int = 1,
         min_unique_domains: int = 1,
         require_diverse_sources: bool = False,
-        **kwargs
+        **kwargs,
     ) -> ValidationResult:
         """Validate research report quality.
 
@@ -212,9 +211,11 @@ class QualityValidator(Validator):
                 EvidenceQuality.HIGH: 0.3,
                 EvidenceQuality.MEDIUM: 0.2,
                 EvidenceQuality.LOW: 0.1,
-                EvidenceQuality.UNKNOWN: 0.0
+                EvidenceQuality.UNKNOWN: 0.0,
             }
-            avg_quality = sum(quality_levels.get(e.quality, 0.0) for e in report.evidence) / len(report.evidence)
+            avg_quality = sum(quality_levels.get(e.quality, 0.0) for e in report.evidence) / len(
+                report.evidence
+            )
             quality_score += avg_quality
             # Add diversity bonus (up to 0.2)
             if domains:
@@ -224,7 +225,7 @@ class QualityValidator(Validator):
             is_valid=len(errors) == 0,
             errors=errors,
             warnings=warnings,
-            quality_score=min(quality_score, 1.0)
+            quality_score=min(quality_score, 1.0),
         )
 
 
@@ -254,4 +255,3 @@ __all__ = [
     "ValidationFramework",
     "EvidenceValidator",
 ]
-

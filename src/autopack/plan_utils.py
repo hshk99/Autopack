@@ -98,16 +98,19 @@ def validate_intention_refs(
     # Check constraints.must_not refs
     if "constraints_must_not" in intention_refs:
         anchor_must_not = anchor_data.get("constraints", {}).get("must_not", [])
-        check_indices("constraints_must_not", intention_refs["constraints_must_not"], anchor_must_not)
+        check_indices(
+            "constraints_must_not", intention_refs["constraints_must_not"], anchor_must_not
+        )
 
     # Check constraints.preferences refs
     if "constraints_preferences" in intention_refs:
         anchor_prefs = anchor_data.get("constraints", {}).get("preferences", [])
-        check_indices("constraints_preferences", intention_refs["constraints_preferences"], anchor_prefs)
+        check_indices(
+            "constraints_preferences", intention_refs["constraints_preferences"], anchor_prefs
+        )
 
     # Log warnings if any
     for warning in warnings:
         logger.warning(warning)
 
     return warnings
-

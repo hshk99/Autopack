@@ -6,9 +6,9 @@ Per TOKEN_BUDGET_ANALYSIS_REVISED.md: "Continuation is cheaper and faster than r
 
 GPT-5.2 Priority: HIGHEST - recovers 95% of truncation failures.
 """
+
 from dataclasses import dataclass
-from typing import Optional, List, Tuple
-from pathlib import Path
+from typing import Optional, List
 import re
 import logging
 
@@ -51,7 +51,7 @@ class ContinuationRecovery:
         raw_output: str,
         deliverables: List[str],
         stop_reason: Optional[str] = None,
-        tokens_used: int = 0
+        tokens_used: int = 0,
     ) -> Optional[ContinuationContext]:
         """
         Detect if output was truncated and extract continuation context.
@@ -67,7 +67,9 @@ class ContinuationRecovery:
         """
         # Check if truncation occurred
         if stop_reason != "max_tokens":
-            logger.debug("[ContinuationRecovery] No truncation detected (stop_reason=%s)", stop_reason)
+            logger.debug(
+                "[ContinuationRecovery] No truncation detected (stop_reason=%s)", stop_reason
+            )
             return None
 
         logger.info("[ContinuationRecovery] Truncation detected (stop_reason=max_tokens)")
@@ -92,9 +94,11 @@ class ContinuationRecovery:
         if "diff --git" in output:
             return "diff"
         # Check for NDJSON (newline-delimited JSON) - has newlines between objects
-        elif '\n{' in output and '"op"' in output:
+        elif "\n{" in output and '"op"' in output:
             return "ndjson"
-        elif output.strip().startswith('{"meta":') or (output.strip().startswith('{"op":') and '\n{' in output):
+        elif output.strip().startswith('{"meta":') or (
+            output.strip().startswith('{"op":') and "\n{" in output
+        ):
             return "ndjson"
         # Full-file JSON (single array or object)
         elif output.strip().startswith("[") and ("file_path" in output or "path" in output):
@@ -105,10 +109,7 @@ class ContinuationRecovery:
             return "unknown"
 
     def _parse_diff_truncation(
-        self,
-        output: str,
-        deliverables: List[str],
-        tokens_used: int
+        self, output: str, deliverables: List[str], tokens_used: int
     ) -> ContinuationContext:
         """
         Parse truncated diff format output.
@@ -116,15 +117,11 @@ class ContinuationRecovery:
         Finds last complete "diff --git" block to determine what was successfully completed.
         """
         # Find all complete diff blocks
-        diff_blocks = re.findall(
-            r'diff --git a/(.*?) b/\1.*?(?=diff --git|$)',
-            output,
-            re.DOTALL
-        )
+        re.findall(r"diff --git a/(.*?) b/\1.*?(?=diff --git|$)", output, re.DOTALL)
 
         # Extract completed file paths
         completed_files = []
-        for match in re.finditer(r'diff --git a/(.*?) b/\1', output):
+        for match in re.finditer(r"diff --git a/(.*?) b/\1", output):
             filepath = match.group(1)
             completed_files.append(filepath)
 
@@ -134,13 +131,13 @@ class ContinuationRecovery:
             # Check if last diff block is complete
             last_file = completed_files[-1]
             # Look for the diff block ending patterns
-            last_block_pattern = f'diff --git a/{re.escape(last_file)} b/{re.escape(last_file)}.*'
+            last_block_pattern = f"diff --git a/{re.escape(last_file)} b/{re.escape(last_file)}.*"
             last_block_match = re.search(last_block_pattern, output, re.DOTALL)
 
             if last_block_match:
                 last_block = last_block_match.group(0)
                 # Check if ends mid-block (truncated)
-                if not last_block.rstrip().endswith(('+', '-', ' ', '@')):
+                if not last_block.rstrip().endswith(("+", "-", " ", "@")):
                     # Block seems incomplete, mark as partial
                     last_partial = last_file
                     completed_files = completed_files[:-1]  # Remove from completed
@@ -160,14 +157,11 @@ class ContinuationRecovery:
             remaining_deliverables=remaining,
             partial_output=output,
             tokens_used=tokens_used,
-            format_type="diff"
+            format_type="diff",
         )
 
     def _parse_full_file_truncation(
-        self,
-        output: str,
-        deliverables: List[str],
-        tokens_used: int
+        self, output: str, deliverables: List[str], tokens_used: int
     ) -> ContinuationContext:
         """
         Parse truncated full-file format output.
@@ -184,20 +178,21 @@ class ContinuationRecovery:
 
         try:
             import json
+
             # Try to parse as JSON array
-            if output.strip().startswith('['):
+            if output.strip().startswith("["):
                 # Attempt to find complete objects before truncation
                 # Find last complete object
-                last_complete_idx = output.rfind('},')
+                last_complete_idx = output.rfind("},")
                 if last_complete_idx != -1:
                     # Try parsing up to last complete object
-                    partial_array = output[:last_complete_idx + 1] + ']'
+                    partial_array = output[: last_complete_idx + 1] + "]"
                     try:
                         parsed = json.loads(partial_array)
                         completed_files = [
-                            op.get('file_path') or op.get('path')
+                            op.get("file_path") or op.get("path")
                             for op in parsed
-                            if isinstance(op, dict) and (op.get('file_path') or op.get('path'))
+                            if isinstance(op, dict) and (op.get("file_path") or op.get("path"))
                         ]
                     except json.JSONDecodeError:
                         pass
@@ -219,14 +214,11 @@ class ContinuationRecovery:
             remaining_deliverables=remaining,
             partial_output=output,
             tokens_used=tokens_used,
-            format_type="full_file"
+            format_type="full_file",
         )
 
     def _parse_ndjson_truncation(
-        self,
-        output: str,
-        deliverables: List[str],
-        tokens_used: int
+        self, output: str, deliverables: List[str], tokens_used: int
     ) -> ContinuationContext:
         """
         Parse truncated NDJSON format output.
@@ -236,19 +228,20 @@ class ContinuationRecovery:
         completed_files = []
 
         # Parse line by line
-        for line in output.strip().split('\n'):
+        for line in output.strip().split("\n"):
             line = line.strip()
             if not line:
                 continue
 
             try:
                 import json
+
                 obj = json.loads(line)
                 # Extract file path from operation
-                if 'path' in obj:
-                    completed_files.append(obj['path'])
-                elif 'file_path' in obj:
-                    completed_files.append(obj['file_path'])
+                if "path" in obj:
+                    completed_files.append(obj["path"])
+                elif "file_path" in obj:
+                    completed_files.append(obj["file_path"])
             except json.JSONDecodeError:
                 # Last line might be truncated mid-JSON
                 logger.debug("[ContinuationRecovery:NDJSON] Skipping incomplete line")
@@ -269,14 +262,10 @@ class ContinuationRecovery:
             remaining_deliverables=remaining,
             partial_output=output,
             tokens_used=tokens_used,
-            format_type="ndjson"
+            format_type="ndjson",
         )
 
-    def build_continuation_prompt(
-        self,
-        context: ContinuationContext,
-        original_prompt: str
-    ) -> str:
+    def build_continuation_prompt(self, context: ContinuationContext, original_prompt: str) -> str:
         """
         Build continuation prompt from truncation context.
 
@@ -321,7 +310,9 @@ class ContinuationRecovery:
                 remaining_list += f"\n  - ... and {len(context.remaining_deliverables) - 10} more"
             remaining_section = f"\n\nRemaining to complete:\n{remaining_list}"
         else:
-            remaining_section = "\n\n(All deliverables appear to be completed - please finish any partial work)"
+            remaining_section = (
+                "\n\n(All deliverables appear to be completed - please finish any partial work)"
+            )
 
         # Build continuation prompt
         continuation_prompt = f"""
@@ -339,20 +330,15 @@ Continue from where the previous attempt was truncated. Generate ONLY the remain
         # Prepend continuation instruction to original prompt
         # Remove any previous continuation markers
         base_prompt = re.sub(
-            r'CONTINUATION REQUEST.*?Continue from where.*?$',
-            '',
+            r"CONTINUATION REQUEST.*?Continue from where.*?$",
+            "",
             original_prompt,
-            flags=re.DOTALL | re.MULTILINE
+            flags=re.DOTALL | re.MULTILINE,
         ).strip()
 
         return continuation_prompt + "\n\n" + base_prompt
 
-    def merge_outputs(
-        self,
-        partial_output: str,
-        continuation_output: str,
-        format_type: str
-    ) -> str:
+    def merge_outputs(self, partial_output: str, continuation_output: str, format_type: str) -> str:
         """
         Merge partial output and continuation output.
 
@@ -383,16 +369,16 @@ Continue from where the previous attempt was truncated. Generate ONLY the remain
         # Check if partial ends with an incomplete diff header
         # Pattern: ends with "diff --git a/..." but no actual content after it
         last_diff_match = None
-        for match in re.finditer(r'(diff --git a/.*? b/.*?)$', partial_clean, re.MULTILINE):
+        for match in re.finditer(r"(diff --git a/.*? b/.*?)$", partial_clean, re.MULTILINE):
             last_diff_match = match
 
         if last_diff_match:
             # Check if there's content after this diff header
-            after_header = partial_clean[last_diff_match.end():]
+            after_header = partial_clean[last_diff_match.end() :]
             # If very little content after header (< 50 chars), it's probably incomplete
             if len(after_header.strip()) < 50:
                 # Remove incomplete diff header
-                partial_clean = partial_clean[:last_diff_match.start()].rstrip()
+                partial_clean = partial_clean[: last_diff_match.start()].rstrip()
                 logger.debug("[ContinuationRecovery] Removed incomplete diff header from partial")
 
         # Merge
@@ -407,15 +393,15 @@ Continue from where the previous attempt was truncated. Generate ONLY the remain
 
             # Parse partial (may be incomplete array)
             partial_ops = []
-            if partial.strip().startswith('['):
-                last_complete = partial.rfind('},')
+            if partial.strip().startswith("["):
+                last_complete = partial.rfind("},")
                 if last_complete != -1:
-                    partial_array = partial[:last_complete + 1] + ']'
+                    partial_array = partial[: last_complete + 1] + "]"
                     partial_ops = json.loads(partial_array)
 
             # Parse continuation
             continuation_ops = []
-            if continuation.strip().startswith('['):
+            if continuation.strip().startswith("["):
                 continuation_ops = json.loads(continuation)
 
             # Merge
@@ -423,25 +409,28 @@ Continue from where the previous attempt was truncated. Generate ONLY the remain
             return json.dumps(merged_ops, indent=2)
 
         except Exception as e:
-            logger.warning(f"[ContinuationRecovery] JSON merge failed: {e}, using simple concatenation")
+            logger.warning(
+                f"[ContinuationRecovery] JSON merge failed: {e}, using simple concatenation"
+            )
             return partial + "\n" + continuation
 
     def _merge_ndjson_outputs(self, partial: str, continuation: str) -> str:
         """Merge NDJSON outputs."""
         # NDJSON is simple: just concatenate lines
         # Remove any incomplete last line from partial
-        partial_lines = partial.strip().split('\n')
+        partial_lines = partial.strip().split("\n")
 
         # Check if last line is complete JSON
         if partial_lines:
             try:
                 import json
+
                 json.loads(partial_lines[-1])
                 # Last line is complete
-                complete_partial = '\n'.join(partial_lines)
+                complete_partial = "\n".join(partial_lines)
             except json.JSONDecodeError:
                 # Last line incomplete, remove it
-                complete_partial = '\n'.join(partial_lines[:-1])
+                complete_partial = "\n".join(partial_lines[:-1])
         else:
             complete_partial = ""
 

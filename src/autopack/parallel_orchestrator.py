@@ -26,7 +26,6 @@ from typing import List, Optional, Dict, Any, Callable
 from datetime import datetime
 
 from .workspace_manager import WorkspaceManager
-from .workspace_lease import WorkspaceLease
 from .executor_lock import ExecutorLockManager
 
 logger = logging.getLogger(__name__)
@@ -112,14 +111,11 @@ class ParallelRunOrchestrator:
         """
         executor_kwargs = executor_kwargs or {}
 
-        logger.info(
-            f"[ParallelOrchestrator] Starting parallel execution of {len(run_ids)} runs"
-        )
+        logger.info(f"[ParallelOrchestrator] Starting parallel execution of {len(run_ids)} runs")
 
         # Create tasks for all runs
         tasks = [
-            self._execute_single_run(run_id, executor_func, executor_kwargs)
-            for run_id in run_ids
+            self._execute_single_run(run_id, executor_func, executor_kwargs) for run_id in run_ids
         ]
 
         # Wait for all tasks to complete
@@ -204,9 +200,7 @@ class ParallelRunOrchestrator:
                 # Execute the run
                 try:
                     if asyncio.iscoroutinefunction(executor_func):
-                        success = await executor_func(
-                            run_id, workspace_path, **executor_kwargs
-                        )
+                        success = await executor_func(run_id, workspace_path, **executor_kwargs)
                     else:
                         # Sync function - run in executor
                         loop = asyncio.get_event_loop()
@@ -263,9 +257,7 @@ class ParallelRunOrchestrator:
             if workspace_manager and self.config.cleanup_on_completion:
                 try:
                     workspace_manager.remove_worktree()
-                    logger.debug(
-                        f"[ParallelOrchestrator] Removed worktree for {run_id}"
-                    )
+                    logger.debug(f"[ParallelOrchestrator] Removed worktree for {run_id}")
                 except Exception as e:
                     logger.warning(
                         f"[ParallelOrchestrator] Failed to remove worktree for {run_id}: {e}"

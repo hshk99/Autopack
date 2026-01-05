@@ -27,7 +27,9 @@ And here is a backtick reference: `.autonomous_runs/tidy_pending_moves.json`.
 Another backtick: `/api/auth/.well-known/jwks.json`.
 """
 
-    refs = extract_file_references(content, Path("test.md"), skip_code_blocks=True, include_backticks=False)
+    refs = extract_file_references(
+        content, Path("test.md"), skip_code_blocks=True, include_backticks=False
+    )
 
     # Should only extract the markdown link
     assert len(refs) == 1
@@ -50,7 +52,9 @@ And here is a backtick reference: `.autonomous_runs/tidy_pending_moves.json`.
 Another backtick: `/api/auth/.well-known/jwks.json`.
 """
 
-    refs = extract_file_references(content, Path("test.md"), skip_code_blocks=True, include_backticks=True)
+    refs = extract_file_references(
+        content, Path("test.md"), skip_code_blocks=True, include_backticks=True
+    )
 
     # Should extract both markdown link and backtick paths
     assert len(refs) == 3
@@ -70,7 +74,9 @@ def test_markdown_links_always_extracted():
 [Link 2](docs/file2.md)
 """
 
-    refs_without_backticks = extract_file_references(content, Path("test.md"), include_backticks=False)
+    refs_without_backticks = extract_file_references(
+        content, Path("test.md"), include_backticks=False
+    )
     refs_with_backticks = extract_file_references(content, Path("test.md"), include_backticks=True)
 
     # Both should extract the same markdown links
@@ -103,14 +109,18 @@ Invalid paths (should be ignored even with include_backticks=True):
 - `foo` (no path indicators)
 """
 
-    refs = extract_file_references(content, Path("test.md"), skip_code_blocks=True, include_backticks=True)
+    refs = extract_file_references(
+        content, Path("test.md"), skip_code_blocks=True, include_backticks=True
+    )
 
     # Should extract paths with / or known extensions or known filenames
     assert ".autonomous_runs/tidy_pending_moves.json" in refs
     assert "scripts/check_doc_links.py" in refs
     assert "config.yaml.example" in refs
     assert "README.md" in refs  # BUILD-166: improved heuristics
-    assert "Makefile" in refs, f"Expected Makefile in refs, got: {sorted(refs.keys())}"  # BUILD-166: improved heuristics
+    assert (
+        "Makefile" in refs
+    ), f"Expected Makefile in refs, got: {sorted(refs.keys())}"  # BUILD-166: improved heuristics
     assert "pyproject.toml" in refs  # BUILD-166: improved heuristics
 
     # Should not extract simple identifiers
@@ -134,7 +144,9 @@ The API endpoint `/api/auth/.well-known/jwks.json` provides JWKS.
 """
 
     # Nav mode (include_backticks=False)
-    refs = extract_file_references(content, Path("README.md"), skip_code_blocks=True, include_backticks=False)
+    refs = extract_file_references(
+        content, Path("README.md"), skip_code_blocks=True, include_backticks=False
+    )
 
     # Should only extract the markdown link
     assert len(refs) == 1
@@ -165,7 +177,9 @@ See [src/autopack/memory/README.md](src/autopack/memory/README.md) for details.
 """
 
     # Deep mode with backticks enabled
-    refs = extract_file_references(content, Path("test.md"), skip_code_blocks=True, include_backticks=True)
+    refs = extract_file_references(
+        content, Path("test.md"), skip_code_blocks=True, include_backticks=True
+    )
 
     # Should extract markdown links but NOT fenced block contents
     assert len(refs) == 2

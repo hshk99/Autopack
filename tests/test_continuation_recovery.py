@@ -3,6 +3,7 @@ Tests for ContinuationRecovery (BUILD-129 Phase 2).
 
 Tests continuation-based recovery from truncation.
 """
+
 import pytest
 from autopack.continuation_recovery import ContinuationRecovery, ContinuationContext
 
@@ -18,7 +19,7 @@ class TestContinuationContext:
             remaining_deliverables=["file4.py", "file5.py"],
             partial_output="diff --git a/file1.py...",
             tokens_used=15000,
-            format_type="diff"
+            format_type="diff",
         )
 
         assert len(context.completed_files) == 2
@@ -45,7 +46,7 @@ class TestContinuationRecovery:
             raw_output=output,
             deliverables=deliverables,
             stop_reason="stop_sequence",  # Not max_tokens
-            tokens_used=5000
+            tokens_used=5000,
         )
 
         assert context is None
@@ -148,7 +149,7 @@ new file mode 100644
             remaining_deliverables=["src/baz.py", "src/qux.py"],
             partial_output="...",
             tokens_used=10000,
-            format_type="diff"
+            format_type="diff",
         )
 
         original_prompt = "Generate patches for all files."
@@ -171,7 +172,7 @@ new file mode 100644
             remaining_deliverables=["src/foo.py", "src/bar.py"],
             partial_output="...",
             tokens_used=5000,
-            format_type="diff"
+            format_type="diff",
         )
 
         original_prompt = "Generate patches for all files."
@@ -263,7 +264,7 @@ new file mode 100644
             raw_output=output,
             deliverables=deliverables,
             stop_reason="max_tokens",
-            tokens_used=15000
+            tokens_used=15000,
         )
 
         assert context is not None
@@ -284,7 +285,7 @@ new file mode 100644
             raw_output=output,
             deliverables=deliverables,
             stop_reason="max_tokens",
-            tokens_used=20000
+            tokens_used=20000,
         )
 
         assert context is not None
@@ -322,7 +323,7 @@ new file mode 100644
             raw_output=truncated_output,
             deliverables=deliverables,
             stop_reason="max_tokens",
-            tokens_used=12000
+            tokens_used=12000,
         )
 
         assert context is not None
@@ -355,7 +356,7 @@ new file mode 100644
         merged = recovery.merge_outputs(
             partial_output=truncated_output,
             continuation_output=continuation_output,
-            format_type="diff"
+            format_type="diff",
         )
 
         # Verify merged output contains all files

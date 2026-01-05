@@ -12,12 +12,13 @@ Tests are marked xfail until the enhanced API is implemented.
 """
 
 import pytest
-from pathlib import Path
-from unittest.mock import Mock, patch
 
 pytestmark = [
-    pytest.mark.xfail(strict=False, reason="Extended ContextBudgeter API not implemented - aspirational test suite"),
-    pytest.mark.aspirational
+    pytest.mark.xfail(
+        strict=False,
+        reason="Extended ContextBudgeter API not implemented - aspirational test suite",
+    ),
+    pytest.mark.aspirational,
 ]
 
 
@@ -49,7 +50,7 @@ class TestBudgetAllocation:
         budgeter = ContextBudgeter(total_budget=10000)
         allocation = budgeter.allocate_budget(
             categories=["file_context", "project_rules"],
-            priorities={"file_context": 3, "project_rules": 1}
+            priorities={"file_context": 3, "project_rules": 1},
         )
 
         # Higher priority should get more budget
@@ -70,9 +71,7 @@ class TestBudgetAllocation:
         from autopack.context_budgeter import ContextBudgeter
 
         budgeter = ContextBudgeter(total_budget=0)
-        allocation = budgeter.allocate_budget(
-            categories=["file_context", "project_rules"]
-        )
+        allocation = budgeter.allocate_budget(categories=["file_context", "project_rules"])
 
         # All allocations should be zero
         assert all(v == 0 for v in allocation.values())
@@ -83,8 +82,7 @@ class TestBudgetAllocation:
 
         budgeter = ContextBudgeter(total_budget=10000)
         allocation = budgeter.allocate_budget(
-            categories=["cat_a", "cat_b", "cat_c"],
-            priorities={"cat_a": 2, "cat_b": 2, "cat_c": 1}
+            categories=["cat_a", "cat_b", "cat_c"], priorities={"cat_a": 2, "cat_b": 2, "cat_c": 1}
         )
 
         # cat_a and cat_b should have equal allocation
@@ -279,7 +277,7 @@ class TestEdgeCases:
         # Should handle unicode correctly
         assert len(truncated) <= 20
         # Should not break unicode characters
-        assert truncated.encode('utf-8', errors='ignore').decode('utf-8') == truncated
+        assert truncated.encode("utf-8", errors="ignore").decode("utf-8") == truncated
 
 
 class TestIntegration:
@@ -348,9 +346,7 @@ class TestIntegration:
         run_hints = ["Hint" * 100]
 
         result = budgeter.budget_all_context(
-            file_context=file_context,
-            project_rules=project_rules,
-            run_hints=run_hints
+            file_context=file_context, project_rules=project_rules, run_hints=run_hints
         )
 
         # Should return budgeted versions of all inputs
@@ -360,9 +356,9 @@ class TestIntegration:
 
         # Total should fit within budget
         total_size = (
-            sum(len(c) for c in result["file_context"].values()) +
-            sum(len(r["content"]) for r in result["project_rules"]) +
-            sum(len(h) for h in result["run_hints"])
+            sum(len(c) for c in result["file_context"].values())
+            + sum(len(r["content"]) for r in result["project_rules"])
+            + sum(len(h) for h in result["run_hints"])
         )
         assert total_size <= 10000
 

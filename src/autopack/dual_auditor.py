@@ -18,7 +18,6 @@ Usage:
 
 from typing import List, Dict, Optional
 from dataclasses import dataclass
-from collections import defaultdict
 
 from .llm_client import AuditorResult
 
@@ -29,6 +28,7 @@ class MergedIssue:
 
     Per GPT: effective_severity = max(severity from each auditor)
     """
+
     issue_key: str  # Unique identifier for deduplication
     category: str
     description: str
@@ -63,7 +63,7 @@ class DualAuditor:
         self,
         primary_auditor,  # OpenAI auditor
         secondary_auditor,  # Claude auditor
-        high_risk_categories: Optional[List[str]] = None
+        high_risk_categories: Optional[List[str]] = None,
     ):
         """Initialize dual auditor
 
@@ -76,7 +76,7 @@ class DualAuditor:
         self.secondary = secondary_auditor
         self.high_risk_categories = high_risk_categories or [
             "external_feature_reuse",
-            "security_auth_change"
+            "security_auth_change",
         ]
 
         # Track disagreement metrics
@@ -103,7 +103,7 @@ class DualAuditor:
         model: Optional[str] = None,
         project_rules: Optional[List] = None,
         run_hints: Optional[List] = None,
-        force_dual: bool = False
+        force_dual: bool = False,
     ) -> AuditorResult:
         """Review patch with single or dual audit based on risk
 
@@ -122,7 +122,7 @@ class DualAuditor:
         use_dual = force_dual or self.should_use_dual_audit(phase_spec)
 
         # Debug logging
-        print(f"[DualAuditor] review_patch called with:")
+        print("[DualAuditor] review_patch called with:")
         print(f"[DualAuditor]   phase_spec: {phase_spec.get('phase_id', 'unknown')}")
         print(f"[DualAuditor]   max_tokens: {max_tokens}")
         print(f"[DualAuditor]   model: {model}")
@@ -131,19 +131,19 @@ class DualAuditor:
 
         if not use_dual:
             # Single audit (standard path)
-            print(f"[DualAuditor] Using single audit (primary only)")
+            print("[DualAuditor] Using single audit (primary only)")
             return self.primary.review_patch(
                 patch_content=patch_content,
                 phase_spec=phase_spec,
                 max_tokens=max_tokens,
                 model=model,
                 project_rules=project_rules,
-                run_hints=run_hints
+                run_hints=run_hints,
             )
 
         # Dual audit for high-risk category
         print(f"[DualAuditor] 🔍 High-risk category detected: {phase_spec.get('task_category')}")
-        print(f"[DualAuditor] Running dual audit (OpenAI + Claude)")
+        print("[DualAuditor] Running dual audit (OpenAI + Claude)")
 
         # Run both auditors in parallel (conceptually; sequential for now)
         primary_result = self.primary.review_patch(
@@ -152,7 +152,7 @@ class DualAuditor:
             max_tokens=max_tokens,
             model=model,
             project_rules=project_rules,
-            run_hints=run_hints
+            run_hints=run_hints,
         )
 
         secondary_result = self.secondary.review_patch(
@@ -161,15 +161,11 @@ class DualAuditor:
             max_tokens=max_tokens // 2 if max_tokens else None,  # Half budget for secondary
             model="claude-sonnet-3-5",  # Claude model
             project_rules=project_rules,
-            run_hints=run_hints
+            run_hints=run_hints,
         )
 
         # Merge results
-        merged_result = self._merge_auditor_results(
-            primary_result,
-            secondary_result,
-            phase_spec
-        )
+        merged_result = self._merge_auditor_results(primary_result, secondary_result, phase_spec)
 
         # Track metrics
         self.total_dual_audits += 1
@@ -177,15 +173,14 @@ class DualAuditor:
             self.disagreement_count += 1
 
         disagreement_rate = (self.disagreement_count / self.total_dual_audits) * 100
-        print(f"[DualAuditor] Disagreement rate: {disagreement_rate:.1f}% ({self.disagreement_count}/{self.total_dual_audits})")
+        print(
+            f"[DualAuditor] Disagreement rate: {disagreement_rate:.1f}% ({self.disagreement_count}/{self.total_dual_audits})"
+        )
 
         return merged_result
 
     def _merge_auditor_results(
-        self,
-        primary: AuditorResult,
-        secondary: AuditorResult,
-        phase_spec: Dict
+        self, primary: AuditorResult, secondary: AuditorResult, phase_spec: Dict
     ) -> AuditorResult:
         """Merge two auditor results using issue-based conflict resolution
 
@@ -203,23 +198,21 @@ class DualAuditor:
         Returns:
             Merged AuditorResult
         """
-        print(f"\n[DualAuditor] Merging audit results:")
-        print(f"[DualAuditor]    OpenAI: {len(primary.issues_found)} issues, approved={primary.approved}")
-        print(f"[DualAuditor]    Claude: {len(secondary.issues_found)} issues, approved={secondary.approved}")
+        print("\n[DualAuditor] Merging audit results:")
+        print(
+            f"[DualAuditor]    OpenAI: {len(primary.issues_found)} issues, approved={primary.approved}"
+        )
+        print(
+            f"[DualAuditor]    Claude: {len(secondary.issues_found)} issues, approved={secondary.approved}"
+        )
 
         # Build merged issue set
-        merged_issues = self._build_merged_issue_set(
-            primary.issues_found,
-            secondary.issues_found
-        )
+        merged_issues = self._build_merged_issue_set(primary.issues_found, secondary.issues_found)
 
         print(f"[DualAuditor]    Merged: {len(merged_issues)} unique issues")
 
         # Apply gating decision (per GPT: any major → fail)
-        has_major_issues = any(
-            issue.effective_severity == "major"
-            for issue in merged_issues
-        )
+        has_major_issues = any(issue.effective_severity == "major" for issue in merged_issues)
 
         approved = not has_major_issues
 
@@ -239,7 +232,7 @@ class DualAuditor:
                 "sources": issue.sources,  # Metadata: which auditors flagged this
                 "openai_severity": issue.openai_severity,
                 "claude_severity": issue.claude_severity,
-                "suggestion": "; ".join(issue.suggestions) if issue.suggestions else None
+                "suggestion": "; ".join(issue.suggestions) if issue.suggestions else None,
             }
             for issue in merged_issues
         ]
@@ -249,20 +242,20 @@ class DualAuditor:
             major_issues = [i for i in merged_issues if i.effective_severity == "major"]
             print(f"[DualAuditor]    Major issues: {len(major_issues)}")
             for issue in major_issues[:3]:  # Show first 3
-                print(f"[DualAuditor]       - {issue.description} (sources: {', '.join(issue.sources)})")
+                print(
+                    f"[DualAuditor]       - {issue.description} (sources: {', '.join(issue.sources)})"
+                )
 
         return AuditorResult(
             approved=approved,
             issues_found=merged_issues_dict,
             auditor_messages=combined_messages,
             tokens_used=primary.tokens_used + secondary.tokens_used,
-            model_used=f"{primary.model_used}+{secondary.model_used}"
+            model_used=f"{primary.model_used}+{secondary.model_used}",
         )
 
     def _build_merged_issue_set(
-        self,
-        primary_issues: List[Dict],
-        secondary_issues: List[Dict]
+        self, primary_issues: List[Dict], secondary_issues: List[Dict]
     ) -> List[MergedIssue]:
         """Build merged issue set with deduplication and severity escalation
 
@@ -288,7 +281,7 @@ class DualAuditor:
                     effective_severity=issue.get("severity", "minor"),
                     sources=["openai"],
                     openai_severity=issue.get("severity", "minor"),
-                    suggestions=[issue.get("suggestion", "")] if issue.get("suggestion") else []
+                    suggestions=[issue.get("suggestion", "")] if issue.get("suggestion") else [],
                 )
             else:
                 # Duplicate from primary (shouldn't happen but handle gracefully)
@@ -320,7 +313,7 @@ class DualAuditor:
                     effective_severity=issue.get("severity", "minor"),
                     sources=["claude"],
                     claude_severity=issue.get("severity", "minor"),
-                    suggestions=[issue.get("suggestion", "")] if issue.get("suggestion") else []
+                    suggestions=[issue.get("suggestion", "")] if issue.get("suggestion") else [],
                 )
 
         return list(issue_map.values())
@@ -382,15 +375,16 @@ class StubClaudeAuditor:
         max_tokens: Optional[int] = None,
         model: Optional[str] = None,
         project_rules: Optional[List] = None,
-        run_hints: Optional[List] = None
+        run_hints: Optional[List] = None,
     ) -> AuditorResult:
         """Stub review (returns empty issues for now)"""
         import warnings
+
         warnings.warn(
             "StubClaudeAuditor is deprecated. Use AnthropicAuditorClient from "
             "autopack.anthropic_clients for real Claude-based auditing.",
             DeprecationWarning,
-            stacklevel=2
+            stacklevel=2,
         )
         # Always append "-stub" to make it clear this is not a real audit
         model_name = (model or "claude-sonnet-3-5") + "-stub"
@@ -399,8 +393,8 @@ class StubClaudeAuditor:
             issues_found=[],
             auditor_messages=[
                 "⚠️  Claude audit stub called (no real auditing performed).",
-                "Use AnthropicAuditorClient for production auditing."
+                "Use AnthropicAuditorClient for production auditing.",
             ],
             tokens_used=0,  # Stub - no actual API call
-            model_used=model_name
+            model_used=model_name,
         )

@@ -34,7 +34,7 @@ def test_debug_log_stub_sections_have_standard_marker():
     content = dbg_path.read_text(encoding="utf-8")
 
     # Find each DBG section block (### DBG-### headings)
-    section_re = re.compile(r'^###\s+(DBG-\d+)\b', re.MULTILINE)
+    section_re = re.compile(r"^###\s+(DBG-\d+)\b", re.MULTILINE)
     starts = [m.start() for m in section_re.finditer(content)]
 
     # Extract section blocks (from each heading to next heading or EOF)
@@ -42,27 +42,29 @@ def test_debug_log_stub_sections_have_standard_marker():
     for i, start in enumerate(starts):
         end = starts[i + 1] if i + 1 < len(starts) else len(content)
         block_text = content[start:end]
-        blocks.append({
-            'id': content[start:start+100].split('\n')[0].strip(),  # First line (heading)
-            'text': block_text
-        })
+        blocks.append(
+            {
+                "id": content[start : start + 100].split("\n")[0].strip(),  # First line (heading)
+                "text": block_text,
+            }
+        )
 
     # Identify stub blocks (contain "stub section generated from INDEX table entry")
     # This is the canonical signal of a stub (case-insensitive for robustness)
     stub_signal = "stub section generated from INDEX table entry"
-    stub_blocks = [b for b in blocks if stub_signal.lower() in b['text'].lower()]
+    stub_blocks = [b for b in blocks if stub_signal.lower() in b["text"].lower()]
 
     # Enforce that all stubs include the exact canonical marker
     violations = []
     for block in stub_blocks:
-        if STUB_MARKER not in block['text']:
-            violations.append(block['id'])
+        if STUB_MARKER not in block["text"]:
+            violations.append(block["id"])
 
     assert not violations, (
-        f"DEBUG_LOG stub sections missing canonical marker line:\n"
+        "DEBUG_LOG stub sections missing canonical marker line:\n"
         + "\n".join([f"  - {bid}" for bid in violations])
         + f"\n\nExpected marker:\n  {STUB_MARKER}"
-        + f"\n\nFix: Ensure all stub sections include the exact marker from 'Stub Section Policy'."
+        + "\n\nFix: Ensure all stub sections include the exact marker from 'Stub Section Policy'."
         + f"\n\nStub sections are detected by presence of '{stub_signal}' in section text."
     )
 

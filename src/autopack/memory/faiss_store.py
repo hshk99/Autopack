@@ -17,12 +17,10 @@ Collections (per plan):
 
 import json
 import logging
-import os
 import threading
 import uuid
-from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -30,6 +28,7 @@ logger = logging.getLogger(__name__)
 try:
     import faiss
     import numpy as np
+
     FAISS_AVAILABLE = True
 except ImportError:
     faiss = None  # type: ignore
@@ -244,11 +243,13 @@ class FaissStore:
                     if filter and not self._matches_filter(payload, filter):
                         continue
 
-                    results.append({
-                        "id": point_id,
-                        "score": float(score),
-                        "payload": payload,
-                    })
+                    results.append(
+                        {
+                            "id": point_id,
+                            "score": float(score),
+                            "payload": payload,
+                        }
+                    )
                     if len(results) >= limit:
                         break
 

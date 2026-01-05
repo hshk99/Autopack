@@ -21,14 +21,14 @@ class TestPhaseCreateReadOnlyContextNormalization:
             name="Test Phase",
             scope={
                 "paths": ["src/test.py"],
-                "read_only_context": ["src/reference.py", "docs/README.md"]
-            }
+                "read_only_context": ["src/reference.py", "docs/README.md"],
+            },
         )
 
         # Should be normalized to dict format with empty reason
         assert phase.scope["read_only_context"] == [
             {"path": "src/reference.py", "reason": ""},
-            {"path": "docs/README.md", "reason": ""}
+            {"path": "docs/README.md", "reason": ""},
         ]
 
     def test_new_dict_format_preserved(self):
@@ -42,15 +42,15 @@ class TestPhaseCreateReadOnlyContextNormalization:
                 "paths": ["src/test.py"],
                 "read_only_context": [
                     {"path": "src/reference.py", "reason": "Reference implementation"},
-                    {"path": "docs/README.md", "reason": "Documentation style"}
-                ]
-            }
+                    {"path": "docs/README.md", "reason": "Documentation style"},
+                ],
+            },
         )
 
         # Should preserve dict format with reasons
         assert phase.scope["read_only_context"] == [
             {"path": "src/reference.py", "reason": "Reference implementation"},
-            {"path": "docs/README.md", "reason": "Documentation style"}
+            {"path": "docs/README.md", "reason": "Documentation style"},
         ]
 
     def test_mixed_format_normalized(self):
@@ -65,16 +65,16 @@ class TestPhaseCreateReadOnlyContextNormalization:
                 "read_only_context": [
                     "src/legacy.py",  # Legacy string
                     {"path": "src/new.py", "reason": "New format"},  # New dict
-                    "docs/guide.md"  # Legacy string
-                ]
-            }
+                    "docs/guide.md",  # Legacy string
+                ],
+            },
         )
 
         # Should normalize all to dict format
         assert phase.scope["read_only_context"] == [
             {"path": "src/legacy.py", "reason": ""},
             {"path": "src/new.py", "reason": "New format"},
-            {"path": "docs/guide.md", "reason": ""}
+            {"path": "docs/guide.md", "reason": ""},
         ]
 
     def test_dict_without_reason_gets_empty_reason(self):
@@ -86,16 +86,12 @@ class TestPhaseCreateReadOnlyContextNormalization:
             name="Test Phase",
             scope={
                 "paths": ["src/test.py"],
-                "read_only_context": [
-                    {"path": "src/file.py"}  # No reason field
-                ]
-            }
+                "read_only_context": [{"path": "src/file.py"}],  # No reason field
+            },
         )
 
         # Should add empty reason
-        assert phase.scope["read_only_context"] == [
-            {"path": "src/file.py", "reason": ""}
-        ]
+        assert phase.scope["read_only_context"] == [{"path": "src/file.py", "reason": ""}]
 
     def test_invalid_dict_without_path_skipped(self):
         """Dict entry without 'path' field should be skipped"""
@@ -108,9 +104,9 @@ class TestPhaseCreateReadOnlyContextNormalization:
                 "paths": ["src/test.py"],
                 "read_only_context": [
                     {"reason": "Missing path field"},  # Invalid
-                    {"path": "src/valid.py", "reason": "Valid entry"}
-                ]
-            }
+                    {"path": "src/valid.py", "reason": "Valid entry"},
+                ],
+            },
         )
 
         # Should skip invalid entry
@@ -133,16 +129,16 @@ class TestPhaseCreateReadOnlyContextNormalization:
                     {"path": "src/valid2.py"},
                     None,  # Invalid: None
                     ["nested", "list"],  # Invalid: list
-                    "src/valid3.py"
-                ]
-            }
+                    "src/valid3.py",
+                ],
+            },
         )
 
         # Should skip invalid entries
         assert phase.scope["read_only_context"] == [
             {"path": "src/valid1.py", "reason": ""},
             {"path": "src/valid2.py", "reason": ""},
-            {"path": "src/valid3.py", "reason": ""}
+            {"path": "src/valid3.py", "reason": ""},
         ]
 
     def test_empty_read_only_context_list(self):
@@ -152,10 +148,7 @@ class TestPhaseCreateReadOnlyContextNormalization:
             phase_index=0,
             tier_id="T1",
             name="Test Phase",
-            scope={
-                "paths": ["src/test.py"],
-                "read_only_context": []
-            }
+            scope={"paths": ["src/test.py"], "read_only_context": []},
         )
 
         assert phase.scope["read_only_context"] == []
@@ -170,7 +163,7 @@ class TestPhaseCreateReadOnlyContextNormalization:
             scope={
                 "paths": ["src/test.py"]
                 # No read_only_context field
-            }
+            },
         )
 
         # Should not add read_only_context if it doesn't exist
@@ -179,11 +172,7 @@ class TestPhaseCreateReadOnlyContextNormalization:
     def test_none_scope_field(self):
         """None scope field should not cause error"""
         phase = PhaseCreate(
-            phase_id="F1.test",
-            phase_index=0,
-            tier_id="T1",
-            name="Test Phase",
-            scope=None
+            phase_id="F1.test", phase_index=0, tier_id="T1", name="Test Phase", scope=None
         )
 
         assert phase.scope is None
@@ -200,8 +189,8 @@ class TestPhaseCreateReadOnlyContextNormalization:
                 "read_only_context": ["src/ref.py"],
                 "acceptance_criteria": ["All tests pass"],
                 "test_cmd": "pytest tests/",
-                "notes": ["Be careful"]
-            }
+                "notes": ["Be careful"],
+            },
         )
 
         # read_only_context normalized, others preserved
@@ -225,16 +214,14 @@ class TestPhaseCreateReadOnlyContextNormalization:
                         "path": "src/file.py",
                         "reason": "Reference",
                         "extra_field": "ignored",
-                        "priority": 1
+                        "priority": 1,
                     }
-                ]
-            }
+                ],
+            },
         )
 
         # Should only preserve path and reason
-        assert phase.scope["read_only_context"] == [
-            {"path": "src/file.py", "reason": "Reference"}
-        ]
+        assert phase.scope["read_only_context"] == [{"path": "src/file.py", "reason": "Reference"}]
 
     def test_paths_with_spaces_preserved(self):
         """Paths with spaces should be preserved"""
@@ -247,8 +234,8 @@ class TestPhaseCreateReadOnlyContextNormalization:
                 "paths": ["src/test.py"],
                 "read_only_context": [
                     {"path": "path with spaces/file.py", "reason": "Test spaces"}
-                ]
-            }
+                ],
+            },
         )
 
         assert phase.scope["read_only_context"] == [
@@ -264,18 +251,14 @@ class TestPhaseCreateReadOnlyContextNormalization:
             name="Test Phase",
             scope={
                 "paths": ["src/test.py"],
-                "read_only_context": [
-                    "src/module.py",
-                    "../other/file.py",
-                    "./local.py"
-                ]
-            }
+                "read_only_context": ["src/module.py", "../other/file.py", "./local.py"],
+            },
         )
 
         assert phase.scope["read_only_context"] == [
             {"path": "src/module.py", "reason": ""},
             {"path": "../other/file.py", "reason": ""},
-            {"path": "./local.py", "reason": ""}
+            {"path": "./local.py", "reason": ""},
         ]
 
     def test_absolute_paths_preserved(self):
@@ -287,25 +270,20 @@ class TestPhaseCreateReadOnlyContextNormalization:
             name="Test Phase",
             scope={
                 "paths": ["src/test.py"],
-                "read_only_context": [
-                    "/abs/path/file.py",
-                    "C:/Windows/path/file.py"
-                ]
-            }
+                "read_only_context": ["/abs/path/file.py", "C:/Windows/path/file.py"],
+            },
         )
 
         assert phase.scope["read_only_context"] == [
             {"path": "/abs/path/file.py", "reason": ""},
-            {"path": "C:/Windows/path/file.py", "reason": ""}
+            {"path": "C:/Windows/path/file.py", "reason": ""},
         ]
 
     def test_normalization_idempotent(self):
         """Normalizing already normalized data should be idempotent"""
         normalized_data = {
             "paths": ["src/test.py"],
-            "read_only_context": [
-                {"path": "src/ref.py", "reason": "Reference"}
-            ]
+            "read_only_context": [{"path": "src/ref.py", "reason": "Reference"}],
         }
 
         phase1 = PhaseCreate(
@@ -313,16 +291,12 @@ class TestPhaseCreateReadOnlyContextNormalization:
             phase_index=0,
             tier_id="T1",
             name="Test Phase",
-            scope=normalized_data
+            scope=normalized_data,
         )
 
         # Apply normalization again
         phase2 = PhaseCreate(
-            phase_id="F1.test",
-            phase_index=0,
-            tier_id="T1",
-            name="Test Phase",
-            scope=phase1.scope
+            phase_id="F1.test", phase_index=0, tier_id="T1", name="Test Phase", scope=phase1.scope
         )
 
         # Should remain the same
@@ -337,18 +311,15 @@ class TestPhaseCreateReadOnlyContextNormalization:
             name="Test Phase",
             scope={
                 "paths": ["src/test.py"],
-                "read_only_context": [
-                    "",  # Empty string
-                    "src/valid.py"
-                ]
-            }
+                "read_only_context": ["", "src/valid.py"],  # Empty string
+            },
         )
 
         # Empty string becomes dict with empty path, which is still included
         # (This matches the executor behavior which also accepts empty paths)
         assert phase.scope["read_only_context"] == [
             {"path": "", "reason": ""},
-            {"path": "src/valid.py", "reason": ""}
+            {"path": "src/valid.py", "reason": ""},
         ]
 
     def test_dict_with_empty_path_skipped(self):
@@ -362,15 +333,13 @@ class TestPhaseCreateReadOnlyContextNormalization:
                 "paths": ["src/test.py"],
                 "read_only_context": [
                     {"path": "", "reason": "Empty path"},  # Should be skipped
-                    {"path": "src/valid.py", "reason": "Valid"}
-                ]
-            }
+                    {"path": "src/valid.py", "reason": "Valid"},
+                ],
+            },
         )
 
         # Empty path dict should be skipped
-        assert phase.scope["read_only_context"] == [
-            {"path": "src/valid.py", "reason": "Valid"}
-        ]
+        assert phase.scope["read_only_context"] == [{"path": "src/valid.py", "reason": "Valid"}]
 
     def test_dict_with_none_path_skipped(self):
         """Dict with None path should be skipped"""
@@ -383,20 +352,17 @@ class TestPhaseCreateReadOnlyContextNormalization:
                 "paths": ["src/test.py"],
                 "read_only_context": [
                     {"path": None, "reason": "None path"},  # Should be skipped
-                    {"path": "src/valid.py", "reason": "Valid"}
-                ]
-            }
+                    {"path": "src/valid.py", "reason": "Valid"},
+                ],
+            },
         )
 
         # None path should be skipped
-        assert phase.scope["read_only_context"] == [
-            {"path": "src/valid.py", "reason": "Valid"}
-        ]
+        assert phase.scope["read_only_context"] == [{"path": "src/valid.py", "reason": "Valid"}]
 
     def test_non_dict_scope_raises_validation_error(self):
         """Non-dict scope value should raise Pydantic validation error"""
         # This tests that Pydantic's type checking catches invalid scope types
-        import pytest
         from pydantic import ValidationError
 
         with pytest.raises(ValidationError) as exc_info:
@@ -405,7 +371,7 @@ class TestPhaseCreateReadOnlyContextNormalization:
                 phase_index=0,
                 tier_id="T1",
                 name="Test Phase",
-                scope="invalid_scope_string"  # type: ignore
+                scope="invalid_scope_string",  # type: ignore
             )
 
         # Should raise validation error for incorrect type
@@ -429,16 +395,16 @@ class TestPhaseCreateReadOnlyContextNormalization:
                         "paths": ["src/test.py"],
                         "read_only_context": [
                             "src/legacy.py",  # Legacy format from API request
-                            {"path": "src/new.py", "reason": "New format"}
-                        ]
-                    }
+                            {"path": "src/new.py", "reason": "New format"},
+                        ],
+                    },
                 )
-            ]
+            ],
         )
 
         # Normalization should have occurred at PhaseCreate instantiation
         phase = request.phases[0]
         assert phase.scope["read_only_context"] == [
             {"path": "src/legacy.py", "reason": ""},
-            {"path": "src/new.py", "reason": "New format"}
+            {"path": "src/new.py", "reason": "New format"},
         ]

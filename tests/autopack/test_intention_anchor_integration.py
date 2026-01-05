@@ -6,7 +6,6 @@ Anchor system with phase binding and prompt rendering.
 """
 
 import tempfile
-from pathlib import Path
 
 from autopack.intention_anchor import (
     IntentionConstraints,
@@ -63,8 +62,11 @@ def test_full_workflow_builder_prompt_with_anchor():
             name="Implement file validation logic",
             description="Add file type and size validation",
             intention_refs=IntentionRefs(
-                success_criteria=[0, 1],  # Refs to "Support multiple formats" and "Validate file size"
-                constraints_must=[1],      # Ref to "Add comprehensive error handling"
+                success_criteria=[
+                    0,
+                    1,
+                ],  # Refs to "Support multiple formats" and "Validate file size"
+                constraints_must=[1],  # Ref to "Add comprehensive error handling"
                 constraints_must_not=[1],  # Ref to "Don't store files in memory"
             ),
         )

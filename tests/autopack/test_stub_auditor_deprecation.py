@@ -1,7 +1,6 @@
 """Test that StubClaudeAuditor emits proper deprecation warnings."""
 
 import warnings
-import pytest
 
 
 def test_stub_claude_auditor_emits_deprecation_warning():
@@ -18,7 +17,7 @@ def test_stub_claude_auditor_emits_deprecation_warning():
             patch_content="diff --git a/foo.py b/foo.py",
             phase_spec={"goal": "test"},
             max_tokens=1000,
-            model="claude-sonnet-3-5"
+            model="claude-sonnet-3-5",
         )
 
         # Check warning was raised

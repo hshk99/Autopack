@@ -8,17 +8,13 @@ Validates:
 - Graceful degradation when intention unavailable
 """
 
-import tempfile
-from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-import pytest
 
 from autopack.intention_wiring import (
     IntentionContextInjector,
     IntentionGoalDriftDetector,
     inject_intention_into_prompt,
-    MAX_INTENTION_CONTEXT_CHARS,
 )
 
 
@@ -297,7 +293,6 @@ class TestIntentionGoalDriftDetector:
             # Should drift (few shared terms between intention and phase)
             assert "intention_drift" in result
             # Note: Actual drift score depends on term overlap heuristic
-
 
     def test_check_drift_combined_warning(self):
         """Test that warnings are combined from both detectors."""

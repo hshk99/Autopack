@@ -179,18 +179,14 @@ def test_extract_findings_skips_empty_posts(gatherer):
             "id": "urn:li:ugcPost:123",
             "author": "urn:li:person:abc",
             "created": {"time": 1705320000000},
-            "specificContent": {
-                "com.linkedin.ugc.ShareContent": {"shareCommentary": {"text": ""}}
-            },
+            "specificContent": {"com.linkedin.ugc.ShareContent": {"shareCommentary": {"text": ""}}},
         },
         {
             "id": "urn:li:ugcPost:456",
             "author": "urn:li:person:def",
             "created": {"time": 1705320000000},
             "specificContent": {
-                "com.linkedin.ugc.ShareContent": {
-                    "shareCommentary": {"text": "Valid post content"}
-                }
+                "com.linkedin.ugc.ShareContent": {"shareCommentary": {"text": "Valid post content"}}
             },
         },
     ]
@@ -209,9 +205,7 @@ def test_extract_findings_evidence_type_classification(gatherer):
             "author": "urn:li:person:abc",
             "created": {"time": 1705320000000},
             "specificContent": {
-                "com.linkedin.ugc.ShareContent": {
-                    "shareCommentary": {"text": "Short post"}
-                }
+                "com.linkedin.ugc.ShareContent": {"shareCommentary": {"text": "Short post"}}
             },
         },
         {
@@ -220,9 +214,7 @@ def test_extract_findings_evidence_type_classification(gatherer):
             "created": {"time": 1705320000000},
             "specificContent": {
                 "com.linkedin.ugc.ShareContent": {
-                    "shareCommentary": {
-                        "text": "A" * 300  # Long post (300 chars)
-                    }
+                    "shareCommentary": {"text": "A" * 300}  # Long post (300 chars)
                 }
             },
         },

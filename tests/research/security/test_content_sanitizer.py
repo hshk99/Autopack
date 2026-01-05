@@ -7,6 +7,7 @@ This module contains unit tests for the ContentSanitizer class.
 import unittest
 from autopack.research.security.content_sanitizer import ContentSanitizer
 
+
 class TestContentSanitizer(unittest.TestCase):
 
     def setUp(self):
@@ -35,5 +36,6 @@ class TestContentSanitizer(unittest.TestCase):
 
     # Additional tests for more complex scenarios can be added here
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     unittest.main()

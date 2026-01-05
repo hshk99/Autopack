@@ -61,5 +61,3 @@ def get_tool_model(
     if key in cfg.tool_models:
         return cfg.tool_models[key]
     return default
-
-

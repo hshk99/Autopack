@@ -1,7 +1,7 @@
 """Tests for GitHubGatherer module."""
 
 import pytest
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import Mock, patch
 from autopack.research.gatherers.github_gatherer import GitHubGatherer
 
 
@@ -11,7 +11,7 @@ class TestGitHubGatherer:
     @pytest.fixture
     def mock_session(self):
         """Create a mock session."""
-        with patch('requests.Session') as mock:
+        with patch("requests.Session") as mock:
             session = Mock()
             mock.return_value = session
             yield session
@@ -19,21 +19,27 @@ class TestGitHubGatherer:
     @pytest.fixture
     def gatherer(self, mock_session):
         """Create a GitHubGatherer instance with mocked dependencies."""
-        with patch('src.research.gatherers.github_gatherer.RateLimiter'), \
-             patch('src.research.gatherers.github_gatherer.ErrorHandler'):
+        with (
+            patch("src.research.gatherers.github_gatherer.RateLimiter"),
+            patch("src.research.gatherers.github_gatherer.ErrorHandler"),
+        ):
             return GitHubGatherer(token="test_token")
 
     def test_initialization_with_token(self):
         """Test initialization with authentication token."""
-        with patch('src.research.gatherers.github_gatherer.RateLimiter'), \
-             patch('src.research.gatherers.github_gatherer.ErrorHandler'):
+        with (
+            patch("src.research.gatherers.github_gatherer.RateLimiter"),
+            patch("src.research.gatherers.github_gatherer.ErrorHandler"),
+        ):
             gatherer = GitHubGatherer(token="test_token")
             assert gatherer.token == "test_token"
 
     def test_initialization_without_token(self):
         """Test initialization without authentication token."""
-        with patch('src.research.gatherers.github_gatherer.RateLimiter'), \
-             patch('src.research.gatherers.github_gatherer.ErrorHandler'):
+        with (
+            patch("src.research.gatherers.github_gatherer.RateLimiter"),
+            patch("src.research.gatherers.github_gatherer.ErrorHandler"),
+        ):
             gatherer = GitHubGatherer()
             assert gatherer.token is None
 
@@ -51,13 +57,13 @@ class TestGitHubGatherer:
             "created_at": "2020-01-01T00:00:00Z",
             "updated_at": "2023-01-01T00:00:00Z",
             "topics": ["python", "testing"],
-            "license": {"name": "MIT"}
+            "license": {"name": "MIT"},
         }
-        
+
         gatherer._make_request = Mock(return_value=mock_data)
-        
+
         result = gatherer.gather_repository_info("owner", "test-repo")
-        
+
         assert result["type"] == "repository_info"
         assert result["source"] == "github"
         assert result["repository"] == "owner/test-repo"
@@ -68,22 +74,22 @@ class TestGitHubGatherer:
     def test_gather_readme(self, gatherer):
         """Test gathering README content."""
         import base64
-        
+
         readme_content = "# Test README\n\nThis is a test."
         encoded_content = base64.b64encode(readme_content.encode()).decode()
-        
+
         mock_data = {
             "name": "README.md",
             "path": "README.md",
             "content": encoded_content,
             "html_url": "https://github.com/owner/test-repo/blob/main/README.md",
-            "size": len(readme_content)
+            "size": len(readme_content),
         }
-        
+
         gatherer._make_request = Mock(return_value=mock_data)
-        
+
         result = gatherer.gather_readme("owner", "test-repo")
-        
+
         assert result["type"] == "readme"
         assert result["source"] == "github"
         assert result["data"]["content"] == readme_content
@@ -103,7 +109,7 @@ class TestGitHubGatherer:
                 "closed_at": None,
                 "labels": [{"name": "bug"}],
                 "comments": 3,
-                "user": {"login": "testuser"}
+                "user": {"login": "testuser"},
             },
             {
                 "number": 2,
@@ -116,14 +122,14 @@ class TestGitHubGatherer:
                 "closed_at": "2023-01-03T00:00:00Z",
                 "labels": [],
                 "comments": 0,
-                "user": {"login": "testuser2"}
-            }
+                "user": {"login": "testuser2"},
+            },
         ]
-        
+
         gatherer._make_request = Mock(return_value=mock_issues)
-        
+
         results = gatherer.gather_issues("owner", "test-repo", max_issues=10)
-        
+
         assert len(results) == 2
         assert results[0]["type"] == "issue"
         assert results[0]["data"]["number"] == 1
@@ -144,7 +150,7 @@ class TestGitHubGatherer:
                 "closed_at": None,
                 "labels": [],
                 "comments": 0,
-                "user": {"login": "testuser"}
+                "user": {"login": "testuser"},
             },
             {
                 "number": 2,
@@ -158,14 +164,14 @@ class TestGitHubGatherer:
                 "closed_at": None,
                 "labels": [],
                 "comments": 0,
-                "user": {"login": "testuser"}
-            }
+                "user": {"login": "testuser"},
+            },
         ]
-        
+
         gatherer._make_request = Mock(return_value=mock_issues)
-        
+
         results = gatherer.gather_issues("owner", "test-repo", max_issues=10)
-        
+
         # Should only have the issue, not the PR
         assert len(results) == 1
         assert results[0]["data"]["number"] == 1
@@ -186,14 +192,14 @@ class TestGitHubGatherer:
                 "labels": [{"name": "enhancement"}],
                 "user": {"login": "testuser"},
                 "base": {"ref": "main"},
-                "head": {"ref": "feature-branch"}
+                "head": {"ref": "feature-branch"},
             }
         ]
-        
+
         gatherer._make_request = Mock(return_value=mock_prs)
-        
+
         results = gatherer.gather_pull_requests("owner", "test-repo", max_prs=10)
-        
+
         assert len(results) == 1
         assert results[0]["type"] == "pull_request"
         assert results[0]["data"]["number"] == 1
@@ -204,17 +210,17 @@ class TestGitHubGatherer:
         """Test that _make_request uses the rate limiter."""
         gatherer.rate_limiter.acquire = Mock()
         gatherer.error_handler.execute_with_retry = Mock(return_value={"test": "data"})
-        
+
         gatherer._make_request("test/endpoint")
-        
+
         gatherer.rate_limiter.acquire.assert_called_once()
 
     def test_make_request_uses_error_handler(self, gatherer):
         """Test that _make_request uses the error handler."""
         gatherer.rate_limiter.acquire = Mock()
         gatherer.error_handler.execute_with_retry = Mock(return_value={"test": "data"})
-        
+
         result = gatherer._make_request("test/endpoint")
-        
+
         gatherer.error_handler.execute_with_retry.assert_called_once()
         assert result == {"test": "data"}

@@ -4,6 +4,7 @@ Comprehensive tests for autopack.auth (BUILD-146 P12 Phase 5).
 Migrated from tests/backend/api/test_auth.py to test the new autopack.auth package.
 Tests registration, login, JWT tokens, and duplicate detection.
 """
+
 from datetime import datetime, timezone
 
 import pytest
@@ -73,7 +74,7 @@ def test_user(test_db):
         email="existing@example.com",
         hashed_password=hash_password("password123"),
         is_active=True,
-        created_at=datetime.now(timezone.utc)
+        created_at=datetime.now(timezone.utc),
     )
     test_db.add(user)
     test_db.commit()
@@ -91,8 +92,8 @@ class TestRegisterEndpoint:
             json={
                 "username": "newuser",
                 "email": "newuser@example.com",
-                "password": "securepassword123"
-            }
+                "password": "securepassword123",
+            },
         )
 
         assert response.status_code == 201
@@ -111,8 +112,8 @@ class TestRegisterEndpoint:
             json={
                 "username": "existinguser",
                 "email": "different@example.com",
-                "password": "password123"
-            }
+                "password": "password123",
+            },
         )
 
         assert response.status_code == 400
@@ -125,8 +126,8 @@ class TestRegisterEndpoint:
             json={
                 "username": "differentuser",
                 "email": "existing@example.com",
-                "password": "password123"
-            }
+                "password": "password123",
+            },
         )
 
         assert response.status_code == 400
@@ -136,11 +137,7 @@ class TestRegisterEndpoint:
         """Test registration with invalid email format."""
         response = client.post(
             "/api/auth/register",
-            json={
-                "username": "newuser",
-                "email": "invalid-email",
-                "password": "password123"
-            }
+            json={"username": "newuser", "email": "invalid-email", "password": "password123"},
         )
 
         assert response.status_code == 422  # Validation error
@@ -149,11 +146,7 @@ class TestRegisterEndpoint:
         """Test registration with password too short."""
         response = client.post(
             "/api/auth/register",
-            json={
-                "username": "newuser",
-                "email": "newuser@example.com",
-                "password": "short"
-            }
+            json={"username": "newuser", "email": "newuser@example.com", "password": "short"},
         )
 
         assert response.status_code == 422  # Validation error
@@ -165,11 +158,7 @@ class TestLoginEndpoint:
     def test_login_success(self, client, test_user):
         """Test successful login with valid credentials."""
         response = client.post(
-            "/api/auth/login",
-            data={
-                "username": "existinguser",
-                "password": "password123"
-            }
+            "/api/auth/login", data={"username": "existinguser", "password": "password123"}
         )
 
         assert response.status_code == 200
@@ -180,11 +169,7 @@ class TestLoginEndpoint:
     def test_login_wrong_password(self, client, test_user):
         """Test login with incorrect password."""
         response = client.post(
-            "/api/auth/login",
-            data={
-                "username": "existinguser",
-                "password": "wrongpassword"
-            }
+            "/api/auth/login", data={"username": "existinguser", "password": "wrongpassword"}
         )
 
         assert response.status_code == 401
@@ -193,11 +178,7 @@ class TestLoginEndpoint:
     def test_login_nonexistent_user(self, client):
         """Test login with non-existent username."""
         response = client.post(
-            "/api/auth/login",
-            data={
-                "username": "nonexistent",
-                "password": "password123"
-            }
+            "/api/auth/login", data={"username": "nonexistent", "password": "password123"}
         )
 
         assert response.status_code == 401
@@ -205,10 +186,7 @@ class TestLoginEndpoint:
 
     def test_login_missing_credentials(self, client):
         """Test login with missing credentials."""
-        response = client.post(
-            "/api/auth/login",
-            data={}
-        )
+        response = client.post("/api/auth/login", data={})
 
         assert response.status_code == 422  # Validation error
 
@@ -254,20 +232,13 @@ class TestMeEndpoint:
         """Test /me endpoint with valid JWT token."""
         # First login to get token
         login_response = client.post(
-            "/api/auth/login",
-            data={
-                "username": "existinguser",
-                "password": "password123"
-            }
+            "/api/auth/login", data={"username": "existinguser", "password": "password123"}
         )
         assert login_response.status_code == 200
         token = login_response.json()["access_token"]
 
         # Then call /me with token
-        me_response = client.get(
-            "/api/auth/me",
-            headers={"Authorization": f"Bearer {token}"}
-        )
+        me_response = client.get("/api/auth/me", headers={"Authorization": f"Bearer {token}"})
 
         assert me_response.status_code == 200
         data = me_response.json()
@@ -284,8 +255,7 @@ class TestMeEndpoint:
     def test_me_with_invalid_token(self, client):
         """Test /me endpoint with invalid token."""
         response = client.get(
-            "/api/auth/me",
-            headers={"Authorization": "Bearer invalid_token_here"}
+            "/api/auth/me", headers={"Authorization": "Bearer invalid_token_here"}
         )
 
         assert response.status_code == 401

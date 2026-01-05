@@ -12,7 +12,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterable, List, Optional
+from typing import Iterable, List
 
 from .repo_scanner import RepoScanner
 
@@ -56,7 +56,9 @@ class ScopeExpander:
         proposed_norm = self._normalize_path(proposed_file)
 
         if proposed_norm in normalized:
-            return ScopeExpansionResult(True, expanded_scope=sorted(normalized), reason="Already in scope")
+            return ScopeExpansionResult(
+                True, expanded_scope=sorted(normalized), reason="Already in scope"
+            )
 
         # Only allow adding the file if it exists in workspace and is a file.
         abs_path = self.workspace / proposed_norm
@@ -86,5 +88,3 @@ class ScopeExpander:
 
     def _normalize_path(self, p: str) -> str:
         return p.replace("\\", "/").lstrip("/")
-
-

@@ -11,8 +11,7 @@ Per BUILD-043/044/045 patterns: strict isolation, no protected path modification
 """
 
 import logging
-from typing import Dict, List, Optional, Any
-from datetime import datetime, timedelta
+from typing import Dict, List, Any
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
@@ -31,10 +30,7 @@ class RetrievalTrigger:
         self.logger = logger
 
     def should_escalate(
-        self,
-        handoff_bundle: Dict[str, Any],
-        phase_id: str,
-        attempt_number: int
+        self, handoff_bundle: Dict[str, Any], phase_id: str, attempt_number: int
     ) -> bool:
         """Determine if deep retrieval escalation is needed.
 
@@ -215,11 +211,13 @@ class RetrievalTrigger:
             Priority level: 'high', 'medium', or 'low'
         """
         # High priority: Multiple triggers fired
-        trigger_count = sum([
-            self._is_bundle_insufficient(bundle),
-            self._lacks_actionable_context(bundle),
-            not self._has_clear_root_cause(bundle),
-        ])
+        trigger_count = sum(
+            [
+                self._is_bundle_insufficient(bundle),
+                self._lacks_actionable_context(bundle),
+                not self._has_clear_root_cause(bundle),
+            ]
+        )
 
         if trigger_count >= 2:
             return "high"

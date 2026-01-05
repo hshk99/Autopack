@@ -5,13 +5,12 @@ Validates that init_db() enforces schema safety:
 - Fails fast when schema is missing (unless bootstrap enabled)
 - Prevents accidental schema drift between SQLite/Postgres
 """
+
 import os
-import tempfile
-from pathlib import Path
 from unittest.mock import patch
 
 import pytest
-from sqlalchemy import create_engine, inspect, MetaData, Table, Column, Integer, String
+from sqlalchemy import create_engine, MetaData, Table, Column, Integer, String
 
 from autopack.config import Settings
 
@@ -25,8 +24,10 @@ class TestDBInitGuardrails:
         db_url = "sqlite:///:memory:"
 
         # Patch both engine creation and config.settings (imported inside init_db)
-        with patch("autopack.database.engine") as mock_engine, \
-             patch("autopack.config.settings") as mock_settings:
+        with (
+            patch("autopack.database.engine") as mock_engine,
+            patch("autopack.config.settings") as mock_settings,
+        ):
 
             # Mock settings: bootstrap DISABLED
             mock_settings.db_bootstrap_enabled = False
@@ -52,9 +53,11 @@ class TestDBInitGuardrails:
         # Use in-memory database for isolation
         db_url = "sqlite:///:memory:"
 
-        with patch("autopack.database.engine") as mock_engine, \
-             patch("autopack.config.settings") as mock_settings, \
-             patch("autopack.database.Base.metadata.create_all") as mock_create:
+        with (
+            patch("autopack.database.engine") as mock_engine,
+            patch("autopack.config.settings") as mock_settings,
+            patch("autopack.database.Base.metadata.create_all") as mock_create,
+        ):
 
             # Mock settings: bootstrap ENABLED
             mock_settings.db_bootstrap_enabled = True
@@ -80,21 +83,20 @@ class TestDBInitGuardrails:
 
         # Create a minimal schema with 'runs' table
         metadata = MetaData()
-        runs_table = Table(
-            'runs', metadata,
-            Column('id', String, primary_key=True),
-            Column('status', String)
-        )
+        Table("runs", metadata, Column("id", String, primary_key=True), Column("status", String))
         metadata.create_all(test_engine)
 
         # Replace the engine object itself with our pre-populated test engine
         import autopack.database
+
         original_engine = autopack.database.engine
         autopack.database.engine = test_engine
 
         try:
-            with patch("autopack.config.settings") as mock_settings, \
-                 patch("autopack.database.Base.metadata.create_all") as mock_create:
+            with (
+                patch("autopack.config.settings") as mock_settings,
+                patch("autopack.database.Base.metadata.create_all") as mock_create,
+            ):
 
                 # Mock settings: bootstrap DISABLED
                 mock_settings.db_bootstrap_enabled = False
@@ -124,7 +126,9 @@ class TestDBInitGuardrails:
             assert settings.db_bootstrap_enabled is True
 
         # Test default (disabled) - use explicit env override
-        with patch.dict(os.environ, {"AUTOPACK_DB_BOOTSTRAP": "0", "DB_BOOTSTRAP_ENABLED": "0"}, clear=False):
+        with patch.dict(
+            os.environ, {"AUTOPACK_DB_BOOTSTRAP": "0", "DB_BOOTSTRAP_ENABLED": "0"}, clear=False
+        ):
             settings = Settings()
             assert settings.db_bootstrap_enabled is False
 
@@ -136,18 +140,14 @@ class TestDBInitGuardrails:
 
         # Create some tables but NOT 'runs'
         metadata = MetaData()
-        Table(
-            'llm_usage_events', metadata,
-            Column('id', Integer, primary_key=True)
-        )
-        Table(
-            'users', metadata,
-            Column('id', Integer, primary_key=True)
-        )
+        Table("llm_usage_events", metadata, Column("id", Integer, primary_key=True))
+        Table("users", metadata, Column("id", Integer, primary_key=True))
         metadata.create_all(test_engine)
 
-        with patch("autopack.database.engine") as mock_engine, \
-             patch("autopack.config.settings") as mock_settings:
+        with (
+            patch("autopack.database.engine") as mock_engine,
+            patch("autopack.config.settings") as mock_settings,
+        ):
 
             mock_settings.db_bootstrap_enabled = False
 

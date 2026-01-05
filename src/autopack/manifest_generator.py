@@ -52,7 +52,7 @@ from typing import Dict, List, Optional, Any, Tuple
 
 from autopack.repo_scanner import RepoScanner
 from autopack.pattern_matcher import PatternMatcher, MatchResult
-from autopack.preflight_validator import PreflightValidator, ValidationResult
+from autopack.preflight_validator import PreflightValidator
 
 
 logger = logging.getLogger(__name__)
@@ -74,7 +74,7 @@ def run_async_safe(coro):
     """
     try:
         # Try to get running loop
-        loop = asyncio.get_running_loop()
+        asyncio.get_running_loop()
         # Loop exists - run in a thread to avoid RuntimeError
         with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
             future = executor.submit(lambda: asyncio.run(coro))
@@ -87,6 +87,7 @@ def run_async_safe(coro):
 @dataclass
 class PlanAnalysisMetadata:
     """Metadata for optional PlanAnalyzer integration (BUILD-124)"""
+
     enabled: bool
     status: str  # "disabled" | "skipped" | "ran" | "failed"
     warnings: List[str]
@@ -96,6 +97,7 @@ class PlanAnalysisMetadata:
 @dataclass
 class ManifestGenerationResult:
     """Result of manifest generation"""
+
     success: bool
     enhanced_plan: Dict
     confidence_scores: Dict[str, float]
@@ -121,7 +123,7 @@ class ManifestGenerator:
         workspace: Path,
         autopack_internal_mode: bool = False,
         run_type: str = "project_build",
-        enable_plan_analyzer: bool = False
+        enable_plan_analyzer: bool = False,
     ):
         """
         Initialize manifest generator.
@@ -145,9 +147,7 @@ class ManifestGenerator:
             run_type=run_type,
         )
         self.validator = PreflightValidator(
-            workspace,
-            autopack_internal_mode=autopack_internal_mode,
-            run_type=run_type
+            workspace, autopack_internal_mode=autopack_internal_mode, run_type=run_type
         )
 
         # PlanAnalyzer initialized lazily only if enabled (BUILD-124)
@@ -155,9 +155,7 @@ class ManifestGenerator:
         self._context_builder = None  # Phase C lazy init (BUILD-124)
 
     def generate_manifest(
-        self,
-        plan_data: Dict,
-        skip_validation: bool = False
+        self, plan_data: Dict, skip_validation: bool = False
     ) -> ManifestGenerationResult:
         """
         Generate scope manifest for implementation plan.
@@ -185,7 +183,7 @@ class ManifestGenerator:
             plan_analysis_metadata = PlanAnalysisMetadata(
                 enabled=self.enable_plan_analyzer,
                 status="disabled" if not self.enable_plan_analyzer else "skipped",
-                warnings=[]
+                warnings=[],
             )
             return ManifestGenerationResult(
                 success=False,
@@ -193,7 +191,7 @@ class ManifestGenerator:
                 confidence_scores={},
                 warnings=[],
                 error=f"Repo scan failed: {e}",
-                plan_analysis=plan_analysis_metadata
+                plan_analysis=plan_analysis_metadata,
             )
 
         # Enhance each phase
@@ -209,20 +207,15 @@ class ManifestGenerator:
             warnings.extend(phase_warnings)
 
         # Build enhanced plan
-        enhanced_plan = {
-            **plan_data,
-            "phases": enhanced_phases
-        }
+        enhanced_plan = {**plan_data, "phases": enhanced_phases}
 
         # BUILD-124 Phase D: Optional PlanAnalyzer integration
         plan_analysis_warnings = []
         if self.enable_plan_analyzer:
             plan_analysis_warnings = self._run_plan_analyzer_on_phases(
-                enhanced_phases,
-                confidence_scores
+                enhanced_phases, confidence_scores
             )
             warnings.extend(plan_analysis_warnings)
-
 
         # Preflight validation
         if not skip_validation:
@@ -234,7 +227,7 @@ class ManifestGenerator:
                 plan_analysis_metadata = PlanAnalysisMetadata(
                     enabled=self.enable_plan_analyzer,
                     status="disabled" if not self.enable_plan_analyzer else "skipped",
-                    warnings=[]
+                    warnings=[],
                 )
                 return ManifestGenerationResult(
                     success=False,
@@ -242,7 +235,7 @@ class ManifestGenerator:
                     confidence_scores=confidence_scores,
                     warnings=warnings + validation_result.warnings,
                     error=validation_result.error,
-                    plan_analysis=plan_analysis_metadata
+                    plan_analysis=plan_analysis_metadata,
                 )
 
             warnings.extend(validation_result.warnings)
@@ -286,13 +279,10 @@ class ManifestGenerator:
             enhanced_plan=enhanced_plan,
             confidence_scores=confidence_scores,
             warnings=warnings,
-            plan_analysis=plan_analysis_metadata
+            plan_analysis=plan_analysis_metadata,
         )
 
-    def _infer_category_from_deliverables(
-        self,
-        deliverables: List[str]
-    ) -> Tuple[str, float]:
+    def _infer_category_from_deliverables(self, deliverables: List[str]) -> Tuple[str, float]:
         """Infer task category from deliverable file paths.
 
         BUILD-128: Prevent manifest category mismatches by inferring from deliverables.
@@ -365,10 +355,7 @@ class ManifestGenerator:
         return category, confidence
 
     def _expand_scope_from_deliverables(
-        self,
-        deliverables: List[str],
-        category: str,
-        phase_id: str
+        self, deliverables: List[str], category: str, phase_id: str
     ) -> Tuple[List[str], List[str]]:
         """Expand scope from deliverables to include related files.
 
@@ -413,11 +400,7 @@ class ManifestGenerator:
 
         elif category == "database":
             # Add models and alembic config
-            candidates = [
-                "src/autopack/models.py",
-                "alembic.ini",
-                "alembic/env.py"
-            ]
+            candidates = ["src/autopack/models.py", "alembic.ini", "alembic/env.py"]
             read_only_context.extend([p for p in candidates if self.scanner.path_exists(p)])
 
         # Remove duplicates, preserve order
@@ -427,10 +410,7 @@ class ManifestGenerator:
         return scope_paths, read_only_context
 
     def _add_token_estimate_metadata(
-        self,
-        phase: Dict,
-        deliverables: List[str],
-        category: str
+        self, phase: Dict, deliverables: List[str], category: str
     ) -> None:
         """
         Add token estimation metadata to phase (BUILD-129 Phase 1 integration).
@@ -483,10 +463,7 @@ class ManifestGenerator:
             # Non-critical - log and continue
             logger.warning(f"[BUILD-129] Token estimation failed: {e}")
 
-    def _enhance_phase(
-        self,
-        phase: Dict
-    ) -> tuple[Dict, float, List[str]]:
+    def _enhance_phase(self, phase: Dict) -> tuple[Dict, float, List[str]]:
         """
         Enhance single phase with scope.
 
@@ -546,6 +523,7 @@ class ManifestGenerator:
                 it = existing_deliverables_raw.strip()
                 try:
                     from autopack.deliverables_validator import sanitize_deliverable_path
+
                     it = sanitize_deliverable_path(it)
                 except Exception:
                     pass
@@ -568,17 +546,21 @@ class ManifestGenerator:
             existing_deliverables = list(dict.fromkeys(existing_deliverables))
 
         if existing_deliverables:
-            logger.info(f"[BUILD-128] Phase '{phase_id}' has deliverables - inferring scope from deliverables")
+            logger.info(
+                f"[BUILD-128] Phase '{phase_id}' has deliverables - inferring scope from deliverables"
+            )
 
             # Infer category from deliverables
-            category, category_confidence = self._infer_category_from_deliverables(existing_deliverables)
-            logger.info(f"[BUILD-128] Inferred category '{category}' from deliverables (confidence={category_confidence:.1%})")
+            category, category_confidence = self._infer_category_from_deliverables(
+                existing_deliverables
+            )
+            logger.info(
+                f"[BUILD-128] Inferred category '{category}' from deliverables (confidence={category_confidence:.1%})"
+            )
 
             # Expand scope from deliverables
             scope_paths, read_only_context = self._expand_scope_from_deliverables(
-                deliverables=existing_deliverables,
-                category=category,
-                phase_id=phase_id
+                deliverables=existing_deliverables, category=category, phase_id=phase_id
             )
 
             # Build enhanced phase with inferred scope
@@ -590,20 +572,30 @@ class ManifestGenerator:
                 "scope": {
                     "paths": scope_paths,
                     # Preserve original scope deliverables (may be dict) for validators that understand buckets.
-                    "deliverables": existing_deliverables_raw if existing_deliverables_raw else existing_deliverables,
+                    "deliverables": (
+                        existing_deliverables_raw
+                        if existing_deliverables_raw
+                        else existing_deliverables
+                    ),
                     "read_only_context": read_only_context,
-                    "allowed_paths": existing_scope.get("allowed_paths", []),  # BUILD-128: Preserve from constraints
-                    "protected_paths": existing_scope.get("protected_paths", [])  # BUILD-128: Preserve from constraints
+                    "allowed_paths": existing_scope.get(
+                        "allowed_paths", []
+                    ),  # BUILD-128: Preserve from constraints
+                    "protected_paths": existing_scope.get(
+                        "protected_paths", []
+                    ),  # BUILD-128: Preserve from constraints
                 },
                 "metadata": {
                     "category": category,
                     "confidence": category_confidence,
                     "inferred_from": "deliverables",
-                    "deliverables_count": len(existing_deliverables)
-                }
+                    "deliverables_count": len(existing_deliverables),
+                },
             }
 
-            logger.info(f"[BUILD-128] Generated scope: {len(scope_paths)} paths, {len(read_only_context)} context files")
+            logger.info(
+                f"[BUILD-128] Generated scope: {len(scope_paths)} paths, {len(read_only_context)} context files"
+            )
 
             # BUILD-129 Phase 1: Optional token estimation during manifest generation
             self._add_token_estimate_metadata(enhanced_phase, existing_deliverables, category)
@@ -612,11 +604,7 @@ class ManifestGenerator:
 
         # Match goal to category and generate scope (existing behavior)
         try:
-            match_result = self.matcher.match(
-                goal=goal,
-                phase_id=phase_id,
-                description=description
-            )
+            match_result = self.matcher.match(goal=goal, phase_id=phase_id, description=description)
         except Exception as e:
             logger.error(f"Pattern matching failed for phase '{phase_id}': {e}")
             warnings.append(f"Pattern matching failed: {e}")
@@ -628,7 +616,7 @@ class ManifestGenerator:
                 confidence_breakdown={},
                 anchor_files_found=[],
                 match_density=0.0,
-                directory_locality=0.0
+                directory_locality=0.0,
             )
 
         # Check confidence threshold
@@ -643,21 +631,20 @@ class ManifestGenerator:
             **phase,
             "scope": {
                 "paths": match_result.scope_paths,
-                "read_only_context": match_result.read_only_context
+                "read_only_context": match_result.read_only_context,
             },
             "metadata": {
                 "category": match_result.category,
                 "confidence": match_result.confidence,
                 "confidence_breakdown": match_result.confidence_breakdown,
-                "anchor_files_found": match_result.anchor_files_found
-            }
+                "anchor_files_found": match_result.anchor_files_found,
+            },
         }
 
         # Add default success criteria if not present
         if not phase.get("success_criteria"):
             enhanced_phase["success_criteria"] = self._generate_default_success_criteria(
-                category=match_result.category,
-                goal=goal
+                category=match_result.category, goal=goal
             )
 
         # Add default validation tests if not present
@@ -679,43 +666,36 @@ class ManifestGenerator:
 
         return enhanced_phase, match_result.confidence, warnings
 
-    def _generate_default_success_criteria(
-        self,
-        category: str,
-        goal: str
-    ) -> List[str]:
+    def _generate_default_success_criteria(self, category: str, goal: str) -> List[str]:
         """
         Generate default success criteria based on category.
 
         Returns basic validation criteria that should always apply.
         """
 
-        criteria = [
-            "All syntax errors resolved",
-            "No breaking changes to existing functionality"
-        ]
+        criteria = ["All syntax errors resolved", "No breaking changes to existing functionality"]
 
         # Category-specific criteria
         if category == "authentication":
-            criteria.extend([
-                "Authentication endpoints return valid responses",
-                "Token validation works correctly"
-            ])
+            criteria.extend(
+                [
+                    "Authentication endpoints return valid responses",
+                    "Token validation works correctly",
+                ]
+            )
         elif category == "api_endpoint":
-            criteria.extend([
-                "API endpoints return expected status codes",
-                "Request/response schema validation passes"
-            ])
+            criteria.extend(
+                [
+                    "API endpoints return expected status codes",
+                    "Request/response schema validation passes",
+                ]
+            )
         elif category == "database":
-            criteria.extend([
-                "Database migrations apply successfully",
-                "No data loss or corruption"
-            ])
+            criteria.extend(
+                ["Database migrations apply successfully", "No data loss or corruption"]
+            )
         elif category == "tests":
-            criteria.extend([
-                "All new tests pass",
-                "Test coverage meets minimum threshold"
-            ])
+            criteria.extend(["All new tests pass", "Test coverage meets minimum threshold"])
 
         # Goal-specific criteria
         goal_lower = goal.lower()
@@ -768,13 +748,11 @@ class ManifestGenerator:
             "total_files": total_files,
             "total_directories": total_directories,
             "categories": categories,
-            "confidence_avg": sum(confidences) / len(confidences) if confidences else 0.0
+            "confidence_avg": sum(confidences) / len(confidences) if confidences else 0.0,
         }
 
     def validate_scope_expansion_safe(
-        self,
-        current_scope: List[str],
-        proposed_expansion: List[str]
+        self, current_scope: List[str], proposed_expansion: List[str]
     ) -> tuple[bool, Optional[str]]:
         """
         Check if scope expansion is safe.
@@ -791,8 +769,7 @@ class ManifestGenerator:
 
         # Check governance
         gov_result = self.validator._check_governance(
-            scope_paths=list(added_paths),
-            readonly_context=[]
+            scope_paths=list(added_paths), readonly_context=[]
         )
 
         if not gov_result.valid:
@@ -802,7 +779,10 @@ class ManifestGenerator:
         from autopack.preflight_validator import MAX_FILES_PER_PHASE
 
         if len(proposed_expansion) > MAX_FILES_PER_PHASE:
-            return False, f"Expanded scope too large: {len(proposed_expansion)} > {MAX_FILES_PER_PHASE}"
+            return (
+                False,
+                f"Expanded scope too large: {len(proposed_expansion)} > {MAX_FILES_PER_PHASE}",
+            )
 
         return True, None
 
@@ -818,6 +798,7 @@ class ManifestGenerator:
             if PlanAnalyzer is None:
                 # Lazy import (only when actually needed)
                 from autopack.plan_analyzer import PlanAnalyzer as ImportedPlanAnalyzer
+
                 PlanAnalyzer = ImportedPlanAnalyzer
 
             self._plan_analyzer = PlanAnalyzer(
@@ -831,18 +812,14 @@ class ManifestGenerator:
         """Lazy initialization of GroundedContextBuilder"""
         if self._context_builder is None:
             from autopack.plan_analyzer_grounding import GroundedContextBuilder
+
             self._context_builder = GroundedContextBuilder(
-                repo_scanner=self.scanner,
-                pattern_matcher=self.matcher,
-                max_chars=4000
+                repo_scanner=self.scanner, pattern_matcher=self.matcher, max_chars=4000
             )
         return self._context_builder
 
     def _should_trigger_plan_analyzer(
-        self,
-        confidence: float,
-        scope: List[str],
-        category: str
+        self, confidence: float, scope: List[str], category: str
     ) -> bool:
         """
         Determine if PlanAnalyzer should run for this phase.
@@ -872,9 +849,7 @@ class ManifestGenerator:
         return False
 
     def _select_phases_for_analysis(
-        self,
-        phases: List[Dict],
-        confidence_scores: Dict[str, float]
+        self, phases: List[Dict], confidence_scores: Dict[str, float]
     ) -> List[Dict]:
         """
         Select up to MAX_PHASES_TO_ANALYZE phases, prioritizing lowest confidence.
@@ -896,7 +871,7 @@ class ManifestGenerator:
         candidates.sort(key=lambda x: x[1])
 
         # Take top MAX_PHASES_TO_ANALYZE
-        selected = [phase for phase, _ in candidates[:self.MAX_PHASES_TO_ANALYZE]]
+        selected = [phase for phase, _ in candidates[: self.MAX_PHASES_TO_ANALYZE]]
 
         # Log if we skipped any
         if len(candidates) > self.MAX_PHASES_TO_ANALYZE:
@@ -909,10 +884,7 @@ class ManifestGenerator:
         return selected
 
     async def _run_plan_analyzer_with_timeout(
-        self,
-        analyzer: Any,
-        phase: Dict,
-        grounded_context: Any
+        self, analyzer: Any, phase: Dict, grounded_context: Any
     ) -> Optional[Any]:
         """
         Run PlanAnalyzer with 30-second timeout protection.
@@ -923,10 +895,9 @@ class ManifestGenerator:
             # 30 second timeout (per Phase D guidance)
             analysis = await asyncio.wait_for(
                 analyzer.analyze_phase(
-                    phase_spec=phase,
-                    context=grounded_context.to_prompt_section()
+                    phase_spec=phase, context=grounded_context.to_prompt_section()
                 ),
-                timeout=30.0
+                timeout=30.0,
             )
             return analysis
 
@@ -947,11 +918,7 @@ class ManifestGenerator:
             return None
 
     def _attach_plan_analysis_metadata(
-        self,
-        phase: Dict,
-        analysis: Optional[Any],
-        status: str,
-        error: Optional[str] = None
+        self, phase: Dict, analysis: Optional[Any], status: str, error: Optional[str] = None
     ) -> None:
         """
         Attach PlanAnalyzer results as metadata (NEVER override deterministic scope).
@@ -964,6 +931,7 @@ class ManifestGenerator:
         }
 
         if status == "ran" and analysis:
+
             def _safe_list(value: Any) -> List[Any]:
                 """
                 Convert common list-like values to a list.
@@ -985,13 +953,15 @@ class ManifestGenerator:
             concerns = _safe_list(getattr(analysis, "concerns", None))
             recommendations = _safe_list(getattr(analysis, "recommendations", None))
 
-            metadata.update({
-                "feasible": getattr(analysis, "feasible", True),
-                "confidence": getattr(analysis, "confidence", 0.0),
-                "llm_recommended_scope": recommended_scope,  # Advisory only
-                "concerns": concerns,
-                "recommendations": recommendations,
-            })
+            metadata.update(
+                {
+                    "feasible": getattr(analysis, "feasible", True),
+                    "confidence": getattr(analysis, "confidence", 0.0),
+                    "llm_recommended_scope": recommended_scope,  # Advisory only
+                    "concerns": concerns,
+                    "recommendations": recommendations,
+                }
+            )
 
             # Flag discrepancies between deterministic and LLM scope
             deterministic_scope = set(phase.get("scope", {}).get("paths", []))
@@ -1002,7 +972,7 @@ class ManifestGenerator:
                 if diff:
                     metadata["scope_discrepancy"] = {
                         "llm_suggested_additional": list(diff),
-                        "note": "These files were suggested by LLM but not in deterministic scope"
+                        "note": "These files were suggested by LLM but not in deterministic scope",
                     }
 
         if error:
@@ -1014,9 +984,7 @@ class ManifestGenerator:
         phase["metadata"]["plan_analysis"] = metadata
 
     def _run_plan_analyzer_on_phases(
-        self,
-        phases: List[Dict],
-        confidence_scores: Dict[str, float]
+        self, phases: List[Dict], confidence_scores: Dict[str, float]
     ) -> List[str]:
         """
         Run PlanAnalyzer on selected low-confidence phases.
@@ -1051,7 +1019,7 @@ class ManifestGenerator:
                     goal=phase.get("goal", ""),
                     phase_id=phase_id,
                     description=phase.get("description", ""),
-                    match_result=match_result
+                    match_result=match_result,
                 )
 
                 if grounded_context.truncated:
@@ -1062,29 +1030,18 @@ class ManifestGenerator:
 
                 # Run PlanAnalyzer with timeout using Phase B helper
                 analysis = run_async_safe(
-                    self._run_plan_analyzer_with_timeout(
-                        analyzer,
-                        phase,
-                        grounded_context
-                    )
+                    self._run_plan_analyzer_with_timeout(analyzer, phase, grounded_context)
                 )
 
                 if analysis is None:
                     # Timeout or error occurred
                     self._attach_plan_analysis_metadata(
-                        phase,
-                        None,
-                        "failed",
-                        "LLM timeout or error (see logs)"
+                        phase, None, "failed", "LLM timeout or error (see logs)"
                     )
                     warnings.append(f"Phase '{phase_id}' PlanAnalyzer failed")
                 else:
                     # Success
-                    self._attach_plan_analysis_metadata(
-                        phase,
-                        analysis,
-                        "ran"
-                    )
+                    self._attach_plan_analysis_metadata(phase, analysis, "ran")
                     logger.info(f"PlanAnalyzer completed for phase {phase_id}")
 
             except Exception as e:
@@ -1092,10 +1049,7 @@ class ManifestGenerator:
                 error_msg = str(e)[:200]
                 logger.error(f"Unexpected error analyzing phase {phase_id}: {error_msg}")
                 self._attach_plan_analysis_metadata(
-                    phase,
-                    None,
-                    "failed",
-                    f"Unexpected error: {error_msg}"
+                    phase, None, "failed", f"Unexpected error: {error_msg}"
                 )
                 warnings.append(f"Phase '{phase_id}' PlanAnalyzer failed unexpectedly")
 

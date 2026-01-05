@@ -8,7 +8,7 @@ correctly in warn-first mode, with proper range validation and backwards compati
 import pytest
 from pydantic import ValidationError
 
-from autopack.intention_anchor import IntentionAnchor, IntentionConstraints, create_anchor
+from autopack.intention_anchor import IntentionConstraints, create_anchor
 from autopack.plan_utils import validate_intention_refs
 from autopack.schemas import IntentionRefs, PhaseCreate, PhaseResponse
 
@@ -238,7 +238,7 @@ def test_validate_valid_refs_no_warnings():
 
     refs_dict = {
         "success_criteria": [0, 2],  # Valid: 0 and 2 exist
-        "constraints_must": [1],      # Valid: index 1 exists
+        "constraints_must": [1],  # Valid: index 1 exists
         "constraints_must_not": [0],  # Valid: index 0 exists
         "constraints_preferences": [],
     }

@@ -1,24 +1,20 @@
 """
 Simplified unit tests for PhaseFinalizer (BUILD-127 Phase 1).
 """
+
 import json
-import pytest
-from pathlib import Path
-from unittest.mock import Mock, patch
-from datetime import datetime, timezone
+from unittest.mock import Mock
 
 from autopack.phase_finalizer import PhaseFinalizer, PhaseFinalizationDecision
-from autopack.test_baseline_tracker import TestBaseline, TestDelta
+from autopack.test_baseline_tracker import TestDelta
 
 
 def test_finalization_decision_can_complete():
     """Test decision allowing completion."""
     decision = PhaseFinalizationDecision(
-        can_complete=True,
-        status="COMPLETE",
-        reason="All gates passed"
+        can_complete=True, status="COMPLETE", reason="All gates passed"
     )
-    
+
     assert decision.can_complete
     assert decision.status == "COMPLETE"
 
@@ -29,9 +25,9 @@ def test_finalization_decision_blocked():
         can_complete=False,
         status="FAILED",
         reason="Test failures",
-        blocking_issues=["5 test failures"]
+        blocking_issues=["5 test failures"],
     )
-    
+
     assert not decision.can_complete
     assert len(decision.blocking_issues) == 1
 
@@ -40,12 +36,12 @@ def test_finalizer_all_gates_pass(tmp_path):
     """Test completion when all gates pass."""
     tracker = Mock()
     finalizer = PhaseFinalizer(tracker)
-    
+
     # Mock CI delta - no regressions
     delta = TestDelta(regression_severity="none")
     tracker.compute_full_delta.return_value = delta
     (tmp_path / "file1.py").write_text("# ok\n", encoding="utf-8")
-    
+
     decision = finalizer.assess_completion(
         phase_id="test-phase",
         phase_spec={"validation": {"tests": []}},
@@ -55,9 +51,9 @@ def test_finalizer_all_gates_pass(tmp_path):
         auditor_result={},
         deliverables=["file1.py"],
         applied_files=["file1.py"],
-        workspace=tmp_path
+        workspace=tmp_path,
     )
-    
+
     assert decision.can_complete
 
 
@@ -69,7 +65,7 @@ def test_finalizer_high_regression_blocks(tmp_path):
     # Mock CI delta - high regression
     delta = TestDelta(
         newly_failing_persistent=["test1", "test2", "test3", "test4", "test5"],
-        regression_severity="high"
+        regression_severity="high",
     )
     tracker.compute_full_delta.return_value = delta
     (tmp_path / "file1.py").write_text("# ok\n", encoding="utf-8")
@@ -88,7 +84,7 @@ def test_finalizer_high_regression_blocks(tmp_path):
         auditor_result={},
         deliverables=["file1.py"],
         applied_files=["file1.py"],
-        workspace=tmp_path
+        workspace=tmp_path,
     )
 
     assert not decision.can_complete
@@ -111,7 +107,7 @@ def test_finalizer_noop_patch_blocks_when_deliverables_missing(tmp_path):
         deliverables=["file1.py"],
         applied_files=[],
         workspace=tmp_path,
-        apply_stats={"mode": "patch", "patch_nonempty": False, "patch_bytes": 0}
+        apply_stats={"mode": "patch", "patch_nonempty": False, "patch_bytes": 0},
     )
 
     assert not decision.can_complete
@@ -137,7 +133,7 @@ def test_finalizer_noop_patch_allowed_when_deliverables_exist(tmp_path):
         deliverables=["file1.py"],
         applied_files=[],
         workspace=tmp_path,
-        apply_stats={"mode": "patch", "patch_nonempty": False, "patch_bytes": 0}
+        apply_stats={"mode": "patch", "patch_nonempty": False, "patch_bytes": 0},
     )
 
     assert decision.can_complete
@@ -164,8 +160,8 @@ def test_finalizer_noop_structured_edit_blocks_when_deliverables_missing(tmp_pat
             "mode": "structured_edit",
             "operations_planned": 5,
             "operations_applied": 0,
-            "operations_failed": 0
-        }
+            "operations_failed": 0,
+        },
     )
 
     assert not decision.can_complete
@@ -187,7 +183,7 @@ def test_finalizer_noop_allowed_with_allow_noop_flag(tmp_path):
         deliverables=["file1.py"],
         applied_files=[],
         workspace=tmp_path,
-        apply_stats={"mode": "patch", "patch_nonempty": False, "patch_bytes": 0}
+        apply_stats={"mode": "patch", "patch_nonempty": False, "patch_bytes": 0},
     )
 
     assert decision.can_complete
@@ -213,18 +209,14 @@ def test_finalizer_detect_noop_structured_edit_mode():
     finalizer = PhaseFinalizer(tracker)
 
     # Zero operations applied is a no-op
-    assert finalizer._detect_noop({
-        "mode": "structured_edit",
-        "operations_planned": 5,
-        "operations_applied": 0
-    })
+    assert finalizer._detect_noop(
+        {"mode": "structured_edit", "operations_planned": 5, "operations_applied": 0}
+    )
 
     # Some operations applied is not a no-op
-    assert not finalizer._detect_noop({
-        "mode": "structured_edit",
-        "operations_planned": 5,
-        "operations_applied": 3
-    })
+    assert not finalizer._detect_noop(
+        {"mode": "structured_edit", "operations_planned": 5, "operations_applied": 3}
+    )
 
 
 def test_finalizer_extract_collection_error_digest(tmp_path):
@@ -240,14 +232,14 @@ def test_finalizer_extract_collection_error_digest(tmp_path):
             {
                 "nodeid": "tests/test_foo.py",
                 "outcome": "failed",
-                "longrepr": "ImportError: No module named 'missing_module'\nAdditional line"
+                "longrepr": "ImportError: No module named 'missing_module'\nAdditional line",
             },
             {
                 "nodeid": "tests/test_bar.py",
                 "outcome": "failed",
-                "longrepr": "SyntaxError: invalid syntax"
-            }
-        ]
+                "longrepr": "SyntaxError: invalid syntax",
+            },
+        ],
     }
 
     report_path = tmp_path / "pytest_report.json"
@@ -274,12 +266,7 @@ def test_finalizer_extract_collection_error_digest_no_errors(tmp_path):
     report = {
         "exitcode": 0,
         "summary": {"total": 5, "passed": 5},
-        "collectors": [
-            {
-                "nodeid": "tests/test_foo.py",
-                "outcome": "passed"
-            }
-        ]
+        "collectors": [{"nodeid": "tests/test_foo.py", "outcome": "passed"}],
     }
 
     report_path = tmp_path / "pytest_report.json"

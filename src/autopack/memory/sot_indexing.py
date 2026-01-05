@@ -48,19 +48,19 @@ def chunk_text(
 
             # Try boundaries in order of preference:
             # 1. Double newline (paragraph break)
-            para_break = text.rfind('\n\n', search_start, end)
+            para_break = text.rfind("\n\n", search_start, end)
             if para_break != -1:
                 end = para_break + 2
 
             # 2. Markdown heading
-            elif '\n#' in text[search_start:end]:
-                heading_pos = text.rfind('\n#', search_start, end)
+            elif "\n#" in text[search_start:end]:
+                heading_pos = text.rfind("\n#", search_start, end)
                 if heading_pos != -1:
                     end = heading_pos + 1
 
             # 3. Sentence endings (. ? !)
             else:
-                for boundary in ['. ', '? ', '! ']:
+                for boundary in [". ", "? ", "! "]:
                     boundary_pos = text.rfind(boundary, search_start, end)
                     if boundary_pos != -1:
                         end = boundary_pos + len(boundary)
@@ -88,10 +88,10 @@ def extract_heading_from_chunk(chunk: str) -> Optional[str]:
     Returns:
         Heading text without markdown symbols, or None
     """
-    lines = chunk.split('\n')
+    lines = chunk.split("\n")
     for line in lines[:10]:  # Check first 10 lines
         # Match markdown headings (### Heading)
-        match = re.match(r'^#{1,6}\s+(.+)$', line.strip())
+        match = re.match(r"^#{1,6}\s+(.+)$", line.strip())
         if match:
             return match.group(1).strip()
     return None
@@ -113,8 +113,8 @@ def extract_timestamp_from_chunk(chunk: str) -> Optional[datetime]:
         Parsed datetime or None
     """
     patterns = [
-        r'(\d{4}-\d{2}-\d{2}T\d{2}:\d{2})',  # ISO datetime
-        r'(\d{4}-\d{2}-\d{2})',               # Date only
+        r"(\d{4}-\d{2}-\d{2}T\d{2}:\d{2})",  # ISO datetime
+        r"(\d{4}-\d{2}-\d{2})",  # Date only
     ]
 
     for pattern in patterns:
@@ -122,7 +122,7 @@ def extract_timestamp_from_chunk(chunk: str) -> Optional[datetime]:
         if match:
             try:
                 date_str = match.group(1)
-                if 'T' in date_str:
+                if "T" in date_str:
                     return datetime.fromisoformat(date_str)
                 else:
                     return datetime.fromisoformat(f"{date_str}T00:00:00")
@@ -211,7 +211,7 @@ def chunk_sot_file(
                 "heading": heading,
                 "created_at": timestamp.isoformat() if timestamp else None,
                 "content_preview": chunk[:500],
-            }
+            },
         }
 
         chunk_docs.append(doc)
@@ -245,9 +245,16 @@ def json_to_embedding_text(obj: Any, file_name: str) -> List[Tuple[str, str]]:
             if "setup" in obj and isinstance(obj["setup"], dict):
                 setup = obj["setup"]
                 if "commands" in setup and isinstance(setup["commands"], list):
-                    items.append(("setup.commands", f"Setup commands: {', '.join(setup['commands'][:10])}"))
+                    items.append(
+                        ("setup.commands", f"Setup commands: {', '.join(setup['commands'][:10])}")
+                    )
                 if "dependencies" in setup and isinstance(setup["dependencies"], list):
-                    items.append(("setup.dependencies", f"Dependencies: {', '.join(setup['dependencies'][:20])}"))
+                    items.append(
+                        (
+                            "setup.dependencies",
+                            f"Dependencies: {', '.join(setup['dependencies'][:20])}",
+                        )
+                    )
 
             # Structure/entrypoints
             if "structure" in obj and isinstance(obj["structure"], dict):
@@ -329,7 +336,7 @@ def chunk_sot_json(
         # Normalize line endings for Windows-safe hashing
         content = content.replace("\r\n", "\n")
         obj = json.loads(content)
-    except (json.JSONDecodeError, UnicodeDecodeError) as e:
+    except (json.JSONDecodeError, UnicodeDecodeError):
         # Log error but don't crash indexing
         return []
 
@@ -359,7 +366,7 @@ def chunk_sot_json(
                 "chunk_index": idx,
                 "content_hash": content_hash,
                 "content_preview": text[:500],
-            }
+            },
         }
 
         chunk_docs.append(doc)

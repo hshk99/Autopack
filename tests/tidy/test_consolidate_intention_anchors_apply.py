@@ -9,14 +9,13 @@ Intention behind these tests: Verify that apply mode:
 - Inserts stable markers for tracking
 """
 
-import json
 import tempfile
 from pathlib import Path
 
-import pytest
 
 # Import the script functions directly
 import sys
+
 project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root / "scripts" / "tidy"))
 
@@ -57,11 +56,7 @@ def test_check_marker_exists_present():
     """Test marker check when marker is in file."""
     with tempfile.TemporaryDirectory() as tmpdir:
         file_path = Path(tmpdir) / "test.md"
-        content = (
-            "# Test\n\n"
-            "Some content.\n\n"
-            "<!-- IA_CONSOLIDATION: hash=abc123 -->\n"
-        )
+        content = "# Test\n\n" "Some content.\n\n" "<!-- IA_CONSOLIDATION: hash=abc123 -->\n"
         file_path.write_text(content, encoding="utf-8")
 
         assert check_marker_exists(file_path, "abc123") is True
@@ -128,7 +123,9 @@ def test_apply_consolidation_entry_idempotent():
         # Verify only one occurrence
         content = file_path.read_text(encoding="utf-8")
         assert content.count("### run-001") == 1
-        assert content.count("<!-- IA_CONSOLIDATION: anchor_id=IA-001 version=1 hash=abc123 -->") == 1
+        assert (
+            content.count("<!-- IA_CONSOLIDATION: anchor_id=IA-001 version=1 hash=abc123 -->") == 1
+        )
 
 
 def test_apply_consolidation_entry_creates_file():

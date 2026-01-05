@@ -78,13 +78,15 @@ class GitHubGatherer:
 
             repositories = []
             for item in data.get("items", [])[:max_repos]:
-                repositories.append({
-                    "full_name": item.get("full_name"),
-                    "description": item.get("description"),
-                    "stars": item.get("stargazers_count"),
-                    "url": item.get("html_url"),
-                    "topics": item.get("topics", []),
-                })
+                repositories.append(
+                    {
+                        "full_name": item.get("full_name"),
+                        "description": item.get("description"),
+                        "stars": item.get("stargazers_count"),
+                        "url": item.get("html_url"),
+                        "topics": item.get("topics", []),
+                    }
+                )
 
             return repositories
 

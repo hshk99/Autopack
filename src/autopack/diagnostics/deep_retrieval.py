@@ -17,10 +17,9 @@ Per BUILD-043/044/045 patterns: strict isolation, no protected path modification
 """
 
 import logging
-from typing import Dict, List, Optional, Any, Tuple
-from datetime import datetime, timedelta
+from typing import Dict, List, Any, Tuple
+from datetime import datetime
 from pathlib import Path
-import json
 
 logger = logging.getLogger(__name__)
 
@@ -53,10 +52,7 @@ class DeepRetrieval:
         self.logger = logger
 
     def retrieve(
-        self,
-        phase_id: str,
-        handoff_bundle: Dict[str, Any],
-        priority: str = "medium"
+        self, phase_id: str, handoff_bundle: Dict[str, Any], priority: str = "medium"
     ) -> Dict[str, Any]:
         """Retrieve targeted snippets with strict per-category caps.
 
@@ -87,7 +83,7 @@ class DeepRetrieval:
                 "sot_files_size": 0,
                 "memory_entries_count": 0,
                 "memory_entries_size": 0,
-            }
+            },
         }
 
         # Category 1: Run-local artifacts
@@ -102,9 +98,7 @@ class DeepRetrieval:
         sot_files = self._retrieve_sot_files(phase_id, handoff_bundle)
         retrieval_bundle["sot_files"] = sot_files
         retrieval_bundle["stats"]["sot_files_count"] = len(sot_files)
-        retrieval_bundle["stats"]["sot_files_size"] = sum(
-            len(f["content"]) for f in sot_files
-        )
+        retrieval_bundle["stats"]["sot_files_size"] = sum(len(f["content"]) for f in sot_files)
 
         # Category 3: Memory (optional)
         memory_entries = self._retrieve_memory_entries(phase_id, handoff_bundle)
@@ -147,15 +141,14 @@ class DeepRetrieval:
 
         # Apply recency window
         cutoff_time = datetime.now().timestamp() - (self.RECENCY_WINDOW_HOURS * 3600)
-        recent_files = [
-            f for f in artifact_files
-            if f.stat().st_mtime >= cutoff_time
-        ]
+        recent_files = [f for f in artifact_files if f.stat().st_mtime >= cutoff_time]
 
         # If no recent files, fall back to most recent overall
-        files_to_process = recent_files if recent_files else artifact_files[:self.MAX_RUN_ARTIFACTS]
+        files_to_process = (
+            recent_files if recent_files else artifact_files[: self.MAX_RUN_ARTIFACTS]
+        )
 
-        for artifact_file in files_to_process[:self.MAX_RUN_ARTIFACTS]:
+        for artifact_file in files_to_process[: self.MAX_RUN_ARTIFACTS]:
             if total_size >= self.MAX_RUN_ARTIFACTS_SIZE:
                 break
 
@@ -166,12 +159,16 @@ class DeepRetrieval:
                 if len(content) > remaining_budget:
                     content = content[:remaining_budget]
 
-                artifacts.append({
-                    "path": str(artifact_file.relative_to(self.run_dir)),
-                    "content": content,
-                    "size": len(content),
-                    "modified": datetime.fromtimestamp(artifact_file.stat().st_mtime).isoformat(),
-                })
+                artifacts.append(
+                    {
+                        "path": str(artifact_file.relative_to(self.run_dir)),
+                        "content": content,
+                        "size": len(content),
+                        "modified": datetime.fromtimestamp(
+                            artifact_file.stat().st_mtime
+                        ).isoformat(),
+                    }
+                )
                 total_size += len(content)
 
             except Exception as e:
@@ -180,7 +177,9 @@ class DeepRetrieval:
 
         return artifacts
 
-    def _retrieve_sot_files(self, phase_id: str, handoff_bundle: Dict[str, Any]) -> List[Dict[str, Any]]:
+    def _retrieve_sot_files(
+        self, phase_id: str, handoff_bundle: Dict[str, Any]
+    ) -> List[Dict[str, Any]]:
         """Retrieve SOT files with relevance ranking.
 
         Args:
@@ -211,7 +210,7 @@ class DeepRetrieval:
         # Rank by relevance (keyword matches)
         ranked_files = self._rank_by_relevance(candidate_files, keywords)
 
-        for sot_file, score in ranked_files[:self.MAX_SOT_FILES]:
+        for sot_file, score in ranked_files[: self.MAX_SOT_FILES]:
             if total_size >= self.MAX_SOT_FILES_SIZE:
                 break
 
@@ -222,12 +221,14 @@ class DeepRetrieval:
                 if len(content) > remaining_budget:
                     content = content[:remaining_budget]
 
-                sot_files.append({
-                    "path": str(sot_file.relative_to(self.repo_root)),
-                    "content": content,
-                    "size": len(content),
-                    "relevance_score": score,
-                })
+                sot_files.append(
+                    {
+                        "path": str(sot_file.relative_to(self.repo_root)),
+                        "content": content,
+                        "size": len(content),
+                        "relevance_score": score,
+                    }
+                )
                 total_size += len(content)
 
             except Exception as e:
@@ -236,7 +237,9 @@ class DeepRetrieval:
 
         return sot_files
 
-    def _retrieve_memory_entries(self, phase_id: str, handoff_bundle: Dict[str, Any]) -> List[Dict[str, Any]]:
+    def _retrieve_memory_entries(
+        self, phase_id: str, handoff_bundle: Dict[str, Any]
+    ) -> List[Dict[str, Any]]:
         """Retrieve memory entries (if available).
 
         Args:
@@ -278,7 +281,9 @@ class DeepRetrieval:
         # Deduplicate
         return list(set(keywords))
 
-    def _rank_by_relevance(self, files: List[Path], keywords: List[str]) -> List[Tuple[Path, float]]:
+    def _rank_by_relevance(
+        self, files: List[Path], keywords: List[str]
+    ) -> List[Tuple[Path, float]]:
         """Rank files by keyword relevance.
 
         Args:

@@ -1,13 +1,10 @@
 """Integration tests for package detector with complex scenarios"""
 
 import pytest
-from pathlib import Path
 
 from autopack.diagnostics.package_detector import PackageDetector
 from tests.autopack.diagnostics.fixtures.package_scenarios import (
     INTEGRATION_SCENARIOS,
-    create_scenario,
-    temp_project_dir,
 )
 
 
@@ -93,9 +90,7 @@ setup(
         (temp_project_dir / "dev.txt").write_text("pytest\nblack\n")
 
         # Main requirements with includes
-        (temp_project_dir / "requirements.txt").write_text(
-            "-r base.txt\n-r dev.txt\nrequests\n"
-        )
+        (temp_project_dir / "requirements.txt").write_text("-r base.txt\n-r dev.txt\nrequests\n")
 
         detector = PackageDetector()
         packages = detector.detect_packages(str(temp_project_dir))

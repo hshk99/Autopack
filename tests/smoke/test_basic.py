@@ -14,6 +14,7 @@ def test_imports():
         from autopack import autonomous_executor
         from autopack import memory
         from autopack import models
+
         assert True
     except ImportError as e:
         pytest.fail(f"Failed to import core modules: {e}")
@@ -33,6 +34,7 @@ def test_database_models():
     """Test that database models can be imported."""
     try:
         from autopack.models import Phase, Run, DecisionLog, PlanChange
+
         assert True
     except ImportError as e:
         pytest.fail(f"Failed to import database models: {e}")

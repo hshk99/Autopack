@@ -17,8 +17,6 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
-from datetime import datetime
-from pathlib import Path
 from typing import Any, Literal
 
 from autopack.autonomous.budgeting import BudgetInputs, compute_budget_remaining
@@ -73,9 +71,7 @@ def initialize_intention_first_loop(
     Returns:
         ExecutorWiringState with initialized loop and run state
     """
-    logger.info(
-        f"[IntentionFirstLoop] Initializing for run {run_id}, project {project_id}"
-    )
+    logger.info(f"[IntentionFirstLoop] Initializing for run {run_id}, project {project_id}")
 
     # Create loop instance
     loop = IntentionFirstLoop()
@@ -118,9 +114,7 @@ def initialize_intention_first_loop(
     )
 
 
-def get_or_create_phase_state(
-    wiring: ExecutorWiringState, phase_id: str
-) -> PhaseLoopState:
+def get_or_create_phase_state(wiring: ExecutorWiringState, phase_id: str) -> PhaseLoopState:
     """
     Get or create phase state (INSERTION POINT 2).
 
@@ -181,9 +175,7 @@ def decide_stuck_action(
     )
     budget_remaining = compute_budget_remaining(budget_inputs)
 
-    logger.info(
-        f"[IntentionFirstLoop] Phase {phase_id}: budget_remaining={budget_remaining:.2%}"
-    )
+    logger.info(f"[IntentionFirstLoop] Phase {phase_id}: budget_remaining={budget_remaining:.2%}")
 
     # Call policy
     decision = wiring.loop.decide_when_stuck(
@@ -192,7 +184,9 @@ def decide_stuck_action(
         budget_remaining=budget_remaining,
     )
 
-    explanation = f"Stuck reason: {reason.value}, decision: {decision.value}, budget: {budget_remaining:.1%}"
+    explanation = (
+        f"Stuck reason: {reason.value}, decision: {decision.value}, budget: {budget_remaining:.1%}"
+    )
     logger.info(f"[IntentionFirstLoop] {explanation}")
 
     return decision, explanation
@@ -224,15 +218,11 @@ def apply_model_escalation(
 
     # Enforce max 1 escalation per phase
     if phase_state.escalations_used >= 1:
-        logger.warning(
-            f"[IntentionFirstLoop] Phase {phase_id}: max escalations (1) already used"
-        )
+        logger.warning(f"[IntentionFirstLoop] Phase {phase_id}: max escalations (1) already used")
         return None
 
     # Escalate tier via loop
-    entry = wiring.loop.escalate_model(
-        wiring.run_state, phase_state, current_tier, safety_profile
-    )
+    entry = wiring.loop.escalate_model(wiring.run_state, phase_state, current_tier, safety_profile)
 
     if entry is None:
         logger.warning(
@@ -278,19 +268,13 @@ def generate_scope_reduction_proposal(
         Validated ScopeReductionProposal, or None if generation/validation failed
     """
     # Generate prompt
-    prompt = wiring.loop.build_scope_reduction_prompt(
-        anchor, current_plan, budget_remaining
-    )
+    prompt = wiring.loop.build_scope_reduction_prompt(anchor, current_plan, budget_remaining)
 
-    logger.info(
-        f"[IntentionFirstLoop] Generated scope reduction prompt ({len(prompt)} chars)"
-    )
+    logger.info(f"[IntentionFirstLoop] Generated scope reduction prompt ({len(prompt)} chars)")
 
     # TODO: Call LLM to get JSON proposal (requires LlmService integration)
     # For now, return None (implementation deferred to executor integration)
-    logger.warning(
-        "[IntentionFirstLoop] Scope reduction LLM call not yet wired (deferred)"
-    )
+    logger.warning("[IntentionFirstLoop] Scope reduction LLM call not yet wired (deferred)")
     return None
 
 
@@ -329,9 +313,7 @@ def increment_phase_iteration(wiring: ExecutorWiringState, phase_id: str) -> Non
     )
 
 
-def increment_consecutive_failures(
-    wiring: ExecutorWiringState, phase_id: str
-) -> None:
+def increment_consecutive_failures(wiring: ExecutorWiringState, phase_id: str) -> None:
     """
     Increment consecutive failures counter.
 

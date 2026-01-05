@@ -6,10 +6,6 @@ All tests are isolated (no network, no real repo modifications).
 
 import pytest
 import subprocess
-import tempfile
-import shutil
-from pathlib import Path
-from datetime import datetime
 
 from autopack.rollback_manager import RollbackManager
 
@@ -26,7 +22,9 @@ class TestRollbackManager:
         # Initialize git repo
         subprocess.run(["git", "init"], cwd=repo_path, check=True, capture_output=True)
         subprocess.run(["git", "config", "user.name", "Test User"], cwd=repo_path, check=True)
-        subprocess.run(["git", "config", "user.email", "test@example.com"], cwd=repo_path, check=True)
+        subprocess.run(
+            ["git", "config", "user.email", "test@example.com"], cwd=repo_path, check=True
+        )
 
         # Create initial commit
         test_file = repo_path / "test.txt"
@@ -40,9 +38,7 @@ class TestRollbackManager:
     def rollback_manager(self, temp_git_repo):
         """Create rollback manager for temp repo"""
         return RollbackManager(
-            workspace=temp_git_repo,
-            run_id="test-run-123",
-            phase_id="test-phase-456"
+            workspace=temp_git_repo, run_id="test-run-123", phase_id="test-phase-456"
         )
 
     def test_create_savepoint_success(self, rollback_manager, temp_git_repo):
@@ -59,7 +55,7 @@ class TestRollbackManager:
             ["git", "tag", "-l", rollback_manager.savepoint_tag],
             cwd=temp_git_repo,
             capture_output=True,
-            text=True
+            text=True,
         )
         assert rollback_manager.savepoint_tag in result.stdout
 
@@ -68,7 +64,7 @@ class TestRollbackManager:
         manager = RollbackManager(
             workspace=temp_git_repo,
             run_id="run/with/slashes and spaces",
-            phase_id="phase/with/slashes"
+            phase_id="phase/with/slashes",
         )
 
         success, error = manager.create_savepoint()
@@ -140,10 +136,7 @@ class TestRollbackManager:
 
         # Verify tag exists
         result = subprocess.run(
-            ["git", "tag", "-l", tag_name],
-            cwd=temp_git_repo,
-            capture_output=True,
-            text=True
+            ["git", "tag", "-l", tag_name], cwd=temp_git_repo, capture_output=True, text=True
         )
         assert tag_name in result.stdout
 
@@ -152,10 +145,7 @@ class TestRollbackManager:
 
         # Verify tag deleted
         result = subprocess.run(
-            ["git", "tag", "-l", tag_name],
-            cwd=temp_git_repo,
-            capture_output=True,
-            text=True
+            ["git", "tag", "-l", tag_name], cwd=temp_git_repo, capture_output=True, text=True
         )
         assert tag_name not in result.stdout
 
@@ -176,10 +166,7 @@ class TestRollbackManager:
         # Verify all tags exist
         for tag in tags:
             result = subprocess.run(
-                ["git", "tag", "-l", tag],
-                cwd=temp_git_repo,
-                capture_output=True,
-                text=True
+                ["git", "tag", "-l", tag], cwd=temp_git_repo, capture_output=True, text=True
             )
             assert tag in result.stdout
 
@@ -194,10 +181,7 @@ class TestRollbackManager:
         """Rollback should not affect committed git history"""
         # Get current commit hash
         result = subprocess.run(
-            ["git", "rev-parse", "HEAD"],
-            cwd=temp_git_repo,
-            capture_output=True,
-            text=True
+            ["git", "rev-parse", "HEAD"], cwd=temp_git_repo, capture_output=True, text=True
         )
         original_commit = result.stdout.strip()
 
@@ -213,10 +197,7 @@ class TestRollbackManager:
 
         # Verify HEAD is still at same commit
         result = subprocess.run(
-            ["git", "rev-parse", "HEAD"],
-            cwd=temp_git_repo,
-            capture_output=True,
-            text=True
+            ["git", "rev-parse", "HEAD"], cwd=temp_git_repo, capture_output=True, text=True
         )
         current_commit = result.stdout.strip()
 
@@ -251,7 +232,9 @@ class TestRollbackManager:
         assert success is True
         assert test_file.read_text() == "Initial\n"
 
-    def test_rollback_handles_subprocess_timeout(self, rollback_manager, temp_git_repo, monkeypatch):
+    def test_rollback_handles_subprocess_timeout(
+        self, rollback_manager, temp_git_repo, monkeypatch
+    ):
         """Rollback should handle subprocess timeouts gracefully"""
         import subprocess
 
@@ -281,10 +264,7 @@ class TestRollbackManager:
 
         # Both tags should exist
         result = subprocess.run(
-            ["git", "tag", "-l", "save-before-*"],
-            cwd=temp_git_repo,
-            capture_output=True,
-            text=True
+            ["git", "tag", "-l", "save-before-*"], cwd=temp_git_repo, capture_output=True, text=True
         )
 
         assert manager1.savepoint_tag in result.stdout

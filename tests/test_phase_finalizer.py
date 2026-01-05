@@ -7,9 +7,9 @@ Tests:
 - Phase validation_tests overlap
 - Warning vs blocking thresholds
 """
+
 import pytest
-from pathlib import Path
-from unittest.mock import Mock, patch
+from unittest.mock import Mock
 from datetime import datetime, timezone
 
 from autopack.phase_finalizer import PhaseFinalizer, PhaseFinalizationDecision
@@ -42,7 +42,7 @@ def sample_baseline():
         error_tests=0,
         skipped_tests=0,
         failing_test_ids=["tests/test_old.py::test_fail"],
-        error_signatures={}
+        error_signatures={},
     )
 
 
@@ -52,9 +52,7 @@ class TestPhaseFinalizationDecision:
     def test_can_complete_true(self):
         """Test decision allowing completion."""
         decision = PhaseFinalizationDecision(
-            can_complete=True,
-            status="COMPLETE",
-            reason="All gates passed"
+            can_complete=True, status="COMPLETE", reason="All gates passed"
         )
 
         assert decision.can_complete
@@ -68,7 +66,7 @@ class TestPhaseFinalizationDecision:
             status="FAILED",
             reason="Test failures",
             blocking_issues=["5 test failures"],
-            warnings=["Code quality low"]
+            warnings=["Code quality low"],
         )
 
         assert not decision.can_complete
@@ -80,12 +78,7 @@ class TestPhaseFinalizationDecision:
 class TestPhaseFinalizer:
     """Test PhaseFinalizer."""
 
-    def test_assess_completion_all_gates_pass(
-        self,
-        finalizer,
-        mock_baseline_tracker,
-        tmp_path
-    ):
+    def test_assess_completion_all_gates_pass(self, finalizer, mock_baseline_tracker, tmp_path):
         """Test completion when all gates pass."""
         # Mock CI delta - no regressions
         delta = TestDelta(regression_severity="none")
@@ -94,9 +87,7 @@ class TestPhaseFinalizer:
         # Deliverables exist in workspace
         (tmp_path / "file1.py").write_text("# ok\n", encoding="utf-8")
 
-        phase_spec = {
-            "validation": {"tests": []}
-        }
+        phase_spec = {"validation": {"tests": []}}
 
         report_path = tmp_path / "report.json"
         report_path.write_text("{}", encoding="utf-8")
@@ -110,7 +101,7 @@ class TestPhaseFinalizer:
             auditor_result={},
             deliverables=["file1.py"],
             applied_files=["file1.py"],
-            workspace=tmp_path
+            workspace=tmp_path,
         )
 
         assert decision.can_complete
@@ -118,17 +109,12 @@ class TestPhaseFinalizer:
         assert len(decision.blocking_issues) == 0
 
     def test_assess_completion_ci_persistent_failures_block(
-        self,
-        finalizer,
-        mock_baseline_tracker,
-        sample_baseline,
-        tmp_path
+        self, finalizer, mock_baseline_tracker, sample_baseline, tmp_path
     ):
         """Test CI persistent failures block completion."""
         # Mock CI delta - persistent failures
         delta = TestDelta(
-            newly_failing_persistent=["tests/test_new.py::test_fail"],
-            regression_severity="high"
+            newly_failing_persistent=["tests/test_new.py::test_fail"], regression_severity="high"
         )
         mock_baseline_tracker.compute_full_delta.return_value = delta
 
@@ -149,7 +135,7 @@ class TestPhaseFinalizer:
             auditor_result={},
             deliverables=["file1.py"],
             applied_files=["file1.py"],
-            workspace=tmp_path
+            workspace=tmp_path,
         )
 
         assert not decision.can_complete
@@ -157,28 +143,20 @@ class TestPhaseFinalizer:
         assert any("HIGH regression" in issue for issue in decision.blocking_issues)
 
     def test_assess_completion_phase_validation_tests_block(
-        self,
-        finalizer,
-        mock_baseline_tracker,
-        sample_baseline,
-        tmp_path
+        self, finalizer, mock_baseline_tracker, sample_baseline, tmp_path
     ):
         """Test phase validation_tests failures block even on medium severity."""
         # Mock CI delta - medium severity, but overlaps with phase validation_tests
         delta = TestDelta(
             newly_failing_persistent=["tests/test_critical.py::test_important"],
-            regression_severity="low"  # Would normally not block
+            regression_severity="low",  # Would normally not block
         )
         mock_baseline_tracker.compute_full_delta.return_value = delta
 
         (tmp_path / "file1.py").write_text("# ok\n", encoding="utf-8")
 
         # Phase specifies this test as critical
-        phase_spec = {
-            "validation": {
-                "tests": ["tests/test_critical.py::test_important"]
-            }
-        }
+        phase_spec = {"validation": {"tests": ["tests/test_critical.py::test_important"]}}
 
         report_path = tmp_path / "report.json"
         report_path.write_text("{}", encoding="utf-8")
@@ -192,7 +170,7 @@ class TestPhaseFinalizer:
             auditor_result={},
             deliverables=["file1.py"],
             applied_files=["file1.py"],
-            workspace=tmp_path
+            workspace=tmp_path,
         )
 
         assert not decision.can_complete
@@ -200,16 +178,12 @@ class TestPhaseFinalizer:
         assert any("Phase validation tests failed" in issue for issue in decision.blocking_issues)
 
     def test_assess_completion_collection_errors_block(
-        self,
-        finalizer,
-        mock_baseline_tracker,
-        sample_baseline,
-        tmp_path
+        self, finalizer, mock_baseline_tracker, sample_baseline, tmp_path
     ):
         """Test persistent collection errors block completion."""
         delta = TestDelta(
             new_collection_errors_persistent=["tests/test_broken.py::test_import_fail"],
-            regression_severity="low"
+            regression_severity="low",
         )
         mock_baseline_tracker.compute_full_delta.return_value = delta
 
@@ -229,17 +203,14 @@ class TestPhaseFinalizer:
             auditor_result={},
             deliverables=["file1.py"],
             applied_files=["file1.py"],
-            workspace=tmp_path
+            workspace=tmp_path,
         )
 
         assert not decision.can_complete
         assert any("collection errors" in issue for issue in decision.blocking_issues)
 
     def test_assess_completion_failed_collectors_block_without_baseline(
-        self,
-        finalizer,
-        mock_baseline_tracker,
-        tmp_path
+        self, finalizer, mock_baseline_tracker, tmp_path
     ):
         """
         pytest-json-report encodes collection/import errors as failed collectors (exitcode=2),
@@ -265,19 +236,23 @@ class TestPhaseFinalizer:
   ]
 }
             """.strip(),
-            encoding="utf-8"
+            encoding="utf-8",
         )
 
         decision = finalizer.assess_completion(
             phase_id="test-phase",
             phase_spec={"validation": {"tests": []}},
-            ci_result={"report_path": str(report_path), "passed": False, "suspicious_zero_tests": True},
+            ci_result={
+                "report_path": str(report_path),
+                "passed": False,
+                "suspicious_zero_tests": True,
+            },
             baseline=None,
             quality_report={"quality_level": "high", "is_blocked": False},
             auditor_result={},
             deliverables=["file1.py"],
             applied_files=["file1.py"],
-            workspace=tmp_path
+            workspace=tmp_path,
         )
 
         assert not decision.can_complete
@@ -287,16 +262,11 @@ class TestPhaseFinalizer:
         assert not mock_baseline_tracker.compute_full_delta.called
 
     def test_assess_completion_flaky_tests_warn_only(
-        self,
-        finalizer,
-        mock_baseline_tracker,
-        sample_baseline,
-        tmp_path
+        self, finalizer, mock_baseline_tracker, sample_baseline, tmp_path
     ):
         """Test flaky tests generate warnings, not blocks."""
         delta = TestDelta(
-            flaky_suspects=["tests/test_flaky.py::test_intermittent"],
-            regression_severity="none"
+            flaky_suspects=["tests/test_flaky.py::test_intermittent"], regression_severity="none"
         )
         mock_baseline_tracker.compute_full_delta.return_value = delta
         (tmp_path / "file1.py").write_text("# ok\n", encoding="utf-8")
@@ -315,17 +285,14 @@ class TestPhaseFinalizer:
             auditor_result={},
             deliverables=["file1.py"],
             applied_files=["file1.py"],
-            workspace=tmp_path
+            workspace=tmp_path,
         )
 
         assert decision.can_complete  # Should NOT block
         assert any("Flaky tests" in w for w in decision.warnings)
 
     def test_assess_completion_quality_gate_blocked(
-        self,
-        finalizer,
-        mock_baseline_tracker,
-        tmp_path
+        self, finalizer, mock_baseline_tracker, tmp_path
     ):
         """Test quality gate blocks completion."""
         delta = TestDelta(regression_severity="none")
@@ -343,17 +310,14 @@ class TestPhaseFinalizer:
             auditor_result={},
             deliverables=["file1.py"],
             applied_files=["file1.py"],
-            workspace=tmp_path
+            workspace=tmp_path,
         )
 
         assert not decision.can_complete
         assert any("Quality gate blocked" in issue for issue in decision.blocking_issues)
 
     def test_assess_completion_missing_deliverables_block(
-        self,
-        finalizer,
-        mock_baseline_tracker,
-        tmp_path
+        self, finalizer, mock_baseline_tracker, tmp_path
     ):
         """Test missing deliverables block completion."""
         delta = TestDelta(regression_severity="none")
@@ -370,23 +334,19 @@ class TestPhaseFinalizer:
             auditor_result={},
             deliverables=["file1.py", "tests/test_missing.py"],
             applied_files=["file1.py"],
-            workspace=tmp_path
+            workspace=tmp_path,
         )
 
         assert not decision.can_complete
         assert any("Missing required deliverables" in issue for issue in decision.blocking_issues)
 
     def test_assess_completion_medium_regression_blocks(
-        self,
-        finalizer,
-        mock_baseline_tracker,
-        sample_baseline,
-        tmp_path
+        self, finalizer, mock_baseline_tracker, sample_baseline, tmp_path
     ):
         """Test medium regression blocks completion (delta-based strict gating)."""
         delta = TestDelta(
             newly_failing_persistent=["test1.py::test1", "test2.py::test2"],
-            regression_severity="medium"
+            regression_severity="medium",
         )
         mock_baseline_tracker.compute_full_delta.return_value = delta
         (tmp_path / "file1.py").write_text("# ok\n", encoding="utf-8")
@@ -406,7 +366,7 @@ class TestPhaseFinalizer:
             auditor_result={},
             deliverables=["file1.py"],
             applied_files=["file1.py"],
-            workspace=tmp_path
+            workspace=tmp_path,
         )
 
         assert not decision.can_complete

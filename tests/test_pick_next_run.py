@@ -10,5 +10,3 @@ def test_infer_run_type_autopack_maintenance() -> None:
 def test_infer_run_type_project_build() -> None:
     assert infer_run_type("research-system-v26") == "project_build"
     assert infer_run_type("fileorg-backend-fixes-v4-20251130") == "project_build"
-
-

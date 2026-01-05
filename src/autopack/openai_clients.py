@@ -45,8 +45,8 @@ class OpenAIBuilderClient:
         project_rules: Optional[List] = None,
         run_hints: Optional[List] = None,
         use_full_file_mode: bool = True,
-        config = None,
-        retrieved_context: Optional[str] = None
+        config=None,
+        retrieved_context: Optional[str] = None,
     ) -> BuilderResult:
         """Execute a phase and generate code patch
 
@@ -94,7 +94,9 @@ class OpenAIBuilderClient:
                 try:
                     estimator = TokenEstimator(workspace=Path.cwd())
                     effective_category = task_category or (
-                        "documentation" if estimator._all_doc_deliverables(deliverables) else "implementation"
+                        "documentation"
+                        if estimator._all_doc_deliverables(deliverables)
+                        else "implementation"
                     )
                     token_estimate = estimator.estimate(
                         deliverables=deliverables,
@@ -107,13 +109,15 @@ class OpenAIBuilderClient:
 
                     # Persist estimator output for telemetry
                     phase_spec["_estimated_output_tokens"] = token_estimate.estimated_tokens
-                    phase_spec.setdefault("metadata", {}).setdefault("token_prediction", {}).update({
-                        "predicted_output_tokens": token_estimate.estimated_tokens,
-                        "selected_budget": token_selected_budget,
-                        "confidence": token_estimate.confidence,
-                        "source": "token_estimator",
-                        "estimated_category": token_estimate.category,
-                    })
+                    phase_spec.setdefault("metadata", {}).setdefault("token_prediction", {}).update(
+                        {
+                            "predicted_output_tokens": token_estimate.estimated_tokens,
+                            "selected_budget": token_selected_budget,
+                            "confidence": token_estimate.confidence,
+                            "source": "token_estimator",
+                            "estimated_category": token_estimate.category,
+                        }
+                    )
 
                     logger.info(
                         f"[BUILD-142:OpenAI] Token estimate: {token_estimate.estimated_tokens} output tokens "
@@ -121,7 +125,9 @@ class OpenAIBuilderClient:
                         f"selected budget: {token_selected_budget}"
                     )
                 except Exception as e:
-                    logger.warning(f"[BUILD-142:OpenAI] Token estimation failed, using fallback: {e}")
+                    logger.warning(
+                        f"[BUILD-142:OpenAI] Token estimation failed, using fallback: {e}"
+                    )
                     token_estimate = None
                     token_selected_budget = None
 
@@ -142,13 +148,16 @@ class OpenAIBuilderClient:
             # Note: OpenAI client doesn't have builder_mode="full_file", but we implement the logic
             # for consistency and future-proofing
             normalized_category = task_category.lower() if task_category else ""
-            is_docs_like = normalized_category in ["docs", "documentation", "doc_synthesis", "doc_sot_update"]
+            is_docs_like = normalized_category in [
+                "docs",
+                "documentation",
+                "doc_synthesis",
+                "doc_sot_update",
+            ]
 
             # Apply 16384 floor conditionally (skip for docs-like with intentionally low budgets)
             should_apply_floor = (
-                not token_selected_budget or
-                token_selected_budget >= 16384 or
-                not is_docs_like
+                not token_selected_budget or token_selected_budget >= 16384 or not is_docs_like
             )
 
             if should_apply_floor:
@@ -165,14 +174,20 @@ class OpenAIBuilderClient:
 
             # BUILD-142 PARITY: Store selected_budget (estimator intent) BEFORE P4 enforcement
             if token_selected_budget:
-                phase_spec.setdefault("metadata", {}).setdefault("token_prediction", {})["selected_budget"] = token_selected_budget
+                phase_spec.setdefault("metadata", {}).setdefault("token_prediction", {})[
+                    "selected_budget"
+                ] = token_selected_budget
 
             # BUILD-142 PARITY: P4 enforcement (final max_tokens >= selected_budget)
             if token_selected_budget:
                 max_tokens = max(max_tokens or 0, token_selected_budget)
                 # Store actual_max_tokens (final ceiling) AFTER P4 enforcement
-                phase_spec.setdefault("metadata", {}).setdefault("token_prediction", {})["actual_max_tokens"] = max_tokens
-                logger.info(f"[BUILD-142:OpenAI:P4] Final max_tokens enforcement: {max_tokens} (token_selected_budget={token_selected_budget})")
+                phase_spec.setdefault("metadata", {}).setdefault("token_prediction", {})[
+                    "actual_max_tokens"
+                ] = max_tokens
+                logger.info(
+                    f"[BUILD-142:OpenAI:P4] Final max_tokens enforcement: {max_tokens} (token_selected_budget={token_selected_budget})"
+                )
 
             # Build system prompt for Builder
             system_prompt = self._build_system_prompt()
@@ -223,11 +238,13 @@ class OpenAIBuilderClient:
                     model_used=model,
                     error=error_msg,
                     prompt_tokens=prompt_tokens,
-                    completion_tokens=completion_tokens
+                    completion_tokens=completion_tokens,
                 )
 
             # Log successful completion
-            logger.debug(f"Builder completed: {tokens_used} tokens (prompt={prompt_tokens}, completion={completion_tokens}), patch length: {len(patch_content)}")
+            logger.debug(
+                f"Builder completed: {tokens_used} tokens (prompt={prompt_tokens}, completion={completion_tokens}), patch length: {len(patch_content)}"
+            )
 
             return BuilderResult(
                 success=True,
@@ -236,20 +253,22 @@ class OpenAIBuilderClient:
                 tokens_used=tokens_used,
                 model_used=model,
                 prompt_tokens=prompt_tokens,
-                completion_tokens=completion_tokens
+                completion_tokens=completion_tokens,
             )
 
         except Exception as e:
             # GPT-4o Priority 3 Fix: Enhanced error logging
             logger.error(f"Builder execution failed: {str(e)}")
-            logger.debug(f"Response content: {response.choices[0].message.content if 'response' in locals() else 'No response'}")
+            logger.debug(
+                f"Response content: {response.choices[0].message.content if 'response' in locals() else 'No response'}"
+            )
             return BuilderResult(
                 success=False,
                 patch_content="",
                 builder_messages=[f"Builder error: {str(e)}"],
                 tokens_used=0,
                 model_used=model,
-                error=str(e)
+                error=str(e),
             )
 
     def _extract_diff_from_text(self, text: str) -> str:
@@ -263,25 +282,25 @@ class OpenAIBuilderClient:
         """
         import re
 
-        lines = text.split('\n')
+        lines = text.split("\n")
         diff_lines = []
         in_diff = False
 
         # Regex to match valid hunk headers: @@ -start,count +start,count @@
-        hunk_header_pattern = re.compile(r'^@@\s+-\d+,\d+\s+\+\d+,\d+\s+@@\s*$')
+        re.compile(r"^@@\s+-\d+,\d+\s+\+\d+,\d+\s+@@\s*$")
 
         for line in lines:
             # Start of diff
-            if line.startswith('diff --git'):
+            if line.startswith("diff --git"):
                 in_diff = True
                 diff_lines.append(line)
             # Continuation of diff
             elif in_diff:
                 # Clean up malformed hunk headers (remove trailing context)
-                if line.startswith('@@'):
+                if line.startswith("@@"):
                     # Extract the valid hunk header part only
                     # Match pattern: @@ -start,count +start,count @@
-                    match = re.match(r'^(@@\s+-\d+,\d+\s+\+\d+,\d+\s+@@)', line)
+                    match = re.match(r"^(@@\s+-\d+,\d+\s+\+\d+,\d+\s+@@)", line)
                     if match:
                         # Use only the valid hunk header, discard anything after
                         clean_line = match.group(1)
@@ -291,24 +310,26 @@ class OpenAIBuilderClient:
                         logger.warning(f"Skipping malformed hunk header: {line[:80]}")
                         continue
                 # Check if still in diff (various diff markers)
-                elif (line.startswith(('index ', '---', '+++', '+', '-', ' ')) or
-                    line.startswith('new file mode') or
-                    line.startswith('deleted file mode') or
-                    line.startswith('similarity index') or
-                    line.startswith('rename from') or
-                    line.startswith('rename to') or
-                    line == ''):
+                elif (
+                    line.startswith(("index ", "---", "+++", "+", "-", " "))
+                    or line.startswith("new file mode")
+                    or line.startswith("deleted file mode")
+                    or line.startswith("similarity index")
+                    or line.startswith("rename from")
+                    or line.startswith("rename to")
+                    or line == ""
+                ):
                     diff_lines.append(line)
                 # Next diff section
-                elif line.startswith('diff --git'):
+                elif line.startswith("diff --git"):
                     diff_lines.append(line)
                 # End of diff (explanatory text or other content)
                 else:
                     # Stop if we hit markdown fence or explanatory text
-                    if line.startswith('```') or line.startswith('#'):
+                    if line.startswith("```") or line.startswith("#"):
                         break
 
-        return '\n'.join(diff_lines) if diff_lines else ""
+        return "\n".join(diff_lines) if diff_lines else ""
 
     def _build_system_prompt(self) -> str:
         """Build system prompt for Builder"""
@@ -356,7 +377,7 @@ Guidelines:
         phase_spec: Dict,
         file_context: Optional[Dict],
         project_rules: Optional[List] = None,
-        run_hints: Optional[List] = None
+        run_hints: Optional[List] = None,
     ) -> str:
         """Build user prompt with phase details"""
         prompt_parts = []
@@ -378,41 +399,41 @@ Guidelines:
                     prompt_parts.append("\n")
 
         # Milestone 2: Inject intention anchor (canonical project goal)
-        if run_id := phase_spec.get('run_id'):
+        if run_id := phase_spec.get("run_id"):
             from .intention_anchor import load_and_render_for_builder
 
             anchor_section = load_and_render_for_builder(
                 run_id=run_id,
-                phase_id=phase_spec.get('phase_id', 'unknown'),
-                base_dir='.',  # Use current directory (.autonomous_runs/<run_id>/)
+                phase_id=phase_spec.get("phase_id", "unknown"),
+                base_dir=".",  # Use current directory (.autonomous_runs/<run_id>/)
             )
             if anchor_section:
                 prompt_parts.append(anchor_section)
                 prompt_parts.append("\n")
 
         # Add phase details
-        prompt_parts.append(f"## Phase Specification\n")
+        prompt_parts.append("## Phase Specification\n")
         prompt_parts.append(f"**Phase ID:** {phase_spec.get('phase_id')}\n")
         prompt_parts.append(f"**Task Category:** {phase_spec.get('task_category')}\n")
         prompt_parts.append(f"**Complexity:** {phase_spec.get('complexity')}\n")
         prompt_parts.append(f"**Description:** {phase_spec.get('description')}\n")
 
         # Add acceptance criteria if present
-        if acceptance_criteria := phase_spec.get('acceptance_criteria'):
-            prompt_parts.append(f"\n**Acceptance Criteria:**\n")
+        if acceptance_criteria := phase_spec.get("acceptance_criteria"):
+            prompt_parts.append("\n**Acceptance Criteria:**\n")
             for idx, criterion in enumerate(acceptance_criteria, 1):
                 prompt_parts.append(f"{idx}. {criterion}\n")
 
         # Add file context if provided
         if file_context:
-            prompt_parts.append(f"\n## Repository Context\n")
-            if existing_files := file_context.get('existing_files'):
-                prompt_parts.append(f"**Existing Files:**\n")
+            prompt_parts.append("\n## Repository Context\n")
+            if existing_files := file_context.get("existing_files"):
+                prompt_parts.append("**Existing Files:**\n")
                 for file_path, content in existing_files.items():
                     prompt_parts.append(f"\n### {file_path}\n```\n{content}\n```\n")
 
         # Add instructions
-        prompt_parts.append(f"\n## Instructions\n")
+        prompt_parts.append("\n## Instructions\n")
         prompt_parts.append("Generate a complete implementation as a unified git diff/patch.")
 
         return "\n".join(prompt_parts)
@@ -441,7 +462,7 @@ class OpenAIAuditorClient:
         # OpenAI client default model (fallback provider).
         model: str = "gpt-4o",
         project_rules: Optional[List] = None,
-        run_hints: Optional[List] = None
+        run_hints: Optional[List] = None,
     ) -> AuditorResult:
         """Review a patch and find issues
 
@@ -494,9 +515,7 @@ class OpenAIAuditorClient:
 
             # Determine approval
             issues = result_json.get("issues", [])
-            has_major_issues = any(
-                issue.get("severity") == "major" for issue in issues
-            )
+            has_major_issues = any(issue.get("severity") == "major" for issue in issues)
             approved = not has_major_issues
 
             return AuditorResult(
@@ -506,22 +525,24 @@ class OpenAIAuditorClient:
                 tokens_used=tokens_used,
                 model_used=model,
                 prompt_tokens=prompt_tokens,
-                completion_tokens=completion_tokens
+                completion_tokens=completion_tokens,
             )
 
         except Exception as e:
             return AuditorResult(
                 approved=False,
-                issues_found=[{
-                    "severity": "major",
-                    "category": "auditor_error",
-                    "description": f"Auditor error: {str(e)}",
-                    "location": "unknown"
-                }],
+                issues_found=[
+                    {
+                        "severity": "major",
+                        "category": "auditor_error",
+                        "description": f"Auditor error: {str(e)}",
+                        "location": "unknown",
+                    }
+                ],
                 auditor_messages=[f"Auditor error: {str(e)}"],
                 tokens_used=0,
                 model_used=model,
-                error=str(e)
+                error=str(e),
             )
 
     def _build_system_prompt(self) -> str:
@@ -568,7 +589,7 @@ Be thorough but fair. Approve patches that work correctly even if they have mino
         patch_content: str,
         phase_spec: Dict,
         project_rules: Optional[List] = None,
-        run_hints: Optional[List] = None
+        run_hints: Optional[List] = None,
     ) -> str:
         """Build user prompt with patch and context"""
         prompt_parts = []
@@ -590,19 +611,19 @@ Be thorough but fair. Approve patches that work correctly even if they have mino
                     prompt_parts.append("\n")
 
         # Milestone 2: Inject intention anchor (for validation context)
-        if run_id := phase_spec.get('run_id'):
+        if run_id := phase_spec.get("run_id"):
             from .intention_anchor import load_and_render_for_auditor
 
             anchor_section = load_and_render_for_auditor(
                 run_id=run_id,
-                base_dir='.',  # Use current directory (.autonomous_runs/<run_id>/)
+                base_dir=".",  # Use current directory (.autonomous_runs/<run_id>/)
             )
             if anchor_section:
                 prompt_parts.append(anchor_section)
                 prompt_parts.append("\n")
 
         # Add phase context
-        prompt_parts.append(f"## Phase Context\n")
+        prompt_parts.append("## Phase Context\n")
         prompt_parts.append(f"**Task Category:** {phase_spec.get('task_category')}\n")
         prompt_parts.append(f"**Complexity:** {phase_spec.get('complexity')}\n")
         prompt_parts.append(f"**Description:** {phase_spec.get('description')}\n")
@@ -611,7 +632,7 @@ Be thorough but fair. Approve patches that work correctly even if they have mino
         prompt_parts.append(f"\n## Patch to Review\n```diff\n{patch_content}\n```\n")
 
         # Add review instructions
-        prompt_parts.append(f"\n## Review Instructions\n")
+        prompt_parts.append("\n## Review Instructions\n")
         prompt_parts.append("Review this patch carefully for:")
         prompt_parts.append("1. Security vulnerabilities (SQL injection, XSS, etc.)")
         prompt_parts.append("2. Bugs and logic errors")

@@ -27,8 +27,7 @@ Usage:
 """
 
 import re
-from pathlib import Path
-from typing import Dict, List, Tuple, Optional
+from typing import Dict, List, Optional
 from dataclasses import dataclass
 
 from autopack.repo_scanner import RepoScanner
@@ -37,6 +36,7 @@ from autopack.repo_scanner import RepoScanner
 @dataclass
 class MatchResult:
     """Result of pattern matching"""
+
     category: str
     confidence: float
     scope_paths: List[str]
@@ -51,14 +51,26 @@ class MatchResult:
 CATEGORY_PATTERNS = {
     "authentication": {
         "keywords": [
-            "auth", "login", "logout", "jwt", "token", "session",
-            "password", "credential", "sign in", "sign out",
-            "authentication", "authorize", "oauth"
+            "auth",
+            "login",
+            "logout",
+            "jwt",
+            "token",
+            "session",
+            "password",
+            "credential",
+            "sign in",
+            "sign out",
+            "authentication",
+            "authorize",
+            "oauth",
         ],
         "anchor_dirs": [
-            "src/auth", "src/authentication",
-            "backend/auth", "api/auth",
-            "src/middleware/auth"
+            "src/auth",
+            "src/authentication",
+            "backend/auth",
+            "api/auth",
+            "src/middleware/auth",
         ],
         "scope_templates": [
             "{anchor}/**/*.py",
@@ -66,188 +78,172 @@ CATEGORY_PATTERNS = {
             "src/api/routers/auth*.py",
             "src/middleware/auth*.py",
         ],
-        "readonly_templates": [
-            "src/database/models.py",
-            "src/config.py",
-            "src/main.py"
-        ],
-        "test_templates": [
-            "tests/auth/**/*.py",
-            "tests/api/test_auth*.py"
-        ]
+        "readonly_templates": ["src/database/models.py", "src/config.py", "src/main.py"],
+        "test_templates": ["tests/auth/**/*.py", "tests/api/test_auth*.py"],
     },
-
     "api_endpoint": {
         "keywords": [
-            "api", "endpoint", "route", "router", "rest",
-            "get", "post", "put", "delete", "patch",
-            "fastapi", "flask", "django"
+            "api",
+            "endpoint",
+            "route",
+            "router",
+            "rest",
+            "get",
+            "post",
+            "put",
+            "delete",
+            "patch",
+            "fastapi",
+            "flask",
+            "django",
         ],
         "anchor_dirs": [
-            "src/api/endpoints", "src/api/routes", "src/api/routers",
-            "backend/api", "api/endpoints"
+            "src/api/endpoints",
+            "src/api/routes",
+            "src/api/routers",
+            "backend/api",
+            "api/endpoints",
         ],
         "scope_templates": [
             "{anchor}/**/*.py",
             "src/api/**/*.py",
         ],
-        "readonly_templates": [
-            "src/database/models.py",
-            "src/auth/**/*.py",
-            "src/main.py"
-        ],
+        "readonly_templates": ["src/database/models.py", "src/auth/**/*.py", "src/main.py"],
         "test_templates": [
             "tests/api/**/*.py",
-        ]
+        ],
     },
-
     "database": {
         "keywords": [
-            "database", "db", "model", "schema", "migration",
-            "sql", "query", "table", "orm", "sqlalchemy",
-            "postgres", "sqlite", "alembic"
+            "database",
+            "db",
+            "model",
+            "schema",
+            "migration",
+            "sql",
+            "query",
+            "table",
+            "orm",
+            "sqlalchemy",
+            "postgres",
+            "sqlite",
+            "alembic",
         ],
-        "anchor_dirs": [
-            "src/database", "src/db", "src/models",
-            "backend/database", "api/models"
-        ],
-        "scope_templates": [
-            "{anchor}/**/*.py",
-            "src/models/**/*.py",
-            "alembic/versions/**/*.py"
-        ],
-        "readonly_templates": [
-            "src/config.py",
-            "src/main.py"
-        ],
-        "test_templates": [
-            "tests/database/**/*.py",
-            "tests/models/**/*.py"
-        ]
+        "anchor_dirs": ["src/database", "src/db", "src/models", "backend/database", "api/models"],
+        "scope_templates": ["{anchor}/**/*.py", "src/models/**/*.py", "alembic/versions/**/*.py"],
+        "readonly_templates": ["src/config.py", "src/main.py"],
+        "test_templates": ["tests/database/**/*.py", "tests/models/**/*.py"],
     },
-
     "frontend": {
         "keywords": [
-            "frontend", "ui", "component", "react", "vue", "angular",
-            "jsx", "tsx", "css", "html", "form", "button",
-            "modal", "page", "view"
+            "frontend",
+            "ui",
+            "component",
+            "react",
+            "vue",
+            "angular",
+            "jsx",
+            "tsx",
+            "css",
+            "html",
+            "form",
+            "button",
+            "modal",
+            "page",
+            "view",
         ],
         "anchor_dirs": [
-            "src/frontend", "frontend", "src/ui", "ui",
-            "src/components", "components", "src/pages", "pages"
+            "src/frontend",
+            "frontend",
+            "src/ui",
+            "ui",
+            "src/components",
+            "components",
+            "src/pages",
+            "pages",
         ],
         "scope_templates": [
             "{anchor}/**/*.tsx",
             "{anchor}/**/*.jsx",
             "{anchor}/**/*.ts",
             "{anchor}/**/*.js",
-            "{anchor}/**/*.css"
+            "{anchor}/**/*.css",
         ],
         "readonly_templates": [
             "src/api/**/*.py",
         ],
-        "test_templates": [
-            "tests/frontend/**/*.test.tsx",
-            "tests/frontend/**/*.test.ts"
-        ]
+        "test_templates": ["tests/frontend/**/*.test.tsx", "tests/frontend/**/*.test.ts"],
     },
-
     "config": {
-        "keywords": [
-            "config", "configuration", "setting", "environment",
-            "env", "dotenv", ".env"
-        ],
-        "anchor_dirs": [
-            "src/config", "config"
-        ],
-        "scope_templates": [
-            "src/config.py",
-            "src/settings.py",
-            "config/**/*.py",
-            ".env.example"
-        ],
+        "keywords": ["config", "configuration", "setting", "environment", "env", "dotenv", ".env"],
+        "anchor_dirs": ["src/config", "config"],
+        "scope_templates": ["src/config.py", "src/settings.py", "config/**/*.py", ".env.example"],
         "readonly_templates": [],
-        "test_templates": [
-            "tests/test_config.py"
-        ]
+        "test_templates": ["tests/test_config.py"],
     },
-
     "tests": {
-        "keywords": [
-            "test", "testing", "pytest", "unittest",
-            "coverage", "fixture", "mock"
-        ],
+        "keywords": ["test", "testing", "pytest", "unittest", "coverage", "fixture", "mock"],
         "anchor_dirs": [],  # Don't use broad anchor - use specific templates
         "scope_templates": [
             "tests/**/*.py",  # Root-level tests only (not src/autopack/tests)
-            "test/**/*.py"
+            "test/**/*.py",
         ],
-        "readonly_templates": [
-            "src/**/*.py"
-        ],
-        "test_templates": []
+        "readonly_templates": ["src/**/*.py"],
+        "test_templates": [],
     },
-
     "memory": {
         "keywords": [
-            "memory", "embedding", "vector", "qdrant",
-            "semantic", "retrieval", "search", "index"
+            "memory",
+            "embedding",
+            "vector",
+            "qdrant",
+            "semantic",
+            "retrieval",
+            "search",
+            "index",
         ],
-        "anchor_dirs": [
-            "src/autopack/memory", "src/memory"
-        ],
-        "scope_templates": [
-            "{anchor}/**/*.py",
-            "src/autopack/memory/**/*.py"
-        ],
-        "readonly_templates": [
-            "src/database/models.py",
-            "src/config.py"
-        ],
-        "test_templates": [
-            "tests/autopack/memory/**/*.py"
-        ]
+        "anchor_dirs": ["src/autopack/memory", "src/memory"],
+        "scope_templates": ["{anchor}/**/*.py", "src/autopack/memory/**/*.py"],
+        "readonly_templates": ["src/database/models.py", "src/config.py"],
+        "test_templates": ["tests/autopack/memory/**/*.py"],
     },
-
     "autonomous_executor": {
         "keywords": [
-            "autonomous executor", "builder client", "autonomous loop",
-            "phase execution", "orchestration loop"
+            "autonomous executor",
+            "builder client",
+            "autonomous loop",
+            "phase execution",
+            "orchestration loop",
         ],
         "anchor_dirs": [],  # Don't use broad directory anchor
         "scope_templates": [
             "src/autopack/autonomous_executor.py",
             "src/autopack/builder.py",
-            "src/autopack/runner.py"
+            "src/autopack/runner.py",
         ],
-        "readonly_templates": [
-            "src/autopack/memory/**/*.py",
-            "src/database/models.py"
-        ],
+        "readonly_templates": ["src/autopack/memory/**/*.py", "src/database/models.py"],
         "test_templates": [
             "tests/autopack/test_autonomous_executor.py",
-            "tests/autopack/test_builder.py"
-        ]
+            "tests/autopack/test_builder.py",
+        ],
     },
-
     "governance": {
         "keywords": [
-            "governed apply", "scope validation", "protection rules",
-            "governance enforcement", "approval workflow"
+            "governed apply",
+            "scope validation",
+            "protection rules",
+            "governance enforcement",
+            "approval workflow",
         ],
         "anchor_dirs": [],  # Don't use broad directory anchor
         "scope_templates": [
             "src/autopack/governed_apply.py",
             "src/autopack/scope_validator.py",
-            "src/autopack/preflight_validator.py"
+            "src/autopack/preflight_validator.py",
         ],
-        "readonly_templates": [
-            "src/database/models.py"
-        ],
-        "test_templates": [
-            "tests/autopack/test_governed_apply.py"
-        ]
-    }
+        "readonly_templates": ["src/database/models.py"],
+        "test_templates": ["tests/autopack/test_governed_apply.py"],
+    },
 }
 
 
@@ -276,12 +272,7 @@ class PatternMatcher:
         self.run_type = run_type
         self.repo_structure = repo_scanner.scan()
 
-    def match(
-        self,
-        goal: str,
-        phase_id: str,
-        description: Optional[str] = None
-    ) -> MatchResult:
+    def match(self, goal: str, phase_id: str, description: Optional[str] = None) -> MatchResult:
         """
         Match goal to category and generate scope.
 
@@ -334,15 +325,10 @@ class PatternMatcher:
             confidence_breakdown=best_score["breakdown"],
             anchor_files_found=best_score["anchors_found"],
             match_density=best_score["match_density"],
-            directory_locality=best_score["locality"]
+            directory_locality=best_score["locality"],
         )
 
-    def _score_category(
-        self,
-        text: str,
-        category: str,
-        patterns: Dict
-    ) -> Dict:
+    def _score_category(self, text: str, category: str, patterns: Dict) -> Dict:
         """
         Score category match with EARNED confidence.
 
@@ -386,12 +372,12 @@ class PatternMatcher:
                 "anchor_files": anchor_signal,
                 "match_density": density_signal,
                 "directory_locality": locality_signal,
-                "git_history": git_signal
+                "git_history": git_signal,
             },
             "anchors_found": anchors_found,
             "match_count": match_count,
             "match_density": match_density,
-            "locality": locality
+            "locality": locality,
         }
 
     def _count_keyword_matches(self, text: str, keywords: List[str]) -> int:
@@ -434,11 +420,7 @@ class PatternMatcher:
 
         return False
 
-    def _generate_scope(
-        self,
-        category: str,
-        patterns: Dict
-    ) -> List[str]:
+    def _generate_scope(self, category: str, patterns: Dict) -> List[str]:
         """
         Generate scope paths (EXPLICIT file list, not globs).
 
@@ -447,6 +429,7 @@ class PatternMatcher:
         """
 
         import logging
+
         logger = logging.getLogger(__name__)
 
         scope_paths = []
@@ -476,7 +459,7 @@ class PatternMatcher:
                         f"limiting to {self.MAX_SCOPE_FILES} most recently modified"
                     )
                     # Take first N files (repo_scanner sorts by mtime)
-                    anchor_files_list = anchor_files_list[:self.MAX_SCOPE_FILES]
+                    anchor_files_list = anchor_files_list[: self.MAX_SCOPE_FILES]
 
                 scope_paths.extend(anchor_files_list)
 
@@ -496,7 +479,7 @@ class PatternMatcher:
                                 f"Template '{filled}' matched {len(matched)} files, "
                                 f"limiting to {self.MAX_SCOPE_FILES}"
                             )
-                            matched = matched[:self.MAX_SCOPE_FILES]
+                            matched = matched[: self.MAX_SCOPE_FILES]
                         scope_paths.extend(matched)
                     continue
 
@@ -509,7 +492,7 @@ class PatternMatcher:
                         f"Template '{template}' matched {len(matched)} files, "
                         f"limiting to {self.MAX_SCOPE_FILES}"
                     )
-                    matched = matched[:self.MAX_SCOPE_FILES]
+                    matched = matched[: self.MAX_SCOPE_FILES]
 
                 scope_paths.extend(matched)
 
@@ -526,7 +509,7 @@ class PatternMatcher:
                 f"Category '{category}' generated {len(scope_paths)} total files, "
                 f"limiting to {self.MAX_SCOPE_FILES}"
             )
-            scope_paths = scope_paths[:self.MAX_SCOPE_FILES]
+            scope_paths = scope_paths[: self.MAX_SCOPE_FILES]
 
         # Filter out protected paths to avoid governance failures (project_build defaults).
         scope_paths = self._filter_scope_paths(scope_paths)
@@ -574,11 +557,7 @@ class PatternMatcher:
             allowed.append(p)
         return allowed
 
-    def _generate_readonly_context(
-        self,
-        category: str,
-        patterns: Dict
-    ) -> List[str]:
+    def _generate_readonly_context(self, category: str, patterns: Dict) -> List[str]:
         """
         Generate read-only context files.
 
@@ -586,6 +565,7 @@ class PatternMatcher:
         """
 
         import logging
+
         logger = logging.getLogger(__name__)
 
         readonly_paths = []
@@ -601,7 +581,7 @@ class PatternMatcher:
                     f"Readonly template '{template}' matched {len(matched)} files, "
                     f"limiting to {self.MAX_SCOPE_FILES}"
                 )
-                matched = matched[:self.MAX_SCOPE_FILES]
+                matched = matched[: self.MAX_SCOPE_FILES]
 
             readonly_paths.extend(matched)
 
@@ -614,7 +594,7 @@ class PatternMatcher:
                 f"Category '{category}' generated {len(readonly_paths)} readonly files, "
                 f"limiting to {self.MAX_SCOPE_FILES}"
             )
-            readonly_paths = readonly_paths[:self.MAX_SCOPE_FILES]
+            readonly_paths = readonly_paths[: self.MAX_SCOPE_FILES]
 
         return readonly_paths
 
@@ -641,11 +621,11 @@ class PatternMatcher:
         regex_parts: List[str] = []
         i = 0
         while i < len(pattern):
-            if pattern[i:i+3] == "**/":
+            if pattern[i : i + 3] == "**/":
                 regex_parts.append(r"(?:.*/)?")
                 i += 3
                 continue
-            if pattern[i:i+2] == "**":
+            if pattern[i : i + 2] == "**":
                 regex_parts.append(r".*")
                 i += 2
                 continue
@@ -685,11 +665,11 @@ class PatternMatcher:
                 "anchor_files": 0.0,
                 "match_density": 0.0,
                 "directory_locality": 0.0,
-                "git_history": 0.0
+                "git_history": 0.0,
             },
             anchor_files_found=[],
             match_density=0.0,
-            directory_locality=0.0
+            directory_locality=0.0,
         )
 
     def get_test_scope(self, category: str) -> List[str]:
@@ -709,11 +689,7 @@ class PatternMatcher:
 
         return sorted(set(test_paths))
 
-    def expand_scope_with_siblings(
-        self,
-        file_path: str,
-        current_scope: List[str]
-    ) -> List[str]:
+    def expand_scope_with_siblings(self, file_path: str, current_scope: List[str]) -> List[str]:
         """
         Expand scope to include sibling files.
 
@@ -730,11 +706,7 @@ class PatternMatcher:
 
         return sorted(expanded)
 
-    def expand_scope_to_parent(
-        self,
-        file_path: str,
-        current_scope: List[str]
-    ) -> List[str]:
+    def expand_scope_to_parent(self, file_path: str, current_scope: List[str]) -> List[str]:
         """
         Expand scope from file to parent directory.
 

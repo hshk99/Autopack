@@ -1,9 +1,7 @@
 """Tests for token efficiency observability (BUILD-145)"""
 
 import pytest
-from datetime import datetime, timezone
-from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 from autopack.usage_recorder import (
     record_token_efficiency_metrics,
@@ -12,7 +10,7 @@ from autopack.usage_recorder import (
 )
 from autopack.artifact_loader import ArtifactLoader, get_artifact_substitution_stats
 from autopack.context_budgeter import BudgetSelection
-from autopack.database import Base, get_db
+from autopack.database import Base
 from sqlalchemy import create_engine
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import sessionmaker
@@ -48,7 +46,7 @@ class TestTokenEfficiencyMetrics:
             files_kept=15,
             files_omitted=3,
         )
-        
+
         assert metrics.run_id == "test-run-123"
         assert metrics.phase_id == "phase-001"
         assert metrics.artifact_substitutions == 5
@@ -62,7 +60,7 @@ class TestTokenEfficiencyMetrics:
     def test_get_stats_empty_run(self, test_db):
         """Should return zero stats for run with no metrics"""
         stats = get_token_efficiency_stats(test_db, "nonexistent-run")
-        
+
         assert stats["run_id"] == "nonexistent-run"
         assert stats["total_phases"] == 0
         assert stats["total_artifact_substitutions"] == 0
@@ -84,9 +82,9 @@ class TestTokenEfficiencyMetrics:
                 files_kept=10,
                 files_omitted=2,
             )
-        
+
         stats = get_token_efficiency_stats(test_db, "test-run-123")
-        
+
         assert stats["total_phases"] == 3
         assert stats["total_artifact_substitutions"] == 6  # 2 * 3
         assert stats["total_tokens_saved_artifacts"] == 3000  # 1000 * 3
@@ -112,7 +110,7 @@ class TestTokenEfficiencyMetrics:
             files_kept=12,
             files_omitted=3,
         )
-        
+
         record_token_efficiency_metrics(
             db=test_db,
             run_id="test-run-123",
@@ -125,13 +123,13 @@ class TestTokenEfficiencyMetrics:
             files_kept=8,
             files_omitted=5,
         )
-        
+
         stats = get_token_efficiency_stats(test_db, "test-run-123")
-        
+
         # Averages
         assert stats["avg_artifact_substitutions_per_phase"] == 3.0  # (4 + 2) / 2
         assert stats["avg_tokens_saved_per_phase"] == 1500.0  # (2000 + 1000) / 2
-        
+
         # Budget utilization
         assert stats["budget_utilization"] == 0.7  # (8000 + 6000) / (10000 + 10000)
 
@@ -149,7 +147,7 @@ class TestTokenEfficiencyMetrics:
             files_kept=0,
             files_omitted=0,
         )
-        
+
         stats = get_token_efficiency_stats(test_db, "test-run-123")
         assert stats["budget_utilization"] == 0
 
@@ -175,9 +173,9 @@ class TestArtifactSubstitutionStats:
             "file1.py": "a" * 1000,
             "file2.py": "b" * 2000,
         }
-        
+
         count, tokens_saved = get_artifact_substitution_stats(artifact_loader, files)
-        
+
         assert count == 0
         assert tokens_saved == 0
 
@@ -186,24 +184,24 @@ class TestArtifactSubstitutionStats:
         # Create artifacts
         artifacts_dir = temp_workspace / ".autonomous_runs" / "test-run-123" / "phases"
         artifacts_dir.mkdir(parents=True)
-        
+
         phase_summary = artifacts_dir / "phase_01_test.md"
         phase_summary.write_text("file1.py: summary (100 chars)" + "a" * 300)  # ~100 tokens
-        
+
         files = {
             "file1.py": "a" * 4000,  # ~1000 tokens
             "file2.py": "b" * 2000,  # ~500 tokens (no artifact)
         }
-        
+
         count, tokens_saved = get_artifact_substitution_stats(artifact_loader, files)
-        
+
         assert count == 1  # Only file1.py has artifact
         assert tokens_saved > 0  # Should save ~900 tokens
 
     def test_empty_files_dict(self, artifact_loader):
         """Should handle empty files dictionary"""
         count, tokens_saved = get_artifact_substitution_stats(artifact_loader, {})
-        
+
         assert count == 0
         assert tokens_saved == 0
 
@@ -214,7 +212,7 @@ class TestDashboardIntegration:
     def test_token_efficiency_in_run_status(self):
         """Token efficiency should be optional in DashboardRunStatus for backwards compatibility"""
         from autopack.dashboard_schemas import DashboardRunStatus
-        
+
         # Without token_efficiency (backwards compatible)
         status = DashboardRunStatus(
             run_id="test-run",
@@ -236,7 +234,7 @@ class TestDashboardIntegration:
             major_issues_count=0,
         )
         assert status.token_efficiency is None
-        
+
         # With token_efficiency
         status_with_efficiency = DashboardRunStatus(
             run_id="test-run",
@@ -279,7 +277,7 @@ class TestExecutorTelemetryIntegration:
             files_kept_count=2,
             files_omitted_count=1,
         )
-        
+
         metrics = record_token_efficiency_metrics(
             db=test_db,
             run_id="test-run",
@@ -292,7 +290,7 @@ class TestExecutorTelemetryIntegration:
             files_kept=budget_selection.files_kept_count,
             files_omitted=budget_selection.files_omitted_count,
         )
-        
+
         assert metrics.budget_mode == "semantic"
         assert metrics.budget_used == 8000
         assert metrics.budget_cap == 10000
@@ -313,7 +311,7 @@ class TestExecutorTelemetryIntegration:
             files_kept=0,
             files_omitted=0,
         )
-        
+
         assert metrics.artifact_substitutions == 3
         assert metrics.tokens_saved_artifacts == 1500
         assert metrics.budget_mode == "unknown"
@@ -321,13 +319,13 @@ class TestExecutorTelemetryIntegration:
     def test_telemetry_logging_format(self, caplog, test_db):
         """Should log compact metrics in expected format"""
         import logging
-        
+
         # Create minimal mock executor
         class MockExecutor:
             def __init__(self):
                 self.run_id = "test-run"
                 self.db = test_db
-            
+
             def _record_token_efficiency_telemetry(
                 self,
                 phase,
@@ -336,7 +334,7 @@ class TestExecutorTelemetryIntegration:
                 budget_selection,
             ):
                 phase_id = phase.get("id", "unknown")
-                
+
                 if budget_selection:
                     budget_mode = budget_selection.mode
                     budget_used = budget_selection.used_tokens_est
@@ -349,7 +347,7 @@ class TestExecutorTelemetryIntegration:
                     budget_cap = 0
                     files_kept = 0
                     files_omitted = 0
-                
+
                 logger = logging.getLogger(__name__)
                 logger.info(
                     f"[TOKEN_EFFICIENCY] phase={phase_id} "
@@ -357,7 +355,7 @@ class TestExecutorTelemetryIntegration:
                     f"budget={budget_mode} used={budget_used}/{budget_cap}tok "
                     f"files={files_kept}kept/{files_omitted}omitted"
                 )
-        
+
         executor = MockExecutor()
         phase = {"id": "phase-001"}
         budget_selection = BudgetSelection(
@@ -369,7 +367,7 @@ class TestExecutorTelemetryIntegration:
             files_kept_count=10,
             files_omitted_count=2,
         )
-        
+
         with caplog.at_level(logging.INFO):
             executor._record_token_efficiency_telemetry(
                 phase=phase,
@@ -377,7 +375,7 @@ class TestExecutorTelemetryIntegration:
                 tokens_saved_artifacts=1200,
                 budget_selection=budget_selection,
             )
-        
+
         # Verify log format
         log_messages = [record.message for record in caplog.records]
         assert any("[TOKEN_EFFICIENCY]" in msg for msg in log_messages)
@@ -544,11 +542,15 @@ class TestTelemetryInvariants:
         assert metrics2.tokens_saved_artifacts == 2500
 
         # Verify only one record exists in DB
-        all_metrics = test_db.query(TokenEfficiencyMetrics).filter(
-            TokenEfficiencyMetrics.run_id == "test-run",
-            TokenEfficiencyMetrics.phase_id == "phase-001",
-            TokenEfficiencyMetrics.phase_outcome == "COMPLETE",
-        ).all()
+        all_metrics = (
+            test_db.query(TokenEfficiencyMetrics)
+            .filter(
+                TokenEfficiencyMetrics.run_id == "test-run",
+                TokenEfficiencyMetrics.phase_id == "phase-001",
+                TokenEfficiencyMetrics.phase_outcome == "COMPLETE",
+            )
+            .all()
+        )
         assert len(all_metrics) == 1
 
     def test_different_outcomes_allowed(self, test_db):
@@ -586,10 +588,14 @@ class TestTelemetryInvariants:
         assert metrics_complete.phase_outcome == "COMPLETE"
 
         # Both records should exist
-        all_metrics = test_db.query(TokenEfficiencyMetrics).filter(
-            TokenEfficiencyMetrics.run_id == "test-run",
-            TokenEfficiencyMetrics.phase_id == "phase-001",
-        ).all()
+        all_metrics = (
+            test_db.query(TokenEfficiencyMetrics)
+            .filter(
+                TokenEfficiencyMetrics.run_id == "test-run",
+                TokenEfficiencyMetrics.phase_id == "phase-001",
+            )
+            .all()
+        )
         assert len(all_metrics) == 2
         outcomes = {m.phase_outcome for m in all_metrics}
         assert outcomes == {"FAILED", "COMPLETE"}
@@ -632,11 +638,15 @@ class TestTelemetryInvariants:
         assert metrics2.artifact_substitutions == 3  # Original values
 
         # Only one FAILED record should exist
-        failed_metrics = test_db.query(TokenEfficiencyMetrics).filter(
-            TokenEfficiencyMetrics.run_id == "test-run",
-            TokenEfficiencyMetrics.phase_id == "phase-001",
-            TokenEfficiencyMetrics.phase_outcome == "FAILED",
-        ).all()
+        failed_metrics = (
+            test_db.query(TokenEfficiencyMetrics)
+            .filter(
+                TokenEfficiencyMetrics.run_id == "test-run",
+                TokenEfficiencyMetrics.phase_id == "phase-001",
+                TokenEfficiencyMetrics.phase_outcome == "FAILED",
+            )
+            .all()
+        )
         assert len(failed_metrics) == 1
 
     def test_no_outcome_always_creates_new(self, test_db):
@@ -675,11 +685,15 @@ class TestTelemetryInvariants:
         assert metrics2.id != metrics1.id  # Different records
 
         # Two separate records should exist
-        all_metrics = test_db.query(TokenEfficiencyMetrics).filter(
-            TokenEfficiencyMetrics.run_id == "test-run",
-            TokenEfficiencyMetrics.phase_id == "phase-001",
-            TokenEfficiencyMetrics.phase_outcome.is_(None),
-        ).all()
+        all_metrics = (
+            test_db.query(TokenEfficiencyMetrics)
+            .filter(
+                TokenEfficiencyMetrics.run_id == "test-run",
+                TokenEfficiencyMetrics.phase_id == "phase-001",
+                TokenEfficiencyMetrics.phase_outcome.is_(None),
+            )
+            .all()
+        )
         assert len(all_metrics) == 2
 
     def test_token_categories_non_overlapping(self, test_db):
@@ -819,14 +833,16 @@ class TestTelemetryInvariants:
                 raise IntegrityError(
                     statement="INSERT INTO token_efficiency_metrics",
                     params={},
-                    orig=Exception("UNIQUE constraint failed: token_efficiency_metrics.ux_token_eff_metrics_run_phase_outcome"),
+                    orig=Exception(
+                        "UNIQUE constraint failed: token_efficiency_metrics.ux_token_eff_metrics_run_phase_outcome"
+                    ),
                 )
             else:
                 # Subsequent calls - use original commit
                 return original_commit()
 
         # Step 3: Patch commit to simulate race condition
-        with patch.object(test_db, 'commit', side_effect=mock_commit_with_integrity_error):
+        with patch.object(test_db, "commit", side_effect=mock_commit_with_integrity_error):
             # Attempt to record again with different values (simulating concurrent writer)
             # This should trigger IntegrityError, rollback, and return existing record
             recovered_metrics = record_token_efficiency_metrics(
@@ -850,10 +866,14 @@ class TestTelemetryInvariants:
         assert recovered_metrics.budget_mode == "semantic"
 
         # Step 5: Verify only one record exists in DB (no duplicate created)
-        all_metrics = test_db.query(TokenEfficiencyMetrics).filter(
-            TokenEfficiencyMetrics.run_id == "test-run",
-            TokenEfficiencyMetrics.phase_id == "phase-001",
-            TokenEfficiencyMetrics.phase_outcome == "COMPLETE",
-        ).all()
+        all_metrics = (
+            test_db.query(TokenEfficiencyMetrics)
+            .filter(
+                TokenEfficiencyMetrics.run_id == "test-run",
+                TokenEfficiencyMetrics.phase_id == "phase-001",
+                TokenEfficiencyMetrics.phase_outcome == "COMPLETE",
+            )
+            .all()
+        )
         assert len(all_metrics) == 1
         assert all_metrics[0].id == initial_id

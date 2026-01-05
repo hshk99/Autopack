@@ -1,13 +1,10 @@
 """Basic tests for package detector functionality"""
 
 import pytest
-from pathlib import Path
 
 from autopack.diagnostics.package_detector import PackageDetector
 from tests.autopack.diagnostics.fixtures.package_scenarios import (
     BASIC_PACKAGE_SCENARIOS,
-    create_scenario,
-    temp_project_dir,
 )
 
 

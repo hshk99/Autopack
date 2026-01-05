@@ -12,8 +12,7 @@ Per BUILD-043/044/045 patterns: strict isolation, no protected path modification
 
 import pytest
 from pathlib import Path
-from datetime import datetime, timedelta
-import json
+from datetime import datetime
 import tempfile
 import shutil
 from autopack.diagnostics.deep_retrieval import DeepRetrieval
@@ -143,7 +142,7 @@ class TestDeepRetrievalRecency:
         # Create old artifact (48 hours ago)
         old_artifact = run_dir / "old_artifact.log"
         old_artifact.write_text("Old artifact content")
-        old_time = datetime.now().timestamp() - (48 * 3600)
+        datetime.now().timestamp() - (48 * 3600)
         old_artifact.touch()
         # Note: Can't easily set mtime in test, but logic is tested
 
@@ -208,7 +207,7 @@ class TestDeepRetrievalRelevance:
 
         handoff_bundle = {
             "error_message": "Error occurred during handling",
-            "root_cause": "Error in handler"
+            "root_cause": "Error in handler",
         }
         result = retrieval.retrieve("phase_001", handoff_bundle)
 
@@ -220,7 +219,7 @@ class TestDeepRetrievalRelevance:
         """Test keyword extraction from handoff bundle."""
         handoff_bundle = {
             "error_message": "Database connection failed unexpectedly",
-            "root_cause": "Connection timeout occurred"
+            "root_cause": "Connection timeout occurred",
         }
 
         keywords = retrieval._extract_keywords(handoff_bundle)

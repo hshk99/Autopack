@@ -21,7 +21,7 @@ class TestCheckpointLogger:
 
     def test_compute_sha256_for_file(self):
         """Test SHA256 computation for a regular file."""
-        with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.txt') as f:
+        with tempfile.NamedTemporaryFile(mode="w", delete=False, suffix=".txt") as f:
             f.write("Hello, BUILD-152 checkpoint logging test!")
             temp_path = Path(f.name)
 
@@ -29,7 +29,7 @@ class TestCheckpointLogger:
             sha256 = compute_sha256(temp_path)
             assert sha256 is not None
             assert len(sha256) == 64  # SHA256 hex digest is 64 chars
-            assert sha256.isalnum()   # Only hex characters
+            assert sha256.isalnum()  # Only hex characters
 
             # Verify deterministic (same file = same hash)
             sha256_2 = compute_sha256(temp_path)
@@ -86,12 +86,12 @@ class TestCheckpointLogger:
                 status="completed",
                 error=None,
                 lock_type=None,
-                retry_count=0
+                retry_count=0,
             )
 
             # Verify JSONL written
             assert jsonl_path.exists()
-            lines = jsonl_path.read_text().strip().split('\n')
+            lines = jsonl_path.read_text().strip().split("\n")
             assert len(lines) == 1
 
             # Parse and validate
@@ -125,11 +125,11 @@ class TestCheckpointLogger:
                 status="failed",
                 error="PermissionError: Access is denied",
                 lock_type="permission",
-                retry_count=0
+                retry_count=0,
             )
 
             # Verify lock info captured
-            lines = jsonl_path.read_text().strip().split('\n')
+            lines = jsonl_path.read_text().strip().split("\n")
             record = json.loads(lines[0])
             assert record["status"] == "failed"
             assert record["error"] == "PermissionError: Access is denied"
@@ -157,7 +157,7 @@ class TestCheckpointLogger:
                 )
 
             # Verify all 3 logged
-            lines = jsonl_path.read_text().strip().split('\n')
+            lines = jsonl_path.read_text().strip().split("\n")
             assert len(lines) == 3
 
             for i, line in enumerate(lines):
@@ -171,7 +171,7 @@ class TestCheckpointLogger:
 
     @pytest.mark.skipif(
         not Path("autopack.db").exists() and not Path("C:/dev/Autopack/autopack.db").exists(),
-        reason="Database not available for integration test"
+        reason="Database not available for integration test",
     )
     def test_log_execution_to_database(self):
         """Integration test: Log to PostgreSQL execution_checkpoints table."""
@@ -200,6 +200,7 @@ class TestCheckpointLogger:
         session = SessionLocal()
         try:
             from autopack.models import ExecutionCheckpoint
+
             checkpoints = session.query(ExecutionCheckpoint).filter_by(run_id=run_id).all()
             assert len(checkpoints) >= 1
 
@@ -227,8 +228,12 @@ class TestCheckpointLogger:
             # Log some completed deletions
             logger.log_execution("run1", 1, "delete", "C:/file1.txt", 1024, "hash1", "completed")
             logger.log_execution("run1", 2, "delete", "C:/file2.txt", 2048, "hash2", "completed")
-            logger.log_execution("run1", 3, "delete", "C:/file3.txt", 3072, "hash3", "failed")  # Failed
-            logger.log_execution("run1", 4, "compress", "C:/file4.txt", 4096, "hash4", "completed")  # Compress
+            logger.log_execution(
+                "run1", 3, "delete", "C:/file3.txt", 3072, "hash3", "failed"
+            )  # Failed
+            logger.log_execution(
+                "run1", 4, "compress", "C:/file4.txt", 4096, "hash4", "completed"
+            )  # Compress
 
             # Get deleted checksums (should only include completed deletions)
             deleted = logger.get_deleted_checksums(lookback_days=7)
@@ -262,14 +267,16 @@ class TestCheckpointLogger:
                 "error": None,
                 "lock_type": None,
                 "retry_count": 0,
-                "timestamp": old_timestamp
+                "timestamp": old_timestamp,
             }
 
             with jsonl_path.open("a", encoding="utf-8") as f:
                 f.write(json.dumps(old_record) + "\n")
 
             # Recent checkpoint
-            logger.log_execution("new-run", 2, "delete", "C:/new.txt", 2048, "new_hash", "completed")
+            logger.log_execution(
+                "new-run", 2, "delete", "C:/new.txt", 2048, "new_hash", "completed"
+            )
 
             # Lookback 7 days: should only get new_hash
             deleted = logger.get_deleted_checksums(lookback_days=7)

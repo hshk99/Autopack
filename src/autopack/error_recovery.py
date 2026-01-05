@@ -33,6 +33,7 @@ logger = logging.getLogger(__name__)
 
 class ErrorSeverity(Enum):
     """Error severity levels"""
+
     TRANSIENT = "transient"  # Retry automatically
     RECOVERABLE = "recoverable"  # Can be fixed with code changes
     FATAL = "fatal"  # Cannot be recovered
@@ -40,6 +41,7 @@ class ErrorSeverity(Enum):
 
 class ErrorCategory(Enum):
     """Error categories for classification"""
+
     ENCODING = "encoding"  # Unicode, text encoding issues
     NETWORK = "network"  # API calls, timeouts
     FILE_IO = "file_io"  # File read/write errors
@@ -52,6 +54,7 @@ class ErrorCategory(Enum):
 @dataclass
 class ErrorContext:
     """Context information for error recovery"""
+
     error: Exception
     error_type: str
     error_message: str
@@ -72,7 +75,7 @@ class ErrorContext:
             "severity": self.severity.value,
             "retry_count": self.retry_count,
             "max_retries": self.max_retries,
-            "context_data": self.context_data or {}
+            "context_data": self.context_data or {},
         }
 
 
@@ -90,7 +93,7 @@ DoctorAction = Literal[
     "rollback_run",
     "skip_phase",
     "mark_fatal",
-    "execute_fix"  # Phase 3: Direct infrastructure fix (git, file, python commands)
+    "execute_fix",  # Phase 3: Direct infrastructure fix (git, file, python commands)
 ]
 
 
@@ -102,12 +105,15 @@ class DoctorRequest:
     Collects relevant information about a phase failure for LLM diagnosis.
     Per GPT_RESPONSE6 Section Q9: strict schema for Doctor invocation.
     """
+
     phase_id: str
     error_category: str  # From ErrorCategory enum value
     builder_attempts: int
     health_budget: Dict[str, int]  # {"http_500": N, "patch_failures": M, "total_failures": T}
     last_patch: Optional[str] = None  # Git diff content
-    patch_errors: List[Dict[str, Any]] = field(default_factory=list)  # From PatchValidationError.to_dict()
+    patch_errors: List[Dict[str, Any]] = field(
+        default_factory=list
+    )  # From PatchValidationError.to_dict()
     logs_excerpt: str = ""  # Relevant log lines
     run_id: Optional[str] = None
 
@@ -118,7 +124,9 @@ class DoctorRequest:
             "error_category": self.error_category,
             "builder_attempts": self.builder_attempts,
             "health_budget": self.health_budget,
-            "last_patch": self.last_patch[:2000] if self.last_patch else None,  # Truncate large patches
+            "last_patch": (
+                self.last_patch[:2000] if self.last_patch else None
+            ),  # Truncate large patches
             "patch_errors": self.patch_errors,
             "logs_excerpt": self.logs_excerpt[:1000] if self.logs_excerpt else "",
         }
@@ -142,6 +150,7 @@ class DoctorResponse:
       that Doctor recommends disabling for this run.
     - maintenance_phase: optional suggested maintenance phase ID to schedule.
     """
+
     action: DoctorAction
     confidence: float  # 0.0 - 1.0
     rationale: str  # Human-readable explanation
@@ -216,10 +225,11 @@ DOCTOR_LOW_RISK_CATEGORIES = {"encoding", "network", "file_io", "validation"}
 class DoctorContextSummary:
     """
     Summary of error context for Doctor model routing decisions.
-    
+
     This provides phase-level context beyond what's in DoctorRequest.
     Per GPT_RESPONSE7: used to determine "routine" vs "complex" failures.
     """
+
     distinct_error_categories_for_phase: int = 1  # Number of different error types seen
     prior_doctor_action: Optional[str] = None  # Last Doctor action for this phase (if any)
     prior_doctor_confidence: Optional[float] = None  # Last Doctor confidence
@@ -238,7 +248,9 @@ class DoctorContextSummary:
             len(self._error_categories),
         )
 
-    def record_doctor_response(self, response: "DoctorResponse", *, escalated: bool = False) -> None:
+    def record_doctor_response(
+        self, response: "DoctorResponse", *, escalated: bool = False
+    ) -> None:
         """Store the last Doctor action/confidence for routing heuristics."""
         if not response:
             return
@@ -247,8 +259,7 @@ class DoctorContextSummary:
 
 
 def is_complex_failure(
-    req: DoctorRequest,
-    ctx_summary: Optional[DoctorContextSummary] = None
+    req: DoctorRequest, ctx_summary: Optional[DoctorContextSummary] = None
 ) -> bool:
     """
     Determine if a failure is "complex" (requires strong Doctor model).
@@ -286,14 +297,16 @@ def is_complex_failure(
     prior_escalated = ctx.prior_doctor_action in {"replan", "rollback_run", "mark_fatal"}
 
     # Any of these is enough to call it complex
-    is_complex = any([
-        multiple_error_types,
-        structural_patch_issue,
-        many_attempts,
-        near_budget,
-        high_risk_category,
-        prior_escalated
-    ])
+    is_complex = any(
+        [
+            multiple_error_types,
+            structural_patch_issue,
+            many_attempts,
+            near_budget,
+            high_risk_category,
+            prior_escalated,
+        ]
+    )
 
     logger.debug(
         f"[Doctor] is_complex_failure check: "
@@ -307,8 +320,7 @@ def is_complex_failure(
 
 
 def choose_doctor_model(
-    req: DoctorRequest,
-    ctx_summary: Optional[DoctorContextSummary] = None
+    req: DoctorRequest, ctx_summary: Optional[DoctorContextSummary] = None
 ) -> Tuple[str, bool]:
     """
     Choose the appropriate Doctor model based on failure complexity.
@@ -344,10 +356,10 @@ def choose_doctor_model(
     complex_failure = is_complex_failure(req, ctx_summary)
 
     if complex_failure:
-        logger.info(f"[Doctor] Complex failure detected -> using strong model")
+        logger.info("[Doctor] Complex failure detected -> using strong model")
         return DOCTOR_STRONG_MODEL, True
     else:
-        logger.info(f"[Doctor] Routine failure detected -> using cheap model")
+        logger.info("[Doctor] Routine failure detected -> using cheap model")
         return DOCTOR_CHEAP_MODEL, False
 
 
@@ -355,7 +367,7 @@ def should_escalate_doctor_model(
     response: DoctorResponse,
     primary_model: str,
     builder_attempts: int,
-    ctx_summary: Optional[DoctorContextSummary] = None
+    ctx_summary: Optional[DoctorContextSummary] = None,
 ) -> bool:
     """
     Determine if we should escalate from cheap to strong Doctor model.
@@ -438,11 +450,7 @@ class ErrorRecoverySystem:
         """
         self._escalation_callback = callback
 
-    def _check_and_escalate(
-        self,
-        error_ctx: ErrorContext,
-        context_data: Dict = None
-    ) -> bool:
+    def _check_and_escalate(self, error_ctx: ErrorContext, context_data: Dict = None) -> bool:
         """
         Check if error should be escalated based on threshold.
 
@@ -452,10 +460,12 @@ class ErrorRecoverySystem:
         category_key = error_ctx.category.value
 
         # Increment counters
-        self._error_counts_by_signature[error_signature] = \
+        self._error_counts_by_signature[error_signature] = (
             self._error_counts_by_signature.get(error_signature, 0) + 1
-        self._error_counts_by_category[category_key] = \
+        )
+        self._error_counts_by_category[category_key] = (
             self._error_counts_by_category.get(category_key, 0) + 1
+        )
 
         count = self._error_counts_by_signature[error_signature]
 
@@ -485,7 +495,7 @@ class ErrorRecoverySystem:
                     threshold=threshold,
                     reason=reason,
                     run_id=context_data.get("run_id") if context_data else None,
-                    phase_id=context_data.get("phase_id") if context_data else None
+                    phase_id=context_data.get("phase_id") if context_data else None,
                 )
             except Exception as e:
                 logger.warning(f"Failed to log escalation: {e}")
@@ -508,7 +518,7 @@ class ErrorRecoverySystem:
             "error_counts_by_signature": dict(self._error_counts_by_signature),
             "escalated_errors": list(self._escalated_errors),
             "threshold": self.ESCALATION_THRESHOLD,
-            "fatal_threshold": self.ESCALATION_THRESHOLD_FATAL
+            "fatal_threshold": self.ESCALATION_THRESHOLD_FATAL,
         }
 
     def reset_counts(self):
@@ -543,7 +553,7 @@ class ErrorRecoverySystem:
             traceback_str=traceback_str,
             category=category,
             severity=severity,
-            context_data=context_data or {}
+            context_data=context_data or {},
         )
 
         self.error_history.append(ctx)
@@ -557,7 +567,7 @@ class ErrorRecoverySystem:
                     run_id=context_data.get("run_id") if context_data else None,
                     phase_id=context_data.get("phase_id") if context_data else None,
                     suspected_cause=f"Classified as {severity.value} {category.value} error",
-                    priority="HIGH" if severity == ErrorSeverity.FATAL else "MEDIUM"
+                    priority="HIGH" if severity == ErrorSeverity.FATAL else "MEDIUM",
                 )
             except Exception as journal_error:
                 # Don't fail error recovery if journal logging fails
@@ -569,9 +579,7 @@ class ErrorRecoverySystem:
         return ctx
 
     def _determine_category_severity(
-        self,
-        error: Exception,
-        error_message: str
+        self, error: Exception, error_message: str
     ) -> tuple[ErrorCategory, ErrorSeverity]:
         """Determine error category and severity"""
 
@@ -634,8 +642,10 @@ class ErrorRecoverySystem:
                     error_signature=f"{error_ctx.category.value}: {error_ctx.error_type}",
                     fix_description=f"Automatic self-healing applied for {error_ctx.category.value} error",
                     files_changed=[],  # Self-healing typically doesn't change files
-                    test_run_id=error_ctx.context_data.get("run_id") if error_ctx.context_data else None,
-                    result="success"
+                    test_run_id=(
+                        error_ctx.context_data.get("run_id") if error_ctx.context_data else None
+                    ),
+                    result="success",
                 )
             except Exception as journal_error:
                 # Don't fail recovery if journal logging fails
@@ -653,14 +663,15 @@ class ErrorRecoverySystem:
 
         # Set environment variable for UTF-8 encoding
         import os
-        os.environ['PYTHONUTF8'] = '1'
+
+        os.environ["PYTHONUTF8"] = "1"
 
         # Try to reconfigure stdout/stderr for UTF-8
         try:
-            if hasattr(sys.stdout, 'reconfigure'):
-                sys.stdout.reconfigure(encoding='utf-8', errors='replace')
-            if hasattr(sys.stderr, 'reconfigure'):
-                sys.stderr.reconfigure(encoding='utf-8', errors='replace')
+            if hasattr(sys.stdout, "reconfigure"):
+                sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+            if hasattr(sys.stderr, "reconfigure"):
+                sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
             self.encoding_fixed = True
             logger.info("[Recovery] SUCCESS: Encoding fixed (UTF-8 enabled)")
@@ -676,7 +687,7 @@ class ErrorRecoverySystem:
             return False
 
         # Exponential backoff: 1s, 2s, 4s, 8s...
-        wait_time = 2 ** error_ctx.retry_count
+        wait_time = 2**error_ctx.retry_count
         logger.info(f"[Recovery] Network error - waiting {wait_time}s before retry...")
         time.sleep(wait_time)
         return True  # Signal that retry should be attempted
@@ -701,7 +712,7 @@ class ErrorRecoverySystem:
         func_kwargs: dict = None,
         operation_name: str = "operation",
         max_retries: int = 3,
-        retry_on_categories: List[ErrorCategory] = None
+        retry_on_categories: List[ErrorCategory] = None,
     ) -> Any:
         """
         Execute a function with automatic retry and error recovery.
@@ -729,7 +740,7 @@ class ErrorRecoverySystem:
             ErrorCategory.FILE_IO,
             ErrorCategory.VALIDATION,
             ErrorCategory.LOGIC,
-            ErrorCategory.UNKNOWN
+            ErrorCategory.UNKNOWN,
         ]
 
         last_error_ctx = None
@@ -751,8 +762,8 @@ class ErrorRecoverySystem:
                     context_data={
                         "operation": operation_name,
                         "attempt": attempt + 1,
-                        "max_attempts": max_retries + 1
-                    }
+                        "max_attempts": max_retries + 1,
+                    },
                 )
                 error_ctx.retry_count = attempt
                 error_ctx.max_retries = max_retries
@@ -769,7 +780,10 @@ class ErrorRecoverySystem:
                     break
 
                 # Check if error category is retryable
-                if error_ctx.category not in retry_on_categories and error_ctx.severity != ErrorSeverity.TRANSIENT:
+                if (
+                    error_ctx.category not in retry_on_categories
+                    and error_ctx.severity != ErrorSeverity.TRANSIENT
+                ):
                     logger.error(
                         f"[Recovery] Error category {error_ctx.category.value} "
                         f"not retryable for {operation_name}"
@@ -789,7 +803,7 @@ class ErrorRecoverySystem:
 
                 # Wait before retry (if error wasn't self-healed)
                 if attempt < max_retries:
-                    wait_time = 2 ** attempt  # Exponential backoff
+                    wait_time = 2**attempt  # Exponential backoff
                     logger.info(f"[Recovery] Waiting {wait_time}s before retry...")
                     time.sleep(wait_time)
 
@@ -817,10 +831,10 @@ class ErrorRecoverySystem:
                     "type": ctx.error_type,
                     "message": ctx.error_message,
                     "category": ctx.category.value,
-                    "severity": ctx.severity.value
+                    "severity": ctx.severity.value,
                 }
                 for ctx in self.error_history[-5:]  # Last 5 errors
-            ]
+            ],
         }
 
     def _count_by_category(self) -> Dict[str, int]:
@@ -843,6 +857,7 @@ class ErrorRecoverySystem:
 # Global error recovery instance
 _global_recovery = None
 
+
 def get_error_recovery() -> ErrorRecoverySystem:
     """Get global error recovery instance (singleton)"""
     global _global_recovery
@@ -856,7 +871,7 @@ def safe_execute(
     operation_name: str = "operation",
     default_return: Any = None,
     log_errors: bool = True,
-    **retry_kwargs
+    **retry_kwargs,
 ) -> Any:
     """
     Convenience wrapper for safe execution with error recovery.
@@ -873,11 +888,7 @@ def safe_execute(
     """
     recovery = get_error_recovery()
     try:
-        return recovery.execute_with_retry(
-            func=func,
-            operation_name=operation_name,
-            **retry_kwargs
-        )
+        return recovery.execute_with_retry(func=func, operation_name=operation_name, **retry_kwargs)
     except Exception as e:
         if log_errors:
             logger.error(f"[SafeExecute] {operation_name} failed permanently: {e}")

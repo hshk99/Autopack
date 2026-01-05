@@ -11,7 +11,6 @@ import json
 import re
 import tempfile
 
-import pytest
 
 from autopack.intention_anchor import (
     IntentionConstraints,
@@ -22,7 +21,6 @@ from autopack.intention_anchor import (
     log_anchor_event,
     read_anchor_events,
     save_anchor,
-    save_anchor_summary,
 )
 
 

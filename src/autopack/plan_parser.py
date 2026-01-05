@@ -117,4 +117,3 @@ def phases_to_plan(phases: List[ParsedPhase]) -> Dict[str, List[Dict]]:
                 phase["scope"]["read_only_context"] = p.read_only_context
         plan_phases.append(phase)
     return {"phases": plan_phases}
-

@@ -5,12 +5,9 @@ Intention behind these tests: Verify that run-local SOT-ready artifacts are
 correctly generated and can be consolidated without direct writes to SOT ledgers.
 """
 
-import json
 import tempfile
 from pathlib import Path
-from unittest.mock import MagicMock
 
-import pytest
 
 from autopack.intention_anchor import (
     IntentionConstraints,
@@ -19,7 +16,6 @@ from autopack.intention_anchor import (
     generate_anchor_summary,
     get_anchor_events_path,
     get_anchor_summary_path,
-    load_anchor,
     log_anchor_event,
     read_anchor_events,
     save_anchor,
@@ -384,7 +380,7 @@ def test_update_anchor_logs_update_event():
         save_anchor(anchor_v1, base_dir=tmpdir)
 
         # Update and save v2
-        anchor_v2 = update_anchor(anchor_v1, save=True, base_dir=tmpdir)
+        update_anchor(anchor_v1, save=True, base_dir=tmpdir)
 
         # Verify events
         events = read_anchor_events("test-run-013", base_dir=tmpdir)
@@ -408,6 +404,7 @@ def test_save_anchor_artifact_generation_can_be_disabled():
 
         # Anchor JSON should exist
         from autopack.intention_anchor import get_canonical_path
+
         anchor_path = get_canonical_path("test-run-014", base_dir=tmpdir)
         assert anchor_path.exists()
 

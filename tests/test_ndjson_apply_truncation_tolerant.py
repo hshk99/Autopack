@@ -26,5 +26,3 @@ def test_ndjson_apply_modify_missing_operations_is_noop():
         assert result["applied"] == []
         assert result["skipped"] == ["a.txt"]
         assert (root / "a.txt").read_text(encoding="utf-8") == "hello\n"
-
-

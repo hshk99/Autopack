@@ -47,17 +47,19 @@ class PhaseHistory:
             "builder_churn_limit_exceeded",
             "builder_guardrail",
         ],
-        details: Optional[str] = None
+        details: Optional[str] = None,
     ):
         """Record an attempt outcome."""
-        self.attempts.append({
-            "attempt_index": len(self.attempts),
-            "model": model,
-            "outcome": outcome,
-            "details": details,
-            "timestamp": datetime.now(timezone.utc).isoformat(),
-            "complexity": self.current_complexity,
-        })
+        self.attempts.append(
+            {
+                "attempt_index": len(self.attempts),
+                "model": model,
+                "outcome": outcome,
+                "details": details,
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "complexity": self.current_complexity,
+            }
+        )
 
     def count_recent_failures(self) -> int:
         """Count failures that should trigger escalation."""
@@ -103,11 +105,7 @@ class ModelSelector:
         # Phase history tracking
         self._phase_histories: Dict[str, PhaseHistory] = {}
 
-    def get_or_create_phase_history(
-        self,
-        phase_id: str,
-        initial_complexity: str
-    ) -> PhaseHistory:
+    def get_or_create_phase_history(self, phase_id: str, initial_complexity: str) -> PhaseHistory:
         """Get or create phase history for tracking."""
         if phase_id not in self._phase_histories:
             self._phase_histories[phase_id] = PhaseHistory(
@@ -180,7 +178,9 @@ class ModelSelector:
         )
 
         # 4. Select model from escalation chain based on intra-tier attempt
-        model = self._select_from_chain(role, effective_complexity, attempt_index, intra_tier_attempt)
+        model = self._select_from_chain(
+            role, effective_complexity, attempt_index, intra_tier_attempt
+        )
 
         # Log escalation decision
         if effective_complexity != complexity:
@@ -217,12 +217,7 @@ class ModelSelector:
         # Default high-risk models
         return "gpt-5" if role == "builder" else "claude-opus-4-5"
 
-    def _apply_routing_policy(
-        self,
-        role: str,
-        policy: Dict,
-        attempt_index: int
-    ) -> Optional[str]:
+    def _apply_routing_policy(self, role: str, policy: Dict, attempt_index: int) -> Optional[str]:
         """Apply llm_routing_policy to select model."""
         strategy = policy.get("strategy", "progressive")
 
@@ -267,11 +262,7 @@ class ModelSelector:
         return None
 
     def _calculate_escalation(
-        self,
-        role: str,
-        complexity: str,
-        attempt_index: int,
-        escalation_info: Dict
+        self, role: str, complexity: str, attempt_index: int, escalation_info: Dict
     ) -> tuple[str, int]:
         """
         Calculate effective complexity and intra-tier attempt index.
@@ -352,10 +343,7 @@ class ModelSelector:
             return "high", attempt_index
 
     def _maybe_escalate_complexity(
-        self,
-        current_complexity: str,
-        phase_history: Optional[PhaseHistory],
-        escalation_info: Dict
+        self, current_complexity: str, phase_history: Optional[PhaseHistory], escalation_info: Dict
     ) -> str:
         """
         DEPRECATED: Use _calculate_escalation instead.
@@ -405,11 +393,7 @@ class ModelSelector:
         return effective
 
     def _select_from_chain(
-        self,
-        role: str,
-        complexity: str,
-        attempt_index: int,
-        intra_tier_attempt: int = 0
+        self, role: str, complexity: str, attempt_index: int, intra_tier_attempt: int = 0
     ) -> str:
         """
         Select model from escalation chain based on intra-tier attempt index.
@@ -455,7 +439,7 @@ class ModelSelector:
         effective_complexity: str,
         attempt_index: int,
         escalation_info: Dict,
-        log_dir: str = "logs/autopack"
+        log_dir: str = "logs/autopack",
     ):
         """
         Log model selection to JSONL file for analysis.

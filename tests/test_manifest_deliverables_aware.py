@@ -5,7 +5,7 @@ Tests the deliverables inference logic that prevents category mismatches.
 
 import pytest
 from pathlib import Path
-from unittest.mock import Mock, MagicMock
+from unittest.mock import Mock
 
 from autopack.manifest_generator import ManifestGenerator
 from autopack.repo_scanner import RepoScanner
@@ -17,13 +17,16 @@ from autopack.preflight_validator import PreflightValidator
 def mock_scanner():
     """Mock RepoScanner with file_exists checks."""
     scanner = Mock(spec=RepoScanner)
-    scanner.file_exists = Mock(side_effect=lambda path: path in [
-        "src/autopack/models.py",
-        "src/autopack/database.py",
-        "tests/conftest.py",
-        "alembic.ini",
-        "alembic/env.py"
-    ])
+    scanner.file_exists = Mock(
+        side_effect=lambda path: path
+        in [
+            "src/autopack/models.py",
+            "src/autopack/database.py",
+            "tests/conftest.py",
+            "alembic.ini",
+            "alembic/env.py",
+        ]
+    )
     return scanner
 
 
@@ -32,10 +35,7 @@ def generator(mock_scanner):
     """Create ManifestGenerator with mocked dependencies."""
     matcher = Mock(spec=PatternMatcher)
     validator = Mock(spec=PreflightValidator)
-    gen = ManifestGenerator(
-        workspace=Path("/fake"),
-        enable_plan_analyzer=False
-    )
+    gen = ManifestGenerator(workspace=Path("/fake"), enable_plan_analyzer=False)
     gen.scanner = mock_scanner
     gen.matcher = matcher
     gen.validator = validator
@@ -58,7 +58,7 @@ class TestInferCategoryFromDeliverables:
         deliverables = [
             "src/autopack/phase_finalizer.py",
             "src/autopack/test_baseline_tracker.py",
-            "src/autopack/governance_request_handler.py"
+            "src/autopack/governance_request_handler.py",
         ]
         category, confidence = generator._infer_category_from_deliverables(deliverables)
 
@@ -67,10 +67,7 @@ class TestInferCategoryFromDeliverables:
 
     def test_frontend_tsx_files(self, generator):
         """Frontend TypeScript files should be categorized as frontend."""
-        deliverables = [
-            "src/frontend/App.tsx",
-            "src/frontend/components/Button.tsx"
-        ]
+        deliverables = ["src/frontend/App.tsx", "src/frontend/components/Button.tsx"]
         category, confidence = generator._infer_category_from_deliverables(deliverables)
 
         assert category == "frontend"
@@ -78,10 +75,7 @@ class TestInferCategoryFromDeliverables:
 
     def test_tests_category(self, generator):
         """Test files should be categorized as tests."""
-        deliverables = [
-            "tests/test_phase_finalizer.py",
-            "tests/test_baseline_tracker.py"
-        ]
+        deliverables = ["tests/test_phase_finalizer.py", "tests/test_baseline_tracker.py"]
         category, confidence = generator._infer_category_from_deliverables(deliverables)
 
         assert category == "tests"
@@ -91,7 +85,7 @@ class TestInferCategoryFromDeliverables:
         """Database migration files should be categorized as database."""
         deliverables = [
             "alembic/versions/abc123_add_governance_requests.py",
-            "src/autopack/models.py"
+            "src/autopack/models.py",
         ]
         category, confidence = generator._infer_category_from_deliverables(deliverables)
 
@@ -101,10 +95,7 @@ class TestInferCategoryFromDeliverables:
 
     def test_documentation_files(self, generator):
         """Documentation files should be categorized as documentation."""
-        deliverables = [
-            "docs/BUILD-128_DELIVERABLES_AWARE_MANIFEST.md",
-            "README.md"
-        ]
+        deliverables = ["docs/BUILD-128_DELIVERABLES_AWARE_MANIFEST.md", "README.md"]
         category, confidence = generator._infer_category_from_deliverables(deliverables)
 
         assert category == "documentation"
@@ -123,7 +114,7 @@ class TestInferCategoryFromDeliverables:
         deliverables = [
             "src/autopack/phase_finalizer.py",
             "src/autopack/test_baseline_tracker.py",
-            "tests/test_phase_finalizer.py"  # 2 backend, 1 test
+            "tests/test_phase_finalizer.py",  # 2 backend, 1 test
         ]
         category, confidence = generator._infer_category_from_deliverables(deliverables)
 
@@ -157,9 +148,7 @@ class TestExpandScopeFromDeliverables:
         """Backend deliverables should add models.py to read_only_context."""
         deliverables = ["src/autopack/phase_finalizer.py"]
         scope_paths, read_only = generator._expand_scope_from_deliverables(
-            deliverables=deliverables,
-            category="backend",
-            phase_id="test-phase"
+            deliverables=deliverables, category="backend", phase_id="test-phase"
         )
 
         assert scope_paths == ["src/autopack/phase_finalizer.py"]
@@ -169,9 +158,7 @@ class TestExpandScopeFromDeliverables:
         """Backend with 'database' or 'models' in deliverables adds database.py."""
         deliverables = ["src/autopack/models.py"]
         scope_paths, read_only = generator._expand_scope_from_deliverables(
-            deliverables=deliverables,
-            category="backend",
-            phase_id="database-phase"
+            deliverables=deliverables, category="backend", phase_id="database-phase"
         )
 
         assert scope_paths == ["src/autopack/models.py"]
@@ -181,9 +168,7 @@ class TestExpandScopeFromDeliverables:
         """Test deliverables should add conftest.py to context."""
         deliverables = ["tests/test_feature.py"]
         scope_paths, read_only = generator._expand_scope_from_deliverables(
-            deliverables=deliverables,
-            category="tests",
-            phase_id="test-phase"
+            deliverables=deliverables, category="tests", phase_id="test-phase"
         )
 
         assert scope_paths == ["tests/test_feature.py"]
@@ -193,9 +178,7 @@ class TestExpandScopeFromDeliverables:
         """Database deliverables should add alembic configuration."""
         deliverables = ["alembic/versions/abc_migration.py"]
         scope_paths, read_only = generator._expand_scope_from_deliverables(
-            deliverables=deliverables,
-            category="database",
-            phase_id="migration-phase"
+            deliverables=deliverables, category="database", phase_id="migration-phase"
         )
 
         assert scope_paths == ["alembic/versions/abc_migration.py"]
@@ -205,14 +188,9 @@ class TestExpandScopeFromDeliverables:
 
     def test_no_duplicates_in_scope(self, generator):
         """Duplicates should be removed from scope_paths."""
-        deliverables = [
-            "src/autopack/models.py",
-            "src/autopack/models.py"  # Duplicate
-        ]
+        deliverables = ["src/autopack/models.py", "src/autopack/models.py"]  # Duplicate
         scope_paths, read_only = generator._expand_scope_from_deliverables(
-            deliverables=deliverables,
-            category="backend",
-            phase_id="test-phase"
+            deliverables=deliverables, category="backend", phase_id="test-phase"
         )
 
         assert scope_paths == ["src/autopack/models.py"]  # No duplicate
@@ -226,9 +204,7 @@ class TestEnhancePhaseWithDeliverables:
         phase = {
             "phase_id": "test-phase",
             "goal": "Test goal",
-            "scope": {
-                "paths": ["src/autopack/existing.py"]
-            }
+            "scope": {"paths": ["src/autopack/existing.py"]},
         }
 
         enhanced, confidence, warnings = generator._enhance_phase(phase)
@@ -247,9 +223,9 @@ class TestEnhancePhaseWithDeliverables:
             "scope": {
                 "deliverables": [
                     "src/autopack/phase_finalizer.py",
-                    "src/autopack/test_baseline_tracker.py"
+                    "src/autopack/test_baseline_tracker.py",
                 ]
-            }
+            },
         }
 
         enhanced, confidence, warnings = generator._enhance_phase(phase)
@@ -275,11 +251,7 @@ class TestEnhancePhaseWithDeliverables:
         phase = {
             "phase_id": "frontend-phase",
             "goal": "Add dashboard component",
-            "scope": {
-                "deliverables": [
-                    "src/frontend/components/Dashboard.tsx"
-                ]
-            }
+            "scope": {"deliverables": ["src/frontend/components/Dashboard.tsx"]},
         }
 
         enhanced, confidence, warnings = generator._enhance_phase(phase)
@@ -296,22 +268,24 @@ class TestEnhancePhaseWithDeliverables:
         from autopack.pattern_matcher import MatchResult
 
         # Mock pattern matcher and get_test_scope
-        generator.matcher.match = Mock(return_value=MatchResult(
-            category="backend",
-            confidence=0.8,
-            scope_paths=["src/autopack/matched.py"],
-            read_only_context=[],
-            confidence_breakdown={},
-            anchor_files_found=[],
-            match_density=0.8,
-            directory_locality=0.9
-        ))
+        generator.matcher.match = Mock(
+            return_value=MatchResult(
+                category="backend",
+                confidence=0.8,
+                scope_paths=["src/autopack/matched.py"],
+                read_only_context=[],
+                confidence_breakdown={},
+                anchor_files_found=[],
+                match_density=0.8,
+                directory_locality=0.9,
+            )
+        )
         generator.matcher.get_test_scope = Mock(return_value=["tests/test_matched.py"])
 
         phase = {
             "phase_id": "test-phase",
             "goal": "Add new feature",
-            "scope": {}  # No deliverables, no paths
+            "scope": {},  # No deliverables, no paths
         }
 
         enhanced, confidence, warnings = generator._enhance_phase(phase)
@@ -370,9 +344,9 @@ class TestBuild127Regression:
                     "tests/test_governance_request_handler.py",
                     "tests/test_build127_phase1_integration.py",
                     "requirements.txt",
-                    "docs/BUILD-127_PHASE1_COMPLETION.md"
+                    "docs/BUILD-127_PHASE1_COMPLETION.md",
                 ]
-            }
+            },
         }
 
         enhanced, confidence, warnings = generator._enhance_phase(phase)

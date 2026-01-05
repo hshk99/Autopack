@@ -1,8 +1,6 @@
 """Tests for WorkspaceLease (P2.4 workspace locking)."""
 
 import pytest
-from pathlib import Path
-import tempfile
 import threading
 import time
 
@@ -113,10 +111,7 @@ def test_workspace_lease_threaded_access(temp_workspace, lease_dir):
             results.append(f"thread-{thread_id}-blocked")
 
     # Start multiple threads trying to acquire same lease
-    threads = [
-        threading.Thread(target=try_acquire_lease, args=(i,))
-        for i in range(5)
-    ]
+    threads = [threading.Thread(target=try_acquire_lease, args=(i,)) for i in range(5)]
 
     for thread in threads:
         thread.start()

@@ -31,12 +31,7 @@ logger = logging.getLogger(__name__)
 class WorkspaceLease:
     """Ensures only one executor accesses a workspace at a time."""
 
-    def __init__(
-        self,
-        workspace_path: Path,
-        lease_dir: Optional[Path] = None,
-        timeout: int = 5
-    ):
+    def __init__(self, workspace_path: Path, lease_dir: Optional[Path] = None, timeout: int = 5):
         """Initialize workspace lease manager.
 
         Args:
@@ -59,6 +54,7 @@ class WorkspaceLease:
         # Generate unique lock file name from absolute workspace path
         # Use hash to handle long paths and special characters
         import hashlib
+
         path_hash = hashlib.sha256(str(self.workspace_path).encode()).hexdigest()[:16]
         self.lock_file_path = self.lease_dir / f"workspace_{path_hash}.lock"
 
@@ -80,7 +76,7 @@ class WorkspaceLease:
         """
         try:
             # Open lock file for writing
-            self.lock_file = open(self.lock_file_path, 'w')
+            self.lock_file = open(self.lock_file_path, "w")
 
             # Write current executor info for debugging
             self.lock_file.write(f"{self.executor_id}\n")
@@ -89,8 +85,9 @@ class WorkspaceLease:
             self.lock_file.flush()
 
             # Try to acquire exclusive lock (non-blocking)
-            if os.name == 'nt':  # Windows
+            if os.name == "nt":  # Windows
                 import msvcrt
+
                 try:
                     msvcrt.locking(self.lock_file.fileno(), msvcrt.LK_NBLCK, 1)
                     logger.info(
@@ -106,6 +103,7 @@ class WorkspaceLease:
                     return False
             else:  # Unix/Linux/Mac
                 import fcntl
+
                 try:
                     fcntl.flock(self.lock_file.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
                     logger.info(
@@ -131,7 +129,7 @@ class WorkspaceLease:
         """Log information about the existing lease holder."""
         try:
             # Read lock file to get existing executor info
-            with open(self.lock_file_path, 'r') as f:
+            with open(self.lock_file_path, "r") as f:
                 lines = f.readlines()
                 existing_executor = lines[0].strip() if len(lines) > 0 else "unknown"
                 existing_workspace = lines[1].strip() if len(lines) > 1 else "unknown"
@@ -162,14 +160,16 @@ class WorkspaceLease:
 
         try:
             # Release file lock
-            if os.name == 'nt':  # Windows
+            if os.name == "nt":  # Windows
                 import msvcrt
+
                 try:
                     msvcrt.locking(self.lock_file.fileno(), msvcrt.LK_UNLCK, 1)
                 except OSError:
                     pass  # Lock may already be released
             else:  # Unix
                 import fcntl
+
                 try:
                     fcntl.flock(self.lock_file.fileno(), fcntl.LOCK_UN)
                 except (IOError, OSError):

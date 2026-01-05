@@ -21,8 +21,10 @@
 
 **Refresh Policy**:
 - **Explicit only** (never automatic on PR)
+- **CI artifacts are canonical** (not local runs) to avoid platform drift
+- Only update on explicit PRs labeled `security-baseline-update` or dedicated baseline refresh PRs
 - Run `scripts/security/update_baseline.py --write` after intentional baseline changes
-- Document refresh in `docs/SECURITY_LOG.md`
+- Document refresh in `docs/SECURITY_LOG.md` using the template format
 
 **Why Committed?**
 - Baselines are part of the CI contract (deterministic enforcement)
@@ -88,36 +90,85 @@ else:
 # If new findings: CI red ❌ (must fix or justify exception)
 ```
 
-### Updating Baselines (Explicit)
+### Baseline Refresh Procedure (Explicit Only)
+
+**CRITICAL**: Baselines must be generated from **CI artifacts only** (same query suites + config as CI), never from local runs.
 
 **When to Update**:
 - After fixing a batch of vulnerabilities
 - After upgrading dependencies that shift findings
 - After accepting a documented exception (e.g., CVE-2024-23342)
+- Never implicitly—only on explicit PRs labeled `security-baseline-update`
 
-**How to Update**:
+**Prerequisites**:
+- ✅ CI must have run at least 1-2 times successfully on main with current scanner config
+- ✅ SARIF artifacts available from `.github/workflows/security-artifacts.yml` run
+- ✅ No outstanding security findings that should be fixed first
+
+**Step-by-Step Procedure**:
 
 ```bash
-# 1. Generate current scans locally (or download CI artifacts)
-docker build --target backend --tag autopack-backend:scan .
-trivy fs --format sarif --severity CRITICAL,HIGH --output trivy-fs.sarif .
-trivy image --format sarif --severity CRITICAL,HIGH --output trivy-image.sarif autopack-backend:scan
+# 1. Trigger the security-artifacts workflow (if not already run)
+#    Go to: Actions → Security SARIF Artifacts → Run workflow (on main branch)
 
-# 2. Normalize and update baselines
+# 2. Download SARIF artifacts from the latest main branch run
+#    Download "security-sarif-artifacts" from the workflow run
+#    Extract to a temporary directory (e.g., /tmp/sarif-artifacts/)
+
+# 3. Verify artifacts are from main branch and recent commit
+ls -lh /tmp/sarif-artifacts/
+# Should contain:
+#   - trivy-results.sarif
+#   - trivy-container.sarif
+#   - codeql-results/python.sarif
+
+# 4. Run baseline update tool (dry run first)
 python scripts/security/update_baseline.py \
-  --trivy-fs trivy-fs.sarif \
-  --trivy-image trivy-image.sarif \
-  --codeql codeql-results.sarif \
+  --trivy-fs /tmp/sarif-artifacts/trivy-results.sarif \
+  --trivy-image /tmp/sarif-artifacts/trivy-container.sarif \
+  --codeql /tmp/sarif-artifacts/codeql-results/python.sarif
+
+# Review the diff summary carefully
+# Check: Added/Removed counts, total findings
+
+# 5. Write baselines (if diff looks correct)
+python scripts/security/update_baseline.py \
+  --trivy-fs /tmp/sarif-artifacts/trivy-results.sarif \
+  --trivy-image /tmp/sarif-artifacts/trivy-container.sarif \
+  --codeql /tmp/sarif-artifacts/codeql-results/python.sarif \
   --write
 
-# 3. Review diff
+# 6. Verify normalization is deterministic
+#    Run update_baseline.py twice, output should be identical
 git diff security/baselines/
+# Should show changes only if findings actually changed
 
-# 4. Commit with log entry
-# Add entry to docs/SECURITY_LOG.md explaining baseline change
+# 7. Create baseline refresh log entry
+#    Edit docs/SECURITY_LOG.md and add a SECBASE-YYYYMMDD entry
+#    Fill in: date, workflow run URL, commit SHA, delta summary
+#    See template at bottom of docs/SECURITY_LOG.md
+
+# 8. Commit to a baseline-refresh PR
+git checkout -b security/baseline-refresh-$(date +%Y%m%d)
 git add security/baselines/ docs/SECURITY_LOG.md
-git commit -m "security: Update baselines after [reason]"
+git commit -m "security: Baseline refresh from CI SARIF (SECBASE-$(date +%Y%m%d))
+
+See docs/SECURITY_LOG.md for delta summary and source run URL."
+
+# 9. Push and create PR
+git push origin security/baseline-refresh-$(date +%Y%m%d)
+# Create PR with label: security-baseline-update
+
+# 10. After PR merge and 1-2 stable CI runs, flip enforcement
+#     Edit .github/workflows/security.yml
+#     Change: continue-on-error: true → false (for diff gates)
+#     Log this policy change in docs/SECURITY_LOG.md
 ```
+
+**Why CI Artifacts Only?**
+- Ensures baselines match the exact scanner versions/config used in CI
+- Avoids platform drift (Windows vs Linux path separators, etc.)
+- Reproducible: anyone can download the same artifacts and verify
 
 **Why Manual?**
 - Prevents "baseline drift" (CI silently accepting regressions)
@@ -188,6 +239,66 @@ git diff security/baselines/  # Should be empty if in sync
 
 ---
 
+## Requirements Regeneration Policy (Linux/CI Canonical)
+
+**Policy**: Committed `requirements*.txt` must be generated on **Linux (CI runner or WSL)** to ensure portability.
+
+**Rationale**:
+- Platform-specific dependencies (e.g., `pywin32`, `python-magic`) require environment markers
+- Regenerating on Windows PowerShell/CMD drops non-Windows dependencies → breaks Linux/Docker
+- WSL counts as "Linux" for this purpose (same dependency resolution behavior)
+
+**Enforcement**:
+- CI check via `scripts/check_requirements_portability.py` (runs on every PR)
+- Fails CI if requirements are not portable (missing markers, unconditional platform deps)
+
+**Regeneration Procedure**:
+
+```bash
+# REQUIRED: Run on Linux/WSL only
+# If on Windows, use WSL: wsl bash
+
+# From repo root:
+bash scripts/regenerate_requirements.sh
+
+# Or manually with pip-compile:
+pip-compile --output-file=requirements.txt pyproject.toml
+pip-compile --output-file=requirements-dev.txt --extra=dev pyproject.toml
+
+# Verify portability:
+python scripts/check_requirements_portability.py
+
+# If check passes, commit:
+git add requirements.txt requirements-dev.txt
+git commit -m "deps: Regenerate requirements (Linux/WSL canonical)"
+```
+
+**Platform-Specific Markers**:
+- `pywin32==... ; sys_platform == "win32"` (Windows-only)
+- `python-magic==... ; sys_platform != "win32"` (Linux/macOS)
+- `python-magic-bin==... ; sys_platform == "win32"` (Windows binary)
+
+**CI Check**:
+- Tool: `scripts/check_requirements_portability.py`
+- Checks:
+  - `pywin32` must have `sys_platform == "win32"` marker
+  - `python-magic` must have `sys_platform != "win32"` marker
+  - `python-magic-bin` must have `sys_platform == "win32"` marker
+- Exit codes:
+  - `0`: Portable (CI passes)
+  - `1`: Violations detected (CI fails)
+  - `2`: Runtime error (missing file, etc.)
+
+**Troubleshooting**:
+
+If CI fails with "requirements portability check failed":
+1. **On Windows**: Do NOT regenerate requirements on Windows
+2. **Use WSL**: `wsl bash scripts/regenerate_requirements.sh`
+3. **Verify markers**: Check that platform-specific deps have environment markers
+4. **Rerun check**: `python scripts/check_requirements_portability.py`
+
+---
+
 ## References
 
 - Policy log: [docs/SECURITY_LOG.md](../docs/SECURITY_LOG.md)
@@ -202,3 +313,4 @@ git diff security/baselines/  # Should be empty if in sync
 - Baseline format validation: `tests/security/test_baseline_format.py` (planned)
 - Normalization determinism: `tests/security/test_normalize_sarif.py` (planned)
 - Diff gate logic: `tests/security/test_diff_gate.py` (planned)
+- Requirements portability: `scripts/check_requirements_portability.py` (active)

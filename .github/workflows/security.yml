@@ -63,7 +63,18 @@ jobs:
           python scripts/security/diff_gate.py \
             --baseline security/baselines/trivy-fs.high.json \
             --current trivy-fs-current.json \
-            --name "Trivy Filesystem (CRITICAL/HIGH)"
+            --name "Trivy Filesystem (CRITICAL/HIGH)" \
+            --allow-empty-baseline
+
+      - name: Upload Trivy filesystem artifacts (SARIF + normalized)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: trivy-fs-sarif-and-normalized
+          path: |
+            trivy-results.sarif
+            trivy-fs-current.json
+          retention-days: 14
 
   container-scan:
     runs-on: ubuntu-latest
@@ -113,7 +124,18 @@ jobs:
           python scripts/security/diff_gate.py \
             --baseline security/baselines/trivy-image.high.json \
             --current trivy-image-current.json \
-            --name "Trivy Container Image (CRITICAL/HIGH)"
+            --name "Trivy Container Image (CRITICAL/HIGH)" \
+            --allow-empty-baseline
+
+      - name: Upload Trivy container artifacts (SARIF + normalized)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: trivy-container-sarif-and-normalized
+          path: |
+            trivy-container.sarif
+            trivy-image-current.json
+          retention-days: 14
 
   secret-scan:
     runs-on: ubuntu-latest
@@ -172,4 +194,15 @@ jobs:
           python scripts/security/diff_gate.py \
             --baseline security/baselines/codeql.python.json \
             --current codeql-current.json \
-            --name "CodeQL Python Analysis"
+            --name "CodeQL Python Analysis" \
+            --allow-empty-baseline
+
+      - name: Upload CodeQL artifacts (SARIF + normalized)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: codeql-sarif-and-normalized
+          path: |
+            codeql-results/python.sarif
+            codeql-current.json
+          retention-days: 14

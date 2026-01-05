@@ -30,6 +30,9 @@ jobs:
           python scripts/check_version_consistency.py
           # Temporarily disabled: cross-platform pip-compile drift (pywin32 hashes differ)
           # python scripts/check_dependency_sync.py
+      - name: Check requirements portability (Linux/CI canonical)
+        run: |
+          python scripts/check_requirements_portability.py
       - name: Enforce GitHub Actions pinning policy
         run: |
           python scripts/ci/check_github_actions_pinning.py

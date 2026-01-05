@@ -100,6 +100,14 @@ def main():
         action="store_true",
         help="Show detailed new finding list (not just count)",
     )
+    parser.add_argument(
+        "--allow-empty-baseline",
+        action="store_true",
+        help=(
+            "Treat an empty baseline as report-only (exit 0). "
+            "Use for initial rollout before baselines are populated."
+        ),
+    )
 
     args = parser.parse_args()
 
@@ -129,6 +137,16 @@ def main():
     print(f"Resolved:  {len(resolved_findings)} findings")
     print(f"Unchanged: {len(unchanged_findings_set)} findings")
     print("=" * 70)
+
+    # Initial rollout: empty baselines are expected and should not fail CI.
+    if args.allow_empty_baseline and len(baseline_findings) == 0:
+        print("\n⚠️  BASELINE EMPTY (report-only mode)")
+        print("  - This is expected during initial rollout.")
+        print("  - Populate baselines from CI SARIF artifacts before enabling blocking mode.")
+        print("  - See: scripts/security/update_baseline.py and docs/SECURITY_LOG.md")
+        print("\n✅ DIFF GATE: PASSED (empty baseline allowed)")
+        print("=" * 70)
+        return 0
 
     # Show new findings (verbose or if blocking)
     if new_findings:

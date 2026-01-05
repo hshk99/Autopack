@@ -42,6 +42,11 @@ These are the canonical references that should stay current and are designed to 
 - **Security baseline + requirements regeneration**: `docs/IMPLEMENTATION_PLAN_INTENTION_FIRST_AUTONOMY_LOOP_REMAINING_IMPROVEMENTS.md` (**BUILD-157 COMPLETE**: CI SARIF artifacts canonical for baselines, Linux/CI canonical for requirements, mechanical enforcement via CI checks, see [DEC-043](#dec-043) + [DEC-044](#dec-044))
 - **Storage Optimizer**: `archive/superseded/reports/unsorted/STORAGE_OPTIMIZER_MVP_COMPLETION.md`, `docs/STORAGE_OPTIMIZER_INTELLIGENCE_COMPLETE.md`, `docs/STORAGE_OPTIMIZER_AUTOMATION.md`
 - **Protection & Retention Policy**: `docs/PROTECTION_AND_RETENTION_POLICY.md` (unified policy for Tidy + Storage Optimizer)
+
+### Governance & Approvals
+- **PR approval pipeline (run-local proposal → Telegram buttons → local PR create)**: `docs/IMPLEMENTATION_PLAN_PR_APPROVAL_PIPELINE.md` (opt-in workflow for post-run PR creation with Telegram approval, never runs in CI, never auto-merges)
+
+### Testing & Operations
 - **Testing**: `docs/TESTING_GUIDE.md`
 - **Troubleshooting**: `docs/TROUBLESHOOTING.md`
 

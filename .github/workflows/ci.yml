@@ -194,6 +194,24 @@ jobs:
         run: |
           echo "Research test results are informational only and do not affect CI status"
 
+  governance-approval-tests:
+    name: Governance & Approval Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: |
+          pip install -e ".[dev]"
+      - name: Run PR approval governance tests
+        run: |
+          # Test PR approval pipeline contracts (proposal artifacts + Telegram webhook callbacks)
+          # Focused governance tests without bloating intention-autonomy-ci.yml
+          pytest -q tests/autopack/test_pr_proposal_artifacts.py tests/autopack/test_telegram_webhook_pr_callbacks.py
+
   preflight-normal:
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/heads/autonomous/')

@@ -575,26 +575,26 @@ def validate_new_file_diffs_have_complete_structure(
             return
 
         is_new = any(
-            (l.startswith("new file mode") or l.strip() == "--- /dev/null")
-            for l in block_lines
+            (line.startswith("new file mode") or line.strip() == "--- /dev/null")
+            for line in block_lines
         )
         if not is_new:
             return
 
-        has_minus = any(l.startswith("--- ") for l in block_lines)
-        has_plus = any(l.startswith("+++ ") for l in block_lines)
+        has_minus = any(line.startswith("--- ") for line in block_lines)
+        has_plus = any(line.startswith("+++ ") for line in block_lines)
         if not (has_minus and has_plus):
             details["missing_headers"].append(path)
             errors.append(f"New file diff missing ---/+++ headers: {path}")
 
-        has_hunk = any(l.startswith("@@") for l in block_lines)
+        has_hunk = any(line.startswith("@@") for line in block_lines)
         if not has_hunk and not any(path.endswith(s) for s in allow_empty_suffixes):
             details["missing_hunks"].append(path)
             errors.append(f"New file diff missing @@ hunk header (cannot reconstruct content): {path}")
             return
 
         if has_hunk:
-            has_added = any(l.startswith("+") and not l.startswith("+++") for l in block_lines)
+            has_added = any(line.startswith("+") and not line.startswith("+++") for line in block_lines)
             if not has_added and not any(path.endswith(s) for s in allow_empty_suffixes):
                 details["empty_content"].append(path)
                 errors.append(f"New file diff has hunks but no added content: {path}")

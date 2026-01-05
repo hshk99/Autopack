@@ -126,8 +126,8 @@ class ContentExtractor:
     def _normalize_text(self, text: str) -> str:
         text = text.replace("\r\n", "\n").replace("\r", "\n")
         # keep newlines but remove excessive whitespace
-        lines = [l.strip() for l in text.split("\n")]
-        lines = [l for l in lines if l]
+        lines = [line.strip() for line in text.split("\n")]
+        lines = [line for line in lines if line]
         return "\n".join(lines).strip()
 
     def _bs4_soup(self, html: str):

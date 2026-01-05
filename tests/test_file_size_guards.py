@@ -60,7 +60,7 @@ builder_output_mode:
             # Clean up
             try:
                 os.unlink(temp_path)
-            except:
+            except Exception:
                 pass
     
     def test_from_yaml_missing_file_uses_defaults(self):

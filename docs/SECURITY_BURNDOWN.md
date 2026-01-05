@@ -95,8 +95,46 @@ _(None yet)_
 ### Automation Status
 
 - [x] Automated dashboard generation from baselines (✓ CI-enforced)
+- [x] Automated baseline refresh PR workflow (Phase B - validated)
 - [ ] PR comment summaries (planned: Phase 5)
 - [ ] Weekly Slack/email digest (future work)
+
+### Phase B Test Procedure
+
+The automated baseline refresh workflow (`.github/workflows/security-baseline-refresh.yml`) has two paths:
+
+#### Change Path (Validated ✓)
+**Trigger**: Baselines differ from latest security artifacts
+**Expected behavior**:
+1. Downloads latest SARIF artifacts from Phase A (security-artifacts workflow)
+2. Updates `security/baselines/*.json` files
+3. Regenerates `docs/SECURITY_BURNDOWN.md` counts
+4. Creates stub SECBASE entry in `docs/SECURITY_LOG.md` with TODO markers
+5. Creates PR branch `security/baseline-refresh-YYYYMMDD`
+6. Creates PR with detailed description
+7. CI blocks merge until SECBASE entry TODO markers are removed
+
+**Validation**: PR #31 (2026-01-05) - First automated baseline refresh
+
+#### No-Change Path (To Be Validated)
+**Trigger**: Baselines match latest security artifacts
+**Expected behavior**:
+1. Downloads artifacts and compares with current baselines
+2. Detects no changes
+3. Skips PR creation
+4. Workflow completes successfully with log: "✅ No baseline changes detected"
+
+**Test procedure**:
+```bash
+# After merging a baseline refresh PR, immediately run Phase B again
+gh workflow run security-baseline-refresh.yml --ref main
+
+# Verify workflow completes with "Skip PR creation (no changes)" step
+gh run list --workflow=security-baseline-refresh.yml --limit 1
+```
+
+**Deterministic testing** (future enhancement):
+Add `artifacts_run_id` input parameter to Phase B workflow to enable testing with specific artifact versions instead of always using "latest".
 
 ---
 

@@ -34,6 +34,14 @@ from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Tuple
 
+# Windows consoles can default to legacy encodings (e.g., cp1252) that can't print
+# the status glyphs/emojis used by this script. Keep output UTF-8 to avoid crashes.
+try:
+    sys.stdout.reconfigure(encoding="utf-8")
+    sys.stderr.reconfigure(encoding="utf-8")
+except Exception:
+    pass
+
 # Ensure sibling imports work
 SCRIPT_DIR = Path(__file__).resolve().parent
 REPO_ROOT = SCRIPT_DIR.parent.parent

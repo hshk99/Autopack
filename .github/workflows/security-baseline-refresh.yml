@@ -54,11 +54,22 @@ jobs:
 
       - name: Update baselines
         run: |
+          # update_baseline.py uses exit code semantics:
+          #   0 = no changes
+          #   1 = changes detected (baseline drift)
+          # Any other code indicates a real failure and should fail the workflow.
+          set +e
           python scripts/security/update_baseline.py \
             --trivy-fs artifacts/trivy-results.sarif \
             --trivy-image artifacts/trivy-container.sarif \
             --codeql artifacts/codeql-results/python.sarif \
-            --write || true
+            --write
+          rc=$?
+          set -e
+          if [ "$rc" -ne 0 ] && [ "$rc" -ne 1 ]; then
+            echo "ERROR: update_baseline.py failed with exit code $rc"
+            exit "$rc"
+          fi
 
       - name: Update burndown counts
         run: |

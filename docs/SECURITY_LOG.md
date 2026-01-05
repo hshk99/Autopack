@@ -6,6 +6,85 @@
 
 ---
 
+## 2026-01-05: Security Baseline Governance Policy (Process Contract)
+
+**Event**: Established explicit baseline update process contract to prevent silent baseline drift and ensure audit trail compliance.
+
+**Baseline Update Process (Canonical)**:
+
+Baselines may ONLY be updated via the following explicit process (never automatic on scan drift):
+
+1. **Trigger Security Artifacts Workflow**:
+   - Go to GitHub Actions → `.github/workflows/security-artifacts.yml`
+   - Click "Run workflow" on `main` branch
+   - Wait for successful completion
+
+2. **Download CI SARIF Artifacts**:
+   - Navigate to completed workflow run
+   - Download `trivy-results.sarif`, `trivy-container.sarif`, `codeql-results/python.sarif`
+   - Verify artifact sources (workflow run URL + commit SHA)
+
+3. **Run Baseline Update Tool**:
+   ```bash
+   # From repo root
+   python scripts/security/update_baseline.py \
+     --trivy-fs path/to/trivy-results.sarif \
+     --trivy-image path/to/trivy-container.sarif \
+     --codeql path/to/python.sarif \
+     --write
+   ```
+
+4. **Verify Determinism**:
+   - Run normalization twice: `scripts/security/normalize_sarif.py <sarif> --tool <name>`
+   - Confirm identical output (bit-for-bit)
+
+5. **Create SECBASE Log Entry**:
+   - Add `SECBASE-YYYYMMDD` entry to `docs/SECURITY_LOG.md` (use template at bottom of file)
+   - Include: Workflow run URL, commit SHA, delta summary (before/after counts), rationale
+
+6. **Create Baseline PR**:
+   - Branch: `security/baseline-refresh-YYYYMMDD`
+   - Title: `security: Refresh baselines (SECBASE-YYYYMMDD)`
+   - Label: `security-baseline-update`
+   - Description MUST include:
+     - Link to SARIF workflow run
+     - Before/after finding counts
+     - Rationale for changes (e.g., "remediated CVE-2024-XXXX", "upgraded dependency")
+
+7. **Await CI Green**:
+   - All security diff gates must pass
+   - Doc contract tests must pass
+   - No unrelated changes allowed in baseline PR
+
+8. **Review and Merge**:
+   - Security team review required
+   - Merge to `main` only after review approval
+
+**Enforcement Mechanisms**:
+- Only `scripts/security/update_baseline.py --write` may modify baseline files
+- CI blocks PRs with baseline changes lacking `SECBASE-YYYYMMDD` entry (via `check_security_baseline_log_entry.py`)
+- Normalized JSON artifacts uploaded to every security workflow run for audit trail
+
+**When to Refresh Baselines**:
+- **Required**: After dependency upgrades that change scanner findings
+- **Required**: After CVE remediation
+- **Required**: After security tool version upgrades
+- **Optional**: Quarterly baseline review (even if no changes)
+- **Never**: Automatically on scan drift or PR failures
+
+**Why This Process**:
+- Baselines are derived truth → must come from canonical CI environment (not local runs)
+- Explicit process creates audit trail (who, when, why, what changed)
+- SECBASE log entries enable compliance audits and incident response
+- Prevents silent acceptance of regressions
+
+**Aligns With**: DEC-045 (Security Diff Gate Policy), DEC-043 (CI SARIF Artifacts Canonical), README principle ("mechanically enforceable via CI contracts")
+
+**Owner**: Security team
+**Next Review**: Q2 2026 or on first baseline drift incident
+
+---
+
 ## 2026-01-05: CodeQL Query Suite Change + Normalization Stability Fix
 
 **Event**: Changed CodeQL query suite from `security-and-quality` to `security-extended` and improved SARIF normalization to be shift-tolerant.

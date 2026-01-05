@@ -17,6 +17,7 @@ Sources: CONSOLIDATED_STRATEGY, CONSOLIDATED_REFERENCE, archive/, BUILD-153, BUI
 
 | Timestamp | DEC-ID | Decision | Status | Impact |
 |-----------|--------|----------|--------|--------|
+| 2026-01-05 | DEC-045 | Security Diff Gate Policy (Fingerprint-Based Normalization + Security-Extended Suite) | ✅ Implemented | Mechanically enforceable security gates with high signal-to-noise; prevents baseline drift on benign refactors |
 | 2026-01-05 | DEC-044 | Requirements Regeneration Policy (Linux/CI Canonical) | ✅ Implemented | Mechanical prevention of cross-platform dependency drift via PR-blocking CI check |
 | 2026-01-05 | DEC-043 | Security Baseline Refresh (CI SARIF Artifacts Canonical) | ✅ Implemented | Ensures reproducible security baselines from canonical CI environment, prevents platform drift |
 | 2026-01-04 | DEC-042 | Consolidation Pattern: Execution Writes Run-Local; Tidy Consolidates | ✅ Implemented | Prevents "two truths" + enables safe mechanical SOT updates via explicit gating |
@@ -60,6 +61,115 @@ Sources: CONSOLIDATED_STRATEGY, CONSOLIDATED_REFERENCE, archive/, BUILD-153, BUI
 | 2025-12-09 | DEC-007 | Documentation Consolidation Implementation Plan | ✅ Implemented |  |
 
 ## DECISIONS (Reverse Chronological)
+
+### DEC-045 | 2026-01-05 | Security Diff Gate Policy (Fingerprint-Based Normalization + Security-Extended Suite)
+
+**Status**: ✅ Implemented
+**Build**: BUILD-173 (Release Marker)
+**Context**: After establishing security baselines (BUILD-172), needed durable policy to prevent gate erosion and ensure mechanically enforceable security guardrails.
+
+**Decision**: Establish permanent policy for security diff gates with fingerprint-based SARIF normalization and CodeQL `security-extended` query suite, rather than using quality/maintainability alerts that cause baseline drift on benign refactors.
+
+**Chosen Approach**:
+- **CodeQL Query Suite**: Use `security-extended` (security-only alerts) instead of `security-and-quality` (includes maintainability noise)
+  - **Rationale**: Quality alerts (`py/commented-out-code`, `py/repeated-import`, `py/unused-local-variable`) cause baseline drift on code motion
+  - **High-Signal Gates**: Security alerts are mechanically enforceable and survive refactors
+
+- **SARIF Normalization Strategy** ([scripts/security/normalize_sarif.py](../scripts/security/normalize_sarif.py)):
+  - **Fingerprint-Based Keys**: Prefer SARIF `partialFingerprints` or `fingerprints` for shift-tolerant baseline comparison
+  - **CodeQL Shift-Tolerance**: Exclude `startLine`/`startColumn` from finding keys when fingerprint exists (prevents baseline drift on code motion)
+  - **Trivy Precision**: Include `startLine`/`startColumn` for non-CodeQL tools (CVEs are file-specific, not shift-tolerant)
+  - **Schema Contract**: Normalized findings have allowed keys: `tool`, `ruleId`, `artifactUri`, `messageHash`, `startLine`, `startColumn`, `fingerprint`
+
+- **Baseline Update Process** ([scripts/security/update_baseline.py](../scripts/security/update_baseline.py)):
+  - **Explicit Refresh**: Baselines updated via manual script execution with `--write` flag (never automatic)
+  - **CI SARIF Artifacts**: Download SARIF from CI runs for canonical baseline refresh (prevents platform drift)
+  - **Security Log Requirement**: All baseline updates must be documented in [docs/SECURITY_LOG.md](SECURITY_LOG.md) with rationale
+  - **Deterministic Output**: Baselines are sorted, deduplicated JSON with fingerprint-based keys
+
+- **Diff Gate Semantics** ([scripts/security/diff_gate.py](../scripts/security/diff_gate.py)):
+  - **Exit Codes**: 0 = no new findings, 1 = new findings detected, 2 = error
+  - **Verbose Mode**: `--verbose` shows all new findings for local debugging
+  - **Baseline Path**: `security/baselines/{tool}.{scope}.json` (e.g., `codeql.python.json`, `trivy-fs.high.json`)
+
+- **CI Integration** ([.github/workflows/security.yml](../.github/workflows/security.yml)):
+  - **Non-Blocking (Initial)**: `continue-on-error: true` during stabilization period (1-2 stable runs)
+  - **Future Blocking**: Remove `continue-on-error` once gate proven stable across multiple PRs
+  - **Artifact Upload**: SARIF results uploaded for baseline refresh workflow
+
+**Alternatives Considered**:
+
+1. **Keep security-and-quality Suite**:
+   - ❌ Rejected: 29 spurious "new findings" on PR #27, all quality noise (not security regressions)
+   - ❌ Baseline drift on benign refactors (commented-out code, repeated imports, etc.)
+   - ❌ Low signal-to-noise ratio (developers ignore gate when it cries wolf)
+
+2. **Line-Based Normalization (No Fingerprints)**:
+   - ❌ Rejected: Code motion (adding/removing lines) causes baseline drift
+   - ❌ Refactors trigger false positives even when security posture unchanged
+   - ❌ High maintenance burden (baseline updates on every refactor)
+
+3. **Tool-Specific Exception Lists**:
+   - ❌ Rejected: Exception lists become stale and hide real regressions
+   - ❌ "Blanket exceptions" undermine mechanically enforceable gates
+   - ❌ Better to fix the mechanism (query suite + normalization) than add exceptions
+
+4. **Automatic Baseline Updates**:
+   - ❌ Rejected: Silent baseline drift (new findings auto-approved without review)
+   - ❌ No audit trail of security posture changes
+   - ❌ Defeats purpose of diff gate (detect regressions, not accept them)
+
+**Rationale**:
+- **Mechanically Enforceable**: Security gates must be trustworthy, not "known broken" (aligns with README principle)
+- **High Signal-to-Noise**: Developers trust gates that only fire on real security regressions, not style/quality issues
+- **Shift-Tolerant**: Fingerprint-based normalization survives benign code motion (refactors, line additions above findings)
+- **Explicit Baseline Updates**: Manual refresh with security log entry ensures accountability and audit trail
+- **Future-Proof**: Schema contract tests prevent normalization drift, baseline format stable across tool versions
+
+**Implementation**:
+- **SARIF Normalization**: [scripts/security/normalize_sarif.py](../scripts/security/normalize_sarif.py) (220 lines, fingerprint-based keys)
+- **Diff Gate**: [scripts/security/diff_gate.py](../scripts/security/diff_gate.py) (197 lines, exit code semantics)
+- **Baseline Update**: [scripts/security/update_baseline.py](../scripts/security/update_baseline.py) (221 lines, explicit `--write` flag)
+- **CodeQL Config**: [.github/codeql/codeql-config.yml](../.github/codeql/codeql-config.yml) (changed to `security-extended`)
+- **Security Log**: [docs/SECURITY_LOG.md](SECURITY_LOG.md) (append-only audit trail)
+- **Test Coverage**: 15 security contract tests (normalization schema, determinism, diff gate semantics, baseline update)
+
+**Validation**:
+- ✅ All 15 security contract tests passing
+- ✅ CodeQL diff gate: 0 new findings on PR #27 after stabilization (previously 29 spurious alerts)
+- ✅ Baseline deterministic and shift-tolerant (tested with code motion scenarios)
+- ✅ Schema contract enforced (unexpected keys cause test failures)
+- ✅ Security log entry required for baseline updates (CI check enforces)
+
+**When to Make Gate Blocking**:
+- **Current**: `continue-on-error: true` (non-blocking during stabilization)
+- **Future**: After 1-2 stable CI runs with 0 new findings on PRs, remove `continue-on-error` to make gate blocking
+- **Criteria**: No false positives for 2 consecutive PRs, baseline refresh process proven reliable
+
+**Baseline Update SOP** (Standard Operating Procedure):
+1. **Download SARIF**: `gh run download <run-id> -n <tool>-results`
+2. **Run Diff Gate**: `python scripts/security/diff_gate.py --tool <tool> --new <new.sarif> --baseline security/baselines/<tool>.<scope>.json --verbose`
+3. **Review Findings**: Analyze all new findings, determine if true positives or false positives
+4. **Refresh Baseline** (if new findings are acceptable): `python scripts/security/update_baseline.py --<tool> <new.sarif> --write`
+5. **Document in Security Log**: Add entry to [docs/SECURITY_LOG.md](SECURITY_LOG.md) with date, event, motivation, changes, verification
+6. **Commit and Push**: Include baseline + security log update in single commit
+
+**Impact**:
+- **Developer Trust**: Gates fire only on real security regressions, not style/quality noise
+- **Refactor-Safe**: Fingerprint-based normalization prevents false positives on code motion
+- **Audit Trail**: Security log provides accountability for baseline changes
+- **Mechanical Enforcement**: CI blocks PRs with new security findings (after stabilization period)
+- **Platform-Agnostic**: CI SARIF artifacts ensure consistent baselines across developer machines
+
+**References**:
+- Security Log: [docs/SECURITY_LOG.md](SECURITY_LOG.md)
+- Normalization: [scripts/security/normalize_sarif.py](../scripts/security/normalize_sarif.py)
+- Diff Gate: [scripts/security/diff_gate.py](../scripts/security/diff_gate.py)
+- Baseline Update: [scripts/security/update_baseline.py](../scripts/security/update_baseline.py)
+- CodeQL Config: [.github/codeql/codeql-config.yml](../.github/codeql/codeql-config.yml)
+- Test Coverage: [tests/security/](../tests/security/) (15 contract tests)
+
+---
 
 ### DEC-041 | 2026-01-04 | Intention Anchor Lifecycle as First-Class Artifact (Plan → Build → Audit → SOT → Retrieve)
 

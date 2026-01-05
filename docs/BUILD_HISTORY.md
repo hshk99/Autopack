@@ -4058,7 +4058,7 @@ python scripts/tidy/consolidate_intention_anchors.py apply --project-id autopack
 
 ### Related Documentation
 - Implementation Plan: [docs/IMPLEMENTATION_PLAN_INTENTION_ANCHOR_CONSOLIDATION.md](docs/IMPLEMENTATION_PLAN_INTENTION_ANCHOR_CONSOLIDATION.md)
-- Intention Anchor Lifecycle: [docs/IMPLEMENTATION_PLAN_INTENTION_ANCHOR_LIFECYCLE.md](docs/IMPLEMENTATION_PLAN_INTENTION_ANCHOR_LIFECYCLE.md)
+- Intention Anchor Completion: [docs/INTENTION_ANCHOR_COMPLETION_SUMMARY.md](docs/INTENTION_ANCHOR_COMPLETION_SUMMARY.md)
 - Architecture Decision: DEC-042 (Consolidation Pattern)
 
 ### Deliverables

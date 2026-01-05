@@ -26,6 +26,14 @@ dependencies = [
     "praw>=7.7.0",
     "pyyaml>=6.0",
     "bcrypt>=4.0.0",
+    # LLM API clients
+    "anthropic>=0.39.0",
+    # GitHub API client
+    "PyGithub>=2.1.0",
+    # HTML parsing for research gatherers
+    "beautifulsoup4>=4.12.0",
+    # Safe file deletion for storage optimizer
+    "Send2Trash>=1.8.0",
     # Vector store and memory features
     "qdrant-client>=1.7.0",
     # JWT authentication

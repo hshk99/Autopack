@@ -32,8 +32,18 @@ def test_write_baseline_is_deterministic():
     Same findings → same file content (byte-for-byte).
     """
     findings = [
-        {"tool": "trivy", "ruleId": "CVE-2024-5678", "artifactUri": "requirements.txt", "messageHash": "abc123"},
-        {"tool": "trivy", "ruleId": "CVE-2024-1234", "artifactUri": "Dockerfile", "messageHash": "def456"},
+        {
+            "tool": "trivy",
+            "ruleId": "CVE-2024-5678",
+            "artifactUri": "requirements.txt",
+            "messageHash": "abc123",
+        },
+        {
+            "tool": "trivy",
+            "ruleId": "CVE-2024-1234",
+            "artifactUri": "Dockerfile",
+            "messageHash": "def456",
+        },
     ]
 
     with tempfile.TemporaryDirectory() as tmpdir:
@@ -63,9 +73,24 @@ def test_write_baseline_sorts_findings():
     """
     # Deliberately unsorted input
     findings = [
-        {"tool": "codeql", "ruleId": "py/unused-local-variable", "artifactUri": "zzz.py", "messageHash": "zzz999"},
-        {"tool": "codeql", "ruleId": "py/empty-except", "artifactUri": "aaa.py", "messageHash": "aaa111"},
-        {"tool": "codeql", "ruleId": "py/cyclic-import", "artifactUri": "mmm.py", "messageHash": "mmm555"},
+        {
+            "tool": "codeql",
+            "ruleId": "py/unused-local-variable",
+            "artifactUri": "zzz.py",
+            "messageHash": "zzz999",
+        },
+        {
+            "tool": "codeql",
+            "ruleId": "py/empty-except",
+            "artifactUri": "aaa.py",
+            "messageHash": "aaa111",
+        },
+        {
+            "tool": "codeql",
+            "ruleId": "py/cyclic-import",
+            "artifactUri": "mmm.py",
+            "messageHash": "mmm555",
+        },
     ]
 
     with tempfile.TemporaryDirectory() as tmpdir:
@@ -89,7 +114,12 @@ def test_write_baseline_has_trailing_newline():
     Missing trailing newline → git diff shows "No newline at end of file" warning.
     """
     findings = [
-        {"tool": "trivy", "ruleId": "CVE-2024-0000", "artifactUri": "test.txt", "messageHash": "test00"}
+        {
+            "tool": "trivy",
+            "ruleId": "CVE-2024-0000",
+            "artifactUri": "test.txt",
+            "messageHash": "test00",
+        }
     ]
 
     with tempfile.TemporaryDirectory() as tmpdir:
@@ -110,7 +140,13 @@ def test_write_baseline_stable_json_formatting():
     Unstable formatting → noisy diffs on baseline updates.
     """
     findings = [
-        {"tool": "codeql", "ruleId": "py/test", "artifactUri": "src/app.py", "messageHash": "hash12", "startLine": 10}
+        {
+            "tool": "codeql",
+            "ruleId": "py/test",
+            "artifactUri": "src/app.py",
+            "messageHash": "hash12",
+            "startLine": 10,
+        }
     ]
 
     with tempfile.TemporaryDirectory() as tmpdir:

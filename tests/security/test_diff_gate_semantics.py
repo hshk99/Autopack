@@ -44,9 +44,12 @@ def _run_diff_gate(baseline_json: list, current_json: list, allow_empty: bool = 
         cmd = [
             sys.executable,
             str(diff_gate_script),
-            "--baseline", str(baseline_path),
-            "--current", str(current_path),
-            "--name", "Test Gate",
+            "--baseline",
+            str(baseline_path),
+            "--current",
+            str(current_path),
+            "--name",
+            "Test Gate",
         ]
 
         if allow_empty:
@@ -71,11 +74,26 @@ def test_diff_gate_detects_new_findings():
     Guardrail: Diff gate exits 1 when new findings appear (regression).
     """
     baseline = [
-        {"tool": "trivy", "ruleId": "CVE-2023-0001", "artifactUri": "file.py", "messageHash": "abc123"}
+        {
+            "tool": "trivy",
+            "ruleId": "CVE-2023-0001",
+            "artifactUri": "file.py",
+            "messageHash": "abc123",
+        }
     ]
     current = [
-        {"tool": "trivy", "ruleId": "CVE-2023-0001", "artifactUri": "file.py", "messageHash": "abc123"},
-        {"tool": "trivy", "ruleId": "CVE-2024-9999", "artifactUri": "new.py", "messageHash": "def456"},  # NEW
+        {
+            "tool": "trivy",
+            "ruleId": "CVE-2023-0001",
+            "artifactUri": "file.py",
+            "messageHash": "abc123",
+        },
+        {
+            "tool": "trivy",
+            "ruleId": "CVE-2024-9999",
+            "artifactUri": "new.py",
+            "messageHash": "def456",
+        },  # NEW
     ]
 
     exit_code = _run_diff_gate(baseline, current)
@@ -90,7 +108,13 @@ def test_diff_gate_passes_stable_baseline():
     Guardrail: Diff gate exits 0 when current matches baseline exactly.
     """
     baseline = [
-        {"tool": "codeql", "ruleId": "py/empty-except", "artifactUri": "src/main.py", "messageHash": "xyz789", "startLine": 42}
+        {
+            "tool": "codeql",
+            "ruleId": "py/empty-except",
+            "artifactUri": "src/main.py",
+            "messageHash": "xyz789",
+            "startLine": 42,
+        }
     ]
     current = baseline.copy()  # Identical
 
@@ -108,11 +132,26 @@ def test_diff_gate_allows_removed_findings():
     Removing findings = security improvement = acceptable.
     """
     baseline = [
-        {"tool": "trivy", "ruleId": "CVE-2023-0001", "artifactUri": "file.py", "messageHash": "abc123"},
-        {"tool": "trivy", "ruleId": "CVE-2023-0002", "artifactUri": "file.py", "messageHash": "def456"},
+        {
+            "tool": "trivy",
+            "ruleId": "CVE-2023-0001",
+            "artifactUri": "file.py",
+            "messageHash": "abc123",
+        },
+        {
+            "tool": "trivy",
+            "ruleId": "CVE-2023-0002",
+            "artifactUri": "file.py",
+            "messageHash": "def456",
+        },
     ]
     current = [
-        {"tool": "trivy", "ruleId": "CVE-2023-0001", "artifactUri": "file.py", "messageHash": "abc123"},
+        {
+            "tool": "trivy",
+            "ruleId": "CVE-2023-0001",
+            "artifactUri": "file.py",
+            "messageHash": "abc123",
+        },
         # CVE-2023-0002 removed (fixed)
     ]
 
@@ -131,7 +170,12 @@ def test_diff_gate_empty_baseline_without_flag_fails():
     """
     baseline = []
     current = [
-        {"tool": "trivy", "ruleId": "CVE-2024-1111", "artifactUri": "test.py", "messageHash": "aaa111"}
+        {
+            "tool": "trivy",
+            "ruleId": "CVE-2024-1111",
+            "artifactUri": "test.py",
+            "messageHash": "aaa111",
+        }
     ]
 
     exit_code = _run_diff_gate(baseline, current, allow_empty=False)
@@ -149,7 +193,12 @@ def test_diff_gate_empty_baseline_with_flag_allows_new_findings():
     """
     baseline = []
     current = [
-        {"tool": "codeql", "ruleId": "py/unused-import", "artifactUri": "app.py", "messageHash": "bbb222"}
+        {
+            "tool": "codeql",
+            "ruleId": "py/unused-import",
+            "artifactUri": "app.py",
+            "messageHash": "bbb222",
+        }
     ]
 
     exit_code = _run_diff_gate(baseline, current, allow_empty=True)

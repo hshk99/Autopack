@@ -25,6 +25,18 @@ from datetime import datetime
 
 # Configuration: Define where each type of file should go
 AUTOPACK_RULES = {
+    "excluded_sot_ledgers": {
+        "description": "SOT ledgers excluded from Tidy consolidation (append-only audit trails, living dashboards)",
+        "files": [
+            "docs/SECURITY_LOG.md",
+            "docs/SECURITY_BURNDOWN.md",
+            "docs/SECURITY_EXCEPTIONS.md",
+            "docs/BUILD_HISTORY.md",
+            "docs/ARCHITECTURE_DECISIONS.md",
+            "security/README.md",
+        ],
+    },
+
     "root_essential": {
         "description": "Essential documentation that must stay at root",
         "files": [
@@ -210,6 +222,13 @@ class DocumentationOrganizer:
         """
         filename = filepath.name
 
+        # Check if file is excluded from Tidy (SOT ledgers)
+        if "excluded_sot_ledgers" in self.rules:
+            relative_path = str(filepath.relative_to(self.project_root)).replace("\\", "/")
+            excluded_files = self.rules["excluded_sot_ledgers"]["files"]
+            if relative_path in excluded_files:
+                return ("excluded", f"SOT ledger excluded from Tidy: {relative_path}")
+
         # Check if it's an essential root file
         if filename in self.rules["root_essential"]["files"]:
             return ("root_essential", f"Essential root file: {filename}")
@@ -305,7 +324,11 @@ class DocumentationOrganizer:
             category, reason = self.categorize_file(filepath)
 
             # Determine action based on category and current location
-            if category == "root_essential":
+            if category == "excluded":
+                actions["no_action"].append((filepath, reason))
+                self.log(f"SKIP: {relative_path} - {reason}", "SKIP")
+
+            elif category == "root_essential":
                 if filepath.parent == self.project_root:
                     actions["no_action"].append((filepath, "Already in correct location"))
                     self.log(f"SKIP: {relative_path} - Already at root", "SKIP")
@@ -472,8 +495,8 @@ def main():
 
     args = parser.parse_args()
 
-    # Determine project root (script is in scripts/ subdirectory)
-    script_dir = Path(__file__).parent.parent
+    # Determine project root (script is in scripts/tidy/ subdirectory)
+    script_dir = Path(__file__).parent.parent.parent
 
     # Determine if we're working with FileOrganizer or Autopack
     if args.project == "fileorganizer":

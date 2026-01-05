@@ -47,9 +47,9 @@ Note: SOT→DB sync (`scripts/tidy/sot_db_sync.py`) exists as a derived index (`
 **Version**: 0.5.1
 
 <!-- SOT_SUMMARY_START -->
-**Last Updated**: 2026-01-05 21:47
+**Last Updated**: 2026-01-05 22:09
 
-- **Builds Completed**: 187 (includes multi-phase builds, 159 unique)
+- **Builds Completed**: 186 (includes multi-phase builds, 159 unique)
 - **Latest Build**: BUILD-172
 - **Architecture Decisions**: 41
 - **Debugging Sessions**: 86

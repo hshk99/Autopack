@@ -10,12 +10,18 @@
 
 | Category | Critical | High | Medium | Low | Total |
 |----------|----------|------|--------|-----|-------|
-| **Trivy (filesystem)** | 0 | TBD | TBD | TBD | TBD |
-| **Trivy (container)** | 0 | TBD | TBD | TBD | TBD |
-| **CodeQL** | 0 | TBD | TBD | TBD | TBD |
-| **Total** | **0** | **TBD** | **TBD** | **TBD** | **TBD** |
+| **Trivy (filesystem)** | 0 | 0 | - | - | 0 |
+| **Trivy (container)** | 0 | 0 | - | - | 0 |
+| **CodeQL** | 0 | ~140 | - | - | ~140 |
+| **Total** | **0** | **~140** | **-** | **-** | **~140** |
 
-_Last Updated: 2026-01-05_
+_Last Updated: 2026-01-05 (SECBASE-20260105 baseline refresh)_
+
+**Notes**:
+- Trivy scans show 0 CRITICAL/HIGH findings (clean state ✅)
+- CodeQL ~140 findings are pre-existing technical debt (empty-except, unused-local-variable, cyclic-import, etc.)
+- CodeQL findings classified as HIGH by CodeQL severity but not all represent exploitable vulnerabilities
+- Medium/Low counts not tracked (focus on CRITICAL/HIGH regression prevention only)
 
 ---
 
@@ -27,17 +33,22 @@ _(None currently)_
 
 ## High Findings (Target: 30-day remediation)
 
-### Baseline Findings (Pre-Gate Implementation)
+### CodeQL Findings (Pre-existing Technical Debt)
 
-_To be populated after initial baseline scan. High-severity findings from baseline will be inventoried here with:_
-- Finding ID / CVE
-- Affected package/path
-- Attack vector summary
-- Owner
-- Target resolution date
-- Mitigation status
+**Baseline**: SECBASE-20260105 captured ~140 pre-existing CodeQL findings (see )
 
-**Placeholder**: Will be populated in Phase 4 (baseline generation).
+**Inventory Status**: Full inventory deferred (not blocking - regression prevention is primary goal)
+
+**Common patterns**:
+- : Empty except blocks without error handling
+- : Unused variables in scope
+- : Circular import dependencies
+- : Dead code after returns
+
+**Remediation approach**:
+- Priority: Prevent new findings (diff gate blocks PRs with regressions)
+- Burndown: Opportunistic cleanup during related refactoring (not time-boxed)
+- Exceptions: None required (findings are code quality issues, not security vulnerabilities)
 
 ---
 

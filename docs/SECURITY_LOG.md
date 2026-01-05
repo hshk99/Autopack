@@ -6,6 +6,28 @@
 
 ---
 
+## 2026-01-05: Policy Correction — Diff Gates Remain Non-Blocking Until Stable
+
+**Event**: Corrected rollout policy for security diff gates to avoid blocking PRs while baselines and query noise are being stabilized.
+
+**Correction**:
+- Diff gate steps in `.github/workflows/security.yml` run in **rollout mode**:
+  - `continue-on-error: true`
+  - Trivy diff gates use `--allow-empty-baseline` until Trivy baselines are populated (currently empty = 0 findings)
+
+**Rationale**:
+- Baselines are newly introduced; CodeQL “new findings” can spike due to benign code motion (line number shifts) or query changes.
+- Non-blocking rollout preserves the README intent: **report + burndown first**, then tighten to blocking once stable.
+
+**Next Step (when ready)**:
+- After 1–2 stable runs *and* a reviewed baseline refresh on `main`, flip diff gates to blocking:
+  - set `continue-on-error: false`
+  - remove `--allow-empty-baseline`
+
+**Owner**: Security team
+
+---
+
 ## SECBASE-20260105: Security Baseline Refresh (Trivy + CodeQL)
 
 **Date (UTC)**: 2026-01-05

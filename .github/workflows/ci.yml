@@ -64,6 +64,9 @@ jobs:
       - name: Check nav-mode doc links (README, INDEX, BUILD_HISTORY)
         run: |
           python scripts/check_doc_links.py
+      - name: Enforce security baseline logging (SECBASE required when baselines change)
+        run: |
+          python scripts/ci/check_security_baseline_log_entry.py
 
   # BUILD-146 Phase A P15: 3-gate test strategy
   # Gate 1: Core tests (must pass) - no xfail markers, production-critical

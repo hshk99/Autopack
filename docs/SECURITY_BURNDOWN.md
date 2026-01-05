@@ -8,14 +8,16 @@
 
 ## Summary Dashboard
 
+<!-- AUTO_COUNTS_START -->
 | Category | Critical | High | Medium | Low | Total |
 |----------|----------|------|--------|-----|-------|
 | **Trivy (filesystem)** | 0 | 0 | - | - | 0 |
 | **Trivy (container)** | 0 | 0 | - | - | 0 |
-| **CodeQL** | 0 | ~140 | - | - | ~140 |
-| **Total** | **0** | **~140** | **-** | **-** | **~140** |
+| **CodeQL** | 0 | 141 | - | - | 141 |
+| **Total** | **0** | **141** | **-** | **-** | **141** |
 
-_Last Updated: 2026-01-05 (SECBASE-20260105 baseline refresh)_
+_Last Updated: 2026-01-05 (auto-generated from security/baselines/)_
+<!-- AUTO_COUNTS_END -->
 
 **Notes**:
 - Trivy scans show 0 CRITICAL/HIGH findings (clean state ✅)
@@ -35,15 +37,15 @@ _(None currently)_
 
 ### CodeQL Findings (Pre-existing Technical Debt)
 
-**Baseline**: SECBASE-20260105 captured ~140 pre-existing CodeQL findings (see )
+**Baseline**: SECBASE-20260105 captured ~140 pre-existing CodeQL findings
 
 **Inventory Status**: Full inventory deferred (not blocking - regression prevention is primary goal)
 
 **Common patterns**:
-- : Empty except blocks without error handling
-- : Unused variables in scope
-- : Circular import dependencies
-- : Dead code after returns
+- `py/empty-except`: Empty except blocks without error handling
+- `py/unused-local-variable`: Unused variables in scope
+- `py/cyclic-import`: Circular import dependencies
+- `py/unreachable-statement`: Dead code after returns
 
 **Remediation approach**:
 - Priority: Prevent new findings (diff gate blocks PRs with regressions)
@@ -85,14 +87,14 @@ _(None yet)_
 
 ### How to Update This Document
 
-1. **After security scans**: Run `scripts/security/summarize.py` (when implemented) to generate markdown table updates
+1. **Summary Dashboard**: Auto-generated from `security/baselines/` (run `python scripts/security/generate_security_burndown_counts.py` after baseline updates)
 2. **On finding resolution**: Move entry from active section to "Resolved This Quarter"
 3. **On new exception**: Add to Watchlist + link to `SECURITY_EXCEPTIONS.md`
 4. **Weekly triage**: Review dashboard, update owners/ETAs, escalate stalled items
 
 ### Automation Status
 
-- [ ] Automated dashboard generation from baselines (planned: Phase 5)
+- [x] Automated dashboard generation from baselines (✓ CI-enforced)
 - [ ] PR comment summaries (planned: Phase 5)
 - [ ] Weekly Slack/email digest (future work)
 

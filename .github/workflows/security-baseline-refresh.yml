@@ -1,0 +1,201 @@
+name: Security Baseline Refresh PR
+
+on:
+  workflow_dispatch:  # Manual trigger only initially (schedule can be added after validation)
+  # schedule:
+  #   - cron: "0 7 * * 1"   # Weekly Monday 07:00 UTC (after security-artifacts runs)
+
+permissions:
+  contents: write
+  pull-requests: write
+  actions: read
+
+jobs:
+  baseline-refresh-pr:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          pip install -e ".[dev]"
+
+      - name: Download latest security artifacts
+        uses: dawidd6/action-download-artifact@bf251b5aa9c2f7eeb574a96ee720e24f801b7c11  # v6
+        with:
+          workflow: security-artifacts.yml
+          branch: main
+          name: security-sarif-artifacts
+          path: artifacts/
+
+      - name: Verify artifacts exist
+        run: |
+          ls -la artifacts/
+          if [ ! -f artifacts/trivy-results.sarif ]; then
+            echo "ERROR: trivy-results.sarif not found"
+            exit 1
+          fi
+          if [ ! -f artifacts/trivy-container.sarif ]; then
+            echo "ERROR: trivy-container.sarif not found"
+            exit 1
+          fi
+          if [ ! -f artifacts/codeql-results/python.sarif ]; then
+            echo "ERROR: codeql-results/python.sarif not found"
+            exit 1
+          fi
+
+      - name: Update baselines
+        run: |
+          python scripts/security/update_baseline.py \
+            --trivy-fs artifacts/trivy-results.sarif \
+            --trivy-image artifacts/trivy-container.sarif \
+            --codeql artifacts/codeql-results/python.sarif \
+            --write
+
+      - name: Update burndown counts
+        run: |
+          python scripts/security/generate_security_burndown_counts.py
+
+      - name: Check if baselines changed
+        id: check-changes
+        run: |
+          git diff --exit-code security/baselines/ docs/SECURITY_BURNDOWN.md || echo "changed=true" >> $GITHUB_OUTPUT
+
+      - name: Append stub SECBASE entry
+        if: steps.check-changes.outputs.changed == 'true'
+        run: |
+          DATESTAMP=$(date +%Y%m%d)
+          SECBASE_ID="SECBASE-${DATESTAMP}"
+
+          # Create stub entry with TODO marker
+          cat > /tmp/secbase-stub.md <<'EOF'
+          ## SECBASE-TODO-REPLACE-WITH-REAL-CONTENT
+
+          **Event**: Automated baseline refresh (STUB - requires human completion)
+
+          **Workflow Run**: [Security SARIF Artifacts](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
+
+          **Commit SHA**: ${{ github.sha }}
+
+          **Delta Summary**: TODO - add before/after counts and rationale
+
+          **Rationale**: TODO - explain why baselines changed (e.g., dependency upgrade, CVE remediation, tool version upgrade)
+
+          **Reviewed By**: TODO - security team member
+
+          ---
+
+          EOF
+
+          # Insert stub at top of SECURITY_LOG.md (after header)
+          awk '/^---$/ && !found {print; system("cat /tmp/secbase-stub.md"); found=1; next} 1' \
+            docs/SECURITY_LOG.md > /tmp/security-log-updated.md
+          mv /tmp/security-log-updated.md docs/SECURITY_LOG.md
+
+      - name: Create PR branch
+        if: steps.check-changes.outputs.changed == 'true'
+        run: |
+          DATESTAMP=$(date +%Y%m%d)
+          BRANCH="security/baseline-refresh-${DATESTAMP}"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git checkout -b "${BRANCH}"
+          git add security/baselines/ docs/SECURITY_BURNDOWN.md docs/SECURITY_LOG.md
+          git commit -m "security: Refresh baselines (SECBASE-${DATESTAMP} - STUB)
+
+Automated baseline refresh from security-artifacts workflow.
+
+⚠️ SECBASE entry is a STUB - requires human completion before merge.
+
+Workflow: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+Commit: ${{ github.sha }}"
+
+          git push origin "${BRANCH}"
+
+      - name: Check for existing PR
+        if: steps.check-changes.outputs.changed == 'true'
+        id: check-pr
+        run: |
+          DATESTAMP=$(date +%Y%m%d)
+          BRANCH="security/baseline-refresh-${DATESTAMP}"
+
+          EXISTING_PR=$(gh pr list --head "${BRANCH}" --state open --json number --jq '.[0].number' || echo "")
+
+          if [ -n "$EXISTING_PR" ]; then
+            echo "pr_exists=true" >> $GITHUB_OUTPUT
+            echo "pr_number=${EXISTING_PR}" >> $GITHUB_OUTPUT
+          else
+            echo "pr_exists=false" >> $GITHUB_OUTPUT
+          fi
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create PR
+        if: steps.check-changes.outputs.changed == 'true' && steps.check-pr.outputs.pr_exists == 'false'
+        run: |
+          DATESTAMP=$(date +%Y%m%d)
+          BRANCH="security/baseline-refresh-${DATESTAMP}"
+
+          gh pr create \
+            --title "security: Refresh baselines (SECBASE-${DATESTAMP} - STUB)" \
+            --body "$(cat <<'EOF'
+          ## ⚠️ SECBASE Entry is a STUB - Human Completion Required
+
+          This PR was automatically created by the security baseline refresh workflow.
+
+          **Before this PR can be merged:**
+
+          1. **Complete the SECBASE entry** in `docs/SECURITY_LOG.md`:
+             - Replace `TODO` markers with actual rationale
+             - Add before/after finding counts
+             - Explain why baselines changed (dependency upgrade, CVE remediation, etc.)
+             - Add security team reviewer name
+
+          2. **Review baseline changes**:
+             ```bash
+             git diff origin/main...HEAD security/baselines/
+             ```
+
+          3. **Verify CI is green** (all tests and security gates must pass)
+
+          ## Artifacts
+
+          - **Workflow Run**: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          - **Commit SHA**: ${{ github.sha }}
+          - **Branch**: `${BRANCH}`
+
+          ## Process Contract
+
+          This PR follows the canonical baseline update process defined in `docs/SECURITY_LOG.md`.
+
+          **CI will block merge until:**
+          - SECBASE entry TODO markers are removed
+          - All security diff gates pass
+          - Doc contract tests pass
+
+          ---
+
+          🤖 Generated with [GitHub Actions](https://github.com/features/actions)
+          EOF
+          )" \
+            --base main \
+            --head "${BRANCH}" \
+            --label "security-baseline-update"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Skip PR creation (no changes)
+        if: steps.check-changes.outputs.changed != 'true'
+        run: |
+          echo "✅ No baseline changes detected - skipping PR creation"
+          echo "Baselines are up-to-date with latest security artifacts"

@@ -1,7 +1,22 @@
 name: Security SARIF Artifacts
 
 on:
-  workflow_dispatch:  # Manual trigger only - run explicitly for baseline refresh
+  workflow_dispatch:  # Manual trigger for baseline refresh
+  schedule:
+    - cron: "0 6 * * 1"   # Weekly Monday 06:00 UTC
+  push:
+    branches: [ main ]
+    paths:
+      - "pyproject.toml"
+      - "requirements.txt"
+      - "requirements-dev.txt"
+      - ".github/workflows/security*.yml"
+      - ".github/codeql/**"
+      - "scripts/security/**"
+
+concurrency:
+  group: security-artifacts-${{ github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: read

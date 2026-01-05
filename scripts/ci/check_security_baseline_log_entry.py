@@ -32,6 +32,8 @@ SECURITY_LOG_PATH = Path("docs/SECURITY_LOG.md")
 BASELINES_DIR = Path("security/baselines")
 
 SECBASE_RE = re.compile(r"^##\s+SECBASE-\d{8}\b", re.MULTILINE)
+STUB_SECBASE_RE = re.compile(r"^##\s+SECBASE-TODO-", re.MULTILINE)
+TODO_MARKER_RE = re.compile(r"\bTODO\b")
 
 
 def _run(cmd: list[str], *, check: bool = True) -> subprocess.CompletedProcess[str]:
@@ -118,6 +120,28 @@ def _extract_secbase_ids(text: str) -> Set[str]:
         if len(tokens) >= 2:
             ids.add(tokens[1])  # "SECBASE-YYYYMMDD"
     return ids
+
+
+def _has_stub_secbase_entry(text: str) -> bool:
+    """
+    Check if SECURITY_LOG.md contains a stub SECBASE entry with TODO markers.
+
+    Returns True if either:
+    - A heading starts with "SECBASE-TODO-"
+    - A SECBASE entry section contains "TODO" markers (indicating incomplete entry)
+    """
+    # Check for stub heading
+    if STUB_SECBASE_RE.search(text):
+        return True
+
+    # Check for TODO markers in SECBASE sections
+    # Extract sections starting with ## SECBASE- until next ## or end of file
+    secbase_sections = re.split(r"(?=^##\s+SECBASE-)", text, flags=re.MULTILINE)
+    for section in secbase_sections:
+        if section.startswith("## SECBASE-") and TODO_MARKER_RE.search(section):
+            return True
+
+    return False
 
 
 def _read_file_text(path: Path) -> str:
@@ -208,6 +232,21 @@ def main() -> int:
         print("Detected baseline changes in:", file=sys.stderr)
         for p in sorted(baselines_changed_list):
             print(f"  - {p}", file=sys.stderr)
+        return 1
+
+    # Check for stub SECBASE entries (automated PR workflow safety)
+    if _has_stub_secbase_entry(head_log):
+        print("ERROR: Security baselines changed, but SECBASE entry is incomplete (contains TODO markers).", file=sys.stderr)
+        print("", file=sys.stderr)
+        print("Required before merge:", file=sys.stderr)
+        print("  - Complete the SECBASE entry in docs/SECURITY_LOG.md", file=sys.stderr)
+        print("  - Replace all TODO markers with actual content:", file=sys.stderr)
+        print("    - Add before/after finding counts", file=sys.stderr)
+        print("    - Explain rationale for baseline changes", file=sys.stderr)
+        print("    - Add security team reviewer name", file=sys.stderr)
+        print("  - Ensure heading is 'SECBASE-YYYYMMDD' (not 'SECBASE-TODO-...')", file=sys.stderr)
+        print("", file=sys.stderr)
+        print("This safety check prevents merging automated baseline refresh PRs without human review.", file=sys.stderr)
         return 1
 
     print("OK: Security baselines changed and new SECBASE entry detected.")

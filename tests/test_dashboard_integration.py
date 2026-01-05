@@ -18,9 +18,7 @@ def test_db():
     """Create a fresh in-memory test database for each test"""
     # Use in-memory SQLite with StaticPool for test isolation
     engine = create_engine(
-        "sqlite:///:memory:",
-        connect_args={"check_same_thread": False},
-        poolclass=StaticPool
+        "sqlite:///:memory:", connect_args={"check_same_thread": False}, poolclass=StaticPool
     )
     Base.metadata.create_all(bind=engine)
     yield engine
@@ -45,6 +43,7 @@ def client(test_db, tmp_path, monkeypatch):
 
     # Override autonomous_runs_dir at the settings object level
     from autopack.config import settings
+
     test_runs_dir = str(tmp_path / ".autonomous_runs")
     monkeypatch.setattr(settings, "autonomous_runs_dir", test_runs_dir)
 
@@ -142,13 +141,14 @@ def test_dashboard_usage_empty(client):
 
 @pytest.mark.xfail(
     strict=False,
-    reason="DB session isolation issue - test db_session doesn't share data with client's dependency-injected session. Needs fixture refactoring."
+    reason="DB session isolation issue - test db_session doesn't share data with client's dependency-injected session. Needs fixture refactoring.",
 )
 def test_dashboard_usage_with_data(client, test_db):
     """Test GET /dashboard/usage with usage data"""
     # Create a session using the same engine/sessionmaker as the client
     from datetime import timezone
     from sqlalchemy.orm import sessionmaker
+
     SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=test_db)
     db = SessionLocal()
 

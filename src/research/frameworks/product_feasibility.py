@@ -11,6 +11,7 @@ from enum import Enum
 
 class RiskLevel(Enum):
     """Risk level enumeration."""
+
     LOW = "low"
     MEDIUM = "medium"
     HIGH = "high"
@@ -19,6 +20,7 @@ class RiskLevel(Enum):
 
 class FeasibilityLevel(Enum):
     """Overall feasibility assessment."""
+
     NOT_FEASIBLE = "not_feasible"
     MARGINALLY_FEASIBLE = "marginally_feasible"
     FEASIBLE = "feasible"
@@ -29,6 +31,7 @@ class FeasibilityLevel(Enum):
 @dataclass
 class TechnicalRequirement:
     """Individual technical requirement (singular for test compatibility)."""
+
     name: str
     complexity: str  # "low", "medium", "high"
     availability: str  # "readily_available", "limited", "unavailable"
@@ -38,6 +41,7 @@ class TechnicalRequirement:
 @dataclass
 class ResourceRequirement:
     """Resource requirement (singular for test compatibility)."""
+
     team_size: int
     required_skills: List[str]
     development_time_months: int
@@ -189,7 +193,7 @@ class ProductFeasibility:
         risk_score = self.calculate_risk_score()
 
         # Weighted average (tech and risk are more important)
-        overall_score = (tech_score * 0.4 + resource_score * 0.3 + risk_score * 0.3)
+        overall_score = tech_score * 0.4 + resource_score * 0.3 + risk_score * 0.3
 
         # Map to feasibility level
         if overall_score >= 85:

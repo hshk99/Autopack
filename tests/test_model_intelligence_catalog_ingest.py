@@ -100,9 +100,9 @@ def test_ingest_catalog(in_memory_session, sample_models_yaml):
     assert len(models) >= 3
 
     # Check specific model
-    claude_sonnet = in_memory_session.query(ModelCatalog).filter_by(
-        model_id="claude-sonnet-4-5"
-    ).first()
+    claude_sonnet = (
+        in_memory_session.query(ModelCatalog).filter_by(model_id="claude-sonnet-4-5").first()
+    )
     assert claude_sonnet is not None
     assert claude_sonnet.provider == "anthropic"
     assert claude_sonnet.family == "claude"
@@ -121,9 +121,7 @@ def test_ingest_pricing(in_memory_session, sample_pricing_yaml):
 
     # Check specific pricing
     claude_sonnet_pricing = (
-        in_memory_session.query(ModelPricing)
-        .filter_by(model_id="claude-sonnet-4-5")
-        .first()
+        in_memory_session.query(ModelPricing).filter_by(model_id="claude-sonnet-4-5").first()
     )
     assert claude_sonnet_pricing is not None
     assert float(claude_sonnet_pricing.input_per_1k) == 0.003

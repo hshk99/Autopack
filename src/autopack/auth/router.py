@@ -10,6 +10,7 @@ SOT Contract Endpoints:
 - GET /api/auth/.well-known/jwks.json
 - GET /api/auth/key-status
 """
+
 import hashlib
 from datetime import datetime, timezone
 from typing import Annotated
@@ -44,11 +45,7 @@ def get_password_hash(password: str) -> str:
 
 def authenticate_user(db: Session, username: str, password: str) -> User | None:
     """Return user if credentials are valid, otherwise None."""
-    user = (
-        db.query(User)
-        .filter(User.username == username)
-        .first()
-    )
+    user = db.query(User).filter(User.username == username).first()
     if not user:
         return None
     if not verify_password(password, user.hashed_password):
@@ -65,7 +62,9 @@ async def jwks():
     """
     ensure_keys()
     kid_source = settings.jwt_public_key.encode("utf-8")
-    jwk = generate_jwk_from_public_pem(settings.jwt_public_key, kid_hex=hashlib.sha256(kid_source).hexdigest())
+    jwk = generate_jwk_from_public_pem(
+        settings.jwt_public_key, kid_hex=hashlib.sha256(kid_source).hexdigest()
+    )
     return {"keys": [jwk]}
 
 

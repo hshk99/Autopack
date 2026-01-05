@@ -27,8 +27,10 @@ class LlmUsageEvent(Base):
     # BUILD-144: nullable=True to support total-only recording when exact splits unavailable
     prompt_tokens = Column(Integer, nullable=True)
     completion_tokens = Column(Integer, nullable=True)
-    created_at = Column(DateTime, nullable=False, default=lambda: datetime.now(timezone.utc), index=True)
-    
+    created_at = Column(
+        DateTime, nullable=False, default=lambda: datetime.now(timezone.utc), index=True
+    )
+
     # Doctor-specific fields
     is_doctor_call = Column(Boolean, nullable=False, default=False, index=True)
     doctor_model = Column(String, nullable=True)  # cheap or strong
@@ -42,16 +44,16 @@ class DoctorUsageStats(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     run_id = Column(String, nullable=False, unique=True, index=True)
-    
+
     # Call counts
     doctor_calls_total = Column(Integer, nullable=False, default=0)
     doctor_cheap_calls = Column(Integer, nullable=False, default=0)
     doctor_strong_calls = Column(Integer, nullable=False, default=0)
     doctor_escalations = Column(Integer, nullable=False, default=0)  # cheap -> strong upgrades
-    
+
     # Action distribution (JSON dict: {action_type: count})
     doctor_actions = Column(JSON, nullable=False, default=dict)
-    
+
     # Timestamps
     created_at = Column(DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
     updated_at = Column(
@@ -99,7 +101,9 @@ class TokenEfficiencyMetrics(Base):
     deliverables_count = Column(Integer, nullable=True, default=0)
     context_files_total = Column(Integer, nullable=True, default=0)  # Total files before budgeting
 
-    created_at = Column(DateTime, nullable=False, default=lambda: datetime.now(timezone.utc), index=True)
+    created_at = Column(
+        DateTime, nullable=False, default=lambda: datetime.now(timezone.utc), index=True
+    )
 
 
 class Phase6Metrics(Base):
@@ -135,7 +139,9 @@ class Phase6Metrics(Base):
     plan_deliverables_count = Column(Integer, nullable=True)
     plan_scope_size_bytes = Column(Integer, nullable=True)
 
-    created_at = Column(DateTime, nullable=False, default=lambda: datetime.now(timezone.utc), index=True)
+    created_at = Column(
+        DateTime, nullable=False, default=lambda: datetime.now(timezone.utc), index=True
+    )
 
 
 @dataclass
@@ -191,7 +197,7 @@ def record_usage(db: Session, event: UsageEventData) -> LlmUsageEvent:
     db.add(usage_record)
     db.commit()
     db.refresh(usage_record)
-    
+
     # Update aggregated Doctor stats if this is a Doctor call
     if event.is_doctor_call and event.run_id:
         update_doctor_stats(db, event)
@@ -202,19 +208,17 @@ def record_usage(db: Session, event: UsageEventData) -> LlmUsageEvent:
 def update_doctor_stats(db: Session, event: UsageEventData) -> None:
     """
     Update aggregated Doctor usage statistics for a run.
-    
+
     Args:
         db: Database session
         event: Usage event data (must be a Doctor call with run_id)
     """
     if not event.run_id or not event.is_doctor_call:
         return
-    
+
     # Get or create stats record
-    stats = db.query(DoctorUsageStats).filter(
-        DoctorUsageStats.run_id == event.run_id
-    ).first()
-    
+    stats = db.query(DoctorUsageStats).filter(DoctorUsageStats.run_id == event.run_id).first()
+
     if not stats:
         stats = DoctorUsageStats(
             run_id=event.run_id,
@@ -225,31 +229,38 @@ def update_doctor_stats(db: Session, event: UsageEventData) -> None:
             doctor_actions={},
         )
         db.add(stats)
-    
+
     # Update counts
     stats.doctor_calls_total += 1
-    
+
     if event.doctor_model == "cheap":
         stats.doctor_cheap_calls += 1
     elif event.doctor_model == "strong":
         stats.doctor_strong_calls += 1
         # Check if this was an escalation (previous call was cheap)
-        prev_call = db.query(LlmUsageEvent).filter(
-            LlmUsageEvent.run_id == event.run_id,
-            LlmUsageEvent.phase_id == event.phase_id,
-            LlmUsageEvent.is_doctor_call,
-            LlmUsageEvent.doctor_model == "cheap",
-        ).order_by(LlmUsageEvent.created_at.desc()).first()
-        
+        prev_call = (
+            db.query(LlmUsageEvent)
+            .filter(
+                LlmUsageEvent.run_id == event.run_id,
+                LlmUsageEvent.phase_id == event.phase_id,
+                LlmUsageEvent.is_doctor_call,
+                LlmUsageEvent.doctor_model == "cheap",
+            )
+            .order_by(LlmUsageEvent.created_at.desc())
+            .first()
+        )
+
         if prev_call:
             stats.doctor_escalations += 1
-    
+
     # Update action distribution
     if event.doctor_action:
         if stats.doctor_actions is None:
             stats.doctor_actions = {}
-        stats.doctor_actions[event.doctor_action] = stats.doctor_actions.get(event.doctor_action, 0) + 1
-    
+        stats.doctor_actions[event.doctor_action] = (
+            stats.doctor_actions.get(event.doctor_action, 0) + 1
+        )
+
     stats.updated_at = datetime.now(timezone.utc)
     db.commit()
 
@@ -257,21 +268,19 @@ def update_doctor_stats(db: Session, event: UsageEventData) -> None:
 def get_doctor_stats(db: Session, run_id: str) -> Optional[Dict]:
     """
     Get Doctor usage statistics for a run.
-    
+
     Args:
         db: Database session
         run_id: Run identifier
-    
+
     Returns:
         Dictionary with Doctor stats or None if no stats exist
     """
-    stats = db.query(DoctorUsageStats).filter(
-        DoctorUsageStats.run_id == run_id
-    ).first()
-    
+    stats = db.query(DoctorUsageStats).filter(DoctorUsageStats.run_id == run_id).first()
+
     if not stats:
         return None
-    
+
     return {
         "run_id": stats.run_id,
         "doctor_calls_total": stats.doctor_calls_total,
@@ -281,11 +290,13 @@ def get_doctor_stats(db: Session, run_id: str) -> Optional[Dict]:
         "doctor_actions": stats.doctor_actions or {},
         "cheap_vs_strong_ratio": (
             stats.doctor_cheap_calls / stats.doctor_calls_total
-            if stats.doctor_calls_total > 0 else 0
+            if stats.doctor_calls_total > 0
+            else 0
         ),
         "escalation_frequency": (
             stats.doctor_escalations / stats.doctor_calls_total
-            if stats.doctor_calls_total > 0 else 0
+            if stats.doctor_calls_total > 0
+            else 0
         ),
     }
 
@@ -347,11 +358,15 @@ def record_token_efficiency_metrics(
     # BUILD-146 P17.1: Fast-path idempotency check (avoids insert attempt when already exists)
     # If phase_outcome is specified, check for existing record with that outcome
     if phase_outcome:
-        existing = db.query(TokenEfficiencyMetrics).filter(
-            TokenEfficiencyMetrics.run_id == run_id,
-            TokenEfficiencyMetrics.phase_id == phase_id,
-            TokenEfficiencyMetrics.phase_outcome == phase_outcome,
-        ).first()
+        existing = (
+            db.query(TokenEfficiencyMetrics)
+            .filter(
+                TokenEfficiencyMetrics.run_id == run_id,
+                TokenEfficiencyMetrics.phase_id == phase_id,
+                TokenEfficiencyMetrics.phase_outcome == phase_outcome,
+            )
+            .first()
+        )
 
         if existing:
             # Already recorded for this outcome - return existing record without duplication
@@ -394,11 +409,15 @@ def record_token_efficiency_metrics(
 
         # Re-query for existing record (must exist if IntegrityError was raised)
         if phase_outcome:
-            existing = db.query(TokenEfficiencyMetrics).filter(
-                TokenEfficiencyMetrics.run_id == run_id,
-                TokenEfficiencyMetrics.phase_id == phase_id,
-                TokenEfficiencyMetrics.phase_outcome == phase_outcome,
-            ).first()
+            existing = (
+                db.query(TokenEfficiencyMetrics)
+                .filter(
+                    TokenEfficiencyMetrics.run_id == run_id,
+                    TokenEfficiencyMetrics.phase_id == phase_id,
+                    TokenEfficiencyMetrics.phase_outcome == phase_outcome,
+                )
+                .first()
+            )
 
             if existing:
                 # Found existing record created by concurrent writer
@@ -411,18 +430,16 @@ def record_token_efficiency_metrics(
 
 def get_token_efficiency_stats(db: Session, run_id: str) -> Dict:
     """Get aggregated token efficiency statistics for a run.
-    
+
     Args:
         db: Database session
         run_id: Run identifier
-    
+
     Returns:
         Dictionary with aggregated token efficiency stats
     """
-    metrics = db.query(TokenEfficiencyMetrics).filter(
-        TokenEfficiencyMetrics.run_id == run_id
-    ).all()
-    
+    metrics = db.query(TokenEfficiencyMetrics).filter(TokenEfficiencyMetrics.run_id == run_id).all()
+
     if not metrics:
         return {
             "run_id": run_id,
@@ -439,7 +456,7 @@ def get_token_efficiency_stats(db: Session, run_id: str) -> Dict:
             "avg_tokens_saved_per_phase": 0.0,
             "budget_utilization": 0.0,
         }
-    
+
     total_artifact_substitutions = sum(m.artifact_substitutions for m in metrics)
     total_tokens_saved_artifacts = sum(m.tokens_saved_artifacts for m in metrics)
     total_budget_used = sum(m.budget_used for m in metrics)

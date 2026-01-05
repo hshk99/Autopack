@@ -6,6 +6,7 @@ This test uses the main autopack test fixtures (autopack.main:app).
 NOTE: Full functionality testing requires the backend API to be running.
 This test just verifies the endpoints exist with correct structure.
 """
+
 import os
 
 # Ensure TESTING mode for auth bypass
@@ -17,10 +18,7 @@ def test_execute_endpoint_exists_and_authenticated(client):
     # This endpoint should exist and require auth
     # With TESTING=1, auth is bypassed
 
-    response = client.post(
-        "/runs/test-run/execute",
-        headers={"X-API-Key": "test-key"}
-    )
+    response = client.post("/runs/test-run/execute", headers={"X-API-Key": "test-key"})
 
     # Endpoint exists if we get something other than 404/405
     # Likely 404 (run not found) or 400 (run in wrong state)
@@ -32,10 +30,7 @@ def test_status_endpoint_exists_and_authenticated(client):
     # This endpoint should exist and require auth
     # With TESTING=1, auth is bypassed
 
-    response = client.get(
-        "/runs/test-run/status",
-        headers={"X-API-Key": "test-key"}
-    )
+    response = client.get("/runs/test-run/status", headers={"X-API-Key": "test-key"})
 
     # Endpoint exists if we get something other than 405
     # Likely 404 (run not found)
@@ -45,15 +40,11 @@ def test_status_endpoint_exists_and_authenticated(client):
 def test_dual_auth_support(client):
     """Test both X-API-Key and Bearer token auth work."""
     # Test X-API-Key
-    response_api_key = client.get(
-        "/runs/test-run/status",
-        headers={"X-API-Key": "test-key"}
-    )
+    response_api_key = client.get("/runs/test-run/status", headers={"X-API-Key": "test-key"})
 
     # Test Bearer token
     response_bearer = client.get(
-        "/runs/test-run/status",
-        headers={"Authorization": "Bearer test-token"}
+        "/runs/test-run/status", headers={"Authorization": "Bearer test-token"}
     )
 
     # Both should NOT return 401/403 (auth failure)

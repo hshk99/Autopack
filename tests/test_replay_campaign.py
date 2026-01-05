@@ -172,9 +172,11 @@ def test_find_failed_runs(test_session):
     test_session.commit()
 
     # Query for failed runs
-    failed_runs = test_session.query(Run).filter(
-        Run.state == RunState.DONE_FAILED_REQUIRES_HUMAN_REVIEW
-    ).all()
+    failed_runs = (
+        test_session.query(Run)
+        .filter(Run.state == RunState.DONE_FAILED_REQUIRES_HUMAN_REVIEW)
+        .all()
+    )
 
     assert len(failed_runs) == 1
     assert failed_runs[0].id == "failed-run-1"
@@ -212,6 +214,7 @@ def test_replay_script_importable():
     """Test that replay_campaign.py can be imported."""
     try:
         import scripts.replay_campaign as replay
+
         assert hasattr(replay, "replay_run")
         assert hasattr(replay, "find_failed_runs")
         assert hasattr(replay, "clone_run")

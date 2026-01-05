@@ -200,11 +200,13 @@ def ingest_pricing(session: Session, pricing_yaml_path: str, effective_at: datet
                 session.flush()
 
             # Check if pricing record already exists
-            existing = session.query(ModelPricing).filter_by(
-                model_id=model_id,
-                effective_at=effective_at,
-                source=f"{provider}_pricing_yaml"
-            ).first()
+            existing = (
+                session.query(ModelPricing)
+                .filter_by(
+                    model_id=model_id, effective_at=effective_at, source=f"{provider}_pricing_yaml"
+                )
+                .first()
+            )
 
             if existing:
                 # Update existing record

@@ -45,7 +45,9 @@ class Settings(BaseSettings):
     # - Legacy alias: AUTOPACK_ARTIFACT_HISTORY_PACK=true
     artifact_history_pack_enabled: bool = Field(
         default=False,
-        validation_alias=AliasChoices("ARTIFACT_HISTORY_PACK_ENABLED", "AUTOPACK_ARTIFACT_HISTORY_PACK"),
+        validation_alias=AliasChoices(
+            "ARTIFACT_HISTORY_PACK_ENABLED", "AUTOPACK_ARTIFACT_HISTORY_PACK"
+        ),
     )
 
     # P0.4: DB safety guardrails - explicit opt-in for schema bootstrap
@@ -55,7 +57,7 @@ class Settings(BaseSettings):
     db_bootstrap_enabled: bool = Field(
         default=False,
         validation_alias=AliasChoices("AUTOPACK_DB_BOOTSTRAP", "DB_BOOTSTRAP_ENABLED"),
-        description="Allow automatic DB schema creation (disable in production)"
+        description="Allow automatic DB schema creation (disable in production)",
     )
 
     # Maximum number of recent phase summaries to include in history pack
@@ -70,7 +72,9 @@ class Settings(BaseSettings):
     # - Legacy alias: AUTOPACK_ARTIFACT_SUBSTITUTE_SOT_DOCS=true
     artifact_substitute_sot_docs: bool = Field(
         default=False,
-        validation_alias=AliasChoices("ARTIFACT_SUBSTITUTE_SOT_DOCS", "AUTOPACK_ARTIFACT_SUBSTITUTE_SOT_DOCS"),
+        validation_alias=AliasChoices(
+            "ARTIFACT_SUBSTITUTE_SOT_DOCS", "AUTOPACK_ARTIFACT_SUBSTITUTE_SOT_DOCS"
+        ),
     )
 
     # Enable artifact substitution in additional safe contexts beyond read_only_context
@@ -80,7 +84,9 @@ class Settings(BaseSettings):
     # - Legacy alias: AUTOPACK_ARTIFACT_EXTENDED_CONTEXTS=true
     artifact_extended_contexts_enabled: bool = Field(
         default=False,
-        validation_alias=AliasChoices("ARTIFACT_EXTENDED_CONTEXTS_ENABLED", "AUTOPACK_ARTIFACT_EXTENDED_CONTEXTS"),
+        validation_alias=AliasChoices(
+            "ARTIFACT_EXTENDED_CONTEXTS_ENABLED", "AUTOPACK_ARTIFACT_EXTENDED_CONTEXTS"
+        ),
     )
 
     # Embedding cache configuration
@@ -114,7 +120,7 @@ class Settings(BaseSettings):
     # JWT Authentication configuration (BUILD-146 P12 Phase 5)
     # RS256 key pair for signing/verifying access tokens
     jwt_private_key: str = ""  # RSA private key in PEM format (env: JWT_PRIVATE_KEY)
-    jwt_public_key: str = ""   # RSA public key in PEM format (env: JWT_PUBLIC_KEY)
+    jwt_public_key: str = ""  # RSA public key in PEM format (env: JWT_PUBLIC_KEY)
     jwt_algorithm: str = "RS256"  # JWT signing algorithm
     jwt_issuer: str = "autopack"  # Token issuer
     jwt_audience: str = "autopack-api"  # Token audience
@@ -152,8 +158,12 @@ def get_database_url() -> str:
     # Normalize relative SQLite paths to absolute (stable across subprocess cwd differences).
     # IMPORTANT: We resolve relative paths against the repo root derived from this file's location,
     # not Path.cwd(), because cwd can differ between scripts, uvicorn subprocesses, and terminals.
-    if isinstance(url, str) and url.startswith("sqlite:///") and not url.startswith("sqlite:///:memory:"):
-        db_path_str = url[len("sqlite:///"):]
+    if (
+        isinstance(url, str)
+        and url.startswith("sqlite:///")
+        and not url.startswith("sqlite:///:memory:")
+    ):
+        db_path_str = url[len("sqlite:///") :]
 
         # Detect Windows drive absolute paths (e.g., C:\... or C:/...).
         is_windows_drive_abs = (

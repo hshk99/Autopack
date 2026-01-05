@@ -36,5 +36,3 @@ def test_scope_overrides_targeted_context():
     assert calls["scoped"] == 1
     assert calls["frontend"] == 0
     assert "fileorganizer/frontend/package.json" in result["existing_files"]
-
-

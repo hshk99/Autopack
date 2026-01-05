@@ -67,7 +67,9 @@ class CursorPromptGenerator:
         Returns:
             Formatted markdown prompt ready for copy/paste into Cursor
         """
-        logger.info(f"[CursorPrompt] Generating prompt for {self.index_data.get('run_id', 'unknown')}")
+        logger.info(
+            f"[CursorPrompt] Generating prompt for {self.index_data.get('run_id', 'unknown')}"
+        )
 
         sections = []
 
@@ -119,7 +121,6 @@ class CursorPromptGenerator:
         logger.info(f"[CursorPrompt] Saved prompt to {prompt_path}")
 
         return prompt
-
 
     def _generate_header(self) -> str:
         """Generate prompt header."""
@@ -195,7 +196,9 @@ Autopack uses **"vibe-coding-first"** builder mode with autonomous execution. Th
         test_failures = error_context.get("test_failures")
         if test_failures:
             lines.append("")
-            lines.append(f"**Test Results**: {test_failures.get('failed', 0)} failed, {test_failures.get('passed', 0)} passed")
+            lines.append(
+                f"**Test Results**: {test_failures.get('failed', 0)} failed, {test_failures.get('passed', 0)} passed"
+            )
 
         return "\n".join(lines)
 
@@ -215,10 +218,14 @@ Autopack uses **"vibe-coding-first"** builder mode with autonomous execution. Th
             return "\n".join(lines)
 
         for excerpt_file in excerpt_files[:5]:  # Show top 5 excerpts
-            lines.append(f"- **{excerpt_file.stem}**: `{excerpt_file.relative_to(self.handoff_dir)}`")
+            lines.append(
+                f"- **{excerpt_file.stem}**: `{excerpt_file.relative_to(self.handoff_dir)}`"
+            )
 
         if len(excerpt_files) > 5:
-            lines.append(f"- *(+{len(excerpt_files) - 5} more excerpts available in `excerpts/` directory)*")
+            lines.append(
+                f"- *(+{len(excerpt_files) - 5} more excerpts available in `excerpts/` directory)*"
+            )
 
         return "\n".join(lines)
 
@@ -314,7 +321,9 @@ Autopack uses **"vibe-coding-first"** builder mode with autonomous execution. Th
 
         lines = ["## Next Steps", ""]
         lines.append("1. **Review Context**: Open the files listed above in Cursor")
-        lines.append("2. **Investigate**: Answer the explicit questions and examine failure symptoms")
+        lines.append(
+            "2. **Investigate**: Answer the explicit questions and examine failure symptoms"
+        )
         lines.append("3. **Fix**: Make targeted changes to resolve the issue")
         lines.append("4. **Verify**: Run relevant tests to confirm the fix")
         lines.append("5. **Resume**: Notify Autopack to continue execution")
@@ -328,7 +337,9 @@ Autopack uses **"vibe-coding-first"** builder mode with autonomous execution. Th
         lines.append(f"autopack complete-phase {run_id} {phase_id}")
         lines.append("")
         lines.append("# Or mark phase as failed (skip and continue)")
-        lines.append(f"autopack skip-phase {run_id} {phase_id} --reason 'Manual intervention required'")
+        lines.append(
+            f"autopack skip-phase {run_id} {phase_id} --reason 'Manual intervention required'"
+        )
         lines.append("```")
 
         return "\n".join(lines)
@@ -421,7 +432,9 @@ def generate_cursor_prompt(*args: Any, **kwargs: Any) -> str:
     # New form:
     # generate_cursor_prompt(handoff_dir, phase_context=None, error_context=None, constraints=None, questions=None)
     if not args:
-        raise TypeError("generate_cursor_prompt() missing required positional argument: 'handoff_dir'")
+        raise TypeError(
+            "generate_cursor_prompt() missing required positional argument: 'handoff_dir'"
+        )
 
     handoff_dir = Path(args[0])
     phase_context = args[1] if len(args) > 1 else kwargs.get("phase_context")
@@ -451,28 +464,30 @@ if __name__ == "__main__":
         "builder_attempts": 2,
         "max_builder_attempts": 5,
         "failure_class": "PATCH_FAILED",
-        "token_budget": 16384
+        "token_budget": 16384,
     }
 
     error_context = {
         "message": "ImportError: cannot import name 'format_rules_for_prompt' from 'autopack.learned_rules'",
         "category": "import_error",
         "timestamp": datetime.utcnow().isoformat() + "Z",
-        "phase_id": "test-phase-001"
+        "phase_id": "test-phase-001",
     }
 
     constraints = {
         "protected_paths": ["src/autopack/core/", "src/autopack/database.py"],
         "allowed_paths": ["src/autopack/diagnostics/"],
         "deliverables": ["src/autopack/diagnostics/cursor_prompt_generator.py"],
-        "test_threshold": 80
+        "test_threshold": 80,
     }
 
     questions = [
         "Is the function 'format_rules_for_prompt' defined in learned_rules.py?",
         "Is it exported in the module's __init__.py?",
-        "Are there any circular import issues?"
+        "Are there any circular import issues?",
     ]
 
-    prompt = generate_cursor_prompt(handoff_dir, phase_context, error_context, constraints, questions)
+    prompt = generate_cursor_prompt(
+        handoff_dir, phase_context, error_context, constraints, questions
+    )
     print(prompt)

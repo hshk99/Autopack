@@ -1,5 +1,6 @@
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
+
 class ParallelExecutor:
     """Executes tasks in parallel using a thread pool."""
 
@@ -27,9 +28,11 @@ class ParallelExecutor:
                     print(f"Task {task} generated an exception: {e}")
         return results
 
+
 def sample_task():
     """Sample task function."""
     return "Task completed"
+
 
 executor = ParallelExecutor()
 executor.execute([sample_task for _ in range(10)])

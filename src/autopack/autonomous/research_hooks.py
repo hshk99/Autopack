@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class ResearchTrigger:
     """Defines when research should be triggered."""
-    
+
     name: str
     condition: Callable[[Dict[str, Any]], bool]
     priority: int = 1  # 1=low, 5=high
@@ -34,7 +34,7 @@ class ResearchTrigger:
 @dataclass
 class ResearchHookConfig:
     """Configuration for research hooks."""
-    
+
     enabled: bool = True
     triggers: List[ResearchTrigger] = field(default_factory=list)
     max_research_time_minutes: int = 30
@@ -46,7 +46,7 @@ class ResearchHookConfig:
 @dataclass
 class ResearchDecision:
     """Records a decision about whether to trigger research."""
-    
+
     triggered: bool
     trigger_name: Optional[str]
     reason: str
@@ -68,7 +68,7 @@ class ResearchHooks:
         build_history_integrator: Any = None,
     ):
         """Initialize research hooks.
-        
+
         Args:
             config: Hook configuration
             research_executor: Research phase executor instance
@@ -78,10 +78,10 @@ class ResearchHooks:
         self.research_executor = research_executor
         self.build_history_integrator = build_history_integrator
         self.decisions: List[ResearchDecision] = []
-        
+
         # Register default triggers
         self._register_default_triggers()
-    
+
     def _register_default_triggers(self) -> None:
         """Register default research triggers."""
         # Trigger 1: Low historical success rate
@@ -93,7 +93,7 @@ class ResearchHooks:
                 description="Triggered when similar tasks have low success rate",
             )
         )
-        
+
         # Trigger 2: Complex task
         self.config.triggers.append(
             ResearchTrigger(
@@ -103,7 +103,7 @@ class ResearchHooks:
                 description="Triggered for complex or multi-step tasks",
             )
         )
-        
+
         # Trigger 3: New domain
         self.config.triggers.append(
             ResearchTrigger(
@@ -113,7 +113,7 @@ class ResearchHooks:
                 description="Triggered when task involves unfamiliar domain",
             )
         )
-        
+
         # Trigger 4: Explicit research request
         self.config.triggers.append(
             ResearchTrigger(
@@ -123,16 +123,16 @@ class ResearchHooks:
                 description="Triggered by explicit research request",
             )
         )
-    
+
     def should_trigger_research(
         self,
         task_context: Dict[str, Any],
     ) -> ResearchDecision:
         """Determine if research should be triggered.
-        
+
         Args:
             task_context: Context about the task being planned
-            
+
         Returns:
             Decision about whether to trigger research
         """
@@ -145,12 +145,12 @@ class ResearchHooks:
             )
             self.decisions.append(decision)
             return decision
-        
+
         # Check each trigger
         for trigger in self.config.triggers:
             if not trigger.enabled:
                 continue
-            
+
             try:
                 if trigger.condition(task_context):
                     decision = ResearchDecision(
@@ -160,15 +160,13 @@ class ResearchHooks:
                         task_context=task_context,
                     )
                     self.decisions.append(decision)
-                    logger.info(
-                        f"Research triggered by '{trigger.name}': {trigger.description}"
-                    )
+                    logger.info(f"Research triggered by '{trigger.name}': {trigger.description}")
                     return decision
-            
+
             except Exception as e:
                 logger.error(f"Trigger '{trigger.name}' failed: {e}")
                 continue
-        
+
         # No triggers fired
         decision = ResearchDecision(
             triggered=False,
@@ -178,26 +176,26 @@ class ResearchHooks:
         )
         self.decisions.append(decision)
         return decision
-    
+
     def _check_low_success_rate(self, ctx: Dict[str, Any]) -> bool:
         """Check if historical success rate is low."""
         if not self.build_history_integrator:
             return False
-        
+
         task_desc = ctx.get("description", "")
         category = ctx.get("category")
-        
+
         return self.build_history_integrator.should_trigger_research(
             task_desc,
             category,
             threshold=0.6,
         )
-    
+
     def _check_task_complexity(self, ctx: Dict[str, Any]) -> bool:
         """Check if task is complex."""
         # Heuristics for complexity
         description = ctx.get("description", "")
-        
+
         # Check for complexity indicators
         complexity_keywords = [
             "integrate",
@@ -208,54 +206,54 @@ class ResearchHooks:
             "multiple",
             "complex",
         ]
-        
+
         desc_lower = description.lower()
         matches = sum(1 for kw in complexity_keywords if kw in desc_lower)
-        
+
         return matches >= 2
-    
+
     def _check_new_domain(self, ctx: Dict[str, Any]) -> bool:
         """Check if task involves new/unfamiliar domain."""
         if not self.build_history_integrator:
             return False
-        
+
         task_desc = ctx.get("description", "")
         category = ctx.get("category")
-        
+
         insights = self.build_history_integrator.get_insights_for_task(
             task_desc,
             category,
         )
-        
+
         # New domain if we have no historical data
         return insights.total_phases == 0
-    
+
     def execute_research_phase(
         self,
         task_context: Dict[str, Any],
     ) -> Optional[Any]:
         """Execute a research phase.
-        
+
         Args:
             task_context: Context about the task
-            
+
         Returns:
             Research phase result, or None if research failed
         """
         if not self.research_executor:
             logger.warning("No research executor available")
             return None
-        
+
         try:
             # Import here to avoid circular dependency
             from autopack.phases.research_phase import (
                 ResearchPhase,
                 ResearchPhaseConfig,
             )
-            
+
             # Build research queries from task context
             queries = self._build_queries_from_context(task_context)
-            
+
             # Create research phase
             phase = ResearchPhase(
                 phase_id=f"research_{datetime.now().strftime('%Y%m%d_%H%M%S')}",
@@ -266,39 +264,39 @@ class ResearchHooks:
                     require_human_review=self.config.require_approval,
                 ),
             )
-            
+
             # Execute
             result = self.research_executor.execute(phase)
-            
+
             logger.info(f"Research phase completed: {result.status.value}")
             return result
-        
+
         except Exception as e:
             logger.error(f"Research phase execution failed: {e}")
             if self.config.fallback_on_error:
                 logger.info("Continuing without research (fallback enabled)")
                 return None
             raise
-    
+
     def _build_queries_from_context(
         self,
         ctx: Dict[str, Any],
     ) -> List[Any]:
         """Build research queries from task context.
-        
+
         Args:
             ctx: Task context
-            
+
         Returns:
             List of research queries
         """
         from autopack.phases.research_phase import ResearchQuery
-        
+
         queries = []
-        
+
         description = ctx.get("description", "")
         category = ctx.get("category", "")
-        
+
         # Query 1: Best practices
         queries.append(
             ResearchQuery(
@@ -307,7 +305,7 @@ class ResearchHooks:
                 priority=3,
             )
         )
-        
+
         # Query 2: Common pitfalls
         queries.append(
             ResearchQuery(
@@ -316,7 +314,7 @@ class ResearchHooks:
                 priority=4,
             )
         )
-        
+
         # Query 3: Implementation approaches
         if category == "IMPLEMENT_FEATURE":
             queries.append(
@@ -327,17 +325,17 @@ class ResearchHooks:
                     required=True,
                 )
             )
-        
+
         return queries
-    
+
     def get_decision_history(self) -> List[ResearchDecision]:
         """Get history of research decisions.
-        
+
         Returns:
             List of research decisions
         """
         return self.decisions.copy()
-    
+
     def clear_decision_history(self) -> None:
         """Clear decision history."""
         self.decisions.clear()

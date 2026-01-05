@@ -2,6 +2,7 @@
 
 from .document_classifier_canada import CanadaDocumentClassifier
 
+
 def main():
     """Main function to demonstrate the Canada document classifier."""
     sample_text = """
@@ -15,6 +16,7 @@ def main():
     postal_code = classifier.extract_canadian_postal_code(sample_text)
 
     print(f"Document Type: {doc_type}, Date: {date}, Postal Code: {postal_code}")
+
 
 if __name__ == "__main__":
     main()

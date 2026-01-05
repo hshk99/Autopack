@@ -45,7 +45,11 @@ class WebScraper:
         self.user_agent = user_agent or self.DEFAULT_USER_AGENT
         self.min_seconds_per_domain = float(min_seconds_per_domain)
         self.timeout_seconds = float(timeout_seconds)
-        self.allow_content_types = allow_content_types or {"text/html", "text/plain", "text/markdown"}
+        self.allow_content_types = allow_content_types or {
+            "text/html",
+            "text/plain",
+            "text/markdown",
+        }
 
         self._last_request_ts_by_domain: Dict[str, float] = {}
         self._robots_cache: Dict[str, urllib.robotparser.RobotFileParser] = {}
@@ -86,7 +90,9 @@ class WebScraper:
         if content_type and content_type not in self.allow_content_types:
             raise ValueError(f"Unsupported content-type: {content_type}")
 
-        return FetchResult(url=norm, status_code=resp.status_code, content_type=content_type, text=resp.text or "")
+        return FetchResult(
+            url=norm, status_code=resp.status_code, content_type=content_type, text=resp.text or ""
+        )
 
     def _validate_and_normalize_url(self, url: str) -> str:
         if url is None:
@@ -133,5 +139,3 @@ class WebScraper:
             return rp.can_fetch(self.user_agent, url)
         except Exception:
             return True
-
-

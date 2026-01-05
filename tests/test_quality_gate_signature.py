@@ -3,6 +3,7 @@ Test QualityGate.assess_phase signature compatibility.
 
 Ensures that assess_phase() can be called with minimal args (backwards compatibility).
 """
+
 from pathlib import Path
 from autopack.quality_gate import QualityGate
 

@@ -69,12 +69,16 @@ class ErrorContext:
 
         while tb is not None:
             frame = tb.tb_frame
-            frames.append({
-                "filename": frame.f_code.co_filename,
-                "function": frame.f_code.co_name,
-                "line_number": tb.tb_lineno,
-                "local_vars": {k: repr(v)[:200] for k, v in frame.f_locals.items() if not k.startswith('_')}
-            })
+            frames.append(
+                {
+                    "filename": frame.f_code.co_filename,
+                    "function": frame.f_code.co_name,
+                    "line_number": tb.tb_lineno,
+                    "local_vars": {
+                        k: repr(v)[:200] for k, v in frame.f_locals.items() if not k.startswith("_")
+                    },
+                }
+            )
             tb = tb.tb_next
 
         return frames
@@ -181,8 +185,12 @@ class ErrorReporter:
         )
 
         # Log to console
-        logger.error(f"[ERROR_REPORT] {ctx.error_type} in {component or 'unknown'}: {ctx.error_message}")
-        logger.error(f"[ERROR_REPORT] Full details: {self._get_report_path(ctx) if write_to_file else 'not written to file'}")
+        logger.error(
+            f"[ERROR_REPORT] {ctx.error_type} in {component or 'unknown'}: {ctx.error_message}"
+        )
+        logger.error(
+            f"[ERROR_REPORT] Full details: {self._get_report_path(ctx) if write_to_file else 'not written to file'}"
+        )
 
         # Write detailed report to file
         if write_to_file:
@@ -213,12 +221,12 @@ class ErrorReporter:
         report_path = self._get_report_path(ctx)
 
         # Write JSON report
-        with open(report_path, 'w', encoding='utf-8') as f:
+        with open(report_path, "w", encoding="utf-8") as f:
             json.dump(ctx.to_dict(), f, indent=2, default=str)
 
         # Also write human-readable summary
-        summary_path = report_path.with_suffix('.txt')
-        with open(summary_path, 'w', encoding='utf-8') as f:
+        summary_path = report_path.with_suffix(".txt")
+        with open(summary_path, "w", encoding="utf-8") as f:
             f.write(ctx.format_summary())
 
         logger.info(f"[ERROR_REPORT] Written to {report_path}")
@@ -241,7 +249,7 @@ class ErrorReporter:
         errors = []
         for report_file in sorted(error_dir.glob("*.json")):
             try:
-                with open(report_file, 'r', encoding='utf-8') as f:
+                with open(report_file, "r", encoding="utf-8") as f:
                     errors.append(json.load(f))
             except Exception as e:
                 logger.warning(f"[ERROR_REPORT] Failed to load error report {report_file}: {e}")
@@ -263,12 +271,7 @@ class ErrorReporter:
         if not errors:
             return f"No errors reported for run {run_id}"
 
-        lines = [
-            f"ERROR SUMMARY FOR RUN: {run_id}",
-            f"Total Errors: {len(errors)}",
-            "=" * 80,
-            ""
-        ]
+        lines = [f"ERROR SUMMARY FOR RUN: {run_id}", f"Total Errors: {len(errors)}", "=" * 80, ""]
 
         for i, error in enumerate(errors, 1):
             lines.append(f"{i}. [{error.get('timestamp')}] {error.get('error_type')}")

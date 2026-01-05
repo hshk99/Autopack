@@ -8,7 +8,6 @@ Tests the normalization logic without requiring full executor instantiation.
 """
 
 
-
 def normalize_readonly_entry(readonly_entry):
     """
     Extract normalized path from read_only_context entry.
@@ -54,7 +53,7 @@ class TestReadOnlyContextNormalization:
         """Mixed list of strings and dicts should normalize correctly"""
         entries = [
             "file1.py",  # Legacy string format
-            {"path": "file2.py", "reason": "Reference implementation"}  # New dict format
+            {"path": "file2.py", "reason": "Reference implementation"},  # New dict format
         ]
 
         results = [normalize_readonly_entry(e) for e in entries]
@@ -116,12 +115,7 @@ class TestReadOnlyContextNormalization:
 
     def test_dict_with_extra_fields_ignored(self):
         """Dict entries with extra fields should extract path and ignore extras"""
-        entry = {
-            "path": "test.py",
-            "reason": "Reference",
-            "extra_field": "ignored",
-            "priority": 1
-        }
+        entry = {"path": "test.py", "reason": "Reference", "extra_field": "ignored", "priority": 1}
         result = normalize_readonly_entry(entry)
         assert result == "test.py"
 
@@ -145,8 +139,10 @@ class TestReadOnlyContextNormalization:
             123,  # Invalid
             {"reason": "no path"},  # Invalid
             None,  # Invalid
-            "valid3.py"
+            "valid3.py",
         ]
 
-        results = [normalize_readonly_entry(e) for e in entries if normalize_readonly_entry(e) is not None]
+        results = [
+            normalize_readonly_entry(e) for e in entries if normalize_readonly_entry(e) is not None
+        ]
         assert results == ["valid1.py", "valid2.py", "valid3.py"]

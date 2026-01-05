@@ -3,6 +3,7 @@
 BUILD-146 P12 Phase 5: Migrated from backend.schemas.user to consolidate
 auth under autopack namespace.
 """
+
 from datetime import datetime
 from typing import Optional
 from pydantic import BaseModel, EmailStr, Field, ConfigDict
@@ -18,7 +19,9 @@ class UserBase(BaseModel):
 class UserCreate(UserBase):
     """Schema for user registration."""
 
-    password: str = Field(..., min_length=8, max_length=100, description="User password (min 8 characters)")
+    password: str = Field(
+        ..., min_length=8, max_length=100, description="User password (min 8 characters)"
+    )
 
 
 class UserUpdate(BaseModel):

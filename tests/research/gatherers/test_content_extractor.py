@@ -55,7 +55,9 @@ class TestContentExtractor(unittest.TestCase):
             self.extractor.extract_from_html(invalid_content)
 
     def test_extract_links_from_html(self):
-        html = "<html><body><a href='https://example.com/a'>a</a><a href='/rel'>rel</a></body></html>"
+        html = (
+            "<html><body><a href='https://example.com/a'>a</a><a href='/rel'>rel</a></body></html>"
+        )
         links = self.extractor.extract_links(html)
         self.assertEqual(links, ["https://example.com/a"])
 
@@ -88,6 +90,6 @@ class TestContentExtractor(unittest.TestCase):
         self.assertEqual(extracted.links, ["https://example.com"])
         self.assertEqual(extracted.code_blocks, ["print(1)"])
 
-if __name__ == '__main__':
-    unittest.main()
 
+if __name__ == "__main__":
+    unittest.main()

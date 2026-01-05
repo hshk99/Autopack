@@ -39,7 +39,11 @@ class AustraliaDocumentClassifier:
             return "Passport"
         elif "account number" in text.lower() and "bsb" in text.lower():
             return "Bank Statement"
-        elif "utility bill" in text.lower() or "electricity" in text.lower() or "water" in text.lower():
+        elif (
+            "utility bill" in text.lower()
+            or "electricity" in text.lower()
+            or "water" in text.lower()
+        ):
             return "Utility Bill"
         return None
 

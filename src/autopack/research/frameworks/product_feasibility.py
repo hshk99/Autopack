@@ -25,7 +25,7 @@ class ProductFeasibility:
         return {
             "framework": "Product Feasibility",
             "feasibility": feasibility,
-            "details": f"Evaluated against {len(self.parameters)} parameters"
+            "details": f"Evaluated against {len(self.parameters)} parameters",
         }
 
     # Additional methods for specific evaluation logic can be added here

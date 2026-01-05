@@ -36,7 +36,7 @@ class TestDeepRetrievalEscalation:
                 phase_id=f"test-phase-{i}",
                 attempt_number=i + 1,
                 previous_errors=["ImportError: module not found"] * (i + 1),
-                stage1_retrieval_count=5
+                stage1_retrieval_count=5,
             )
 
         # After 3 failures, should trigger Stage 2
@@ -49,14 +49,14 @@ class TestDeepRetrievalEscalation:
         complex_errors = [
             "ImportError: cannot import name 'ModelA' from 'module_a'",
             "AttributeError: 'ModelB' object has no attribute 'field_x'",
-            "TypeError: ModelC.__init__() missing 1 required positional argument: 'config'"
+            "TypeError: ModelC.__init__() missing 1 required positional argument: 'config'",
         ]
 
         result = detector.should_escalate_to_stage2(
             phase_id="test-complex-errors",
             attempt_number=2,
             previous_errors=complex_errors,
-            stage1_retrieval_count=8
+            stage1_retrieval_count=8,
         )
 
         assert result is True, "Stage 2 should trigger on complex multi-file error patterns"
@@ -78,7 +78,7 @@ class TestDeepRetrievalEscalation:
             query="ImportError in module_a",
             categories=["implementation", "tests", "config"],
             max_snippets_per_category=3,
-            max_lines_per_snippet=120
+            max_lines_per_snippet=120,
         )
 
         # Verify caps
@@ -103,7 +103,7 @@ class TestDeepRetrievalEscalation:
             query="Complex error pattern",
             categories=["implementation", "tests", "config", "docs"],
             max_snippets_per_category=3,
-            max_lines_per_snippet=120
+            max_lines_per_snippet=120,
         )
 
         # Count total snippets across all categories
@@ -119,7 +119,7 @@ class TestDeepRetrievalEscalation:
                 "content": "class Run(Base):\n    id = Column(String)\n    state = Column(String)",
                 "score": 0.95,
                 "start_line": 42,
-                "end_line": 44
+                "end_line": 44,
             }
         ]
 
@@ -129,7 +129,7 @@ class TestDeepRetrievalEscalation:
             query="Run model definition",
             categories=["implementation"],
             max_snippets_per_category=3,
-            max_lines_per_snippet=120
+            max_lines_per_snippet=120,
         )
 
         # Verify citation format
@@ -140,7 +140,9 @@ class TestDeepRetrievalEscalation:
                 assert "end_line" in snippet, "Snippet missing 'end_line' field"
                 assert snippet["path"].startswith("src/"), f"Invalid path format: {snippet['path']}"
                 assert snippet["start_line"] > 0, "start_line must be positive"
-                assert snippet["end_line"] >= snippet["start_line"], "end_line must be >= start_line"
+                assert (
+                    snippet["end_line"] >= snippet["start_line"]
+                ), "end_line must be >= start_line"
 
     def test_diagnostics_agent_stage2_integration(self):
         """Test that DiagnosticsAgent properly integrates Stage 2 deep retrieval."""
@@ -152,7 +154,7 @@ class TestDeepRetrievalEscalation:
                 "content": "def execute_phase():\n    pass",
                 "score": 0.90,
                 "start_line": 100,
-                "end_line": 101
+                "end_line": 101,
             }
         ]
 
@@ -165,7 +167,7 @@ class TestDeepRetrievalEscalation:
             workspace=Path("."),
             embedding_model=mock_embedding_model,
             memory_service=mock_memory_service,
-            enable_second_opinion=False
+            enable_second_opinion=False,
         )
 
         # Simulate Stage 2 escalation scenario
@@ -175,16 +177,15 @@ class TestDeepRetrievalEscalation:
             "errors": [
                 "ImportError: cannot import name 'execute_phase'",
                 "ImportError: cannot import name 'execute_phase'",
-                "ImportError: cannot import name 'execute_phase'"
+                "ImportError: cannot import name 'execute_phase'",
             ],
-            "stage1_retrieval_count": 5
+            "stage1_retrieval_count": 5,
         }
 
         # Trigger Stage 2 retrieval
-        with patch.object(agent.trigger_detector, 'should_escalate_to_stage2', return_value=True):
+        with patch.object(agent.trigger_detector, "should_escalate_to_stage2", return_value=True):
             deep_context = agent.retrieve_deep_context_if_needed(
-                error_context=error_context,
-                query="ImportError in execute_phase"
+                error_context=error_context, query="ImportError in execute_phase"
             )
 
         # Verify Stage 2 was triggered and returned results
@@ -200,7 +201,7 @@ class TestDeepRetrievalEscalation:
             phase_id="test-phase",
             attempt_number=1,
             previous_errors=["SyntaxError: invalid syntax"],
-            stage1_retrieval_count=3
+            stage1_retrieval_count=3,
         )
         assert result is False, "Stage 2 should NOT trigger on first attempt"
 
@@ -209,7 +210,7 @@ class TestDeepRetrievalEscalation:
             phase_id="test-phase",
             attempt_number=2,
             previous_errors=["NameError: name 'x' is not defined"],
-            stage1_retrieval_count=2
+            stage1_retrieval_count=2,
         )
         assert result is False, "Stage 2 should NOT trigger on simple single-file errors"
 

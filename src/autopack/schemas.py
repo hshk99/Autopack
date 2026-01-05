@@ -46,7 +46,9 @@ class RunCreate(BaseModel):
     run_scope: str = Field(default="multi_tier", description="multi_tier or single_tier")
     token_cap: Optional[int] = Field(default=5_000_000, description="Maximum tokens for this run")
     max_phases: Optional[int] = Field(default=25, description="Maximum phases for this run")
-    max_duration_minutes: Optional[int] = Field(default=120, description="Maximum duration in minutes")
+    max_duration_minutes: Optional[int] = Field(
+        default=120, description="Maximum duration in minutes"
+    )
 
 
 class TierCreate(BaseModel):
@@ -69,7 +71,9 @@ class PhaseCreate(BaseModel):
     task_category: Optional[str] = Field(None, description="Task category (e.g. schema_change)")
     complexity: Optional[str] = Field(None, description="Complexity: low, medium, or high")
     builder_mode: Optional[str] = Field(None, description="Builder mode (e.g. tweak_light)")
-    scope: Optional[Dict[str, Any]] = Field(None, description="Scope configuration: paths and read_only_context")
+    scope: Optional[Dict[str, Any]] = Field(
+        None, description="Scope configuration: paths and read_only_context"
+    )
     intention_refs: Optional[IntentionRefs] = Field(
         None,
         description="Optional references to Intention Anchor fields this phase serves (Milestone 1: warn-first mode)",
@@ -101,18 +105,12 @@ class PhaseCreate(BaseModel):
                     # Already in dict format - validate it has non-empty 'path'
                     path = entry.get("path")
                     if path:  # Skip if path is None, empty string, or missing
-                        normalized_entries.append({
-                            "path": path,
-                            "reason": entry.get("reason", "")
-                        })
+                        normalized_entries.append({"path": path, "reason": entry.get("reason", "")})
                     # Skip invalid entries (missing 'path', empty path, None path)
                 elif isinstance(entry, str):
                     # Legacy string format - normalize to dict
                     # Note: empty strings are still included (executor may handle them)
-                    normalized_entries.append({
-                        "path": entry,
-                        "reason": ""
-                    })
+                    normalized_entries.append({"path": entry, "reason": ""})
                 # Skip invalid entry types (int, list, None, etc.)
 
             # Update scope with normalized entries
@@ -137,8 +135,12 @@ class PhaseStatusUpdate(BaseModel):
     tokens_used: Optional[int] = Field(None)
     minor_issues_count: Optional[int] = Field(None)
     major_issues_count: Optional[int] = Field(None)
-    quality_level: Optional[str] = Field(None, description="Quality level: ok, needs_review, blocked")
-    quality_blocked: Optional[bool] = Field(None, description="Whether phase is blocked by quality gate")
+    quality_level: Optional[str] = Field(
+        None, description="Quality level: ok, needs_review, blocked"
+    )
+    quality_blocked: Optional[bool] = Field(
+        None, description="Whether phase is blocked by quality gate"
+    )
 
 
 class PhaseResponse(BaseModel):
@@ -233,6 +235,7 @@ class RunResponse(BaseModel):
 # Storage Optimizer Schemas (BUILD-149 Phase 2)
 # ==============================================================================
 
+
 class StorageScanRequest(BaseModel):
     """Request to trigger a new storage scan"""
 
@@ -296,7 +299,9 @@ class ApprovalRequest(BaseModel):
     candidate_ids: List[int] = Field(..., description="List of candidate IDs to approve/reject")
     approved_by: str = Field(..., description="User identifier (email, username, etc.)")
     decision: str = Field(..., description="Decision: 'approve', 'reject', or 'defer'")
-    approval_method: str = Field(default='api', description="Method: 'cli_interactive', 'api', 'telegram', 'automated'")
+    approval_method: str = Field(
+        default="api", description="Method: 'cli_interactive', 'api', 'telegram', 'automated'"
+    )
     notes: Optional[str] = Field(None, description="Optional notes about the decision")
 
 
@@ -305,7 +310,9 @@ class ExecutionRequest(BaseModel):
 
     dry_run: bool = Field(True, description="If true, preview actions without executing")
     compress_before_delete: bool = Field(False, description="Compress files before deletion")
-    category: Optional[str] = Field(None, description="Optional category filter (e.g., 'dev_caches')")
+    category: Optional[str] = Field(
+        None, description="Optional category filter (e.g., 'dev_caches')"
+    )
 
 
 class ExecutionResultResponse(BaseModel):
@@ -330,6 +337,7 @@ class BatchExecutionResponse(BaseModel):
     success_rate: float
     execution_duration_seconds: int
     results: List[ExecutionResultResponse]
+
 
 class SteamGameResponse(BaseModel):
     """Steam game information for storage optimization"""
@@ -356,8 +364,10 @@ class SteamGamesListResponse(BaseModel):
 
 # Storage Optimizer Intelligence Features (BUILD-151 Phase 4)
 
+
 class PatternResponse(BaseModel):
     """Detected approval pattern"""
+
     pattern_type: str
     pattern_value: str
     category: str
@@ -370,6 +380,7 @@ class PatternResponse(BaseModel):
 
 class LearnedRuleResponse(BaseModel):
     """Learned policy rule"""
+
     id: int
     created_at: str  # ISO format
     pattern_type: str
@@ -388,6 +399,7 @@ class LearnedRuleResponse(BaseModel):
 
 class SmartCategorizationResponse(BaseModel):
     """Result of smart categorization"""
+
     path: str
     category: str
     reason: str
@@ -398,6 +410,7 @@ class SmartCategorizationResponse(BaseModel):
 
 class RecommendationResponse(BaseModel):
     """Strategic storage recommendation"""
+
     type: str
     priority: str
     title: str
@@ -410,5 +423,6 @@ class RecommendationResponse(BaseModel):
 
 class RecommendationsListResponse(BaseModel):
     """List of recommendations with statistics"""
+
     recommendations: List[RecommendationResponse]
     scan_statistics: Dict[str, Any]

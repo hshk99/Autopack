@@ -19,7 +19,9 @@ def test_governed_apply_rejects_new_file_conflict_without_deleting_protected(tmp
     target_abs.parent.mkdir(parents=True, exist_ok=True)
     target_abs.write_text("ORIGINAL = True\n", encoding="utf-8")
 
-    ga = GovernedApplyPath(workspace=workspace, autopack_internal_mode=False, run_type="project_build")
+    ga = GovernedApplyPath(
+        workspace=workspace, autopack_internal_mode=False, run_type="project_build"
+    )
 
     # A malformed patch that tries to "create" an existing protected file
     patch = "\n".join(
@@ -42,5 +44,3 @@ def test_governed_apply_rejects_new_file_conflict_without_deleting_protected(tmp
     # File must still exist and remain unmodified
     assert target_abs.exists()
     assert target_abs.read_text(encoding="utf-8") == "ORIGINAL = True\n"
-
-

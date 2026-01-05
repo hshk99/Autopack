@@ -19,6 +19,7 @@ import pytest
 
 # Add scripts/tidy to path
 import sys
+
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "scripts" / "tidy"))
 
 from lease import Lease
@@ -117,7 +118,9 @@ class TestStaleLeaseDetection:
             lock_path.write_text(json.dumps(expired_data, indent=2))
 
             # New lease should break the stale lock and acquire
-            lease = Lease(lock_path=lock_path, owner="new_process", ttl_seconds=60, grace_period_seconds=10)
+            lease = Lease(
+                lock_path=lock_path, owner="new_process", ttl_seconds=60, grace_period_seconds=10
+            )
             lease.acquire(timeout_seconds=5)
 
             assert lease.is_acquired()
@@ -291,13 +294,16 @@ class TestEdgeCases:
                 "token": "xyz789",
                 "pid": 88888,
                 "created_at": (datetime.utcnow() - timedelta(seconds=10)).isoformat() + "Z",
-                "expires_at": (datetime.utcnow() - timedelta(seconds=1)).isoformat() + "Z",  # Expired 1s ago
+                "expires_at": (datetime.utcnow() - timedelta(seconds=1)).isoformat()
+                + "Z",  # Expired 1s ago
                 "last_renewed_at": (datetime.utcnow() - timedelta(seconds=1)).isoformat() + "Z",
             }
             lock_path.write_text(json.dumps(recent_expired, indent=2))
 
             # With large grace period, lock should NOT be broken
-            lease = Lease(lock_path=lock_path, owner="new_process", ttl_seconds=60, grace_period_seconds=120)
+            lease = Lease(
+                lock_path=lock_path, owner="new_process", ttl_seconds=60, grace_period_seconds=120
+            )
 
             with pytest.raises(TimeoutError):
                 lease.acquire(timeout_seconds=2)
@@ -314,7 +320,9 @@ class TestEdgeCases:
             assert lease.is_acquired()
 
             # Another process can break it immediately
-            lease2 = Lease(lock_path=lock_path, owner="breaker", ttl_seconds=60, grace_period_seconds=0)
+            lease2 = Lease(
+                lock_path=lock_path, owner="breaker", ttl_seconds=60, grace_period_seconds=0
+            )
             lease2.acquire(timeout_seconds=5)  # Should succeed by breaking stale lock
 
             assert lease2.is_acquired()

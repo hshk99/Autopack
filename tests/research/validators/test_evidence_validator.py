@@ -2,6 +2,7 @@ import unittest
 from unittest.mock import MagicMock
 from autopack.research.validators.evidence_validator import EvidenceValidator
 
+
 class TestEvidenceValidator(unittest.TestCase):
 
     def setUp(self):
@@ -12,7 +13,8 @@ class TestEvidenceValidator(unittest.TestCase):
         result = self.validator.validate(self.mock_session)
         self.assertTrue(result)
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     unittest.main()
 
 # This test suite validates the functionality of the EvidenceValidator,

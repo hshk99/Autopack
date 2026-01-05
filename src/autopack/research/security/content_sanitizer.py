@@ -7,13 +7,14 @@ content retrieved from various sources to ensure it is safe and appropriate for 
 
 import re
 
+
 class ContentSanitizer:
     def __init__(self):
         """
         Initialize the ContentSanitizer with necessary configurations.
         """
         # Configuration and state initialization
-        self.forbidden_patterns = [r'\b(?:malware|phishing|scam)\b']
+        self.forbidden_patterns = [r"\b(?:malware|phishing|scam)\b"]
 
     def sanitize(self, content: str) -> str:
         """
@@ -24,7 +25,9 @@ class ContentSanitizer:
         """
         sanitized_content = content
         for pattern in self.forbidden_patterns:
-            sanitized_content = re.sub(pattern, '[REDACTED]', sanitized_content, flags=re.IGNORECASE)
+            sanitized_content = re.sub(
+                pattern, "[REDACTED]", sanitized_content, flags=re.IGNORECASE
+            )
         return sanitized_content
 
     def is_safe(self, content: str) -> bool:

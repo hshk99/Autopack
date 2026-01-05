@@ -6,6 +6,7 @@ ORM serialization failures (500 errors).
 
 Per BUILD-130 Phase 1: Schema Validator implementation.
 """
+
 from typing import List, Set
 from dataclasses import dataclass, field
 from sqlalchemy import text, create_engine
@@ -18,6 +19,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class SchemaValidationError:
     """Single schema validation error with repair SQL"""
+
     table: str
     column: str
     invalid_value: str
@@ -29,6 +31,7 @@ class SchemaValidationError:
 @dataclass
 class SchemaValidationResult:
     """Result of schema validation with all errors and repairs"""
+
     is_valid: bool = True
     errors: List[SchemaValidationError] = field(default_factory=list)
     warnings: List[str] = field(default_factory=list)
@@ -84,7 +87,9 @@ class SchemaValidator:
         else:
             logger.error(f"[SchemaValidator] ❌ Found {len(result.errors)} schema violations")
             for error in result.errors:
-                logger.error(f"[SchemaValidator]   {error.table}.{error.column}: '{error.invalid_value}' in rows {error.affected_rows}")
+                logger.error(
+                    f"[SchemaValidator]   {error.table}.{error.column}: '{error.invalid_value}' in rows {error.affected_rows}"
+                )
 
         return result
 
@@ -117,11 +122,13 @@ class SchemaValidator:
                     invalid_value=invalid_state,
                     affected_rows=run_ids,
                     suggested_fix=closest_match,
-                    repair_sql=f"UPDATE runs SET state='{closest_match}' WHERE state='{invalid_state}';"
+                    repair_sql=f"UPDATE runs SET state='{closest_match}' WHERE state='{invalid_state}';",
                 )
 
                 result.add_error(error)
-                logger.warning(f"[SchemaValidator] Invalid RunState '{invalid_state}' → suggested fix: '{closest_match}'")
+                logger.warning(
+                    f"[SchemaValidator] Invalid RunState '{invalid_state}' → suggested fix: '{closest_match}'"
+                )
 
     def _validate_phase_states(self, result: SchemaValidationResult):
         """Validate all Phase.state values are valid PhaseState enums"""
@@ -152,11 +159,13 @@ class SchemaValidator:
                     invalid_value=invalid_state,
                     affected_rows=phase_ids,
                     suggested_fix=closest_match,
-                    repair_sql=f"UPDATE phases SET state='{closest_match}' WHERE state='{invalid_state}';"
+                    repair_sql=f"UPDATE phases SET state='{closest_match}' WHERE state='{invalid_state}';",
                 )
 
                 result.add_error(error)
-                logger.warning(f"[SchemaValidator] Invalid PhaseState '{invalid_state}' → suggested fix: '{closest_match}'")
+                logger.warning(
+                    f"[SchemaValidator] Invalid PhaseState '{invalid_state}' → suggested fix: '{closest_match}'"
+                )
 
     def _validate_tier_states(self, result: SchemaValidationResult):
         """Validate all Tier.state values are valid TierState enums"""
@@ -167,10 +176,14 @@ class SchemaValidator:
         # Use raw SQL to bypass ORM enum mapping
         with self.engine.connect() as conn:
             # Check if tiers table exists
-            if self.engine.dialect.name == 'sqlite':
-                table_check = text("SELECT name FROM sqlite_master WHERE type='table' AND name='tiers'")
+            if self.engine.dialect.name == "sqlite":
+                table_check = text(
+                    "SELECT name FROM sqlite_master WHERE type='table' AND name='tiers'"
+                )
             else:  # PostgreSQL
-                table_check = text("SELECT table_name FROM information_schema.tables WHERE table_name='tiers'")
+                table_check = text(
+                    "SELECT table_name FROM information_schema.tables WHERE table_name='tiers'"
+                )
 
             table_exists = bool(list(conn.execute(table_check)))
 
@@ -199,11 +212,13 @@ class SchemaValidator:
                     invalid_value=invalid_state,
                     affected_rows=tier_ids,
                     suggested_fix=closest_match,
-                    repair_sql=f"UPDATE tiers SET state='{closest_match}' WHERE state='{invalid_state}';"
+                    repair_sql=f"UPDATE tiers SET state='{closest_match}' WHERE state='{invalid_state}';",
                 )
 
                 result.add_error(error)
-                logger.warning(f"[SchemaValidator] Invalid TierState '{invalid_state}' → suggested fix: '{closest_match}'")
+                logger.warning(
+                    f"[SchemaValidator] Invalid TierState '{invalid_state}' → suggested fix: '{closest_match}'"
+                )
 
     def _fuzzy_match(self, invalid_value: str, valid_values: Set[str]) -> str:
         """

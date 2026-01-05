@@ -71,11 +71,7 @@ class DecisionExecutor:
         self.memory_service = memory_service
         self.decision_logger = decision_logger
 
-    def execute_decision(
-        self,
-        decision: Decision,
-        phase_spec: PhaseSpec
-    ) -> ExecutionResult:
+    def execute_decision(self, decision: Decision, phase_spec: PhaseSpec) -> ExecutionResult:
         """
         Execute a CLEAR_FIX decision with safety nets.
 
@@ -104,7 +100,7 @@ class DecisionExecutor:
                 deliverables_validated=False,
                 tests_passed=False,
                 rollback_performed=False,
-                error_message=f"Cannot execute {decision.type.value} decision - only CLEAR_FIX supported"
+                error_message=f"Cannot execute {decision.type.value} decision - only CLEAR_FIX supported",
             )
 
         decision_id = self._generate_decision_id(phase_spec.phase_id)
@@ -121,7 +117,7 @@ class DecisionExecutor:
                 deliverables_validated=False,
                 tests_passed=False,
                 rollback_performed=False,
-                error_message="Failed to create git save point"
+                error_message="Failed to create git save point",
             )
 
         logger.info(f"[DecisionExecutor] Created save point: {save_point}")
@@ -138,12 +134,14 @@ class DecisionExecutor:
                     deliverables_validated=False,
                     tests_passed=False,
                     rollback_performed=False,
-                    error_message="No patch content in decision"
+                    error_message="No patch content in decision",
                 )
 
             patch_result = self._apply_patch(decision.patch)
             if not patch_result["success"]:
-                logger.error(f"[DecisionExecutor] Patch application failed: {patch_result['error']}")
+                logger.error(
+                    f"[DecisionExecutor] Patch application failed: {patch_result['error']}"
+                )
                 return ExecutionResult(
                     success=False,
                     decision_id=decision_id,
@@ -152,7 +150,7 @@ class DecisionExecutor:
                     deliverables_validated=False,
                     tests_passed=False,
                     rollback_performed=False,
-                    error_message=f"Patch application failed: {patch_result['error']}"
+                    error_message=f"Patch application failed: {patch_result['error']}",
                 )
 
             logger.info("[DecisionExecutor] Patch applied successfully")
@@ -170,7 +168,7 @@ class DecisionExecutor:
                     deliverables_validated=False,
                     tests_passed=False,
                     rollback_performed=True,
-                    error_message="Deliverables validation failed"
+                    error_message="Deliverables validation failed",
                 )
 
             logger.info("[DecisionExecutor] Deliverables validated")
@@ -188,7 +186,7 @@ class DecisionExecutor:
                     deliverables_validated=True,
                     tests_passed=False,
                     rollback_performed=True,
-                    error_message="Acceptance tests failed"
+                    error_message="Acceptance tests failed",
                 )
 
             logger.info("[DecisionExecutor] Acceptance tests passed")
@@ -198,7 +196,9 @@ class DecisionExecutor:
             logger.info(f"[DecisionExecutor] Committed: {commit_sha}")
 
             # Step 6: Log decision
-            self._log_decision_with_metadata(decision, phase_spec, decision_id, save_point, commit_sha)
+            self._log_decision_with_metadata(
+                decision, phase_spec, decision_id, save_point, commit_sha
+            )
 
             return ExecutionResult(
                 success=True,
@@ -208,7 +208,7 @@ class DecisionExecutor:
                 deliverables_validated=True,
                 tests_passed=True,
                 rollback_performed=False,
-                commit_sha=commit_sha
+                commit_sha=commit_sha,
             )
 
         except Exception as e:
@@ -222,7 +222,7 @@ class DecisionExecutor:
                 deliverables_validated=False,
                 tests_passed=False,
                 rollback_performed=True,
-                error_message=f"Unexpected error: {str(e)}"
+                error_message=f"Unexpected error: {str(e)}",
             )
 
     def _generate_decision_id(self, phase_id: str) -> str:
@@ -246,7 +246,7 @@ class DecisionExecutor:
                 cwd=self.workspace,
                 capture_output=True,
                 text=True,
-                timeout=10
+                timeout=10,
             )
 
             if result.returncode == 0:
@@ -279,7 +279,7 @@ class DecisionExecutor:
                 cwd=self.workspace,
                 capture_output=True,
                 text=True,
-                timeout=30
+                timeout=30,
             )
 
             if result.returncode == 0:
@@ -291,7 +291,7 @@ class DecisionExecutor:
                     cwd=self.workspace,
                     capture_output=True,
                     text=True,
-                    timeout=30
+                    timeout=30,
                 )
 
                 if result_3way.returncode == 0:
@@ -299,7 +299,7 @@ class DecisionExecutor:
                 else:
                     return {
                         "success": False,
-                        "error": f"git apply failed: {result.stderr}\n3-way: {result_3way.stderr}"
+                        "error": f"git apply failed: {result.stderr}\n3-way: {result_3way.stderr}",
                     }
 
         except Exception as e:
@@ -309,11 +309,7 @@ class DecisionExecutor:
             if patch_file.exists():
                 patch_file.unlink()
 
-    def _validate_deliverables(
-        self,
-        patch_content: str,
-        deliverables: List[str]
-    ) -> bool:
+    def _validate_deliverables(self, patch_content: str, deliverables: List[str]) -> bool:
         """
         Validate that patch creates expected deliverables.
 
@@ -321,15 +317,13 @@ class DecisionExecutor:
         """
         try:
             # Construct phase_scope for validator
-            phase_scope = {
-                "deliverables": deliverables
-            }
+            phase_scope = {"deliverables": deliverables}
 
             ok, errors, _ = validate_deliverables(
                 patch_content=patch_content,
                 phase_scope=phase_scope,
                 phase_id="autonomous-fix",
-                workspace=self.workspace
+                workspace=self.workspace,
             )
 
             if not ok:
@@ -370,14 +364,16 @@ class DecisionExecutor:
                 cwd=self.workspace,
                 capture_output=True,
                 text=True,
-                timeout=120
+                timeout=120,
             )
 
             if result.returncode == 0:
                 logger.info("[DecisionExecutor] Acceptance tests passed")
                 return True
             else:
-                logger.warning(f"[DecisionExecutor] Acceptance tests failed:\n{result.stdout}\n{result.stderr}")
+                logger.warning(
+                    f"[DecisionExecutor] Acceptance tests failed:\n{result.stdout}\n{result.stderr}"
+                )
                 return False
 
         except FileNotFoundError:
@@ -397,7 +393,7 @@ class DecisionExecutor:
                 cwd=self.workspace,
                 capture_output=True,
                 text=True,
-                timeout=10
+                timeout=10,
             )
 
             if result.returncode == 0:
@@ -409,19 +405,13 @@ class DecisionExecutor:
             logger.exception(f"[DecisionExecutor] Rollback exception: {e}")
 
     def _commit_with_metadata(
-        self,
-        decision: Decision,
-        phase_spec: PhaseSpec,
-        decision_id: str
+        self, decision: Decision, phase_spec: PhaseSpec, decision_id: str
     ) -> Optional[str]:
         """Commit with decision metadata in commit message."""
         try:
             # Stage changes
             subprocess.run(
-                ["git", "add", "-A"],
-                cwd=self.workspace,
-                capture_output=True,
-                timeout=10
+                ["git", "add", "-A"], cwd=self.workspace, capture_output=True, timeout=10
             )
 
             # Create commit message
@@ -433,7 +423,7 @@ class DecisionExecutor:
                 cwd=self.workspace,
                 capture_output=True,
                 text=True,
-                timeout=30
+                timeout=30,
             )
 
             if result.returncode == 0:
@@ -443,7 +433,7 @@ class DecisionExecutor:
                     cwd=self.workspace,
                     capture_output=True,
                     text=True,
-                    timeout=10
+                    timeout=10,
                 )
                 return sha_result.stdout.strip()[:8]
             else:
@@ -455,10 +445,7 @@ class DecisionExecutor:
             return None
 
     def _format_commit_message(
-        self,
-        decision: Decision,
-        phase_spec: PhaseSpec,
-        decision_id: str
+        self, decision: Decision, phase_spec: PhaseSpec, decision_id: str
     ) -> str:
         """Format commit message with decision metadata."""
         lines = [
@@ -478,20 +465,24 @@ class DecisionExecutor:
         for deliverable in decision.deliverables_met:
             lines.append(f"- {deliverable}")
 
-        lines.extend([
-            "",
-            "Files modified:",
-        ])
+        lines.extend(
+            [
+                "",
+                "Files modified:",
+            ]
+        )
 
         for file_path in decision.files_modified:
             lines.append(f"- {file_path}")
 
-        lines.extend([
-            "",
-            "🤖 Generated with [Claude Code](https://claude.com/claude-code)",
-            "",
-            "Co-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>"
-        ])
+        lines.extend(
+            [
+                "",
+                "🤖 Generated with [Claude Code](https://claude.com/claude-code)",
+                "",
+                "Co-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>",
+            ]
+        )
 
         return "\n".join(lines)
 
@@ -501,7 +492,7 @@ class DecisionExecutor:
         phase_spec: PhaseSpec,
         decision_id: str,
         save_point: str,
-        commit_sha: Optional[str]
+        commit_sha: Optional[str],
     ) -> None:
         """Log decision with full metadata to decision log."""
         decision_record = {
@@ -532,8 +523,8 @@ class DecisionExecutor:
             "metadata": {
                 "timestamp": datetime.now().isoformat(),
                 "run_id": self.run_id,
-                "autopack_version": "0.1.0-build113"
-            }
+                "autopack_version": "0.1.0-build113",
+            },
         }
 
         # Log to memory service
@@ -559,7 +550,7 @@ class DecisionExecutor:
                     decision.fix_strategy,
                     decision.rationale,
                     phase_spec.phase_id,
-                    "auto_fix"
+                    "auto_fix",
                 )
             except Exception as e:
                 logger.warning(f"[DecisionExecutor] DB decision logging failed: {e}")
@@ -569,9 +560,6 @@ class DecisionExecutor:
             self.workspace / ".autonomous_runs" / self.run_id / "decisions" / f"{decision_id}.json"
         )
         decision_log_file.parent.mkdir(parents=True, exist_ok=True)
-        decision_log_file.write_text(
-            json.dumps(decision_record, indent=2),
-            encoding="utf-8"
-        )
+        decision_log_file.write_text(json.dumps(decision_record, indent=2), encoding="utf-8")
 
         logger.info(f"[DecisionExecutor] Decision logged: {decision_log_file}")

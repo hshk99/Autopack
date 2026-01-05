@@ -29,9 +29,7 @@ def generate_patch_for_recommendation(
         YAML patch as string.
     """
     # Get recommendation
-    recommendation = (
-        session.query(ModelRecommendation).filter_by(id=recommendation_id).first()
-    )
+    recommendation = session.query(ModelRecommendation).filter_by(id=recommendation_id).first()
     if not recommendation:
         raise ValueError(f"Recommendation {recommendation_id} not found")
 
@@ -114,19 +112,19 @@ def apply_recommendations_batch(
     changes = []
 
     for rec_id in recommendation_ids:
-        recommendation = (
-            session.query(ModelRecommendation).filter_by(id=rec_id).first()
-        )
+        recommendation = session.query(ModelRecommendation).filter_by(id=rec_id).first()
         if not recommendation:
             continue
 
-        changes.append({
-            "recommendation_id": rec_id,
-            "use_case": recommendation.use_case,
-            "current_model": recommendation.current_model,
-            "recommended_model": recommendation.recommended_model,
-            "reasoning": recommendation.reasoning,
-        })
+        changes.append(
+            {
+                "recommendation_id": rec_id,
+                "use_case": recommendation.use_case,
+                "current_model": recommendation.current_model,
+                "recommended_model": recommendation.recommended_model,
+                "reasoning": recommendation.reasoning,
+            }
+        )
 
         # Apply change to models_config
         use_case = recommendation.use_case
@@ -172,9 +170,7 @@ def format_recommendation_report(
     Returns:
         Formatted report string.
     """
-    recommendation = (
-        session.query(ModelRecommendation).filter_by(id=recommendation_id).first()
-    )
+    recommendation = session.query(ModelRecommendation).filter_by(id=recommendation_id).first()
     if not recommendation:
         raise ValueError(f"Recommendation {recommendation_id} not found")
 

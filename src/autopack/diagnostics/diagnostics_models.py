@@ -29,6 +29,7 @@ from autopack.diagnostics.probes import ProbeCommand, ProbeRunResult
 # Phase Specification
 # ============================================================================
 
+
 @dataclass
 class PhaseSpec:
     """Phase specification from requirements.
@@ -42,6 +43,7 @@ class PhaseSpec:
         complexity: Phase complexity (simple/medium/complex)
         category: Phase category (feature/bugfix/refactor)
     """
+
     phase_id: str
     deliverables: List[str]
     acceptance_criteria: List[str]
@@ -55,8 +57,10 @@ class PhaseSpec:
 # Evidence Gap Analysis
 # ============================================================================
 
+
 class EvidenceGapType(Enum):
     """Types of evidence gaps identified during investigation."""
+
     MISSING_FILE_CONTENT = "missing_file_content"
     MISSING_COMMAND_OUTPUT = "missing_command_output"
     MISSING_TEST_OUTPUT = "missing_test_output"
@@ -76,6 +80,7 @@ class EvidenceGap:
         probe_suggestion: Suggested probe to fill gap
         rationale: Why this evidence is needed
     """
+
     gap_type: EvidenceGapType
     description: str
     priority: int
@@ -87,19 +92,22 @@ class EvidenceGap:
 # Decision Making
 # ============================================================================
 
+
 class DecisionType(Enum):
     """Types of decisions the system can make."""
-    CLEAR_FIX = "clear_fix"           # Low risk, goal-aligned, auto-apply
+
+    CLEAR_FIX = "clear_fix"  # Low risk, goal-aligned, auto-apply
     NEED_MORE_EVIDENCE = "need_more"  # Continue investigation
-    AMBIGUOUS = "ambiguous"           # Multiple valid approaches, ask human
-    RISKY = "risky"                   # High risk, block for approval
+    AMBIGUOUS = "ambiguous"  # Multiple valid approaches, ask human
+    RISKY = "risky"  # High risk, block for approval
 
 
 class RiskLevel(Enum):
     """Risk levels for decisions."""
-    LOW = "LOW"       # <100 lines, within allowed_paths, no side effects
-    MEDIUM = "MEDIUM" # 100-200 lines, multiple files
-    HIGH = "HIGH"     # >200 lines, protected paths, breaking changes
+
+    LOW = "LOW"  # <100 lines, within allowed_paths, no side effects
+    MEDIUM = "MEDIUM"  # 100-200 lines, multiple files
+    HIGH = "HIGH"  # >200 lines, protected paths, breaking changes
     UNKNOWN = "UNKNOWN"  # Cannot assess risk
 
 
@@ -117,6 +125,7 @@ class FixStrategy:
         side_effects: Known side effects
         confidence: Confidence score (0.0 to 1.0)
     """
+
     description: str
     files_to_modify: List[str]
     estimated_lines_changed: int
@@ -144,6 +153,7 @@ class Decision:
         questions_for_human: Questions to ask human (if AMBIGUOUS/RISKY)
         confidence: Confidence score (0.0 to 1.0)
     """
+
     type: DecisionType
     fix_strategy: str
     rationale: str
@@ -161,6 +171,7 @@ class Decision:
 # Investigation Results
 # ============================================================================
 
+
 @dataclass
 class InvestigationResult:
     """Result of multi-round investigation.
@@ -174,6 +185,7 @@ class InvestigationResult:
         total_time_seconds: Total investigation time
         gaps_identified: All evidence gaps identified
     """
+
     decision: Decision
     evidence: Dict[str, Any]
     rounds: int
@@ -186,6 +198,7 @@ class InvestigationResult:
 # ============================================================================
 # Execution Results
 # ============================================================================
+
 
 @dataclass
 class ExecutionResult:
@@ -202,6 +215,7 @@ class ExecutionResult:
         error_message: Error message (if failed)
         commit_sha: Git commit SHA (if succeeded)
     """
+
     success: bool
     decision_id: str
     save_point: Optional[str]

@@ -67,5 +67,3 @@ def test_auto_fix_escalates_ci_on_prior_timeout():
     r = auto_fix_phase_scope(phase)
     assert r.new_scope["ci"]["timeout_seconds"] >= 1200
     assert r.new_scope["ci"]["per_test_timeout"] >= 90
-
-

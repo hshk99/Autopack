@@ -15,8 +15,10 @@ import pytest
 import time
 
 pytestmark = [
-    pytest.mark.xfail(strict=False, reason="Extended ErrorRecovery API not implemented - aspirational test suite"),
-    pytest.mark.aspirational
+    pytest.mark.xfail(
+        strict=False, reason="Extended ErrorRecovery API not implemented - aspirational test suite"
+    ),
+    pytest.mark.aspirational,
 ]
 
 
@@ -61,10 +63,7 @@ class TestRetryStrategies:
             return "success"
 
         result = retry_with_backoff(
-            func=flaky_function,
-            max_retries=5,
-            base_delay=0.1,
-            max_delay=1.0
+            func=flaky_function, max_retries=5, base_delay=0.1, max_delay=1.0
         )
 
         assert result == "success"
@@ -82,12 +81,7 @@ class TestRetryStrategies:
             raise ValueError("Persistent failure")
 
         with pytest.raises(ValueError, match="Persistent failure"):
-            retry_with_backoff(
-                func=always_fails,
-                max_retries=3,
-                base_delay=0.01,
-                max_delay=0.1
-            )
+            retry_with_backoff(func=always_fails, max_retries=3, base_delay=0.01, max_delay=0.1)
 
         # Should try initial + 3 retries = 4 total
         assert call_count == 4
@@ -104,12 +98,7 @@ class TestRetryStrategies:
             raise ValueError("Failure")
 
         with pytest.raises(ValueError):
-            retry_with_backoff(
-                func=fails_once,
-                max_retries=0,
-                base_delay=0.1,
-                max_delay=1.0
-            )
+            retry_with_backoff(func=fails_once, max_retries=0, base_delay=0.1, max_delay=1.0)
 
         # Should only try once (no retries)
         assert call_count == 1
@@ -274,7 +263,7 @@ class TestBackoffMechanisms:
         from autopack.error_recovery import (
             calculate_backoff_delay,
             calculate_linear_backoff,
-            calculate_fibonacci_backoff
+            calculate_fibonacci_backoff,
         )
 
         max_delay = 10.0
@@ -305,12 +294,7 @@ class TestEdgeCases:
 
         start_time = time.time()
         with pytest.raises(TimeoutError):
-            retry_with_timeout(
-                func=slow_function,
-                max_retries=10,
-                timeout=1.0,
-                base_delay=0.1
-            )
+            retry_with_timeout(func=slow_function, max_retries=10, timeout=1.0, base_delay=0.1)
         elapsed = time.time() - start_time
 
         # Should timeout around 1 second
@@ -365,9 +349,7 @@ class TestEdgeCases:
         # Only retry on ValueError
         with pytest.raises(TypeError):
             retry_with_exception_filter(
-                func=raises_different_exceptions,
-                max_retries=5,
-                retryable_exceptions=(ValueError,)
+                func=raises_different_exceptions, max_retries=5, retryable_exceptions=(ValueError,)
             )
 
         # Should have tried twice (initial + 1 retry for ValueError, then TypeError)

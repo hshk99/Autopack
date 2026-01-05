@@ -7,16 +7,13 @@ Tests:
 - Flaky test retry logic
 - Severity calculation
 """
+
 import pytest
 import json
 from datetime import datetime, timezone
 from unittest.mock import Mock, patch
 
-from autopack.test_baseline_tracker import (
-    TestBaseline,
-    TestDelta,
-    TestBaselineTracker
-)
+from autopack.test_baseline_tracker import TestBaseline, TestDelta, TestBaselineTracker
 
 
 @pytest.fixture
@@ -43,14 +40,11 @@ def sample_baseline():
         failing_tests=8,
         error_tests=2,
         skipped_tests=0,
-        failing_test_ids=[
-            "tests/test_foo.py::test_failing_1",
-            "tests/test_foo.py::test_failing_2"
-        ],
+        failing_test_ids=["tests/test_foo.py::test_failing_1", "tests/test_foo.py::test_failing_2"],
         error_signatures={
             "tests/test_bar.py::test_error_1": "ImportError: No module named 'missing'",
-            "tests/test_bar.py::test_error_2": "AttributeError: 'NoneType' object has no attribute 'value'"
-        }
+            "tests/test_bar.py::test_error_2": "AttributeError: 'NoneType' object has no attribute 'value'",
+        },
     )
 
 
@@ -111,7 +105,7 @@ class TestTestDelta:
         """Test severity includes collection errors."""
         delta = TestDelta(
             newly_failing_persistent=["test1"],
-            new_collection_errors_persistent=["test2", "test3", "test4"]
+            new_collection_errors_persistent=["test2", "test3", "test4"],
         )
         # Total = 4 → medium
         assert delta.calculate_severity() == "medium"
@@ -126,23 +120,20 @@ class TestTestBaselineTracker:
         assert tracker.workspace == workspace
         assert tracker.cache_dir.exists()
 
-    @patch('subprocess.run')
+    @patch("subprocess.run")
     def test_capture_baseline_success(self, mock_run, tracker, workspace):
         """Test baseline capture with mocked pytest."""
         # Mock pytest output
         report_data = {
-            "summary": {
-                "total": 100,
-                "passed": 90,
-                "failed": 8,
-                "error": 2,
-                "skipped": 0
-            },
+            "summary": {"total": 100, "passed": 90, "failed": 8, "error": 2, "skipped": 0},
             "tests": [
                 {"nodeid": "tests/test_foo.py::test_failing_1", "outcome": "failed"},
-                {"nodeid": "tests/test_bar.py::test_error_1", "outcome": "error",
-                 "call": {"longrepr": "ImportError: No module named 'missing'"}}
-            ]
+                {
+                    "nodeid": "tests/test_bar.py::test_error_1",
+                    "outcome": "error",
+                    "call": {"longrepr": "ImportError: No module named 'missing'"},
+                },
+            ],
         }
 
         # Create report file
@@ -152,10 +143,7 @@ class TestTestBaselineTracker:
 
         mock_run.return_value = Mock(returncode=0)
 
-        baseline = tracker.capture_baseline(
-            run_id="test-run",
-            commit_sha="abc123"
-        )
+        baseline = tracker.capture_baseline(run_id="test-run", commit_sha="abc123")
 
         assert baseline.total_tests == 100
         assert baseline.passing_tests == 90
@@ -170,10 +158,7 @@ class TestTestBaselineTracker:
         cache_file.write_text(sample_baseline.to_json())
 
         # Should use cache (no subprocess call)
-        baseline = tracker.capture_baseline(
-            run_id="test-run",
-            commit_sha="abc123"
-        )
+        baseline = tracker.capture_baseline(run_id="test-run", commit_sha="abc123")
 
         assert baseline.run_id == "test-run"
         assert baseline.total_tests == 100
@@ -185,7 +170,7 @@ class TestTestBaselineTracker:
             "tests": [
                 {"nodeid": "tests/test_foo.py::test_failing_1", "outcome": "failed"},
                 {"nodeid": "tests/test_foo.py::test_failing_2", "outcome": "failed"},
-                {"nodeid": "tests/test_new.py::test_new_fail", "outcome": "failed"}  # NEW
+                {"nodeid": "tests/test_new.py::test_new_fail", "outcome": "failed"},  # NEW
             ]
         }
 
@@ -203,7 +188,7 @@ class TestTestBaselineTracker:
         current_data = {
             "tests": [
                 {"nodeid": "tests/test_foo.py::test_failing_1", "outcome": "passed"},  # NOW PASSING
-                {"nodeid": "tests/test_foo.py::test_failing_2", "outcome": "failed"}
+                {"nodeid": "tests/test_foo.py::test_failing_2", "outcome": "failed"},
             ]
         }
 
@@ -214,13 +199,13 @@ class TestTestBaselineTracker:
 
         assert "tests/test_foo.py::test_failing_1" in delta.newly_passing
 
-    @patch('subprocess.run')
+    @patch("subprocess.run")
     def test_retry_newly_failing_all_pass(self, mock_run, tracker, workspace):
         """Test retry - all tests pass on retry."""
         retry_data = {
             "tests": [
                 {"nodeid": "tests/test_flaky.py::test1", "outcome": "passed"},
-                {"nodeid": "tests/test_flaky.py::test2", "outcome": "passed"}
+                {"nodeid": "tests/test_flaky.py::test2", "outcome": "passed"},
             ]
         }
 
@@ -231,20 +216,19 @@ class TestTestBaselineTracker:
         mock_run.return_value = Mock(returncode=0)
 
         outcomes = tracker.retry_newly_failing(
-            ["tests/test_flaky.py::test1", "tests/test_flaky.py::test2"],
-            workspace
+            ["tests/test_flaky.py::test1", "tests/test_flaky.py::test2"], workspace
         )
 
         assert outcomes["tests/test_flaky.py::test1"] == "passed"
         assert outcomes["tests/test_flaky.py::test2"] == "passed"
 
-    @patch('subprocess.run')
+    @patch("subprocess.run")
     def test_retry_newly_failing_some_persist(self, mock_run, tracker, workspace):
         """Test retry - some tests still fail."""
         retry_data = {
             "tests": [
                 {"nodeid": "tests/test_mixed.py::test1", "outcome": "passed"},
-                {"nodeid": "tests/test_mixed.py::test2", "outcome": "failed"}
+                {"nodeid": "tests/test_mixed.py::test2", "outcome": "failed"},
             ]
         }
 
@@ -255,14 +239,13 @@ class TestTestBaselineTracker:
         mock_run.return_value = Mock(returncode=0)
 
         outcomes = tracker.retry_newly_failing(
-            ["tests/test_mixed.py::test1", "tests/test_mixed.py::test2"],
-            workspace
+            ["tests/test_mixed.py::test1", "tests/test_mixed.py::test2"], workspace
         )
 
         assert outcomes["tests/test_mixed.py::test1"] == "passed"
         assert outcomes["tests/test_mixed.py::test2"] == "failed"
 
-    @patch('subprocess.run')
+    @patch("subprocess.run")
     def test_compute_full_delta_with_flaky(self, mock_run, tracker, workspace, sample_baseline):
         """Test full delta computation with flaky detection."""
         # Current report
@@ -270,7 +253,7 @@ class TestTestBaselineTracker:
             "tests": [
                 {"nodeid": "tests/test_foo.py::test_failing_1", "outcome": "failed"},
                 {"nodeid": "tests/test_foo.py::test_failing_2", "outcome": "failed"},
-                {"nodeid": "tests/test_flaky.py::test1", "outcome": "failed"}  # Will pass on retry
+                {"nodeid": "tests/test_flaky.py::test1", "outcome": "failed"},  # Will pass on retry
             ]
         }
 
@@ -279,11 +262,7 @@ class TestTestBaselineTracker:
         current_path.write_text(json.dumps(current_data))
 
         # Retry report - flaky test passes
-        retry_data = {
-            "tests": [
-                {"nodeid": "tests/test_flaky.py::test1", "outcome": "passed"}
-            ]
-        }
+        retry_data = {"tests": [{"nodeid": "tests/test_flaky.py::test1", "outcome": "passed"}]}
 
         retry_path = workspace / ".autonomous_runs" / "retry.json"
         retry_path.write_text(json.dumps(retry_data))
@@ -311,11 +290,7 @@ class TestTestBaselineTracker:
     def test_extract_error_signature_truncates(self, tracker):
         """Test error signature truncation."""
         long_error = "Error: " + "x" * 300
-        test_data = {
-            "call": {
-                "longrepr": long_error
-            }
-        }
+        test_data = {"call": {"longrepr": long_error}}
 
         signature = tracker._extract_error_signature(test_data)
         assert len(signature) == 200
@@ -324,15 +299,13 @@ class TestTestBaselineTracker:
 class TestIntegration:
     """Integration tests."""
 
-    @patch('subprocess.run')
+    @patch("subprocess.run")
     def test_end_to_end_baseline_and_delta(self, mock_run, tracker, workspace):
         """Test full workflow: capture baseline, compute delta with retry."""
         # Baseline capture
         baseline_data = {
             "summary": {"total": 10, "passed": 9, "failed": 1, "error": 0, "skipped": 0},
-            "tests": [
-                {"nodeid": "tests/test_old.py::test_failing", "outcome": "failed"}
-            ]
+            "tests": [{"nodeid": "tests/test_old.py::test_failing", "outcome": "failed"}],
         }
 
         baseline_path = workspace / ".autonomous_runs" / "baseline.json"
@@ -348,7 +321,7 @@ class TestIntegration:
             "tests": [
                 {"nodeid": "tests/test_old.py::test_failing", "outcome": "failed"},
                 {"nodeid": "tests/test_new.py::test_fail1", "outcome": "failed"},
-                {"nodeid": "tests/test_new.py::test_fail2", "outcome": "failed"}
+                {"nodeid": "tests/test_new.py::test_fail2", "outcome": "failed"},
             ]
         }
 
@@ -359,7 +332,7 @@ class TestIntegration:
         retry_data = {
             "tests": [
                 {"nodeid": "tests/test_new.py::test_fail1", "outcome": "passed"},
-                {"nodeid": "tests/test_new.py::test_fail2", "outcome": "failed"}
+                {"nodeid": "tests/test_new.py::test_fail2", "outcome": "failed"},
             ]
         }
 

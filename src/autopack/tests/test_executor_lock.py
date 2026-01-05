@@ -121,7 +121,9 @@ class TestExecutorLockManager:
         lock1.release()
         lock2.release()
 
-    @pytest.mark.skipif(os.name == 'nt', reason="Windows file locking prevents reading locked files")
+    @pytest.mark.skipif(
+        os.name == "nt", reason="Windows file locking prevents reading locked files"
+    )
     def test_force_unlock(self, temp_lock_dir):
         """Test force unlocking a stale lock."""
         lock1 = ExecutorLockManager("test-run", lock_dir=temp_lock_dir)
@@ -141,7 +143,9 @@ class TestExecutorLockManager:
 
         lock2.release()
 
-    @pytest.mark.skipif(os.name == 'nt', reason="Windows file locking prevents reading locked files")
+    @pytest.mark.skipif(
+        os.name == "nt", reason="Windows file locking prevents reading locked files"
+    )
     def test_lock_file_contains_executor_info(self, temp_lock_dir):
         """Test that lock file contains executor information."""
         lock = ExecutorLockManager("test-run", lock_dir=temp_lock_dir)
@@ -173,7 +177,7 @@ class TestExecutorLockManager:
         lock = ExecutorLockManager("test-run", lock_dir=temp_lock_dir)
         assert lock.is_locked() is False
 
-    @pytest.mark.skipif(os.name == 'nt', reason="Unix-specific test")
+    @pytest.mark.skipif(os.name == "nt", reason="Unix-specific test")
     def test_lock_survives_process_fork(self, temp_lock_dir):
         """Test that lock is held across process fork (Unix only)."""
         lock = ExecutorLockManager("test-run", lock_dir=temp_lock_dir)

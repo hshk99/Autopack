@@ -10,6 +10,7 @@ a complete JSON object, so only the last incomplete line is lost."
 
 GPT-5.2 Priority: HIGH - prevents catastrophic JSON parse failures under truncation.
 """
+
 import json
 import logging
 import ast
@@ -19,6 +20,7 @@ from typing import List, Dict, Optional, Tuple
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
+
 
 class NDJSONSkipOperation(Exception):
     """Signals that an NDJSON operation should be skipped (non-fatal)."""
@@ -92,7 +94,7 @@ class NDJSONParser:
         Returns:
             NDJSONParseResult with parsed operations and truncation status
         """
-        lines = output.strip().split('\n')
+        lines = output.strip().split("\n")
         operations = []
         total_expected = None
         was_truncated = False
@@ -155,7 +157,9 @@ class NDJSONParser:
                         candidate = line.strip()
                         if candidate.endswith(","):
                             candidate = candidate[:-1]
-                        candidate = re.sub(r'([{,]\s*)([A-Za-z_][A-Za-z0-9_]*)\s*:', r'\1"\2":', candidate)
+                        candidate = re.sub(
+                            r"([{,]\s*)([A-Za-z_][A-Za-z0-9_]*)\s*:", r'\1"\2":', candidate
+                        )
                         # Replace Python literals with JSON literals
                         candidate = re.sub(r"\bTrue\b", "true", candidate)
                         candidate = re.sub(r"\bFalse\b", "false", candidate)
@@ -234,6 +238,7 @@ class NDJSONParser:
 
                 recovered_ops: List[NDJSONOperation] = []
                 recovered_total_expected = None
+
                 def _extract_ops_from_value(v: object) -> None:
                     nonlocal recovered_total_expected
                     if isinstance(v, list):
@@ -305,7 +310,9 @@ class NDJSONParser:
                     # Try loose-json coercion (unquoted keys / single quotes / python literals)
                     try:
                         candidate = s
-                        candidate = re.sub(r'([{,]\s*)([A-Za-z_][A-Za-z0-9_]*)\s*:', r'\1"\2":', candidate)
+                        candidate = re.sub(
+                            r"([{,]\s*)([A-Za-z_][A-Za-z0-9_]*)\s*:", r'\1"\2":', candidate
+                        )
                         candidate = re.sub(r"\bTrue\b", "true", candidate)
                         candidate = re.sub(r"\bFalse\b", "false", candidate)
                         candidate = re.sub(r"\bNone\b", "null", candidate)
@@ -316,12 +323,18 @@ class NDJSONParser:
                     except Exception:
                         return None
 
-                def _extract_json_string_value(s: str, start_quote_idx: int) -> Tuple[Optional[str], int]:
+                def _extract_json_string_value(
+                    s: str, start_quote_idx: int
+                ) -> Tuple[Optional[str], int]:
                     """
                     Parse a JSON-style string starting at the opening quote in s[start_quote_idx].
                     Returns (value, next_index_after_closing_quote). On failure, returns (None, start_quote_idx+1).
                     """
-                    if start_quote_idx < 0 or start_quote_idx >= len(s) or s[start_quote_idx] != '"':
+                    if (
+                        start_quote_idx < 0
+                        or start_quote_idx >= len(s)
+                        or s[start_quote_idx] != '"'
+                    ):
                         return None, start_quote_idx + 1
                     i = start_quote_idx + 1
                     out: List[str] = []
@@ -381,7 +394,9 @@ class NDJSONParser:
                 depth = 0
                 start_idx: Optional[int] = None
                 max_candidates = 200
-                max_scan_chars = min(len(text), 2_000_000)  # keep bounded but allow large deliverables
+                max_scan_chars = min(
+                    len(text), 2_000_000
+                )  # keep bounded but allow large deliverables
                 scan = text[:max_scan_chars]
 
                 for i, ch in enumerate(scan):
@@ -451,7 +466,7 @@ class NDJSONParser:
             was_truncated=was_truncated,
             total_expected=total_expected,
             lines_parsed=lines_parsed,
-            lines_failed=lines_failed
+            lines_failed=lines_failed,
         )
 
     def _parse_operation(self, obj: Dict, line_num: int) -> Optional[NDJSONOperation]:
@@ -465,7 +480,7 @@ class NDJSONParser:
         # or emits file objects directly (pretty-printed/truncated). Normalize those into NDJSON operations.
         if not op_type:
             if isinstance(obj.get("path"), str) and obj.get("new_content") is not None:
-                mode = (obj.get("mode") or "create")
+                mode = obj.get("mode") or "create"
                 if isinstance(mode, str) and mode.lower() == "delete":
                     op_type = "delete"
                 else:
@@ -500,7 +515,7 @@ class NDJSONParser:
                 file_path=obj.get("file_path"),
                 content=obj.get("content"),
                 operations=None,
-                metadata=None
+                metadata=None,
             )
         elif op_type == "modify":
             return NDJSONOperation(
@@ -508,7 +523,7 @@ class NDJSONParser:
                 file_path=obj.get("file_path"),
                 content=None,
                 operations=obj.get("operations", []),
-                metadata=None
+                metadata=None,
             )
         elif op_type == "delete":
             return NDJSONOperation(
@@ -516,7 +531,7 @@ class NDJSONParser:
                 file_path=obj.get("file_path"),
                 content=None,
                 operations=None,
-                metadata=None
+                metadata=None,
             )
         else:
             logger.warning(f"[NDJSON:Parse] Line #{line_num} has unknown type '{op_type}'")
@@ -612,24 +627,18 @@ class NDJSONApplier:
                 )
                 continue
             except Exception as e:
-                failed.append({
-                    "operation_index": i,
-                    "file_path": op.file_path,
-                    "error": str(e)
-                })
+                failed.append({"operation_index": i, "file_path": op.file_path, "error": str(e)})
                 logger.error(
                     f"[NDJSON:Apply] Failed to apply operation #{i} ({op.op_type} {op.file_path}): {e}"
                 )
 
-        logger.info(
-            f"[NDJSON:Apply] Complete: {len(applied)} applied, {len(failed)} failed"
-        )
+        logger.info(f"[NDJSON:Apply] Complete: {len(applied)} applied, {len(failed)} failed")
 
         return {
             "applied": applied,
             "failed": failed,
             "skipped": skipped,
-            "total_operations": len(operations)
+            "total_operations": len(operations),
         }
 
     def _apply_create(self, op: NDJSONOperation):
@@ -645,7 +654,7 @@ class NDJSONApplier:
         file_path.parent.mkdir(parents=True, exist_ok=True)
 
         # Write content
-        file_path.write_text(op.content, encoding='utf-8')
+        file_path.write_text(op.content, encoding="utf-8")
 
     def _apply_modify(self, op: NDJSONOperation):
         """Apply modify operation."""
@@ -663,14 +672,14 @@ class NDJSONApplier:
             raise FileNotFoundError(f"Cannot modify non-existent file: {op.file_path}")
 
         # Read current content
-        content = file_path.read_text(encoding='utf-8')
+        content = file_path.read_text(encoding="utf-8")
 
         # Apply sub-operations
         for sub_op in op.operations:
             content = self._apply_sub_operation(content, sub_op, op.file_path)
 
         # Write modified content
-        file_path.write_text(content, encoding='utf-8')
+        file_path.write_text(content, encoding="utf-8")
 
     def _apply_sub_operation(self, content: str, sub_op: Dict, file_path: str) -> str:
         """Apply a single sub-operation to content."""
@@ -692,13 +701,13 @@ class NDJSONApplier:
                 return content + "\n" + new_content
 
             # Find anchor and insert after it
-            lines = content.split('\n')
+            lines = content.split("\n")
             for i, line in enumerate(lines):
                 if anchor in line:
                     lines.insert(i + 1, new_content)
                     break
 
-            return '\n'.join(lines)
+            return "\n".join(lines)
 
         elif sub_type == "replace":
             # Replace old_text with new_text
@@ -759,13 +768,13 @@ def detect_ndjson_format(output: str) -> bool:
         True if NDJSON format detected
     """
     # Check for newline-delimited JSON pattern
-    if '\n{' not in output:
+    if "\n{" not in output:
         return False
 
     # Check for NDJSON-specific markers
     if '"type":' in output and ('"file_path":' in output or '"meta"' in output):
         # Additional check: first non-empty line should be valid JSON
-        for line in output.strip().split('\n'):
+        for line in output.strip().split("\n"):
             line = line.strip()
             if line:
                 try:

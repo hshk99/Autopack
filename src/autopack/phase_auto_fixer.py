@@ -104,7 +104,9 @@ def infer_ci_timeout_seconds(phase: Dict[str, Any], deliverables: List[str]) -> 
 
     # Frontend / docker / integration tends to run longer
     text = " ".join([str(phase.get("name") or ""), str(phase.get("description") or "")]).lower()
-    if any(k in text for k in ("docker", "compose", "frontend", "vite", "react", "integration", "e2e")):
+    if any(
+        k in text for k in ("docker", "compose", "frontend", "vite", "react", "integration", "e2e")
+    ):
         base = max(base, 1200)
 
     # If deliverables include many files/tests, increase further
@@ -228,5 +230,3 @@ def auto_fix_phase_scope(phase: Dict[str, Any]) -> PhaseFixResult:
 
     changed = scope != scope_in
     return PhaseFixResult(changed=changed, new_scope=scope, notes=notes)
-
-

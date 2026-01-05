@@ -1,4 +1,5 @@
 """Tests for stale QUEUED phase detection and remediation."""
+
 import os
 import pytest
 from pathlib import Path
@@ -256,11 +257,7 @@ def test_mark_phase_as_failed(test_db):
     test_db.commit()
 
     # Mark as failed
-    mark_phase_as_failed(
-        test_db,
-        phase,
-        "Phase queued for 60 minutes with no progress"
-    )
+    mark_phase_as_failed(test_db, phase, "Phase queued for 60 minutes with no progress")
 
     # Verify state changed
     test_db.refresh(phase)
@@ -290,11 +287,7 @@ def test_mark_phase_preserves_original_error(test_db):
     test_db.add(phase)
     test_db.commit()
 
-    mark_phase_as_failed(
-        test_db,
-        phase,
-        "Phase queued for 60 minutes with no progress"
-    )
+    mark_phase_as_failed(test_db, phase, "Phase queued for 60 minutes with no progress")
 
     test_db.refresh(phase)
     assert "[STALE-QUEUED]" in phase.last_failure_reason

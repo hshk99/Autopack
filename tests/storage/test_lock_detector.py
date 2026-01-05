@@ -25,7 +25,9 @@ class TestLockDetector:
 
         # Test various SearchIndexer error patterns
         test_cases = [
-            Exception("The process cannot access the file because it is being used by SearchIndexer.exe"),
+            Exception(
+                "The process cannot access the file because it is being used by SearchIndexer.exe"
+            ),
             Exception("Windows Search indexing service is accessing this file"),
             Exception("Search Indexer has locked this file"),
         ]
@@ -54,7 +56,9 @@ class TestLockDetector:
         path = Path("C:/test/document.txt")
 
         test_cases = [
-            Exception("The process cannot access the file because it is being used by another process"),
+            Exception(
+                "The process cannot access the file because it is being used by another process"
+            ),
             Exception("File is in use by another application"),
             Exception("Sharing violation - cannot access the file"),
         ]
@@ -109,16 +113,18 @@ class TestLockDetector:
         # Transient locks (should retry)
         transient_types = ["searchindexer", "antivirus", "handle"]
         for lock_type in transient_types:
-            assert self.detector.is_transient_lock(lock_type), \
-                f"{lock_type} should be classified as transient"
+            assert self.detector.is_transient_lock(
+                lock_type
+            ), f"{lock_type} should be classified as transient"
 
     def test_permanent_lock_classification(self):
         """Test that permanent locks are correctly identified."""
         # Permanent locks (should not retry)
         permanent_types = ["permission", "path_too_long", "unknown"]
         for lock_type in permanent_types:
-            assert not self.detector.is_transient_lock(lock_type), \
-                f"{lock_type} should be classified as permanent"
+            assert not self.detector.is_transient_lock(
+                lock_type
+            ), f"{lock_type} should be classified as permanent"
 
     # ========================================================================
     # Remediation Hints Tests
@@ -126,14 +132,22 @@ class TestLockDetector:
 
     def test_remediation_hints_all_types(self):
         """Test that all lock types have remediation hints."""
-        lock_types = ["searchindexer", "antivirus", "handle", "permission", "path_too_long", "unknown"]
+        lock_types = [
+            "searchindexer",
+            "antivirus",
+            "handle",
+            "permission",
+            "path_too_long",
+            "unknown",
+        ]
 
         for lock_type in lock_types:
             hint = self.detector.get_remediation_hint(lock_type)
             assert hint is not None, f"No hint for {lock_type}"
             assert len(hint) > 0, f"Empty hint for {lock_type}"
-            assert "Options:" in hint or "option" in hint.lower(), \
-                f"Hint for {lock_type} should include actionable options"
+            assert (
+                "Options:" in hint or "option" in hint.lower()
+            ), f"Hint for {lock_type} should include actionable options"
 
     def test_searchindexer_hint_content(self):
         """Test SearchIndexer hint has expected guidance."""

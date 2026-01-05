@@ -3,6 +3,7 @@ Tests for NDJSON Format (BUILD-129 Phase 3).
 
 Tests truncation-tolerant NDJSON parsing and application.
 """
+
 import pytest
 
 from autopack.ndjson_format import (
@@ -10,7 +11,7 @@ from autopack.ndjson_format import (
     NDJSONApplier,
     NDJSONOperation,
     NDJSONParseResult,
-    detect_ndjson_format
+    detect_ndjson_format,
 )
 
 
@@ -24,7 +25,7 @@ class TestNDJSONOperation:
             file_path="src/foo.py",
             content="def foo():\n    pass",
             operations=None,
-            metadata=None
+            metadata=None,
         )
 
         result = op.to_dict()
@@ -41,7 +42,7 @@ class TestNDJSONOperation:
             file_path="src/bar.py",
             content=None,
             operations=[{"type": "append", "content": "\nprint('hi')"}],
-            metadata=None
+            metadata=None,
         )
 
         result = op.to_dict()
@@ -114,7 +115,7 @@ class TestNDJSONParser:
 
     def test_parse_create_operation(self, parser):
         """Test parsing create operation."""
-        output = '{\"type\": \"create\", \"file_path\": \"src/module.py\", \"content\": \"def hello():\\n    return 42\"}'
+        output = '{"type": "create", "file_path": "src/module.py", "content": "def hello():\\n    return 42"}'
 
         result = parser.parse(output)
 
@@ -126,7 +127,7 @@ class TestNDJSONParser:
 
     def test_parse_modify_operation(self, parser):
         """Test parsing modify operation."""
-        output = '{\"type\": \"modify\", \"file_path\": \"src/existing.py\", \"operations\": [{\"type\": \"append\", \"content\": \"\\nprint(\'added\')\"}]}'
+        output = '{"type": "modify", "file_path": "src/existing.py", "operations": [{"type": "append", "content": "\\nprint(\'added\')"}]}'
 
         result = parser.parse(output)
 
@@ -139,7 +140,7 @@ class TestNDJSONParser:
 
     def test_parse_delete_operation(self, parser):
         """Test parsing delete operation."""
-        output = '{\"type\": \"delete\", \"file_path\": \"src/old.py\"}'
+        output = '{"type": "delete", "file_path": "src/old.py"}'
 
         result = parser.parse(output)
 
@@ -191,7 +192,7 @@ class TestNDJSONParser:
         prompt = parser.format_for_prompt(deliverables, summary)
 
         assert "NDJSON" in prompt
-        assert "total_operations\": 3" in prompt
+        assert 'total_operations": 3' in prompt
         assert "one complete JSON object per line" in prompt
         assert "NO line breaks within JSON objects" in prompt
 
@@ -211,7 +212,7 @@ class TestNDJSONApplier:
             file_path="src/module.py",
             content="def foo():\n    return 42",
             operations=None,
-            metadata=None
+            metadata=None,
         )
 
         result = applier.apply([op])
@@ -255,7 +256,7 @@ class TestNDJSONApplier:
             file_path="src/module.py",
             content=None,
             operations=[{"type": "append", "content": "\n# Appended content"}],
-            metadata=None
+            metadata=None,
         )
 
         result = applier.apply([op])
@@ -279,12 +280,8 @@ class TestNDJSONApplier:
             op_type="modify",
             file_path="src/module.py",
             content=None,
-            operations=[{
-                "type": "insert_after",
-                "anchor": "import os",
-                "content": "import sys"
-            }],
-            metadata=None
+            operations=[{"type": "insert_after", "anchor": "import os", "content": "import sys"}],
+            metadata=None,
         )
 
         result = applier.apply([op])
@@ -293,7 +290,7 @@ class TestNDJSONApplier:
 
         # Verify insertion
         modified_content = test_file.read_text()
-        lines = modified_content.split('\n')
+        lines = modified_content.split("\n")
         assert lines[0] == "import os"
         assert lines[1] == "import sys"
 
@@ -308,12 +305,10 @@ class TestNDJSONApplier:
             op_type="modify",
             file_path="src/module.py",
             content=None,
-            operations=[{
-                "type": "replace",
-                "old_text": "OLD_VALUE = 42",
-                "new_text": "NEW_VALUE = 100"
-            }],
-            metadata=None
+            operations=[
+                {"type": "replace", "old_text": "OLD_VALUE = 42", "new_text": "NEW_VALUE = 100"}
+            ],
+            metadata=None,
         )
 
         result = applier.apply([op])
@@ -333,11 +328,7 @@ class TestNDJSONApplier:
         test_file.write_text("# Old file")
 
         op = NDJSONOperation(
-            op_type="delete",
-            file_path="src/old.py",
-            content=None,
-            operations=None,
-            metadata=None
+            op_type="delete", file_path="src/old.py", content=None, operations=None, metadata=None
         )
 
         result = applier.apply([op])
@@ -351,7 +342,9 @@ class TestNDJSONApplier:
         """Test that errors in one operation don't stop others."""
         ops = [
             NDJSONOperation("create", "src/a.py", "# A", None, None),
-            NDJSONOperation("modify", "src/nonexistent.py", None, [{"type": "append", "content": "x"}], None),  # Will fail
+            NDJSONOperation(
+                "modify", "src/nonexistent.py", None, [{"type": "append", "content": "x"}], None
+            ),  # Will fail
             NDJSONOperation("create", "src/b.py", "# B", None, None),
         ]
 
@@ -372,7 +365,7 @@ class TestNDJSONApplier:
             file_path="src/services/auth/user_service.py",
             content="# User service",
             operations=None,
-            metadata=None
+            metadata=None,
         )
 
         result = applier.apply([op])

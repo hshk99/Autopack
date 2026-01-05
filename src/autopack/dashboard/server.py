@@ -13,8 +13,7 @@ logger = logging.getLogger(__name__)
 
 
 class _UsageRecorderProto(Protocol):
-    def get_summary(self):
-        ...
+    def get_summary(self): ...
 
 
 def _find_latest_diagnostic_summary(base_dir: Path) -> Optional[Tuple[Path, float]]:
@@ -34,32 +33,32 @@ def _find_latest_diagnostic_summary(base_dir: Path) -> Optional[Tuple[Path, floa
 def create_dashboard_app(usage_recorder: _UsageRecorderProto) -> FastAPI:
     """
     Create FastAPI application with dashboard endpoints.
-    
+
     Args:
         usage_recorder: UsageRecorder instance for metrics
-        
+
     Returns:
         FastAPI application with dashboard routes
     """
     app = FastAPI(title="Autopack Dashboard", version="1.0.0")
-    
+
     # API endpoint for Doctor statistics
     @app.get("/api/doctor-stats")
     async def get_doctor_stats():
         """Get Doctor usage statistics."""
         stats = usage_recorder.get_summary()
         doctor_stats = stats.get("doctor_stats", {})
-        
+
         total_calls = doctor_stats.get("total_calls", 0)
-        
+
         return {
             "total_calls": total_calls,
             "cheap_calls": doctor_stats.get("cheap_calls", 0),
             "strong_calls": doctor_stats.get("strong_calls", 0),
             "escalations": doctor_stats.get("escalations", 0),
-            "actions": doctor_stats.get("actions", {})
+            "actions": doctor_stats.get("actions", {}),
         }
-    
+
     @app.get("/api/diagnostics/latest")
     async def get_latest_diagnostics():
         """
@@ -87,7 +86,7 @@ def create_dashboard_app(usage_recorder: _UsageRecorderProto) -> FastAPI:
                 "run_id": run_id,
                 "phase_id": data.get("phase_id"),
                 "failure_class": data.get("failure_class"),
-            "mode": data.get("mode"),
+                "mode": data.get("mode"),
                 "ledger": data.get("ledger"),
                 "probes": data.get("probes", []),
                 "timestamp": data.get("timestamp"),
@@ -104,5 +103,5 @@ def create_dashboard_app(usage_recorder: _UsageRecorderProto) -> FastAPI:
                 "probes": [],
                 "timestamp": None,
             }
-    
+
     return app

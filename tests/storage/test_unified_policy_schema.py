@@ -36,5 +36,3 @@ def test_storage_optimizer_load_policy_defaults_to_unified_policy():
 
     # Ensure node_modules is treated as a cleanup candidate category, not protected
     assert any("node_modules" in p for p in policy.categories["dev_caches"].match_globs)
-
-

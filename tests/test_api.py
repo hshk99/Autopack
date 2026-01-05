@@ -1,9 +1,6 @@
 """Unit tests for API endpoints"""
 
 
-
-
-
 def test_root_endpoint(client):
     """Test root endpoint returns service information"""
     response = client.get("/")

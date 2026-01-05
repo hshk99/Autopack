@@ -139,9 +139,7 @@ def get_sentiment_summary(
     Returns:
         List of sentiment signal dictionaries.
     """
-    query = session.query(ModelSentimentSignal).order_by(
-        ModelSentimentSignal.retrieved_at.desc()
-    )
+    query = session.query(ModelSentimentSignal).order_by(ModelSentimentSignal.retrieved_at.desc())
 
     if model_id:
         query = query.filter(ModelSentimentSignal.model_id == model_id)
@@ -178,9 +176,7 @@ def compute_sentiment_score(session: Session, model_id: str) -> float:
         Sentiment score (0.0 to 1.0, where 1.0 is most positive).
     """
     signals = (
-        session.query(ModelSentimentSignal)
-        .filter(ModelSentimentSignal.model_id == model_id)
-        .all()
+        session.query(ModelSentimentSignal).filter(ModelSentimentSignal.model_id == model_id).all()
     )
 
     if not signals:

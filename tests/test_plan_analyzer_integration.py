@@ -35,7 +35,7 @@ class TestTriggerConditions:
             workspace=tmp_path,
             autopack_internal_mode=False,
             run_type="project_build",
-            enable_plan_analyzer=True  # Enabled but shouldn't trigger
+            enable_plan_analyzer=True,  # Enabled but shouldn't trigger
         )
 
         plan_data = {
@@ -44,9 +44,9 @@ class TestTriggerConditions:
                 {
                     "phase_id": "auth-backend",
                     "goal": "Add JWT authentication to login endpoint",
-                    "description": "Implement JWT token generation and validation"
+                    "description": "Implement JWT token generation and validation",
                 }
-            ]
+            ],
         }
 
         result = generator.generate_manifest(plan_data, skip_validation=True)
@@ -54,7 +54,10 @@ class TestTriggerConditions:
         # Should succeed with deterministic scope
         assert result.success
         assert result.plan_analysis.status == "skipped"  # Not run due to high confidence
-        assert "high_confidence" in result.plan_analysis.status or result.plan_analysis.status == "skipped"
+        assert (
+            "high_confidence" in result.plan_analysis.status
+            or result.plan_analysis.status == "skipped"
+        )
 
         # Should have deterministic scope from pattern matcher
         phase = result.enhanced_plan["phases"][0]
@@ -71,7 +74,7 @@ class TestTriggerConditions:
             workspace=tmp_path,
             autopack_internal_mode=False,
             run_type="project_build",
-            enable_plan_analyzer=True
+            enable_plan_analyzer=True,
         )
 
         plan_data = {
@@ -80,19 +83,19 @@ class TestTriggerConditions:
                 {
                     "phase_id": "obscure-feature",
                     "goal": "Implement quantum flux capacitor integration",
-                    "description": "Add experimental feature with no existing patterns"
+                    "description": "Add experimental feature with no existing patterns",
                 }
-            ]
+            ],
         }
 
         # Mock the PlanAnalyzer since we don't want real LLM calls
-        with patch('autopack.plan_analyzer.PlanAnalyzer') as mock_analyzer_class:
+        with patch("autopack.plan_analyzer.PlanAnalyzer") as mock_analyzer_class:
             mock_analyzer = AsyncMock()
             mock_analyzer.analyze_phase.return_value = Mock(
                 feasible=True,
                 confidence=0.6,
                 concerns=[],
-                recommendations=["Create new directory structure"]
+                recommendations=["Create new directory structure"],
             )
             mock_analyzer_class.return_value = mock_analyzer
 
@@ -114,7 +117,7 @@ class TestTriggerConditions:
             workspace=tmp_path,
             autopack_internal_mode=False,
             run_type="project_build",
-            enable_plan_analyzer=True
+            enable_plan_analyzer=True,
         )
 
         plan_data = {
@@ -123,9 +126,9 @@ class TestTriggerConditions:
                 {
                     "phase_id": "config-update",
                     "goal": "Update configuration settings",
-                    "description": "Modify config with potential side effects"
+                    "description": "Modify config with potential side effects",
                 }
-            ]
+            ],
         }
 
         # This test documents expected behavior - implementation in Phase D
@@ -143,7 +146,7 @@ class TestTriggerConditions:
             workspace=tmp_path,
             autopack_internal_mode=False,
             run_type="project_build",
-            enable_plan_analyzer=False  # Disabled
+            enable_plan_analyzer=False,  # Disabled
         )
 
         plan_data = {
@@ -152,9 +155,9 @@ class TestTriggerConditions:
                 {
                     "phase_id": "any-feature",
                     "goal": "This could be anything, analyzer won't run",
-                    "description": "Testing opt-in behavior"
+                    "description": "Testing opt-in behavior",
                 }
-            ]
+            ],
         }
 
         result = generator.generate_manifest(plan_data, skip_validation=True)
@@ -181,44 +184,40 @@ class TestLLMIntegration:
         RECOMMENDATIONS: Use existing auth patterns
         """
 
-        with patch('autopack.llm_service.LlmService', return_value=mock_llm):
+        with patch("autopack.llm_service.LlmService", return_value=mock_llm):
             from autopack.plan_analyzer import PlanAnalyzer
             from autopack.plan_analyzer_grounding import GroundedContextBuilder
 
             scanner = RepoScanner(tmp_path)
             scanner.scan(use_cache=False)
-            matcher = PatternMatcher(scanner, autopack_internal_mode=False, run_type="project_build")
+            matcher = PatternMatcher(
+                scanner, autopack_internal_mode=False, run_type="project_build"
+            )
 
             # Build grounded context
             context_builder = GroundedContextBuilder(scanner, matcher)
             context = context_builder.build_context(
-                goal="Add authentication",
-                phase_id="auth-phase"
+                goal="Add authentication", phase_id="auth-phase"
             )
 
             # Create analyzer
             analyzer = PlanAnalyzer(
-                repo_scanner=scanner,
-                pattern_matcher=matcher,
-                workspace=tmp_path
+                repo_scanner=scanner, pattern_matcher=matcher, workspace=tmp_path
             )
 
             # Call with grounded context
             phase_spec = {
                 "phase_id": "auth-phase",
                 "goal": "Add authentication",
-                "description": "JWT-based auth"
+                "description": "JWT-based auth",
             }
 
-            await analyzer.analyze_phase(
-                phase_spec,
-                context=context.to_prompt_section()
-            )
+            await analyzer.analyze_phase(phase_spec, context=context.to_prompt_section())
 
             # Verify LLM was called with grounded context
             assert mock_llm.call_llm.called
             call_args = mock_llm.call_llm.call_args
-            prompt = call_args.kwargs.get('prompt') or call_args[0][0]
+            prompt = call_args.kwargs.get("prompt") or call_args[0][0]
 
             # Grounded context should be in prompt
             assert "Repository Context (Grounded)" in prompt or len(prompt) > 0
@@ -227,18 +226,15 @@ class TestLLMIntegration:
         """Test that LLM timeouts are handled gracefully"""
         _touch(tmp_path / "src" / "main.py")
 
-        generator = ManifestGenerator(
-            workspace=tmp_path,
-            enable_plan_analyzer=True
-        )
+        generator = ManifestGenerator(workspace=tmp_path, enable_plan_analyzer=True)
 
         plan_data = {
             "run_id": "test-timeout",
-            "phases": [{"phase_id": "test", "goal": "Test timeout handling"}]
+            "phases": [{"phase_id": "test", "goal": "Test timeout handling"}],
         }
 
         # Mock PlanAnalyzer to simulate timeout
-        with patch('autopack.plan_analyzer.PlanAnalyzer') as mock_analyzer_class:
+        with patch("autopack.plan_analyzer.PlanAnalyzer") as mock_analyzer_class:
             mock_analyzer = AsyncMock()
             mock_analyzer.analyze_phase.side_effect = TimeoutError("LLM took too long")
             mock_analyzer_class.return_value = mock_analyzer
@@ -249,24 +245,24 @@ class TestLLMIntegration:
             # Should still return valid result with error status
             assert result.success or result.plan_analysis.status == "failed"
             if result.plan_analysis.status == "failed":
-                assert "timeout" in result.plan_analysis.error.lower() or "error" in result.plan_analysis.error.lower()
+                assert (
+                    "timeout" in result.plan_analysis.error.lower()
+                    or "error" in result.plan_analysis.error.lower()
+                )
 
     def test_error_recovery_on_llm_failure(self, tmp_path: Path):
         """Test that LLM failures don't break manifest generation"""
         _touch(tmp_path / "src" / "main.py")
 
-        generator = ManifestGenerator(
-            workspace=tmp_path,
-            enable_plan_analyzer=True
-        )
+        generator = ManifestGenerator(workspace=tmp_path, enable_plan_analyzer=True)
 
         plan_data = {
             "run_id": "test-error",
-            "phases": [{"phase_id": "test", "goal": "Test error handling"}]
+            "phases": [{"phase_id": "test", "goal": "Test error handling"}],
         }
 
         # Mock PlanAnalyzer to simulate error
-        with patch('autopack.plan_analyzer.PlanAnalyzer') as mock_analyzer_class:
+        with patch("autopack.plan_analyzer.PlanAnalyzer") as mock_analyzer_class:
             mock_analyzer = AsyncMock()
             mock_analyzer.analyze_phase.side_effect = Exception("LLM service unavailable")
             mock_analyzer_class.return_value = mock_analyzer
@@ -294,14 +290,13 @@ class TestContextBudget:
         from autopack.plan_analyzer_grounding import GroundedContextBuilder, MAX_CONTEXT_CHARS
 
         builder = GroundedContextBuilder(scanner, matcher)
-        context = builder.build_context(
-            goal="Add new feature",
-            phase_id="feature-phase"
-        )
+        context = builder.build_context(goal="Add new feature", phase_id="feature-phase")
 
         # Must stay under budget
         assert context.total_chars <= MAX_CONTEXT_CHARS
-        assert len(context.to_prompt_section()) <= MAX_CONTEXT_CHARS + 200  # Small margin for formatting
+        assert (
+            len(context.to_prompt_section()) <= MAX_CONTEXT_CHARS + 200
+        )  # Small margin for formatting
 
     def test_multiple_phases_do_not_accumulate_unbounded_context(self, tmp_path: Path):
         """Multiple phases should share repo context, not accumulate"""
@@ -317,7 +312,11 @@ class TestContextBudget:
 
         # Create 10 phases
         phases = [
-            {"phase_id": f"phase-{i}", "goal": f"Feature {i}", "description": f"Implement feature {i}"}
+            {
+                "phase_id": f"phase-{i}",
+                "goal": f"Feature {i}",
+                "description": f"Implement feature {i}",
+            }
             for i in range(10)
         ]
 
@@ -335,23 +334,22 @@ class TestMetadataAttachment:
         _touch(tmp_path / "src" / "main.py")
 
         generator = ManifestGenerator(
-            workspace=tmp_path,
-            enable_plan_analyzer=False  # Disabled for now
+            workspace=tmp_path, enable_plan_analyzer=False  # Disabled for now
         )
 
         plan_data = {
             "run_id": "test-metadata",
-            "phases": [{"phase_id": "test", "goal": "Test metadata"}]
+            "phases": [{"phase_id": "test", "goal": "Test metadata"}],
         }
 
         result = generator.generate_manifest(plan_data, skip_validation=True)
 
         # Verify metadata structure
         assert isinstance(result.plan_analysis, PlanAnalysisMetadata)
-        assert hasattr(result.plan_analysis, 'enabled')
-        assert hasattr(result.plan_analysis, 'status')
-        assert hasattr(result.plan_analysis, 'warnings')
-        assert hasattr(result.plan_analysis, 'error')
+        assert hasattr(result.plan_analysis, "enabled")
+        assert hasattr(result.plan_analysis, "status")
+        assert hasattr(result.plan_analysis, "warnings")
+        assert hasattr(result.plan_analysis, "error")
 
         # Status should be one of the expected values
         assert result.plan_analysis.status in ["disabled", "skipped", "ran", "failed"]
@@ -362,10 +360,7 @@ class TestMetadataAttachment:
         _touch(tmp_path / "src" / "auth" / "login.py")
         _touch(tmp_path / "src" / "auth" / "jwt.py")
 
-        generator = ManifestGenerator(
-            workspace=tmp_path,
-            enable_plan_analyzer=True
-        )
+        generator = ManifestGenerator(workspace=tmp_path, enable_plan_analyzer=True)
 
         plan_data = {
             "run_id": "test-no-override",
@@ -373,18 +368,18 @@ class TestMetadataAttachment:
                 {
                     "phase_id": "auth-backend",
                     "goal": "Add JWT authentication",
-                    "description": "Implement auth"
+                    "description": "Implement auth",
                 }
-            ]
+            ],
         }
 
         # Mock PlanAnalyzer to return different scope
-        with patch('autopack.plan_analyzer.PlanAnalyzer') as mock_analyzer_class:
+        with patch("autopack.plan_analyzer.PlanAnalyzer") as mock_analyzer_class:
             mock_analyzer = AsyncMock()
             mock_analysis = Mock(
                 feasible=True,
                 confidence=0.9,
-                recommended_scope=["totally/different/files.py"]  # Different from pattern match
+                recommended_scope=["totally/different/files.py"],  # Different from pattern match
             )
             mock_analyzer.analyze_phase.return_value = mock_analysis
             mock_analyzer_class.return_value = mock_analyzer
@@ -408,15 +403,14 @@ class TestOptInBehavior:
         _touch(tmp_path / "src" / "main.py")
 
         # Track if any LLM was instantiated
-        with patch('autopack.llm_service.LlmService') as mock_llm_service:
+        with patch("autopack.llm_service.LlmService") as mock_llm_service:
             generator = ManifestGenerator(
-                workspace=tmp_path,
-                enable_plan_analyzer=False  # Disabled
+                workspace=tmp_path, enable_plan_analyzer=False  # Disabled
             )
 
             plan_data = {
                 "run_id": "test-disabled",
-                "phases": [{"phase_id": "test", "goal": "Any goal"}]
+                "phases": [{"phase_id": "test", "goal": "Any goal"}],
             }
 
             result = generator.generate_manifest(plan_data, skip_validation=True)
@@ -429,14 +423,11 @@ class TestOptInBehavior:
         """enable_plan_analyzer=True should allow LLM use when conditions met"""
         _touch(tmp_path / "src" / "main.py")
 
-        with patch('autopack.plan_analyzer.PlanAnalyzer') as mock_analyzer_class:
+        with patch("autopack.plan_analyzer.PlanAnalyzer") as mock_analyzer_class:
             mock_analyzer = AsyncMock()
             mock_analyzer_class.return_value = mock_analyzer
 
-            generator = ManifestGenerator(
-                workspace=tmp_path,
-                enable_plan_analyzer=True  # Enabled
-            )
+            generator = ManifestGenerator(workspace=tmp_path, enable_plan_analyzer=True)  # Enabled
 
             plan_data = {
                 "run_id": "test-enabled",
@@ -444,9 +435,9 @@ class TestOptInBehavior:
                     {
                         "phase_id": "obscure",
                         "goal": "Quantum flux capacitor",
-                        "description": "No pattern match"
+                        "description": "No pattern match",
                     }
-                ]
+                ],
             }
 
             result = generator.generate_manifest(plan_data, skip_validation=True)
@@ -463,10 +454,7 @@ class TestPhaseCountLimits:
         """Should analyze at most 3 phases per run to control cost"""
         _touch(tmp_path / "src" / "main.py")
 
-        generator = ManifestGenerator(
-            workspace=tmp_path,
-            enable_plan_analyzer=True
-        )
+        generator = ManifestGenerator(workspace=tmp_path, enable_plan_analyzer=True)
 
         # Create 10 phases, all with low confidence
         plan_data = {
@@ -475,10 +463,10 @@ class TestPhaseCountLimits:
                 {
                     "phase_id": f"phase-{i}",
                     "goal": f"Obscure feature {i}",
-                    "description": f"No pattern match {i}"
+                    "description": f"No pattern match {i}",
                 }
                 for i in range(10)
-            ]
+            ],
         }
 
         # Phase D should implement max_phases limit

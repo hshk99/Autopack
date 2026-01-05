@@ -36,10 +36,7 @@ class TestSmartRetryPolicies:
 
             # Enqueue with 'locked' reason
             queue.enqueue(
-                src=src,
-                dest=dest,
-                reason="locked",
-                error_info=PermissionError("File is locked")
+                src=src, dest=dest, reason="locked", error_info=PermissionError("File is locked")
             )
 
             # Verify initial state
@@ -56,7 +53,7 @@ class TestSmartRetryPolicies:
                     src=src,
                     dest=dest,
                     reason="locked",
-                    error_info=PermissionError("File is locked")
+                    error_info=PermissionError("File is locked"),
                 )
 
                 # Should still be pending (no escalation)
@@ -65,10 +62,7 @@ class TestSmartRetryPolicies:
 
             # At max_attempts, should abandon
             queue.enqueue(
-                src=src,
-                dest=dest,
-                reason="locked",
-                error_info=PermissionError("File is locked")
+                src=src, dest=dest, reason="locked", error_info=PermissionError("File is locked")
             )
 
             assert items[0]["status"] == "abandoned"
@@ -90,7 +84,7 @@ class TestSmartRetryPolicies:
                 src=src,
                 dest=dest,
                 reason="dest_exists",
-                error_info=FileExistsError("Destination already exists")
+                error_info=FileExistsError("Destination already exists"),
             )
 
             # Verify immediate escalation
@@ -115,10 +109,7 @@ class TestSmartRetryPolicies:
 
             # Enqueue with 'permission' reason
             queue.enqueue(
-                src=src,
-                dest=dest,
-                reason="permission",
-                error_info=PermissionError("Access denied")
+                src=src, dest=dest, reason="permission", error_info=PermissionError("Access denied")
             )
 
             items = queue.data["items"]
@@ -126,10 +117,7 @@ class TestSmartRetryPolicies:
 
             # Retry 1 more time (total 2 attempts)
             queue.enqueue(
-                src=src,
-                dest=dest,
-                reason="permission",
-                error_info=PermissionError("Access denied")
+                src=src, dest=dest, reason="permission", error_info=PermissionError("Access denied")
             )
 
             # Should still be pending at 2 attempts
@@ -138,10 +126,7 @@ class TestSmartRetryPolicies:
 
             # At 3rd attempt should escalate
             queue.enqueue(
-                src=src,
-                dest=dest,
-                reason="permission",
-                error_info=PermissionError("Access denied")
+                src=src, dest=dest, reason="permission", error_info=PermissionError("Access denied")
             )
 
             assert items[0]["status"] == "needs_manual"
@@ -161,10 +146,7 @@ class TestSmartRetryPolicies:
 
             # Enqueue with 'unknown' reason
             queue.enqueue(
-                src=src,
-                dest=dest,
-                reason="unknown",
-                error_info=RuntimeError("Unknown error")
+                src=src, dest=dest, reason="unknown", error_info=RuntimeError("Unknown error")
             )
 
             items = queue.data["items"]
@@ -173,10 +155,7 @@ class TestSmartRetryPolicies:
             # Retry 3 more times (total 4 attempts)
             for _ in range(3):
                 queue.enqueue(
-                    src=src,
-                    dest=dest,
-                    reason="unknown",
-                    error_info=RuntimeError("Unknown error")
+                    src=src, dest=dest, reason="unknown", error_info=RuntimeError("Unknown error")
                 )
 
             # Should still be pending at 4 attempts
@@ -185,10 +164,7 @@ class TestSmartRetryPolicies:
 
             # At 5th attempt should escalate
             queue.enqueue(
-                src=src,
-                dest=dest,
-                reason="unknown",
-                error_info=RuntimeError("Unknown error")
+                src=src, dest=dest, reason="unknown", error_info=RuntimeError("Unknown error")
             )
 
             assert items[0]["status"] == "needs_manual"
@@ -236,14 +212,14 @@ class TestSmartRetryPolicies:
                 src=workspace / "locked.txt",
                 dest=workspace / "archive" / "locked.txt",
                 reason="locked",
-                error_info=PermissionError("Locked")
+                error_info=PermissionError("Locked"),
             )
 
             queue.enqueue(
                 src=workspace / "duplicate.txt",
                 dest=workspace / "archive" / "duplicate.txt",
                 reason="dest_exists",
-                error_info=FileExistsError("Exists")
+                error_info=FileExistsError("Exists"),
             )
 
             summary = queue.get_summary()
@@ -263,7 +239,7 @@ class TestSmartRetryPolicies:
                 workspace,
                 use_smart_policies=False,
                 max_attempts=10,
-                base_backoff_seconds=120
+                base_backoff_seconds=120,
             )
 
             # Get policy for any reason - should return defaults

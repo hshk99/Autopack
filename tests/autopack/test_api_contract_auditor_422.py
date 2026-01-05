@@ -20,7 +20,7 @@ class TestAuditorResultContract:
             "phase_id": "test-phase",
             "run_id": "test-run",
             "review_notes": "Patch looks good",
-            "recommendation": "approve"
+            "recommendation": "approve",
         }
 
         result = AuditorResult(**payload)
@@ -40,20 +40,20 @@ class TestAuditorResultContract:
                     "source": "auditor",
                     "category": "security",
                     "evidence_refs": ["src/db.py:42"],
-                    "description": "Unescaped SQL query"
+                    "description": "Unescaped SQL query",
                 }
             ],
             "suggested_patches": [
                 {
                     "description": "Use parameterized query",
                     "patch_content": "diff --git a/src/db.py ...",
-                    "files_affected": ["src/db.py"]
+                    "files_affected": ["src/db.py"],
                 }
             ],
             "auditor_attempts": 1,
             "tokens_used": 800,
             "recommendation": "revise",
-            "confidence": "high"
+            "confidence": "high",
         }
 
         result = AuditorResult(**payload)
@@ -80,14 +80,14 @@ class TestAuditorResultContract:
                     "source": "auditor",
                     "category": "style",
                     "evidence_refs": [],
-                    "description": "Missing docstring"
+                    "description": "Missing docstring",
                 }
             ],
             "suggested_patches": [],
             "auditor_attempts": 1,
             "tokens_used": 500,
             "recommendation": "approve",
-            "confidence": "medium"
+            "confidence": "medium",
         }
 
         # Should validate successfully with all fields preserved
@@ -115,7 +115,7 @@ class TestAuditorResultContract:
             "suggested_patches": [],
             "auditor_attempts": 1,
             "tokens_used": 300,
-            "confidence": "high"
+            "confidence": "high",
         }
 
         # Fallback wrapper (what executor sends on 422 retry)
@@ -123,7 +123,7 @@ class TestAuditorResultContract:
             "success": True,  # Derived from recommendation == "approve"
             "output": auditor_payload.get("review_notes") or "",
             "files_modified": [],
-            "metadata": auditor_payload  # Original payload preserved
+            "metadata": auditor_payload,  # Original payload preserved
         }
 
         # Verify fallback structure
@@ -143,11 +143,7 @@ class TestAuditorResultContract:
         """
         # Simulate FastAPI 422 response detail
         pydantic_422_detail = [
-            {
-                "loc": ["body", "success"],
-                "msg": "Field required",
-                "type": "value_error.missing"
-            }
+            {"loc": ["body", "success"], "msg": "Field required", "type": "value_error.missing"}
         ]
 
         # Detection logic (from executor)
@@ -170,7 +166,7 @@ class TestAuditorResultContract:
                 "phase_id": "test-phase",
                 "run_id": "test-run",
                 "review_notes": f"Test {rec}",
-                "recommendation": rec
+                "recommendation": rec,
             }
             result = AuditorResult(**payload)
             assert result.recommendation == rec
@@ -180,7 +176,7 @@ class TestAuditorResultContract:
         payload = {
             "description": "Fix SQL injection",
             "patch_content": "diff --git a/db.py ...",
-            "files_affected": ["src/db.py"]
+            "files_affected": ["src/db.py"],
         }
 
         patch = AuditorSuggestedPatch(**payload)

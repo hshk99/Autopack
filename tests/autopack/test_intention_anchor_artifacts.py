@@ -404,6 +404,7 @@ def test_save_anchor_artifact_generation_can_be_disabled():
 
         # Anchor JSON should exist
         from autopack.intention_anchor import get_canonical_path
+
         anchor_path = get_canonical_path("test-run-014", base_dir=tmpdir)
         assert anchor_path.exists()
 

@@ -25,7 +25,7 @@ class CompetitiveIntensity:
         return {
             "framework": "Competitive Intensity",
             "intensity": intensity,
-            "details": f"Evaluated against {len(self.factors)} factors"
+            "details": f"Evaluated against {len(self.factors)} factors",
         }
 
     # Additional methods for specific evaluation logic can be added here

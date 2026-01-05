@@ -53,6 +53,7 @@ def init_db():
     if not settings.db_bootstrap_enabled:
         # Verify schema exists (check for a known core table)
         from sqlalchemy import inspect
+
         inspector = inspect(engine)
         existing_tables = inspector.get_table_names()
 

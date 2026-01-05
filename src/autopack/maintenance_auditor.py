@@ -51,7 +51,9 @@ class AuditorDecision:
 
 def _path_within(path: str, prefixes: List[str]) -> bool:
     normalized = path.replace("\\", "/")
-    return any(normalized.startswith(p.rstrip("/") + "/") or normalized == p.rstrip("/") for p in prefixes)
+    return any(
+        normalized.startswith(p.rstrip("/") + "/") or normalized == p.rstrip("/") for p in prefixes
+    )
 
 
 def evaluate(input: AuditorInput) -> AuditorDecision:
@@ -81,7 +83,9 @@ def evaluate(input: AuditorInput) -> AuditorDecision:
         if len(input.diff.files_changed) > input.max_files:
             reasons.append(f"too many files: {len(input.diff.files_changed)}>{input.max_files}")
         if (input.diff.lines_added + input.diff.lines_deleted) > input.max_lines:
-            reasons.append(f"too many lines: {input.diff.lines_added + input.diff.lines_deleted}>{input.max_lines}")
+            reasons.append(
+                f"too many lines: {input.diff.lines_added + input.diff.lines_deleted}>{input.max_lines}"
+            )
 
     # Tests
     if not input.tests:
@@ -92,7 +96,11 @@ def evaluate(input: AuditorInput) -> AuditorDecision:
             reasons.append(f"tests not passing: {failed}")
 
     # Context alignment (lightweight)
-    if input.failure_class and input.item_context and input.failure_class not in input.item_context.lower():
+    if (
+        input.failure_class
+        and input.item_context
+        and input.failure_class not in input.item_context.lower()
+    ):
         reasons.append("failure class not aligned with item context")
 
     if reasons:
@@ -103,4 +111,3 @@ def evaluate(input: AuditorInput) -> AuditorDecision:
         return AuditorDecision(verdict=verdict, reasons=reasons)
 
     return AuditorDecision(verdict="approve", reasons=["meets minimal, safe criteria"])
-

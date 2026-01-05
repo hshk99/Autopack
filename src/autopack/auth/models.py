@@ -3,6 +3,7 @@
 BUILD-146 P12 Phase 5: Migrated from backend.models.user to consolidate
 auth under autopack namespace. Uses autopack.database.Base (not a second Base).
 """
+
 from datetime import datetime, timezone
 from sqlalchemy import Column, Integer, String, Boolean, DateTime
 
@@ -46,4 +47,8 @@ class User(Base):
 
     def to_dict(self) -> dict:
         """Convert user to dictionary (excluding password)."""
-        return {k: v for k, v in self.__dict__.items() if not k.startswith('_') and k != 'hashed_password'}
+        return {
+            k: v
+            for k, v in self.__dict__.items()
+            if not k.startswith("_") and k != "hashed_password"
+        }

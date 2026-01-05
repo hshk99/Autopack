@@ -2,6 +2,7 @@ import unittest
 from unittest.mock import MagicMock
 from autopack.research.validators.recency_validator import RecencyValidator
 
+
 class TestRecencyValidator(unittest.TestCase):
 
     def setUp(self):
@@ -12,7 +13,8 @@ class TestRecencyValidator(unittest.TestCase):
         result = self.validator.validate(self.mock_session)
         self.assertTrue(result)
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     unittest.main()
 
 # This test suite validates the functionality of the RecencyValidator,

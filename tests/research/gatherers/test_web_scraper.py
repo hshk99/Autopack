@@ -8,7 +8,7 @@ class TestWebScraper(unittest.TestCase):
     def setUp(self):
         self.scraper = WebScraper()
 
-    @patch('autopack.research.gatherers.web_scraper.requests.get')
+    @patch("autopack.research.gatherers.web_scraper.requests.get")
     def test_fetch_content(self, mock_get):
         mock_get.return_value.status_code = 200
         mock_get.return_value.text = "<html><body>Test content</body></html>"
@@ -16,7 +16,7 @@ class TestWebScraper(unittest.TestCase):
         content = self.scraper.fetch_content("http://example.com")
         self.assertIn("Test content", content)
 
-    @patch('autopack.research.gatherers.web_scraper.requests.get')
+    @patch("autopack.research.gatherers.web_scraper.requests.get")
     def test_fetch_content_failure(self, mock_get):
         mock_get.return_value.status_code = 404
         with self.assertRaises(Exception):
@@ -39,7 +39,9 @@ class TestWebScraper(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.scraper.fetch_content("ftp://example.com")
 
-    @patch("autopack.research.gatherers.web_scraper.WebScraper._allowed_by_robots", return_value=False)
+    @patch(
+        "autopack.research.gatherers.web_scraper.WebScraper._allowed_by_robots", return_value=False
+    )
     def test_robots_disallow_raises(self, _mock_allowed):
         with self.assertRaises(PermissionError):
             self.scraper.fetch_content("http://example.com")
@@ -74,6 +76,6 @@ class TestWebScraper(unittest.TestCase):
         s._enforce_rate_limit("example.com")
         self.assertTrue(mock_sleep.called)
 
-if __name__ == '__main__':
-    unittest.main()
 
+if __name__ == "__main__":
+    unittest.main()

@@ -34,12 +34,7 @@ class ExecutorLockManager:
         ...     pass
     """
 
-    def __init__(
-        self,
-        run_id: str,
-        lock_dir: Optional[Path] = None,
-        timeout: int = 5
-    ):
+    def __init__(self, run_id: str, lock_dir: Optional[Path] = None, timeout: int = 5):
         """Initialize the lock manager.
 
         Args:
@@ -83,7 +78,7 @@ class ExecutorLockManager:
         """
         try:
             # Open lock file for writing
-            self.lock_file = open(self.lock_file_path, 'w')
+            self.lock_file = open(self.lock_file_path, "w")
 
             # Write current executor info for debugging
             self.lock_file.write(f"{self.executor_id}\n")
@@ -92,8 +87,9 @@ class ExecutorLockManager:
             self.lock_file.flush()
 
             # Try to acquire exclusive lock (non-blocking)
-            if os.name == 'nt':  # Windows
+            if os.name == "nt":  # Windows
                 import msvcrt
+
                 try:
                     # Lock first byte of file (exclusive, non-blocking)
                     msvcrt.locking(self.lock_file.fileno(), msvcrt.LK_NBLCK, 1)
@@ -110,6 +106,7 @@ class ExecutorLockManager:
                     return False
             else:  # Unix/Linux/Mac
                 import fcntl
+
                 try:
                     # Acquire exclusive lock (non-blocking)
                     fcntl.flock(self.lock_file.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
@@ -136,7 +133,7 @@ class ExecutorLockManager:
         """Log information about the existing lock holder."""
         try:
             # Read lock file to get existing executor info
-            with open(self.lock_file_path, 'r') as f:
+            with open(self.lock_file_path, "r") as f:
                 lines = f.readlines()
                 existing_executor = lines[0].strip() if len(lines) > 0 else "unknown"
                 existing_cwd = lines[1].strip() if len(lines) > 1 else "unknown"
@@ -166,14 +163,16 @@ class ExecutorLockManager:
 
         try:
             # Release file lock
-            if os.name == 'nt':  # Windows
+            if os.name == "nt":  # Windows
                 import msvcrt
+
                 try:
                     msvcrt.locking(self.lock_file.fileno(), msvcrt.LK_UNLCK, 1)
                 except OSError:
                     pass  # Lock may already be released
             else:  # Unix
                 import fcntl
+
                 try:
                     fcntl.flock(self.lock_file.fileno(), fcntl.LOCK_UN)
                 except (IOError, OSError):
@@ -190,8 +189,7 @@ class ExecutorLockManager:
                 logger.warning(f"[LOCK] Could not delete lock file: {e}")
 
             logger.info(
-                f"[LOCK] Released executor lock for run_id={self.run_id} "
-                f"(PID={self.pid})"
+                f"[LOCK] Released executor lock for run_id={self.run_id} " f"(PID={self.pid})"
             )
 
         except Exception as e:
@@ -235,8 +233,7 @@ class ExecutorLockManager:
             try:
                 self.lock_file_path.unlink()
                 logger.warning(
-                    f"[LOCK] Force-unlocked run_id={self.run_id} "
-                    f"(removed stale lock file)"
+                    f"[LOCK] Force-unlocked run_id={self.run_id} " f"(removed stale lock file)"
                 )
                 return True
             except Exception as e:

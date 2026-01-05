@@ -29,13 +29,19 @@ class DirectoryRoutingRule(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     project_id = Column(String, nullable=False, index=True)
-    file_type = Column(String, nullable=False, index=True)  # plan, analysis, log, run, diagnostic, etc.
+    file_type = Column(
+        String, nullable=False, index=True
+    )  # plan, analysis, log, run, diagnostic, etc.
     source_context = Column(String, nullable=False, index=True)  # cursor, autopack, manual
-    destination_path = Column(Text, nullable=False)  # Supports {project}, {family}, {run_id} variables
+    destination_path = Column(
+        Text, nullable=False
+    )  # Supports {project}, {family}, {run_id} variables
     is_archived = Column(Boolean, default=False, nullable=False)
     priority = Column(Integer, default=0, nullable=False)  # Higher = higher priority
     pattern_match = Column(Text, nullable=True)  # Optional regex for filename matching
-    content_keywords = Column(ARRAY(String), nullable=True)  # Keywords for content-based classification
+    content_keywords = Column(
+        ARRAY(String), nullable=True
+    )  # Keywords for content-based classification
 
     created_at = Column(DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
     updated_at = Column(
@@ -46,7 +52,9 @@ class DirectoryRoutingRule(Base):
     )
 
     __table_args__ = (
-        UniqueConstraint('project_id', 'file_type', 'source_context', 'is_archived', name='uq_routing_rule'),
+        UniqueConstraint(
+            "project_id", "file_type", "source_context", "is_archived", name="uq_routing_rule"
+        ),
     )
 
 
@@ -74,6 +82,7 @@ class ProjectDirectoryConfig(Base):
 
 
 # Helper functions for querying routing rules
+
 
 def get_routing_rule(
     session: Session,
@@ -183,12 +192,14 @@ def get_destination_path(
     return path
 
 
-def list_all_rules(session: Session, project_id: Optional[str] = None) -> List[DirectoryRoutingRule]:
+def list_all_rules(
+    session: Session, project_id: Optional[str] = None
+) -> List[DirectoryRoutingRule]:
     """List all routing rules, optionally filtered by project"""
     query = session.query(DirectoryRoutingRule).order_by(
         DirectoryRoutingRule.project_id,
         DirectoryRoutingRule.priority.desc(),
-        DirectoryRoutingRule.file_type
+        DirectoryRoutingRule.file_type,
     )
 
     if project_id:

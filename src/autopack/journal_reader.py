@@ -33,7 +33,9 @@ def get_prevention_rules(project_slug: str = "file-organizer-app-v1") -> List[st
         for rule in rules:
             print(f"PREVENTION RULE: {rule}")
     """
-    journal_path = Path.cwd() / ".autonomous_runs" / project_slug / "archive" / "CONSOLIDATED_DEBUG.md"
+    journal_path = (
+        Path.cwd() / ".autonomous_runs" / project_slug / "archive" / "CONSOLIDATED_DEBUG.md"
+    )
 
     if not journal_path.exists():
         # Fallback to old path if new one doesn't exist
@@ -45,7 +47,7 @@ def get_prevention_rules(project_slug: str = "file-organizer-app-v1") -> List[st
             return []
 
     try:
-        journal_content = journal_path.read_text(encoding='utf-8')
+        journal_content = journal_path.read_text(encoding="utf-8")
     except Exception as e:
         logger.error(f"Failed to read DEBUG_JOURNAL.md: {e}")
         return []
@@ -87,23 +89,20 @@ def _parse_resolved_issues(resolved_section: str) -> List[Dict[str, str]]:
     issues = []
 
     # Split by issue headers (### Issue Name)
-    issue_blocks = re.split(r'\n### ', resolved_section)
+    issue_blocks = re.split(r"\n### ", resolved_section)
 
     for block in issue_blocks:
         if not block.strip():
             continue
 
         # Extract issue title (first line)
-        lines = block.split('\n')
+        lines = block.split("\n")
         title = lines[0].strip()
 
-        issue_data = {
-            'title': title,
-            'content': block
-        }
+        issue_data = {"title": title, "content": block}
 
         # Only include if marked as RESOLVED
-        if '✅ RESOLVED' in block or 'Status**: ✅ RESOLVED' in block:
+        if "✅ RESOLVED" in block or "Status**: ✅ RESOLVED" in block:
             issues.append(issue_data)
 
     return issues
@@ -119,14 +118,14 @@ def _extract_prevention_rules_from_issue(issue: Dict[str, str]) -> List[str]:
     3. General patterns from **Resolution** summaries
     """
     rules = []
-    content = issue['content']
-    title = issue['title']
+    content = issue["content"]
+    title = issue["title"]
 
     # 1. Look for explicit prevention rules
     explicit_patterns = [
-        r'\*\*Prevention Rule\*\*:?\s*(.+?)(?=\n\n|\*\*|$)',
-        r'NEVER\s+(.+?)(?=\n|$)',
-        r'ALWAYS\s+(.+?)(?=\n|$)',
+        r"\*\*Prevention Rule\*\*:?\s*(.+?)(?=\n\n|\*\*|$)",
+        r"NEVER\s+(.+?)(?=\n|$)",
+        r"ALWAYS\s+(.+?)(?=\n|$)",
     ]
 
     for pattern in explicit_patterns:
@@ -150,7 +149,7 @@ def _extract_prevention_rules_from_issue(issue: Dict[str, str]) -> List[str]:
     resolution = _extract_field(content, "Resolution")
     if resolution and "NEVER" in resolution.upper():
         # Extract NEVER statements
-        never_matches = re.findall(r'NEVER\s+(.+?)(?=\n|\.)', resolution, re.IGNORECASE)
+        never_matches = re.findall(r"NEVER\s+(.+?)(?=\n|\.)", resolution, re.IGNORECASE)
         rules.extend([m.strip() for m in never_matches if len(m.strip()) > 10])
 
     return rules
@@ -158,7 +157,7 @@ def _extract_prevention_rules_from_issue(issue: Dict[str, str]) -> List[str]:
 
 def _extract_field(content: str, field_name: str) -> Optional[str]:
     """Extract a field like **Root Cause**: or **Fix Applied**:"""
-    pattern = rf'\*\*{re.escape(field_name)}\*\*:?\s*(.+?)(?=\n\n|\*\*|$)'
+    pattern = rf"\*\*{re.escape(field_name)}\*\*:?\s*(.+?)(?=\n\n|\*\*|$)"
     match = re.search(pattern, content, re.DOTALL)
     return match.group(1).strip() if match else None
 
@@ -178,20 +177,25 @@ def _synthesize_rule_from_fix(title: str, root_cause: str, fix_applied: str) -> 
     # Common patterns we can synthesize from
     synthesis_patterns = [
         # Pattern: Dict wrapping issues
-        (r'wrapped in.*{.*existing_files',
-         "NEVER assume file_context is a plain dict - always use .get('existing_files', file_context) to handle both wrapped and unwrapped formats"),
-
+        (
+            r"wrapped in.*{.*existing_files",
+            "NEVER assume file_context is a plain dict - always use .get('existing_files', file_context) to handle both wrapped and unwrapped formats",
+        ),
         # Pattern: API key dependency
-        (r'unconditional import.*OpenAI',
-         "NEVER import OpenAI clients unconditionally - wrap in try/except to support Anthropic-only, OpenAI-only, or both configurations"),
-
+        (
+            r"unconditional import.*OpenAI",
+            "NEVER import OpenAI clients unconditionally - wrap in try/except to support Anthropic-only, OpenAI-only, or both configurations",
+        ),
         # Pattern: Unicode encoding
-        (r'charmap.*emoji|unicode.*encoding',
-         "ALWAYS set PYTHONUTF8=1 environment variable on Windows to prevent Unicode encoding errors"),
-
+        (
+            r"charmap.*emoji|unicode.*encoding",
+            "ALWAYS set PYTHONUTF8=1 environment variable on Windows to prevent Unicode encoding errors",
+        ),
         # Pattern: Patch truncation
-        (r'patch.*truncat|patch.*corrupt|literal.*\.\.\.',
-         "NEVER use literal `...` to skip code in patches - always include full file content or use explicit markers"),
+        (
+            r"patch.*truncat|patch.*corrupt|literal.*\.\.\.",
+            "NEVER use literal `...` to skip code in patches - always include full file content or use explicit markers",
+        ),
     ]
 
     combined_text = f"{title} {root_cause} {fix_applied}".lower()
@@ -224,29 +228,35 @@ def get_startup_checks(project_slug: str = "file-organizer-app-v1") -> List[Dict
 
     # Check 1: Windows Unicode fix (from Issue #3)
     if platform.system() == "Windows":
-        checks.append({
-            "name": "Windows Unicode Fix (PYTHONUTF8)",
-            "check": lambda: os.environ.get('PYTHONUTF8') == '1',
-            "fix": lambda: os.environ.update({'PYTHONUTF8': '1'}),
-            "priority": "HIGH",
-            "reason": "Prevents UnicodeEncodeError with emoji characters in logs (Issue #3)"
-        })
+        checks.append(
+            {
+                "name": "Windows Unicode Fix (PYTHONUTF8)",
+                "check": lambda: os.environ.get("PYTHONUTF8") == "1",
+                "fix": lambda: os.environ.update({"PYTHONUTF8": "1"}),
+                "priority": "HIGH",
+                "reason": "Prevents UnicodeEncodeError with emoji characters in logs (Issue #3)",
+            }
+        )
 
     # Check 2: Stale phase detection (from Gap #4 in ref5.md)
     # This check will be implemented in autonomous_executor.py
     # We just define the metadata here
-    checks.append({
-        "name": "Stale Phase Detection",
-        "check": "implemented_in_executor",  # Placeholder
-        "fix": "implemented_in_executor",
-        "priority": "CRITICAL",
-        "reason": "Automatically reset phases stuck in EXECUTING state >10 minutes"
-    })
+    checks.append(
+        {
+            "name": "Stale Phase Detection",
+            "check": "implemented_in_executor",  # Placeholder
+            "fix": "implemented_in_executor",
+            "priority": "CRITICAL",
+            "reason": "Automatically reset phases stuck in EXECUTING state >10 minutes",
+        }
+    )
 
     return checks
 
 
-def get_recent_prevention_rules(project_slug: str = "file-organizer-app-v1", limit: int = 20) -> List[str]:
+def get_recent_prevention_rules(
+    project_slug: str = "file-organizer-app-v1", limit: int = 20
+) -> List[str]:
     """
     Get recent prevention rules from CONSOLIDATED_DEBUG.md.
 

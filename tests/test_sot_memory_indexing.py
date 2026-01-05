@@ -57,7 +57,7 @@ class TestSOTChunking:
         # Each chunk should end with a period (sentence boundary)
         for chunk in chunks[:-1]:  # Except possibly the last chunk
             # Check that we broke at a sentence
-            assert chunk.rstrip().endswith('.')
+            assert chunk.rstrip().endswith(".")
 
     def test_extract_heading(self):
         """Test heading extraction from chunks."""
@@ -139,23 +139,29 @@ class TestSOTMemoryIndexing:
         docs_dir.mkdir()
 
         # Create BUILD_HISTORY.md
-        (docs_dir / "BUILD_HISTORY.md").write_text("""
+        (docs_dir / "BUILD_HISTORY.md").write_text(
+            """
 ### BUILD-146 | 2025-01-01 | Phase A Complete
 
 Implemented comprehensive observability features including:
 - Token tracking
 - Error recovery
 - Telemetry collection
-        """, encoding="utf-8")
+        """,
+            encoding="utf-8",
+        )
 
         # Create DEBUG_LOG.md
-        (docs_dir / "DEBUG_LOG.md").write_text("""
+        (docs_dir / "DEBUG_LOG.md").write_text(
+            """
 ## DBG-078 | 2025-01-10 | Test Timeout Fix
 
 **Issue**: Tests were timing out intermittently.
 
 **Solution**: Added async/await handling for long-running operations.
-        """, encoding="utf-8")
+        """,
+            encoding="utf-8",
+        )
 
         return tmp_path
 
@@ -168,16 +174,21 @@ Implemented comprehensive observability features including:
 
     def test_index_sot_docs_enabled(self, workspace_with_sot):
         """Test SOT indexing when enabled."""
-        with patch.dict(os.environ, {
-            "AUTOPACK_ENABLE_MEMORY": "true",
-            "AUTOPACK_ENABLE_SOT_MEMORY_INDEXING": "true",
-        }):
+        with patch.dict(
+            os.environ,
+            {
+                "AUTOPACK_ENABLE_MEMORY": "true",
+                "AUTOPACK_ENABLE_SOT_MEMORY_INDEXING": "true",
+            },
+        ):
             # Reload settings module to pick up environment changes
             import sys
             import importlib
+
             if "autopack.config" in sys.modules:
                 importlib.reload(sys.modules["autopack.config"])
             from autopack.config import settings
+
             assert settings.autopack_enable_sot_memory_indexing is True
 
             service = MemoryService(enabled=True, use_qdrant=False)
@@ -188,13 +199,17 @@ Implemented comprehensive observability features including:
 
     def test_search_sot(self, workspace_with_sot):
         """Test SOT search functionality."""
-        with patch.dict(os.environ, {
-            "AUTOPACK_ENABLE_MEMORY": "true",
-            "AUTOPACK_ENABLE_SOT_MEMORY_INDEXING": "true",
-        }):
+        with patch.dict(
+            os.environ,
+            {
+                "AUTOPACK_ENABLE_MEMORY": "true",
+                "AUTOPACK_ENABLE_SOT_MEMORY_INDEXING": "true",
+            },
+        ):
             # Reload settings module to pick up environment changes
             import sys
             import importlib
+
             if "autopack.config" in sys.modules:
                 importlib.reload(sys.modules["autopack.config"])
 
@@ -224,14 +239,18 @@ Implemented comprehensive observability features including:
 
     def test_retrieve_context_with_sot_enabled(self, workspace_with_sot):
         """Test SOT retrieval when enabled."""
-        with patch.dict(os.environ, {
-            "AUTOPACK_ENABLE_MEMORY": "true",
-            "AUTOPACK_ENABLE_SOT_MEMORY_INDEXING": "true",
-            "AUTOPACK_SOT_RETRIEVAL_ENABLED": "true",
-        }):
+        with patch.dict(
+            os.environ,
+            {
+                "AUTOPACK_ENABLE_MEMORY": "true",
+                "AUTOPACK_ENABLE_SOT_MEMORY_INDEXING": "true",
+                "AUTOPACK_SOT_RETRIEVAL_ENABLED": "true",
+            },
+        ):
             # Reload settings module to pick up environment changes
             import sys
             import importlib
+
             if "autopack.config" in sys.modules:
                 importlib.reload(sys.modules["autopack.config"])
 
@@ -252,14 +271,18 @@ Implemented comprehensive observability features including:
 
     def test_format_retrieved_context_includes_sot(self, workspace_with_sot):
         """Test that formatted context includes SOT chunks."""
-        with patch.dict(os.environ, {
-            "AUTOPACK_ENABLE_MEMORY": "true",
-            "AUTOPACK_ENABLE_SOT_MEMORY_INDEXING": "true",
-            "AUTOPACK_SOT_RETRIEVAL_ENABLED": "true",
-        }):
+        with patch.dict(
+            os.environ,
+            {
+                "AUTOPACK_ENABLE_MEMORY": "true",
+                "AUTOPACK_ENABLE_SOT_MEMORY_INDEXING": "true",
+                "AUTOPACK_SOT_RETRIEVAL_ENABLED": "true",
+            },
+        ):
             # Reload settings module to pick up environment changes
             import sys
             import importlib
+
             if "autopack.config" in sys.modules:
                 importlib.reload(sys.modules["autopack.config"])
 
@@ -281,12 +304,15 @@ Implemented comprehensive observability features including:
 
     def test_sot_retrieval_respects_max_chars(self, workspace_with_sot):
         """Test that SOT retrieval respects max_chars limits."""
-        with patch.dict(os.environ, {
-            "AUTOPACK_ENABLE_MEMORY": "true",
-            "AUTOPACK_ENABLE_SOT_MEMORY_INDEXING": "true",
-            "AUTOPACK_SOT_RETRIEVAL_ENABLED": "true",
-            "AUTOPACK_SOT_RETRIEVAL_MAX_CHARS": "100",  # Very small limit
-        }):
+        with patch.dict(
+            os.environ,
+            {
+                "AUTOPACK_ENABLE_MEMORY": "true",
+                "AUTOPACK_ENABLE_SOT_MEMORY_INDEXING": "true",
+                "AUTOPACK_SOT_RETRIEVAL_ENABLED": "true",
+                "AUTOPACK_SOT_RETRIEVAL_MAX_CHARS": "100",  # Very small limit
+            },
+        ):
             service = MemoryService(enabled=True, use_qdrant=False)
 
             # Index and retrieve
@@ -316,11 +342,14 @@ class TestSOTIdempotency:
         docs_dir.mkdir()
 
         sot_file = docs_dir / "BUILD_HISTORY.md"
-        sot_file.write_text("""
+        sot_file.write_text(
+            """
 ### BUILD-001 | 2025-01-01 | Test Build
 
 Test content.
-        """, encoding="utf-8")
+        """,
+            encoding="utf-8",
+        )
 
         # Index twice
         chunks1 = chunk_sot_file(sot_file, "autopack", max_chars=500, overlap_chars=50)
@@ -342,14 +371,10 @@ class TestSOTJSONChunking:
             "description": "A test project for validation",
             "setup": {
                 "commands": ["npm install", "npm run build"],
-                "dependencies": ["react", "typescript"]
+                "dependencies": ["react", "typescript"],
             },
-            "structure": {
-                "entrypoints": ["src/index.ts", "src/main.ts"]
-            },
-            "api": {
-                "summary": "REST API with GraphQL"
-            }
+            "structure": {"entrypoints": ["src/index.ts", "src/main.ts"]},
+            "api": {"summary": "REST API with GraphQL"},
         }
 
         items = json_to_embedding_text(obj, "PROJECT_INDEX.json")
@@ -372,7 +397,7 @@ class TestSOTJSONChunking:
                     "rule": "Validate all user input before processing",
                     "when": "Processing user data",
                     "because": "Prevents injection attacks",
-                    "examples": ["SQL injection", "XSS attacks"]
+                    "examples": ["SQL injection", "XSS attacks"],
                 }
             ]
         }
@@ -390,13 +415,11 @@ class TestSOTJSONChunking:
         """Test chunking PROJECT_INDEX.json file."""
         json_file = tmp_path / "PROJECT_INDEX.json"
         import json
+
         content = {
             "project_name": "Autopack",
             "description": "Autonomous development framework",
-            "setup": {
-                "commands": ["pip install -e ."],
-                "dependencies": ["sqlalchemy", "pydantic"]
-            }
+            "setup": {"commands": ["pip install -e ."], "dependencies": ["sqlalchemy", "pydantic"]},
         }
         json_file.write_text(json.dumps(content), encoding="utf-8")
 
@@ -415,6 +438,7 @@ class TestSOTJSONChunking:
     def test_chunk_sot_json_windows_line_endings(self, tmp_path):
         """Test that Windows line endings don't affect chunk IDs."""
         import json
+
         json_file = tmp_path / "test.json"
 
         content = {"project_name": "Test"}
@@ -481,29 +505,32 @@ class TestSOTMultiProject:
         sub_docs = tmp_path / ".autonomous_runs" / "my-project" / "docs"
         sub_docs.mkdir(parents=True)
 
-        (sub_docs / "BUILD_HISTORY.md").write_text("""
+        (sub_docs / "BUILD_HISTORY.md").write_text(
+            """
 ### BUILD-001 | Sub-project build
 Content here.
-        """, encoding="utf-8")
+        """,
+            encoding="utf-8",
+        )
 
-        with patch.dict(os.environ, {
-            "AUTOPACK_ENABLE_MEMORY": "true",
-            "AUTOPACK_ENABLE_SOT_MEMORY_INDEXING": "true",
-        }):
+        with patch.dict(
+            os.environ,
+            {
+                "AUTOPACK_ENABLE_MEMORY": "true",
+                "AUTOPACK_ENABLE_SOT_MEMORY_INDEXING": "true",
+            },
+        ):
             # Reload settings module to pick up environment changes
             import sys
             import importlib
+
             if "autopack.config" in sys.modules:
                 importlib.reload(sys.modules["autopack.config"])
 
             service = MemoryService(enabled=True, use_qdrant=False)
 
             # Index with explicit docs_dir
-            result = service.index_sot_docs(
-                "my-project",
-                tmp_path,
-                docs_dir=sub_docs
-            )
+            result = service.index_sot_docs("my-project", tmp_path, docs_dir=sub_docs)
 
             assert result["skipped"] is False
             assert result["indexed"] > 0
@@ -513,18 +540,25 @@ Content here.
         docs_dir = tmp_path / "docs"
         docs_dir.mkdir()
 
-        (docs_dir / "BUILD_HISTORY.md").write_text("""
+        (docs_dir / "BUILD_HISTORY.md").write_text(
+            """
 ### BUILD-001 | Default location
 Content.
-        """, encoding="utf-8")
+        """,
+            encoding="utf-8",
+        )
 
-        with patch.dict(os.environ, {
-            "AUTOPACK_ENABLE_MEMORY": "true",
-            "AUTOPACK_ENABLE_SOT_MEMORY_INDEXING": "true",
-        }):
+        with patch.dict(
+            os.environ,
+            {
+                "AUTOPACK_ENABLE_MEMORY": "true",
+                "AUTOPACK_ENABLE_SOT_MEMORY_INDEXING": "true",
+            },
+        ):
             # Reload settings module to pick up environment changes
             import sys
             import importlib
+
             if "autopack.config" in sys.modules:
                 importlib.reload(sys.modules["autopack.config"])
 
@@ -545,15 +579,21 @@ class TestSOTSkipExisting:
         docs_dir = tmp_path / "docs"
         docs_dir.mkdir()
 
-        (docs_dir / "BUILD_HISTORY.md").write_text("""
+        (docs_dir / "BUILD_HISTORY.md").write_text(
+            """
 ### BUILD-001 | Test Build
 Test content for skip test.
-        """, encoding="utf-8")
+        """,
+            encoding="utf-8",
+        )
 
-        with patch.dict(os.environ, {
-            "AUTOPACK_ENABLE_MEMORY": "true",
-            "AUTOPACK_ENABLE_SOT_MEMORY_INDEXING": "true",
-        }):
+        with patch.dict(
+            os.environ,
+            {
+                "AUTOPACK_ENABLE_MEMORY": "true",
+                "AUTOPACK_ENABLE_SOT_MEMORY_INDEXING": "true",
+            },
+        ):
             service = MemoryService(enabled=True, use_qdrant=False)
 
             # First index
@@ -574,29 +614,37 @@ class TestSOT6FileSupport:
     def test_all_6_sot_files_indexed(self, tmp_path):
         """Test that markdown and JSON SOT files are all indexed."""
         import json
+
         docs_dir = tmp_path / "docs"
         docs_dir.mkdir()
 
         # Create all 6 SOT files
         (docs_dir / "BUILD_HISTORY.md").write_text("# Build History\nContent.", encoding="utf-8")
         (docs_dir / "DEBUG_LOG.md").write_text("# Debug Log\nContent.", encoding="utf-8")
-        (docs_dir / "ARCHITECTURE_DECISIONS.md").write_text("# Architecture\nContent.", encoding="utf-8")
+        (docs_dir / "ARCHITECTURE_DECISIONS.md").write_text(
+            "# Architecture\nContent.", encoding="utf-8"
+        )
         (docs_dir / "FUTURE_PLAN.md").write_text("# Future Plan\nContent.", encoding="utf-8")
 
         (docs_dir / "PROJECT_INDEX.json").write_text(
             json.dumps({"project_name": "Test"}), encoding="utf-8"
         )
         (docs_dir / "LEARNED_RULES.json").write_text(
-            json.dumps({"rules": [{"id": "R1", "title": "Test Rule", "rule": "Test"}]}), encoding="utf-8"
+            json.dumps({"rules": [{"id": "R1", "title": "Test Rule", "rule": "Test"}]}),
+            encoding="utf-8",
         )
 
-        with patch.dict(os.environ, {
-            "AUTOPACK_ENABLE_MEMORY": "true",
-            "AUTOPACK_ENABLE_SOT_MEMORY_INDEXING": "true",
-        }):
+        with patch.dict(
+            os.environ,
+            {
+                "AUTOPACK_ENABLE_MEMORY": "true",
+                "AUTOPACK_ENABLE_SOT_MEMORY_INDEXING": "true",
+            },
+        ):
             # Reload settings module to pick up environment changes
             import sys
             import importlib
+
             if "autopack.config" in sys.modules:
                 importlib.reload(sys.modules["autopack.config"])
 

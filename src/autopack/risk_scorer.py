@@ -21,7 +21,7 @@ Usage:
         phase_spec={"description": "...", "scope": {...}},
         file_changes=["src/main.py", "tests/test_main.py"]
     )
-    
+
     if risk.level == RiskLevel.HIGH:
         # Request approval
         approval = await request_approval(risk)
@@ -41,14 +41,16 @@ logger = logging.getLogger(__name__)
 
 class RiskLevel(str, Enum):
     """Risk level classification."""
-    LOW = "low"          # 0.0 - 0.3
-    MEDIUM = "medium"    # 0.3 - 0.6
-    HIGH = "high"        # 0.6 - 1.0
+
+    LOW = "low"  # 0.0 - 0.3
+    MEDIUM = "medium"  # 0.3 - 0.6
+    HIGH = "high"  # 0.6 - 1.0
 
 
 @dataclass
 class RiskScore:
     """Risk assessment result."""
+
     level: RiskLevel
     score: float  # 0.0 - 1.0
     factors: Dict[str, float]  # Factor name -> contribution
@@ -137,9 +139,7 @@ class RiskScorer:
         factors["protected_paths"] = protected_risk
         if protected_risk > 0.0:
             protected_files = self._get_protected_files(file_changes)
-            reasons.append(
-                f"Protected paths modified: {', '.join(protected_files)}"
-            )
+            reasons.append(f"Protected paths modified: {', '.join(protected_files)}")
 
         # Factor 3: Category patterns (0.0 - 0.3)
         category_risk = self._score_category(phase_spec)
@@ -153,16 +153,11 @@ class RiskScorer:
         factors["cross_cutting"] = cross_cutting_risk
         if cross_cutting_risk > 0.1:
             dirs = self._get_affected_directories(file_changes)
-            reasons.append(
-                f"Cross-cutting changes: {len(dirs)} directories affected"
-            )
+            reasons.append(f"Cross-cutting changes: {len(dirs)} directories affected")
 
         # Compute total score (weighted sum)
         total_score = (
-            scope_risk * 0.3 +
-            protected_risk * 0.4 +
-            category_risk * 0.2 +
-            cross_cutting_risk * 0.1
+            scope_risk * 0.3 + protected_risk * 0.4 + category_risk * 0.2 + cross_cutting_risk * 0.1
         )
 
         # Classify risk level
@@ -391,13 +386,12 @@ class ApprovalGate:
 
                 # Poll for approval status
                 import asyncio
+
                 start_time = asyncio.get_event_loop().time()
                 while True:
                     elapsed = asyncio.get_event_loop().time() - start_time
                     if elapsed >= timeout_seconds:
-                        logger.warning(
-                            f"[ApprovalGate] Approval timeout: {approval_id}"
-                        )
+                        logger.warning(f"[ApprovalGate] Approval timeout: {approval_id}")
                         return False
 
                     # Check status
@@ -410,14 +404,10 @@ class ApprovalGate:
                     status_data = status_response.json()
 
                     if status_data["status"] == "approved":
-                        logger.info(
-                            f"[ApprovalGate] Approval granted: {approval_id}"
-                        )
+                        logger.info(f"[ApprovalGate] Approval granted: {approval_id}")
                         return True
                     elif status_data["status"] == "rejected":
-                        logger.info(
-                            f"[ApprovalGate] Approval rejected: {approval_id}"
-                        )
+                        logger.info(f"[ApprovalGate] Approval rejected: {approval_id}")
                         return False
 
                     # Wait before polling again
@@ -441,8 +431,7 @@ class ApprovalGate:
             reason: Reason for pause
         """
         logger.warning(
-            f"[ApprovalGate] Execution paused: run={run_id}, phase={phase_id}, "
-            f"reason={reason}"
+            f"[ApprovalGate] Execution paused: run={run_id}, phase={phase_id}, " f"reason={reason}"
         )
         # Pause mechanism: Set phase state to PAUSED in database
         # (Implementation depends on database schema)
@@ -458,8 +447,6 @@ class ApprovalGate:
             run_id: Run ID
             phase_id: Phase ID
         """
-        logger.info(
-            f"[ApprovalGate] Execution resumed: run={run_id}, phase={phase_id}"
-        )
+        logger.info(f"[ApprovalGate] Execution resumed: run={run_id}, phase={phase_id}")
         # Resume mechanism: Set phase state to QUEUED in database
         # (Implementation depends on database schema)

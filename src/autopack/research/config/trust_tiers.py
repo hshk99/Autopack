@@ -11,6 +11,7 @@ TRUST_TIERS = {
     "low": 1,
 }
 
+
 def get_trust_tier(source_id: str) -> int:
     """
     Get the trust tier for a given source identifier.
@@ -21,6 +22,7 @@ def get_trust_tier(source_id: str) -> int:
     # Placeholder for logic to determine the trust tier of a source
     # This could involve looking up a database or configuration file
     return TRUST_TIERS.get(source_id, 0)
+
 
 def is_trusted(source_id: str, minimum_tier: int = 2) -> bool:
     """

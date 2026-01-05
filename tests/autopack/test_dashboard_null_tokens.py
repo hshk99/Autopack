@@ -50,6 +50,7 @@ def test_db():
 @pytest.fixture
 def client(test_db):
     """Create test client with overridden database dependency"""
+
     def override_get_db():
         try:
             yield test_db
@@ -109,7 +110,9 @@ class TestDashboardNullTokens:
         response = client.get("/dashboard/usage?period=week")
 
         # Should return 200, not crash
-        assert response.status_code == 200, f"Expected 200, got {response.status_code}: {response.text}"
+        assert (
+            response.status_code == 200
+        ), f"Expected 200, got {response.status_code}: {response.text}"
 
         data = response.json()
         assert "providers" in data
@@ -268,14 +271,8 @@ class TestDashboardNullTokens:
         data = response.json()
 
         # Find model stats
-        gpt4o_mini_stats = next(
-            (m for m in data["models"] if m["model"] == "gpt-4o-mini"),
-            None
-        )
-        gpt4o_stats = next(
-            (m for m in data["models"] if m["model"] == "gpt-4o"),
-            None
-        )
+        gpt4o_mini_stats = next((m for m in data["models"] if m["model"] == "gpt-4o-mini"), None)
+        gpt4o_stats = next((m for m in data["models"] if m["model"] == "gpt-4o"), None)
 
         # BUILD-144 P0.4: gpt-4o-mini with NULL splits should report total_tokens=300
         assert gpt4o_mini_stats is not None

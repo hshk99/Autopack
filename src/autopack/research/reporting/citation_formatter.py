@@ -31,4 +31,3 @@ class CitationFormatter:
         """
         # Placeholder for APA formatting logic
         return f"{citation_data['author']} ({citation_data['year']}). {citation_data['title']}."
-

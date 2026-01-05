@@ -30,6 +30,7 @@ logger = logging.getLogger(__name__)
 # GOVERNANCE REQUEST MODEL
 # =============================================================================
 
+
 @dataclass
 class GovernanceRequest:
     """Governance request for protected path modification."""
@@ -57,11 +58,11 @@ class GovernanceRequest:
             "auto_approved": self.auto_approved,
             "approved": self.approved,
             "approved_by": self.approved_by,
-            "created_at": self.created_at.isoformat() if self.created_at else None
+            "created_at": self.created_at.isoformat() if self.created_at else None,
         }
 
     @classmethod
-    def from_db_row(cls, row: Any) -> 'GovernanceRequest':
+    def from_db_row(cls, row: Any) -> "GovernanceRequest":
         """Create from database row."""
         return cls(
             request_id=row.request_id,
@@ -73,7 +74,7 @@ class GovernanceRequest:
             auto_approved=bool(row.auto_approved),
             approved=row.approved if row.approved is not None else None,
             approved_by=row.approved_by,
-            created_at=row.created_at
+            created_at=row.created_at,
         )
 
 
@@ -100,7 +101,7 @@ def can_auto_approve(
     path: str,
     risk_level: str,
     diff_stats: Optional[Dict[str, int]] = None,
-    run_type: str = "project_build"
+    run_type: str = "project_build",
 ) -> bool:
     """
     Conservative auto-approval check.
@@ -155,10 +156,7 @@ def can_auto_approve(
     return False
 
 
-def assess_risk_level(
-    path: str,
-    risk_scorer: Optional[Any] = None
-) -> str:
+def assess_risk_level(path: str, risk_scorer: Optional[Any] = None) -> str:
     """
     Assess risk level for a path modification.
 
@@ -205,6 +203,7 @@ def assess_risk_level(
 # GOVERNANCE REQUEST OPERATIONS
 # =============================================================================
 
+
 def create_governance_request(
     db_session: Session,
     run_id: str,
@@ -212,7 +211,7 @@ def create_governance_request(
     violated_paths: List[str],
     justification: str,
     risk_scorer: Optional[Any] = None,
-    diff_stats: Optional[Dict[str, int]] = None
+    diff_stats: Optional[Dict[str, int]] = None,
 ) -> GovernanceRequest:
     """
     Create a governance request in the database.
@@ -255,7 +254,7 @@ def create_governance_request(
         auto_approved=auto_approved,
         approved=True if auto_approved else None,  # Auto-approved → immediately approved
         approved_by="auto" if auto_approved else None,
-        created_at=datetime.now(timezone.utc)
+        created_at=datetime.now(timezone.utc),
     )
 
     db_session.add(db_request)
@@ -269,11 +268,7 @@ def create_governance_request(
     return GovernanceRequest.from_db_row(db_request)
 
 
-def approve_request(
-    db_session: Session,
-    request_id: str,
-    approved_by: str = "human"
-) -> bool:
+def approve_request(db_session: Session, request_id: str, approved_by: str = "human") -> bool:
     """
     Approve a governance request.
 
@@ -287,9 +282,11 @@ def approve_request(
     """
     from .models import GovernanceRequest as GovernanceRequestDB
 
-    request = db_session.query(GovernanceRequestDB).filter(
-        GovernanceRequestDB.request_id == request_id
-    ).first()
+    request = (
+        db_session.query(GovernanceRequestDB)
+        .filter(GovernanceRequestDB.request_id == request_id)
+        .first()
+    )
 
     if not request:
         logger.warning(f"[Governance] Request {request_id} not found")
@@ -303,11 +300,7 @@ def approve_request(
     return True
 
 
-def deny_request(
-    db_session: Session,
-    request_id: str,
-    denied_by: str = "human"
-) -> bool:
+def deny_request(db_session: Session, request_id: str, denied_by: str = "human") -> bool:
     """
     Deny a governance request.
 
@@ -321,9 +314,11 @@ def deny_request(
     """
     from .models import GovernanceRequest as GovernanceRequestDB
 
-    request = db_session.query(GovernanceRequestDB).filter(
-        GovernanceRequestDB.request_id == request_id
-    ).first()
+    request = (
+        db_session.query(GovernanceRequestDB)
+        .filter(GovernanceRequestDB.request_id == request_id)
+        .first()
+    )
 
     if not request:
         logger.warning(f"[Governance] Request {request_id} not found")
@@ -337,7 +332,9 @@ def deny_request(
     return True
 
 
-def get_pending_requests(db_session: Session, run_id: Optional[str] = None) -> List[GovernanceRequest]:
+def get_pending_requests(
+    db_session: Session, run_id: Optional[str] = None
+) -> List[GovernanceRequest]:
     """
     Get all pending governance requests.
 
@@ -350,9 +347,7 @@ def get_pending_requests(db_session: Session, run_id: Optional[str] = None) -> L
     """
     from .models import GovernanceRequest as GovernanceRequestDB
 
-    query = db_session.query(GovernanceRequestDB).filter(
-        GovernanceRequestDB.approved.is_(None)
-    )
+    query = db_session.query(GovernanceRequestDB).filter(GovernanceRequestDB.approved.is_(None))
 
     if run_id:
         query = query.filter(GovernanceRequestDB.run_id == run_id)
@@ -366,10 +361,8 @@ def get_pending_requests(db_session: Session, run_id: Optional[str] = None) -> L
 # STRUCTURED ERROR GENERATION
 # =============================================================================
 
-def create_protected_path_error(
-    violated_paths: List[str],
-    justification: str = ""
-) -> str:
+
+def create_protected_path_error(violated_paths: List[str], justification: str = "") -> str:
     """
     Create structured error message for protected path violation.
 
@@ -387,7 +380,7 @@ def create_protected_path_error(
         "error_type": "protected_path_violation",
         "violated_paths": violated_paths,
         "justification": justification,
-        "requires_approval": True
+        "requires_approval": True,
     }
 
     return json.dumps(error_data)

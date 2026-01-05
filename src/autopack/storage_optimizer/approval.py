@@ -35,6 +35,7 @@ class ExecutionApproval:
         operator: Identity of approving operator (email or username)
         notes: Optional approval notes or justification
     """
+
     report_id: str
     timestamp: str
     operator: str
@@ -43,20 +44,20 @@ class ExecutionApproval:
     @classmethod
     def from_file(cls, approval_path: Path) -> ExecutionApproval:
         """Load approval from JSON file."""
-        with open(approval_path, 'r', encoding='utf-8') as f:
+        with open(approval_path, "r", encoding="utf-8") as f:
             data = json.load(f)
 
         return cls(
-            report_id=data['report_id'],
-            timestamp=data['timestamp'],
-            operator=data['operator'],
-            notes=data.get('notes')
+            report_id=data["report_id"],
+            timestamp=data["timestamp"],
+            operator=data["operator"],
+            notes=data.get("notes"),
         )
 
     def to_file(self, approval_path: Path) -> None:
         """Save approval to JSON file."""
         approval_path.parent.mkdir(parents=True, exist_ok=True)
-        with open(approval_path, 'w', encoding='utf-8') as f:
+        with open(approval_path, "w", encoding="utf-8") as f:
             json.dump(asdict(self), f, indent=2, ensure_ascii=False)
 
 
@@ -79,15 +80,15 @@ def compute_report_id(report: Dict) -> str:
     normalized = _normalize_dict(report)
 
     # Remove volatile fields
-    if 'metadata' in normalized:
-        normalized['metadata'].pop('generated_at', None)
-        normalized['metadata'].pop('runtime_seconds', None)
+    if "metadata" in normalized:
+        normalized["metadata"].pop("generated_at", None)
+        normalized["metadata"].pop("runtime_seconds", None)
 
     # Serialize to canonical JSON (sorted keys, no whitespace)
-    canonical_json = json.dumps(normalized, sort_keys=True, separators=(',', ':'))
+    canonical_json = json.dumps(normalized, sort_keys=True, separators=(",", ":"))
 
     # Compute SHA-256
-    return hashlib.sha256(canonical_json.encode('utf-8')).hexdigest()
+    return hashlib.sha256(canonical_json.encode("utf-8")).hexdigest()
 
 
 def _normalize_dict(d: Dict) -> Dict:
@@ -102,8 +103,7 @@ def _normalize_dict(d: Dict) -> Dict:
             normalized[key] = _normalize_dict(value)
         elif isinstance(value, list):
             normalized[key] = [
-                _normalize_dict(item) if isinstance(item, dict) else item
-                for item in value
+                _normalize_dict(item) if isinstance(item, dict) else item for item in value
             ]
         else:
             normalized[key] = value
@@ -111,10 +111,7 @@ def _normalize_dict(d: Dict) -> Dict:
     return normalized
 
 
-def verify_approval(
-    report: Dict,
-    approval: ExecutionApproval
-) -> tuple[bool, Optional[str]]:
+def verify_approval(report: Dict, approval: ExecutionApproval) -> tuple[bool, Optional[str]]:
     """
     Verify that approval matches report.
 
@@ -155,6 +152,7 @@ class AuditEntry:
         report_id: Report ID this action belongs to
         operator: Who approved this action
     """
+
     timestamp: str
     action: str
     src: str
@@ -195,8 +193,8 @@ class AuditLog:
         Args:
             entry: Audit entry to append
         """
-        with open(self.audit_path, 'a', encoding='utf-8') as f:
-            f.write(entry.to_jsonl_line() + '\n')
+        with open(self.audit_path, "a", encoding="utf-8") as f:
+            f.write(entry.to_jsonl_line() + "\n")
 
     def log_delete(
         self,
@@ -205,12 +203,12 @@ class AuditLog:
         policy_reason: str,
         sha256_before: str,
         report_id: str,
-        operator: str
+        operator: str,
     ) -> None:
         """Log a file deletion."""
         entry = AuditEntry(
-            timestamp=datetime.utcnow().isoformat() + 'Z',
-            action='delete',
+            timestamp=datetime.utcnow().isoformat() + "Z",
+            action="delete",
             src=str(src),
             dest=None,
             bytes=bytes_deleted,
@@ -218,7 +216,7 @@ class AuditLog:
             sha256_before=sha256_before,
             sha256_after=None,
             report_id=report_id,
-            operator=operator
+            operator=operator,
         )
         self.append(entry)
 
@@ -231,12 +229,12 @@ class AuditLog:
         sha256_before: str,
         sha256_after: str,
         report_id: str,
-        operator: str
+        operator: str,
     ) -> None:
         """Log a file move/archive."""
         entry = AuditEntry(
-            timestamp=datetime.utcnow().isoformat() + 'Z',
-            action='move',
+            timestamp=datetime.utcnow().isoformat() + "Z",
+            action="move",
             src=str(src),
             dest=str(dest),
             bytes=bytes_moved,
@@ -244,7 +242,7 @@ class AuditLog:
             sha256_before=sha256_before,
             sha256_after=sha256_after,
             report_id=report_id,
-            operator=operator
+            operator=operator,
         )
         self.append(entry)
 
@@ -263,11 +261,11 @@ def generate_approval_template(report: Dict, output_path: Path) -> None:
         "report_id": report_id,
         "timestamp": "<ISO 8601 timestamp when approval granted>",
         "operator": "<operator email or username>",
-        "notes": "<optional: approval justification or notes>"
+        "notes": "<optional: approval justification or notes>",
     }
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    with open(output_path, 'w', encoding='utf-8') as f:
+    with open(output_path, "w", encoding="utf-8") as f:
         json.dump(template, f, indent=2, ensure_ascii=False)
 
     print(f"✅ Approval template generated: {output_path}")
@@ -282,7 +280,7 @@ def generate_approval_template(report: Dict, output_path: Path) -> None:
 def hash_file(file_path: Path) -> str:
     """Compute SHA-256 hash of file for audit trail."""
     sha256 = hashlib.sha256()
-    with open(file_path, 'rb') as f:
-        for chunk in iter(lambda: f.read(8192), b''):
+    with open(file_path, "rb") as f:
+        for chunk in iter(lambda: f.read(8192), b""):
             sha256.update(chunk)
     return sha256.hexdigest()

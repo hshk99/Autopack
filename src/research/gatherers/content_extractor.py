@@ -21,8 +21,8 @@ class ContentExtractor:
         :return: A list of extracted text segments.
         """
         # Simple regex-based extraction for demonstration purposes
-        text_segments = re.findall(r'>[^<]+<', html)
-        return [segment.strip('<> ') for segment in text_segments]
+        text_segments = re.findall(r">[^<]+<", html)
+        return [segment.strip("<> ") for segment in text_segments]
 
     def deduplicate_content(self, contents: List[str]) -> List[str]:
         """
@@ -40,12 +40,7 @@ class ContentExtractor:
         :param contents: A list of content strings.
         :return: A dictionary with categories as keys and lists of content strings as values.
         """
-        categories = {
-            "news": [],
-            "blog": [],
-            "advertisement": [],
-            "other": []
-        }
+        categories = {"news": [], "blog": [], "advertisement": [], "other": []}
         for content in contents:
             if "news" in content.lower():
                 categories["news"].append(content)
@@ -82,8 +77,4 @@ class ContentExtractor:
         deduplicated = self.deduplicate_content(extracted)
         categorized = self.categorize_content(deduplicated)
         gaps = self.identify_gaps(categorized)
-        return {
-            "deduplicated": deduplicated,
-            "categorized": categorized,
-            "gaps": gaps
-        }
+        return {"deduplicated": deduplicated, "categorized": categorized, "gaps": gaps}

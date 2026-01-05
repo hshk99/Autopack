@@ -18,13 +18,13 @@ Architecture:
 
 Usage:
     summarizer = ContextSummarizer(cache_dir=Path(".cache/summaries"))
-    
+
     # Summarize single file
     summary = summarizer.summarize_file(
         file_path=Path("src/main.py"),
         max_tokens=1000
     )
-    
+
     # Allocate budget across multiple files
     summaries = summarizer.allocate_budget(
         file_paths=[Path("src/a.py"), Path("src/b.py")],
@@ -47,6 +47,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class FileSummary:
     """Summary of a file's content."""
+
     file_path: Path
     content: str
     token_count: int
@@ -57,6 +58,7 @@ class FileSummary:
 @dataclass
 class CacheEntry:
     """Cache entry for file summary."""
+
     file_hash: str
     mtime: float
     summary: str
@@ -460,10 +462,7 @@ class ContextSummarizer:
         )
 
         # Calculate per-file budget (proportional to original size)
-        budget_per_file = [
-            int(total_budget * (s.token_count / total_tokens))
-            for s in summaries
-        ]
+        budget_per_file = [int(total_budget * (s.token_count / total_tokens)) for s in summaries]
 
         # Re-summarize with budget constraints
         adjusted_summaries = []

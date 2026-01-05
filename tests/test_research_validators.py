@@ -6,10 +6,7 @@ This test suite verifies the citation validation logic, particularly:
 3. Three-check validation system (quote in source, hash match, numeric validation)
 """
 
-from autopack.research.models.validators import (
-    Finding,
-    CitationValidator
-)
+from autopack.research.models.validators import Finding, CitationValidator
 
 
 class TestCitationValidatorTextNormalization:
@@ -53,7 +50,7 @@ class TestNumericVerificationPhase1:
         finding = Finding(
             content="Market valued at five hundred million dollars per year",
             extraction_span="The market size is approximately $500M annually",
-            category="market_intelligence"
+            category="market_intelligence",
         )
 
         # Phase 1: We DON'T check if content numbers match span numbers
@@ -68,7 +65,7 @@ class TestNumericVerificationPhase1:
         finding = Finding(
             content="The market is growing rapidly",
             extraction_span="The market is growing rapidly",
-            category="market_intelligence"
+            category="market_intelligence",
         )
 
         # Span has no numbers but claims to be market intelligence -> suspicious
@@ -82,7 +79,7 @@ class TestNumericVerificationPhase1:
         finding = Finding(
             content="GitHub has 100M+ active developers",
             extraction_span="GitHub reports over 100 million developers using the platform",
-            category="competitive_analysis"
+            category="competitive_analysis",
         )
 
         result = validator._verify_numeric_extraction(finding, finding.extraction_span.lower())
@@ -95,7 +92,7 @@ class TestNumericVerificationPhase1:
         finding = Finding(
             content="Competitor is popular",
             extraction_span="Competitor is popular",
-            category="competitive_analysis"
+            category="competitive_analysis",
         )
 
         result = validator._verify_numeric_extraction(finding, finding.extraction_span.lower())
@@ -108,7 +105,7 @@ class TestNumericVerificationPhase1:
         finding = Finding(
             content="Uses microservices architecture",
             extraction_span="Built with microservices architecture",
-            category="technical_analysis"
+            category="technical_analysis",
         )
 
         # Technical analysis doesn't require numbers, so this passes
@@ -122,7 +119,7 @@ class TestNumericVerificationPhase1:
         finding = Finding(
             content="Handles 10000 requests per second",
             extraction_span="System can handle 10,000 RPS",
-            category="technical_analysis"
+            category="technical_analysis",
         )
 
         result = validator._verify_numeric_extraction(finding, finding.extraction_span.lower())
@@ -139,7 +136,7 @@ class TestNumericVerificationPhase1:
         finding = Finding(
             content="Market valued at five hundred million dollars per year",  # No digits
             extraction_span="The market size is approximately $500M annually",  # Has "500"
-            category="market_intelligence"
+            category="market_intelligence",
         )
 
         # Phase 0 (buggy): This would FAIL because content has no numbers
@@ -162,7 +159,7 @@ class TestFullVerificationPipeline:
             content="Platform serves 100M+ developers globally",
             extraction_span="serve over 100 million developers worldwide",
             category="market_intelligence",
-            source_hash="abc123"
+            source_hash="abc123",
         )
 
         result = validator.verify(finding, source_text, source_hash)
@@ -182,7 +179,7 @@ class TestFullVerificationPipeline:
             content="100M developers",
             extraction_span="over 500 million users",  # Not in source!
             category="market_intelligence",
-            source_hash="abc123"
+            source_hash="abc123",
         )
 
         result = validator.verify(finding, source_text, source_hash)
@@ -202,7 +199,7 @@ class TestFullVerificationPipeline:
             content="Platform serves 100M+ developers",
             extraction_span="serve over 100 million developers worldwide",
             category="market_intelligence",
-            source_hash="xyz789"  # Wrong hash!
+            source_hash="xyz789",  # Wrong hash!
         )
 
         result = validator.verify(finding, source_text, source_hash)
@@ -222,7 +219,7 @@ class TestFullVerificationPipeline:
             content="Strong market growth",
             extraction_span="The market is growing rapidly",  # No numbers
             category="market_intelligence",
-            source_hash="abc123"
+            source_hash="abc123",
         )
 
         result = validator.verify(finding, source_text, source_hash)
@@ -242,7 +239,7 @@ class TestFullVerificationPipeline:
             content="Fox jumping behavior",
             extraction_span="THE QUICK BROWN FOX JUMPED OVER THE lazy DOG",
             category="technical_analysis",
-            source_hash="abc123"
+            source_hash="abc123",
         )
 
         result = validator.verify(finding, source_text, source_hash)
@@ -260,7 +257,7 @@ class TestFullVerificationPipeline:
             content="Fox jumping behavior",
             extraction_span="The quick brown fox jumped over the lazy dog",
             category="technical_analysis",
-            source_hash="abc123"
+            source_hash="abc123",
         )
 
         result = validator.verify(finding, source_text, source_hash)
@@ -278,7 +275,7 @@ class TestFullVerificationPipeline:
             content="100M developers",
             extraction_span="serves over 100 million developers",
             category="market_intelligence",
-            source_hash=None  # No hash provided
+            source_hash=None,  # No hash provided
         )
 
         result = validator.verify(finding, source_text, source_hash)
@@ -306,7 +303,7 @@ class TestEdgeCases:
             content="Some finding",
             extraction_span="",  # Empty!
             category="technical_analysis",
-            source_hash="abc123"
+            source_hash="abc123",
         )
 
         result = validator.verify(finding, source_text, source_hash)
@@ -322,7 +319,7 @@ class TestEdgeCases:
         finding = Finding(
             content="Growth rate is 12.5%",
             extraction_span="annual growth rate of 12.5 percent",
-            category="market_intelligence"
+            category="market_intelligence",
         )
 
         result = validator._verify_numeric_extraction(finding, finding.extraction_span.lower())
@@ -335,7 +332,7 @@ class TestEdgeCases:
         finding = Finding(
             content="Revenue between $50M and $100M",
             extraction_span="revenue ranging from 50 million to 100 million dollars",
-            category="market_intelligence"
+            category="market_intelligence",
         )
 
         result = validator._verify_numeric_extraction(finding, finding.extraction_span.lower())

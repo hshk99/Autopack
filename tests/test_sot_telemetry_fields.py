@@ -39,18 +39,12 @@ def test_run_and_phase(test_db):
         id="test-build155-telemetry",
         project_name="test-project",
         created_at=datetime.now(timezone.utc),
-        state="EXECUTING"
+        state="EXECUTING",
     )
     test_db.add(run)
     test_db.commit()
 
-    tier = Tier(
-        run_id=run.id,
-        tier_id="T1",
-        tier_index=0,
-        name="Test Tier",
-        state="EXECUTING"
-    )
+    tier = Tier(run_id=run.id, tier_id="T1", tier_index=0, name="Test Tier", state="EXECUTING")
     test_db.add(tier)
     test_db.commit()
 
@@ -60,7 +54,7 @@ def test_run_and_phase(test_db):
         phase_id="test-phase-1",
         phase_index=0,
         name="Test Phase",
-        state="EXECUTING"
+        state="EXECUTING",
     )
     test_db.add(phase)
     test_db.commit()
@@ -83,7 +77,9 @@ class TestSOTTelemetryFields:
         executor.run_id = run.id
 
         # Bind the actual method to the mock
-        executor._record_sot_retrieval_telemetry = AutonomousExecutor._record_sot_retrieval_telemetry.__get__(executor, AutonomousExecutor)
+        executor._record_sot_retrieval_telemetry = (
+            AutonomousExecutor._record_sot_retrieval_telemetry.__get__(executor, AutonomousExecutor)
+        )
 
         return executor
 
@@ -124,7 +120,7 @@ class TestSOTTelemetryFields:
                             {"content": "t" * 1000, "metadata": {}},
                         ],
                         "code": [],
-                        "errors": []
+                        "errors": [],
                     }
 
                     executor._record_sot_retrieval_telemetry(
@@ -192,7 +188,7 @@ class TestSOTTelemetryFields:
                     retrieved_context = {
                         "sot": [{"content": "t" * 5000, "metadata": {}}],
                         "code": [],
-                        "errors": []
+                        "errors": [],
                     }
 
                     executor._record_sot_retrieval_telemetry(
@@ -204,9 +200,9 @@ class TestSOTTelemetryFields:
                     )
 
         event = test_db.query(SOTRetrievalEvent).first()
-        assert event.sot_truncated is True, (
-            "Truncation flag should be set when output is near cap (>= 95%)"
-        )
+        assert (
+            event.sot_truncated is True
+        ), "Truncation flag should be set when output is near cap (>= 95%)"
 
     def test_sections_included_tracking(self, test_db, test_run_and_phase, executor):
         """Telemetry should track which context sections were included"""
@@ -224,7 +220,7 @@ class TestSOTTelemetryFields:
                         "code": [{"content": "c", "metadata": {}}],
                         "errors": [{"content": "e", "metadata": {}}],
                         "hints": [],  # Empty section (not included)
-                        "summaries": []  # Empty section (not included)
+                        "summaries": [],  # Empty section (not included)
                     }
 
                     executor._record_sot_retrieval_telemetry(

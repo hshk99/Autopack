@@ -36,7 +36,7 @@ class TestTelemetryDeltaTracking:
 - token_budget_escalation_events: 40
 """
 
-        with patch('subprocess.run', return_value=mock_result):
+        with patch("subprocess.run", return_value=mock_result):
             total = controller._get_telemetry_counts()
 
         assert total == 202  # 162 + 40
@@ -52,7 +52,7 @@ class TestTelemetryDeltaTracking:
 - token_estimation_v2_events: 100
 """
 
-        with patch('subprocess.run', return_value=mock_result):
+        with patch("subprocess.run", return_value=mock_result):
             total = controller._get_telemetry_counts()
 
         assert total == 100
@@ -65,7 +65,7 @@ class TestTelemetryDeltaTracking:
         mock_result.returncode = 1
         mock_result.stdout = "Error: database not found"
 
-        with patch('subprocess.run', return_value=mock_result):
+        with patch("subprocess.run", return_value=mock_result):
             total = controller._get_telemetry_counts()
 
         assert total is None
@@ -74,7 +74,7 @@ class TestTelemetryDeltaTracking:
         """_get_telemetry_counts should return None on timeout."""
         controller = BatchDrainController(workspace=Path.cwd())
 
-        with patch('subprocess.run', side_effect=subprocess.TimeoutExpired('cmd', 10)):
+        with patch("subprocess.run", side_effect=subprocess.TimeoutExpired("cmd", 10)):
             total = controller._get_telemetry_counts()
 
         assert total is None
@@ -126,19 +126,34 @@ class TestTelemetryDeltaTracking:
         # Add results with various telemetry counts
         session.results = [
             DrainResult(
-                run_id="run-1", phase_id="phase-1", phase_index=0,
-                initial_state="FAILED", final_state="COMPLETE", success=True,
-                telemetry_events_collected=10, telemetry_yield_per_minute=5.0,
+                run_id="run-1",
+                phase_id="phase-1",
+                phase_index=0,
+                initial_state="FAILED",
+                final_state="COMPLETE",
+                success=True,
+                telemetry_events_collected=10,
+                telemetry_yield_per_minute=5.0,
             ),
             DrainResult(
-                run_id="run-1", phase_id="phase-2", phase_index=1,
-                initial_state="FAILED", final_state="FAILED", success=False,
-                telemetry_events_collected=0, telemetry_yield_per_minute=None,
+                run_id="run-1",
+                phase_id="phase-2",
+                phase_index=1,
+                initial_state="FAILED",
+                final_state="FAILED",
+                success=False,
+                telemetry_events_collected=0,
+                telemetry_yield_per_minute=None,
             ),
             DrainResult(
-                run_id="run-2", phase_id="phase-1", phase_index=0,
-                initial_state="FAILED", final_state="COMPLETE", success=True,
-                telemetry_events_collected=15, telemetry_yield_per_minute=7.5,
+                run_id="run-2",
+                phase_id="phase-1",
+                phase_index=0,
+                initial_state="FAILED",
+                final_state="COMPLETE",
+                success=True,
+                telemetry_events_collected=15,
+                telemetry_yield_per_minute=7.5,
             ),
         ]
 
@@ -151,8 +166,12 @@ class TestTelemetryDeltaTracking:
         """Test telemetry yield calculation edge cases."""
         # Zero duration should result in None yield
         result1 = DrainResult(
-            run_id="test", phase_id="test", phase_index=0,
-            initial_state="FAILED", final_state="COMPLETE", success=True,
+            run_id="test",
+            phase_id="test",
+            phase_index=0,
+            initial_state="FAILED",
+            final_state="COMPLETE",
+            success=True,
             subprocess_duration_seconds=0.0,
             telemetry_events_collected=10,
             telemetry_yield_per_minute=None,
@@ -191,6 +210,7 @@ class TestTelemetryIntegration:
 
         # Read the drain_single_phase method
         import inspect
+
         source = inspect.getsource(controller.drain_single_phase)
 
         # Verify TELEMETRY_DB_ENABLED is set

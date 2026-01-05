@@ -21,36 +21,55 @@ if TYPE_CHECKING:
 @dataclass
 class BuilderResult:
     """Result from Builder execution"""
+
     success: bool
     patch_content: str
     builder_messages: List[str]
     tokens_used: int
     model_used: str
     error: Optional[str] = None
-    edit_plan: Optional['EditPlan'] = None  # NEW: For structured edits (Stage 2) - per IMPLEMENTATION_PLAN3.md
-    stop_reason: Optional[str] = None  # Anthropic API stop_reason: 'end_turn', 'max_tokens', 'stop_sequence'
-    was_truncated: bool = False  # True if output is known-truncated (stop_reason=='max_tokens' or truncation-tolerant parser detected truncation)
-    raw_output: Optional[str] = None  # Raw LLM output (used for continuation recovery / truncation analysis)
-    prompt_tokens: Optional[int] = None  # BUILD-143: Exact prompt tokens from provider (replaces heuristic splits)
-    completion_tokens: Optional[int] = None  # BUILD-143: Exact completion tokens from provider (replaces heuristic splits)
+    edit_plan: Optional["EditPlan"] = (
+        None  # NEW: For structured edits (Stage 2) - per IMPLEMENTATION_PLAN3.md
+    )
+    stop_reason: Optional[str] = (
+        None  # Anthropic API stop_reason: 'end_turn', 'max_tokens', 'stop_sequence'
+    )
+    was_truncated: bool = (
+        False  # True if output is known-truncated (stop_reason=='max_tokens' or truncation-tolerant parser detected truncation)
+    )
+    raw_output: Optional[str] = (
+        None  # Raw LLM output (used for continuation recovery / truncation analysis)
+    )
+    prompt_tokens: Optional[int] = (
+        None  # BUILD-143: Exact prompt tokens from provider (replaces heuristic splits)
+    )
+    completion_tokens: Optional[int] = (
+        None  # BUILD-143: Exact completion tokens from provider (replaces heuristic splits)
+    )
 
 
 @dataclass
 class AuditorResult:
     """Result from Auditor review"""
+
     approved: bool
     issues_found: List[Dict]  # List of IssueCreate dicts
     auditor_messages: List[str]
     tokens_used: int
     model_used: str
     error: Optional[str] = None
-    prompt_tokens: Optional[int] = None  # BUILD-143: Exact prompt tokens from provider (replaces heuristic splits)
-    completion_tokens: Optional[int] = None  # BUILD-143: Exact completion tokens from provider (replaces heuristic splits)
+    prompt_tokens: Optional[int] = (
+        None  # BUILD-143: Exact prompt tokens from provider (replaces heuristic splits)
+    )
+    completion_tokens: Optional[int] = (
+        None  # BUILD-143: Exact completion tokens from provider (replaces heuristic splits)
+    )
 
 
 @dataclass
 class ModelSelection:
     """Model selection result"""
+
     builder_model: str
     auditor_model: str
     rationale: str  # Why these models were selected
@@ -69,7 +88,7 @@ class BuilderClient(Protocol):
         self,
         phase_spec: Dict,
         file_context: Optional[Dict] = None,
-        max_tokens: Optional[int] = None
+        max_tokens: Optional[int] = None,
     ) -> BuilderResult:
         """Execute a phase and generate code patch
 
@@ -94,10 +113,7 @@ class AuditorClient(Protocol):
     """
 
     def review_patch(
-        self,
-        patch_content: str,
-        phase_spec: Dict,
-        max_tokens: Optional[int] = None
+        self, patch_content: str, phase_spec: Dict, max_tokens: Optional[int] = None
     ) -> AuditorResult:
         """Review a patch and find issues
 
@@ -132,10 +148,7 @@ class ModelSelector:
         self.models_config = models_config
 
     def select_models(
-        self,
-        task_category: str,
-        complexity: str,
-        is_high_risk: bool = False
+        self, task_category: str, complexity: str, is_high_risk: bool = False
     ) -> ModelSelection:
         """Select appropriate models for Builder and Auditor
 
@@ -148,19 +161,15 @@ class ModelSelector:
             ModelSelection with builder_model and auditor_model names
         """
         # Get category-specific config or fallback to defaults
-        category_config = self.models_config.get(
-            "category_models", {}
-        ).get(task_category, {})
+        category_config = self.models_config.get("category_models", {}).get(task_category, {})
 
         # For HIGH_RISK categories, always use best models
         if is_high_risk:
             builder_model = category_config.get(
-                "builder_model_override",
-                self.models_config["defaults"]["high_risk_builder"]
+                "builder_model_override", self.models_config["defaults"]["high_risk_builder"]
             )
             auditor_model = category_config.get(
-                "auditor_model_override",
-                self.models_config["defaults"]["high_risk_auditor"]
+                "auditor_model_override", self.models_config["defaults"]["high_risk_auditor"]
             )
             rationale = f"HIGH_RISK category: {task_category}"
         else:
@@ -171,7 +180,5 @@ class ModelSelector:
             rationale = f"Complexity: {complexity}, Category: {task_category}"
 
         return ModelSelection(
-            builder_model=builder_model,
-            auditor_model=auditor_model,
-            rationale=rationale
+            builder_model=builder_model, auditor_model=auditor_model, rationale=rationale
         )

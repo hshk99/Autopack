@@ -144,9 +144,7 @@ def sample_benchmarks(in_memory_session):
 
 def test_generate_candidates_same_family(in_memory_session, sample_catalog):
     """Test generating candidates from same family."""
-    current_model = (
-        in_memory_session.query(ModelCatalog).filter_by(model_id="glm-4.6").first()
-    )
+    current_model = in_memory_session.query(ModelCatalog).filter_by(model_id="glm-4.6").first()
 
     candidates = generate_candidates(in_memory_session, current_model, "tidy_semantic")
 

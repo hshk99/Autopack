@@ -3,6 +3,7 @@ from datetime import datetime
 from autopack.research.models.evidence import Evidence
 from autopack.research.models.enums import EvidenceType
 
+
 class TestEvidenceModel(unittest.TestCase):
 
     def setUp(self):
@@ -10,7 +11,7 @@ class TestEvidenceModel(unittest.TestCase):
             source="https://example.com/research-paper",
             evidence_type=EvidenceType.EMPIRICAL,
             relevance=0.8,
-            publication_date=datetime(2023, 5, 17)
+            publication_date=datetime(2023, 5, 17),
         )
 
     def test_is_recent(self):
@@ -24,11 +25,12 @@ class TestEvidenceModel(unittest.TestCase):
             source="https://example.com/research-paper",
             evidence_type=EvidenceType.EMPIRICAL,
             relevance=0.4,
-            publication_date=datetime(2023, 5, 17)
+            publication_date=datetime(2023, 5, 17),
         )
         self.assertFalse(evidence.is_valid())
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     unittest.main()
 
 # This test suite validates the functionality of the Evidence model,

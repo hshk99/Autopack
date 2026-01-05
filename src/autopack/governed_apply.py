@@ -32,16 +32,17 @@ logger = logging.getLogger(__name__)
 # VALIDATION FUNCTIONS (per GPT_RESPONSE18 Q5/Q6)
 # =============================================================================
 
+
 def extract_python_symbols(source: str) -> Set[str]:
     """
     Extract top-level symbols from Python source using AST.
-    
+
     Per GPT_RESPONSE18 Q5: Extract function and class definitions,
     plus uppercase module-level constants.
-    
+
     Args:
         source: Python source code
-        
+
     Returns:
         Set of symbol names (functions, classes, CONSTANTS)
     """
@@ -61,27 +62,25 @@ def extract_python_symbols(source: str) -> Set[str]:
 
 
 def check_symbol_preservation(
-    old_content: str,
-    new_content: str,
-    max_lost_ratio: float
+    old_content: str, new_content: str, max_lost_ratio: float
 ) -> Tuple[bool, str]:
     """
     Check if too many symbols were lost in the patch.
-    
+
     Per GPT_RESPONSE18 Q5: Reject if >30% of symbols are lost (configurable).
-    
+
     Args:
         old_content: Original file content
         new_content: New file content after patch
         max_lost_ratio: Maximum ratio of symbols that can be lost (e.g., 0.3)
-        
+
     Returns:
         Tuple of (is_valid, error_message)
     """
     old_symbols = extract_python_symbols(old_content)
     new_symbols = extract_python_symbols(new_content)
     lost = old_symbols - new_symbols
-    
+
     if old_symbols:
         lost_ratio = len(lost) / len(old_symbols)
         if lost_ratio > max_lost_ratio:
@@ -93,26 +92,24 @@ def check_symbol_preservation(
                 f"({lost_ratio:.1%} > {max_lost_ratio:.0%} threshold). "
                 f"Lost: [{lost_names}]"
             )
-    
+
     return True, ""
 
 
 def check_structural_similarity(
-    old_content: str,
-    new_content: str,
-    min_ratio: float
+    old_content: str, new_content: str, min_ratio: float
 ) -> Tuple[bool, str]:
     """
     Check if file was drastically rewritten unexpectedly.
-    
+
     Per GPT_RESPONSE18 Q6: Reject if structural similarity is <60% (configurable)
     for files >=300 lines.
-    
+
     Args:
         old_content: Original file content
         new_content: New file content after patch
         min_ratio: Minimum similarity ratio required (e.g., 0.6)
-        
+
     Returns:
         Tuple of (is_valid, error_message)
     """
@@ -122,12 +119,13 @@ def check_structural_similarity(
             f"structural_similarity_violation: Similarity {ratio:.2f} below threshold {min_ratio}. "
             f"File appears to have been drastically rewritten."
         )
-    
+
     return True, ""
 
 
 class PatchApplyError(Exception):
     """Raised when patch application fails"""
+
     pass
 
 
@@ -146,7 +144,7 @@ class GovernedApplyPath:
     # Protected paths that Builder should never modify
     # These are Autopack's own source/config directories
     PROTECTED_PATHS = [
-        "src/autopack/",      # Autopack core modules
+        "src/autopack/",  # Autopack core modules
         # CRITICAL: individual core modules that must remain protected even in internal mode
         # (internal mode removes the broad "src/autopack/" prefix)
         "src/autopack/config.py",
@@ -156,9 +154,9 @@ class GovernedApplyPath:
         "src/autopack/autonomous_executor.py",
         "src/autopack/main.py",
         "src/autopack/quality_gate.py",
-        "config/",            # Configuration files
+        "config/",  # Configuration files
         ".autonomous_runs/",  # Run state and logs
-        ".git/",              # Git internals
+        ".git/",  # Git internals
     ]
 
     # Paths that are always allowed (can override protection if needed)
@@ -264,7 +262,9 @@ class GovernedApplyPath:
 
         # [Q7 Implementation] In internal mode, unlock src/autopack/ but keep critical paths protected
         if autopack_internal_mode:
-            logger.info("[Isolation] autopack_internal_mode enabled - unlocking src/autopack/ for maintenance")
+            logger.info(
+                "[Isolation] autopack_internal_mode enabled - unlocking src/autopack/ for maintenance"
+            )
             # Remove src/autopack/ from protection, keep others
             self.protected_paths = [p for p in self.protected_paths if p != "src/autopack/"]
 
@@ -297,16 +297,16 @@ class GovernedApplyPath:
             True if path is protected, False otherwise
         """
         # Normalize path separators
-        normalized_path = file_path.replace('\\', '/')
+        normalized_path = file_path.replace("\\", "/")
 
         # Check if path is explicitly allowed (overrides protection)
         for allowed in self.allowed_paths:
-            if normalized_path.startswith(allowed.replace('\\', '/')):
+            if normalized_path.startswith(allowed.replace("\\", "/")):
                 return False
 
         # Check if path matches any protected prefix
         for protected in self.protected_paths:
-            if normalized_path.startswith(protected.replace('\\', '/')):
+            if normalized_path.startswith(protected.replace("\\", "/")):
                 return True
 
         return False
@@ -324,19 +324,19 @@ class GovernedApplyPath:
         # Look for common comment patterns in patches
         justification_lines = []
 
-        for line in patch_content.split('\n')[:50]:  # Check first 50 lines
+        for line in patch_content.split("\n")[:50]:  # Check first 50 lines
             line = line.strip()
 
             # Diff comments (starting with '#')
-            if line.startswith('# ') and len(line) > 3:
+            if line.startswith("# ") and len(line) > 3:
                 justification_lines.append(line[2:].strip())
 
             # Git commit message format
-            if line.startswith('Subject:') or line.startswith('Summary:'):
-                justification_lines.append(line.split(':', 1)[1].strip())
+            if line.startswith("Subject:") or line.startswith("Summary:"):
+                justification_lines.append(line.split(":", 1)[1].strip())
 
         if justification_lines:
-            return ' '.join(justification_lines[:3])  # First 3 lines
+            return " ".join(justification_lines[:3])  # First 3 lines
 
         return "No justification provided in patch"
 
@@ -378,7 +378,9 @@ class GovernedApplyPath:
         for file_path in files:
             if self._is_path_protected(file_path):
                 violations.append(f"Protected path: {file_path}")
-                logger.warning(f"[Isolation] BLOCKED: Patch attempts to modify protected path: {file_path}")
+                logger.warning(
+                    f"[Isolation] BLOCKED: Patch attempts to modify protected path: {file_path}"
+                )
 
         # Check 2: Scope enforcement (NEW - Option C Layer 2)
         if self.scope_paths:
@@ -403,13 +405,19 @@ class GovernedApplyPath:
                 in_prefix = any(normalized_file.startswith(prefix) for prefix in scope_prefixes)
                 if not in_exact and not in_prefix:
                     violations.append(f"Outside scope: {file_path}")
-                    logger.warning(f"[Scope] BLOCKED: Patch attempts to modify file outside scope: {file_path}")
+                    logger.warning(
+                        f"[Scope] BLOCKED: Patch attempts to modify file outside scope: {file_path}"
+                    )
 
             if len(violations) > len([v for v in violations if v.startswith("Protected")]):
-                logger.error(f"[Scope] Patch rejected - {len([v for v in violations if v.startswith('Outside')])} files outside scope")
+                logger.error(
+                    f"[Scope] Patch rejected - {len([v for v in violations if v.startswith('Outside')])} files outside scope"
+                )
 
         if violations:
-            logger.error(f"[Isolation] Patch rejected - {len(violations)} violations (protected paths + scope)")
+            logger.error(
+                f"[Isolation] Patch rejected - {len(violations)} violations (protected paths + scope)"
+            )
             return False, violations
 
         return True, []
@@ -422,7 +430,7 @@ class GovernedApplyPath:
         """Compute SHA256 hash of a file for integrity checking."""
         try:
             if file_path.exists():
-                with open(file_path, 'rb') as f:
+                with open(file_path, "rb") as f:
                     return hashlib.sha256(f.read()).hexdigest()
         except Exception as e:
             logger.warning(f"Failed to compute hash for {file_path}: {e}")
@@ -443,7 +451,7 @@ class GovernedApplyPath:
             full_path = self.workspace / rel_path
             if full_path.exists():
                 try:
-                    with open(full_path, 'r', encoding='utf-8') as f:
+                    with open(full_path, "r", encoding="utf-8") as f:
                         content = f.read()
                     file_hash = hashlib.sha256(content.encode()).hexdigest()
                     backups[rel_path] = (file_hash, content)
@@ -466,7 +474,7 @@ class GovernedApplyPath:
         file_hash, content = backup
         full_path = self.workspace / rel_path
         try:
-            with open(full_path, 'w', encoding='utf-8') as f:
+            with open(full_path, "w", encoding="utf-8") as f:
                 f.write(content)
             logger.info(f"[Integrity] Restored {rel_path} from backup")
             return True
@@ -484,13 +492,13 @@ class GovernedApplyPath:
         Returns:
             Tuple of (is_valid, error_message)
         """
-        if not file_path.suffix == '.py':
+        if not file_path.suffix == ".py":
             return True, None
 
         try:
-            with open(file_path, 'r', encoding='utf-8') as f:
+            with open(file_path, "r", encoding="utf-8") as f:
                 source = f.read()
-            compile(source, str(file_path), 'exec')
+            compile(source, str(file_path), "exec")
             return True, None
         except SyntaxError as e:
             error_msg = f"Line {e.lineno}: {e.msg}"
@@ -516,9 +524,9 @@ class GovernedApplyPath:
             Tuple of (has_conflicts, error_message)
         """
         # Only check for unique conflict markers, not '=======' which is used in comments
-        conflict_markers = ['<<<<<<<', '>>>>>>>']
+        conflict_markers = ["<<<<<<<", ">>>>>>>"]
         try:
-            with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
+            with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
                 for line_num, line in enumerate(f, 1):
                     for marker in conflict_markers:
                         if marker in line:
@@ -558,7 +566,7 @@ class GovernedApplyPath:
                 continue  # Skip other validations - file is definitely corrupted
 
             # Validate Python files
-            if full_path.suffix == '.py':
+            if full_path.suffix == ".py":
                 is_valid, error = self._validate_python_syntax(full_path)
                 if not is_valid:
                     logger.error(f"[Validation] CORRUPTED: {rel_path} - {error}")
@@ -567,10 +575,11 @@ class GovernedApplyPath:
                     logger.debug(f"[Validation] OK: {rel_path}")
 
             # Validate JSON files
-            elif full_path.suffix == '.json':
+            elif full_path.suffix == ".json":
                 try:
                     import json
-                    with open(full_path, 'r', encoding='utf-8') as f:
+
+                    with open(full_path, "r", encoding="utf-8") as f:
                         json.load(f)
                     logger.debug(f"[Validation] OK: {rel_path}")
                 except json.JSONDecodeError as e:
@@ -578,10 +587,11 @@ class GovernedApplyPath:
                     corrupted_files.append(rel_path)
 
             # Validate YAML files
-            elif full_path.suffix in ['.yaml', '.yml']:
+            elif full_path.suffix in [".yaml", ".yml"]:
                 try:
                     import yaml
-                    with open(full_path, 'r', encoding='utf-8') as f:
+
+                    with open(full_path, "r", encoding="utf-8") as f:
                         content = f.read()
                     # Allow leading comments without explicit document start by prepending '---'
                     stripped = content.lstrip()
@@ -594,7 +604,9 @@ class GovernedApplyPath:
                     corrupted_files.append(rel_path)
 
         if corrupted_files:
-            logger.error(f"[Validation] {len(corrupted_files)} files corrupted after patch application")
+            logger.error(
+                f"[Validation] {len(corrupted_files)} files corrupted after patch application"
+            )
             return False, corrupted_files
 
         logger.info(f"[Validation] All {len(files_modified)} modified files validated successfully")
@@ -604,20 +616,20 @@ class GovernedApplyPath:
         self,
         files_modified: List[str],
         backups: Dict[str, Tuple[str, str]],
-        validation_config: Optional[Dict] = None
+        validation_config: Optional[Dict] = None,
     ) -> Tuple[bool, List[str]]:
         """
         Validate content changes using symbol preservation and structural similarity.
-        
+
         Per GPT_RESPONSE18 Q5/Q6: Post-apply validation that checks:
         - Python files: symbol preservation (≤30% loss allowed)
         - Large files (≥300 lines): structural similarity (≥60% required)
-        
+
         Args:
             files_modified: List of relative file paths that were modified
             backups: Dict mapping file path to (hash, content) tuple
             validation_config: Optional config dict with thresholds
-            
+
         Returns:
             Tuple of (all_valid, list of files with issues)
         """
@@ -625,6 +637,7 @@ class GovernedApplyPath:
         if validation_config is None:
             try:
                 import yaml
+
                 config_path = Path(__file__).parent.parent.parent / "config" / "models.yaml"
                 if config_path.exists():
                     with open(config_path) as f:
@@ -635,41 +648,41 @@ class GovernedApplyPath:
             except Exception as e:
                 logger.debug(f"[Validation] Could not load validation config: {e}")
                 validation_config = {}
-        
+
         # Get thresholds from config
         symbol_config = validation_config.get("symbol_preservation", {})
         symbol_enabled = symbol_config.get("enabled", True)
         max_lost_ratio = symbol_config.get("max_lost_ratio", 0.3)
-        
+
         similarity_config = validation_config.get("structural_similarity", {})
         similarity_enabled = similarity_config.get("enabled", True)
         min_ratio = similarity_config.get("min_ratio", 0.6)
         min_lines_for_check = similarity_config.get("min_lines_for_check", 300)
-        
+
         problem_files = []
-        
+
         for rel_path in files_modified:
             full_path = self.workspace / rel_path
-            
+
             # Skip if file doesn't exist (was deleted) or no backup
             if not full_path.exists() or rel_path not in backups:
                 continue
-            
+
             # Get old content from backup
             _, old_content = backups[rel_path]
-            
+
             # Read new content
             try:
-                with open(full_path, 'r', encoding='utf-8') as f:
+                with open(full_path, "r", encoding="utf-8") as f:
                     new_content = f.read()
             except Exception as e:
                 logger.warning(f"[Validation] Failed to read {rel_path}: {e}")
                 continue
-            
-            old_line_count = old_content.count('\n') + 1
-            
+
+            old_line_count = old_content.count("\n") + 1
+
             # Check 1: Symbol preservation for Python files
-            if symbol_enabled and full_path.suffix == '.py':
+            if symbol_enabled and full_path.suffix == ".py":
                 is_valid, error = check_symbol_preservation(
                     old_content, new_content, max_lost_ratio
                 )
@@ -677,17 +690,15 @@ class GovernedApplyPath:
                     logger.warning(f"[Validation] SYMBOL_LOSS: {rel_path} - {error}")
                     problem_files.append(rel_path)
                     continue  # Skip further checks for this file
-            
+
             # Check 2: Structural similarity for large files
             if similarity_enabled and old_line_count >= min_lines_for_check:
-                is_valid, error = check_structural_similarity(
-                    old_content, new_content, min_ratio
-                )
+                is_valid, error = check_structural_similarity(old_content, new_content, min_ratio)
                 if not is_valid:
                     logger.warning(f"[Validation] SIMILARITY_LOW: {rel_path} - {error}")
                     problem_files.append(rel_path)
                     continue
-        
+
         if problem_files:
             logger.warning(
                 f"[Validation] {len(problem_files)} files have content validation issues: "
@@ -695,13 +706,11 @@ class GovernedApplyPath:
                 + (f" (+{len(problem_files) - 5} more)" if len(problem_files) > 5 else "")
             )
             return False, problem_files
-        
+
         return True, []
 
     def _restore_corrupted_files(
-        self,
-        corrupted_files: List[str],
-        backups: Dict[str, Tuple[str, str]]
+        self, corrupted_files: List[str], backups: Dict[str, Tuple[str, str]]
     ) -> Tuple[int, int]:
         """
         Attempt to restore corrupted files from backup.
@@ -767,19 +776,21 @@ class GovernedApplyPath:
         current_file_content = None
         is_new_file = False
 
-        lines = patch_content.split('\n')
+        lines = patch_content.split("\n")
         i = 0
         while i < len(lines):
             line = lines[i]
 
             # Track which file we're patching
-            if line.startswith('--- a/'):
+            if line.startswith("--- a/"):
                 file_path = line[6:]
                 current_file = self.workspace / file_path
                 is_new_file = False
                 if current_file.exists():
                     try:
-                        current_file_content = current_file.read_text(encoding='utf-8', errors='ignore').split('\n')
+                        current_file_content = current_file.read_text(
+                            encoding="utf-8", errors="ignore"
+                        ).split("\n")
                     except Exception:
                         current_file_content = None
                 else:
@@ -789,7 +800,7 @@ class GovernedApplyPath:
                 continue
 
             # For new files, track that it's a new file
-            if line.startswith('--- /dev/null'):
+            if line.startswith("--- /dev/null"):
                 is_new_file = True
                 current_file_content = None
                 result_lines.append(line)
@@ -797,21 +808,25 @@ class GovernedApplyPath:
                 continue
 
             # Repair @@ headers
-            if line.startswith('@@'):
+            if line.startswith("@@"):
                 # Parse the hunk header: @@ -OLD_START,OLD_COUNT +NEW_START,NEW_COUNT @@
-                match = re.match(r'@@ -(\d+),?(\d*) \+(\d+),?(\d*) @@(.*)', line)
+                match = re.match(r"@@ -(\d+),?(\d*) \+(\d+),?(\d*) @@(.*)", line)
                 if match:
                     suffix = match.group(5)
 
                     # Collect all hunk content lines first
                     hunk_content = []
                     j = i + 1
-                    while j < len(lines) and not lines[j].startswith('@@') and not lines[j].startswith('diff --git'):
+                    while (
+                        j < len(lines)
+                        and not lines[j].startswith("@@")
+                        and not lines[j].startswith("diff --git")
+                    ):
                         hunk_content.append(lines[j])
                         j += 1
 
                     # Remove trailing empty lines from hunk (common LLM artifact)
-                    while hunk_content and (hunk_content[-1] == '' or hunk_content[-1] == ' '):
+                    while hunk_content and (hunk_content[-1] == "" or hunk_content[-1] == " "):
                         hunk_content.pop()
 
                     # Count actual lines in the hunk
@@ -819,19 +834,19 @@ class GovernedApplyPath:
                     deletions = 0
                     context = 0
                     for hunk_line in hunk_content:
-                        if hunk_line.startswith('+') and not hunk_line.startswith('+++'):
+                        if hunk_line.startswith("+") and not hunk_line.startswith("+++"):
                             additions += 1
-                        elif hunk_line.startswith('-') and not hunk_line.startswith('---'):
+                        elif hunk_line.startswith("-") and not hunk_line.startswith("---"):
                             deletions += 1
-                        elif hunk_line.startswith(' '):
+                        elif hunk_line.startswith(" "):
                             context += 1
-                        elif hunk_line.startswith('\\ No newline'):
+                        elif hunk_line.startswith("\\ No newline"):
                             pass  # Don't count this
 
                     if is_new_file:
                         # New file: old is 0,0, new is 1,additions
                         new_count = additions
-                        repaired_line = f'@@ -0,0 +1,{new_count} @@{suffix}'
+                        repaired_line = f"@@ -0,0 +1,{new_count} @@{suffix}"
                     elif current_file_content is not None:
                         # Existing file - try to find context position
                         old_count = deletions + context
@@ -840,10 +855,14 @@ class GovernedApplyPath:
                         # Try to find actual start line by matching context
                         context_lines = []
                         k = i + 1
-                        while k < len(lines) and not lines[k].startswith('@@') and not lines[k].startswith('diff --git'):
+                        while (
+                            k < len(lines)
+                            and not lines[k].startswith("@@")
+                            and not lines[k].startswith("diff --git")
+                        ):
                             hunk_line = lines[k]
-                            if hunk_line.startswith(' ') or hunk_line.startswith('-'):
-                                context_lines.append(hunk_line[1:] if len(hunk_line) > 1 else '')
+                            if hunk_line.startswith(" ") or hunk_line.startswith("-"):
+                                context_lines.append(hunk_line[1:] if len(hunk_line) > 1 else "")
                             k += 1
 
                         actual_start = 1  # Default
@@ -854,13 +873,17 @@ class GovernedApplyPath:
                                     actual_start = line_num
                                     break
 
-                        repaired_line = f'@@ -{actual_start},{old_count} +{actual_start},{new_count} @@{suffix}'
+                        repaired_line = (
+                            f"@@ -{actual_start},{old_count} +{actual_start},{new_count} @@{suffix}"
+                        )
                     else:
                         # Can't determine file content, use counted values
                         old_start = int(match.group(1))
                         old_count = deletions + context
                         new_count = additions + context
-                        repaired_line = f'@@ -{old_start},{old_count} +{old_start},{new_count} @@{suffix}'
+                        repaired_line = (
+                            f"@@ -{old_start},{old_count} +{old_start},{new_count} @@{suffix}"
+                        )
 
                     if repaired_line != line:
                         logger.debug(f"Repaired hunk header: {line} -> {repaired_line}")
@@ -871,7 +894,7 @@ class GovernedApplyPath:
             result_lines.append(line)
             i += 1
 
-        return '\n'.join(result_lines)
+        return "\n".join(result_lines)
 
     def _fix_empty_file_diffs(self, patch_content: str) -> str:
         """
@@ -895,7 +918,7 @@ class GovernedApplyPath:
         Returns:
             Patch with fixed empty file headers
         """
-        lines = patch_content.split('\n')
+        lines = patch_content.split("\n")
         result = []
         i = 0
         last_diff_line = None
@@ -904,11 +927,11 @@ class GovernedApplyPath:
         while i < len(lines):
             line = lines[i]
 
-            if line.startswith('diff --git'):
+            if line.startswith("diff --git"):
                 # If we were in a new-file block missing headers, insert them before starting next diff.
                 if pending_new_file_headers:
-                    result.append('--- /dev/null')
-                    result.append(f'+++ {pending_new_file_headers}')
+                    result.append("--- /dev/null")
+                    result.append(f"+++ {pending_new_file_headers}")
                     logger.debug(f"Fixed missing new-file headers for {pending_new_file_headers}")
                     pending_new_file_headers = None
                 last_diff_line = line
@@ -917,7 +940,7 @@ class GovernedApplyPath:
                 continue
 
             # Detect new file mode; if headers are missing by the time we reach next diff, we'll insert them.
-            if line.startswith('new file mode'):
+            if line.startswith("new file mode"):
                 # Infer b/path from last diff --git line.
                 if last_diff_line:
                     parts = last_diff_line.split()
@@ -928,25 +951,25 @@ class GovernedApplyPath:
                 continue
 
             # If the model *did* provide headers, clear pending flag.
-            if line.startswith('--- ') or line.startswith('+++ '):
+            if line.startswith("--- ") or line.startswith("+++ "):
                 pending_new_file_headers = None
 
             # Check for incomplete empty file pattern
-            if line.startswith('index ') and 'e69de29' in line:
+            if line.startswith("index ") and "e69de29" in line:
                 # e69de29 is the git hash for empty content
                 result.append(line)
                 # Check if next line is another diff (missing --- and +++)
-                if i + 1 < len(lines) and lines[i + 1].startswith('diff --git'):
+                if i + 1 < len(lines) and lines[i + 1].startswith("diff --git"):
                     # Find the file path from the previous diff --git line
                     for j in range(len(result) - 1, -1, -1):
-                        if result[j].startswith('diff --git'):
+                        if result[j].startswith("diff --git"):
                             # Extract file path: diff --git a/path b/path
                             parts = result[j].split()
                             if len(parts) >= 4:
                                 file_path = parts[3]  # b/path
                                 # Insert missing headers
-                                result.append('--- /dev/null')
-                                result.append(f'+++ {file_path}')
+                                result.append("--- /dev/null")
+                                result.append(f"+++ {file_path}")
                                 logger.debug(f"Fixed empty file diff for {file_path}")
                                 pending_new_file_headers = None
                             break
@@ -958,11 +981,11 @@ class GovernedApplyPath:
 
         # If patch ended while still pending headers for a new file, flush them.
         if pending_new_file_headers:
-            result.append('--- /dev/null')
-            result.append(f'+++ {pending_new_file_headers}')
+            result.append("--- /dev/null")
+            result.append(f"+++ {pending_new_file_headers}")
             logger.debug(f"Fixed missing new-file headers for {pending_new_file_headers}")
 
-        return '\n'.join(result)
+        return "\n".join(result)
 
     def _classify_patch_files(self, patch_content: str) -> Tuple[Set[str], Set[str]]:
         """
@@ -975,9 +998,9 @@ class GovernedApplyPath:
         existing_files: Set[str] = set()
         current_file = None
 
-        lines = patch_content.split('\n')
+        lines = patch_content.split("\n")
         for i, line in enumerate(lines):
-            if line.startswith('diff --git'):
+            if line.startswith("diff --git"):
                 parts = line.split()
                 if len(parts) >= 4:
                     current_file = parts[3][2:]  # b/path -> path
@@ -986,11 +1009,11 @@ class GovernedApplyPath:
             if current_file is None:
                 continue
 
-            if line.startswith('new file mode') or line.startswith('--- /dev/null'):
+            if line.startswith("new file mode") or line.startswith("--- /dev/null"):
                 new_files.add(current_file)
-            elif line.startswith('deleted file mode') or line.startswith('+++ /dev/null'):
+            elif line.startswith("deleted file mode") or line.startswith("+++ /dev/null"):
                 existing_files.add(current_file)
-            elif line.startswith('--- a/') and '/dev/null' not in line:
+            elif line.startswith("--- a/") and "/dev/null" not in line:
                 existing_files.add(current_file)
 
         return new_files, existing_files
@@ -1010,13 +1033,13 @@ class GovernedApplyPath:
         Returns:
             Unchanged patch content. (No side effects.)
         """
-        lines = patch_content.split('\n')
+        lines = patch_content.split("\n")
         i = 0
 
         while i < len(lines):
             line = lines[i]
 
-            if line.startswith('diff --git'):
+            if line.startswith("diff --git"):
                 # Extract file path: diff --git a/path b/path
                 parts = line.split()
                 if len(parts) >= 4:
@@ -1024,7 +1047,7 @@ class GovernedApplyPath:
                     full_path = self.workspace / file_path
 
                     # Check if next lines indicate new file mode
-                    if i + 1 < len(lines) and lines[i + 1].startswith('new file mode'):
+                    if i + 1 < len(lines) and lines[i + 1].startswith("new file mode"):
                         if full_path.exists():
                             # File exists but patch wants to create it - treat as an error.
                             # This prevents accidental deletion of critical modules (e.g. src/autopack/config.py).
@@ -1052,24 +1075,24 @@ class GovernedApplyPath:
         import re
 
         errors = []
-        lines = patch_content.split('\n')
+        lines = patch_content.split("\n")
 
         # Check for ellipsis/truncation markers (CRITICAL: LLMs use these when hitting token limits)
         # Be careful NOT to flag legitimate code like logger.info("...") or f-strings
         truncation_patterns = [
-            r'^\+\s*\.\.\.\s*$',              # Line that is ONLY "..."
-            r'^\+\s*#\s*\.\.\.\s*$',          # Comment line that is only "# ..."
-            r'^\+.*\.\.\.\s*more\s+code',     # "... more code" pattern
-            r'^\+.*\.\.\.\s*rest\s+of',       # "... rest of" pattern
-            r'^\+.*\.\.\.\s*continues',       # "... continues" pattern
-            r'^\+.*\.\.\.\s*etc',             # "... etc" pattern
-            r'^\+.*code\s+omitted\s*\.\.\.',  # "code omitted..." pattern
+            r"^\+\s*\.\.\.\s*$",  # Line that is ONLY "..."
+            r"^\+\s*#\s*\.\.\.\s*$",  # Comment line that is only "# ..."
+            r"^\+.*\.\.\.\s*more\s+code",  # "... more code" pattern
+            r"^\+.*\.\.\.\s*rest\s+of",  # "... rest of" pattern
+            r"^\+.*\.\.\.\s*continues",  # "... continues" pattern
+            r"^\+.*\.\.\.\s*etc",  # "... etc" pattern
+            r"^\+.*code\s+omitted\s*\.\.\.",  # "code omitted..." pattern
         ]
 
         for i, line in enumerate(lines, 1):
             # Skip comment lines, docstrings, and strings (... is ok there)
             stripped = line.strip()
-            if stripped.startswith(('#', '"""', "'''")):
+            if stripped.startswith(("#", '"""', "'''")):
                 continue
             # Skip lines with ... inside strings (legitimate code)
             if '("' in line or "('" in line or 'f"' in line or "f'" in line:
@@ -1082,9 +1105,9 @@ class GovernedApplyPath:
 
         # Check for malformed hunk headers (common LLM error)
         # Valid unified diff allows omitted counts when they are 1: @@ -1 +1 @@
-        hunk_header_pattern = re.compile(r'^@@\s+-(\d+)(?:,(\d+))?\s+\+(\d+)(?:,(\d+))?\s+@@')
+        hunk_header_pattern = re.compile(r"^@@\s+-(\d+)(?:,(\d+))?\s+\+(\d+)(?:,(\d+))?\s+@@")
         for i, line in enumerate(lines, 1):
-            if line.startswith('@@'):
+            if line.startswith("@@"):
                 match = hunk_header_pattern.match(line)
                 if not match:
                     errors.append(f"Line {i} has malformed hunk header: {line[:80]}")
@@ -1095,10 +1118,10 @@ class GovernedApplyPath:
                         errors.append(f"Line {i} has zero-length hunk (invalid): {line[:80]}")
 
         # Check for incomplete diff structure
-        if 'diff --git' in patch_content:
-            has_index = 'index ' in patch_content
-            has_minus = '---' in patch_content
-            has_plus = '+++' in patch_content
+        if "diff --git" in patch_content:
+            has_index = "index " in patch_content
+            has_minus = "---" in patch_content
+            has_plus = "+++" in patch_content
 
             if not (has_index and has_minus and has_plus):
                 errors.append("Incomplete diff structure (missing index/---/+++ lines)")
@@ -1128,13 +1151,13 @@ class GovernedApplyPath:
         current_file = None
         current_hunks = []
 
-        lines = patch_content.split('\n')
+        lines = patch_content.split("\n")
         i = 0
         while i < len(lines):
             line = lines[i]
 
             # Extract file path from diff header
-            if line.startswith('diff --git'):
+            if line.startswith("diff --git"):
                 # Save previous file's hunks for validation
                 if current_file and current_hunks:
                     file_errors = self._validate_file_hunks(current_file, current_hunks)
@@ -1144,12 +1167,12 @@ class GovernedApplyPath:
                 parts = line.split()
                 if len(parts) >= 4:
                     # Remove a/ or b/ prefix
-                    current_file = parts[3].lstrip('b/')
+                    current_file = parts[3].lstrip("b/")
                     current_hunks = []
 
             # Parse hunk header (e.g., "@@ -10,5 +12,6 @@")
-            elif line.startswith('@@'):
-                match = re.match(r'^@@\s+-(\d+),(\d+)\s+\+(\d+),(\d+)\s+@@', line)
+            elif line.startswith("@@"):
+                match = re.match(r"^@@\s+-(\d+),(\d+)\s+\+(\d+),(\d+)\s+@@", line)
                 if match:
                     old_start = int(match.group(1))
                     old_count = int(match.group(2))
@@ -1157,23 +1180,31 @@ class GovernedApplyPath:
                     # Extract context lines from this hunk
                     hunk_lines = []
                     j = i + 1
-                    while j < len(lines) and not lines[j].startswith('@@') and not lines[j].startswith('diff --git'):
+                    while (
+                        j < len(lines)
+                        and not lines[j].startswith("@@")
+                        and not lines[j].startswith("diff --git")
+                    ):
                         hunk_lines.append(lines[j])
                         j += 1
 
                     # Extract context lines (lines without + or - prefix, or lines with - prefix)
                     context_lines = []
                     for hunk_line in hunk_lines:
-                        if hunk_line.startswith(' ') or hunk_line.startswith('-'):
+                        if hunk_line.startswith(" ") or hunk_line.startswith("-"):
                             # Remove the prefix to get actual line content
-                            context_lines.append(hunk_line[1:] if hunk_line else '')
+                            context_lines.append(hunk_line[1:] if hunk_line else "")
 
                     if context_lines:
-                        current_hunks.append({
-                            'start_line': old_start,
-                            'count': old_count,
-                            'context': context_lines[:5]  # First 5 context lines for validation
-                        })
+                        current_hunks.append(
+                            {
+                                "start_line": old_start,
+                                "count": old_count,
+                                "context": context_lines[
+                                    :5
+                                ],  # First 5 context lines for validation
+                            }
+                        )
 
             i += 1
 
@@ -1205,13 +1236,13 @@ class GovernedApplyPath:
 
         try:
             # Read actual file content
-            with open(full_path, 'r', encoding='utf-8', errors='ignore') as f:
+            with open(full_path, "r", encoding="utf-8", errors="ignore") as f:
                 actual_lines = f.readlines()
 
             # Validate each hunk
             for hunk in hunks:
-                start_line = hunk['start_line']
-                context = hunk['context']
+                start_line = hunk["start_line"]
+                context = hunk["context"]
 
                 # Check if start_line is within file bounds
                 if start_line < 1 or start_line > len(actual_lines):
@@ -1226,14 +1257,17 @@ class GovernedApplyPath:
                     if actual_line_num < 0 or actual_line_num >= len(actual_lines):
                         continue
 
-                    actual_line = actual_lines[actual_line_num].rstrip('\n')
+                    actual_line = actual_lines[actual_line_num].rstrip("\n")
                     context_line_normalized = context_line.rstrip()
                     actual_line_normalized = actual_line.rstrip()
 
                     # Compare normalized lines (ignore trailing whitespace)
                     if context_line_normalized != actual_line_normalized:
                         # Allow minor differences (e.g., tabs vs spaces) for first line
-                        if i == 0 and context_line_normalized.strip() == actual_line_normalized.strip():
+                        if (
+                            i == 0
+                            and context_line_normalized.strip() == actual_line_normalized.strip()
+                        ):
                             continue
 
                         errors.append(
@@ -1264,9 +1298,7 @@ class GovernedApplyPath:
                     file_paths.append(file_path)
 
         pack_paths = [
-            p for p in file_paths
-            if p.endswith((".yaml", ".yml"))
-            and "backend/packs/" in p
+            p for p in file_paths if p.endswith((".yaml", ".yml")) and "backend/packs/" in p
         ]
 
         if not pack_paths:
@@ -1291,7 +1323,16 @@ class GovernedApplyPath:
         """
         import yaml
 
-        required_keys = ["name", "description", "version", "country", "domain", "categories", "checklists", "official_sources"]
+        required_keys = [
+            "name",
+            "description",
+            "version",
+            "country",
+            "domain",
+            "categories",
+            "checklists",
+            "official_sources",
+        ]
         errors: List[str] = []
 
         try:
@@ -1330,10 +1371,14 @@ class GovernedApplyPath:
                 else:
                     seen.add(name)
                 if not cat.get("description"):
-                    errors.append(f"Pack schema: category '{name or '?'}' missing description in {file_path}")
+                    errors.append(
+                        f"Pack schema: category '{name or '?'}' missing description in {file_path}"
+                    )
                 examples = cat.get("examples", [])
                 if not isinstance(examples, list) or not examples:
-                    errors.append(f"Pack schema: category '{name or '?'}' missing examples list in {file_path}")
+                    errors.append(
+                        f"Pack schema: category '{name or '?'}' missing examples list in {file_path}"
+                    )
 
         checklists = data.get("checklists", [])
         if not isinstance(checklists, list) or not checklists:
@@ -1347,11 +1392,15 @@ class GovernedApplyPath:
                     errors.append(f"Pack schema: checklist missing 'name' in {file_path}")
                 reqs = cl.get("required_documents", [])
                 if not isinstance(reqs, list) or not reqs:
-                    errors.append(f"Pack schema: checklist '{cl.get('name','?')}' missing required_documents list in {file_path}")
+                    errors.append(
+                        f"Pack schema: checklist '{cl.get('name','?')}' missing required_documents list in {file_path}"
+                    )
 
         sources = data.get("official_sources", [])
         if not isinstance(sources, list) or not sources:
-            errors.append(f"Pack schema: 'official_sources' must be a non-empty list in {file_path}")
+            errors.append(
+                f"Pack schema: 'official_sources' must be a non-empty list in {file_path}"
+            )
 
         return errors
 
@@ -1368,7 +1417,7 @@ class GovernedApplyPath:
             List of truncation error messages
         """
         errors = []
-        lines = patch_content.split('\n')
+        lines = patch_content.split("\n")
 
         # Track files being patched and their new content (only meaningful for NEW files)
         current_file = None
@@ -1376,32 +1425,34 @@ class GovernedApplyPath:
         in_new_file = False
 
         for i, line in enumerate(lines):
-            if line.startswith('diff --git'):
+            if line.startswith("diff --git"):
                 # Check previous file for truncation before moving to next
                 if current_file and new_file_lines:
                     file_errors = self._check_file_truncation(current_file, new_file_lines)
                     errors.extend(file_errors)
 
                 # Extract new file path
-                match = re.search(r'diff --git a/.+ b/(.+)', line)
+                match = re.search(r"diff --git a/.+ b/(.+)", line)
                 if match:
                     current_file = match.group(1)
                 new_file_lines = []
                 in_new_file = False
 
-            elif line.startswith('--- /dev/null'):
+            elif line.startswith("--- /dev/null"):
                 in_new_file = True
 
-            elif in_new_file and line.startswith('+') and not line.startswith('+++'):
+            elif in_new_file and line.startswith("+") and not line.startswith("+++"):
                 # Collect added lines ONLY for new files.
                 # For modified files, diff hunks do not represent full file content, so truncation
                 # heuristics (like "file ends with unclosed quote") would create false positives.
                 new_file_lines.append(line[1:])  # Remove + prefix
 
-            elif line.startswith('\\ No newline at end of file'):
+            elif line.startswith("\\ No newline at end of file"):
                 # This marker after minimal content is suspicious. For JSON/package files we tolerate short bodies.
                 if len(new_file_lines) < 5 and not (current_file or "").endswith("package.json"):
-                    errors.append(f"File '{current_file}' appears truncated (only {len(new_file_lines)} lines before 'No newline')")
+                    errors.append(
+                        f"File '{current_file}' appears truncated (only {len(new_file_lines)} lines before 'No newline')"
+                    )
 
         # Check last file
         if current_file and new_file_lines:
@@ -1413,11 +1464,11 @@ class GovernedApplyPath:
     def _check_file_truncation(self, file_path: str, content_lines: List[str]) -> List[str]:
         """Check a single file's content for truncation indicators."""
         errors = []
-        '\n'.join(content_lines)
+        "\n".join(content_lines)
 
         # Check for unclosed quotes at end of file
         last_lines = content_lines[-3:] if len(content_lines) >= 3 else content_lines
-        '\n'.join(last_lines)
+        "\n".join(last_lines)
 
         # Pattern: line ending with unclosed quote (started " but not closed)
         re.compile(r'^\s*-?\s*"[^"]*$', re.MULTILINE)
@@ -1430,10 +1481,12 @@ class GovernedApplyPath:
             if "'" in last_line and last_line.count("'") % 2 == 1:
                 # Filter out common apostrophe usage
                 if not re.search(r"\w'\w", last_line):  # e.g., "don't", "it's"
-                    errors.append(f"File '{file_path}' may end with unclosed quote: '{last_line[-50:]}'")
+                    errors.append(
+                        f"File '{file_path}' may end with unclosed quote: '{last_line[-50:]}'"
+                    )
 
         # For YAML files, check for incomplete structure
-        if file_path.endswith(('.yaml', '.yml')):
+        if file_path.endswith((".yaml", ".yml")):
             yaml_errors = self._check_yaml_truncation(file_path, content_lines)
             errors.extend(yaml_errors)
 
@@ -1448,25 +1501,28 @@ class GovernedApplyPath:
 
         # Check if file ends abruptly mid-list item
         last_line = content_lines[-1].rstrip()
-        if last_line.strip().startswith('-') and last_line.strip() == '-':
+        if last_line.strip().startswith("-") and last_line.strip() == "-":
             errors.append(f"YAML file '{file_path}' ends with empty list marker")
 
         # Check for incomplete list item (just "- " with nothing after)
-        if re.match(r'^\s*-\s*$', last_line):
+        if re.match(r"^\s*-\s*$", last_line):
             errors.append(f"YAML file '{file_path}' ends with incomplete list item")
 
         # Check for unclosed multi-line string indicator
         for i, line in enumerate(content_lines[-5:], len(content_lines) - 4):
-            if line.rstrip().endswith('|') or line.rstrip().endswith('>'):
+            if line.rstrip().endswith("|") or line.rstrip().endswith(">"):
                 # Multi-line string started but file ends soon after
                 remaining = len(content_lines) - i - 1
                 if remaining < 2:
-                    errors.append(f"YAML file '{file_path}' ends shortly after multi-line string indicator")
+                    errors.append(
+                        f"YAML file '{file_path}' ends shortly after multi-line string indicator"
+                    )
 
         # Try to parse as YAML to catch structural issues
         try:
             import yaml
-            content = '\n'.join(content_lines)
+
+            content = "\n".join(content_lines)
             # Lenient handling: if YAML starts with comments and no document marker, prepend '---'
             stripped = content.lstrip()
             if stripped.startswith("#") and not stripped.startswith("---"):
@@ -1475,15 +1531,13 @@ class GovernedApplyPath:
         except yaml.YAMLError as e:
             # Only report if it looks like truncation (not just any YAML error)
             error_str = str(e).lower()
-            if 'end of stream' in error_str or 'expected' in error_str:
+            if "end of stream" in error_str or "expected" in error_str:
                 errors.append(f"YAML file '{file_path}' has incomplete structure: {str(e)[:100]}")
 
         return errors
 
     def _attempt_yaml_repair_in_patch(
-        self,
-        patch_content: str,
-        validation_errors: List[str]
+        self, patch_content: str, validation_errors: List[str]
     ) -> Tuple[Optional[str], str]:
         """
         Attempt to repair YAML content within a patch.
@@ -1511,7 +1565,9 @@ class GovernedApplyPath:
         if not yaml_files_to_repair:
             return None, "no_yaml_files_identified"
 
-        logger.info(f"[YamlRepair] Attempting repair of {len(yaml_files_to_repair)} YAML files: {yaml_files_to_repair}")
+        logger.info(
+            f"[YamlRepair] Attempting repair of {len(yaml_files_to_repair)} YAML files: {yaml_files_to_repair}"
+        )
 
         # Parse the patch to extract file contents
         repaired_files = {}
@@ -1526,13 +1582,15 @@ class GovernedApplyPath:
             old_content = ""
             if full_path.exists():
                 try:
-                    old_content = full_path.read_text(encoding='utf-8')
+                    old_content = full_path.read_text(encoding="utf-8")
                 except Exception as e:
                     logger.warning(f"[YamlRepair] Could not read existing {file_path}: {e}")
 
             # Attempt repair
             error_msg = f"YAML validation failed for {file_path}"
-            repaired, method = yaml_repair.attempt_repair(old_content, new_content, error_msg, file_path)
+            repaired, method = yaml_repair.attempt_repair(
+                old_content, new_content, error_msg, file_path
+            )
 
             if repaired:
                 repaired_files[file_path] = (new_content, repaired, method)
@@ -1543,7 +1601,7 @@ class GovernedApplyPath:
                     attempted=new_content,
                     repaired=repaired,
                     error=error_msg,
-                    method=method
+                    method=method,
                 )
             else:
                 logger.warning(f"[YamlRepair] Could not repair {file_path}")
@@ -1553,7 +1611,7 @@ class GovernedApplyPath:
                     attempted=new_content,
                     repaired=None,
                     error=error_msg,
-                    method=method
+                    method=method,
                 )
 
         if not repaired_files:
@@ -1562,22 +1620,24 @@ class GovernedApplyPath:
         # Reconstruct the patch with repaired content
         new_patch = patch_content
         for file_path, (old_new, repaired_content, method) in repaired_files.items():
-            new_patch = self._replace_file_content_in_patch(new_patch, file_path, old_new, repaired_content)
+            new_patch = self._replace_file_content_in_patch(
+                new_patch, file_path, old_new, repaired_content
+            )
 
         repair_methods = "+".join(m for _, _, m in repaired_files.values())
         return new_patch, f"yaml_repair:{repair_methods}"
 
     def _extract_new_content_from_patch(self, patch_content: str, file_path: str) -> Optional[str]:
         """Extract the new file content for a specific file from a patch."""
-        lines = patch_content.split('\n')
+        lines = patch_content.split("\n")
         content_lines = []
         in_target_file = False
         in_hunk = False
 
         for i, line in enumerate(lines):
-            if line.startswith('diff --git'):
+            if line.startswith("diff --git"):
                 # Check if this is our target file
-                if f'b/{file_path}' in line or line.endswith(f' b/{file_path}'):
+                if f"b/{file_path}" in line or line.endswith(f" b/{file_path}"):
                     in_target_file = True
                     in_hunk = False
                     content_lines = []
@@ -1591,31 +1651,27 @@ class GovernedApplyPath:
             if not in_target_file:
                 continue
 
-            if line.startswith('@@'):
+            if line.startswith("@@"):
                 in_hunk = True
                 continue
 
             if in_hunk:
                 # Collect added lines (strip the '+' prefix)
-                if line.startswith('+') and not line.startswith('+++'):
+                if line.startswith("+") and not line.startswith("+++"):
                     content_lines.append(line[1:])
                 # For context lines in new file mode, also include them
-                elif line.startswith(' '):
+                elif line.startswith(" "):
                     content_lines.append(line[1:])
 
         if content_lines:
-            return '\n'.join(content_lines)
+            return "\n".join(content_lines)
         return None
 
     def _replace_file_content_in_patch(
-        self,
-        patch_content: str,
-        file_path: str,
-        old_content: str,
-        new_content: str
+        self, patch_content: str, file_path: str, old_content: str, new_content: str
     ) -> str:
         """Replace the content of a specific file in a patch with repaired content."""
-        lines = patch_content.split('\n')
+        lines = patch_content.split("\n")
         result = []
         skip_until_next_diff = False
 
@@ -1623,26 +1679,30 @@ class GovernedApplyPath:
         while i < len(lines):
             line = lines[i]
 
-            if line.startswith('diff --git'):
+            if line.startswith("diff --git"):
                 # Check if this is our target file
-                if f'b/{file_path}' in line or line.endswith(f' b/{file_path}'):
+                if f"b/{file_path}" in line or line.endswith(f" b/{file_path}"):
                     skip_until_next_diff = False
                     result.append(line)
                     i += 1
                     # Collect metadata lines until hunk
-                    while i < len(lines) and not lines[i].startswith('@@') and not lines[i].startswith('diff --git'):
+                    while (
+                        i < len(lines)
+                        and not lines[i].startswith("@@")
+                        and not lines[i].startswith("diff --git")
+                    ):
                         result.append(lines[i])
                         i += 1
                     # Now write the repaired content as a new hunk
-                    if i < len(lines) and lines[i].startswith('@@'):
+                    if i < len(lines) and lines[i].startswith("@@"):
                         # Create proper hunk header for the repaired content
-                        new_lines = new_content.split('\n')
-                        result.append(f'@@ -0,0 +1,{len(new_lines)} @@')
+                        new_lines = new_content.split("\n")
+                        result.append(f"@@ -0,0 +1,{len(new_lines)} @@")
                         for content_line in new_lines:
-                            result.append(f'+{content_line}')
+                            result.append(f"+{content_line}")
                         # Skip the old hunk content
                         i += 1
-                        while i < len(lines) and not lines[i].startswith('diff --git'):
+                        while i < len(lines) and not lines[i].startswith("diff --git"):
                             i += 1
                     continue
                 else:
@@ -1652,7 +1712,7 @@ class GovernedApplyPath:
                 result.append(line)
             i += 1
 
-        return '\n'.join(result)
+        return "\n".join(result)
 
     def _sanitize_patch(self, patch_content: str) -> str:
         """
@@ -1672,7 +1732,7 @@ class GovernedApplyPath:
         # First fix empty file diffs
         patch_content = self._fix_empty_file_diffs(patch_content)
 
-        lines = patch_content.split('\n')
+        lines = patch_content.split("\n")
         sanitized = []
         in_hunk = False
         in_new_file = False
@@ -1682,7 +1742,7 @@ class GovernedApplyPath:
             line = lines[i]
 
             # Track diff headers
-            if line.startswith('diff --git'):
+            if line.startswith("diff --git"):
                 sanitized.append(line)
                 in_hunk = False
                 in_new_file = False
@@ -1690,20 +1750,20 @@ class GovernedApplyPath:
                 continue
 
             # Track new file mode
-            if line.startswith('new file mode'):
+            if line.startswith("new file mode"):
                 in_new_file = True
                 sanitized.append(line)
                 i += 1
                 continue
 
             # Standard diff metadata lines
-            if line.startswith(('index ', '---', '+++', 'similarity', 'rename ', 'deleted file')):
+            if line.startswith(("index ", "---", "+++", "similarity", "rename ", "deleted file")):
                 sanitized.append(line)
                 i += 1
                 continue
 
             # Hunk header - we're now in a hunk
-            if line.startswith('@@'):
+            if line.startswith("@@"):
                 in_hunk = True
                 sanitized.append(line)
                 i += 1
@@ -1712,22 +1772,22 @@ class GovernedApplyPath:
             # Inside a hunk - content lines should start with +, -, or space
             if in_hunk:
                 # Already properly formatted
-                if line.startswith(('+', '-', ' ')):
+                if line.startswith(("+", "-", " ")):
                     sanitized.append(line)
-                elif line == '':
+                elif line == "":
                     # Blank lines inside hunks must carry a context prefix
-                    sanitized.append(' ')
+                    sanitized.append(" ")
                     logger.debug("[PatchSanitize] Added context prefix to blank line inside hunk")
                 elif line.isspace():
-                    sanitized.append(' ')
+                    sanitized.append(" ")
                     logger.debug("[PatchSanitize] Normalized whitespace-only line inside hunk")
                 # No newline at end of file marker
-                elif line.startswith('\\ No newline'):
+                elif line.startswith("\\ No newline"):
                     sanitized.append(line)
                 # Line missing prefix - for new files, add +, otherwise add space (context)
                 elif in_new_file or line.strip():
                     # For new files being created, all content lines should be additions
-                    sanitized.append('+' + line)
+                    sanitized.append("+" + line)
                     logger.debug(f"Sanitized line (added +): {line[:50]}...")
                 else:
                     sanitized.append(line)
@@ -1736,9 +1796,11 @@ class GovernedApplyPath:
 
             i += 1
 
-        return '\n'.join(sanitized)
+        return "\n".join(sanitized)
 
-    def apply_patch(self, patch_content: str, *, full_file_mode: bool = False) -> Tuple[bool, Optional[str]]:
+    def apply_patch(
+        self, patch_content: str, *, full_file_mode: bool = False
+    ) -> Tuple[bool, Optional[str]]:
         """
         Apply a patch to the filesystem.
 
@@ -1782,6 +1844,7 @@ class GovernedApplyPath:
                     ]
                     if protected_path_violations:
                         from .governance_requests import create_protected_path_error
+
                         error_msg = create_protected_path_error(
                             violated_paths=protected_path_violations,
                             justification=self._extract_justification_from_patch(patch_content),
@@ -1793,7 +1856,9 @@ class GovernedApplyPath:
                     error_msg = f"Patch rejected - violations: {', '.join(violations)}"
                     logger.error(f"[Isolation] {error_msg}")
                     return False, error_msg
-                logger.info("[NDJSON] Detected synthetic NDJSON patch header; skipping git apply (already applied)")
+                logger.info(
+                    "[NDJSON] Detected synthetic NDJSON patch header; skipping git apply (already applied)"
+                )
                 return True, None
             except Exception as e:
                 return False, f"ndjson_synthetic_patch_validation_failed: {e}"
@@ -1809,9 +1874,9 @@ class GovernedApplyPath:
             # Repair incorrect line numbers and counts in hunk headers
             patch_content = self._repair_hunk_headers(patch_content)
             # Normalize line endings to LF and ensure trailing newline
-            patch_content = patch_content.replace('\r\n', '\n').replace('\r', '\n')
-            if not patch_content.endswith('\n'):
-                patch_content += '\n'
+            patch_content = patch_content.replace("\r\n", "\n").replace("\r", "\n")
+            if not patch_content.endswith("\n"):
+                patch_content += "\n"
 
             # [Self-Troubleshoot] Backup files before modification
             files_to_modify = self._extract_files_from_patch(patch_content)
@@ -1822,15 +1887,17 @@ class GovernedApplyPath:
                 # BUILD-127 Phase 2: Return structured error for governance flow
                 protected_path_violations = [
                     v.replace("Protected path: ", "")
-                    for v in violations if v.startswith("Protected path:")
+                    for v in violations
+                    if v.startswith("Protected path:")
                 ]
 
                 if protected_path_violations:
                     # Structured error for governance handling
                     from .governance_requests import create_protected_path_error
+
                     error_msg = create_protected_path_error(
                         violated_paths=protected_path_violations,
-                        justification=self._extract_justification_from_patch(patch_content)
+                        justification=self._extract_justification_from_patch(patch_content),
                     )
                     logger.warning(
                         f"[Governance] Protected path violation: {len(protected_path_violations)} paths"
@@ -1851,16 +1918,22 @@ class GovernedApplyPath:
                 if success:
                     savepoint_created = True
                 else:
-                    logger.warning(f"[Rollback] Failed to create savepoint: {error} - proceeding without rollback")
+                    logger.warning(
+                        f"[Rollback] Failed to create savepoint: {error} - proceeding without rollback"
+                    )
 
             # Validate patch for common LLM truncation issues
             validation_errors = self._validate_patch_quality(patch_content)
             if validation_errors:
                 # Check if any errors are YAML-related - attempt repair
-                yaml_errors = [e for e in validation_errors if 'YAML' in e or 'yaml' in e]
+                yaml_errors = [e for e in validation_errors if "YAML" in e or "yaml" in e]
                 if yaml_errors and full_file_mode:
-                    logger.info(f"[YamlRepair] Detected {len(yaml_errors)} YAML validation errors, attempting repair...")
-                    repaired_patch, repair_method = self._attempt_yaml_repair_in_patch(patch_content, validation_errors)
+                    logger.info(
+                        f"[YamlRepair] Detected {len(yaml_errors)} YAML validation errors, attempting repair..."
+                    )
+                    repaired_patch, repair_method = self._attempt_yaml_repair_in_patch(
+                        patch_content, validation_errors
+                    )
                     if repaired_patch:
                         logger.info(f"[YamlRepair] Repair succeeded via {repair_method}")
                         patch_content = repaired_patch
@@ -1883,12 +1956,12 @@ class GovernedApplyPath:
             patch_file = self.workspace / "temp_patch.diff"
             logger.info(f"Writing patch to {patch_file}")
 
-            with open(patch_file, 'w', encoding='utf-8') as f:
+            with open(patch_file, "w", encoding="utf-8") as f:
                 f.write(patch_content)
 
             # Also save a debug copy
             debug_patch_file = self.workspace / "last_patch_debug.diff"
-            with open(debug_patch_file, 'w', encoding='utf-8') as f:
+            with open(debug_patch_file, "w", encoding="utf-8") as f:
                 f.write(patch_content)
 
             # BUILD-045: Validate patch context matches actual file state before applying
@@ -1898,10 +1971,14 @@ class GovernedApplyPath:
                 error_details = "\n".join(f"  - {err}" for err in context_errors)
                 error_msg = f"Patch context validation failed - hunks don't match actual file state:\n{error_details}"
                 logger.error(f"[BUILD-045] {error_msg}")
-                logger.warning("[BUILD-045] This typically indicates goal drift - LLM generated patch for wrong file state")
+                logger.warning(
+                    "[BUILD-045] This typically indicates goal drift - LLM generated patch for wrong file state"
+                )
                 # Don't fail immediately - let git apply attempt and provide feedback
                 # This allows 3-way merge to potentially resolve minor context mismatches
-                logger.info("[BUILD-045] Proceeding with git apply - 3-way merge may resolve context differences")
+                logger.info(
+                    "[BUILD-045] Proceeding with git apply - 3-way merge may resolve context differences"
+                )
 
             # First, try strict apply (dry run)
             logger.info("Checking if patch can be applied (dry run)...")
@@ -1909,7 +1986,7 @@ class GovernedApplyPath:
                 ["git", "apply", "--check", "temp_patch.diff"],
                 cwd=self.workspace,
                 capture_output=True,
-                text=True
+                text=True,
             )
 
             use_lenient_mode = False
@@ -1924,7 +2001,7 @@ class GovernedApplyPath:
                     ["git", "apply", "--check", "--ignore-whitespace", "-C1", "temp_patch.diff"],
                     cwd=self.workspace,
                     capture_output=True,
-                    text=True
+                    text=True,
                 )
                 if lenient_check.returncode == 0:
                     use_lenient_mode = True
@@ -1937,7 +2014,7 @@ class GovernedApplyPath:
                         ["git", "apply", "--check", "-3", "temp_patch.diff"],
                         cwd=self.workspace,
                         capture_output=True,
-                        text=True
+                        text=True,
                     )
                     if three_way_check.returncode == 0:
                         use_three_way = True
@@ -1946,10 +2023,15 @@ class GovernedApplyPath:
                         # All git apply modes failed
                         # Per GPT_RESPONSE15: Only use direct write fallback for full-file mode
                         if not full_file_mode:
-                            logger.error("All git apply modes failed for diff-mode patch. Direct write fallback skipped (only works for full-file mode).")
+                            logger.error(
+                                "All git apply modes failed for diff-mode patch. Direct write fallback skipped (only works for full-file mode)."
+                            )
                             if patch_file.exists():
                                 patch_file.unlink()
-                            return False, "diff_mode_patch_failed: All git apply modes failed and direct write is not available for diff patches"
+                            return (
+                                False,
+                                "diff_mode_patch_failed: All git apply modes failed and direct write is not available for diff patches",
+                            )
 
                         new_files, existing_files = self._classify_patch_files(patch_content)
                         if existing_files:
@@ -1961,31 +2043,44 @@ class GovernedApplyPath:
                             return False, "git_apply_failed_existing_files_no_fallback"
 
                         if not new_files:
-                            logger.error("[Integrity] Git apply failed and no new files detected for direct-write fallback.")
+                            logger.error(
+                                "[Integrity] Git apply failed and no new files detected for direct-write fallback."
+                            )
                             if patch_file.exists():
                                 patch_file.unlink()
                             return False, "git_apply_failed_no_new_files_for_fallback"
 
                         # Try direct file write as last resort (only for full-file mode)
-                        logger.warning("All git apply modes failed, attempting direct file write fallback (new-file patch only)...")
+                        logger.warning(
+                            "All git apply modes failed, attempting direct file write fallback (new-file patch only)..."
+                        )
                         success, files_written = self._apply_patch_directly(patch_content)
                         if success and len(files_written) == len(new_files):
-                            logger.info(f"Direct file write succeeded - {len(files_written)} files written")
+                            logger.info(
+                                f"Direct file write succeeded - {len(files_written)} files written"
+                            )
                             for f in files_written:
                                 logger.info(f"  - {f}")
 
                             # [Self-Troubleshoot] Validate files after direct write
                             all_valid, corrupted = self._validate_applied_files(files_written)
                             if not all_valid:
-                                logger.error(f"[Integrity] Direct write corrupted {len(corrupted)} files - restoring")
+                                logger.error(
+                                    f"[Integrity] Direct write corrupted {len(corrupted)} files - restoring"
+                                )
                                 restored, failed = self._restore_corrupted_files(corrupted, backups)
                                 if patch_file.exists():
                                     patch_file.unlink()
-                                return False, f"Direct file write corrupted {len(corrupted)} files (restored {restored})"
+                                return (
+                                    False,
+                                    f"Direct file write corrupted {len(corrupted)} files (restored {restored})",
+                                )
 
                             # [GPT_RESPONSE18] Validate content changes (symbol preservation, structural similarity)
                             # Note: For new files, backups will be empty, so validation will skip them (expected)
-                            content_valid, problem_files = self._validate_content_changes(files_written, backups)
+                            content_valid, problem_files = self._validate_content_changes(
+                                files_written, backups
+                            )
                             if not content_valid:
                                 logger.warning(
                                     f"[Validation] Content validation issues in {len(problem_files)} files. "
@@ -2012,21 +2107,21 @@ class GovernedApplyPath:
                     ["git", "apply", "-3", "temp_patch.diff"],
                     cwd=self.workspace,
                     capture_output=True,
-                    text=True
+                    text=True,
                 )
             elif use_lenient_mode:
                 result = subprocess.run(
                     ["git", "apply", "--ignore-whitespace", "-C1", "temp_patch.diff"],
                     cwd=self.workspace,
                     capture_output=True,
-                    text=True
+                    text=True,
                 )
             else:
                 result = subprocess.run(
                     ["git", "apply", "temp_patch.diff"],
                     cwd=self.workspace,
                     capture_output=True,
-                    text=True
+                    text=True,
                 )
 
             # Clean up temp file
@@ -2067,13 +2162,19 @@ class GovernedApplyPath:
                     )
                     if rollback_success:
                         logger.info("[Rollback] Successfully rolled back to pre-patch state")
-                        return False, f"Patch corrupted {len(corrupted)} files - rolled back to savepoint"
+                        return (
+                            False,
+                            f"Patch corrupted {len(corrupted)} files - rolled back to savepoint",
+                        )
                     else:
                         logger.error(f"[Rollback] Rollback failed: {rollback_error}")
 
                 # Fallback to file-level restore if rollback not enabled or failed
                 restored, failed = self._restore_corrupted_files(corrupted, backups)
-                return False, f"Patch corrupted {len(corrupted)} files (restored {restored}, failed {failed})"
+                return (
+                    False,
+                    f"Patch corrupted {len(corrupted)} files (restored {restored}, failed {failed})",
+                )
 
             # [GPT_RESPONSE18] Validate content changes (symbol preservation, structural similarity)
             content_valid, problem_files = self._validate_content_changes(files_changed, backups)
@@ -2102,7 +2203,9 @@ class GovernedApplyPath:
                     f"Exception during patch apply: {error_msg}"
                 )
                 if rollback_success:
-                    logger.info("[Rollback] Successfully rolled back to pre-patch state after exception")
+                    logger.info(
+                        "[Rollback] Successfully rolled back to pre-patch state after exception"
+                    )
                 else:
                     logger.error(f"[Rollback] Rollback failed: {rollback_error}")
 
@@ -2127,14 +2230,14 @@ class GovernedApplyPath:
             Tuple of (success, list of files written)
         """
         files_written = []
-        lines = patch_content.split('\n')
+        lines = patch_content.split("\n")
         i = 0
 
         while i < len(lines):
             line = lines[i]
 
             # Look for new file diffs
-            if line.startswith('diff --git'):
+            if line.startswith("diff --git"):
                 parts = line.split()
                 if len(parts) >= 4:
                     file_path = parts[3][2:]  # Remove 'b/' prefix
@@ -2143,10 +2246,10 @@ class GovernedApplyPath:
                     is_new_file = False
                     hunk_start = -1
                     j = i + 1
-                    while j < len(lines) and not lines[j].startswith('diff --git'):
-                        if lines[j].startswith('new file mode') or lines[j] == '--- /dev/null':
+                    while j < len(lines) and not lines[j].startswith("diff --git"):
+                        if lines[j].startswith("new file mode") or lines[j] == "--- /dev/null":
                             is_new_file = True
-                        if lines[j].startswith('@@'):
+                        if lines[j].startswith("@@"):
                             hunk_start = j
                             break
                         j += 1
@@ -2158,27 +2261,27 @@ class GovernedApplyPath:
 
                         # Handle malformed hunk header where content is on same line
                         hunk_line = lines[hunk_start]
-                        hunk_header_end = hunk_line.rfind('@@')
+                        hunk_header_end = hunk_line.rfind("@@")
                         if hunk_header_end > 2:
-                            after_header = hunk_line[hunk_header_end + 2:].lstrip()
+                            after_header = hunk_line[hunk_header_end + 2 :].lstrip()
                             if after_header:
                                 content_lines.append(after_header)
 
                         k = hunk_start + 1
-                        while k < len(lines) and not lines[k].startswith('diff --git'):
+                        while k < len(lines) and not lines[k].startswith("diff --git"):
                             line_k = lines[k]
                             # Skip additional hunk headers
-                            if line_k.startswith('@@'):
+                            if line_k.startswith("@@"):
                                 # Handle inline content after @@
-                                hunk_end = line_k.rfind('@@')
+                                hunk_end = line_k.rfind("@@")
                                 if hunk_end > 2:
-                                    after_hunk = line_k[hunk_end + 2:].lstrip()
+                                    after_hunk = line_k[hunk_end + 2 :].lstrip()
                                     if after_hunk:
                                         content_lines.append(after_hunk)
                                 k += 1
                                 continue
                             # Extract added lines (for new files, everything after + is content)
-                            if line_k.startswith('+') and not line_k.startswith('+++'):
+                            if line_k.startswith("+") and not line_k.startswith("+++"):
                                 content_lines.append(line_k[1:])
                             k += 1
 
@@ -2186,16 +2289,18 @@ class GovernedApplyPath:
                             full_path = self.workspace / file_path
                             try:
                                 full_path.parent.mkdir(parents=True, exist_ok=True)
-                                with open(full_path, 'w', encoding='utf-8') as f:
-                                    f.write('\n'.join(content_lines))
-                                    if not content_lines[-1] == '':
-                                        f.write('\n')
+                                with open(full_path, "w", encoding="utf-8") as f:
+                                    f.write("\n".join(content_lines))
+                                    if not content_lines[-1] == "":
+                                        f.write("\n")
                                 files_written.append(file_path)
                                 logger.info(f"Directly wrote file: {file_path}")
                             except Exception as e:
                                 logger.error(f"Failed to write {file_path}: {e}")
                     elif not is_new_file:
-                        logger.warning(f"Skipping {file_path} - cannot apply partial patch to existing file via direct write")
+                        logger.warning(
+                            f"Skipping {file_path} - cannot apply partial patch to existing file via direct write"
+                        )
 
             i += 1
 
@@ -2212,16 +2317,16 @@ class GovernedApplyPath:
             List of file paths that were modified
         """
         files = []
-        for line in patch_content.split('\n'):
+        for line in patch_content.split("\n"):
             # Look for diff --git a/path b/path lines
-            if line.startswith('diff --git'):
+            if line.startswith("diff --git"):
                 parts = line.split()
                 if len(parts) >= 4:
                     # Extract file path from 'a/path/to/file'
                     file_path = parts[2][2:]  # Remove 'a/' prefix
                     files.append(file_path)
             # Also look for +++ b/path lines as backup
-            elif line.startswith('+++') and not line.startswith('+++ /dev/null'):
+            elif line.startswith("+++") and not line.startswith("+++ /dev/null"):
                 file_path = line[6:].strip()  # Remove '+++ b/'
                 if file_path and file_path not in files:
                     files.append(file_path)
@@ -2243,12 +2348,12 @@ class GovernedApplyPath:
         lines_added = 0
         lines_removed = 0
 
-        for line in patch_content.split('\n'):
+        for line in patch_content.split("\n"):
             # Count additions (lines starting with + but not +++)
-            if line.startswith('+') and not line.startswith('+++'):
+            if line.startswith("+") and not line.startswith("+++"):
                 lines_added += 1
             # Count removals (lines starting with - but not ---)
-            elif line.startswith('-') and not line.startswith('---'):
+            elif line.startswith("-") and not line.startswith("---"):
                 lines_removed += 1
 
         return files_changed, lines_added, lines_removed

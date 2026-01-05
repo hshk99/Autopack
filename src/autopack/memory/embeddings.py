@@ -28,9 +28,9 @@ _openai_client = None
 
 try:
     from openai import OpenAI
-    _USE_OPENAI = (
-        os.getenv("USE_OPENAI_EMBEDDINGS", "0") in ("1", "true", "True")
-        and bool(os.getenv("OPENAI_API_KEY"))
+
+    _USE_OPENAI = os.getenv("USE_OPENAI_EMBEDDINGS", "0") in ("1", "true", "True") and bool(
+        os.getenv("OPENAI_API_KEY")
     )
     if _USE_OPENAI:
         try:
@@ -41,6 +41,7 @@ try:
             _USE_OPENAI = False
 except ImportError:
     logger.info("openai library not installed; using local embeddings only")
+
 
 def semantic_embeddings_enabled() -> bool:
     """True when embeddings are backed by OpenAI (semantically meaningful)."""
@@ -75,7 +76,9 @@ def sync_embed_text(text: str, model: str = "text-embedding-3-small") -> List[fl
         List of floats (embedding vector of size EMBEDDING_SIZE)
     """
     if len(text) > MAX_EMBEDDING_CHARS:
-        logger.warning(f"Input text truncated from {len(text)} to {MAX_EMBEDDING_CHARS} characters for embedding.")
+        logger.warning(
+            f"Input text truncated from {len(text)} to {MAX_EMBEDDING_CHARS} characters for embedding."
+        )
         text = text[:MAX_EMBEDDING_CHARS]
 
     preview = text[:50].replace("\n", " ")
@@ -93,6 +96,7 @@ def sync_embed_text(text: str, model: str = "text-embedding-3-small") -> List[fl
     else:
         logger.debug(f"Using local offline embedding for preview: '{preview}...'")
         return _local_embed(text)
+
 
 def sync_embed_texts(texts: List[str], model: str = "text-embedding-3-small") -> List[List[float]]:
     """
@@ -112,7 +116,9 @@ def sync_embed_texts(texts: List[str], model: str = "text-embedding-3-small") ->
             resp = _openai_client.embeddings.create(input=cleaned, model=model)
             return [list(item.embedding) for item in resp.data]
         except Exception as e:
-            logger.warning(f"OpenAI batch embedding failed ({e}); falling back to local embeddings.")
+            logger.warning(
+                f"OpenAI batch embedding failed ({e}); falling back to local embeddings."
+            )
 
     return [_local_embed(t) for t in cleaned]
 

@@ -5,7 +5,6 @@ Verifies that routing snapshot entries are applied as model overrides
 and consumed by ModelRouter during execution.
 """
 
-
 from autopack.autonomous.executor_wiring import (
     TIER_TO_COMPLEXITY,
     initialize_intention_first_loop,
@@ -132,7 +131,9 @@ class TestInitialRoutingOverrides:
             complexity = TIER_TO_COMPLEXITY.get(entry.tier, "medium")
             # Check at least one override exists for this complexity
             matching_keys = [k for k in builder_overrides.keys() if k.endswith(f":{complexity}")]
-            assert len(matching_keys) > 0, f"No overrides found for tier {entry.tier} (complexity {complexity})"
+            assert (
+                len(matching_keys) > 0
+            ), f"No overrides found for tier {entry.tier} (complexity {complexity})"
 
     def test_overrides_contain_valid_model_ids(self, tmp_path):
         """Override values are valid model IDs from snapshot."""
@@ -216,7 +217,12 @@ class TestEscalationOverrides:
         escalated_complexity = TIER_TO_COMPLEXITY.get("sonnet", "medium")
         override_key = f"general:{escalated_complexity}"
         assert override_key in wiring.run_context["model_overrides"]["builder"]
-        assert wiring.run_context["model_overrides"]["builder"][override_key] == escalated_entry.model_id
+        assert (
+            wiring.run_context["model_overrides"]["builder"][override_key]
+            == escalated_entry.model_id
+        )
 
         # Verify original haiku override unchanged
-        assert wiring.run_context["model_overrides"]["builder"]["general:low"] == initial_haiku_model
+        assert (
+            wiring.run_context["model_overrides"]["builder"]["general:low"] == initial_haiku_model
+        )

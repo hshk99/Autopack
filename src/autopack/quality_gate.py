@@ -10,17 +10,17 @@ Architecture:
 
 Usage:
     gate = QualityGate(repo_root=Path("."))
-    
+
     # Create checkpoint before phase
     checkpoint_id = gate.create_checkpoint(phase_id="phase-1")
-    
+
     # Execute phase...
-    
+
     # Run validation tests
     if not gate.run_validation_tests(["tests/test_feature.py"]):
         # Rollback on failure
         gate.rollback_to_checkpoint(checkpoint_id)
-    
+
     # Enforce quality gate
     report = gate.assess_phase(...)
     if report.is_blocked():
@@ -40,6 +40,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class QualityReport:
     """Quality assessment report."""
+
     quality_level: str = "PASS"
     is_blocking: bool = False
     issues: List[str] = field(default_factory=list)
@@ -53,6 +54,7 @@ class QualityReport:
 @dataclass
 class ValidationResult:
     """Validation test execution result."""
+
     success: bool
     tests_run: int
     tests_passed: int
@@ -64,6 +66,7 @@ class ValidationResult:
 @dataclass
 class CheckpointInfo:
     """Git checkpoint information."""
+
     checkpoint_id: str
     phase_id: str
     commit_sha: str
@@ -121,7 +124,7 @@ class QualityGate:
                 capture_output=True,
                 text=True,
                 check=True,
-                timeout=10
+                timeout=10,
             )
             branch = result.stdout.strip()
 
@@ -132,7 +135,7 @@ class QualityGate:
                 capture_output=True,
                 text=True,
                 check=True,
-                timeout=10
+                timeout=10,
             )
             commit_sha = result.stdout.strip()
 
@@ -143,7 +146,7 @@ class QualityGate:
                 capture_output=True,
                 text=True,
                 check=True,
-                timeout=10
+                timeout=10,
             )
             has_changes = bool(result.stdout.strip())
 
@@ -158,7 +161,7 @@ class QualityGate:
                     capture_output=True,
                     text=True,
                     check=True,
-                    timeout=30
+                    timeout=30,
                 )
                 # Get stash reference
                 result = subprocess.run(
@@ -167,7 +170,7 @@ class QualityGate:
                     capture_output=True,
                     text=True,
                     check=True,
-                    timeout=10
+                    timeout=10,
                 )
                 stash_lines = result.stdout.strip().split("\n")
                 if stash_lines and stash_message in stash_lines[0]:
@@ -183,7 +186,7 @@ class QualityGate:
                 capture_output=True,
                 text=True,
                 check=True,
-                timeout=10
+                timeout=10,
             )
 
             # Store checkpoint info
@@ -193,11 +196,13 @@ class QualityGate:
                 commit_sha=commit_sha,
                 branch=branch,
                 timestamp=timestamp,
-                stash_ref=stash_ref
+                stash_ref=stash_ref,
             )
             self._checkpoints[checkpoint_id] = checkpoint_info
 
-            logger.info(f"[QualityGate] Created checkpoint: {checkpoint_id} (commit: {commit_sha[:8]})")
+            logger.info(
+                f"[QualityGate] Created checkpoint: {checkpoint_id} (commit: {commit_sha[:8]})"
+            )
             return checkpoint_id
 
         except subprocess.CalledProcessError as e:
@@ -226,11 +231,7 @@ class QualityGate:
             # Run pytest with specified paths
             cmd = ["pytest", "-v", "--tb=short"] + test_paths
             result = subprocess.run(
-                cmd,
-                cwd=self.repo_root,
-                capture_output=True,
-                text=True,
-                timeout=self.test_timeout
+                cmd, cwd=self.repo_root, capture_output=True, text=True, timeout=self.test_timeout
             )
 
             # Parse pytest output
@@ -248,12 +249,12 @@ class QualityGate:
                     for i, part in enumerate(parts):
                         if part == "passed" and i > 0:
                             try:
-                                tests_passed = int(parts[i-1])
+                                tests_passed = int(parts[i - 1])
                             except ValueError:
                                 pass
                         elif part == "failed" and i > 0:
                             try:
-                                tests_failed = int(parts[i-1])
+                                tests_failed = int(parts[i - 1])
                             except ValueError:
                                 pass
             tests_run = tests_passed + tests_failed
@@ -264,7 +265,7 @@ class QualityGate:
                 tests_passed=tests_passed,
                 tests_failed=tests_failed,
                 output=output,
-                error=None if success else f"Tests failed: {tests_failed}/{tests_run}"
+                error=None if success else f"Tests failed: {tests_failed}/{tests_run}",
             )
 
             if success:
@@ -307,7 +308,7 @@ class QualityGate:
                 capture_output=True,
                 text=True,
                 check=True,
-                timeout=30
+                timeout=30,
             )
             logger.info(f"[QualityGate] Reset to checkpoint commit: {checkpoint.commit_sha[:8]}")
 
@@ -320,11 +321,13 @@ class QualityGate:
                         capture_output=True,
                         text=True,
                         check=True,
-                        timeout=30
+                        timeout=30,
                     )
                     logger.info(f"[QualityGate] Restored stashed changes: {checkpoint.stash_ref}")
                 except subprocess.CalledProcessError as e:
-                    logger.warning(f"[QualityGate] Failed to restore stash (may have conflicts): {e.stderr}")
+                    logger.warning(
+                        f"[QualityGate] Failed to restore stash (may have conflicts): {e.stderr}"
+                    )
 
             # Delete checkpoint tag
             try:
@@ -334,7 +337,7 @@ class QualityGate:
                     capture_output=True,
                     text=True,
                     check=True,
-                    timeout=10
+                    timeout=10,
                 )
                 logger.info(f"[QualityGate] Deleted checkpoint tag: {checkpoint_id}")
             except subprocess.CalledProcessError:
@@ -397,7 +400,7 @@ class QualityGate:
             ci_result=ci_result,
             coverage_delta=coverage_delta,
             patch_content=patch_content,
-            files_changed=files_changed
+            files_changed=files_changed,
         )
 
         # Check if rollback needed
@@ -412,7 +415,9 @@ class QualityGate:
 
         # Perform rollback if needed and auto_rollback enabled
         if should_rollback and self.auto_rollback:
-            logger.warning(f"[QualityGate] Quality gate blocked, initiating rollback for phase {phase_id}")
+            logger.warning(
+                f"[QualityGate] Quality gate blocked, initiating rollback for phase {phase_id}"
+            )
             rollback_success = self.rollback_to_checkpoint(checkpoint_id)
             if rollback_success:
                 report.issues.append("Rolled back to checkpoint")
@@ -484,7 +489,7 @@ class QualityGate:
                 "ci_passed": ci_result.get("success", False),
                 "coverage_delta": coverage_delta,
                 "files_changed_count": len(files_changed) if files_changed else 0,
-            }
+            },
         )
 
     def format_report(self, report: QualityReport) -> str:
@@ -514,10 +519,7 @@ class QualityGate:
         return "\n".join(lines)
 
 
-def integrate_with_auditor(
-    auditor_result: Dict,
-    quality_report: QualityReport
-) -> Dict:
+def integrate_with_auditor(auditor_result: Dict, quality_report: QualityReport) -> Dict:
     """Integrate quality gate report with auditor result.
 
     Args:
@@ -534,5 +536,5 @@ def integrate_with_auditor(
             "is_blocking": quality_report.is_blocking,
             "issues": quality_report.issues,
             "risk_assessment": quality_report.risk_assessment,
-        }
+        },
     }

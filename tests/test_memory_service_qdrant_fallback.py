@@ -1,5 +1,3 @@
-
-
 def test_memory_service_falls_back_to_faiss_when_qdrant_unreachable(monkeypatch):
     """
     If Qdrant is configured/available but unreachable, MemoryService should not crash the executor.
@@ -74,5 +72,3 @@ def test_memory_service_autostarts_qdrant_then_uses_it(monkeypatch):
 
     service = ms.MemoryService(use_qdrant=True)
     assert service.backend == "qdrant"
-
-

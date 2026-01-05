@@ -98,7 +98,7 @@ class TestExtractDeliverablesFromScope:
             "deliverables": {
                 "code": ["src/main.py", "src/utils.py"],
                 "tests": ["tests/test_main.py"],
-                "docs": ["docs/README.md"]
+                "docs": ["docs/README.md"],
             }
         }
         deliverables = extract_deliverables_from_scope(scope)
@@ -110,9 +110,7 @@ class TestExtractDeliverablesFromScope:
 
     def test_extract_from_paths_list(self):
         """Test extraction from legacy paths format"""
-        scope = {
-            "paths": ["src/main.py", "tests/test_main.py"]
-        }
+        scope = {"paths": ["src/main.py", "tests/test_main.py"]}
         deliverables = extract_deliverables_from_scope(scope)
         assert "src/main.py" in deliverables
         assert "tests/test_main.py" in deliverables
@@ -120,11 +118,7 @@ class TestExtractDeliverablesFromScope:
 
     def test_extract_from_string_value(self):
         """Test extraction when deliverable is a string, not list"""
-        scope = {
-            "deliverables": {
-                "code": "src/main.py"
-            }
-        }
+        scope = {"deliverables": {"code": "src/main.py"}}
         deliverables = extract_deliverables_from_scope(scope)
         assert "src/main.py" in deliverables
         assert len(deliverables) == 1
@@ -178,12 +172,7 @@ new file mode 100644
 +def test_main():
 +    pass
 """
-        scope = {
-            "deliverables": {
-                "code": ["src/main.py"],
-                "tests": ["tests/test_main.py"]
-            }
-        }
+        scope = {"deliverables": {"code": ["src/main.py"], "tests": ["tests/test_main.py"]}}
 
         is_valid, errors, details = validate_deliverables(patch, scope, "test-phase")
 
@@ -205,7 +194,7 @@ new file mode 100644
         scope = {
             "deliverables": {
                 "code": ["src/main.py"],
-                "tests": ["tests/test_main.py"]  # Missing in patch
+                "tests": ["tests/test_main.py"],  # Missing in patch
             }
         }
 
@@ -247,11 +236,7 @@ new file mode 100644
 +def main():
 +    pass
 """
-        scope = {
-            "deliverables": {
-                "code": ["src/main.py"]  # Should be in src/, not root
-            }
-        }
+        scope = {"deliverables": {"code": ["src/main.py"]}}  # Should be in src/, not root
 
         is_valid, errors, details = validate_deliverables(patch, scope, "test-phase")
 
@@ -290,11 +275,7 @@ new file mode 100644
 --- /dev/null
 +++ b/src/utils.py
 """
-        scope = {
-            "deliverables": {
-                "code": ["src/main.py"]  # utils.py not required
-            }
-        }
+        scope = {"deliverables": {"code": ["src/main.py"]}}  # utils.py not required
 
         is_valid, errors, details = validate_deliverables(patch, scope, "test-phase")
 
@@ -325,8 +306,12 @@ new file mode 100644
             }
         }
 
-        is_valid, errors, details = validate_deliverables(patch, scope, "test-phase", workspace=tmp_path)
-        assert is_valid is True, f"Expected validation to pass using workspace state; errors={errors}"
+        is_valid, errors, details = validate_deliverables(
+            patch, scope, "test-phase", workspace=tmp_path
+        )
+        assert (
+            is_valid is True
+        ), f"Expected validation to pass using workspace state; errors={errors}"
         assert details["missing_paths"] == []
 
     def test_examples_directory_allowed(self):
@@ -340,11 +325,7 @@ new file mode 100644
 +# Market Research Example
 +Example content here
 """
-        scope = {
-            "deliverables": {
-                "docs": ["examples/market_research_example.md"]
-            }
-        }
+        scope = {"deliverables": {"docs": ["examples/market_research_example.md"]}}
 
         is_valid, errors, details = validate_deliverables(patch, scope, "test-phase")
 
@@ -367,11 +348,7 @@ new file mode 100644
 @@ -0,0 +1,5 @@
 +# Getting Started
 """
-        scope = {
-            "deliverables": {
-                "docs": ["examples/tutorials/getting_started.md"]
-            }
-        }
+        scope = {"deliverables": {"docs": ["examples/tutorials/getting_started.md"]}}
 
         is_valid, errors, details = validate_deliverables(patch, scope, "test-phase")
 
@@ -391,7 +368,7 @@ class TestFormatValidationFeedback:
             "expected_paths": ["src/main.py", "tests/test_main.py"],
             "actual_paths": ["main.py"],
             "missing_paths": ["src/main.py", "tests/test_main.py"],
-            "misplaced_paths": {"src/main.py": "main.py"}
+            "misplaced_paths": {"src/main.py": "main.py"},
         }
 
         feedback = format_validation_feedback_for_builder(errors, details, "Test phase")
@@ -409,7 +386,7 @@ class TestFormatValidationFeedback:
             "expected_paths": [f"src/file{i}.py" for i in range(20)],
             "actual_paths": [],
             "missing_paths": [f"src/file{i}.py" for i in range(20)],
-            "misplaced_paths": {}
+            "misplaced_paths": {},
         }
 
         feedback = format_validation_feedback_for_builder(errors, details, "Test phase")

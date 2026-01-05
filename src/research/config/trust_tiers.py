@@ -17,12 +17,10 @@ TRUST_TIERS: Dict[str, List[str]] = {
         "go.dev",
         "docs.oracle.com",  # Java
         "learn.microsoft.com",  # .NET, C#
-        
         # Web technologies
         "developer.mozilla.org",  # MDN
         "www.w3.org",  # W3C standards
         "html.spec.whatwg.org",
-        
         # Frameworks and libraries
         "react.dev",
         "vuejs.org",
@@ -34,53 +32,44 @@ TRUST_TIERS: Dict[str, List[str]] = {
         "fastapi.tiangolo.com",
         "expressjs.com",
         "spring.io",
-        
         # Databases
         "postgresql.org",
         "dev.mysql.com",
         "mongodb.com",
         "redis.io",
-        
         # Cloud platforms
         "docs.aws.amazon.com",
         "cloud.google.com",
         "docs.microsoft.com",  # Azure
-        
         # Operating systems
         "kernel.org",
         "docs.freebsd.org",
     ],
-    
     # Tier 2: Verified community sources and established platforms
     "tier2_verified": [
         # Code repositories
         "github.com",
         "gitlab.com",
         "bitbucket.org",
-        
         # Q&A platforms
         "stackoverflow.com",
         "stackexchange.com",
         "serverfault.com",
         "superuser.com",
-        
         # Academic and research
         "arxiv.org",
         "scholar.google.com",
         "ieee.org",
         "acm.org",
-        
         # Package registries
         "pypi.org",
         "npmjs.com",
         "crates.io",
         "rubygems.org",
-        
         # Documentation hosting
         "readthedocs.io",
         "readthedocs.org",
     ],
-    
     # Tier 3: Community platforms and blogs
     "tier3_community": [
         # Developer communities
@@ -88,22 +77,18 @@ TRUST_TIERS: Dict[str, List[str]] = {
         "hashnode.com",
         "medium.com",
         "reddit.com",
-        
         # Tech news
         "news.ycombinator.com",
         "lobste.rs",
-        
         # Tutorial platforms
         "freecodecamp.org",
         "codecademy.com",
         "udemy.com",
         "coursera.org",
-        
         # Wiki platforms
         "wikipedia.org",
         "wikimedia.org",
     ],
-    
     # Tier 4: General web sources
     "tier4_general": [
         # Tech news sites
@@ -112,14 +97,12 @@ TRUST_TIERS: Dict[str, List[str]] = {
         "theverge.com",
         "wired.com",
         "zdnet.com",
-        
         # Company blogs
         "blog.google",
         "engineering.fb.com",
         "netflixtechblog.com",
         "eng.uber.com",
     ],
-    
     # Tier 5: Untrusted or suspicious sources
     "tier5_untrusted": [
         # Known problematic domains can be added here
@@ -167,11 +150,11 @@ CONTENT_TYPE_MODIFIERS: Dict[str, float] = {
 
 # Recency scoring (days old -> score multiplier)
 RECENCY_SCORING: Dict[str, tuple] = {
-    "very_recent": (0, 30, 1.0),      # 0-30 days: full score
-    "recent": (31, 180, 0.95),         # 31-180 days: 95%
-    "moderate": (181, 365, 0.90),      # 181-365 days: 90%
-    "old": (366, 730, 0.80),           # 1-2 years: 80%
-    "very_old": (731, 1825, 0.70),     # 2-5 years: 70%
+    "very_recent": (0, 30, 1.0),  # 0-30 days: full score
+    "recent": (31, 180, 0.95),  # 31-180 days: 95%
+    "moderate": (181, 365, 0.90),  # 181-365 days: 90%
+    "old": (366, 730, 0.80),  # 1-2 years: 80%
+    "very_old": (731, 1825, 0.70),  # 2-5 years: 70%
     "outdated": (1826, 999999, 0.50),  # 5+ years: 50%
 }
 
@@ -188,28 +171,28 @@ ENGAGEMENT_WEIGHTS: Dict[str, float] = {
 
 def get_domain_tier(domain: str) -> str:
     """Get the trust tier for a domain.
-    
+
     Args:
         domain: Domain name
-        
+
     Returns:
         Tier identifier
     """
     domain_lower = domain.lower()
-    
+
     for tier, domains in TRUST_TIERS.items():
         if domain_lower in domains:
             return tier
-    
+
     return "tier4_general"
 
 
 def get_tier_score(tier: str) -> float:
     """Get numeric score for a trust tier.
-    
+
     Args:
         tier: Tier identifier
-        
+
     Returns:
         Numeric score (0.0-1.0)
     """
@@ -225,11 +208,11 @@ def get_tier_score(tier: str) -> float:
 
 def is_trusted_domain(domain: str, min_tier: str = "tier3_community") -> bool:
     """Check if a domain meets minimum trust requirements.
-    
+
     Args:
         domain: Domain name
         min_tier: Minimum required tier
-        
+
     Returns:
         True if domain meets requirements
     """
@@ -241,7 +224,7 @@ def is_trusted_domain(domain: str, min_tier: str = "tier3_community") -> bool:
         "tier4_general",
         "tier5_untrusted",
     ]
-    
+
     try:
         domain_index = tier_order.index(tier)
         min_index = tier_order.index(min_tier)

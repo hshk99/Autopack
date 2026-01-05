@@ -16,6 +16,7 @@ from sqlalchemy import create_engine
 
 # Import migration functions
 import sys
+
 sys.path.insert(0, str(Path(__file__).parent.parent / "scripts" / "migrations"))
 from add_phase6_metrics_build146 import upgrade as base_upgrade, check_table_exists
 from add_phase6_p3_fields import upgrade as p3_upgrade, check_column_exists
@@ -71,6 +72,7 @@ def test_phase6_stats_endpoint_fresh_db():
     p3_upgrade(test_engine)
 
     from sqlalchemy.orm import sessionmaker
+
     TestSession = sessionmaker(bind=test_engine)
     db = TestSession()
 
@@ -107,6 +109,7 @@ def test_median_estimation_function():
     Base.metadata.create_all(test_engine)
 
     from sqlalchemy.orm import sessionmaker
+
     TestSession = sessionmaker(bind=test_engine)
     db = TestSession()
 
@@ -175,6 +178,7 @@ def test_coverage_fields_populated():
     p3_upgrade(test_engine)
 
     from sqlalchemy.orm import sessionmaker
+
     TestSession = sessionmaker(bind=test_engine)
     db = TestSession()
 
@@ -200,10 +204,14 @@ def test_coverage_fields_populated():
         assert metrics.estimate_source == "run_local"
 
         # Verify it's in DB
-        saved = db.query(Phase6Metrics).filter(
-            Phase6Metrics.run_id == "test-run-coverage",
-            Phase6Metrics.phase_id == "test-phase-1"
-        ).first()
+        saved = (
+            db.query(Phase6Metrics)
+            .filter(
+                Phase6Metrics.run_id == "test-run-coverage",
+                Phase6Metrics.phase_id == "test-phase-1",
+            )
+            .first()
+        )
 
         assert saved is not None
         assert saved.doctor_tokens_avoided_estimate == 12000

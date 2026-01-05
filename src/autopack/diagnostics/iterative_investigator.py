@@ -79,9 +79,7 @@ class IterativeInvestigator:
         self.max_probes_per_round = max_probes_per_round
 
     def investigate_and_resolve(
-        self,
-        failure_context: Dict[str, Any],
-        phase_spec: PhaseSpec
+        self, failure_context: Dict[str, Any], phase_spec: PhaseSpec
     ) -> InvestigationResult:
         """
         Multi-round investigation until resolved or escalation needed.
@@ -162,11 +160,11 @@ class IterativeInvestigator:
                     type=DecisionType.AMBIGUOUS,
                     fix_strategy="",
                     rationale=f"After {round_num-1} investigation rounds, root cause remains unclear. "
-                              f"All standard evidence collected but no clear fix identified.",
+                    f"All standard evidence collected but no clear fix identified.",
                     alternatives_considered=[
                         "Continue investigation (rejected: no more obvious evidence to collect)",
                         "Auto-fix anyway (rejected: risk of incorrect fix)",
-                        "Escalate to human (selected: requires human judgment)"
+                        "Escalate to human (selected: requires human judgment)",
                     ],
                     risk_level="UNKNOWN",
                     deliverables_met=[],
@@ -175,8 +173,8 @@ class IterativeInvestigator:
                     questions_for_human=[
                         "What is the root cause of this failure?",
                         "Which approach should be taken to fix it?",
-                        "Are there any additional constraints or requirements?"
-                    ]
+                        "Are there any additional constraints or requirements?",
+                    ],
                 )
 
                 return InvestigationResult(
@@ -194,8 +192,10 @@ class IterativeInvestigator:
             timeline.append(f"Round {round_num}: Generated {len(targeted_probes)} targeted probes")
 
             # Execute probes (limited to max_probes_per_round)
-            probes_to_run = targeted_probes[:self.max_probes_per_round]
-            logger.info(f"[IterativeInvestigator] Round {round_num}: Running {len(probes_to_run)} probes")
+            probes_to_run = targeted_probes[: self.max_probes_per_round]
+            logger.info(
+                f"[IterativeInvestigator] Round {round_num}: Running {len(probes_to_run)} probes"
+            )
 
             for probe in probes_to_run:
                 probe_result = self.diagnostics_agent._run_probe(probe)
@@ -224,7 +224,9 @@ class IterativeInvestigator:
 
             if decision.type != DecisionType.NEED_MORE_EVIDENCE:
                 # Sufficient evidence now
-                logger.info(f"[IterativeInvestigator] Decision after round {round_num}: {decision.type.value}")
+                logger.info(
+                    f"[IterativeInvestigator] Decision after round {round_num}: {decision.type.value}"
+                )
                 timeline.append(f"Decision: {decision.type.value} (sufficient evidence)")
 
                 return InvestigationResult(
@@ -240,18 +242,20 @@ class IterativeInvestigator:
             round_num += 1
 
         # Max rounds reached - escalate
-        logger.warning(f"[IterativeInvestigator] Max rounds ({self.max_rounds}) reached, escalating")
+        logger.warning(
+            f"[IterativeInvestigator] Max rounds ({self.max_rounds}) reached, escalating"
+        )
         timeline.append(f"Max rounds ({self.max_rounds}) reached - escalating to human")
 
         decision = Decision(
             type=DecisionType.AMBIGUOUS,
             fix_strategy="",
             rationale=f"Investigation reached maximum {self.max_rounds} rounds without clear resolution. "
-                      f"Collected {len(all_probes)} probe results across {len(all_gaps)} evidence gaps.",
+            f"Collected {len(all_probes)} probe results across {len(all_gaps)} evidence gaps.",
             alternatives_considered=[
                 "Continue investigation (rejected: max rounds reached)",
                 "Auto-fix anyway (rejected: insufficient evidence for safe fix)",
-                "Escalate to human (selected: complex failure requiring human judgment)"
+                "Escalate to human (selected: complex failure requiring human judgment)",
             ],
             risk_level="UNKNOWN",
             deliverables_met=[],
@@ -260,8 +264,8 @@ class IterativeInvestigator:
             questions_for_human=[
                 f"Investigation collected {len(all_probes)} probe results - what is the root cause?",
                 "What approach should be taken to resolve this failure?",
-                "Are there additional evidence sources to check?"
-            ]
+                "Are there additional evidence sources to check?",
+            ],
         )
 
         return InvestigationResult(
@@ -275,10 +279,7 @@ class IterativeInvestigator:
         )
 
     def _analyze_evidence_gaps(
-        self,
-        evidence: Dict[str, Any],
-        failure_context: Dict[str, Any],
-        phase_spec: PhaseSpec
+        self, evidence: Dict[str, Any], failure_context: Dict[str, Any], phase_spec: PhaseSpec
     ) -> List[EvidenceGap]:
         """
         Identify what evidence is missing.
@@ -302,76 +303,82 @@ class IterativeInvestigator:
                 for key in evidence.keys()
             )
             if not has_test_output:
-                gaps.append(EvidenceGap(
-                    gap_type=EvidenceGapType.MISSING_TEST_OUTPUT,
-                    description="Missing pytest output for test failure",
-                    priority=1,
-                    probe_suggestion=ProbeCommand(
-                        "pytest -v --tb=short",
-                        label="pytest_detailed_output"
-                    ),
-                    rationale="Test failures require full pytest output to identify root cause"
-                ))
+                gaps.append(
+                    EvidenceGap(
+                        gap_type=EvidenceGapType.MISSING_TEST_OUTPUT,
+                        description="Missing pytest output for test failure",
+                        priority=1,
+                        probe_suggestion=ProbeCommand(
+                            "pytest -v --tb=short", label="pytest_detailed_output"
+                        ),
+                        rationale="Test failures require full pytest output to identify root cause",
+                    )
+                )
 
         # Gap 2: Missing file content for import errors
-        if "import" in failure_class or "ImportError" in error_message or "ModuleNotFoundError" in error_message:
+        if (
+            "import" in failure_class
+            or "ImportError" in error_message
+            or "ModuleNotFoundError" in error_message
+        ):
             # Try to extract module name from error message
             has_file_content = any(
-                "file_content" in str(key) or "read_file" in str(key)
-                for key in evidence.keys()
+                "file_content" in str(key) or "read_file" in str(key) for key in evidence.keys()
             )
             if not has_file_content:
-                gaps.append(EvidenceGap(
-                    gap_type=EvidenceGapType.MISSING_FILE_CONTENT,
-                    description="Missing __init__.py or module file content",
-                    priority=1,
-                    rationale="Import errors often caused by missing imports in __init__.py"
-                ))
+                gaps.append(
+                    EvidenceGap(
+                        gap_type=EvidenceGapType.MISSING_FILE_CONTENT,
+                        description="Missing __init__.py or module file content",
+                        priority=1,
+                        rationale="Import errors often caused by missing imports in __init__.py",
+                    )
+                )
 
         # Gap 3: Missing dependency information
-        if "dependency" in failure_class or "pip" in error_message or "package" in error_message.lower():
-            has_pip_info = any(
-                "pip" in str(evidence.get(key, ""))
-                for key in evidence.keys()
-            )
+        if (
+            "dependency" in failure_class
+            or "pip" in error_message
+            or "package" in error_message.lower()
+        ):
+            has_pip_info = any("pip" in str(evidence.get(key, "")) for key in evidence.keys())
             if not has_pip_info:
-                gaps.append(EvidenceGap(
-                    gap_type=EvidenceGapType.MISSING_DEPENDENCY_INFO,
-                    description="Missing pip list or dependency information",
-                    priority=2,
-                    probe_suggestion=ProbeCommand(
-                        "pip list --format=columns",
-                        label="pip_list_full"
-                    ),
-                    rationale="Dependency issues require full package list"
-                ))
+                gaps.append(
+                    EvidenceGap(
+                        gap_type=EvidenceGapType.MISSING_DEPENDENCY_INFO,
+                        description="Missing pip list or dependency information",
+                        priority=2,
+                        probe_suggestion=ProbeCommand(
+                            "pip list --format=columns", label="pip_list_full"
+                        ),
+                        rationale="Dependency issues require full package list",
+                    )
+                )
 
         # Gap 4: Missing patch/diff context for patch failures
         if "patch" in failure_class or "git apply" in error_message:
-            has_git_state = any(
-                "git" in str(evidence.get(key, ""))
-                for key in evidence.keys()
-            )
+            has_git_state = any("git" in str(evidence.get(key, "")) for key in evidence.keys())
             if not has_git_state:
-                gaps.append(EvidenceGap(
-                    gap_type=EvidenceGapType.MISSING_COMMAND_OUTPUT,
-                    description="Missing git status and diff output",
-                    priority=1,
-                    probe_suggestion=ProbeCommand(
-                        "git diff --stat",
-                        label="git_diff_detailed"
-                    ),
-                    rationale="Patch failures require current git state"
-                ))
+                gaps.append(
+                    EvidenceGap(
+                        gap_type=EvidenceGapType.MISSING_COMMAND_OUTPUT,
+                        description="Missing git status and diff output",
+                        priority=1,
+                        probe_suggestion=ProbeCommand("git diff --stat", label="git_diff_detailed"),
+                        rationale="Patch failures require current git state",
+                    )
+                )
 
         # Gap 5: Missing error details
         if not error_message or len(error_message) < 50:
-            gaps.append(EvidenceGap(
-                gap_type=EvidenceGapType.MISSING_ERROR_DETAILS,
-                description="Error message too short or missing",
-                priority=1,
-                rationale="Need full error traceback for root cause analysis"
-            ))
+            gaps.append(
+                EvidenceGap(
+                    gap_type=EvidenceGapType.MISSING_ERROR_DETAILS,
+                    description="Error message too short or missing",
+                    priority=1,
+                    rationale="Need full error traceback for root cause analysis",
+                )
+            )
 
         # Sort by priority (critical first)
         gaps.sort(key=lambda g: g.priority)
@@ -405,7 +412,9 @@ class IterativeInvestigator:
                     name="read_init_files",
                     description="Read __init__.py files for import investigation",
                     commands=[
-                        ProbeCommand("find . -name '__init__.py' -type f | head -5", label="find_init_files"),
+                        ProbeCommand(
+                            "find . -name '__init__.py' -type f | head -5", label="find_init_files"
+                        ),
                     ],
                     stop_on_success=False,
                 )
@@ -423,7 +432,9 @@ class IterativeInvestigator:
                 )
                 probes.append(probe)
 
-        logger.info(f"[IterativeInvestigator] Generated {len(probes)} targeted probes from {len(gaps)} gaps")
+        logger.info(
+            f"[IterativeInvestigator] Generated {len(probes)} targeted probes from {len(gaps)} gaps"
+        )
         return probes
 
     def _phase_spec_to_dict(self, spec: PhaseSpec) -> Dict[str, Any]:

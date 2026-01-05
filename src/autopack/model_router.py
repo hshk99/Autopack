@@ -101,7 +101,7 @@ class ModelRouter:
                     # For critical categories, warn but don't downgrade
                     budget_warning = {
                         "level": "warning",
-                        "message": f"Provider {provider} over soft limit, but category {task_category} requires baseline model"
+                        "message": f"Provider {provider} over soft limit, but category {task_category} requires baseline model",
                     }
                 else:
                     # Try fallback
@@ -109,7 +109,7 @@ class ModelRouter:
                     if fallback:
                         budget_warning = {
                             "level": "info",
-                            "message": f"Provider {provider} over soft limit, using fallback model {fallback}"
+                            "message": f"Provider {provider} over soft limit, using fallback model {fallback}",
                         }
                         return fallback, budget_warning
 
@@ -163,9 +163,7 @@ class ModelRouter:
                 return overrides[key], complexity, {"override": True}
 
         # 2. Get or create phase history
-        phase_history = self.model_selector.get_or_create_phase_history(
-            phase_id, complexity
-        )
+        phase_history = self.model_selector.get_or_create_phase_history(phase_id, complexity)
 
         # 3. Use model selector for escalation-aware selection
         model, effective_complexity, escalation_info = self.model_selector.select_model_for_attempt(
@@ -188,7 +186,7 @@ class ModelRouter:
                     if fallback:
                         budget_warning = {
                             "level": "info",
-                            "message": f"Provider {provider} over soft limit, using fallback model {fallback}"
+                            "message": f"Provider {provider} over soft limit, using fallback model {fallback}",
                         }
                         escalation_info["quota_fallback"] = True
                         escalation_info["original_model"] = model
@@ -224,11 +222,7 @@ class ModelRouter:
         return model, effective_complexity, escalation_info
 
     def record_attempt_outcome(
-        self,
-        phase_id: str,
-        model: str,
-        outcome: str,
-        details: Optional[str] = None
+        self, phase_id: str, model: str, outcome: str, details: Optional[str] = None
     ):
         """
         Record the outcome of an attempt for escalation tracking.
@@ -241,9 +235,7 @@ class ModelRouter:
         """
         if phase_id in self.model_selector._phase_histories:
             self.model_selector._phase_histories[phase_id].add_attempt(
-                model=model,
-                outcome=outcome,
-                details=details
+                model=model, outcome=outcome, details=details
             )
 
     def get_max_attempts(self) -> int:
@@ -272,9 +264,7 @@ class ModelRouter:
         provider = self._model_to_provider(model)
         return provider in self.disabled_providers
 
-    def _get_baseline_model(
-        self, role: str, task_category: Optional[str], complexity: str
-    ) -> str:
+    def _get_baseline_model(self, role: str, task_category: Optional[str], complexity: str) -> str:
         """
         Get baseline model from config.
 

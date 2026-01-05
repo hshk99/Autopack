@@ -34,11 +34,11 @@ class TestT1PromptFixes:
             "scope": {
                 "paths": [
                     "examples/telemetry_utils/",  # Directory prefix
-                    "src/autopack/utils.py"       # Exact file
+                    "src/autopack/utils.py",  # Exact file
                 ],
                 "read_only_context": [],
-                "deliverables": ["examples/telemetry_utils/string_helper.py"]
-            }
+                "deliverables": ["examples/telemetry_utils/string_helper.py"],
+            },
         }
 
         prompt = client._build_user_prompt(
@@ -46,11 +46,14 @@ class TestT1PromptFixes:
             file_context=None,
             project_rules=None,
             run_hints=None,
-            use_full_file_mode=True
+            use_full_file_mode=True,
         )
 
         # Assert directory prefix is annotated
-        assert "examples/telemetry_utils/ (directory prefix - creating/modifying files under this path is ALLOWED)" in prompt
+        assert (
+            "examples/telemetry_utils/ (directory prefix - creating/modifying files under this path is ALLOWED)"
+            in prompt
+        )
 
         # Assert exact file path is NOT annotated (no trailing /)
         assert "src/autopack/utils.py (directory prefix" not in prompt
@@ -69,9 +72,9 @@ class TestT1PromptFixes:
                 "paths": ["examples/telemetry_utils/"],
                 "deliverables": [
                     "examples/telemetry_utils/string_helper.py",
-                    "examples/telemetry_utils/number_helper.py"
-                ]
-            }
+                    "examples/telemetry_utils/number_helper.py",
+                ],
+            },
         }
 
         prompt = client._build_user_prompt(
@@ -79,7 +82,7 @@ class TestT1PromptFixes:
             file_context=None,
             project_rules=None,
             run_hints=None,
-            use_full_file_mode=True
+            use_full_file_mode=True,
         )
 
         # Assert REQUIRED DELIVERABLES section exists
@@ -104,10 +107,7 @@ class TestT1PromptFixes:
             "description": "Review code",
             "task_category": "review",
             "complexity": "low",
-            "scope": {
-                "paths": ["src/autopack/"],
-                "deliverables": []  # No deliverables
-            }
+            "scope": {"paths": ["src/autopack/"], "deliverables": []},  # No deliverables
         }
 
         prompt = client._build_user_prompt(
@@ -115,7 +115,7 @@ class TestT1PromptFixes:
             file_context=None,
             project_rules=None,
             run_hints=None,
-            use_full_file_mode=True
+            use_full_file_mode=True,
         )
 
         # Assert REQUIRED DELIVERABLES section does NOT exist
@@ -132,9 +132,7 @@ class TestT1PromptFixes:
             "task_category": "implementation",
             "complexity": "low",
             "deliverables": ["src/autopack/utils.py"],  # Top-level deliverables
-            "scope": {
-                "paths": ["src/autopack/"]
-            }
+            "scope": {"paths": ["src/autopack/"]},
         }
 
         prompt = client._build_user_prompt(
@@ -142,7 +140,7 @@ class TestT1PromptFixes:
             file_context=None,
             project_rules=None,
             run_hints=None,
-            use_full_file_mode=True
+            use_full_file_mode=True,
         )
 
         # Assert REQUIRED DELIVERABLES section exists
@@ -154,19 +152,19 @@ class TestT2EmptyFilesRetry:
     """Test T2: Targeted retry for empty files array errors"""
 
     @pytest.mark.xfail(reason="T2 retry logic not yet implemented - aspirational test")
-    @patch('autopack.autonomous_executor.time.sleep')  # Mock sleep to speed up tests
+    @patch("autopack.autonomous_executor.time.sleep")  # Mock sleep to speed up tests
     def test_empty_files_retry_once(self, mock_sleep):
         """Test that empty files array error triggers exactly ONE retry."""
         from autopack.autonomous_executor import AutonomousExecutor
         from autopack.llm_client import BuilderResult
 
         # Create executor with mocked dependencies
-        with patch('autopack.autonomous_executor.SessionLocal'):
+        with patch("autopack.autonomous_executor.SessionLocal"):
             executor = AutonomousExecutor(
                 run_id="test-run",
                 workspace=Path.cwd(),
                 run_type="project_build",
-                api_url="http://localhost:8000"
+                api_url="http://localhost:8000",
             )
 
         # Mock phase
@@ -176,10 +174,7 @@ class TestT2EmptyFilesRetry:
             "complexity": "low",
             "task_category": "implementation",
             "max_builder_attempts": 3,
-            "scope": {
-                "paths": ["test/"],
-                "deliverables": ["test/file.py"]
-            }
+            "scope": {"paths": ["test/"], "deliverables": ["test/file.py"]},
         }
 
         # Mock Builder result with "empty files array" error
@@ -189,7 +184,7 @@ class TestT2EmptyFilesRetry:
             builder_messages=["LLM returned empty files array"],
             tokens_used=100,
             model_used="claude-sonnet-4-5",
-            error="LLM returned empty files array"
+            error="LLM returned empty files array",
         )
 
         # Mock the LLM service
@@ -207,12 +202,12 @@ class TestT2EmptyFilesRetry:
             file_context={},
             project_rules=[],
             run_hints=[],
-            use_full_file_mode=True
+            use_full_file_mode=True,
         )
 
         assert success is False
         assert reason == "EMPTY_FILES_RETRY"
-        assert phase.get('_empty_files_retry_count') == 1
+        assert phase.get("_empty_files_retry_count") == 1
 
 
 if __name__ == "__main__":

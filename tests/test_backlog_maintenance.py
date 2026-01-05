@@ -32,7 +32,9 @@ def test_backlog_items_to_phases_has_scope_and_budgets(tmp_path: Path):
     md.write_text(content)
     items = parse_backlog_markdown(md, max_items=1)
 
-    plan = backlog_items_to_phases(items, default_allowed_paths=["src/"], max_commands=5, max_seconds=100)
+    plan = backlog_items_to_phases(
+        items, default_allowed_paths=["src/"], max_commands=5, max_seconds=100
+    )
     assert "phases" in plan
     phase = plan["phases"][0]
     assert phase["task_category"] == "maintenance"
@@ -75,4 +77,3 @@ def test_parse_patch_stats_counts_files_and_lines():
     assert stats.files_changed == ["src/foo.py"]
     assert stats.lines_added == 2
     assert stats.lines_deleted == 1
-

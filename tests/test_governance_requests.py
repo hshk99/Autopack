@@ -51,9 +51,7 @@ class TestAutoApprovalPolicy:
 
     def test_block_large_changes(self):
         """Large changes (>100 lines) should not be auto-approved."""
-        assert can_auto_approve(
-            "tests/test_foo.py", "low", {"lines_changed": 150}
-        ) is False
+        assert can_auto_approve("tests/test_foo.py", "low", {"lines_changed": 150}) is False
 
     def test_block_by_default(self):
         """Unknown paths should be blocked by default."""
@@ -100,7 +98,7 @@ class TestRequestOperations:
             phase_id="phase-1",
             violated_paths=["tests/test_new_feature.py"],
             justification="Adding new test coverage",
-            risk_scorer=None
+            risk_scorer=None,
         )
 
         assert request.run_id == "test-run"
@@ -124,7 +122,7 @@ class TestRequestOperations:
             phase_id="phase-1",
             violated_paths=["src/autopack/models.py"],
             justification="Critical schema change",
-            risk_scorer=None
+            risk_scorer=None,
         )
 
         assert request.risk_level == "critical"
@@ -208,24 +206,20 @@ class TestStructuredError:
         """Test creating structured error for protected paths."""
         error_json = create_protected_path_error(
             violated_paths=["src/autopack/models.py", "config/settings.py"],
-            justification="Adding new field"
+            justification="Adding new field",
         )
 
         error_data = json.loads(error_json)
 
         assert error_data["error_type"] == "protected_path_violation"
-        assert error_data["violated_paths"] == [
-            "src/autopack/models.py",
-            "config/settings.py"
-        ]
+        assert error_data["violated_paths"] == ["src/autopack/models.py", "config/settings.py"]
         assert error_data["justification"] == "Adding new field"
         assert error_data["requires_approval"] is True
 
     def test_structured_error_parsing(self):
         """Test that structured error can be parsed back."""
         error_json = create_protected_path_error(
-            violated_paths=["tests/test_foo.py"],
-            justification="Test justification"
+            violated_paths=["tests/test_foo.py"], justification="Test justification"
         )
 
         # This is how autonomous_executor.py will parse it

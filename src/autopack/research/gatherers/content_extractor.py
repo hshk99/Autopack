@@ -139,5 +139,3 @@ class ContentExtractor:
             ) from e
 
         return BeautifulSoup(html, "html.parser")
-
-

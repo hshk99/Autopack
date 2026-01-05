@@ -73,7 +73,7 @@ class GroundedContextBuilder:
         self,
         repo_scanner: RepoScanner,
         pattern_matcher: PatternMatcher,
-        max_chars: int = MAX_CONTEXT_CHARS
+        max_chars: int = MAX_CONTEXT_CHARS,
     ):
         """
         Initialize context builder.
@@ -94,7 +94,7 @@ class GroundedContextBuilder:
         goal: str,
         phase_id: str,
         description: str = "",
-        match_result: Optional[MatchResult] = None
+        match_result: Optional[MatchResult] = None,
     ) -> GroundedContext:
         """
         Build grounded context for a phase.
@@ -118,9 +118,7 @@ class GroundedContextBuilder:
         if match_result is None:
             try:
                 match_result = self.matcher.match(
-                    goal=goal,
-                    phase_id=phase_id,
-                    description=description
+                    goal=goal, phase_id=phase_id, description=description
                 )
             except Exception as e:
                 logger.error(f"Pattern matching failed: {e}")
@@ -128,10 +126,7 @@ class GroundedContextBuilder:
 
         # Build phase context
         phase_context = self._build_phase_context(
-            goal=goal,
-            phase_id=phase_id,
-            description=description,
-            match_result=match_result
+            goal=goal, phase_id=phase_id, description=description, match_result=match_result
         )
 
         # Calculate total length and check truncation
@@ -141,17 +136,15 @@ class GroundedContextBuilder:
 
         # Truncate if needed
         if truncated:
-            logger.warning(
-                f"Context exceeds {self.max_chars} chars ({total_chars}), truncating..."
-            )
+            logger.warning(f"Context exceeds {self.max_chars} chars ({total_chars}), truncating...")
             # Preserve repo summary, truncate phase context
             available_for_phase = self.max_chars - len(repo_summary) - 100
             if available_for_phase > 0:
                 phase_context = phase_context[:available_for_phase] + "\n...(truncated)"
             else:
                 # Even repo summary is too long, truncate both
-                repo_summary = repo_summary[:self.max_chars // 2] + "\n...(truncated)"
-                phase_context = phase_context[:self.max_chars // 2] + "\n...(truncated)"
+                repo_summary = repo_summary[: self.max_chars // 2] + "\n...(truncated)"
+                phase_context = phase_context[: self.max_chars // 2] + "\n...(truncated)"
 
             total_chars = len(repo_summary) + len(phase_context)
 
@@ -159,7 +152,7 @@ class GroundedContextBuilder:
             repo_summary=repo_summary,
             phase_context=phase_context,
             total_chars=total_chars,
-            truncated=truncated
+            truncated=truncated,
         )
 
     def _build_repo_summary(self, structure: Dict) -> str:
@@ -211,11 +204,7 @@ class GroundedContextBuilder:
         return "\n".join(lines)
 
     def _build_phase_context(
-        self,
-        goal: str,
-        phase_id: str,
-        description: str,
-        match_result: Optional[MatchResult]
+        self, goal: str, phase_id: str, description: str, match_result: Optional[MatchResult]
     ) -> str:
         """
         Build phase-specific context.
@@ -311,18 +300,14 @@ class GroundedContextBuilder:
         top_level = []
         for key in tree.keys():
             # Extract first path component
-            parts = key.split('/')
+            parts = key.split("/")
             if len(parts) >= 1 and parts[0] and parts[0] not in {".", ""}:
                 top_level.append(parts[0])
 
         # Return unique, sorted
         return sorted(set(top_level))
 
-    def build_multi_phase_context(
-        self,
-        phases: List[Dict],
-        max_phases_shown: int = 5
-    ) -> str:
+    def build_multi_phase_context(self, phases: List[Dict], max_phases_shown: int = 5) -> str:
         """
         Build context for multiple phases (for plan-level analysis).
 
@@ -356,17 +341,14 @@ class GroundedContextBuilder:
             # Quick pattern match (no detailed results)
             try:
                 match_result = self.matcher.match(
-                    goal=goal,
-                    phase_id=phase_id,
-                    description=phase.get("description", "")
+                    goal=goal, phase_id=phase_id, description=phase.get("description", "")
                 )
                 category = match_result.category
                 confidence = match_result.confidence
                 file_count = len(match_result.scope_paths)
 
                 lines.append(
-                    f"   Category: {category} ({confidence:.0%} confidence, "
-                    f"{file_count} files)"
+                    f"   Category: {category} ({confidence:.0%} confidence, " f"{file_count} files)"
                 )
             except Exception as e:
                 logger.debug(f"Pattern match failed for {phase_id}: {e}")
@@ -382,17 +364,13 @@ class GroundedContextBuilder:
 
         # Check length and truncate if needed
         if len(result) > self.max_chars:
-            logger.warning(
-                f"Multi-phase context exceeds {self.max_chars} chars, truncating..."
-            )
-            result = result[:self.max_chars - 50] + "\n...(truncated)"
+            logger.warning(f"Multi-phase context exceeds {self.max_chars} chars, truncating...")
+            result = result[: self.max_chars - 50] + "\n...(truncated)"
 
         return result
 
     def _get_chunk_summaries_for_scope(
-        self,
-        scope_paths: List[str],
-        max_budget_chars: int = 1000
+        self, scope_paths: List[str], max_budget_chars: int = 1000
     ) -> str:
         """
         Generate chunk summaries for large files in scope (BUILD-125 Phase E).

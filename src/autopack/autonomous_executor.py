@@ -45,8 +45,12 @@ from autopack.config import settings
 from autopack.llm_client import BuilderResult, AuditorResult
 from autopack.executor_lock import ExecutorLockManager  # BUILD-048-T1
 from autopack.error_recovery import (
-    ErrorRecoverySystem, DoctorRequest, DoctorResponse, DoctorContextSummary,
-    DOCTOR_MIN_BUILDER_ATTEMPTS, DOCTOR_HEALTH_BUDGET_NEAR_LIMIT_RATIO,
+    ErrorRecoverySystem,
+    DoctorRequest,
+    DoctorResponse,
+    DoctorContextSummary,
+    DOCTOR_MIN_BUILDER_ATTEMPTS,
+    DOCTOR_HEALTH_BUDGET_NEAR_LIMIT_RATIO,
 )
 from autopack.llm_service import LlmService
 from autopack.debug_journal import log_error, log_fix
@@ -61,7 +65,12 @@ from autopack.learned_rules import (
 )
 from autopack.health_checks import run_health_checks
 from autopack.file_layout import RunFileLayout
-from autopack.maintenance_auditor import AuditorInput, DiffStats, TestResult, evaluate as audit_evaluate
+from autopack.maintenance_auditor import (
+    AuditorInput,
+    DiffStats,
+    TestResult,
+    evaluate as audit_evaluate,
+)
 from autopack.backlog_maintenance import parse_patch_stats, create_git_checkpoint
 from autopack.deliverables_validator import (
     validate_deliverables,
@@ -77,6 +86,7 @@ from autopack.validators import validate_yaml_syntax, validate_docker_compose
 
 # BUILD-123v2: Manifest Generator imports
 from autopack.manifest_generator import ManifestGenerator
+
 # from autopack.scope_expander import ScopeExpander  # BUILD-126: Temporarily disabled
 
 # BUILD-127 Phase 1: Completion authority with baseline tracking
@@ -90,8 +100,8 @@ from dotenv import load_dotenv
 
 logging.basicConfig(
     level=logging.INFO,
-    format='[%(asctime)s] %(levelname)s: %(message)s',
-    datefmt='%Y-%m-%d %H:%M:%S'
+    format="[%(asctime)s] %(levelname)s: %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
 )
 logger = logging.getLogger(__name__)
 
@@ -113,39 +123,61 @@ ALLOWED_FIX_TYPES = {"git", "file", "python"}
 # Command whitelists by fix_type (regex patterns)
 ALLOWED_FIX_COMMANDS = {
     "git": [
-        r"^git\s+checkout\s+",           # git checkout <file>/<branch>
-        r"^git\s+reset\s+--hard\s+HEAD", # git reset --hard HEAD
-        r"^git\s+stash\s*$",             # git stash
-        r"^git\s+stash\s+pop$",          # git stash pop
-        r"^git\s+clean\s+-fd$",          # git clean -fd
-        r"^git\s+merge\s+--abort$",      # git merge --abort
-        r"^git\s+rebase\s+--abort$",     # git rebase --abort
-        r"^git\s+status\s+--porcelain$", # git status --porcelain (safe status)
-        r"^git\s+diff\s+--name-only$",   # git diff --name-only (safe diff)
-        r"^git\s+diff\s+--cached$",      # git diff --cached (Doctor log/validate)
+        r"^git\s+checkout\s+",  # git checkout <file>/<branch>
+        r"^git\s+reset\s+--hard\s+HEAD",  # git reset --hard HEAD
+        r"^git\s+stash\s*$",  # git stash
+        r"^git\s+stash\s+pop$",  # git stash pop
+        r"^git\s+clean\s+-fd$",  # git clean -fd
+        r"^git\s+merge\s+--abort$",  # git merge --abort
+        r"^git\s+rebase\s+--abort$",  # git rebase --abort
+        r"^git\s+status\s+--porcelain$",  # git status --porcelain (safe status)
+        r"^git\s+diff\s+--name-only$",  # git diff --name-only (safe diff)
+        r"^git\s+diff\s+--cached$",  # git diff --cached (Doctor log/validate)
     ],
     "file": [
-        r"^rm\s+-f\s+",                  # rm -f <file> (single file)
-        r"^mkdir\s+-p\s+",               # mkdir -p <dir>
-        r"^mv\s+",                       # mv <src> <dst>
-        r"^cp\s+",                       # cp <src> <dst>
+        r"^rm\s+-f\s+",  # rm -f <file> (single file)
+        r"^mkdir\s+-p\s+",  # mkdir -p <dir>
+        r"^mv\s+",  # mv <src> <dst>
+        r"^cp\s+",  # cp <src> <dst>
     ],
     "python": [
-        r"^pip\s+install\s+",            # pip install <package>
-        r"^pip\s+uninstall\s+-y\s+",     # pip uninstall -y <package>
-        r"^python\s+-m\s+pip\s+install", # python -m pip install <package>
+        r"^pip\s+install\s+",  # pip install <package>
+        r"^pip\s+uninstall\s+-y\s+",  # pip uninstall -y <package>
+        r"^python\s+-m\s+pip\s+install",  # python -m pip install <package>
     ],
 }
 
 # Banned metacharacters (security: prevent command injection)
 BANNED_METACHARACTERS = [
-    ";", "&&", "||", "`", "$(", "${", ">", ">>", "<", "|", "\n", "\r",
+    ";",
+    "&&",
+    "||",
+    "`",
+    "$(",
+    "${",
+    ">",
+    ">>",
+    "<",
+    "|",
+    "\n",
+    "\r",
 ]
 
 # Banned command prefixes (never execute)
 BANNED_COMMAND_PREFIXES = [
-    "sudo", "su ", "rm -rf /", "dd if=", "chmod 777", "mkfs", ":(){ :", "shutdown",
-    "reboot", "poweroff", "halt", "init 0", "init 6",
+    "sudo",
+    "su ",
+    "rm -rf /",
+    "dd if=",
+    "chmod 777",
+    "mkfs",
+    ":(){ :",
+    "shutdown",
+    "reboot",
+    "poweroff",
+    "halt",
+    "init 0",
+    "init 6",
 ]
 
 
@@ -188,7 +220,7 @@ class AutonomousExecutor:
         load_dotenv()
 
         self.run_id = run_id
-        self.api_url = api_url.rstrip('/')
+        self.api_url = api_url.rstrip("/")
         self.enable_second_opinion = enable_second_opinion
         self.enable_autonomous_fixes = enable_autonomous_fixes
         self.api_key = api_key
@@ -214,13 +246,14 @@ class AutonomousExecutor:
         # Apply encoding fix immediately to prevent Unicode crashes
         # Create a dummy error context for encoding fix
         from autopack.error_recovery import ErrorContext, ErrorCategory, ErrorSeverity
+
         dummy_ctx = ErrorContext(
             error=Exception("Pre-emptive encoding fix"),
             error_type="UnicodeEncodeError",
             error_message="Pre-emptive encoding fix",
             traceback_str="",
             category=ErrorCategory.ENCODING,
-            severity=ErrorSeverity.RECOVERABLE
+            severity=ErrorSeverity.RECOVERABLE,
         )
         logger.info("Applying pre-emptive encoding fix...")
         self.error_recovery._fix_encoding_error(dummy_ctx)
@@ -248,6 +281,7 @@ class AutonomousExecutor:
 
         # NEW: Load BuilderOutputConfig once (per IMPLEMENTATION_PLAN2.md Phase 2.1)
         from autopack.builder_config import BuilderOutputConfig
+
         config_path = Path(__file__).parent.parent.parent / "config" / "models.yaml"
         self.builder_output_config = BuilderOutputConfig.from_yaml(config_path)
         logger.info(
@@ -258,9 +292,10 @@ class AutonomousExecutor:
         # Load Doctor execute_fix opt-in from models.yaml (user-controlled)
         self._allow_execute_fix = self._load_execute_fix_flag(config_path)
         logger.info(f"Doctor execute_fix enabled: {self._allow_execute_fix}")
-        
+
         # NEW: Initialize FileSizeTelemetry (per IMPLEMENTATION_PLAN2.md Phase 2.1)
         from autopack.file_size_telemetry import FileSizeTelemetry
+
         self.file_size_telemetry = FileSizeTelemetry(Path(self.workspace))
 
         # NEW: Initialize MemoryService for vector retrieval (per IMPLEMENTATION_PLAN_MEMORY_AND_CONTEXT.md)
@@ -278,7 +313,9 @@ class AutonomousExecutor:
         # Project ID is auto-detected from run_id prefix by RunFileLayout
         self.project_id = self._detect_project_id(self.run_id)
         self.run_layout = RunFileLayout(self.run_id, project_id=self.project_id)
-        logger.info(f"[FileLayout] Project: {self.project_id}, Family: {self.run_layout.family}, Base: {self.run_layout.base_dir}")
+        logger.info(
+            f"[FileLayout] Project: {self.project_id}, Family: {self.run_layout.family}, Base: {self.run_layout.base_dir}"
+        )
         try:
             self.run_layout.ensure_directories()
             self.run_layout.ensure_diagnostics_dirs()
@@ -332,11 +369,15 @@ class AutonomousExecutor:
                 )
                 logger.info("[BUILD-113] Iterative Autonomous Investigation enabled")
             except Exception as e:
-                logger.warning(f"[BUILD-113] Iterative Investigation init failed; autonomous fixes disabled: {e}")
+                logger.warning(
+                    f"[BUILD-113] Iterative Investigation init failed; autonomous fixes disabled: {e}"
+                )
                 self.iterative_investigator = None
         else:
             if self.enable_autonomous_fixes and not self.diagnostics_agent:
-                logger.warning("[BUILD-113] Autonomous fixes require diagnostics_agent; feature disabled")
+                logger.warning(
+                    "[BUILD-113] Autonomous fixes require diagnostics_agent; feature disabled"
+                )
 
         logger.info(f"Initialized autonomous executor for run: {run_id}")
         logger.info(f"API URL: {api_url}")
@@ -353,13 +394,21 @@ class AutonomousExecutor:
         self._run_replan_count: int = 0  # Global replan count for this run
         self.REPLAN_TRIGGER_THRESHOLD = 2  # Trigger re-planning after this many same-type failures
         self.MAX_REPLANS_PER_PHASE = 1  # Maximum re-planning attempts per phase
-        self.MAX_REPLANS_PER_RUN = 5  # Maximum re-planning attempts per run (prevents pathological projects)
+        self.MAX_REPLANS_PER_RUN = (
+            5  # Maximum re-planning attempts per run (prevents pathological projects)
+        )
 
         # [Goal Anchoring] Per GPT_RESPONSE27: Prevent context drift during re-planning
         # PhaseGoal-lite implementation - lightweight anchor + telemetry (Phase 1)
-        self._phase_original_intent: Dict[str, str] = {}  # phase_id -> one-line intent extracted from description
-        self._phase_original_description: Dict[str, str] = {}  # phase_id -> original description before any replanning
-        self._phase_replan_history: Dict[str, List[Dict]] = {}  # phase_id -> list of {attempt, description, reason, alignment}
+        self._phase_original_intent: Dict[str, str] = (
+            {}
+        )  # phase_id -> one-line intent extracted from description
+        self._phase_original_description: Dict[str, str] = (
+            {}
+        )  # phase_id -> original description before any replanning
+        self._phase_replan_history: Dict[str, List[Dict]] = (
+            {}
+        )  # phase_id -> list of {attempt, description, reason, alignment}
         self._run_replan_telemetry: List[Dict] = []  # All replans in this run for telemetry
 
         # [Run-Level Health Budget] Prevent infinite retry loops (GPT_RESPONSE5 recommendation)
@@ -370,7 +419,9 @@ class AutonomousExecutor:
         self.MAX_PATCH_FAILURES_PER_RUN = 15  # Stop run after this many patch failures
 
         # [Phase C1] Store last builder result for Doctor diagnostics
-        self._last_builder_result: Optional['BuilderResult'] = None  # Last builder result (for patch/error info)
+        self._last_builder_result: Optional["BuilderResult"] = (
+            None  # Last builder result (for patch/error info)
+        )
 
         # [Phase C2] Store patch statistics extracted from builder result
         self._last_files_changed: Optional[List[str]] = None
@@ -390,8 +441,12 @@ class AutonomousExecutor:
         self._doctor_context_by_phase: Dict[str, DoctorContextSummary] = {}
         self._doctor_calls_by_phase: Dict[str, int] = {}  # (run_id:phase_id) -> doctor call count
         self._last_doctor_response_by_phase: Dict[str, DoctorResponse] = {}
-        self._last_error_category_by_phase: Dict[str, str] = {}  # Track error categories for is_complex_failure
-        self._distinct_error_cats_by_phase: Dict[str, set] = {}  # Track distinct error categories per (run, phase)
+        self._last_error_category_by_phase: Dict[str, str] = (
+            {}
+        )  # Track error categories for is_complex_failure
+        self._distinct_error_cats_by_phase: Dict[str, set] = (
+            {}
+        )  # Track distinct error categories per (run, phase)
         # Run-level Doctor budgets
         self._run_doctor_calls: int = 0  # Total Doctor calls this run
         self._run_doctor_strong_calls: int = 0  # Strong-model Doctor calls this run
@@ -423,11 +478,15 @@ class AutonomousExecutor:
         self._validate_config_at_startup()
 
         # BUILD-123v2: Initialize Manifest Generator for deterministic scope generation
-        autopack_internal_mode = self.run_type in ["autopack_maintenance", "autopack_upgrade", "self_repair"]
+        autopack_internal_mode = self.run_type in [
+            "autopack_maintenance",
+            "autopack_upgrade",
+            "self_repair",
+        ]
         self.manifest_generator = ManifestGenerator(
             workspace=self.workspace,
             autopack_internal_mode=autopack_internal_mode,
-            run_type=self.run_type
+            run_type=self.run_type,
         )
         #         self.scope_expander = ScopeExpander(
         #             workspace=self.workspace,
@@ -450,17 +509,20 @@ class AutonomousExecutor:
         # P0.1: Pass run_id for run-scoped baseline artifacts (prevents parallel-run collisions)
         self.baseline_tracker = TestBaselineTracker(workspace=self.workspace, run_id=self.run_id)
         self.phase_finalizer = PhaseFinalizer(baseline_tracker=self.baseline_tracker)
-        logger.info(f"[BUILD-127] Completion authority initialized (PhaseFinalizer + TestBaselineTracker, run_id={self.run_id})")
+        logger.info(
+            f"[BUILD-127] Completion authority initialized (PhaseFinalizer + TestBaselineTracker, run_id={self.run_id})"
+        )
 
         # BUILD-127 Phase 1: Capture T0 test baseline (for regression detection)
         try:
             import subprocess
+
             commit_sha_result = subprocess.run(
                 ["git", "rev-parse", "HEAD"],
                 cwd=self.workspace,
                 capture_output=True,
                 text=True,
-                timeout=10
+                timeout=10,
             )
             if commit_sha_result.returncode == 0:
                 commit_sha = commit_sha_result.stdout.strip()
@@ -468,7 +530,7 @@ class AutonomousExecutor:
                 self.t0_baseline = self.baseline_tracker.capture_baseline(
                     run_id=self.run_id,
                     commit_sha=commit_sha,
-                    timeout=180  # 3 minutes for baseline capture
+                    timeout=180,  # 3 minutes for baseline capture
                 )
                 logger.info(
                     f"[BUILD-127] T0 baseline: {self.t0_baseline.total_tests} tests, "
@@ -477,7 +539,9 @@ class AutonomousExecutor:
                     f"{self.t0_baseline.error_tests} errors"
                 )
             else:
-                logger.warning("[BUILD-127] Could not get git commit SHA - baseline tracking disabled")
+                logger.warning(
+                    "[BUILD-127] Could not get git commit SHA - baseline tracking disabled"
+                )
                 self.t0_baseline = None
         except Exception as e:
             logger.warning(f"[BUILD-127] T0 baseline capture failed (non-blocking): {e}")
@@ -509,6 +573,7 @@ class AutonomousExecutor:
         """
         try:
             import json as _json
+
             plan = _json.loads(Path(plan_path).read_text(encoding="utf-8"))
         except Exception as e:
             logger.error(f"[Backlog] Failed to load plan {plan_path}: {e}")
@@ -531,7 +596,9 @@ class AutonomousExecutor:
         diag_dir.mkdir(parents=True, exist_ok=True)
         checkpoint_hash = None
         if apply and checkpoint:
-            ok, checkpoint_hash = create_git_checkpoint(Path(self.workspace), message=f"[Autopack] Backlog checkpoint {self.run_id}")
+            ok, checkpoint_hash = create_git_checkpoint(
+                Path(self.workspace), message=f"[Autopack] Backlog checkpoint {self.run_id}"
+            )
             if ok:
                 logger.info(f"[Backlog] Checkpoint created: {checkpoint_hash}")
             else:
@@ -544,7 +611,11 @@ class AutonomousExecutor:
             logger.info(f"[Backlog] Diagnostics for {phase_id}: {desc}")
             outcome = self.diagnostics_agent.run_diagnostics(
                 failure_class="maintenance",
-                context={"phase_id": phase_id, "description": desc, "backlog_summary": phase.get("metadata", {}).get("backlog_summary")},
+                context={
+                    "phase_id": phase_id,
+                    "description": desc,
+                    "backlog_summary": phase.get("metadata", {}).get("backlog_summary"),
+                },
                 phase_id=phase_id,
                 mode="maintenance",
             )
@@ -566,7 +637,9 @@ class AutonomousExecutor:
 
             diff_stats = DiffStats(files_changed=[], lines_added=0, lines_deleted=0)
             if patch_path:
-                diff_stats = parse_patch_stats(patch_path.read_text(encoding="utf-8", errors="ignore"))
+                diff_stats = parse_patch_stats(
+                    patch_path.read_text(encoding="utf-8", errors="ignore")
+                )
 
             auditor_input = AuditorInput(
                 allowed_paths=default_allowed,
@@ -580,7 +653,9 @@ class AutonomousExecutor:
                 max_lines=max_lines,
             )
             decision = audit_evaluate(auditor_input)
-            logger.info(f"[Backlog][Auditor] {phase_id}: verdict={decision.verdict} reasons={decision.reasons}")
+            logger.info(
+                f"[Backlog][Auditor] {phase_id}: verdict={decision.verdict} reasons={decision.reasons}"
+            )
 
             self._record_decision_entry(
                 trigger="backlog_maintenance",
@@ -594,12 +669,22 @@ class AutonomousExecutor:
             if apply and patch_path and decision.verdict == "approve" and checkpoint_hash:
                 # If auto_apply_low_risk, enforce stricter bounds
                 if auto_apply_low_risk:
-                    if len(diff_stats.files_changed) > max_files or (diff_stats.lines_added + diff_stats.lines_deleted) > max_lines:
-                        logger.info(f"[Backlog][Apply] Skipping apply (auto-apply low risk) due to size: files={len(diff_stats.files_changed)}, lines={diff_stats.lines_added + diff_stats.lines_deleted}")
+                    if (
+                        len(diff_stats.files_changed) > max_files
+                        or (diff_stats.lines_added + diff_stats.lines_deleted) > max_lines
+                    ):
+                        logger.info(
+                            f"[Backlog][Apply] Skipping apply (auto-apply low risk) due to size: files={len(diff_stats.files_changed)}, lines={diff_stats.lines_added + diff_stats.lines_deleted}"
+                        )
                         apply_result = {"success": False, "error": "auto_apply_low_risk_size_guard"}
                     elif any(t.status != "passed" for t in test_results):
-                        logger.info("[Backlog][Apply] Skipping apply (auto-apply low risk) due to tests not all passing")
-                        apply_result = {"success": False, "error": "auto_apply_low_risk_tests_guard"}
+                        logger.info(
+                            "[Backlog][Apply] Skipping apply (auto-apply low risk) due to tests not all passing"
+                        )
+                        apply_result = {
+                            "success": False,
+                            "error": "auto_apply_low_risk_tests_guard",
+                        }
                     else:
                         gap = GovernedApplyPath(
                             workspace=Path(self.workspace),
@@ -607,15 +692,20 @@ class AutonomousExecutor:
                             protected_paths=protected_paths,
                             run_type="project_build",
                         )
-                        success, err = gap.apply_patch(patch_path.read_text(encoding="utf-8", errors="ignore"))
+                        success, err = gap.apply_patch(
+                            patch_path.read_text(encoding="utf-8", errors="ignore")
+                        )
                         apply_result = {"success": success, "error": err}
                         if success:
                             logger.info(f"[Backlog][Apply] Success for {phase_id}")
                         else:
                             logger.warning(f"[Backlog][Apply] Failed for {phase_id}: {err}")
                             if checkpoint_hash:
-                                logger.info("[Backlog][Apply] Reverting to checkpoint due to failure")
+                                logger.info(
+                                    "[Backlog][Apply] Reverting to checkpoint due to failure"
+                                )
                                 from autopack.backlog_maintenance import revert_to_checkpoint
+
                                 revert_to_checkpoint(Path(self.workspace), checkpoint_hash)
                 else:
                     gap = GovernedApplyPath(
@@ -624,7 +714,9 @@ class AutonomousExecutor:
                         protected_paths=protected_paths,
                         run_type="project_build",
                     )
-                    success, err = gap.apply_patch(patch_path.read_text(encoding="utf-8", errors="ignore"))
+                    success, err = gap.apply_patch(
+                        patch_path.read_text(encoding="utf-8", errors="ignore")
+                    )
                     apply_result = {"success": success, "error": err}
                     if success:
                         logger.info(f"[Backlog][Apply] Success for {phase_id}")
@@ -633,11 +725,14 @@ class AutonomousExecutor:
                         if checkpoint_hash:
                             logger.info("[Backlog][Apply] Reverting to checkpoint due to failure")
                             from autopack.backlog_maintenance import revert_to_checkpoint
+
                             revert_to_checkpoint(Path(self.workspace), checkpoint_hash)
             elif apply and patch_path is None:
                 logger.info(f"[Backlog][Apply] No patch for {phase_id}, skipping apply")
             elif apply and decision.verdict != "approve":
-                logger.info(f"[Backlog][Apply] Skipped {phase_id}: auditor verdict {decision.verdict}")
+                logger.info(
+                    f"[Backlog][Apply] Skipped {phase_id}: auditor verdict {decision.verdict}"
+                )
             elif apply and not checkpoint_hash:
                 logger.info(f"[Backlog][Apply] Skipped {phase_id}: no checkpoint")
 
@@ -739,7 +834,9 @@ class AutonomousExecutor:
                         f"Run 'python scripts/break_glass_repair.py diagnose' to see details."
                     )
             else:
-                logger.warning("[SchemaValidator] No database URL found - skipping schema validation")
+                logger.warning(
+                    "[SchemaValidator] No database URL found - skipping schema validation"
+                )
 
         except ImportError as e:
             logger.warning(f"[SchemaValidator] Schema validator not available: {e}")
@@ -750,10 +847,10 @@ class AutonomousExecutor:
 
     def _detect_project_id(self, run_id: str) -> str:
         """Detect project ID from run_id prefix
-        
+
         Args:
             run_id: Run identifier (e.g., 'fileorg-country-uk-20251205-132826')
-        
+
         Returns:
             Project identifier (e.g., 'file-organizer-app-v1', 'autopack')
         """
@@ -765,7 +862,7 @@ class AutonomousExecutor:
             return "file-organizer-app-v1"
         else:
             return "autopack"
-    
+
     def _load_execute_fix_flag(self, config_path: Path) -> bool:
         """
         Read doctor.allow_execute_fix_global from models.yaml to decide whether
@@ -785,16 +882,18 @@ class AutonomousExecutor:
     def _validate_config_at_startup(self):
         """
         Run startup validations from config_loader.
-        
+
         Per GPT_RESPONSE26: Validate token_soft_caps configuration at startup.
         """
         try:
             import yaml
+
             config_path = Path(__file__).parent.parent.parent / "config" / "models.yaml"
             if config_path.exists():
                 with open(config_path) as f:
                     config = yaml.safe_load(f)
                     from autopack.config_loader import validate_token_soft_caps
+
                     validate_token_soft_caps(config)
         except Exception as e:
             logger.debug(f"[Config] Startup validation skipped: {e}")
@@ -873,16 +972,11 @@ class AutonomousExecutor:
         # Get project_id first (it's a string, not a list)
         project_id = self._get_project_slug()
         relevant_rules = get_active_rules_for_phase(
-            project_id,  # Pass project_id string, not self.project_rules list
-            phase
+            project_id, phase  # Pass project_id string, not self.project_rules list
         )
 
         # Get run-local hints from earlier phases (Stage 0A - within-run hints)
-        relevant_hints = get_relevant_hints_for_phase(
-            self.run_id,
-            phase,
-            max_hints=5
-        )
+        relevant_hints = get_relevant_hints_for_phase(self.run_id, phase, max_hints=5)
 
         if relevant_rules:
             logger.debug(f"  Found {len(relevant_rules)} relevant project rules for phase")
@@ -934,7 +1028,7 @@ class AutonomousExecutor:
         run_hints = learning_context.get("run_hints", [])
 
         for hint in run_hints:
-            hint_text = hint if isinstance(hint, str) else getattr(hint, 'hint_text', '')
+            hint_text = hint if isinstance(hint, str) else getattr(hint, "hint_text", "")
             # Extract patterns like "Wrong: path/to/file"
             if "Wrong:" in hint_text and "→" in hint_text:
                 parts = hint_text.split("Wrong:")
@@ -994,7 +1088,9 @@ class AutonomousExecutor:
 
         if allowed_roots:
             contract_parts.append("✅ ALLOWED ROOTS (HARD RULE):")
-            contract_parts.append("You may ONLY create/modify files under these root prefixes. Creating ANY file outside them will be rejected.")
+            contract_parts.append(
+                "You may ONLY create/modify files under these root prefixes. Creating ANY file outside them will be rejected."
+            )
             for r in allowed_roots:
                 contract_parts.append(f"   • {r}")
             contract_parts.append("")
@@ -1013,17 +1109,27 @@ class AutonomousExecutor:
         # Chunk 0 core requirement: gold_set.json must be non-empty valid JSON.
         # We fail fast on empty/invalid JSON before apply (BUILD-070), but also harden the prompt contract here
         # so the Builder stops emitting empty placeholders.
-        if any(p.endswith("src/autopack/research/evaluation/gold_set.json") or p.endswith("/gold_set.json") for p in expected_set):
+        if any(
+            p.endswith("src/autopack/research/evaluation/gold_set.json")
+            or p.endswith("/gold_set.json")
+            for p in expected_set
+        ):
             contract_parts.append("🧾 JSON DELIVERABLES (HARD RULE):")
-            contract_parts.append("- `src/autopack/research/evaluation/gold_set.json` MUST be valid, non-empty JSON.")
-            contract_parts.append("- Minimal acceptable placeholder is `[]` (empty array) — but the file must NOT be blank.")
+            contract_parts.append(
+                "- `src/autopack/research/evaluation/gold_set.json` MUST be valid, non-empty JSON."
+            )
+            contract_parts.append(
+                "- Minimal acceptable placeholder is `[]` (empty array) — but the file must NOT be blank."
+            )
             contract_parts.append("- Any empty/invalid JSON will be rejected before patch apply.")
             contract_parts.append("")
 
         contract_parts.append("=" * 80)
         contract_parts.append("")
 
-        logger.info(f"[{phase_id}] Built deliverables contract: {len(expected_paths)} required paths, {len(forbidden_patterns)} forbidden patterns")
+        logger.info(
+            f"[{phase_id}] Built deliverables contract: {len(expected_paths)} required paths, {len(forbidden_patterns)} forbidden patterns"
+        )
 
         return "\n".join(contract_parts)
 
@@ -1053,7 +1159,7 @@ class AutonomousExecutor:
             existing = {}
             if marker_path.exists():
                 try:
-                    with open(marker_path, 'r') as f:
+                    with open(marker_path, "r") as f:
                         existing = json.load(f)
                 except (json.JSONDecodeError, IOError):
                     pass
@@ -1067,16 +1173,17 @@ class AutonomousExecutor:
                 "last_run_id": self.run_id,
                 "promoted_this_run": promoted_count,
                 "total_rules": len(rules),
-                "update_history": existing.get("update_history", [])[-9:] + [
+                "update_history": existing.get("update_history", [])[-9:]
+                + [
                     {
                         "run_id": self.run_id,
                         "promoted": promoted_count,
-                        "timestamp": datetime.now(timezone.utc).isoformat()
+                        "timestamp": datetime.now(timezone.utc).isoformat(),
                     }
-                ]
+                ],
             }
 
-            with open(marker_path, 'w') as f:
+            with open(marker_path, "w") as f:
                 json.dump(marker, f, indent=2)
 
             logger.info(f"Learning Pipeline: Marked rules updated (total: {len(rules)} rules)")
@@ -1099,14 +1206,13 @@ class AutonomousExecutor:
         - Usage tracking and recording
         - Escalation logic
         """
+
         def _do_init():
             logger.info("Initializing infrastructure...")
 
             # Initialize LlmService (handles model routing, usage tracking, quality gate)
             self.llm_service = LlmService(
-                db=self.db_session,
-                config_path="config/models.yaml",
-                repo_root=self.workspace
+                db=self.db_session, config_path="config/models.yaml", repo_root=self.workspace
             )
             logger.info("LlmService: Initialized with ModelRouter and UsageRecorder")
 
@@ -1116,9 +1222,7 @@ class AutonomousExecutor:
 
         # Wrap initialization with error recovery
         self.error_recovery.execute_with_retry(
-            func=_do_init,
-            operation_name="Infrastructure initialization",
-            max_retries=3
+            func=_do_init, operation_name="Infrastructure initialization", max_retries=3
         )
 
     def get_run_status(self) -> Dict:
@@ -1146,15 +1250,16 @@ class AutonomousExecutor:
             response_body = e.response.text if e.response else str(e)
 
             error_class, remediation = classifier.classify_api_error(
-                status_code=status_code,
-                response_body=response_body
+                status_code=status_code, response_body=response_body
             )
 
             # Log classification
             should_retry = classifier.should_retry(error_class)
             logger.error(f"[CircuitBreaker] API error classified as {error_class.value}")
             logger.error(f"[CircuitBreaker] Remediation: {remediation}")
-            logger.error(f"[CircuitBreaker] Retry decision: {'RETRY' if should_retry else 'FAIL-FAST'}")
+            logger.error(
+                f"[CircuitBreaker] Retry decision: {'RETRY' if should_retry else 'FAIL-FAST'}"
+            )
 
             # Fail-fast on deterministic errors
             if not should_retry:
@@ -1166,8 +1271,11 @@ class AutonomousExecutor:
             max_retries = 3
             for attempt in range(max_retries):
                 backoff = classifier.get_backoff_seconds(error_class, attempt)
-                logger.warning(f"[CircuitBreaker] Retrying after {backoff}s (attempt {attempt+1}/{max_retries})")
+                logger.warning(
+                    f"[CircuitBreaker] Retrying after {backoff}s (attempt {attempt+1}/{max_retries})"
+                )
                 import time
+
                 time.sleep(backoff)
 
                 try:
@@ -1218,13 +1326,15 @@ class AutonomousExecutor:
                 last_updated_str = phase.get("updated_at") or phase.get("last_updated")
 
                 if not last_updated_str:
-                    logger.warning(f"[{phase_id}] EXECUTING phase has no timestamp - assuming stale and resetting")
+                    logger.warning(
+                        f"[{phase_id}] EXECUTING phase has no timestamp - assuming stale and resetting"
+                    )
                     self._update_phase_status(phase_id, "QUEUED")
                     continue
 
                 try:
                     # Parse timestamp (assuming ISO format)
-                    last_updated = datetime.fromisoformat(last_updated_str.replace('Z', '+00:00'))
+                    last_updated = datetime.fromisoformat(last_updated_str.replace("Z", "+00:00"))
 
                     # Make timezone-naive for comparison (assuming UTC)
                     if last_updated.tzinfo:
@@ -1246,12 +1356,13 @@ class AutonomousExecutor:
 
                             # Log to DEBUG_JOURNAL.md for tracking
                             from autopack.debug_journal import log_fix
+
                             log_fix(
                                 error_signature=f"Stale Phase Auto-Reset: {phase_id}",
                                 fix_description=f"Automatically reset phase from EXECUTING to QUEUED after {time_stale.total_seconds():.0f}s of inactivity",
                                 files_changed=["autonomous_executor.py"],
                                 test_run_id=self.run_id,
-                                result="success"
+                                result="success",
                             )
 
                         except Exception as e:
@@ -1264,11 +1375,13 @@ class AutonomousExecutor:
                                 run_id=self.run_id,
                                 phase_id=phase_id,
                                 suspected_cause="Failed to call API to reset stuck phase",
-                                priority="HIGH"
+                                priority="HIGH",
                             )
 
                 except Exception as e:
-                    logger.warning(f"[{phase_id}] Failed to parse timestamp '{last_updated_str}': {e}")
+                    logger.warning(
+                        f"[{phase_id}] Failed to parse timestamp '{last_updated_str}': {e}"
+                    )
 
     def _get_tier_index(self, tier_id: int, tiers: List[Dict]) -> int:
         """Get tier_index for a given tier_id
@@ -1368,7 +1481,9 @@ class AutonomousExecutor:
                 )
 
                 if not phase:
-                    logger.error(f"[{phase_id}] Cannot update attempts: phase not found in database")
+                    logger.error(
+                        f"[{phase_id}] Cannot update attempts: phase not found in database"
+                    )
                     return False
 
                 # Update attempt tracking (backwards compatibility)
@@ -1389,7 +1504,11 @@ class AutonomousExecutor:
                     phase.last_attempt_timestamp = timestamp or datetime.now(timezone.utc)
 
                 # Log while the instance is still bound to a live Session.
-                if retry_attempt is not None or revision_epoch is not None or escalation_level is not None:
+                if (
+                    retry_attempt is not None
+                    or revision_epoch is not None
+                    or escalation_level is not None
+                ):
                     logger.info(
                         f"[{phase_id}] Updated counters in DB: "
                         f"retry={phase.retry_attempt}, epoch={phase.revision_epoch}, "
@@ -1471,7 +1590,7 @@ class AutonomousExecutor:
         """
         try:
             # Check if we have context data from _load_scoped_context
-            if not hasattr(self, '_last_file_context'):
+            if not hasattr(self, "_last_file_context"):
                 return
 
             file_ctx = self._last_file_context
@@ -1486,7 +1605,9 @@ class AutonomousExecutor:
             # Extract artifact stats (BUILD-145 P1: now reflects kept files only)
             artifact_substitutions = artifact_stats.get("substitutions", 0) if artifact_stats else 0
             tokens_saved_artifacts = artifact_stats.get("tokens_saved", 0) if artifact_stats else 0
-            substituted_paths_sample = artifact_stats.get("substituted_paths_sample", []) if artifact_stats else []
+            substituted_paths_sample = (
+                artifact_stats.get("substituted_paths_sample", []) if artifact_stats else []
+            )
 
             # Extract budget selection stats
             if budget_selection:
@@ -1614,10 +1735,13 @@ class AutonomousExecutor:
 
         if phases:
             # Sort by tier_index (via tier_id lookup) and phase_index
-            sorted_phases = sorted(phases, key=lambda p: (
-                self._get_tier_index(p.get("tier_id"), tiers),
-                p.get("phase_index", 0)
-            ))
+            sorted_phases = sorted(
+                phases,
+                key=lambda p: (
+                    self._get_tier_index(p.get("tier_id"), tiers),
+                    p.get("phase_index", 0),
+                ),
+            )
 
             for phase in sorted_phases:
                 if phase.get("state") == "QUEUED":
@@ -1789,12 +1913,15 @@ class AutonomousExecutor:
         phase_id = phase.get("phase_id")
 
         # INSERTION POINT 2: Track phase state for intention-first loop (BUILD-161 Phase A)
-        if hasattr(self, '_intention_wiring') and self._intention_wiring is not None:
+        if hasattr(self, "_intention_wiring") and self._intention_wiring is not None:
             from autopack.autonomous.executor_wiring import get_or_create_phase_state
+
             phase_state = get_or_create_phase_state(self._intention_wiring, phase_id)
             # Increment iterations_used at phase start
             phase_state.iterations_used += 1
-            logger.debug(f"[IntentionFirst] Phase {phase_id}: iteration {phase_state.iterations_used}")
+            logger.debug(
+                f"[IntentionFirst] Phase {phase_id}: iteration {phase_state.iterations_used}"
+            )
         else:
             phase_state = None
 
@@ -1804,15 +1931,11 @@ class AutonomousExecutor:
             logger.info(f"[BUILD-123v2] Phase '{phase_id}' has no scope - generating manifest...")
             try:
                 # Create minimal plan for this phase
-                minimal_plan = {
-                    "run_id": self.run_id,
-                    "phases": [phase]
-                }
+                minimal_plan = {"run_id": self.run_id, "phases": [phase]}
 
                 # Generate manifest
                 result = self.manifest_generator.generate_manifest(
-                    plan_data=minimal_plan,
-                    skip_validation=False  # Run preflight validation
+                    plan_data=minimal_plan, skip_validation=False  # Run preflight validation
                 )
 
                 if result.success and result.enhanced_plan["phases"]:
@@ -1845,6 +1968,7 @@ class AutonomousExecutor:
             except Exception as e:
                 logger.error(f"[BUILD-123v2] Failed to generate manifest for '{phase_id}': {e}")
                 import traceback
+
                 traceback.print_exc()
                 # Continue with empty scope
 
@@ -1853,12 +1977,16 @@ class AutonomousExecutor:
         # BUILD-115: Database queries disabled - use API phase data with defaults
         phase_db = self._get_phase_from_db(phase_id)
         if not phase_db:
-            logger.debug(f"[{phase_id}] No database state (BUILD-115), using API data with defaults")
+            logger.debug(
+                f"[{phase_id}] No database state (BUILD-115), using API data with defaults"
+            )
+
             # Create a simple object with default retry state
             class PhaseDefaults:
                 retry_attempt = 0
                 revision_epoch = 0
                 escalation_level = 0
+
             phase_db = PhaseDefaults()
 
         # Check if already exhausted attempts
@@ -1924,7 +2052,7 @@ class AutonomousExecutor:
             success, status = self.error_recovery.execute_with_retry(
                 func=_execute_phase_inner,
                 operation_name=f"Phase execution: {phase_id}",
-                max_retries=1  # Only 1 retry for transient errors within an attempt
+                max_retries=1,  # Only 1 retry for transient errors within an attempt
             )
 
             if success:
@@ -1936,13 +2064,15 @@ class AutonomousExecutor:
                     self._record_learning_hint(
                         phase=phase,
                         hint_type="success_after_retry",
-                        details=f"Succeeded on attempt {attempt_index + 1} after {attempt_index} failed attempts"
+                        details=f"Succeeded on attempt {attempt_index + 1} after {attempt_index} failed attempts",
                     )
 
                 # BUILD-145 P1.1: Record token efficiency telemetry
                 self._record_token_efficiency_telemetry(phase_id, "COMPLETE")
 
-                logger.info(f"[{phase_id}] Phase completed successfully on attempt {attempt_index + 1}")
+                logger.info(
+                    f"[{phase_id}] Phase completed successfully on attempt {attempt_index + 1}"
+                )
                 return True, "COMPLETE"
 
             # [BUILD-041] Attempt failed - update database and check if exhausted
@@ -1974,7 +2104,7 @@ class AutonomousExecutor:
             self._record_learning_hint(
                 phase=phase,
                 hint_type=failure_outcome,
-                details=f"Failed with {status} on attempt {attempt_index + 1}"
+                details=f"Failed with {status} on attempt {attempt_index + 1}",
             )
 
             # Mid-Run Re-Planning: Record error for approach flaw detection
@@ -1982,7 +2112,7 @@ class AutonomousExecutor:
                 phase=phase,
                 error_type=failure_outcome,
                 error_details=f"Status: {status}",
-                attempt_index=attempt_index
+                attempt_index=attempt_index,
             )
 
             # [BUILD-146 P6.3] Deterministic Failure Hardening (before expensive diagnostics/Doctor)
@@ -1992,7 +2122,9 @@ class AutonomousExecutor:
 
                 error_text = f"Status: {status}, Attempt: {attempt_index + 1}"
                 hardening_context = {
-                    "workspace": Path(self.workspace_root) if hasattr(self, "workspace_root") else Path.cwd(),
+                    "workspace": (
+                        Path(self.workspace_root) if hasattr(self, "workspace_root") else Path.cwd()
+                    ),
                     "phase_id": phase_id,
                     "status": status,
                     "scope_paths": phase.get("scope", {}).get("paths", []),
@@ -2012,7 +2144,7 @@ class AutonomousExecutor:
                     self._record_learning_hint(
                         phase=phase,
                         hint_type="failure_hardening_applied",
-                        details=f"Pattern: {mitigation_result.pattern_id}, Fixed: {mitigation_result.fixed}"
+                        details=f"Pattern: {mitigation_result.pattern_id}, Fixed: {mitigation_result.fixed}",
                     )
 
                     # If mitigation claims it's fixed, skip diagnostics/Doctor and retry immediately
@@ -2024,7 +2156,10 @@ class AutonomousExecutor:
                         # [BUILD-146 P2] Record Phase 6 telemetry for failure hardening
                         if os.getenv("TELEMETRY_DB_ENABLED", "false").lower() == "true":
                             try:
-                                from autopack.usage_recorder import record_phase6_metrics, estimate_doctor_tokens_avoided
+                                from autopack.usage_recorder import (
+                                    record_phase6_metrics,
+                                    estimate_doctor_tokens_avoided,
+                                )
                                 from autopack.database import SessionLocal
 
                                 db = SessionLocal()
@@ -2051,14 +2186,16 @@ class AutonomousExecutor:
                                 finally:
                                     db.close()
                             except Exception as e:
-                                logger.warning(f"[{phase_id}] Failed to record Phase 6 telemetry: {e}")
+                                logger.warning(
+                                    f"[{phase_id}] Failed to record Phase 6 telemetry: {e}"
+                                )
 
                         # Increment attempts and return for immediate retry (caller handles retry loop)
                         new_attempts = attempt_index + 1
                         self._update_phase_attempts_in_db(
                             phase_id,
                             retry_attempt=new_attempts,
-                            last_failure_reason=f"HARDENING_MITIGATED: {mitigation_result.pattern_id}"
+                            last_failure_reason=f"HARDENING_MITIGATED: {mitigation_result.pattern_id}",
                         )
                         # Return FAILED status so caller can retry immediately with mitigation applied
                         return (False, "FAILED")
@@ -2121,14 +2258,16 @@ class AutonomousExecutor:
                             f"preserving retry progress (retry_attempt={phase_db.retry_attempt}, escalation={phase_db.escalation_level})"
                         )
                         self._update_phase_attempts_in_db(
-                            phase_id,
-                            revision_epoch=new_epoch,
-                            last_failure_reason="DOCTOR_REPLAN"
+                            phase_id, revision_epoch=new_epoch, last_failure_reason="DOCTOR_REPLAN"
                         )
                     return False, "REPLAN_REQUESTED"
 
             # INSERTION POINT 3: Intention-first stuck handling dispatch (BUILD-161 Phase A)
-            if hasattr(self, '_intention_wiring') and self._intention_wiring is not None and self._intention_anchor is not None:
+            if (
+                hasattr(self, "_intention_wiring")
+                and self._intention_wiring is not None
+                and self._intention_anchor is not None
+            ):
                 from autopack.autonomous.executor_wiring import decide_stuck_action
                 from autopack.stuck_handling import StuckReason
 
@@ -2141,9 +2280,9 @@ class AutonomousExecutor:
 
                 # Compute usage metrics (simplified for now - would ideally track accurately)
                 # TODO: Track actual usage in llm_service execution
-                tokens_used = getattr(self, '_run_tokens_used', 0)
-                context_chars_used = getattr(self, '_run_context_chars_used', 0)
-                sot_chars_used = getattr(self, '_run_sot_chars_used', 0)
+                tokens_used = getattr(self, "_run_tokens_used", 0)
+                context_chars_used = getattr(self, "_run_context_chars_used", 0)
+                sot_chars_used = getattr(self, "_run_sot_chars_used", 0)
 
                 try:
                     decision, decision_msg = decide_stuck_action(
@@ -2160,6 +2299,7 @@ class AutonomousExecutor:
 
                     # Dispatch based on decision
                     from autopack.stuck_handling import StuckResolutionDecision
+
                     if decision == StuckResolutionDecision.REPLAN:
                         # Use existing replan logic
                         logger.info(f"[IntentionFirst] Policy decided REPLAN for {phase_id}")
@@ -2167,7 +2307,10 @@ class AutonomousExecutor:
                     elif decision == StuckResolutionDecision.ESCALATE_MODEL:
                         # Apply model escalation via routing snapshot
                         from autopack.autonomous.executor_wiring import apply_model_escalation
-                        current_tier = phase.get("_current_tier", "haiku")  # Default to haiku if not set
+
+                        current_tier = phase.get(
+                            "_current_tier", "haiku"
+                        )  # Default to haiku if not set
                         safety_profile = "normal"  # TODO: derive from intention anchor risk profile
                         escalated_entry = apply_model_escalation(
                             wiring=self._intention_wiring,
@@ -2177,23 +2320,35 @@ class AutonomousExecutor:
                             safety_profile=safety_profile,
                         )
                         if escalated_entry:
-                            logger.info(f"[IntentionFirst] Escalated {phase_id} to tier {escalated_entry.tier} (model: {escalated_entry.model_id})")
+                            logger.info(
+                                f"[IntentionFirst] Escalated {phase_id} to tier {escalated_entry.tier} (model: {escalated_entry.model_id})"
+                            )
                             phase["_current_tier"] = escalated_entry.tier
                             # The run_context overrides are now set, llm_service will use them
                         else:
-                            logger.warning(f"[IntentionFirst] Escalation failed for {phase_id}, falling back to existing logic")
+                            logger.warning(
+                                f"[IntentionFirst] Escalation failed for {phase_id}, falling back to existing logic"
+                            )
                         # Don't return - let existing retry logic continue
                     elif decision == StuckResolutionDecision.REDUCE_SCOPE:
-                        logger.warning(f"[IntentionFirst] Policy decided REDUCE_SCOPE for {phase_id} - not yet implemented, falling back")
+                        logger.warning(
+                            f"[IntentionFirst] Policy decided REDUCE_SCOPE for {phase_id} - not yet implemented, falling back"
+                        )
                         # TODO: Implement scope reduction prompt generation + validation
                     elif decision == StuckResolutionDecision.NEEDS_HUMAN:
-                        logger.critical(f"[IntentionFirst] Policy decided NEEDS_HUMAN for {phase_id} - blocking")
+                        logger.critical(
+                            f"[IntentionFirst] Policy decided NEEDS_HUMAN for {phase_id} - blocking"
+                        )
                         return False, "BLOCKED_NEEDS_HUMAN"
                     elif decision == StuckResolutionDecision.STOP:
-                        logger.critical(f"[IntentionFirst] Policy decided STOP for {phase_id} - budget exhausted or max retries")
+                        logger.critical(
+                            f"[IntentionFirst] Policy decided STOP for {phase_id} - budget exhausted or max retries"
+                        )
                         return False, "FAILED"
                 except Exception as e:
-                    logger.warning(f"[IntentionFirst] Stuck decision failed: {e}, falling back to existing logic")
+                    logger.warning(
+                        f"[IntentionFirst] Stuck decision failed: {e}, falling back to existing logic"
+                    )
 
             # Check if we should trigger re-planning before next retry
             should_replan, flaw_type = self._should_trigger_replan(phase)
@@ -2217,26 +2372,27 @@ class AutonomousExecutor:
                             f"epoch {phase_db.revision_epoch} → {new_epoch}), preserving retry progress"
                         )
                         self._update_phase_attempts_in_db(
-                            phase_id,
-                            revision_epoch=new_epoch,
-                            last_failure_reason="REPLANNED"
+                            phase_id, revision_epoch=new_epoch, last_failure_reason="REPLANNED"
                         )
                     return False, "REPLAN_REQUESTED"
                 else:
-                    logger.warning(f"[{phase_id}] Re-planning failed, continuing with original approach")
+                    logger.warning(
+                        f"[{phase_id}] Re-planning failed, continuing with original approach"
+                    )
 
             # [BUILD-041] Increment attempts_used in database
             new_attempts = attempt_index + 1
             self._update_phase_attempts_in_db(
-                phase_id,
-                retry_attempt=new_attempts,
-                last_failure_reason=status
+                phase_id, retry_attempt=new_attempts, last_failure_reason=status
             )
 
             # Token-efficiency guard: CI collection/import errors are deterministic environment/test failures.
             # Retrying (and escalating models / triggering deep retrieval) wastes tokens and can further dirty the workspace.
             status_lower = (status or "").lower()
-            if "ci collection/import error" in status_lower or "collection errors detected" in status_lower:
+            if (
+                "ci collection/import error" in status_lower
+                or "collection errors detected" in status_lower
+            ):
                 logger.error(
                     f"[{phase_id}] Deterministic CI collection/import failure. "
                     f"Skipping escalation/retry to avoid token waste."
@@ -2245,7 +2401,9 @@ class AutonomousExecutor:
 
             # Check if attempts exhausted
             if new_attempts >= max_attempts:
-                logger.error(f"[{phase_id}] All {max_attempts} attempts exhausted. Marking phase as FAILED.")
+                logger.error(
+                    f"[{phase_id}] All {max_attempts} attempts exhausted. Marking phase as FAILED."
+                )
 
                 # Log to debug journal for persistent tracking
                 log_error(
@@ -2254,13 +2412,15 @@ class AutonomousExecutor:
                     run_id=self.run_id,
                     phase_id=phase_id,
                     suspected_cause="Task complexity exceeds model capabilities or task is impossible",
-                    priority="HIGH"
+                    priority="HIGH",
                 )
 
                 self._mark_phase_failed_in_db(phase_id, "MAX_ATTEMPTS_EXHAUSTED")
                 return False, "FAILED"
 
-            logger.warning(f"[{phase_id}] Attempt {new_attempts}/{max_attempts} failed, will escalate model for next retry")
+            logger.warning(
+                f"[{phase_id}] Attempt {new_attempts}/{max_attempts} failed, will escalate model for next retry"
+            )
             return False, status
 
         except Exception as e:
@@ -2280,7 +2440,7 @@ class AutonomousExecutor:
                     "phase_description": phase.get("description", "")[:200],
                     "phase_complexity": phase.get("complexity"),
                     "phase_task_category": phase.get("task_category"),
-                }
+                },
             )
 
             # Update health budget tracking
@@ -2294,7 +2454,7 @@ class AutonomousExecutor:
                 phase=phase,
                 error_type="infra_error",
                 error_details=str(e),
-                attempt_index=attempt_index
+                attempt_index=attempt_index,
             )
 
             # Diagnostics: gather evidence for infra errors before any mutations
@@ -2339,7 +2499,7 @@ class AutonomousExecutor:
                         self._update_phase_attempts_in_db(
                             phase_id,
                             revision_epoch=new_epoch,
-                            last_failure_reason="DOCTOR_REPLAN_AFTER_EXCEPTION"
+                            last_failure_reason="DOCTOR_REPLAN_AFTER_EXCEPTION",
                         )
                     return False, "REPLAN_REQUESTED"
 
@@ -2362,7 +2522,7 @@ class AutonomousExecutor:
                         self._update_phase_attempts_in_db(
                             phase_id,
                             revision_epoch=new_epoch,
-                            last_failure_reason="REPLANNED_AFTER_EXCEPTION"
+                            last_failure_reason="REPLANNED_AFTER_EXCEPTION",
                         )
                     return False, "REPLAN_REQUESTED"
 
@@ -2371,12 +2531,14 @@ class AutonomousExecutor:
             self._update_phase_attempts_in_db(
                 phase_id,
                 retry_attempt=new_attempts,
-                last_failure_reason=f"EXCEPTION: {type(e).__name__}"
+                last_failure_reason=f"EXCEPTION: {type(e).__name__}",
             )
 
             # Check if attempts exhausted
             if new_attempts >= max_attempts:
-                logger.error(f"[{phase_id}] All {max_attempts} attempts exhausted after exception. Marking phase as FAILED.")
+                logger.error(
+                    f"[{phase_id}] All {max_attempts} attempts exhausted after exception. Marking phase as FAILED."
+                )
 
                 # Log to debug journal for persistent tracking
                 log_error(
@@ -2385,13 +2547,17 @@ class AutonomousExecutor:
                     run_id=self.run_id,
                     phase_id=phase_id,
                     suspected_cause=str(e)[:200],
-                    priority="HIGH"
+                    priority="HIGH",
                 )
 
-                self._mark_phase_failed_in_db(phase_id, f"MAX_ATTEMPTS_EXHAUSTED: {type(e).__name__}")
+                self._mark_phase_failed_in_db(
+                    phase_id, f"MAX_ATTEMPTS_EXHAUSTED: {type(e).__name__}"
+                )
                 return False, "FAILED"
 
-            logger.warning(f"[{phase_id}] Attempt {new_attempts}/{max_attempts} raised exception, will retry")
+            logger.warning(
+                f"[{phase_id}] Attempt {new_attempts}/{max_attempts} raised exception, will retry"
+            )
             return False, "EXCEPTION_OCCURRED"
 
     def _status_to_outcome(self, status: str) -> str:
@@ -2443,7 +2609,7 @@ class AutonomousExecutor:
                 run_id=self.run_id,
                 phase=phase,
                 hint_text=hint_text,
-                source_issue_keys=[f"{hint_type}_{phase_id}"]
+                source_issue_keys=[f"{hint_type}_{phase_id}"],
             )
 
             logger.debug(f"[Learning] Recorded hint for {phase_id}: {hint_type}")
@@ -2456,7 +2622,9 @@ class AutonomousExecutor:
     # Mid-Run Re-Planning System
     # =========================================================================
 
-    def _record_phase_error(self, phase: Dict, error_type: str, error_details: str, attempt_index: int):
+    def _record_phase_error(
+        self, phase: Dict, error_type: str, error_details: str, attempt_index: int
+    ):
         """
         Record an error for approach flaw detection.
 
@@ -2505,30 +2673,32 @@ class AutonomousExecutor:
         normalized = message.lower()
 
         # Strip file paths (Unix and Windows)
-        normalized = re.sub(r'[/\\][\w\-./\\]+\.(py|js|ts|json|yaml|yml|md)', '[PATH]', normalized)
-        normalized = re.sub(r'[a-z]:\\[\w\-\\]+', '[PATH]', normalized, flags=re.IGNORECASE)
+        normalized = re.sub(r"[/\\][\w\-./\\]+\.(py|js|ts|json|yaml|yml|md)", "[PATH]", normalized)
+        normalized = re.sub(r"[a-z]:\\[\w\-\\]+", "[PATH]", normalized, flags=re.IGNORECASE)
 
         # Strip line numbers (e.g., "line 42", ":42:", "L42")
-        normalized = re.sub(r'\bline\s*\d+\b', 'line [N]', normalized)
-        normalized = re.sub(r':\d+:', ':[N]:', normalized)
-        normalized = re.sub(r'\bL\d+\b', 'L[N]', normalized)
+        normalized = re.sub(r"\bline\s*\d+\b", "line [N]", normalized)
+        normalized = re.sub(r":\d+:", ":[N]:", normalized)
+        normalized = re.sub(r"\bL\d+\b", "L[N]", normalized)
 
         # Strip UUIDs
-        normalized = re.sub(r'[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}', '[UUID]', normalized)
+        normalized = re.sub(
+            r"[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}", "[UUID]", normalized
+        )
 
         # Strip run IDs (common patterns)
-        normalized = re.sub(r'\b[a-z]+-\d{8}(-\d+)?\b', '[RUN_ID]', normalized)
+        normalized = re.sub(r"\b[a-z]+-\d{8}(-\d+)?\b", "[RUN_ID]", normalized)
 
         # Strip timestamps (ISO format and common patterns)
-        normalized = re.sub(r'\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}', '[TIMESTAMP]', normalized)
-        normalized = re.sub(r'\d{2}:\d{2}:\d{2}', '[TIME]', normalized)
+        normalized = re.sub(r"\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}", "[TIMESTAMP]", normalized)
+        normalized = re.sub(r"\d{2}:\d{2}:\d{2}", "[TIME]", normalized)
 
         # Strip stack trace lines
-        normalized = re.sub(r'file "[^"]+", line \[n\]', 'file [PATH], line [N]', normalized)
-        normalized = re.sub(r'traceback \(most recent call last\):', '[TRACEBACK]', normalized)
+        normalized = re.sub(r'file "[^"]+", line \[n\]', "file [PATH], line [N]", normalized)
+        normalized = re.sub(r"traceback \(most recent call last\):", "[TRACEBACK]", normalized)
 
         # Collapse whitespace
-        normalized = re.sub(r'\s+', ' ', normalized).strip()
+        normalized = re.sub(r"\s+", " ", normalized).strip()
 
         return normalized
 
@@ -2566,6 +2736,7 @@ class AutonomousExecutor:
 
         # Load replan config from models.yaml
         import yaml
+
         try:
             with open("config/models.yaml") as f:
                 config = yaml.safe_load(f)
@@ -2658,21 +2829,21 @@ class AutonomousExecutor:
     def _extract_one_line_intent(self, description: str) -> str:
         """
         Extract a concise one-line intent from a phase description.
-        
+
         Per GPT_RESPONSE27: The original_intent should be a short, clear statement
         of WHAT the phase achieves (not HOW it achieves it).
-        
+
         Args:
             description: Full phase description
-            
+
         Returns:
             One-line intent statement (first sentence, capped at 200 chars)
         """
         if not description:
             return ""
-        
+
         # Get first sentence (ends with . ! or ?)
-        first_sentence_match = re.match(r'^[^.!?]*[.!?]', description.strip())
+        first_sentence_match = re.match(r"^[^.!?]*[.!?]", description.strip())
         if first_sentence_match:
             intent = first_sentence_match.group(0).strip()
         else:
@@ -2680,34 +2851,34 @@ class AutonomousExecutor:
             intent = description.strip()[:200]
             if len(description.strip()) > 200:
                 intent += "..."
-        
+
         # Cap at 200 chars
         if len(intent) > 200:
             intent = intent[:197] + "..."
-        
+
         return intent
 
     def _initialize_phase_goal_anchor(self, phase: Dict) -> None:
         """
         Initialize goal anchoring for a phase on first execution.
-        
+
         Per GPT_RESPONSE27 Phase 1 Implementation: Store original intent and description
         before any re-planning occurs.
-        
+
         Args:
             phase: Phase specification dict
         """
         phase_id = phase.get("phase_id")
         if not phase_id:
             return
-        
+
         # Only initialize once (on first execution)
         if phase_id not in self._phase_original_intent:
             description = phase.get("description", "")
             self._phase_original_intent[phase_id] = self._extract_one_line_intent(description)
             self._phase_original_description[phase_id] = description
             self._phase_replan_history[phase_id] = []
-            
+
             logger.debug(
                 f"[GoalAnchor] Initialized for {phase_id}: intent='{self._phase_original_intent[phase_id][:50]}...'"
             )
@@ -2715,57 +2886,67 @@ class AutonomousExecutor:
     def _detect_scope_narrowing(self, original: str, revised: str) -> bool:
         """
         Detect obvious scope narrowing using heuristics.
-        
+
         Per GPT_RESPONSE27: Fast pre-filter to detect when revision reduces scope.
-        
+
         Args:
             original: Original phase description
             revised: Revised phase description
-            
+
         Returns:
             True if scope narrowing is detected
         """
         if not original or not revised:
             return False
-        
+
         # Heuristic 1: Significant length shrinkage (>50%)
         if len(revised) < len(original) * 0.5:
             logger.debug("[GoalAnchor] Scope narrowing detected: length shrinkage")
             return True
-        
+
         # Heuristic 2: Scope-reducing keywords
         scope_reducing_keywords = [
-            "only", "just", "skip", "ignore", "defer", "later",
-            "simplified", "minimal", "basic", "stub", "placeholder",
-            "without", "except", "excluding", "partial"
+            "only",
+            "just",
+            "skip",
+            "ignore",
+            "defer",
+            "later",
+            "simplified",
+            "minimal",
+            "basic",
+            "stub",
+            "placeholder",
+            "without",
+            "except",
+            "excluding",
+            "partial",
         ]
-        
+
         original_lower = original.lower()
         revised_lower = revised.lower()
-        
+
         for keyword in scope_reducing_keywords:
             # Check if keyword was added in revision
             if keyword in revised_lower and keyword not in original_lower:
                 logger.debug(f"[GoalAnchor] Scope narrowing detected: added keyword '{keyword}'")
                 return True
-        
+
         return False
 
     def _classify_replan_alignment(
-        self,
-        original_intent: str,
-        revised_description: str
+        self, original_intent: str, revised_description: str
     ) -> Dict[str, Any]:
         """
         Classify alignment of revised description vs original intent.
-        
+
         Per GPT_RESPONSE27: Use LLM to semantically compare original intent with
         revised approach to detect goal drift.
-        
+
         Args:
             original_intent: One-line intent from original description
             revised_description: New description after re-planning
-            
+
         Returns:
             Dict with {"alignment": "same_scope|narrower|broader|different_domain", "notes": "..."}
         """
@@ -2773,30 +2954,27 @@ class AutonomousExecutor:
         if self._detect_scope_narrowing(original_intent, revised_description):
             return {
                 "alignment": "narrower",
-                "notes": "Heuristic detection: revision appears to reduce scope"
+                "notes": "Heuristic detection: revision appears to reduce scope",
             }
-        
+
         # For Phase 1, we use simple heuristics + logging (no LLM call)
         # Per GPT_RESPONSE27: Full semantic classification is Phase 2
-        
+
         # Simple keyword-based classification
         revised_lower = revised_description.lower()
-        
+
         # Check for scope expansion
         expansion_keywords = ["also", "additionally", "expand", "enhance", "add more", "including"]
         has_expansion = any(kw in revised_lower for kw in expansion_keywords)
-        
+
         # Check for domain change (different technology/approach)
         if has_expansion:
-            return {
-                "alignment": "broader",
-                "notes": "Revision appears to expand scope"
-            }
-        
+            return {"alignment": "broader", "notes": "Revision appears to expand scope"}
+
         # Default: assume same scope (conservative for Phase 1)
         return {
             "alignment": "same_scope",
-            "notes": "No obvious scope change detected (Phase 1 heuristic)"
+            "notes": "No obvious scope change detected (Phase 1 heuristic)",
         }
 
     def _record_replan_telemetry(
@@ -2807,13 +2985,13 @@ class AutonomousExecutor:
         revised_description: str,
         reason: str,
         alignment: Dict[str, Any],
-        success: bool
+        success: bool,
     ) -> None:
         """
         Record re-planning telemetry for monitoring and analysis.
-        
+
         Per GPT_RESPONSE27: Track replan_count, alignment, and outcomes.
-        
+
         Args:
             phase_id: Phase identifier
             attempt: Re-plan attempt number
@@ -2835,15 +3013,15 @@ class AutonomousExecutor:
             "revised_description_preview": revised_description[:100],
             "success": success,
         }
-        
+
         # Add to phase-level history
         if phase_id not in self._phase_replan_history:
             self._phase_replan_history[phase_id] = []
         self._phase_replan_history[phase_id].append(telemetry_record)
-        
+
         # Add to run-level telemetry
         self._run_replan_telemetry.append(telemetry_record)
-        
+
         # Log for observability
         logger.info(
             f"[GoalAnchor] REPLAN_TELEMETRY: run_id={self.run_id} phase_id={phase_id} "
@@ -2956,13 +3134,17 @@ class AutonomousExecutor:
 
         # Check global run-level replan limit (prevents pathological projects)
         if self._run_replan_count >= self.MAX_REPLANS_PER_RUN:
-            logger.info(f"[Re-Plan] Global max replans ({self.MAX_REPLANS_PER_RUN}) reached for this run - no more replans allowed")
+            logger.info(
+                f"[Re-Plan] Global max replans ({self.MAX_REPLANS_PER_RUN}) reached for this run - no more replans allowed"
+            )
             return False, None
 
         # Check if we've exceeded max replans for this specific phase
         replan_count = self._get_replan_count(phase_id)
         if replan_count >= self.MAX_REPLANS_PER_PHASE:
-            logger.info(f"[Re-Plan] Max replans ({self.MAX_REPLANS_PER_PHASE}) reached for {phase_id}")
+            logger.info(
+                f"[Re-Plan] Max replans ({self.MAX_REPLANS_PER_PHASE}) reached for {phase_id}"
+            )
             return False, None
 
         # Detect approach flaw
@@ -2976,9 +3158,17 @@ class AutonomousExecutor:
                 try:
                     phase_id = phase.get("phase_id")
                     phase_db = self._get_phase_from_db(phase_id) if phase_id else None
-                    max_attempts = getattr(phase_db, "max_builder_attempts", None) if phase_db else None
-                    builder_attempts = getattr(phase_db, "builder_attempts", None) if phase_db else None
-                    if isinstance(max_attempts, int) and max_attempts > 0 and isinstance(builder_attempts, int):
+                    max_attempts = (
+                        getattr(phase_db, "max_builder_attempts", None) if phase_db else None
+                    )
+                    builder_attempts = (
+                        getattr(phase_db, "builder_attempts", None) if phase_db else None
+                    )
+                    if (
+                        isinstance(max_attempts, int)
+                        and max_attempts > 0
+                        and isinstance(builder_attempts, int)
+                    ):
                         if builder_attempts < max_attempts:
                             logger.info(
                                 f"[Re-Plan] Deferring for deliverables validation failure "
@@ -2986,20 +3176,24 @@ class AutonomousExecutor:
                             )
                             return False, None
                 except Exception as e:
-                    logger.warning(f"[Re-Plan] Failed to evaluate deliverables replan deferral: {e}")
+                    logger.warning(
+                        f"[Re-Plan] Failed to evaluate deliverables replan deferral: {e}"
+                    )
                     return False, None
 
             return True, flaw_type
 
         return False, None
 
-    def _revise_phase_approach(self, phase: Dict, flaw_type: str, error_history: List[Dict]) -> Optional[Dict]:
+    def _revise_phase_approach(
+        self, phase: Dict, flaw_type: str, error_history: List[Dict]
+    ) -> Optional[Dict]:
         """
         Invoke LLM to revise the phase approach based on failure context.
 
         This is the core of mid-run re-planning: we ask the LLM to analyze
         what went wrong and provide a revised implementation approach.
-        
+
         Per GPT_RESPONSE27: Now includes Goal Anchoring to prevent context drift:
         - Stores and references original_intent
         - Includes hard constraint in prompt
@@ -3017,29 +3211,33 @@ class AutonomousExecutor:
         phase_id = phase.get("phase_id")
         phase_name = phase.get("name", phase_id)
         current_description = phase.get("description", "")
-        
+
         # [Goal Anchoring] Initialize if this is the first replan for this phase
         self._initialize_phase_goal_anchor(phase)
-        
+
         # Get the true original intent (before any replanning)
         original_intent = self._phase_original_intent.get(phase_id, "")
         original_description = self._phase_original_description.get(phase_id, current_description)
         replan_attempt = len(self._phase_replan_history.get(phase_id, [])) + 1
 
-        logger.info(f"[Re-Plan] Revising approach for {phase_id} due to {flaw_type} (attempt {replan_attempt})")
+        logger.info(
+            f"[Re-Plan] Revising approach for {phase_id} due to {flaw_type} (attempt {replan_attempt})"
+        )
         logger.info(f"[GoalAnchor] Original intent: {original_intent[:100]}...")
 
         # Build context from error history
-        error_summary = "\n".join([
-            f"- Attempt {e['attempt'] + 1}: {e['error_type']} - {e['error_details'][:200]}"
-            for e in error_history[-5:]  # Last 5 errors
-        ])
+        error_summary = "\n".join(
+            [
+                f"- Attempt {e['attempt'] + 1}: {e['error_type']} - {e['error_details'][:200]}"
+                for e in error_history[-5:]  # Last 5 errors
+            ]
+        )
 
         # Get any run hints that might help
         learning_context = self._get_learning_context_for_phase(phase) or {}
-        hints_summary = "\n".join([
-            f"- {hint}" for hint in learning_context.get("run_hints", [])[:3]
-        ])
+        hints_summary = "\n".join(
+            [f"- {hint}" for hint in learning_context.get("run_hints", [])[:3]]
+        )
 
         # [Goal Anchoring] Per GPT_RESPONSE27: Include original_intent with HARD CONSTRAINT
         replan_prompt = f"""You are a senior software architect. A phase in our automated build system has failed repeatedly with the same error pattern. Your task is to analyze the failures and provide a revised implementation approach.
@@ -3086,14 +3284,19 @@ Just the new description that should replace the current one while preserving th
             # NOTE: Re-planning is best-effort. If Anthropic is disabled/unavailable (e.g., credits exhausted),
             # skip replanning rather than spamming repeated 400s.
             try:
-                if hasattr(self.llm_service, "model_router") and "anthropic" in getattr(self.llm_service.model_router, "disabled_providers", set()):
-                    logger.info("[Re-Plan] Skipping re-planning because provider 'anthropic' is disabled for this run/process")
+                if hasattr(self.llm_service, "model_router") and "anthropic" in getattr(
+                    self.llm_service.model_router, "disabled_providers", set()
+                ):
+                    logger.info(
+                        "[Re-Plan] Skipping re-planning because provider 'anthropic' is disabled for this run/process"
+                    )
                     return None
             except Exception:
                 pass
 
             # Current implementation uses Anthropic directly for replanning; require key.
             import os
+
             api_key = os.environ.get("ANTHROPIC_API_KEY")
             if not api_key:
                 logger.info("[Re-Plan] Skipping re-planning because ANTHROPIC_API_KEY is not set")
@@ -3101,14 +3304,13 @@ Just the new description that should replace the current one while preserving th
 
             # Use Claude for re-planning (strongest model)
             import anthropic
+
             client = anthropic.Anthropic(api_key=api_key)
 
             response = client.messages.create(
                 model="claude-sonnet-4-20250514",  # Use strong model for re-planning
                 max_tokens=2000,
-                messages=[
-                    {"role": "user", "content": replan_prompt}
-                ]
+                messages=[{"role": "user", "content": replan_prompt}],
             )
 
             # Defensive: ensure response has text content
@@ -3126,18 +3328,18 @@ Just the new description that should replace the current one while preserving th
                     revised_description="",
                     reason=flaw_type,
                     alignment={"alignment": "failed", "notes": "LLM returned empty revision"},
-                    success=False
+                    success=False,
                 )
                 return None
 
             # [Goal Anchoring] Classify alignment of revision vs original intent
             alignment = self._classify_replan_alignment(original_intent, revised_description)
-            
+
             # Log alignment classification
             logger.info(
                 f"[GoalAnchor] Alignment classification: {alignment.get('alignment')} - {alignment.get('notes')}"
             )
-            
+
             # [Goal Anchoring] Warn if scope appears narrowed (but don't block in Phase 1)
             if alignment.get("alignment") == "narrower":
                 logger.warning(
@@ -3161,7 +3363,9 @@ Just the new description that should replace the current one while preserving th
 
             # Store and track
             self._phase_revised_specs[phase_id] = revised_phase
-            self._phase_revised_specs[f"_replan_count_{phase_id}"] = self._get_replan_count(phase_id) + 1
+            self._phase_revised_specs[f"_replan_count_{phase_id}"] = (
+                self._get_replan_count(phase_id) + 1
+            )
 
             # Clear error history for fresh start with new approach
             self._phase_error_history[phase_id] = []
@@ -3174,15 +3378,20 @@ Just the new description that should replace the current one while preserving th
                 revised_description=revised_description,
                 reason=flaw_type,
                 alignment=alignment,
-                success=False  # Will be updated if phase eventually succeeds
+                success=False,  # Will be updated if phase eventually succeeds
             )
 
             # Record this re-planning event
             log_build_event(
                 event_type="PHASE_REPLANNED",
                 description=f"Phase {phase_id} replanned due to {flaw_type}. Alignment: {alignment.get('alignment')}. Original: '{original_description[:50]}...' -> Revised approach applied.",
-                deliverables=[f"Run: {self.run_id}", f"Phase: {phase_id}", f"Flaw: {flaw_type}", f"Alignment: {alignment.get('alignment')}"],
-                project_slug=self._get_project_slug()
+                deliverables=[
+                    f"Run: {self.run_id}",
+                    f"Phase: {phase_id}",
+                    f"Flaw: {flaw_type}",
+                    f"Alignment: {alignment.get('alignment')}",
+                ],
+                project_slug=self._get_project_slug(),
             )
 
             # Record plan change + decision log for memory/DB
@@ -3215,7 +3424,7 @@ Just the new description that should replace the current one while preserving th
                 revised_description="",
                 reason=flaw_type,
                 alignment={"alignment": "error", "notes": str(e)},
-                success=False
+                success=False,
             )
             return None
 
@@ -3256,7 +3465,9 @@ Just the new description that should replace the current one while preserving th
         # BUILD-113: Try iterative investigation if enabled
         if getattr(self, "iterative_investigator", None):
             try:
-                logger.info(f"[BUILD-113] Running iterative investigation for {phase.get('phase_id')}")
+                logger.info(
+                    f"[BUILD-113] Running iterative investigation for {phase.get('phase_id')}"
+                )
 
                 # Construct PhaseSpec from phase
                 from autopack.diagnostics.diagnostics_models import PhaseSpec, DecisionType
@@ -3273,11 +3484,7 @@ Just the new description that should replace the current one while preserving th
 
                 # Run iterative investigation
                 investigation_result = self.iterative_investigator.investigate_and_resolve(
-                    failure_context={
-                        "failure_class": failure_class,
-                        **ctx
-                    },
-                    phase_spec=phase_spec
+                    failure_context={"failure_class": failure_class, **ctx}, phase_spec=phase_spec
                 )
 
                 # Handle decision
@@ -3288,15 +3495,18 @@ Just the new description that should replace the current one while preserving th
                     # Auto-apply fix
                     logger.info(f"[BUILD-113] Applying autonomous fix: {decision.fix_strategy}")
                     execution_result = self.decision_executor.execute_decision(
-                        decision=decision,
-                        phase_spec=phase_spec
+                        decision=decision, phase_spec=phase_spec
                     )
 
                     if execution_result.success:
-                        logger.info(f"[BUILD-113] Autonomous fix applied successfully: {execution_result.commit_sha}")
+                        logger.info(
+                            f"[BUILD-113] Autonomous fix applied successfully: {execution_result.commit_sha}"
+                        )
                         return investigation_result  # Return investigation result as diagnostic outcome
                     else:
-                        logger.warning(f"[BUILD-113] Autonomous fix failed: {execution_result.error_message}")
+                        logger.warning(
+                            f"[BUILD-113] Autonomous fix failed: {execution_result.error_message}"
+                        )
                         # Fall through to standard diagnostics
 
                 elif decision.type in [DecisionType.RISKY, DecisionType.AMBIGUOUS]:
@@ -3339,7 +3549,9 @@ Just the new description that should replace the current one while preserving th
             "total_cap": self.MAX_TOTAL_FAILURES_PER_RUN,
         }
 
-    def _should_invoke_doctor(self, phase_id: str, builder_attempts: int, error_category: str) -> bool:
+    def _should_invoke_doctor(
+        self, phase_id: str, builder_attempts: int, error_category: str
+    ) -> bool:
         """
         Determine if Doctor should be invoked for this failure.
 
@@ -3367,7 +3579,11 @@ Just the new description that should replace the current one while preserving th
             try:
                 phase_db = self._get_phase_from_db(phase_id)
                 max_attempts = getattr(phase_db, "max_builder_attempts", None) if phase_db else None
-                if isinstance(max_attempts, int) and max_attempts > 0 and builder_attempts < max_attempts:
+                if (
+                    isinstance(max_attempts, int)
+                    and max_attempts > 0
+                    and builder_attempts < max_attempts
+                ):
                     logger.info(
                         f"[Doctor] Deferring for deliverables validation failure "
                         f"(attempt {builder_attempts}/{max_attempts}) - allowing learning hints to converge"
@@ -3494,7 +3710,9 @@ Just the new description that should replace the current one while preserving th
         if os.getenv("AUTOPACK_ENABLE_INTENTION_CONTEXT", "false").lower() == "true":
             try:
                 if hasattr(self, "_intention_injector"):
-                    intention_reminder = self._intention_injector.get_intention_context(max_chars=512)
+                    intention_reminder = self._intention_injector.get_intention_context(
+                        max_chars=512
+                    )
                     if intention_reminder:
                         doctor_logs_excerpt = f"[Project Intention]\n{intention_reminder}\n\n[Error Context]\n{logs_excerpt}"
                         logger.debug(f"[{phase_id}] Added intention reminder to Doctor context")
@@ -3527,7 +3745,9 @@ Just the new description that should replace the current one while preserving th
             )
 
             # Update tracking (per run+phase key)
-            self._doctor_calls_by_phase[phase_key] = self._doctor_calls_by_phase.get(phase_key, 0) + 1
+            self._doctor_calls_by_phase[phase_key] = (
+                self._doctor_calls_by_phase.get(phase_key, 0) + 1
+            )
             self._run_doctor_calls += 1
             if error_category == "infra_error":
                 self._run_doctor_infra_calls += 1
@@ -3607,9 +3827,7 @@ Just the new description that should replace the current one while preserving th
             # Get error history for context
             error_history = self._phase_error_history.get(phase_id, [])
             revised_phase = self._revise_phase_approach(
-                phase,
-                f"doctor_replan:{response.rationale[:50]}",
-                error_history
+                phase, f"doctor_replan:{response.rationale[:50]}", error_history
             )
             if revised_phase:
                 self._run_replan_count += 1
@@ -3653,7 +3871,7 @@ Just the new description that should replace the current one while preserving th
                 run_id=self.run_id,
                 phase_id=phase_id,
                 suspected_cause="Doctor diagnosed unrecoverable failure",
-                priority="CRITICAL"
+                priority="CRITICAL",
             )
             self._update_phase_status(phase_id, "FAILED")
             self._record_decision_entry(
@@ -3678,7 +3896,7 @@ Just the new description that should replace the current one while preserving th
                 run_id=self.run_id,
                 phase_id=phase_id,
                 suspected_cause="Doctor recommended run rollback due to accumulated failures",
-                priority="CRITICAL"
+                priority="CRITICAL",
             )
 
             # [Phase C5] Execute branch-based rollback to pre-run state
@@ -3690,7 +3908,9 @@ Just the new description that should replace the current one while preserving th
                 logger.info("[Doctor] Successfully rolled back run to pre-run state")
             else:
                 logger.error(f"[Doctor] Failed to rollback run: {rollback_error}")
-                logger.error("[Doctor] Working tree may be in inconsistent state - manual intervention required")
+                logger.error(
+                    "[Doctor] Working tree may be in inconsistent state - manual intervention required"
+                )
 
             # Mark phase as failed and let run terminate
             self._update_phase_status(phase_id, "FAILED")
@@ -3737,11 +3957,7 @@ Just the new description that should replace the current one while preserving th
     # EXECUTE_FIX IMPLEMENTATION (Phase 3 - GPT_RESPONSE9)
     # =========================================================================
 
-    def _validate_fix_commands(
-        self,
-        commands: List[str],
-        fix_type: str
-    ) -> Tuple[bool, List[str]]:
+    def _validate_fix_commands(self, commands: List[str], fix_type: str) -> Tuple[bool, List[str]]:
         """
         Validate fix commands against whitelist and security rules.
 
@@ -3803,9 +4019,7 @@ Just the new description that should replace the current one while preserving th
         return len(errors) == 0, errors
 
     def _handle_execute_fix(
-        self,
-        phase: Dict,
-        response: DoctorResponse
+        self, phase: Dict, response: DoctorResponse
     ) -> Tuple[Optional[str], bool]:
         """
         Handle Doctor's execute_fix action - direct infrastructure fixes.
@@ -3838,7 +4052,7 @@ Just the new description that should replace the current one while preserving th
                 run_id=self.run_id,
                 phase_id=phase_id,
                 suspected_cause="User opt-in required via models.yaml",
-                priority="HIGH"
+                priority="HIGH",
             )
             # Fall back to retry_with_fix behavior
             hint = response.builder_hint or "Infrastructure fix needed but execute_fix disabled"
@@ -3888,7 +4102,10 @@ Just the new description that should replace the current one while preserving th
                 )
             except Exception:
                 pass
-            hint = response.builder_hint or "Fix attempt blocked: git execute_fix is disabled for project_build runs"
+            hint = (
+                response.builder_hint
+                or "Fix attempt blocked: git execute_fix is disabled for project_build runs"
+            )
             self._builder_hint_by_phase[phase_id] = hint
             return "execute_fix_blocked_git_project_build", True
 
@@ -3899,16 +4116,14 @@ Just the new description that should replace the current one while preserving th
         # Validate commands
         is_valid, validation_errors = self._validate_fix_commands(fix_commands, fix_type)
         if not is_valid:
-            logger.error(
-                f"[Doctor] execute_fix command validation failed: {validation_errors}"
-            )
+            logger.error(f"[Doctor] execute_fix command validation failed: {validation_errors}")
             log_error(
                 error_signature=f"execute_fix validation failed: {phase_id}",
                 symptom=f"Commands failed validation: {validation_errors}",
                 run_id=self.run_id,
                 phase_id=phase_id,
                 suspected_cause="Doctor suggested invalid/unsafe commands",
-                priority="HIGH"
+                priority="HIGH",
             )
             # Fall back to retry_with_fix
             hint = f"execute_fix validation failed: {validation_errors[0]}"
@@ -3923,15 +4138,20 @@ Just the new description that should replace the current one while preserving th
                 cwd=str(self.workspace),
                 capture_output=True,
                 text=True,
-                timeout=30
+                timeout=30,
             )
             if checkpoint_result.returncode == 0:
                 checkpoint_result = subprocess.run(
-                    ["git", "commit", "-m", f"[Autopack] Pre-execute_fix checkpoint for {phase_id}"],
+                    [
+                        "git",
+                        "commit",
+                        "-m",
+                        f"[Autopack] Pre-execute_fix checkpoint for {phase_id}",
+                    ],
                     cwd=str(self.workspace),
                     capture_output=True,
                     text=True,
-                    timeout=30
+                    timeout=30,
                 )
                 if checkpoint_result.returncode == 0:
                     logger.info("[Doctor] Git checkpoint created successfully")
@@ -3942,9 +4162,7 @@ Just the new description that should replace the current one while preserving th
             logger.warning(f"[Doctor] Failed to create git checkpoint: {e}")
 
         # Execute fix commands
-        logger.info(
-            f"[Doctor] Executing {len(fix_commands)} fix commands (type: {fix_type})..."
-        )
+        logger.info(f"[Doctor] Executing {len(fix_commands)} fix commands (type: {fix_type})...")
         self._execute_fix_by_phase[phase_id] = current_count + 1
 
         all_succeeded = True
@@ -3958,7 +4176,7 @@ Just the new description that should replace the current one while preserving th
                     cwd=str(self.workspace),
                     capture_output=True,
                     text=True,
-                    timeout=60
+                    timeout=60,
                 )
                 if result.returncode != 0:
                     logger.error(
@@ -3987,12 +4205,10 @@ Just the new description that should replace the current one while preserving th
                     cwd=str(self.workspace),
                     capture_output=True,
                     text=True,
-                    timeout=60
+                    timeout=60,
                 )
                 if verify_result.returncode != 0:
-                    logger.warning(
-                        f"[Doctor] Verify command failed: {verify_result.stderr}"
-                    )
+                    logger.warning(f"[Doctor] Verify command failed: {verify_result.stderr}")
                     all_succeeded = False
                 else:
                     logger.info("[Doctor] Verify command passed")
@@ -4007,7 +4223,7 @@ Just the new description that should replace the current one while preserving th
                 fix_description=f"Executed {len(fix_commands)} commands: {fix_commands}",
                 run_id=self.run_id,
                 phase_id=phase_id,
-                outcome="RESOLVED_BY_EXECUTE_FIX"
+                outcome="RESOLVED_BY_EXECUTE_FIX",
             )
             return "execute_fix_success", True  # Continue retry loop
         else:
@@ -4025,13 +4241,13 @@ Just the new description that should replace the current one while preserving th
             Dict with model_overrides if they exist, otherwise empty dict
         """
         # Phase E: Use intention-first loop routing context if available
-        if hasattr(self, '_intention_wiring') and self._intention_wiring is not None:
+        if hasattr(self, "_intention_wiring") and self._intention_wiring is not None:
             return self._intention_wiring.run_context
 
         # Fallback: legacy model_overrides attribute
         run_context = {}
-        if hasattr(self, 'model_overrides') and self.model_overrides:
-            run_context['model_overrides'] = self.model_overrides
+        if hasattr(self, "model_overrides") and self.model_overrides:
+            run_context["model_overrides"] = self.model_overrides
         return run_context
 
     def _compute_coverage_delta(self, ci_result: Optional[Dict[str, Any]]) -> float:
@@ -4074,7 +4290,7 @@ Just the new description that should replace the current one while preserving th
                 cwd=self.workspace,
                 capture_output=True,
                 text=True,
-                timeout=10
+                timeout=10,
             )
 
             if branch_result.returncode != 0:
@@ -4090,7 +4306,7 @@ Just the new description that should replace the current one while preserving th
                 cwd=self.workspace,
                 capture_output=True,
                 text=True,
-                timeout=10
+                timeout=10,
             )
 
             if commit_result.returncode != 0:
@@ -4104,7 +4320,9 @@ Just the new description that should replace the current one while preserving th
             self._run_checkpoint_branch = current_branch
             self._run_checkpoint_commit = current_commit
 
-            logger.info(f"[RunCheckpoint] Created run checkpoint: branch={current_branch}, commit={current_commit[:8]}")
+            logger.info(
+                f"[RunCheckpoint] Created run checkpoint: branch={current_branch}, commit={current_commit[:8]}"
+            )
             return True, None
 
         except subprocess.TimeoutExpired:
@@ -4135,7 +4353,9 @@ Just the new description that should replace the current one while preserving th
             return False, "no_checkpoint_commit"
 
         try:
-            logger.warning(f"[RunCheckpoint] Rolling back entire run to checkpoint: {self._run_checkpoint_commit[:8]}")
+            logger.warning(
+                f"[RunCheckpoint] Rolling back entire run to checkpoint: {self._run_checkpoint_commit[:8]}"
+            )
             logger.warning(f"[RunCheckpoint] Reason: {reason}")
 
             # Reset to checkpoint commit (hard reset discards all changes)
@@ -4144,7 +4364,7 @@ Just the new description that should replace the current one while preserving th
                 cwd=self.workspace,
                 capture_output=True,
                 text=True,
-                timeout=30
+                timeout=30,
             )
 
             if reset_result.returncode != 0:
@@ -4158,7 +4378,7 @@ Just the new description that should replace the current one while preserving th
                 cwd=self.workspace,
                 capture_output=True,
                 text=True,
-                timeout=30
+                timeout=30,
             )
 
             if clean_result.returncode != 0:
@@ -4173,11 +4393,13 @@ Just the new description that should replace the current one while preserving th
                     cwd=self.workspace,
                     capture_output=True,
                     text=True,
-                    timeout=10
+                    timeout=10,
                 )
 
                 if checkout_result.returncode != 0:
-                    logger.warning(f"[RunCheckpoint] Could not return to branch {self._run_checkpoint_branch}")
+                    logger.warning(
+                        f"[RunCheckpoint] Could not return to branch {self._run_checkpoint_branch}"
+                    )
                     # Non-fatal - we're at the right commit
 
             logger.info("[RunCheckpoint] Successfully rolled back run to pre-run state")
@@ -4205,6 +4427,7 @@ Just the new description that should replace the current one while preserving th
         try:
             # Log to .autonomous_runs/{run_id}/run_rollback.log
             from autopack.file_layout import RunFileLayout
+
             layout = RunFileLayout(self.run_id, project_id=self.project_id)
             layout.ensure_directories()
 
@@ -4226,10 +4449,7 @@ Just the new description that should replace the current one while preserving th
             logger.warning(f"[RunCheckpoint] Failed to write run rollback audit log: {e}")
 
     def _execute_phase_with_recovery(
-        self,
-        phase: Dict,
-        attempt_index: int = 0,
-        allowed_paths: Optional[List[str]] = None
+        self, phase: Dict, attempt_index: int = 0, allowed_paths: Optional[List[str]] = None
     ) -> Tuple[bool, str]:
         """Inner phase execution with error handling and model escalation support"""
         phase_id = phase.get("phase_id")
@@ -4305,7 +4525,9 @@ Just the new description that should replace the current one while preserving th
                 file_context = self._load_repository_context(phase)
                 # BUILD-145 P1.1: Store context for telemetry
                 self._last_file_context = file_context
-                logger.info(f"[{phase_id}] Loaded {len(file_context.get('existing_files', {}))} files for context")
+                logger.info(
+                    f"[{phase_id}] Loaded {len(file_context.get('existing_files', {}))} files for context"
+                )
 
                 # NEW: Validate scope configuration if present (GPT recommendation - Option C)
                 scope_config = phase.get("scope")
@@ -4316,6 +4538,7 @@ Just the new description that should replace the current one while preserving th
                 if "unsupported operand type(s) for /" in str(e) and "list" in str(e):
                     logger.error(f"[{phase_id}] Path/list error in context loading: {e}")
                     import traceback
+
                     logger.error(f"Traceback: {traceback.format_exc()}")
                     # Return empty context to allow execution to continue
                     file_context = {"existing_files": {}}
@@ -4332,25 +4555,25 @@ Just the new description that should replace the current one while preserving th
             # Override to structured edits if phase explicitly requests it
             if phase.get("builder_mode") == "structured_edit":
                 use_full_file_mode = False
-            
+
             if file_context:
                 config = self.builder_output_config
                 files = file_context.get("existing_files", {})
-                
+
                 # Per GPT_RESPONSE15: Simplified 2-bucket policy
                 # Bucket A: ≤1000 lines → full-file mode
                 # Bucket B: >1000 lines → fail fast (read-only context)
                 too_large = []  # Files >1000 lines - read-only context
-                
+
                 for file_path, content in files.items():
                     if not isinstance(content, str):
                         continue
-                    line_count = content.count('\n') + 1
-                    
+                    line_count = content.count("\n") + 1
+
                     # Bucket B: >1000 lines - mark as read-only context
                     if line_count > config.max_lines_hard_limit:
                         too_large.append((file_path, line_count))
-                
+
                 # For files >1000 lines: Mark as read-only context
                 # These files can be READ but NOT modified
                 # Per GPT_RESPONSE15: Fail fast with clear error until structured edit mode is implemented
@@ -4367,11 +4590,11 @@ Just the new description that should replace the current one while preserving th
                             file_path=file_path,
                             line_count=line_count,
                             limit=config.max_lines_hard_limit,
-                            bucket="B"  # Now just "too large" bucket
+                            bucket="B",  # Now just "too large" bucket
                         )
                     # Don't fail - these files can be read-only context
                     # Parser will enforce that LLM doesn't try to modify them
-                
+
                 # For large scoped contexts, prefer structured edits to avoid truncation
                 if len(files) >= 30:
                     use_full_file_mode = False
@@ -4389,7 +4612,9 @@ Just the new description that should replace the current one while preserving th
             run_hints = learning_context.get("run_hints", [])
 
             if project_rules or run_hints:
-                logger.info(f"[{phase_id}] Learning context: {len(project_rules)} rules, {len(run_hints)} hints")
+                logger.info(
+                    f"[{phase_id}] Learning context: {len(project_rules)} rules, {len(run_hints)} hints"
+                )
 
             # NEW: Retrieve supplemental context from vector memory (per IMPLEMENTATION_PLAN_MEMORY_AND_CONTEXT.md)
             retrieved_context = ""
@@ -4402,8 +4627,11 @@ Just the new description that should replace the current one while preserving th
 
                     # BUILD-154: Make SOT budget gating + telemetry explicit and non-silent
                     from autopack.config import settings
+
                     max_context_chars = max(4000, settings.autopack_sot_retrieval_max_chars + 2000)
-                    include_sot = self._should_include_sot_retrieval(max_context_chars, phase_id=phase_id)
+                    include_sot = self._should_include_sot_retrieval(
+                        max_context_chars, phase_id=phase_id
+                    )
 
                     retrieved = self.memory_service.retrieve_context(
                         query=query,
@@ -4418,7 +4646,9 @@ Just the new description that should replace the current one while preserving th
                         include_decisions=True,
                         include_sot=include_sot,
                     )
-                    retrieved_context = self.memory_service.format_retrieved_context(retrieved, max_chars=max_context_chars)
+                    retrieved_context = self.memory_service.format_retrieved_context(
+                        retrieved, max_chars=max_context_chars
+                    )
 
                     # BUILD-155: Record SOT retrieval telemetry
                     self._record_sot_retrieval_telemetry(
@@ -4430,7 +4660,9 @@ Just the new description that should replace the current one while preserving th
                     )
 
                     if retrieved_context:
-                        logger.info(f"[{phase_id}] Retrieved {len(retrieved_context)} chars of context from memory")
+                        logger.info(
+                            f"[{phase_id}] Retrieved {len(retrieved_context)} chars of context from memory"
+                        )
                 except Exception as e:
                     logger.warning(f"[{phase_id}] Memory retrieval failed: {e}")
 
@@ -4446,14 +4678,20 @@ Just the new description that should replace the current one while preserving th
                         self._intention_injector = IntentionContextInjector(
                             run_id=self.run_id,
                             project_id=project_id,
-                            memory_service=self.memory_service if hasattr(self, "memory_service") else None
+                            memory_service=(
+                                self.memory_service if hasattr(self, "memory_service") else None
+                            ),
                         )
 
                     # Get bounded intention context (≤2KB)
-                    intention_context = self._intention_injector.get_intention_context(max_chars=2048)
+                    intention_context = self._intention_injector.get_intention_context(
+                        max_chars=2048
+                    )
 
                     if intention_context:
-                        logger.info(f"[{phase_id}] Injected {len(intention_context)} chars of intention context")
+                        logger.info(
+                            f"[{phase_id}] Injected {len(intention_context)} chars of intention context"
+                        )
                         # Prepend to retrieved_context so it's visible in Builder prompt
                         if retrieved_context:
                             retrieved_context = f"{intention_context}\n\n{retrieved_context}"
@@ -4469,7 +4707,11 @@ Just the new description that should replace the current one while preserving th
                                 db = SessionLocal()
                                 try:
                                     # Determine source: memory or fallback
-                                    source = "memory" if hasattr(self, "memory_service") and self.memory_service else "fallback"
+                                    source = (
+                                        "memory"
+                                        if hasattr(self, "memory_service") and self.memory_service
+                                        else "fallback"
+                                    )
 
                                     record_phase6_metrics(
                                         db=db,
@@ -4482,7 +4724,9 @@ Just the new description that should replace the current one while preserving th
                                 finally:
                                     db.close()
                             except Exception as e:
-                                logger.warning(f"[{phase_id}] Failed to record Phase 6 telemetry: {e}")
+                                logger.warning(
+                                    f"[{phase_id}] Failed to record Phase 6 telemetry: {e}"
+                                )
 
                 except Exception as e:
                     logger.warning(f"[{phase_id}] Intention context injection failed: {e}")
@@ -4524,7 +4768,13 @@ Just the new description that should replace the current one while preserving th
                     }
                     expected_list = sorted(expected_set)
                     allowed_roots: List[str] = []
-                    preferred_roots = ("src/autopack/research/", "src/autopack/cli/", "tests/research/", "docs/research/", "examples/")
+                    preferred_roots = (
+                        "src/autopack/research/",
+                        "src/autopack/cli/",
+                        "tests/research/",
+                        "docs/research/",
+                        "examples/",
+                    )
                     for r in preferred_roots:
                         if any(p.startswith(r) for p in expected_list):
                             allowed_roots.append(r)
@@ -4551,26 +4801,38 @@ Just the new description that should replace the current one while preserving th
                                 expanded.append(root)
                         allowed_roots = expanded
 
-                    ok_manifest, manifest_paths, manifest_error, _raw = self.llm_service.generate_deliverables_manifest(
-                        expected_paths=list(expected_set),
-                        allowed_roots=allowed_roots,
-                        run_id=self.run_id,
-                        phase_id=phase_id,
-                        attempt_index=attempt_index,
+                    ok_manifest, manifest_paths, manifest_error, _raw = (
+                        self.llm_service.generate_deliverables_manifest(
+                            expected_paths=list(expected_set),
+                            allowed_roots=allowed_roots,
+                            run_id=self.run_id,
+                            phase_id=phase_id,
+                            attempt_index=attempt_index,
+                        )
                     )
                     if not ok_manifest:
                         err_details = manifest_error or "deliverables manifest gate failed"
-                        logger.error(f"[{phase_id}] Deliverables manifest gate FAILED: {err_details}")
-                        self._record_phase_error(phase, "deliverables_manifest_failed", err_details, attempt_index)
-                        self._record_learning_hint(phase, "deliverables_manifest_failed", err_details)
+                        logger.error(
+                            f"[{phase_id}] Deliverables manifest gate FAILED: {err_details}"
+                        )
+                        self._record_phase_error(
+                            phase, "deliverables_manifest_failed", err_details, attempt_index
+                        )
+                        self._record_learning_hint(
+                            phase, "deliverables_manifest_failed", err_details
+                        )
                         return False, "DELIVERABLES_VALIDATION_FAILED"
                     else:
-                        logger.info(f"[{phase_id}] Deliverables manifest gate PASSED ({len(manifest_paths or [])} paths)")
+                        logger.info(
+                            f"[{phase_id}] Deliverables manifest gate PASSED ({len(manifest_paths or [])} paths)"
+                        )
                         # Attach manifest to phase spec so Builder prompt can be constrained.
                         phase_with_constraints["deliverables_manifest"] = manifest_paths or []
             except Exception as e:
                 # Manifest gate should not crash the executor; fall back to normal builder
-                logger.warning(f"[{phase_id}] Deliverables manifest gate error (skipping gate): {e}")
+                logger.warning(
+                    f"[{phase_id}] Deliverables manifest gate error (skipping gate): {e}"
+                )
 
             # Use LlmService for complexity-based model selection with escalation
             builder_result = self.llm_service.execute_builder_phase(
@@ -4595,14 +4857,19 @@ Just the new description that should replace the current one while preserving th
 
             # [Phase C2] Extract and store patch statistics for quality gate
             from autopack.governed_apply import GovernedApplyPath
-            is_maintenance_run = self.run_type in ["autopack_maintenance", "autopack_upgrade", "self_repair"]
+
+            is_maintenance_run = self.run_type in [
+                "autopack_maintenance",
+                "autopack_upgrade",
+                "self_repair",
+            ]
             governed_apply = GovernedApplyPath(
                 workspace=Path(self.workspace),
                 run_type=self.run_type,
                 autopack_internal_mode=is_maintenance_run,
             )
-            self._last_files_changed, self._last_lines_added, self._last_lines_removed = governed_apply.parse_patch_stats(
-                builder_result.patch_content or ""
+            self._last_files_changed, self._last_lines_added, self._last_lines_removed = (
+                governed_apply.parse_patch_stats(builder_result.patch_content or "")
             )
 
             # BUILD-129 Phase 3 P10: Sync metadata from phase_spec back to phase
@@ -4624,12 +4891,13 @@ Just the new description that should replace the current one while preserving th
             ]
             error_text_lower = (builder_result.error or "").lower() if builder_result.error else ""
             # Remove use_full_file_mode requirement - format mismatches can happen with any mode
-            should_retry_structured = (
-                not builder_result.success
-                and any(m in error_text_lower for m in retry_parse_markers)
+            should_retry_structured = not builder_result.success and any(
+                m in error_text_lower for m in retry_parse_markers
             )
             if should_retry_structured:
-                logger.warning(f"[{phase_id}] Falling back to structured_edit after full-file parse/truncation failure")
+                logger.warning(
+                    f"[{phase_id}] Falling back to structured_edit after full-file parse/truncation failure"
+                )
                 phase_structured = {
                     **phase,
                     "builder_mode": "structured_edit",
@@ -4657,14 +4925,19 @@ Just the new description that should replace the current one while preserving th
 
                 # [Phase C2] Extract and store patch statistics for quality gate (fallback path)
                 from autopack.governed_apply import GovernedApplyPath
-                is_maintenance_run = self.run_type in ["autopack_maintenance", "autopack_upgrade", "self_repair"]
+
+                is_maintenance_run = self.run_type in [
+                    "autopack_maintenance",
+                    "autopack_upgrade",
+                    "self_repair",
+                ]
                 governed_apply = GovernedApplyPath(
                     workspace=Path(self.workspace),
                     run_type=self.run_type,
                     autopack_internal_mode=is_maintenance_run,
                 )
-                self._last_files_changed, self._last_lines_added, self._last_lines_removed = governed_apply.parse_patch_stats(
-                    builder_result.patch_content or ""
+                self._last_files_changed, self._last_lines_added, self._last_lines_removed = (
+                    governed_apply.parse_patch_stats(builder_result.patch_content or "")
                 )
 
                 # BUILD-129 Phase 3 P10: Sync metadata from phase_structured back to phase
@@ -4676,10 +4949,14 @@ Just the new description that should replace the current one while preserving th
             # BUILD-141 Part 8: Allow explicit full-file no-op (idempotent phase) to pass through.
             # Allow edit_plan as valid alternative to patch_content (structured edits).
             has_patch = builder_result.patch_content and builder_result.patch_content.strip()
-            has_edit_plan = hasattr(builder_result, 'edit_plan') and builder_result.edit_plan is not None
+            has_edit_plan = (
+                hasattr(builder_result, "edit_plan") and builder_result.edit_plan is not None
+            )
             if builder_result.success and not has_patch and not has_edit_plan:
                 messages = builder_result.builder_messages or []
-                no_op_structured = any("Structured edit produced no operations" in m for m in messages)
+                no_op_structured = any(
+                    "Structured edit produced no operations" in m for m in messages
+                )
                 no_op_fullfile = any("Full-file produced no diffs" in m for m in messages)
                 if not no_op_structured and not no_op_fullfile:
                     builder_result = BuilderResult(
@@ -4701,7 +4978,7 @@ Just the new description that should replace the current one while preserving th
 
             if not builder_result.success and is_empty_files_error:
                 # Check if we've already retried for empty files array (limit to 1 retry)
-                empty_files_retry_count = phase.get('_empty_files_retry_count', 0)
+                empty_files_retry_count = phase.get("_empty_files_retry_count", 0)
                 max_builder_attempts = phase.get("max_builder_attempts") or 5
 
                 if empty_files_retry_count == 0 and attempt_index < (max_builder_attempts - 1):
@@ -4709,7 +4986,7 @@ Just the new description that should replace the current one while preserving th
                         f"[{phase_id}] Empty files array detected - retrying ONCE with stronger deliverables emphasis "
                         f"(attempt {attempt_index+1}/{max_builder_attempts})"
                     )
-                    phase['_empty_files_retry_count'] = 1
+                    phase["_empty_files_retry_count"] = 1
 
                     # The prompt fix (T1) should already handle this, so just retry with same config
                     # If it fails again, the error is deterministic and we should fail fast
@@ -4722,25 +4999,42 @@ Just the new description that should replace the current one while preserving th
                     # Fall through to normal error handling
 
             # Retryable infra errors: backoff and retry without burning through non-infra budgets
-            infra_markers = ["connection error", "timeout", "timed out", "api failure", "server error", "http 500"]
+            infra_markers = [
+                "connection error",
+                "timeout",
+                "timed out",
+                "api failure",
+                "server error",
+                "http 500",
+            ]
             error_text_lower = (builder_result.error or "").lower() if builder_result.error else ""
             is_infra_error = any(m in error_text_lower for m in infra_markers)
 
             if not builder_result.success and is_infra_error:
                 backoff = min(5 * (attempt_index + 1), 20)
-                logger.warning(f"[{phase_id}] Infra error detected (retryable): {builder_result.error}. Backing off {backoff}s before retry.")
+                logger.warning(
+                    f"[{phase_id}] Infra error detected (retryable): {builder_result.error}. Backing off {backoff}s before retry."
+                )
 
                 # Provider health gating: disable provider after repeated infra errors
                 model_used = getattr(builder_result, "model_used", "") or ""
                 provider = self._model_to_provider(model_used)
                 if provider:
-                    self._provider_infra_errors[provider] = self._provider_infra_errors.get(provider, 0) + 1
+                    self._provider_infra_errors[provider] = (
+                        self._provider_infra_errors.get(provider, 0) + 1
+                    )
                     if self._provider_infra_errors[provider] >= 2:
                         try:
-                            self.llm_service.model_router.disable_provider(provider, reason="infra_error")
-                            logger.warning(f"[{phase_id}] Disabled provider {provider} for this run after repeated infra errors.")
+                            self.llm_service.model_router.disable_provider(
+                                provider, reason="infra_error"
+                            )
+                            logger.warning(
+                                f"[{phase_id}] Disabled provider {provider} for this run after repeated infra errors."
+                            )
                         except Exception as e:
-                            logger.warning(f"[{phase_id}] Failed to disable provider {provider}: {e}")
+                            logger.warning(
+                                f"[{phase_id}] Failed to disable provider {provider}: {e}"
+                            )
 
                 time.sleep(backoff)
                 return False, "INFRA_RETRY"
@@ -4757,28 +5051,32 @@ Just the new description that should replace the current one while preserving th
                 token_prediction = metadata.get("token_prediction", {})
 
                 # Check if we should escalate
-                was_truncated = getattr(builder_result, 'was_truncated', False)
+                was_truncated = getattr(builder_result, "was_truncated", False)
                 output_utilization = token_budget.get("output_utilization", 0)
-                should_escalate = (was_truncated or output_utilization >= 95.0)
+                should_escalate = was_truncated or output_utilization >= 95.0
 
                 # Check if we've already escalated once
-                already_escalated = phase.get('_escalated_once', False)
+                already_escalated = phase.get("_escalated_once", False)
 
-                if should_escalate and not already_escalated and attempt_index < (max_builder_attempts - 1):
+                if (
+                    should_escalate
+                    and not already_escalated
+                    and attempt_index < (max_builder_attempts - 1)
+                ):
                     # BUILD-129 Phase 3 P10: Escalate from highest evidence-based bound
                     # If truncation happened at ceiling, base must be at least the ceiling
                     # If high utilization, actual tokens used is the best signal
                     # Take max of: selected_budget (P7 intent), actual_max_tokens (P4 ceiling), tokens_used (actual)
 
-                    selected_budget = token_prediction.get('selected_budget', 0)
-                    actual_max_tokens = token_prediction.get('actual_max_tokens', 0)
-                    tokens_used = token_budget.get('actual_output_tokens', 0)  # From API response
+                    selected_budget = token_prediction.get("selected_budget", 0)
+                    actual_max_tokens = token_prediction.get("actual_max_tokens", 0)
+                    tokens_used = token_budget.get("actual_output_tokens", 0)  # From API response
 
                     # Determine the highest evidence-based bound
                     base_candidates = {
-                        'selected_budget': selected_budget,
-                        'actual_max_tokens': actual_max_tokens,
-                        'tokens_used': tokens_used
+                        "selected_budget": selected_budget,
+                        "actual_max_tokens": actual_max_tokens,
+                        "tokens_used": tokens_used,
                     }
 
                     # Find the max and track which source it came from
@@ -4801,22 +5099,26 @@ Just the new description that should replace the current one while preserving th
                     # Escalate by 25% (conservative to save tokens)
                     escalation_factor = 1.25
                     escalated_tokens = min(int(current_max_tokens * escalation_factor), 64000)
-                    phase['_escalated_tokens'] = escalated_tokens
-                    phase['_escalated_once'] = True  # Prevent multiple escalations
+                    phase["_escalated_tokens"] = escalated_tokens
+                    phase["_escalated_once"] = True  # Prevent multiple escalations
 
                     # Record P10 escalation details in metadata for telemetry and dashboard
                     p10_metadata = {
-                        'retry_budget_escalation_factor': escalation_factor,
-                        'p10_base_value': current_max_tokens,
-                        'p10_base_source': base_source,
-                        'p10_retry_max_tokens': escalated_tokens,
-                        'p10_selected_budget': selected_budget,
-                        'p10_actual_max_tokens': actual_max_tokens,
-                        'p10_tokens_used': tokens_used
+                        "retry_budget_escalation_factor": escalation_factor,
+                        "p10_base_value": current_max_tokens,
+                        "p10_base_source": base_source,
+                        "p10_retry_max_tokens": escalated_tokens,
+                        "p10_selected_budget": selected_budget,
+                        "p10_actual_max_tokens": actual_max_tokens,
+                        "p10_tokens_used": tokens_used,
                     }
-                    phase.setdefault('metadata', {}).setdefault('token_budget', {}).update(p10_metadata)
+                    phase.setdefault("metadata", {}).setdefault("token_budget", {}).update(
+                        p10_metadata
+                    )
 
-                    reason = "truncation" if was_truncated else f"{output_utilization:.1f}% utilization"
+                    reason = (
+                        "truncation" if was_truncated else f"{output_utilization:.1f}% utilization"
+                    )
                     logger.info(
                         f"[BUILD-129:P10] ESCALATE-ONCE: phase={phase_id} attempt={attempt_index+1} "
                         f"base={current_max_tokens} (from {base_source}) → retry={escalated_tokens} (1.25x, {reason})"
@@ -4825,9 +5127,14 @@ Just the new description that should replace the current one while preserving th
                     # BUILD-129 Phase 3: Persist P10 decision to DB (deterministic validation).
                     # This avoids relying on reproducing truncation events or scraping logs.
                     try:
-                        if os.environ.get("TELEMETRY_DB_ENABLED", "").lower() in ["1", "true", "yes"]:
+                        if os.environ.get("TELEMETRY_DB_ENABLED", "").lower() in [
+                            "1",
+                            "true",
+                            "yes",
+                        ]:
                             from autopack.database import SessionLocal
                             from autopack.models import TokenBudgetEscalationEvent
+
                             session = SessionLocal()
                             try:
                                 evt = TokenBudgetEscalationEvent(
@@ -4836,13 +5143,21 @@ Just the new description that should replace the current one while preserving th
                                     attempt_index=attempt_index + 1,
                                     reason="truncation" if was_truncated else "utilization",
                                     was_truncated=bool(was_truncated),
-                                    output_utilization=float(output_utilization) if output_utilization is not None else None,
+                                    output_utilization=(
+                                        float(output_utilization)
+                                        if output_utilization is not None
+                                        else None
+                                    ),
                                     escalation_factor=float(escalation_factor),
                                     base_value=int(current_max_tokens),
                                     base_source=str(base_source),
                                     retry_max_tokens=int(escalated_tokens),
-                                    selected_budget=int(selected_budget) if selected_budget else None,
-                                    actual_max_tokens=int(actual_max_tokens) if actual_max_tokens else None,
+                                    selected_budget=(
+                                        int(selected_budget) if selected_budget else None
+                                    ),
+                                    actual_max_tokens=(
+                                        int(actual_max_tokens) if actual_max_tokens else None
+                                    ),
                                     tokens_used=int(tokens_used) if tokens_used else None,
                                 )
                                 session.add(evt)
@@ -4853,7 +5168,9 @@ Just the new description that should replace the current one while preserving th
                                 except Exception:
                                     pass
                     except Exception as e:
-                        logger.warning(f"[BUILD-129:P10] Failed to write DB escalation telemetry: {e}")
+                        logger.warning(
+                            f"[BUILD-129:P10] Failed to write DB escalation telemetry: {e}"
+                        )
 
                     # Skip Doctor invocation for truncation/high-util - just retry with more tokens
                     # Return False to trigger retry in the calling loop
@@ -4863,7 +5180,15 @@ Just the new description that should replace the current one while preserving th
                 error_text = (builder_result.error or "").lower()
                 if "churn_limit_exceeded" in error_text:
                     error_category = "builder_churn_limit_exceeded"
-                elif any(g in error_text for g in ["suspicious_growth", "suspicious_shrinkage", "truncation", "pack_fullfile"]):
+                elif any(
+                    g in error_text
+                    for g in [
+                        "suspicious_growth",
+                        "suspicious_shrinkage",
+                        "truncation",
+                        "pack_fullfile",
+                    ]
+                ):
                     error_category = "builder_guardrail"
                 else:
                     error_category = "auditor_reject"
@@ -4943,9 +5268,14 @@ Just the new description that should replace the current one while preserving th
             # This prevents Builder from creating files in wrong locations
             scope_config = phase.get("scope", {})
             # If we computed a manifest for this attempt, pass it into deliverables validation so we can enforce consistency.
-            if isinstance(phase_with_constraints.get("deliverables_manifest"), list) and phase_with_constraints.get("deliverables_manifest"):
+            if isinstance(
+                phase_with_constraints.get("deliverables_manifest"), list
+            ) and phase_with_constraints.get("deliverables_manifest"):
                 try:
-                    scope_config = {**(scope_config or {}), "deliverables_manifest": phase_with_constraints["deliverables_manifest"]}
+                    scope_config = {
+                        **(scope_config or {}),
+                        "deliverables_manifest": phase_with_constraints["deliverables_manifest"],
+                    }
                 except Exception:
                     pass
 
@@ -4980,7 +5310,7 @@ Just the new description that should replace the current one while preserving th
                 feedback = format_validation_feedback_for_builder(
                     errors=validation_errors,
                     details=validation_details,
-                    phase_description=phase.get("description", "")
+                    phase_description=phase.get("description", ""),
                 )
 
                 logger.error(f"[{phase_id}] Deliverables validation failed")
@@ -4997,10 +5327,14 @@ Just the new description that should replace the current one while preserving th
 
                     was_truncated = getattr(builder_result, "was_truncated", False)
                     output_utilization = token_budget.get("output_utilization", 0) or 0
-                    should_escalate = (was_truncated or output_utilization >= 95.0)
+                    should_escalate = was_truncated or output_utilization >= 95.0
                     already_escalated = phase.get("_escalated_once", False)
 
-                    if should_escalate and not already_escalated and attempt_index < (max_builder_attempts - 1):
+                    if (
+                        should_escalate
+                        and not already_escalated
+                        and attempt_index < (max_builder_attempts - 1)
+                    ):
                         selected_budget = token_prediction.get("selected_budget", 0)
                         actual_max_tokens = token_prediction.get("actual_max_tokens", 0)
                         tokens_used = token_budget.get("actual_output_tokens", 0)
@@ -5040,9 +5374,15 @@ Just the new description that should replace the current one while preserving th
                             "p10_actual_max_tokens": actual_max_tokens,
                             "p10_tokens_used": tokens_used,
                         }
-                        phase.setdefault("metadata", {}).setdefault("token_budget", {}).update(p10_metadata)
+                        phase.setdefault("metadata", {}).setdefault("token_budget", {}).update(
+                            p10_metadata
+                        )
 
-                        reason = "truncation" if was_truncated else f"{output_utilization:.1f}% utilization"
+                        reason = (
+                            "truncation"
+                            if was_truncated
+                            else f"{output_utilization:.1f}% utilization"
+                        )
                         logger.info(
                             f"[BUILD-129:P10] ESCALATE-ONCE: phase={phase_id} attempt={attempt_index+1} "
                             f"base={current_max_tokens} (from {base_source}) → retry={escalated_tokens} (1.25x, {reason})"
@@ -5050,7 +5390,11 @@ Just the new description that should replace the current one while preserving th
 
                         # Persist P10 decision to DB (deterministic validation).
                         try:
-                            if os.environ.get("TELEMETRY_DB_ENABLED", "").lower() in ["1", "true", "yes"]:
+                            if os.environ.get("TELEMETRY_DB_ENABLED", "").lower() in [
+                                "1",
+                                "true",
+                                "yes",
+                            ]:
                                 from autopack.database import SessionLocal
                                 from autopack.models import TokenBudgetEscalationEvent
 
@@ -5062,15 +5406,21 @@ Just the new description that should replace the current one while preserving th
                                         attempt_index=attempt_index + 1,
                                         reason="truncation" if was_truncated else "utilization",
                                         was_truncated=bool(was_truncated),
-                                        output_utilization=float(output_utilization)
-                                        if output_utilization is not None
-                                        else None,
+                                        output_utilization=(
+                                            float(output_utilization)
+                                            if output_utilization is not None
+                                            else None
+                                        ),
                                         escalation_factor=float(escalation_factor),
                                         base_value=int(current_max_tokens),
                                         base_source=str(base_source),
                                         retry_max_tokens=int(escalated_tokens),
-                                        selected_budget=int(selected_budget) if selected_budget else None,
-                                        actual_max_tokens=int(actual_max_tokens) if actual_max_tokens else None,
+                                        selected_budget=(
+                                            int(selected_budget) if selected_budget else None
+                                        ),
+                                        actual_max_tokens=(
+                                            int(actual_max_tokens) if actual_max_tokens else None
+                                        ),
                                         tokens_used=int(tokens_used) if tokens_used else None,
                                     )
                                     session.add(evt)
@@ -5081,11 +5431,15 @@ Just the new description that should replace the current one while preserving th
                                     except Exception:
                                         pass
                         except Exception as e:
-                            logger.warning(f"[BUILD-129:P10] Failed to write DB escalation telemetry: {e}")
+                            logger.warning(
+                                f"[BUILD-129:P10] Failed to write DB escalation telemetry: {e}"
+                            )
 
                         return False, "TOKEN_ESCALATION"
                 except Exception as e:
-                    logger.warning(f"[BUILD-129:P10] Deliverables-failure escalation check failed: {e}")
+                    logger.warning(
+                        f"[BUILD-129:P10] Deliverables-failure escalation check failed: {e}"
+                    )
 
                 # Create a Builder result with validation error for retry
                 builder_result = BuilderResult(
@@ -5095,11 +5449,11 @@ Just the new description that should replace the current one while preserving th
                         "DELIVERABLES_VALIDATION_FAILED",
                         feedback,
                         f"Expected files: {', '.join(validation_details.get('expected_paths', [])[:5])}",
-                        f"Your patch created: {', '.join(validation_details.get('actual_paths', [])[:5])}"
+                        f"Your patch created: {', '.join(validation_details.get('actual_paths', [])[:5])}",
                     ],
                     tokens_used=builder_result.tokens_used,
                     model_used=getattr(builder_result, "model_used", None),
-                    error=f"Deliverables validation failed: {len(validation_details.get('missing_paths', []))} required files missing"
+                    error=f"Deliverables validation failed: {len(validation_details.get('missing_paths', []))} required files missing",
                 )
 
                 # Post failure to API and return for retry
@@ -5107,18 +5461,19 @@ Just the new description that should replace the current one while preserving th
 
                 # Record as learning hint for future phases
                 # Generate a hint that emphasizes the path structure pattern
-                missing_paths = validation_details.get('missing_paths', [])
-                misplaced = validation_details.get('misplaced_paths', {})
+                missing_paths = validation_details.get("missing_paths", [])
+                misplaced = validation_details.get("misplaced_paths", {})
 
                 hint_details = []
 
                 # If there are misplaced files, emphasize the path correction
                 if misplaced:
                     # Find common prefix in expected paths to show the pattern
-                    expected_paths = validation_details.get('expected_paths', [])
+                    expected_paths = validation_details.get("expected_paths", [])
                     if expected_paths:
                         # Get common directory prefix
                         from os.path import commonpath
+
                         try:
                             common_prefix = commonpath(expected_paths)
                             hint_details.append(f"All files must be under: {common_prefix}/")
@@ -5138,19 +5493,23 @@ Just the new description that should replace the current one while preserving th
                         "DO NOT create a top-level 'tracer_bullet/' package. "
                         "All tracer bullet code MUST live under 'src/autopack/research/tracer_bullet/'. "
                         "Tests MUST live under 'tests/research/tracer_bullet/'. "
-                        "Docs MUST live under 'docs/research/'."
+                        "Docs MUST live under 'docs/research/'.",
                     )
 
                 # If still space, add first few missing files
                 if len(hint_details) < 3 and missing_paths:
-                    hint_details.append(f"Missing {len(missing_paths)} files including: {', '.join(missing_paths[:3])}")
+                    hint_details.append(
+                        f"Missing {len(missing_paths)} files including: {', '.join(missing_paths[:3])}"
+                    )
 
-                hint_text = "; ".join(hint_details) if hint_details else f"Missing: {', '.join(missing_paths[:3])}"
+                hint_text = (
+                    "; ".join(hint_details)
+                    if hint_details
+                    else f"Missing: {', '.join(missing_paths[:3])}"
+                )
 
                 self._record_learning_hint(
-                    phase=phase,
-                    hint_type="deliverables_validation_failed",
-                    details=hint_text
+                    phase=phase, hint_type="deliverables_validation_failed", details=hint_text
                 )
 
                 # Return False to trigger retry with validation feedback
@@ -5158,7 +5517,10 @@ Just the new description that should replace the current one while preserving th
 
             # BUILD-070: Pre-apply validation for new JSON deliverables (avoid burning attempts on apply corruption)
             try:
-                from .deliverables_validator import extract_deliverables_from_scope, validate_new_json_deliverables_in_patch
+                from .deliverables_validator import (
+                    extract_deliverables_from_scope,
+                    validate_new_json_deliverables_in_patch,
+                )
 
                 expected_paths = extract_deliverables_from_scope(scope_config or {})
                 ok_json, json_errors, json_details = validate_new_json_deliverables_in_patch(
@@ -5169,25 +5531,35 @@ Just the new description that should replace the current one while preserving th
                 if not ok_json:
                     # BUILD-075: Auto-repair empty/invalid required JSON deliverables (gold_set.json) to minimal valid JSON.
                     try:
-                        from .deliverables_validator import repair_empty_required_json_deliverables_in_patch
-
-                        repaired, repaired_patch, repairs = repair_empty_required_json_deliverables_in_patch(
-                            patch_content=builder_result.patch_content or "",
-                            expected_paths=expected_paths,
-                            workspace=Path(self.workspace),
-                            minimal_json="[]\n",
+                        from .deliverables_validator import (
+                            repair_empty_required_json_deliverables_in_patch,
                         )
-                        if repaired:
-                            logger.warning(f"[{phase_id}] Auto-repaired {len(repairs)} required JSON deliverable(s) to minimal valid JSON")
-                            for r in repairs[:5]:
-                                logger.warning(f"[{phase_id}]    repaired {r.get('path')}: {r.get('reason')} -> {r.get('applied')}")
 
-                            builder_result.patch_content = repaired_patch
-
-                            ok_json2, json_errors2, json_details2 = validate_new_json_deliverables_in_patch(
+                        repaired, repaired_patch, repairs = (
+                            repair_empty_required_json_deliverables_in_patch(
                                 patch_content=builder_result.patch_content or "",
                                 expected_paths=expected_paths,
                                 workspace=Path(self.workspace),
+                                minimal_json="[]\n",
+                            )
+                        )
+                        if repaired:
+                            logger.warning(
+                                f"[{phase_id}] Auto-repaired {len(repairs)} required JSON deliverable(s) to minimal valid JSON"
+                            )
+                            for r in repairs[:5]:
+                                logger.warning(
+                                    f"[{phase_id}]    repaired {r.get('path')}: {r.get('reason')} -> {r.get('applied')}"
+                                )
+
+                            builder_result.patch_content = repaired_patch
+
+                            ok_json2, json_errors2, json_details2 = (
+                                validate_new_json_deliverables_in_patch(
+                                    patch_content=builder_result.patch_content or "",
+                                    expected_paths=expected_paths,
+                                    workspace=Path(self.workspace),
+                                )
                             )
                             if ok_json2:
                                 self._record_learning_hint(
@@ -5202,7 +5574,9 @@ Just the new description that should replace the current one while preserving th
                                 json_errors = json_errors2
                                 json_details = json_details2
                     except Exception as e:
-                        logger.warning(f"[{phase_id}] Auto-repair for JSON deliverables skipped due to error: {e}")
+                        logger.warning(
+                            f"[{phase_id}] Auto-repair for JSON deliverables skipped due to error: {e}"
+                        )
 
                 if not ok_json:
                     logger.error(f"[{phase_id}] Pre-apply JSON deliverables validation failed")
@@ -5225,7 +5599,10 @@ Just the new description that should replace the current one while preserving th
                     builder_result = BuilderResult(
                         success=False,
                         patch_content="",
-                        builder_messages=["DELIVERABLES_VALIDATION_FAILED", "\n".join(feedback_lines)],
+                        builder_messages=[
+                            "DELIVERABLES_VALIDATION_FAILED",
+                            "\n".join(feedback_lines),
+                        ],
                         tokens_used=builder_result.tokens_used,
                         model_used=getattr(builder_result, "model_used", None),
                         error="Deliverables JSON validation failed",
@@ -5244,7 +5621,11 @@ Just the new description that should replace the current one while preserving th
             self._post_builder_result(phase_id, builder_result, allowed_paths)
 
             # BUILD-113 Proactive Mode: Assess patch before applying (if enabled)
-            if self.enable_autonomous_fixes and getattr(self, "iterative_investigator", None) and (builder_result.patch_content or getattr(builder_result, "edit_plan", None)):
+            if (
+                self.enable_autonomous_fixes
+                and getattr(self, "iterative_investigator", None)
+                and (builder_result.patch_content or getattr(builder_result, "edit_plan", None))
+            ):
                 logger.info(f"[BUILD-113] Running proactive decision analysis for {phase_id}")
 
                 try:
@@ -5268,7 +5649,7 @@ Just the new description that should replace the current one while preserving th
                     decision = decision_maker.make_proactive_decision(
                         patch_content=builder_result.patch_content,
                         edit_plan=getattr(builder_result, "edit_plan", None),
-                        phase_spec=phase_spec
+                        phase_spec=phase_spec,
                     )
 
                     logger.info(
@@ -5279,11 +5660,12 @@ Just the new description that should replace the current one while preserving th
 
                     if decision.type == DecisionType.CLEAR_FIX:
                         # Auto-apply low/medium risk patch with high confidence
-                        logger.info("[BUILD-113] CLEAR_FIX decision - auto-applying patch via DecisionExecutor")
+                        logger.info(
+                            "[BUILD-113] CLEAR_FIX decision - auto-applying patch via DecisionExecutor"
+                        )
 
                         execution_result = self.decision_executor.execute_decision(
-                            decision=decision,
-                            phase_spec=phase_spec
+                            decision=decision, phase_spec=phase_spec
                         )
 
                         if execution_result.success:
@@ -5306,31 +5688,37 @@ Just the new description that should replace the current one while preserving th
 
                     elif decision.type == DecisionType.RISKY:
                         # High-risk patch - request approval BEFORE applying
-                        logger.info("[BUILD-113] RISKY decision - requesting human approval before applying patch")
+                        logger.info(
+                            "[BUILD-113] RISKY decision - requesting human approval before applying patch"
+                        )
 
                         approval_granted = self._request_build113_approval(
                             phase_id=phase_id,
                             decision=decision,
                             patch_content=builder_result.patch_content,
-                            timeout_seconds=3600
+                            timeout_seconds=3600,
                         )
 
                         if not approval_granted:
-                            logger.error("[BUILD-113] High-risk patch denied or timed out - blocking phase")
+                            logger.error(
+                                "[BUILD-113] High-risk patch denied or timed out - blocking phase"
+                            )
                             self._update_phase_status(phase_id, "BLOCKED")
                             return False, "BUILD113_APPROVAL_DENIED"
 
-                        logger.info("[BUILD-113] High-risk patch approved - continuing with standard flow")
+                        logger.info(
+                            "[BUILD-113] High-risk patch approved - continuing with standard flow"
+                        )
                         # Continue to standard patch application below
 
                     elif decision.type == DecisionType.AMBIGUOUS:
                         # Ambiguous - ask clarifying questions
-                        logger.info("[BUILD-113] AMBIGUOUS decision - requesting human clarification")
+                        logger.info(
+                            "[BUILD-113] AMBIGUOUS decision - requesting human clarification"
+                        )
 
                         clarification = self._request_build113_clarification(
-                            phase_id=phase_id,
-                            decision=decision,
-                            timeout_seconds=3600
+                            phase_id=phase_id, decision=decision, timeout_seconds=3600
                         )
 
                         if not clarification:
@@ -5338,7 +5726,9 @@ Just the new description that should replace the current one while preserving th
                             self._update_phase_status(phase_id, "BLOCKED")
                             return False, "BUILD113_CLARIFICATION_TIMEOUT"
 
-                        logger.info("[BUILD-113] Human clarification received - continuing with standard flow")
+                        logger.info(
+                            "[BUILD-113] Human clarification received - continuing with standard flow"
+                        )
                         # Continue to standard patch application below
 
                 except Exception as e:
@@ -5355,33 +5745,42 @@ Just the new description that should replace the current one while preserving th
             if builder_result.edit_plan:
                 # Structured edit mode (Stage 2) - per IMPLEMENTATION_PLAN3.md Phase 4
                 from autopack.structured_edits import StructuredEditApplicator
-                
+
                 ops_planned = len(builder_result.edit_plan.operations)
                 touched_paths = sorted(
-                    {getattr(op, "file_path", "") for op in builder_result.edit_plan.operations if getattr(op, "file_path", "")}
+                    {
+                        getattr(op, "file_path", "")
+                        for op in builder_result.edit_plan.operations
+                        if getattr(op, "file_path", "")
+                    }
                 )
-                logger.info(f"[{phase_id}] Applying structured edit plan with {ops_planned} operations")
-                
+                logger.info(
+                    f"[{phase_id}] Applying structured edit plan with {ops_planned} operations"
+                )
+
                 # Get file contents from context
                 file_contents = {}
                 if file_context:
                     file_contents = file_context.get("existing_files", {})
-                
+
                 # Apply structured edits
                 applicator = StructuredEditApplicator(workspace=Path(self.workspace))
                 edit_result = applicator.apply_edit_plan(
-                    plan=builder_result.edit_plan,
-                    file_contents=file_contents,
-                    dry_run=False
+                    plan=builder_result.edit_plan, file_contents=file_contents, dry_run=False
                 )
-                
+
                 if not edit_result.success:
-                    error_msg = edit_result.error_message or f"{edit_result.operations_failed} operations failed"
+                    error_msg = (
+                        edit_result.error_message
+                        or f"{edit_result.operations_failed} operations failed"
+                    )
                     logger.error(f"[{phase_id}] Failed to apply structured edits: {error_msg}")
                     self._update_phase_status(phase_id, "FAILED")
                     return False, "STRUCTURED_EDIT_FAILED"
-                
-                logger.info(f"[{phase_id}] Structured edits applied successfully ({edit_result.operations_applied} operations)")
+
+                logger.info(
+                    f"[{phase_id}] Structured edits applied successfully ({edit_result.operations_applied} operations)"
+                )
                 apply_stats = {
                     "mode": "structured_edit",
                     "operations_planned": ops_planned,
@@ -5407,10 +5806,15 @@ Just the new description that should replace the current one while preserving th
                 # Check if patch contains YAML/compose files and validate them before apply
                 patch_content = builder_result.patch_content or ""
                 yaml_validation_failed = False
-                if ".yaml" in patch_content.lower() or ".yml" in patch_content.lower() or "compose" in patch_content.lower():
+                if (
+                    ".yaml" in patch_content.lower()
+                    or ".yml" in patch_content.lower()
+                    or "compose" in patch_content.lower()
+                ):
                     try:
                         # Extract YAML content from patch (look for full-file JSON or diff hunks)
                         import json as json_mod
+
                         try:
                             parsed = json_mod.loads(patch_content)
                             if isinstance(parsed, dict) and "files" in parsed:
@@ -5418,15 +5822,22 @@ Just the new description that should replace the current one while preserving th
                                     file_path = file_entry.get("path", "")
                                     if file_path.endswith((".yaml", ".yml")):
                                         content = file_entry.get("content", "")
-                                        if "compose" in file_path.lower() or "docker" in file_path.lower():
+                                        if (
+                                            "compose" in file_path.lower()
+                                            or "docker" in file_path.lower()
+                                        ):
                                             result = validate_docker_compose(content, file_path)
                                         else:
                                             result = validate_yaml_syntax(content, file_path)
                                         if not result.valid:
-                                            logger.error(f"[{phase_id}] YAML validation failed for {file_path}: {result.errors}")
+                                            logger.error(
+                                                f"[{phase_id}] YAML validation failed for {file_path}: {result.errors}"
+                                            )
                                             yaml_validation_failed = True
                                         elif result.warnings:
-                                            logger.warning(f"[{phase_id}] YAML warnings for {file_path}: {result.warnings}")
+                                            logger.warning(
+                                                f"[{phase_id}] YAML warnings for {file_path}: {result.warnings}"
+                                            )
                         except json_mod.JSONDecodeError:
                             pass  # Not JSON format, skip validation
                     except Exception as yaml_e:
@@ -5439,7 +5850,7 @@ Just the new description that should replace the current one while preserving th
 
                 # NEW: Goal drift check (per IMPLEMENTATION_PLAN_MEMORY_AND_CONTEXT.md)
                 # Check if change drifts from run's goal anchor
-                goal_anchor = getattr(self, '_run_goal_anchor', None)
+                goal_anchor = getattr(self, "_run_goal_anchor", None)
                 if goal_anchor:
                     change_intent = phase.get("description", "")[:200]
                     should_block, drift_message = should_block_on_drift(goal_anchor, change_intent)
@@ -5451,7 +5862,11 @@ Just the new description that should replace the current one while preserving th
                         logger.warning(f"[{phase_id}] {drift_message}")
 
                 # Enable internal mode for maintenance run types
-                is_maintenance_run = self.run_type in ["autopack_maintenance", "autopack_upgrade", "self_repair"]
+                is_maintenance_run = self.run_type in [
+                    "autopack_maintenance",
+                    "autopack_upgrade",
+                    "self_repair",
+                ]
 
                 # NEW: Extract scope_paths for Option C Layer 2 validation
                 scope_config = phase.get("scope")
@@ -5468,13 +5883,20 @@ Just the new description that should replace the current one while preserving th
                         expected_paths = extract_deliverables_from_scope(scope_config or {})
                         expected_set = {p for p in expected_paths if isinstance(p, str)}
                         derived_allowed: List[str] = []
-                        for r in ("src/autopack/research/", "src/autopack/cli/", "tests/research/", "docs/research/"):
+                        for r in (
+                            "src/autopack/research/",
+                            "src/autopack/cli/",
+                            "tests/research/",
+                            "docs/research/",
+                        ):
                             if any(p.startswith(r) for p in expected_set):
                                 derived_allowed.append(r)
                         if derived_allowed:
                             allowed_paths = derived_allowed
                     except Exception as e:
-                        logger.debug(f"[{phase_id}] Failed to derive allowed_paths from deliverables: {e}")
+                        logger.debug(
+                            f"[{phase_id}] Failed to derive allowed_paths from deliverables: {e}"
+                        )
 
                 governed_apply = GovernedApplyPath(
                     workspace=Path(self.workspace),
@@ -5485,8 +5907,7 @@ Just the new description that should replace the current one while preserving th
                 )
                 # Per GPT_RESPONSE15: Pass full_file_mode=True since we're using full-file mode for all files ≤1000 lines
                 patch_success, error_msg = governed_apply.apply_patch(
-                    builder_result.patch_content,
-                    full_file_mode=True
+                    builder_result.patch_content, full_file_mode=True
                 )
                 patch_len = len(builder_result.patch_content or "")
                 apply_stats = {
@@ -5511,7 +5932,9 @@ Just the new description that should replace the current one while preserving th
                         logger.info(f"[{phase_id}] Governance request approved, patch applied")
                     else:
                         # Regular patch failure or governance denied
-                        logger.error(f"[{phase_id}] Failed to apply patch to filesystem: {error_msg}")
+                        logger.error(
+                            f"[{phase_id}] Failed to apply patch to filesystem: {error_msg}"
+                        )
                         self._update_phase_status(phase_id, "FAILED")
                         return False, "PATCH_FAILED"
                 else:
@@ -5555,12 +5978,16 @@ Just the new description that should replace the current one while preserving th
                 phase_id=phase_id,
                 run_context=self._build_run_context(),  # [Phase C3] Include model overrides if specified  # TODO: Pass model_overrides if specified
                 ci_result=ci_result,  # Now passing real CI results!
-                coverage_delta=self._compute_coverage_delta(ci_result),  # [Phase C4] Coverage delta computation
+                coverage_delta=self._compute_coverage_delta(
+                    ci_result
+                ),  # [Phase C4] Coverage delta computation
                 attempt_index=attempt_index,  # Pass attempt for model escalation
             )
 
-            logger.info(f"[{phase_id}] Auditor completed: approved={auditor_result.approved}, "
-                       f"issues={len(auditor_result.issues_found)}")
+            logger.info(
+                f"[{phase_id}] Auditor completed: approved={auditor_result.approved}, "
+                f"issues={len(auditor_result.issues_found)}"
+            )
 
             # Post auditor result to API
             self._post_auditor_result(phase_id, auditor_result)
@@ -5576,7 +6003,9 @@ Just the new description that should replace the current one while preserving th
                     "issues_found": auditor_result.issues_found,
                 },
                 ci_result=ci_result,  # Now passing real CI results!
-                coverage_delta=self._compute_coverage_delta(ci_result),  # [Phase C4] Coverage delta computation
+                coverage_delta=self._compute_coverage_delta(
+                    ci_result
+                ),  # [Phase C4] Coverage delta computation
                 patch_content=builder_result.patch_content,
                 files_changed=self._last_files_changed,
             )
@@ -5590,15 +6019,21 @@ Just the new description that should replace the current one while preserving th
 
                 if net_deletion > 50:
                     # Create automatic save point before large deletions
-                    logger.info(f"[{phase_id}] Large deletion detected ({net_deletion} lines) - creating save point")
+                    logger.info(
+                        f"[{phase_id}] Large deletion detected ({net_deletion} lines) - creating save point"
+                    )
                     save_point_tag = self._create_deletion_save_point(phase_id, net_deletion)
                     if save_point_tag:
                         logger.info(f"[{phase_id}] Save point created: {save_point_tag}")
 
                 # Send notification for 100-200 line deletions (informational only)
-                if checks.get("deletion_notification_needed") and not checks.get("deletion_approval_required"):
+                if checks.get("deletion_notification_needed") and not checks.get(
+                    "deletion_approval_required"
+                ):
                     # Send informational notification (don't block)
-                    logger.info(f"[{phase_id}] Large deletion detected (100+ lines) - sending notification")
+                    logger.info(
+                        f"[{phase_id}] Large deletion detected (100+ lines) - sending notification"
+                    )
                     self._send_deletion_notification(phase_id, quality_report)
 
             # Check if blocked (due to CI failure or other issues)
@@ -5612,7 +6047,7 @@ Just the new description that should replace the current one while preserving th
                 approval_granted = self._request_human_approval(
                     phase_id=phase_id,
                     quality_report=quality_report,
-                    timeout_seconds=3600  # 1 hour timeout
+                    timeout_seconds=3600,  # 1 hour timeout
                 )
 
                 if not approval_granted:
@@ -5629,6 +6064,7 @@ Just the new description that should replace the current one while preserving th
             if patch_success and builder_result.patch_content:
                 try:
                     from autopack.governed_apply import parse_patch_stats
+
                     applied_files, _, _ = parse_patch_stats(builder_result.patch_content)
                     logger.info(f"[{phase_id}] Applied files: {applied_files}")
                 except Exception as e:
@@ -5656,12 +6092,12 @@ Just the new description that should replace the current one while preserving th
                 },
                 auditor_result={
                     "approved": auditor_result.approved,
-                    "issues_found": auditor_result.issues_found
+                    "issues_found": auditor_result.issues_found,
                 },
                 deliverables=phase.get("deliverables", []),
                 applied_files=applied_files,
                 workspace=Path(self.workspace),
-                apply_stats=finalizer_apply_stats
+                apply_stats=finalizer_apply_stats,
             )
 
             # Handle finalization decision
@@ -5693,7 +6129,7 @@ Just the new description that should replace the current one while preserving th
                         state=finalization_decision.status,
                         task_category=phase.get("task_category"),
                         complexity=phase.get("complexity"),
-                        issues_lines=issues_lines
+                        issues_lines=issues_lines,
                     )
                 except Exception as e:
                     logger.warning(f"[{phase_id}] Failed to write phase summary with issues: {e}")
@@ -5724,13 +6160,13 @@ Just the new description that should replace the current one while preserving th
             # Log build event to CONSOLIDATED_BUILD.md
             try:
                 phase_name = phase.get("name", phase_id)
-                builder_tokens = getattr(builder_result, 'tokens_used', 0)
+                builder_tokens = getattr(builder_result, "tokens_used", 0)
                 log_build_event(
                     event_type="PHASE_COMPLETE",
                     description=f"Phase {phase_id} ({phase_name}) completed. Builder: {builder_tokens} tokens. Auditor: {'approved' if auditor_result.approved else 'rejected'} ({len(auditor_result.issues_found)} issues). Quality: {quality_report.quality_level}",
                     deliverables=[f"Run: {self.run_id}", f"Phase: {phase_id}"],
                     token_usage={"builder": builder_tokens},
-                    project_slug=self._get_project_slug()
+                    project_slug=self._get_project_slug(),
                 )
             except Exception as e:
                 logger.warning(f"[{phase_id}] Failed to log build event: {e}")
@@ -5744,7 +6180,11 @@ Just the new description that should replace the current one while preserving th
                     changes = []  # TODO: Extract changed files from builder_result
                     # ci_result is a dict returned by _run_ci_checks with a boolean "passed" field
                     # (or skipped=True for skipped CI).
-                    ci_success = bool(ci_result.get("passed", False)) if isinstance(ci_result, dict) else False
+                    ci_success = (
+                        bool(ci_result.get("passed", False))
+                        if isinstance(ci_result, dict)
+                        else False
+                    )
                     ci_result = "pass" if ci_success else "fail"
 
                     self.memory_service.write_phase_summary(
@@ -5764,14 +6204,19 @@ Just the new description that should replace the current one while preserving th
 
         except Exception as e:
             import traceback
+
             error_traceback = traceback.format_exc()
             error_msg = str(e)
-            
+
             # Check if this is the Path/list error we're tracking
             if "unsupported operand type(s) for /" in error_msg and "list" in error_msg:
-                logger.error(f"[{phase_id}] Path/list TypeError detected:\n{error_msg}\nFull traceback:\n{error_traceback}")
+                logger.error(
+                    f"[{phase_id}] Path/list TypeError detected:\n{error_msg}\nFull traceback:\n{error_traceback}"
+                )
             else:
-                logger.error(f"[{phase_id}] Execution failed: {error_msg}\nTraceback:\n{error_traceback}")
+                logger.error(
+                    f"[{phase_id}] Execution failed: {error_msg}\nTraceback:\n{error_traceback}"
+                )
 
             # Log ALL exceptions to debug journal for tracking
             log_error(
@@ -5780,7 +6225,7 @@ Just the new description that should replace the current one while preserving th
                 run_id=self.run_id,
                 phase_id=phase_id,
                 suspected_cause="Unhandled exception in _execute_phase_with_recovery",
-                priority="HIGH"
+                priority="HIGH",
             )
 
             # NEW: Post-phase hook - write error to vector memory
@@ -5825,7 +6270,9 @@ Just the new description that should replace the current one while preserving th
 
         # Load repository context for Builder
         file_context = self._load_repository_context(phase)
-        logger.info(f"[{phase_id}] Loaded {len(file_context.get('existing_files', {}))} files for context")
+        logger.info(
+            f"[{phase_id}] Loaded {len(file_context.get('existing_files', {}))} files for context"
+        )
 
         # Pre-flight policy (keep aligned with main execution path)
         use_full_file_mode = True
@@ -5838,7 +6285,9 @@ Just the new description that should replace the current one while preserving th
         project_rules = learning_context.get("project_rules", [])
         run_hints = learning_context.get("run_hints", [])
         if project_rules or run_hints:
-            logger.info(f"[{phase_id}] Learning context: {len(project_rules)} rules, {len(run_hints)} hints")
+            logger.info(
+                f"[{phase_id}] Learning context: {len(project_rules)} rules, {len(run_hints)} hints"
+            )
 
         retrieved_context = ""
         if self.memory_service and self.memory_service.enabled:
@@ -5849,8 +6298,11 @@ Just the new description that should replace the current one while preserving th
 
                 # BUILD-154: Make SOT budget gating + telemetry explicit and non-silent
                 from autopack.config import settings
+
                 max_context_chars = max(4000, settings.autopack_sot_retrieval_max_chars + 2000)
-                include_sot = self._should_include_sot_retrieval(max_context_chars, phase_id=phase_id)
+                include_sot = self._should_include_sot_retrieval(
+                    max_context_chars, phase_id=phase_id
+                )
 
                 retrieved = self.memory_service.retrieve_context(
                     query=query,
@@ -5865,7 +6317,9 @@ Just the new description that should replace the current one while preserving th
                     include_decisions=True,
                     include_sot=include_sot,
                 )
-                retrieved_context = self.memory_service.format_retrieved_context(retrieved, max_chars=max_context_chars)
+                retrieved_context = self.memory_service.format_retrieved_context(
+                    retrieved, max_chars=max_context_chars
+                )
 
                 # BUILD-155: Record SOT retrieval telemetry
                 self._record_sot_retrieval_telemetry(
@@ -5877,7 +6331,9 @@ Just the new description that should replace the current one while preserving th
                 )
 
                 if retrieved_context:
-                    logger.info(f"[{phase_id}] Retrieved {len(retrieved_context)} chars of context from memory")
+                    logger.info(
+                        f"[{phase_id}] Retrieved {len(retrieved_context)} chars of context from memory"
+                    )
             except Exception as e:
                 logger.warning(f"[{phase_id}] Memory retrieval failed: {e}")
 
@@ -5902,7 +6358,9 @@ Just the new description that should replace the current one while preserving th
             logger.info(f"[{phase_id}] Batch {idx}/{len(batches)}: {len(batch_paths)} deliverables")
 
             # Use batch scope with only "paths" to avoid extract_deliverables_from_scope pulling the full deliverables dict.
-            batch_scope = {k: v for k, v in (scope_base or {}).items() if k not in ("deliverables", "paths")}
+            batch_scope = {
+                k: v for k, v in (scope_base or {}).items() if k not in ("deliverables", "paths")
+            }
             batch_scope["paths"] = list(batch_paths)
             phase_for_batch = {**phase, "scope": batch_scope}
 
@@ -5942,13 +6400,17 @@ Just the new description that should replace the current one while preserving th
                             if proc.returncode == 0 and (proc.stdout or "").strip():
                                 batch_patches.append(proc.stdout)
                         except Exception as e:
-                            logger.warning(f"[{phase_id}] Failed to compute scoped git diff for skipped batch {idx}: {e}")
+                            logger.warning(
+                                f"[{phase_id}] Failed to compute scoped git diff for skipped batch {idx}: {e}"
+                            )
 
                         # Refresh context so later batches see the latest on-disk files for this batch.
                         try:
                             file_context = self._load_repository_context(phase_for_batch)
                         except Exception as e:
-                            logger.warning(f"[{phase_id}] Context refresh failed for skipped batch {idx}: {e}")
+                            logger.warning(
+                                f"[{phase_id}] Context refresh failed for skipped batch {idx}: {e}"
+                            )
                         continue
                 except Exception as e:
                     logger.warning(f"[{phase_id}] Retry-skip check failed for batch {idx}: {e}")
@@ -5982,23 +6444,35 @@ Just the new description that should replace the current one while preserving th
                                 expanded.append(root)
                         allowed_roots = expanded
 
-                    ok_manifest, manifest_paths, manifest_error, _raw = self.llm_service.generate_deliverables_manifest(
-                        expected_paths=list(expected_set),
-                        allowed_roots=allowed_roots,
-                        run_id=self.run_id,
-                        phase_id=phase_id,
-                        attempt_index=attempt_index,
+                    ok_manifest, manifest_paths, manifest_error, _raw = (
+                        self.llm_service.generate_deliverables_manifest(
+                            expected_paths=list(expected_set),
+                            allowed_roots=allowed_roots,
+                            run_id=self.run_id,
+                            phase_id=phase_id,
+                            attempt_index=attempt_index,
+                        )
                     )
                     if not ok_manifest:
                         err_details = manifest_error or "deliverables manifest gate failed"
-                        logger.error(f"[{phase_id}] Deliverables manifest gate FAILED (batch {idx}): {err_details}")
-                        self._record_phase_error(phase, "deliverables_manifest_failed", err_details, attempt_index)
-                        self._record_learning_hint(phase, "deliverables_manifest_failed", err_details)
+                        logger.error(
+                            f"[{phase_id}] Deliverables manifest gate FAILED (batch {idx}): {err_details}"
+                        )
+                        self._record_phase_error(
+                            phase, "deliverables_manifest_failed", err_details, attempt_index
+                        )
+                        self._record_learning_hint(
+                            phase, "deliverables_manifest_failed", err_details
+                        )
                         return False, "DELIVERABLES_VALIDATION_FAILED"
-                    logger.info(f"[{phase_id}] Deliverables manifest gate PASSED (batch {idx}, {len(manifest_paths or [])} paths)")
+                    logger.info(
+                        f"[{phase_id}] Deliverables manifest gate PASSED (batch {idx}, {len(manifest_paths or [])} paths)"
+                    )
                     phase_with_constraints["deliverables_manifest"] = manifest_paths or []
             except Exception as e:
-                logger.warning(f"[{phase_id}] Deliverables manifest gate error (batch {idx}, skipping gate): {e}")
+                logger.warning(
+                    f"[{phase_id}] Deliverables manifest gate error (batch {idx}, skipping gate): {e}"
+                )
 
             # Run Builder for this batch
             builder_result = self.llm_service.execute_builder_phase(
@@ -6024,7 +6498,9 @@ Just the new description that should replace the current one while preserving th
 
             last_builder_result = builder_result
             total_tokens += int(getattr(builder_result, "tokens_used", 0) or 0)
-            logger.info(f"[{phase_id}] Builder succeeded (batch {idx}, {builder_result.tokens_used} tokens)")
+            logger.info(
+                f"[{phase_id}] Builder succeeded (batch {idx}, {builder_result.tokens_used} tokens)"
+            )
 
             # Deliverables validation for this batch
             scope_config = dict(batch_scope)
@@ -6057,11 +6533,13 @@ Just the new description that should replace the current one while preserving th
 
             # Structural validation for new files (headers + hunks + content where applicable)
             expected_paths = extract_deliverables_from_scope(scope_config or {})
-            ok_struct, struct_errors, struct_details = validate_new_file_diffs_have_complete_structure(
-                patch_content=builder_result.patch_content or "",
-                expected_paths=expected_paths,
-                workspace=Path(self.workspace),
-                allow_empty_suffixes=["__init__.py", ".gitkeep"],
+            ok_struct, struct_errors, struct_details = (
+                validate_new_file_diffs_have_complete_structure(
+                    patch_content=builder_result.patch_content or "",
+                    expected_paths=expected_paths,
+                    workspace=Path(self.workspace),
+                    allow_empty_suffixes=["__init__.py", ".gitkeep"],
+                )
             )
             if not ok_struct:
                 logger.error(f"[{phase_id}] Patch format invalid for new file diffs (batch {idx})")
@@ -6107,11 +6585,14 @@ Just the new description that should replace the current one while preserving th
             governed_apply = GovernedApplyPath(
                 workspace=Path(self.workspace),
                 run_type=self.run_type,
-                autopack_internal_mode=self.run_type in ["autopack_maintenance", "autopack_upgrade", "self_repair"],
+                autopack_internal_mode=self.run_type
+                in ["autopack_maintenance", "autopack_upgrade", "self_repair"],
                 scope_paths=scope_paths,
                 allowed_paths=derived_allowed or None,
             )
-            patch_success, error_msg = governed_apply.apply_patch(builder_result.patch_content, full_file_mode=True)
+            patch_success, error_msg = governed_apply.apply_patch(
+                builder_result.patch_content, full_file_mode=True
+            )
             if not patch_success:
                 logger.error(f"[{phase_id}] Failed to apply patch (batch {idx}): {error_msg}")
                 # Convergence fallback for docs-only batches:
@@ -6124,7 +6605,11 @@ Just the new description that should replace the current one while preserving th
                         and batch_paths[0].startswith("docs/")
                         and batch_paths[0].endswith(".md")
                         and isinstance(error_msg, str)
-                        and ("truncation" in error_msg.lower() or "ellipsis" in error_msg.lower() or "patch validation failed" in error_msg.lower())
+                        and (
+                            "truncation" in error_msg.lower()
+                            or "ellipsis" in error_msg.lower()
+                            or "patch validation failed" in error_msg.lower()
+                        )
                     ):
                         doc_rel = batch_paths[0]
                         logger.warning(
@@ -6132,47 +6617,50 @@ Just the new description that should replace the current one while preserving th
                         )
 
                         # Minimal, deterministic content (kept short to avoid token blowups and truncation markers).
-                        content = "\n".join(
-                            [
-                                "# Diagnostics Iteration Loop",
-                                "",
-                                "This document describes the diagnostics iteration loop enhancements that make Autopack behave more like a guided Cursor debugging session.",
-                                "",
-                                "## Goals",
-                                "- Add a small, explicit **Evidence Requests** section to handoff prompts.",
-                                "- Accept compact human responses and fold them back into the handoff bundle without token blowups.",
-                                "",
-                                "## Evidence requests",
-                                "Evidence requests are a short list (<= 5) of concrete missing artifacts or questions, each with a rationale.",
-                                "",
-                                "Typical inputs:",
-                                "- Current handoff bundle (index/summary/excerpts).",
-                                "- Latest error category and failing command output (when available).",
-                                "",
-                                "Typical outputs:",
-                                "- A list of requested files/artifacts and targeted questions.",
-                                "",
-                                "## Human response ingestion",
-                                "The human response parser accepts a compact text format such as:",
-                                "",
-                                "```\nQ1: <answer>; Q2: <answer>; Attached: <path1>, <path2>\n```",
-                                "",
-                                "Rules:",
-                                "- Be tolerant of missing fields.",
-                                "- Treat attached paths as references (repo-relative or absolute) and validate existence when possible.",
-                                "",
-                                "## Iteration behavior",
-                                "- Each loop should stay small (<= 500 chars incremental overhead per round).",
-                                "- Prompts should become more targeted after 1-2 rounds.",
-                                "- Stop after 3 rounds (or when the operator indicates they are done).",
-                                "",
-                                "## Deliverables",
-                                "- Code: `src/autopack/diagnostics/evidence_requests.py`, `src/autopack/diagnostics/human_response_parser.py`",
-                                "- Tests: `tests/autopack/diagnostics/test_evidence_requests.py`, `tests/autopack/diagnostics/test_human_response_parser.py`",
-                                "- Docs: this file",
-                                "",
-                            ]
-                        ) + "\n"
+                        content = (
+                            "\n".join(
+                                [
+                                    "# Diagnostics Iteration Loop",
+                                    "",
+                                    "This document describes the diagnostics iteration loop enhancements that make Autopack behave more like a guided Cursor debugging session.",
+                                    "",
+                                    "## Goals",
+                                    "- Add a small, explicit **Evidence Requests** section to handoff prompts.",
+                                    "- Accept compact human responses and fold them back into the handoff bundle without token blowups.",
+                                    "",
+                                    "## Evidence requests",
+                                    "Evidence requests are a short list (<= 5) of concrete missing artifacts or questions, each with a rationale.",
+                                    "",
+                                    "Typical inputs:",
+                                    "- Current handoff bundle (index/summary/excerpts).",
+                                    "- Latest error category and failing command output (when available).",
+                                    "",
+                                    "Typical outputs:",
+                                    "- A list of requested files/artifacts and targeted questions.",
+                                    "",
+                                    "## Human response ingestion",
+                                    "The human response parser accepts a compact text format such as:",
+                                    "",
+                                    "```\nQ1: <answer>; Q2: <answer>; Attached: <path1>, <path2>\n```",
+                                    "",
+                                    "Rules:",
+                                    "- Be tolerant of missing fields.",
+                                    "- Treat attached paths as references (repo-relative or absolute) and validate existence when possible.",
+                                    "",
+                                    "## Iteration behavior",
+                                    "- Each loop should stay small (<= 500 chars incremental overhead per round).",
+                                    "- Prompts should become more targeted after 1-2 rounds.",
+                                    "- Stop after 3 rounds (or when the operator indicates they are done).",
+                                    "",
+                                    "## Deliverables",
+                                    "- Code: `src/autopack/diagnostics/evidence_requests.py`, `src/autopack/diagnostics/human_response_parser.py`",
+                                    "- Tests: `tests/autopack/diagnostics/test_evidence_requests.py`, `tests/autopack/diagnostics/test_human_response_parser.py`",
+                                    "- Docs: this file",
+                                    "",
+                                ]
+                            )
+                            + "\n"
+                        )
 
                         fallback_patch = "\n".join(
                             [
@@ -6189,17 +6677,25 @@ Just the new description that should replace the current one while preserving th
 
                         ok2, err2 = governed_apply.apply_patch(fallback_patch, full_file_mode=True)
                         if ok2:
-                            logger.info(f"[{phase_id}] Fallback doc patch applied successfully (batch {idx})")
+                            logger.info(
+                                f"[{phase_id}] Fallback doc patch applied successfully (batch {idx})"
+                            )
                             batch_patches.append(fallback_patch)
                             try:
                                 file_context = self._load_repository_context(phase_for_batch)
                             except Exception as e:
-                                logger.warning(f"[{phase_id}] Context refresh failed after fallback doc batch {idx}: {e}")
+                                logger.warning(
+                                    f"[{phase_id}] Context refresh failed after fallback doc batch {idx}: {e}"
+                                )
                             continue
                         else:
-                            logger.error(f"[{phase_id}] Fallback doc patch failed (batch {idx}): {err2}")
+                            logger.error(
+                                f"[{phase_id}] Fallback doc patch failed (batch {idx}): {err2}"
+                            )
                 except Exception as e:
-                    logger.warning(f"[{phase_id}] Fallback doc apply encountered error (batch {idx}): {e}")
+                    logger.warning(
+                        f"[{phase_id}] Fallback doc apply encountered error (batch {idx}): {e}"
+                    )
 
                 self._update_phase_status(phase_id, "FAILED")
                 return False, "PATCH_FAILED"
@@ -6218,10 +6714,13 @@ Just the new description that should replace the current one while preserving th
 
         combined_result = BuilderResult(
             success=True,
-            patch_content=combined_patch or (last_builder_result.patch_content if last_builder_result else ""),
+            patch_content=combined_patch
+            or (last_builder_result.patch_content if last_builder_result else ""),
             builder_messages=[f"batched_{batching_label}: {len(batches)} batches applied"],
             tokens_used=total_tokens,
-            model_used=getattr(last_builder_result, "model_used", None) if last_builder_result else None,
+            model_used=(
+                getattr(last_builder_result, "model_used", None) if last_builder_result else None
+            ),
             error=None,
         )
         self._post_builder_result(phase_id, combined_result, allowed_paths)
@@ -6244,14 +6743,19 @@ Just the new description that should replace the current one while preserving th
             coverage_delta=0.0,
             attempt_index=attempt_index,
         )
-        logger.info(f"[{phase_id}] Auditor completed: approved={auditor_result.approved}, issues={len(auditor_result.issues_found)}")
+        logger.info(
+            f"[{phase_id}] Auditor completed: approved={auditor_result.approved}, issues={len(auditor_result.issues_found)}"
+        )
         self._post_auditor_result(phase_id, auditor_result)
 
         logger.info(f"[{phase_id}] Step 5/5: Applying Quality Gate...")
         quality_report = self.quality_gate.assess_phase(
             phase_id=phase_id,
             phase_spec=phase,
-            auditor_result={"approved": auditor_result.approved, "issues_found": auditor_result.issues_found},
+            auditor_result={
+                "approved": auditor_result.approved,
+                "issues_found": auditor_result.issues_found,
+            },
             ci_result=ci_result,
             coverage_delta=0.0,
             patch_content=combined_result.patch_content,
@@ -6280,7 +6784,11 @@ Just the new description that should replace the current one while preserving th
         from .deliverables_validator import extract_deliverables_from_scope
 
         scope_base = phase.get("scope") or {}
-        all_paths = [p for p in extract_deliverables_from_scope(scope_base) if isinstance(p, str) and p.strip()]
+        all_paths = [
+            p
+            for p in extract_deliverables_from_scope(scope_base)
+            if isinstance(p, str) and p.strip()
+        ]
         batch_code = sorted([p for p in all_paths if p.startswith("src/autopack/diagnostics/")])
         batch_tests = sorted([p for p in all_paths if p.startswith("tests/autopack/diagnostics/")])
         batch_docs = sorted([p for p in all_paths if p.startswith("docs/autopack/")])
@@ -6294,8 +6802,16 @@ Just the new description that should replace the current one while preserving th
             allowed_paths=allowed_paths,
             batches=batches,
             batching_label="diagnostics_deep_retrieval",
-            manifest_allowed_roots=("src/autopack/diagnostics/", "tests/autopack/diagnostics/", "docs/autopack/"),
-            apply_allowed_roots=("src/autopack/diagnostics/", "tests/autopack/diagnostics/", "docs/autopack/"),
+            manifest_allowed_roots=(
+                "src/autopack/diagnostics/",
+                "tests/autopack/diagnostics/",
+                "docs/autopack/",
+            ),
+            apply_allowed_roots=(
+                "src/autopack/diagnostics/",
+                "tests/autopack/diagnostics/",
+                "docs/autopack/",
+            ),
         )
 
     def _execute_diagnostics_iteration_loop_batched(
@@ -6309,7 +6825,11 @@ Just the new description that should replace the current one while preserving th
         from .deliverables_validator import extract_deliverables_from_scope
 
         scope_base = phase.get("scope") or {}
-        all_paths = [p for p in extract_deliverables_from_scope(scope_base) if isinstance(p, str) and p.strip()]
+        all_paths = [
+            p
+            for p in extract_deliverables_from_scope(scope_base)
+            if isinstance(p, str) and p.strip()
+        ]
         batch_code = sorted([p for p in all_paths if p.startswith("src/autopack/diagnostics/")])
         batch_tests = sorted([p for p in all_paths if p.startswith("tests/autopack/diagnostics/")])
         batch_docs = sorted([p for p in all_paths if p.startswith("docs/autopack/")])
@@ -6323,8 +6843,16 @@ Just the new description that should replace the current one while preserving th
             allowed_paths=allowed_paths,
             batches=batches,
             batching_label="diagnostics_iteration_loop",
-            manifest_allowed_roots=("src/autopack/diagnostics/", "tests/autopack/diagnostics/", "docs/autopack/"),
-            apply_allowed_roots=("src/autopack/diagnostics/", "tests/autopack/diagnostics/", "docs/autopack/"),
+            manifest_allowed_roots=(
+                "src/autopack/diagnostics/",
+                "tests/autopack/diagnostics/",
+                "docs/autopack/",
+            ),
+            apply_allowed_roots=(
+                "src/autopack/diagnostics/",
+                "tests/autopack/diagnostics/",
+                "docs/autopack/",
+            ),
         )
 
     def _execute_diagnostics_handoff_bundle_batched(
@@ -6338,10 +6866,20 @@ Just the new description that should replace the current one while preserving th
         from .deliverables_validator import extract_deliverables_from_scope
 
         scope_base = phase.get("scope") or {}
-        all_paths = [p for p in extract_deliverables_from_scope(scope_base) if isinstance(p, str) and p.strip()]
+        all_paths = [
+            p
+            for p in extract_deliverables_from_scope(scope_base)
+            if isinstance(p, str) and p.strip()
+        ]
 
         # Batch 1: code files (src/autopack/)
-        batch_code = sorted([p for p in all_paths if p.startswith("src/autopack/") and not p.startswith("src/autopack/cli/")])
+        batch_code = sorted(
+            [
+                p
+                for p in all_paths
+                if p.startswith("src/autopack/") and not p.startswith("src/autopack/cli/")
+            ]
+        )
         # Batch 2: CLI code
         batch_cli = sorted([p for p in all_paths if p.startswith("src/autopack/cli/")])
         # Batch 3: tests
@@ -6359,8 +6897,18 @@ Just the new description that should replace the current one while preserving th
             allowed_paths=allowed_paths,
             batches=batches,
             batching_label="diagnostics_handoff_bundle",
-            manifest_allowed_roots=("src/autopack/diagnostics/", "src/autopack/cli/", "tests/autopack/diagnostics/", "docs/autopack/"),
-            apply_allowed_roots=("src/autopack/diagnostics/", "src/autopack/cli/", "tests/autopack/diagnostics/", "docs/autopack/"),
+            manifest_allowed_roots=(
+                "src/autopack/diagnostics/",
+                "src/autopack/cli/",
+                "tests/autopack/diagnostics/",
+                "docs/autopack/",
+            ),
+            apply_allowed_roots=(
+                "src/autopack/diagnostics/",
+                "src/autopack/cli/",
+                "tests/autopack/diagnostics/",
+                "docs/autopack/",
+            ),
         )
 
     def _execute_diagnostics_cursor_prompt_batched(
@@ -6372,8 +6920,13 @@ Just the new description that should replace the current one while preserving th
     ) -> Tuple[bool, str]:
         """Specialized in-phase batching for followup-2 `diagnostics-cursor-prompt` (code → tests → docs)."""
         from .deliverables_validator import extract_deliverables_from_scope
+
         scope_base = phase.get("scope") or {}
-        all_paths = [p for p in extract_deliverables_from_scope(scope_base) if isinstance(p, str) and p.strip()]
+        all_paths = [
+            p
+            for p in extract_deliverables_from_scope(scope_base)
+            if isinstance(p, str) and p.strip()
+        ]
 
         # Batch 1: diagnostics code
         batch_diag = sorted([p for p in all_paths if p.startswith("src/autopack/diagnostics/")])
@@ -6394,8 +6947,18 @@ Just the new description that should replace the current one while preserving th
             allowed_paths=allowed_paths,
             batches=batches,
             batching_label="diagnostics_cursor_prompt",
-            manifest_allowed_roots=("src/autopack/diagnostics/", "src/autopack/dashboard/", "tests/autopack/diagnostics/", "docs/autopack/"),
-            apply_allowed_roots=("src/autopack/diagnostics/", "src/autopack/dashboard/", "tests/autopack/diagnostics/", "docs/autopack/"),
+            manifest_allowed_roots=(
+                "src/autopack/diagnostics/",
+                "src/autopack/dashboard/",
+                "tests/autopack/diagnostics/",
+                "docs/autopack/",
+            ),
+            apply_allowed_roots=(
+                "src/autopack/diagnostics/",
+                "src/autopack/dashboard/",
+                "tests/autopack/diagnostics/",
+                "docs/autopack/",
+            ),
         )
 
     def _execute_diagnostics_second_opinion_batched(
@@ -6409,7 +6972,11 @@ Just the new description that should replace the current one while preserving th
         from .deliverables_validator import extract_deliverables_from_scope
 
         scope_base = phase.get("scope") or {}
-        all_paths = [p for p in extract_deliverables_from_scope(scope_base) if isinstance(p, str) and p.strip()]
+        all_paths = [
+            p
+            for p in extract_deliverables_from_scope(scope_base)
+            if isinstance(p, str) and p.strip()
+        ]
 
         # Batch 1: code
         batch_code = sorted([p for p in all_paths if p.startswith("src/autopack/diagnostics/")])
@@ -6428,8 +6995,16 @@ Just the new description that should replace the current one while preserving th
             allowed_paths=allowed_paths,
             batches=batches,
             batching_label="diagnostics_second_opinion",
-            manifest_allowed_roots=("src/autopack/diagnostics/", "tests/autopack/diagnostics/", "docs/autopack/"),
-            apply_allowed_roots=("src/autopack/diagnostics/", "tests/autopack/diagnostics/", "docs/autopack/"),
+            manifest_allowed_roots=(
+                "src/autopack/diagnostics/",
+                "tests/autopack/diagnostics/",
+                "docs/autopack/",
+            ),
+            apply_allowed_roots=(
+                "src/autopack/diagnostics/",
+                "tests/autopack/diagnostics/",
+                "docs/autopack/",
+            ),
         )
 
     def _execute_research_tracer_bullet_batched(
@@ -6452,7 +7027,9 @@ Just the new description that should replace the current one while preserving th
 
         # Load repository context for Builder
         file_context = self._load_repository_context(phase)
-        logger.info(f"[{phase_id}] Loaded {len(file_context.get('existing_files', {}))} files for context")
+        logger.info(
+            f"[{phase_id}] Loaded {len(file_context.get('existing_files', {}))} files for context"
+        )
 
         # Pre-flight policy (keep aligned with main execution path)
         use_full_file_mode = True
@@ -6465,7 +7042,9 @@ Just the new description that should replace the current one while preserving th
         project_rules = learning_context.get("project_rules", [])
         run_hints = learning_context.get("run_hints", [])
         if project_rules or run_hints:
-            logger.info(f"[{phase_id}] Learning context: {len(project_rules)} rules, {len(run_hints)} hints")
+            logger.info(
+                f"[{phase_id}] Learning context: {len(project_rules)} rules, {len(run_hints)} hints"
+            )
 
         retrieved_context = ""
         if self.memory_service and self.memory_service.enabled:
@@ -6476,8 +7055,11 @@ Just the new description that should replace the current one while preserving th
 
                 # BUILD-154: Make SOT budget gating + telemetry explicit and non-silent
                 from autopack.config import settings
+
                 max_context_chars = max(4000, settings.autopack_sot_retrieval_max_chars + 2000)
-                include_sot = self._should_include_sot_retrieval(max_context_chars, phase_id=phase_id)
+                include_sot = self._should_include_sot_retrieval(
+                    max_context_chars, phase_id=phase_id
+                )
 
                 retrieved = self.memory_service.retrieve_context(
                     query=query,
@@ -6492,7 +7074,9 @@ Just the new description that should replace the current one while preserving th
                     include_decisions=True,
                     include_sot=include_sot,
                 )
-                retrieved_context = self.memory_service.format_retrieved_context(retrieved, max_chars=max_context_chars)
+                retrieved_context = self.memory_service.format_retrieved_context(
+                    retrieved, max_chars=max_context_chars
+                )
 
                 # BUILD-155: Record SOT retrieval telemetry
                 self._record_sot_retrieval_telemetry(
@@ -6504,26 +7088,46 @@ Just the new description that should replace the current one while preserving th
                 )
 
                 if retrieved_context:
-                    logger.info(f"[{phase_id}] Retrieved {len(retrieved_context)} chars of context from memory")
+                    logger.info(
+                        f"[{phase_id}] Retrieved {len(retrieved_context)} chars of context from memory"
+                    )
             except Exception as e:
                 logger.warning(f"[{phase_id}] Memory retrieval failed: {e}")
 
         protected_paths = [".autonomous_runs/", ".git/", "autopack.db"]
 
         # Partition deliverables into batches
-        from .deliverables_validator import extract_deliverables_from_scope, validate_new_file_diffs_have_complete_structure
-        from .deliverables_validator import validate_deliverables, format_validation_feedback_for_builder
+        from .deliverables_validator import (
+            extract_deliverables_from_scope,
+            validate_new_file_diffs_have_complete_structure,
+        )
+        from .deliverables_validator import (
+            validate_deliverables,
+            format_validation_feedback_for_builder,
+        )
 
         scope_base = phase.get("scope") or {}
-        all_paths = [p for p in extract_deliverables_from_scope(scope_base) if isinstance(p, str) and p.strip()]
-        batch_core = sorted([p for p in all_paths if p.startswith("src/autopack/research/tracer_bullet/")])
-        batch_eval = sorted([p for p in all_paths if p.startswith("src/autopack/research/evaluation/")])
-        batch_tests = sorted([p for p in all_paths if p.startswith("tests/research/tracer_bullet/")])
+        all_paths = [
+            p
+            for p in extract_deliverables_from_scope(scope_base)
+            if isinstance(p, str) and p.strip()
+        ]
+        batch_core = sorted(
+            [p for p in all_paths if p.startswith("src/autopack/research/tracer_bullet/")]
+        )
+        batch_eval = sorted(
+            [p for p in all_paths if p.startswith("src/autopack/research/evaluation/")]
+        )
+        batch_tests = sorted(
+            [p for p in all_paths if p.startswith("tests/research/tracer_bullet/")]
+        )
         batch_docs = sorted([p for p in all_paths if p.startswith("docs/research/")])
         batches = [b for b in [batch_core, batch_eval, batch_tests, batch_docs] if b]
         if not batches:
             batches = [sorted(set(all_paths))]
-        logger.info(f"[{phase_id}] Chunk0 batching enabled: {len(batches)} batches ({', '.join(str(len(b)) for b in batches)} files)")
+        logger.info(
+            f"[{phase_id}] Chunk0 batching enabled: {len(batches)} batches ({', '.join(str(len(b)) for b in batches)} files)"
+        )
 
         # Baseline diff for combined patch generation
         try:
@@ -6543,7 +7147,9 @@ Just the new description that should replace the current one while preserving th
             logger.info(f"[{phase_id}] Batch {idx}/{len(batches)}: {len(batch_paths)} deliverables")
 
             # Use batch scope with only "paths" to avoid extract_deliverables_from_scope pulling the full deliverables dict.
-            batch_scope = {k: v for k, v in (scope_base or {}).items() if k not in ("deliverables", "paths")}
+            batch_scope = {
+                k: v for k, v in (scope_base or {}).items() if k not in ("deliverables", "paths")
+            }
             batch_scope["paths"] = list(batch_paths)
             phase_for_batch = {**phase, "scope": batch_scope}
 
@@ -6562,7 +7168,12 @@ Just the new description that should replace the current one while preserving th
                     expected_set = {p for p in expected_paths if isinstance(p, str)}
                     expected_list = sorted(expected_set)
                     allowed_roots: List[str] = []
-                    for r in ("src/autopack/research/", "tests/research/", "docs/research/", "examples/"):
+                    for r in (
+                        "src/autopack/research/",
+                        "tests/research/",
+                        "docs/research/",
+                        "examples/",
+                    ):
                         if any(p.startswith(r) for p in expected_list):
                             allowed_roots.append(r)
                     if not allowed_roots:
@@ -6582,23 +7193,35 @@ Just the new description that should replace the current one while preserving th
                                 expanded.append(root)
                         allowed_roots = expanded
 
-                    ok_manifest, manifest_paths, manifest_error, _raw = self.llm_service.generate_deliverables_manifest(
-                        expected_paths=list(expected_set),
-                        allowed_roots=allowed_roots,
-                        run_id=self.run_id,
-                        phase_id=phase_id,
-                        attempt_index=attempt_index,
+                    ok_manifest, manifest_paths, manifest_error, _raw = (
+                        self.llm_service.generate_deliverables_manifest(
+                            expected_paths=list(expected_set),
+                            allowed_roots=allowed_roots,
+                            run_id=self.run_id,
+                            phase_id=phase_id,
+                            attempt_index=attempt_index,
+                        )
                     )
                     if not ok_manifest:
                         err_details = manifest_error or "deliverables manifest gate failed"
-                        logger.error(f"[{phase_id}] Deliverables manifest gate FAILED (batch {idx}): {err_details}")
-                        self._record_phase_error(phase, "deliverables_manifest_failed", err_details, attempt_index)
-                        self._record_learning_hint(phase, "deliverables_manifest_failed", err_details)
+                        logger.error(
+                            f"[{phase_id}] Deliverables manifest gate FAILED (batch {idx}): {err_details}"
+                        )
+                        self._record_phase_error(
+                            phase, "deliverables_manifest_failed", err_details, attempt_index
+                        )
+                        self._record_learning_hint(
+                            phase, "deliverables_manifest_failed", err_details
+                        )
                         return False, "DELIVERABLES_VALIDATION_FAILED"
-                    logger.info(f"[{phase_id}] Deliverables manifest gate PASSED (batch {idx}, {len(manifest_paths or [])} paths)")
+                    logger.info(
+                        f"[{phase_id}] Deliverables manifest gate PASSED (batch {idx}, {len(manifest_paths or [])} paths)"
+                    )
                     phase_with_constraints["deliverables_manifest"] = manifest_paths or []
             except Exception as e:
-                logger.warning(f"[{phase_id}] Deliverables manifest gate error (batch {idx}, skipping gate): {e}")
+                logger.warning(
+                    f"[{phase_id}] Deliverables manifest gate error (batch {idx}, skipping gate): {e}"
+                )
 
             # Run Builder for this batch
             builder_result = self.llm_service.execute_builder_phase(
@@ -6624,7 +7247,9 @@ Just the new description that should replace the current one while preserving th
 
             last_builder_result = builder_result
             total_tokens += int(getattr(builder_result, "tokens_used", 0) or 0)
-            logger.info(f"[{phase_id}] Builder succeeded (batch {idx}, {builder_result.tokens_used} tokens)")
+            logger.info(
+                f"[{phase_id}] Builder succeeded (batch {idx}, {builder_result.tokens_used} tokens)"
+            )
 
             # Deliverables validation for this batch
             scope_config = dict(batch_scope)
@@ -6657,11 +7282,13 @@ Just the new description that should replace the current one while preserving th
 
             # Structural validation for new files (headers + hunks + content where applicable)
             expected_paths = extract_deliverables_from_scope(scope_config or {})
-            ok_struct, struct_errors, struct_details = validate_new_file_diffs_have_complete_structure(
-                patch_content=builder_result.patch_content or "",
-                expected_paths=expected_paths,
-                workspace=Path(self.workspace),
-                allow_empty_suffixes=["__init__.py", ".gitkeep"],
+            ok_struct, struct_errors, struct_details = (
+                validate_new_file_diffs_have_complete_structure(
+                    patch_content=builder_result.patch_content or "",
+                    expected_paths=expected_paths,
+                    workspace=Path(self.workspace),
+                    allow_empty_suffixes=["__init__.py", ".gitkeep"],
+                )
             )
             if not ok_struct:
                 logger.error(f"[{phase_id}] Patch format invalid for new file diffs (batch {idx})")
@@ -6695,7 +7322,10 @@ Just the new description that should replace the current one while preserving th
 
             # Pre-apply JSON deliverable validation + repair (reuse existing helpers)
             try:
-                from .deliverables_validator import validate_new_json_deliverables_in_patch, repair_empty_required_json_deliverables_in_patch
+                from .deliverables_validator import (
+                    validate_new_json_deliverables_in_patch,
+                    repair_empty_required_json_deliverables_in_patch,
+                )
 
                 ok_json, json_errors, _json_details = validate_new_json_deliverables_in_patch(
                     patch_content=builder_result.patch_content or "",
@@ -6703,14 +7333,18 @@ Just the new description that should replace the current one while preserving th
                     workspace=Path(self.workspace),
                 )
                 if not ok_json:
-                    repaired, repaired_patch, repairs = repair_empty_required_json_deliverables_in_patch(
-                        patch_content=builder_result.patch_content or "",
-                        expected_paths=expected_paths,
-                        workspace=Path(self.workspace),
-                        minimal_json="[]\n",
+                    repaired, repaired_patch, repairs = (
+                        repair_empty_required_json_deliverables_in_patch(
+                            patch_content=builder_result.patch_content or "",
+                            expected_paths=expected_paths,
+                            workspace=Path(self.workspace),
+                            minimal_json="[]\n",
+                        )
                     )
                     if repaired:
-                        logger.warning(f"[{phase_id}] Auto-repaired {len(repairs)} JSON deliverable(s) (batch {idx})")
+                        logger.warning(
+                            f"[{phase_id}] Auto-repaired {len(repairs)} JSON deliverable(s) (batch {idx})"
+                        )
                         builder_result.patch_content = repaired_patch
                         ok_json2, json_errors2, _ = validate_new_json_deliverables_in_patch(
                             patch_content=builder_result.patch_content or "",
@@ -6720,13 +7354,18 @@ Just the new description that should replace the current one while preserving th
                         ok_json = ok_json2
                         json_errors = json_errors2
                 if not ok_json:
-                    logger.error(f"[{phase_id}] Pre-apply JSON deliverables validation failed (batch {idx})")
+                    logger.error(
+                        f"[{phase_id}] Pre-apply JSON deliverables validation failed (batch {idx})"
+                    )
                     for e in (json_errors or [])[:5]:
                         logger.error(f"[{phase_id}]    {e}")
                     fail_result = BuilderResult(
                         success=False,
                         patch_content="",
-                        builder_messages=["DELIVERABLES_VALIDATION_FAILED", "JSON deliverable empty/invalid"],
+                        builder_messages=[
+                            "DELIVERABLES_VALIDATION_FAILED",
+                            "JSON deliverable empty/invalid",
+                        ],
                         tokens_used=builder_result.tokens_used,
                         model_used=getattr(builder_result, "model_used", None),
                         error="Deliverables JSON validation failed",
@@ -6734,7 +7373,9 @@ Just the new description that should replace the current one while preserving th
                     self._post_builder_result(phase_id, fail_result, allowed_paths)
                     return False, "DELIVERABLES_VALIDATION_FAILED"
             except Exception as e:
-                logger.warning(f"[{phase_id}] Pre-apply JSON validation skipped due to error (batch {idx}): {e}")
+                logger.warning(
+                    f"[{phase_id}] Pre-apply JSON validation skipped due to error (batch {idx}): {e}"
+                )
 
             # Apply patch for this batch
             from autopack.governed_apply import GovernedApplyPath
@@ -6751,11 +7392,14 @@ Just the new description that should replace the current one while preserving th
             governed_apply = GovernedApplyPath(
                 workspace=Path(self.workspace),
                 run_type=self.run_type,
-                autopack_internal_mode=self.run_type in ["autopack_maintenance", "autopack_upgrade", "self_repair"],
+                autopack_internal_mode=self.run_type
+                in ["autopack_maintenance", "autopack_upgrade", "self_repair"],
                 scope_paths=scope_paths,
                 allowed_paths=derived_allowed or None,
             )
-            patch_success, error_msg = governed_apply.apply_patch(builder_result.patch_content, full_file_mode=True)
+            patch_success, error_msg = governed_apply.apply_patch(
+                builder_result.patch_content, full_file_mode=True
+            )
             if not patch_success:
                 logger.error(f"[{phase_id}] Failed to apply patch (batch {idx}): {error_msg}")
                 self._update_phase_status(phase_id, "FAILED")
@@ -6784,10 +7428,13 @@ Just the new description that should replace the current one while preserving th
         # Post a single combined builder result to API for phase-level visibility
         combined_result = BuilderResult(
             success=True,
-            patch_content=combined_patch or (last_builder_result.patch_content if last_builder_result else ""),
+            patch_content=combined_patch
+            or (last_builder_result.patch_content if last_builder_result else ""),
             builder_messages=[f"batched_chunk0: {len(batches)} batches applied"],
             tokens_used=total_tokens,
-            model_used=getattr(last_builder_result, "model_used", None) if last_builder_result else None,
+            model_used=(
+                getattr(last_builder_result, "model_used", None) if last_builder_result else None
+            ),
             error=None,
         )
         self._post_builder_result(phase_id, combined_result, allowed_paths)
@@ -6810,14 +7457,19 @@ Just the new description that should replace the current one while preserving th
             coverage_delta=0.0,
             attempt_index=attempt_index,
         )
-        logger.info(f"[{phase_id}] Auditor completed: approved={auditor_result.approved}, issues={len(auditor_result.issues_found)}")
+        logger.info(
+            f"[{phase_id}] Auditor completed: approved={auditor_result.approved}, issues={len(auditor_result.issues_found)}"
+        )
         self._post_auditor_result(phase_id, auditor_result)
 
         logger.info(f"[{phase_id}] Step 5/5: Applying Quality Gate...")
         quality_report = self.quality_gate.assess_phase(
             phase_id=phase_id,
             phase_spec=phase,
-            auditor_result={"approved": auditor_result.approved, "issues_found": auditor_result.issues_found},
+            auditor_result={
+                "approved": auditor_result.approved,
+                "issues_found": auditor_result.issues_found,
+            },
             ci_result=ci_result,
             coverage_delta=0.0,
             patch_content=combined_result.patch_content,
@@ -6855,7 +7507,9 @@ Just the new description that should replace the current one while preserving th
 
         # Load repository context for Builder
         file_context = self._load_repository_context(phase)
-        logger.info(f"[{phase_id}] Loaded {len(file_context.get('existing_files', {}))} files for context")
+        logger.info(
+            f"[{phase_id}] Loaded {len(file_context.get('existing_files', {}))} files for context"
+        )
 
         # Pre-flight policy (keep aligned with main execution path)
         use_full_file_mode = True
@@ -6868,7 +7522,9 @@ Just the new description that should replace the current one while preserving th
         project_rules = learning_context.get("project_rules", [])
         run_hints = learning_context.get("run_hints", [])
         if project_rules or run_hints:
-            logger.info(f"[{phase_id}] Learning context: {len(project_rules)} rules, {len(run_hints)} hints")
+            logger.info(
+                f"[{phase_id}] Learning context: {len(project_rules)} rules, {len(run_hints)} hints"
+            )
 
         retrieved_context = ""
         if self.memory_service and self.memory_service.enabled:
@@ -6879,8 +7535,11 @@ Just the new description that should replace the current one while preserving th
 
                 # BUILD-154: Make SOT budget gating + telemetry explicit and non-silent
                 from autopack.config import settings
+
                 max_context_chars = max(4000, settings.autopack_sot_retrieval_max_chars + 2000)
-                include_sot = self._should_include_sot_retrieval(max_context_chars, phase_id=phase_id)
+                include_sot = self._should_include_sot_retrieval(
+                    max_context_chars, phase_id=phase_id
+                )
 
                 retrieved = self.memory_service.retrieve_context(
                     query=query,
@@ -6895,7 +7554,9 @@ Just the new description that should replace the current one while preserving th
                     include_decisions=True,
                     include_sot=include_sot,
                 )
-                retrieved_context = self.memory_service.format_retrieved_context(retrieved, max_chars=max_context_chars)
+                retrieved_context = self.memory_service.format_retrieved_context(
+                    retrieved, max_chars=max_context_chars
+                )
 
                 # BUILD-155: Record SOT retrieval telemetry
                 self._record_sot_retrieval_telemetry(
@@ -6907,18 +7568,30 @@ Just the new description that should replace the current one while preserving th
                 )
 
                 if retrieved_context:
-                    logger.info(f"[{phase_id}] Retrieved {len(retrieved_context)} chars of context from memory")
+                    logger.info(
+                        f"[{phase_id}] Retrieved {len(retrieved_context)} chars of context from memory"
+                    )
             except Exception as e:
                 logger.warning(f"[{phase_id}] Memory retrieval failed: {e}")
 
         protected_paths = [".autonomous_runs/", ".git/", "autopack.db"]
 
         # Partition deliverables into batches
-        from .deliverables_validator import extract_deliverables_from_scope, validate_new_file_diffs_have_complete_structure
-        from .deliverables_validator import validate_deliverables, format_validation_feedback_for_builder
+        from .deliverables_validator import (
+            extract_deliverables_from_scope,
+            validate_new_file_diffs_have_complete_structure,
+        )
+        from .deliverables_validator import (
+            validate_deliverables,
+            format_validation_feedback_for_builder,
+        )
 
         scope_base = phase.get("scope") or {}
-        all_paths = [p for p in extract_deliverables_from_scope(scope_base) if isinstance(p, str) and p.strip()]
+        all_paths = [
+            p
+            for p in extract_deliverables_from_scope(scope_base)
+            if isinstance(p, str) and p.strip()
+        ]
 
         # Suggested batches:
         # - src/research/gatherers/*
@@ -6928,7 +7601,12 @@ Just the new description that should replace the current one while preserving th
         batch_gatherers = sorted([p for p in all_paths if p.startswith("src/research/gatherers/")])
         batch_agents = sorted([p for p in all_paths if p.startswith("src/research/agents/")])
         batch_tests = sorted(
-            [p for p in all_paths if p.startswith("tests/research/gatherers/") or p.startswith("tests/research/agents/")]
+            [
+                p
+                for p in all_paths
+                if p.startswith("tests/research/gatherers/")
+                or p.startswith("tests/research/agents/")
+            ]
         )
         batch_docs = sorted([p for p in all_paths if p.startswith("docs/research/")])
         batches = [b for b in [batch_gatherers, batch_agents, batch_tests, batch_docs] if b]
@@ -6945,7 +7623,9 @@ Just the new description that should replace the current one while preserving th
             logger.info(f"[{phase_id}] Batch {idx}/{len(batches)}: {len(batch_paths)} deliverables")
 
             # Use batch scope with only "paths" to avoid extract_deliverables_from_scope pulling the full deliverables dict.
-            batch_scope = {k: v for k, v in (scope_base or {}).items() if k not in ("deliverables", "paths")}
+            batch_scope = {
+                k: v for k, v in (scope_base or {}).items() if k not in ("deliverables", "paths")
+            }
             batch_scope["paths"] = list(batch_paths)
             phase_for_batch = {**phase, "scope": batch_scope}
 
@@ -6984,23 +7664,35 @@ Just the new description that should replace the current one while preserving th
                                 expanded.append(root)
                         allowed_roots = expanded
 
-                    ok_manifest, manifest_paths, manifest_error, _raw = self.llm_service.generate_deliverables_manifest(
-                        expected_paths=list(expected_set),
-                        allowed_roots=allowed_roots,
-                        run_id=self.run_id,
-                        phase_id=phase_id,
-                        attempt_index=attempt_index,
+                    ok_manifest, manifest_paths, manifest_error, _raw = (
+                        self.llm_service.generate_deliverables_manifest(
+                            expected_paths=list(expected_set),
+                            allowed_roots=allowed_roots,
+                            run_id=self.run_id,
+                            phase_id=phase_id,
+                            attempt_index=attempt_index,
+                        )
                     )
                     if not ok_manifest:
                         err_details = manifest_error or "deliverables manifest gate failed"
-                        logger.error(f"[{phase_id}] Deliverables manifest gate FAILED (batch {idx}): {err_details}")
-                        self._record_phase_error(phase, "deliverables_manifest_failed", err_details, attempt_index)
-                        self._record_learning_hint(phase, "deliverables_manifest_failed", err_details)
+                        logger.error(
+                            f"[{phase_id}] Deliverables manifest gate FAILED (batch {idx}): {err_details}"
+                        )
+                        self._record_phase_error(
+                            phase, "deliverables_manifest_failed", err_details, attempt_index
+                        )
+                        self._record_learning_hint(
+                            phase, "deliverables_manifest_failed", err_details
+                        )
                         return False, "DELIVERABLES_VALIDATION_FAILED"
-                    logger.info(f"[{phase_id}] Deliverables manifest gate PASSED (batch {idx}, {len(manifest_paths or [])} paths)")
+                    logger.info(
+                        f"[{phase_id}] Deliverables manifest gate PASSED (batch {idx}, {len(manifest_paths or [])} paths)"
+                    )
                     phase_with_constraints["deliverables_manifest"] = manifest_paths or []
             except Exception as e:
-                logger.warning(f"[{phase_id}] Deliverables manifest gate error (batch {idx}, skipping gate): {e}")
+                logger.warning(
+                    f"[{phase_id}] Deliverables manifest gate error (batch {idx}, skipping gate): {e}"
+                )
 
             # Run Builder for this batch
             builder_result = self.llm_service.execute_builder_phase(
@@ -7026,7 +7718,9 @@ Just the new description that should replace the current one while preserving th
 
             last_builder_result = builder_result
             total_tokens += int(getattr(builder_result, "tokens_used", 0) or 0)
-            logger.info(f"[{phase_id}] Builder succeeded (batch {idx}, {builder_result.tokens_used} tokens)")
+            logger.info(
+                f"[{phase_id}] Builder succeeded (batch {idx}, {builder_result.tokens_used} tokens)"
+            )
 
             # Deliverables validation for this batch
             scope_config = dict(batch_scope)
@@ -7059,11 +7753,13 @@ Just the new description that should replace the current one while preserving th
 
             # Structural validation for new files (headers + hunks + content where applicable)
             expected_paths = extract_deliverables_from_scope(scope_config or {})
-            ok_struct, struct_errors, struct_details = validate_new_file_diffs_have_complete_structure(
-                patch_content=builder_result.patch_content or "",
-                expected_paths=expected_paths,
-                workspace=Path(self.workspace),
-                allow_empty_suffixes=["__init__.py", ".gitkeep"],
+            ok_struct, struct_errors, struct_details = (
+                validate_new_file_diffs_have_complete_structure(
+                    patch_content=builder_result.patch_content or "",
+                    expected_paths=expected_paths,
+                    workspace=Path(self.workspace),
+                    allow_empty_suffixes=["__init__.py", ".gitkeep"],
+                )
             )
             if not ok_struct:
                 logger.error(f"[{phase_id}] Patch format invalid for new file diffs (batch {idx})")
@@ -7110,11 +7806,14 @@ Just the new description that should replace the current one while preserving th
             governed_apply = GovernedApplyPath(
                 workspace=Path(self.workspace),
                 run_type=self.run_type,
-                autopack_internal_mode=self.run_type in ["autopack_maintenance", "autopack_upgrade", "self_repair"],
+                autopack_internal_mode=self.run_type
+                in ["autopack_maintenance", "autopack_upgrade", "self_repair"],
                 scope_paths=scope_paths,
                 allowed_paths=derived_allowed or None,
             )
-            patch_success, error_msg = governed_apply.apply_patch(builder_result.patch_content, full_file_mode=True)
+            patch_success, error_msg = governed_apply.apply_patch(
+                builder_result.patch_content, full_file_mode=True
+            )
             if not patch_success:
                 logger.error(f"[{phase_id}] Failed to apply patch (batch {idx}): {error_msg}")
                 self._update_phase_status(phase_id, "FAILED")
@@ -7143,10 +7842,13 @@ Just the new description that should replace the current one while preserving th
         # Post a single combined builder result to API for phase-level visibility
         combined_result = BuilderResult(
             success=True,
-            patch_content=combined_patch or (last_builder_result.patch_content if last_builder_result else ""),
+            patch_content=combined_patch
+            or (last_builder_result.patch_content if last_builder_result else ""),
             builder_messages=[f"batched_chunk2b: {len(batches)} batches applied"],
             tokens_used=total_tokens,
-            model_used=getattr(last_builder_result, "model_used", None) if last_builder_result else None,
+            model_used=(
+                getattr(last_builder_result, "model_used", None) if last_builder_result else None
+            ),
             error=None,
         )
         self._post_builder_result(phase_id, combined_result, allowed_paths)
@@ -7169,14 +7871,19 @@ Just the new description that should replace the current one while preserving th
             coverage_delta=0.0,
             attempt_index=attempt_index,
         )
-        logger.info(f"[{phase_id}] Auditor completed: approved={auditor_result.approved}, issues={len(auditor_result.issues_found)}")
+        logger.info(
+            f"[{phase_id}] Auditor completed: approved={auditor_result.approved}, issues={len(auditor_result.issues_found)}"
+        )
         self._post_auditor_result(phase_id, auditor_result)
 
         logger.info(f"[{phase_id}] Step 5/5: Applying Quality Gate...")
         quality_report = self.quality_gate.assess_phase(
             phase_id=phase_id,
             phase_spec=phase,
-            auditor_result={"approved": auditor_result.approved, "issues_found": auditor_result.issues_found},
+            auditor_result={
+                "approved": auditor_result.approved,
+                "issues_found": auditor_result.issues_found,
+            },
             ci_result=ci_result,
             coverage_delta=0.0,
             patch_content=combined_result.patch_content,
@@ -7278,13 +7985,15 @@ Just the new description that should replace the current one while preserving th
                 return False
 
             try:
-                content = filepath.read_text(encoding='utf-8', errors='ignore')
+                content = filepath.read_text(encoding="utf-8", errors="ignore")
                 content_trimmed = content[:15000]  # Increased limit for important files
 
                 # BUILD-043: Check if adding this file would exceed token budget
                 file_tokens = _estimate_file_tokens(content_trimmed)
                 if current_token_estimate + file_tokens > TARGET_INPUT_TOKENS:
-                    logger.debug(f"[Context] Skipping {rel_path} - would exceed token budget ({current_token_estimate + file_tokens} > {TARGET_INPUT_TOKENS})")
+                    logger.debug(
+                        f"[Context] Skipping {rel_path} - would exceed token budget ({current_token_estimate + file_tokens} > {TARGET_INPUT_TOKENS})"
+                    )
                     return False
 
                 existing_files[rel_path] = content_trimmed
@@ -7304,15 +8013,15 @@ Just the new description that should replace the current one while preserving th
                 cwd=str(workspace),
                 capture_output=True,
                 text=True,
-                timeout=10
+                timeout=10,
             )
             if result.returncode == 0:
-                for line in result.stdout.strip().split('\n'):
+                for line in result.stdout.strip().split("\n"):
                     if line and len(line) > 3:
                         # Parse git status format: "XY filename" or "XY old -> new"
                         file_part = line[3:].strip()
-                        if ' -> ' in file_part:
-                            file_part = file_part.split(' -> ')[1]
+                        if " -> " in file_part:
+                            file_part = file_part.split(" -> ")[1]
                         if file_part:
                             recently_modified.append(file_part)
         except Exception as e:
@@ -7323,7 +8032,9 @@ Just the new description that should replace the current one while preserving th
         for rel_path in recently_modified[:15]:  # Limit to 15 recently modified files
             # Defensive check: ensure rel_path is a string
             if not isinstance(rel_path, str):
-                logger.warning(f"[Context] Skipping non-string rel_path: {rel_path} (type: {type(rel_path)})")
+                logger.warning(
+                    f"[Context] Skipping non-string rel_path: {rel_path} (type: {type(rel_path)})"
+                )
                 continue
             if not rel_path or not rel_path.strip():
                 continue
@@ -7336,7 +8047,9 @@ Just the new description that should replace the current one while preserving th
                 continue
 
         if modified_count > 0:
-            logger.info(f"[Context] Loaded {modified_count} recently modified files for fresh context")
+            logger.info(
+                f"[Context] Loaded {modified_count} recently modified files for fresh context"
+            )
 
         # Priority 1: Files mentioned in phase description
         # Extract file paths from description using regex
@@ -7346,12 +8059,16 @@ Just the new description that should replace the current one while preserving th
 
         # Match patterns like: src/autopack/file.py, config/models.yaml, etc.
         # Use non-capturing group (?:...) to get full match, not just extension
-        file_patterns = re.findall(r'[a-zA-Z_][a-zA-Z0-9_/\\.-]*\.(?:py|yaml|json|ts|js|md)', combined_text)
+        file_patterns = re.findall(
+            r"[a-zA-Z_][a-zA-Z0-9_/\\.-]*\.(?:py|yaml|json|ts|js|md)", combined_text
+        )
         mentioned_count = 0
         for pattern in file_patterns[:10]:  # Limit to 10 mentioned files
             # Defensive check: ensure pattern is a string
             if not isinstance(pattern, str):
-                logger.warning(f"[Context] Skipping non-string pattern: {pattern} (type: {type(pattern)})")
+                logger.warning(
+                    f"[Context] Skipping non-string pattern: {pattern} (type: {type(pattern)})"
+                )
                 continue
             # Additional safety: ensure pattern is not empty and doesn't contain path separators that would break
             if not pattern or not pattern.strip():
@@ -7385,7 +8102,7 @@ Just the new description that should replace the current one while preserving th
             "requirements.txt",
             "pyproject.toml",
             "README.md",
-            ".gitignore"
+            ".gitignore",
         ]
 
         for filename in priority_files:
@@ -7405,10 +8122,14 @@ Just the new description that should replace the current one while preserving th
                 _load_file(py_file)
 
         # BUILD-043: Log token budget usage
-        logger.info(f"[Context] Total: {len(existing_files)} files loaded for Builder context "
-                   f"(modified={modified_count}, mentioned={mentioned_count})")
-        logger.info(f"[TOKEN_BUDGET] Context loading: ~{current_token_estimate} tokens "
-                   f"({current_token_estimate * 100 // TARGET_INPUT_TOKENS}% of {TARGET_INPUT_TOKENS} budget)")
+        logger.info(
+            f"[Context] Total: {len(existing_files)} files loaded for Builder context "
+            f"(modified={modified_count}, mentioned={mentioned_count})"
+        )
+        logger.info(
+            f"[TOKEN_BUDGET] Context loading: ~{current_token_estimate} tokens "
+            f"({current_token_estimate * 100 // TARGET_INPUT_TOKENS}% of {TARGET_INPUT_TOKENS} budget)"
+        )
 
         return {"existing_files": existing_files}
 
@@ -7447,10 +8168,21 @@ Just the new description that should replace the current one while preserving th
             # the workspace root should be the repo root (NOT the bucket directory). This prevents
             # accidental scope isolation where writes to e.g. "src/*" are blocked because the derived
             # workspace is "docs/" or "tests/".
-            repo_root_buckets = {"src", "docs", "tests", "config", "scripts", "migrations", "archive", "examples"}
+            repo_root_buckets = {
+                "src",
+                "docs",
+                "tests",
+                "config",
+                "scripts",
+                "migrations",
+                "archive",
+                "examples",
+            }
             if parts and parts[0] in repo_root_buckets:
                 repo_root = Path(self.workspace).resolve()
-                logger.info(f"[Scope] Workspace root determined as repo root for bucket '{parts[0]}': {repo_root}")
+                logger.info(
+                    f"[Scope] Workspace root determined as repo root for bucket '{parts[0]}': {repo_root}"
+                )
                 return repo_root
 
             # Common external project layouts: "fileorganizer/<...>" or "file-organizer-app-v1/<...>"
@@ -7462,15 +8194,13 @@ Just the new description that should replace the current one while preserving th
                     return candidate
 
         # Fallback to default workspace
-        logger.warning(f"[Scope] Could not determine workspace from scope paths, using default: {self.workspace}")
+        logger.warning(
+            f"[Scope] Could not determine workspace from scope paths, using default: {self.workspace}"
+        )
         return Path(self.workspace)
 
     def _resolve_scope_target(
-        self,
-        scope_path: str,
-        workspace_root: Path,
-        *,
-        must_exist: bool = False
+        self, scope_path: str, workspace_root: Path, *, must_exist: bool = False
     ) -> Optional[Tuple[Path, str]]:
         """
         Resolve a scope path to an absolute file/dir and builder-relative path.
@@ -7522,9 +8252,7 @@ Just the new description that should replace the current one while preserving th
         return None
 
     def _derive_allowed_paths_from_scope(
-        self,
-        scope_config: Optional[Dict],
-        workspace_root: Optional[Path] = None
+        self, scope_config: Optional[Dict], workspace_root: Optional[Path] = None
     ) -> List[str]:
         """Derive allowed path prefixes for GovernedApply from scope configuration."""
         if not scope_config or not scope_config.get("paths"):
@@ -7562,7 +8290,7 @@ Just the new description that should replace the current one while preserving th
             "src/autopack/document_categories.py",
             "src/autopack/validation.py",
             "src/autopack/models.py",
-            "config/**/*.yaml"
+            "config/**/*.yaml",
         ]
 
         for pattern in patterns:
@@ -7570,7 +8298,7 @@ Just the new description that should replace the current one while preserving th
                 if filepath.is_file() and "__pycache__" not in str(filepath):
                     try:
                         rel_path = str(filepath.relative_to(workspace))
-                        content = filepath.read_text(encoding='utf-8', errors='ignore')
+                        content = filepath.read_text(encoding="utf-8", errors="ignore")
                         existing_files[rel_path] = content[:15000]
                     except Exception as e:
                         logger.debug(f"Could not load {filepath}: {e}")
@@ -7596,7 +8324,7 @@ Just the new description that should replace the current one while preserving th
             "package.json",
             "vite.config.ts",
             "tsconfig.json",
-            "tailwind.config.js"
+            "tailwind.config.js",
         ]
 
         for pattern in patterns:
@@ -7604,7 +8332,7 @@ Just the new description that should replace the current one while preserving th
                 if filepath.is_file() and "node_modules" not in str(filepath):
                     try:
                         rel_path = str(filepath.relative_to(workspace))
-                        content = filepath.read_text(encoding='utf-8', errors='ignore')
+                        content = filepath.read_text(encoding="utf-8", errors="ignore")
                         existing_files[rel_path] = content[:15000]
                     except Exception as e:
                         logger.debug(f"Could not load {filepath}: {e}")
@@ -7631,7 +8359,7 @@ Just the new description that should replace the current one while preserving th
             "scripts/**/*.sh",
             "config/**/*.yaml",
             "requirements.txt",
-            "package.json"
+            "package.json",
         ]
 
         for pattern in patterns:
@@ -7639,7 +8367,7 @@ Just the new description that should replace the current one while preserving th
                 if filepath.is_file():
                     try:
                         rel_path = str(filepath.relative_to(workspace))
-                        content = filepath.read_text(encoding='utf-8', errors='ignore')
+                        content = filepath.read_text(encoding="utf-8", errors="ignore")
                         existing_files[rel_path] = content[:15000]
                     except Exception as e:
                         logger.debug(f"Could not load {filepath}: {e}")
@@ -7669,6 +8397,7 @@ Just the new description that should replace the current one while preserving th
 
         # BUILD-145 P1: Initialize artifact loader for token-efficient context loading
         from autopack.artifact_loader import ArtifactLoader
+
         # Use executor's run_id (always available) instead of phase.get("run_id")
         artifact_loader = ArtifactLoader(base_workspace, self.run_id) if self.run_id else None
         total_tokens_saved = 0
@@ -7706,7 +8435,9 @@ Just the new description that should replace the current one while preserving th
                     # Try relative to workspace_root first, then base_workspace
                     candidate = workspace_root / path_obj
                     try:
-                        rel_key = str(candidate.resolve().relative_to(base_workspace)).replace("\\", "/")
+                        rel_key = str(candidate.resolve().relative_to(base_workspace)).replace(
+                            "\\", "/"
+                        )
                     except ValueError:
                         # Fall back to treating as relative to base_workspace
                         rel_key = str(path_obj).replace("\\", "/")
@@ -7728,9 +8459,25 @@ Just the new description that should replace the current one while preserving th
             elif abs_path.is_dir():
                 # Load a bounded set of files from the directory to avoid empty context
                 allowed_exts_mod = {
-                    ".py", ".pyi", ".txt", ".md", ".json", ".yaml", ".yml",
-                    ".ini", ".cfg", ".conf", ".env", ".csv",
-                    ".ts", ".tsx", ".js", ".jsx", ".vue", ".css", ".scss"
+                    ".py",
+                    ".pyi",
+                    ".txt",
+                    ".md",
+                    ".json",
+                    ".yaml",
+                    ".yml",
+                    ".ini",
+                    ".cfg",
+                    ".conf",
+                    ".env",
+                    ".csv",
+                    ".ts",
+                    ".tsx",
+                    ".js",
+                    ".jsx",
+                    ".vue",
+                    ".css",
+                    ".scss",
                 }
                 dir_limit = 200
                 loaded_dir = 0
@@ -7742,7 +8489,9 @@ Just the new description that should replace the current one while preserving th
                         continue
                     if file_path.suffix.lower() not in allowed_exts_mod:
                         continue
-                    rel_sub = _normalize_rel_path(str(file_path.relative_to(base_workspace)).replace("\\", "/"))
+                    rel_sub = _normalize_rel_path(
+                        str(file_path.relative_to(base_workspace)).replace("\\", "/")
+                    )
                     _add_file(file_path, rel_sub)
                     loaded_dir += 1
             else:
@@ -7750,9 +8499,25 @@ Just the new description that should replace the current one while preserving th
 
         # Load read-only context (limited set of extensions)
         allowed_exts = {
-            ".py", ".pyi", ".txt", ".md", ".json", ".yaml", ".yml",
-            ".ini", ".cfg", ".conf", ".env", ".csv",
-            ".ts", ".tsx", ".js", ".jsx", ".vue", ".css", ".scss"
+            ".py",
+            ".pyi",
+            ".txt",
+            ".md",
+            ".json",
+            ".yaml",
+            ".yml",
+            ".ini",
+            ".cfg",
+            ".conf",
+            ".env",
+            ".csv",
+            ".ts",
+            ".tsx",
+            ".js",
+            ".jsx",
+            ".vue",
+            ".css",
+            ".scss",
         }
         denylist_dirs = {".venv", "venv", "node_modules", "dist", "build", "__pycache__"}
         max_readonly_files = 200
@@ -7766,14 +8531,20 @@ Just the new description that should replace the current one while preserving th
                 readonly_path = readonly_entry.get("path")
                 readonly_reason = readonly_entry.get("reason", "")
                 if not readonly_path:
-                    logger.warning(f"[Scope] Skipping invalid read_only_context entry (missing 'path'): {readonly_entry}")
+                    logger.warning(
+                        f"[Scope] Skipping invalid read_only_context entry (missing 'path'): {readonly_entry}"
+                    )
                     continue
                 if readonly_reason:
-                    logger.debug(f"[Scope] Read-only context: {readonly_path} (reason: {readonly_reason})")
+                    logger.debug(
+                        f"[Scope] Read-only context: {readonly_path} (reason: {readonly_reason})"
+                    )
             elif isinstance(readonly_entry, str):
                 readonly_path = readonly_entry
             else:
-                logger.warning(f"[Scope] Skipping invalid read_only_context entry (expected str or dict): {type(readonly_entry).__name__}")
+                logger.warning(
+                    f"[Scope] Skipping invalid read_only_context entry (expected str or dict): {type(readonly_entry).__name__}"
+                )
                 continue
 
             resolved = self._resolve_scope_target(readonly_path, workspace_root, must_exist=False)
@@ -7788,8 +8559,10 @@ Just the new description that should replace the current one while preserving th
                     if artifact_loader:
                         try:
                             full_content = abs_path.read_text(encoding="utf-8", errors="ignore")
-                            content, tokens_saved, source_type = artifact_loader.load_with_artifacts(
-                                rel_key, full_content, prefer_artifacts=True
+                            content, tokens_saved, source_type = (
+                                artifact_loader.load_with_artifacts(
+                                    rel_key, full_content, prefer_artifacts=True
+                                )
                             )
                             existing_files[rel_key] = content
 
@@ -7797,21 +8570,31 @@ Just the new description that should replace the current one while preserving th
                                 total_tokens_saved += tokens_saved
                                 artifact_substitutions += 1
                                 scope_metadata.setdefault(rel_key, {})
-                                scope_metadata[rel_key].update({
-                                    "category": "read_only",
-                                    "missing": False,
-                                    "source": source_type,
-                                    "tokens_saved": tokens_saved
-                                })
+                                scope_metadata[rel_key].update(
+                                    {
+                                        "category": "read_only",
+                                        "missing": False,
+                                        "source": source_type,
+                                        "tokens_saved": tokens_saved,
+                                    }
+                                )
                             else:
-                                scope_metadata.setdefault(rel_key, {"category": "read_only", "missing": False})
+                                scope_metadata.setdefault(
+                                    rel_key, {"category": "read_only", "missing": False}
+                                )
                         except Exception as exc:
-                            logger.warning(f"[Scope] Artifact loading failed for {rel_key}, using full file: {exc}")
+                            logger.warning(
+                                f"[Scope] Artifact loading failed for {rel_key}, using full file: {exc}"
+                            )
                             _add_file(abs_path, rel_key)
-                            scope_metadata.setdefault(rel_key, {"category": "read_only", "missing": False})
+                            scope_metadata.setdefault(
+                                rel_key, {"category": "read_only", "missing": False}
+                            )
                     else:
                         _add_file(abs_path, rel_key)
-                        scope_metadata.setdefault(rel_key, {"category": "read_only", "missing": False})
+                        scope_metadata.setdefault(
+                            rel_key, {"category": "read_only", "missing": False}
+                        )
                 else:
                     scope_metadata.setdefault(rel_key, {"category": "read_only", "missing": False})
                 continue
@@ -7830,7 +8613,9 @@ Just the new description that should replace the current one while preserving th
                 if file_path.suffix and file_path.suffix.lower() not in allowed_exts:
                     continue
                 try:
-                    rel_builder = str(file_path.resolve().relative_to(base_workspace)).replace("\\", "/")
+                    rel_builder = str(file_path.resolve().relative_to(base_workspace)).replace(
+                        "\\", "/"
+                    )
                 except ValueError:
                     continue
                 if rel_builder in existing_files:
@@ -7850,7 +8635,9 @@ Just the new description that should replace the current one while preserving th
                     missing_path.write_text("{}", encoding="utf-8")
                     logger.info(f"[Scope] Created stub for missing file: {missing}")
                     _add_file(missing_path, missing.replace("\\", "/"))
-                    scope_metadata.setdefault(missing.replace("\\", "/"), {"category": "modifiable", "missing": False})
+                    scope_metadata.setdefault(
+                        missing.replace("\\", "/"), {"category": "modifiable", "missing": False}
+                    )
                     set(existing_files.keys())
                     if missing in missing_files:
                         missing_files.remove(missing)
@@ -7879,7 +8666,7 @@ Just the new description that should replace the current one while preserving th
             scope_metadata=scope_metadata,
             deliverables=phase.get("deliverables", []),
             query=phase.get("description", ""),
-            budget_tokens=settings.context_budget_tokens
+            budget_tokens=settings.context_budget_tokens,
         )
 
         # Replace existing_files with budgeted selection
@@ -7908,11 +8695,15 @@ Just the new description that should replace the current one while preserving th
             "existing_files": existing_files,
             "scope_metadata": scope_metadata,
             "missing_scope_files": missing_files,
-            "artifact_stats": {
-                "substitutions": kept_artifact_substitutions,
-                "tokens_saved": kept_tokens_saved,
-                "substituted_paths_sample": substituted_paths_sample
-            } if kept_artifact_substitutions > 0 else None,
+            "artifact_stats": (
+                {
+                    "substitutions": kept_artifact_substitutions,
+                    "tokens_saved": kept_tokens_saved,
+                    "substituted_paths_sample": substituted_paths_sample,
+                }
+                if kept_artifact_substitutions > 0
+                else None
+            ),
             "budget_selection": budget_selection,  # Store for telemetry
         }
 
@@ -7954,6 +8745,7 @@ Just the new description that should replace the current one while preserving th
 
         # Check for files outside scope (indicating scope loading bug)
         scope_set = set(normalized_scope)
+
         def _is_in_scope(file_path: str) -> bool:
             if file_path in scope_set:
                 return True
@@ -8015,13 +8807,12 @@ Just the new description that should replace the current one while preserving th
                 logger.error(error_msg)
                 raise RuntimeError("Scope validation failed: loaded files outside scope.paths")
 
-        logger.info(f"[Scope] Validation passed: {len(loaded_files)} files match scope configuration")
+        logger.info(
+            f"[Scope] Validation passed: {len(loaded_files)} files match scope configuration"
+        )
 
     def _post_builder_result(
-        self,
-        phase_id: str,
-        result: BuilderResult,
-        allowed_paths: Optional[List[str]] = None
+        self, phase_id: str, result: BuilderResult, allowed_paths: Optional[List[str]] = None
     ):
         """POST builder result to Autopack API
 
@@ -8040,13 +8831,19 @@ Just the new description that should replace the current one while preserving th
         from autopack.governed_apply import GovernedApplyPath
 
         # Enable internal mode for maintenance run types (for consistency)
-        is_maintenance_run = self.run_type in ["autopack_maintenance", "autopack_upgrade", "self_repair"]
+        is_maintenance_run = self.run_type in [
+            "autopack_maintenance",
+            "autopack_upgrade",
+            "self_repair",
+        ]
         governed_apply = GovernedApplyPath(
             workspace=Path(self.workspace),
             run_type=self.run_type,
             autopack_internal_mode=is_maintenance_run,
         )
-        files_changed, lines_added, lines_removed = governed_apply.parse_patch_stats(result.patch_content or "")
+        files_changed, lines_added, lines_removed = governed_apply.parse_patch_stats(
+            result.patch_content or ""
+        )
 
         # P1.2: Emit canonical BuilderResult payload matching builder_schemas.py
         # Use lowercase status vocabulary and top-level fields (no metadata wrapper)
@@ -8055,24 +8852,24 @@ Just the new description that should replace the current one while preserving th
             "run_id": self.run_id,
             "run_type": self.run_type,
             "allowed_paths": allowed_paths or [],
-
             # Patch/diff information
             "patch_content": result.patch_content,  # Canonical field name
             "files_changed": files_changed,  # Canonical field name
             "lines_added": lines_added,
             "lines_removed": lines_removed,
-
             # Execution details (top-level, not in metadata)
             "builder_attempts": 1,
             "tokens_used": result.tokens_used,
             "duration_minutes": 0.0,
-
             "probe_results": [],
             "suggested_issues": [],
-
             # Status (lowercase canonical vocabulary)
             "status": "success" if result.success else "failed",
-            "notes": "\n".join(result.builder_messages) if result.builder_messages else (result.error or ""),
+            "notes": (
+                "\n".join(result.builder_messages)
+                if result.builder_messages
+                else (result.error or "")
+            ),
         }
 
         try:
@@ -8084,7 +8881,9 @@ Just the new description that should replace the current one while preserving th
                     if response.status_code == 422:
                         error_detail = response.json().get("detail", "Patch validation failed")
                         logger.error(f"[{phase_id}] Patch validation failed (422): {error_detail}")
-                        logger.info(f"[{phase_id}] Phase 2.3: Validation errors indicate malformed patch - LLM should regenerate")
+                        logger.info(
+                            f"[{phase_id}] Phase 2.3: Validation errors indicate malformed patch - LLM should regenerate"
+                        )
 
                         # Log validation failures to debug journal
                         log_error(
@@ -8093,7 +8892,7 @@ Just the new description that should replace the current one while preserving th
                             run_id=self.run_id,
                             phase_id=phase_id,
                             suspected_cause="LLM generated malformed patch - needs regeneration",
-                            priority="MEDIUM"
+                            priority="MEDIUM",
                         )
 
                         # TODO: Implement automatic retry with LLM correction
@@ -8110,8 +8909,10 @@ Just the new description that should replace the current one while preserving th
                             f"[{phase_id}] HTTP 500 count this run: {self._run_http_500_count}/{self.MAX_HTTP_500_PER_RUN}"
                         )
                         if attempt < 2:
-                            backoff = 1 * (2 ** attempt)
-                            logger.info(f"[{phase_id}] Retrying builder_result POST after {backoff}s (attempt {attempt+2}/3)")
+                            backoff = 1 * (2**attempt)
+                            logger.info(
+                                f"[{phase_id}] Retrying builder_result POST after {backoff}s (attempt {attempt+2}/3)"
+                            )
                             time.sleep(backoff)
                             continue
                         if self._run_http_500_count >= self.MAX_HTTP_500_PER_RUN:
@@ -8127,7 +8928,11 @@ Just the new description that should replace the current one while preserving th
                 logger.warning(
                     f"[{phase_id}] HTTP 500 count this run: {self._run_http_500_count}/{self.MAX_HTTP_500_PER_RUN}"
                 )
-            if status_code and status_code >= 500 and self._run_http_500_count >= self.MAX_HTTP_500_PER_RUN:
+            if (
+                status_code
+                and status_code >= 500
+                and self._run_http_500_count >= self.MAX_HTTP_500_PER_RUN
+            ):
                 logger.error(
                     f"[{phase_id}] HTTP 500 budget exceeded for run {self.run_id}; consider aborting run."
                 )
@@ -8140,7 +8945,7 @@ Just the new description that should replace the current one while preserving th
                 run_id=self.run_id,
                 phase_id=phase_id,
                 suspected_cause="API communication failure or server error",
-                priority="MEDIUM"
+                priority="MEDIUM",
             )
 
     def _post_auditor_result(self, phase_id: str, result: AuditorResult):
@@ -8159,19 +8964,25 @@ Just the new description that should replace the current one while preserving th
         # Convert issues_found from List[Dict] to List[BuilderSuggestedIssue]
         formatted_issues = []
         for issue in result.issues_found:
-            formatted_issues.append({
-                "issue_key": issue.get("issue_key", "unknown"),
-                "severity": issue.get("severity", "medium"),
-                "source": issue.get("source", "auditor"),
-                "category": issue.get("category", "general"),
-                "evidence_refs": issue.get("evidence_refs", []),
-                "description": issue.get("description", ""),
-            })
+            formatted_issues.append(
+                {
+                    "issue_key": issue.get("issue_key", "unknown"),
+                    "severity": issue.get("severity", "medium"),
+                    "source": issue.get("source", "auditor"),
+                    "category": issue.get("category", "general"),
+                    "evidence_refs": issue.get("evidence_refs", []),
+                    "description": issue.get("description", ""),
+                }
+            )
 
         payload = {
             "phase_id": phase_id,
             "run_id": self.run_id,
-            "review_notes": "\n".join(result.auditor_messages) if result.auditor_messages else (result.error or ""),
+            "review_notes": (
+                "\n".join(result.auditor_messages)
+                if result.auditor_messages
+                else (result.error or "")
+            ),
             "issues_found": formatted_issues,
             "suggested_patches": [],  # TODO: Parse from auditor_messages if available
             "auditor_attempts": 1,
@@ -8227,7 +9038,7 @@ Just the new description that should replace the current one while preserving th
                 run_id=self.run_id,
                 phase_id=phase_id,
                 suspected_cause="API communication failure or server error",
-                priority="MEDIUM"
+                priority="MEDIUM",
             )
 
     def _get_project_slug(self) -> str:
@@ -8243,7 +9054,9 @@ Just the new description that should replace the current one while preserving th
         # Default to Autopack framework
         return "autopack"
 
-    def _should_include_sot_retrieval(self, max_context_chars: int, phase_id: Optional[str] = None) -> bool:
+    def _should_include_sot_retrieval(
+        self, max_context_chars: int, phase_id: Optional[str] = None
+    ) -> bool:
         """Budget-aware gating for SOT retrieval.
 
         Args:
@@ -8264,7 +9077,9 @@ Just the new description that should replace the current one while preserving th
 
         # Global kill switch
         if not settings.autopack_sot_retrieval_enabled:
-            logger.info(f"{phase_prefix}[SOT] Retrieval disabled by config (autopack_sot_retrieval_enabled=false)")
+            logger.info(
+                f"{phase_prefix}[SOT] Retrieval disabled by config (autopack_sot_retrieval_enabled=false)"
+            )
             return False
 
         # Budget gating: ensure we have enough headroom for SOT + other context
@@ -8311,11 +9126,14 @@ Just the new description that should replace the current one while preserving th
         # DB persistence remains opt-in (TELEMETRY_DB_ENABLED=1).
         try:
             from autopack.config import settings
+
             sot_chunks = retrieved_context.get("sot", []) or []
             sot_chunks_retrieved = len(sot_chunks)
             sot_chars_raw = sum(len(chunk.get("content", "")) for chunk in sot_chunks)
             total_context_chars = len(formatted_context)
-            budget_utilization_pct = (total_context_chars / max_context_chars * 100) if max_context_chars > 0 else 0.0
+            budget_utilization_pct = (
+                (total_context_chars / max_context_chars * 100) if max_context_chars > 0 else 0.0
+            )
             logger.info(
                 f"[{phase_id}] [SOT] Context telemetry: include_sot={include_sot}, "
                 f"sot_chunks={sot_chunks_retrieved}, sot_chars_raw={sot_chars_raw}, "
@@ -8342,7 +9160,9 @@ Just the new description that should replace the current one while preserving th
             sot_chars_raw = sum(len(chunk.get("content", "")) for chunk in sot_chunks)
 
             total_context_chars = len(formatted_context)
-            budget_utilization_pct = (total_context_chars / max_context_chars * 100) if max_context_chars > 0 else 0.0
+            budget_utilization_pct = (
+                (total_context_chars / max_context_chars * 100) if max_context_chars > 0 else 0.0
+            )
 
             # Determine sections included
             sections_included = [k for k, v in retrieved_context.items() if v]
@@ -8358,7 +9178,7 @@ Just the new description that should replace the current one while preserving th
             sot_truncated = False
             if include_sot and sot_chars_raw > 0:
                 # If total context hit the cap, SOT might have been truncated
-                sot_truncated = (total_context_chars >= max_context_chars * 0.95)  # Within 5% of cap
+                sot_truncated = total_context_chars >= max_context_chars * 0.95  # Within 5% of cap
 
             # Create telemetry event
             session = SessionLocal()
@@ -8458,7 +9278,9 @@ Just the new description that should replace the current one while preserving th
         if project_id == "autopack":
             dirty_marker = ws / ".autonomous_runs" / "sot_index_dirty_autopack.json"
         else:
-            dirty_marker = ws / ".autonomous_runs" / project_id / ".autonomous_runs" / "sot_index_dirty.json"
+            dirty_marker = (
+                ws / ".autonomous_runs" / project_id / ".autonomous_runs" / "sot_index_dirty.json"
+            )
 
         dirty_requested = dirty_marker.exists()
 
@@ -8536,6 +9358,7 @@ Just the new description that should replace the current one while preserving th
 
             try:
                 from autopack.models import Phase
+
                 row = (
                     self.db_session.query(Phase)
                     .filter(Phase.run_id == self.run_id, Phase.phase_id == phase_id)
@@ -8563,10 +9386,14 @@ Just the new description that should replace the current one while preserving th
         if os.getenv("AUTOPACK_SKIP_CI") == "1":
             is_telemetry_run = self.run_id.startswith("telemetry-collection-")
             if is_telemetry_run:
-                logger.info(f"[{phase_id}] CI skipped (AUTOPACK_SKIP_CI=1 - telemetry seeding mode)")
+                logger.info(
+                    f"[{phase_id}] CI skipped (AUTOPACK_SKIP_CI=1 - telemetry seeding mode)"
+                )
                 return None  # Return None so PhaseFinalizer doesn't run collection error detection
             else:
-                logger.warning(f"[{phase_id}] AUTOPACK_SKIP_CI=1 set but run_id '{self.run_id}' is not a telemetry run - ignoring flag and running CI normally")
+                logger.warning(
+                    f"[{phase_id}] AUTOPACK_SKIP_CI=1 set but run_id '{self.run_id}' is not a telemetry run - ignoring flag and running CI normally"
+                )
 
         # Phase dict from API does not typically include a top-level "ci". Persisted CI hints live under scope.
         scope = phase.get("scope") or {}
@@ -8606,7 +9433,9 @@ Just the new description that should replace the current one while preserving th
 
         workdir = Path(self.workspace) / ci_spec.get("workdir", ".")
         if not workdir.exists():
-            logger.warning(f"[{phase_id}] CI workdir {workdir} missing, defaulting to workspace root")
+            logger.warning(
+                f"[{phase_id}] CI workdir {workdir} missing, defaulting to workspace root"
+            )
             workdir = Path(self.workspace)
 
         pytest_paths = ci_spec.get("paths")
@@ -8730,11 +9559,7 @@ Just the new description that should replace the current one while preserving th
         if not passed and not error_msg:
             error_msg = f"pytest exited with code {result.returncode}"
 
-        message = (
-            ci_spec.get("success_message")
-            if passed
-            else ci_spec.get("failure_message")
-        )
+        message = ci_spec.get("success_message") if passed else ci_spec.get("failure_message")
         if not message:
             if passed:
                 message = f"Pytest passed ({tests_passed}/{max(tests_run,1)} tests)"
@@ -8742,7 +9567,9 @@ Just the new description that should replace the current one while preserving th
                 message = error_msg or "Pytest failed"
 
         if passed:
-            logger.info(f"[{phase_id}] CI checks PASSED: {tests_passed}/{max(tests_run,1)} tests passed in {duration:.1f}s")
+            logger.info(
+                f"[{phase_id}] CI checks PASSED: {tests_passed}/{max(tests_run,1)} tests passed in {duration:.1f}s"
+            )
         else:
             logger.warning(f"[{phase_id}] CI checks FAILED: return code {result.returncode}")
 
@@ -8756,10 +9583,12 @@ Just the new description that should replace the current one while preserving th
                 collector_digest = self.phase_finalizer._extract_collection_error_digest(
                     {"report_path": str(report_path) if report_path else None},
                     workspace_path,
-                    max_errors=5
+                    max_errors=5,
                 )
                 if collector_digest:
-                    logger.warning(f"[{phase_id}] Collection errors detected: {len(collector_digest)} failures")
+                    logger.warning(
+                        f"[{phase_id}] Collection errors detected: {len(collector_digest)} failures"
+                    )
             except Exception as e:
                 logger.warning(f"[{phase_id}] Failed to extract collector digest: {e}")
 
@@ -8802,7 +9631,9 @@ Just the new description that should replace the current one while preserving th
 
         workdir = Path(self.workspace) / ci_spec.get("workdir", ".")
         if not workdir.exists():
-            logger.warning(f"[{phase_id}] CI workdir {workdir} missing, defaulting to workspace root")
+            logger.warning(
+                f"[{phase_id}] CI workdir {workdir} missing, defaulting to workspace root"
+            )
             workdir = Path(self.workspace)
 
         timeout_seconds = ci_spec.get("timeout_seconds") or ci_spec.get("timeout") or 600
@@ -8853,13 +9684,13 @@ Just the new description that should replace the current one while preserving th
         log_name = ci_spec.get("log_name", f"ci_{phase_id}.log")
         report_path = self._persist_ci_log(log_name, full_output, phase_id)
 
-        message = (
-            ci_spec.get("success_message")
-            if passed
-            else ci_spec.get("failure_message")
-        )
+        message = ci_spec.get("success_message") if passed else ci_spec.get("failure_message")
         if not message:
-            message = "CI command succeeded" if passed else f"CI command failed (exit {result.returncode})"
+            message = (
+                "CI command succeeded"
+                if passed
+                else f"CI command failed (exit {result.returncode})"
+            )
 
         if passed:
             logger.info(f"[{phase_id}] Custom CI command passed in {duration:.1f}s")
@@ -8945,12 +9776,7 @@ Just the new description that should replace the current one while preserving th
             if status == "BLOCKED":
                 status = "FAILED"
 
-            response = requests.post(
-                url,
-                json={"state": status},
-                headers=headers,
-                timeout=30
-            )
+            response = requests.post(url, json={"state": status}, headers=headers, timeout=30)
             response.raise_for_status()
             logger.info(f"Updated phase {phase_id} status to {status}")
             # Best-effort run_summary rewrite when a phase reaches a terminal state
@@ -8960,11 +9786,7 @@ Just the new description that should replace the current one while preserving th
             logger.warning(f"Failed to update phase {phase_id} status: {e}")
 
     def _try_handle_governance_request(
-        self,
-        phase_id: str,
-        error_msg: str,
-        patch_content: str,
-        governed_apply: Any
+        self, phase_id: str, error_msg: str, patch_content: str, governed_apply: Any
     ) -> bool:
         """
         Handle protected path governance request (BUILD-127 Phase 2).
@@ -8979,9 +9801,7 @@ Just the new description that should replace the current one while preserving th
             True if governance request was approved and patch applied, False otherwise
         """
         import json
-        from autopack.governance_requests import (
-            create_governance_request
-        )
+        from autopack.governance_requests import create_governance_request
 
         # Try to parse as structured error
         try:
@@ -9010,7 +9830,7 @@ Just the new description that should replace the current one while preserving th
             phase_id=phase_id,
             violated_paths=violated_paths,
             justification=justification,
-            risk_scorer=getattr(self, 'risk_scorer', None)
+            risk_scorer=getattr(self, "risk_scorer", None),
         )
 
         logger.info(
@@ -9026,9 +9846,7 @@ Just the new description that should replace the current one while preserving th
             )
 
         # Request human approval
-        logger.info(
-            f"[Governance:{phase_id}] Requesting human approval for {request.request_id}"
-        )
+        logger.info(f"[Governance:{phase_id}] Requesting human approval for {request.request_id}")
 
         # TODO: Integrate with Telegram approval flow
         # For now, fail and require manual approval via API
@@ -9046,7 +9864,7 @@ Just the new description that should replace the current one while preserving th
         phase_id: str,
         patch_content: str,
         allowed_paths: List[str],
-        original_governed_apply: Any
+        original_governed_apply: Any,
     ) -> bool:
         """
         Retry patch application with temporary path allowance overlay (BUILD-127 Phase 2).
@@ -9062,23 +9880,22 @@ Just the new description that should replace the current one while preserving th
         """
         from autopack.governed_apply import GovernedApplyPath
 
-        logger.info(
-            f"[Governance:{phase_id}] Retrying with allowance: {len(allowed_paths)} paths"
-        )
+        logger.info(f"[Governance:{phase_id}] Retrying with allowance: {len(allowed_paths)} paths")
 
         # Create permissive governed_apply instance
         governed_apply_permissive = GovernedApplyPath(
             workspace=Path(self.workspace),
             run_type=self.run_type,
-            autopack_internal_mode=getattr(original_governed_apply, 'autopack_internal_mode', False),
-            scope_paths=getattr(original_governed_apply, 'scope_paths', None),
-            allowed_paths=getattr(original_governed_apply, 'allowed_paths', []) + allowed_paths
+            autopack_internal_mode=getattr(
+                original_governed_apply, "autopack_internal_mode", False
+            ),
+            scope_paths=getattr(original_governed_apply, "scope_paths", None),
+            allowed_paths=getattr(original_governed_apply, "allowed_paths", []) + allowed_paths,
         )
 
         # Retry patch application
         patch_success, error_msg = governed_apply_permissive.apply_patch(
-            patch_content,
-            full_file_mode=True
+            patch_content, full_file_mode=True
         )
 
         if patch_success:
@@ -9091,10 +9908,7 @@ Just the new description that should replace the current one while preserving th
             return False
 
     def _request_human_approval(
-        self,
-        phase_id: str,
-        quality_report,
-        timeout_seconds: int = 3600
+        self, phase_id: str, quality_report, timeout_seconds: int = 3600
     ) -> bool:
         """
         Request human approval via Telegram for blocked phases.
@@ -9116,26 +9930,26 @@ Just the new description that should replace the current one while preserving th
         logger.info(f"[{phase_id}] Requesting human approval via Telegram...")
 
         # Extract risk assessment from quality report
-        risk_assessment = getattr(quality_report, 'risk_assessment', None)
+        risk_assessment = getattr(quality_report, "risk_assessment", None)
         if not risk_assessment:
             logger.warning(f"[{phase_id}] No risk assessment found in quality report")
             deletion_info = {
-                'net_deletion': 0,
-                'loc_removed': 0,
-                'loc_added': 0,
-                'files': [],
-                'risk_level': 'unknown',
-                'risk_score': 0,
+                "net_deletion": 0,
+                "loc_removed": 0,
+                "loc_added": 0,
+                "files": [],
+                "risk_level": "unknown",
+                "risk_score": 0,
             }
         else:
-            metadata = risk_assessment.get('metadata', {})
+            metadata = risk_assessment.get("metadata", {})
             deletion_info = {
-                'net_deletion': metadata.get('loc_removed', 0) - metadata.get('loc_added', 0),
-                'loc_removed': metadata.get('loc_removed', 0),
-                'loc_added': metadata.get('loc_added', 0),
-                'files': [],  # TODO: Extract from quality report
-                'risk_level': risk_assessment.get('risk_level', 'unknown'),
-                'risk_score': risk_assessment.get('risk_score', 0),
+                "net_deletion": metadata.get("loc_removed", 0) - metadata.get("loc_added", 0),
+                "loc_removed": metadata.get("loc_removed", 0),
+                "loc_added": metadata.get("loc_added", 0),
+                "files": [],  # TODO: Extract from quality report
+                "risk_level": risk_assessment.get("risk_level", "unknown"),
+                "risk_score": risk_assessment.get("risk_score", 0),
             }
 
         # Send approval request to backend API
@@ -9154,13 +9968,15 @@ Just the new description that should replace the current one while preserving th
                     "context": "troubleshoot",  # TODO: Derive from phase context
                 },
                 headers=headers,
-                timeout=30
+                timeout=30,
             )
             response.raise_for_status()
             result = response.json()
 
             if result.get("status") == "rejected":
-                logger.error(f"[{phase_id}] Approval request rejected: {result.get('reason', 'Unknown')}")
+                logger.error(
+                    f"[{phase_id}] Approval request rejected: {result.get('reason', 'Unknown')}"
+                )
                 return False
 
             # Check if immediately approved (auto-approve mode)
@@ -9174,7 +9990,9 @@ Just the new description that should replace the current one while preserving th
                 logger.error(f"[{phase_id}] No approval_id in response - cannot poll for status")
                 return False
 
-            logger.info(f"[{phase_id}] Approval request sent (approval_id={approval_id}), waiting for user decision...")
+            logger.info(
+                f"[{phase_id}] Approval request sent (approval_id={approval_id}), waiting for user decision..."
+            )
 
         except Exception as e:
             logger.error(f"[{phase_id}] Failed to send approval request: {e}")
@@ -9211,7 +10029,9 @@ Just the new description that should replace the current one while preserving th
                 elapsed += poll_interval
 
                 if elapsed % 60 == 0:  # Log every minute
-                    logger.info(f"[{phase_id}] Still waiting for approval... ({elapsed}s / {timeout_seconds}s)")
+                    logger.info(
+                        f"[{phase_id}] Still waiting for approval... ({elapsed}s / {timeout_seconds}s)"
+                    )
 
             except Exception as e:
                 logger.warning(f"[{phase_id}] Error checking approval status: {e}")
@@ -9223,11 +10043,7 @@ Just the new description that should replace the current one while preserving th
         return False
 
     def _request_build113_approval(
-        self,
-        phase_id: str,
-        decision,
-        patch_content: str,
-        timeout_seconds: int = 3600
+        self, phase_id: str, decision, patch_content: str, timeout_seconds: int = 3600
     ) -> bool:
         """
         Request human approval for BUILD-113 RISKY decisions via Telegram.
@@ -9279,13 +10095,15 @@ Just the new description that should replace the current one while preserving th
                     "patch_preview": patch_preview,
                 },
                 headers=headers,
-                timeout=30
+                timeout=30,
             )
             response.raise_for_status()
             result = response.json()
 
             if result.get("status") == "rejected":
-                logger.error(f"[BUILD-113] Approval request rejected: {result.get('reason', 'Unknown')}")
+                logger.error(
+                    f"[BUILD-113] Approval request rejected: {result.get('reason', 'Unknown')}"
+                )
                 return False
 
             # Check if immediately approved (auto-approve mode)
@@ -9299,12 +10117,16 @@ Just the new description that should replace the current one while preserving th
                 logger.error("[BUILD-113] No approval_id in response - cannot poll for status")
                 return False
 
-            logger.info(f"[BUILD-113] Approval request sent (approval_id={approval_id}), waiting for user decision...")
+            logger.info(
+                f"[BUILD-113] Approval request sent (approval_id={approval_id}), waiting for user decision..."
+            )
 
         except Exception as e:
             logger.error(f"[BUILD-113] Failed to send approval request: {e}")
             # If Telegram is not configured, auto-reject high-risk patches
-            logger.warning("[BUILD-113] Defaulting to REJECT for RISKY decision without approval system")
+            logger.warning(
+                "[BUILD-113] Defaulting to REJECT for RISKY decision without approval system"
+            )
             return False
 
         # Poll for approval status (reuse same polling logic as regular approval)
@@ -9337,7 +10159,9 @@ Just the new description that should replace the current one while preserving th
                 elapsed += poll_interval
 
                 if elapsed % 60 == 0:  # Log every minute
-                    logger.info(f"[BUILD-113] Still waiting for approval... ({elapsed}s / {timeout_seconds}s)")
+                    logger.info(
+                        f"[BUILD-113] Still waiting for approval... ({elapsed}s / {timeout_seconds}s)"
+                    )
 
             except Exception as e:
                 logger.warning(f"[BUILD-113] Error checking approval status: {e}")
@@ -9345,14 +10169,13 @@ Just the new description that should replace the current one while preserving th
                 elapsed += poll_interval
 
         # Timeout reached
-        logger.warning(f"[BUILD-113] ⏱️  Approval timeout after {timeout_seconds}s - defaulting to REJECT")
+        logger.warning(
+            f"[BUILD-113] ⏱️  Approval timeout after {timeout_seconds}s - defaulting to REJECT"
+        )
         return False
 
     def _request_build113_clarification(
-        self,
-        phase_id: str,
-        decision,
-        timeout_seconds: int = 3600
+        self, phase_id: str, decision, timeout_seconds: int = 3600
     ) -> Optional[str]:
         """
         Request human clarification for BUILD-113 AMBIGUOUS decisions via Telegram.
@@ -9371,7 +10194,9 @@ Just the new description that should replace the current one while preserving th
         import time
         import requests
 
-        logger.info(f"[BUILD-113] Requesting human clarification for AMBIGUOUS decision on {phase_id}...")
+        logger.info(
+            f"[BUILD-113] Requesting human clarification for AMBIGUOUS decision on {phase_id}..."
+        )
 
         # Build clarification request with BUILD-113 decision details
         try:
@@ -9396,13 +10221,15 @@ Just the new description that should replace the current one while preserving th
                     },
                 },
                 headers=headers,
-                timeout=30
+                timeout=30,
             )
             response.raise_for_status()
             result = response.json()
 
             if result.get("status") == "rejected":
-                logger.error(f"[BUILD-113] Clarification request rejected: {result.get('reason', 'Unknown')}")
+                logger.error(
+                    f"[BUILD-113] Clarification request rejected: {result.get('reason', 'Unknown')}"
+                )
                 return None
 
             logger.info("[BUILD-113] Clarification request sent, waiting for user response...")
@@ -9410,7 +10237,9 @@ Just the new description that should replace the current one while preserving th
         except Exception as e:
             logger.error(f"[BUILD-113] Failed to send clarification request: {e}")
             # If Telegram is not configured, cannot get clarification
-            logger.warning("[BUILD-113] No clarification system available - cannot resolve AMBIGUOUS decision")
+            logger.warning(
+                "[BUILD-113] No clarification system available - cannot resolve AMBIGUOUS decision"
+            )
             return None
 
         # Poll for clarification response
@@ -9432,7 +10261,9 @@ Just the new description that should replace the current one while preserving th
 
                 if status == "answered":
                     clarification_text = status_data.get("response", "")
-                    logger.info(f"[BUILD-113] ✅ Clarification received: {clarification_text[:100]}...")
+                    logger.info(
+                        f"[BUILD-113] ✅ Clarification received: {clarification_text[:100]}..."
+                    )
                     return clarification_text
 
                 if status == "rejected":
@@ -9444,7 +10275,9 @@ Just the new description that should replace the current one while preserving th
                 elapsed += poll_interval
 
                 if elapsed % 60 == 0:  # Log every minute
-                    logger.info(f"[BUILD-113] Still waiting for clarification... ({elapsed}s / {timeout_seconds}s)")
+                    logger.info(
+                        f"[BUILD-113] Still waiting for clarification... ({elapsed}s / {timeout_seconds}s)"
+                    )
 
             except Exception as e:
                 logger.warning(f"[BUILD-113] Error checking clarification status: {e}")
@@ -9476,20 +10309,11 @@ Just the new description that should replace the current one while preserving th
             tag_name = f"save-before-deletion-{phase_id}-{timestamp}"
 
             # Check if there are uncommitted changes
-            result = subprocess.run(
-                ["git", "diff", "--quiet"],
-                cwd=self.root,
-                capture_output=True
-            )
+            result = subprocess.run(["git", "diff", "--quiet"], cwd=self.root, capture_output=True)
 
             if result.returncode != 0:
                 # There are uncommitted changes - create a temporary commit first
-                subprocess.run(
-                    ["git", "add", "-A"],
-                    cwd=self.root,
-                    check=True,
-                    capture_output=True
-                )
+                subprocess.run(["git", "add", "-A"], cwd=self.root, check=True, capture_output=True)
 
                 commit_msg = (
                     f"[SAVE POINT] Before {phase_id} deletion ({net_deletion} lines)\n\n"
@@ -9507,16 +10331,11 @@ Just the new description that should replace the current one while preserving th
                     ["git", "commit", "-m", commit_msg],
                     cwd=self.root,
                     check=True,
-                    capture_output=True
+                    capture_output=True,
                 )
 
             # Create lightweight tag at current HEAD
-            subprocess.run(
-                ["git", "tag", tag_name],
-                cwd=self.root,
-                check=True,
-                capture_output=True
-            )
+            subprocess.run(["git", "tag", tag_name], cwd=self.root, check=True, capture_output=True)
 
             logger.info(f"[{phase_id}] Created save point tag: {tag_name}")
             logger.info(f"[{phase_id}] To restore: git reset --hard {tag_name}")
@@ -9579,11 +10398,7 @@ Just the new description that should replace the current one while preserving th
             )
 
             # Send notification (no buttons needed, just FYI)
-            notifier.send_completion_notice(
-                phase_id=phase_id,
-                status="info",
-                message=message
-            )
+            notifier.send_completion_notice(phase_id=phase_id, status="info", message=message)
 
             logger.info(f"[{phase_id}] Sent deletion notification to Telegram (informational only)")
 
@@ -9626,11 +10441,7 @@ Just the new description that should replace the current one while preserving th
             )
 
             # Send notification (no buttons needed for failures, just FYI)
-            notifier.send_completion_notice(
-                phase_id=phase_id,
-                status="failed",
-                message=message
-            )
+            notifier.send_completion_notice(phase_id=phase_id, status="failed", message=message)
 
             logger.info(f"[{phase_id}] Sent failure notification to Telegram")
 
@@ -9655,17 +10466,20 @@ Just the new description that should replace the current one while preserving th
             # Expire all cached objects to get fresh data
             self.db_session.expire_all()
 
-            phase = self.db_session.query(Phase).filter(
-                Phase.phase_id == phase_id,
-                Phase.run_id == self.run_id
-            ).first()
+            phase = (
+                self.db_session.query(Phase)
+                .filter(Phase.phase_id == phase_id, Phase.run_id == self.run_id)
+                .first()
+            )
 
             if phase:
                 phase.state = PhaseState.FAILED
                 self.db_session.commit()
                 # Force flush to ensure write is complete
                 self.db_session.flush()
-                logger.info(f"[Self-Troubleshoot] Force-marked phase {phase_id} as FAILED in database")
+                logger.info(
+                    f"[Self-Troubleshoot] Force-marked phase {phase_id} as FAILED in database"
+                )
                 return True
             else:
                 logger.warning(f"[Self-Troubleshoot] Phase {phase_id} not found in database")
@@ -9677,29 +10491,33 @@ Just the new description that should replace the current one while preserving th
         for attempt in range(3):
             try:
                 self._update_phase_status(phase_id, "FAILED")
-                logger.info(f"[Self-Troubleshoot] Force-marked phase {phase_id} as FAILED via API (attempt {attempt + 1})")
+                logger.info(
+                    f"[Self-Troubleshoot] Force-marked phase {phase_id} as FAILED via API (attempt {attempt + 1})"
+                )
                 return True
             except Exception as e:
                 logger.warning(f"[Self-Troubleshoot] API update attempt {attempt + 1} failed: {e}")
                 time.sleep(1)
 
-        logger.error(f"[Self-Troubleshoot] All attempts to mark phase {phase_id} as FAILED have failed")
+        logger.error(
+            f"[Self-Troubleshoot] All attempts to mark phase {phase_id} as FAILED have failed"
+        )
         return False
 
     def _ensure_api_server_running(self) -> bool:
         """Check if API server is running, start it if not
-        
+
         Returns:
             True if API is running (or was started), False if failed to start
         """
         import socket
         from urllib.parse import urlparse
-        
+
         # Parse API URL
         parsed = urlparse(self.api_url)
         host = parsed.hostname or "localhost"
         port = parsed.port or 8000
-        
+
         # Check if server is already running
         try:
             response = requests.get(f"{self.api_url}/health", timeout=2)
@@ -9718,7 +10536,10 @@ Just the new description that should replace the current one while preserving th
                         )
                         return False
 
-                    if payload.get("db_ok") is False or payload.get("status") not in (None, "healthy"):
+                    if payload.get("db_ok") is False or payload.get("status") not in (
+                        None,
+                        "healthy",
+                    ):
                         logger.warning(
                             "API server responded to /health but reported unhealthy DB. "
                             "Executor requires a healthy API+DB; will attempt to start a local API server."
@@ -9734,7 +10555,7 @@ Just the new description that should replace the current one while preserving th
                     return False
         except Exception:
             pass  # Server not responding, continue to start it
-        
+
         # Try to connect to port to see if something is listening
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         try:
@@ -9751,10 +10572,10 @@ Just the new description that should replace the current one while preserving th
                 return False
         except Exception:
             pass
-        
+
         # Server not running - try to start it
         logger.info(f"API server not detected at {self.api_url}, attempting to start it...")
-        
+
         try:
             # Start API server in background
             import sys
@@ -9794,25 +10615,30 @@ Just the new description that should replace the current one while preserving th
             except Exception:
                 log_fp = None
             api_cmd = [
-                sys.executable, "-m", "uvicorn",
+                sys.executable,
+                "-m",
+                "uvicorn",
                 # IMPORTANT: module path is relative to PYTHONPATH=src; 'src.autopack...' is not importable
                 # because 'src/' is not a Python package (no src/__init__.py).
                 "autopack.main:app",
-                "--host", host,
-                "--port", str(port)
+                "--host",
+                host,
+                "--port",
+                str(port),
             ]
-            
+
             # Start process in background (detached on Windows)
             if sys.platform == "win32":
                 # Windows: use CREATE_NEW_PROCESS_GROUP and DETACHED_PROCESS
                 import subprocess
+
                 process = subprocess.Popen(
                     api_cmd,
                     stdout=log_fp or subprocess.DEVNULL,
                     stderr=log_fp or subprocess.DEVNULL,
                     env=env,
                     cwd=str(Path(self.workspace).resolve()),
-                    creationflags=subprocess.CREATE_NEW_PROCESS_GROUP | subprocess.DETACHED_PROCESS
+                    creationflags=subprocess.CREATE_NEW_PROCESS_GROUP | subprocess.DETACHED_PROCESS,
                 )
             else:
                 # Unix: use nohup-like behavior
@@ -9822,9 +10648,9 @@ Just the new description that should replace the current one while preserving th
                     stderr=log_fp or subprocess.DEVNULL,
                     env=env,
                     cwd=str(Path(self.workspace).resolve()),
-                    start_new_session=True
+                    start_new_session=True,
                 )
-            
+
             # Wait a bit for server to start
             logger.info(f"Waiting for API server to start on {host}:{port}...")
             for i in range(startup_timeout_s):  # Wait up to configured seconds
@@ -9847,7 +10673,9 @@ Just the new description that should replace the current one while preserving th
                         # Optional: fail fast if the API is healthy but the run is missing (common DB drift symptom).
                         if os.getenv("AUTOPACK_SKIP_RUN_EXISTENCE_CHECK") != "1":
                             try:
-                                run_resp = requests.get(f"{self.api_url}/runs/{self.run_id}", timeout=2)
+                                run_resp = requests.get(
+                                    f"{self.api_url}/runs/{self.run_id}", timeout=2
+                                )
                                 if run_resp.status_code == 404:
                                     logger.error(
                                         "[DB_MISMATCH] API is healthy but run was not found. "
@@ -9867,21 +10695,25 @@ Just the new description that should replace the current one while preserving th
                     pass
                 if i < startup_timeout_s - 1:
                     logger.info(f"  Still waiting... ({i+1}/{startup_timeout_s})")
-            
-            logger.error(f"API server failed to start within {startup_timeout_s} seconds (log: {api_log_path})")
+
+            logger.error(
+                f"API server failed to start within {startup_timeout_s} seconds (log: {api_log_path})"
+            )
             return False
-            
+
         except Exception as e:
             logger.error(f"Failed to start API server: {e}")
             logger.info("Please start the API server manually:")
-            logger.info(f"  (ensure PYTHONPATH=src) python -m uvicorn autopack.main:app --host {host} --port {port}")
+            logger.info(
+                f"  (ensure PYTHONPATH=src) python -m uvicorn autopack.main:app --host {host} --port {port}"
+            )
             return False
 
     def run_autonomous_loop(
         self,
         poll_interval: int = 10,
         max_iterations: Optional[int] = None,
-        stop_on_first_failure: bool = False
+        stop_on_first_failure: bool = False,
     ):
         """Main autonomous execution loop
 
@@ -9904,6 +10736,7 @@ Just the new description that should replace the current one while preserving th
         # This detects DB identity mismatch (API using different DB than expected)
         try:
             import requests
+
             url = f"{self.api_url}/runs/{self.run_id}"
             headers = {}
             if self.api_key:
@@ -9915,7 +10748,9 @@ Just the new description that should replace the current one while preserving th
                 logger.error("=" * 70)
                 logger.error(f"API server is healthy but run '{self.run_id}' not found")
                 logger.error("This indicates database identity mismatch:")
-                logger.error(f"  - Executor DATABASE_URL: {os.environ.get('DATABASE_URL', 'NOT SET')}")
+                logger.error(
+                    f"  - Executor DATABASE_URL: {os.environ.get('DATABASE_URL', 'NOT SET')}"
+                )
                 logger.error("  - API server may be using different database")
                 logger.error("")
                 logger.error("Recommended fixes:")
@@ -9951,10 +10786,17 @@ Just the new description that should replace the current one while preserving th
         try:
             intention_anchor = IntentionAnchorStorage.load_anchor(self.run_id)
             if intention_anchor is None:
-                logger.warning(f"[IntentionFirst] No intention anchor found for run {self.run_id}, using defaults")
+                logger.warning(
+                    f"[IntentionFirst] No intention anchor found for run {self.run_id}, using defaults"
+                )
                 # Create minimal default anchor if none exists
-                from autopack.intention_anchor.models import IntentionAnchor, IntentionConstraints, IntentionBudgets
+                from autopack.intention_anchor.models import (
+                    IntentionAnchor,
+                    IntentionConstraints,
+                    IntentionBudgets,
+                )
                 from datetime import datetime, timezone
+
                 intention_anchor = IntentionAnchor(
                     anchor_id=f"default-{self.run_id}",
                     run_id=self.run_id,
@@ -9970,7 +10812,9 @@ Just the new description that should replace the current one while preserving th
                         max_sot_chars=500_000,
                     ),
                 )
-            logger.info(f"[IntentionFirst] Loaded intention anchor: {intention_anchor.anchor_id} (v{intention_anchor.version})")
+            logger.info(
+                f"[IntentionFirst] Loaded intention anchor: {intention_anchor.anchor_id} (v{intention_anchor.version})"
+            )
 
             # Initialize the intention-first loop with routing snapshot + state tracking
             wiring = initialize_intention_first_loop(
@@ -9978,12 +10822,16 @@ Just the new description that should replace the current one while preserving th
                 project_id=intention_anchor.project_id,
                 intention_anchor=intention_anchor,
             )
-            logger.info(f"[IntentionFirst] Initialized loop with routing snapshot: {wiring.run_state.routing_snapshot.snapshot_id}")
+            logger.info(
+                f"[IntentionFirst] Initialized loop with routing snapshot: {wiring.run_state.routing_snapshot.snapshot_id}"
+            )
             # Store wiring state as instance variable for phase execution
             self._intention_wiring = wiring
             self._intention_anchor = intention_anchor
         except Exception as e:
-            logger.warning(f"[IntentionFirst] Failed to initialize intention-first loop: {e}, continuing without it")
+            logger.warning(
+                f"[IntentionFirst] Failed to initialize intention-first loop: {e}, continuing without it"
+            )
             self._intention_wiring = None
             self._intention_anchor = None
 
@@ -9992,7 +10840,7 @@ Just the new description that should replace the current one while preserving th
         phases_failed = 0
         stop_signal_file = Path(".autonomous_runs/.stop_executor")
         stop_reason: str | None = None
-        
+
         while True:
             # Check for stop signal (from monitor script)
             if stop_signal_file.exists():
@@ -10003,7 +10851,7 @@ Just the new description that should replace the current one while preserving th
                     stop_signal_file.unlink()  # Remove signal file
                     stop_reason = "stop_signal"
                     break
-            
+
             # Check iteration limit
             if max_iterations and iteration >= max_iterations:
                 logger.info(f"Reached max iterations ({max_iterations}), stopping")
@@ -10029,7 +10877,7 @@ Just the new description that should replace the current one while preserving th
                 logger.warning(f"[AutoFix] Failed to auto-fix queued phases (non-blocking): {e}")
 
             # NEW: Initialize goal anchor on first iteration (for drift detection)
-            if iteration == 1 and not hasattr(self, '_run_goal_anchor'):
+            if iteration == 1 and not hasattr(self, "_run_goal_anchor"):
                 # Try to get goal_anchor from run data, or extract from first phase
                 goal_anchor = run_data.get("goal_anchor")
                 if not goal_anchor:
@@ -10076,14 +10924,16 @@ Just the new description that should replace the current one while preserving th
             else:
                 logger.warning(f"Phase {phase_id} finished with status: {status}")
                 phases_failed += 1
-                
+
                 # NEW: Stop on first failure if requested (saves token usage)
                 if stop_on_first_failure:
                     logger.critical(
                         f"[STOP_ON_FAILURE] Phase {phase_id} failed with status: {status}. "
                         f"Stopping execution to save token usage."
                     )
-                    logger.info(f"Total phases executed: {phases_executed}, failed: {phases_failed}")
+                    logger.info(
+                        f"Total phases executed: {phases_executed}, failed: {phases_failed}"
+                    )
                     stop_reason = "stop_on_first_failure"
                     break
 
@@ -10103,8 +10953,12 @@ Just the new description that should replace the current one while preserving th
                 log_build_event(
                     event_type="RUN_COMPLETE",
                     description=f"Run {self.run_id} completed. Phases: {phases_executed} successful, {phases_failed} failed. Total iterations: {iteration}",
-                    deliverables=[f"Run ID: {self.run_id}", f"Successful: {phases_executed}", f"Failed: {phases_failed}"],
-                    project_slug=self._get_project_slug()
+                    deliverables=[
+                        f"Run ID: {self.run_id}",
+                        f"Successful: {phases_executed}",
+                        f"Failed: {phases_failed}",
+                    ],
+                    project_slug=self._get_project_slug(),
                 )
             except Exception as e:
                 logger.warning(f"Failed to log run completion: {e}")
@@ -10112,18 +10966,24 @@ Just the new description that should replace the current one while preserving th
             # Best-effort fallback: ensure run_summary.md reflects terminal state even if API-side hook fails
             # Here we are truly finalizing the run (no executable phases remaining),
             # so allow mutating run.state to a terminal DONE_* state if needed.
-            self._best_effort_write_run_summary(phases_failed=phases_failed, allow_run_state_mutation=True)
+            self._best_effort_write_run_summary(
+                phases_failed=phases_failed, allow_run_state_mutation=True
+            )
 
             # Learning Pipeline: Promote hints to persistent rules (Stage 0B)
             try:
                 project_id = self._get_project_slug()
                 promoted_count = promote_hints_to_rules(self.run_id, project_id)
                 if promoted_count > 0:
-                    logger.info(f"Learning Pipeline: Promoted {promoted_count} hints to persistent project rules")
+                    logger.info(
+                        f"Learning Pipeline: Promoted {promoted_count} hints to persistent project rules"
+                    )
                     # Mark that rules have changed for future planning updates
                     self._mark_rules_updated(project_id, promoted_count)
                 else:
-                    logger.info("Learning Pipeline: No hints qualified for promotion (need 2+ occurrences)")
+                    logger.info(
+                        "Learning Pipeline: No hints qualified for promotion (need 2+ occurrences)"
+                    )
             except Exception as e:
                 logger.warning(f"Failed to promote hints to rules: {e}")
         else:
@@ -10133,8 +10993,12 @@ Just the new description that should replace the current one while preserving th
                 log_build_event(
                     event_type="RUN_PAUSED",
                     description=f"Run {self.run_id} paused (reason={stop_reason}). Iterations: {iteration}",
-                    deliverables=[f"Run ID: {self.run_id}", f"Reason: {stop_reason}", f"Iterations: {iteration}"],
-                    project_slug=self._get_project_slug()
+                    deliverables=[
+                        f"Run ID: {self.run_id}",
+                        f"Reason: {stop_reason}",
+                        f"Iterations: {iteration}",
+                    ],
+                    project_slug=self._get_project_slug(),
                 )
             except Exception as e:
                 logger.warning(f"Failed to log run pause: {e}")
@@ -10178,7 +11042,9 @@ Just the new description that should replace the current one while preserving th
                         run.state = models.RunState.DONE_FAILED_REQUIRES_HUMAN_REVIEW
                     else:
                         # Fall back to DB snapshot: if any phase is non-COMPLETE, mark failed
-                        failed_phases = [p for p in run.phases if p.state != models.PhaseState.COMPLETE]
+                        failed_phases = [
+                            p for p in run.phases if p.state != models.PhaseState.COMPLETE
+                        ]
                         if failed_phases:
                             run.state = models.RunState.DONE_FAILED_REQUIRES_HUMAN_REVIEW
                         else:
@@ -10201,7 +11067,7 @@ Just the new description that should replace the current one while preserving th
                 tokens_used=run.tokens_used,
                 phases_complete=phases_complete,
                 phases_failed=phases_failed if phases_failed is not None else actual_phases_failed,
-                failure_reason=failure_reason or getattr(run, 'failure_reason', None),
+                failure_reason=failure_reason or getattr(run, "failure_reason", None),
                 completed_at=datetime.now(timezone.utc).isoformat(),
             )
             self.db_session.commit()
@@ -10258,15 +11124,11 @@ Environment Variables:
   OPENAI_API_KEY       OpenAI API key (fallback for gpt-* models)
   AUTOPACK_API_KEY     Autopack API key (optional)
   AUTOPACK_API_URL     Autopack API URL (default: http://localhost:8000)
-        """
+        """,
     )
 
     # Required arguments
-    parser.add_argument(
-        "--run-id",
-        required=True,
-        help="Autopack run ID to execute"
-    )
+    parser.add_argument("--run-id", required=True, help="Autopack run ID to execute")
     parser.add_argument(
         "--maintenance-plan",
         type=Path,
@@ -10299,89 +11161,85 @@ Environment Variables:
     parser.add_argument(
         "--api-url",
         default=os.getenv("AUTOPACK_API_URL", "http://localhost:8000"),
-        help="Autopack API URL (default: http://localhost:8000)"
+        help="Autopack API URL (default: http://localhost:8000)",
     )
 
     parser.add_argument(
         "--api-key",
         default=os.getenv("AUTOPACK_API_KEY"),
-        help="Autopack API key (default: $AUTOPACK_API_KEY)"
+        help="Autopack API key (default: $AUTOPACK_API_KEY)",
     )
 
     parser.add_argument(
         "--glm-key",
         default=os.getenv("GLM_API_KEY"),
-        help="GLM (Zhipu AI) API key - primary provider (default: $GLM_API_KEY)"
+        help="GLM (Zhipu AI) API key - primary provider (default: $GLM_API_KEY)",
     )
 
     parser.add_argument(
         "--anthropic-key",
         default=os.getenv("ANTHROPIC_API_KEY"),
-        help="Anthropic API key for Claude models (default: $ANTHROPIC_API_KEY)"
+        help="Anthropic API key for Claude models (default: $ANTHROPIC_API_KEY)",
     )
 
     parser.add_argument(
         "--openai-key",
         default=os.getenv("OPENAI_API_KEY"),
-        help="OpenAI API key - fallback for gpt-* models (default: $OPENAI_API_KEY)"
+        help="OpenAI API key - fallback for gpt-* models (default: $OPENAI_API_KEY)",
     )
 
     parser.add_argument(
         "--workspace",
         type=Path,
         default=Path("."),
-        help="Workspace root directory (default: current directory)"
+        help="Workspace root directory (default: current directory)",
     )
 
     parser.add_argument(
         "--poll-interval",
         type=int,
         default=10,
-        help="Seconds between polling for next phase (default: 10)"
+        help="Seconds between polling for next phase (default: 10)",
     )
 
     parser.add_argument(
         "--max-iterations",
         type=int,
         default=None,
-        help="Maximum number of phases to execute (default: unlimited)"
+        help="Maximum number of phases to execute (default: unlimited)",
     )
 
     parser.add_argument(
         "--no-dual-auditor",
         action="store_true",
-        help="Disable dual auditor mode (use single auditor)"
+        help="Disable dual auditor mode (use single auditor)",
     )
 
     parser.add_argument(
         "--run-type",
         choices=["project_build", "autopack_maintenance", "autopack_upgrade", "self_repair"],
         default="project_build",
-        help="Run type: project_build (default), autopack_maintenance (allows src/autopack/ modification)"
+        help="Run type: project_build (default), autopack_maintenance (allows src/autopack/ modification)",
     )
 
     parser.add_argument(
         "--enable-second-opinion",
         action="store_true",
-        help="Enable second opinion triage for diagnostics (requires API key)"
+        help="Enable second opinion triage for diagnostics (requires API key)",
     )
 
     parser.add_argument(
         "--enable-autonomous-fixes",
         action="store_true",
-        help="Enable autonomous fixes for low-risk issues (BUILD-113)"
+        help="Enable autonomous fixes for low-risk issues (BUILD-113)",
     )
 
-    parser.add_argument(
-        "--verbose",
-        action="store_true",
-        help="Enable verbose logging"
-    )
+    parser.add_argument("--verbose", action="store_true", help="Enable verbose logging")
 
     parser.add_argument(
         "--stop-on-first-failure",
         action="store_true",
-        help="Stop execution immediately when any phase fails (saves token usage)"
+        help="Stop execution immediately when any phase fails (saves token usage)",
     )
 
     # BUILD-146 P6.1: Plan Normalization CLI integration
@@ -10389,13 +11247,13 @@ Environment Variables:
         "--raw-plan-file",
         type=Path,
         default=None,
-        help="Path to raw unstructured plan file (enables plan normalization)"
+        help="Path to raw unstructured plan file (enables plan normalization)",
     )
 
     parser.add_argument(
         "--enable-plan-normalization",
         action="store_true",
-        help="Enable plan normalization (transform unstructured plans to structured run specs)"
+        help="Enable plan normalization (transform unstructured plans to structured run specs)",
     )
 
     args = parser.parse_args()
@@ -10412,28 +11270,31 @@ Environment Variables:
             logger.info(f"[BUILD-146 P6.1] Normalizing raw plan from: {args.raw_plan_file}")
 
             # Read raw plan
-            with open(args.raw_plan_file, 'r') as f:
+            with open(args.raw_plan_file, "r") as f:
                 raw_plan_text = f.read()
 
             # Normalize to structured run spec
             normalizer = PlanNormalizer(project_id=args.run_id)
             normalized_run = normalizer.normalize_plan(
-                raw_plan_text=raw_plan_text,
-                run_id=args.run_id
+                raw_plan_text=raw_plan_text, run_id=args.run_id
             )
 
             # Write normalized run spec to file
             normalized_path = args.raw_plan_file.parent / f"{args.run_id}_normalized.json"
-            with open(normalized_path, 'w') as f:
+            with open(normalized_path, "w") as f:
                 json.dump(normalized_run.to_dict(), f, indent=2)
 
             logger.info(f"[BUILD-146 P6.1] Normalized plan written to: {normalized_path}")
             logger.info(f"[BUILD-146 P6.1] Run ID: {normalized_run.run_id}")
             logger.info(f"[BUILD-146 P6.1] Tiers: {len(normalized_run.tiers)}")
-            logger.info(f"[BUILD-146 P6.1] Total phases: {sum(len(t.phases) for t in normalized_run.tiers)}")
+            logger.info(
+                f"[BUILD-146 P6.1] Total phases: {sum(len(t.phases) for t in normalized_run.tiers)}"
+            )
 
             # Exit after normalization (user should review before execution)
-            logger.info("[BUILD-146 P6.1] Plan normalization complete. Review the normalized plan and submit to API.")
+            logger.info(
+                "[BUILD-146 P6.1] Plan normalization complete. Review the normalized plan and submit to API."
+            )
             sys.exit(0)
 
         except Exception as e:
@@ -10487,13 +11348,14 @@ Environment Variables:
         executor.run_autonomous_loop(
             poll_interval=args.poll_interval,
             max_iterations=args.max_iterations,
-            stop_on_first_failure=args.stop_on_first_failure
+            stop_on_first_failure=args.stop_on_first_failure,
         )
     except KeyboardInterrupt:
         logger.info("Interrupted by user, shutting down...")
         sys.exit(0)
     except Exception as e:
         import traceback
+
         logger.error(f"Fatal error: {e}")
         logger.error(f"Traceback:\n{traceback.format_exc()}")
         sys.exit(1)

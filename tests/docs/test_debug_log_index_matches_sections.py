@@ -33,7 +33,7 @@ def test_debug_log_index_recent_rows_match_sections_and_no_duplicate_dbg_ids():
     content = dbg_path.read_text(encoding="utf-8")
 
     # 1) Extract section IDs (canonical definitions)
-    section_re = re.compile(r'^(#{2,3})\s+(DBG-(\d+))\b', re.MULTILINE)
+    section_re = re.compile(r"^(#{2,3})\s+(DBG-(\d+))\b", re.MULTILINE)
     section_ids = []
 
     for m in section_re.finditer(content):
@@ -52,7 +52,7 @@ def test_debug_log_index_recent_rows_match_sections_and_no_duplicate_dbg_ids():
     section_set = set(section_ids)
 
     # 3) Extract INDEX rows in order (recent first, as written in INDEX table)
-    index_re = re.compile(r'^\|\s*\d{4}-\d{2}-\d{2}\s*\|\s*(DBG-\d+)\b', re.MULTILINE)
+    index_re = re.compile(r"^\|\s*\d{4}-\d{2}-\d{2}\s*\|\s*(DBG-\d+)\b", re.MULTILINE)
     index_ids_ordered = index_re.findall(content)
     assert index_ids_ordered, "No DBG-### rows found in DEBUG_LOG.md INDEX table"
 

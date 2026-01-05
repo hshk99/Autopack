@@ -15,6 +15,7 @@ from datetime import datetime, timedelta
 @dataclass
 class SteamGame:
     """Represents a Steam game installation."""
+
     app_id: str
     name: str
     install_dir: Path
@@ -50,10 +51,7 @@ class SteamGameDetector:
         """Find Steam installation via Windows registry."""
         try:
             # Try HKEY_CURRENT_USER first (most common)
-            key = winreg.OpenKey(
-                winreg.HKEY_CURRENT_USER,
-                r"Software\Valve\Steam"
-            )
+            key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, r"Software\Valve\Steam")
             steam_path = winreg.QueryValueEx(key, "SteamPath")[0]
             winreg.CloseKey(key)
             return Path(steam_path)
@@ -62,10 +60,7 @@ class SteamGameDetector:
 
         # Try HKEY_LOCAL_MACHINE as fallback
         try:
-            key = winreg.OpenKey(
-                winreg.HKEY_LOCAL_MACHINE,
-                r"SOFTWARE\WOW6432Node\Valve\Steam"
-            )
+            key = winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, r"SOFTWARE\WOW6432Node\Valve\Steam")
             install_path = winreg.QueryValueEx(key, "InstallPath")[0]
             winreg.CloseKey(key)
             return Path(install_path)
@@ -83,16 +78,16 @@ class SteamGameDetector:
         vdf_path = self.steam_path / "steamapps" / "libraryfolders.vdf"
         if vdf_path.exists():
             try:
-                with open(vdf_path, 'r', encoding='utf-8', errors='ignore') as f:
+                with open(vdf_path, "r", encoding="utf-8", errors="ignore") as f:
                     content = f.read()
 
                 # Simple VDF parsing (format: "path"    "C:\\SteamLibrary")
-                for line in content.split('\n'):
+                for line in content.split("\n"):
                     if '"path"' in line.lower():
                         # Extract path between quotes
                         parts = line.split('"')
                         if len(parts) >= 4:
-                            path_str = parts[3].replace('\\\\', '\\')
+                            path_str = parts[3].replace("\\\\", "\\")
                             lib_path = Path(path_str) / "steamapps"
                             if lib_path.exists() and lib_path not in library_folders:
                                 library_folders.append(lib_path)
@@ -142,14 +137,14 @@ class SteamGameDetector:
         }
         """
         try:
-            with open(acf_path, 'r', encoding='utf-8', errors='ignore') as f:
+            with open(acf_path, "r", encoding="utf-8", errors="ignore") as f:
                 content = f.read()
 
             # Extract key fields using simple VDF parsing
-            app_id = self._extract_vdf_value(content, 'appid')
-            name = self._extract_vdf_value(content, 'name')
-            install_dir = self._extract_vdf_value(content, 'installdir')
-            last_updated = self._extract_vdf_value(content, 'LastUpdated')
+            app_id = self._extract_vdf_value(content, "appid")
+            name = self._extract_vdf_value(content, "name")
+            install_dir = self._extract_vdf_value(content, "installdir")
+            last_updated = self._extract_vdf_value(content, "LastUpdated")
 
             if not all([app_id, name, install_dir]):
                 return None
@@ -175,7 +170,7 @@ class SteamGameDetector:
                 install_dir=game_path,
                 size_bytes=size_bytes,
                 last_updated=last_updated_dt,
-                installed=True
+                installed=True,
             )
 
         except Exception as e:
@@ -185,7 +180,7 @@ class SteamGameDetector:
     def _extract_vdf_value(self, content: str, key: str) -> Optional[str]:
         """Extract value from VDF key-value pair."""
         # Look for: "key"    "value"
-        for line in content.split('\n'):
+        for line in content.split("\n"):
             if f'"{key}"' in line:
                 # Split by quotes and get the value (4th element)
                 parts = line.split('"')
@@ -197,7 +192,7 @@ class SteamGameDetector:
         """Calculate total size of directory in bytes."""
         total_size = 0
         try:
-            for item in path.rglob('*'):
+            for item in path.rglob("*"):
                 if item.is_file():
                     try:
                         total_size += item.stat().st_size
@@ -208,9 +203,7 @@ class SteamGameDetector:
         return total_size
 
     def find_unplayed_games(
-        self,
-        min_size_gb: float = 10.0,
-        min_age_days: int = 180
+        self, min_size_gb: float = 10.0, min_age_days: int = 180
     ) -> List[SteamGame]:
         """
         Find large games not played/updated in a while.
@@ -247,7 +240,7 @@ class SteamGameDetector:
         self,
         games: Optional[List[SteamGame]] = None,
         min_size_gb: float = 10.0,
-        min_age_days: int = 180
+        min_age_days: int = 180,
     ) -> Dict:
         """
         Generate cleanup recommendation for Steam games.
@@ -259,42 +252,42 @@ class SteamGameDetector:
 
         if not games:
             return {
-                'category': 'steam_games_unused',
-                'description': 'No unused Steam games found',
-                'count': 0,
-                'total_size_gb': 0.0,
-                'games': [],
-                'recommendation': 'All Steam games are recent or below size threshold',
-                'action': None,
-                'requires_approval': False
+                "category": "steam_games_unused",
+                "description": "No unused Steam games found",
+                "count": 0,
+                "total_size_gb": 0.0,
+                "games": [],
+                "recommendation": "All Steam games are recent or below size threshold",
+                "action": None,
+                "requires_approval": False,
             }
 
         total_size = sum(g.size_bytes for g in games)
         total_size_gb = total_size / (1024**3)
 
         return {
-            'category': 'steam_games_unused',
-            'description': f'Steam games not updated in {min_age_days}+ days',
-            'count': len(games),
-            'total_size_gb': total_size_gb,
-            'games': [
+            "category": "steam_games_unused",
+            "description": f"Steam games not updated in {min_age_days}+ days",
+            "count": len(games),
+            "total_size_gb": total_size_gb,
+            "games": [
                 {
-                    'name': g.name,
-                    'app_id': g.app_id,
-                    'size_gb': g.size_gb,
-                    'last_updated': g.last_updated.isoformat() if g.last_updated else None,
-                    'age_days': g.age_days,
-                    'install_dir': str(g.install_dir)
+                    "name": g.name,
+                    "app_id": g.app_id,
+                    "size_gb": g.size_gb,
+                    "last_updated": g.last_updated.isoformat() if g.last_updated else None,
+                    "age_days": g.age_days,
+                    "install_dir": str(g.install_dir),
                 }
                 for g in games[:20]  # Limit to top 20
             ],
-            'recommendation': (
+            "recommendation": (
                 f"Consider uninstalling {len(games)} Steam games to free up {total_size_gb:.1f} GB. "
                 f"Games can be reinstalled later from your Steam library at any time."
             ),
-            'action': 'suggest_uninstall',
-            'requires_approval': True,
-            'safety_note': 'Uninstalling from Steam is safe - all games remain in your library and can be reinstalled'
+            "action": "suggest_uninstall",
+            "requires_approval": True,
+            "safety_note": "Uninstalling from Steam is safe - all games remain in your library and can be reinstalled",
         }
 
     def is_available(self) -> bool:
@@ -348,7 +341,7 @@ def main():
         print("=" * 80)
         print("RECOMMENDATION")
         print("=" * 80)
-        print(recommendation['recommendation'])
+        print(recommendation["recommendation"])
         print(f"Potential savings: {recommendation['total_size_gb']:.1f} GB")
     else:
         print("No cleanup opportunities found (all games recent or small)")

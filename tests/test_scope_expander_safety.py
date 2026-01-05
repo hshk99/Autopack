@@ -14,7 +14,9 @@ def test_scope_expander_file_to_parent_dir_adds_files_not_directory(tmp_path: Pa
     _touch(tmp_path / "src" / "auth" / "middleware.py", "x=2\n")
 
     scanner = RepoScanner(tmp_path)
-    expander = ScopeExpander(workspace=tmp_path, repo_scanner=scanner, max_added_files_per_expansion=10)
+    expander = ScopeExpander(
+        workspace=tmp_path, repo_scanner=scanner, max_added_files_per_expansion=10
+    )
 
     res = expander.expand_scope(
         current_scope=["src/auth/jwt.py"],
@@ -28,5 +30,3 @@ def test_scope_expander_file_to_parent_dir_adds_files_not_directory(tmp_path: Pa
     assert "src/auth/jwt.py" in res.expanded_scope
     assert "src/auth/middleware.py" in res.expanded_scope
     assert all(not p.endswith("/") for p in res.expanded_scope)
-
-

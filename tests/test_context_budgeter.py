@@ -52,5 +52,3 @@ def test_budgeter_prefers_relevant_file_in_lexical_mode():
 
     assert "src/db.py" in sel.kept
     assert "src/ui.tsx" not in sel.kept
-
-

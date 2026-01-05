@@ -349,4 +349,6 @@ class TestRefreshOrLoadSnapshot:
         loaded = refresh_or_load_snapshot("test-run", force_refresh=False)
         assert loaded.snapshot_id != "expired-snap"
         # After Phase D, refresh delegates to catalog (or falls back to default)
-        assert loaded.snapshot_id.startswith("catalog-") or loaded.snapshot_id.startswith("default-")
+        assert loaded.snapshot_id.startswith("catalog-") or loaded.snapshot_id.startswith(
+            "default-"
+        )

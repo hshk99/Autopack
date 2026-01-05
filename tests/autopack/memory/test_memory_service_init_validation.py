@@ -16,5 +16,3 @@ def test_memory_service_rejects_index_dir_that_is_a_file(tmp_path, monkeypatch):
 
     with pytest.raises((FileExistsError, NotADirectoryError, OSError)):
         MemoryService(index_dir=str(bad_path), use_qdrant=False, enabled=True)
-
-

@@ -40,7 +40,7 @@ class WebScraper:
         if not html:
             return {"error": "Failed to fetch content"}
 
-        soup = BeautifulSoup(html, 'html.parser')
+        soup = BeautifulSoup(html, "html.parser")
         text_content = soup.get_text()
         processed_content = self.extractor.process_html(text_content)
         return processed_content
@@ -67,13 +67,8 @@ class WebScraper:
         """
         aggregated = {
             "deduplicated": [],
-            "categorized": {
-                "news": [],
-                "blog": [],
-                "advertisement": [],
-                "other": []
-            },
-            "gaps": []
+            "categorized": {"news": [], "blog": [], "advertisement": [], "other": []},
+            "gaps": [],
         }
         for result in results:
             aggregated["deduplicated"].extend(result.get("deduplicated", []))
@@ -99,4 +94,3 @@ class WebScraper:
         results = self.scrape_multiple(urls)
         aggregated_results = self.aggregate_results(results)
         return aggregated_results
-

@@ -31,8 +31,12 @@ def git_repo(tmp_path):
 
     # Initialize git
     subprocess.run(["git", "init"], cwd=repo, check=True, capture_output=True)
-    subprocess.run(["git", "config", "user.email", "test@test.com"], cwd=repo, check=True, capture_output=True)
-    subprocess.run(["git", "config", "user.name", "Test"], cwd=repo, check=True, capture_output=True)
+    subprocess.run(
+        ["git", "config", "user.email", "test@test.com"], cwd=repo, check=True, capture_output=True
+    )
+    subprocess.run(
+        ["git", "config", "user.name", "Test"], cwd=repo, check=True, capture_output=True
+    )
 
     # Create initial content
     (repo / "README.md").write_text("# Test Repo")
@@ -157,10 +161,7 @@ def test_complete_parallel_run_workflow(git_repo, tmp_path):
 
     # Step 1: Create isolated workspace
     workspace_manager = WorkspaceManager(
-        run_id=run_id,
-        source_repo=git_repo,
-        worktree_base=worktree_base,
-        cleanup_on_exit=False
+        run_id=run_id, source_repo=git_repo, worktree_base=worktree_base, cleanup_on_exit=False
     )
     workspace = workspace_manager.create_worktree()
 
@@ -240,8 +241,9 @@ def test_custom_autonomous_runs_dir_respected(git_repo, tmp_path):
         layout.ensure_diagnostics_dirs()
 
         # Verify base directory is under custom_runs_dir
-        assert str(layout.base_dir).startswith(str(custom_runs_dir)), \
-            f"RunFileLayout base_dir {layout.base_dir} should start with {custom_runs_dir}"
+        assert str(layout.base_dir).startswith(
+            str(custom_runs_dir)
+        ), f"RunFileLayout base_dir {layout.base_dir} should start with {custom_runs_dir}"
 
         # Verify directories were created under custom location
         assert layout.base_dir.exists()
@@ -258,7 +260,7 @@ def test_custom_autonomous_runs_dir_respected(git_repo, tmp_path):
             run_scope="test",
             created_at="2025-01-01T00:00:00Z",
             tier_count=1,
-            phase_count=2
+            phase_count=2,
         )
 
         run_summary_path = layout.get_run_summary_path()
@@ -267,26 +269,30 @@ def test_custom_autonomous_runs_dir_respected(git_repo, tmp_path):
 
         # Test 3: Learned rules respects custom dir
         hints_file = _get_run_hints_file(run_id)
-        assert str(hints_file).startswith(str(custom_runs_dir)), \
-            f"Run hints file {hints_file} should be under {custom_runs_dir}"
+        assert str(hints_file).startswith(
+            str(custom_runs_dir)
+        ), f"Run hints file {hints_file} should be under {custom_runs_dir}"
 
         # Test 4: Break-glass repair log respects custom dir
         repair = BreakGlassRepair(database_url="sqlite:///:memory:")
-        assert str(repair.repair_log_path).startswith(str(custom_runs_dir)), \
-            f"Break-glass repair log {repair.repair_log_path} should be under {custom_runs_dir}"
+        assert str(repair.repair_log_path).startswith(
+            str(custom_runs_dir)
+        ), f"Break-glass repair log {repair.repair_log_path} should be under {custom_runs_dir}"
 
         # Test 5: TestBaselineTracker respects custom dir
         tracker = TestBaselineTracker(git_repo, run_id=run_id)
         # Normalize paths for comparison (handle Windows/Unix path separators)
         cache_dir_normalized = str(tracker.cache_dir).replace("\\", "/")
         custom_runs_normalized = str(custom_runs_dir).replace("\\", "/")
-        assert cache_dir_normalized.startswith(custom_runs_normalized), \
-            f"TestBaselineTracker cache_dir {tracker.cache_dir} should be under {custom_runs_dir}"
+        assert cache_dir_normalized.startswith(
+            custom_runs_normalized
+        ), f"TestBaselineTracker cache_dir {tracker.cache_dir} should be under {custom_runs_dir}"
 
         # CRITICAL: Verify NO artifacts created in default .autonomous_runs location
         default_location = git_repo / ".autonomous_runs" / run_id
-        assert not default_location.exists(), \
-            f"Artifacts LEAKED to default location {default_location} - this violates parallel runs isolation!"
+        assert (
+            not default_location.exists()
+        ), f"Artifacts LEAKED to default location {default_location} - this violates parallel runs isolation!"
 
         # Also verify no artifacts at project root .autonomous_runs
         default_root = Path(".autonomous_runs") / run_id
@@ -299,7 +305,9 @@ def test_custom_autonomous_runs_dir_respected(git_repo, tmp_path):
         # Verify all created artifacts are ONLY under custom_runs_dir
         if custom_runs_dir.exists():
             artifact_count = sum(1 for _ in custom_runs_dir.rglob("*") if _.is_file())
-            assert artifact_count > 0, "No artifacts were created - test might not be exercising the code"
+            assert (
+                artifact_count > 0
+            ), "No artifacts were created - test might not be exercising the code"
 
     finally:
         # Restore original settings

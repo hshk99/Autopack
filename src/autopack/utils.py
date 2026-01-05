@@ -1,5 +1,6 @@
 """Utility functions for Autopack framework."""
 
+
 def format_token_count(token_count: int) -> str:
     """Format token count into a human-readable string.
 
@@ -18,6 +19,7 @@ def format_token_count(token_count: int) -> str:
         return f"{token_count / 1000:.1f}K tokens"
     else:
         return f"{token_count / 1000000:.1f}M tokens"
+
 
 # Example usage:
 # print(format_token_count(1500))  # Output: "1.5K tokens"

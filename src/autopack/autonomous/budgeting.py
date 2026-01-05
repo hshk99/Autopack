@@ -58,9 +58,7 @@ def compute_budget_remaining(inputs: BudgetInputs) -> float:
 
     # Compute fraction for each dimension
     token_fraction = fraction_remaining(inputs.tokens_used, inputs.token_cap)
-    context_fraction = fraction_remaining(
-        inputs.context_chars_used, inputs.max_context_chars
-    )
+    context_fraction = fraction_remaining(inputs.context_chars_used, inputs.max_context_chars)
     sot_fraction = fraction_remaining(inputs.sot_chars_used, inputs.max_sot_chars)
 
     # Return minimum (most constraining dimension)

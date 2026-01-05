@@ -25,8 +25,7 @@ from unittest.mock import patch
 
 # Skip all tests on non-Windows platforms
 pytestmark = pytest.mark.skipif(
-    sys.platform != "win32",
-    reason="Windows-specific tests only run on Windows"
+    sys.platform != "win32", reason="Windows-specific tests only run on Windows"
 )
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
@@ -91,7 +90,7 @@ def test_junction_point_not_followed(temp_dir):
         ["mklink", "/J", str(junction_dir), str(real_dir)],
         shell=True,
         capture_output=True,
-        text=True
+        text=True,
     )
 
     if result.returncode != 0:
@@ -140,10 +139,7 @@ def test_symlink_not_followed(temp_dir):
 
     # Create symlink
     result = subprocess.run(
-        ["mklink", str(symlink_file), str(real_file)],
-        shell=True,
-        capture_output=True,
-        text=True
+        ["mklink", str(symlink_file), str(real_file)], shell=True, capture_output=True, text=True
     )
 
     if result.returncode != 0:
@@ -190,12 +186,13 @@ def test_permission_denied_handling(temp_dir):
 
     # Mock open() to raise PermissionError when accessing the locked file
     original_open = open
-    def mock_open_func(file, mode='r', *args, **kwargs):
-        if str(file) == str(locked_file) and 'b' in mode:
+
+    def mock_open_func(file, mode="r", *args, **kwargs):
+        if str(file) == str(locked_file) and "b" in mode:
             raise PermissionError("Access denied")
         return original_open(file, mode, *args, **kwargs)
 
-    with patch('builtins.open', side_effect=mock_open_func):
+    with patch("builtins.open", side_effect=mock_open_func):
         # Attempt to hash file
         with pytest.raises(PermissionError):
             hash_file(locked_file)
@@ -206,7 +203,7 @@ def test_permission_denied_handling(temp_dir):
 
     # Should not crash on permission error during audit
     try:
-        with patch('pathlib.Path.stat', side_effect=PermissionError("Access denied")):
+        with patch("pathlib.Path.stat", side_effect=PermissionError("Access denied")):
             # Audit log should handle this gracefully
             # (Implementation may skip or log error)
             pass  # Test passes if no exception propagates
@@ -271,9 +268,28 @@ def test_unc_path_handling(temp_dir):
 def test_reserved_filename_handling():
     """Test handling of Windows reserved filenames"""
     reserved_names = [
-        "CON", "PRN", "AUX", "NUL",
-        "COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7", "COM8", "COM9",
-        "LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9",
+        "CON",
+        "PRN",
+        "AUX",
+        "NUL",
+        "COM1",
+        "COM2",
+        "COM3",
+        "COM4",
+        "COM5",
+        "COM6",
+        "COM7",
+        "COM8",
+        "COM9",
+        "LPT1",
+        "LPT2",
+        "LPT3",
+        "LPT4",
+        "LPT5",
+        "LPT6",
+        "LPT7",
+        "LPT8",
+        "LPT9",
     ]
 
     for reserved in reserved_names:
@@ -332,10 +348,7 @@ def test_hidden_file_detection(safe_test_dir):
 
     # Verify hidden attribute is set
     result = subprocess.run(
-        ["attrib", str(hidden_file)],
-        capture_output=True,
-        text=True,
-        check=True
+        ["attrib", str(hidden_file)], capture_output=True, text=True, check=True
     )
 
     assert "H" in result.stdout, "Hidden attribute not set"
@@ -351,10 +364,7 @@ def test_readonly_file_hashing(safe_test_dir):
 
     # Verify readonly attribute is set
     result = subprocess.run(
-        ["attrib", str(readonly_file)],
-        capture_output=True,
-        text=True,
-        check=True
+        ["attrib", str(readonly_file)], capture_output=True, text=True, check=True
     )
 
     assert "R" in result.stdout, "Readonly attribute not set"
@@ -433,7 +443,7 @@ def test_special_characters_in_filename(temp_dir):
 def test_invalid_filename_characters():
     """Test rejection of invalid Windows filename characters"""
     # Invalid characters: < > : " / \\ | ? *
-    invalid_chars = ['<', '>', ':', '"', '/', '\\', '|', '?', '*']
+    invalid_chars = ["<", ">", ":", '"', "/", "\\", "|", "?", "*"]
 
     for char in invalid_chars:
         filename = f"file{char}name.txt"
@@ -465,7 +475,7 @@ def test_directory_junction_in_scan_path(temp_dir):
         ["mklink", "/J", str(junction_dir), str(real_dir)],
         shell=True,
         capture_output=True,
-        text=True
+        text=True,
     )
 
     if result.returncode != 0:
@@ -510,14 +520,14 @@ def test_audit_log_windows_paths(temp_dir):
                 policy_reason="test",
                 sha256_before="abc123",
                 report_id="test_001",
-                operator="test@example.com"
+                operator="test@example.com",
             )
         except Exception as e:
             pytest.fail(f"Audit log failed for path {path}: {e}")
 
     # Verify audit log was created and contains entries
     assert audit_path.exists()
-    lines = audit_path.read_text().strip().split('\n')
+    lines = audit_path.read_text().strip().split("\n")
     assert len(lines) == len(test_paths)
 
 

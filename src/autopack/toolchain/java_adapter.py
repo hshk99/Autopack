@@ -34,9 +34,7 @@ class JavaAdapter(ToolchainAdapter):
             package_manager = "maven"
 
         # Check for build.gradle (Gradle)
-        if (workspace / "build.gradle").exists() or (
-            workspace / "build.gradle.kts"
-        ).exists():
+        if (workspace / "build.gradle").exists() or (workspace / "build.gradle.kts").exists():
             confidence += 0.7
             reasons.append("build.gradle")
             package_manager = "gradle"

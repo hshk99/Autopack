@@ -22,7 +22,7 @@ def test_redirect_stubs_point_to_existing_files():
     ]
 
     # Pattern to extract markdown links: [text](path)
-    link_pattern = re.compile(r'\[([^\]]+)\]\(([^)]+)\)')
+    link_pattern = re.compile(r"\[([^\]]+)\]\(([^)]+)\)")
 
     failures = []
 
@@ -31,7 +31,7 @@ def test_redirect_stubs_point_to_existing_files():
             failures.append(f"Redirect stub does not exist: {stub_path}")
             continue
 
-        content = stub_path.read_text(encoding='utf-8')
+        content = stub_path.read_text(encoding="utf-8")
 
         # Extract all markdown links
         links = link_pattern.findall(content)
@@ -57,7 +57,9 @@ def test_redirect_stubs_point_to_existing_files():
             print(f"  - {failure}")
         assert False, f"{len(failures)} redirect stub validation failure(s)"
 
-    print(f"✅ test_redirect_stubs_point_to_existing_files passed ({len(redirect_stubs)} stubs validated)")
+    print(
+        f"✅ test_redirect_stubs_point_to_existing_files passed ({len(redirect_stubs)} stubs validated)"
+    )
 
 
 def test_redirect_stub_format():
@@ -77,7 +79,7 @@ def test_redirect_stub_format():
         if not stub_path.exists():
             continue  # Already caught by previous test
 
-        content = stub_path.read_text(encoding='utf-8')
+        content = stub_path.read_text(encoding="utf-8")
 
         # Check for required elements
         required_elements = [
@@ -88,9 +90,7 @@ def test_redirect_stub_format():
 
         for required_text, element_name in required_elements:
             if required_text not in content:
-                failures.append(
-                    f"{stub_path.name} missing {element_name}: '{required_text}'"
-                )
+                failures.append(f"{stub_path.name} missing {element_name}: '{required_text}'")
 
     if failures:
         print("\n❌ Redirect stub format failures:")

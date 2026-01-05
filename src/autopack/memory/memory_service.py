@@ -81,13 +81,19 @@ class NullStore:
     def delete(self, collection: str, ids: List[str]) -> int:  # noqa: ARG002
         return 0
 
-    def count(self, collection: str, filter: Optional[Dict[str, Any]] = None) -> int:  # noqa: ARG002
+    def count(
+        self, collection: str, filter: Optional[Dict[str, Any]] = None
+    ) -> int:  # noqa: ARG002
         return 0
 
-    def get_payload(self, collection: str, point_id: str) -> Optional[Dict[str, Any]]:  # noqa: ARG002
+    def get_payload(
+        self, collection: str, point_id: str
+    ) -> Optional[Dict[str, Any]]:  # noqa: ARG002
         return None
 
-    def update_payload(self, collection: str, point_id: str, payload: Dict[str, Any]) -> bool:  # noqa: ARG002
+    def update_payload(
+        self, collection: str, point_id: str, payload: Dict[str, Any]
+    ) -> bool:  # noqa: ARG002
         return False
 
 
@@ -325,19 +331,25 @@ class MemoryService:
 
         qdrant_host = os.getenv("AUTOPACK_QDRANT_HOST") or qdrant_config.get("host", "localhost")
         qdrant_port = int(os.getenv("AUTOPACK_QDRANT_PORT") or qdrant_config.get("port", 6333))
-        qdrant_api_key = (os.getenv("AUTOPACK_QDRANT_API_KEY") or qdrant_config.get("api_key") or "").strip() or None
+        qdrant_api_key = (
+            os.getenv("AUTOPACK_QDRANT_API_KEY") or qdrant_config.get("api_key") or ""
+        ).strip() or None
         env_qdrant_prefer_grpc = _parse_bool_env(os.getenv("AUTOPACK_QDRANT_PREFER_GRPC"))
         qdrant_prefer_grpc = (
             env_qdrant_prefer_grpc
             if env_qdrant_prefer_grpc is not None
             else bool(qdrant_config.get("prefer_grpc", False))
         )
-        qdrant_timeout = int(os.getenv("AUTOPACK_QDRANT_TIMEOUT") or qdrant_config.get("timeout", 60))
+        qdrant_timeout = int(
+            os.getenv("AUTOPACK_QDRANT_TIMEOUT") or qdrant_config.get("timeout", 60)
+        )
 
         env_autostart = _parse_bool_env(os.getenv("AUTOPACK_QDRANT_AUTOSTART"))
         autostart_enabled = env_autostart if env_autostart is not None else autostart_default
         try:
-            autostart_timeout_seconds = int(os.getenv("AUTOPACK_QDRANT_AUTOSTART_TIMEOUT") or autostart_timeout_seconds)
+            autostart_timeout_seconds = int(
+                os.getenv("AUTOPACK_QDRANT_AUTOSTART_TIMEOUT") or autostart_timeout_seconds
+            )
         except Exception:
             autostart_timeout_seconds = autostart_timeout_seconds
 
@@ -369,7 +381,9 @@ class MemoryService:
                             timeout=qdrant_timeout,
                         )
                         self.backend = "qdrant"
-                        logger.info("[MemoryService] Qdrant autostart succeeded; using Qdrant backend")
+                        logger.info(
+                            "[MemoryService] Qdrant autostart succeeded; using Qdrant backend"
+                        )
                         return
                     except Exception:
                         # Fall through to existing policy (require vs fallback)
@@ -383,8 +397,7 @@ class MemoryService:
                 )
                 if index_dir is None:
                     index_dir = config.get(
-                        "faiss_index_path",
-                        ".autonomous_runs/file-organizer-app-v1/.faiss"
+                        "faiss_index_path", ".autonomous_runs/file-organizer-app-v1/.faiss"
                     )
                 self.store = FaissStore(index_dir=index_dir)
                 self.backend = "faiss"
@@ -394,8 +407,7 @@ class MemoryService:
             )
             if index_dir is None:
                 index_dir = config.get(
-                    "faiss_index_path",
-                    ".autonomous_runs/file-organizer-app-v1/.faiss"
+                    "faiss_index_path", ".autonomous_runs/file-organizer-app-v1/.faiss"
                 )
             self.store = FaissStore(index_dir=index_dir)
             self.backend = "faiss"
@@ -403,8 +415,7 @@ class MemoryService:
             # Use FAISS
             if index_dir is None:
                 index_dir = config.get(
-                    "faiss_index_path",
-                    ".autonomous_runs/file-organizer-app-v1/.faiss"
+                    "faiss_index_path", ".autonomous_runs/file-organizer-app-v1/.faiss"
                 )
             self.store = FaissStore(index_dir=index_dir)
             self.backend = "faiss"
@@ -427,8 +438,7 @@ class MemoryService:
                 )
                 if index_dir is None:
                     index_dir = config.get(
-                        "faiss_index_path",
-                        ".autonomous_runs/file-organizer-app-v1/.faiss"
+                        "faiss_index_path", ".autonomous_runs/file-organizer-app-v1/.faiss"
                     )
                 self.store = FaissStore(index_dir=index_dir)
                 self.backend = "faiss"
@@ -475,7 +485,7 @@ class MemoryService:
             return ""
 
         # Truncate content for embedding
-        content_truncated = content[:self.max_embed_chars]
+        content_truncated = content[: self.max_embed_chars]
         content_hash = hashlib.sha256(content.encode("utf-8", errors="ignore")).hexdigest()[:16]
 
         # Generate embedding
@@ -568,7 +578,9 @@ class MemoryService:
         if not self.enabled:
             return ""
 
-        text = f"Phase {phase_id}: {summary}\nChanges: {', '.join(changes)}\nCI: {ci_result or 'N/A'}"
+        text = (
+            f"Phase {phase_id}: {summary}\nChanges: {', '.join(changes)}\nCI: {ci_result or 'N/A'}"
+        )
         vector = sync_embed_text(text)
 
         point_id = f"summary:{run_id}:{phase_id}"
@@ -657,7 +669,9 @@ class MemoryService:
             text = f"Test {test_name} failed: {error_text[:2000]}"
         vector = sync_embed_text(text)
 
-        point_id = f"error:{run_id}:{phase_id}:{hashlib.sha256(error_text.encode()).hexdigest()[:8]}"
+        point_id = (
+            f"error:{run_id}:{phase_id}:{hashlib.sha256(error_text.encode()).hexdigest()[:8]}"
+        )
         payload = {
             "type": "error",
             "run_id": run_id,
@@ -876,17 +890,21 @@ class MemoryService:
 
                     # Embed and add to points
                     vector = sync_embed_text(doc["content"])
-                    points.append({
-                        "id": doc["id"],
-                        "vector": vector,
-                        "payload": doc["metadata"],
-                    })
+                    points.append(
+                        {
+                            "id": doc["id"],
+                            "vector": vector,
+                            "payload": doc["metadata"],
+                        }
+                    )
                 except Exception as e:
                     logger.warning(f"[MemoryService] Failed to embed SOT chunk: {e}")
                     continue
 
             if skipped_existing > 0:
-                logger.debug(f"[MemoryService] Skipped {skipped_existing} existing chunks from {sot_file}")
+                logger.debug(
+                    f"[MemoryService] Skipped {skipped_existing} existing chunks from {sot_file}"
+                )
 
             # Upsert to store
             if points:
@@ -932,17 +950,21 @@ class MemoryService:
 
                     # Embed and add to points
                     vector = sync_embed_text(doc["content"])
-                    points.append({
-                        "id": doc["id"],
-                        "vector": vector,
-                        "payload": doc["metadata"],
-                    })
+                    points.append(
+                        {
+                            "id": doc["id"],
+                            "vector": vector,
+                            "payload": doc["metadata"],
+                        }
+                    )
                 except Exception as e:
                     logger.warning(f"[MemoryService] Failed to embed SOT JSON chunk: {e}")
                     continue
 
             if skipped_existing > 0:
-                logger.debug(f"[MemoryService] Skipped {skipped_existing} existing JSON chunks from {sot_file}")
+                logger.debug(
+                    f"[MemoryService] Skipped {skipped_existing} existing JSON chunks from {sot_file}"
+                )
 
             # Upsert to store
             if points:
@@ -1013,7 +1035,7 @@ class MemoryService:
         if not self.enabled:
             return ""
 
-        content_truncated = content[:self.max_embed_chars]
+        content_truncated = content[: self.max_embed_chars]
         summary_text = (summary or content_truncated[:600]).strip()
         timestamp = timestamp or datetime.now(timezone.utc).isoformat()
 
@@ -1468,7 +1490,9 @@ class MemoryService:
                 entry = f"### {sot_file} - {heading}\n```\n{content_preview}\n```"
 
                 # Check both global max_chars and SOT-specific max_chars
-                if (char_count + len(entry) > max_chars) or (sot_char_count + len(entry) > sot_max_chars):
+                if (char_count + len(entry) > max_chars) or (
+                    sot_char_count + len(entry) > sot_max_chars
+                ):
                     break
 
                 sot_section.append(entry)

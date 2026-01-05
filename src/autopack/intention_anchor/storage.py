@@ -99,9 +99,7 @@ def save_anchor(
 
     # Write to temp file first, then replace (atomic)
     temp_path = canonical_path.with_suffix(".tmp")
-    temp_path.write_text(
-        anchor.model_dump_json(indent=2, exclude_none=False), encoding="utf-8"
-    )
+    temp_path.write_text(anchor.model_dump_json(indent=2, exclude_none=False), encoding="utf-8")
     temp_path.replace(canonical_path)
 
     # Generate run-local SOT-ready artifacts
@@ -123,9 +121,7 @@ def save_anchor(
                 base_dir=base_dir,
             )
         except Exception as e:
-            logger.warning(
-                f"[{anchor.run_id}] Failed to generate SOT artifacts: {e}"
-            )
+            logger.warning(f"[{anchor.run_id}] Failed to generate SOT artifacts: {e}")
 
     return canonical_path
 
@@ -149,9 +145,7 @@ def load_anchor(run_id: str, base_dir: str | Path = ".") -> IntentionAnchor:
     """
     canonical_path = get_canonical_path(run_id, base_dir=base_dir)
     if not canonical_path.exists():
-        raise FileNotFoundError(
-            f"Intention anchor not found at canonical path: {canonical_path}"
-        )
+        raise FileNotFoundError(f"Intention anchor not found at canonical path: {canonical_path}")
 
     data = json.loads(canonical_path.read_text(encoding="utf-8"))
     return IntentionAnchor.model_validate(data)

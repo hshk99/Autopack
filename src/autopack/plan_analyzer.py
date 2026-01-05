@@ -23,6 +23,7 @@ from autopack.llm_service import LlmService
 
 class FeasibilityLevel(str, Enum):
     """Feasibility classification levels"""
+
     CAN_IMPLEMENT = "CAN_IMPLEMENT"  # 75-90% confidence
     RISKY = "RISKY"  # 45-65% confidence
     MANUAL_REQUIRED = "MANUAL_REQUIRED"  # 20-40% confidence
@@ -30,6 +31,7 @@ class FeasibilityLevel(str, Enum):
 
 class RiskLevel(str, Enum):
     """Risk levels for governance"""
+
     LOW = "LOW"
     MEDIUM = "MEDIUM"
     HIGH = "HIGH"
@@ -38,6 +40,7 @@ class RiskLevel(str, Enum):
 
 class DecisionCategory(str, Enum):
     """BUILD-113 decision categories"""
+
     CLEAR_FIX = "CLEAR_FIX"  # Auto-apply
     THRESHOLD = "THRESHOLD"  # Manual review
     RISKY = "RISKY"  # Manual approval required
@@ -47,6 +50,7 @@ class DecisionCategory(str, Enum):
 @dataclass
 class PhaseAnalysis:
     """Analysis results for a single phase"""
+
     phase_id: str
     phase_name: str
     feasibility: FeasibilityLevel
@@ -79,6 +83,7 @@ class PhaseAnalysis:
 @dataclass
 class PlanAnalysisResult:
     """Complete analysis of an implementation plan"""
+
     run_id: str
     total_phases: int
 
@@ -242,9 +247,13 @@ class PlanAnalyzer:
             phase_analyses.append(analysis)
 
         # Aggregate results
-        can_count = sum(1 for p in phase_analyses if p.feasibility == FeasibilityLevel.CAN_IMPLEMENT)
+        can_count = sum(
+            1 for p in phase_analyses if p.feasibility == FeasibilityLevel.CAN_IMPLEMENT
+        )
         risky_count = sum(1 for p in phase_analyses if p.feasibility == FeasibilityLevel.RISKY)
-        manual_count = sum(1 for p in phase_analyses if p.feasibility == FeasibilityLevel.MANUAL_REQUIRED)
+        manual_count = sum(
+            1 for p in phase_analyses if p.feasibility == FeasibilityLevel.MANUAL_REQUIRED
+        )
 
         # Determine overall feasibility
         if manual_count > len(phases) * 0.3:  # >30% manual
@@ -265,7 +274,9 @@ class PlanAnalyzer:
         critical_blockers = list(set(critical_blockers))  # Deduplicate
 
         # Extract infrastructure requirements
-        infrastructure_requirements = await self._extract_infrastructure_requirements(phase_analyses)
+        infrastructure_requirements = await self._extract_infrastructure_requirements(
+            phase_analyses
+        )
 
         # Generate global governance scope
         global_allowed_paths, protected_paths = self._generate_global_governance(phase_analyses)
@@ -274,7 +285,9 @@ class PlanAnalyzer:
         execution_order = self._recommend_execution_order(phase_analyses)
 
         # Identify manual-only phases
-        manual_phases = [p.phase_id for p in phase_analyses if p.feasibility == FeasibilityLevel.MANUAL_REQUIRED]
+        manual_phases = [
+            p.phase_id for p in phase_analyses if p.feasibility == FeasibilityLevel.MANUAL_REQUIRED
+        ]
 
         # Total duration
         total_duration = sum(p.estimated_duration_days for p in phase_analyses)
@@ -478,6 +491,7 @@ Analyze the phase now:
             estimated_duration_days=data["estimated_duration_days"],
             complexity_score=data["complexity_score"],
         )
+
     async def _extract_infrastructure_requirements(
         self,
         phase_analyses: List[PhaseAnalysis],
@@ -549,11 +563,16 @@ Analyze the phase now:
 
         while queue:
             # Sort queue by priority: CAN_IMPLEMENT > RISKY > MANUAL, then by complexity
-            queue.sort(key=lambda pid: (
-                0 if phase_map[pid].feasibility == FeasibilityLevel.CAN_IMPLEMENT else
-                1 if phase_map[pid].feasibility == FeasibilityLevel.RISKY else 2,
-                phase_map[pid].complexity_score
-            ))
+            queue.sort(
+                key=lambda pid: (
+                    (
+                        0
+                        if phase_map[pid].feasibility == FeasibilityLevel.CAN_IMPLEMENT
+                        else 1 if phase_map[pid].feasibility == FeasibilityLevel.RISKY else 2
+                    ),
+                    phase_map[pid].complexity_score,
+                )
+            )
 
             current = queue.pop(0)
             order.append(current)
@@ -593,6 +612,7 @@ async def analyze_implementation_plan(
             plan_data = json.load(f)
     elif plan_file.suffix in [".yaml", ".yml"]:
         import yaml
+
         with open(plan_file) as f:
             plan_data = yaml.safe_load(f)
     else:
@@ -612,4 +632,3 @@ async def analyze_implementation_plan(
             json.dump(result.to_dict(), f, indent=2)
 
     return result
-

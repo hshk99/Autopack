@@ -203,7 +203,11 @@ class HealthChecker:
         """
         memory_path = self.config_dir / "memory.yaml"
         if not memory_path.exists():
-            return ("Vector Memory", True, "memory.yaml not found (vector memory defaults will apply)")
+            return (
+                "Vector Memory",
+                True,
+                "memory.yaml not found (vector memory defaults will apply)",
+            )
 
         try:
             with open(memory_path, "r", encoding="utf-8") as f:
@@ -248,7 +252,9 @@ class HealthChecker:
         env_autostart = _parse_bool_env(os.getenv("AUTOPACK_QDRANT_AUTOSTART"))
         autostart = env_autostart if env_autostart is not None else autostart_default
         try:
-            autostart_timeout = int(os.getenv("AUTOPACK_QDRANT_AUTOSTART_TIMEOUT") or autostart_timeout)
+            autostart_timeout = int(
+                os.getenv("AUTOPACK_QDRANT_AUTOSTART_TIMEOUT") or autostart_timeout
+            )
         except Exception:
             pass
 
@@ -257,8 +263,16 @@ class HealthChecker:
             import qdrant_client  # noqa: F401
         except Exception:
             if require_qdrant:
-                return ("Vector Memory", False, "qdrant-client not installed but qdrant.require=true")
-            return ("Vector Memory", True, "qdrant-client not installed; Autopack will fall back to FAISS")
+                return (
+                    "Vector Memory",
+                    False,
+                    "qdrant-client not installed but qdrant.require=true",
+                )
+            return (
+                "Vector Memory",
+                True,
+                "qdrant-client not installed; Autopack will fall back to FAISS",
+            )
 
         # Quick socket probe (avoid slow client init)
         def tcp_ok() -> bool:
@@ -373,7 +387,11 @@ class HealthChecker:
                     deadline = time.time() + max(1, autostart_timeout)
                     while time.time() < deadline:
                         if tcp_ok():
-                            return ("Vector Memory", True, f"Qdrant autostarted and reachable at {host}:{port}")
+                            return (
+                                "Vector Memory",
+                                True,
+                                f"Qdrant autostarted and reachable at {host}:{port}",
+                            )
                         time.sleep(0.5)
 
         if require_qdrant and not fallback_to_faiss:

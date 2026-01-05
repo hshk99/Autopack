@@ -7,6 +7,7 @@ of information sources discovered during the research process.
 
 from typing import List, Dict, Any
 
+
 class SourceEvaluator:
     def __init__(self):
         """
@@ -25,8 +26,8 @@ class SourceEvaluator:
         evaluated_sources = []
         for source in sources:
             score = self._evaluate_source(source)
-            evaluated_sources.append({**source, 'score': score})
-        return sorted(evaluated_sources, key=lambda x: x['score'], reverse=True)
+            evaluated_sources.append({**source, "score": score})
+        return sorted(evaluated_sources, key=lambda x: x["score"], reverse=True)
 
     def _evaluate_source(self, source: Dict[str, Any]) -> float:
         """

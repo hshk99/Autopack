@@ -21,13 +21,7 @@ class TestFormatRetrievedContextCaps:
 
     def test_empty_context_respects_cap(self, memory_service):
         """Empty context should return empty string (within cap)"""
-        context = {
-            "code": [],
-            "summaries": [],
-            "errors": [],
-            "hints": [],
-            "sot": []
-        }
+        context = {"code": [], "summaries": [], "errors": [], "hints": [], "sot": []}
 
         formatted = memory_service.format_retrieved_context(context, max_chars=1000)
 
@@ -41,7 +35,7 @@ class TestFormatRetrievedContextCaps:
             "summaries": [],
             "errors": [],
             "hints": [],
-            "sot": []
+            "sot": [],
         }
 
         formatted = memory_service.format_retrieved_context(context, max_chars=1000)
@@ -58,7 +52,7 @@ class TestFormatRetrievedContextCaps:
             "summaries": [],
             "errors": [],
             "hints": [],
-            "sot": []
+            "sot": [],
         }
 
         formatted = memory_service.format_retrieved_context(context, max_chars=2000)
@@ -75,7 +69,7 @@ class TestFormatRetrievedContextCaps:
             "summaries": [{"content": "s" * 5000, "metadata": {}}],
             "errors": [{"content": "e" * 5000, "metadata": {}}],
             "hints": [],
-            "sot": [{"content": "t" * 5000, "metadata": {}}]
+            "sot": [{"content": "t" * 5000, "metadata": {}}],
         }
 
         # Total raw content: 20KB, cap: 3KB → expect proportional truncation
@@ -95,7 +89,7 @@ class TestFormatRetrievedContextCaps:
             "summaries": [],
             "errors": [],
             "hints": [],
-            "sot": [{"content": "t" * 8000, "metadata": {}}]  # 8KB of SOT content
+            "sot": [{"content": "t" * 8000, "metadata": {}}],  # 8KB of SOT content
         }
 
         # Cap at 2KB total → SOT must be truncated
@@ -113,7 +107,7 @@ class TestFormatRetrievedContextCaps:
             "summaries": [],
             "errors": [],
             "hints": [],
-            "sot": []
+            "sot": [],
         }
 
         formatted = memory_service.format_retrieved_context(context, max_chars=0)
@@ -127,7 +121,7 @@ class TestFormatRetrievedContextCaps:
             "summaries": [],
             "errors": [],
             "hints": [],
-            "sot": []
+            "sot": [],
         }
 
         formatted = memory_service.format_retrieved_context(context, max_chars=100)
@@ -144,16 +138,14 @@ class TestFormatRetrievedContextCaps:
             "summaries": [{"content": "s" * 500, "metadata": {}}],
             "errors": [],
             "hints": [],
-            "sot": []
+            "sot": [],
         }
 
         # Total raw content: 1KB, but headers add overhead
         # Cap should include headers in the total
         formatted = memory_service.format_retrieved_context(context, max_chars=1000)
 
-        assert len(formatted) <= 1000, (
-            "Section headers must be counted toward max_chars cap"
-        )
+        assert len(formatted) <= 1000, "Section headers must be counted toward max_chars cap"
 
     def test_idempotent_formatting_with_same_cap(self, memory_service):
         """Calling format_retrieved_context() twice with same cap should give same result"""
@@ -162,7 +154,7 @@ class TestFormatRetrievedContextCaps:
             "summaries": [],
             "errors": [],
             "hints": [],
-            "sot": []
+            "sot": [],
         }
 
         formatted1 = memory_service.format_retrieved_context(context, max_chars=2000)

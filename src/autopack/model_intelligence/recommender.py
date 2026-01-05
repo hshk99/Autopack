@@ -92,10 +92,12 @@ def generate_recommendations(
         score_data = compute_recommendation_score(
             session, current_model, candidate.model_id, use_case
         )
-        scored_candidates.append({
-            "candidate": candidate,
-            **score_data,
-        })
+        scored_candidates.append(
+            {
+                "candidate": candidate,
+                **score_data,
+            }
+        )
 
     # Sort by composite score (descending)
     scored_candidates.sort(key=lambda x: x["composite_score"], reverse=True)
@@ -350,8 +352,16 @@ def compute_runtime_score(
             score = 0.5  # Worse success rate
     else:
         # Fall back to cost efficiency (lower cost per token is better)
-        current_eff = float(current_stats.est_cost_usd / current_stats.total_tokens) if current_stats.est_cost_usd and current_stats.total_tokens else 0
-        candidate_eff = float(candidate_stats.est_cost_usd / candidate_stats.total_tokens) if candidate_stats.est_cost_usd and candidate_stats.total_tokens else 0
+        current_eff = (
+            float(current_stats.est_cost_usd / current_stats.total_tokens)
+            if current_stats.est_cost_usd and current_stats.total_tokens
+            else 0
+        )
+        candidate_eff = (
+            float(candidate_stats.est_cost_usd / candidate_stats.total_tokens)
+            if candidate_stats.est_cost_usd and candidate_stats.total_tokens
+            else 0
+        )
 
         if current_eff == 0 or candidate_eff == 0:
             score = 0.5
@@ -393,9 +403,10 @@ def compute_sentiment_score_comparison(
 
     # Get evidence IDs (sentiment signal IDs)
     from .models import ModelSentimentSignal
+
     evidence = [
-        sig.id for sig in
-        session.query(ModelSentimentSignal)
+        sig.id
+        for sig in session.query(ModelSentimentSignal)
         .filter(ModelSentimentSignal.model_id.in_([current_model, candidate_model]))
         .all()
     ]
@@ -404,6 +415,7 @@ def compute_sentiment_score_comparison(
 
 
 # Helper functions
+
 
 def get_latest_pricing(session: Session, model_id: str) -> Optional[ModelPricing]:
     """Get latest pricing record for a model."""

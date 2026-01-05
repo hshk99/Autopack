@@ -347,7 +347,7 @@ class TestExtendedContexts:
             result, tokens_saved, source = artifact_loader.load_with_extended_contexts(
                 content, "historical"
             )
-            
+
             assert "Test run summary" in result
             assert tokens_saved > 0
             assert source == "artifact:history_pack"
@@ -371,7 +371,7 @@ class TestExtendedContexts:
             result, tokens_saved, source = artifact_loader.load_with_extended_contexts(
                 content, "phase_description"
             )
-            
+
             assert "Phase 1" in result
             assert tokens_saved > 0
             assert source == "artifact:phase_description"
@@ -394,7 +394,7 @@ class TestExtendedContexts:
             result, tokens_saved, source = artifact_loader.load_with_extended_contexts(
                 content, "tier_summary"
             )
-            
+
             assert "Tier 1" in result
             assert tokens_saved > 0
             assert source == "artifact:tier_summary"
@@ -434,7 +434,7 @@ class TestExtendedContexts:
             result, tokens_saved, source = artifact_loader.load_with_extended_contexts(
                 content, "phase_description"
             )
-            
+
             assert "Phase 1" in result
             assert "Phase 2" in result
             assert "Phase 3" in result

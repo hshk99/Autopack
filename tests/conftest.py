@@ -36,10 +36,9 @@ def db_engine():
     # Use in-memory SQLite for tests
     # Using StaticPool ensures all connections share the same in-memory database
     from sqlalchemy.pool import StaticPool
+
     engine = create_engine(
-        "sqlite:///:memory:",
-        connect_args={"check_same_thread": False},
-        poolclass=StaticPool
+        "sqlite:///:memory:", connect_args={"check_same_thread": False}, poolclass=StaticPool
     )
 
     # Create tables
@@ -82,6 +81,7 @@ def client(db_engine, db_session, tmp_path, monkeypatch):
     # Override autonomous_runs_dir at the settings object level
     # This ensures all code using settings.autonomous_runs_dir uses the temp path
     from autopack.config import settings
+
     test_runs_dir = str(tmp_path / ".autonomous_runs")
     monkeypatch.setattr(settings, "autonomous_runs_dir", test_runs_dir)
     os.environ["AUTONOMOUS_RUNS_DIR"] = test_runs_dir

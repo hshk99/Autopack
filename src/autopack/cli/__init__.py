@@ -112,5 +112,3 @@ def main(argv: list[str] | None = None) -> int:
 
     print(f"Unknown command: {args.command}")
     return 1
-
-

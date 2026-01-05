@@ -24,7 +24,9 @@ def test_tests_category_uses_root_tests_templates_not_src_autopack_tests(tmp_pat
 
     # Should include only root-level tests, never internal protected tests.
     assert "tests/test_root.py" in result.scope_paths
-    assert all(not p.replace("\\", "/").startswith("src/autopack/tests/") for p in result.scope_paths)
+    assert all(
+        not p.replace("\\", "/").startswith("src/autopack/tests/") for p in result.scope_paths
+    )
     # Scope must be explicit files only (no directory entries).
     assert all(not p.endswith("/") for p in result.scope_paths)
 
@@ -51,4 +53,3 @@ def test_anchor_strategy_does_not_add_directory_entries(tmp_path: Path):
 
     assert "src/auth/jwt.py" in result.scope_paths
     assert all(not p.endswith("/") for p in result.scope_paths)
-

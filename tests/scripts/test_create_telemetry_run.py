@@ -44,7 +44,7 @@ def test_create_telemetry_run_schema_matches(test_db):
         state=RunState.RUN_CREATED,
         token_cap=500000,
         max_phases=15,
-        max_duration_minutes=120
+        max_duration_minutes=120,
     )
     test_db.add(run)
     test_db.flush()
@@ -58,7 +58,7 @@ def test_create_telemetry_run_schema_matches(test_db):
         description="Test tier for telemetry collection",
         state=TierState.PENDING,
         token_cap=500000,
-        ci_run_cap=20
+        ci_run_cap=20,
     )
     test_db.add(tier)
     test_db.flush()
@@ -75,13 +75,13 @@ def test_create_telemetry_run_schema_matches(test_db):
         scope={
             "paths": ["examples/telemetry_utils/"],
             "read_only_context": [],
-            "deliverables": ["examples/telemetry_utils/test.py"]
+            "deliverables": ["examples/telemetry_utils/test.py"],
         },
         complexity="low",
         task_category="implementation",
         max_builder_attempts=3,
         max_auditor_attempts=2,
-        incident_token_cap=50000
+        incident_token_cap=50000,
     )
     test_db.add(phase)
     test_db.commit()
@@ -118,13 +118,7 @@ def test_multiple_phases_same_run(test_db):
     test_db.add(run)
     test_db.flush()
 
-    tier = Tier(
-        tier_id="T1",
-        run_id=run_id,
-        tier_index=0,
-        name="Test Tier",
-        description="Test"
-    )
+    tier = Tier(tier_id="T1", run_id=run_id, tier_index=0, name="Test Tier", description="Test")
     test_db.add(tier)
     test_db.flush()
 
@@ -138,7 +132,7 @@ def test_multiple_phases_same_run(test_db):
             name=f"Phase {i}",
             state=PhaseState.QUEUED,
             complexity="low",
-            task_category="implementation"
+            task_category="implementation",
         )
         test_db.add(phase)
 

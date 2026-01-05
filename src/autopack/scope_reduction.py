@@ -38,9 +38,7 @@ class ScopeReductionRationale(BaseModel):
     constraints_still_met: list[str] = Field(
         default_factory=list, description="Which constraints are still satisfied"
     )
-    reason: str = Field(
-        ..., max_length=1000, description="Why scope reduction is necessary"
-    )
+    reason: str = Field(..., max_length=1000, description="Why scope reduction is necessary")
 
 
 class ScopeReductionDiff(BaseModel):

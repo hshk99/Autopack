@@ -18,49 +18,49 @@ class TestErrorHandler:
     def test_execute_with_retry_success(self):
         """Test successful execution without retries."""
         handler = ErrorHandler()
-        
+
         def successful_func():
             return "success"
-        
+
         result = handler.execute_with_retry(successful_func)
         assert result == "success"
 
     def test_execute_with_retry_eventual_success(self):
         """Test execution that succeeds after retries."""
         handler = ErrorHandler(max_retries=3)
-        
+
         call_count = [0]
-        
+
         def flaky_func():
             call_count[0] += 1
             if call_count[0] < 3:
                 raise requests.exceptions.ConnectionError("Connection failed")
             return "success"
-        
-        with patch('time.sleep'):  # Mock sleep to speed up test
+
+        with patch("time.sleep"):  # Mock sleep to speed up test
             result = handler.execute_with_retry(flaky_func)
-        
+
         assert result == "success"
         assert call_count[0] == 3
 
     def test_execute_with_retry_all_failures(self):
         """Test execution that fails all retries."""
         handler = ErrorHandler(max_retries=2)
-        
+
         def failing_func():
             raise requests.exceptions.ConnectionError("Connection failed")
-        
-        with patch('time.sleep'):  # Mock sleep to speed up test
+
+        with patch("time.sleep"):  # Mock sleep to speed up test
             with pytest.raises(requests.exceptions.ConnectionError):
                 handler.execute_with_retry(failing_func)
 
     def test_execute_with_retry_with_args(self):
         """Test execution with function arguments."""
         handler = ErrorHandler()
-        
+
         def func_with_args(a, b, c=None):
             return f"{a}-{b}-{c}"
-        
+
         result = handler.execute_with_retry(func_with_args, "x", "y", c="z")
         assert result == "x-y-z"
 
@@ -112,7 +112,7 @@ class TestErrorHandler:
         response = Mock()
         response.status_code = 404
         error = requests.exceptions.HTTPError(response=response)
-        
+
         # Should not raise, just log
         handler.handle_error(error, "test context")
 
@@ -120,7 +120,7 @@ class TestErrorHandler:
         """Test handling connection errors."""
         handler = ErrorHandler()
         error = requests.exceptions.ConnectionError("Connection failed")
-        
+
         # Should not raise, just log
         handler.handle_error(error, "test context")
 
@@ -128,7 +128,7 @@ class TestErrorHandler:
         """Test handling timeout errors."""
         handler = ErrorHandler()
         error = requests.exceptions.Timeout("Request timed out")
-        
+
         # Should not raise, just log
         handler.handle_error(error, "test context")
 
@@ -136,28 +136,28 @@ class TestErrorHandler:
         """Test handling generic errors."""
         handler = ErrorHandler()
         error = ValueError("Invalid value")
-        
+
         # Should not raise, just log
         handler.handle_error(error, "test context")
 
     def test_backoff_timing(self):
         """Test that backoff timing increases exponentially."""
         handler = ErrorHandler(max_retries=3, backoff_factor=2.0)
-        
+
         call_count = [0]
         sleep_times = []
-        
+
         def failing_func():
             call_count[0] += 1
             raise requests.exceptions.ConnectionError("Connection failed")
-        
+
         def mock_sleep(seconds):
             sleep_times.append(seconds)
-        
-        with patch('time.sleep', side_effect=mock_sleep):
+
+        with patch("time.sleep", side_effect=mock_sleep):
             with pytest.raises(requests.exceptions.ConnectionError):
                 handler.execute_with_retry(failing_func)
-        
+
         # Should have slept 3 times (for retries 1, 2, 3)
         assert len(sleep_times) == 3
         # Check exponential backoff: 2^0=1, 2^1=2, 2^2=4

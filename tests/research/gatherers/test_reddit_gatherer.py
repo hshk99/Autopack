@@ -31,7 +31,7 @@ class TestRedditGatherer:
     @pytest.fixture
     def mock_reddit(self):
         """Create a mock Reddit instance."""
-        with patch('praw.Reddit') as mock:
+        with patch("praw.Reddit") as mock:
             yield mock
 
     @pytest.fixture
@@ -42,7 +42,7 @@ class TestRedditGatherer:
             client_secret="test_secret",
             user_agent="test_agent",
             rate_limiter=mock_rate_limiter,
-            error_handler=mock_error_handler
+            error_handler=mock_error_handler,
         )
 
     def test_initialization(self, gatherer, mock_reddit):
@@ -59,7 +59,7 @@ class TestRedditGatherer:
         mock_subreddit.public_description = "A test subreddit"
         mock_subreddit.subscribers = 1000
         mock_subreddit.created_utc = 1609459200.0
-        
+
         gatherer.reddit.subreddit = Mock(return_value=mock_subreddit)
 
         result = gatherer.gather_subreddit_info("test")
@@ -132,7 +132,9 @@ class TestRedditGatherer:
         mock_subreddit.top = Mock(return_value=[mock_post])
         gatherer.reddit.subreddit = Mock(return_value=mock_subreddit)
 
-        results = gatherer.gather_subreddit_posts("test", sort="top", time_filter="week", max_posts=10)
+        results = gatherer.gather_subreddit_posts(
+            "test", sort="top", time_filter="week", max_posts=10
+        )
 
         assert len(results) == 1
         assert results[0]["data"]["title"] == "Top Post"
@@ -161,7 +163,7 @@ class TestRedditGatherer:
         mock_submission = Mock()
         mock_submission.comments.replace_more = Mock()
         mock_submission.comments.list = Mock(return_value=[mock_comment1, mock_comment2])
-        
+
         gatherer.reddit.submission = Mock(return_value=mock_submission)
 
         results = gatherer.gather_post_comments("test", "post1", max_comments=10)
@@ -195,10 +197,7 @@ class TestRedditGatherer:
         assert results[0]["query"] == "query"
         assert results[0]["data"]["title"] == "Search Result"
         mock_subreddit.search.assert_called_once_with(
-            "query",
-            sort="relevance",
-            time_filter="all",
-            limit=10
+            "query", sort="relevance", time_filter="all", limit=10
         )
 
     def test_rate_limiting_applied(self, gatherer, mock_rate_limiter):
@@ -209,7 +208,7 @@ class TestRedditGatherer:
         mock_subreddit.public_description = "Test"
         mock_subreddit.subscribers = 100
         mock_subreddit.created_utc = 1609459200.0
-        
+
         gatherer.reddit.subreddit = Mock(return_value=mock_subreddit)
 
         gatherer.gather_subreddit_info("test")

@@ -36,12 +36,18 @@ class BuilderResult(BaseModel):
 
     P1.3: Strict schema enforcement - extra fields forbidden to prevent protocol drift.
     """
+
     model_config = ConfigDict(extra="forbid")
 
     phase_id: str
     run_id: str
-    run_type: str = Field(default="project_build", description="Run type context (project_build, autopack_maintenance, etc.)")
-    allowed_paths: List[str] = Field(default_factory=list, description="Explicitly allowed path prefixes")
+    run_type: str = Field(
+        default="project_build",
+        description="Run type context (project_build, autopack_maintenance, etc.)",
+    )
+    allowed_paths: List[str] = Field(
+        default_factory=list, description="Explicitly allowed path prefixes"
+    )
 
     # Patch/diff information
     patch_content: Optional[str] = Field(None, description="Git diff or patch content")

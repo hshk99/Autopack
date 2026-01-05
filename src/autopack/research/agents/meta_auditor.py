@@ -32,9 +32,6 @@ class MetaAuditor:
         :return: Synthesized strategic recommendation
         """
         # Placeholder for synthesis logic
-        return {
-            "summary": "Combined strategic insights",
-            "details": recommendations
-        }
+        return {"summary": "Combined strategic insights", "details": recommendations}
 
     # Additional methods for detailed analysis can be added here

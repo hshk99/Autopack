@@ -31,7 +31,7 @@ class TestBacklogItemParsing:
         """Empty file returns empty list."""
         backlog_file = tmp_path / "backlog.md"
         backlog_file.write_text("")
-        
+
         items = parse_backlog_markdown(backlog_file)
         assert items == []
 
@@ -39,7 +39,7 @@ class TestBacklogItemParsing:
         """Single bullet item is parsed correctly."""
         backlog_file = tmp_path / "backlog.md"
         backlog_file.write_text("- Fix the login bug\n  This is a critical issue.\n")
-        
+
         items = parse_backlog_markdown(backlog_file)
         assert len(items) == 1
         assert items[0].title == "Fix the login bug"
@@ -56,7 +56,7 @@ class TestBacklogItemParsing:
 """
         backlog_file = tmp_path / "backlog.md"
         backlog_file.write_text(content)
-        
+
         items = parse_backlog_markdown(backlog_file)
         assert len(items) == 3
         assert items[0].title == "First item"
@@ -68,14 +68,14 @@ class TestBacklogItemParsing:
         content = "\n".join([f"- Item {i}" for i in range(20)])
         backlog_file = tmp_path / "backlog.md"
         backlog_file.write_text(content)
-        
+
         items = parse_backlog_markdown(backlog_file, max_items=5)
         assert len(items) == 5
 
     def test_parse_file_not_found(self, tmp_path: Path):
         """FileNotFoundError raised for missing file."""
         backlog_file = tmp_path / "nonexistent.md"
-        
+
         with pytest.raises(FileNotFoundError):
             parse_backlog_markdown(backlog_file)
 
@@ -84,7 +84,7 @@ class TestBacklogItemParsing:
         content = "- Fix bug A\n- Fix bug B\n- Fix bug C\n"
         backlog_file = tmp_path / "backlog.md"
         backlog_file.write_text(content)
-        
+
         items = parse_backlog_markdown(backlog_file)
         ids = [item.id for item in items]
         assert len(ids) == len(set(ids))  # All unique
@@ -94,7 +94,7 @@ class TestBacklogItemParsing:
         content = "- Fix the café menu 🍕\n  Handle émojis and accénts.\n"
         backlog_file = tmp_path / "backlog.md"
         backlog_file.write_text(content, encoding="utf-8")
-        
+
         items = parse_backlog_markdown(backlog_file)
         assert len(items) == 1
         assert "café" in items[0].title
@@ -117,10 +117,10 @@ class TestBacklogItemsToPhases:
                 summary="Test summary",
             )
         ]
-        
+
         result = backlog_items_to_phases(items)
         assert len(result["phases"]) == 1
-        
+
         phase = result["phases"][0]
         assert phase["id"] == "backlog-test"
         assert phase["description"] == "Test item"
@@ -130,27 +130,17 @@ class TestBacklogItemsToPhases:
     def test_default_allowed_paths_applied(self):
         """Default allowed paths are added to phases."""
         items = [BacklogItem(id="test", title="Test", summary="")]
-        
-        result = backlog_items_to_phases(
-            items,
-            default_allowed_paths=["src/", "tests/"]
-        )
-        
+
+        result = backlog_items_to_phases(items, default_allowed_paths=["src/", "tests/"])
+
         phase = result["phases"][0]
         assert "src/" in phase["scope"]["paths"]
         assert "tests/" in phase["scope"]["paths"]
 
     def test_item_allowed_paths_preserved(self):
         """Item-specific allowed paths are preserved."""
-        items = [
-            BacklogItem(
-                id="test",
-                title="Test",
-                summary="",
-                allowed_paths=["custom/path/"]
-            )
-        ]
-        
+        items = [BacklogItem(id="test", title="Test", summary="", allowed_paths=["custom/path/"])]
+
         result = backlog_items_to_phases(items)
         phase = result["phases"][0]
         assert "custom/path/" in phase["scope"]["paths"]
@@ -158,30 +148,20 @@ class TestBacklogItemsToPhases:
     def test_budgets_applied(self):
         """Custom budgets are applied to phases."""
         items = [BacklogItem(id="test", title="Test", summary="")]
-        
-        result = backlog_items_to_phases(
-            items,
-            max_commands=50,
-            max_seconds=1200
-        )
-        
+
+        result = backlog_items_to_phases(items, max_commands=50, max_seconds=1200)
+
         phase = result["phases"][0]
         assert phase["budgets"]["max_commands"] == 50
         assert phase["budgets"]["max_seconds"] == 1200
 
     def test_metadata_includes_backlog_info(self):
         """Phase metadata includes backlog summary and mode."""
-        items = [
-            BacklogItem(
-                id="test",
-                title="Test",
-                summary="Detailed summary here"
-            )
-        ]
-        
+        items = [BacklogItem(id="test", title="Test", summary="Detailed summary here")]
+
         result = backlog_items_to_phases(items)
         phase = result["phases"][0]
-        
+
         assert phase["metadata"]["backlog_summary"] == "Detailed summary here"
         assert phase["metadata"]["mode"] == "backlog_maintenance"
 
@@ -193,9 +173,9 @@ class TestWritePlan:
         """Plan is written to specified path."""
         plan = {"phases": [{"id": "test", "description": "Test"}]}
         out_path = tmp_path / "subdir" / "plan.json"
-        
+
         result = write_plan(plan, out_path)
-        
+
         assert result == out_path
         assert out_path.exists()
 
@@ -203,18 +183,18 @@ class TestWritePlan:
         """Parent directories are created if needed."""
         plan = {"phases": []}
         out_path = tmp_path / "deep" / "nested" / "plan.json"
-        
+
         write_plan(plan, out_path)
-        
+
         assert out_path.exists()
 
     def test_write_plan_valid_json(self, tmp_path: Path):
         """Written file contains valid JSON."""
         plan = {"phases": [{"id": "test", "key": "value"}]}
         out_path = tmp_path / "plan.json"
-        
+
         write_plan(plan, out_path)
-        
+
         loaded = json.loads(out_path.read_text())
         assert loaded == plan
 
@@ -225,13 +205,10 @@ class TestGitCheckpoint:
     @patch("autopack.backlog_maintenance.subprocess.run")
     def test_create_checkpoint_success(self, mock_run):
         """Successful checkpoint returns commit hash."""
-        mock_run.return_value = MagicMock(
-            returncode=0,
-            stdout="abc123def456\n"
-        )
-        
+        mock_run.return_value = MagicMock(returncode=0, stdout="abc123def456\n")
+
         success, result = create_git_checkpoint(Path("/repo"))
-        
+
         assert success is True
         assert result == "abc123def456"
 
@@ -239,12 +216,11 @@ class TestGitCheckpoint:
     def test_create_checkpoint_failure(self, mock_run):
         """Failed checkpoint returns error message."""
         from subprocess import CalledProcessError
-        mock_run.side_effect = CalledProcessError(
-            1, "git", stderr="nothing to commit"
-        )
-        
+
+        mock_run.side_effect = CalledProcessError(1, "git", stderr="nothing to commit")
+
         success, result = create_git_checkpoint(Path("/repo"))
-        
+
         assert success is False
         assert "nothing to commit" in result or result is not None
 
@@ -252,9 +228,9 @@ class TestGitCheckpoint:
     def test_revert_to_checkpoint_success(self, mock_run):
         """Successful revert returns True."""
         mock_run.return_value = MagicMock(returncode=0)
-        
+
         success, error = revert_to_checkpoint(Path("/repo"), "abc123")
-        
+
         assert success is True
         assert error is None
 
@@ -262,12 +238,11 @@ class TestGitCheckpoint:
     def test_revert_to_checkpoint_failure(self, mock_run):
         """Failed revert returns error message."""
         from subprocess import CalledProcessError
-        mock_run.side_effect = CalledProcessError(
-            1, "git", stderr="invalid commit"
-        )
-        
+
+        mock_run.side_effect = CalledProcessError(1, "git", stderr="invalid commit")
+
         success, error = revert_to_checkpoint(Path("/repo"), "invalid")
-        
+
         assert success is False
         assert error is not None
 
@@ -278,7 +253,7 @@ class TestParsePatchStats:
     def test_empty_patch(self):
         """Empty patch returns zero stats."""
         stats = parse_patch_stats("")
-        
+
         assert stats.files_changed == []
         assert stats.lines_added == 0
         assert stats.lines_deleted == 0
@@ -295,7 +270,7 @@ class TestParsePatchStats:
  line3
 """
         stats = parse_patch_stats(patch)
-        
+
         assert "file.py" in stats.files_changed
         assert stats.lines_added == 1
         assert stats.lines_deleted == 1
@@ -314,7 +289,7 @@ class TestParsePatchStats:
 +new2
 """
         stats = parse_patch_stats(patch)
-        
+
         assert len(stats.files_changed) == 2
         assert "file1.py" in stats.files_changed
         assert "file2.py" in stats.files_changed
@@ -323,7 +298,7 @@ class TestParsePatchStats:
         """Addition-only patch counts correctly."""
         patch = "+++ b/new.py\n+line1\n+line2\n+line3\n"
         stats = parse_patch_stats(patch)
-        
+
         assert stats.lines_added == 3
         assert stats.lines_deleted == 0
 
@@ -331,7 +306,7 @@ class TestParsePatchStats:
         """Deletion-only patch counts correctly."""
         patch = "--- a/old.py\n-line1\n-line2\n"
         stats = parse_patch_stats(patch)
-        
+
         assert stats.lines_added == 0
         assert stats.lines_deleted == 2
 
@@ -347,10 +322,7 @@ class TestBacklogItemDataclass:
     def test_custom_allowed_paths(self):
         """Custom allowed_paths is preserved."""
         item = BacklogItem(
-            id="test",
-            title="Test",
-            summary="Summary",
-            allowed_paths=["src/", "lib/"]
+            id="test", title="Test", summary="Summary", allowed_paths=["src/", "lib/"]
         )
         assert item.allowed_paths == ["src/", "lib/"]
 

@@ -32,6 +32,7 @@ from sqlalchemy.orm import sessionmaker
 
 # Add src to path
 import sys
+
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
 
 from autopack.database import Base
@@ -59,7 +60,9 @@ def postgres_engine():
     Skips if Postgres is not available.
     """
     if not should_run_postgres_tests():
-        pytest.skip("Postgres integration test skipped (set DATABASE_URL=postgresql://... or AUTOPACK_TEST_POSTGRES=1 to run)")
+        pytest.skip(
+            "Postgres integration test skipped (set DATABASE_URL=postgresql://... or AUTOPACK_TEST_POSTGRES=1 to run)"
+        )
 
     db_url = os.getenv("DATABASE_URL")
     if not db_url or not db_url.startswith("postgresql://"):
@@ -119,8 +122,7 @@ class TestPostgresIdempotencyIndex:
 
         # Find the specific index
         idempotency_index = next(
-            idx for idx in indexes
-            if idx["name"] == "ux_token_eff_metrics_run_phase_outcome"
+            idx for idx in indexes if idx["name"] == "ux_token_eff_metrics_run_phase_outcome"
         )
 
         # Verify it's a unique index
@@ -128,9 +130,9 @@ class TestPostgresIdempotencyIndex:
 
         # Verify columns (order matters for partial unique index)
         expected_columns = ["run_id", "phase_id", "phase_outcome"]
-        assert idempotency_index["column_names"] == expected_columns, (
-            f"Index columns should be {expected_columns}, got {idempotency_index['column_names']}"
-        )
+        assert (
+            idempotency_index["column_names"] == expected_columns
+        ), f"Index columns should be {expected_columns}, got {idempotency_index['column_names']}"
 
     def test_duplicate_terminal_outcome_prevented(self, postgres_session):
         """Assert that duplicates are prevented by the unique index.
@@ -169,11 +171,15 @@ class TestPostgresIdempotencyIndex:
         postgres_session.commit()
 
         # Verify initial row exists
-        count = postgres_session.query(TokenEfficiencyMetrics).filter_by(
-            run_id=run_id,
-            phase_id=phase_id,
-            phase_outcome=phase_outcome,
-        ).count()
+        count = (
+            postgres_session.query(TokenEfficiencyMetrics)
+            .filter_by(
+                run_id=run_id,
+                phase_id=phase_id,
+                phase_outcome=phase_outcome,
+            )
+            .count()
+        )
         assert count == 1, "Initial insert should succeed"
 
         # Step 2: Attempt duplicate insert (should fail)
@@ -197,27 +203,35 @@ class TestPostgresIdempotencyIndex:
 
         # Verify error message mentions the index
         error_msg = str(exc_info.value).lower()
-        assert "ux_token_eff_metrics_run_phase_outcome" in error_msg or "unique" in error_msg, (
-            f"IntegrityError should mention unique constraint or index, got: {exc_info.value}"
-        )
+        assert (
+            "ux_token_eff_metrics_run_phase_outcome" in error_msg or "unique" in error_msg
+        ), f"IntegrityError should mention unique constraint or index, got: {exc_info.value}"
 
         # Rollback the failed transaction
         postgres_session.rollback()
 
         # Step 4: Confirm only one row exists (duplicate was rejected)
-        final_count = postgres_session.query(TokenEfficiencyMetrics).filter_by(
-            run_id=run_id,
-            phase_id=phase_id,
-            phase_outcome=phase_outcome,
-        ).count()
+        final_count = (
+            postgres_session.query(TokenEfficiencyMetrics)
+            .filter_by(
+                run_id=run_id,
+                phase_id=phase_id,
+                phase_outcome=phase_outcome,
+            )
+            .count()
+        )
         assert final_count == 1, "Duplicate insert should be rejected by DB"
 
         # Verify original values are preserved (not overwritten)
-        existing_row = postgres_session.query(TokenEfficiencyMetrics).filter_by(
-            run_id=run_id,
-            phase_id=phase_id,
-            phase_outcome=phase_outcome,
-        ).one()
+        existing_row = (
+            postgres_session.query(TokenEfficiencyMetrics)
+            .filter_by(
+                run_id=run_id,
+                phase_id=phase_id,
+                phase_outcome=phase_outcome,
+            )
+            .one()
+        )
         assert existing_row.artifact_substitutions == 5, "Original values should be preserved"
         assert existing_row.tokens_saved_artifacts == 1000
 
@@ -275,11 +289,15 @@ class TestPostgresIdempotencyIndex:
         postgres_session.commit()  # Should succeed (NULL not enforced)
 
         # Verify both rows exist
-        count = postgres_session.query(TokenEfficiencyMetrics).filter_by(
-            run_id=run_id,
-            phase_id=phase_id,
-            phase_outcome=None,
-        ).count()
+        count = (
+            postgres_session.query(TokenEfficiencyMetrics)
+            .filter_by(
+                run_id=run_id,
+                phase_id=phase_id,
+                phase_outcome=None,
+            )
+            .count()
+        )
         assert count == 2, "NULL outcomes should allow duplicates (partial index predicate)"
 
     def test_different_outcomes_allowed(self, postgres_session):
@@ -340,22 +358,34 @@ class TestPostgresIdempotencyIndex:
         postgres_session.commit()  # Should succeed (different outcomes)
 
         # Verify both rows exist
-        count = postgres_session.query(TokenEfficiencyMetrics).filter_by(
-            run_id=run_id,
-            phase_id=phase_id,
-        ).count()
+        count = (
+            postgres_session.query(TokenEfficiencyMetrics)
+            .filter_by(
+                run_id=run_id,
+                phase_id=phase_id,
+            )
+            .count()
+        )
         assert count == 2, "Different outcomes should be allowed"
 
         # Verify we have one FAILED and one COMPLETE
-        failed_count = postgres_session.query(TokenEfficiencyMetrics).filter_by(
-            run_id=run_id,
-            phase_id=phase_id,
-            phase_outcome="FAILED",
-        ).count()
-        complete_count = postgres_session.query(TokenEfficiencyMetrics).filter_by(
-            run_id=run_id,
-            phase_id=phase_id,
-            phase_outcome="COMPLETE",
-        ).count()
+        failed_count = (
+            postgres_session.query(TokenEfficiencyMetrics)
+            .filter_by(
+                run_id=run_id,
+                phase_id=phase_id,
+                phase_outcome="FAILED",
+            )
+            .count()
+        )
+        complete_count = (
+            postgres_session.query(TokenEfficiencyMetrics)
+            .filter_by(
+                run_id=run_id,
+                phase_id=phase_id,
+                phase_outcome="COMPLETE",
+            )
+            .count()
+        )
         assert failed_count == 1
         assert complete_count == 1

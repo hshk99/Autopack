@@ -1,4 +1,5 @@
 """Unit tests for research session management."""
+
 from datetime import datetime
 
 
@@ -8,8 +9,12 @@ class TestResearchSession:
     def test_session_initialization(self):
         """Test that a research session initializes correctly."""
         session_id = "test_session_123"
-        session = {"session_id": session_id, "status": "active", "created_at": datetime.now().isoformat()}
-        
+        session = {
+            "session_id": session_id,
+            "status": "active",
+            "created_at": datetime.now().isoformat(),
+        }
+
         assert session["session_id"] == session_id
         assert session["status"] == "active"
         assert "created_at" in session
@@ -22,7 +27,7 @@ class TestResearchSession:
             ("active", "completed"),
             ("paused", "completed"),
         ]
-        
+
         for from_status, to_status in valid_transitions:
             session = {"status": from_status}
             session["status"] = to_status
@@ -32,7 +37,7 @@ class TestResearchSession:
         """Test that invalid status values are rejected."""
         valid_statuses = ["active", "paused", "completed", "failed"]
         invalid_status = "invalid_status"
-        
+
         assert invalid_status not in valid_statuses
 
     def test_session_metadata(self):
@@ -40,31 +45,21 @@ class TestResearchSession:
         metadata = {
             "query": "test query",
             "sources": ["source1", "source2"],
-            "parameters": {"depth": 3, "timeout": 30}
+            "parameters": {"depth": 3, "timeout": 30},
         }
-        
-        session = {
-            "session_id": "test_123",
-            "metadata": metadata
-        }
-        
+
+        session = {"session_id": "test_123", "metadata": metadata}
+
         assert session["metadata"]["query"] == "test query"
         assert len(session["metadata"]["sources"]) == 2
         assert session["metadata"]["parameters"]["depth"] == 3
 
     def test_session_results_storage(self):
         """Test that session results are stored correctly."""
-        results = {
-            "findings": ["finding1", "finding2"],
-            "confidence": 0.85,
-            "sources_used": 5
-        }
-        
-        session = {
-            "session_id": "test_123",
-            "results": results
-        }
-        
+        results = {"findings": ["finding1", "finding2"], "confidence": 0.85, "sources_used": 5}
+
+        session = {"session_id": "test_123", "results": results}
+
         assert len(session["results"]["findings"]) == 2
         assert session["results"]["confidence"] == 0.85
         assert session["results"]["sources_used"] == 5
@@ -72,16 +67,18 @@ class TestResearchSession:
     def test_session_timestamp_format(self):
         """Test that timestamps are in ISO format."""
         timestamp = datetime.now().isoformat()
-        
+
         # Verify ISO format can be parsed back
-        parsed = datetime.fromisoformat(timestamp.replace('Z', '+00:00') if timestamp.endswith('Z') else timestamp)
+        parsed = datetime.fromisoformat(
+            timestamp.replace("Z", "+00:00") if timestamp.endswith("Z") else timestamp
+        )
         assert isinstance(parsed, datetime)
 
     def test_session_unique_id(self):
         """Test that session IDs are unique."""
         session1 = {"session_id": "session_1"}
         session2 = {"session_id": "session_2"}
-        
+
         assert session1["session_id"] != session2["session_id"]
 
     def test_session_error_handling(self):
@@ -92,10 +89,10 @@ class TestResearchSession:
             "error": {
                 "message": "Connection timeout",
                 "code": "TIMEOUT_ERROR",
-                "timestamp": datetime.now().isoformat()
-            }
+                "timestamp": datetime.now().isoformat(),
+            },
         }
-        
+
         assert error_session["status"] == "failed"
         assert "error" in error_session
         assert error_session["error"]["code"] == "TIMEOUT_ERROR"

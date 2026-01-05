@@ -109,7 +109,7 @@ class ProbeLibrary:
                 commands=[
                     ProbeCommand("git status --short", label="git_status"),
                     ProbeCommand("git diff --stat", label="git_diff_stat"),
-                    ProbeCommand("find . -maxdepth 4 -name \"*.rej\"", label="find_rejects"),
+                    ProbeCommand('find . -maxdepth 4 -name "*.rej"', label="find_rejects"),
                     ProbeCommand("tail -n 200 last_patch_debug.diff", label="tail_patch_debug"),
                     ProbeCommand("tail -n 200 logs/autopack/builder.log", label="tail_builder"),
                 ],
@@ -128,7 +128,10 @@ class ProbeLibrary:
                 description="Collect failing test output and recent executor logs.",
                 commands=[
                     ProbeCommand(pytest_cmd, label="pytest_repro", sandbox=True),
-                    ProbeCommand("tail -n 200 logs/autopack/autonomous_executor.log", label="tail_executor_log"),
+                    ProbeCommand(
+                        "tail -n 200 logs/autopack/autonomous_executor.log",
+                        label="tail_executor_log",
+                    ),
                     ProbeCommand("tail -n 200 logs/autopack/auditor.log", label="tail_auditor_log"),
                 ],
                 stop_on_success=False,
@@ -155,7 +158,11 @@ class ProbeLibrary:
         missing_path = context.get("missing_path")
         commands = [ProbeCommand("ls -la .", label="ls_root")]
         if missing_path:
-            commands.append(ProbeCommand(f"find {missing_path} -maxdepth 1 -name '*'", label="find_missing_path"))
+            commands.append(
+                ProbeCommand(
+                    f"find {missing_path} -maxdepth 1 -name '*'", label="find_missing_path"
+                )
+            )
         else:
             commands.append(ProbeCommand("find . -maxdepth 3 -name '*.py'", label="find_py"))
         return [
@@ -193,7 +200,9 @@ class ProbeLibrary:
         ]
         if url:
             commands.append(ProbeCommand(f"curl -I {url}", allow_network=True, label="curl_head"))
-            commands.append(ProbeCommand(f"curl -I {url}", allow_network=True, label="curl_head_repeat"))
+            commands.append(
+                ProbeCommand(f"curl -I {url}", allow_network=True, label="curl_head_repeat")
+            )
         return [
             Probe(
                 name="network_health",
@@ -201,4 +210,3 @@ class ProbeLibrary:
                 commands=commands,
             ),
         ]
-

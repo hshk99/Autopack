@@ -112,9 +112,7 @@ def run_with_streaming(
             returncode = process.returncode
 
     except subprocess.TimeoutExpired:
-        logger.warning(
-            f"[StreamingSubprocess] Command timed out after {timeout}s: {command}"
-        )
+        logger.warning(f"[StreamingSubprocess] Command timed out after {timeout}s: {command}")
         timeout_occurred = True
         returncode = -1  # Indicate timeout failure
 

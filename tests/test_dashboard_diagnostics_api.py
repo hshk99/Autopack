@@ -72,4 +72,3 @@ def test_latest_diagnostics_handles_corrupt_json(tmp_path: Path):
     assert resp.status_code == 200
     data = resp.json()
     assert data["ledger"] == "Diagnostics summary unreadable"
-

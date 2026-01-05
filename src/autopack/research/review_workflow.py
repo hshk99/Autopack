@@ -122,9 +122,7 @@ class ResearchReviewWorkflow:
         self.review_dir = project_root / ".autonomous_runs" / "reviews"
         self.review_dir.mkdir(parents=True, exist_ok=True)
 
-    def review_research_session(
-        self, session_data: Dict[str, Any]
-    ) -> ReviewResult:
+    def review_research_session(self, session_data: Dict[str, Any]) -> ReviewResult:
         """
         Review a research session and make approval decision.
 
@@ -177,7 +175,9 @@ class ResearchReviewWorkflow:
             reasons.append(ReviewReason.LOW_QUALITY)
             reasons.append(ReviewReason.MANUAL_REVIEW_REQUIRED)
             result.notes = f"Deferred to human review: quality score {quality_score:.2f} below threshold {self.criteria.require_human_review_below}"
-            logger.warning(f"Session {session_id} requires human review (quality: {quality_score:.2f})")
+            logger.warning(
+                f"Session {session_id} requires human review (quality: {quality_score:.2f})"
+            )
         else:
             # Apply detailed criteria
             if quality_score < self.criteria.min_quality_score:
@@ -258,17 +258,13 @@ class ResearchReviewWorkflow:
             return 0.0
 
         # Simple heuristic: evidence with low relevance scores might conflict
-        low_relevance = sum(
-            1 for e in evidence if e.get("relevance_score", 1.0) < 0.5
-        )
+        low_relevance = sum(1 for e in evidence if e.get("relevance_score", 1.0) < 0.5)
         return low_relevance / len(evidence)
 
     def _save_review_result(self, result: ReviewResult) -> None:
         """Save review result to disk."""
         review_file = self.review_dir / f"{result.review_id}.json"
-        review_file.write_text(
-            json.dumps(result.to_dict(), indent=2), encoding="utf-8"
-        )
+        review_file.write_text(json.dumps(result.to_dict(), indent=2), encoding="utf-8")
         logger.debug(f"Saved review result to {review_file}")
 
     def get_review_history(self, session_id: str) -> List[ReviewResult]:

@@ -148,9 +148,7 @@ class FailureHardeningRegistry:
         """
         return sorted(self.patterns.keys(), key=lambda pid: self.patterns[pid].priority)
 
-    def detect_and_mitigate(
-        self, error_text: str, context: Dict
-    ) -> Optional[MitigationResult]:
+    def detect_and_mitigate(self, error_text: str, context: Dict) -> Optional[MitigationResult]:
         """Detect failure pattern and apply mitigation.
 
         Args:
@@ -175,7 +173,9 @@ class FailureHardeningRegistry:
 
                     # Extract module name for dependency errors (to enable specific suggestions)
                     if pattern.pattern_id == "python_missing_dep":
-                        match = re.search(r"ModuleNotFoundError: No module named ['\"]?(\w+)", error_text)
+                        match = re.search(
+                            r"ModuleNotFoundError: No module named ['\"]?(\w+)", error_text
+                        )
                         if match:
                             context["detected_module"] = match.group(1)
                     elif pattern.pattern_id == "node_missing_dep":
@@ -363,7 +363,11 @@ class FailureHardeningRegistry:
 
         suggestions = [
             "Only modify files within the defined scope",
-            f"Allowed scope: {', '.join(scope_paths[:5])}..." if scope_paths else "No scope defined",
+            (
+                f"Allowed scope: {', '.join(scope_paths[:5])}..."
+                if scope_paths
+                else "No scope defined"
+            ),
             "Request scope expansion if needed",
         ]
 
@@ -439,9 +443,7 @@ def get_registry() -> FailureHardeningRegistry:
     return _registry
 
 
-def detect_and_mitigate_failure(
-    error_text: str, context: Dict
-) -> Optional[MitigationResult]:
+def detect_and_mitigate_failure(error_text: str, context: Dict) -> Optional[MitigationResult]:
     """Convenience function: detect and mitigate failure.
 
     Args:

@@ -25,6 +25,7 @@ from autopack.storage_optimizer.models import ScanResult
 @dataclass
 class SmartCategorizationResult:
     """Result of LLM-powered categorization."""
+
     category: str
     reason: str
     confidence: float
@@ -49,7 +50,7 @@ class SmartCategorizer:
         policy: StoragePolicy,
         llm_provider: Optional[str] = None,
         min_confidence: float = 0.7,
-        max_batch_size: int = 20
+        max_batch_size: int = 20,
     ):
         """
         Initialize smart categorizer.
@@ -66,9 +67,7 @@ class SmartCategorizer:
         self.max_batch_size = max_batch_size
 
     def categorize_unknowns(
-        self,
-        unknown_items: List[ScanResult],
-        use_llm: bool = True
+        self, unknown_items: List[ScanResult], use_llm: bool = True
     ) -> List[SmartCategorizationResult]:
         """
         Categorize unknown items using LLM.
@@ -83,11 +82,11 @@ class SmartCategorizer:
         if not use_llm or not unknown_items:
             return [
                 SmartCategorizationResult(
-                    category='unknown',
-                    reason='LLM categorization disabled',
+                    category="unknown",
+                    reason="LLM categorization disabled",
                     confidence=0.0,
                     llm_used=False,
-                    tokens_used=0
+                    tokens_used=0,
                 )
                 for _ in unknown_items
             ]
@@ -96,16 +95,13 @@ class SmartCategorizer:
 
         # Process in batches to avoid token limits
         for i in range(0, len(unknown_items), self.max_batch_size):
-            batch = unknown_items[i:i + self.max_batch_size]
+            batch = unknown_items[i : i + self.max_batch_size]
             batch_results = self._categorize_batch(batch)
             results.extend(batch_results)
 
         return results
 
-    def _categorize_batch(
-        self,
-        items: List[ScanResult]
-    ) -> List[SmartCategorizationResult]:
+    def _categorize_batch(self, items: List[ScanResult]) -> List[SmartCategorizationResult]:
         """Categorize a batch of items with single LLM call."""
         try:
             # Build LLM prompt
@@ -122,22 +118,26 @@ class SmartCategorizer:
             for i, item in enumerate(items):
                 if i < len(categorizations):
                     cat = categorizations[i]
-                    results.append(SmartCategorizationResult(
-                        category=cat['category'],
-                        reason=cat['reason'],
-                        confidence=cat['confidence'],
-                        llm_used=True,
-                        tokens_used=tokens_used // len(items)  # Approximate per-item cost
-                    ))
+                    results.append(
+                        SmartCategorizationResult(
+                            category=cat["category"],
+                            reason=cat["reason"],
+                            confidence=cat["confidence"],
+                            llm_used=True,
+                            tokens_used=tokens_used // len(items),  # Approximate per-item cost
+                        )
+                    )
                 else:
                     # Fallback if parsing failed
-                    results.append(SmartCategorizationResult(
-                        category='unknown',
-                        reason='LLM parsing failed',
-                        confidence=0.0,
-                        llm_used=True,
-                        tokens_used=tokens_used // len(items)
-                    ))
+                    results.append(
+                        SmartCategorizationResult(
+                            category="unknown",
+                            reason="LLM parsing failed",
+                            confidence=0.0,
+                            llm_used=True,
+                            tokens_used=tokens_used // len(items),
+                        )
+                    )
 
             return results
 
@@ -145,11 +145,11 @@ class SmartCategorizer:
             # Fallback to unknown on any error
             return [
                 SmartCategorizationResult(
-                    category='unknown',
-                    reason=f'LLM categorization failed: {str(e)}',
+                    category="unknown",
+                    reason=f"LLM categorization failed: {str(e)}",
                     confidence=0.0,
                     llm_used=False,
-                    tokens_used=0
+                    tokens_used=0,
                 )
                 for _ in items
             ]
@@ -160,8 +160,8 @@ class SmartCategorizer:
         category_descriptions = {}
         for cat_name, cat_def in self.policy.categories.items():
             category_descriptions[cat_name] = {
-                'description': self._infer_category_description(cat_name, cat_def),
-                'examples': cat_def.patterns[:3] if cat_def.patterns else []
+                "description": self._infer_category_description(cat_name, cat_def),
+                "examples": cat_def.patterns[:3] if cat_def.patterns else [],
             }
 
         prompt = f"""You are a storage optimizer assistant. Categorize these files/folders into the most appropriate category.
@@ -206,20 +206,18 @@ Respond with ONLY the JSON array, no other text.
         return prompt
 
     def _infer_category_description(
-        self,
-        category_name: str,
-        category_def: CategoryDefinition
+        self, category_name: str, category_def: CategoryDefinition
     ) -> str:
         """Infer human-readable description from category definition."""
         descriptions = {
-            'dev_caches': 'Development caches (node_modules, pip cache, build artifacts)',
-            'diagnostics_logs': 'Diagnostic logs and error reports',
-            'runs': 'Autonomous run data and execution logs',
-            'archive_buckets': 'Archived superseded files',
-            'steam_games': 'Steam game installations',
-            'browser_caches': 'Web browser caches and temporary files',
-            'downloads': 'Downloaded files',
-            'temp_files': 'Temporary files and system temp directories'
+            "dev_caches": "Development caches (node_modules, pip cache, build artifacts)",
+            "diagnostics_logs": "Diagnostic logs and error reports",
+            "runs": "Autonomous run data and execution logs",
+            "archive_buckets": "Archived superseded files",
+            "steam_games": "Steam game installations",
+            "browser_caches": "Web browser caches and temporary files",
+            "downloads": "Downloaded files",
+            "temp_files": "Temporary files and system temp directories",
         }
 
         return descriptions.get(category_name, f"Category: {category_name}")
@@ -246,12 +244,12 @@ Respond with ONLY the JSON array, no other text.
             response = client.complete(
                 prompt=prompt,
                 max_tokens=1000,
-                temperature=0.3  # Lower temperature for more consistent categorization
+                temperature=0.3,  # Lower temperature for more consistent categorization
             )
 
             # Extract response text and token count
-            response_text = response.get('text', '')
-            tokens_used = response.get('usage', {}).get('total_tokens', 0)
+            response_text = response.get("text", "")
+            tokens_used = response.get("usage", {}).get("total_tokens", 0)
 
             return response_text, tokens_used
 
@@ -259,11 +257,7 @@ Respond with ONLY the JSON array, no other text.
             # Fallback: return empty response
             raise RuntimeError(f"LLM call failed: {str(e)}")
 
-    def _parse_llm_response(
-        self,
-        response: str,
-        expected_count: int
-    ) -> List[Dict]:
+    def _parse_llm_response(self, response: str, expected_count: int) -> List[Dict]:
         """
         Parse LLM JSON response.
 
@@ -279,9 +273,9 @@ Respond with ONLY the JSON array, no other text.
             json_text = response.strip()
 
             # Remove markdown code blocks if present
-            if json_text.startswith('```'):
-                lines = json_text.split('\n')
-                json_text = '\n'.join(lines[1:-1]) if len(lines) > 2 else json_text
+            if json_text.startswith("```"):
+                lines = json_text.split("\n")
+                json_text = "\n".join(lines[1:-1]) if len(lines) > 2 else json_text
 
             # Parse JSON
             categorizations = json.loads(json_text)
@@ -292,18 +286,18 @@ Respond with ONLY the JSON array, no other text.
             # Validate structure
             validated = []
             for cat in categorizations:
-                if not all(k in cat for k in ['index', 'category', 'reason', 'confidence']):
+                if not all(k in cat for k in ["index", "category", "reason", "confidence"]):
                     continue
 
                 # Validate category exists in policy
-                if cat['category'] not in self.policy.categories and cat['category'] != 'unknown':
-                    cat['category'] = 'unknown'
-                    cat['confidence'] = 0.0
+                if cat["category"] not in self.policy.categories and cat["category"] != "unknown":
+                    cat["category"] = "unknown"
+                    cat["confidence"] = 0.0
 
                 # Validate confidence threshold
-                if cat['confidence'] < self.min_confidence and cat['category'] != 'unknown':
-                    cat['category'] = 'unknown'
-                    cat['confidence'] = 0.0
+                if cat["confidence"] < self.min_confidence and cat["category"] != "unknown":
+                    cat["category"] = "unknown"
+                    cat["confidence"] = 0.0
 
                 validated.append(cat)
 
@@ -314,9 +308,7 @@ Respond with ONLY the JSON array, no other text.
             return []
 
     def categorize_single(
-        self,
-        item: ScanResult,
-        use_llm: bool = True
+        self, item: ScanResult, use_llm: bool = True
     ) -> SmartCategorizationResult:
         """
         Categorize a single item (convenience method).
@@ -329,12 +321,16 @@ Respond with ONLY the JSON array, no other text.
             Categorization result
         """
         results = self.categorize_unknowns([item], use_llm=use_llm)
-        return results[0] if results else SmartCategorizationResult(
-            category='unknown',
-            reason='Categorization failed',
-            confidence=0.0,
-            llm_used=False,
-            tokens_used=0
+        return (
+            results[0]
+            if results
+            else SmartCategorizationResult(
+                category="unknown",
+                reason="Categorization failed",
+                confidence=0.0,
+                llm_used=False,
+                tokens_used=0,
+            )
         )
 
     def get_token_estimate(self, item_count: int) -> int:

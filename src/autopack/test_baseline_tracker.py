@@ -6,6 +6,7 @@ Uses pytest-json-report for structured output (no text parsing).
 
 Per BUILD-127 Final Plan design.
 """
+
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
@@ -30,7 +31,9 @@ class TestBaseline:
     error_tests: int
     skipped_tests: int
     failing_test_ids: List[str] = field(default_factory=list)
-    error_signatures: Dict[str, str] = field(default_factory=dict)  # nodeid → error type + first line
+    error_signatures: Dict[str, str] = field(
+        default_factory=dict
+    )  # nodeid → error type + first line
 
     def to_json(self) -> str:
         """Serialize for caching."""
@@ -44,12 +47,12 @@ class TestBaseline:
             "error_tests": self.error_tests,
             "skipped_tests": self.skipped_tests,
             "failing_test_ids": self.failing_test_ids,
-            "error_signatures": self.error_signatures
+            "error_signatures": self.error_signatures,
         }
         return json.dumps(data, indent=2)
 
     @classmethod
-    def from_json(cls, json_str: str) -> 'TestBaseline':
+    def from_json(cls, json_str: str) -> "TestBaseline":
         """Deserialize from cache."""
         data = json.loads(json_str)
         data["timestamp"] = datetime.fromisoformat(data["timestamp"])
@@ -119,12 +122,7 @@ class TestBaselineTracker:
 
         self.cache_dir.mkdir(parents=True, exist_ok=True)
 
-    def capture_baseline(
-        self,
-        run_id: str,
-        commit_sha: str,
-        timeout: int = 120
-    ) -> TestBaseline:
+    def capture_baseline(self, run_id: str, commit_sha: str, timeout: int = 120) -> TestBaseline:
         """
         Capture test baseline using structured output.
 
@@ -140,7 +138,7 @@ class TestBaselineTracker:
         cache_file = self.cache_dir / f"{commit_sha}.json"
         if cache_file.exists():
             logger.info(f"[Baseline] Using cached baseline for commit {commit_sha[:8]}")
-            return TestBaseline.from_json(cache_file.read_text(encoding='utf-8'))
+            return TestBaseline.from_json(cache_file.read_text(encoding="utf-8"))
 
         logger.info(f"[Baseline] Capturing baseline for commit {commit_sha[:8]}")
 
@@ -161,12 +159,12 @@ class TestBaselineTracker:
                     f"--json-report-file={report_file}",
                     "--tb=line",
                     "-q",
-                    "tests/"
+                    "tests/",
                 ],
                 cwd=self.workspace,
                 capture_output=True,
                 text=True,
-                timeout=timeout
+                timeout=timeout,
             )
         except subprocess.TimeoutExpired:
             logger.error(f"[Baseline] Pytest timed out after {timeout}s")
@@ -177,7 +175,7 @@ class TestBaselineTracker:
             logger.error("[Baseline] JSON report not generated")
             raise FileNotFoundError(f"JSON report missing: {report_file}")
 
-        report = json.loads(report_file.read_text(encoding='utf-8'))
+        report = json.loads(report_file.read_text(encoding="utf-8"))
 
         # Extract baseline data
         summary = report.get("summary", {})
@@ -186,14 +184,10 @@ class TestBaselineTracker:
 
         # Collection/import errors are represented as failed collectors in pytest-json-report
         # even when "tests" is empty (exitcode=2).
-        failed_collectors = [
-            c for c in collectors
-            if c.get("outcome") not in (None, "passed")
-        ]
+        failed_collectors = [c for c in collectors if c.get("outcome") not in (None, "passed")]
 
         failing_test_ids = [
-            test["nodeid"] for test in tests
-            if test.get("outcome") in ["failed", "error"]
+            test["nodeid"] for test in tests if test.get("outcome") in ["failed", "error"]
         ]
 
         error_signatures = {}
@@ -240,11 +234,11 @@ class TestBaselineTracker:
             error_tests=int(error_tests_total),
             skipped_tests=int(skipped_tests),
             failing_test_ids=failing_test_ids,
-            error_signatures=error_signatures
+            error_signatures=error_signatures,
         )
 
         # Cache for this commit
-        cache_file.write_text(baseline.to_json(), encoding='utf-8')
+        cache_file.write_text(baseline.to_json(), encoding="utf-8")
         logger.info(
             f"[Baseline] Captured: {baseline.passing_tests}/{baseline.total_tests} passing, "
             f"{baseline.failing_tests} failing, {baseline.error_tests} errors"
@@ -252,11 +246,7 @@ class TestBaselineTracker:
 
         return baseline
 
-    def diff(
-        self,
-        baseline: TestBaseline,
-        current_report_path: Path
-    ) -> TestDelta:
+    def diff(self, baseline: TestBaseline, current_report_path: Path) -> TestDelta:
         """
         Compute regression delta between baseline and current.
 
@@ -268,24 +258,23 @@ class TestBaselineTracker:
             TestDelta with all changes
         """
         # Parse current results
-        current_report = json.loads(current_report_path.read_text(encoding='utf-8'))
+        current_report = json.loads(current_report_path.read_text(encoding="utf-8"))
         current_tests = current_report.get("tests", [])
         current_collectors = current_report.get("collectors", [])
 
         current_failed_or_error = set(
-            test["nodeid"] for test in current_tests
-            if test.get("outcome") in ("failed", "error")
+            test["nodeid"] for test in current_tests if test.get("outcome") in ("failed", "error")
         )
 
         # pytest-json-report represents collection/import errors as failed collectors.
         current_collection_errors = set(
-            c.get("nodeid") for c in current_collectors
+            c.get("nodeid")
+            for c in current_collectors
             if c.get("nodeid") and c.get("outcome") not in (None, "passed")
         )
 
         current_passing = set(
-            test["nodeid"] for test in current_tests
-            if test.get("outcome") == "passed"
+            test["nodeid"] for test in current_tests if test.get("outcome") == "passed"
         )
 
         baseline_failing = set(baseline.failing_test_ids)
@@ -300,16 +289,13 @@ class TestBaselineTracker:
         delta = TestDelta(
             newly_failing=newly_failing,
             newly_passing=newly_passing,
-            new_collection_errors=new_collection_errors
+            new_collection_errors=new_collection_errors,
         )
 
         return delta
 
     def retry_newly_failing(
-        self,
-        newly_failing: List[str],
-        workspace: Path,
-        timeout: int = 60
+        self, newly_failing: List[str], workspace: Path, timeout: int = 60
     ) -> Dict[str, str]:
         """
         Retry tests once. Returns {nodeid: 'passed'|'failed'}.
@@ -343,12 +329,12 @@ class TestBaselineTracker:
                     "--json-report",
                     f"--json-report-file={report_file}",
                     "--tb=line",
-                    "-q"
+                    "-q",
                 ],
                 cwd=workspace,
                 capture_output=True,
                 text=True,
-                timeout=timeout
+                timeout=timeout,
             )
         except subprocess.TimeoutExpired:
             logger.error(f"[Baseline] Retry timed out after {timeout}s")
@@ -360,7 +346,7 @@ class TestBaselineTracker:
             logger.error("[Baseline] Retry JSON report missing")
             return {nodeid: "failed" for nodeid in newly_failing}
 
-        retry_report = json.loads(report_file.read_text(encoding='utf-8'))
+        retry_report = json.loads(report_file.read_text(encoding="utf-8"))
         retry_tests = retry_report.get("tests", [])
 
         outcomes = {}
@@ -383,10 +369,7 @@ class TestBaselineTracker:
         return outcomes
 
     def compute_full_delta(
-        self,
-        baseline: TestBaseline,
-        current_report_path: Path,
-        workspace: Path
+        self, baseline: TestBaseline, current_report_path: Path, workspace: Path
     ) -> TestDelta:
         """
         Compute full delta with flaky test retry.
@@ -406,10 +389,7 @@ class TestBaselineTracker:
 
         # Retry newly failing tests
         if delta.newly_failing:
-            retry_outcomes = self.retry_newly_failing(
-                delta.newly_failing,
-                workspace
-            )
+            retry_outcomes = self.retry_newly_failing(delta.newly_failing, workspace)
 
             # Classify based on retry
             for nodeid in delta.newly_failing:
@@ -423,10 +403,7 @@ class TestBaselineTracker:
 
         # Retry new collection errors
         if delta.new_collection_errors:
-            retry_outcomes = self.retry_newly_failing(
-                delta.new_collection_errors,
-                workspace
-            )
+            retry_outcomes = self.retry_newly_failing(delta.new_collection_errors, workspace)
 
             for nodeid in delta.new_collection_errors:
                 outcome = retry_outcomes.get(nodeid, "failed")

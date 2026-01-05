@@ -299,7 +299,8 @@ class StrategyEngine:
                 # Compute tier budgets per §9.2
                 total_incident_cap = sum(
                     strategy.phase_strategies.get(
-                        p.get("phase_id"), PhaseStrategySlice(
+                        p.get("phase_id"),
+                        PhaseStrategySlice(
                             task_category=None,
                             complexity="medium",
                             builder_mode=None,
@@ -309,7 +310,7 @@ class StrategyEngine:
                             ci_profile="normal",
                             auto_apply=True,
                             auditor_profile=None,
-                        )
+                        ),
                     ).incident_token_cap
                     for p in tier_phases
                 )

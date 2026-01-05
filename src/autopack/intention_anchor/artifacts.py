@@ -311,7 +311,9 @@ def generate_anchor_diff_summary(old_anchor: IntentionAnchor, new_anchor: Intent
 
     # North star change
     if new_anchor.north_star != old_anchor.north_star:
-        changes.append(f"**North star changed:**\n  - Old: {old_anchor.north_star}\n  - New: {new_anchor.north_star}")
+        changes.append(
+            f"**North star changed:**\n  - Old: {old_anchor.north_star}\n  - New: {new_anchor.north_star}"
+        )
 
     # Success criteria changes
     old_sc = set(old_anchor.success_criteria)
@@ -349,7 +351,9 @@ def generate_anchor_diff_summary(old_anchor: IntentionAnchor, new_anchor: Intent
 
     # Risk profile changes
     if new_anchor.risk_profile != old_anchor.risk_profile:
-        changes.append(f"**Risk profile changed:** {old_anchor.risk_profile.safety_profile} → {new_anchor.risk_profile.safety_profile}")
+        changes.append(
+            f"**Risk profile changed:** {old_anchor.risk_profile.safety_profile} → {new_anchor.risk_profile.safety_profile}"
+        )
 
     if not changes:
         return "No changes detected (metadata-only update?)"

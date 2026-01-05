@@ -133,6 +133,4 @@ class StuckHandlingTelemetry(BaseModel):
     escalations_used: int
     consecutive_failures: int
     replan_attempted: bool
-    summary: str = Field(
-        ..., max_length=500, description="Single-line actionable summary"
-    )
+    summary: str = Field(..., max_length=500, description="Single-line actionable summary")

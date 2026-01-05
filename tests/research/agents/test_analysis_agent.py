@@ -54,5 +54,6 @@ class TestAnalysisAgent(unittest.TestCase):
         self.assertIn("ux", result["gaps"])
         self.assertLess(result["confidence"], 1.0)
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     unittest.main()

@@ -109,7 +109,7 @@ class TestIntentionContextIntegration:
             injector = IntentionContextInjector(
                 run_id="test-run",
                 project_id="test-project",
-                memory_service=None  # Will fall back to empty context
+                memory_service=None,  # Will fall back to empty context
             )
 
             # Get intention context (should not crash even with no memory)
@@ -135,9 +135,7 @@ class TestIntentionContextIntegration:
         ]
 
         injector = IntentionContextInjector(
-            run_id="test-run",
-            project_id="test-project",
-            memory_service=mock_memory
+            run_id="test-run", project_id="test-project", memory_service=mock_memory
         )
 
         # Request limited context
@@ -156,9 +154,7 @@ class TestIntentionContextIntegration:
         mock_memory.search_planning.side_effect = RuntimeError("Memory unavailable")
 
         injector = IntentionContextInjector(
-            run_id="test-run",
-            project_id="test-project",
-            memory_service=mock_memory
+            run_id="test-run", project_id="test-project", memory_service=mock_memory
         )
 
         # Should not crash, return empty context
@@ -222,9 +218,7 @@ class TestPlanNormalizationIntegration:
 
         # Normalize
         normalizer = PlanNormalizer(
-            workspace=tmp_path,
-            run_id="test-run",
-            project_id="test-project"
+            workspace=tmp_path, run_id="test-run", project_id="test-project"
         )
         result = normalizer.normalize(raw_plan=raw_plan)
 
@@ -270,8 +264,10 @@ class TestParallelExecutionIntegration:
             return True
 
         # Mock WorkspaceManager and ExecutorLockManager
-        with patch("autopack.parallel_orchestrator.WorkspaceManager") as MockWM, \
-             patch("autopack.parallel_orchestrator.ExecutorLockManager") as MockLM:
+        with (
+            patch("autopack.parallel_orchestrator.WorkspaceManager") as MockWM,
+            patch("autopack.parallel_orchestrator.ExecutorLockManager") as MockLM,
+        ):
 
             # Setup mocks
             def create_workspace_mock(run_id, **kwargs):
@@ -322,9 +318,7 @@ class TestEndToEndIntegration:
             injector = IntentionContextInjector("test-run", "test-project", None)
             registry = FailureHardeningRegistry()
             normalizer = PlanNormalizer(
-                workspace=tmp_path,
-                run_id="test-run",
-                project_id="test-project"
+                workspace=tmp_path, run_id="test-run", project_id="test-project"
             )
 
             # All should be instantiated

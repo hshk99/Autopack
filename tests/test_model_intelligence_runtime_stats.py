@@ -168,9 +168,7 @@ def test_compute_cost_estimate(in_memory_session, sample_pricing):
     completion_tokens = 2000
     as_of = datetime.now(timezone.utc)
 
-    cost = compute_cost_estimate(
-        in_memory_session, model, prompt_tokens, completion_tokens, as_of
-    )
+    cost = compute_cost_estimate(in_memory_session, model, prompt_tokens, completion_tokens, as_of)
 
     assert cost is not None
     # Expected: (3000 * 0.003 / 1000) + (2000 * 0.015 / 1000) = 0.009 + 0.030 = 0.039
@@ -185,9 +183,7 @@ def test_compute_cost_estimate_missing_pricing(in_memory_session):
     completion_tokens = 500
     as_of = datetime.now(timezone.utc)
 
-    cost = compute_cost_estimate(
-        in_memory_session, model, prompt_tokens, completion_tokens, as_of
-    )
+    cost = compute_cost_estimate(in_memory_session, model, prompt_tokens, completion_tokens, as_of)
 
     assert cost is None
 
@@ -213,9 +209,7 @@ def test_compute_token_percentiles(in_memory_session, sample_usage_events):
     assert p90 == 12000  # 90th percentile
 
 
-def test_compute_runtime_stats_idempotent(
-    in_memory_session, sample_pricing, sample_usage_events
-):
+def test_compute_runtime_stats_idempotent(in_memory_session, sample_pricing, sample_usage_events):
     """Test that runtime stats computation is idempotent."""
     count1 = compute_runtime_stats(in_memory_session, window_days=7)
     count2 = compute_runtime_stats(in_memory_session, window_days=7)

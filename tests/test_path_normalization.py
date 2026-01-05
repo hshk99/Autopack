@@ -31,7 +31,7 @@ def collapse_consecutive_duplicates(parts: List[str]) -> List[str]:
 
     collapsed: List[str] = [parts[0]]
     for i in range(1, len(parts)):
-        if parts[i] != parts[i-1]:
+        if parts[i] != parts[i - 1]:
             collapsed.append(parts[i])
 
     return collapsed
@@ -83,10 +83,27 @@ def test_collapse_consecutive_duplicates():
     print(f"✓ Test 6 passed: {parts} -> {result}")
 
     # Test case 7: Real-world validation error example
-    parts = ["archive", "superseded", ".autonomous_runs", "file-organizer-app-v1",
-             "file-organizer-app-v1", ".autonomous_runs", "fileorg-p2-20251208h", "ci", "pytest_fileorg-p2-docker.log"]
-    expected = ["archive", "superseded", ".autonomous_runs", "file-organizer-app-v1",
-                ".autonomous_runs", "fileorg-p2-20251208h", "ci", "pytest_fileorg-p2-docker.log"]
+    parts = [
+        "archive",
+        "superseded",
+        ".autonomous_runs",
+        "file-organizer-app-v1",
+        "file-organizer-app-v1",
+        ".autonomous_runs",
+        "fileorg-p2-20251208h",
+        "ci",
+        "pytest_fileorg-p2-docker.log",
+    ]
+    expected = [
+        "archive",
+        "superseded",
+        ".autonomous_runs",
+        "file-organizer-app-v1",
+        ".autonomous_runs",
+        "fileorg-p2-20251208h",
+        "ci",
+        "pytest_fileorg-p2-docker.log",
+    ]
     result = collapse_consecutive_duplicates(parts)
     assert result == expected, f"Expected {expected}, got {result}"
     print("✓ Test 7 passed: Real-world example normalized correctly")

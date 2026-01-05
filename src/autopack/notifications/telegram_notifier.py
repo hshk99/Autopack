@@ -43,11 +43,7 @@ class TelegramNotifier:
         return bool(self.bot_token and self.chat_id)
 
     def send_approval_request(
-        self,
-        phase_id: str,
-        deletion_info: Dict,
-        run_id: str = "",
-        context: str = ""
+        self, phase_id: str, deletion_info: Dict, run_id: str = "", context: str = ""
     ) -> bool:
         """
         Send approval request to Telegram.
@@ -77,28 +73,28 @@ class TelegramNotifier:
 
         # Create inline keyboard with Approve/Reject buttons
         keyboard = {
-            "inline_keyboard": [[
-                {
-                    "text": "✅ Approve",
-                    "callback_data": f"approve:{phase_id}"
-                },
-                {
-                    "text": "❌ Reject",
-                    "callback_data": f"reject:{phase_id}"
-                }
-            ]]
+            "inline_keyboard": [
+                [
+                    {"text": "✅ Approve", "callback_data": f"approve:{phase_id}"},
+                    {"text": "❌ Reject", "callback_data": f"reject:{phase_id}"},
+                ]
+            ]
         }
 
         try:
             # Send message via Telegram API
             url = f"https://api.telegram.org/bot{self.bot_token}/sendMessage"
 
-            response = requests.post(url, json={
-                "chat_id": self.chat_id,
-                "text": message,
-                "parse_mode": "Markdown",
-                "reply_markup": keyboard
-            }, timeout=10)
+            response = requests.post(
+                url,
+                json={
+                    "chat_id": self.chat_id,
+                    "text": message,
+                    "parse_mode": "Markdown",
+                    "reply_markup": keyboard,
+                },
+                timeout=10,
+            )
 
             if response.status_code == 200:
                 logger.info(f"[Telegram] Approval request sent for {phase_id}")
@@ -112,10 +108,7 @@ class TelegramNotifier:
             return False
 
     def send_completion_notice(
-        self,
-        phase_id: str,
-        status: str,  # "approved", "rejected", "timeout"
-        message: str = ""
+        self, phase_id: str, status: str, message: str = ""  # "approved", "rejected", "timeout"
     ) -> bool:
         """Send completion notice after approval decision."""
         if not self.is_configured():
@@ -124,9 +117,7 @@ class TelegramNotifier:
         emoji = {"approved": "✅", "rejected": "❌", "timeout": "⏱️"}.get(status, "ℹ️")
 
         text = (
-            f"{emoji} *Autopack Update*\n\n"
-            f"Phase: `{phase_id}`\n"
-            f"Status: {status.upper()}\n"
+            f"{emoji} *Autopack Update*\n\n" f"Phase: `{phase_id}`\n" f"Status: {status.upper()}\n"
         )
 
         if message:
@@ -134,11 +125,11 @@ class TelegramNotifier:
 
         try:
             url = f"https://api.telegram.org/bot{self.bot_token}/sendMessage"
-            response = requests.post(url, json={
-                "chat_id": self.chat_id,
-                "text": text,
-                "parse_mode": "Markdown"
-            }, timeout=10)
+            response = requests.post(
+                url,
+                json={"chat_id": self.chat_id, "text": text, "parse_mode": "Markdown"},
+                timeout=10,
+            )
 
             return response.status_code == 200
 
@@ -147,28 +138,21 @@ class TelegramNotifier:
             return False
 
     def _format_approval_message(
-        self,
-        phase_id: str,
-        deletion_info: Dict,
-        run_id: str,
-        context: str
+        self, phase_id: str, deletion_info: Dict, run_id: str, context: str
     ) -> str:
         """Format approval request message."""
 
-        net_deletion = deletion_info.get('net_deletion', 0)
-        loc_removed = deletion_info.get('loc_removed', 0)
-        loc_added = deletion_info.get('loc_added', 0)
-        risk_level = deletion_info.get('risk_level', 'unknown')
-        risk_score = deletion_info.get('risk_score', 0)
-        files = deletion_info.get('files', [])
+        net_deletion = deletion_info.get("net_deletion", 0)
+        loc_removed = deletion_info.get("loc_removed", 0)
+        loc_added = deletion_info.get("loc_added", 0)
+        risk_level = deletion_info.get("risk_level", "unknown")
+        risk_score = deletion_info.get("risk_score", 0)
+        files = deletion_info.get("files", [])
 
         # Risk emoji
-        risk_emoji = {
-            "critical": "🚨",
-            "high": "🔴",
-            "medium": "⚠️",
-            "low": "✅"
-        }.get(risk_level.lower(), "❓")
+        risk_emoji = {"critical": "🚨", "high": "🔴", "medium": "⚠️", "low": "✅"}.get(
+            risk_level.lower(), "❓"
+        )
 
         # Context-specific warning
         context_note = ""
@@ -223,10 +207,9 @@ def setup_telegram_webhook(bot_token: str, ngrok_url: str) -> bool:
 
     try:
         url = f"https://api.telegram.org/bot{bot_token}/setWebhook"
-        response = requests.post(url, json={
-            "url": webhook_url,
-            "allowed_updates": ["callback_query", "message"]
-        })
+        response = requests.post(
+            url, json={"url": webhook_url, "allowed_updates": ["callback_query", "message"]}
+        )
 
         if response.status_code == 200:
             result = response.json()

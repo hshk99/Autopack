@@ -17,7 +17,9 @@ class AnalysisAgent:
         pass
 
     # === API used by existing tests ===
-    def aggregate_findings(self, findings: Sequence[Mapping[str, Any]]) -> Dict[str, List[Mapping[str, Any]]]:
+    def aggregate_findings(
+        self, findings: Sequence[Mapping[str, Any]]
+    ) -> Dict[str, List[Mapping[str, Any]]]:
         aggregated: Dict[str, List[Mapping[str, Any]]] = {}
         for f in findings:
             t = str(f.get("type", "unknown"))
@@ -33,7 +35,9 @@ class AnalysisAgent:
                 seen.add(c)
         return out
 
-    def identify_gaps(self, findings: Sequence[Mapping[str, Any]], required_types: Sequence[str]) -> List[str]:
+    def identify_gaps(
+        self, findings: Sequence[Mapping[str, Any]], required_types: Sequence[str]
+    ) -> List[str]:
         present = {str(f.get("type", "unknown")) for f in findings}
         gaps = [t for t in required_types if t not in present]
         return gaps
@@ -53,5 +57,3 @@ class AnalysisAgent:
             if list(v):
                 non_empty += 1
         return min(1.0, non_empty / 4.0)
-
-

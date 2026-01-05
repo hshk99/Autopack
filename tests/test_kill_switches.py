@@ -87,10 +87,13 @@ def test_kill_switch_logic_in_code():
 def test_multiple_kill_switches_independent():
     """Verify kill switches are independent."""
     # Set one ON, other OFF
-    with patch.dict(os.environ, {
-        "AUTOPACK_ENABLE_PHASE6_METRICS": "1",
-        "AUTOPACK_ENABLE_CONSOLIDATED_METRICS": "0",
-    }):
+    with patch.dict(
+        os.environ,
+        {
+            "AUTOPACK_ENABLE_PHASE6_METRICS": "1",
+            "AUTOPACK_ENABLE_CONSOLIDATED_METRICS": "0",
+        },
+    ):
         phase6_enabled = os.getenv("AUTOPACK_ENABLE_PHASE6_METRICS") == "1"
         consolidated_enabled = os.getenv("AUTOPACK_ENABLE_CONSOLIDATED_METRICS") == "1"
 
@@ -110,10 +113,13 @@ def test_kill_switch_environment_isolation():
         assert os.getenv("AUTOPACK_ENABLE_CONSOLIDATED_METRICS") != "1"
 
     # Test 2: Both ON (shouldn't leak from test 1)
-    with patch.dict(os.environ, {
-        "AUTOPACK_ENABLE_PHASE6_METRICS": "1",
-        "AUTOPACK_ENABLE_CONSOLIDATED_METRICS": "1",
-    }):
+    with patch.dict(
+        os.environ,
+        {
+            "AUTOPACK_ENABLE_PHASE6_METRICS": "1",
+            "AUTOPACK_ENABLE_CONSOLIDATED_METRICS": "1",
+        },
+    ):
         assert os.getenv("AUTOPACK_ENABLE_PHASE6_METRICS") == "1"
         assert os.getenv("AUTOPACK_ENABLE_CONSOLIDATED_METRICS") == "1"
 

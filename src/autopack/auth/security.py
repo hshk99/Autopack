@@ -3,6 +3,7 @@
 BUILD-146 P12 Phase 5: Migrated from backend.core.security to consolidate
 auth under autopack namespace.
 """
+
 import os
 import bcrypt
 import base64
@@ -77,10 +78,14 @@ def ensure_keys() -> None:
         format=serialization.PrivateFormat.PKCS8,
         encryption_algorithm=serialization.NoEncryption(),
     ).decode("utf-8")
-    pub_pem = key.public_key().public_bytes(
-        encoding=serialization.Encoding.PEM,
-        format=serialization.PublicFormat.SubjectPublicKeyInfo,
-    ).decode("utf-8")
+    pub_pem = (
+        key.public_key()
+        .public_bytes(
+            encoding=serialization.Encoding.PEM,
+            format=serialization.PublicFormat.SubjectPublicKeyInfo,
+        )
+        .decode("utf-8")
+    )
 
     settings.jwt_private_key = priv_pem
     settings.jwt_public_key = pub_pem
@@ -92,8 +97,16 @@ def generate_jwk_from_public_pem(public_pem: str, kid_hex: str | None = None) ->
     """
     public_key = serialization.load_pem_public_key(_normalize_pem(public_pem).encode("utf-8"))
     numbers = public_key.public_numbers()
-    n = base64.urlsafe_b64encode(numbers.n.to_bytes((numbers.n.bit_length() + 7) // 8, "big")).rstrip(b"=").decode("utf-8")
-    e = base64.urlsafe_b64encode(numbers.e.to_bytes((numbers.e.bit_length() + 7) // 8, "big")).rstrip(b"=").decode("utf-8")
+    n = (
+        base64.urlsafe_b64encode(numbers.n.to_bytes((numbers.n.bit_length() + 7) // 8, "big"))
+        .rstrip(b"=")
+        .decode("utf-8")
+    )
+    e = (
+        base64.urlsafe_b64encode(numbers.e.to_bytes((numbers.e.bit_length() + 7) // 8, "big"))
+        .rstrip(b"=")
+        .decode("utf-8")
+    )
     kid = kid_hex or ""
     return {
         "kty": "RSA",

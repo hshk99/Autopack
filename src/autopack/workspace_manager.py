@@ -35,7 +35,7 @@ class WorkspaceManager:
         run_id: str,
         source_repo: Optional[Path] = None,
         worktree_base: Optional[Path] = None,
-        cleanup_on_exit: bool = True
+        cleanup_on_exit: bool = True,
     ):
         """Initialize workspace manager.
 
@@ -99,11 +99,7 @@ class WorkspaceManager:
             logger.debug(f"[Workspace] Command: {' '.join(cmd)}")
 
             result = subprocess.run(
-                cmd,
-                cwd=self.source_repo,
-                capture_output=True,
-                text=True,
-                timeout=60
+                cmd, cwd=self.source_repo, capture_output=True, text=True, timeout=60
             )
 
             if result.returncode != 0:
@@ -146,11 +142,7 @@ class WorkspaceManager:
             logger.info(f"[Workspace] Removing worktree: {self.worktree_path}")
 
             result = subprocess.run(
-                cmd,
-                cwd=self.source_repo,
-                capture_output=True,
-                text=True,
-                timeout=30
+                cmd, cwd=self.source_repo, capture_output=True, text=True, timeout=30
             )
 
             if result.returncode != 0:
@@ -167,7 +159,7 @@ class WorkspaceManager:
                     ["git", "worktree", "prune"],
                     cwd=self.source_repo,
                     capture_output=True,
-                    timeout=10
+                    timeout=10,
                 )
 
             logger.info(f"[Workspace] Removed worktree: {self.worktree_path}")
@@ -215,7 +207,7 @@ class WorkspaceManager:
                 cwd=repo,
                 capture_output=True,
                 text=True,
-                timeout=10
+                timeout=10,
             )
 
             if result.returncode != 0:
@@ -255,8 +247,7 @@ class WorkspaceManager:
 
     @staticmethod
     def cleanup_all_worktrees(
-        repo: Optional[Path] = None,
-        worktree_base: Optional[Path] = None
+        repo: Optional[Path] = None, worktree_base: Optional[Path] = None
     ) -> int:
         """Remove all managed worktrees (for cleanup/reset).
 

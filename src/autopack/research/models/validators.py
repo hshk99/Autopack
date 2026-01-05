@@ -18,6 +18,7 @@ from autopack.text_normalization import normalize_text
 @dataclass
 class Finding:
     """Research finding with citation metadata."""
+
     content: str  # LLM's summary/interpretation
     extraction_span: str  # Direct quote from source
     category: str  # e.g., "market_intelligence", "competitive_analysis"
@@ -27,6 +28,7 @@ class Finding:
 @dataclass
 class VerificationResult:
     """Result of citation verification."""
+
     valid: bool
     reason: str
     confidence: float
@@ -67,17 +69,13 @@ class CitationValidator:
         # Check 1: Verify quote appears in source
         if normalized_span not in normalized_source:
             return VerificationResult(
-                valid=False,
-                reason="extraction_span not found in source document",
-                confidence=0.95
+                valid=False, reason="extraction_span not found in source document", confidence=0.95
             )
 
         # Check 2: Verify source hash matches
         if finding.source_hash and finding.source_hash != source_hash:
             return VerificationResult(
-                valid=False,
-                reason="source document hash mismatch",
-                confidence=0.99
+                valid=False, reason="source document hash mismatch", confidence=0.99
             )
 
         # Check 3: If numeric claim, validate extraction
@@ -89,14 +87,12 @@ class CitationValidator:
                 return VerificationResult(
                     valid=False,
                     reason="numeric claim does not match extraction_span",
-                    confidence=0.9
+                    confidence=0.9,
                 )
 
         # All checks passed
         return VerificationResult(
-            valid=True,
-            reason="citation verified successfully",
-            confidence=0.95
+            valid=True, reason="citation verified successfully", confidence=0.95
         )
 
     def _normalize_text(self, text: str) -> str:
@@ -143,7 +139,7 @@ class CitationValidator:
             True if numeric validation passes, False otherwise
         """
         # Extract numbers from span only
-        span_numbers = re.findall(r'\d+(?:\.\d+)?', normalized_span)
+        span_numbers = re.findall(r"\d+(?:\.\d+)?", normalized_span)
 
         # For market/competitive intelligence, span should contain at least one number
         if finding.category in ["market_intelligence", "competitive_analysis"]:

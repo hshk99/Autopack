@@ -28,6 +28,7 @@ from autopack.main import app
 # Fixtures
 # ==============================================================================
 
+
 @pytest.fixture
 def temp_dir():
     """Create a temporary directory for test scans."""
@@ -35,6 +36,7 @@ def temp_dir():
     yield Path(temp)
     # Cleanup after tests
     import shutil
+
     shutil.rmtree(temp, ignore_errors=True)
 
 
@@ -42,9 +44,7 @@ def temp_dir():
 def test_db():
     """Create in-memory test database"""
     engine = create_engine(
-        "sqlite:///:memory:",
-        connect_args={"check_same_thread": False},
-        poolclass=StaticPool
+        "sqlite:///:memory:", connect_args={"check_same_thread": False}, poolclass=StaticPool
     )
     Base.metadata.create_all(bind=engine)
     yield engine
@@ -76,6 +76,7 @@ def client(test_db):
 # Test 1-3: Scan Creation and Retrieval
 # ==============================================================================
 
+
 def test_create_scan_via_api(client, temp_dir):
     """
     Test creating a new scan via POST /storage/scan.
@@ -84,14 +85,17 @@ def test_create_scan_via_api(client, temp_dir):
     (temp_dir / "node_modules").mkdir()
     (temp_dir / "node_modules" / "package.json").write_text("{}")
 
-    response = client.post("/storage/scan", json={
-        "scan_type": "directory",
-        "scan_target": str(temp_dir),
-        "max_depth": 2,
-        "max_items": 100,
-        "save_to_db": True,
-        "created_by": "test_user"
-    })
+    response = client.post(
+        "/storage/scan",
+        json={
+            "scan_type": "directory",
+            "scan_target": str(temp_dir),
+            "max_depth": 2,
+            "max_items": 100,
+            "save_to_db": True,
+            "created_by": "test_user",
+        },
+    )
 
     assert response.status_code == 200
     data = response.json()
@@ -109,12 +113,15 @@ def test_list_scans(client, temp_dir):
     """
     # Create 2 scans
     for i in range(2):
-        client.post("/storage/scan", json={
-            "scan_type": "directory",
-            "scan_target": str(temp_dir),
-            "save_to_db": True,
-            "created_by": f"user_{i}"
-        })
+        client.post(
+            "/storage/scan",
+            json={
+                "scan_type": "directory",
+                "scan_target": str(temp_dir),
+                "save_to_db": True,
+                "created_by": f"user_{i}",
+            },
+        )
 
     # List scans
     response = client.get("/storage/scans")
@@ -131,11 +138,10 @@ def test_get_scan_detail(client, temp_dir):
     Test retrieving detailed scan results via GET /storage/scans/{scan_id}.
     """
     # Create scan
-    create_response = client.post("/storage/scan", json={
-        "scan_type": "directory",
-        "scan_target": str(temp_dir),
-        "save_to_db": True
-    })
+    create_response = client.post(
+        "/storage/scan",
+        json={"scan_type": "directory", "scan_target": str(temp_dir), "save_to_db": True},
+    )
     scan_id = create_response.json()["id"]
 
     # Get detail
@@ -154,6 +160,7 @@ def test_get_scan_detail(client, temp_dir):
 # Test 4-5: Approval Workflow
 # ==============================================================================
 
+
 def test_approve_candidates_via_api(client, temp_dir):
     """
     Test approving cleanup candidates via POST /storage/scans/{scan_id}/approve.
@@ -164,12 +171,15 @@ def test_approve_candidates_via_api(client, temp_dir):
     test_file.write_text("{}")
 
     # Create scan
-    scan_response = client.post("/storage/scan", json={
-        "scan_type": "directory",
-        "scan_target": str(temp_dir),
-        "max_depth": 2,
-        "save_to_db": True
-    })
+    scan_response = client.post(
+        "/storage/scan",
+        json={
+            "scan_type": "directory",
+            "scan_target": str(temp_dir),
+            "max_depth": 2,
+            "save_to_db": True,
+        },
+    )
     scan_id = scan_response.json()["id"]
 
     # Get candidates
@@ -182,13 +192,16 @@ def test_approve_candidates_via_api(client, temp_dir):
     candidate_ids = [c["id"] for c in candidates]
 
     # Approve
-    approval_response = client.post(f"/storage/scans/{scan_id}/approve", json={
-        "candidate_ids": candidate_ids,
-        "approved_by": "test_user",
-        "decision": "approve",
-        "approval_method": "api",
-        "notes": "API approval test"
-    })
+    approval_response = client.post(
+        f"/storage/scans/{scan_id}/approve",
+        json={
+            "candidate_ids": candidate_ids,
+            "approved_by": "test_user",
+            "decision": "approve",
+            "approval_method": "api",
+            "notes": "API approval test",
+        },
+    )
 
     assert approval_response.status_code == 200
     approval_data = approval_response.json()
@@ -207,11 +220,10 @@ def test_reject_candidates_via_api(client, temp_dir):
     test_file.parent.mkdir(parents=True, exist_ok=True)
     test_file.write_text("content")
 
-    scan_response = client.post("/storage/scan", json={
-        "scan_type": "directory",
-        "scan_target": str(temp_dir),
-        "save_to_db": True
-    })
+    scan_response = client.post(
+        "/storage/scan",
+        json={"scan_type": "directory", "scan_target": str(temp_dir), "save_to_db": True},
+    )
     scan_id = scan_response.json()["id"]
 
     # Get candidates
@@ -224,12 +236,15 @@ def test_reject_candidates_via_api(client, temp_dir):
     candidate_ids = [c["id"] for c in candidates[:1]]  # Reject first candidate only
 
     # Reject
-    rejection_response = client.post(f"/storage/scans/{scan_id}/approve", json={
-        "candidate_ids": candidate_ids,
-        "approved_by": "test_user",
-        "decision": "reject",
-        "notes": "Not safe to delete"
-    })
+    rejection_response = client.post(
+        f"/storage/scans/{scan_id}/approve",
+        json={
+            "candidate_ids": candidate_ids,
+            "approved_by": "test_user",
+            "decision": "reject",
+            "notes": "Not safe to delete",
+        },
+    )
 
     assert rejection_response.status_code == 200
     assert rejection_response.json()["decision"] == "reject"
@@ -238,6 +253,7 @@ def test_reject_candidates_via_api(client, temp_dir):
 # ==============================================================================
 # Test 6-8: Execution Workflow
 # ==============================================================================
+
 
 def test_execute_dry_run_via_api(client, temp_dir):
     """
@@ -251,11 +267,10 @@ def test_execute_dry_run_via_api(client, temp_dir):
     test_file.write_text("test content")
 
     # Create scan
-    scan_response = client.post("/storage/scan", json={
-        "scan_type": "directory",
-        "scan_target": str(temp_dir),
-        "save_to_db": True
-    })
+    scan_response = client.post(
+        "/storage/scan",
+        json={"scan_type": "directory", "scan_target": str(temp_dir), "save_to_db": True},
+    )
     scan_id = scan_response.json()["id"]
 
     # Get and approve candidates
@@ -264,17 +279,19 @@ def test_execute_dry_run_via_api(client, temp_dir):
 
     if candidates:
         candidate_ids = [c["id"] for c in candidates]
-        client.post(f"/storage/scans/{scan_id}/approve", json={
-            "candidate_ids": candidate_ids,
-            "approved_by": "test_user",
-            "decision": "approve"
-        })
+        client.post(
+            f"/storage/scans/{scan_id}/approve",
+            json={
+                "candidate_ids": candidate_ids,
+                "approved_by": "test_user",
+                "decision": "approve",
+            },
+        )
 
     # Execute in dry-run mode
-    execution_response = client.post(f"/storage/scans/{scan_id}/execute", json={
-        "dry_run": True,
-        "compress_before_delete": False
-    })
+    execution_response = client.post(
+        f"/storage/scans/{scan_id}/execute", json={"dry_run": True, "compress_before_delete": False}
+    )
 
     assert execution_response.status_code == 200
     exec_data = execution_response.json()
@@ -297,12 +314,15 @@ def test_full_workflow_scan_approve_execute(client, temp_dir):
     (test_dir / "file2.txt").write_text("content 2")
 
     # Step 2: Create scan
-    scan_response = client.post("/storage/scan", json={
-        "scan_type": "directory",
-        "scan_target": str(temp_dir),
-        "save_to_db": True,
-        "created_by": "workflow_test"
-    })
+    scan_response = client.post(
+        "/storage/scan",
+        json={
+            "scan_type": "directory",
+            "scan_target": str(temp_dir),
+            "save_to_db": True,
+            "created_by": "workflow_test",
+        },
+    )
 
     assert scan_response.status_code == 200
     scan_id = scan_response.json()["id"]
@@ -318,18 +338,20 @@ def test_full_workflow_scan_approve_execute(client, temp_dir):
 
     # Step 4: Approve candidates
     candidate_ids = [c["id"] for c in candidates]
-    approval_response = client.post(f"/storage/scans/{scan_id}/approve", json={
-        "candidate_ids": candidate_ids,
-        "approved_by": "workflow_test",
-        "decision": "approve"
-    })
+    approval_response = client.post(
+        f"/storage/scans/{scan_id}/approve",
+        json={
+            "candidate_ids": candidate_ids,
+            "approved_by": "workflow_test",
+            "decision": "approve",
+        },
+    )
     assert approval_response.status_code == 200
 
     # Step 5: Execute in dry-run mode (safety)
-    execution_response = client.post(f"/storage/scans/{scan_id}/execute", json={
-        "dry_run": True,
-        "compress_before_delete": False
-    })
+    execution_response = client.post(
+        f"/storage/scans/{scan_id}/execute", json={"dry_run": True, "compress_before_delete": False}
+    )
 
     assert execution_response.status_code == 200
     exec_data = execution_response.json()
@@ -349,18 +371,17 @@ def test_unapproved_execution_fails(client, temp_dir):
     CRITICAL SAFETY TEST: Ensures unapproved candidates are not deleted.
     """
     # Create scan without approval
-    scan_response = client.post("/storage/scan", json={
-        "scan_type": "directory",
-        "scan_target": str(temp_dir),
-        "save_to_db": True
-    })
+    scan_response = client.post(
+        "/storage/scan",
+        json={"scan_type": "directory", "scan_target": str(temp_dir), "save_to_db": True},
+    )
     scan_id = scan_response.json()["id"]
 
     # Attempt execution without approval
-    execution_response = client.post(f"/storage/scans/{scan_id}/execute", json={
-        "dry_run": False,  # Even with dry_run=False
-        "compress_before_delete": False
-    })
+    execution_response = client.post(
+        f"/storage/scans/{scan_id}/execute",
+        json={"dry_run": False, "compress_before_delete": False},  # Even with dry_run=False
+    )
 
     assert execution_response.status_code == 200
     exec_data = execution_response.json()

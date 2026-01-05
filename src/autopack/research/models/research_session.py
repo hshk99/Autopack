@@ -2,6 +2,7 @@ from datetime import datetime
 from autopack.research.models.research_intent import ResearchIntent
 from autopack.research.models.enums import ResearchStage, ValidationStatus
 
+
 class ResearchSession:
     def __init__(self, intent: ResearchIntent):
         self.intent = intent
@@ -29,9 +30,12 @@ class ResearchSession:
         self.validation_status = ValidationStatus.VALIDATED
 
     def __repr__(self):
-        return (f"ResearchSession(intent={self.intent}, start_time={self.start_time}, "
-                f"end_time={self.end_time}, current_stage={self.current_stage}, "
-                f"validation_status={self.validation_status})")
+        return (
+            f"ResearchSession(intent={self.intent}, start_time={self.start_time}, "
+            f"end_time={self.end_time}, current_stage={self.current_stage}, "
+            f"validation_status={self.validation_status})"
+        )
+
 
 # Example usage:
 # intent = ResearchIntent(

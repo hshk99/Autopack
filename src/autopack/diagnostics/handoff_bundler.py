@@ -84,7 +84,9 @@ class HandoffBundler:
         for pattern, artifact_type, description in artifact_patterns:
             for file_path in self.run_dir.rglob(pattern):
                 if file_path.is_file() and "handoff" not in str(file_path):
-                    artifacts.append(self._create_artifact_entry(file_path, artifact_type, description))
+                    artifacts.append(
+                        self._create_artifact_entry(file_path, artifact_type, description)
+                    )
 
         # Sort artifacts by (type, name) for determinism
         artifacts.sort(key=lambda x: (x["type"], x["name"]))
@@ -97,7 +99,9 @@ class HandoffBundler:
             "artifacts": artifacts,
         }
 
-    def _create_artifact_entry(self, file_path: Path, artifact_type: str, description: str) -> Dict[str, Any]:
+    def _create_artifact_entry(
+        self, file_path: Path, artifact_type: str, description: str
+    ) -> Dict[str, Any]:
         """Create artifact metadata entry.
 
         Args:
@@ -191,19 +195,21 @@ class HandoffBundler:
                 lines.append("")
 
         # Add excerpt guide
-        lines.extend([
-            "## Excerpt Guide",
-            "",
-            "Files marked with ✓ have excerpts available in `excerpts/` directory.",
-            "Excerpts show the last 100 lines (for logs) or first 50 lines (for docs).",
-            "",
-            "## Next Steps",
-            "",
-            "1. Review `index.json` for complete artifact metadata",
-            "2. Check `excerpts/` for quick previews of key files",
-            "3. Examine full artifacts in parent directory as needed",
-            "",
-        ])
+        lines.extend(
+            [
+                "## Excerpt Guide",
+                "",
+                "Files marked with ✓ have excerpts available in `excerpts/` directory.",
+                "Excerpts show the last 100 lines (for logs) or first 50 lines (for docs).",
+                "",
+                "## Next Steps",
+                "",
+                "1. Review `index.json` for complete artifact metadata",
+                "2. Check `excerpts/` for quick previews of key files",
+                "3. Examine full artifacts in parent directory as needed",
+                "",
+            ]
+        )
 
         with open(summary_path, "w", encoding="utf-8") as f:
             f.write("\n".join(lines))
@@ -230,7 +236,9 @@ class HandoffBundler:
                 self._create_excerpt(source_path, excerpt_path, artifact["type"])
                 excerpt_count += 1
             except Exception as e:
-                logger.warning(f"[HandoffBundler] Failed to create excerpt for {artifact['name']}: {e}")
+                logger.warning(
+                    f"[HandoffBundler] Failed to create excerpt for {artifact['name']}: {e}"
+                )
 
         logger.info(f"[HandoffBundler] Generated {excerpt_count} excerpts")
 

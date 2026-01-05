@@ -4,6 +4,7 @@ from .compiler import compile_expression
 from .gatherer import fetch_web_content, parse_html_content
 from .meta_auditor import detect_prompt_injection
 
+
 def run_pipeline(url: str, expression: str, prompt: str):
     """
     Runs the complete tracer bullet pipeline.
@@ -22,24 +23,25 @@ def run_pipeline(url: str, expression: str, prompt: str):
     try:
         html_content = fetch_web_content(url)
         structured_data = parse_html_content(html_content)
-        results['web_scraping'] = structured_data
+        results["web_scraping"] = structured_data
     except Exception as e:
-        results['web_scraping_error'] = str(e)
+        results["web_scraping_error"] = str(e)
 
     # Step 2: Compile and evaluate expression
     try:
         calculation_result = compile_expression(expression)
-        results['calculation'] = calculation_result
+        results["calculation"] = calculation_result
     except Exception as e:
-        results['calculation_error'] = str(e)
+        results["calculation_error"] = str(e)
 
     # Step 3: Prompt injection detection
     if detect_prompt_injection(prompt):
-        results['prompt_injection'] = "Detected"
+        results["prompt_injection"] = "Detected"
     else:
-        results['prompt_injection'] = "Safe"
+        results["prompt_injection"] = "Safe"
 
     return results
+
 
 if __name__ == "__main__":
     # Example usage

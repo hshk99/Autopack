@@ -189,7 +189,8 @@
       "Bash(gh pr create:*)",
       "Bash(git cherry-pick:*)",
       "Bash(gh pr close:*)",
-      "Bash(ruff check:*)"
+      "Bash(ruff check:*)",
+      "Bash(black:*)"
     ],
     "deny": [],
     "ask": []

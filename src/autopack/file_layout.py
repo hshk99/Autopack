@@ -35,7 +35,7 @@ def collapse_consecutive_duplicates(parts: List[str]) -> List[str]:
 
     collapsed: List[str] = [parts[0]]
     for i in range(1, len(parts)):
-        if parts[i] != parts[i-1]:
+        if parts[i] != parts[i - 1]:
             collapsed.append(parts[i])
 
     return collapsed
@@ -44,7 +44,9 @@ def collapse_consecutive_duplicates(parts: List[str]) -> List[str]:
 class RunFileLayout:
     """Manages file layout for a single autonomous run"""
 
-    def __init__(self, run_id: str, project_id: Optional[str] = None, base_dir: Optional[Path] = None):
+    def __init__(
+        self, run_id: str, project_id: Optional[str] = None, base_dir: Optional[Path] = None
+    ):
         self.run_id = run_id
         self.project_id = project_id or self._detect_project(run_id)
         self.family = self._extract_family(run_id)
@@ -136,7 +138,11 @@ class RunFileLayout:
         ]
 
         # Build budgets section
-        budgets_section = f"- **Tokens Used:** {tokens_used:,}" if tokens_used > 0 else "(To be populated as run progresses)"
+        budgets_section = (
+            f"- **Tokens Used:** {tokens_used:,}"
+            if tokens_used > 0
+            else "(To be populated as run progresses)"
+        )
 
         # Build issues section
         issues_section = ""
@@ -275,6 +281,7 @@ class RunFileLayout:
             Family name (e.g., 'fileorg-country-uk') or full run_id if no pattern match
         """
         import re
+
         # Match pattern: prefix-YYYYMMDD-HHMMSS or prefix-10+digit-timestamp
         match = re.match(r"(.+?)-(?:\d{8}-\d{6}|\d{10,})", run_id)
         if match:

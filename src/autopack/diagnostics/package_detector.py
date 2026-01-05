@@ -2,6 +2,7 @@
 
 Detects missing packages through static analysis and runtime validation.
 """
+
 from dataclasses import dataclass
 from pathlib import Path
 from typing import List, Set, Dict, Optional, Tuple, Iterable
@@ -16,6 +17,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class PackageRequirement:
     """Represents a package requirement detected in code."""
+
     name: str
     import_statement: str
     file_path: str
@@ -28,6 +30,7 @@ class PackageRequirement:
 @dataclass
 class PackageDetectionResult:
     """Result of package detection analysis."""
+
     missing_packages: List[PackageRequirement]
     installed_packages: List[str]
     stdlib_imports: List[str]
@@ -286,7 +289,7 @@ class PackageDetector:
 
     def __init__(self, project_root: Optional[Path] = None):
         """Initialize package detector.
-        
+
         Args:
             project_root: Root directory of the project
         """
@@ -594,7 +597,9 @@ class PackageDetector:
             return True, None
         return False, self.PACKAGE_MAPPINGS.get(module_name, module_name)
 
-    def _create_requirement(self, module_name: str, import_stmt: str, file_path: Path, line_number: int) -> PackageRequirement:
+    def _create_requirement(
+        self, module_name: str, import_stmt: str, file_path: Path, line_number: int
+    ) -> PackageRequirement:
         is_stdlib = self._is_stdlib_module(module_name)
         is_installed = True if is_stdlib else self._is_installed(module_name)
         suggested = None
@@ -612,7 +617,10 @@ class PackageDetector:
 
     def _analyze_file(self, file_path: Path) -> List[PackageRequirement]:
         imports = self._extract_imports(file_path)
-        return [self._create_requirement(name, stmt, file_path, line_no) for name, stmt, line_no in imports]
+        return [
+            self._create_requirement(name, stmt, file_path, line_no)
+            for name, stmt, line_no in imports
+        ]
 
     def analyze_files(self, files: Iterable[Path]) -> PackageDetectionResult:
         missing: List[PackageRequirement] = []
@@ -646,7 +654,9 @@ class PackageDetector:
             errors=errors,
         )
 
-    def analyze_directory(self, exclude_patterns: Optional[List[str]] = None) -> PackageDetectionResult:
+    def analyze_directory(
+        self, exclude_patterns: Optional[List[str]] = None
+    ) -> PackageDetectionResult:
         exclude_patterns = exclude_patterns or []
         python_files = list(self.project_root.rglob("*.py"))
         if exclude_patterns:
@@ -687,26 +697,26 @@ class PackageDetector:
 
     def _extract_imports(self, file_path: Path) -> List[tuple]:
         """Extract import statements from a Python file.
-        
+
         Args:
             file_path: Path to Python file
-            
+
         Returns:
             List of (import_name, import_statement, line_number) tuples
         """
         imports = []
-        
+
         try:
             content = file_path.read_text(encoding="utf-8")
             tree = ast.parse(content, filename=str(file_path))
-            
+
             for node in ast.walk(tree):
                 if isinstance(node, ast.Import):
                     for alias in node.names:
                         import_name = alias.name.split(".")[0]
                         import_stmt = f"import {alias.name}"
                         imports.append((import_name, import_stmt, node.lineno))
-                        
+
                 elif isinstance(node, ast.ImportFrom):
                     # Skip relative imports (e.g. from . import x, from ..pkg import y)
                     if getattr(node, "level", 0):
@@ -715,21 +725,21 @@ class PackageDetector:
                         import_name = node.module.split(".")[0]
                         import_stmt = f"from {node.module} import ..."
                         imports.append((import_name, import_stmt, node.lineno))
-                        
+
         except SyntaxError:
             # Tests expect syntax errors to be handled gracefully.
             return []
         except Exception as e:
             logger.warning(f"Failed to parse {file_path}: {e}")
-            
+
         return imports
 
     def _is_stdlib(self, module_name: str) -> bool:
         """Check if a module is part of the standard library.
-        
+
         Args:
             module_name: Name of the module
-            
+
         Returns:
             True if module is in stdlib
         """
@@ -737,10 +747,10 @@ class PackageDetector:
 
     def _is_installed(self, module_name: str) -> bool:
         """Check if a module is installed.
-        
+
         Args:
             module_name: Name of the module
-            
+
         Returns:
             True if module is installed
         """
@@ -752,47 +762,47 @@ class PackageDetector:
 
     def get_install_command(self, result: PackageDetectionResult) -> Optional[str]:
         """Generate pip install command for missing packages.
-        
+
         Args:
             result: Package detection result
-            
+
         Returns:
             pip install command or None if no packages missing
         """
         if not result.missing_packages:
             return None
-            
+
         packages = sorted(result.missing_package_names)
         return f"pip install {' '.join(packages)}"
 
     def validate_requirements_file(self, requirements_path: Path) -> Dict[str, bool]:
         """Validate that all packages in requirements.txt are installed.
-        
+
         Args:
             requirements_path: Path to requirements.txt
-            
+
         Returns:
             Dict mapping package names to installation status
         """
         validation = {}
-        
+
         if not requirements_path.exists():
             return validation
-            
+
         try:
             content = requirements_path.read_text(encoding="utf-8")
             for line in content.splitlines():
                 line = line.strip()
                 if not line or line.startswith("#"):
                     continue
-                    
+
                 # Extract package name (before ==, >=, etc.)
                 package_name = line.split("==")[0].split(">=")[0].split("<=")[0].strip()
                 validation[package_name] = self._is_installed(package_name)
-                
+
         except Exception as e:
             logger.warning(f"Failed to validate requirements file: {e}")
-            
+
         return validation
 
 

@@ -294,7 +294,6 @@ class TestIntentionGoalDriftDetector:
             assert "intention_drift" in result
             # Note: Actual drift score depends on term overlap heuristic
 
-
     def test_check_drift_combined_warning(self):
         """Test that warnings are combined from both detectors."""
         mock_intention_manager = MagicMock()

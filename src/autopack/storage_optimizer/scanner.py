@@ -31,7 +31,7 @@ class StorageScanner:
             exclude_dirs: Directory names to skip (e.g., .git, node_modules during scan)
         """
         self.max_depth = max_depth
-        self.exclude_dirs = exclude_dirs or ['.git', '__pycache__', '.pytest_cache']
+        self.exclude_dirs = exclude_dirs or [".git", "__pycache__", ".pytest_cache"]
 
     def get_disk_usage(self, drive_letter: str = "C") -> tuple:
         """
@@ -74,7 +74,7 @@ class StorageScanner:
         try:
             for root, dirs, files in os.walk(directory):
                 # Enforce max depth
-                depth = root[len(directory):].count(os.sep)
+                depth = root[len(directory) :].count(os.sep)
                 if depth >= self.max_depth:
                     dirs[:] = []  # Don't recurse deeper
                     continue
@@ -92,13 +92,15 @@ class StorageScanner:
                         stat = os.stat(dir_full_path)
                         size = self._get_directory_size(dir_full_path)
 
-                        results.append(ScanResult(
-                            path=dir_full_path,
-                            size_bytes=size,
-                            modified=datetime.fromtimestamp(stat.st_mtime),
-                            is_folder=True,
-                            attributes='d'
-                        ))
+                        results.append(
+                            ScanResult(
+                                path=dir_full_path,
+                                size_bytes=size,
+                                modified=datetime.fromtimestamp(stat.st_mtime),
+                                is_folder=True,
+                                attributes="d",
+                            )
+                        )
                         scanned_count += 1
                     except (OSError, PermissionError):
                         # Skip inaccessible directories
@@ -113,13 +115,15 @@ class StorageScanner:
                     try:
                         stat = os.stat(file_path)
 
-                        results.append(ScanResult(
-                            path=file_path,
-                            size_bytes=stat.st_size,
-                            modified=datetime.fromtimestamp(stat.st_mtime),
-                            is_folder=False,
-                            attributes='-'
-                        ))
+                        results.append(
+                            ScanResult(
+                                path=file_path,
+                                size_bytes=stat.st_size,
+                                modified=datetime.fromtimestamp(stat.st_mtime),
+                                is_folder=False,
+                                attributes="-",
+                            )
+                        )
                         scanned_count += 1
                     except (OSError, PermissionError):
                         # Skip inaccessible files
@@ -133,7 +137,9 @@ class StorageScanner:
 
         return results
 
-    def scan_high_value_directories(self, drive_letter: str = "C", max_items: int = 10000) -> List[ScanResult]:
+    def scan_high_value_directories(
+        self, drive_letter: str = "C", max_items: int = 10000
+    ) -> List[ScanResult]:
         """
         Scan specific high-value directories known to accumulate large files.
 
@@ -206,7 +212,7 @@ class StorageScanner:
         total_size = 0
         try:
             for root, dirs, files in os.walk(directory):
-                depth = root[len(directory):].count(os.sep)
+                depth = root[len(directory) :].count(os.sep)
                 if depth >= max_depth:
                     dirs[:] = []
                     continue
@@ -241,6 +247,7 @@ class StorageScanner:
 # Scanner Factory (BUILD-150 Phase 3)
 # ==============================================================================
 
+
 def create_scanner(prefer_wiztree: bool = True):
     """
     Factory to create optimal scanner based on availability.
@@ -258,6 +265,7 @@ def create_scanner(prefer_wiztree: bool = True):
     if prefer_wiztree:
         try:
             from .wiztree_scanner import WizTreeScanner
+
             scanner = WizTreeScanner()
             if scanner.is_available():
                 return scanner

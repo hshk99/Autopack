@@ -93,8 +93,10 @@ class TestParallelRunOrchestrator:
     @pytest.mark.asyncio
     async def test_execute_single_run_success(self, orchestrator, tmp_path):
         """Test successful single run execution."""
-        with patch("autopack.parallel_orchestrator.WorkspaceManager") as MockWM, \
-             patch("autopack.parallel_orchestrator.ExecutorLockManager") as MockLM:
+        with (
+            patch("autopack.parallel_orchestrator.WorkspaceManager") as MockWM,
+            patch("autopack.parallel_orchestrator.ExecutorLockManager") as MockLM,
+        ):
 
             mock_wm = MockWM.return_value
             mock_wm.create_worktree.return_value = tmp_path
@@ -119,8 +121,10 @@ class TestParallelRunOrchestrator:
     @pytest.mark.asyncio
     async def test_execute_single_run_failure(self, orchestrator, tmp_path):
         """Test failed single run execution."""
-        with patch("autopack.parallel_orchestrator.WorkspaceManager") as MockWM, \
-             patch("autopack.parallel_orchestrator.ExecutorLockManager") as MockLM:
+        with (
+            patch("autopack.parallel_orchestrator.WorkspaceManager") as MockWM,
+            patch("autopack.parallel_orchestrator.ExecutorLockManager") as MockLM,
+        ):
 
             mock_wm = MockWM.return_value
             mock_wm.create_worktree.return_value = tmp_path
@@ -143,8 +147,10 @@ class TestParallelRunOrchestrator:
     @pytest.mark.asyncio
     async def test_execute_parallel_multiple_runs(self, orchestrator, tmp_path):
         """Test parallel execution of multiple runs."""
-        with patch("autopack.parallel_orchestrator.WorkspaceManager") as MockWM, \
-             patch("autopack.parallel_orchestrator.ExecutorLockManager") as MockLM:
+        with (
+            patch("autopack.parallel_orchestrator.WorkspaceManager") as MockWM,
+            patch("autopack.parallel_orchestrator.ExecutorLockManager") as MockLM,
+        ):
 
             def create_workspace_mock(run_id, **kwargs):
                 mock = MagicMock()
@@ -176,8 +182,10 @@ class TestParallelRunOrchestrator:
     @pytest.mark.asyncio
     async def test_execute_with_kwargs(self, orchestrator, tmp_path):
         """Test passing kwargs to executor."""
-        with patch("autopack.parallel_orchestrator.WorkspaceManager") as MockWM, \
-             patch("autopack.parallel_orchestrator.ExecutorLockManager") as MockLM:
+        with (
+            patch("autopack.parallel_orchestrator.WorkspaceManager") as MockWM,
+            patch("autopack.parallel_orchestrator.ExecutorLockManager") as MockLM,
+        ):
 
             mock_wm = MockWM.return_value
             mock_wm.create_worktree.return_value = tmp_path
@@ -207,8 +215,10 @@ class TestConvenienceFunctions:
     @pytest.mark.asyncio
     async def test_execute_parallel_runs(self, tmp_path):
         """Test execute_parallel_runs convenience function."""
-        with patch("autopack.parallel_orchestrator.WorkspaceManager") as MockWM, \
-             patch("autopack.parallel_orchestrator.ExecutorLockManager") as MockLM:
+        with (
+            patch("autopack.parallel_orchestrator.WorkspaceManager") as MockWM,
+            patch("autopack.parallel_orchestrator.ExecutorLockManager") as MockLM,
+        ):
 
             mock_wm = MockWM.return_value
             mock_wm.create_worktree.return_value = tmp_path
@@ -231,8 +241,10 @@ class TestConvenienceFunctions:
     @pytest.mark.asyncio
     async def test_execute_single_run(self, tmp_path):
         """Test execute_single_run convenience function."""
-        with patch("autopack.parallel_orchestrator.WorkspaceManager") as MockWM, \
-             patch("autopack.parallel_orchestrator.ExecutorLockManager") as MockLM:
+        with (
+            patch("autopack.parallel_orchestrator.WorkspaceManager") as MockWM,
+            patch("autopack.parallel_orchestrator.ExecutorLockManager") as MockLM,
+        ):
 
             mock_wm = MockWM.return_value
             mock_wm.create_worktree.return_value = tmp_path

@@ -7,6 +7,7 @@ to ensure accurate and relevant research outcomes.
 
 from typing import Dict, Any
 
+
 class IntentClarifier:
     def __init__(self):
         """
@@ -47,9 +48,11 @@ class IntentClarifier:
 from dataclasses import dataclass, field
 from typing import List, Dict, Any
 
+
 @dataclass
 class ResearchIntent:
     """Compat shim for ResearchIntent (missing from original)."""
+
     query: str
     refined_query: str = ""
     keywords: List[str] = field(default_factory=list)

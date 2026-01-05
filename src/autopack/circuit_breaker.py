@@ -4,6 +4,7 @@ Provides fault tolerance and resilience for external service calls.
 Implements the circuit breaker pattern with configurable thresholds,
 timeouts, and state transitions.
 """
+
 import time
 import threading
 from enum import Enum
@@ -17,14 +18,16 @@ logger = logging.getLogger(__name__)
 
 class CircuitState(Enum):
     """Circuit breaker states."""
+
     CLOSED = "closed"  # Normal operation
-    OPEN = "open"      # Failing, reject calls
+    OPEN = "open"  # Failing, reject calls
     HALF_OPEN = "half_open"  # Testing recovery
 
 
 @dataclass
 class CircuitBreakerConfig:
     """Configuration for circuit breaker."""
+
     failure_threshold: int = 5
     success_threshold: int = 2
     timeout: float = 60.0  # seconds
@@ -35,6 +38,7 @@ class CircuitBreakerConfig:
 @dataclass
 class CircuitBreakerMetrics:
     """Metrics for circuit breaker monitoring."""
+
     total_calls: int = 0
     successful_calls: int = 0
     failed_calls: int = 0
@@ -68,26 +72,27 @@ class CircuitBreakerMetrics:
 
 class CircuitBreakerOpenError(Exception):
     """Raised when circuit breaker is open and rejects calls."""
+
     pass
 
 
 class CircuitBreaker:
     """Circuit breaker for fault tolerance.
-    
+
     Implements the circuit breaker pattern to prevent cascading failures
     and provide graceful degradation when external services fail.
-    
+
     States:
     - CLOSED: Normal operation, calls pass through
     - OPEN: Too many failures, reject all calls
     - HALF_OPEN: Testing if service recovered, allow limited calls
-    
+
     Example:
         breaker = CircuitBreaker(
             name="api_service",
             config=CircuitBreakerConfig(failure_threshold=3, timeout=30.0)
         )
-        
+
         try:
             result = breaker.call(lambda: external_api_call())
         except CircuitBreakerOpenError:
@@ -97,7 +102,7 @@ class CircuitBreaker:
 
     def __init__(self, name: str, config: Optional[CircuitBreakerConfig] = None):
         """Initialize circuit breaker.
-        
+
         Args:
             name: Identifier for this circuit breaker
             config: Configuration settings
@@ -111,7 +116,7 @@ class CircuitBreaker:
         self.last_state_change: float = time.time()
         self.metrics = CircuitBreakerMetrics()
         self._lock = threading.RLock()
-        
+
         logger.info(
             f"Circuit breaker '{name}' initialized: "
             f"failure_threshold={self.config.failure_threshold}, "
@@ -120,31 +125,27 @@ class CircuitBreaker:
 
     def call(self, func: Callable[[], Any], *args, **kwargs) -> Any:
         """Execute function with circuit breaker protection.
-        
+
         Args:
             func: Function to execute
             *args: Positional arguments for func
             **kwargs: Keyword arguments for func
-            
+
         Returns:
             Result of func execution
-            
+
         Raises:
             CircuitBreakerOpenError: If circuit is open
             Exception: Any exception raised by func
         """
         with self._lock:
             self._update_state()
-            
+
             if self.state == CircuitState.OPEN:
                 self.metrics.record_rejection()
-                logger.warning(
-                    f"Circuit breaker '{self.name}' is OPEN, rejecting call"
-                )
-                raise CircuitBreakerOpenError(
-                    f"Circuit breaker '{self.name}' is open"
-                )
-            
+                logger.warning(f"Circuit breaker '{self.name}' is OPEN, rejecting call")
+                raise CircuitBreakerOpenError(f"Circuit breaker '{self.name}' is open")
+
             # Allow call in CLOSED or HALF_OPEN state
             try:
                 result = func(*args, **kwargs)
@@ -157,7 +158,7 @@ class CircuitBreaker:
     def _update_state(self):
         """Update circuit breaker state based on current conditions."""
         current_time = time.time()
-        
+
         if self.state == CircuitState.OPEN:
             # Check if timeout has elapsed to move to HALF_OPEN
             if current_time - self.last_state_change >= self.config.timeout:
@@ -166,7 +167,7 @@ class CircuitBreaker:
                     f"Circuit breaker '{self.name}' transitioning to HALF_OPEN "
                     f"after {self.config.timeout}s timeout"
                 )
-        
+
         elif self.state == CircuitState.HALF_OPEN:
             # Check if half-open timeout has elapsed
             if current_time - self.last_state_change >= self.config.half_open_timeout:
@@ -174,21 +175,20 @@ class CircuitBreaker:
                 if self.failure_count == 0:
                     self._transition_to(CircuitState.CLOSED)
                     logger.info(
-                        f"Circuit breaker '{self.name}' recovered, "
-                        f"transitioning to CLOSED"
+                        f"Circuit breaker '{self.name}' recovered, " f"transitioning to CLOSED"
                     )
 
     def _on_success(self):
         """Handle successful call."""
         self.metrics.record_success()
-        
+
         if self.state == CircuitState.HALF_OPEN:
             self.success_count += 1
             logger.debug(
                 f"Circuit breaker '{self.name}' success in HALF_OPEN: "
                 f"{self.success_count}/{self.config.success_threshold}"
             )
-            
+
             if self.success_count >= self.config.success_threshold:
                 self._transition_to(CircuitState.CLOSED)
                 logger.info(
@@ -204,25 +204,23 @@ class CircuitBreaker:
         self.metrics.record_failure()
         self.failure_count += 1
         self.last_failure_time = time.time()
-        
+
         logger.warning(
             f"Circuit breaker '{self.name}' failure: "
             f"{self.failure_count}/{self.config.failure_threshold}"
         )
-        
+
         if self.state == CircuitState.HALF_OPEN:
             # Any failure in HALF_OPEN immediately opens circuit
             self._transition_to(CircuitState.OPEN)
             logger.error(
-                f"Circuit breaker '{self.name}' failed in HALF_OPEN, "
-                f"transitioning to OPEN"
+                f"Circuit breaker '{self.name}' failed in HALF_OPEN, " f"transitioning to OPEN"
             )
         elif self.failure_count >= self.config.failure_threshold:
             # Too many failures in CLOSED state
             self._transition_to(CircuitState.OPEN)
             logger.error(
-                f"Circuit breaker '{self.name}' threshold exceeded, "
-                f"transitioning to OPEN"
+                f"Circuit breaker '{self.name}' threshold exceeded, " f"transitioning to OPEN"
             )
 
     def _transition_to(self, new_state: CircuitState):
@@ -233,7 +231,7 @@ class CircuitBreaker:
         self.failure_count = 0
         self.success_count = 0
         self.metrics.record_state_transition(old_state, new_state)
-        
+
         logger.info(
             f"Circuit breaker '{self.name}' state transition: "
             f"{old_state.value} -> {new_state.value}"

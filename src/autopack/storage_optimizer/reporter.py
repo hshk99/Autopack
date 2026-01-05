@@ -40,7 +40,7 @@ class StorageReporter:
         scan_results: List[ScanResult],
         cleanup_plan: CleanupPlan,
         protected_paths: List[str],
-        protected_size_bytes: int
+        protected_size_bytes: int,
     ) -> StorageReport:
         """
         Create a complete storage report.
@@ -76,7 +76,7 @@ class StorageReporter:
             top_consumers=top_consumers,
             cleanup_plan=cleanup_plan,
             protected_paths_found=protected_paths,
-            protected_size_bytes=protected_size_bytes
+            protected_size_bytes=protected_size_bytes,
         )
 
         return report
@@ -104,7 +104,9 @@ class StorageReporter:
         # Disk usage
         lines.append("DISK USAGE:")
         lines.append(f"  Total Space: {report.total_space_gb:,.2f} GB")
-        lines.append(f"  Used Space:  {report.used_space_gb:,.2f} GB ({report.used_percentage:.1f}%)")
+        lines.append(
+            f"  Used Space:  {report.used_space_gb:,.2f} GB ({report.used_percentage:.1f}%)"
+        )
         lines.append(f"  Free Space:  {report.free_space_gb:,.2f} GB")
         lines.append("")
 
@@ -131,7 +133,11 @@ class StorageReporter:
         if report.top_consumers:
             lines.append("TOP 10 SPACE CONSUMERS:")
             for i, consumer in enumerate(report.top_consumers[:10], 1):
-                size_str = f"{consumer.size_gb:.2f} GB" if consumer.size_gb >= 1 else f"{consumer.size_mb:.0f} MB"
+                size_str = (
+                    f"{consumer.size_gb:.2f} GB"
+                    if consumer.size_gb >= 1
+                    else f"{consumer.size_mb:.0f} MB"
+                )
                 folder_marker = "[DIR]" if consumer.is_folder else "[FILE]"
                 lines.append(f"  {i:2d}. {size_str:>12} {folder_marker:6} - {consumer.path}")
             lines.append("")
@@ -148,9 +154,7 @@ class StorageReporter:
             if plan.size_by_category:
                 lines.append("  By Category:")
                 sorted_categories = sorted(
-                    plan.size_by_category.items(),
-                    key=lambda x: x[1],
-                    reverse=True
+                    plan.size_by_category.items(), key=lambda x: x[1], reverse=True
                 )
                 for category, size_bytes in sorted_categories:
                     size_gb = size_bytes / (1024 * 1024 * 1024)
@@ -170,8 +174,14 @@ class StorageReporter:
             # Sample candidates
             lines.append("  Sample Cleanup Candidates:")
             for candidate in plan.candidates[:10]:
-                size_str = f"{candidate.size_gb:.2f} GB" if candidate.size_gb >= 1 else f"{candidate.size_mb:.0f} MB"
-                approval = "[APPROVAL REQUIRED]" if candidate.requires_approval else "[AUTO-DELETE OK]"
+                size_str = (
+                    f"{candidate.size_gb:.2f} GB"
+                    if candidate.size_gb >= 1
+                    else f"{candidate.size_mb:.0f} MB"
+                )
+                approval = (
+                    "[APPROVAL REQUIRED]" if candidate.requires_approval else "[AUTO-DELETE OK]"
+                )
                 lines.append(f"    - {size_str:>12} {approval:20} {candidate.category:15s}")
                 lines.append(f"      {candidate.path}")
                 lines.append(f"      Reason: {candidate.reason}")
@@ -202,7 +212,7 @@ class StorageReporter:
         filename = f"storage_report_{report.drive_letter}_{timestamp}.txt"
         filepath = self.output_dir / filename
 
-        with open(filepath, 'w', encoding='utf-8') as f:
+        with open(filepath, "w", encoding="utf-8") as f:
             f.write(summary)
 
         # Also save JSON version for programmatic access
@@ -210,37 +220,41 @@ class StorageReporter:
         json_filepath = self.output_dir / json_filename
 
         report_dict = {
-            'scan_date': report.scan_date.isoformat(),
-            'drive_letter': report.drive_letter,
-            'disk_usage': {
-                'total_gb': report.total_space_gb,
-                'used_gb': report.used_space_gb,
-                'free_gb': report.free_space_gb,
-                'used_percentage': report.used_percentage
+            "scan_date": report.scan_date.isoformat(),
+            "drive_letter": report.drive_letter,
+            "disk_usage": {
+                "total_gb": report.total_space_gb,
+                "used_gb": report.used_space_gb,
+                "free_gb": report.free_space_gb,
+                "used_percentage": report.used_percentage,
             },
-            'scan_summary': {
-                'files_scanned': report.total_files_scanned,
-                'folders_scanned': report.total_folders_scanned
+            "scan_summary": {
+                "files_scanned": report.total_files_scanned,
+                "folders_scanned": report.total_folders_scanned,
             },
-            'protected': {
-                'paths_count': len(report.protected_paths_found),
-                'size_gb': report.protected_size_gb,
-                'sample_paths': report.protected_paths_found[:20]
+            "protected": {
+                "paths_count": len(report.protected_paths_found),
+                "size_gb": report.protected_size_gb,
+                "sample_paths": report.protected_paths_found[:20],
             },
-            'cleanup_plan': {
-                'total_savings_gb': report.cleanup_plan.total_size_gb if report.cleanup_plan else 0,
-                'total_candidates': len(report.cleanup_plan.candidates) if report.cleanup_plan else 0,
-                'by_category': {
+            "cleanup_plan": {
+                "total_savings_gb": report.cleanup_plan.total_size_gb if report.cleanup_plan else 0,
+                "total_candidates": (
+                    len(report.cleanup_plan.candidates) if report.cleanup_plan else 0
+                ),
+                "by_category": {
                     cat: {
-                        'size_gb': size_bytes / (1024 * 1024 * 1024),
-                        'count': len(report.cleanup_plan.candidates_by_category[cat])
+                        "size_gb": size_bytes / (1024 * 1024 * 1024),
+                        "count": len(report.cleanup_plan.candidates_by_category[cat]),
                     }
-                    for cat, size_bytes in (report.cleanup_plan.size_by_category if report.cleanup_plan else {}).items()
-                }
-            }
+                    for cat, size_bytes in (
+                        report.cleanup_plan.size_by_category if report.cleanup_plan else {}
+                    ).items()
+                },
+            },
         }
 
-        with open(json_filepath, 'w', encoding='utf-8') as f:
+        with open(json_filepath, "w", encoding="utf-8") as f:
             json.dump(report_dict, f, indent=2)
 
         print("\nReport saved to:")

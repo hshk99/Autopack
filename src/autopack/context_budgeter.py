@@ -28,7 +28,7 @@ _PHASE_CALL_COUNT: int = 0
 
 def reset_embedding_cache() -> None:
     """Reset embedding cache and call counter.
-    
+
     Should be called at the start of each phase to enforce per-phase limits.
     """
     global _EMBEDDING_CACHE, _PHASE_CALL_COUNT
@@ -38,7 +38,7 @@ def reset_embedding_cache() -> None:
 
 def get_embedding_stats() -> Dict[str, int]:
     """Get current embedding cache statistics.
-    
+
     Returns:
         Dict with cache_size and call_count
     """
@@ -121,6 +121,7 @@ class BudgetSelection:
     files_kept_count: int = 0
     files_omitted_count: int = 0
 
+
 def select_files_for_context(
     *,
     files: Dict[str, str],
@@ -139,7 +140,7 @@ def select_files_for_context(
     - Falls back to lexical ranking if cache misses exceed per-phase cap.
     """
     global _PHASE_CALL_COUNT
-    
+
     scope_metadata = scope_metadata or {}
     deliverables_set = {d for d in (deliverables or []) if isinstance(d, str)}
 
@@ -163,7 +164,9 @@ def select_files_for_context(
         kept[path] = content
         used += tok
 
-    remaining = [(prio, tok, path, content) for prio, tok, path, content in items if path not in kept]
+    remaining = [
+        (prio, tok, path, content) for prio, tok, path, content in items if path not in kept
+    ]
 
     use_semantic = bool(semantic and semantic_embeddings_enabled())
 
@@ -175,7 +178,7 @@ def select_files_for_context(
     elif call_cap > 0 and _PHASE_CALL_COUNT >= call_cap:
         # Positive cap exceeded
         use_semantic = False
-    
+
     mode = "semantic" if use_semantic else "lexical"
 
     if use_semantic and remaining:
@@ -183,15 +186,15 @@ def select_files_for_context(
             # Build embeddings: 1 for query + N for file snippets
             texts_to_embed: List[str] = []
             cache_keys: List[Optional[str]] = [None]  # Query has no cache key
-            
+
             # Query embedding (always fresh)
             texts_to_embed.append(query)
-            
+
             # File embeddings (check cache)
             for _, _, path, content in remaining:
                 snippet = f"Path: {path}\n\n{content[:per_file_embed_chars]}"
                 cache_key = compute_cache_key(path, content)
-                
+
                 if cache_key in _EMBEDDING_CACHE:
                     # Cache hit - no need to embed
                     cache_keys.append(cache_key)
@@ -199,10 +202,10 @@ def select_files_for_context(
                     # Cache miss - need to embed
                     texts_to_embed.append(snippet)
                     cache_keys.append(cache_key)
-            
+
             # Check if we need to make API call
             needs_api_call = len(texts_to_embed) > 1  # More than just query
-            
+
             if needs_api_call:
                 # Check cap before making call
                 if call_cap > 0 and _PHASE_CALL_COUNT >= call_cap:
@@ -213,10 +216,10 @@ def select_files_for_context(
                     # Make API call and update cache
                     vecs = sync_embed_texts(texts_to_embed)
                     _PHASE_CALL_COUNT += 1
-                    
+
                     # Store query vector
                     qv = vecs[0]
-                    
+
                     # Store file vectors in cache
                     vec_idx = 1
                     for i, (_, _, path, content) in enumerate(remaining):
@@ -229,7 +232,7 @@ def select_files_for_context(
                 vecs = sync_embed_texts([query])
                 _PHASE_CALL_COUNT += 1
                 qv = vecs[0]
-            
+
             if use_semantic:
                 # Build scores using cached or fresh embeddings
                 scores = []
@@ -241,7 +244,7 @@ def select_files_for_context(
                         # Should not happen if logic above is correct
                         v = [0.0] * 1536
                     scores.append((prio, -_cosine(qv, v), tok, path, content))
-                
+
                 # Sort by priority, then highest cosine (lowest negative), then smaller
                 scores.sort(key=lambda t: (t[0], t[1], t[2]))
                 ranked = [(prio, tok, path, content) for prio, _, tok, path, content in scores]
@@ -253,7 +256,7 @@ def select_files_for_context(
                     scored.append((prio, -s, tok, path, content))
                 scored.sort(key=lambda t: (t[0], t[1], t[2]))
                 ranked = [(prio, tok, path, content) for prio, _, tok, path, content in scored]
-        
+
         except Exception:
             # API failure - fall back to lexical
             mode = "lexical"

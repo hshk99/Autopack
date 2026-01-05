@@ -13,31 +13,31 @@ from datetime import datetime, timedelta
 class TestSteamDetection:
     """Test Steam installation detection."""
 
-    @patch('winreg.OpenKey')
-    @patch('winreg.QueryValueEx')
-    @patch('winreg.CloseKey')
+    @patch("winreg.OpenKey")
+    @patch("winreg.QueryValueEx")
+    @patch("winreg.CloseKey")
     def test_find_steam_via_hkcu_registry(self, mock_close, mock_query, mock_open):
         """Test finding Steam via HKEY_CURRENT_USER registry."""
         from autopack.storage_optimizer.steam_detector import SteamGameDetector
 
         # Mock registry reads
-        mock_query.return_value = ('c:/program files (x86)/steam', 1)
+        mock_query.return_value = ("c:/program files (x86)/steam", 1)
 
         detector = SteamGameDetector()
 
-        assert detector.steam_path == Path('c:/program files (x86)/steam')
+        assert detector.steam_path == Path("c:/program files (x86)/steam")
         assert detector.is_available()
         mock_open.assert_called_once()
         mock_query.assert_called_once()
 
-    @patch('winreg.OpenKey')
+    @patch("winreg.OpenKey")
     def test_find_steam_via_hklm_fallback(self, mock_open):
         """Test finding Steam via HKEY_LOCAL_MACHINE as fallback."""
         from autopack.storage_optimizer.steam_detector import SteamGameDetector
 
         # Mock HKCU failing, HKLM succeeding
         def open_key_side_effect(hkey, subkey):
-            if 'CURRENT_USER' in str(hkey):
+            if "CURRENT_USER" in str(hkey):
                 raise FileNotFoundError()
             else:
                 # HKLM succeeds
@@ -46,14 +46,14 @@ class TestSteamDetection:
 
         mock_open.side_effect = open_key_side_effect
 
-        with patch('winreg.QueryValueEx', return_value=('c:/steam', 1)):
-            with patch('winreg.CloseKey'):
+        with patch("winreg.QueryValueEx", return_value=("c:/steam", 1)):
+            with patch("winreg.CloseKey"):
                 detector = SteamGameDetector()
 
                 # Should fall back to HKLM
-                assert detector.steam_path == Path('c:/steam')
+                assert detector.steam_path == Path("c:/steam")
 
-    @patch('winreg.OpenKey', side_effect=FileNotFoundError())
+    @patch("winreg.OpenKey", side_effect=FileNotFoundError())
     def test_steam_not_found(self, mock_open):
         """Test when Steam is not installed."""
         from autopack.storage_optimizer.steam_detector import SteamGameDetector
@@ -71,7 +71,7 @@ class TestLibraryFolderParsing:
         """Test parsing libraryfolders.vdf file."""
         from autopack.storage_optimizer.steam_detector import SteamGameDetector
 
-        vdf_content = '''
+        vdf_content = """
         "libraryfolders"
         {
             "0"
@@ -87,39 +87,43 @@ class TestLibraryFolderParsing:
                 "contentid"    "9876543210"
             }
         }
-        '''
+        """
 
         detector = SteamGameDetector()
-        detector.steam_path = Path('c:/steam')
+        detector.steam_path = Path("c:/steam")
 
-        with patch('pathlib.Path.exists', return_value=True):
-            with patch('pathlib.Path.open', create=True) as mock_open:
+        with patch("pathlib.Path.exists", return_value=True):
+            with patch("pathlib.Path.open", create=True) as mock_open:
                 mock_open.return_value.__enter__.return_value.read.return_value = vdf_content
 
-                folders = detector._parse_library_folders_vdf(Path('c:/steam/steamapps/libraryfolders.vdf'))
+                folders = detector._parse_library_folders_vdf(
+                    Path("c:/steam/steamapps/libraryfolders.vdf")
+                )
 
                 assert len(folders) == 2
-                assert Path('C:/Program Files (x86)/Steam/steamapps') in folders
-                assert Path('D:/SteamLibrary/steamapps') in folders
+                assert Path("C:/Program Files (x86)/Steam/steamapps") in folders
+                assert Path("D:/SteamLibrary/steamapps") in folders
 
     def test_parse_empty_libraryfolders(self):
         """Test parsing empty libraryfolders.vdf."""
         from autopack.storage_optimizer.steam_detector import SteamGameDetector
 
-        vdf_content = '''
+        vdf_content = """
         "libraryfolders"
         {
         }
-        '''
+        """
 
         detector = SteamGameDetector()
-        detector.steam_path = Path('c:/steam')
+        detector.steam_path = Path("c:/steam")
 
-        with patch('pathlib.Path.exists', return_value=True):
-            with patch('pathlib.Path.open', create=True) as mock_open:
+        with patch("pathlib.Path.exists", return_value=True):
+            with patch("pathlib.Path.open", create=True) as mock_open:
                 mock_open.return_value.__enter__.return_value.read.return_value = vdf_content
 
-                folders = detector._parse_library_folders_vdf(Path('c:/steam/steamapps/libraryfolders.vdf'))
+                folders = detector._parse_library_folders_vdf(
+                    Path("c:/steam/steamapps/libraryfolders.vdf")
+                )
 
                 assert len(folders) == 0
 
@@ -131,7 +135,7 @@ class TestGameDetection:
         """Test parsing app manifest (acf) file."""
         from autopack.storage_optimizer.steam_detector import SteamGameDetector
 
-        manifest_content = '''
+        manifest_content = """
         "AppState"
         {
             "appid"    "570"
@@ -141,19 +145,19 @@ class TestGameDetection:
             "LastUpdated"    "1640995200"
             "SizeOnDisk"    "50000000000"
         }
-        '''
+        """
 
         detector = SteamGameDetector()
-        detector.steam_path = Path('c:/steam')
+        detector.steam_path = Path("c:/steam")
 
-        with patch('pathlib.Path.open', create=True) as mock_open:
+        with patch("pathlib.Path.open", create=True) as mock_open:
             mock_open.return_value.__enter__.return_value.read.return_value = manifest_content
 
-            game = detector._parse_game_manifest(Path('c:/steam/steamapps/appmanifest_570.acf'))
+            game = detector._parse_game_manifest(Path("c:/steam/steamapps/appmanifest_570.acf"))
 
             assert game is not None
-            assert game.app_id == '570'
-            assert game.name == 'Dota 2'
+            assert game.app_id == "570"
+            assert game.name == "Dota 2"
             assert game.size_bytes == 50000000000
             assert game.last_updated is not None
 
@@ -161,68 +165,68 @@ class TestGameDetection:
         """Test parsing malformed manifest returns None."""
         from autopack.storage_optimizer.steam_detector import SteamGameDetector
 
-        manifest_content = '''
+        manifest_content = """
         "AppState"
         {
             "appid"    "570"
             # Missing required fields
         }
-        '''
+        """
 
         detector = SteamGameDetector()
 
-        with patch('pathlib.Path.open', create=True) as mock_open:
+        with patch("pathlib.Path.open", create=True) as mock_open:
             mock_open.return_value.__enter__.return_value.read.return_value = manifest_content
 
-            game = detector._parse_game_manifest(Path('c:/steam/steamapps/appmanifest_570.acf'))
+            game = detector._parse_game_manifest(Path("c:/steam/steamapps/appmanifest_570.acf"))
 
             # Should gracefully handle missing fields
-            assert game is None or game.name == 'Unknown'
+            assert game is None or game.name == "Unknown"
 
-    @patch('pathlib.Path.glob')
+    @patch("pathlib.Path.glob")
     def test_detect_installed_games(self, mock_glob):
         """Test detecting all installed games."""
         from autopack.storage_optimizer.steam_detector import SteamGameDetector, SteamGame
 
         # Mock manifest files
         mock_manifests = [
-            Path('c:/steam/steamapps/appmanifest_570.acf'),
-            Path('c:/steam/steamapps/appmanifest_730.acf'),
+            Path("c:/steam/steamapps/appmanifest_570.acf"),
+            Path("c:/steam/steamapps/appmanifest_730.acf"),
         ]
         mock_glob.return_value = mock_manifests
 
         detector = SteamGameDetector()
-        detector.steam_path = Path('c:/steam')
-        detector.library_folders = [Path('c:/steam/steamapps')]
+        detector.steam_path = Path("c:/steam")
+        detector.library_folders = [Path("c:/steam/steamapps")]
 
         # Mock parsing results
         def parse_side_effect(manifest_path):
-            if '570' in str(manifest_path):
+            if "570" in str(manifest_path):
                 return SteamGame(
-                    app_id='570',
-                    name='Dota 2',
-                    install_path=Path('c:/steam/steamapps/common/dota 2 beta'),
+                    app_id="570",
+                    name="Dota 2",
+                    install_path=Path("c:/steam/steamapps/common/dota 2 beta"),
                     size_bytes=50_000_000_000,
                     last_updated=datetime(2022, 1, 1),
-                    age_days=100
+                    age_days=100,
                 )
-            elif '730' in str(manifest_path):
+            elif "730" in str(manifest_path):
                 return SteamGame(
-                    app_id='730',
-                    name='Counter-Strike 2',
-                    install_path=Path('c:/steam/steamapps/common/Counter-Strike Global Offensive'),
+                    app_id="730",
+                    name="Counter-Strike 2",
+                    install_path=Path("c:/steam/steamapps/common/Counter-Strike Global Offensive"),
                     size_bytes=30_000_000_000,
                     last_updated=datetime(2023, 1, 1),
-                    age_days=30
+                    age_days=30,
                 )
             return None
 
-        with patch.object(detector, '_parse_game_manifest', side_effect=parse_side_effect):
+        with patch.object(detector, "_parse_game_manifest", side_effect=parse_side_effect):
             games = detector.detect_installed_games()
 
             assert len(games) == 2
-            assert games[0].name == 'Dota 2'
-            assert games[1].name == 'Counter-Strike 2'
+            assert games[0].name == "Dota 2"
+            assert games[1].name == "Counter-Strike 2"
 
 
 class TestGameFiltering:
@@ -233,94 +237,93 @@ class TestGameFiltering:
         from autopack.storage_optimizer.steam_detector import SteamGameDetector, SteamGame
 
         detector = SteamGameDetector()
-        detector.steam_path = Path('c:/steam')
+        detector.steam_path = Path("c:/steam")
 
         # Mock games with different sizes
         all_games = [
-            SteamGame('1', 'Big Game', Path('/big'), 50 * 1024**3, datetime(2020, 1, 1), 365),
-            SteamGame('2', 'Small Game', Path('/small'), 5 * 1024**3, datetime(2020, 1, 1), 365),
-            SteamGame('3', 'Medium Game', Path('/medium'), 15 * 1024**3, datetime(2020, 1, 1), 365),
+            SteamGame("1", "Big Game", Path("/big"), 50 * 1024**3, datetime(2020, 1, 1), 365),
+            SteamGame("2", "Small Game", Path("/small"), 5 * 1024**3, datetime(2020, 1, 1), 365),
+            SteamGame("3", "Medium Game", Path("/medium"), 15 * 1024**3, datetime(2020, 1, 1), 365),
         ]
 
-        with patch.object(detector, 'detect_installed_games', return_value=all_games):
+        with patch.object(detector, "detect_installed_games", return_value=all_games):
             games = detector.find_unplayed_games(min_size_gb=10.0, min_age_days=0)
 
             # Should only return games >= 10GB
             assert len(games) == 2
-            assert games[0].name == 'Big Game'  # Sorted by size descending
-            assert games[1].name == 'Medium Game'
+            assert games[0].name == "Big Game"  # Sorted by size descending
+            assert games[1].name == "Medium Game"
 
     def test_find_unplayed_games_by_age(self):
         """Test filtering games by minimum age."""
         from autopack.storage_optimizer.steam_detector import SteamGameDetector, SteamGame
 
         detector = SteamGameDetector()
-        detector.steam_path = Path('c:/steam')
+        detector.steam_path = Path("c:/steam")
 
         # Mock games with different ages
         old_date = datetime.now() - timedelta(days=400)
         recent_date = datetime.now() - timedelta(days=30)
 
         all_games = [
-            SteamGame('1', 'Old Game', Path('/old'), 50 * 1024**3, old_date, 400),
-            SteamGame('2', 'Recent Game', Path('/recent'), 50 * 1024**3, recent_date, 30),
+            SteamGame("1", "Old Game", Path("/old"), 50 * 1024**3, old_date, 400),
+            SteamGame("2", "Recent Game", Path("/recent"), 50 * 1024**3, recent_date, 30),
         ]
 
-        with patch.object(detector, 'detect_installed_games', return_value=all_games):
+        with patch.object(detector, "detect_installed_games", return_value=all_games):
             games = detector.find_unplayed_games(min_size_gb=0, min_age_days=180)
 
             # Should only return games not updated in 180+ days
             assert len(games) == 1
-            assert games[0].name == 'Old Game'
+            assert games[0].name == "Old Game"
 
     def test_find_unplayed_games_sorted_by_size(self):
         """Test games are sorted by size descending."""
         from autopack.storage_optimizer.steam_detector import SteamGameDetector, SteamGame
 
         detector = SteamGameDetector()
-        detector.steam_path = Path('c:/steam')
+        detector.steam_path = Path("c:/steam")
 
         all_games = [
-            SteamGame('1', 'Medium', Path('/m'), 20 * 1024**3, datetime(2020, 1, 1), 365),
-            SteamGame('2', 'Largest', Path('/l'), 100 * 1024**3, datetime(2020, 1, 1), 365),
-            SteamGame('3', 'Smallest', Path('/s'), 10 * 1024**3, datetime(2020, 1, 1), 365),
+            SteamGame("1", "Medium", Path("/m"), 20 * 1024**3, datetime(2020, 1, 1), 365),
+            SteamGame("2", "Largest", Path("/l"), 100 * 1024**3, datetime(2020, 1, 1), 365),
+            SteamGame("3", "Smallest", Path("/s"), 10 * 1024**3, datetime(2020, 1, 1), 365),
         ]
 
-        with patch.object(detector, 'detect_installed_games', return_value=all_games):
+        with patch.object(detector, "detect_installed_games", return_value=all_games):
             games = detector.find_unplayed_games(min_size_gb=5, min_age_days=0)
 
             # Should be sorted largest first
             assert len(games) == 3
-            assert games[0].name == 'Largest'
-            assert games[1].name == 'Medium'
-            assert games[2].name == 'Smallest'
+            assert games[0].name == "Largest"
+            assert games[1].name == "Medium"
+            assert games[2].name == "Smallest"
 
     def test_find_unplayed_games_no_last_updated(self):
         """Test handling games with no last_updated timestamp."""
         from autopack.storage_optimizer.steam_detector import SteamGameDetector, SteamGame
 
         detector = SteamGameDetector()
-        detector.steam_path = Path('c:/steam')
+        detector.steam_path = Path("c:/steam")
 
         # Game with no last_updated should be included (unknown age = risky)
         all_games = [
-            SteamGame('1', 'Unknown Age', Path('/u'), 50 * 1024**3, None, None),
+            SteamGame("1", "Unknown Age", Path("/u"), 50 * 1024**3, None, None),
         ]
 
-        with patch.object(detector, 'detect_installed_games', return_value=all_games):
+        with patch.object(detector, "detect_installed_games", return_value=all_games):
             games = detector.find_unplayed_games(min_size_gb=10, min_age_days=180)
 
             # Should include games with unknown age
             assert len(games) == 1
-            assert games[0].name == 'Unknown Age'
+            assert games[0].name == "Unknown Age"
 
 
 class TestIntegration:
     """Integration tests with real Steam data (if available)."""
 
     @pytest.mark.skipif(
-        not Path('c:/program files (x86)/steam').exists(),
-        reason="Steam not installed"
+        not Path("c:/program files (x86)/steam").exists(), reason="Steam not installed"
     )
     def test_real_steam_detection(self):
         """Test detection on real Steam installation."""
@@ -337,8 +340,7 @@ class TestIntegration:
         assert len(detector.library_folders) > 0
 
     @pytest.mark.skipif(
-        not Path('c:/program files (x86)/steam').exists(),
-        reason="Steam not installed"
+        not Path("c:/program files (x86)/steam").exists(), reason="Steam not installed"
     )
     def test_real_game_detection(self):
         """Test detecting real installed games."""
@@ -354,9 +356,9 @@ class TestIntegration:
         # If Steam is installed, should find at least some games
         # (may be 0 if no games installed)
         assert isinstance(games, list)
-        assert all(hasattr(g, 'name') for g in games)
-        assert all(hasattr(g, 'size_bytes') for g in games)
+        assert all(hasattr(g, "name") for g in games)
+        assert all(hasattr(g, "size_bytes") for g in games)
 
 
-if __name__ == '__main__':
-    pytest.main([__file__, '-v'])
+if __name__ == "__main__":
+    pytest.main([__file__, "-v"])

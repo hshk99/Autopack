@@ -49,6 +49,7 @@ def create_test_phase(session, run_id: str, phase_id: str, state: PhaseState, ph
     """Helper to create a test phase."""
     # Get tier to use its integer ID
     from autopack.models import Tier
+
     tier = session.query(Tier).filter(Tier.run_id == run_id).first()
 
     phase = Phase(
@@ -124,7 +125,9 @@ def test_ab_test_result_invalid_comparison(test_session):
     test_session.commit()
 
     # Verify persisted as invalid
-    retrieved = test_session.query(ABTestResult).filter(ABTestResult.test_id == "test-invalid").first()
+    retrieved = (
+        test_session.query(ABTestResult).filter(ABTestResult.test_id == "test-invalid").first()
+    )
     assert retrieved is not None
     assert retrieved.is_valid is False
     assert len(retrieved.validity_errors) > 0
@@ -157,7 +160,11 @@ def test_ab_test_result_model_hash_mismatch(test_session):
     test_session.commit()
 
     # Verify persisted as invalid
-    retrieved = test_session.query(ABTestResult).filter(ABTestResult.test_id == "test-model-mismatch").first()
+    retrieved = (
+        test_session.query(ABTestResult)
+        .filter(ABTestResult.test_id == "test-model-mismatch")
+        .first()
+    )
     assert retrieved is not None
     assert retrieved.is_valid is False
     assert "Model hash mismatch" in retrieved.validity_errors[0]
@@ -229,7 +236,9 @@ def test_ab_test_result_with_phase_metrics(test_session):
     test_session.commit()
 
     # Verify phase metrics
-    retrieved = test_session.query(ABTestResult).filter(ABTestResult.test_id == "test-with-phases").first()
+    retrieved = (
+        test_session.query(ABTestResult).filter(ABTestResult.test_id == "test-with-phases").first()
+    )
     assert retrieved.control_phases_complete == 2
     assert retrieved.control_phases_failed == 1
     assert retrieved.treatment_phases_complete == 3
@@ -296,7 +305,10 @@ def test_ab_test_result_indexes(test_engine):
 
     # At minimum, should have index on test_id (from model definition)
     # Note: SQLite auto-creates index for primary key
-    assert any("test_id" in cols for cols in index_columns) or "ix_ab_test_results_test_id" in index_names
+    assert (
+        any("test_id" in cols for cols in index_columns)
+        or "ix_ab_test_results_test_id" in index_names
+    )
 
 
 if __name__ == "__main__":

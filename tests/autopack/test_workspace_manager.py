@@ -15,14 +15,23 @@ def temp_repo(tmp_path):
 
     # Initialize git repository
     subprocess.run(["git", "init"], cwd=repo_path, check=True, capture_output=True)
-    subprocess.run(["git", "config", "user.email", "test@test.com"], cwd=repo_path, check=True, capture_output=True)
-    subprocess.run(["git", "config", "user.name", "Test User"], cwd=repo_path, check=True, capture_output=True)
+    subprocess.run(
+        ["git", "config", "user.email", "test@test.com"],
+        cwd=repo_path,
+        check=True,
+        capture_output=True,
+    )
+    subprocess.run(
+        ["git", "config", "user.name", "Test User"], cwd=repo_path, check=True, capture_output=True
+    )
 
     # Create initial commit
     test_file = repo_path / "test.txt"
     test_file.write_text("initial content")
     subprocess.run(["git", "add", "test.txt"], cwd=repo_path, check=True, capture_output=True)
-    subprocess.run(["git", "commit", "-m", "Initial commit"], cwd=repo_path, check=True, capture_output=True)
+    subprocess.run(
+        ["git", "commit", "-m", "Initial commit"], cwd=repo_path, check=True, capture_output=True
+    )
 
     yield repo_path
 
@@ -37,10 +46,7 @@ def test_workspace_manager_create_worktree(temp_repo, tmp_path):
     worktree_base = tmp_path / "worktrees"
 
     manager = WorkspaceManager(
-        run_id=run_id,
-        source_repo=temp_repo,
-        worktree_base=worktree_base,
-        cleanup_on_exit=False
+        run_id=run_id, source_repo=temp_repo, worktree_base=worktree_base, cleanup_on_exit=False
     )
 
     # Create worktree
@@ -53,10 +59,7 @@ def test_workspace_manager_create_worktree(temp_repo, tmp_path):
 
     # Verify it's a separate worktree
     result = subprocess.run(
-        ["git", "worktree", "list"],
-        cwd=temp_repo,
-        capture_output=True,
-        text=True
+        ["git", "worktree", "list"], cwd=temp_repo, capture_output=True, text=True
     )
     # Normalize paths for comparison (git uses forward slashes on Windows)
     workspace_normalized = str(workspace).replace("\\", "/")
@@ -96,10 +99,7 @@ def test_workspace_manager_context_manager(temp_repo, tmp_path):
     worktree_base = tmp_path / "worktrees"
 
     manager = WorkspaceManager(
-        run_id=run_id,
-        source_repo=temp_repo,
-        worktree_base=worktree_base,
-        cleanup_on_exit=True
+        run_id=run_id, source_repo=temp_repo, worktree_base=worktree_base, cleanup_on_exit=True
     )
 
     workspace_path = None
@@ -119,12 +119,7 @@ def test_workspace_manager_cleanup_all(temp_repo, tmp_path):
 
     # Create multiple worktrees
     for i in range(3):
-        manager = WorkspaceManager(
-            f"run-{i:03d}",
-            temp_repo,
-            worktree_base,
-            cleanup_on_exit=False
-        )
+        manager = WorkspaceManager(f"run-{i:03d}", temp_repo, worktree_base, cleanup_on_exit=False)
         manager.create_worktree()
 
     # Verify all created
@@ -177,10 +172,7 @@ def test_workspace_manager_handles_special_chars_in_run_id(temp_repo, tmp_path):
     run_id = "test/run\\with spaces"
 
     manager = WorkspaceManager(
-        run_id=run_id,
-        source_repo=temp_repo,
-        worktree_base=worktree_base,
-        cleanup_on_exit=False
+        run_id=run_id, source_repo=temp_repo, worktree_base=worktree_base, cleanup_on_exit=False
     )
 
     workspace = manager.create_worktree()

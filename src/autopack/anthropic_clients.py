@@ -27,10 +27,13 @@ from .llm_client import BuilderResult, AuditorResult
 from .journal_reader import get_prevention_prompt_injection
 from .llm_service import estimate_tokens
 from .repair_helpers import JsonRepairHelper, save_repair_debug
+
 # BUILD-129 Phase 1: Deliverable-based token estimation
 from .token_estimator import TokenEstimator
+
 # BUILD-129 Phase 2: Continuation-based recovery
 from .continuation_recovery import ContinuationRecovery
+
 # BUILD-129 Phase 3: NDJSON truncation-tolerant format
 from .ndjson_format import NDJSONParser, NDJSONApplier
 
@@ -189,26 +192,35 @@ ALLOWED_COMPLEXITIES = {"low", "medium", "high", "maintenance"}
 def normalize_complexity(value: str | None) -> str:
     """
     Normalize complexity value to canonical form.
-    
+
     Per GPT_RESPONSE24 C1: Handle case variations, common suffixes, and aliases.
     Per GPT_RESPONSE25 C1: Log DATA_INTEGRITY for unknown values and fallback to "medium".
-    
+
     Args:
         value: Raw complexity value from phase_spec
-    
+
     Returns:
         Normalized complexity value (always one of ALLOWED_COMPLEXITIES)
     """
     if value is None:
         return "medium"  # Default
-    
+
     v = value.strip().lower()
-    
+
     # Strip common suffixes (per GPT1 and GPT2)
-    for suffix in ("_complexity", "-complexity", "_level", "-level", "_mode", "-mode", "_task", "_tier"):
+    for suffix in (
+        "_complexity",
+        "-complexity",
+        "_level",
+        "-level",
+        "_mode",
+        "-mode",
+        "_task",
+        "_tier",
+    ):
         if v.endswith(suffix):
-            v = v[:-len(suffix)]
-    
+            v = v[: -len(suffix)]
+
     # Map common aliases (per GPT1 and GPT2)
     alias_map = {
         "low": "low",
@@ -220,18 +232,19 @@ def normalize_complexity(value: str | None) -> str:
         "maintenance": "maintenance",
         "maintenance_mode": "maintenance",
     }
-    
+
     normalized = alias_map.get(v, v)
-    
+
     # Per GPT_RESPONSE25 C1: Guard for unknown values - log and fallback to "medium"
     if normalized not in ALLOWED_COMPLEXITIES:
         logger.warning(
             "[DATA_INTEGRITY] Unknown complexity value %r (normalized to %r); "
             "falling back to 'medium'. Consider adding to alias_map if valid.",
-            value, normalized,
+            value,
+            normalized,
         )
         return "medium"
-    
+
     return normalized
 
 
@@ -251,8 +264,7 @@ class AnthropicBuilderClient:
         """
         if Anthropic is None:
             raise ImportError(
-                "anthropic package not installed. "
-                "Install with: pip install anthropic"
+                "anthropic package not installed. " "Install with: pip install anthropic"
             )
 
         self.client = Anthropic(api_key=api_key or os.getenv("ANTHROPIC_API_KEY"))
@@ -266,7 +278,7 @@ class AnthropicBuilderClient:
         project_rules: Optional[List] = None,
         run_hints: Optional[List] = None,
         use_full_file_mode: bool = True,
-        config = None,  # NEW: BuilderOutputConfig for consistency
+        config=None,  # NEW: BuilderOutputConfig for consistency
         retrieved_context: Optional[str] = None,  # NEW: Vector memory context
     ) -> BuilderResult:
         """Execute a phase using Claude
@@ -332,7 +344,9 @@ class AnthropicBuilderClient:
                 # If category metadata is missing, infer documentation for pure-doc phases so
                 # DOC_SYNTHESIS detection can activate.
                 effective_category = task_category or (
-                    "documentation" if estimator._all_doc_deliverables(deliverables) else "implementation"
+                    "documentation"
+                    if estimator._all_doc_deliverables(deliverables)
+                    else "implementation"
                 )
                 token_estimate = estimator.estimate(
                     deliverables=deliverables,
@@ -459,7 +473,8 @@ class AnthropicBuilderClient:
         if multi_file_scope and use_full_file_mode_flag and len(scope_paths) > 6:
             logger.info(
                 "[Builder] Disabling full-file mode due to large multi-file scope (paths=%d, category=%s)",
-                len(scope_paths), task_category
+                len(scope_paths),
+                task_category,
             )
             use_full_file_mode_flag = False
         try:
@@ -471,15 +486,21 @@ class AnthropicBuilderClient:
                 files = file_context.get("existing_files", {})
                 # Safety check: ensure files is a dict
                 if not isinstance(files, dict):
-                    logger.warning(f"[Builder] file_context.get('existing_files') returned non-dict: {type(files)}, using empty dict")
+                    logger.warning(
+                        f"[Builder] file_context.get('existing_files') returned non-dict: {type(files)}, using empty dict"
+                    )
                     files = {}
 
                 # Get explicit scope paths from phase_spec (guard None/empty)
                 scope_config = phase_spec.get("scope") or {}
-                scope_paths = scope_config.get("paths", []) if isinstance(scope_config, dict) else []
+                scope_paths = (
+                    scope_config.get("paths", []) if isinstance(scope_config, dict) else []
+                )
                 # Safety check: ensure scope_paths is a list of strings
                 if not isinstance(scope_paths, list):
-                    logger.warning(f"[Builder] scope_paths is not a list: {type(scope_paths)}, using empty list")
+                    logger.warning(
+                        f"[Builder] scope_paths is not a list: {type(scope_paths)}, using empty list"
+                    )
                     scope_paths = []
                 # Filter out non-string items
                 scope_paths = [sp for sp in scope_paths if isinstance(sp, str)]
@@ -490,22 +511,28 @@ class AnthropicBuilderClient:
                     # If no scope defined, assume all files ≤ max_lines_for_full_file are modifiable
                     # and files > max_lines_for_full_file are read-only context
                     # Structured edit mode should NOT be triggered unless explicitly scoped
-                    logger.debug("[Builder] No scope_paths defined; assuming small files are modifiable, large files are read-only")
+                    logger.debug(
+                        "[Builder] No scope_paths defined; assuming small files are modifiable, large files are read-only"
+                    )
                     use_structured_edit = False
                 else:
                     # Check only files in scope
                     for file_path, content in files.items():
                         # Safety check: ensure file_path is a string
                         if not isinstance(file_path, str):
-                            logger.warning(f"[Builder] Skipping non-string file_path: {file_path} (type: {type(file_path)})")
+                            logger.warning(
+                                f"[Builder] Skipping non-string file_path: {file_path} (type: {type(file_path)})"
+                            )
                             continue
 
                         # Only check if file is in scope
                         if any(file_path.startswith(sp) for sp in scope_paths):
                             if isinstance(content, str):
-                                line_count = content.count('\n') + 1
+                                line_count = content.count("\n") + 1
                                 if line_count > config.max_lines_hard_limit:
-                                    logger.info(f"[Builder] File {file_path} ({line_count} lines) exceeds hard limit; enabling structured edit mode")
+                                    logger.info(
+                                        f"[Builder] File {file_path} ({line_count} lines) exceeds hard limit; enabling structured edit mode"
+                                    )
                                     use_structured_edit = True
                                     break
 
@@ -521,16 +548,19 @@ class AnthropicBuilderClient:
 
                 # Detect multi-file creation phases (country templates, feature scaffolding, etc.)
                 creates_multiple_files = (
-                    "template" in phase_name or
-                    "multiple files" in phase_desc or
-                    "create" in phase_desc and ("files" in phase_desc or "modules" in phase_desc)
+                    "template" in phase_name
+                    or "multiple files" in phase_desc
+                    or "create" in phase_desc
+                    and ("files" in phase_desc or "modules" in phase_desc)
                 )
 
                 if creates_multiple_files:
                     # Override to full_file mode for better token efficiency
                     use_full_file_mode_flag = True
                     use_structured_edit = False
-                    logger.info("[Builder] Using full_file mode for multi-file creation phase (BUILD-043 optimization)")
+                    logger.info(
+                        "[Builder] Using full_file mode for multi-file creation phase (BUILD-043 optimization)"
+                    )
 
             # BUILD-129 Phase 3: NDJSON format selection for truncation tolerance
             # Per TOKEN_BUDGET_ANALYSIS_REVISED.md Layer 3: Use NDJSON for multi-file scopes (≥5 deliverables)
@@ -552,17 +582,22 @@ class AnthropicBuilderClient:
                 use_full_file_mode=use_full_file_mode_flag,
                 use_structured_edit=use_structured_edit,
                 use_ndjson_format=use_ndjson_format,
-                phase_spec=phase_spec  # Pass phase info for context-aware prompts
+                phase_spec=phase_spec,  # Pass phase info for context-aware prompts
             )
 
             # Build user prompt (includes full file content for full-file mode or line numbers for structured edit)
             # Hard prompt-limit protection: we may need to cap/summarize file_context to avoid provider errors.
-            model_prompt_limit = 200_000 if isinstance(model, str) and model.startswith("claude") else 128_000
+            model_prompt_limit = (
+                200_000 if isinstance(model, str) and model.startswith("claude") else 128_000
+            )
             prompt_margin = int(os.getenv("AUTOPACK_PROMPT_MAX_TOKENS_MARGIN", "8000"))
             max_prompt_tokens = max(20_000, model_prompt_limit - prompt_margin)
 
             user_prompt = self._build_user_prompt(
-                phase_spec, file_context, project_rules, run_hints,
+                phase_spec,
+                file_context,
+                project_rules,
+                run_hints,
                 use_full_file_mode=use_full_file_mode_flag,
                 config=config,  # NEW: Pass config for read-only markers and structured edit detection
                 retrieved_context=retrieved_context,  # NEW: Vector memory context
@@ -581,16 +616,19 @@ class AnthropicBuilderClient:
             if builder_mode == "full_file" or change_size == "large_refactor":
                 # Normalize category for consistent comparison
                 normalized_category = task_category.lower() if task_category else ""
-                is_docs_like = normalized_category in ["docs", "documentation", "doc_synthesis", "doc_sot_update"]
+                is_docs_like = normalized_category in [
+                    "docs",
+                    "documentation",
+                    "doc_synthesis",
+                    "doc_sot_update",
+                ]
 
                 # Only force 16384 floor if:
                 # 1. No selected budget available (None), OR
                 # 2. Selected budget is already >= 16384 (not an intentional reduction), OR
                 # 3. Category is NOT docs-like (preserve safety for code phases)
                 should_apply_floor = (
-                    not token_selected_budget or
-                    token_selected_budget >= 16384 or
-                    not is_docs_like
+                    not token_selected_budget or token_selected_budget >= 16384 or not is_docs_like
                 )
 
                 if should_apply_floor:
@@ -598,41 +636,51 @@ class AnthropicBuilderClient:
                     logger.debug(
                         "[TOKEN_EST] Using increased max_tokens=%d for builder_mode=%s change_size=%s "
                         "(category=%s, selected_budget=%s)",
-                        max_tokens, builder_mode, change_size, task_category, token_selected_budget
+                        max_tokens,
+                        builder_mode,
+                        change_size,
+                        task_category,
+                        token_selected_budget,
                     )
                 else:
                     logger.debug(
                         "[BUILD-142] Preserving category-aware budget=%d for docs-like category=%s "
                         "(skipping 16384 floor override)",
-                        token_selected_budget, task_category
+                        token_selected_budget,
+                        task_category,
                     )
             elif max_tokens <= 0:
                 logger.warning(
-                    "[TOKEN_EST] max_tokens invalid (%s); falling back to default 4096",
-                    max_tokens
+                    "[TOKEN_EST] max_tokens invalid (%s); falling back to default 4096", max_tokens
                 )
                 max_tokens = 4096
-            
+
             # Per GPT_RESPONSE21 Q2: Estimate tokens on final prompt text (as sent to provider)
             # Build full prompt text for estimation (system + user)
             full_prompt_text = system_prompt + "\n" + user_prompt
             estimated_prompt_tokens = estimate_tokens(full_prompt_text)
             call_max_tokens = max_tokens or 64000  # Keep existing default as final fallback
-            estimated_completion_tokens = int(call_max_tokens * 0.7)  # Conservative estimate (70% of max)
+            estimated_completion_tokens = int(
+                call_max_tokens * 0.7
+            )  # Conservative estimate (70% of max)
             estimated_total_tokens = estimated_prompt_tokens + estimated_completion_tokens
-            
+
             # Per GPT_RESPONSE22 Q1: Breakdown at DEBUG, INFO/WARNING for cap events
             phase_id = phase_spec.get("phase_id") or "unknown"
             run_id = phase_spec.get("run_id") or "unknown"
-            
+
             # Always log breakdown at DEBUG for telemetry
             if logger.isEnabledFor(logging.DEBUG):
                 logger.debug(
                     "[TOKEN_EST] run_id=%s phase_id=%s total=%d prompt=%d completion=%d max_tokens=%d",
-                    run_id, phase_id, estimated_total_tokens, estimated_prompt_tokens,
-                    estimated_completion_tokens, call_max_tokens,
+                    run_id,
+                    phase_id,
+                    estimated_total_tokens,
+                    estimated_prompt_tokens,
+                    estimated_completion_tokens,
+                    call_max_tokens,
                 )
-            
+
             # Per GPT_RESPONSE24 C1: Normalize complexity to handle variations
             # Per GPT_RESPONSE24 Q2 (GPT2): Use "medium" as fallback, no default tier in Phase 1
             # Per GPT_RESPONSE22 C1: Check soft cap with buffer bands (no safety margin on estimate)
@@ -649,14 +697,18 @@ class AnthropicBuilderClient:
                         if token_caps_config.get("enabled", False):
                             per_phase_caps = token_caps_config.get("per_phase_soft_caps", {})
                             soft_cap = per_phase_caps.get(complexity)
-                            
+
                             # Per GPT_RESPONSE24 Q2 (GPT2): Fallback to "medium" if complexity not found
                             if soft_cap is None:
                                 if "medium" in per_phase_caps:
                                     logger.debug(
                                         "[TOKEN_SOFT_CAP] Unknown complexity %r (normalized %r) for run_id=%s phase_id=%s; "
                                         "falling back to 'medium' tier (%s tokens)",
-                                        raw_complexity, complexity, run_id, phase_id, per_phase_caps["medium"],
+                                        raw_complexity,
+                                        complexity,
+                                        run_id,
+                                        phase_id,
+                                        per_phase_caps["medium"],
                                     )
                                     soft_cap = per_phase_caps["medium"]
                                 else:
@@ -670,7 +722,7 @@ class AnthropicBuilderClient:
             except Exception:
                 # If config loading fails, skip soft cap check (non-fatal)
                 pass
-            
+
             # Log INFO/WARNING when soft cap is exceeded or approached
             if soft_cap:
                 if estimated_total_tokens >= soft_cap:
@@ -678,14 +730,23 @@ class AnthropicBuilderClient:
                     logger.warning(
                         "[TOKEN_SOFT_CAP] run_id=%s phase_id=%s est_total=%d soft_cap=%d "
                         "(prompt=%d completion=%d complexity=%s)",
-                        run_id, phase_id, estimated_total_tokens, soft_cap,
-                        estimated_prompt_tokens, estimated_completion_tokens, complexity,
+                        run_id,
+                        phase_id,
+                        estimated_total_tokens,
+                        soft_cap,
+                        estimated_prompt_tokens,
+                        estimated_completion_tokens,
+                        complexity,
                     )
                 elif estimated_total_tokens >= int(soft_cap * 0.9):  # ≥90% of cap
                     # Approaching soft cap
                     logger.info(
                         "[TOKEN_SOFT_CAP] run_id=%s phase_id=%s est_total=%d soft_cap=%d (approaching, complexity=%s)",
-                        run_id, phase_id, estimated_total_tokens, soft_cap, complexity,
+                        run_id,
+                        phase_id,
+                        estimated_total_tokens,
+                        soft_cap,
+                        complexity,
                     )
 
             # If our prompt estimate exceeds the model limit, rebuild prompt with an aggressive budget.
@@ -696,11 +757,16 @@ class AnthropicBuilderClient:
                     max_prompt_tokens,
                 )
                 user_prompt = self._build_user_prompt(
-                    phase_spec, file_context, project_rules, run_hints,
+                    phase_spec,
+                    file_context,
+                    project_rules,
+                    run_hints,
                     use_full_file_mode=use_full_file_mode_flag,
                     config=config,
                     retrieved_context=retrieved_context,
-                    context_budget_tokens=int(os.getenv("AUTOPACK_CONTEXT_BUDGET_TOKENS_AGGRESSIVE", "80000")),
+                    context_budget_tokens=int(
+                        os.getenv("AUTOPACK_CONTEXT_BUDGET_TOKENS_AGGRESSIVE", "80000")
+                    ),
                 )
                 full_prompt_text = system_prompt + "\n" + user_prompt
                 estimated_prompt_tokens = estimate_tokens(full_prompt_text)
@@ -708,15 +774,21 @@ class AnthropicBuilderClient:
             # BUILD-142: Store selected_budget (estimator intent) BEFORE P4 enforcement
             # This ensures telemetry records the category-aware budget decision, not the final ceiling
             if token_selected_budget:
-                phase_spec.setdefault("metadata", {}).setdefault("token_prediction", {})["selected_budget"] = token_selected_budget
+                phase_spec.setdefault("metadata", {}).setdefault("token_prediction", {})[
+                    "selected_budget"
+                ] = token_selected_budget
 
             # BUILD-129 Phase 3 P4+P8: Final enforcement of max_tokens before API call
             # Ensures max_tokens >= token_selected_budget even after all overrides (builder_mode, change_size, etc)
             if token_selected_budget:
                 max_tokens = max(max_tokens or 0, token_selected_budget)
                 # BUILD-142: Store actual_max_tokens (final ceiling) AFTER P4 enforcement
-                phase_spec.setdefault("metadata", {}).setdefault("token_prediction", {})["actual_max_tokens"] = max_tokens
-                logger.info(f"[BUILD-129:P4] Final max_tokens enforcement: {max_tokens} (token_selected_budget={token_selected_budget})")
+                phase_spec.setdefault("metadata", {}).setdefault("token_prediction", {})[
+                    "actual_max_tokens"
+                ] = max_tokens
+                logger.info(
+                    f"[BUILD-129:P4] Final max_tokens enforcement: {max_tokens} (token_selected_budget={token_selected_budget})"
+                )
 
             # Call Anthropic API with streaming for long operations
             # Use Claude's max output capacity (64K) to avoid truncation of large patches
@@ -726,7 +798,7 @@ class AnthropicBuilderClient:
                 max_tokens=min(max_tokens or 64000, 64000),
                 system=system_prompt,
                 messages=[{"role": "user", "content": user_prompt}],
-                temperature=0.2
+                temperature=0.2,
             ) as stream:
                 # Collect streaming response
                 content = ""
@@ -750,14 +822,18 @@ class AnthropicBuilderClient:
             )
 
             # Track truncation (stop_reason from Anthropic API)
-            stop_reason = getattr(response, 'stop_reason', None)
-            was_truncated = (stop_reason == 'max_tokens')
+            stop_reason = getattr(response, "stop_reason", None)
+            was_truncated = stop_reason == "max_tokens"
 
             # BUILD-129 Phase 3 P10: Store utilization and actual tokens for escalate-once logic
             # Store in metadata so autonomous_executor can decide whether to escalate
-            token_budget_metadata = phase_spec.setdefault("metadata", {}).setdefault("token_budget", {})
+            token_budget_metadata = phase_spec.setdefault("metadata", {}).setdefault(
+                "token_budget", {}
+            )
             token_budget_metadata["output_utilization"] = output_utilization
-            token_budget_metadata["actual_output_tokens"] = actual_output_tokens  # For P10 base calculation
+            token_budget_metadata["actual_output_tokens"] = (
+                actual_output_tokens  # For P10 base calculation
+            )
 
             if was_truncated:
                 logger.warning("[Builder] Output was truncated (stop_reason=max_tokens)")
@@ -780,18 +856,36 @@ class AnthropicBuilderClient:
             def _parse_once(text: str):
                 if use_ndjson_format:
                     return self._parse_ndjson_output(
-                        text, file_context, response, model, phase_spec, config=config,
-                        stop_reason=stop_reason, was_truncated=was_truncated
+                        text,
+                        file_context,
+                        response,
+                        model,
+                        phase_spec,
+                        config=config,
+                        stop_reason=stop_reason,
+                        was_truncated=was_truncated,
                     )
                 elif use_structured_edit:
                     return self._parse_structured_edit_output(
-                        text, file_context, response, model, phase_spec, config=config,
-                        stop_reason=stop_reason, was_truncated=was_truncated
+                        text,
+                        file_context,
+                        response,
+                        model,
+                        phase_spec,
+                        config=config,
+                        stop_reason=stop_reason,
+                        was_truncated=was_truncated,
                     )
                 elif use_full_file_mode_flag:
                     return self._parse_full_file_output(
-                        text, file_context, response, model, phase_spec, config=config,
-                        stop_reason=stop_reason, was_truncated=was_truncated
+                        text,
+                        file_context,
+                        response,
+                        model,
+                        phase_spec,
+                        config=config,
+                        stop_reason=stop_reason,
+                        was_truncated=was_truncated,
                     )
                 else:
                     return self._parse_legacy_diff_output(
@@ -811,7 +905,7 @@ class AnthropicBuilderClient:
                         raw_output=content,
                         deliverables=deliverables,
                         stop_reason=stop_reason,
-                        tokens_used=actual_output_tokens
+                        tokens_used=actual_output_tokens,
                     )
 
                     if continuation_context:
@@ -823,22 +917,26 @@ class AnthropicBuilderClient:
                         # Build continuation prompt
                         continuation_prompt = recovery.build_continuation_prompt(
                             continuation_context,
-                            user_prompt  # Original prompt from earlier in this method
+                            user_prompt,  # Original prompt from earlier in this method
                         )
 
                         # BUILD-129 Phase 3 P4: Enforce max_tokens before continuation
                         if token_selected_budget:
                             max_tokens = max(max_tokens or 0, token_selected_budget)
-                            logger.info(f"[BUILD-129:P4] Continuation max_tokens enforcement: {max_tokens}")
+                            logger.info(
+                                f"[BUILD-129:P4] Continuation max_tokens enforcement: {max_tokens}"
+                            )
 
                         # Execute continuation request
-                        logger.info(f"[BUILD-129] Executing continuation request for {len(continuation_context.remaining_deliverables)} remaining deliverables...")
+                        logger.info(
+                            f"[BUILD-129] Executing continuation request for {len(continuation_context.remaining_deliverables)} remaining deliverables..."
+                        )
                         with self.client.messages.stream(
                             model=model,
                             max_tokens=min(max_tokens or 64000, 64000),
                             system=system_prompt,
                             messages=[{"role": "user", "content": continuation_prompt}],
-                            temperature=0.2
+                            temperature=0.2,
                         ) as cont_stream:
                             continuation_content = ""
                             for text in cont_stream.text_stream:
@@ -857,7 +955,7 @@ class AnthropicBuilderClient:
                         merged_content = recovery.merge_outputs(
                             partial_output=content,
                             continuation_output=continuation_content,
-                            format_type=continuation_context.format_type
+                            format_type=continuation_context.format_type,
                         )
 
                         logger.info(
@@ -870,11 +968,20 @@ class AnthropicBuilderClient:
 
                         # Update token usage to include continuation
                         if result and result.tokens_used:
-                            result.tokens_used = actual_input_tokens + actual_output_tokens + cont_input_tokens + cont_output_tokens
+                            result.tokens_used = (
+                                actual_input_tokens
+                                + actual_output_tokens
+                                + cont_input_tokens
+                                + cont_output_tokens
+                            )
 
-                        logger.info("[BUILD-129] Continuation recovery complete, re-parsed merged output")
+                        logger.info(
+                            "[BUILD-129] Continuation recovery complete, re-parsed merged output"
+                        )
                     else:
-                        logger.warning("[BUILD-129] Truncation detected but no continuation context extracted")
+                        logger.warning(
+                            "[BUILD-129] Truncation detected but no continuation context extracted"
+                        )
 
                 except Exception as e:
                     logger.error(f"[BUILD-129] Continuation recovery failed: {e}", exc_info=True)
@@ -958,7 +1065,10 @@ class AnthropicBuilderClient:
                         predicted_output_tokens,
                         actual_out,
                         smape * 100.0,
-                        token_selected_budget or phase_spec.get("metadata", {}).get("token_prediction", {}).get("selected_budget"),
+                        token_selected_budget
+                        or phase_spec.get("metadata", {})
+                        .get("token_prediction", {})
+                        .get("selected_budget"),
                         task_category or "implementation",
                         complexity,
                         len(deliverables) if isinstance(deliverables, list) else 0,
@@ -974,14 +1084,18 @@ class AnthropicBuilderClient:
                         run_id=phase_spec.get("run_id", "unknown"),
                         phase_id=phase_spec.get("phase_id", "unknown"),
                         # BUILD-129 Phase 3 P5: Use estimated_category from token estimator
-                        category=token_pred_meta.get("estimated_category") or task_category or "implementation",
+                        category=token_pred_meta.get("estimated_category")
+                        or task_category
+                        or "implementation",
                         complexity=complexity,
                         deliverables=deliverables if isinstance(deliverables, list) else [],
                         predicted_output_tokens=predicted_output_tokens,
                         actual_output_tokens=actual_out,
                         # BUILD-142: Record estimator intent (selected_budget), not final ceiling (actual_max_tokens)
                         # This preserves category-aware budget decisions in telemetry for calibration
-                        selected_budget=token_pred_meta.get("selected_budget") or token_selected_budget or 0,
+                        selected_budget=token_pred_meta.get("selected_budget")
+                        or token_selected_budget
+                        or 0,
                         success=getattr(result, "success", False),
                         truncated=was_truncated_local or False,
                         stop_reason=stop_reason_local,
@@ -1007,7 +1121,10 @@ class AnthropicBuilderClient:
                         "selected_budget=%s category=%s complexity=%s deliverables=%s success=%s model=%s",
                         predicted_output_tokens,
                         result.tokens_used,
-                        token_selected_budget or phase_spec.get("metadata", {}).get("token_prediction", {}).get("selected_budget"),
+                        token_selected_budget
+                        or phase_spec.get("metadata", {})
+                        .get("token_prediction", {})
+                        .get("selected_budget"),
                         task_category or "implementation",
                         complexity,
                         len(deliverables) if isinstance(deliverables, list) else 0,
@@ -1016,26 +1133,34 @@ class AnthropicBuilderClient:
                     )
 
                     # BUILD-129 Phase 3: Write telemetry to DB (fallback case)
-                    token_pred_meta_fallback = phase_spec.get("metadata", {}).get("token_prediction", {})
+                    token_pred_meta_fallback = phase_spec.get("metadata", {}).get(
+                        "token_prediction", {}
+                    )
                     _write_token_estimation_v2_telemetry(
                         run_id=phase_spec.get("run_id", "unknown"),
                         phase_id=phase_spec.get("phase_id", "unknown"),
                         # BUILD-129 Phase 3 P5: Use estimated_category from token estimator
-                        category=token_pred_meta_fallback.get("estimated_category") or task_category or "implementation",
+                        category=token_pred_meta_fallback.get("estimated_category")
+                        or task_category
+                        or "implementation",
                         complexity=complexity,
                         deliverables=deliverables if isinstance(deliverables, list) else [],
                         predicted_output_tokens=predicted_output_tokens,
                         actual_output_tokens=result.tokens_used,  # Using total tokens as fallback
                         # BUILD-142: Record estimator intent (selected_budget), not final ceiling (actual_max_tokens)
                         # This preserves category-aware budget decisions in telemetry for calibration
-                        selected_budget=token_pred_meta_fallback.get("selected_budget") or token_selected_budget or 0,
+                        selected_budget=token_pred_meta_fallback.get("selected_budget")
+                        or token_selected_budget
+                        or 0,
                         success=getattr(result, "success", False),
                         truncated=False,  # Unknown in fallback
                         stop_reason=None,
                         model=model,
                         # BUILD-129 Phase 3: Feature tracking (fallback)
                         is_truncated_output=False,  # Unknown in fallback
-                        api_reference_required=token_pred_meta_fallback.get("api_reference_required"),
+                        api_reference_required=token_pred_meta_fallback.get(
+                            "api_reference_required"
+                        ),
                         examples_required=token_pred_meta_fallback.get("examples_required"),
                         research_required=token_pred_meta_fallback.get("research_required"),
                         usage_guide_required=token_pred_meta_fallback.get("usage_guide_required"),
@@ -1053,21 +1178,35 @@ class AnthropicBuilderClient:
         except Exception as e:
             # Log full traceback for debugging (critical to diagnose silent failures)
             import traceback
+
             error_traceback = traceback.format_exc()
             error_msg = str(e)
-            logger.error("[Builder] Unhandled exception during execute_phase: %s\nTraceback:\n%s", error_msg, error_traceback)
+            logger.error(
+                "[Builder] Unhandled exception during execute_phase: %s\nTraceback:\n%s",
+                error_msg,
+                error_traceback,
+            )
 
             # Retry once on "prompt too long" with minimal context budget.
             msg_l = error_msg.lower()
-            if "prompt is too long" in msg_l or ("tokens" in msg_l and "maximum" in msg_l and "too long" in msg_l):
+            if "prompt is too long" in msg_l or (
+                "tokens" in msg_l and "maximum" in msg_l and "too long" in msg_l
+            ):
                 try:
-                    logger.warning("[PROMPT_BUDGET] Provider rejected prompt as too long; retrying with minimal context.")
+                    logger.warning(
+                        "[PROMPT_BUDGET] Provider rejected prompt as too long; retrying with minimal context."
+                    )
                     user_prompt_retry = self._build_user_prompt(
-                        phase_spec, file_context, project_rules, run_hints,
+                        phase_spec,
+                        file_context,
+                        project_rules,
+                        run_hints,
                         use_full_file_mode=use_full_file_mode_flag,
                         config=config,
                         retrieved_context=retrieved_context,
-                        context_budget_tokens=int(os.getenv("AUTOPACK_CONTEXT_BUDGET_TOKENS_MINIMAL", "50000")),
+                        context_budget_tokens=int(
+                            os.getenv("AUTOPACK_CONTEXT_BUDGET_TOKENS_MINIMAL", "50000")
+                        ),
                     )
 
                     # BUILD-129 Phase 3 P4: Enforce max_tokens before retry
@@ -1080,7 +1219,7 @@ class AnthropicBuilderClient:
                         max_tokens=min(max_tokens or 64000, 64000),
                         system=system_prompt,
                         messages=[{"role": "user", "content": user_prompt_retry}],
-                        temperature=0.2
+                        temperature=0.2,
                     ) as stream:
                         retry_content = ""
                         for text in stream.text_stream:
@@ -1088,34 +1227,57 @@ class AnthropicBuilderClient:
                         retry_response = stream.get_final_message()
 
                     retry_stop_reason = getattr(retry_response, "stop_reason", None)
-                    retry_was_truncated = (retry_stop_reason == "max_tokens")
+                    retry_was_truncated = retry_stop_reason == "max_tokens"
 
                     if use_ndjson_format:
                         return self._parse_ndjson_output(
-                            retry_content, file_context, retry_response, model, phase_spec, config=config,
-                            stop_reason=retry_stop_reason, was_truncated=retry_was_truncated
+                            retry_content,
+                            file_context,
+                            retry_response,
+                            model,
+                            phase_spec,
+                            config=config,
+                            stop_reason=retry_stop_reason,
+                            was_truncated=retry_was_truncated,
                         )
                     if use_structured_edit:
                         return self._parse_structured_edit_output(
-                            retry_content, file_context, retry_response, model, phase_spec, config=config,
-                            stop_reason=retry_stop_reason, was_truncated=retry_was_truncated
+                            retry_content,
+                            file_context,
+                            retry_response,
+                            model,
+                            phase_spec,
+                            config=config,
+                            stop_reason=retry_stop_reason,
+                            was_truncated=retry_was_truncated,
                         )
                     if use_full_file_mode_flag:
                         return self._parse_full_file_output(
-                            retry_content, file_context, retry_response, model, phase_spec, config=config,
-                            stop_reason=retry_stop_reason, was_truncated=retry_was_truncated
+                            retry_content,
+                            file_context,
+                            retry_response,
+                            model,
+                            phase_spec,
+                            config=config,
+                            stop_reason=retry_stop_reason,
+                            was_truncated=retry_was_truncated,
                         )
                     return self._parse_legacy_diff_output(
-                        retry_content, retry_response, model,
-                        stop_reason=retry_stop_reason, was_truncated=retry_was_truncated
+                        retry_content,
+                        retry_response,
+                        model,
+                        stop_reason=retry_stop_reason,
+                        was_truncated=retry_was_truncated,
                     )
                 except Exception as retry_exc:
                     logger.warning(f"[PROMPT_BUDGET] Minimal-context retry failed: {retry_exc}")
-            
+
             # Check if this is the Path/list error we're tracking
             if "unsupported operand type(s) for /" in error_msg and "list" in error_msg:
-                logger.error(f"[Builder] Path/list TypeError detected:\n{error_msg}\nTraceback:\n{error_traceback}")
-            
+                logger.error(
+                    f"[Builder] Path/list TypeError detected:\n{error_msg}\nTraceback:\n{error_traceback}"
+                )
+
             # Return error result
             return BuilderResult(
                 success=False,
@@ -1123,7 +1285,7 @@ class AnthropicBuilderClient:
                 builder_messages=[f"Builder error: {error_msg}"],
                 tokens_used=0,
                 model_used=model,
-                error=error_msg
+                error=error_msg,
             )
 
     def _extract_diff_from_text(self, text: str) -> str:
@@ -1137,21 +1299,21 @@ class AnthropicBuilderClient:
         """
         import re
 
-        lines = text.split('\n')
+        lines = text.split("\n")
         diff_lines = []
         in_diff = False
 
         for line in lines:
             # Start of diff
-            if line.startswith('diff --git'):
+            if line.startswith("diff --git"):
                 in_diff = True
                 diff_lines.append(line)
             # Continuation of diff
             elif in_diff:
                 # Clean up malformed hunk headers (remove trailing context)
-                if line.startswith('@@'):
+                if line.startswith("@@"):
                     # Extract the valid hunk header part only
-                    match = re.match(r'^(@@\s+-\d+,\d+\s+\+\d+,\d+\s+@@)', line)
+                    match = re.match(r"^(@@\s+-\d+,\d+\s+\+\d+,\d+\s+@@)", line)
                     if match:
                         # Use only the valid hunk header, discard anything after
                         clean_line = match.group(1)
@@ -1161,24 +1323,26 @@ class AnthropicBuilderClient:
                         logger.warning(f"Skipping malformed hunk header: {line[:80]}")
                         continue
                 # Check if still in diff (various diff markers)
-                elif (line.startswith(('index ', '---', '+++', '+', '-', ' ')) or
-                    line.startswith('new file mode') or
-                    line.startswith('deleted file mode') or
-                    line.startswith('similarity index') or
-                    line.startswith('rename from') or
-                    line.startswith('rename to') or
-                    line == ''):
+                elif (
+                    line.startswith(("index ", "---", "+++", "+", "-", " "))
+                    or line.startswith("new file mode")
+                    or line.startswith("deleted file mode")
+                    or line.startswith("similarity index")
+                    or line.startswith("rename from")
+                    or line.startswith("rename to")
+                    or line == ""
+                ):
                     diff_lines.append(line)
                 # Next diff section
-                elif line.startswith('diff --git'):
+                elif line.startswith("diff --git"):
                     diff_lines.append(line)
                 # End of diff (explanatory text or other content)
                 else:
                     # Stop if we hit markdown fence or explanatory text
-                    if line.startswith('```') or line.startswith('#'):
+                    if line.startswith("```") or line.startswith("#"):
                         break
 
-        return '\n'.join(diff_lines) if diff_lines else ""
+        return "\n".join(diff_lines) if diff_lines else ""
 
     def _parse_full_file_output(
         self,
@@ -1187,16 +1351,16 @@ class AnthropicBuilderClient:
         response,
         model: str,
         phase_spec: Optional[Dict] = None,
-        config = None,  # NEW: BuilderOutputConfig for thresholds
+        config=None,  # NEW: BuilderOutputConfig for thresholds
         stop_reason: Optional[str] = None,  # NEW: Anthropic stop_reason
-        was_truncated: bool = False  # NEW: Truncation flag
-    ) -> 'BuilderResult':
+        was_truncated: bool = False,  # NEW: Truncation flag
+    ) -> "BuilderResult":
         """Parse full-file replacement output and generate git diff locally.
-        
+
         Per GPT_RESPONSE10: LLM outputs complete file content, we generate diff.
         Per GPT_RESPONSE11: Added guards for large files, churn, and symbol validation.
         Per IMPLEMENTATION_PLAN2.md Phase 4: Added read-only enforcement and shrinkage/growth detection.
-        
+
         Args:
             content: Raw LLM output (should be JSON)
             file_context: Original file contents for diff generation
@@ -1204,13 +1368,14 @@ class AnthropicBuilderClient:
             model: Model identifier
             phase_spec: Phase specification for churn classification
             config: BuilderOutputConfig for thresholds (per IMPLEMENTATION_PLAN2.md)
-            
+
         Returns:
             BuilderResult with generated patch
         """
         # Load config if not provided
         if config is None:
             from autopack.builder_config import BuilderOutputConfig
+
             config = BuilderOutputConfig()
 
         def _escape_newlines_in_json_strings(raw: str) -> str:
@@ -1291,7 +1456,7 @@ class AnthropicBuilderClient:
                         idx += 2
                         continue
                     if nxt == "u" and idx + 5 < length:
-                        hex_value = raw_segment[idx + 2:idx + 6]
+                        hex_value = raw_segment[idx + 2 : idx + 6]
                         try:
                             result_chars.append(chr(int(hex_value, 16)))
                             idx += 6
@@ -1338,7 +1503,7 @@ class AnthropicBuilderClient:
 
                         # Preserve escaped sequences verbatim
                         if ch == "\\" and idx + 1 < len(target):
-                            segment_chars.append(target[idx:idx + 2])
+                            segment_chars.append(target[idx : idx + 2])
                             idx += 2
                             continue
 
@@ -1412,7 +1577,9 @@ class AnthropicBuilderClient:
             closing = "".join(reversed(stack))
             return raw_text + closing
 
-        def _restore_placeholder_content(payload: Dict[str, Any], placeholder_map: Dict[str, str]) -> None:
+        def _restore_placeholder_content(
+            payload: Dict[str, Any], placeholder_map: Dict[str, str]
+        ) -> None:
             files = payload.get("files")
             if not isinstance(files, list):
                 return
@@ -1460,7 +1627,7 @@ class AnthropicBuilderClient:
                 elif ch == "}":
                     depth -= 1
                     if depth == 0:
-                        return raw_text[start:idx + 1]
+                        return raw_text[start : idx + 1]
             return None
 
         try:
@@ -1484,10 +1651,10 @@ class AnthropicBuilderClient:
                     patch_content="",
                     builder_messages=[error_msg],
                     tokens_used=response.usage.input_tokens + response.usage.output_tokens,
-                prompt_tokens=response.usage.input_tokens,
-                completion_tokens=response.usage.output_tokens,
+                    prompt_tokens=response.usage.input_tokens,
+                    completion_tokens=response.usage.output_tokens,
                     model_used=model,
-                    error="full_file_parse_failed_diff_detected"
+                    error="full_file_parse_failed_diff_detected",
                 )
             if "```json" in content:
                 fenced = _extract_code_fence(content, "```json")
@@ -1511,7 +1678,9 @@ class AnthropicBuilderClient:
 
             if not result_json:
                 # Do NOT fall back to legacy git-diff; request regeneration instead
-                logger.warning("[Builder] WARNING: Full-file JSON parse failed; requesting regeneration (no legacy diff fallback)")
+                logger.warning(
+                    "[Builder] WARNING: Full-file JSON parse failed; requesting regeneration (no legacy diff fallback)"
+                )
                 debug_path = Path("builder_fullfile_failure_latest.json")
                 try:
                     debug_path.write_text(content, encoding="utf-8")
@@ -1533,7 +1702,7 @@ class AnthropicBuilderClient:
                         attempted=content,
                         repaired=json.dumps(repaired_json),
                         error=initial_error,
-                        method=repair_method
+                        method=repair_method,
                     )
                     # Use the repaired JSON
                     result_json = repaired_json
@@ -1546,7 +1715,7 @@ class AnthropicBuilderClient:
                         attempted=content,
                         repaired=None,
                         error=initial_error,
-                        method=repair_method
+                        method=repair_method,
                     )
                     error_msg = "LLM output invalid format - expected JSON with 'files' array (repair also failed)"
                     # Include truncation info so autonomous_executor can trigger structured_edit fallback
@@ -1558,22 +1727,26 @@ class AnthropicBuilderClient:
                         patch_content="",
                         builder_messages=[
                             error_msg,
-                            "Regenerate a valid JSON full-file response; diff fallback is disabled."
+                            "Regenerate a valid JSON full-file response; diff fallback is disabled.",
                         ],
                         tokens_used=response.usage.input_tokens + response.usage.output_tokens,
-                prompt_tokens=response.usage.input_tokens,
-                completion_tokens=response.usage.output_tokens,
+                        prompt_tokens=response.usage.input_tokens,
+                        completion_tokens=response.usage.output_tokens,
                         model_used=model,
-                        error="full_file_parse_failed" if not was_truncated else "full_file_parse_failed (stop_reason=max_tokens)",
+                        error=(
+                            "full_file_parse_failed"
+                            if not was_truncated
+                            else "full_file_parse_failed (stop_reason=max_tokens)"
+                        ),
                         stop_reason=stop_reason,
-                        was_truncated=was_truncated
+                        was_truncated=was_truncated,
                     )
-            
+
             summary = result_json.get("summary", "Generated by Claude")
             if placeholder_map:
                 _restore_placeholder_content(result_json, placeholder_map)
             files = result_json.get("files", [])
-            
+
             if not files:
                 error_msg = "LLM returned empty files array"
                 if was_truncated:
@@ -1583,14 +1756,14 @@ class AnthropicBuilderClient:
                     patch_content="",
                     builder_messages=[error_msg],
                     tokens_used=response.usage.input_tokens + response.usage.output_tokens,
-                prompt_tokens=response.usage.input_tokens,
-                completion_tokens=response.usage.output_tokens,
+                    prompt_tokens=response.usage.input_tokens,
+                    completion_tokens=response.usage.output_tokens,
                     model_used=model,
                     error=error_msg,
                     stop_reason=stop_reason,
-                    was_truncated=was_truncated
+                    was_truncated=was_truncated,
                 )
-            
+
             # Schema validation for file entries
             required_keys = {"path", "mode", "new_content"}
             for entry in files:
@@ -1607,17 +1780,21 @@ class AnthropicBuilderClient:
                         patch_content="",
                         builder_messages=[error_msg],
                         tokens_used=response.usage.input_tokens + response.usage.output_tokens,
-                prompt_tokens=response.usage.input_tokens,
-                completion_tokens=response.usage.output_tokens,
+                        prompt_tokens=response.usage.input_tokens,
+                        completion_tokens=response.usage.output_tokens,
                         model_used=model,
-                        error="full_file_schema_invalid" if not was_truncated else "full_file_schema_invalid (stop_reason=max_tokens)",
+                        error=(
+                            "full_file_schema_invalid"
+                            if not was_truncated
+                            else "full_file_schema_invalid (stop_reason=max_tokens)"
+                        ),
                         stop_reason=stop_reason,
-                        was_truncated=was_truncated
+                        was_truncated=was_truncated,
                     )
-            
+
             # Determine change type for churn validation (per GPT_RESPONSE11 Q4)
             change_type = self._classify_change_type(phase_spec)
-            
+
             # Generate unified diff for each file
             diff_parts = []
             attempted_file_paths = []  # BUILD-141 Part 8: Track files Builder attempted to modify
@@ -1677,11 +1854,11 @@ class AnthropicBuilderClient:
 
                 # BUILD-141 Part 8: Track attempted file paths for no-op detection
                 attempted_file_paths.append(file_path)
-                
+
                 # Get original content
                 old_content = existing_files.get(file_path, "")
-                old_line_count = old_content.count('\n') + 1 if old_content else 0
-                new_line_count = new_content.count('\n') + 1 if new_content else 0
+                old_line_count = old_content.count("\n") + 1 if old_content else 0
+                new_line_count = new_content.count("\n") + 1 if new_content else 0
 
                 # Pack YAML preflight validation (per ref2.md - pack quality improvements)
                 pack_validation_error = _validate_pack_fullfile(file_path, new_content)
@@ -1692,13 +1869,12 @@ class AnthropicBuilderClient:
                         patch_content="",
                         builder_messages=[pack_validation_error],
                         tokens_used=response.usage.input_tokens + response.usage.output_tokens,
-                prompt_tokens=response.usage.input_tokens,
-                completion_tokens=response.usage.output_tokens,
+                        prompt_tokens=response.usage.input_tokens,
+                        completion_tokens=response.usage.output_tokens,
                         model_used=model,
-                        error=pack_validation_error
+                        error=pack_validation_error,
                     )
 
-                
                 # ============================================================================
                 # NEW: Read-only file enforcement (per IMPLEMENTATION_PLAN2.md Phase 4.1)
                 # This is the PARSER-LEVEL enforcement - LLM violated the contract
@@ -1710,33 +1886,37 @@ class AnthropicBuilderClient:
                         f"The LLM should not have attempted to modify it."
                     )
                     logger.error(f"[Builder] {error_msg}")
-                    
+
                     # Record telemetry (if available in context)
                     # Note: We don't have run_id/phase_id here, so we log for manual review
-                    logger.warning(f"[TELEMETRY] readonly_violation: file={file_path}, lines={old_line_count}, model={model}")
-                    
+                    logger.warning(
+                        f"[TELEMETRY] readonly_violation: file={file_path}, lines={old_line_count}, model={model}"
+                    )
+
                     return BuilderResult(
                         success=False,
                         patch_content="",
                         builder_messages=[error_msg],
                         tokens_used=response.usage.input_tokens + response.usage.output_tokens,
-                prompt_tokens=response.usage.input_tokens,
-                completion_tokens=response.usage.output_tokens,
+                        prompt_tokens=response.usage.input_tokens,
+                        completion_tokens=response.usage.output_tokens,
                         model_used=model,
-                        error=error_msg
+                        error=error_msg,
                     )
-                
+
                 # ============================================================================
                 # NEW: Shrinkage detection (per IMPLEMENTATION_PLAN2.md Phase 4.2)
                 # Reject >60% shrinkage unless phase allows mass deletion
                 # ============================================================================
                 if mode == "modify" and old_content and new_content:
                     shrinkage_percent = ((old_line_count - new_line_count) / old_line_count) * 100
-                    
+
                     if shrinkage_percent > config.max_shrinkage_percent:
                         # Check if phase allows mass deletion
-                        allow_mass_deletion = phase_spec.get("allow_mass_deletion", False) if phase_spec else False
-                        
+                        allow_mass_deletion = (
+                            phase_spec.get("allow_mass_deletion", False) if phase_spec else False
+                        )
+
                         if not allow_mass_deletion:
                             error_msg = (
                                 f"suspicious_shrinkage: {file_path} shrank by {shrinkage_percent:.1f}% "
@@ -1745,19 +1925,22 @@ class AnthropicBuilderClient:
                                 f"This may indicate truncation. Set allow_mass_deletion=true to override."
                             )
                             logger.error(f"[Builder] {error_msg}")
-                            logger.warning(f"[TELEMETRY] suspicious_shrinkage: file={file_path}, old={old_line_count}, new={new_line_count}, shrinkage={shrinkage_percent:.1f}%")
-                            
+                            logger.warning(
+                                f"[TELEMETRY] suspicious_shrinkage: file={file_path}, old={old_line_count}, new={new_line_count}, shrinkage={shrinkage_percent:.1f}%"
+                            )
+
                             return BuilderResult(
                                 success=False,
                                 patch_content="",
                                 builder_messages=[error_msg],
-                                tokens_used=response.usage.input_tokens + response.usage.output_tokens,
-                prompt_tokens=response.usage.input_tokens,
-                completion_tokens=response.usage.output_tokens,
+                                tokens_used=response.usage.input_tokens
+                                + response.usage.output_tokens,
+                                prompt_tokens=response.usage.input_tokens,
+                                completion_tokens=response.usage.output_tokens,
                                 model_used=model,
-                                error=error_msg
+                                error=error_msg,
                             )
-                
+
                 # ============================================================================
                 # NEW: Growth detection (per IMPLEMENTATION_PLAN2.md Phase 4.2)
                 # Reject >3x growth unless phase allows mass addition
@@ -1766,12 +1949,20 @@ class AnthropicBuilderClient:
                     growth_multiplier = new_line_count / old_line_count
 
                     # Optional: skip growth guard for YAML packs where large expansions are expected
-                    if getattr(config, "disable_growth_guard_for_yaml", False) and file_path.endswith((".yaml", ".yml")):
-                        logger.info(f"[Builder] Skipping growth guard for YAML file {file_path} (growth {growth_multiplier:.1f}x)")
+                    if getattr(
+                        config, "disable_growth_guard_for_yaml", False
+                    ) and file_path.endswith((".yaml", ".yml")):
+                        logger.info(
+                            f"[Builder] Skipping growth guard for YAML file {file_path} (growth {growth_multiplier:.1f}x)"
+                        )
                     else:
                         if growth_multiplier > config.max_growth_multiplier:
                             # Check if phase allows mass addition
-                            allow_mass_addition = phase_spec.get("allow_mass_addition", False) if phase_spec else False
+                            allow_mass_addition = (
+                                phase_spec.get("allow_mass_addition", False)
+                                if phase_spec
+                                else False
+                            )
 
                             if not allow_mass_addition:
                                 error_msg = (
@@ -1790,20 +1981,27 @@ class AnthropicBuilderClient:
                                     success=False,
                                     patch_content="",
                                     builder_messages=[error_msg],
-                                    tokens_used=response.usage.input_tokens + response.usage.output_tokens,
-                prompt_tokens=response.usage.input_tokens,
-                completion_tokens=response.usage.output_tokens,
+                                    tokens_used=response.usage.input_tokens
+                                    + response.usage.output_tokens,
+                                    prompt_tokens=response.usage.input_tokens,
+                                    completion_tokens=response.usage.output_tokens,
                                     model_used=model,
                                     error=error_msg,
                                 )
-                
+
                 # Q4: Churn detection for small fixes
                 if mode == "modify" and change_type == "small_fix" and old_content:
                     # Optional: skip small-fix churn guard for YAML packs where high churn is expected
                     if file_path.endswith(("package-lock.json", "yarn.lock", "package.json")):
-                        logger.info(f"[Builder] Skipping small-fix churn guard for manifest/lockfile {file_path}")
-                    elif getattr(config, "disable_small_fix_churn_for_yaml", False) and file_path.endswith((".yaml", ".yml")):
-                        logger.info(f"[Builder] Skipping small-fix churn guard for YAML file {file_path}")
+                        logger.info(
+                            f"[Builder] Skipping small-fix churn guard for manifest/lockfile {file_path}"
+                        )
+                    elif getattr(
+                        config, "disable_small_fix_churn_for_yaml", False
+                    ) and file_path.endswith((".yaml", ".yml")):
+                        logger.info(
+                            f"[Builder] Skipping small-fix churn guard for YAML file {file_path}"
+                        )
                     else:
                         churn_percent = self._calculate_churn_percent(old_content, new_content)
                         if churn_percent > config.max_churn_percent_for_small_fix:
@@ -1813,16 +2011,19 @@ class AnthropicBuilderClient:
                                 success=False,
                                 patch_content="",
                                 builder_messages=[error_msg],
-                                tokens_used=response.usage.input_tokens + response.usage.output_tokens,
-                prompt_tokens=response.usage.input_tokens,
-                completion_tokens=response.usage.output_tokens,
+                                tokens_used=response.usage.input_tokens
+                                + response.usage.output_tokens,
+                                prompt_tokens=response.usage.input_tokens,
+                                completion_tokens=response.usage.output_tokens,
                                 model_used=model,
-                                error=error_msg
+                                error=error_msg,
                             )
-                
+
                 # Q5: Symbol validation for small fixes
                 if mode == "modify" and change_type == "small_fix" and old_content:
-                    missing_symbols = self._check_missing_symbols(old_content, new_content, file_path)
+                    missing_symbols = self._check_missing_symbols(
+                        old_content, new_content, file_path
+                    )
                     if missing_symbols:
                         error_msg = f"symbol_missing_after_full_file_replacement: lost {missing_symbols} in {file_path}"
                         logger.error(f"[Builder] {error_msg}")
@@ -1831,12 +2032,12 @@ class AnthropicBuilderClient:
                             patch_content="",
                             builder_messages=[error_msg],
                             tokens_used=response.usage.input_tokens + response.usage.output_tokens,
-                prompt_tokens=response.usage.input_tokens,
-                completion_tokens=response.usage.output_tokens,
+                            prompt_tokens=response.usage.input_tokens,
+                            completion_tokens=response.usage.output_tokens,
                             model_used=model,
-                            error=error_msg
+                            error=error_msg,
                         )
-                
+
                 # Generate diff based on mode
                 if mode == "delete":
                     # Generate delete diff
@@ -1847,10 +2048,10 @@ class AnthropicBuilderClient:
                 else:  # modify
                     # Generate modify diff
                     diff = self._generate_unified_diff(file_path, old_content, new_content)
-                
+
                 if diff:
                     diff_parts.append(diff)
-            
+
             if not diff_parts:
                 # BUILD-141 Part 8: Treat "no diffs" as no-op success if deliverables already exist
                 # This handles idempotent phases where Builder generates content matching existing files
@@ -1859,6 +2060,7 @@ class AnthropicBuilderClient:
                 # If Builder tried to modify files that already match the generated content,
                 # this is a successful no-op (idempotent phase)
                 from pathlib import Path
+
                 repo_root = Path.cwd()  # Workspace root where autonomous executor runs
 
                 all_files_exist = False
@@ -1869,7 +2071,7 @@ class AnthropicBuilderClient:
                         if file_path.exists() and file_path.is_file():
                             existing_count += 1
 
-                    all_files_exist = (existing_count == len(attempted_file_paths))
+                    all_files_exist = existing_count == len(attempted_file_paths)
 
                 if all_files_exist:
                     # Idempotent phase: Builder regenerated content matching existing files
@@ -1885,11 +2087,11 @@ class AnthropicBuilderClient:
                         patch_content="",  # Empty patch is OK for no-op
                         builder_messages=[no_op_msg],
                         tokens_used=response.usage.input_tokens + response.usage.output_tokens,
-                prompt_tokens=response.usage.input_tokens,
-                completion_tokens=response.usage.output_tokens,
+                        prompt_tokens=response.usage.input_tokens,
+                        completion_tokens=response.usage.output_tokens,
                         model_used=model,
                         stop_reason=stop_reason,
-                        was_truncated=was_truncated
+                        was_truncated=was_truncated,
                     )
                 else:
                     # Deliverables don't exist or couldn't be determined - this is a real failure
@@ -1899,17 +2101,19 @@ class AnthropicBuilderClient:
                         patch_content="",
                         builder_messages=[error_msg],
                         tokens_used=response.usage.input_tokens + response.usage.output_tokens,
-                prompt_tokens=response.usage.input_tokens,
-                completion_tokens=response.usage.output_tokens,
+                        prompt_tokens=response.usage.input_tokens,
+                        completion_tokens=response.usage.output_tokens,
                         model_used=model,
-                        error=error_msg
+                        error=error_msg,
                     )
-            
+
             # Join diffs defensively. Some `git apply` versions are picky about
             # patch boundaries; ensure each diff starts on a fresh line and the
             # overall patch ends with a newline to avoid "patch fragment without header".
             patch_content = "\n\n".join(d.rstrip("\n") for d in diff_parts).rstrip("\n") + "\n"
-            logger.info(f"[Builder] Generated {len(diff_parts)} file diffs locally from full-file content")
+            logger.info(
+                f"[Builder] Generated {len(diff_parts)} file diffs locally from full-file content"
+            )
 
             return BuilderResult(
                 success=True,
@@ -1920,9 +2124,9 @@ class AnthropicBuilderClient:
                 completion_tokens=response.usage.output_tokens,
                 model_used=model,
                 stop_reason=stop_reason,
-                was_truncated=was_truncated
+                was_truncated=was_truncated,
             )
-            
+
         except Exception as e:
             error_msg = f"Failed to parse full-file output: {str(e)}"
             logger.error(f"{error_msg}\nFirst 500 chars: {content[:500]}")
@@ -1930,33 +2134,30 @@ class AnthropicBuilderClient:
                 success=False,
                 patch_content="",
                 builder_messages=[error_msg],
-                tokens_used=response.usage.input_tokens + response.usage.output_tokens if response else 0,
+                tokens_used=(
+                    response.usage.input_tokens + response.usage.output_tokens if response else 0
+                ),
                 model_used=model,
-                error=error_msg
+                error=error_msg,
             )
 
-    def _generate_unified_diff(
-        self,
-        file_path: str,
-        old_content: str,
-        new_content: str
-    ) -> str:
+    def _generate_unified_diff(self, file_path: str, old_content: str, new_content: str) -> str:
         """Generate a unified diff from old and new file content.
-        
+
         Per GPT_RESPONSE10: Generate git-compatible diff locally, not by LLM.
         Per GPT_RESPONSE12 Q3: Fixed format for new/deleted files with /dev/null.
-        
+
         Args:
             file_path: Path to the file
             old_content: Original file content (empty for new files)
             new_content: New file content (empty for deleted files)
-            
+
         Returns:
             Unified diff string in git format
         """
         import subprocess
         import tempfile
-        
+
         from pathlib import Path
 
         # Determine file mode: new, deleted, or modified
@@ -1981,31 +2182,37 @@ class AnthropicBuilderClient:
                 logger.warning(
                     f"[Builder] Diff generation: could not read existing file {file_path} to avoid new-file mode: {e}"
                 )
-        
+
         # Construct git-format diff header (per GPT_RESPONSE12 Q3)
         # Order matters: diff --git, new/deleted file mode, index, ---, +++
         git_header = [f"diff --git a/{file_path} b/{file_path}"]
-        
+
         if is_new_file:
-            git_header.extend([
-                "new file mode 100644",
-                "index 0000000..1111111",
-                "--- /dev/null",
-                f"+++ b/{file_path}",
-            ])
+            git_header.extend(
+                [
+                    "new file mode 100644",
+                    "index 0000000..1111111",
+                    "--- /dev/null",
+                    f"+++ b/{file_path}",
+                ]
+            )
         elif is_deleted_file:
-            git_header.extend([
-                "deleted file mode 100644",
-                "index 1111111..0000000",
-                f"--- a/{file_path}",
-                "+++ /dev/null",
-            ])
+            git_header.extend(
+                [
+                    "deleted file mode 100644",
+                    "index 1111111..0000000",
+                    f"--- a/{file_path}",
+                    "+++ /dev/null",
+                ]
+            )
         else:
-            git_header.extend([
-                "index 1111111..2222222 100644",
-                f"--- a/{file_path}",
-                f"+++ b/{file_path}",
-            ])
+            git_header.extend(
+                [
+                    "index 1111111..2222222 100644",
+                    f"--- a/{file_path}",
+                    f"+++ b/{file_path}",
+                ]
+            )
 
         # Generate reliable diff body via git --no-index to avoid malformed hunks
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -2053,7 +2260,7 @@ class AnthropicBuilderClient:
         body_lines = []
         started = False
         for line in diff_lines:
-            if line.startswith('@@') or started:
+            if line.startswith("@@") or started:
                 started = True
                 body_lines.append(line)
 
@@ -2066,18 +2273,18 @@ class AnthropicBuilderClient:
 
     def _classify_change_type(self, phase_spec: Optional[Dict]) -> str:
         """Classify whether a phase is a small fix or large refactor.
-        
+
         Per GPT_RESPONSE11 Q4: Use phase metadata to classify.
-        
+
         Args:
             phase_spec: Phase specification
-            
+
         Returns:
             "small_fix" or "large_refactor"
         """
         if not phase_spec:
             return "small_fix"  # Default to conservative
-        
+
         complexity = phase_spec.get("complexity", "medium")
         num_criteria = len(phase_spec.get("acceptance_criteria", []) or [])
         scope_cfg = phase_spec.get("scope") or {}
@@ -2091,13 +2298,13 @@ class AnthropicBuilderClient:
             return "large_refactor"
         if any("/packs/" in p or p.endswith((".yaml", ".yml")) for p in scope_paths):
             return "large_refactor"
-        
+
         # Explicit override
         if phase_spec.get("change_size") == "large_refactor":
             return "large_refactor"
         if phase_spec.get("allow_symbol_removal"):
             return "large_refactor"
-        
+
         # Heuristic per GPT2
         if complexity == "low":
             return "small_fix"
@@ -2108,83 +2315,80 @@ class AnthropicBuilderClient:
 
     def _calculate_churn_percent(self, old_content: str, new_content: str) -> float:
         """Calculate the percentage of lines changed between old and new content.
-        
+
         Per GPT_RESPONSE11 Q4: Compute churn from patch characteristics.
-        
+
         Args:
             old_content: Original file content
             new_content: New file content
-            
+
         Returns:
             Percentage of lines changed (0-100)
         """
         import difflib
-        
+
         old_lines = old_content.splitlines()
         new_lines = new_content.splitlines()
-        
+
         if not old_lines:
             return 100.0  # All new content
-        
+
         # Use SequenceMatcher to count changed lines
         matcher = difflib.SequenceMatcher(None, old_lines, new_lines)
-        
+
         # Count lines that are different
         changed_lines = 0
         for tag, i1, i2, j1, j2 in matcher.get_opcodes():
-            if tag == 'replace':
+            if tag == "replace":
                 changed_lines += max(i2 - i1, j2 - j1)
-            elif tag == 'delete':
+            elif tag == "delete":
                 changed_lines += i2 - i1
-            elif tag == 'insert':
+            elif tag == "insert":
                 changed_lines += j2 - j1
-        
+
         churn_percent = 100.0 * changed_lines / max(len(old_lines), 1)
         return churn_percent
 
     def _check_missing_symbols(
-        self,
-        old_content: str,
-        new_content: str,
-        file_path: str
+        self, old_content: str, new_content: str, file_path: str
     ) -> Optional[str]:
         """Check if any required top-level symbols are missing after full-file replacement.
-        
+
         Per GPT_RESPONSE11 Q5: Symbol validation for small fixes.
-        
+
         Args:
             old_content: Original file content
             new_content: New file content
             file_path: Path to the file (for language detection)
-            
+
         Returns:
             Comma-separated list of missing symbols, or None if all present
         """
         import re
-        
+
         # Only validate Python files for now
-        if not file_path.endswith('.py'):
+        if not file_path.endswith(".py"):
             return None
-        
+
         # Extract top-level function and class definitions
         def extract_symbols(content: str) -> set:
             symbols = set()
             # Match top-level def and class (not indented)
-            for match in re.finditer(r'^(def|class)\s+(\w+)', content, re.MULTILINE):
+            for match in re.finditer(r"^(def|class)\s+(\w+)", content, re.MULTILINE):
                 symbols.add(match.group(2))
             return symbols
-        
+
         old_symbols = extract_symbols(old_content)
         new_symbols = extract_symbols(new_content)
-        
+
         # Find missing symbols
         missing = old_symbols - new_symbols
-        
+
         if missing:
             # Log warning for large refactors, error for small fixes
             logger.warning(f"[Builder] Symbols removed from {file_path}: {missing}")
             return ", ".join(sorted(missing))
-        
+
         return None
 
     def _parse_legacy_diff_output(
@@ -2194,17 +2398,17 @@ class AnthropicBuilderClient:
         model: str,
         stop_reason=None,
         was_truncated: bool = False,
-    ) -> 'BuilderResult':
+    ) -> "BuilderResult":
         """Parse legacy git diff output from LLM.
-        
+
         This is the deprecated mode where LLM generates raw git diffs.
         Kept for backward compatibility.
-        
+
         Args:
             content: Raw LLM output
             response: API response object for token usage
             model: Model identifier
-            
+
         Returns:
             BuilderResult with extracted patch
         """
@@ -2246,12 +2450,12 @@ class AnthropicBuilderClient:
                         patch_content="",
                         builder_messages=[error_msg],
                         tokens_used=response.usage.input_tokens + response.usage.output_tokens,
-                prompt_tokens=response.usage.input_tokens,
-                completion_tokens=response.usage.output_tokens,
+                        prompt_tokens=response.usage.input_tokens,
+                        completion_tokens=response.usage.output_tokens,
                         model_used=model,
                         error=error_msg,
                         stop_reason=stop_reason,
-                        was_truncated=was_truncated
+                        was_truncated=was_truncated,
                     )
 
         return BuilderResult(
@@ -2259,11 +2463,11 @@ class AnthropicBuilderClient:
             patch_content=patch_content,
             builder_messages=[summary],
             tokens_used=response.usage.input_tokens + response.usage.output_tokens,
-                prompt_tokens=response.usage.input_tokens,
-                completion_tokens=response.usage.output_tokens,
+            prompt_tokens=response.usage.input_tokens,
+            completion_tokens=response.usage.output_tokens,
             model_used=model,
             stop_reason=stop_reason,
-            was_truncated=was_truncated
+            was_truncated=was_truncated,
         )
 
     def _parse_structured_edit_output(
@@ -2273,10 +2477,10 @@ class AnthropicBuilderClient:
         response,
         model: str,
         phase_spec: Dict,
-        config = None,
+        config=None,
         stop_reason=None,
         was_truncated: bool = False,
-    ) -> 'BuilderResult':
+    ) -> "BuilderResult":
         """Parse LLM's structured edit JSON output (Stage 2)
 
         Per IMPLEMENTATION_PLAN3.md Phase 2.2
@@ -2293,7 +2497,9 @@ class AnthropicBuilderClient:
         if file_context:
             files = file_context.get("existing_files", {})
             if not isinstance(files, dict):
-                logger.warning(f"[Builder] file_context.get('existing_files') returned non-dict: {type(files)}, using empty dict")
+                logger.warning(
+                    f"[Builder] file_context.get('existing_files') returned non-dict: {type(files)}, using empty dict"
+                )
                 files = {}
 
         try:
@@ -2318,21 +2524,26 @@ class AnthropicBuilderClient:
 
             if not result_json:
                 # BUILD-039: Apply JSON repair to structured_edit mode (same as full-file mode)
-                logger.info("[Builder] Attempting JSON repair on malformed structured_edit output...")
+                logger.info(
+                    "[Builder] Attempting JSON repair on malformed structured_edit output..."
+                )
                 from autopack.repair_helpers import JsonRepairHelper, save_repair_debug
+
                 json_repair = JsonRepairHelper()
                 error_msg = initial_parse_error or "Failed to parse JSON with 'operations' array"
                 repaired_json, repair_method = json_repair.attempt_repair(content, error_msg)
 
                 if repaired_json is not None:
-                    logger.info(f"[Builder] Structured edit JSON repair succeeded via {repair_method}")
+                    logger.info(
+                        f"[Builder] Structured edit JSON repair succeeded via {repair_method}"
+                    )
                     save_repair_debug(
                         file_path="builder_structured_edit.json",
                         original="",
                         attempted=content,
                         repaired=json.dumps(repaired_json),
                         error=error_msg,
-                        method=repair_method
+                        method=repair_method,
                     )
                     result_json = repaired_json
                 else:
@@ -2346,14 +2557,14 @@ class AnthropicBuilderClient:
                         patch_content="",
                         builder_messages=[error_msg],
                         tokens_used=response.usage.input_tokens + response.usage.output_tokens,
-                prompt_tokens=response.usage.input_tokens,
-                completion_tokens=response.usage.output_tokens,
+                        prompt_tokens=response.usage.input_tokens,
+                        completion_tokens=response.usage.output_tokens,
                         model_used=model,
                         error=error_msg,
                         stop_reason=stop_reason,
-                        was_truncated=was_truncated
+                        was_truncated=was_truncated,
                     )
-            
+
             # Extract summary and operations
             summary = result_json.get("summary", "Structured edits")
             operations_json = result_json.get("operations", [])
@@ -2361,7 +2572,9 @@ class AnthropicBuilderClient:
             # BUILD-040: Auto-convert full-file format to structured_edit format
             # If LLM produced {"files": [...]} instead of {"operations": [...]}, convert it
             if not operations_json and "files" in result_json:
-                logger.info("[Builder] Detected full-file format in structured_edit mode - auto-converting to operations")
+                logger.info(
+                    "[Builder] Detected full-file format in structured_edit mode - auto-converting to operations"
+                )
                 files_json = result_json.get("files", [])
                 operations_json = []
 
@@ -2376,17 +2589,19 @@ class AnthropicBuilderClient:
                     if mode == "create" and new_content:
                         # Convert "create" to prepend operation (which creates file if missing)
                         # Using prepend instead of insert to handle non-existent files
-                        operations_json.append({
-                            "type": "prepend",
-                            "file_path": file_path,
-                            "content": new_content
-                        })
-                        logger.info(f"[Builder] Converted create file '{file_path}' to prepend operation")
+                        operations_json.append(
+                            {"type": "prepend", "file_path": file_path, "content": new_content}
+                        )
+                        logger.info(
+                            f"[Builder] Converted create file '{file_path}' to prepend operation"
+                        )
                     elif mode == "delete":
                         # For delete, we need to know file line count
                         # Since we don't have it here, skip delete conversions
                         # DELETE mode is rare for restoration tasks anyway
-                        logger.warning(f"[Builder] Skipping delete mode conversion for '{file_path}' (not supported)")
+                        logger.warning(
+                            f"[Builder] Skipping delete mode conversion for '{file_path}' (not supported)"
+                        )
                         continue
                     elif mode == "modify" and new_content:
                         # Convert "modify" to replace operation (whole file)
@@ -2396,28 +2611,36 @@ class AnthropicBuilderClient:
                             # Get actual line count from existing file
                             existing_content = files.get(file_path, "")
                             if isinstance(existing_content, str):
-                                line_count = existing_content.count('\n') + 1
-                                operations_json.append({
-                                    "type": "replace",
-                                    "file_path": file_path,
-                                    "start_line": 1,
-                                    "end_line": line_count,
-                                    "content": new_content
-                                })
-                                logger.info(f"[Builder] Converted modify file '{file_path}' to replace operation (lines 1-{line_count})")
+                                line_count = existing_content.count("\n") + 1
+                                operations_json.append(
+                                    {
+                                        "type": "replace",
+                                        "file_path": file_path,
+                                        "start_line": 1,
+                                        "end_line": line_count,
+                                        "content": new_content,
+                                    }
+                                )
+                                logger.info(
+                                    f"[Builder] Converted modify file '{file_path}' to replace operation (lines 1-{line_count})"
+                                )
                             else:
-                                logger.warning(f"[Builder] Skipping modify for '{file_path}' (existing content not string)")
+                                logger.warning(
+                                    f"[Builder] Skipping modify for '{file_path}' (existing content not string)"
+                                )
                         else:
                             # File doesn't exist, treat as create (use prepend)
-                            operations_json.append({
-                                "type": "prepend",
-                                "file_path": file_path,
-                                "content": new_content
-                            })
-                            logger.info(f"[Builder] Converted modify non-existent file '{file_path}' to prepend operation (create)")
+                            operations_json.append(
+                                {"type": "prepend", "file_path": file_path, "content": new_content}
+                            )
+                            logger.info(
+                                f"[Builder] Converted modify non-existent file '{file_path}' to prepend operation (create)"
+                            )
 
                 if operations_json:
-                    logger.info(f"[Builder] Format conversion successful: {len(operations_json)} operations generated")
+                    logger.info(
+                        f"[Builder] Format conversion successful: {len(operations_json)} operations generated"
+                    )
                 else:
                     logger.warning("[Builder] Format conversion produced no operations")
 
@@ -2430,12 +2653,12 @@ class AnthropicBuilderClient:
                     patch_content="",
                     builder_messages=[info_msg],
                     tokens_used=response.usage.input_tokens + response.usage.output_tokens,
-                prompt_tokens=response.usage.input_tokens,
-                completion_tokens=response.usage.output_tokens,
+                    prompt_tokens=response.usage.input_tokens,
+                    completion_tokens=response.usage.output_tokens,
                     model_used=model,
-                    error=None
+                    error=None,
                 )
-            
+
             # Parse operations
             operations = []
             for i, op_json in enumerate(operations_json):
@@ -2448,9 +2671,9 @@ class AnthropicBuilderClient:
                         start_line=op_json.get("start_line"),
                         end_line=op_json.get("end_line"),
                         context_before=op_json.get("context_before"),
-                        context_after=op_json.get("context_after")
+                        context_after=op_json.get("context_after"),
                     )
-                    
+
                     # Validate operation
                     is_valid, error = op.validate()
                     if not is_valid:
@@ -2461,14 +2684,14 @@ class AnthropicBuilderClient:
                             patch_content="",
                             builder_messages=[error_msg],
                             tokens_used=response.usage.input_tokens + response.usage.output_tokens,
-                prompt_tokens=response.usage.input_tokens,
-                completion_tokens=response.usage.output_tokens,
+                            prompt_tokens=response.usage.input_tokens,
+                            completion_tokens=response.usage.output_tokens,
                             model_used=model,
-                            error=error_msg
+                            error=error_msg,
                         )
-                    
+
                     operations.append(op)
-                
+
                 except Exception as e:
                     error_msg = f"Failed to parse operation {i}: {str(e)}"
                     logger.error(f"[Builder] {error_msg}")
@@ -2477,15 +2700,15 @@ class AnthropicBuilderClient:
                         patch_content="",
                         builder_messages=[error_msg],
                         tokens_used=response.usage.input_tokens + response.usage.output_tokens,
-                prompt_tokens=response.usage.input_tokens,
-                completion_tokens=response.usage.output_tokens,
+                        prompt_tokens=response.usage.input_tokens,
+                        completion_tokens=response.usage.output_tokens,
                         model_used=model,
-                        error=error_msg
+                        error=error_msg,
                     )
-            
+
             # Create edit plan
             edit_plan = EditPlan(summary=summary, operations=operations)
-            
+
             # Validate plan
             is_valid, error = edit_plan.validate()
             if not is_valid:
@@ -2496,15 +2719,17 @@ class AnthropicBuilderClient:
                     patch_content="",
                     builder_messages=[error_msg],
                     tokens_used=response.usage.input_tokens + response.usage.output_tokens,
-                prompt_tokens=response.usage.input_tokens,
-                completion_tokens=response.usage.output_tokens,
+                    prompt_tokens=response.usage.input_tokens,
+                    completion_tokens=response.usage.output_tokens,
                     model_used=model,
-                    error=error_msg
+                    error=error_msg,
                 )
-            
+
             # Store edit plan in BuilderResult
-            logger.info(f"[Builder] Generated structured edit plan with {len(operations)} operations")
-            
+            logger.info(
+                f"[Builder] Generated structured edit plan with {len(operations)} operations"
+            )
+
             return BuilderResult(
                 success=True,
                 patch_content="",  # No patch content for structured edits
@@ -2515,9 +2740,9 @@ class AnthropicBuilderClient:
                 model_used=model,
                 edit_plan=edit_plan,  # NEW: Store edit plan
                 stop_reason=stop_reason,
-                was_truncated=was_truncated
+                was_truncated=was_truncated,
             )
-        
+
         except Exception as e:
             logger.error(f"[Builder] Error parsing structured edit output: {e}")
             return BuilderResult(
@@ -2528,7 +2753,7 @@ class AnthropicBuilderClient:
                 prompt_tokens=response.usage.input_tokens,
                 completion_tokens=response.usage.output_tokens,
                 model_used=model,
-                error=str(e)
+                error=str(e),
             )
 
     def _parse_ndjson_output(
@@ -2540,7 +2765,7 @@ class AnthropicBuilderClient:
         phase_spec: Dict,
         config: Optional[Any] = None,
         stop_reason: Optional[str] = None,
-        was_truncated: bool = False
+        was_truncated: bool = False,
     ) -> BuilderResult:
         """
         Parse NDJSON format output (BUILD-129 Phase 3).
@@ -2577,10 +2802,17 @@ class AnthropicBuilderClient:
             # This shows up as lines like "{" and "}" (pretty JSON) and a top-level "operations" array.
             try:
                 import json as _json
-                if sanitized.startswith("{") and '"operations"' in sanitized and "diff --git" not in sanitized:
+
+                if (
+                    sanitized.startswith("{")
+                    and '"operations"' in sanitized
+                    and "diff --git" not in sanitized
+                ):
                     obj = _json.loads(sanitized)
                     if isinstance(obj, dict) and isinstance(obj.get("operations"), list):
-                        logger.warning("[BUILD-129:NDJSON] Detected structured-edit JSON; falling back to structured-edit parser")
+                        logger.warning(
+                            "[BUILD-129:NDJSON] Detected structured-edit JSON; falling back to structured-edit parser"
+                        )
                         return self._parse_structured_edit_output(
                             sanitized,
                             file_context,
@@ -2613,13 +2845,17 @@ class AnthropicBuilderClient:
                 output_utilization = float(tb.get("output_utilization") or 0.0)
             except Exception:
                 output_utilization = 0.0
-            effective_truncation = bool(was_truncated or (parse_result.was_truncated and output_utilization >= 95.0))
+            effective_truncation = bool(
+                was_truncated or (parse_result.was_truncated and output_utilization >= 95.0)
+            )
 
             if not parse_result.operations:
                 # Fallback: model sometimes ignores NDJSON and returns a normal diff.
                 # If so, parse as legacy diff to avoid wasting the whole attempt.
                 if "diff --git" in sanitized or sanitized.startswith("*** Begin Patch"):
-                    logger.warning("[BUILD-129:NDJSON] No NDJSON operations found; falling back to legacy diff parse")
+                    logger.warning(
+                        "[BUILD-129:NDJSON] No NDJSON operations found; falling back to legacy diff parse"
+                    )
                     return self._parse_legacy_diff_output(
                         sanitized,
                         response,
@@ -2661,7 +2897,9 @@ class AnthropicBuilderClient:
                     obj = _scan_decode_any_json(sanitized)
 
                     if isinstance(obj, dict) and isinstance(obj.get("operations"), list):
-                        logger.warning("[BUILD-129:NDJSON] Decoded structured-edit plan; routing to structured-edit parser")
+                        logger.warning(
+                            "[BUILD-129:NDJSON] Decoded structured-edit plan; routing to structured-edit parser"
+                        )
                         plan_json = _json.dumps(obj, ensure_ascii=False)
                         return self._parse_structured_edit_output(
                             plan_json,
@@ -2679,13 +2917,23 @@ class AnthropicBuilderClient:
                 # Fallback: model may return a JSON array of operations instead of NDJSON.
                 try:
                     import json as _json
+
                     obj = _json.loads(sanitized)
                     if isinstance(obj, list) and obj and all(isinstance(x, dict) for x in obj):
-                        logger.warning("[BUILD-129:NDJSON] Detected JSON array; converting to NDJSON operations")
+                        logger.warning(
+                            "[BUILD-129:NDJSON] Detected JSON array; converting to NDJSON operations"
+                        )
                         converted = "\n".join(_json.dumps(x, ensure_ascii=False) for x in obj)
                         parse_result = parser.parse(converted)
-                    elif isinstance(obj, dict) and obj.get("type") in ("create", "modify", "delete", "meta"):
-                        logger.warning("[BUILD-129:NDJSON] Detected single JSON op; converting to NDJSON")
+                    elif isinstance(obj, dict) and obj.get("type") in (
+                        "create",
+                        "modify",
+                        "delete",
+                        "meta",
+                    ):
+                        logger.warning(
+                            "[BUILD-129:NDJSON] Detected single JSON op; converting to NDJSON"
+                        )
                         converted = _json.dumps(obj, ensure_ascii=False)
                         parse_result = parser.parse(converted)
                 except Exception:
@@ -2707,7 +2955,12 @@ class AnthropicBuilderClient:
                     from datetime import datetime
                     from pathlib import Path as _Path
 
-                    phase_id = str(phase_spec.get("phase_id") or phase_spec.get("id") or phase_spec.get("name") or "unknown_phase")
+                    phase_id = str(
+                        phase_spec.get("phase_id")
+                        or phase_spec.get("id")
+                        or phase_spec.get("name")
+                        or "unknown_phase"
+                    )
                     stamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
                     out_dir = _Path(".autonomous_runs") / "autopack" / "ndjson_failures"
                     out_dir.mkdir(parents=True, exist_ok=True)
@@ -2728,7 +2981,9 @@ class AnthropicBuilderClient:
                     if tail:
                         payload += f"--- BEGIN TAIL (<=2000 chars) ---\n{tail}\n--- END TAIL ---\n"
                     out_path.write_text(payload, encoding="utf-8", errors="replace")
-                    logger.warning(f"[BUILD-129:NDJSON] Wrote debug sample for ndjson_no_operations to {out_path}")
+                    logger.warning(
+                        f"[BUILD-129:NDJSON] Wrote debug sample for ndjson_no_operations to {out_path}"
+                    )
                 except Exception as e:
                     logger.warning(f"[BUILD-129:NDJSON] Failed to write debug sample: {e}")
 
@@ -2737,13 +2992,13 @@ class AnthropicBuilderClient:
                     patch_content="",
                     builder_messages=[error_msg],
                     tokens_used=response.usage.input_tokens + response.usage.output_tokens,
-                prompt_tokens=response.usage.input_tokens,
-                completion_tokens=response.usage.output_tokens,
+                    prompt_tokens=response.usage.input_tokens,
+                    completion_tokens=response.usage.output_tokens,
                     model_used=model,
                     error="ndjson_no_operations",
                     stop_reason=stop_reason,
                     was_truncated=effective_truncation,
-                    raw_output=content
+                    raw_output=content,
                 )
 
             # Apply operations using NDJSONApplier
@@ -2786,13 +3041,13 @@ class AnthropicBuilderClient:
                     if path.startswith("./"):
                         candidates.append(path[2:])
                     if path.startswith("code/"):
-                        candidates.append(path[len("code/"):])
+                        candidates.append(path[len("code/") :])
                     if path.startswith("code/src/"):
-                        candidates.append("src/" + path[len("code/src/"):])
+                        candidates.append("src/" + path[len("code/src/") :])
                     if path.startswith("code/docs/"):
-                        candidates.append("docs/" + path[len("code/docs/"):])
+                        candidates.append("docs/" + path[len("code/docs/") :])
                     if path.startswith("code/tests/"):
-                        candidates.append("tests/" + path[len("code/tests/"):])
+                        candidates.append("tests/" + path[len("code/tests/") :])
 
                     for c in candidates:
                         c2 = c.replace("\\", "/")
@@ -2822,7 +3077,9 @@ class AnthropicBuilderClient:
                         "NDJSON operations contained file paths outside deliverables_manifest; "
                         "skipping apply to prevent workspace drift."
                     )
-                    logger.error(f"[BUILD-129:NDJSON] {msg} outside_count={len(outside)} sample={outside[:10]}")
+                    logger.error(
+                        f"[BUILD-129:NDJSON] {msg} outside_count={len(outside)} sample={outside[:10]}"
+                    )
                     return BuilderResult(
                         success=False,
                         patch_content="",
@@ -2832,8 +3089,8 @@ class AnthropicBuilderClient:
                             f"outside_sample={outside[:10]}",
                         ],
                         tokens_used=response.usage.input_tokens + response.usage.output_tokens,
-                prompt_tokens=response.usage.input_tokens,
-                completion_tokens=response.usage.output_tokens,
+                        prompt_tokens=response.usage.input_tokens,
+                        completion_tokens=response.usage.output_tokens,
                         model_used=model,
                         error="ndjson_outside_manifest",
                         stop_reason=stop_reason,
@@ -2863,7 +3120,7 @@ class AnthropicBuilderClient:
             patch_content = "\n".join(patch_lines) + "\n"
 
             # Determine success
-            success = len(apply_result['applied']) > 0 and len(apply_result['failed']) == 0
+            success = len(apply_result["applied"]) > 0 and len(apply_result["failed"]) == 0
 
             # Build messages
             messages = []
@@ -2885,7 +3142,7 @@ class AnthropicBuilderClient:
                 model_used=model,
                 stop_reason=stop_reason,
                 was_truncated=effective_truncation,
-                raw_output=content  # Store raw output for continuation recovery
+                raw_output=content,  # Store raw output for continuation recovery
             )
 
         except Exception as e:
@@ -2905,7 +3162,7 @@ class AnthropicBuilderClient:
                 error="ndjson_parse_error",
                 stop_reason=stop_reason,
                 was_truncated=was_truncated,
-                raw_output=content
+                raw_output=content,
             )
 
     def _build_system_prompt(
@@ -2913,7 +3170,7 @@ class AnthropicBuilderClient:
         use_full_file_mode: bool = True,
         use_structured_edit: bool = False,
         use_ndjson_format: bool = False,
-        phase_spec: Optional[Dict] = None
+        phase_spec: Optional[Dict] = None,
     ) -> str:
         """Build system prompt for Claude Builder
 
@@ -2931,7 +3188,9 @@ class AnthropicBuilderClient:
 
             # Simple file creation phases don't need complex instructions
             if complexity == "low" and task_category in ("feature", "bugfix"):
-                return self._build_minimal_system_prompt(use_structured_edit, use_ndjson_format, phase_spec)
+                return self._build_minimal_system_prompt(
+                    use_structured_edit, use_ndjson_format, phase_spec
+                )
 
         if use_ndjson_format:
             # BUILD-129 Phase 3: NDJSON format for truncation tolerance
@@ -2944,7 +3203,11 @@ class AnthropicBuilderClient:
                     if isinstance(scope_cfg, dict):
                         deliverables = scope_cfg.get("deliverables")
             deliverables = deliverables or []
-            summary = phase_spec.get("description", "Implement changes") if phase_spec else "Implement changes"
+            summary = (
+                phase_spec.get("description", "Implement changes")
+                if phase_spec
+                else "Implement changes"
+            )
 
             base_prompt = """You are an expert software engineer working on an autonomous build system.
 
@@ -2987,9 +3250,13 @@ Only the last incomplete line is lost."""
                     manifest = phase_spec.get("deliverables_manifest")
                 if isinstance(manifest, list) and manifest:
                     # Keep prompt compact: list first N entries; rule remains "only these paths/prefixes".
-                    manifest_strs = [str(p).strip() for p in manifest if isinstance(p, str) and str(p).strip()]
+                    manifest_strs = [
+                        str(p).strip() for p in manifest if isinstance(p, str) and str(p).strip()
+                    ]
                     preview = manifest_strs[:60]
-                    base_prompt += "\n\n**FILE PATH CONSTRAINT (DELIVERABLES MANIFEST - STRICT)**:\n"
+                    base_prompt += (
+                        "\n\n**FILE PATH CONSTRAINT (DELIVERABLES MANIFEST - STRICT)**:\n"
+                    )
                     base_prompt += "- For EVERY operation line, `file_path` MUST be exactly one of the approved paths below.\n"
                     base_prompt += "- If an approved entry ends with `/`, it is a directory prefix; then `file_path` MUST be under that prefix.\n"
                     base_prompt += "- DO NOT create/modify/delete any file outside this manifest.\n"
@@ -3231,7 +3498,12 @@ MANIFEST REQUIREMENTS:
 
         return base_prompt
 
-    def _build_minimal_system_prompt(self, use_structured_edit: bool = False, use_ndjson_format: bool = False, phase_spec: Optional[Dict] = None) -> str:
+    def _build_minimal_system_prompt(
+        self,
+        use_structured_edit: bool = False,
+        use_ndjson_format: bool = False,
+        phase_spec: Optional[Dict] = None,
+    ) -> str:
         """Build minimal system prompt for simple phases (BUILD-043)
 
         Trimmed version saves ~3K tokens for low-complexity tasks.
@@ -3313,9 +3585,11 @@ Instead: Use their APIs via imports, create new files elsewhere.
         project_rules: Optional[List],
         run_hints: Optional[List],
         use_full_file_mode: bool = True,
-        config = None,  # NEW: BuilderOutputConfig for thresholds
+        config=None,  # NEW: BuilderOutputConfig for thresholds
         retrieved_context: Optional[str] = None,  # NEW: Vector memory context
-        context_budget_tokens: Optional[int] = None,  # NEW: Hard cap for file_context inclusion (approx tokens)
+        context_budget_tokens: Optional[
+            int
+        ] = None,  # NEW: Hard cap for file_context inclusion (approx tokens)
     ) -> str:
         """Build user prompt with phase details
 
@@ -3331,6 +3605,7 @@ Instead: Use their APIs via imports, create new files elsewhere.
         # Load config if not provided
         if config is None:
             from autopack.builder_config import BuilderOutputConfig
+
             config = BuilderOutputConfig()
         prompt_parts = [
             "# Phase Specification",
@@ -3386,15 +3661,25 @@ Instead: Use their APIs via imports, create new files elsewhere.
         else:
             # Universal output contract (goal/criteria prompting; refuse partials)
             prompt_parts.append("\nAcceptance Criteria (universal):")
-            prompt_parts.append("- Emit COMPLETE, well-formed output for every file you touch; no stubs or truncated content.")
-            prompt_parts.append("- For YAML/JSON/TOML, include required top-level keys/sections; do not omit document starts when applicable.")
-            prompt_parts.append("- Do not emit patches that reference files outside the allowed scope.")
-            prompt_parts.append("- If unsure or lacking context, leave the file unchanged rather than emitting partial output.")
+            prompt_parts.append(
+                "- Emit COMPLETE, well-formed output for every file you touch; no stubs or truncated content."
+            )
+            prompt_parts.append(
+                "- For YAML/JSON/TOML, include required top-level keys/sections; do not omit document starts when applicable."
+            )
+            prompt_parts.append(
+                "- Do not emit patches that reference files outside the allowed scope."
+            )
+            prompt_parts.append(
+                "- If unsure or lacking context, leave the file unchanged rather than emitting partial output."
+            )
 
         # Explicit format contract (applies to all modes)
         prompt_parts.append("\n# Output Format (strict)")
         prompt_parts.append("- Output JSON ONLY with a top-level `files` array.")
-        prompt_parts.append("- Each entry MUST include: path, mode (replace|create|modify), new_content.")
+        prompt_parts.append(
+            "- Each entry MUST include: path, mode (replace|create|modify), new_content."
+        )
         prompt_parts.append("- Do NOT output git diff, markdown fences, or prose.")
         prompt_parts.append("- No code fences, no surrounding text. Return only JSON.")
 
@@ -3404,8 +3689,10 @@ Instead: Use their APIs via imports, create new files elsewhere.
             prompt_parts.append("CRITICAL: You may ONLY modify these files:\n")
             for allowed in scope_paths:
                 # BUILD-141 Telemetry Unblock: Clarify directory prefix semantics
-                if allowed.endswith('/'):
-                    prompt_parts.append(f"- {allowed} (directory prefix - creating/modifying files under this path is ALLOWED)")
+                if allowed.endswith("/"):
+                    prompt_parts.append(
+                        f"- {allowed} (directory prefix - creating/modifying files under this path is ALLOWED)"
+                    )
                 else:
                     prompt_parts.append(f"- {allowed}")
             prompt_parts.append(
@@ -3463,13 +3750,13 @@ Instead: Use their APIs via imports, create new files elsewhere.
                     prompt_parts.append(f"- {text}")
 
         # Milestone 2: Inject intention anchor (canonical project goal)
-        if run_id := phase_spec.get('run_id'):
+        if run_id := phase_spec.get("run_id"):
             from .intention_anchor import load_and_render_for_builder
 
             anchor_section = load_and_render_for_builder(
                 run_id=run_id,
-                phase_id=phase_spec.get('phase_id', 'unknown'),
-                base_dir='.',  # Use current directory (.autonomous_runs/<run_id>/)
+                phase_id=phase_spec.get("phase_id", "unknown"),
+                base_dir=".",  # Use current directory (.autonomous_runs/<run_id>/)
             )
             if anchor_section:
                 prompt_parts.append("\n")
@@ -3488,7 +3775,9 @@ Instead: Use their APIs via imports, create new files elsewhere.
 
             # Safety check: ensure files is a dict, not a list or other type
             if not isinstance(files, dict):
-                logger.warning(f"[Builder] file_context.get('existing_files') returned non-dict type: {type(files)}, using empty dict")
+                logger.warning(
+                    f"[Builder] file_context.get('existing_files') returned non-dict type: {type(files)}, using empty dict"
+                )
                 files = {}
 
             # ------------------------------------------------------------------
@@ -3501,18 +3790,26 @@ Instead: Use their APIs via imports, create new files elsewhere.
                     scope_cfg = phase_spec.get("scope") or {}
                     try:
                         from autopack.deliverables_validator import extract_deliverables_from_scope
-                        deliverables_list = extract_deliverables_from_scope(scope_cfg) if isinstance(scope_cfg, dict) else []
+
+                        deliverables_list = (
+                            extract_deliverables_from_scope(scope_cfg)
+                            if isinstance(scope_cfg, dict)
+                            else []
+                        )
                     except Exception:
                         deliverables_list = []
                     if not deliverables_list and isinstance(scope_cfg, dict):
                         deliverables_list = scope_cfg.get("deliverables") or []
                     from autopack.context_budgeter import select_files_for_context
 
-                    query = " ".join([
-                        str(phase_spec.get("description") or ""),
-                        str(phase_spec.get("name") or ""),
-                        "Deliverables: " + ", ".join([d for d in deliverables_list if isinstance(d, str)][:20]),
-                    ]).strip()
+                    query = " ".join(
+                        [
+                            str(phase_spec.get("description") or ""),
+                            str(phase_spec.get("name") or ""),
+                            "Deliverables: "
+                            + ", ".join([d for d in deliverables_list if isinstance(d, str)][:20]),
+                        ]
+                    ).strip()
 
                     selection = select_files_for_context(
                         files=files,
@@ -3520,7 +3817,8 @@ Instead: Use their APIs via imports, create new files elsewhere.
                         deliverables=[d for d in deliverables_list if isinstance(d, str)],
                         query=query,
                         budget_tokens=int(context_budget_tokens),
-                        semantic=os.getenv("AUTOPACK_CONTEXT_SEMANTIC_RELEVANCE", "1") in ("1", "true", "True"),
+                        semantic=os.getenv("AUTOPACK_CONTEXT_SEMANTIC_RELEVANCE", "1")
+                        in ("1", "true", "True"),
                     )
 
                     if selection.omitted:
@@ -3546,7 +3844,9 @@ Instead: Use their APIs via imports, create new files elsewhere.
             if config:
                 # Get explicit scope paths from phase_spec
                 scope_config = phase_spec.get("scope") or {}
-                scope_paths = scope_config.get("paths", []) if isinstance(scope_config, dict) else []
+                scope_paths = (
+                    scope_config.get("paths", []) if isinstance(scope_config, dict) else []
+                )
                 if not isinstance(scope_paths, list):
                     scope_paths = []
                 scope_paths = [sp for sp in scope_paths if isinstance(sp, str)]
@@ -3557,14 +3857,16 @@ Instead: Use their APIs via imports, create new files elsewhere.
                         if isinstance(content, str) and isinstance(file_path, str):
                             # Only check if file is in scope
                             if any(file_path.startswith(sp) for sp in scope_paths):
-                                line_count = content.count('\n') + 1
+                                line_count = content.count("\n") + 1
                                 if line_count > config.max_lines_hard_limit:
                                     use_structured_edit_mode = True
                                     break
 
             if missing_scope_files:
                 prompt_parts.append("\n# Missing Scoped Files")
-                prompt_parts.append("The following scoped files are within scope but do not exist yet. You may create them:")
+                prompt_parts.append(
+                    "The following scoped files are within scope but do not exist yet. You may create them:"
+                )
                 for missing_path in missing_scope_files:
                     prompt_parts.append(f"- {missing_path}")
 
@@ -3573,25 +3875,25 @@ Instead: Use their APIs via imports, create new files elsewhere.
                 prompt_parts.append("\n# Files in Context (for structured edits):")
                 prompt_parts.append("Use line numbers to specify where to make changes.")
                 prompt_parts.append("Line numbers are 1-indexed (first line is line 1).\n")
-                
+
                 for file_path, content in files.items():
                     if not isinstance(content, str):
                         continue
-                    
-                    line_count = content.count('\n') + 1
+
+                    line_count = content.count("\n") + 1
                     prompt_parts.append(f"\n## {file_path} ({line_count} lines)")
-                    
+
                     # Show file with line numbers
-                    lines = content.split('\n')
-                    
+                    lines = content.split("\n")
+
                     # For very large files, show first 100, middle section, last 100
                     if line_count > 300:
                         # First 100 lines
                         for i, line in enumerate(lines[:100], 1):
                             prompt_parts.append(f"{i:4d} | {line}")
-                        
+
                         prompt_parts.append(f"\n... [{line_count - 200} lines omitted] ...\n")
-                        
+
                         # Last 100 lines
                         for i, line in enumerate(lines[-100:], line_count - 99):
                             prompt_parts.append(f"{i:4d} | {line}")
@@ -3599,7 +3901,7 @@ Instead: Use their APIs via imports, create new files elsewhere.
                         # Show all lines with numbers
                         for i, line in enumerate(lines, 1):
                             prompt_parts.append(f"{i:4d} | {line}")
-            
+
             elif use_full_file_mode:
                 # NEW: Separate files into modifiable vs read-only using scope metadata
                 modifiable_files: List[Tuple[str, str, int, Dict[str, Any]]] = []
@@ -3610,7 +3912,7 @@ Instead: Use their APIs via imports, create new files elsewhere.
                     if not isinstance(content, str):
                         continue
                     meta = scope_metadata.get(file_path)
-                    line_count = content.count('\n') + 1
+                    line_count = content.count("\n") + 1
 
                     if meta:
                         category = meta.get("category")
@@ -3622,39 +3924,60 @@ Instead: Use their APIs via imports, create new files elsewhere.
                             fallback_readonly.append((file_path, content, line_count))
                     else:
                         fallback_readonly.append((file_path, content, line_count))
-                
+
                 # Add explicit contract (per GPT_RESPONSE14 Q1)
                 if modifiable_files or readonly_files:
                     prompt_parts.append("\n# File Modification Rules")
-                    prompt_parts.append("You are only allowed to modify files that are fully shown below.")
-                    prompt_parts.append("Any file marked as READ-ONLY CONTEXT must NOT appear in the `files` list in your JSON output.")
-                    prompt_parts.append("For each file you modify, return the COMPLETE new file content in `new_content`.")
-                    prompt_parts.append("Do NOT use ellipses (...) or omit any code that should remain.")
-                
+                    prompt_parts.append(
+                        "You are only allowed to modify files that are fully shown below."
+                    )
+                    prompt_parts.append(
+                        "Any file marked as READ-ONLY CONTEXT must NOT appear in the `files` list in your JSON output."
+                    )
+                    prompt_parts.append(
+                        "For each file you modify, return the COMPLETE new file content in `new_content`."
+                    )
+                    prompt_parts.append(
+                        "Do NOT use ellipses (...) or omit any code that should remain."
+                    )
+
                 # Show modifiable files with full content (Bucket A: ≤500 lines)
                 if modifiable_files:
                     prompt_parts.append("\n# Files You May Modify (COMPLETE CONTENT):")
                     for file_path, content, line_count, meta in modifiable_files:
-                        missing_note = " — file does not exist yet, create it." if meta.get("missing") else ""
+                        missing_note = (
+                            " — file does not exist yet, create it." if meta.get("missing") else ""
+                        )
                         prompt_parts.append(f"\n## {file_path} ({line_count} lines){missing_note}")
                         if meta.get("missing"):
-                            prompt_parts.append("This file is currently missing. Provide the complete new content below.")
+                            prompt_parts.append(
+                                "This file is currently missing. Provide the complete new content below."
+                            )
                         prompt_parts.append(f"```\n{content}\n```")
-                
+
                 # Show read-only files with truncated content (Bucket B+C: >500 lines)
-                readonly_combined = readonly_files + [(path, content, line_count, {}) for path, content, line_count in fallback_readonly]
+                readonly_combined = readonly_files + [
+                    (path, content, line_count, {})
+                    for path, content, line_count in fallback_readonly
+                ]
                 if readonly_combined:
                     prompt_parts.append("\n# Read-Only Context Files (DO NOT MODIFY):")
                     for file_path, content, line_count, meta in readonly_combined:
                         prompt_parts.append(f"\n## {file_path} (READ-ONLY CONTEXT — DO NOT MODIFY)")
-                        prompt_parts.append(f"This file has {line_count} lines (too large for full-file replacement).")
-                        prompt_parts.append("You may read this snippet as context, but you must NOT include it in your JSON output.")
-                        
+                        prompt_parts.append(
+                            f"This file has {line_count} lines (too large for full-file replacement)."
+                        )
+                        prompt_parts.append(
+                            "You may read this snippet as context, but you must NOT include it in your JSON output."
+                        )
+
                         # Show first 200 + last 50 lines for context
-                        lines = content.split('\n')
-                        first_part = '\n'.join(lines[:200])
-                        last_part = '\n'.join(lines[-50:])
-                        prompt_parts.append(f"```\n{first_part}\n\n... [{line_count - 250} lines omitted] ...\n\n{last_part}\n```")
+                        lines = content.split("\n")
+                        first_part = "\n".join(lines[:200])
+                        last_part = "\n".join(lines[-50:])
+                        prompt_parts.append(
+                            f"```\n{first_part}\n\n... [{line_count - 250} lines omitted] ...\n\n{last_part}\n```"
+                        )
             else:
                 # Legacy diff mode: show truncated content
                 prompt_parts.append("\n# Repository Context:")
@@ -3686,8 +4009,7 @@ class AnthropicAuditorClient:
         """
         if Anthropic is None:
             raise ImportError(
-                "anthropic package not installed. "
-                "Install with: pip install anthropic"
+                "anthropic package not installed. " "Install with: pip install anthropic"
             )
 
         self.client = Anthropic(api_key=api_key or os.getenv("ANTHROPIC_API_KEY"))
@@ -3700,7 +4022,7 @@ class AnthropicAuditorClient:
         max_tokens: Optional[int] = None,
         model: str = "claude-sonnet-4-5",
         project_rules: Optional[List] = None,
-        run_hints: Optional[List] = None
+        run_hints: Optional[List] = None,
     ) -> AuditorResult:
         """Review patch using Claude
 
@@ -3733,7 +4055,7 @@ class AnthropicAuditorClient:
                 max_tokens=min(max_tokens or 8192, 8192),
                 system=system_prompt,
                 messages=[{"role": "user", "content": user_prompt}],
-                temperature=0.1  # Low temperature for consistent auditing
+                temperature=0.1,  # Low temperature for consistent auditing
             )
 
             # Extract content
@@ -3747,7 +4069,7 @@ class AnthropicAuditorClient:
                 result_json = {
                     "approved": False,
                     "issues": [{"severity": "major", "description": content}],
-                    "summary": "Review completed"
+                    "summary": "Review completed",
                 }
 
             return AuditorResult(
@@ -3757,22 +4079,24 @@ class AnthropicAuditorClient:
                 tokens_used=response.usage.input_tokens + response.usage.output_tokens,
                 prompt_tokens=response.usage.input_tokens,
                 completion_tokens=response.usage.output_tokens,
-                model_used=model
+                model_used=model,
             )
 
         except Exception as e:
             # Return error result
             return AuditorResult(
                 approved=False,
-                issues_found=[{
-                    "severity": "critical",
-                    "category": "auditor_error",
-                    "description": f"Auditor error: {str(e)}"
-                }],
+                issues_found=[
+                    {
+                        "severity": "critical",
+                        "category": "auditor_error",
+                        "description": f"Auditor error: {str(e)}",
+                    }
+                ],
                 auditor_messages=[f"Auditor failed: {str(e)}"],
                 tokens_used=0,
                 model_used=model,
-                error=str(e)
+                error=str(e),
             )
 
     def _build_system_prompt(self) -> str:
@@ -3822,7 +4146,7 @@ Approval Criteria:
         phase_spec: Dict,
         file_context: Optional[Dict],
         project_rules: Optional[List],
-        run_hints: Optional[List] = None
+        run_hints: Optional[List] = None,
     ) -> str:
         """Build user prompt with patch to review"""
         prompt_parts = [
@@ -3844,12 +4168,12 @@ Approval Criteria:
                 prompt_parts.append(f"- {hint}")
 
         # Milestone 2: Inject intention anchor (for validation context)
-        if run_id := phase_spec.get('run_id'):
+        if run_id := phase_spec.get("run_id"):
             from .intention_anchor import load_and_render_for_auditor
 
             anchor_section = load_and_render_for_auditor(
                 run_id=run_id,
-                base_dir='.',  # Use current directory (.autonomous_runs/<run_id>/)
+                base_dir=".",  # Use current directory (.autonomous_runs/<run_id>/)
             )
             if anchor_section:
                 prompt_parts.append("\n")

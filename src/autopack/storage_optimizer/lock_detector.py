@@ -51,36 +51,29 @@ class LockDetector:
                 "searchindexer",
                 "windows search",
                 "search indexer",
-                "indexing service"
+                "indexing service",
             ],
-            "antivirus": [
-                "virus",
-                "defender",
-                "malware",
-                "threat",
-                "security",
-                "quarantine"
-            ],
+            "antivirus": ["virus", "defender", "malware", "threat", "security", "quarantine"],
             "handle": [
                 "being used by another process",
                 "process cannot access the file",
                 "file is in use",
                 "cannot access",
-                "sharing violation"
+                "sharing violation",
             ],
             "permission": [
                 "access is denied",
                 "permission denied",
                 "insufficient privileges",
                 "you do not have permission",
-                "unauthorized access"
+                "unauthorized access",
             ],
             "path_too_long": [
                 "path too long",
                 "file name too long",
                 "path length exceeds",
-                "exceeds maximum path"
-            ]
+                "exceeds maximum path",
+            ],
         }
 
         # Remediation hints for each lock type
@@ -120,15 +113,11 @@ class LockDetector:
                 "Options: (1) Check for open handles with resmon.exe, "
                 "(2) Verify file/folder permissions, "
                 "(3) Retry after closing applications"
-            )
+            ),
         }
 
         # Transient locks that should be retried
-        self.transient_locks = {
-            "searchindexer",
-            "antivirus",
-            "handle"
-        }
+        self.transient_locks = {"searchindexer", "antivirus", "handle"}
 
     def detect_lock_type(self, path: Path, error: Exception) -> str:
         """
@@ -184,7 +173,9 @@ class LockDetector:
             - unknown: Conservative approach (don't retry unknown)
         """
         is_transient = lock_type in self.transient_locks
-        logger.debug(f"Lock type '{lock_type}' is {'transient (retry)' if is_transient else 'permanent (skip)'}")
+        logger.debug(
+            f"Lock type '{lock_type}' is {'transient (retry)' if is_transient else 'permanent (skip)'}"
+        )
         return is_transient
 
     def get_remediation_hint(self, lock_type: str) -> str:
@@ -226,7 +217,7 @@ class LockDetector:
             "handle": 3,
             "permission": 0,
             "path_too_long": 0,
-            "unknown": 0
+            "unknown": 0,
         }
         return retry_counts.get(lock_type, 0)
 
@@ -256,7 +247,7 @@ class LockDetector:
         backoff_strategies = {
             "searchindexer": [2, 5, 10],
             "antivirus": [10, 30, 60],
-            "handle": [2, 5, 10]
+            "handle": [2, 5, 10],
         }
 
         default_backoff = [2, 5, 10]
@@ -272,6 +263,7 @@ class LockDetector:
 # ==============================================================================
 # Advanced Lock Detection (Optional - psutil-based)
 # ==============================================================================
+
 
 def find_locking_process(path: Path) -> Optional[str]:
     """
@@ -297,13 +289,15 @@ def find_locking_process(path: Path) -> Optional[str]:
         target_path = str(path.resolve()).lower()
 
         # Check all processes
-        for proc in psutil.process_iter(['pid', 'name']):
+        for proc in psutil.process_iter(["pid", "name"]):
             try:
                 # Get open files for this process
                 for file in proc.open_files():
                     if file.path.lower() == target_path:
-                        logger.info(f"Found locking process: {proc.info['name']} (PID: {proc.info['pid']})")
-                        return proc.info['name']
+                        logger.info(
+                            f"Found locking process: {proc.info['name']} (PID: {proc.info['pid']})"
+                        )
+                        return proc.info["name"]
             except (psutil.AccessDenied, psutil.NoSuchProcess):
                 continue  # Skip processes we can't access
 

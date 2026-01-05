@@ -29,10 +29,7 @@ from pathlib import Path
 from typing import Optional
 
 
-def get_default_log_dir(
-    workspace: Optional[Path] = None,
-    project_id: Optional[str] = None
-) -> Path:
+def get_default_log_dir(workspace: Optional[Path] = None, project_id: Optional[str] = None) -> Path:
     """
     Get the default log directory for the project.
 

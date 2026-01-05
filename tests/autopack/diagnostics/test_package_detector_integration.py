@@ -90,9 +90,7 @@ setup(
         (temp_project_dir / "dev.txt").write_text("pytest\nblack\n")
 
         # Main requirements with includes
-        (temp_project_dir / "requirements.txt").write_text(
-            "-r base.txt\n-r dev.txt\nrequests\n"
-        )
+        (temp_project_dir / "requirements.txt").write_text("-r base.txt\n-r dev.txt\nrequests\n")
 
         detector = PackageDetector()
         packages = detector.detect_packages(str(temp_project_dir))

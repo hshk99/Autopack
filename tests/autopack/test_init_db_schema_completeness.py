@@ -23,6 +23,7 @@ def test_init_db_registers_all_usage_recorder_tables():
 
     # Temporarily override the module-level engine for init_db
     import autopack.database as db_module
+
     original_engine = db_module.engine
     db_module.engine = engine
 
@@ -36,8 +37,8 @@ def test_init_db_registers_all_usage_recorder_tables():
 
         # Assert all 3 usage_recorder tables exist
         required_tables = {
-            "llm_usage_events",          # LlmUsageEvent
-            "doctor_usage_stats",        # DoctorUsageStats
+            "llm_usage_events",  # LlmUsageEvent
+            "doctor_usage_stats",  # DoctorUsageStats
             "token_efficiency_metrics",  # TokenEfficiencyMetrics
         }
 
@@ -67,6 +68,7 @@ def test_usage_recorder_tables_have_expected_columns():
     engine = create_engine("sqlite:///:memory:")
 
     import autopack.database as db_module
+
     original_engine = db_module.engine
     db_module.engine = engine
 

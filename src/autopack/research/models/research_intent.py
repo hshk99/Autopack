@@ -9,8 +9,11 @@ class ResearchIntent:
         return bool(self.title and self.description and self.objectives)
 
     def __repr__(self):
-        return (f"ResearchIntent(title={self.title}, description={self.description}, "
-                f"objectives={self.objectives})")
+        return (
+            f"ResearchIntent(title={self.title}, description={self.description}, "
+            f"objectives={self.objectives})"
+        )
+
 
 # Example usage:
 # intent = ResearchIntent(

@@ -71,10 +71,7 @@ class TestArtifactLoader:
         phases_dir.mkdir()
 
         phase_summary = phases_dir / "phase_01_test.md"
-        phase_summary.write_text(
-            "# Phase Summary\n\n"
-            "Modified auth.py to add validation"
-        )
+        phase_summary.write_text("# Phase Summary\n\n" "Modified auth.py to add validation")
 
         result = artifact_loader.find_artifact_for_path("src/auth.py")
         assert result is not None
@@ -109,9 +106,7 @@ class TestArtifactLoader:
         diagnostic_data = {
             "status": "completed",
             "files_analyzed": ["src/auth.py", "src/middleware.py"],
-            "findings": [
-                {"file": "src/auth.py", "issue": "Missing input validation"}
-            ]
+            "findings": [{"file": "src/auth.py", "issue": "Missing input validation"}],
         }
 
         diag_json = diagnostics_dir / "diagnostic_summary.json"

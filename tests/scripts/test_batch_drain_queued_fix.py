@@ -8,6 +8,7 @@ Tests that batch_drain_controller:
 
 This prevents the "1 queued blocks 5 failed" scenario.
 """
+
 import os
 import pytest
 from pathlib import Path
@@ -42,8 +43,20 @@ def test_db():
 
     tier1 = Tier(tier_id="T1", run_id="run1", tier_index=0, name="Test Tier", description="Test")
     tier2 = Tier(tier_id="T1", run_id="run2", tier_index=0, name="Test Tier", description="Test")
-    tier_v3 = Tier(tier_id="T1", run_id="research-system-v3", tier_index=0, name="Test Tier", description="Test")
-    tier_v6 = Tier(tier_id="T1", run_id="research-system-v6", tier_index=0, name="Test Tier", description="Test")
+    tier_v3 = Tier(
+        tier_id="T1",
+        run_id="research-system-v3",
+        tier_index=0,
+        name="Test Tier",
+        description="Test",
+    )
+    tier_v6 = Tier(
+        tier_id="T1",
+        run_id="research-system-v6",
+        tier_index=0,
+        name="Test Tier",
+        description="Test",
+    )
     session.add_all([tier1, tier2, tier_v3, tier_v6])
     session.commit()
 
@@ -86,17 +99,73 @@ def test_skip_individual_queued_phases_not_entire_runs(test_db, tmp_path):
             state=PhaseState.QUEUED,
             phase_index=0,
         ),
-        Phase(run_id="run1", phase_id="phase-failed-1", name="Failed 1", tier_id=test_db.tier1_id, state=PhaseState.FAILED, phase_index=1),
-        Phase(run_id="run1", phase_id="phase-failed-2", name="Failed 2", tier_id=test_db.tier1_id, state=PhaseState.FAILED, phase_index=2),
-        Phase(run_id="run1", phase_id="phase-failed-3", name="Failed 3", tier_id=test_db.tier1_id, state=PhaseState.FAILED, phase_index=3),
-        Phase(run_id="run1", phase_id="phase-failed-4", name="Failed 4", tier_id=test_db.tier1_id, state=PhaseState.FAILED, phase_index=4),
-        Phase(run_id="run1", phase_id="phase-failed-5", name="Failed 5", tier_id=test_db.tier1_id, state=PhaseState.FAILED, phase_index=5),
+        Phase(
+            run_id="run1",
+            phase_id="phase-failed-1",
+            name="Failed 1",
+            tier_id=test_db.tier1_id,
+            state=PhaseState.FAILED,
+            phase_index=1,
+        ),
+        Phase(
+            run_id="run1",
+            phase_id="phase-failed-2",
+            name="Failed 2",
+            tier_id=test_db.tier1_id,
+            state=PhaseState.FAILED,
+            phase_index=2,
+        ),
+        Phase(
+            run_id="run1",
+            phase_id="phase-failed-3",
+            name="Failed 3",
+            tier_id=test_db.tier1_id,
+            state=PhaseState.FAILED,
+            phase_index=3,
+        ),
+        Phase(
+            run_id="run1",
+            phase_id="phase-failed-4",
+            name="Failed 4",
+            tier_id=test_db.tier1_id,
+            state=PhaseState.FAILED,
+            phase_index=4,
+        ),
+        Phase(
+            run_id="run1",
+            phase_id="phase-failed-5",
+            name="Failed 5",
+            tier_id=test_db.tier1_id,
+            state=PhaseState.FAILED,
+            phase_index=5,
+        ),
     ]
 
     run2_phases = [
-        Phase(run_id="run2", phase_id="phase-failed-6", name="Failed 6", tier_id=test_db.tier2_id, state=PhaseState.FAILED, phase_index=0),
-        Phase(run_id="run2", phase_id="phase-failed-7", name="Failed 7", tier_id=test_db.tier2_id, state=PhaseState.FAILED, phase_index=1),
-        Phase(run_id="run2", phase_id="phase-failed-8", name="Failed 8", tier_id=test_db.tier2_id, state=PhaseState.FAILED, phase_index=2),
+        Phase(
+            run_id="run2",
+            phase_id="phase-failed-6",
+            name="Failed 6",
+            tier_id=test_db.tier2_id,
+            state=PhaseState.FAILED,
+            phase_index=0,
+        ),
+        Phase(
+            run_id="run2",
+            phase_id="phase-failed-7",
+            name="Failed 7",
+            tier_id=test_db.tier2_id,
+            state=PhaseState.FAILED,
+            phase_index=1,
+        ),
+        Phase(
+            run_id="run2",
+            phase_id="phase-failed-8",
+            name="Failed 8",
+            tier_id=test_db.tier2_id,
+            state=PhaseState.FAILED,
+            phase_index=2,
+        ),
     ]
 
     test_db.add_all(run1_phases + run2_phases)
@@ -152,8 +221,22 @@ def test_skip_entire_runs_can_be_disabled(test_db, tmp_path):
     """
     # Setup: Same scenario as above
     run1_phases = [
-        Phase(run_id="run1", phase_id="phase-queued", name="Queued", tier_id=test_db.tier1_id, state=PhaseState.QUEUED, phase_index=0),
-        Phase(run_id="run1", phase_id="phase-failed-1", name="Failed", tier_id=test_db.tier1_id, state=PhaseState.FAILED, phase_index=1),
+        Phase(
+            run_id="run1",
+            phase_id="phase-queued",
+            name="Queued",
+            tier_id=test_db.tier1_id,
+            state=PhaseState.QUEUED,
+            phase_index=0,
+        ),
+        Phase(
+            run_id="run1",
+            phase_id="phase-failed-1",
+            name="Failed",
+            tier_id=test_db.tier1_id,
+            state=PhaseState.FAILED,
+            phase_index=1,
+        ),
     ]
 
     test_db.add_all(run1_phases)
@@ -183,20 +266,44 @@ def test_old_bug_scenario_exact_reproduction(test_db, tmp_path):
     """
     # Reproduce exact scenario from snapshot
     v3_phases = [
-        Phase(run_id="research-system-v3", phase_id="research-gatherers-social",
-              name="Research Gatherers Social", tier_id=test_db.tier_v3_id, state=PhaseState.QUEUED, phase_index=0),
+        Phase(
+            run_id="research-system-v3",
+            phase_id="research-gatherers-social",
+            name="Research Gatherers Social",
+            tier_id=test_db.tier_v3_id,
+            state=PhaseState.QUEUED,
+            phase_index=0,
+        ),
     ] + [
-        Phase(run_id="research-system-v3", phase_id=f"failed-{i}",
-              name=f"Failed {i}", tier_id=test_db.tier_v3_id, state=PhaseState.FAILED, phase_index=i+1)
+        Phase(
+            run_id="research-system-v3",
+            phase_id=f"failed-{i}",
+            name=f"Failed {i}",
+            tier_id=test_db.tier_v3_id,
+            state=PhaseState.FAILED,
+            phase_index=i + 1,
+        )
         for i in range(6)
     ]
 
     v6_phases = [
-        Phase(run_id="research-system-v6", phase_id="research-foundation-orchestrator",
-              name="Research Foundation Orchestrator", tier_id=test_db.tier_v6_id, state=PhaseState.QUEUED, phase_index=0),
+        Phase(
+            run_id="research-system-v6",
+            phase_id="research-foundation-orchestrator",
+            name="Research Foundation Orchestrator",
+            tier_id=test_db.tier_v6_id,
+            state=PhaseState.QUEUED,
+            phase_index=0,
+        ),
     ] + [
-        Phase(run_id="research-system-v6", phase_id=f"failed-{i}",
-              name=f"Failed {i}", tier_id=test_db.tier_v6_id, state=PhaseState.FAILED, phase_index=i+1)
+        Phase(
+            run_id="research-system-v6",
+            phase_id=f"failed-{i}",
+            name=f"Failed {i}",
+            tier_id=test_db.tier_v6_id,
+            state=PhaseState.FAILED,
+            phase_index=i + 1,
+        )
         for i in range(7)
     ]
 

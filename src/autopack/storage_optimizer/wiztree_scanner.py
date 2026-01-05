@@ -89,7 +89,7 @@ class WizTreeScanner:
         drive_letter: str,
         max_depth: Optional[int] = None,
         max_items: int = 10000,
-        admin_mode: bool = False
+        admin_mode: bool = False,
     ) -> List[ScanResult]:
         """
         Scan drive using WizTree CLI.
@@ -125,7 +125,7 @@ class WizTreeScanner:
                 str(self.wiztree_path),
                 f"{drive_letter}:\\",
                 f"/export={csv_path}",
-                f"/admin={'1' if admin_mode else '0'}"
+                f"/admin={'1' if admin_mode else '0'}",
             ]
 
             logger.info(f"[WizTree] Scanning {drive_letter}:\\ (admin={admin_mode})...")
@@ -133,10 +133,7 @@ class WizTreeScanner:
 
             # Run WizTree CLI
             result = subprocess.run(
-                cmd,
-                capture_output=True,
-                text=True,
-                timeout=600  # 10 minute timeout
+                cmd, capture_output=True, text=True, timeout=600  # 10 minute timeout
             )
 
             # Check if CSV was created (WizTree sometimes returns 0 even on failure)
@@ -172,10 +169,7 @@ class WizTreeScanner:
             return self.fallback_scanner.scan_drive(drive_letter, max_depth, max_items)
 
     def _parse_csv(
-        self,
-        csv_path: Path,
-        max_depth: Optional[int],
-        max_items: int
+        self, csv_path: Path, max_depth: Optional[int], max_items: int
     ) -> List[ScanResult]:
         """
         Parse WizTree CSV export into ScanResult objects.
@@ -209,7 +203,7 @@ class WizTreeScanner:
 
         try:
             # WizTree exports UTF-8 with BOM, use utf-8-sig to handle it
-            with open(csv_path, 'r', encoding='utf-8-sig', errors='replace') as f:
+            with open(csv_path, "r", encoding="utf-8-sig", errors="replace") as f:
                 reader = csv.DictReader(f)
 
                 for row in reader:
@@ -218,38 +212,38 @@ class WizTreeScanner:
                         break
 
                     # Parse row fields
-                    file_path = row.get('File Name', '')
+                    file_path = row.get("File Name", "")
                     if not file_path:
                         continue  # Skip empty paths
 
                     try:
-                        size_bytes = int(row.get('Size', 0))
+                        size_bytes = int(row.get("Size", 0))
                     except ValueError:
                         size_bytes = 0
 
-                    modified_str = row.get('Modified', '')
-                    attributes = row.get('Attributes', '')
+                    modified_str = row.get("Modified", "")
+                    attributes = row.get("Attributes", "")
 
                     # Filter by depth if specified
                     if max_depth is not None:
                         # Count backslashes to determine depth
                         # C:\ = depth 0, C:\temp = depth 1, C:\temp\file.txt = depth 2
-                        depth = file_path.count('\\') - 1  # Subtract root backslash
+                        depth = file_path.count("\\") - 1  # Subtract root backslash
                         if depth > max_depth:
                             continue
 
                     # Parse timestamp (WizTree format: "YYYY-MM-DD HH:MM:SS")
                     try:
-                        last_modified = datetime.strptime(modified_str, '%Y-%m-%d %H:%M:%S')
+                        last_modified = datetime.strptime(modified_str, "%Y-%m-%d %H:%M:%S")
                         last_modified = last_modified.replace(tzinfo=timezone.utc)
                     except (ValueError, TypeError):
                         # If parsing fails, use current time
                         last_modified = datetime.now(timezone.utc)
 
                     # Parse attributes
-                    is_directory = 'd' in attributes.lower()
-                    is_hidden = 'h' in attributes.lower()
-                    is_system = 's' in attributes.lower()
+                    is_directory = "d" in attributes.lower()
+                    is_hidden = "h" in attributes.lower()
+                    is_system = "s" in attributes.lower()
 
                     # Create ScanResult
                     result = ScanResult(
@@ -258,7 +252,7 @@ class WizTreeScanner:
                         is_directory=is_directory,
                         last_modified=last_modified,
                         is_hidden=is_hidden,
-                        is_system=is_system
+                        is_system=is_system,
                     )
 
                     results.append(result)
@@ -273,10 +267,7 @@ class WizTreeScanner:
         return results
 
     def scan_directory(
-        self,
-        directory_path: str,
-        max_depth: Optional[int] = None,
-        max_items: int = 1000
+        self, directory_path: str, max_depth: Optional[int] = None, max_items: int = 1000
     ) -> List[ScanResult]:
         """
         Scan specific directory using WizTree.
@@ -308,17 +299,14 @@ class WizTreeScanner:
                 str(self.wiztree_path),
                 directory_path,
                 f"/export={csv_path}",
-                "/admin=0"  # No admin needed for single directory
+                "/admin=0",  # No admin needed for single directory
             ]
 
             logger.info(f"[WizTree] Scanning directory: {directory_path}")
             start_time = datetime.now()
 
             subprocess.run(
-                cmd,
-                capture_output=True,
-                text=True,
-                timeout=300  # 5 minute timeout for directories
+                cmd, capture_output=True, text=True, timeout=300  # 5 minute timeout for directories
             )
 
             if not csv_path.exists():

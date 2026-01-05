@@ -2,6 +2,7 @@
 
 from autopack.research.tracer_bullet.orchestrator import run_pipeline
 
+
 def evaluate_pipeline(url: str, expression: str, prompt: str) -> dict:
     """
     Evaluates the tracer bullet pipeline with given inputs.
@@ -15,6 +16,7 @@ def evaluate_pipeline(url: str, expression: str, prompt: str) -> dict:
         dict: Results of the pipeline execution.
     """
     return run_pipeline(url, expression, prompt)
+
 
 if __name__ == "__main__":
     # Example evaluation

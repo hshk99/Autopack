@@ -35,6 +35,7 @@ try:
         MatchValue,
         SearchRequest,
     )
+
     QDRANT_AVAILABLE = True
 except ImportError:
     QDRANT_AVAILABLE = False
@@ -256,11 +257,13 @@ class QdrantStore:
                 # Return original ID from payload
                 original_id = payload.pop("_original_id", str(hit.id))
 
-                results.append({
-                    "id": original_id,
-                    "score": float(hit.score),
-                    "payload": payload,
-                })
+                results.append(
+                    {
+                        "id": original_id,
+                        "score": float(hit.score),
+                        "payload": payload,
+                    }
+                )
 
             return results
 
@@ -314,10 +317,12 @@ class QdrantStore:
                 # Return original ID from payload
                 original_id = payload.pop("_original_id", str(record.id))
 
-                results.append({
-                    "id": original_id,
-                    "payload": payload,
-                })
+                results.append(
+                    {
+                        "id": original_id,
+                        "payload": payload,
+                    }
+                )
 
             return results
 

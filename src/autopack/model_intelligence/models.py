@@ -44,9 +44,15 @@ class ModelCatalog(Base):
     )
 
     # Relationships
-    pricing_records = relationship("ModelPricing", back_populates="model", cascade="all, delete-orphan")
-    benchmarks = relationship("ModelBenchmark", back_populates="model", cascade="all, delete-orphan")
-    sentiment_signals = relationship("ModelSentimentSignal", back_populates="model", cascade="all, delete-orphan")
+    pricing_records = relationship(
+        "ModelPricing", back_populates="model", cascade="all, delete-orphan"
+    )
+    benchmarks = relationship(
+        "ModelBenchmark", back_populates="model", cascade="all, delete-orphan"
+    )
+    sentiment_signals = relationship(
+        "ModelSentimentSignal", back_populates="model", cascade="all, delete-orphan"
+    )
 
 
 class ModelPricing(Base):
@@ -68,7 +74,9 @@ class ModelPricing(Base):
     model = relationship("ModelCatalog", back_populates="pricing_records")
 
     __table_args__ = (
-        UniqueConstraint("model_id", "effective_at", "source", name="uq_pricing_model_effective_source"),
+        UniqueConstraint(
+            "model_id", "effective_at", "source", name="uq_pricing_model_effective_source"
+        ),
     )
 
 
@@ -79,10 +87,14 @@ class ModelBenchmark(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     model_id = Column(String, ForeignKey("models_catalog.model_id"), nullable=False, index=True)
-    benchmark_name = Column(String, nullable=False, index=True)  # e.g., SWE-bench Verified, MMLU, HumanEval
+    benchmark_name = Column(
+        String, nullable=False, index=True
+    )  # e.g., SWE-bench Verified, MMLU, HumanEval
     score = Column(Numeric(10, 4), nullable=False)
     unit = Column(String, nullable=False)  # percent, pass@1, etc.
-    task_type = Column(String, nullable=False, index=True)  # code, reasoning, math, multimodal, etc.
+    task_type = Column(
+        String, nullable=False, index=True
+    )  # code, reasoning, math, multimodal, etc.
     dataset_version = Column(String, nullable=True)
     source = Column(String, nullable=False)  # official, lmsys, third_party
     source_url = Column(Text, nullable=False)
@@ -93,8 +105,11 @@ class ModelBenchmark(Base):
 
     __table_args__ = (
         UniqueConstraint(
-            "model_id", "benchmark_name", "dataset_version", "source_url",
-            name="uq_benchmark_model_name_version_url"
+            "model_id",
+            "benchmark_name",
+            "dataset_version",
+            "source_url",
+            name="uq_benchmark_model_name_version_url",
         ),
     )
 
@@ -109,7 +124,9 @@ class ModelRuntimeStats(Base):
     window_end = Column(DateTime, nullable=False, index=True)
     provider = Column(String, nullable=False, index=True)
     model = Column(String, nullable=False, index=True)
-    role = Column(String, nullable=False, index=True)  # builder, auditor, doctor, agent:planner, etc.
+    role = Column(
+        String, nullable=False, index=True
+    )  # builder, auditor, doctor, agent:planner, etc.
     calls = Column(Integer, nullable=False, default=0)
     total_tokens = Column(Integer, nullable=False, default=0)
     prompt_tokens = Column(Integer, nullable=True)
@@ -122,8 +139,12 @@ class ModelRuntimeStats(Base):
 
     __table_args__ = (
         UniqueConstraint(
-            "window_start", "window_end", "provider", "model", "role",
-            name="uq_runtime_stats_window_provider_model_role"
+            "window_start",
+            "window_end",
+            "provider",
+            "model",
+            "role",
+            name="uq_runtime_stats_window_provider_model_role",
         ),
     )
 
@@ -146,9 +167,7 @@ class ModelSentimentSignal(Base):
     # Relationship
     model = relationship("ModelCatalog", back_populates="sentiment_signals")
 
-    __table_args__ = (
-        UniqueConstraint("model_id", "source_url", name="uq_sentiment_model_url"),
-    )
+    __table_args__ = (UniqueConstraint("model_id", "source_url", name="uq_sentiment_model_url"),)
 
 
 class ModelRecommendation(Base):
@@ -157,21 +176,32 @@ class ModelRecommendation(Base):
     __tablename__ = "model_recommendations"
 
     id = Column(Integer, primary_key=True, index=True)
-    created_at = Column(DateTime, nullable=False, default=lambda: datetime.now(timezone.utc), index=True)
-    status = Column(String, nullable=False, default="proposed", index=True)  # proposed, accepted, rejected, implemented
-    use_case = Column(String, nullable=False, index=True)  # e.g., tidy_semantic, builder_low, doctor_cheap
+    created_at = Column(
+        DateTime, nullable=False, default=lambda: datetime.now(timezone.utc), index=True
+    )
+    status = Column(
+        String, nullable=False, default="proposed", index=True
+    )  # proposed, accepted, rejected, implemented
+    use_case = Column(
+        String, nullable=False, index=True
+    )  # e.g., tidy_semantic, builder_low, doctor_cheap
     current_model = Column(String, nullable=False)
     recommended_model = Column(String, nullable=False)
     reasoning = Column(Text, nullable=False)  # concise human-readable rationale
     expected_cost_delta_pct = Column(Numeric(6, 2), nullable=True)  # percentage change
     expected_quality_delta = Column(Numeric(5, 4), nullable=True)  # normalized 0..1
     confidence = Column(Numeric(5, 4), nullable=False)  # 0..1
-    evidence = Column(JSON, nullable=False)  # IDs/refs to pricing/benchmarks/runtime_stats/sentiment
+    evidence = Column(
+        JSON, nullable=False
+    )  # IDs/refs to pricing/benchmarks/runtime_stats/sentiment
     proposed_patch = Column(Text, nullable=True)  # optional YAML patch or diff excerpt
 
     __table_args__ = (
         UniqueConstraint(
-            "use_case", "current_model", "recommended_model", "created_at",
-            name="uq_recommendation_usecase_models_created"
+            "use_case",
+            "current_model",
+            "recommended_model",
+            "created_at",
+            name="uq_recommendation_usecase_models_created",
         ),
     )

@@ -15,8 +15,10 @@ import pytest
 from datetime import datetime, timedelta
 
 pytestmark = [
-    pytest.mark.xfail(strict=False, reason="Extended Governance API not implemented - aspirational test suite"),
-    pytest.mark.aspirational
+    pytest.mark.xfail(
+        strict=False, reason="Extended Governance API not implemented - aspirational test suite"
+    ),
+    pytest.mark.aspirational,
 ]
 
 
@@ -34,7 +36,7 @@ class TestApprovalFlow:
             description="Approve database migration phase",
             risk_level="medium",
             requested_by="system",
-            requested_at=datetime.utcnow()
+            requested_at=datetime.utcnow(),
         )
 
         assert request.request_id == "req_001"
@@ -54,7 +56,7 @@ class TestApprovalFlow:
             description="Test approval",
             risk_level="low",
             requested_by="system",
-            requested_at=datetime.utcnow()
+            requested_at=datetime.utcnow(),
         )
 
         # Approve request
@@ -76,7 +78,7 @@ class TestApprovalFlow:
             description="Test rejection",
             risk_level="high",
             requested_by="system",
-            requested_at=datetime.utcnow()
+            requested_at=datetime.utcnow(),
         )
 
         # Reject request
@@ -98,7 +100,7 @@ class TestApprovalFlow:
             description="Test",
             risk_level="low",
             requested_by="system",
-            requested_at=datetime.utcnow()
+            requested_at=datetime.utcnow(),
         )
 
         # First approval
@@ -119,7 +121,7 @@ class TestApprovalFlow:
             description="Test",
             risk_level="low",
             requested_by="system",
-            requested_at=datetime.utcnow()
+            requested_at=datetime.utcnow(),
         )
 
         # First rejection
@@ -144,7 +146,7 @@ class TestTierEscalation:
             description="Low risk change",
             risk_level="low",
             requested_by="system",
-            requested_at=datetime.utcnow()
+            requested_at=datetime.utcnow(),
         )
 
         # Tier 1 (low risk) should be auto-approvable
@@ -161,7 +163,7 @@ class TestTierEscalation:
             description="Medium risk change",
             risk_level="medium",
             requested_by="system",
-            requested_at=datetime.utcnow()
+            requested_at=datetime.utcnow(),
         )
 
         # Tier 2 (medium risk) should NOT be auto-approved
@@ -169,7 +171,11 @@ class TestTierEscalation:
 
     def test_tier_3_requires_senior_approval(self):
         """Test that tier 3 (high risk) requires senior approval."""
-        from autopack.governance_requests import GovernanceRequest, RequestType, requires_senior_approval
+        from autopack.governance_requests import (
+            GovernanceRequest,
+            RequestType,
+            requires_senior_approval,
+        )
 
         request = GovernanceRequest(
             request_id="req_001",
@@ -178,7 +184,7 @@ class TestTierEscalation:
             description="High risk change",
             risk_level="high",
             requested_by="system",
-            requested_at=datetime.utcnow()
+            requested_at=datetime.utcnow(),
         )
 
         # Tier 3 (high risk) should require senior approval
@@ -197,7 +203,7 @@ class TestTierEscalation:
             description="Pending request",
             risk_level="medium",
             requested_by="system",
-            requested_at=old_time
+            requested_at=old_time,
         )
 
         # Should escalate after 1 hour timeout
@@ -215,7 +221,7 @@ class TestTierEscalation:
             description="Recent request",
             risk_level="medium",
             requested_by="system",
-            requested_at=datetime.utcnow()
+            requested_at=datetime.utcnow(),
         )
 
         # Should NOT escalate within timeout
@@ -227,7 +233,11 @@ class TestAutoApproval:
 
     def test_auto_approve_low_risk_high_confidence(self):
         """Test auto-approval for low risk + high confidence."""
-        from autopack.governance_requests import GovernanceRequest, RequestType, auto_approve_if_eligible
+        from autopack.governance_requests import (
+            GovernanceRequest,
+            RequestType,
+            auto_approve_if_eligible,
+        )
 
         request = GovernanceRequest(
             request_id="req_001",
@@ -237,7 +247,7 @@ class TestAutoApproval:
             risk_level="low",
             requested_by="system",
             requested_at=datetime.utcnow(),
-            confidence_score=0.95
+            confidence_score=0.95,
         )
 
         # Should auto-approve
@@ -248,7 +258,11 @@ class TestAutoApproval:
 
     def test_no_auto_approve_low_confidence(self):
         """Test that low confidence prevents auto-approval."""
-        from autopack.governance_requests import GovernanceRequest, RequestType, auto_approve_if_eligible
+        from autopack.governance_requests import (
+            GovernanceRequest,
+            RequestType,
+            auto_approve_if_eligible,
+        )
 
         request = GovernanceRequest(
             request_id="req_001",
@@ -258,7 +272,7 @@ class TestAutoApproval:
             risk_level="low",
             requested_by="system",
             requested_at=datetime.utcnow(),
-            confidence_score=0.5
+            confidence_score=0.5,
         )
 
         # Should NOT auto-approve due to low confidence
@@ -268,7 +282,11 @@ class TestAutoApproval:
 
     def test_no_auto_approve_high_risk(self):
         """Test that high risk prevents auto-approval."""
-        from autopack.governance_requests import GovernanceRequest, RequestType, auto_approve_if_eligible
+        from autopack.governance_requests import (
+            GovernanceRequest,
+            RequestType,
+            auto_approve_if_eligible,
+        )
 
         request = GovernanceRequest(
             request_id="req_001",
@@ -278,7 +296,7 @@ class TestAutoApproval:
             risk_level="high",
             requested_by="system",
             requested_at=datetime.utcnow(),
-            confidence_score=0.95
+            confidence_score=0.95,
         )
 
         # Should NOT auto-approve due to high risk
@@ -288,7 +306,11 @@ class TestAutoApproval:
 
     def test_auto_approve_threshold_configurable(self):
         """Test that auto-approval threshold is configurable."""
-        from autopack.governance_requests import GovernanceRequest, RequestType, auto_approve_if_eligible
+        from autopack.governance_requests import (
+            GovernanceRequest,
+            RequestType,
+            auto_approve_if_eligible,
+        )
 
         request = GovernanceRequest(
             request_id="req_001",
@@ -298,7 +320,7 @@ class TestAutoApproval:
             risk_level="low",
             requested_by="system",
             requested_at=datetime.utcnow(),
-            confidence_score=0.85
+            confidence_score=0.85,
         )
 
         # Should auto-approve with threshold 0.8
@@ -314,7 +336,7 @@ class TestAutoApproval:
             risk_level="low",
             requested_by="system",
             requested_at=datetime.utcnow(),
-            confidence_score=0.85
+            confidence_score=0.85,
         )
 
         # Should NOT auto-approve with threshold 0.9
@@ -337,7 +359,7 @@ class TestEdgeCases:
                 description="Test",
                 risk_level="invalid",
                 requested_by="system",
-                requested_at=datetime.utcnow()
+                requested_at=datetime.utcnow(),
             )
 
     def test_missing_required_fields(self):
@@ -352,7 +374,7 @@ class TestEdgeCases:
                 description="Test",
                 risk_level="low",
                 requested_by="system",
-                requested_at=datetime.utcnow()
+                requested_at=datetime.utcnow(),
             )
 
     def test_concurrent_approval_attempts(self):
@@ -367,7 +389,7 @@ class TestEdgeCases:
             description="Test",
             risk_level="low",
             requested_by="system",
-            requested_at=datetime.utcnow()
+            requested_at=datetime.utcnow(),
         )
 
         results = []
@@ -403,7 +425,7 @@ class TestEdgeCases:
             risk_level="medium",
             requested_by="system",
             requested_at=datetime.utcnow(),
-            confidence_score=0.85
+            confidence_score=0.85,
         )
 
         # Serialize

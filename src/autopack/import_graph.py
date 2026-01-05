@@ -41,6 +41,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class ImportNode:
     """Represents a file node in the import graph."""
+
     path: Path
     imports: List[str] = field(default_factory=list)  # Imported module names
     imported_by: List[str] = field(default_factory=list)  # Files that import this
@@ -51,6 +52,7 @@ class ImportNode:
 @dataclass
 class ImportGraph:
     """Dependency graph of file imports."""
+
     nodes: Dict[str, ImportNode] = field(default_factory=dict)  # path -> node
     edges: List[Tuple[str, str]] = field(default_factory=list)  # (from_path, to_path)
     entry_files: List[str] = field(default_factory=list)
@@ -219,8 +221,12 @@ class ImportGraphAnalyzer:
         ranked = sorted(
             suggestions,
             key=lambda p: (
-                -sum(1 for edge in graph.edges if edge[0] in scope_set and edge[1] == p),  # Imported by scope
-                -sum(1 for edge in graph.edges if edge[1] in scope_set and edge[0] == p),  # Imports scope
+                -sum(
+                    1 for edge in graph.edges if edge[0] in scope_set and edge[1] == p
+                ),  # Imported by scope
+                -sum(
+                    1 for edge in graph.edges if edge[1] in scope_set and edge[0] == p
+                ),  # Imports scope
                 p,  # Alphabetical tie-breaker
             ),
         )

@@ -318,7 +318,9 @@ def run_preflight(requirements_dir: Path) -> Tuple[int, List[PreflightIssue]]:
     pyproject_pkgs = _read_pyproject_deps(repo_root / "pyproject.toml")
     pyproject_dev_pkgs = _read_pyproject_optional_dev_deps(repo_root / "pyproject.toml")
 
-    declared_pkgs = set().union(requirements_pkgs, requirements_dev_pkgs, pyproject_pkgs, pyproject_dev_pkgs)
+    declared_pkgs = set().union(
+        requirements_pkgs, requirements_dev_pkgs, pyproject_pkgs, pyproject_dev_pkgs
+    )
     issues.extend(_dependency_check(all_libs, declared_pkgs, declared_pkgs))
     issues.extend(_api_env_check(all_apis))
 
@@ -358,5 +360,3 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-
-

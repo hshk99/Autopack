@@ -18,6 +18,7 @@ QDRANT_PORT = int(os.getenv("QDRANT_PORT", "6333"))
 
 try:
     from autopack.memory import QdrantStore, QDRANT_AVAILABLE
+
     if QDRANT_AVAILABLE and QDRANT_TEST_ENABLED:
         # Try connecting to Qdrant
         test_client = QdrantStore(host=QDRANT_HOST, port=QDRANT_PORT)
@@ -32,7 +33,7 @@ except Exception:
 skip_if_no_qdrant = pytest.mark.skipif(
     not QDRANT_TESTABLE,
     reason="Qdrant not available or QDRANT_TEST_ENABLED not set. "
-           "Set QDRANT_TEST_ENABLED=true and ensure Qdrant is running on localhost:6333"
+    "Set QDRANT_TEST_ENABLED=true and ensure Qdrant is running on localhost:6333",
 )
 
 
@@ -236,10 +237,7 @@ class TestQdrantStore:
         store.ensure_collection(collection_name, size=128)
 
         # Upsert points
-        points = [
-            {"id": f"point{i}", "vector": [float(i)] * 128, "payload": {}}
-            for i in range(5)
-        ]
+        points = [{"id": f"point{i}", "vector": [float(i)] * 128, "payload": {}} for i in range(5)]
         store.upsert(collection_name, points)
 
         # Delete some points

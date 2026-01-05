@@ -17,14 +17,14 @@ Usage:
         repo_root=Path("."),
         import_graph_analyzer=analyzer
     )
-    
+
     # Refine scope with deterministic signals
     suggestions = refiner.refine_scope(
         current_scope=["src/auth/login.py"],
         phase_description="Implement OAuth2 authentication",
         confidence_threshold=0.6
     )
-    
+
     # Optional: Get LLM critique (advisory only)
     critique = refiner.get_llm_critique(
         current_scope=["src/auth/login.py"],
@@ -45,6 +45,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class ScopeSuggestion:
     """Suggested file to add to scope."""
+
     file_path: Path
     confidence: float
     reasons: List[str]
@@ -54,6 +55,7 @@ class ScopeSuggestion:
 @dataclass
 class ScopeRefinementResult:
     """Result of scope refinement."""
+
     suggestions: List[ScopeSuggestion]
     total_signals_checked: int
     high_confidence_count: int
@@ -141,16 +143,14 @@ class ScopeRefiner:
         # Count by confidence level
         high_count = sum(1 for s in suggestions if s.confidence >= self.HIGH_CONFIDENCE)
         medium_count = sum(
-            1 for s in suggestions
-            if self.MEDIUM_CONFIDENCE <= s.confidence < self.HIGH_CONFIDENCE
+            1 for s in suggestions if self.MEDIUM_CONFIDENCE <= s.confidence < self.HIGH_CONFIDENCE
         )
         low_count = sum(
-            1 for s in suggestions
-            if self.LOW_CONFIDENCE <= s.confidence < self.MEDIUM_CONFIDENCE
+            1 for s in suggestions if self.LOW_CONFIDENCE <= s.confidence < self.MEDIUM_CONFIDENCE
         )
 
         return ScopeRefinementResult(
-            suggestions=suggestions[:self.max_suggestions],
+            suggestions=suggestions[: self.max_suggestions],
             total_signals_checked=len(candidates),
             high_confidence_count=high_count,
             medium_confidence_count=medium_count,
@@ -317,15 +317,56 @@ class ScopeRefiner:
             List of lowercase keywords
         """
         # Simple keyword extraction: split on whitespace and punctuation
-        words = re.findall(r'\b\w+\b', description.lower())
+        words = re.findall(r"\b\w+\b", description.lower())
 
         # Filter out common stop words
         stop_words = {
-            "the", "a", "an", "and", "or", "but", "in", "on", "at", "to", "for",
-            "of", "with", "by", "from", "as", "is", "was", "are", "were", "be",
-            "been", "being", "have", "has", "had", "do", "does", "did", "will",
-            "would", "should", "could", "may", "might", "must", "can", "this",
-            "that", "these", "those", "it", "its", "they", "them", "their",
+            "the",
+            "a",
+            "an",
+            "and",
+            "or",
+            "but",
+            "in",
+            "on",
+            "at",
+            "to",
+            "for",
+            "of",
+            "with",
+            "by",
+            "from",
+            "as",
+            "is",
+            "was",
+            "are",
+            "were",
+            "be",
+            "been",
+            "being",
+            "have",
+            "has",
+            "had",
+            "do",
+            "does",
+            "did",
+            "will",
+            "would",
+            "should",
+            "could",
+            "may",
+            "might",
+            "must",
+            "can",
+            "this",
+            "that",
+            "these",
+            "those",
+            "it",
+            "its",
+            "they",
+            "them",
+            "their",
         }
 
         return [w for w in words if w not in stop_words and len(w) > 2]

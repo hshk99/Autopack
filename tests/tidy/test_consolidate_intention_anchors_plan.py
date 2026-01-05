@@ -12,6 +12,7 @@ from pathlib import Path
 
 # Import the script functions directly
 import sys
+
 project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root / "scripts" / "tidy"))
 
@@ -183,9 +184,7 @@ def test_generate_consolidation_plan_target_docs_project():
             }
         ]
 
-        plan = generate_consolidation_plan(
-            "other-project", analyses, base_dir=tmpdir_path
-        )
+        plan = generate_consolidation_plan("other-project", analyses, base_dir=tmpdir_path)
 
         assert len(plan["candidates"]) == 1
         candidate = plan["candidates"][0]
@@ -250,22 +249,22 @@ def test_generate_consolidation_plan_max_runs():
             )
             save_anchor(anchor, base_dir=tmpdir_path, generate_artifacts=True)
 
-            analyses.append({
-                "run_id": run_id,
-                "project_id": "test",
-                "anchor_id": anchor.anchor_id,
-                "version": 1,
-                "last_updated": anchor.updated_at.isoformat(),
-                "has_anchor": True,
-                "has_summary": True,
-                "event_count": 0,
-                "event_types": {},
-            })
+            analyses.append(
+                {
+                    "run_id": run_id,
+                    "project_id": "test",
+                    "anchor_id": anchor.anchor_id,
+                    "version": 1,
+                    "last_updated": anchor.updated_at.isoformat(),
+                    "has_anchor": True,
+                    "has_summary": True,
+                    "event_count": 0,
+                    "event_types": {},
+                }
+            )
 
         # Generate plan with max_runs=3
-        plan = generate_consolidation_plan(
-            "test", analyses, base_dir=tmpdir_path, max_runs=3
-        )
+        plan = generate_consolidation_plan("test", analyses, base_dir=tmpdir_path, max_runs=3)
 
         # Should only include 3 candidates
         assert len(plan["candidates"]) == 3
@@ -443,13 +442,15 @@ def test_run_plan_mode_no_sot_writes():
 
             # Check content unchanged
             current_content = file_path.read_text(encoding="utf-8")
-            assert current_content == original_state["content"], \
-                f"{file_path} content was modified!"
+            assert (
+                current_content == original_state["content"]
+            ), f"{file_path} content was modified!"
 
             # Check mtime unchanged
             current_mtime = file_path.stat().st_mtime
-            assert current_mtime == original_state["mtime"], \
-                f"{file_path} mtime changed (file was written to)!"
+            assert (
+                current_mtime == original_state["mtime"]
+            ), f"{file_path} mtime changed (file was written to)!"
 
 
 # =============================================================================

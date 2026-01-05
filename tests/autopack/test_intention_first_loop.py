@@ -61,9 +61,7 @@ def sample_anchor():
             preferences=["Use JWT tokens"],
             must_not=["Store passwords in plaintext"],
         ),
-        risk_profile=IntentionRiskProfile(
-            safety_profile="normal"
-        ),
+        risk_profile=IntentionRiskProfile(safety_profile="normal"),
     )
 
 

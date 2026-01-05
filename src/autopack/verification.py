@@ -25,11 +25,11 @@ def extract_numbers(text: str) -> list[str]:
         return []
 
     # Pattern matches integers and decimals, with optional commas and signs
-    number_pattern = r'[-+]?\d{1,3}(?:,\d{3})*(?:\.\d+)?|\d+(?:\.\d+)?'
+    number_pattern = r"[-+]?\d{1,3}(?:,\d{3})*(?:\.\d+)?|\d+(?:\.\d+)?"
     numbers = re.findall(number_pattern, text)
 
     # Normalize numbers by removing commas
-    return [num.replace(',', '') for num in numbers]
+    return [num.replace(",", "") for num in numbers]
 
 
 def verify_numeric_values(extracted: str, source: str, tolerance: float = 0.0001) -> dict:
@@ -53,20 +53,20 @@ def verify_numeric_values(extracted: str, source: str, tolerance: float = 0.0001
     """
     if not extracted:
         return {
-            'valid': True,
-            'extracted_numbers': [],
-            'source_numbers': [],
-            'missing_numbers': [],
-            'details': 'No extracted text to verify'
+            "valid": True,
+            "extracted_numbers": [],
+            "source_numbers": [],
+            "missing_numbers": [],
+            "details": "No extracted text to verify",
         }
 
     if not source:
         return {
-            'valid': False,
-            'extracted_numbers': extract_numbers(extracted),
-            'source_numbers': [],
-            'missing_numbers': extract_numbers(extracted),
-            'details': 'No source text provided'
+            "valid": False,
+            "extracted_numbers": extract_numbers(extracted),
+            "source_numbers": [],
+            "missing_numbers": extract_numbers(extracted),
+            "details": "No source text provided",
         }
 
     extracted_nums = extract_numbers(extracted)
@@ -102,19 +102,16 @@ def verify_numeric_values(extracted: str, source: str, tolerance: float = 0.0001
     valid = len(missing) == 0
 
     return {
-        'valid': valid,
-        'extracted_numbers': extracted_nums,
-        'source_numbers': source_nums,
-        'missing_numbers': missing,
-        'details': f"{'✓' if valid else '✗'} Found {len(extracted_nums)} numbers in extraction, {len(missing)} not in source"
+        "valid": valid,
+        "extracted_numbers": extracted_nums,
+        "source_numbers": source_nums,
+        "missing_numbers": missing,
+        "details": f"{'✓' if valid else '✗'} Found {len(extracted_nums)} numbers in extraction, {len(missing)} not in source",
     }
 
 
 def verify_citation_in_source(
-    extracted: str,
-    source: str,
-    normalize: bool = True,
-    min_match_length: int = 10
+    extracted: str, source: str, normalize: bool = True, min_match_length: int = 10
 ) -> dict:
     """Verify that extracted citation text appears in the source document.
 
@@ -136,37 +133,37 @@ def verify_citation_in_source(
     """
     if not extracted:
         return {
-            'valid': True,
-            'match_position': -1,
-            'match_quality': 'none',
-            'details': 'No extracted text to verify'
+            "valid": True,
+            "match_position": -1,
+            "match_quality": "none",
+            "details": "No extracted text to verify",
         }
 
     if not source:
         return {
-            'valid': False,
-            'match_position': -1,
-            'match_quality': 'none',
-            'details': 'No source text provided'
+            "valid": False,
+            "match_position": -1,
+            "match_quality": "none",
+            "details": "No source text provided",
         }
 
     # Skip verification if extracted text is too short
     if len(extracted.strip()) < min_match_length:
         return {
-            'valid': True,
-            'match_position': -1,
-            'match_quality': 'skipped',
-            'details': f'Extracted text too short ({len(extracted.strip())} < {min_match_length})'
+            "valid": True,
+            "match_position": -1,
+            "match_quality": "skipped",
+            "details": f"Extracted text too short ({len(extracted.strip())} < {min_match_length})",
         }
 
     # Try exact match first
     if extracted in source:
         position = source.index(extracted)
         return {
-            'valid': True,
-            'match_position': position,
-            'match_quality': 'exact',
-            'details': f'✓ Exact match found at position {position}'
+            "valid": True,
+            "match_position": position,
+            "match_quality": "exact",
+            "details": f"✓ Exact match found at position {position}",
         }
 
     # Try normalized match if enabled
@@ -177,18 +174,18 @@ def verify_citation_in_source(
         if normalized_extracted in normalized_source:
             position = normalized_source.index(normalized_extracted)
             return {
-                'valid': True,
-                'match_position': position,
-                'match_quality': 'normalized',
-                'details': f'✓ Normalized match found at position {position}'
+                "valid": True,
+                "match_position": position,
+                "match_quality": "normalized",
+                "details": f"✓ Normalized match found at position {position}",
             }
 
     # No match found
     return {
-        'valid': False,
-        'match_position': -1,
-        'match_quality': 'none',
-        'details': f'✗ No match found (extracted: "{extracted[:50]}...")'
+        "valid": False,
+        "match_position": -1,
+        "match_quality": "none",
+        "details": f'✗ No match found (extracted: "{extracted[:50]}...")',
     }
 
 
@@ -196,7 +193,7 @@ def verify_extraction(
     extraction_span: str,
     source_document: str,
     verify_numbers: bool = True,
-    verify_text: bool = True
+    verify_text: bool = True,
 ) -> dict:
     """Complete verification of an extraction against source document.
 
@@ -215,23 +212,20 @@ def verify_extraction(
             - text_check: dict - Results of text verification (if enabled)
             - details: str - Human-readable summary
     """
-    result = {
-        'valid': True,
-        'details': []
-    }
+    result = {"valid": True, "details": []}
 
     if verify_numbers:
         numeric_result = verify_numeric_values(extraction_span, source_document)
-        result['numeric_check'] = numeric_result
-        result['valid'] = result['valid'] and numeric_result['valid']
-        result['details'].append(f"Numeric: {numeric_result['details']}")
+        result["numeric_check"] = numeric_result
+        result["valid"] = result["valid"] and numeric_result["valid"]
+        result["details"].append(f"Numeric: {numeric_result['details']}")
 
     if verify_text:
         text_result = verify_citation_in_source(extraction_span, source_document)
-        result['text_check'] = text_result
-        result['valid'] = result['valid'] and text_result['valid']
-        result['details'].append(f"Text: {text_result['details']}")
+        result["text_check"] = text_result
+        result["valid"] = result["valid"] and text_result["valid"]
+        result["details"].append(f"Text: {text_result['details']}")
 
-    result['details'] = ' | '.join(result['details'])
+    result["details"] = " | ".join(result["details"])
 
     return result

@@ -25,7 +25,7 @@ class MarketAttractiveness:
         return {
             "framework": "Market Attractiveness",
             "attractiveness": attractiveness,
-            "details": f"Evaluated against {len(self.indicators)} indicators"
+            "details": f"Evaluated against {len(self.indicators)} indicators",
         }
 
     # Additional methods for specific evaluation logic can be added here

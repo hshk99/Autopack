@@ -24,6 +24,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class ValidationResult:
     """Result of a validation check."""
+
     valid: bool
     errors: List[str]
     warnings: List[str]
@@ -51,7 +52,25 @@ COMPOSE_REQUIRED_KEYS = {"version", "services"}
 COMPOSE_OPTIONAL_KEYS = {"networks", "volumes", "secrets", "configs", "x-"}
 
 # Valid docker-compose versions
-COMPOSE_VALID_VERSIONS = {"2", "2.0", "2.1", "2.2", "2.3", "2.4", "3", "3.0", "3.1", "3.2", "3.3", "3.4", "3.5", "3.6", "3.7", "3.8", "3.9"}
+COMPOSE_VALID_VERSIONS = {
+    "2",
+    "2.0",
+    "2.1",
+    "2.2",
+    "2.3",
+    "2.4",
+    "3",
+    "3.0",
+    "3.1",
+    "3.2",
+    "3.3",
+    "3.4",
+    "3.5",
+    "3.6",
+    "3.7",
+    "3.8",
+    "3.9",
+}
 
 
 def validate_yaml_syntax(content: str, filename: str = "unknown") -> ValidationResult:
@@ -228,7 +247,7 @@ def _is_valid_port_mapping(port: Any) -> bool:
 
     if isinstance(port, str):
         # Formats: "8080", "8080:80", "127.0.0.1:8080:80", "8080:80/tcp"
-        port_pattern = r'^(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}:)?(\d+)(:(\d+))?(/(tcp|udp))?$'
+        port_pattern = r"^(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}:)?(\d+)(:(\d+))?(/(tcp|udp))?$"
         return bool(re.match(port_pattern, port))
 
     if isinstance(port, dict):
@@ -264,7 +283,9 @@ def validate_yaml_file(filepath: Path) -> ValidationResult:
         return validate_yaml_syntax(content, filename)
 
 
-def validate_yaml_completeness(content: str, expected_keys: Optional[List[str]] = None) -> ValidationResult:
+def validate_yaml_completeness(
+    content: str, expected_keys: Optional[List[str]] = None
+) -> ValidationResult:
     """
     Check if YAML content appears complete (not truncated).
 

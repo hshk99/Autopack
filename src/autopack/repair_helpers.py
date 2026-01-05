@@ -24,9 +24,9 @@ BUILDER_JSON_SCHEMA = {
         {
             "path": "string (required)",
             "mode": "modify|create|delete (optional, defaults to modify)",
-            "new_content": "string (required for modify/create)"
+            "new_content": "string (required for modify/create)",
         }
-    ]
+    ],
 }
 
 
@@ -54,10 +54,7 @@ class JsonRepairHelper:
         self.repair_successes = 0
 
     def attempt_repair(
-        self,
-        raw_output: str,
-        error_message: str,
-        max_llm_attempts: int = 1
+        self, raw_output: str, error_message: str, max_llm_attempts: int = 1
     ) -> Tuple[Optional[Dict[str, Any]], str]:
         """
         Attempt to repair malformed JSON Builder output.
@@ -89,13 +86,13 @@ class JsonRepairHelper:
                 logger.info(f"[JsonRepair] LLM repair succeeded: {method}")
                 return repaired, f"llm_repair:{method}"
 
-        logger.warning(f"[JsonRepair] All repair strategies failed for error: {error_message[:100]}")
+        logger.warning(
+            f"[JsonRepair] All repair strategies failed for error: {error_message[:100]}"
+        )
         return None, "failed"
 
     def _rule_based_repair(
-        self,
-        raw_output: str,
-        error_message: str
+        self, raw_output: str, error_message: str
     ) -> Tuple[Optional[Dict[str, Any]], str]:
         """Apply rule-based fixes for common JSON issues."""
 
@@ -136,17 +133,17 @@ class JsonRepairHelper:
             repairs_applied.append("balance_brackets")
 
         # Rule 5: Fix trailing commas
-        text = re.sub(r',\s*}', '}', text)
-        text = re.sub(r',\s*]', ']', text)
+        text = re.sub(r",\s*}", "}", text)
+        text = re.sub(r",\s*]", "]", text)
         repairs_applied.append("fix_trailing_commas")
 
         # Rule 6: Add missing closing brackets based on error position
         if "Expecting ',' or '}'" in error_message or "Unterminated string" in error_message:
             # Try adding closing brackets at the end
-            open_braces = text.count('{') - text.count('}')
-            open_brackets = text.count('[') - text.count(']')
+            open_braces = text.count("{") - text.count("}")
+            open_brackets = text.count("[") - text.count("]")
             if open_braces > 0 or open_brackets > 0:
-                text = text + (']' * open_brackets) + ('}' * open_braces)
+                text = text + ("]" * open_brackets) + ("}" * open_braces)
                 repairs_applied.append("add_closing")
 
         # Try to parse the repaired text
@@ -173,7 +170,7 @@ class JsonRepairHelper:
                 escape_next = False
                 continue
 
-            if char == '\\':
+            if char == "\\":
                 result.append(char)
                 escape_next = True
                 continue
@@ -183,36 +180,36 @@ class JsonRepairHelper:
                 result.append(char)
                 continue
 
-            if char == '\n' and in_string:
-                result.append('\\n')
+            if char == "\n" and in_string:
+                result.append("\\n")
             else:
                 result.append(char)
 
-        return ''.join(result)
+        return "".join(result)
 
     def _balance_brackets(self, text: str) -> str:
         """Balance JSON brackets by adding missing closing brackets."""
         # Count brackets
         stack = []
         for char in text:
-            if char in '{[':
+            if char in "{[":
                 stack.append(char)
-            elif char == '}':
-                if stack and stack[-1] == '{':
+            elif char == "}":
+                if stack and stack[-1] == "{":
                     stack.pop()
-            elif char == ']':
-                if stack and stack[-1] == '[':
+            elif char == "]":
+                if stack and stack[-1] == "[":
                     stack.pop()
 
         # Add missing closers
         closers = []
         for opener in reversed(stack):
-            if opener == '{':
-                closers.append('}')
-            elif opener == '[':
-                closers.append(']')
+            if opener == "{":
+                closers.append("}")
+            elif opener == "[":
+                closers.append("]")
 
-        return text + ''.join(closers)
+        return text + "".join(closers)
 
     def _validate_builder_schema(self, data: Dict[str, Any]) -> bool:
         """Validate that the JSON matches the expected Builder schema."""
@@ -241,9 +238,7 @@ class JsonRepairHelper:
         return True
 
     def _llm_repair(
-        self,
-        raw_output: str,
-        error_message: str
+        self, raw_output: str, error_message: str
     ) -> Tuple[Optional[Dict[str, Any]], str]:
         """Use an LLM to repair the JSON."""
         if not self.llm_client:
@@ -325,11 +320,7 @@ class YamlRepairHelper:
         self.repair_successes = 0
 
     def attempt_repair(
-        self,
-        old_yaml: str,
-        new_yaml: str,
-        error_message: str,
-        file_path: str
+        self, old_yaml: str, new_yaml: str, error_message: str, file_path: str
     ) -> Tuple[Optional[str], str]:
         """
         Attempt to repair malformed YAML.
@@ -368,9 +359,7 @@ class YamlRepairHelper:
         return None, "failed"
 
     def _rule_based_repair(
-        self,
-        yaml_content: str,
-        error_message: str
+        self, yaml_content: str, error_message: str
     ) -> Tuple[Optional[str], str]:
         """Apply rule-based fixes for common YAML issues."""
         import yaml
@@ -379,9 +368,12 @@ class YamlRepairHelper:
         text = yaml_content
 
         # Rule 1: Fix truncated strings (unclosed quotes)
-        if "while scanning a quoted scalar" in error_message or "found unexpected end of stream" in error_message:
+        if (
+            "while scanning a quoted scalar" in error_message
+            or "found unexpected end of stream" in error_message
+        ):
             # Try to close unclosed strings
-            lines = text.split('\n')
+            lines = text.split("\n")
             fixed_lines = []
             for line in lines:
                 # Count quotes in line
@@ -391,29 +383,31 @@ class YamlRepairHelper:
                     line = line + '"'
                     repairs_applied.append("close_string")
                 fixed_lines.append(line)
-            text = '\n'.join(fixed_lines)
+            text = "\n".join(fixed_lines)
 
         # Rule 2: Fix incomplete list items
-        if text.strip().endswith('-'):
+        if text.strip().endswith("-"):
             text = text.rstrip() + ' ""'
             repairs_applied.append("complete_list_item")
 
         # Rule 3: Remove trailing incomplete lines
-        lines = text.split('\n')
-        while lines and lines[-1].strip().startswith('-') and ':' not in lines[-1]:
+        lines = text.split("\n")
+        while lines and lines[-1].strip().startswith("-") and ":" not in lines[-1]:
             # Incomplete list item at end - remove it
             lines.pop()
             repairs_applied.append("remove_incomplete_line")
-        text = '\n'.join(lines)
+        text = "\n".join(lines)
 
         # Rule 3b: Ensure document start marker if parser complains about document start or block mapping at top
-        if ("document start" in error_message.lower() or "block mapping" in error_message.lower()) and not text.lstrip().startswith("---"):
+        if (
+            "document start" in error_message.lower() or "block mapping" in error_message.lower()
+        ) and not text.lstrip().startswith("---"):
             text = "---\n" + text.lstrip()
             repairs_applied.append("add_document_start")
 
         # Rule 4: Ensure proper ending
-        if not text.endswith('\n'):
-            text = text + '\n'
+        if not text.endswith("\n"):
+            text = text + "\n"
 
         # Try to parse
         try:
@@ -426,11 +420,7 @@ class YamlRepairHelper:
         return None, "rule_based_failed"
 
     def _llm_repair(
-        self,
-        old_yaml: str,
-        new_yaml: str,
-        error_message: str,
-        file_path: str
+        self, old_yaml: str, new_yaml: str, error_message: str, file_path: str
     ) -> Tuple[Optional[str], str]:
         """Use an LLM to repair the YAML."""
         import yaml
@@ -505,7 +495,7 @@ def save_repair_debug(
     repaired: Optional[str],
     error: str,
     method: str,
-    run_id: str = "unknown"
+    run_id: str = "unknown",
 ):
     """
     Save repair attempt to debug directory for postmortem analysis.
@@ -523,6 +513,7 @@ def save_repair_debug(
     debug_dir.mkdir(parents=True, exist_ok=True)
 
     from datetime import datetime
+
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     safe_name = file_path.replace("/", "_").replace("\\", "_")
 

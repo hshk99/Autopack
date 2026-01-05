@@ -7,6 +7,7 @@ class EvidenceValidator:
         print("Validating evidence...")
         return True
 
+
 # Example usage:
 # validator = EvidenceValidator()
 # is_valid = validator.validate(session)

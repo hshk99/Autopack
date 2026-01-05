@@ -207,7 +207,7 @@ class TestDeepRetrievalRelevance:
 
         handoff_bundle = {
             "error_message": "Error occurred during handling",
-            "root_cause": "Error in handler"
+            "root_cause": "Error in handler",
         }
         result = retrieval.retrieve("phase_001", handoff_bundle)
 
@@ -219,7 +219,7 @@ class TestDeepRetrievalRelevance:
         """Test keyword extraction from handoff bundle."""
         handoff_bundle = {
             "error_message": "Database connection failed unexpectedly",
-            "root_cause": "Connection timeout occurred"
+            "root_cause": "Connection timeout occurred",
         }
 
         keywords = retrieval._extract_keywords(handoff_bundle)

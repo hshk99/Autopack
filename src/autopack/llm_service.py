@@ -22,19 +22,20 @@ logger = logging.getLogger(__name__)
 def estimate_tokens(text: str, *, chars_per_token: float = 4.0) -> int:
     """
     Rough token estimation for soft cap warnings.
-    
+
     Per GPT_RESPONSE20 C2 and GPT_RESPONSE21 Q2: Single factor 4.0 for all models in Phase 1.
     ±20-30% error is acceptable for advisory soft caps.
     Actual usage from provider is authoritative for cost tracking.
-    
+
     Args:
         text: Text to estimate tokens for
         chars_per_token: Average characters per token (default 4.0 for all models)
-    
+
     Returns:
         Estimated token count (minimum 1)
     """
     return max(1, int(len(text) / chars_per_token))
+
 
 from .llm_client import AuditorResult, BuilderResult
 from .model_router import ModelRouter
@@ -51,6 +52,7 @@ from .error_recovery import (
 # Import OpenAI clients with graceful fallback
 try:
     from .openai_clients import OpenAIAuditorClient, OpenAIBuilderClient
+
     OPENAI_AVAILABLE = True
 except (ImportError, Exception):
     # Catch both ImportError and OpenAIError (API key missing during init)
@@ -61,6 +63,7 @@ except (ImportError, Exception):
 # Import Anthropic clients with graceful fallback
 try:
     from .anthropic_clients import AnthropicAuditorClient, AnthropicBuilderClient
+
     ANTHROPIC_AVAILABLE = True
 except ImportError:
     ANTHROPIC_AVAILABLE = False
@@ -80,6 +83,7 @@ GLMAuditorClient = None  # type: ignore[assignment]
 # Import Gemini clients with graceful fallback
 try:
     from .gemini_clients import GeminiBuilderClient, GeminiAuditorClient
+
     GEMINI_AVAILABLE = True
 except ImportError:
     GEMINI_AVAILABLE = False
@@ -177,9 +181,7 @@ class LlmService:
         # Initialize quality gate with project config
         self.repo_root = repo_root or Path.cwd()
         # Use default config for quality gate (config_loader was removed)
-        self.quality_gate = QualityGate(
-            repo_root=self.repo_root, config={}
-        )
+        self.quality_gate = QualityGate(repo_root=self.repo_root, config={})
 
     def _resolve_client_and_model(self, role: str, requested_model: str):
         """Resolve client and fallback model if needed.
@@ -210,18 +212,27 @@ class LlmService:
                 return gemini_client, requested_model
             # Gemini not available, try fallbacks
             if anthropic_client is not None:
-                print(f"Warning: Gemini model {requested_model} selected but GOOGLE_API_KEY not set. Falling back to Anthropic (claude-sonnet-4-5).")
+                print(
+                    f"Warning: Gemini model {requested_model} selected but GOOGLE_API_KEY not set. Falling back to Anthropic (claude-sonnet-4-5)."
+                )
                 return anthropic_client, "claude-sonnet-4-5"
             if openai_client is not None:
-                print(f"Warning: Gemini model {requested_model} selected but GOOGLE_API_KEY not set. Falling back to OpenAI (gpt-4o).")
+                print(
+                    f"Warning: Gemini model {requested_model} selected but GOOGLE_API_KEY not set. Falling back to OpenAI (gpt-4o)."
+                )
                 return openai_client, "gpt-4o"
             if glm_client is not None:
                 # Keep GLM fallback model configurable (avoid hardcoding model bumps).
                 from autopack.model_registry import resolve_model_alias
+
                 glm_fallback = resolve_model_alias("glm-tidy")
-                print(f"Warning: Gemini model {requested_model} selected but GOOGLE_API_KEY not set. Falling back to GLM ({glm_fallback}).")
+                print(
+                    f"Warning: Gemini model {requested_model} selected but GOOGLE_API_KEY not set. Falling back to GLM ({glm_fallback})."
+                )
                 return glm_client, glm_fallback
-            raise RuntimeError(f"Gemini model {requested_model} selected but no LLM clients are available. Set GOOGLE_API_KEY, ANTHROPIC_API_KEY, OPENAI_API_KEY, or GLM_API_KEY.")
+            raise RuntimeError(
+                f"Gemini model {requested_model} selected but no LLM clients are available. Set GOOGLE_API_KEY, ANTHROPIC_API_KEY, OPENAI_API_KEY, or GLM_API_KEY."
+            )
 
         # Legacy GLM models: treated as misconfiguration
         if requested_model.lower().startswith("glm-"):
@@ -236,24 +247,36 @@ class LlmService:
                 return anthropic_client, requested_model
             # Anthropic not available, try fallbacks
             if gemini_client is not None:
-                print(f"Warning: Claude model {requested_model} selected but Anthropic not available. Falling back to Gemini (gemini-2.5-pro).")
+                print(
+                    f"Warning: Claude model {requested_model} selected but Anthropic not available. Falling back to Gemini (gemini-2.5-pro)."
+                )
                 return gemini_client, "gemini-2.5-pro"
             if openai_client is not None:
-                print(f"Warning: Claude model {requested_model} selected but Anthropic not available. Falling back to OpenAI (gpt-4o).")
+                print(
+                    f"Warning: Claude model {requested_model} selected but Anthropic not available. Falling back to OpenAI (gpt-4o)."
+                )
                 return openai_client, "gpt-4o"
-            raise RuntimeError(f"Claude model {requested_model} selected but no LLM clients are available")
+            raise RuntimeError(
+                f"Claude model {requested_model} selected but no LLM clients are available"
+            )
 
         # Route OpenAI models (gpt-*, o1-*, etc.) to OpenAI client
         if openai_client is not None:
             return openai_client, requested_model
         # OpenAI not available, try fallbacks
         if gemini_client is not None:
-            print(f"Warning: OpenAI model {requested_model} selected but OpenAI not available. Falling back to Gemini (gemini-2.5-pro).")
+            print(
+                f"Warning: OpenAI model {requested_model} selected but OpenAI not available. Falling back to Gemini (gemini-2.5-pro)."
+            )
             return gemini_client, "gemini-2.5-pro"
         if anthropic_client is not None:
-            print(f"Warning: OpenAI model {requested_model} selected but OpenAI not available. Falling back to Anthropic (claude-sonnet-4-5).")
+            print(
+                f"Warning: OpenAI model {requested_model} selected but OpenAI not available. Falling back to Anthropic (claude-sonnet-4-5)."
+            )
             return anthropic_client, "claude-sonnet-4-5"
-        raise RuntimeError(f"OpenAI model {requested_model} selected but no LLM clients are available")
+        raise RuntimeError(
+            f"OpenAI model {requested_model} selected but no LLM clients are available"
+        )
 
     def generate_deliverables_manifest(
         self,
@@ -308,7 +331,7 @@ class LlmService:
         run_context: Optional[Dict] = None,
         attempt_index: int = 0,
         use_full_file_mode: bool = True,  # NEW: Pass mode from pre-flight check
-        config = None,  # NEW: Pass BuilderOutputConfig for consistency
+        config=None,  # NEW: Pass BuilderOutputConfig for consistency
         retrieved_context: Optional[str] = None,  # NEW: Vector memory context
     ) -> BuilderResult:
         """
@@ -336,26 +359,33 @@ class LlmService:
         complexity = phase_spec.get("complexity", "medium")
 
         # Use escalation-aware model selection
-        model, effective_complexity, escalation_info = self.model_router.select_model_with_escalation(
-            role="builder",
-            task_category=task_category,
-            complexity=complexity,
-            phase_id=phase_id or "unknown",
-            attempt_index=attempt_index,
-            run_context=run_context,
+        model, effective_complexity, escalation_info = (
+            self.model_router.select_model_with_escalation(
+                role="builder",
+                task_category=task_category,
+                complexity=complexity,
+                phase_id=phase_id or "unknown",
+                attempt_index=attempt_index,
+                run_context=run_context,
+            )
         )
 
         # Log model selection (always, for observability per GPT recommendation)
         import logging
+
         logger = logging.getLogger(__name__)
         logger.info(
             f"[MODEL-SELECT] Builder: model={model}, complexity={complexity}->{effective_complexity}, "
             f"attempt={attempt_index}, category={task_category}"
         )
         if escalation_info.get("complexity_escalation_reason"):
-            logger.info(f"[ESCALATION] Builder complexity escalated: {escalation_info['complexity_escalation_reason']}")
+            logger.info(
+                f"[ESCALATION] Builder complexity escalated: {escalation_info['complexity_escalation_reason']}"
+            )
         if escalation_info.get("model_escalation_reason"):
-            logger.info(f"[MODEL] Builder using {model} due to: {escalation_info['model_escalation_reason']}")
+            logger.info(
+                f"[MODEL] Builder using {model} due to: {escalation_info['model_escalation_reason']}"
+            )
         if escalation_info.get("budget_warning"):
             budget_warning = escalation_info["budget_warning"]
             logger.warning(f"[{budget_warning['level'].upper()}] {budget_warning['message']}")
@@ -474,26 +504,33 @@ class LlmService:
         complexity = phase_spec.get("complexity", "medium")
 
         # Use escalation-aware model selection
-        model, effective_complexity, escalation_info = self.model_router.select_model_with_escalation(
-            role="auditor",
-            task_category=task_category,
-            complexity=complexity,
-            phase_id=phase_id or "unknown",
-            attempt_index=attempt_index,
-            run_context=run_context,
+        model, effective_complexity, escalation_info = (
+            self.model_router.select_model_with_escalation(
+                role="auditor",
+                task_category=task_category,
+                complexity=complexity,
+                phase_id=phase_id or "unknown",
+                attempt_index=attempt_index,
+                run_context=run_context,
+            )
         )
 
         # Log model selection (always, for observability per GPT recommendation)
         import logging
+
         logger = logging.getLogger(__name__)
         logger.info(
             f"[MODEL-SELECT] Auditor: model={model}, complexity={complexity}->{effective_complexity}, "
             f"attempt={attempt_index}, category={task_category}"
         )
         if escalation_info.get("complexity_escalation_reason"):
-            logger.info(f"[ESCALATION] Auditor complexity escalated: {escalation_info['complexity_escalation_reason']}")
+            logger.info(
+                f"[ESCALATION] Auditor complexity escalated: {escalation_info['complexity_escalation_reason']}"
+            )
         if escalation_info.get("model_escalation_reason"):
-            logger.info(f"[MODEL] Auditor using {model} due to: {escalation_info['model_escalation_reason']}")
+            logger.info(
+                f"[MODEL] Auditor using {model} due to: {escalation_info['model_escalation_reason']}"
+            )
         if escalation_info.get("budget_warning"):
             budget_warning = escalation_info["budget_warning"]
             logger.warning(f"[{budget_warning['level'].upper()}] {budget_warning['message']}")
@@ -574,9 +611,7 @@ class LlmService:
 
             # Integrate quality gate results with auditor result
             if hasattr(result, "metadata"):
-                result.metadata = integrate_with_auditor(
-                    result.metadata, quality_report
-                )
+                result.metadata = integrate_with_auditor(result.metadata, quality_report)
 
         return result
 
@@ -691,11 +726,7 @@ class LlmService:
             return "openai"  # Safe default
 
     def record_attempt_outcome(
-        self,
-        phase_id: str,
-        model: str,
-        outcome: str,
-        details: Optional[str] = None
+        self, phase_id: str, model: str, outcome: str, details: Optional[str] = None
     ):
         """
         Record the outcome of an attempt for escalation tracking.
@@ -864,13 +895,14 @@ IMPORTANT: execute_fix is for INFRASTRUCTURE fixes only. Code logic issues shoul
         """
         import logging
         from .config_loader import load_doctor_config
+
         logger = logging.getLogger(__name__)
         config = load_doctor_config()
 
         # 1. Choose Doctor model based on failure complexity
         # Per GPT_RESPONSE10: choose_doctor_model returns (model, is_complex) tuple
         model, is_complex = choose_doctor_model(request, ctx_summary)
-        
+
         # Per GPT_RESPONSE10: Track error category in context
         if ctx_summary:
             ctx_summary.record_error_category(request.error_category)
@@ -934,7 +966,7 @@ IMPORTANT: execute_fix is for INFRASTRUCTURE fixes only. Code logic issues shoul
 
             anchor_section = load_and_render_for_doctor(
                 run_id=request.run_id,
-                base_dir='.',  # Use current directory (.autonomous_runs/<run_id>/)
+                base_dir=".",  # Use current directory (.autonomous_runs/<run_id>/)
             )
             if anchor_section:
                 message_parts.append("")
@@ -944,7 +976,9 @@ IMPORTANT: execute_fix is for INFRASTRUCTURE fixes only. Code logic issues shoul
             message_parts.append("")
             message_parts.append("### Patch Validation Errors")
             for i, err in enumerate(request.patch_errors[:5], 1):
-                message_parts.append(f"{i}. {err.get('error_type', 'unknown')}: {err.get('message', 'No message')}")
+                message_parts.append(
+                    f"{i}. {err.get('error_type', 'unknown')}: {err.get('message', 'No message')}"
+                )
 
         if request.last_patch:
             message_parts.append("")
@@ -985,6 +1019,7 @@ IMPORTANT: execute_fix is for INFRASTRUCTURE fixes only. Code logic issues shoul
             DoctorResponse parsed from LLM output
         """
         import logging
+
         logger = logging.getLogger(__name__)
 
         # Resolve client
@@ -998,7 +1033,7 @@ IMPORTANT: execute_fix is for INFRASTRUCTURE fixes only. Code logic issues shoul
 
         try:
             # Use the client's underlying API call
-            if hasattr(client, 'client') and hasattr(client.client, 'chat'):
+            if hasattr(client, "client") and hasattr(client.client, "chat"):
                 # OpenAI client
                 completion = client.client.chat.completions.create(
                     model=resolved_model,
@@ -1017,7 +1052,7 @@ IMPORTANT: execute_fix is for INFRASTRUCTURE fixes only. Code logic issues shoul
                     prompt_tokens = None
                     completion_tokens = None
                     tokens_used = 0
-            elif hasattr(client, 'client') and hasattr(client.client, 'messages'):
+            elif hasattr(client, "client") and hasattr(client.client, "messages"):
                 # Anthropic client
                 completion = client.client.messages.create(
                     model=resolved_model,
@@ -1106,7 +1141,7 @@ IMPORTANT: execute_fix is for INFRASTRUCTURE fixes only. Code logic issues shoul
             pass
 
         # Strategy 2: Try to extract JSON from markdown code block
-        json_block_match = re.search(r'```(?:json)?\s*(\{[\s\S]*?\})\s*```', content)
+        json_block_match = re.search(r"```(?:json)?\s*(\{[\s\S]*?\})\s*```", content)
         if json_block_match:
             try:
                 data = json.loads(json_block_match.group(1))
@@ -1116,7 +1151,7 @@ IMPORTANT: execute_fix is for INFRASTRUCTURE fixes only. Code logic issues shoul
                 pass
 
         # Strategy 3: Try to find JSON object in text (greedy match for outermost braces)
-        json_match = re.search(r'\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}', content)
+        json_match = re.search(r"\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}", content)
         if json_match:
             try:
                 data = json.loads(json_match.group(0))
@@ -1133,9 +1168,13 @@ IMPORTANT: execute_fix is for INFRASTRUCTURE fixes only. Code logic issues shoul
         if action_match:
             action = action_match.group(1)
             confidence = float(confidence_match.group(1)) if confidence_match else 0.5
-            rationale = rationale_match.group(1) if rationale_match else "Extracted from partial JSON"
+            rationale = (
+                rationale_match.group(1) if rationale_match else "Extracted from partial JSON"
+            )
 
-            logger.debug(f"[Doctor] Extracted fields via regex: action={action}, confidence={confidence}")
+            logger.debug(
+                f"[Doctor] Extracted fields via regex: action={action}, confidence={confidence}"
+            )
             return DoctorResponse(
                 action=action,
                 confidence=confidence,
@@ -1145,7 +1184,9 @@ IMPORTANT: execute_fix is for INFRASTRUCTURE fixes only. Code logic issues shoul
             )
 
         # Strategy 5: Return conservative default with higher confidence than total failure
-        logger.warning(f"[Doctor] Failed to parse JSON, returning default. Content preview: {content[:200]}")
+        logger.warning(
+            f"[Doctor] Failed to parse JSON, returning default. Content preview: {content[:200]}"
+        )
         return DoctorResponse(
             action="replan",
             confidence=0.4,  # Higher than the 0.3 for parse failures, indicating we at least got a response

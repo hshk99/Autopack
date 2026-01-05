@@ -67,17 +67,11 @@ class TestStableEntryID:
 
         # Same inputs should produce same ID
         id1 = consolidator._stable_entry_id(
-            "BUILD",
-            "archive/phase_a_complete.md",
-            "Phase A Implementation",
-            datetime(2025, 1, 1)
+            "BUILD", "archive/phase_a_complete.md", "Phase A Implementation", datetime(2025, 1, 1)
         )
 
         id2 = consolidator._stable_entry_id(
-            "BUILD",
-            "archive/phase_a_complete.md",
-            "Phase A Implementation",
-            datetime(2025, 1, 1)
+            "BUILD", "archive/phase_a_complete.md", "Phase A Implementation", datetime(2025, 1, 1)
         )
 
         assert id1 == id2
@@ -89,18 +83,12 @@ class TestStableEntryID:
         consolidator = DocumentConsolidator(tmp_path, dry_run=True)
 
         id1 = consolidator._stable_entry_id(
-            "BUILD",
-            "archive/phase_a_complete.md",
-            "Phase A Implementation",
-            datetime(2025, 1, 1)
+            "BUILD", "archive/phase_a_complete.md", "Phase A Implementation", datetime(2025, 1, 1)
         )
 
         # Different heading -> different ID
         id2 = consolidator._stable_entry_id(
-            "BUILD",
-            "archive/phase_a_complete.md",
-            "Phase B Implementation",
-            datetime(2025, 1, 1)
+            "BUILD", "archive/phase_a_complete.md", "Phase B Implementation", datetime(2025, 1, 1)
         )
 
         assert id1 != id2
@@ -111,17 +99,11 @@ class TestStableEntryID:
 
         # Windows vs Unix paths should produce same ID
         id1 = consolidator._stable_entry_id(
-            "BUILD",
-            "archive\\phase_a_complete.md",
-            "Phase A Implementation",
-            datetime(2025, 1, 1)
+            "BUILD", "archive\\phase_a_complete.md", "Phase A Implementation", datetime(2025, 1, 1)
         )
 
         id2 = consolidator._stable_entry_id(
-            "BUILD",
-            "archive/phase_a_complete.md",
-            "Phase A Implementation",
-            datetime(2025, 1, 1)
+            "BUILD", "archive/phase_a_complete.md", "Phase A Implementation", datetime(2025, 1, 1)
         )
 
         assert id1 == id2
@@ -133,13 +115,16 @@ class TestStableEntryID:
         archive_dir.mkdir()
 
         test_file = archive_dir / "test_implementation.md"
-        test_file.write_text("""
+        test_file.write_text(
+            """
         # Test Implementation Complete
 
         **Date**: 2025-01-01
 
         This implementation adds new features.
-        """, encoding="utf-8")
+        """,
+            encoding="utf-8",
+        )
 
         # Run consolidation twice
         consolidator1 = DocumentConsolidator(tmp_path, dry_run=True)
@@ -161,13 +146,16 @@ class TestStableEntryID:
 
         # File with explicit BUILD-999 ID
         test_file = archive_dir / "test_build.md"
-        test_file.write_text("""
+        test_file.write_text(
+            """
         # BUILD-999 Special Implementation
 
         **Date**: 2025-01-01
 
         This build has an explicit ID.
-        """, encoding="utf-8")
+        """,
+            encoding="utf-8",
+        )
 
         consolidator = DocumentConsolidator(tmp_path, dry_run=True)
         consolidator._process_archive_files()
@@ -181,13 +169,16 @@ class TestStableEntryID:
         archive_dir.mkdir()
 
         test_file = archive_dir / "generic_implementation.md"
-        test_file.write_text("""
+        test_file.write_text(
+            """
         # Generic Implementation
 
         **Date**: 2025-01-15
 
         This has no explicit ID.
-        """, encoding="utf-8")
+        """,
+            encoding="utf-8",
+        )
 
         consolidator = DocumentConsolidator(tmp_path, dry_run=True)
         consolidator._process_archive_files()

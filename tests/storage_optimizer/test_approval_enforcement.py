@@ -26,12 +26,13 @@ def test_execute_without_approval_file_refuses():
             sys.executable,
             "scripts/storage/scan_and_report.py",
             "--execute",
-            "--scan-id", "999",
+            "--scan-id",
+            "999",
             # Intentionally omit --approval-file
         ],
         capture_output=True,
         text=True,
-        cwd=Path(__file__).parent.parent.parent
+        cwd=Path(__file__).parent.parent.parent,
     )
 
     # Should fail with error about missing approval file
@@ -50,12 +51,14 @@ def test_execute_with_missing_approval_file_refuses(temp_dir):
             sys.executable,
             "scripts/storage/scan_and_report.py",
             "--execute",
-            "--scan-id", "999",
-            "--approval-file", str(nonexistent)
+            "--scan-id",
+            "999",
+            "--approval-file",
+            str(nonexistent),
         ],
         capture_output=True,
         text=True,
-        cwd=Path(__file__).parent.parent.parent
+        cwd=Path(__file__).parent.parent.parent,
     )
 
     assert result.returncode != 0
@@ -73,12 +76,14 @@ def test_execute_with_malformed_approval_file_refuses(temp_dir):
             sys.executable,
             "scripts/storage/scan_and_report.py",
             "--execute",
-            "--scan-id", "999",
-            "--approval-file", str(malformed)
+            "--scan-id",
+            "999",
+            "--approval-file",
+            str(malformed),
         ],
         capture_output=True,
         text=True,
-        cwd=Path(__file__).parent.parent.parent
+        cwd=Path(__file__).parent.parent.parent,
     )
 
     assert result.returncode != 0
@@ -93,12 +98,13 @@ def test_dry_run_does_not_require_approval():
             "scripts/storage/scan_and_report.py",
             "--execute",
             "--dry-run",
-            "--scan-id", "999",
+            "--scan-id",
+            "999",
             # Intentionally omit --approval-file
         ],
         capture_output=True,
         text=True,
-        cwd=Path(__file__).parent.parent.parent
+        cwd=Path(__file__).parent.parent.parent,
     )
 
     # Will fail due to missing scan, but should not fail on missing approval
@@ -115,7 +121,7 @@ def test_approval_artifact_roundtrip(temp_dir):
         report_id="abc123",
         timestamp="2026-01-03T12:00:00Z",
         operator="test_user",
-        notes="Test approval"
+        notes="Test approval",
     )
 
     # Save and reload
@@ -134,16 +140,13 @@ def test_compute_report_id_deterministic():
         "metadata": {
             "generated_at": "2026-01-03T12:00:00Z",  # Volatile field
             "runtime_seconds": 45.2,  # Volatile field
-            "version": "1.0"
+            "version": "1.0",
         },
-        "summary": {
-            "total_candidates": 100,
-            "potential_savings_gb": 5.2
-        },
+        "summary": {"total_candidates": 100, "potential_savings_gb": 5.2},
         "candidates": [
             {"path": "/path/to/file1.txt", "size_bytes": 1024},
-            {"path": "/path/to/file2.txt", "size_bytes": 2048}
-        ]
+            {"path": "/path/to/file2.txt", "size_bytes": 2048},
+        ],
     }
 
     # Compute report ID twice

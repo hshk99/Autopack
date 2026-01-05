@@ -165,9 +165,7 @@ class RoutingSnapshotStorage:
         return ModelRoutingSnapshot(**data)
 
     @staticmethod
-    def is_snapshot_fresh(
-        snapshot: ModelRoutingSnapshot, max_age_hours: int = 24
-    ) -> bool:
+    def is_snapshot_fresh(snapshot: ModelRoutingSnapshot, max_age_hours: int = 24) -> bool:
         """
         Check if snapshot is still fresh.
 

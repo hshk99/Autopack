@@ -1564,7 +1564,31 @@ class AutonomousExecutor:
                 phase.state = PhaseState.COMPLETE
                 phase.completed_at = datetime.now(timezone.utc)
 
+                # Capture timestamps for phase proof
+                phase_created_at = phase.created_at or datetime.now(timezone.utc)
+                phase_completed_at = phase.completed_at
+
                 db.commit()
+
+                # INSERTION POINT 4: Write phase proof on success (BUILD-161 Phase A)
+                if hasattr(self, "_intention_wiring") and self._intention_wiring is not None:
+                    try:
+                        from autopack.phase_proof_writer import write_minimal_phase_proof
+
+                        write_minimal_phase_proof(
+                            run_id=self.run_id,
+                            project_id=self.project_id,
+                            phase_id=phase_id,
+                            success=True,
+                            created_at=phase_created_at,
+                            completed_at=phase_completed_at,
+                            error_summary=None,
+                        )
+                    except Exception as proof_err:
+                        logger.warning(
+                            f"[{phase_id}] Failed to write phase proof (non-fatal): {proof_err}"
+                        )
+
             finally:
                 try:
                     db.close()
@@ -1687,7 +1711,32 @@ class AutonomousExecutor:
                 phase.last_failure_reason = reason
                 phase.completed_at = datetime.now(timezone.utc)
 
+                # Capture timestamps and error for phase proof
+                phase_created_at = phase.created_at or datetime.now(timezone.utc)
+                phase_completed_at = phase.completed_at
+                error_summary = reason
+
                 db.commit()
+
+                # INSERTION POINT 4: Write phase proof on failure (BUILD-161 Phase A)
+                if hasattr(self, "_intention_wiring") and self._intention_wiring is not None:
+                    try:
+                        from autopack.phase_proof_writer import write_minimal_phase_proof
+
+                        write_minimal_phase_proof(
+                            run_id=self.run_id,
+                            project_id=self.project_id,
+                            phase_id=phase_id,
+                            success=False,
+                            created_at=phase_created_at,
+                            completed_at=phase_completed_at,
+                            error_summary=error_summary,
+                        )
+                    except Exception as proof_err:
+                        logger.warning(
+                            f"[{phase_id}] Failed to write phase proof (non-fatal): {proof_err}"
+                        )
+
             finally:
                 try:
                     db.close()

@@ -37,7 +37,6 @@ def test_run_and_phase(test_db):
 
     run = Run(
         id="test-build155-telemetry",
-        project_name="test-project",
         created_at=datetime.now(timezone.utc),
         state="EXECUTING",
     )

@@ -68,6 +68,8 @@ def write_minimal_phase_proof(
             ),
             success=success,
             error_summary=error_summary[:500] if error_summary else None,
+            schema_version="1.0",
+            metrics_placeholder=True,  # Mark placeholder metrics explicitly
         )
 
         PhaseProofStorage.save_proof(proof)

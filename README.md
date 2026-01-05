@@ -47,10 +47,10 @@ Note: SOT→DB sync (`scripts/tidy/sot_db_sync.py`) exists as a derived index (`
 **Version**: 0.5.1
 
 <!-- SOT_SUMMARY_START -->
-**Last Updated**: 2026-01-05 20:37
+**Last Updated**: 2026-01-05 21:47
 
-- **Builds Completed**: 184 (includes multi-phase builds, 158 unique)
-- **Latest Build**: BUILD-171: P1 Contract Enforcement Polish - Real Boundary Tests + Endpoint Restore + README Slimming ✅
+- **Builds Completed**: 187 (includes multi-phase builds, 159 unique)
+- **Latest Build**: BUILD-172
 - **Architecture Decisions**: 41
 - **Debugging Sessions**: 86
 

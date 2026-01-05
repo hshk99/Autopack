@@ -99,6 +99,15 @@ class PhaseProof(BaseModel):
         None, max_length=500, description="Error summary if phase failed"
     )
 
+    # Schema versioning and placeholder tracking (BUILD-161 Phase A)
+    schema_version: str = Field(
+        default="1.0", description="Proof schema version for forward compatibility"
+    )
+    metrics_placeholder: bool = Field(
+        default=False,
+        description="True if change/verification metrics are placeholders (not yet instrumented)",
+    )
+
 
 class PhaseProofStorage:
     """

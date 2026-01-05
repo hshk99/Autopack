@@ -105,10 +105,17 @@ def save_anchor(
     # Generate run-local SOT-ready artifacts
     if generate_artifacts:
         try:
-            from .artifacts import log_anchor_event, save_anchor_summary
+            from .artifacts import (
+                log_anchor_event,
+                save_anchor_summary,
+                save_anchor_summary_snapshot,
+            )
 
-            # Save human-readable summary
+            # Save human-readable summary (current state)
             save_anchor_summary(anchor, base_dir=base_dir)
+
+            # Save versioned snapshot (append-only audit trail)
+            save_anchor_summary_snapshot(anchor, base_dir=base_dir)
 
             # Log creation/update event
             event_type = "anchor_created" if anchor.version == 1 else "anchor_updated"

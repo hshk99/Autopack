@@ -197,6 +197,7 @@ jobs:
   governance-approval-tests:
     name: Governance & Approval Tests
     runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
     steps:
       - uses: actions/checkout@v4
       - name: Set up Python

@@ -126,8 +126,8 @@ class Settings(BaseSettings):
     jwt_audience: str = "autopack-api"  # Token audience
     access_token_expire_minutes: int = 1440  # Token expiration (24 hours)
 
-    @model_validator(mode='after')
-    def validate_jwt_algorithm(self) -> 'Settings':
+    @model_validator(mode="after")
+    def validate_jwt_algorithm(self) -> "Settings":
         """
         Validate security-critical configuration after initialization.
 

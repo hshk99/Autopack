@@ -1,3 +1,27 @@
+.git
+.github
+.pytest_cache
+.ruff_cache
+.mypy_cache
+**/__pycache__/
+**/*.pyc
+**/*.pyo
+**/*.pyd
+
+# Local databases / telemetry seeds (never needed in images)
+*.db
+
+# Large derived/stateful directories (reduce build context + scan surface)
+archive/
+.autonomous_runs/
+
+# Dev-only content (not needed in runtime images)
+tests/
+docs/
+
+# Node build artifacts
+**/node_modules/
+**/dist/
 # Python
 __pycache__/
 *.py[cod]

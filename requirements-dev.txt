@@ -247,13 +247,15 @@ python-dotenv==1.2.1
     #   uvicorn
 python-jose[cryptography]==3.5.0
     # via autopack (pyproject.toml)
+python-magic==0.4.27 ; sys_platform != "win32"
+    # via autopack (pyproject.toml)
 python-magic-bin==0.4.14 ; sys_platform == "win32"
     # via autopack (pyproject.toml)
 python-multipart==0.0.21
     # via autopack (pyproject.toml)
 pytokens==0.3.0
     # via black
-pywin32==311
+pywin32==311 ; sys_platform == "win32"
     # via portalocker
 pyyaml==6.0.3
     # via

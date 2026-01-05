@@ -4,18 +4,29 @@ FROM python:3.11-slim as backend
 # Set the working directory in the container
 WORKDIR /app
 
+# Runtime safety defaults
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PYTHONPATH=/app/src
+
 # Copy the current directory contents into the container at /app
 COPY ./src /app/src
 COPY ./requirements.txt /app
 
 # Install any needed packages specified in requirements.txt
-RUN pip install --no-cache-dir -r requirements.txt
+RUN python -m pip install --no-cache-dir --upgrade pip \
+    && pip install --no-cache-dir -r requirements.txt
+
+# Run as non-root (defense-in-depth)
+RUN useradd --create-home --shell /bin/bash appuser \
+    && chown -R appuser:appuser /app
+USER appuser
 
 # Make port 8000 available to the world outside this container
 EXPOSE 8000
 
 # Run uvicorn server
-CMD ["uvicorn", "src.autopack.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "autopack.main:app", "--host", "0.0.0.0", "--port", "8000"]
 
 # Stage for frontend
 FROM node:20 as frontend

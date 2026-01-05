@@ -13,6 +13,17 @@ Push-Location $REPO_ROOT
 
 Write-Host "🔧 Regenerating requirements files from pyproject.toml..." -ForegroundColor Cyan
 
+# IMPORTANT:
+# pip-compile resolves environment markers based on the current platform.
+# If you run this on Windows, it will typically DROP non-Windows marker deps (e.g. python-magic)
+# and may INLINE Windows-only deps without markers (e.g. pywin32), producing requirements files
+# that break Linux CI and Docker builds.
+#
+# Repo policy: committed requirements*.txt must be generated on Linux (or WSL/CI runner).
+Write-Host "⚠️  This script should be run under Linux/WSL for repo-committed requirements files." -ForegroundColor Yellow
+Write-Host "   If you're on Windows PowerShell, use WSL and run: bash scripts/regenerate_requirements.sh" -ForegroundColor Yellow
+throw "Refusing to regenerate requirements on Windows to avoid non-portable output."
+
 # Runtime-only (for containers)
 Write-Host "📦 Compiling requirements.txt (runtime-only)..." -ForegroundColor Yellow
 pip-compile --output-file=requirements.txt pyproject.toml

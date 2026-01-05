@@ -6,6 +6,204 @@
 
 ---
 
+## SECBASE-20260105: Security Baseline Refresh (Trivy + CodeQL)
+
+**Date (UTC)**: 2026-01-05
+**Author**: Claude (assistant)
+**Branch/PR**: security/burndown-and-gates
+**Trigger**: Baseline refresh from CI SARIF (explicit update; no auto-update)
+
+### Source (canonical inputs)
+- **Workflow run**: https://github.com/hshk99/Autopack/actions/runs/20710883715
+- **Commit SHA (branch)**: `5ec239aa0f730cad58da0e7485a0c9e3a0f0870f`
+- **Artifacts used**:
+  - `trivy-results.sarif` (filesystem scan)
+  - `trivy-container.sarif` (container scan)
+  - `codeql-results/python.sarif` (CodeQL Python)
+
+### Policy snapshot (what is enforced)
+- **Trivy threshold**: `CRITICAL,HIGH` (regression-only)
+- **CodeQL threshold**: new alerts only (regression-only)
+- **CI mode**: `continue-on-error=true` for diff gates (bootstrap mode, will flip to false after stable baseline)
+
+### Baseline outputs (derived state committed)
+| Baseline file | Generator | Notes |
+| --- | --- | --- |
+| `security/baselines/trivy-fs.high.json` | `scripts/security/update_baseline.py --trivy-fs ... --write` | 0 findings (clean filesystem scan) |
+| `security/baselines/trivy-image.high.json` | `scripts/security/update_baseline.py --trivy-image ... --write` | 0 findings (clean container scan) |
+| `security/baselines/codeql.python.json` | `scripts/security/update_baseline.py --codeql ... --write` | 140 findings (pre-existing technical debt) |
+
+### Delta summary (from previous baseline → new baseline)
+| Scanner | Previous count | New count | Net | Comment |
+| --- | ---:| ---:| ---:| --- |
+| Trivy FS (HIGH/CRITICAL) | 0 | 0 | 0 | No vulnerabilities detected |
+| Trivy Image (HIGH/CRITICAL) | 0 | 0 | 0 | Clean container image |
+| CodeQL Python | 0 | 140 | +140 | Initial baseline capture of pre-existing findings |
+
+### Verification
+- **Normalized outputs deterministic**: YES (ran normalization, stable output)
+- **Diff gate behavior**:
+  - Current branch with refreshed baseline: expected pass ✅
+  - Baselines are empty arrays → populated with CI scan results
+
+### Notes / Follow-ups
+- CodeQL findings are pre-existing technical debt (empty-except, unused-local-variable, cyclic-import, etc.)
+- All findings tracked in GitHub Security tab via SARIF upload
+- Next step: flip `continue-on-error: false` in `.github/workflows/security.yml` after verifying stability
+- See `docs/SECURITY_BURNDOWN.md` for technical debt remediation tracking
+
+---
+
+## 2026-01-05: Container Hardening - Dockerfile Best Practices & .dockerignore
+
+**Event**: Enhanced Docker container security via minimal attack surface and deterministic builds.
+
+**Changes**:
+1. **Dockerfile Hardening**:
+   - Added `--no-cache-dir` to pip install (prevents cache poisoning, reduces image size)
+   - Added `USER autopack` directive (non-root execution, principle of least privilege)
+   - Created dedicated `autopack` user with UID 1000 (standard non-privileged UID)
+   - Set working directory ownership to autopack user
+   - Multi-stage build preserved (build → runtime separation)
+
+2. **.dockerignore Creation**:
+   - Excluded `.autonomous_runs/`, `.git/`, `venv/`, `__pycache__/` (24 patterns total)
+   - Prevents leaking sensitive execution artifacts into container
+   - Reduces build context size (faster builds, smaller images)
+   - Excludes test files, dev dependencies, and IDE configs from production image
+
+**Security Benefits**:
+- **Attack Surface Reduction**: Non-root user limits privilege escalation impact
+- **Build Determinism**: No pip cache prevents non-deterministic dependency resolution
+- **Secret Hygiene**: .dockerignore prevents accidental secret inclusion (API keys, tokens)
+- **Image Size**: Smaller images = fewer potential vulnerabilities
+
+**Verification**:
+- Docker build succeeds with new hardening
+- Container runs as UID 1000 (non-root) ✅
+- Build context excludes sensitive directories ✅
+
+**Aligns With**: DEC-043 (deterministic builds), README principle (safe, mechanically enforceable)
+
+**Owner**: Infrastructure team
+**Next Review**: Q2 2026 or on container security incident
+
+---
+
+## 2026-01-05: CVE-2024-23342 Remediation - RS256 Algorithm Guardrail
+
+**Event**: Implemented compensating control for CVE-2024-23342 (ECDSA signature malleability in python-jose dependency).
+
+**CVE Details**:
+- **Package**: `ecdsa` (transitive via `python-jose[cryptography]`)
+- **CVE**: CVE-2024-23342
+- **Severity**: HIGH (CVSS 7.5 NIST, 5.3 GitHub)
+- **Attack Vector**: Signature malleability in ECDSA implementation
+- **Upstream Status**: No fix available yet (2026-01-05)
+
+**Why Not Exploitable**:
+- Autopack exclusively uses **RS256** (RSA-based) for JWT signing/verification
+- ECDSA algorithms (`ES256`, `ES384`, `ES512`) never used in production code
+- JWT algorithm hardcoded to `RS256` in [src/autopack/auth/security.py](../src/autopack/auth/security.py)
+- Vulnerable code path (ECDSA) unreachable in production
+
+**Guardrail Implementation**:
+1. **Config Validator** ([src/autopack/config.py](../src/autopack/config.py)):
+   - Pydantic `@model_validator` enforces `jwt_algorithm == "RS256"` at startup
+   - Fails fast if any other algorithm configured (ES256, HS256, etc.)
+   - Error message references `docs/SECURITY_EXCEPTIONS.md` for context
+   - Prevents accidental misconfiguration or environment variable override
+
+2. **Contract Tests** ([tests/autopack/test_auth_algorithm_guardrail.py](../tests/autopack/test_auth_algorithm_guardrail.py)):
+   - `test_jwt_algorithm_must_be_rs256`: Validates default RS256 enforcement
+   - `test_jwt_algorithm_env_override_rejected`: Prevents env var override to vulnerable algorithms
+   - `test_security_exception_reference_in_error_message`: Ensures error guidance points to docs
+   - All 3 tests passing (100% coverage of guardrail contract)
+
+**Compensating Controls**:
+- **Mechanical Enforcement**: Config validation runs on every application startup
+- **Test Coverage**: Contract tests prevent accidental removal of guardrail
+- **Documentation**: Exception documented in `docs/SECURITY_EXCEPTIONS.md` with rationale
+- **CI Integration**: Tests run on every PR (prevents regression)
+
+**Remediation Options Considered**:
+- **Upgrade python-jose**: No fixed version available (upstream issue tracked)
+- **Replace python-jose**: Requires auth layer refactor (deferred until upstream fix)
+- **Remove ecdsa**: Not feasible (required dependency of python-jose)
+
+**Decision**: Accept risk with mechanical guardrail (lowest churn, preserves determinism, mechanically enforceable).
+
+**Monitoring**:
+- Track python-jose upstream issue for fix availability
+- Review quarterly or on upstream release (whichever comes first)
+- Watchlist item in `docs/SECURITY_BURNDOWN.md`
+
+**Verification**:
+- Config validator rejects non-RS256 algorithms ✅
+- Contract tests pass (3/3) ✅
+- Exception documented in SECURITY_EXCEPTIONS.md ✅
+- Error messages reference security docs ✅
+
+**Aligns With**: README principle ("mechanically enforceable via CI contracts"), DEC pattern (compensating controls over blocked deploys)
+
+**Owner**: Security team
+**Next Review**: 2026-04-05 or on python-jose upstream fix
+
+---
+
+## 2026-01-05: SARIF Artifacts Export Workflow - CI Canonical Baseline Source
+
+**Event**: Created automated workflow to export security scan SARIF files as downloadable CI artifacts.
+
+**New Workflow**: `.github/workflows/security-artifacts.yml`
+
+**Purpose**: Establish CI as single source of truth for security baselines (never local runs).
+
+**Artifacts Exported** (90-day retention):
+- `trivy-results.sarif` (filesystem scan)
+- `trivy-container.sarif` (Docker image scan)
+- `codeql-results/python.sarif` (CodeQL Python analysis)
+- Normalized JSON outputs for deterministic comparison
+
+**Triggers**:
+- `workflow_dispatch` (manual, on-demand)
+- `push` to `main` branch
+- `pull_request` to `main` branch
+
+**Security Benefits**:
+1. **Reproducibility**: Same codebase → same CI environment → same SARIF output
+2. **Platform Neutrality**: Eliminates "works on my machine" baseline drift
+3. **Audit Trail**: Workflow run URL + commit SHA preserved in SECURITY_LOG.md
+4. **Baseline Refresh**: 10-step procedure in `security/README.md` uses only CI artifacts
+
+**Integration**:
+- Feeds into `scripts/security/update_baseline.py` (baseline refresh tool)
+- Referenced in DEC-043 (CI SARIF Artifacts Canonical)
+- Required for SECBASE-YYYYMMDD log entries in this file
+
+**Baseline Refresh Procedure** (see `security/README.md`):
+1. Trigger security-artifacts.yml workflow on main
+2. Download SARIF artifacts from workflow run
+3. Run `update_baseline.py --trivy-fs <sarif> --write`
+4. Run `update_baseline.py --trivy-image <sarif> --write`
+5. Run `update_baseline.py --codeql <sarif> --write`
+6. Commit baseline changes with `SECBASE-YYYYMMDD` entry in this log
+7. Create PR with `security-baseline-update` label
+8. After 1-2 stable runs, flip `continue-on-error: false` in CI
+
+**Verification**:
+- Workflow runs successfully on main ✅
+- Artifacts downloadable and valid SARIF format ✅
+- Documented in security/README.md ✅
+- 90-day retention configured ✅
+
+**Aligns With**: DEC-043 (CI SARIF artifacts canonical), README principle (deterministic, mechanically enforceable)
+
+**Owner**: Security infrastructure team
+**Next Review**: After first baseline refresh or Q2 2026
+
+---
+
 ## 2026-01-05: Documentation Drift Detection (Signal Only, Non-Blocking)
 
 **Event**: Doc update hook (`scripts/update_docs.py --check`) reports dashboard-related drift.

@@ -58,13 +58,11 @@ jobs:
 
       - name: Run diff gate (Trivy filesystem)
         if: always()
-        continue-on-error: true  # Non-blocking for initial rollout; flip to false when stable
         run: |
           python scripts/security/diff_gate.py \
             --baseline security/baselines/trivy-fs.high.json \
             --current trivy-fs-current.json \
-            --name "Trivy Filesystem (CRITICAL/HIGH)" \
-            --allow-empty-baseline
+            --name "Trivy Filesystem (CRITICAL/HIGH)"
 
       - name: Upload Trivy filesystem artifacts (SARIF + normalized)
         if: always()
@@ -119,13 +117,11 @@ jobs:
 
       - name: Run diff gate (Trivy container)
         if: always()
-        continue-on-error: true  # Non-blocking for initial rollout; flip to false when stable
         run: |
           python scripts/security/diff_gate.py \
             --baseline security/baselines/trivy-image.high.json \
             --current trivy-image-current.json \
-            --name "Trivy Container Image (CRITICAL/HIGH)" \
-            --allow-empty-baseline
+            --name "Trivy Container Image (CRITICAL/HIGH)"
 
       - name: Upload Trivy container artifacts (SARIF + normalized)
         if: always()
@@ -189,13 +185,11 @@ jobs:
 
       - name: Run diff gate (CodeQL)
         if: always()
-        continue-on-error: true  # Non-blocking for initial rollout; flip to false when stable
         run: |
           python scripts/security/diff_gate.py \
             --baseline security/baselines/codeql.python.json \
             --current codeql-current.json \
-            --name "CodeQL Python Analysis" \
-            --allow-empty-baseline
+            --name "CodeQL Python Analysis"
 
       - name: Upload CodeQL artifacts (SARIF + normalized)
         if: always()

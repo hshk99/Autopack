@@ -287,7 +287,7 @@ def test_ab_test_result_query_by_validity(test_session):
     assert valid_results[0].test_id == "valid-test"
 
     # Query only invalid results
-    invalid_results = test_session.query(ABTestResult).filter(ABTestResult.is_valid == False).all()
+    invalid_results = test_session.query(ABTestResult).filter(~ABTestResult.is_valid).all()
     assert len(invalid_results) == 1
     assert invalid_results[0].test_id == "invalid-test"
 

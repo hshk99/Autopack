@@ -7,7 +7,6 @@ Intention behind these tests: Ensure prompts contain anchor content when run_id 
 and gracefully degrade when anchor is missing.
 """
 
-import os
 import tempfile
 import pytest
 

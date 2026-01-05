@@ -35,15 +35,17 @@ def test_run_and_phase(test_db):
     """Create a test run and phase for telemetry"""
     from datetime import datetime, timezone
 
+    from autopack.models import RunState, PhaseState
+
     run = Run(
         id="test-build155-telemetry",
         created_at=datetime.now(timezone.utc),
-        state="EXECUTING",
+        state=RunState.PHASE_EXECUTION,
     )
     test_db.add(run)
     test_db.commit()
 
-    tier = Tier(run_id=run.id, tier_id="T1", tier_index=0, name="Test Tier", state="EXECUTING")
+    tier = Tier(run_id=run.id, tier_id="T1", tier_index=0, name="Test Tier")
     test_db.add(tier)
     test_db.commit()
 
@@ -53,7 +55,7 @@ def test_run_and_phase(test_db):
         phase_id="test-phase-1",
         phase_index=0,
         name="Test Phase",
-        state="EXECUTING",
+        state=PhaseState.EXECUTING,
     )
     test_db.add(phase)
     test_db.commit()

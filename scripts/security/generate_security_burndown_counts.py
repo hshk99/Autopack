@@ -14,6 +14,7 @@ Usage:
 
 import argparse
 import json
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -48,12 +49,38 @@ def summarize_counts(findings_by_source: Dict[str, List[dict]]) -> dict:
     return summary
 
 
-def _get_last_updated_from_git(repo_root: Path) -> str:
+def _get_last_updated_from_security_log(repo_root: Path) -> str:
     """
     Return a deterministic "last updated" date for the baseline counts.
 
     IMPORTANT: Do not use wall-clock time; that would cause CI drift every day.
-    We instead use the last commit date that touched `security/baselines/`.
+    We instead derive from the latest SECBASE entry in docs/SECURITY_LOG.md.
+
+    Rationale:
+    - SECBASE entries are the governance event that "accepts" baseline changes.
+    - Using git commit dates is merge-method dependent (squash merges shift dates),
+      which can cause timestamp-only diffs and spurious Phase B PR creation.
+    """
+    security_log_path = repo_root / "docs" / "SECURITY_LOG.md"
+    if not security_log_path.exists():
+        return "unknown"
+
+    text = security_log_path.read_text(encoding="utf-8")
+    # Find all SECBASE-YYYYMMDD occurrences (be liberal about punctuation like ":" after the ID)
+    ids = re.findall(r"\bSECBASE-(\d{8})\b", text)
+    if not ids:
+        return "unknown"
+
+    latest = max(ids)
+    # Render as YYYY-MM-DD
+    return f"{latest[0:4]}-{latest[4:6]}-{latest[6:8]}"
+
+
+def _get_last_updated_fallback_from_git(repo_root: Path) -> str:
+    """
+    Fallback in case SECURITY_LOG.md isn't present or doesn't include SECBASE entries.
+    Uses last commit date touching security/baselines (still deterministic per repo state,
+    but may drift across squash merges).
     """
     try:
         res = subprocess.run(
@@ -148,7 +175,9 @@ def main():
     summary = summarize_counts(findings_by_source)
 
     # Render new block
-    last_updated = _get_last_updated_from_git(repo_root)
+    last_updated = _get_last_updated_from_security_log(repo_root)
+    if last_updated == "unknown":
+        last_updated = _get_last_updated_fallback_from_git(repo_root)
     new_block = render_markdown(summary, last_updated=last_updated)
 
     # Read current burndown
@@ -171,12 +200,12 @@ def main():
             print("Run: python scripts/security/generate_security_burndown_counts.py", file=sys.stderr)
             sys.exit(1)
         else:
-            print("✓ SECURITY_BURNDOWN.md counts are up-to-date")
+            print("OK: SECURITY_BURNDOWN.md counts are up-to-date")
             sys.exit(0)
     else:
         # Update mode: write new content
         burndown_path.write_text(updated_content, encoding="utf-8")
-        print(f"✓ Updated {burndown_path}")
+        print(f"OK: Updated {burndown_path}")
         print(f"  CodeQL: {summary['codeql']['total']} findings")
         print(f"  Trivy FS: {summary['trivy-fs']['total']} findings")
         print(f"  Trivy Image: {summary['trivy-image']['total']} findings")

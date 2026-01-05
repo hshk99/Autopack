@@ -193,8 +193,7 @@ jobs:
           EOF
           )" \
             --base main \
-            --head "${BRANCH}" \
-            --label "security-baseline-update"
+            --head "${BRANCH}"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 

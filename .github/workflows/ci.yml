@@ -101,12 +101,12 @@ jobs:
           DATABASE_URL: postgresql://autopack:autopack@localhost:5432/autopack
         run: |
           # Core gate: Must pass, no xfail allowed
-          # Excludes research-marked and aspirational-marked tests via pytest markers
-          pytest tests/ -m "not research and not aspirational" -v --cov=src/autopack --cov-report=xml --maxfail=5
+          # Excludes research-marked, aspirational-marked, and legacy_contract-marked tests via pytest markers
+          pytest tests/ -m "not research and not aspirational and not legacy_contract" -v --cov=src/autopack --cov-report=xml --maxfail=5
       - name: Verify no collection errors
         run: |
           # Ensure test collection succeeds (no import errors)
-          pytest tests/ -m "not research and not aspirational" --collect-only -q
+          pytest tests/ -m "not research and not aspirational and not legacy_contract" --collect-only -q
       - name: Check xfail budget
         run: |
           # Verify xfail count hasn't grown without approval

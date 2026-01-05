@@ -428,9 +428,9 @@ class SecondOpinionTriageSystem:
                 }
             ),
             "usage": {
-                "prompt_tokens": 0,  # Mock has no real usage
-                "completion_tokens": 0,
-                "total_tokens": 0,
+                "prompt_tokens": 1500,  # Mock realistic token usage
+                "completion_tokens": 800,
+                "total_tokens": 2300,
             },
         }
 

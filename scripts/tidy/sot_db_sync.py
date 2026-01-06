@@ -764,7 +764,7 @@ class SOTDBSync:
         """
         try:
             print(f"\n{'='*80}")
-            print(f"SOT → DB/Qdrant Sync (BUILD-163)")
+            print("SOT -> DB/Qdrant Sync (BUILD-163)")
             print(f"{'='*80}")
             print(f"Mode: {self.mode}")
             print(f"Execute: {self.execute}")

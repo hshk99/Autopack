@@ -60,16 +60,27 @@ Parallel runs are made safe through four complementary mechanisms:
 
 ### Basic Usage
 
+**BUILD-179 Update:** Parallel execution now requires an IntentionAnchorV2 with `parallelism_isolation.allowed=true`. This is a safety gate to prevent accidental parallel execution.
+
 ```bash
-# Run 3 parallel runs with Postgres
+# Run 3 parallel runs with Postgres (requires anchor)
 python scripts/autopack_supervisor.py \
   --run-ids build130-phase-a,build130-phase-b,build130-phase-c \
+  --anchor-path anchor.json \
+  --workers 3 \
+  --database-url postgresql://autopack:autopack@localhost:5432/autopack
+
+# Or use the unified CLI:
+python -m autopack.cli autopilot supervise \
+  --run-ids build130-phase-a,build130-phase-b,build130-phase-c \
+  --anchor-path anchor.json \
   --workers 3 \
   --database-url postgresql://autopack:autopack@localhost:5432/autopack
 
 # Run 2 parallel runs with per-run SQLite
 python scripts/autopack_supervisor.py \
   --run-ids experiment-001,experiment-002 \
+  --anchor-path anchor.json \
   --workers 2 \
   --per-run-sqlite
 
@@ -464,6 +475,7 @@ All components maintain backward compatibility:
 - **P2.2:** ExecutorLockManager respects `autonomous_runs_dir`
 - **P2.3:** Concurrency policy enforcement (Postgres requirement)
 - **P2.4:** WorkspaceLease (workspace-level locking)
+- **BUILD-179:** Library-first architecture + IntentionAnchorV2 policy gate for parallelism
 
 ---
 
@@ -502,4 +514,4 @@ All components maintain backward compatibility:
 - Tag: `parallel-runs`, `p2.0-p2.4`
 
 **Maintainer:** Autopack Core Team
-**Last Updated:** 2025-12-30
+**Last Updated:** 2026-01-06

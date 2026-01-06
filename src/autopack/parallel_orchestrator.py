@@ -97,6 +97,51 @@ class ParallelRunOrchestrator:
             f"[ParallelOrchestrator] Initialized with max_concurrent_runs={config.max_concurrent_runs}"
         )
 
+    async def execute_parallel(
+        self,
+        run_ids: List[str],
+        executor_func: Callable[[str, Path], Any],
+        anchor: Optional[IntentionAnchorV2] = None,
+        executor_kwargs: Optional[Dict[str, Any]] = None,
+    ) -> List[RunResult]:
+        """Execute multiple runs in parallel with policy enforcement (BUILD-180 default).
+
+        This is the primary public method for parallel execution. For multiple runs,
+        an anchor is required to enforce parallelism policy.
+
+        Args:
+            run_ids: List of run IDs to execute
+            executor_func: Async function to execute for each run
+                          Signature: async def func(run_id: str, workspace: Path, **kwargs) -> bool
+            anchor: Intention anchor v2 with parallelism policy (required for parallel runs)
+            executor_kwargs: Optional kwargs to pass to executor_func
+
+        Returns:
+            List of RunResult objects (one per run_id)
+
+        Raises:
+            ParallelismPolicyViolation: If parallel execution is not allowed by anchor
+            ValueError: If anchor is missing for parallel runs (len(run_ids) > 1)
+        """
+        # BUILD-180: Policy check is now default for parallel runs
+        if len(run_ids) > 1:
+            if anchor is None:
+                raise ValueError(
+                    "Anchor required for parallel execution (multiple run_ids). "
+                    "Provide an IntentionAnchorV2 with parallelism policy, or use "
+                    "execute_single() for single runs."
+                )
+
+            gate = ParallelismPolicyGate(anchor)
+            gate.check_parallel_allowed(requested_runs=len(run_ids))
+            logger.info(
+                f"[ParallelOrchestrator] Parallelism policy check passed "
+                f"(allowed={gate.is_parallel_allowed()}, max_concurrent={gate.get_max_concurrent_runs()})"
+            )
+
+        # Proceed with execution
+        return await self._execute_parallel_internal(run_ids, executor_func, executor_kwargs)
+
     async def execute_parallel_with_policy_check(
         self,
         run_ids: List[str],
@@ -106,51 +151,41 @@ class ParallelRunOrchestrator:
     ) -> List[RunResult]:
         """Execute multiple runs in parallel with parallelism policy enforcement.
 
-        This method checks IntentionAnchorV2.parallelism_isolation.allowed before
-        executing parallel runs. If parallel execution is not allowed, raises
-        ParallelismPolicyViolation.
+        DEPRECATED: Use execute_parallel() instead, which now enforces policy by default.
 
         Args:
             run_ids: List of run IDs to execute
             executor_func: Async function to execute for each run
-                          Signature: async def func(run_id: str, workspace: Path, **kwargs) -> bool
             anchor: Intention anchor v2 with parallelism policy
             executor_kwargs: Optional kwargs to pass to executor_func
 
         Returns:
             List of RunResult objects (one per run_id)
-
-        Raises:
-            ParallelismPolicyViolation: If parallel execution is not allowed by anchor
         """
-        # Check parallelism policy gate (Phase 5)
-        if len(run_ids) > 1:
-            gate = ParallelismPolicyGate(anchor)
-            gate.check_parallel_allowed(requested_runs=len(run_ids))
-            logger.info(
-                f"[ParallelOrchestrator] Parallelism policy check passed "
-                f"(allowed={gate.is_parallel_allowed()}, max_concurrent={gate.get_max_concurrent_runs()})"
-            )
+        import warnings
 
-        # Proceed with parallel execution
-        return await self.execute_parallel(run_ids, executor_func, executor_kwargs)
+        warnings.warn(
+            "execute_parallel_with_policy_check() is deprecated. "
+            "Use execute_parallel() which now enforces policy by default.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return await self.execute_parallel(run_ids, executor_func, anchor, executor_kwargs)
 
-    async def execute_parallel(
+    async def _execute_parallel_internal(
         self,
         run_ids: List[str],
         executor_func: Callable[[str, Path], Any],
         executor_kwargs: Optional[Dict[str, Any]] = None,
     ) -> List[RunResult]:
-        """Execute multiple runs in parallel with bounded concurrency.
+        """Internal: Execute multiple runs without policy check.
 
-        NOTE: This method does NOT check parallelism policy. Use
-        execute_parallel_with_policy_check() to enforce IntentionAnchorV2
-        parallelism policy.
+        This is an internal method. External callers should use execute_parallel()
+        which enforces policy by default.
 
         Args:
             run_ids: List of run IDs to execute
             executor_func: Async function to execute for each run
-                          Signature: async def func(run_id: str, workspace: Path, **kwargs) -> bool
             executor_kwargs: Optional kwargs to pass to executor_func
 
         Returns:
@@ -362,6 +397,7 @@ async def execute_parallel_runs(
     max_concurrent: int = 3,
     source_repo: Optional[Path] = None,
     worktree_base: Optional[Path] = None,
+    anchor: Optional[IntentionAnchorV2] = None,
     executor_kwargs: Optional[Dict[str, Any]] = None,
 ) -> List[RunResult]:
     """Execute multiple runs in parallel (convenience function).
@@ -372,6 +408,7 @@ async def execute_parallel_runs(
         max_concurrent: Maximum concurrent runs
         source_repo: Source git repository path
         worktree_base: Base directory for worktrees
+        anchor: Intention anchor v2 with parallelism policy (required for parallel runs)
         executor_kwargs: Optional kwargs for executor
 
     Returns:
@@ -388,6 +425,7 @@ async def execute_parallel_runs(
     return await orchestrator.execute_parallel(
         run_ids=run_ids,
         executor_func=executor_func,
+        anchor=anchor,
         executor_kwargs=executor_kwargs,
     )
 

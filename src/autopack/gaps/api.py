@@ -93,8 +93,7 @@ def scan_gaps(
     report.validate_against_schema()
 
     logger.info(
-        f"Found {report.summary.total_gaps} gaps "
-        f"({report.summary.autopilot_blockers} blockers)"
+        f"Found {report.summary.total_gaps} gaps " f"({report.summary.autopilot_blockers} blockers)"
     )
 
     artifact_path = None

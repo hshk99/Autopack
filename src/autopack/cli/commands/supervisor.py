@@ -15,11 +15,9 @@ from autopack.supervisor.api import (
     run_parallel_supervised,
     list_worktrees,
     cleanup_worktrees,
-    SupervisorResult,
 )
 from autopack.supervisor.parallel_run_supervisor import SupervisorError
 from autopack.autonomy.parallelism_gate import ParallelismPolicyViolation
-from autopack.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -210,9 +208,7 @@ def supervise_command(
                 click.echo(f"  Workspace: {run_result.workspace}")
 
         click.echo("")
-        click.echo(
-            f"Total: {result.successful_runs}/{result.total_runs} successful"
-        )
+        click.echo(f"Total: {result.successful_runs}/{result.total_runs} successful")
 
         if not result.all_successful:
             sys.exit(1)

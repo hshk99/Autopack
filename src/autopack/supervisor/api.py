@@ -28,9 +28,8 @@ from pathlib import Path
 from typing import Dict, List, Optional
 
 from .models import RunResult
-from .parallel_run_supervisor import ParallelRunSupervisor, SupervisorError
+from .parallel_run_supervisor import ParallelRunSupervisor
 from ..autonomy.parallelism_gate import (
-    ParallelismPolicyGate,
     ParallelismPolicyViolation,
     load_and_check_parallelism_policy,
 )
@@ -166,9 +165,7 @@ def run_parallel_supervised(
             requested_workers=max_workers,
         )
         parallelism_allowed = True
-        logger.info(
-            f"Parallelism policy check PASSED: {max_workers} workers allowed"
-        )
+        logger.info(f"Parallelism policy check PASSED: {max_workers} workers allowed")
     except ParallelismPolicyViolation as e:
         logger.error(f"Parallelism policy check FAILED: {e}")
         raise
@@ -239,6 +236,4 @@ def cleanup_worktrees(
     if worktree_base is None:
         worktree_base = Path(settings.autonomous_runs_dir) / "workspaces"
 
-    return ParallelRunSupervisor.cleanup_all_worktrees(
-        repo=source, worktree_base=worktree_base
-    )
+    return ParallelRunSupervisor.cleanup_all_worktrees(repo=source, worktree_base=worktree_base)

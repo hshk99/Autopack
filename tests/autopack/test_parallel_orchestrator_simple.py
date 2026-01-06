@@ -1,8 +1,10 @@
 """Simplified tests for parallel orchestrator (Phase 5 of True Autonomy)."""
 
-import pytest
 import asyncio
+from datetime import datetime, timezone
 from unittest.mock import MagicMock, patch
+
+import pytest
 
 from autopack.parallel_orchestrator import (
     ParallelRunConfig,
@@ -11,6 +13,28 @@ from autopack.parallel_orchestrator import (
     execute_parallel_runs,
     execute_single_run,
 )
+from autopack.intention_anchor.v2 import (
+    IntentionAnchorV2,
+    ParallelismIsolationIntention,
+    PivotIntentions,
+)
+
+
+def _anchor_parallel_allowed(max_concurrent_runs: int) -> IntentionAnchorV2:
+    """Create a minimal anchor that allows N parallel runs."""
+    return IntentionAnchorV2(
+        format_version="v2",
+        project_id="test-project",
+        created_at=datetime(2025, 1, 1, 0, 0, 0, tzinfo=timezone.utc),
+        raw_input_digest="0123456789abcdef",
+        pivot_intentions=PivotIntentions(
+            parallelism_isolation=ParallelismIsolationIntention(
+                allowed=True,
+                isolation_model="four_layer",
+                max_concurrent_runs=max_concurrent_runs,
+            )
+        ),
+    )
 
 
 class TestParallelRunConfig:
@@ -170,9 +194,11 @@ class TestParallelRunOrchestrator:
                 await asyncio.sleep(0.01)
                 return True
 
+            run_ids = ["run1", "run2", "run3"]
             results = await orchestrator.execute_parallel(
-                run_ids=["run1", "run2", "run3"],
+                run_ids=run_ids,
                 executor_func=executor,
+                anchor=_anchor_parallel_allowed(max_concurrent_runs=len(run_ids)),
             )
 
             assert len(results) == 3
@@ -234,6 +260,7 @@ class TestConvenienceFunctions:
                 run_ids=["run1", "run2"],
                 executor_func=executor,
                 source_repo=tmp_path,
+                anchor=_anchor_parallel_allowed(max_concurrent_runs=2),
             )
 
             assert len(results) == 2

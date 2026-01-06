@@ -97,11 +97,26 @@ def test_readme_sot_summary_matches_derived_state():
     status = status_m.group(1).strip() if status_m else ""
 
     # Reconstruct expected latest build string
+    # Support both ASCII markers ([OK], [!], [X]) and legacy Unicode glyphs.
+    # ASCII markers are preferred for Windows console compatibility.
     status_suffix = ""
-    if any(g in status for g in ("✅", "⚠️", "❌")):
-        for g in ("✅", "⚠️", "❌"):
-            if g in status:
-                status_suffix = f" {g}"
+    # ASCII markers (preferred, Windows-safe)
+    ascii_markers = ("[OK]", "[!]", "[X]")
+    # Legacy Unicode glyphs (for backward compatibility with existing entries)
+    unicode_markers = ("\u2705", "\u26a0\ufe0f", "\u274c")  # checkmark, warning, cross
+    # Map Unicode to ASCII for normalization
+    unicode_to_ascii = {"\u2705": "[OK]", "\u26a0\ufe0f": "[!]", "\u274c": "[X]"}
+
+    # Check for ASCII markers first (preferred)
+    for marker in ascii_markers:
+        if marker in status:
+            status_suffix = f" {marker}"
+            break
+    else:
+        # Fall back to Unicode markers if present, but emit as ASCII
+        for glyph in unicode_markers:
+            if glyph in status:
+                status_suffix = f" {unicode_to_ascii[glyph]}"
                 break
 
     derived_latest_build = (

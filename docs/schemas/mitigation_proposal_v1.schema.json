@@ -1,0 +1,91 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "mitigation_proposal_v1.schema.json",
+  "title": "MitigationProposalV1",
+  "description": "Schema for deterministic mitigation proposal artifacts (BUILD-181)",
+  "type": "object",
+  "required": [
+    "format_version",
+    "proposal_id",
+    "run_id",
+    "created_at",
+    "failure_signatures",
+    "proposed_rules",
+    "unmatched_signatures"
+  ],
+  "properties": {
+    "format_version": {
+      "type": "string",
+      "const": "v1",
+      "description": "Schema version"
+    },
+    "proposal_id": {
+      "type": "string",
+      "description": "Unique proposal identifier",
+      "pattern": "^mit-[a-f0-9]+$"
+    },
+    "run_id": {
+      "type": "string",
+      "description": "Run this proposal belongs to"
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 timestamp"
+    },
+    "failure_signatures": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Input failure signatures"
+    },
+    "proposed_rules": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/Rule"
+      },
+      "description": "Generated mitigation rules"
+    },
+    "unmatched_signatures": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Signatures with no matching rule"
+    }
+  },
+  "additionalProperties": false,
+  "definitions": {
+    "Rule": {
+      "type": "object",
+      "required": [
+        "rule_id",
+        "description",
+        "prevention_action",
+        "applies_to_signatures"
+      ],
+      "properties": {
+        "rule_id": {
+          "type": "string",
+          "description": "Unique rule identifier"
+        },
+        "description": {
+          "type": "string",
+          "description": "Human-readable description"
+        },
+        "prevention_action": {
+          "type": "string",
+          "description": "Action to prevent this failure"
+        },
+        "applies_to_signatures": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Failure signatures this rule handles"
+        },
+        "severity": {
+          "type": "string",
+          "enum": ["low", "medium", "high"],
+          "description": "Rule severity"
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

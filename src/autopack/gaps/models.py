@@ -22,6 +22,17 @@ class GapExcerpt(BaseModel):
     preview: Optional[str] = None
 
 
+class CommandEvidence(BaseModel):
+    """Evidence from a command execution (BUILD-180)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    command: str
+    exit_code: int
+    stdout_hash: str = ""
+    stderr_excerpt: str = ""
+
+
 class GapEvidence(BaseModel):
     """Evidence pointers for a gap."""
 
@@ -30,6 +41,7 @@ class GapEvidence(BaseModel):
     file_paths: List[str] = Field(default_factory=list)
     test_names: List[str] = Field(default_factory=list)
     excerpts: List[GapExcerpt] = Field(default_factory=list)
+    command_evidence: Optional[CommandEvidence] = None
 
 
 class SafeRemediation(BaseModel):

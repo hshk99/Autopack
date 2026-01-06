@@ -143,19 +143,24 @@ class ParallelRunSupervisor:
                         "PYTHONUTF8": "1",
                     }
 
-                    # Build command
+                    # Build command - use worktree path for isolation
+                    # (not source_repo, which would break Four-Layer isolation)
+                    executor_path = (
+                        Path(workspace)
+                        / "src"
+                        / "autopack"
+                        / "autonomous_executor.py"
+                    )
                     cmd = [
                         sys.executable,
-                        str(
-                            self.source_repo
-                            / "src"
-                            / "autopack"
-                            / "autonomous_executor.py"
-                        ),
+                        str(executor_path),
                         "--run-id",
                         run_id,
                         *extra_args,
                     ]
+
+                    # Set PYTHONPATH to worktree so imports resolve correctly
+                    env["PYTHONPATH"] = str(Path(workspace) / "src")
 
                     logger.info(f"[{run_id}] Executing: {' '.join(cmd)}")
 
@@ -166,6 +171,8 @@ class ParallelRunSupervisor:
                         env=env,
                         capture_output=True,
                         text=True,
+                        encoding="utf-8",
+                        errors="replace",
                         timeout=None,
                     )
 

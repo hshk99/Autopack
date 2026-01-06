@@ -48,6 +48,9 @@ These are the canonical references that should stay current and are designed to 
 ### Governance & Approvals
 - **PR approval pipeline (run-local proposal → Telegram buttons → local PR create)**: `docs/IMPLEMENTATION_PLAN_PR_APPROVAL_PIPELINE.md` (opt-in workflow for post-run PR creation with Telegram approval, never runs in CI, never auto-merges)
 
+### Operations / Autonomy
+- **Autopilot Operations Runbook (BUILD-179)**: `docs/AUTOPILOT_OPERATIONS.md` - operator guide for gap scan → plan → autopilot → supervise loop, parallelism gates, artifact types, troubleshooting
+
 ### Testing & Operations
 - **Testing**: `docs/TESTING_GUIDE.md`
 - **Troubleshooting**: `docs/TROUBLESHOOTING.md`

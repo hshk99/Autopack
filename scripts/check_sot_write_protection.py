@@ -79,17 +79,17 @@ def main() -> int:
 
     # Report missing modules as warnings (not failures)
     if missing_modules:
-        print(f"⚠️  Warning: {len(missing_modules)} expected module(s) not found (may not exist yet):", file=sys.stderr)
+        print(f"[!]️  Warning: {len(missing_modules)} expected module(s) not found (may not exist yet):", file=sys.stderr)
         for m in missing_modules[:5]:
             print(f"  - {m}", file=sys.stderr)
         if len(missing_modules) > 5:
             print(f"  ... and {len(missing_modules) - 5} more", file=sys.stderr)
 
     if not all_findings:
-        print(f"✅ SOT write protection check passed (no direct writes detected in {len(runtime_modules) - len(missing_modules)} runtime modules)")
+        print(f"[OK] SOT write protection check passed (no direct writes detected in {len(runtime_modules) - len(missing_modules)} runtime modules)")
         return 0
 
-    print("❌ SOT write protection check failed.", file=sys.stderr)
+    print("[X] SOT write protection check failed.", file=sys.stderr)
     print("Runtime modules appear to reference protected SOT paths alongside write APIs:", file=sys.stderr)
     for f in all_findings[:50]:
         print(f"- {f}", file=sys.stderr)

@@ -12,7 +12,7 @@ Scope:
   * Can include backticks with --include-backticks flag
 
 Features:
-- Layered heuristic matching for broken links (same-dir → basename → fuzzy)
+- Layered heuristic matching for broken links (same-dir -> basename -> fuzzy)
 - Confidence scoring for suggested fixes (high/medium/low)
 - Fix plan generation (JSON + Markdown)
 - Fenced code block skipping to reduce false positives
@@ -42,7 +42,7 @@ def _configure_utf8_stdio() -> None:
     """
     Make CLI output resilient on Windows terminals that default to legacy encodings (e.g. cp1252).
 
-    This script prints Unicode symbols (✅/❌/⚠️). On some Windows shells, that can raise
+    This script prints Unicode symbols ([OK]/[X]/[!]️). On some Windows shells, that can raise
     UnicodeEncodeError and crash the checker. We prefer UTF-8, and fall back to replacement.
     """
     for stream in (sys.stdout, sys.stderr):
@@ -94,7 +94,7 @@ def load_ignore_config(repo_root: Path) -> Dict:
         with open(config_path, 'r', encoding='utf-8') as f:
             return yaml.safe_load(f) or {}
     except Exception as e:
-        print(f"⚠️  Failed to load ignore config: {e}", file=sys.stderr)
+        print(f"[!]️  Failed to load ignore config: {e}", file=sys.stderr)
         return {}
 
 
@@ -173,7 +173,7 @@ def normalize_path(path: str) -> str:
     - Convert backslashes to forward slashes
     - Remove leading './' (but preserve '../' and leading '.' for dot-directories like '.github/')
     - Remove leading '/' to treat repo-root-relative paths as relative
-    - Decode URL encoding (%20 → space)
+    - Decode URL encoding (%20 -> space)
     - Strip trailing whitespace
     """
     normalized = unquote(path.replace('\\', '/')).strip()
@@ -806,7 +806,7 @@ def main():
         results.append(result)
 
         if not result["exists"]:
-            print(f"❌ {result['file']}: FILE NOT FOUND")
+            print(f"[X] {result['file']}: FILE NOT FOUND")
             continue
 
         total_refs += result["refs_total"]
@@ -814,18 +814,18 @@ def main():
         all_broken_links.extend(result["refs_broken"])
 
         if result["refs_broken"]:
-            print(f"❌ {result['file']}: {len(result['refs_broken'])} broken link(s)")
+            print(f"[X] {result['file']}: {len(result['refs_broken'])} broken link(s)")
             if args.verbose:
                 for broken in result["refs_broken"]:
                     suggested = broken['suggested_fix'] or '(none)'
-                    print(f"   Line {broken['line_number']}: {broken['broken_target']} → {suggested} ({broken['confidence']})")
+                    print(f"   Line {broken['line_number']}: {broken['broken_target']} -> {suggested} ({broken['confidence']})")
         else:
-            print(f"✅ {result['file']}: all {result['refs_total']} link(s) valid")
+            print(f"[OK] {result['file']}: all {result['refs_total']} link(s) valid")
 
         if args.verbose and result["refs_valid"]:
             print(f"   Valid refs ({len(result['refs_valid'])}):")
             for valid_ref in sorted(result["refs_valid"], key=lambda x: x['target'])[:10]:  # Show first 10
-                print(f"     • {valid_ref['target']}")
+                print(f"     * {valid_ref['target']}")
             if len(result["refs_valid"]) > 10:
                 print(f"     ... and {len(result['refs_valid']) - 10} more")
 
@@ -882,7 +882,7 @@ def main():
 
         print()
         if enforced_links:
-            print(f"❌ Enforced broken links (CI-blocking): {len(enforced_links)}")
+            print(f"[X] Enforced broken links (CI-blocking): {len(enforced_links)}")
             enforced_cats = {}
             for b in enforced_links:
                 cat = b['reason']
@@ -892,7 +892,7 @@ def main():
 
         if informational_links:
             print()
-            print(f"ℹ️  Informational references (report-only): {len(informational_links)}")
+            print(f"[i]️  Informational references (report-only): {len(informational_links)}")
             info_cats = {}
             for b in informational_links:
                 cat = b['reason']
@@ -918,16 +918,16 @@ def main():
 
         print()
         if ci_failures > 0:
-            print(f"❌ FAILED: {ci_failures} broken link(s) in fail_on categories: {ci_fail_categories}")
+            print(f"[X] FAILED: {ci_failures} broken link(s) in fail_on categories: {ci_fail_categories}")
             print("   Run with --deep to generate fix plan, or use scripts/fix_doc_links.py to apply fixes")
             return 1
         else:
-            print(f"⚠️  WARNING: {total_broken} broken link(s) found, but not in fail_on categories")
+            print(f"[!]️  WARNING: {total_broken} broken link(s) found, but not in fail_on categories")
             print("   These are informational only and don't fail CI")
             return 0
     else:
         print()
-        print("✅ PASSED: All documentation links are valid")
+        print("[OK] PASSED: All documentation links are valid")
         return 0
 
 

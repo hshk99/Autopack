@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-SOT → DB/Qdrant Sync (BUILD-163)
+SOT -> DB/Qdrant Sync (BUILD-163)
 
 Standalone, bounded synchronization from markdown SOT ledgers to derived indexes.
 
@@ -785,9 +785,9 @@ class SOTDBSync:
                 print("[LOCKS] Acquiring subsystem locks: docs, archive")
                 try:
                     self.multi_lock.acquire(["docs", "archive"])
-                    print("[LOCKS] ✓ Locks acquired")
+                    print("[LOCKS] [x] Locks acquired")
                 except TimeoutError as e:
-                    print(f"[LOCKS] ✗ Failed to acquire locks: {e}")
+                    print(f"[LOCKS] [X] Failed to acquire locks: {e}")
                     print("[LOCKS] Another tidy operation may be in progress")
                     return 5
             elif self.execute and LOCKS_AVAILABLE:
@@ -855,7 +855,7 @@ class SOTDBSync:
             # Release subsystem locks
             if self.multi_lock:
                 self.multi_lock.release()
-                print("[LOCKS] ✓ Locks released")
+                print("[LOCKS] [x] Locks released")
 
             # Cleanup database connection
             if self.db_conn:

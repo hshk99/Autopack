@@ -44,13 +44,13 @@ def _supports_utf8_output() -> bool:
     Best-effort check for whether stdout can safely handle Unicode symbols.
 
     On some Windows terminals, default encodings (e.g., cp1252) can crash when printing
-    emojis like ✅/❌/⚠️/🚨. For CI determinism, prefer ASCII when uncertain.
+    emojis like [OK]/[X]/[!]️/🚨. For CI determinism, prefer ASCII when uncertain.
     """
     enc = (getattr(sys.stdout, "encoding", None) or "").lower()
     if "utf" in enc:
         return True
     try:
-        "✅".encode(enc or "ascii")
+        "[OK]".encode(enc or "ascii")
         return True
     except Exception:
         return False
@@ -161,11 +161,11 @@ def main():
 
     # Initial rollout: empty baselines are expected and should not fail CI.
     if args.allow_empty_baseline and len(baseline_findings) == 0:
-        print(f"\n{_sym('⚠️', '[WARN]')} BASELINE EMPTY (report-only mode)")
+        print(f"\n{_sym('[!]️', '[WARN]')} BASELINE EMPTY (report-only mode)")
         print("  - This is expected during initial rollout.")
         print("  - Populate baselines from CI SARIF artifacts before enabling blocking mode.")
         print("  - See: scripts/security/update_baseline.py and docs/SECURITY_LOG.md")
-        print(f"\n{_sym('✅', '[OK]')} DIFF GATE: PASSED (empty baseline allowed)")
+        print(f"\n{_sym('[OK]', '[OK]')} DIFF GATE: PASSED (empty baseline allowed)")
         print("=" * 70)
         return 0
 
@@ -182,7 +182,7 @@ def main():
             print("  Use --verbose to see details, or check SARIF in GitHub Security tab.")
 
         print("\n" + "=" * 70)
-        print(f"{_sym('❌', '[FAIL]')} DIFF GATE: FAILED (new findings present)")
+        print(f"{_sym('[X]', '[FAIL]')} DIFF GATE: FAILED (new findings present)")
         print("=" * 70)
         print("\nNext steps:")
         print("  1. Review findings in GitHub Security tab (SARIF upload)")
@@ -193,7 +193,7 @@ def main():
 
     # Show resolved findings (info only, not blocking)
     if resolved_findings:
-        print(f"\n{_sym('✅', '[OK]')} RESOLVED FINDINGS (good news!):\n")
+        print(f"\n{_sym('[OK]', '[OK]')} RESOLVED FINDINGS (good news!):\n")
         if args.verbose or len(resolved_findings) <= 10:
             for finding in resolved_findings[:20]:
                 print(print_finding_summary(finding))
@@ -202,9 +202,9 @@ def main():
         else:
             print(f"  {len(resolved_findings)} findings resolved since baseline.")
 
-    # No new findings → pass
+    # No new findings -> pass
     print("\n" + "=" * 70)
-    print(f"{_sym('✅', '[OK]')} DIFF GATE: PASSED (no new findings)")
+    print(f"{_sym('[OK]', '[OK]')} DIFF GATE: PASSED (no new findings)")
     print("=" * 70)
 
     if len(baseline_findings) > 0:

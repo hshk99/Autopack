@@ -30,11 +30,11 @@ def main() -> int:
 
     # Validate files exist
     if not pyproject_path.exists():
-        print(f"❌ ERROR: pyproject.toml not found at {pyproject_path}", file=sys.stderr)
+        print(f"[X] ERROR: pyproject.toml not found at {pyproject_path}", file=sys.stderr)
         return 2
 
     if not requirements_path.exists():
-        print(f"❌ ERROR: requirements.txt not found at {requirements_path}", file=sys.stderr)
+        print(f"[X] ERROR: requirements.txt not found at {requirements_path}", file=sys.stderr)
         return 2
 
     # Check if pip-tools is installed
@@ -46,11 +46,11 @@ def main() -> int:
             check=False
         )
         if result.returncode != 0:
-            print("❌ ERROR: pip-compile not found. Install pip-tools:", file=sys.stderr)
+            print("[X] ERROR: pip-compile not found. Install pip-tools:", file=sys.stderr)
             print("  pip install pip-tools", file=sys.stderr)
             return 2
     except FileNotFoundError:
-        print("❌ ERROR: pip-compile not found. Install pip-tools:", file=sys.stderr)
+        print("[X] ERROR: pip-compile not found. Install pip-tools:", file=sys.stderr)
         print("  pip install pip-tools", file=sys.stderr)
         return 2
 
@@ -75,7 +75,7 @@ def main() -> int:
         )
 
         if result.returncode != 0:
-            print(f"❌ ERROR: pip-compile failed:", file=sys.stderr)
+            print(f"[X] ERROR: pip-compile failed:", file=sys.stderr)
             print(result.stderr, file=sys.stderr)
             return 2
 
@@ -112,10 +112,10 @@ def main() -> int:
 
         # Compare
         if compiled_normalized == committed_normalized:
-            print("✅ SUCCESS: requirements.txt is in sync with pyproject.toml")
+            print("[OK] SUCCESS: requirements.txt is in sync with pyproject.toml")
             return 0
         else:
-            print("❌ DRIFT DETECTED: requirements.txt does NOT match pyproject.toml", file=sys.stderr)
+            print("[X] DRIFT DETECTED: requirements.txt does NOT match pyproject.toml", file=sys.stderr)
             print("", file=sys.stderr)
             print("To fix this, regenerate requirements.txt:", file=sys.stderr)
             print("  pip-compile --generate-hashes --allow-unsafe pyproject.toml", file=sys.stderr)

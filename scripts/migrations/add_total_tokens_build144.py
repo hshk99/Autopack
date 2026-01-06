@@ -92,14 +92,14 @@ def upgrade(engine: Engine) -> None:
 
     # Check if table exists
     if not check_table_exists(engine, "llm_usage_events"):
-        print("⚠️  Table 'llm_usage_events' does not exist")
+        print("[!]️  Table 'llm_usage_events' does not exist")
         print("    This is expected for fresh databases - ORM will create it with total_tokens")
         return
 
     with engine.begin() as conn:
         # Check if column already exists
         if check_column_exists(engine, "llm_usage_events", "total_tokens"):
-            print("✓ Column 'total_tokens' already exists, skipping column creation")
+            print("[x] Column 'total_tokens' already exists, skipping column creation")
 
             # Verify backfill for existing rows with total_tokens=0
             result = conn.execute(text("""
@@ -111,7 +111,7 @@ def upgrade(engine: Engine) -> None:
             zero_total_count = row[0] if row else 0
 
             if zero_total_count > 0:
-                print(f"⚠️  Found {zero_total_count} rows with total_tokens=0 but non-NULL splits")
+                print(f"[!]️  Found {zero_total_count} rows with total_tokens=0 but non-NULL splits")
                 print("    Running backfill to fix these rows...")
                 conn.execute(text("""
                     UPDATE llm_usage_events
@@ -119,9 +119,9 @@ def upgrade(engine: Engine) -> None:
                     WHERE total_tokens = 0
                     AND (prompt_tokens IS NOT NULL OR completion_tokens IS NOT NULL)
                 """))
-                print(f"✓ Backfilled {zero_total_count} rows with correct total_tokens")
+                print(f"[x] Backfilled {zero_total_count} rows with correct total_tokens")
             else:
-                print("✓ All rows have correct total_tokens values")
+                print("[x] All rows have correct total_tokens values")
 
             return
 
@@ -131,7 +131,7 @@ def upgrade(engine: Engine) -> None:
             ALTER TABLE llm_usage_events
             ADD COLUMN total_tokens INTEGER NOT NULL DEFAULT 0
         """))
-        print("      ✓ Column 'total_tokens' added")
+        print("      [x] Column 'total_tokens' added")
 
         print("\n[2/3] Backfilling total_tokens for existing rows")
         print("      Formula: total_tokens = COALESCE(prompt_tokens, 0) + COALESCE(completion_tokens, 0)")
@@ -140,7 +140,7 @@ def upgrade(engine: Engine) -> None:
             SET total_tokens = COALESCE(prompt_tokens, 0) + COALESCE(completion_tokens, 0)
         """))
         rows_updated = result.rowcount
-        print(f"      ✓ Backfilled {rows_updated} rows")
+        print(f"      [x] Backfilled {rows_updated} rows")
 
         print("\n[3/3] Verification")
         # Count rows by token pattern
@@ -160,7 +160,7 @@ def upgrade(engine: Engine) -> None:
             print(f"      Sum of all total_tokens: {row[3]}")
 
     print("\n" + "=" * 80)
-    print("✅ Migration completed successfully!")
+    print("[OK] Migration completed successfully!")
     print("=" * 80)
     print("\nNext steps:")
     print("  1. Restart any running executor/backend processes")
@@ -175,12 +175,12 @@ def downgrade(engine: Engine) -> None:
     print("=" * 80)
 
     if not check_table_exists(engine, "llm_usage_events"):
-        print("⚠️  Table 'llm_usage_events' does not exist, nothing to downgrade")
+        print("[!]️  Table 'llm_usage_events' does not exist, nothing to downgrade")
         return
 
     with engine.begin() as conn:
         if not check_column_exists(engine, "llm_usage_events", "total_tokens"):
-            print("✓ Column 'total_tokens' does not exist, nothing to remove")
+            print("[x] Column 'total_tokens' does not exist, nothing to remove")
             return
 
         print("\n[1/1] Dropping column: total_tokens")
@@ -188,7 +188,7 @@ def downgrade(engine: Engine) -> None:
         # SQLite requires special handling for column drops
         db_url = get_database_url()
         if "sqlite" in db_url.lower():
-            print("      ⚠️  SQLite detected - column drop requires table recreation")
+            print("      [!]️  SQLite detected - column drop requires table recreation")
             print("      For safety, manual intervention recommended:")
             print("      1. Backup database")
             print("      2. Recreate table without total_tokens")
@@ -201,10 +201,10 @@ def downgrade(engine: Engine) -> None:
                 ALTER TABLE llm_usage_events
                 DROP COLUMN total_tokens
             """))
-            print("      ✓ Column 'total_tokens' dropped")
+            print("      [x] Column 'total_tokens' dropped")
 
     print("\n" + "=" * 80)
-    print("✅ Downgrade completed successfully!")
+    print("[OK] Downgrade completed successfully!")
     print("=" * 80)
 
 
@@ -229,7 +229,7 @@ def main():
             downgrade(engine)
 
     except Exception as e:
-        print(f"\n❌ Migration failed: {e}")
+        print(f"\n[X] Migration failed: {e}")
         import traceback
         traceback.print_exc()
         sys.exit(1)

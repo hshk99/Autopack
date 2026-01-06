@@ -14,7 +14,7 @@ import hashlib
 import logging
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import List, Optional, Set
+from typing import List, Optional
 
 from ..gaps.models import GapReportV1, Gap
 from ..intention_anchor.v2 import IntentionAnchorV2

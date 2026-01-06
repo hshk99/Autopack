@@ -21,7 +21,7 @@ from typing import Any, Dict, List, Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from ..schema_validation import validate_intention_anchor_v2, SchemaValidationError
+from ..schema_validation import validate_intention_anchor_v2
 
 logger = logging.getLogger(__name__)
 

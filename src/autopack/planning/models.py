@@ -3,13 +3,13 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
+from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from ..schema_validation import validate_plan_proposal_v1, SchemaValidationError
+from ..schema_validation import validate_plan_proposal_v1
 
 
 class EstimatedCost(BaseModel):

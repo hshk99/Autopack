@@ -199,6 +199,7 @@ class StrategyEngine:
 
         # Save for future use
         path = self.get_ruleset_path()
+        path.parent.mkdir(parents=True, exist_ok=True)  # Ensure config/ exists
         path.write_text(ruleset.model_dump_json(indent=2))
 
         return ruleset

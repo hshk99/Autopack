@@ -30,7 +30,7 @@ from datetime import datetime
 
 from .workspace_manager import WorkspaceManager
 from .executor_lock import ExecutorLockManager
-from .autonomy.parallelism_gate import ParallelismPolicyGate, ParallelismPolicyViolation
+from .autonomy.parallelism_gate import ParallelismPolicyGate
 from .intention_anchor.v2 import IntentionAnchorV2
 
 logger = logging.getLogger(__name__)

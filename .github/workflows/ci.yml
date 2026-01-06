@@ -42,6 +42,14 @@ jobs:
       - name: Windows console Unicode guard (print must be ASCII-safe)
         run: |
           python scripts/ci/check_windows_console_unicode.py
+      - name: Normalize console glyphs in critical scripts (BUILD-186)
+        run: |
+          # Generate critical script list and check for Unicode glyphs
+          # Exclude check_windows_console_unicode.py - it intentionally contains Unicode glyphs as data
+          python scripts/tools/normalize_console_glyphs.py --list-critical > /tmp/critical_scripts.txt
+          python scripts/tools/normalize_console_glyphs.py --check \
+            --files-from /tmp/critical_scripts.txt \
+            --exclude scripts/ci/check_windows_console_unicode.py
       - name: Lint with ruff
         run: |
           ruff check src/ tests/

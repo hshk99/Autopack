@@ -34,8 +34,6 @@ jobs:
 
       - name: Run workspace structure verification
         id: verify
-        # Start as non-blocking: always pass but report violations
-        continue-on-error: true
         run: |
           python scripts/tidy/verify_workspace_structure.py \
             --json-output workspace-verification.json \
@@ -79,9 +77,8 @@ jobs:
             echo "::notice::Workspace verification completed: $violations errors, $warnings warnings"
 
             if [ "$violations" -gt 0 ]; then
-              echo "::warning::Found $violations workspace structure violations. Review the verification report."
-              # Uncomment the next line to make this blocking once workspace is clean:
-              # exit 1
+              echo "::error::Found $violations workspace structure violations. Review the verification report."
+              exit 1
             fi
           fi
 

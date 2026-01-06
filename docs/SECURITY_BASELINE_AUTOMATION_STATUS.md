@@ -19,14 +19,15 @@
 - Uploads SARIF to GitHub Security tab
 
 **Monitoring Checklist** (before enabling Phase B schedule):
-- [ ] Scheduled run 1: Monday 2026-01-06 06:00 UTC (next)
-- [ ] Scheduled run 2: Monday 2026-01-13 06:00 UTC
-- [ ] Scheduled run 3: Monday 2026-01-20 06:00 UTC
+- [ ] Scheduled run 1: Monday 2026-01-13 06:00 UTC (next)
+- [ ] Scheduled run 2: Monday 2026-01-20 06:00 UTC
+- [ ] Scheduled run 3: Monday 2026-01-27 06:00 UTC
 
-**Success Criteria**:
-- All 3 scheduled runs complete successfully
-- Artifacts uploaded consistently
+**Success Criteria** (before enabling Phase B schedule):
+- All 3 scheduled runs complete successfully (100% success rate)
+- Artifacts uploaded consistently and immediately available
 - No workflow failures or timeouts
+- Verify Phase B can download artifacts from completed Phase A runs
 
 **Recent Runs** (all push-triggered, not scheduled yet):
 - 2026-01-05 23:51 UTC: ✅ success (run 20732879384)
@@ -67,10 +68,11 @@
 ```
 
 **Enabling Schedule** (after Phase A proves stable):
-1. Verify 2-3 successful Phase A scheduled runs
-2. Uncomment schedule in `.github/workflows/security-baseline-refresh.yml` lines 5-6
-3. Commit with message: `feat: Enable Phase B scheduled baseline refresh (weekly Monday 07:00 UTC)`
-4. Monitor first scheduled run
+1. Verify all success criteria met (3/3 Phase A runs successful, artifacts available)
+2. Create PR to uncomment schedule in `.github/workflows/security-baseline-refresh.yml` lines 5-6
+3. PR title: `feat: Enable Phase B scheduled baseline refresh (weekly Monday 07:00 UTC)`
+4. Wait for CI to pass, merge PR (preserves mechanically enforceable intent)
+5. Monitor first scheduled Phase B run (Monday 07:00 UTC after Phase A completes)
 
 ---
 
@@ -145,8 +147,8 @@ See: [docs/SECURITY_LOG.md - Phase B Operational Checklist](SECURITY_LOG.md#phas
 ## Success Metrics
 
 ### Phase A Stability
-- **Target**: 100% success rate for scheduled runs
-- **Current**: N/A (no scheduled runs yet, monitoring starts 2026-01-06)
+- **Target**: 100% success rate for scheduled runs (3/3 consecutive)
+- **Current**: N/A (no scheduled runs yet, monitoring starts 2026-01-13)
 
 ### Phase B Accuracy
 - **No-change path**: Should create 0 PRs when baselines unchanged
@@ -174,7 +176,7 @@ See: [docs/SECURITY_LOG.md - Phase B Operational Checklist](SECURITY_LOG.md#phas
 - **CI blocks merge despite complete SECBASE**: Check for `TODO` markers via `grep -A20 "## SECBASE-YYYYMMDD" docs/SECURITY_LOG.md`
 
 ### Emergency Procedures
-- **Disable Phase B schedule**: Comment out schedule in workflow, push to main
+- **Disable Phase B schedule**: Create PR to comment out schedule in workflow (preserves CI enforcement)
 - **Rollback baselines**: Revert baseline PR, create new SECBASE entry documenting rollback
 - **Skip CI enforcement**: Add `SKIP_BASELINE_CHECK=1` env var (use only in emergency)
 
@@ -200,7 +202,7 @@ See: [docs/SECURITY_LOG.md - Phase B Operational Checklist](SECURITY_LOG.md#phas
 
 **Rationale**: Phase A schedule hasn't been validated yet (all recent runs are push-triggered). Need to confirm weekly schedule reliability before adding dependent automation.
 
-**Next Review**: After Monday 2026-01-20 06:00 UTC (3rd scheduled run)
+**Next Review**: After Monday 2026-01-27 06:00 UTC (3rd scheduled run)
 
 ### 2026-01-06: Phase C Deferred
 **Decision**: Defer Phase C implementation until Phase A/B patterns observed.

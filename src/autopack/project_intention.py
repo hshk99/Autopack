@@ -494,8 +494,7 @@ class ProjectIntentionManager:
         # Write v2 JSON artifact
         v2_json_path = self._get_intention_v2_json_path()
         v2_json_path.write_text(
-            json.dumps(anchor_v2.to_json_dict(), indent=2, ensure_ascii=False),
-            encoding="utf-8"
+            json.dumps(anchor_v2.to_json_dict(), indent=2, ensure_ascii=False), encoding="utf-8"
         )
         paths["v2_json"] = v2_json_path
         logger.debug(f"[ProjectIntention] Wrote v2 JSON: {v2_json_path}")

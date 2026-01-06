@@ -73,9 +73,7 @@ class AutopilotSessionV1(BaseModel):
     session_id: str
     started_at: datetime
     completed_at: Optional[datetime] = None
-    status: Literal[
-        "running", "completed", "blocked_approval_required", "failed", "aborted"
-    ]
+    status: Literal["running", "completed", "blocked_approval_required", "failed", "aborted"]
     anchor_id: str
     gap_report_id: str
     plan_proposal_id: str

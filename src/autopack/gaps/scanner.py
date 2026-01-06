@@ -73,9 +73,7 @@ class GapScanner:
         self.gaps.extend(self._detect_db_lock_contention())
         self.gaps.extend(self._detect_git_state_corruption())
 
-        elapsed_ms = int(
-            (datetime.now(timezone.utc) - start_time).total_seconds() * 1000
-        )
+        elapsed_ms = int((datetime.now(timezone.utc) - start_time).total_seconds() * 1000)
         logger.info(f"Gap scan completed in {elapsed_ms}ms: {len(self.gaps)} gaps found")
 
         return self.gaps
@@ -171,9 +169,7 @@ class GapScanner:
 
             docs_file = docs_dir / root_file.name
             if docs_file.exists():
-                gap_id = self._generate_gap_id(
-                    "sot_duplicate", [root_file.name, docs_file.name]
-                )
+                gap_id = self._generate_gap_id("sot_duplicate", [root_file.name, docs_file.name])
                 gaps.append(
                     Gap(
                         gap_id=gap_id,
@@ -218,14 +214,10 @@ class GapScanner:
                 try:
                     import json
 
-                    lastfailed = json.loads(
-                        lastfailed_path.read_text(encoding="utf-8")
-                    )
+                    lastfailed = json.loads(lastfailed_path.read_text(encoding="utf-8"))
                     if lastfailed:
                         failed_tests = list(lastfailed.keys())
-                        gap_id = self._generate_gap_id(
-                            "test_infra_drift", failed_tests
-                        )
+                        gap_id = self._generate_gap_id("test_infra_drift", failed_tests)
                         gaps.append(
                             Gap(
                                 gap_id=gap_id,
@@ -269,9 +261,7 @@ class GapScanner:
                 pass
 
         if large_files:
-            gap_id = self._generate_gap_id(
-                "memory_budget_cap_issue", [f[0] for f in large_files]
-            )
+            gap_id = self._generate_gap_id("memory_budget_cap_issue", [f[0] for f in large_files])
             gaps.append(
                 Gap(
                     gap_id=gap_id,
@@ -315,9 +305,7 @@ class GapScanner:
                     pass
 
         if encoding_errors:
-            gap_id = self._generate_gap_id(
-                "windows_encoding_issue", encoding_errors
-            )
+            gap_id = self._generate_gap_id("windows_encoding_issue", encoding_errors)
             gaps.append(
                 Gap(
                     gap_id=gap_id,
@@ -359,9 +347,7 @@ class GapScanner:
                     title="Missing baseline policy configuration",
                     description="Baseline policy configuration file not found",
                     detection_signals=["config/baseline_policy.yaml does not exist"],
-                    evidence=GapEvidence(
-                        file_paths=["config/baseline_policy.yaml"]
-                    ),
+                    evidence=GapEvidence(file_paths=["config/baseline_policy.yaml"]),
                     risk_classification="medium",
                     blocks_autopilot=False,
                     safe_remediation=SafeRemediation(
@@ -403,15 +389,11 @@ class GapScanner:
                     status = line[:2]
                     filepath = line[3:].strip()
                     # Check if modified and in protected path
-                    if status.strip() and any(
-                        filepath.startswith(p) for p in protected_patterns
-                    ):
+                    if status.strip() and any(filepath.startswith(p) for p in protected_patterns):
                         violations.append(filepath)
 
                 if violations:
-                    gap_id = self._generate_gap_id(
-                        "protected_path_violation", violations
-                    )
+                    gap_id = self._generate_gap_id("protected_path_violation", violations)
                     gaps.append(
                         Gap(
                             gap_id=gap_id,
@@ -453,9 +435,7 @@ class GapScanner:
         for db_path in db_paths:
             lock_file = db_path.with_suffix(".db-lock")
             if lock_file.exists():
-                gap_id = self._generate_gap_id(
-                    "db_lock_contention", [str(lock_file)]
-                )
+                gap_id = self._generate_gap_id("db_lock_contention", [str(lock_file)])
                 gaps.append(
                     Gap(
                         gap_id=gap_id,
@@ -495,9 +475,7 @@ class GapScanner:
                 timeout=10,
             )
             if result.returncode != 0 or result.stderr.strip():
-                gap_id = self._generate_gap_id(
-                    "git_state_corruption", ["git_fsck_failed"]
-                )
+                gap_id = self._generate_gap_id("git_state_corruption", ["git_fsck_failed"])
                 gaps.append(
                     Gap(
                         gap_id=gap_id,

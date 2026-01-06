@@ -76,9 +76,7 @@ def validate_type(value: Any, expected_type: str, path: str) -> List[str]:
         return errors
 
     if not isinstance(value, expected_py_type):
-        errors.append(
-            f"{path}: Expected type '{expected_type}', got '{type(value).__name__}'"
-        )
+        errors.append(f"{path}: Expected type '{expected_type}', got '{type(value).__name__}'")
 
     return errors
 
@@ -162,11 +160,7 @@ def validate_string_pattern(value: str, pattern: str, path: str) -> List[str]:
     return errors
 
 
-def validate_object(
-    data: Dict[str, Any],
-    schema: Dict[str, Any],
-    path: str = "$"
-) -> List[str]:
+def validate_object(data: Dict[str, Any], schema: Dict[str, Any], path: str = "$") -> List[str]:
     """Validate an object against a JSON schema (recursive).
 
     Args:
@@ -206,9 +200,7 @@ def validate_object(
             if field_type == "string" and isinstance(value, str):
                 # Format validation
                 if "format" in field_schema:
-                    errors.extend(
-                        validate_string_format(value, field_schema["format"], field_path)
-                    )
+                    errors.extend(validate_string_format(value, field_schema["format"], field_path))
                 # Pattern validation
                 if "pattern" in field_schema:
                     errors.extend(
@@ -242,9 +234,7 @@ def validate_object(
                         if item_schema.get("type") == "object":
                             errors.extend(validate_object(item, item_schema, item_path))
                         elif "type" in item_schema:
-                            errors.extend(
-                                validate_type(item, item_schema["type"], item_path)
-                            )
+                            errors.extend(validate_type(item, item_schema["type"], item_path))
 
             elif field_type == "object" and isinstance(value, dict):
                 # Recursive object validation
@@ -261,11 +251,7 @@ def validate_object(
     return errors
 
 
-def validate_against_schema(
-    data: Dict[str, Any],
-    schema: Dict[str, Any],
-    schema_name: str
-) -> None:
+def validate_against_schema(data: Dict[str, Any], schema: Dict[str, Any], schema_name: str) -> None:
     """Validate data against a JSON schema.
 
     Args:
@@ -283,8 +269,7 @@ def validate_against_schema(
 
     if errors:
         raise SchemaValidationError(
-            f"Schema validation failed for {schema_name}: {len(errors)} error(s)",
-            errors=errors
+            f"Schema validation failed for {schema_name}: {len(errors)} error(s)", errors=errors
         )
 
 

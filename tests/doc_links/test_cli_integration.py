@@ -15,6 +15,7 @@ import os
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parents[2] / "scripts"))
 
+
 def _run_doc_link_checker(*args: str) -> subprocess.CompletedProcess:
     """
     Run scripts/check_doc_links.py in a Windows/encoding-safe way.

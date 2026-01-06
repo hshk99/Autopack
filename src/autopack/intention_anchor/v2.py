@@ -263,9 +263,7 @@ def create_from_inputs(
         IntentionAnchorV2 instance
     """
     # Compute raw input digest (stable, deterministic)
-    raw_input_digest = hashlib.sha256(
-        raw_input.encode("utf-8", errors="ignore")
-    ).hexdigest()[:16]
+    raw_input_digest = hashlib.sha256(raw_input.encode("utf-8", errors="ignore")).hexdigest()[:16]
 
     # Create timestamp
     now = datetime.now(timezone.utc)
@@ -281,19 +279,13 @@ def create_from_inputs(
             **evidence_verification
         )
     if scope_boundaries:
-        pivot_intentions_dict["scope_boundaries"] = ScopeBoundariesIntention(
-            **scope_boundaries
-        )
+        pivot_intentions_dict["scope_boundaries"] = ScopeBoundariesIntention(**scope_boundaries)
     if budget_cost:
         pivot_intentions_dict["budget_cost"] = BudgetCostIntention(**budget_cost)
     if memory_continuity:
-        pivot_intentions_dict["memory_continuity"] = MemoryContinuityIntention(
-            **memory_continuity
-        )
+        pivot_intentions_dict["memory_continuity"] = MemoryContinuityIntention(**memory_continuity)
     if governance_review:
-        pivot_intentions_dict["governance_review"] = GovernanceReviewIntention(
-            **governance_review
-        )
+        pivot_intentions_dict["governance_review"] = GovernanceReviewIntention(**governance_review)
     if parallelism_isolation:
         pivot_intentions_dict["parallelism_isolation"] = ParallelismIsolationIntention(
             **parallelism_isolation
@@ -335,14 +327,10 @@ def validate_pivot_completeness(anchor: IntentionAnchorV2) -> List[str]:
     questions = []
 
     if not anchor.pivot_intentions.north_star:
-        questions.append(
-            "What are the desired outcomes and success signals for this project?"
-        )
+        questions.append("What are the desired outcomes and success signals for this project?")
 
     if not anchor.pivot_intentions.safety_risk:
-        questions.append(
-            "What operations must never be allowed, and what requires approval?"
-        )
+        questions.append("What operations must never be allowed, and what requires approval?")
 
     if not anchor.pivot_intentions.evidence_verification:
         questions.append(
@@ -350,19 +338,13 @@ def validate_pivot_completeness(anchor: IntentionAnchorV2) -> List[str]:
         )
 
     if not anchor.pivot_intentions.scope_boundaries:
-        questions.append(
-            "Which paths are allowed for writes, and which are protected?"
-        )
+        questions.append("Which paths are allowed for writes, and which are protected?")
 
     if not anchor.pivot_intentions.budget_cost:
-        questions.append(
-            "What are the token/time budget caps and cost escalation policy?"
-        )
+        questions.append("What are the token/time budget caps and cost escalation policy?")
 
     if not anchor.pivot_intentions.memory_continuity:
-        questions.append(
-            "What should persist to SOT ledgers and what are the retention rules?"
-        )
+        questions.append("What should persist to SOT ledgers and what are the retention rules?")
 
     if not anchor.pivot_intentions.governance_review:
         questions.append(
@@ -370,9 +352,7 @@ def validate_pivot_completeness(anchor: IntentionAnchorV2) -> List[str]:
         )
 
     if not anchor.pivot_intentions.parallelism_isolation:
-        questions.append(
-            "Is parallelism allowed, and if so, what isolation model is required?"
-        )
+        questions.append("Is parallelism allowed, and if so, what isolation model is required?")
 
     # Return at most 8 questions
     return questions[:8]

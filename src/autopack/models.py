@@ -755,7 +755,9 @@ class ExecutionCheckpoint(Base):
     __tablename__ = "execution_checkpoints"
 
     id = Column(Integer, primary_key=True, index=True)
-    timestamp = Column(DateTime, nullable=False, default=lambda: datetime.now(timezone.utc), index=True)
+    timestamp = Column(
+        DateTime, nullable=False, default=lambda: datetime.now(timezone.utc), index=True
+    )
 
     # Execution identity
     run_id = Column(String(128), nullable=False, index=True)

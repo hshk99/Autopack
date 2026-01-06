@@ -96,9 +96,7 @@ class PlanProposer:
         governance_checks = self._compute_governance_checks()
 
         # Compute metadata
-        elapsed_ms = int(
-            (datetime.now(timezone.utc) - start_time).total_seconds() * 1000
-        )
+        elapsed_ms = int((datetime.now(timezone.utc) - start_time).total_seconds() * 1000)
         metadata = PlanMetadata(
             proposer_version=PROPOSER_VERSION,
             generation_duration_ms=elapsed_ms,
@@ -362,9 +360,7 @@ class PlanProposer:
             command=command,
             estimated_cost=estimated_cost,
             dependencies=[],
-            rollback_strategy=f"git restore {' '.join(target_paths[:5])}"
-            if target_paths
-            else None,
+            rollback_strategy=f"git restore {' '.join(target_paths[:5])}" if target_paths else None,
         )
 
         return action
@@ -464,13 +460,13 @@ class PlanProposer:
         if not self.anchor.pivot_intentions.governance_review:
             return False
 
-        auto_approve_rules = (
-            self.anchor.pivot_intentions.governance_review.auto_approve_rules
-        )
+        auto_approve_rules = self.anchor.pivot_intentions.governance_review.auto_approve_rules
         for rule in auto_approve_rules:
             # Simple condition matching (would be more sophisticated in production)
             if all(
-                cond in action.description or cond in action.title or cond in str(action.action_type)
+                cond in action.description
+                or cond in action.title
+                or cond in str(action.action_type)
                 for cond in rule.conditions
             ):
                 return True
@@ -500,9 +496,7 @@ class PlanProposer:
             requires_approval_actions=sum(
                 1 for a in self.actions if a.approval_status == "requires_approval"
             ),
-            blocked_actions=sum(
-                1 for a in self.actions if a.approval_status == "blocked"
-            ),
+            blocked_actions=sum(1 for a in self.actions if a.approval_status == "blocked"),
             total_estimated_tokens=total_tokens if total_tokens > 0 else None,
             total_estimated_time_seconds=total_time if total_time > 0 else None,
         )
@@ -529,9 +523,10 @@ class PlanProposer:
         # Collect never-auto-approve violations
         violations = []
         for action in self.actions:
-            if self._touches_never_auto_approve_paths(
-                action
-            ) and action.approval_status == "auto_approved":
+            if (
+                self._touches_never_auto_approve_paths(action)
+                and action.approval_status == "auto_approved"
+            ):
                 violations.append(action.action_id)
 
         # Check budget compliance
@@ -561,9 +556,7 @@ class PlanProposer:
             budget = self.anchor.pivot_intentions.budget_cost
 
             if budget.token_cap_global and summary.total_estimated_tokens:
-                estimated_usage_pct = (
-                    summary.total_estimated_tokens / budget.token_cap_global
-                )
+                estimated_usage_pct = summary.total_estimated_tokens / budget.token_cap_global
                 within_global_cap = summary.total_estimated_tokens <= budget.token_cap_global
 
             if budget.token_cap_per_call:

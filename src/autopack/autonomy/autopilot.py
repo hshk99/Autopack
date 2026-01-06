@@ -171,9 +171,7 @@ class AutopilotController:
 
             # Calculate session duration
             if self.session.metadata:
-                duration = (
-                    self.session.completed_at - self.session.started_at
-                ).total_seconds()
+                duration = (self.session.completed_at - self.session.started_at).total_seconds()
                 self.session.metadata.session_duration_ms = int(duration * 1000)
 
             logger.info(f"[Autopilot] Session completed: {session_id}")
@@ -262,9 +260,7 @@ class AutopilotController:
 
         for action in proposal.actions:
             if action.approval_status == "auto_approved":
-                logger.info(
-                    f"[Autopilot] Would execute: {action.action_id} ({action.action_type})"
-                )
+                logger.info(f"[Autopilot] Would execute: {action.action_id} ({action.action_type})")
                 # Placeholder: mark as executed
                 executed.append(action.action_id)
                 successful += 1

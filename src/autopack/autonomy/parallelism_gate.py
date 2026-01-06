@@ -113,9 +113,7 @@ class ParallelismPolicyGate:
         return self.anchor.pivot_intentions.parallelism_isolation.allowed
 
 
-def check_parallelism_policy(
-    anchor: IntentionAnchorV2, requested_runs: int = 2
-) -> None:
+def check_parallelism_policy(anchor: IntentionAnchorV2, requested_runs: int = 2) -> None:
     """Check parallelism policy and raise if not allowed (convenience function).
 
     Args:

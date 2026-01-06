@@ -54,10 +54,6 @@ class SteamGameDetector:
         self.steam_path = self._find_steam_installation()
         self.library_folders = self._find_library_folders()
 
-    def is_available(self) -> bool:
-        """Return True if Steam installation was detected."""
-        return self.steam_path is not None
-
     def _find_steam_installation(self) -> Optional[Path]:
         """Find Steam installation via Windows registry."""
         try:

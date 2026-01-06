@@ -28,7 +28,7 @@ class SchemaValidationError(Exception):
 
 
 def load_schema(schema_name: str) -> Dict[str, Any]:
-    """Load a JSON schema from docs/schemas/.
+    """Load a JSON schema from src/autopack/schemas/.
 
     Args:
         schema_name: Schema filename (e.g., "intention_anchor_v2.schema.json")
@@ -40,7 +40,7 @@ def load_schema(schema_name: str) -> Dict[str, Any]:
         FileNotFoundError: If schema file not found
         json.JSONDecodeError: If schema is invalid JSON
     """
-    schema_path = Path(__file__).parent.parent.parent.parent / "docs" / "schemas" / schema_name
+    schema_path = Path(__file__).parent.parent / "schemas" / schema_name
     if not schema_path.exists():
         raise FileNotFoundError(f"Schema not found: {schema_path}")
 

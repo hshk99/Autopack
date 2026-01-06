@@ -2,7 +2,7 @@
 
 **Purpose**: Approval workflow, governance tiers, and auto-approval rules for Autopack
 
-**Last Updated**: 2025-12-29
+**Last Updated**: 2026-01-06
 
 ---
 
@@ -497,17 +497,82 @@ unset AUTOPACK_GOVERNANCE_DISABLED
 
 ---
 
+## 8. Autonomy Loop Artifacts (BUILD-179)
+
+The autonomy loop (gap scan → plan → autopilot) produces typed artifacts with governance integration:
+
+### GapReportV1
+
+Produced by: `autopack gaps scan`
+
+Location: `.autonomous_runs/<run_id>/gaps/gap_report_v1.json`
+
+**Governance Role**: Identifies gaps that may block autonomous execution (autopilot_blockers).
+
+### PlanProposalV1
+
+Produced by: `autopack plan propose`
+
+Location: `.autonomous_runs/<run_id>/planning/plan_proposal_v1.json`
+
+**Governance Role**: Maps gaps to actions with approval status:
+- `auto_approved`: Safe to execute without human review
+- `requires_approval`: Needs human approval (touches protected paths, large changes)
+- `blocked`: Cannot proceed (critical paths, policy violations)
+
+### AutopilotSessionV1
+
+Produced by: `autopack autopilot run`
+
+Location: `.autonomous_runs/<run_id>/autopilot/session_<id>.json`
+
+**Governance Role**: Records execution results and approval requests for blocked actions.
+
+### IntentionAnchorV2 (Policy Gate)
+
+Required by: All autonomy operations
+
+**Governance Role**: Defines allowed scope, protected paths, budget limits, and parallelism policy.
+
+Key fields:
+- `constraints.protected_paths`: Never modify without approval
+- `parallelism_isolation.allowed`: Gate for parallel execution
+
+---
+
+## 9. Parallelism Governance (BUILD-179)
+
+Parallel execution requires explicit policy authorization:
+
+### Gate Enforcement
+
+The `ParallelismPolicyGate` blocks parallel runs unless:
+1. IntentionAnchorV2 exists with `parallelism_isolation.allowed = true`
+2. Requested workers ≤ `max_concurrent_runs`
+
+### Isolation Model
+
+Parallel runs use the Four-Layer model (see `docs/PARALLEL_RUNS.md`):
+1. **Git worktrees**: Isolated filesystem per run
+2. **Workspace leases**: Atomic access control
+3. **Per-run locks**: Prevent duplicate execution
+4. **Database isolation**: Postgres or per-run SQLite
+
+---
+
 ## Documentation
 
 - [ARCHITECTURE.md](ARCHITECTURE.md) - System overview
 - [PHASE_LIFECYCLE.md](PHASE_LIFECYCLE.md) - Phase states and transitions
 - [ERROR_HANDLING.md](ERROR_HANDLING.md) - Error scenarios
 - [API_BASICS.md](API_BASICS.md) - API endpoints
+- [AUTOPILOT_OPERATIONS.md](AUTOPILOT_OPERATIONS.md) - Operator runbook (BUILD-179)
+- [PARALLEL_RUNS.md](PARALLEL_RUNS.md) - Four-layer isolation model
 
 ---
 
-**Total Lines**: 250 (within ≤250 line constraint)
+**Total Lines**: ~350 (updated for BUILD-179)
 
-**Coverage**: 7 sections (approval workflow, governance tiers, auto-approval rules, protected paths, human approval, audit trails, emergency procedures)
+**Coverage**: 9 sections (approval workflow, governance tiers, auto-approval rules, protected paths, human approval, audit trails, emergency procedures, autonomy artifacts, parallelism governance)
 
-**Context**: Based on governance_requests.py, governed_apply.py, risk_scorer.py, quality_gate.py, autonomous_executor.py, phase_finalizer.py, approval endpoints, and BUILD-127 governance implementation
+**Context**: Based on governance_requests.py, governed_apply.py, risk_scorer.py, quality_gate.py, autonomous_executor.py, phase_finalizer.py, approval endpoints, BUILD-127 governance implementation, and BUILD-179 autonomy CLI + supervisor consolidation

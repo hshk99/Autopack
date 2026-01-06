@@ -1,8 +1,6 @@
 """Tests for BUILD-181 ExecutorContext integration."""
 
-from datetime import datetime, timezone
-from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -41,7 +39,9 @@ def mock_layout(tmp_path):
     layout = MagicMock()
     layout.run_id = "test-run-001"
     layout.project_id = "test-project"
-    layout.base_dir = tmp_path / ".autonomous_runs" / "test-project" / "runs" / "default" / "test-run-001"
+    layout.base_dir = (
+        tmp_path / ".autonomous_runs" / "test-project" / "runs" / "default" / "test-run-001"
+    )
     layout.base_dir.mkdir(parents=True, exist_ok=True)
     return layout
 
@@ -262,12 +262,14 @@ class TestExecutorContextCoverage:
         """Test coverage is available when CI has data."""
         ctx = ExecutorContext(anchor=mock_anchor, layout=mock_layout)
 
-        info = ctx.process_ci_result({
-            "coverage": {
-                "baseline": 80.0,
-                "current": 85.0,
+        info = ctx.process_ci_result(
+            {
+                "coverage": {
+                    "baseline": 80.0,
+                    "current": 85.0,
+                }
             }
-        })
+        )
 
         assert info.status == "available"
         assert info.delta == 5.0

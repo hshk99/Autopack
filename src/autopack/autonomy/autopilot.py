@@ -19,7 +19,7 @@ import logging
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Optional
 
 from ..file_layout import RunFileLayout
 from ..gaps.scanner import scan_workspace

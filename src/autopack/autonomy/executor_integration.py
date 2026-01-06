@@ -34,7 +34,6 @@ from ..executor.usage_accounting import (
 from ..executor.safety_profile import (
     SafetyProfile,
     derive_safety_profile,
-    is_strict_profile,
     requires_elevated_review,
 )
 from ..executor.scope_reduction_flow import (

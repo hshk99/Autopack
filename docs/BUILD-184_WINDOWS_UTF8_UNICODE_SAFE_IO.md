@@ -34,17 +34,16 @@ Created `src/autopack/safe_print.py` with:
 
 Updated `scripts/tidy/sot_db_sync.py` to use ASCII-safe output directly (replaced `→` with `->`).
 
-### 3. Mechanical Enforcement
+### 3. Unit Test Enforcement
 
-- **Grep check in CI**: Detects new `print(` calls containing Unicode arrows
-- **Unit tests**: Verify safe_print works with cp1252 stdout simulation
+- **Unit tests**: Verify `safe_print` works with cp1252 stdout simulation
+- Tests cover ASCII passthrough, Unicode replacement, and fallback behavior
 
 ## Acceptance Criteria
 
 1. `test_cli_smoke_docs_only` no longer crashes on Windows
 2. All existing tests pass
 3. New unit tests verify Unicode-safe output
-4. CI includes check for new Unicode in print statements
 
 ## Files Changed
 

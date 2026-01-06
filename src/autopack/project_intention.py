@@ -25,6 +25,7 @@ from typing import Optional, List, Dict, Any
 
 from .file_layout import RunFileLayout
 from .memory.memory_service import MemoryService
+from .intention_anchor.v2 import IntentionAnchorV2, create_from_inputs as create_v2_anchor
 
 logger = logging.getLogger(__name__)
 
@@ -414,6 +415,115 @@ class ProjectIntentionManager:
 
         logger.debug("[ProjectIntention] No intention context available")
         return ""
+
+    # V2 methods (IntentionAnchorV2 support)
+
+    def _get_intention_v2_json_path(self) -> Path:
+        """Get path to IntentionAnchorV2 JSON artifact."""
+        return self._get_intention_dir() / "intention_anchor_v2.json"
+
+    def create_intention_v2(
+        self,
+        raw_input: str,
+        north_star: Optional[Dict[str, Any]] = None,
+        safety_risk: Optional[Dict[str, Any]] = None,
+        evidence_verification: Optional[Dict[str, Any]] = None,
+        scope_boundaries: Optional[Dict[str, Any]] = None,
+        budget_cost: Optional[Dict[str, Any]] = None,
+        memory_continuity: Optional[Dict[str, Any]] = None,
+        governance_review: Optional[Dict[str, Any]] = None,
+        parallelism_isolation: Optional[Dict[str, Any]] = None,
+        metadata: Optional[Dict[str, Any]] = None,
+    ) -> IntentionAnchorV2:
+        """Create IntentionAnchorV2 from inputs.
+
+        Args:
+            raw_input: Raw unstructured plan/intention text
+            north_star: NorthStar intention dict
+            safety_risk: SafetyRisk intention dict
+            evidence_verification: EvidenceVerification intention dict
+            scope_boundaries: ScopeBoundaries intention dict
+            budget_cost: BudgetCost intention dict
+            memory_continuity: MemoryContinuity intention dict
+            governance_review: GovernanceReview intention dict
+            parallelism_isolation: ParallelismIsolation intention dict
+            metadata: Metadata dict
+
+        Returns:
+            IntentionAnchorV2 instance
+        """
+        anchor_v2 = create_v2_anchor(
+            project_id=self.project_id,
+            raw_input=raw_input,
+            north_star=north_star,
+            safety_risk=safety_risk,
+            evidence_verification=evidence_verification,
+            scope_boundaries=scope_boundaries,
+            budget_cost=budget_cost,
+            memory_continuity=memory_continuity,
+            governance_review=governance_review,
+            parallelism_isolation=parallelism_isolation,
+            metadata=metadata,
+        )
+
+        logger.info(
+            f"[ProjectIntention] Created IntentionAnchorV2 for project={self.project_id}, "
+            f"digest={anchor_v2.raw_input_digest}"
+        )
+
+        return anchor_v2
+
+    def write_intention_v2_artifacts(self, anchor_v2: IntentionAnchorV2) -> Dict[str, Path]:
+        """Write IntentionAnchorV2 artifacts to disk.
+
+        Args:
+            anchor_v2: IntentionAnchorV2 to persist
+
+        Returns:
+            Dict mapping artifact type to path
+        """
+        # Ensure directory exists
+        intention_dir = self._get_intention_dir()
+        intention_dir.mkdir(parents=True, exist_ok=True)
+
+        paths = {}
+
+        # Validate before writing
+        anchor_v2.validate_against_schema()
+
+        # Write v2 JSON artifact
+        v2_json_path = self._get_intention_v2_json_path()
+        v2_json_path.write_text(
+            json.dumps(anchor_v2.to_json_dict(), indent=2, ensure_ascii=False), encoding="utf-8"
+        )
+        paths["v2_json"] = v2_json_path
+        logger.debug(f"[ProjectIntention] Wrote v2 JSON: {v2_json_path}")
+
+        return paths
+
+    def read_intention_v2_from_disk(self) -> Optional[IntentionAnchorV2]:
+        """Read IntentionAnchorV2 from disk artifacts.
+
+        Returns:
+            IntentionAnchorV2 if found, None otherwise
+        """
+        v2_json_path = self._get_intention_v2_json_path()
+        if not v2_json_path.exists():
+            logger.debug(f"[ProjectIntention] No v2 intention artifact found: {v2_json_path}")
+            return None
+
+        try:
+            data = json.loads(v2_json_path.read_text(encoding="utf-8"))
+            anchor_v2 = IntentionAnchorV2.from_json_dict(data)
+            logger.debug(
+                f"[ProjectIntention] Loaded v2 from disk: "
+                f"project_id={anchor_v2.project_id}, "
+                f"digest={anchor_v2.raw_input_digest}"
+            )
+            return anchor_v2
+        except Exception as exc:
+            logger.warning(f"[ProjectIntention] Failed to read v2 intention: {exc}")
+            return None
 
 
 def create_and_store_intention(

@@ -16,6 +16,7 @@
 2. 🚀 **Lovable Integration** (12 patterns, 5-6 weeks) - **QUEUED**
 3. FileOrganizer Phase 2 (Beta Release)
 4. Research System Chunk 0 (Tracer Bullet) - Monitoring first successful run
+5. 🚀 **Pivot Intentions → Gap Taxonomy → Autonomy Loop + Safe Parallelism (Universal)** - **PLANNED**
 
 **Cancelled Projects**:
 1. ❌ BUILD-112 Phase 5 (Evidence Request Loop) - Replaced by Claude Code in Chrome (Dec 2025)
@@ -23,6 +24,25 @@
 This file contains tasks in Autopack format for autonomous execution.
 
 ---
+
+## 🚀 PLANNED: Pivot Intentions → Gap Taxonomy → Autonomy Loop + Safe Parallelism (Universal)
+
+**Plan doc (canonical)**: `docs/IMPLEMENTATION_PLAN_PIVOT_INTENTIONS_AUTONOMY_PARALLELISM.md`  
+**Prompt for implementer**: `docs/PROMPT_OTHER_CURSOR_IMPLEMENT_PIVOT_INTENTIONS_AUTONOMY_PARALLELISM.md`
+
+### Goal
+Standardize the “pivot intentions” that drive safe autonomous progress across **any future project**, then mechanize:
+- deterministic gap detection (GapReport)
+- bounded plan proposals (PlanProposal)
+- an opt-in autopilot loop that obeys governance + budget gates
+- safe multi-run parallelism under the Four-Layer Safety Model
+
+### Constraints (aligned to README ideal state)
+- SOT ledgers in `docs/` are canonical memory.
+- Execution writes run-local only; no autonomous SOT writes.
+- Tidy consolidates with explicit gating (`--execute`) and bounded allowlists.
+- Default-deny governance; narrow auto-approval only.
+- Parallelism is multi-run only (no parallel phases within a run).
 
 ## ✅ COMPLETE: Research System - Citation Validity Improvement
 

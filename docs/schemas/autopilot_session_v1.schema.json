@@ -1,0 +1,127 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://autopack.dev/schemas/autopilot_session_v1.schema.json",
+  "title": "Autopilot Session v1",
+  "description": "Autopilot session log tracking autonomous execution attempts, approval gates, and bounded execution.",
+  "type": "object",
+  "required": [
+    "format_version",
+    "project_id",
+    "run_id",
+    "session_id",
+    "started_at",
+    "status",
+    "anchor_id",
+    "gap_report_id",
+    "plan_proposal_id"
+  ],
+  "properties": {
+    "format_version": {
+      "type": "string",
+      "const": "v1",
+      "description": "Schema version identifier"
+    },
+    "project_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Project identifier"
+    },
+    "run_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Run identifier"
+    },
+    "session_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Unique session identifier"
+    },
+    "started_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 timestamp of session start"
+    },
+    "completed_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 timestamp of session completion"
+    },
+    "status": {
+      "type": "string",
+      "enum": ["running", "completed", "blocked_approval_required", "failed", "aborted"],
+      "description": "Session execution status"
+    },
+    "anchor_id": {
+      "type": "string",
+      "description": "Reference to intention anchor v2"
+    },
+    "gap_report_id": {
+      "type": "string",
+      "description": "Reference to gap report v1"
+    },
+    "plan_proposal_id": {
+      "type": "string",
+      "description": "Reference to plan proposal v1"
+    },
+    "execution_summary": {
+      "type": "object",
+      "description": "Execution statistics",
+      "properties": {
+        "total_actions": {"type": "integer", "minimum": 0},
+        "auto_approved_actions": {"type": "integer", "minimum": 0},
+        "executed_actions": {"type": "integer", "minimum": 0},
+        "successful_actions": {"type": "integer", "minimum": 0},
+        "failed_actions": {"type": "integer", "minimum": 0},
+        "blocked_actions": {"type": "integer", "minimum": 0}
+      }
+    },
+    "executed_action_ids": {
+      "type": "array",
+      "items": {"type": "string"},
+      "description": "Action IDs that were executed"
+    },
+    "blocked_reason": {
+      "type": "string",
+      "description": "Reason autopilot was blocked (if status is blocked_approval_required)"
+    },
+    "approval_requests": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["action_id", "approval_status", "reason"],
+        "properties": {
+          "action_id": {"type": "string"},
+          "approval_status": {
+            "type": "string",
+            "enum": ["requires_approval", "blocked"]
+          },
+          "reason": {"type": "string"}
+        }
+      },
+      "description": "Actions requiring human approval"
+    },
+    "error_log": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["timestamp", "error_type", "error_message"],
+        "properties": {
+          "timestamp": {"type": "string", "format": "date-time"},
+          "action_id": {"type": "string"},
+          "error_type": {"type": "string"},
+          "error_message": {"type": "string"}
+        }
+      },
+      "description": "Errors encountered during execution"
+    },
+    "metadata": {
+      "type": "object",
+      "description": "Optional metadata",
+      "properties": {
+        "autopilot_version": {"type": "string"},
+        "session_duration_ms": {"type": "integer", "minimum": 0},
+        "enabled_explicitly": {"type": "boolean"}
+      }
+    }
+  }
+}

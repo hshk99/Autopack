@@ -743,6 +743,39 @@ class ApprovalDecision(Base):
     notes = Column(Text, nullable=True)
 
 
+class ExecutionCheckpoint(Base):
+    """
+    Storage Optimizer execution checkpoint (BUILD-152).
+
+    This table is used for auditability + idempotency support and is written by
+    `CheckpointLogger` when PostgreSQL is configured. A JSONL fallback exists for
+    local/offline operation.
+    """
+
+    __tablename__ = "execution_checkpoints"
+
+    id = Column(Integer, primary_key=True, index=True)
+    timestamp = Column(
+        DateTime, nullable=False, default=lambda: datetime.now(timezone.utc), index=True
+    )
+
+    # Execution identity
+    run_id = Column(String(128), nullable=False, index=True)
+    candidate_id = Column(Integer, nullable=True, index=True)
+
+    # Action + target
+    action = Column(String(20), nullable=False)  # 'delete' | 'compress' | 'skip'
+    path = Column(Text, nullable=False)
+    size_bytes = Column(BigInteger, nullable=True)
+    sha256 = Column(String(128), nullable=True, index=True)
+
+    # Outcome
+    status = Column(String(20), nullable=False, index=True)  # 'completed' | 'failed' | 'skipped'
+    error = Column(Text, nullable=True)
+    lock_type = Column(String(50), nullable=True)
+    retry_count = Column(Integer, nullable=False, default=0)
+
+
 class LearnedRule(Base):
     """
     Learned policy rules from approval patterns (BUILD-151 Phase 4).

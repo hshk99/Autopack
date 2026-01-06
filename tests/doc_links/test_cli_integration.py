@@ -10,16 +10,42 @@ Tests that CLI wiring matches intent:
 import subprocess
 import sys
 from pathlib import Path
+import os
 
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parents[2] / "scripts"))
+
+
+def _run_doc_link_checker(*args: str) -> subprocess.CompletedProcess:
+    """
+    Run scripts/check_doc_links.py in a Windows/encoding-safe way.
+
+    Notes:
+    - On Windows, subprocess with text=True defaults to locale encoding (often cp1252).
+      The doc link checker prints Unicode symbols, which can cause decode issues.
+    - Force UTF-8 decoding for captured output to keep tests platform-stable.
+    """
+    repo_root = Path(__file__).parents[2]
+    env = dict(os.environ)
+    # Force UTF-8 mode for the child Python process to stabilize encoding.
+    env.setdefault("PYTHONUTF8", "1")
+
+    return subprocess.run(
+        [sys.executable, "scripts/check_doc_links.py", *args, "--repo-root", str(repo_root)],
+        cwd=repo_root,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        env=env,
+    )
 
 
 def test_nav_mode_ignores_backticks():
     """Test that nav mode (default) does NOT report backtick references."""
     # Modify README.md temporarily to test nav mode behavior
     readme_file = Path(__file__).parents[2] / "README.md"
-    original_content = readme_file.read_text()
+    original_content = readme_file.read_text(encoding="utf-8")
 
     test_content = (
         original_content
@@ -33,21 +59,10 @@ And here is a backtick reference: `.autonomous_runs/test_fake_file.json`.
     )
 
     try:
-        readme_file.write_text(test_content)
+        readme_file.write_text(test_content, encoding="utf-8")
 
         # Run nav mode (default) with verbose to see broken link details
-        result = subprocess.run(
-            [
-                sys.executable,
-                "scripts/check_doc_links.py",
-                "--verbose",
-                "--repo-root",
-                str(Path(__file__).parents[2]),
-            ],
-            cwd=Path(__file__).parents[2],
-            capture_output=True,
-            text=True,
-        )
+        result = _run_doc_link_checker("--verbose")
 
         # Output should mention the markdown link but NOT the backtick reference
         assert (
@@ -60,7 +75,7 @@ And here is a backtick reference: `.autonomous_runs/test_fake_file.json`.
         print("✅ test_nav_mode_ignores_backticks passed")
     finally:
         # Restore original README
-        readme_file.write_text(original_content)
+        readme_file.write_text(original_content, encoding="utf-8")
 
 
 def test_deep_mode_includes_backticks():
@@ -75,22 +90,10 @@ And here is a backtick reference: `.autonomous_runs/test_deep_fake_file.json`.
 
     test_file = Path(__file__).parents[2] / "docs" / "test_deep_mode.md"
     try:
-        test_file.write_text(test_content)
+        test_file.write_text(test_content, encoding="utf-8")
 
         # Run deep mode with verbose - should detect both markdown link and backtick
-        result = subprocess.run(
-            [
-                sys.executable,
-                "scripts/check_doc_links.py",
-                "--deep",
-                "--verbose",
-                "--repo-root",
-                str(Path(__file__).parents[2]),
-            ],
-            cwd=Path(__file__).parents[2],
-            capture_output=True,
-            text=True,
-        )
+        result = _run_doc_link_checker("--deep", "--verbose")
 
         # Output should mention both the markdown link AND the backtick reference
         # Note: paths may be normalized (leading . and / stripped)
@@ -119,22 +122,10 @@ Backtick reference: `scripts/test_nonexistent_default_script.py`.
 
     test_file = Path(__file__).parents[2] / "docs" / "test_deep_default.md"
     try:
-        test_file.write_text(test_content)
+        test_file.write_text(test_content, encoding="utf-8")
 
         # Run deep mode WITHOUT --include-backticks flag, with verbose
-        result = subprocess.run(
-            [
-                sys.executable,
-                "scripts/check_doc_links.py",
-                "--deep",
-                "--verbose",
-                "--repo-root",
-                str(Path(__file__).parents[2]),
-            ],
-            cwd=Path(__file__).parents[2],
-            capture_output=True,
-            text=True,
-        )
+        result = _run_doc_link_checker("--deep", "--verbose")
 
         # Should still detect backtick reference (deep mode defaults to include backticks)
         assert (
@@ -158,21 +149,10 @@ Runtime endpoint: `/api/test_auth/test_endpoint`.
 
     test_file = Path(__file__).parents[2] / "docs" / "test_labeling.md"
     try:
-        test_file.write_text(test_content)
+        test_file.write_text(test_content, encoding="utf-8")
 
         # Run deep mode (not verbose, to see summary)
-        result = subprocess.run(
-            [
-                sys.executable,
-                "scripts/check_doc_links.py",
-                "--deep",
-                "--repo-root",
-                str(Path(__file__).parents[2]),
-            ],
-            cwd=Path(__file__).parents[2],
-            capture_output=True,
-            text=True,
-        )
+        result = _run_doc_link_checker("--deep")
 
         # Output should label informational references clearly
         # (Should be marked as informational/report-only in the summary)

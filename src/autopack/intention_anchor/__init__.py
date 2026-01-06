@@ -1,7 +1,7 @@
 """
 Intention Anchor module - canonical, versioned intent representation for runs.
 
-Public API exports:
+Public API exports (v1 - existing):
     - IntentionAnchor: main schema
     - IntentionConstraints, IntentionScope, IntentionBudgets, IntentionRiskProfile: sub-schemas
     - create_anchor, save_anchor, load_anchor, update_anchor: storage helpers
@@ -11,6 +11,11 @@ Public API exports:
     - load_and_render_for_builder_with_telemetry, load_and_render_for_auditor_with_telemetry, load_and_render_for_doctor_with_telemetry: telemetry-aware helpers
     - get_canonical_path: path resolver
     - generate_anchor_summary, save_anchor_summary, log_anchor_event, read_anchor_events: SOT artifact helpers
+
+Public API exports (v2 - universal pivot intentions):
+    - IntentionAnchorV2: v2 schema (universal pivot intentions)
+    - create_from_inputs: create v2 anchor from inputs
+    - validate_pivot_completeness: validate v2 anchor completeness
 """
 
 from .artifacts import (
@@ -51,6 +56,11 @@ from .telemetry import (
     load_and_render_for_builder_with_telemetry,
     load_and_render_for_doctor_with_telemetry,
 )
+from .v2 import (
+    IntentionAnchorV2,
+    create_from_inputs,
+    validate_pivot_completeness,
+)
 
 __all__ = [
     # Models
@@ -88,4 +98,8 @@ __all__ = [
     "get_anchor_summary_path",
     "get_anchor_events_path",
     "generate_anchor_diff_summary",
+    # V2 Models and helpers
+    "IntentionAnchorV2",
+    "create_from_inputs",
+    "validate_pivot_completeness",
 ]

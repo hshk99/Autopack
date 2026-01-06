@@ -4,18 +4,21 @@ Per IMPLEMENTATION_PLAN_TRUE_AUTONOMY.md Phase 5:
 - Bounded concurrency control (max N concurrent runs)
 - Isolated worktrees per run (via WorkspaceManager)
 - Safe parallel execution using existing primitives
+- Parallelism policy gate enforcement (Phase 5 of Pivot Intentions plan)
 
 Key principles:
 - No new abstractions: Use WorkspaceManager, WorkspaceLease, ExecutorLockManager
 - Token-efficient: Shared intention memory, isolated worktrees
 - Fail-safe: Graceful degradation, proper cleanup on errors
 - Deterministic: Predictable concurrency limits, no race conditions
+- Policy-gated: Respects IntentionAnchorV2.parallelism_isolation.allowed
 
 Architecture:
 - ParallelRunOrchestrator: Main coordinator
 - Uses WorkspaceManager for isolated worktrees
 - Uses ExecutorLockManager for run-level locking
 - Bounded semaphore for concurrency control
+- ParallelismPolicyGate: Enforces parallelism policy from intention anchor
 """
 
 import asyncio
@@ -27,6 +30,8 @@ from datetime import datetime
 
 from .workspace_manager import WorkspaceManager
 from .executor_lock import ExecutorLockManager
+from .autonomy.parallelism_gate import ParallelismPolicyGate
+from .intention_anchor.v2 import IntentionAnchorV2
 
 logger = logging.getLogger(__name__)
 
@@ -92,6 +97,44 @@ class ParallelRunOrchestrator:
             f"[ParallelOrchestrator] Initialized with max_concurrent_runs={config.max_concurrent_runs}"
         )
 
+    async def execute_parallel_with_policy_check(
+        self,
+        run_ids: List[str],
+        executor_func: Callable[[str, Path], Any],
+        anchor: IntentionAnchorV2,
+        executor_kwargs: Optional[Dict[str, Any]] = None,
+    ) -> List[RunResult]:
+        """Execute multiple runs in parallel with parallelism policy enforcement.
+
+        This method checks IntentionAnchorV2.parallelism_isolation.allowed before
+        executing parallel runs. If parallel execution is not allowed, raises
+        ParallelismPolicyViolation.
+
+        Args:
+            run_ids: List of run IDs to execute
+            executor_func: Async function to execute for each run
+                          Signature: async def func(run_id: str, workspace: Path, **kwargs) -> bool
+            anchor: Intention anchor v2 with parallelism policy
+            executor_kwargs: Optional kwargs to pass to executor_func
+
+        Returns:
+            List of RunResult objects (one per run_id)
+
+        Raises:
+            ParallelismPolicyViolation: If parallel execution is not allowed by anchor
+        """
+        # Check parallelism policy gate (Phase 5)
+        if len(run_ids) > 1:
+            gate = ParallelismPolicyGate(anchor)
+            gate.check_parallel_allowed(requested_runs=len(run_ids))
+            logger.info(
+                f"[ParallelOrchestrator] Parallelism policy check passed "
+                f"(allowed={gate.is_parallel_allowed()}, max_concurrent={gate.get_max_concurrent_runs()})"
+            )
+
+        # Proceed with parallel execution
+        return await self.execute_parallel(run_ids, executor_func, executor_kwargs)
+
     async def execute_parallel(
         self,
         run_ids: List[str],
@@ -99,6 +142,10 @@ class ParallelRunOrchestrator:
         executor_kwargs: Optional[Dict[str, Any]] = None,
     ) -> List[RunResult]:
         """Execute multiple runs in parallel with bounded concurrency.
+
+        NOTE: This method does NOT check parallelism policy. Use
+        execute_parallel_with_policy_check() to enforce IntentionAnchorV2
+        parallelism policy.
 
         Args:
             run_ids: List of run IDs to execute

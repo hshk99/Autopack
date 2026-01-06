@@ -2,12 +2,12 @@
 
 
 <!-- AUTO-GENERATED SUMMARY - DO NOT EDIT MANUALLY -->
-**Summary**: 187 build entries (163 unique builds) documented | Last updated: 2026-01-06 09:46:38
+**Summary**: 189 build entries (164 unique builds) documented | Last updated: 2026-01-06 11:03:09
 <!-- END AUTO-GENERATED SUMMARY -->
 
 <!-- META
-Last_Updated: 2026-01-06T09:46:38.599718Z
-Total_Builds: 187
+Last_Updated: 2026-01-06T11:03:09.199299Z
+Total_Builds: 189
 Format_Version: 2.0
 Auto_Generated: False
 Sources: CONSOLIDATED files, archive/, manual updates, BUILD-158 Tidy Lock/Lease + Doc Link Checker
@@ -17,6 +17,8 @@ Sources: CONSOLIDATED files, archive/, manual updates, BUILD-158 Tidy Lock/Lease
 
 | Timestamp | BUILD-ID | Phase | Summary | Files Changed |
 |-----------|----------|-------|---------|---------------|
+| 2026-01-06 | BUILD-177 | Security Baseline Automation - Operational Status Tracker (100% COMPLETE ✅) | **Comprehensive Monitoring and Rollout Tracking Document for Three-Phase Automation**: Created SECURITY_BASELINE_AUTOMATION_STATUS.md (210 lines) tracking implementation status, monitoring checklists, and operational procedures for three-phase security baseline automation rollout. **Phase A Monitoring (SARIF Artifacts)**: Status tracking (operational, scheduled weekly Monday 06:00 UTC), 3-run validation checklist (2026-01-06, 01-13, 01-20), success criteria (all scheduled runs complete, consistent artifacts, no failures), recent run history with workflow IDs. **Phase B Monitoring (Baseline Refresh)**: Status tracking (operational, manual trigger only with schedule disabled), validation status (both no-change and change paths validated via PR #31 and run 20732762649), hardening completion checklist (SECBASE-anchored timestamps ✅, exit code hardening ✅, Windows UTF-8 support ✅, run ID in branch names ✅, operational checklist ✅), schedule enablement procedure (after Phase A proves stable, uncomment lines 5-6 in workflow, monitor first run). **Phase C Planning (Auto-Merge)**: Status tracking (not yet implemented, deferred pending empirical data), design rationale (need to observe real baseline drift patterns from Phase A/B operations), potential exemption patterns to validate (Trivy DB metadata updates, CodeQL description updates, dependency bumps with no new findings), design considerations for future implementation (SECBASE entry still required, security team notifications, emergency disable mechanism, fail-safe to human review on uncertainty). **Operational Content**: Success metrics for each phase, monitoring procedures and checklists, troubleshooting guides, decision log with rationale for phased approach, timeline for enabling automation phases, explicit promotion criteria from manual→scheduled triggers. **Documentation Benefits**: Single source of truth for automation rollout status, clear phase boundaries and dependencies (Phase B schedule depends on Phase A stability), actionable monitoring checklists (prevents "forgot to validate" issues), empirical validation approach (observe real patterns before designing auto-merge), operational runbooks for each phase, decision trail for future reference. **Impact**: Operational transparency for security baseline automation (status visible to all maintainers), systematic validation approach (prevents premature automation), clear rollout criteria (Phase A must prove stable before Phase B schedule enabled), future Phase C designed from real-world data not speculation, comprehensive troubleshooting coverage, aligns with README principle "safe, deterministic, mechanically enforceable" by making automation rollout itself systematic and observable. **Aligns With**: BUILD-174 (three-phase automation implementation), DEC-045 (security diff gate policy), SECURITY_LOG.md Phase B operational checklist. **References**: PR #30 (Phase B implementation), PR #31 (first automated baseline refresh), PR #34 (Phase B stabilization), commit 53460677 (operational checklist). Files: docs/SECURITY_BASELINE_AUTOMATION_STATUS.md (NEW, 210 lines) | 1 |
+| 2026-01-06 | BUILD-174.1 | Phase B Operational Hardening - Checklist + Branch Name Improvements (100% COMPLETE ✅) | **Post-Validation Hardening Following Phase B First Run**: Added operational documentation and workflow improvements after successful Phase B validation (SECBASE-20260106). **Operational Checklist (SECURITY_LOG.md)**: Added "Phase B Automation (Operational Checklist)" section (79 lines) with copy/paste manual trigger commands (gh workflow run + gh run watch), expected outcomes documentation (no-change path: skips PR creation with log message, change path: creates PR with stub SECBASE entry, both paths CI-enforced), SECBASE entry completion workflow (4-step process: review delta, assess findings, complete SECBASE entry, verify CI green + merge), validation status (both paths complete ✅ via PR #31 and run 20732762649), troubleshooting guide (7 common scenarios: workflow fails to download artifacts, update_baseline.py fails, PR creation fails, CI blocks merge, duplicate PRs created, baselines unchanged but PR created anyway, workflow runs but does nothing). **Branch Name Hardening**: Enhanced .github/workflows/security-baseline-refresh.yml to include GitHub run ID in branch names (security/baseline-refresh-YYYYMMDD → security/baseline-refresh-YYYYMMDD-<run-id>), prevents branch name collisions if Phase B triggered multiple times per day, improves auditability (branch name → workflow run mapping), uses ${{ github.run_id }} variable (always unique per workflow run). **Verification**: SECURITY_LOG.md operational checklist complete ✅, branch naming includes run ID ✅, both changes non-blocking (Phase B core automation already operational per SECBASE-20260106) ✅. **Impact**: Operational runbook available for Phase B usage (copy/paste commands, clear outcomes, troubleshooting), branch collision risk eliminated (run ID ensures uniqueness), improved workflow → branch traceability, completes Phase B productionization (automation working + documentation complete + edge cases handled). **Aligns With**: BUILD-174 (Phase B implementation), SECBASE-20260106 (first automated baseline refresh), Phase B validation results. **References**: PR #31 (Phase B validation), PR #34 (timestamp stability), commit 53460677. Files: docs/SECURITY_LOG.md (+79 lines Phase B operational checklist), .github/workflows/security-baseline-refresh.yml (+run ID in branch names) | 2 |
 | 2026-01-06 | BUILD-174 | Security Baseline Automation - Three-Phase Rollout (C → A → B) (100% COMPLETE ✅) | **Safe Automation of Security Baseline Maintenance Following Phased Promotion Criteria**: Implemented three-phase automation for security baseline workflow reducing toil while preserving safety via explicit promotion gates. **Phase C (SECURITY_BURNDOWN Auto-Counts)**: Created scripts/security/generate_security_burndown_counts.py (187 lines) auto-generating burndown dashboard counts from committed security/baselines/*.json files, marker-delimited updates (<!-- AUTO_COUNTS_START --> / <!-- AUTO_COUNTS_END -->) prevent overwrites of human narratives, git-based timestamps for deterministic "Last Updated" (no wall-clock drift), supports --check mode for CI drift enforcement, wired into .github/workflows/ci.yml docs-sot-integrity job (blocks PRs if counts ≠ baselines). Updated docs/SECURITY_BURNDOWN.md with auto-count markers, fixed dangling rule references (py/empty-except, py/cyclic-import), updated maintenance notes documenting automation status. Reduces toil: auto-sync counts after baseline updates. Preserves safety: only touches marker-delimited section, never edits SECURITY_LOG.md human narratives, CI-enforced drift detection. **Phase A (Auto-Trigger Security Artifacts Workflow)**: Enhanced .github/workflows/security-artifacts.yml with schedule trigger (weekly Monday 06:00 UTC), push triggers on dependency/tooling changes (pyproject.toml, requirements*.txt, .github/workflows/security*.yml, .github/codeql/**, scripts/security/**), concurrency control (cancel-in-progress: true) to throttle spam. Reduces friction: artifacts auto-regenerate on relevant changes. Preserves governance: workflow_dispatch still available for manual runs, generates artifacts only (no baseline writes), does not block PRs (separate from diff gates). **Phase B (Automated Baseline Refresh PR Creation)**: Created .github/workflows/security-baseline-refresh.yml (201 lines) automating PR creation for baseline refreshes with human-in-loop safeguards, downloads latest security-artifacts from main via pinned action (dawidd6/action-download-artifact@bf251b5aa9c2f7eeb574a96ee720e24f801b7c11 v6), runs update_baseline.py --write with all three scanners (Trivy FS, Trivy Image, CodeQL), runs generate_security_burndown_counts.py to auto-sync counts, creates PR with stub SECBASE-TODO-YYYYMMDD entry requiring human completion, checks for existing PRs (idempotent, prevents duplicates), manual workflow_dispatch trigger only initially (schedule trigger commented out pending 2-week validation). Enhanced scripts/ci/check_security_baseline_log_entry.py (+39 lines) with _has_stub_secbase_entry() function detecting SECBASE-TODO-* headings and TODO markers in SECBASE sections, CI fails if baselines changed + stub SECBASE detected (prevents silent merge of automated PRs). Reduces toil: PR creation automated with all baseline updates + count refresh. Preserves safety: stub SECBASE entry blocks merge until human adds rationale/audit trail, CI mechanically enforces human completion, idempotent (no duplicate PRs), actions pinned to SHA (supply-chain security), schedule trigger OFF initially (requires validation period). **Promotion Criteria & Staged Rollout**: Phase C → A shipped immediately (deterministic, low-risk). Phase A → B schedule activation requires: (1) security-artifacts workflow runs stably for ~2 weeks, (2) no noisy runs or surprise breakage, (3) uncomment schedule trigger in security-baseline-refresh.yml. Before enabling B schedule: (1) 2-3 manual baseline refreshes completed via workflow_dispatch, (2) cadence/noise confirmed acceptable. **Verification**: All CI-equivalent checks pass ✅ (generate_security_burndown_counts.py --check, check_github_actions_pinning.py, sot_summary_refresh.py --check, pytest -q tests/docs/ 26 passed, check_security_baseline_log_entry.py). **Impact**: SECURITY_BURNDOWN counts auto-sync from baselines (zero manual drift), security artifacts auto-refresh weekly + on dependency changes (reduces "remember to run it" friction), baseline refresh PRs auto-created with mechanical human-in-loop enforcement (stub SECBASE blocks merge until rationale added), phased rollout with explicit promotion criteria (prevents silent automation creep), all phases preserve existing safety contracts (CI enforcement, audit trails, explicit PRs only, no auto-merge). **Aligns With**: README principle "safe, deterministic, mechanically enforceable", DEC-045 Security Diff Gate Policy, baseline update process (docs/SECURITY_LOG.md), actions pinning policy. Files: scripts/security/generate_security_burndown_counts.py (NEW, 187 lines), docs/SECURITY_BURNDOWN.md (+auto-count markers), .github/workflows/ci.yml (+burndown drift check), .github/workflows/security-artifacts.yml (+auto-triggers +concurrency), .github/workflows/security-baseline-refresh.yml (NEW, 201 lines), scripts/ci/check_security_baseline_log_entry.py (+39 lines stub detection) | 6 |
 | 2026-01-05 | BUILD-173 | Release Marker - Security Gate Policy Lock (100% COMPLETE ✅) | **Durable Governance Posture via ADR + Local CI Parity**: Established permanent policy documentation and developer tooling to lock BUILD-172 security hardening gains. **ADR Documentation (DEC-045)**: Created comprehensive Architecture Decision Record documenting Security Diff Gate Policy with fingerprint-based SARIF normalization, CodeQL security-extended query suite rationale, baseline update SOP (10-step process with security log requirement), gate blocking criteria (after 1-2 stable runs), alternatives considered (quality suite, line-based normalization, exception lists, automatic updates - all rejected), implementation references (normalize_sarif.py, diff_gate.py, update_baseline.py). Captures governance decisions to prevent future drift: why security-extended over security-and-quality (29 spurious alerts eliminated), why fingerprint-based normalization (shift-tolerant baseline comparison), when to make gate blocking (after proven stable), baseline refresh process (CI SARIF artifacts canonical, explicit PRs only, security log entry mandatory). **Local CI Parity Scripts**: Created scripts/ci_parity.sh (bash) and scripts/ci_parity.ps1 (PowerShell) for one-command local validation matching CI must-pass checks. Runs: (1) ruff check (linting), (2) black --check (formatting), (3) pytest core subset excluding research/aspirational (parallel execution, max 5 failures), (4) docs/SOT integrity checks (BUILD_HISTORY unique IDs, doc link hygiene, SOT summary drift), (5) security normalization + diff gate (using test fixtures, validates scripts operational). Reduces "works locally but not in CI" churn, enables fast feedback loop before push, validates security tooling locally with fixture SARIF files. Exit code 0 = all checks pass (green), non-zero = failures detected (red). **Governance Lock Benefits**: ADR prevents erosion of BUILD-172 gains (documents "why" for future maintainers), baseline update SOP ensures accountability (no silent baseline drift), local CI parity enables developers to catch issues pre-push (faster iteration), security gate policy survives team turnover (documented rationale, not tribal knowledge). **Verification**: DEC-045 added to ARCHITECTURE_DECISIONS.md INDEX ✅, ADR includes all 4 alternatives considered + rationale for rejection ✅, baseline update SOP documents 6-step process ✅, local CI parity scripts executable on Windows + Linux ✅, fixture SARIF validation in ci_parity scripts ✅. **Impact**: Security gate policy now mechanically enforceable and documented (prevents "why do we do this?" erosion), developers can validate locally before push (reduces CI churn), baseline refresh process clear and accountable (explicit security log entries), governance posture survives team changes (ADR captures rationale). Aligns with README principle: "safe, deterministic, mechanically enforceable via CI contracts" - now the enforcement is itself documented and locally testable. Files: docs/ARCHITECTURE_DECISIONS.md (+DEC-045, ~160 lines), scripts/ci_parity.sh (NEW, bash local CI validator), scripts/ci_parity.ps1 (NEW, PowerShell local CI validator) | 3 |
 | 2026-01-05 | BUILD-172 | Security Hardening Phases 0-7 + CVE Remediation + Container Hardening (100% COMPLETE ✅) | **Comprehensive Security Baseline Infrastructure Implementation**: Completed 8-phase security hardening program (Phases 0-7) establishing CI-canonical security baselines, CVE remediation with mechanical guardrails, and container hardening. **Phase 0 (Preparation)**: Created security SOT documents (SECURITY_LOG.md, SECURITY_EXCEPTIONS.md, SECURITY_BURNDOWN.md), established append-only audit trail pattern, added to docs/INDEX.md SOT ledgers. **Phase 1 (Security SOT Documentation)**: Established tristate policy framework (Trivy: block CRITICAL/HIGH regressions, CodeQL: block new alerts, explicit baseline refresh only), created SECBASE-YYYYMMDD log template, documented exception process. **Phase 2 (CodeQL Scoping)**: Added .github/codeql/codeql-config.yml to reduce noise, scoped queries to security-severity: high and above, improved signal-to-noise ratio for actionable alerts. **Phase 3 (SARIF Normalization)**: Implemented scripts/security/normalize_sarif.py for deterministic finding keys (Trivy: VulnerabilityID + PkgName + InstalledVersion, CodeQL: rule.id + location.uri + location.startLine), enables reliable diff gates via stable JSON comparison, handles missing fields gracefully. **Phase 4 (Baseline Infrastructure)**: Created scripts/security/update_baseline.py (257 lines) for baseline management, supports --trivy-fs, --trivy-image, --codeql modes, --write flag for updates, --diff mode for regression detection, generates normalized JSON baselines in security/baselines/. **Phase 5 (Diff Gate)**: Implemented scripts/security/diff_gate.py with regression detection logic, compares current scan vs baseline, exit code 0 (pass) vs 1 (regressions found), wired into .github/workflows/security.yml with continue-on-error: true initially (report-only, flip to false after stable). **Phase 6 (Dependency Hygiene)**: Split requirements.txt (runtime deps) from requirements-dev.txt (dev/test deps), removed test-only packages from runtime (pytest, hypothesis, coverage), container image size reduction, clearer dependency boundaries. **Phase 7 (Docker Compose Determinism)**: Pinned moving image tags (postgres:15 → postgres:15.10-alpine, qdrant/qdrant:latest → qdrant/qdrant:v1.12.5), prevents supply-chain drift, deterministic builds, documented in SECURITY_LOG.md. **CVE Remediation (CVE-2024-23342)**: Implemented RS256 algorithm guardrail (src/autopack/config.py @model_validator enforcing jwt_algorithm == "RS256"), created contract tests (tests/autopack/test_auth_algorithm_guardrail.py, 3 tests: RS256 enforcement, env override rejection, error message guidance), documented exception in SECURITY_EXCEPTIONS.md with compensating controls, mechanical enforcement at application startup. **Container Hardening**: Enhanced Dockerfile (--no-cache-dir, USER autopack with UID 1000, non-root execution), created .dockerignore (24 patterns excluding .autonomous_runs/, .git/, venv/, __pycache__/), reduced attack surface and image size, documented in SECURITY_LOG.md. **SARIF Export Workflow**: Created .github/workflows/security-artifacts.yml for CI-canonical baseline source, exports Trivy + CodeQL SARIF files with 90-day retention, enables reproducible baseline updates, documented 10-step refresh procedure in security/README.md. **Requirements Portability**: Created scripts/check_requirements_portability.py (mechanical checker for platform markers), enforces pywin32/python-magic/python-magic-bin platform markers, wired into CI lint job (PR-blocking), prevents Windows-regenerated requirements from breaking Linux/Docker. **Verification**: All security contracts documented in SECURITY_LOG.md (4 new entries: Container Hardening, CVE Remediation, SARIF Export, Requirements Portability) ✅, SECURITY_EXCEPTIONS.md updated with CVE-2024-23342 ✅, guardrail tests passing (3/3) ✅, portability check passing ✅, Docker builds successfully with hardening ✅, SARIF artifacts workflow operational ✅. **Impact**: Reproducible security baselines from CI (eliminates "works on my machine" drift), CVE-2024-23342 mechanically unexploitable (RS256 enforced), container hardening complete (non-root + minimal attack surface), deterministic Docker Compose deployments, requirements portable across platforms. **Aligns With**: DEC-043 (CI SARIF artifacts canonical), README principle ("safe, deterministic, mechanically enforceable via CI contracts"). Files: docs/SECURITY_LOG.md (+4 events), docs/SECURITY_EXCEPTIONS.md (CVE-2024-23342), docs/SECURITY_BURNDOWN.md (NEW), .github/codeql/codeql-config.yml (NEW), scripts/security/normalize_sarif.py (NEW), scripts/security/update_baseline.py (NEW, 257 lines), scripts/security/diff_gate.py (NEW), .github/workflows/security.yml (+diff gate integration), .github/workflows/security-artifacts.yml (NEW), requirements.txt (runtime only), requirements-dev.txt (dev/test deps), docker-compose.yml (pinned versions), Dockerfile (hardening), .dockerignore (NEW, 24 patterns), src/autopack/config.py (+RS256 validator), tests/autopack/test_auth_algorithm_guardrail.py (NEW, 3 tests), scripts/check_requirements_portability.py (NEW), security/README.md (+baseline refresh procedure) | 22 |
@@ -3832,6 +3834,163 @@ Based on BUILD-169 implementation, all future burndown builds must meet:
 - Regression test added (fenced-block bypass)
 - Next targets identified (DOC_LINK_TRIAGE_REPORT 24, README 22, ARCHITECTURE_DECISIONS 19)
 
+## BUILD-177: Security Baseline Automation - Operational Status Tracker (2026-01-06) ✅ COMPLETE
+
+**Status**: 100% Complete
+**Date**: 2026-01-06
+**Related Builds**: BUILD-174 (Three-Phase Automation Implementation), BUILD-174.1 (Phase B Operational Hardening)
+**Commit**: bd925946
+
+### Summary
+
+Created comprehensive operational tracking document for three-phase security baseline automation rollout, providing single source of truth for implementation status, monitoring checklists, and rollout procedures.
+
+### Implementation
+
+**SECURITY_BASELINE_AUTOMATION_STATUS.md (210 lines)**:
+- **Phase A Monitoring (SARIF Artifacts)**: Status tracking (operational, scheduled weekly Monday 06:00 UTC), 3-run validation checklist for 2026-01-06/13/20, success criteria (all runs complete, consistent artifacts, no failures), recent run history with workflow IDs
+- **Phase B Monitoring (Baseline Refresh)**: Status (operational, manual trigger only), validation status (both paths complete ✅), hardening checklist (5 items all complete ✅), schedule enablement procedure with explicit steps
+- **Phase C Planning (Auto-Merge)**: Status (not yet implemented), rationale for deferral (need empirical data from A/B operations), potential exemption patterns, design considerations for future work
+- **Operational Content**: Success metrics per phase, monitoring procedures, troubleshooting guides (7 scenarios), decision log, timeline for enabling automation phases
+
+### Benefits
+
+- **Operational Transparency**: Status visible to all maintainers, no tribal knowledge required
+- **Systematic Validation**: Clear checklists prevent "forgot to validate" issues, explicit promotion criteria
+- **Empirical Design**: Phase C designed from real-world patterns not speculation
+- **Single Source of Truth**: One document tracks entire rollout state, dependencies, and decision rationale
+
+### Verification
+
+✅ Document created with all three phases tracked
+✅ Monitoring checklists for Phase A (3 runs) and Phase B (hardening items) complete
+✅ Troubleshooting guide covers 7 common scenarios
+✅ References PR #30, #31, #34 and commit 53460677
+
+### Impact
+
+Completes BUILD-174 operational story: automation working (Phase C/A/B) + validation complete (Phase B both paths) + rollout tracking (BUILD-177 status doc) + operational runbook (BUILD-174.1 checklist).
+
+**Files**: docs/SECURITY_BASELINE_AUTOMATION_STATUS.md (NEW, 210 lines)
+
+---
+
+## BUILD-174.1: Phase B Operational Hardening (2026-01-06) ✅ COMPLETE
+
+**Status**: 100% Complete
+**Date**: 2026-01-06
+**Related Builds**: BUILD-174 (Phase B Implementation), SECBASE-20260106 (First Automated Baseline Refresh)
+**Commit**: 53460677
+
+### Summary
+
+Added operational documentation and workflow improvements after successful Phase B validation, completing Phase B productionization with runbooks, troubleshooting guides, and collision-resistant branch naming.
+
+### Implementation
+
+**1. Operational Checklist (docs/SECURITY_LOG.md, +79 lines)**:
+- **Manual Trigger Commands**: Copy/paste ready `gh workflow run` and `gh run watch` commands
+- **Expected Outcomes**: Documentation for both paths (no-change: skips PR with log message, change: creates PR with stub SECBASE)
+- **SECBASE Completion Workflow**: 4-step process (review delta, assess findings, complete SECBASE entry, verify CI green + merge)
+- **Validation Status**: Both paths complete ✅ (PR #31 change path, run 20732762649 no-change path)
+- **Troubleshooting Guide**: 7 common scenarios with resolution steps (artifact download fails, update_baseline.py fails, PR creation fails, CI blocks merge, duplicate PRs, unchanged baselines trigger PR, workflow no-op)
+
+**2. Branch Name Hardening (.github/workflows/security-baseline-refresh.yml)**:
+- Changed: `security/baseline-refresh-YYYYMMDD` → `security/baseline-refresh-YYYYMMDD-<run-id>`
+- Prevents: Branch name collisions if Phase B triggered multiple times per day
+- Improves: Auditability via direct branch name → workflow run mapping
+- Implementation: Uses `${{ github.run_id }}` variable (always unique per workflow run)
+
+### Verification
+
+✅ Operational checklist complete with all 4 workflow steps documented
+✅ Troubleshooting guide covers 7 scenarios
+✅ Branch naming includes run ID for uniqueness
+✅ Both changes non-blocking (Phase B already operational per SECBASE-20260106)
+
+### Impact
+
+**Operational Readiness**: Copy/paste commands + clear outcomes + troubleshooting = production-ready runbook
+**Risk Mitigation**: Branch collision eliminated, workflow traceability improved
+**Productionization Complete**: Automation working + documentation complete + edge cases handled
+
+**Files**: docs/SECURITY_LOG.md (+79 lines), .github/workflows/security-baseline-refresh.yml (+run ID in branch names)
+
+---
+
+## BUILD-176: Phase B Stabilization - SECBASE-Anchored Timestamps + Exit Code Hardening (2026-01-06) ✅ COMPLETE
+
+**Status**: 100% Complete (via PR #34)
+**Date**: 2026-01-06
+**Related Builds**: BUILD-174 (Phase B Implementation), SECBASE-20260106 (First Baseline Refresh)
+**Commits**: 5539b222
+**PR**: #34
+
+### Problem Statement
+
+Phase B false positive: No-change path created spurious PR due to timestamp-only diff in SECURITY_BURNDOWN.md
+- **Root Cause**: generate_security_burndown_counts.py used git log dates for "Last Updated"
+- **Failure Mode**: Squash merges shift commit dates (2026-01-05 → 2026-01-06 UTC), causing timestamp-only diffs
+- **Impact**: Timestamp drift triggers change detection → spurious PR creation (PR #33 closed as false positive)
+
+### Solution
+
+**1. SECBASE-Anchored Timestamps (scripts/security/generate_security_burndown_counts.py, +39 lines)**:
+- **New Behavior**: Derive "Last Updated" from latest SECBASE-YYYYMMDD entry in SECURITY_LOG.md
+- **Fallback**: Git log only if no SECBASE entries exist (backward compatible)
+- **Stability**: Works across all merge methods (squash/merge commit/rebase), no wall-clock drift
+- **Implementation**: Regex pattern `r'##\s+SECBASE-(\d{8})'` extracts YYYYMMDD dates, uses latest
+
+**2. Exit Code Hardening (.github/workflows/security-baseline-refresh.yml)**:
+- **Old**: `--write || true` (swallowed all errors)
+- **New**: Explicit exit code handling, accept only 0 (no changes) or 1 (changes detected)
+- **Fail On**: Real errors (exit codes 2+, script crashes, missing dependencies)
+- **Safety**: Prevents silent failures masking genuine problems
+
+**3. Windows Dev Parity (scripts/tidy/sot_summary_refresh.py, +8 lines)**:
+- **Fix**: Reconfigure stdout/stderr to UTF-8 on Windows (`sys.stdout.reconfigure(encoding='utf-8')`)
+- **Prevents**: cp1252 crashes from emoji output (✓ → UnicodeEncodeError)
+- **Enables**: Local CI parity testing on Windows without encoding crashes
+
+**4. Auto-Update Burndown (docs/SECURITY_BURNDOWN.md)**:
+- Regenerated with SECBASE-anchored timestamp (2026-01-06)
+- Count markers updated to match current baselines
+
+### Testing
+
+✅ `generate_security_burndown_counts.py --check` stable (no timestamp drift)
+✅ `pytest -q tests/docs/` passes (all SOT contract tests)
+✅ `check_github_actions_pinning.py` passes (supply-chain security)
+✅ Expected behavior after merge: Re-run Phase B → no-change path → no PR created
+
+### Expected Behavior After Merge
+
+- Timestamp remains stable across future merges (SECBASE-anchored, not git-log-anchored)
+- Phase B re-run produces no-change path (no spurious PRs)
+- Windows developers can run local CI parity (UTF-8 safe)
+
+### Verification
+
+✅ Timestamp stability across squash merges (SECBASE-anchored)
+✅ Exit code handling explicit (0/1 accepted, 2+ fails workflow)
+✅ Windows UTF-8 safety (emoji output works)
+✅ Burndown auto-updated with stable timestamp
+
+### Impact
+
+**No-Change Path Reliable**: Timestamp stability eliminates false positives (PR #33 type issues prevented)
+**Error Visibility**: Exit code hardening surfaces real failures (no silent swallowing)
+**Windows Parity**: Developers can run security scripts locally without encoding crashes
+**CI Confidence**: Phase B ready for scheduled trigger after Phase A validation period
+
+**Files**:
+- scripts/security/generate_security_burndown_counts.py (+39 lines SECBASE timestamp extraction)
+- .github/workflows/security-baseline-refresh.yml (+exit code handling)
+- scripts/tidy/sot_summary_refresh.py (+8 lines Windows UTF-8 safety)
+- docs/SECURITY_BURNDOWN.md (regenerated with stable timestamp)
+
+---
+
 ## BUILD-172: Security Hardening Phases 0-7 + CVE Remediation + Container Hardening (2026-01-05) ✅ COMPLETE
 
 **Status**: 100% Complete
@@ -4347,7 +4506,7 @@ Created comprehensive test suite (10 tests total, 100% passing):
 
 ---
 
-## BUILD-176 | SOT Memory Integration
+## BUILD-147 | SOT Memory Integration
 
 **Status**: 100% COMPLETE ✅
 **Date**: 2026-01-01

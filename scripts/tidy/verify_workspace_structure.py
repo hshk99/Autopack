@@ -72,6 +72,9 @@ ROOT_ALLOWED_DIRS = {
     ".autonomous_runs", "__pycache__", "node_modules",
     "src", "tests", "scripts", "docs", "archive", "backend", "frontend",
     "config", "venv", ".venv", "dist", "build",
+    # BUILD-183: security/ is allowed at root by design - contains security
+    # baselines, threat models, and audit artifacts for visibility.
+    "security",
 }
 
 DOCS_SOT_FILES = {
@@ -128,6 +131,36 @@ DOCS_ALLOWED_PATTERNS = [
     "CANONICAL_*.md",
     "*_SYSTEM.md",
     "TELEMETRY_*.md",  # Keep for backwards compat
+    # BUILD-183: Additional allowlisted patterns for known intentional docs.
+    # These are NOT converted to SOT; they are simply allowed without warning.
+    # Unknown docs files still emit warnings (default-warn preserved).
+    "BUILD-*.md",       # Per-task build documentation
+    "BUILD_*.md",       # Alternate build doc naming convention
+    "*_COMPLETION*.md", # Task completion reports
+    "*_REPORT*.md",     # Analysis and status reports
+    "*_OPERATIONS*.md", # Operations documentation
+    "*_PLAYBOOK*.md",   # Operational playbooks
+    "*_HOWTO*.md",      # How-to guides
+    "*_STATUS*.md",     # Status tracking documents
+    "*_PLAN*.md",       # Planning documents
+    "*_SUMMARY*.md",    # Summary documents
+    "*_DECISIONS*.md",  # Decision records (ARCHITECTURE_DECISIONS.md is SOT)
+    "*_POLICY*.md",     # Policy documents
+    "*_LOG*.md",        # Log files (security, debug, etc.)
+    "*_STANDARDS*.md",  # Standards documentation
+    "PROMPT_*.md",      # Prompt documentation
+    "P0_*.md",          # Priority-0 documents
+    "PRE_*.md",         # Pre-task analysis docs
+    "REMAINING_*.md",   # Remaining work docs
+    "LEARNED_*.json",   # Learned rules/mitigations JSON
+    "CHAT_HISTORY_*.md",   # Chat history extracts
+    "CHAT_HISTORY_*.json", # Chat history extracts JSON
+    "CONSOLIDATED_*.md",   # Consolidated documents
+    "STORAGE_*.md",        # Storage optimizer docs
+    "SECURITY_*.md",       # Security documentation
+    "INTENTION_*.md",      # Intention tracking docs
+    "DOC_*.md",            # Doc-related analysis
+    "EXIT_*.md",           # Exit code standards, etc.
 ]
 
 DOCS_ALLOWED_SUBDIRS = {

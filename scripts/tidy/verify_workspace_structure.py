@@ -532,7 +532,7 @@ def main():
         for section, result in report["results"].items():
             md_lines.append(f"## {section.upper()}")
             md_lines.append("")
-            md_lines.append(f"**Valid**: {'✅' if result['valid'] else '❌'}")
+            md_lines.append(f"**Valid**: {'[OK]' if result['valid'] else '[X]'}")
             md_lines.append("")
 
             if result["errors"]:

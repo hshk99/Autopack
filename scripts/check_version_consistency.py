@@ -32,7 +32,7 @@ def extract_version_from_python(file_path: Path) -> str | None:
             return match.group(1)
         return None
     except Exception as e:
-        print(f"❌ ERROR: Failed to read {file_path}: {e}", file=sys.stderr)
+        print(f"[X] ERROR: Failed to read {file_path}: {e}", file=sys.stderr)
         return None
 
 
@@ -46,7 +46,7 @@ def extract_version_from_toml(file_path: Path) -> str | None:
             return match.group(1)
         return None
     except Exception as e:
-        print(f"❌ ERROR: Failed to read {file_path}: {e}", file=sys.stderr)
+        print(f"[X] ERROR: Failed to read {file_path}: {e}", file=sys.stderr)
         return None
 
 
@@ -57,10 +57,10 @@ def extract_version_from_json(file_path: Path) -> str | None:
         data = json.loads(content)
         return data.get("version")
     except json.JSONDecodeError as e:
-        print(f"❌ ERROR: Invalid JSON in {file_path}: {e}", file=sys.stderr)
+        print(f"[X] ERROR: Invalid JSON in {file_path}: {e}", file=sys.stderr)
         return None
     except Exception as e:
-        print(f"❌ ERROR: Failed to read {file_path}: {e}", file=sys.stderr)
+        print(f"[X] ERROR: Failed to read {file_path}: {e}", file=sys.stderr)
         return None
 
 
@@ -95,14 +95,14 @@ def main() -> int:
 
     # Check for missing files
     if missing_files:
-        print("❌ ERROR: Missing version files:", file=sys.stderr)
+        print("[X] ERROR: Missing version files:", file=sys.stderr)
         for path in missing_files:
             print(f"  - {path}", file=sys.stderr)
         return 2
 
     # Check for extraction errors
     if extraction_errors:
-        print("❌ ERROR: Failed to extract version from:", file=sys.stderr)
+        print("[X] ERROR: Failed to extract version from:", file=sys.stderr)
         for path in extraction_errors:
             print(f"  - {path}", file=sys.stderr)
         return 2
@@ -112,14 +112,14 @@ def main() -> int:
 
     if len(unique_versions) == 1:
         canonical_version = list(unique_versions)[0]
-        print(f"✅ SUCCESS: All versions match: {canonical_version}")
+        print(f"[OK] SUCCESS: All versions match: {canonical_version}")
         print("")
         print("Version locations:")
         for path in sorted(versions.keys()):
             print(f"  - {path}: {versions[path]}")
         return 0
     else:
-        print("❌ DRIFT DETECTED: Version mismatch across files", file=sys.stderr)
+        print("[X] DRIFT DETECTED: Version mismatch across files", file=sys.stderr)
         print("", file=sys.stderr)
         print("Current versions:", file=sys.stderr)
         for path in sorted(versions.keys()):
@@ -140,7 +140,7 @@ def main() -> int:
             print("Files needing update:", file=sys.stderr)
             for path, version in sorted(versions.items()):
                 if version != canonical_version:
-                    print(f"  - {path}: {version} → {canonical_version}", file=sys.stderr)
+                    print(f"  - {path}: {version} -> {canonical_version}", file=sys.stderr)
 
         return 1
 

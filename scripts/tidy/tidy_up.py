@@ -261,7 +261,7 @@ def repair_project_workspace(
             f"**Purpose**: Append-only troubleshooting ledger for this project’s SOT.\n\n"
             "---\n\n"
             "## Notes\n"
-            "- Prefer entries with: Symptom → Root cause → Fix → Verification.\n"
+            "- Prefer entries with: Symptom -> Root cause -> Fix -> Verification.\n"
         ),
         "ARCHITECTURE_DECISIONS.md": (
             f"# {project_id} — ARCHITECTURE_DECISIONS\n\n"
@@ -269,7 +269,7 @@ def repair_project_workspace(
             f"**Purpose**: Append-only architecture decision record (ADR-style) for this project’s SOT.\n\n"
             "---\n\n"
             "## Notes\n"
-            "- Suggested entry format: Decision → Options → Rationale → Consequences.\n"
+            "- Suggested entry format: Decision -> Options -> Rationale -> Consequences.\n"
         ),
         "FUTURE_PLAN.md": (
             f"# {project_id} — FUTURE_PLAN\n\n"
@@ -398,7 +398,7 @@ def migrate_fileorganizer_to_project(
     project_docs = project_root / "docs"
     project_archive = project_root / "archive"
 
-    print(f"[MIGRATE-FILEORG] Found fileorganizer/ at root → migrating to {project_root.relative_to(repo_root)}")
+    print(f"[MIGRATE-FILEORG] Found fileorganizer/ at root -> migrating to {project_root.relative_to(repo_root)}")
 
     changed = False
 
@@ -421,9 +421,9 @@ def migrate_fileorganizer_to_project(
             print(f"  [WARNING] Destination {project_src.relative_to(repo_root)} already exists, skipping move")
         else:
             fileorg_root.rename(project_src)
-            print(f"  MOVED fileorganizer/ → {project_src.relative_to(repo_root)}/")
+            print(f"  MOVED fileorganizer/ -> {project_src.relative_to(repo_root)}/")
     else:
-        print(f"  [DRY-RUN] Would move fileorganizer/ → {project_src.relative_to(repo_root)}/")
+        print(f"  [DRY-RUN] Would move fileorganizer/ -> {project_src.relative_to(repo_root)}/")
 
     changed = True
 
@@ -1571,7 +1571,7 @@ def main():
                 cwd=repo_root
             )
 
-        # Phase 0: Special migrations (fileorganizer → file-organizer-app-v1)
+        # Phase 0: Special migrations (fileorganizer -> file-organizer-app-v1)
         print("\n" + "=" * 70)
         print("Phase 0: Special Project Migrations")
         print("=" * 70)

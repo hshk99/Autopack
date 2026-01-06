@@ -74,10 +74,10 @@ def send_scan_completion_notification(scan, db):
         success = notifier.send_scan_completion(scan, category_stats)
 
         if success:
-            print("[Telegram] ✓ Notification sent successfully")
+            print("[Telegram] [x] Notification sent successfully")
             print("[Telegram] Check your phone for approval buttons")
         else:
-            print("[Telegram] ✗ Failed to send notification")
+            print("[Telegram] [X] Failed to send notification")
 
         return success
 
@@ -191,8 +191,8 @@ def execute_cleanup(args, db):
     print("EXECUTION RESULTS (BUILD-152)")
     print("=" * 80)
     print(f"Total candidates: {batch_result.total_candidates}")
-    print(f"✓ Successful:     {batch_result.successful}")
-    print(f"✗ Failed:         {batch_result.failed}")
+    print(f"[x] Successful:     {batch_result.successful}")
+    print(f"[X] Failed:         {batch_result.failed}")
     print(f"⏸ Skipped:        {batch_result.skipped}")
     print(f"Success rate:     {batch_result.success_rate:.1f}%")
     print(f"Freed space:      {batch_result.total_freed_bytes / (1024**3):.2f} GB")
@@ -231,13 +231,13 @@ def execute_cleanup(args, db):
         print("FAILED DELETIONS:")
         for result in batch_result.results:
             if result.status == ExecutionStatus.FAILED:
-                print(f"  ✗ {result.path}")
+                print(f"  [X] {result.path}")
                 print(f"    Error: {result.error}")
 
                 # BUILD-152: Show remediation hint for locked files
                 if result.lock_type:
                     hint = executor.lock_detector.get_remediation_hint(result.lock_type)
-                    print(f"    → {hint}")
+                    print(f"    -> {hint}")
 
         print("")
 
@@ -300,9 +300,9 @@ def interactive_approval(scan_id, db, approved_by):
                 notes=f"Interactive approval for {category}"
             )
             db.commit()
-            print(f"  ✓ Approved {len(candidate_ids)} items ({size_gb:.2f} GB)")
+            print(f"  [x] Approved {len(candidate_ids)} items ({size_gb:.2f} GB)")
         else:
-            print(f"  ✗ Skipped (not approved)")
+            print(f"  [X] Skipped (not approved)")
 
         print("")
 
@@ -614,9 +614,9 @@ def main():
         # Check if WizTree is actually available
         from autopack.storage_optimizer.wiztree_scanner import WizTreeScanner
         if isinstance(scanner, WizTreeScanner):
-            print("      ✓ WizTree available - expect 30-50x faster scans")
+            print("      [x] WizTree available - expect 30-50x faster scans")
         else:
-            print("      ⚠ WizTree not found - falling back to Python scanner")
+            print("      [!] WizTree not found - falling back to Python scanner")
             print("      Download WizTree: https://www.diskanalyzer.com/download")
     else:
         scanner = StorageScanner()

@@ -180,9 +180,9 @@ def main():
         print(f"  Added: {diff['added']} | Removed: {diff['removed']} | Unchanged: {diff['unchanged']}")
 
         if diff["added"] > 0 or diff["removed"] > 0:
-            print(f"  ⚠️  Baseline will change!")
+            print(f"  [!]️  Baseline will change!")
         else:
-            print(f"  ✅ No changes (baseline stable)")
+            print(f"  [OK] No changes (baseline stable)")
 
     print("\n" + "=" * 70)
 
@@ -191,15 +191,15 @@ def main():
         print("\n🔧 Writing baselines...")
         for baseline_key, update_info in updates.items():
             write_baseline(update_info["path"], update_info["findings"])
-            print(f"  ✅ Written: {update_info['path']}")
+            print(f"  [OK] Written: {update_info['path']}")
 
-        print("\n✅ Baselines updated successfully!")
+        print("\n[OK] Baselines updated successfully!")
         print("\nNext steps:")
         print("  1. Review diff: git diff security/baselines/")
         print("  2. Document change in docs/SECURITY_LOG.md")
         print("  3. Commit: git add security/baselines/ docs/SECURITY_LOG.md")
     else:
-        print("\n⚠️  DRY RUN (use --write to apply changes)")
+        print("\n[!]️  DRY RUN (use --write to apply changes)")
         print("  No files were modified.")
 
     print("\n" + "=" * 70)

@@ -16,7 +16,7 @@
 2. 🚀 **Lovable Integration** (12 patterns, 5-6 weeks) - **QUEUED**
 3. FileOrganizer Phase 2 (Beta Release)
 4. Research System Chunk 0 (Tracer Bullet) - Monitoring first successful run
-5. 🚀 **Pivot Intentions → Gap Taxonomy → Autonomy Loop + Safe Parallelism (Universal)** - **PLANNED**
+5. 🚀 **BUILD-179: Autonomy CLI + Supervisor Consolidation** - **PLANNED** (library-first CLI surface + policy-gated parallel runs)
 
 **Cancelled Projects**:
 1. ❌ BUILD-112 Phase 5 (Evidence Request Loop) - Replaced by Claude Code in Chrome (Dec 2025)
@@ -25,10 +25,11 @@ This file contains tasks in Autopack format for autonomous execution.
 
 ---
 
-## 🚀 PLANNED: Pivot Intentions → Gap Taxonomy → Autonomy Loop + Safe Parallelism (Universal)
+## ✅ COMPLETE: Pivot Intentions → Gap Taxonomy → Autonomy Loop + Safe Parallelism (Universal)
 
+**Completed in**: BUILD-178 (see `docs/BUILD_HISTORY.md`)  
 **Plan doc (canonical)**: `docs/IMPLEMENTATION_PLAN_PIVOT_INTENTIONS_AUTONOMY_PARALLELISM.md`  
-**Prompt for implementer**: `docs/PROMPT_OTHER_CURSOR_IMPLEMENT_PIVOT_INTENTIONS_AUTONOMY_PARALLELISM.md`
+**Prompt used**: `docs/PROMPT_OTHER_CURSOR_IMPLEMENT_PIVOT_INTENTIONS_AUTONOMY_PARALLELISM.md`
 
 ### Goal
 Standardize the “pivot intentions” that drive safe autonomous progress across **any future project**, then mechanize:
@@ -43,6 +44,12 @@ Standardize the “pivot intentions” that drive safe autonomous progress acros
 - Tidy consolidates with explicit gating (`--execute`) and bounded allowlists.
 - Default-deny governance; narrow auto-approval only.
 - Parallelism is multi-run only (no parallel phases within a run).
+
+---
+
+## 🚀 PLANNED: BUILD-179 - Autonomy CLI + Supervisor Consolidation
+
+**Plan doc (canonical)**: `docs/BUILD-179_AUTONOMY_CLI_AND_SUPERVISOR_CONSOLIDATION.md`
 
 ## ✅ COMPLETE: Research System - Citation Validity Improvement
 

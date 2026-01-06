@@ -6,6 +6,10 @@ Maps gaps to bounded actions under strict governance rules:
 - Protected path enforcement
 - Budget compliance
 - Risk scoring
+
+BUILD-181 Integration:
+- Safety profile derivation affects approval thresholds
+- Stricter thresholds in "strict" safety profile mode
 """
 
 from __future__ import annotations
@@ -18,6 +22,7 @@ from typing import List, Optional
 
 from ..gaps.models import GapReportV1, Gap
 from ..intention_anchor.v2 import IntentionAnchorV2
+from ..executor.safety_profile import derive_safety_profile, SafetyProfile
 from .models import (
     Action,
     BudgetCompliance,
@@ -71,6 +76,10 @@ class PlanProposer:
         self.gap_report = gap_report
         self.workspace_root = workspace_root or Path.cwd()
         self.actions: List[Action] = []
+
+        # BUILD-181: Derive safety profile from anchor
+        self.safety_profile: SafetyProfile = derive_safety_profile(anchor)
+        logger.debug(f"[PlanProposer] Safety profile: {self.safety_profile}")
 
     def propose(self) -> PlanProposalV1:
         """Generate plan proposal from gaps.
@@ -374,16 +383,31 @@ class PlanProposer:
         - Protected path checks
         - Budget compliance
         - Risk score thresholds
+
+        BUILD-181: Safety profile affects thresholds:
+        - "strict": block at risk >= 0.5, auto-approve only at risk < 0.2
+        - "normal": block at risk >= 0.8, auto-approve at risk < 0.3
         """
+        # BUILD-181: Safety profile-adjusted thresholds
+        if self.safety_profile == "strict":
+            block_threshold = 0.5  # Stricter blocking in strict mode
+            auto_approve_threshold = 0.2  # Lower auto-approve threshold
+        else:
+            block_threshold = 0.8  # Normal blocking threshold
+            auto_approve_threshold = 0.3  # Normal auto-approve threshold
+
         for action in self.actions:
             # Start with default-deny
             action.approval_status = "requires_approval"
             action.approval_reason = "Default-deny policy"
 
-            # Check if blocked by high risk or autopilot blocker
-            if action.risk_score >= 0.8:
+            # Check if blocked by high risk (threshold varies by safety profile)
+            if action.risk_score >= block_threshold:
                 action.approval_status = "blocked"
-                action.approval_reason = f"High risk score: {action.risk_score}"
+                action.approval_reason = (
+                    f"Risk score {action.risk_score} >= {block_threshold} "
+                    f"(safety_profile={self.safety_profile})"
+                )
                 continue
 
             # Check NEVER_AUTO_APPROVE paths
@@ -405,13 +429,17 @@ class PlanProposer:
                 continue
 
             # Low-risk, small actions with allowed paths can be auto-approved
+            # (threshold varies by safety profile)
             if (
-                action.risk_score < 0.3
+                action.risk_score < auto_approve_threshold
                 and action.action_type in ["file_move", "doc_update", "tidy_apply"]
                 and not self._touches_protected_paths(action)
             ):
                 action.approval_status = "auto_approved"
-                action.approval_reason = "Low-risk, allowed paths, narrow scope"
+                action.approval_reason = (
+                    f"Low-risk ({action.risk_score} < {auto_approve_threshold}), "
+                    f"allowed paths, narrow scope (safety_profile={self.safety_profile})"
+                )
                 continue
 
     def _touches_never_auto_approve_paths(self, action: Action) -> bool:

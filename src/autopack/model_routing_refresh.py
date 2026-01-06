@@ -107,16 +107,40 @@ SEED_CATALOG = [
 
 def load_model_catalog() -> list[ModelCatalogEntry]:
     """
-    Load model catalog from authoritative source.
+    Load model catalog from authoritative source (BUILD-180).
 
-    Current implementation: returns seed catalog.
-    Future: could read from DB, external API, or enriched config file.
+    Attempts to load from config/models.yaml + config/pricing.yaml.
+    Falls back to SEED_CATALOG if config files unavailable.
 
     Returns:
         List of catalog entries
     """
-    # For now, return seed catalog
-    # In future, this could enrich from config/models.yaml or external source
+    from autopack.model_catalog import (
+        load_model_catalog as load_from_config,
+        ModelCatalogEntry as ConfigEntry,
+    )
+
+    # Try to load from config files
+    config_catalog = load_from_config()
+
+    if config_catalog:
+        # Convert ConfigEntry to ModelCatalogEntry (same structure)
+        return [
+            ModelCatalogEntry(
+                model_id=e.model_id,
+                provider=e.provider,
+                tier=e.tier,
+                max_tokens=e.max_tokens,
+                max_context_chars=e.max_context_chars,
+                cost_per_1k_input=e.cost_per_1k_input,
+                cost_per_1k_output=e.cost_per_1k_output,
+                safety_compatible=e.safety_compatible,
+            )
+            for e in config_catalog
+        ]
+
+    # Fallback to seed catalog
+    logger.info("[ModelRoutingRefresh] Using seed catalog (config unavailable)")
     return list(SEED_CATALOG)
 
 

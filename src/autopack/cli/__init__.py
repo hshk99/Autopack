@@ -37,6 +37,7 @@ def get_repo_root() -> Path:
 # Click-based unified CLI (BUILD-179)
 # ============================================================================
 
+
 @click.group()
 @click.version_option(package_name="autopack", prog_name="autopack")
 def cli() -> None:

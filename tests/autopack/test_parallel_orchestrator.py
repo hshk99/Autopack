@@ -1,10 +1,11 @@
 """Tests for parallel orchestrator (Phase 5 of True Autonomy)."""
 
-import pytest
 import asyncio
+from datetime import datetime, timezone
 from pathlib import Path
 from unittest.mock import MagicMock, patch
-from datetime import datetime
+
+import pytest
 
 from autopack.parallel_orchestrator import (
     ParallelRunConfig,
@@ -13,6 +14,28 @@ from autopack.parallel_orchestrator import (
     execute_parallel_runs,
     execute_single_run,
 )
+from autopack.intention_anchor.v2 import (
+    IntentionAnchorV2,
+    ParallelismIsolationIntention,
+    PivotIntentions,
+)
+
+
+def _anchor_parallel_allowed(max_concurrent_runs: int) -> IntentionAnchorV2:
+    """Create a minimal anchor that allows N parallel runs."""
+    return IntentionAnchorV2(
+        format_version="v2",
+        project_id="test-project",
+        created_at=datetime(2025, 1, 1, 0, 0, 0, tzinfo=timezone.utc),
+        raw_input_digest="0123456789abcdef",
+        pivot_intentions=PivotIntentions(
+            parallelism_isolation=ParallelismIsolationIntention(
+                allowed=True,
+                isolation_model="four_layer",
+                max_concurrent_runs=max_concurrent_runs,
+            )
+        ),
+    )
 
 
 class TestParallelRunConfig:
@@ -271,9 +294,11 @@ class TestParallelRunOrchestrator:
                 return True
 
             run_ids = ["run1", "run2", "run3"]
+            anchor = _anchor_parallel_allowed(max_concurrent_runs=len(run_ids))
             results = await orchestrator.execute_parallel(
                 run_ids=run_ids,
                 executor_func=executor,
+                anchor=anchor,
             )
 
             # All runs should complete
@@ -326,9 +351,11 @@ class TestParallelRunOrchestrator:
                 return True
 
             run_ids = ["run1", "run2", "run3", "run4"]
+            anchor = _anchor_parallel_allowed(max_concurrent_runs=len(run_ids))
             results = await orchestrator.execute_parallel(
                 run_ids=run_ids,
                 executor_func=executor,
+                anchor=anchor,
             )
 
             # All runs should complete
@@ -364,9 +391,11 @@ class TestParallelRunOrchestrator:
                 return True
 
             run_ids = ["run1", "run2", "run3"]
+            anchor = _anchor_parallel_allowed(max_concurrent_runs=len(run_ids))
             results = await orchestrator.execute_parallel(
                 run_ids=run_ids,
                 executor_func=executor,
+                anchor=anchor,
             )
 
             assert len(results) == 3
@@ -510,6 +539,7 @@ class TestConvenienceFunctions:
                 executor_func=executor,
                 max_concurrent=2,
                 worktree_base=tmp_path,
+                anchor=_anchor_parallel_allowed(max_concurrent_runs=2),
             )
 
             assert len(results) == 2

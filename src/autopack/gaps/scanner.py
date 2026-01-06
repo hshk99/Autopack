@@ -20,11 +20,20 @@ from .models import (
     GapReportV1,
     GapSummary,
     SafeRemediation,
+    CommandEvidence,
+)
+from .doc_drift import (
+    run_doc_drift_check,
+    run_sot_summary_check,
+    run_doc_tests,
 )
 
 logger = logging.getLogger(__name__)
 
-SCANNER_VERSION = "1.0.0"
+SCANNER_VERSION = "1.1.0"  # BUILD-180: Mechanical drift checks
+
+# Deterministic sentinel for git unavailable (BUILD-180)
+GIT_UNAVAILABLE_SENTINEL = "unknown|git_unavailable"
 
 
 class GapScanner:
@@ -79,25 +88,117 @@ class GapScanner:
         return self.gaps
 
     def _detect_doc_drift(self) -> List[Gap]:
-        """Detect documentation drift via contract tests.
+        """Detect documentation drift via mechanical checks (BUILD-180).
 
-        Uses existing doc contract tests when available (per implementation plan).
+        Runs actual scripts and captures exit codes for evidence:
+        - scripts/check_docs_drift.py
+        - scripts/tidy/sot_summary_refresh.py --check
+        - pytest tests/docs/ (if exists)
         """
         gaps = []
 
-        # Check if README has outdated SOT summary markers
-        readme_path = self.workspace_root / "README.md"
-        if readme_path.exists():
-            content = readme_path.read_text(encoding="utf-8", errors="ignore")
+        # Run mechanical doc drift check
+        drift_result = run_doc_drift_check(self.workspace_root)
+        if not drift_result.passed:
+            gap_id = self._generate_gap_id("doc_drift", ["check_docs_drift"])
+            gaps.append(
+                Gap(
+                    gap_id=gap_id,
+                    gap_type="doc_drift",
+                    title="Documentation drift detected",
+                    description=f"scripts/check_docs_drift.py failed with exit code {drift_result.exit_code}",
+                    detection_signals=[
+                        f"Exit code: {drift_result.exit_code}",
+                        (
+                            drift_result.error or drift_result.stderr[:200]
+                            if drift_result.stderr
+                            else "Check failed"
+                        ),
+                    ],
+                    evidence=GapEvidence(
+                        command_evidence=CommandEvidence(
+                            command=drift_result.command,
+                            exit_code=drift_result.exit_code,
+                            stdout_hash=drift_result.stdout_hash,
+                            stderr_excerpt=drift_result.stderr[:500] if drift_result.stderr else "",
+                        )
+                    ),
+                    risk_classification="medium",
+                    blocks_autopilot=False,
+                    safe_remediation=SafeRemediation(
+                        approach="Run tidy system to fix documentation drift",
+                        requires_approval=True,
+                        estimated_actions=1,
+                    ),
+                )
+            )
 
-            # Check for SOT summary markers (from tidy system)
-            if "<!-- SOT_SUMMARY_START -->" in content:
-                # This is a simplified check; real implementation would run tidy dry-run
-                # and check for drift
-                pass  # No drift detected in this simple check
+        # Run SOT summary check
+        sot_result = run_sot_summary_check(self.workspace_root)
+        if not sot_result.passed:
+            gap_id = self._generate_gap_id("doc_drift", ["sot_summary_check"])
+            gaps.append(
+                Gap(
+                    gap_id=gap_id,
+                    gap_type="doc_drift",
+                    title="SOT summary drift detected",
+                    description=f"sot_summary_refresh.py --check failed with exit code {sot_result.exit_code}",
+                    detection_signals=[
+                        f"Exit code: {sot_result.exit_code}",
+                        sot_result.error or "SOT summary needs refresh",
+                    ],
+                    evidence=GapEvidence(
+                        command_evidence=CommandEvidence(
+                            command=sot_result.command,
+                            exit_code=sot_result.exit_code,
+                            stdout_hash=sot_result.stdout_hash,
+                            stderr_excerpt=sot_result.stderr[:500] if sot_result.stderr else "",
+                        )
+                    ),
+                    risk_classification="medium",
+                    blocks_autopilot=False,
+                    safe_remediation=SafeRemediation(
+                        approach="Run python scripts/tidy/sot_summary_refresh.py --execute",
+                        requires_approval=True,
+                        estimated_actions=1,
+                    ),
+                )
+            )
 
-        # Check for doc contract test failures (would run pytest in real implementation)
-        # For now, return empty list (no drift detected)
+        # Run doc tests if they exist
+        doc_test_result = run_doc_tests(self.workspace_root)
+        if not doc_test_result.passed and doc_test_result.exit_code != 0:
+            gap_id = self._generate_gap_id("doc_drift", ["doc_tests"])
+            gaps.append(
+                Gap(
+                    gap_id=gap_id,
+                    gap_type="doc_drift",
+                    title="Documentation tests failing",
+                    description=f"pytest tests/docs/ failed with exit code {doc_test_result.exit_code}",
+                    detection_signals=[
+                        f"Exit code: {doc_test_result.exit_code}",
+                        "Documentation contract tests are failing",
+                    ],
+                    evidence=GapEvidence(
+                        command_evidence=CommandEvidence(
+                            command=doc_test_result.command,
+                            exit_code=doc_test_result.exit_code,
+                            stdout_hash=doc_test_result.stdout_hash,
+                            stderr_excerpt=(
+                                doc_test_result.stderr[:500] if doc_test_result.stderr else ""
+                            ),
+                        )
+                    ),
+                    risk_classification="high",
+                    blocks_autopilot=True,
+                    safe_remediation=SafeRemediation(
+                        approach="Fix failing documentation tests",
+                        requires_approval=True,
+                        estimated_actions=1,
+                    ),
+                )
+            )
+
         return gaps
 
     def _detect_root_clutter(self) -> List[Gap]:
@@ -578,12 +679,17 @@ def scan_workspace(
 def _compute_workspace_digest(workspace_root: Path) -> str:
     """Compute digest of workspace state (git HEAD + status).
 
+    BUILD-180: Uses deterministic sentinel on git failure, never timestamps.
+
     Args:
         workspace_root: Root directory of workspace
 
     Returns:
         16-char hex digest
     """
+    git_head = "unknown"
+    git_status = ""
+
     try:
         # Get git HEAD
         result = subprocess.run(
@@ -593,7 +699,8 @@ def _compute_workspace_digest(workspace_root: Path) -> str:
             text=True,
             timeout=5,
         )
-        git_head = result.stdout.strip() if result.returncode == 0 else "unknown"
+        if result.returncode == 0:
+            git_head = result.stdout.strip()
 
         # Get git status
         result = subprocess.run(
@@ -603,15 +710,17 @@ def _compute_workspace_digest(workspace_root: Path) -> str:
             text=True,
             timeout=5,
         )
-        git_status = result.stdout.strip() if result.returncode == 0 else ""
+        if result.returncode == 0:
+            git_status = result.stdout.strip()
 
         # Combine and hash
         combined = f"{git_head}|{git_status}"
         digest = hashlib.sha256(combined.encode("utf-8")).hexdigest()
         return digest[:16]
+
     except Exception as e:
         logger.debug(f"Failed to compute workspace digest: {e}")
-        # Fallback to timestamp-based digest
-        timestamp = datetime.now(timezone.utc).isoformat()
-        digest = hashlib.sha256(timestamp.encode("utf-8")).hexdigest()
+        # BUILD-180: Use deterministic sentinel, NEVER timestamp
+        # This ensures reproducible digests even when git is unavailable
+        digest = hashlib.sha256(GIT_UNAVAILABLE_SENTINEL.encode("utf-8")).hexdigest()
         return digest[:16]

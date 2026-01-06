@@ -255,6 +255,12 @@ class TestParallelExecutionIntegration:
     async def test_parallel_orchestrator_isolated_workspaces(self, tmp_path):
         """Test that parallel orchestrator creates isolated workspaces."""
         from autopack.parallel_orchestrator import execute_parallel_runs
+        from datetime import datetime, timezone
+        from autopack.intention_anchor.v2 import (
+            IntentionAnchorV2,
+            ParallelismIsolationIntention,
+            PivotIntentions,
+        )
 
         # Mock executor function
         executed_runs = []
@@ -281,12 +287,28 @@ class TestParallelExecutionIntegration:
             mock_lm = MockLM.return_value
             mock_lm.try_acquire_lock.return_value = True
 
+            # BUILD-180: anchor required for parallel execution (>1 run)
+            anchor = IntentionAnchorV2(
+                format_version="v2",
+                project_id="test-project",
+                created_at=datetime(2025, 1, 1, 0, 0, 0, tzinfo=timezone.utc),
+                raw_input_digest="0123456789abcdef",
+                pivot_intentions=PivotIntentions(
+                    parallelism_isolation=ParallelismIsolationIntention(
+                        allowed=True,
+                        isolation_model="four_layer",
+                        max_concurrent_runs=2,
+                    )
+                ),
+            )
+
             # Execute parallel runs
             results = await execute_parallel_runs(
                 run_ids=["run1", "run2"],
                 executor_func=mock_executor,
                 max_concurrent=2,
                 source_repo=tmp_path,
+                anchor=anchor,
             )
 
             # Verify all runs executed

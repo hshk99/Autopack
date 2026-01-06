@@ -84,20 +84,44 @@ class TestPolicyCheckedAsDefault:
                 )
 
     @pytest.mark.asyncio
-    async def test_internal_method_deprecated(self):
-        """Internal execute method should emit deprecation warning."""
+    async def test_deprecated_method_emits_warning(self):
+        """Deprecated execute_parallel_with_policy_check should emit warning."""
+        from datetime import datetime, timezone
+        from autopack.intention_anchor.v2 import (
+            IntentionAnchorV2,
+            PivotIntentions,
+            ParallelismIsolationIntention,
+        )
+
         config = ParallelRunConfig(max_concurrent_runs=3)
         orchestrator = ParallelRunOrchestrator(config)
 
         async def dummy_executor(run_id, workspace):
             return True
 
-        # Internal method should warn if called directly
-        if hasattr(orchestrator, "_execute_parallel_internal"):
-            with pytest.warns(DeprecationWarning):
-                await orchestrator._execute_parallel_internal(
+        # Create anchor with parallelism allowed
+        anchor = IntentionAnchorV2(
+            format_version="v2",
+            project_id="test-project",
+            created_at=datetime.now(timezone.utc),
+            raw_input_digest="test-digest",
+            pivot_intentions=PivotIntentions(
+                parallelism_isolation=ParallelismIsolationIntention(
+                    allowed=True,
+                    isolation_model="four_layer",
+                    max_concurrent_runs=3,
+                )
+            ),
+        )
+
+        # Deprecated method should emit warning
+        with pytest.warns(DeprecationWarning, match="execute_parallel_with_policy_check"):
+            # Mock execute_parallel to avoid actual execution
+            with patch.object(orchestrator, "execute_parallel", return_value=[]):
+                await orchestrator.execute_parallel_with_policy_check(
                     run_ids=["run1"],
                     executor_func=dummy_executor,
+                    anchor=anchor,
                 )
 
 

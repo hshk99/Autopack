@@ -5,7 +5,7 @@ SARIF Normalization for Deterministic Baseline Comparison
 Purpose: Convert SARIF files to stable, sorted JSON keys for diff gate enforcement.
 
 Design Goals:
-- Deterministic output (same input → same output across runs)
+- Deterministic output (same input -> same output across runs)
 - Platform-agnostic (normalize Windows vs Linux paths)
 - Stable across minor code shifts (where feasible)
 
@@ -140,7 +140,7 @@ def normalize_sarif_file(sarif_path: Path, tool_name: str = None) -> List[Dict[s
 
     findings = []
 
-    # SARIF structure: runs[] → tool + results[]
+    # SARIF structure: runs[] -> tool + results[]
     for run in sarif_data.get("runs", []):
         # Auto-detect tool name if not provided
         detected_tool = tool_name

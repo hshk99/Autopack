@@ -176,13 +176,27 @@ def _latest_build_title_from_build_history(build_history: str) -> str | None:
     title = title_m.group(1).strip() if title_m else ""
     status = status_m.group(1).strip() if status_m else ""
 
-    # Keep status glyphs (✅/⚠️/❌) if present; otherwise omit.
+    # Keep status markers if present; otherwise omit.
+    # Support both ASCII markers ([OK], [!], [X]) and legacy Unicode glyphs.
+    # ASCII markers are preferred for Windows console compatibility.
     status_suffix = ""
-    if any(g in status for g in ("✅", "⚠️", "❌")):
-        # Prefer a single prominent glyph
-        for g in ("✅", "⚠️", "❌"):
-            if g in status:
-                status_suffix = f" {g}"
+    # ASCII markers (preferred, Windows-safe)
+    ascii_markers = ("[OK]", "[!]", "[X]")
+    # Legacy Unicode glyphs (for backward compatibility with existing entries)
+    unicode_markers = ("\u2705", "\u26a0\ufe0f", "\u274c")  # checkmark, warning, cross
+    # Map Unicode to ASCII for normalization
+    unicode_to_ascii = {"\u2705": "[OK]", "\u26a0\ufe0f": "[!]", "\u274c": "[X]"}
+
+    # Check for ASCII markers first (preferred)
+    for marker in ascii_markers:
+        if marker in status:
+            status_suffix = f" {marker}"
+            break
+    else:
+        # Fall back to Unicode markers if present, but emit as ASCII
+        for glyph in unicode_markers:
+            if glyph in status:
+                status_suffix = f" {unicode_to_ascii[glyph]}"
                 break
 
     if title:
@@ -726,11 +740,11 @@ def main():
 
     if check_mode:
         if changes_detected:
-            print("\n❌ CHECK FAILED - Derived state drift detected")
+            print("\n[X] CHECK FAILED - Derived state drift detected")
             print("   Run 'python scripts/tidy/sot_summary_refresh.py --execute' to fix")
             return 1
         else:
-            print("\n✅ CHECK PASSED - All derived state is up to date")
+            print("\n[OK] CHECK PASSED - All derived state is up to date")
             return 0
     elif dry_run:
         print("\nDRY-RUN MODE - No changes were made")

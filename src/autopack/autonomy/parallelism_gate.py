@@ -12,7 +12,6 @@ This gate is checked before spawning parallel runs to prevent:
 
 import logging
 from pathlib import Path
-from typing import Optional
 
 from ..intention_anchor.v2 import IntentionAnchorV2
 

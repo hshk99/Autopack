@@ -11,12 +11,11 @@ import logging
 import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import List, Optional, Tuple
+from typing import List
 
 from .models import (
     Gap,
     GapEvidence,
-    GapExcerpt,
     GapMetadata,
     GapReportV1,
     GapSummary,

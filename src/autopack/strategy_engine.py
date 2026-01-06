@@ -206,6 +206,7 @@ class StrategyEngine:
     def save_ruleset(self, ruleset: ProjectRuleset) -> None:
         """Save project ruleset"""
         path = self.get_ruleset_path()
+        path.parent.mkdir(parents=True, exist_ok=True)  # Ensure config/ exists
         path.write_text(ruleset.model_dump_json(indent=2))
 
     def compile_strategy(

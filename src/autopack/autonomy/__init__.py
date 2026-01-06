@@ -6,6 +6,9 @@ Public API exports:
     - run_autopilot_session: execute autopilot session
     - ParallelismPolicyGate: parallelism policy enforcement
     - ParallelismPolicyViolation: raised when parallel execution blocked
+    - run_autopilot: library façade for CLI/programmatic use (BUILD-179)
+    - load_anchor: load intention anchor for a run (BUILD-179)
+    - AutopilotResult: result type for run_autopilot
 """
 
 from .models import AutopilotSessionV1
@@ -16,6 +19,7 @@ from .parallelism_gate import (
     check_parallelism_policy,
     load_and_check_parallelism_policy,
 )
+from .api import run_autopilot, load_anchor, AutopilotResult
 
 __all__ = [
     "AutopilotSessionV1",
@@ -25,4 +29,8 @@ __all__ = [
     "ParallelismPolicyViolation",
     "check_parallelism_policy",
     "load_and_check_parallelism_policy",
+    # Library API (BUILD-179)
+    "run_autopilot",
+    "load_anchor",
+    "AutopilotResult",
 ]

@@ -12,6 +12,7 @@ Properties:
 
 from __future__ import annotations
 
+import hashlib
 import logging
 import re
 from dataclasses import dataclass, field
@@ -179,8 +180,9 @@ def _parse_issue_dict(issue_dict: Dict) -> Optional[ParsedIssue]:
         # Generate deterministic key from description if available
         description = issue_dict.get("description", "")
         if description:
-            # Use first 50 chars of description as key
-            issue_key = f"issue-{hash(description[:50]) % 100000:05d}"
+            # Use stable hash (sha256) - Python's hash() is salted per-process
+            desc_hash = hashlib.sha256(description[:50].encode("utf-8")).hexdigest()[:8]
+            issue_key = f"issue-{desc_hash}"
         else:
             return None
 

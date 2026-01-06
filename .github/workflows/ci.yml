@@ -36,6 +36,9 @@ jobs:
       - name: Enforce GitHub Actions pinning policy
         run: |
           python scripts/ci/check_github_actions_pinning.py
+      - name: Production config guard (block DEBUG enabled)
+        run: |
+          python scripts/ci/check_production_config.py
       - name: Lint with ruff
         run: |
           ruff check src/ tests/

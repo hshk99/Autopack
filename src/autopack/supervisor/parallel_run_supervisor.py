@@ -103,9 +103,7 @@ class ParallelRunSupervisor:
         else:
             return self.database_url
 
-    def execute_run(
-        self, run_id: str, extra_args: Optional[List[str]] = None
-    ) -> Dict:
+    def execute_run(self, run_id: str, extra_args: Optional[List[str]] = None) -> Dict:
         """Execute a single run in an isolated worktree.
 
         Args:
@@ -129,7 +127,7 @@ class ParallelRunSupervisor:
 
             with workspace_manager as workspace:
                 # Acquire workspace lease to prevent concurrent access
-                with WorkspaceLease(workspace) as lease:
+                with WorkspaceLease(workspace):
                     logger.info(f"[{run_id}] Workspace: {workspace}")
 
                     # Get database URL for this run
@@ -145,12 +143,7 @@ class ParallelRunSupervisor:
 
                     # Build command - use worktree path for isolation
                     # (not source_repo, which would break Four-Layer isolation)
-                    executor_path = (
-                        Path(workspace)
-                        / "src"
-                        / "autopack"
-                        / "autonomous_executor.py"
-                    )
+                    executor_path = Path(workspace) / "src" / "autopack" / "autonomous_executor.py"
                     cmd = [
                         sys.executable,
                         str(executor_path),
@@ -181,9 +174,7 @@ class ParallelRunSupervisor:
                     if success:
                         logger.info(f"[{run_id}] Completed successfully")
                     else:
-                        logger.error(
-                            f"[{run_id}] Failed with exit code {result.returncode}"
-                        )
+                        logger.error(f"[{run_id}] Failed with exit code {result.returncode}")
                         logger.error(f"[{run_id}] Stderr: {result.stderr[:500]}")
 
                     return {
@@ -235,17 +226,14 @@ class ParallelRunSupervisor:
         Returns:
             Dict mapping run_id to execution result
         """
-        logger.info(
-            f"[Supervisor] Starting {len(run_ids)} runs with {max_workers} workers"
-        )
+        logger.info(f"[Supervisor] Starting {len(run_ids)} runs with {max_workers} workers")
 
         results = {}
 
         with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
             # Submit all runs
             future_to_run_id = {
-                executor.submit(self.execute_run, run_id, extra_args): run_id
-                for run_id in run_ids
+                executor.submit(self.execute_run, run_id, extra_args): run_id for run_id in run_ids
             }
 
             # Collect results as they complete
@@ -286,9 +274,7 @@ class ParallelRunSupervisor:
         return WorkspaceManager.list_worktrees(source_repo)
 
     @staticmethod
-    def cleanup_all_worktrees(
-        repo: Path, worktree_base: Optional[Path] = None
-    ) -> int:
+    def cleanup_all_worktrees(repo: Path, worktree_base: Optional[Path] = None) -> int:
         """Remove all managed worktrees.
 
         Args:
@@ -299,10 +285,6 @@ class ParallelRunSupervisor:
             Number of worktrees cleaned up
         """
         if worktree_base is None:
-            worktree_base = (
-                Path(settings.autonomous_runs_dir) / "workspaces"
-            )
+            worktree_base = Path(settings.autonomous_runs_dir) / "workspaces"
 
-        return WorkspaceManager.cleanup_all_worktrees(
-            repo=repo, worktree_base=worktree_base
-        )
+        return WorkspaceManager.cleanup_all_worktrees(repo=repo, worktree_base=worktree_base)

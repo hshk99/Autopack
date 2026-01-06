@@ -36,7 +36,9 @@ class CorrectedPatchResult(BaseModel):
     attempted: bool = Field(..., description="Whether correction was attempted")
     original_patch: str = Field(default="", description="Original patch content")
     error_detail: Dict[str, Any] = Field(default_factory=dict, description="Validator error")
-    corrected_patch: Optional[str] = Field(default=None, description="Corrected patch if successful")
+    corrected_patch: Optional[str] = Field(
+        default=None, description="Corrected patch if successful"
+    )
     correction_successful: Optional[bool] = Field(
         default=None, description="Whether correction fixed the issue"
     )
@@ -157,9 +159,7 @@ def correct_patch_once(
     success = corrected_patch is not None and corrected_patch != original_patch
 
     # Generate evidence
-    evidence = _generate_evidence(
-        original_patch, validator_error_detail, corrected_patch, success
-    )
+    evidence = _generate_evidence(original_patch, validator_error_detail, corrected_patch, success)
 
     return CorrectedPatchResult(
         attempted=True,
@@ -260,7 +260,9 @@ class PatchCorrectionTracker:
         Returns:
             CorrectedPatchResult (blocked if already attempted)
         """
-        event_id = context.get("event_id", _compute_inputs_hash(original_patch, validator_error_detail))
+        event_id = context.get(
+            "event_id", _compute_inputs_hash(original_patch, validator_error_detail)
+        )
 
         # Check if already attempted
         if event_id in self._attempted_events:

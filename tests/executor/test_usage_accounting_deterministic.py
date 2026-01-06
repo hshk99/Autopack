@@ -11,7 +11,6 @@ from __future__ import annotations
 from datetime import datetime, timezone
 
 
-
 def test_aggregate_usage_deterministic_same_events():
     """Same usage events always produce identical totals."""
     from autopack.executor.usage_accounting import UsageEvent, aggregate_usage

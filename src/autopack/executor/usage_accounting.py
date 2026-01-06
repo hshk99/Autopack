@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import json
 import logging
-from datetime import datetime, timezone
+from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -116,9 +116,7 @@ def load_usage_events(run_id: str, artifact_path: Path) -> List[UsageEvent]:
         data = json.loads(artifact_path.read_text(encoding="utf-8"))
 
         if not isinstance(data, list):
-            logger.warning(
-                f"[UsageAccounting] Invalid format in {artifact_path}: expected list"
-            )
+            logger.warning(f"[UsageAccounting] Invalid format in {artifact_path}: expected list")
             return []
 
         events = []
@@ -179,9 +177,7 @@ def save_usage_events(events: List[UsageEvent], artifact_path: Path) -> None:
         for e in sorted_events
     ]
 
-    artifact_path.write_text(
-        json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8"
-    )
+    artifact_path.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
     logger.debug(f"[UsageAccounting] Saved {len(events)} events to {artifact_path}")
 
 

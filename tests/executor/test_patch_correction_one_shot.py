@@ -11,7 +11,6 @@ from __future__ import annotations
 import json
 
 
-
 def test_should_attempt_correction_within_budget():
     """Correction should be attempted when budget allows."""
     from autopack.executor.patch_correction import should_attempt_patch_correction

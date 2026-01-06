@@ -13,7 +13,6 @@ import tempfile
 from pathlib import Path
 
 
-
 def test_known_signature_to_rule_deterministic():
     """Same failure signature always produces same rule."""
     from autopack.mitigations.deterministic_rules import known_signature_to_rule

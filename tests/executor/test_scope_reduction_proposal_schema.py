@@ -14,7 +14,6 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 
-
 def test_scope_reduction_proposal_is_schema_valid():
     """Scope reduction proposal validates against schema."""
     from autopack.executor.scope_reduction_flow import (

@@ -36,7 +36,9 @@ class Rule(BaseModel):
     rule_id: str = Field(..., description="Unique rule identifier")
     description: str = Field(..., description="Human-readable description")
     prevention_action: str = Field(..., description="Action to prevent this failure")
-    applies_to_signatures: List[str] = Field(..., description="Failure signatures this rule handles")
+    applies_to_signatures: List[str] = Field(
+        ..., description="Failure signatures this rule handles"
+    )
     severity: str = Field(default="medium", description="Severity: low, medium, high")
 
     def to_dict(self) -> Dict[str, Any]:
@@ -135,8 +137,7 @@ KNOWN_RULES: Dict[str, Rule] = {
         rule_id="rule-build-syntax",
         description="Build failure due to syntax error",
         prevention_action=(
-            "Run linter/formatter before commits. "
-            "Enable pre-commit hooks for syntax validation."
+            "Run linter/formatter before commits. " "Enable pre-commit hooks for syntax validation."
         ),
         applies_to_signatures=["build_failure:syntax_error"],
         severity="high",
@@ -155,8 +156,7 @@ KNOWN_RULES: Dict[str, Rule] = {
         rule_id="rule-runtime-attr",
         description="Runtime AttributeError (accessing non-existent attribute)",
         prevention_action=(
-            "Add null checks before attribute access. "
-            "Use Optional types and hasattr() guards."
+            "Add null checks before attribute access. " "Use Optional types and hasattr() guards."
         ),
         applies_to_signatures=["runtime_error:attribute_error"],
         severity="medium",
@@ -309,7 +309,5 @@ def write_mitigation_proposal(
         encoding="utf-8",
     )
 
-    logger.info(
-        f"[Mitigations] Wrote proposal {proposal.proposal_id} to {artifact_path}"
-    )
+    logger.info(f"[Mitigations] Wrote proposal {proposal.proposal_id} to {artifact_path}")
     return artifact_path

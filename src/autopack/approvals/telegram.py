@@ -82,9 +82,7 @@ class TelegramApprovalService(ApprovalService):
             success = self._send_message(message)
 
             if success:
-                logger.info(
-                    f"[TelegramApproval] Request {request.request_id} sent successfully"
-                )
+                logger.info(f"[TelegramApproval] Request {request.request_id} sent successfully")
                 return ApprovalResult(
                     success=True,
                     approved=None,  # Pending human response
@@ -193,11 +191,13 @@ Reply with /approve {request.request_id} or /deny {request.request_id}"""
             import json
 
             url = f"https://api.telegram.org/bot{self._bot_token}/sendMessage"
-            data = urllib.parse.urlencode({
-                "chat_id": self._chat_id,
-                "text": message,
-                "parse_mode": "HTML",
-            }).encode()
+            data = urllib.parse.urlencode(
+                {
+                    "chat_id": self._chat_id,
+                    "text": message,
+                    "parse_mode": "HTML",
+                }
+            ).encode()
 
             req = urllib.request.Request(url, data=data)
             with urllib.request.urlopen(req, timeout=10) as response:

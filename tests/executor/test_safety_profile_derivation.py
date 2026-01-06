@@ -11,7 +11,6 @@ from __future__ import annotations
 from datetime import datetime, timezone
 
 
-
 def test_derive_safety_profile_minimal_risk_is_strict():
     """risk_tolerance='minimal' maps to safety_profile='strict'."""
     from autopack.executor.safety_profile import derive_safety_profile
@@ -25,9 +24,7 @@ def test_derive_safety_profile_minimal_risk_is_strict():
         project_id="test-project",
         created_at=datetime.now(timezone.utc),
         raw_input_digest="abc123",
-        pivot_intentions=PivotIntentions(
-            safety_risk=SafetyRiskIntention(risk_tolerance="minimal")
-        ),
+        pivot_intentions=PivotIntentions(safety_risk=SafetyRiskIntention(risk_tolerance="minimal")),
     )
 
     result = derive_safety_profile(anchor)
@@ -48,9 +45,7 @@ def test_derive_safety_profile_low_risk_is_strict():
         project_id="test-project",
         created_at=datetime.now(timezone.utc),
         raw_input_digest="abc123",
-        pivot_intentions=PivotIntentions(
-            safety_risk=SafetyRiskIntention(risk_tolerance="low")
-        ),
+        pivot_intentions=PivotIntentions(safety_risk=SafetyRiskIntention(risk_tolerance="low")),
     )
 
     result = derive_safety_profile(anchor)
@@ -94,9 +89,7 @@ def test_derive_safety_profile_high_risk_is_normal():
         project_id="test-project",
         created_at=datetime.now(timezone.utc),
         raw_input_digest="abc123",
-        pivot_intentions=PivotIntentions(
-            safety_risk=SafetyRiskIntention(risk_tolerance="high")
-        ),
+        pivot_intentions=PivotIntentions(safety_risk=SafetyRiskIntention(risk_tolerance="high")),
     )
 
     result = derive_safety_profile(anchor)

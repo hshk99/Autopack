@@ -83,7 +83,9 @@ class ApprovalResult(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     success: bool = Field(..., description="Whether request was successfully sent")
-    approved: Optional[bool] = Field(default=None, description="Approval decision (None if pending)")
+    approved: Optional[bool] = Field(
+        default=None, description="Approval decision (None if pending)"
+    )
     error_reason: Optional[str] = Field(default=None, description="Error reason if failed")
     evidence: Optional[Dict[str, Any]] = Field(default=None, description="Evidence record")
 

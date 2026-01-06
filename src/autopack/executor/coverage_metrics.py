@@ -87,9 +87,7 @@ def compute_coverage_delta(ci_result: Optional[Dict[str, Any]]) -> Optional[floa
         try:
             return float(current) - float(baseline)
         except (TypeError, ValueError):
-            logger.debug(
-                f"[CoverageMetrics] Invalid baseline/current: {baseline}/{current}"
-            )
+            logger.debug(f"[CoverageMetrics] Invalid baseline/current: {baseline}/{current}")
             return None
 
     logger.debug("[CoverageMetrics] Coverage data incomplete")

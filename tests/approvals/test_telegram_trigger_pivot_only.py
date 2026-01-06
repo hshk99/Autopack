@@ -11,7 +11,6 @@ from __future__ import annotations
 from unittest.mock import patch
 
 
-
 def test_telegram_triggers_on_pivot_intention_change():
     """Telegram approval requested when pivot intention is changed."""
     from autopack.approvals.service import (

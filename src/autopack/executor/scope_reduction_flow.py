@@ -200,9 +200,7 @@ def write_scope_reduction_proposal(
         encoding="utf-8",
     )
 
-    logger.info(
-        f"[ScopeReduction] Wrote proposal {proposal.proposal_id} to {artifact_path}"
-    )
+    logger.info(f"[ScopeReduction] Wrote proposal {proposal.proposal_id} to {artifact_path}")
     return artifact_path
 
 

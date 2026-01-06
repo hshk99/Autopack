@@ -1,0 +1,80 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "scope_reduction_proposal_v1.schema.json",
+  "title": "ScopeReductionProposalV1",
+  "description": "Schema for scope reduction proposal artifacts (BUILD-181)",
+  "type": "object",
+  "required": [
+    "proposal_id",
+    "run_id",
+    "phase_id",
+    "anchor_digest",
+    "current_scope",
+    "proposed_scope",
+    "dropped_items",
+    "justification",
+    "budget_remaining",
+    "requires_approval",
+    "auto_approved",
+    "created_at"
+  ],
+  "properties": {
+    "proposal_id": {
+      "type": "string",
+      "description": "Unique proposal identifier",
+      "pattern": "^sr-[a-f0-9]+$"
+    },
+    "run_id": {
+      "type": "string",
+      "description": "Run this proposal belongs to"
+    },
+    "phase_id": {
+      "type": "string",
+      "description": "Phase that triggered scope reduction"
+    },
+    "anchor_digest": {
+      "type": "string",
+      "description": "Digest of intention anchor"
+    },
+    "current_scope": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Current task scope"
+    },
+    "proposed_scope": {
+      "type": "array",
+      "items": { "type": "string" },
+      "minItems": 1,
+      "description": "Proposed reduced scope (must not be empty)"
+    },
+    "dropped_items": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Items being dropped"
+    },
+    "justification": {
+      "type": "string",
+      "description": "Why scope reduction is needed"
+    },
+    "budget_remaining": {
+      "type": "number",
+      "minimum": 0.0,
+      "maximum": 1.0,
+      "description": "Budget fraction remaining (0.0-1.0)"
+    },
+    "requires_approval": {
+      "type": "boolean",
+      "description": "Whether approval is needed"
+    },
+    "auto_approved": {
+      "type": "boolean",
+      "description": "Whether auto-approved by rules"
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 timestamp"
+    }
+  },
+  "additionalProperties": false
+}

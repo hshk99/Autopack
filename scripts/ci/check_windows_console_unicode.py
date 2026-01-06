@@ -73,6 +73,7 @@ def _iter_py_files(repo_root: Path, relative_dirs: Sequence[str]) -> Iterable[Pa
             continue
         yield from base.rglob("*.py")
 
+
 def _iter_explicit_files(repo_root: Path, relative_files: Sequence[str]) -> Iterable[Path]:
     for rel in relative_files:
         p = repo_root / rel
@@ -289,5 +290,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-
-

@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import pytest
 
 from scripts.ci.check_windows_console_unicode import (
     PRAGMA_ALLOW,
@@ -47,7 +46,7 @@ class TestCheckPythonSourceForViolations:
 
     def test_allows_print_with_explicit_pragma_previous_line(self) -> None:
         arrow = next(iter(UNICODE_ARROW_CHARS))
-        src = f"# {PRAGMA_ALLOW}\nprint(\"SOT {arrow} DB\")\n"
+        src = f'# {PRAGMA_ALLOW}\nprint("SOT {arrow} DB")\n'
         v = check_python_source_for_violations(src, "x.py")
         assert v == []
 
@@ -67,5 +66,3 @@ class TestCheckFile:
         v = check_file(p)
         assert len(v) == 1
         assert "not valid UTF-8" in v[0].reason
-
-

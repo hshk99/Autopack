@@ -3835,10 +3835,10 @@ Based on BUILD-169 implementation, all future burndown builds must meet:
 - Regression test added (fenced-block bypass)
 - Next targets identified (DOC_LINK_TRIAGE_REPORT 24, README 22, ARCHITECTURE_DECISIONS 19)
 
-## BUILD-178: Pivot Intentions v2 + Gap Taxonomy + Autonomy Loop - Phases 0-5 (2026-01-06) ✅ COMPLETE
+## BUILD-178: Pivot Intentions v2 + Gap Taxonomy + Autonomy Loop - Phases 0-5 (2026-01-06) [OK] COMPLETE
 
 **Title**: Pivot Intentions v2 + Gap Taxonomy + Autonomy Loop - Phases 0-5
-**Status**: 100% Complete ✅
+**Status**: 100% Complete [OK]
 **Date**: 2026-01-06
 **PR**: #36
 **Commit**: 90b4de7e

@@ -67,7 +67,15 @@ python scripts/tidy/sot_db_sync.py --docs-only
 python -m pytest tests/encoding/test_unicode_safe_output.py -v
 ```
 
+## Enforcement Model
+
+The current posture is **narrow CI guard + broad runtime mitigation**:
+
+- **CI guard** (`scripts/ci/check_windows_console_unicode.py`): Blocks only arrow glyphs (`→`, `←`, `↔`) in `print(...)` calls within `src/` and critical-path scripts. This prevents regression of the known crash without repo-wide churn.
+- **`safe_print()` runtime**: Handles many glyphs via `ASCII_REPLACEMENTS` (checkmarks, bullets, box-drawing, etc.), so most Unicode won't crash even if it slips past the guard.
+- **New glyph crashes**: If a glyph not in the CI guard causes a crash, **intentional operator change is required** — either extend `UNICODE_ARROW_CHARS` in the guard, or migrate the offending line to `safe_print()`. Nothing auto-applies.
+
 ## Future Work
 
 - Gradually migrate scripts to use `safe_print()` for console output
-- Add pre-commit hook to warn about Unicode in print statements
+- Consider expanding CI guard to cover all `ASCII_REPLACEMENTS` glyphs if crashes recur

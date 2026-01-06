@@ -3835,6 +3835,52 @@ Based on BUILD-169 implementation, all future burndown builds must meet:
 - Regression test added (fenced-block bypass)
 - Next targets identified (DOC_LINK_TRIAGE_REPORT 24, README 22, ARCHITECTURE_DECISIONS 19)
 
+## BUILD-178: Pivot Intentions v2 + Gap Taxonomy + Autonomy Loop - Phases 0-5 (2026-01-06) ✅ COMPLETE
+
+**Title**: Pivot Intentions v2 + Gap Taxonomy + Autonomy Loop - Phases 0-5
+**Status**: 100% Complete ✅
+**Date**: 2026-01-06
+**PR**: #36
+**Commit**: 90b4de7e
+
+### Summary
+
+Implemented comprehensive "Pivot Intentions → Gap Taxonomy → Autonomy Loop + Safe Parallelism" framework (Phases 0-5) establishing:
+- Schema-validated artifacts (4 JSON schemas in docs/schemas/)
+- Deterministic gap detection without LLM dependency
+- Governance-gated plan proposals with default-deny classification
+- Opt-in autopilot execution (OFF by default, requires --enable)
+- Parallelism policy gate (blocked unless IntentionAnchorV2 explicitly allows)
+
+### Key Components
+
+- **Phase 0**: JSON schemas + zero-dependency manual validator (~300 lines)
+- **Phase 1**: IntentionAnchorV2 with 8 universal pivot intention types
+- **Phase 2**: Deterministic GapScanner with 10 gap types
+- **Phase 3**: PlanProposer with default-deny governance classification
+- **Phase 4**: AutopilotController (default OFF, respects approval gates)
+- **Phase 5**: ParallelismPolicyGate enforcing anchor.parallelism_isolation
+
+### Safety Properties
+
+- Autopilot OFF by default (explicit --enable required)
+- Plan proposer default-deny (requires_approval unless proven safe)
+- Parallelism blocked unless policy explicitly allows
+- All artifacts schema-validated
+- NEVER_AUTO_APPROVE patterns enforced (secrets, credentials, .env)
+
+### Files Changed
+
+- docs/schemas/*.schema.json (4 new)
+- src/autopack/schema_validation/ (new module)
+- src/autopack/intention_anchor/v2.py (new)
+- src/autopack/gaps/ (new module)
+- src/autopack/planning/ (new module)
+- src/autopack/autonomy/ (new module)
+- tests/schemas/, tests/gaps/, tests/planning/, tests/autonomy/ (79+ new tests)
+
+---
+
 ## BUILD-177: Security Baseline Automation - Operational Status Tracker (2026-01-06) ✅ COMPLETE
 
 **Status**: 100% Complete

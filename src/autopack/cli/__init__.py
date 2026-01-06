@@ -5,18 +5,57 @@ Some tests and integrations expect a package layout (`autopack.cli.commands.*`).
 
 This package preserves the original `python -m autopack.cli ...` behavior while
 also providing a `commands/` subpackage for click-based CLIs used in tests.
+
+BUILD-179 adds unified CLI commands:
+    - autopack gaps scan ...
+    - autopack plan propose ...
+    - autopack autopilot run ...
+    - autopack autopilot supervise ... (parallel runs)
 """
 
 from __future__ import annotations
 
 import argparse
 import subprocess
+import sys
 from pathlib import Path
+
+import click
+
+# Import command groups for registration
+from .commands.gaps import gaps_group
+from .commands.planning import plan_group
+from .commands.autopilot import autopilot_group
 
 
 def get_repo_root() -> Path:
     """Get repository root directory."""
     return Path(__file__).resolve().parent.parent.parent
+
+
+# ============================================================================
+# Click-based unified CLI (BUILD-179)
+# ============================================================================
+
+@click.group()
+@click.version_option(package_name="autopack", prog_name="autopack")
+def cli() -> None:
+    """Autopack CLI - Autonomous execution with governance gates.
+
+    Run `autopack <command> --help` for command-specific help.
+    """
+    pass
+
+
+# Register command groups
+cli.add_command(gaps_group)
+cli.add_command(plan_group)
+cli.add_command(autopilot_group)
+
+
+# ============================================================================
+# Legacy argparse CLI (preserved for backwards compatibility)
+# ============================================================================
 
 
 def run_tidy_consolidation(args: argparse.Namespace) -> int:
@@ -70,6 +109,29 @@ def run_tidy_cleanup(args: argparse.Namespace) -> int:
 
 
 def main(argv: list[str] | None = None) -> int:
+    """Main CLI entry point.
+
+    Routes to Click CLI for BUILD-179 commands (gaps, plan, autopilot),
+    or falls back to legacy argparse CLI for tidy commands.
+
+    Usage:
+        python -m autopack.cli gaps scan --run-id ... --project-id ...
+        python -m autopack.cli plan propose --run-id ... --project-id ...
+        python -m autopack.cli autopilot run --run-id ... --project-id ...
+        python -m autopack.cli tidy-consolidate [--dry-run]
+        python -m autopack.cli tidy-cleanup [--dry-run]
+    """
+    # Determine which CLI to use based on first argument
+    args_list = argv if argv is not None else sys.argv[1:]
+
+    # BUILD-179 commands use Click CLI
+    click_commands = {"gaps", "plan", "autopilot", "--help", "-h", "--version"}
+
+    if args_list and args_list[0] in click_commands:
+        # Use Click CLI
+        return cli(args_list, standalone_mode=False) or 0
+
+    # Legacy argparse CLI for tidy commands
     parser = argparse.ArgumentParser(
         description="Autopack CLI - Run Autopack tasks from command line"
     )
@@ -102,7 +164,19 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     if not args.command:
-        parser.print_help()
+        # Show unified help
+        print("Autopack CLI - Autonomous execution with governance gates")
+        print()
+        print("BUILD-179 commands (use --help for details):")
+        print("  gaps scan         Scan workspace for gaps")
+        print("  plan propose      Propose plan from anchor and gap report")
+        print("  autopilot run     Run autopilot session (single run)")
+        print()
+        print("Legacy tidy commands:")
+        print("  tidy-consolidate  Consolidate documentation files")
+        print("  tidy-cleanup      Run full workspace cleanup")
+        print()
+        print("Use 'autopack <command> --help' for command-specific help.")
         return 1
 
     if args.command == "tidy-consolidate":

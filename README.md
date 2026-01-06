@@ -48,10 +48,10 @@ Note: SOT→DB sync (`scripts/tidy/sot_db_sync.py`) exists as a derived index (`
 **Version**: 0.5.1
 
 <!-- SOT_SUMMARY_START -->
-**Last Updated**: 2026-01-06 14:31
+**Last Updated**: 2026-01-06 15:48
 
 - **Builds Completed**: 190 (includes multi-phase builds, 165 unique)
-- **Latest Build**: BUILD-178
+- **Latest Build**: BUILD-178: Pivot Intentions v2 + Gap Taxonomy + Autonomy Loop - Phases 0-5 ✅
 - **Architecture Decisions**: 42
 - **Debugging Sessions**: 86
 

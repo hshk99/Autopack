@@ -79,7 +79,7 @@ def main() -> int:
 
     # Report missing modules as warnings (not failures)
     if missing_modules:
-        print(f"[!]️  Warning: {len(missing_modules)} expected module(s) not found (may not exist yet):", file=sys.stderr)
+        print(f"[!] Warning: {len(missing_modules)} expected module(s) not found (may not exist yet):", file=sys.stderr)
         for m in missing_modules[:5]:
             print(f"  - {m}", file=sys.stderr)
         if len(missing_modules) > 5:

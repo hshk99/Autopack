@@ -117,7 +117,6 @@ def load_model_catalog() -> list[ModelCatalogEntry]:
     """
     from autopack.model_catalog import (
         load_model_catalog as load_from_config,
-        ModelCatalogEntry as ConfigEntry,
     )
 
     # Try to load from config files

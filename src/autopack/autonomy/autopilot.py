@@ -29,7 +29,7 @@ from .models import (
     AutopilotMetadata,
 )
 from .action_executor import SafeActionExecutor, ExecutionBatch
-from .action_allowlist import ActionType, ActionClassification
+from .action_allowlist import ActionClassification
 
 logger = logging.getLogger(__name__)
 
@@ -293,8 +293,7 @@ class AutopilotController:
                     # Unknown action type - classify based on whether it touches repo
                     if hasattr(action, "target_path"):
                         result = executor.write_artifact(
-                            action.target_path,
-                            getattr(action, "content", "")
+                            action.target_path, getattr(action, "content", "")
                         )
 
                 if result:

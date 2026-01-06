@@ -68,7 +68,11 @@ def write_minimal_phase_proof(
             file_list = ", ".join(metrics.changed_file_sample[:5])
             if len(metrics.changed_file_sample) > 5:
                 file_list += f" (+{len(metrics.changed_file_sample) - 5} more)"
-            change_summary = f"Modified {metrics.files_modified} files: {file_list}" if file_list else "No files modified"
+            change_summary = (
+                f"Modified {metrics.files_modified} files: {file_list}"
+                if file_list
+                else "No files modified"
+            )
 
         # Create proof with real or placeholder metrics
         proof = PhaseProof(

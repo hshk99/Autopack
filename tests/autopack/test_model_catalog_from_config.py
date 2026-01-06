@@ -3,7 +3,6 @@
 Validates that model routing uses config files instead of hardcoded catalog.
 """
 
-import pytest
 from pathlib import Path
 import tempfile
 import yaml
@@ -123,8 +122,7 @@ class TestLoadModelCatalog:
     def test_returns_none_on_missing_files(self):
         """Should return None when config files missing."""
         catalog = load_model_catalog_from_config(
-            Path("/nonexistent/models.yaml"),
-            Path("/nonexistent/pricing.yaml")
+            Path("/nonexistent/models.yaml"), Path("/nonexistent/pricing.yaml")
         )
 
         assert catalog is None
@@ -203,6 +201,7 @@ class TestModelRoutingRefreshIntegration:
 
         # Force "config unavailable" to validate seed fallback deterministically.
         from unittest.mock import patch
+
         with patch("autopack.model_catalog.load_model_catalog", return_value=[]):
             catalog = load_model_catalog()
 

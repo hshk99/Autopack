@@ -26,7 +26,6 @@ from .doc_drift import (
     run_doc_drift_check,
     run_sot_summary_check,
     run_doc_tests,
-    DocDriftResult,
 )
 
 logger = logging.getLogger(__name__)
@@ -110,7 +109,11 @@ class GapScanner:
                     description=f"scripts/check_docs_drift.py failed with exit code {drift_result.exit_code}",
                     detection_signals=[
                         f"Exit code: {drift_result.exit_code}",
-                        drift_result.error or drift_result.stderr[:200] if drift_result.stderr else "Check failed",
+                        (
+                            drift_result.error or drift_result.stderr[:200]
+                            if drift_result.stderr
+                            else "Check failed"
+                        ),
                     ],
                     evidence=GapEvidence(
                         command_evidence=CommandEvidence(
@@ -181,7 +184,9 @@ class GapScanner:
                             command=doc_test_result.command,
                             exit_code=doc_test_result.exit_code,
                             stdout_hash=doc_test_result.stdout_hash,
-                            stderr_excerpt=doc_test_result.stderr[:500] if doc_test_result.stderr else "",
+                            stderr_excerpt=(
+                                doc_test_result.stderr[:500] if doc_test_result.stderr else ""
+                            ),
                         )
                     ),
                     risk_classification="high",

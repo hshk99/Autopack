@@ -4,12 +4,10 @@ Validates that gap scanner uses existing mechanical checks for doc drift
 instead of heuristics. Evidence should include command run and exit code.
 """
 
-import pytest
 from pathlib import Path
 from unittest.mock import MagicMock, patch
-import subprocess
 
-from autopack.gaps.scanner import GapScanner, scan_workspace
+from autopack.gaps.scanner import GapScanner
 from autopack.gaps.doc_drift import (
     run_doc_drift_check,
     run_sot_summary_check,
@@ -24,12 +22,10 @@ class TestDocDriftMechanicalChecks:
         """Doc drift should run scripts/check_docs_drift.py."""
         with patch("subprocess.run") as mock_run:
             mock_run.return_value = MagicMock(
-                returncode=0,
-                stdout="SUCCESS: No documentation drift detected!",
-                stderr=""
+                returncode=0, stdout="SUCCESS: No documentation drift detected!", stderr=""
             )
 
-            result = run_doc_drift_check(Path("."))
+            run_doc_drift_check(Path("."))
 
             # Verify the script was called
             call_args = mock_run.call_args
@@ -39,9 +35,7 @@ class TestDocDriftMechanicalChecks:
         """Doc drift result should include exit code."""
         with patch("subprocess.run") as mock_run:
             mock_run.return_value = MagicMock(
-                returncode=1,
-                stdout="FAILURE: Documentation drift detected!",
-                stderr=""
+                returncode=1, stdout="FAILURE: Documentation drift detected!", stderr=""
             )
 
             result = run_doc_drift_check(Path("."))
@@ -52,11 +46,7 @@ class TestDocDriftMechanicalChecks:
     def test_doc_drift_captures_command_in_evidence(self):
         """Doc drift evidence should include command run."""
         with patch("subprocess.run") as mock_run:
-            mock_run.return_value = MagicMock(
-                returncode=0,
-                stdout="OK",
-                stderr=""
-            )
+            mock_run.return_value = MagicMock(returncode=0, stdout="OK", stderr="")
 
             result = run_doc_drift_check(Path("."))
 
@@ -66,13 +56,9 @@ class TestDocDriftMechanicalChecks:
     def test_sot_summary_check_runs_tidy_check(self):
         """SOT summary check should run tidy with --check flag."""
         with patch("subprocess.run") as mock_run:
-            mock_run.return_value = MagicMock(
-                returncode=0,
-                stdout="No drift",
-                stderr=""
-            )
+            mock_run.return_value = MagicMock(returncode=0, stdout="No drift", stderr="")
 
-            result = run_sot_summary_check(Path("."))
+            run_sot_summary_check(Path("."))
 
             call_args = mock_run.call_args
             cmd_str = str(call_args)
@@ -82,11 +68,7 @@ class TestDocDriftMechanicalChecks:
     def test_sot_summary_check_captures_exit_code(self):
         """SOT summary check should capture exit code."""
         with patch("subprocess.run") as mock_run:
-            mock_run.return_value = MagicMock(
-                returncode=1,
-                stdout="Drift detected",
-                stderr=""
-            )
+            mock_run.return_value = MagicMock(returncode=1, stdout="Drift detected", stderr="")
 
             result = run_sot_summary_check(Path("."))
 
@@ -99,48 +81,52 @@ class TestGapScannerDocDriftIntegration:
 
     def test_scanner_calls_mechanical_checks(self):
         """Gap scanner should call mechanical doc drift checks."""
-        with patch("autopack.gaps.scanner.run_doc_drift_check") as mock_drift, \
-             patch("autopack.gaps.scanner.run_sot_summary_check") as mock_sot:
+        with (
+            patch("autopack.gaps.scanner.run_doc_drift_check") as mock_drift,
+            patch("autopack.gaps.scanner.run_sot_summary_check") as mock_sot,
+        ):
 
             mock_drift.return_value = DocDriftResult(
                 passed=True,
                 exit_code=0,
                 command="python scripts/check_docs_drift.py",
                 stdout="OK",
-                stderr=""
+                stderr="",
             )
             mock_sot.return_value = DocDriftResult(
                 passed=True,
                 exit_code=0,
                 command="python scripts/tidy/sot_summary_refresh.py --check",
                 stdout="OK",
-                stderr=""
+                stderr="",
             )
 
             scanner = GapScanner(Path("."))
-            gaps = scanner._detect_doc_drift()
+            scanner._detect_doc_drift()
 
             mock_drift.assert_called_once()
             mock_sot.assert_called_once()
 
     def test_scanner_creates_gap_on_drift_failure(self):
         """Scanner should create gap when drift check fails."""
-        with patch("autopack.gaps.scanner.run_doc_drift_check") as mock_drift, \
-             patch("autopack.gaps.scanner.run_sot_summary_check") as mock_sot:
+        with (
+            patch("autopack.gaps.scanner.run_doc_drift_check") as mock_drift,
+            patch("autopack.gaps.scanner.run_sot_summary_check") as mock_sot,
+        ):
 
             mock_drift.return_value = DocDriftResult(
                 passed=False,
                 exit_code=1,
                 command="python scripts/check_docs_drift.py",
                 stdout="FAILURE: Drift detected",
-                stderr=""
+                stderr="",
             )
             mock_sot.return_value = DocDriftResult(
                 passed=True,
                 exit_code=0,
                 command="python scripts/tidy/sot_summary_refresh.py --check",
                 stdout="OK",
-                stderr=""
+                stderr="",
             )
 
             scanner = GapScanner(Path("."))
@@ -153,22 +139,20 @@ class TestGapScannerDocDriftIntegration:
 
     def test_gap_evidence_includes_exit_code(self):
         """Gap evidence should include exit code."""
-        with patch("autopack.gaps.scanner.run_doc_drift_check") as mock_drift, \
-             patch("autopack.gaps.scanner.run_sot_summary_check") as mock_sot:
+        with (
+            patch("autopack.gaps.scanner.run_doc_drift_check") as mock_drift,
+            patch("autopack.gaps.scanner.run_sot_summary_check") as mock_sot,
+        ):
 
             mock_drift.return_value = DocDriftResult(
                 passed=False,
                 exit_code=1,
                 command="python scripts/check_docs_drift.py",
                 stdout="FAILURE",
-                stderr=""
+                stderr="",
             )
             mock_sot.return_value = DocDriftResult(
-                passed=True,
-                exit_code=0,
-                command="check",
-                stdout="OK",
-                stderr=""
+                passed=True, exit_code=0, command="check", stdout="OK", stderr=""
             )
 
             scanner = GapScanner(Path("."))
@@ -202,7 +186,7 @@ class TestDocDriftScriptNotFound:
                 command="python scripts/check_docs_drift.py",
                 stdout="",
                 stderr="",
-                error="Script not found"
+                error="Script not found",
             )
 
             scanner = GapScanner(Path("."))

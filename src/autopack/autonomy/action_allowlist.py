@@ -97,6 +97,11 @@ REQUIRES_APPROVAL_PATTERNS: List[str] = [
 # Run-local artifact path pattern (safe for writes)
 RUN_LOCAL_ARTIFACT_PATTERN = r"^\.autonomous_runs/"
 
+# Shell metacharacters that enable command chaining / redirection.
+# Since SafeActionExecutor currently executes with shell=True, we must treat any command
+# containing these as requiring approval (never auto-execute).
+SHELL_METACHAR_PATTERN = r"[;&|><`]"
+
 
 def is_action_safe(action_type: ActionType, target: str) -> bool:
     """Check if an action is safe to auto-execute.
@@ -175,6 +180,13 @@ def _classify_command(command: str) -> ActionClassification:
     Returns:
         ActionClassification
     """
+    # Block auto-execution for any shell metacharacters / chaining.
+    # Example: "git status && echo hi" must NOT be considered safe.
+    if re.search(SHELL_METACHAR_PATTERN, command):
+        return ActionClassification.REQUIRES_APPROVAL
+    if "$(" in command:
+        return ActionClassification.REQUIRES_APPROVAL
+
     # Check for requires-approval patterns first (higher priority)
     for pattern in REQUIRES_APPROVAL_PATTERNS:
         if re.search(pattern, command, re.IGNORECASE):

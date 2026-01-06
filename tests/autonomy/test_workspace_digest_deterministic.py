@@ -4,13 +4,11 @@ Validates that workspace digest is deterministic even when git is unavailable.
 Must use sentinel value, never timestamps.
 """
 
-import pytest
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 import subprocess
-import hashlib
 
-from autopack.gaps.scanner import _compute_workspace_digest, GapScanner, scan_workspace
+from autopack.gaps.scanner import _compute_workspace_digest, scan_workspace
 
 
 class TestWorkspaceDigestDeterminism:

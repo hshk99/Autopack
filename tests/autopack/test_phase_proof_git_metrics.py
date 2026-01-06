@@ -4,7 +4,6 @@ Validates that phase proofs include real metrics when git is available,
 with explicit metrics_placeholder flag.
 """
 
-import pytest
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 from datetime import datetime, timezone
@@ -25,9 +24,7 @@ class TestCountChangedFiles:
         """Should count modified files from git diff."""
         with patch("subprocess.run") as mock_run:
             mock_run.return_value = MagicMock(
-                returncode=0,
-                stdout="file1.py\nfile2.py\nfile3.py\n",
-                stderr=""
+                returncode=0, stdout="file1.py\nfile2.py\nfile3.py\n", stderr=""
             )
 
             count = count_changed_files(Path("."))
@@ -37,11 +34,7 @@ class TestCountChangedFiles:
     def test_empty_diff_returns_zero(self):
         """Empty git diff should return zero."""
         with patch("subprocess.run") as mock_run:
-            mock_run.return_value = MagicMock(
-                returncode=0,
-                stdout="",
-                stderr=""
-            )
+            mock_run.return_value = MagicMock(returncode=0, stdout="", stderr="")
 
             count = count_changed_files(Path("."))
 
@@ -64,9 +57,7 @@ class TestListChangedFiles:
         """Should list files up to specified limit."""
         with patch("subprocess.run") as mock_run:
             mock_run.return_value = MagicMock(
-                returncode=0,
-                stdout="file1.py\nfile2.py\nfile3.py\nfile4.py\nfile5.py\n",
-                stderr=""
+                returncode=0, stdout="file1.py\nfile2.py\nfile3.py\nfile4.py\nfile5.py\n", stderr=""
             )
 
             files = list_changed_files(Path("."), limit=3)
@@ -78,9 +69,7 @@ class TestListChangedFiles:
         """Should return all files if under limit."""
         with patch("subprocess.run") as mock_run:
             mock_run.return_value = MagicMock(
-                returncode=0,
-                stdout="file1.py\nfile2.py\n",
-                stderr=""
+                returncode=0, stdout="file1.py\nfile2.py\n", stderr=""
             )
 
             files = list_changed_files(Path("."), limit=10)
@@ -102,8 +91,10 @@ class TestGetProofMetrics:
 
     def test_returns_real_metrics_when_git_available(self):
         """Should return real metrics with placeholder=False when git works."""
-        with patch("autopack.proof_metrics.count_changed_files") as mock_count, \
-             patch("autopack.proof_metrics.list_changed_files") as mock_list:
+        with (
+            patch("autopack.proof_metrics.count_changed_files") as mock_count,
+            patch("autopack.proof_metrics.list_changed_files") as mock_list,
+        ):
 
             mock_count.return_value = 5
             mock_list.return_value = ["a.py", "b.py"]
@@ -130,13 +121,13 @@ class TestPhaseProofWriterIntegration:
 
     def test_proof_includes_real_file_count(self):
         """Phase proof should include real file count when available."""
-        with patch("autopack.phase_proof_writer.get_proof_metrics") as mock_metrics, \
-             patch("autopack.phase_proof_writer.PhaseProofStorage") as mock_storage:
+        with (
+            patch("autopack.phase_proof_writer.get_proof_metrics") as mock_metrics,
+            patch("autopack.phase_proof_writer.PhaseProofStorage") as mock_storage,
+        ):
 
             mock_metrics.return_value = ProofMetrics(
-                files_modified=3,
-                changed_file_sample=["x.py"],
-                metrics_placeholder=False
+                files_modified=3, changed_file_sample=["x.py"], metrics_placeholder=False
             )
 
             write_minimal_phase_proof(
@@ -156,13 +147,13 @@ class TestPhaseProofWriterIntegration:
 
     def test_proof_indicates_placeholder_when_git_unavailable(self):
         """Phase proof should indicate placeholder when git unavailable."""
-        with patch("autopack.phase_proof_writer.get_proof_metrics") as mock_metrics, \
-             patch("autopack.phase_proof_writer.PhaseProofStorage") as mock_storage:
+        with (
+            patch("autopack.phase_proof_writer.get_proof_metrics") as mock_metrics,
+            patch("autopack.phase_proof_writer.PhaseProofStorage") as mock_storage,
+        ):
 
             mock_metrics.return_value = ProofMetrics(
-                files_modified=0,
-                changed_file_sample=[],
-                metrics_placeholder=True
+                files_modified=0, changed_file_sample=[], metrics_placeholder=True
             )
 
             write_minimal_phase_proof(

@@ -163,6 +163,7 @@ class ParallelRunOrchestrator:
             List of RunResult objects (one per run_id)
         """
         import warnings
+
         warnings.warn(
             "execute_parallel_with_policy_check() is deprecated. "
             "Use execute_parallel() which now enforces policy by default.",
@@ -396,6 +397,7 @@ async def execute_parallel_runs(
     max_concurrent: int = 3,
     source_repo: Optional[Path] = None,
     worktree_base: Optional[Path] = None,
+    anchor: Optional[IntentionAnchorV2] = None,
     executor_kwargs: Optional[Dict[str, Any]] = None,
 ) -> List[RunResult]:
     """Execute multiple runs in parallel (convenience function).
@@ -406,6 +408,7 @@ async def execute_parallel_runs(
         max_concurrent: Maximum concurrent runs
         source_repo: Source git repository path
         worktree_base: Base directory for worktrees
+        anchor: Intention anchor v2 with parallelism policy (required for parallel runs)
         executor_kwargs: Optional kwargs for executor
 
     Returns:
@@ -422,6 +425,7 @@ async def execute_parallel_runs(
     return await orchestrator.execute_parallel(
         run_ids=run_ids,
         executor_func=executor_func,
+        anchor=anchor,
         executor_kwargs=executor_kwargs,
     )
 

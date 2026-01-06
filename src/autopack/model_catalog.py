@@ -143,7 +143,9 @@ def load_model_catalog_from_config(
         aliases = parse_models_config(models_config)
         pricing = parse_pricing_config(pricing_config)
 
-        logger.debug(f"[ModelCatalog] Loaded {len(aliases)} aliases, {len(pricing)} pricing entries")
+        logger.debug(
+            f"[ModelCatalog] Loaded {len(aliases)} aliases, {len(pricing)} pricing entries"
+        )
 
         # Build catalog entries
         catalog = []

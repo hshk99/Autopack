@@ -5,9 +5,7 @@ policy-checked API is the default entrypoint.
 """
 
 import pytest
-from pathlib import Path
-from unittest.mock import MagicMock, patch, AsyncMock
-import asyncio
+from unittest.mock import MagicMock, patch
 
 from autopack.parallel_orchestrator import (
     ParallelRunOrchestrator,
@@ -69,8 +67,9 @@ class TestPolicyCheckedAsDefault:
         # Mock the policy gate
         with patch("autopack.parallel_orchestrator.ParallelismPolicyGate") as mock_gate:
             mock_gate_instance = MagicMock()
-            mock_gate_instance.check_parallel_allowed.side_effect = \
-                ParallelismPolicyViolation("Parallelism not allowed")
+            mock_gate_instance.check_parallel_allowed.side_effect = ParallelismPolicyViolation(
+                "Parallelism not allowed"
+            )
             mock_gate.return_value = mock_gate_instance
 
             async def dummy_executor(run_id, workspace):
@@ -108,6 +107,7 @@ class TestConvenienceFunctionRequiresAnchor:
     @pytest.mark.asyncio
     async def test_execute_parallel_runs_requires_anchor(self):
         """execute_parallel_runs should require anchor for multiple runs."""
+
         async def dummy_executor(run_id, workspace):
             return True
 
@@ -148,9 +148,7 @@ class TestClearErrorMessages:
         """Policy violation error should provide actionable guidance."""
         from autopack.autonomy.parallelism_gate import ParallelismPolicyViolation
 
-        error = ParallelismPolicyViolation(
-            "Parallelism not allowed by intention anchor"
-        )
+        error = ParallelismPolicyViolation("Parallelism not allowed by intention anchor")
 
         # Error message should be useful
         assert "parallel" in str(error).lower() or "anchor" in str(error).lower()

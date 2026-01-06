@@ -5,18 +5,14 @@ Any action targeting repo writes (docs/, config/, src/, tests/, .github/)
 must be classified as requires_approval and not executed.
 """
 
-import pytest
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 from autopack.autonomy.action_executor import (
-    ActionExecutor,
     SafeActionExecutor,
-    ActionExecutionResult,
     ActionType,
 )
 from autopack.autonomy.action_allowlist import (
-    is_action_safe,
     classify_action,
     ActionClassification,
     SAFE_ACTION_TYPES,
@@ -40,6 +36,19 @@ class TestActionClassification:
             classification = classify_action(ActionType.COMMAND, cmd)
             assert classification == ActionClassification.SAFE, f"Expected {cmd} to be safe"
 
+    def test_shell_metacharacters_require_approval(self):
+        """Commands with shell metacharacters must never be auto-executed."""
+        commands = [
+            "git status && echo hi",
+            "git diff --name-only | head -n 1",
+            "python scripts/check_docs_drift.py; echo done",
+        ]
+        for cmd in commands:
+            classification = classify_action(ActionType.COMMAND, cmd)
+            assert (
+                classification == ActionClassification.REQUIRES_APPROVAL
+            ), f"Expected {cmd} to require approval"
+
     def test_run_local_artifact_writes_are_safe(self):
         """Run-local artifact writes should be classified as safe."""
         safe_paths = [
@@ -62,8 +71,9 @@ class TestActionClassification:
         ]
         for path in repo_paths:
             classification = classify_action(ActionType.FILE_WRITE, path)
-            assert classification == ActionClassification.REQUIRES_APPROVAL, \
-                f"Expected {path} to require approval"
+            assert (
+                classification == ActionClassification.REQUIRES_APPROVAL
+            ), f"Expected {path} to require approval"
 
     def test_tidy_execute_requires_approval(self):
         """Tidy with --execute flag requires approval."""
@@ -106,6 +116,7 @@ class TestSafeActionExecutor:
     def test_writes_run_local_artifacts(self):
         """Run-local artifact writes should succeed."""
         import tempfile
+
         with tempfile.TemporaryDirectory() as tmpdir:
             workspace = Path(tmpdir)
             executor = SafeActionExecutor(workspace_root=workspace)
@@ -149,7 +160,6 @@ class TestAutopilotIntegration:
     def test_autopilot_classifies_write_actions_as_requires_approval(self):
         """Autopilot should classify write actions as requires_approval."""
         from autopack.autonomy.autopilot import AutopilotController
-        from autopack.intention_anchor.v2 import IntentionAnchorV2
 
         # This test validates the integration point exists
         # Full integration tested in e2e tests

@@ -4,11 +4,8 @@ Validates that scripts/ci/check_production_config.py blocks DEBUG
 enablement in production configs.
 """
 
-import pytest
 from pathlib import Path
 import tempfile
-import os
-import sys
 
 # Import will be available after implementation
 # from scripts.ci.check_production_config import (
@@ -160,7 +157,7 @@ class TestDebugViolationDataclass:
             file_path="config/production.yaml",
             line_number=5,
             pattern="DEBUG=1",
-            line_content="DEBUG=1"
+            line_content="DEBUG=1",
         )
 
         assert violation.file_path == "config/production.yaml"

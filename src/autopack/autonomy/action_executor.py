@@ -15,7 +15,6 @@ from .action_allowlist import (
     ActionType,
     ActionClassification,
     classify_action,
-    is_action_safe,
 )
 
 logger = logging.getLogger(__name__)
@@ -113,9 +112,7 @@ class SafeActionExecutor(ActionExecutor):
         classification = classify_action(ActionType.COMMAND, command)
 
         if classification != ActionClassification.SAFE:
-            logger.info(
-                f"[SafeActionExecutor] Command requires approval: {command[:100]}"
-            )
+            logger.info(f"[SafeActionExecutor] Command requires approval: {command[:100]}")
             return ActionExecutionResult(
                 action_type=ActionType.COMMAND,
                 target=command,
@@ -197,9 +194,7 @@ class SafeActionExecutor(ActionExecutor):
         classification = classify_action(ActionType.FILE_WRITE, path)
 
         if classification != ActionClassification.SAFE:
-            logger.info(
-                f"[SafeActionExecutor] File write requires approval: {path}"
-            )
+            logger.info(f"[SafeActionExecutor] File write requires approval: {path}")
             return ActionExecutionResult(
                 action_type=ActionType.FILE_WRITE,
                 target=path,

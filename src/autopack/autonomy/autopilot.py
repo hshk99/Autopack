@@ -8,6 +8,11 @@ The autopilot controller orchestrates the full autonomy loop:
 5. Stop and record if approval required
 
 Default OFF - requires explicit enable flag.
+
+BUILD-181 Integration:
+- ExecutorContext for usage tracking, safety profile, scope reduction
+- Approval service for pivot-impacting changes
+- Coverage metrics processing
 """
 
 import logging
@@ -30,6 +35,7 @@ from .models import (
 )
 from .action_executor import SafeActionExecutor, ExecutionBatch
 from .action_allowlist import ActionClassification
+from .executor_integration import ExecutorContext, create_executor_context
 
 logger = logging.getLogger(__name__)
 
@@ -43,6 +49,7 @@ class AutopilotController:
         run_id: Run identifier
         enabled: Whether autopilot is enabled (default: False)
         session: Current autopilot session
+        executor_ctx: BUILD-181 ExecutorContext for integrated handling
     """
 
     def __init__(
@@ -66,6 +73,7 @@ class AutopilotController:
         self.enabled = enabled
         self.layout = RunFileLayout(run_id=run_id, project_id=project_id)
         self.session: Optional[AutopilotSessionV1] = None
+        self.executor_ctx: Optional[ExecutorContext] = None
 
     def run_session(self, anchor: IntentionAnchorV2) -> AutopilotSessionV1:
         """Run autopilot session with safe execution gates.
@@ -115,6 +123,13 @@ class AutopilotController:
         )
 
         try:
+            # Initialize BUILD-181 ExecutorContext
+            self.executor_ctx = create_executor_context(anchor=anchor, layout=self.layout)
+            logger.info(
+                f"[Autopilot] Initialized ExecutorContext with "
+                f"safety_profile={self.executor_ctx.safety_profile}"
+            )
+
             # Step 1: Anchor already loaded
             logger.info(f"[Autopilot] Using anchor: {anchor.raw_input_digest}")
 
@@ -252,10 +267,16 @@ class AutopilotController:
         and run-local artifact writes). Actions that would modify repo files
         are classified as requires_approval and not executed.
 
+        BUILD-181: Records usage events for each action via ExecutorContext.
+
         Args:
             proposal: Plan proposal with auto-approved actions
         """
         logger.info("[Autopilot] Executing bounded batch with SafeActionExecutor")
+
+        # Set phase for ExecutorContext tracking
+        if self.executor_ctx:
+            self.executor_ctx.set_phase("execute_batch")
 
         executor = SafeActionExecutor(
             workspace_root=self.workspace_root,
@@ -305,11 +326,26 @@ class AutopilotController:
                             successful += 1
                         else:
                             failed += 1
+                            # Record failure for stuck handling
+                            if self.executor_ctx:
+                                self.executor_ctx.record_failure()
                     elif result.classification == ActionClassification.REQUIRES_APPROVAL:
                         requires_approval += 1
                         logger.info(
                             f"[Autopilot] Action requires approval: {action.action_id} - {result.reason}"
                         )
+
+                    # BUILD-181: Record usage event for this action
+                    if self.executor_ctx and result.executed:
+                        # Estimate tokens based on action type (simplified)
+                        estimated_tokens = self._estimate_action_tokens(action)
+                        self.executor_ctx.record_usage_event(
+                            tokens_used=estimated_tokens,
+                            event_id=f"action-{action.action_id}",
+                        )
+                        # Reset failure counter on success
+                        if result.success:
+                            self.executor_ctx.reset_failures()
                 else:
                     # No result means we couldn't determine how to execute
                     # Mark as executed (passthrough) for backwards compatibility
@@ -332,6 +368,13 @@ class AutopilotController:
         # Persist run-local artifacts
         self._persist_run_local_artifacts(proposal)
 
+        # BUILD-181: Save usage events
+        if self.executor_ctx:
+            self.executor_ctx.save_usage_events()
+            logger.info(
+                f"[Autopilot] Budget remaining: {self.executor_ctx.get_budget_remaining():.1%}"
+            )
+
         logger.info(
             f"[Autopilot] Executed {len(executed)} actions "
             f"({successful} successful, {failed} failed, {requires_approval} require approval)"
@@ -353,6 +396,37 @@ class AutopilotController:
             "run_test_collect": "pytest --collect-only -q",
         }
         return action_commands.get(action.action_type)
+
+    def _estimate_action_tokens(self, action) -> int:
+        """Estimate token usage for an action.
+
+        Uses estimated_cost from action if available, otherwise defaults.
+
+        Args:
+            action: Action with optional estimated_cost
+
+        Returns:
+            Estimated token count
+        """
+        # Use action's estimated cost if available
+        if hasattr(action, "estimated_cost") and action.estimated_cost:
+            if action.estimated_cost.tokens:
+                return action.estimated_cost.tokens
+
+        # Default estimates by action type
+        default_estimates = {
+            "check_doc_drift": 100,
+            "check_sot_summary": 50,
+            "run_lint": 200,
+            "run_test_collect": 150,
+            "doc_update": 500,
+            "file_move": 200,
+            "file_delete": 100,
+            "test_fix": 2000,
+            "config_update": 300,
+            "write_artifact": 100,
+        }
+        return default_estimates.get(action.action_type, 100)
 
     def _persist_run_local_artifacts(self, proposal: PlanProposalV1) -> None:
         """Persist run-local artifacts (gap report, plan proposal).

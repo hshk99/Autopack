@@ -14,10 +14,10 @@ def test_redirect_stubs_point_to_existing_files():
     repo_root = Path(__file__).parents[2]
 
     # Known redirect stubs (BUILD-167)
+    # Note: Root stubs removed in BUILD-182 to satisfy workspace structure compliance.
+    # Redirect stubs now live only under docs/ per WORKSPACE_ORGANIZATION_SPEC.md.
     redirect_stubs = [
-        repo_root / "SOT_BUNDLE.md",
         repo_root / "docs" / "SOT_BUNDLE.md",
-        repo_root / "CONSOLIDATED_DEBUG.md",
         repo_root / "docs" / "CONSOLIDATED_DEBUG.md",
     ]
 
@@ -66,10 +66,10 @@ def test_redirect_stub_format():
     """Test that redirect stubs follow expected format."""
     repo_root = Path(__file__).parents[2]
 
+    # Note: Root stubs removed in BUILD-182 to satisfy workspace structure compliance.
+    # Redirect stubs now live only under docs/ per WORKSPACE_ORGANIZATION_SPEC.md.
     redirect_stubs = [
-        repo_root / "SOT_BUNDLE.md",
         repo_root / "docs" / "SOT_BUNDLE.md",
-        repo_root / "CONSOLIDATED_DEBUG.md",
         repo_root / "docs" / "CONSOLIDATED_DEBUG.md",
     ]
 

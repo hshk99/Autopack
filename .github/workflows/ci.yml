@@ -39,6 +39,9 @@ jobs:
       - name: Production config guard (block DEBUG enabled)
         run: |
           python scripts/ci/check_production_config.py
+      - name: Windows console Unicode guard (print must be ASCII-safe)
+        run: |
+          python scripts/ci/check_windows_console_unicode.py
       - name: Lint with ruff
         run: |
           ruff check src/ tests/

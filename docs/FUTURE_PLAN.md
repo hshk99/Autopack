@@ -1,6 +1,6 @@
 # What's Left to Build - Autopack Project Plans
 
-**Last Updated**: 2025-12-22
+**Last Updated**: 2026-01-06
 **Completed Projects**:
 1. ✅ Research System (Citation Validity Improvement) - 77.8% validity achieved
 2. ✅ Runs Management API - Full CRUD API operational
@@ -9,11 +9,13 @@
 5. ✅ BUILD-117: Approval Endpoint for BUILD-113 Integration (Telegram, Database, Timeout, Dashboard)
 6. ✅ BUILD-120: Approval Polling Bug Fix + Telegram Notification Fix
 7. ✅ BUILD-121: Approval Polling Fix Validation
+8. ✅ BUILD-174: Security Baseline Automation (Phases A+B complete)
 
 **Active Projects**:
-1. 🚀 **Lovable Integration** (12 patterns, 5-6 weeks) - **QUEUED**
-2. FileOrganizer Phase 2 (Beta Release)
-3. Research System Chunk 0 (Tracer Bullet) - Monitoring first successful run
+1. 🚀 **Security Baseline Automation - Phase C** (Auto-Merge Exempted Changes) - **MONITORING** (Phase A weekly runs, before enabling Phase B schedule)
+2. 🚀 **Lovable Integration** (12 patterns, 5-6 weeks) - **QUEUED**
+3. FileOrganizer Phase 2 (Beta Release)
+4. Research System Chunk 0 (Tracer Bullet) - Monitoring first successful run
 
 **Cancelled Projects**:
 1. ❌ BUILD-112 Phase 5 (Evidence Request Loop) - Replaced by Claude Code in Chrome (Dec 2025)
@@ -903,4 +905,161 @@ pip install sentence-transformers numpy scikit-learn
 
 ---
 
-**Last Updated**: 2025-12-22 (added Lovable Integration)
+## 🚀 Security Baseline Automation - Phase C (Auto-Merge Exempted Changes)
+
+**Current Status**: Monitoring Phase A → Enable Phase B Schedule → Implement Phase C
+**Priority**: Medium (deferred until empirical baseline drift patterns observed)
+**Timeline**: Q1 2026 review (after 3 months of Phase B operation)
+**Reference**: [docs/SECURITY_BASELINE_AUTOMATION_STATUS.md](SECURITY_BASELINE_AUTOMATION_STATUS.md)
+
+### Context
+
+Phase C is the final automation phase for security baseline management. Phases A (weekly SARIF artifacts) and B (automated baseline refresh PRs) are operational, but currently require human review for all baseline changes. Phase C will auto-merge PRs when only "safe" exempted patterns change.
+
+**Why Deferred**:
+- Need empirical data from real baseline drift events (Phase A/B operations)
+- Cannot design safe exemption criteria without observing actual patterns
+- Premature automation could accept real vulnerabilities
+
+**Current Baseline Automation State**:
+- ✅ **Phase A (SARIF Artifacts)**: Scheduled weekly Monday 06:00 UTC
+- ✅ **Phase B (Baseline Refresh PRs)**: Operational (manual trigger only, schedule disabled pending Phase A validation)
+- ⏳ **Phase C (Auto-Merge)**: Not yet implemented
+
+### Goals
+
+1. **Auto-merge safe baseline changes** without human intervention
+2. **Preserve governance** - still create SECBASE entry, still create PR, still notify security team
+3. **Fail-safe design** - when uncertain → require human review
+4. **Emergency disable** - simple env var to revert to full human review
+
+### Potential Exemption Patterns (To Be Validated)
+
+These patterns may be safe for auto-merge but **require empirical validation**:
+
+1. **Trivy database metadata updates**:
+   - Only `DataSource.ID` or `DataSource.URL` changes
+   - No new CVE IDs introduced
+   - No severity escalations
+   - Finding counts unchanged
+
+2. **CodeQL query description updates**:
+   - Same finding IDs (rule.id + location unchanged)
+   - Only `help.text` or `help.markdown` modified
+   - No new findings introduced
+
+3. **Dependency version bumps with clean scans**:
+   - Package version changed (e.g., `requests 2.28.0 → 2.31.0`)
+   - Zero new findings introduced
+   - All existing findings resolved or unchanged
+
+### Implementation Approach (When Ready)
+
+**Step 1: Empirical Pattern Analysis** (3-6 months monitoring)
+- Collect all Phase B PRs created during monitoring period
+- Categorize baseline changes (CVE remediation, dependency upgrade, tool update, DB refresh, etc.)
+- Identify recurring "safe" patterns with zero risk
+- Document false positive rate (PRs auto-merged that shouldn't have been)
+
+**Step 2: Conservative Exemption Criteria** (ADR Required)
+- Create `docs/ARCHITECTURE_DECISIONS.md` entry: **DEC-046: Phase C Auto-Merge Exemption Criteria**
+- Define mechanical rules for each exemption pattern
+- Require security team approval for ADR
+- Examples:
+  ```python
+  # Trivy DB metadata-only change (safe)
+  def is_trivy_metadata_only_change(baseline_diff):
+      return (
+          all(f["field"] in ["DataSource.ID", "DataSource.URL"] for f in baseline_diff) and
+          baseline_diff["new_cve_ids"] == [] and
+          baseline_diff["severity_escalations"] == [] and
+          baseline_diff["finding_count_delta"] == 0
+      )
+  ```
+
+**Step 3: Phase C Implementation**
+1. Create `scripts/security/exemption_classifier.py`:
+   - Load baseline diff from Phase B PR
+   - Apply exemption rules from DEC-046
+   - Return: `ExemptionDecision(auto_merge: bool, rationale: str, rules_applied: List[str])`
+
+2. Enhance `.github/workflows/security-baseline-refresh.yml`:
+   - Add `classify_exemption` step (runs `exemption_classifier.py`)
+   - Add `auto_merge_if_exempted` step (conditional on classification result)
+   - Still creates SECBASE entry (auto-populated with exemption rationale)
+   - Still notifies security team (Slack/email with PR link + exemption reason)
+
+3. Add emergency disable mechanism:
+   - Env var: `DISABLE_PHASE_C_AUTOMERGE=1`
+   - Checked at workflow start (skip auto-merge, require human review)
+   - Documented in workflow comments
+
+**Step 4: Dry-Run Validation** (2-4 weeks)
+- Enable Phase C in "report-only" mode
+- Classifier runs, logs decisions, but doesn't auto-merge
+- Review all "would auto-merge" decisions for false positives
+- Adjust exemption rules if needed
+- Require 100% precision (zero false auto-merges)
+
+**Step 5: Production Rollout**
+- Enable auto-merge after dry-run validation
+- Monitor first 5 auto-merged PRs closely
+- Security team reviews SECBASE entries post-merge
+- Disable immediately if any issues detected
+
+### Safety Contracts (Phase C Requirements)
+
+1. **SECBASE entry still required** - even if auto-merged, must document:
+   - Which exemption rule triggered
+   - Baseline diff summary
+   - Workflow run URL
+   - "Auto-merged via Phase C exemption: <rule-name>" marker
+
+2. **Security team notification** - Slack/email on every auto-merge:
+   - PR link
+   - Exemption rationale
+   - Baseline diff summary
+   - Option to revert if incorrect
+
+3. **Emergency disable** - single env var reverts to full human review:
+   ```yaml
+   env:
+     DISABLE_PHASE_C_AUTOMERGE: ${{ vars.DISABLE_PHASE_C_AUTOMERGE || '0' }}
+   ```
+
+4. **Fail-safe on uncertainty**:
+   - If exemption classifier errors → require human review
+   - If baseline diff doesn't match any exemption pattern → require human review
+   - If multiple exemption patterns match → require human review (ambiguous)
+
+5. **Audit trail preservation**:
+   - All auto-merge decisions logged to SECBASE
+   - PR remains in history (not deleted after merge)
+   - Baseline diff preserved in artifacts
+
+### Success Metrics (Phase C)
+
+- **Auto-merge accuracy**: Target 100% precision (zero false auto-merges)
+- **Toil reduction**: Target 50-80% of baseline refresh PRs auto-merged
+- **False positive rate**: Target <1% (revert rate for incorrect auto-merges)
+- **Emergency disable effectiveness**: Target <5 minutes to disable if needed
+
+### Risks and Mitigations
+
+| Risk | Mitigation |
+|------|------------|
+| Auto-merge accepts real vulnerability | Conservative exemption criteria (metadata-only changes), dry-run validation, security team notifications, easy revert |
+| Exemption rules too broad | Require 100% precision in dry-run, security team ADR approval, annual review of exemption criteria |
+| Emergency disable doesn't work | Test disable mechanism in dry-run, document in runbook, simple env var (no code changes needed) |
+| SECBASE entries incomplete | Enforce via CI (same check as Phase B), auto-populated but still validated |
+
+### Decision Log
+
+**2026-01-06: Phase C Deferred**
+- **Decision**: Defer Phase C implementation until Phase A/B patterns observed (3-6 months)
+- **Rationale**: Cannot design safe exemption criteria without empirical data from real baseline drift events
+- **Next Review**: Q1 2026 (after 3 months of Phase B operation)
+
+---
+
+**Last Updated**: 2026-01-06 (added Security Baseline Automation Phase C, updated Lovable Integration)

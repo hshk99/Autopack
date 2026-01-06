@@ -154,7 +154,10 @@ class StrategyEngine:
 
     def get_ruleset_path(self) -> Path:
         """Get path to project ruleset"""
-        return Path(settings.autonomous_runs_dir).parent / f"project_ruleset_{self.project_id}.json"
+        # Keep repo root clean: store durable per-project policy under config/.
+        # (Root clutter is explicitly discouraged by the tidy system.)
+        repo_root = Path(settings.autonomous_runs_dir).parent
+        return repo_root / "config" / f"project_ruleset_{self.project_id}.json"
 
     def load_ruleset(self) -> ProjectRuleset:
         """Load project ruleset or create default"""

@@ -1,0 +1,154 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://autopack.dev/schemas/gap_report_v1.schema.json",
+  "title": "Gap Report v1",
+  "description": "Deterministic gap detection report. Captures current vs ideal state mismatches with detection signals and evidence.",
+  "type": "object",
+  "required": [
+    "format_version",
+    "project_id",
+    "run_id",
+    "generated_at",
+    "gaps"
+  ],
+  "properties": {
+    "format_version": {
+      "type": "string",
+      "const": "v1",
+      "description": "Schema version identifier"
+    },
+    "project_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Project identifier"
+    },
+    "run_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Run identifier"
+    },
+    "generated_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 timestamp of generation"
+    },
+    "workspace_state_digest": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{16,64}$",
+      "description": "Digest of workspace state (for change detection)"
+    },
+    "gaps": {
+      "type": "array",
+      "description": "Detected gaps (sorted by risk/priority)",
+      "items": {
+        "type": "object",
+        "required": [
+          "gap_id",
+          "gap_type",
+          "detection_signals",
+          "risk_classification",
+          "blocks_autopilot"
+        ],
+        "properties": {
+          "gap_id": {
+            "type": "string",
+            "description": "Unique gap identifier (stable for same gap)"
+          },
+          "gap_type": {
+            "type": "string",
+            "enum": [
+              "doc_drift",
+              "root_clutter",
+              "sot_duplicate",
+              "test_infra_drift",
+              "memory_budget_cap_issue",
+              "windows_encoding_issue",
+              "baseline_policy_drift",
+              "protected_path_violation",
+              "db_lock_contention",
+              "git_state_corruption",
+              "unknown"
+            ],
+            "description": "Standardized gap type"
+          },
+          "title": {
+            "type": "string",
+            "description": "Human-readable gap title"
+          },
+          "description": {
+            "type": "string",
+            "description": "Detailed gap description"
+          },
+          "detection_signals": {
+            "type": "array",
+            "items": {"type": "string"},
+            "description": "Signals that detected this gap (file paths, test names, etc.)"
+          },
+          "evidence": {
+            "type": "object",
+            "description": "Evidence pointers",
+            "properties": {
+              "file_paths": {
+                "type": "array",
+                "items": {"type": "string"}
+              },
+              "test_names": {
+                "type": "array",
+                "items": {"type": "string"}
+              },
+              "excerpts": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "source": {"type": "string"},
+                    "content_hash": {"type": "string"},
+                    "preview": {"type": "string", "maxLength": 200}
+                  }
+                }
+              }
+            }
+          },
+          "risk_classification": {
+            "type": "string",
+            "enum": ["critical", "high", "medium", "low", "info"],
+            "description": "Risk severity level"
+          },
+          "blocks_autopilot": {
+            "type": "boolean",
+            "description": "Whether this gap blocks autonomous execution"
+          },
+          "safe_remediation": {
+            "type": "object",
+            "description": "Safe remediation approach (if deterministic)",
+            "properties": {
+              "approach": {"type": "string"},
+              "requires_approval": {"type": "boolean"},
+              "estimated_actions": {"type": "integer", "minimum": 0}
+            }
+          }
+        }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "description": "Gap report summary statistics",
+      "properties": {
+        "total_gaps": {"type": "integer", "minimum": 0},
+        "critical_gaps": {"type": "integer", "minimum": 0},
+        "high_gaps": {"type": "integer", "minimum": 0},
+        "medium_gaps": {"type": "integer", "minimum": 0},
+        "low_gaps": {"type": "integer", "minimum": 0},
+        "autopilot_blockers": {"type": "integer", "minimum": 0}
+      }
+    },
+    "metadata": {
+      "type": "object",
+      "description": "Optional metadata",
+      "properties": {
+        "scanner_version": {"type": "string"},
+        "scan_duration_ms": {"type": "integer", "minimum": 0}
+      }
+    }
+  }
+}

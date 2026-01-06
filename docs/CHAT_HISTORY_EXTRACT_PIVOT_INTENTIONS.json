@@ -1,0 +1,275 @@
+{
+  "metadata": {
+    "extraction_date": "2026-01-06",
+    "source": "Autopack SOT/docs (README, INDEX, BUILD_HISTORY, DEBUG_LOG, ARCHITECTURE_DECISIONS, GOVERNANCE, PARALLEL_RUNS, SECURITY_LOG, related implementation plans)",
+    "note": "This file is SOT-derived. It is a durable substitute for ephemeral Cursor chat history."
+  },
+  "pivot_intentions": [
+    {
+      "id": "PI-001",
+      "type": "NorthStar/Value",
+      "statement": "Safe, deterministic, mechanically enforceable via CI contracts.",
+      "enforcement_mechanism": "CI contract tests; PR-blocking checks; deterministic scripts; explicit gates",
+      "evidence": [
+        { "source": "README.md", "quote": "safe, deterministic, mechanically enforceable via CI contracts" }
+      ]
+    },
+    {
+      "id": "PI-002",
+      "type": "Memory/Continuity",
+      "statement": "SOT ledgers are canonical memory; derived indexes are rebuildable; avoid two truths.",
+      "enforcement_mechanism": "Tidy consolidation; SOT drift enforcement; derived-index sync tools",
+      "evidence": [
+        { "source": "README.md", "quote": "LLMs should rely on SOT ledgers as canonical memory" },
+        { "source": "DEC-042", "quote": "Execution writes run-local; tidy consolidates" }
+      ]
+    },
+    {
+      "id": "PI-003",
+      "type": "NorthStar/Value",
+      "statement": "Intention Anchor lifecycle is first-class: plan → build → audit → SOT → retrieve.",
+      "enforcement_mechanism": "Versioned intention artifacts; drift checks; bounded retrieval",
+      "evidence": [
+        { "source": "DEC-041", "quote": "Intention Anchor lifecycle as first-class artifact" }
+      ]
+    },
+    {
+      "id": "PI-004",
+      "type": "Scope/Boundaries",
+      "statement": "Execution writes run-local only; never autonomous SOT writes; tidy consolidates via gating.",
+      "enforcement_mechanism": "RunFileLayout; governed apply; tidy dry-run default; allowlists",
+      "evidence": [
+        { "source": "DEC-042", "quote": "Execution writes run-local; tidy consolidates" }
+      ]
+    },
+    {
+      "id": "PI-005",
+      "type": "Governance/Review",
+      "statement": "Default-deny governance; narrow auto-approval rules; NEVER_AUTO_APPROVE paths.",
+      "enforcement_mechanism": "Risk scoring; approval workflows; denylist enforcement",
+      "evidence": [
+        { "source": "docs/GOVERNANCE.md", "quote": "default-deny; narrow auto-approval; NEVER_AUTO_APPROVE" }
+      ]
+    },
+    {
+      "id": "PI-006",
+      "type": "Safety/Risk",
+      "statement": "Baselines updated explicitly; never automatic; must be auditable.",
+      "enforcement_mechanism": "Explicit --write flags; CI checks; SECURITY_LOG entries",
+      "evidence": [
+        { "source": "docs/SECURITY_LOG.md", "quote": "Baselines may ONLY be updated via explicit process (never automatic)" }
+      ]
+    },
+    {
+      "id": "PI-007",
+      "type": "Evidence/Verification",
+      "statement": "Prefer high-signal, shift-tolerant security gating (fingerprint-based normalization).",
+      "enforcement_mechanism": "SARIF normalization schema + tests",
+      "evidence": [
+        { "source": "DEC-045", "quote": "Fingerprint-based normalization; shift-tolerant" }
+      ]
+    },
+    {
+      "id": "PI-008",
+      "type": "Budget/Cost",
+      "statement": "Two-stage budget enforcement (global cap + per-call) with telemetry.",
+      "enforcement_mechanism": "MemoryService caps; formatted context cap; telemetry recording",
+      "evidence": [
+        { "source": "DEC-017", "quote": "Two-stage budget enforcement" }
+      ]
+    },
+    {
+      "id": "PI-009",
+      "type": "Memory/Continuity",
+      "statement": "Derived indexes (DB/Qdrant) are rebuildable; tools must be explicit about targets (no surprises).",
+      "enforcement_mechanism": "Mode-selective sync; explicit --execute; explicit DB URL printing",
+      "evidence": [
+        { "source": "docs/REMAINING_IMPROVEMENTS_AFTER_BUILD_162.md", "quote": "Markdown SOT canonical; DB/Qdrant derived indexes" }
+      ]
+    },
+    {
+      "id": "PI-010",
+      "type": "Evidence/Verification",
+      "statement": "Boundary contract tests must hit real FastAPI routes (avoid false-green).",
+      "enforcement_mechanism": "Thread-safe in-memory DB patterns; endpoint-level tests",
+      "evidence": [
+        { "source": "DEC-040", "quote": "Contract tests must hit real routes" }
+      ]
+    },
+    {
+      "id": "PI-011",
+      "type": "Evidence/Verification",
+      "statement": "Encode desired behavior as mechanical contracts (xfail deferred guards) rather than memorializing drift.",
+      "enforcement_mechanism": "xfail strict; contract tests",
+      "evidence": [
+        { "source": "DEC-039", "quote": "Permanent deferred contract tests vs broken assertions" }
+      ]
+    },
+    {
+      "id": "PI-012",
+      "type": "Safety/Risk",
+      "statement": "Tidy is manual-only; dry-run default; explicit --execute required.",
+      "enforcement_mechanism": "tidy_up default dry-run; checkpoints; leases/locks",
+      "evidence": [
+        { "source": "docs/TIDY_SYSTEM_USAGE.md", "quote": "unified entrypoint; dry-run default; --execute" }
+      ]
+    },
+    {
+      "id": "PI-013",
+      "type": "Evidence/Verification",
+      "statement": "Windows-first resilience: encoding-safe CLIs; lock handling; avoid emoji when needed.",
+      "enforcement_mechanism": "ASCII mode; stdout encoding safety; lock/lease strategies",
+      "evidence": [
+        { "source": "docs/TIDY_LOCKED_FILES_HOWTO.md", "quote": "Windows file locks handling strategies" }
+      ]
+    },
+    {
+      "id": "PI-014",
+      "type": "Parallelism/Isolation",
+      "statement": "Parallel runs require Four-Layer Safety Model (worktrees + leases + per-run locks + run-scoped artifacts).",
+      "enforcement_mechanism": "WorkspaceManager; WorkspaceLease; ExecutorLockManager; run-scoped paths",
+      "evidence": [
+        { "source": "docs/PARALLEL_RUNS.md", "quote": "Four-Layer Safety Model" }
+      ]
+    },
+    {
+      "id": "PI-015",
+      "type": "Parallelism/Isolation",
+      "statement": "Parallel phases within a single run are not recommended.",
+      "enforcement_mechanism": "Policy + tests; executor orchestration constraints",
+      "evidence": [
+        { "source": "docs/PARALLEL_RUNS.md", "quote": "Not recommended: parallel phases within a single run" }
+      ]
+    },
+    {
+      "id": "PI-016",
+      "type": "Governance/Review",
+      "statement": "Destructive operations require explicit approval artifacts and audit trails.",
+      "enforcement_mechanism": "Approval file requirements; execution gating",
+      "evidence": [
+        { "source": "docs/STORAGE_OPTIMIZER_EXECUTION_GUIDE.md", "quote": "approval artifact required for execution" }
+      ]
+    },
+    {
+      "id": "PI-017",
+      "type": "Governance/Review",
+      "statement": "Record decisions and outcomes durably (append-only ledgers) for continuity and auditability.",
+      "enforcement_mechanism": "BUILD/DEBUG/ADR ledgers; structured artifacts; consolidation pattern",
+      "evidence": [
+        { "source": "docs/BUILD_HISTORY.md", "quote": "append-only execution ledger" },
+        { "source": "docs/DEBUG_LOG.md", "quote": "failures → root cause → fix → verification" }
+      ]
+    }
+  ],
+  "gap_types": [
+    {
+      "gap_type": "doc_drift",
+      "signals": ["docs-sot-integrity CI drift", "README SOT summary drift", "doc link checker drift"],
+      "safe_remediation_pattern": "report-only → plan → gated apply with idempotency markers",
+      "requires_approval_by_default": false
+    },
+    {
+      "gap_type": "root_clutter",
+      "signals": ["tidy root routing", "workspace structure verifier"],
+      "safe_remediation_pattern": "tidy dry-run then tidy --execute with checkpoints",
+      "requires_approval_by_default": true
+    },
+    {
+      "gap_type": "sot_duplicate",
+      "signals": ["root-vs-docs duplicate detection", "tidy duplicate report modes"],
+      "safe_remediation_pattern": "block divergent; route identical to superseded; require manual merge",
+      "requires_approval_by_default": true
+    },
+    {
+      "gap_type": "test_infra_drift",
+      "signals": ["false-green tests", "schema drift at boundaries"],
+      "safe_remediation_pattern": "rewrite tests to hit real routes; add deterministic fixtures",
+      "requires_approval_by_default": false
+    },
+    {
+      "gap_type": "memory_budget_cap_issue",
+      "signals": ["retrieval truncation", "embedding cap exceeded", "telemetry warnings"],
+      "safe_remediation_pattern": "two-stage cap enforcement; fallback behavior; record telemetry",
+      "requires_approval_by_default": false
+    },
+    {
+      "gap_type": "windows_encoding_issue",
+      "signals": ["UnicodeEncodeError/charmap", "CLI output breaks"],
+      "safe_remediation_pattern": "ASCII mode; stdout reconfigure; avoid emoji output by default",
+      "requires_approval_by_default": false
+    },
+    {
+      "gap_type": "baseline_policy_drift",
+      "signals": ["security diff gate new findings", "baseline format drift"],
+      "safe_remediation_pattern": "explicit baseline refresh SOP + SECURITY_LOG entry; never auto-update",
+      "requires_approval_by_default": true
+    },
+    {
+      "gap_type": "protected_path_violation",
+      "signals": ["governed apply rejects", "deliverables outside allowed roots"],
+      "safe_remediation_pattern": "tight allowlists; manifest gates; communicate protected paths",
+      "requires_approval_by_default": true
+    },
+    {
+      "gap_type": "db_lock_contention",
+      "signals": ["SQLite locked errors", "concurrent write failures"],
+      "safe_remediation_pattern": "per-run isolation; avoid shared sqlite; prefer Postgres when enabled",
+      "requires_approval_by_default": true
+    },
+    {
+      "gap_type": "git_state_corruption",
+      "signals": ["merge markers", "patch apply failures", "workspace collisions"],
+      "safe_remediation_pattern": "git worktrees + leases; per-run rollback boundaries",
+      "requires_approval_by_default": true
+    }
+  ],
+  "autonomy_loop": {
+    "steps": [
+      "detect",
+      "plan",
+      "build_execute",
+      "verify",
+      "govern",
+      "apply",
+      "audit",
+      "record",
+      "consolidate",
+      "index",
+      "retrieve"
+    ],
+    "gates": [
+      "deterministic-first",
+      "budget caps",
+      "default-deny approvals",
+      "no autonomous SOT writes",
+      "idempotent gated consolidation"
+    ],
+    "artifacts": [
+      "intention anchor",
+      "gap report",
+      "plan proposal",
+      "phase proof",
+      "tidy consolidation markers"
+    ]
+  },
+  "parallelism": {
+    "blockers": [
+      "workspace-global git rollback/reset/clean is unsafe in shared workspace",
+      "SQLite concurrency is unsafe for concurrent writers",
+      "shared .autonomous_runs artifacts collide without run scoping",
+      "no lease = two processes can mutate same path"
+    ],
+    "minimum_contract": [
+      "git worktree per run (workspace isolation)",
+      "workspace lease per physical path",
+      "per-run executor lock (one executor per run_id)",
+      "run-scoped artifacts (no shared baseline/retry files)"
+    ],
+    "notes": ["parallelism is multi-run only; parallel phases within a run remain out of scope"]
+  },
+  "missing_info": [
+    "Verbatim Cursor chat quotations are not included; if needed, export and commit them as artifacts (do not rely on vendor chat APIs)."
+  ]
+}
+
+

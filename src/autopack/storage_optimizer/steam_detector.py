@@ -18,10 +18,19 @@ class SteamGame:
 
     app_id: str
     name: str
-    install_dir: Path
+    install_path: Path
     size_bytes: int
     last_updated: Optional[datetime]
+    age_days: Optional[int] = None
     installed: bool = True
+
+    def __post_init__(self) -> None:
+        # Compute age_days deterministically if not provided.
+        if self.age_days is None and self.last_updated is not None:
+            try:
+                self.age_days = (datetime.now() - self.last_updated).days
+            except Exception:
+                self.age_days = None
 
     @property
     def size_gb(self) -> float:
@@ -29,11 +38,9 @@ class SteamGame:
         return self.size_bytes / (1024**3)
 
     @property
-    def age_days(self) -> Optional[int]:
-        """Days since last update/play."""
-        if not self.last_updated:
-            return None
-        return (datetime.now() - self.last_updated).days
+    def install_dir(self) -> Path:
+        """Backward-compatible alias for older code that used install_dir."""
+        return self.install_path
 
 
 class SteamGameDetector:
@@ -46,6 +53,10 @@ class SteamGameDetector:
     def __init__(self):
         self.steam_path = self._find_steam_installation()
         self.library_folders = self._find_library_folders()
+
+    def is_available(self) -> bool:
+        """Return True if Steam installation was detected."""
+        return self.steam_path is not None
 
     def _find_steam_installation(self) -> Optional[Path]:
         """Find Steam installation via Windows registry."""
@@ -76,25 +87,41 @@ class SteamGameDetector:
 
         # Parse libraryfolders.vdf for additional libraries
         vdf_path = self.steam_path / "steamapps" / "libraryfolders.vdf"
-        if vdf_path.exists():
-            try:
-                with open(vdf_path, "r", encoding="utf-8", errors="ignore") as f:
-                    content = f.read()
-
-                # Simple VDF parsing (format: "path"    "C:\\SteamLibrary")
-                for line in content.split("\n"):
-                    if '"path"' in line.lower():
-                        # Extract path between quotes
-                        parts = line.split('"')
-                        if len(parts) >= 4:
-                            path_str = parts[3].replace("\\\\", "\\")
-                            lib_path = Path(path_str) / "steamapps"
-                            if lib_path.exists() and lib_path not in library_folders:
-                                library_folders.append(lib_path)
-            except Exception as e:
-                print(f"Warning: Failed to parse libraryfolders.vdf: {e}")
+        extra = self._parse_library_folders_vdf(vdf_path)
+        for folder in extra:
+            if folder not in library_folders:
+                library_folders.append(folder)
 
         return library_folders
+
+    def _parse_library_folders_vdf(self, vdf_path: Path) -> List[Path]:
+        """
+        Parse Steam `libraryfolders.vdf` to discover additional library locations.
+
+        Returns a list of `<library>/steamapps` paths.
+        Designed to be testable (no registry access required).
+        """
+        if not vdf_path.exists():
+            return []
+
+        try:
+            content = vdf_path.read_text(encoding="utf-8", errors="ignore")
+        except Exception:
+            try:
+                with vdf_path.open("r", encoding="utf-8", errors="ignore") as f:
+                    content = f.read()
+            except Exception:
+                return []
+
+        folders: List[Path] = []
+        # Simple VDF parsing (format: "path"    "C:\\SteamLibrary")
+        for line in content.splitlines():
+            if '"path"' in line.lower():
+                parts = line.split('"')
+                if len(parts) >= 4:
+                    path_str = parts[3].replace("\\\\", "\\")
+                    folders.append(Path(path_str) / "steamapps")
+        return folders
 
     def detect_installed_games(self) -> List[SteamGame]:
         """
@@ -108,13 +135,10 @@ class SteamGameDetector:
         games = []
 
         for library in self.library_folders:
-            if not library.exists():
-                continue
-
             # Scan for .acf manifest files (appmanifest_<appid>.acf)
             try:
                 for acf_file in library.glob("appmanifest_*.acf"):
-                    game = self._parse_manifest(acf_file, library)
+                    game = self._parse_game_manifest(acf_file)
                     if game:
                         games.append(game)
             except PermissionError:
@@ -123,9 +147,9 @@ class SteamGameDetector:
 
         return games
 
-    def _parse_manifest(self, acf_path: Path, library_path: Path) -> Optional[SteamGame]:
+    def _parse_game_manifest(self, acf_path: Path) -> Optional[SteamGame]:
         """
-        Parse Steam .acf manifest file.
+        Parse Steam `.acf` manifest file into a SteamGame.
 
         Format example:
         "AppState"
@@ -134,48 +158,63 @@ class SteamGameDetector:
             "name"         "Grand Theft Auto V"
             "installdir"   "Grand Theft Auto V"
             "LastUpdated"  "1609459200"
+            "SizeOnDisk"   "50000000000"
         }
         """
         try:
-            with open(acf_path, "r", encoding="utf-8", errors="ignore") as f:
-                content = f.read()
-
-            # Extract key fields using simple VDF parsing
-            app_id = self._extract_vdf_value(content, "appid")
-            name = self._extract_vdf_value(content, "name")
-            install_dir = self._extract_vdf_value(content, "installdir")
-            last_updated = self._extract_vdf_value(content, "LastUpdated")
-
-            if not all([app_id, name, install_dir]):
+            content = acf_path.read_text(encoding="utf-8", errors="ignore")
+        except Exception:
+            try:
+                with open(acf_path, "r", encoding="utf-8", errors="ignore") as f:
+                    content = f.read()
+            except Exception as e:
+                print(f"Warning: Failed to parse {acf_path.name}: {e}")
                 return None
 
-            # Calculate game size
-            game_path = library_path / "common" / install_dir
-            if not game_path.exists():
-                return None
+        # Extract key fields using simple VDF parsing
+        app_id = self._extract_vdf_value(content, "appid")
+        name = self._extract_vdf_value(content, "name")
+        install_dir = self._extract_vdf_value(content, "installdir")
+        last_updated = self._extract_vdf_value(content, "LastUpdated")
+        size_on_disk = self._extract_vdf_value(content, "SizeOnDisk")
 
+        if not app_id or not install_dir:
+            # Malformed; allow tests to accept None or placeholder
+            return None
+
+        if not name:
+            name = "Unknown"
+
+        # Determine library path from manifest location: <library>/steamapps/appmanifest_*.acf
+        library_path = acf_path.parent
+        game_path = library_path / "common" / install_dir
+
+        # Prefer SizeOnDisk from manifest (fast, testable). Fallback to directory size if available.
+        size_bytes = 0
+        if size_on_disk:
+            try:
+                size_bytes = int(size_on_disk)
+            except Exception:
+                size_bytes = 0
+        if size_bytes == 0 and game_path.exists():
             size_bytes = self._calculate_directory_size(game_path)
 
-            # Convert timestamp to datetime
-            last_updated_dt = None
-            if last_updated:
-                try:
-                    last_updated_dt = datetime.fromtimestamp(int(last_updated))
-                except (ValueError, OSError):
-                    pass
+        # Convert timestamp to datetime
+        last_updated_dt = None
+        if last_updated:
+            try:
+                last_updated_dt = datetime.fromtimestamp(int(last_updated))
+            except (ValueError, OSError):
+                last_updated_dt = None
 
-            return SteamGame(
-                app_id=app_id,
-                name=name,
-                install_dir=game_path,
-                size_bytes=size_bytes,
-                last_updated=last_updated_dt,
-                installed=True,
-            )
-
-        except Exception as e:
-            print(f"Warning: Failed to parse {acf_path.name}: {e}")
-            return None
+        return SteamGame(
+            app_id=app_id,
+            name=name,
+            install_path=game_path,
+            size_bytes=size_bytes,
+            last_updated=last_updated_dt,
+            installed=True,
+        )
 
     def _extract_vdf_value(self, content: str, key: str) -> Optional[str]:
         """Extract value from VDF key-value pair."""

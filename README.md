@@ -41,16 +41,17 @@ Note: SOT→DB sync (`scripts/tidy/sot_db_sync.py`) exists as a derived index (`
 - **Architecture decisions (authoritative)**: `docs/ARCHITECTURE_DECISIONS.md`
 - **Changelog (historical ledger)**: `docs/CHANGELOG.md`
 - **Reliability track (P0 + P1)**: `docs/P0_RELIABILITY_DECISIONS.md`
+- **Next major roadmap (universal autonomy + safe parallelism)**: `docs/IMPLEMENTATION_PLAN_PIVOT_INTENTIONS_AUTONOMY_PARALLELISM.md`
 
 ## Project Status
 
 **Version**: 0.5.1
 
 <!-- SOT_SUMMARY_START -->
-**Last Updated**: 2026-01-06 01:50
+**Last Updated**: 2026-01-06 11:03
 
-- **Builds Completed**: 187 (includes multi-phase builds, 163 unique)
-- **Latest Build**: BUILD-176 ✅
+- **Builds Completed**: 189 (includes multi-phase builds, 164 unique)
+- **Latest Build**: BUILD-177
 - **Architecture Decisions**: 42
 - **Debugging Sessions**: 86
 

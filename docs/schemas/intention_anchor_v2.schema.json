@@ -1,0 +1,238 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://autopack.dev/schemas/intention_anchor_v2.schema.json",
+  "title": "Intention Anchor v2",
+  "description": "Universal pivot intentions model for safe autonomous progress. Captures high-level intent types without chasing implementation details.",
+  "type": "object",
+  "required": [
+    "format_version",
+    "project_id",
+    "created_at",
+    "raw_input_digest",
+    "pivot_intentions"
+  ],
+  "properties": {
+    "format_version": {
+      "type": "string",
+      "const": "v2",
+      "description": "Schema version identifier"
+    },
+    "project_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Project identifier"
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 timestamp of creation"
+    },
+    "updated_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 timestamp of last update"
+    },
+    "raw_input_digest": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{16,64}$",
+      "description": "SHA256 digest of original raw input (for change detection)"
+    },
+    "pivot_intentions": {
+      "type": "object",
+      "description": "Pivot intention types (high-level, universal)",
+      "properties": {
+        "north_star": {
+          "type": "object",
+          "description": "Desired outcomes, success signals, non-goals",
+          "properties": {
+            "desired_outcomes": {
+              "type": "array",
+              "items": {"type": "string"},
+              "description": "What success looks like"
+            },
+            "success_signals": {
+              "type": "array",
+              "items": {"type": "string"},
+              "description": "Observable indicators of success"
+            },
+            "non_goals": {
+              "type": "array",
+              "items": {"type": "string"},
+              "description": "Explicit non-goals (scope boundaries)"
+            }
+          }
+        },
+        "safety_risk": {
+          "type": "object",
+          "description": "What must never happen; what requires approval",
+          "properties": {
+            "never_allow": {
+              "type": "array",
+              "items": {"type": "string"},
+              "description": "Hard blocks (must never execute)"
+            },
+            "requires_approval": {
+              "type": "array",
+              "items": {"type": "string"},
+              "description": "Operations requiring explicit approval"
+            },
+            "risk_tolerance": {
+              "type": "string",
+              "enum": ["minimal", "low", "moderate", "high"],
+              "description": "Overall risk tolerance level"
+            }
+          }
+        },
+        "evidence_verification": {
+          "type": "object",
+          "description": "Hard blocks, required checks, proof artifacts",
+          "properties": {
+            "hard_blocks": {
+              "type": "array",
+              "items": {"type": "string"},
+              "description": "Checks that must pass (no bypass)"
+            },
+            "required_proofs": {
+              "type": "array",
+              "items": {"type": "string"},
+              "description": "Artifacts that must be generated"
+            },
+            "verification_gates": {
+              "type": "array",
+              "items": {"type": "string"},
+              "description": "Gates that must be satisfied"
+            }
+          }
+        },
+        "scope_boundaries": {
+          "type": "object",
+          "description": "Allowed write roots, protected paths, network allowlist",
+          "properties": {
+            "allowed_write_roots": {
+              "type": "array",
+              "items": {"type": "string"},
+              "description": "Paths where writes are permitted"
+            },
+            "protected_paths": {
+              "type": "array",
+              "items": {"type": "string"},
+              "description": "Paths that must not be modified"
+            },
+            "network_allowlist": {
+              "type": "array",
+              "items": {"type": "string"},
+              "description": "Allowed network endpoints/domains"
+            }
+          }
+        },
+        "budget_cost": {
+          "type": "object",
+          "description": "Token/time caps, cost escalation policy",
+          "properties": {
+            "token_cap_global": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Global token budget cap"
+            },
+            "token_cap_per_call": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Per-call token budget cap"
+            },
+            "time_cap_seconds": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Time budget cap in seconds"
+            },
+            "cost_escalation_policy": {
+              "type": "string",
+              "enum": ["block", "warn", "request_approval"],
+              "description": "What to do when approaching budget limits"
+            }
+          }
+        },
+        "memory_continuity": {
+          "type": "object",
+          "description": "What persists to SOT, derived indexes, retention rules",
+          "properties": {
+            "persist_to_sot": {
+              "type": "array",
+              "items": {"type": "string"},
+              "description": "Artifact types to persist to SOT ledgers"
+            },
+            "derived_indexes": {
+              "type": "array",
+              "items": {"type": "string"},
+              "description": "Derived indexes to maintain"
+            },
+            "retention_rules": {
+              "type": "object",
+              "additionalProperties": {"type": "string"},
+              "description": "Retention policies by artifact type"
+            }
+          }
+        },
+        "governance_review": {
+          "type": "object",
+          "description": "Default-deny, auto-approval rules, approval channels",
+          "properties": {
+            "default_policy": {
+              "type": "string",
+              "enum": ["deny", "allow"],
+              "description": "Default approval policy"
+            },
+            "auto_approve_rules": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "rule_id": {"type": "string"},
+                  "description": {"type": "string"},
+                  "conditions": {"type": "array", "items": {"type": "string"}}
+                }
+              },
+              "description": "Narrow auto-approval rules"
+            },
+            "approval_channels": {
+              "type": "array",
+              "items": {"type": "string"},
+              "description": "Available approval channels (PR, CLI, Telegram, etc.)"
+            }
+          }
+        },
+        "parallelism_isolation": {
+          "type": "object",
+          "description": "Parallelism isolation model requirements (optional unless enabled)",
+          "properties": {
+            "allowed": {
+              "type": "boolean",
+              "description": "Whether parallel runs are allowed"
+            },
+            "isolation_model": {
+              "type": "string",
+              "enum": ["four_layer", "none"],
+              "description": "Required isolation model (four_layer = worktrees + leases + locks + scoped artifacts)"
+            },
+            "max_concurrent_runs": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "Maximum concurrent runs allowed"
+            }
+          }
+        }
+      }
+    },
+    "metadata": {
+      "type": "object",
+      "description": "Optional metadata for tracking and auditing",
+      "properties": {
+        "author": {"type": "string"},
+        "source": {"type": "string"},
+        "tags": {
+          "type": "array",
+          "items": {"type": "string"}
+        }
+      }
+    }
+  }
+}

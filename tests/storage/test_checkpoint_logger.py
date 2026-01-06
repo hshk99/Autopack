@@ -179,8 +179,13 @@ class TestCheckpointLogger:
         from autopack.database import SessionLocal
 
         # Skip if no database configured
-        if not os.getenv("DATABASE_URL"):
+        dsn = os.getenv("DATABASE_URL")
+        if not dsn:
             pytest.skip("DATABASE_URL not set")
+
+        # This test is specifically for PostgreSQL-backed logging.
+        if "postgres" not in dsn.lower():
+            pytest.skip("DATABASE_URL is not PostgreSQL (skipping Postgres integration test)")
 
         logger = CheckpointLogger()
 

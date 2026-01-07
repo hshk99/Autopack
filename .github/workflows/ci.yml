@@ -111,6 +111,27 @@ jobs:
       - name: Enforce security baseline logging (SECBASE required when baselines change)
         run: |
           python scripts/ci/check_security_baseline_log_entry.py
+      # BUILD-191: Export OpenAPI as CI artifact (runtime-canonical strategy)
+      - name: Export OpenAPI specification
+        run: |
+          # Generate OpenAPI from runtime FastAPI app
+          python -c "
+          import json
+          import os
+          os.environ['TESTING'] = '1'
+          os.environ['DATABASE_URL'] = 'sqlite:///:memory:'
+          from autopack.main import app
+          schema = app.openapi()
+          with open('openapi.json', 'w') as f:
+              json.dump(schema, f, indent=2)
+          print(f'Generated OpenAPI {schema[\"info\"][\"version\"]} with {len(schema[\"paths\"])} paths')
+          "
+      - name: Upload OpenAPI artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: openapi-spec
+          path: openapi.json
+          retention-days: 30
 
   # BUILD-146 Phase A P15: 3-gate test strategy
   # Gate 1: Core tests (must pass) - no xfail markers, production-critical

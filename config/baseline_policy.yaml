@@ -1,0 +1,57 @@
+# Baseline Policy Configuration
+# Defines default governance and enforcement policies for the gap scanner
+#
+# This file is checked by src/autopack/gaps/scanner.py
+
+version: 1
+
+# Governance settings
+governance:
+  # Default approval mode: manual | auto | disabled
+  default_approval_mode: manual
+
+  # Paths that always require manual approval (never auto-approved)
+  protected_paths:
+    - src/autopack/main.py
+    - src/autopack/autonomous_executor.py
+    - src/autopack/governed_apply.py
+    - src/autopack/quality_gate.py
+    - src/autopack/models.py
+    - alembic/versions/
+    - .github/
+    - config/
+
+  # Paths that can be auto-approved (low risk)
+  auto_approve_paths:
+    - tests/
+    - docs/CURSOR_PROMPT_*.md
+    - scripts/tidy/
+
+# Risk thresholds
+risk:
+  # Lines changed thresholds
+  low_threshold: 100
+  medium_threshold: 200
+  high_threshold: 500
+
+  # Net deletion threshold (lines removed - lines added)
+  large_deletion_threshold: 50
+
+# Enforcement settings
+enforcement:
+  # Whether to block autopilot on policy violations
+  block_on_violation: true
+
+  # Whether to require explicit approval for protected paths
+  require_approval_for_protected: true
+
+  # Security diff gates (regression-only blocking)
+  security_gates_blocking: true
+
+# Parallelism policy
+parallelism:
+  # Whether parallel execution is allowed by default
+  allowed_by_default: false
+
+  # Maximum concurrent runs
+  max_concurrent_runs: 2

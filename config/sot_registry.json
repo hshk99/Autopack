@@ -1,22 +1,29 @@
 {
   "version": 1,
+  "description": "SOT (Source of Truth) registry - must match docs/INDEX.md 'Source-of-Truth (SOT) docs' section",
   "docs_sot_files": [
     "BUILD_HISTORY.md",
     "DEBUG_LOG.md",
     "ARCHITECTURE_DECISIONS.md",
+    "CHANGELOG.md",
+    "SECURITY_LOG.md",
+    "SECURITY_EXCEPTIONS.md",
     "FUTURE_PLAN.md",
     "PROJECT_INDEX.json",
-    "LEARNED_RULES.json"
+    "LEARNED_RULES.json",
+    "SECURITY_BURNDOWN.md"
   ],
   "protected_paths": [
     "README.md",
     "docs/BUILD_HISTORY.md",
     "docs/DEBUG_LOG.md",
     "docs/ARCHITECTURE_DECISIONS.md",
+    "docs/CHANGELOG.md",
+    "docs/SECURITY_LOG.md",
+    "docs/SECURITY_EXCEPTIONS.md",
     "docs/FUTURE_PLAN.md",
     "docs/PROJECT_INDEX.json",
-    "docs/LEARNED_RULES.json"
+    "docs/LEARNED_RULES.json",
+    "docs/SECURITY_BURNDOWN.md"
   ]
 }
-
-

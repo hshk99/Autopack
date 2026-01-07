@@ -1,0 +1,48 @@
+# CODEOWNERS file - auto-routes review for sensitive surfaces
+# See: https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# Default owner for everything
+* @hshk99
+
+# CI/CD and GitHub configuration - requires careful review
+/.github/ @hshk99
+
+# Configuration files - governance and policy critical
+/config/ @hshk99
+
+# Security-related files and baselines
+/security/ @hshk99
+
+# SOT ledger documents (source of truth)
+/docs/WORKSPACE_ORGANIZATION_SPEC.md @hshk99
+/docs/GOVERNANCE.md @hshk99
+/docs/SECURITY_BASELINE.md @hshk99
+/docs/INDEX.md @hshk99
+/docs/BUILD_HISTORY.md @hshk99
+/docs/DEBUG_LOG.md @hshk99
+
+# Core runtime modules
+/src/autopack/main.py @hshk99
+/src/autopack/autonomous_executor.py @hshk99
+/src/autopack/governed_apply.py @hshk99
+/src/autopack/quality_gate.py @hshk99
+/src/autopack/governance_requests.py @hshk99
+
+# Database and migrations
+/src/autopack/models.py @hshk99
+/src/autopack/database.py @hshk99
+/src/autopack/migrations/ @hshk99
+/alembic/ @hshk99
+
+# Authentication and authorization
+/src/autopack/auth/ @hshk99
+
+# Autonomy and planning (governance critical)
+/src/autopack/autonomy/ @hshk99
+/src/autopack/planning/ @hshk99
+
+# Docker and infrastructure
+/Dockerfile @hshk99
+/Dockerfile.* @hshk99
+/docker-compose*.yml @hshk99
+/nginx.conf @hshk99

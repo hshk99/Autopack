@@ -230,6 +230,39 @@ This doc focuses on what’s still missing, drifting, inconsistent, or can be ma
   - Non-Windows-only docs do not contain workstation-specific absolute roots.
   - CI (or a doc contract test) flags regressions.
 
+### 2.11 SOT protection mismatch: SOT registry vs “authoritative docs” list
+
+- **Problem**: `docs/INDEX.md` treats several files as authoritative/SOT-like (e.g., `docs/SECURITY_LOG.md`, `docs/SECURITY_EXCEPTIONS.md`, `docs/SECURITY_BURNDOWN.md`, `docs/CHANGELOG.md`), but `config/sot_registry.json` only protects a smaller subset.
+- **Why it matters**: creates “two truths” for agents and for tidy/protection expectations; a doc can be “authoritative” but not protected/treated as such.
+- **Recommended fix**:
+  - Decide which of these files are truly SOT/protected and add them to `config/sot_registry.json` (and any related protection/validation tooling).
+  - Alternatively: explicitly reclassify some docs as non-SOT (and update `docs/INDEX.md` wording accordingly).
+- **Acceptance criteria**:
+  - `docs/INDEX.md`’s “authoritative/SOT” list matches the SOT registry (or clearly explains any exceptions).
+  - Protection/validation behavior matches the declared policy.
+
+### 2.12 Missing dependency automation: Dependabot configuration
+
+- **Problem**: No `.github/dependabot.yml` found.
+- **Why it matters**: Autopack invests heavily in supply-chain hardening (e.g., GitHub Actions SHA pins). Without automated update PRs, pins and dependencies will drift stale and become manual toil.
+- **Recommended fix**:
+  - Add Dependabot updates for ecosystems used here:
+    - `github-actions` (workflow pins)
+    - `pip` (Python deps, including `pyproject.toml` / `requirements*.txt` strategy)
+    - `npm` (any supported frontend(s))
+- **Acceptance criteria**:
+  - Dependabot runs on a documented cadence and produces reviewable PRs with deterministic diffs.
+
+### 2.13 Missing ownership guardrail: CODEOWNERS
+
+- **Problem**: No `CODEOWNERS` found.
+- **Why it matters**: governance-heavy repos benefit from automatic review routing, especially for sensitive surfaces (`.github/workflows/*`, `config/*`, SOT ledgers, security baselines).
+- **Recommended fix**:
+  - Add a `CODEOWNERS` file that assigns owners for:
+    - `.github/`, `security/`, `config/`, `docs/` (SOT ledgers), and core runtime paths.
+- **Acceptance criteria**:
+  - Sensitive changes automatically request review from appropriate owners.
+
 ---
 
 ## 3) P2 (Design/maintenance improvements: cleanup, consolidation, quality-of-life)
@@ -305,6 +338,18 @@ This doc focuses on what’s still missing, drifting, inconsistent, or can be ma
 - **Acceptance criteria**:
   - A tagged release produces reproducible artifacts + an auditable paper trail.
 
+**Note (intent)**: Autopack itself is intended for **personal/internal use only** (not distributed). Release engineering for Autopack can be kept lightweight; however, the **projects built using Autopack may be published/monetized**, so downstream projects should adopt strong release/provenance/security practices.
+
+### 3.9 Formatting determinism controls: missing `.editorconfig` and `.gitattributes`
+
+- **Problem**: No `.editorconfig` and no `.gitattributes` found.
+- **Why it matters**: Cross-OS development (Windows/Linux CI) tends to create noisy diffs and subtle tool drift (line endings, encoding, whitespace). This undercuts “deterministic, mechanically enforceable” goals.
+- **Recommended fix**:
+  - Add `.editorconfig` with canonical whitespace/EOL rules.
+  - Add `.gitattributes` to enforce LF where needed (and explicitly document any Windows exceptions).
+- **Acceptance criteria**:
+  - New diffs do not churn due to line endings; CI is stable across OS.
+
 ---
 
 ## 4) Known “paper cuts” / consistency tweaks (low risk)
@@ -312,6 +357,8 @@ This doc focuses on what’s still missing, drifting, inconsistent, or can be ma
 - **Docs example drift**: `docs/PARALLEL_RUNS.md` references `docker-compose up -d postgres` but compose service is `db`.
 - **Schema location mismatch**: some docs reference `docs/schemas/*` but schemas live in `src/autopack/schemas/*`.
 - **Security workflow duplication**: daily `security.yml` + weekly `security-artifacts.yml` might be more than needed; decide and document.
+- **Missing `docs/api/` directory and OpenAPI spec placement**: workspace spec allows `docs/api/`, and tidy/docs mention moving `openapi.json` under it, but `docs/api/` and a checked-in `openapi.json` are not present. Decide the canonical approach (checked-in spec vs runtime-generated only) and align docs/tools.
+- **Missing GitHub hygiene templates**: no issue templates and no PR template found under `.github/` (optional, but can reduce governance/triage overhead).
 
 ---
 
@@ -420,4 +467,87 @@ There are several TODOs in `src/autopack/autonomous_executor.py` that map to rea
 5. **CI completeness**: add frontend build/lint, add mypy (staged), unify Python versions.
 6. **Tidy remaining drift**: align docs paths, schema locations, compose service naming in docs.
 
+
+---
+
+## 6) Beyond-repo audit (GitHub settings, release provenance, container hardening policy)
+
+These items require **GitHub repo settings** and/or **release infrastructure** decisions. They are not fully enforceable from code alone, but we can:
+- document an explicit policy (so there’s “one truth”)
+- add optional self-audit scripts / CI checks where feasible
+
+### 6.1 Branch protection expectations (GitHub settings)
+
+- **Goal**: ensure `main` stays mechanically enforceable and “safe by default.”
+- **Recommended settings** (minimum viable):
+  - **Require PRs**: no direct pushes to `main` (admins included unless explicitly exempted).
+  - **Require status checks** (must pass):
+    - `lint`
+    - `docs-sot-integrity`
+    - `test-core`
+    - (optional) `governance-approval-tests`
+  - **Require review**:
+    - ≥1 approving review (≥2 for sensitive paths like `.github/`, `config/`, `security/`, SOT ledgers)
+    - dismiss stale approvals on new commits
+  - **History / merge**:
+    - require linear history (optional, but helps determinism)
+    - restrict merge methods (e.g., squash-only) with a conventional commit/title policy
+  - **Conversation resolution**: require all PR conversations resolved before merge.
+  - **Force-push/deletion**: disallow force pushes on protected branches; disallow branch deletions (or restrict).
+- **Nice-to-have (higher assurance)**:
+  - require signed commits (or at least signed tags for releases)
+  - require CODEOWNERS reviews for sensitive paths
+- **Acceptance criteria**:
+  - A screenshot or exported settings checklist is captured in docs (so it’s auditable).
+  - “Required checks” align with the CI jobs that are intended to gate merges.
+
+### 6.2 Release signing + provenance (SLSA / SBOM / artifact integrity)
+
+- **Goal**: a tagged release produces **reproducible**, **verifiable**, **tamper-evident** artifacts.
+- **Recommended policy**:
+  - **Versioning**: tag releases as `vX.Y.Z` matching `pyproject.toml` and API-reported version.
+  - **Artifacts** (if publishing):
+    - Python: sdist + wheel
+    - Container images: backend + frontend (if shipped)
+  - **SBOM**:
+    - generate SBOM for each release artifact (container + Python package)
+    - store SBOM as release asset and/or attach to image as an OCI artifact
+  - **Provenance**:
+    - generate SLSA-style build provenance for each artifact (build runner identity, inputs, digests)
+  - **Signing**:
+    - sign container images with Sigstore/cosign (keyless preferred)
+    - sign release artifacts and/or tag (at minimum: signed tags)
+  - **Verification**:
+    - document how to verify: signature + digest + SBOM presence
+- **Acceptance criteria**:
+  - A release workflow produces: artifacts + checksums + SBOM + provenance + signatures.
+  - Release notes include artifact digests and verification commands.
+
+### 6.3 Container hardening policy (build + runtime)
+
+- **Goal**: containers are deterministic to build, minimal, and safe-by-default at runtime.
+- **Build-time policy**:
+  - pin base images by **digest** (or document why tags are acceptable)
+  - produce and store image digests in release metadata
+  - minimize layers and avoid copying unneeded files (tight `.dockerignore`)
+  - deterministic dependency strategy inside images (hash-locked or constraints)
+- **Runtime policy** (compose/k8s/production):
+  - run as **non-root** (already done in backend stage)
+  - read-only root filesystem where possible
+  - drop Linux capabilities (default-drop + allowlist)
+  - set seccomp/apparmor profiles where applicable
+  - resource limits (cpu/mem) and restart policies
+  - explicit health checks for each service
+  - explicit config for secrets (no secrets in env files committed; prefer secret stores)
+- **Acceptance criteria**:
+  - A documented “container hardening baseline” exists (what’s required vs optional).
+  - Security scanning moves from report-only → enforcement for releases (at least).
+
+### 6.4 Optional: automated “settings self-audit” (repo-visible)
+
+- **Idea**: add a script that (with a GitHub token) checks branch protections + required checks + merge rules via GitHub API and prints a drift report.
+- **Why it matters**: keeps “beyond repo” settings aligned with the repo’s mechanical expectations.
+- **Acceptance criteria**:
+  - Script runs in “manual mode” (not CI by default), outputs a deterministic checklist report, and is linked from docs.
+  - See: `docs/GITHUB_SETTINGS_SELF_AUDIT_GUIDE.md` and `scripts/ci/github_settings_self_audit.py`.
 

@@ -2,12 +2,12 @@
 
 
 <!-- AUTO-GENERATED SUMMARY - DO NOT EDIT MANUALLY -->
-**Summary**: 190 build entries (165 unique builds) documented | Last updated: 2026-01-06 12:15:00
+**Summary**: 193 build entries (166 unique builds) documented | Last updated: 2026-01-07 19:11:20
 <!-- END AUTO-GENERATED SUMMARY -->
 
 <!-- META
-Last_Updated: 2026-01-06T12:15:00.000000Z
-Total_Builds: 190
+Last_Updated: 2026-01-07T19:11:20.784311Z
+Total_Builds: 193
 Format_Version: 2.0
 Auto_Generated: False
 Sources: CONSOLIDATED files, archive/, manual updates, BUILD-158 Tidy Lock/Lease + Doc Link Checker

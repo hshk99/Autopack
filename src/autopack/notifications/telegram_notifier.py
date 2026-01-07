@@ -223,6 +223,103 @@ class TelegramNotifier:
             logger.error(f"[Telegram] Failed to send PR approval: {e}")
             return False
 
+    def send_governance_approval_request(
+        self,
+        request_id: str,
+        run_id: str,
+        phase_id: str,
+        requested_paths: list,
+        risk_level: str,
+        justification: str = "",
+    ) -> bool:
+        """Send governance approval request to Telegram (BUILD-190).
+
+        Sends notification for protected path modification requests that require
+        human approval.
+
+        Args:
+            request_id: Unique governance request ID
+            run_id: Run identifier
+            phase_id: Phase identifier
+            requested_paths: List of protected paths being requested
+            risk_level: Risk level (low/medium/high/critical)
+            justification: Optional justification for the request
+
+        Returns:
+            True if notification sent successfully
+        """
+        if not self.is_configured():
+            logger.error("Telegram not configured - cannot send governance approval")
+            return False
+
+        # Risk emoji
+        risk_emoji = {
+            "critical": "🚨",
+            "high": "🔴",
+            "medium": "⚠️",
+            "low": "✅",
+        }.get(risk_level.lower(), "❓")
+
+        # Format paths (limit to 5)
+        path_list = "\n".join(f"  • `{p}`" for p in requested_paths[:5])
+        if len(requested_paths) > 5:
+            path_list += f"\n  _...and {len(requested_paths) - 5} more_"
+
+        # Format justification
+        justification_text = ""
+        if justification:
+            justification_text = (
+                f"\n*Justification*: {justification[:200]}..."
+                if len(justification) > 200
+                else f"\n*Justification*: {justification}"
+            )
+
+        message = (
+            f"🔐 *Governance Approval Needed*\n\n"
+            f"*Request ID*: `{request_id}`\n"
+            f"*Run*: `{run_id}`\n"
+            f"*Phase*: `{phase_id}`\n"
+            f"*Risk*: {risk_emoji} {risk_level.upper()}\n\n"
+            f"*Protected Paths*:\n{path_list}\n"
+            f"{justification_text}\n\n"
+            f"_Sent: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')} UTC_"
+        )
+
+        # Create inline keyboard with Approve/Reject buttons
+        keyboard = {
+            "inline_keyboard": [
+                [
+                    {"text": "✅ Approve", "callback_data": f"gov_approve:{request_id}"},
+                    {"text": "❌ Reject", "callback_data": f"gov_reject:{request_id}"},
+                ]
+            ]
+        }
+
+        try:
+            url = f"https://api.telegram.org/bot{self.bot_token}/sendMessage"
+
+            response = requests.post(
+                url,
+                json={
+                    "chat_id": self.chat_id,
+                    "text": message,
+                    "parse_mode": "Markdown",
+                    "reply_markup": keyboard,
+                },
+                timeout=10,
+            )
+
+            if response.status_code == 200:
+                logger.info(f"[Telegram] Governance approval request sent for {request_id}")
+                return True
+            else:
+                logger.error(f"[Telegram] API error: {response.status_code} {response.text}")
+                return False
+
+        except Exception as e:
+            logger.error(f"[Telegram] Failed to send governance approval: {e}")
+            return False
+
     def _format_approval_message(
         self, phase_id: str, deletion_info: Dict, run_id: str, context: str
     ) -> str:

@@ -124,8 +124,13 @@ jobs:
         run: |
           # P0.3 Reliability: Prevent stray .backup/.bak/.broken files under src/
           # These cause import confusion, packaging issues, and debugging hazards
+          # BUILD-188: Extended to cover numbered variants like *.bak2, *.backup1, etc.
 
-          stray_files=$(find src/ -type f \( -name "*.backup" -o -name "*.bak" -o -name "*.broken" \) 2>/dev/null || true)
+          stray_files=$(find src/ -type f \( \
+            -name "*.backup" -o -name "*.backup[0-9]*" -o \
+            -name "*.bak" -o -name "*.bak[0-9]*" -o \
+            -name "*.broken" -o -name "*.broken[0-9]*" \
+          \) 2>/dev/null || true)
 
           if [ -n "$stray_files" ]; then
             echo "::error::Found stray backup files under src/ (reliability hazard - P0.3)"
@@ -136,4 +141,49 @@ jobs:
             exit 1
           else
             echo "::notice::No stray backup files found under src/ (P0.3 check passed)"
+          fi
+
+      - name: Check for committed node_modules or dist directories
+        id: check-build-artifacts
+        run: |
+          # BUILD-188: Ensure no build artifacts are committed to the repository
+          # These bloat the repo and break determinism
+
+          committed_artifacts=$(git ls-files | grep -E "(^|/)node_modules/|(^|/)dist/" || true)
+
+          if [ -n "$committed_artifacts" ]; then
+            echo "::error::Found committed build artifacts (node_modules/ or dist/)"
+            echo "$committed_artifacts" | head -20
+            echo ""
+            echo "These directories should not be tracked in git."
+            echo "Action: Remove from git with 'git rm -r --cached <path>' and ensure .gitignore covers them."
+            exit 1
+          else
+            echo "::notice::No committed build artifacts found (BUILD-188 check passed)"
+          fi
+
+      - name: Check for hardcoded workstation paths in migrations
+        id: check-migration-paths
+        run: |
+          # BUILD-188: Ensure migrations don't contain workstation-specific absolute paths
+          # Paths like C:\dev\... or /Users/... break portability
+
+          # Check SQL migrations for Windows absolute paths
+          migration_issues=$(grep -rn "C:\\\\[a-zA-Z]" src/autopack/migrations/*.sql 2>/dev/null || true)
+
+          # Also check for common Unix home paths
+          unix_issues=$(grep -rn "/Users/\|/home/" src/autopack/migrations/*.sql 2>/dev/null || true)
+
+          if [ -n "$migration_issues" ] || [ -n "$unix_issues" ]; then
+            echo "::error::Found hardcoded workstation paths in migrations (portability hazard)"
+            echo "Windows paths:"
+            echo "$migration_issues"
+            echo "Unix paths:"
+            echo "$unix_issues"
+            echo ""
+            echo "Migrations should use relative paths or environment-variable references."
+            echo "Seed data with absolute paths should be in docs/examples/ not in schema migrations."
+            exit 1
+          else
+            echo "::notice::No hardcoded workstation paths found in migrations (BUILD-188 check passed)"
           fi

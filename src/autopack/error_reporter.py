@@ -12,6 +12,8 @@ Captures:
 Error reports are written to:
 - .autonomous_runs/{run_id}/errors/{timestamp}_{error_type}.json
 - Logs with [ERROR_REPORT] prefix for easy grepping
+
+BUILD-188: All context data is sanitized before persisting to prevent secret leakage.
 """
 
 import traceback
@@ -21,6 +23,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional, Dict, Any, List
 import logging
+
+from .sanitizer import sanitize_context, sanitize_dict
 
 logger = logging.getLogger(__name__)
 
@@ -63,28 +67,60 @@ class ErrorContext:
         self.stack_frames = self._extract_stack_frames()
 
     def _extract_stack_frames(self) -> List[Dict[str, Any]]:
-        """Extract structured stack frame information."""
+        """Extract structured stack frame information.
+
+        BUILD-188: Local vars are extracted but will be sanitized/redacted
+        before persisting to prevent secret leakage.
+        """
         frames = []
         tb = sys.exc_info()[2]
 
         while tb is not None:
             frame = tb.tb_frame
+            # Extract local vars (will be sanitized before persistence)
+            local_vars = {}
+            for k, v in frame.f_locals.items():
+                if not k.startswith("_"):
+                    try:
+                        local_vars[k] = repr(v)[:200]
+                    except Exception:
+                        local_vars[k] = "[REPR_FAILED]"
+
             frames.append(
                 {
                     "filename": frame.f_code.co_filename,
                     "function": frame.f_code.co_name,
                     "line_number": tb.tb_lineno,
-                    "local_vars": {
-                        k: repr(v)[:200] for k, v in frame.f_locals.items() if not k.startswith("_")
-                    },
+                    "local_vars": local_vars,
                 }
             )
             tb = tb.tb_next
 
         return frames
 
-    def to_dict(self) -> Dict[str, Any]:
-        """Convert error context to dictionary."""
+    def to_dict(self, sanitize: bool = True) -> Dict[str, Any]:
+        """Convert error context to dictionary.
+
+        Args:
+            sanitize: If True (default), sanitize sensitive data before returning.
+                      Set to False only for in-memory debugging (never for persistence).
+
+        Returns:
+            Dictionary representation of the error context.
+        """
+        # Sanitize context_data and stack_frames before returning
+        if sanitize:
+            sanitized = sanitize_context(
+                context_data=self.context_data,
+                stack_frames=self.stack_frames,
+                redact_stack_locals=True,  # Always redact locals when persisting
+            )
+            context_data = sanitized.get("context_data", {})
+            stack_frames = sanitized.get("stack_frames", [])
+        else:
+            context_data = self.context_data
+            stack_frames = self.stack_frames
+
         return {
             "timestamp": self.timestamp,
             "error_type": self.error_type,
@@ -94,14 +130,18 @@ class ErrorContext:
             "component": self.component,
             "operation": self.operation,
             "traceback": self.traceback,
-            "stack_frames": self.stack_frames,
-            "context_data": self.context_data,
+            "stack_frames": stack_frames,
+            "context_data": context_data,
             "python_version": sys.version,
             "platform": sys.platform,
         }
 
-    def format_summary(self) -> str:
-        """Format a human-readable summary."""
+    def format_summary(self, sanitize: bool = True) -> str:
+        """Format a human-readable summary.
+
+        Args:
+            sanitize: If True (default), sanitize sensitive data before formatting.
+        """
         lines = [
             "=" * 80,
             f"ERROR REPORT - {self.timestamp}",
@@ -126,9 +166,14 @@ class ErrorContext:
 
         if self.context_data:
             lines.append("")
-            lines.append("Context Data:")
+            lines.append("Context Data (sanitized):")
             lines.append("-" * 80)
-            for key, value in self.context_data.items():
+            # Sanitize context data before formatting
+            if sanitize:
+                display_data = sanitize_dict(self.context_data)
+            else:
+                display_data = self.context_data
+            for key, value in display_data.items():
                 value_str = str(value)[:500]  # Limit length
                 lines.append(f"{key}: {value_str}")
 

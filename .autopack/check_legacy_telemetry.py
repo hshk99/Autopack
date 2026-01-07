@@ -19,7 +19,7 @@ try:
     if total_events > 0:
         # Try to find events from successful phases
         sample = session.query(LlmUsageEvent).first()
-        print(f"\nSample event:")
+        print("\nSample event:")
         print(f"  Phase: {sample.phase_id}")
         print(f"  Run: {sample.run_id}")
         print(f"  Estimated tokens: {sample.estimated_tokens}")

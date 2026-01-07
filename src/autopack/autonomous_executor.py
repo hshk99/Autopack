@@ -432,6 +432,14 @@ class AutonomousExecutor:
         self._run_checkpoint_branch: Optional[str] = None  # Original branch before run started
         self._run_checkpoint_commit: Optional[str] = None  # Original commit SHA before run started
 
+        # BUILD-190: Run-level token usage tracking for budget decisions
+        self._run_tokens_used: int = 0  # Accumulated tokens used in this run
+        self._run_context_chars_used: int = 0  # Accumulated context chars used
+        self._run_sot_chars_used: int = 0  # Accumulated SOT chars used
+        self.run_budget_tokens: int = getattr(
+            settings, "run_budget_tokens", 500_000
+        )  # Default 500k
+
         self.MAX_TOTAL_FAILURES_PER_RUN = 25  # Stop run after this many total failures
         # Provider infra-error tracking (per-run)
         self._provider_infra_errors: Dict[str, int] = {}
@@ -2327,11 +2335,10 @@ class AutonomousExecutor:
                 elif "TRUNCAT" in status.upper():
                     stuck_reason = StuckReason.OUTPUT_TRUNCATION
 
-                # Compute usage metrics (simplified for now - would ideally track accurately)
-                # TODO: Track actual usage in llm_service execution
-                tokens_used = getattr(self, "_run_tokens_used", 0)
-                context_chars_used = getattr(self, "_run_context_chars_used", 0)
-                sot_chars_used = getattr(self, "_run_sot_chars_used", 0)
+                # BUILD-190: Use run-level accumulated token usage for budget decisions
+                tokens_used = self._run_tokens_used
+                context_chars_used = self._run_context_chars_used
+                sot_chars_used = self._run_sot_chars_used
 
                 try:
                     decision, decision_msg = decide_stuck_action(
@@ -2386,10 +2393,64 @@ class AutonomousExecutor:
                             )
                         # Don't return - let existing retry logic continue
                     elif decision == StuckResolutionDecision.REDUCE_SCOPE:
-                        logger.warning(
-                            f"[IntentionFirst] Policy decided REDUCE_SCOPE for {phase_id} - not yet implemented, falling back"
+                        # BUILD-190: Implement scope reduction with proposal generation
+                        from autopack.executor.scope_reduction_flow import (
+                            generate_scope_reduction_proposal as gen_scope_proposal,
+                            write_scope_reduction_proposal,
                         )
-                        # TODO: Implement scope reduction prompt generation + validation
+                        from autopack.run_file_layout import RunFileLayout
+
+                        logger.info(f"[IntentionFirst] Policy decided REDUCE_SCOPE for {phase_id}")
+
+                        # Extract current scope from phase
+                        current_tasks = phase.get("tasks", [])
+                        if not current_tasks:
+                            # Fallback: use deliverables as scope proxy
+                            current_tasks = phase.get("deliverables", [])
+
+                        if current_tasks:
+                            # Compute budget remaining
+                            budget_remaining = 1.0 - (tokens_used / max(self.run_budget_tokens, 1))
+                            budget_remaining = max(0.0, min(1.0, budget_remaining))
+
+                            # Generate scope reduction proposal
+                            proposal = gen_scope_proposal(
+                                run_id=self.run_id,
+                                phase_id=phase_id,
+                                anchor=self._intention_anchor,
+                                current_scope=current_tasks,
+                                budget_remaining=budget_remaining,
+                            )
+
+                            if proposal and proposal.proposed_scope:
+                                # Write proposal as artifact
+                                try:
+                                    layout = RunFileLayout(
+                                        self.run_id, project_id=self._get_project_slug()
+                                    )
+                                    write_scope_reduction_proposal(layout, proposal)
+                                except Exception as write_err:
+                                    logger.warning(
+                                        f"[IntentionFirst] Failed to write scope proposal: {write_err}"
+                                    )
+
+                                # Apply reduced scope to phase
+                                phase["tasks"] = proposal.proposed_scope
+                                phase["_scope_reduced"] = True
+                                phase["_dropped_tasks"] = proposal.dropped_items
+
+                                logger.info(
+                                    f"[IntentionFirst] Reduced scope from {len(current_tasks)} to "
+                                    f"{len(proposal.proposed_scope)} tasks (dropped: {proposal.dropped_items})"
+                                )
+                            else:
+                                logger.warning(
+                                    "[IntentionFirst] Scope reduction proposal was empty, falling back"
+                                )
+                        else:
+                            logger.warning(
+                                "[IntentionFirst] No tasks to reduce scope from, falling back"
+                            )
                     elif decision == StuckResolutionDecision.NEEDS_HUMAN:
                         logger.critical(
                             f"[IntentionFirst] Policy decided NEEDS_HUMAN for {phase_id} - blocking"
@@ -4305,25 +4366,25 @@ Just the new description that should replace the current one while preserving th
             run_context["model_overrides"] = self.model_overrides
         return run_context
 
-    def _compute_coverage_delta(self, ci_result: Optional[Dict[str, Any]]) -> float:
+    def _compute_coverage_delta(self, ci_result: Optional[Dict[str, Any]]) -> Optional[float]:
         """Compute coverage delta from CI results.
 
-        [Phase C4] Placeholder for coverage delta computation.
+        BUILD-190: Uses coverage_metrics module for deterministic handling.
+        Returns None when coverage data unavailable (not 0.0 placeholder).
 
-        Currently returns 0.0. Full implementation would require:
-        1. Running tests with coverage.py before patch
-        2. Running tests with coverage.py after patch
-        3. Computing delta from coverage reports
+        When CI includes coverage data in the result dictionary, this will
+        parse and return the actual coverage delta.
 
         Args:
-            ci_result: CI test results (may contain coverage data in future)
+            ci_result: CI test results (may contain coverage data)
 
         Returns:
-            Coverage delta as float (e.g., +5.2 for 5.2% increase)
+            Coverage delta as float (e.g., +5.2 for 5.2% increase),
+            or None if coverage data unavailable
         """
-        # TODO: Implement real coverage computation when CI includes coverage data
-        # For now, return neutral 0.0
-        return 0.0
+        from autopack.executor.coverage_metrics import compute_coverage_delta
+
+        return compute_coverage_delta(ci_result)
 
     def _create_run_checkpoint(self) -> Tuple[bool, Optional[str]]:
         """Create a git checkpoint before run execution starts.
@@ -4910,6 +4971,9 @@ Just the new description that should replace the current one while preserving th
             # [Phase C1] Store builder result for Doctor diagnostics
             self._last_builder_result = builder_result
 
+            # BUILD-190: Accumulate token usage for run-level budget tracking
+            self._run_tokens_used += getattr(builder_result, "tokens_used", 0) or 0
+
             # [Phase C2] Extract and store patch statistics for quality gate
             from autopack.governed_apply import GovernedApplyPath
 
@@ -4977,6 +5041,9 @@ Just the new description that should replace the current one while preserving th
 
                 # [Phase C1] Store fallback builder result for Doctor diagnostics
                 self._last_builder_result = builder_result
+
+                # BUILD-190: Accumulate token usage for run-level budget tracking (fallback path)
+                self._run_tokens_used += getattr(builder_result, "tokens_used", 0) or 0
 
                 # [Phase C2] Extract and store patch statistics for quality gate (fallback path)
                 from autopack.governed_apply import GovernedApplyPath
@@ -6232,7 +6299,8 @@ Just the new description that should replace the current one while preserving th
                     project_id = self._get_project_slug() or self.run_id
                     phase_name = phase.get("name", phase_id)
                     summary = f"{phase_name}: {phase.get('description', '')[:200]}"
-                    changes = []  # TODO: Extract changed files from builder_result
+                    # BUILD-190: Extract changed files from parsed patch stats
+                    changes = list(self._last_files_changed) if self._last_files_changed else []
                     # ci_result is a dict returned by _run_ci_checks with a boolean "passed" field
                     # (or skipped=True for skipped CI).
                     ci_success = (
@@ -9030,6 +9098,18 @@ Just the new description that should replace the current one while preserving th
                 }
             )
 
+        # BUILD-190: Use deterministic auditor parsing for structured fields
+        from autopack.executor.auditor_parsing import parse_auditor_result
+
+        parsed_result = parse_auditor_result(
+            auditor_messages=result.auditor_messages or [],
+            approved=result.approved,
+            issues_found=result.issues_found,
+        )
+
+        # Extract suggested patches from parsed result
+        suggested_patches = [p.to_dict() for p in parsed_result.suggested_patches]
+
         payload = {
             "phase_id": phase_id,
             "run_id": self.run_id,
@@ -9039,11 +9119,11 @@ Just the new description that should replace the current one while preserving th
                 else (result.error or "")
             ),
             "issues_found": formatted_issues,
-            "suggested_patches": [],  # TODO: Parse from auditor_messages if available
+            "suggested_patches": suggested_patches,
             "auditor_attempts": 1,
             "tokens_used": result.tokens_used,
-            "recommendation": "approve" if result.approved else "revise",
-            "confidence": "medium",  # TODO: Parse confidence if available
+            "recommendation": parsed_result.recommendation,
+            "confidence": parsed_result.confidence_overall,
         }
 
         try:
@@ -9903,12 +9983,32 @@ Just the new description that should replace the current one while preserving th
         # Request human approval
         logger.info(f"[Governance:{phase_id}] Requesting human approval for {request.request_id}")
 
-        # TODO: Integrate with Telegram approval flow
-        # For now, fail and require manual approval via API
-        logger.warning(
-            f"[Governance:{phase_id}] Manual approval required. "
-            f"Approve via: POST /api/governance/approve/{request.request_id}"
-        )
+        # BUILD-190: Integrate with Telegram approval flow
+        try:
+            from autopack.notifications.telegram_notifier import TelegramNotifier
+
+            notifier = TelegramNotifier()
+            if notifier.is_configured():
+                notifier.send_governance_approval_request(
+                    request_id=request.request_id,
+                    run_id=self.run_id,
+                    phase_id=phase_id,
+                    requested_paths=request.requested_paths,
+                    risk_level=request.risk_level,
+                    justification=request.justification,
+                )
+                logger.info(f"[Governance:{phase_id}] Sent Telegram approval request")
+            else:
+                logger.warning(
+                    f"[Governance:{phase_id}] Telegram not configured. "
+                    f"Approve via: POST /api/governance/approve/{request.request_id}"
+                )
+        except Exception as e:
+            logger.warning(f"[Governance:{phase_id}] Failed to send Telegram notification: {e}")
+            logger.warning(
+                f"[Governance:{phase_id}] Manual approval required. "
+                f"Approve via: POST /api/governance/approve/{request.request_id}"
+            )
 
         # Mark as FAILED (phase state) — the governance request is tracked separately.
         self._update_phase_status(phase_id, "FAILED")
@@ -9998,11 +10098,17 @@ Just the new description that should replace the current one while preserving th
             }
         else:
             metadata = risk_assessment.get("metadata", {})
+            # BUILD-190: Extract files from risk_assessment metadata or executor state
+            changed_files = (
+                metadata.get("files_changed", [])
+                or metadata.get("files", [])
+                or list(self._last_files_changed or [])
+            )
             deletion_info = {
                 "net_deletion": metadata.get("loc_removed", 0) - metadata.get("loc_added", 0),
                 "loc_removed": metadata.get("loc_removed", 0),
                 "loc_added": metadata.get("loc_added", 0),
-                "files": [],  # TODO: Extract from quality report
+                "files": changed_files[:10],  # Limit to 10 files for display
                 "risk_level": risk_assessment.get("risk_level", "unknown"),
                 "risk_score": risk_assessment.get("risk_score", 0),
             }
@@ -10014,13 +10120,21 @@ Just the new description that should replace the current one while preserving th
             if self.api_key:
                 headers["X-API-Key"] = self.api_key
 
+            # BUILD-190: Derive context from phase metadata or quality report
+            # Context helps operators understand the nature of the approval request
+            phase_context = "general"
+            if hasattr(quality_report, "phase_category"):
+                phase_context = quality_report.phase_category
+            elif risk_assessment and risk_assessment.get("metadata", {}).get("task_category"):
+                phase_context = risk_assessment["metadata"]["task_category"]
+
             response = requests.post(
                 url,
                 json={
                     "phase_id": phase_id,
                     "deletion_info": deletion_info,
                     "run_id": self.run_id,
-                    "context": "troubleshoot",  # TODO: Derive from phase context
+                    "context": phase_context,
                 },
                 headers=headers,
                 timeout=30,

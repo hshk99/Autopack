@@ -271,6 +271,134 @@ class TestSanitizeContext:
         assert result == {}
 
 
+class TestHyphenatedHeaderRedaction:
+    """P0 Security: Tests for hyphenated header key redaction (BUILD-189).
+
+    This test class specifically verifies that sensitive headers with hyphens
+    (like X-API-Key, Set-Cookie) are properly redacted regardless of:
+    - hyphen vs underscore variants
+    - mixed case variants
+    - original HTTP header capitalization conventions
+    """
+
+    @pytest.mark.parametrize(
+        "header_name",
+        [
+            # Hyphenated variants (original HTTP header format)
+            "X-API-Key",
+            "x-api-key",
+            "X-Api-Key",
+            "Set-Cookie",
+            "set-cookie",
+            "SET-COOKIE",
+            "X-GitHub-Token",
+            "x-github-token",
+            "X-Auth-Token",
+            "X-Access-Token",
+            "X-Refresh-Token",
+            "X-Session-ID",
+            "X-CSRF-Token",
+            "Proxy-Authorization",
+            "WWW-Authenticate",
+            # Underscore variants (some clients normalize to underscores)
+            "X_API_Key",
+            "x_api_key",
+            "Set_Cookie",
+            "X_GitHub_Token",
+        ],
+    )
+    def test_hyphenated_headers_redacted(self, header_name):
+        """All hyphenated sensitive headers must be redacted regardless of case/separator."""
+        secret_value = "super_secret_value_12345"
+        result = sanitize_headers({header_name: secret_value})
+        assert result[header_name] == REDACTED, (
+            f"Header '{header_name}' was not redacted! " f"Got: {result[header_name]}"
+        )
+
+    @pytest.mark.parametrize(
+        "header_name,secret_value",
+        [
+            ("X-API-Key", "sk_live_1234567890abcdef"),
+            ("Set-Cookie", "session=abc123; HttpOnly; Secure"),
+            ("X-GitHub-Token", "ghp_abcdefghijklmnop1234567890"),
+            ("Authorization", "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9"),
+            ("Cookie", "auth_token=secret123; session_id=xyz"),
+        ],
+    )
+    def test_secret_values_never_in_output(self, header_name, secret_value):
+        """Secret values must never appear in sanitized output."""
+        result = sanitize_headers({header_name: secret_value})
+        serialized = str(result)
+        # The actual secret value should not appear anywhere in the output
+        assert secret_value not in serialized, (
+            f"Secret value leaked for header '{header_name}'! "
+            f"Found '{secret_value}' in output: {serialized}"
+        )
+
+    def test_all_security_headers_covered(self):
+        """Verify that all common security-sensitive headers are redacted."""
+        # These headers commonly contain credentials or session tokens
+        security_headers = {
+            "Authorization": "Bearer token123",
+            "Cookie": "session=abc123",
+            "Set-Cookie": "auth=secret; HttpOnly",
+            "X-API-Key": "api-key-value",
+            "X-Auth-Token": "auth-token-value",
+            "X-GitHub-Token": "github-token-value",
+            "X-Access-Token": "access-token-value",
+            "X-Refresh-Token": "refresh-token-value",
+            "X-Session-ID": "session-id-value",
+            "X-CSRF-Token": "csrf-token-value",
+            "Proxy-Authorization": "proxy-auth-value",
+            "WWW-Authenticate": "www-auth-value",
+        }
+
+        result = sanitize_headers(security_headers)
+
+        for header_name in security_headers:
+            assert (
+                result[header_name] == REDACTED
+            ), f"Security header '{header_name}' was not redacted!"
+
+
+class TestSanitizerKeyNormalization:
+    """Tests verifying key normalization handles edge cases correctly."""
+
+    def test_dict_keys_hyphen_underscore_equivalence(self):
+        """Dict keys with hyphens and underscores should both match sensitive patterns."""
+        # These should all be redacted
+        test_cases = [
+            {"api-key": "secret"},
+            {"api_key": "secret"},
+            {"API-KEY": "secret"},
+            {"API_KEY": "secret"},
+            {"database-url": "secret"},
+            {"database_url": "secret"},
+        ]
+
+        for data in test_cases:
+            result = sanitize_dict(data)
+            key = list(data.keys())[0]
+            assert result[key] == REDACTED, f"Key '{key}' was not redacted"
+
+    def test_safe_hyphenated_headers_preserved(self):
+        """Non-sensitive hyphenated headers should be preserved."""
+        safe_headers = {
+            "Content-Type": "application/json",
+            "Accept-Language": "en-US",
+            "Cache-Control": "no-cache",
+            "X-Request-ID": "req-123",
+            "X-Correlation-ID": "corr-456",
+        }
+
+        result = sanitize_headers(safe_headers)
+
+        for header_name, value in safe_headers.items():
+            assert (
+                result[header_name] == value
+            ), f"Safe header '{header_name}' was incorrectly modified"
+
+
 class TestNoSecretsInPersistedArtifacts:
     """Integration tests ensuring secrets don't leak into persisted artifacts."""
 
@@ -284,6 +412,10 @@ class TestNoSecretsInPersistedArtifacts:
             ("token", "jwt_token_value"),
             ("secret", "the_secret_value"),
             ("database_url", "postgresql://user:pass@host/db"),
+            # P0 Security: Add hyphenated header test cases
+            ("X-API-Key", "x_api_key_secret_value"),
+            ("Set-Cookie", "session=leaked_session_id"),
+            ("X-GitHub-Token", "ghp_leaked_github_token"),
         ],
     )
     def test_secret_not_in_sanitized_output(self, secret_key, secret_value):

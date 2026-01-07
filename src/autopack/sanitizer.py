@@ -17,22 +17,25 @@ from typing import Any, Dict, List, Optional, Set
 # ---------------------------------------------------------------------------
 
 # Headers that commonly contain credentials or session tokens
+# IMPORTANT: All keys are normalized to lowercase with underscores (hyphens replaced)
+# This ensures consistent matching in _is_sensitive_key() which normalizes input the same way
 SENSITIVE_HEADERS: Set[str] = {
     "authorization",
     "cookie",
-    "set-cookie",
-    "x-api-key",
-    "x-auth-token",
-    "x-github-token",
-    "x-access-token",
-    "x-refresh-token",
-    "x-session-id",
-    "x-csrf-token",
-    "proxy-authorization",
-    "www-authenticate",
+    "set_cookie",  # Normalized: Set-Cookie -> set_cookie
+    "x_api_key",  # Normalized: X-API-Key -> x_api_key
+    "x_auth_token",  # Normalized: X-Auth-Token -> x_auth_token
+    "x_github_token",  # Normalized: X-GitHub-Token -> x_github_token
+    "x_access_token",  # Normalized: X-Access-Token -> x_access_token
+    "x_refresh_token",  # Normalized: X-Refresh-Token -> x_refresh_token
+    "x_session_id",  # Normalized: X-Session-ID -> x_session_id
+    "x_csrf_token",  # Normalized: X-CSRF-Token -> x_csrf_token
+    "proxy_authorization",  # Normalized: Proxy-Authorization -> proxy_authorization
+    "www_authenticate",  # Normalized: WWW-Authenticate -> www_authenticate
 }
 
 # Query/body keys that may contain secrets
+# IMPORTANT: All keys are normalized to lowercase with underscores
 SENSITIVE_KEYS: Set[str] = {
     "token",
     "secret",
@@ -41,7 +44,6 @@ SENSITIVE_KEYS: Set[str] = {
     "pwd",
     "api_key",
     "apikey",
-    "api-key",
     "access_key",
     "secret_key",
     "private_key",
@@ -190,8 +192,8 @@ def sanitize_headers(headers: Dict[str, str]) -> Dict[str, str]:
 
     result = {}
     for key, value in headers.items():
-        key_lower = key.lower()
-        if key_lower in SENSITIVE_HEADERS or _is_sensitive_key(key):
+        # Use _is_sensitive_key for consistent normalization (handles hyphens/underscores)
+        if _is_sensitive_key(key):
             result[key] = REDACTED
         else:
             result[key] = _truncate(str(value))

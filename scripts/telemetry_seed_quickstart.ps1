@@ -13,7 +13,7 @@
 # Requirements:
 #   - Python 3.12+
 #   - All dependencies installed (pip install -r requirements.txt)
-#   - Run from repository root (C:\dev\Autopack)
+#   - Run from repository root
 
 $ErrorActionPreference = "Stop"
 

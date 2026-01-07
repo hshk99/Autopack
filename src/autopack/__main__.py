@@ -1,22 +1,72 @@
-"""Main entry point for the Autopack Framework."""
+"""Main entry point for the Autopack Framework.
 
-from .document_classifier_canada import CanadaDocumentClassifier
+Usage:
+    python -m autopack serve        # Start the API server (default)
+    python -m autopack run <run-id> # Run the autonomous executor
+    python -m autopack --help       # Show help
+"""
+
+import argparse
+import sys
 
 
 def main():
-    """Main function to demonstrate the Canada document classifier."""
-    sample_text = """
-    This is a sample document containing a CRA tax form.
-    The date of issue is 2023-03-15 and the postal code is K1A 0B1.
-    """
+    """Main CLI entry point for Autopack."""
+    parser = argparse.ArgumentParser(
+        prog="autopack",
+        description="Autopack - Autonomous Build Framework",
+    )
+    parser.add_argument("--version", action="store_true", help="Show version and exit")
 
-    classifier = CanadaDocumentClassifier()
-    doc_type = classifier.classify_document(sample_text)
-    date = classifier.extract_canadian_date(sample_text)
-    postal_code = classifier.extract_canadian_postal_code(sample_text)
+    subparsers = parser.add_subparsers(dest="command", help="Available commands")
 
-    print(f"Document Type: {doc_type}, Date: {date}, Postal Code: {postal_code}")
+    # 'serve' command - start the API server
+    serve_parser = subparsers.add_parser("serve", help="Start the Autopack API server")
+    serve_parser.add_argument(
+        "--host", default="127.0.0.1", help="Host to bind to (default: 127.0.0.1)"
+    )
+    serve_parser.add_argument(
+        "--port", type=int, default=8000, help="Port to bind to (default: 8000)"
+    )
+    serve_parser.add_argument(
+        "--reload", action="store_true", help="Enable auto-reload for development"
+    )
+
+    # 'run' command - run the autonomous executor
+    run_parser = subparsers.add_parser("run", help="Run the autonomous executor")
+    run_parser.add_argument("run_id", help="Run ID for the autonomous execution")
+
+    args = parser.parse_args()
+
+    if args.version:
+        from .version import __version__
+
+        print(f"Autopack {__version__}")
+        return 0
+
+    if args.command == "serve":
+        import uvicorn
+
+        uvicorn.run(
+            "autopack.main:app",
+            host=args.host,
+            port=args.port,
+            reload=args.reload,
+        )
+        return 0
+
+    elif args.command == "run":
+        from .autonomous_executor import main as executor_main
+
+        # autonomous_executor.main() expects sys.argv-style arguments
+        sys.argv = ["autopack-run", "--run-id", args.run_id]
+        return executor_main()
+
+    else:
+        # Default: show help
+        parser.print_help()
+        return 0
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main() or 0)

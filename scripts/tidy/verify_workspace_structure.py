@@ -56,6 +56,13 @@ ROOT_ALLOWED_FILES = {
     # Security scanning config (gitleaks)
     ".gitleaks.toml",
     ".gitleaksignore",
+    # Cross-platform hygiene (BUILD-189)
+    ".gitattributes",
+    ".editorconfig",
+    ".env.example",
+    ".pre-commit-config.yaml",
+    # GitHub security policy
+    "SECURITY.md",
 }
 
 ROOT_ALLOWED_PATTERNS = [

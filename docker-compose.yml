@@ -37,10 +37,11 @@ services:
   frontend:
     build:
       context: .
-      dockerfile: Dockerfile
-      # No target specified - builds all stages and uses final (nginx) stage
+      dockerfile: Dockerfile.frontend
     ports:
       - "80:80"
+    depends_on:
+      - backend
 
   db:
     # Pinned to specific patch version for determinism (not 'latest' or moving minor tag)

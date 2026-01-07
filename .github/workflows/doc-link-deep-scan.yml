@@ -36,7 +36,7 @@ jobs:
 
       - name: Upload scan results (JSON)
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: doc-link-scan-json
           path: deep_scan_results.json
@@ -44,7 +44,7 @@ jobs:
 
       - name: Upload scan results (Markdown)
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: doc-link-scan-markdown
           path: deep_scan_results.md

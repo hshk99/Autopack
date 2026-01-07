@@ -1251,23 +1251,33 @@ def execute_moves(
 def _regenerate_archive_index(repo_root: Path) -> None:
     """Regenerate archive index after tidy execution."""
     try:
-        from scripts.archive.generate_archive_index import generate_archive_index, _generate_markdown
+        from scripts.archive.generate_archive_index import (
+            generate_archive_index,
+            _generate_markdown,
+            _should_update_index,
+        )
         import json as json_module
 
-        print("\n[ARCHIVE-INDEX] Regenerating archive index...")
+        print("\n[ARCHIVE-INDEX] Checking archive index...")
         index, errors = generate_archive_index(repo_root)
 
         if errors:
             print(f"[ARCHIVE-INDEX] Validation errors: {errors}")
             return
 
-        # Write JSON
         json_path = repo_root / "archive" / "ARCHIVE_INDEX.json"
+        md_path = repo_root / "archive" / "ARCHIVE_INDEX.md"
+
+        # Only update if content actually changed (reduces churn)
+        if not _should_update_index(index, json_path):
+            print("[ARCHIVE-INDEX] No content changes, skipping update")
+            return
+
+        # Write JSON
         json_content = json_module.dumps(index, indent=2, ensure_ascii=False)
         json_path.write_text(json_content, encoding="utf-8")
 
         # Write Markdown
-        md_path = repo_root / "archive" / "ARCHIVE_INDEX.md"
         md_content = _generate_markdown(index, repo_root)
         md_path.write_text(md_content, encoding="utf-8")
 

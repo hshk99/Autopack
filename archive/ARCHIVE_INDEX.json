@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "generated_at_utc": "2026-01-07T05:31:41.178661+00:00",
+  "generated_at_utc": "2026-01-07T06:18:05.654519+00:00",
   "generator_version": "1.0.0",
   "archive_roots": [
     {
@@ -46,8 +46,8 @@
         },
         {
           "bucket_rel": "archive/reports",
-          "file_count": 20,
-          "total_bytes": 51383,
+          "file_count": 18,
+          "total_bytes": 47523,
           "description": "Generated reports"
         },
         {
@@ -65,7 +65,7 @@
         {
           "bucket_rel": "archive/schemas",
           "file_count": 1,
-          "total_bytes": 4245,
+          "total_bytes": 4385,
           "description": "JSON schemas and data models"
         },
         {
@@ -96,37 +96,30 @@
       "recent_files": [
         {
           "path_rel": "archive/ARCHIVE_INDEX.md",
-          "bytes": 2977,
-          "mtime_utc": "2026-01-07T05:26:03.881859+00:00",
+          "bytes": 2929,
+          "mtime_utc": "2026-01-07T06:17:55.480940+00:00",
           "kind": "markdown",
           "summary_hint": null
         },
         {
           "path_rel": "archive/ARCHIVE_INDEX.json",
-          "bytes": 19066,
-          "mtime_utc": "2026-01-07T05:26:03.880860+00:00",
+          "bytes": 18939,
+          "mtime_utc": "2026-01-07T06:17:55.479934+00:00",
           "kind": "json",
           "summary_hint": null
         },
         {
           "path_rel": "archive/schemas/archive_index_v1.schema.json",
-          "bytes": 4245,
-          "mtime_utc": "2026-01-07T05:13:37.794465+00:00",
+          "bytes": 4385,
+          "mtime_utc": "2026-01-07T05:55:35.238516+00:00",
           "kind": "json",
           "summary_hint": "JSON schema definition"
         },
         {
-          "path_rel": "archive/reports/storage/storage_report_C_20260107_152919.json",
-          "bytes": 1556,
-          "mtime_utc": "2026-01-07T04:29:19.613040+00:00",
-          "kind": "json",
-          "summary_hint": null
-        },
-        {
-          "path_rel": "archive/reports/storage/storage_report_C_20260107_152919.txt",
-          "bytes": 2304,
-          "mtime_utc": "2026-01-07T04:29:19.612043+00:00",
-          "kind": "text",
+          "path_rel": "archive/.gitignore",
+          "bytes": 1309,
+          "mtime_utc": "2026-01-07T05:55:35.233301+00:00",
+          "kind": null,
           "summary_hint": null
         },
         {
@@ -265,6 +258,13 @@
         {
           "path_rel": "archive/misc/root_directories/.ruff_cache/.ruff_cache/0.14.6/7167719644014101511",
           "bytes": 71,
+          "mtime_utc": "2026-01-06T22:50:36.471149+00:00",
+          "kind": null,
+          "summary_hint": null
+        },
+        {
+          "path_rel": "archive/misc/root_directories/.ruff_cache/.ruff_cache/0.14.6/7547862644694403885",
+          "bytes": 226,
           "mtime_utc": "2026-01-06T22:50:36.471149+00:00",
           "kind": null,
           "summary_hint": null

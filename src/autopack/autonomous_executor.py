@@ -436,7 +436,9 @@ class AutonomousExecutor:
         self._run_tokens_used: int = 0  # Accumulated tokens used in this run
         self._run_context_chars_used: int = 0  # Accumulated context chars used
         self._run_sot_chars_used: int = 0  # Accumulated SOT chars used
-        self.run_budget_tokens: int = getattr(settings, "run_budget_tokens", 500_000)  # Default 500k
+        self.run_budget_tokens: int = getattr(
+            settings, "run_budget_tokens", 500_000
+        )  # Default 500k
 
         self.MAX_TOTAL_FAILURES_PER_RUN = 25  # Stop run after this many total failures
         # Provider infra-error tracking (per-run)
@@ -2398,9 +2400,7 @@ class AutonomousExecutor:
                         )
                         from autopack.run_file_layout import RunFileLayout
 
-                        logger.info(
-                            f"[IntentionFirst] Policy decided REDUCE_SCOPE for {phase_id}"
-                        )
+                        logger.info(f"[IntentionFirst] Policy decided REDUCE_SCOPE for {phase_id}")
 
                         # Extract current scope from phase
                         current_tasks = phase.get("tasks", [])
@@ -2425,10 +2425,14 @@ class AutonomousExecutor:
                             if proposal and proposal.proposed_scope:
                                 # Write proposal as artifact
                                 try:
-                                    layout = RunFileLayout(self.run_id, project_id=self._get_project_slug())
+                                    layout = RunFileLayout(
+                                        self.run_id, project_id=self._get_project_slug()
+                                    )
                                     write_scope_reduction_proposal(layout, proposal)
                                 except Exception as write_err:
-                                    logger.warning(f"[IntentionFirst] Failed to write scope proposal: {write_err}")
+                                    logger.warning(
+                                        f"[IntentionFirst] Failed to write scope proposal: {write_err}"
+                                    )
 
                                 # Apply reduced scope to phase
                                 phase["tasks"] = proposal.proposed_scope

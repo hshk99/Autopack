@@ -314,24 +314,17 @@ def test_timeout_handling(mock_repo_structure):
         syncer = SOTDBSync(
             mode=SyncMode.DOCS_ONLY,
             execute=False,
-            max_seconds=0.001,  # 1ms timeout (will definitely exceed)
+            max_seconds=1,  # 1 second timeout
         )
 
-        # Mock sleep to trigger timeout
-        original_time = time.time
-        call_count = [0]
+        # Simulate elapsed time by setting start_time to the past
+        # This ensures _check_timeout() sees elapsed > max_seconds
+        syncer.start_time = time.time() - 10  # Pretend we started 10s ago
 
-        def mock_time():
-            call_count[0] += 1
-            if call_count[0] > 5:  # After a few calls, return past timeout
-                return original_time() + 10
-            return original_time()
+        exit_code = syncer.run()
 
-        with patch("time.time", side_effect=mock_time):
-            exit_code = syncer.run()
-
-            # Should return timeout error code
-            assert exit_code == 3
+        # Should return timeout error code (3) because elapsed (10s) > max_seconds (1s)
+        assert exit_code == 3
 
 
 def test_database_url_resolution_priority(temp_dir):

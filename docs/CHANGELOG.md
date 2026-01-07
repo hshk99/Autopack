@@ -14,6 +14,67 @@ For the latest status, see:
 
 ## Recent Updates
 
+### 2026-01-08: BUILD-192 - Governance Policy ADR (DEC-046) + Contract Tests ✅
+**Default-Deny Governance Policy Documentation**
+- **Achievement**:
+  - Documented NEVER_AUTO_APPROVE_PATTERNS as intentional policy (not over-restriction) via DEC-046 ADR
+  - Created 15 contract tests enforcing governance policy boundaries
+  - Resolved IMPROVEMENTS_GAP_ANALYSIS.md section 2.3
+- **ADR (DEC-046)**:
+  - Default-deny governance: all code paths (src/, tests/) and infrastructure (docs/, config/, .github/) require approval
+  - Auto-approval is narrow and explicit, only for low-risk paths outside protected zones
+  - Safety profiles: normal (block >= 0.8) vs strict (block >= 0.5)
+- **Contract Tests**: tests/planning/test_governance_policy.py with 15 tests covering NEVER_AUTO_APPROVE_PATTERNS contents, protected path approval requirements, safety profile thresholds
+- **Status**: Governance policy documented and contract-tested - see [BUILD_HISTORY.md](BUILD_HISTORY.md)
+
+### 2026-01-08: BUILD-191 - OpenAPI Strategy Wiring ✅
+**Runtime-Canonical OpenAPI with CI Artifact Export**
+- **Achievement**:
+  - OpenAPI is runtime-generated at `/openapi.json` (canonical), NOT checked into git
+  - CI exports OpenAPI as artifact for external consumers
+  - Created docs/api/OPENAPI_STRATEGY.md documenting the strategy
+  - Created 10 contract tests in tests/docs/test_openapi_strategy.py
+- **Status**: OpenAPI strategy implemented and documented - see [BUILD_HISTORY.md](BUILD_HISTORY.md)
+
+### 2026-01-08: BUILD-190 - Executor Determinism/Governance TODOs ✅
+**Close Executor Determinism and Governance TODOs**
+- **Achievement**:
+  - Changed-files extraction uses parsed patch stats (_last_files_changed)
+  - REDUCE_SCOPE implementation with scope_reduction_flow module
+  - Telegram governance approval flow integration
+  - Run-level token accumulation for budget decisions
+  - Deterministic auditor parsing for suggested_patches/confidence
+  - Coverage computation via coverage_metrics
+- **Status**: Executor TODOs closed - see [BUILD_HISTORY.md](BUILD_HISTORY.md)
+
+### 2026-01-07: BUILD-189 - Canonical Frontend + CI/Compose/Docs Convergence ✅
+**P0-P2 Gap Analysis Implementation (44 files)**
+- **P0 Security**:
+  - Fix hyphenated header redaction (X-API-Key, Set-Cookie, etc.)
+  - Add production auth requirement enforcement test
+  - Complete truncated MultiFileUpload.tsx component
+- **P1 Hardening**:
+  - Fix docker-compose.dev.yml broken services + commands
+  - Fix python -m autopack entrypoint (was Canada classifier demo)
+  - Fix PROJECT_INDEX.json uvicorn command drift
+  - Fix API version drift (GET / now returns __version__)
+- **P2 Developer Experience**:
+  - Add .pre-commit-config.yaml (ruff, black, bandit hooks)
+  - GitHub templates (issue templates, PR template)
+  - Integration foundations skeleton (secrets/, integrations/, jobs/, browser/)
+- **Status**: Frontend canonical + infrastructure convergence - see [BUILD_HISTORY.md](BUILD_HISTORY.md)
+
+### 2026-01-07: BUILD-188 - Security Baseline Refresh Workflow Hardening ✅
+**Determinism + Safety Hardening for Baseline Refresh Workflow**
+- **Achievement**:
+  - Replaced `git push -f` with `git push --force-with-lease` (prevents accidental overwrites)
+  - Added workflow_dispatch.inputs.artifacts_run_id for deterministic artifact sourcing
+  - Added concurrency block (cancel-in-progress: true) to prevent overlapping runs
+- **Sub-builds**:
+  - BUILD-188.1: Auto-generated archive index with CI contracts (11 files)
+  - BUILD-188.2: Archive index content-aware updates (reduce churn)
+- **Status**: Baseline refresh workflow hardened - see [BUILD_HISTORY.md](BUILD_HISTORY.md)
+
 ### 2026-01-01: BUILD-146 Phase A P17.x Complete - DB Idempotency Hardening ✅
 **Race-Safe Telemetry Under Concurrency**
 - **Achievement**:

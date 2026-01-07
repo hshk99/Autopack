@@ -381,6 +381,71 @@ def _validate_no_absolute_paths(index: ArchiveIndex) -> list[str]:
     return errors
 
 
+def _content_hash(index: ArchiveIndex) -> str:
+    """
+    Generate a hash of the index content excluding volatile fields.
+
+    This allows detecting when actual content has changed vs just timestamps.
+    We exclude: generated_at_utc, mtime_utc (file modification times)
+    """
+    import hashlib
+
+    # Create a copy without volatile fields
+    stable_index = {
+        "schema_version": index["schema_version"],
+        "generator_version": index["generator_version"],
+        "archive_roots": [],
+    }
+
+    for root in index["archive_roots"]:
+        stable_root = {
+            "id": root["id"],
+            "root_rel": root["root_rel"],
+            "kind": root["kind"],
+            "bucket_stats": root["bucket_stats"],  # bucket stats are stable
+            "recent_files": [
+                {
+                    "path_rel": f["path_rel"],
+                    "bytes": f["bytes"],
+                    # Exclude mtime_utc - it's volatile
+                    "kind": f.get("kind"),
+                    "summary_hint": f.get("summary_hint"),
+                }
+                for f in root["recent_files"]
+            ],
+            "provenance": root.get("provenance"),
+        }
+        stable_index["archive_roots"].append(stable_root)
+
+    # Deterministic JSON serialization
+    stable_json = json.dumps(stable_index, sort_keys=True, ensure_ascii=False)
+    return hashlib.sha256(stable_json.encode("utf-8")).hexdigest()[:16]
+
+
+def _should_update_index(new_index: ArchiveIndex, existing_json_path: Path) -> bool:
+    """
+    Determine if the index files need updating.
+
+    Returns True if:
+    - The existing file doesn't exist
+    - The existing file can't be parsed
+    - The content hash differs (actual content changed)
+
+    Returns False if content is identical (only timestamps would change).
+    """
+    if not existing_json_path.exists():
+        return True
+
+    try:
+        existing_data = json.loads(existing_json_path.read_text(encoding="utf-8"))
+        existing_hash = _content_hash(existing_data)
+        new_hash = _content_hash(new_index)
+        return existing_hash != new_hash
+    except (json.JSONDecodeError, KeyError, OSError):
+        # If we can't read/parse existing file, regenerate
+        return True
+
+
 def generate_archive_index(repo_root: Path) -> tuple[ArchiveIndex, list[str]]:
     """
     Generate archive index for the repository.
@@ -419,14 +484,20 @@ def main() -> int:
             print(f"  - {err}", file=sys.stderr)
         return 1
 
-    # Write JSON
     json_path = repo_root / "archive" / "ARCHIVE_INDEX.json"
+    md_path = repo_root / "archive" / "ARCHIVE_INDEX.md"
+
+    # Check if content actually changed (reduces churn from timestamp-only updates)
+    if not _should_update_index(index, json_path):
+        print("[=] No content changes detected, skipping update")
+        return 0
+
+    # Write JSON
     json_content = json.dumps(index, indent=2, ensure_ascii=False)
     json_path.write_text(json_content, encoding="utf-8")
     print(f"[OK] Wrote {json_path.relative_to(repo_root)}")
 
     # Write Markdown
-    md_path = repo_root / "archive" / "ARCHIVE_INDEX.md"
     md_content = _generate_markdown(index, repo_root)
     md_path.write_text(md_content, encoding="utf-8")
     print(f"[OK] Wrote {md_path.relative_to(repo_root)}")

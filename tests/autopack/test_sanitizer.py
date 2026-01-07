@@ -76,8 +76,8 @@ class TestSanitizeQueryParams:
     def test_redacts_api_key_param(self):
         """API key parameter should be redacted."""
         params = {
-            "api_key": "sk_live_abc123"
-        }  # gitleaks:allow (intentional fake key for sanitizer test)
+            "api_key": "sk_live_abc123"  # gitleaks:allow (intentional fake key for sanitizer test)
+        }
         result = sanitize_query_params(params)
         assert result["api_key"] == REDACTED
 

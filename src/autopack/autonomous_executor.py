@@ -2441,11 +2441,11 @@ class AutonomousExecutor:
                                 )
                             else:
                                 logger.warning(
-                                    f"[IntentionFirst] Scope reduction proposal was empty, falling back"
+                                    "[IntentionFirst] Scope reduction proposal was empty, falling back"
                                 )
                         else:
                             logger.warning(
-                                f"[IntentionFirst] No tasks to reduce scope from, falling back"
+                                "[IntentionFirst] No tasks to reduce scope from, falling back"
                             )
                     elif decision == StuckResolutionDecision.NEEDS_HUMAN:
                         logger.critical(

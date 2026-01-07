@@ -2,6 +2,7 @@
 Integration tests for phase proof writing in autonomous_executor.
 
 BUILD-161 Phase A: Verifies executor wiring for phase proof emission.
+BUILD-189: Isolated git metrics to prevent CI workspace pollution.
 
 Tests the actual executor hooks (_mark_phase_complete_in_db, _mark_phase_failed_in_db)
 to ensure phase proofs are written correctly when intention-first loop is active.
@@ -16,6 +17,7 @@ import pytest
 from autopack.config import settings
 from autopack.autonomous_executor import AutonomousExecutor
 from autopack.phase_proof import PhaseProofStorage
+from autopack.proof_metrics import ProofMetrics
 
 
 @pytest.fixture
@@ -30,6 +32,22 @@ def temp_run_dir(tmp_path):
     finally:
         settings.autonomous_runs_dir = old
         shutil.rmtree(runs_root, ignore_errors=True)
+
+
+@pytest.fixture
+def mock_clean_git_metrics():
+    """Mock git metrics to return clean workspace (no uncommitted changes).
+
+    BUILD-189: Prevents CI workspace pollution from affecting phase proof tests.
+    The CI environment may have uncommitted files from doc generation, etc.
+    """
+    clean_metrics = ProofMetrics(
+        files_modified=0,
+        changed_file_sample=[],
+        metrics_placeholder=True,  # Indicate these are test placeholders
+    )
+    with patch("autopack.phase_proof_writer.get_proof_metrics", return_value=clean_metrics):
+        yield clean_metrics
 
 
 @pytest.fixture
@@ -57,7 +75,9 @@ def mock_executor(tmp_path, temp_run_dir):
     return executor
 
 
-def test_phase_proof_written_on_success_when_wiring_active(mock_executor, temp_run_dir):
+def test_phase_proof_written_on_success_when_wiring_active(
+    mock_executor, temp_run_dir, mock_clean_git_metrics
+):
     """
     SUCCESS PATH: When intention wiring is active and phase completes successfully,
     a phase proof file is written with success=True.
@@ -93,7 +113,7 @@ def test_phase_proof_written_on_success_when_wiring_active(mock_executor, temp_r
     assert proof.success is True
     assert proof.error_summary is None
 
-    # Verify placeholder metrics (minimal implementation)
+    # Verify placeholder metrics (mocked clean workspace)
     assert proof.changes.files_created == 0
     assert proof.changes.files_modified == 0
     assert proof.verification.tests_passed == 0

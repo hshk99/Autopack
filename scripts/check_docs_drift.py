@@ -24,6 +24,23 @@ FORBIDDEN_PATTERNS = [
     (r"uvicorn\s+backend\.main:app", "Direct backend.main:app uvicorn command"),
     (r"uvicorn\s+src\.backend\.main:app", "Direct src.backend.main:app uvicorn command"),
 
+    # BUILD-189: Legacy uvicorn targets without PYTHONPATH
+    # Correct: PYTHONPATH=src uvicorn autopack.main:app
+    # Wrong: uvicorn src.autopack.main:app (needs PYTHONPATH, not dotted src path)
+    # Note: We check for src.autopack.main:app pattern - false positives with PYTHONPATH= prefix
+    # are acceptable since they should use autopack.main:app anyway
+    (r"uvicorn\s+src\.autopack\.main:app",
+     "Legacy uvicorn src.autopack.main:app (should be PYTHONPATH=src uvicorn autopack.main:app)"),
+    (r'"uvicorn",\s*"src\.autopack\.main:app"',
+     "Legacy Docker CMD with src.autopack.main:app (should be autopack.main:app with PYTHONPATH env)"),
+
+    # BUILD-189: Legacy autopack.api.server entrypoint (deprecated)
+    # This was the old API server before consolidation
+    (r"uvicorn\s+autopack\.api\.server:app",
+     "Legacy uvicorn autopack.api.server:app (should be autopack.main:app)"),
+    (r"python\s+-m\s+autopack\.api\.server",
+     "Legacy python -m autopack.api.server (should use autopack.main)"),
+
     # Python module execution of backend main
     (r"python\s+-m\s+backend\.main", "Direct python -m backend.main"),
     (r"python\s+src/backend/main\.py", "Direct python src/backend/main.py"),
@@ -49,6 +66,7 @@ EXCLUDED_PATHS = [
     "docs/API_CONSOLIDATION_COMPLETION_SUMMARY.md",  # Completion doc documents migration
     "docs/CANONICAL_API_CONTRACT.md",  # Contract doc documents migration from old endpoint
     "docs/BUILD_HISTORY.md",  # History doc contains P12 entry documenting migration
+    "docs/IMPROVEMENTS_GAP_ANALYSIS.md",  # Gap analysis legitimately discusses legacy patterns
     "scripts/check_docs_drift.py",  # This file (self-reference)
     ".git",  # Git metadata
     "__pycache__",  # Python cache
@@ -56,6 +74,7 @@ EXCLUDED_PATHS = [
     "node_modules",  # Node modules
     ".venv",  # Virtual environment
     "venv",  # Virtual environment
+    "archive",  # Archived docs may contain historical references
 ]
 
 

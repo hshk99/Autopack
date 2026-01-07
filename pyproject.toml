@@ -100,3 +100,7 @@ python_files = "test_*.py"
 python_classes = "Test*"
 python_functions = "test_*"
 asyncio_mode = "auto"
+
+[tool.bandit]
+exclude_dirs = ["tests", "archive", ".autonomous_runs", "venv", ".venv"]
+skips = ["B101"]  # Skip assert_used (common in tests that leak into src)

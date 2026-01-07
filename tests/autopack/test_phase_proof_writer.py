@@ -2,16 +2,19 @@
 Tests for phase proof writer helper.
 
 BUILD-161 Phase A: Intention-first loop integration.
+BUILD-189: Isolated git metrics to prevent CI workspace pollution.
 """
 
 import shutil
 from datetime import datetime, timezone
+from unittest.mock import patch
 
 import pytest
 
 from autopack.config import settings
 from autopack.phase_proof_writer import write_minimal_phase_proof
 from autopack.phase_proof import PhaseProofStorage
+from autopack.proof_metrics import ProofMetrics
 
 
 @pytest.fixture
@@ -28,7 +31,23 @@ def temp_run_dir(tmp_path):
         shutil.rmtree(runs_root, ignore_errors=True)
 
 
-def test_write_minimal_phase_proof_success(temp_run_dir):
+@pytest.fixture
+def mock_clean_git_metrics():
+    """Mock git metrics to return clean workspace (no uncommitted changes).
+
+    BUILD-189: Prevents CI workspace pollution from affecting phase proof tests.
+    The CI environment may have uncommitted files from doc generation, etc.
+    """
+    clean_metrics = ProofMetrics(
+        files_modified=0,
+        changed_file_sample=[],
+        metrics_placeholder=True,  # Indicate these are test placeholders
+    )
+    with patch("autopack.phase_proof_writer.get_proof_metrics", return_value=clean_metrics):
+        yield clean_metrics
+
+
+def test_write_minimal_phase_proof_success(temp_run_dir, mock_clean_git_metrics):
     """Test writing a successful phase proof."""
     run_id = "test-run-success"
     project_id = "test-project"
@@ -56,7 +75,7 @@ def test_write_minimal_phase_proof_success(temp_run_dir):
     assert proof.duration_seconds == pytest.approx(330.0)  # 5 minutes 30 seconds
     assert proof.error_summary is None
 
-    # Verify minimal placeholder values
+    # Verify minimal placeholder values (mocked clean workspace)
     assert proof.changes.files_created == 0
     assert proof.changes.files_modified == 0
     assert proof.verification.tests_passed == 0

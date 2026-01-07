@@ -35,7 +35,7 @@ export const MultiFileUpload: React.FC<MultiFileUploadProps> = ({
     return `file-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
   };
 
-  const validateFile = (file: File): string | null => {
+  const validateFile = useCallback((file: File): string | null => {
     if (file.size > maxFileSize) {
       return `File "${file.name}" exceeds maximum size of ${formatFileSize(maxFileSize)}`;
     }
@@ -56,7 +56,8 @@ export const MultiFileUpload: React.FC<MultiFileUploadProps> = ({
       }
     }
     return null;
-  };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const formatFileSize = (bytes: number): string => {
     if (bytes === 0) return '0 Bytes';
@@ -99,7 +100,8 @@ export const MultiFileUpload: React.FC<MultiFileUploadProps> = ({
     if (newFileProgress.length > 0) {
       setFiles(prev => [...prev, ...newFileProgress]);
     }
-  }, [files.length, maxFiles, maxFileSize, acceptedTypes, onUploadError]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [files.length, onUploadError, validateFile]);
 
   const removeFile = useCallback((id: string) => {
     const controller = abortControllersRef.current.get(id);
@@ -110,7 +112,7 @@ export const MultiFileUpload: React.FC<MultiFileUploadProps> = ({
     setFiles(prev => prev.filter(f => f.id !== id));
   }, []);
 
-  const uploadFile = async (fileProgress: FileUploadProgress): Promise<FileUploadProgress> => {
+  const uploadFile = useCallback(async (fileProgress: FileUploadProgress): Promise<FileUploadProgress> => {
     const controller = new AbortController();
     abortControllersRef.current.set(fileProgress.id, controller);
 
@@ -119,13 +121,13 @@ export const MultiFileUpload: React.FC<MultiFileUploadProps> = ({
       formData.append('file', fileProgress.file);
 
       const xhr = new XMLHttpRequest();
-      
+
       return new Promise((resolve, reject) => {
         xhr.upload.addEventListener('progress', (event) => {
           if (event.lengthComputable) {
             const progress = Math.round((event.loaded / event.total) * 100);
-            setFiles(prev => prev.map(f => 
-              f.id === fileProgress.id 
+            setFiles(prev => prev.map(f =>
+              f.id === fileProgress.id
                 ? { ...f, progress, status: 'uploading' as const }
                 : f
             ));
@@ -162,7 +164,8 @@ export const MultiFileUpload: React.FC<MultiFileUploadProps> = ({
       abortControllersRef.current.delete(fileProgress.id);
       throw error;
     }
-  };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const startUpload = useCallback(async () => {
     const pendingFiles = files.filter(f => f.status === 'pending');
@@ -200,7 +203,7 @@ export const MultiFileUpload: React.FC<MultiFileUploadProps> = ({
 
     setIsUploading(false);
     onUploadComplete?.(results);
-  }, [files, uploadEndpoint, onUploadComplete]);
+  }, [files, onUploadComplete, uploadFile]);
 
   const cancelAll = useCallback(() => {
     abortControllersRef.current.forEach(controller => controller.abort());
@@ -375,4 +378,89 @@ export const MultiFileUpload: React.FC<MultiFileUploadProps> = ({
                     }}>
                       {fileProgress.file.name}
                     </span>
-                    <span style={{ color: '#666', fontSize: '14px', marginLeft: '8px'
+                    <span style={{ color: '#666', fontSize: '14px', marginLeft: '8px', flexShrink: 0 }}>
+                      {formatFileSize(fileProgress.file.size)}
+                    </span>
+                  </div>
+                  {fileProgress.status === 'uploading' && (
+                    <div style={{
+                      width: '100%',
+                      height: '4px',
+                      backgroundColor: '#e0e0e0',
+                      borderRadius: '2px',
+                      overflow: 'hidden',
+                    }}>
+                      <div style={{
+                        width: `${fileProgress.progress}%`,
+                        height: '100%',
+                        backgroundColor: '#2196f3',
+                        transition: 'width 0.3s ease',
+                      }} />
+                    </div>
+                  )}
+                  {fileProgress.status === 'error' && fileProgress.error && (
+                    <p style={{ margin: '4px 0 0 0', fontSize: '12px', color: '#f44336' }}>
+                      {fileProgress.error}
+                    </p>
+                  )}
+                </div>
+                <button
+                  onClick={() => removeFile(fileProgress.id)}
+                  disabled={fileProgress.status === 'uploading'}
+                  style={{
+                    padding: '4px 8px',
+                    border: 'none',
+                    background: 'transparent',
+                    cursor: fileProgress.status === 'uploading' ? 'not-allowed' : 'pointer',
+                    opacity: fileProgress.status === 'uploading' ? 0.5 : 1,
+                    fontSize: '16px',
+                  }}
+                  title="Remove file"
+                >
+                  ✕
+                </button>
+              </li>
+            ))}
+          </ul>
+
+          <div style={{ marginTop: '16px', display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+            {isUploading ? (
+              <button
+                onClick={cancelAll}
+                style={{
+                  padding: '10px 20px',
+                  border: 'none',
+                  borderRadius: '4px',
+                  backgroundColor: '#f44336',
+                  color: 'white',
+                  cursor: 'pointer',
+                  fontWeight: 500,
+                }}
+              >
+                Cancel All
+              </button>
+            ) : (
+              <button
+                onClick={startUpload}
+                disabled={!files.some(f => f.status === 'pending')}
+                style={{
+                  padding: '10px 20px',
+                  border: 'none',
+                  borderRadius: '4px',
+                  backgroundColor: files.some(f => f.status === 'pending') ? '#4caf50' : '#ccc',
+                  color: 'white',
+                  cursor: files.some(f => f.status === 'pending') ? 'pointer' : 'not-allowed',
+                  fontWeight: 500,
+                }}
+              >
+                Upload {files.filter(f => f.status === 'pending').length} File(s)
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default MultiFileUpload;

@@ -139,13 +139,13 @@ To test the integration stubs:
 docker-compose up -d
 
 # Test Cursor integration
-python integrations/cursor_integration.py
+python scripts/integrations/cursor_integration.py
 
 # Test Codex integration
-python integrations/codex_integration.py
+python scripts/integrations/codex_integration.py
 
 # Test Supervisor
-python integrations/supervisor.py
+python scripts/integrations/supervisor.py
 ```
 
 ## API Endpoints Used

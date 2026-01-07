@@ -16,7 +16,7 @@
 # SOT ledger documents (source of truth)
 /docs/WORKSPACE_ORGANIZATION_SPEC.md @hshk99
 /docs/GOVERNANCE.md @hshk99
-/docs/SECURITY_BASELINE.md @hshk99
+/security/README.md @hshk99
 /docs/INDEX.md @hshk99
 /docs/BUILD_HISTORY.md @hshk99
 /docs/DEBUG_LOG.md @hshk99

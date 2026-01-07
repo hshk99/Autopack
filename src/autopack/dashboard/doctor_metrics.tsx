@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 
 interface DoctorStats {
   current_run: {
@@ -34,12 +34,12 @@ export const DoctorMetrics: React.FC<DoctorMetricsProps> = ({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchStats = async () => {
+  const fetchStats = useCallback(async () => {
     try {
       const url = runId
         ? `/api/doctor-stats?run_id=${runId}`
         : '/api/doctor-stats';
-      
+
       const response = await fetch(url, {
         headers: {
           'X-API-Key': apiKey,
@@ -58,13 +58,13 @@ export const DoctorMetrics: React.FC<DoctorMetricsProps> = ({
     } finally {
       setLoading(false);
     }
-  };
+  }, [apiKey, runId]);
 
   useEffect(() => {
     fetchStats();
     const interval = setInterval(fetchStats, refreshInterval);
     return () => clearInterval(interval);
-  }, [apiKey, runId, refreshInterval]);
+  }, [apiKey, runId, refreshInterval, fetchStats]);
 
   if (loading) {
     return <div className="doctor-metrics loading">Loading Doctor metrics...</div>;

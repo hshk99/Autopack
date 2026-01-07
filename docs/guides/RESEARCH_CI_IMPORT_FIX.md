@@ -387,7 +387,7 @@ PYTHONUTF8=1 PYTHONPATH=src DATABASE_URL="sqlite:///autopack.db" pytest --collec
 ```bash
 # Start API server (persistent)
 PYTHONUTF8=1 PYTHONPATH=src DATABASE_URL="sqlite:///autopack.db" \
-  python -m uvicorn autopack.api.server:app --host 127.0.0.1 --port 8000 &
+  python -m uvicorn autopack.main:app --host 127.0.0.1 --port 8000 &
 
 # Run small batch drain
 PYTHONUTF8=1 PYTHONPATH=src DATABASE_URL="sqlite:///autopack.db" \

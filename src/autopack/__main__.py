@@ -16,16 +16,12 @@ def main():
         prog="autopack",
         description="Autopack - Autonomous Build Framework",
     )
-    parser.add_argument(
-        "--version", action="store_true", help="Show version and exit"
-    )
+    parser.add_argument("--version", action="store_true", help="Show version and exit")
 
     subparsers = parser.add_subparsers(dest="command", help="Available commands")
 
     # 'serve' command - start the API server
-    serve_parser = subparsers.add_parser(
-        "serve", help="Start the Autopack API server"
-    )
+    serve_parser = subparsers.add_parser("serve", help="Start the Autopack API server")
     serve_parser.add_argument(
         "--host", default="127.0.0.1", help="Host to bind to (default: 127.0.0.1)"
     )
@@ -37,22 +33,20 @@ def main():
     )
 
     # 'run' command - run the autonomous executor
-    run_parser = subparsers.add_parser(
-        "run", help="Run the autonomous executor"
-    )
-    run_parser.add_argument(
-        "run_id", help="Run ID for the autonomous execution"
-    )
+    run_parser = subparsers.add_parser("run", help="Run the autonomous executor")
+    run_parser.add_argument("run_id", help="Run ID for the autonomous execution")
 
     args = parser.parse_args()
 
     if args.version:
         from .version import __version__
+
         print(f"Autopack {__version__}")
         return 0
 
     if args.command == "serve":
         import uvicorn
+
         uvicorn.run(
             "autopack.main:app",
             host=args.host,
@@ -63,6 +57,7 @@ def main():
 
     elif args.command == "run":
         from .autonomous_executor import main as executor_main
+
         # autonomous_executor.main() expects sys.argv-style arguments
         sys.argv = ["autopack-run", "--run-id", args.run_id]
         return executor_main()

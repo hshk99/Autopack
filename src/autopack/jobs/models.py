@@ -82,9 +82,17 @@ class Job:
             args=data.get("args", {}),
             status=JobStatus(data.get("status", "pending")),
             priority=JobPriority(data.get("priority", 1)),
-            created_at=datetime.fromisoformat(data["created_at"]) if data.get("created_at") else datetime.now(),
-            started_at=datetime.fromisoformat(data["started_at"]) if data.get("started_at") else None,
-            completed_at=datetime.fromisoformat(data["completed_at"]) if data.get("completed_at") else None,
+            created_at=(
+                datetime.fromisoformat(data["created_at"])
+                if data.get("created_at")
+                else datetime.now()
+            ),
+            started_at=(
+                datetime.fromisoformat(data["started_at"]) if data.get("started_at") else None
+            ),
+            completed_at=(
+                datetime.fromisoformat(data["completed_at"]) if data.get("completed_at") else None
+            ),
             retry_count=data.get("retry_count", 0),
             max_retries=data.get("max_retries", 3),
             error_message=data.get("error_message"),

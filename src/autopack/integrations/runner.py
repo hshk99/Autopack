@@ -192,7 +192,9 @@ class IntegrationRunner:
                     action=action,
                     started_at=started_at,
                     completed_at=datetime.now(),
-                    result_data=result_data if isinstance(result_data, dict) else {"result": result_data},
+                    result_data=(
+                        result_data if isinstance(result_data, dict) else {"result": result_data}
+                    ),
                     retry_count=retry_count,
                 )
 
